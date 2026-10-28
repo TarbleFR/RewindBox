@@ -70,12 +70,13 @@ void main() {
           // profile no longer forces any shader mode.
           expect(profile.settings.containsKey('gpu.shader_mode'), isFalse);
           expect(profile.settings['gpu.multithreaded_rsx'], 'true');
-          // Build 552: the 551 boots crashed with asynchronous MoltenVK
-          // submits; they and asynchronous texture streaming, which had
-          // never run on the iPhone, are explicitly off for this title.
+          // Build 552: asynchronous texture streaming, which has never run
+          // on the iPhone, is explicitly off for this title. Build 587: the
+          // Core's Automatic mode decides asynchronous MoltenVK submits (God
+          // of War III, behind the encode barrier and the boot canary).
           expect(
             profile.settings['experimental.moltenvk_async_submits'],
-            'Disabled',
+            'Automatic',
           );
           expect(profile.settings['gpu.async_texture_uploads'], 'false');
           expect(profile.settings['experimental.fifo_cache_size'], '4 KiB');
@@ -187,7 +188,7 @@ void main() {
         yaml,
         contains('  Vulkan:\n    Asynchronous Texture Streaming: false'),
       );
-      expect(yaml, contains('MoltenVK Asynchronous Submits: Disabled'));
+      expect(yaml, contains('MoltenVK Asynchronous Submits: Automatic'));
       expect(yaml, isNot(contains('MoltenVK Asynchronous Submits: Enabled')));
       expect(yaml, contains('FPS Optimization Batch: Enabled'));
       expect(yaml, contains('RSX FIFO Read Cache: 4 KiB'));
@@ -204,6 +205,35 @@ void main() {
       expect(yaml, contains('Write Color Buffers: true'));
       expect(yaml, isNot(contains('Audio:')));
     });
+
+    test(
+      'Black Ops II keeps its official entry and relaxes SPU reservations',
+      () async {
+        // Build 587: the build 583 logs show its SPUs parking every PPU
+        // thread for each data-changing PUTLLC under accurate reservations.
+        final profile = Rpcs3GameProfileService.profileForSerial('BLES01717')!;
+        expect(profile.settings, <String, String>{
+          'advanced.accurate_spu_reservations': 'false',
+        });
+        final payload = await Rpcs3GameProfileService.databasePayloadForSerials(
+          <String>['BLES01717'],
+        );
+        final games =
+            (jsonDecode(payload) as Map<String, dynamic>)['games']
+                as Map<String, dynamic>;
+        final yaml =
+            (games['BLES01717'] as Map<String, dynamic>)['config'] as String;
+        expect(yaml, contains('Accurate SPU Reservations: false'));
+        expect(yaml, contains('SPU Block Size: Safe'));
+        expect(yaml, contains('Accurate ZCULL stats: false'));
+        expect(yaml, contains('Relaxed ZCULL Sync: false'));
+        expect(yaml, isNot(contains('MoltenVK Asynchronous Submits')));
+        expect(
+          Rpcs3GameProfileService.profileForSerial('BLUS31011')!.settings,
+          isEmpty,
+        );
+      },
+    );
 
     test(
       'Dragon Ball Z HD Collection runs the global profile it ran on 547',

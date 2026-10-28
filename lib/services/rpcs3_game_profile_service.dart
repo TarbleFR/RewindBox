@@ -161,6 +161,23 @@ abstract final class Rpcs3GameProfileService {
     // global profile it ran on 547 (31-35 fps, no crash); a lever comes back
     // only alone and with device evidence.
 
+    // Call of Duty: Black Ops II (BLES01717), build 583 iPhone logs: the
+    // game is SPU-bound (3.6-4.3 SPU cores, RSX thread 0.15-0.18 core). In
+    // the game scenes its SPUs store 1.1-6.3 million data-changing PUTLLC per
+    // 5 s window; with "Accurate SPU Reservations" (Core default true) each
+    // one takes the exclusive writer lock that parks every running PPU
+    // thread: 0.74-2.9 s of writer-lock acquisition per window on the SPUs,
+    // 4,000-9,500 PPU waits for 0.3-0.9 s (RANGELOCKPROF wl_putllc,
+    // WAITPROF527 vm_range_episode). The frame rate follows them: 47-61 fps
+    // under 0.4 million heavy PUTLLC per window, 24-29 fps around 1.2
+    // million, 6-22 fps above 2.4 million. The relaxed path keeps the
+    // reservation protocol; a change confined to one 16-byte lane is a
+    // compare-and-swap under a range lock, without the writer lock. Same
+    // choice as God of War III since Build 412; the official RPCS3 entry of
+    // the title (SPU Block Size Safe, ZCULL) does not ask for accurate
+    // reservations. Measured on the next run by the same counters.
+    'BLES01717': {'advanced.accurate_spu_reservations': 'false'},
+
     // ARMSX3 issue #77 is guest pacing rather than an Android driver hack.
     // PS3 Native honours the title's alternate-vblank flip cadence.
     'BLUS31213': {'gpu.frame_limit': 'PS3 Native'},
@@ -207,13 +224,17 @@ abstract final class Rpcs3GameProfileService {
     'experimental.fps_optimization_batch': 'Enabled',
     'experimental.fifo_cache_size': '4 KiB',
     'experimental.getllar_backoff': 'Enabled',
-    // Build 552: MoltenVK keeps synchronous submits. The 551 asynchronous
-    // submits (Metal encoding on MoltenVK's own queue thread, high global
-    // priority) ran for the first time in the 551 boots, all of which ended
-    // within 0.4 s of boot return, while only the RSX thread was starting
-    // (shader cache, first submits and presents). Explicit, so neither the
-    // GameDB nor a global value can turn them back on for this title.
-    'experimental.moltenvk_async_submits': 'Disabled',
+    // Build 552 kept MoltenVK submits synchronous after the 551 boots ended
+    // within 0.4 s of boot return, while the RSX thread flipped the shader
+    // cache dialog. Build 587: the Core decides. With asynchronous submits,
+    // MoltenVK 1.4.2 encodes on its own queue thread after vkQueueSubmit has
+    // returned, and vkAcquireNextImageKHR releases, without a lock, the
+    // drawable that a still-queued present and the render before it use. The
+    // Core 587 now waits for the last queued present before every
+    // acquisition, and its Automatic mode turns them on for God of War III
+    // only while the title's last asynchronous boot finished (a boot that
+    // did not finish returns it to synchronous submits for good).
+    'experimental.moltenvk_async_submits': 'Automatic',
     // The Core recognizes only the two official MLAA SPU hashes for God of
     // War III 01.00/01.03. It cannot affect another SPU module or title.
     'experimental.gow3_mlaa_bypass': 'Enabled',
