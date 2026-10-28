@@ -1,0 +1,252 @@
+{
+  "build": 591,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "12dd45b2125485614d232dd05675ceebaa6c0a1e",
+  "coreCommit": "5ec092ca9f35314a954fb9db24f4fc7fd5785d58",
+  "run": 40782533853,
+  "workflow": ".github/workflows/rpcs3-cell591-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "xcode": "16.4",
+    "llvm": "22.1.8"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12857734971,
+      "name": "RPCS3Core-12dd45b2125485614d232dd05675ceebaa6c0a1e",
+      "bytes": 29092786,
+      "digest": "sha256:e553d540b684c6ace37f8c187182af4277d17de08a0af5791083541ac031ed41"
+    },
+    "diagnostics": {
+      "id": 12858556547,
+      "name": "RPCS3Core-diagnostics-12dd45b2125485614d232dd05675ceebaa6c0a1e",
+      "bytes": 208765,
+      "digest": "sha256:11e4b2146ec04489877b3f701bce257500775fcedfcfda92c7588d16c062b1dd"
+    },
+    "preflight": {
+      "id": 12857468815,
+      "name": "RPCS3Core-preflight-12dd45b2125485614d232dd05675ceebaa6c0a1e",
+      "bytes": 24239,
+      "digest": "sha256:965b8d1177d3fe2d3e16436be0272c26b4d50f599f7b324b0a27e6bf9c2f8011"
+    }
+  },
+  "core": {
+    "sha256": "08903af6e8f2ff5ddf267c27fa3128df35d737037ec9fa359be024d5302d28f1",
+    "bytes": 77231888,
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "a4acc9c37c1873feb702898b70186b58476922268545edcf71349def91acc7de",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "platform": 2,
+    "recordedInputs": 142,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom589": true,
+    "coldCompileRequiredByThisChange": false,
+    "moltenvkArchive": "0ee6ae968193749e56d76be71dafb7c36ce4aa19b84f5bb69acd8154d38e06a1",
+    "encodingQueueHookLinked": true,
+    "legacyCoreBundled": false
+  },
+  "proof": {
+    "allTestsPassed": true,
+    "tests": [
+      "cell591"
+    ],
+    "nativeResultSHA256": "ef14eeb84bd0639a32bfc1d5c200576ae981052015f70b7ac3b98f31266e3b80",
+    "identitySHA256": "c7f24cf9d35f27dca77e99096b9221d26436d0dded74c2a8dba6727f5b0c20c3",
+    "proofSHA256": "ebe7465aa9d5b76f7ed1580d8b1f2b5a3cec184c04c3b09d80de7a9c429494c9"
+  },
+  "pinnedLLVM22Tested": true,
+  "nativeResult": {
+    "passed": true,
+    "availableChecksPassed": true,
+    "result": "passed",
+    "hostSystem": "Darwin",
+    "hostMachine": "arm64",
+    "sourceContract": {
+      "fixtureSHA256": "21dd39e3e33f8f5fb99f99d106285e1ef9372201dd148caf475525565c3562c8",
+      "changedPaths": [
+        "Utilities/JITLLVM.cpp",
+        "rpcs3/Emu/CPU/JITCacheCompatibility.cmake",
+        "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp",
+        "rpcs3/Emu/RSX/rsx_cache.h"
+      ],
+      "untouchedCanonicalFiles": 301,
+      "offIOSUnchanged": [
+        "Utilities/JITLLVM.cpp",
+        "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp",
+        "rpcs3/Emu/RSX/rsx_cache.h"
+      ],
+      "codegen": {
+        "PPU": "a987639e9f838d1c",
+        "SPU": "d070cb361bdef607"
+      },
+      "coldCompileRequiredByThisChange": false,
+      "interpreterUnchanged": true
+    },
+    "shaderWarmup": {
+      "passed": true,
+      "source": "/Users/runner/work/_temp/cell591-source-preflight/rpcs3/Emu/RSX/rsx_cache.h",
+      "sourceSHA256": "0c0d35e06ca3599dffb09f272bc8e656c84ceb08b516d74abb0b5476668c9573",
+      "testHarnessSHA256": "983908d6a2989da51f23de5f5bac89074b23169b58e84dead8c3148c99f4071d",
+      "results": {
+        "plain": {
+          "passed": true,
+          "beforeRetainedBuffers": 48,
+          "afterRetainedBuffers": 0,
+          "bytesReleasedAfterOneLoad": 393216,
+          "repeatedLoads": 4,
+          "cancellationJoined": true,
+          "compiledCopiesValid": true
+        },
+        "asanUbsan": {
+          "passed": true,
+          "beforeRetainedBuffers": 48,
+          "afterRetainedBuffers": 0,
+          "bytesReleasedAfterOneLoad": 393216,
+          "repeatedLoads": 4,
+          "cancellationJoined": true,
+          "compiledCopiesValid": true
+        }
+      },
+      "mutations": {
+        "releaseOmitted": {
+          "rejected": true,
+          "reason": "retained-buffer assertion"
+        },
+        "releaseBeforeCompile": {
+          "rejected": true,
+          "reason": "AddressSanitizer: heap-use-after-free"
+        }
+      },
+      "deviceRuntimeTested": false,
+      "gameplayGainClaimed": false
+    },
+    "spuLifetime": {
+      "passed": true,
+      "cleanup": {
+        "passed": true,
+        "cases": {
+          "plain": {
+            "before": {
+              "sourceBodiesSHA256": "b3ac55adfa5913965001a08b3aae65dadbc829bd90a84d7cc339ff7620c19e88",
+              "harnessSHA256": "1e2fae01d8a5b17eb6f2f631301a5bb7c825a5ad9e15df2d1c9fb9d02cd76f7f",
+              "returncode": -6,
+              "expectedFailure": true,
+              "stderr": "Assertion failed: (compiler.m_engine->cache == nullptr && \"recoverable path leaves dangling ObjectCache\"), function main, file cleanup-before-plain.cpp, line 91."
+            },
+            "after": {
+              "sourceBodiesSHA256": "f54d7302644d03f5fc3cc94b7ba77c4fa2d90245bab9f667d477301a222cbdf2",
+              "harnessSHA256": "0d43fb05a13f1d490231a92be9ae88439f8ecefaac1b39872bb3391faa27ff07",
+              "returncode": 0,
+              "expectedFailure": false,
+              "stderr": ""
+            }
+          },
+          "addressUndefined": {
+            "before": {
+              "sourceBodiesSHA256": "b3ac55adfa5913965001a08b3aae65dadbc829bd90a84d7cc339ff7620c19e88",
+              "harnessSHA256": "1e2fae01d8a5b17eb6f2f631301a5bb7c825a5ad9e15df2d1c9fb9d02cd76f7f",
+              "returncode": -6,
+              "expectedFailure": true,
+              "stderr": "Assertion failed: (compiler.m_engine->cache == nullptr && \"recoverable path leaves dangling ObjectCache\"), function main, file cleanup-before-addressUndefined.cpp, line 91."
+            },
+            "after": {
+              "sourceBodiesSHA256": "f54d7302644d03f5fc3cc94b7ba77c4fa2d90245bab9f667d477301a222cbdf2",
+              "harnessSHA256": "0d43fb05a13f1d490231a92be9ae88439f8ecefaac1b39872bb3391faa27ff07",
+              "returncode": 0,
+              "expectedFailure": false,
+              "stderr": ""
+            }
+          }
+        },
+        "scope": "Real try_add bodies; worker false is an outcome adapter, not a real LLVM fatal. The following uncached operation must see no stack cache."
+      },
+      "mcjitLifetime": {
+        "passed": true,
+        "nativeCppRan": true,
+        "llvmVersion": "22.1.8",
+        "pinnedLLVMRequired": true,
+        "releaseBlockSHA256": "e26b3f63f341e3066f93e6595083a60e7bb25e005def7bc1870f0ec35d35b986",
+        "nativeHarnessSHA256": "a3adbf8418d1356164cfa5ace1d884aef6e6b8c80d1bf3f901e3800010977a06",
+        "cases": {
+          "plain": {
+            "passed": true,
+            "modulesReleased": 66,
+            "crossModuleCallers": 64,
+            "cachedObjectHits": 1,
+            "nativeCodeAndDataPreserved": true
+          },
+          "addressUndefined": {
+            "passed": true,
+            "modulesReleased": 66,
+            "crossModuleCallers": 64,
+            "cachedObjectHits": 1,
+            "nativeCodeAndDataPreserved": true
+          }
+        },
+        "scope": "Exact production release block against real pinned LLVM22 MCJIT; native objects, globals, cached relocations and later modules remain usable."
+      },
+      "inputs": {
+        "test/native/rpcs3_cell591_spu.py": "a9fc328e96f65e011528b352d98d67692ed289580cd1eeb9357c8eb74ea54c9a",
+        "test/native/rpcs3_cell591_mcjit.cpp": "f5429a2cfaf79995deac89e9e671679c8462620425b36d2abd7fe1f5b8321a0b"
+      },
+      "physicalDeviceTested": false,
+      "gameplayMeasured": false,
+      "scope": "Host resource lifetime and recovered-error cleanup only; no iPhone memory, FPS or crash result inferred.",
+      "pinnedLLVM22Tested": true
+    },
+    "pinnedLLVM22Tested": true,
+    "physicalDeviceTested": false,
+    "gameplayMeasured": false,
+    "gainClaimed": false,
+    "scope": "New lifetime regressions only. Shader warmup adapters exercise actual production bodies and ownership helpers. MCJIT uses actual LLVM; native code, globals, object-cache relocation and later compilations must survive removed IR. No iPhone RAM/FPS result.",
+    "inputs": {
+      "test/rpcs3_cell591_test.py": "d8ccfc3e30962590ec28d921929d9788767044bb5d38dd17318e26c73c0cce15",
+      "test/native/rpcs3_cell591_warmup.py": "a69c1ae19e8ab95fb133e180c1bf698fb8f557ca9ae6b6aca32f1870269f8dec",
+      "test/native/rpcs3_cell591_spu.py": "a9fc328e96f65e011528b352d98d67692ed289580cd1eeb9357c8eb74ea54c9a",
+      "test/native/rpcs3_cell591_mcjit.cpp": "f5429a2cfaf79995deac89e9e671679c8462620425b36d2abd7fe1f5b8321a0b"
+    }
+  },
+  "duration": {
+    "jobSeconds": 767.0,
+    "startedAt": "2026-10-28T22:46:43Z",
+    "completedAt": "2026-10-28T22:59:30Z",
+    "longestSteps": [
+      {
+        "name": "Compile actual iPhone Core from the verified source",
+        "seconds": 597.0
+      },
+      {
+        "name": "Authenticate the 589 baseline and execute only the 591 delta on ARM64",
+        "seconds": 68.0
+      },
+      {
+        "name": "Checkout immutable candidate",
+        "seconds": 27.0
+      }
+    ]
+  },
+  "independentInspection": {
+    "coreArchiveDigestVerified": true,
+    "diagnosticsArchiveDigestVerified": true,
+    "preflightArchiveDigestVerified": true,
+    "coreFileDigestVerified": true,
+    "machoPlatform": 2,
+    "definedSymbols": 88,
+    "identityMatchesDiagnosticIdentity": true,
+    "nativeResultBoundToProof": true,
+    "currentInputsMatched": true
+  },
+  "scope": "New 591 source-bound lifetime regressions executed on ARM64 with LLVM22.1.8, plain and ASan/UBSan. iPhone Core compiled and independently inspected. No iPhone gameplay, FPS, frametime, RAM or crash result is inferred; not an IPA."
+}

@@ -108,3 +108,31 @@ gain de FPS, baisse chiffrée de RAM iPhone, disparition de crash ou suppression
 des pauses de compilation n'est revendiqué.** La dernière IPA livrée demeure
 la 586 ; ces sources ne sont pas encore une IPA. Toute livraison suivante
 doit partir de sa base vérifiée et ne contrôler que le delta et l'IPA finale.
+
+
+## 5. Core iPhone compilé et vérifié
+
+Run `40782533853`, source `12dd45b2125485614d232dd05675ceebaa6c0a1e`
+(code `5ec092ca9f35314a954fb9db24f4fc7fd5785d58`) : **réussi**.
+[Preuve Mac complète](evidence/rpcs3-cell591-macos.json).
+
+- Véritable LLVM **22.1.8** sur Mac ARM64 : les tests natifs et les tests de
+  propriété des shaders passent en simple et ASan/UBSan. Les 66 Modules sont
+  détruits, 64 appelants ultérieurs et un objet réellement relu depuis le
+  cache restent utilisables. Le code et les données natifs sont préservés.
+- Core iPhone : **77 231 888 octets**, SHA-256
+  `08903af6e8f2ff5ddf267c27fa3128df35d737037ec9fa359be024d5302d28f1` ;
+  ABI 30, 88 exports, chargement passif et hooks MoltenVK conservés.
+  Les archives du Core et des diagnostics ont été téléchargées et leurs
+  digests vérifiés ; le Mach-O et l'identité ont été contrôlés à part.
+- Durée du job : **12 min 47 s** ; compilation **9 min 57 s** ; nouveaux tests
+  et authentification de la référence **1 min 08 s**. Pas de répétition des
+  anciennes campagnes.
+- `.github/diagnostics/rpcs3cell591_delivery_core.py` lie ce Core pour une
+  future recette issue de la base 586, avec le profil Assassin's Creed 589.
+  Le reçu et l'identité réels passent son contrat ; les entrées sont
+  calculées une seule fois par processus. Ce module ne construit pas d'IPA.
+
+Le Core est disponible dans l'artefact `12857734971`. **L'IPA 586 installée
+reste sur son Core 587** : aucun résultat de jeu de la 591 n'est encore
+mesuré, aucune nouvelle IPA ni release publique n'est créée ici.
