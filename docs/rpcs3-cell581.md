@@ -113,3 +113,19 @@ Xcode 16.4) ; rapport :
   principale indisponible).
 - `JITMEM texture_hash_ticks` : le temps que le RSX passe encore à hacher.
 - FPS, temps d'image, et occupation et CPU du thread RSX.
+
+## 6. Premiers journaux iPhone (28 octobre)
+
+Voir [`rpcs3-cell583.md`](rpcs3-cell583.md), section 1. Dans des scènes
+comparables de God of War III (579 + 581 contre 575) :
+- 26-30 fps au lieu de 18-20 ;
+- `texture_ms` du RSX passé de 8,6-12,5 à 4,3-5,8 ms par image ;
+- 56 % des validations servies par le thread auxiliaire, 48 % de son travail
+  perdu.
+
+Black Ops II est limité par les SPU, et le thread y sert 20 à 28 % des
+validations : le 583 le retire de l'Automatique.
+
+Correction de la section 1 : `JITMEM` ne compte que le hachage hybride (lot FPS
+de God of War III). Black Ops II hache bien des milliers de textures par
+fenêtre ; Dragon Ball Z n'est pas mesuré.

@@ -86,6 +86,44 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
    mechanism that acts only when its condition occurs, device logs on at
    least two titles without regression, and an unchanged Disabled path.
 
+## RPCS3 Core 583: texture pre-validation pacing, God of War III only — 28 October 2026
+
+- First iPhone logs of private 581 (God of War III, Black Ops II):
+  - God of War III, comparable ~700-draw scenes, 579 + 581 vs 575:
+    132-153 frames per 5 s window (26-31 fps) against 90-102 (18-20); median
+    interval 32-38 ms against 49-54; `RSXFRAME551 texture_ms` 4.3-5.8 against
+    8.6-12.5 ms per frame; RSX-side hashing 2.1-3.2 against 6.5-9.1 ms per
+    frame. Heavy 2,100-2,600-draw scenes: 12-13 fps, about 5 % better.
+  - The worker served 56 % of the >= 64 KiB validations and hashed 82.7 GB for
+    42.9 GB served (48 % wasted), at about 17 GB/s.
+  - `JITMEM texture_hash_*` counts every hybrid hash, the worker's included,
+    and only the hybrid path (God of War III's FPS batch). Black Ops II does
+    hash: 5,000-20,000 validations per window. Dragon Ball Z is unmeasured;
+    the 581 doc's "hash nothing" is corrected there.
+  - Black Ops II is SPU-bound (3.4-4.1 SPU cores, RSX thread 0.1-0.5): 20-28 %
+    served for up to 0.13 core of worker time and 1,756-4,602 skipped
+    main-memory ranges per window. Its three `FREEZE_DUMP no_frames`
+    (3.0/6.6/7.6 s) coincide with Vulkan pipeline builds (up to 15 per window,
+    5.5 s, 0.66 s max) and SPU compiles: first play of those areas, rule 5.
+- Core change (`docs/rpcs3-cell583.md`, record `cell583`, five iOS files, the
+  shared `texture_cache.cpp` change is inside its iOS block, codegen
+  identities unchanged): `CELL583_PREHASH_PACING`.
+  - Texture Pre-Validation Automatic = God of War III only.
+  - The worker skips ranges the RSX thread already passed in this frame
+    (`g_position`, `worker_passed`).
+  - The RSX thread wakes the worker halfway through its prepared ranges
+    instead of the 4 ms timeout (`worker_refills`).
+  - New profile line `COREPROF OPT583`; `OPT581` unchanged.
+- Local:
+  - `test/rpcs3_cell583_test.py` runs the 581 model with the 581 worker and
+    the 583 worker. Steady state 70.6 -> 83.3 % served (ASan 80.6, TSan
+    79.4); tight loop 29 -> 67 %; 0 stale; both 581 mutations still caught.
+  - The unmap race of the model is bounded at 40,000 frames.
+  - ARM64 diagnostics of the 4 units equal to 581; pin, scheduling and the
+    583 driver contract (139 inputs).
+  - Evidence `docs/evidence/rpcs3-cell583-host-linux.json`. No iPhone
+    measurement of 583.
+
 ## MeloNX engine 582: JIT units end where another translation starts; Switch discovery off the main thread — 28 October 2026
 
 - Builds 575-576 app.log: in 12 of 18 MeloNX sessions the iOS main thread ran
@@ -148,6 +186,7 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
   snapshot and the Swift bridge). Receipt
   `docs/evidence/melonx-entry582-delivery.json`. Not tested on iPhone; no
   FPS, loading-time or memory gain claimed. Do not reuse the number 582.
+
 
 ## RPCS3 Core 581: texture pre-validation by a worker thread (God of War III) — 28 October 2026
 

@@ -15516,7 +15516,7 @@ index 817192730..967267261 100644
  				Traits::clone_surface(cmd, sink, region.source, new_address, region, region.source->resolution_scaling_config);
  				allocate_rsx_memory(Traits::get(sink));
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache.cpp b/rpcs3/Emu/RSX/Common/texture_cache.cpp
-index 6b306657f..546ea1bc3 100644
+index 6b306657f..298e7749e 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache.cpp
 +++ b/rpcs3/Emu/RSX/Common/texture_cache.cpp
 @@ -9,7 +9,21 @@
@@ -15541,7 +15541,7 @@ index 6b306657f..546ea1bc3 100644
  #define XXH_INLINE_ALL
  #pragma clang diagnostic push
  #pragma clang diagnostic ignored "-Wold-style-cast"
-@@ -33,6 +47,308 @@ namespace
+@@ -33,6 +47,340 @@ namespace
  	// once when the core is loaded and reuse it without changing hash results.
  	const ios_xxh3_seeded_secret g_ios_xxh3_seeded_secret;
  }
@@ -15594,6 +15594,11 @@ index 6b306657f..546ea1bc3 100644
 +		u64 g_signal = 0;
 +		bool g_stop = false;
 +		bool g_started = false;
++		// CELL583_PREHASH_PACING: the RSX thread's position in this frame's validations
++		// (g_current.size(), read by the worker without the lock while it hashes), and the
++		// position at which the RSX thread wakes the worker for the next ranges.
++		std::atomic<usz> g_position{0};
++		usz g_refill_at = umax;
 +		// Never destroyed: a process that exits with the worker running does not terminate.
 +		std::thread* g_worker = nullptr;
 +
@@ -15649,7 +15654,8 @@ index 6b306657f..546ea1bc3 100644
 +			pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, rpcs3::ios::thread_qos::default_relative_priority.load(std::memory_order_relaxed));
 +#endif
 +			atomic_t<u64, 128>* const range_lock = reserve_range_lock();
-+			std::vector<recorded> batch;
++			// The previous frame's validations, with their index in that frame.
++			std::vector<std::pair<usz, recorded>> batch;
 +			batch.reserve(lookahead);
 +			u64 seen = 0;
 +			// The last window taken: a timeout without new work takes nothing.
@@ -15695,7 +15701,7 @@ index 6b306657f..546ea1bc3 100644
 +
 +				for (usz i = position; i < g_previous.size() && batch.size() < lookahead && g_previous[i].ordinal <= ordinal; i++)
 +				{
-+					batch.push_back(g_previous[i]);
++					batch.emplace_back(i, g_previous[i]);
 +				}
 +
 +				if (batch.empty())
@@ -15703,13 +15709,25 @@ index 6b306657f..546ea1bc3 100644
 +					continue;
 +				}
 +
++				// CELL583_PREHASH_PACING: once the RSX thread is halfway through these ranges it
++				// wakes the worker for the next ones, instead of the 4 ms timeout.
++				g_refill_at = position + (batch.size() + 1) / 2;
++
 +				lock.unlock();
 +
-+				for (const auto& range : batch)
++				for (const auto& [index, range] : batch)
 +				{
 +					if (validation::current_epoch() != epoch)
 +					{
 +						break;
++					}
++
++					// CELL583_PREHASH_PACING: a range the RSX thread has already passed was hashed
++					// by it; hashing it here would only be wasted.
++					if (index < g_position.load(std::memory_order_relaxed))
++					{
++						worker_passed.fetch_add(1, std::memory_order_relaxed);
++						continue;
 +					}
 +
 +					u64 hash = 0;
@@ -15772,6 +15790,16 @@ index 6b306657f..546ea1bc3 100644
 +		if (g_current.size() < max_sequence)
 +		{
 +			g_current.push_back({start, length, epoch >= g_frame_epoch ? epoch - g_frame_epoch : 0});
++			g_position.store(g_current.size(), std::memory_order_relaxed);
++		}
++
++		// CELL583_PREHASH_PACING: halfway through the worker's ranges, wake it for the next ones.
++		if (g_current.size() >= g_refill_at)
++		{
++			g_refill_at = umax;
++			g_signal++;
++			worker_refills.fetch_add(1, std::memory_order_relaxed);
++			g_wakeup.notify_one();
 +		}
 +	}
 +
@@ -15792,6 +15820,8 @@ index 6b306657f..546ea1bc3 100644
 +
 +			g_previous.swap(g_current);
 +			g_current.clear();
++			g_position.store(0, std::memory_order_relaxed);
++			g_refill_at = umax;
 +			g_frame_epoch = validation::current_epoch();
 +			g_frame++;
 +			g_signal++;
@@ -15844,13 +15874,15 @@ index 6b306657f..546ea1bc3 100644
 +		g_stop = false;
 +		g_current.clear();
 +		g_previous.clear();
++		g_position.store(0, std::memory_order_relaxed);
++		g_refill_at = umax;
 +		g_frame_epoch = 0;
 +	}
 +}
  #endif
  
  namespace rsx
-@@ -64,6 +380,10 @@ namespace rsx
+@@ -64,6 +412,10 @@ namespace rsx
  		{
  			mem_hash = 0;
  		}
@@ -15861,22 +15893,22 @@ index 6b306657f..546ea1bc3 100644
  	}
  
  	void buffered_section::invalidate_range()
-@@ -102,7 +422,14 @@ namespace rsx
+@@ -102,7 +454,14 @@ namespace rsx
  		}
  		else if (new_prot != utils::protection::rw)
  		{
 +#ifdef RPCS3_IOS
 +			// CELL559_TEXTURE_EPOCH: read the epoch before the bytes it covers.
 +			const u64 epoch = rpcs3::ios::texture_validation::current_epoch();
- 			mem_hash = fast_hash_internal();
++			mem_hash = fast_hash_internal();
 +			validated_epoch = epoch;
 +#else
-+			mem_hash = fast_hash_internal();
+ 			mem_hash = fast_hash_internal();
 +#endif
  		}
  
  		protection = new_prot;
-@@ -165,6 +492,9 @@ namespace rsx
+@@ -165,6 +524,9 @@ namespace rsx
  		protection = utils::protection::rw;
  		confirmed_range.invalidate();
  		locked = false;
@@ -15886,7 +15918,7 @@ index 6b306657f..546ea1bc3 100644
  	}
  
  	const address_range32& buffered_section::get_bounds(section_bounds bounds) const
-@@ -189,27 +519,8 @@ namespace rsx
+@@ -189,27 +551,8 @@ namespace rsx
  		auto src = get_ptr<const char>(hash_range.start);
  
  #ifdef RPCS3_IOS
@@ -15916,7 +15948,7 @@ index 6b306657f..546ea1bc3 100644
  #else
  		const auto cycles = hash_length / 8;
  		auto rem = hash_length % 8;
-@@ -266,7 +577,52 @@ namespace rsx
+@@ -266,7 +609,52 @@ namespace rsx
  			return true;
  		}
  
@@ -26922,10 +26954,10 @@ index ccb4aae0b..5ec26b9c6 100644
  }
 diff --git a/rpcs3/ios/IOSTexturePrehash.h b/rpcs3/ios/IOSTexturePrehash.h
 new file mode 100644
-index 000000000..5f9b51890
+index 000000000..9ad3b5962
 --- /dev/null
 +++ b/rpcs3/ios/IOSTexturePrehash.h
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,129 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -26954,6 +26986,13 @@ index 000000000..5f9b51890
 +// while the RSX thread runs, and main memory only under a vm range lock (an
 +// unmap waits for it; a memory map change in progress makes it skip the range).
 +// Whatever the worker has not hashed is hashed by the RSX thread as before.
++//
++// CELL583_PREHASH_PACING (build 581 iPhone logs, God of War III: 56 % of the
++// validations served, 48 % of the worker's bytes never used; Black Ops II, whose
++// SPU threads use 3.4-4.1 cores while its RSX thread uses 0.1-0.5, served 20-28 %):
++// the worker leaves out the ranges the RSX thread has already passed, the RSX thread
++// wakes it halfway through its ranges instead of a 4 ms timeout, and Automatic is
++// God of War III only.
 +namespace rpcs3::ios::texture_prehash
 +{
 +inline std::atomic<bool> enabled{false};
@@ -26981,6 +27020,9 @@ index 000000000..5f9b51890
 +// OPT581 profile counters (process window).
 +inline std::atomic<std::uint64_t> hits{0}, misses{0}, hit_bytes{0};
 +inline std::atomic<std::uint64_t> worker_hashes{0}, worker_bytes{0}, worker_ticks{0}, worker_skips{0};
++// OPT583 profile counters (process window): ranges the RSX thread passed before the
++// worker reached them (left unhashed), and wakes by the RSX thread's progress.
++inline std::atomic<std::uint64_t> worker_passed{0}, worker_refills{0};
 +
 +constexpr std::uint64_t make_key(std::uint32_t start, std::uint32_t length) noexcept
 +{
@@ -30705,7 +30747,7 @@ index b4602fea9..37a708aa6 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b83..957670111 100644
+index 7c3389b83..91a264498 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -1,8 +1,22 @@
@@ -30808,7 +30850,7 @@ index 7c3389b83..957670111 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +131,69 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +131,72 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -30872,13 +30914,16 @@ index 7c3389b83..957670111 100644
 +	// CELL575_TITLE_LEVERS: with the texture epoch, Call of Duty: Black Ops II and Bladestorm.
 +	resolved.scoped_texture_revalidation = resolve_mode(g_cfg.ios_experimental.scoped_texture_revalidation, texture_epoch_title);
 +	rpcs3::ios::texture_validation_scope::enabled.store(resolved.scoped_texture_revalidation, std::memory_order_relaxed);
-+	// CELL581_TEXTURE_PREHASH: needs the epochs; Automatic is the titles that use them.
-+	resolved.texture_prehash = resolved.texture_validation_epoch && resolve_mode(g_cfg.ios_experimental.texture_prehash, texture_epoch_title);
++	// CELL581_TEXTURE_PREHASH: needs the epochs. CELL583_PREHASH_PACING: Automatic is God of
++	// War III only, whose RSX thread limits the frame rate; Black Ops II's SPU threads do
++	// (build 581: 3.4-4.1 SPU cores, RSX thread 0.1-0.5 core, 20-28 % of its validations served).
++	resolved.texture_prehash = resolved.texture_validation_epoch &&
++		resolve_mode(g_cfg.ios_experimental.texture_prehash, is_god_of_war_iii_title(title_id));
 +	rpcs3::ios::texture_prehash::enabled.store(resolved.texture_prehash, std::memory_order_relaxed);
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +205,60 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +208,60 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -31654,7 +31699,7 @@ index 000000000..094a67210
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d8005424b..56ed914fd 100644
+index d8005424b..d5cc17862 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,186 @@
@@ -32255,7 +32300,7 @@ index d8005424b..56ed914fd 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +624,779 @@ public:
+@@ -108,12 +624,788 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -32709,6 +32754,15 @@ index d8005424b..56ed914fd 100644
 +                milliseconds(prehash::worker_ticks.exchange(0, std::memory_order_relaxed)),
 +                prehash::worker_skips.exchange(0, std::memory_order_relaxed), prehash::min_bytes);
 +        }
++        // CELL583_PREHASH_PACING: ranges the RSX thread passed before the worker reached them and
++        // wakes by the RSX thread's progress, one bounded line.
++        {
++            namespace prehash = rpcs3::ios::texture_prehash;
++            ios_core_profiler.notice("COREPROF OPT583 session=%llu window=%llu worker_passed=%llu worker_refills=%llu "
++                "scope=process_window_counters window_boundary_approximate=1",
++                profile_session, profile_window,
++                prehash::worker_passed.exchange(0, std::memory_order_relaxed), prehash::worker_refills.exchange(0, std::memory_order_relaxed));
++        }
 +        // CELL560_OPT_EXPORT: framebuffer commits that skipped the GPU wait and what
 +        // became of their bytes in this window, one bounded line.
 +        {
@@ -33037,7 +33091,7 @@ index d8005424b..56ed914fd 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1404,91 @@ private:
+@@ -121,6 +1413,91 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -33129,7 +33183,7 @@ index d8005424b..56ed914fd 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1496,87 @@ performance_registry g_performance_registry;
+@@ -128,6 +1505,87 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -33217,7 +33271,7 @@ index d8005424b..56ed914fd 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1587,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1596,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -33346,7 +33400,7 @@ index d8005424b..56ed914fd 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1718,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1727,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -33881,7 +33935,7 @@ index 000000000..b6b0c699e
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b047471..c57c77c51 100644
+index b7b047471..ff67b0686 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -33921,7 +33975,7 @@ index b7b047471..c57c77c51 100644
 +	SETTING("experimental.rsx_thread_priority", "Experimental", "FPS Experiments", "RSX thread priority", "Gives the RSX thread and the audio threads precedence over the PPU and SPU threads when the game asks for more CPU than the performance cores provide, as RPCS3 intends; iOS otherwise treats them alike. Automatic enables it for every title; Disabled gives every emulation thread the same priority as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_thread_priority, 0, 0, 0),
 +	SETTING("experimental.passive_lock_fairness", "Experimental", "FPS Experiments", "Passive lock fairness", "When a PPU or SPU thread has waited a long time to resume guest memory access while SPUs keep taking reservation write locks, new write locks briefly let it through first. No lock is skipped. Automatic enables it for every title; Disabled restores the previous lock order. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.passive_lock_fairness, 0, 0, 0),
 +	SETTING("experimental.writer_yield_no_depress", "Experimental", "FPS Experiments", "Writer lock yield without depression", "When an SPU or PPU atomic write that holds the reservation write lock waits for other threads, it yields its CPU core without iOS lowering its priority for a whole scheduling quantum (about 10 ms), so the PPU threads it keeps waiting resume sooner. No lock is skipped. Automatic enables it for every title; Disabled yields as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.writer_yield_no_depress, 0, 0, 0),
-+	SETTING("experimental.texture_prehash", "Experimental", "FPS Experiments", "Texture pre-validation", "With Texture Validation Per FIFO Batch, a texture used again after new guest commands is hashed again to check that the game did not change it. A worker thread now hashes, as soon as new commands arrive, the textures the previous frame checked next, so the RSX thread finds the result ready. Every byte is still checked and a result is used only for the commands it was taken for. Automatic follows Texture Validation Per FIFO Batch; Disabled hashes on the RSX thread as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_prehash, 0, 0, 0),
++	SETTING("experimental.texture_prehash", "Experimental", "FPS Experiments", "Texture pre-validation", "With Texture Validation Per FIFO Batch, a texture used again after new guest commands is hashed again to check that the game did not change it. A worker thread now hashes, as soon as new commands arrive, the textures the previous frame checked next, so the RSX thread finds the result ready. Every byte is still checked and a result is used only for the commands it was taken for. Needs Texture Validation Per FIFO Batch. Automatic enables it for God of War III; Disabled hashes on the RSX thread as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_prehash, 0, 0, 0),
 +	SETTING("experimental.texture_residency", "Experimental", "FPS Experiments", "Texture residency cap", "When cached textures use more than 768 MB, the textures no draw has used for 64 frames are released, at most 128 MB every 16 frames: first those whose memory the game has since filled with another texture, then the oldest. Textures in use are kept; a released texture the game samples again is uploaded again from its memory. Limits the memory held by textures whose memory the game has reused for other data. Automatic enables it for God of War III; Disabled keeps every texture until it is found stale. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_residency, 0, 0, 0),
 +	SETTING("experimental.scoped_texture_revalidation", "Experimental", "FPS Experiments", "Scoped texture revalidation", "With texture validation per FIFO batch, a render target the RSX writes back to memory or commits over a range makes only the textures over that range check their contents again, instead of every texture. Guest commands, semaphores and the end of a frame still recheck every texture. Automatic enables it for God of War III, Call of Duty: Black Ops II and Bladestorm; Disabled rechecks every texture after any RSX write as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.scoped_texture_revalidation, 0, 0, 0),
  	SETTING("experimental.neon_byte_swap", "Experimental", "ARM64 Uploads", "ARM64 byte-swap uploads", "Uses a four-lane NEON path for swapped RSX uploads. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.neon_byte_swap, 0, 0, 0),
