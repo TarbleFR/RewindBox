@@ -28,6 +28,7 @@ from adapt_gpu_allocations import apply as adapt_gpu_allocations
 from adapt_shader_waits import apply as adapt_shader_waits
 from adapt_deferred_flush import apply as adapt_deferred_flush
 from adapt_bindless import apply as adapt_bindless
+from adapt_device_memory import apply as adapt_device_memory
 
 
 def replace_once(path, old, new):
@@ -76,6 +77,7 @@ def main():
     adapted += adapt_shader_waits(source)
     adapted += adapt_deferred_flush(source)
     adapted += adapt_bindless(source)
+    adapted += adapt_device_memory(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -122,7 +124,7 @@ def main():
     inputs['build-utils/melonx/adapt_shader_warmup.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     for name in ['adapt_attachmentless_framebuffer.py', 'adapt_kernel_sync.py', 'adapt_jit_arena.py',
                  'adapt_pipeline_cache.py', 'adapt_gpu_allocations.py', 'adapt_shader_waits.py',
-                 'adapt_deferred_flush.py', 'adapt_bindless.py']:
+                 'adapt_deferred_flush.py', 'adapt_bindless.py', 'adapt_device_memory.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
