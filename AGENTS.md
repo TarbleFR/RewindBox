@@ -77,6 +77,20 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
   contract (138 inputs), ARM64 syntax of the 8 touched units equal to 579.
   Evidence `docs/evidence/rpcs3-cell581-host-linux.json`. No iPhone
   measurement: no FPS, frame time or memory gain is claimed.
+- Core run `40631132527` from `03956454`: the 579 Core authenticated, then
+  the 581 model passed on the Apple Silicon runner (steady-state validations
+  served by the worker 81 % plain, 79 % ASan/UBSan, 71 % TSan; 0 stale
+  textures; both mutations caught; 1,771 unmaps without a fault); Core
+  SHA-256 `a6e97d33…213c`, 88 exports, passive loading, the four 581 markers
+  present, codegen identities unchanged. Evidence
+  `docs/evidence/rpcs3-cell581-macos.json`.
+- Private 581 recipe (`rpcs3-cell581-delivery.yml`, dispatch only): the
+  delivered 579 tree with the Core 581 recipe of `03956454`;
+  `rpcs3cell581_tree.py` / `rpcs3cell581_delivery.py` run the 579 recipe
+  unchanged in `as_579()` (which runs the 577 one in its own `as_577()`);
+  ten validators wrap the 579 ones (identities renamed to 581, the RPCS3 one
+  binds Core run 40631132527 and adds the four 581 markers to the 579 ones).
+  Product trees equal to 579. Recipient `build-utils/delivery-581-recipient.pem`.
 
 ## RPCS3 Core 579: SPURS reservation_op wait, sleeping writer deferral, writer yield without depression, PPU spin timing, RSX idle park for every title — 28 October 2026
 

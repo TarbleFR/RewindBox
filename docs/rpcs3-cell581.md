@@ -86,7 +86,28 @@ Rapport : [`evidence/rpcs3-cell581-host-linux.json`](evidence/rpcs3-cell581-host
 
 Ce sont des vérifications sur l'hôte, pas des mesures sur iPhone.
 
-## 4. À relever sur iPhone (God of War III)
+## 4. Core iPhone (Mac de la CI)
+
+Run `40631132527` depuis `0395645` (macOS 15, Apple Silicon, Apple clang 17,
+Xcode 16.4) ; rapport :
+[`evidence/rpcs3-cell581-macos.json`](evidence/rpcs3-cell581-macos.json).
+
+- Le Core 579 (`1f82f9d`, run `40621029169`) est authentifié avant tout, puis
+  le modèle 581 passe sur ARM64 :
+
+  | Mesure (Apple clang 17, ARM64) | Sans sanitizer | ASan/UBSan | TSan |
+  |---|---:|---:|---:|
+  | Validations servies par le thread (régime établi) | 81 % | 79 % | 71 % |
+  | Textures périmées acceptées | 0 | 0 | 0 |
+
+  Les deux mutations sont rejetées. Pendant 1 771 démappages (sans
+  sanitizer), le thread n'a jamais lu de mémoire retirée.
+- Core iPhone compilé depuis la source vérifiée : SHA-256
+  `a6e97d33…213c`, 88 exports, chargement passif. Les quatre marqueurs 581
+  sont présents dans le binaire. Les identités de codegen sont inchangées :
+  **pas de recompilation à froid**.
+
+## 5. À relever sur iPhone (God of War III)
 
 - `COREPROF OPT581` : `hits` contre `misses`, et `worker_skips` (mémoire
   principale indisponible).
