@@ -283,6 +283,45 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
    maintainer removed Write Color Buffers from the user settings on
    purpose); optimizations are automatic, in the Core or the title profile.
 
+## RPCS3 Core 589: Assassin's Creed joins the texture validation levers; Assassin's Creed relaxed reservations — 28 October 2026
+
+- Build 585 iPhone logs of 28 October (`docs/rpcs3-cell589.md` section 1;
+  every session is build 585, none carries Core 587):
+  - Assassin's Creed (BLES00158), first run on the official RPCS3 entry
+    (Multithreaded RSX, asynchronous texture streaming, relaxed ZCULL): the
+    first boot compiled 175 PPU modules for 16.7 min, the next two found them
+    cached. Steady game scene 12-29 fps: RSX thread 0.54-0.80 core, FIFO busy
+    70-91 %, 1,040-2,170 draws per frame, 14.5-28.2 ms of texture preparation
+    per frame (20-45 ms at 1,900-3,300 draws earlier), `OPT559 texture_epoch=0`;
+    0.87-1.03 M data-changing PUTLLC per window under the writer lock
+    (`wl_putllc` 0.98-1.32 s), PPU waits 1.26-1.71 s (`vm_range_episode`).
+    268 Metal pipeline compiles over 50 ms: first launch, rule 5.
+  - Black Ops II (585, accurate reservations): `FREEZE_DUMP no_frames` up to
+    65 s, the six SPURS kernels looping GETLLAR/PUTLLC on the SPURS control
+    line `0x2e20880`, the only running PPU thread found parked by the writer
+    lock. In relaxed mode a PUTLLC within 0x80 of the SPURS address is a
+    plain store: the 587 profile (shipped by 586) targets exactly this.
+  - Bladestorm: 30 fps cap for 45 min; after a savestate creation 348 SPU
+    programs recompiled (one 593 ms frame). Dragon Ball Z: one minute (menu
+    60 fps), nothing comparable. God of War III: boots only, legacy config
+    neutralized (`inherited=19 kept=0`).
+- Core change (record `cell589`, three iOS files, codegen identities
+  unchanged): `CELL589_TITLE_LEVERS` adds BLES00158 and BLUS30089 (serials of
+  the shipped cheat catalogue) to the Automatic mode of texture validation
+  per FIFO batch (559) and scoped revalidation (573), per rule 3 (texture
+  preparation >= 5 ms per frame). Texture pre-validation (581/583) stays God
+  of War III only. Mechanisms, Enabled and Disabled unchanged.
+- Profile commit (separate from the Core commit): BLES00158 and BLUS30089
+  `advanced.accurate_spu_reservations: false` over the official entry, Black
+  Ops II's signature.
+- Local: `test/rpcs3_cell589_test.py` (587 preimages from the reverse fixture;
+  the two policy blocks compiled verbatim, plain and ASan/UBSan, 11 serials x
+  3 modes, and the 587 blocks beside them: only the two Assassin's Creed
+  serials change), ARM64 diagnostics of the two units equal to 587. Evidence
+  `docs/evidence/rpcs3-cell589-host-linux.json`. The Dart profile test runs
+  in the delivery checks (no Flutter in the session container). No iPhone
+  measurement of 589; no FPS gain claimed.
+
 ## RPCS3 Core 587: MoltenVK asynchronous submits made safe (encode barrier, boot canary), Black Ops II relaxed reservations — 28 October 2026
 
 - Maintainer: the 551 launch crash came from asynchronous MoltenVK submits;
