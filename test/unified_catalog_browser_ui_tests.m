@@ -5,6 +5,7 @@
 #import <objc/runtime.h>
 #import "NeoUnifiedCheatBrowser.h"
 #import "Public/NeoUnifiedCheatCatalog.h"
+#import "Public/RBLiquidProgressView.h"
 #import "LibretroCheatMenu.h"
 #import "LibretroCheats.h"
 #import "LibretroSessionMenu.h"
@@ -282,7 +283,7 @@ static void NUCBExchangeSingleton(void) {
     [self selectSection:0 row:0]; [self selectSection:0 row:0]; XCTAssertEqual(self.catalog.installs, 1U);
     self.catalog.installProgress(@{@"total_packs": @2, @"completed_packs": @1, @"failed_packs": @0, @"total_bytes": @1000, @"completed_bytes": @250});
     UITableViewCell *progress = [self.browser tableView:self.browser.tableView cellForRowAtIndexPath:[NSIndexPath indexPathForRow:1 inSection:0]];
-    UIProgressView *progressView = [progress valueForKey:@"progressView"];
+    RBLiquidProgressView *progressView = [progress valueForKey:@"progressView"];
     UILabel *progressLabel = [progress valueForKey:@"progressLabel"];
     XCTAssertEqualWithAccuracy(progressView.progress, 0.25, 0.001);
     XCTAssertTrue([progressLabel.text containsString:@"1 / 2"]);
