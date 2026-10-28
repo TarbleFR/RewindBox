@@ -52,21 +52,28 @@ instruction (2 KiB per 64 KiB of guest code), cleared when a region is
 invalidated; a missing or stale bit only costs a duplicate translation or a
 dispatch. Code the unit's own control flow runs through stays in it: a loop,
 when a branch within the next 1,024 instructions targets the code the unit
-already holds (without this rule three times as many loops of up to 64 bytes
-were split across two units), and what a forward branch passes over by fewer
-than 64 instructions, through its target (a switch case's jump to the end of
-the switch, the jump over an else), which would otherwise become a tail call
-each time it is taken.
+already holds, or, for code reached without a branch, any code before it (the
+unit then sits in a loop that started earlier, as a register-pressure
+continuation does); without these rules three times as many loops of up to
+64 bytes were split across two units. And what a forward branch passes over
+by fewer than 64 instructions, through its target (a switch case's jump to
+the end of the switch, the jump over an else), which would otherwise become
+a tail call each time it is taken.
 
 The decoder reads guest code a 4 KiB page at a time. On iOS (16 KiB host
 pages) the engine uses MemoryManagerHostTracked, where every IMemoryManager
 read takes the address space's partition lock and private-allocation tree
 lock, about 105 ns against 0.75 us to decode and compile an instruction, and
-the decoder read every instruction it decoded. Same binary through the
-production memory manager, every exit followed: compile time 13.2-13.8 s ->
-11.3-12.1 s from the page reads alone, 10.2-11.0 s with the stops (-20 %),
-host code 495 -> 434 MiB (-12 %), loops held by no single unit +0.4 %. Fail
-closed on drift.
+the decoder read every instruction it decoded. A unit also ends before a page
+that is not mapped, where upstream (and the 572 rule, reading a jump target)
+failed the whole translation even when the guest never got there.
+
+Same binary through the production memory manager, every exit followed:
+compile time 13.2-13.8 s -> 10.6-10.8 s (-20 %; 10.9-11.3 s from the page
+reads alone), host code 495 -> 450 MiB (-9 %), compile allocations -9 %,
+loops held by no single unit +0.3 %; unit hand-overs on a static walk of the
+same code +0.9 % (each about 26 host instructions). Ending at every entry
+reached gives -19 % host code but 5 % more hand-overs. Fail closed on drift.
 """
 from adapt_session import once
 
@@ -106,7 +113,7 @@ def apply(source):
                     break;
                 }
 
-                if (!nextIsTarget && EndsWithCallOrJump(block) && StartsFunction(code, block.EndAddress))
+                if (!nextIsTarget && EndsWithCallOrJump(block) && StartsFunction(memoryManager, block.EndAddress))
                 {
                     // The next function starts here: the callee does not return or the
                     // jump was a tail call. A call keeps its return check; if it does
@@ -121,7 +128,7 @@ def apply(source):
 
                 if (!nextIsTarget && block.Instructions[^1].Name == InstName.BUncond &&
                     TryGetBranchTarget(block, out ulong jumpTarget) && jumpTarget >= block.EndAddress + 256UL &&
-                    !IsSkippedCodeReachable(code, block.EndAddress, jumpTarget, branchTargets))
+                    !IsSkippedCodeReachable(memoryManager, block.EndAddress, jumpTarget, branchTargets))
                 {
                     // Nothing decoded so far enters the 64 or more instructions this forward
                     // jump passes over (the other cases of a switch): end the unit with the
@@ -144,8 +151,15 @@ def apply(source):
             return block.Instructions[^1].Name is InstName.Bl or InstName.Blr or InstName.BUncond;
         }
 
-        private static bool StartsFunction(CodeReader code, ulong address)
+        private static bool StartsFunction(IMemoryManager memoryManager, ulong address)
         {
+            CodeReader code = CodeReader.Active(memoryManager);
+
+            if (code.EndsBefore(address))
+            {
+                return false; // The unit ends before that page anyway.
+            }
+
             for (int index = 0; index < 4; index++)
             {
                 ulong current = address + (ulong)index * 4UL;
@@ -171,14 +185,21 @@ def apply(source):
             return false;
         }
 
-        private static bool IsSkippedCodeReachable(CodeReader code, ulong start, ulong end, List<ulong> branchTargets)
+        private static bool IsSkippedCodeReachable(IMemoryManager memoryManager, ulong start, ulong end, List<ulong> branchTargets)
         {
+            CodeReader code = CodeReader.Active(memoryManager);
+
             foreach (ulong target in branchTargets)
             {
                 if (target > start && target < end)
                 {
                     return true; // An earlier branch enters the skipped code.
                 }
+            }
+
+            if (!code.IsMapped(end))
+            {
+                return true; // The target cannot be read: decode on as upstream did.
             }
 
             // A rotated loop: the jump enters the loop condition, which branches back
@@ -262,13 +283,37 @@ def apply(source):
                 return reader;
             }
 
+            // The reader of the decode in progress on this thread, for the rules that
+            // receive the memory manager.
+            public static CodeReader Active(IMemoryManager memoryManager)
+            {
+                CodeReader reader = _threadReader;
+
+                return reader != null && reader._memoryManager == memoryManager ? reader : For(memoryManager);
+            }
+
             public uint Read(ulong address)
             {
+                if ((address & 3UL) != 0)
+                {
+                    return _memoryManager.Read<uint>(address); // A misaligned PC, read as upstream did.
+                }
+
                 ulong page = address & ~(PageSize - 1);
 
                 if (!_valid || page != _page)
                 {
-                    System.Runtime.InteropServices.MemoryMarshal.Cast<byte, uint>(_memoryManager.GetSpan(page, (int)PageSize)).CopyTo(_words);
+                    try
+                    {
+                        System.Runtime.InteropServices.MemoryMarshal.Cast<byte, uint>(_memoryManager.GetSpan(page, (int)PageSize)).CopyTo(_words);
+                    }
+                    catch (Ryujinx.Memory.InvalidMemoryRegionException)
+                    {
+                        // Unmapped: fail as a single read does, through the memory
+                        // manager's invalid access handler.
+                        return _memoryManager.Read<uint>(address);
+                    }
+
                     _page = page;
                     _valid = true;
                 }
@@ -279,6 +324,13 @@ def apply(source):
             public bool IsMapped(ulong address)
             {
                 return _memoryManager.IsMapped(address);
+            }
+
+            // Whether decoding reaches a page that is not mapped, after the unit's first
+            // instruction (which is read as before, and faults there if unmapped).
+            public bool EndsBefore(ulong address)
+            {
+                return _valid && (address & (PageSize - 1)) == 0 && !_memoryManager.IsMapped(address);
             }
         }
 
@@ -305,9 +357,35 @@ def apply(source):
             ulong address,
             ref int totalInsts,
 ''')
-    once(decoder, '''                encoding = memoryManager.Read<uint>(address);
+    once(decoder, '''            uint encoding;
+            InstName name;
+            InstFlags flags;
+            bool isControlFlow;
+            bool isTruncated = false;
+
+            do
+            {
+                encoding = memoryManager.Read<uint>(address);
                 address += 4UL;
-''', '''                encoding = code.Read(address);
+''', '''            uint encoding = 0;
+            InstName name = default;
+            InstFlags flags;
+            bool isControlFlow;
+            bool isTruncated = false;
+
+            do
+            {
+                if (code.EndsBefore(address))
+                {
+                    // The next page is not mapped: end the unit before it. Upstream read
+                    // it and failed the whole translation, even where the guest never
+                    // gets there; running into it still faults, at that address.
+                    isTruncated = true;
+
+                    break;
+                }
+
+                encoding = code.Read(address);
                 address += 4UL;
 ''')
     return [decoder, *apply_entries(source)]
@@ -345,7 +423,9 @@ def apply_entries(source):
         // (TranslatedEntries): the unit tail-calls it, as after a truncation,
         // instead of translating that code again. Code the unit's own control flow
         // runs through stays in it: a loop, when the code from there branches back
-        // into the unit, and what a short forward branch passes over.
+        // into the unit (or, for code reached without a branch, back past it: the
+        // unit then sits in a loop that started before it, as a register-pressure
+        // continuation does), and what a short forward branch passes over.
         private struct EntryStop
         {
             private const int LoopScanInstructions = 1024;
@@ -384,9 +464,23 @@ def apply_entries(source):
                     return false;
                 }
 
-                _keepThrough = FindBranchInto(code, address, _unitAddress, address);
+                ulong low = FallsThrough(code.Read(address - 4UL)) ? 0UL : _unitAddress;
+
+                _keepThrough = FindBranchInto(code, address, low, address);
 
                 return _keepThrough == 0;
+            }
+
+            // Whether an instruction passes to the next one without a branch, call or trap.
+            private static bool FallsThrough(uint encoding)
+            {
+                return (encoding & 0x7c000000u) != 0x14000000u && // B, BL
+                       (encoding & 0xfe000000u) != 0xd6000000u && // BR, BLR, RET, ERET and their authenticated forms
+                       (encoding & 0xff000000u) != 0x54000000u && // B.cond, BC.cond
+                       (encoding & 0x7e000000u) != 0x34000000u && // CBZ, CBNZ
+                       (encoding & 0x7e000000u) != 0x36000000u && // TBZ, TBNZ
+                       (encoding & 0xffe0001fu) != 0xd4200000u && // BRK
+                       (encoding & 0xffff0000u) != 0u;            // UDF
             }
 
             // A forward branch over fewer than 64 instructions keeps what it passes
@@ -456,24 +550,9 @@ def apply_entries(source):
         {
             ulong startAddress = address;
 ''')
-    once(decoder, '''            uint encoding;
-            InstName name;
-            InstFlags flags;
-            bool isControlFlow;
-            bool isTruncated = false;
-
-            do
-            {
-                encoding = code.Read(address);
-''', '''            uint encoding = 0;
-            InstName name = default;
-            InstFlags flags;
-            bool isControlFlow;
-            bool isTruncated = false;
-
-            do
-            {
-                if (entryStop.StopsAt(code, address))
+    once(decoder, '''                encoding = code.Read(address);
+                address += 4UL;
+''', '''                if (entryStop.StopsAt(code, address))
                 {
                     // Another translation starts here: tail-call it.
                     isTruncated = true;
@@ -482,6 +561,7 @@ def apply_entries(source):
                 }
 
                 encoding = code.Read(address);
+                address += 4UL;
 ''')
     translator = jit / 'Translator.cs'
     once(translator, '''    class Translator : IDisposable

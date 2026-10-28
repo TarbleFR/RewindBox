@@ -18,13 +18,20 @@ sealed class GuestCode : IMemoryManager
 {
     public const ulong Base = 0x10000;
     private readonly byte[] _bytes;
-    public GuestCode(uint[] words) => _bytes = MemoryMarshal.AsBytes(words.AsSpan()).ToArray();
+    // Addresses from here on are not mapped: reads fail as the engine's memory managers do.
+    private readonly ulong _mappedEnd;
+    public GuestCode(uint[] words, ulong mappedEnd = ulong.MaxValue)
+    {
+        _bytes = MemoryMarshal.AsBytes(words.AsSpan()).ToArray();
+        _mappedEnd = mappedEnd;
+    }
     public int AddressSpaceBits => 39;
     public nint PageTablePointer => unchecked((nint)0x100000000);
     public MemoryManagerType Type => MemoryManagerType.HostMappedUnsafe;
     public event Action<ulong, ulong> UnmapEvent { add { } remove { } }
     public T Read<T>(ulong va) where T : unmanaged
     {
+        if (va + (ulong)Marshal.SizeOf<T>() > _mappedEnd) throw new Ryujinx.Memory.InvalidMemoryRegionException();
         long offset = (long)(va - Base);
         if (va < Base || offset + Marshal.SizeOf<T>() > _bytes.Length) return default;
         return MemoryMarshal.Read<T>(_bytes.AsSpan((int)offset));
@@ -34,6 +41,7 @@ sealed class GuestCode : IMemoryManager
     // The adapted decoder reads code a page at a time; bytes past the code read 0 as in Read.
     public ReadOnlySpan<byte> GetSpan(ulong va, int size, bool tracked = false)
     {
+        if (va + (ulong)size > _mappedEnd) throw new Ryujinx.Memory.InvalidMemoryRegionException();
         byte[] data = new byte[size];
         for (int i = 0; i < size; i++)
         {
@@ -43,7 +51,7 @@ sealed class GuestCode : IMemoryManager
         return data;
     }
     public ref T GetRef<T>(ulong va) where T : unmanaged => throw new NotSupportedException();
-    public bool IsMapped(ulong va) => true;
+    public bool IsMapped(ulong va) => va < _mappedEnd;
     public void SignalMemoryTracking(ulong va, ulong size, bool write, bool precise = false, int? exemptId = null) { }
 }
 
@@ -68,12 +76,22 @@ static class Program
 {
     private static readonly AddressTable<ulong> Table = new(AddressTablePresets.GetArmPreset(true, false), false);
 
-    private static Dictionary<string, object> Unit(uint[] words, int entry = 0)
+    private static Dictionary<string, object> Unit(uint[] words, int entry = 0, ulong mappedEnd = ulong.MaxValue)
     {
-        GuestCode code = new(words);
+        GuestCode code = new(words, mappedEnd);
         ulong address = GuestCode.Base + (ulong)entry * 4;
-        MultiBlock multi = Decoder.DecodeMulti(CpuPresets.CortexA57, code, address);
-        CompiledFunction compiled = AarchCompiler.Compile(CpuPresets.CortexA57, code, address, Table, (nint)0x10000, ExecutionMode.Aarch64, Architecture.Arm64);
+        MultiBlock multi;
+        CompiledFunction compiled;
+        try
+        {
+            multi = Decoder.DecodeMulti(CpuPresets.CortexA57, code, address);
+            compiled = AarchCompiler.Compile(CpuPresets.CortexA57, code, address, Table, (nint)0x10000, ExecutionMode.Aarch64, Architecture.Arm64);
+        }
+        catch (Ryujinx.Memory.InvalidMemoryRegionException)
+        {
+            // The whole translation failed on a guest read.
+            return new() { ["throws"] = true };
+        }
         uint[] host = MemoryMarshal.Cast<byte, uint>(compiled.Code).ToArray();
         return new()
         {
@@ -90,7 +108,7 @@ static class Program
     // The same unit while the translator already holds translations starting at
     // the given instructions. The upstream build has no such map and decodes as
     // before.
-    private static Dictionary<string, object> UnitWith(uint[] words, int[] translated, int entry = 0)
+    private static Dictionary<string, object> UnitWith(uint[] words, int[] translated, int entry = 0, ulong mappedEnd = ulong.MaxValue)
     {
 #if ADAPTED
         TranslatedEntries entries = new();
@@ -98,14 +116,14 @@ static class Program
         TranslatedEntries.Current = entries;
         try
         {
-            return Unit(words, entry);
+            return Unit(words, entry, mappedEnd);
         }
         finally
         {
             TranslatedEntries.Current = null;
         }
 #else
-        return Unit(words, entry);
+        return Unit(words, entry, mappedEnd);
 #endif
     }
 
@@ -202,6 +220,16 @@ static class Program
                 .Append(A64.Ret).ToArray(), [4, 8]),
             // cbz x0, L; <then: 6 instructions, translated from the 3rd>; L: add; ret.
             ["knownSkippedThen"] = UnitWith(new[] { A64.Cbz(0, 7) }.Concat(Enumerable.Repeat(A64.AddOne, 7)).Append(A64.Ret).ToArray(), [3]),
+            // L: <10 adds>; subs; b.ne L; ret, entered at the 4th add (a register-pressure
+            // continuation inside the loop), with a translation at the 7th: reached without a
+            // branch and inside the loop, the unit keeps the rest of the loop body.
+            ["continuationInLoop"] = UnitWith(Enumerable.Repeat(A64.AddOne, 10).Concat(new[] { A64.Subs, A64.BNe(11, 0), A64.Ret }).ToArray(), [6], 3),
+            // A page that ends with a call that does not return, and nothing mapped after it.
+            ["unmappedAfterCall"] = Unit(Enumerable.Repeat(A64.AddOne, 1023).Append(A64.Bl(1023, 2000)).ToArray(), 0, GuestCode.Base + 0x1000),
+            // add x1000; b <100 on, on an unmapped page>; add x9; b <back to the start>: the
+            // jump's target cannot be read; the unit is decoded as upstream decodes it.
+            ["unmappedLongJump"] = Unit(Enumerable.Repeat(A64.AddOne, 1000).Append(A64.B(1000, 1100)).Concat(Enumerable.Repeat(A64.AddOne, 9))
+                .Append(A64.B(1010, 0)).ToArray(), 0, GuestCode.Base + 0x1000),
         };
         Console.WriteLine(JsonSerializer.Serialize(report));
     }

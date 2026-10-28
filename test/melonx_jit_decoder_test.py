@@ -14,8 +14,10 @@ end with a no-return call, back to back; the upstream decoder translates every
 following function again for each entry point. With translations already
 starting inside the code, a unit ends before the first of them and tail-calls
 it, unless the code from there branches back into the unit within 1,024
-instructions (a loop stays in one unit) or a forward branch of the unit
-passes over it by fewer than 64 instructions; without them, nothing changes.
+instructions (a loop stays in one unit; for code reached without a branch,
+back past it) or a forward branch of the unit passes over it by fewer than
+64 instructions; without them, nothing changes. A unit ends before a page
+that is not mapped, where upstream fails the whole translation.
 """
 from pathlib import Path
 import hashlib, json, shutil, subprocess, sys, tempfile
@@ -137,6 +139,17 @@ def check(upstream: dict, adapted: dict):
     u, a = upstream['farLoop'], adapted['farLoop']
     expect(u['guestInstructions'] == 1203 and a['guestInstructions'] == 100 and a['truncated'],
            f'a branch back farther than 1,024 instructions does not keep the unit going: {u} {a}')
+    u, a = upstream['continuationInLoop'], adapted['continuationInLoop']
+    expect(u['guestInstructions'] == 10 and a['guestInstructions'] == 10 and not a['truncated'],
+           f'a continuation inside a loop keeps the loop body through a translated entry: {u} {a}')
+    u, a = upstream['unmappedAfterCall'], adapted['unmappedAfterCall']
+    expect(u.get('throws') and not a.get('throws') and a['guestInstructions'] == 1024 and a['truncated'] and
+           a['emptyLastBlock'] and a['hostCalls'] == 1,
+           f'upstream fails the translation at the unmapped page; adapted ends the unit before it: {u} {a}')
+    u, a = dict(upstream['unmappedLongJump']), dict(adapted['unmappedLongJump'])
+    size = abs(u.pop('hostBytes', 0) - a.pop('hostBytes', 0))
+    expect(not u.get('throws') and u == a and size <= 16 and a['guestInstructions'] == 1011,
+           f'a long jump to an unmapped page decodes as upstream: {upstream["unmappedLongJump"]} {adapted["unmappedLongJump"]}')
     for name in ('knownSwitchCases', 'knownSkippedThen'):
         u, a = dict(upstream[name]), dict(adapted[name])
         size = abs(u.pop('hostBytes') - a.pop('hostBytes'))
