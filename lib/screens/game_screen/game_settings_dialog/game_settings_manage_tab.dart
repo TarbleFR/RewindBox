@@ -15,7 +15,10 @@ import 'package:neostation/repositories/game_repository.dart';
 import 'package:neostation/screens/settings_screen/new_settings_options/widgets/setting_row.dart';
 import 'package:neostation/services/dolphin_internal_v2_service.dart';
 import 'package:neostation/services/melonx_internal_service.dart';
+import 'package:neostation/l10n/enhancements_locale.dart';
 import 'package:neostation/l10n/texture_catalog_locale.dart';
+import 'package:neostation/screens/enhancements/enhancements_screen.dart';
+import 'package:neostation/services/enhancements/enhancement_service.dart';
 import 'package:neostation/services/texture_catalog_service.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/sfx_service.dart';
@@ -62,12 +65,17 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
   GlobalKey _itemKey(int navIndex) =>
       _itemKeys.putIfAbsent(navIndex, () => GlobalKey());
 
-  // Build 486: the HD textures page of the game's embedded engine first.
+  // Cheats & Enhancements of the game's embedded engine first, then the
+  // HD textures page (Build 486).
+  bool get _hasEnhancements =>
+      EnhancementService.instance.supports(_targetSystemFolder) &&
+      (widget.game.romPath?.startsWith('/') ?? false);
+  int get _enhancementsIdx => _hasEnhancements ? 0 : -1;
   bool get _hasTextures =>
       TextureCatalogService.supports(_targetSystemFolder) &&
       (widget.game.romPath?.startsWith('/') ?? false);
-  int get _texturesIdx => _hasTextures ? 0 : -1;
-  int get _playTimeIdx => _hasTextures ? 1 : 0;
+  int get _texturesIdx => _hasTextures ? _enhancementsIdx + 1 : -1;
+  int get _playTimeIdx => (_hasEnhancements ? 1 : 0) + (_hasTextures ? 1 : 0);
   int get _deleteIdx => _playTimeIdx + 1;
   int get _totalItems => _deleteIdx + 1;
 
@@ -107,7 +115,9 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
   }
 
   void trigger() {
-    if (_selectedIndex == _texturesIdx) {
+    if (_selectedIndex == _enhancementsIdx) {
+      _openEnhancements();
+    } else if (_selectedIndex == _texturesIdx) {
       _openTextures();
     } else if (_selectedIndex == _playTimeIdx) {
       if ((widget.game.playTime ?? 0) > 0 && !_isResettingPlayTime) {
@@ -130,6 +140,16 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
         );
       }
     });
+  }
+
+  Future<void> _openEnhancements() async {
+    SfxService().playNavSound();
+    await EnhancementsScreen.open(
+      context,
+      game: widget.game,
+      system: widget.system,
+      systemFolder: _targetSystemFolder,
+    );
   }
 
   Future<void> _openTextures() async {
@@ -276,6 +296,29 @@ class GameSettingsManageTabState extends State<GameSettingsManageTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_hasEnhancements) ...[
+            GestureDetector(
+              onTap: () {
+                setState(() => _selectedIndex = _enhancementsIdx);
+                _openEnhancements();
+              },
+              child: SettingRow(
+                key: _itemKey(_enhancementsIdx),
+                focused: _selectedIndex == _enhancementsIdx,
+                title: EnhancementsLocale.text(context, EnhancementsLocale.title),
+                subtitle: EnhancementsLocale.text(
+                  context,
+                  EnhancementsLocale.rowSubtitle,
+                ),
+                trailing: Icon(
+                  Symbols.auto_fix_high_rounded,
+                  size: 20.r,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+            SizedBox(height: 12.r),
+          ],
           if (_hasTextures) ...[
             GestureDetector(
               onTap: () {

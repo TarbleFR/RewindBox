@@ -70,7 +70,7 @@ void main() {
 
         expect(
           state.getItemCount(),
-          platform == TargetPlatform.iOS ? 4 : 2,
+          platform == TargetPlatform.iOS ? 5 : 2,
           reason:
               'Controller navigation must match the visible tools on $platform',
         );
@@ -101,7 +101,12 @@ void main() {
     expect(tools, contains('if (index == 3 && _showStorageAudit)'));
     expect(RegExp(r'index == 3').allMatches(tools).length, 1);
     expect(tools, contains('builder: (_) => const StorageAuditScreen()'));
-    expect(tools, isNot(contains('index == 4')));
+    // Index 4 is the iOS-only Cheats & Enhancements catalogue
+    // (docs/ENHANCEMENTS.md), never NeoPlay.
+    expect(tools, contains('if (index == 4 && _showEnhancements)'));
+    expect(RegExp(r'index == 4').allMatches(tools).length, 1);
+    expect(tools, contains('builder: (_) => const EnhancementsCatalogScreen()'));
+    expect(tools, isNot(contains('index == 5')));
     expect(tools, isNot(contains('showNeoPlayDialog(context)')));
     expect(tools, isNot(contains('LocalJitTunnel')));
     expect(tools, isNot(contains('VPN')));

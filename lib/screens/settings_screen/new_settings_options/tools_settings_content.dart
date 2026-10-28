@@ -5,9 +5,11 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 import 'package:neostation/l10n/app_locale.dart';
+import 'package:neostation/l10n/enhancements_locale.dart';
 import 'package:neostation/l10n/libretro_locale.dart';
 import 'package:neostation/l10n/neoswap_locale.dart';
 import 'package:neostation/l10n/storage_locale.dart';
+import 'package:neostation/screens/enhancements/enhancements_catalog_screen.dart';
 import 'package:neostation/screens/libretro/libretro_bios_checker_screen.dart';
 import 'package:neostation/screens/settings_screen/neoswap_dialog.dart';
 import 'package:neostation/screens/storage/storage_audit_screen.dart';
@@ -58,13 +60,18 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
   /// checker.
   bool get _showStorageAudit => defaultTargetPlatform == TargetPlatform.iOS;
 
-  /// Pairing and NeoSwap everywhere; the BIOS checker third and the storage
-  /// analysis fourth, on iOS. The StikDebug fallback row was removed: the
-  /// integrated helper is the only JIT method.
-  int getItemCount() => _showBiosChecker ? 4 : 2;
+  /// The Cheats & Enhancements catalogue writes the embedded engines' own
+  /// files: iOS only, the same gate.
+  bool get _showEnhancements => defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// Pairing and NeoSwap everywhere; the BIOS checker third, the storage
+  /// analysis fourth and the Cheats & Enhancements catalogue fifth, on iOS.
+  /// The StikDebug fallback row was removed: the integrated helper is the
+  /// only JIT method.
+  int getItemCount() => _showBiosChecker ? 5 : 2;
 
   final List<GlobalKey> _rowKeys = List<GlobalKey>.generate(
-    4,
+    5,
     (_) => GlobalKey(),
   );
 
@@ -77,6 +84,12 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
       MaterialPageRoute<void>(
         builder: (_) => const LibretroBiosCheckerScreen(),
       ),
+    );
+  }
+
+  void _openEnhancements() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const EnhancementsCatalogScreen()),
     );
   }
 
@@ -99,6 +112,10 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
   }
 
   void selectItem(int index) {
+    if (index == 4 && _showEnhancements) {
+      _openEnhancements();
+      return;
+    }
     if (index == 3 && _showStorageAudit) {
       _openStorageAudit();
       return;
@@ -302,6 +319,25 @@ class ToolsSettingsContentState extends State<ToolsSettingsContent> {
                       widget.isContentFocused &&
                       widget.selectedContentIndex == 3,
                   onTap: _openStorageAudit,
+                  trailing: const Icon(Icons.chevron_right),
+                ),
+              if (_showEnhancements)
+                SettingsCardRow(
+                  key: _rowKeys[4],
+                  icon: Symbols.auto_fix_high_rounded,
+                  title: EnhancementsLocale.text(
+                    context,
+                    EnhancementsLocale.toolTitle,
+                  ),
+                  subtitle: EnhancementsLocale.text(
+                    context,
+                    EnhancementsLocale.toolSubtitle,
+                  ),
+                  subtitleMaxLines: 4,
+                  selected:
+                      widget.isContentFocused &&
+                      widget.selectedContentIndex == 4,
+                  onTap: _openEnhancements,
                   trailing: const Icon(Icons.chevron_right),
                 ),
             ],

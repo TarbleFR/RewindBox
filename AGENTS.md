@@ -3,6 +3,45 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## Cheats & Enhancements catalogue — 28 October 2026 (source only, no build)
+
+- Maintainer request: one catalogue of cheats, FPS, ultrawide, graphics,
+  performance patches and HD textures for every embedded engine, activated
+  in a few interactions. Full design, formats, sources and limits:
+  `docs/ENHANCEMENTS.md`.
+- Flutter page `lib/screens/enhancements/` (Game settings › Manage, first
+  row; Settings › Tools, fifth iOS tool), service and adapters
+  `lib/services/enhancements/`, strings `lib/l10n/enhancements_locale.dart`
+  (12 languages), builder `tools/enhancements/`, data
+  `native/enhancements/catalogue/` (index also bundled as
+  `assets/data/enhancements_index.json.gz`; shards downloaded on demand from
+  the `Claude` branch, SHA-256 checked).
+- Adapters write only formats the engines already read at boot; no core or
+  bridge source changed: MeloNX Atmosphere cheats in
+  `Documents/MeloNX/mods/contents/<tid>/RewindBox/cheats/` + `enabled.txt`
+  (player cheats preserved), RPCS3 pending records in the bridge's own
+  `Data/NeoStationUnifiedCheats/state.json` (tagged
+  `source: rewindbox-enhancements`; published entries withdrawn so
+  `managedTitleFile` keeps accepting the title), ARMSX2 `patches/<SERIAL>_<CRC>.pnach`
+  + `[Patches] Enable =` in `gamesettings/`, Dolphin `$name` lines in
+  `User/GameSettings/<GAMEID>.ini`. Every write is recorded in
+  `Application Support/RewindBox/Enhancements/state.json`; restore is exact.
+- The Tools row count changed from 4 to 5 on iOS (index 4): the contracts in
+  `test/jit_backend_preference_service_test.dart`,
+  `test/libretro_bios_checker_screen_test.dart`,
+  `test/storage_tools_row_test.dart`, `test/storage_contract_test.py` and
+  `test/neoplay_build397_integration_test.py` were updated accordingly.
+- Checks run on Linux with Flutter 3.47.2, after rebasing on `e55ca25`: the Dart tests (new suites and the
+  updated Tools contracts) and `test/enhancement_catalog_data_test.py` pass;
+  `flutter analyze` reports no error and nothing in the changed files. The
+  pre-existing failures of `neoplay_build397_integration_test.py`,
+  `storage_contract_test.py` and the `build486/492` targeted runners need
+  history absent from a shallow clone and are identical before this change.
+  No device test, no IPA, no CI run, no release.
+- Rights to confirm before a public release: switch-cheats-db and
+  pcsx2_patches have no licence file; the RPCS3 wiki data licence is not
+  stated by its API (`NOTICE.md`).
+
 ## RPCS3 levers for every newly tested game — maintainer rule, 27 October 2026
 
 Apply this rule to every PS3 game the maintainer tests from now on. Use only

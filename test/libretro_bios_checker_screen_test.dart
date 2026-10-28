@@ -404,8 +404,9 @@ void main() {
       // the storage analysis follows this checker
       // (test/storage_tools_row_test.dart). With the StikDebug fallback row
       // removed, iOS lists four tools and the BIOS checker is the third row,
-      // index 2, checked below.
-      expect(key.currentState!.getItemCount(), 4);
+      // index 2, checked below. The Cheats & Enhancements catalogue is the
+      // fifth (docs/ENHANCEMENTS.md).
+      expect(key.currentState!.getItemCount(), 5);
       expect(find.text(english['biosCheckerTitle']!), findsOneWidget);
       expect(find.text(english['biosCheckerSubtitle']!), findsOneWidget);
 

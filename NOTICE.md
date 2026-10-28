@@ -85,6 +85,25 @@ Credits are not a clearance of these findings. Verified upstream cheat
 notices supplement the frozen catalogue metadata and are archived under
 docs/licenses/cheats/. This documentation does not change existing IPAs.
 
+CHEATS & ENHANCEMENTS CATALOGUE — 28 OCTOBER 2026
+
+docs/ENHANCEMENTS.md and native/enhancements/catalogue/. The IPA bundles only
+the catalogue index; code entries are downloaded on demand per game. Sources,
+pinned, with every author credit they carry kept in the entries:
+- HamletDuFromage/switch-cheats-db 109766ab21c784150287c83ff85c02ab9512dccb
+  (mirror of GBAtemp contributors and ChanseyIsTheBest/NX-60FPS-RES-GFX-Cheats).
+  No licence file: permission status not established.
+- RPCS3 game patches (wiki.rpcs3.net) through the RPCS3 patch API, patch.yml
+  1.2 content SHA-256 f1f3cab0c8fee21c30ef69789d79468e2c69a4f52583e53e4392a1cf97791486.
+  Licence of the wiki data not stated by the API: to confirm.
+- PCSX2/pcsx2_patches ba8ef4f42c353d8ee44d572f8111b10db54a3f0b, the patch set
+  distributed with PCSX2 (GPL-3.0) and ARMSX2. No licence file in the repository.
+- Dolphin Data/Sys/GameSettings of OatmealDome/dolphin-ios
+  7cac54161659421ed95c2cd1c0b0746539a4cd38, GPL-2.0-or-later; only code names
+  are referenced, the bodies are those already shipped with the engine.
+These notes are not a clearance; confirm the open permissions before any
+public release. No game, BIOS, firmware or key is included.
+
 RGPAD 1.5 overlay: DJM; Libretro common-overlays collection, CC BY 4.0.
 Original input:
 https://github.com/libretro/common-overlays/blob/42c21b99889468a8e77fd7f002229ec16e2f9fa2/gamepads/rgpad/rgpad_modern.cfg

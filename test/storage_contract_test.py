@@ -587,7 +587,8 @@ class StorageScreensAndLocaleContract(unittest.TestCase):
         tools = Source(TOOLS)
         self.assertEqual(tools.masked.count('StorageAuditScreen('), 1)
         self.assertIn('bool get _showStorageAudit => defaultTargetPlatform == TargetPlatform.iOS;', tools.masked)
-        self.assertIn('int getItemCount() => _showBiosChecker ? 4 : 2;', tools.masked)
+        # Fifth row: the Cheats & Enhancements catalogue (docs/ENHANCEMENTS.md).
+        self.assertIn('int getItemCount() => _showBiosChecker ? 5 : 2;', tools.masked)
         select = Span(tools, 'void selectItem(')
         self.assertLess(select.find('if (index == 3 && _showStorageAudit) {'), select.find('_openStorageAudit();'))
 

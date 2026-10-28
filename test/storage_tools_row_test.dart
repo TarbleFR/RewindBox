@@ -98,10 +98,11 @@ void main() {
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
     final key = await pumpTools(tester);
-    expect(key.currentState!.getItemCount(), 4);
+    // The Cheats & Enhancements catalogue follows it (docs/ENHANCEMENTS.md).
+    expect(key.currentState!.getItemCount(), 5);
 
     final all = rows(tester);
-    expect(all, hasLength(4));
+    expect(all, hasLength(5));
     final storage = all[3];
     expect(storage.icon, Symbols.storage_rounded);
     expect(storage.title, english[StorageLocale.toolTitle]);
@@ -113,8 +114,8 @@ void main() {
     expect(storage.key, isA<GlobalKey>(), reason: 'its own row key');
     expect(
       {for (final row in all) row.key}.length,
-      4,
-      reason: 'four distinct row keys',
+      5,
+      reason: 'five distinct row keys',
     );
     // The BIOS checker stays just before it and is no longer selected.
     expect(all[2].icon, Symbols.fact_check_rounded);
