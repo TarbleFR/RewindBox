@@ -1,0 +1,128 @@
+{
+  "build": 589,
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "source": "99a57a663eed1a1e455e6c7baf7e9be621cb4b00",
+  "coreCommit": "d802611ef0df34a1050854f3bb8c93e7a09db7a6",
+  "run": 40778765122,
+  "workflow": ".github/workflows/rpcs3-cell589-core.yml",
+  "runner": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "xcode": "16.4"
+  },
+  "artifacts": {
+    "core": {
+      "id": 12856692446,
+      "name": "RPCS3Core-99a57a663eed1a1e455e6c7baf7e9be621cb4b00",
+      "bytes": 29091301,
+      "digest": "sha256:1f79c36246e19462e832dc14f5488289d28854bc211abc1758b54f79e5bd8bb0"
+    },
+    "diagnostics": {
+      "id": 12857116249,
+      "bytes": 206302,
+      "digest": "sha256:c88f85c592bdb94050b2f5d67e857678a72a2612a61c87e9c71a5b3d574123ab"
+    }
+  },
+  "core": {
+    "sha256": "49fed8c0bde3d8d542b77bd0132e44ee030a26fd501922bcaa217de3134b15a6",
+    "abiVersion": 30,
+    "cpuBaseline": "armv8.4-a",
+    "sourcePatchSHA256": "c069fb596fbc76b835b981779caaf8ebae01c2fff9f571e8cbe09712d0c8a4e7",
+    "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "definedSymbols": 88,
+    "recordedInputs": 138,
+    "codegen": {
+      "PPU": [
+        "a987639e9f838d1c"
+      ],
+      "SPU": [
+        "d070cb361bdef607"
+      ]
+    },
+    "codegenUnchangedFrom587": true,
+    "coldCompileRequiredByThisChange": false,
+    "moltenvkArchive": "0ee6ae968193749e56d76be71dafb7c36ce4aa19b84f5bb69acd8154d38e06a1",
+    "encodingQueueHookLinked": true,
+    "markers589": [
+      "Automatic enables it for God of War III, Call of Duty: Black Ops II, Bladestorm and Assassin's Creed;",
+      "COREPROF OPT587",
+      "canary=%s confirmed=%u exec_queues=%u",
+      "MoltenVK asynchronous submits: encoding queue recorded; acquisitions wait for the last queued present",
+      "COREPROF OPT559",
+      "COREPROF OPT561",
+      "COREPROF OPT581",
+      "COREPROF OPT583"
+    ],
+    "replaces": {
+      "source": "a8a7ce1072c189806f4ddf70552280b3e95a1e17",
+      "run": 40718679248,
+      "sha256": "c638d4ce331afe1d0fbc5fe6695c0e65986ff43d5ec52f08c210651050c200e8"
+    }
+  },
+  "proof": {
+    "allTestsPassed": true,
+    "tests": [
+      "cell589"
+    ]
+  },
+  "policy": {
+    "passed": true,
+    "cases": 33,
+    "harnessSHA256": "48d762a013b0ee5843c4d75af8404ab8612afa834fc5ea34475852a17c8dc015",
+    "before587": {
+      "passed": true,
+      "cases": 33
+    },
+    "newlyAutomatic": [
+      "BLES00158",
+      "BLUS30089"
+    ],
+    "prehashUnchanged": true
+  },
+  "placement": {
+    "policyOtherwiseIdentical": true,
+    "settingTextsChanged": [
+      "scoped_texture_revalidation",
+      "texture_validation_epoch"
+    ],
+    "leversOtherwiseIdentical": true,
+    "serials": [
+      "BLES00158",
+      "BLUS30089"
+    ]
+  },
+  "offIOS": {
+    "sharedFiles": [],
+    "iosOnlyFiles": [
+      "rpcs3/ios/IOSTitleLevers.h",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+      "rpcs3/ios/RPCS3IOSSettings.cpp"
+    ]
+  },
+  "sourceContract": {
+    "baseline": "a8a7ce1072c189806f4ddf70552280b3e95a1e17",
+    "fixtureSHA256": "d631922c2c1eb22e43bb96197d21141486659dd8b72a469ece3ab8cd9be42519",
+    "sourceSHA256": {
+      "rpcs3/ios/IOSTitleLevers.h": "c291afdcb87c0ffb7a79cc38984424208c3ad756dbd0a20eb362e48b52f7f22b",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "cf958f5d6fea3702d95c00dfd23de35ba7b944411a8a7621f9b8bc3c222fd06d",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "66d0486830e52b3a162cee774915d453ac68d4f40a9b57d2ab9127fb5f305221"
+    },
+    "newFiles": [],
+    "otherCoreSourcesUnchanged": 302
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom587": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "inputsSHA256": {
+    "test/rpcs3_cell589_test.py": "3d231d56091c2f61b87e0d89be09e3eaaff8186e8ca8816e5a980ba40299af61"
+  },
+  "scope": "The 589 policy blocks compiled verbatim and evaluated on the Apple Silicon runner (plain and ASan/UBSan, beside the 587 blocks), and the iPhone Core built from the verified source with both MoltenVK hooks linked. No iPhone FPS, frame time or memory result."
+}

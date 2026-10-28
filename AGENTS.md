@@ -321,6 +321,15 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
   `docs/evidence/rpcs3-cell589-host-linux.json`. The Dart profile test runs
   in the delivery checks (no Flutter in the session container). No iPhone
   measurement of 589; no FPS gain claimed.
+- Core run `40778765122` (dispatched on `99a57a6`, the profile commit right
+  after the Core commit `d802611`; the push run was skipped because its head
+  was the profile commit): the 587 Core authenticated, the 589 test passed on
+  the Apple Silicon runner (plain and ASan/UBSan, 587 blocks beside), Core
+  SHA-256 `49fed8c0…15a6`, 88 exports, 138 recorded inputs, the new setting
+  text present and the 575 three-title text absent, both MoltenVK hooks
+  linked, codegen identities unchanged. Evidence
+  `docs/evidence/rpcs3-cell589-macos.json`; delivery binding
+  `.github/diagnostics/rpcs3cell589_delivery_core.py`. No IPA yet.
 
 ## RPCS3 Core 587: MoltenVK asynchronous submits made safe (encode barrier, boot canary), Black Ops II relaxed reservations — 28 October 2026
 
