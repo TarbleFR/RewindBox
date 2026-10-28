@@ -165,13 +165,16 @@ final class MeloNXMetalSessionViewController: UIViewController {
         // (MeloNXLaunchJournal.persist). A journal ending after
         // "didEnterBackground" ended in the background (suspension, then a
         // system kill); one ending while active, with no such line, did not.
+        // The detail is "memory <footprint>/<headroom>/<device %>/<donors>": the
+        // journal's secret scrubber replaces any detail that starts with a
+        // key=value entry ("mem=..." read "[redacted key entry]" in build 586).
         for (name, event) in [(UIApplication.willResignActiveNotification,"willResignActive"),
                               (UIApplication.didEnterBackgroundNotification,"didEnterBackground"),
                               (UIApplication.willEnterForegroundNotification,"willEnterForeground"),
                               (UIApplication.didBecomeActiveNotification,"didBecomeActive"),
                               (UIApplication.didReceiveMemoryWarningNotification,"memoryWarning")] {
             observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { _ in
-                MeloNXLaunchJournal.record("lifecycle",event,detail:"mem=" + MeloNXMetalSessionViewController.memoryField())
+                MeloNXLaunchJournal.record("lifecycle",event,detail:"memory " + MeloNXMetalSessionViewController.memoryField())
             })
         }
     }
