@@ -29,7 +29,12 @@ void main() {
       index.sources.map((s) => s.id),
       containsAll(['rpcs3-patches', 'armsx2-patches-zip', 'dolphin-gamesettings']),
     );
-    expect(index.contains(EnhancementEngine.melonx, '0100000000010000'), isFalse, reason: 'no licensed Switch source');
+    expect(index.contains(EnhancementEngine.melonx, '0100000000010000'), isTrue);
+    expect(
+      index.sources.firstWhere((s) => s.id == 'switch-cheats-db').origin,
+      startsWith('https://raw.githubusercontent.com/HamletDuFromage/switch-cheats-db/'),
+      reason: 'downloaded from its source, not hosted',
+    );
     expect(index.contains(EnhancementEngine.rpcs3, 'BLUS30443'), isTrue);
   });
 

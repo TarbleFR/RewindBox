@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../logger_service.dart';
 import 'enhancement_models.dart';
+import 'enhancement_origin.dart';
 
 /// Download progress of a catalogue file: bytes received of [total].
 typedef EnhancementProgress = void Function(int received, int total);
@@ -113,6 +114,7 @@ class EnhancementCatalog {
   static const _maxIndexExpanded = 32 << 20;
   static const _maxShardBytes = 8 << 20;
   static const _maxShardExpanded = 48 << 20;
+  static const _maxOriginBytes = 16 << 20;
   static const _recordCacheSize = 8;
 
   final Future<Directory> Function() _cacheRoot;
@@ -190,7 +192,9 @@ class EnhancementCatalog {
     final meta = index.shard(entry[2].toString());
     if (meta == null) return false;
     final file = await _shardFile(entry[2].toString());
-    return await file.exists() && await file.length() == meta['size'];
+    if (!await file.exists() || await file.length() != meta['size']) return false;
+    // A record pointing into its source's files needs those files too.
+    return await record(engine, key, download: false) != null;
   }
 
   /// The catalogue record of one game, downloading its shard when allowed.
@@ -265,7 +269,62 @@ class EnhancementCatalog {
       throw EnhancementException('shard_schema', shard);
     }
     final record = (json['keys'] as Map?)?[key];
-    return record is Map ? Map<String, dynamic>.from(record) : null;
+    if (record is! Map) return null;
+    final result = Map<String, dynamic>.from(record);
+    if (EnhancementOrigin.files(result).isEmpty) return result;
+    return _fromOrigin(index, engine, result, download, onProgress);
+  }
+
+  /// Downloads (or reads from the cache) the original files a record points
+  /// into, each checked against the size and SHA-256 of the pinned revision,
+  /// and resolves the record's codes from them. Null when a file is not
+  /// cached and [download] is false.
+  Future<Map<String, dynamic>?> _fromOrigin(
+    EnhancementIndex index,
+    EnhancementEngine engine,
+    Map<String, dynamic> record,
+    bool download,
+    EnhancementProgress? onProgress,
+  ) async {
+    final bases = {for (final source in index.sources) source.id: source.origin};
+    final contents = <Uint8List>[];
+    for (final origin in EnhancementOrigin.files(record)) {
+      final digest = origin['sha256']?.toString() ?? '';
+      final size = origin['size'];
+      final base = Uri.tryParse(bases[origin['source']] ?? '');
+      final relative = origin['path']?.toString() ?? '';
+      if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(digest) ||
+          size is! int ||
+          size > _maxOriginBytes ||
+          base == null ||
+          base.scheme != 'https' ||
+          relative.isEmpty ||
+          relative.startsWith('/') ||
+          relative.split('/').contains('..')) {
+        throw EnhancementException('origin_invalid', relative);
+      }
+      final meta = {'size': size, 'sha256': digest};
+      final file = File(path.join((await _cacheRoot()).path, 'origin', '$digest.bin'));
+      Uint8List? bytes;
+      if (await file.exists()) {
+        final cached = await file.readAsBytes();
+        if (_matches(cached, meta)) {
+          bytes = cached;
+        } else {
+          await file.delete();
+        }
+      }
+      if (bytes == null) {
+        if (!download) return null;
+        final uri = base.resolve(relative.split('/').map(Uri.encodeComponent).join('/'));
+        final fetched = await _fetcher(uri, limit: size, onProgress: onProgress);
+        if (!_matches(fetched, meta)) throw EnhancementException('origin_integrity', relative);
+        await _writeAtomically(file, fetched);
+        bytes = fetched;
+      }
+      contents.add(bytes);
+    }
+    return EnhancementOrigin.resolve(engine, record, contents);
   }
 
   bool _matches(Uint8List bytes, Map<String, dynamic> meta) =>
@@ -286,7 +345,7 @@ class EnhancementCatalog {
     return total;
   }
 
-  /// Removes downloaded shards and the refreshed index. Installed native
+  /// Removes downloaded shards, origin files and the refreshed index. Installed native
   /// files are untouched: the store keeps everything needed to remove them.
   Future<void> clearCache() async {
     final root = await _cacheRoot();

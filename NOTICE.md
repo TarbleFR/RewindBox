@@ -130,6 +130,13 @@ https://github.com/TarbleFR/RewindBox/issues; entries are removed promptly.
 - Admentus64/Enhancement-Codes f8e9ad12d90460e316b552fdf73052eb308e9ab9:
   GPL-3.0 (GameCube disc files only).
 
+Downloaded from the source, not hosted (same day): HamletDuFromage/switch-
+cheats-db 109766ab21c784150287c83ff85c02ab9512dccb. RewindBox lists names,
+categories and credits; the app downloads each title's original file from
+raw.githubusercontent.com at that revision and checks its SHA-256. The codes
+belong to the authors credited in each title. Titles whose authors restrict
+distribution are left out.
+
 Removed on 28 October 2026 because they grant no licence to redistribute
 their codes: HamletDuFromage/switch-cheats-db, exefer/gbatemp-matias3ds-cheats
 ("All rights belong to the original cheat authors"), blawar/titledb

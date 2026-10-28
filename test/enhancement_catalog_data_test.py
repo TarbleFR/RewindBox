@@ -13,6 +13,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+UNSAFE_SWITCH_NAME = re.compile(r'//|[#;\[\]{}\r\n]')
 CATALOGUE = ROOT / 'native/enhancements/catalogue'
 sys.path.insert(0, str(ROOT / 'tools/enhancements'))
 from classify import classify  # noqa: E402
@@ -61,10 +62,43 @@ class CatalogueData(unittest.TestCase):
                 self.assertIn(shard, self.index['shards'], (engine, key))
                 self.assertTrue(all(cat in ('cheat', 'fps', 'ultrawide', 'graphics', 'performance') for cat in counts))
 
-    def test_no_unlicensed_switch_source_is_published(self):
-        # No Switch cheat or patch collection licenses its codes (docs/ENHANCEMENTS.md, Rights).
-        self.assertEqual(self.index['engines']['melonx']['keys'], {})
-        self.assertEqual(list(self.records('melonx')), [])
+    def test_switch_records_point_into_their_source_and_hold_no_code(self):
+        # switch-cheats-db has no licence: RewindBox lists names and pointers;
+        # the app downloads each title's original file (EnhancementOrigin).
+        sources = {s['id']: s for s in self.index['sources']}
+        restricted = set(json.loads((CATALOGUE / 'VALIDATION.json').read_text())['rejections']['melonx_restricted_titles'])
+        self.assertGreater(len(restricted), 100, 'author-restricted titles are detected')
+        count = 0
+        for title, record in self.records('melonx'):
+            self.assertRegex(title, r'^0100[0-9A-F]{12}$')
+            self.assertNotIn(title, restricted, 'no title whose authors restrict distribution')
+            files = record['origin']
+            self.assertTrue(1 <= len(files) <= 2)
+            for origin in files:
+                base = sources[origin['source']]['origin']
+                self.assertRegex(base, r'^https://raw\.githubusercontent\.com/[^/]+/[^/]+/[0-9a-f]{40}/$', 'pinned revision')
+                self.assertRegex(origin['path'], r'^cheats(_gfx)?/0100[0-9A-F]{12}\.json$')
+                self.assertRegex(origin['sha256'], r'^[0-9a-f]{64}$')
+                self.assertLessEqual(origin['size'], 16 << 20)
+
+            def pointer(value):
+                self.assertEqual(set(value), {'o', 'k'})
+                self.assertIn(value['o'], range(len(files)))
+                self.assertIsInstance(value['k'], str)
+            for build, value in record['master'].items():
+                self.assertRegex(build, r'^[0-9A-F]{16}$')
+                pointer(value)
+            names = set()
+            for entry in record['entries']:
+                count += 1
+                self.assertEqual(entry['source'], 'switch-cheats-db')
+                self.assertFalse(UNSAFE_SWITCH_NAME.search(entry['name']), entry['name'])
+                self.assertNotIn(entry['name'].casefold(), names, 'one program per name')
+                names.add(entry['name'].casefold())
+                for build, value in entry['builds'].items():
+                    self.assertRegex(build, r'^[0-9A-F]{16}$')
+                    pointer(value)
+        self.assertGreater(count, 30000)
 
     def test_rpcs3_records_stay_inside_the_bridge_whitelist(self):
         count = 0
@@ -129,7 +163,7 @@ class CatalogueData(unittest.TestCase):
     def test_sources_carry_attribution(self):
         sources = {s['id']: s for s in self.index['sources']}
         self.assertEqual(set(sources), {
-            'rpcs3-patches',
+            'switch-cheats-db', 'rpcs3-patches',
             'armsx2-patches-zip', 'cookieplmonster-ccc', 'aerowidescreen-pcsx2',
             'dolphin-gamesettings', 'dolphin-upstream', 'ishiiruka-gamesettings', 'slippi-gamesettings',
             'mpn-gamesettings', 'admentus-enhancement-codes'})

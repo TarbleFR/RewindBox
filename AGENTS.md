@@ -88,6 +88,19 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `docs/SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md`. No history rewrite without
   explicit authorisation.
 
+- Origin download, 28 October (maintainer: do not host codes, change
+  nothing for the player). A source without a licence is listed by name
+  and pointer only. The app downloads its original file at a pinned
+  revision (`EnhancementCatalog._fromOrigin`, `EnhancementOrigin`), checks
+  the SHA-256, then installs as before.
+  - First source: switch-cheats-db, 36,980 Switch entries, back in the
+    Cheats & Enhancements page; the 194 restricted titles are still
+    excluded.
+  - Licensed sources stay hosted.
+  - The unified cheat catalogue (`native/cheats/`, Objective-C) is the
+    next step. It needs a native port of the parsers and a macOS
+    validation run that only the maintainer can authorise.
+
 ## RPCS3 levers for every newly tested game — maintainer rule, 27 October 2026
 
 Apply this rule to every PS3 game the maintainer tests from now on. Use only

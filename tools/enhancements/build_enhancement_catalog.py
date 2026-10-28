@@ -47,6 +47,21 @@ SHARDS_PER_ENGINE = 32
 # engine already ships (referenced by name, never redistributed). Sources
 # without a licence were reviewed and removed (docs/ENHANCEMENTS.md, Rights).
 SOURCES = {
+    # ------------------------------------------------------------ MeloNX
+    # No licence: the catalogue holds names and pointers only, and the app
+    # downloads each title's file from the original repository (origin).
+    'switch-cheats-db': {
+        'name': 'HamletDuFromage/switch-cheats-db (GBAtemp main cheat file, ChanseyIsTheBest 60 FPS/graphics)',
+        'url': 'https://github.com/HamletDuFromage/switch-cheats-db',
+        'git': 'https://github.com/HamletDuFromage/switch-cheats-db.git',
+        'revision': '109766ab21c784150287c83ff85c02ab9512dccb',
+        'origin': 'https://raw.githubusercontent.com/HamletDuFromage/switch-cheats-db/'
+                  '109766ab21c784150287c83ff85c02ab9512dccb/',
+        'license': 'No licence; the codes belong to the authors credited in each title. Not hosted by '
+                   'RewindBox: the app downloads the original file of each title from this repository and '
+                   'revision. Titles whose authors restrict distribution are left out.',
+        'engines': ['melonx'],
+    },
     # ------------------------------------------------------------ RPCS3
     'rpcs3-patches': {
         'name': 'RPCS3 game patches (RPCS3 Wiki contributors, official patch API)',
@@ -144,6 +159,17 @@ SOURCES = {
     },
 }
 
+SWITCH_BUILD = re.compile(r'^[0-9A-F]{16}$')
+SWITCH_TITLE = re.compile(r'^0100[0-9A-F]{12}$')
+SWITCH_LINE = re.compile(r'^[0-9A-Fa-f]{8}( [0-9A-Fa-f]{8}){0,3}$')
+# Read only to find titles whose authors restrict distribution; nothing of it
+# is published.
+RESTRICTION_INPUTS = {
+    'gbatemp-matias3ds': {
+        'git': 'https://github.com/exefer/gbatemp-matias3ds-cheats.git',
+        'revision': 'ca85a7c9a30983a9084ba49866369a67f3d152a5',
+    },
+}
 RPCS3_HASH = re.compile(r'^PPU-[0-9a-fA-F]{40}$')
 RPCS3_SERIAL = re.compile(r'^[A-Z]{4}[0-9]{5}$')
 RPCS3_VERSION = re.compile(r'^[0-9]{2}\.[0-9]{2}$')
@@ -184,7 +210,7 @@ def display_group(scope, name, category):
 # ---------------------------------------------------------------- inputs
 
 def fetch_git(cache, source_id, offline):
-    source = SOURCES[source_id]
+    source = SOURCES.get(source_id) or RESTRICTION_INPUTS[source_id]
     target = cache / source_id
     if (target / '.git').exists():
         head = subprocess.check_output(['git', '-C', str(target), 'rev-parse', 'HEAD'], text=True).strip()
@@ -222,6 +248,160 @@ def fetch_rpcs3(cache, offline):
         raise SystemExit(f'rpcs3-patches: content {digest} is not the pinned {source["sha256"]}; '
                          'review the new patch.yml and update the pin')
     return text
+
+
+# ---------------------------------------------------------------- MeloNX
+
+# Authors who restrict where their codes may appear. A title carrying such a
+# notice in any source is left out.
+RESTRICTED = re.compile(
+    r"exclusive to gbatemp|outside (of )?gbatemp|do not (steal|distribute|re-?post|re-?upload|share)|"
+    r"don'?t (steal|distribute|re-?post|re-?upload|share)|(re)?distribution (is )?(prohibited|forbidden|not allowed)|"
+    r"spreading codes .* prohibited", re.I)
+# cp1252 sequences produced when UTF-8 text was decoded as Latin-1.
+MOJIBAKE = re.compile('[ÂÃâîï][\u0080-¿ŒœŠšŸŽžƒˆ˜–—‘-„†-•…‰‹›€™]')
+
+
+def switch_lines(body):
+    """Opcode words of one Atmosphere section, or None when any line is not one.
+    lib/services/enhancements/enhancement_origin.dart applies the same rule."""
+    lines = []
+    for raw in body:
+        line = raw.strip()
+        if not line:
+            continue
+        if not SWITCH_LINE.match(line):
+            return None
+        lines.append(line.upper())
+    if not lines or len(lines) > 512:
+        return None
+    return lines
+
+
+def switch_name(raw):
+    """A section label Ryujinx parses unchanged: it strips //, # and ; first."""
+    name = raw.strip()
+    if len(name) >= 2 and name[0] in '[{' and name[-1] in ']}':
+        name = name[1:-1]
+    name = re.sub(r'//|[#;\[\]{}]', ' ', name)
+    return clean_label(name, 120)
+
+
+def repair_mojibake(name):
+    """Undo UTF-8 read as cp1252; None when the name stays garbled."""
+    if not MOJIBAKE.search(name):
+        return name
+    try:
+        fixed = name.encode('cp1252').decode('utf-8')
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return None
+    return None if MOJIBAKE.search(fixed) else fixed
+
+
+def switch_restricted_titles(scdb, matias):
+    """Title IDs whose authors limit distribution, in either collection."""
+    restricted = set()
+    for folder in ('cheats', 'cheats_gfx', 'cheats_gbatemp'):
+        for path in sorted((scdb / folder).glob('*.json')):
+            data = json.loads(path.read_text(encoding='utf-8'))
+            for file_name, credit in (data.get('attribution') or {}).items():
+                if RESTRICTED.search(file_name) or RESTRICTED.search(str(credit)):
+                    restricted.add(path.stem.upper())
+    for path in sorted((matias / 'titles').glob('*/cheats/*.txt')):
+        if RESTRICTED.search(path.read_text(encoding='utf-8', errors='replace')):
+            restricted.add(path.parts[-3].upper())
+    return restricted
+
+
+def build_melonx(scdb, matias, stats):
+    """switch-cheats-db by reference: per title, the origin files (path, size,
+    SHA-256 at the pinned revision) and, per program and Build ID, the key of
+    the code in that file. The app downloads the file and reads the lines."""
+    restricted = switch_restricted_titles(scdb, matias)
+    stats['melonx_restricted_titles'] = sorted(restricted)
+    titles = {}
+    for folder, default in (('cheats', 'cheat'), ('cheats_gfx', 'graphics')):
+        for path in sorted((scdb / folder).glob('*.json')):
+            tid = path.stem.upper()
+            if not SWITCH_TITLE.match(tid):
+                stats['melonx_rejected_titles'] += 1
+                continue
+            if tid in restricted:
+                stats['melonx_restricted_skipped'] += 1
+                continue
+            raw = path.read_bytes()
+            data = json.loads(raw)
+            record = titles.setdefault(tid, {'title': '', 'credits': [], 'origin': [], 'master': {},
+                                             'entries': {}, 'seen': {}})
+            origin = len(record['origin'])
+            used = False
+            for file_name, credit in sorted((data.get('attribution') or {}).items()):
+                if not record['title']:
+                    record['title'] = clean_label(re.sub(r'\.txt$', '', file_name, flags=re.I), 120)
+                # Attribution files sometimes repeat the codes: keep every other line.
+                prose = ' '.join(l.strip() for l in str(credit).splitlines()
+                                 if l.strip() and not SWITCH_LINE.match(l.strip())
+                                 and not (l.strip().startswith('[') and l.strip().endswith(']')))
+                prose = re.sub(r'\s+', ' ', prose).strip()[:2000]
+                if prose and prose not in record['credits'] and len(record['credits']) < 64:
+                    record['credits'].append(prose)
+            for build, cheats in data.items():
+                if build == 'attribution':
+                    continue
+                if not SWITCH_BUILD.match(build) or not isinstance(cheats, dict):
+                    stats['melonx_rejected_builds'] += 1
+                    continue
+                for raw_name, code in cheats.items():
+                    lines = switch_lines(str(code).split('\n')[1:])
+                    if lines is None:
+                        stats['melonx_rejected_cheats'] += 1
+                        continue
+                    pointer = {'o': origin, 'k': raw_name}
+                    if raw_name.strip().startswith('{'):
+                        record['master'].setdefault(build, pointer)  # on with any cheat of its build
+                        used = True
+                        continue
+                    name = repair_mojibake(switch_name(raw_name))
+                    if not name:
+                        stats['melonx_rejected_cheats'] += 1
+                        continue
+                    seen = record['seen'].setdefault(build, set())
+                    body = tuple(lines)
+                    entry = record['entries'].get(name.casefold())
+                    category = classify(name, default)
+                    if entry is None:
+                        if body in seen:
+                            stats['melonx_duplicate_cheats'] += 1
+                            continue
+                        entry = record['entries'][name.casefold()] = {
+                            'id': stable_id('melonx', tid, name.casefold()), 'cat': category, 'name': name,
+                            'source': 'switch-cheats-db', 'builds': {}}
+                    if category != 'cheat' and entry['cat'] == 'cheat':
+                        entry['cat'] = category
+                    if build in entry['builds'] or body in seen:
+                        stats['melonx_duplicate_cheats'] += 1
+                        continue
+                    entry['builds'][build] = pointer
+                    seen.add(body)
+                    used = True
+            if used:
+                record['origin'].append({'source': 'switch-cheats-db', 'path': f'{folder}/{path.name}',
+                                         'size': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()})
+            else:
+                # Pointers into an unused file are never written; keep indexes dense.
+                assert not any(p['o'] == origin for e in record['entries'].values() for p in e['builds'].values())
+    out = {}
+    for tid, record in sorted(titles.items()):
+        entries = sorted(record['entries'].values(), key=lambda e: (e['cat'], e['name'].casefold()))
+        if not entries:
+            continue
+        for entry in entries:
+            group = display_group(tid, entry['name'], entry['cat'])
+            if group:
+                entry['group'] = group
+        out[tid] = {'title': record['title'] or tid, 'credits': record['credits'], 'origin': record['origin'],
+                    'master': record['master'], 'entries': entries}
+    return out
 
 
 # ---------------------------------------------------------------- RPCS3
@@ -710,8 +890,8 @@ def main():
     git = {source_id: fetch_git(args.cache, source_id, args.offline)
            for source_id, source in SOURCES.items() if 'git' in source}
     engines = {
-        # No Switch source licenses its codes for redistribution (docs/ENHANCEMENTS.md, Rights).
-        'melonx': {},
+        'melonx': build_melonx(git['switch-cheats-db'], fetch_git(args.cache, 'gbatemp-matias3ds', args.offline),
+                               stats),
         'rpcs3': build_rpcs3(fetch_rpcs3(args.cache, args.offline), stats),
         'armsx2': build_armsx2(git, stats),
         'dolphin': build_dolphin(git, stats),
@@ -743,6 +923,7 @@ def main():
     index = {
         'schema': 1, 'catalogue': 'rewindbox-enhancements', 'revision': revision, 'base_url': BASE_URL,
         'sources': [{'id': k, **{f: v[f] for f in ('name', 'url', 'license', 'engines')},
+                     **({'origin': v['origin']} if 'origin' in v else {}),
                      'revision': v.get('revision') or v.get('sha256')} for k, v in SOURCES.items()],
         'engines': index_engines, 'shards': shard_meta, 'totals': totals,
     }

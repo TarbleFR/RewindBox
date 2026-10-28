@@ -64,6 +64,7 @@ class EnhancementSource {
     required this.license,
     required this.revision,
     required this.engines,
+    this.origin = '',
   });
 
   final String id;
@@ -72,6 +73,10 @@ class EnhancementSource {
   final String license;
   final String revision;
   final List<String> engines;
+
+  /// HTTPS base the app downloads this source's original files from, when
+  /// RewindBox does not host them; empty for hosted sources.
+  final String origin;
 
   factory EnhancementSource.fromJson(Map<String, dynamic> json) =>
       EnhancementSource(
@@ -84,6 +89,7 @@ class EnhancementSource {
           for (final engine in (json['engines'] as List? ?? const []))
             engine.toString(),
         ],
+        origin: json['origin']?.toString() ?? '',
       );
 }
 

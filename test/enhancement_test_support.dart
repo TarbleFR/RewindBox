@@ -31,7 +31,16 @@ EnhancementCatalog repositoryCatalog(
 /// A catalogue holding only [records] (`engine -> key -> record`), built
 /// the way tools/enhancements writes one. For engines whose committed
 /// catalogue has no entry to test with; the codes in it are made up.
-EnhancementCatalog fixtureCatalog(Directory cache, Map<String, Map<String, Map<String, dynamic>>> records) {
+///
+/// [origins] serves the original files of sources the catalogue points
+/// into (absolute URL → bytes); [sources] become the index's sources.
+EnhancementCatalog fixtureCatalog(
+  Directory cache,
+  Map<String, Map<String, Map<String, dynamic>>> records, {
+  List<Map<String, dynamic>> sources = const [],
+  Map<String, Uint8List> origins = const {},
+  List<Uri>? requests,
+}) {
   const base = 'https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/native/enhancements/catalogue/';
   final files = <String, Uint8List>{};
   final shards = <String, dynamic>{};
@@ -67,7 +76,7 @@ EnhancementCatalog fixtureCatalog(Directory cache, Map<String, Map<String, Map<S
           'catalogue': 'rewindbox-enhancements',
           'revision': 'fixture',
           'base_url': base,
-          'sources': const [],
+          'sources': sources,
           'engines': engines,
           'shards': shards,
         }),
@@ -78,7 +87,10 @@ EnhancementCatalog fixtureCatalog(Directory cache, Map<String, Map<String, Map<S
     cacheRoot: () async => cache,
     bundledIndex: () async => index,
     fetcher: (uri, {required limit, onProgress}) async {
-      final bytes = files[uri.toString().substring(base.length)]!;
+      requests?.add(uri);
+      final url = uri.toString();
+      final bytes = url.startsWith(base) ? files[url.substring(base.length)]! : origins[url];
+      if (bytes == null) throw StateError('not served: $url');
       onProgress?.call(bytes.length, bytes.length);
       return bytes;
     },
