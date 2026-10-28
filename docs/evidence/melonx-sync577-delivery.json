@@ -1,0 +1,106 @@
+{
+  "result": "passed",
+  "build": 577,
+  "version": "0.0.8",
+  "source": "079b01cfdeec94a6625498690b97a7b27dd7a3df",
+  "recipeSource": "079b01cfdeec94a6625498690b97a7b27dd7a3df",
+  "run": 40612213771,
+  "base": "delivered private 576 (MeloNX engine 301e0f8, StikDebug fallback removal 504f9c0, interface fixes 48b9865, RPCS3 Core 575 ddf7342)",
+  "artifact": {
+    "id": 12785001665,
+    "name": "RewindBox-Build577-079b01cfdeec94a6625498690b97a7b27dd7a3df-cold",
+    "zipSHA256": "becb9527df0ec41e4546f6a78c667af10885bf6b46d9fef5f3a206470df94b69",
+    "recipient": "build-utils/delivery-577-recipient.pem",
+    "privateKeyInGit": false
+  },
+  "ipa": {
+    "name": "RewindBox-Build577-079b01cfdeec94a6625498690b97a7b27dd7a3df-cold.ipa",
+    "bytes": 188098576,
+    "sha256": "9dac3d422fbbffe0c2133b35d5709cf75fba32889d71c6fd2ef03e3a45c8ee5b",
+    "equalsSHA256SUMS": true,
+    "members": 5364
+  },
+  "melonxEngine": {
+    "source": "afd0d4b0a7d9dfc6a40a38cb4088a747b413b688",
+    "engineCommits": [
+      "cfa5116857de35fcc189874b8e3e5349419413df",
+      "afd0d4b0a7d9dfc6a40a38cb4088a747b413b688"
+    ],
+    "run": 40610510834,
+    "artifact": 12782599009,
+    "artifactSHA256": "475d64c84250bb0e044d652cd49dba445741f4678e250d6aeabc89c46bfc65ea",
+    "identitySHA256": "bf560d80e0f902b0a5596f3150f41b38da39abbab89f36b97c8772a58c5f9e05",
+    "changes": [
+      "adapt_kernel_sync: an expired timed wait leaves the condition variable or address arbiter waiter list at once (KThread.TimeUp and termination); equal-priority waiters stay first in, first out; SignalAndModifyByWaitingCountIfEqual decrements when the signal leaves no waiter; DecrementAndWaitIfLessThan writes only below the threshold; a zero-timeout condvar wait returns TimedOut without joining the list",
+      "adapt_gc: System.GC.HighMemoryPercent 99 (the .NET GC on Apple reads the device-wide memory load, kern.memorystatus_level)",
+      "adapt_jit_arena with native/melonx/EmbeddedRuntime.cs and EmbeddedLaunchPreflight.cs: the launch preflight asks for a 1 GiB TXM code arena for Hogwarts Legacy 0100F7E00C70E000 with an update; the default 512 MiB arena is mapped if the helper cannot prepare it",
+      "adapt_pipeline_cache: one persisted Vulkan pipeline cache per title ID, 384 MiB main budget, an unchanged snapshot is not rewritten at close, the former shared files are removed; MeloNX's MoltenVK keeps its retained MSL LZ4-compressed",
+      "adapt_fft_boot_trace removed (the temporary FINAL FANTASY TACTICS boot trace of 576)",
+      "test/melonx_launch_native_test.py: fixture for the code arena request; checks that a preflight clears the previous launch's request"
+    ],
+    "previous": "301e0f86020696a9e26e626d28b9078ae678f1d5"
+  },
+  "applicationChanges": {
+    "controllerRelay": "d1f7b8dd6384a860f0d257a89ac08eca4a482b81",
+    "controllerRelayFile": "packages/melonx_internal_bridge/ios/Classes/MeloNXInputRouter.swift",
+    "hostRun": 40609951631,
+    "productTreesChanged": [
+      "native",
+      "packages"
+    ]
+  },
+  "rpcsCore": {
+    "source": "ddf734206dfc5aee950c1538f13d13b5532bbb93",
+    "run": 40589313705
+  },
+  "validators": {
+    "hd-textures-ipa-validation.json": "passed",
+    "liquid-glass-ui577-ipa-validation.json": "passed",
+    "melonx-delete509-ipa.json": "passed",
+    "melonx-input577-ipa-validation.json": "passed",
+    "melonx-ipa.json": "passed",
+    "melonx-jit577-ipa-validation.json": "passed",
+    "melonx-keys517-ipa-validation.json": "passed",
+    "melonx-launch514-ipa-validation.json": "passed",
+    "melonx-perf577-ipa-validation.json": "passed",
+    "melonx-switch577-ipa-validation.json": "passed",
+    "melonx-sync577-ipa-validation.json": "passed",
+    "melonx-texture577-ipa-validation.json": "passed",
+    "melonx-warm577-ipa-validation.json": "passed",
+    "motion507-ipa-validation.json": "passed",
+    "navigation512-ipa-validation.json": "passed",
+    "reused-validation577.json": "passed",
+    "rpcs3-diag487-ipa-validation.json": "passed",
+    "rpcs3-library-files577-ipa-validation.json": "passed",
+    "rpcs3-memory-audit-ipa.json": "passed",
+    "ui-correction511-ipa-validation.json": "passed",
+    "unified-cheats-ipa-validation.json": "passed"
+  },
+  "independentInspection": {
+    "decrypted": true,
+    "buildNumber": "577",
+    "engineHost": "afd0d4b0",
+    "traceAdaptationInEngineIdentity": false,
+    "newAdaptationsInEngineIdentity": [
+      "build-utils/melonx/adapt_kernel_sync.py",
+      "build-utils/melonx/adapt_jit_arena.py",
+      "build-utils/melonx/adapt_pipeline_cache.py"
+    ],
+    "gcHighMemoryPercentKnobInEngineBinary": true,
+    "moltenVkCompressionLiteralInEngineBinary": true,
+    "moltenVkCompressionLiteralIn576Engine": false,
+    "codeArenaSizeMessageInEngineBinary": true,
+    "all577ReceiptsEmbedded": 10
+  },
+  "localChecks": {
+    "treePinDryRun": "passed",
+    "inheritedSourceContractDryRun": "passed",
+    "checksJobPythonTests": 11,
+    "launchPreflightNativeTestChecks": 14,
+    "engineEvidence577And576AgainstRealArtifacts": "passed"
+  },
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "launchTimeMeasured": false,
+  "fpsGainMeasured": false
+}

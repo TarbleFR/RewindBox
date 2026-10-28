@@ -93,6 +93,20 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
   interface577 recipe never built an IPA). Local dry run on a scratch
   worktree: tree pin, full inherited source contract, 577 and 576 engine
   evidence against the real artifacts.
+- Private 577 delivered from `079b01cf` (recipe of the same commit), run
+  `40612213771` (checks + cold success): IPA 0.0.8 (577), 188,098,576 bytes,
+  SHA-256 `9dac3d422fbbffe0c2133b35d5709cf75fba32889d71c6fd2ef03e3a45c8ee5b`
+  (equal to SHA256SUMS), artifact `12785001665` encrypted for
+  `delivery-577-recipient.pem`; MeloNX engine `afd0d4b0` (run 40610510834,
+  identity `bf560d80…`), RPCS3 Core 575; 21 validator receipts passed;
+  decrypted and inspected independently (build 577, engine host `afd0d4b0`,
+  no trace adaptation, the GC knob and the MoltenVK compression literal in
+  the engine binary). Receipt `docs/evidence/melonx-sync577-delivery.json`.
+  Not tested on iPhone; no FPS, loading-time or memory gain claimed. Caveat
+  for the next Hogwarts log: `DualMappedNoWxCache` never frees host code and
+  `InvalidateJitCacheRegion` makes a retranslation allocate anew, so if
+  v1.0.4 retranslates continuously the 1 GiB arena only delays the crash
+  (about 60 s instead of 30 s). Do not reuse the number 577.
 
 ## Interface option and controller navigation after a game — 27 October 2026
 
