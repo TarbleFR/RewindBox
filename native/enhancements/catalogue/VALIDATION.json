@@ -1,0 +1,58 @@
+{
+  "index_sha256": "065728b9d92e8806dab175a2133691300fd336a496a828ddefcf9abf2b2161c5",
+  "index_size": 159054,
+  "rejections": {
+    "armsx2_skipped_files": 4,
+    "dolphin_cheats_left_to_catalogue": 3882,
+    "dolphin_fixes_skipped": 3,
+    "dolphin_skipped_files": 2,
+    "melonx_duplicate_cheats": 22666,
+    "melonx_rejected_builds": 0,
+    "melonx_rejected_cheats": 873,
+    "melonx_rejected_titles": 8,
+    "rpcs3_rejected": 2
+  },
+  "revision": "2026-10-28.cb6e8508b6cc",
+  "shard_bytes": 3442523,
+  "totals": {
+    "armsx2": {
+      "entries": {
+        "cheat": 463,
+        "fps": 950,
+        "graphics": 810,
+        "performance": 6,
+        "ultrawide": 4620
+      },
+      "keys": 4405
+    },
+    "dolphin": {
+      "entries": {
+        "fps": 40,
+        "graphics": 26,
+        "performance": 12,
+        "ultrawide": 162
+      },
+      "keys": 243
+    },
+    "melonx": {
+      "entries": {
+        "cheat": 25296,
+        "fps": 1480,
+        "graphics": 13917,
+        "performance": 131,
+        "ultrawide": 36
+      },
+      "keys": 2475
+    },
+    "rpcs3": {
+      "entries": {
+        "cheat": 1571,
+        "fps": 642,
+        "graphics": 660,
+        "performance": 12,
+        "ultrawide": 638
+      },
+      "keys": 964
+    }
+  }
+}
