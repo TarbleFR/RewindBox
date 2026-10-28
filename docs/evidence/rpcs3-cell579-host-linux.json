@@ -1,0 +1,105 @@
+{
+  "passed": true,
+  "build": 579,
+  "hostSystem": "Linux",
+  "hostMachine": "x86_64",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "sourceContract": {
+    "baseline": "ddf734206dfc5aee950c1538f13d13b5532bbb93",
+    "fixtureSHA256": "3d37380b4325504e27c24e43e7aed1ad4dec523e5839ce831db74cea790fb52b",
+    "sourceSHA256": {
+      "rpcs3/Emu/Cell/lv2/sys_cond.cpp": "abf0ef76c9d032174afbceb84e0f5973ba3065f5efff78867a3b83792f2dab9f",
+      "rpcs3/Emu/Cell/lv2/sys_event.cpp": "7f434bd818d52d80e20093554680d5bf8771f1f9f1b3623a851d6e4537acf244",
+      "rpcs3/Emu/Cell/lv2/sys_event_flag.cpp": "ce6c6e6ef79b26125117e23f89e077bf5a077a9d39ebb5f629f570bc877c0e32",
+      "rpcs3/Emu/Cell/lv2/sys_lwcond.cpp": "a994ffcbde77b0327d350592b05e0898b2ba6326de4c78fe75134030bfc358d1",
+      "rpcs3/Emu/Cell/lv2/sys_lwmutex.cpp": "d1a4fde8c5d4483739e5e526cea12404a4f2951521bd9531365ed2d34d242169",
+      "rpcs3/Emu/Cell/lv2/sys_mutex.cpp": "923c64995ab858a05597b4b73ef720e8c95db975f838d5affb299622cfdc1622",
+      "rpcs3/Emu/Cell/lv2/sys_semaphore.cpp": "fe4b68857b063e4b000287192c416dcb8431f71c21fa4e659ac6e27f32c2a2a7",
+      "rpcs3/Emu/Memory/vm.cpp": "9c68c3350d4aeba134e1f887c290a0864dad84794ac494dbbe1c6c2361b56ae7",
+      "rpcs3/Emu/Memory/vm_locking.h": "324e1d72801211f867a33294130967ed5129ae1a5f48add94d7c345fa6bc7081",
+      "rpcs3/Emu/Memory/vm_reservation.h": "654b2e2dcd63c3df10e3f09453060106c1d38ef502b71e3cb85b2569bb301fc2",
+      "rpcs3/ios/IOSPassiveLockGate.h": "70fe316209742032f12b594e57e3b0b8bbfcc63ee56dc3b31a3481dcdca81820",
+      "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "9a690e1be98420cbf4d1606cacabac59c1bced203030548d2240917e5d4d699e",
+      "rpcs3/ios/RPCS3IOSSettings.cpp": "f0872ddb4ea5874342abb34e1d3400dfdc7cb53d2c49313b5abdb3e401a8c676",
+      "rpcs3/util/asm.hpp": "e4ba293cf8abacd5684f4870bb5fa07071f6174ee3d68e40adeccf33122bb36a"
+    },
+    "upstreamPreimages": [
+      "rpcs3/Emu/Cell/lv2/sys_cond.cpp",
+      "rpcs3/Emu/Cell/lv2/sys_event.cpp",
+      "rpcs3/Emu/Cell/lv2/sys_event_flag.cpp",
+      "rpcs3/Emu/Cell/lv2/sys_lwcond.cpp",
+      "rpcs3/Emu/Cell/lv2/sys_lwmutex.cpp",
+      "rpcs3/Emu/Cell/lv2/sys_semaphore.cpp"
+    ],
+    "otherCoreSourcesUnchanged": 286
+  },
+  "codegenIdentity": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "unchangedFrom575": true,
+    "coldCompileRequiredByThisChange": false
+  },
+  "reservationOpWait": {
+    "passed": true,
+    "scenarios": 36,
+    "fatal": 0,
+    "locks": 36,
+    "notifies": 24,
+    "tsan": true,
+    "fatalWith575": 15,
+    "harnessSHA256": "5f759045e2b5c901d69bdf7a18cbb4c6cb4fa9592a798cbc20b58b2d3bd80c85"
+  },
+  "gateSleep": {
+    "gate575": {
+      "passed": true,
+      "boundWallUs": 572.4,
+      "boundCpuUs": 507.9,
+      "earlyReturnWallUs": 232.7,
+      "earlyReturnMaxCpuUs": 270.8,
+      "deferredTrials": 20,
+      "writers": 6,
+      "cores": 4,
+      "oversubscribedWallMs": 127.8,
+      "writerCpuMs": 427.6,
+      "writerCpuShare": 0.558,
+      "episodesMs": 60.7
+    },
+    "gate579": {
+      "passed": true,
+      "boundWallUs": 616.2,
+      "boundCpuUs": 84.8,
+      "earlyReturnWallUs": 248.1,
+      "earlyReturnMaxCpuUs": 106.7,
+      "deferredTrials": 20,
+      "writers": 6,
+      "cores": 4,
+      "oversubscribedWallMs": 126.8,
+      "writerCpuMs": 240.3,
+      "writerCpuShare": 0.316,
+      "episodesMs": 65.0
+    },
+    "tsan": true,
+    "harnessSHA256": "df4bb7861a3fa7ac821cf8d04204ba6b5c012c2bd3e5c38703a5df0b8fc67eff"
+  },
+  "spinTiming": {
+    "passed": true,
+    "lv2Spin1GHzUs": 8.35,
+    "lv2Spin24MHzUs": 10.42,
+    "passiveSpin1GHzUs": 6.7,
+    "passiveSpin24MHzUs": 8.33,
+    "sites": 9,
+    "harnessSHA256": "738f3db189646e12bb7b693a3f248d9436a9893396a7c8057de349688d1bdb84"
+  },
+  "policy": {
+    "rsxIdleParkAutomatic": "every title (FIFO idle wait Yield)"
+  },
+  "inputs": {
+    "test/rpcs3_cell579_test.py": "ea2e2eb54a3e7d7483e2943b4f773b8189bb502a54a98c9eff8f959b40c77084"
+  },
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "The 579 production code compiled in host models; no iPhone FPS, frame time or memory result."
+}

@@ -1,0 +1,467 @@
+diff --git a/rpcs3/Emu/Cell/lv2/sys_cond.cpp b/rpcs3/Emu/Cell/lv2/sys_cond.cpp
+index fcfd6824d..513939973 100644
+--- a/rpcs3/Emu/Cell/lv2/sys_cond.cpp
++++ b/rpcs3/Emu/Cell/lv2/sys_cond.cpp
+@@ -527,7 +527,12 @@ error_code sys_cond_wait(ppu_thread& ppu, u32 cond_id, u64 timeout)
+ 
+ 		for (usz i = 0; cpu_flag::signal - ppu.state && i < 50; i++)
+ 		{
++#ifdef RPCS3_IOS
++			// CELL579_SPIN_NS: busy_wait(500) is 167 ns at 3 GHz (util/asm.hpp).
++			utils::spin_ns(167);
++#else
+ 			busy_wait(500);
++#endif
+ 		}
+ 
+ 		if (ppu.state & cpu_flag::signal)
+diff --git a/rpcs3/Emu/Cell/lv2/sys_event.cpp b/rpcs3/Emu/Cell/lv2/sys_event.cpp
+index b405788ca..b5e20609f 100644
+--- a/rpcs3/Emu/Cell/lv2/sys_event.cpp
++++ b/rpcs3/Emu/Cell/lv2/sys_event.cpp
+@@ -544,7 +544,12 @@ error_code sys_event_queue_receive(ppu_thread& ppu, u32 equeue_id, vm::ptr<sys_e
+ 
+ 		for (usz i = 0; cpu_flag::signal - ppu.state && i < 50; i++)
+ 		{
++#ifdef RPCS3_IOS
++			// CELL579_SPIN_NS: busy_wait(500) is 167 ns at 3 GHz (util/asm.hpp).
++			utils::spin_ns(167);
++#else
+ 			busy_wait(500);
++#endif
+ 		}
+ 
+ 		if (ppu.state & cpu_flag::signal)
+diff --git a/rpcs3/Emu/Cell/lv2/sys_event_flag.cpp b/rpcs3/Emu/Cell/lv2/sys_event_flag.cpp
+index 19df83c75..d76dde4d3 100644
+--- a/rpcs3/Emu/Cell/lv2/sys_event_flag.cpp
++++ b/rpcs3/Emu/Cell/lv2/sys_event_flag.cpp
+@@ -220,7 +220,12 @@ error_code sys_event_flag_wait(ppu_thread& ppu, u32 id, u64 bitptn, u32 mode, vm
+ 
+ 		for (usz i = 0; cpu_flag::signal - ppu.state && i < 50; i++)
+ 		{
++#ifdef RPCS3_IOS
++			// CELL579_SPIN_NS: busy_wait(500) is 167 ns at 3 GHz (util/asm.hpp).
++			utils::spin_ns(167);
++#else
+ 			busy_wait(500);
++#endif
+ 		}
+ 
+ 		if (ppu.state & cpu_flag::signal)
+diff --git a/rpcs3/Emu/Cell/lv2/sys_lwcond.cpp b/rpcs3/Emu/Cell/lv2/sys_lwcond.cpp
+index ebe4dfc07..189b46f07 100644
+--- a/rpcs3/Emu/Cell/lv2/sys_lwcond.cpp
++++ b/rpcs3/Emu/Cell/lv2/sys_lwcond.cpp
+@@ -556,7 +556,12 @@ error_code _sys_lwcond_queue_wait(ppu_thread& ppu, u32 lwcond_id, u32 lwmutex_id
+ 
+ 		for (usz i = 0; cpu_flag::signal - ppu.state && i < 50; i++)
+ 		{
++#ifdef RPCS3_IOS
++			// CELL579_SPIN_NS: busy_wait(500) is 167 ns at 3 GHz (util/asm.hpp).
++			utils::spin_ns(167);
++#else
+ 			busy_wait(500);
++#endif
+ 		}
+ 
+ 		if (ppu.state & cpu_flag::signal)
+diff --git a/rpcs3/Emu/Cell/lv2/sys_lwmutex.cpp b/rpcs3/Emu/Cell/lv2/sys_lwmutex.cpp
+index ca8d7f126..dff5d90c9 100644
+--- a/rpcs3/Emu/Cell/lv2/sys_lwmutex.cpp
++++ b/rpcs3/Emu/Cell/lv2/sys_lwmutex.cpp
+@@ -221,7 +221,12 @@ error_code _sys_lwmutex_lock(ppu_thread& ppu, u32 lwmutex_id, u64 timeout)
+ 
+ 		for (usz i = 0; cpu_flag::signal - ppu.state && i < 50; i++)
+ 		{
++#ifdef RPCS3_IOS
++			// CELL579_SPIN_NS: busy_wait(500) is 167 ns at 3 GHz (util/asm.hpp).
++			utils::spin_ns(167);
++#else
+ 			busy_wait(500);
++#endif
+ 		}
+ 
+ 		if (ppu.state & cpu_flag::signal)
+diff --git a/rpcs3/Emu/Cell/lv2/sys_mutex.cpp b/rpcs3/Emu/Cell/lv2/sys_mutex.cpp
+index c3028d9ac..17f47eaf1 100644
+--- a/rpcs3/Emu/Cell/lv2/sys_mutex.cpp
++++ b/rpcs3/Emu/Cell/lv2/sys_mutex.cpp
+@@ -201,7 +201,12 @@ error_code sys_mutex_lock(ppu_thread& ppu, u32 mutex_id, u64 timeout)
+ 			// Try busy waiting a bit if advantageous
+ 			for (u32 i = 0, end = lv2_obj::has_ppus_in_running_state() ? 3 : 10; id_manager::g_mutex.is_lockable() && i < end; i++)
+ 			{
++#ifdef RPCS3_IOS
++				// CELL579_SPIN_NS: busy_wait(300) is 100 ns at 3 GHz (util/asm.hpp).
++				utils::spin_ns(100);
++#else
+ 				busy_wait(300);
++#endif
+ 				result = mutex.try_lock(ppu);
+ 
+ 				if (!result || atomic_storage<ppu_thread*>::load(mutex.control.raw().sq))
+@@ -277,7 +282,12 @@ error_code sys_mutex_lock(ppu_thread& ppu, u32 mutex_id, u64 timeout)
+ 
+ 		for (usz i = 0; cpu_flag::signal - ppu.state && i < 40; i++)
+ 		{
++#ifdef RPCS3_IOS
++			// CELL579_SPIN_NS: busy_wait(500) is 167 ns at 3 GHz (util/asm.hpp).
++			utils::spin_ns(167);
++#else
+ 			busy_wait(500);
++#endif
+ 		}
+ 
+ 		if (ppu.state & cpu_flag::signal)
+diff --git a/rpcs3/Emu/Cell/lv2/sys_semaphore.cpp b/rpcs3/Emu/Cell/lv2/sys_semaphore.cpp
+index dea96fcf5..f238df8b5 100644
+--- a/rpcs3/Emu/Cell/lv2/sys_semaphore.cpp
++++ b/rpcs3/Emu/Cell/lv2/sys_semaphore.cpp
+@@ -182,7 +182,12 @@ error_code sys_semaphore_wait(ppu_thread& ppu, u32 sem_id, u64 timeout)
+ 
+ 		for (usz i = 0; cpu_flag::signal - ppu.state && i < 50; i++)
+ 		{
++#ifdef RPCS3_IOS
++			// CELL579_SPIN_NS: busy_wait(500) is 167 ns at 3 GHz (util/asm.hpp).
++			utils::spin_ns(167);
++#else
+ 			busy_wait(500);
++#endif
+ 		}
+ 
+ 		if (ppu.state & cpu_flag::signal)
+diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
+index 9fa052471..809421457 100644
+--- a/rpcs3/Emu/Memory/vm.cpp
++++ b/rpcs3/Emu/Memory/vm.cpp
+@@ -465,7 +465,12 @@ namespace vm
+ 				// NEOSTATION_ARMSX3_RANGE_LOCK_WAIT_V1: wait for a notified transition instead of yielding blind.
+ 				if (i < 100)
+ 				{
++#ifdef RPCS3_IOS
++					// CELL579_SPIN_NS: busy_wait(200) is 67 ns at 3 GHz, 6.7 us before the first timed wait.
++					utils::spin_ns(67);
++#else
+ 					busy_wait(200);
++#endif
+ 				}
+ 				else if (const u64 bits = get_range_lock_bits(true))
+ 				{
+@@ -517,6 +522,28 @@ namespace vm
+ 		}
+ 	}
+ 
++#ifdef RPCS3_IOS
++	cpu_thread* writer_lock_wait_begin() noexcept
++	{
++		// Exactly the case the writer_lock constructor rejects; every other caller is left as it was.
++		if (cpu_thread* cpu = cpu_thread::get_current(); cpu && cpu->get_class() == thread_class::ppu && !(cpu->state & cpu_flag::wait) && g_tls_locked)
++		{
++			cpu->state += cpu_flag::wait;
++			return cpu;
++		}
++
++		return nullptr;
++	}
++
++	void writer_lock_wait_end(cpu_thread* cpu) noexcept
++	{
++		if (cpu)
++		{
++			static_cast<void>(cpu->test_stopped());
++		}
++	}
++
++#endif
+ 	writer_lock::writer_lock() noexcept
+ 		: writer_lock(0, nullptr, 1)
+ 	{
+diff --git a/rpcs3/Emu/Memory/vm_locking.h b/rpcs3/Emu/Memory/vm_locking.h
+index 001143a9b..6a2c5f7fa 100644
+--- a/rpcs3/Emu/Memory/vm_locking.h
++++ b/rpcs3/Emu/Memory/vm_locking.h
+@@ -116,6 +116,14 @@ namespace vm
+ 			g_tls_writer_lock_source = previous;
+ 		}
+ 	};
++
++	// CELL579_RESERVATION_OP_WAIT: vm::writer_lock requires a PPU caller that holds
++	// its passive lock to have set cpu_flag::wait. vm::reservation_op, which the
++	// SPURS HLE functions call on PPU threads, sets it around its lock (begin returns
++	// the thread it was added to, or nullptr) and leaves through test_stopped(), as
++	// ppu_store_reservation does.
++	cpu_thread* writer_lock_wait_begin() noexcept;
++	void writer_lock_wait_end(cpu_thread* cpu) noexcept;
+ #endif
+ 
+ 	struct writer_lock final
+diff --git a/rpcs3/Emu/Memory/vm_reservation.h b/rpcs3/Emu/Memory/vm_reservation.h
+index 87383111f..c1404adb5 100644
+--- a/rpcs3/Emu/Memory/vm_reservation.h
++++ b/rpcs3/Emu/Memory/vm_reservation.h
+@@ -167,6 +167,10 @@ namespace vm
+ 
+ 		if constexpr (std::is_void_v<std::invoke_result_t<F, T&>>)
+ 		{
++#ifdef RPCS3_IOS
++			// CELL579_RESERVATION_OP_WAIT: after the shared lock, whose wait may run check_state().
++			cpu_thread* const waiting = vm::writer_lock_wait_begin();
++#endif
+ 			{
+ #ifdef RPCS3_IOS
+ 				vm::writer_lock_tag tag(vm::writer_lock_source::reservation_op);
+@@ -175,6 +179,9 @@ namespace vm
+ 				std::invoke(op, *sptr);
+ 				old_time = res.fetch_add(127);
+ 			}
++#ifdef RPCS3_IOS
++			vm::writer_lock_wait_end(waiting);
++#endif
+ 
+ 			if constexpr (Ack)
+ 				reservation_notifier_notify(addr, old_time);
+@@ -183,6 +190,9 @@ namespace vm
+ 		else
+ 		{
+ 			auto result = std::invoke_result_t<F, T&>();
++#ifdef RPCS3_IOS
++			cpu_thread* const waiting = vm::writer_lock_wait_begin();
++#endif
+ 			{
+ #ifdef RPCS3_IOS
+ 				vm::writer_lock_tag tag(vm::writer_lock_source::reservation_op);
+@@ -198,6 +208,9 @@ namespace vm
+ 					old_time = res.fetch_sub(1);
+ 				}
+ 			}
++#ifdef RPCS3_IOS
++			vm::writer_lock_wait_end(waiting);
++#endif
+ 
+ 			if (Ack && result)
+ 				reservation_notifier_notify(addr, old_time);
+diff --git a/rpcs3/ios/IOSPassiveLockGate.h b/rpcs3/ios/IOSPassiveLockGate.h
+index ee7cb305e..29ae3d360 100644
+--- a/rpcs3/ios/IOSPassiveLockGate.h
++++ b/rpcs3/ios/IOSPassiveLockGate.h
+@@ -5,6 +5,15 @@
+ #include <chrono>
+ #include <cstdint>
+ 
++#if defined(__APPLE__)
++#include <os/os_sync_wait_on_address.h>
++#elif defined(__linux__)
++#include <ctime>
++#include <linux/futex.h>
++#include <sys/syscall.h>
++#include <unistd.h>
++#endif
++
+ // CELL571_PASSIVE_LOCK_FAIRNESS: a CPU thread re-entering guest memory
+ // (vm::passive_lock) waits until no exclusive writer lock is held anywhere, and
+ // a heavy PUTLLC or reservation write takes one while waiting for every PPU
+@@ -18,6 +27,16 @@
+ // the word to clear, and the writer still takes its lock afterwards. The writer
+ // spins with the CPU's pause hint: on Darwin sched_yield() depresses the
+ // thread for a whole quantum (about 10 ms).
++//
++// CELL579_GATE_SLEEP: a writer spins for at most `writer_spin`, then sleeps on
++// `starving` for the rest of its deferral; the last starving waiter to leave
++// wakes it. Build 575, Call of Duty: Black Ops II: its waiters averaged 25-31
++// timed waits per episode, so heavy PUTLLC deferred most of the time, and in
++// the PUTLLC storm windows about 5 s per 5 s window went before the writers
++// published their bits: up to five SPU threads spinning on the cores the
++// starving PPU thread needed to run on. Deferrals shorter than `writer_spin`
++// (Dragon Ball Z keeps free cores) are unchanged; what the writer and the
++// waiter wait for is unchanged.
+ namespace rpcs3::ios::passive_gate
+ {
+ inline std::atomic<bool> enabled{false};
+@@ -27,6 +46,17 @@ inline std::atomic<std::uint32_t> starving{0};
+ constexpr std::uint64_t starving_after = 2;
+ // Longest a writer defers to a starving waiter before taking its lock anyway.
+ constexpr std::chrono::microseconds writer_deferral{500};
++// CELL579_GATE_SLEEP: of which it spins at most this long, then sleeps.
++constexpr std::chrono::microseconds writer_spin{50};
++
++// CELL579_GATE_SLEEP: writers asleep in defer_writer(). The waiter that clears
++// `starving` wakes one of them and each woken writer wakes the next, so the PPU
++// thread leaving its wait pays for one wake-up at most.
++inline std::atomic<std::uint32_t> sleepers{0};
++
++// Sleeps while `word` holds `value`, at most `timeout`; it may return earlier.
++inline void sleep_while(std::atomic<std::uint32_t>& word, std::uint32_t value, std::chrono::nanoseconds timeout) noexcept;
++inline void wake_one(std::atomic<std::uint32_t>& word) noexcept;
+ 
+ // A waiter's starving mark, released on every exit of the wait loop.
+ class waiter_mark
+@@ -55,9 +85,10 @@ public:
+ 
+ 	~waiter_mark()
+ 	{
+-		if (m_marked)
++		// CELL579_GATE_SLEEP: the last starving waiter wakes a writer asleep in defer_writer().
++		if (m_marked && starving.fetch_sub(1, std::memory_order_seq_cst) == 1 && sleepers.load(std::memory_order_seq_cst))
+ 		{
+-			starving.fetch_sub(1, std::memory_order_acq_rel);
++			wake_one(starving);
+ 		}
+ 	}
+ };
+@@ -71,20 +102,76 @@ inline void relax() noexcept
+ #endif
+ }
+ 
+-// Before a writer publishes its lock: spin while a waiter starves, bounded.
++inline void sleep_while(std::atomic<std::uint32_t>& word, std::uint32_t value, std::chrono::nanoseconds timeout) noexcept
++{
++	static_assert(sizeof(word) == sizeof(std::uint32_t) && std::atomic<std::uint32_t>::is_always_lock_free);
++	const auto ns = static_cast<std::uint64_t>(timeout.count() > 0 ? timeout.count() : 1);
++#if defined(__APPLE__)
++	if (__builtin_available(iOS 17.4, macOS 14.4, *))
++	{
++		os_sync_wait_on_address_with_timeout(&word, value, sizeof(std::uint32_t), OS_SYNC_WAIT_ON_ADDRESS_NONE, OS_CLOCK_MACH_ABSOLUTE_TIME, ns);
++		return;
++	}
++#elif defined(__linux__)
++	const timespec relative{static_cast<time_t>(ns / 1'000'000'000), static_cast<long>(ns % 1'000'000'000)};
++	syscall(SYS_futex, &word, FUTEX_WAIT_PRIVATE, value, &relative, nullptr, 0);
++	return;
++#endif
++	// No address wait on this system: keep spinning, as in 575.
++	static_cast<void>(word); static_cast<void>(value);
++	relax();
++}
++
++inline void wake_one(std::atomic<std::uint32_t>& word) noexcept
++{
++#if defined(__APPLE__)
++	if (__builtin_available(iOS 17.4, macOS 14.4, *))
++	{
++		os_sync_wake_by_address_any(&word, sizeof(std::uint32_t), OS_SYNC_WAKE_BY_ADDRESS_NONE);
++	}
++#elif defined(__linux__)
++	syscall(SYS_futex, &word, FUTEX_WAKE_PRIVATE, 1, nullptr, nullptr, 0);
++#else
++	static_cast<void>(word);
++#endif
++}
++
++// Before a writer publishes its lock: wait while a waiter starves, bounded.
+ // Returns true when it deferred at all.
+ inline bool defer_writer() noexcept
+ {
+-	if (!starving.load(std::memory_order_acquire))
++	std::uint32_t seen = starving.load(std::memory_order_acquire);
++
++	if (!seen)
+ 	{
+ 		return false;
+ 	}
+ 
+-	const auto stop = std::chrono::steady_clock::now() + writer_deferral;
++	const auto start = std::chrono::steady_clock::now();
++	const auto stop = start + writer_deferral;
+ 
+-	while (starving.load(std::memory_order_acquire) && std::chrono::steady_clock::now() < stop)
++	for (auto now = start; seen && now < stop; now = std::chrono::steady_clock::now())
+ 	{
+-		relax();
++		if (now - start < writer_spin)
++		{
++			relax();
++		}
++		else
++		{
++			// CELL579_GATE_SLEEP: leave the core to the starving waiter. A change of
++			// `starving` between the load and the sleep makes the sleep return at once.
++			sleepers.fetch_add(1, std::memory_order_seq_cst);
++			sleep_while(starving, seen, stop - now);
++			sleepers.fetch_sub(1, std::memory_order_seq_cst);
++
++			if (!starving.load(std::memory_order_seq_cst) && sleepers.load(std::memory_order_seq_cst))
++			{
++				// Pass the wake-up on to the next sleeping writer.
++				wake_one(starving);
++			}
++		}
++
++		seen = starving.load(std::memory_order_acquire);
+ 	}
+ 
+ 	return true;
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index dc809f104..bada7a481 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -161,10 +161,11 @@ void resolve_experimental_policy() noexcept
+ 	// God of War III, whose CELL threads need every core. A non-default FIFO idle wait
+ 	// (Wait for event, Bounded sleep) keeps its own behaviour.
+ 	// CELL575_TITLE_LEVERS adds Bladestorm: RSX thread 0.66 core for a FIFO busy 31 % on build 567.
++	// CELL579_IDLE_PARK_ALL: Automatic is every title. The park starts only after the
++	// FIFO has stayed empty for 1 ms, whatever the game; DBZ and God of War III have
++	// run it since 565.
+ 	resolved.rsx_idle_park = g_cfg.ios_experimental.fifo_idle_mode == ios_fifo_idle_mode::yield &&
+-		resolve_mode(g_cfg.ios_experimental.rsx_idle_park,
+-			rpcs3::ios::deferred_commit::is_dbz_budokai_hd_title(title_id) || is_god_of_war_iii_title(title_id) ||
+-			rpcs3::ios::title_levers::is_bladestorm_title(title_id));
++		resolve_mode(g_cfg.ios_experimental.rsx_idle_park, true);
+ 	rpcs3::ios::rsx_idle_park::enabled.store(resolved.rsx_idle_park, std::memory_order_relaxed);
+ 	// CELL567_THREAD_QOS: Automatic is every title. RPCS3 raises the RSX and audio threads
+ 	// above the others; on iOS that order only exists while the others run one step lower.
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index da156346b..3ace6b3ac 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -130,7 +130,7 @@ const std::array catalog{
+ 	SETTING("experimental.deferred_fbo_writeback", "Experimental", "FPS Experiments", "Deferred framebuffer write-back", "When a region the GPU wrote is bound again as a framebuffer, copies its content to game memory only when the game actually reads it, instead of waiting for the GPU at every bind. The bytes the game reads are unchanged. Applies with Write Color Buffers off. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled waits at every bind as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.deferred_fbo_writeback, 0, 0, 0),
+ 	SETTING("experimental.early_submit", "Experimental", "FPS Experiments", "Early command buffer submission", "When the GPU has finished everything already sent to it, sends the draws recorded since then at the end of a draw instead of keeping them until the end of the frame, so the GPU renders while the frame is still being recorded. The commands and their order are unchanged. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled sends at the end of the frame as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.early_submit, 0, 0, 0),
+ 	SETTING("experimental.noop_putllc_keeps_reservations", "Experimental", "FPS Experiments", "No-op PUTLLC keeps reservations", "With Accurate SPU Reservations on, an SPU atomic store that writes back unchanged data still succeeds only if the data and its reservation are unchanged, but no longer cancels the reservations other SPUs hold on the same data. SPUs that poll the same data then stop failing each other's atomic updates. Automatic enables it for Dragon Ball Z Budokai HD Collection and Call of Duty: Black Ops II; Disabled cancels them as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.noop_putllc_keeps_reservations, 0, 0, 0),
+-	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for Dragon Ball Z Budokai HD Collection, God of War III and Bladestorm; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
++	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for every title; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
+ 	SETTING("experimental.rsx_thread_priority", "Experimental", "FPS Experiments", "RSX thread priority", "Gives the RSX thread and the audio threads precedence over the PPU and SPU threads when the game asks for more CPU than the performance cores provide, as RPCS3 intends; iOS otherwise treats them alike. Automatic enables it for every title; Disabled gives every emulation thread the same priority as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_thread_priority, 0, 0, 0),
+ 	SETTING("experimental.passive_lock_fairness", "Experimental", "FPS Experiments", "Passive lock fairness", "When a PPU or SPU thread has waited a long time to resume guest memory access while SPUs keep taking reservation write locks, new write locks briefly let it through first. No lock is skipped. Automatic enables it for every title; Disabled restores the previous lock order. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.passive_lock_fairness, 0, 0, 0),
+ 	SETTING("experimental.texture_residency", "Experimental", "FPS Experiments", "Texture residency cap", "When cached textures use more than 768 MB, the textures no draw has used for 64 frames are released, at most 128 MB every 16 frames: first those whose memory the game has since filled with another texture, then the oldest. Textures in use are kept; a released texture the game samples again is uploaded again from its memory. Limits the memory held by textures whose memory the game has reused for other data. Automatic enables it for God of War III; Disabled keeps every texture until it is found stale. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_residency, 0, 0, 0),
+diff --git a/rpcs3/util/asm.hpp b/rpcs3/util/asm.hpp
+index 8f68949b9..456485f49 100644
+--- a/rpcs3/util/asm.hpp
++++ b/rpcs3/util/asm.hpp
+@@ -237,6 +237,38 @@ namespace utils
+ 		while (get_tsc() < stop);
+ 	}
+ 
++#ifdef RPCS3_IOS
++	// CELL579_SPIN_NS: busy_wait(n) is (n / 100) * arm_timer_scale counter ticks,
++	// 1.25x its 3 GHz intent on a 24 MHz counter, but 33x below it on the 1 GHz
++	// counter of the A18 Pro (build 575 logs: cntfrq=1000000000 timer_scale=1),
++	// where the PPU wait loops gave up their spin within about 1 us and slept.
++	// spin_ns waits the same time on every counter frequency. Rounded up, the
++	// durations used (67, 100 and 167 ns) are 2, 3 and 5 ticks at 24 MHz, the
++	// counts busy_wait(200), busy_wait(300) and busy_wait(500) already give there.
++	constexpr u64 spin_ns_ticks(u64 ns, u64 frequency)
++	{
++		const u64 ticks = (ns * frequency + 999'999'999) / 1'000'000'000;
++		return ticks ? ticks : 1;
++	}
++
++	inline void spin_ns(u64 ns)
++	{
++#ifdef ARCH_ARM64
++		static const u64 frequency = []
++		{
++			u64 freq = 0;
++			__asm__ volatile("mrs %0, cntfrq_el0" : "=r"(freq));
++			return freq;
++		}();
++		const u64 stop = get_tsc() + spin_ns_ticks(ns, frequency);
++#else
++		const u64 stop = get_tsc() + ns * 3;
++#endif
++		do pause();
++		while (get_tsc() < stop);
++	}
++
++#endif
+ #ifdef ARCH_X64
+ 	inline u64 get_wait_cycles(u64 timeout_us, u64 tsc_freq)
+ 	{

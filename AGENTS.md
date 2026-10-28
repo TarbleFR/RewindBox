@@ -11,13 +11,13 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
 
 1. **Already Automatic for every title (keep):** RSX thread priority (567),
    iOS QoS kept (569), passive-lock fairness (571), persistent SPU object
-   cache, NEON paths. Never narrow them to a title list.
-2. **To make Automatic for every title in the next RPCS3 Core:** RSX idle park
-   (565, FIFO idle wait Yield only). Its condition (FIFO empty for 1 ms) is
-   title-independent; DBZ and GoW3 run it since 565 with no reported
-   regression. Until that Core ships, add each new title whose RSX thread uses
-   >= 0.5 core for a FIFO busy <= 50 %
-   (DBZ 0.73/44 %, Bladestorm 0.68/31 %).
+   cache, NEON paths, RSX idle park (Core 579; FIFO idle wait Yield only).
+   Never narrow them to a title list.
+2. **RSX idle park** (565) became Automatic for every title in Core 579. Its
+   condition (FIFO empty for 1 ms) is title-independent; DBZ and GoW3 ran it
+   since 565 and Bladestorm since 575 with no reported regression. With an
+   older Core, add each new title whose RSX thread uses >= 0.5 core for a
+   FIFO busy <= 50 % (DBZ 0.73/44 %, Bladestorm 0.68/31 %).
 3. **Promote to every title after device logs of the 575 (GoW3, BO2,
    Bladestorm) show no stale or wrong texture:** texture validation per FIFO
    batch (559), scoped revalidation (573), texture residency cap (573, acts
@@ -46,6 +46,43 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
 7. **Promotion to every title** needs all three: a title-independent
    mechanism that acts only when its condition occurs, device logs on at
    least two titles without regression, and an unchanged Disabled path.
+
+## RPCS3 Core 579: SPURS reservation_op wait, sleeping writer deferral, PPU spin timing, RSX idle park for every title — 28 October 2026
+
+- Build 575 logs: the first God of War III boot of the process ended in 2 of 2
+  cases (567, 575) on "vm::writer_lock is being used without cpu_flag::wait
+  set by the caller!" in `cellSpursRemoveWorkload`; Black Ops II heavy PUTLLC
+  took 116-197 us per writer lock while its PPU waiters averaged 25-31 timed
+  waits per episode (the 571 gate deferring almost always, up to five SPUs
+  spinning 500 us); every boot logs `cntfrq=1000000000 timer_scale=1`, so
+  `busy_wait(n)` is n/100 ns on the A18 Pro (DBZ: 825 passive-lock episodes
+  of 38 us per window against 0.3-0.6 us writer holds).
+- Core changes (`docs/rpcs3-cell579.md`, record `cell579`, iOS only, off-iOS
+  text of every file equal to 575, PPU/SPU codegen identities unchanged):
+  `CELL579_RESERVATION_OP_WAIT` (vm_reservation.h, vm_locking.h, vm.cpp: the
+  PPU caller holding its passive lock gets `cpu_flag::wait` around the writer
+  lock and leaves through `test_stopped()`); `CELL579_GATE_SLEEP`
+  (`ios/IOSPassiveLockGate.h`: a deferring writer spins at most 50 us, then
+  sleeps on the starving count with `os_sync_wait_on_address` on iOS 17.4+,
+  futex on Linux; the last starving waiter wakes one sleeper, each woken
+  writer the next; trigger, 500 us bound and lock protocol unchanged);
+  `CELL579_SPIN_NS` (`utils::spin_ns`, rounded up: passive_lock and seven lv2
+  primitives wait the upstream 3 GHz durations, 6.7-8.3 us at 1 GHz, the same
+  ticks as before at 24 MHz; `shared_mutex` untouched);
+  `CELL579_IDLE_PARK_ALL` (RSX idle park Automatic for every title).
+- Withdrawn after verification: RSX offloader priority and inline idle copies
+  (565 ran every thread at one level with the same GoW3 RSX gap). Not done:
+  DBZ ready-ahead readback (refuted), dedicated VkImage memory (MoltenVK
+  residency cost not measurable off device), the BO2 no-op PUTLLC poll wait
+  (touches SPUThread.cpp, which would force a cold SPU recompile).
+- Local: canonical delta rematerialized on `22f1152` (six lv2 preimages
+  authenticated against XITRIX), `test/rpcs3_cell579_test.py` passed three
+  times (575 text reproduces the fatal error 15 times in the model, 579 0;
+  gate model: 508 -> 85 us of writer CPU per full deferral; ASan/UBSan,
+  TSan), pin source contract, Core scheduling, 579 driver contract, ARM64
+  syntax of 12 units equal to 575. Evidence
+  `docs/evidence/rpcs3-cell579-host-linux.json`. No iPhone measurement: no
+  FPS, frame time or memory gain is claimed.
 
 ## MeloNX engine 577: kernel wakeups, GC memory-load threshold, Hogwarts code arena, per-title pipeline cache — 28 October 2026
 
