@@ -91,6 +91,18 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
   ten validators wrap the 579 ones (identities renamed to 581, the RPCS3 one
   binds Core run 40631132527 and adds the four 581 markers to the 579 ones).
   Product trees equal to 579. Recipient `build-utils/delivery-581-recipient.pem`.
+- Private 581 delivered from `27fb83c3` (recipe of the same commit), run
+  `40634129514` (checks + cold success, 46 min): IPA 0.0.8 (581),
+  188,110,017 bytes, SHA-256
+  `be80589d0b4f5d6df1f571c698164a69bcb42158f25f728ae7f3d0b2b1631390` (equal to
+  SHA256SUMS), artifact `12794492017` encrypted for
+  `delivery-581-recipient.pem`; RPCS3 Core 581 `03956454` (run 40631132527,
+  `a6e97d33…`, identity receipt equal), MeloNX engine `afd0d4b0` unchanged;
+  every validator receipt passed; decrypted and inspected independently
+  (build 581, the four 579 and four 581 markers in the signed Core, the 575
+  idle-park text absent). Receipt `docs/evidence/rpcs3-cell581-delivery.json`.
+  Not tested on iPhone; no FPS, frame time or memory gain claimed. Do not
+  reuse the number 581.
 
 ## RPCS3 Core 579: SPURS reservation_op wait, sleeping writer deferral, writer yield without depression, PPU spin timing, RSX idle park for every title — 28 October 2026
 
