@@ -2,10 +2,17 @@ import Flutter
 import Foundation
 import UIKit
 import AVFoundation
+import CryptoKit
 
 public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     private let libraryQueue = DispatchQueue(label:"com.neogamelab.neostation.melonx.library",qos:.userInitiated)
     private let diagnosticsQueue = DispatchQueue(label:"com.neogamelab.neostation.melonx.diagnostics",qos:.utility)
+    // Switch discovery fingerprints whole game files (7-16 GB). Hashed here,
+    // not on the Dart root isolate (the main thread), and not on libraryQueue,
+    // which serializes launches. A launch abandons the hash under way.
+    private let fingerprintQueue = DispatchQueue(label:"com.neogamelab.neostation.melonx.fingerprint",qos:.utility)
+    private let fingerprintLock = NSLock()
+    private var fingerprintGeneration = 0 // fingerprintLock
     private var diagnosticsTimer: DispatchSourceTimer?
     private var nativeSequence: Int64 = 0 // diagnosticsQueue only
     private var diagnosticsChannel: FlutterMethodChannel?
@@ -119,6 +126,23 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
             } catch { result(FlutterError(code:"storageUnavailable",message:"Storage capacity unavailable",details:nil)) }
         case "contentProgress": result(contentProgress?() ?? 0)
         case "cancelContent": contentCancellation?(); result(nil)
+        case "fingerprint":
+            guard !starting, host?.isSessionActive != true else { result(FlutterError(code:"busy",message:"Close the current game first.",details:nil)); return }
+            guard let path = arguments["path"] as? String, path.hasPrefix("/") else {
+                result(FlutterError(code:"invalidPath",message:"Invalid game path.",details:nil)); return
+            }
+            fingerprintLock.lock(); let generation = fingerprintGeneration; fingerprintLock.unlock()
+            fingerprintQueue.async { [weak self] in
+                let outcome = Self.sha256(path:path) { self?.fingerprintCurrent(generation) == true }
+                DispatchQueue.main.async {
+                    switch outcome {
+                    case .success(let digest): result(digest)
+                    case .cancelled: result(FlutterError(code:"cancelled",message:"A game launch took the device.",details:nil))
+                    case .failure(let message): result(FlutterError(code:"fingerprintFailed",message:message,details:nil))
+                    }
+                }
+            }
+        case "cancelFingerprint": cancelFingerprints(); result(nil)
         case "configureLaunchJournal":
             guard let path = arguments["path"] as? String, path.hasPrefix("/"),
                   URL(fileURLWithPath:path).lastPathComponent == "app.log" else {
@@ -190,6 +214,43 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         }
     }
 
+    private enum FingerprintOutcome { case success(String), cancelled, failure(String) }
+
+    private func fingerprintCurrent(_ generation: Int) -> Bool {
+        fingerprintLock.lock(); defer { fingerprintLock.unlock() }
+        return generation == fingerprintGeneration
+    }
+
+    private func cancelFingerprints() {
+        fingerprintLock.lock(); fingerprintGeneration &+= 1; fingerprintLock.unlock()
+    }
+
+    // The lowercase hex SHA-256 of a whole file, as the Dart crypto package
+    // writes it, so earlier discovery index entries stay valid. Checked for
+    // cancellation between 4 MiB reads; F_NOCACHE keeps gigabytes of reads
+    // from evicting other pages.
+    private static func sha256(path: String, current: () -> Bool) -> FingerprintOutcome {
+        let descriptor = open(path, O_RDONLY)
+        guard descriptor >= 0 else { return .failure(String(cString:strerror(errno))) }
+        defer { close(descriptor) }
+        _ = fcntl(descriptor, F_NOCACHE, 1)
+        let size = 4 << 20
+        let buffer = UnsafeMutableRawPointer.allocate(byteCount:size, alignment:16384)
+        defer { buffer.deallocate() }
+        var hasher = SHA256()
+        while true {
+            guard current() else { return .cancelled }
+            let count = read(descriptor, buffer, size)
+            if count < 0 {
+                if errno == EINTR { continue }
+                return .failure(String(cString:strerror(errno)))
+            }
+            if count == 0 { break }
+            hasher.update(bufferPointer:UnsafeRawBufferPointer(start:buffer, count:count))
+        }
+        return .success(hasher.finalize().map { String(format:"%02x", $0) }.joined())
+    }
+
     private func launch(_ arguments: [String:Any], result: @escaping FlutterResult) {
         let access = MeloNXMemoryEntitlements()
         MeloNXLaunchJournal.record("entitlements", "begin")
@@ -214,6 +275,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
         // fallback took the RX/RW probe below on iOS 26, which kills the process.
         let universal = ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 26
         starting = true; cancelling = false; launchReply = result; frameReady = false; jitReady = reuseArena
+        cancelFingerprints()
         MeloNXStrings.locale = locale
         libraryQueue.async { [self] in
             var stage = "frameworks"

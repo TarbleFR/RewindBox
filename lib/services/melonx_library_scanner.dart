@@ -1,26 +1,127 @@
 import 'package:external_folder_access/external_folder_access.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 import '../data/datasources/sqlite_service.dart';
 import '../providers/sqlite_config_provider.dart';
 import '../repositories/system_repository.dart';
+import 'frontend_media_gate.dart';
+import 'ios_library_root_relocation.dart';
 import 'melonx_internal_service.dart';
 import 'melonx_file_transaction.dart';
 
 /// Incremental Switch discovery. Never copies ROMs or deletes missing entries.
 /// File hashes identify moves; a metadata-only match is deliberately refused.
+///
+/// Discovery never runs while a game is launching or running, and stops at the
+/// next file when one starts: whole-file digests of 7-16 GB games used to run
+/// on the root isolate (the iOS main thread) for up to two minutes into a
+/// MeloNX session (builds 575-576 app.log).
 abstract final class MelonxLibraryScanner {
   static Future<int>? _pending;
   static Future<int> refresh(SqliteConfigProvider config) =>
       _pending ??= _refresh(config).whenComplete(() => _pending = null);
 
-  static Future<String> fingerprint(File file) async =>
-      (await sha256.bind(file.openRead()).first).toString();
+  /// Whole-file SHA-256 (lowercase hex), off the root isolate.
+  static Future<String> fingerprint(File file) =>
+      Isolate.run(() async => (await sha256.bind(file.openRead()).first).toString());
+
+  /// Whether discovery hashes on the native bridge (CryptoKit, a utility
+  /// queue, abandoned by a launch); elsewhere [fingerprint] is used.
+  @visibleForTesting
+  static bool nativeDigests = Platform.isIOS;
+
+  static int _generation = 0;
+  static final Object _gateOwner = Object();
+  static bool _gateRegistered = false;
+
+  // Called synchronously when a launch or a game takes the frontend: ends the
+  // discovery under way at its next file and abandons the native hash.
+  static Future<void> _stop() async {
+    _generation++;
+    if (nativeDigests)
+      unawaited(
+        MelonxInternalService.channel
+            .invokeMethod<void>('cancelFingerprint')
+            .catchError((Object _) {}),
+      );
+  }
+
+  static bool _interrupted(int generation) =>
+      generation != _generation || FrontendMediaGate.instance.blocked;
+
+  static Future<String> _digest(String location, File file) async {
+    if (!nativeDigests) return fingerprint(file);
+    try {
+      final digest = await MelonxInternalService.channel.invokeMethod<String>(
+        'fingerprint',
+        {'path': location},
+      );
+      if (digest != null && RegExp(r'^[0-9a-f]{64}$').hasMatch(digest))
+        return digest;
+      throw StateError('Invalid MeloNX fingerprint');
+    } on PlatformException catch (error) {
+      if (error.code == 'cancelled' || error.code == 'busy')
+        throw const _DiscoveryInterrupted();
+      rethrow;
+    }
+  }
+
+  /// Index entries of files under a scan root's former iOS app container,
+  /// keyed by the same file's path in the current one. iOS gives the app a
+  /// new container when it is reinstalled or updated
+  /// ([IosLibraryRootRelocation]); the files keep their size and modification
+  /// time. A file found there with an entry's stamp is the file indexed before:
+  /// its digest and metadata are reused instead of hashing the whole game
+  /// again, and the digest match below still re-points its row.
+  @visibleForTesting
+  static Map<String, List<Map>> containerMoves(
+    Map<String, dynamic> index,
+    Iterable<String> roots,
+  ) {
+    final mounts = [
+      for (final root in roots) IosLibraryRootRelocation.split(root),
+    ].nonNulls.toList();
+    final moves = <String, List<Map>>{};
+    if (mounts.isEmpty) return moves;
+    index.forEach((key, entry) {
+      if (entry is! Map) return;
+      final old = IosLibraryRootRelocation.split(key);
+      if (old == null) return;
+      for (final mount in mounts) {
+        if (mount.container == old.container) continue;
+        if (mount.relative.isNotEmpty &&
+            old.relative != mount.relative &&
+            !p.posix.isWithin(mount.relative, old.relative))
+          continue;
+        final moved = '${mount.container}/${old.relative}';
+        if (!index.containsKey(moved))
+          (moves[moved] ??= <Map>[]).add(entry);
+      }
+    });
+    return moves;
+  }
+
+  static Future<void> _save(File cache, Map<String, dynamic> index) async {
+    await cache.parent.create(recursive: true);
+    final temporary = File('${cache.path}.importing');
+    await temporary.writeAsString(jsonEncode(index), flush: true);
+    await temporary.rename(cache.path);
+  }
 
   static Future<int> _refresh(SqliteConfigProvider config) async {
+    if (!_gateRegistered) {
+      _gateRegistered = true;
+      FrontendMediaGate.instance.register(_gateOwner, _stop);
+    }
+    final generation = _generation;
+    if (_interrupted(generation)) return 0;
     final root = await MelonxInternalService.rootDirectory();
     final system = await SystemRepository.getSystemByFolderName('switch');
     if (system?.id == null) return 0;
@@ -77,20 +178,30 @@ abstract final class MelonxLibraryScanner {
         /* revoked bookmarks retain their library rows */
       }
     }
+    final moves = containerMoves(index, roots);
     final seen = <String>{};
     var changed = 0;
+    var interrupted = false;
     for (final folder in roots) {
+      if (interrupted) break;
       if (!await Directory(folder).exists()) continue;
       try {
         await for (final file in walk(
           Directory(folder),
           recursive: !p.equals(folder, root.path),
         )) {
+          if (_interrupted(generation)) {
+            interrupted = true;
+            break;
+          }
           final location = p.normalize(file.absolute.path);
           if (!seen.add(location)) continue;
           final stat = await file.stat();
           final stamp = '${stat.size}:${stat.modified.microsecondsSinceEpoch}';
-          final previous = index[location] as Map?;
+          final previous =
+              (index[location] ??
+                      moves[location]?.where((e) => e['stamp'] == stamp).firstOrNull)
+                  as Map?;
           if (previous?['stamp'] == stamp &&
               previous?['failed'] == true &&
               previous?['keys'] == keyStamp)
@@ -111,7 +222,7 @@ abstract final class MelonxLibraryScanner {
             final digest =
                 previous?['stamp'] == stamp && previous?['sha256'] is String
                 ? previous!['sha256'] as String
-                : await fingerprint(file);
+                : await _digest(location, file);
             final identical = rows
                 .where((r) => index[r['rom_path']]?['sha256'] == digest)
                 .toList();
@@ -158,6 +269,8 @@ abstract final class MelonxLibraryScanner {
               }
             }
             index[location] = {'stamp': stamp, 'sha256': digest, 'info': info};
+            // Kept at once: a stop or a killed app never costs this digest again.
+            await _save(cache, index);
             if (duplicate && row == null) continue;
             if (row == null && moved != null) {
               await _preserveControls(
@@ -201,8 +314,13 @@ abstract final class MelonxLibraryScanner {
               continue;
             }
             changed++;
+          } on _DiscoveryInterrupted {
+            interrupted = true;
           } catch (error) {
-            if (error is MelonxContentException &&
+            // A launch refuses content calls: stop, not a per-file failure.
+            if (error is PlatformException && error.code == 'busy') {
+              interrupted = true;
+            } else if (error is MelonxContentException &&
                 const {
                   'InvalidDataException',
                   'MissingKeyException',
@@ -216,15 +334,14 @@ abstract final class MelonxLibraryScanner {
             }
             /* unreadable/locked/non-game: retain existing records */
           }
+          if (interrupted) break;
         }
       } on FileSystemException {
         /* a revoked folder must never purge its rows */
       }
     }
-    await cache.parent.create(recursive: true);
-    final temporary = File('${cache.path}.importing');
-    await temporary.writeAsString(jsonEncode(index), flush: true);
-    await temporary.rename(cache.path);
+    // Also after a stop: the files already indexed are not hashed again.
+    await _save(cache, index);
     if (changed > 0) {
       await SystemRepository.addDetectedSystem(system.id!, 'switch');
       await config.refreshDetectedSystems();
@@ -307,4 +424,8 @@ abstract final class MelonxLibraryScanner {
       }
     }
   }
+}
+
+class _DiscoveryInterrupted implements Exception {
+  const _DiscoveryInterrupted();
 }

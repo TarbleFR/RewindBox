@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import '../l10n/melonx_library_locale.dart';
 import '../providers/sqlite_config_provider.dart';
+import '../services/frontend_media_gate.dart';
 import '../services/logger_service.dart';
 import '../services/melonx_internal_service.dart';
 import '../services/melonx_embedded_library_service.dart';
@@ -46,12 +47,27 @@ class _MelonxInternalPlaylistActionsState
   bool _busy = false;
   bool _interacting = false;
   Future<void>? _recovering;
+  Timer? _afterGame;
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     MelonxInternalService.libraryEditing.addListener(_libraryActivityChanged);
+    FrontendMediaGate.instance.addListener(_frontendGateChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_discover()));
+  }
+
+  // Discovery does not run while a game holds the frontend. Once it is
+  // released, look again when the menu has been idle a moment; a new hold
+  // cancels the wait.
+  void _frontendGateChanged() {
+    _afterGame?.cancel();
+    _afterGame = null;
+    if (!FrontendMediaGate.instance.blocked && mounted)
+      _afterGame = Timer(const Duration(seconds: 15), () {
+        _afterGame = null;
+        if (!_busy) unawaited(_discover());
+      });
   }
 
   @override
@@ -103,6 +119,8 @@ class _MelonxInternalPlaylistActionsState
     MelonxInternalService.libraryEditing.removeListener(
       _libraryActivityChanged,
     );
+    FrontendMediaGate.instance.removeListener(_frontendGateChanged);
+    _afterGame?.cancel();
     if (_interacting) widget.onInteractionChanged?.call(false);
     super.dispose();
   }
