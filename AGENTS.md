@@ -111,6 +111,18 @@ add no new diagnostic. Never claim an iPhone gain without device logs.
   `build-utils/delivery-579-recipient.pem`. Local dry run on a scratch
   worktree: tree pin, full inherited source contract, retained checks,
   every validator import, the 24 markers in the real Core.
+- Private 579 delivered from `cb3450b8` (recipe of the same commit), run
+  `40623320457` (checks + cold success, 44 min): IPA 0.0.8 (579),
+  188,102,433 bytes, SHA-256
+  `72781107834f22af4b1216f576fc7aad144514c6aa36598785b57d40405c873a` (equal to
+  SHA256SUMS), artifact `12790455792` encrypted for
+  `delivery-579-recipient.pem`; RPCS3 Core 579 `1f82f9d9` (run 40621029169,
+  `8d6b91ae…`, identity receipt equal), MeloNX engine `afd0d4b0` unchanged;
+  every validator receipt passed; decrypted and inspected independently
+  (build 579, the four 579 markers in the signed Core, the 575 idle-park text
+  absent). Receipt `docs/evidence/rpcs3-cell579-delivery.json`. Not tested on
+  iPhone; no FPS, frame time or memory gain claimed. Do not reuse the number
+  579.
 
 ## MeloNX engine 577: kernel wakeups, GC memory-load threshold, Hogwarts code arena, per-title pipeline cache — 28 October 2026
 
