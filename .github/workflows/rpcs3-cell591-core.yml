@@ -1,3 +1,4 @@
+# Private Core validation only; packaging an IPA is a separate delivery.
 name: RPCS3 CELL591 transient compiler and shader memory
 run-name: "RPCS3 CELL591 source-built iPhone Core • ${{ github.sha }}"
 'on':
