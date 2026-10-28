@@ -39,13 +39,14 @@ class Fps478Withdrawal(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.old = json.loads(gzip.decompress(original('packages/neo_cheat_catalog/ios/Resources/manifest.json.gz')))
-        packed = (ROOT / 'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz').read_bytes()
+        # The hosted (v1) index; the app bundles the origin publication (v2)
+        # built from it (test/cheat_origin_v2_test.py).
+        packed = (DIRECTORY / 'manifest.json.gz').read_bytes()
         cls.new = json.loads(gzip.decompress(packed))
         cls.receipt = json.loads((ROOT / 'docs/evidence/source-rights-withdrawal-fps478.json').read_text())
         cls.packed = packed
 
     def test_publication_counts_and_withheld_credits(self):
-        self.assertEqual((DIRECTORY / 'manifest.json.gz').read_bytes(), self.packed)
         self.assertEqual(hashlib.sha256(self.packed).hexdigest(), self.receipt['manifestSHA256'])
         self.assertEqual(self.new['totals']['sources'], 46)
         self.assertEqual(self.new['totals']['programs'], 2395541 - 910)

@@ -20,6 +20,23 @@ static NSDictionary *CompactSummary(NSDictionary *data) {
   NeoCheatCatalogPlugin *plugin=[self new];
   FlutterMethodChannel *methods=[FlutterMethodChannel methodChannelWithName:@"neostation/cheat_catalog" binaryMessenger:registrar.messenger];
   [registrar addMethodCallDelegate:plugin channel:methods];
+  // Origin packs are rebuilt by Dart (package:neo_cheat_catalog OriginResolver).
+  // The catalogue calls this on a pack worker; the channel is used on main.
+  NeoUnifiedCheatCatalog.sharedCatalog.originResolver=^NSData *(NSData *pack,NSError **error){
+    __block id answer=nil;dispatch_semaphore_t done=dispatch_semaphore_create(0);
+    dispatch_async(dispatch_get_main_queue(),^{
+      [methods invokeMethod:@"resolveOriginPack" arguments:[FlutterStandardTypedData typedDataWithBytes:pack]
+                     result:^(id result){answer=result;dispatch_semaphore_signal(done);}];
+    });
+    if(dispatch_semaphore_wait(done,dispatch_time(DISPATCH_TIME_NOW,(int64_t)900*NSEC_PER_SEC))!=0){
+      if(error)*error=[NSError errorWithDomain:NeoUnifiedCheatCatalogErrorDomain code:4 userInfo:@{NSLocalizedDescriptionKey:@"Origin download timed out"}];
+      return nil;
+    }
+    if([answer isKindOfClass:FlutterStandardTypedData.class])return ((FlutterStandardTypedData *)answer).data;
+    NSString *message=[answer isKindOfClass:FlutterError.class] ? ((FlutterError *)answer).message : nil;
+    if(error)*error=[NSError errorWithDomain:NeoUnifiedCheatCatalogErrorDomain code:4 userInfo:@{NSLocalizedDescriptionKey:message ?: @"Origin download failed"}];
+    return nil;
+  };
   FlutterEventChannel *events=[FlutterEventChannel eventChannelWithName:@"neostation/cheat_catalog/progress" binaryMessenger:registrar.messenger];
   [events setStreamHandler:plugin];
 }

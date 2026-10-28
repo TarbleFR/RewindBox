@@ -1,0 +1,10 @@
+{
+  "hosted_chunks": 26128,
+  "manifest_bytes": 7548870,
+  "manifest_sha256": "9f28a4e218d94156135dfab9c772ffefb8f7a18289830b7fe6dc5cd111439edc",
+  "origin_bytes": 143100598,
+  "origin_files": 17481,
+  "origin_programs": 718409,
+  "pack_bytes": 263839354,
+  "skeleton_chunks": 24886
+}

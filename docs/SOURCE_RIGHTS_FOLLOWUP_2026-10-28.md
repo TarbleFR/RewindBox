@@ -120,6 +120,15 @@ publication relies on that decision, on the credits, and on removal on
 request (https://github.com/TarbleFR/RewindBox/issues). Sources whose
 authors explicitly restrict distribution stay excluded.
 
+## Origin publication (same day)
+
+The sources kept by the maintainer's decision are no longer hosted for
+updated apps. The v2 publication lists their programs by name and recipe;
+the app downloads the codes from each source at its pinned revision and
+rebuilds the exact published chunks. 718,409 programs over 14 sources. See
+[CHEAT_ORIGIN_PUBLICATION.md](CHEAT_ORIGIN_PUBLICATION.md). The hosted v1
+stays for older builds until the maintainer removes it.
+
 ## Not done here
 
 - No device test, IPA, CI run or release.

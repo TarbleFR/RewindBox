@@ -1,4 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/services.dart';
+
+import 'src/origin_resolver.dart';
+
+export 'src/origin_resolver.dart' show OriginResolver, OriginIntegrityError;
 
 /// Shared catalogue storage; installing never activates any cheat.
 class NeoCheatCatalog {
@@ -10,6 +16,24 @@ class NeoCheatCatalog {
   static Stream<Map<String, dynamic>> get progress => _progress
       .receiveBroadcastStream()
       .map((value) => Map<String, dynamic>.from(value as Map));
+
+  /// Lets the native catalogue rebuild packs of the origin publication: it
+  /// calls `resolveOriginPack` with a pack's JSON and receives the standard
+  /// pack back (OriginResolver). Origin files are cached under [cache].
+  /// Call once at startup on iOS; without it, those packs report an error.
+  static void enableOriginDownloads(Directory cache) {
+    final resolver = OriginResolver(cache: cache);
+    _channel.setMethodCallHandler((call) async {
+      if (call.method != 'resolveOriginPack') throw MissingPluginException(call.method);
+      final pack = call.arguments;
+      if (pack is! Uint8List) throw PlatformException(code: 'origin_arguments');
+      try {
+        return await resolver.resolve(pack);
+      } catch (error) {
+        throw PlatformException(code: 'origin_failed', message: error.toString());
+      }
+    });
+  }
 
   static Future<Map<String, dynamic>> load() async =>
       Map<String, dynamic>.from(await _channel.invokeMethod<Map>('load') ?? {});

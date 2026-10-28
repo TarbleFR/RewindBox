@@ -53,6 +53,7 @@ import 'package:neostation/services/rpcs3_internal_service.dart';
 import 'package:neostation/services/rpcs3_launch_service.dart';
 import 'package:neostation/data/datasources/sqlite_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:neo_cheat_catalog/neo_cheat_catalog.dart';
 
 import 'services/audio_policy_service.dart';
 
@@ -325,6 +326,13 @@ void main() async {
   // blank launch surface for that entire interval.
   runApp(RewindStartupRoot(controller: _rewindStartup));
   await WidgetsBinding.instance.endOfFrame;
+
+  if (Platform.isIOS) {
+    // The unified cheat catalogue downloads the codes of sources RewindBox
+    // does not host from those sources (packages/neo_cheat_catalog).
+    final support = await getApplicationSupportDirectory();
+    NeoCheatCatalog.enableOriginDownloads(Directory('${support.path}/RewindBox/Cheats/Origin'));
+  }
 
   await _configureImageCache();
 

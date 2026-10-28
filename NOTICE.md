@@ -155,6 +155,13 @@ remain in docs/CHEAT_CATALOG_SOURCES.md. The illusion0001 RPCS3 mirror keeps
 (RPCS3 Wiki contributors and the named patch authors). Its 3 programs that
 differ are withheld. See docs/SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md.
 
+Origin publication of the unified cheat catalogue (same day): for updated
+apps, the codes of the sources with no licence for them (MiSTer/GameHacking,
+CWCheat Database Plus, FBNeo cheats, GeckoArchive, DuckStation chtdb,
+PSX Datacenter, Mighty Mo and the PS2 pnach collections) are downloaded by
+the app from those sources at pinned revisions. RewindBox lists only their
+names, credits and positions (docs/CHEAT_ORIGIN_PUBLICATION.md).
+
 Researched and not integrated: StevensND/switch-port-mods and
 ue4-emuswitch-60fps (author forbids reuploads), theboy181/switch-ptchtxt-mods
 and UltraCam (CC BY-NC), masagrator/FPSLocker-Warehouse (needs its own

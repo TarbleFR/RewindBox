@@ -371,7 +371,9 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
   _readQueue=[NSOperationQueue new]; _readQueue.maxConcurrentOperationCount=2;
   _readQueue.qualityOfService=NSQualityOfServiceUtility;
   _programCache=[NSCache new];_programCache.totalCostLimit=8*1024*1024;_programCache.countLimit=16;
-  _manifestURL=[NSURL URLWithString:@"https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/native/cheats/catalogue/manifest.json.gz"];
+  // v2: the origin publication (native/cheats/catalogue/v2). Earlier builds keep
+  // reading the hosted v1 index at native/cheats/catalogue/manifest.json.gz.
+  _manifestURL=[NSURL URLWithString:@"https://raw.githubusercontent.com/TarbleFR/RewindBox/Claude/native/cheats/catalogue/v2/manifest.json.gz"];
   NSString *documents=NSSearchPathForDirectoriesInDomains(NSDocumentDirectory,NSUserDomainMask,YES).firstObject ?: NSTemporaryDirectory();
   _storageDirectory=[documents stringByAppendingPathComponent:@"NeoStation/Cheats/Unified"];
   for (NSBundle *bundle in @[[NSBundle bundleForClass:self.class],NSBundle.mainBundle]) {
@@ -823,6 +825,17 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
     NSData *expanded=Inflate(bytes,[pack[@"uncompressed_size"] unsignedIntegerValue],&error);
     NSDictionary *json=JSON(expanded);
     if(!expanded)return error;
+    // Origin publication: programs of sources RewindBox does not host carry
+    // no code. The resolver downloads the sources' own files and returns the
+    // pack as the hosted publication served it; every chunk is then checked
+    // below against the manifest SHA-256 exactly as before.
+    if([json[@"origin"] isKindOfClass:NSDictionary.class]) {
+      NeoUnifiedCheatOriginResolver resolver=self.originResolver;
+      if(!resolver)return Failure(4,@"Origin downloads are unavailable");
+      NSError *originError=nil;NSData *resolved=resolver(expanded,&originError);
+      if(!resolved)return originError ?: Failure(4,@"Origin files are unavailable");
+      json=JSON(resolved);
+    }
     if(![json[@"schema_version"] isKindOfClass:NSNumber.class] || [json[@"schema_version"] integerValue]!=1 || ![json[@"files"] isKindOfClass:NSArray.class] || Array(json[@"files"]).count>250000)return Failure(7,@"Invalid pack index");
     NSSet *expected=[NSSet setWithArray:Array(pack[@"game_ids"])];NSMutableSet *seen=[NSMutableSet set];
     NSMutableArray *installedGames=[NSMutableArray array];

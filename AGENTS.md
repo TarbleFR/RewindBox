@@ -101,6 +101,25 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
     next step. It needs a native port of the parsers and a macOS
     validation run that only the maintainer can authorise.
 
+- Unified cheat catalogue, origin publication (v2), 28 October
+  (maintainer: do not host unlicensed codes, change nothing for the player,
+  do not break installed data). See `docs/CHEAT_ORIGIN_PUBLICATION.md`.
+  - `native/cheats/catalogue/v2/` has the same games and chunk SHA-256 as
+    v1. Programs of unhosted sources keep a recipe (byte ranges in the
+    source's pinned file) instead of their code.
+  - The app bundles v2 and refreshes from the v2 URL. Native
+    `installPack` hands origin packs to the Dart `OriginResolver` (plugin
+    channel `resolveOriginPack`), then verifies each chunk as before.
+  - Tools: `tools/cheats/origin/` (locate, recipe, skeleton, sources).
+  - Tests:
+    - `test/cheat_canonical_json_test.dart`
+    - `test/cheat_origin_resolver_test.dart`
+    - `test/cheat_origin_publication_test.dart` (needs `ORIGIN_DIR`)
+    - `test/cheat_origin_v2_test.py`
+    - `test/unified_catalog_origin_native.m` (macOS, through
+      `test/unified_catalog_runtime_test.py`)
+  - v1 stays hosted for older builds until the maintainer removes it.
+
 ## RPCS3 levers for every newly tested game — maintainer rule, 27 October 2026
 
 Apply this rule to every PS3 game the maintainer tests from now on. Use only

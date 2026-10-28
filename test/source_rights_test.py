@@ -19,7 +19,7 @@ class RightsTests(unittest.TestCase):
  def setUpClass(cls):
   cls.old=json.loads(gzip.decompress(original('packages/neo_cheat_catalog/ios/Resources/manifest.json.gz')))
   cls.new=json.loads(gzip.decompress(original('packages/neo_cheat_catalog/ios/Resources/manifest.json.gz',RESULT)))
-  cls.current=json.loads(gzip.decompress((ROOT/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz').read_bytes()))
+  cls.current=json.loads(gzip.decompress((ROOT/'native/cheats/catalogue/manifest.json.gz').read_bytes()))
   cls.receipt=json.loads((ROOT/'docs/evidence/source-rights-withdrawal.json').read_text())
  def test_publication_counts_and_withheld_credit(self):
   self.assertEqual(self.new['totals']['sources'],50);self.assertEqual(self.new['totals']['programs'],2395541)
@@ -27,7 +27,8 @@ class RightsTests(unittest.TestCase):
   for m in (self.new,self.current):
    self.assertNotIn('pokemonfrance',{s['id'] for s in m['sources']})
    self.assertTrue(next(s for s in m['excluded_sources'] if s['id']=='pokemonfrance')['url'])
-  self.assertEqual((ROOT/'native/cheats/catalogue/manifest.json.gz').read_bytes(),(ROOT/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz').read_bytes())
+  # The app bundles the origin publication (v2) built from the hosted index.
+  self.assertEqual((ROOT/'native/cheats/catalogue/v2/manifest.json.gz').read_bytes(),(ROOT/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz').read_bytes())
  def test_every_unrelated_chunk_is_unchanged(self):
   before={g['id']:g for g in self.old['games']};after={g['id']:g for g in self.new['games']}
   self.assertEqual(before.keys()-after.keys(),REMOVED)
