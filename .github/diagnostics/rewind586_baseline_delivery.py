@@ -15,7 +15,9 @@ module checks:
 * --download-components: the 586 engine and the iPhone host proofs, by
   artifact ID and digest;
 * --engine-evidence: the downloaded engine against the pinned engine inputs
-  (rewind586_delivery.engine_evidence(), which reads only the 586 engine).
+  (rewind586_delivery.engine_evidence(), which reads only the 586 engine);
+* --rpc-core-inputs SOURCE -- PATHS: the Core pin guard of the 587 Core
+  inputs (rewind586_delivery.validate_rpc_core_pin), before any contract.
 
 The engine, Core and host constants and functions are those of the 586 recipe
 (rewind586_delivery.py), whose source contract and nested views are not run.
@@ -29,6 +31,7 @@ ROOT = Path(__file__).resolve().parents[2]
 for path in ('.github/diagnostics', 'build-utils', 'build-utils/melonx', 'packages/dolphin_internal_bridge/ci'):
     sys.path.insert(0, str(ROOT / path))
 import rewind586_baseline as tree
+import rewind586_fast  # noqa: F401  (batched existence checks for the modules below)
 import rewind586_delivery as d586
 
 BUILD = tree.BUILD
@@ -55,11 +58,16 @@ def retain_checks():
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--rpc-core-inputs')
+    parser.add_argument('core_paths', nargs='*')
     for flag in ('--contract', '--retain-checks', '--wait-for-components', '--component-runs',
                  '--download-components', '--engine-evidence'):
         parser.add_argument(flag, action='store_true')
     parser.add_argument('--output', default='build/delivery/baseline586.json')
     args = parser.parse_args()
+    if args.rpc_core_inputs:
+        d586.validate_rpc_core_pin(args.rpc_core_inputs, args.core_paths)
+        return
     report = dict(build=int(BUILD), contract=contract())
     if args.retain_checks:
         retain_checks()

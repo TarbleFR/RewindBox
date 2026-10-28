@@ -40,7 +40,8 @@ SESSIONS = {
 # This recipe's own files; the earlier recipe files of the record follow HEAD as well.
 RECIPE = ['.github/diagnostics/rewind586_baseline.py', '.github/diagnostics/rewind586_baseline.json.gz',
           '.github/diagnostics/rewind586_baseline_delivery.py', '.github/workflows/rewind586-baseline-delivery.yml',
-          'build-utils/validate_melonx_engine586_ipa.py', 'build-utils/validate_rpcs3_core587_ipa.py']
+          'build-utils/validate_melonx_engine586_ipa.py', 'build-utils/validate_rpcs3_core587_ipa.py',
+          '.github/diagnostics/rewind586_fast.py']
 ZERO = '0' * 40
 
 

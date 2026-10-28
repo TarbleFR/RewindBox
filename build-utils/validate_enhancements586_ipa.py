@@ -19,6 +19,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 for path in ('.github/diagnostics','build-utils','build-utils/melonx','packages/dolphin_internal_bridge/ci'):
  sys.path.insert(0,str(ROOT/path))
+import rewind586_fast  # noqa: F401  (batched existence checks for the 586 recipe modules)
 import rewind586_delivery as delivery
 import rewind586_tree as tree
 

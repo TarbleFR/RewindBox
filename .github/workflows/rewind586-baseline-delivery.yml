@@ -11,6 +11,7 @@ run-name: RewindBox Build 586 from the 585 baseline — ${{ github.sha }}
     - .github/diagnostics/rewind586_baseline_delivery.py
     - build-utils/validate_melonx_engine586_ipa.py
     - build-utils/validate_rpcs3_core587_ipa.py
+    - .github/diagnostics/rewind586_fast.py
   workflow_dispatch:
     inputs:
       recipient:
@@ -140,8 +141,6 @@ jobs:
     name: Release device build • cold
     runs-on: macos-15
     timeout-minutes: 90
-    needs:
-    - checks
     env:
       BUILD_NUMBER: '586'
       DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-586-recipient.pem' }}
@@ -175,11 +174,9 @@ jobs:
     - name: Pin the 585 baseline with the 586 delta (MeloNX engine 75a13f7, Cheats & Enhancements b451b10 to d0f27cc, RPCS3 Core 587 a8a7ce1), each file from the commit that validated it
       run: |
         python3 .github/diagnostics/rewind586_baseline.py --pin
-    - name: Load exact local import and historical Foundation receipts
-      uses: actions/download-artifact@v4
-      with:
-        name: Rewind586-checks-${{ github.sha }}
-        path: build/delivery
+    - name: Bind the 586 engine run and the 587 Core receipt to the pinned tree
+      run: |
+        python3 .github/diagnostics/rewind586_baseline_delivery.py --retain-checks
     - name: Execute the stderr capture, repeated stubs, emulation priority and MoltenVK preference in Swift, with the other parity checks
       run: python3 test/melonx_standalone_parity_test.py
     - name: Execute the per-second performance journal in Swift (threads, pause, line limit, summary, ports)
@@ -307,7 +304,7 @@ jobs:
         test -s "$CORE"
         # The artifact's source, canonical patch, compiler recipe, binary
         # checks and native ABI must all be from the same Core commit.
-        RPCS3_PIN_GUARD=.github/diagnostics/rewind586_delivery.py
+        RPCS3_PIN_GUARD=.github/diagnostics/rewind586_baseline_delivery.py
         # RPCS3_CORE_INPUTS_BEGIN
         python3 "$RPCS3_PIN_GUARD" --rpc-core-inputs "$RPCS3_CORE_HOST_SHA" -- \
           test/rpcs3_restore_eof_test.py \
@@ -1033,8 +1030,8 @@ jobs:
       run: python3 build-utils/validate_melonx_keys_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --core-source 75a13f7eda665b99c0ac96556e3956655379e668 --core-run 40734346962 --report build/delivery/melonx-keys517-ipa-validation.json
     - name: Verify the signed 586 MeloNX engine (receipt, source identity, compiled payload fingerprint, exports, journal literals, adaptations)
       run: |
-        python3 build-utils/validate_melonx_engine586_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report
-          build/delivery/melonx-engine586-ipa-validation.json
+        python3 build-utils/validate_melonx_engine586_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" \
+          --report build/delivery/melonx-engine586-ipa-validation.json
     - name: Verify the compiled Cheats & Enhancements page (strings, catalogue constants, origin download channel), the bundled enhancements index and v2 cheat index, the withheld-program guard and v2 index URL, the packaged notice, and that no shard or pack is bundled
       run: python3 build-utils/validate_enhancements586_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" --report build/delivery/enhancements586-ipa-validation.json
     - name: Finalize observed timings and artifact identity
@@ -1112,6 +1109,7 @@ jobs:
       if: always()
       shell: bash
       run: rm -f .dart-defines.json
+    if: ${{ github.event_name == 'workflow_dispatch' }}
 env:
   CI: 'true'
   FLUTTER_SUPPRESS_ANALYTICS: 'true'
