@@ -161,6 +161,19 @@ final class MeloNXMetalSessionViewController: UIViewController {
         for (name, pause) in [(UIApplication.willResignActiveNotification,true),(UIApplication.didBecomeActiveNotification,false)] {
             observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] _ in self?.setPause("application",enabled:pause); self?.updateMemoryGraph() })
         }
+        // One app.log line per transition, appended before the handler returns
+        // (MeloNXLaunchJournal.persist). A journal ending after
+        // "didEnterBackground" ended in the background (suspension, then a
+        // system kill); one ending while active, with no such line, did not.
+        for (name, event) in [(UIApplication.willResignActiveNotification,"willResignActive"),
+                              (UIApplication.didEnterBackgroundNotification,"didEnterBackground"),
+                              (UIApplication.willEnterForegroundNotification,"willEnterForeground"),
+                              (UIApplication.didBecomeActiveNotification,"didBecomeActive"),
+                              (UIApplication.didReceiveMemoryWarningNotification,"memoryWarning")] {
+            observers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { _ in
+                MeloNXLaunchJournal.record("lifecycle",event,detail:"mem=" + MeloNXMetalSessionViewController.memoryField())
+            })
+        }
     }
 
     private func installControls(generation: Int64) {
@@ -183,9 +196,24 @@ final class MeloNXMetalSessionViewController: UIViewController {
         let journal = MeloNXPerfJournal(path:path,
             fps:{ runtime.performanceSnapshot(generation:generation) },
             presentation:{ layer.presentation() },
-            audio:{ runtime.audioPacing() })
+            audio:{ runtime.audioPacing() },
+            memory:{ MeloNXMetalSessionViewController.memoryField() })
         perf = journal
         journal.start()
+    }
+    // "footprint MiB/headroom MiB/device %/donors": phys_footprint, the
+    // headroom to this process's jetsam limit (os_proc_available_memory), the
+    // share of device RAM iOS reports available (kern.memorystatus_level, the
+    // .NET GC's memory load; -1 if unreadable) and live RamDonor processes.
+    // Headroom near 0 is this process's limit; device % near 0 with headroom
+    // left is system-wide pressure; a donor count drop is a donor killed.
+    static func memoryField() -> String {
+        let memory = MeloNXMemorySnapshot() as? [String:Any] ?? [:]
+        func mib(_ key: String) -> String { (memory[key] as? NSNumber).map { String($0.uint64Value >> 20) } ?? "-" }
+        var level: Int32 = -1
+        var size = MemoryLayout<Int32>.size
+        if sysctlbyname("kern.memorystatus_level", &level, &size, nil, 0) != 0 { level = -1 }
+        return "\(mib("footprintBytes"))/\(mib("availableBytes"))/\(level)/\(MLXRamDonor.sharedIfExists?.liveDonorCount ?? 0)"
     }
     private func refreshControls() {
         guard let router else { return }

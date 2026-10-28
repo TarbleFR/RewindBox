@@ -17,6 +17,8 @@ import Darwin
 //   cpu=   process CPU % (100 = one core), then the busiest threads as
 //          name:CPU %/base priority (47 user-interactive, 37 user-initiated,
 //          31 default, 20 utility, 4 background)
+//   mem=   footprint MiB / headroom MiB / device available % / live donors
+//          (host-supplied; absent when the host gives none)
 //   th= lp= thermal state and Low Power Mode; "paused" while the game is paused
 final class MeloNXPerfJournal {
     struct Presentation {
@@ -36,6 +38,7 @@ final class MeloNXPerfJournal {
     private let fps: () -> [String: Any]
     private let presentation: () -> Presentation
     private let audio: () -> [Int64]?
+    private let memory: () -> String?
     private let queue = DispatchQueue(label:"RewindBox.MeloNX.Perf", qos:.utility)
     private let lock = NSLock()
     private var paused = false
@@ -54,9 +57,9 @@ final class MeloNXPerfJournal {
 
     init(path: String, interval: Double = 1, lineLimit: Int = 1800,
          fps: @escaping () -> [String: Any], presentation: @escaping () -> Presentation,
-         audio: @escaping () -> [Int64]?) {
+         audio: @escaping () -> [Int64]?, memory: @escaping () -> String? = { nil }) {
         self.path = path; self.interval = interval; self.lineLimit = lineLimit
-        self.fps = fps; self.presentation = presentation; self.audio = audio
+        self.fps = fps; self.presentation = presentation; self.audio = audio; self.memory = memory
     }
 
     func setPaused(_ value: Bool) { lock.lock(); paused = value; lock.unlock() }
@@ -140,6 +143,8 @@ final class MeloNXPerfJournal {
             cpu += " \(thread.name):\(percent(thread.ns))/\(thread.priority)"
         }
         fields.append(cpu)
+
+        if let text = memory() { fields.append("mem=" + text) }
 
         let thermal = ProcessInfo.processInfo.thermalState.rawValue
         hottest = max(hottest, thermal)
