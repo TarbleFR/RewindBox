@@ -27,7 +27,7 @@ and its receipt, and the Cheats & Enhancements files are checked on the
 pinned 586 tree and on the actual IPA. The source contract is computed once
 per job and reused on the same bytes (build-utils/delivery_contract_memo.py).
 """
-import argparse,contextlib,hashlib,importlib,json,os,shutil,sys,tempfile,zipfile
+import argparse,contextlib,hashlib,importlib,json,os,shutil,subprocess,sys,tempfile,zipfile
 from pathlib import Path
 import rewind586_tree as tree
 import rpcs3cell585_delivery as d585
@@ -487,6 +487,32 @@ def retain_checks():
  (out/'rpcs3-cell587-core.json').write_text(json.dumps(dict(core_receipt(),run=core_run()),indent=2)+'\n')
  print('Bound the 585 receipts to the delivered 585 tree, the 586 engine run and the 587 Core receipt to the pinned tree.')
 
+def mode_changes():
+ """{path: index mode} of tracked files whose bytes match the index and whose mode does not."""
+ fields=subprocess.check_output(['git','diff','--raw','-z','--no-renames'],cwd=ROOT,text=True).split('\0')
+ changes={}
+ for meta,path in zip(fields[0::2],fields[1::2]):
+  old,new=meta.lstrip(':').split()[:2]
+  if {old,new}=={'100644','100755'} and subprocess.run(['git','-c','core.fileMode=false','diff','--quiet','--',path],cwd=ROOT).returncode==0:
+   changes[path]=old
+ return changes
+
+def contract_keeping_modes():
+ """source_contract, then the file modes it changed set back.
+
+ The 579 view writes test/rpcs3_cell579_test.py back without its executable
+ bit, so the contract left the checkout changed by one mode and the memo
+ never recorded it: every step of a delivery job ran the whole contract
+ again (8 to 15 minutes each on the macOS runner of run 40744757151). A mode
+ the contract changed on a file whose bytes match the index is set back to
+ the index mode; any other change still keeps the memo from recording.
+ """
+ before=mode_changes()
+ report=source_contract()
+ for path,mode in mode_changes().items():
+  if path not in before:os.chmod(ROOT/path,0o755 if mode=='100755' else 0o644)
+ return report
+
 def main():
  p=argparse.ArgumentParser();p.add_argument('--rpc-core-inputs');p.add_argument('core_paths',nargs='*')
  p.add_argument('--retain-checks',action='store_true');p.add_argument('--wait-for-components',action='store_true')
@@ -495,7 +521,7 @@ def main():
  p.add_argument('--engine-evidence',action='store_true')
  p.add_argument('--output',default='build/delivery/reused-validation586.json');a=p.parse_args()
  if a.rpc_core_inputs:validate_rpc_core_pin(a.rpc_core_inputs,a.core_paths);return
- report=memo.reuse(BUILD,source_contract,declared=[INSTALLED])
+ report=memo.reuse(BUILD,contract_keeping_modes,declared=[INSTALLED])
  if a.retain_checks:retain_checks()
  if a.logger_proofs:
   # The 585 binding on the delivered 585 tree (its own views in turn), then the pinned tree.
