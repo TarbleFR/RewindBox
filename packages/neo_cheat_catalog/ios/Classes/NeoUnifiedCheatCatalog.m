@@ -750,11 +750,21 @@ static NSData *Inflate(NSData *data, NSUInteger expected, NSError **error) {
        ![statuses containsObject:String(row[@"status"])] || Array(row[@"lines"]).count>100000)continue;
     // A cached/downloaded old index cannot restore a withheld contribution.
     // Keep the original attribution in history; never relabel these programs.
+    // Sources withheld on 18 and 28 October 2026, and the three illusion0001
+    // programs that differ from the official RPCS3 patch.yml.
+    static NSSet *withheldSources,*withheldPrograms;
+    static dispatch_once_t once;
+    dispatch_once(&once,^{
+      withheldSources=[NSSet setWithArray:@[@"pokemonfrance",@"pcsx2_fps478",@"gabominated_fps478",@"nethersx2_fps478",@"nds_fps478"]];
+      withheldPrograms=[NSSet setWithArray:@[@"27f742c00526dffcd10f3d2b5593ee1a",@"8652b210de7d0220d9f877e7600bfb8a",@"dbe94750f58a5e0aebc9010c67f55540"]];
+    });
     BOOL withheld=NO;
     for(id p in Array(row[@"provenance"])) {
-      if([p isKindOfClass:NSDictionary.class] &&
-         ([String(p[@"source_id"]) isEqualToString:@"pokemonfrance"] ||
-          [String(p[@"import_source_id"]) isEqualToString:@"pokemonfrance"])) {withheld=YES;break;}
+      if(![p isKindOfClass:NSDictionary.class])continue;
+      NSString *source=String(p[@"source_id"]),*imported=String(p[@"import_source_id"]);
+      if([withheldSources containsObject:source] || [withheldSources containsObject:imported] ||
+         (([source isEqualToString:@"illusion_fps478"] || [imported isEqualToString:@"illusion_fps478"]) &&
+          [withheldPrograms containsObject:String(row[@"id"])])) {withheld=YES;break;}
     }
     if(withheld)continue;
     NSMutableDictionary *copy=[row mutableCopy];copy[@"enabled"]=@NO;

@@ -138,6 +138,16 @@ Fl4sh9174/Switch-Ultrawide-Mods, the pcsx2_patches bodies (only names of the
 copy ARMSX2 ships are referenced), Gabominated/PCSX2 and PeterDelta/PCSX2.
 The Switch (MeloNX) catalogue is therefore empty.
 
+UNIFIED CHEAT CATALOGUE (native/cheats/) — 28 OCTOBER 2026 WITHDRAWAL
+
+The 60 FPS supplement programs of PCSX2/pcsx2_patches, Gabominated/PCSX2,
+Saramagrean/NetherSX2-cheats and a Reddit post by TheYearOfWaluigi are
+withheld: no licence or written permission covers their codes. Their credits
+remain in docs/CHEAT_CATALOG_SOURCES.md. The illusion0001 RPCS3 mirror keeps
+280 programs identical to the official RPCS3 patch.yml, under CC BY-SA 4.0
+(RPCS3 Wiki contributors and the named patch authors). Its 3 programs that
+differ are withheld. See docs/SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md.
+
 Researched and not integrated: StevensND/switch-port-mods and
 ue4-emuswitch-60fps (author forbids reuploads), theboy181/switch-ptchtxt-mods
 and UltraCam (CC BY-NC), masagrator/FPSLocker-Warehouse (needs its own

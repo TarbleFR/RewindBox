@@ -8,20 +8,25 @@ import unittest
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 BASE='8308865b873879f74768aff10a9d336d074cb8f7'
+# The Pokemon France withdrawal as published, before the 28 October 2026
+# withdrawal (test/source_rights_fps478_test.py) replaced 14 more packs.
+RESULT='cb59a78472a9ce5c5fc6925db7119649e76b3220'
 REMOVED={'533635c085f971e8a5e3e0f854348c69','60d89cf805c614b7c3b08e4b53ee5b48'}
-def original(path):return subprocess.check_output(['git','show',BASE+':'+path],cwd=ROOT)
+def original(path,commit=BASE):return subprocess.check_output(['git','show',commit+':'+path],cwd=ROOT)
 def digest(data):return hashlib.sha256(data).hexdigest()
 class RightsTests(unittest.TestCase):
  @classmethod
  def setUpClass(cls):
   cls.old=json.loads(gzip.decompress(original('packages/neo_cheat_catalog/ios/Resources/manifest.json.gz')))
-  cls.new=json.loads(gzip.decompress((ROOT/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz').read_bytes()))
+  cls.new=json.loads(gzip.decompress(original('packages/neo_cheat_catalog/ios/Resources/manifest.json.gz',RESULT)))
+  cls.current=json.loads(gzip.decompress((ROOT/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz').read_bytes()))
   cls.receipt=json.loads((ROOT/'docs/evidence/source-rights-withdrawal.json').read_text())
  def test_publication_counts_and_withheld_credit(self):
   self.assertEqual(self.new['totals']['sources'],50);self.assertEqual(self.new['totals']['programs'],2395541)
-  self.assertNotIn('pokemonfrance',{s['id'] for s in self.new['sources']})
   self.assertEqual(self.new['excluded_sources'][-1]['id'],'pokemonfrance')
-  self.assertTrue(self.new['excluded_sources'][-1]['url'])
+  for m in (self.new,self.current):
+   self.assertNotIn('pokemonfrance',{s['id'] for s in m['sources']})
+   self.assertTrue(next(s for s in m['excluded_sources'] if s['id']=='pokemonfrance')['url'])
   self.assertEqual((ROOT/'native/cheats/catalogue/manifest.json.gz').read_bytes(),(ROOT/'packages/neo_cheat_catalog/ios/Resources/manifest.json.gz').read_bytes())
  def test_every_unrelated_chunk_is_unchanged(self):
   before={g['id']:g for g in self.old['games']};after={g['id']:g for g in self.new['games']}
@@ -32,7 +37,7 @@ class RightsTests(unittest.TestCase):
   self.assertEqual(len(set(oldpacks)&set(newpacks)),872)
   for change in self.receipt['replacedPacks']:
    before=json.loads(gzip.decompress(original('native/cheats/catalogue/'+change['old'])))
-   data=(ROOT/'native/cheats/catalogue'/change['new']).read_bytes();meta=newpacks[change['new']]
+   data=original('native/cheats/catalogue/'+change['new'],RESULT);meta=newpacks[change['new']]
    self.assertEqual(digest(data),meta['sha256']);self.assertEqual(len(data),meta['size'])
    after=json.loads(gzip.decompress(data));self.assertEqual(after['files'],[f for f in before['files'] if f['game_id'] not in REMOVED])
    for f in after['files']:

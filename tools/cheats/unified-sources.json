@@ -42712,7 +42712,8 @@
       "status": "available",
       "import_scope": "Whole explicitly named 60 FPS/50-60 FPS selections only, with source CRCs and complete group/control-flow proof; no automatic emulator-setting changes",
       "publication": {
-        "enabled": true
+        "enabled": false,
+        "reason": "Withheld: no licence to redistribute the codes and no written permission recorded (rights review of 28 October 2026); historical credits retained."
       }
     },
     {
@@ -42734,7 +42735,8 @@
       "status": "available",
       "import_scope": "Whole explicitly named 60 FPS/50-60 FPS selections only, with source CRCs and complete group/control-flow proof; no automatic emulator-setting changes",
       "publication": {
-        "enabled": true
+        "enabled": false,
+        "reason": "Withheld: no licence to redistribute the codes and no written permission recorded (rights review of 28 October 2026); historical credits retained."
       }
     },
     {
@@ -42756,7 +42758,8 @@
       "status": "available",
       "import_scope": "Whole explicitly named 60 FPS/50-60 FPS selections only, with source CRCs and complete group/control-flow proof; no automatic emulator-setting changes",
       "publication": {
-        "enabled": true
+        "enabled": false,
+        "reason": "Withheld: no licence to redistribute the codes and no written permission recorded (rights review of 28 October 2026); historical credits retained."
       }
     },
     {
@@ -42778,7 +42781,8 @@
       "status": "available",
       "import_scope": "Complete author-published native PPU documents explicitly labeled 60 FPS, keeping exact serial/version/hash, notes and exclusive groups; configurable/unsupported programs stay excluded",
       "publication": {
-        "enabled": true
+        "enabled": false,
+        "reason": "Re-import disabled: only programs identical to the official RPCS3 patch.yml (CC BY-SA 4.0) are published; the current manifest keeps 280 verified programs (rights review of 28 October 2026)."
       }
     },
     {
@@ -42799,7 +42803,8 @@
         "license": "Original author rights and attribution retained"
       },
       "publication": {
-        "enabled": true
+        "enabled": false,
+        "reason": "Withheld: no licence to redistribute the codes and no written permission recorded (rights review of 28 October 2026); historical credits retained."
       }
     }
   ],

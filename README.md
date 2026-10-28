@@ -120,11 +120,11 @@ RewindBox’s frontend license does not relicense third-party codes.
 | [xGamingDragon93x PNACH collection](https://github.com/xGamingDragon93x/PCSX2-Ultimative-Cheats-Collection-PNACH) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-dragon_pnach478) | xGamingDragon93x and collection contributors; original code authors |
 | [ArtemisPS3 complete static PPU programs](https://github.com/bucanero/ArtemisPS3/tree/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemis_static478) | Daniel Gerendasy, bucanero / ArtemisPS3 contributors and the original code authors |
 | [Artemis RPCS3 authored PKG collection](https://github.com/PaauloSilva/Artemis-Patch-Collection-RPCS3_PKG) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-artemis_pkg478) | PaauloSilva collection; chidreams (MIT notice); original patch authors |
-| [PCSX2/pcsx2_patches explicit 60 FPS patches](https://github.com/PCSX2/pcsx2_patches) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-pcsx2_fps478) | PCSX2 and collection contributors; original code authors |
-| [Gabominated/PCSX2 explicit 60 FPS patches](https://github.com/Gabominated/PCSX2) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-gabominated_fps478) | Gabominated and collection contributors; original code authors |
-| [Saramagrean/NetherSX2-cheats explicit 60 FPS patches](https://github.com/Saramagrean/NetherSX2-cheats) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-nethersx2_fps478) | Saramagrean and collection contributors; original code authors |
+| [PCSX2/pcsx2_patches explicit 60 FPS patches](https://github.com/PCSX2/pcsx2_patches) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-pcsx2_fps478) | PCSX2 and collection contributors; original code authors (withheld 28 October 2026) |
+| [Gabominated/PCSX2 explicit 60 FPS patches](https://github.com/Gabominated/PCSX2) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-gabominated_fps478) | Gabominated and collection contributors; original code authors (withheld 28 October 2026) |
+| [Saramagrean/NetherSX2-cheats explicit 60 FPS patches](https://github.com/Saramagrean/NetherSX2-cheats) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-nethersx2_fps478) | Saramagrean and collection contributors; original code authors (withheld 28 October 2026) |
 | [RPCS3 native 60 FPS patches, pinned illusion mirror](https://github.com/illusion0001/rpcs3-game-patch) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-illusion_fps478) | illusion0001 mirror, RPCS3 patch contributors and original patch authors |
-| [TheYearOfWaluigi Gen IV battle framerate codes](https://www.reddit.com/r/PokemonROMhacks/comments/r9k94k/action_replay_codes_uncap_framerate_inbattle_only/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-nds_fps478) | TheYearOfWaluigi |
+| [TheYearOfWaluigi Gen IV battle framerate codes](https://www.reddit.com/r/PokemonROMhacks/comments/r9k94k/action_replay_codes_uncap_framerate_inbattle_only/) · [source record](docs/CHEAT_CATALOG_SOURCES.md#source-nds_fps478) | TheYearOfWaluigi (withheld 28 October 2026) |
 
 </details>
 

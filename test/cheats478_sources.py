@@ -29,7 +29,14 @@ class SourceContracts(unittest.TestCase):
         self.assertEqual(rows[1][2],'0x6000000060000000')
 
     def test_ds_fps_keeps_both_conditional_branches_and_unknown_revision(self):
-        raw=(ROOT/'tools/cheats/snapshots/nds-fps-478.json').read_bytes()
+        # Made-up programs of the reviewed shape: the nds_fps478 snapshot was
+        # withdrawn on 28 October 2026 (docs/SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md).
+        code='\n'.join(['92000000 00000001','A2000000 00000000','12000000 00000000','D2000000 00000000',
+                        'A2000000 00000001','A2000004 00000002','12000004 00000002','D2000000 00000000'])
+        raw=canonical([{'system':'nds','title':f'Probe {i}','identities':[],'regions':['USA'],'languages':[],
+            'revision':'','edition_confirmation_required':True,
+            'cheats':[{'name':'60 FPS battles (USA)','dialect':'ds-actionreplay','code':code,'source_code':code,
+                'source_url':'https://example.invalid/probe','author':'Probe'}]} for i in range(5)])
         rows=parse_reviewed_ds_fps(raw,{'source_id':'nds-fps','revision':'reviewed','license':'original'})
         self.assertEqual(len(rows),5)
         for g in rows:

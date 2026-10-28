@@ -1,0 +1,553 @@
+{
+ "schema": 1,
+ "reviewed": "2026-10-28",
+ "manifestSHA256": "88911e5b2312eafe4450cfbc477f304ab9fd49c3720ac5eae2c147f75b90503b",
+ "rule": "Code bodies are published only on proof of a licence or permission applicable to the codes. A repository licence of a compiler does not by itself establish the authority of third-party code authors (docs/licenses/cheats/README.md).",
+ "verdicts": {
+  "licence-verified": "licence checked against the published content",
+  "licence-declared": "the code author or data licence grants redistribution",
+  "compiler-licence": "a licence of the compiling repository; third-party authors not established",
+  "tooling-licence-only": "licence covers scripts or tools, not the codes",
+  "no-licence-evidence": "no licence or written permission recorded",
+  "withheld": "removed from publication"
+ },
+ "summary": {
+  "licence-verified": {
+   "sources": 1,
+   "programs": 280
+  },
+  "licence-declared": {
+   "sources": 5,
+   "programs": 1012285
+  },
+  "compiler-licence": {
+   "sources": 10,
+   "programs": 620372
+  },
+  "tooling-licence-only": {
+   "sources": 2,
+   "programs": 66644
+  },
+  "no-licence-evidence": {
+   "sources": 28,
+   "programs": 704694
+  },
+  "withheld": {
+   "sources": 5,
+   "programs": 0
+  }
+ },
+ "sources": [
+  {
+   "id": "illusion_fps478",
+   "name": "RPCS3 native 60 FPS patches, pinned illusion mirror",
+   "url": "https://github.com/illusion0001/rpcs3-game-patch",
+   "revision": "16be3d817e9aedc4685389c8327f3d8a925df862",
+   "programs": 280,
+   "license_metadata": "CC BY-SA 4.0 (RPCS3 Wiki contributors and the named patch authors; https://creativecommons.org/licenses/by-sa/4.0/). Identical to the official RPCS3 patch.yml, content SHA-256 f1f3cab0c8fee21c30ef69789d79468e2c69a4f52583e53e4392a1cf97791486; transported from the pinned illusion0001 mirror.",
+   "verdict": "licence-verified",
+   "evidence": "CC BY-SA 4.0: each kept program identical to the official RPCS3 patch.yml (docs/licenses/rpcs3-wiki-2026-10-28.md)"
+  },
+  {
+   "id": "libretro",
+   "name": "Libretro Database",
+   "url": "https://github.com/libretro/libretro-database",
+   "revision": "12c21cf79f1e20eff6ac68b80875816c717d0a7a",
+   "programs": 1007827,
+   "license_metadata": "CC BY-SA 4.0 (libretro-database data), original source attribution retained",
+   "verdict": "licence-declared",
+   "evidence": "CC BY-SA 4.0 (libretro-database); notice packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-LICENSE"
+  },
+  {
+   "id": "dolphin",
+   "name": "Dolphin GameSettings",
+   "url": "https://github.com/dolphin-emu/dolphin/tree/master/Data/Sys/GameSettings",
+   "revision": "38d619b07691231f54e6f037fcf30a3b64fdd5a5",
+   "programs": 4119,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "licence-declared",
+   "evidence": "GPL-2.0-or-later: Data/Sys/GameSettings of dolphin-emu/dolphin, the same basis as the Enhancements catalogue"
+  },
+  {
+   "id": "openemu_personal",
+   "name": "skyzyx OpenEmu cheat database",
+   "url": "https://github.com/skyzyx/openemu-cheat-database",
+   "revision": "5f1af6161ee30fddccc3942dfbcc20b253bcb152",
+   "programs": 241,
+   "license_metadata": "Unlicense",
+   "verdict": "licence-declared",
+   "evidence": "Unlicense; notice packages/libretro_internal_bridge/ios/Resources/Cheats/openemu-LICENSE"
+  },
+  {
+   "id": "artemis_pkg478",
+   "name": "Artemis RPCS3 authored PKG collection",
+   "url": "https://github.com/PaauloSilva/Artemis-Patch-Collection-RPCS3_PKG",
+   "revision": "471bde6f857fe1ed9a717f7468e9dc91bc53a500",
+   "programs": 66,
+   "license_metadata": "MIT, copyright 2023 chidreams; original hacker attribution retained",
+   "verdict": "licence-declared",
+   "evidence": "MIT, Copyright 2023 chidreams; notice packages/neo_cheat_catalog/ios/Resources/artemis-rpcs3-LICENSE.txt"
+  },
+  {
+   "id": "gow3_0100",
+   "name": "Luckysugar God of War III 01.00",
+   "url": "https://github.com/Luckisugar/rpcs3-gow3-patches",
+   "revision": "d8437d9d4a1fd10ab2b820e6acc6aaf94c7dc665",
+   "programs": 32,
+   "license_metadata": "MIT; Copyright (c) 2026 Luckysugar",
+   "verdict": "licence-declared",
+   "evidence": "MIT, Copyright (c) 2026 Luckysugar; notice packages/neo_cheat_catalog/ios/Resources/gow3-0100-LICENSE.txt"
+  },
+  {
+   "id": "dsj",
+   "name": "DeadSkullzJr NDS(i) Cheat Databases",
+   "url": "https://gbatemp.net/threads/deadskullzjrs-nds-i-cheat-databases.488711/",
+   "revision": "28ad3272d3578ba2f493e78990a3d6defe9dfebe37d9f53501679be9498eafae",
+   "programs": 590953,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "compiler-licence",
+   "evidence": "AGPL-3.0 repository licence of szTheory/NDS-Cheat-Databases (docs/licenses/cheats/szTheory-*); the compiled codes come from many third-party hackers"
+  },
+  {
+   "id": "artemis_static478",
+   "name": "ArtemisPS3 complete static PPU programs",
+   "url": "https://github.com/bucanero/ArtemisPS3/tree/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes",
+   "revision": "d79b41e525e20251bd0d919100039ac0a6433956",
+   "programs": 11525,
+   "license_metadata": "Unspecified; original authors retain rights; preserve source notices and attribution",
+   "verdict": "compiler-licence",
+   "evidence": "MIT licence of the ArtemisPS3 repository (docs/licenses/cheats/artemis-LICENSE.txt); covers the tool, not established for the codes"
+  },
+  {
+   "id": "pj64",
+   "name": "Project64 Cheats",
+   "url": "https://github.com/project64/project64/tree/develop/Config/Cheats",
+   "revision": "24376e868350792a181d2121fec20d37354559d6",
+   "programs": 8516,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "compiler-licence",
+   "evidence": "GPL-2.0 repository licence of project64/project64 (Config/Cheats); codes collected from third-party hackers"
+  },
+  {
+   "id": "mupen",
+   "name": "Mupen64Plus database",
+   "url": "https://github.com/mupen64plus/mupen64plus-core/blob/master/data/mupencheat.txt",
+   "revision": "d3206c3f5cf57a8ebcc29729837fb9f5c1645a6c571e68aa08a178db2e950b36",
+   "programs": 7567,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "compiler-licence",
+   "evidence": "GPL-2.0+ header of mupencheat.txt, \"Used and relicensed GPL with permission from Gent\" (docs/licenses/cheats/Mupen64Plus-*)"
+  },
+  {
+   "id": "enhancement",
+   "name": "Admentus Enhancement Codes",
+   "url": "https://github.com/Admentus64/Enhancement-Codes",
+   "revision": "f8e9ad12d90460e316b552fdf73052eb308e9ab9",
+   "programs": 848,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "compiler-licence",
+   "evidence": "GPL-3.0 repository licence and Credits.txt (docs/licenses/cheats/Admentus-*)"
+  },
+  {
+   "id": "artemis",
+   "name": "ArtemisPS3",
+   "url": "https://github.com/bucanero/ArtemisPS3/tree/master/docs/codes",
+   "revision": "d79b41e525e20251bd0d919100039ac0a6433956",
+   "programs": 713,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "compiler-licence",
+   "evidence": "MIT licence of the ArtemisPS3 repository (docs/licenses/cheats/artemis-LICENSE.txt); covers the tool, not established for the codes"
+  },
+  {
+   "id": "tabdiukov",
+   "name": "TAbdiukov PPSSPP patches",
+   "url": "https://github.com/TAbdiukov/PPSSPP-patches",
+   "revision": "a38b2aba3e0e24935392d2617b14b35d73ab0f27",
+   "programs": 236,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "compiler-licence",
+   "evidence": "Apache-2.0 repository licence (docs/licenses/cheats/TAbdiukov-PPSSPP-patches-LICENCE.txt)"
+  },
+  {
+   "id": "bladestorm_static",
+   "name": "Artemis Bladestorm static instruction adapter",
+   "url": "https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20The%20Hundred%20Years%27%20War%20BLES00113%20BLUS30070%2001.00.ncl",
+   "revision": "d79b41e525e20251bd0d919100039ac0a6433956",
+   "programs": 8,
+   "license_metadata": "Unspecified; CodeFreak/PS3UserCheat author rights retained",
+   "verdict": "compiler-licence",
+   "evidence": "MIT licence of the ArtemisPS3 repository; CodeFreak/PS3UserCheat authors not established"
+  },
+  {
+   "id": "bladestorm_jp477",
+   "name": "Artemis Bladestorm Japan static instruction supplement",
+   "url": "https://github.com/bucanero/ArtemisPS3/blob/d79b41e525e20251bd0d919100039ac0a6433956/docs/codes/Bladestorm%20Hyakunen%20Sensou%20BLJM60009%2001.00.ncl",
+   "revision": "d79b41e525e20251bd0d919100039ac0a6433956",
+   "programs": 5,
+   "license_metadata": "Unspecified; original source and hacker rights retained",
+   "verdict": "compiler-licence",
+   "evidence": "MIT licence of the ArtemisPS3 repository; original hackers not established"
+  },
+  {
+   "id": "tyler_shiny",
+   "name": "TylerD007 — The Shiny Pokémon Code Repository",
+   "url": "https://github.com/TylerD007/The_Shiny_Pokemon_Code_Repository",
+   "revision": "e22387704e9643f72160b84bb1809089e8fbd0a10f8e28aa56a45c47f594908e",
+   "programs": 1,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "compiler-licence",
+   "evidence": "GPL-3.0 repository licence (docs/licenses/cheats/tyler-*)"
+  },
+  {
+   "id": "duckstation",
+   "name": "DuckStation chtdb",
+   "url": "https://github.com/duckstation/chtdb",
+   "revision": "8b2f1dd257ab9130d16b72e0caeb5a07af8bcbdc",
+   "programs": 44029,
+   "license_metadata": "Scripts MIT; cheat-code rights remain with original authors (upstream LICENSE)",
+   "verdict": "tooling-licence-only",
+   "evidence": "Scripts MIT; the upstream LICENSE states cheat-code rights remain with the original authors"
+  },
+  {
+   "id": "mesen",
+   "name": "Mesen2 CheatDb",
+   "url": "https://github.com/SourMesen/Mesen2/tree/master/UI/Dependencies/Internal",
+   "revision": "b9fa69ddc6d0a331fb103fdb5eef6904305703c2",
+   "programs": 22615,
+   "license_metadata": "Original cheat authors; Mesen distribution notices preserved",
+   "verdict": "tooling-licence-only",
+   "evidence": "Mesen distribution notices; original cheat authors retain rights"
+  },
+  {
+   "id": "mister",
+   "name": "MiSTer Cheats",
+   "url": "https://github.com/MiSTer-devel/Cheats_MiSTer",
+   "revision": "56eb5194c6a6c4a718ac0f67a93c498a7a7a4760",
+   "programs": 455353,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "cwcheat",
+   "name": "CWCheat Database Plus",
+   "url": "https://github.com/Saramagrean/CWCheat-Database-Plus-",
+   "revision": "8290de1a8498f2efdce6d4d86d71dae78f92aa579c79bd43803a40f97f9ec502",
+   "programs": 77010,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "fbneo",
+   "name": "FBNeo cheats",
+   "url": "https://github.com/finalburnneo/FBNeo-cheats",
+   "revision": "084b13ed7a4d437614a2bf47664cc567ac9dcdef",
+   "programs": 59087,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "geckoarchive",
+   "name": "GeckoArchive",
+   "url": "https://github.com/SpaceXCheeseWheel/GeckoArchive",
+   "revision": "d465c2190d32f954056dd1e6ba68a2ec3fc588ff",
+   "programs": 44293,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "psxdatacenter_v2_478",
+   "name": "PSX Data Center PNACH v2.0",
+   "url": "https://psxdatacenter.com/psx2/down2.html",
+   "revision": "v2.0-downloaded-2026-10-18",
+   "programs": 27259,
+   "license_metadata": "Unspecified; original authors retain rights; preserve source notices and attribution",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution"
+  },
+  {
+   "id": "snes9x",
+   "name": "Snes9x cheats.bml",
+   "url": "https://github.com/snes9xgit/snes9x/blob/master/data/cheats.bml",
+   "revision": "7c49c481697d6d79e2100912b9784a1b4c8f5a88a74c0c970e83afbebb7f7e22",
+   "programs": 13121,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "ps2pnach",
+   "name": "pcsx2_cheats_collection",
+   "url": "https://github.com/xs1l3n7x/pcsx2_cheats_collection",
+   "revision": "6cb57b55939f47dd91a157bfb6cdc7fd157a780c",
+   "programs": 12353,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "mighty_mo",
+   "name": "Mighty Mo's Cheat Code Pack",
+   "url": "https://github.com/mightymo77/MightyMos-Cheat-Code-Pack",
+   "revision": "v2025-08-08",
+   "programs": 10244,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "artemisrpcs3",
+   "name": "Artemis Patch Collection RPCS3",
+   "url": "https://github.com/chidreams/Artemis-Patch-Collection-RPCS3",
+   "revision": "21fc0ee86578f1452e42da01187eb852ab034b28",
+   "programs": 1829,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence recorded at 21fc0ee86578; the PaauloSilva fork (artemis_pkg478) carries an MIT notice by chidreams, to check against this revision"
+  },
+  {
+   "id": "shadow_pnach478",
+   "name": "ShadowNinja PNACH collection",
+   "url": "https://github.com/shadowninja826/pcsx2_pnach_cheats",
+   "revision": "56d328be4c4f048896788f8203703b822656b768",
+   "programs": 1013,
+   "license_metadata": "Unspecified; original authors retain rights; preserve source notices and attribution",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution"
+  },
+  {
+   "id": "delta_workbook",
+   "name": "DeltaCore — tableur public All Cheat Codes",
+   "url": "https://github.com/rileytestut/DeltaCore/wiki/Cheats",
+   "revision": "12f8cd5859570e3e8b03b9847ff0d32273f9ae912dca3d7b700b24e77cad5787",
+   "programs": 871,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "dragon_pnach478",
+   "name": "xGamingDragon93x PNACH collection",
+   "url": "https://github.com/xGamingDragon93x/PCSX2-Ultimative-Cheats-Collection-PNACH",
+   "revision": "ec43b3324d7ee371af550afea006c2834e76d934",
+   "programs": 785,
+   "license_metadata": "Unspecified; original authors retain rights; preserve source notices and attribution",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution"
+  },
+  {
+   "id": "dillonhafer_xml",
+   "name": "dillonhafer OpenEmu cheats-database.xml",
+   "url": "https://gist.github.com/dillonhafer/8399eb1926e2af9164470ad45da67a57",
+   "revision": "aa9e0b356dbf24c102b8b0794b108af80afefe4804fb65c365d2e78dd878e797",
+   "programs": 477,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "weed_sheet",
+   "name": "Weed Sheet — Sly Cooper",
+   "url": "https://github.com/zzamizz/weed-sheet",
+   "revision": "7dedab5f6ca43beff14a0f5fac6d353337d62b06",
+   "programs": 256,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "pal_pnach478",
+   "name": "European PNACH collection",
+   "url": "https://github.com/complicatiion/pcsx2_europe_cheats_collection",
+   "revision": "9886a7a771e38d7ba65cf5826544ddc846d78b55",
+   "programs": 208,
+   "license_metadata": "Unspecified; original authors retain rights; preserve source notices and attribution",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution"
+  },
+  {
+   "id": "yuki_pnach478",
+   "name": "YukiXXL retail PNACH programs",
+   "url": "https://github.com/YukiXXL/PS2-modding",
+   "revision": "bf079d98cc6a820643ab08598b1c3d3df6a9d960",
+   "programs": 204,
+   "license_metadata": "Unspecified; original authors retain rights; preserve source notices and attribution",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution"
+  },
+  {
+   "id": "lunamoo",
+   "name": "LunaMoo PPSSPP workarounds",
+   "url": "https://github.com/LunaMoo/PPSSPP_workarounds",
+   "revision": "1355bb338d4a1985aae043f674a070ef99c49524",
+   "programs": 191,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "gow3_0103_ppu",
+   "name": "Artemis GoW3 identical-PPU static instruction ports",
+   "url": "https://github.com/chidreams/Artemis-Patch-Collection-RPCS3",
+   "revision": "21fc0ee86578f1452e42da01187eb852ab034b28",
+   "programs": 95,
+   "license_metadata": "Unspecified; original authors preserved in each native patch",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence recorded at 21fc0ee86578; see artemisrpcs3"
+  },
+  {
+   "id": "psxdatacenter_pal477",
+   "name": "PSX Data Center reviewed PAL PS2 RAW",
+   "url": "https://psxdatacenter.com/psx2/",
+   "revision": "reviewed-2026-10-18",
+   "programs": 11,
+   "license_metadata": "Unspecified; original source and hacker rights retained",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original source and hacker rights retained"
+  },
+  {
+   "id": "ff7_fr",
+   "name": "FF7.fr — codes Action Replay français",
+   "url": "https://www.ff7.fr/action_replay.php",
+   "revision": "e22387704e9643f72160b84bb1809089e8fbd0a10f8e28aa56a45c47f594908e",
+   "programs": 8,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "squarepalace",
+   "name": "Square Palace — codes Secret of Mana",
+   "url": "https://squarepalace.com/encyclopedies/secretofmana/cheat-codes-action-replay",
+   "revision": "e22387704e9643f72160b84bb1809089e8fbd0a10f8e28aa56a45c47f594908e",
+   "programs": 8,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "xoevoox_firered",
+   "name": "XoEVOoX Pokémon FireRed codes",
+   "url": "https://github.com/xoevoox/pokemon-fire-red-codes",
+   "revision": "e22387704e9643f72160b84bb1809089e8fbd0a10f8e28aa56a45c47f594908e",
+   "programs": 6,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "kodewerx_codes",
+   "name": "Kodewerx — contributions de codes",
+   "url": "https://www.kodewerx.org/forum/viewtopic.php?f=18&t=2763&view=print",
+   "revision": "e22387704e9643f72160b84bb1809089e8fbd0a10f8e28aa56a45c47f594908e",
+   "programs": 3,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "pokebip_contributions",
+   "name": "Pokébip — contributions Action Replay",
+   "url": "https://www.pokebip.com/espace-membre/blogs/129214/article/84411",
+   "revision": "e22387704e9643f72160b84bb1809089e8fbd0a10f8e28aa56a45c47f594908e",
+   "programs": 3,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "ethereal",
+   "name": "Ethereal Games",
+   "url": "https://etherealgames.com/",
+   "revision": "e22387704e9643f72160b84bb1809089e8fbd0a10f8e28aa56a45c47f594908e",
+   "programs": 2,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "psxdatacenter",
+   "name": "PSX Data Center — rubriques Action Replay",
+   "url": "https://www.psxdatacenter.com/",
+   "revision": "e22387704e9643f72160b84bb1809089e8fbd0a10f8e28aa56a45c47f594908e",
+   "programs": 2,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "gamehacking",
+   "name": "GameHacking.org",
+   "url": "https://gamehacking.org/",
+   "revision": "e22387704e9643f72160b84bb1809089e8fbd0a10f8e28aa56a45c47f594908e",
+   "programs": 1,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "gameshark_event_islands",
+   "name": "r/Gameshark — îles événementielles Pokémon Emerald, 12 chiffres",
+   "url": "https://www.reddit.com/r/Gameshark/comments/1804kz6/all_the_event_islands_for_pokemon_emerald_have/",
+   "revision": "e22387704e9643f72160b84bb1809089e8fbd0a10f8e28aa56a45c47f594908e",
+   "programs": 1,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "no-licence-evidence",
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+  },
+  {
+   "id": "gabominated_fps478",
+   "name": "Gabominated/PCSX2 explicit 60 FPS patches",
+   "url": "https://github.com/Gabominated/PCSX2",
+   "revision": "69f9ff7a7edc61ac887f950ec640417315babf57",
+   "programs": 0,
+   "license_metadata": "Original authors retain rights; preserve author names, descriptions and source notices",
+   "verdict": "withheld",
+   "evidence": "Withheld: the source grants no licence to redistribute its codes and no written permission is recorded (rights review of 28 October 2026). Credits retained in historical records."
+  },
+  {
+   "id": "nds_fps478",
+   "name": "TheYearOfWaluigi Gen IV battle framerate codes",
+   "url": "https://www.reddit.com/r/PokemonROMhacks/comments/r9k94k/action_replay_codes_uncap_framerate_inbattle_only/",
+   "revision": "reviewed-2026-10-18",
+   "programs": 0,
+   "license_metadata": "Original author rights and attribution retained",
+   "verdict": "withheld",
+   "evidence": "Withheld: the source grants no licence to redistribute its codes and no written permission is recorded (rights review of 28 October 2026). Credits retained in historical records."
+  },
+  {
+   "id": "nethersx2_fps478",
+   "name": "Saramagrean/NetherSX2-cheats explicit 60 FPS patches",
+   "url": "https://github.com/Saramagrean/NetherSX2-cheats",
+   "revision": "52187122e0adf73a50869b52ce9143e878ab4129",
+   "programs": 0,
+   "license_metadata": "Original authors retain rights; preserve author names, descriptions and source notices",
+   "verdict": "withheld",
+   "evidence": "Withheld: the source grants no licence to redistribute its codes and no written permission is recorded (rights review of 28 October 2026). Credits retained in historical records."
+  },
+  {
+   "id": "pcsx2_fps478",
+   "name": "PCSX2/pcsx2_patches explicit 60 FPS patches",
+   "url": "https://github.com/PCSX2/pcsx2_patches",
+   "revision": "3ef626fda330ed78a1d8d6d54976e7a4e5e7d92c",
+   "programs": 0,
+   "license_metadata": "Original authors retain rights; preserve author names, descriptions and source notices",
+   "verdict": "withheld",
+   "evidence": "Withheld: the source grants no licence to redistribute its codes and no written permission is recorded (rights review of 28 October 2026). Credits retained in historical records."
+  },
+  {
+   "id": "pokemonfrance",
+   "name": "Pokémon France / PokéLord",
+   "url": "https://www.pokemon-france.com/jeux/gen1/bleu_rouge/actionreplay/",
+   "revision": "e22387704e9643f72160b84bb1809089e8fbd0a10f8e28aa56a45c47f594908e",
+   "programs": 0,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "withheld",
+   "evidence": "Withheld pending written reuse permission; source credits retained in historical records."
+  }
+ ],
+ "decision_pending": "Sources outside licence-verified/licence-declared stay published until the maintainer decides; see docs/SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md."
+}

@@ -70,6 +70,23 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   `pcsx2_fps478` and `gabominated_fps478`. The confirmation does not clear
   those inputs. No history rewrite is implied by the documentation update.
 
+- Unified cheat catalogue (`native/cheats/`), 28 October: 910 programs
+  withheld by `tools/cheats/withdraw_fps478.py`, run once against index
+  `095cf728`:
+  - pcsx2_fps478, gabominated_fps478, nethersx2_fps478 and nds_fps478 (no
+    licence);
+  - 3 illusion0001 programs that differ from the official patch.yml. The
+    other 280 are relabelled CC BY-SA 4.0.
+
+  14 of the 874 packs were replaced. The importers are disabled, and
+  `NeoUnifiedCheatCatalog.m` refuses these programs from old caches. The
+  per-source register is
+  `docs/evidence/cheat-source-decision-register-2026-10-28.json`. **Maintainer
+  decision pending** on the sources with only a compiler licence, a tooling
+  licence or no licence evidence (≈1.39 M programs). See
+  `docs/SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md`. No history rewrite without
+  explicit authorisation.
+
 ## RPCS3 levers for every newly tested game — maintainer rule, 27 October 2026
 
 Apply this rule to every PS3 game the maintainer tests from now on. Use only
