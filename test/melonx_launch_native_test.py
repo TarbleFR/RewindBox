@@ -53,6 +53,9 @@ namespace Ryujinx.Library {
   static Files _virtualFileSystem=new();static Firmware _contentManager=new();static Account _accountManager=new();
   public static void Preflight(string path,System.Text.Json.Utf8JsonWriter json)=>EmbeddedLaunchPreflight(path,json);
   public static int Reloads=>_contentManager.Reloads;
+  // EmbeddedRuntime.cs owns the code arena request; the preflight only sets it.
+  static ulong EmbeddedJitArenaHint;static ulong EmbeddedJitArenaFor(ulong titleId,Nca program)=>0;
+  public static ulong ArenaHint{get=>EmbeddedJitArenaHint;set=>EmbeddedJitArenaHint=value;}
  }
 }
 ''')
@@ -70,6 +73,7 @@ try {
  try{Probe(Path.Combine(root,"missing.nsp"));throw new Exception("Accepted missing game");}catch(FileNotFoundException){checks++;}
  var game=Path.Combine(root,"test.nro");var bytes=new byte[0x80];Encoding.ASCII.GetBytes("NRO0").CopyTo(bytes,0x10);BitConverter.GetBytes(0x80).CopyTo(bytes,0x18);File.WriteAllBytes(game,bytes);
  Probe(game);Probe(game);Check(Library.Reloads==2); // Plain homebrew needs neither keys nor firmware.
+ Library.ArenaHint=1UL<<30;Probe(game);Check(Library.ArenaHint==0); // A previous launch's larger code arena request never carries over.
  var nsp=Path.Combine(root,"empty.nsp");File.WriteAllBytes(nsp,Encoding.ASCII.GetBytes("PFS0"));
  try{Probe(nsp);throw new Exception("Accepted absent personal keys");}catch(InvalidDataException){Check(EmbeddedLaunchDiagnostics.ErrorCode=="keysMissing");}
  Directory.CreateDirectory(Path.Combine(root,"system"));File.WriteAllText(Path.Combine(root,"system/prod.keys"),"not a key file");
