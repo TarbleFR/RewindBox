@@ -146,6 +146,10 @@ def check(upstream: dict, adapted: dict):
     expect(u.get('throws') and not a.get('throws') and a['guestInstructions'] == 1024 and a['truncated'] and
            a['emptyLastBlock'] and a['hostCalls'] == 1,
            f'upstream fails the translation at the unmapped page; adapted ends the unit before it: {u} {a}')
+    u, a = upstream['silentUnmappedAfterCall'], adapted['silentUnmappedAfterCall']
+    expect(u.get('guestInstructions', 0) > 5 * 1024 and u['truncated'] and a['guestInstructions'] == 1024 and
+           a['truncated'] and a['emptyLastBlock'] and a['hostCalls'] == 1 and u['hostBytes'] > 50 * a['hostBytes'],
+           f'reading an unmapped page as zeros (HostTracked), upstream decodes on into it; adapted ends before it: {u} {a}')
     u, a = dict(upstream['unmappedLongJump']), dict(adapted['unmappedLongJump'])
     size = abs(u.pop('hostBytes', 0) - a.pop('hostBytes', 0))
     expect(not u.get('throws') and u == a and size <= 16 and a['guestInstructions'] == 1011,

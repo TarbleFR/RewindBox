@@ -66,7 +66,11 @@ read takes the address space's partition lock and private-allocation tree
 lock, about 105 ns against 0.75 us to decode and compile an instruction, and
 the decoder read every instruction it decoded. A unit also ends before a page
 that is not mapped, where upstream (and the 572 rule, reading a jump target)
-failed the whole translation even when the guest never got there.
+read on even when the guest never got there: a memory manager that checks
+mappings (HostMapped) failed the whole translation, and HostTracked, which
+iOS uses, decoded the bytes of guest physical page 0 up to the unit's
+instruction limit. A misaligned unit (the guest faults there on hardware)
+ignores the entries and the 572 look-ahead and decodes as upstream.
 
 Same binary through the production memory manager, every exit followed:
 compile time 13.2-13.8 s -> 10.6-10.8 s (-20 %; 10.9-11.3 s from the page
@@ -197,9 +201,9 @@ def apply(source):
                 }
             }
 
-            if (!code.IsMapped(end))
+            if ((end & 3UL) != 0 || !code.IsMapped(end))
             {
-                return true; // The target cannot be read: decode on as upstream did.
+                return true; // The target cannot be read whole (unmapped, or misaligned): decode on as upstream did.
             }
 
             // A rotated loop: the jump enters the loop condition, which branches back
@@ -377,9 +381,10 @@ def apply(source):
             {
                 if (code.EndsBefore(address))
                 {
-                    // The next page is not mapped: end the unit before it. Upstream read
-                    // it and failed the whole translation, even where the guest never
-                    // gets there; running into it still faults, at that address.
+                    // The next page is not mapped: end the unit before it. Upstream read on
+                    // into it, even where the guest never gets there (a checking memory
+                    // manager failed the translation; HostTracked returned guest physical
+                    // page 0); running into it still faults, at that address.
                     isTruncated = true;
 
                     break;
@@ -448,7 +453,9 @@ def apply_entries(source):
 
             public bool StopsAt(CodeReader code, ulong address)
             {
-                if (_entries == null || address == _unitAddress || address <= _keepThrough)
+                // Entry bits belong to aligned words: a misaligned unit (the guest faults there on
+                // hardware) decodes as upstream.
+                if (_entries == null || address == _unitAddress || address <= _keepThrough || (_unitAddress & 3UL) != 0)
                 {
                     return false;
                 }

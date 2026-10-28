@@ -18,12 +18,16 @@ sealed class GuestCode : IMemoryManager
 {
     public const ulong Base = 0x10000;
     private readonly byte[] _bytes;
-    // Addresses from here on are not mapped: reads fail as the engine's memory managers do.
+    // Addresses from here on are not mapped: reads fail as a checking memory manager's
+    // do or, when silent, read zeros, as MemoryManagerHostTracked (iOS) reads an unmapped
+    // page as guest physical page 0; IsMapped is false either way.
     private readonly ulong _mappedEnd;
-    public GuestCode(uint[] words, ulong mappedEnd = ulong.MaxValue)
+    private readonly bool _silent;
+    public GuestCode(uint[] words, ulong mappedEnd = ulong.MaxValue, bool silent = false)
     {
         _bytes = MemoryMarshal.AsBytes(words.AsSpan()).ToArray();
         _mappedEnd = mappedEnd;
+        _silent = silent;
     }
     public int AddressSpaceBits => 39;
     public nint PageTablePointer => unchecked((nint)0x100000000);
@@ -31,7 +35,11 @@ sealed class GuestCode : IMemoryManager
     public event Action<ulong, ulong> UnmapEvent { add { } remove { } }
     public T Read<T>(ulong va) where T : unmanaged
     {
-        if (va + (ulong)Marshal.SizeOf<T>() > _mappedEnd) throw new Ryujinx.Memory.InvalidMemoryRegionException();
+        if (va + (ulong)Marshal.SizeOf<T>() > _mappedEnd)
+        {
+            if (!_silent) throw new Ryujinx.Memory.InvalidMemoryRegionException();
+            return default;
+        }
         long offset = (long)(va - Base);
         if (va < Base || offset + Marshal.SizeOf<T>() > _bytes.Length) return default;
         return MemoryMarshal.Read<T>(_bytes.AsSpan((int)offset));
@@ -41,12 +49,12 @@ sealed class GuestCode : IMemoryManager
     // The adapted decoder reads code a page at a time; bytes past the code read 0 as in Read.
     public ReadOnlySpan<byte> GetSpan(ulong va, int size, bool tracked = false)
     {
-        if (va + (ulong)size > _mappedEnd) throw new Ryujinx.Memory.InvalidMemoryRegionException();
+        if (va + (ulong)size > _mappedEnd && !_silent) throw new Ryujinx.Memory.InvalidMemoryRegionException();
         byte[] data = new byte[size];
         for (int i = 0; i < size; i++)
         {
             long offset = (long)(va - Base) + i;
-            if (offset >= 0 && offset < _bytes.Length) data[i] = _bytes[offset];
+            if (offset >= 0 && offset < _bytes.Length && va + (ulong)i < _mappedEnd) data[i] = _bytes[offset];
         }
         return data;
     }
@@ -76,9 +84,9 @@ static class Program
 {
     private static readonly AddressTable<ulong> Table = new(AddressTablePresets.GetArmPreset(true, false), false);
 
-    private static Dictionary<string, object> Unit(uint[] words, int entry = 0, ulong mappedEnd = ulong.MaxValue)
+    private static Dictionary<string, object> Unit(uint[] words, int entry = 0, ulong mappedEnd = ulong.MaxValue, bool silent = false)
     {
-        GuestCode code = new(words, mappedEnd);
+        GuestCode code = new(words, mappedEnd, silent);
         ulong address = GuestCode.Base + (ulong)entry * 4;
         MultiBlock multi;
         CompiledFunction compiled;
@@ -226,6 +234,10 @@ static class Program
             ["continuationInLoop"] = UnitWith(Enumerable.Repeat(A64.AddOne, 10).Concat(new[] { A64.Subs, A64.BNe(11, 0), A64.Ret }).ToArray(), [6], 3),
             // A page that ends with a call that does not return, and nothing mapped after it.
             ["unmappedAfterCall"] = Unit(Enumerable.Repeat(A64.AddOne, 1023).Append(A64.Bl(1023, 2000)).ToArray(), 0, GuestCode.Base + 0x1000),
+            // The same page through a memory manager that reads an unmapped page as zeros (UDF),
+            // as MemoryManagerHostTracked does on iOS: upstream decodes on into it.
+            ["silentUnmappedAfterCall"] = Unit(Enumerable.Repeat(A64.AddOne, 1023).Append(A64.Bl(1023, 2000)).ToArray(), 0,
+                GuestCode.Base + 0x1000, silent: true),
             // add x1000; b <100 on, on an unmapped page>; add x9; b <back to the start>: the
             // jump's target cannot be read; the unit is decoded as upstream decodes it.
             ["unmappedLongJump"] = Unit(Enumerable.Repeat(A64.AddOne, 1000).Append(A64.B(1000, 1100)).Concat(Enumerable.Repeat(A64.AddOne, 9))
