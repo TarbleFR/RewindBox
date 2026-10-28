@@ -81,9 +81,10 @@ The maintainer renamed this independent fork to **RewindBox**. Use that name in 
   14 of the 874 packs were replaced. The importers are disabled, and
   `NeoUnifiedCheatCatalog.m` refuses these programs from old caches. The
   per-source register is
-  `docs/evidence/cheat-source-decision-register-2026-10-28.json`. **Maintainer
-  decision pending** on the sources with only a compiler licence, a tooling
-  licence or no licence evidence (≈1.39 M programs). See
+  `docs/evidence/cheat-source-decision-register-2026-10-28.json`. Maintainer
+  decision, same day: keep every active source published (repositories
+  without a licence are treated as free to use). The evidence search is in
+  the register. See
   `docs/SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md`. No history rewrite without
   explicit authorisation.
 

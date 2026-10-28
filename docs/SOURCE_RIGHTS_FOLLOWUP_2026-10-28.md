@@ -71,29 +71,54 @@ engine are not edited.
 
 ## Decision register for the remaining sources
 
-The [register](evidence/cheat-source-decision-register-2026-10-28.json) gives
-each source its pin, its licence metadata, the evidence preserved in
-[`docs/licenses/cheats/`](licenses/cheats/README.md) and a verdict:
+The [register](evidence/cheat-source-decision-register-2026-10-28.json) records,
+for each source, its pin, its licence metadata, the evidence found and a
+verdict. Every GitHub source was searched on 28 October 2026, at the pinned
+revision and at the current HEAD:
 
-| Verdict | Sources | Programs | Meaning |
-| --- | ---: | ---: | --- |
-| licence verified | 1 | 280 | Licence checked against the published content (illusion → RPCS3 Wiki) |
-| licence declared | 5 | 1,012,285 | The data licence grants redistribution: libretro-database (CC BY-SA 4.0), Dolphin GameSettings (GPL-2.0+), OpenEmu (Unlicense), Luckysugar and chidreams (MIT) |
-| compiler licence | 10 | 620,372 | A licence of the compiling repository, for example DeadSkullzJr/szTheory (AGPL-3.0), Mupen64Plus (GPL-2.0+, "relicensed GPL with permission from Gent"), Project64 (GPL-2.0), Admentus (GPL-3.0), TAbdiukov (Apache-2.0) and ArtemisPS3 (MIT). The authority of third-party code authors is not established |
-| tooling licence only | 2 | 66,644 | DuckStation chtdb (scripts MIT; codes stay their authors') and Mesen2 |
-| no licence evidence | 28 | 704,694 | No licence or written permission recorded here. Includes MiSTer (455,353), CWCheat Database Plus, FBNeo cheats, GeckoArchive, PSX Datacenter, Snes9x, pcsx2_cheats_collection and the reviewed web excerpts |
+- `LICENSE`, `COPYING`, `NOTICE` and README files at any depth;
+- the data files, for grants or restrictions.
 
-The 39 "Unspecified" metadata values are reconciled here; they are not left
-as 39 automatic removals. For example, Mupen64Plus, TAbdiukov and Admentus
-have preserved licence files. Programs in the existing chunks still carry
-their original licence strings, which a future build can update.
+| Verdict | Sources | Programs |
+| --- | ---: | ---: |
+| Licence verified against the content (illusion → RPCS3 Wiki) | 1 | 280 |
+| Data licence | 8 | 1,027,330 |
+| Licence of the compiling repository | 12 | 655,340 |
+| Conditional permission | 1 | 59,087 |
+| Licence of the tooling only | 1 | 44,029 |
+| No licence or permission found | 23 | 618,209 |
 
-**Pending maintainer decision.** Applying the rule strictly would withdraw
-every source outside "licence verified" and "licence declared". That is about
-1.39 million programs, including the large DS, MiSTer, PSP and arcade
-databases. Those sources remain published until the maintainer decides. The
-register is the input for that decision, and `withdraw_fps478.py` is the
-pattern for carrying it out.
+**Data licence.** libretro-database (CC BY-SA 4.0), Dolphin (GPL-2.0+),
+OpenEmu (Unlicense), Luckysugar (MIT), and chidreams (MIT) for
+`artemis_pkg478` and, newly found at `21fc0ee8`, for `artemisrpcs3` and
+`gow3_0103_ppu`. Also Snes9x (non-commercial licence; the notice must
+accompany copies).
+
+**Compiling repository's licence.** DeadSkullzJr/szTheory (AGPL-3.0),
+Mupen64Plus (GPL-2.0+, with Gent's permission), Project64 (GPL-2.0), Mesen2
+(GPL-3.0), Admentus (GPL-3.0), TAbdiukov (Apache-2.0), ArtemisPS3 (MIT),
+Tyler (GPL-3.0), and pcsx2_cheats_collection, whose source CheatDevicePS2 is
+GPL-3.0.
+
+**Conditional permission.** The Pugsy MAME cheat.dat in FBNeo-cheats says it
+"can be freely distributed with any MAME compile or any frontend", provided
+the file is not modified.
+
+**Tooling only.** DuckStation chtdb says: "Copyright for cheats and patches
+is held by their original authors".
+
+**Nothing found.** MiSTer (entirely from GameHacking.org, whose site refuses
+automated reads), CWCheat Database Plus, GeckoArchive (geckocodes.org archive),
+the PS2 pnach collections, Mighty Mo, LunaMoo, weed-sheet, xoevoox,
+PSX Datacenter and the web excerpts. Their data files contain no explicit
+restriction.
+
+**Maintainer decision (28 October 2026).** Every active source stays
+published. The maintainer regards repositories without a licence as free to
+use. Without a licence, copyright stays with the authors by default, so
+publication relies on that decision, on the credits, and on removal on
+request (https://github.com/TarbleFR/RewindBox/issues). Sources whose
+authors explicitly restrict distribution stay excluded.
 
 ## Not done here
 

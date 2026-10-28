@@ -7,8 +7,9 @@
   "licence-verified": "licence checked against the published content",
   "licence-declared": "the code author or data licence grants redistribution",
   "compiler-licence": "a licence of the compiling repository; third-party authors not established",
+  "conditional-permission": "an author statement allows distribution under conditions",
   "tooling-licence-only": "licence covers scripts or tools, not the codes",
-  "no-licence-evidence": "no licence or written permission recorded",
+  "no-licence-evidence": "no licence or written permission found (pinned revision, current HEAD, README, file headers searched on 28 October 2026)",
   "withheld": "removed from publication"
  },
  "summary": {
@@ -17,20 +18,24 @@
    "programs": 280
   },
   "licence-declared": {
-   "sources": 5,
-   "programs": 1012285
+   "sources": 8,
+   "programs": 1027330
   },
   "compiler-licence": {
-   "sources": 10,
-   "programs": 620372
+   "sources": 12,
+   "programs": 655340
+  },
+  "conditional-permission": {
+   "sources": 1,
+   "programs": 59087
   },
   "tooling-licence-only": {
-   "sources": 2,
-   "programs": 66644
+   "sources": 1,
+   "programs": 44029
   },
   "no-licence-evidence": {
-   "sources": 28,
-   "programs": 704694
+   "sources": 23,
+   "programs": 618209
   },
   "withheld": {
    "sources": 5,
@@ -46,7 +51,8 @@
    "programs": 280,
    "license_metadata": "CC BY-SA 4.0 (RPCS3 Wiki contributors and the named patch authors; https://creativecommons.org/licenses/by-sa/4.0/). Identical to the official RPCS3 patch.yml, content SHA-256 f1f3cab0c8fee21c30ef69789d79468e2c69a4f52583e53e4392a1cf97791486; transported from the pinned illusion0001 mirror.",
    "verdict": "licence-verified",
-   "evidence": "CC BY-SA 4.0: each kept program identical to the official RPCS3 patch.yml (docs/licenses/rpcs3-wiki-2026-10-28.md)"
+   "evidence": "CC BY-SA 4.0: each kept program identical to the official RPCS3 patch.yml (docs/licenses/rpcs3-wiki-2026-10-28.md)",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "libretro",
@@ -56,7 +62,19 @@
    "programs": 1007827,
    "license_metadata": "CC BY-SA 4.0 (libretro-database data), original source attribution retained",
    "verdict": "licence-declared",
-   "evidence": "CC BY-SA 4.0 (libretro-database); notice packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-LICENSE"
+   "evidence": "CC BY-SA 4.0 (libretro-database); notice packages/libretro_internal_bridge/ios/Resources/Cheats/libretro-LICENSE",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
+  },
+  {
+   "id": "snes9x",
+   "name": "Snes9x cheats.bml",
+   "url": "https://github.com/snes9xgit/snes9x/blob/master/data/cheats.bml",
+   "revision": "7c49c481697d6d79e2100912b9784a1b4c8f5a88a74c0c970e83afbebb7f7e22",
+   "programs": 13121,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "licence-declared",
+   "evidence": "Snes9x licence: \"Permission to use, copy, modify and/or distribute Snes9x ... for non-commercial purposes ... providing that this license information and copyright notice appear with all copies\"; data/cheats.bml is part of the Snes9x tree. Non-commercial, notice required",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "dolphin",
@@ -66,7 +84,19 @@
    "programs": 4119,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "licence-declared",
-   "evidence": "GPL-2.0-or-later: Data/Sys/GameSettings of dolphin-emu/dolphin, the same basis as the Enhancements catalogue"
+   "evidence": "GPL-2.0-or-later: Data/Sys/GameSettings of dolphin-emu/dolphin, the same basis as the Enhancements catalogue",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
+  },
+  {
+   "id": "artemisrpcs3",
+   "name": "Artemis Patch Collection RPCS3",
+   "url": "https://github.com/chidreams/Artemis-Patch-Collection-RPCS3",
+   "revision": "21fc0ee86578f1452e42da01187eb852ab034b28",
+   "programs": 1829,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "licence-declared",
+   "evidence": "MIT, Copyright (c) 2023 chidreams: LICENSE at the pinned revision 21fc0ee86578 (checked 28 October 2026)",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "openemu_personal",
@@ -76,7 +106,19 @@
    "programs": 241,
    "license_metadata": "Unlicense",
    "verdict": "licence-declared",
-   "evidence": "Unlicense; notice packages/libretro_internal_bridge/ios/Resources/Cheats/openemu-LICENSE"
+   "evidence": "Unlicense; notice packages/libretro_internal_bridge/ios/Resources/Cheats/openemu-LICENSE",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
+  },
+  {
+   "id": "gow3_0103_ppu",
+   "name": "Artemis GoW3 identical-PPU static instruction ports",
+   "url": "https://github.com/chidreams/Artemis-Patch-Collection-RPCS3",
+   "revision": "21fc0ee86578f1452e42da01187eb852ab034b28",
+   "programs": 95,
+   "license_metadata": "Unspecified; original authors preserved in each native patch",
+   "verdict": "licence-declared",
+   "evidence": "MIT, Copyright (c) 2023 chidreams: LICENSE of chidreams/Artemis-Patch-Collection-RPCS3 at 21fc0ee86578",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "artemis_pkg478",
@@ -86,7 +128,8 @@
    "programs": 66,
    "license_metadata": "MIT, copyright 2023 chidreams; original hacker attribution retained",
    "verdict": "licence-declared",
-   "evidence": "MIT, Copyright 2023 chidreams; notice packages/neo_cheat_catalog/ios/Resources/artemis-rpcs3-LICENSE.txt"
+   "evidence": "MIT, Copyright 2023 chidreams; notice packages/neo_cheat_catalog/ios/Resources/artemis-rpcs3-LICENSE.txt",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "gow3_0100",
@@ -96,7 +139,8 @@
    "programs": 32,
    "license_metadata": "MIT; Copyright (c) 2026 Luckysugar",
    "verdict": "licence-declared",
-   "evidence": "MIT, Copyright (c) 2026 Luckysugar; notice packages/neo_cheat_catalog/ios/Resources/gow3-0100-LICENSE.txt"
+   "evidence": "MIT, Copyright (c) 2026 Luckysugar; notice packages/neo_cheat_catalog/ios/Resources/gow3-0100-LICENSE.txt",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "dsj",
@@ -106,7 +150,30 @@
    "programs": 590953,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "compiler-licence",
-   "evidence": "AGPL-3.0 repository licence of szTheory/NDS-Cheat-Databases (docs/licenses/cheats/szTheory-*); the compiled codes come from many third-party hackers"
+   "evidence": "AGPL-3.0 repository licence of szTheory/NDS-Cheat-Databases (docs/licenses/cheats/szTheory-*); the compiled codes come from many third-party hackers",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
+  },
+  {
+   "id": "mesen",
+   "name": "Mesen2 CheatDb",
+   "url": "https://github.com/SourMesen/Mesen2/tree/master/UI/Dependencies/Internal",
+   "revision": "b9fa69ddc6d0a331fb103fdb5eef6904305703c2",
+   "programs": 22615,
+   "license_metadata": "Original cheat authors; Mesen distribution notices preserved",
+   "verdict": "compiler-licence",
+   "evidence": "GPL-3.0 licence of the SourMesen/Mesen2 repository, which contains UI/Dependencies/Internal",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
+  },
+  {
+   "id": "ps2pnach",
+   "name": "pcsx2_cheats_collection",
+   "url": "https://github.com/xs1l3n7x/pcsx2_cheats_collection",
+   "revision": "6cb57b55939f47dd91a157bfb6cdc7fd157a780c",
+   "programs": 12353,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "compiler-licence",
+   "evidence": "README: codes from Ultimate PCSX2 Cheater (no licence found) and root670/CheatDevicePS2, whose repository including CheatDatabase.txt is GPL-3.0 (7d9c525a)",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "artemis_static478",
@@ -116,7 +183,8 @@
    "programs": 11525,
    "license_metadata": "Unspecified; original authors retain rights; preserve source notices and attribution",
    "verdict": "compiler-licence",
-   "evidence": "MIT licence of the ArtemisPS3 repository (docs/licenses/cheats/artemis-LICENSE.txt); covers the tool, not established for the codes"
+   "evidence": "MIT licence of the ArtemisPS3 repository (docs/licenses/cheats/artemis-LICENSE.txt); covers the tool, not established for the codes",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "pj64",
@@ -126,7 +194,8 @@
    "programs": 8516,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "compiler-licence",
-   "evidence": "GPL-2.0 repository licence of project64/project64 (Config/Cheats); codes collected from third-party hackers"
+   "evidence": "GPL-2.0 repository licence of project64/project64 (Config/Cheats); codes collected from third-party hackers",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "mupen",
@@ -136,7 +205,8 @@
    "programs": 7567,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "compiler-licence",
-   "evidence": "GPL-2.0+ header of mupencheat.txt, \"Used and relicensed GPL with permission from Gent\" (docs/licenses/cheats/Mupen64Plus-*)"
+   "evidence": "GPL-2.0+ header of mupencheat.txt, \"Used and relicensed GPL with permission from Gent\" (docs/licenses/cheats/Mupen64Plus-*)",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "enhancement",
@@ -146,7 +216,8 @@
    "programs": 848,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "compiler-licence",
-   "evidence": "GPL-3.0 repository licence and Credits.txt (docs/licenses/cheats/Admentus-*)"
+   "evidence": "GPL-3.0 repository licence and Credits.txt (docs/licenses/cheats/Admentus-*)",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "artemis",
@@ -156,7 +227,8 @@
    "programs": 713,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "compiler-licence",
-   "evidence": "MIT licence of the ArtemisPS3 repository (docs/licenses/cheats/artemis-LICENSE.txt); covers the tool, not established for the codes"
+   "evidence": "MIT licence of the ArtemisPS3 repository (docs/licenses/cheats/artemis-LICENSE.txt); covers the tool, not established for the codes",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "tabdiukov",
@@ -166,7 +238,8 @@
    "programs": 236,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "compiler-licence",
-   "evidence": "Apache-2.0 repository licence (docs/licenses/cheats/TAbdiukov-PPSSPP-patches-LICENCE.txt)"
+   "evidence": "Apache-2.0 repository licence (docs/licenses/cheats/TAbdiukov-PPSSPP-patches-LICENCE.txt)",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "bladestorm_static",
@@ -176,7 +249,8 @@
    "programs": 8,
    "license_metadata": "Unspecified; CodeFreak/PS3UserCheat author rights retained",
    "verdict": "compiler-licence",
-   "evidence": "MIT licence of the ArtemisPS3 repository; CodeFreak/PS3UserCheat authors not established"
+   "evidence": "MIT licence of the ArtemisPS3 repository; CodeFreak/PS3UserCheat authors not established",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "bladestorm_jp477",
@@ -186,7 +260,8 @@
    "programs": 5,
    "license_metadata": "Unspecified; original source and hacker rights retained",
    "verdict": "compiler-licence",
-   "evidence": "MIT licence of the ArtemisPS3 repository; original hackers not established"
+   "evidence": "MIT licence of the ArtemisPS3 repository; original hackers not established",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "tyler_shiny",
@@ -196,7 +271,19 @@
    "programs": 1,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "compiler-licence",
-   "evidence": "GPL-3.0 repository licence (docs/licenses/cheats/tyler-*)"
+   "evidence": "GPL-3.0 repository licence (docs/licenses/cheats/tyler-*)",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
+  },
+  {
+   "id": "fbneo",
+   "name": "FBNeo cheats",
+   "url": "https://github.com/finalburnneo/FBNeo-cheats",
+   "revision": "084b13ed7a4d437614a2bf47664cc567ac9dcdef",
+   "programs": 59087,
+   "license_metadata": "Unspecified; preserve original author rights and source notices",
+   "verdict": "conditional-permission",
+   "evidence": "The original Pugsy MAME cheat.dat header in FBNeo-cheats: \"can be freely distributed with any MAME compile or any frontend. All I ask is that you do not modify the cheat file in any way\". The imported cheats/*.ini are FBNeo conversions; the repository has no licence",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "duckstation",
@@ -206,17 +293,8 @@
    "programs": 44029,
    "license_metadata": "Scripts MIT; cheat-code rights remain with original authors (upstream LICENSE)",
    "verdict": "tooling-licence-only",
-   "evidence": "Scripts MIT; the upstream LICENSE states cheat-code rights remain with the original authors"
-  },
-  {
-   "id": "mesen",
-   "name": "Mesen2 CheatDb",
-   "url": "https://github.com/SourMesen/Mesen2/tree/master/UI/Dependencies/Internal",
-   "revision": "b9fa69ddc6d0a331fb103fdb5eef6904305703c2",
-   "programs": 22615,
-   "license_metadata": "Original cheat authors; Mesen distribution notices preserved",
-   "verdict": "tooling-licence-only",
-   "evidence": "Mesen distribution notices; original cheat authors retain rights"
+   "evidence": "Scripts MIT; the upstream LICENSE states cheat-code rights remain with the original authors",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "mister",
@@ -226,7 +304,8 @@
    "programs": 455353,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "README: \"All the Cheats are provided by GameHacking.org\"; no licence at the pin or at HEAD; gamehacking.org refuses automated reads and no terms were found by search",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "cwcheat",
@@ -236,17 +315,8 @@
    "programs": 77010,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
-  },
-  {
-   "id": "fbneo",
-   "name": "FBNeo cheats",
-   "url": "https://github.com/finalburnneo/FBNeo-cheats",
-   "revision": "084b13ed7a4d437614a2bf47664cc567ac9dcdef",
-   "programs": 59087,
-   "license_metadata": "Unspecified; preserve original author rights and source notices",
-   "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence at the pin or at HEAD; README credits the PPSSPP forum, GameHacking, LunaMoo, Kabuto_Kun, TAbdiukov (Apache-2.0), Raing3 and the CWCheat wiki",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "geckoarchive",
@@ -256,7 +326,8 @@
    "programs": 44293,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence; README: plaintext archive of geckocodes.org (closed 5 October 2020), via archive.org",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "psxdatacenter_v2_478",
@@ -266,27 +337,8 @@
    "programs": 27259,
    "license_metadata": "Unspecified; original authors retain rights; preserve source notices and attribution",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution"
-  },
-  {
-   "id": "snes9x",
-   "name": "Snes9x cheats.bml",
-   "url": "https://github.com/snes9xgit/snes9x/blob/master/data/cheats.bml",
-   "revision": "7c49c481697d6d79e2100912b9784a1b4c8f5a88a74c0c970e83afbebb7f7e22",
-   "programs": 13121,
-   "license_metadata": "Unspecified; preserve original author rights and source notices",
-   "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
-  },
-  {
-   "id": "ps2pnach",
-   "name": "pcsx2_cheats_collection",
-   "url": "https://github.com/xs1l3n7x/pcsx2_cheats_collection",
-   "revision": "6cb57b55939f47dd91a157bfb6cdc7fd157a780c",
-   "programs": 12353,
-   "license_metadata": "Unspecified; preserve original author rights and source notices",
-   "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "mighty_mo",
@@ -296,17 +348,8 @@
    "programs": 10244,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
-  },
-  {
-   "id": "artemisrpcs3",
-   "name": "Artemis Patch Collection RPCS3",
-   "url": "https://github.com/chidreams/Artemis-Patch-Collection-RPCS3",
-   "revision": "21fc0ee86578f1452e42da01187eb852ab034b28",
-   "programs": 1829,
-   "license_metadata": "Unspecified; preserve original author rights and source notices",
-   "verdict": "no-licence-evidence",
-   "evidence": "No licence recorded at 21fc0ee86578; the PaauloSilva fork (artemis_pkg478) carries an MIT notice by chidreams, to check against this revision"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "shadow_pnach478",
@@ -316,7 +359,8 @@
    "programs": 1013,
    "license_metadata": "Unspecified; original authors retain rights; preserve source notices and attribution",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "delta_workbook",
@@ -326,7 +370,8 @@
    "programs": 871,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "dragon_pnach478",
@@ -336,7 +381,8 @@
    "programs": 785,
    "license_metadata": "Unspecified; original authors retain rights; preserve source notices and attribution",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "dillonhafer_xml",
@@ -346,7 +392,8 @@
    "programs": 477,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "weed_sheet",
@@ -356,7 +403,8 @@
    "programs": 256,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "pal_pnach478",
@@ -366,7 +414,8 @@
    "programs": 208,
    "license_metadata": "Unspecified; original authors retain rights; preserve source notices and attribution",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "yuki_pnach478",
@@ -376,7 +425,8 @@
    "programs": 204,
    "license_metadata": "Unspecified; original authors retain rights; preserve source notices and attribution",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original authors retain rights; preserve source notices and attribution",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "lunamoo",
@@ -386,17 +436,8 @@
    "programs": 191,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
-  },
-  {
-   "id": "gow3_0103_ppu",
-   "name": "Artemis GoW3 identical-PPU static instruction ports",
-   "url": "https://github.com/chidreams/Artemis-Patch-Collection-RPCS3",
-   "revision": "21fc0ee86578f1452e42da01187eb852ab034b28",
-   "programs": 95,
-   "license_metadata": "Unspecified; original authors preserved in each native patch",
-   "verdict": "no-licence-evidence",
-   "evidence": "No licence recorded at 21fc0ee86578; see artemisrpcs3"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "psxdatacenter_pal477",
@@ -406,7 +447,8 @@
    "programs": 11,
    "license_metadata": "Unspecified; original source and hacker rights retained",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original source and hacker rights retained"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; original source and hacker rights retained",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "ff7_fr",
@@ -416,7 +458,8 @@
    "programs": 8,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "squarepalace",
@@ -426,7 +469,8 @@
    "programs": 8,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "xoevoox_firered",
@@ -436,7 +480,8 @@
    "programs": 6,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "kodewerx_codes",
@@ -446,7 +491,8 @@
    "programs": 3,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "pokebip_contributions",
@@ -456,7 +502,8 @@
    "programs": 3,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "ethereal",
@@ -466,7 +513,8 @@
    "programs": 2,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "psxdatacenter",
@@ -476,7 +524,8 @@
    "programs": 2,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "gamehacking",
@@ -486,7 +535,8 @@
    "programs": 1,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "gameshark_event_islands",
@@ -496,7 +546,8 @@
    "programs": 1,
    "license_metadata": "Unspecified; preserve original author rights and source notices",
    "verdict": "no-licence-evidence",
-   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices"
+   "evidence": "No licence or written permission recorded in this repository; metadata: Unspecified; preserve original author rights and source notices",
+   "maintainer_decision": "keep published (maintainer, 28 October 2026)"
   },
   {
    "id": "gabominated_fps478",
@@ -549,5 +600,7 @@
    "evidence": "Withheld pending written reuse permission; source credits retained in historical records."
   }
  ],
- "decision_pending": "Sources outside licence-verified/licence-declared stay published until the maintainer decides; see docs/SOURCE_RIGHTS_FOLLOWUP_2026-10-28.md."
+ "decision_pending": null,
+ "maintainer_decision": "28 October 2026: every active source stays published; the maintainer regards repositories without a licence as free to use. Sources whose authors explicitly restrict distribution stay withheld. Removal on request: https://github.com/TarbleFR/RewindBox/issues.",
+ "searched": "Pinned revision and current HEAD of every GitHub source: LICENSE/COPYING/NOTICE/README at any depth, and the data files for grants or restrictions."
 }
