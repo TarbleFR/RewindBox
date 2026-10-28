@@ -6,72 +6,65 @@
 
 <img src="assets/readme/rewindbox-preview.png" alt="RewindBox console library on iPhone" width="1100">
 
+[![Latest release](https://img.shields.io/github/v/release/TarbleFR/RewindBox?label=release)](https://github.com/TarbleFR/RewindBox/releases/latest)
 [![Platform](https://img.shields.io/badge/iOS-18%2B-blue)](https://github.com/TarbleFR/RewindBox/releases/latest)
 [![Frontend license](https://img.shields.io/badge/Frontend-GPLv3-blue)](LICENSE.md)
 
-**[Download latest: fix 0.0.9 (Build 530)](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1)** · **[IPA download](https://github.com/TarbleFR/RewindBox/releases/download/0.0.9-fix.1/RewindBox-Build530.ipa)** · **[Sources and credits](docs/RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md)**
+**[Download 0.0.10 · Build 559](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.10)** · **[IPA download](https://github.com/TarbleFR/RewindBox/releases/download/0.0.10/RewindBox-.0.0.10.ipa)** · **[Credits and licenses](docs/LEGAL_AND_CREDITS.md)**
 
 </div>
 
 **RewindBox is an independently maintained iOS/iPadOS fork** of
 [NeoStation](https://github.com/misobadev/neostation-frontend), maintained
-by [@TarbleFR](https://github.com/TarbleFR). This is not an official
-NeoStation release; please use [RewindBox Issues](https://github.com/TarbleFR/RewindBox/issues)
-or the [RewindBox community](https://discord.gg/G48u46ppX), not upstream
-NeoStation support, for help with this fork.
+by [@TarbleFR](https://github.com/TarbleFR).
+For help with this app, use [RewindBox Issues](https://github.com/TarbleFR/RewindBox/issues)
+or the [RewindBox community](https://discord.gg/G48u46ppX).
 
-RewindBox combines a game library with **embedded emulation runtimes** for
-compatible systems. Libretro cores run inside RewindBox, as do the
-integrated **MeloNX** Nintendo Switch engine, Dolphin, ARMSX2 and RPCS3.
-A separate MeloNX app is not used to launch games from RewindBox. Users
-provide their own compatible games, firmware, keys and BIOS where required.
+RewindBox brings your game library and **embedded emulators** into one
+sideloaded app: Libretro, **MeloNX for Nintendo Switch**, Dolphin, ARMSX2
+and RPCS3. Compatible games run inside RewindBox with its menus and controls;
+a separate RetroArch or MeloNX installation is not required.
 
-## Latest release — fix 0.0.9 (Build 530)
+## What's new in 0.0.10
 
-**Published 25 October 2026 · GitHub tag `0.0.9-fix.1`**
+**Public release · Build 559 · Changes since 0.0.9-fix.1 (Build 530)**
 
-- **MeloNX Vulkan stability:** addresses the identified iOS failure path where
-  `VK_EXT_external_memory_host` led to `ErrorFeatureNotPresent` after a
-  Switch game started rendering. The embedded engine uses its existing
-  normal-buffer readback fallback instead of the unsupported direct host
-  memory import on iOS.
-- **Integrated Nintendo Switch emulator:** direct Switch playlist and
-  local-game imports, save/configuration management and user-supplied
-  firmware/keys, with the native JIT and capability checks required by iOS.
-- **RPCS3 and other engines retained:** the release reuses the validated
-  RPCS3 Core 528 and keeps the other embedded runtimes. NeoSwap remains
-  experimental; this release does not promise higher FPS.
-- **Existing features preserved:** 3D covers/manuals, HD texture catalogue,
-  updated touch controls, cheats, skins, AirPlay and media-library tools.
+- **Refined Liquid Glass interface:** updated headers and menus, a working
+  Interface preview with Apply/Revert, and more appearance options in all
+  twelve supported languages.
+- **Embedded Nintendo Switch / MeloNX:** backend threading enabled by default,
+  game FPS in the RAM overlay, in-game MoltenVK selection with automatic
+  fallback, and fixes for imports, updates, audio and closing games.
+- **PS3 disc images from your library:** install compatible ISO images into
+  RPCS3 with their required key files, then launch them. ISO mounts are also
+  preserved when restoring a save state.
+- **RPCS3 improvements:** the God of War III profile is correctly applied;
+  SPU cache loading, texture validation, shader and pipeline compilation,
+  GPU copies and waiting paths have been improved.
+- **Library reliability:** ROM folder changes saved in quick succession no
+  longer fail.
 
-The new MeloNX engine and IPA **passed automated compilation, ARM64 iOS
-simulator, source-identity and packaging/signature checks**. A sustained
-commercial-game session on a physical iPhone has **not** been independently
-confirmed stable. Include the game, iPhone/iOS version and internal
-app log when reporting remaining failures.
+The first launch of each PS3 game rebuilds its SPU cache once; the PPU cache
+is kept. These changes passed automated native, sanitizer, ARM64 and packaging
+checks. Compatibility and performance depend on the game and device; the
+release does not establish a measured iPhone FPS gain.
 
-**Version distinction:** `fix 0.0.9` is the *GitHub release title*; the
-actual IPA is **Build 530** and still reports internal app version **0.0.8**
-(`CFBundleShortVersionString`). The earlier [`0.0.9` / Build 527](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9)
-release remains available separately.
+**Version note:** the GitHub release is **0.0.10** and the IPA is **Build 559**.
+Its internal app version still reports **0.0.8**.
 
-[Read release notes](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.9-fix.1) ·
-[Exact Build 530 source and dependency manifest](docs/RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md) ·
-[Source access guide](docs/SOURCE_CODE_ACCESS.md).
+[Full release notes](https://github.com/TarbleFR/RewindBox/releases/tag/0.0.10) ·
+[Build 559 delivery record](https://github.com/TarbleFR/RewindBox/blob/9e7bed794e71afde8817c6201cfdf4c72b1ae761/docs/evidence/rpcs3-cell559-delivery.json).
 
-## Other additions since the 0.0.8 baseline
+## More to explore
 
-RewindBox also includes the expanded HD texture catalogue and supported RAR
-imports, interactive 3D game boxes and PDF manual handling, customizable
-touch layouts, PS2 blending and texture options, and PSP relaunch work.
-Actual availability and compatibility depend on the engine, title and
-user-supplied files. The earlier
-[feature preparation notes](docs/RELEASE_NEXT.md) are **historical**, not a
-description of a pending Switch integration or of the latest release.
+Browse HD texture packs, customize touch controls, explore interactive 3D
+game boxes and PDF manuals, and use compatible cheats, skins, AirPlay and
+media-library tools. Availability depends on the engine, game edition and
+user-supplied files.
 
 ## Unified cheats and patches
 
-The reviewed catalogue withholds the eight Pokémon France programs pending permission. The 0.0.8 source audit recorded:
+The historical **0.0.8 catalogue audit** recorded:
 **50 active contributing source entries**, **2,395,541 programs and edition variants**,
 and **1,926 source-backed 60 FPS selections** for supported native adapters.
 One common installation serves the embedded engines. Matching uses the detected
@@ -86,7 +79,7 @@ credit the collections and original authors. Their data keeps its own terms;
 RewindBox’s frontend license does not relicense third-party codes.
 
 <details>
-<summary>51 historical source profiles (50 currently active)</summary>
+<summary>51 historical source profiles and contributor credits</summary>
 
 | Source / import profile | Maintainers and original contributors |
 | --- | --- |
@@ -148,11 +141,11 @@ RewindBox’s frontend license does not relicense third-party codes.
 
 | Integration | Systems / purpose |
 | --- | --- |
-| **Libretro — 35 cores embedded in Build 530** | NES, SNES, GB/GBC, GBA, DS, N64, 3DS, Sega 8/16-bit systems, Mega-CD, 32X, PlayStation, PSP, supported arcade and Neo Geo games |
+| **Libretro — 35 embedded cores** | NES, SNES, GB/GBC, GBA, DS, N64, 3DS, Sega 8/16-bit systems, Mega-CD, 32X, PlayStation, PSP, supported arcade and Neo Geo games |
 | **Dolphin / DolphiniOS** | GameCube and Wii |
 | **ARMSX2 / PCSX2** | PlayStation 2 |
 | **RPCS3 / XITRIX iOS fork** | PlayStation 3 |
-| **MeloNX — fully embedded** | Nintendo Switch; requires user-owned games/system files, the appropriate iOS JIT method and device entitlements |
+| **MeloNX — embedded** | Nintendo Switch; requires compatible user-supplied games, firmware, keys and the appropriate iOS JIT capabilities |
 
 RewindBox no longer includes native game ports, nor the Ports playlist.
 KartPad (Mario Kart Wii) and Dusklight (Twilight Princess) were embedded in
@@ -163,8 +156,8 @@ installs it as a separate app. Twilight Princess remains playable from its
 GameCube or Wii version with Dolphin. Files already in RewindBox's
 `Ports/KartPad` and `Ports/Dusklight` folders are left untouched.
 
-The old 0.0.8 / Build 480 release contained 34 Libretro cores. **Build 530
-ships 35**, with Mesen added as an optional NES engine for compatible HD packs.
+RewindBox includes 35 Libretro cores, with Mesen available as an optional
+NES engine for compatible HD packs.
 [All current core credits and license references](assets/legal/libretro/LIBRETRO_CORES.md)
 are preserved. The number of cores differs from the number of console profiles. Compatibility,
 features and performance depend on the game, core and device.
@@ -250,33 +243,35 @@ restricted capabilities on a device.
 
 ## Build from source
 
-The published `fix 0.0.9` IPA is **Build 530**. To inspect exactly the
-application sources recorded inside this binary, use the pinned host commit
-[`3f0c706afe1d0faa635465517871a500c3289582`](https://github.com/TarbleFR/RewindBox/tree/3f0c706afe1d0faa635465517871a500c3289582),
-not a moving branch or the older `0.0.7`/`0.0.8` tags.
-The current `main` branch carries the changes merged from `Claude`, with
-subsequent release-documentation updates.
+The published **0.0.10 / Build 559** IPA was assembled from the delivery
+recipe at
+[`fb0a80e7da6ecade04f0503a48ffaab507263dc4`](https://github.com/TarbleFR/RewindBox/tree/fb0a80e7da6ecade04f0503a48ffaab507263dc4).
+The recipe pins the application trees and native inputs; a moving branch
+or the release tag alone is not the exact assembled build tree.
+`Claude` remains the development branch.
 
-The release workflow uses **Flutter 3.47.2** and **Xcode 26.3**:
+The delivery uses **Flutter 3.47.2** and **Xcode 26.3**:
 
 ```bash
 git clone https://github.com/TarbleFR/RewindBox.git
 cd RewindBox
-git checkout 3f0c706afe1d0faa635465517871a500c3289582
+git checkout fb0a80e7da6ecade04f0503a48ffaab507263dc4
 flutter pub get --enforce-lockfile
 flutter config --no-enable-swift-package-manager
 python3 packages/dolphin_internal_bridge/ci/build_support.py scaffold
 ```
 
-These steps prepare the host, **not a distributable IPA on their own**. A
-complete iOS build also needs the pinned native sources and library artifacts,
-licenses, Xcode signing and entitlement checks, and the
-[Build 530 delivery](.github/workflows/melonx-launch530-delivery.yml)
-and [release-publishing workflow](.github/workflows/publish-fix-009.yml).
-Use the [Build 530 source manifest](docs/RELEASE_0.0.9_FIX_1_SOURCE_MANIFEST.md)
-for the exact application, MeloNX and RPCS3 revisions, legal records and
-outstanding source-provenance boundaries. Do not commit signing secrets,
-production keys or private user content.
+These steps prepare the checkout. Follow the
+[Build 559 delivery workflow](https://github.com/TarbleFR/RewindBox/blob/fb0a80e7da6ecade04f0503a48ffaab507263dc4/.github/workflows/rpcs3-cell559-delivery.yml)
+for its pinned product trees, native runtimes, packaging, signing and
+entitlement checks. The
+[delivery record](https://github.com/TarbleFR/RewindBox/blob/9e7bed794e71afde8817c6201cfdf4c72b1ae761/docs/evidence/rpcs3-cell559-delivery.json)
+records the exact inputs and IPA checksum. It identifies RPCS3 Core source
+[`07c76ec11f4000247f908b792f53b304c91c8bcd`](https://github.com/TarbleFR/RewindBox/tree/07c76ec11f4000247f908b792f53b304c91c8bcd).
+
+Use the [source access guide](docs/SOURCE_CODE_ACCESS.md) for component
+sources and attribution. Keep signing material, credentials and private
+user content out of Git.
 
 ## Credits and licenses
 
@@ -291,7 +286,7 @@ Historical port credits remain in the legal record for the builds that used them
 **[Full credits and source records](docs/LEGAL_AND_CREDITS.md)** include the
 individual authors, **[all 35 current core license references](assets/legal/libretro/LIBRETRO_CORES.md)**,
 **[HD texture creators and source credits](docs/HD_TEXTURE_SOURCES_AND_CREDITS.md)**
-and **[all 51 historical cheat source entries, 50 active](docs/CHEAT_CATALOG_SOURCES.md)**.
+and **[all 51 historical cheat source entries](docs/CHEAT_CATALOG_SOURCES.md)**.
 
 The frontend's GPL license does **not** replace third-party terms.
 Some cores have non-commercial restrictions; exact source correspondence and
