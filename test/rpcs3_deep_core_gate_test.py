@@ -139,6 +139,33 @@ class NativeSchemaTests(unittest.TestCase):
         actual = {k: v for k, v in expected.items() if k != 'benchmarks'}
         self.assertEqual(gate.validate_native_result('shader', actual, expected), actual)
 
+    def test_address_cross_platform_visits_remain_equivalent(self):
+        # The observed macOS count is not the Linux libstdc++ reference,
+        # but both versions must match on the same Apple host.
+        reference = {'queries': 22753, 'mutations': 8618,
+                     'baselineDirtyPredicateCalls': 26629,
+                     'indexedDirtyPredicateCalls': 26629,
+                     'sameFirstMatch': True}
+        observed = dict(reference, baselineDirtyPredicateCalls=4708181,
+                        indexedDirtyPredicateCalls=4708181)
+        self.assertEqual(gate.validate_native_result('address', observed, reference),
+                         {'queries': 22753, 'mutations': 8618, 'sameFirstMatch': True})
+
+    def test_address_asymmetric_visits_are_rejected(self):
+        reference = {'queries': 22753, 'baselineDirtyPredicateCalls': 26629,
+                     'indexedDirtyPredicateCalls': 26629}
+        observed = dict(reference, baselineDirtyPredicateCalls=4708181,
+                        indexedDirtyPredicateCalls=4708180)
+        with self.assertRaises(AssertionError):
+            gate.validate_native_result('address', observed, reference)
+
+    def test_address_missing_visits_are_rejected(self):
+        reference = {'queries': 22753, 'baselineDirtyPredicateCalls': 26629,
+                     'indexedDirtyPredicateCalls': 26629}
+        with self.assertRaises(AssertionError):
+            gate.validate_native_result('address', {'queries': 22753},
+                                        reference)
+
     def test_coverage_benchmark_sink_must_remain_zero(self):
         expected = {'rowChecks': 391754, 'sink': 7920, 'benchmarks': []}
         gate.validate_native_result('coverage', {'rowChecks': 391754, 'sink': 0}, expected)
