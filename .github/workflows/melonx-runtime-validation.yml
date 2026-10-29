@@ -1,0 +1,53 @@
+name: MeloNX existing engine runtime validation
+run-name: MeloNX engine 82 runtime validation only • ${{ github.sha }}
+'on':
+  push:
+    branches: [Claude]
+    paths:
+    - .github/workflows/melonx-runtime-validation.yml
+    - build-utils/melonx/validate_runtime_reuse.py
+    - build-utils/melonx/runtime-validation.json
+    - test/melonx_runtime_smoke.py
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: melonx-runtime-validation-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  runtime:
+    if: ${{ contains(github.event.head_commit.message, '[melonx-runtime-validation]') && contains(github.event.head_commit.message, '[melonx-host-only]') }}
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Restore the existing native dependencies
+      uses: actions/download-artifact@v4
+      with:
+        name: MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314
+        run-id: 39854858591
+        github-token: ${{ github.token }}
+        path: dist/melonx-native
+    - name: Authenticate and restore unchanged engine 82
+      id: restored
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python3 build-utils/melonx/validate_runtime_reuse.py prepare
+    - name: Validate the existing engine with the corrected ARM64 simulator smoke
+      id: smoke
+      run: python3 test/melonx_runtime_smoke.py
+    - name: Retain the original failure and new runtime proof
+      id: retained
+      if: ${{ always() && steps.restored.outcome == 'success' }}
+      env:
+        MELONX_SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+      run: python3 build-utils/melonx/validate_runtime_reuse.py finalize
+    - uses: actions/upload-artifact@v4
+      if: ${{ always() && steps.retained.outputs.verified == 'true' }}
+      with:
+        name: MeloNX-engine-ebcee3529645a781311429a869434005e76d6275-runtime-validation-${{ github.run_id }}
+        path: dist/melonx/
+        if-no-files-found: error
+        retention-days: 14

@@ -88,11 +88,20 @@ still performs one fresh scan with the same version/error behavior.
 Evidence and status: `docs/melonx-startup-2026-10-29.md` and
 `docs/evidence/melonx-startup-20261029/`. All five targeted host checks and the
 complete managed library build pass. Fifteen of 4,095 generated source/project
-files change; 74 preparation inputs are bound by hash. Apple validation is
-pending the source push. A blocked
+files change; 74 preparation inputs are bound by hash. Apple engine 82, source
+`ebcee352`, passes all five new host gates, both NativeAOT library builds and
+the exported ABI in run `40837997888`. That run remains failed overall: its
+smoke requested Stop after two seconds, before the first cold GPU startup
+completed, then correctly rejected that cancelled session's missing guest SVC.
+Both sessions closed cleanly; only the warmer second session executed the SVC.
+The test-only correction waits for a new per-session SVC before Stop and keeps
+two distinct proofs, memory lifetime checks and explicit deadlines. A focused
+runtime validation will reuse artifact `12882675844` with its authenticated
+ZIP and unchanged compile identities. Do not rebuild these successful binaries
+or rerun unchanged host suites to correct the smoke. A blocked
 speculative worker in the 2,743-program test proves readiness independence,
 not seconds saved on iPhone. Workers are bounded; the pending queue is not.
-Preserve concurrent RPCS3 work through `66b81952` and delivered private IPA593.
+Preserve concurrent RPCS3 work merged in `fe587e27` and delivered private IPA593.
 No new IPA, release, player setting, persistent cache format or telemetry is
 part of this engine work. A device run is still needed for launch-time/FPS
 claims. Do not rebuild unchanged successful engines when packaging the next IPA.

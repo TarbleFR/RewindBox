@@ -181,7 +181,14 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        defer { if runtime.withdrawMemory() { munmap(donation,donationBytes) } }
        var donatedSessions=0
        var livePerformanceSessions=0
-       for _ in 0..<2 {
+       var guestSvcSessions:[[String:Any]]=[]
+       for sessionIndex in 1...2 {
+         // The diagnostic ring retains earlier sessions and may evict them.
+         // Bind this proof to events produced after this session's start.
+         let beforeEvents=runtime.diagnostics()["events"] as? [[String:Any]] ?? []
+         let beforeSequence=beforeEvents.compactMap { ($0["sequence"] as? NSNumber)?.int64Value }.max() ?? 0
+         let guestDeadline=DispatchTime.now()+30
+         let sessionDeadline=DispatchTime.now()+45
          guard runtime.offerMemory(donation,bytes:UInt64(donationBytes)) else {throw NSError(domain:"actual-memory-offer",code:22)}
          var borrowedWhileRunning=false
          var liveWithdrawalRefused=false
@@ -191,6 +198,8 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
          var outcome:Result<Void,MeloNXHostError>?
          var owner:MeloNXSessionHost?
          var surface:ProbeView?
+         var guestSvcSequence:Int64?
+         var sessionEnded=false
          DispatchQueue.main.sync {
            let view=ProbeView(frame:self.window!.rootViewController!.view.bounds)
            let layer=view.layer as! CAMetalLayer
@@ -200,18 +209,40 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
            let host=MeloNXSessionHost(api:runtime.session);owner=host
            do {
              try host.start(game:homebrew,locale:"en",width:1280,height:720,surface:layer,pointer:Unmanaged.passUnretained(layer).toOpaque(),prepared:{liveGeneration=$0},beforeRun:{true}) {result in outcome=result;ended.signal()}
-             DispatchQueue.main.asyncAfter(deadline:.now()+2) {
-               livePerformance=runtime.performanceSnapshot(generation:liveGeneration)
-               let memory=runtime.memorySnapshot()
-               borrowedWhileRunning=((memory["donorUsedBytes"] as? NSNumber)?.uint64Value ?? 0)>0
-               liveWithdrawalRefused = !runtime.withdrawMemory()
-               host.requestStop()
-             }
            } catch {outcome = .failure(error as? MeloNXHostError ?? .load(String(describing:error)));ended.signal()}
          }
-         guard ended.wait(timeout:.now()+45) == .success else {throw NSError(domain:"homebrew-session-timeout",code:9)}
+         // Prepared/Running precede GPU readiness. A fixed-delay stop can
+         // correctly cancel a cold startup before any guest CPU instruction.
+         // Wait off the main queue for this session's actual SVC instead.
+         while DispatchTime.now() < guestDeadline {
+           let execution=runtime.diagnostics()["events"] as? [[String:Any]] ?? []
+           if let event=execution.first(where: {
+             $0["stage"] as? String == "guestExecution" && $0["status"] as? String == "passed" &&
+             (($0["sequence"] as? NSNumber)?.int64Value ?? 0) > beforeSequence
+           }) {
+             guestSvcSequence=(event["sequence"] as? NSNumber)?.int64Value
+             break
+           }
+           if ended.wait(timeout:.now()+0.05) == .success {sessionEnded=true;break}
+         }
+         DispatchQueue.main.sync {
+           if guestSvcSequence != nil {
+             livePerformance=runtime.performanceSnapshot(generation:liveGeneration)
+             let memory=runtime.memorySnapshot()
+             borrowedWhileRunning=((memory["donorUsedBytes"] as? NSNumber)?.uint64Value ?? 0)>0
+             liveWithdrawalRefused = !runtime.withdrawMemory()
+           }
+           // Also stop on a missing-SVC deadline so the failure can drain. No
+           // delayed callback survives this session or can stop the next one.
+           owner?.requestStop()
+         }
+         if !sessionEnded {
+           guard ended.wait(timeout:sessionDeadline) == .success else {throw NSError(domain:"homebrew-session-timeout",code:9)}
+         }
          guard let completedOutcome=outcome else {throw NSError(domain:"homebrew-result",code:12)}
          if case .failure(let error)=completedOutcome {throw error}
+         guard let svcSequence=guestSvcSequence else {throw NSError(domain:"homebrew-guest-svc-unconfirmed",code:11,userInfo:["session":sessionIndex,"generation":liveGeneration,"afterSequence":beforeSequence])}
+         guestSvcSessions.append(["session":sessionIndex,"generation":liveGeneration,"afterSequence":beforeSequence,"svcSequence":svcSequence])
          guard runtime.session.state == 0, owner?.isSessionActive == false else {throw NSError(domain:"homebrew-session-cleanup",code:10)}
          DispatchQueue.main.sync {surface?.removeFromSuperview()}
          // Homebrew presents no frames, so a live snapshot (when the window is
@@ -228,8 +259,9 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
          donatedSessions += 1
          sessions += 1
        }
-       let execution=runtime.diagnostics()["events"] as? [[String:Any]] ?? []
-       guard execution.filter({$0["stage"] as? String == "guestExecution" && $0["status"] as? String == "passed"}).count >= 2 else {throw NSError(domain:"homebrew-guest-svc-unconfirmed",code:11)}
+       guard guestSvcSessions.count == 2,
+             Set(guestSvcSessions.compactMap { $0["svcSequence"] as? Int64 }).count == 2 else {throw NSError(domain:"homebrew-guest-svc-unconfirmed",code:11)}
+       report["homebrewGuestSvcSessions"]=guestSvcSessions
        report["actualCoreDonatedBackingSessions"]=donatedSessions
        report["performanceSnapshotStaleAndEndedRefused"]=true
        report["livePerformanceSnapshotSessions"]=livePerformanceSessions

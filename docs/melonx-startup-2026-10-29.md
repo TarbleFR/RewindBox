@@ -182,12 +182,47 @@ identical. After the first integration build, only the five additional
 failure-path source files were copied into the existing compilation workspace.
 All five targeted host gates pass with their final input hashes and integrated
 postimages verified. Independent review accepts the final readiness, exception
-transport and worker-lifetime changes. The Apple build follows publication of
-this exact source candidate.
+transport and worker-lifetime changes.
 
 - [Fifteen-file source delta](evidence/melonx-startup-20261029/source-delta.json)
 - [74 preparation input hashes](evidence/melonx-startup-20261029/embedded-inputs.json)
 - [Managed integration and targeted-check receipt](evidence/melonx-startup-20261029/integration.json)
+
+### Apple compilation and corrected runtime validation
+
+Engine 82 compiles source
+[`ebcee352`](https://github.com/TarbleFR/RewindBox/commit/ebcee3529645a781311429a869434005e76d6275).
+All five new targeted checks pass on macOS ARM64, followed by both the iOS and
+simulator NativeAOT libraries and exported-ABI verification. The original
+[run 40837997888](https://github.com/TarbleFR/RewindBox/actions/runs/40837997888)
+nevertheless **fails overall at the simulator smoke**; it must not be described
+as a successful end-to-end run.
+
+That smoke requested Stop two seconds after starting each session. In the first
+cold session it requested Stop at 08:06:58.018 UTC, before the renderer reached
+`GetCapabilities` at 08:07:00.037. The corrected engine cancellation path therefore
+closed that session without executing guest code. The second, warmer session
+executed the expected SVC before its timed Stop. Both sessions closed cleanly,
+but the final assertion correctly rejected the missing first SVC. The journal
+contained only 56 events in its 64-event ring, so event eviction did not explain
+the missing execution. The [first-attempt receipt](evidence/melonx-startup-20261029/apple-engine82-first-attempt.json)
+records the step outcomes, native timings, original smoke inputs and artifact.
+
+The smoke now waits outside the main queue for a new `guestExecution/passed`
+event after each session's starting sequence. It preserves two distinct proofs
+with their session and generation, then requests Stop. A 30-second execution
+budget and 45-second total session deadline keep missing execution and failed
+closure explicit. Memory-backing, withdrawal and closed-generation checks
+remain required. No delayed Stop callback can survive into the next session.
+
+A focused Apple workflow will execute only this corrected runtime smoke on
+the existing engine 82 binaries. It authenticates artifact `12882675844` by
+its ZIP SHA-256, verifies the successful compilation/check steps, both library
+hashes, all 74 preparation inputs, four build-recipe inputs and the Swift bridge
+sources. It keeps the
+original compile identities and failed smoke, and writes a separate runtime
+validation receipt. Corrected runtime validation is pending; no engine rebuild
+or replay of unchanged host suites is needed for this test-only correction.
 
 The candidate extends the verified engine 81 source and preserves concurrent
 RPCS3 work. Upstream remains `13700519f3abc4e6d7ed8a065b118b2cc59bcd67`, SDK

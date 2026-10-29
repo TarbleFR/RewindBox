@@ -1,0 +1,36 @@
+{
+  "repository": "TarbleFR/RewindBox",
+  "source": "ebcee3529645a781311429a869434005e76d6275",
+  "run": 40837997888,
+  "runAttempt": 1,
+  "job": 123327250278,
+  "artifact": 12882675844,
+  "artifactName": "MeloNX-engine-ebcee3529645a781311429a869434005e76d6275",
+  "archiveSha256": "94794155b1743800c8724a744db353df6d5d019891f2ff0091ebfdec4de8d0f6",
+  "archiveBytes": 102735327,
+  "adaptationCount": 74,
+  "buildInputs": {
+    "build-utils/melonx/build_core.sh": "bf9589ca807104f888db884485d32070b68d86fa6535997a84934e8d698f4547",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "build-utils/melonx/build_libhac.py": "8477b495ad4a88855d73e847c74ac976ef9621b8536dd3ac1d539381cd79d677",
+    "build-utils/melonx/libhac-reuse.json": "191996e92d52adcd1ecb3c5821904df8f3188fa2d34836e667d9da23c292df8f"
+  },
+  "simulatorSha256": "bb48dcb4f6c6571b16d84ef0b0a3a2c5a954b6ee111739c0f9a335267f0d9968",
+  "failedStep": "Exercise this exact rebuilt engine in an ARM64 iOS app",
+  "requiredSuccessfulSteps": [
+    "Compile NativeAOT library and verify exported ABI",
+    "Verify cached shader startup preserves synchronous draws and fatal errors",
+    "Verify launch firmware discovery scans once and preserves failures",
+    "Verify renderer failures wake waiting threads and preserve teardown",
+    "Verify failed GPU initialization releases guest startup without executing guest code",
+    "Verify shader cache translation workers drain before failed startup returns"
+  ],
+  "smoke": {
+    "path": "test/melonx_runtime_smoke.py",
+    "sha256": "135f825f8e51fc399e67df5bda0fea6ee752ffd69aa59d33d4b90845c09b314b"
+  },
+  "nativeDependencies": {
+    "run": 39854858591,
+    "artifactName": "MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314"
+  }
+}
