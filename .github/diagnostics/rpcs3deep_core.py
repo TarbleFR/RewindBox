@@ -102,6 +102,18 @@ def apple_host_program(name, original):
     enumerator and its qualified reads; keep the numeric flag 2. The original
     source program and its reviewed SHA256 remain separately authenticated.
     """
+    if name == 'arena':
+        # libc++'s mt19937_64 result_type and size_t are different typedefs.
+        # Split only the fixture declarations; preserve types, RNG call order,
+        # values and both complete production allocator classes.
+        pairs = [
+            ('const auto size=1+rng()%128, alignment=std::size_t{1} << (rng()%8);', 'const auto size=1+rng()%128; const auto alignment=std::size_t{1} << (rng()%8);'),
+            ('const auto offset=rng()%(capacity+32), size=rng()%512, page=std::size_t{1}<<(rng()%9);', 'const auto offset=rng()%(capacity+32); const auto size=rng()%512; const auto page=std::size_t{1}<<(rng()%9);'),
+        ]
+        for before, after in pairs:
+            assert original.count(before) == 1, 'Unexpected arena fixture declaration'
+            original = original.replace(before, after, 1)
+        return original
     if name == 'barriers':
         # Two constants belong to the isolated Vulkan boundary preamble; only
         # the color case consumes this test's aspect flags. Keep all values.
@@ -151,7 +163,7 @@ def native_hashes(source, manifest):
 
 def inputs():
     import neo_swap_core_pin_test as pin
-    paths = set(pin.CORE_INPUTS) | {GATE, WORKFLOW, '.github/diagnostics/rpcs3deep_resume.py', '.github/diagnostics/rpcs3deep_resume2.py', '.github/workflows/rpcs3-core.yml',
+    paths = set(pin.CORE_INPUTS) | {GATE, WORKFLOW, '.github/diagnostics/rpcs3deep_resume.py', '.github/diagnostics/rpcs3deep_resume2.py', '.github/diagnostics/rpcs3deep_resume3.py', '.github/workflows/rpcs3-core.yml',
         '.github/workflows/rpcs3-runtime592-core.yml',
         '.github/diagnostics/rpcs3runtime592_core.py'}
     # Close the test/extraction dependency set, including historical adapters.
@@ -361,7 +373,7 @@ def prepare(source):
         assert load(contract)['reverseDeltaMatchesBaseline']
         proof['codegen'] = load(contract)['codegenIdentity']['after']
         proof['source_contract_sha256'] = sha(contract.read_bytes())
-        import rpcs3deep_resume2 as resume
+        import rpcs3deep_resume3 as resume
         prior = resume.authenticate(sys.modules[__name__], proof)
         proof['partial_reuse'] = resume.ORIGIN
         save(PROOF, proof)
@@ -371,7 +383,7 @@ def prepare(source):
             original_program = item['program']
             assert sha(original_program.encode()) == load(ROOT / item['evidence'])['harnessSHA256']
             cpp.write_text(apple_host_program(name, original_program))
-            if name in ('mfc-restore', 'shader', 'barriers'):
+            if name in ('mfc-restore', 'shader', 'barriers', 'arena'):
                 (OUT / (name + '-canonical.cpp')).write_text(original_program)
             for mode in item['modes']:
                 key = name + '-' + mode
@@ -393,7 +405,7 @@ def prepare(source):
                 validate_native_result(name, result, load(ROOT / item['evidence'])['results'])
                 record = dict(passed=True, program_sha256=sha(cpp.read_bytes()), evidence=item['evidence'],
                               canonical_program_sha256=sha(original_program.encode()),
-                              apple_host_adapter=(name in ('mfc-restore', 'shader', 'barriers')),
+                              apple_host_adapter=(name in ('mfc-restore', 'shader', 'barriers', 'arena')),
                               compiler=version, flags=flags, results=result, mode=mode,
                               output_sha256=sha(output_log.read_bytes()), compile_sha256=sha(compile_log.read_bytes()),
                               physical_device_tested=False, gpu_executed=False, llvm_ir_builder_simulated=True)
@@ -420,7 +432,7 @@ def prepare(source):
     assert current == inputs()
     proof['all_tests_passed'] = True
     save(PROOF, proof)
-    print('PASS: 31 Apple modes, 24 authenticated unchanged modes reused, 7 executed; no device/FPS claim', flush=True)
+    print('PASS: 31 Apple modes, 25 authenticated unchanged modes reused, 6 executed; no device/FPS claim', flush=True)
 
 
 def verify(path, source):
@@ -438,7 +450,7 @@ def verify(path, source):
     assert proof['codegen'] == load(ROOT / (EVIDENCE + 'gow3-source-and-proof-record.json'))['codegenIdentity']['after']
     reused = {key for key, state in proof['tests'].items() if 'reused_from' in state}
     if proof.get('partial_reuse'):
-        import rpcs3deep_resume2 as resume
+        import rpcs3deep_resume3 as resume
         previous = resume.authenticate(sys.modules[__name__], proof)
         assert proof['partial_reuse'] == resume.ORIGIN and reused == resume.MODES
         for key in reused:
@@ -462,8 +474,8 @@ def verify(path, source):
             assert report['compiler'] == proof['host']['compiler']
             canonical_sha = load(ROOT / report['evidence'])['harnessSHA256']
             assert report['canonical_program_sha256'] == canonical_sha
-            assert report['apple_host_adapter'] is (name in ('mfc-restore', 'shader', 'barriers'))
-            if name in ('mfc-restore', 'shader', 'barriers'):
+            assert report['apple_host_adapter'] is (name in ('mfc-restore', 'shader', 'barriers', 'arena'))
+            if name in ('mfc-restore', 'shader', 'barriers', 'arena'):
                 canonical_path = OUT / (name + '-canonical.cpp')
                 canonical_bytes = canonical_path.read_bytes()
                 assert sha(canonical_bytes) == canonical_sha

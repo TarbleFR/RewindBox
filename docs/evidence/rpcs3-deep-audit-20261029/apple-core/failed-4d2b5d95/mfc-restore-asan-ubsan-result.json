@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "program_sha256": "0817dd05286cfedd7313b55c747e2acb2b55c12fee656c552629634a393f3d75",
+  "evidence": "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-restore-plain.json",
+  "canonical_program_sha256": "8cb8c31c359aaf67163a99914d0e53284197c20a8d0639aa1d479ff6c5f22b56",
+  "apple_host_adapter": true,
+  "compiler": "Homebrew clang version 22.1.8",
+  "flags": [
+    "-std=c++20",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-sanitize-recover=all"
+  ],
+  "results": {
+    "cases": 144,
+    "baselineStalledWaits": 72,
+    "candidateCompletedWaits": 72,
+    "stalledListsRequireAck": 36,
+    "emptyQueueCases": 24,
+    "disabledShufflingCases": 48,
+    "queueRoundtripPreserved": true,
+    "interruptsDisabled": true,
+    "timeoutIndependentChannelDrain": true
+  },
+  "mode": "asan-ubsan",
+  "output_sha256": "e7bc0bbea0608c87451e1e48807f8cbdaf88a3475fdb17d3b6860bbb6d74883b",
+  "compile_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "physical_device_tested": false,
+  "gpu_executed": false,
+  "llvm_ir_builder_simulated": true
+}

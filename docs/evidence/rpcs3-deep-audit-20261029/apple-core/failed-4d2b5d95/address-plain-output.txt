@@ -1,0 +1,1 @@
+{"queries":22753,"mutations":8618,"baselineDirtyPredicateCalls":4708181,"indexedDirtyPredicateCalls":4708181,"sameFirstMatch":true,"sameValidationOrder":true,"sameOverlapMembership":true,"clearAndResourceLessRetags":true,"sectionLayoutUnchanged":true,"presentationWalkUnchanged":true}

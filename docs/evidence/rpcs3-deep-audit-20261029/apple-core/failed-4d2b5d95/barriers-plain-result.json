@@ -1,0 +1,32 @@
+{
+  "passed": true,
+  "program_sha256": "49c353df5bcf72dec240e71de405eaf424a691d47434650b2111be41dd3995bf",
+  "evidence": "docs/evidence/rpcs3-deep-audit-20261029/texture-barriers.json",
+  "canonical_program_sha256": "1b86396e262009ed64c5c82ce10e016bb4d1413f993e75f60a4df8d6c8af4b17",
+  "apple_host_adapter": true,
+  "compiler": "Homebrew clang version 22.1.8",
+  "flags": [
+    "-std=c++20",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+    "-O3"
+  ],
+  "results": {
+    "checks": 7680,
+    "baselineShaderReadScopesWithoutVertex": 1152,
+    "candidateShaderReadScopesWithoutVertex": 0,
+    "sameImageAccessRangesQueueFamiliesAndBarrierCounts": true,
+    "computeScopeChanged": false
+  },
+  "mode": "plain",
+  "output_sha256": "fcb02522f5ae0491bbf60048c997f8a7b089407a88546b6f76b1582bbe2bd155",
+  "compile_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "physical_device_tested": false,
+  "gpu_executed": false,
+  "llvm_ir_builder_simulated": true
+}

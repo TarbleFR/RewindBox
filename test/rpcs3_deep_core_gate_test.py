@@ -54,7 +54,10 @@ class ReceiptTests(unittest.TestCase):
             barriers = key.startswith('barriers-')
             if barriers:
                 canonical = 'constexpr u32 VK_IMAGE_ASPECT_COLOR_BIT=1,VK_IMAGE_ASPECT_DEPTH_BIT=2,VK_IMAGE_ASPECT_STENCIL_BIT=4,VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER=45;\n'
-            compiled = gate.apple_host_program('mfc-restore' if restore else 'shader' if shader else 'barriers' if barriers else key, canonical)
+            arena = key.startswith('arena-')
+            if arena:
+                canonical = 'const auto size=1+rng()%128, alignment=std::size_t{1} << (rng()%8);\nconst auto offset=rng()%(capacity+32), size=rng()%512, page=std::size_t{1}<<(rng()%9);\n'
+            compiled = gate.apple_host_program('mfc-restore' if restore else 'shader' if shader else 'barriers' if barriers else 'arena' if arena else key, canonical)
             (self.out / name).write_bytes(compiled.encode())
             if restore:
                 (self.out / 'mfc-restore-canonical.cpp').write_bytes(canonical.encode())
@@ -62,6 +65,8 @@ class ReceiptTests(unittest.TestCase):
                 (self.out / 'shader-canonical.cpp').write_bytes(canonical.encode())
             if barriers:
                 (self.out / 'barriers-canonical.cpp').write_bytes(canonical.encode())
+            if arena:
+                (self.out / 'arena-canonical.cpp').write_bytes(canonical.encode())
             (self.out / (key + '-compile.txt')).write_bytes(b'compile')
             evidence = 'evidence/' + key + '.json'
             native_result = {'passed': True}
@@ -74,7 +79,7 @@ class ReceiptTests(unittest.TestCase):
             report = dict(passed=True, results=native_result, flags=['-UNDEBUG'],
                 compiler=self.compiler, program_sha256=gate.sha(compiled.encode()), evidence=evidence,
                 canonical_program_sha256=gate.sha(canonical.encode()),
-                apple_host_adapter=restore or shader or barriers,
+                apple_host_adapter=restore or shader or barriers or arena,
                 output_sha256=gate.sha(b'output'), compile_sha256=gate.sha(b'compile'))
             if key.endswith('-asan-ubsan'):
                 report['flags'].append('-fsanitize=address,undefined')
@@ -139,6 +144,12 @@ class ReceiptTests(unittest.TestCase):
 
 
 class NativeSchemaTests(unittest.TestCase):
+    def test_arena_adapter_splits_only_two_fixture_declarations(self):
+        original = 'const auto size=1+rng()%128, alignment=std::size_t{1} << (rng()%8);\nconst auto offset=rng()%(capacity+32), size=rng()%512, page=std::size_t{1}<<(rng()%9);'
+        expected = 'const auto size=1+rng()%128; const auto alignment=std::size_t{1} << (rng()%8);\nconst auto offset=rng()%(capacity+32); const auto size=rng()%512; const auto page=std::size_t{1}<<(rng()%9);'
+        self.assertEqual(gate.apple_host_program('arena',original),expected)
+        with self.assertRaises(AssertionError):gate.apple_host_program('arena','int main() {}')
+
     def test_barrier_adapter_only_annotates_two_unused_mock_constants(self):
         original='constexpr u32 VK_IMAGE_ASPECT_COLOR_BIT=1,VK_IMAGE_ASPECT_DEPTH_BIT=2,VK_IMAGE_ASPECT_STENCIL_BIT=4,VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER=45;'
         updated=gate.apple_host_program('barriers', original)

@@ -1,0 +1,7 @@
+/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/arena-program.cpp:517:23: error: 'auto' deduced as 'result_type' (aka 'unsigned long long') in declaration of 'size' and deduced as 'std::size_t' (aka 'unsigned long') in declaration of 'alignment'
+  517 |                 const auto size=1+rng()%128, alignment=std::size_t{1} << (rng()%8);
+      |                       ^         ~~~~~~~~~~~            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/arena-program.cpp:533:23: error: 'auto' deduced as 'result_type' (aka 'unsigned long long') in declaration of 'offset' and deduced as 'std::size_t' (aka 'unsigned long') in declaration of 'page'
+  533 |                 const auto offset=rng()%(capacity+32), size=rng()%512, page=std::size_t{1}<<(rng()%9);
+      |                       ^           ~~~~~~~~~~~~~~~~~~~                       ~~~~~~~~~~~~~~~~~~~~~~~~~
+2 errors generated.
