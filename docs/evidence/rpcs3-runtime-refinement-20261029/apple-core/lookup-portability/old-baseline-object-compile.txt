@@ -1,0 +1,10 @@
+/workspace/scratch/4e89feaca92b/core-build-refinement/lookup-fix/old-baseline.cpp:52:23: error: ‘rpcs3::ios::texture_prehash::lookahead’ defined but not used [-Werror=unused-const-variable=]
+   52 | constexpr std::size_t lookahead = 64;
+      |                       ^~~~~~~~~
+/workspace/scratch/4e89feaca92b/core-build-refinement/lookup-fix/old-baseline.cpp:50:23: error: ‘rpcs3::ios::texture_prehash::max_sequence’ defined but not used [-Werror=unused-const-variable=]
+   50 | constexpr std::size_t max_sequence = 2048;
+      |                       ^~~~~~~~~~~~
+/workspace/scratch/4e89feaca92b/core-build-refinement/lookup-fix/old-baseline.cpp:48:25: error: ‘rpcs3::ios::texture_prehash::min_bytes’ defined but not used [-Werror=unused-const-variable=]
+   48 | constexpr std::uint32_t min_bytes = 64u << 10;
+      |                         ^~~~~~~~~
+cc1plus: all warnings being treated as errors

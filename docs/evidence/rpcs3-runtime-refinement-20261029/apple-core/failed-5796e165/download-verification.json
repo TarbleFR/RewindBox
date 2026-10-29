@@ -1,0 +1,30 @@
+{
+  "passed": true,
+  "run": 40914849302,
+  "source": "5796e165cc0b355e779309f8a20360dc0e969f0d",
+  "artifact": 12914878675,
+  "zipBytes": 56287,
+  "zipSHA256": "565b1af2d73692e410e863656a5dceae8d1214508263f1852950f7b19b289650",
+  "memberCount": 16,
+  "filesSHA256": {
+    "diagnostics/refined-descriptor-asan-ubsan-output.txt": "5155f161eb21c9f637d7cf9a2a5ce9f5e72182e35a624c33c757a39092649d89",
+    "diagnostics/refined-descriptor-asan-ubsan-result.json": "5c87f31c4388bdc383e78ae08a5f7ba1109b490fbea4fa083b46f0cbee48b17a",
+    "diagnostics/refined-descriptor-plain-output.txt": "af318ce2495fe6376d09847c9bb621c2d68eed9a83a6a5b82857ddf03a38d8b0",
+    "diagnostics/refined-descriptor-plain-result.json": "edd3bed8ae39c64b3f9814e022ba221a7d5634092f6535acfc230ff4ee0b802e",
+    "diagnostics/refined-hash-asan-ubsan-output.txt": "43080db2870783e3abca95a085d458e2580f3196ddcf371a16cd34476ad85b28",
+    "diagnostics/refined-hash-asan-ubsan-result.json": "8d6a10356ae1e41eb32e887b81611ca59b2ed8c481eaa9cd7311e448518c9361",
+    "diagnostics/refined-hash-plain-output.txt": "b66c6ed5650a0b4553f365a92939e1071ef0a9dd0999aaac728935b9fc1d1d54",
+    "diagnostics/refined-hash-plain-result.json": "bbb77e27ac72a3f6eb14a85b3e3922b18943d3a1c489d8337fbf3e18a49feb97",
+    "diagnostics/refined-hash-tsan-output.txt": "2a43fc90cc3a18b3ce17255f42486aafd779028766086c80b671f4a0f0439c34",
+    "diagnostics/refined-hash-tsan-result.json": "95f3ce101896ddb8da697611020a7d15ca96fb92fcebf0e39c2632a6b5a082e8",
+    "diagnostics/refined-lookup-plain-output.txt": "3e02ff8bf86f270112458ddf09521bd6212ac3b517545096063a0791c61cade0",
+    "diagnostics/refined-timer-asan-ubsan-output.txt": "343939911e459091a304db7908377006b7950ae46268b2acada766afd824072e",
+    "diagnostics/refined-timer-asan-ubsan-result.json": "b606c59d4c96b84a2d5d87da68ea1e404e7152e49efe5bac6c4e144f460eb67c",
+    "diagnostics/refined-timer-plain-output.txt": "b4f83cd8081bb4fcedddbc47f7bc8df2b391b902220659c989be588b02b00f93",
+    "diagnostics/refined-timer-plain-result.json": "2b0c697d07a988c1619b693c2eab43ab12206148aed7f55f0e14edfa1caaaa1a",
+    "diagnostics/runtime592-proof.json": "aa8d2460bb33a8e6775e3d7644350a66539ab8f1b58820ae5dfb16a26ebafb01"
+  },
+  "githubMetadataSHA256": "873307cbe712cdd5bfecbabe1f0fe25d3bd5409390e214d49881a8c5c802fa5b",
+  "coreBuilt": false,
+  "failedMode": "refined-lookup-plain"
+}

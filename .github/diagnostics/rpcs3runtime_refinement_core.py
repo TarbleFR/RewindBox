@@ -17,6 +17,7 @@ import rpcs3_refinement_delta as delta
 import rpcs3_runtime_refinement_test as tests
 import rpcs3runtime_global_core as previous
 import rpcs3runtime_bo2_warm_core as pipeline
+import rpcs3runtime_refinement_resume as resume
 
 OUT, PROOF = previous.OUT, previous.PROOF
 MANIFEST, ENTRY, WORKFLOW = previous.MANIFEST, previous.ENTRY, previous.WORKFLOW
@@ -43,7 +44,7 @@ def input_paths():
         'test/rpcs3_refinement_contract_test.py',
         'test/native/rpcs3_refinement_timer_edges.inc',OLD_PROOF,OLD_RECEIPT,CODEGEN} | {
         PREFIX+'diagnostics/'+key+suffix for key in proof['tests']
-        for suffix in ('-result.json','-output.txt')}
+        for suffix in ('-result.json','-output.txt')} | resume.INPUT_PATHS
 
 
 def inputs():
@@ -81,6 +82,7 @@ def unchanged_programs(source,roots):
 def source_contract(source,require_committed=True):
     source = Path(source)
     current = inputs()
+    resume.authenticate_inputs(sys.modules[__name__], current)
     with tempfile.TemporaryDirectory(prefix='refinement-contract-') as temporary:
         roots = baselines(source,Path(temporary))
         before = roots['beforeRefinement']
@@ -195,9 +197,18 @@ def validate_result(name,mode,payload,expected,compiler):
     assert '-UNDEBUG' in payload['compilerFlags'] and not any(x.startswith('-DNDEBUG') for x in payload['compilerFlags'])
     assert ('-fsanitize=address,undefined' in payload['compilerFlags'])==(mode=='asan-ubsan')
     assert ('-fsanitize=thread' in payload['compilerFlags'])==(mode=='tsan')
-    for key,value in expected[name].items():
+    bound = resume.rebound_expected(name, payload, expected[name], ROOT)
+    for key,value in bound.items():
         assert payload[key]==value,(name,key)
     tests.validate(TESTS[name][0],payload['results'])
+
+
+def reuse_result(name, mode, receipt, expected, compiler):
+    return resume.reuse_result(name, mode, receipt, expected, compiler, gate=sys.modules[__name__])
+
+
+def verify_reused_result(name, mode, state, proof, expected):
+    return resume.verify_reused_result(name, mode, state, proof, expected, gate=sys.modules[__name__])
 
 
 def main(args):

@@ -2,6 +2,25 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## RPCS3 refinement Core retry — 29 October 2026
+
+The maintainer explicitly requested resuming failed run 40914849302, source
+5796e165, job 123592224611. Seven Apple modes passed before the isolated lookup
+harness failed Clang -Werror on min_bytes, max_sequence and lookahead; Core
+compilation was skipped. Preserve that failure and artifact 12914878675.
+
+Only the copied lookup test header gains three exact [[maybe_unused]] annotations.
+The 313 native postimages, 97 supplements, workflow and Core recipe are unchanged.
+GCC with the explicit equivalent unused-constant diagnostic reproduces all three
+old errors; corrected lookup plain and ASan/UBSan pass for both versions. No
+unchanged native test or CMake is replayed. The partial-resume contract binds 349
+inputs, seven exact passed Apple programs and their original report/output bytes;
+36 corrupt-evidence controls are rejected. The original failure stays a failure.
+The retry runs only lookup and RSX sampler plain/ASan, then builds the actual Core.
+The separate 17 global and 16 older unchanged Apple modes remain historical.
+No new IPA, release, iPhone/FPS or successful retry result is established here.
+See docs/rpcs3-runtime-refinement-core-2026-10-29.md and its evidence directory.
+
 ## RPCS3 runtime refinements after the verified Core — 29 October 2026
 
 The maintainer explicitly requested concrete engine optimization after 5b2a5614.

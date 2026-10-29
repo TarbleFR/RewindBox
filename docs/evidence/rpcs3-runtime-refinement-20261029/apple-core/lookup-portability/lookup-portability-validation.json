@@ -1,0 +1,68 @@
+{
+  "passed": true,
+  "purpose": "Clang unused-constant warning portability fix checked with equivalent GCC diagnostic",
+  "sourceProof": "lookup-portability-source-proof.json",
+  "sourceProofSHA256": "053f0672023c703b803adb8887593aab190696fd1ad44d972cd91f2a5b1f1740",
+  "reports": {
+    "plain": {
+      "path": "lookup-plain.json",
+      "sha256": "68fb05cb2883f95dafc2ac82214b2a44016318a1d0b21f10b99833ce56da922f",
+      "passed": true,
+      "baselineAndCandidate": true,
+      "sanitizer": "",
+      "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+      "compilerExtraArguments": [
+        "-Wunused-const-variable=2"
+      ],
+      "compilerFlags": [
+        "-std=c++20",
+        "-O3",
+        "-g",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-UNDEBUG",
+        "-pthread",
+        "-DRPCS3_IOS=1"
+      ]
+    },
+    "asan-ubsan": {
+      "path": "lookup-asan-ubsan.json",
+      "sha256": "92b0fdea3e48c1986c7edd461680c171d6c20544d3c175fdf2aa3b8717c0be4b",
+      "passed": true,
+      "baselineAndCandidate": true,
+      "sanitizer": "address,undefined",
+      "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+      "compilerExtraArguments": [
+        "-Wunused-const-variable=2"
+      ],
+      "compilerFlags": [
+        "-std=c++20",
+        "-O1",
+        "-g",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-UNDEBUG",
+        "-pthread",
+        "-DRPCS3_IOS=1",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-fno-pie",
+        "-no-pie"
+      ]
+    }
+  },
+  "nativeModesExecuted": 2,
+  "nativeVariantsExecuted": 4,
+  "unchangedModesReplayed": 0,
+  "cmakeExecuted": false,
+  "coreBuilt": false,
+  "physicalDeviceTested": false,
+  "performanceMeasured": false,
+  "limits": [
+    "Linux x86_64 GCC13.3, not Apple Clang or iPhone execution.",
+    "No benchmark requested for this test-only correction.",
+    "GCC needs object compilation for unused-constant diagnostics; preliminary syntax-only result did not reproduce warnings."
+  ]
+}

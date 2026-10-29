@@ -132,6 +132,15 @@ def codegen_proof(source, baseline):
 
 def lookup_program(tree):
     header = (tree / texture.HEADER).read_text().replace('#pragma once', '')
+    # This isolated lookup harness does not compile the production callers
+    # using these policy constants; keep Clang's -Werror active everywhere.
+    for declaration in (
+        'constexpr std::uint32_t min_bytes = 64u << 10;',
+        'constexpr std::size_t max_sequence = 2048;',
+        'constexpr std::size_t lookahead = 64;',
+    ):
+        assert header.count(declaration) == 1
+        header = header.replace(declaration, '[[maybe_unused]] ' + declaration)
     anchor = '\tconst std::uint64_t stored_hash = slot.hash.load(std::memory_order_acquire);'
     assert header.count(anchor) == 1
     # A writer advances the epoch precisely between the reader's epoch and
