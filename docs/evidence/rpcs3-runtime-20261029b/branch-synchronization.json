@@ -162,5 +162,13 @@
   },
   "rpcs3BaselineByteIdentical": true,
   "workingCandidatePreserved": true,
-  "pushed": false
+  "pushed": false,
+  "subsequentSynchronization": {
+    "latestRemoteBase": "2f535c379ae385b68f0b33731d18efaf9e568047",
+    "parent": "876a8d586782987b6bf64d66cfccec83f298b1ee",
+    "changedPath": "test/melonx_jit_dataflow_codegen_test.py",
+    "preservedRemoteBlob": "baa98e13a5e84715fa962fc6bdbcd178b121872d",
+    "sourceContractInputsUnchanged": true,
+    "canonicalReferenceUnchanged": true
+  }
 }

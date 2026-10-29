@@ -1,8 +1,8 @@
 # RPCS3 runtime optimization follow-up — 29 October 2026
 
 Source candidate synchronized with `Claude` commit
-`876a8d586782987b6bf64d66cfccec83f298b1ee`, preserving its complete MeloNX
-follow-up. The RPCS3 reference remains the identical Core source at
+`2f535c379ae385b68f0b33731d18efaf9e568047`, preserving the complete MeloNX
+follow-up at `876a8d5` and its later macOS probe-path correction. The RPCS3 reference remains the identical Core source at
 `075d84a49e3540cdae5352908fd81bc411b78942`, after the delivered application
 588 / Core 592. This change does not assign a build number, build an IPA or
 publish a release. No Apple Core build or physical-device execution has been
@@ -187,8 +187,9 @@ and [prehash-fixture-proof.json](evidence/rpcs3-runtime-20261029b/prehash-fixtur
 
 The final branch synchronization preserves all 31 files changed remotely by
 the concurrent MeloNX work. Its `AGENTS.md` addition is preserved alongside
-this candidate's entry; no remote source is overwritten. The RPCS3 manifest
-and canonical patch are byte-identical between the two remote base commits.
+this candidate's entry; no remote source is overwritten. The later `2f535c3` update changes only the MeloNX macOS codegen test and
+leaves all 161 verified RPCS3 inputs unchanged. The RPCS3 manifest and
+canonical patch are byte-identical across these remote base commits.
 See [branch-synchronization.json](evidence/rpcs3-runtime-20261029b/branch-synchronization.json).
 
 All reported new execution results are host tests with assertions enabled.

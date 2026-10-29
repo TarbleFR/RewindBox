@@ -28,7 +28,9 @@ assert not subprocess.check_output(['git', '-C', str(SOURCE), 'status', '--porce
                                     'src/Ryujinx.Cpu', 'src/ARMeilleure', 'src/Ryujinx.Memory'], text=True).strip()
 adapters = ['adapt_jit_decoder.py', 'adapt_jit_context.py', 'adapt_jit_block_split.py', 'adapt_jit_dataflow.py']
 with tempfile.TemporaryDirectory(prefix='melonx-dataflow-codegen-') as temporary:
-    work = Path(temporary)
+    # macOS aliases /var to /private/var. Use one canonical root for MSBuild's
+    # transitive project references, as the existing decoder probe does.
+    work = Path(temporary).resolve()
     source = work / 'source'
     for filename in ['Directory.Build.props', 'Directory.Packages.props', 'global.json', 'nuget.config']:
         if (SOURCE / filename).exists():
