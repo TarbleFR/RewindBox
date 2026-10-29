@@ -1,0 +1,156 @@
+Linked Core592 raw binary SHA256: 436830efb07b1204f57713dfd1ecd242d7f36bed3f55aea01a25cc0ff6a7a8ac
+Binary bytes: 77232008
+Disassembler only: LLVM 20.1.2, preinstalled /lib/x86_64-linux-gnu/libLLVM.so.20.1
+Static disassembly; no execution, compilation, device timing or FPS measurement.
+
+__Z18get_timebased_timev:
+  0277f204 ff0301d1  sub	sp, sp, #64
+  0277f208 f65701a9  stp	x22, x21, [sp, #16]
+  0277f20c f44f02a9  stp	x20, x19, [sp, #32]
+  0277f210 fd7b03a9  stp	x29, x30, [sp, #48]
+  0277f214 fdc30091  add	x29, sp, #48
+  0277f218 487a02b0  adrp	x8, #83136512
+  0277f21c 08610991  add	x8, x8, #600
+  0277f220 090140f9  ldr	x9, [x8]
+  0277f224 e90200b4  cbz	x9, #92
+  0277f228 48e03bd5  mrs	x8, CNTVCT_EL0
+  0277f22c 0a409952  mov	w10, #51712
+  0277f230 4a73a772  movk	w10, #15258, lsl #16
+  0277f234 3f010aeb  cmp	x9, x10
+  0277f238 61060054  b.ne	#204
+  0277f23c a9c295d2  mov	x9, #44565
+  0277f240 e928bcf2  movk	x9, #57671, lsl #16
+  0277f244 498fc2f2  movk	x9, #5242, lsl #32
+  0277f248 c9f5e8f2  movk	x9, #18350, lsl #48
+  0277f24c 097dc99b  umulh	x9, x8, x9
+  0277f250 0a0109cb  sub	x10, x8, x9
+  0277f254 29054a8b  add	x9, x9, x10, lsr #1
+  0277f258 29fd44d3  lsr	x9, x9, #4
+  0277f25c 2a038052  mov	w10, #25
+  0277f260 28a10a9b  msub	x8, x9, x10, x8
+  0277f264 1f3100f1  cmp	x8, #12
+  0277f268 e8979f1a  cset	w8, hi
+  0277f26c ea1902b0  adrp	x10, #70504448
+  0277f270 4a011491  add	x10, x10, #1280
+  0277f274 080509aa  orr	x8, x8, x9, lsl #1
+  0277f278 49713e91  add	x9, x10, #3996
+  0277f27c 2c000014  b	#176
+  0277f280 e1030091  mov	x1, sp
+  0277f284 c0008052  mov	w0, #6
+  0277f288 72eb1c94  bl	#7581128
+  0277f28c 20030035  cbnz	w0, #100
+  0277f290 13809652  mov	w19, #46080
+  0277f294 9398a072  movk	w19, #1220, lsl #16
+  0277f298 744a8bd2  mov	x20, #23123
+  0277f29c 7413b4f2  movk	x20, #41115, lsl #16
+  0277f2a0 f405d7f2  movk	x20, #47151, lsl #32
+  0277f2a4 9408e0f2  movk	x20, #68, lsl #48
+  0277f2a8 e81902b0  adrp	x8, #70504448
+  0277f2ac 08011491  add	x8, x8, #1280
+  0277f2b0 15713e91  add	x21, x8, #3996
+  0277f2b4 e82740a9  ldp	x8, x9, [sp]
+  0277f2b8 087d139b  mul	x8, x8, x19
+  0277f2bc 297d139b  mul	x9, x9, x19
+  0277f2c0 29fd49d3  lsr	x9, x9, #9
+  0277f2c4 297dd49b  umulh	x9, x9, x20
+  0277f2c8 082d498b  add	x8, x8, x9, lsr #11
+  0277f2cc a9fedf88  ldar	w9, [x21]
+  0277f2d0 297d4093  sxtw	x9, w9
+  0277f2d4 087d099b  mul	x8, x8, x9
+  0277f2d8 1f9101f1  cmp	x8, #100
+  0277f2dc e2020054  b.hs	#92
+  0277f2e0 e1030091  mov	x1, sp
+  0277f2e4 c0008052  mov	w0, #6
+  0277f2e8 5aeb1c94  bl	#7581032
+  0277f2ec 40feff34  cbz	w0, #-56
+  0277f2f0 40a70090  adrp	x0, #21921792
+  0277f2f4 00e01091  add	x0, x0, #1080
+  0277f2f8 010080d2  mov	x1, #0
+  0277f2fc 020080d2  mov	x2, #0
+  0277f300 fa8bf297  bl	#-3526680
+  0277f304 0a09c99a  udiv	x10, x8, x9
+  0277f308 0b809652  mov	w11, #46080
+  0277f30c 8b98a072  movk	w11, #1220, lsl #16
+  0277f310 48a1099b  msub	x8, x10, x9, x8
+  0277f314 087d0b9b  mul	x8, x8, x11
+  0277f318 0809c99a  udiv	x8, x8, x9
+  0277f31c e91902b0  adrp	x9, #70504448
+  0277f320 29011491  add	x9, x9, #1280
+  0277f324 48210b9b  madd	x8, x10, x11, x8
+  0277f328 29713e91  add	x9, x9, #3996
+  0277f32c 29fddf88  ldar	w9, [x9]
+  0277f330 297d4093  sxtw	x9, w9
+  0277f334 087d099b  mul	x8, x8, x9
+  0277f338 08fd42d3  lsr	x8, x8, #2
+  0277f33c 69b89ed2  mov	x9, #62915
+  0277f340 0985abf2  movk	x9, #23592, lsl #16
+  0277f344 e951d8f2  movk	x9, #49807, lsl #32
+  0277f348 a91ee5f2  movk	x9, #10485, lsl #48
+  0277f34c 087dc99b  umulh	x8, x8, x9
+  0277f350 08fd42d3  lsr	x8, x8, #2
+  0277f354 c98702f0  adrp	x9, #84914176
+  0277f358 294942f9  ldr	x9, [x9, #1168]
+  0277f35c 000109cb  sub	x0, x8, x9
+  0277f360 fd7b43a9  ldp	x29, x30, [sp, #48]
+  0277f364 f44f42a9  ldp	x20, x19, [sp, #32]
+  0277f368 f65741a9  ldp	x22, x21, [sp, #16]
+  0277f36c ff030191  add	sp, sp, #64
+  0277f370 c0035fd6  ret
+__Z15get_system_timev:
+  0277f374 ffc300d1  sub	sp, sp, #48
+  0277f378 f44f01a9  stp	x20, x19, [sp, #16]
+  0277f37c fd7b02a9  stp	x29, x30, [sp, #32]
+  0277f380 fd830091  add	x29, sp, #32
+  0277f384 487a02b0  adrp	x8, #83136512
+  0277f388 08610991  add	x8, x8, #600
+  0277f38c 080140f9  ldr	x8, [x8]
+  0277f390 280200b4  cbz	x8, #68
+  0277f394 49e03bd5  mrs	x9, CNTVCT_EL0
+  0277f398 0a409952  mov	w10, #51712
+  0277f39c 4a73a772  movk	w10, #15258, lsl #16
+  0277f3a0 1f010aeb  cmp	x8, x10
+  0277f3a4 a1030054  b.ne	#116
+  0277f3a8 28fd43d3  lsr	x8, x9, #3
+  0277f3ac e9f99ed2  mov	x9, #63439
+  0277f3b0 696abcf2  movk	x9, #58195, lsl #16
+  0277f3b4 a974d3f2  movk	x9, #39845, lsl #32
+  0277f3b8 8918e4f2  movk	x9, #8388, lsl #48
+  0277f3bc 087dc99b  umulh	x8, x8, x9
+  0277f3c0 00fd44d3  lsr	x0, x8, #4
+  0277f3c4 fd7b42a9  ldp	x29, x30, [sp, #32]
+  0277f3c8 f44f41a9  ldp	x20, x19, [sp, #16]
+  0277f3cc ffc30091  add	sp, sp, #48
+  0277f3d0 c0035fd6  ret
+  0277f3d4 13488852  mov	w19, #16960
+  0277f3d8 f301a072  movk	w19, #15, lsl #16
+  0277f3dc f4f99ed2  mov	x20, #63439
+  0277f3e0 746abcf2  movk	x20, #58195, lsl #16
+  0277f3e4 b474d3f2  movk	x20, #39845, lsl #32
+  0277f3e8 9418e4f2  movk	x20, #8388, lsl #48
+  0277f3ec e1030091  mov	x1, sp
+  0277f3f0 c0008052  mov	w0, #6
+  0277f3f4 17eb1c94  bl	#7580764
+  0277f3f8 60020035  cbnz	w0, #76
+  0277f3fc e82740a9  ldp	x8, x9, [sp]
+  0277f400 087d139b  mul	x8, x8, x19
+  0277f404 29fd43d3  lsr	x9, x9, #3
+  0277f408 297dd49b  umulh	x9, x9, x20
+  0277f40c 001149ab  adds	x0, x8, x9, lsr #4
+  0277f410 e0feff54  b.eq	#-36
+  0277f414 ecffff17  b	#-80
+  0277f418 2a09c89a  udiv	x10, x9, x8
+  0277f41c 0b488852  mov	w11, #16960
+  0277f420 eb01a072  movk	w11, #15, lsl #16
+  0277f424 49a5089b  msub	x9, x10, x8, x9
+  0277f428 297d0b9b  mul	x9, x9, x11
+  0277f42c 2809c89a  udiv	x8, x9, x8
+  0277f430 40210b9b  madd	x0, x10, x11, x8
+  0277f434 fd7b42a9  ldp	x29, x30, [sp, #32]
+  0277f438 f44f41a9  ldp	x20, x19, [sp, #16]
+  0277f43c ffc30091  add	sp, sp, #48
+  0277f440 c0035fd6  ret
+  0277f444 40a70090  adrp	x0, #21921792
+  0277f448 00401191  add	x0, x0, #1104
+  0277f44c 010080d2  mov	x1, #0
+  0277f450 020080d2  mov	x2, #0
+  0277f454 a58bf297  bl	#-3527020

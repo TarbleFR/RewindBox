@@ -34,13 +34,20 @@ against their verified originals afterward. Every executable is signed and
 verified from the final ZIP. Legal notices and application/extension versions
 are checked on the final IPA.
 
-Current state: Core592 run40800626294 completed successfully; IPA preparation.
+Delivered: private IPA588, source `4a20e8e9`, successful run40803513166,
+artifact12867282283. IPA 188,291,408 bytes, SHA-256
+`dfa8aa7a1d60e29226dbaa260cd12bf44a9a91510d4e25805ec6aaa0a1af9b70`.
+Delivery took 601 s; the Xcode phase took 218.46 s and signing/export 36.10 s.
+Exact receipt: `evidence/rewind588-delivery.json`.
+
+Core592 run40800626294 completed successfully.
 The Core is 77,232,008 bytes, SHA-256
 `436830efb07b1204f57713dfd1ecd242d7f36bed3f55aea01a25cc0ff6a7a8ac`.
 Its exact identities and artifact pins are in `evidence/rpcs3-runtime592-macos.json`.
-This document does not
-claim a delivered IPA or physical-device performance result until the completed
-delivery receipt is recorded. The IPA still requires SideStore/Apple re-signing
+The decrypted final IPA matches SHA256SUMS and the signed-payload receipt.
+Its signed Core and MeloNX binary were independently compared with their
+verified raw artifacts. All 85 Mach-O images pass the delivery signing/ABI checks.
+No physical-device performance result is inferred. The IPA requires SideStore/Apple re-signing
 for installation. No caches, saves or per-game settings are cleared.
 
 First assembly run40802595865 stopped before Xcode because the MeloNX guard
@@ -50,6 +57,11 @@ was then downloaded, SHA-256 checked and passed the production guard: both
 binaries/platforms, 57 inputs, 12 source groups, seven JSON receipts and the
 stdout-only pool/range step. See `evidence/melonx-engine588-archive.json`.
 Both compiled engines are reused by the corrected assembly.
+
+Static inspection of the exact linked Core confirms zero executed UDIV on
+each 1 GHz path, two on each 24 MHz fallback path. This uses the preinstalled
+LLVM20.1.2 disassembler, with no compilation or execution of the inspected code.
+See `evidence/rpcs3-runtime592-linked-clock.json` and the accompanying `.txt`.
 
 Next device comparison: the same restored God of War III, Assassin's Creed and
 MeloNX scenes with the existing counters and retained caches. Host tests and
