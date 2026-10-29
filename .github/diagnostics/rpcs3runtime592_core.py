@@ -336,6 +336,23 @@ if __name__ == '__main__':
     p.add_argument('--verify-reuse', type=Path)
     p.add_argument('--write-core-identity', type=Path)
     a = p.parse_args()
+    if 'deep_audit_20261029' in manifest():
+        # The original runtime592 workflow remains byte-for-byte unchanged.
+        # Only the candidate validation is routed to its changed SPU/RSX
+        # source contract; do not reuse old LLVM/SPU codegen identities.
+        import shutil
+        import rpcs3deep_core as deep
+        if a.write_core_identity:
+            deep.identity(a.write_core_identity)
+        elif a.source and a.verify_reuse:
+            deep.verify(a.verify_reuse, a.source.resolve())
+        elif a.source:
+            deep.prepare(a.source.resolve())
+            # Preserve the original workflow's artifact/verify-reuse path.
+            shutil.copyfile(deep.PROOF, OUT / 'runtime592-proof.json')
+        else:
+            p.error('deep-audit source requires --source or --write-core-identity')
+        raise SystemExit
     if 'runtime_refinement_20261029' in manifest():
         from rpcs3runtime_refinement_core import main as refinement_main
         refinement_main(a)
