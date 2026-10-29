@@ -1,0 +1,58 @@
+{
+  "result": "passed",
+  "reports": {
+    "control": {
+      "semantics": [
+        "colors:3:first,null,first;depth:depth;refs:0,1;calls:1",
+        "colors:0;depth:null;refs:0,1;calls:1"
+      ],
+      "exceptions": [
+        "InvalidCastException;refs:0;calls:0;depth-remains-for-queue-teardown",
+        "BackendException:same-instance;refs:0,1;calls:1"
+      ],
+      "successCleared": false,
+      "conversionReturned": false,
+      "backendReturned": false,
+      "poolRetainsResource": true,
+      "warmAllocatedBytes": 0,
+      "warmCommands": 50000
+    },
+    "candidate": {
+      "semantics": [
+        "colors:3:first,null,first;depth:depth;refs:0,1;calls:1",
+        "colors:0;depth:null;refs:0,1;calls:1"
+      ],
+      "exceptions": [
+        "InvalidCastException;refs:0;calls:0;depth-remains-for-queue-teardown",
+        "BackendException:same-instance;refs:0,1;calls:1"
+      ],
+      "successCleared": true,
+      "conversionReturned": true,
+      "backendReturned": true,
+      "poolRetainsResource": false,
+      "warmAllocatedBytes": 0,
+      "warmCommands": 50000
+    }
+  },
+  "completeProductionCommandAndTableRef": true,
+  "rendererTransportDoubled": true,
+  "backendDoubled": true,
+  "physicalDeviceTested": false,
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "dotnet": "10.0.100",
+  "inputs": {
+    "build-utils/melonx/adapt_render_target_snapshot.py": "312ab4f4f756d56338ab1f691ac165d628e6130dbf6b2c4b95f48bc9250e9f50",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_render_target_snapshot_test.py": "3f323aae665455c47cbfcb529fb19b058d60b114b78bbd483755b5ddcbe7c13b",
+    "test/melonx_render_target_snapshot/Program.cs": "ea8dd256d67c1d3bae36208f16843b88f809300d8a267f972d1fc50b6770e83b"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/SetRenderTargetsCommand.cs": "0942f2702976e6cadac11cbf24a1cf955f7a28fb7b299d58982524774efec193",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Model/TableRef.cs": "a27b66790c4afe58a41d95c75875bd550aaf8739cbebe7ab2983796ccceccce9",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/IGALCommand.cs": "eaa488cca3edf751a90bc88c82542970150e0bcf3317f779e085a660168ac8ec"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.GAL/Multithreading/Commands/SetRenderTargetsCommand.cs": "136459b67e54f7fcd45e046fcd44c5a90351088bd6b42506321304e11ca1d458"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "result": "passed",
+  "productionCommandHelperInvoked": true,
+  "nativeCallsUsed": false,
+  "rows": [
+    {
+      "variant": "baseline",
+      "assemblySha256": "f11ee6a10c4772509b3b0611b5865e56e55e45521f3eeafc1fa2446d56463e52",
+      "maximum": 77,
+      "alignedStride": 80,
+      "scalarCommandSize": 12
+    },
+    {
+      "variant": "candidate",
+      "assemblySha256": "73c7788996342f6d38043444bef42bad699410ff1725df62f601f9e6c1dfb163",
+      "maximum": 77,
+      "alignedStride": 80,
+      "scalarCommandSize": 20
+    }
+  ],
+  "programSha256": "d73230a939ebd406cb1c81147a213215caa5089c9ee1cdbde1583313c96be0de"
+}

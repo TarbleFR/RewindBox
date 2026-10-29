@@ -1,0 +1,117 @@
+{
+  "result": "passed",
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "dotnet": "10.0.100",
+  "reports": {
+    "control": {
+      "ownership": {
+        "checks": 8868,
+        "semanticDigest": 10894426204516714007,
+        "measurements": {
+          "currentRentals": 1000,
+          "currentReturns": 0,
+          "outstanding": 1132,
+          "retainedReferences": 31151,
+          "rents": 1715,
+          "returns": 583
+        }
+      },
+      "allocation": {
+        "checks": 8851,
+        "semanticDigest": 10894426204516714007,
+        "measurements": {
+          "iterations": 20000,
+          "allocatedBytes": 3040000,
+          "elapsedNs": 4465126
+        }
+      }
+    },
+    "candidate": {
+      "ownership": {
+        "checks": 8869,
+        "semanticDigest": 10894426204516714007,
+        "measurements": {
+          "currentRentals": 1000,
+          "currentReturns": 1000,
+          "outstanding": 0,
+          "retainedReferences": 0,
+          "rents": 1715,
+          "returns": 1715
+        }
+      },
+      "allocation": {
+        "checks": 8851,
+        "semanticDigest": 10894426204516714007,
+        "measurements": {
+          "iterations": 20000,
+          "allocatedBytes": 0,
+          "elapsedNs": 1568653
+        }
+      }
+    }
+  },
+  "physicalDeviceTested": false,
+  "fenceAndBufferHandlesDoubled": true,
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs": "606809c5963a3ce1302a0f22615841476bc2c495a18176f59e40f71e265f178e",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs": "7a28ddf2306df5d82cb2a0d8b21208cb4bc835e0d4a47e9c8c8760cd7cdc3584",
+    "src/Ryujinx.Memory/Range/IRange.cs": "d7b661592c0820bba0e7ff19b7d882383f46fd7fe70a0f5f4e5bdadc6e032651",
+    "src/Ryujinx.Memory/Range/INonOverlappingRange.cs": "15d4eb27f4f4e25eb4f3bf369fb6cdc6a68ab1874990505bba0b8dd75eeaac95",
+    "src/Ryujinx.Memory/Range/RangeListBase.cs": "32e1108eb72704f942fe62ceb361f60e2df8b6e4450f11dbb6fcb89f04b156e3",
+    "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs": "cecd0546d26c60f64c62ec3438b71bd64bf4981dbd9c92ef6dbae3a9403adf95"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs": "94129cf9cdcb552e5e614f4aaf75914f1cbd7e222448e9474025ace69ea36580",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs": "ec0ed0907b4b9af9edcf8cf767ade285ffd8267b3e4e630792ec391cac941b4d"
+  },
+  "compiledSourceInputs": {
+    "control/ownership": {
+      "Boundaries.cs": "8808b1262f3926cd842f317397200fa217a3ca5765d4e76d3755c2f49fa7c3dc",
+      "Program.cs": "9aab2f56871ce715a02bc46ac920a5285f6dc07d86752afc2a7d7570d45975a8",
+      "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs": "7a28ddf2306df5d82cb2a0d8b21208cb4bc835e0d4a47e9c8c8760cd7cdc3584",
+      "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs": "bd47f2cfb9e5d6ac7dac0b655b81f59e4bea7d3891db5f228981716d577442ef",
+      "src/Ryujinx.Memory/Range/INonOverlappingRange.cs": "15d4eb27f4f4e25eb4f3bf369fb6cdc6a68ab1874990505bba0b8dd75eeaac95",
+      "src/Ryujinx.Memory/Range/IRange.cs": "d7b661592c0820bba0e7ff19b7d882383f46fd7fe70a0f5f4e5bdadc6e032651",
+      "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs": "03458c0002e668c6ac118059ce5a441eaec8753161a0a4b8951660042cd13dfe",
+      "src/Ryujinx.Memory/Range/RangeListBase.cs": "2961de99e2a9d6b15f3922c6d78e706f6e634f20b6f11c3c389e054378b346ec"
+    },
+    "control/allocation": {
+      "Boundaries.cs": "8808b1262f3926cd842f317397200fa217a3ca5765d4e76d3755c2f49fa7c3dc",
+      "Program.cs": "9aab2f56871ce715a02bc46ac920a5285f6dc07d86752afc2a7d7570d45975a8",
+      "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs": "7a28ddf2306df5d82cb2a0d8b21208cb4bc835e0d4a47e9c8c8760cd7cdc3584",
+      "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs": "606809c5963a3ce1302a0f22615841476bc2c495a18176f59e40f71e265f178e",
+      "src/Ryujinx.Memory/Range/INonOverlappingRange.cs": "15d4eb27f4f4e25eb4f3bf369fb6cdc6a68ab1874990505bba0b8dd75eeaac95",
+      "src/Ryujinx.Memory/Range/IRange.cs": "d7b661592c0820bba0e7ff19b7d882383f46fd7fe70a0f5f4e5bdadc6e032651",
+      "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs": "cecd0546d26c60f64c62ec3438b71bd64bf4981dbd9c92ef6dbae3a9403adf95",
+      "src/Ryujinx.Memory/Range/RangeListBase.cs": "32e1108eb72704f942fe62ceb361f60e2df8b6e4450f11dbb6fcb89f04b156e3"
+    },
+    "candidate/ownership": {
+      "Boundaries.cs": "8808b1262f3926cd842f317397200fa217a3ca5765d4e76d3755c2f49fa7c3dc",
+      "Program.cs": "9aab2f56871ce715a02bc46ac920a5285f6dc07d86752afc2a7d7570d45975a8",
+      "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs": "ec0ed0907b4b9af9edcf8cf767ade285ffd8267b3e4e630792ec391cac941b4d",
+      "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs": "de9d3a698b84dbbb51ac304c1201383e4c93674d95e9180ef4f608e9d19d0c0e",
+      "src/Ryujinx.Memory/Range/INonOverlappingRange.cs": "15d4eb27f4f4e25eb4f3bf369fb6cdc6a68ab1874990505bba0b8dd75eeaac95",
+      "src/Ryujinx.Memory/Range/IRange.cs": "d7b661592c0820bba0e7ff19b7d882383f46fd7fe70a0f5f4e5bdadc6e032651",
+      "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs": "03458c0002e668c6ac118059ce5a441eaec8753161a0a4b8951660042cd13dfe",
+      "src/Ryujinx.Memory/Range/RangeListBase.cs": "2961de99e2a9d6b15f3922c6d78e706f6e634f20b6f11c3c389e054378b346ec"
+    },
+    "candidate/allocation": {
+      "Boundaries.cs": "8808b1262f3926cd842f317397200fa217a3ca5765d4e76d3755c2f49fa7c3dc",
+      "Program.cs": "9aab2f56871ce715a02bc46ac920a5285f6dc07d86752afc2a7d7570d45975a8",
+      "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs": "ec0ed0907b4b9af9edcf8cf767ade285ffd8267b3e4e630792ec391cac941b4d",
+      "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs": "94129cf9cdcb552e5e614f4aaf75914f1cbd7e222448e9474025ace69ea36580",
+      "src/Ryujinx.Memory/Range/INonOverlappingRange.cs": "15d4eb27f4f4e25eb4f3bf369fb6cdc6a68ab1874990505bba0b8dd75eeaac95",
+      "src/Ryujinx.Memory/Range/IRange.cs": "d7b661592c0820bba0e7ff19b7d882383f46fd7fe70a0f5f4e5bdadc6e032651",
+      "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs": "cecd0546d26c60f64c62ec3438b71bd64bf4981dbd9c92ef6dbae3a9403adf95",
+      "src/Ryujinx.Memory/Range/RangeListBase.cs": "32e1108eb72704f942fe62ceb361f60e2df8b6e4450f11dbb6fcb89f04b156e3"
+    }
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_buffer_range_snapshots.py": "566b33a33cccbe353fc32c3124e0cd3b78bf9aaa32555af01e1b4c0213fea9fe",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_buffer_range_snapshots_test.py": "2ca23b0a51ff3eb02c131b965f44d0b31346c68a491d889d3eeae1fe4c2b6aea",
+    "test/melonx_buffer_range_snapshots/Program.cs": "9aab2f56871ce715a02bc46ac920a5285f6dc07d86752afc2a7d7570d45975a8",
+    "test/melonx_buffer_range_snapshots/Boundaries.cs": "8808b1262f3926cd842f317397200fa217a3ca5765d4e76d3755c2f49fa7c3dc"
+  }
+}

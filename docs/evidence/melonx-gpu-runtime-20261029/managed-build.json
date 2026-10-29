@@ -1,0 +1,41 @@
+{
+  "result": "passed",
+  "sdk": "10.0.100",
+  "configuration": "Release",
+  "runtime": "linux-x64",
+  "nativeAot": false,
+  "appleBuild": false,
+  "physicalDeviceTested": false,
+  "builds": [
+    {
+      "log": "managed-build-initial.txt",
+      "sha256": "5a51bef71bcf3b65a60074270e9975086f3464678af7188626e9172385a83ddc",
+      "warnings": 27,
+      "errors": 0,
+      "elapsed": "00:01:37.54",
+      "incremental": false
+    },
+    {
+      "log": "managed-build-final.txt",
+      "sha256": "54474550a3b58fb0f2a4868b51f66e6aa27e6ee0335ba37a0525d0339891e9cc",
+      "warnings": 23,
+      "errors": 0,
+      "elapsed": "00:00:12.36",
+      "incremental": true
+    }
+  ],
+  "assemblies": {
+    "Ryujinx.Library": "2ff1772197311e55275145ba17f27ce2450dc78c428aed51d412be02d60241c8",
+    "Ryujinx.Graphics.Vulkan": "384ba95aaa2d324ddc6818ad6d806e4841a1a8d8861d3690ea56f9c3246e8375",
+    "Ryujinx.Graphics.GAL": "73c7788996342f6d38043444bef42bad699410ff1725df62f601f9e6c1dfb163",
+    "Ryujinx.Graphics.Gpu": "615b45cedcc2c9bacd31be1d464b2af60b653351bbd711a00c415c9ec96bf3d8"
+  },
+  "compiledSourceFilesMatchingFreshPreparation": 4965,
+  "existingSdkProvenance": {
+    "version": "10.0.100",
+    "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.100/dotnet-sdk-10.0.100-linux-x64.tar.gz",
+    "sha512": "f78dbac30c9af2230d67ff5c224de3a5dbf63f8a78d1c206594dedb80e6909d2cc8a9d865d5105c72c2fd2aa266fc0c6c77dedac60408cbccf272b116bd11b07",
+    "bytes": 239125653,
+    "metadata": "https://builds.dotnet.microsoft.com/dotnet/release-metadata/10.0/releases.json"
+  }
+}

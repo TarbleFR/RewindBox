@@ -2,6 +2,31 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## MeloNX GPU execution and warm-up source candidate — 29 October 2026
+
+The maintainer requested further concrete MeloNX optimization, starting from
+Claude c0df3394 after Core85/IPA595. Six guarded adapters change twelve engine
+files: speculative vertex-stride parity, closure-free attachment queries,
+scalar threaded bindings, buffer range/migration ownership, render-target
+snapshot cleanup, and key-only conversion without shader-stage allocations.
+Preparation now authenticates 93 inputs; 121 of Core85's 129 prepared members
+remain identical, eight change and four additional sources are included.
+
+Six targeted host suites pass with functional equivalence/ownership checks.
+Warm allocations: attachment queries 88→0 B, scalar bindings 32→0 B, a current-sync
+buffer snapshot 152→0 B, pipeline keys 32→0 B plus native 240→0 B per lookup. These
+are isolated workloads, not resident RAM or iPhone FPS measurements. The fresh
+binding stride oracle has 1,200→0 key divergences over 5,766 states. Historical
+unused-buffer alignment is outside that claim. Real command-ring stride stays 80 B.
+
+Full managed Release Library passes SDK 10.0.100 Linux, then the changed pipeline
+code passes incremental integration; no Apple NativeAOT build, iPhone gameplay,
+new IPA, build number, tag or release is claimed. Reuse unchanged historical
+results only with matching inputs; the frozen Core85 Apple contract correctly
+rejects the new preparation set and needs an updated contract for a later
+authorized Core build. Preserve all earlier proof and delivered595.
+Details: docs/melonx-gpu-runtime-2026-10-29.md and its evidence directory.
+
 ## Private IPA 595 — compiled, independently verified and privately saved, 29 October 2026
 
 The maintainer explicitly requested a private IPA with the latest RPCS3/MeloNX.

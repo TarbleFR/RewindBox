@@ -64,6 +64,12 @@ from adapt_cached_shader_startup import apply as adapt_cached_shader_startup
 from adapt_threaded_renderer_failures import apply as adapt_threaded_renderer_failures
 from adapt_gpu_startup_failure import apply as adapt_gpu_startup_failure
 from adapt_shader_loader_lifetime import apply as adapt_shader_loader_lifetime
+from adapt_pipeline_vertex_state import apply as adapt_pipeline_vertex_state
+from adapt_renderpass_queries import apply as adapt_renderpass_queries
+from adapt_single_resource_bindings import apply as adapt_single_resource_bindings
+from adapt_render_target_snapshot import apply as adapt_render_target_snapshot
+from adapt_buffer_range_snapshots import apply as adapt_buffer_range_snapshots
+from adapt_pipeline_key_allocation import apply as adapt_pipeline_key_allocation
 
 
 def replace_once(path, old, new):
@@ -148,6 +154,12 @@ def main():
     adapted += adapt_threaded_renderer_failures(source)
     adapted += adapt_shader_loader_lifetime(source)
     adapted += adapt_gpu_startup_failure(source)
+    adapted += adapt_pipeline_vertex_state(source)
+    adapted += adapt_renderpass_queries(source)
+    adapted += adapt_single_resource_bindings(source)
+    adapted += adapt_render_target_snapshot(source)
+    adapted += adapt_buffer_range_snapshots(source)
+    adapted += adapt_pipeline_key_allocation(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -214,7 +226,10 @@ def main():
                  'adapt_indirect_cache_key.py',
                  'adapt_texture_handle_dependencies.py',
                  'adapt_cached_shader_startup.py', 'adapt_threaded_renderer_failures.py',
-                 'adapt_gpu_startup_failure.py', 'adapt_shader_loader_lifetime.py']:
+                 'adapt_gpu_startup_failure.py', 'adapt_shader_loader_lifetime.py',
+                 'adapt_pipeline_vertex_state.py', 'adapt_renderpass_queries.py',
+                 'adapt_single_resource_bindings.py', 'adapt_render_target_snapshot.py',
+                 'adapt_buffer_range_snapshots.py', 'adapt_pipeline_key_allocation.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
