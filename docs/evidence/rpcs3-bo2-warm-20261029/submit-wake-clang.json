@@ -1,0 +1,48 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "results": {
+    "passed": true,
+    "assertionsActive": true,
+    "sequenceCalls": 13,
+    "sequenceBaselineWakes": 13,
+    "sequenceCandidateWakes": 4,
+    "lateCompletionCalls": 1024,
+    "lateBaselineWakes": 1024,
+    "lateCandidateWakes": 128,
+    "casRetryCases": 2,
+    "wakeBoundaryCases": 4,
+    "explicitDrainCases": 2,
+    "concurrentProducerCallsPerVersion": 16384,
+    "abortDrainCases": 2
+  },
+  "compiler": "clang version 22.1.8",
+  "compilerFlags": [
+    "-std=c++20",
+    "-DRPCS3_IOS",
+    "-O2",
+    "-g",
+    "-pthread",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "sanitizer": null,
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/VK/VKCommandStream.cpp": "afd51290efacad8fdb43947f4f4d9e4996fd3095356699f3d1804508a9a3513f",
+    "rpcs3/Emu/RSX/VK/VKCommandStream.h": "08a0bd433c7bfc51aebf51cacd4fe706efa1792518437a423889ee077a22fd1d",
+    "rpcs3/util/atomic.hpp": "5333cb88153e713e47eae1240b7a2684472a7cc0c44b832274f9ba53d698c677"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/VK/VKCommandStream.cpp": "fdc0b583b609006f59e2e8123a6c522c3b76cd518244b98e20c41662375fd568",
+    "rpcs3/Emu/RSX/VK/VKCommandStream.h": "08a0bd433c7bfc51aebf51cacd4fe706efa1792518437a423889ee077a22fd1d"
+  },
+  "harnessSHA256": "9695dea3d964e4b6b896506fa75452a96e5ace80bb256d410b2d88db1fa7206b",
+  "adapterSHA256": "cf8c5acad3c3f67de0c89d06b687cfcc94816860df2969e467a36af96c1b1aca",
+  "atomicGitBlob": "49d9663dec483fdb5da109cf29e907f7dc0f4fe6",
+  "leakSanitizer": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Production worker/notify/drain and upstream atomic_op; std atomics, condition_variable_any registration, thread abort and resource sink are host boundaries. No submit timing or FPS measurement."
+}

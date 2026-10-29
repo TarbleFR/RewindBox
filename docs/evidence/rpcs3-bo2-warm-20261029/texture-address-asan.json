@@ -1,0 +1,49 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-DRPCS3_IOS",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie",
+    "-UNDEBUG"
+  ],
+  "sanitizer": "address,undefined",
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "17e08c8562b4e46972c997c6f60afeb1f60d11bbb078d0bbf424e3f24a6fadb9",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "8afab00e043668bb964e960caffec927f918617928bd51433b9925cb18541ed4",
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "def8569ef9a63022336a8a34b2cc5dd85f1a30132cd8130288321dc766014da7",
+    "Utilities/address_range.h": "1b4ce617119398f57c064b5607a29ed7e6f37c449e550f9fe9bddd83d81a75f0"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "033098b1bbfe968d1f550af8245f0fabb11c6bf1680304cc48e272414b900e60",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "b855feb2bffe0de6de99a881d33d46f0eaf07cb5c99d4e362352939848d18654"
+  },
+  "harnessSHA256": "3cc6c914e46855e5acb0dbc91ea36d706c2168610b1cdb3f9fb2ac5103e5c5be",
+  "adapterSHA256": "1192d9107f105b979c6337f29c6afc20b914cc2bede870efaac39bdc6133e23b",
+  "host": "x86_64",
+  "results": {
+    "queries": 22753,
+    "mutations": 8618,
+    "baselineDirtyPredicateCalls": 4714944,
+    "indexedDirtyPredicateCalls": 26629,
+    "sameFirstMatch": true,
+    "sameValidationOrder": true,
+    "sameOverlapMembership": true,
+    "clearAndResourceLessRetags": true,
+    "sectionLayoutUnchanged": true,
+    "presentationWalkUnchanged": true
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Compare the production texture address index and lifecycle with the linear baseline.\n\nProduction block/list/range iterators, matching, lookup and lifecycle bodies are\nexecuted verbatim. GPU resource and guest-memory validation are host adapters;\ntheir calls and order remain observable. No iPhone performance is inferred.\n"
+}

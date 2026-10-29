@@ -2,6 +2,41 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## RPCS3 BO2 recurring-cost follow-up — 29 October 2026
+
+After `66b81952`, eight reviewed source paths reduce recurring RSX work:
+an exact-address index for compressed texture lookups in blocks above sixteen
+slots; bit-exact viewport/scissor reuse through all four Vulkan writers; and
+completion wakes only when the winning CAS advances the EID. Texture checks,
+candidate order, pipeline invalidations, explicit drains, fences and submissions
+remain authoritative. The presentation specialization `check_unlocked=true`
+must stay on its historical linear walk: its local locking does not establish
+safe concurrent reads of the new vector. Resource-less retags and clear must
+remove old index entries. No new field or layout change in texture sections.
+
+The six targeted host reports pass: three plain Clang 22 runs, viewport
+Clang ASan/UBSan, texture GCC 13 ASan/UBSan and completion GCC 13 TSan.
+Texture: 22,753 queries / 8,618 mutations; identical first matches and validation
+order. Dense-block lookup costs fall in the host model, but first-slot hits,
+recycling and index memory cost more; do not turn those measurements into an
+iPhone gain. The 593 logs lack block/hit distributions and viewport/scissor
+counts. Completion wake counts do not explain time inside vkQueueSubmit.
+
+Record `runtime_bo2_warm_20261029`, fixture
+`test/fixtures/rpcs3_bo2_warm_20261029.diff`; details and exact evidence:
+`docs/rpcs3-bo2-warm-2026-10-29.md`,
+`docs/evidence/rpcs3-bo2-warm-20261029/`. The canonical delta has 312 paths:
+304 prior postimages unchanged, seven changed, and existing upstream
+VKOverlays.cpp newly covered. Reverse this delta before the overlapping older
+fixtures. Previous CPU-write/sampler/packet harness bodies remain identical.
+The contract binds 182 inputs and 37 native supplements, reusing the earlier
+170-input receipt and PPU/SPU proof. The next requested Apple gate has twenty
+modes: fourteen still-pending follow-up modes and six new modes. No historical
+delivered suite, CMake, Core or IPA build is replayed to record the source proof.
+Preserve private IPA 593, the validated MeloNX engine 81 artifact, prior BO2
+shader/admission corrections, ABI30/88 exports and JIT cache identities.
+No delivery number, player setting, telemetry, release or device FPS claim.
+
 ## RPCS3 BO2 stutter follow-up — 29 October 2026
 
 After verified source `7d1ca65c`, synchronized with concurrent MeloNX engine 81
