@@ -1,5 +1,16 @@
 # MeloNX: SSBU startup — 29 October 2026
 
+## Current status
+
+The startup changes are published in engine source
+[`ebcee352`](https://github.com/TarbleFR/RewindBox/commit/ebcee3529645a781311429a869434005e76d6275).
+Both Apple libraries compile and the corrected runtime validation passes
+in [run 40841402428](https://github.com/TarbleFR/RewindBox/actions/runs/40841402428).
+The [validated engine artifact](https://github.com/TarbleFR/RewindBox/actions/runs/40841402428/artifacts/12883480724)
+contains the unchanged engine 82 binaries and their original identities, the
+first failed smoke and the corrected successful proof. No new IPA or physical
+SSBU timing measurement is part of this delivery.
+
 ## Scope and observations
 
 The recent SSBU v13.0.4 session in the supplied log takes **19.399 seconds from
@@ -215,14 +226,39 @@ budget and 45-second total session deadline keep missing execution and failed
 closure explicit. Memory-backing, withdrawal and closed-generation checks
 remain required. No delayed Stop callback can survive into the next session.
 
-A focused Apple workflow will execute only this corrected runtime smoke on
+A focused Apple workflow executes only this corrected runtime smoke on
 the existing engine 82 binaries. It authenticates artifact `12882675844` by
 its ZIP SHA-256, verifies the successful compilation/check steps, both library
 hashes, all 74 preparation inputs, four build-recipe inputs and the Swift bridge
-sources. It keeps the
-original compile identities and failed smoke, and writes a separate runtime
-validation receipt. Corrected runtime validation is pending; no engine rebuild
-or replay of unchanged host suites is needed for this test-only correction.
+sources. It keeps the original compile identities and failed smoke, and writes
+a separate runtime validation receipt.
+
+That validation **passes on attempt 1** in
+[run 40841402428](https://github.com/TarbleFR/RewindBox/actions/runs/40841402428),
+with test source `e46ace78`. Both sessions execute the homebrew: generation 1
+records SVC sequence 39 after baseline 23; generation 2 records sequence 56
+after baseline 40. Both close cleanly and pass the live memory-backing,
+withdrawal-refusal and post-close release checks. Two live performance
+snapshots are accepted, while stale and ended generations are refused.
+These are non-graphical homebrew sessions on the iOS 26.5 ARM64 simulator,
+not SSBU or physical-device performance measurements.
+
+The simulator core retains SHA-256
+`bb48dcb4f6c6571b16d84ef0b0a3a2c5a954b6ee111739c0f9a335267f0d9968`.
+Both compile identities and library hashes are checked again after the smoke.
+No engine, native dependency or unchanged host suite is rebuilt or replayed.
+The separate validation workflow keeps the engine source at `ebcee352`; it
+does not relabel the binaries as having been compiled from the test commit.
+
+Use [artifact 12883480724](https://github.com/TarbleFR/RewindBox/actions/runs/40841402428/artifacts/12883480724)
+for the next authorized packaging. Its ZIP SHA-256 is
+`be55d705ea93ae27c1756c29c3ec7a16ec51c60b9ace10556dcc751a00f5af45`.
+It includes `runtime-smoke-engine82-original-failure/`, the new
+`runtime-smoke/` report and `runtime-validation/result.json`.
+The [Apple validation receipt](evidence/melonx-startup-20261029/apple-runtime-validation.json)
+binds the run, artifact, checks and inputs; the
+[captured runtime report](evidence/melonx-startup-20261029/apple-runtime-smoke.json)
+preserves the successful report printed by the job.
 
 The candidate extends the verified engine 81 source and preserves concurrent
 RPCS3 work. Upstream remains `13700519f3abc4e6d7ed8a065b118b2cc59bcd67`, SDK

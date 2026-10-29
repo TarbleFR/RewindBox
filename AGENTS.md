@@ -95,10 +95,17 @@ smoke requested Stop after two seconds, before the first cold GPU startup
 completed, then correctly rejected that cancelled session's missing guest SVC.
 Both sessions closed cleanly; only the warmer second session executed the SVC.
 The test-only correction waits for a new per-session SVC before Stop and keeps
-two distinct proofs, memory lifetime checks and explicit deadlines. A focused
-runtime validation will reuse artifact `12882675844` with its authenticated
-ZIP and unchanged compile identities. Do not rebuild these successful binaries
-or rerun unchanged host suites to correct the smoke. A blocked
+two distinct proofs, memory lifetime checks and explicit deadlines. Focused
+runtime validation `40841402428` passes on attempt 1, test source `e46ace78`:
+two real guest SVCs (sequences 39 and 56), two clean closes and two released
+memory-backing sessions. It authenticates original artifact `12882675844`,
+both libraries, 74 preparation inputs, four recipe inputs and the Swift hosts.
+Reuse validated artifact `12883480724` from that runtime-validation run:
+its binaries retain engine source `ebcee352`, and its envelope retains the
+original failure plus the corrected proof. ZIP SHA-256 is
+`be55d705ea93ae27c1756c29c3ec7a16ec51c60b9ace10556dcc751a00f5af45`.
+Do not rebuild these successful binaries or replay unchanged host suites for
+the next authorized packaging. A blocked
 speculative worker in the 2,743-program test proves readiness independence,
 not seconds saved on iPhone. Workers are bounded; the pending queue is not.
 Preserve concurrent RPCS3 work merged in `fe587e27` and delivered private IPA593.

@@ -1,0 +1,52 @@
+{
+  "actualCoreDonatedBackingSessions": 2,
+  "actualDarwinThreeArgumentHandlersVerified": true,
+  "actualKeyImportABIValidated": true,
+  "actualNativeAOT": true,
+  "actualNativeLaunchJournalWritten": true,
+  "actualSimulatorCodeArenaVerified": true,
+  "displayAndMemoryConfigurationAccepted": true,
+  "donorProcessUsedInSmoke": false,
+  "gameplayTested": false,
+  "graphicsAccepted": true,
+  "homebrewGuestSvcSessions": [
+    {
+      "afterSequence": 23,
+      "generation": 1,
+      "session": 1,
+      "svcSequence": 39
+    },
+    {
+      "afterSequence": 40,
+      "generation": 2,
+      "session": 2,
+      "svcSequence": 56
+    }
+  ],
+  "homebrewProducesVideo": false,
+  "homebrewSimulatorSessions": 2,
+  "initializationAndIdempotency": true,
+  "invalidContentRejected": true,
+  "invalidGraphicsCodePreserved": true,
+  "invalidGuestRejected": true,
+  "invalidSaveAssociationRejected": true,
+  "iphoneGuestExecutionTested": false,
+  "jitTested": false,
+  "keyRefusalCodePreserved": true,
+  "keyUnknownEntryAccepted": true,
+  "livePerformanceSnapshotSessions": 2,
+  "missingKeysRejectedBeforeGuest": true,
+  "mixedInvalidKeySizeAccepted": true,
+  "originalHomebrewGuestSvcConfirmed": true,
+  "performanceSnapshotStaleAndEndedRefused": true,
+  "personalKeysUsed": false,
+  "result": "passed",
+  "storageProfilesRecognized": true,
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+  "coreSha256": "bb48dcb4f6c6571b16d84ef0b0a3a2c5a954b6ee111739c0f9a335267f0d9968",
+  "inputs": {
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "1c633f4c9767f566e350353fd98296dce92d6f14c1f3cd4fdb4276e83489a615",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "aab190ff2e39e180be3df4abe02b9332b19e5aee33a0632adb6fec46e65fd1ed",
+    "test/melonx_runtime_smoke.py": "135f825f8e51fc399e67df5bda0fea6ee752ffd69aa59d33d4b90845c09b314b"
+  }
+}
