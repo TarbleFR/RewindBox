@@ -3,6 +3,17 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## RPCS3 runtime optimization candidate — 29 October 2026
+
+Source only, on Core 591: early exact texture selection with one-pass merge
+fallback, private Vulkan dynamic-state key normalization and a bounded exact
+recent-pipeline lookup. Four canonical files change; other engines and PPU/SPU
+codegen identities remain. See `docs/rpcs3-hotpaths-2026-10-29.md`, manifest record
+`runtime_20261029` and `test/rpcs3_hotpaths_test.py`. Native host correctness,
+ASan/UBSan and TSan pass; canonical materialization reproduces all 305 postimages.
+No Apple SDK/Core build, IPA, iPhone FPS gain, new telemetry or release is claimed.
+The delivered 587/Core 591 baseline remains until a new build is authorized.
+
 ## MeloNX engine optimization candidate — 29 October 2026
 
 On the delivered 587 engine: paired NEON context transfers, linear JIT block
