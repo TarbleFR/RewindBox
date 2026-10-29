@@ -2,6 +2,17 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## MeloNX new GPU core compilation authorized — 29 October 2026
+
+The maintainer requested compilation of the new MeloNX Core. The new frozen
+GPU contract authenticates 102 preparation inputs and 139 adapted members,
+runs only the fifteen new Apple ARM64 fixtures, retains fourteen Core85
+historical receipts without replay, and compiles both iOS and simulator
+NativeAOT libraries before the real simulator lifecycle smoke. Core85's
+original verifier and evidence remain unchanged. LibHac and all ten native
+framework binaries are authenticated and reused. No IPA or public release
+is authorized by this request. Build success is pending actual CI evidence.
+
 ## MeloNX descriptor/cache source continuation — 29 October 2026
 
 Five more guarded adapters follow local 55fdfeb: identical scalar descriptors
