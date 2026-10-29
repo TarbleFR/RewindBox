@@ -1,0 +1,748 @@
+name: RewindBox private IPA 595 from delivered 594 — verified RPCS3 Core and MeloNX Core85
+run-name: RewindBox Build 595 from delivered 594 — ${{ github.sha }}
+'on':
+  push:
+    branches: [Claude]
+    paths:
+    - .github/workflows/rewind595-baseline-delivery.yml
+    - .github/diagnostics/rewind595_*.py
+    - .github/diagnostics/rpcs3runtime595_delivery_core.py
+    - build-utils/validate_melonx_engine595_ipa.py
+    - build-utils/validate_rpcs3_core595_ipa.py
+    - build-utils/delivery-595-recipient.pem
+  workflow_dispatch:
+    inputs:
+      recipient:
+        description: Private Build595 public recipient
+        required: false
+        type: string
+        default: build-utils/delivery-595-recipient.pem
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: rewindbox-private595-baseline-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  cold:
+    name: Release device build from delivered 594
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      BUILD_NUMBER: '595'
+      DELIVERY_RECIPIENT: ${{ inputs.recipient || 'build-utils/delivery-595-recipient.pem' }}
+      IPA_NAME: NeoStation
+      ARTIFACT_NAME: RewindBox-Build595-${{ github.sha }}-cold
+      DOLPHIN_SHA: 7cac54161659521ed95c2cd1c0b0746539a4cd38
+      DOLPHIN_CORE_HOST_SHA: ae7d46f90dff64ce698b8c18e0c12510dbae96fe
+      ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
+      ARMSX2_CORE_RUN_ID: '39178893158'
+      RPCS3_CORE_HOST_SHA: f42573afc25842ca9a0068f4ad505bbfe5342623
+      RPCS3_CORE_RUN_ID: '40917423708'
+      LIBRETRO_CORES_HOST_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
+      LIBRETRO_CORES_VALIDATED_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
+      LIBRETRO_CORES_RUN_ID: '39455712245'
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      BUNDLE_GEMFILE: ${{ github.workspace }}/build-utils/Gemfile.dolphin
+      SCREENSCRAPER_DEV_ID: ${{ secrets.SCREENSCRAPER_DEV_ID }}
+      SCREENSCRAPER_DEV_PASSWORD: ${{ secrets.SCREENSCRAPER_DEV_PASSWORD }}
+      DELIVERY_METRICS: ${{ github.workspace }}/build/delivery/timings.jsonl
+      CACHE_NAMESPACE: normal
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      BUNDLE_PATH: ${{ github.workspace }}/build/ruby-gems
+      DELIVERY_MODE: cold
+    steps:
+    - name: Checkout exact candidate
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+        ref: ${{ github.sha }}
+    - name: Verify delivered 594 plus the exact latest RPCS3 MeloNX and NeoSwap inputs
+      run: |
+        python3 .github/diagnostics/rewind595_baseline.py --pin
+    - name: Retain the new RPCS3 runtime candidate and MeloNX optimization component proofs
+      run: |
+        python3 .github/diagnostics/rewind595_baseline_delivery.py --retain-checks
+    - name: Select Xcode 26.3 for NeoPlay and Google Cast
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '26.3'
+    - name: Set up Flutter 3.47.2
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: 3.47.2
+        channel: stable
+        cache: true
+        cache-key: neostation-benchmark-sdk-${{ runner.os }}-${{ runner.arch }}-3.47.2-${{ env.CACHE_NAMESPACE }}
+        pub-cache-key: neostation-benchmark-pub-${{ runner.os }}-${{ runner.arch }}-3.47.2-${{ hashFiles('pubspec.lock') }}-${{
+          env.CACHE_NAMESPACE }}
+    - name: Record exact build environment and start measurement
+      run: |
+        mkdir -p build/delivery
+        python3 build-utils/delivery_benchmark.py environment
+        python3 .github/diagnostics/rewind595_baseline_delivery.py --contract
+    - name: Resolve locked Dart dependencies
+      run: python3 build-utils/delivery_metrics.py dart_dependencies flutter pub get --enforce-lockfile
+    - name: Prepare lightweight build tools
+      shell: bash
+      run: |
+        set -euo pipefail
+        export BUNDLE_PATH="$GITHUB_WORKSPACE/build/ruby-gems"
+        echo "BUNDLE_PATH=$BUNDLE_PATH" >> "$GITHUB_ENV"
+        python3 build-utils/delivery_metrics.py ruby_dependencies bundle install
+    - name: Generate iOS host
+      shell: bash
+      run: |
+        set -euo pipefail
+        flutter config --no-enable-swift-package-manager
+        test ! -d ios
+        python3 build-utils/delivery_metrics.py host_scaffold_and_registrant python3 packages/dolphin_internal_bridge/ci/build_support.py scaffold
+    - name: Download last published RewindBox IPA 527 (release 0.0.9)
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p build/native-baseline
+        curl --fail --location --retry 3 \
+          https://github.com/TarbleFR/RewindBox/releases/download/0.0.9/RewindBox-Build527.ipa \
+          --output build/native-baseline/RewindBox-Build527.ipa
+        python3 build-utils/game_content_gate.py build/native-baseline/RewindBox-Build527.ipa
+    - name: Reuse verified components and resources from published IPA 527
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 build-utils/prepare_release527_native_runtime.py \
+          build/native-baseline/RewindBox-Build527.ipa --build-number "$BUILD_NUMBER"
+    - name: Restore unchanged canonical StikJIT compilation interfaces
+      id: stik
+      uses: actions/cache@v4
+      with:
+        path: build/stikjit-current
+        key: stikjit-interfaces-v1-${{ runner.os }}-${{ runner.arch }}-xcode26.3-${{ hashFiles('build-utils/stikjit/source.json','build-utils/patch_stikjit_rpcs3.py','build-utils/patch_stikjit_compat.py','build-utils/install_patched_stikjit.py','build-utils/build_patched_stikjit.py')
+          }}-37844950677
+    - name: Build canonical StikJIT from pinned sources for iOS 18 26 and 27
+      shell: bash
+      run: |
+        set -euo pipefail
+        command -v xcodegen || brew install xcodegen
+        python3 build-utils/build_patched_stikjit.py 2>&1 | tee "$RUNNER_TEMP/neoswap-stikjit-step.log"
+        python3 test/stikjit_unified_build_test.py 2>&1 | tee -a "$RUNNER_TEMP/neoswap-stikjit-step.log"
+      if: ${{ steps.stik.outputs.cache-hit != 'true' }}
+    - name: Install verified cached StikJIT interfaces
+      if: ${{ steps.stik.outputs.cache-hit == 'true' }}
+      run: python3 build-utils/install_patched_stikjit.py build/stikjit-current/StikJIT.xcframework
+    - name: Download and authenticate the exact RPCS3 runtime candidate archive once
+      run: |
+        python3 .github/diagnostics/rewind595_baseline_delivery.py --download-core --output build/delivery/rpcs3-runtime-candidate-download.json
+    - name: Verify and install the authenticated RPCS3 runtime candidate with unchanged ABI checks
+      shell: bash
+      run: |
+        set -euo pipefail
+        SOURCE=dist/rpcs3-native/libRPCS3Core.dylib
+        IDENTITY=dist/rpcs3-native/identity.json
+        CORE=packages/rpcs3_internal_bridge/ios/Frameworks/libRPCS3Core.dylib
+        test -s "$SOURCE"
+        test -s "$IDENTITY"
+        test -s "$CORE"
+        # The runtime candidate identity guard authenticates the archive and checks the current
+        # complete build/test input map; no historical expanded input list is replayed.
+        python3 - <<'PY'
+        import json, os, shutil, sys
+        from pathlib import Path
+        sys.path.insert(0, 'build-utils')
+        sys.path.insert(0, 'test')
+        sys.path.insert(0, '.github/diagnostics')
+        from rpcs3runtime595_delivery_core import validate_rpc_core_identity as validate_core_input_identity
+        from rpcs3runtime595_delivery_core import validate_core_identity, compatibility
+        from validate_rpcs3_embedded_core import validate_core
+        from validate_rpcs3_passive_dlopen import validate as validate_passive_dlopen
+
+        source = Path('dist/rpcs3-native/libRPCS3Core.dylib')
+        identity_path = Path('dist/rpcs3-native/identity.json')
+        destination = Path('packages/rpcs3_internal_bridge/ios/Frameworks/libRPCS3Core.dylib')
+        data = source.read_bytes()
+        identity = validate_core_identity(data, identity_path, os.environ['RPCS3_CORE_HOST_SHA'])
+        validate_core(data)
+        compatibility()  # Exact host/Core headers and ABI; preserve artifact identity bytes.
+        validate_core_input_identity(identity)
+        passive = validate_passive_dlopen(data)
+        assert passive['forbiddenReachability'] is False, passive
+
+        shutil.copy2(source, destination)
+        destination.chmod(0o755)
+        assert destination.read_bytes() == data, 'RPCS3 Core installation changed artifact bytes'
+        fast_path = Path('build/fast-native/identity.json')
+        fast = json.loads(fast_path.read_text())
+        fast.update({
+            'rpcs3CoreSha256': identity['sha256'],
+            'rpcs3CoreHostCommit': identity['host_commit'],
+            'rpcs3CoreSourceCommit': identity['source_commit'],
+            'rpcs3CorePatchSha256': identity['source_patch_sha256'],
+            'rpcs3CoreAbiVersion': identity['abi_version'],
+            'rpcs3CoreRunId': int(os.environ['RPCS3_CORE_RUN_ID']),
+            'rpcs3PassiveDlopen': passive,
+        })
+        fast_path.write_text(json.dumps(fast, indent=2) + '\n')
+        shutil.copy2(identity_path, 'build/fast-native/rpcs3-core-identity.json')
+        print(json.dumps({'identity': identity, 'passiveDlopen': passive}, indent=2))
+        PY
+        file "$CORE"
+        test "$(lipo -archs "$CORE")" = arm64
+        nm -gU "$CORE" > build/rpcs3-core-exports.txt
+        python3 - <<'PY'
+        import sys
+        from pathlib import Path
+        sys.path.insert(0, 'build-utils')
+        from validate_rpcs3_ipa import REQUIRED_CORE_SYMBOLS, FORBIDDEN_CORE_SYMBOLS
+        exports = Path('build/rpcs3-core-exports.txt').read_text().splitlines()
+        symbols = {line.split()[-1] for line in exports if line.split()}
+        missing = (set(REQUIRED_CORE_SYMBOLS) | {
+            '_rpcs3_ios_set_compiler_budget_api',
+            '_rpcs3_ios_set_neoswap_api', '_rpcs3_ios_get_neoswap_client_stats',
+            '_rpcs3_ios_install_patch_repository', '_rpcs3_ios_enumerate_runtime_patches',
+            '_rpcs3_ios_set_runtime_patch_enabled', '_rpcs3_ios_enumerate_games',
+        }) - symbols
+        forbidden = set(FORBIDDEN_CORE_SYMBOLS) & symbols
+        assert not missing, f'Missing RPCS3 Core exports: {sorted(missing)}'
+        assert not forbidden, f'Retired RPCS3 Core exports: {sorted(forbidden)}'
+        PY
+    - name: Verify the retained Dolphin binary digest, exports and resource donor
+      shell: bash
+      run: |
+        set -euo pipefail
+        CORE="packages/dolphin_internal_bridge/ios/Frameworks/DolphinCore.framework/DolphinCore"
+        test -s "$CORE"
+        test -d ios/Runner/Sys
+        test -s ios/Runner/cacert.pem
+        python3 - <<'PY'
+        import hashlib, json, os
+        from pathlib import Path
+        core = Path(
+            "packages/dolphin_internal_bridge/ios/Frameworks/"
+            "DolphinCore.framework/DolphinCore"
+        )
+        actual = hashlib.sha256(core.read_bytes()).hexdigest()
+        expected = "eec54ff2a16f4878e070ce2ae96c7e5dfc25e5e8246448ffe8b14bb0a42392b4"
+        assert actual == expected, (actual, expected)
+        fast_path = Path("build/fast-native/identity.json")
+        fast = json.loads(fast_path.read_text())
+        fast["dolphinCoreSha256"] = actual
+        fast["dolphinCoreHostCommit"] = os.environ["DOLPHIN_CORE_HOST_SHA"]
+        fast["dolphinSourceRevision"] = os.environ["DOLPHIN_SHA"]
+        fast["dolphinCheatCatalogues"] = [
+            "Gecko/WiiRD", "Action Replay/local INI"
+        ]
+        fast_path.write_text(json.dumps(fast, indent=2) + "\n")
+        print(json.dumps({"sha256": actual, "baseline": expected}, indent=2))
+        PY
+
+        file packages/dolphin_internal_bridge/ios/Frameworks/DolphinCore.framework/DolphinCore
+        nm -gU packages/dolphin_internal_bridge/ios/Frameworks/DolphinCore.framework/DolphinCore \
+          > build/dolphin-native-exports.txt
+        for symbol in \
+          _neostation_dolphin_initialize \
+          _neostation_dolphin_launch \
+          _neostation_dolphin_menu_snapshot \
+          _neostation_dolphin_cheats_snapshot \
+          _neostation_dolphin_set_cheats_enabled \
+          _neostation_dolphin_set_cheat_enabled \
+          _neostation_dolphin_download_gecko_codes; do
+          grep -q " $symbol$" build/dolphin-native-exports.txt
+        done
+    - name: Remove the bootstrap ARMSX2 placeholder before installing the retained artifact
+      run: |
+        rm -rf dist/armsx2
+    - name: Download pinned ARMSX2 2.6 Core
+      uses: actions/download-artifact@v4
+      with:
+        name: ARMSX2Core-${{ env.ARMSX2_CORE_HOST_SHA }}
+        run-id: ${{ env.ARMSX2_CORE_RUN_ID }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path: dist/armsx2
+    - name: Verify the retained ARMSX2 artifact digest, ABI and shader assets
+      shell: bash
+      run: |
+        set -euo pipefail
+        test -f dist/armsx2/ARMSX2Core.framework/ARMSX2Core
+        test -f dist/armsx2/identity.json
+        python3 - <<'PY'
+        import hashlib, json, os
+        from pathlib import Path
+        identity=json.loads(Path('dist/armsx2/identity.json').read_text())
+        source=json.loads(Path('build-utils/armsx2/source.json').read_text())
+        assert identity['revision'] == source['revision'], identity
+        assert identity['host_commit'] == os.environ['ARMSX2_CORE_HOST_SHA'], identity
+        assert identity['architectures'] == ['arm64'], identity
+        assert identity['abi_version'] == source['abi_version'] == 8, identity
+        assert identity['release'] == source['release'] == 'iOSv2.6.0', identity
+        assert identity['shader_chains'] and identity['performance_overlays'], identity
+        assert identity['bundled_shader_presets'] == 12 and identity['bundled_shader_files'] == 28, identity
+        resources=Path('dist/armsx2/ARMSX2Core.framework/shaders')
+        shader_hashes=identity['bundled_shader_sha256']
+        assert len(shader_hashes) == identity['bundled_shader_files'], identity
+        assert len(list(resources.glob('**/*.slangp'))) == identity['bundled_shader_presets'], identity
+        for relative,expected in shader_hashes.items():
+            asset=resources/relative
+            assert asset.is_file() and hashlib.sha256(asset.read_bytes()).hexdigest() == expected, relative
+        binary=Path('dist/armsx2/ARMSX2Core.framework/ARMSX2Core')
+        assert hashlib.sha256(binary.read_bytes()).hexdigest() == identity['sha256'], identity
+        binary.chmod(0o755)
+        fast_path=Path('build/fast-native/identity.json')
+        fast=json.loads(fast_path.read_text())
+        fast.update(armsx2CoreSha256=identity['sha256'],
+                    armsx2CoreHostCommit=identity['host_commit'],
+                    armsx2SourceRevision=identity['revision'],
+                    armsx2CoreRunId=int(os.environ['ARMSX2_CORE_RUN_ID']))
+        fast_path.write_text(json.dumps(fast,indent=2)+'\n')
+        print(identity)
+        PY
+    - name: Prepare the retained libretro artifact destination
+      run: |
+        rm -rf dist/libretro
+    - name: Download pinned libretro cores
+      uses: actions/download-artifact@v4
+      with:
+        name: LibretroCores-${{ env.LIBRETRO_CORES_HOST_SHA }}
+        run-id: ${{ env.LIBRETRO_CORES_RUN_ID }}
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        path: dist/libretro
+    - name: Verify retained libretro digests, source identity and exported ABI
+      run: |
+        set -euo pipefail
+        python3 - <<'PY'
+        import hashlib, json, os
+        from pathlib import Path
+        root = Path('dist/libretro')
+        identity = json.loads((root / 'identity.json').read_text())
+        manifest = json.loads(Path('build-utils/libretro/cores.json').read_text())
+        assert identity['host_commit'] == os.environ['LIBRETRO_CORES_HOST_SHA'], identity['host_commit']
+        import sys
+        sys.path.insert(0, 'packages/dolphin_internal_bridge/ci')
+        sys.path.insert(0, 'build-utils')
+        from verify_ipa import macho
+        assert [core['id'] for core in identity['cores']] == [core['id'] for core in manifest['cores']]
+        assert identity['moltenVK']['files'] == manifest['moltenVK']['files']
+        for relative, digest in identity['files'].items():
+            assert hashlib.sha256((root / relative).read_bytes()).hexdigest() == digest, relative
+        for core in identity['cores']:
+            binary = root / 'Frameworks' / f"{core['id']}_libretro.framework" / f"{core['id']}_libretro"
+            assert hashlib.sha256(binary.read_bytes()).hexdigest() == core['sha256'], core['id']
+            image = macho(binary.read_bytes())
+            assert image['platform'] == 2 and image['fileType'] == 6, core['id']
+            required = {'_retro_api_version', '_retro_init', '_retro_deinit', '_retro_run', '_retro_load_game', '_retro_unload_game'}
+            assert required <= set(image['definedSymbols']), core['id']
+            binary.chmod(0o755)
+        (root / 'Frameworks/MoltenVK.framework/MoltenVK').chmod(0o755)
+        fast_path = Path('build/fast-native/identity.json')
+        fast = json.loads(fast_path.read_text())
+        fast.update({
+            'libretroCoresHostCommit': identity['host_commit'],
+            'libretroCoresRun': os.environ['LIBRETRO_CORES_RUN_ID'],
+            'libretroCores': {core['id']: core['sha256'] for core in identity['cores']},
+        })
+        fast_path.write_text(json.dumps(fast, indent=2) + '\n')
+        print('Verified', len(identity['cores']), 'libretro cores and', len(identity['files']), 'files')
+        PY
+    - name: Require only the exact MeloNX compilation and successful runtime validation
+      run: |
+        python3 .github/diagnostics/rewind595_baseline_delivery.py --component-runs --output build/delivery/component-runs595.json
+    - name: Download only the pinned MeloNX optimization archive by ID and SHA256
+      run: |
+        python3 .github/diagnostics/rewind595_baseline_delivery.py --download-components --output build/delivery/melonx-components595.json
+    - name: Download the source-built private MeloNX dependencies
+      uses: actions/download-artifact@v4
+      with:
+        name: MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314
+        run-id: 39854858591
+        github-token: ${{ github.token }}
+        path: dist/melonx-native
+    - name: Verify and materialize the six private MeloNX frameworks and original controls
+      run: |-
+        set -euo pipefail
+        python3 build-utils/melonx/package_runtime.py
+        python3 - <<'PY_FETCH'
+        import json,pathlib,subprocess
+        pin=json.loads(pathlib.Path('build-utils/melonx/source.json').read_text())
+        path='.native-sources/MeloNX'
+        subprocess.run(['git','init',path],check=True)
+        urls=[pin['repository'],'https://github.com/AzureDominus/melonx.git']
+        for url in urls:
+            try:
+                subprocess.run(['git','-C',path,'-c','http.lowSpeedLimit=1000','-c','http.lowSpeedTime=30',
+                    'fetch','--depth','1',url,pin['revision']],check=True,timeout=120)
+                break
+            except (subprocess.CalledProcessError,subprocess.TimeoutExpired):
+                if url==urls[-1]:raise
+                print('Primary source transfer failed; retrying identical commit via verified mirror',flush=True)
+        subprocess.run(['git','-C',path,'checkout','--detach','FETCH_HEAD'],check=True)
+        assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD'],text=True).strip()==pin['revision']
+        assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD^{tree}'],text=True).strip()=='82a29e6f593f6244869481e9a489b8d5154175fe'
+        PY_FETCH
+        git init .native-sources/Melo-Controller
+        git -C .native-sources/Melo-Controller remote add origin https://github.com/stossy11/Melo-Controller.git
+        git -C .native-sources/Melo-Controller fetch --depth 1 origin c049ce88a5635bddcd88e1965c42aa8fc92fe961
+        git -C .native-sources/Melo-Controller checkout --detach FETCH_HEAD
+        python3 build-utils/melonx/vendor_controller.py .native-sources/Melo-Controller .native-sources/MeloNX
+    - name: Package the standalone MeloNX app's own MoltenVK (maintainer exception, pinned upstream bytes)
+      run: python3 build-utils/melonx/package_standalone_moltenvk.py --source .native-sources/MeloNX
+    - name: Bind the downloaded MeloNX Core85 to all 87 compiled inputs and its successful runtime proof
+      run: |
+        python3 .github/diagnostics/rewind595_baseline_delivery.py --engine-evidence --output build/delivery/melonx-engine-evidence595.json
+    - name: Prepare emulator build definitions
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 - <<'PY'
+        import json, os
+        from pathlib import Path
+        required=('SCREENSCRAPER_DEV_ID','SCREENSCRAPER_DEV_PASSWORD')
+        values={key:os.environ.get(key,'').strip() for key in required}
+        missing=[key for key,value in values.items() if not value]
+        if missing:
+            raise SystemExit('Missing build secrets: '+', '.join(missing))
+        values.update({
+            'NEOSTATION_EXPERIMENTAL_STIKJIT_MELONX':'true',
+            'NEOSTATION_MELONX_BUNDLE_ID':'com.nur.nx',
+        })
+        Path('.dart-defines.json').write_text(json.dumps(values))
+        PY
+
+        python3 build-utils/delivery_benchmark.py record-inputs
+    - name: Configure release host
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 build-utils/configure_neoswap_storage.py
+        python3 build-utils/patch_ios_video_player_audio_session.py
+        # Flutter's config-only build also invokes CocoaPods. Align its host
+        # first, then reapply after legacy host generators below.
+        python3 build-utils/configure_neoplay_ios.py --deployment-only
+        python3 build-utils/delivery_metrics.py flutter_configuration_and_first_pods flutter build ios --release --no-codesign --config-only --no-pub \
+          --build-number="$BUILD_NUMBER" \
+          --dart-define-from-file=.dart-defines.json
+        python3 packages/dolphin_internal_bridge/ci/build_support.py configure
+        python3 build-utils/configure_rpcs3_ios_v2.py
+        python3 build-utils/configure_armsx2_ios.py
+        python3 build-utils/configure_neoswap_donor.py
+        python3 build-utils/configure_neoplay_ios.py
+        python3 build-utils/configure_external_display_ios.py
+        python3 build-utils/configure_melonx_ios.py
+        python3 build-utils/configure_rewind_launch.py
+        dart run flutter_launcher_icons
+        bash build-utils/force_ios_fork_icon.sh
+        # Fallback PNGs are generated in ios/Runner and referenced from the same Xcode group.
+        python3 build-utils/prepare_ios_icon_fallback.py
+        bundle exec ruby build-utils/add_ios_icon_fallback_resources.rb
+        python3 build-utils/delivery_metrics.py cocoa_pods env -u BUNDLE_GEMFILE -u BUNDLE_PATH pod install --project-directory=ios
+        python3 - <<'PY'
+        import plistlib
+        from pathlib import Path
+
+        entitlements = plistlib.loads(
+            Path('ios/Runner/Runner.entitlements').read_bytes()
+        )
+        retired = {
+            'com.apple.developer.networking.networkextension',
+            'com.apple.developer.networking.vpn.api',
+        }
+        remaining = retired.intersection(entitlements)
+        if remaining:
+            raise SystemExit(
+                'Retired VPN entitlements remain: ' + ', '.join(sorted(remaining))
+            )
+        generated = (
+            Path('ios/Runner.xcodeproj/project.pbxproj').read_text(),
+            Path('ios/Podfile').read_text(),
+        )
+        markers = (
+            'NeoStationLocalTunnel',
+            'NetworkExtension.framework',
+            'com.apple.NetworkExtensions.iOS',
+            'packet-tunnel-provider',
+        )
+        found = [marker for marker in markers if any(marker in text for text in generated)]
+        if found:
+            raise SystemExit('Generated iOS host retains internal VPN markers: ' + ', '.join(found))
+        if Path('ios/NeoStationLocalTunnel').exists():
+            raise SystemExit('Generated iOS host retains the internal VPN directory')
+        print('Generated iOS host is LocalDevVPN-only.')
+        PY
+        git diff --exit-code -- pubspec.yaml pubspec.lock
+    - name: Align application and extension versions to the pubspec version
+      run: python3 build-utils/stamp_host_version.py
+    - name: Verify the reviewed NeoSwap host source is the source CocoaPods will compile
+      run: |
+        python3 - <<'PY_STORE'
+        import hashlib, json, sys
+        from pathlib import Path
+        sys.path.insert(0, '.github/diagnostics')
+        from rewind595_baseline import STORE_PATH, STORE_SHA256
+        source = Path(STORE_PATH).read_bytes()
+        copied_path = Path('packages/neo_swap/ios/Classes/Storage/Store.cpp')
+        copied = copied_path.read_bytes()
+        assert source == copied, 'CocoaPods NeoSwap Store.cpp differs from the reviewed source'
+        assert hashlib.sha256(copied).hexdigest() == STORE_SHA256, 'Latest NeoSwap host fix was not copied'
+        assert 'Store.cpp in Sources' in Path('ios/Pods/Pods.xcodeproj/project.pbxproj').read_text(), 'NeoSwap Store.cpp is absent from CocoaPods sources'
+        Path('build/delivery/neoswap-host-source595.json').write_text(json.dumps({
+            'result': 'passed', 'source': STORE_PATH, 'compiledSource': str(copied_path),
+            'sha256': STORE_SHA256, 'bytes': len(copied), 'cocoaPodsSourcesEntryPresent': True,
+            'nativeSuitesReplayed': False}, indent=2) + '\n')
+        PY_STORE
+    - name: Compile Release device binary with measured AOT and Xcode phases
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 build-utils/delivery_metrics.py xcode_build xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner \
+          -configuration Release -sdk iphoneos \
+          -destination 'generic/platform=iOS' \
+          -derivedDataPath build/ios/DolphinDerivedData \
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' \
+          DEVELOPMENT_TEAM='' PROVISIONING_PROFILE_SPECIFIER='' \
+          COMPILER_INDEX_STORE_ENABLE=NO \
+          PERFORMANCE_MEASUREMENT_FILE="$RUNNER_TEMP/flutter-aot-timings.json" \
+          -jobs "$(python3 -c 'import os; print(os.cpu_count())')" -showBuildTimingSummary build \
+          2>&1 | tee "$RUNNER_TEMP/neostation-fast-xcodebuild.log"
+    - name: Embed NeoPlay source identity and dependency acknowledgements
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 - <<'NEOPLAY'
+        import json, os, shutil
+        from pathlib import Path
+        app = Path('build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app')
+        assert app.is_dir()
+        identity = {'build': os.environ['BUILD_NUMBER'], 'commit': os.environ['GITHUB_SHA'], 'physicalTVValidation': False, 'physicalControllerValidation': False, 'nativeLinkage': 'static_framework', 'castSDK': '4.8.6'}
+        (app / 'NeoPlay-build-identity.json').write_text(json.dumps(identity, indent=2))
+        notices = Path('ios/Pods/Target Support Files/Pods-Runner/Pods-Runner-acknowledgements.plist')
+        assert notices.is_file(), 'CocoaPods acknowledgement inventory is missing'
+        shutil.copyfile(notices, app / 'NeoPlay-Pods-acknowledgements.plist')
+        NEOPLAY
+    - name: Embed verified RPCS3 Core and signing metadata
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 build-utils/embed_rpcs3_core_lazy.py
+        python3 build-utils/embed_rpcs3_host_entitlements.py
+        python3 build-utils/embed_neoswap_donor_entitlements.py
+    - name: Embed the authenticated RPCS3 runtime candidate identity and compiled payload binding
+      run: |
+        python3 build-utils/validate_rpcs3_core595_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app \
+          --build-number "$BUILD_NUMBER" \
+          --core-binary dist/rpcs3-native/libRPCS3Core.dylib --core-identity dist/rpcs3-native/identity.json \
+          --report build/delivery/rpcs3-runtime-candidate-embedded.json
+    - name: Embed the MeloNX optimization engine595 identity
+      run: |
+        python3 build-utils/validate_melonx_engine595_ipa.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+    - name: Embed lazy-loaded ARMSX2 Core framework
+      shell: bash
+      run: |
+        set -euo pipefail
+        APP="build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app"
+        test -d "$APP"
+        mkdir -p "$APP/Frameworks"
+        rm -rf "$APP/Frameworks/ARMSX2Core.framework"
+        ditto dist/armsx2/ARMSX2Core.framework "$APP/Frameworks/ARMSX2Core.framework"
+        test -f "$APP/Frameworks/ARMSX2Core.framework/ARMSX2Core"
+        file "$APP/Frameworks/ARMSX2Core.framework/ARMSX2Core"
+        nm -gj "$APP/Frameworks/ARMSX2Core.framework/ARMSX2Core" > build/armsx2-exports.txt
+        grep -qx '_NeoARMSX2_GetAPI' build/armsx2-exports.txt
+    - name: Embed lazy-loaded libretro cores, MoltenVK and system assets
+      run: |
+        set -euo pipefail
+        APP="build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app"
+        for framework in dist/libretro/Frameworks/*.framework; do
+          rm -rf "$APP/Frameworks/$(basename "$framework")"
+          ditto "$framework" "$APP/Frameworks/$(basename "$framework")"
+        done
+        rm -rf "$APP/LibretroSystem" "$APP/Libretro-Licenses"
+        ditto dist/libretro/LibretroSystem "$APP/LibretroSystem"
+        ditto dist/libretro/Libretro-Licenses "$APP/Libretro-Licenses"
+        cp dist/libretro/identity.json "$APP/Libretro-native-identity.json"
+        ls "$APP/Frameworks" | grep -c '_libretro.framework'
+    - name: Embed legal, license and source notices
+      shell: bash
+      run: |
+        set -euo pipefail
+        APP="build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app"
+        python3 build-utils/embed_legal_bundle.py \
+          --app "$APP" \
+          --build-number "$BUILD_NUMBER" \
+          --dolphin-sha "$DOLPHIN_SHA"
+    - name: Embed verified MeloNX runtime and actual build-source notices
+      run: python3 build-utils/melonx/package_runtime.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+    - name: Embed the standalone MeloNX MoltenVK with its provenance and Apache-2.0 notice
+      run: python3 build-utils/melonx/package_standalone_moltenvk.py --embed build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app
+    - name: Package the rebuilt application and retain current component identities
+      shell: bash
+      run: |
+        set -euo pipefail
+        git diff --check
+        python3 packages/dolphin_internal_bridge/ci/build_support.py package
+        python3 build-utils/validate_rpcs3_core595_ipa.py --structure --ipa "dist/$IPA_NAME.ipa" \
+          --report dist/rpcs3-ipa-validation.json \
+          --build-number "$BUILD_NUMBER" --commit "$GITHUB_SHA" \
+          --core-identity build/fast-native/rpcs3-core-identity.json \
+          --core-host-commit "$RPCS3_CORE_HOST_SHA" --core-run-id "$RPCS3_CORE_RUN_ID"
+        cp build/fast-native/identity.json dist/fast-native-identity.json
+        cp build/fast-native/rpcs3-core-identity.json dist/rpcs3-core-identity.json
+    - name: Seal every executable, framework and extension for SideStore
+      run: |
+        python3 build-utils/delivery_metrics.py signature_and_ipa_export python3 build-utils/delivery_benchmark.py seal
+    - name: Preserve sealed IPA and source receipts before final compatibility validators
+      run: |
+        set -euo pipefail
+        mkdir -p build/recovery-artifact
+        cp dist/NeoStation.ipa "build/recovery-artifact/RewindBox-Build${BUILD_NUMBER}-${GITHUB_SHA}-recovery.ipa"
+        cp build/delivery/*.json build/recovery-artifact/
+        shasum -a 256 build/recovery-artifact/*.ipa > build/recovery-artifact/SHA256SUMS
+        python3 build-utils/delivery_cipher.py artifact build/recovery-artifact build/encrypted-recovery
+        python3 build-utils/split_encrypted_delivery.py build/encrypted-recovery build/encrypted-recovery-parts
+    - name: Preserve sealed recovery piece 1 of 4
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}-recovery-part00
+        path: build/encrypted-recovery-parts/part00/
+        if-no-files-found: error
+        retention-days: 14
+        compression-level: 0
+    - name: Preserve sealed recovery piece 2 of 4
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}-recovery-part01
+        path: build/encrypted-recovery-parts/part01/
+        if-no-files-found: error
+        retention-days: 14
+        compression-level: 0
+    - name: Preserve sealed recovery piece 3 of 4
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}-recovery-part02
+        path: build/encrypted-recovery-parts/part02/
+        if-no-files-found: error
+        retention-days: 14
+        compression-level: 0
+    - name: Preserve sealed recovery piece 4 of 4
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}-recovery-part03
+        path: build/encrypted-recovery-parts/part03/
+        if-no-files-found: error
+        retention-days: 14
+        compression-level: 0
+    - name: Verify actual packaged MeloNX exports, helper identity and native notices
+      run: python3 build-utils/validate_melonx_ipa.py dist/NeoStation.ipa --report build/delivery/melonx-ipa.json
+    - name: Verify the signed RPCS3 runtime candidate receipt against its authenticated original payload
+      run: |
+        python3 build-utils/validate_rpcs3_core595_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" \
+          --core-identity dist/rpcs3-native/identity.json --report build/delivery/rpcs3-runtime-candidate-ipa-validation.json
+    - name: Verify the signed MeloNX optimization engine595 against its original payload
+      run: |
+        python3 build-utils/validate_melonx_engine595_ipa.py "dist/$IPA_NAME.ipa" --build-number "$BUILD_NUMBER" \
+          --report build/delivery/melonx-engine595-ipa-validation.json
+    - name: Verify final signed legal bundle and application and extension versions
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 build-utils/validate_legal_bundle_ipa.py "dist/$IPA_NAME.ipa" \
+          --build-number "$BUILD_NUMBER" --commit "$GITHUB_SHA"
+        python3 - <<'PYVERSION'
+        import json, os, plistlib, zipfile
+        from pathlib import Path
+        version = next(line.partition(':')[2].strip().strip('"' + chr(39)).split('+')[0]
+                       for line in Path('pubspec.yaml').read_text().splitlines() if line.startswith('version:'))
+        with zipfile.ZipFile('dist/' + os.environ['IPA_NAME'] + '.ipa') as archive:
+            names = archive.namelist()
+            roots = [name[:-10] for name in names if name.startswith('Payload/') and
+                     len(name.split('/')) == 3 and name.endswith('.app/Info.plist')]
+            assert len(roots) == 1
+            root = roots[0]
+            bundles = [name for name in names if name == root + 'Info.plist' or
+                       (name.startswith(root + 'PlugIns/') and name.endswith('.appex/Info.plist'))]
+            assert bundles
+            for name in bundles:
+                info = plistlib.loads(archive.read(name))
+                assert str(info['CFBundleVersion']) == os.environ['BUILD_NUMBER'], name
+                assert info['CFBundleShortVersionString'] == version, name
+        Path('build/delivery/version-validation.json').write_text(json.dumps(
+            dict(result='passed', build=int(os.environ['BUILD_NUMBER']), version=version, bundles=bundles), indent=2) + chr(10))
+        PYVERSION
+        shasum -a 256 "dist/$IPA_NAME.ipa" > "dist/$IPA_NAME.sha256"
+    - name: Finalize observed timings and artifact identity
+      if: always()
+      run: |
+        python3 build-utils/delivery_benchmark.py report
+    - name: Prepare encrypted delivery and evidence
+      run: |
+        mkdir -p build/delivery-artifact
+        cp dist/NeoStation.ipa "build/delivery-artifact/RewindBox-Build${BUILD_NUMBER}-${GITHUB_SHA}-${DELIVERY_MODE}.ipa"
+        cp build/delivery/*.json build/delivery-artifact/
+        cp docs/retroarch-rollback-2026-10-08.md build/delivery-artifact/
+        shasum -a 256 build/delivery-artifact/*.ipa > build/delivery-artifact/SHA256SUMS
+
+        python3 build-utils/delivery_metrics.py artifact_encryption python3 build-utils/delivery_cipher.py artifact build/delivery-artifact build/encrypted-delivery
+    - name: Upload encrypted IPA and verification reports
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}
+        path: build/encrypted-delivery/
+        if-no-files-found: error
+        retention-days: 14
+        compression-level: 0
+    - name: Prepare bounded encrypted transport pieces
+      run: python3 build-utils/split_encrypted_delivery.py build/encrypted-delivery build/encrypted-delivery-parts
+    - name: Upload encrypted transport piece 1 of 4
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}-part00
+        path: build/encrypted-delivery-parts/part00/
+        if-no-files-found: error
+        retention-days: 14
+        compression-level: 0
+    - name: Upload encrypted transport piece 2 of 4
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}-part01
+        path: build/encrypted-delivery-parts/part01/
+        if-no-files-found: error
+        retention-days: 14
+        compression-level: 0
+    - name: Upload encrypted transport piece 3 of 4
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}-part02
+        path: build/encrypted-delivery-parts/part02/
+        if-no-files-found: error
+        retention-days: 14
+        compression-level: 0
+    - name: Upload encrypted transport piece 4 of 4
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}-part03
+        path: build/encrypted-delivery-parts/part03/
+        if-no-files-found: error
+        retention-days: 14
+        compression-level: 0
+    - name: Collect diagnostic evidence
+      if: always()
+      run: |
+        mkdir -p build/delivery
+        cp "$RUNNER_TEMP/neostation-fast-xcodebuild.log" build/delivery/xcodebuild.log 2>/dev/null || true
+        cp "$RUNNER_TEMP/flutter-aot-timings.json" build/delivery/flutter-aot-timings.json 2>/dev/null || true
+
+        python3 build-utils/delivery_cipher.py artifact build/delivery build/encrypted-diagnostics
+    - name: Upload diagnostics
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ARTIFACT_NAME }}-diagnostics
+        path: build/encrypted-diagnostics/
+        if-no-files-found: warn
+        retention-days: 14
+    - name: Remove temporary secrets
+      if: always()
+      shell: bash
+      run: rm -f .dart-defines.json
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rewind595-delivery]') }}
+env:
+  CI: 'true'
+  FLUTTER_SUPPRESS_ANALYTICS: 'true'

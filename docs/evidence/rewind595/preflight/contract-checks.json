@@ -1,0 +1,25 @@
+{
+  "positive": {
+    "result": "passed",
+    "tree": "2085cb8d64547533fe23b2b56aa8c01ca9c3cf27",
+    "productTrees": {
+      "lib": "9208336d76655b98972d11e519cd0d3337666e41",
+      "native": "13f00cb5070d4bb08928be628c273ec21210b8e6",
+      "packages": "6164ff03871a384267e5f20f6734225a1aaed5c4",
+      "assets": "fb15f670844075f22dd667b370961a69371d9589",
+      "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+      "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+    },
+    "recipeInputs": 8,
+    "sourceContractSHA256": "f45764ef7bf78494e389a7845cca44e30cab56959a46aff103cc1bb397a70681"
+  },
+  "negative": {
+    "rejected": true,
+    "reason": "An unreviewed application product changed",
+    "mutation": "Tracked and committed Store.cpp content changed in isolated checkout"
+  },
+  "nativeSuitesReplayed": false,
+  "networkUsed": false,
+  "mainCheckoutChanged": false,
+  "setup": "Isolated Git object store uses existing partial-clone alternates and write-tree --missing-ok to retain unrelated unavailable blobs; final source_contract executes unmodified."
+}
