@@ -44,7 +44,14 @@ class ReceiptTests(unittest.TestCase):
                 self.proof['tests'][key] = {'passed': True, 'output_sha256': gate.sha(b'output')}
                 continue
             name = key + '.cpp'
-            (self.out / name).write_bytes(b'program')
+            restore = key.startswith('mfc-restore-')
+            canonical = ('enum cpu_flag:u32 {pending=1,wait=2,temp=4};\n'
+                         'constexpr int flag = cpu_flag::wait + cpu_flag::wait;\n'
+                         if restore else 'program')
+            compiled = gate.apple_host_program('mfc-restore' if restore else key, canonical)
+            (self.out / name).write_bytes(compiled.encode())
+            if restore:
+                (self.out / 'mfc-restore-canonical.cpp').write_bytes(canonical.encode())
             (self.out / (key + '-compile.txt')).write_bytes(b'compile')
             evidence = 'evidence/' + key + '.json'
             native_result = {'passed': True}
@@ -53,16 +60,18 @@ class ReceiptTests(unittest.TestCase):
                 native_result['indexedDirtyPredicateCalls'] = 123
             if key.startswith('coverage-'):
                 native_result['sink'] = 0
-            gate.save(self.root / evidence, {'harnessSHA256': gate.sha(b'program'), 'results': native_result})
+            gate.save(self.root / evidence, {'harnessSHA256': gate.sha(canonical.encode()), 'results': native_result})
             report = dict(passed=True, results=native_result, flags=['-UNDEBUG'],
-                compiler=self.compiler, program_sha256=gate.sha(b'program'), evidence=evidence,
+                compiler=self.compiler, program_sha256=gate.sha(compiled.encode()), evidence=evidence,
+                canonical_program_sha256=gate.sha(canonical.encode()),
+                apple_host_adapter=restore,
                 output_sha256=gate.sha(b'output'), compile_sha256=gate.sha(b'compile'))
             if key.endswith('-asan-ubsan'):
                 report['flags'].append('-fsanitize=address,undefined')
             path = self.out / (key + '-result.json')
             gate.save(path, report)
             self.proof['tests'][key] = dict(passed=True, report_sha256=gate.sha(path.read_bytes()),
-                program=name, program_sha256=gate.sha(b'program'))
+                program=name, program_sha256=gate.sha(compiled.encode()))
 
     def check(self, proof=None):
         path = self.root / 'proof.json'
@@ -101,6 +110,14 @@ class ReceiptTests(unittest.TestCase):
         (self.out / 'snr-plain.cpp').write_bytes(b'altered')
         with self.assertRaises(AssertionError): self.check()
 
+    def test_mfc_canonical_program_tampering_rejected(self):
+        (self.out / 'mfc-restore-canonical.cpp').write_text('fake')
+        with self.assertRaises(AssertionError): self.check()
+
+    def test_mfc_host_program_tampering_rejected(self):
+        (self.out / 'mfc-restore-plain.cpp').write_text('fake')
+        with self.assertRaises(AssertionError): self.check()
+
     def test_wrong_spu_identity_rejected(self):
         proof = copy.deepcopy(self.proof)
         proof['codegen']['SPU'] = 'd070cb361bdef607'
@@ -112,6 +129,17 @@ class ReceiptTests(unittest.TestCase):
 
 
 class NativeSchemaTests(unittest.TestCase):
+    def test_mfc_mac_adaptation_renames_only_test_flag(self):
+        original = ('enum cpu_flag:u32 {pending=1,wait=2,temp=4};\n'
+                    'u32 x=cpu_flag::wait + cpu_flag::wait;')
+        updated = gate.apple_host_program('mfc-restore', original)
+        self.assertIn('rbx_wait=2', updated)
+        self.assertEqual(updated.count('cpu_flag::rbx_wait'), 2)
+        self.assertNotIn('cpu_flag::wait', updated)
+        self.assertEqual(gate.apple_host_program('snr', original), original)
+        with self.assertRaises(AssertionError):
+            gate.apple_host_program('mfc-restore', 'int main(){}')
+
     def test_crlf_manifest_normalization(self):
         self.assertEqual(gate.canonical_sha(b'a\r\nb\r\n'), gate.sha(b'a\nb\n'))
         self.assertNotEqual(gate.canonical_sha(b'a \r\n'), gate.sha(b'a\n'))
