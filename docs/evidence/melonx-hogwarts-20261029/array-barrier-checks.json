@@ -1,0 +1,81 @@
+{
+  "result": "passed",
+  "reports": [
+    {
+      "mode": "control",
+      "checks": 5415,
+      "measurements": [
+        {
+          "length": 256,
+          "repetitions": 256,
+          "samplerAllocated": 4108288,
+          "samplerHashInsertions": 65536,
+          "resourceAllocated": 8216576,
+          "resourceHashInsertions": 131072
+        },
+        {
+          "length": 1024,
+          "repetitions": 256,
+          "samplerAllocated": 18726912,
+          "samplerHashInsertions": 262144,
+          "resourceAllocated": 37453824,
+          "resourceHashInsertions": 524288
+        },
+        {
+          "length": 4096,
+          "repetitions": 256,
+          "samplerAllocated": 82589696,
+          "samplerHashInsertions": 1048576,
+          "resourceAllocated": 165179392,
+          "resourceHashInsertions": 2097152
+        }
+      ],
+      "physicalDeviceTested": false,
+      "vulkanCallsDoubled": true
+    },
+    {
+      "mode": "candidate",
+      "checks": 5415,
+      "measurements": [
+        {
+          "length": 256,
+          "repetitions": 256,
+          "samplerAllocated": 0,
+          "samplerHashInsertions": 0,
+          "resourceAllocated": 0,
+          "resourceHashInsertions": 0
+        },
+        {
+          "length": 1024,
+          "repetitions": 256,
+          "samplerAllocated": 0,
+          "samplerHashInsertions": 0,
+          "resourceAllocated": 0,
+          "resourceHashInsertions": 0
+        },
+        {
+          "length": 4096,
+          "repetitions": 256,
+          "samplerAllocated": 0,
+          "samplerHashInsertions": 0,
+          "resourceAllocated": 0,
+          "resourceHashInsertions": 0
+        }
+      ],
+      "physicalDeviceTested": false,
+      "vulkanCallsDoubled": true
+    }
+  ],
+  "physicalDeviceTested": false,
+  "vulkanCallsDoubled": true,
+  "inputs": {
+    "build-utils/melonx/adapt_array_barriers.py": "a71c65bca19a4b47a6fbd07b920a43e4a8a8ee707118d31277a7da138c07b639",
+    "test/melonx_array_barriers_test.py": "6595b805c69471e49703f1dd9f68035931b956de7379d5df4f9bd04f2b6c7555",
+    "test/melonx_array_barriers/Program.cs": "1b9045bd127976292f4f7b464a19d90ad0f24853a78b478d4ac67b3dc30c1482"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs": "948628754db29845a576c42c3087f7a1727d920b33ec0053cf814f68603500ae",
+    "src/Ryujinx.Graphics.Vulkan/ImageArray.cs": "2788a716d836e75300de1dc479b29eb3d0947cc0178b26e7e7f7557e833063cf",
+    "src/Ryujinx.Graphics.Vulkan/ResourceArray.cs": "b0cf3ed2cb662369493d4fda562dcd79763bb2f3f0e1c1916305a0f97f1310d7"
+  }
+}

@@ -34,6 +34,15 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/adapt_texture_uploads.py
     - build-utils/melonx/adapt_pipeline_recycle.py
     - build-utils/melonx/adapt_fragmented_uploads.py
+    - build-utils/melonx/adapt_texture_ownership.py
+    - build-utils/melonx/adapt_bindless_allocations.py
+    - build-utils/melonx/adapt_array_barriers.py
+    - test/melonx_texture_ownership_test.py
+    - test/melonx_texture_ownership/**
+    - test/melonx_bindless_allocations_test.py
+    - test/melonx_bindless_allocations/**
+    - test/melonx_array_barriers_test.py
+    - test/melonx_array_barriers/**
     - test/melonx_jit_dataflow_test.py
     - test/melonx_jit_dataflow/**
     - test/melonx_jit_dataflow_codegen_test.py
@@ -221,6 +230,12 @@ jobs:
       run: python3 test/melonx_pipeline_recycle_test.py .native-sources/MeloNX
     - name: Verify fragmented texture read leases and exceptional cleanup
       run: python3 test/melonx_fragmented_uploads_test.py .native-sources/MeloNX
+    - name: Verify balanced texture pool references and obsolete texture expiry
+      run: python3 test/melonx_texture_ownership_test.py .native-sources/MeloNX
+    - name: Verify bindless command snapshots and bounded scratch ownership
+      run: python3 test/melonx_bindless_allocations_test.py .native-sources/MeloNX
+    - name: Verify reused Vulkan array storage sets preserve barriers and descriptors
+      run: python3 test/melonx_array_barriers_test.py .native-sources/MeloNX
     - name: Retain effective graphics journal regression proof
       run: |
         python3 - <<'PY'

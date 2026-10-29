@@ -2,6 +2,21 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## MeloNX Hogwarts memory candidate — 29 October 2026
+
+On `571dbc08`, after delivered IPA 593: correct per-slot texture pool ownership
+and obsolete texture expiry, remove redundant bindless reference arrays while
+preserving queued command snapshots, and reuse Vulkan array storage sets with
+barriers and descriptor invalidation intact. Three guarded adapters are wired
+into prepare_embedded and the engine workflow. Targeted production-code host
+tests and the complete managed library build pass. Evidence and limitations:
+`docs/melonx-hogwarts-memory-2026-10-29.md` and its evidence directory.
+The supplied log shows a 2.6 FPS median in the final slow phase, high background
+GC activity and renderer congestion; it has no explicit application/engine
+identity. Host allocation reductions are not measured iPhone FPS or resident
+RAM savings. Keep private IPA 593 and its delivered tree as the application
+baseline; this source candidate does not change its contents or delivery ID.
+
 ## Private IPA 593 — delivered with latest RPCS3 and MeloNX, 29 October 2026
 
 The maintainer explicitly authorized this new IPA. Private version 0.0.8 (593)
