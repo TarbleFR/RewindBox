@@ -1,5 +1,5 @@
 name: RPCS3 NeoSwap v1 core
-run-name: RPCS3 NeoSwap v1 Core • ${{ github.sha }}
+run-name: RPCS3 NeoSwap v1 Core â€¢ ${{ github.sha }}
 on:
   push:
     branches: [experimental, Claude]
@@ -65,7 +65,7 @@ on:
       phase:
         description: Build the reviewed Core, or compose the pinned private IPA
         type: choice
-        options: [core, delivery499, delivery500]
+        options: [core, deep-audit, delivery499, delivery500]
         default: core
       recipient:
         description: Public PEM for the dedicated Build 499 delivery
@@ -78,7 +78,7 @@ jobs:
   build:
     # The host integration reuses the already built, provenance-checked Core;
     # ios-ci validates its unchanged source, recipe, ABI, and binary identity.
-    if: ${{ inputs.phase != 'delivery499' && inputs.phase != 'delivery500' && !contains(github.event.head_commit.message, '[rpcs3-host-integration]') && !contains(github.event.head_commit.message, '[rpcs3-cell527-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell528-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell534-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell536-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell539-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell542-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell543-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell545-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell546-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell547-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell551-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell555-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell559-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell560-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell561-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell563-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell565-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell567-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell569-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell571-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell573-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell575-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell579-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell581-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell583-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell585-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell587-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell589-core]') && !contains(github.event.head_commit.message, '[rpcs3-runtime592-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell554-bench]') }}
+    if: ${{ inputs.phase != 'deep-audit' && inputs.phase != 'delivery499' && inputs.phase != 'delivery500' && !contains(github.event.head_commit.message, '[rpcs3-host-integration]') && !contains(github.event.head_commit.message, '[rpcs3-cell527-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell528-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell534-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell536-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell539-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell542-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell543-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell545-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell546-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell547-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell551-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell555-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell559-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell560-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell561-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell563-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell565-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell567-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell569-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell571-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell573-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell575-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell579-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell581-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell583-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell585-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell587-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell589-core]') && !contains(github.event.head_commit.message, '[rpcs3-runtime592-core]') && !contains(github.event.head_commit.message, '[rpcs3-cell554-bench]') }}
     # A host-only push must not cancel the exact Core referenced by its IPA.
     # Keep distinct source revisions independent and never cancel a running build.
     concurrency:
@@ -255,3 +255,7 @@ jobs:
       build_number: '500'
       recipient: build-utils/delivery-500-recipient.pem
     secrets: inherit
+
+  deep_audit:
+    if: ${{ inputs.phase == 'deep-audit' }}
+    uses: ./.github/workflows/rpcs3-deep-audit-core.yml
