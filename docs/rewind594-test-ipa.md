@@ -40,11 +40,37 @@ unchanged native test suite is rebuilt for this packaging.
 
 ## Assembly and delivery status
 
-One application Release build is planned. Final checks bind both signed engine
-payloads to the original authenticated artifacts, verify signatures and the
-legal bundle, and check application and extension version numbers. A fresh
-recipient protects the private downloadable IPA. Re-sign with SideStore for
-installation. This preparation is not yet a successful IPA delivery.
+**The application Release build and CI validation completed successfully on
+attempt 1.** [Run 40848076659](https://github.com/TarbleFR/RewindBox/actions/runs/40848076659)
+built source `97365ce57f17499101e88d50019b6c63be554b83`. Job `123360403474`
+ran on 29 October 2026 from 09:14:29 to 09:28:29 UTC, for 14 minutes.
+The recorded product tree is `1d43bbac26b3146d5d24afff0553d0c18d5bc20e`.
+One application build reused the two authenticated engine artifacts.
+
+| Produced IPA | Verified value |
+| --- | --- |
+| File | `RewindBox-Build594.ipa` |
+| Version | `0.0.8 (594)` for the application and all seven extensions |
+| Size | 188,316,921 bytes |
+| SHA256 | `714021770922547c532e1439466d5725b4f8eb17c18ca629fe996d985124fe63` |
+| Signature checks in CI | 88 ad hoc signature records verified |
+| Signing preservation | Code/data sections and ABI metadata unchanged by signing across 85 Mach-O payloads |
+| Xcode build | 320.895 seconds |
+| Signing and export | 52.616 seconds |
+
+The CI checks bind both signed engine payloads to their original artifacts and
+validate the application structure and version numbers. The decrypted IPA has
+the size and SHA256 shown above. Independent post-download verification passed
+on this actual IPA: both full embedded receipts and both signed engine payloads
+match the authenticated original archives. Cryptographic signature validation
+is the Apple runner's check; the offline check verifies signature structure and
+payload identity. The verified file is ready for download in the conversation.
+Persistent private-file saving remains pending explicit maintainer authorization.
+SideStore re-signing is required; no device installation has been tested.
+
+Receipts: [delivery record](evidence/rewind594-delivery.json) and
+[retained build and validation evidence](evidence/rewind594/).
+The complete French inventory is in [the 594 changelog](rewind594-changelog-fr.md).
 
 No public release or tag is created. Physical iPhone gameplay, launch-time,
 FPS and whole-process memory improvements remain to be measured on the device.

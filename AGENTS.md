@@ -2,6 +2,32 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## Private IPA 594 — compiled and independently verified, 29 October 2026
+
+The maintainer requested the new RPCS3 Core with the latest MeloNX fixes.
+Private version 0.0.8 (594) passes run `40848076659` on attempt 1, source
+`97365ce57f17499101e88d50019b6c63be554b83`, artifact `12887185554`.
+IPA: 188,316,921 bytes, SHA256
+`714021770922547c532e1439466d5725b4f8eb17c18ca629fe996d985124fe63`.
+The real downloaded IPA passes independent payload checks against RPCS3 Core
+`fe587e27` / artifact `12883027017` and MeloNX engine82 `ebcee352` /
+artifact `12883480724`. Preserve MeloNX's original failed first smoke and its
+separate successful runtime validation `40841402428`; the engine was unchanged.
+All 85 Mach-O payloads retain code/data and ABI through signing; 88 ad hoc
+signature records pass on the Apple runner. The app and its seven extensions
+are version 0.0.8 (594). Job: 840 s; Xcode: 320.895 s; signing/export: 52.616 s.
+One application build; no engine rebuild or native-suite replay during packaging.
+StikJIT cache reused. No public release/tag or physical-device/FPS result.
+
+The verified IPA is available as a conversation workspace download; persistent
+private-file saving is still pending explicit maintainer authorization. Do not
+claim that persistent saving or recipient-key cleanup has completed. Re-sign
+with SideStore before installation. Preserve the verified 594 product tree
+`1d43bbac26b3146d5d24afff0553d0c18d5bc20e` and its exact input contract for
+subsequent work. Do not reuse build 594. Evidence:
+`docs/evidence/rewind594-delivery.json` and `docs/evidence/rewind594/`.
+Full 13 RPCS3 + 16 MeloNX inventory: `docs/rewind594-changelog-fr.md`.
+
 ## RPCS3 Core compiled and verified — 29 October 2026
 
 The maintainer explicitly requested the Core build. Immutable source
