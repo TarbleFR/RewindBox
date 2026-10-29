@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "repository": "TarbleFR/RewindBox",
+  "repositoryId": 1329032710,
+  "branch": "Claude",
+  "source": "e46ace78c0232864764009c5506bb1041bc1eddd",
+  "engineSource": "ebcee3529645a781311429a869434005e76d6275",
+  "run": 40841402428,
+  "runAttempt": 1,
+  "job": 123338394512,
+  "jobName": "runtime",
+  "workflow": ".github/workflows/melonx-runtime-validation.yml",
+  "artifact": 12883480724,
+  "artifactName": "MeloNX-engine-ebcee3529645a781311429a869434005e76d6275-runtime-validation-40841402428",
+  "archiveBytes": 102750721,
+  "archiveSha256": "be55d705ea93ae27c1756c29c3ec7a16ec51c60b9ace10556dcc751a00f5af45",
+  "requiredSuccessfulSteps": [
+    "Authenticate and restore unchanged engine 82",
+    "Validate the existing engine with the corrected ARM64 simulator smoke",
+    "Retain the original failure and new runtime proof"
+  ],
+  "validationHelperSha256": "a910628dd92e237121e92ff91765e3e69cab84a2806788359c46fb6db969641a",
+  "expectedInputs": "docs/evidence/melonx-hogwarts-followup-20261029/embedded-inputs.json",
+  "expectedInputsSha256": "8efb4f3c984bcf0132008f7d22afb8685c3f41dca9731bdaaee4ccb91a89c1aa",
+  "oldPreparationSha256": "eef4fdbb93c7988fd0f671f95aca623a6ecf489c59c319804642d7acc0ae57e9",
+  "newPreparationSha256": "454aa63ffc4b9a482aaf80200e02c03f9f1a0dbf3788b374cb275355a08234c2",
+  "newAdapters": [
+    "build-utils/melonx/adapt_allocator_blocks.py",
+    "build-utils/melonx/adapt_auto_ownership.py",
+    "build-utils/melonx/adapt_converted_cache.py",
+    "build-utils/melonx/adapt_indirect_cache_key.py",
+    "build-utils/melonx/adapt_ipc_request_lifetime.py",
+    "build-utils/melonx/adapt_kernel_timer_allocations.py",
+    "build-utils/melonx/adapt_kernel_wait_lifetime.py",
+    "build-utils/melonx/adapt_multirange_slice.py",
+    "build-utils/melonx/adapt_texture_group_callbacks.py",
+    "build-utils/melonx/adapt_texture_handle_dependencies.py",
+    "build-utils/melonx/adapt_texture_region_cursor.py",
+    "build-utils/melonx/adapt_tracking_snapshots.py"
+  ],
+  "binarySha256": {
+    "ios-arm64": "f7efba4e5025be2147f8a47fe4de9b2eba2df63537aaa2c496e74b57413af2e5",
+    "iossimulator-arm64": "bb48dcb4f6c6571b16d84ef0b0a3a2c5a954b6ee111739c0f9a335267f0d9968"
+  },
+  "libHac": {
+    "packageSha256": "b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9",
+    "sourceSha256": "36e4cf34575a36e3844b55fd8cc3834bfb1cddc68ccebbb21fc0f7bb28e8373b",
+    "generatedSha256": "f37c39d522b0006af2b71b9ac5681015acdc4b6a0bc9e2dd1598ee9978a936f2",
+    "layoutRun": 39504259828,
+    "layoutJob": 118909098038,
+    "layoutTestsPassed": 5
+  }
+}

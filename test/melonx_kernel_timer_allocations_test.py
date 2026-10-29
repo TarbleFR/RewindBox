@@ -50,8 +50,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-kernel-timer-') as temporary:
 <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally><NuGetAudit>false</NuGetAudit>
 </PropertyGroup><ItemGroup><Compile Remove="source/**/*.cs" /></ItemGroup></Project>''')
         (work / 'NuGet.Config').write_text('<configuration><packageSources><clear /></packageSources></configuration>')
-        (work / 'global.json').write_text(json.dumps({'sdk': {'version': pin['dotnet'], 'rollForward': 'latestFeature'}}))
-        result = subprocess.run(['dotnet', 'run', '--project', str(work), '-c', 'Release', '-v', 'q', '--', variant], capture_output=True, text=True, timeout=180)
+        (work / 'global.json').write_text(json.dumps({'sdk': {'version': pin['dotnet'], 'rollForward': 'disable'}}))
+        result = subprocess.run(['dotnet', 'run', '--project', str(work), '-c', 'Release', '-v', 'q', '--', variant], cwd=work, capture_output=True, text=True, timeout=180)
         if result.returncode:
             print(result.stdout + result.stderr)
             result.check_returncode()

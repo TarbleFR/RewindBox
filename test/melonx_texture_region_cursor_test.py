@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Compare real ordered overlap bodies with historical and value cursors.
+"""Compare real overlap with the composed value cursor and final range slicing.
 
 Reuse the established overlap fixture because its production inputs change;
 add iterator protocol, malformed layout and mutation cases for the new cursor.
-The LINQ oracle still uses unchanged SizeInfo.AllRegions in both variants.
+The control retains historical MultiRange.Slice as its oracle. The candidate
+uses the exact final Slice postimage as well as the value cursor. SizeInfo's
+historical AllRegions iterator remains unchanged in both variants.
 """
 from pathlib import Path
 import hashlib
@@ -19,6 +21,9 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_texture_overlap import apply as baseline
 from adapt_texture_region_cursor import apply
+from adapt_multirange_slice import apply as apply_slice
+FINAL_SLICE_SHA256 = 'c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b'
+SLICE_PATH = 'src/Ryujinx.Memory/Range/MultiRange.cs'
 UPSTREAM = {
     'src/Ryujinx.Graphics.Gpu/Image/Texture.cs': '2b0efc551b02535fe96a123dca328208313896db558c68cd9af01c7ae31c8f07',
     'src/Ryujinx.Graphics.Gpu/Image/TextureViewCompatibility.cs': '47d65cd1027efd36bcfcd5aad479c948a681cad53a772d1627a3ae83f83bc2a4',
@@ -45,7 +50,7 @@ def member(text, signature):
         if depth == 0: return text[start:index + 1]
     raise AssertionError(signature)
 
-reports, postimages, extraction, baseline_inputs = {}, {}, {}, {}
+reports, postimages, extraction, baseline_inputs, slice_inputs = {}, {}, {}, {}, {}
 with tempfile.TemporaryDirectory(prefix='melonx-texture-region-cursor-') as directory:
     for variant in ('control', 'candidate'):
         work = Path(directory) / variant
@@ -58,8 +63,11 @@ with tempfile.TemporaryDirectory(prefix='melonx-texture-region-cursor-') as dire
         if baseline_inputs: assert before == baseline_inputs
         else: baseline_inputs = before
         if variant == 'candidate':
-            changed = apply(source)
+            changed = apply(source) + apply_slice(source)
             postimages = {str(p.relative_to(source)): hashlib.sha256(p.read_bytes()).hexdigest() for p in changed}
+            assert postimages[SLICE_PATH] == FINAL_SLICE_SHA256, 'Candidate must compile the exact final Slice'
+        slice_inputs[variant] = hashlib.sha256((source / SLICE_PATH).read_bytes()).hexdigest()
+        assert slice_inputs[variant] == (FINAL_SLICE_SHA256 if variant == 'candidate' else UPSTREAM[SLICE_PATH])
         text = (source / 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs').read_text()
         methods = ('private void InitializeTexture(',
                    'public bool DataOverlaps(Texture texture, TextureViewCompatibility compatibility)',
@@ -104,18 +112,22 @@ for old, new in zip(control['overlap']['benchmarks'], candidate['overlap']['benc
     assert (old['name'], old['result']) == (new['name'], new['result'])
     if old['name'] not in ('single-subresource', 'fragmented-first-match'):
         assert old['bytesPerCall'] > 0 and new['bytesPerCall'] == 0, (old, new)
-    else: assert old['bytesPerCall'] == new['bytesPerCall'], (old, new)
+    elif old['name'] == 'fragmented-first-match':
+        assert 0 <= new['bytesPerCall'] < old['bytesPerCall'], (old, new)
+    else: assert old['bytesPerCall'] == new['bytesPerCall'] == 0, (old, new)
 assert candidate['cursor']['allocatedBytes'] == 0 < control['cursor']['allocatedBytes']
 inputs = ['build-utils/melonx/adapt_texture_region_cursor.py', 'build-utils/melonx/adapt_texture_overlap.py',
+          'build-utils/melonx/adapt_multirange_slice.py',
           'build-utils/melonx/adapt_session.py', 'build-utils/melonx/source.json',
           'test/melonx_texture_region_cursor_test.py', 'test/melonx_texture_region_cursor/CursorProgram.cs',
           'test/melonx_texture_overlap/Program.cs']
 receipt = dict(result='passed', reports=reports, physicalDeviceTested=False,
                unchangedEnumerableOracle=True, completeSizeInfo=True, productionOverlapBodiesVerbatim=True,
+               finalCursorAndSliceCompiledTogether=True, compiledMultiRangeSha256=slice_inputs,
                gpuResourcesUsed=False, upstreamRevision=PIN['revision'], dotnet=PIN['dotnet'],
                inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
                upstreamInputs=UPSTREAM, preparedBaselineInputs=baseline_inputs,
                postimages=postimages, extraction=extraction)
 out = ROOT / 'dist/melonx/texture-region-cursor-checks.json'; out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(json.dumps(receipt, indent=2) + '\n')
-print('Texture region cursor protocol, real overlap oracle and allocation checks passed.', flush=True)
+print('Texture region cursor and final Slice composition checks passed.', flush=True)

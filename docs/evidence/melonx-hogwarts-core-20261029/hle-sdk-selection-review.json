@@ -1,0 +1,240 @@
+{
+  "schemaVersion": 1,
+  "recordedAtUtc": "2026-10-29T14:40:29.395420+00:00",
+  "result": "passed",
+  "scope": "Only host CLI SDK selection in three copied HLE harnesses; no production/runtime C# changes.",
+  "sdkSelection": {
+    "version": "10.0.100",
+    "sourceContractPath": "/workspace/scratch/90582008c087/RewindBox/build-utils/melonx/source.json",
+    "sourceContractSha256": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "rollForward": "disable",
+    "subprocessWorkingDirectory": "fixture temporary work directory"
+  },
+  "files": [
+    {
+      "gate": "kernel-wait-lifetime",
+      "scriptRelativePath": "test/melonx_kernel_wait_lifetime_test.py",
+      "originalScript": {
+        "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_kernel_wait_lifetime_test.py",
+        "sha256": "d0b16713ab92b342faf6bab1ddaec72f698c7db0cbc913297a09c9859a108746"
+      },
+      "updatedScript": {
+        "path": "/workspace/scratch/90582008c087/cpu-composition-work/test/melonx_kernel_wait_lifetime_test.py",
+        "sha256": "7536a5fd5d9aef83104d2ca36037611bbac514c1264d9d5cfb63b7488be1eb2f"
+      },
+      "previousSuccessfulReceipt": {
+        "path": "/workspace/scratch/90582008c087/RewindBox/docs/evidence/melonx-hogwarts-followup-20261029/kernel-wait-lifetime-checks.json",
+        "sha256": "a49f485350477a075ac424b837ca00c060cabecfc75e339e555273508b38bbeb",
+        "result": "passed"
+      },
+      "previousReceiptScriptInputMatchesOriginal": true,
+      "fixture": {
+        "relativePath": "test/melonx_kernel_wait_lifetime/Program.cs",
+        "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_kernel_wait_lifetime/Program.cs",
+        "sha256": "919200f6ae23217ba4b036398682d8d37c80b0f5d3d4ce70926fb23be6e128eb",
+        "matchesPreviousSuccessfulReceipt": true
+      },
+      "adapter": {
+        "relativePath": "build-utils/melonx/adapt_kernel_wait_lifetime.py",
+        "path": "/workspace/scratch/90582008c087/RewindBox/build-utils/melonx/adapt_kernel_wait_lifetime.py",
+        "sha256": "68a954b4c8bd5f3e8e5dcf74ff424da91a1508a1a964ab3067321279b97892e4",
+        "matchesPreviousSuccessfulReceipt": true
+      },
+      "exactTextDeltaOnly": true,
+      "exactAllowedEdits": [
+        {
+          "operation": "replace SDK rollForward value",
+          "before": "latestFeature",
+          "after": "disable",
+          "occurrences": 1
+        },
+        {
+          "operation": "add subprocess.run keyword",
+          "keyword": "cwd",
+          "valueExpression": "work",
+          "occurrences": 1
+        }
+      ],
+      "pythonAstParsed": true,
+      "normalizedAstEqualsOriginal": true,
+      "originalAstSha256": "cf4b570375ba04ade7eb76c478cd0cb8f346315dc2953d3058c54c5ca16b7729",
+      "normalizedUpdatedAstSha256": "cf4b570375ba04ade7eb76c478cd0cb8f346315dc2953d3058c54c5ca16b7729",
+      "unifiedDiff": "--- a/test/melonx_kernel_wait_lifetime_test.py\n+++ b/test/melonx_kernel_wait_lifetime_test.py\n@@ -81,6 +81,6 @@\n </PropertyGroup><ItemGroup><Compile Remove=\"source/**/*.cs\" /></ItemGroup></Project>''')\n         (work / 'NuGet.Config').write_text('<configuration><packageSources><clear /></packageSources></configuration>')\n-        (work / 'global.json').write_text(json.dumps({'sdk': {'version': pin['dotnet'], 'rollForward': 'latestFeature'}}))\n-        result = subprocess.run(['dotnet', 'run', '--project', str(work), '-c', 'Release', '-v', 'q', '--', variant], capture_output=True, text=True, timeout=180)\n+        (work / 'global.json').write_text(json.dumps({'sdk': {'version': pin['dotnet'], 'rollForward': 'disable'}}))\n+        result = subprocess.run(['dotnet', 'run', '--project', str(work), '-c', 'Release', '-v', 'q', '--', variant], cwd=work, capture_output=True, text=True, timeout=180)\n         if result.returncode:\n             print(result.stdout + result.stderr)\n",
+      "generatedCSharpUnchangedByTheseEdits": true,
+      "generatedCSharpEvidence": "The entire script AST matches after reversing only the SDK rollForward constant and the subprocess cwd keyword. All C# generator strings, extraction/copy logic, production adapter and C# fixture bytes therefore remain unchanged. No generated C# was regenerated or compiled in this review.",
+      "previousRecordedCompiledInputs": {
+        "control": {
+          "waitSynchronizationMethodSha256": "f48cac2706277ff9c55d85895816a987551c25c55f9ec1f4819ba480881c1407",
+          "compiledSyscallSha256": "8e96a651119b701a77358bb8c704c1521dbac3aacb76788197b7822a3d2dda49",
+          "programSha256": "919200f6ae23217ba4b036398682d8d37c80b0f5d3d4ce70926fb23be6e128eb"
+        },
+        "candidate": {
+          "waitSynchronizationMethodSha256": "0a05b4efc3bd383725e62c0c1a039c3cf1d49c2d16f5b627e99ffa42592efa54",
+          "compiledSyscallSha256": "32204640f8caae4a17fa3df673f47394152692f70cd4fe9a0061921353a699a9",
+          "programSha256": "919200f6ae23217ba4b036398682d8d37c80b0f5d3d4ce70926fb23be6e128eb"
+        }
+      },
+      "previousRecordedProductionPostimages": {
+        "control": {
+          "src/Ryujinx.HLE/HOS/Kernel/Common/KSynchronizationObject.cs": "a9a9a899373404dbc85a5a6a257eb00c99fbcf8ad45e51e95cc9a9c2776e9d19",
+          "src/Ryujinx.HLE/HOS/Kernel/Threading/KSynchronization.cs": "372531da36094dc1ed1c3bd64341b3eeaff50abb1ce108eef294c06dbc3858f2",
+          "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs": "109915ad7f4af3207164154ff1d9851d12571ea6aa6af1743b4e713573ab57d0"
+        },
+        "candidate": {
+          "src/Ryujinx.HLE/HOS/Kernel/Common/KSynchronizationObject.cs": "faa0c8b8d9d4a9801a296ed830f68403cd94ef60758e5e2e7c7b33c30c998b1b",
+          "src/Ryujinx.HLE/HOS/Kernel/Threading/KSynchronization.cs": "7fdbfb507dfabaed0112e4150e3259d27c4aa626241785fec91d554c93988070",
+          "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs": "ad697837ea5adb7e0aeea347830d4fd174b445ebc175788247505e443044d47b"
+        }
+      },
+      "runtimeReplayed": false
+    },
+    {
+      "gate": "ipc-request-lifetime",
+      "scriptRelativePath": "test/melonx_ipc_request_lifetime_test.py",
+      "originalScript": {
+        "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_ipc_request_lifetime_test.py",
+        "sha256": "5a85b28e6bdbba12e55360d98eeabc9f985ccbb2d2ce1c07b3ff02448750d1a2"
+      },
+      "updatedScript": {
+        "path": "/workspace/scratch/90582008c087/cpu-composition-work/test/melonx_ipc_request_lifetime_test.py",
+        "sha256": "7c2ad35017f98a0d41a6a27bb62368c3d77ed7e7c8c4fd1578798dfe8408ce00"
+      },
+      "previousSuccessfulReceipt": {
+        "path": "/workspace/scratch/90582008c087/RewindBox/docs/evidence/melonx-hogwarts-followup-20261029/ipc-request-lifetime-checks.json",
+        "sha256": "9ba5e8bafeaae34cf13bece3ea4daf9809b677863f0f30334156fab2580afa0f",
+        "result": "passed"
+      },
+      "previousReceiptScriptInputMatchesOriginal": true,
+      "fixture": {
+        "relativePath": "test/melonx_ipc_request_lifetime/Program.cs",
+        "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_ipc_request_lifetime/Program.cs",
+        "sha256": "2d360d287094ed0e1ed608b6ba63042099b794fe7a4e03997372b2613c0a6f9f",
+        "matchesPreviousSuccessfulReceipt": true
+      },
+      "adapter": {
+        "relativePath": "build-utils/melonx/adapt_ipc_request_lifetime.py",
+        "path": "/workspace/scratch/90582008c087/RewindBox/build-utils/melonx/adapt_ipc_request_lifetime.py",
+        "sha256": "dfee2a2d7e970bb826f4dc609faf04a5d969d777e218e6933f0461fb55d6a71b",
+        "matchesPreviousSuccessfulReceipt": true
+      },
+      "exactTextDeltaOnly": true,
+      "exactAllowedEdits": [
+        {
+          "operation": "replace SDK rollForward value",
+          "before": "latestFeature",
+          "after": "disable",
+          "occurrences": 1
+        },
+        {
+          "operation": "add subprocess.run keyword",
+          "keyword": "cwd",
+          "valueExpression": "work",
+          "occurrences": 1
+        }
+      ],
+      "pythonAstParsed": true,
+      "normalizedAstEqualsOriginal": true,
+      "originalAstSha256": "476e6f3a4610feda2c7b0fa3e607c488775e325570498928849bb1b0cb5a5dac",
+      "normalizedUpdatedAstSha256": "476e6f3a4610feda2c7b0fa3e607c488775e325570498928849bb1b0cb5a5dac",
+      "unifiedDiff": "--- a/test/melonx_ipc_request_lifetime_test.py\n+++ b/test/melonx_ipc_request_lifetime_test.py\n@@ -77,6 +77,6 @@\n </PropertyGroup><ItemGroup><Compile Remove=\"source/**/*.cs\" /></ItemGroup></Project>''')\n         (work / 'NuGet.Config').write_text('<configuration><packageSources><clear /></packageSources></configuration>')\n-        (work / 'global.json').write_text(json.dumps({'sdk': {'version': pin['dotnet'], 'rollForward': 'latestFeature'}}))\n-        result = subprocess.run(['dotnet', 'run', '--project', str(work), '-c', 'Release', '-v', 'q', '--', variant], capture_output=True, text=True, timeout=180)\n+        (work / 'global.json').write_text(json.dumps({'sdk': {'version': pin['dotnet'], 'rollForward': 'disable'}}))\n+        result = subprocess.run(['dotnet', 'run', '--project', str(work), '-c', 'Release', '-v', 'q', '--', variant], cwd=work, capture_output=True, text=True, timeout=180)\n         if result.returncode:\n             print(result.stdout + result.stderr)\n",
+      "generatedCSharpUnchangedByTheseEdits": true,
+      "generatedCSharpEvidence": "The entire script AST matches after reversing only the SDK rollForward constant and the subprocess cwd keyword. All C# generator strings, extraction/copy logic, production adapter and C# fixture bytes therefore remain unchanged. No generated C# was regenerated or compiled in this review.",
+      "previousRecordedCompiledInputs": {
+        "control": {
+          "returnBoundarySha256": "c962359586c2b31aadee9cbd1b62beee7b1e2453dc0487871682dfa3d20ced7a",
+          "returnExpression": "RequestPool.Release(request);",
+          "programSha256": "2d360d287094ed0e1ed608b6ba63042099b794fe7a4e03997372b2613c0a6f9f"
+        },
+        "candidate": {
+          "returnBoundarySha256": "1ecfe9c1376c18e04b5a0ca166e76de9c7f90c463e38f3e4ff050efe7cfcc9a6",
+          "returnExpression": "RequestPool.Release(request.ClearReferences());",
+          "programSha256": "2d360d287094ed0e1ed608b6ba63042099b794fe7a4e03997372b2613c0a6f9f"
+        }
+      },
+      "previousRecordedProductionPostimages": {
+        "control": {
+          "src/Ryujinx.HLE/HOS/Kernel/Ipc/KSessionRequest.cs": "e1dc4b24b0861db309c00d29bb099b5458dee86caa6d4269e3b94d780b346272",
+          "src/Ryujinx.HLE/HOS/Kernel/Ipc/KServerSession.cs": "78d97abc12ff14a95a88b917632d6b6b509977a4e58ab81d922928a41773f65e"
+        },
+        "candidate": {
+          "src/Ryujinx.HLE/HOS/Kernel/Ipc/KSessionRequest.cs": "09a13c5739521d82cc119e5138636c734a27d04dfcfffe225cf2bbe93e01a565",
+          "src/Ryujinx.HLE/HOS/Kernel/Ipc/KServerSession.cs": "3ef04768f15101df8e025f70bbffbe236aa8f097c3a6ee9db618ba9185317000"
+        }
+      },
+      "runtimeReplayed": false
+    },
+    {
+      "gate": "kernel-timer-allocations",
+      "scriptRelativePath": "test/melonx_kernel_timer_allocations_test.py",
+      "originalScript": {
+        "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_kernel_timer_allocations_test.py",
+        "sha256": "a1003a77372e4ecd54e99a8cdceb87b301152f750ad9883e068c1fe8211d5b61"
+      },
+      "updatedScript": {
+        "path": "/workspace/scratch/90582008c087/cpu-composition-work/test/melonx_kernel_timer_allocations_test.py",
+        "sha256": "778e91a49cb377e33486da92e82bb7a92571d3ac571f932b20aea1766d56b2ce"
+      },
+      "previousSuccessfulReceipt": {
+        "path": "/workspace/scratch/90582008c087/RewindBox/docs/evidence/melonx-hogwarts-followup-20261029/kernel-timer-allocations-checks.json",
+        "sha256": "6d0ca067b1d9149d126500677bfb7e2c3be898dc16c5ed3a8540a6d5c84d69c5",
+        "result": "passed"
+      },
+      "previousReceiptScriptInputMatchesOriginal": true,
+      "fixture": {
+        "relativePath": "test/melonx_kernel_timer_allocations/Program.cs",
+        "path": "/workspace/scratch/90582008c087/RewindBox/test/melonx_kernel_timer_allocations/Program.cs",
+        "sha256": "9f3e7987c1a895779a4ac22c71d72bbf56c3585fc11b967341647182a84530f1",
+        "matchesPreviousSuccessfulReceipt": true
+      },
+      "adapter": {
+        "relativePath": "build-utils/melonx/adapt_kernel_timer_allocations.py",
+        "path": "/workspace/scratch/90582008c087/RewindBox/build-utils/melonx/adapt_kernel_timer_allocations.py",
+        "sha256": "a688677b1a29952979fe126b7c05d7de0710e21501407de474ad1fc50fd55289",
+        "matchesPreviousSuccessfulReceipt": true
+      },
+      "exactTextDeltaOnly": true,
+      "exactAllowedEdits": [
+        {
+          "operation": "replace SDK rollForward value",
+          "before": "latestFeature",
+          "after": "disable",
+          "occurrences": 1
+        },
+        {
+          "operation": "add subprocess.run keyword",
+          "keyword": "cwd",
+          "valueExpression": "work",
+          "occurrences": 1
+        }
+      ],
+      "pythonAstParsed": true,
+      "normalizedAstEqualsOriginal": true,
+      "originalAstSha256": "aecee266bd212e1f9c26995ebada799eb53cc3a0d0c252c7d4588f88c7a623d6",
+      "normalizedUpdatedAstSha256": "aecee266bd212e1f9c26995ebada799eb53cc3a0d0c252c7d4588f88c7a623d6",
+      "unifiedDiff": "--- a/test/melonx_kernel_timer_allocations_test.py\n+++ b/test/melonx_kernel_timer_allocations_test.py\n@@ -51,6 +51,6 @@\n </PropertyGroup><ItemGroup><Compile Remove=\"source/**/*.cs\" /></ItemGroup></Project>''')\n         (work / 'NuGet.Config').write_text('<configuration><packageSources><clear /></packageSources></configuration>')\n-        (work / 'global.json').write_text(json.dumps({'sdk': {'version': pin['dotnet'], 'rollForward': 'latestFeature'}}))\n-        result = subprocess.run(['dotnet', 'run', '--project', str(work), '-c', 'Release', '-v', 'q', '--', variant], capture_output=True, text=True, timeout=180)\n+        (work / 'global.json').write_text(json.dumps({'sdk': {'version': pin['dotnet'], 'rollForward': 'disable'}}))\n+        result = subprocess.run(['dotnet', 'run', '--project', str(work), '-c', 'Release', '-v', 'q', '--', variant], cwd=work, capture_output=True, text=True, timeout=180)\n         if result.returncode:\n             print(result.stdout + result.stderr)\n",
+      "generatedCSharpUnchangedByTheseEdits": true,
+      "generatedCSharpEvidence": "The entire script AST matches after reversing only the SDK rollForward constant and the subprocess cwd keyword. All C# generator strings, extraction/copy logic, production adapter and C# fixture bytes therefore remain unchanged. No generated C# was regenerated or compiled in this review.",
+      "previousRecordedCompiledInputs": null,
+      "previousRecordedProductionPostimages": {
+        "control": {
+          "src/Ryujinx.HLE/HOS/Kernel/Common/KTimeManager.cs": "9da95bda86e407b37f1bfea310f323e65472c96f88d8e11d25940b8c48458efc"
+        },
+        "candidate": {
+          "src/Ryujinx.HLE/HOS/Kernel/Common/KTimeManager.cs": "807d8c319aec5c8b6ac5c1061fde99c3d3c19fb370fcf5a3b274b015b2bd89fd"
+        }
+      },
+      "runtimeReplayed": false
+    }
+  ],
+  "runtimeReplayed": false,
+  "compilerInvoked": false,
+  "dotnetInvoked": false,
+  "productionCodeModified": false,
+  "rootCheckoutModified": false,
+  "previousReceiptsModified": false,
+  "remoteActionsPerformed": false,
+  "newAppleRuntimePassClaimed": false,
+  "previousRuntimeEvidenceReusableForUnchangedCSharp": true,
+  "reuseQualification": "Previous successful receipts retain their original harness hashes. This review separately authenticates the narrowly changed harness hashes and unchanged C# inputs; it is not a newly executed runtime pass.",
+  "verificationType": "static-sdk-selection-review"
+}

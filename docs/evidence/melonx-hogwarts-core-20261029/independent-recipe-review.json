@@ -1,0 +1,17 @@
+{
+  "result": "passed",
+  "scope": "Read-only independent review of the Apple candidate verifier, workflow, receipt schemas, SDK selection and LibHac integration branch. Separate baseline helper has its own 27 dry checks.",
+  "reviewer": "/root/recover_melonx_source/apple_fixture_review",
+  "runtimeSuitesExecuted": false,
+  "physicalDeviceTested": false,
+  "reviewedPreparationInputs": 86,
+  "reviewedGatePostimages": 22,
+  "exactKnownCompositionExceptions": 5,
+  "blockingFindings": [],
+  "inputs": {
+    ".github/workflows/melonx-core.yml": "283c137efc2c161ed8ddc1546f0a7748656ea0104fc45b346166f16e93a54cba",
+    "build-utils/melonx/verify_core_candidate.py": "9c551b18fc2f4371d74f26d64eabe474926735f2a62a484ac7e77c400fe86f89",
+    "build-utils/melonx/build_libhac.py": "68519a96e5a2c3e94285bfb65d42ae7c053a3b2a1893fd6509acf1d8080ce9e5"
+  },
+  "followupByRoot": "Final result additionally links the authenticated baseline, LibHac and native framework receipts by digest."
+}

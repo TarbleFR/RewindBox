@@ -12,6 +12,11 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/collect_managed_notices.py
     - build-utils/melonx/build_libhac.py
     - build-utils/melonx/libhac-reuse.json
+    - build-utils/melonx/reuse_core_baseline.py
+    - build-utils/melonx/core-baseline.json
+    - build-utils/melonx/verify_core_candidate.py
+    - test/melonx_fragmented_upload_slice_test.py
+    - test/melonx_fragmented_uploads_slice/**
     - build-utils/melonx/prepare_embedded.py
     - build-utils/melonx/adapt_session.py
     - build-utils/melonx/adapt_input.py
@@ -193,131 +198,49 @@ jobs:
     - uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.100
-    - uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
-    - uses: actions/download-artifact@v4
-      with:
-        name: MeloNX-engine-38d997064cd81c5f17de6187ab36d2c78b0ba97c
-        run-id: 39858967222
-        github-token: ${{ github.token }}
-        path: dist/melonx
-    - name: Execute the embedded storage boundary
+    - name: Pin the selected SDK for all new Apple gates
+      run: |
+        python3 - <<'PY_SDK'
+        import json,pathlib
+        path=pathlib.Path('global.json')
+        assert not path.exists(), 'Review the existing repository SDK selection'
+        path.write_text(json.dumps({'sdk':{'version':'10.0.100','rollForward':'disable'}})+'\n')
+        PY_SDK
+        test "$(dotnet --version)" = '10.0.100'
+    - name: Authenticate engine82 evidence and reuse unchanged LibHac
       env:
         GH_TOKEN: ${{ github.token }}
-        MELONX_REUSE_SESSION_RUN: '39577903252'
-      run: python3 build-utils/melonx/check_bootstrap.py
-    - name: Execute session ownership and render teardown
-      env:
-        GH_TOKEN: ${{ github.token }}
-        MELONX_REUSE_SESSION_RUN: '39577903252'
-      run: python3 build-utils/melonx/check_session.py
-    - name: Reuse unchanged successful firmware and game header checks
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/reuse_library_validation.py
-    - name: Reuse unchanged firmware archive proof
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/reuse_launch_library.py --firmware-only
-    - name: Verify iOS Vulkan host-import fallback contract
-      if: ${{ !contains(github.event.head_commit.message, '[melonx-audio-update]') }}
-      run: python3 test/melonx_ios_vulkan_host_import_test.py
-    - name: Verify SDL3 audio never queues synthetic silence on producer underrun
-      if: ${{ !contains(github.event.head_commit.message, '[melonx-audio-update]') }}
-      run: python3 -m unittest discover -s test -p melonx_ios_audio_underrun_test.py
+      run: python3 build-utils/melonx/reuse_core_baseline.py prepare
     - name: Fetch exact MeloNX source
       run: |
         python3 - <<'PY_FETCH'
-        import subprocess,time
-        sources=[('MeloNX','https://starforgejo.dev/projects/MeloNX.git','13700519f3abc4e6d7ed8a065b118b2cc59bcd67'),
-          ('LibHac','https://starforgejo.dev/archive/LibHac_Ryubing.git','23e402ebb6dedc517e34a98a033078dc0f6fd478')]
-        for name,url,revision in sources:
-            path='.native-sources/'+name
-            subprocess.run(['git','init',path],check=True)
-            subprocess.run(['git','-C',path,'remote','add','origin',url],check=True)
-            for attempt in range(1,4):
-                try:
-                    subprocess.run(['git','-C',path,'-c','http.lowSpeedLimit=1000','-c','http.lowSpeedTime=30','fetch','--depth','1','origin',revision],check=True,timeout=120)
-                    break
-                except (subprocess.CalledProcessError,subprocess.TimeoutExpired):
-                    if attempt==3:raise
-                    print(name,'source transfer failed; retrying exact commit',revision,flush=True)
-                    time.sleep(5)
-            subprocess.run(['git','-C',path,'checkout','--detach','FETCH_HEAD'],check=True)
-            assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD'],text=True).strip()==revision
+        import json,pathlib,subprocess
+        pin=json.loads(pathlib.Path('build-utils/melonx/source.json').read_text())
+        path='.native-sources/MeloNX'
+        subprocess.run(['git','init',path],check=True)
+        # Both transports must return the same authentic commit and tree.
+        urls=[pin['repository'],'https://github.com/AzureDominus/melonx.git']
+        for url in urls:
+            try:
+                subprocess.run(['git','-C',path,'-c','http.lowSpeedLimit=1000','-c','http.lowSpeedTime=30',
+                    'fetch','--depth','1',url,pin['revision']],check=True,timeout=120)
+                break
+            except (subprocess.CalledProcessError,subprocess.TimeoutExpired):
+                if url==urls[-1]:raise
+                print('Primary source transfer failed; retrying identical commit via verified mirror',flush=True)
+        subprocess.run(['git','-C',path,'checkout','--detach','FETCH_HEAD'],check=True)
+        assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD'],text=True).strip()==pin['revision']
+        assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD^{tree}'],text=True).strip()=='82a29e6f593f6244869481e9a489b8d5154175fe'
         PY_FETCH
-    - name: Execute production audio accounting and Vulkan failure regressions
-      if: ${{ !contains(github.event.head_commit.message, '[melonx-audio-update]') }}
-      run: python3 test/melonx_runtime_regressions_test.py .native-sources/MeloNX
-    - name: Retain exact unchanged runtime and graphics tests
-      if: ${{ contains(github.event.head_commit.message, '[melonx-audio-update]') }}
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/reuse_apple_update_validation.py
-    - name: Exercise the selected Apple audio backend and update target selection
-      run: python3 test/melonx_apple_audio_test.py .native-sources/MeloNX
-    - name: Exercise speculative pipeline recovery and preserve fatal GPU errors
-      run: python3 test/melonx_pipeline_failure_test.py .native-sources/MeloNX
-    - name: Execute compiled GPU texture teardown ownership and deferred-release concurrency
-      run: python3 test/melonx_gpu_teardown_test.py .native-sources/MeloNX
-    - name: Execute compiled texture pool lookups of out-of-space descriptors through the engine journal
-      run: python3 test/melonx_texture_pool_test.py .native-sources/MeloNX
-    - name: Execute the engine journal's repeat bound and unhandled-exception record (JIT and NativeAOT)
-      run: python3 test/melonx_engine_journal_test.py
-    - name: Compile guest code with the real LightningJit decoder (units end at traps and at the next function)
-      run: python3 test/melonx_jit_decoder_test.py .native-sources/MeloNX
-    - name: Verify paired SIMD transfers and decoder page reuse
-      run: python3 test/melonx_jit_context_test.py .native-sources/MeloNX
-    - name: Verify linear JIT block partitioning and control-flow equivalence
-      run: python3 test/melonx_jit_block_split_test.py .native-sources/MeloNX
-    - name: Verify texel-buffer view identity and pipeline snapshot persistence
-      run: |
-        python3 test/melonx_buffer_views_test.py .native-sources/MeloNX
-        python3 test/melonx_pipeline_cache_test.py .native-sources/MeloNX
-    - name: Verify pooled allocation ownership and GPU contiguous-range reads
-      run: |
-        python3 test/melonx_gpu_allocations_test.py .native-sources/MeloNX
-        python3 test/melonx_memory_queries_test.py .native-sources/MeloNX
-    - name: Verify bounded waiting for occupied program compilation slots
-      run: python3 test/melonx_program_queue_test.py .native-sources/MeloNX
-    - name: Verify speculative shader cancellation before renderer close waits
-      run: python3 test/melonx_warmup_close_test.py .native-sources/MeloNX
-    - name: Verify exact JIT dataflow and unchanged emitted ARM64
-      run: |
-        python3 test/melonx_jit_dataflow_test.py .native-sources/MeloNX
-        python3 test/melonx_jit_dataflow_codegen_test.py .native-sources/MeloNX
-    - name: Verify idle pool expiry and texture snapshot reuse
-      run: python3 test/melonx_upload_lifetime_test.py .native-sources/MeloNX
-    - name: Verify fenced texture upload staging and offset byte counts
-      run: python3 test/melonx_texture_uploads_test.py .native-sources/MeloNX
-    - name: Verify worker cache preservation at bounded recycling
-      run: python3 test/melonx_pipeline_recycle_test.py .native-sources/MeloNX
-    - name: Verify fragmented texture read leases and exceptional cleanup
-      run: python3 test/melonx_fragmented_uploads_test.py .native-sources/MeloNX
-    - name: Verify balanced texture pool references and obsolete texture expiry
-      run: python3 test/melonx_texture_ownership_test.py .native-sources/MeloNX
-    - name: Verify bindless command snapshots and bounded scratch ownership
-      run: python3 test/melonx_bindless_allocations_test.py .native-sources/MeloNX
-    - name: Verify reused Vulkan array storage sets preserve barriers and descriptors
-      run: python3 test/melonx_array_barriers_test.py .native-sources/MeloNX
-    - name: Verify exact pipeline hashes, amortized cache growth and lookup behavior
-      run: python3 test/melonx_pipeline_lookup_test.py .native-sources/MeloNX
-    - name: Verify bindless cache hash distribution and identical binding decisions
-      run: python3 test/melonx_binding_lookup_test.py .native-sources/MeloNX
-    - name: Verify unchanged buffer assignments preserve descriptor invalidation
-      run: python3 test/melonx_descriptor_updates_test.py .native-sources/MeloNX
-    - name: Verify memory tracking locality and callback topology changes
-      run: python3 test/melonx_memory_tracking_test.py .native-sources/MeloNX
-    - name: Verify ordered texture-region intersection and fragmented fallbacks
-      run: python3 test/melonx_texture_overlap_test.py .native-sources/MeloNX
+    - name: Verify Apple ARM64, exact SDK and reviewed preparation inputs
+      run: python3 build-utils/melonx/verify_core_candidate.py preflight
     - name: Verify private tracking snapshots, reentrance and bounded pool lifetime
       run: python3 test/melonx_tracking_snapshots_test.py .native-sources/MeloNX
     - name: Verify single-fragment range slices preserve holes and byte mappings
       run: python3 test/melonx_multirange_slice_test.py .native-sources/MeloNX
     - name: Verify texture-group visitor order and explicit per-call state
       run: python3 test/melonx_texture_group_callbacks_test.py .native-sources/MeloNX
-    - name: Verify texture-region cursor equivalence and allocation-free ordered overlap
+    - name: Verify composed texture-region cursors and new range slices
       run: python3 test/melonx_texture_region_cursor_test.py .native-sources/MeloNX
     - name: Verify inline command-buffer ownership and concurrent resource references
       run: python3 test/melonx_auto_ownership_test.py .native-sources/MeloNX
@@ -335,120 +258,41 @@ jobs:
       run: python3 test/melonx_indirect_cache_key_test.py .native-sources/MeloNX
     - name: Verify retired texture dependency links preserve pending GPU copies
       run: python3 test/melonx_texture_handle_dependencies_test.py .native-sources/MeloNX
-    - name: Verify cached shader startup preserves synchronous draws and fatal errors
-      run: python3 test/melonx_cached_shader_startup_test.py .native-sources/MeloNX
-    - name: Verify launch firmware discovery scans once and preserves failures
-      run: python3 test/melonx_launch_firmware_test.py .native-sources/MeloNX dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
-    - name: Verify renderer failures wake waiting threads and preserve teardown
-      run: python3 test/melonx_threaded_renderer_failures_test.py .native-sources/MeloNX
-    - name: Verify failed GPU initialization releases guest startup without executing guest code
-      run: python3 test/melonx_gpu_startup_failure_test.py .native-sources/MeloNX
-    - name: Verify shader cache translation workers drain before failed startup returns
-      run: python3 test/melonx_shader_loader_lifetime_test.py .native-sources/MeloNX
-    - name: Retain effective graphics journal regression proof
-      run: |
-        python3 - <<'PY'
-        import hashlib,json,pathlib,shutil
-        root=pathlib.Path('.')
-        receipt=root/'docs/evidence/melonx-effective-graphics-journal.json'
-        proof=json.loads(receipt.read_text())
-        assert proof['result']=='passed' and proof['deviceTested'] is False and proof['gpuRenderingTested'] is False
-        for p,h in proof['inputs'].items():
-          assert hashlib.sha256((root/p).read_bytes()).hexdigest()==h,p
-        for p,h in proof['upstreamInputs'].items():
-          assert hashlib.sha256((root/'.native-sources/MeloNX'/p).read_bytes()).hexdigest()==h,p
-        shutil.copyfile(receipt,root/'dist/melonx/effective-graphics-journal.json')
-        PY
-    - name: Reuse exact successful Darwin and homebrew proofs
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/reuse_keys_validation.py
-    - name: Reuse exact successful key, personal configuration and launch validation
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/reuse_display_validation.py
-    - name: Execute production input driver ownership
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/check_input.py .native-sources/MeloNX
-    - name: Exercise display ratios, existing memory settings and stale-session refusal
-      if: ${{ !contains(github.event.head_commit.message, '[melonx-audio-update]') }}
-      run: python3 test/melonx_display_native_test.py .native-sources/MeloNX
+    - name: Verify fragmented uploads with the new range slices
+      run: python3 test/melonx_fragmented_upload_slice_test.py .native-sources/MeloNX
+    - name: Authenticate all new gate receipts before compilation
+      run: python3 build-utils/melonx/verify_core_candidate.py gates
     - name: Compile NativeAOT library and verify exported ABI
       env:
-        MELONX_REUSE_LIBHAC: '1'
+        MELONX_AUTHENTICATED_BASELINE: ${{ github.workspace }}/.native-sources/melonx-engine82.zip
         MELONX_BUILD_SIMULATOR: '1'
-        GH_TOKEN: ${{ github.token }}
       run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX .native-sources/LibHac
-    - name: Audit patched SDL3 audio callback in exact NativeAOT source receipt
-      shell: bash
-      run: |
-        python3 - <<'PY'
-        from pathlib import Path
-        import json,zipfile
-        root=Path('dist/melonx')
-        source=root/'embedded-adapted-source.zip'
-        assert source.is_file()
-        with zipfile.ZipFile(source) as z:
-          entry='src/Ryujinx.Audio.Backends.SDL3/SDL3HardwareDeviceSession.cs'
-          patched=z.read(entry).decode('utf-8-sig')
-          assert 'SDL_PutAudioStreamData(streamDevice, (nint)pStreamDst, byteCount);' in patched
-          assert 'SDL_PutAudioStreamData(streamDevice, (nint)pStreamDst, additionalAmount);' not in patched
-          assert 'if (byteCount == 0)' in patched
-        evidence=json.loads((root/'embedded-inputs.json').read_text())
-        assert 'build-utils/melonx/adapt_audio.py' in evidence
-        assert 'build-utils/melonx/adapt_pipeline.py' in evidence
-        assert 'build-utils/melonx/adapt_gpu_lifetime.py' in evidence
-        assert 'build-utils/melonx/adapt_texture_pool.py' in evidence
-        assert 'build-utils/melonx/adapt_jit_decoder.py' in evidence and 'build-utils/melonx/adapt_gc.py' in evidence
-        with zipfile.ZipFile(source) as z:
-          shaders=z.read('src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs').decode('utf-8-sig')
-          assert 'catch (VulkanException e) when (e.ResultCode is not' in shaders
-          assert 'Background Compilation failed:' not in shaders
-          pipeline=z.read('src/Ryujinx.Graphics.Vulkan/PipelineState.cs').decode('utf-8-sig')
-          assert 'Graphics pipeline creation failed:' in pipeline
-          apple=z.read('src/Ryujinx.Audio.Backends.Apple/AppleHardwareDeviceSession.cs').decode('utf-8-sig')
-          assert 'AVFoundation.PlayBuffered(_playerNode, 0.020);' in apple
-          assert 'Apple AVAudioEngine; rate:' in apple
-          library=z.read('src/Ryujinx.Library/Library.cs').decode('utf-8-sig')
-          assert 'new AppleHardwareDeviceDriver(),' in library
-          cache=z.read('src/Ryujinx.Graphics.Gpu/Image/AutoDeleteCache.cs').decode('utf-8-sig')
-          assert 'if (_textures.First.Value == protectedTexture)' in cache and 'EnforceCapacity();' not in cache
-          context=z.read('src/Ryujinx.Graphics.Gpu/GpuContext.cs').decode('utf-8-sig')
-          assert 'internal ConcurrentQueue<Action> DeferredActions { get; }' in context
-          physical=z.read('src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs').decode('utf-8-sig')
-          assert 'Interlocked.Exchange(ref _disposeRequested, 1) == 0' in physical
-          pool=z.read('src/Ryujinx.Graphics.Gpu/Image/TexturePool.cs').decode('utf-8-sig')
-          assert pool.count('if (!MemoryManager.ValidateAddress(descriptor.UnpackAddress()))') == 1
-          journal=z.read('src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs').decode('utf-8-sig')
-          assert 'public static void RecordEngine(bool error, string message)' in journal and 'public static void RecordCrash(object error)' in journal
-          runtime=z.read('src/Ryujinx.Library/EmbeddedRuntime.cs').decode('utf-8-sig')
-          assert 'EmbeddedLaunchDiagnostics.RecordCrash(e.ExceptionObject)' in runtime
-          decoder=z.read('src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/Decoder.cs').decode('utf-8-sig')
-          assert decoder.count('StartsFunction(memoryManager, block.EndAddress)') == 1 and 'EndsWithTrap(block)' in decoder
-          project=z.read('src/Ryujinx.Library/Ryujinx.Library.csproj').decode('utf-8-sig')
-          assert '"System.GC.ConserveMemory" Value="5"' in project and 'Value="9"' not in project
-        print('PASS actual Apple backend buffering and retained SDL3 correction in compiled source')
-        PY
+    - name: Bind both new libraries to reviewed sources and gate receipts
+      run: python3 build-utils/melonx/verify_core_candidate.py compiled
     - uses: actions/download-artifact@v4
       with:
         name: MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314
         run-id: 39854858591
         github-token: ${{ github.token }}
         path: dist/melonx-native
+    - name: Authenticate unchanged native frameworks
+      run: python3 build-utils/melonx/reuse_core_baseline.py dependencies
     - name: Exercise this exact rebuilt engine in an ARM64 iOS app
       run: python3 test/melonx_runtime_smoke.py
-    - name: Retain actual runtime evidence
-      if: always()
+    - name: Preserve the current runtime result including failures
+      if: ${{ always() }}
       run: |
-        if [ -d dist/melonx-smoke ]; then
-          mkdir -p dist/melonx/runtime-smoke
-          cp -R dist/melonx-smoke/. dist/melonx/runtime-smoke/
-        fi
+        python3 - <<'PY_SMOKE'
+        import pathlib,shutil
+        source=pathlib.Path('dist/melonx-smoke')
+        if source.exists():shutil.copytree(source,'dist/melonx/runtime-smoke')
+        PY_SMOKE
+    - name: Verify fresh guest execution, teardown and backing release
+      run: python3 build-utils/melonx/verify_core_candidate.py finalize
     - uses: actions/upload-artifact@v4
-      if: always()
+      if: ${{ always() }}
       with:
         name: MeloNX-engine-${{ github.sha }}
-        path: dist/melonx/
-        if-no-files-found: ignore
+        path: dist/melonx
+        if-no-files-found: error
         retention-days: 14

@@ -1,0 +1,107 @@
+{
+  "baselineRetainsHistoricalSlice": true,
+  "compiledMultiRangeSha256": {
+    "baseline": "70c52a73bba5827126c9eb32fb8d66d8342e33b0fa73a90f96137f65ce29c767",
+    "candidate": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b"
+  },
+  "compiledSources": {
+    "baseline": {
+      "Boundary.cs": "d3e81c2bb17f7fca477dd9cdfc9d908add25cbc2ff51a3f7675f78680a92200e",
+      "CompositionProbe.cs": "a123e87708dce3f56b3ea80ba174635fef1dd10b8d6b242cfa6c3a9531705954",
+      "Consumers.cs": "1e2bfe034d9f4ae00b5b1bd4792deecee23798dd9033c7d26ee18f154c6ef7a3",
+      "Physical.cs": "13374994614616e9af6928fc1d191ec7065d0c862efb0d7aeab80b0ae6c90e77",
+      "Program.cs": "4f47ad174f58aba583b814e99a18b0b768c17f8c8a71dea6aff1dde9d27c8db2",
+      "src/Ryujinx.Common/Memory/MemoryOwner.cs": "b139c5a7407a2632c3e5b2fd0bd84313be1624dbb6050241b8bcefd2f2fa72d4",
+      "src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs": "33e85a0e86ca507198f27de77c1c623d7518035a65456b11f5a9b8a4b74945dc",
+      "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+      "src/Ryujinx.Memory/Range/MultiRange.cs": "70c52a73bba5827126c9eb32fb8d66d8342e33b0fa73a90f96137f65ce29c767"
+    },
+    "candidate": {
+      "Boundary.cs": "d3e81c2bb17f7fca477dd9cdfc9d908add25cbc2ff51a3f7675f78680a92200e",
+      "CompositionProbe.cs": "a123e87708dce3f56b3ea80ba174635fef1dd10b8d6b242cfa6c3a9531705954",
+      "Consumers.cs": "1e2bfe034d9f4ae00b5b1bd4792deecee23798dd9033c7d26ee18f154c6ef7a3",
+      "Physical.cs": "13374994614616e9af6928fc1d191ec7065d0c862efb0d7aeab80b0ae6c90e77",
+      "Program.cs": "4f47ad174f58aba583b814e99a18b0b768c17f8c8a71dea6aff1dde9d27c8db2",
+      "src/Ryujinx.Common/Memory/MemoryOwner.cs": "b139c5a7407a2632c3e5b2fd0bd84313be1624dbb6050241b8bcefd2f2fa72d4",
+      "src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs": "33e85a0e86ca507198f27de77c1c623d7518035a65456b11f5a9b8a4b74945dc",
+      "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+      "src/Ryujinx.Memory/Range/MultiRange.cs": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b"
+    }
+  },
+  "conversionPayloadBoundaryObserved": true,
+  "dotnet": "10.0.100",
+  "extraction": {
+    "baseline": {
+      "groupSynchronizePartial": "9bc91d695faac776cb75443320ba7f98e22042fbbe2f8e01573c0fa1927a2145",
+      "physicalGetReadOnlyRegion": "4b33331df9f4c1c752f5a80f730b87e0ba96a968f6ea6dc512d0212a37ccac5e",
+      "physicalGetSpan": "05e84f5fe2eb8ea9a4607e44c7cc123eb64be5704347802307d4634503dc5297",
+      "textureSynchronizeFull": "1eda9a93778bcb0787120baf9fb9fbad2abe45c6119c772eeccfda83f4d8e6c3"
+    },
+    "candidate": {
+      "groupSynchronizePartial": "9bc91d695faac776cb75443320ba7f98e22042fbbe2f8e01573c0fa1927a2145",
+      "physicalGetReadOnlyRegion": "4b33331df9f4c1c752f5a80f730b87e0ba96a968f6ea6dc512d0212a37ccac5e",
+      "physicalGetSpan": "05e84f5fe2eb8ea9a4607e44c7cc123eb64be5704347802307d4634503dc5297",
+      "textureSynchronizeFull": "1eda9a93778bcb0787120baf9fb9fbad2abe45c6119c772eeccfda83f4d8e6c3"
+    }
+  },
+  "finalSliceCompiledWithProductionConsumers": true,
+  "historicalUnpooledVariantReplayed": false,
+  "inputs": {
+    "build-utils/melonx/adapt_fragmented_uploads.py": "59d89d6e527eb4929af5ccadd495d371561876da3118504e33ce78ea02e7a088",
+    "build-utils/melonx/adapt_gpu_allocations.py": "1d3a2fe24ddabe439fb58a4b361d1c95d513536c2535be7dac0c479c6e0e83f6",
+    "build-utils/melonx/adapt_multirange_slice.py": "7d02e2b2bb5b23f146d48d44facf81b875c15be5156e900ab127429a2920c5fa",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/adapt_upload_lifetime.py": "c3eeeba74e9e82bf6f73bc964a8c34bf9d733565b37cedced0f5521c9ebf5b45",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_fragmented_upload_slice_test.py": "cbfbfe8151ea2492e47f9f51d08d02e654d01a1d30beb75f2f8cfbaa2611fbad",
+    "test/melonx_fragmented_uploads/Boundary.cs": "e67dd9c50a62cc0dd35acf5c4026dfb698e54a2db66445ad0a1beb26f31ff317",
+    "test/melonx_fragmented_uploads/Program.cs": "d4bcbdb78bdbaf47be55e3c4a2ed5796f91e3af4be6d4f5d752b7fda22bc7589",
+    "test/melonx_fragmented_uploads_slice/CompositionProbe.cs": "a123e87708dce3f56b3ea80ba174635fef1dd10b8d6b242cfa6c3a9531705954",
+    "test/melonx_fragmented_uploads_test.py": "64cd53e05a2d721ba7d16c7458f9a88f022203fa7aebb7a9335d048a7f2a1dde"
+  },
+  "physicalDeviceTested": false,
+  "postimages": {
+    "src/Ryujinx.Memory/Range/MultiRange.cs": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b"
+  },
+  "productionConsumerBodiesUnchanged": true,
+  "reports": [
+    {
+      "allocatedBytes": 28672,
+      "checks": 14,
+      "fragmentedUploads": 192,
+      "mode": "fixed",
+      "passed": true,
+      "payloadBytes": 220200960,
+      "payloadCalls": 210,
+      "payloadDigest": "2209C12F7CB92806",
+      "physicalDeviceTested": false,
+      "rents": 219,
+      "returns": 219,
+      "sliceVariant": "baseline"
+    },
+    {
+      "allocatedBytes": 13312,
+      "checks": 14,
+      "fragmentedUploads": 192,
+      "mode": "fixed",
+      "passed": true,
+      "payloadBytes": 220200960,
+      "payloadCalls": 210,
+      "payloadDigest": "2209C12F7CB92806",
+      "physicalDeviceTested": false,
+      "rents": 219,
+      "returns": 219,
+      "sliceVariant": "candidate"
+    }
+  ],
+  "result": "passed",
+  "upstreamInputs": {
+    "src/Ryujinx.Common/Memory/MemoryOwner.cs": "28de9f4232b06c52a836a41f8c3a63c00f4178dcc12a2d5a5e3f53c5d7403054",
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "2b0efc551b02535fe96a123dca328208313896db558c68cd9af01c7ae31c8f07",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs": "76e452b1f09ec95e6280c2d8518f1c1b318555f9e1c124008082ac4420ea01d9",
+    "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs": "926fed78436a4ce587203174d0217933593be627c68055c8cddfc5be32c6cd6f",
+    "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+    "src/Ryujinx.Memory/Range/MultiRange.cs": "70c52a73bba5827126c9eb32fb8d66d8342e33b0fa73a90f96137f65ce29c767"
+  },
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67"
+}

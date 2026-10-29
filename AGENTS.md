@@ -138,12 +138,18 @@ The earlier local eleven-adapter batch was unavailable after the workspace
 changed and was absent from this remote base. This candidate and its exported
 patch contain only the twelve new adapters; do not claim a combined 23-adapter
 validation. Recover and review the previous patch before cumulative integration.
-The maintainer subsequently authorized pushing this source batch to Claude.
-Publish with [skip ci] to reuse the passed host checks and leave the Apple
-engine/IPA build for a separate request. No Action, Apple engine/IPA build,
-release, telemetry or player setting is produced by this source publication.
-Reuse successful history; do not replay unchanged suites. Preserve RPCS3 and
-delivered private IPA594.
+The source batch was pushed to Claude as `7ffdbaae` with [skip ci], reusing the
+passed Linux checks. The maintainer then explicitly requested the corrected
+Core ("Push et apporte les correctifs au core"). The Apple recipe now runs
+the twelve new gates and one affected fragmented-upload/Slice composition,
+builds both NativeAOT libraries, verifies the ABI and runs the corrected
+two-session runtime smoke on the new simulator binary. Engine82's verified
+envelope authenticates the unchanged LibHac package and historical evidence;
+old results stay separate and are not claimed as tests of newly changed code.
+Do not replay unchanged historical suites or rebuild native dependencies.
+The reviewed 86-input/source contract fails closed on a later source change.
+No IPA, release or iPhone performance result is authorized or implied by this
+Core build. Preserve RPCS3 and delivered private IPA594.
 
 ## RPCS3 Core compiled and verified — 29 October 2026
 
