@@ -1,6 +1,6 @@
 # BO2 : attentes de compilation et réutilisation des fragments — 29 octobre 2026
 
-Ce candidat source prolonge les correctifs RPCS3 de `cf85c52e` / `7d1ca65c`.
+Le candidat source `a732853d` prolonge les correctifs RPCS3 de `cf85c52e` / `7d1ca65c`.
 Il est intégré après `cfba697b`, qui conserve le candidat MeloNX engine 81 et
 son reçu Apple. Il modifie trois fichiers du Core :
 `RPCS3IOSPerformance.cpp`, `ProgramStateCache.cpp` et `ProgramStateCache.h`.
@@ -181,7 +181,8 @@ Preuves conservées :
 - Choix du calcul paresseux :
   [mesure du prototype rejeté](evidence/rpcs3-bo2-20261029/rejected-eager-analysis.json).
 - Intégration :
-  [matérialisation canonique](evidence/rpcs3-bo2-20261029/canonical-integration.json).
+  [matérialisation canonique](evidence/rpcs3-bo2-20261029/canonical-integration.json)
+  et [contrat du commit source](evidence/rpcs3-bo2-20261029/committed-contract.json).
 
 Une matérialisation fraîche à partir de l’amont authentifié reproduit les
 311 fichiers canoniques. Les 308 autres postimages, dont les treize précédents
@@ -198,6 +199,12 @@ future compilation Apple, elle exigera les huit modes device593 qui n’ont
 pas encore tourné sur Apple et les six nouveaux modes BO2. Les anciennes
 suites déjà vérifiées ne sont pas rejouées. La recette n’est pas déclenchée
 par cette intégration source.
+
+Le contrat a été exécuté sur le commit réel `a732853d`, avec les entrées
+commises obligatoires. Les huit rapports hôte correspondent aux sources et
+aux programmes de test reconstruits. L’ajout du reçu et des références dans
+la documentation ne modifie aucune de ces 170 entrées et ne relance ni test
+natif, ni compilateur, ni CMake.
 
 ## Prochaines optimisations
 

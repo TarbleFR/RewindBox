@@ -14,6 +14,11 @@ setting changes. Record/fixture: `runtime_bo2_followup_20261029` and
 `test/fixtures/rpcs3_bo2_20261029.diff`. Details and exact evidence:
 `docs/rpcs3-bo2-followup-2026-10-29.md`, `docs/evidence/rpcs3-bo2-20261029/`.
 
+Source `a732853d` passes the committed contract: 170 exact inputs, 311 canonical
+postimages, 27 native supplements and eight existing host reports bound to
+the reconstructed test programs. The evidence-only follow-up preserves these
+inputs. No native suite, compiler or CMake runs to record that final receipt.
+
 Input analysis is lazy, skipped for neutral properties and cached until
 `fragment_program_ucode_dirty`; conservative results are cached too. The
 historical common analyzer and RSXThread remain unchanged. Do not restore the
