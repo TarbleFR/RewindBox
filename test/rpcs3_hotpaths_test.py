@@ -5,6 +5,7 @@ The storage/GPU are adapters. Timings cover a synthetic CPU lookup, never a
 Metal compile or iPhone gameplay. No project build or historical suite is run.
 """
 import argparse
+import ast
 import hashlib
 import json
 import os
@@ -16,6 +17,7 @@ import tempfile
 
 from rpcs3_memory523_test import braced
 from rpcs3_cell559_test import without_ios_blocks
+import rpcs3_runtime_log_followup as log_followup
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXTURE = 'rpcs3/Emu/RSX/Common/texture_cache.h'
@@ -23,6 +25,10 @@ PROGRAM = 'rpcs3/Emu/RSX/VK/VKProgramBuffer.h'
 NORMALIZE = 'rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h'
 CACHE = 'rpcs3/Emu/RSX/Program/ProgramStateCache.h'
 PATHS = [TEXTURE, PROGRAM, NORMALIZE, CACHE]
+SUPPORT = ['rpcs3/Emu/RSX/Common/simple_array.hpp', 'rpcs3/util/fnv_hash.hpp',
+           'rpcs3/Emu/RSX/VK/vkutils/graphics_pipeline_state.hpp',
+           'rpcs3/Emu/RSX/VK/VKPipelineCompiler.h',
+           'rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp', 'rpcs3/Emu/RSX/VK/VKDraw.cpp']
 
 
 def digest(path):
@@ -129,8 +135,9 @@ return result;
     return code
 
 
-def manifest_contract(source):
-    manifest = json.loads((ROOT / 'build-utils/rpcs3/canonical-source.json').read_bytes())
+def manifest_contract(source, manifest=None, upstream_source=None):
+    if manifest is None:
+        manifest = json.loads((ROOT / 'build-utils/rpcs3/canonical-source.json').read_bytes())
     record = manifest['runtime_20261029']
     baseline = json.loads(subprocess.check_output(
         ['git', 'show', record['baseline_commit'] + ':build-utils/rpcs3/canonical-source.json'], cwd=ROOT))
@@ -152,7 +159,7 @@ def manifest_contract(source):
         assert followup['codegen'] == record['codegen']
         for relative in followup['modified_paths']:
             before = subprocess.check_output(
-                ['git', 'show', followup['preimages_from_upstream'] + ':' + relative], cwd=source)
+                ['git', 'show', followup['preimages_from_upstream'] + ':' + relative], cwd=upstream_source or source)
             assert hashlib.sha256(before.replace(b'\r\n', b'\n')).hexdigest() == followup['before_sha256'][relative]
             assert digest(source / relative) == followup['after_sha256'][relative]
         expected.update(followup['after_sha256'])
@@ -163,6 +170,42 @@ def manifest_contract(source):
     return manifest, record, baseline
 
 
+def verify_reuse(cpp, source, before):
+    """Prove identity with committed executions; do not report a new execution."""
+    driver = 'test/rpcs3_hotpaths_test.py'
+    old_driver = log_followup.committed_bytes(driver).decode()
+    new_driver = (ROOT / driver).read_text()
+    def generator(text):
+        node = next(node for node in ast.parse(text).body
+                    if isinstance(node, ast.FunctionDef) and node.name == 'generate')
+        return ast.get_source_segment(text, node)
+    assert generator(old_driver) == generator(new_driver)
+    harness_hash = digest(cpp)
+    reused = []
+    for name in ['plain', 'asan-ubsan', 'tsan']:
+        relative = 'docs/evidence/rpcs3-hotpaths-2026-10-29/' + name + '.json'
+        raw = log_followup.committed_bytes(relative)
+        assert (ROOT / relative).read_bytes() == raw, relative
+        evidence = json.loads(raw)
+        assert evidence['passed'] is True
+        assert evidence['harnessSHA256'] == harness_hash
+        assert evidence['sourceBefore'] == {p: digest(before / p) for p in PATHS}
+        assert evidence['sourceAfter'] == {p: digest(source / p) for p in PATHS}
+        for path, expected in evidence['inputs'].items():
+            if path != driver:
+                assert digest(ROOT / path) == expected, path
+        reused.append({'path': relative, 'sha256': hashlib.sha256(raw).hexdigest(),
+                       'sanitized': evidence['sanitized'],
+                       'threadSanitized': evidence['threadSanitized']})
+    return {'verified': True, 'mode': 'historical-harness-identity', 'testsExecuted': False,
+            'proofCommit': log_followup.BASELINE, 'generatorUnchanged': True,
+            'harnessSHA256': harness_hash, 'reusedReports': reused,
+            'sourceBefore': {p: digest(before / p) for p in PATHS},
+            'sourceAfter': {p: digest(source / p) for p in PATHS},
+            'physicalDeviceTested': False, 'MetalCompiled': False, 'gameplayMeasured': False,
+            'scope': 'Exact generated C++ and source identity with committed historical executions; no historical suite was recompiled or rerun. Current follow-up code has separate tests.'}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path)
@@ -171,12 +214,24 @@ def main():
     sanitizer.add_argument('--sanitize', action='store_true')
     sanitizer.add_argument('--thread-sanitize', action='store_true')
     parser.add_argument('--benchmark', action='store_true')
+    parser.add_argument('--verify-reuse', action='store_true',
+                        help='Verify the unchanged harness against committed reports without compiling or running it.')
     parser.add_argument('--report', type=Path)
     args = parser.parse_args()
-    source = args.source.resolve()
-    manifest, record, baseline = manifest_contract(source)
+    if args.verify_reuse and (args.benchmark or args.sanitize or args.thread_sanitize):
+        parser.error('--verify-reuse verifies existing evidence; it cannot request a new execution')
+    actual_source = args.source.resolve()
+    manifest = json.loads((ROOT / 'build-utils/rpcs3/canonical-source.json').read_bytes())
     with tempfile.TemporaryDirectory(prefix='rpcs3-hotpaths-') as tmp:
         work = Path(tmp)
+        source = actual_source
+        latest = None
+        if log_followup.KEY in manifest:
+            latest = log_followup.authenticate(actual_source, manifest)
+            extra = PATHS + SUPPORT + manifest['runtime_followup_20261029']['modified_paths']
+            source = log_followup.reconstruct(actual_source, work / 'core592', latest, extra)
+            manifest = latest[2]
+        manifest, record, baseline = manifest_contract(source, manifest, actual_source)
         before = args.before.resolve() if args.before else work / 'before'
         if not args.before:
             for relative in PATHS:
@@ -199,6 +254,18 @@ def main():
             assert 'm_current_command_buffer->set_' + setter + '(' in draw
         cpp = work / 'hotpaths.cpp'
         cpp.write_text(generate(source, before))
+        if args.verify_reuse:
+            report = verify_reuse(cpp, source, before)
+            if latest:
+                report['followupAuthenticated'] = {
+                    'record': log_followup.KEY, 'fixtureSHA256': latest[1]['fixture_sha256'],
+                    'sourceAfter': latest[1]['after_sha256'],
+                    'canonicalPostimagesVerified': len(latest[0]['files_sha256'])}
+            if args.report:
+                args.report.parent.mkdir(parents=True, exist_ok=True)
+                args.report.write_text(json.dumps(report, indent=2) + '\n')
+            print(json.dumps(report, indent=2))
+            return
         cxx = shlex.split(os.environ.get('CXX', 'c++'))
         if sdk := os.environ.get('HOST_MACOS_SDK'):
             cxx += ['-isysroot', sdk]
@@ -209,6 +276,7 @@ def main():
             flags += ['-O1', '-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-DTEXTURE_CACHE_DEBUG']
         else:
             flags += ['-O3']
+        flags += ['-UNDEBUG']
         exe = work / 'hotpaths'
         subprocess.run(cxx + flags + ['-I' + str(ROOT / 'packages/libretro_internal_bridge/ios/ThirdParty/include'),
                                       str(cpp), '-o', str(exe)], check=True)
@@ -227,6 +295,9 @@ def main():
                   'harnessSHA256': digest(cpp), 'results': json.loads(run.stdout),
                   'physicalDeviceTested': False, 'MetalCompiled': False, 'gameplayMeasured': False,
                   'scope': 'Production pipeline structs/hash/normalization, production simple_array and texture selection; range storage and GPU are adapters. Synthetic CPU lookup timing only.'}
+        if latest:
+            report['sourceView'] = 'Core592 reconstructed by reversing the authenticated runtime log follow-up'
+            report['followupSourceAfter'] = latest[1]['after_sha256']
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, indent=2) + '\n')

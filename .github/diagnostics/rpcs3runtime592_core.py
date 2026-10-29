@@ -336,6 +336,10 @@ if __name__ == '__main__':
     p.add_argument('--verify-reuse', type=Path)
     p.add_argument('--write-core-identity', type=Path)
     a = p.parse_args()
+    if 'runtime_log_followup_20261029' in manifest():
+        from rpcs3runtime_log_followup_core import main as followup_main
+        followup_main(a)
+        raise SystemExit
     if a.write_core_identity:
         identity(a.write_core_identity)
     elif a.verify_reuse:

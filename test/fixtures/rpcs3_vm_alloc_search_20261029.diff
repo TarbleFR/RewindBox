@@ -1,0 +1,104 @@
+--- a/rpcs3/Emu/Memory/vm.cpp
++++ b/rpcs3/Emu/Memory/vm.cpp
+@@ -1529,6 +1529,101 @@
+ 			return 0;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// Keep the first probe as cheap as before, including when the map is empty.
++		if (try_alloc(addr, flags, size, std::move(shm)))
++		{
++			return addr + (flags & stack_guarded ? 0x1000 : 0);
++		}
++
++		if (addr == max)
++		{
++			return 0;
++		}
++
++		addr += align;
++
++		// The allocation map is stable under writer_lock and includes stack guards.
++		// Skip a mapped interval in one step instead of probing every aligned
++		// address inside it. An interval that overlaps the candidate also rules
++		// out every later candidate before its end, preserving first-fit order.
++		auto& allocations = (m.*block_map)();
++		// A dense map can cost more to walk than the contiguous page table.
++		// Keep the original scan when there is at least one map node per
++		// aligned position covering the map's extent. This conservative test
++		// uses no workload threshold; mixed dense maps may forgo useful jumps.
++		u64 map_span = 0;
++		if (!allocations.empty())
++		{
++			const auto& last = *allocations.rbegin();
++			const u64 first = u64{allocations.begin()->first} & (u64{0} - align);
++			map_span = utils::align<u64>(u64{last.first} + last.second.first, align) - first;
++		}
++
++		if (u64{allocations.size()} * align < map_span)
++		{
++			const auto find_next = [&](u32 candidate)
++			{
++				auto next = allocations.lower_bound(candidate);
++				if (next != allocations.begin())
++				{
++					const auto prev = std::prev(next);
++					if (u64{prev->first} + prev->second.first > candidate)
++					{
++						next = prev;
++					}
++				}
++
++				return next;
++			};
++			auto next = find_next(addr);
++
++			for (;;)
++			{
++				// An alignment step can pass many small allocations. Find the next
++				// relevant interval without walking every skipped map node.
++				if (next != allocations.end() && u64{next->first} + next->second.first <= addr)
++				{
++					next = find_next(addr);
++				}
++
++				if (next != allocations.end() && next->first < u64{addr} + size)
++				{
++					const u64 after = utils::align<u64>(u64{next->first} + next->second.first, align);
++					if (after > max)
++					{
++						return 0;
++					}
++
++					// A map hop that rejects only one candidate buys no useful jump.
++					// Use the original scan for dense allocations this small instead.
++					if (after == u64{addr} + align)
++					{
++						addr = static_cast<u32>(after);
++						break;
++					}
++
++					addr = static_cast<u32>(after);
++					++next;
++					continue;
++				}
++
++				// Keep the page-table check: occupied pages can exist outside this
++				// block's allocation map. A failed probe retains the original step.
++				if (try_alloc(addr, flags, size, std::move(shm)))
++				{
++					return addr + (flags & stack_guarded ? 0x1000 : 0);
++				}
++
++				if (addr == max)
++				{
++					return 0;
++				}
++
++				addr += align;
++			}
++		}
++#endif
+ 		// Search for an appropriate place (unoptimized)
+ 		for (;; addr += align)
+ 		{

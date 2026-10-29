@@ -1,0 +1,28 @@
+{
+  "fixtureBytes": 18987,
+  "fixtureGitBlobSHA1": "0843834f44ba94ded2cbe9089bbc6232c410ed1a",
+  "fixtureExact075d84a": true,
+  "harnesses": {
+    "candidate": {
+      "byteIdentical": true,
+      "sha256": "67bd4e62a246ea9dca0afeabf5d4436b90fbe6014d13bbadd6dfcd4d0399e6f3"
+    },
+    "baseline": {
+      "byteIdentical": true,
+      "sha256": "9b923cdfcc31833539e2a1276efe28c15f66c728f78b6e911b3103cb1d51199d"
+    },
+    "ignore_admission": {
+      "byteIdentical": true,
+      "sha256": "0c43dd60edc8c8b6fe5b47e60d241bfda9f2bbc0a91905a13cb3bc4824e15595"
+    },
+    "no_epoch_check": {
+      "byteIdentical": true,
+      "sha256": "6062f957d22b0df7adc70321c63d99bcd4e787f823ba5f93cdf24bf8a4cd3c84"
+    },
+    "no_bypass": {
+      "byteIdentical": true,
+      "sha256": "67c843ac5017ba204c5164b074df6b6ecbccaec176500df10d33c2850d151c1c"
+    }
+  },
+  "compiledOrExecutedTests": false
+}

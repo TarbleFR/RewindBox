@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "authenticatedCanonicalFiles": 308,
+  "automaticBaselineMatchesValidatedExplicitBaseline": true,
+  "harnessSHA256": {
+    "candidate": "67bd4e62a246ea9dca0afeabf5d4436b90fbe6014d13bbadd6dfcd4d0399e6f3",
+    "baseline": "9b923cdfcc31833539e2a1276efe28c15f66c728f78b6e911b3103cb1d51199d"
+  },
+  "fixtureSHA256": "f8726cd542da5864c689d320a212b38b36dfc1bc084a6724c36af88a6a9202f7",
+  "runnerSHA256": "9561e2ceda49b2e388e3eafa7e81589fe971ca19d7e57d1674ea381beb67f4e3",
+  "compiledOrExecutedTests": false,
+  "scope": "Exact preimage reconstruction and byte-identical generated C++ only; prior native test results reused."
+}

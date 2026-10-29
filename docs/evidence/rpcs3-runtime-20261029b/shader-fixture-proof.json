@@ -1,0 +1,59 @@
+{
+  "verified": true,
+  "testsExecuted": false,
+  "mode": "shader-harness-and-fixture-identity",
+  "canonicalPostimagesVerified": 308,
+  "fixtureSHA256": "f8726cd542da5864c689d320a212b38b36dfc1bc084a6724c36af88a6a9202f7",
+  "reconstructedPreimagesVerified": {
+    "rpcs3/Emu/Memory/vm.cpp": "d6ffd3817287d0ea05dbe3c68bee1793392f2582fced963c9e5339de498d28f2",
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "b0227f95e0032956fd28fca3bed92b097910fd43cb25cf9ef38e7f776da25311",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.h": "2025a7cbaa52bf0ff24fb2bed93f0fd3564d88895258fc58f30800fc8f33dacc",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "d9af29d486b675c00a838608ac3c6bc48b3eb51ca629270b0909dd2f28b0e3a1",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.h": "2ac2594b706e46f6494a7fa4b3330e54ee53b47723c43214387238e674e9ba26",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "8d35fab2d1abc889bb52f23ff983ddfc146292350933ae6dd58ee59104736a00",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "e6da1104067f69d4a3fcd8d6ae267dbf1a71bb30c419f64857eab4bb2ef3917a",
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "aae2b2dc2e74a55627f1ad1c82e4adaf52f44e87f0ebfd3e50226b04c49b4054",
+    "rpcs3/ios/IOSTexturePrehash.h": "9a91a05ccb795e406b7bd4a3418e6ea4182bcb0f9238ad2ea605f1d46cac943e"
+  },
+  "harnessSHA256": "4e58906564edd5d99d5d463cecbb5c2491870c9cbb9798db4197c196d3f5e8a0",
+  "reusedReports": [
+    {
+      "path": "docs/evidence/rpcs3-runtime-20261029/shader-plain.json",
+      "sha256": "3bf5ea0281237e43ef2a7a8ee77164ac6b166ee74558ab2709687cfcb1588749",
+      "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0"
+    },
+    {
+      "path": "docs/evidence/rpcs3-runtime-20261029/shader-asan.json",
+      "sha256": "3ade21001aa923b4091db122e2ded1b79d5987e65d1c9e120fe112d7bf4e87c9",
+      "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0"
+    },
+    {
+      "path": "docs/evidence/rpcs3-runtime-20261029/shader-tsan.json",
+      "sha256": "9eb222ee54a8b963fb5a2400d737a7b40892eac15b6979e080dc3476e1d67422",
+      "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0"
+    },
+    {
+      "path": "docs/evidence/rpcs3-runtime-20261029/shader-clang22.json",
+      "sha256": "3d43f13ed8f15b1e2ef1bc0932eddea51b41938dcef9649fbb2fee20cc41e5cf",
+      "compiler": "clang version 22.1.8"
+    }
+  ],
+  "rejectedManifestMutations": [
+    "different_parent_commit",
+    "different_parent_patch",
+    "extra_modified_path",
+    "duplicate_modified_path",
+    "changed_preimage",
+    "unbound_postimage",
+    "postimage_disagrees_with_real_source",
+    "unrelated_manifest_change",
+    "wrong_fixture_digest",
+    "wrong_fixture_path",
+    "changed_codegen",
+    "changed_historical_record"
+  ],
+  "physicalDeviceTested": false,
+  "MetalCompiled": false,
+  "gameplayMeasured": false,
+  "scope": "Optional shader --before preparation uses the full authenticated reverse fixture and generates byte-identical C++ to all four executed reports. No C++ was recompiled or rerun; twelve malformed metadata variants were rejected."
+}

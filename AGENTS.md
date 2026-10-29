@@ -16,6 +16,23 @@ do not claim it proves an IPA588 regression. Host allocation/codegen results
 are not physical iPhone FPS or whole-process memory measurements. Preserve
 the delivered588 application and RPCS3 Core592 when packaging this engine.
 
+## RPCS3 runtime follow-up on delivered 588 / Core 592 — 29 October 2026
+
+Source candidate on `075d84a4`: avoid ineligible speculative texture hashes,
+reuse exact completed-shader entries, retain only Vulkan states declared
+dynamic by the next pipeline, and skip occupied VM allocation intervals with
+the original scan retained for intervals that reject only one candidate.
+Nine canonical files change; the other 299 postimages and the PPU/SPU codegen
+inputs remain identical. The first VM version was corrected after a targeted
+benchmark exposed a dense-small-allocation regression; do not restore it.
+Details, limits and commands: `docs/rpcs3-runtime-log-followup-2026-10-29.md`.
+Record/fixture: `runtime_log_followup_20261029` in the canonical manifest and
+`test/fixtures/rpcs3_runtime_log_followup_20261029.diff`.
+Host production-body tests and source integration are recorded with exact
+hashes; historical tests are reused only after generated-code identity checks.
+This candidate has no Apple Core build, new IPA/build number, device FPS result
+or release. The delivered 588 / Core 592 baseline below remains the reference.
+
 ## Private IPA 588 / RPCS3 Core 592 — delivered, 29 October 2026
 
 The maintainer explicitly authorized pushing on `Claude` and delivering a test

@@ -1,0 +1,166 @@
+{
+  "passed": true,
+  "branch": "Claude",
+  "previousBase": "075d84a49e3540cdae5352908fd81bc411b78942",
+  "latestRemoteBase": "876a8d586782987b6bf64d66cfccec83f298b1ee",
+  "remoteChangedFilesPreserved": {
+    ".github/workflows/melonx-core.yml": {
+      "remoteBlob": "c477cb8d9cdeed3537200976e87551508feb7eff",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "AGENTS.md": {
+      "remoteBlob": "ab1853d644ad7aa06c1be840b6b90f4ae8f7505d",
+      "preserved": true,
+      "localAdditionOnly": true
+    },
+    "build-utils/melonx/adapt_fragmented_uploads.py": {
+      "remoteBlob": "11039d2d5792e879f880419171c15ed167454183",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "build-utils/melonx/adapt_jit_dataflow.py": {
+      "remoteBlob": "28cfa6751d9bf6a04954fcd7a69588de7d9f9a3c",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "build-utils/melonx/adapt_pipeline_recycle.py": {
+      "remoteBlob": "0b9d7dbcf8bde8c929f98e2b7452a75cd14f11cf",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "build-utils/melonx/adapt_texture_uploads.py": {
+      "remoteBlob": "34425c1c430fdb55f7e228740034770c8896e8e0",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "build-utils/melonx/adapt_upload_lifetime.py": {
+      "remoteBlob": "416c8c3c5c34682e6daff052511c807d47d43487",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "build-utils/melonx/prepare_embedded.py": {
+      "remoteBlob": "58c751e661bffcccdccd49f0ea06a742dd6dd7a0",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "docs/evidence/melonx-runtime-cycle2-2026-10-29/device-log-summary.json": {
+      "remoteBlob": "46d5a039e6d3eef38b659aad63488025d4b51106",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "docs/evidence/melonx-runtime-cycle2-2026-10-29/fragmented-upload-checks.json": {
+      "remoteBlob": "02f8d74ca547b20768d4f2633b9819865dd221d7",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "docs/evidence/melonx-runtime-cycle2-2026-10-29/jit-dataflow-checks.json": {
+      "remoteBlob": "5382e16f039e06c522bc283ded9a2c9d7e3c3563",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "docs/evidence/melonx-runtime-cycle2-2026-10-29/jit-dataflow-codegen-checks.json": {
+      "remoteBlob": "bb19c10dd2091d48e381ad852940e6fcf321620b",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "docs/evidence/melonx-runtime-cycle2-2026-10-29/managed-library-build.json": {
+      "remoteBlob": "871b18923a00919e0e7bfe624ad21a648afbd0e2",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "docs/evidence/melonx-runtime-cycle2-2026-10-29/pipeline-recycle-checks.json": {
+      "remoteBlob": "71894c83fa2d1e4757e34df0249f965742d77777",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "docs/evidence/melonx-runtime-cycle2-2026-10-29/texture-upload-checks.json": {
+      "remoteBlob": "2a125d6751d6fa52fdb92f44f715d45a60bc85b3",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "docs/evidence/melonx-runtime-cycle2-2026-10-29/upload-lifetime-checks.json": {
+      "remoteBlob": "205b6de07d1e3c7e768043c2068abeba495056fe",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "docs/melonx-runtime-cycle2-2026-10-29.md": {
+      "remoteBlob": "dd61b47721b95c905067138dfe12839a5c2c5a58",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "test/melonx_fragmented_uploads/Boundary.cs": {
+      "remoteBlob": "7333936808491cdd6db57b28553e0b0bd57e3ab6",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "test/melonx_fragmented_uploads/Program.cs": {
+      "remoteBlob": "608f8ac5563fce08b377e102772ae1cb2189e7ac",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "test/melonx_fragmented_uploads_test.py": {
+      "remoteBlob": "c8a2f1adbbd92a94575a8d4057e9c4a9a9aac08b",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "test/melonx_jit_dataflow/Program.cs": {
+      "remoteBlob": "2816d30ea2486d3b92b9138ee291f6c742d1e5d8",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "test/melonx_jit_dataflow_codegen/Program.cs": {
+      "remoteBlob": "b01d1c0d22aa0beac723ab207d0c3836e4af9e87",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "test/melonx_jit_dataflow_codegen_test.py": {
+      "remoteBlob": "d2b6ccabe18c03bfdadb8870ecc2a75d94344b61",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "test/melonx_jit_dataflow_test.py": {
+      "remoteBlob": "a26b04b23a40c715d2ace1af3dabd9f0d0c77f50",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "test/melonx_pipeline_recycle_test.py": {
+      "remoteBlob": "ea2056b1bb2023360a169dbe2577da9f15989000",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "test/melonx_texture_uploads/Double.cs": {
+      "remoteBlob": "fed4ce8a93f8f188c97cdb4a74b7cf62aed65d93",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "test/melonx_texture_uploads/Program.cs": {
+      "remoteBlob": "1910bdfeeb0487bfd40acbed070c6706110eee3b",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "test/melonx_texture_uploads_test.py": {
+      "remoteBlob": "c6e62853ba361bd65c94391915083eb51e668fc2",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "test/melonx_upload_lifetime/Program.cs": {
+      "remoteBlob": "88e1b3cedc297d70b5fc902c6fed61002cb04fc3",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "test/melonx_upload_lifetime/TextureBoundary.cs": {
+      "remoteBlob": "5f5bac2670d821f200e32db9c6689d7a1240576d",
+      "preserved": true,
+      "localAdditionOnly": false
+    },
+    "test/melonx_upload_lifetime_test.py": {
+      "remoteBlob": "6b2a6967c85787ca72a89de432995da275335c1b",
+      "preserved": true,
+      "localAdditionOnly": false
+    }
+  },
+  "rpcs3BaselineByteIdentical": true,
+  "workingCandidatePreserved": true,
+  "pushed": false
+}

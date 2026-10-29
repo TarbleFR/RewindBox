@@ -1,12 +1,13 @@
 # Private Core validation only; packaging an IPA is a separate delivery.
-name: RPCS3 runtime592 texture, pipeline, clock and descriptors
-run-name: "RPCS3 runtime592 source-built iPhone Core • ${{ github.sha }}"
+name: RPCS3 runtime source candidate
+run-name: "RPCS3 runtime source candidate • ${{ github.sha }}"
 'on':
   push:
     branches: [Claude]
     paths:
       - '.github/workflows/rpcs3-runtime592-core.yml'
       - '.github/diagnostics/rpcs3runtime592_core.py'
+      - '.github/diagnostics/rpcs3runtime_log_followup_core.py'
       - 'build-utils/rpcs3/**'
       - 'build-utils/build_rpcs3_embedded_core.sh'
       - 'test/rpcs3_hotpaths_test.py'
@@ -17,6 +18,18 @@ run-name: "RPCS3 runtime592 source-built iPhone Core • ${{ github.sha }}"
       - 'test/native/rpcs3_clock_scale.inc'
       - 'test/native/rpcs3_descriptor_reserve_test.inc'
       - 'test/fixtures/rpcs3_hotpaths_20261029.diff'
+      - 'test/rpcs3_runtime_log_followup.py'
+      - 'test/rpcs3_recent_shader_test.py'
+      - 'test/rpcs3_dynamic_state_retention_test.py'
+      - 'test/rpcs3_prehash_admission_test.py'
+      - 'test/rpcs3_vm_alloc_search_test.py'
+      - 'test/native/rpcs3_recent_shader.inc'
+      - 'test/native/rpcs3_dynamic_state_retention.inc'
+      - 'test/native/rpcs3_prehash_admission.inc'
+      - 'test/native/rpcs3_prehash581.inc'
+      - 'test/native/rpcs3_vm_alloc_search.inc'
+      - 'test/fixtures/rpcs3_runtime_log_followup_20261029.diff'
+      - 'test/fixtures/rpcs3_vm_alloc_search_20261029.diff'
   workflow_dispatch: {}
 permissions:
   contents: read
@@ -24,7 +37,7 @@ permissions:
 jobs:
   core:
     if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-runtime592-core]') }}
-    name: 'RPCS3 runtime592: targeted ARM64 regressions and iPhone Core'
+    name: 'RPCS3 runtime: targeted ARM64 regressions and source candidate'
     runs-on: macos-15
     timeout-minutes: 180
     concurrency:
@@ -51,7 +64,7 @@ jobs:
             ${{ runner.temp }}/neostation-rpcs3-embedded/deps
           key: rpcs3-audit-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
           restore-keys: rpcs3-audit-arm64-xcode16.4-llvm22-
-      - name: Authenticate delivered Core591 and execute only the runtime592 delta on ARM64
+      - name: Authenticate historical Core and execute only the candidate delta on ARM64
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -92,7 +105,7 @@ jobs:
           env -u GITHUB_ENV OUTPUT_DIR="$PWD/dist/rpcs3" BUILD_JOBS=3 \
             bash build-utils/build_rpcs3_embedded_core.sh 2>&1 | tee build/rpcs3-core-diagnostics/build.log
           cp -R "$RUNNER_TEMP/neostation-rpcs3-embedded/build/rpcs3-native-simd-dependencies" build/rpcs3-core-diagnostics/
-      - name: Verify actual Core, exact exports, passive loading and runtime592 identity
+      - name: Verify source candidate, exact exports, passive loading and source identity
         shell: bash
         run: |
           set -euo pipefail
@@ -104,7 +117,7 @@ jobs:
           lipo -archs "$CORE" | tee build/rpcs3-core-diagnostics/archs.txt
           nm -gU "$CORE" > build/rpcs3-core-diagnostics/exports.txt
           python3 .github/diagnostics/rpcs3runtime592_core.py --write-core-identity dist/rpcs3
-      - name: Upload source-built runtime592 Core
+      - name: Upload source candidate without a delivery number
         uses: actions/upload-artifact@v4
         with:
           name: RPCS3Core-${{ github.sha }}

@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "testsRecompiledOrExecuted": false,
+  "fixtureSHA256": "f8726cd542da5864c689d320a212b38b36dfc1bc084a6724c36af88a6a9202f7",
+  "harnessSHA256": "5450b2687a579c8b7bf2003a0ccd399a2b701ee8b720cf0c57dcd98a08ece79a",
+  "identicalToReports": [
+    "dynamic-plain.json",
+    "dynamic-asan.json",
+    "dynamic-clang.json"
+  ],
+  "baselineArgumentOptional": true,
+  "limits": "Reconstruction and exact generated-code identity only. Compiler argument portability changes are not an Apple execution."
+}
