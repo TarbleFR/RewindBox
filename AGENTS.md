@@ -2,6 +2,20 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## Private IPA 593 — authorized assembly of latest RPCS3 and MeloNX
+
+The maintainer explicitly requested a new IPA with both latest engines.
+Assemble build593 on the delivered588 tree `81db3172b5ffb79e724c5ff6f944a61898fb7252`.
+Reuse RPCS3 candidate `c143be63`, run `40814736023`, artifact `12872058719`,
+and MeloNX `2f535c3`, run `40811657940`, artifact `12870529413` (ios-arm64).
+No engine rebuild, historical test replay, public release or tag is authorized
+by this recipe. Keep application version0.0.8, other products and engines from588.
+The candidate RPCS3 identity must remain verbatim: use its specific adapter
+and exact host/Core ABI/header checks, never invent old Core592 fields.
+The new recipe is `.github/workflows/rewind593-baseline-delivery.yml`; trigger
+once with `[rewind593-delivery]`. Fresh private delivery recipient. Completion
+and final signed IPA verification are pending; see `docs/rewind593-test-ipa.md`.
+
 ## MeloNX runtime optimization, second cycle — 29 October 2026
 
 On `075d84a4` / delivered588 engine7be: targeted JIT dataflow; cold primary
