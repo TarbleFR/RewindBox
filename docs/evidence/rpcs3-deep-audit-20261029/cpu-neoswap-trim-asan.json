@@ -1,0 +1,49 @@
+{
+  "passed": true,
+  "test": "neoswap_trim_total_test.py",
+  "baselineCommit": "a363d923",
+  "sourceSHA256": {
+    "native/neoswap-storage/Store.cpp": "a812b0834df8c7301d59ac780b84a4ecc7c306b7b55f7ab02178e5705dca8571",
+    "native/neoswap-storage/Store.h": "52110ebca148e68c34374b6fc52cbb130c7985a39096a51e988a51968279c2ce",
+    "native/neoswap-storage/CacheEntry.h": "e503c5bafd3a4311a14b3ed09bc470331344ba2791aaa014ecbbbe914e1205bb",
+    "native/neoswap-storage/tests/store_test.cpp": "904bbd9a0c968072c9ff5d8b17c2c65dc34f387d519b66011c9b7821c13ef5ea"
+  },
+  "baselineSHA256": {
+    "native/neoswap-storage/Store.cpp": "9a951454d7e5124bea4ca1ee5589b1e4429df637dc4377b6c7e3775fcb1c99e4",
+    "native/neoswap-storage/Store.h": "52110ebca148e68c34374b6fc52cbb130c7985a39096a51e988a51968279c2ce",
+    "native/neoswap-storage/CacheEntry.h": "e503c5bafd3a4311a14b3ed09bc470331344ba2791aaa014ecbbbe914e1205bb",
+    "native/neoswap-storage/tests/store_test.cpp": "904bbd9a0c968072c9ff5d8b17c2c65dc34f387d519b66011c9b7821c13ef5ea"
+  },
+  "fixtureSHA256": "f7749f6f72b3f54d2f036fec3bf464b045154518b32436d613b985d52e42b350",
+  "harnessSHA256": "ffe8bc278d1801729387a1a95cb9e7c0275a72bbbf4e1c757c128d73d2463b98",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "flags": [
+    "-std=c++20",
+    "-pthread",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Wno-misleading-indentation",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "sanitizer": "address,undefined",
+  "leakSanitizer": false,
+  "lz4HeaderSHA256": "c1614ecf7ada7b0be1acb560d4239595f96fbb7aa6a79a7c40cb358753830be6",
+  "lz4Library": "-l:liblz4.so.1",
+  "deviceTest": false,
+  "fpsClaim": false,
+  "results": {
+    "passed": true,
+    "cases": 2400,
+    "sweeps": 12000,
+    "baselineRamScans": 184750,
+    "candidateRamScans": 12000,
+    "benchmarks": []
+  },
+  "completeStoreResult": "PASS: real POSIX file round trips, larger-than-RAM working set, hot/cold, compression, lease safety, pressure, eligible prefetch and measured-latency refusal with demand fallback, read priority, quotas, short I/O, ENOSPC, sync/read failures, corruption, truncation, concurrency, teardown, reusable extents, coalescing, stale IDs, deferred ownership retirement"
+}

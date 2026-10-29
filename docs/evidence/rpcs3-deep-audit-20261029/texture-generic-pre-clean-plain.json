@@ -1,0 +1,466 @@
+{
+  "passed": true,
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "871ba65b86abdc5fd681c9aa58323254ff1ef575681a1dd1d4d054f30a70c254",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.h": "4167c539b813e8d5ad3c684314de83fdfa1302a6f8e1403044087b1f194318f4",
+    "rpcs3/Emu/RSX/VK/vkutils/image.cpp": "9282d1374018aa18971a6a28a5cdd04e7a19db35692d3c27fb964f8f3c1f3c83",
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp": "53494ea3b8cfa5e5e7f336fc8729ebb40de2f7fded4b18839653363450f8be90",
+    "rpcs3/Emu/RSX/VK/VKFormats.cpp": "012217aade7f2fcac1b5e35a38439e6d0d8454038ebf37859660b0e9f3d821f0",
+    "rpcs3/Emu/RSX/Utils/color_utils.hpp": "376994e979776cfd5fbf5494904f55674546e13c58cdcb6c768d1142b234d2e6",
+    "rpcs3/Emu/RSX/gcm_enums.h": "1814f59d138e3048b81b81849148a5ce695300f9d743aaff3cde3b0f7c5e5cc1",
+    "rpcs3/Emu/RSX/Common/TextureUtils.h": "f2177f51d6cc96f566cec6a99a7612cebe765afa6f7d06a459d684d8b73b7e40",
+    "rpcs3/Emu/RSX/Common/TextureUtils.cpp": "b2206ec9215cddd946cb3dd69222216968b3f33140f2732cbf0736e8737d2323",
+    "rpcs3/Emu/RSX/Common/texture_cache_types.h": "3cda978e88ee29bfbb7b2e806e1420df860f6b39d0069a1723c6f4517e6fdce0",
+    "rpcs3/Emu/RSX/Common/simple_array.hpp": "0bfc08b1aa55827758c6d985fe4af2ad129942c8b0c55c1daed00f81cc3ab2e6"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "12f9772af3a1dbdcc10db2b2b95446f4fb278cd28b236788134ef44874d3c9a3",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.h": "20eda27ec70aa0f15ae1e05b8ef1f84e22f104e102be29a0c738aa2a9717046e",
+    "rpcs3/Emu/RSX/VK/vkutils/image.cpp": "9282d1374018aa18971a6a28a5cdd04e7a19db35692d3c27fb964f8f3c1f3c83",
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp": "e06a7b2958b2c248b30b9d8fa3149bf513f175c11ca716f8996c86f8c8a72bee",
+    "rpcs3/Emu/RSX/VK/VKFormats.cpp": "012217aade7f2fcac1b5e35a38439e6d0d8454038ebf37859660b0e9f3d821f0",
+    "rpcs3/Emu/RSX/Utils/color_utils.hpp": "376994e979776cfd5fbf5494904f55674546e13c58cdcb6c768d1142b234d2e6",
+    "rpcs3/Emu/RSX/gcm_enums.h": "1814f59d138e3048b81b81849148a5ce695300f9d743aaff3cde3b0f7c5e5cc1",
+    "rpcs3/Emu/RSX/Common/TextureUtils.h": "f2177f51d6cc96f566cec6a99a7612cebe765afa6f7d06a459d684d8b73b7e40",
+    "rpcs3/Emu/RSX/Common/TextureUtils.cpp": "b2206ec9215cddd946cb3dd69222216968b3f33140f2732cbf0736e8737d2323",
+    "rpcs3/Emu/RSX/Common/texture_cache_types.h": "3cda978e88ee29bfbb7b2e806e1420df860f6b39d0069a1723c6f4517e6fdce0",
+    "rpcs3/Emu/RSX/Common/simple_array.hpp": "0bfc08b1aa55827758c6d985fe4af2ad129942c8b0c55c1daed00f81cc3ab2e6"
+  },
+  "harnessSHA256": "f629bf599ba682868135566838580dbc3ce6e1f419730c1e95b0ec5d8dab4e68",
+  "adapterSHA256": "793f60d27a2fab48d55c3b0dfe5c194668bd5f43b3dc700e5f10dc452fa21c80",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-g",
+    "-O3"
+  ],
+  "host": "x86_64",
+  "sanitizer": null,
+  "bookkeepingCodeSizes": [
+    {
+      "symbol": "vk::before_copy(vk::command_buffer&, std::vector<vk::copy_region_descriptor, std::allocator<vk::copy_region_descriptor> > const&) [clone .cold]",
+      "bytes": 37
+    },
+    {
+      "symbol": "vk::after_copy(vk::command_buffer&, std::vector<vk::copy_region_descriptor, std::allocator<vk::copy_region_descriptor> > const&) [clone .cold]",
+      "bytes": 40
+    },
+    {
+      "symbol": "vk::before_copy(vk::command_buffer&, std::vector<vk::copy_region_descriptor, std::allocator<vk::copy_region_descriptor> > const&)",
+      "bytes": 744
+    },
+    {
+      "symbol": "vk::after_copy(vk::command_buffer&, std::vector<vk::copy_region_descriptor, std::allocator<vk::copy_region_descriptor> > const&)",
+      "bytes": 1696
+    }
+  ],
+  "results": {
+    "nativeChecks": 20739,
+    "baselineWrongNativeMappings": 6095,
+    "candidateWrongNativeMappings": 0,
+    "poolChecks": 90005,
+    "baselineWrongPoolSelections": 2050,
+    "candidateWrongPoolSelections": 0,
+    "depthChecks": 8,
+    "baselineWrongDepthFormats": 4,
+    "candidateWrongDepthFormats": 0,
+    "copyChecks": 13000,
+    "sameCopiesAndPerImageBarriers": true,
+    "coverageChecks": 3692,
+    "colorClearEliminationsInCases": 657,
+    "sameModeledDestinationTexels": true,
+    "viewsConstructed": 124419,
+    "viewsDestroyed": 124419,
+    "copyBenchmarks": [
+      {
+        "sections": 1,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 53.8209,
+        "afterMedianNs": 6.50927,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          158.478,
+          203.991,
+          1106.66,
+          43.3241,
+          44.2639,
+          48.4918,
+          53.8209
+        ],
+        "afterTrialsNs": [
+          10.8904,
+          11.1381,
+          6.50927,
+          6.4986,
+          6.49923,
+          8.51287,
+          6.5009
+        ]
+      },
+      {
+        "sections": 1,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 44.3557,
+        "afterMedianNs": 6.85577,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          48.0481,
+          50.2,
+          43.1769,
+          43.1535,
+          44.144,
+          44.3557,
+          65.4477
+        ],
+        "afterTrialsNs": [
+          6.5009,
+          8.2181,
+          6.50027,
+          6.85577,
+          6.4989,
+          6.91017,
+          11.4021
+        ]
+      },
+      {
+        "sections": 2,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 92.6545,
+        "afterMedianNs": 19.8763,
+        "beforeAllocationsPerTrial": 90000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          83.7426,
+          76.2406,
+          92.6545,
+          93.6028,
+          89.9077,
+          96.0902,
+          93.2794
+        ],
+        "afterTrialsNs": [
+          20.2575,
+          21.6999,
+          19.7304,
+          18.9135,
+          19.8763,
+          19.9117,
+          18.8524
+        ]
+      },
+      {
+        "sections": 2,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 59.9259,
+        "afterMedianNs": 14.3795,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          68.9983,
+          44.9322,
+          59.9259,
+          63.162,
+          57.0156,
+          71.9269,
+          59.8455
+        ],
+        "afterTrialsNs": [
+          11.0005,
+          10.648,
+          11.2362,
+          14.3795,
+          15.8417,
+          16.0787,
+          17.5815
+        ]
+      },
+      {
+        "sections": 4,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 147.673,
+        "afterMedianNs": 28.5083,
+        "beforeAllocationsPerTrial": 150000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          171.307,
+          160.825,
+          166.843,
+          147.673,
+          123.754,
+          113.382,
+          118.856
+        ],
+        "afterTrialsNs": [
+          28.5083,
+          32.5296,
+          33.1635,
+          31.3979,
+          18.6945,
+          20.4762,
+          19.3662
+        ]
+      },
+      {
+        "sections": 4,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 53.7619,
+        "afterMedianNs": 14.7944,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          51.3613,
+          53.7619,
+          53.2421,
+          53.1937,
+          56.9869,
+          63.812,
+          58.5442
+        ],
+        "afterTrialsNs": [
+          14.7944,
+          14.3475,
+          14.8816,
+          20.0031,
+          14.3562,
+          14.3471,
+          15.1263
+        ]
+      },
+      {
+        "sections": 8,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 312.702,
+        "afterMedianNs": 58.2224,
+        "beforeAllocationsPerTrial": 270000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          255.204,
+          269.178,
+          437.943,
+          312.702,
+          362.912,
+          306.934,
+          321.642
+        ],
+        "afterTrialsNs": [
+          73.7446,
+          43.8599,
+          62.0905,
+          45.9978,
+          70.3883,
+          57.256,
+          58.2224
+        ]
+      },
+      {
+        "sections": 8,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 90.1855,
+        "afterMedianNs": 43.931,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          63.0582,
+          86.3698,
+          87.7583,
+          90.1855,
+          95.6081,
+          96.9441,
+          97.119
+        ],
+        "afterTrialsNs": [
+          28.1067,
+          28.8121,
+          42.3571,
+          43.931,
+          51.6981,
+          49.5033,
+          51.5112
+        ]
+      },
+      {
+        "sections": 9,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 399.108,
+        "afterMedianNs": 437.361,
+        "beforeAllocationsPerTrial": 300000,
+        "afterAllocationsPerTrial": 300000,
+        "beforeTrialsNs": [
+          442.174,
+          464.452,
+          447.733,
+          399.108,
+          363.557,
+          343.966,
+          377.99
+        ],
+        "afterTrialsNs": [
+          437.025,
+          437.361,
+          441.499,
+          441.416,
+          368.434,
+          445.146,
+          430.563
+        ]
+      },
+      {
+        "sections": 9,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 79.8002,
+        "afterMedianNs": 83.8695,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 60000,
+        "beforeTrialsNs": [
+          96.8026,
+          69.8806,
+          65.428,
+          79.691,
+          79.8002,
+          83.2857,
+          97.8514
+        ],
+        "afterTrialsNs": [
+          90.516,
+          80.2342,
+          65.7972,
+          66.8478,
+          83.8695,
+          88.5861,
+          85.3337
+        ]
+      },
+      {
+        "sections": 32,
+        "repeated": false,
+        "iterationsPerTrial": 10000,
+        "beforeMedianNs": 761.959,
+        "afterMedianNs": 756.151,
+        "beforeAllocationsPerTrial": 180000,
+        "afterAllocationsPerTrial": 180000,
+        "beforeTrialsNs": [
+          904.139,
+          733.658,
+          732.384,
+          707.958,
+          761.959,
+          796.453,
+          774.589
+        ],
+        "afterTrialsNs": [
+          923.101,
+          756.151,
+          761.296,
+          783.302,
+          709.753,
+          703.612,
+          755.832
+        ]
+      },
+      {
+        "sections": 32,
+        "repeated": true,
+        "iterationsPerTrial": 10000,
+        "beforeMedianNs": 139.741,
+        "afterMedianNs": 133.428,
+        "beforeAllocationsPerTrial": 20000,
+        "afterAllocationsPerTrial": 20000,
+        "beforeTrialsNs": [
+          158.8,
+          137.679,
+          133.347,
+          136.296,
+          139.741,
+          156.46,
+          172.803
+        ],
+        "afterTrialsNs": [
+          140.435,
+          133.375,
+          133.428,
+          148.367,
+          127.363,
+          169.695,
+          120.05
+        ]
+      },
+      {
+        "sections": 256,
+        "repeated": false,
+        "iterationsPerTrial": 1764,
+        "beforeMedianNs": 1336.29,
+        "afterMedianNs": 1198.32,
+        "beforeAllocationsPerTrial": 31752,
+        "afterAllocationsPerTrial": 31752,
+        "beforeTrialsNs": [
+          1337.37,
+          1360.4,
+          1193.48,
+          1325.46,
+          1444.83,
+          1192.69,
+          1336.29
+        ],
+        "afterTrialsNs": [
+          1198.32,
+          1230.7,
+          1187.16,
+          1183.69,
+          1273.3,
+          1215.24,
+          1191.29
+        ]
+      },
+      {
+        "sections": 256,
+        "repeated": true,
+        "iterationsPerTrial": 1764,
+        "beforeMedianNs": 635.136,
+        "afterMedianNs": 599.017,
+        "beforeAllocationsPerTrial": 3528,
+        "afterAllocationsPerTrial": 3528,
+        "beforeTrialsNs": [
+          668.888,
+          630.418,
+          635.136,
+          628.596,
+          642.92,
+          631.934,
+          711.751
+        ],
+        "afterTrialsNs": [
+          652.355,
+          612.324,
+          599.017,
+          594.81,
+          591.518,
+          597.535,
+          608.146
+        ]
+      }
+    ],
+    "storageChecks": 10,
+    "baselineWrongUsageFlags": 4,
+    "candidateWrongUsageFlags": 0
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "leakSanitizerEnabled": false,
+  "scope": "Run extracted Vulkan texture identity, native-view and copy-input methods.\n\nVulkan handles/driver calls are host boundaries. This verifies cache ownership,\nview selection and CPU bookkeeping, not GPU execution or iPhone gameplay.\n"
+}

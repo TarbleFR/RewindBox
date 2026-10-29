@@ -1,0 +1,56 @@
+{
+  "url": "https://github.com/RPCS3/rpcs3/pull/19608",
+  "title": "RSX: keep depth buffers for zpass queries",
+  "merged": true,
+  "merge_commit_sha": "2d293d8e5a4005d1a7ca06b245eb2919dc316086",
+  "review_date": "2026-10-29",
+  "decision": "Not integrated: source lacks ZPASS retention, but upstream discussion records a dark-area/aliasing regression after the broad retention. Query-only condition was rejected upstream. Need relevant RSX capture/hardware behavior to select a safe rule; no game-specific workaround added.",
+  "comments": [
+    {
+      "url": "https://github.com/RPCS3/rpcs3/pull/19608#pullrequestreview-5341681098",
+      "date": "2026-09-28T16:29:41Z",
+      "author": "kd-11",
+      "review": "APPROVED"
+    },
+    {
+      "url": "https://github.com/RPCS3/rpcs3/pull/19608#issuecomment-5876359302",
+      "date": "2026-09-28T18:47:46Z",
+      "author": "digant73",
+      "review": null
+    },
+    {
+      "url": "https://github.com/RPCS3/rpcs3/pull/19608#issuecomment-5877265822",
+      "date": "2026-09-28T19:47:46Z",
+      "author": "kd-11",
+      "review": null
+    },
+    {
+      "url": "https://github.com/RPCS3/rpcs3/pull/19608#issuecomment-5877587483",
+      "date": "2026-09-28T20:08:32Z",
+      "author": "digant73",
+      "review": null
+    },
+    {
+      "url": "https://github.com/RPCS3/rpcs3/pull/19608#issuecomment-5880258540",
+      "date": "2026-09-28T22:59:56Z",
+      "author": "digant73",
+      "review": null
+    },
+    {
+      "url": "https://github.com/RPCS3/rpcs3/pull/19608#issuecomment-5883032168",
+      "date": "2026-09-29T03:25:23Z",
+      "author": "kd-11",
+      "review": null
+    },
+    {
+      "url": "https://github.com/RPCS3/rpcs3/pull/19608#issuecomment-5883051574",
+      "date": "2026-09-29T03:27:32Z",
+      "author": "kd-11",
+      "review": null
+    }
+  ],
+  "local_functions": [
+    "rsx::thread::get_framebuffer_layout",
+    "rsx::nv4097::set_zcull_pixel_count_enable"
+  ]
+}

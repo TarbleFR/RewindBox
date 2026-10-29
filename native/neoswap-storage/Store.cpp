@@ -127,7 +127,10 @@ struct Store::Impl {
     uint64_t target() const {const auto p=pressure.load();return p==Pressure::critical?0:p==Pressure::warning?config.ram_bytes/2:config.ram_bytes;}
     void peak(){std::lock_guard t(tm);stats.managed_ram_peak=std::max(stats.managed_ram_peak,ram());}
     bool trim_to(uint64_t limit,uint64_t except=0){
-        while(ram()>limit){
+        // mu protects entry ownership and loading throughout this sweep.
+        // Removing a victim is the only change to the accounted byte total.
+        uint64_t remaining=ram();
+        while(remaining>limit){
             Entry* victim=nullptr;
             for(auto& [id,e]:entries){
                 if(id==except || e.busy || !e.disk || (!e.raw&&!e.warm) || (e.raw&&e.raw.use_count()!=1))continue;
@@ -137,6 +140,8 @@ struct Store::Impl {
             if(!victim)return false;
             {std::lock_guard t(tm);stats.evicted_logical_bytes+=victim->size;
              if(victim->prefetched){++stats.prefetch_wasted;victim->prefetched=false;}}
+            if(victim->raw)remaining-=victim->raw->mapped_size();
+            if(victim->warm)remaining-=victim->warm->mapped_size();
             victim->raw.reset();victim->warm.reset();
         }return true;
     }

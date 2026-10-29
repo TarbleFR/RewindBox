@@ -1,0 +1,10 @@
+{
+  "repository": "TarbleFR/RewindBox",
+  "branch": "Claude",
+  "head": "c0df3394d81d957eb7b28c85802278b69cc0f71b",
+  "commit_message": "docs: record verified private IPA595 delivery [skip ci]",
+  "verified_via": "GitHub connector branch API, final source-integration check",
+  "local_baseline": "a363d92332657196fb3b6085a98c62e119310bcc",
+  "remote_unchanged_since_phase_start": true,
+  "push_performed": false
+}

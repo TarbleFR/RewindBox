@@ -1,0 +1,337 @@
+{
+  "logs": [
+    {
+      "file": "RPCS3-performance.1(1).log",
+      "sha256": "02448705baa6ae496b4fd6af608228be45c71ace33bec9a3d9ca5c2d984c4881",
+      "groups": {
+        "build594-pid49019-session2": {
+          "build": "594",
+          "pid": 49019,
+          "session": 2,
+          "rows": 17,
+          "maxima": {
+            "footprint": {
+              "bytes": 4390952848,
+              "line": 430,
+              "window": 21,
+              "timestamp": 1793267563.695404
+            },
+            "compressed": {
+              "bytes": 1704181760,
+              "line": 430,
+              "window": 21,
+              "timestamp": 1793267563.695404
+            },
+            "peak_footprint": {
+              "bytes": 4465729400,
+              "line": 430,
+              "window": 21,
+              "timestamp": 1793267563.695404
+            },
+            "peak_compressed": {
+              "bytes": 1704181760,
+              "line": 430,
+              "window": 21,
+              "timestamp": 1793267563.695404
+            }
+          }
+        },
+        "build594-pid49019-session3": {
+          "build": "594",
+          "pid": 49019,
+          "session": 3,
+          "rows": 38,
+          "maxima": {
+            "footprint": {
+              "bytes": 4085604432,
+              "line": 1517,
+              "window": 32,
+              "timestamp": 1793267753.696975
+            },
+            "compressed": {
+              "bytes": 1898430464,
+              "line": 1547,
+              "window": 33,
+              "timestamp": 1793267758.888164
+            },
+            "peak_footprint": {
+              "bytes": 4090699856,
+              "line": 1517,
+              "window": 32,
+              "timestamp": 1793267753.696975
+            },
+            "peak_compressed": {
+              "bytes": 1898725376,
+              "line": 1547,
+              "window": 33,
+              "timestamp": 1793267758.888164
+            }
+          }
+        },
+        "build594-pid49019-session4": {
+          "build": "594",
+          "pid": 49019,
+          "session": 4,
+          "rows": 7,
+          "maxima": {
+            "footprint": {
+              "bytes": 3478446160,
+              "line": 1881,
+              "window": 6,
+              "timestamp": 1793267816.550312
+            },
+            "compressed": {
+              "bytes": 1388855296,
+              "line": 1851,
+              "window": 5,
+              "timestamp": 1793267811.485183
+            },
+            "peak_footprint": {
+              "bytes": 3480690768,
+              "line": 1881,
+              "window": 6,
+              "timestamp": 1793267816.550312
+            },
+            "peak_compressed": {
+              "bytes": 1388855296,
+              "line": 1851,
+              "window": 5,
+              "timestamp": 1793267811.485183
+            }
+          }
+        },
+        "build594-pid49019-session5": {
+          "build": "594",
+          "pid": 49019,
+          "session": 5,
+          "rows": 20,
+          "maxima": {
+            "footprint": {
+              "bytes": 5472281160,
+              "line": 2308,
+              "window": 13,
+              "timestamp": 1793267892.460546
+            },
+            "compressed": {
+              "bytes": 2132541440,
+              "line": 2488,
+              "window": 19,
+              "timestamp": 1793267924.3238611
+            },
+            "peak_footprint": {
+              "bytes": 5476753992,
+              "line": 2368,
+              "window": 15,
+              "timestamp": 1793267903.031136
+            },
+            "peak_compressed": {
+              "bytes": 2310209536,
+              "line": 2518,
+              "window": 20,
+              "timestamp": 1793267929.571861
+            }
+          }
+        },
+        "build595-pid50728-session1": {
+          "build": "595",
+          "pid": 50728,
+          "session": 1,
+          "rows": 5,
+          "maxima": {
+            "footprint": {
+              "bytes": 3092994328,
+              "line": 2682,
+              "window": 5,
+              "timestamp": 1793300657.999075
+            },
+            "compressed": {
+              "bytes": 923205632,
+              "line": 2682,
+              "window": 5,
+              "timestamp": 1793300657.999075
+            },
+            "peak_footprint": {
+              "bytes": 3094354176,
+              "line": 2682,
+              "window": 5,
+              "timestamp": 1793300657.999075
+            },
+            "peak_compressed": {
+              "bytes": 923975680,
+              "line": 2682,
+              "window": 5,
+              "timestamp": 1793300657.999075
+            }
+          }
+        },
+        "build595-pid50728-session2": {
+          "build": "595",
+          "pid": 50728,
+          "session": 2,
+          "rows": 19,
+          "maxima": {
+            "footprint": {
+              "bytes": 4116602456,
+              "line": 3078,
+              "window": 13,
+              "timestamp": 1793300730.844205
+            },
+            "compressed": {
+              "bytes": 1283833856,
+              "line": 3229,
+              "window": 18,
+              "timestamp": 1793300756.187508
+            },
+            "peak_footprint": {
+              "bytes": 4116602456,
+              "line": 3078,
+              "window": 13,
+              "timestamp": 1793300730.844205
+            },
+            "peak_compressed": {
+              "bytes": 1283833856,
+              "line": 3229,
+              "window": 18,
+              "timestamp": 1793300756.187508
+            }
+          }
+        },
+        "build595-pid50728-session3": {
+          "build": "595",
+          "pid": 50728,
+          "session": 3,
+          "rows": 5,
+          "maxima": {
+            "footprint": {
+              "bytes": 2782452496,
+              "line": 3293,
+              "window": 1,
+              "timestamp": 1793300770.789552
+            },
+            "compressed": {
+              "bytes": 927825920,
+              "line": 3293,
+              "window": 1,
+              "timestamp": 1793300770.789552
+            },
+            "peak_footprint": {
+              "bytes": 2846104336,
+              "line": 3293,
+              "window": 1,
+              "timestamp": 1793300770.789552
+            },
+            "peak_compressed": {
+              "bytes": 928301056,
+              "line": 3293,
+              "window": 1,
+              "timestamp": 1793300770.789552
+            }
+          }
+        },
+        "build595-pid50728-session4": {
+          "build": "595",
+          "pid": 50728,
+          "session": 4,
+          "rows": 5,
+          "maxima": {
+            "footprint": {
+              "bytes": 4654309528,
+              "line": 3508,
+              "window": 3,
+              "timestamp": 1793300806.306068
+            },
+            "compressed": {
+              "bytes": 1831976960,
+              "line": 3538,
+              "window": 4,
+              "timestamp": 1793300811.6134071
+            },
+            "peak_footprint": {
+              "bytes": 5109588360,
+              "line": 3538,
+              "window": 4,
+              "timestamp": 1793300811.6134071
+            },
+            "peak_compressed": {
+              "bytes": 1862860800,
+              "line": 3538,
+              "window": 4,
+              "timestamp": 1793300811.6134071
+            }
+          }
+        }
+      }
+    },
+    {
+      "file": "RPCS3-performance(5).log",
+      "sha256": "76a2883f3bddf0f79ac6d7433f079e4777d4720f3b369182e557c18423075b3c",
+      "groups": {
+        "build595-pid50728-session4": {
+          "build": "595",
+          "pid": 50728,
+          "session": 4,
+          "rows": 9,
+          "maxima": {
+            "footprint": {
+              "bytes": 4552335536,
+              "line": 12,
+              "window": 6,
+              "timestamp": 1793300821.8066978
+            },
+            "compressed": {
+              "bytes": 1783087104,
+              "line": 12,
+              "window": 6,
+              "timestamp": 1793300821.8066978
+            },
+            "peak_footprint": {
+              "bytes": 5109588360,
+              "line": 12,
+              "window": 6,
+              "timestamp": 1793300821.8066978
+            },
+            "peak_compressed": {
+              "bytes": 1862860800,
+              "line": 12,
+              "window": 6,
+              "timestamp": 1793300821.8066978
+            }
+          }
+        },
+        "build595-pid50728-session5": {
+          "build": "595",
+          "pid": 50728,
+          "session": 5,
+          "rows": 38,
+          "maxima": {
+            "footprint": {
+              "bytes": 4125106400,
+              "line": 1339,
+              "window": 36,
+              "timestamp": 1793301051.577815
+            },
+            "compressed": {
+              "bytes": 1683308544,
+              "line": 1370,
+              "window": 37,
+              "timestamp": 1793301056.672638
+            },
+            "peak_footprint": {
+              "bytes": 4125106400,
+              "line": 1339,
+              "window": 36,
+              "timestamp": 1793301051.577815
+            },
+            "peak_compressed": {
+              "bytes": 1772093440,
+              "line": 1370,
+              "window": 37,
+              "timestamp": 1793301056.672638
+            }
+          }
+        }
+      }
+    }
+  ],
+  "scope": "Existing MEMPROF527 lines only, grouped by build/PID/session; current and sampled peak differ; peaks not additive. No new capture and no causal attribution to Store or frame drops."
+}

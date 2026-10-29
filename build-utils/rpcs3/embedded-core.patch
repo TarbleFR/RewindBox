@@ -312,7 +312,7 @@ index f58f04522..abf76ff80 100644
  
  asmjit::inline_runtime::inline_runtime(uchar* data, usz size)
 diff --git a/Utilities/JITArenaAllocator.h b/Utilities/JITArenaAllocator.h
-index f6089ea0e..76479e35d 100644
+index f6089ea0e..9a5f88107 100644
 --- a/Utilities/JITArenaAllocator.h
 +++ b/Utilities/JITArenaAllocator.h
 @@ -28,12 +28,14 @@ public:
@@ -333,15 +333,38 @@ index f6089ea0e..76479e35d 100644
  	}
  
  	bool allocate_lowest(usz size, usz alignment, arena_range& result)
-@@ -115,6 +117,7 @@ public:
+@@ -114,8 +116,28 @@ public:
+ 			return false;
  		}
  
- 		m_free.insert(next, {offset, size});
+-		m_free.insert(next, {offset, size});
+-		coalesce(index);
++		// Extend adjacent free ranges in place. Inserting first would shift
++		// the suffix (and possibly allocate), only to erase it during merging.
++		if (index && m_free[index - 1].offset + m_free[index - 1].size == offset)
++		{
++			auto& previous = m_free[index - 1];
++			previous.size += size;
++			if (next != m_free.end() && offset + size == next->offset)
++			{
++				previous.size += next->size;
++				m_free.erase(next);
++			}
++		}
++		else if (next != m_free.end() && offset + size == next->offset)
++		{
++			next->offset = offset;
++			next->size += size;
++		}
++		else
++		{
++			m_free.insert(next, {offset, size});
++		}
 +		m_free_bytes += size;
- 		coalesce(index);
  		return true;
  	}
-@@ -126,12 +129,7 @@ public:
+ 
+@@ -126,12 +148,7 @@ public:
  
  	usz free_bytes() const noexcept
  	{
@@ -355,7 +378,7 @@ index f6089ea0e..76479e35d 100644
  	}
  
  	usz largest_free_bytes() const noexcept
-@@ -144,6 +142,21 @@ public:
+@@ -144,6 +161,21 @@ public:
  		return result;
  	}
  
@@ -364,20 +387,20 @@ index f6089ea0e..76479e35d 100644
 +	arena_range released_data_pages(usz offset, usz size, usz page) const noexcept
 +	{
 +		if (!is_power_of_two(page) || !size || offset > m_capacity || size > m_capacity - offset) return {};
-+		for (const auto& free : m_free)
-+		{
-+			if (offset < free.offset || offset + size > free.offset + free.size) continue;
-+			const usz begin = std::max(align_up(free.offset, page), offset & ~(page - 1));
-+			const usz end = std::min((free.offset + free.size) & ~(page - 1), align_up(offset + size, page));
-+			return end > begin ? arena_range{begin, end - begin} : arena_range{};
-+		}
-+		return {};
++		const auto next = std::upper_bound(m_free.begin(), m_free.end(), offset,
++			[](usz value, const arena_range& item) { return value < item.offset; });
++		if (next == m_free.begin()) return {};
++		const auto& free = *(next - 1);
++		if (offset + size > free.offset + free.size) return {};
++		const usz begin = std::max(align_up(free.offset, page), offset & ~(page - 1));
++		const usz end = std::min((free.offset + free.size) & ~(page - 1), align_up(offset + size, page));
++		return end > begin ? arena_range{begin, end - begin} : arena_range{};
 +	}
 +
  private:
  	static bool is_power_of_two(usz value) noexcept
  	{
-@@ -173,8 +186,8 @@ private:
+@@ -173,8 +205,8 @@ private:
  
  		if (prefix && suffix)
  		{
@@ -387,15 +410,28 @@ index f6089ea0e..76479e35d 100644
  		}
  		else if (prefix)
  		{
-@@ -188,6 +201,7 @@ private:
+@@ -188,26 +220,11 @@ private:
  		{
  			m_free.erase(m_free.begin() + index);
  		}
+-	}
+-
+-	void coalesce(usz index)
+-	{
+-		if (index && m_free[index - 1].offset + m_free[index - 1].size == m_free[index].offset)
+-		{
+-			m_free[index - 1].size += m_free[index].size;
+-			m_free.erase(m_free.begin() + index);
+-			index--;
+-		}
+-
+-		if (index + 1 < m_free.size() &&
+-			m_free[index].offset + m_free[index].size == m_free[index + 1].offset)
+-		{
+-			m_free[index].size += m_free[index + 1].size;
+-			m_free.erase(m_free.begin() + index + 1);
+-		}
 +		m_free_bytes -= size;
- 	}
- 
- 	void coalesce(usz index)
-@@ -208,6 +222,7 @@ private:
  	}
  
  	usz m_capacity = 0;
@@ -10310,7 +10346,7 @@ index 000000000..9d192663c
 +}
 +}
 diff --git a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
-index 9a1e4c790..71e1dbea3 100644
+index 9a1e4c790..5cdf30956 100644
 --- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 +++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 @@ -1,5 +1,12 @@
@@ -11169,9 +11205,8 @@ index 9a1e4c790..71e1dbea3 100644
 +				const auto f = func.second.fn ? func.second.fn : func.second.chunk;
 +				fpm.run(*f, fam);
 +			}
- 		}
- 
--		for (const auto& func : m_functions)
++		}
++
 +#ifdef RPCS3_IOS
 +		const u64 codegen_started = utils::get_tsc();
 +		jit_phase::g_counters.add(jit_phase::spu_passes, codegen_started - passes_started, m_size);
@@ -11182,15 +11217,16 @@ index 9a1e4c790..71e1dbea3 100644
 +		// module this lets LLVM omit the corresponding SPU state/dispatch paths
 +		// from hot blocks entirely.
 +		if (m_test_state->use_empty())
++		{
++			m_test_state->eraseFromParent();
++			m_test_state = nullptr;
+ 		}
+ 
+-		for (const auto& func : m_functions)
++		if (m_dispatch->use_empty())
  		{
 -			const auto f = func.second.fn ? func.second.fn : func.second.chunk;
 -			fpm.run(*f, fam);
-+			m_test_state->eraseFromParent();
-+			m_test_state = nullptr;
-+		}
-+
-+		if (m_dispatch->use_empty())
-+		{
 +			m_dispatch->eraseFromParent();
 +			m_dispatch = nullptr;
  		}
@@ -11583,7 +11619,34 @@ index 9a1e4c790..71e1dbea3 100644
  					{
  						// Generate fixed sequence of copy operations
  						for (u32 i = 0; i < csize; i += stride)
-@@ -5558,7 +6276,7 @@ public:
+@@ -5483,6 +6201,18 @@ public:
+ 
+ 				// Get MFC slot, redirect to invalid memory address
+ 				const auto slot = m_ir->CreateLoad(get_type<u32>(), spu_ptr(&spu_thread::mfc_size));
++
++				// A full queue is a blocking channel write, not a guest HALT.
++				const auto full = llvm::BasicBlock::Create(m_context, "", m_function);
++				const auto enqueue = llvm::BasicBlock::Create(m_context, "", m_function);
++				m_ir->CreateCondBr(m_ir->CreateICmpULT(slot, m_ir->getInt32(16)), enqueue, full, m_md_likely);
++				m_ir->SetInsertPoint(full);
++				update_pc();
++				ensure_gpr_stores();
++				call("spu_write_channel", &exec_wrch, m_thread, m_ir->getInt32(MFC_Cmd), val.value);
++				m_ir->CreateBr(next);
++				m_ir->SetInsertPoint(enqueue);
++
+ 				const auto off0 = m_ir->CreateAdd(m_ir->CreateMul(slot, m_ir->getInt32(sizeof(spu_mfc_cmd))), m_ir->getInt32(::offset32(&spu_thread::mfc_queue)));
+ 				const auto ptr0 = _ptr(m_thread, m_ir->CreateZExt(off0, get_type<u64>()));
+ 				const auto ptr1 = _ptr(m_memptr, 0xffdeadf0);
+@@ -5540,6 +6270,7 @@ public:
+ 				case MFC_EIEIO_CMD:
+ 				case MFC_SYNC_CMD:
+ 				{
++					m_ir->CreateStore(tag.value, _ptr(pmfc, &spu_mfc_cmd::tag));
+ 					m_ir->CreateStore(m_ir->getInt32(-1), pb);
+ 					m_ir->CreateStore(m_ir->CreateOr(m_ir->CreateLoad(get_type<u32>(), pf), mask), pf);
+ 					break;
+@@ -5558,7 +6289,7 @@ public:
  			}
  
  			// Fallback to unoptimized WRCH implementation (TODO)
@@ -11592,7 +11655,7 @@ index 9a1e4c790..71e1dbea3 100644
  			break;
  		}
  		case MFC_WrListStallAck:
-@@ -5580,29 +6298,8 @@ public:
+@@ -5580,29 +6311,8 @@ public:
  			return;
  		}
  		case SPU_WrDec:
@@ -11624,7 +11687,7 @@ index 9a1e4c790..71e1dbea3 100644
  		case SPU_Set_Bkmk_Tag:
  		case SPU_PM_Start_Ev:
  		case SPU_PM_Stop_Ev:
-@@ -5702,14 +6399,34 @@ public:
+@@ -5702,14 +6412,34 @@ public:
  
  	void ABSDB(spu_opcode_t op)
  	{
@@ -11659,7 +11722,7 @@ index 9a1e4c790..71e1dbea3 100644
  	}
  
  	void ROTM(spu_opcode_t op)
-@@ -5747,7 +6464,13 @@ public:
+@@ -5747,7 +6477,13 @@ public:
  			return;
  		}
  
@@ -11673,7 +11736,7 @@ index 9a1e4c790..71e1dbea3 100644
  	}
  
  	void SHL(spu_opcode_t op)
-@@ -5766,7 +6489,13 @@ public:
+@@ -5766,7 +6502,13 @@ public:
  	void ROTH(spu_opcode_t op)
  	{
  		const auto [a, b] = get_vrs<u16[8]>(op.ra, op.rb);
@@ -11687,7 +11750,7 @@ index 9a1e4c790..71e1dbea3 100644
  	}
  
  	void ROTHM(spu_opcode_t op)
-@@ -5804,7 +6533,13 @@ public:
+@@ -5804,7 +6546,13 @@ public:
  			return;
  		}
  
@@ -11701,7 +11764,7 @@ index 9a1e4c790..71e1dbea3 100644
  	}
  
  	void SHLH(spu_opcode_t op)
-@@ -6258,13 +6993,12 @@ public:
+@@ -6258,13 +7006,12 @@ public:
  
  	void FSMB(spu_opcode_t op)
  	{
@@ -11719,7 +11782,7 @@ index 9a1e4c790..71e1dbea3 100644
  		const auto m = bitcast<bool[16]>(trunc<u16>(v));
  		set_vr(op.rt, sext<s8[16]>(m));
  #endif
-@@ -6273,7 +7007,17 @@ public:
+@@ -6273,7 +7020,17 @@ public:
  	template <typename TA>
  	static auto byteswap(TA&& a)
  	{
@@ -11737,7 +11800,7 @@ index 9a1e4c790..71e1dbea3 100644
  	}
  
  	static auto rotqby_reverse_base()
-@@ -6334,20 +7078,24 @@ public:
+@@ -6334,20 +7091,24 @@ public:
  				const auto sc = rotqby_reverse_base();
  				const auto sh = sc + (splat_scalar(b) >> 3);
  
@@ -11762,7 +11825,7 @@ index 9a1e4c790..71e1dbea3 100644
  
  			return eval(pshufb_for_x86_and_tbl_for_aarch64(a, (sh & 0xf)));
  		});
-@@ -6504,8 +7252,14 @@ public:
+@@ -6504,8 +7265,14 @@ public:
  			}
  		}
  
@@ -11777,7 +11840,7 @@ index 9a1e4c790..71e1dbea3 100644
  	}
  
  	void ROTQMBI(spu_opcode_t op)
-@@ -6518,15 +7272,27 @@ public:
+@@ -6518,15 +7285,27 @@ public:
  			minusb = eval(x);
  		}
  
@@ -11805,7 +11868,7 @@ index 9a1e4c790..71e1dbea3 100644
  	}
  
  #if defined(ARCH_X64)
-@@ -6561,11 +7327,13 @@ public:
+@@ -6561,11 +7340,13 @@ public:
  			const auto sc = rotqby_reverse_base();
  			const auto sh = eval(sc + splat_scalar(b));
  
@@ -11819,7 +11882,7 @@ index 9a1e4c790..71e1dbea3 100644
  
  			set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(as, (sh & 0xf)));
  			return;
-@@ -6574,11 +7342,13 @@ public:
+@@ -6574,11 +7355,13 @@ public:
  		const auto sc = rotqby_forward_base();
  		const auto sh = eval(sc - splat_scalar(b));
  
@@ -11833,7 +11896,7 @@ index 9a1e4c790..71e1dbea3 100644
  
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, (sh & 0xf)));
  	}
-@@ -6724,6 +7494,16 @@ public:
+@@ -6724,6 +7507,16 @@ public:
  	void ROTQBYI(spu_opcode_t op)
  	{
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -11850,7 +11913,7 @@ index 9a1e4c790..71e1dbea3 100644
  		const auto sc = rotqby_forward_base();
  		const auto sh = (sc - get_imm<u8[16]>(op.i7, false)) & 0xf;
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6732,6 +7512,16 @@ public:
+@@ -6732,6 +7525,16 @@ public:
  	void ROTQMBYI(spu_opcode_t op)
  	{
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -11867,7 +11930,7 @@ index 9a1e4c790..71e1dbea3 100644
  		const auto sc = rotqby_zero_base();
  		const auto sh = sc + (-get_imm<u8[16]>(op.i7, false) & 0x1f);
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6741,6 +7531,16 @@ public:
+@@ -6741,6 +7544,16 @@ public:
  	{
  		if (get_reg_raw(op.ra) && !op.i7) return set_reg_fixed(op.rt, get_reg_raw(op.ra), false); // For expressions matching
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -11884,7 +11947,7 @@ index 9a1e4c790..71e1dbea3 100644
  		const auto sc = rotqby_forward_base();
  		const auto sh = sc - (get_imm<u8[16]>(op.i7, false) & 0x1f);
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6773,6 +7573,7 @@ public:
+@@ -6773,6 +7586,7 @@ public:
  
  	void SUMB(spu_opcode_t op)
  	{
@@ -11892,7 +11955,7 @@ index 9a1e4c790..71e1dbea3 100644
  		if (m_use_avx512)
  		{
  			const auto [a, b] = get_vrs<u8[16]>(op.ra, op.rb);
-@@ -6789,6 +7590,7 @@ public:
+@@ -6789,6 +7603,7 @@ public:
  			set_vr(op.rt, shuffle2(ax, bx, 0, 9, 2, 11, 4, 13, 6, 15));
  			return;
  		}
@@ -11900,7 +11963,7 @@ index 9a1e4c790..71e1dbea3 100644
  
  #ifdef ARCH_ARM64
  		if (m_use_dotprod)
-@@ -6812,6 +7614,17 @@ public:
+@@ -6812,6 +7627,17 @@ public:
  			return;
  		}
  
@@ -11918,7 +11981,7 @@ index 9a1e4c790..71e1dbea3 100644
  		const auto [a, b] = get_vrs<u16[8]>(op.ra, op.rb);
  		const auto ahs = eval((a >> 8) + (a & 0xff));
  		const auto bhs = eval((b >> 8) + (b & 0xff));
-@@ -6850,11 +7663,31 @@ public:
+@@ -6850,11 +7676,31 @@ public:
  
  	void XSWD(spu_opcode_t op)
  	{
@@ -11950,7 +12013,7 @@ index 9a1e4c790..71e1dbea3 100644
  		set_vr(op.rt, get_vr<s32[4]>(op.ra) << 16 >> 16);
  	}
  
-@@ -6865,6 +7698,16 @@ public:
+@@ -6865,6 +7711,16 @@ public:
  
  	void XSBH(spu_opcode_t op)
  	{
@@ -11967,7 +12030,7 @@ index 9a1e4c790..71e1dbea3 100644
  		set_vr(op.rt, get_vr<s16[8]>(op.ra) << 8 >> 8);
  	}
  
-@@ -6925,16 +7768,28 @@ public:
+@@ -6925,16 +7781,28 @@ public:
  	void CGX(spu_opcode_t op)
  	{
  		const auto [a, b] = get_vrs<u32[4]>(op.ra, op.rb);
@@ -11996,7 +12059,7 @@ index 9a1e4c790..71e1dbea3 100644
  	}
  
  	void MPYHHA(spu_opcode_t op)
-@@ -7417,6 +8272,32 @@ public:
+@@ -7417,6 +8285,32 @@ public:
  			case 2:
  			case 1:
  			{
@@ -12029,7 +12092,7 @@ index 9a1e4c790..71e1dbea3 100644
  				set_vr(op.rt4, select(bitcast<s8[16]>(c) != 0, get_vr<u8[16]>(op.rb), get_vr<u8[16]>(op.ra)));
  				return;
  			}
-@@ -7451,6 +8332,18 @@ public:
+@@ -7451,6 +8345,18 @@ public:
  			// If the mask comes from a constant generation instruction, replace SHUFB with insert
  			if (auto [ok, i] = match_expr(c, spu_get_insertion_shuffle_mask<VT>(match<u32>())); ok)
  			{
@@ -12048,7 +12111,7 @@ index 9a1e4c790..71e1dbea3 100644
  				set_vr(op.rt4, insert(get_vr<VT>(op.rb), i, get_scalar(get_vr<VT>(op.ra))));
  				return true;
  			}
-@@ -7461,6 +8354,21 @@ public:
+@@ -7461,6 +8367,21 @@ public:
  			return;
  		}
  
@@ -12070,7 +12133,7 @@ index 9a1e4c790..71e1dbea3 100644
  		const auto c = get_vr<u8[16]>(op.rc);
  
  		if (auto [ok, mask] = get_const_vector(c.value, m_pos); ok)
-@@ -7507,7 +8415,7 @@ public:
+@@ -7507,7 +8428,7 @@ public:
  					{ 0x1011121314151617, 0x000102031c1d1e1f, &cpu_translator::get_type<u32[4]>, 3, 1 },
  					{ 0x1011121314151617, 0x18191a1b00010203, &cpu_translator::get_type<u32[4]>, 3, 0 },
  					{ 0x0001020304050607, 0x18191a1b1c1d1e1f, &cpu_translator::get_type<u64[2]>, 1, 1 },
@@ -12079,7 +12142,7 @@ index 9a1e4c790..71e1dbea3 100644
  				};
  
  				// Check important constants from CWD-like constant generation instructions
-@@ -7568,6 +8476,28 @@ public:
+@@ -7568,6 +8489,28 @@ public:
  		[[maybe_unused]] const bool consts_never_msb = known_idx.Zero[5];
  		[[maybe_unused]] const bool consts_never_allones = known_idx.One[5];
  		[[maybe_unused]] const bool idx_selects_single = known_idx.extractBits(1, 4).isConstant();
@@ -12108,7 +12171,7 @@ index 9a1e4c790..71e1dbea3 100644
  
  		const auto a = get_vr<u8[16]>(op.ra);
  		const auto b = get_vr<u8[16]>(op.rb);
-@@ -7627,12 +8557,12 @@ public:
+@@ -7627,12 +8570,12 @@ public:
  			cv = eval(c ^ 0xf);
  		}
  
@@ -12126,7 +12189,7 @@ index 9a1e4c790..71e1dbea3 100644
  #else
  		const std::optional<value_t<u8[16]>> single_src = (idx_selects_single || (op.ra == op.rb && !m_interp_magn))
  #endif
-@@ -7675,6 +8605,14 @@ public:
+@@ -7675,6 +8618,14 @@ public:
  				return;
  			}
  
@@ -12141,7 +12204,7 @@ index 9a1e4c790..71e1dbea3 100644
  			const auto x = tbl(build<u8[16]>(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x80, 0x80), (c >> 4));
  			const auto xv = perm_or_zero_only ? eval(splat<u8[16]>(0)) : x;
  			const auto cm = eval(cv & 0x8f);
-@@ -7694,6 +8632,15 @@ public:
+@@ -7694,6 +8645,15 @@ public:
  			return;
  		}
  
@@ -12157,7 +12220,7 @@ index 9a1e4c790..71e1dbea3 100644
  		if (perm_only)
  		{
  			const auto cm = eval(cv & 0x1f);
-@@ -7701,6 +8648,14 @@ public:
+@@ -7701,6 +8661,14 @@ public:
  			return;
  		}
  
@@ -12172,7 +12235,7 @@ index 9a1e4c790..71e1dbea3 100644
  		const auto idx_consts = tbl(build<u8[16]>(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x80, 0x80), (c >> 4));
  		const auto idx_base = perm_or_zero_only ? eval(splat<u8[16]>(0)) : idx_consts;
  		const auto cm = eval(cv & 0x9f);
-@@ -7953,6 +8908,7 @@ public:
+@@ -7953,6 +8921,7 @@ public:
  	{
  		const auto known = known_opt.value_or(get_known_fp_class<3>(v, llvm::FPClassTest::fcNan | llvm::FPClassTest::fcInf));
  
@@ -12180,7 +12243,7 @@ index 9a1e4c790..71e1dbea3 100644
  		// Avoid pessimation when full clamping isn't needed
  		if (m_use_avx512 && !(known.isKnownNeverNaN() && (known.isKnownNeverPosInfinity() || known.isKnownNeverNegInfinity())))
  		{
-@@ -7960,6 +8916,7 @@ public:
+@@ -7960,6 +8929,7 @@ public:
  			// Normally doesn't cause issues as SNaN frequently gets quieted beforehand
  			return eval(vrangeps(v, fsplat<f32[4]>(std::bit_cast<f32, u32>(0x7f7fffff)), 0x2, 0xff));
  		}
@@ -12188,7 +12251,7 @@ index 9a1e4c790..71e1dbea3 100644
  
  		return eval(clamp_positive_smax(clamp_negative_smax(v, known), known));
  	}
-@@ -7993,6 +8950,7 @@ public:
+@@ -7993,6 +8963,7 @@ public:
  			const auto a_sign = (a & splat<u32[4]>(0x80000000));
  			value_t<u32[4]> final_result = eval(splat<u32[4]>(0));
  
@@ -12196,7 +12259,7 @@ index 9a1e4c790..71e1dbea3 100644
  			if (m_use_avx512)
  			{
  				value_t<u32[16]> lo_lut;
-@@ -8003,6 +8961,7 @@ public:
+@@ -8003,6 +8974,7 @@ public:
  				final_result = vperm2d128From512(lo_lut, a_fraction, hi_lut);
  			}
  			else
@@ -12204,7 +12267,7 @@ index 9a1e4c790..71e1dbea3 100644
  			{
  				for (u32 i = 0; i < 4; i++)
  				{
-@@ -8058,6 +9017,15 @@ public:
+@@ -8058,6 +9030,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -12220,7 +12283,7 @@ index 9a1e4c790..71e1dbea3 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(get_vr<f64[4]>(op.ra) > get_vr<f64[4]>(op.rb))));
  			return;
  		}
-@@ -8154,6 +9122,15 @@ public:
+@@ -8154,6 +9135,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -12236,7 +12299,7 @@ index 9a1e4c790..71e1dbea3 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(fabs(get_vr<f64[4]>(op.ra)) > fabs(get_vr<f64[4]>(op.rb)))));
  			return;
  		}
-@@ -8432,6 +9409,15 @@ public:
+@@ -8432,6 +9422,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -12252,7 +12315,7 @@ index 9a1e4c790..71e1dbea3 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(get_vr<f64[4]>(op.ra) == get_vr<f64[4]>(op.rb))));
  			return;
  		}
-@@ -8481,6 +9467,15 @@ public:
+@@ -8481,6 +9480,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -12268,7 +12331,7 @@ index 9a1e4c790..71e1dbea3 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(fabs(get_vr<f64[4]>(op.ra)) == fabs(get_vr<f64[4]>(op.rb)))));
  			return;
  		}
-@@ -8669,6 +9664,7 @@ public:
+@@ -8669,6 +9677,7 @@ public:
  					return eval(select(fcmp_uno(b != fsplat<f32[4]>(0.)), normal_fma, c));
  				}
  
@@ -12276,7 +12339,7 @@ index 9a1e4c790..71e1dbea3 100644
  				// Same number of operations well preventing a serial predicate chain pessimization
  				if (m_use_avx512)
  				{
-@@ -8677,6 +9673,7 @@ public:
+@@ -8677,6 +9686,7 @@ public:
  					const auto cb = vfixupimmps(b, a, splat<u32[4]>(0x00000800u), 0, 0xff);
  					return fma32x4(ca, cb, c, a_known, b_known);
  				}
@@ -12284,7 +12347,7 @@ index 9a1e4c790..71e1dbea3 100644
  
  				const auto normal_fma = fma32x4(a, b, c, a_known, b_known);
  				const auto a_cmp = fcmp_uno(a != fsplat<f32[4]>(0.));
-@@ -8689,6 +9686,7 @@ public:
+@@ -8689,6 +9699,7 @@ public:
  			}
  		});
  
@@ -12292,7 +12355,7 @@ index 9a1e4c790..71e1dbea3 100644
  		if (m_use_avx512)
  		{
  			register_intrinsic("spu_re_acc", [&](llvm::CallInst* ci)
-@@ -8702,6 +9700,7 @@ public:
+@@ -8702,6 +9713,7 @@ public:
  			});
  		}
  		else
@@ -12300,7 +12363,7 @@ index 9a1e4c790..71e1dbea3 100644
  		{
  			register_intrinsic("spu_re_acc", [&](llvm::CallInst* ci)
  			{
-@@ -8910,17 +9909,38 @@ public:
+@@ -8910,17 +9922,38 @@ public:
  
  		if (auto [ok_re, mystery] = match_expr(a, spu_re(MT)); ok_re)
  		{
@@ -12339,7 +12402,7 @@ index 9a1e4c790..71e1dbea3 100644
  		}
  
  		if (!m_interp_magn && op.ra == op.rb)
-@@ -9046,6 +10066,7 @@ public:
+@@ -9046,6 +10079,7 @@ public:
  				const auto a_sign = (a & splat<u32[4]>(0x80000000));
  				value_t<u32[4]> b = eval(splat<u32[4]>(0));
  
@@ -12347,7 +12410,7 @@ index 9a1e4c790..71e1dbea3 100644
  				if (m_use_avx512)
  				{
  					value_t<u32[16]> lo_lut;
-@@ -9056,6 +10077,7 @@ public:
+@@ -9056,6 +10090,7 @@ public:
  					b = vperm2d128From512(lo_lut, a_fraction, hi_lut);
  				}
  				else
@@ -12355,7 +12418,7 @@ index 9a1e4c790..71e1dbea3 100644
  				{
  					for (u32 i = 0; i < 4; i++)
  					{
-@@ -9311,6 +10333,7 @@ public:
+@@ -9311,6 +10346,7 @@ public:
  
  			value_t<s32[4]> r;
  
@@ -12363,7 +12426,7 @@ index 9a1e4c790..71e1dbea3 100644
  			if (m_use_avx512)
  			{
  				const auto sc = eval(bitcast<f32[4]>(max(bitcast<s32[4]>(a),splat<s32[4]>(0x0))));
-@@ -9318,6 +10341,7 @@ public:
+@@ -9318,6 +10354,7 @@ public:
  				set_vr(op.rt, r);
  				return;
  			}
@@ -12371,7 +12434,7 @@ index 9a1e4c790..71e1dbea3 100644
  
  			r.value = m_ir->CreateFPToUI(a.value, get_type<s32[4]>());
  			set_vr(op.rt, select(bitcast<s32[4]>(a) > splat<s32[4]>(((32 + 127) << 23) - 1), splat<s32[4]>(-1), r & ~(bitcast<s32[4]>(a) >> 31)));
-@@ -9650,7 +10674,7 @@ public:
+@@ -9650,7 +10687,7 @@ public:
  
  		if (_spu->ch_events.load().count)
  		{
@@ -12380,7 +12443,7 @@ index 9a1e4c790..71e1dbea3 100644
  			_spu->srr0 = addr;
  
  			// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -9667,6 +10691,13 @@ public:
+@@ -9667,6 +10704,13 @@ public:
  		return addr;
  	}
  
@@ -12394,7 +12457,7 @@ index 9a1e4c790..71e1dbea3 100644
  	llvm::BasicBlock* add_block_indirect(spu_opcode_t op, value_t<u32> addr, bool ret = true)
  	{
  		if (m_interp_magn)
-@@ -9690,7 +10721,7 @@ public:
+@@ -9690,7 +10734,7 @@ public:
  			target->addIncoming(e_addr, e_exec);
  			m_ir->CreateCondBr(get_imm<bool>(op.d).value, d_exec, d_done, m_md_unlikely);
  			m_ir->SetInsertPoint(d_exec);
@@ -12403,7 +12466,7 @@ index 9a1e4c790..71e1dbea3 100644
  			m_ir->CreateBr(d_done);
  			m_ir->SetInsertPoint(d_done);
  			m_ir->CreateBr(m_interp_bblock);
-@@ -9749,7 +10780,7 @@ public:
+@@ -9749,7 +10793,7 @@ public:
  
  		if (op.d)
  		{
@@ -12412,7 +12475,7 @@ index 9a1e4c790..71e1dbea3 100644
  		}
  
  		m_ir->CreateStore(addr.value, spu_ptr(&spu_thread::pc));
-@@ -10036,7 +11067,7 @@ public:
+@@ -10036,7 +11080,7 @@ public:
  		if (op.d && tfound != m_targets.end() && tfound->second.size() == 1 && tfound->second[0] == spu_branch_target(m_pos, 1))
  		{
  			// Interrupts-disable pattern
@@ -12421,7 +12484,7 @@ index 9a1e4c790..71e1dbea3 100644
  			return;
  		}
  
-@@ -10102,7 +11133,7 @@ public:
+@@ -10102,7 +11146,7 @@ public:
  			{
  				// Can't afford external tail call in true functions
  				m_ir->CreateStore(m_ir->getInt32("BIJT"_u32), _ptr(m_memptr, 0xffdead20));
@@ -12654,7 +12717,7 @@ index faf4082dc..d08c48071 100644
  	// Interpreter table (spu_itype -> ptr)
  	static std::array<u64, 256> g_interpreter_table;
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
-index bc9ec5e5b..12ad05b75 100644
+index bc9ec5e5b..7bfa5dcfd 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
 @@ -25,11 +25,19 @@
@@ -12914,7 +12977,21 @@ index bc9ec5e5b..12ad05b75 100644
  	// Deallocate local storage
  	ensure(vm::dealloc(vm_offset(), vm::spu, &shm));
  
-@@ -2304,6 +2407,8 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+@@ -1941,6 +2044,13 @@ spu_thread::spu_thread(utils::serial& ar, lv2_spu_group* group)
+ 
+ 	serialize_common(ar);
+ 
++	// The MFC queue is serialized, but the host pending-work flag is not.
++	// Re-arm deferred transfers so channel waits can drain them after restore.
++	if (mfc_size && g_cfg.core.mfc_transfers_shuffling)
++	{
++		state += cpu_flag::pending;
++	}
++
+ 	raddr = ::narrow<u32>(ar.pop<u64>());
+ 
+ 	if (raddr)
+@@ -2304,6 +2414,8 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
  				}
  				}
  
@@ -12923,7 +13000,7 @@ index bc9ec5e5b..12ad05b75 100644
  				if (time0 != vm::reservation_acquire(eal) || (size0 == 128 && !cmp_rdata(*reinterpret_cast<spu_rdata_t*>(dst0), *reinterpret_cast<const spu_rdata_t*>(src))))
  				{
  					continue;
-@@ -3450,6 +3555,18 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3450,6 +3562,18 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		}
  
  		const auto& to_write = _ref<spu_rdata_t>(args.lsa & 0x3ff80);
@@ -12942,7 +13019,7 @@ index bc9ec5e5b..12ad05b75 100644
  		auto& res = vm::reservation_acquire(addr);
  
  		// TODO: Limit scope!!
-@@ -3457,26 +3574,32 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3457,26 +3581,32 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  		if (rtime != res)
  		{
@@ -12987,7 +13064,7 @@ index bc9ec5e5b..12ad05b75 100644
  			{
  				raddr = 0; // Disable notification
  				return true;
-@@ -3488,7 +3611,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3488,7 +3618,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		static const auto cast_as = [](void* ptr, usz pos){ return reinterpret_cast<u128*>(ptr) + pos; };
  		static const auto cast_as_const = [](const void* ptr, usz pos){ return reinterpret_cast<const u128*>(ptr) + pos; };
  
@@ -13002,7 +13079,7 @@ index bc9ec5e5b..12ad05b75 100644
  
  		auto [_oldd, _ok] = res.fetch_op([&](u64& r)
  		{
-@@ -3507,25 +3636,53 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3507,25 +3643,53 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  			return false;
  		}
  
@@ -13058,7 +13135,7 @@ index bc9ec5e5b..12ad05b75 100644
  			vm::writer_lock lock(addr, range_lock);
  
  			if (cmp_rdata(rdata, super_data))
-@@ -3552,6 +3709,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3552,6 +3716,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		return success;
  	}())
  	{
@@ -13068,7 +13145,7 @@ index bc9ec5e5b..12ad05b75 100644
  		if (raddr)
  		{
  			if (raddr != spurs_addr || pc != 0x11e4)
-@@ -3579,6 +3739,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3579,6 +3746,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  	}
  	else
  	{
@@ -13078,7 +13155,7 @@ index bc9ec5e5b..12ad05b75 100644
  		if (raddr)
  		{
  			// Last check for event before we clear the reservation
-@@ -3631,7 +3794,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3631,7 +3801,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  
  			if (!(at_read_time & 127))
  			{
@@ -13087,7 +13164,7 @@ index bc9ec5e5b..12ad05b75 100644
  				{
  					// Write of the same data (verified atomically)
  					vm::try_reservation_update(addr);
-@@ -3640,6 +3803,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3640,6 +3810,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  			}
  		}
  
@@ -13107,7 +13184,7 @@ index bc9ec5e5b..12ad05b75 100644
  		for (u64 j = 0;; j++)
  		{
  			auto [_oldd, _ok] = res.fetch_op([&](u128& r)
-@@ -3714,8 +3890,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3714,8 +3897,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  		}
  		else
  		{
@@ -13121,7 +13198,7 @@ index bc9ec5e5b..12ad05b75 100644
  
  			// Hard lock
  			auto spu = cpu ? cpu->try_get<spu_thread>() : nullptr;
-@@ -3726,6 +3905,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3726,6 +3912,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  				cpu->state += cpu_flag::wait;
  			}
  
@@ -13131,7 +13208,7 @@ index bc9ec5e5b..12ad05b75 100644
  			vm::writer_lock lock(addr, spu ? spu->range_lock : nullptr);
  			mov_rdata(sdata, *static_cast<const spu_rdata_t*>(to_write));
  			vm::reservation_acquire(addr) += 32;
-@@ -3880,8 +4062,15 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3880,8 +4069,15 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  	auto get_exec_mask = [&size = mfc_size]
  	{
  		// Get commands' execution mask
@@ -13149,7 +13226,7 @@ index bc9ec5e5b..12ad05b75 100644
  	};
  
  	// Process enqueued commands
-@@ -3941,8 +4130,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3941,8 +4137,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  
  bool spu_thread::check_mfc_interrupts(u32 next_pc)
  {
@@ -13160,7 +13237,23 @@ index bc9ec5e5b..12ad05b75 100644
  		srr0 = next_pc;
  
  		// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -4306,6 +4496,25 @@ bool spu_thread::process_mfc_cmd()
+@@ -4276,8 +4473,13 @@ bool spu_thread::process_mfc_cmd()
+ 			return false;
+ 		}
+ 
+-		// Process MFC commands
+-		do_mfc();
++		// The new channel command has not been accepted yet. If draining
++		// takes an interrupt, resume this WRCH rather than the next instruction.
++		do_mfc(false);
++		if (check_mfc_interrupts(pc))
++		{
++			spu_runtime::g_escape(this);
++		}
+ 
+ 		if (mfc_size < 16)
+ 		{
+@@ -4306,6 +4508,25 @@ bool spu_thread::process_mfc_cmd()
  	{
  		perf_meter<"GETLLAR"_u64> perf0;
  
@@ -13186,7 +13279,7 @@ index bc9ec5e5b..12ad05b75 100644
  		const u32 addr = ch_mfc_cmd.eal & -128;
  		const auto& data = vm::_ref<spu_rdata_t>(addr);
  
-@@ -4315,7 +4524,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4315,7 +4536,7 @@ bool spu_thread::process_mfc_cmd()
  			spu_log.trace(u8"GETLLAR after fail: addr=0x%x, time=%u c", last_faddr, (perf0.get() - last_ftsc));
  		}
  
@@ -13195,7 +13288,7 @@ index bc9ec5e5b..12ad05b75 100644
  		{
  			rtime = last_ftime;
  			raddr = last_faddr;
-@@ -4355,8 +4564,14 @@ bool spu_thread::process_mfc_cmd()
+@@ -4355,8 +4576,14 @@ bool spu_thread::process_mfc_cmd()
  					// Need to check twice for it to be accurate, the code is before and not after this check for:
  					// 1. Reduce time between reservation accesses so TSX panelty would be lowered
  					// 2. Increase the chance of change detection: if GETLLAR has been called again new data is probably wanted
@@ -13211,7 +13304,7 @@ index bc9ec5e5b..12ad05b75 100644
  						if (this_time != rtime)
  						{
  							// Reservation was lost but the data itself remains unchanged so try to ignore it
-@@ -4367,7 +4582,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4367,7 +4594,7 @@ bool spu_thread::process_mfc_cmd()
  						if ([&]() -> bool
  						{
  							// Validation that it is indeed GETLLAR spinning (large time window is intentional)
@@ -13220,7 +13313,7 @@ index bc9ec5e5b..12ad05b75 100644
  							{
  								// Seemingly not
  								getllar_busy_waiting_switch = umax;
-@@ -4441,7 +4656,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4441,7 +4668,7 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  							// Don't be stubborn, force operating sleep if too much time has passed
@@ -13229,7 +13322,7 @@ index bc9ec5e5b..12ad05b75 100644
  							{
  								// Hidden value to force busy waiting
  								if (!g_cfg.core.spu_getllar_spin_optimization_disabled)
-@@ -4452,6 +4667,18 @@ bool spu_thread::process_mfc_cmd()
+@@ -4452,6 +4679,18 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  
@@ -13248,7 +13341,7 @@ index bc9ec5e5b..12ad05b75 100644
  							// Either 1 or umax
  							return getllar_busy_waiting_switch != 0;
  						}())
-@@ -4472,6 +4699,11 @@ bool spu_thread::process_mfc_cmd()
+@@ -4472,6 +4711,11 @@ bool spu_thread::process_mfc_cmd()
  							if (getllar_busy_waiting_switch == 1)
  							{
  								getllar_wait_time[(addr % SPU_LS_SIZE) / 128].front() = 0;
@@ -13260,7 +13353,7 @@ index bc9ec5e5b..12ad05b75 100644
  
  #if defined(ARCH_X64)
  								if (utils::has_um_wait())
-@@ -4522,7 +4754,15 @@ bool spu_thread::process_mfc_cmd()
+@@ -4522,7 +4766,15 @@ bool spu_thread::process_mfc_cmd()
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(addr, rtime); wait_var)
  						{
  							cache_line_waiter_index = register_cache_line_waiter(addr);
@@ -13276,7 +13369,7 @@ index bc9ec5e5b..12ad05b75 100644
  							vm::reservation_notifier_end_wait(*wait_var);
  						}
  
-@@ -4533,7 +4773,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4533,7 +4785,7 @@ bool spu_thread::process_mfc_cmd()
  						// Quick check if there were reservation changes
  						const u64 new_time = res;
  
@@ -13285,7 +13378,7 @@ index bc9ec5e5b..12ad05b75 100644
  						{
  							if (g_cfg.core.mfc_debug)
  							{
-@@ -4551,8 +4791,13 @@ bool spu_thread::process_mfc_cmd()
+@@ -4551,8 +4803,13 @@ bool spu_thread::process_mfc_cmd()
  								rtime = new_time;
  							}
  
@@ -13301,7 +13394,7 @@ index bc9ec5e5b..12ad05b75 100644
  
  							// Reset perf
  							perf0.restart();
-@@ -4659,6 +4904,8 @@ bool spu_thread::process_mfc_cmd()
+@@ -4659,6 +4916,8 @@ bool spu_thread::process_mfc_cmd()
  
  			mov_rdata(rdata, data);
  
@@ -13310,7 +13403,7 @@ index bc9ec5e5b..12ad05b75 100644
  			if (u64 time0 = vm::reservation_acquire(addr); ntime != time0)
  			{
  				// Reservation data has been modified recently
-@@ -5075,7 +5322,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5075,7 +5334,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -13319,7 +13412,7 @@ index bc9ec5e5b..12ad05b75 100644
  	}
  
  	if ((addr >> 20) == (current_eal >> 20))
-@@ -5083,13 +5330,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5083,13 +5342,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  		if (vm::check_addr(addr, vm::page_1m_size))
  		{
  			// Same random-access-memory page as the current MFC command, assume allocated
@@ -13335,7 +13428,7 @@ index bc9ec5e5b..12ad05b75 100644
  		}
  	}
  
-@@ -5163,7 +5410,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5163,7 +5422,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	const bool res = cmp_rdata(data, vm::_ref<decltype(rdata)>(addr));
  
  	range_lock->release(0);
@@ -13344,7 +13437,7 @@ index bc9ec5e5b..12ad05b75 100644
  }
  
  bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range_lock)
-@@ -5171,7 +5418,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5171,7 +5430,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -13353,7 +13446,7 @@ index bc9ec5e5b..12ad05b75 100644
  	}
  
  	// Ensure data is allocated (HACK: would raise LR event if not)
-@@ -5244,7 +5491,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5244,7 +5503,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	const bool res = compute_rdata_hash32(*vm::get_super_ptr<decltype(rdata)>(addr)) == hash;
  
  	range_lock->release(0);
@@ -13362,7 +13455,7 @@ index bc9ec5e5b..12ad05b75 100644
  }
  
  usz spu_thread::register_cache_line_waiter(u32 addr)
-@@ -5352,6 +5599,7 @@ retry:
+@@ -5352,6 +5611,7 @@ retry:
  			// Set next event to the next time the decrementer underflows
  			ch_dec_start_timestamp -= res << 32;
  			collect |= SPU_EVENT_TM;
@@ -13370,7 +13463,7 @@ index bc9ec5e5b..12ad05b75 100644
  		}
  	}
  
-@@ -5400,29 +5648,152 @@ void spu_thread::set_events(u32 bits)
+@@ -5400,29 +5660,152 @@ void spu_thread::set_events(u32 bits)
  	}
  }
  
@@ -13427,7 +13520,8 @@ index bc9ec5e5b..12ad05b75 100644
 -			if (state.none_of(cpu_flag::pending))
 +			const u64 now = get_timebased_time();
 +			sleep_us = umax;
-+			{
+ 			{
+-				state += cpu_flag::pending;
 +				std::lock_guard lock(mutex);
 +				u64 sleep_scaled_ticks = umax;
 +				const auto pending_end = std::remove_if(armed.begin(), armed.end(), [&](const entry& pending)
@@ -13457,10 +13551,9 @@ index bc9ec5e5b..12ad05b75 100644
 +					// than one per pending entry. No allocation when nothing expires.
 +					sleep_us = sleep_scaled_ticks / (80 * std::max<u64>(g_cfg.core.clocks_scale, 1)) + 1;
 +				}
-+			}
+ 			}
 +			for (const auto& e : due_entries)
- 			{
--				state += cpu_flag::pending;
++			{
 +				// Retain the thread while publishing work, outside the timer lock.
 +				if (const auto spu = idm::get<named_thread<spu_thread>>(e.id, [](auto&) {}))
 +				{
@@ -13470,7 +13563,7 @@ index bc9ec5e5b..12ad05b75 100644
 +						spu->state.notify_one();
 +					}
 +				}
- 			}
++			}
 +			due_entries.clear();
  		}
  	}
@@ -13535,7 +13628,7 @@ index bc9ec5e5b..12ad05b75 100644
  }
  
  u32 spu_thread::get_ch_count(u32 ch)
-@@ -5760,8 +6131,16 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5760,8 +6143,16 @@ s64 spu_thread::get_ch_value(u32 ch)
  			eventstat_busy_waiting_switch = value ? 1 : 0;
  		}
  
@@ -13552,7 +13645,7 @@ index bc9ec5e5b..12ad05b75 100644
  			const auto old = +state;
  
  			if (is_stopped(old))
-@@ -5792,7 +6171,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5792,7 +6183,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  				{
  					set_lr = true;
  				}
@@ -13561,7 +13654,7 @@ index bc9ec5e5b..12ad05b75 100644
  				{
  					if (vm::reservation_acquire(raddr) == rtime)
  					{
-@@ -5929,7 +6308,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5929,7 +6320,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  						// Abort notifications are handled specially for performance reasons
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(raddr, rtime); wait_var)
  						{
@@ -13570,7 +13663,7 @@ index bc9ec5e5b..12ad05b75 100644
  							{
  								raddr = 0;
  								set_events(SPU_EVENT_LR);
-@@ -5949,7 +6328,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5949,7 +6340,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  #ifdef __linux__
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -13579,7 +13672,7 @@ index bc9ec5e5b..12ad05b75 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6029,7 +6408,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6029,7 +6420,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -13588,7 +13681,7 @@ index bc9ec5e5b..12ad05b75 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6056,6 +6435,14 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6056,6 +6447,14 @@ s64 spu_thread::get_ch_value(u32 ch)
  			thread_ctrl::wait_on(state, old, 100);
  		}
  
@@ -13603,7 +13696,7 @@ index bc9ec5e5b..12ad05b75 100644
  		if (is_reservation_data_checking_thread)
  		{
  			s_is_reservation_data_checking_thread = 0;
-@@ -6452,6 +6839,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6452,6 +6851,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  		ch_dec_start_timestamp = get_timebased_time();
  		ch_dec_value = value;
  		is_dec_frozen = false;
@@ -13613,7 +13706,7 @@ index bc9ec5e5b..12ad05b75 100644
  		return true;
  	}
  
-@@ -6479,6 +6869,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6479,6 +6881,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			}
  		}
  
@@ -13622,7 +13715,7 @@ index bc9ec5e5b..12ad05b75 100644
  		return true;
  	}
  
-@@ -6509,6 +6901,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6509,6 +6913,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			// Save current time, this will be the reported value until the decrementer resumes
  			ch_dec_value = read_dec().first;
  			is_dec_frozen = true;
@@ -13631,9 +13724,20 @@ index bc9ec5e5b..12ad05b75 100644
  
  		if (check_intr)
 diff --git a/rpcs3/Emu/Cell/SPUThread.h b/rpcs3/Emu/Cell/SPUThread.h
-index 6e59cd8bf..e04eadbfa 100644
+index 6e59cd8bf..9a085a8e9 100644
 --- a/rpcs3/Emu/Cell/SPUThread.h
 +++ b/rpcs3/Emu/Cell/SPUThread.h
+@@ -274,8 +274,8 @@ public:
+ 				}
+ 			}
+ 
+-			// Return true if count has changed from 0 to 1, this condition is considered satisfied even if we pushed a value directly to the special storage for waiting SPUs
+-			return { (old & bit_count) == 0, 1, (old & bit_wait) != 0, true };
++			// Report the old count, including zero when delivering directly to a waiting SPU.
++			return { (old & bit_count) != 0, 1, (old & bit_wait) != 0, true };
+ 		}
+ 	}
+ 
 @@ -752,6 +752,11 @@ public:
  	u32 ch_dec_value = 0; // written decrementer value
  	bool is_dec_frozen = false;
@@ -18377,6 +18481,51 @@ index 0178ba5ef..ab8c6b16a 100644
  	}
  
  	FlowGraph deconstruct_fragment_program(const RSXFragmentProgram& prog)
+diff --git a/rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp b/rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp
+index 2aba9160e..5b14587f3 100644
+--- a/rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp
++++ b/rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp
+@@ -391,7 +391,7 @@ std::string FragmentProgramDecompiler::Format(const std::string& code, bool igno
+ 		{ "$2", [this]() -> std::string {return GetSRC<SRC2>(src2);} },
+ 		{ "$t", [this]() -> std::string { return "tex" + std::to_string(dst.tex_num);} },
+ 		{ "$_i", [this]() -> std::string {return std::to_string(dst.tex_num);} },
+-		{ "$m", std::bind(std::mem_fn(&FragmentProgramDecompiler::GetMask), this) },
++		{ "$m", [this]() { return GetMask(); } },
+ 		{ "$ifcond ", [this]() -> std::string
+ 			{
+ 				const std::string& cond = GetCond();
+@@ -399,8 +399,8 @@ std::string FragmentProgramDecompiler::Format(const std::string& code, bool igno
+ 				return "if(" + cond + ") ";
+ 			}
+ 		},
+-		{ "$cond", std::bind(std::mem_fn(&FragmentProgramDecompiler::GetCond), this) },
+-		{ "$_c", std::bind(std::mem_fn(&FragmentProgramDecompiler::AddConst), this) },
++		{ "$cond", [this]() { return GetCond(); } },
++		{ "$_c", [this]() { return AddConst(); } },
+ 		{ "$float4", [this]() -> std::string { return getFloatTypeName(4); } },
+ 		{ "$float3", [this]() -> std::string { return getFloatTypeName(3); } },
+ 		{ "$float2", [this]() -> std::string { return getFloatTypeName(2); } },
+@@ -425,12 +425,20 @@ std::string FragmentProgramDecompiler::Format(const std::string& code, bool igno
+ 			std::pair<std::string_view, std::string> repl[] = { { "$0", "x2d" } };
+ 			std::string result = fmt::replace_all(code, repl);
+ 
++			#ifdef RPCS3_IOS
++			return replace_shader_tokens(result, repl_list);
++#else
+ 			return fmt::replace_all(result, repl_list);
++#endif
+ 		}
+ 		}
+ 	}
+ 
++	#ifdef RPCS3_IOS
++	return replace_shader_tokens(code, repl_list);
++#else
+ 	return fmt::replace_all(code, repl_list);
++#endif
+ }
+ 
+ std::string FragmentProgramDecompiler::GetRawCond()
 diff --git a/rpcs3/Emu/RSX/Program/GLSLCommon.cpp b/rpcs3/Emu/RSX/Program/GLSLCommon.cpp
 index 61e283681..713b270ad 100644
 --- a/rpcs3/Emu/RSX/Program/GLSLCommon.cpp
@@ -19357,6 +19506,110 @@ index e1bdc8852..4a3080c52 100644
 +		m_inline_builds.clear();
  	}
  };
+diff --git a/rpcs3/Emu/RSX/Program/ShaderParam.h b/rpcs3/Emu/RSX/Program/ShaderParam.h
+index e0655ce9c..388b29d41 100644
+--- a/rpcs3/Emu/RSX/Program/ShaderParam.h
++++ b/rpcs3/Emu/RSX/Program/ShaderParam.h
+@@ -8,6 +8,42 @@
+ 
+ #include <unordered_map>
+ 
++#ifdef RPCS3_IOS
++// Shader placeholders all start with '$'. Copy literal spans once instead of
++// testing every placeholder at every character and moving the remaining text
++// after every replacement. Keep list priority and never reparse replacements.
++template <usz Count>
++std::string replace_shader_tokens(std::string_view source,
++	const std::pair<std::string_view, std::function<std::string()>> (&tokens)[Count])
++{
++	std::string result;
++	result.reserve(source.size());
++	usz cursor = 0;
++	for (usz pos; (pos = source.find('$', cursor)) != std::string_view::npos;)
++	{
++		result.append(source.substr(cursor, pos - cursor));
++		bool matched = false;
++		for (const auto& token : tokens)
++		{
++			if (source.substr(pos, token.first.size()) == token.first)
++			{
++				result += token.second();
++				cursor = pos + token.first.size();
++				matched = true;
++				break;
++			}
++		}
++		if (!matched)
++		{
++			result += '$';
++			cursor = pos + 1;
++		}
++	}
++	result.append(source.substr(cursor));
++	return result;
++}
++#endif
++
+ enum class FUNCTION
+ {
+ 	NOP,
+diff --git a/rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp b/rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp
+index 7e5ea5427..800297036 100644
+--- a/rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp
++++ b/rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp
+@@ -229,11 +229,11 @@ std::string VertexProgramDecompiler::Format(const std::string& code)
+ 	const std::pair<std::string_view, std::function<std::string()>> repl_list[] =
+ 	{
+ 		{ "$$", []() -> std::string { return "$"; } },
+-		{ "$0", std::bind(std::mem_fn(&VertexProgramDecompiler::GetSRC), this, 0) },
+-		{ "$1", std::bind(std::mem_fn(&VertexProgramDecompiler::GetSRC), this, 1) },
+-		{ "$2", std::bind(std::mem_fn(&VertexProgramDecompiler::GetSRC), this, 2) },
+-		{ "$s", std::bind(std::mem_fn(&VertexProgramDecompiler::GetSRC), this, 2) },
+-		{ "$a", std::bind(std::mem_fn(&VertexProgramDecompiler::AddAddrReg), this) },
++		{ "$0", [this]() { return GetSRC(0); } },
++		{ "$1", [this]() { return GetSRC(1); } },
++		{ "$2", [this]() { return GetSRC(2); } },
++		{ "$s", [this]() { return GetSRC(2); } },
++		{ "$a", [this]() { return AddAddrReg(); } },
+ 		{ "$t", [this]() -> std::string { return "vtex" + std::to_string(d2.tex_num); } },
+ 		{ "$ifcond ", [this]() -> std::string
+ 			{
+@@ -242,12 +242,16 @@ std::string VertexProgramDecompiler::Format(const std::string& code)
+ 				return "if(" + cond + ") ";
+ 			}
+ 		},
+-		{ "$cond", std::bind(std::mem_fn(&VertexProgramDecompiler::GetCond), this) },
+-		{ "$ifbcond", std::bind(std::mem_fn(&VertexProgramDecompiler::GetOptionalBranchCond), this) },
++		{ "$cond", [this]() { return GetCond(); } },
++		{ "$ifbcond", [this]() { return GetOptionalBranchCond(); } },
+ 		{ "$Ty", [this](){ return getFloatTypeName(4); } }
+ 	};
+ 
++	#ifdef RPCS3_IOS
++	return replace_shader_tokens(code, repl_list);
++#else
+ 	return fmt::replace_all(code, repl_list);
++#endif
+ }
+ 
+ std::string VertexProgramDecompiler::GetRawCond()
+@@ -338,8 +342,16 @@ u32 VertexProgramDecompiler::GetAddr() const
+ 
+ void VertexProgramDecompiler::AddCode(const std::string& code)
+ {
++#ifdef RPCS3_IOS
++	// Format only once: its declaration/constant registration is idempotent.
++	// Keep the two original text forms used by the full body and CFG builder.
++	auto formatted = Format(code);
++	m_body.push_back(formatted + ";");
++	m_cur_instr->body.push_back(std::move(formatted));
++#else
+ 	m_body.push_back(Format(code) + ";");
+ 	m_cur_instr->body.push_back(Format(code));
++#endif
+ }
+ 
+ void VertexProgramDecompiler::SetDSTVec(const std::string& code)
 diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
 index a36ce5242..5c87bc50a 100644
 --- a/rpcs3/Emu/RSX/RSXFIFO.cpp
@@ -20340,6 +20593,70 @@ index 4db376603..1bef33510 100644
  				return true;
  			}
  
+diff --git a/rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp b/rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp
+index fd4e667ef..7cffebe15 100644
+--- a/rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp
++++ b/rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp
+@@ -51,26 +51,42 @@ namespace vk
+ 
+ 		if (m_use_host_scheduler)
+ 		{
++#ifdef RPCS3_IOS
++			// Keep the same reuse distance without creating thousands of driver
++			// objects before the first upload. Each slot is populated on first use.
++			m_semaphore_pool.resize(events_pool_size);
++#else
+ 			for (usz i = 0; i < events_pool_size; ++i)
+ 			{
+ 				auto sema = std::make_unique<semaphore>(*pdev);
+ 				m_semaphore_pool.emplace_back(std::move(sema));
+ 			}
++#endif
+ 
+ 			return;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		m_events_pool.resize(events_pool_size);
++#else
+ 		for (usz i = 0; i < events_pool_size; ++i)
+ 		{
+ 			auto ev = std::make_unique<vk::event>(*pdev, sync_domain::gpu);
+ 			m_events_pool.emplace_back(std::move(ev));
+ 		}
++#endif
+ 	}
+ 
+ 	void AsyncTaskScheduler::insert_sync_event()
+ 	{
+ 		ensure(m_current_cb);
+ 		auto& sync_label = m_events_pool[m_next_event_id++ % events_pool_size];
++#ifdef RPCS3_IOS
++		if (!sync_label)
++		{
++			sync_label = std::make_unique<vk::event>(*get_current_renderer(), sync_domain::gpu);
++		}
++#endif
+ 
+ 		sync_label->reset();
+ 		sync_label->signal(*m_current_cb, m_dependency_info);
+@@ -142,7 +158,16 @@ namespace vk
+ 		}
+ 
+ 		const u32 sema_id = static_cast<u32>(m_next_semaphore_id++ % m_semaphore_pool.size());
++#ifdef RPCS3_IOS
++		auto& sema = m_semaphore_pool[sema_id];
++		if (!sema)
++		{
++			sema = std::make_unique<semaphore>(*get_current_renderer());
++		}
++		return sema.get();
++#else
+ 		return m_semaphore_pool[sema_id].get();
++#endif
+ 	}
+ 
+ 	void AsyncTaskScheduler::flush(queue_submit_t& submit_info, VkBool32 force_flush)
 diff --git a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp b/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
 index 4925d8830..a63cb10bb 100644
 --- a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
@@ -22991,7 +23308,7 @@ index c9bbf4e31..2bc13d671 100644
  			}
  
 diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
-index c165762ea..5cf228a1d 100644
+index c165762ea..8dca79f3e 100644
 --- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
 @@ -6,8 +6,11 @@
@@ -23055,7 +23372,334 @@ index c165762ea..5cf228a1d 100644
  	}
  
  	void texture_cache::copy_transfer_regions_impl(vk::command_buffer& cmd, vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections_to_transfer) const
-@@ -782,6 +805,22 @@ namespace vk
+@@ -420,7 +443,7 @@ namespace vk
+ 		const auto dst_aspect = dst->aspect();
+ 		const auto dst_bpp = vk::get_format_texel_width(dst->format());
+ 
+-		std::unordered_set<decltype(sections_to_transfer.front().src)> processed_input_images;
++		using source_image_type = decltype(sections_to_transfer.front().src);
+ 
+ 		// Generates a region to write data to the final destination
+ 		const auto get_output_region = [&](const copy_region_descriptor& section, s32 in_x, s32 in_y, u32 w, u32 h, vk::image* data_src)
+@@ -461,143 +484,172 @@ namespace vk
+ 			}
+ 		};
+ 
+-		for (const auto& section : sections_to_transfer)
++		const auto transfer_regions = [&]<bool use_inline_inputs>()
+ 		{
+-			if (!section.src)
+-			{
+-				continue;
+-			}
+-
+-			const bool typeless = section.src->aspect() != dst_aspect ||
+-				!formats_are_bitcast_compatible(dst, section.src);
+-
+-			if (!processed_input_images.contains(section.src))
++			using source_set = std::conditional_t<use_inline_inputs,
++				rsx::simple_array<source_image_type>, std::unordered_set<source_image_type>>;
++			source_set processed_input_images;
++			const auto first_use = [&](source_image_type source)
+ 			{
+-				// Avoid inserting unnecessary barrier GENERAL->TRANSFER_SRC->GENERAL in active render targets
+-				const auto preferred_layout = (section.src->current_layout != VK_IMAGE_LAYOUT_GENERAL) ?
+-					VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL;
++				if constexpr (use_inline_inputs)
++				{
++					if (std::find(processed_input_images.begin(), processed_input_images.end(), source) != processed_input_images.end())
++						return false;
+ 
+-				section.src->push_layout(cmd, preferred_layout);
+-				processed_input_images.insert(section.src);
+-			}
++					processed_input_images.push_back(source);
++				}
++				else
++				{
++					if (processed_input_images.contains(source))
++						return false;
+ 
+-			auto src_image = section.src;
+-			auto src_x = section.src_x;
+-			auto src_y = section.src_y;
+-			auto src_w = section.src_w;
+-			auto src_h = section.src_h;
++					processed_input_images.insert(source);
++				}
++				return true;
++			};
+ 
+-			rsx::flags32_t transform = section.xform;
+-			if (section.xform == rsx::surface_transform::coordinate_transform)
++			for (const auto& section : sections_to_transfer)
+ 			{
+-				// Dimensions were given in 'dst' space. Work out the real source coordinates
+-				const auto src_bpp = vk::get_format_texel_width(section.src->format());
+-				src_x = (src_x * dst_bpp) / src_bpp;
+-				src_w = utils::aligned_div<u16>(src_w * dst_bpp, src_bpp);
++				if (!section.src)
++				{
++					continue;
++				}
+ 
+-				transform &= ~(rsx::surface_transform::coordinate_transform);
+-			}
++				const bool typeless = section.src->aspect() != dst_aspect ||
++					!formats_are_bitcast_compatible(dst, section.src);
+ 
+-			if (auto surface = dynamic_cast<vk::render_target*>(section.src))
+-			{
+-				surface->transform_samples_to_pixels(src_x, src_w, src_y, src_h);
+-			}
++				if (first_use(section.src))
++				{
++					// Avoid inserting unnecessary barrier GENERAL->TRANSFER_SRC->GENERAL in active render targets
++					const auto preferred_layout = (section.src->current_layout != VK_IMAGE_LAYOUT_GENERAL) ?
++						VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL;
+ 
+-			if (typeless) [[unlikely]]
+-			{
+-				const auto src_bpp = vk::get_format_texel_width(section.src->format());
+-				const u16 convert_w = u16(src_w * src_bpp) / dst_bpp;
+-				const u16 convert_x = u16(src_x * src_bpp) / dst_bpp;
++					section.src->push_layout(cmd, preferred_layout);
++				}
++
++				auto src_image = section.src;
++				auto src_x = section.src_x;
++				auto src_y = section.src_y;
++				auto src_w = section.src_w;
++				auto src_h = section.src_h;
+ 
+-				if (convert_w == section.dst_w && src_h == section.dst_h &&
+-					transform == rsx::surface_transform::identity)
++				rsx::flags32_t transform = section.xform;
++				if (section.xform == rsx::surface_transform::coordinate_transform)
+ 				{
+-					// Optimization to avoid double transfer
+-					coord3i dst_rect;
+-					rsx::image_copy_subresource_layers mip_layers;
+-					configure_subresource(section, dst_rect, mip_layers);
++					// Dimensions were given in 'dst' space. Work out the real source coordinates
++					const auto src_bpp = vk::get_format_texel_width(section.src->format());
++					src_x = (src_x * dst_bpp) / src_bpp;
++					src_w = utils::aligned_div<u16>(src_w * dst_bpp, src_bpp);
+ 
+-					const auto src_rect = coord3i{{ src_x, src_y, 0 }, { src_w, src_h, 1 }};
+-					vk::copy_image_typeless(cmd, section.src, dst, src_rect, dst_rect, mip_layers);
+-					continue;
++					transform &= ~(rsx::surface_transform::coordinate_transform);
+ 				}
+ 
+-				src_image = vk::get_typeless_helper(dst->format(), dst->format_class(), convert_x + convert_w, src_y + src_h);
+-				src_image->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
++				if (auto surface = dynamic_cast<vk::render_target*>(section.src))
++				{
++					surface->transform_samples_to_pixels(src_x, src_w, src_y, src_h);
++				}
+ 
+-				const areai src_rect = coordi{{ src_x, src_y }, { src_w, src_h }};
+-				const areai dst_rect = coordi{{ 0, 0 }, { convert_w, src_h }};
+-				vk::copy_image_typeless(cmd, section.src, src_image, src_rect, dst_rect);
+-				src_image->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
++				if (typeless) [[unlikely]]
++				{
++					const auto src_bpp = vk::get_format_texel_width(section.src->format());
++					const u16 convert_w = u16(src_w * src_bpp) / dst_bpp;
++					const u16 convert_x = u16(src_x * src_bpp) / dst_bpp;
+ 
+-				src_x = 0;
+-				src_y = 0;
+-				src_w = convert_w;
+-			}
++					if (convert_w == section.dst_w && src_h == section.dst_h &&
++						transform == rsx::surface_transform::identity)
++					{
++						// Optimization to avoid double transfer
++						coord3i dst_rect;
++						rsx::image_copy_subresource_layers mip_layers;
++						configure_subresource(section, dst_rect, mip_layers);
++
++						const auto src_rect = coord3i{{ src_x, src_y, 0 }, { src_w, src_h, 1 }};
++						vk::copy_image_typeless(cmd, section.src, dst, src_rect, dst_rect, mip_layers);
++						continue;
++					}
+ 
+-			ensure(src_image->current_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || src_image->current_layout == VK_IMAGE_LAYOUT_GENERAL);
+-			ensure(transform == rsx::surface_transform::identity);
++					src_image = vk::get_typeless_helper(dst->format(), dst->format_class(), convert_x + convert_w, src_y + src_h);
++					src_image->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+ 
+-			if (src_w == section.dst_w && src_h == section.dst_h) [[likely]]
+-			{
+-				const auto copy_rgn = get_output_region(section, src_x, src_y, src_w, src_h, src_image);
+-				vkCmdCopyImage(cmd, src_image->value, src_image->current_layout, dst->value, dst->current_layout, 1, &copy_rgn);
+-			}
+-			else
+-			{
+-				vk::image* _dst = dst;
++					const areai src_rect = coordi{{ src_x, src_y }, { src_w, src_h }};
++					const areai dst_rect = coordi{{ 0, 0 }, { convert_w, src_h }};
++					vk::copy_image_typeless(cmd, section.src, src_image, src_rect, dst_rect);
++					src_image->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+ 
+-				if (src_image->info.format != dst->info.format) [[ unlikely ]]
+-				{
+-					// Either a bitcast is required or a scale+copy to mipmap level / layer
+-					const u32 requested_width = dst->width();
+-					const u32 requested_height = src_y + src_h + section.dst_h; // Accounts for possible typeless ref on the same helper on src
+-					_dst = vk::get_typeless_helper(src_image->format(), src_image->format_class(), requested_width, requested_height);
+-					_dst->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
++					src_x = 0;
++					src_y = 0;
++					src_w = convert_w;
+ 				}
+ 
+-				auto dst_rect = coord3i{ { section.dst_x, section.dst_y, 0 }, { section.dst_w, section.dst_h, 1 } };
+-				rsx::image_copy_subresource_layers mip_layers{ .dst_mip_level = section.level };
++				ensure(src_image->current_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || src_image->current_layout == VK_IMAGE_LAYOUT_GENERAL);
++				ensure(transform == rsx::surface_transform::identity);
+ 
+-				if (_dst != dst)
+-				{
+-					// We place the output after the source to account for the initial typeless-xfer if applicable
+-					// If src_image == _dst then this is just a write-to-self. Either way, use best-fit placement.
+-					dst_rect.position.x = 0;
+-					dst_rect.position.y = src_y + src_h;
+-					mip_layers = {};
+-				}
+-				else if (dst->type() == VK_IMAGE_TYPE_3D)
++				if (src_w == section.dst_w && src_h == section.dst_h) [[likely]]
+ 				{
+-					dst_rect.position.z = section.dst_z;
++					const auto copy_rgn = get_output_region(section, src_x, src_y, src_w, src_h, src_image);
++					vkCmdCopyImage(cmd, src_image->value, src_image->current_layout, dst->value, dst->current_layout, 1, &copy_rgn);
+ 				}
+ 				else
+ 				{
+-					mip_layers.dst_layer = static_cast<u8>(section.dst_z);
+-				}
++					vk::image* _dst = dst;
+ 
+-				vk::copy_scaled_image(cmd, src_image, _dst,
+-					coord3i{ { src_x, src_y, 0 }, { src_w, src_h, 1 } },
+-					dst_rect,
+-					mip_layers,
+-					src_image->format() == _dst->format(),
+-					VK_FILTER_NEAREST);
++					if (src_image->info.format != dst->info.format) [[ unlikely ]]
++					{
++						// Either a bitcast is required or a scale+copy to mipmap level / layer
++						const u32 requested_width = dst->width();
++						const u32 requested_height = src_y + src_h + section.dst_h; // Accounts for possible typeless ref on the same helper on src
++						_dst = vk::get_typeless_helper(src_image->format(), src_image->format_class(), requested_width, requested_height);
++						_dst->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
++					}
+ 
+-				if (_dst != dst) [[unlikely]]
+-				{
+-					// Casting comes after the scaling!
+-					const auto copy_rgn = get_output_region(section, dst_rect.position.x, dst_rect.position.y, section.dst_w, section.dst_h, _dst);
+-					_dst->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+-					vkCmdCopyImage(cmd, _dst->value, _dst->current_layout, dst->value, dst->current_layout, 1, &copy_rgn);
++					auto dst_rect = coord3i{ { section.dst_x, section.dst_y, 0 }, { section.dst_w, section.dst_h, 1 } };
++					rsx::image_copy_subresource_layers mip_layers{ .dst_mip_level = section.level };
++
++					if (_dst != dst)
++					{
++						// We place the output after the source to account for the initial typeless-xfer if applicable
++						// If src_image == _dst then this is just a write-to-self. Either way, use best-fit placement.
++						dst_rect.position.x = 0;
++						dst_rect.position.y = src_y + src_h;
++						mip_layers = {};
++					}
++					else if (dst->type() == VK_IMAGE_TYPE_3D)
++					{
++						dst_rect.position.z = section.dst_z;
++					}
++					else
++					{
++						mip_layers.dst_layer = static_cast<u8>(section.dst_z);
++					}
++
++					vk::copy_scaled_image(cmd, src_image, _dst,
++						coord3i{ { src_x, src_y, 0 }, { src_w, src_h, 1 } },
++						dst_rect,
++						mip_layers,
++						src_image->format() == _dst->format(),
++						VK_FILTER_NEAREST);
++
++					if (_dst != dst) [[unlikely]]
++					{
++						// Casting comes after the scaling!
++						const auto copy_rgn = get_output_region(section, dst_rect.position.x, dst_rect.position.y, section.dst_w, section.dst_h, _dst);
++						_dst->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
++						vkCmdCopyImage(cmd, _dst->value, _dst->current_layout, dst->value, dst->current_layout, 1, &copy_rgn);
++					}
+ 				}
+ 			}
+-		}
+ 
+-		// Pop unique image layouts here
+-		for (auto& image : processed_input_images)
+-		{
+-			image->pop_layout(cmd);
+-		}
++			// Pop unique image layouts here
++			for (auto& image : processed_input_images)
++			{
++				image->pop_layout(cmd);
++			}
++		};
++
++		if (sections_to_transfer.size() <= 8)
++			transfer_regions.template operator()<true>();
++		else
++			transfer_regions.template operator()<false>();
+ 	}
+ 
+ 	VkComponentMapping texture_cache::apply_component_mapping_flags(u32 gcm_format, rsx::component_order flags, const rsx::texture_channel_remap_t& remap_vector) const
+@@ -673,7 +725,7 @@ namespace vk
+ 		return result;
+ 	}
+ 
+-	std::unique_ptr<vk::viewable_image> texture_cache::find_cached_image(VkFormat format, u16 w, u16 h, u16 d, u16 mipmaps, VkImageType type, VkImageCreateFlags create_flags, VkImageUsageFlags usage, VkSharingMode sharing)
++	std::unique_ptr<vk::viewable_image> texture_cache::find_cached_image(VkFormat format, u16 w, u16 h, u16 d, u16 mipmaps, VkImageType type, VkImageCreateFlags create_flags, VkImageUsageFlags usage, VkSharingMode sharing, rsx::format_class format_class)
+ 	{
+ 		reader_lock lock(m_cached_pool_lock);
+ 
+@@ -684,7 +736,9 @@ namespace vk
+ 
+ 			for (auto it = m_cached_images.begin(); it != m_cached_images.end(); ++it)
+ 			{
+-				if (it->key == desired_key && (it->data->info.usage & usage) == usage)
++				if (it->key == desired_key && (it->data->info.usage & usage) == usage &&
++					it->data->depth() == d && it->data->mipmaps() == mipmaps &&
++					it->data->format_class() == format_class)
+ 				{
+ 					auto ret = std::move(it->data);
+ 					m_cached_images.erase(it);
+@@ -702,7 +756,8 @@ namespace vk
+ 		u16 width, u16 height, u16 depth, u16 layers, u8 mips,
+ 		VkImageType image_type, VkFlags image_flags, VkFlags usage_flags)
+ 	{
+-		auto image = find_cached_image(format, width, height, depth, mips, image_type, image_flags, usage_flags, VK_SHARING_MODE_EXCLUSIVE);
++		usage_flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
++		auto image = find_cached_image(format, width, height, depth, mips, image_type, image_flags, usage_flags, VK_SHARING_MODE_EXCLUSIVE, format_class);
+ 
+ 		if (!image)
+ 		{
+@@ -710,7 +765,7 @@ namespace vk
+ 				image_type,
+ 				format,
+ 				width, height, depth, mips, layers, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+-				VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, image_flags | VK_IMAGE_CREATE_ALLOW_NULL_RPCS3,
++				VK_IMAGE_TILING_OPTIMAL, usage_flags, image_flags | VK_IMAGE_CREATE_ALLOW_NULL_RPCS3,
+ 				VMM_ALLOCATION_POOL_TEXTURE_CACHE, format_class);
+ 
+ 			if (!image->value)
+@@ -782,6 +837,22 @@ namespace vk
  		return view;
  	}
  
@@ -23078,7 +23722,86 @@ index c165762ea..5cf228a1d 100644
  	vk::image_view* texture_cache::create_temporary_subresource_view(vk::command_buffer& cmd, const deferred_subresource& desc)
  	{
  		ensure(desc.sections_to_copy.size() == 1);
-@@ -957,6 +996,26 @@ namespace vk
+@@ -790,6 +861,50 @@ namespace vk
+ 			desc.gcm_format, desc.width, desc.height, 1, 1, desc.remap, &section);
+ 	}
+ 
++	bool texture_cache::copy_transfer_regions_fully_cover_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const
++	{
++		const u32 mipmaps = dst->mipmaps();
++		if (dst->aspect() != VK_IMAGE_ASPECT_COLOR_BIT || !mipmaps || mipmaps > 16)
++			return false;
++
++		// One bit per complete layer/depth slice. This also catches duplicate
++		// copies that leave another slice undefined on a recycled image.
++		std::array<u32, 17> mip_offsets{};
++		for (u32 level = 0; level < mipmaps; ++level)
++		{
++			const u32 slices = dst->type() == VK_IMAGE_TYPE_3D ? std::max(1u, dst->depth() >> level) : dst->layers();
++			mip_offsets[level + 1] = mip_offsets[level] + slices;
++		}
++
++		std::array<u64, 32> covered{};
++		u32 remaining = mip_offsets[mipmaps];
++		if (!remaining || remaining > covered.size() * 64 || sections.size() < remaining)
++			return false;
++
++		for (const auto& section : sections)
++		{
++			if (!section.src || section.src->aspect() != VK_IMAGE_ASPECT_COLOR_BIT ||
++				!section.src_w || !section.src_h || section.level >= mipmaps ||
++				section.dst_x || section.dst_y ||
++				section.dst_w != std::max(1u, dst->width() >> section.level) ||
++				section.dst_h != std::max(1u, dst->height() >> section.level) ||
++				section.dst_z >= mip_offsets[section.level + 1] - mip_offsets[section.level])
++			{
++				return false;
++			}
++
++			const u32 slice = mip_offsets[section.level] + section.dst_z;
++			const u64 bit = u64{1} << (slice % 64);
++			if (!(covered[slice / 64] & bit))
++			{
++				covered[slice / 64] |= bit;
++				--remaining;
++			}
++		}
++
++		return remaining == 0;
++	}
++
+ 	vk::image_view* texture_cache::generate_cubemap_from_images(vk::command_buffer& cmd, const deferred_subresource& desc)
+ 	{
+ 		const auto& sections_to_copy = desc.sections_to_copy;
+@@ -816,8 +931,11 @@ namespace vk
+ 		}
+ 		else if (!(dst_aspect & VK_IMAGE_ASPECT_DEPTH_BIT))
+ 		{
+-			VkClearColorValue clear = {};
+-			vkCmdClearColorImage(cmd, image->value, image->current_layout, &clear, 1, &dst_range);
++			if (!copy_transfer_regions_fully_cover_image(image, sections_to_copy))
++			{
++				VkClearColorValue clear = {};
++				vkCmdClearColorImage(cmd, image->value, image->current_layout, &clear, 1, &dst_range);
++			}
+ 		}
+ 		else
+ 		{
+@@ -865,8 +983,11 @@ namespace vk
+ 		}
+ 		else if (!(dst_aspect & VK_IMAGE_ASPECT_DEPTH_BIT))
+ 		{
+-			VkClearColorValue clear = {};
+-			vkCmdClearColorImage(cmd, image->value, image->current_layout, &clear, 1, &dst_range);
++			if (!copy_transfer_regions_fully_cover_image(image, sections_to_copy))
++			{
++				VkClearColorValue clear = {};
++				vkCmdClearColorImage(cmd, image->value, image->current_layout, &clear, 1, &dst_range);
++			}
+ 		}
+ 		else
+ 		{
+@@ -957,6 +1078,26 @@ namespace vk
  		VkImageAspectFlags dst_aspect = vk::get_aspect_flags(result->info.format);
  		VkImageSubresourceRange dst_range = { dst_aspect, 0, mipmaps, 0, 1 };
  		vk::change_image_layout(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, dst_range);
@@ -23105,7 +23828,7 @@ index c165762ea..5cf228a1d 100644
  
  		if (desc.force_bg_load)
  		{
-@@ -965,8 +1024,13 @@ namespace vk
+@@ -965,8 +1106,13 @@ namespace vk
  		}
  		else if (!(dst_aspect & VK_IMAGE_ASPECT_DEPTH_BIT))
  		{
@@ -23121,7 +23844,25 @@ index c165762ea..5cf228a1d 100644
  		}
  		else
  		{
-@@ -1474,10 +1538,19 @@ namespace vk
+@@ -1146,7 +1292,7 @@ namespace vk
+ 				}
+ 			}
+ 
+-			if (auto found = find_cached_image(vk_format, width, height, depth, mipmaps, image_type, create_flags, usage_flags, sharing_mode))
++			if (auto found = find_cached_image(vk_format, width, height, depth, mipmaps, image_type, create_flags, usage_flags, sharing_mode, rsx::classify_format(gcm_format)))
+ 			{
+ 				image = found.release();
+ 			}
+@@ -1184,7 +1330,7 @@ namespace vk
+ 		region.set_swizzled(swizzled);
+ 		region.set_dirty(false);
+ 
+-		image->native_component_map = apply_component_mapping_flags(gcm_format, swizzle_flags, rsx::default_remap_vector);
++		image->set_native_component_layout(apply_component_mapping_flags(gcm_format, swizzle_flags, rsx::default_remap_vector));
+ 
+ 		// Its not necessary to lock blit dst textures as they are just reused as necessary
+ 		switch (context)
+@@ -1474,10 +1620,19 @@ namespace vk
  				submit_info2.queue_signal(*async_sema);
  				async_scheduler->flush(submit_info2, VK_TRUE);
  
@@ -23141,7 +23882,7 @@ index c165762ea..5cf228a1d 100644
  			vk::wait_for_fence(&submit_fence, GENERAL_WAIT_TIMEOUT);
  
  			cmd.reset();
-@@ -1506,11 +1579,17 @@ namespace vk
+@@ -1506,11 +1661,17 @@ namespace vk
  		m_formats_support = device.get_formats_support();
  		m_submit_queue = submit_queue;
  		m_texture_upload_heap = &upload_heap;
@@ -23159,7 +23900,7 @@ index c165762ea..5cf228a1d 100644
  	}
  
  	bool texture_cache::is_depth_texture(u32 rsx_address, u32 rsx_size)
-@@ -1576,13 +1655,20 @@ namespace vk
+@@ -1576,13 +1737,20 @@ namespace vk
  
  		// Nuke temporary resources. They will still be visible to the GPU.
  		auto gc = vk::get_resource_manager();
@@ -23184,7 +23925,7 @@ index c165762ea..5cf228a1d 100644
  
  		any_released |= !m_temporary_subresource_cache.empty();
  		for (auto& e : m_temporary_subresource_cache)
-@@ -1604,20 +1690,42 @@ namespace vk
+@@ -1604,20 +1772,42 @@ namespace vk
  			purge_unreleased_sections();
  		}
  
@@ -23235,7 +23976,7 @@ index c165762ea..5cf228a1d 100644
  		baseclass::on_frame_end();
  		reset_frame_statistics();
  	}
-@@ -1708,6 +1816,7 @@ namespace vk
+@@ -1708,6 +1898,7 @@ namespace vk
  
  	u32 texture_cache::get_unreleased_textures_count() const
  	{
@@ -23243,7 +23984,7 @@ index c165762ea..5cf228a1d 100644
  		return baseclass::get_unreleased_textures_count() + ::size32(m_cached_images);
  	}
  
-@@ -1757,4 +1866,26 @@ namespace vk
+@@ -1757,4 +1948,26 @@ namespace vk
  
  		return false;
  	}
@@ -23271,7 +24012,7 @@ index c165762ea..5cf228a1d 100644
 +#endif
  }
 diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.h b/rpcs3/Emu/RSX/VK/VKTextureCache.h
-index b0ee05965..91eaae057 100644
+index b0ee05965..59984a874 100644
 --- a/rpcs3/Emu/RSX/VK/VKTextureCache.h
 +++ b/rpcs3/Emu/RSX/VK/VKTextureCache.h
 @@ -89,6 +89,10 @@ namespace vk
@@ -23285,7 +24026,19 @@ index b0ee05965..91eaae057 100644
  				// Even if we are managing the same vram section, we cannot guarantee contents are static
  				// The create method is only invoked when a new managed session is required
  				release_dma_resources();
-@@ -463,7 +467,7 @@ namespace vk
+@@ -108,8 +112,9 @@ namespace vk
+ 
+ 			if (surface->is_depth_surface())
+ 			{
+-				gcm_format = (surface->get_surface_depth_format() != rsx::surface_depth_format::z16) ? CELL_GCM_TEXTURE_DEPTH16 : CELL_GCM_TEXTURE_DEPTH24_D8;
+-				swap_bytes = true;
++				const auto info = get_compatible_gcm_format(surface->get_surface_depth_format());
++				gcm_format = info.first;
++				swap_bytes = info.second;
+ 			}
+ 			else
+ 			{
+@@ -463,7 +468,7 @@ namespace vk
  		const u32 max_cached_image_pool_size = 256;
  		std::deque<cached_image_t> m_cached_images;
  		atomic_t<u64> m_cached_memory_size = { 0 };
@@ -23294,7 +24047,20 @@ index b0ee05965..91eaae057 100644
  
  		// Blocks some operations when exiting
  		atomic_t<bool> m_cache_is_exiting = false;
-@@ -522,6 +526,10 @@ namespace vk
+@@ -473,10 +478,11 @@ namespace vk
+ 		VkComponentMapping apply_component_mapping_flags(u32 gcm_format, rsx::component_order flags, const rsx::texture_channel_remap_t& remap_vector) const;
+ 
+ 		void copy_transfer_regions_impl(vk::command_buffer& cmd, vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections_to_transfer) const;
++		bool copy_transfer_regions_fully_cover_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const;
+ 
+ 		vk::image* get_template_from_collection_impl(const rsx::simple_array<copy_region_descriptor>& sections_to_transfer) const;
+ 
+-		std::unique_ptr<vk::viewable_image> find_cached_image(VkFormat format, u16 w, u16 h, u16 d, u16 mipmaps, VkImageType type, VkImageCreateFlags create_flags, VkImageUsageFlags usage, VkSharingMode sharing);
++		std::unique_ptr<vk::viewable_image> find_cached_image(VkFormat format, u16 w, u16 h, u16 d, u16 mipmaps, VkImageType type, VkImageCreateFlags create_flags, VkImageUsageFlags usage, VkSharingMode sharing, rsx::format_class format_class);
+ 
+ 	protected:
+ 		vk::image_view* create_temporary_subresource_view_impl(
+@@ -522,6 +528,10 @@ namespace vk
  	public:
  		using baseclass::texture_cache;
  
@@ -23305,7 +24071,7 @@ index b0ee05965..91eaae057 100644
  		void initialize(vk::render_device& device, VkQueue submit_queue, vk::data_heap& upload_heap);
  
  		void destroy() override;
-@@ -548,5 +556,9 @@ namespace vk
+@@ -548,5 +558,9 @@ namespace vk
  		u64 get_temporary_memory_in_use() const;
  
  		bool is_overallocated() const;
@@ -24418,6 +25184,48 @@ index a301db6a6..a5fa74765 100644
  	public:
  		using image::image;
  
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp b/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
+index 5b96c13e4..6d625d057 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
+@@ -79,7 +79,8 @@ namespace vk
+ 				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+ 				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+ 				VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
+-				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
++				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
++				VK_PIPELINE_STAGE_VERTEX_SHADER_BIT
+ 			};
+ 			break;
+ 		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+@@ -146,7 +147,7 @@ namespace vk
+ 			{
+ 				// Finish reading before writing
+ 				barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_SHADER_READ_BIT;
+-				src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
++				src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+ 			}
+ 			else
+ 			{
+@@ -164,7 +165,8 @@ namespace vk
+ 					VK_PIPELINE_STAGE_TRANSFER_BIT |
+ 					VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+ 					VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
+-					VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
++					VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
++					VK_PIPELINE_STAGE_VERTEX_SHADER_BIT
+ 				};
+ 			}
+ 			break;
+@@ -191,7 +193,7 @@ namespace vk
+ 			break;
+ 		case VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT:
+ 			barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+-			src_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
++			src_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+ 			if (is_color_surface)
+ 			{
+ 				barrier.srcAccessMask |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/instance.cpp b/rpcs3/Emu/RSX/VK/vkutils/instance.cpp
 index 87bbe4b80..dd1aefbbc 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/instance.cpp

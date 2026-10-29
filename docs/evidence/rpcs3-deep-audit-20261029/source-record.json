@@ -1,0 +1,57 @@
+{
+  "baseline_commit": "a363d92332657196fb3b6085a98c62e119310bcc",
+  "baseline_branch": "Claude",
+  "baseline_patch_sha256": "037d620eb0148b7311da74d711dd2099d06e1285ad6f3079df9586a920a1a0e0",
+  "source_only": true,
+  "canonical_postimages": 319,
+  "historical_postimages_unchanged": 308,
+  "changed_core_files": [
+    "Utilities/JITArenaAllocator.h",
+    "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp",
+    "rpcs3/Emu/Cell/SPUThread.cpp",
+    "rpcs3/Emu/Cell/SPUThread.h",
+    "rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp",
+    "rpcs3/Emu/RSX/Program/ShaderParam.h",
+    "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp",
+    "rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.h",
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp"
+  ],
+  "files_before_sha256": {
+    "Utilities/JITArenaAllocator.h": "1a6f57b45c599945706cf8c38a745b2865336a4b2aa53b3a13112d4788261578",
+    "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": "a1a994dab42a9b24990b3bf2e931c97509b25371cc96681216e644655ddb8ea3",
+    "rpcs3/Emu/Cell/SPUThread.cpp": "c7180ee63fe2584356cd44fc8174e82787f88a31b3753ae45f94498aeae4be2b",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp": "a97c1fa4ca12eaf8bb85dfb4a48da1b2fd5185c01d0b8602a5b090c32dace456",
+    "rpcs3/Emu/RSX/Program/ShaderParam.h": "71328b5f1fc2357467035481ca93c3d8eb88f9d6944744a60d72d93c3b19cbe8",
+    "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp": "d341208c496a02a3db1988fa2c3dfe2a092d2ef0530f8bf581d73a29cdc03766",
+    "rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp": "0469c328583e9fca06e94762a86a2b33c1cbd55aad7f2fde33005ec46a654ec6",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "12f9772af3a1dbdcc10db2b2b95446f4fb278cd28b236788134ef44874d3c9a3",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.h": "20eda27ec70aa0f15ae1e05b8ef1f84e22f104e102be29a0c738aa2a9717046e",
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp": "e06a7b2958b2c248b30b9d8fa3149bf513f175c11ca716f8996c86f8c8a72bee"
+  },
+  "files_after_sha256": {
+    "Utilities/JITArenaAllocator.h": "47cd739c21c3f1e5944b912c846a7257ee15135941376fcc1b5173e07065cb4e",
+    "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff",
+    "rpcs3/Emu/Cell/SPUThread.cpp": "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4",
+    "rpcs3/Emu/Cell/SPUThread.h": "27e7713d92eb04e5636d9e42d88b2dd7b4a2ec1fd13b8d72c497ca2984cbd67c",
+    "rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp": "3950bc618ec396d4651566ad99bcfd4eba287c9bbc382e08a7435ab30d24a98f",
+    "rpcs3/Emu/RSX/Program/ShaderParam.h": "ac64b689fd3809c1ca260904cd4f59572fcb388a47a055f8e314dd50fedc6339",
+    "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp": "6ce519f38f7dcc6525c5d7965f929c2920dc9e74c63e2b6f1fd0e22f520aeaff",
+    "rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp": "2e369af95d2e00e889c3b91ad61c06412d7f8bc1fa298b3806943fdbe17c93e5",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "e13f7e13e5e452fa1d705f6617e9ffb665d82a26af09ef7acfaa7ef9821e7f1a",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.h": "4167c539b813e8d5ad3c684314de83fdfa1302a6f8e1403044087b1f194318f4",
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp": "53494ea3b8cfa5e5e7f336fc8729ebb40de2f7fded4b18839653363450f8be90"
+  },
+  "delta_fixture": "test/fixtures/rpcs3_deep_audit_20261029.diff",
+  "delta_sha256": "093b683c6896ed1ff087a90df47375057b1b2d2ffe1cf61af4ee27ca0f314a40",
+  "host_files_after_sha256": {
+    "native/neoswap-storage/Store.cpp": "a812b0834df8c7301d59ac780b84a4ecc7c306b7b55f7ab02178e5705dca8571"
+  },
+  "ios_build_run": false,
+  "iphone_validation_run": false,
+  "fps_gain_claimed": false,
+  "game_visual_or_freeze_fix_claimed": false,
+  "existing_delivery_recipes_and_pins_preserved": true
+}

@@ -1,0 +1,50 @@
+{
+  "passed": true,
+  "results": {
+    "cases": 144,
+    "baselineStalledWaits": 72,
+    "candidateCompletedWaits": 72,
+    "stalledListsRequireAck": 36,
+    "emptyQueueCases": 24,
+    "disabledShufflingCases": 48,
+    "queueRoundtripPreserved": true,
+    "interruptsDisabled": true,
+    "timeoutIndependentChannelDrain": true
+  },
+  "sourceSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "40cbe4904504028d93283b761af7ce21acfb7df133d462ebf423d2f2ba462244",
+    "rpcs3/Emu/Cell/SPUThread.h": "27e7713d92eb04e5636d9e42d88b2dd7b4a2ec1fd13b8d72c497ca2984cbd67c",
+    "rpcs3/Emu/Cell/MFC.h": "66890f55f172be2a8a7b9e54100c5dac79562f0e743b72dec619732da00f7396",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "c7180ee63fe2584356cd44fc8174e82787f88a31b3753ae45f94498aeae4be2b",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/Cell/MFC.h": "66890f55f172be2a8a7b9e54100c5dac79562f0e743b72dec619732da00f7396",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d"
+  },
+  "harnessSHA256": "8cb8c31c359aaf67163a99914d0e53284197c20a8d0639aa1d479ff6c5f22b56",
+  "adapterSHA256": "5dcb9bfd7811a6996a921d8d35a0dae8e952723bc01e1dfad8acd36f4e8bbce5",
+  "compilerFlags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-g",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "host": "x86_64",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "realDMATransfersTested": false,
+  "concurrentMemoryOrderingTested": false,
+  "completeSavestateFormatTested": false
+}

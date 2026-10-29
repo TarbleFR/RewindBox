@@ -1,0 +1,334 @@
+{
+  "passed": true,
+  "test": "neoswap_trim_total_test.py",
+  "baselineCommit": "a363d923",
+  "sourceSHA256": {
+    "native/neoswap-storage/Store.cpp": "a812b0834df8c7301d59ac780b84a4ecc7c306b7b55f7ab02178e5705dca8571",
+    "native/neoswap-storage/Store.h": "52110ebca148e68c34374b6fc52cbb130c7985a39096a51e988a51968279c2ce",
+    "native/neoswap-storage/CacheEntry.h": "e503c5bafd3a4311a14b3ed09bc470331344ba2791aaa014ecbbbe914e1205bb",
+    "native/neoswap-storage/tests/store_test.cpp": "904bbd9a0c968072c9ff5d8b17c2c65dc34f387d519b66011c9b7821c13ef5ea"
+  },
+  "baselineSHA256": {
+    "native/neoswap-storage/Store.cpp": "9a951454d7e5124bea4ca1ee5589b1e4429df637dc4377b6c7e3775fcb1c99e4",
+    "native/neoswap-storage/Store.h": "52110ebca148e68c34374b6fc52cbb130c7985a39096a51e988a51968279c2ce",
+    "native/neoswap-storage/CacheEntry.h": "e503c5bafd3a4311a14b3ed09bc470331344ba2791aaa014ecbbbe914e1205bb",
+    "native/neoswap-storage/tests/store_test.cpp": "904bbd9a0c968072c9ff5d8b17c2c65dc34f387d519b66011c9b7821c13ef5ea"
+  },
+  "fixtureSHA256": "f7749f6f72b3f54d2f036fec3bf464b045154518b32436d613b985d52e42b350",
+  "harnessSHA256": "ffe8bc278d1801729387a1a95cb9e7c0275a72bbbf4e1c757c128d73d2463b98",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "flags": [
+    "-std=c++20",
+    "-pthread",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Wno-misleading-indentation",
+    "-O2"
+  ],
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "sanitizer": "none",
+  "leakSanitizer": false,
+  "lz4HeaderSHA256": "c1614ecf7ada7b0be1acb560d4239595f96fbb7aa6a79a7c40cb358753830be6",
+  "lz4Library": "-l:liblz4.so.1",
+  "deviceTest": false,
+  "fpsClaim": false,
+  "results": {
+    "passed": true,
+    "cases": 2400,
+    "sweeps": 12000,
+    "baselineRamScans": 184750,
+    "candidateRamScans": 12000,
+    "benchmarks": [
+      {
+        "entries": 16,
+        "evictions": 0,
+        "baselineMedianNs": 35.8438,
+        "candidateMedianNs": 36.7812,
+        "baselineSamplesNs": [
+          42.7188,
+          37.5625,
+          35.8438,
+          34.2656,
+          35.3594,
+          33.9531,
+          40.5312
+        ],
+        "candidateSamplesNs": [
+          43.3438,
+          38.3281,
+          35.2188,
+          34.9062,
+          40.2188,
+          34.7344,
+          36.7812
+        ]
+      },
+      {
+        "entries": 16,
+        "evictions": 1,
+        "baselineMedianNs": 140.203,
+        "candidateMedianNs": 125.656,
+        "baselineSamplesNs": [
+          120.328,
+          117.844,
+          147.406,
+          128.328,
+          166.656,
+          140.375,
+          140.203
+        ],
+        "candidateSamplesNs": [
+          125.656,
+          92.7969,
+          112.359,
+          132.391,
+          122.688,
+          1532.27,
+          136.609
+        ]
+      },
+      {
+        "entries": 16,
+        "evictions": 8,
+        "baselineMedianNs": 578.516,
+        "candidateMedianNs": 497.781,
+        "baselineSamplesNs": [
+          628.438,
+          566.625,
+          553.484,
+          2276.03,
+          579.453,
+          578.047,
+          578.516
+        ],
+        "candidateSamplesNs": [
+          1274.86,
+          486.812,
+          487.766,
+          499.328,
+          504.812,
+          496.984,
+          497.781
+        ]
+      },
+      {
+        "entries": 16,
+        "evictions": 16,
+        "baselineMedianNs": 1021.19,
+        "candidateMedianNs": 865.656,
+        "baselineSamplesNs": [
+          1374.22,
+          1017.75,
+          1019.33,
+          1006.97,
+          1344.17,
+          1062.52,
+          1021.19
+        ],
+        "candidateSamplesNs": [
+          886.938,
+          847.031,
+          830.906,
+          834.672,
+          2513.41,
+          865.656,
+          870.812
+        ]
+      },
+      {
+        "entries": 128,
+        "evictions": 0,
+        "baselineMedianNs": 591.656,
+        "candidateMedianNs": 610.75,
+        "baselineSamplesNs": [
+          1039.66,
+          610.438,
+          584.625,
+          591.656,
+          579.297,
+          587.906,
+          2152.72
+        ],
+        "candidateSamplesNs": [
+          624.844,
+          577.109,
+          610.75,
+          616.391,
+          624.984,
+          573.359,
+          599.953
+        ]
+      },
+      {
+        "entries": 128,
+        "evictions": 1,
+        "baselineMedianNs": 1099.12,
+        "candidateMedianNs": 920.891,
+        "baselineSamplesNs": [
+          1086.45,
+          1102.09,
+          1082.39,
+          1465.92,
+          1099.12,
+          1096.62,
+          1146.39
+        ],
+        "candidateSamplesNs": [
+          915.578,
+          919.484,
+          888.969,
+          920.891,
+          964.234,
+          999.141,
+          940.297
+        ]
+      },
+      {
+        "entries": 128,
+        "evictions": 64,
+        "baselineMedianNs": 39555.2,
+        "candidateMedianNs": 27188.2,
+        "baselineSamplesNs": [
+          35196.7,
+          32848.8,
+          47619.2,
+          43290.5,
+          44833.1,
+          38173,
+          39555.2
+        ],
+        "candidateSamplesNs": [
+          27188.2,
+          30441,
+          21162.3,
+          21848.5,
+          32757.8,
+          28052.8,
+          25266.5
+        ]
+      },
+      {
+        "entries": 128,
+        "evictions": 128,
+        "baselineMedianNs": 71669.6,
+        "candidateMedianNs": 49708.3,
+        "baselineSamplesNs": [
+          73474.2,
+          65810.3,
+          87530.9,
+          79919.5,
+          71669.6,
+          64563,
+          62226.2
+        ],
+        "candidateSamplesNs": [
+          49708.3,
+          43658,
+          44146,
+          59092.5,
+          43790.7,
+          49903.6,
+          53443.6
+        ]
+      },
+      {
+        "entries": 1024,
+        "evictions": 0,
+        "baselineMedianNs": 3874.5,
+        "candidateMedianNs": 3811.88,
+        "baselineSamplesNs": [
+          3902,
+          3970.88,
+          3751.88,
+          3874.5,
+          3959.62,
+          3781.88,
+          3809.5
+        ],
+        "candidateSamplesNs": [
+          3780.5,
+          3811.88,
+          3760.62,
+          3993.38,
+          3830.75,
+          3788.12,
+          3819.38
+        ]
+      },
+      {
+        "entries": 1024,
+        "evictions": 1,
+        "baselineMedianNs": 10659.5,
+        "candidateMedianNs": 7419.75,
+        "baselineSamplesNs": [
+          13999.5,
+          10659.5,
+          11264.1,
+          10494.4,
+          10538.1,
+          11177.9,
+          10327.9
+        ],
+        "candidateSamplesNs": [
+          7309.62,
+          7419.75,
+          7688.88,
+          7865.5,
+          7814,
+          7328.38,
+          7289.62
+        ]
+      },
+      {
+        "entries": 1024,
+        "evictions": 512,
+        "baselineMedianNs": 3448010.0,
+        "candidateMedianNs": 1836630.0,
+        "baselineSamplesNs": [
+          3450070.0,
+          3469230.0,
+          3448010.0,
+          3435570.0,
+          3363680.0,
+          3318310.0,
+          3460660.0
+        ],
+        "candidateSamplesNs": [
+          1837700.0,
+          2548280.0,
+          1836630.0,
+          1835100.0,
+          1692260.0,
+          1673540.0,
+          1849070.0
+        ]
+      },
+      {
+        "entries": 1024,
+        "evictions": 1024,
+        "baselineMedianNs": 6762550.0,
+        "candidateMedianNs": 3549800.0,
+        "baselineSamplesNs": [
+          6762550.0,
+          6695450.0,
+          6724820.0,
+          7286060.0,
+          6894580.0,
+          6676500.0,
+          7251980.0
+        ],
+        "candidateSamplesNs": [
+          3549890.0,
+          3549800.0,
+          3318810.0,
+          3624970.0,
+          3555610.0,
+          3538700.0,
+          3525600.0
+        ]
+      }
+    ]
+  },
+  "completeStoreResult": "PASS: real POSIX file round trips, larger-than-RAM working set, hot/cold, compression, lease safety, pressure, eligible prefetch and measured-latency refusal with demand fallback, read priority, quotas, short I/O, ENOSPC, sync/read failures, corruption, truncation, concurrency, teardown, reusable extents, coalescing, stale IDs, deferred ownership retirement"
+}

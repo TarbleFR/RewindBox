@@ -1,0 +1,23 @@
+{
+  "scope": "Initial host adapter compilation failures, retained as a record; no production assertion was weakened",
+  "failures": [
+    {
+      "stage": "First texture harness compilation",
+      "errors": ["CELL_GCM_SURFACE_Z16 and CELL_GCM_SURFACE_Z24S8 undeclared in isolated enum extraction", "-Werror=misleading-indentation on adjacent test statements"],
+      "resolution": "Extract real depth constants from gcm_enums.h and separate test statements",
+      "productionChangedToSuppressFailure": false
+    },
+    {
+      "stage": "Generic source-container harness compilation",
+      "errors": ["UnsignedInt concept missing from isolated simple_array adapter", "std::invoke unavailable without functional include; resize diagnostics cascaded from missing concept"],
+      "resolution": "Provide the same unsigned-type concept boundary used by prior simple_array tests and include functional; compile the actual simple_array source",
+      "productionChangedToSuppressFailure": false
+    }
+  ],
+  "performanceFailures": [
+    {"report": "texture-experimental-set.json", "status": "Rejected insert().second variant"},
+    {"report": "texture-branch-plain.json", "status": "Rejected runtime selection branch inside every copy iteration"},
+    {"report": "texture-branch-asan.json", "status": "Same rejected runtime-branch implementation under sanitizers"}
+  ],
+  "note": "These records summarize actual compiler output; they are not claimed to be raw complete compiler log files. Functional negative-control counts are in the corresponding JSON reports. Final timings retain slower cases."
+}
