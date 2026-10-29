@@ -47,13 +47,13 @@ class ReceiptTests(unittest.TestCase):
             (self.out / name).write_bytes(b'program')
             (self.out / (key + '-compile.txt')).write_bytes(b'compile')
             evidence = 'evidence/' + key + '.json'
-            gate.save(self.root / evidence, {'harnessSHA256': gate.sha(b'program'), 'results': {'passed': True}})
             native_result = {'passed': True}
             if key.startswith('address-'):
                 native_result['baselineDirtyPredicateCalls'] = 123
                 native_result['indexedDirtyPredicateCalls'] = 123
             if key.startswith('coverage-'):
                 native_result['sink'] = 0
+            gate.save(self.root / evidence, {'harnessSHA256': gate.sha(b'program'), 'results': native_result})
             report = dict(passed=True, results=native_result, flags=['-UNDEBUG'],
                 compiler=self.compiler, program_sha256=gate.sha(b'program'), evidence=evidence,
                 output_sha256=gate.sha(b'output'), compile_sha256=gate.sha(b'compile'))
