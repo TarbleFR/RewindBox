@@ -145,6 +145,10 @@ if grep -q 'REWINDBOX_MOLTENVK_EXEC_BARRIER_V1' "$SRC/rpcs3/ios/RPCS3IOSPlatform
   python3 "$PWD/build-utils/rpcs3/patch_moltenvk_exec_queue.py" "$MOLTENVK_LIB" --check \
     || die "MoltenVK archive is not the pinned encoding-queue archive"
 fi
+if [[ -n "${RPCS3_RUNTIME592_NATIVE_PROOF:-}" ]]; then
+  # The delivered Core591 authenticates unchanged history; only runtime592 is new.
+  python3 "$PWD/.github/diagnostics/rpcs3runtime592_core.py" --source "$SRC" --verify-reuse "$RPCS3_RUNTIME592_NATIVE_PROOF"
+else
 python3 "$PWD/test/rpcs3_preprocessor_balance_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_build301_passive_dlopen_test.py" "$SRC"
 python3 "$PWD/test/rpcs3_atomic_startup_test.py" "$SRC"
@@ -274,6 +278,7 @@ env -u SDKROOT "$HOST_CXX" -isysroot "$HOST_MACOS_SDK" -std=c++20 -O2 -Wall -Wex
   "$SRC/rpcs3/ios/tests/JITArenaAllocatorTests.cpp" -o "$WORK_ROOT/jit-arena-allocator-test"
 "$WORK_ROOT/jit-arena-allocator-test"
 
+fi
 fi
 
 log "Configure RPCS3Core for iPhoneOS arm64 with macOS TableGen"

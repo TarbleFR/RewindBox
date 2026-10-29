@@ -2,6 +2,18 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## Private IPA 588 / RPCS3 Core 592 — authorized candidate, 29 October 2026
+
+The maintainer explicitly authorized pushing on `Claude` and delivering a test
+IPA with the latest MeloNX fixes. Reserve application build 588 and Core 592
+for this candidate. Baseline: delivered private 587, tree
+`fed8b77804738d471dc983853c2e1cd3f15ffb9c`. Reuse the already successful
+MeloNX Apple engine `7be2a83b`, run `40794453036`, artifact `12864051465`;
+compile RPCS3 once with the runtime optimizations of `c4d59884` and `9938d918`.
+Only the changed source, binaries and final signed IPA need new validation.
+No public release is authorized. Record actual run/source/artifact identities
+and do not claim physical-device or FPS results from the build.
+
 
 ## RPCS3 runtime optimization candidate — 29 October 2026
 
