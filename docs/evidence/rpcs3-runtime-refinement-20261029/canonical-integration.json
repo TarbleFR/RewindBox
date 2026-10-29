@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "baseline": "140f35c1fe9eff6b951ae7af7fd3807b590ef2f7",
+  "canonicalPatchSHA256": "41c9ab4938e95b37b88e9851230920a8c38823bb26b3eebe4427038a1c32b869",
+  "postimages": 313,
+  "changed": [
+    "rpcs3/Emu/Cell/SPUThread.cpp",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake",
+    "rpcs3/ios/IOSTexturePrehash.h"
+  ],
+  "unchanged": 309,
+  "added": [],
+  "removed": [],
+  "pristineMaterializationPassed": true,
+  "allPostimagesReauthenticated": true,
+  "exports": 88,
+  "exportFileUnchanged": true,
+  "sourceABI": 30,
+  "coreBuilt": false,
+  "ipaBuilt": false,
+  "releasePublished": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false
+}

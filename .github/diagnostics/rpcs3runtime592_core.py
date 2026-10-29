@@ -336,6 +336,10 @@ if __name__ == '__main__':
     p.add_argument('--verify-reuse', type=Path)
     p.add_argument('--write-core-identity', type=Path)
     a = p.parse_args()
+    if 'runtime_refinement_20261029' in manifest():
+        from rpcs3runtime_refinement_core import main as refinement_main
+        refinement_main(a)
+        raise SystemExit
     if 'runtime_global_20261029' in manifest():
         from rpcs3runtime_global_core import main as global_main
         global_main(a)

@@ -1,0 +1,99 @@
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -35,7 +35,7 @@
+     # decrementer timer worker change. SPU layout, translator, helper symbols,
+     # relocation targets and every other SPUThread.cpp body remain identical.
+     elseif(source STREQUAL "Cell/SPUThread.cpp" AND
+-           actual STREQUAL "e37a1bc0e2438e425f1c57ff2c3d931ecbf5b4462175cdb041d39191c5909e6d")
++           actual STREQUAL "eb1cb4101ebd83fb94ae7f9914198384d9593cc67cf2e2b9d8072ca72f07b5ac")
+         set(${output} "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c" PARENT_SCOPE)
+     # CELL559: compile() builds the LLVM analysis managers and the function pass
+     # pipeline only when no cached object is linked. A miss runs the same passes
+diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
+--- a/rpcs3/Emu/Cell/SPUThread.cpp
++++ b/rpcs3/Emu/Cell/SPUThread.cpp
+@@ -5690,6 +5690,7 @@
+ 			sleep_us = umax;
+ 			{
+ 				std::lock_guard lock(mutex);
++				u64 sleep_scaled_ticks = umax;
+ 				const auto pending_end = std::remove_if(armed.begin(), armed.end(), [&](const entry& pending)
+ 				{
+ 					if (pending.due <= now)
+@@ -5703,14 +5704,20 @@
+ 						due_entries.push_back(pending);
+ 						return true;
+ 					}
+-					// The guest timebase runs at 80 MHz times clocks_scale / 100.
+-					const u64 us = (pending.due - now) * 100 / (80 * std::max<u64>(g_cfg.core.clocks_scale, 1)) + 1;
+-					sleep_us = std::min(sleep_us, us);
++					// Keep the original unsigned multiplication before taking the
++					// minimum, including its wraparound for distant deadlines.
++					sleep_scaled_ticks = std::min(sleep_scaled_ticks, (pending.due - now) * 100);
+ 					return false;
+ 				});
+ 				// Preserve notification and pending-entry order while moving each
+ 				// survivor at most once, rather than shifting it after every expiry.
+ 				armed.erase(pending_end, armed.end());
++				if (!armed.empty())
++				{
++					// The monotone conversion needs one division per sweep, rather
++					// than one per pending entry. No allocation when nothing expires.
++					sleep_us = sleep_scaled_ticks / (80 * std::max<u64>(g_cfg.core.clocks_scale, 1)) + 1;
++				}
+ 			}
+ 			for (const auto& e : due_entries)
+ 			{
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
+--- a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
+@@ -325,14 +325,21 @@
+ 			cached.count = 0;
+ 			return true;
+ 		}
++		// At most two handles: fixed-width accesses avoid variable-size libc
++		// comparisons/copies on both the hit and changing-handle paths.
++		const auto first = sets[0];
+ 		if (cached.count == sets.size() && cached.layout == layout &&
+-			!std::memcmp(cached.sets.data(), sets.data(), sets.size_bytes()))
++			cached.sets[0] == first && (sets.size() == 1 || cached.sets[1] == sets[1]))
+ 		{
+ 			return false;
+ 		}
+ 		cached.layout = layout;
+ 		cached.count = ::size32(sets);
+-		std::memcpy(cached.sets.data(), sets.data(), sets.size_bytes());
++		cached.sets[0] = first;
++		if (sets.size() == 2)
++		{
++			cached.sets[1] = sets[1];
++		}
+ 		return true;
+ 	}
+ #endif
+diff --git a/rpcs3/ios/IOSTexturePrehash.h b/rpcs3/ios/IOSTexturePrehash.h
+--- a/rpcs3/ios/IOSTexturePrehash.h
++++ b/rpcs3/ios/IOSTexturePrehash.h
+@@ -89,10 +89,20 @@
+ 
+ 	// Acquire loads: a field the next writer stored brings its odd sequence with it.
+ 	const std::uint64_t stored_key = slot.key.load(std::memory_order_acquire);
++	if (stored_key != key)
++	{
++		return false;
++	}
+ 	const std::uint64_t stored_epoch = slot.epoch.load(std::memory_order_acquire);
++	if (stored_epoch != epoch)
++	{
++		return false;
++	}
++	// Misses do not need the payload or a second sequence read. A successful
++	// lookup still acquires every field and checks the publication sequence.
+ 	const std::uint64_t stored_hash = slot.hash.load(std::memory_order_acquire);
+ 
+-	if (slot.seq.load(std::memory_order_relaxed) != seq || stored_key != key || stored_epoch != epoch)
++	if (slot.seq.load(std::memory_order_relaxed) != seq)
+ 	{
+ 		return false;
+ 	}

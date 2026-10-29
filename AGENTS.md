@@ -2,6 +2,38 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## RPCS3 runtime refinements after the verified Core — 29 October 2026
+
+The maintainer explicitly requested concrete engine optimization after 5b2a5614.
+Starting at Claude 140f35c1, three runtime paths change: direct one/two-handle
+descriptor comparisons/copies, one timer delay conversion after the stable
+expiry sweep, and prehash key/epoch misses before payload/sequence loads.
+Four canonical files change including the exact SPU compatibility alias;
+309 postimages remain identical. Layouts, offsets, epoch/bypass semantics,
+nonblocking publication, order, callbacks and allocations stay preserved.
+The MFC branch experiment was withdrawn: its Linux gain was marginal and
+ARM64 acquired an extra branch. The verified production MFC mask is unchanged.
+
+Eleven affected Linux modes pass: five plain, five ASan/UBSan, one unsuppressed
+TSan. Additional timer coverage includes 1,792 arithmetic/overflow/order cases.
+One CMake script authenticates all 41 codegen inputs and keeps PPU
+a987639e9f838d1c / SPU d070cb361bdef607, rejecting unknown future edits/paths.
+The compiler-free contract authenticates 330 inputs and rejects 14 corrupt
+reports. Reuse the 17 unchanged global Apple modes and the separate 16 older
+Apple modes. Nine changed modes are superseded; a future explicitly requested
+Core runs only 11 affected/new Apple modes. No unchanged native suite or CMake
+should be replayed for packaging or documentary changes.
+
+All 33 new GCC timing cases are retained, including 11 regressing medians.
+Descriptor graphics/compute alternation and some partly expired timer batches
+cost more on this host. Cross-compiled ARM64 Clang22 removes descriptor libc
+calls; it is not Apple runtime or iPhone evidence. No added FPS, fixed BO2/AC
+visuals, solved GOW3 freeze, Core rebuild, IPA, delivery number or release is
+established by this source lot. Preserve verified 5b2a5614 as a historical
+binary, all prior receipts, concurrent MeloNX and private IPA594.
+Details: docs/rpcs3-runtime-refinement-2026-10-29.md and
+docs/evidence/rpcs3-runtime-refinement-20261029/.
+
 ## RPCS3 global Core compiled and independently verified — 29 October 2026
 
 The maintainer explicitly requested this Core rebuild. Source
