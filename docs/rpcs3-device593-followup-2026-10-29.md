@@ -201,6 +201,16 @@ The canonical delta and baseline reconstruction are recorded under
 `runtime_device593_followup_20261029` in `canonical-source.json` and
 `test/fixtures/rpcs3_device593_20261029.diff`.
 
+The complete committed source contract passes at
+[`cf85c52e`](https://github.com/TarbleFR/RewindBox/commit/cf85c52eb29f4f7fbff4e1daa15517073c8b25f6):
+all **160 recipe/test/dependency inputs** are bound to that commit, along with
+the 311 native postimages and the delivered reference receipt. The check reuses
+the already executed host proofs and runs no compiler or historical suite.
+See [`committed-contract.json`](evidence/rpcs3-device593-20261029/committed-contract.json).
+The final evidence-only commit preserves all of those inputs. The future Apple
+gate additionally requires real libdispatch; a Linux queue adapter cannot
+satisfy it.
+
 ## Next optimization work
 
 1. Validate the texture-coherence corrections on the exact BO2 weapon scene and

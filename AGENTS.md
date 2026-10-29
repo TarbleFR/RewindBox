@@ -16,6 +16,12 @@ Record/fixture: `runtime_device593_followup_20261029`,
 evidence: `docs/rpcs3-device593-followup-2026-10-29.md` and
 `docs/evidence/rpcs3-device593-20261029/`.
 
+Source commit `cf85c52e` passes the complete committed contract: 160 exact
+recipe/test/dependency inputs, 311 canonical postimages, unchanged source ABI
+header/88 export declarations and authenticated delivered reference. The final
+evidence-only commit preserves those inputs; no additional native suite, CMake,
+Core or IPA compilation was run to record the proof.
+
 The new process is build593/PID47785/A18Pro. Do not count the first 3,488 lines
 of `performance.1` (build588/Bladestorm), duplicated diagnostics or old-prefix
 milestones as fresh observations. BO2 has separate cache-read and first-use
