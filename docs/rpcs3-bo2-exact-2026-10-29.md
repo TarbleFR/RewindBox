@@ -7,6 +7,14 @@ de la clé des framebuffers Vulkan. Les changements sont dans le patch
 canonique unique ; aucune nouvelle étape de patch historique n'est ajoutée
 à la fabrication du moteur.
 
+Code natif : commit `af273a3`. Contrat source final :
+`df0300f5921500605a87a0e6cb9c4f0249a7b54b`, arbre
+`291208d1e84501e21c33b7788f847914fb2d7969`. Le
+[reçu du contrat](evidence/rpcs3-bo2-exact-20261029/committed-contract.json)
+authentifie 190 entrées commises, 313 postimages, 42 suppléments natifs,
+les quatre rapports finaux et les neuf programmes précédents conservés.
+L'écriture de ce reçu ne relance aucun compilateur ni test natif.
+
 Les preuves ci-dessous concernent les corps de production exécutés sur hôte.
 L'IPA 593 demeure la version livrée. Aucun nouveau Core Apple, IPA ou release
 n'est produit par ce cycle, et aucun gain de FPS sur iPhone n'est mesuré.

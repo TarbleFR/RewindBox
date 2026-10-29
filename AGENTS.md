@@ -19,6 +19,9 @@ and first-slot hits can cost more. FBO padding variation is reproduced with
 Clang but can be masked by GCC optimization. No iPhone FPS/cache-miss claim.
 Record `runtime_bo2_exact_20261029`; details/evidence:
 `docs/rpcs3-bo2-exact-2026-10-29.md` and `docs/evidence/rpcs3-bo2-exact-20261029/`.
+Source `df0300f` passes the committed contract: 190 exact inputs, 313 native
+postimages, 42 native supplements, four final host reports and nine preserved
+earlier programs. Recording the receipt executes no compiler or native suite.
 The canonical delta has 313 postimages, 311 previous ones unchanged. Invert
 the exact fixture before warm and older fixtures. Preserve the old extracted
 test programs, PPU/SPU identities, ABI30/88 exports, IPA593 and MeloNX engine81.
