@@ -1,0 +1,47 @@
+{
+  "passed": true,
+  "addressUndefinedSanitized": false,
+  "threadSanitized": true,
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-DRPCS3_IOS",
+    "-UNDEBUG",
+    "-O1",
+    "-fsanitize=thread",
+    "-fno-omit-frame-pointer"
+  ],
+  "sourceBefore": {
+    "rpcs3/Emu/RSX/VK/vkutils/descriptors.cpp": "d8592a73b1ecd35b1131bd97b15bdd09ad0f7b61b8090c58ebdc467603f25ae0",
+    "rpcs3/Emu/RSX/VK/vkutils/descriptors.h": "70ea126eeaa699887e4c8b1afe865f1c6d7f5762d86d337c03883fb7ca5e3e08"
+  },
+  "sourceAfter": {
+    "rpcs3/Emu/RSX/VK/vkutils/descriptors.cpp": "6abac85b5fbbcf01cc86f8596640d9e1f7ebb201b045c0ec598768bd44cc4973",
+    "rpcs3/Emu/RSX/VK/vkutils/descriptors.h": "24fea88932297ea38aad9851bb20b18784e0fa485939b46d1268285580712c4f"
+  },
+  "harnessSHA256": "841b401aa9e796c45d562ad5e40b9985b2c9f4c76b398aeb8497b5e6431381bd",
+  "results": {
+    "productionDriverWritesEqual": true,
+    "initialReservedBytesBefore": 921088,
+    "initialReservedBytesAfter": 0,
+    "bufferOnlyReservedBytesBefore": 921088,
+    "bufferOnlyReservedBytesAfter": 394752,
+    "duplicateRegistrations": 10000,
+    "queueEntriesBefore": 10000,
+    "queueEntriesAfter": 1,
+    "deferredPointerEntriesTested": 16448,
+    "driverDescriptorElements": 10076,
+    "concurrentQueueLifecyclePassed": true,
+    "physicalRamMeasured": false
+  },
+  "testInputs": {
+    "test/rpcs3_descriptor_reserve_test.py": "c73abfae0eaf990d8d753716eb20393fe49a5320fd0a18522cf24115183e486a",
+    "test/native/rpcs3_descriptor_reserve_test.inc": "15e301418d809e705f7e9fe3a5a85de344c20a5cc10b0e4b6a09acb0eab5cd3c"
+  },
+  "scope": "Production descriptor_set, typed stores/pushes/init/flush and dispatch manager; real simple_array; Vulkan driver, device capabilities and outer renderer are adapters. Reserved allocation requests are not physical RAM."
+}

@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "patch_sha256": "873a3ec24376cd3e6c4eb34143ea12de977550b7763c8648f0d648fecb5dbe5d",
+  "reproduced_postimages": 308,
+  "unchanged_previous_candidate_postimages": 305,
+  "additional_native_paths": [
+    "rpcs3/Emu/Cell/lv2/sys_time.cpp",
+    "rpcs3/Emu/RSX/VK/vkutils/descriptors.cpp",
+    "rpcs3/Emu/RSX/VK/vkutils/descriptors.h"
+  ],
+  "whole_candidate_matches_reviewed_worktree": true,
+  "strict_manifest_contract_passed": true,
+  "static_host_loaded_exports_present": true,
+  "patch_pin_matches": true,
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "d070cb361bdef607"
+  },
+  "codegen_rechecked_with": "test/rpcs3_cell538_test.py:cache_identities; CMake compatibility mapping",
+  "materialization_command": "python build-utils/materialize_rpcs3_core.py /path/to/pristine-upstream",
+  "materialization_output": [
+    "PASS: single canonical RPCS3 delta, all postimage hashes verified",
+    "PASS static link contract: all host-loaded Core functions are exported"
+  ],
+  "iOSCoreCompiled": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false
+}

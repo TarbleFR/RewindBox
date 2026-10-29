@@ -14,6 +14,19 @@ ASan/UBSan and TSan pass; canonical materialization reproduces all 305 postimage
 No Apple SDK/Core build, IPA, iPhone FPS gain, new telemetry or release is claimed.
 The delivered 587/Core 591 baseline remains until a new build is authorized.
 
+Followup on `c4d59884`, also source only: exact 1 GHz clock conversion, typed
+descriptor pools reserved on first use at their original full capacity, and
+coalesced descriptor flush notifications under the existing manager mutex.
+Three additional upstream files enter the canonical delta (308 postimages);
+the previous four optimized postimages stay identical. Record:
+`runtime_followup_20261029`; details and exact evidence:
+`docs/rpcs3-clock-descriptors-2026-10-29.md`. GCC, Clang 22, ASan/UBSan
+and descriptor TSan checks pass with assertions enabled. Freestanding LLVM 22/A18
+assembly executes zero UDIV on each specialized 1 GHz path instead of two;
+the 24 MHz fallback retains its arithmetic and adds the frequency check.
+This is neither a linked Apple SDK build nor a device timing result. No new
+telemetry, IPA, build number or release. PPU/SPU codegen identities are unchanged.
+
 ## MeloNX engine optimization candidate — 29 October 2026
 
 On the delivered 587 engine: paired NEON context transfers, linear JIT block

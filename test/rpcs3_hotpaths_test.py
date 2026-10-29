@@ -129,6 +129,40 @@ return result;
     return code
 
 
+def manifest_contract(source):
+    manifest = json.loads((ROOT / 'build-utils/rpcs3/canonical-source.json').read_bytes())
+    record = manifest['runtime_20261029']
+    baseline = json.loads(subprocess.check_output(
+        ['git', 'show', record['baseline_commit'] + ':build-utils/rpcs3/canonical-source.json'], cwd=ROOT))
+    assert record['modified_paths'] == PATHS
+    expected = dict(baseline['files_sha256'])
+    expected.update(record['after_sha256'])
+    followup = manifest.get('runtime_followup_20261029')
+    if followup:
+        parent = json.loads(subprocess.check_output(
+            ['git', 'show', followup['baseline_commit'] + ':build-utils/rpcs3/canonical-source.json'], cwd=ROOT))
+        assert parent['files_sha256'] == expected
+        assert followup['core_baseline_patch_sha256'] == parent['patch_sha256']
+        assert set(followup['modified_paths']) == {
+            'rpcs3/Emu/Cell/lv2/sys_time.cpp',
+            'rpcs3/Emu/RSX/VK/vkutils/descriptors.cpp',
+            'rpcs3/Emu/RSX/VK/vkutils/descriptors.h'}
+        assert set(followup['after_sha256']) == set(followup['modified_paths'])
+        assert set(followup['before_sha256']) == set(followup['modified_paths'])
+        assert followup['codegen'] == record['codegen']
+        for relative in followup['modified_paths']:
+            before = subprocess.check_output(
+                ['git', 'show', followup['preimages_from_upstream'] + ':' + relative], cwd=source)
+            assert hashlib.sha256(before.replace(b'\r\n', b'\n')).hexdigest() == followup['before_sha256'][relative]
+            assert digest(source / relative) == followup['after_sha256'][relative]
+        expected.update(followup['after_sha256'])
+    assert manifest['files_sha256'] == expected
+    assert digest(ROOT / record['fixture']) == record['fixture_sha256']
+    for relative in PATHS:
+        assert digest(source / relative) == record['after_sha256'][relative]
+    return manifest, record, baseline
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path)
@@ -140,14 +174,7 @@ def main():
     parser.add_argument('--report', type=Path)
     args = parser.parse_args()
     source = args.source.resolve()
-    manifest = json.loads((ROOT / 'build-utils/rpcs3/canonical-source.json').read_bytes())
-    record = manifest['runtime_20261029']
-    baseline = json.loads(subprocess.check_output(
-        ['git', 'show', record['baseline_commit'] + ':build-utils/rpcs3/canonical-source.json'], cwd=ROOT))
-    assert record['modified_paths'] == PATHS
-    assert set(manifest['files_sha256']) == set(baseline['files_sha256'])
-    assert {p for p in manifest['files_sha256'] if manifest['files_sha256'][p] != baseline['files_sha256'][p]} == set(PATHS)
-    assert digest(ROOT / record['fixture']) == record['fixture_sha256']
+    manifest, record, baseline = manifest_contract(source)
     with tempfile.TemporaryDirectory(prefix='rpcs3-hotpaths-') as tmp:
         work = Path(tmp)
         before = args.before.resolve() if args.before else work / 'before'
@@ -175,7 +202,7 @@ def main():
         cxx = shlex.split(os.environ.get('CXX', 'c++'))
         if sdk := os.environ.get('HOST_MACOS_SDK'):
             cxx += ['-isysroot', sdk]
-        flags = ['-std=c++20', '-g', '-Wall', '-Wextra', '-Werror', '-pthread', '-DRPCS3_IOS']
+        flags = ['-std=c++20', '-UNDEBUG', '-g', '-Wall', '-Wextra', '-Werror', '-pthread', '-DRPCS3_IOS']
         if args.thread_sanitize:
             flags += ['-O1', '-fsanitize=thread', '-fno-omit-frame-pointer']
         elif args.sanitize:

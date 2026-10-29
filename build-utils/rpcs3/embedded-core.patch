@@ -14258,6 +14258,51 @@ index ee0e070..5de917b 100644
  	(is_verbose ? spu_log.notice : sys_spu.trace)("Loaded SPU image: %s (<- %u)%s", hash, applied.size(), dump);
  }
  
+diff --git a/rpcs3/Emu/Cell/lv2/sys_time.cpp b/rpcs3/Emu/Cell/lv2/sys_time.cpp
+index a71a11b..47b5ad7 100644
+--- a/rpcs3/Emu/Cell/lv2/sys_time.cpp
++++ b/rpcs3/Emu/Cell/lv2/sys_time.cpp
+@@ -156,6 +156,21 @@ u64 get_timebased_time()
+ 	{
+ 		const u64 tsc = utils::get_tsc();
+ 
++#ifdef RPCS3_IOS
++		// The 1 GHz counter observed in the iOS logs converts exactly to
++		// 80 MHz as floor(tsc * 2 / 25), without overflowing tsc * 2.
++		// The remainder is 0..24, so its fractional term is one iff it is >=13.
++		// Keep the original u64 clock-scale multiplication and offset ordering.
++		if (freq == 1'000'000'000ull)
++		{
++			// This empty compiler-side effect retains the branch: LLVM otherwise
++			// speculates both generic divisions. It emits no instruction or CPU fence.
++			__asm__ volatile("");
++			const u64 ticks = (tsc / 25) * 2 + (tsc % 25 >= 13);
++			const u64 result = ticks * g_cfg.core.clocks_scale / 100u;
++			return result - g_timebase_offs;
++		}
++#endif
+ #if _MSC_VER
+ 		const u64 result = static_cast<u64>(u128_from_mul(tsc, g_timebase_freq) / freq) * g_cfg.core.clocks_scale / 100u;
+ #else
+@@ -216,6 +231,18 @@ u64 get_system_time()
+ 	{
+ 		const u64 tsc = utils::get_tsc();
+ 
++#ifdef RPCS3_IOS
++		// At 1 GHz the quotient/remainder microsecond conversion is exactly
++		// one division by 1000 for every u64 timestamp. Other counters retain
++		// the existing conversion, including the 24 MHz Apple counter.
++		if (freq == 1'000'000'000ull)
++		{
++			// This empty compiler-side effect retains the branch: LLVM otherwise
++			// speculates both generic divisions. It emits no instruction or CPU fence.
++			__asm__ volatile("");
++			return tsc / 1000;
++		}
++#endif
+ #if _MSC_VER
+ 		const u64 result = static_cast<u64>(u128_from_mul(tsc, 1000000ull) / freq);
+ #else
 diff --git a/rpcs3/Emu/IdManager.h b/rpcs3/Emu/IdManager.h
 index a626995..b53b5d6 100644
 --- a/rpcs3/Emu/IdManager.h
@@ -22098,6 +22143,177 @@ index 9534b5f..cff7774 100644
  		}
  
  		if (notify_on_grow)
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/descriptors.cpp b/rpcs3/Emu/RSX/VK/vkutils/descriptors.cpp
+index 9650d7e..22e8de9 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/descriptors.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/descriptors.cpp
+@@ -18,6 +18,9 @@ namespace vk
+ 
+ 				for (auto& set : m_notification_list)
+ 				{
++#ifdef RPCS3_IOS
++					set->m_flush_queued = false;
++#endif
+ 					set->flush();
+ 				}
+ 
+@@ -28,6 +31,15 @@ namespace vk
+ 			{
+ 				std::lock_guard lock(m_notifications_lock);
+ 
++#ifdef RPCS3_IOS
++				// One queue entry covers every pending update of this object.
++				// The manager mutex also protects this membership flag.
++				if (set->m_flush_queued)
++				{
++					return;
++				}
++				set->m_flush_queued = true;
++#endif
+ 				m_notification_list.push_back(set);
+ 				// rsx_log.notice("[descriptor_manager::register] Now monitoring %u descriptor sets", m_notification_list.size());
+ 			}
+@@ -36,6 +48,9 @@ namespace vk
+ 			{
+ 				std::lock_guard lock(m_notifications_lock);
+ 
++#ifdef RPCS3_IOS
++				set->m_flush_queued = false;
++#endif
+ 				m_notification_list.erase_if(FN(x == set));
+ 				// rsx_log.notice("[descriptor_manager::deregister] Now monitoring %u descriptor sets", m_notification_list.size());
+ 			}
+@@ -43,6 +58,12 @@ namespace vk
+ 			void destroy()
+ 			{
+ 				std::lock_guard lock(m_notifications_lock);
++#ifdef RPCS3_IOS
++				for (auto* set : m_notification_list)
++				{
++					set->m_flush_queued = false;
++				}
++#endif
+ 				m_notification_list.clear();
+ 			}
+ 
+@@ -359,9 +380,14 @@ namespace vk
+ 	{
+ 		if (!m_in_use) [[unlikely]]
+ 		{
++#ifdef RPCS3_IOS
++			// REWINDBOX_DESCRIPTOR_STORAGE: reserve the unchanged pointer-stable
++			// capacity when a typed pool is first used, not all three up front.
++#else
+ 			m_image_info_pool.reserve(m_pool_size);
+ 			m_buffer_view_pool.reserve(m_pool_size);
+ 			m_buffer_info_pool.reserve(m_pool_size);
++#endif
+ 
+ 			m_in_use = true;
+ 			m_update_after_bind_mask = g_render_device->get_descriptor_update_after_bind_support();
+@@ -401,6 +427,9 @@ namespace vk
+ 	void descriptor_set::push(const VkBufferView& buffer_view, VkDescriptorType type, u32 binding)
+ 	{
+ 		m_push_type_mask |= (1ull << type);
++#ifdef RPCS3_IOS
++		reserve_pool(m_buffer_view_pool);
++#endif
+ 		m_buffer_view_pool.push_back(buffer_view);
+ 		m_pending_writes.emplace_back(
+ 			VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,    // sType
+@@ -419,6 +448,9 @@ namespace vk
+ 	void descriptor_set::push(const VkDescriptorBufferInfo& buffer_info, VkDescriptorType type, u32 binding)
+ 	{
+ 		m_push_type_mask |= (1ull << type);
++#ifdef RPCS3_IOS
++		reserve_pool(m_buffer_info_pool);
++#endif
+ 		m_buffer_info_pool.push_back(buffer_info);
+ 		m_pending_writes.emplace_back(
+ 			VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,    // sType
+@@ -437,6 +469,9 @@ namespace vk
+ 	void descriptor_set::push(const VkDescriptorImageInfo& image_info, VkDescriptorType type, u32 binding)
+ 	{
+ 		m_push_type_mask |= (1ull << type);
++#ifdef RPCS3_IOS
++		reserve_pool(m_image_info_pool);
++#endif
+ 		m_image_info_pool.push_back(image_info);
+ 		m_pending_writes.emplace_back(
+ 			VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,    // sType
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/descriptors.h b/rpcs3/Emu/RSX/VK/vkutils/descriptors.h
+index e169caa..11fc668 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/descriptors.h
++++ b/rpcs3/Emu/RSX/VK/vkutils/descriptors.h
+@@ -10,6 +10,9 @@
+ 
+ namespace vk
+ {
++#ifdef RPCS3_IOS
++	namespace descriptors { class dispatch_manager; }
++#endif
+ 	struct gc_callback_t
+ 	{
+ 		std::function<void()> m_callback;
+@@ -165,24 +168,36 @@ namespace vk
+ 		// Typed temporary storage access. Should be inline, the overhead is significant
+ 		FORCE_INLINE VkBufferView* store(const VkBufferView& buffer_view)
+ 		{
++#ifdef RPCS3_IOS
++			reserve_pool(m_buffer_view_pool);
++#endif
+ 			m_buffer_view_pool.push_back(buffer_view);
+ 			return &m_buffer_view_pool.back();
+ 		}
+ 
+ 		FORCE_INLINE VkDescriptorBufferInfo* store(const VkDescriptorBufferInfo& buffer_info)
+ 		{
++#ifdef RPCS3_IOS
++			reserve_pool(m_buffer_info_pool);
++#endif
+ 			m_buffer_info_pool.push_back(buffer_info);
+ 			return &m_buffer_info_pool.back();
+ 		}
+ 
+ 		FORCE_INLINE VkDescriptorImageInfo* store(const VkDescriptorImageInfo& image_info)
+ 		{
++#ifdef RPCS3_IOS
++			reserve_pool(m_image_info_pool);
++#endif
+ 			m_image_info_pool.push_back(image_info);
+ 			return &m_image_info_pool.back();
+ 		}
+ 
+ 		FORCE_INLINE VkDescriptorImageInfo* store(const rsx::simple_array<VkDescriptorImageInfo>& image_infos)
+ 		{
++#ifdef RPCS3_IOS
++			reserve_pool(m_image_info_pool);
++#endif
+ 			const auto offset = m_image_info_pool.size();
+ 			m_image_info_pool += image_infos;
+ 			return &m_image_info_pool[offset];
+@@ -205,6 +220,21 @@ namespace vk
+ 		void unlock() { m_storage_lock.unlock(); }
+ 
+ 	private:
++#ifdef RPCS3_IOS
++		friend class descriptors::dispatch_manager;
++		bool m_flush_queued = false; // Protected only by dispatch_manager's mutex.
++
++		template <typename T>
++		FORCE_INLINE void reserve_pool(rsx::simple_array<T>& pool)
++		{
++			if (pool.empty())
++			{
++				// reserve() retains an existing full-capacity allocation after clear.
++				// A nonempty pool can already have pending raw pointers into it.
++				pool.reserve(m_pool_size);
++			}
++		}
++#endif
+ 		VkDescriptorSet m_handle = VK_NULL_HANDLE;
+ 		u64 m_update_after_bind_mask = 0;
+ 		u64 m_push_type_mask = 0;
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.cpp b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
 index 2b2e2c3..d0e7031 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/device.cpp
