@@ -32,12 +32,13 @@ TESTS = {
     'texture-exact': ('test/rpcs3_texture_exact_index_test.py', ('plain', 'asan-ubsan')),
     'framebuffer-key': ('test/rpcs3_framebuffer_key_test.py', ('plain', 'asan-ubsan')),
 }
+REUSED_TEST_INPUTS = {'test/rpcs3_rsx_cpu_write_test.py'}
 TEST_INPUTS = {script for script, _ in TESTS.values()} | {
     'test/rpcs3_bo2_exact_delta.py', delta.FIXTURE,
     'test/native/rpcs3_texture_exact_index.inc',
     'test/native/rpcs3_framebuffer_key.inc',
-}
-WORKFLOW_PATHS = sorted(TEST_INPUTS | {GATE, PARENT_CONTRACT})
+} | REUSED_TEST_INPUTS
+WORKFLOW_PATHS = sorted((TEST_INPUTS - REUSED_TEST_INPUTS) | {GATE, PARENT_CONTRACT})
 SUPPORT = {
     'rpcs3/Emu/RSX/Common/simple_array.hpp',
     'rpcs3/Emu/RSX/Utils/rsx_utils.h',
@@ -142,12 +143,24 @@ def source_contract(source, require_committed=True):
     historical, prior = parent_receipt(parent)
     current = inputs()
     allowed = {ENTRY, WORKFLOW, previous.GATE, 'test/neo_swap_core_pin_test.py',
-               MANIFEST, 'build-utils/rpcs3/embedded-core.patch'}
+               MANIFEST, 'build-utils/rpcs3/embedded-core.patch'} | REUSED_TEST_INPUTS
     for path in allowed:
         assert sha(baseline_bytes(path)) == prior['inputSHA256'][path], path
     for path, digest in prior['inputSHA256'].items():
         if path not in allowed:
             assert current[path] == digest, path
+    # Only the structural return-count guard changes. The extracted CPU-write
+    # and sampler C++ programs must still equal the previous verified programs.
+    guard_path = 'test/rpcs3_rsx_cpu_write_test.py'
+    old_guard = '    assert cache.count("exact_match.ios_validation_range = cached_texture->get_section_range();") == 2\n'
+    new_guard = (
+        '    # The indexed noncompressed path adds a third exact return. Every exact\n'
+        '    # return must still propagate its validation range; old sources have two.\n'
+        '    exact_returns = 3 if "REWINDBOX_TEXTURE_EXACT_INDEX" in cache else 2\n'
+        '    assert cache.count("exact_match.ios_validation_range = cached_texture->get_section_range();") == exact_returns\n')
+    old_runner = baseline_bytes(guard_path).decode()
+    assert old_runner.count(old_guard) == 1
+    assert (ROOT / guard_path).read_text() == old_runner.replace(old_guard, new_guard)
     old_pin = baseline_bytes('test/neo_swap_core_pin_test.py').decode()
     old_literal = "PATCH_SHA256 = '" + parent['patch_sha256'] + "'"
     assert old_pin.count(old_literal) == 1

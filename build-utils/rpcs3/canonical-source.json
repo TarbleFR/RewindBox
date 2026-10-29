@@ -3685,6 +3685,7 @@
       "test/native/rpcs3_texture_exact_index.inc",
       "test/rpcs3_bo2_exact_delta.py",
       "test/rpcs3_framebuffer_key_test.py",
+      "test/rpcs3_rsx_cpu_write_test.py",
       "test/rpcs3_texture_exact_index_test.py"
     ],
     "details": "docs/rpcs3-bo2-exact-2026-10-29.md",

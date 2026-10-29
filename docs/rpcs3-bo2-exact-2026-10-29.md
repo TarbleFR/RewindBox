@@ -161,6 +161,12 @@ antérieurs à l'octet. Un futur Core demandé exécutera les vingt modes encore
 en attente sur Apple et les quatre nouveaux modes ; les suites du Core
 historiquement livré ne sont pas rejouées ici.
 
+Le garde structurel du test CPU-write reconnaît désormais les trois retours
+exacts du nouveau code, au lieu des deux retours historiques. Il exige toujours
+la propagation de la plage de validation à chacun d'eux. Ce seul changement
+du runner est authentifié explicitement ; le C++ qu'il extrait reste identique.
+Le nouveau test différentiel compare aussi la plage dans le descripteur rendu.
+
 Les identités PPU `a987639e9f838d1c`, SPU `d070cb361bdef607`, ABI 30 et
 88 exports sont conservées, ainsi que les corrections CPU-write/samplers,
 compilation, index compressé, viewport/scissor et notifications précédentes.

@@ -76,7 +76,10 @@ def make_harness(source, baseline):
     old_cache = (baseline / TEXTURES).read_text()
     current_draw = (source / DRAWS).read_text()
     old_draw = (baseline / DRAWS).read_text()
-    assert cache.count("exact_match.ios_validation_range = cached_texture->get_section_range();") == 2
+    # The indexed noncompressed path adds a third exact return. Every exact
+    # return must still propagate its validation range; old sources have two.
+    exact_returns = 3 if "REWINDBOX_TEXTURE_EXACT_INDEX" in cache else 2
+    assert cache.count("exact_match.ios_validation_range = cached_texture->get_section_range();") == exact_returns
     assert cache.count("uploaded_descriptor.ios_validation_range = tex_range;") == 1
     assert "get_texture_size" not in prehash.braced(cache, "void finish_sampler_validation(")
     binding = (ROOT / "test/native/rpcs3_rsx_cpu_write_bindings.inc").read_text()
