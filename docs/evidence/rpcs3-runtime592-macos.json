@@ -1,0 +1,40 @@
+{
+  "build": 592,
+  "result": "passed",
+  "source": "27b5cc99a0763c0a2c3939bf6b6b0d022a1a026f",
+  "nativeSource": "9938d918f73e6284697e50706aa8e36bba92e249",
+  "run": 40800626294,
+  "workflow": ".github/workflows/rpcs3-runtime592-core.yml",
+  "artifact": {
+    "id": 12865653983,
+    "name": "RPCS3Core-27b5cc99a0763c0a2c3939bf6b6b0d022a1a026f",
+    "bytes": 29094886,
+    "digest": "sha256:b149824b2514589f4c8a8fb2bceb954e8d35436321e50ef6bd490fe0b9f6121f"
+  },
+  "diagnosticsArtifact": {
+    "id": 12866337146,
+    "name": "RPCS3Core-diagnostics-27b5cc99a0763c0a2c3939bf6b6b0d022a1a026f",
+    "bytes": 199013,
+    "digest": "sha256:f6acade1781694e4425284336b17e5dd248437029a25f74955df3aa9c0f64b6c"
+  },
+  "coreSHA256": "436830efb07b1204f57713dfd1ecd242d7f36bed3f55aea01a25cc0ff6a7a8ac",
+  "identitySHA256": "a1ea2c5dac96163c240585913329ddc7cf807788903e5885a7504c6572f65fc6",
+  "proofSHA256": "e80e2498d52bec9fcb967ebe1d4b4bc18bb0d5feef70dcbf13513dd6252e13c9",
+  "coreBytes": 77232008,
+  "postimages": 308,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "tests": [
+    "hotpaths-plain",
+    "hotpaths-asan-ubsan",
+    "clock-plain",
+    "clock-asan-ubsan",
+    "descriptors-plain",
+    "descriptors-asan-ubsan"
+  ],
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "d070cb361bdef607"
+  },
+  "coldCompileRequiredByThisChange": false
+}
