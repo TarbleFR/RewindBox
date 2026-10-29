@@ -35,6 +35,60 @@ private build. From now on:
    under 40 minutes end to end.
 
 
+## Private build 587: MeloNX engine b2a28de, RPCS3 Core 591, durable per-game graphics — 29 October 2026
+
+- Maintainer request (28 October): push the MeloNX fixes from the 586
+  Hogwarts Legacy log with the latest RPCS3 fixes, and build once the
+  bindless fix is ready.
+- Hogwarts Legacy build 586 log (28 October, 22:19-22:32, one 12.7-minute
+  session): the 90 s at 7 % or less device memory (kern.memorystatus_level)
+  ran at a median 4-6 FPS, the 640 s at 8 % or more at a median 30 FPS (a
+  correlation, not a measured cause); footprint 3.2 to 4.9 GiB of a
+  6,143 MiB limit; upstream TrimCaches ignored both memory warnings (headroom
+  over 768 MiB). About 400 bindless accesses still unbound, their handle IR
+  named by the 586 diagnostic. The per-game resolution 0.75 set under 585 was
+  1.0 right after the update and the first launch failed with
+  localGameRequired (library path of the previous container). Lifecycle
+  memory figures read "[redacted key entry]". asyncShaders off everywhere.
+- Contents, on the delivered 586 tree (`20c69d8`):
+  - MeloNX engine `b2a28de` (engine run `40788062624`, artifact
+    `12861340590`): `adapt_device_memory.py` (`983f301`: GPU caches trimmed
+    when the device has 7 % or less available, polled once a second, at most
+    every 10 s; an Info line every 30 s with footprint, headroom, device share,
+    texture/buffer caches and managed heap) and `adapt_bindless_sources.py`
+    (`b2a28de`: nested constant-buffer phis and spilled constant-buffer
+    handles bind exactly; OR of storage-buffer/input/local-memory loads and
+    constants through the whole pool, except image stores and atomics, which
+    would mark every pool texture modified; one log line per access bound
+    this way; host shader cache version `7353 + 0x5242_0002`, one slower first
+    boot per game). Synthetic Maxwell reproduction with ShaderTools: the
+    cube/2D/3D forms bind, controls translate identically.
+  - RPCS3 Core 591 (`12dd45b`, Core run `40782533853`, SHA-256
+    `08903af6…`) with the Core 589 Assassin's Creed profile (`99a57a6`),
+    bound through `rpcs3cell591_delivery_core.py` (RPCS3 session).
+  - App and host: per-game graphics also kept in
+    `Documents/MeloNX/rewindbox-graphics.json`; a game path under a previous
+    container's Documents resolves under the current one (`c42012b`); the
+    lifecycle detail is "memory <footprint>/<headroom>/<device %>/<donors>"
+    (`59e65a2`).
+- Recipe: `rewind587-baseline-delivery.yml` (generated from the 586 one;
+  dispatch only). `rewind587_baseline.json.gz` holds the delivered 586 index
+  and the 587 delta (37 files, 12 commits; the RPCS3 591 commits made from the
+  maintainer's account are accepted by author); `rewind587_engine.py` applies
+  every 586 engine check to the 587 engine; validators
+  `validate_melonx_engine587_ipa.py`, `validate_rpcs3_core591_ipa.py`.
+- Delivery: run `40789729450` (head `cd7ed1e`), artifact `12861577770`, IPA
+  0.0.8 (587) SHA-256 `06c3f59f…0180`, 5,352 entries; decrypted with the
+  private 587 key, equal to SHA256SUMS; 13 validators passed; receipts
+  `MeloNX-engine587-identity.json`, `RPCS3-core591-identity.json`,
+  `RewindBox-enhancements586-identity.json`. Evidence:
+  `docs/evidence/rewind587-delivery.json`.
+- Durations: 18 min end to end (macOS job 18.05 min with a 6.2-minute Xcode
+  build, checks 8.3 min at the same time).
+- Baseline of the next delivery: the delivered 587 index, tree `fed8b77`
+  (`host-tree587.json` of the delivery, reproduced locally at `cd7ed1e`).
+  Not tested on an iPhone; no FPS, frame time or memory gain is claimed.
+
 ## Private build 586: MeloNX engine 75a13f7, RPCS3 Core 587, Cheats & Enhancements — 28 October 2026
 
 - Contents, on the delivered 585 tree (RPCS3 Core 585 on the 583 tree):

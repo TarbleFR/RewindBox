@@ -1,0 +1,148 @@
+{
+  "result": "passed",
+  "build": 587,
+  "version": "0.0.8",
+  "source": "cd7ed1e2c127aa22a1466a06ed2961d9babf0f08",
+  "recipeSource": "cd7ed1e2c127aa22a1466a06ed2961d9babf0f08",
+  "run": 40789729450,
+  "base": "delivered private 586 (tree 20c69d8, IPA d0f86d93...3b25), the baseline of this delivery (maintainer rule of 28 October 2026)",
+  "recipe": "rewind587-baseline-delivery.yml (baseline 586 + 587 delta)",
+  "artifact": {
+    "id": 12861577770,
+    "name": "RewindBox-Build587-cd7ed1e2c127aa22a1466a06ed2961d9babf0f08-cold",
+    "zipSHA256": "a7d879ec84a8013d6b6240a27982e78747387a50bb4d7fff9ca61f208dd7616f",
+    "recipient": "build-utils/delivery-587-recipient.pem",
+    "privateKeyInGit": false
+  },
+  "ipa": {
+    "name": "RewindBox-Build587-cd7ed1e2c127aa22a1466a06ed2961d9babf0f08-cold.ipa",
+    "bytes": 188293974,
+    "sha256": "06c3f59fff3b0aaf6e029befd36c7b94ac360b03793584b1aff3bbf040498180",
+    "equalsSHA256SUMS": true,
+    "members": 5352
+  },
+  "melonxEngine": {
+    "source": "b2a28defbeafe67addf7b2d295ffd928b39e91ea",
+    "engineCommits": [
+      "983f3016389b904a9882339833ad2e5fefc6898c",
+      "b2a28defbeafe67addf7b2d295ffd928b39e91ea"
+    ],
+    "run": 40788062624,
+    "artifact": 12861340590,
+    "identitySHA256": "0165e33828c597df4d1d083285b8fda2e1901831f94ade26f6e33733d3897dfe",
+    "previous": "75a13f7eda665b99c0ac96556e3956655379e668"
+  },
+  "rpcs3Core": {
+    "source": "12dd45b2125485614d232dd05675ceebaa6c0a1e",
+    "run": 40782533853,
+    "coreSHA256": "08903af6e8f2ff5ddf267c27fa3128df35d737037ec9fa359be024d5302d28f1",
+    "profileSource": "99a57a663eed1a1e455e6c7baf7e9be621cb4b00",
+    "profileDelta": [
+      "lib/services/rpcs3_game_profile_service.dart",
+      "test/rpcs3_game_profile_service_test.dart"
+    ]
+  },
+  "enhancements": {
+    "appCommits": [
+      "b451b10256acd6ab7cd3c356a06f28b99a858003",
+      "23a847d68665d2a6b6eebbe9fc714f5730d13f1f",
+      "1c1d1f7f4b3fcf088a623d3cbf1014ea35b58811",
+      "cb59a78472a9ce5c5fc6925db7119649e76b3220",
+      "1345bd3e96baba179b4045bbac89791923765b92",
+      "3192f0f957fc20bb05cea71bd38bfc3cabff6d08",
+      "c9b42115eea9419a572f6db04104aacade3130db",
+      "68e28ddc7d26dd68fc65e54ba522533a827b03a2",
+      "4a19415c63c1f917f3a42259bd5cb560e9fb082a",
+      "e017be1c332221e0291d785e5d9611e313cfc42e",
+      "d0f27cc861d5881555d7eaeaeb3948d41506e636"
+    ],
+    "indexSHA256": "ee5bace6734f48e93b4932ebfce8547ab347aa428cd6c522f6f6c9d76a648293",
+    "cheatIndexSHA256": "9f28a4e218d94156135dfab9c772ffefb8f7a18289830b7fe6dc5cd111439edc",
+    "hostedCheatIndexSHA256": "88911e5b2312eafe4450cfbc477f304ab9fd49c3720ac5eae2c147f75b90503b",
+    "cheatIndex": {
+      "games": 51014,
+      "packs": 874,
+      "programs": 2394631
+    },
+    "originPublication": {
+      "hosted_chunks": 26128,
+      "manifest_bytes": 7548870,
+      "manifest_sha256": "9f28a4e218d94156135dfab9c772ffefb8f7a18289830b7fe6dc5cd111439edc",
+      "origin_bytes": 143100598,
+      "origin_files": 17481,
+      "origin_programs": 718409,
+      "pack_bytes": 263839354,
+      "skeleton_chunks": 24886
+    }
+  },
+  "validators": {
+    "enhancements586-ipa-validation.json": "passed",
+    "hd-textures-ipa-validation.json": "passed",
+    "melonx-delete509-ipa.json": "passed",
+    "melonx-engine587-ipa-validation.json": "passed",
+    "melonx-ipa.json": "passed",
+    "melonx-keys517-ipa-validation.json": "passed",
+    "melonx-launch514-ipa-validation.json": "passed",
+    "motion507-ipa-validation.json": "passed",
+    "navigation512-ipa-validation.json": "passed",
+    "rpcs3-core591-ipa-validation.json": "passed",
+    "rpcs3-diag487-ipa-validation.json": "passed",
+    "ui-correction511-ipa-validation.json": "passed",
+    "unified-cheats-ipa-validation.json": "passed"
+  },
+  "independentInspection": {
+    "decrypted": true,
+    "buildNumber": 587,
+    "engineHost": "b2a28def",
+    "deferredFlushAdaptationInEngineIdentity": true,
+    "bindlessAdaptationInEngineIdentity": true,
+    "deviceMemoryAdaptationInEngineIdentity": true,
+    "bindlessSourcesAdaptationInEngineIdentity": true,
+    "durableGraphicsInDart": true,
+    "bundledCheatIndexIsOriginPublication": true,
+    "originChannelInCheatCatalog": true,
+    "originChannelInDart": true,
+    "packsBundled": 0,
+    "all587ReceiptsEmbedded": 3,
+    "receipts587": [
+      "MeloNX-engine587-identity.json",
+      "RPCS3-core591-identity.json",
+      "RewindBox-enhancements586-identity.json"
+    ],
+    "enhancementsIndexBundled": true,
+    "enhancementMarkersInDart": true,
+    "withheldGuardInCheatCatalog": true,
+    "rpcs3CoreEntries": [
+      "Payload/NeoStation.app/Frameworks/libRPCS3Core.dylib"
+    ],
+    "engineBinaryBytes": 37880416
+  },
+  "physicalDeviceTested": false,
+  "gameTested": false,
+  "launchTimeMeasured": false,
+  "fpsGainMeasured": false,
+  "durations": {
+    "endToEndMinutes": 18.1,
+    "macosJobMinutes": 18.05,
+    "checksJobMinutes": 8.3,
+    "xcodeBuildMinutes": 6.2,
+    "packageAndValidateMinutes": 2.4,
+    "note": "checks and macOS jobs run at the same time (run 40789729450)"
+  },
+  "deliveredTree": {
+    "tree": "fed8b77804738d471dc983853c2e1cd3f15ffb9c",
+    "report": "host-tree587.json of the delivery",
+    "reproducedLocallyAt": "cd7ed1e2c127aa22a1466a06ed2961d9babf0f08",
+    "nextBaseline": "The baseline of the next delivery (AGENTS.md, \"Delivery baseline\")."
+  },
+  "hogwartsLog586": {
+    "session": "28 October 2026 22:19-22:32, build 586, one 12.7-minute Hogwarts Legacy session",
+    "findings": [
+      "90 s at 7 % or less device memory ran at a median 4-6 FPS; 640 s at 8 % or more at a median 30 FPS (correlation)",
+      "about 400 bindless accesses still unbound, their handle forms named by the 586 diagnostic",
+      "per-game resolution 0.75 under 585 was 1.0 after the 586 update; first launch after the update failed with localGameRequired",
+      "lifecycle memory figures redacted by the key=value scrubber",
+      "asyncShaders off in every session"
+    ]
+  }
+}
