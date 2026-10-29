@@ -2,6 +2,51 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## RPCS3 global Core compiled and independently verified — 29 October 2026
+
+The maintainer explicitly requested this Core rebuild. Source
+`5b2a5614f634221ea896607b4686ad2afdd5ada3` passes run `40903365466`, job
+`123551374331`, attempt 1. Core artifact `12912380338` is 29,114,064 bytes,
+ZIP SHA256 `76e1e34b95882c5d91ca65fb8b85aa2a5ad130a3418035ba1bd53535b2a216d1`.
+The actual downloaded ARM64/iOS dylib is 77,268,488 bytes, SHA256
+`a45a9de84c7b3b82a43dc091a999da32316389f575a0afd8c983d69bd8a1f276`.
+ABI 30, 88 actual exports and PPU/SPU identities remain unchanged. The source-only
+statements below describe the earlier source lots; this Core now includes them.
+
+All 26 candidate Apple modes pass: 12 executed in the successful run, 14 reused
+from authenticated partial checkpoints (4 from 40897672646, 10 from 40900528171).
+Those two runs remain failures before Core compilation. Only the unordered-set
+rank assumption and an unused iOS-only mock constant required test corrections;
+no native source or build recipe changed during these retries. Sixteen older
+unchanged Apple modes remain separately reused. Do not replay unchanged suites.
+
+All three downloaded ZIPs, actual Mach-O, 269 validation inputs, 92 build inputs,
+313 native postimages and 97 supplements pass independent checks. Full receipt
+revalidation uses the original verifier with only the fixed Apple --report output
+directory adapted for command comparison; every other argv and all report bytes
+stay exact. Preserve the original local path-mismatch failure and portable receipt.
+No native test or CMake was executed during this download validation. Core
+compilation took 696 seconds; preflight 174; final Apple checks 15; whole job 1022.
+
+Apple microbenchmarks have tradeoffs: all four isolated MFC mask medians regress
+with the real cntvct_el0 clock, pure descriptor hits/changing handles cost more,
+and some no-expiry timer/distinct-hash medians regress. Preserve all 44 measured
+cases and 12 regressing medians. Timer expiry batches and repeated hashes improve
+locally; none establishes iPhone FPS. Store.cpp's NeoSwap optimization is host
+application code, not part of this dylib, and needs a later application build.
+
+The dylib declares minos 16.3 but uses os_sync_* APIs requiring 17.4; Runner and
+NeoSwap already require 17.4. Do not advertise isolated Core support for 16.3–17.3.
+The build has ranlib LLVM 22/Apple LLVM 17 bitcode warnings despite successful linking.
+Passive loading checks are static direct B/BL reachability to depth 16, not an
+iPhone dlopen. No device gameplay, FPS, prolonged stability, new IPA or release
+result exists. Reuse this artifact for a subsequently requested IPA while its
+inputs match, without rebuilding for documentation-only commits. Evidence and
+details: docs/rpcs3-global-core-2026-10-29.md,
+docs/rpcs3-global-apple-measurements-2026-10-29.md and
+docs/evidence/rpcs3-global-20261029/apple-core/success-5b2a5614/.
+Preserve private IPA594 and the concurrent MeloNX Core84 evidence.
+
 ## MeloNX additional runtime candidate — 29 October 2026
 
 The maintainer supplied the extended Hogwarts log (SHA256 3aaa4bbc...e8a99b3b)

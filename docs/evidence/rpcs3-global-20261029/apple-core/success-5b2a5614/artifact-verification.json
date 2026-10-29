@@ -1,0 +1,586 @@
+{
+  "schema_version": 1,
+  "passed": true,
+  "kind": "independent-global-core-artifact-verification",
+  "source": "5b2a5614f634221ea896607b4686ad2afdd5ada3",
+  "run_id": 40903365466,
+  "run_attempt": 1,
+  "job_id": 123551374331,
+  "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "canonical_patch_sha256": "454fafaa9060ccf7e600594d9db5a486135c79048c1f97044b0df99c1cd547f2",
+  "fixture_sha256": "26ecfc587a001fa7b27e6d25edd7e414c1abba6e46ad5e9d11f469a8bcc0794e",
+  "core_sha256": "a45a9de84c7b3b82a43dc091a999da32316389f575a0afd8c983d69bd8a1f276",
+  "core_bytes": 77268488,
+  "abi_version": 30,
+  "architecture": "arm64",
+  "platform": 2,
+  "minimum_ios": "16.3.0",
+  "export_count": 88,
+  "runtime_input_count": 269,
+  "original_contract_input_count": 225,
+  "corrected_validation_inputs": {
+    ".github/diagnostics/rpcs3runtime_bo2_warm_core.py": {
+      "before_sha256": "2e0264d0244fe194dfc1d3bd44fc7fffd66810808a5a63eb5f38b2d43d0249fe",
+      "after_sha256": "3c7df8082d7d838764daa651c56ec104d2996d26d47fe07c06672ef7ea801cc7"
+    },
+    ".github/diagnostics/rpcs3runtime_global_core.py": {
+      "before_sha256": "a12bf5870fb46f93dda0d681ecd4624341fd1a834c4173a5972fd808eeb6a105",
+      "after_sha256": "271c6b2491e768e0883282443dac358b6f73a6e71ebde8ee8339b05094cc335d"
+    },
+    "test/native/rpcs3_descriptor_bind_cache.inc": {
+      "before_sha256": "09dbff46899ecf4e6e73c57b3117fa85bdf76bb3818efb7cffedc77e1cbfaf4a",
+      "after_sha256": "fdf7c9337eabbada05dac13526ee9a83d7073e4d1f1f958b8c5fdad23c7a1180"
+    },
+    "test/rpcs3_texture_lifecycle_test.py": {
+      "before_sha256": "5dcd5e352bcf6ff73705efea3b8f8f29bbfb4222aa59963808615468bb343c96",
+      "after_sha256": "34ccd7c55e304588f37652277bc13ad641fb8e51e372562ce4cd7906e94db623"
+    }
+  },
+  "added_resume_input_count": 44,
+  "core_input_count": 92,
+  "native_postimage_count": 313,
+  "supplemental_native_count": 97,
+  "apple_modes_passed": 26,
+  "sanitizer_modes": {
+    "plain": 12,
+    "asan-ubsan": 12,
+    "tsan": 2
+  },
+  "historical_apple_modes_reused": 16,
+  "apple_modes_executed_in_this_run": 12,
+  "apple_modes_reused_from_failed_runs": 14,
+  "executed_sanitizer_modes": {
+    "plain": 5,
+    "asan-ubsan": 5,
+    "tsan": 2
+  },
+  "reused_sanitizer_modes": {
+    "plain": 7,
+    "asan-ubsan": 7
+  },
+  "reused_partial_origins": {
+    "async-upload-wait-asan-ubsan": {
+      "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+      "run_id": 40900528171,
+      "run_attempt": 1,
+      "job_id": 123541250658,
+      "artifact_id": 12908797715,
+      "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+      "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+      "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+      "overall_run_conclusion": "failure",
+      "mode": "async-upload-wait-asan-ubsan",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true
+    },
+    "async-upload-wait-plain": {
+      "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+      "run_id": 40900528171,
+      "run_attempt": 1,
+      "job_id": 123541250658,
+      "artifact_id": 12908797715,
+      "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+      "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+      "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+      "overall_run_conclusion": "failure",
+      "mode": "async-upload-wait-plain",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true
+    },
+    "bx2-sampler-transition-asan-ubsan": {
+      "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+      "run_id": 40900528171,
+      "run_attempt": 1,
+      "job_id": 123541250658,
+      "artifact_id": 12908797715,
+      "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+      "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+      "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+      "overall_run_conclusion": "failure",
+      "mode": "bx2-sampler-transition-asan-ubsan",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true
+    },
+    "bx2-sampler-transition-plain": {
+      "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+      "run_id": 40900528171,
+      "run_attempt": 1,
+      "job_id": 123541250658,
+      "artifact_id": 12908797715,
+      "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+      "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+      "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+      "overall_run_conclusion": "failure",
+      "mode": "bx2-sampler-transition-plain",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true
+    },
+    "fifo-partial-asan-ubsan": {
+      "source": "5b578461440ce430b4f6f523e40b8fe39d7290db",
+      "run_id": 40897672646,
+      "run_attempt": 1,
+      "job_id": 123531103664,
+      "artifact_id": 12908097332,
+      "artifact_sha256": "72f048f6179b348e3b0b52099aab920210993cf189e1eb09591a217c7b91f215",
+      "partial_proof_sha256": "ea72525a3911b82ebffbdb0df0cd2c8e1c60002e9bf4a2b20634c04ee4707a5c",
+      "metadata_sha256": "6bc66b44233b2820da31cc2b80ea88459623cbe4f62c9ada00fb80ee9246ff07",
+      "overall_run_conclusion": "failure",
+      "mode": "fifo-partial-asan-ubsan",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true
+    },
+    "fifo-partial-plain": {
+      "source": "5b578461440ce430b4f6f523e40b8fe39d7290db",
+      "run_id": 40897672646,
+      "run_attempt": 1,
+      "job_id": 123531103664,
+      "artifact_id": 12908097332,
+      "artifact_sha256": "72f048f6179b348e3b0b52099aab920210993cf189e1eb09591a217c7b91f215",
+      "partial_proof_sha256": "ea72525a3911b82ebffbdb0df0cd2c8e1c60002e9bf4a2b20634c04ee4707a5c",
+      "metadata_sha256": "6bc66b44233b2820da31cc2b80ea88459623cbe4f62c9ada00fb80ee9246ff07",
+      "overall_run_conclusion": "failure",
+      "mode": "fifo-partial-plain",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true
+    },
+    "spu-mfc-asan-ubsan": {
+      "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+      "run_id": 40900528171,
+      "run_attempt": 1,
+      "job_id": 123541250658,
+      "artifact_id": 12908797715,
+      "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+      "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+      "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+      "overall_run_conclusion": "failure",
+      "mode": "spu-mfc-asan-ubsan",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true
+    },
+    "spu-mfc-plain": {
+      "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+      "run_id": 40900528171,
+      "run_attempt": 1,
+      "job_id": 123541250658,
+      "artifact_id": 12908797715,
+      "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+      "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+      "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+      "overall_run_conclusion": "failure",
+      "mode": "spu-mfc-plain",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true
+    },
+    "spu-timer-asan-ubsan": {
+      "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+      "run_id": 40900528171,
+      "run_attempt": 1,
+      "job_id": 123541250658,
+      "artifact_id": 12908797715,
+      "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+      "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+      "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+      "overall_run_conclusion": "failure",
+      "mode": "spu-timer-asan-ubsan",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true
+    },
+    "spu-timer-plain": {
+      "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+      "run_id": 40900528171,
+      "run_attempt": 1,
+      "job_id": 123541250658,
+      "artifact_id": 12908797715,
+      "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+      "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+      "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+      "overall_run_conclusion": "failure",
+      "mode": "spu-timer-plain",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true
+    },
+    "texture-lifecycle-address-asan-ubsan": {
+      "source": "5b578461440ce430b4f6f523e40b8fe39d7290db",
+      "run_id": 40897672646,
+      "run_attempt": 1,
+      "job_id": 123531103664,
+      "artifact_id": 12908097332,
+      "artifact_sha256": "72f048f6179b348e3b0b52099aab920210993cf189e1eb09591a217c7b91f215",
+      "partial_proof_sha256": "ea72525a3911b82ebffbdb0df0cd2c8e1c60002e9bf4a2b20634c04ee4707a5c",
+      "metadata_sha256": "6bc66b44233b2820da31cc2b80ea88459623cbe4f62c9ada00fb80ee9246ff07",
+      "overall_run_conclusion": "failure",
+      "mode": "texture-lifecycle-address-asan-ubsan",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true
+    },
+    "texture-lifecycle-address-plain": {
+      "source": "5b578461440ce430b4f6f523e40b8fe39d7290db",
+      "run_id": 40897672646,
+      "run_attempt": 1,
+      "job_id": 123531103664,
+      "artifact_id": 12908097332,
+      "artifact_sha256": "72f048f6179b348e3b0b52099aab920210993cf189e1eb09591a217c7b91f215",
+      "partial_proof_sha256": "ea72525a3911b82ebffbdb0df0cd2c8e1c60002e9bf4a2b20634c04ee4707a5c",
+      "metadata_sha256": "6bc66b44233b2820da31cc2b80ea88459623cbe4f62c9ada00fb80ee9246ff07",
+      "overall_run_conclusion": "failure",
+      "mode": "texture-lifecycle-address-plain",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true
+    },
+    "texture-lifecycle-exact-asan-ubsan": {
+      "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+      "run_id": 40900528171,
+      "run_attempt": 1,
+      "job_id": 123541250658,
+      "artifact_id": 12908797715,
+      "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+      "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+      "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+      "overall_run_conclusion": "failure",
+      "mode": "texture-lifecycle-exact-asan-ubsan",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true
+    },
+    "texture-lifecycle-exact-plain": {
+      "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+      "run_id": 40900528171,
+      "run_attempt": 1,
+      "job_id": 123541250658,
+      "artifact_id": 12908797715,
+      "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+      "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+      "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+      "overall_run_conclusion": "failure",
+      "mode": "texture-lifecycle-exact-plain",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true
+    }
+  },
+  "partial_origin_runs": [
+    {
+      "source": "5b578461440ce430b4f6f523e40b8fe39d7290db",
+      "run_id": 40897672646,
+      "overall_conclusion": "failure",
+      "core_compilation": "skipped",
+      "valid_modes_in_checkpoint": 4,
+      "successful_modes_originating_here": 4,
+      "origin_archive_bytes_verified_here": false
+    },
+    {
+      "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+      "run_id": 40900528171,
+      "overall_conclusion": "failure",
+      "core_compilation": "skipped",
+      "valid_modes_in_checkpoint": 14,
+      "successful_modes_originating_here": 10,
+      "origin_archive_bytes_verified_here": false
+    }
+  ],
+  "compiler": "Homebrew clang version 22.1.8",
+  "ppu_codegen": "a987639e9f838d1c",
+  "spu_codegen": "d070cb361bdef607",
+  "files_sha256": {
+    "identity.json": "979795b25d2fc4beffa01c3dd79519243ea5910b2de8dc40bda8c4ef13537e91",
+    "runtime592-proof.json": "fd8c79aa9bc31df71360e62c618c7e14e764a7f87797a9be70aad52b7a347a9b",
+    "build.log": "b90ff3d3d1f999106523eb1c96bc7397af745591dad310fc2d9e4485c1067eb2"
+  },
+  "native_report_and_output_digests": {
+    "async-upload-wait-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "68286ee84ea0917cc96f8f866494eb044bf2626a514e52f8d77aa2f44ddb73c9",
+      "output_sha256": "68286ee84ea0917cc96f8f866494eb044bf2626a514e52f8d77aa2f44ddb73c9",
+      "native_executed_in_this_run": false
+    },
+    "async-upload-wait-plain": {
+      "mode": "plain",
+      "report_sha256": "6496616cd05c87b713a45a9c8e691ed868dcf8db1e21ded4c34ee16c0f7ea1a6",
+      "output_sha256": "6496616cd05c87b713a45a9c8e691ed868dcf8db1e21ded4c34ee16c0f7ea1a6",
+      "native_executed_in_this_run": false
+    },
+    "bx2-sampler-transition-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "fdd9f7580f2d5f1fc26737f8b90923fc214c2f388e5f173c6e89a76309f6b071",
+      "output_sha256": "fdd9f7580f2d5f1fc26737f8b90923fc214c2f388e5f173c6e89a76309f6b071",
+      "native_executed_in_this_run": false
+    },
+    "bx2-sampler-transition-plain": {
+      "mode": "plain",
+      "report_sha256": "8667eab01f42f08754aff8c31ccbc0ac20504595aae6e292ebc2bf48b21e1aed",
+      "output_sha256": "8667eab01f42f08754aff8c31ccbc0ac20504595aae6e292ebc2bf48b21e1aed",
+      "native_executed_in_this_run": false
+    },
+    "descriptor-bind-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "eb23d36b985c0d1acbb66825db243b2c3ecf9e4bef382f182af893f5ad07fa6e",
+      "output_sha256": "eb23d36b985c0d1acbb66825db243b2c3ecf9e4bef382f182af893f5ad07fa6e",
+      "native_executed_in_this_run": true
+    },
+    "descriptor-bind-plain": {
+      "mode": "plain",
+      "report_sha256": "2a3c008a57643417ec8ca1dd9b6a0335abbc6798f2cbe05bfe35b5a14190fa33",
+      "output_sha256": "2a3c008a57643417ec8ca1dd9b6a0335abbc6798f2cbe05bfe35b5a14190fa33",
+      "native_executed_in_this_run": true
+    },
+    "fifo-partial-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "1fee6580861e25364c3e9c77be89ecc9b2aa60eae5b69799574aab2ab7a54e79",
+      "output_sha256": "1fee6580861e25364c3e9c77be89ecc9b2aa60eae5b69799574aab2ab7a54e79",
+      "native_executed_in_this_run": false
+    },
+    "fifo-partial-plain": {
+      "mode": "plain",
+      "report_sha256": "cfdf2c7e2ffa2a5fff21136df7095eb74913b992759c25e4fa7fcbe74790bc0d",
+      "output_sha256": "cfdf2c7e2ffa2a5fff21136df7095eb74913b992759c25e4fa7fcbe74790bc0d",
+      "native_executed_in_this_run": false
+    },
+    "neoswap-discard-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "d35a0682267a505c4fd7add2f73a588bdf29261fab4dbfabc91106d7e15ac55a",
+      "output_sha256": "d35a0682267a505c4fd7add2f73a588bdf29261fab4dbfabc91106d7e15ac55a",
+      "native_executed_in_this_run": true
+    },
+    "neoswap-discard-plain": {
+      "mode": "plain",
+      "report_sha256": "29e1dbb892b04293cf45dbadcfba616b9a7492cb1b011bae7ebf988524a10a86",
+      "output_sha256": "29e1dbb892b04293cf45dbadcfba616b9a7492cb1b011bae7ebf988524a10a86",
+      "native_executed_in_this_run": true
+    },
+    "neoswap-discard-tsan": {
+      "mode": "tsan",
+      "report_sha256": "f906f1b8bb87922e09b29f04b69e7fa07614c772087fc932bd38a165b7ea93d6",
+      "output_sha256": "f906f1b8bb87922e09b29f04b69e7fa07614c772087fc932bd38a165b7ea93d6",
+      "native_executed_in_this_run": true
+    },
+    "rsx-write-sampler-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "9ef6433c3323938cdae10190bf0a6db7eb01e7a559628937b7a62a164a02015e",
+      "output_sha256": "9ef6433c3323938cdae10190bf0a6db7eb01e7a559628937b7a62a164a02015e",
+      "native_executed_in_this_run": true
+    },
+    "rsx-write-sampler-plain": {
+      "mode": "plain",
+      "report_sha256": "149442af4415639d9e78cd098bdddd480de5df8cf6296d1e0fbbe45e518718be",
+      "output_sha256": "149442af4415639d9e78cd098bdddd480de5df8cf6296d1e0fbbe45e518718be",
+      "native_executed_in_this_run": true
+    },
+    "spu-mfc-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "cba3256db39e8e19b35a958155d3fcfca6ed7117e811f622ee1bf5caef68cc46",
+      "output_sha256": "cba3256db39e8e19b35a958155d3fcfca6ed7117e811f622ee1bf5caef68cc46",
+      "native_executed_in_this_run": false
+    },
+    "spu-mfc-plain": {
+      "mode": "plain",
+      "report_sha256": "43fca97d8e4e59a2470010d6db476a6cbf740d0aeff0328bdf856e3b3380dee8",
+      "output_sha256": "43fca97d8e4e59a2470010d6db476a6cbf740d0aeff0328bdf856e3b3380dee8",
+      "native_executed_in_this_run": false
+    },
+    "spu-timer-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "d3f1ab4dcaa4d009fa2b8036ffe33182caf402adee97f43e89489c9826c0d468",
+      "output_sha256": "d3f1ab4dcaa4d009fa2b8036ffe33182caf402adee97f43e89489c9826c0d468",
+      "native_executed_in_this_run": false
+    },
+    "spu-timer-plain": {
+      "mode": "plain",
+      "report_sha256": "5baf5cb1f180a6f1eac2d7cc16b1874d3db67fb13d89a8f3d2c60b4ca56173a0",
+      "output_sha256": "5baf5cb1f180a6f1eac2d7cc16b1874d3db67fb13d89a8f3d2c60b4ca56173a0",
+      "native_executed_in_this_run": false
+    },
+    "texture-hash-reuse-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "071988362fb664aa36fc96adebd31809b3d78d3695973e8bffae382d97b67805",
+      "output_sha256": "071988362fb664aa36fc96adebd31809b3d78d3695973e8bffae382d97b67805",
+      "native_executed_in_this_run": true
+    },
+    "texture-hash-reuse-plain": {
+      "mode": "plain",
+      "report_sha256": "b7143512e99b927ef7aaacabc1fc2478eb5134885deaaafb389105f90c161661",
+      "output_sha256": "b7143512e99b927ef7aaacabc1fc2478eb5134885deaaafb389105f90c161661",
+      "native_executed_in_this_run": true
+    },
+    "texture-hash-reuse-tsan": {
+      "mode": "tsan",
+      "report_sha256": "7308d8c07df5fef3d4a52cae1fa342e8d727ad4972a2373053dcd7ff3bf95c12",
+      "output_sha256": "7308d8c07df5fef3d4a52cae1fa342e8d727ad4972a2373053dcd7ff3bf95c12",
+      "native_executed_in_this_run": true
+    },
+    "texture-lifecycle-address-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "c7a82cf6618626a4571e6dae51d43207c0ae72c6da08188f599b1a2c267113d7",
+      "output_sha256": "c7a82cf6618626a4571e6dae51d43207c0ae72c6da08188f599b1a2c267113d7",
+      "native_executed_in_this_run": false
+    },
+    "texture-lifecycle-address-plain": {
+      "mode": "plain",
+      "report_sha256": "e6f5059b28a83530229b36b5e34b2d6eba8ceb5719c76dcbb8fbf5c836f64c77",
+      "output_sha256": "e6f5059b28a83530229b36b5e34b2d6eba8ceb5719c76dcbb8fbf5c836f64c77",
+      "native_executed_in_this_run": false
+    },
+    "texture-lifecycle-exact-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "deb9b3530d3cabf5b2df00a062046bc72909782cb9575b802829d873154495f5",
+      "output_sha256": "deb9b3530d3cabf5b2df00a062046bc72909782cb9575b802829d873154495f5",
+      "native_executed_in_this_run": false
+    },
+    "texture-lifecycle-exact-plain": {
+      "mode": "plain",
+      "report_sha256": "d91320586db1ea1913ea6827c3ace624155106074c8c07ca29edf3b80e55902b",
+      "output_sha256": "d91320586db1ea1913ea6827c3ace624155106074c8c07ca29edf3b80e55902b",
+      "native_executed_in_this_run": false
+    },
+    "viewport-scissor-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "848b7465cee718d2f04aa0bce149bec295d799c5cae8b7655f67d5b32ff497ca",
+      "output_sha256": "848b7465cee718d2f04aa0bce149bec295d799c5cae8b7655f67d5b32ff497ca",
+      "native_executed_in_this_run": true
+    },
+    "viewport-scissor-plain": {
+      "mode": "plain",
+      "report_sha256": "9fa1cf88ded23369acdb189154eb4f34990ab11a617ec9cf4bae7e41c446e81a",
+      "output_sha256": "9fa1cf88ded23369acdb189154eb4f34990ab11a617ec9cf4bae7e41c446e81a",
+      "native_executed_in_this_run": true
+    }
+  },
+  "archives": {
+    "core": {
+      "artifact_id": 12912380338,
+      "name": "RPCS3Core-5b2a5614f634221ea896607b4686ad2afdd5ada3",
+      "metadata_sha256": "76e1e34b95882c5d91ca65fb8b85aa2a5ad130a3418035ba1bd53535b2a216d1",
+      "metadata_bytes": 29114064,
+      "archive_bytes_verified": true,
+      "archive_sha256": "76e1e34b95882c5d91ca65fb8b85aa2a5ad130a3418035ba1bd53535b2a216d1",
+      "archive_bytes": 29114064,
+      "verified_extracted_members": 5,
+      "zip_crc_verified": true
+    },
+    "preflight": {
+      "artifact_id": 12910273183,
+      "name": "RPCS3Core-preflight-5b2a5614f634221ea896607b4686ad2afdd5ada3",
+      "metadata_sha256": "5c934a0538af8cc9a9c6c92c4fdf427f3bdf6603fb494eebc58d47b859e94239",
+      "metadata_bytes": 88232,
+      "archive_bytes_verified": true,
+      "archive_sha256": "5c934a0538af8cc9a9c6c92c4fdf427f3bdf6603fb494eebc58d47b859e94239",
+      "archive_bytes": 88232,
+      "verified_extracted_members": 27,
+      "zip_crc_verified": true
+    },
+    "diagnostics": {
+      "artifact_id": 12911641906,
+      "name": "RPCS3Core-diagnostics-5b2a5614f634221ea896607b4686ad2afdd5ada3",
+      "metadata_sha256": "b25fd5b669d174e97c31090762da732a9ab30e1fcc2842b22864059158956d06",
+      "metadata_bytes": 273232,
+      "archive_bytes_verified": true,
+      "archive_sha256": "b25fd5b669d174e97c31090762da732a9ab30e1fcc2842b22864059158956d06",
+      "archive_bytes": 273232,
+      "verified_extracted_members": 64,
+      "zip_crc_verified": true
+    }
+  },
+  "all_three_archive_bytes_verified": true,
+  "passive_dlopen": {
+    "initializerCount": 2974,
+    "initializerSymbols": 918,
+    "marker": "NEOSTATION_BUILD301_PASSIVE_DLOPEN_V1",
+    "forbiddenReachability": false,
+    "scope": "named forbidden functions via direct ARM64 B/BL edges, maximum depth 16",
+    "deviceRuntimeTested": false
+  },
+  "metadata_sha256": "7fe28e303f0f4550d2d143f5f0bd60427f66f2723bc229da7e9ac3abbd3c2763",
+  "verification_script_sha256": "24530905c5707e16ac6f74cdedf99c84e5ca761e66848c62ca3ca2d7d90c70b5",
+  "materialized_source_reauthenticated_here": false,
+  "semantic_counters_and_recorded_commands_reauthenticated_here": false,
+  "separate_required_gate": ".github/diagnostics/rpcs3runtime592_core.py --verify-reuse <proof> --source <native-source>",
+  "native_tests_executed": false,
+  "cmake_executed": false,
+  "native_binary_executed": false,
+  "physical_device_tested": false,
+  "gameplay_measured": false,
+  "ipa_built": false,
+  "public_release": false,
+  "verified_utc": "2026-10-29T15:54:35.974744+00:00"
+}

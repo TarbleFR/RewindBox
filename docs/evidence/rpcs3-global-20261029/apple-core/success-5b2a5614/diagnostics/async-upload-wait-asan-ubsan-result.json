@@ -1,0 +1,66 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer"
+  ],
+  "compiler": "Homebrew clang version 22.1.8",
+  "host": "arm64",
+  "system": "Darwin",
+  "sanitizer": "address,undefined",
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "255c69ab2aa7baa576844421a4e87ed7508ce71b0e98d247354ba601f06a0a49",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "c5ecab8364b42fb791fb9029d87348f7e0068c5990da3f3c0a3e787079f2059c",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "46ffdd0f8876addacddfe527b0285360081f5c16093f980bed8da9157fb4d17e"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "fed611e598e23a21d283b5432a0e8846a6bacd4fda4735b330984c74434e53e8",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "ac1e24963ec7cfae45cbcb97b0506946cdf0389782fb2e9e1a0d782109524c16",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "fbc078ede7dc9cc93e129a79d9574d0bde9b4df0d8d2214fb6c4b07cb400fdb4"
+  },
+  "adapterSHA256": "9cd503dcaf91f0d40319aa6b37fc53a05bc83279937986a854a10f29b066894f",
+  "programSHA256": {
+    "baseline": "1968770ac04340fcceaa0df4a5b1fc786fe4ff228bf3aa9076314505d59af9c3",
+    "candidate": "de33078a580fd8d2d8cbb2ef8755b6b27a4251d2b6c02a486e52f78634d90602"
+  },
+  "results": {
+    "baseline-desktop": {
+      "returncode": 0,
+      "primaryCases": 16,
+      "readbackCases": 12,
+      "unprotectedConsumerSites": 0
+    },
+    "baseline-ios": {
+      "returncode": 86,
+      "primaryCases": 16,
+      "readbackCases": 12,
+      "unprotectedConsumerSites": 2
+    },
+    "candidate-desktop": {
+      "returncode": 0,
+      "primaryCases": 16,
+      "readbackCases": 12,
+      "unprotectedConsumerSites": 0
+    },
+    "candidate-ios": {
+      "returncode": 0,
+      "primaryCases": 16,
+      "readbackCases": 12,
+      "unprotectedConsumerSites": 0
+    }
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "gpuExecuted": false,
+  "scope": "Execute the production upload wait packets with a recording Vulkan adapter.\n\nThe primary-submit block, full DMA cleanup and queue_submit_t are extracted.\nThe adapter records submission order, semaphore stages and restart/fence calls;\nit does not execute GPU work or model the Vulkan scheduler.\n"
+}

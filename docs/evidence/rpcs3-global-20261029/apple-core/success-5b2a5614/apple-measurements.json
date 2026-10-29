@@ -1,0 +1,2760 @@
+{
+  "schema": 1,
+  "kind": "read-only Apple ARM64 preflight measurement synthesis",
+  "source": "5b2a5614f634221ea896607b4686ad2afdd5ada3",
+  "baselineCommits": {
+    "beforeGlobal": "3e4fcfa121e01fd08934486b833dde6a69a2d318",
+    "before594": "c609b0d05a583d2d39f636f328830a6256439807",
+    "beforeExact": "6d80aaaf150978d8b1f3e6bfc71aedcce71c4658",
+    "beforeWarm": "66b819522872e1c63efff956bffd540f01a9ac0f",
+    "beforeBO2": "7d1ca65c8cb12d5d27934cd40cd0cf361518d9ad",
+    "before593": "571dbc0849caa55c76be797b649c8abf79de5053"
+  },
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "compiler": "Homebrew clang version 22.1.8",
+    "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+  },
+  "proof": {
+    "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/runtime592-proof.json",
+    "sha256": "fd8c79aa9bc31df71360e62c618c7e14e764a7f87797a9be70aad52b7a347a9b"
+  },
+  "scope": {
+    "physicalDeviceTested": false,
+    "gameplayMeasured": false,
+    "gpuTimed": false,
+    "timingsFromPlainModesOnly": true,
+    "testsExecutedDuringThisAnalysis": false,
+    "repositoryModifiedDuringThisAnalysis": false,
+    "all26PreflightModesPassed": true,
+    "freshModesInLatestRun": [
+      "descriptor-bind-plain",
+      "descriptor-bind-asan-ubsan",
+      "texture-hash-reuse-plain",
+      "texture-hash-reuse-asan-ubsan",
+      "texture-hash-reuse-tsan",
+      "neoswap-discard-plain",
+      "neoswap-discard-asan-ubsan",
+      "neoswap-discard-tsan",
+      "viewport-scissor-plain",
+      "viewport-scissor-asan-ubsan",
+      "rsx-write-sampler-plain",
+      "rsx-write-sampler-asan-ubsan"
+    ],
+    "freshModeCount": 12,
+    "checkpointModeCount": 14,
+    "checkpointReuse": {
+      "fifo-partial-plain": {
+        "source": "5b578461440ce430b4f6f523e40b8fe39d7290db",
+        "run_id": 40897672646,
+        "run_attempt": 1,
+        "job_id": 123531103664,
+        "artifact_id": 12908097332,
+        "artifact_sha256": "72f048f6179b348e3b0b52099aab920210993cf189e1eb09591a217c7b91f215",
+        "partial_proof_sha256": "ea72525a3911b82ebffbdb0df0cd2c8e1c60002e9bf4a2b20634c04ee4707a5c",
+        "metadata_sha256": "6bc66b44233b2820da31cc2b80ea88459623cbe4f62c9ada00fb80ee9246ff07",
+        "overall_run_conclusion": "failure",
+        "mode": "fifo-partial-plain",
+        "host": {
+          "system": "Darwin",
+          "machine": "arm64",
+          "compiler": "Homebrew clang version 22.1.8",
+          "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+        },
+        "native_executed_in_this_run": false,
+        "native_program_identity_preserved": true
+      },
+      "fifo-partial-asan-ubsan": {
+        "source": "5b578461440ce430b4f6f523e40b8fe39d7290db",
+        "run_id": 40897672646,
+        "run_attempt": 1,
+        "job_id": 123531103664,
+        "artifact_id": 12908097332,
+        "artifact_sha256": "72f048f6179b348e3b0b52099aab920210993cf189e1eb09591a217c7b91f215",
+        "partial_proof_sha256": "ea72525a3911b82ebffbdb0df0cd2c8e1c60002e9bf4a2b20634c04ee4707a5c",
+        "metadata_sha256": "6bc66b44233b2820da31cc2b80ea88459623cbe4f62c9ada00fb80ee9246ff07",
+        "overall_run_conclusion": "failure",
+        "mode": "fifo-partial-asan-ubsan",
+        "host": {
+          "system": "Darwin",
+          "machine": "arm64",
+          "compiler": "Homebrew clang version 22.1.8",
+          "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+        },
+        "native_executed_in_this_run": false,
+        "native_program_identity_preserved": true
+      },
+      "texture-lifecycle-address-plain": {
+        "source": "5b578461440ce430b4f6f523e40b8fe39d7290db",
+        "run_id": 40897672646,
+        "run_attempt": 1,
+        "job_id": 123531103664,
+        "artifact_id": 12908097332,
+        "artifact_sha256": "72f048f6179b348e3b0b52099aab920210993cf189e1eb09591a217c7b91f215",
+        "partial_proof_sha256": "ea72525a3911b82ebffbdb0df0cd2c8e1c60002e9bf4a2b20634c04ee4707a5c",
+        "metadata_sha256": "6bc66b44233b2820da31cc2b80ea88459623cbe4f62c9ada00fb80ee9246ff07",
+        "overall_run_conclusion": "failure",
+        "mode": "texture-lifecycle-address-plain",
+        "host": {
+          "system": "Darwin",
+          "machine": "arm64",
+          "compiler": "Homebrew clang version 22.1.8",
+          "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+        },
+        "native_executed_in_this_run": false,
+        "native_program_identity_preserved": true
+      },
+      "texture-lifecycle-address-asan-ubsan": {
+        "source": "5b578461440ce430b4f6f523e40b8fe39d7290db",
+        "run_id": 40897672646,
+        "run_attempt": 1,
+        "job_id": 123531103664,
+        "artifact_id": 12908097332,
+        "artifact_sha256": "72f048f6179b348e3b0b52099aab920210993cf189e1eb09591a217c7b91f215",
+        "partial_proof_sha256": "ea72525a3911b82ebffbdb0df0cd2c8e1c60002e9bf4a2b20634c04ee4707a5c",
+        "metadata_sha256": "6bc66b44233b2820da31cc2b80ea88459623cbe4f62c9ada00fb80ee9246ff07",
+        "overall_run_conclusion": "failure",
+        "mode": "texture-lifecycle-address-asan-ubsan",
+        "host": {
+          "system": "Darwin",
+          "machine": "arm64",
+          "compiler": "Homebrew clang version 22.1.8",
+          "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+        },
+        "native_executed_in_this_run": false,
+        "native_program_identity_preserved": true
+      },
+      "texture-lifecycle-exact-plain": {
+        "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+        "run_id": 40900528171,
+        "run_attempt": 1,
+        "job_id": 123541250658,
+        "artifact_id": 12908797715,
+        "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+        "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+        "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+        "overall_run_conclusion": "failure",
+        "mode": "texture-lifecycle-exact-plain",
+        "host": {
+          "system": "Darwin",
+          "machine": "arm64",
+          "compiler": "Homebrew clang version 22.1.8",
+          "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+        },
+        "native_executed_in_this_run": false,
+        "native_program_identity_preserved": true
+      },
+      "texture-lifecycle-exact-asan-ubsan": {
+        "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+        "run_id": 40900528171,
+        "run_attempt": 1,
+        "job_id": 123541250658,
+        "artifact_id": 12908797715,
+        "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+        "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+        "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+        "overall_run_conclusion": "failure",
+        "mode": "texture-lifecycle-exact-asan-ubsan",
+        "host": {
+          "system": "Darwin",
+          "machine": "arm64",
+          "compiler": "Homebrew clang version 22.1.8",
+          "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+        },
+        "native_executed_in_this_run": false,
+        "native_program_identity_preserved": true
+      },
+      "async-upload-wait-plain": {
+        "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+        "run_id": 40900528171,
+        "run_attempt": 1,
+        "job_id": 123541250658,
+        "artifact_id": 12908797715,
+        "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+        "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+        "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+        "overall_run_conclusion": "failure",
+        "mode": "async-upload-wait-plain",
+        "host": {
+          "system": "Darwin",
+          "machine": "arm64",
+          "compiler": "Homebrew clang version 22.1.8",
+          "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+        },
+        "native_executed_in_this_run": false,
+        "native_program_identity_preserved": true
+      },
+      "async-upload-wait-asan-ubsan": {
+        "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+        "run_id": 40900528171,
+        "run_attempt": 1,
+        "job_id": 123541250658,
+        "artifact_id": 12908797715,
+        "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+        "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+        "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+        "overall_run_conclusion": "failure",
+        "mode": "async-upload-wait-asan-ubsan",
+        "host": {
+          "system": "Darwin",
+          "machine": "arm64",
+          "compiler": "Homebrew clang version 22.1.8",
+          "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+        },
+        "native_executed_in_this_run": false,
+        "native_program_identity_preserved": true
+      },
+      "bx2-sampler-transition-plain": {
+        "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+        "run_id": 40900528171,
+        "run_attempt": 1,
+        "job_id": 123541250658,
+        "artifact_id": 12908797715,
+        "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+        "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+        "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+        "overall_run_conclusion": "failure",
+        "mode": "bx2-sampler-transition-plain",
+        "host": {
+          "system": "Darwin",
+          "machine": "arm64",
+          "compiler": "Homebrew clang version 22.1.8",
+          "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+        },
+        "native_executed_in_this_run": false,
+        "native_program_identity_preserved": true
+      },
+      "bx2-sampler-transition-asan-ubsan": {
+        "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+        "run_id": 40900528171,
+        "run_attempt": 1,
+        "job_id": 123541250658,
+        "artifact_id": 12908797715,
+        "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+        "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+        "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+        "overall_run_conclusion": "failure",
+        "mode": "bx2-sampler-transition-asan-ubsan",
+        "host": {
+          "system": "Darwin",
+          "machine": "arm64",
+          "compiler": "Homebrew clang version 22.1.8",
+          "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+        },
+        "native_executed_in_this_run": false,
+        "native_program_identity_preserved": true
+      },
+      "spu-mfc-plain": {
+        "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+        "run_id": 40900528171,
+        "run_attempt": 1,
+        "job_id": 123541250658,
+        "artifact_id": 12908797715,
+        "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+        "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+        "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+        "overall_run_conclusion": "failure",
+        "mode": "spu-mfc-plain",
+        "host": {
+          "system": "Darwin",
+          "machine": "arm64",
+          "compiler": "Homebrew clang version 22.1.8",
+          "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+        },
+        "native_executed_in_this_run": false,
+        "native_program_identity_preserved": true
+      },
+      "spu-mfc-asan-ubsan": {
+        "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+        "run_id": 40900528171,
+        "run_attempt": 1,
+        "job_id": 123541250658,
+        "artifact_id": 12908797715,
+        "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+        "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+        "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+        "overall_run_conclusion": "failure",
+        "mode": "spu-mfc-asan-ubsan",
+        "host": {
+          "system": "Darwin",
+          "machine": "arm64",
+          "compiler": "Homebrew clang version 22.1.8",
+          "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+        },
+        "native_executed_in_this_run": false,
+        "native_program_identity_preserved": true
+      },
+      "spu-timer-plain": {
+        "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+        "run_id": 40900528171,
+        "run_attempt": 1,
+        "job_id": 123541250658,
+        "artifact_id": 12908797715,
+        "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+        "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+        "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+        "overall_run_conclusion": "failure",
+        "mode": "spu-timer-plain",
+        "host": {
+          "system": "Darwin",
+          "machine": "arm64",
+          "compiler": "Homebrew clang version 22.1.8",
+          "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+        },
+        "native_executed_in_this_run": false,
+        "native_program_identity_preserved": true
+      },
+      "spu-timer-asan-ubsan": {
+        "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+        "run_id": 40900528171,
+        "run_attempt": 1,
+        "job_id": 123541250658,
+        "artifact_id": 12908797715,
+        "artifact_sha256": "81709d20edf85b574cba6887c48476b6f7ef256ca1f503da3c21aecddbc02219",
+        "partial_proof_sha256": "50c821721991a066c4ffb5110e5524b4505f5839898d66cd57532dfa1cb7393f",
+        "metadata_sha256": "c8a5e3caab5455d022289e687611f1f49eb2cee80a9a43949775bc78acbb043d",
+        "overall_run_conclusion": "failure",
+        "mode": "spu-timer-asan-ubsan",
+        "host": {
+          "system": "Darwin",
+          "machine": "arm64",
+          "compiler": "Homebrew clang version 22.1.8",
+          "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+        },
+        "native_executed_in_this_run": false,
+        "native_program_identity_preserved": true
+      }
+    },
+    "otherHistoricalAppleModesNotReplayed": [
+      "bo2-admission-asan-ubsan",
+      "bo2-admission-plain",
+      "bo2-admission-tsan",
+      "bo2-fragment-key-asan-ubsan",
+      "bo2-fragment-key-plain",
+      "bo2-fragment-key-tsan",
+      "framebuffer-key-asan-ubsan",
+      "framebuffer-key-plain",
+      "jit-io-asan-ubsan",
+      "jit-io-plain",
+      "mvk-present-asan-ubsan",
+      "mvk-present-plain",
+      "mvk-present-tsan",
+      "submit-lifetime-asan-ubsan",
+      "submit-wake-plain",
+      "submit-wake-tsan"
+    ]
+  },
+  "reports": {
+    "fifo-partial-plain": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/fifo-partial-plain-result.json",
+      "sha256": "cfdf2c7e2ffa2a5fff21136df7095eb74913b992759c25e4fa7fcbe74790bc0d",
+      "recordedSHA256": "cfdf2c7e2ffa2a5fff21136df7095eb74913b992759c25e4fa7fcbe74790bc0d",
+      "identityMatchesProof": true,
+      "provenance": "checkpoint"
+    },
+    "fifo-partial-asan-ubsan": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/fifo-partial-asan-ubsan-result.json",
+      "sha256": "1fee6580861e25364c3e9c77be89ecc9b2aa60eae5b69799574aab2ab7a54e79",
+      "recordedSHA256": "1fee6580861e25364c3e9c77be89ecc9b2aa60eae5b69799574aab2ab7a54e79",
+      "identityMatchesProof": true,
+      "provenance": "checkpoint"
+    },
+    "texture-lifecycle-address-plain": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/texture-lifecycle-address-plain-result.json",
+      "sha256": "e6f5059b28a83530229b36b5e34b2d6eba8ceb5719c76dcbb8fbf5c836f64c77",
+      "recordedSHA256": "e6f5059b28a83530229b36b5e34b2d6eba8ceb5719c76dcbb8fbf5c836f64c77",
+      "identityMatchesProof": true,
+      "provenance": "checkpoint"
+    },
+    "texture-lifecycle-address-asan-ubsan": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/texture-lifecycle-address-asan-ubsan-result.json",
+      "sha256": "c7a82cf6618626a4571e6dae51d43207c0ae72c6da08188f599b1a2c267113d7",
+      "recordedSHA256": "c7a82cf6618626a4571e6dae51d43207c0ae72c6da08188f599b1a2c267113d7",
+      "identityMatchesProof": true,
+      "provenance": "checkpoint"
+    },
+    "texture-lifecycle-exact-plain": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/texture-lifecycle-exact-plain-result.json",
+      "sha256": "d91320586db1ea1913ea6827c3ace624155106074c8c07ca29edf3b80e55902b",
+      "recordedSHA256": "d91320586db1ea1913ea6827c3ace624155106074c8c07ca29edf3b80e55902b",
+      "identityMatchesProof": true,
+      "provenance": "checkpoint"
+    },
+    "texture-lifecycle-exact-asan-ubsan": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/texture-lifecycle-exact-asan-ubsan-result.json",
+      "sha256": "deb9b3530d3cabf5b2df00a062046bc72909782cb9575b802829d873154495f5",
+      "recordedSHA256": "deb9b3530d3cabf5b2df00a062046bc72909782cb9575b802829d873154495f5",
+      "identityMatchesProof": true,
+      "provenance": "checkpoint"
+    },
+    "async-upload-wait-plain": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/async-upload-wait-plain-result.json",
+      "sha256": "6496616cd05c87b713a45a9c8e691ed868dcf8db1e21ded4c34ee16c0f7ea1a6",
+      "recordedSHA256": "6496616cd05c87b713a45a9c8e691ed868dcf8db1e21ded4c34ee16c0f7ea1a6",
+      "identityMatchesProof": true,
+      "provenance": "checkpoint"
+    },
+    "async-upload-wait-asan-ubsan": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/async-upload-wait-asan-ubsan-result.json",
+      "sha256": "68286ee84ea0917cc96f8f866494eb044bf2626a514e52f8d77aa2f44ddb73c9",
+      "recordedSHA256": "68286ee84ea0917cc96f8f866494eb044bf2626a514e52f8d77aa2f44ddb73c9",
+      "identityMatchesProof": true,
+      "provenance": "checkpoint"
+    },
+    "bx2-sampler-transition-plain": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/bx2-sampler-transition-plain-result.json",
+      "sha256": "8667eab01f42f08754aff8c31ccbc0ac20504595aae6e292ebc2bf48b21e1aed",
+      "recordedSHA256": "8667eab01f42f08754aff8c31ccbc0ac20504595aae6e292ebc2bf48b21e1aed",
+      "identityMatchesProof": true,
+      "provenance": "checkpoint"
+    },
+    "bx2-sampler-transition-asan-ubsan": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/bx2-sampler-transition-asan-ubsan-result.json",
+      "sha256": "fdd9f7580f2d5f1fc26737f8b90923fc214c2f388e5f173c6e89a76309f6b071",
+      "recordedSHA256": "fdd9f7580f2d5f1fc26737f8b90923fc214c2f388e5f173c6e89a76309f6b071",
+      "identityMatchesProof": true,
+      "provenance": "checkpoint"
+    },
+    "spu-mfc-plain": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/spu-mfc-plain-result.json",
+      "sha256": "43fca97d8e4e59a2470010d6db476a6cbf740d0aeff0328bdf856e3b3380dee8",
+      "recordedSHA256": "43fca97d8e4e59a2470010d6db476a6cbf740d0aeff0328bdf856e3b3380dee8",
+      "identityMatchesProof": true,
+      "provenance": "checkpoint"
+    },
+    "spu-mfc-asan-ubsan": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/spu-mfc-asan-ubsan-result.json",
+      "sha256": "cba3256db39e8e19b35a958155d3fcfca6ed7117e811f622ee1bf5caef68cc46",
+      "recordedSHA256": "cba3256db39e8e19b35a958155d3fcfca6ed7117e811f622ee1bf5caef68cc46",
+      "identityMatchesProof": true,
+      "provenance": "checkpoint"
+    },
+    "spu-timer-plain": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/spu-timer-plain-result.json",
+      "sha256": "5baf5cb1f180a6f1eac2d7cc16b1874d3db67fb13d89a8f3d2c60b4ca56173a0",
+      "recordedSHA256": "5baf5cb1f180a6f1eac2d7cc16b1874d3db67fb13d89a8f3d2c60b4ca56173a0",
+      "identityMatchesProof": true,
+      "provenance": "checkpoint"
+    },
+    "spu-timer-asan-ubsan": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/spu-timer-asan-ubsan-result.json",
+      "sha256": "d3f1ab4dcaa4d009fa2b8036ffe33182caf402adee97f43e89489c9826c0d468",
+      "recordedSHA256": "d3f1ab4dcaa4d009fa2b8036ffe33182caf402adee97f43e89489c9826c0d468",
+      "identityMatchesProof": true,
+      "provenance": "checkpoint"
+    },
+    "descriptor-bind-plain": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/descriptor-bind-plain-result.json",
+      "sha256": "2a3c008a57643417ec8ca1dd9b6a0335abbc6798f2cbe05bfe35b5a14190fa33",
+      "recordedSHA256": "2a3c008a57643417ec8ca1dd9b6a0335abbc6798f2cbe05bfe35b5a14190fa33",
+      "identityMatchesProof": true,
+      "provenance": "latest-run"
+    },
+    "descriptor-bind-asan-ubsan": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/descriptor-bind-asan-ubsan-result.json",
+      "sha256": "eb23d36b985c0d1acbb66825db243b2c3ecf9e4bef382f182af893f5ad07fa6e",
+      "recordedSHA256": "eb23d36b985c0d1acbb66825db243b2c3ecf9e4bef382f182af893f5ad07fa6e",
+      "identityMatchesProof": true,
+      "provenance": "latest-run"
+    },
+    "texture-hash-reuse-plain": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/texture-hash-reuse-plain-result.json",
+      "sha256": "b7143512e99b927ef7aaacabc1fc2478eb5134885deaaafb389105f90c161661",
+      "recordedSHA256": "b7143512e99b927ef7aaacabc1fc2478eb5134885deaaafb389105f90c161661",
+      "identityMatchesProof": true,
+      "provenance": "latest-run"
+    },
+    "texture-hash-reuse-asan-ubsan": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/texture-hash-reuse-asan-ubsan-result.json",
+      "sha256": "071988362fb664aa36fc96adebd31809b3d78d3695973e8bffae382d97b67805",
+      "recordedSHA256": "071988362fb664aa36fc96adebd31809b3d78d3695973e8bffae382d97b67805",
+      "identityMatchesProof": true,
+      "provenance": "latest-run"
+    },
+    "texture-hash-reuse-tsan": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/texture-hash-reuse-tsan-result.json",
+      "sha256": "7308d8c07df5fef3d4a52cae1fa342e8d727ad4972a2373053dcd7ff3bf95c12",
+      "recordedSHA256": "7308d8c07df5fef3d4a52cae1fa342e8d727ad4972a2373053dcd7ff3bf95c12",
+      "identityMatchesProof": true,
+      "provenance": "latest-run"
+    },
+    "neoswap-discard-plain": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/neoswap-discard-plain-result.json",
+      "sha256": "29e1dbb892b04293cf45dbadcfba616b9a7492cb1b011bae7ebf988524a10a86",
+      "recordedSHA256": "29e1dbb892b04293cf45dbadcfba616b9a7492cb1b011bae7ebf988524a10a86",
+      "identityMatchesProof": true,
+      "provenance": "latest-run"
+    },
+    "neoswap-discard-asan-ubsan": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/neoswap-discard-asan-ubsan-result.json",
+      "sha256": "d35a0682267a505c4fd7add2f73a588bdf29261fab4dbfabc91106d7e15ac55a",
+      "recordedSHA256": "d35a0682267a505c4fd7add2f73a588bdf29261fab4dbfabc91106d7e15ac55a",
+      "identityMatchesProof": true,
+      "provenance": "latest-run"
+    },
+    "neoswap-discard-tsan": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/neoswap-discard-tsan-result.json",
+      "sha256": "f906f1b8bb87922e09b29f04b69e7fa07614c772087fc932bd38a165b7ea93d6",
+      "recordedSHA256": "f906f1b8bb87922e09b29f04b69e7fa07614c772087fc932bd38a165b7ea93d6",
+      "identityMatchesProof": true,
+      "provenance": "latest-run"
+    },
+    "viewport-scissor-plain": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/viewport-scissor-plain-result.json",
+      "sha256": "9fa1cf88ded23369acdb189154eb4f34990ab11a617ec9cf4bae7e41c446e81a",
+      "recordedSHA256": "9fa1cf88ded23369acdb189154eb4f34990ab11a617ec9cf4bae7e41c446e81a",
+      "identityMatchesProof": true,
+      "provenance": "latest-run"
+    },
+    "viewport-scissor-asan-ubsan": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/viewport-scissor-asan-ubsan-result.json",
+      "sha256": "848b7465cee718d2f04aa0bce149bec295d799c5cae8b7655f67d5b32ff497ca",
+      "recordedSHA256": "848b7465cee718d2f04aa0bce149bec295d799c5cae8b7655f67d5b32ff497ca",
+      "identityMatchesProof": true,
+      "provenance": "latest-run"
+    },
+    "rsx-write-sampler-plain": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/rsx-write-sampler-plain-result.json",
+      "sha256": "149442af4415639d9e78cd098bdddd480de5df8cf6296d1e0fbbe45e518718be",
+      "recordedSHA256": "149442af4415639d9e78cd098bdddd480de5df8cf6296d1e0fbbe45e518718be",
+      "identityMatchesProof": true,
+      "provenance": "latest-run"
+    },
+    "rsx-write-sampler-asan-ubsan": {
+      "path": "/workspace/scratch/4e89feaca92b/core-build-global/5b2a5614/preflight/rsx-write-sampler-asan-ubsan-result.json",
+      "sha256": "9ef6433c3323938cdae10190bf0a6db7eb01e7a559628937b7a62a164a02015e",
+      "recordedSHA256": "9ef6433c3323938cdae10190bf0a6db7eb01e7a559628937b7a62a164a02015e",
+      "identityMatchesProof": true,
+      "provenance": "latest-run"
+    }
+  },
+  "measurements": {
+    "spu-mfc": {
+      "report": "spu-mfc-plain",
+      "counters": {
+        "passed": true,
+        "assertionsActive": true,
+        "maskCases": 18939904,
+        "noShuffleOrEmptyMaskCases": 2162688,
+        "enabledNonemptyMaskCases": 16777216,
+        "baselineMaskClockReads": 18939904,
+        "candidateMaskClockReads": 16777216,
+        "queueScenarios": 78336,
+        "queueCalls": 235008,
+        "baselineZeroLimitQueueClockReads": 13824,
+        "candidateZeroLimitQueueClockReads": 0,
+        "emptyQueueInterruptEscapes": 4944,
+        "deliveredTags": 48960,
+        "executedBarriers": 113832,
+        "stepDeferrals": 12450,
+        "listResumptions": 85779
+      },
+      "series": 7,
+      "rows": [
+        {
+          "shuffle": 0,
+          "queueSize": 16,
+          "baselineNs": 1.13042,
+          "candidateNs": 1.51875,
+          "durationChangePercent": 34.352718458626,
+          "absoluteChangeNs": 0.38833000000000006,
+          "baselineSeriesNs": [
+            1.15112,
+            1.06888,
+            1.2965,
+            1.19013,
+            1.13042,
+            1.02346,
+            1.08867
+          ],
+          "candidateSeriesNs": [
+            1.51396,
+            1.57283,
+            1.629,
+            1.62563,
+            1.37888,
+            1.35167,
+            1.51875
+          ],
+          "baselineRangeNs": [
+            1.02346,
+            1.2965
+          ],
+          "candidateRangeNs": [
+            1.35167,
+            1.629
+          ]
+        },
+        {
+          "shuffle": 0,
+          "queueSize": 0,
+          "baselineNs": 1.26887,
+          "candidateNs": 1.57179,
+          "durationChangePercent": 23.873210021515213,
+          "absoluteChangeNs": 0.3029200000000001,
+          "baselineSeriesNs": [
+            1.26887,
+            1.122,
+            1.35312,
+            1.2575,
+            1.41912,
+            1.28958,
+            1.19929
+          ],
+          "candidateSeriesNs": [
+            1.46517,
+            1.57179,
+            1.76608,
+            1.60342,
+            1.54604,
+            1.66758,
+            1.49017
+          ],
+          "baselineRangeNs": [
+            1.122,
+            1.41912
+          ],
+          "candidateRangeNs": [
+            1.46517,
+            1.76608
+          ]
+        },
+        {
+          "shuffle": 1,
+          "queueSize": 16,
+          "baselineNs": 1.21513,
+          "candidateNs": 1.57721,
+          "durationChangePercent": 29.797634820965648,
+          "absoluteChangeNs": 0.36207999999999996,
+          "baselineSeriesNs": [
+            1.16263,
+            1.57233,
+            1.30387,
+            1.19063,
+            1.14121,
+            1.21513,
+            1.31579
+          ],
+          "candidateSeriesNs": [
+            1.72229,
+            1.51337,
+            2.04717,
+            2.10025,
+            1.57721,
+            1.42279,
+            1.46196
+          ],
+          "baselineRangeNs": [
+            1.14121,
+            1.57233
+          ],
+          "candidateRangeNs": [
+            1.42279,
+            2.10025
+          ]
+        },
+        {
+          "shuffle": 16,
+          "queueSize": 16,
+          "baselineNs": 1.96875,
+          "candidateNs": 2.15871,
+          "durationChangePercent": 9.648761904761916,
+          "absoluteChangeNs": 0.18996000000000013,
+          "baselineSeriesNs": [
+            1.42162,
+            1.97733,
+            2.05471,
+            1.96875,
+            2.02862,
+            1.0615,
+            1.04008
+          ],
+          "candidateSeriesNs": [
+            2.18658,
+            2.1755,
+            2.15871,
+            2.1615,
+            1.57458,
+            1.63371,
+            1.37092
+          ],
+          "baselineRangeNs": [
+            1.04008,
+            2.05471
+          ],
+          "candidateRangeNs": [
+            1.37092,
+            2.18658
+          ]
+        }
+      ],
+      "iterationsPerSeries": 1000000,
+      "timingScope": "Only noinline native mask helper including actual ARM64 get_tsc hardware instruction (mrs cntvct_el0), compiler barriers and call/loop overhead; no real DMA or full do_mfc timing.",
+      "clockDistinction": "Functional equivalence and clock-read counts use a deterministic clock adapter. The separately compiled plain timing extracts the production get_tsc and uses the real ARM64 counter.",
+      "finding": "All four Apple median mask timings regressed; removed clock-read counts do not establish an Apple elapsed-time improvement.",
+      "sourceReferences": [
+        "test/rpcs3_spu_mfc_runtime_test.py::timing_program",
+        "rpcs3/util/tsc.hpp::utils::get_tsc",
+        "test/native/rpcs3_spu_mfc_runtime.inc"
+      ]
+    },
+    "spu-timer": {
+      "report": "spu-timer-plain",
+      "counters": {
+        "passed": true,
+        "assertionsActive": true,
+        "matrixCases": 210,
+        "reentrantCases": 1,
+        "shutdownCases": 1,
+        "firstAllocationFailureCases": 2,
+        "baselineNonemptyErases": 10357,
+        "candidateNonemptyErases": 277,
+        "baselineShiftedSlots": 960340,
+        "candidateShiftedSlots": 0,
+        "baselineDueAllocations": 1065,
+        "candidateDueAllocations": 277,
+        "obsoleteTokensRejected": 6145,
+        "notifications": 2172,
+        "pendingOrderComparisons": 636,
+        "waitDeadlineComparisons": 636,
+        "callbacksWhileLocked": 0,
+        "reentrantRetainedUntilCallbackReturned": true
+      },
+      "series": 7,
+      "rows": [
+        {
+          "entries": 6,
+          "pattern": "all_due",
+          "iterationsPerSample": 14285,
+          "baselineNs": 195.356,
+          "candidateNs": 62.6064,
+          "durationChangePercent": -67.95266078339033,
+          "absoluteChangeNs": -132.7496,
+          "baselineSeriesNs": [
+            160.39,
+            159.275,
+            174.032,
+            347.865,
+            397.958,
+            346.739,
+            195.356
+          ],
+          "candidateSeriesNs": [
+            56.3587,
+            54.9323,
+            155.924,
+            120.476,
+            71.9286,
+            62.6064,
+            59.0917
+          ],
+          "baselineRangeNs": [
+            159.275,
+            397.958
+          ],
+          "candidateRangeNs": [
+            54.9323,
+            155.924
+          ]
+        },
+        {
+          "entries": 6,
+          "pattern": "alternating",
+          "iterationsPerSample": 14285,
+          "baselineNs": 151.292,
+          "candidateNs": 70.5198,
+          "durationChangePercent": -53.38828226211565,
+          "absoluteChangeNs": -80.7722,
+          "baselineSeriesNs": [
+            151.292,
+            144.423,
+            140.978,
+            233.322,
+            299.752,
+            126.604,
+            230.901
+          ],
+          "candidateSeriesNs": [
+            57.75,
+            66.4655,
+            70.5198,
+            65.7391,
+            166.562,
+            85.5763,
+            151.701
+          ],
+          "baselineRangeNs": [
+            126.604,
+            299.752
+          ],
+          "candidateRangeNs": [
+            57.75,
+            166.562
+          ]
+        },
+        {
+          "entries": 6,
+          "pattern": "none_due",
+          "iterationsPerSample": 14285,
+          "baselineNs": 82.9133,
+          "candidateNs": 91.935,
+          "durationChangePercent": 10.880884007752666,
+          "absoluteChangeNs": 9.021699999999996,
+          "baselineSeriesNs": [
+            85.3343,
+            36.5359,
+            38.7965,
+            109.97,
+            82.9133,
+            84.8822,
+            62.8748
+          ],
+          "candidateSeriesNs": [
+            100.936,
+            91.935,
+            114.957,
+            37.8923,
+            96.494,
+            69.671,
+            35.3138
+          ],
+          "baselineRangeNs": [
+            36.5359,
+            109.97
+          ],
+          "candidateRangeNs": [
+            35.3138,
+            114.957
+          ]
+        },
+        {
+          "entries": 32,
+          "pattern": "all_due",
+          "iterationsPerSample": 3030,
+          "baselineNs": 935.932,
+          "candidateNs": 246.658,
+          "durationChangePercent": -73.64573494655595,
+          "absoluteChangeNs": -689.274,
+          "baselineSeriesNs": [
+            492.767,
+            1378.44,
+            899.353,
+            530.789,
+            935.932,
+            1379.22,
+            1408.81
+          ],
+          "candidateSeriesNs": [
+            148.982,
+            246.658,
+            171.053,
+            184.227,
+            388.958,
+            394.953,
+            394.912
+          ],
+          "baselineRangeNs": [
+            492.767,
+            1408.81
+          ],
+          "candidateRangeNs": [
+            148.982,
+            394.953
+          ]
+        },
+        {
+          "entries": 32,
+          "pattern": "alternating",
+          "iterationsPerSample": 3030,
+          "baselineNs": 389.453,
+          "candidateNs": 139.728,
+          "durationChangePercent": -64.12198647847109,
+          "absoluteChangeNs": -249.72499999999997,
+          "baselineSeriesNs": [
+            1010.04,
+            389.453,
+            569.664,
+            323.515,
+            364.013,
+            330.872,
+            472.814
+          ],
+          "candidateSeriesNs": [
+            314.576,
+            259.777,
+            139.728,
+            135.272,
+            133.347,
+            139.453,
+            264.178
+          ],
+          "baselineRangeNs": [
+            323.515,
+            1010.04
+          ],
+          "candidateRangeNs": [
+            133.347,
+            314.576
+          ]
+        },
+        {
+          "entries": 32,
+          "pattern": "none_due",
+          "iterationsPerSample": 3030,
+          "baselineNs": 53.0941,
+          "candidateNs": 54.7716,
+          "durationChangePercent": 3.159484763843823,
+          "absoluteChangeNs": 1.677500000000002,
+          "baselineSeriesNs": [
+            52.434,
+            53.0941,
+            52.929,
+            56.4904,
+            104.579,
+            55.1429,
+            52.0901
+          ],
+          "candidateSeriesNs": [
+            51.7053,
+            51.9528,
+            55.5281,
+            54.7716,
+            61.0149,
+            54.8267,
+            52.1865
+          ],
+          "baselineRangeNs": [
+            52.0901,
+            104.579
+          ],
+          "candidateRangeNs": [
+            51.7053,
+            61.0149
+          ]
+        },
+        {
+          "entries": 128,
+          "pattern": "all_due",
+          "iterationsPerSample": 775,
+          "baselineNs": 4911.29,
+          "candidateNs": 694.032,
+          "durationChangePercent": -85.86864143636397,
+          "absoluteChangeNs": -4217.258,
+          "baselineSeriesNs": [
+            3760.11,
+            4911.29,
+            7371.67,
+            8110.75,
+            9909.41,
+            4045.32,
+            3500.54
+          ],
+          "candidateSeriesNs": [
+            424.409,
+            418.28,
+            694.032,
+            794.839,
+            2242.37,
+            1090.22,
+            391.99
+          ],
+          "baselineRangeNs": [
+            3500.54,
+            9909.41
+          ],
+          "candidateRangeNs": [
+            391.99,
+            2242.37
+          ]
+        },
+        {
+          "entries": 128,
+          "pattern": "alternating",
+          "iterationsPerSample": 775,
+          "baselineNs": 3567.37,
+          "candidateNs": 272.581,
+          "durationChangePercent": -92.35904882308255,
+          "absoluteChangeNs": -3294.7889999999998,
+          "baselineSeriesNs": [
+            1997.26,
+            1994.62,
+            6943.06,
+            3567.37,
+            10464.2,
+            10403.7,
+            1948.06
+          ],
+          "candidateSeriesNs": [
+            267.526,
+            271.666,
+            595.375,
+            590.484,
+            275.538,
+            272.581,
+            270.861
+          ],
+          "baselineRangeNs": [
+            1948.06,
+            10464.2
+          ],
+          "candidateRangeNs": [
+            267.526,
+            595.375
+          ]
+        },
+        {
+          "entries": 128,
+          "pattern": "none_due",
+          "iterationsPerSample": 775,
+          "baselineNs": 157.205,
+          "candidateNs": 154.032,
+          "durationChangePercent": -2.01838363919723,
+          "absoluteChangeNs": -3.173000000000002,
+          "baselineSeriesNs": [
+            163.818,
+            170.538,
+            157.474,
+            157.205,
+            156.56,
+            154.086,
+            154.516
+          ],
+          "candidateSeriesNs": [
+            155.806,
+            158.657,
+            160.914,
+            153.925,
+            154.032,
+            152.097,
+            152.151
+          ],
+          "baselineRangeNs": [
+            154.086,
+            170.538
+          ],
+          "candidateRangeNs": [
+            152.097,
+            160.914
+          ]
+        },
+        {
+          "entries": 1024,
+          "pattern": "all_due",
+          "iterationsPerSample": 97,
+          "baselineNs": 331230,
+          "candidateNs": 5016.32,
+          "durationChangePercent": -98.48554780666002,
+          "absoluteChangeNs": -326213.68,
+          "baselineSeriesNs": [
+            261756,
+            353949,
+            331230,
+            395336,
+            330598,
+            340953,
+            277514
+          ],
+          "candidateSeriesNs": [
+            5003.87,
+            4960.47,
+            7113.4,
+            5016.32,
+            5775.35,
+            8013.32,
+            3375.86
+          ],
+          "baselineRangeNs": [
+            261756,
+            395336
+          ],
+          "candidateRangeNs": [
+            3375.86,
+            8013.32
+          ]
+        },
+        {
+          "entries": 1024,
+          "pattern": "alternating",
+          "iterationsPerSample": 97,
+          "baselineNs": 161842,
+          "candidateNs": 1779.21,
+          "durationChangePercent": -98.90065001668293,
+          "absoluteChangeNs": -160062.79,
+          "baselineSeriesNs": [
+            168036,
+            146604,
+            98347.9,
+            112842,
+            197127,
+            304790,
+            161842
+          ],
+          "candidateSeriesNs": [
+            1779.21,
+            1659.79,
+            1709.62,
+            1641.75,
+            7824.74,
+            7837.2,
+            2762.03
+          ],
+          "baselineRangeNs": [
+            98347.9,
+            304790
+          ],
+          "candidateRangeNs": [
+            1641.75,
+            7837.2
+          ]
+        },
+        {
+          "entries": 1024,
+          "pattern": "none_due",
+          "iterationsPerSample": 97,
+          "baselineNs": 2282.22,
+          "candidateNs": 3206.19,
+          "durationChangePercent": 40.485579830165385,
+          "absoluteChangeNs": 923.9700000000003,
+          "baselineSeriesNs": [
+            3551.55,
+            1110.82,
+            2806.27,
+            3901.2,
+            1292.96,
+            2282.22,
+            1109.54
+          ],
+          "candidateSeriesNs": [
+            4346.22,
+            1339.77,
+            1161.08,
+            6707.05,
+            3206.19,
+            3580.76,
+            1164.09
+          ],
+          "baselineRangeNs": [
+            1109.54,
+            3901.2
+          ],
+          "candidateRangeNs": [
+            1161.08,
+            6707.05
+          ]
+        }
+      ],
+      "timingScope": "Production locked sweep with ordinary std::vectors and a host mutex, including input-vector reassignment and due-vector creation/destruction in the timed loop. Guest time/scheduling and atomic publication are adapted, not a complete scheduler.",
+      "counterQualification": "candidateShiftedSlots=0 counts erase-induced shifts only; it does not mean the stable compaction performs zero element moves.",
+      "finding": "Expired batches are faster in this host benchmark, but no-expiry medians regress for 6, 32 and 1024 entries and exhibit substantial spread.",
+      "sourceReferences": [
+        "test/rpcs3_spu_timer_runtime_test.py::timing_program",
+        "test/native/rpcs3_spu_timer_runtime.inc"
+      ]
+    },
+    "descriptor-bind": {
+      "report": "descriptor-bind-plain",
+      "rows": [
+        {
+          "pattern": "graphics_hits",
+          "operationsPerSeries": 2000000,
+          "series": 7,
+          "baselineNs": 1.4485835,
+          "candidateNs": 2.408667,
+          "durationChangePercent": 66.27740133723736,
+          "absoluteChangeNs": 0.9600834999999999,
+          "baselineSeriesNs": [
+            1.4014585,
+            1.4485835,
+            1.4724375,
+            1.4527085,
+            1.4784795,
+            1.4220835,
+            1.435396
+          ],
+          "candidateSeriesNs": [
+            4.385,
+            2.3918545,
+            2.3263955,
+            2.408667,
+            2.3535835,
+            2.766333,
+            2.893271
+          ],
+          "baselineRangeNs": [
+            1.4014585,
+            1.4784795
+          ],
+          "candidateRangeNs": [
+            2.3263955,
+            4.385
+          ],
+          "baselineDriverCalls": 1,
+          "candidateDriverCalls": 1
+        },
+        {
+          "pattern": "changing_sets",
+          "operationsPerSeries": 2000000,
+          "series": 7,
+          "baselineNs": 3.31575,
+          "candidateNs": 6.5831665,
+          "durationChangePercent": 98.54230566236899,
+          "absoluteChangeNs": 3.2674165,
+          "baselineSeriesNs": [
+            3.31575,
+            3.233792,
+            3.301771,
+            3.367042,
+            3.419458,
+            3.361354,
+            3.2606875
+          ],
+          "candidateSeriesNs": [
+            6.5831665,
+            9.246271,
+            9.8222915,
+            9.0387085,
+            5.1675415,
+            4.6518335,
+            4.392625
+          ],
+          "baselineRangeNs": [
+            3.233792,
+            3.419458
+          ],
+          "candidateRangeNs": [
+            4.392625,
+            9.8222915
+          ],
+          "baselineDriverCalls": 2000000,
+          "candidateDriverCalls": 2000000
+        },
+        {
+          "pattern": "alternating_bind_points",
+          "operationsPerSeries": 2000000,
+          "series": 7,
+          "baselineNs": 3.358542,
+          "candidateNs": 2.5505835,
+          "durationChangePercent": -24.056822871353102,
+          "absoluteChangeNs": -0.8079584999999998,
+          "baselineSeriesNs": [
+            3.3309165,
+            3.366917,
+            3.2863335,
+            3.424146,
+            3.359604,
+            3.3308335,
+            3.358542
+          ],
+          "candidateSeriesNs": [
+            2.5469375,
+            2.445,
+            2.663583,
+            2.5541875,
+            2.4390415,
+            2.5505835,
+            3.138375
+          ],
+          "baselineRangeNs": [
+            3.2863335,
+            3.424146
+          ],
+          "candidateRangeNs": [
+            2.4390415,
+            3.138375
+          ],
+          "baselineDriverCalls": 2000000,
+          "candidateDriverCalls": 2
+        }
+      ],
+      "baselineCounters": {
+        "returncode": 86,
+        "mismatches": 1141,
+        "commandBufferBytes": 288,
+        "cases": [
+          {
+            "name": "graphics_repeat_plain",
+            "attempts": 64,
+            "calls": 1,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "graphics_repeat_empty_offset_overload",
+            "attempts": 64,
+            "calls": 1,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "alternating_bind_points",
+            "attempts": 128,
+            "calls": 128,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "equal_handles_different_bind_point",
+            "attempts": 8,
+            "calls": 1,
+            "mismatches": 4,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "incompatible_layout_same_handles",
+            "attempts": 8,
+            "calls": 1,
+            "mismatches": 4,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "overlay_return",
+            "attempts": 32,
+            "calls": 25,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "prefix_count_changes",
+            "attempts": 24,
+            "calls": 1,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "changed_descriptor_handles",
+            "attempts": 64,
+            "calls": 64,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "dynamic_offsets_passthrough",
+            "attempts": 32,
+            "calls": 32,
+            "mismatches": 0,
+            "dynamicCalls": 32,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "dynamic_compute_preserves_graphics",
+            "attempts": 33,
+            "calls": 33,
+            "mismatches": 0,
+            "dynamicCalls": 16,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "dynamic_prefix_to_plain",
+            "attempts": 24,
+            "calls": 16,
+            "mismatches": 0,
+            "dynamicCalls": 8,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "unknown_bind_point_passthrough",
+            "attempts": 8,
+            "calls": 1,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "empty_spans",
+            "attempts": 16,
+            "calls": 0,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "real_begin_resets",
+            "attempts": 4,
+            "calls": 4,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "already_open_begin_preserves",
+            "attempts": 2,
+            "calls": 1,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "pending_reuse",
+            "attempts": 2,
+            "calls": 2,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "independent_command_buffers",
+            "attempts": 4,
+            "calls": 2,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "deterministic_mixed_sequence",
+            "attempts": 4096,
+            "calls": 2331,
+            "mismatches": 1133,
+            "dynamicCalls": 854,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "production_program_reuse",
+            "attempts": 32,
+            "calls": 32,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 3,
+            "templateCreates": 3,
+            "templateUpdates": 0,
+            "pipelineCalls": 2
+          },
+          {
+            "name": "production_program_dirty_and_overlay",
+            "attempts": 36,
+            "calls": 36,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 5,
+            "templateCreates": 4,
+            "templateUpdates": 1,
+            "pipelineCalls": 4
+          }
+        ]
+      },
+      "candidateCounters": {
+        "returncode": 0,
+        "mismatches": 0,
+        "commandBufferBytes": 336,
+        "cases": [
+          {
+            "name": "graphics_repeat_plain",
+            "attempts": 64,
+            "calls": 1,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "graphics_repeat_empty_offset_overload",
+            "attempts": 64,
+            "calls": 1,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "alternating_bind_points",
+            "attempts": 128,
+            "calls": 2,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "equal_handles_different_bind_point",
+            "attempts": 8,
+            "calls": 2,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "incompatible_layout_same_handles",
+            "attempts": 8,
+            "calls": 8,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "overlay_return",
+            "attempts": 32,
+            "calls": 18,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "prefix_count_changes",
+            "attempts": 24,
+            "calls": 17,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "changed_descriptor_handles",
+            "attempts": 64,
+            "calls": 64,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "dynamic_offsets_passthrough",
+            "attempts": 32,
+            "calls": 32,
+            "mismatches": 0,
+            "dynamicCalls": 32,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "dynamic_compute_preserves_graphics",
+            "attempts": 33,
+            "calls": 17,
+            "mismatches": 0,
+            "dynamicCalls": 16,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "dynamic_prefix_to_plain",
+            "attempts": 24,
+            "calls": 24,
+            "mismatches": 0,
+            "dynamicCalls": 8,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "unknown_bind_point_passthrough",
+            "attempts": 8,
+            "calls": 8,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "empty_spans",
+            "attempts": 16,
+            "calls": 0,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "real_begin_resets",
+            "attempts": 4,
+            "calls": 4,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "already_open_begin_preserves",
+            "attempts": 2,
+            "calls": 1,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "pending_reuse",
+            "attempts": 2,
+            "calls": 2,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "independent_command_buffers",
+            "attempts": 4,
+            "calls": 2,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "deterministic_mixed_sequence",
+            "attempts": 4096,
+            "calls": 3616,
+            "mismatches": 0,
+            "dynamicCalls": 854,
+            "allocations": 0,
+            "templateCreates": 0,
+            "templateUpdates": 0,
+            "pipelineCalls": 0
+          },
+          {
+            "name": "production_program_reuse",
+            "attempts": 32,
+            "calls": 2,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 3,
+            "templateCreates": 3,
+            "templateUpdates": 0,
+            "pipelineCalls": 2
+          },
+          {
+            "name": "production_program_dirty_and_overlay",
+            "attempts": 36,
+            "calls": 5,
+            "mismatches": 0,
+            "dynamicCalls": 0,
+            "allocations": 5,
+            "templateCreates": 4,
+            "templateUpdates": 1,
+            "pipelineCalls": 4
+          }
+        ]
+      },
+      "timingScope": "Host iOS-code-path wrapper with noinline mock vkCmdBindDescriptorSets that increments a counter and checksum. Capture/model recording disabled during timing. No Vulkan device, MoltenVK, GPU or real driver cost.",
+      "finding": "Alternating bind points improve and redundant emissions drop, while pure graphics hits and changing handles cost more. Correctness errors fall from 1141 to zero; total call counts must not be treated as a universal reduction because previously incorrect omissions are repaired.",
+      "memoryQualification": "Mock iOS command-buffer size increases 288 to 336 bytes (+48), with unchanged allocation counts in program fixtures. This is not a full Core RSS measurement.",
+      "desktopQualification": "Unchanged desktop native path intentionally retains baseline errors (1141) and expected returncode 86; only candidate-ios fixes them. Wrapper passed=true reflects this explicit control.",
+      "sourceReferences": [
+        "test/native/rpcs3_descriptor_bind_cache.inc::vkCmdBindDescriptorSets",
+        "test/native/rpcs3_descriptor_bind_cache.inc::measure",
+        "test/rpcs3_descriptor_bind_cache_test.py"
+      ]
+    },
+    "texture-hash-reuse": {
+      "report": "texture-hash-reuse-plain",
+      "rows": [
+        {
+          "bytes": 32768,
+          "pattern": "identical",
+          "sections": 8,
+          "iterationsPerSeries": 64,
+          "series": 7,
+          "baselineNs": 956.2988281,
+          "candidateNs": 929.9316406,
+          "durationChangePercent": -2.757212152229338,
+          "absoluteChangeNs": -26.3671875,
+          "baselineSeriesNs": [
+            940.4296875,
+            951.0898438,
+            956.2988281,
+            957.1132812,
+            1036.296875,
+            953.6953125,
+            978.515625
+          ],
+          "candidateSeriesNs": [
+            934.4882812,
+            928.7929688,
+            929.9316406,
+            929.7695312,
+            928.3867188,
+            936.7675781,
+            950.3574219
+          ],
+          "baselineRangeNs": [
+            940.4296875,
+            1036.296875
+          ],
+          "candidateRangeNs": [
+            928.3867188,
+            950.3574219
+          ]
+        },
+        {
+          "bytes": 32768,
+          "pattern": "distinct",
+          "sections": 8,
+          "iterationsPerSeries": 64,
+          "series": 7,
+          "baselineNs": 962.4824219,
+          "candidateNs": 969.8886719,
+          "durationChangePercent": 0.7694945727299229,
+          "absoluteChangeNs": 7.40625,
+          "baselineSeriesNs": [
+            970.296875,
+            951.8242188,
+            1048.259766,
+            962.4824219,
+            949.625,
+            949.3007812,
+            965.8203125
+          ],
+          "candidateSeriesNs": [
+            947.5917969,
+            969.8886719,
+            947.9160156,
+            1026.123047,
+            974.2851562,
+            922.1191406,
+            981.9335938
+          ],
+          "baselineRangeNs": [
+            949.3007812,
+            1048.259766
+          ],
+          "candidateRangeNs": [
+            922.1191406,
+            1026.123047
+          ]
+        },
+        {
+          "bytes": 32768,
+          "pattern": "scoped_bypass",
+          "sections": 8,
+          "iterationsPerSeries": 64,
+          "series": 7,
+          "baselineNs": 989.9101562,
+          "candidateNs": 956.3808594,
+          "durationChangePercent": -3.3871050407958236,
+          "absoluteChangeNs": -33.5292968,
+          "baselineSeriesNs": [
+            958.7402344,
+            996.09375,
+            1022.787109,
+            956.9511719,
+            989.9101562,
+            983.96875,
+            990.5585938
+          ],
+          "candidateSeriesNs": [
+            961.1015625,
+            990.5605469,
+            979.7363281,
+            956.3808594,
+            931.3144531,
+            931.9667969,
+            930.2558594
+          ],
+          "baselineRangeNs": [
+            956.9511719,
+            1022.787109
+          ],
+          "candidateRangeNs": [
+            930.2558594,
+            990.5605469
+          ]
+        },
+        {
+          "bytes": 65536,
+          "pattern": "identical",
+          "sections": 8,
+          "iterationsPerSeries": 32,
+          "series": 7,
+          "baselineNs": 1953.613281,
+          "candidateNs": 281.5742188,
+          "durationChangePercent": -85.58700324478394,
+          "absoluteChangeNs": -1672.0390622,
+          "baselineSeriesNs": [
+            2346.027344,
+            1945.148438,
+            1906.085938,
+            1931.640625,
+            1991.535156,
+            1953.613281,
+            1995.765625
+          ],
+          "candidateSeriesNs": [
+            494.953125,
+            266.9257812,
+            324.8671875,
+            247.0703125,
+            347.0039062,
+            281.5742188,
+            247.71875
+          ],
+          "baselineRangeNs": [
+            1906.085938,
+            2346.027344
+          ],
+          "candidateRangeNs": [
+            247.0703125,
+            494.953125
+          ]
+        },
+        {
+          "bytes": 65536,
+          "pattern": "distinct",
+          "sections": 8,
+          "iterationsPerSeries": 32,
+          "series": 7,
+          "baselineNs": 1946.613281,
+          "candidateNs": 1794.921875,
+          "durationChangePercent": -7.792580451422493,
+          "absoluteChangeNs": -151.69140599999992,
+          "baselineSeriesNs": [
+            2268.554688,
+            1946.613281,
+            2213.054688,
+            1926.433594,
+            1944.984375,
+            1918.621094,
+            1974.121094
+          ],
+          "candidateSeriesNs": [
+            3080.566406,
+            1833.660156,
+            1795.082031,
+            1791.503906,
+            1793.457031,
+            1794.921875,
+            1794.757812
+          ],
+          "baselineRangeNs": [
+            1918.621094,
+            2268.554688
+          ],
+          "candidateRangeNs": [
+            1791.503906,
+            3080.566406
+          ]
+        },
+        {
+          "bytes": 65536,
+          "pattern": "scoped_bypass",
+          "sections": 8,
+          "iterationsPerSeries": 32,
+          "series": 7,
+          "baselineNs": 1957.84375,
+          "candidateNs": 1788.085938,
+          "durationChangePercent": -8.670651679941265,
+          "absoluteChangeNs": -169.75781200000006,
+          "baselineSeriesNs": [
+            2196.613281,
+            1957.84375,
+            2046.875,
+            2004.230469,
+            1950.519531,
+            1930.5,
+            1927.898438
+          ],
+          "candidateSeriesNs": [
+            2042.644531,
+            1788.085938,
+            1787.433594,
+            1787.109375,
+            1787.273438,
+            1789.226562,
+            1794.105469
+          ],
+          "baselineRangeNs": [
+            1927.898438,
+            2196.613281
+          ],
+          "candidateRangeNs": [
+            1787.109375,
+            2042.644531
+          ]
+        },
+        {
+          "bytes": 262144,
+          "pattern": "identical",
+          "sections": 8,
+          "iterationsPerSeries": 8,
+          "series": 7,
+          "baselineNs": 7710.9375,
+          "candidateNs": 903.65625,
+          "durationChangePercent": -88.28085106382979,
+          "absoluteChangeNs": -6807.28125,
+          "baselineSeriesNs": [
+            7835.9375,
+            7621.734375,
+            7710.9375,
+            7867.84375,
+            7606.765625,
+            7616.53125,
+            8347.65625
+          ],
+          "candidateSeriesNs": [
+            1207.03125,
+            966.796875,
+            904.296875,
+            902.34375,
+            903.65625,
+            903,
+            903.640625
+          ],
+          "baselineRangeNs": [
+            7606.765625,
+            8347.65625
+          ],
+          "candidateRangeNs": [
+            902.34375,
+            1207.03125
+          ]
+        },
+        {
+          "bytes": 262144,
+          "pattern": "distinct",
+          "sections": 8,
+          "iterationsPerSeries": 8,
+          "series": 7,
+          "baselineNs": 7597,
+          "candidateNs": 7112.625,
+          "durationChangePercent": -6.375872054758458,
+          "absoluteChangeNs": -484.375,
+          "baselineSeriesNs": [
+            8080.734375,
+            7511.0625,
+            7623.046875,
+            7597,
+            7503.90625,
+            7524.09375,
+            7670.5625
+          ],
+          "candidateSeriesNs": [
+            7477.859375,
+            7112.625,
+            7111.96875,
+            7111.984375,
+            7113.9375,
+            7111.96875,
+            7630.859375
+          ],
+          "baselineRangeNs": [
+            7503.90625,
+            8080.734375
+          ],
+          "candidateRangeNs": [
+            7111.96875,
+            7630.859375
+          ]
+        },
+        {
+          "bytes": 262144,
+          "pattern": "scoped_bypass",
+          "sections": 8,
+          "iterationsPerSeries": 8,
+          "series": 7,
+          "baselineNs": 7778.65625,
+          "candidateNs": 7626.296875,
+          "durationChangePercent": -1.9586850235219,
+          "absoluteChangeNs": -152.359375,
+          "baselineSeriesNs": [
+            8139.328125,
+            7778.65625,
+            7823.578125,
+            7726.5625,
+            7467.453125,
+            7873.6875,
+            7585.9375
+          ],
+          "candidateSeriesNs": [
+            7741.53125,
+            7559.890625,
+            8113.9375,
+            7285.15625,
+            7793.625,
+            7570.3125,
+            7626.296875
+          ],
+          "baselineRangeNs": [
+            7467.453125,
+            8139.328125
+          ],
+          "candidateRangeNs": [
+            7285.15625,
+            8113.9375
+          ]
+        },
+        {
+          "bytes": 1048576,
+          "pattern": "identical",
+          "sections": 8,
+          "iterationsPerSeries": 4,
+          "series": 7,
+          "baselineNs": 31233.0625,
+          "candidateNs": 3802.09375,
+          "durationChangePercent": -87.8267020725233,
+          "absoluteChangeNs": -27430.96875,
+          "baselineSeriesNs": [
+            31233.0625,
+            30411.46875,
+            31359.375,
+            31367.1875,
+            30434.90625,
+            30619.78125,
+            91036.4375
+          ],
+          "candidateSeriesNs": [
+            4320.3125,
+            3802.09375,
+            3701.84375,
+            3769.53125,
+            4048.1875,
+            3708.34375,
+            4058.59375
+          ],
+          "baselineRangeNs": [
+            30411.46875,
+            91036.4375
+          ],
+          "candidateRangeNs": [
+            3701.84375,
+            4320.3125
+          ]
+        },
+        {
+          "bytes": 1048576,
+          "pattern": "distinct",
+          "sections": 8,
+          "iterationsPerSeries": 4,
+          "series": 7,
+          "baselineNs": 37178.375,
+          "candidateNs": 33156.25,
+          "durationChangePercent": -10.81845293130751,
+          "absoluteChangeNs": -4022.125,
+          "baselineSeriesNs": [
+            77221.34375,
+            37178.375,
+            36231.78125,
+            47151.03125,
+            78208.34375,
+            33149.71875,
+            35623.6875
+          ],
+          "candidateSeriesNs": [
+            35442.71875,
+            30744.8125,
+            31763.03125,
+            31929.6875,
+            33156.25,
+            35402.34375,
+            34752.59375
+          ],
+          "baselineRangeNs": [
+            33149.71875,
+            78208.34375
+          ],
+          "candidateRangeNs": [
+            30744.8125,
+            35442.71875
+          ]
+        },
+        {
+          "bytes": 1048576,
+          "pattern": "scoped_bypass",
+          "sections": 8,
+          "iterationsPerSeries": 4,
+          "series": 7,
+          "baselineNs": 31588.53125,
+          "candidateNs": 31058.59375,
+          "durationChangePercent": -1.6776262745676118,
+          "absoluteChangeNs": -529.9375,
+          "baselineSeriesNs": [
+            40691.40625,
+            103558.5938,
+            32078.125,
+            31588.53125,
+            31016.90625,
+            31303.375,
+            31135.40625
+          ],
+          "candidateSeriesNs": [
+            32269.53125,
+            33479.1875,
+            29783.875,
+            36376.3125,
+            29733.0625,
+            29852.84375,
+            31058.59375
+          ],
+          "baselineRangeNs": [
+            31016.90625,
+            103558.5938
+          ],
+          "candidateRangeNs": [
+            29733.0625,
+            36376.3125
+          ]
+        },
+        {
+          "bytes": 3686400,
+          "pattern": "identical",
+          "sections": 8,
+          "iterationsPerSeries": 4,
+          "series": 7,
+          "baselineNs": 112283.8438,
+          "candidateNs": 13234.375,
+          "durationChangePercent": -88.21346459819004,
+          "absoluteChangeNs": -99049.4688,
+          "baselineSeriesNs": [
+            112283.8438,
+            116897.125,
+            324401.0312,
+            111486.9688,
+            145824.2188,
+            106704.4375,
+            109358.0938
+          ],
+          "candidateSeriesNs": [
+            14251.3125,
+            13234.375,
+            13039.0625,
+            13093.75,
+            13118.46875,
+            13696.625,
+            13557.3125
+          ],
+          "baselineRangeNs": [
+            106704.4375,
+            324401.0312
+          ],
+          "candidateRangeNs": [
+            13039.0625,
+            14251.3125
+          ]
+        },
+        {
+          "bytes": 3686400,
+          "pattern": "distinct",
+          "sections": 8,
+          "iterationsPerSeries": 4,
+          "series": 7,
+          "baselineNs": 120091.1562,
+          "candidateNs": 125218.75,
+          "durationChangePercent": 4.269751380743214,
+          "absoluteChangeNs": 5127.593800000002,
+          "baselineSeriesNs": [
+            119739.5938,
+            126687.5,
+            117692.6875,
+            121431,
+            131686.2188,
+            120091.1562,
+            117403.6562
+          ],
+          "candidateSeriesNs": [
+            125218.75,
+            122484.375,
+            132158.8438,
+            136208.3125,
+            133381.5,
+            122335.9375,
+            117558.5938
+          ],
+          "baselineRangeNs": [
+            117403.6562,
+            131686.2188
+          ],
+          "candidateRangeNs": [
+            117558.5938,
+            136208.3125
+          ]
+        },
+        {
+          "bytes": 3686400,
+          "pattern": "scoped_bypass",
+          "sections": 8,
+          "iterationsPerSeries": 4,
+          "series": 7,
+          "baselineNs": 109445.3125,
+          "candidateNs": 111509.125,
+          "durationChangePercent": 1.8857020486829912,
+          "absoluteChangeNs": 2063.8125,
+          "baselineSeriesNs": [
+            109692.6875,
+            107235.6875,
+            109445.3125,
+            109804.6875,
+            114990.9062,
+            107769.5312,
+            108466.125
+          ],
+          "candidateSeriesNs": [
+            109700.5312,
+            129212.25,
+            317406.25,
+            110636.7188,
+            109377.625,
+            112238.2812,
+            111509.125
+          ],
+          "baselineRangeNs": [
+            107235.6875,
+            114990.9062
+          ],
+          "candidateRangeNs": [
+            109377.625,
+            317406.25
+          ]
+        }
+      ],
+      "baselineCounters": {
+        "passed": true,
+        "candidate": false,
+        "repeatedQueries": 96,
+        "repeatedHashes": 96,
+        "repeatedBytes": 6291456,
+        "distinctQueries": 32,
+        "distinctHashes": 32,
+        "overlapWriteHashes": 3,
+        "overlapChangedRejected": 3,
+        "confirmedRangeReuse": true,
+        "cacheReset": true,
+        "oldWorkerAfterScopedWrite": true,
+        "epochDuringHash": true,
+        "oldPublisherAfterNewEpoch": true,
+        "disabledControls": true,
+        "collisionChecks": 64,
+        "heldSlotNoWait": false,
+        "stressWrites": 250000,
+        "stressReads": 500000,
+        "stressAcceptedMatches": 17,
+        "multiWriterTested": false,
+        "workerPredictionHashes": 3,
+        "workerPredictionBytes": 196608,
+        "workerSynchronousHashes": 1,
+        "guestMemoryMappingModeled": true,
+        "gpuExecuted": false
+      },
+      "candidateCounters": {
+        "passed": true,
+        "candidate": true,
+        "repeatedQueries": 96,
+        "repeatedHashes": 12,
+        "repeatedBytes": 786432,
+        "distinctQueries": 32,
+        "distinctHashes": 32,
+        "overlapWriteHashes": 3,
+        "overlapChangedRejected": 3,
+        "confirmedRangeReuse": true,
+        "cacheReset": true,
+        "oldWorkerAfterScopedWrite": true,
+        "epochDuringHash": true,
+        "oldPublisherAfterNewEpoch": true,
+        "disabledControls": true,
+        "collisionChecks": 64,
+        "heldSlotNoWait": true,
+        "stressWrites": 500000,
+        "stressReads": 500000,
+        "stressAcceptedMatches": 61,
+        "multiWriterTested": true,
+        "workerPredictionHashes": 2,
+        "workerPredictionBytes": 131072,
+        "workerSynchronousHashes": 1,
+        "guestMemoryMappingModeled": true,
+        "gpuExecuted": false
+      },
+      "mutations": {
+        "no_reuse": {
+          "rejected": true,
+          "assertion": "repeated_hashes =="
+        },
+        "no_bypass": {
+          "rejected": true,
+          "assertion": "!s.sync()"
+        },
+        "no_epoch": {
+          "rejected": true,
+          "assertion": "out.repeated_hashes =="
+        },
+        "single_writer": {
+          "rejected": true,
+          "assertion": "slot.seq.load() == seq"
+        }
+      },
+      "timingScope": "Production XXH3 cached seeded secret and host SIMD; 8 validation sections per round. Ordinary embedded correctness-harness benchmark, observer disabled, worker still exists with no previous-frame speculation, epoch notification omitted to avoid wake-up jitter. This is not the separate isolated Linux measurement-only benchmark.",
+      "finding": "Eligible repeated ranges reduce 96 hashes to 12 and 6291456 bytes to 786432 bytes. Distinct ranges remain 32/32 hashes; no universal improvement is established. Distinct 32768 and 3686400-byte and bypass 3686400-byte medians regress, with overlapping ranges.",
+      "scopeNotes": [
+        "32 KiB is an ineligible-size control: no hash reuse expected.",
+        "Automatic prehash remains GOW3 only; useful hit frequency in games is not measured.",
+        "Existing prehash-hit counters include synchronous producers and must not be attributed entirely to the worker.",
+        "Stress accepted-match counts are correctness-path observations, not hit-rate/throughput measurements; baseline has one publisher, candidate has two.",
+        "No guest GPU writes or hybrid hash implementation executed."
+      ],
+      "sourceReferences": [
+        "test/native/rpcs3_texture_hash_reuse.inc::benchmark",
+        "test/rpcs3_texture_hash_reuse_test.py"
+      ]
+    },
+    "neoswap-discard": {
+      "report": "neoswap-discard-plain",
+      "rows": [
+        {
+          "liveEntries": 0,
+          "blockedRetiredEntries": 0,
+          "queueSize": 16,
+          "series": 7,
+          "iterationsPerSeries": 20000,
+          "baselineNs": 1.7125,
+          "candidateNs": 1.7125,
+          "durationChangePercent": 0.0,
+          "absoluteChangeNs": 0.0,
+          "withinRealMaxEntryCount": true
+        },
+        {
+          "liveEntries": 0,
+          "blockedRetiredEntries": 1,
+          "queueSize": 16,
+          "series": 7,
+          "iterationsPerSeries": 20000,
+          "baselineNs": 3.80625,
+          "candidateNs": 3.45,
+          "durationChangePercent": -9.359605911330037,
+          "absoluteChangeNs": -0.35624999999999973,
+          "withinRealMaxEntryCount": true
+        },
+        {
+          "liveEntries": 16,
+          "blockedRetiredEntries": 0,
+          "queueSize": 16,
+          "series": 7,
+          "iterationsPerSeries": 20000,
+          "baselineNs": 200.729,
+          "candidateNs": 1.70625,
+          "durationChangePercent": -99.14997334714964,
+          "absoluteChangeNs": -199.02275,
+          "withinRealMaxEntryCount": true
+        },
+        {
+          "liveEntries": 16,
+          "blockedRetiredEntries": 1,
+          "queueSize": 16,
+          "series": 7,
+          "iterationsPerSeries": 20000,
+          "baselineNs": 238.135,
+          "candidateNs": 11.3187,
+          "durationChangePercent": -95.2469397610599,
+          "absoluteChangeNs": -226.81629999999998,
+          "withinRealMaxEntryCount": true
+        },
+        {
+          "liveEntries": 256,
+          "blockedRetiredEntries": 0,
+          "queueSize": 16,
+          "series": 7,
+          "iterationsPerSeries": 2000,
+          "baselineNs": 3116.67,
+          "candidateNs": 1.771,
+          "durationChangePercent": -99.943176531362,
+          "absoluteChangeNs": -3114.899,
+          "withinRealMaxEntryCount": true
+        },
+        {
+          "liveEntries": 256,
+          "blockedRetiredEntries": 1,
+          "queueSize": 16,
+          "series": 7,
+          "iterationsPerSeries": 2000,
+          "baselineNs": 4389.58,
+          "candidateNs": 426.938,
+          "durationChangePercent": -90.27383029811509,
+          "absoluteChangeNs": -3962.642,
+          "withinRealMaxEntryCount": true
+        },
+        {
+          "liveEntries": 1024,
+          "blockedRetiredEntries": 0,
+          "queueSize": 16,
+          "series": 7,
+          "iterationsPerSeries": 2000,
+          "baselineNs": 13151.5,
+          "candidateNs": 1.6875,
+          "durationChangePercent": -99.98716876401932,
+          "absoluteChangeNs": -13149.8125,
+          "withinRealMaxEntryCount": true
+        },
+        {
+          "liveEntries": 1024,
+          "blockedRetiredEntries": 1,
+          "queueSize": 16,
+          "series": 7,
+          "iterationsPerSeries": 2000,
+          "baselineNs": 15052.1,
+          "candidateNs": 4306.1,
+          "durationChangePercent": -71.39203167664311,
+          "absoluteChangeNs": -10746.0,
+          "withinRealMaxEntryCount": true
+        },
+        {
+          "liveEntries": 4096,
+          "blockedRetiredEntries": 0,
+          "queueSize": 16,
+          "series": 7,
+          "iterationsPerSeries": 2000,
+          "baselineNs": 59369.6,
+          "candidateNs": 1.7085,
+          "durationChangePercent": -99.99712226459333,
+          "absoluteChangeNs": -59367.8915,
+          "withinRealMaxEntryCount": true
+        },
+        {
+          "liveEntries": 4096,
+          "blockedRetiredEntries": 1,
+          "queueSize": 16,
+          "series": 7,
+          "iterationsPerSeries": 2000,
+          "baselineNs": 64636.8,
+          "candidateNs": 16103.8,
+          "durationChangePercent": -75.08570968859844,
+          "absoluteChangeNs": -48533.0,
+          "withinRealMaxEntryCount": false
+        }
+      ],
+      "counters": {
+        "passed": true,
+        "assertionsActive": true,
+        "operations": 96000,
+        "audits": 124861,
+        "collectCallsPerVersion": 9818,
+        "discardCallsPerVersion": 19043
+      },
+      "realStoreCases": 11,
+      "realPOSIXFileRoundTrips": true,
+      "timingScope": "Metadata-only collect_discarded loop, 16 queued jobs. No disk I/O, compression or full-worker mutex/queue processing in timed region. Empty pending-discard flag permits early return; live entries skip queue search before retired entry checks.",
+      "functionalScope": "Separate 11 complete production Store cases really execute POSIX file, VM, fault and concurrency paths on Darwin, linking Apple Compression and zlib. Not a NAND latency benchmark.",
+      "finding": "No median regressions in these 10 Apple metadata cases (empty/no-retirement unchanged). Large early-return savings are local call savings, not whole-emulator or restore performance.",
+      "limitations": [
+        "Original report retains medians only; per-series ranges cannot be reconstructed.",
+        "4096 live + 1 retained retired entry exceeds the real 4096 entry limit; retained only as synthetic boundary, do not promote as a realizable workload."
+      ],
+      "sourceReferences": [
+        "test/native/neoswap_discard_scan.inc::benchmarks",
+        "test/neoswap_discard_scan_test.py",
+        "native/neoswap-storage/Store.cpp::Impl::collect_discarded"
+      ]
+    }
+  },
+  "limitations": [
+    "These are macOS ARM64 host microbenchmarks, not iPhone 16 Pro Max or full-game measurements. No FPS/frame-time improvement is established.",
+    "MFC and timer results were executed in run 40900528171 and authenticated/reused in this preflight; descriptor, hash and NeoSwap are newly executed here.",
+    "Sanitizer timings are not used. Seven series are summarized by median; series ranges are included when the original report recorded them. No confidence intervals or independent-session repeats exist.",
+    "Positive durationChangePercent means a slower candidate. All observed regressing median cases are retained, without claiming statistical significance."
+  ],
+  "observedRegressingMedianCases": [
+    {
+      "measurement": "spu-mfc",
+      "shuffle": 0,
+      "queueSize": 16,
+      "baselineNs": 1.13042,
+      "candidateNs": 1.51875,
+      "durationChangePercent": 34.352718458626,
+      "absoluteChangeNs": 0.38833000000000006,
+      "baselineRangeNs": [
+        1.02346,
+        1.2965
+      ],
+      "candidateRangeNs": [
+        1.35167,
+        1.629
+      ]
+    },
+    {
+      "measurement": "spu-mfc",
+      "shuffle": 0,
+      "queueSize": 0,
+      "baselineNs": 1.26887,
+      "candidateNs": 1.57179,
+      "durationChangePercent": 23.873210021515213,
+      "absoluteChangeNs": 0.3029200000000001,
+      "baselineRangeNs": [
+        1.122,
+        1.41912
+      ],
+      "candidateRangeNs": [
+        1.46517,
+        1.76608
+      ]
+    },
+    {
+      "measurement": "spu-mfc",
+      "shuffle": 1,
+      "queueSize": 16,
+      "baselineNs": 1.21513,
+      "candidateNs": 1.57721,
+      "durationChangePercent": 29.797634820965648,
+      "absoluteChangeNs": 0.36207999999999996,
+      "baselineRangeNs": [
+        1.14121,
+        1.57233
+      ],
+      "candidateRangeNs": [
+        1.42279,
+        2.10025
+      ]
+    },
+    {
+      "measurement": "spu-mfc",
+      "shuffle": 16,
+      "queueSize": 16,
+      "baselineNs": 1.96875,
+      "candidateNs": 2.15871,
+      "durationChangePercent": 9.648761904761916,
+      "absoluteChangeNs": 0.18996000000000013,
+      "baselineRangeNs": [
+        1.04008,
+        2.05471
+      ],
+      "candidateRangeNs": [
+        1.37092,
+        2.18658
+      ]
+    },
+    {
+      "measurement": "spu-timer",
+      "entries": 6,
+      "pattern": "none_due",
+      "iterationsPerSample": 14285,
+      "baselineNs": 82.9133,
+      "candidateNs": 91.935,
+      "durationChangePercent": 10.880884007752666,
+      "absoluteChangeNs": 9.021699999999996,
+      "baselineRangeNs": [
+        36.5359,
+        109.97
+      ],
+      "candidateRangeNs": [
+        35.3138,
+        114.957
+      ]
+    },
+    {
+      "measurement": "spu-timer",
+      "entries": 32,
+      "pattern": "none_due",
+      "iterationsPerSample": 3030,
+      "baselineNs": 53.0941,
+      "candidateNs": 54.7716,
+      "durationChangePercent": 3.159484763843823,
+      "absoluteChangeNs": 1.677500000000002,
+      "baselineRangeNs": [
+        52.0901,
+        104.579
+      ],
+      "candidateRangeNs": [
+        51.7053,
+        61.0149
+      ]
+    },
+    {
+      "measurement": "spu-timer",
+      "entries": 1024,
+      "pattern": "none_due",
+      "iterationsPerSample": 97,
+      "baselineNs": 2282.22,
+      "candidateNs": 3206.19,
+      "durationChangePercent": 40.485579830165385,
+      "absoluteChangeNs": 923.9700000000003,
+      "baselineRangeNs": [
+        1109.54,
+        3901.2
+      ],
+      "candidateRangeNs": [
+        1161.08,
+        6707.05
+      ]
+    },
+    {
+      "measurement": "descriptor-bind",
+      "pattern": "graphics_hits",
+      "operationsPerSeries": 2000000,
+      "series": 7,
+      "baselineNs": 1.4485835,
+      "candidateNs": 2.408667,
+      "durationChangePercent": 66.27740133723736,
+      "absoluteChangeNs": 0.9600834999999999,
+      "baselineRangeNs": [
+        1.4014585,
+        1.4784795
+      ],
+      "candidateRangeNs": [
+        2.3263955,
+        4.385
+      ],
+      "baselineDriverCalls": 1,
+      "candidateDriverCalls": 1
+    },
+    {
+      "measurement": "descriptor-bind",
+      "pattern": "changing_sets",
+      "operationsPerSeries": 2000000,
+      "series": 7,
+      "baselineNs": 3.31575,
+      "candidateNs": 6.5831665,
+      "durationChangePercent": 98.54230566236899,
+      "absoluteChangeNs": 3.2674165,
+      "baselineRangeNs": [
+        3.233792,
+        3.419458
+      ],
+      "candidateRangeNs": [
+        4.392625,
+        9.8222915
+      ],
+      "baselineDriverCalls": 2000000,
+      "candidateDriverCalls": 2000000
+    },
+    {
+      "measurement": "texture-hash-reuse",
+      "bytes": 32768,
+      "pattern": "distinct",
+      "sections": 8,
+      "iterationsPerSeries": 64,
+      "series": 7,
+      "baselineNs": 962.4824219,
+      "candidateNs": 969.8886719,
+      "durationChangePercent": 0.7694945727299229,
+      "absoluteChangeNs": 7.40625,
+      "baselineRangeNs": [
+        949.3007812,
+        1048.259766
+      ],
+      "candidateRangeNs": [
+        922.1191406,
+        1026.123047
+      ]
+    },
+    {
+      "measurement": "texture-hash-reuse",
+      "bytes": 3686400,
+      "pattern": "distinct",
+      "sections": 8,
+      "iterationsPerSeries": 4,
+      "series": 7,
+      "baselineNs": 120091.1562,
+      "candidateNs": 125218.75,
+      "durationChangePercent": 4.269751380743214,
+      "absoluteChangeNs": 5127.593800000002,
+      "baselineRangeNs": [
+        117403.6562,
+        131686.2188
+      ],
+      "candidateRangeNs": [
+        117558.5938,
+        136208.3125
+      ]
+    },
+    {
+      "measurement": "texture-hash-reuse",
+      "bytes": 3686400,
+      "pattern": "scoped_bypass",
+      "sections": 8,
+      "iterationsPerSeries": 4,
+      "series": 7,
+      "baselineNs": 109445.3125,
+      "candidateNs": 111509.125,
+      "durationChangePercent": 1.8857020486829912,
+      "absoluteChangeNs": 2063.8125,
+      "baselineRangeNs": [
+        107235.6875,
+        114990.9062
+      ],
+      "candidateRangeNs": [
+        109377.625,
+        317406.25
+      ]
+    }
+  ],
+  "observedRegressingMedianCount": 12
+}

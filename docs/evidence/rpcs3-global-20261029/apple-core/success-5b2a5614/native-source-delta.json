@@ -1,0 +1,59 @@
+{
+  "kind": "native-postimage-comparison-with-last-delivered-core",
+  "source": "5b2a5614f634221ea896607b4686ad2afdd5ada3",
+  "lastDeliveredCoreSource": "fe587e27fcefadaa36315a3ddc7dc1edba17b825",
+  "nativeFiles": 313,
+  "unchangedNativeFiles": 302,
+  "addedFiles": [],
+  "removedFiles": [],
+  "changedNativeFiles": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": {
+      "before": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+      "after": "e37a1bc0e2438e425f1c57ff2c3d931ecbf5b4462175cdb041d39191c5909e6d"
+    },
+    "rpcs3/Emu/RSX/RSXFIFO.cpp": {
+      "before": "e4f381adffa30632bb8b9d315d77bbe095632dafaddf574ae9e3cb9ab095c23b",
+      "after": "74a3d0640ea905aac9c7b87144d0b11c0a658586b3f8ed8b257752719da26fb2"
+    },
+    "rpcs3/Emu/RSX/RSXThread.cpp": {
+      "before": "c9145bc1dbd4cfa4ed8ab80f1250d5f6dfb8a47e5d0b0d472c4943adfd89966b",
+      "after": "cd656467129aa2db822b892a4ecf37355887281dac2e943f110c1dbb8a33b40c"
+    },
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": {
+      "before": "fed611e598e23a21d283b5432a0e8846a6bacd4fda4735b330984c74434e53e8",
+      "after": "255c69ab2aa7baa576844421a4e87ed7508ce71b0e98d247354ba601f06a0a49"
+    },
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": {
+      "before": "ac1e24963ec7cfae45cbcb97b0506946cdf0389782fb2e9e1a0d782109524c16",
+      "after": "c5ecab8364b42fb791fb9029d87348f7e0068c5990da3f3c0a3e787079f2059c"
+    },
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": {
+      "before": "70897f93822c06346bd5d2a2b2b1afcc643808a3254533b0285a9db7f29df116",
+      "after": "db47604d47844cba40b3c8a4737cef2e59b11512a3ce30a2a4a1e63e98027ea7"
+    },
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": {
+      "before": "fbc078ede7dc9cc93e129a79d9574d0bde9b4df0d8d2214fb6c4b07cb400fdb4",
+      "after": "46ffdd0f8876addacddfe527b0285360081f5c16093f980bed8da9157fb4d17e"
+    },
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": {
+      "before": "c9da4597bd0930f6dd0693d54f0430a0e213817a3fcad599d08f5c5fbd7ec94a",
+      "after": "8d0f19e0468686a7e893f81f9c9c106b409925f93e550e64df83084345286fa6"
+    },
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": {
+      "before": "8afab00e043668bb964e960caffec927f918617928bd51433b9925cb18541ed4",
+      "after": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5"
+    },
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": {
+      "before": "def8569ef9a63022336a8a34b2cc5dd85f1a30132cd8130288321dc766014da7",
+      "after": "062d37c54ab62d943be89c9e78d8e72c4340b67ebf5e0a39dd9ab805be282748"
+    },
+    "rpcs3/ios/IOSTexturePrehash.h": {
+      "before": "3dda00a3aa91088e7c59f03b4dac0cd74cb238cddfe7d0729b0420fe631dad6c",
+      "after": "4190c96340aa254c259817b1934a45102e65bad3c0b8e0f30cb5d5e8431c13ef"
+    }
+  },
+  "hostStoreSeparate": "native/neoswap-storage/Store.cpp",
+  "hostStoreIncludedInCore": false,
+  "nativeExecutionPerformed": false,
+  "physicalDeviceTested": false
+}

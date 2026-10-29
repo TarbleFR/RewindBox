@@ -1,0 +1,1220 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+    "-O3"
+  ],
+  "compiler": "Homebrew clang version 22.1.8",
+  "host": "arm64",
+  "system": "Darwin",
+  "sanitizer": null,
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "db47604d47844cba40b3c8a4737cef2e59b11512a3ce30a2a4a1e63e98027ea7",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "46ffdd0f8876addacddfe527b0285360081f5c16093f980bed8da9157fb4d17e",
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "1c5e35d4289a1e122b696c18b104101623d148fcc76048911c3a5627e1273611",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "fbcb635660f479635c85eb1742f77074a9f83f8f0b2c8bc77ca2aa38a428e31b"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "70897f93822c06346bd5d2a2b2b1afcc643808a3254533b0285a9db7f29df116",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "fbc078ede7dc9cc93e129a79d9574d0bde9b4df0d8d2214fb6c4b07cb400fdb4",
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "1c5e35d4289a1e122b696c18b104101623d148fcc76048911c3a5627e1273611",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "fbcb635660f479635c85eb1742f77074a9f83f8f0b2c8bc77ca2aa38a428e31b"
+  },
+  "adapterSHA256": "fdf7c9337eabbada05dac13526ee9a83d7073e4d1f1f958b8c5fdad23c7a1180",
+  "programSHA256": {
+    "baseline": "7ffacd48fed3b04a5467d8c15b85d87beb37a825a704d9cd1027fb3c3ca40cda",
+    "candidate": "e82736f97ff76e53abdcd839d21624fe71d57e77b32b2ad9bf083b49e01c0ef2"
+  },
+  "results": {
+    "baseline-desktop": {
+      "returncode": 86,
+      "commandBufferBytes": 240,
+      "cases": [
+        {
+          "name": "graphics_repeat_plain",
+          "attempts": 64,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "graphics_repeat_empty_offset_overload",
+          "attempts": 64,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "alternating_bind_points",
+          "attempts": 128,
+          "calls": 128,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "equal_handles_different_bind_point",
+          "attempts": 8,
+          "calls": 1,
+          "mismatches": 4,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "incompatible_layout_same_handles",
+          "attempts": 8,
+          "calls": 1,
+          "mismatches": 4,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "overlay_return",
+          "attempts": 32,
+          "calls": 25,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "prefix_count_changes",
+          "attempts": 24,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "changed_descriptor_handles",
+          "attempts": 64,
+          "calls": 64,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "dynamic_offsets_passthrough",
+          "attempts": 32,
+          "calls": 32,
+          "mismatches": 0,
+          "dynamicCalls": 32,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "dynamic_compute_preserves_graphics",
+          "attempts": 33,
+          "calls": 33,
+          "mismatches": 0,
+          "dynamicCalls": 16,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "dynamic_prefix_to_plain",
+          "attempts": 24,
+          "calls": 16,
+          "mismatches": 0,
+          "dynamicCalls": 8,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "unknown_bind_point_passthrough",
+          "attempts": 8,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "empty_spans",
+          "attempts": 16,
+          "calls": 0,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "real_begin_resets",
+          "attempts": 4,
+          "calls": 4,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "already_open_begin_preserves",
+          "attempts": 2,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "pending_reuse",
+          "attempts": 2,
+          "calls": 2,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "independent_command_buffers",
+          "attempts": 4,
+          "calls": 2,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "deterministic_mixed_sequence",
+          "attempts": 4096,
+          "calls": 2331,
+          "mismatches": 1133,
+          "dynamicCalls": 854,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "production_program_reuse",
+          "attempts": 32,
+          "calls": 32,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 3,
+          "templateCreates": 3,
+          "templateUpdates": 0,
+          "pipelineCalls": 2
+        },
+        {
+          "name": "production_program_dirty_and_overlay",
+          "attempts": 36,
+          "calls": 36,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 5,
+          "templateCreates": 4,
+          "templateUpdates": 1,
+          "pipelineCalls": 4
+        }
+      ],
+      "mismatches": 1141,
+      "benchmark": [
+        {
+          "name": "graphics_hits",
+          "operations": 2000000,
+          "calls": 1,
+          "checksum": 114,
+          "nanoseconds": [
+            2971708,
+            3028833,
+            2976791,
+            2990208,
+            2995750,
+            2890583,
+            2849500
+          ]
+        },
+        {
+          "name": "changing_sets",
+          "operations": 2000000,
+          "calls": 2000000,
+          "checksum": 2000227000000,
+          "nanoseconds": [
+            6448708,
+            6504166,
+            6565792,
+            7163375,
+            6736083,
+            6722292,
+            6797833
+          ]
+        },
+        {
+          "name": "alternating_bind_points",
+          "operations": 2000000,
+          "calls": 2000000,
+          "checksum": 339000000,
+          "nanoseconds": [
+            6698041,
+            6583292,
+            6308500,
+            6322000,
+            6741541,
+            6781125,
+            6723333
+          ]
+        }
+      ]
+    },
+    "baseline-ios": {
+      "returncode": 86,
+      "commandBufferBytes": 288,
+      "cases": [
+        {
+          "name": "graphics_repeat_plain",
+          "attempts": 64,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "graphics_repeat_empty_offset_overload",
+          "attempts": 64,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "alternating_bind_points",
+          "attempts": 128,
+          "calls": 128,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "equal_handles_different_bind_point",
+          "attempts": 8,
+          "calls": 1,
+          "mismatches": 4,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "incompatible_layout_same_handles",
+          "attempts": 8,
+          "calls": 1,
+          "mismatches": 4,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "overlay_return",
+          "attempts": 32,
+          "calls": 25,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "prefix_count_changes",
+          "attempts": 24,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "changed_descriptor_handles",
+          "attempts": 64,
+          "calls": 64,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "dynamic_offsets_passthrough",
+          "attempts": 32,
+          "calls": 32,
+          "mismatches": 0,
+          "dynamicCalls": 32,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "dynamic_compute_preserves_graphics",
+          "attempts": 33,
+          "calls": 33,
+          "mismatches": 0,
+          "dynamicCalls": 16,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "dynamic_prefix_to_plain",
+          "attempts": 24,
+          "calls": 16,
+          "mismatches": 0,
+          "dynamicCalls": 8,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "unknown_bind_point_passthrough",
+          "attempts": 8,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "empty_spans",
+          "attempts": 16,
+          "calls": 0,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "real_begin_resets",
+          "attempts": 4,
+          "calls": 4,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "already_open_begin_preserves",
+          "attempts": 2,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "pending_reuse",
+          "attempts": 2,
+          "calls": 2,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "independent_command_buffers",
+          "attempts": 4,
+          "calls": 2,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "deterministic_mixed_sequence",
+          "attempts": 4096,
+          "calls": 2331,
+          "mismatches": 1133,
+          "dynamicCalls": 854,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "production_program_reuse",
+          "attempts": 32,
+          "calls": 32,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 3,
+          "templateCreates": 3,
+          "templateUpdates": 0,
+          "pipelineCalls": 2
+        },
+        {
+          "name": "production_program_dirty_and_overlay",
+          "attempts": 36,
+          "calls": 36,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 5,
+          "templateCreates": 4,
+          "templateUpdates": 1,
+          "pipelineCalls": 4
+        }
+      ],
+      "mismatches": 1141,
+      "benchmark": [
+        {
+          "name": "graphics_hits",
+          "operations": 2000000,
+          "calls": 1,
+          "checksum": 114,
+          "nanoseconds": [
+            2802917,
+            2897167,
+            2944875,
+            2905417,
+            2956959,
+            2844167,
+            2870792
+          ]
+        },
+        {
+          "name": "changing_sets",
+          "operations": 2000000,
+          "calls": 2000000,
+          "checksum": 2000227000000,
+          "nanoseconds": [
+            6631500,
+            6467584,
+            6603542,
+            6734084,
+            6838916,
+            6722708,
+            6521375
+          ]
+        },
+        {
+          "name": "alternating_bind_points",
+          "operations": 2000000,
+          "calls": 2000000,
+          "checksum": 339000000,
+          "nanoseconds": [
+            6661833,
+            6733834,
+            6572667,
+            6848292,
+            6719208,
+            6661667,
+            6717084
+          ]
+        }
+      ]
+    },
+    "candidate-desktop": {
+      "returncode": 86,
+      "commandBufferBytes": 240,
+      "cases": [
+        {
+          "name": "graphics_repeat_plain",
+          "attempts": 64,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "graphics_repeat_empty_offset_overload",
+          "attempts": 64,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "alternating_bind_points",
+          "attempts": 128,
+          "calls": 128,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "equal_handles_different_bind_point",
+          "attempts": 8,
+          "calls": 1,
+          "mismatches": 4,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "incompatible_layout_same_handles",
+          "attempts": 8,
+          "calls": 1,
+          "mismatches": 4,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "overlay_return",
+          "attempts": 32,
+          "calls": 25,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "prefix_count_changes",
+          "attempts": 24,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "changed_descriptor_handles",
+          "attempts": 64,
+          "calls": 64,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "dynamic_offsets_passthrough",
+          "attempts": 32,
+          "calls": 32,
+          "mismatches": 0,
+          "dynamicCalls": 32,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "dynamic_compute_preserves_graphics",
+          "attempts": 33,
+          "calls": 33,
+          "mismatches": 0,
+          "dynamicCalls": 16,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "dynamic_prefix_to_plain",
+          "attempts": 24,
+          "calls": 16,
+          "mismatches": 0,
+          "dynamicCalls": 8,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "unknown_bind_point_passthrough",
+          "attempts": 8,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "empty_spans",
+          "attempts": 16,
+          "calls": 0,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "real_begin_resets",
+          "attempts": 4,
+          "calls": 4,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "already_open_begin_preserves",
+          "attempts": 2,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "pending_reuse",
+          "attempts": 2,
+          "calls": 2,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "independent_command_buffers",
+          "attempts": 4,
+          "calls": 2,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "deterministic_mixed_sequence",
+          "attempts": 4096,
+          "calls": 2331,
+          "mismatches": 1133,
+          "dynamicCalls": 854,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "production_program_reuse",
+          "attempts": 32,
+          "calls": 32,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 3,
+          "templateCreates": 3,
+          "templateUpdates": 0,
+          "pipelineCalls": 2
+        },
+        {
+          "name": "production_program_dirty_and_overlay",
+          "attempts": 36,
+          "calls": 36,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 5,
+          "templateCreates": 4,
+          "templateUpdates": 1,
+          "pipelineCalls": 4
+        }
+      ],
+      "mismatches": 1141,
+      "benchmark": [
+        {
+          "name": "graphics_hits",
+          "operations": 2000000,
+          "calls": 1,
+          "checksum": 114,
+          "nanoseconds": [
+            2763500,
+            2916667,
+            3111042,
+            2935625,
+            2922250,
+            2902625,
+            2915334
+          ]
+        },
+        {
+          "name": "changing_sets",
+          "operations": 2000000,
+          "calls": 2000000,
+          "checksum": 2000227000000,
+          "nanoseconds": [
+            6706375,
+            6531834,
+            6552958,
+            6550667,
+            6529625,
+            6600417,
+            6532709
+          ]
+        },
+        {
+          "name": "alternating_bind_points",
+          "operations": 2000000,
+          "calls": 2000000,
+          "checksum": 339000000,
+          "nanoseconds": [
+            6542375,
+            6553375,
+            6545625,
+            6542500,
+            6544833,
+            6530042,
+            6536334
+          ]
+        }
+      ]
+    },
+    "candidate-ios": {
+      "returncode": 0,
+      "commandBufferBytes": 336,
+      "cases": [
+        {
+          "name": "graphics_repeat_plain",
+          "attempts": 64,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "graphics_repeat_empty_offset_overload",
+          "attempts": 64,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "alternating_bind_points",
+          "attempts": 128,
+          "calls": 2,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "equal_handles_different_bind_point",
+          "attempts": 8,
+          "calls": 2,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "incompatible_layout_same_handles",
+          "attempts": 8,
+          "calls": 8,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "overlay_return",
+          "attempts": 32,
+          "calls": 18,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "prefix_count_changes",
+          "attempts": 24,
+          "calls": 17,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "changed_descriptor_handles",
+          "attempts": 64,
+          "calls": 64,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "dynamic_offsets_passthrough",
+          "attempts": 32,
+          "calls": 32,
+          "mismatches": 0,
+          "dynamicCalls": 32,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "dynamic_compute_preserves_graphics",
+          "attempts": 33,
+          "calls": 17,
+          "mismatches": 0,
+          "dynamicCalls": 16,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "dynamic_prefix_to_plain",
+          "attempts": 24,
+          "calls": 24,
+          "mismatches": 0,
+          "dynamicCalls": 8,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "unknown_bind_point_passthrough",
+          "attempts": 8,
+          "calls": 8,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "empty_spans",
+          "attempts": 16,
+          "calls": 0,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "real_begin_resets",
+          "attempts": 4,
+          "calls": 4,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "already_open_begin_preserves",
+          "attempts": 2,
+          "calls": 1,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "pending_reuse",
+          "attempts": 2,
+          "calls": 2,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "independent_command_buffers",
+          "attempts": 4,
+          "calls": 2,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "deterministic_mixed_sequence",
+          "attempts": 4096,
+          "calls": 3616,
+          "mismatches": 0,
+          "dynamicCalls": 854,
+          "allocations": 0,
+          "templateCreates": 0,
+          "templateUpdates": 0,
+          "pipelineCalls": 0
+        },
+        {
+          "name": "production_program_reuse",
+          "attempts": 32,
+          "calls": 2,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 3,
+          "templateCreates": 3,
+          "templateUpdates": 0,
+          "pipelineCalls": 2
+        },
+        {
+          "name": "production_program_dirty_and_overlay",
+          "attempts": 36,
+          "calls": 5,
+          "mismatches": 0,
+          "dynamicCalls": 0,
+          "allocations": 5,
+          "templateCreates": 4,
+          "templateUpdates": 1,
+          "pipelineCalls": 4
+        }
+      ],
+      "mismatches": 0,
+      "benchmark": [
+        {
+          "name": "graphics_hits",
+          "operations": 2000000,
+          "calls": 1,
+          "checksum": 114,
+          "nanoseconds": [
+            8770000,
+            4783709,
+            4652791,
+            4817334,
+            4707167,
+            5532666,
+            5786542
+          ]
+        },
+        {
+          "name": "changing_sets",
+          "operations": 2000000,
+          "calls": 2000000,
+          "checksum": 2000227000000,
+          "nanoseconds": [
+            13166333,
+            18492542,
+            19644583,
+            18077417,
+            10335083,
+            9303667,
+            8785250
+          ]
+        },
+        {
+          "name": "alternating_bind_points",
+          "operations": 2000000,
+          "calls": 2,
+          "checksum": 339,
+          "nanoseconds": [
+            5093875,
+            4890000,
+            5327166,
+            5108375,
+            4878083,
+            5101167,
+            6276750
+          ]
+        }
+      ]
+    }
+  },
+  "timingSummary": {
+    "baseline-desktop": {
+      "graphics_hits": {
+        "medianNanoseconds": 2976791,
+        "minimumNanoseconds": 2849500,
+        "maximumNanoseconds": 3028833,
+        "medianNanosecondsPerOperation": 1.4883955
+      },
+      "changing_sets": {
+        "medianNanoseconds": 6722292,
+        "minimumNanoseconds": 6448708,
+        "maximumNanoseconds": 7163375,
+        "medianNanosecondsPerOperation": 3.361146
+      },
+      "alternating_bind_points": {
+        "medianNanoseconds": 6698041,
+        "minimumNanoseconds": 6308500,
+        "maximumNanoseconds": 6781125,
+        "medianNanosecondsPerOperation": 3.3490205
+      }
+    },
+    "baseline-ios": {
+      "graphics_hits": {
+        "medianNanoseconds": 2897167,
+        "minimumNanoseconds": 2802917,
+        "maximumNanoseconds": 2956959,
+        "medianNanosecondsPerOperation": 1.4485835
+      },
+      "changing_sets": {
+        "medianNanoseconds": 6631500,
+        "minimumNanoseconds": 6467584,
+        "maximumNanoseconds": 6838916,
+        "medianNanosecondsPerOperation": 3.31575
+      },
+      "alternating_bind_points": {
+        "medianNanoseconds": 6717084,
+        "minimumNanoseconds": 6572667,
+        "maximumNanoseconds": 6848292,
+        "medianNanosecondsPerOperation": 3.358542
+      }
+    },
+    "candidate-desktop": {
+      "graphics_hits": {
+        "medianNanoseconds": 2916667,
+        "minimumNanoseconds": 2763500,
+        "maximumNanoseconds": 3111042,
+        "medianNanosecondsPerOperation": 1.4583335
+      },
+      "changing_sets": {
+        "medianNanoseconds": 6550667,
+        "minimumNanoseconds": 6529625,
+        "maximumNanoseconds": 6706375,
+        "medianNanosecondsPerOperation": 3.2753335
+      },
+      "alternating_bind_points": {
+        "medianNanoseconds": 6542500,
+        "minimumNanoseconds": 6530042,
+        "maximumNanoseconds": 6553375,
+        "medianNanosecondsPerOperation": 3.27125
+      }
+    },
+    "candidate-ios": {
+      "graphics_hits": {
+        "medianNanoseconds": 4817334,
+        "minimumNanoseconds": 4652791,
+        "maximumNanoseconds": 8770000,
+        "medianNanosecondsPerOperation": 2.408667
+      },
+      "changing_sets": {
+        "medianNanoseconds": 13166333,
+        "minimumNanoseconds": 8785250,
+        "maximumNanoseconds": 19644583,
+        "medianNanosecondsPerOperation": 6.5831665
+      },
+      "alternating_bind_points": {
+        "medianNanoseconds": 5101167,
+        "minimumNanoseconds": 4878083,
+        "maximumNanoseconds": 6276750,
+        "medianNanosecondsPerOperation": 2.5505835
+      }
+    }
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "gpuExecuted": false,
+  "scope": "Run extracted descriptor-cache and command-buffer lifecycle code.\n\nThe class declaration, reset/begin/end/clear, pipeline/descriptor bind methods,\nprogram::bind and descriptor_table_t::commit come from the native source. A recording driver checks binding\narguments against an uncached required-state model. Layout IDs in that model\nrepresent descriptor-compatible layouts with incompatible push-constant ranges.\nNo Vulkan device, GPU, Metal compiler, or gameplay is executed. Optional timings\nmeasure Linux/macOS host wrapper cost with a counter-only driver adapter.\n"
+}

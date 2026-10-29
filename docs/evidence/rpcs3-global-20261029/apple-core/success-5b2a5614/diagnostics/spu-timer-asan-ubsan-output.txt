@@ -1,0 +1,84 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "results": {
+    "passed": true,
+    "assertionsActive": true,
+    "matrixCases": 210,
+    "reentrantCases": 1,
+    "shutdownCases": 1,
+    "firstAllocationFailureCases": 2,
+    "baselineNonemptyErases": 10357,
+    "candidateNonemptyErases": 277,
+    "baselineShiftedSlots": 960340,
+    "candidateShiftedSlots": 0,
+    "baselineDueAllocations": 1065,
+    "candidateDueAllocations": 277,
+    "obsoleteTokensRejected": 6145,
+    "notifications": 2172,
+    "pendingOrderComparisons": 636,
+    "waitDeadlineComparisons": 636,
+    "callbacksWhileLocked": 0,
+    "reentrantRetainedUntilCallbackReturned": true
+  },
+  "compiler": "Homebrew clang version 22.1.8",
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-pthread",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk"
+  ],
+  "sanitizer": "address,undefined",
+  "sourceSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "e37a1bc0e2438e425f1c57ff2c3d931ecbf5b4462175cdb041d39191c5909e6d",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4"
+  },
+  "harnessSHA256": "4010f379301d1885c46b058edd969e2b5ba7bf35702f549cc63c4a76f35cd523",
+  "timingHarnessSHA256": "f7211aabf962c65ef37c6178a95b5a350534c1fff13d5cadaefbfaa4d9c34053",
+  "adapterSHA256": {
+    "test/native/rpcs3_spu_timer_runtime.inc": "d6eeef7602fff8d28bedf9a72c77bc9bc4a64b35d1f3955cc24d4c1bbbdbfc14"
+  },
+  "sourceScope": {
+    "onlyRuntimeBodiesChanged": true,
+    "unchangedTextSHA256": "b474968c354ce91c08a5fd856ff73da6015ec65c89e1baa9fd61c3f9a89790d4",
+    "changedBodies": {
+      "baseline": {
+        "mask": "b404dbee618d0c324d927ca41df68afa3ecc01651d19b507d1501befdc2235df",
+        "timerWorker": "1b5e4c6bd7250e21b9532b9da1221435c47ce9cc908d430421109f2693fbb7a0"
+      },
+      "candidate": {
+        "mask": "df0ecaea2d79c86d687f2901b573acff4f7ab37dbee873a17b6ea2d62ecb2782",
+        "timerWorker": "2eba5b6e6f382ae1d49c7a715d44c7d2de122099cb916ee8f0f47e8972808773"
+      }
+    },
+    "unchangedTimerEntryAndMembers": true,
+    "unchangedSPUThreadLayout": true,
+    "unchangedCPUFlagDefinitions": true
+  },
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "hostSweepTiming": null,
+  "leakSanitizer": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "concurrentMemoryOrderingTested": false,
+  "scope": "Execute both production SPU decrementer timers with deterministic host edges.\n\nThe complete timer declaration, arm and worker bodies are extracted. Guest\ntime, wait scheduling, IDM retention and atomic publication have explicit\nadapters. Two vector adapters count allocations/erases and inject allocation\nfailure without replacing the compaction algorithm. Timing separately executes\nthe production locked sweep on ordinary std::vectors and a host mutex.\nNo device timing, complete CPU scheduler or concurrent atomic ordering is tested.\n"
+}
