@@ -1,0 +1,33 @@
+{
+  "result": "authenticated",
+  "baselineArtifact": 12883480724,
+  "baselineRun": 40841402428,
+  "archiveSha256": "be55d705ea93ae27c1756c29c3ec7a16ec51c60b9ace10556dcc751a00f5af45",
+  "source": {
+    "repository": "https://starforgejo.dev/archive/LibHac_Ryubing.git",
+    "revision": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
+    "package": "Ryujinx.LibHac",
+    "version": "0.21.0-alpha.129",
+    "consumerChange": "cc6d2dc162ca00a3db9af09f176798a8297926ab",
+    "provenance": "Source reconstruction: matching NACP language-buffer change, ten minutes before the consumer moves from alpha.126 to alpha.129. Original NuGet package identity unavailable; byte equivalence is not asserted."
+  },
+  "packageSha256": "b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9",
+  "originalLayoutProof": {
+    "hostSource": "56aeec6722a93f07bbdc05a4576e71cebc93702b",
+    "run": 39504259828,
+    "job": 118909098038,
+    "artifact": 12302912762,
+    "artifactName": "MeloNX-engine-56aeec6722a93f07bbdc05a4576e71cebc93702b",
+    "artifactSha256": "f31b5a53aa3ee5726a8fe593bca7940befa5f1b447d4e60dd1123f3f45ebf197",
+    "packageSha256": "b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9",
+    "libHacSource": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
+    "layoutTestsPassed": 5,
+    "runConclusion": "failure",
+    "laterFailure": "NETSDK1112: NativeAOT iOS runtime pack not downloaded; LibHac build and its five tests passed beforehand.",
+    "reused": true,
+    "testsReexecuted": false
+  },
+  "testsReexecuted": false,
+  "dependencyRecompiled": false,
+  "originalPackageRecovered": false
+}

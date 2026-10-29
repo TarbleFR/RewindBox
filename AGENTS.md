@@ -151,6 +151,40 @@ The reviewed 86-input/source contract fails closed on a later source change.
 No IPA, release or iPhone performance result is authorized or implied by this
 Core build. Preserve RPCS3 and delivered private IPA594.
 
+## MeloNX Core84 compiled and independently verified — 29 October 2026
+
+The requested corrected Core is complete. Source
+`5045889ff9f1a872d238435293c50cacd7c127b5` passes run `40895446303`, job
+`123523168026`, attempt 1. Artifact `12907831125` is 87,444,668 bytes, ZIP SHA256
+`03d98461351141dbc32a407591081a775c4c5298ab1df7ae8b72f39e6cf20493`.
+Both actual NativeAOT ARM64 dylibs and their 47 required exports pass:
+iOS 37,585,128 bytes, SHA256
+`a19229b27a949225dd6aebc03c6737b466f26f355ee0ec5f8418ec7857bfc6a4`;
+simulator 37,911,912 bytes, SHA256
+`a171296956d22e57d242b918ea262ac84fa0113591c46e69ce169cb200a10248`.
+
+Thirteen fresh Apple gates pass in 94 seconds. NativeAOT/ABI takes 254 seconds,
+the new runtime smoke 241 seconds, and the job 702 seconds. Two separate guest
+SVC sessions close and release their backing. Offline independent verification
+authenticates both actual Mach-O images, 86 preparation inputs, 127 adapted
+source members (17 reviewed changes, 110 unchanged), 13 receipts and their
+inputs, LibHac and the native-framework reuse proof. Historical suites and
+unchanged native dependencies were not rebuilt or replayed.
+
+Apple host timings retain tradeoffs: middle/late fragmented Slice and the
+4096-handle snapshot case can be slower despite lower allocation; timer slots
+grow 8 to 32 bytes; the mixed allocator peak is 4096 bytes higher. These are
+JIT host measurements with native boundaries doubled, not iPhone FPS/RSS.
+The runtime smoke is non-graphical simulator homebrew. No physical device,
+Hogwarts gameplay, IPA or release result exists for this Core.
+
+Reuse this verified Core for the next requested IPA if its exact 86 inputs and
+build contract still match; do not recompile it or repeat successful suites for
+packaging. This updates the current MeloNX selection after delivered IPA594;
+the engine82 proofs and the original private594 payload remain historical.
+See `docs/melonx-hogwarts-core-2026-10-29.md` and
+`docs/evidence/melonx-hogwarts-core-20261029/apple-core.json`.
+
 ## RPCS3 Core compiled and verified — 29 October 2026
 
 The maintainer explicitly requested the Core build. Immutable source

@@ -1,0 +1,74 @@
+{
+  "result": "passed",
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "reports": {
+    "control": {
+      "variant": "control",
+      "checks": 6086,
+      "scenarios": 181,
+      "functionalDigest": "928057C79853BDC1C84457F36318C99A5874376F75716E3DB8DD794C1D637AE8",
+      "retainedWaitNodes": true,
+      "retainedWaitSlots": true,
+      "retainedSignaledObject": true,
+      "concurrentPoolCycles": 4000,
+      "schedulerExecuted": false,
+      "productionWaitAlgorithmExecuted": true
+    },
+    "candidate": {
+      "variant": "candidate",
+      "checks": 8376,
+      "scenarios": 181,
+      "functionalDigest": "928057C79853BDC1C84457F36318C99A5874376F75716E3DB8DD794C1D637AE8",
+      "retainedWaitNodes": false,
+      "retainedWaitSlots": false,
+      "retainedSignaledObject": false,
+      "concurrentPoolCycles": 4000,
+      "schedulerExecuted": false,
+      "productionWaitAlgorithmExecuted": true
+    }
+  },
+  "physicalDeviceTested": false,
+  "schedulerBoundary": "controlled; production wait/list/refcount algorithms",
+  "compiledInputs": {
+    "control": {
+      "waitSynchronizationMethodSha256": "f48cac2706277ff9c55d85895816a987551c25c55f9ec1f4819ba480881c1407",
+      "compiledSyscallSha256": "8e96a651119b701a77358bb8c704c1521dbac3aacb76788197b7822a3d2dda49",
+      "programSha256": "919200f6ae23217ba4b036398682d8d37c80b0f5d3d4ce70926fb23be6e128eb"
+    },
+    "candidate": {
+      "waitSynchronizationMethodSha256": "0a05b4efc3bd383725e62c0c1a039c3cf1d49c2d16f5b627e99ffa42592efa54",
+      "compiledSyscallSha256": "32204640f8caae4a17fa3df673f47394152692f70cd4fe9a0061921353a699a9",
+      "programSha256": "919200f6ae23217ba4b036398682d8d37c80b0f5d3d4ce70926fb23be6e128eb"
+    }
+  },
+  "postimages": {
+    "control": {
+      "src/Ryujinx.HLE/HOS/Kernel/Common/KSynchronizationObject.cs": "a9a9a899373404dbc85a5a6a257eb00c99fbcf8ad45e51e95cc9a9c2776e9d19",
+      "src/Ryujinx.HLE/HOS/Kernel/Threading/KSynchronization.cs": "372531da36094dc1ed1c3bd64341b3eeaff50abb1ce108eef294c06dbc3858f2",
+      "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs": "109915ad7f4af3207164154ff1d9851d12571ea6aa6af1743b4e713573ab57d0"
+    },
+    "candidate": {
+      "src/Ryujinx.HLE/HOS/Kernel/Common/KSynchronizationObject.cs": "faa0c8b8d9d4a9801a296ed830f68403cd94ef60758e5e2e7c7b33c30c998b1b",
+      "src/Ryujinx.HLE/HOS/Kernel/Threading/KSynchronization.cs": "7fdbfb507dfabaed0112e4150e3259d27c4aa626241785fec91d554c93988070",
+      "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs": "ad697837ea5adb7e0aeea347830d4fd174b445ebc175788247505e443044d47b"
+    }
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.HLE/HOS/Kernel/Common/KSynchronizationObject.cs": "a9a9a899373404dbc85a5a6a257eb00c99fbcf8ad45e51e95cc9a9c2776e9d19",
+    "src/Ryujinx.HLE/HOS/Kernel/Threading/KSynchronization.cs": "372531da36094dc1ed1c3bd64341b3eeaff50abb1ce108eef294c06dbc3858f2",
+    "src/Ryujinx.HLE/HOS/Kernel/SupervisorCall/Syscall.cs": "109915ad7f4af3207164154ff1d9851d12571ea6aa6af1743b4e713573ab57d0",
+    "src/Ryujinx.HLE/HOS/Kernel/Common/KAutoObject.cs": "0042e8a1239205cf063dedcc61fe959fd207b8664b0034677dd44ff0de4d1cd4",
+    "src/Ryujinx.HLE/HOS/Kernel/Threading/ThreadSchedState.cs": "141852bc2710a94d1bb85b80131b6a245ee95c0e05fb00d9cc3330e91543e247",
+    "src/Ryujinx.Common/Pools/ObjectPool.cs": "f3a449f027d1a78831badcc565293763cd4eb51a0f2fe9219778c53f5f2ea4de",
+    "src/Ryujinx.Horizon.Common/Result.cs": "3adbe31c3a3c2a21d880fe8da816303ca43fe72a109be1ee5271b141d5c9b86a",
+    "src/Ryujinx.Horizon.Common/KernelResult.cs": "345fcdc02e58c757a7a6c54a084e3c6dadd6abf26ca9a3adfc60fd7194f0244a",
+    "src/Ryujinx.Horizon.Common/ResultNames.cs": "280f348f3362f595e5bb16b7b58b6b7828894780738f95ba8238fb02766a91ed",
+    "src/Ryujinx.Horizon.Common/InvalidResultException.cs": "5570e726b1e5592858e27f5a95484847f6a7396488afa21e79e4e5552849bf6f",
+    "src/Ryujinx.Horizon.Common/ThreadTerminatedException.cs": "c013adbfc0bcd0a3741dea6ebf0eeff85ebdbeb5ccef19927b44e16e4119bdae"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_kernel_wait_lifetime.py": "68a954b4c8bd5f3e8e5dcf74ff424da91a1508a1a964ab3067321279b97892e4",
+    "test/melonx_kernel_wait_lifetime_test.py": "7536a5fd5d9aef83104d2ca36037611bbac514c1264d9d5cfb63b7488be1eb2f",
+    "test/melonx_kernel_wait_lifetime/Program.cs": "919200f6ae23217ba4b036398682d8d37c80b0f5d3d4ce70926fb23be6e128eb"
+  }
+}

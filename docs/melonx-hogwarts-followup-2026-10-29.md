@@ -2,6 +2,13 @@
 
 **29 octobre 2026 — candidat local RewindBox, branche `Claude`.**
 
+**Mise à jour après la demande de compilation :** ce lot de douze correctifs
+est poussé et intégré au **Core MeloNX84**, source `5045889f`, run
+`40895446303` réussi. Les deux bibliothèques NativeAOT et leur fonctionnement
+sur simulateur sont vérifiés. Le présent document conserve les mesures Linux
+d'origine ; les résultats Apple et leurs contreparties figurent dans le
+[compte rendu du Core84](melonx-hogwarts-core-2026-10-29.md).
+
 Douze nouveaux adaptateurs sont implémentés, intégrés à la préparation de MeloNX et couverts par douze portes de validation ciblées. Ils modifient seize fichiers C# existants et ajoutent un fichier. La bibliothèque managée complète compile en Release, avec zéro erreur. Les défauts de rétention, d'allocation temporaire et d'invalidation décrits ici sont reproduits dans des tests exécutables.
 
 La priorité est de réduire le travail répété du moteur et de rendre les objets inutiles récupérables. Les résultats ci-dessous mesurent ces mécanismes sur l'hôte Linux x64 avec .NET 10.0.100. Ils ne mesurent pas la RAM résidente ni les FPS de Hogwarts Legacy sur iPhone. Le signalement de 2–5 FPS au menu et dans les cinématiques reste le problème à valider sur appareil ; ce lot ne démontre pas à lui seul la part de chaque mécanisme dans ce ralentissement.

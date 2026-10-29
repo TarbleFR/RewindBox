@@ -1,0 +1,122 @@
+{
+  "result": "passed",
+  "repository": "TarbleFR/RewindBox",
+  "branch": "Claude",
+  "sourceBatch": "7ffdbaaecced8ebf5884b89f67e3279d5752a2e6",
+  "source": "5045889ff9f1a872d238435293c50cacd7c127b5",
+  "run": 40895446303,
+  "runNumber": 84,
+  "attempt": 1,
+  "job": 123523168026,
+  "runUrl": "https://github.com/TarbleFR/RewindBox/actions/runs/40895446303",
+  "runConclusion": "success",
+  "jobConclusion": "success",
+  "artifact": {
+    "id": 12907831125,
+    "node_id": "MDg6QXJ0aWZhY3QxMjkwNzgzMTEyNQ==",
+    "name": "MeloNX-engine-5045889ff9f1a872d238435293c50cacd7c127b5",
+    "size_in_bytes": 87444668,
+    "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12907831125",
+    "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12907831125/zip",
+    "expired": false,
+    "digest": "sha256:03d98461351141dbc32a407591081a775c4c5298ab1df7ae8b72f39e6cf20493",
+    "created_at": "2026-10-29T15:01:48Z",
+    "updated_at": "2026-10-29T15:01:48Z",
+    "expires_at": "2026-11-12T15:01:40Z",
+    "workflow_run": {
+      "id": 40895446303,
+      "repository_id": 1329032710,
+      "head_repository_id": 1329032710,
+      "head_branch": "Claude",
+      "head_sha": "5045889ff9f1a872d238435293c50cacd7c127b5"
+    }
+  },
+  "binaries": {
+    "ios-arm64": {
+      "sha256": "a19229b27a949225dd6aebc03c6737b466f26f355ee0ec5f8418ec7857bfc6a4",
+      "bytes": 37585128
+    },
+    "iossimulator-arm64": {
+      "sha256": "a171296956d22e57d242b918ea262ac84fa0113591c46e69ce169cb200a10248",
+      "bytes": 37911912
+    }
+  },
+  "identitySha256": {
+    "ios-arm64": "cf441263ac24e60ec2c88601b7fc9d73abf2879d346b9c6c1a20780f75a586f1",
+    "iossimulator-arm64": "47010df9aa48cc794312a1875bbf7a3c4e6ba7ab172e81dfe6e1bb8d4869de06"
+  },
+  "preparationInputs": 86,
+  "reviewedChangedSources": 17,
+  "preparedSourceMembers": 127,
+  "unchangedPreparedSourceMembers": 110,
+  "requiredExportsPerBinary": 47,
+  "newAppleGates": 13,
+  "independentVerificationSha256": "93444fdee86538389ea9923c23208d79f357827dcd22cc8523d7848106bed82c",
+  "runtimeSmoke": {
+    "sha256": "da8fc3f3e7655c982926756c4b62443f7be390213b6407e6ac7b6e2e16eab012",
+    "sessions": 2,
+    "releasedBackingSessions": 2,
+    "guestSvcSessions": [
+      {
+        "afterSequence": 23,
+        "generation": 1,
+        "session": 1,
+        "svcSequence": 39
+      },
+      {
+        "afterSequence": 40,
+        "generation": 2,
+        "session": 2,
+        "svcSequence": 56
+      }
+    ]
+  },
+  "durationsSeconds": {
+    "job": 702.0,
+    "targetedGates": 94.0,
+    "nativeAotAndAbi": 254.0,
+    "runtimeSmoke": 241.0
+  },
+  "storedArtifactMembers": {
+    "tracking-snapshot-checks.json": "114a4f0a83ffaeae5f90fed6325cdd7db5400e7ae025fa1bd6600599573e48bf",
+    "multirange-slice-checks.json": "ab71bda569e09264d17dc8206318412f0651db1c8d2bb2dc2f8c959405b4b512",
+    "texture-group-callbacks-checks.json": "550e5327571cd6efcd1ddc7f4346e0c48bc1b01d37ea419066ab5d32ac4b06e2",
+    "texture-region-cursor-checks.json": "12a7fef54e1940fc78f7a95865c43069dc51549c43b96da528a1cf3c5bec2b84",
+    "auto-ownership-checks.json": "bd11b7d2e862a4cc818e201a3a03009f5cf6448775e9741fad91099eb652a350",
+    "converted-cache-checks.json": "a5e31dbf0c2592c2dbca241787ba9768b9027d0d72c22298217d3ca470b4f3bf",
+    "kernel-wait-lifetime-checks.json": "c0970b5484fb08cab76bfab96d227cc682ef7a9ab853344bc24e282ee297203a",
+    "ipc-request-lifetime-checks.json": "be093a2461fbc2bde760cb1ab24561421c1b5a6aa03d2a8e0d5735e1fe409d61",
+    "kernel-timer-allocations-checks.json": "26e5889154ff7b73e4d029042c80b4ec3b784f8546df4338e388195bf4f9dfab",
+    "allocator-blocks-checks.json": "3676e8d1fd2e510a165841bb88f1a480ff5a23722c6e4eb4f1035679f61fbe04",
+    "indirect-cache-key-checks.json": "5c6a6b8b989e83fe53eac90bc4c12014dca5493695eb61f4a984ed17db621964",
+    "texture-handle-dependencies-checks.json": "4f0470e339c0fe39302d3a22c5dc61834771a996570d197a8da8836ce78fd054",
+    "fragmented-upload-slice-checks.json": "5de548a53e8d48247946dcae1ec0add1f8ee83421c8c849b6e5cf8b02a9f7f61",
+    "core-validation/preflight.json": "eb858dcdaf2deff8afdba71780467fd720fc4766f0d2dedefe9f4450e5331fff",
+    "core-validation/gates.json": "0364f77bc7057f5040d027af6ba920171869690c1857b4862351b1284fcad751",
+    "core-validation/compiled.json": "326459b790783516baa03b74d66ab0f744fda47944bc16ed9d6edc3cde572b86",
+    "core-validation/result.json": "b8fb9d69ef21c63c69c8232cf91a72d021ba95f4915ca90bf7a1872809735d22",
+    "runtime-smoke/actual-runtime.json": "da8fc3f3e7655c982926756c4b62443f7be390213b6407e6ac7b6e2e16eab012",
+    "runtime-smoke/native-runtime.log": "a582cc22628bd15b26e5386734c898e34100b790032d046331addfa94757dbd6",
+    "ios-arm64/identity.json": "cf441263ac24e60ec2c88601b7fc9d73abf2879d346b9c6c1a20780f75a586f1",
+    "iossimulator-arm64/identity.json": "47010df9aa48cc794312a1875bbf7a3c4e6ba7ab172e81dfe6e1bb8d4869de06",
+    "embedded-inputs.json": "8efb4f3c984bcf0132008f7d22afb8685c3f41dca9731bdaaee4ccb91a89c1aa",
+    "libhac-identity.json": "3ade34b99ad247dfcc43665ab3fb388097681cb2ac4eee88b4ca4c1f63eb84b1",
+    "libhac-authenticated-reuse.json": "77ada960f7b6f7e4ae4654e29daab7400da97a72a340683b73ed3c67b35bf369",
+    "native-dependencies-reused.json": "c1fcb34886a3b5afb8a8337406a9c395303f0311f71fd15f23578b157cde0810",
+    "baseline-engine82/authentication/result.json": "346a971cd0b7dc8679e9629f0d5846437cfeda8da45430e1ce40269bc62942a2"
+  },
+  "historicalSuitesReexecuted": false,
+  "unchangedNativeDependenciesRecompiled": false,
+  "ipaProduced": false,
+  "releaseProduced": false,
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "fpsGainMeasured": false,
+  "gameRssMeasured": false,
+  "limitations": [
+    "New gate measurements are host JIT results with explicitly doubled native boundaries.",
+    "NativeAOT runtime proof uses two non-graphical homebrew sessions on iOS Simulator.",
+    "Some allocation-saving paths have slower measured host timings; timer reserved slots are 24 bytes larger and one mixed allocator case peaks 4096 bytes higher.",
+    "The earlier unavailable eleven-adapter batch is outside this twelve-adapter source lot."
+  ]
+}

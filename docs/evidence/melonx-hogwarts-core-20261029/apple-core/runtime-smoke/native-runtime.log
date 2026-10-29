@@ -1,0 +1,309 @@
+2026-10-29 15:01:23.174 MeloNXSmoke[14318:47065] [MeloNX:launch] frameworks begin (0) Loading the private ARM64 MeloNX engine and resolving its ABI.
+2026-10-29 15:01:23.890 MeloNXSmoke[14318:47049] You need UIApplicationSupportsIndirectInputEvents in your Info.plist for mouse support
+2026-10-29 15:01:23.901 MeloNXSmoke[14318:47065] [MeloNX:launch] frameworks passed (0) Private SDL video and dependency closure initialized; MoltenVK source-built.
+2026-10-29 15:01:23.956 MeloNXSmoke[14318:47065] [MeloNX:launch] nativeAot begin (0) 
+2026-10-29 15:01:24.310 MeloNXSmoke[14318:47065] [MeloNX:launch] nativeAot passed (0) 
+2026-10-29 15:01:24.310 MeloNXSmoke[14318:47065] SMOKE boundary 54
+2026-10-29 15:01:24.319 MeloNXSmoke[14318:47065] SMOKE boundary 57
+2026-10-29 15:01:24.320 MeloNXSmoke[14318:47065] SMOKE boundary 58
+2026-10-29 15:01:24.321 MeloNXSmoke[14318:47065] SMOKE boundary 60
+2026-10-29 15:01:24.323 MeloNXSmoke[14318:47065] SMOKE boundary 62
+2026-10-29 15:01:24.340 MeloNXSmoke[14318:47065] SMOKE boundary 65
+2026-10-29 15:01:24.362 MeloNXSmoke[14318:47065] SMOKE boundary 66
+2026-10-29 15:01:24.363 MeloNXSmoke[14318:47065] SMOKE boundary 68
+2026-10-29 15:01:24.365 MeloNXSmoke[14318:47065] SMOKE boundary 75
+2026-10-29 15:01:24.388 MeloNXSmoke[14318:47065] SMOKE boundary 87
+2026-10-29 15:01:24.392 MeloNXSmoke[14318:47065] SMOKE boundary 95
+2026-10-29 15:01:24.395 MeloNXSmoke[14318:47065] SMOKE boundary 98
+2026-10-29 15:01:24.399 MeloNXSmoke[14318:47065] SMOKE boundary 107
+2026-10-29 15:01:24.403 MeloNXSmoke[14318:47065] SMOKE boundary 115
+2026-10-29 15:01:24.403 MeloNXSmoke[14318:47065] SMOKE boundary 115
+2026-10-29 15:01:24.403 MeloNXSmoke[14318:47065] SMOKE boundary 115
+2026-10-29 15:01:24.404 MeloNXSmoke[14318:47065] SMOKE boundary 115
+2026-10-29 15:01:24.404 MeloNXSmoke[14318:47065] SMOKE boundary 115
+2026-10-29 15:01:24.404 MeloNXSmoke[14318:47065] SMOKE boundary 115
+2026-10-29 15:01:24.404 MeloNXSmoke[14318:47065] SMOKE boundary 118
+2026-10-29 15:01:24.404 MeloNXSmoke[14318:47065] SMOKE boundary 122
+2026-10-29 15:01:24.430 MeloNXSmoke[14318:47080] 00:00:01.104 |I| Cpu .ctor: Allocating dual-mapped JIT memory of size 1073741824 bytes, called by . with False, True
+2026-10-29 15:01:24.438 MeloNXSmoke[14318:47065] Code length: 3852, aligned: 16384, memoryBlockSize: 16384
+2026-10-29 15:01:24.442 MeloNXSmoke[14318:47065] SMOKE boundary 142
+2026-10-29 15:01:24.461 MeloNXSmoke[14318:47080] 00:00:01.121 |I| Cpu .ctor: Allocating dual-mapped JIT memory of size 16384 bytes, called by . with False, True
+2026-10-29 15:01:24.525 MeloNXSmoke[14318:47049] [MeloNX:launch] session begin (0) 
+2026-10-29 15:01:24.528 MeloNXSmoke[14318:47049] [MeloNX:launch] session passed (1) 
+2026-10-29 15:01:24.533 MeloNXSmoke[14318:47080] 00:00:01.215 |I| Application EnsureKeyboardFallback: No input configs, fallback keyboard for Player1.
+2026-10-29 15:01:24.565 MeloNXSmoke[14318:47080] 00:00:00.013 |I| Gpu : Backend Threading (On): True
+2026-10-29 15:01:24.991 MeloNXSmoke[14318:47080] 00:00:00.445 |N| Application LoadApplicationOwned: Using Firmware Version: 
+2026-10-29 15:01:25.005 MeloNXSmoke[14318:47080] 00:00:00.449 |I| Application LoadApplicationOwned: Loading as Homebrew.
+2026-10-29 15:01:25.008 MeloNXSmoke[14318:47080] 00:00:00.460 |W| Loader GetNpdm: NPDM file not found, using default values!
+2026-10-29 15:01:25.160 MeloNXSmoke[14318:47080] 00:00:00.611 |I| Application ParseCapability: Application requested cores with index range 0 to 2
+2026-10-29 15:01:25.161 MeloNXSmoke[14318:47080] 00:00:00.612 |I| Loader LoadNsos: Loading image 0 at 0x0000000008500000...
+2026-10-29 15:01:25.161 MeloNXSmoke[14318:47080] 00:00:00.612 |I| ModLoader LoadCheats: Build ids found for application 0000000000000000:
+    0000000000000000000000000000000000000000000000000000000000000000
+2026-10-29 15:01:25.161 MeloNXSmoke[14318:47080] 00:00:00.612 |E| ServiceTime InitializeLocationNameCache: TimeZoneBinary system title not found! TimeZone conversions will not work, provide the system archive to fix this error.
+2026-10-29 15:01:25.171 MeloNXSmoke[14318:47080] 00:00:00.623 |I| Loader Start: Application Loaded: Firmware Application <Unknown Name> v<Unknown Version> [010000000000100d] [64-bit]
+2026-10-29 15:01:25.172 MeloNXSmoke[14318:47080] 00:00:00.623 |I| Hid Configure: Configured Controller JoyconPair to Player1
+[mvk-warn] vkSetMoltenVKConfigurationMVK() is deprecated. To set MoltenVK configuration parameters, the VK_EXT_layer_settings extension, or environment variables.
+[mvk-info] MoltenVK version 1.3.0, supporting Vulkan version 1.3.313.
+	The following 125 Vulkan extensions are supported:
+	VK_KHR_16bit_storage v1
+	VK_KHR_8bit_storage v1
+	VK_KHR_bind_memory2 v1
+	VK_KHR_buffer_device_address v1
+	VK_KHR_calibrated_timestamps v1
+	VK_KHR_copy_commands2 v1
+	VK_KHR_create_renderpass2 v1
+	VK_KHR_dedicated_allocation v3
+	VK_KHR_deferred_host_operations v4
+	VK_KHR_depth_stencil_resolve v1
+	VK_KHR_descriptor_update_template v1
+	VK_KHR_device_group v4
+	VK_KHR_device_group_creation v1
+	VK_KHR_driver_properties v1
+	VK_KHR_dynamic_rendering v1
+	VK_KHR_external_fence v1
+	VK_KHR_external_fence_capabilities v1
+	VK_KHR_external_memory v1
+	VK_KHR_external_memory_capabilities v1
+	VK_KHR_external_semaphore v1
+	VK_KHR_external_semaphore_capabilities v1
+	VK_KHR_fragment_shader_barycentric v1
+	VK_KHR_format_feature_flags2 v2
+	VK_KHR_get_memory_requirements2 v1
+	VK_KHR_get_physical_device_properties2 v2
+	VK_KHR_get_surface_capabilities2 v1
+	VK_KHR_imageless_framebuffer v1
+	VK_KHR_image_format_list v1
+	VK_KHR_incremental_present v2
+	VK_KHR_index_type_uint8 v1
+	VK_KHR_load_store_op_none v1
+	VK_KHR_maintenance1 v2
+	VK_KHR_maintenance2 v1
+	VK_KHR_maintenance3 v1
+	VK_KHR_maintenance4 v2
+	VK_KHR_maintenance6 v1
+	VK_KHR_maintenance7 v1
+	VK_KHR_map_memory2 v1
+	VK_KHR_multiview v1
+	VK_KHR_portability_subset v1
+	VK_KHR_push_descriptor v2
+	VK_KHR_relaxed_block_layout v1
+	VK_KHR_sampler_mirror_clamp_to_edge v3
+	VK_KHR_sampler_ycbcr_conversion v14
+	VK_KHR_separate_depth_stencil_layouts v1
+	VK_KHR_shader_draw_parameters v1
+	VK_KHR_shader_expect_assume v1
+	VK_KHR_shader_float_controls v4
+	VK_KHR_shader_float16_int8 v1
+	VK_KHR_shader_integer_dot_product v1
+	VK_KHR_shader_non_semantic_info v1
+	VK_KHR_shader_subgroup_extended_types v1
+	VK_KHR_shader_subgroup_rotate v2
+	VK_KHR_shader_terminate_invocation v1
+	VK_KHR_spirv_1_4 v1
+	VK_KHR_storage_buffer_storage_class v1
+	VK_KHR_surface v25
+	VK_KHR_swapchain v70
+	VK_KHR_swapchain_mutable_format v1
+	VK_KHR_synchronization2 v1
+	VK_KHR_timeline_semaphore v2
+	VK_KHR_uniform_buffer_standard_layout v1
+	VK_KHR_variable_pointers v1
+	VK_KHR_vertex_attribute_divisor v1
+	VK_KHR_vulkan_memory_model v3
+	VK_KHR_zero_initialize_workgroup_memory v1
+	VK_EXT_4444_formats v1
+	VK_EXT_buffer_device_address v2
+	VK_EXT_calibrated_timestamps v2
+	VK_EXT_debug_marker v4
+	VK_EXT_debug_report v10
+	VK_EXT_debug_utils v2
+	VK_EXT_descriptor_indexing v2
+	VK_EXT_depth_clip_control v1
+	VK_EXT_extended_dynamic_state v1
+	VK_EXT_extended_dynamic_state2 v1
+	VK_EXT_extended_dynamic_state3 v2
+	VK_EXT_external_memory_host v1
+	VK_EXT_external_memory_metal v1
+	VK_EXT_fragment_shader_interlock v1
+	VK_EXT_headless_surface v1
+	VK_EXT_host_image_copy v1
+	VK_EXT_host_query_reset v1
+	VK_EXT_image_2d_view_of_3d v1
+	VK_EXT_image_robustness v1
+	VK_EXT_index_type_uint8 v1
+	VK_EXT_inline_uniform_block v1
+	VK_EXT_layer_settings v2
+	VK_EXT_load_store_op_none v1
+	VK_EXT_memory_budget v1
+	VK_EXT_metal_objects v2
+	VK_EXT_metal_surface v1
+	VK_EXT_pipeline_creation_cache_control v3
+	VK_EXT_pipeline_creation_feedback v1
+	VK_EXT_pipeline_robustness v1
+	VK_EXT_post_depth_coverage v1
+	VK_EXT_private_data v1
+	VK_EXT_robustness2 v1
+	VK_EXT_sample_locations v1
+	VK_EXT_scalar_block_layout v1
+	VK_EXT_separate_stencil_usage v1
+	VK_EXT_shader_atomic_float v1
+	VK_EXT_shader_demote_to_helper_invocation v1
+	VK_EXT_shader_stencil_export v1
+	VK_EXT_shader_subgroup_ballot v1
+	VK_EXT_shader_subgroup_vote v1
+	VK_EXT_shader_viewport_index_layer v1
+	VK_EXT_subgroup_size_control v2
+	VK_EXT_surface_maintenance1 v1
+	VK_EXT_swapchain_colorspace v5
+	VK_EXT_swapchain_maintenance1 v1
+	VK_EXT_texel_buffer_alignment v1
+	VK_EXT_texture_compression_astc_hdr v1
+	VK_EXT_tooling_info v1
+	VK_EXT_vertex_attribute_divisor v3
+	VK_AMD_gpu_shader_half_float v2
+	VK_AMD_negative_viewport_height v1
+	VK_AMD_shader_image_load_store_lod v1
+	VK_AMD_shader_trinary_minmax v1
+	VK_IMG_format_pvrtc v1
+	VK_INTEL_shader_integer_functions2026-10-29 15:01:25.172 MeloNXSmoke[14318:47080] 00:00:00.624 |I| NeoStation.MeloNX.Render Application GetRequiredInstanceExtensions: Available Vulkan extensions: VK_KHR_device_group_creation, VK_KHR_external_fence_capabilities, VK_KHR_external_memory_capabilities, VK_KHR_external_semaphore_capabilities, VK_KHR_get_physical_device_properties2, VK_KHR_get_surface_capabilities2, VK_KHR_surface, VK_EXT_debug_report, VK_EXT_debug_utils, VK_EXT_headless_surface, VK_EXT_layer_settings, VK_EXT_metal_surface, VK_EXT_surface_maintenance1, VK_EXT_swapchain_colorspace, VK_MVK_ios_surface, VK_MVK_moltenvk
+2026-10-29 15:01:25.172 MeloNXSmoke[14318:47080] 00:00:00.624 |I| NeoStation.MeloNX.Render Application GetRequiredInstanceExtensions: Using Vulkan extensions: VK_KHR_surface, VK_EXT_metal_surface
+2026-10-29 15:01:25.183 MeloNXSmoke[14318:47080] 00:00:00.635 |I| Hid SetupNpad: Connected Controller JoyconPair to Player1
+2026-10-29 15:01:29.009 MeloNXSmoke[14318:47080] 00:00:04.464 |N| NeoStation.MeloNX.Render Gpu : Vulkan pipeline cache initialized: 0.00 KiB main data, 0/2 worker snapshots recovered. Budget 384.00 MiB main, 64.00 MiB per worker.
+2026-10-29 15:01:29.281 MeloNXSmoke[14318:47080] 00:00:04.733 |N| NeoStation.MeloNX.Render Gpu PrintGpuInformation: Apple iOS simulator GPU (Vulkan v1.2.0, Driver v0.2.2108)
+2026-10-29 15:01:29.281 MeloNXSmoke[14318:47080] 00:00:04.733 |N| NeoStation.MeloNX.Render Gpu PrintGpuInformation: GPU Memory: 7168 MiB
+2026-10-29 15:01:29.291 MeloNXSmoke[14318:47080] 00:00:04.744 |I| NeoStation.MeloNX.Render Gpu GetCapabilities: Metal device does not support BC texture compression; using software decoding.
+2026-10-29 15:01:29.327 MeloNXSmoke[14318:47049] [MeloNX:launch] close begin (1) 
+2026-10-29 15:01:29.722 MeloNXSmoke[14318:47068] [MeloNX:launch] sessionResult passed (0) 
+2026-10-29 15:01:29.732 MeloNXSmoke[14318:47049] [MeloNX:launch] session begin (0) 
+2026-10-29 15:01:29.735 MeloNXSmoke[14318:47049] [MeloNX:launch] session passed (2) 
+2026-10-29 15:01:29.744 MeloNXSmoke[14318:47080] 00:00:05.193 |I| Application EnsureKeyboardFallback: No input configs, fallback keyboard for Player1.
+2026-10-29 15:01:29.755 MeloNXSmoke[14318:47080] 00:00:00.000 |I| Gpu : Backend Threading (On): True
+2026-10-29 15:01:30.121 MeloNXSmoke[14318:47080] 00:00:00.368 |N| Application LoadApplicationOwned: Using Firmware Version: 
+2026-10-29 15:01:30.121 MeloNXSmoke[14318:47080] 00:00:00.369 |I| Application LoadApplicationOwned: Loading as Homebrew.
+2026-10-29 15:01:30.121 MeloNXSmoke[14318:47080] 00:00:00.369 |W| Loader GetNpdm: NPDM file not found, using default values!
+2026-10-29 15:01:30.239 MeloNXSmoke[14318:47080] 00:00:00.488 |I| Application ParseCapability: Application requested cores with index range 0 to 2
+2026-10-29 15:01:30.240 MeloNXSmoke[14318:47080] 00:00:00.488 |I| Loader LoadNsos: Loading image 0 at 0x0000000008500000...
+2026-10-29 15:01:30.241 MeloNXSmoke[14318:47080] 00:00:00.489 |I| ModLoader LoadCheats: Build ids found for application 0000000000000000:
+    0000000000000000000000000000000000000000000000000000000000000000
+2026-10-29 15:01:30.242 MeloNXSmoke[14318:47080] 00:00:00.490 |E| ServiceTime InitializeLocationNameCache: TimeZoneBinary system title not found! TimeZone conversions will not work, provide the system archive to fix this error.
+2 v1
+	VK_GOOGLE_display_timing v1
+	VK_MVK_ios_surface v3
+	VK_MVK_moltenvk v37
+	VK_NV_fragment_shader_barycentric v1
+[mvk-info] GPU device:
+	model: Apple iOS simulator GPU
+	type: Integrated
+	vendorID: 0x106b
+	deviceID: 0x1a040002
+	pipelineCacheUUID: 49B97F26-1A04-0002-0000-000100000000
+	GPU memory available: 0 MB
+	GPU memory used: 0 MB
+	Metal Shading Language 3.2
+	supports the following GPU Features:
+		GPU Family Apple 2
+		Read-Write Texture Tier 1
+[mvk-info] Created VkInstance for Vulkan version 1.2.0, as requested by app, with the following 3 Vulkan extensions enabled:
+	VK_KHR_surface v25
+	VK_EXT_debug_utils v2
+	VK_EXT_metal_surface v1
+[mvk-info] Vulkan semaphores using Metal implicit guarantees within a single queue.
+[mvk-info] Descriptor sets binding resources using Metal argument buffers.
+[mvk-info] Created VkDevice to run on GPU Apple iOS simulator GPU with the following 12 Vulkan extensions enabled:
+	VK_KHR_8bit_storage v1
+	VK_KHR_maintenance2 v1
+	VK_KHR_portability_subset v1
+	VK_KHR_push_descriptor v2
+	VK_KHR_shader_float16_int8 v1
+	VK_KHR_swapchain v70
+	VK_EXT_4444_formats v1
+	VK_EXT_depth_clip_control v1
+	VK_EXT_extended_dynamic_state v1
+	VK_EXT_index_type_uint8 v1
+	VK_EXT_pipeline_creation_cache_control v3
+	VK_EXT_robustness2 v1
+[mvk-info] Created 3 swapchain images with size (402, 874) and contents scale 1.0 in layer (null) (0x1013f8700) on screen Main Screen.
+[mvk-info] Destroyed VkDevice on GPU Apple iOS simulator GPU with 12 Vulkan extensions enabled.
+[mvk-info] Destroyed VkPhysicalDevice for GPU Apple iOS simulator GPU with 0 MB of GPU memory still allocated.
+[mvk-info] Destroying VkInstance for Vulkan version 1.2.0 with 3 Vulkan extensions enabled.
+[mvk-warn] vkSetMoltenVKConfigurationMVK() is deprecated. To set MoltenVK configuration parameters, the VK_EXT_layer_settings extension, or environment variables.
+[mvk-info] MoltenVK version 1.3.0, supporting Vulkan version 1.3.313.
+	The following 125 Vulkan extensions are supported:
+	VK_KHR_16bit_storage v1
+	VK_KHR_8bit_storage v1
+	VK_KHR_bind_memory2 v1
+	VK_KHR_buffer_device_address v1
+	VK_KHR_calibrated_timestamps v1
+	VK_KHR_copy_commands2 v1
+	VK_KHR_create_renderpass2 v1
+	VK_KHR_dedicated_allocation v3
+	VK_KHR_deferred_host_operations v4
+	VK_KHR_depth_stencil_resolve v1
+	VK_KHR_descriptor_update_template v1
+	VK_KHR_device_group v4
+	VK_KHR_device_group_creation v1
+	VK_KHR_driver_properties v1
+	VK_KHR_dynamic_rendering v1
+	VK_KHR_external_fence v1
+	VK_KHR_external_fence_capabilities v1
+	VK_KHR_external_memory v1
+	VK_KHR_external_memory_capabilities v1
+	VK_KHR_external_semaphore v1
+	VK_KHR_external_semaphore_capabilities v1
+	VK_KHR_fragment_shader_barycentric v1
+	VK_KHR_format_feature_flags2 v2
+	VK_KHR_get_memory_requirements2 v1
+	VK_KHR_get_physical_device_properties2 v2
+	VK_KHR_get_surface_capabilities2 v1
+	VK_KHR_imageless_framebuffer v1
+	VK_KHR_image_format_list v1
+	VK_KHR_incremental_present v2
+	VK_KHR_index_type_uint8 v1
+	VK_KHR_load_store_op_none v1
+	VK_KHR_maintenance1 v2
+	VK_KHR_maintenance2 v1
+	VK_KHR_maintenance3 v1
+	VK_KHR_maintenance4 v2
+	VK_KHR_maintenance6 v1
+	VK_KHR_maintenance7 v1
+	VK_KHR_map_memory2 v1
+	VK_KHR_multiview v1
+	VK_KHR_portability_subset v1
+	VK_KHR_push_descriptor v2
+	VK_KHR_relaxed_block_layout v1
+	VK_KHR_sampler_mirror_clamp_to_edge v3
+	VK_KHR_sampler_ycbcr_conversion v14
+	VK_KHR_separate_depth_stencil_layouts v1
+	VK_KHR_shader_draw_parameters v1
+	VK_KHR_shader_expect_assume v1
+	VK_KHR_shader_float_controls v4
+	VK_KHR_shader_float16_int8 v1
+	VK_KHR_shader_integer_dot_product v1
+	VK_KHR_shader_non_semantic_info v1
+	VK_KHR_shader_subgroup_extended_types v1
+	VK_KHR_shader_subgroup_rotate v2
+	VK_KHR_shader_terminate_invocation v1
+	VK_KHR_spirv_1_4 v1
+	VK_KHR_storage_buffer_storage_class v1
+	VK_KHR_surface v25
+	VK_KHR_swapchain v70
+	VK_KHR_swapchain_mutable_format v1
+	VK_KHR_synchronization2 v1
+	VK_KHR_timeline_semaphore v2
+	VK_KHR_uniform_buffer_standard_layout v1
+	VK_KHR_variable_pointers v1
+	VK_KHR_vertex_attribute_divisor v1
+	VK_KHR_vulkan_memory_model v3
+	VK_KHR_zero_initialize_workgroup_memory v1
+	VK_EXT_4444_formats v1
+	VK_EXT2026-10-29 15:01:30.262 MeloNXSmoke[14318:47080] 00:00:00.513 |I| Loader Start: Application Loaded: Firmware Application <Unknown Name> v<Unknown Version> [010000000000100d] [64-bit]
+2026-10-29 15:01:30.262 MeloNXSmoke[14318:47080] 00:00:00.513 |I| Hid Configure: Configured Controller JoyconPair to Player1
+2026-10-29 15:01:30.262 MeloNXSmoke[14318:47080] 00:00:00.514 |I| NeoStation.MeloNX.Render Application GetRequiredInstanceExtensions: Available Vulkan extensions: VK_KHR_device_group_creation, VK_KHR_external_fence_capabilities, VK_KHR_external_memory_capabilities, VK_KHR_external_semaphore_capabilities, VK_KHR_get_physical_device_properties2, VK_KHR_get_surface_capabilities2, VK_KHR_surface, VK_EXT_debug_report, VK_EXT_debug_utils, VK_EXT_headless_surface, VK_EXT_layer_settings, VK_EXT_metal_surface, VK_EXT_surface_maintenance1, VK_EXT_swapchain_colorspace, VK_MVK_ios_surface, VK_MVK_moltenvk
+2026-10-29 15:01:30.263 MeloNXSmoke[14318:47080] 00:00:00.514 |I| NeoStation.MeloNX.Render Application GetRequiredInstanceExtensions: Using Vulkan extensions: VK_KHR_surface, VK_EXT_metal_surface
+2026-10-29 15:01:30.273 MeloNXSmoke[14318:47080] 00:00:00.523 |I| Hid SetupNpad: Connected Controller JoyconPair to Player1
+2026-10-29 15:01:30.283 MeloNXSmoke[14318:47080] 00:00:00.533 |N| NeoStation.MeloNX.Render Gpu : Vulkan pipeline cache initialized: 0.00 KiB main data, 0/2 worker snapshots recovered. Budget 384.00 MiB main, 64.00 MiB per worker.
+2026-10-29 15:01:30.427 MeloNXSmoke[14318:47080] 00:00:00.671 |N| NeoStation.MeloNX.Render Gpu PrintGpuInformation: Apple iOS simulator GPU (Vulkan v1.2.0, Driver v0.2.2108)
+2026-10-29 15:01:30.427 MeloNXSmoke[14318:47080] 00:00:00.671 |N| NeoStation.MeloNX.Render Gpu PrintGpuInformation: GPU Memory: 7168 MiB
+2026-10-29 15:01:30.438 MeloNXSmoke[14318:47080] 00:00:00.681 |I| NeoStation.MeloNX.Render Gpu GetCapabilities: Metal device does not support BC texture compression; using software decoding.
+2026-10-29 15:01:30.448 MeloNXSmoke[14318:47049] [MeloNX:launch] close begin (2) 
+2026-10-29 15:01:30.777 MeloNXSmoke[14318:47068] [MeloNX:launch] sessionResult passed (0) 

@@ -1,0 +1,21 @@
+{
+  "source": {
+    "repository": "https://starforgejo.dev/archive/LibHac_Ryubing.git",
+    "revision": "23e402ebb6dedc517e34a98a033078dc0f6fd478",
+    "package": "Ryujinx.LibHac",
+    "version": "0.21.0-alpha.129",
+    "consumerChange": "cc6d2dc162ca00a3db9af09f176798a8297926ab",
+    "provenance": "Source reconstruction: matching NACP language-buffer change, ten minutes before the consumer moves from alpha.126 to alpha.129. Original NuGet package identity unavailable; byte equivalence is not asserted."
+  },
+  "reconstructed": true,
+  "originalPackageRecovered": false,
+  "packageSha256": "b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9",
+  "packageBytes": 740404,
+  "generatedInputs": {
+    "src/LibHac/Common/FixedArrays.Generated.cs": "67f0e7b142c9a86213cd707e84839e268f2c48219bf34a792e92c064578a5ad2",
+    "src/LibHac/Common/Keys/DefaultKeySet.Generated.cs": "478a968d866ace297236d51e23b1665db679863475c352dc5632439bae9c5e4d",
+    "src/LibHac/Common/ResultNameResolver.Generated.cs": "1da2266d06202e16401809fdae354522a6b97f14d80e705d91e3c850e05ba836"
+  },
+  "layoutTests": "LibHac.Tests.Ns.TypeLayoutTests",
+  "upstreamSourceSha256": "36e4cf34575a36e3844b55fd8cc3834bfb1cddc68ccebbb21fc0f7bb28e8373b"
+}

@@ -1,0 +1,344 @@
+{
+  "scope": "Host .NET 10.0.100 JIT on Apple ARM64; native boundaries are doubled, not Hogwarts RSS or iPhone FPS.",
+  "tracking": {
+    "control": [
+      {
+        "count": 1,
+        "rounds": 12000,
+        "repeats": 5,
+        "allocatedBytes": 1920000,
+        "bytesPerEvent": 32,
+        "medianNanosecondsPerEvent": 183.23333333333332
+      },
+      {
+        "count": 2,
+        "rounds": 12000,
+        "repeats": 5,
+        "allocatedBytes": 2400000,
+        "bytesPerEvent": 40,
+        "medianNanosecondsPerEvent": 194.13333333333333
+      },
+      {
+        "count": 16,
+        "rounds": 12000,
+        "repeats": 5,
+        "allocatedBytes": 9120000,
+        "bytesPerEvent": 152,
+        "medianNanosecondsPerEvent": 556.7083333333334
+      },
+      {
+        "count": 64,
+        "rounds": 12000,
+        "repeats": 5,
+        "allocatedBytes": 32160000,
+        "bytesPerEvent": 536,
+        "medianNanosecondsPerEvent": 1641.9666666666667
+      },
+      {
+        "count": 512,
+        "rounds": 12000,
+        "repeats": 5,
+        "allocatedBytes": 247200000,
+        "bytesPerEvent": 4120,
+        "medianNanosecondsPerEvent": 11128.516666666666
+      },
+      {
+        "count": 4096,
+        "rounds": 1200,
+        "repeats": 5,
+        "allocatedBytes": 196752000,
+        "bytesPerEvent": 32792,
+        "medianNanosecondsPerEvent": 70726.5
+      },
+      {
+        "count": 4097,
+        "rounds": 1200,
+        "repeats": 5,
+        "allocatedBytes": 196800000,
+        "bytesPerEvent": 32800,
+        "medianNanosecondsPerEvent": 75594.75
+      }
+    ],
+    "candidate": [
+      {
+        "count": 1,
+        "rounds": 12000,
+        "repeats": 5,
+        "allocatedBytes": 0,
+        "bytesPerEvent": 0,
+        "medianNanosecondsPerEvent": 91.36666666666666
+      },
+      {
+        "count": 2,
+        "rounds": 12000,
+        "repeats": 5,
+        "allocatedBytes": 0,
+        "bytesPerEvent": 0,
+        "medianNanosecondsPerEvent": 139.625
+      },
+      {
+        "count": 16,
+        "rounds": 12000,
+        "repeats": 5,
+        "allocatedBytes": 0,
+        "bytesPerEvent": 0,
+        "medianNanosecondsPerEvent": 236.725
+      },
+      {
+        "count": 64,
+        "rounds": 12000,
+        "repeats": 5,
+        "allocatedBytes": 0,
+        "bytesPerEvent": 0,
+        "medianNanosecondsPerEvent": 540.0833333333334
+      },
+      {
+        "count": 512,
+        "rounds": 12000,
+        "repeats": 5,
+        "allocatedBytes": 0,
+        "bytesPerEvent": 0,
+        "medianNanosecondsPerEvent": 6917.85
+      },
+      {
+        "count": 4096,
+        "rounds": 1200,
+        "repeats": 5,
+        "allocatedBytes": 0,
+        "bytesPerEvent": 0,
+        "medianNanosecondsPerEvent": 75020.58333333333
+      },
+      {
+        "count": 4097,
+        "rounds": 1200,
+        "repeats": 5,
+        "allocatedBytes": 196800000,
+        "bytesPerEvent": 32800,
+        "medianNanosecondsPerEvent": 62540.5
+      }
+    ]
+  },
+  "multiRangeSlice": {
+    "control": [
+      {
+        "name": "single-input",
+        "iterations": 100000,
+        "repeats": 5,
+        "allocatedBytes": 0,
+        "bytesPerSlice": 0,
+        "medianNanoseconds": 3.011
+      },
+      {
+        "name": "fragmented-single-first",
+        "iterations": 100000,
+        "repeats": 5,
+        "allocatedBytes": 60000000,
+        "bytesPerSlice": 120,
+        "medianNanoseconds": 33.233
+      },
+      {
+        "name": "fragmented-single-middle",
+        "iterations": 20000,
+        "repeats": 5,
+        "allocatedBytes": 12000000,
+        "bytesPerSlice": 120,
+        "medianNanoseconds": 231.865
+      },
+      {
+        "name": "fragmented-single-last",
+        "iterations": 20000,
+        "repeats": 5,
+        "allocatedBytes": 12000000,
+        "bytesPerSlice": 120,
+        "medianNanoseconds": 718.26
+      },
+      {
+        "name": "fragmented-two",
+        "iterations": 50000,
+        "repeats": 5,
+        "allocatedBytes": 44000000,
+        "bytesPerSlice": 176,
+        "medianNanoseconds": 46.784
+      },
+      {
+        "name": "fragmented-whole",
+        "iterations": 2000,
+        "repeats": 5,
+        "allocatedBytes": 247600000,
+        "bytesPerSlice": 24760,
+        "medianNanoseconds": 3857.55
+      },
+      {
+        "name": "empty-input",
+        "iterations": 100000,
+        "repeats": 5,
+        "allocatedBytes": 16000000,
+        "bytesPerSlice": 32,
+        "medianNanoseconds": 10.772
+      }
+    ],
+    "candidate": [
+      {
+        "name": "single-input",
+        "iterations": 100000,
+        "repeats": 5,
+        "allocatedBytes": 0,
+        "bytesPerSlice": 0,
+        "medianNanoseconds": 3.282
+      },
+      {
+        "name": "fragmented-single-first",
+        "iterations": 100000,
+        "repeats": 5,
+        "allocatedBytes": 0,
+        "bytesPerSlice": 0,
+        "medianNanoseconds": 3.816
+      },
+      {
+        "name": "fragmented-single-middle",
+        "iterations": 20000,
+        "repeats": 5,
+        "allocatedBytes": 0,
+        "bytesPerSlice": 0,
+        "medianNanoseconds": 339.255
+      },
+      {
+        "name": "fragmented-single-last",
+        "iterations": 20000,
+        "repeats": 5,
+        "allocatedBytes": 0,
+        "bytesPerSlice": 0,
+        "medianNanoseconds": 844.145
+      },
+      {
+        "name": "fragmented-two",
+        "iterations": 50000,
+        "repeats": 5,
+        "allocatedBytes": 14000000,
+        "bytesPerSlice": 56,
+        "medianNanoseconds": 31.938
+      },
+      {
+        "name": "fragmented-whole",
+        "iterations": 2000,
+        "repeats": 5,
+        "allocatedBytes": 82160000,
+        "bytesPerSlice": 8216,
+        "medianNanoseconds": 3767.45
+      },
+      {
+        "name": "empty-input",
+        "iterations": 100000,
+        "repeats": 5,
+        "allocatedBytes": 0,
+        "bytesPerSlice": 0,
+        "medianNanoseconds": 2.772
+      }
+    ]
+  },
+  "timers": {
+    "control": {
+      "armOperations": 200000,
+      "allocatedBytes": 6400000,
+      "waitingSlotBytes": 8,
+      "medianMilliseconds": 8.6328
+    },
+    "candidate": {
+      "armOperations": 200000,
+      "allocatedBytes": 0,
+      "waitingSlotBytes": 32,
+      "medianMilliseconds": 9.3619
+    }
+  },
+  "allocator": {
+    "control": {
+      "churn": [
+        {
+          "liveBlocks": 1,
+          "operations": 10000,
+          "allocatedBytes": 2240000,
+          "blockVisits": 0,
+          "comparisons": 0,
+          "elapsedMs": 10.5205
+        },
+        {
+          "liveBlocks": 32,
+          "operations": 10000,
+          "allocatedBytes": 2240000,
+          "blockVisits": 0,
+          "comparisons": 0,
+          "elapsedMs": 5.280041
+        },
+        {
+          "liveBlocks": 2048,
+          "operations": 10000,
+          "allocatedBytes": 2240000,
+          "blockVisits": 0,
+          "comparisons": 0,
+          "elapsedMs": 20.279667
+        }
+      ],
+      "bookkeeping": {
+        "count": 10000,
+        "blockBytes": 1840000,
+        "blockListBytes": 1840000
+      },
+      "randomPeak": [
+        {
+          "poolSize": 4096,
+          "peakNativeBytes": 251260
+        },
+        {
+          "poolSize": 16,
+          "peakNativeBytes": 226834
+        }
+      ]
+    },
+    "candidate": {
+      "churn": [
+        {
+          "liveBlocks": 1,
+          "operations": 10000,
+          "allocatedBytes": 2240000,
+          "blockVisits": 0,
+          "comparisons": 0,
+          "elapsedMs": 11.910292
+        },
+        {
+          "liveBlocks": 32,
+          "operations": 10000,
+          "allocatedBytes": 2240000,
+          "blockVisits": 0,
+          "comparisons": 0,
+          "elapsedMs": 6.756459
+        },
+        {
+          "liveBlocks": 2048,
+          "operations": 10000,
+          "allocatedBytes": 2240000,
+          "blockVisits": 0,
+          "comparisons": 0,
+          "elapsedMs": 8.401667
+        }
+      ],
+      "bookkeeping": {
+        "count": 10000,
+        "blockBytes": 1840000,
+        "blockListBytes": 1920000
+      },
+      "randomPeak": [
+        {
+          "poolSize": 4096,
+          "peakNativeBytes": 255356
+        },
+        {
+          "poolSize": 16,
+          "peakNativeBytes": 226834
+        }
+      ]
+    }
+  },
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "timingIsGate": false
+}

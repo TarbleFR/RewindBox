@@ -1,0 +1,28 @@
+{
+  "result": "passed",
+  "execution": {
+    "source": "5045889ff9f1a872d238435293c50cacd7c127b5",
+    "run": 40895446303,
+    "attempt": 1,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/40895446303"
+  },
+  "receipts": {
+    "tracking-snapshot-checks.json": "114a4f0a83ffaeae5f90fed6325cdd7db5400e7ae025fa1bd6600599573e48bf",
+    "multirange-slice-checks.json": "ab71bda569e09264d17dc8206318412f0651db1c8d2bb2dc2f8c959405b4b512",
+    "texture-group-callbacks-checks.json": "550e5327571cd6efcd1ddc7f4346e0c48bc1b01d37ea419066ab5d32ac4b06e2",
+    "texture-region-cursor-checks.json": "12a7fef54e1940fc78f7a95865c43069dc51549c43b96da528a1cf3c5bec2b84",
+    "auto-ownership-checks.json": "bd11b7d2e862a4cc818e201a3a03009f5cf6448775e9741fad91099eb652a350",
+    "converted-cache-checks.json": "a5e31dbf0c2592c2dbca241787ba9768b9027d0d72c22298217d3ca470b4f3bf",
+    "kernel-wait-lifetime-checks.json": "c0970b5484fb08cab76bfab96d227cc682ef7a9ab853344bc24e282ee297203a",
+    "ipc-request-lifetime-checks.json": "be093a2461fbc2bde760cb1ab24561421c1b5a6aa03d2a8e0d5735e1fe409d61",
+    "kernel-timer-allocations-checks.json": "26e5889154ff7b73e4d029042c80b4ec3b784f8546df4338e388195bf4f9dfab",
+    "allocator-blocks-checks.json": "3676e8d1fd2e510a165841bb88f1a480ff5a23722c6e4eb4f1035679f61fbe04",
+    "indirect-cache-key-checks.json": "5c6a6b8b989e83fe53eac90bc4c12014dca5493695eb61f4a984ed17db621964",
+    "texture-handle-dependencies-checks.json": "4f0470e339c0fe39302d3a22c5dc61834771a996570d197a8da8836ce78fd054",
+    "fragmented-upload-slice-checks.json": "5de548a53e8d48247946dcae1ec0add1f8ee83421c8c849b6e5cf8b02a9f7f61"
+  },
+  "newAdapterGates": 12,
+  "additionalCompositionGates": 1,
+  "historicalGatesReexecuted": false,
+  "physicalDeviceTested": false
+}

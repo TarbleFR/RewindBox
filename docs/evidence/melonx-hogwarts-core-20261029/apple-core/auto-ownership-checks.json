@@ -1,0 +1,80 @@
+{
+  "result": "passed",
+  "reports": {
+    "control": {
+      "checks": 69861,
+      "commandSlots": 16,
+      "slotReuseCycles": 8192,
+      "graphCases": 1,
+      "concurrentReferenceCycles": 2400000,
+      "ownerAllocations": {
+        "count": 100000,
+        "bytes": 8800000,
+        "bytesPerOwner": 88
+      },
+      "nativeDriverTested": false
+    },
+    "candidate": {
+      "checks": 69861,
+      "commandSlots": 16,
+      "slotReuseCycles": 8192,
+      "graphCases": 1,
+      "concurrentReferenceCycles": 2400000,
+      "ownerAllocations": {
+        "count": 100000,
+        "bytes": 5600000,
+        "bytesPerOwner": 56
+      },
+      "nativeDriverTested": false
+    }
+  },
+  "physicalDeviceTested": false,
+  "completeProductionAuto": true,
+  "completeProductionBitmaps": true,
+  "commandTransportAndNativeCompletionDoubled": true,
+  "concurrentOwnershipMutationsTested": false,
+  "concurrentAtomicRefcountsTested": true,
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/Auto.cs": "79ea043a3d71a72d08ef43eeef5452d2eb01192b38bc483469fda578811b8eb0",
+    "src/Ryujinx.Graphics.Vulkan/BitMap.cs": "21c19bf38cee4ccdf01480b59b09e63b9d81d32a848fac18f35dbac4aac71230",
+    "src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs": "7abb5cef85fc75a8e196f94c2c2e3234a2ff66f2fe8d32afc16e24489dd14ee8",
+    "src/Ryujinx.Graphics.Vulkan/CommandBufferScoped.cs": "bee489db43c52a323a4da960bf2612acc5c5b83ecdc2d4b058715117c9e519f0",
+    "src/Ryujinx.Graphics.Vulkan/CommandBufferPool.cs": "beb73c36e5ae5313781d224798375ff4870961b9777e608eb52205bdeb3f5cd5",
+    "src/Ryujinx.Common/Memory/IArray.cs": "0b4ba835fe89f680b0e4faff63e2f736727647a68a32f37d6ee0b193498c563b",
+    "src/Ryujinx.Common/Memory/StructArrayHelpers.cs": "ee9871e0099b206b7306214402b7241cc61d22632e5709708122f581b2d7074a"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_auto_ownership.py": "ca49e50235f2e6117ded6c321b74f6ba8602e9a95f1e1b187ee66185199e8155",
+    "test/melonx_auto_ownership_test.py": "93daa58f25710d0854b46a7941851eb1deeb7faeac7d80facf7cd879a568fac4",
+    "test/melonx_auto_ownership/Program.cs": "cd76a47dd96d6c30d6d859a83e445f7e98ba4f60247c771634c2c0d0583c7db7",
+    "test/melonx_auto_ownership/Boundaries.cs": "06236d90a3175e95a1967e69c1169b529e647c43cb4f08d97b5ca3a348883ee3"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/Auto.cs": "5d9b1513bff4e2e306032a0f9e0299f3cfd24da37a46b2b1d385bdd820887731"
+  },
+  "compiledSources": {
+    "control": {
+      "src/Ryujinx.Graphics.Vulkan/Auto.cs": "79ea043a3d71a72d08ef43eeef5452d2eb01192b38bc483469fda578811b8eb0",
+      "src/Ryujinx.Graphics.Vulkan/BitMap.cs": "21c19bf38cee4ccdf01480b59b09e63b9d81d32a848fac18f35dbac4aac71230",
+      "src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs": "7abb5cef85fc75a8e196f94c2c2e3234a2ff66f2fe8d32afc16e24489dd14ee8",
+      "src/Ryujinx.Graphics.Vulkan/CommandBufferScoped.cs": "bee489db43c52a323a4da960bf2612acc5c5b83ecdc2d4b058715117c9e519f0",
+      "src/Ryujinx.Common/Memory/IArray.cs": "0b4ba835fe89f680b0e4faff63e2f736727647a68a32f37d6ee0b193498c563b",
+      "src/Ryujinx.Common/Memory/StructArrayHelpers.cs": "ee9871e0099b206b7306214402b7241cc61d22632e5709708122f581b2d7074a",
+      "Program.cs": "cd76a47dd96d6c30d6d859a83e445f7e98ba4f60247c771634c2c0d0583c7db7",
+      "Boundaries.cs": "8529e353f3e93a0aab46e8dd9d7c33f630beb3ed66ed32ce5721d16bcff62bb0"
+    },
+    "candidate": {
+      "src/Ryujinx.Graphics.Vulkan/Auto.cs": "5d9b1513bff4e2e306032a0f9e0299f3cfd24da37a46b2b1d385bdd820887731",
+      "src/Ryujinx.Graphics.Vulkan/BitMap.cs": "21c19bf38cee4ccdf01480b59b09e63b9d81d32a848fac18f35dbac4aac71230",
+      "src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs": "7abb5cef85fc75a8e196f94c2c2e3234a2ff66f2fe8d32afc16e24489dd14ee8",
+      "src/Ryujinx.Graphics.Vulkan/CommandBufferScoped.cs": "bee489db43c52a323a4da960bf2612acc5c5b83ecdc2d4b058715117c9e519f0",
+      "src/Ryujinx.Common/Memory/IArray.cs": "0b4ba835fe89f680b0e4faff63e2f736727647a68a32f37d6ee0b193498c563b",
+      "src/Ryujinx.Common/Memory/StructArrayHelpers.cs": "ee9871e0099b206b7306214402b7241cc61d22632e5709708122f581b2d7074a",
+      "Program.cs": "cd76a47dd96d6c30d6d859a83e445f7e98ba4f60247c771634c2c0d0583c7db7",
+      "Boundaries.cs": "8529e353f3e93a0aab46e8dd9d7c33f630beb3ed66ed32ce5721d16bcff62bb0"
+    }
+  },
+  "extractedAddDependantSha256": "5b1f8ef896f29f66d04813cc945ad05d4282eac64651d90476737c67530a2d9d",
+  "capacityDriftRejectedBeforeMutation": true
+}
