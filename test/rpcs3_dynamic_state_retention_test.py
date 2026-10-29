@@ -42,7 +42,16 @@ def production(core, namespace, candidate):
         'void command_buffer::set_stencil_reference(VkStencilFaceFlags faces, u32 value) const']
     declarations='\n'.join(x.replace('command_buffer::','').replace(', u32 dynamic_state_mask)',', u32 dynamic_state_mask = 0)')+';' for x in methods)
     result=cache+f'\nnamespace {namespace} {{\nclass command_buffer {{\npublic:\n'
-    result+='bool is_open=true; Driver* commands; mutable std::array<VkDescriptorSet,2> m_bound_descriptor_sets{}; mutable std::array<VkPipeline,2> m_bound_pipelines{}; mutable dynamic_state_cache m_dynamic_state;\n'
+    header=(core/PATHS[2]).read_text()
+    if 'm_descriptor_bindings' in header:
+        # clear_state_cache now resets both descriptor bind points. Extract its
+        # native fields; keep the historical stimulus and old-source output.
+        result+='bool is_open=true; Driver* commands; using VkPipelineLayout = VkPipeline;\n'
+        result+=definition(header,'struct descriptor_binding_state')+';\n'
+        binding_array=next(line.strip() for line in header.splitlines() if 'mutable std::array<descriptor_binding_state' in line)
+        result+=binding_array+'\nmutable std::array<VkPipeline,2> m_bound_pipelines{}; mutable dynamic_state_cache m_dynamic_state;\n'
+    else:
+        result+='bool is_open=true; Driver* commands; mutable std::array<VkDescriptorSet,2> m_bound_descriptor_sets{}; mutable std::array<VkPipeline,2> m_bound_pipelines{}; mutable dynamic_state_cache m_dynamic_state;\n'
     result+='explicit command_buffer(Driver* d):commands(d){}\n'+declarations+'\n};\n'
     if candidate:result+=definition(source,'u32 pipeline_dynamic_state_mask(const VkPipelineDynamicStateCreateInfo* info) noexcept')+'\n'
     result+='\n'.join(definition(source,x) for x in methods)+'\n}\n'

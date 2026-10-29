@@ -81,7 +81,7 @@ struct Store::Impl {
     // Reserved once. At most one free interval between each live record and
     // one inflight write, so erasing a record never allocates metadata.
     std::vector<Extent> free_extents;
-    std::deque<std::unique_ptr<Job>> queue; bool stopping=false;
+    std::deque<std::unique_ptr<Job>> queue; bool stopping=false,discarded_pending=false;
     std::atomic<Pressure> pressure{Pressure::normal}; std::atomic<uint64_t> transitions{0};
     std::unique_ptr<Bytes> codec_scratch;
     Stats stats; Histogram reads,writes,queues,restores; Clock::time_point write_after{};
@@ -170,10 +170,16 @@ struct Store::Impl {
         free_extents.insert(it,{offset,span});
     }
     void collect_discarded(){
+        // The worker runs this before every job and on idle wakeups. No entry
+        // can become discarded without Store::discard holding the same mutex.
+        // Keep the flag set while a retired entry is pinned, queued or busy.
+        if(!discarded_pending)return;
+        discarded_pending=false;
         for(auto it=entries.begin();it!=entries.end();){
             auto& e=it->second;
+            if(!e.discarded){++it;continue;}
             const bool queued=std::any_of(queue.begin(),queue.end(),[&](const auto& j){return j->id==e.id;});
-            if(!e.discarded||e.busy||queued||(e.raw&&e.raw.use_count()!=1)){++it;continue;}
+            if(e.busy||queued||(e.raw&&e.raw.use_count()!=1)){discarded_pending=true;++it;continue;}
             return_extent(e.offset,e.span);it=entries.erase(it);
             std::lock_guard t(tm);++stats.discarded_entries;
         }
@@ -401,7 +407,7 @@ Code Store::erase(Handle h){
 Code Store::discard(Handle h){
     std::lock_guard l(p_->mu);if(h.session!=p_->session)return Code::missing;
     auto it=p_->entries.find(h.id);if(it==p_->entries.end())return Code::missing;
-    it->second.discarded=true;p_->cv.notify_one();return Code::ok;
+    it->second.discarded=true;p_->discarded_pending=true;p_->cv.notify_one();return Code::ok;
 }
 void Store::set_pressure(Pressure level) noexcept {if(p_->pressure.exchange(level)!=level)p_->transitions.fetch_add(1);p_->cv.notify_one();}
 Stats Store::snapshot() const {

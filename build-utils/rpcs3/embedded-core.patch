@@ -3963,10 +3963,10 @@ index e11a27509..353f45920 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 000000000..0c58aaa18
+index 000000000..58a6f5349
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,47 @@
+@@ -0,0 +1,50 @@
 +# CELL591: the exact reviewed JITLLVM change clears a stack ObjectCache on
 +# recoverable failure; SPULLVM drops finalized IR after obtaining native code.
 +# Neither changes object emission, relocations or the callable ABI.
@@ -4000,8 +4000,11 @@ index 000000000..0c58aaa18
 +    # All are host code that SPU objects call, not code they contain:
 +    # generated objects are unchanged. Keep the 546 identity for this exact
 +    # source snapshot only.
++    # Runtime MFC/timer follow-up: only do_mfc's host clock mask and the
++    # decrementer timer worker change. SPU layout, translator, helper symbols,
++    # relocation targets and every other SPUThread.cpp body remain identical.
 +    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
-+           actual STREQUAL "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c")
++           actual STREQUAL "e37a1bc0e2438e425f1c57ff2c3d931ecbf5b4462175cdb041d39191c5909e6d")
 +        set(${output} "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c" PARENT_SCOPE)
 +    # CELL559: compile() builds the LLVM analysis managers and the function pass
 +    # pipeline only when no cached object is linked. A miss runs the same passes
@@ -12651,7 +12654,7 @@ index faf4082dc..d08c48071 100644
  	// Interpreter table (spu_itype -> ptr)
  	static std::array<u64, 256> g_interpreter_table;
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
-index bc9ec5e5b..55f49a605 100644
+index bc9ec5e5b..823b30446 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
 @@ -25,11 +25,19 @@
@@ -13128,7 +13131,25 @@ index bc9ec5e5b..55f49a605 100644
  			vm::writer_lock lock(addr, spu ? spu->range_lock : nullptr);
  			mov_rdata(sdata, *static_cast<const spu_rdata_t*>(to_write));
  			vm::reservation_acquire(addr) += 32;
-@@ -3941,8 +4123,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3880,8 +4062,15 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+ 	auto get_exec_mask = [&size = mfc_size]
+ 	{
+ 		// Get commands' execution mask
+-		// Mask bits are always set when mfc_transfers_shuffling is 0
+-		return static_cast<u16>((0 - (1u << std::min<u32>(g_cfg.core.mfc_transfers_shuffling, size))) | utils::get_tsc());
++		const u32 shuffle_count = std::min<u32>(g_cfg.core.mfc_transfers_shuffling, size);
++		if (!shuffle_count)
++		{
++			// All commands are enabled. Reading the host clock cannot affect
++			// this mask, including an empty queue with shuffling enabled.
++			return u16{0xffff};
++		}
++
++		return static_cast<u16>((0 - (1u << shuffle_count)) | utils::get_tsc());
+ 	};
+ 
+ 	// Process enqueued commands
+@@ -3941,8 +4130,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  
  bool spu_thread::check_mfc_interrupts(u32 next_pc)
  {
@@ -13139,7 +13160,7 @@ index bc9ec5e5b..55f49a605 100644
  		srr0 = next_pc;
  
  		// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -4306,6 +4489,25 @@ bool spu_thread::process_mfc_cmd()
+@@ -4306,6 +4496,25 @@ bool spu_thread::process_mfc_cmd()
  	{
  		perf_meter<"GETLLAR"_u64> perf0;
  
@@ -13165,7 +13186,7 @@ index bc9ec5e5b..55f49a605 100644
  		const u32 addr = ch_mfc_cmd.eal & -128;
  		const auto& data = vm::_ref<spu_rdata_t>(addr);
  
-@@ -4315,7 +4517,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4315,7 +4524,7 @@ bool spu_thread::process_mfc_cmd()
  			spu_log.trace(u8"GETLLAR after fail: addr=0x%x, time=%u c", last_faddr, (perf0.get() - last_ftsc));
  		}
  
@@ -13174,7 +13195,7 @@ index bc9ec5e5b..55f49a605 100644
  		{
  			rtime = last_ftime;
  			raddr = last_faddr;
-@@ -4355,8 +4557,14 @@ bool spu_thread::process_mfc_cmd()
+@@ -4355,8 +4564,14 @@ bool spu_thread::process_mfc_cmd()
  					// Need to check twice for it to be accurate, the code is before and not after this check for:
  					// 1. Reduce time between reservation accesses so TSX panelty would be lowered
  					// 2. Increase the chance of change detection: if GETLLAR has been called again new data is probably wanted
@@ -13190,7 +13211,7 @@ index bc9ec5e5b..55f49a605 100644
  						if (this_time != rtime)
  						{
  							// Reservation was lost but the data itself remains unchanged so try to ignore it
-@@ -4367,7 +4575,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4367,7 +4582,7 @@ bool spu_thread::process_mfc_cmd()
  						if ([&]() -> bool
  						{
  							// Validation that it is indeed GETLLAR spinning (large time window is intentional)
@@ -13199,7 +13220,7 @@ index bc9ec5e5b..55f49a605 100644
  							{
  								// Seemingly not
  								getllar_busy_waiting_switch = umax;
-@@ -4441,7 +4649,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4441,7 +4656,7 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  							// Don't be stubborn, force operating sleep if too much time has passed
@@ -13208,7 +13229,7 @@ index bc9ec5e5b..55f49a605 100644
  							{
  								// Hidden value to force busy waiting
  								if (!g_cfg.core.spu_getllar_spin_optimization_disabled)
-@@ -4452,6 +4660,18 @@ bool spu_thread::process_mfc_cmd()
+@@ -4452,6 +4667,18 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  
@@ -13227,7 +13248,7 @@ index bc9ec5e5b..55f49a605 100644
  							// Either 1 or umax
  							return getllar_busy_waiting_switch != 0;
  						}())
-@@ -4472,6 +4692,11 @@ bool spu_thread::process_mfc_cmd()
+@@ -4472,6 +4699,11 @@ bool spu_thread::process_mfc_cmd()
  							if (getllar_busy_waiting_switch == 1)
  							{
  								getllar_wait_time[(addr % SPU_LS_SIZE) / 128].front() = 0;
@@ -13239,7 +13260,7 @@ index bc9ec5e5b..55f49a605 100644
  
  #if defined(ARCH_X64)
  								if (utils::has_um_wait())
-@@ -4522,7 +4747,15 @@ bool spu_thread::process_mfc_cmd()
+@@ -4522,7 +4754,15 @@ bool spu_thread::process_mfc_cmd()
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(addr, rtime); wait_var)
  						{
  							cache_line_waiter_index = register_cache_line_waiter(addr);
@@ -13255,7 +13276,7 @@ index bc9ec5e5b..55f49a605 100644
  							vm::reservation_notifier_end_wait(*wait_var);
  						}
  
-@@ -4533,7 +4766,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4533,7 +4773,7 @@ bool spu_thread::process_mfc_cmd()
  						// Quick check if there were reservation changes
  						const u64 new_time = res;
  
@@ -13264,7 +13285,7 @@ index bc9ec5e5b..55f49a605 100644
  						{
  							if (g_cfg.core.mfc_debug)
  							{
-@@ -4551,8 +4784,13 @@ bool spu_thread::process_mfc_cmd()
+@@ -4551,8 +4791,13 @@ bool spu_thread::process_mfc_cmd()
  								rtime = new_time;
  							}
  
@@ -13280,7 +13301,7 @@ index bc9ec5e5b..55f49a605 100644
  
  							// Reset perf
  							perf0.restart();
-@@ -4659,6 +4897,8 @@ bool spu_thread::process_mfc_cmd()
+@@ -4659,6 +4904,8 @@ bool spu_thread::process_mfc_cmd()
  
  			mov_rdata(rdata, data);
  
@@ -13289,7 +13310,7 @@ index bc9ec5e5b..55f49a605 100644
  			if (u64 time0 = vm::reservation_acquire(addr); ntime != time0)
  			{
  				// Reservation data has been modified recently
-@@ -5075,7 +5315,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5075,7 +5322,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -13298,7 +13319,7 @@ index bc9ec5e5b..55f49a605 100644
  	}
  
  	if ((addr >> 20) == (current_eal >> 20))
-@@ -5083,13 +5323,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5083,13 +5330,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  		if (vm::check_addr(addr, vm::page_1m_size))
  		{
  			// Same random-access-memory page as the current MFC command, assume allocated
@@ -13314,7 +13335,7 @@ index bc9ec5e5b..55f49a605 100644
  		}
  	}
  
-@@ -5163,7 +5403,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5163,7 +5410,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	const bool res = cmp_rdata(data, vm::_ref<decltype(rdata)>(addr));
  
  	range_lock->release(0);
@@ -13323,7 +13344,7 @@ index bc9ec5e5b..55f49a605 100644
  }
  
  bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range_lock)
-@@ -5171,7 +5411,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5171,7 +5418,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -13332,7 +13353,7 @@ index bc9ec5e5b..55f49a605 100644
  	}
  
  	// Ensure data is allocated (HACK: would raise LR event if not)
-@@ -5244,7 +5484,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5244,7 +5491,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	const bool res = compute_rdata_hash32(*vm::get_super_ptr<decltype(rdata)>(addr)) == hash;
  
  	range_lock->release(0);
@@ -13341,7 +13362,7 @@ index bc9ec5e5b..55f49a605 100644
  }
  
  usz spu_thread::register_cache_line_waiter(u32 addr)
-@@ -5352,6 +5592,7 @@ retry:
+@@ -5352,6 +5599,7 @@ retry:
  			// Set next event to the next time the decrementer underflows
  			ch_dec_start_timestamp -= res << 32;
  			collect |= SPU_EVENT_TM;
@@ -13349,7 +13370,7 @@ index bc9ec5e5b..55f49a605 100644
  		}
  	}
  
-@@ -5400,29 +5641,134 @@ void spu_thread::set_events(u32 bits)
+@@ -5400,29 +5648,142 @@ void spu_thread::set_events(u32 bits)
  	}
  }
  
@@ -13404,25 +13425,33 @@ index bc9ec5e5b..55f49a605 100644
 +			const u64 now = get_timebased_time();
 +			std::vector<entry> due_entries;
 +			sleep_us = umax;
-+			{
-+				std::lock_guard lock(mutex);
-+				for (auto it = armed.begin(); it != armed.end();)
-+				{
-+					if (it->due <= now)
-+					{
-+						due_entries.push_back(*it);
-+						it = armed.erase(it);
-+						continue;
-+					}
-+					// The guest timebase runs at 80 MHz times clocks_scale / 100.
-+					const u64 us = (it->due - now) * 100 / (80 * std::max<u64>(g_cfg.core.clocks_scale, 1)) + 1;
-+					sleep_us = std::min(sleep_us, us);
-+					++it;
-+				}
-+			}
-+			for (const auto& e : due_entries)
  			{
 -				state += cpu_flag::pending;
++				std::lock_guard lock(mutex);
++				const auto pending_end = std::remove_if(armed.begin(), armed.end(), [&](const entry& pending)
++				{
++					if (pending.due <= now)
++					{
++						if (due_entries.empty())
++						{
++							// Allocate before compacting the queue. Entry copies and
++							// moves cannot throw, so no allocation can interrupt it.
++							due_entries.reserve(armed.size());
++						}
++						due_entries.push_back(pending);
++						return true;
++					}
++					// The guest timebase runs at 80 MHz times clocks_scale / 100.
++					const u64 us = (pending.due - now) * 100 / (80 * std::max<u64>(g_cfg.core.clocks_scale, 1)) + 1;
++					sleep_us = std::min(sleep_us, us);
++					return false;
++				});
++				// Preserve notification and pending-entry order while moving each
++				// survivor at most once, rather than shifting it after every expiry.
++				armed.erase(pending_end, armed.end());
++			}
++			for (const auto& e : due_entries)
++			{
 +				// Retain the thread while publishing work, outside the timer lock.
 +				if (const auto spu = idm::get<named_thread<spu_thread>>(e.id, [](auto&) {}))
 +				{
@@ -13496,7 +13525,7 @@ index bc9ec5e5b..55f49a605 100644
  }
  
  u32 spu_thread::get_ch_count(u32 ch)
-@@ -5760,8 +6106,16 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5760,8 +6121,16 @@ s64 spu_thread::get_ch_value(u32 ch)
  			eventstat_busy_waiting_switch = value ? 1 : 0;
  		}
  
@@ -13513,7 +13542,7 @@ index bc9ec5e5b..55f49a605 100644
  			const auto old = +state;
  
  			if (is_stopped(old))
-@@ -5792,7 +6146,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5792,7 +6161,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  				{
  					set_lr = true;
  				}
@@ -13522,7 +13551,7 @@ index bc9ec5e5b..55f49a605 100644
  				{
  					if (vm::reservation_acquire(raddr) == rtime)
  					{
-@@ -5929,7 +6283,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5929,7 +6298,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  						// Abort notifications are handled specially for performance reasons
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(raddr, rtime); wait_var)
  						{
@@ -13531,7 +13560,7 @@ index bc9ec5e5b..55f49a605 100644
  							{
  								raddr = 0;
  								set_events(SPU_EVENT_LR);
-@@ -5949,7 +6303,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5949,7 +6318,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  #ifdef __linux__
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -13540,7 +13569,7 @@ index bc9ec5e5b..55f49a605 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6029,7 +6383,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6029,7 +6398,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -13549,7 +13578,7 @@ index bc9ec5e5b..55f49a605 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6056,6 +6410,14 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6056,6 +6425,14 @@ s64 spu_thread::get_ch_value(u32 ch)
  			thread_ctrl::wait_on(state, old, 100);
  		}
  
@@ -13564,7 +13593,7 @@ index bc9ec5e5b..55f49a605 100644
  		if (is_reservation_data_checking_thread)
  		{
  			s_is_reservation_data_checking_thread = 0;
-@@ -6452,6 +6814,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6452,6 +6829,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  		ch_dec_start_timestamp = get_timebased_time();
  		ch_dec_value = value;
  		is_dec_frozen = false;
@@ -13574,7 +13603,7 @@ index bc9ec5e5b..55f49a605 100644
  		return true;
  	}
  
-@@ -6479,6 +6844,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6479,6 +6859,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			}
  		}
  
@@ -13583,7 +13612,7 @@ index bc9ec5e5b..55f49a605 100644
  		return true;
  	}
  
-@@ -6509,6 +6876,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6509,6 +6891,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			// Save current time, this will be the reported value until the decrementer resumes
  			ch_dec_value = read_dec().first;
  			is_dec_frozen = true;
@@ -15766,7 +15795,7 @@ index 817192730..967267261 100644
  				Traits::clone_surface(cmd, sink, region.source, new_address, region, region.source->resolution_scaling_config);
  				allocate_rsx_memory(Traits::get(sink));
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache.cpp b/rpcs3/Emu/RSX/Common/texture_cache.cpp
-index 6b306657f..e56405ca4 100644
+index 6b306657f..0220fde21 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache.cpp
 +++ b/rpcs3/Emu/RSX/Common/texture_cache.cpp
 @@ -9,7 +9,21 @@
@@ -16158,10 +16187,10 @@ index 6b306657f..e56405ca4 100644
 +#ifdef RPCS3_IOS
 +			// CELL559_TEXTURE_EPOCH: read the epoch before the bytes it covers.
 +			const u64 epoch = rpcs3::ios::texture_validation::current_epoch();
-+			mem_hash = fast_hash_internal();
+ 			mem_hash = fast_hash_internal();
 +			validated_epoch = epoch;
 +#else
- 			mem_hash = fast_hash_internal();
++			mem_hash = fast_hash_internal();
 +#endif
  		}
  
@@ -16206,7 +16235,7 @@ index 6b306657f..e56405ca4 100644
  #else
  		const auto cycles = hash_length / 8;
  		auto rem = hash_length % 8;
-@@ -266,7 +617,52 @@ namespace rsx
+@@ -266,7 +617,62 @@ namespace rsx
  			return true;
  		}
  
@@ -16221,10 +16250,11 @@ index 6b306657f..e56405ca4 100644
 +			return true;
 +		}
 +
-+		// CELL581_TEXTURE_PREHASH: the worker's hash of this range taken in this epoch,
++		// CELL581_TEXTURE_PREHASH: a completed hash of this range taken in this epoch,
 +		// unless an RSX write inside the epoch revalidates the section.
 +		u64 hash = 0;
 +		bool prehashed = false;
++		bool share_hash = false;
 +
 +		if (epoch && rpcs3::ios::texture_prehash::enabled.load(std::memory_order_relaxed))
 +		{
@@ -16232,6 +16262,7 @@ index 6b306657f..e56405ca4 100644
 +
 +			if (range.length() >= rpcs3::ios::texture_prehash::min_bytes)
 +			{
++				share_hash = !prehash_bypass;
 +				prehashed = !prehash_bypass && rpcs3::ios::texture_prehash::lookup(range.start, range.length(), epoch, hash);
 +				rpcs3::ios::texture_prehash::record(range.start, range.length(), !prehash_bypass);
 +				(prehashed ? rpcs3::ios::texture_prehash::hits : rpcs3::ios::texture_prehash::misses).fetch_add(1, std::memory_order_relaxed);
@@ -16248,6 +16279,14 @@ index 6b306657f..e56405ca4 100644
 +		if (!prehashed)
 +		{
 +			hash = fast_hash_internal();
++			if (share_hash && rpcs3::ios::texture_validation::current_epoch() == epoch)
++			{
++				// Another section of the same range, or the worker, can reuse
++				// these bytes in this epoch. Scoped writes always keep their own
++				// hash, even if another overlapping section was revalidated first.
++				const auto& range = confirmed_range.valid() ? confirmed_range : cpu_range;
++				rpcs3::ios::texture_prehash::publish(range.start, range.length(), epoch, hash);
++			}
 +		}
 +
 +		const bool unchanged = (hash == mem_hash);
@@ -23282,7 +23321,7 @@ index 136b6938b..c2b321ac7 100644
  
  	struct buffer_view : public unique_resource
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
-index 549d557af..e6aafbf73 100644
+index 549d557af..dcf14affa 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
 @@ -3,8 +3,45 @@
@@ -23331,15 +23370,24 @@ index 549d557af..e6aafbf73 100644
  	// This queue flushing method to be implemented by the backend as behavior depends on config
  	void queue_submit(const queue_submit_t& submit_info, VkBool32 flush);
  
-@@ -78,6 +115,7 @@ namespace vk
+@@ -78,15 +115,26 @@ namespace vk
  
  	void command_buffer::clear_state_cache()
  	{
 +		m_dynamic_state.clear();
  		m_bound_pipelines[0] = VK_NULL_HANDLE;
  		m_bound_pipelines[1] = VK_NULL_HANDLE;
++#ifdef RPCS3_IOS
++		for (auto& binding : m_descriptor_bindings)
++		{
++			binding.count = 0;
++		}
++#else
  		m_bound_descriptor_sets[0] = VK_NULL_HANDLE;
-@@ -87,6 +125,9 @@ namespace vk
++#endif
+ 	}
+ 
+ 	void command_buffer::begin()
  	{
  		if (m_submit_fence && is_pending)
  		{
@@ -23349,7 +23397,7 @@ index 549d557af..e6aafbf73 100644
  			wait_for_fence(m_submit_fence);
  			is_pending = false;
  
-@@ -145,7 +186,11 @@ namespace vk
+@@ -145,7 +193,11 @@ namespace vk
  		clear_flags();
  	}
  
@@ -23361,7 +23409,7 @@ index 549d557af..e6aafbf73 100644
  	{
  		ensure(is_open && bind_point <= VK_PIPELINE_BIND_POINT_COMPUTE);
  		auto& cached = m_bound_pipelines[static_cast<int>(bind_point)];
-@@ -155,9 +200,98 @@ namespace vk
+@@ -155,9 +207,136 @@ namespace vk
  		}
  
  		cached = pipeline;
@@ -23457,11 +23505,90 @@ index 549d557af..e6aafbf73 100644
 +		if (changed) vkCmdSetStencilReference(commands, changed, value);
 +	}
 +
++#ifdef RPCS3_IOS
++	bool command_buffer::update_descriptor_binding_cache(const std::span<VkDescriptorSet>& sets,
++		VkPipelineBindPoint bind_point, VkPipelineLayout layout, bool has_dynamic_offsets) const
++	{
++		ensure(is_open && sets.size() <= 2);
++		if (sets.empty())
++		{
++			return false;
++		}
++		if (bind_point != VK_PIPELINE_BIND_POINT_GRAPHICS && bind_point != VK_PIPELINE_BIND_POINT_COMPUTE)
++		{
++			// Preserve pass-through behavior for any future pipeline type.
++			return true;
++		}
++
++		// Vulkan keeps descriptor bindings independently for each pipeline type.
++		// Require the exact layout; compatibility between different layouts is
++		// intentionally not inferred from descriptor handles alone.
++		auto& cached = m_descriptor_bindings[static_cast<u32>(bind_point)];
++		if (has_dynamic_offsets)
++		{
++			// Dynamic offsets are consumed at bind time. Keep their existing path
++			// and invalidate only this pipeline type's non-dynamic cache.
++			cached.count = 0;
++			return true;
++		}
++		if (cached.count == sets.size() && cached.layout == layout &&
++			!std::memcmp(cached.sets.data(), sets.data(), sets.size_bytes()))
++		{
++			return false;
++		}
++		cached.layout = layout;
++		cached.count = ::size32(sets);
++		std::memcpy(cached.sets.data(), sets.data(), sets.size_bytes());
++		return true;
++	}
++#endif
++
  	void command_buffer::bind_descriptor_sets(
  		const std::span<VkDescriptorSet>& sets,
  		const std::span<u32>& dynamic_offsets,
+@@ -167,6 +346,12 @@ namespace vk
+ 		const u32 num_sets = ::size32(sets);
+ 		ensure(num_sets <= 2);
+ 
++#ifdef RPCS3_IOS
++		if (!update_descriptor_binding_cache(sets, bind_point, pipe_layout, !dynamic_offsets.empty()))
++		{
++			return;
++		}
++#else
+ 		if (dynamic_offsets.empty() &&
+ 			!memcmp(sets.data(), m_bound_descriptor_sets.data(), sets.size_bytes()))
+ 		{
+@@ -174,6 +359,7 @@ namespace vk
+ 		}
+ 
+ 		std::memcpy(m_bound_descriptor_sets.data(), sets.data(), sets.size_bytes());
++#endif
+ 		vkCmdBindDescriptorSets(commands, bind_point, pipe_layout, 0, num_sets, sets.data(), ::size32(dynamic_offsets), dynamic_offsets.data());
+ 	}
+ 
+@@ -185,12 +371,19 @@ namespace vk
+ 		const u32 num_sets = ::size32(sets);
+ 		ensure(is_open && num_sets <= 2);
+ 
++#ifdef RPCS3_IOS
++		if (!update_descriptor_binding_cache(sets, bind_point, pipe_layout, false))
++		{
++			return;
++		}
++#else
+ 		if (!memcmp(sets.data(), m_bound_descriptor_sets.data(), sets.size_bytes()))
+ 		{
+ 			return;
+ 		}
+ 
+ 		std::memcpy(m_bound_descriptor_sets.data(), sets.data(), sets.size_bytes());
++#endif
+ 		vkCmdBindDescriptorSets(commands, bind_point, pipe_layout, 0, num_sets, sets.data(), 0, nullptr);
+ 	}
+ }
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.h b/rpcs3/Emu/RSX/VK/vkutils/commands.h
-index 81f65b357..aacf6c24c 100644
+index 81f65b357..d1304e865 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/commands.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/commands.h
 @@ -3,11 +3,16 @@
@@ -23481,15 +23608,29 @@ index 81f65b357..aacf6c24c 100644
  	class command_pool
  	{
  		vk::render_device* owner = nullptr;
-@@ -74,6 +79,7 @@ namespace vk
+@@ -72,8 +77,21 @@ namespace vk
+ 		VkCommandBuffer commands = nullptr;
+ 
  		// State cache
++#ifdef RPCS3_IOS
++		struct descriptor_binding_state
++		{
++			VkPipelineLayout layout = VK_NULL_HANDLE;
++			std::array<VkDescriptorSet, 2> sets{};
++			u32 count = 0;
++		};
++		mutable std::array<descriptor_binding_state, 2> m_descriptor_bindings{};
++		bool update_descriptor_binding_cache(const std::span<VkDescriptorSet>& sets,
++			VkPipelineBindPoint bind_point, VkPipelineLayout layout, bool has_dynamic_offsets) const;
++#else
  		mutable std::array<VkDescriptorSet, 2> m_bound_descriptor_sets {{ VK_NULL_HANDLE }};
++#endif
  		mutable std::array<VkPipeline, 2> m_bound_pipelines{{ VK_NULL_HANDLE }};
 +		mutable dynamic_state_cache m_dynamic_state;
  
  		void clear_state_cache();
  
-@@ -110,7 +116,20 @@ namespace vk
+@@ -110,7 +128,20 @@ namespace vk
  		void submit(queue_submit_t& submit_info, VkBool32 flush = VK_FALSE);
  
  		// Abstractions with caching
@@ -29588,10 +29729,10 @@ index ccb4aae0b..5ec26b9c6 100644
  }
 diff --git a/rpcs3/ios/IOSTexturePrehash.h b/rpcs3/ios/IOSTexturePrehash.h
 new file mode 100644
-index 000000000..03aa4966d
+index 000000000..a85263a7f
 --- /dev/null
 +++ b/rpcs3/ios/IOSTexturePrehash.h
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,138 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -29642,7 +29783,8 @@ index 000000000..03aa4966d
 +
 +struct result_slot
 +{
-+	// Even: stable; odd: being written (single writer: the worker).
++	// Even: stable; odd: being written. The worker and synchronous validators
++	// share completed hashes; a contended publication is simply abandoned.
 +	std::atomic<std::uint64_t> seq{0};
 +	std::atomic<std::uint64_t> key{0};
 +	std::atomic<std::uint64_t> epoch{0};
@@ -29668,7 +29810,7 @@ index 000000000..03aa4966d
 +	return static_cast<std::size_t>((key * 0x9E3779B97F4A7C15ull) >> 52) & (table_size - 1);
 +}
 +
-+// Any thread: the worker's hash of [start, start + length) taken in `epoch`.
++// Any thread: a completed hash of [start, start + length) taken in `epoch`.
 +inline bool lookup(std::uint32_t start, std::uint32_t length, std::uint64_t epoch, std::uint64_t& out) noexcept
 +{
 +	const std::uint64_t key = make_key(start, length);
@@ -29694,13 +29836,17 @@ index 000000000..03aa4966d
 +	return true;
 +}
 +
-+// Worker thread only.
++// Any producer. Try once: validation must never wait for speculative work.
 +inline void publish(std::uint32_t start, std::uint32_t length, std::uint64_t epoch, std::uint64_t hash) noexcept
 +{
 +	const std::uint64_t key = make_key(start, length);
 +	auto& slot = table[slot_of(key)];
-+	const std::uint64_t seq = slot.seq.load(std::memory_order_relaxed);
-+	slot.seq.store(seq + 1, std::memory_order_relaxed);
++	std::uint64_t seq = slot.seq.load(std::memory_order_relaxed);
++	if ((seq & 1) || !slot.seq.compare_exchange_strong(seq, seq + 1,
++		std::memory_order_acquire, std::memory_order_relaxed))
++	{
++		return;
++	}
 +	// Release stores: whoever reads one of them also sees the odd sequence before it.
 +	slot.key.store(key, std::memory_order_release);
 +	slot.epoch.store(epoch, std::memory_order_release);

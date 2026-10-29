@@ -2,6 +2,47 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## RPCS3 global runtime optimization follow-up — 29 October 2026
+
+The maintainer expanded the task to global runtime performance, then asked
+to resume. Baseline is Claude 3e4fcfa1, including the device594 source fixes.
+Five new runtime optimizations modify six canonical native files plus host
+native/neoswap-storage/Store.cpp: skip the MFC timestamp when its bits cannot
+affect the mask; stable linear SPU decrementer expiry compaction; independent
+iOS descriptor caches keyed by bind point, exact layout, count and handles;
+reuse eligible synchronous texture hashes in the existing epoch table with
+one nonblocking publication CAS; skip Store retirement scans with no pending
+discard. Retained pins/jobs/busy entries keep the mutex-protected scan flag.
+
+No emitted PPU/SPU instructions or layouts change. The exact reviewed
+SPUThread.cpp alias is updated, with all 41 codegen inputs authenticated and
+one real CMake script invocation checking baseline, candidate, absent alias,
+unknown future source and wrong path. PPU a987639e9f838d1c and SPU
+d070cb361bdef607 remain valid. Unknown edits still invalidate normally.
+
+Seven optimized, seven ASan/UBSan and two TSan host modes pass on Linux
+x86_64, with no TSan suppressions. Viewport and scoped-write programs really
+changed and their four modes were rerun. Seven other successful Apple
+programs retain exact executable hashes (16 modes reused). The five
+device594 programs remain exact (ten Apple modes still pending). The new
+Apple gate therefore runs 26 modes on the next explicitly requested build.
+Do not rerun unchanged suites or CMake. Receipt authentication does neither.
+
+The hash benefit is conditional: 96 same-range validations use 12 hashes;
+distinct ranges still hash and some host timing medians regress. Preserve
+all measurements and their scope. Prehash Automatic remains GOW3 only.
+Existing prehash hit counters can now include synchronous producers and
+must not be attributed entirely to the worker. Descriptor state costs 48
+extra bytes per host-modeled iOS command buffer, with no new allocation.
+
+No Core/IPA/release or physical iPhone result exists for these source lots.
+Do not claim added FPS, fixed weapon/torch rendering or the GOW3 freeze.
+Preserve WCB, readbacks, guest labels, prior NEON/LLVM fixes and the measured
+Budokai early-submit optimization. See docs/rpcs3-global-optimization-2026-10-29.md,
+docs/evidence/rpcs3-global-20261029/ and docs/evidence/rpcs3-rsx-bind-20261029/.
+The global source contract and 19 invalid-receipt controls supersede only
+their new paths; all old delivery evidence remains historical and intact.
+
 ## RPCS3 source follow-up after device594 — 29 October 2026
 
 The maintainer supplied BO2, Assassin's Creed and GOW3 logs after delivered

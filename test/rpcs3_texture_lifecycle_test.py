@@ -51,8 +51,13 @@ def digest(text):
 
 
 def source_guards(source, baseline):
-    for path in [CACHE] + SUPPORT:
+    for path in [CACHE] + [p for p in SUPPORT if p != CPP]:
         assert sha(source / path) == sha(baseline / path), path
+    # The global follow-up changes only sync(), which this lifecycle harness
+    # never extracts. Its publication/concurrency has a separate native test.
+    current_cpp, old_cpp = (source / CPP).read_text(), (baseline / CPP).read_text()
+    sync = 'bool buffered_section::sync() const'
+    assert current_cpp.replace(braced(current_cpp, sync), '@SYNC@', 1) == old_cpp.replace(braced(old_cpp, sync), '@SYNC@', 1)
     current, old = (source / UTILS).read_text(), (baseline / UTILS).read_text()
     assert without_ios_blocks(current) == without_ios_blocks(old)
     assert braced(current, 'class ranged_storage\n') == braced(old, 'class ranged_storage\n')
