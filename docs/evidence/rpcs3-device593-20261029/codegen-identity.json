@@ -1,0 +1,1510 @@
+{
+  "passed": true,
+  "verifiedAtUTC": "2026-10-29T05:36:00.108249+00:00",
+  "source": "<CANDIDATE_SOURCE_ROOT>",
+  "baseline": "<DELIVERED_593_SOURCE_ROOT>",
+  "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "upstreamTree": "37512763449c3c989ad46d85f43a866fe6582e73",
+  "baselineManifestSHA256": "51a3773a4ac52801e3bbf28f3d94405a8670e1cc2ee53ef4b6cbd6588f9ba236",
+  "currentManifestSHA256": "51a3773a4ac52801e3bbf28f3d94405a8670e1cc2ee53ef4b6cbd6588f9ba236",
+  "upstreamMetadataSHA256": "313b62bae897c61159a3fa37851d1bf78472c8a8f8978387057e93ffbd90f6cc",
+  "cmake": {
+    "path": "<CMAKE_EXECUTABLE>",
+    "version": "cmake version 3.31.10",
+    "executableSHA256": "576c050dab1e1418b6703b5cfb523330567683dad0c60a5ff9cc23128143812e"
+  },
+  "expectedCodegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "d070cb361bdef607"
+  },
+  "baselineCMake": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "syntheticFutureIdentities": {
+      "PPU": "06bbe0c14ab89545",
+      "SPU": "acaf3716a04079ca"
+    },
+    "targetCompileDefinitions": [
+      "NEOSTATION_PPU_CODEGEN_ID=\"a987639e9f838d1c\"",
+      "NEOSTATION_SPU_CODEGEN_ID=\"d070cb361bdef607\""
+    ],
+    "inputCount": {
+      "PPU": 21,
+      "SPU": 33
+    },
+    "inputs": [
+      {
+        "kind": "PPU",
+        "source": "Cell/PPUTranslator.cpp",
+        "actualSHA256": "2573c07e9f75e75f19984d4a796141795942db5fd15f5290fcec37c99e97affd",
+        "effectiveSHA256": "2573c07e9f75e75f19984d4a796141795942db5fd15f5290fcec37c99e97affd"
+      },
+      {
+        "kind": "PPU",
+        "source": "Cell/PPUTranslator.h",
+        "actualSHA256": "78c7b817d792de7c3b08abf40502724245736385bd414666a0b2d958e2fdd3c3",
+        "effectiveSHA256": "78c7b817d792de7c3b08abf40502724245736385bd414666a0b2d958e2fdd3c3"
+      },
+      {
+        "kind": "PPU",
+        "source": "Cell/PPUThread.cpp",
+        "actualSHA256": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44",
+        "effectiveSHA256": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44"
+      },
+      {
+        "kind": "PPU",
+        "source": "Cell/PPUThread.h",
+        "actualSHA256": "ebc4928070976a8544fe5862b804a288bb2cf283f20cc4fc2ccdf1d1a91821e3",
+        "effectiveSHA256": "ebc4928070976a8544fe5862b804a288bb2cf283f20cc4fc2ccdf1d1a91821e3"
+      },
+      {
+        "kind": "PPU",
+        "source": "Cell/PPUFunction.h",
+        "actualSHA256": "277e970a05dc808c8851aef12fd985d8b35ecf62559cf3ab3751e04cd6264a15",
+        "effectiveSHA256": "277e970a05dc808c8851aef12fd985d8b35ecf62559cf3ab3751e04cd6264a15"
+      },
+      {
+        "kind": "PPU",
+        "source": "Cell/PPUOpcodes.h",
+        "actualSHA256": "fcc5b3f3379946904458e9c0bc1414c5ea82e3e7e071d78451424bb65d57223c",
+        "effectiveSHA256": "fcc5b3f3379946904458e9c0bc1414c5ea82e3e7e071d78451424bb65d57223c"
+      },
+      {
+        "kind": "PPU",
+        "source": "CPU/CPUTranslator.cpp",
+        "actualSHA256": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219",
+        "effectiveSHA256": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219"
+      },
+      {
+        "kind": "PPU",
+        "source": "CPU/CPUTranslator.h",
+        "actualSHA256": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce",
+        "effectiveSHA256": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce"
+      },
+      {
+        "kind": "PPU",
+        "source": "CPU/Backends/AArch64/CellVectorLowering.h",
+        "actualSHA256": "737fb3dc40e0aba43b5c8f4bffd5a18d3ef1a6ded83a07fcb0d7b78badec980b",
+        "effectiveSHA256": "737fb3dc40e0aba43b5c8f4bffd5a18d3ef1a6ded83a07fcb0d7b78badec980b"
+      },
+      {
+        "kind": "PPU",
+        "source": "../util/simd.hpp",
+        "actualSHA256": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4",
+        "effectiveSHA256": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4"
+      },
+      {
+        "kind": "PPU",
+        "source": "../util/v128.hpp",
+        "actualSHA256": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b",
+        "effectiveSHA256": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../Utilities/JIT.h",
+        "actualSHA256": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061",
+        "effectiveSHA256": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../Utilities/JITLLVM.cpp",
+        "actualSHA256": "6dc91ec7e52f504b7af42302d90c286a922575f3d81070ef29732d9671fa828d",
+        "effectiveSHA256": "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../Utilities/JITPublicationQueue.h",
+        "actualSHA256": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211",
+        "effectiveSHA256": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../Utilities/JITObjectBuffer.h",
+        "actualSHA256": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0",
+        "effectiveSHA256": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../Utilities/JITMemoryProfile.h",
+        "actualSHA256": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e",
+        "effectiveSHA256": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../Utilities/JITMinimalObject.h",
+        "actualSHA256": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20",
+        "effectiveSHA256": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20"
+      },
+      {
+        "kind": "PPU",
+        "source": "../ios/IOSCompileAdmission.h",
+        "actualSHA256": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61",
+        "effectiveSHA256": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61"
+      },
+      {
+        "kind": "PPU",
+        "source": "../ios/NeoSwapCompilerAPI.h",
+        "actualSHA256": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+        "effectiveSHA256": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../Utilities/JITPhaseProfile.h",
+        "actualSHA256": "326313fec8689034e54cbdb27bf6777ba9e6a4abaf3cab6a542d7520310d6230",
+        "effectiveSHA256": "326313fec8689034e54cbdb27bf6777ba9e6a4abaf3cab6a542d7520310d6230"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp",
+        "actualSHA256": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507",
+        "effectiveSHA256": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPULLVMRecompiler.cpp",
+        "actualSHA256": "a1a994dab42a9b24990b3bf2e931c97509b25371cc96681216e644655ddb8ea3",
+        "effectiveSHA256": "613a7fa9ff59420720c810b0040e3d3b89cae89ea41e3715e7daf62de20c9be7"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUCommonRecompiler.cpp",
+        "actualSHA256": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb",
+        "effectiveSHA256": "4699b7d26b6db826dc0c98c49a711d4b00fd3dc70512df3a162801a76f263db0"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPURecompiler.h",
+        "actualSHA256": "0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07",
+        "effectiveSHA256": "0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUThread.h",
+        "actualSHA256": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+        "effectiveSHA256": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUThread.cpp",
+        "actualSHA256": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+        "effectiveSHA256": "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUInterpreter.cpp",
+        "actualSHA256": "b6966a7bb26fb4016a52ef1ac5d0eaeeb77cfbe95e7377a080692c0d5e652bd3",
+        "effectiveSHA256": "b6966a7bb26fb4016a52ef1ac5d0eaeeb77cfbe95e7377a080692c0d5e652bd3"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUInterpreter.h",
+        "actualSHA256": "a2f451c677f26d7af540af90a800240cbb37a4454511a9f64b4313fc5d9dc4b3",
+        "effectiveSHA256": "a2f451c677f26d7af540af90a800240cbb37a4454511a9f64b4313fc5d9dc4b3"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUOpcodes.h",
+        "actualSHA256": "6a5b3ae3021439e8ed3e86b8ad622bba05ec9cd081b4c9df559f5d16f8d995fc",
+        "effectiveSHA256": "6a5b3ae3021439e8ed3e86b8ad622bba05ec9cd081b4c9df559f5d16f8d995fc"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUAnalyser.h",
+        "actualSHA256": "5b61d1774986652d734d16a3847c5231013c1f97ed3d02f6e1edc61e9609e1aa",
+        "effectiveSHA256": "5b61d1774986652d734d16a3847c5231013c1f97ed3d02f6e1edc61e9609e1aa"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUObjectCachePolicy.h",
+        "actualSHA256": "a5fbf16daa366fd599c6d77ddeea8265f7d3e00750d3479c4b3dc94060c38233",
+        "effectiveSHA256": "a5fbf16daa366fd599c6d77ddeea8265f7d3e00750d3479c4b3dc94060c38233"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUARM64Lowering.h",
+        "actualSHA256": "72287a5c64b9d63a907003d9a2cc80bb31af9af621bae02064a7eb6d939c1a7d",
+        "effectiveSHA256": "72287a5c64b9d63a907003d9a2cc80bb31af9af621bae02064a7eb6d939c1a7d"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUARM64ConstantTable.h",
+        "actualSHA256": "35f1bea81df932ccf582de52575d1043caa3a2af6cd614e90f33a15216b4366e",
+        "effectiveSHA256": "35f1bea81df932ccf582de52575d1043caa3a2af6cd614e90f33a15216b4366e"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUARM64CompareLowering.h",
+        "actualSHA256": "9cb95d57a460cbc7f6717649661f1dd6b6e126de773cf1be57f70dea6fa43958",
+        "effectiveSHA256": "9cb95d57a460cbc7f6717649661f1dd6b6e126de773cf1be57f70dea6fa43958"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/CPUTranslator.cpp",
+        "actualSHA256": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219",
+        "effectiveSHA256": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/CPUTranslator.h",
+        "actualSHA256": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce",
+        "effectiveSHA256": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/Backends/AArch64/AArch64JIT.cpp",
+        "actualSHA256": "2e42b8b2e076805f0d388bdcb729ae78994406d5a7ebd9dd2c0bc947e8161017",
+        "effectiveSHA256": "2e42b8b2e076805f0d388bdcb729ae78994406d5a7ebd9dd2c0bc947e8161017"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/Backends/AArch64/AArch64JIT.h",
+        "actualSHA256": "6212064b32c8eaf9ce04070e830bac93b6999fdcbf314426838ea1e9c11de0c8",
+        "effectiveSHA256": "6212064b32c8eaf9ce04070e830bac93b6999fdcbf314426838ea1e9c11de0c8"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/Backends/AArch64/SPUChecksum.h",
+        "actualSHA256": "50701386284418dfa1f6aeb4cf4d72c64aa8c7369782b3e0a7ad374594a5fb63",
+        "effectiveSHA256": "50701386284418dfa1f6aeb4cf4d72c64aa8c7369782b3e0a7ad374594a5fb63"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/Backends/AArch64/SPUInterrupts.h",
+        "actualSHA256": "1f1dfd0dbe38e665cc0b48216504a41d01bb5e123fb69bc81c3a7c1ae721a4e5",
+        "effectiveSHA256": "1f1dfd0dbe38e665cc0b48216504a41d01bb5e123fb69bc81c3a7c1ae721a4e5"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/Backends/AArch64/SPUInterpreterGateway.h",
+        "actualSHA256": "225a20768e91a4c3fa1c361327c58cd3aad01bcadc94f98a5d10c51ae0e38fd3",
+        "effectiveSHA256": "225a20768e91a4c3fa1c361327c58cd3aad01bcadc94f98a5d10c51ae0e38fd3"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/Backends/AArch64/SPUReservationHash.h",
+        "actualSHA256": "682f3bed5668268dc8173b1c583706f26bbe5d2adc8225395ca32629a04a18f3",
+        "effectiveSHA256": "682f3bed5668268dc8173b1c583706f26bbe5d2adc8225395ca32629a04a18f3"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/Backends/AArch64/SPUReservationScan.h",
+        "actualSHA256": "7a55a0d7c655283be28926cbd7bf9a1cf75c82fbbe62824e6ab784aac6829cf0",
+        "effectiveSHA256": "7a55a0d7c655283be28926cbd7bf9a1cf75c82fbbe62824e6ab784aac6829cf0"
+      },
+      {
+        "kind": "SPU",
+        "source": "../util/simd.hpp",
+        "actualSHA256": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4",
+        "effectiveSHA256": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4"
+      },
+      {
+        "kind": "SPU",
+        "source": "../util/v128.hpp",
+        "actualSHA256": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b",
+        "effectiveSHA256": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b"
+      },
+      {
+        "kind": "SPU",
+        "source": "../../Utilities/JIT.h",
+        "actualSHA256": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061",
+        "effectiveSHA256": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061"
+      },
+      {
+        "kind": "SPU",
+        "source": "../../Utilities/JITLLVM.cpp",
+        "actualSHA256": "6dc91ec7e52f504b7af42302d90c286a922575f3d81070ef29732d9671fa828d",
+        "effectiveSHA256": "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf"
+      },
+      {
+        "kind": "SPU",
+        "source": "../../Utilities/JITPublicationQueue.h",
+        "actualSHA256": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211",
+        "effectiveSHA256": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211"
+      },
+      {
+        "kind": "SPU",
+        "source": "../../Utilities/JITObjectBuffer.h",
+        "actualSHA256": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0",
+        "effectiveSHA256": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0"
+      },
+      {
+        "kind": "SPU",
+        "source": "../../Utilities/JITMemoryProfile.h",
+        "actualSHA256": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e",
+        "effectiveSHA256": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e"
+      },
+      {
+        "kind": "SPU",
+        "source": "../../Utilities/JITMinimalObject.h",
+        "actualSHA256": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20",
+        "effectiveSHA256": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20"
+      },
+      {
+        "kind": "SPU",
+        "source": "../ios/IOSCompileAdmission.h",
+        "actualSHA256": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61",
+        "effectiveSHA256": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61"
+      },
+      {
+        "kind": "SPU",
+        "source": "../ios/NeoSwapCompilerAPI.h",
+        "actualSHA256": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+        "effectiveSHA256": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5"
+      },
+      {
+        "kind": "SPU",
+        "source": "../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp",
+        "actualSHA256": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507",
+        "effectiveSHA256": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507"
+      }
+    ],
+    "aliasCases": [
+      {
+        "name": "delivered_jit_exact_pair",
+        "source": "../../Utilities/JITLLVM.cpp",
+        "actual": "6dc91ec7e52f504b7af42302d90c286a922575f3d81070ef29732d9671fa828d",
+        "expected": "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf",
+        "observed": "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf",
+        "passed": true
+      },
+      {
+        "name": "new_hash_not_yet_aliased_by_delivered_rules",
+        "source": "../../Utilities/JITLLVM.cpp",
+        "actual": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+        "expected": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+        "observed": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+        "passed": true
+      },
+      {
+        "name": "future_hash_not_aliased_by_delivered_rules",
+        "source": "../../Utilities/JITLLVM.cpp",
+        "actual": "595a1a026986edf574388c1a4c12639aa83514d9b3f880f523980c7749524d10",
+        "expected": "595a1a026986edf574388c1a4c12639aa83514d9b3f880f523980c7749524d10",
+        "observed": "595a1a026986edf574388c1a4c12639aa83514d9b3f880f523980c7749524d10",
+        "passed": true
+      }
+    ],
+    "command": [
+      "<CMAKE_EXECUTABLE>",
+      "-P",
+      "<WORK_DIR>/baseline/verify.cmake"
+    ],
+    "scriptSHA256": "5d5d5097083ff674b417309934ddc4ffdbbf3f33296070db6b004c2bb5256fdf",
+    "adaptations": [
+      {
+        "kind": "PPU",
+        "originalBlockSHA256": "b77d91963f001d9a8e2bb5a5038656a7bed3db1977b107cf88e3460adffaa84c",
+        "executedBlockSHA256": "775ef97980d960eedfd83d17fcc238ab180b072ead0d1bbc207a8feeef54ef53"
+      },
+      {
+        "kind": "SPU",
+        "originalBlockSHA256": "fa2b96ecd00249834ec1d97012eaf1e18381cc52ced16cffe306db21a5a5e1d0",
+        "executedBlockSHA256": "a9070b1c07a8abf212c984e1afa51e9cc1a7de938df9956d25ef89a0bc12fd4a"
+      }
+    ],
+    "stdout": "-- NeoStation PPU codegen identity: a987639e9f838d1c\n-- NeoStation SPU codegen identity: d070cb361bdef607\n",
+    "stderr": ""
+  },
+  "candidateCMake": {
+    "identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "syntheticFutureIdentities": {
+      "PPU": "06bbe0c14ab89545",
+      "SPU": "acaf3716a04079ca"
+    },
+    "targetCompileDefinitions": [
+      "NEOSTATION_PPU_CODEGEN_ID=\"a987639e9f838d1c\"",
+      "NEOSTATION_SPU_CODEGEN_ID=\"d070cb361bdef607\""
+    ],
+    "inputCount": {
+      "PPU": 21,
+      "SPU": 33
+    },
+    "inputs": [
+      {
+        "kind": "PPU",
+        "source": "Cell/PPUTranslator.cpp",
+        "actualSHA256": "2573c07e9f75e75f19984d4a796141795942db5fd15f5290fcec37c99e97affd",
+        "effectiveSHA256": "2573c07e9f75e75f19984d4a796141795942db5fd15f5290fcec37c99e97affd"
+      },
+      {
+        "kind": "PPU",
+        "source": "Cell/PPUTranslator.h",
+        "actualSHA256": "78c7b817d792de7c3b08abf40502724245736385bd414666a0b2d958e2fdd3c3",
+        "effectiveSHA256": "78c7b817d792de7c3b08abf40502724245736385bd414666a0b2d958e2fdd3c3"
+      },
+      {
+        "kind": "PPU",
+        "source": "Cell/PPUThread.cpp",
+        "actualSHA256": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44",
+        "effectiveSHA256": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44"
+      },
+      {
+        "kind": "PPU",
+        "source": "Cell/PPUThread.h",
+        "actualSHA256": "ebc4928070976a8544fe5862b804a288bb2cf283f20cc4fc2ccdf1d1a91821e3",
+        "effectiveSHA256": "ebc4928070976a8544fe5862b804a288bb2cf283f20cc4fc2ccdf1d1a91821e3"
+      },
+      {
+        "kind": "PPU",
+        "source": "Cell/PPUFunction.h",
+        "actualSHA256": "277e970a05dc808c8851aef12fd985d8b35ecf62559cf3ab3751e04cd6264a15",
+        "effectiveSHA256": "277e970a05dc808c8851aef12fd985d8b35ecf62559cf3ab3751e04cd6264a15"
+      },
+      {
+        "kind": "PPU",
+        "source": "Cell/PPUOpcodes.h",
+        "actualSHA256": "fcc5b3f3379946904458e9c0bc1414c5ea82e3e7e071d78451424bb65d57223c",
+        "effectiveSHA256": "fcc5b3f3379946904458e9c0bc1414c5ea82e3e7e071d78451424bb65d57223c"
+      },
+      {
+        "kind": "PPU",
+        "source": "CPU/CPUTranslator.cpp",
+        "actualSHA256": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219",
+        "effectiveSHA256": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219"
+      },
+      {
+        "kind": "PPU",
+        "source": "CPU/CPUTranslator.h",
+        "actualSHA256": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce",
+        "effectiveSHA256": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce"
+      },
+      {
+        "kind": "PPU",
+        "source": "CPU/Backends/AArch64/CellVectorLowering.h",
+        "actualSHA256": "737fb3dc40e0aba43b5c8f4bffd5a18d3ef1a6ded83a07fcb0d7b78badec980b",
+        "effectiveSHA256": "737fb3dc40e0aba43b5c8f4bffd5a18d3ef1a6ded83a07fcb0d7b78badec980b"
+      },
+      {
+        "kind": "PPU",
+        "source": "../util/simd.hpp",
+        "actualSHA256": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4",
+        "effectiveSHA256": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4"
+      },
+      {
+        "kind": "PPU",
+        "source": "../util/v128.hpp",
+        "actualSHA256": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b",
+        "effectiveSHA256": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../Utilities/JIT.h",
+        "actualSHA256": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061",
+        "effectiveSHA256": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../Utilities/JITLLVM.cpp",
+        "actualSHA256": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+        "effectiveSHA256": "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../Utilities/JITPublicationQueue.h",
+        "actualSHA256": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211",
+        "effectiveSHA256": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../Utilities/JITObjectBuffer.h",
+        "actualSHA256": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0",
+        "effectiveSHA256": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../Utilities/JITMemoryProfile.h",
+        "actualSHA256": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e",
+        "effectiveSHA256": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../Utilities/JITMinimalObject.h",
+        "actualSHA256": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20",
+        "effectiveSHA256": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20"
+      },
+      {
+        "kind": "PPU",
+        "source": "../ios/IOSCompileAdmission.h",
+        "actualSHA256": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61",
+        "effectiveSHA256": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61"
+      },
+      {
+        "kind": "PPU",
+        "source": "../ios/NeoSwapCompilerAPI.h",
+        "actualSHA256": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+        "effectiveSHA256": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../Utilities/JITPhaseProfile.h",
+        "actualSHA256": "326313fec8689034e54cbdb27bf6777ba9e6a4abaf3cab6a542d7520310d6230",
+        "effectiveSHA256": "326313fec8689034e54cbdb27bf6777ba9e6a4abaf3cab6a542d7520310d6230"
+      },
+      {
+        "kind": "PPU",
+        "source": "../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp",
+        "actualSHA256": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507",
+        "effectiveSHA256": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPULLVMRecompiler.cpp",
+        "actualSHA256": "a1a994dab42a9b24990b3bf2e931c97509b25371cc96681216e644655ddb8ea3",
+        "effectiveSHA256": "613a7fa9ff59420720c810b0040e3d3b89cae89ea41e3715e7daf62de20c9be7"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUCommonRecompiler.cpp",
+        "actualSHA256": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb",
+        "effectiveSHA256": "4699b7d26b6db826dc0c98c49a711d4b00fd3dc70512df3a162801a76f263db0"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPURecompiler.h",
+        "actualSHA256": "0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07",
+        "effectiveSHA256": "0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUThread.h",
+        "actualSHA256": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+        "effectiveSHA256": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUThread.cpp",
+        "actualSHA256": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+        "effectiveSHA256": "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUInterpreter.cpp",
+        "actualSHA256": "b6966a7bb26fb4016a52ef1ac5d0eaeeb77cfbe95e7377a080692c0d5e652bd3",
+        "effectiveSHA256": "b6966a7bb26fb4016a52ef1ac5d0eaeeb77cfbe95e7377a080692c0d5e652bd3"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUInterpreter.h",
+        "actualSHA256": "a2f451c677f26d7af540af90a800240cbb37a4454511a9f64b4313fc5d9dc4b3",
+        "effectiveSHA256": "a2f451c677f26d7af540af90a800240cbb37a4454511a9f64b4313fc5d9dc4b3"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUOpcodes.h",
+        "actualSHA256": "6a5b3ae3021439e8ed3e86b8ad622bba05ec9cd081b4c9df559f5d16f8d995fc",
+        "effectiveSHA256": "6a5b3ae3021439e8ed3e86b8ad622bba05ec9cd081b4c9df559f5d16f8d995fc"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUAnalyser.h",
+        "actualSHA256": "5b61d1774986652d734d16a3847c5231013c1f97ed3d02f6e1edc61e9609e1aa",
+        "effectiveSHA256": "5b61d1774986652d734d16a3847c5231013c1f97ed3d02f6e1edc61e9609e1aa"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUObjectCachePolicy.h",
+        "actualSHA256": "a5fbf16daa366fd599c6d77ddeea8265f7d3e00750d3479c4b3dc94060c38233",
+        "effectiveSHA256": "a5fbf16daa366fd599c6d77ddeea8265f7d3e00750d3479c4b3dc94060c38233"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUARM64Lowering.h",
+        "actualSHA256": "72287a5c64b9d63a907003d9a2cc80bb31af9af621bae02064a7eb6d939c1a7d",
+        "effectiveSHA256": "72287a5c64b9d63a907003d9a2cc80bb31af9af621bae02064a7eb6d939c1a7d"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUARM64ConstantTable.h",
+        "actualSHA256": "35f1bea81df932ccf582de52575d1043caa3a2af6cd614e90f33a15216b4366e",
+        "effectiveSHA256": "35f1bea81df932ccf582de52575d1043caa3a2af6cd614e90f33a15216b4366e"
+      },
+      {
+        "kind": "SPU",
+        "source": "Cell/SPUARM64CompareLowering.h",
+        "actualSHA256": "9cb95d57a460cbc7f6717649661f1dd6b6e126de773cf1be57f70dea6fa43958",
+        "effectiveSHA256": "9cb95d57a460cbc7f6717649661f1dd6b6e126de773cf1be57f70dea6fa43958"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/CPUTranslator.cpp",
+        "actualSHA256": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219",
+        "effectiveSHA256": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/CPUTranslator.h",
+        "actualSHA256": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce",
+        "effectiveSHA256": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/Backends/AArch64/AArch64JIT.cpp",
+        "actualSHA256": "2e42b8b2e076805f0d388bdcb729ae78994406d5a7ebd9dd2c0bc947e8161017",
+        "effectiveSHA256": "2e42b8b2e076805f0d388bdcb729ae78994406d5a7ebd9dd2c0bc947e8161017"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/Backends/AArch64/AArch64JIT.h",
+        "actualSHA256": "6212064b32c8eaf9ce04070e830bac93b6999fdcbf314426838ea1e9c11de0c8",
+        "effectiveSHA256": "6212064b32c8eaf9ce04070e830bac93b6999fdcbf314426838ea1e9c11de0c8"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/Backends/AArch64/SPUChecksum.h",
+        "actualSHA256": "50701386284418dfa1f6aeb4cf4d72c64aa8c7369782b3e0a7ad374594a5fb63",
+        "effectiveSHA256": "50701386284418dfa1f6aeb4cf4d72c64aa8c7369782b3e0a7ad374594a5fb63"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/Backends/AArch64/SPUInterrupts.h",
+        "actualSHA256": "1f1dfd0dbe38e665cc0b48216504a41d01bb5e123fb69bc81c3a7c1ae721a4e5",
+        "effectiveSHA256": "1f1dfd0dbe38e665cc0b48216504a41d01bb5e123fb69bc81c3a7c1ae721a4e5"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/Backends/AArch64/SPUInterpreterGateway.h",
+        "actualSHA256": "225a20768e91a4c3fa1c361327c58cd3aad01bcadc94f98a5d10c51ae0e38fd3",
+        "effectiveSHA256": "225a20768e91a4c3fa1c361327c58cd3aad01bcadc94f98a5d10c51ae0e38fd3"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/Backends/AArch64/SPUReservationHash.h",
+        "actualSHA256": "682f3bed5668268dc8173b1c583706f26bbe5d2adc8225395ca32629a04a18f3",
+        "effectiveSHA256": "682f3bed5668268dc8173b1c583706f26bbe5d2adc8225395ca32629a04a18f3"
+      },
+      {
+        "kind": "SPU",
+        "source": "CPU/Backends/AArch64/SPUReservationScan.h",
+        "actualSHA256": "7a55a0d7c655283be28926cbd7bf9a1cf75c82fbbe62824e6ab784aac6829cf0",
+        "effectiveSHA256": "7a55a0d7c655283be28926cbd7bf9a1cf75c82fbbe62824e6ab784aac6829cf0"
+      },
+      {
+        "kind": "SPU",
+        "source": "../util/simd.hpp",
+        "actualSHA256": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4",
+        "effectiveSHA256": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4"
+      },
+      {
+        "kind": "SPU",
+        "source": "../util/v128.hpp",
+        "actualSHA256": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b",
+        "effectiveSHA256": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b"
+      },
+      {
+        "kind": "SPU",
+        "source": "../../Utilities/JIT.h",
+        "actualSHA256": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061",
+        "effectiveSHA256": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061"
+      },
+      {
+        "kind": "SPU",
+        "source": "../../Utilities/JITLLVM.cpp",
+        "actualSHA256": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+        "effectiveSHA256": "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf"
+      },
+      {
+        "kind": "SPU",
+        "source": "../../Utilities/JITPublicationQueue.h",
+        "actualSHA256": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211",
+        "effectiveSHA256": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211"
+      },
+      {
+        "kind": "SPU",
+        "source": "../../Utilities/JITObjectBuffer.h",
+        "actualSHA256": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0",
+        "effectiveSHA256": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0"
+      },
+      {
+        "kind": "SPU",
+        "source": "../../Utilities/JITMemoryProfile.h",
+        "actualSHA256": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e",
+        "effectiveSHA256": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e"
+      },
+      {
+        "kind": "SPU",
+        "source": "../../Utilities/JITMinimalObject.h",
+        "actualSHA256": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20",
+        "effectiveSHA256": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20"
+      },
+      {
+        "kind": "SPU",
+        "source": "../ios/IOSCompileAdmission.h",
+        "actualSHA256": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61",
+        "effectiveSHA256": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61"
+      },
+      {
+        "kind": "SPU",
+        "source": "../ios/NeoSwapCompilerAPI.h",
+        "actualSHA256": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+        "effectiveSHA256": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5"
+      },
+      {
+        "kind": "SPU",
+        "source": "../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp",
+        "actualSHA256": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507",
+        "effectiveSHA256": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507"
+      }
+    ],
+    "aliasCases": [
+      {
+        "name": "reviewed_jit_exact_pair",
+        "source": "../../Utilities/JITLLVM.cpp",
+        "actual": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+        "expected": "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf",
+        "observed": "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf",
+        "passed": true
+      },
+      {
+        "name": "future_jit_hash_not_aliased",
+        "source": "../../Utilities/JITLLVM.cpp",
+        "actual": "595a1a026986edf574388c1a4c12639aa83514d9b3f880f523980c7749524d10",
+        "expected": "595a1a026986edf574388c1a4c12639aa83514d9b3f880f523980c7749524d10",
+        "observed": "595a1a026986edf574388c1a4c12639aa83514d9b3f880f523980c7749524d10",
+        "passed": true
+      },
+      {
+        "name": "wrong_path_same_hash_not_aliased",
+        "source": "../../Utilities/Other.cpp",
+        "actual": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+        "expected": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+        "observed": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+        "passed": true
+      },
+      {
+        "name": "noncanonical_path_same_hash_not_aliased",
+        "source": "Utilities/JITLLVM.cpp",
+        "actual": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+        "expected": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+        "observed": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+        "passed": true
+      },
+      {
+        "name": "baseline_hash_not_broadly_aliased",
+        "source": "../../Utilities/JITLLVM.cpp",
+        "actual": "6dc91ec7e52f504b7af42302d90c286a922575f3d81070ef29732d9671fa828d",
+        "expected": "6dc91ec7e52f504b7af42302d90c286a922575f3d81070ef29732d9671fa828d",
+        "observed": "6dc91ec7e52f504b7af42302d90c286a922575f3d81070ef29732d9671fa828d",
+        "passed": true
+      },
+      {
+        "name": "existing_alias_1_unchanged",
+        "source": "Cell/SPUCommonRecompiler.cpp",
+        "actual": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb",
+        "expected": "4699b7d26b6db826dc0c98c49a711d4b00fd3dc70512df3a162801a76f263db0",
+        "observed": "4699b7d26b6db826dc0c98c49a711d4b00fd3dc70512df3a162801a76f263db0",
+        "passed": true
+      },
+      {
+        "name": "existing_alias_1_future_rejected",
+        "source": "Cell/SPUCommonRecompiler.cpp",
+        "actual": "3d304b1eb98f5f7061f166da1a042fea206a8648957aca67ecd6955ee495e2b6",
+        "expected": "3d304b1eb98f5f7061f166da1a042fea206a8648957aca67ecd6955ee495e2b6",
+        "observed": "3d304b1eb98f5f7061f166da1a042fea206a8648957aca67ecd6955ee495e2b6",
+        "passed": true
+      },
+      {
+        "name": "existing_alias_1_wrong_path_rejected",
+        "source": "Other/Cell/SPUCommonRecompiler.cpp",
+        "actual": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb",
+        "expected": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb",
+        "observed": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb",
+        "passed": true
+      },
+      {
+        "name": "existing_alias_2_unchanged",
+        "source": "Cell/SPUThread.cpp",
+        "actual": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+        "expected": "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c",
+        "observed": "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c",
+        "passed": true
+      },
+      {
+        "name": "existing_alias_2_future_rejected",
+        "source": "Cell/SPUThread.cpp",
+        "actual": "5d904d524074a5758286fd1af2d343424430a1c401e776022fc7ff491be0e20e",
+        "expected": "5d904d524074a5758286fd1af2d343424430a1c401e776022fc7ff491be0e20e",
+        "observed": "5d904d524074a5758286fd1af2d343424430a1c401e776022fc7ff491be0e20e",
+        "passed": true
+      },
+      {
+        "name": "existing_alias_2_wrong_path_rejected",
+        "source": "Other/Cell/SPUThread.cpp",
+        "actual": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+        "expected": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+        "observed": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+        "passed": true
+      },
+      {
+        "name": "existing_alias_3_unchanged",
+        "source": "Cell/SPULLVMRecompiler.cpp",
+        "actual": "a1a994dab42a9b24990b3bf2e931c97509b25371cc96681216e644655ddb8ea3",
+        "expected": "613a7fa9ff59420720c810b0040e3d3b89cae89ea41e3715e7daf62de20c9be7",
+        "observed": "613a7fa9ff59420720c810b0040e3d3b89cae89ea41e3715e7daf62de20c9be7",
+        "passed": true
+      },
+      {
+        "name": "existing_alias_3_future_rejected",
+        "source": "Cell/SPULLVMRecompiler.cpp",
+        "actual": "eebf905b13fea2b08511ee3b48701e9fc2dac33a7b889023483d19861e00e677",
+        "expected": "eebf905b13fea2b08511ee3b48701e9fc2dac33a7b889023483d19861e00e677",
+        "observed": "eebf905b13fea2b08511ee3b48701e9fc2dac33a7b889023483d19861e00e677",
+        "passed": true
+      },
+      {
+        "name": "existing_alias_3_wrong_path_rejected",
+        "source": "Other/Cell/SPULLVMRecompiler.cpp",
+        "actual": "a1a994dab42a9b24990b3bf2e931c97509b25371cc96681216e644655ddb8ea3",
+        "expected": "a1a994dab42a9b24990b3bf2e931c97509b25371cc96681216e644655ddb8ea3",
+        "observed": "a1a994dab42a9b24990b3bf2e931c97509b25371cc96681216e644655ddb8ea3",
+        "passed": true
+      }
+    ],
+    "command": [
+      "<CMAKE_EXECUTABLE>",
+      "-P",
+      "<WORK_DIR>/candidate/verify.cmake"
+    ],
+    "scriptSHA256": "4e0ec44f33cab6efcdb3aa6a03bddc71f4dc533cc6b13dca3bfdd8d0a376b8e6",
+    "adaptations": [
+      {
+        "kind": "PPU",
+        "originalBlockSHA256": "b77d91963f001d9a8e2bb5a5038656a7bed3db1977b107cf88e3460adffaa84c",
+        "executedBlockSHA256": "775ef97980d960eedfd83d17fcc238ab180b072ead0d1bbc207a8feeef54ef53"
+      },
+      {
+        "kind": "SPU",
+        "originalBlockSHA256": "fa2b96ecd00249834ec1d97012eaf1e18381cc52ced16cffe306db21a5a5e1d0",
+        "executedBlockSHA256": "a9070b1c07a8abf212c984e1afa51e9cc1a7de938df9956d25ef89a0bc12fd4a"
+      }
+    ],
+    "stdout": "-- NeoStation PPU codegen identity: a987639e9f838d1c\n-- NeoStation SPU codegen identity: d070cb361bdef607\n",
+    "stderr": ""
+  },
+  "uniqueInputCount": 41,
+  "directlyReadUniqueInputCount": 40,
+  "changedCodegenInputs": [
+    "Utilities/JITLLVM.cpp"
+  ],
+  "authenticatedInputs": [
+    {
+      "source": "../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp",
+      "path": "3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp",
+      "method": "reused authenticated delivered manifest backend digest; current LLVM pin and patch bytes unchanged",
+      "baselineSHA256": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507",
+      "candidateSHA256": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507",
+      "equal": true,
+      "bytesRead": false
+    },
+    {
+      "source": "../../Utilities/JIT.h",
+      "path": "Utilities/JIT.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061",
+      "candidateSHA256": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061",
+      "baselineBytes": 18095,
+      "candidateBytes": 18095,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "../../Utilities/JITLLVM.cpp",
+      "path": "Utilities/JITLLVM.cpp",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "6dc91ec7e52f504b7af42302d90c286a922575f3d81070ef29732d9671fa828d",
+      "candidateSHA256": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+      "baselineBytes": 46346,
+      "candidateBytes": 48811,
+      "equal": false,
+      "bytesRead": true
+    },
+    {
+      "source": "../../Utilities/JITMemoryProfile.h",
+      "path": "Utilities/JITMemoryProfile.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e",
+      "candidateSHA256": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e",
+      "baselineBytes": 986,
+      "candidateBytes": 986,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "../../Utilities/JITMinimalObject.h",
+      "path": "Utilities/JITMinimalObject.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20",
+      "candidateSHA256": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20",
+      "baselineBytes": 2387,
+      "candidateBytes": 2387,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "../../Utilities/JITObjectBuffer.h",
+      "path": "Utilities/JITObjectBuffer.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0",
+      "candidateSHA256": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0",
+      "baselineBytes": 2863,
+      "candidateBytes": 2863,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "../../Utilities/JITPhaseProfile.h",
+      "path": "Utilities/JITPhaseProfile.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "326313fec8689034e54cbdb27bf6777ba9e6a4abaf3cab6a542d7520310d6230",
+      "candidateSHA256": "326313fec8689034e54cbdb27bf6777ba9e6a4abaf3cab6a542d7520310d6230",
+      "baselineBytes": 9363,
+      "candidateBytes": 9363,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "../../Utilities/JITPublicationQueue.h",
+      "path": "Utilities/JITPublicationQueue.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211",
+      "candidateSHA256": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211",
+      "baselineBytes": 5320,
+      "candidateBytes": 5320,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "../ios/IOSCompileAdmission.h",
+      "path": "rpcs3/ios/IOSCompileAdmission.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61",
+      "candidateSHA256": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61",
+      "baselineBytes": 670,
+      "candidateBytes": 670,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "../ios/NeoSwapCompilerAPI.h",
+      "path": "rpcs3/ios/NeoSwapCompilerAPI.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+      "candidateSHA256": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+      "baselineBytes": 497,
+      "candidateBytes": 497,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "../util/simd.hpp",
+      "path": "rpcs3/util/simd.hpp",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4",
+      "candidateSHA256": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4",
+      "baselineBytes": 96642,
+      "candidateBytes": 96642,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "../util/v128.hpp",
+      "path": "rpcs3/util/v128.hpp",
+      "method": "pinned 22f1152 Git blob SHA1 and size",
+      "gitBlobSHA1": "0a5061dcddbdb241f77cbe590f7c0393e2d2659c",
+      "baselineSHA256": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b",
+      "candidateSHA256": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b",
+      "baselineBytes": 4391,
+      "candidateBytes": 4391,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "CPU/Backends/AArch64/AArch64JIT.cpp",
+      "path": "rpcs3/Emu/CPU/Backends/AArch64/AArch64JIT.cpp",
+      "method": "pinned 22f1152 Git blob SHA1 and size",
+      "gitBlobSHA1": "2fda2156648dd6d447d54f5f0379efac97880cca",
+      "baselineSHA256": "2e42b8b2e076805f0d388bdcb729ae78994406d5a7ebd9dd2c0bc947e8161017",
+      "candidateSHA256": "2e42b8b2e076805f0d388bdcb729ae78994406d5a7ebd9dd2c0bc947e8161017",
+      "baselineBytes": 20762,
+      "candidateBytes": 20762,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "CPU/Backends/AArch64/AArch64JIT.h",
+      "path": "rpcs3/Emu/CPU/Backends/AArch64/AArch64JIT.h",
+      "method": "pinned 22f1152 Git blob SHA1 and size",
+      "gitBlobSHA1": "f5a616e32c5a049ea6711429856a97d190537f9b",
+      "baselineSHA256": "6212064b32c8eaf9ce04070e830bac93b6999fdcbf314426838ea1e9c11de0c8",
+      "candidateSHA256": "6212064b32c8eaf9ce04070e830bac93b6999fdcbf314426838ea1e9c11de0c8",
+      "baselineBytes": 3877,
+      "candidateBytes": 3877,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "CPU/Backends/AArch64/CellVectorLowering.h",
+      "path": "rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "737fb3dc40e0aba43b5c8f4bffd5a18d3ef1a6ded83a07fcb0d7b78badec980b",
+      "candidateSHA256": "737fb3dc40e0aba43b5c8f4bffd5a18d3ef1a6ded83a07fcb0d7b78badec980b",
+      "baselineBytes": 3842,
+      "candidateBytes": 3842,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "CPU/Backends/AArch64/SPUChecksum.h",
+      "path": "rpcs3/Emu/CPU/Backends/AArch64/SPUChecksum.h",
+      "method": "pinned 22f1152 Git blob SHA1 and size",
+      "gitBlobSHA1": "176e62bb60068012464bdfa2fb3ed22321387d90",
+      "baselineSHA256": "50701386284418dfa1f6aeb4cf4d72c64aa8c7369782b3e0a7ad374594a5fb63",
+      "candidateSHA256": "50701386284418dfa1f6aeb4cf4d72c64aa8c7369782b3e0a7ad374594a5fb63",
+      "baselineBytes": 1126,
+      "candidateBytes": 1126,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "CPU/Backends/AArch64/SPUInterpreterGateway.h",
+      "path": "rpcs3/Emu/CPU/Backends/AArch64/SPUInterpreterGateway.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "225a20768e91a4c3fa1c361327c58cd3aad01bcadc94f98a5d10c51ae0e38fd3",
+      "candidateSHA256": "225a20768e91a4c3fa1c361327c58cd3aad01bcadc94f98a5d10c51ae0e38fd3",
+      "baselineBytes": 2417,
+      "candidateBytes": 2417,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "CPU/Backends/AArch64/SPUInterrupts.h",
+      "path": "rpcs3/Emu/CPU/Backends/AArch64/SPUInterrupts.h",
+      "method": "pinned 22f1152 Git blob SHA1 and size",
+      "gitBlobSHA1": "7de6ac0852771ce25609f73788ba44255363a13f",
+      "baselineSHA256": "1f1dfd0dbe38e665cc0b48216504a41d01bb5e123fb69bc81c3a7c1ae721a4e5",
+      "candidateSHA256": "1f1dfd0dbe38e665cc0b48216504a41d01bb5e123fb69bc81c3a7c1ae721a4e5",
+      "baselineBytes": 1917,
+      "candidateBytes": 1917,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "CPU/Backends/AArch64/SPUReservationHash.h",
+      "path": "rpcs3/Emu/CPU/Backends/AArch64/SPUReservationHash.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "682f3bed5668268dc8173b1c583706f26bbe5d2adc8225395ca32629a04a18f3",
+      "candidateSHA256": "682f3bed5668268dc8173b1c583706f26bbe5d2adc8225395ca32629a04a18f3",
+      "baselineBytes": 699,
+      "candidateBytes": 699,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "CPU/Backends/AArch64/SPUReservationScan.h",
+      "path": "rpcs3/Emu/CPU/Backends/AArch64/SPUReservationScan.h",
+      "method": "pinned 22f1152 Git blob SHA1 and size",
+      "gitBlobSHA1": "fe996db433b4afee16131d339a2af8f044f5ead9",
+      "baselineSHA256": "7a55a0d7c655283be28926cbd7bf9a1cf75c82fbbe62824e6ab784aac6829cf0",
+      "candidateSHA256": "7a55a0d7c655283be28926cbd7bf9a1cf75c82fbbe62824e6ab784aac6829cf0",
+      "baselineBytes": 1529,
+      "candidateBytes": 1529,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "CPU/CPUTranslator.cpp",
+      "path": "rpcs3/Emu/CPU/CPUTranslator.cpp",
+      "method": "pinned 22f1152 Git blob SHA1 and size",
+      "gitBlobSHA1": "a51a97b66690bda711aa177fa764441279d996b0",
+      "baselineSHA256": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219",
+      "candidateSHA256": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219",
+      "baselineBytes": 18004,
+      "candidateBytes": 18004,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "CPU/CPUTranslator.h",
+      "path": "rpcs3/Emu/CPU/CPUTranslator.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce",
+      "candidateSHA256": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce",
+      "baselineBytes": 124372,
+      "candidateBytes": 124372,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/PPUFunction.h",
+      "path": "rpcs3/Emu/Cell/PPUFunction.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "277e970a05dc808c8851aef12fd985d8b35ecf62559cf3ab3751e04cd6264a15",
+      "candidateSHA256": "277e970a05dc808c8851aef12fd985d8b35ecf62559cf3ab3751e04cd6264a15",
+      "baselineBytes": 10249,
+      "candidateBytes": 10249,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/PPUOpcodes.h",
+      "path": "rpcs3/Emu/Cell/PPUOpcodes.h",
+      "method": "pinned 22f1152 Git blob SHA1 and size",
+      "gitBlobSHA1": "de517014b57bdbc368656390078c9fffc8c59a89",
+      "baselineSHA256": "fcc5b3f3379946904458e9c0bc1414c5ea82e3e7e071d78451424bb65d57223c",
+      "candidateSHA256": "fcc5b3f3379946904458e9c0bc1414c5ea82e3e7e071d78451424bb65d57223c",
+      "baselineBytes": 23016,
+      "candidateBytes": 23016,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/PPUThread.cpp",
+      "path": "rpcs3/Emu/Cell/PPUThread.cpp",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44",
+      "candidateSHA256": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44",
+      "baselineBytes": 171231,
+      "candidateBytes": 171231,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/PPUThread.h",
+      "path": "rpcs3/Emu/Cell/PPUThread.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "ebc4928070976a8544fe5862b804a288bb2cf283f20cc4fc2ccdf1d1a91821e3",
+      "candidateSHA256": "ebc4928070976a8544fe5862b804a288bb2cf283f20cc4fc2ccdf1d1a91821e3",
+      "baselineBytes": 11280,
+      "candidateBytes": 11280,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/PPUTranslator.cpp",
+      "path": "rpcs3/Emu/Cell/PPUTranslator.cpp",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "2573c07e9f75e75f19984d4a796141795942db5fd15f5290fcec37c99e97affd",
+      "candidateSHA256": "2573c07e9f75e75f19984d4a796141795942db5fd15f5290fcec37c99e97affd",
+      "baselineBytes": 174557,
+      "candidateBytes": 174557,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/PPUTranslator.h",
+      "path": "rpcs3/Emu/Cell/PPUTranslator.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "78c7b817d792de7c3b08abf40502724245736385bd414666a0b2d958e2fdd3c3",
+      "candidateSHA256": "78c7b817d792de7c3b08abf40502724245736385bd414666a0b2d958e2fdd3c3",
+      "baselineBytes": 28489,
+      "candidateBytes": 28489,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/SPUARM64CompareLowering.h",
+      "path": "rpcs3/Emu/Cell/SPUARM64CompareLowering.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "9cb95d57a460cbc7f6717649661f1dd6b6e126de773cf1be57f70dea6fa43958",
+      "candidateSHA256": "9cb95d57a460cbc7f6717649661f1dd6b6e126de773cf1be57f70dea6fa43958",
+      "baselineBytes": 4477,
+      "candidateBytes": 4477,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/SPUARM64ConstantTable.h",
+      "path": "rpcs3/Emu/Cell/SPUARM64ConstantTable.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "35f1bea81df932ccf582de52575d1043caa3a2af6cd614e90f33a15216b4366e",
+      "candidateSHA256": "35f1bea81df932ccf582de52575d1043caa3a2af6cd614e90f33a15216b4366e",
+      "baselineBytes": 2561,
+      "candidateBytes": 2561,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/SPUARM64Lowering.h",
+      "path": "rpcs3/Emu/Cell/SPUARM64Lowering.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "72287a5c64b9d63a907003d9a2cc80bb31af9af621bae02064a7eb6d939c1a7d",
+      "candidateSHA256": "72287a5c64b9d63a907003d9a2cc80bb31af9af621bae02064a7eb6d939c1a7d",
+      "baselineBytes": 17873,
+      "candidateBytes": 17873,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/SPUAnalyser.h",
+      "path": "rpcs3/Emu/Cell/SPUAnalyser.h",
+      "method": "pinned 22f1152 Git blob SHA1 and size",
+      "gitBlobSHA1": "1598551c7ddf797924261d0d9faab96ca4b17eda",
+      "baselineSHA256": "5b61d1774986652d734d16a3847c5231013c1f97ed3d02f6e1edc61e9609e1aa",
+      "candidateSHA256": "5b61d1774986652d734d16a3847c5231013c1f97ed3d02f6e1edc61e9609e1aa",
+      "baselineBytes": 9756,
+      "candidateBytes": 9756,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/SPUCommonRecompiler.cpp",
+      "path": "rpcs3/Emu/Cell/SPUCommonRecompiler.cpp",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb",
+      "candidateSHA256": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb",
+      "baselineBytes": 277346,
+      "candidateBytes": 277346,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/SPUInterpreter.cpp",
+      "path": "rpcs3/Emu/Cell/SPUInterpreter.cpp",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "b6966a7bb26fb4016a52ef1ac5d0eaeeb77cfbe95e7377a080692c0d5e652bd3",
+      "candidateSHA256": "b6966a7bb26fb4016a52ef1ac5d0eaeeb77cfbe95e7377a080692c0d5e652bd3",
+      "baselineBytes": 92282,
+      "candidateBytes": 92282,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/SPUInterpreter.h",
+      "path": "rpcs3/Emu/Cell/SPUInterpreter.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "a2f451c677f26d7af540af90a800240cbb37a4454511a9f64b4313fc5d9dc4b3",
+      "candidateSHA256": "a2f451c677f26d7af540af90a800240cbb37a4454511a9f64b4313fc5d9dc4b3",
+      "baselineBytes": 923,
+      "candidateBytes": 923,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/SPULLVMRecompiler.cpp",
+      "path": "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "a1a994dab42a9b24990b3bf2e931c97509b25371cc96681216e644655ddb8ea3",
+      "candidateSHA256": "a1a994dab42a9b24990b3bf2e931c97509b25371cc96681216e644655ddb8ea3",
+      "baselineBytes": 348894,
+      "candidateBytes": 348894,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/SPUObjectCachePolicy.h",
+      "path": "rpcs3/Emu/Cell/SPUObjectCachePolicy.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "a5fbf16daa366fd599c6d77ddeea8265f7d3e00750d3479c4b3dc94060c38233",
+      "candidateSHA256": "a5fbf16daa366fd599c6d77ddeea8265f7d3e00750d3479c4b3dc94060c38233",
+      "baselineBytes": 4267,
+      "candidateBytes": 4267,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/SPUOpcodes.h",
+      "path": "rpcs3/Emu/Cell/SPUOpcodes.h",
+      "method": "pinned 22f1152 Git blob SHA1 and size",
+      "gitBlobSHA1": "42d76792a220f8f1c6a4ba3ba90ec504cdffa26f",
+      "baselineSHA256": "6a5b3ae3021439e8ed3e86b8ad622bba05ec9cd081b4c9df559f5d16f8d995fc",
+      "candidateSHA256": "6a5b3ae3021439e8ed3e86b8ad622bba05ec9cd081b4c9df559f5d16f8d995fc",
+      "baselineBytes": 8473,
+      "candidateBytes": 8473,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/SPURecompiler.h",
+      "path": "rpcs3/Emu/Cell/SPURecompiler.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07",
+      "candidateSHA256": "0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07",
+      "baselineBytes": 21643,
+      "candidateBytes": 21643,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/SPUThread.cpp",
+      "path": "rpcs3/Emu/Cell/SPUThread.cpp",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+      "candidateSHA256": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+      "baselineBytes": 201938,
+      "candidateBytes": 201938,
+      "equal": true,
+      "bytesRead": true
+    },
+    {
+      "source": "Cell/SPUThread.h",
+      "path": "rpcs3/Emu/Cell/SPUThread.h",
+      "method": "delivered 593 canonical manifest SHA256",
+      "gitBlobSHA1": null,
+      "baselineSHA256": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+      "candidateSHA256": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+      "baselineBytes": 27978,
+      "candidateBytes": 27978,
+      "equal": true,
+      "bytesRead": true
+    }
+  ],
+  "llvmBackendDigestReuse": {
+    "llvm_commit": "ca7933e47d3a3451d81e72ac174dcb5aa28b59d1",
+    "patch_sha256": "8db9dc0e3701069ca3d42c534b2bcd0bba5eea1f21fbd54c466fb454130a9a3f",
+    "preimage_sha256": "853b6bc86d7412d15672431fc69a19e57127f0ecd25a93cd4f6c8f170b9384a4",
+    "postimage_sha256": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507",
+    "currentPinAndPatchMetadataEqualBaseline": true,
+    "patchBytesSHA256": "8db9dc0e3701069ca3d42c534b2bcd0bba5eea1f21fbd54c466fb454130a9a3f",
+    "backendSourceBytesReadOrRebuilt": false,
+    "reason": "Reuse the delivered 593 backend proof; no LLVM change in this follow-up and no repeat of its historical build/patch test."
+  },
+  "cmakeInputListSHA256": "84e522298eaf161de29531d1d00c339106ced99524981f41c3a8e4a48d53686a",
+  "compatibilityModule": {
+    "baselineSHA256": "e1e81abc413a27df26cd42d18f12ac339e6cbd58ed61c6fa427a4d5d1fb09daa",
+    "candidateSHA256": "c9da4597bd0930f6dd0693d54f0430a0e213817a3fcad599d08f5c5fbd7ec94a",
+    "onlySemanticChangeIsExactJITSourceHash": true,
+    "aliasCount": 4
+  },
+  "jitLLVM": {
+    "baselineSHA256": "6dc91ec7e52f504b7af42302d90c286a922575f3d81070ef29732d9671fa828d",
+    "candidateSHA256": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+    "effectiveSHA256": "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf",
+    "changedMethodCount": 3,
+    "changedMethods": [
+      {
+        "method": "ObjectCache::load",
+        "signature": "static std::unique_ptr<llvm::MemoryBuffer> load(const std::string& path, jit_phase::phase read_phase = jit_phase::ppu_cache_read)",
+        "baseline": {
+          "sha256": "8e867b41f217e269d7f77784cfad8cf9a841f76be6889859a59ea7055dfd4f70",
+          "bytes": 1238,
+          "firstLine": 868,
+          "lastLine": 906
+        },
+        "candidate": {
+          "sha256": "82aab5c3dc111cdc7be744b6316b40afa80ef7295ad67463224a2f0fbca5e66d",
+          "bytes": 3097,
+          "firstLine": 868,
+          "lastLine": 958
+        }
+      },
+      {
+        "method": "ObjectCache::getObject",
+        "signature": "std::unique_ptr<llvm::MemoryBuffer> getObject(const llvm::Module* _module) override",
+        "baseline": {
+          "sha256": "40718764d9e43422fca7bbd8f71284c563cc53667f91059482b964c37e0679d4",
+          "bytes": 1124,
+          "firstLine": 908,
+          "lastLine": 951
+        },
+        "candidate": {
+          "sha256": "dbb0ba3fdbcee63eb5de83e7d81a071c5a7022e769096da1c3d6acc32ef50b47",
+          "bytes": 1369,
+          "firstLine": 960,
+          "lastLine": 1009
+        }
+      },
+      {
+        "method": "jit_compiler::load_cached_object",
+        "signature": "jit_cached_object jit_compiler::load_cached_object(const std::string& path, const std::string& required_symbol)",
+        "baseline": {
+          "sha256": "a4f9c152d159d304a5a6398f511ad7750184645f00e3cbbb37254f33d1b39076",
+          "bytes": 545,
+          "firstLine": 1402,
+          "lastLine": 1425
+        },
+        "candidate": {
+          "sha256": "575cd24cdb9910f57095d43a32c3829b0accbd32623fd15fba4add233365ee0e",
+          "bytes": 906,
+          "firstLine": 1460,
+          "lastLine": 1495
+        }
+      }
+    ],
+    "entireFileOutsideThoseBodiesByteIdentical": true,
+    "outsideBodiesSHA256": "e7155862f47da2179f34e82cb11aee5b90bbbbe07a29a8f50a0f255309f0c9c0",
+    "restoringBaselineBodiesRecoversExactBaselineSHA256": "6dc91ec7e52f504b7af42302d90c286a922575f3d81070ef29732d9671fa828d",
+    "unchangedSelectedMethods": [
+      {
+        "method": "ObjectCache::validate",
+        "bytes": 1065,
+        "sha256": "ca0fb842392c201543db19309bcc3f374ce50d50a52538f8db331ed0db372d91"
+      },
+      {
+        "method": "ObjectCache::notifyObjectCompiled",
+        "bytes": 1515,
+        "sha256": "d0a5c4f481b95c93511a6def1ae6b6b79690c883d0caeba3258514dc947e6a57"
+      },
+      {
+        "method": "jit_compiler::add(module,path)",
+        "bytes": 414,
+        "sha256": "4dfe6d8cb3987b30eecab69180c3cdaa3c1034b92e6776a97ac7bb463fc9cb9f"
+      },
+      {
+        "method": "jit_compiler::try_add(module,path)",
+        "bytes": 751,
+        "sha256": "f2dfbe1e8b00ba31598cc5a9ec0500300ab9c28e7addaf9f3d531d9b1db3f9f0"
+      },
+      {
+        "method": "jit_compiler::add(module)",
+        "bytes": 225,
+        "sha256": "dfa90b8817779dde62d1b5a45d3b44dc0f81c6d998ce903782421cec95a2f7d8"
+      },
+      {
+        "method": "jit_compiler::try_add(module)",
+        "bytes": 362,
+        "sha256": "d36c021cf5f1869e428df3f5a3b941770df208042198472f0bb7fb76ee3ce737"
+      },
+      {
+        "method": "jit_compiler::add(path)",
+        "bytes": 936,
+        "sha256": "4e0d15bb39535ced2323ac956f0227551043c48d0724dc376f957b939b214184"
+      }
+    ],
+    "scope": "Every byte outside these three method bodies is identical, including all object emission, symbol validation, memory manager, linker and relocation code in JITLLVM.cpp. This is a source-equivalence proof, not a new native binary comparison."
+  },
+  "syntheticFutureJITHash": "595a1a026986edf574388c1a4c12639aa83514d9b3f880f523980c7749524d10",
+  "negativeCaseCount": 10,
+  "scriptSHA256": "c56dc4981bca5f450b31033e5b8f4b8acb82d036eb6d739536ef8d87416b3d83",
+  "scope": "Actual CMake 593 identity blocks and compatibility function executed in script mode; target_compile_definitions is captured, no Core configuration or compilation. Only the unavailable, unchanged LLVM backend file(SHA256) is substituted with the authenticated manifest digest. Added recording and a separate synthetic future digest do not alter production identity variables. Python independently checks every direct file digest, alias mapping, input ordering and aggregate SHA256. No historical suite, gameplay benchmark, new object emission or device test was run.",
+  "publication": {
+    "originalReportSHA256": "c5315f5c17a55b126b9044021774a5e4e85353a50afb19970bcd53cf5e01ec2b",
+    "executionPathsReplacedByRoles": true,
+    "verifiedValuesUnchanged": true,
+    "runner": "test/rpcs3_codegen_593_identity_test.py",
+    "runnerSHA256": "c56dc4981bca5f450b31033e5b8f4b8acb82d036eb6d739536ef8d87416b3d83",
+    "runnerByteIdenticalToExecutedScript": true
+  }
+}

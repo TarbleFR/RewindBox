@@ -1,0 +1,146 @@
+{
+  "passed": true,
+  "scope": "Pre-commit source and existing-proof binding only; not a committed source contract or Apple native execution",
+  "nativeTestsExecuted": false,
+  "cmakeReexecuted": false,
+  "physicalDeviceTested": false,
+  "sourceContractExecuted": false,
+  "inputs": 160,
+  "canonicalPostimages": 311,
+  "patchSHA256": "1ee71b4e78b145fa9d8a902d26c201516debef01c036df5f3e61a2a9d8ffa774",
+  "fixtureSHA256": "97e67b1c1bf9cf67a929d8da2ef2a51d96c9fe4973c6fbbe97136b0f04b11d0e",
+  "gateSHA256": "6b70b54f9912265205a2bbca23b580be17b9923369fae12a718f4a215a0802a2",
+  "codegenSourceProof": {
+    "passed": true,
+    "sourceProofReused": true,
+    "testsExecuted": false,
+    "cmakeReexecuted": false,
+    "proofSHA256": "6e3e9f2306d1e80bd7b3c945d751445f37f051ee6bcf4c4f00bb40661d23c52b",
+    "runnerSHA256": "c56dc4981bca5f450b31033e5b8f4b8acb82d036eb6d739536ef8d87416b3d83",
+    "codegen": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "directlyAuthenticatedInputs": {
+      "Utilities/JIT.h": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061",
+      "Utilities/JITLLVM.cpp": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+      "Utilities/JITMemoryProfile.h": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e",
+      "Utilities/JITMinimalObject.h": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20",
+      "Utilities/JITObjectBuffer.h": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0",
+      "Utilities/JITPhaseProfile.h": "326313fec8689034e54cbdb27bf6777ba9e6a4abaf3cab6a542d7520310d6230",
+      "Utilities/JITPublicationQueue.h": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211",
+      "rpcs3/ios/IOSCompileAdmission.h": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61",
+      "rpcs3/ios/NeoSwapCompilerAPI.h": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+      "rpcs3/util/simd.hpp": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4",
+      "rpcs3/util/v128.hpp": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b",
+      "rpcs3/Emu/CPU/Backends/AArch64/AArch64JIT.cpp": "2e42b8b2e076805f0d388bdcb729ae78994406d5a7ebd9dd2c0bc947e8161017",
+      "rpcs3/Emu/CPU/Backends/AArch64/AArch64JIT.h": "6212064b32c8eaf9ce04070e830bac93b6999fdcbf314426838ea1e9c11de0c8",
+      "rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h": "737fb3dc40e0aba43b5c8f4bffd5a18d3ef1a6ded83a07fcb0d7b78badec980b",
+      "rpcs3/Emu/CPU/Backends/AArch64/SPUChecksum.h": "50701386284418dfa1f6aeb4cf4d72c64aa8c7369782b3e0a7ad374594a5fb63",
+      "rpcs3/Emu/CPU/Backends/AArch64/SPUInterpreterGateway.h": "225a20768e91a4c3fa1c361327c58cd3aad01bcadc94f98a5d10c51ae0e38fd3",
+      "rpcs3/Emu/CPU/Backends/AArch64/SPUInterrupts.h": "1f1dfd0dbe38e665cc0b48216504a41d01bb5e123fb69bc81c3a7c1ae721a4e5",
+      "rpcs3/Emu/CPU/Backends/AArch64/SPUReservationHash.h": "682f3bed5668268dc8173b1c583706f26bbe5d2adc8225395ca32629a04a18f3",
+      "rpcs3/Emu/CPU/Backends/AArch64/SPUReservationScan.h": "7a55a0d7c655283be28926cbd7bf9a1cf75c82fbbe62824e6ab784aac6829cf0",
+      "rpcs3/Emu/CPU/CPUTranslator.cpp": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219",
+      "rpcs3/Emu/CPU/CPUTranslator.h": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce",
+      "rpcs3/Emu/Cell/PPUFunction.h": "277e970a05dc808c8851aef12fd985d8b35ecf62559cf3ab3751e04cd6264a15",
+      "rpcs3/Emu/Cell/PPUOpcodes.h": "fcc5b3f3379946904458e9c0bc1414c5ea82e3e7e071d78451424bb65d57223c",
+      "rpcs3/Emu/Cell/PPUThread.cpp": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44",
+      "rpcs3/Emu/Cell/PPUThread.h": "ebc4928070976a8544fe5862b804a288bb2cf283f20cc4fc2ccdf1d1a91821e3",
+      "rpcs3/Emu/Cell/PPUTranslator.cpp": "2573c07e9f75e75f19984d4a796141795942db5fd15f5290fcec37c99e97affd",
+      "rpcs3/Emu/Cell/PPUTranslator.h": "78c7b817d792de7c3b08abf40502724245736385bd414666a0b2d958e2fdd3c3",
+      "rpcs3/Emu/Cell/SPUARM64CompareLowering.h": "9cb95d57a460cbc7f6717649661f1dd6b6e126de773cf1be57f70dea6fa43958",
+      "rpcs3/Emu/Cell/SPUARM64ConstantTable.h": "35f1bea81df932ccf582de52575d1043caa3a2af6cd614e90f33a15216b4366e",
+      "rpcs3/Emu/Cell/SPUARM64Lowering.h": "72287a5c64b9d63a907003d9a2cc80bb31af9af621bae02064a7eb6d939c1a7d",
+      "rpcs3/Emu/Cell/SPUAnalyser.h": "5b61d1774986652d734d16a3847c5231013c1f97ed3d02f6e1edc61e9609e1aa",
+      "rpcs3/Emu/Cell/SPUCommonRecompiler.cpp": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb",
+      "rpcs3/Emu/Cell/SPUInterpreter.cpp": "b6966a7bb26fb4016a52ef1ac5d0eaeeb77cfbe95e7377a080692c0d5e652bd3",
+      "rpcs3/Emu/Cell/SPUInterpreter.h": "a2f451c677f26d7af540af90a800240cbb37a4454511a9f64b4313fc5d9dc4b3",
+      "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": "a1a994dab42a9b24990b3bf2e931c97509b25371cc96681216e644655ddb8ea3",
+      "rpcs3/Emu/Cell/SPUObjectCachePolicy.h": "a5fbf16daa366fd599c6d77ddeea8265f7d3e00750d3479c4b3dc94060c38233",
+      "rpcs3/Emu/Cell/SPUOpcodes.h": "6a5b3ae3021439e8ed3e86b8ad622bba05ec9cd081b4c9df559f5d16f8d995fc",
+      "rpcs3/Emu/Cell/SPURecompiler.h": "0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07",
+      "rpcs3/Emu/Cell/SPUThread.cpp": "3821aa189e7c259947c3e777d459682bcab98df8205c129042f732af89d3426c",
+      "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299"
+    },
+    "unchangedLLVMBackendSHA256": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507",
+    "cmakeInputListSHA256": "84e522298eaf161de29531d1d00c339106ced99524981f41c3a8e4a48d53686a",
+    "compatibilityModuleSHA256": "c9da4597bd0930f6dd0693d54f0430a0e213817a3fcad599d08f5c5fbd7ec94a"
+  },
+  "reports": {
+    "jit-io-gcc.json": {
+      "sha256": "923bf4d43492f271180e5b6051d35eb9310a5ca869868594db2cd4ad128d1aa6",
+      "sourceAndHarnessMatch": true
+    },
+    "jit-io-clang.json": {
+      "sha256": "fe110a51a65c5602ceaa7528d1e17650fcb9a9cfde6340286b75fff031f9cb8e",
+      "sourceAndHarnessMatch": true
+    },
+    "jit-io-asan.json": {
+      "sha256": "de71e9e935358b51f82d0a4b005a7d5d51f305e884738cc638ff8ee58769e2b3",
+      "sourceAndHarnessMatch": true
+    },
+    "mvk-queue-gcc.json": {
+      "sha256": "75eb1843a0726e4022645d03ca12e937a5960c35866ab71c69795ab57ebe1cf0",
+      "sourceAndHarnessMatch": true
+    },
+    "mvk-queue-clang.json": {
+      "sha256": "4a6360755a6e4d30fe2796c99bd2282ef09163381c2d232efaa971e28f91f5b9",
+      "sourceAndHarnessMatch": true
+    },
+    "mvk-queue-asan.json": {
+      "sha256": "9eff4045d0e752e666569cd5fe03f9dcdc85adc1c22f3f6bd3963695de648cb1",
+      "sourceAndHarnessMatch": true
+    },
+    "mvk-queue-tsan.json": {
+      "sha256": "f18e2ffa5d4bd4bd221dcba064f84376544dc046b8c32ccbe6d01d5794e860f7",
+      "sourceAndHarnessMatch": true
+    },
+    "rsx-write-sampler-gcc.json": {
+      "sha256": "e115760a6f2f46287a0d2a57bdc4b187d5f8de68757b78b894dacd4afec6b3f6",
+      "sourceAndHarnessMatch": true
+    },
+    "rsx-write-sampler-clang.json": {
+      "sha256": "fd42603e5221dde7c8f8adf086db6d60be8b68573be0c4fe555a73a9c87dbc5c",
+      "sourceAndHarnessMatch": true
+    },
+    "rsx-write-sampler-asan.json": {
+      "sha256": "522b8c330464683824060d571798c0979e19d974d28633f625cd8bf371baec3a",
+      "sourceAndHarnessMatch": true
+    },
+    "rsx-write-sampler-tsan.json": {
+      "sha256": "32cab7f4dd9f8f3871195f93db49da9060e177e60c4c5876621918ef94042a6d",
+      "sourceAndHarnessMatch": true
+    },
+    "submit-packet-lifetime-asan.json": {
+      "sha256": "2ea78d92ba59a6d7ff365ab89677d1422f7f9d4f142f09adcee3902415a0a2dc",
+      "sourceAndHarnessMatch": true
+    }
+  },
+  "exactRawReconstructedPreimages": 13,
+  "exactRawUnchangedBaselineExtras": 3,
+  "harnessSHA256": {
+    "jit-io": "dcfdf7886fde3dcc7ca1c3e2127f4b16adf1381484397d7788e36d4688b41b50",
+    "mvk-present": "72a65152fee7851bee9498b27d74579e85a1f61ea6891831e7bb36e33b82c2cb",
+    "rsx-write-sampler": "d64ef1736322992710075111aa2935d675069f1b2db41cd76646dfccc1614bb6",
+    "submit-lifetime": "70fcd85bec95e4240a23d6f19ed2ddbaa48aeff623fd29b646df9260b52206ac"
+  },
+  "localPythonImportsBound": [
+    ".github/diagnostics/rpcs3runtime592_core.py",
+    ".github/diagnostics/rpcs3runtime_device593_core.py",
+    "build-utils/validate_single_ipa_distribution.py",
+    "packages/dolphin_internal_bridge/ci/verify_ipa.py",
+    "test/neo_swap_core_pin_test.py",
+    "test/rpcs3_cell559_test.py",
+    "test/rpcs3_clock_scale_test.py",
+    "test/rpcs3_device593_delta.py",
+    "test/rpcs3_hotpaths_test.py",
+    "test/rpcs3_jit_cache_io_test.py",
+    "test/rpcs3_memory523_test.py",
+    "test/rpcs3_mvk_present_queue_test.py",
+    "test/rpcs3_prehash_admission_test.py",
+    "test/rpcs3_rsx_cpu_write_test.py",
+    "test/rpcs3_runtime_log_followup.py",
+    "test/rpcs3_submit_packet_lifetime_test.py"
+  ]
+}

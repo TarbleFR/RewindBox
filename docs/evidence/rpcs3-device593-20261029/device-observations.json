@@ -1,0 +1,2310 @@
+{
+  "schema": 1,
+  "analysisDateUTC": "2026-10-29",
+  "scope": "Curated offline analysis of supplied journals, retaining numerical observations and line references only. No new telemetry, raw log publication, historical native suite or Core compilation.",
+  "inputs": [
+    {
+      "id": "D2",
+      "file": "RPCS3-diagnostic(20261029-024119).log",
+      "bytes": 593741,
+      "lines": 872,
+      "sha256": "890206934c2bd5556515decd2db0006eeaf60285dc4fe5f8558b0d04bbf36e13"
+    },
+    {
+      "id": "D5",
+      "file": "RPCS3-diagnostic(20261029-051248).log",
+      "bytes": 724268,
+      "lines": 1064,
+      "sha256": "55fdc85a01e5bac9d3a6b12c56f7306eba2fb8596ea2cb1c061690e95163af27"
+    },
+    {
+      "id": "M2",
+      "file": "RPCS3-milestones(20261029-024119).log",
+      "bytes": 389346,
+      "lines": 737,
+      "sha256": "d72f315ec2a93ca86f1549f40057df71f227026d7ff65c57a9ff5a36ec6a40cf"
+    },
+    {
+      "id": "M5",
+      "file": "RPCS3-milestones(20261029-051248).log",
+      "bytes": 452474,
+      "lines": 877,
+      "sha256": "e2ea253ab4cfa7012c24aaa48124d1d1f3ee62ae762f7b33f8a45a92bd94047a"
+    },
+    {
+      "id": "P3",
+      "file": "RPCS3-performance(3).log",
+      "bytes": 1322720,
+      "lines": 2277,
+      "sha256": "4df3d4a61ae9e2e13feacdb678ecef7a7cfacf42dad83eb42e610422eac5acaf"
+    },
+    {
+      "id": "P4",
+      "file": "RPCS3-performance(4).log",
+      "bytes": 1851090,
+      "lines": 3163,
+      "sha256": "1ba02730b063df84f51b9dced526869fff7b4d60c8c6e1bac37d6c51a8a6ccd5"
+    },
+    {
+      "id": "P1",
+      "file": "RPCS3-performance.1.log",
+      "bytes": 2096904,
+      "lines": 3630,
+      "sha256": "ed4ba95cdb3fba40c283712008ba0d3f97b629256d56c92da88b8660e3a75609"
+    },
+    {
+      "id": "A2",
+      "file": "app(20261029-024118).log",
+      "bytes": 286981,
+      "lines": 1865,
+      "sha256": "ad5dfd69981845d4a7a1e8b6e970673621a143630d281c5f228e0cb987c8238a"
+    },
+    {
+      "id": "A5",
+      "file": "app(20261029-051255).log",
+      "bytes": 792885,
+      "lines": 5976,
+      "sha256": "ff76257939ea049e84ee64c0e4ce36fc8da5370e6bfe97fc3b562e24b7723266"
+    }
+  ],
+  "groupingKey": [
+    "applicationBuild",
+    "pid",
+    "jitSession",
+    "reportWindow"
+  ],
+  "deduplication": {
+    "olderMilestonesExactPrefix": {
+      "older": "M2",
+      "newer": "M5",
+      "lines": 737
+    },
+    "olderAppExactPrefix": {
+      "older": "A2",
+      "newer": "A5",
+      "lines": 1865
+    },
+    "excludedRotatedPerformancePrefix": {
+      "input": "P1",
+      "firstLine": 1,
+      "lastLine": 3488,
+      "build": 588,
+      "pid": 47121,
+      "title": "BLES00113",
+      "session": 2,
+      "windows": [
+        510,
+        626
+      ],
+      "reason": "Bladestorm process, not the new build593 games."
+    },
+    "rotated593Suffix": {
+      "input": "P1",
+      "firstLine": 3489,
+      "lastLine": 3630,
+      "build": 593,
+      "pid": 47785,
+      "session": 1
+    },
+    "splitWindow": {
+      "session": 1,
+      "window": 5,
+      "refs": [
+        {
+          "input": "P1",
+          "firstLine": 3614,
+          "lastLine": 3630
+        },
+        {
+          "input": "P4",
+          "firstLine": 1,
+          "lastLine": 13
+        }
+      ],
+      "countedOnce": true
+    },
+    "diagnosticCoreCopiesAddedToPerformance": false,
+    "freezeSnapshotCopiesCountedOnce": [
+      {
+        "input": "M5",
+        "line": 868
+      },
+      {
+        "input": "P4",
+        "line": 1260
+      }
+    ]
+  },
+  "identity": {
+    "runtimeApplicationBuild": 593,
+    "runtimePID": 47785,
+    "gpu": "Apple A18 Pro GPU",
+    "reportedDriver": "0.2.162",
+    "rendererRefs": [
+      {
+        "input": "M5",
+        "line": 820
+      },
+      {
+        "input": "M5",
+        "line": 826
+      },
+      {
+        "input": "M5",
+        "line": 833
+      },
+      {
+        "input": "M5",
+        "line": 855
+      },
+      {
+        "input": "M5",
+        "line": 873
+      }
+    ],
+    "deliveredIPA": {
+      "name": "RewindBox-Build593.ipa",
+      "bytes": 188304666,
+      "sha256": "6d8fe2635ef793ac24a34d760771d726174313b22f2485b1b154698c79881806"
+    },
+    "deliveredRPCS3": {
+      "source": "c143be63f95751616f98d7bf9f1f34f297862df2",
+      "run": 40814736023,
+      "artifact": 12872058719,
+      "rawSHA256": "0966c03dcd264fdbcf813f9a7af320434c5dac0f555c1460c917358394b1f0ac",
+      "abi": 30,
+      "exports": 88,
+      "codegen": {
+        "PPU": "a987639e9f838d1c",
+        "SPU": "d070cb361bdef607"
+      }
+    },
+    "identityLimit": "Runtime records contain application build and renderer information, not a new on-device hash of the loaded Core; artifact identity comes from the existing signed IPA proof."
+  },
+  "sessions593": [
+    {
+      "session": 1,
+      "title": "BLES01717",
+      "game": "Call of Duty: Black Ops II",
+      "bootKind": "fresh",
+      "beginUTC": "2026-10-29T05:01:04.853041Z",
+      "nextExecutableUTC": "2026-10-29T05:01:36.353355Z",
+      "refs": [
+        {
+          "input": "M5",
+          "firstLine": 816,
+          "lastLine": 825
+        },
+        {
+          "input": "P1",
+          "firstLine": 3489,
+          "lastLine": 3630
+        },
+        {
+          "input": "P4",
+          "firstLine": 1,
+          "lastLine": 13
+        }
+      ],
+      "build": 593,
+      "pid": 47785,
+      "ppuBootUTC": "2026-10-29T05:01:08.740604Z",
+      "ppuBoot": {
+        "modules_total": 72,
+        "modules_cached": 72,
+        "modules_compiled": 0,
+        "ppu_cache_misses": 0
+      },
+      "ppuBootRef": {
+        "input": "M5",
+        "line": 822
+      }
+    },
+    {
+      "session": 2,
+      "title": "BLES01717",
+      "game": "Call of Duty: Black Ops II",
+      "bootKind": "fresh executable",
+      "beginUTC": "2026-10-29T05:01:36.353355Z",
+      "userCloseUTC": "2026-10-29T05:03:35.992921Z",
+      "refs": [
+        {
+          "input": "M5",
+          "firstLine": 824,
+          "lastLine": 828
+        },
+        {
+          "input": "A5",
+          "line": 5908
+        },
+        {
+          "input": "P4",
+          "firstLine": 19,
+          "lastLine": 769
+        }
+      ],
+      "build": 593,
+      "pid": 47785,
+      "ppuBootUTC": "2026-10-29T05:01:42.581865Z",
+      "ppuBoot": {
+        "modules_total": 86,
+        "modules_cached": 86,
+        "modules_compiled": 0,
+        "ppu_cache_misses": 0
+      },
+      "ppuBootRef": {
+        "input": "M5",
+        "line": 827
+      }
+    },
+    {
+      "session": 3,
+      "title": "BCES00510",
+      "game": "God of War III",
+      "bootKind": "fresh",
+      "beginUTC": "2026-10-29T05:03:46.440394Z",
+      "restoreBeginUTC": "2026-10-29T05:04:08.687832Z",
+      "refs": [
+        {
+          "input": "M5",
+          "firstLine": 829,
+          "lastLine": 837
+        },
+        {
+          "input": "P4",
+          "firstLine": 775,
+          "lastLine": 894
+        }
+      ],
+      "build": 593,
+      "pid": 47785,
+      "ppuBootUTC": "2026-10-29T05:03:49.328433Z",
+      "ppuBoot": {
+        "modules_total": 40,
+        "modules_cached": 40,
+        "modules_compiled": 0,
+        "ppu_cache_misses": 0
+      },
+      "ppuBootRef": {
+        "input": "M5",
+        "line": 835
+      }
+    },
+    {
+      "session": 4,
+      "title": "BCES00510",
+      "game": "God of War III",
+      "bootKind": "savestate",
+      "restoreFinalizeUTC": "2026-10-29T05:04:21.324175Z",
+      "userCloseUTC": "2026-10-29T05:05:33.218323Z",
+      "refs": [
+        {
+          "input": "M5",
+          "firstLine": 837,
+          "lastLine": 868
+        },
+        {
+          "input": "A5",
+          "line": 5944
+        },
+        {
+          "input": "P4",
+          "firstLine": 900,
+          "lastLine": 1410
+        }
+      ],
+      "build": 593,
+      "pid": 47785,
+      "ppuBootUTC": "2026-10-29T05:04:14.873911Z",
+      "ppuBoot": {
+        "modules_total": 45,
+        "modules_cached": 45,
+        "modules_compiled": 0,
+        "ppu_cache_misses": 0
+      },
+      "ppuBootRef": {
+        "input": "M5",
+        "line": 863
+      }
+    },
+    {
+      "session": 5,
+      "title": "BLES00158",
+      "game": "Assassin's Creed",
+      "bootKind": "fresh",
+      "beginUTC": "2026-10-29T05:05:40.274731Z",
+      "lastCoreReportUTC": "2026-10-29T05:10:41.397231Z",
+      "lastDiagnosticSampleUTC": "2026-10-29T05:10:42.051305Z",
+      "controllerDisconnectUTC": "2026-10-29T05:10:42.922585Z",
+      "refs": [
+        {
+          "input": "M5",
+          "firstLine": 869,
+          "lastLine": 877
+        },
+        {
+          "input": "P4",
+          "firstLine": 1416,
+          "lastLine": 3163
+        },
+        {
+          "input": "D5",
+          "firstLine": 1063,
+          "lastLine": 1064
+        }
+      ],
+      "build": 593,
+      "pid": 47785,
+      "ppuBootUTC": "2026-10-29T05:05:45.965842Z",
+      "ppuBoot": {
+        "modules_total": 175,
+        "modules_cached": 175,
+        "modules_compiled": 0,
+        "ppu_cache_misses": 0
+      },
+      "ppuBootRef": {
+        "input": "M5",
+        "line": 875
+      }
+    }
+  ],
+  "activeConfigurations": [
+    {
+      "ref": {
+        "input": "M5",
+        "line": 819
+      },
+      "utc": "2026-10-29T05:01:04.906541Z",
+      "configurationOrigin": "title database",
+      "fields": {
+        "title": "BLES01717",
+        "database": 1,
+        "legacy_custom": 0,
+        "sparse_overrides": 1,
+        "shader_mode": "Legacy Recompiler (single-threaded)",
+        "frame_limit": "Auto",
+        "wcb": "false",
+        "wdb": "false",
+        "rsx_res": 100,
+        "spu_block": "Safe",
+        "spu_decoder": "Recompiler (LLVM)",
+        "ppu_decoder": "Recompiler (LLVM)",
+        "async_tex": "false",
+        "max_spurs": 6,
+        "getllar_pct": 100,
+        "inherited": 0,
+        "kept": 0,
+        "accurate_res": "false",
+        "mt_rsx": "false",
+        "spu_spin": "Reference",
+        "mlaa_bypass": 0
+      }
+    },
+    {
+      "ref": {
+        "input": "M5",
+        "line": 825
+      },
+      "utc": "2026-10-29T05:01:36.353740Z",
+      "configurationOrigin": "title database",
+      "fields": {
+        "title": "BLES01717",
+        "database": 1,
+        "legacy_custom": 0,
+        "sparse_overrides": 1,
+        "shader_mode": "Legacy Recompiler (single-threaded)",
+        "frame_limit": "Auto",
+        "wcb": "false",
+        "wdb": "false",
+        "rsx_res": 100,
+        "spu_block": "Safe",
+        "spu_decoder": "Recompiler (LLVM)",
+        "ppu_decoder": "Recompiler (LLVM)",
+        "async_tex": "false",
+        "max_spurs": 6,
+        "getllar_pct": 100,
+        "inherited": 0,
+        "kept": 0,
+        "accurate_res": "false",
+        "mt_rsx": "false",
+        "spu_spin": "Reference",
+        "mlaa_bypass": 0
+      }
+    },
+    {
+      "ref": {
+        "input": "M5",
+        "line": 832
+      },
+      "utc": "2026-10-29T05:03:46.519167Z",
+      "configurationOrigin": "existing custom configuration",
+      "fields": {
+        "title": "BCES00510",
+        "database": 1,
+        "legacy_custom": 1,
+        "sparse_overrides": 0,
+        "shader_mode": "Legacy Recompiler (single-threaded)",
+        "frame_limit": "Auto",
+        "wcb": "true",
+        "wdb": "false",
+        "rsx_res": 75,
+        "spu_block": "Mega",
+        "spu_decoder": "Recompiler (LLVM)",
+        "ppu_decoder": "Recompiler (LLVM)",
+        "async_tex": "false",
+        "max_spurs": 6,
+        "getllar_pct": 100,
+        "inherited": 19,
+        "kept": 0,
+        "accurate_res": "false",
+        "mt_rsx": "true",
+        "spu_spin": "Reference",
+        "mlaa_bypass": 1
+      }
+    },
+    {
+      "ref": {
+        "input": "M5",
+        "line": 840
+      },
+      "utc": "2026-10-29T05:04:11.673483Z",
+      "configurationOrigin": "existing custom configuration",
+      "fields": {
+        "title": "BCES00510",
+        "database": 1,
+        "legacy_custom": 1,
+        "sparse_overrides": 0,
+        "shader_mode": "Legacy Recompiler (single-threaded)",
+        "frame_limit": "Auto",
+        "wcb": "true",
+        "wdb": "false",
+        "rsx_res": 75,
+        "spu_block": "Mega",
+        "spu_decoder": "Recompiler (LLVM)",
+        "ppu_decoder": "Recompiler (LLVM)",
+        "async_tex": "false",
+        "max_spurs": 6,
+        "getllar_pct": 100,
+        "inherited": 19,
+        "kept": 0,
+        "accurate_res": "false",
+        "mt_rsx": "true",
+        "spu_spin": "Reference",
+        "mlaa_bypass": 1
+      }
+    },
+    {
+      "ref": {
+        "input": "M5",
+        "line": 872
+      },
+      "utc": "2026-10-29T05:05:40.356051Z",
+      "configurationOrigin": "title database",
+      "fields": {
+        "title": "BLES00158",
+        "database": 1,
+        "legacy_custom": 0,
+        "sparse_overrides": 1,
+        "shader_mode": "Legacy Recompiler (single-threaded)",
+        "frame_limit": "Auto",
+        "wcb": "false",
+        "wdb": "false",
+        "rsx_res": 100,
+        "spu_block": "Safe",
+        "spu_decoder": "Recompiler (LLVM)",
+        "ppu_decoder": "Recompiler (LLVM)",
+        "async_tex": "true",
+        "max_spurs": 6,
+        "getllar_pct": 100,
+        "inherited": 0,
+        "kept": 0,
+        "accurate_res": "false",
+        "mt_rsx": "true",
+        "spu_spin": "Reference",
+        "mlaa_bypass": 0
+      }
+    }
+  ],
+  "additionalActiveProfileValues": {
+    "BO2": {
+      "fifoBytes": 1024,
+      "texturePrehash": false,
+      "moltenVKAsync": false
+    },
+    "GoW3": {
+      "fifoBytes": 4096,
+      "texturePrehash": true,
+      "moltenVKAsync": true,
+      "metalQueueCount": 2
+    },
+    "AC": {
+      "fifoBytes": 1024,
+      "texturePrehash": false,
+      "moltenVKAsync": false
+    },
+    "sourceGroups": [
+      "M5:818-840,871-872",
+      "P4 OPT581/OPT587 per selected phase"
+    ],
+    "note": "Async textures and asynchronous shader compilation are separate settings. All selected sessions use Legacy single-threaded shaders, PPU pipeline0 and SPU pipeline1."
+  },
+  "phases": {
+    "BO2_initial_boot_after_first_window": {
+      "build": 593,
+      "pid": 47785,
+      "session": 1,
+      "windows": [
+        2,
+        5
+      ],
+      "reportTimestampRangeUTC": [
+        "2026-10-29T05:01:16.472861Z",
+        "2026-10-29T05:01:32.906611Z"
+      ],
+      "processWindowTotalMs": 21846.983,
+      "presentedFrames": 967,
+      "framesPerElapsedSecond": 44.262405,
+      "completedGuestIntervalsOver50Ms": 16,
+      "completedGuestIntervalsOver100Ms": 10,
+      "maximumCompletedGuestIntervalMs": 1218.521,
+      "reportedFPSRange": [
+        20.537,
+        59.965
+      ],
+      "cpuCoreRanges": {
+        "ppu_cores": [
+          0.227,
+          0.629
+        ],
+        "spu_cores": [
+          4.07,
+          5.245
+        ],
+        "rsx_cores": [
+          0.071,
+          0.623
+        ],
+        "rsx_thread_cpu": [
+          0.071,
+          0.623
+        ]
+      },
+      "rsxFifoBusyPercentRange": [
+        0.0,
+        84.6
+      ],
+      "sampledPerFrame": {
+        "setup_ms": [
+          0.016,
+          2.369
+        ],
+        "vertex_ms": [
+          0.004,
+          1.789
+        ],
+        "texture_ms": [
+          0.057,
+          3.54
+        ],
+        "exec_ms": [
+          0.001,
+          0.23
+        ],
+        "flip_ms": [
+          0.227,
+          0.61
+        ],
+        "draws_per_frame": [
+          1.0,
+          3929.1
+        ]
+      },
+      "spuCache": {
+        "obj_hits": 10181,
+        "obj_misses": 31,
+        "obj_invalid": 0,
+        "obj_nonreloc": 0,
+        "obj_write_failures": 0
+      },
+      "spuCacheHitFraction": 0.996964,
+      "spuCacheRead": {
+        "events": 10181,
+        "totalMs": 5010.544,
+        "maxMs": 10.642,
+        "bytes": 30638856
+      },
+      "spuCodegen": {
+        "events": 31,
+        "totalMs": 241.031,
+        "maxMs": 22.559,
+        "bytes": 3648
+      },
+      "spuBuildTotalMsIncludingCacheRead": 8588.219,
+      "graphicsPipelineEvents": 0,
+      "synchronousSubmit": {
+        "events": 3016,
+        "totalMs": 1059.66,
+        "maxMs": 11.245
+      },
+      "refs": [
+        {
+          "input": "P1",
+          "firstLine": 3524,
+          "lastLine": 3630
+        },
+        {
+          "input": "P4",
+          "firstLine": 1,
+          "lastLine": 13
+        }
+      ]
+    },
+    "BO2_render_before_long_metal": {
+      "build": 593,
+      "pid": 47785,
+      "session": 2,
+      "windows": [
+        7,
+        13
+      ],
+      "reportTimestampRangeUTC": [
+        "2026-10-29T05:02:13.999714Z",
+        "2026-10-29T05:02:46.151750Z"
+      ],
+      "processWindowTotalMs": 37292.873,
+      "presentedFrames": 1219,
+      "framesPerElapsedSecond": 32.687211,
+      "completedGuestIntervalsOver50Ms": 47,
+      "completedGuestIntervalsOver100Ms": 17,
+      "maximumCompletedGuestIntervalMs": 2447.213,
+      "reportedFPSRange": [
+        21.671,
+        41.076
+      ],
+      "cpuCoreRanges": {
+        "ppu_cores": [
+          0.43,
+          0.762
+        ],
+        "spu_cores": [
+          3.877,
+          4.459
+        ],
+        "rsx_cores": [
+          0.371,
+          0.625
+        ],
+        "rsx_thread_cpu": [
+          0.371,
+          0.625
+        ]
+      },
+      "rsxFifoBusyPercentRange": [
+        49.5,
+        88.3
+      ],
+      "sampledPerFrame": {
+        "setup_ms": [
+          1.237,
+          1.692
+        ],
+        "vertex_ms": [
+          0.867,
+          1.794
+        ],
+        "texture_ms": [
+          2.779,
+          5.717
+        ],
+        "exec_ms": [
+          0.091,
+          0.193
+        ],
+        "flip_ms": [
+          0.39,
+          0.894
+        ],
+        "draws_per_frame": [
+          1530.0,
+          3321.2
+        ]
+      },
+      "spuCache": {
+        "obj_hits": 6228,
+        "obj_misses": 128,
+        "obj_invalid": 0,
+        "obj_nonreloc": 0,
+        "obj_write_failures": 0
+      },
+      "spuCacheHitFraction": 0.979862,
+      "spuCacheRead": {
+        "events": 6221,
+        "totalMs": 3918.311,
+        "maxMs": 21.099,
+        "bytes": 18781336
+      },
+      "spuCodegen": {
+        "events": 128,
+        "totalMs": 1606.179,
+        "maxMs": 274.053,
+        "bytes": 17400
+      },
+      "spuBuildTotalMsIncludingCacheRead": 7480.609,
+      "graphicsPipelineEvents": 2,
+      "synchronousSubmit": {
+        "events": 7523,
+        "totalMs": 4572.659,
+        "maxMs": 19.115
+      },
+      "refs": [
+        {
+          "input": "P4",
+          "firstLine": 199,
+          "lastLine": 408
+        }
+      ]
+    },
+    "BO2_long_metal_bursts": {
+      "build": 593,
+      "pid": 47785,
+      "session": 2,
+      "windows": [
+        14,
+        22
+      ],
+      "reportTimestampRangeUTC": [
+        "2026-10-29T05:02:51.255740Z",
+        "2026-10-29T05:03:33.421977Z"
+      ],
+      "processWindowTotalMs": 47269.435,
+      "presentedFrames": 960,
+      "framesPerElapsedSecond": 20.309107,
+      "completedGuestIntervalsOver50Ms": 55,
+      "completedGuestIntervalsOver100Ms": 29,
+      "maximumCompletedGuestIntervalMs": 3783.054,
+      "reportedFPSRange": [
+        8.513,
+        32.969
+      ],
+      "cpuCoreRanges": {
+        "ppu_cores": [
+          0.541,
+          0.794
+        ],
+        "spu_cores": [
+          3.708,
+          4.115
+        ],
+        "rsx_cores": [
+          0.103,
+          0.528
+        ],
+        "rsx_thread_cpu": [
+          0.103,
+          0.528
+        ]
+      },
+      "rsxFifoBusyPercentRange": [
+        82.3,
+        96.8
+      ],
+      "sampledPerFrame": {
+        "setup_ms": [
+          1.504,
+          620.193
+        ],
+        "vertex_ms": [
+          0.759,
+          1.634
+        ],
+        "texture_ms": [
+          4.198,
+          7.471
+        ],
+        "exec_ms": [
+          0.078,
+          0.159
+        ],
+        "flip_ms": [
+          0.36,
+          0.923
+        ],
+        "draws_per_frame": [
+          1057.2,
+          2132.1
+        ]
+      },
+      "spuCache": {
+        "obj_hits": 367,
+        "obj_misses": 39,
+        "obj_invalid": 0,
+        "obj_nonreloc": 0,
+        "obj_write_failures": 0
+      },
+      "spuCacheHitFraction": 0.903941,
+      "spuCacheRead": {
+        "events": 367,
+        "totalMs": 456.066,
+        "maxMs": 14.286,
+        "bytes": 1149984
+      },
+      "spuCodegen": {
+        "events": 39,
+        "totalMs": 630.15,
+        "maxMs": 83.321,
+        "bytes": 6324
+      },
+      "spuBuildTotalMsIncludingCacheRead": 785.472,
+      "graphicsPipelineEvents": 172,
+      "synchronousSubmit": {
+        "events": 5729,
+        "totalMs": 3854.695,
+        "maxMs": 10.674
+      },
+      "refs": [
+        {
+          "input": "P4",
+          "firstLine": 409,
+          "lastLine": 710
+        }
+      ]
+    },
+    "GOW3_restored_before_freeze": {
+      "build": 593,
+      "pid": 47785,
+      "session": 4,
+      "windows": [
+        3,
+        11
+      ],
+      "reportTimestampRangeUTC": [
+        "2026-10-29T05:04:28.225496Z",
+        "2026-10-29T05:05:10.005570Z"
+      ],
+      "processWindowTotalMs": 46898.807,
+      "presentedFrames": 973,
+      "framesPerElapsedSecond": 20.746796,
+      "completedGuestIntervalsOver50Ms": 285,
+      "completedGuestIntervalsOver100Ms": 6,
+      "maximumCompletedGuestIntervalMs": 116.146,
+      "reportedFPSRange": [
+        12.885,
+        24.916
+      ],
+      "cpuCoreRanges": {
+        "ppu_cores": [
+          0.624,
+          0.863
+        ],
+        "spu_cores": [
+          3.182,
+          3.52
+        ],
+        "rsx_cores": [
+          0.455,
+          0.661
+        ],
+        "rsx_thread_cpu": [
+          0.402,
+          0.565
+        ]
+      },
+      "rsxFifoBusyPercentRange": [
+        60.4,
+        87.5
+      ],
+      "sampledPerFrame": {
+        "setup_ms": [
+          0.71,
+          1.841
+        ],
+        "vertex_ms": [
+          1.324,
+          4.064
+        ],
+        "texture_ms": [
+          4.619,
+          15.502
+        ],
+        "exec_ms": [
+          0.068,
+          0.215
+        ],
+        "flip_ms": [
+          1.674,
+          4.239
+        ],
+        "draws_per_frame": [
+          644.7,
+          2211.2
+        ]
+      },
+      "spuCache": {
+        "obj_hits": 0,
+        "obj_misses": 0,
+        "obj_invalid": 0,
+        "obj_nonreloc": 0,
+        "obj_write_failures": 0
+      },
+      "spuCacheHitFraction": null,
+      "spuCacheRead": {
+        "events": 0,
+        "totalMs": 0.0,
+        "maxMs": 0,
+        "bytes": 0
+      },
+      "spuCodegen": {
+        "events": 0,
+        "totalMs": 0.0,
+        "maxMs": 0,
+        "bytes": 0
+      },
+      "spuBuildTotalMsIncludingCacheRead": 0.0,
+      "graphicsPipelineEvents": 1,
+      "synchronousSubmit": {
+        "events": 14914,
+        "totalMs": 663.856,
+        "maxMs": 7.95
+      },
+      "refs": [
+        {
+          "input": "P4",
+          "firstLine": 960,
+          "lastLine": 1229
+        }
+      ],
+      "prehash": {
+        "hits": 50041,
+        "misses": 36360,
+        "hit_bytes": 44751767864,
+        "worker_hashes": 80234,
+        "worker_bytes": 80732570328,
+        "worker_ms": 5702.047,
+        "worker_skips": 54,
+        "hitShare": 0.579172
+      },
+      "hybridTextureHashIncludingWorker": {
+        "bytes": 129593889304,
+        "totalMs": 9182.994027
+      },
+      "faultReadback": {
+        "batches": 978,
+        "sections": 978,
+        "requestedBytes": 3586867220,
+        "totalMs": 3828.1,
+        "maxMs": 10.875
+      },
+      "moltenVK": {
+        "mvk_async": [
+          1,
+          1
+        ],
+        "exec_queues": [
+          2,
+          2
+        ],
+        "drains": [
+          973,
+          2566.601
+        ],
+        "acquire_waits": [
+          0,
+          0.0,
+          0
+        ],
+        "acquire_timeouts": 0,
+        "marker_lag_max_ms": 0.0
+      }
+    },
+    "GOW3_freeze_complete_windows": {
+      "build": 593,
+      "pid": 47785,
+      "session": 4,
+      "windows": [
+        13,
+        15
+      ],
+      "reportTimestampRangeUTC": [
+        "2026-10-29T05:05:20.330360Z",
+        "2026-10-29T05:05:30.446299Z"
+      ],
+      "processWindowTotalMs": 15178.217,
+      "presentedFrames": 0,
+      "framesPerElapsedSecond": 0.0,
+      "completedGuestIntervalsOver50Ms": 0,
+      "completedGuestIntervalsOver100Ms": 0,
+      "maximumCompletedGuestIntervalMs": null,
+      "reportedFPSRange": [
+        0.0,
+        0.0
+      ],
+      "cpuCoreRanges": {
+        "ppu_cores": [
+          0.046,
+          0.049
+        ],
+        "spu_cores": [
+          0.111,
+          0.118
+        ],
+        "rsx_cores": [
+          0.012,
+          0.013
+        ],
+        "rsx_thread_cpu": [
+          0.012,
+          0.013
+        ]
+      },
+      "rsxFifoBusyPercentRange": [
+        -1.0,
+        -1.0
+      ],
+      "sampledPerFrame": {
+        "setup_ms": [
+          0.0,
+          0.0
+        ],
+        "vertex_ms": [
+          0.0,
+          0.0
+        ],
+        "texture_ms": [
+          0.0,
+          0.0
+        ],
+        "exec_ms": [
+          0.0,
+          0.0
+        ],
+        "flip_ms": [
+          0.0,
+          0.0
+        ],
+        "draws_per_frame": [
+          0.0,
+          0.0
+        ]
+      },
+      "spuCache": {
+        "obj_hits": 0,
+        "obj_misses": 0,
+        "obj_invalid": 0,
+        "obj_nonreloc": 0,
+        "obj_write_failures": 0
+      },
+      "spuCacheHitFraction": null,
+      "spuCacheRead": {
+        "events": 0,
+        "totalMs": 0.0,
+        "maxMs": 0,
+        "bytes": 0
+      },
+      "spuCodegen": {
+        "events": 0,
+        "totalMs": 0.0,
+        "maxMs": 0,
+        "bytes": 0
+      },
+      "spuBuildTotalMsIncludingCacheRead": 0.0,
+      "graphicsPipelineEvents": 0,
+      "synchronousSubmit": {
+        "events": 0,
+        "totalMs": 0.0,
+        "maxMs": 0
+      },
+      "refs": [
+        {
+          "input": "P4",
+          "firstLine": 1261,
+          "lastLine": 1350
+        }
+      ],
+      "prehash": {
+        "hits": 0,
+        "misses": 0,
+        "hit_bytes": 0,
+        "worker_hashes": 0,
+        "worker_bytes": 0,
+        "worker_ms": 0.0,
+        "worker_skips": 0,
+        "hitShare": null
+      },
+      "hybridTextureHashIncludingWorker": {
+        "bytes": 0,
+        "totalMs": 0.0
+      },
+      "faultReadback": {
+        "batches": 0,
+        "sections": 0,
+        "requestedBytes": 0,
+        "totalMs": 0.0,
+        "maxMs": 0.0
+      },
+      "moltenVK": {
+        "mvk_async": [
+          1,
+          1
+        ],
+        "exec_queues": [
+          2,
+          2
+        ],
+        "drains": [
+          0,
+          0.0
+        ],
+        "acquire_waits": [
+          0,
+          0.0,
+          0
+        ],
+        "acquire_timeouts": 0,
+        "marker_lag_max_ms": 0.0
+      }
+    },
+    "AC_heavy_stable": {
+      "build": 593,
+      "pid": 47785,
+      "session": 5,
+      "windows": [
+        28,
+        43
+      ],
+      "reportTimestampRangeUTC": [
+        "2026-10-29T05:08:05.634038Z",
+        "2026-10-29T05:09:23.279722Z"
+      ],
+      "processWindowTotalMs": 82778.834,
+      "presentedFrames": 2262,
+      "framesPerElapsedSecond": 27.325826,
+      "completedGuestIntervalsOver50Ms": 4,
+      "completedGuestIntervalsOver100Ms": 0,
+      "maximumCompletedGuestIntervalMs": 55.759,
+      "reportedFPSRange": [
+        26.696,
+        27.685
+      ],
+      "cpuCoreRanges": {
+        "ppu_cores": [
+          0.43,
+          0.448
+        ],
+        "spu_cores": [
+          2.462,
+          2.515
+        ],
+        "rsx_cores": [
+          1.105,
+          1.131
+        ],
+        "rsx_thread_cpu": [
+          0.755,
+          0.781
+        ]
+      },
+      "rsxFifoBusyPercentRange": [
+        95.6,
+        97.2
+      ],
+      "sampledPerFrame": {
+        "setup_ms": [
+          5.005,
+          5.382
+        ],
+        "vertex_ms": [
+          2.964,
+          3.292
+        ],
+        "texture_ms": [
+          6.905,
+          7.657
+        ],
+        "exec_ms": [
+          0.26,
+          0.287
+        ],
+        "flip_ms": [
+          1.585,
+          1.82
+        ],
+        "draws_per_frame": [
+          2678.6,
+          2710.2
+        ]
+      },
+      "spuCache": {
+        "obj_hits": 0,
+        "obj_misses": 0,
+        "obj_invalid": 0,
+        "obj_nonreloc": 0,
+        "obj_write_failures": 0
+      },
+      "spuCacheHitFraction": null,
+      "spuCacheRead": {
+        "events": 0,
+        "totalMs": 0.0,
+        "maxMs": 0,
+        "bytes": 0
+      },
+      "spuCodegen": {
+        "events": 0,
+        "totalMs": 0.0,
+        "maxMs": 0,
+        "bytes": 0
+      },
+      "spuBuildTotalMsIncludingCacheRead": 0.0,
+      "graphicsPipelineEvents": 0,
+      "synchronousSubmit": {
+        "events": 64721,
+        "totalMs": 21414.545,
+        "maxMs": 6.222
+      },
+      "refs": [
+        {
+          "input": "P4",
+          "firstLine": 2227,
+          "lastLine": 2706
+        }
+      ]
+    },
+    "GOW3_old_heavy": {
+      "build": 588,
+      "pid": 46819,
+      "session": 3,
+      "windows": [
+        41,
+        46
+      ],
+      "reportTimestampRangeUTC": [
+        "2026-10-29T02:34:05.004582Z",
+        "2026-10-29T02:34:32.156817Z"
+      ],
+      "processWindowTotalMs": 32642.531,
+      "presentedFrames": 342,
+      "framesPerElapsedSecond": 10.477129,
+      "completedGuestIntervalsOver50Ms": 336,
+      "completedGuestIntervalsOver100Ms": 125,
+      "maximumCompletedGuestIntervalMs": 712.55,
+      "reportedFPSRange": [
+        9.101,
+        12.974
+      ],
+      "cpuCoreRanges": {
+        "ppu_cores": [
+          0.518,
+          1.028
+        ],
+        "spu_cores": [
+          3.063,
+          3.613
+        ],
+        "rsx_cores": [
+          0.438,
+          0.613
+        ],
+        "rsx_thread_cpu": [
+          0.388,
+          0.534
+        ]
+      },
+      "rsxFifoBusyPercentRange": [
+        72.7,
+        82.2
+      ],
+      "sampledPerFrame": {
+        "setup_ms": [
+          1.265,
+          2.669
+        ],
+        "vertex_ms": [
+          3.058,
+          4.513
+        ],
+        "texture_ms": [
+          11.351,
+          19.272
+        ],
+        "exec_ms": [
+          0.122,
+          0.316
+        ],
+        "flip_ms": [
+          0.567,
+          7.908
+        ],
+        "draws_per_frame": [
+          1595.9,
+          2997.7
+        ]
+      },
+      "spuCache": {
+        "obj_hits": 0,
+        "obj_misses": 0,
+        "obj_invalid": 0,
+        "obj_nonreloc": 0,
+        "obj_write_failures": 0
+      },
+      "spuCacheHitFraction": null,
+      "spuCacheRead": {
+        "events": 0,
+        "totalMs": 0.0,
+        "maxMs": 0,
+        "bytes": 0
+      },
+      "spuCodegen": {
+        "events": 0,
+        "totalMs": 0.0,
+        "maxMs": 0,
+        "bytes": 0
+      },
+      "spuBuildTotalMsIncludingCacheRead": 0.0,
+      "graphicsPipelineEvents": 1,
+      "synchronousSubmit": {
+        "events": 6897,
+        "totalMs": 424.463,
+        "maxMs": 10.161
+      },
+      "refs": [
+        {
+          "input": "P3",
+          "firstLine": 737,
+          "lastLine": 917
+        }
+      ],
+      "prehash": {
+        "hits": 19932,
+        "misses": 12366,
+        "hit_bytes": 19063142064,
+        "worker_hashes": 31716,
+        "worker_bytes": 31409656316,
+        "worker_ms": 2688.937,
+        "worker_skips": 49,
+        "hitShare": 0.617128
+      },
+      "hybridTextureHashIncludingWorker": {
+        "bytes": 48980517392,
+        "totalMs": 4319.804635
+      },
+      "faultReadback": {
+        "batches": 333,
+        "sections": 333,
+        "requestedBytes": 1227571200,
+        "totalMs": 1573.79,
+        "maxMs": 14.175
+      },
+      "moltenVK": {
+        "mvk_async": [
+          1,
+          1
+        ],
+        "exec_queues": [
+          2,
+          2
+        ],
+        "drains": [
+          342,
+          1659.904
+        ],
+        "acquire_waits": [
+          0,
+          0.0,
+          0
+        ],
+        "acquire_timeouts": 0,
+        "marker_lag_max_ms": 0.0
+      }
+    },
+    "AC_old_early_heavy": {
+      "build": 588,
+      "pid": 46819,
+      "session": 4,
+      "windows": [
+        17,
+        24
+      ],
+      "reportTimestampRangeUTC": [
+        "2026-10-29T02:36:37.878505Z",
+        "2026-10-29T02:37:13.865649Z"
+      ],
+      "processWindowTotalMs": 41255.796,
+      "presentedFrames": 1124,
+      "framesPerElapsedSecond": 27.244657,
+      "completedGuestIntervalsOver50Ms": 33,
+      "completedGuestIntervalsOver100Ms": 1,
+      "maximumCompletedGuestIntervalMs": 141.155,
+      "reportedFPSRange": [
+        23.107,
+        29.553
+      ],
+      "cpuCoreRanges": {
+        "ppu_cores": [
+          0.391,
+          0.459
+        ],
+        "spu_cores": [
+          2.063,
+          2.406
+        ],
+        "rsx_cores": [
+          0.892,
+          1.12
+        ],
+        "rsx_thread_cpu": [
+          0.614,
+          0.77
+        ]
+      },
+      "rsxFifoBusyPercentRange": [
+        89.2,
+        97.1
+      ],
+      "sampledPerFrame": {
+        "setup_ms": [
+          5.282,
+          6.109
+        ],
+        "vertex_ms": [
+          2.828,
+          3.23
+        ],
+        "texture_ms": [
+          6.195,
+          9.257
+        ],
+        "exec_ms": [
+          0.202,
+          0.277
+        ],
+        "flip_ms": [
+          1.545,
+          2.343
+        ],
+        "draws_per_frame": [
+          2180.0,
+          2458.8
+        ]
+      },
+      "spuCache": {
+        "obj_hits": 55,
+        "obj_misses": 6,
+        "obj_invalid": 0,
+        "obj_nonreloc": 0,
+        "obj_write_failures": 0
+      },
+      "spuCacheHitFraction": 0.901639,
+      "spuCacheRead": {
+        "events": 55,
+        "totalMs": 81.871,
+        "maxMs": 8.481,
+        "bytes": 183088
+      },
+      "spuCodegen": {
+        "events": 6,
+        "totalMs": 90.235,
+        "maxMs": 29.755,
+        "bytes": 380
+      },
+      "spuBuildTotalMsIncludingCacheRead": 123.383,
+      "graphicsPipelineEvents": 1,
+      "synchronousSubmit": {
+        "events": 32111,
+        "totalMs": 9940.511,
+        "maxMs": 9.076
+      },
+      "refs": [
+        {
+          "input": "P3",
+          "firstLine": 1610,
+          "lastLine": 1850
+        }
+      ]
+    }
+  },
+  "longGraphicsPipelineEvents": [
+    {
+      "build": 593,
+      "pid": 47785,
+      "session": 2,
+      "count": 32,
+      "durationTotalUs": 19926181,
+      "threadCPUUs": 217060,
+      "processCPUUs": 93325981,
+      "origins": {
+        "6": 26,
+        "7": 4,
+        "5": 2
+      },
+      "reportWindowRange": [
+        14,
+        22
+      ],
+      "operationUTCApproxRange": [
+        "2026-10-29T05:02:45.636921Z",
+        "2026-10-29T05:03:31.225433Z"
+      ],
+      "durationRangeUs": [
+        218876,
+        1085744
+      ],
+      "fragmentLibraryTotalUs": 15750841,
+      "vertexLibraryTotalUs": 1693905,
+      "refs": [
+        {
+          "input": "P4",
+          "line": 414
+        },
+        {
+          "input": "P4",
+          "line": 415
+        },
+        {
+          "input": "P4",
+          "line": 416
+        },
+        {
+          "input": "P4",
+          "line": 417
+        },
+        {
+          "input": "P4",
+          "line": 448
+        },
+        {
+          "input": "P4",
+          "line": 449
+        },
+        {
+          "input": "P4",
+          "line": 480
+        },
+        {
+          "input": "P4",
+          "line": 511
+        },
+        {
+          "input": "P4",
+          "line": 512
+        },
+        {
+          "input": "P4",
+          "line": 513
+        },
+        {
+          "input": "P4",
+          "line": 514
+        },
+        {
+          "input": "P4",
+          "line": 515
+        },
+        {
+          "input": "P4",
+          "line": 546
+        },
+        {
+          "input": "P4",
+          "line": 547
+        },
+        {
+          "input": "P4",
+          "line": 578
+        },
+        {
+          "input": "P4",
+          "line": 579
+        },
+        {
+          "input": "P4",
+          "line": 580
+        },
+        {
+          "input": "P4",
+          "line": 581
+        },
+        {
+          "input": "P4",
+          "line": 582
+        },
+        {
+          "input": "P4",
+          "line": 583
+        },
+        {
+          "input": "P4",
+          "line": 614
+        },
+        {
+          "input": "P4",
+          "line": 615
+        },
+        {
+          "input": "P4",
+          "line": 616
+        },
+        {
+          "input": "P4",
+          "line": 647
+        },
+        {
+          "input": "P4",
+          "line": 648
+        },
+        {
+          "input": "P4",
+          "line": 649
+        },
+        {
+          "input": "P4",
+          "line": 650
+        },
+        {
+          "input": "P4",
+          "line": 651
+        },
+        {
+          "input": "P4",
+          "line": 652
+        },
+        {
+          "input": "P4",
+          "line": 683
+        },
+        {
+          "input": "P4",
+          "line": 684
+        },
+        {
+          "input": "P4",
+          "line": 685
+        }
+      ]
+    },
+    {
+      "build": 593,
+      "pid": 47785,
+      "session": 4,
+      "count": 0,
+      "durationTotalUs": 0,
+      "threadCPUUs": 0,
+      "processCPUUs": 0,
+      "origins": {}
+    },
+    {
+      "build": 593,
+      "pid": 47785,
+      "session": 5,
+      "count": 7,
+      "durationTotalUs": 2449408,
+      "threadCPUUs": 32766,
+      "processCPUUs": 1324981,
+      "origins": {
+        "6": 4,
+        "4": 3
+      },
+      "reportWindowRange": [
+        49,
+        57
+      ],
+      "operationUTCApproxRange": [
+        "2026-10-29T05:09:52.352355Z",
+        "2026-10-29T05:10:32.861854Z"
+      ],
+      "durationRangeUs": [
+        61713,
+        970562
+      ],
+      "fragmentLibraryTotalUs": 2011958,
+      "vertexLibraryTotalUs": 144,
+      "refs": [
+        {
+          "input": "P4",
+          "line": 2862
+        },
+        {
+          "input": "P4",
+          "line": 2863
+        },
+        {
+          "input": "P4",
+          "line": 2864
+        },
+        {
+          "input": "P4",
+          "line": 3045
+        },
+        {
+          "input": "P4",
+          "line": 3046
+        },
+        {
+          "input": "P4",
+          "line": 3047
+        },
+        {
+          "input": "P4",
+          "line": 3108
+        }
+      ]
+    }
+  ],
+  "acLaterStutters": [
+    {
+      "window": 49,
+      "observation": "Three new fragment pipelines total1741.475ms; maximum completed guest interval1790.422ms.",
+      "longPipelineOperations": [
+        {
+          "durationUs": 970562,
+          "origin": 6,
+          "ref": {
+            "input": "P4",
+            "line": 2862
+          }
+        },
+        {
+          "durationUs": 382665,
+          "origin": 6,
+          "ref": {
+            "input": "P4",
+            "line": 2863
+          }
+        },
+        {
+          "durationUs": 388248,
+          "origin": 6,
+          "ref": {
+            "input": "P4",
+            "line": 2864
+          }
+        }
+      ],
+      "refs": [
+        {
+          "input": "P4",
+          "firstLine": 2857,
+          "lastLine": 2889
+        }
+      ]
+    },
+    {
+      "window": 55,
+      "observation": "Three pipelines with cached stages (origin4), 63.823/66.483/61.713ms; maximum completed guest interval167ms.",
+      "longPipelineOperations": [
+        {
+          "durationUs": 63823,
+          "origin": 4,
+          "ref": {
+            "input": "P4",
+            "line": 3045
+          }
+        },
+        {
+          "durationUs": 66483,
+          "origin": 4,
+          "ref": {
+            "input": "P4",
+            "line": 3046
+          }
+        },
+        {
+          "durationUs": 61713,
+          "origin": 4,
+          "ref": {
+            "input": "P4",
+            "line": 3047
+          }
+        }
+      ],
+      "refs": [
+        {
+          "input": "P4",
+          "firstLine": 3040,
+          "lastLine": 3072
+        }
+      ]
+    },
+    {
+      "window": 57,
+      "observation": "New fragment pipeline515.914ms; maximum completed guest interval549ms.",
+      "longPipelineOperations": [
+        {
+          "durationUs": 515914,
+          "origin": 6,
+          "ref": {
+            "input": "P4",
+            "line": 3108
+          }
+        }
+      ],
+      "refs": [
+        {
+          "input": "P4",
+          "firstLine": 3103,
+          "lastLine": 3133
+        }
+      ]
+    },
+    {
+      "window": 58,
+      "observation": "806 SPU cache-read events390ms and42 codegen events329ms; no new pipeline; maximum completed guest interval516ms.",
+      "longPipelineOperations": [],
+      "refs": [
+        {
+          "input": "P4",
+          "firstLine": 3134,
+          "lastLine": 3163
+        }
+      ]
+    }
+  ],
+  "godOfWarFreeze": {
+    "title": "BCES00510",
+    "pid": 47785,
+    "session": 4,
+    "bootKind": "savestate",
+    "restoreTarBeginUTC": "2026-10-29T05:04:08.687832Z",
+    "restoreFinalizeUTC": "2026-10-29T05:04:21.324175Z",
+    "rsxAcquire": {
+      "source": {
+        "input": "M5",
+        "line": 867
+      },
+      "utc": "2026-10-29T05:05:14.101734Z",
+      "address": "0x60300510",
+      "expected": "0x71B4",
+      "observed": "0x71B3",
+      "waitedUs": 2001713
+    },
+    "snapshot": {
+      "source": {
+        "input": "M5",
+        "line": 868
+      },
+      "utc": "2026-10-29T05:05:15.283544Z",
+      "noFramesSecondsAtSample": 3.028,
+      "rsxGet": "0x378f04",
+      "rsxPut": "0xa4e800",
+      "spuWaiting": 6,
+      "spuFunction": "MFC_Events_read",
+      "spuEventMask": "0x400",
+      "snapshotTruncated": false,
+      "duplicateRef": {
+        "input": "P4",
+        "line": 1260
+      }
+    },
+    "laterZeroFrameWindows": [
+      13,
+      14,
+      15
+    ],
+    "laterZeroFrameWindowTotalMs": 15178.217,
+    "userCloseSource": {
+      "input": "A5",
+      "line": 5944
+    },
+    "userCloseUTC": "2026-10-29T05:05:33.218323Z",
+    "recoveryObserved": false,
+    "causalityLimit": "A missing guest label update is observed. Logs do not prove its lost producer, a CPU reservation defect, a GPU timeout, or a new 593 regression.",
+    "build": 593,
+    "continuedSPUActivity": [
+      {
+        "window": 13,
+        "completedEventWaits": 1202,
+        "allThreadEventWaitTotalMs": 29941.498,
+        "putllcOk": 23283,
+        "putllcFail": 1207,
+        "ref": {
+          "input": "P4",
+          "line": 1275
+        }
+      },
+      {
+        "window": 14,
+        "completedEventWaits": 1189,
+        "allThreadEventWaitTotalMs": 28796.277,
+        "putllcOk": 23241,
+        "putllcFail": 1194,
+        "ref": {
+          "input": "P4",
+          "line": 1305
+        }
+      },
+      {
+        "window": 15,
+        "completedEventWaits": 1218,
+        "allThreadEventWaitTotalMs": 31493.693,
+        "putllcOk": 23348,
+        "putllcFail": 1231,
+        "ref": {
+          "input": "P4",
+          "line": 1335
+        }
+      }
+    ],
+    "completedEventWaitsTotal": 3609,
+    "putllcOkTotal": 69872,
+    "continuedActivityLimit": "3609 completed event waits and 69872 PUTLLC successes show partial guest activity despite zero rendering. The snapshot does not show all SPU permanently asleep. These counters do not identify the missing label producer or distinguish no-op PUTLLC from changed data."
+  },
+  "neoSwapDiagnosticSpans": [
+    {
+      "build": 588,
+      "pid": 46819,
+      "game": "Assassin's Creed",
+      "performanceSamples": 105,
+      "sampleTimestampRangeUTC": [
+        "2026-10-29T02:36:46.042431Z",
+        "2026-10-29T02:38:30.080418Z"
+      ],
+      "coreLogCopiesExcluded": 609,
+      "processLifetimeDelta": {
+        "timestampRangeUTC": [
+          "2026-10-29T02:36:47.065450Z",
+          "2026-10-29T02:38:30.080126Z"
+        ],
+        "refs": [
+          {
+            "input": "D2",
+            "line": 2
+          },
+          {
+            "input": "D2",
+            "line": 870
+          }
+        ],
+        "fields": {
+          "candidate_first_maps": {
+            "first": 3831,
+            "last": 5391,
+            "delta": 1560
+          },
+          "requested_bytes": {
+            "first": 4336517120,
+            "last": 4538695680,
+            "delta": 202178560
+          },
+          "ordinary_fallbacks": {
+            "first": 3598,
+            "last": 5158,
+            "delta": 1560
+          },
+          "map_failures": {
+            "first": 0,
+            "last": 0,
+            "delta": 0
+          },
+          "first_map_total_ns": {
+            "first": 27716240,
+            "last": 31092149,
+            "delta": 3375909
+          }
+        }
+      },
+      "extendedLifetimeDelta": {
+        "timestampRangeUTC": [
+          "2026-10-29T02:36:47.066340Z",
+          "2026-10-29T02:38:02.046230Z"
+        ],
+        "refs": [
+          {
+            "input": "D2",
+            "line": 3
+          },
+          {
+            "input": "D2",
+            "line": 663
+          }
+        ],
+        "fields": {
+          "gameplay_direct_requests": {
+            "first": 215,
+            "last": 215,
+            "delta": 0
+          },
+          "gameplay_direct_creates": {
+            "first": 215,
+            "last": 215,
+            "delta": 0
+          },
+          "gameplay_direct_budget": {
+            "first": 0,
+            "last": 0,
+            "delta": 0
+          }
+        }
+      },
+      "sampledRanges": {
+        "thermal": [
+          2,
+          2
+        ],
+        "available": [
+          2702335416,
+          2949701096
+        ],
+        "donor_count": [
+          0,
+          0
+        ],
+        "donor_lost": [
+          0,
+          0
+        ],
+        "swap_rpc_total_live": [
+          0,
+          0
+        ],
+        "relay_live": [
+          0,
+          0
+        ],
+        "relay_objects": [
+          0,
+          0
+        ]
+      },
+      "separateClientSwapFailures": {
+        "first": 7013,
+        "last": 7147,
+        "delta": 134,
+        "meaning": "Cumulative failed client allocation attempts, distinct from guest mapping failures."
+      }
+    },
+    {
+      "build": 593,
+      "pid": 47785,
+      "game": "Assassin's Creed",
+      "performanceSamples": 133,
+      "sampleTimestampRangeUTC": [
+        "2026-10-29T05:08:30.004460Z",
+        "2026-10-29T05:10:42.051305Z"
+      ],
+      "coreLogCopiesExcluded": 788,
+      "processLifetimeDelta": {
+        "timestampRangeUTC": [
+          "2026-10-29T05:08:30.004083Z",
+          "2026-10-29T05:10:42.049993Z"
+        ],
+        "refs": [
+          {
+            "input": "D5",
+            "line": 1
+          },
+          {
+            "input": "D5",
+            "line": 1061
+          }
+        ],
+        "fields": {
+          "candidate_first_maps": {
+            "first": 3417,
+            "last": 3435,
+            "delta": 18
+          },
+          "requested_bytes": {
+            "first": 6051463168,
+            "last": 6052642816,
+            "delta": 1179648
+          },
+          "ordinary_fallbacks": {
+            "first": 587,
+            "last": 605,
+            "delta": 18
+          },
+          "map_failures": {
+            "first": 0,
+            "last": 0,
+            "delta": 0
+          },
+          "first_map_total_ns": {
+            "first": 319776545,
+            "last": 319973754,
+            "delta": 197209
+          }
+        }
+      },
+      "extendedLifetimeDelta": {
+        "timestampRangeUTC": [
+          "2026-10-29T05:08:53.956667Z",
+          "2026-10-29T05:10:42.050022Z"
+        ],
+        "refs": [
+          {
+            "input": "D5",
+            "line": 200
+          },
+          {
+            "input": "D5",
+            "line": 1062
+          }
+        ],
+        "fields": {
+          "gameplay_direct_requests": {
+            "first": 2777,
+            "last": 2795,
+            "delta": 18
+          },
+          "gameplay_direct_creates": {
+            "first": 2210,
+            "last": 2210,
+            "delta": 0
+          },
+          "gameplay_direct_budget": {
+            "first": 567,
+            "last": 585,
+            "delta": 18
+          }
+        }
+      },
+      "sampledRanges": {
+        "thermal": [
+          2,
+          2
+        ],
+        "available": [
+          2897567088,
+          3064257904
+        ],
+        "donor_count": [
+          2,
+          2
+        ],
+        "donor_lost": [
+          0,
+          0
+        ],
+        "swap_rpc_total_live": [
+          90718208,
+          90718208
+        ],
+        "relay_live": [
+          83034112,
+          83034112
+        ],
+        "relay_objects": [
+          795,
+          795
+        ]
+      },
+      "separateClientSwapFailures": {
+        "first": 7537,
+        "last": 7741,
+        "delta": 204,
+        "meaning": "Cumulative failed client allocation attempts, distinct from guest mapping failures."
+      }
+    }
+  ],
+  "comparability": {
+    "fpsGainProved": false,
+    "BO2": "Old024119 performance starts after BO2 exit, in GoW3 window16; old BO2 milestones and the older video provide no matched FPS window.",
+    "GoW3": "Old fresh boot and new savestate, different paths/draw counts; user reports same visual freeze point but byte/scene equivalence is not proved by these journals.",
+    "AssassinsCreed": "Same active graphics values, but different later scenes, cache novelty and NeoSwap state (old no donor, new two donors). The 27FPS stable phase is established; causal build gain is not.",
+    "thermal": "thermal=2 in both retained AC diagnostic spans only; BO2/GoW3 thermal history is not retained.",
+    "visualArtifacts": "BO2 weapon/forearm corruption and AC torch flicker are maintainer observations, not encoded or attributable in these counters."
+  },
+  "measurementRules": [
+    "Do not sum repeated copies in app/milestones/diagnostic/performance.",
+    "SPUPROF/JITPROF and COREPROF process_window counters are drained every report, even when window is omitted in the printed line; tie to the same preceding FRAMEPROF527 epoch.",
+    "JITPROF_BOOT is a separate boot view overlapping the first process report; never add it to interval totals.",
+    "The manually measured SPU spu_build includes cache read time; do not add those phase totals as exclusive critical-path work.",
+    "JIT and pipeline wall-time sums can overlap across threads and guest work; they are not serial lost wall time or potential FPS gain.",
+    "FRAMEPROF527 intervals exclude native UI; COREPROF frames/ring FPS can include initial UI and in-flight boundary work. First windows and stopped windows are excluded from selected gameplay-like phases.",
+    "COREPROF avg_fps uses completed interval duration, not total wall-clock window; zero frames after the final completed interval can be hidden in that average.",
+    "Guest percentiles are per-window and cannot be averaged to obtain a session percentile; only counts/durations are summed.",
+    "NeoSwap fields explicitly scoped process_lifetime are differenced only inside the same PID; samples are not summed.",
+    "JITMEM hybrid hash includes worker activity; OPT581 worker bytes/time must not be added to it. Zero hybrid counters on BO2/AC do not prove zero texture validation work.",
+    "RSXFRAME551 sampled per-frame costs, COREPROF *_cores summed CPU groups and RSX FIFO busy are different quantities; gpu_time_ms=-1 supplies no GPU execution measurement.",
+    "frame_latency measures presentation ordering/guest cadence and can contain the same pipeline/compiler delay; do not add it to shader stalls.",
+    "SHADERPIPE543_COSTLY entries are recent retained fingerprints, not independent repeated compiles each report.",
+    "Log budget suppressed28 and32 messages in AC startup; retained diagnostic spans begin late and are not complete process error traces.",
+    "The selected phase elapsed time is the sum of process_window durations; its first/last report timestamps are reporting endpoints, not the beginning/end of every operation.",
+    "spu_cache_read events count scoped cache-load operations, not OS read syscalls. Their byte counter is decoded object bytes, not compressed file size.",
+    "During zero-frame windows, no completed guest interval exists: a zero reported percentile/max is not a zero-latency measurement."
+  ],
+  "refutedOrUnprovedExplanations": [
+    {
+      "claim": "A cold PPU cache explains these launches.",
+      "status": "refuted for retained593 boots",
+      "basis": "All five PPU boot reports show0 compiled modules and0 cache misses."
+    },
+    {
+      "claim": "SPU JIT cache reading explains the AC27FPS stable plateau or the GoW3 freeze.",
+      "status": "refuted for selected phases",
+      "basis": "Cache read, SPU build and codegen are0 in those phases."
+    },
+    {
+      "claim": "All BO2 stalls are SPU compilation.",
+      "status": "refuted",
+      "basis": "Later long-stall phase has32 long graphics pipeline operations totaling19.926181s with much less SPU cache/codegen work."
+    },
+    {
+      "claim": "The GoW3 dump proves every SPU stayed permanently asleep.",
+      "status": "refuted",
+      "basis": "The following zero-render windows retain3609 completed event waits and69872 PUTLLC successes."
+    },
+    {
+      "claim": "NeoSwap mapping failures explain the late AC stalls.",
+      "status": "not supported by retained span",
+      "basis": "0 guest map failures;18 new mappings total197209ns, separate from the client failure counter."
+    },
+    {
+      "claim": "The observed weapon/forearm or torch artefact is caused by a particular optimization.",
+      "status": "unproved",
+      "basis": "Visual symptoms come from the maintainer; these counters do not identify pixels or a responsible mechanism."
+    },
+    {
+      "claim": "Measured extra iPhone FPS from build593 versus588.",
+      "status": "unproved",
+      "basis": "No matched BO2 window; different GoW3 restore/scene; different AC scene/cache/NeoSwap state."
+    }
+  ],
+  "followupCodeTargetsSupportedByObservations": [
+    {
+      "target": "JITLLVM object-cache I/O",
+      "basisPhase": "BO2_render_before_long_metal",
+      "reason": "Many small valid cached objects still incur read/decompression work; retain CRC, ISIZE, architecture/symbol validation and exact cache identity."
+    },
+    {
+      "target": "MoltenVK present-queue identity and ordered marker",
+      "basisPhase": "GOW3_restored_before_freeze",
+      "reason": "Two legitimate queues coexist with one full drain per image; preserve explicit global drains and fallback for ambiguous queue identity."
+    },
+    {
+      "target": "Texture validation, CPU-write publication and sampler reuse",
+      "basisPhase": "AC_heavy_stable",
+      "reason": "Hot-cache RSX/texture work remains significant, with user-reported visual errors requiring a correctness review; no causal attribution from logs alone."
+    },
+    {
+      "target": "GoW3 guest label producer and CPU/RSX/GPU ordering after restore",
+      "basisPhase": "GOW3_freeze_complete_windows",
+      "reason": "RSX waits for the next label value while some guest work continues and rendering stays at0; root cause remains open."
+    }
+  ],
+  "evidenceReused": {
+    "docs/evidence/rewind593-delivery.json": {
+      "sha256": "4460ad2ef6997874ce721ba4e05c31977a6e89a8965dfab00ae49b5687ba8549",
+      "bytes": 5740,
+      "reuse": "read existing proof; no validation or native execution repeated"
+    },
+    "docs/evidence/rpcs3-runtime-20261029b/apple-core.json": {
+      "sha256": "33d69cbba312dae8a376cb41da5c296dbaf24c9acaeeb9221957ee9f7fa9c623",
+      "bytes": 14858,
+      "reuse": "read existing proof; no validation or native execution repeated"
+    },
+    "docs/evidence/rpcs3-runtime-20261029b/prehash-gcc.json": {
+      "sha256": "7cc2a593cafcaa280f2244edcb0087578732838dbdf7187cf8e3a9149e4f58e9",
+      "bytes": 3195,
+      "reuse": "read existing proof; no validation or native execution repeated"
+    },
+    "docs/evidence/rpcs3-runtime-20261029b/dynamic-plain.json": {
+      "sha256": "592c079f490f85b77aa5ad2ca45ac043a5914a9bbf20573325c7db5eb440cc93",
+      "bytes": 1856,
+      "reuse": "read existing proof; no validation or native execution repeated"
+    },
+    "docs/evidence/rpcs3-runtime-20261029b/vm-gcc.json": {
+      "sha256": "fca701d57e4aee561c7a5393fa3b98b4f02632751a97544377cd704f8800bfcc",
+      "bytes": 3176,
+      "reuse": "read existing proof; no validation or native execution repeated"
+    }
+  }
+}

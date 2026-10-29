@@ -2,6 +2,45 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## RPCS3 follow-up from delivered IPA 593 device logs — 29 October 2026
+
+Source candidate after `571dbc08`, synchronized with concurrent MeloNX
+`a33eee84` and its Apple receipt `58809ae6`: correct NV308A/NV0039/NV3089 CPU-write texture invalidation and the
+already-bound sampler bypass; select the exact MoltenVK presentation queue
+instead of falling back to a full drain whenever two queues exist; reduce JIT
+object-read probes/seeks with bounded positional reads; pair queue-packet `new`
+with `delete`. Thirteen source files change; 298 previous canonical postimages
+remain identical and three existing upstream NV47 files enter the delta.
+Record/fixture: `runtime_device593_followup_20261029`,
+`test/fixtures/rpcs3_device593_20261029.diff`. Details and exact source-bound
+evidence: `docs/rpcs3-device593-followup-2026-10-29.md` and
+`docs/evidence/rpcs3-device593-20261029/`.
+
+The new process is build593/PID47785/A18Pro. Do not count the first 3,488 lines
+of `performance.1` (build588/Bladestorm), duplicated diagnostics or old-prefix
+milestones as fresh observations. BO2 has separate cache-read and first-use
+Metal-pipeline stalls. AC's stable interval is 2,262 frames / 82.778834 s
+(27.325826 FPS), with no SPU/shader compilation; submission durations can overlap
+RSX offloader work. GoW3 has 973 drains / 973 frames before the freeze, not a
+proven causal connection to it. The freeze at label60300510 still contains
+69,872 successful PUTLLC and 3,609 completed SPU event waits over 15.178217 s
+without rendering. Its missing guest label producer is unresolved. Never force
+the label, skip the wait, or describe this candidate as a demonstrated freeze
+fix. Neither old/new restored GoW3 intervals nor rotated-away BO2 counters
+support an A/B FPS claim. NeoSwap has no new mapping failure or donor loss in
+the available AC interval.
+
+The JIT edit changes only three I/O bodies, not emission/linking/relocations.
+Its exact compatibility alias retains PPU `a987639e9f838d1c` and SPU
+`d070cb361bdef607`; future/wrong-path hashes are not aliased. Reuse verified
+history and rerun only changed production paths. The device593 route in the
+existing runtime Core gate requires native GCD when later run on macOS and
+authenticates the delivered c143be63 receipt without recursive historical tests.
+No new Core/IPA/build number/release, runtime telemetry or manual player setting
+change is part of this source work. Host checks do not establish disappearance
+of weapon/torch artifacts or any additional iPhone FPS. IPA593 remains the
+delivered application baseline; preserve the concurrent MeloNX candidate.
+
 ## MeloNX Hogwarts memory candidate — 29 October 2026
 
 On `571dbc08`, after delivered IPA 593: correct per-slot texture pool ownership

@@ -1226,7 +1226,7 @@ index 0d19acc..4717823 100644
  static_assert(arena_prepare_chunk_length(17 * mib, 0) == 16 * mib);
  static_assert(arena_prepare_chunk_length(17 * mib, 1) == 1 * mib);
 diff --git a/Utilities/JITLLVM.cpp b/Utilities/JITLLVM.cpp
-index 863624e..f335731 100644
+index 863624e..a2502a7 100644
 --- a/Utilities/JITLLVM.cpp
 +++ b/Utilities/JITLLVM.cpp
 @@ -9,10 +9,14 @@
@@ -1569,7 +1569,7 @@ index 863624e..f335731 100644
  		std::string name = m_path;
  
  		name.append(_module->getName());
-@@ -694,42 +851,54 @@ public:
+@@ -694,42 +851,106 @@ public:
  
  		// Restore space that was overestimated
  		ensure(m_compiler->add_sub_disk_space(max_size - module_file.file.size()));
@@ -1598,18 +1598,54 @@ index 863624e..f335731 100644
 -			const std::vector<u8> cached_data = cached.to_vector<u8>();
 -
 -			if (cached_data.empty()) [[unlikely]]
-+			const auto read_at = [&](std::uint64_t offset, void* data, std::size_t count) -> std::size_t
++#ifdef RPCS3_IOS
++			// An open Unix handle can be a directory. Reuse this handle's size
++			// query to reject it before reading, without a second path lookup.
++			const auto info = cached.get_stat();
++			if (!info.is_directory)
  			{
 -				return nullptr;
--			}
++			// Small SPU objects otherwise need a footer read followed by a second
++			// read of the entire compressed object. Keep at most one 4 KiB input
++			// on this call's stack; large PPU/SPU objects retain bounded streaming.
++			const auto compressed_size = info.size;
++			std::array<unsigned char, 4096> small_input;
++			std::size_t small_bytes = 0;
++			if (compressed_size >= 18 && compressed_size <= small_input.size())
++			{
++				while (small_bytes < compressed_size)
++				{
++					const auto remaining = static_cast<std::size_t>(compressed_size) - small_bytes;
++					const auto got = cached.read_at(small_bytes, small_input.data() + small_bytes, remaining);
++					if (!got || got > remaining) return nullptr;
++					small_bytes += got;
++				}
+ 			}
 -
 -			const std::vector<u8> out = unzip(cached_data);
 -
 -			if (out.empty())
++#endif
++			const auto read_at = [&](std::uint64_t offset, void* data, std::size_t count) -> std::size_t
++			{
++#ifdef RPCS3_IOS
++				// Runtime cache hits read the footer and compressed bytes from the
++				// same open object. Positional reads avoid a seek for every chunk.
++				if (small_bytes)
++				{
++					if (offset > small_bytes || count > small_bytes - offset) return 0;
++					std::memcpy(data, small_input.data() + offset, count);
++					return count;
++				}
++				return cached.read_at(offset, data, count);
++#else
 +				cached.seek(offset);
 +				return cached.read(data, count);
++#endif
 +			};
++#ifndef RPCS3_IOS
 +			const auto compressed_size = cached.size();
++#endif
 +			const auto output_size = jit_object_buffer::gzip_size(compressed_size, read_at);
 +			if (!output_size) return nullptr;
 +			auto buf = llvm::WritableMemoryBuffer::getNewUninitMemBuffer(output_size);
@@ -1624,11 +1660,25 @@ index 863624e..f335731 100644
 -			std::memcpy(buf->getBufferStart(), out.data(), out.size());
 +			phase_timer.bytes = output_size;
  			return buf;
++#ifdef RPCS3_IOS
++			}
++#endif
  		}
  
  		if (fs::file cached{path, fs::read})
  		{
 -			if (cached.size() == 0) [[unlikely]]
++#ifdef RPCS3_IOS
++			const auto info = cached.get_stat();
++			if (info.is_directory || info.size == 0 || info.size > jit_object_buffer::maximum_object_bytes)
++			{
++				return nullptr;
++			}
++
++			auto buf = llvm::WritableMemoryBuffer::getNewUninitMemBuffer(info.size);
++			if (!buf || cached.read(buf->getBufferStart(), buf->getBufferSize()) != buf->getBufferSize()) return nullptr;
++			phase_timer.bytes = info.size;
++#else
 +			if (cached.size() == 0 || cached.size() > jit_object_buffer::maximum_object_bytes) [[unlikely]]
  			{
  				return nullptr;
@@ -1638,10 +1688,11 @@ index 863624e..f335731 100644
 -			cached.read(buf->getBufferStart(), buf->getBufferSize());
 +			if (!buf || cached.read(buf->getBufferStart(), buf->getBufferSize()) != buf->getBufferSize()) return nullptr;
 +			phase_timer.bytes = cached.size();
++#endif
  			return buf;
  		}
  
-@@ -738,11 +907,42 @@ public:
+@@ -738,11 +959,48 @@ public:
  
  	std::unique_ptr<llvm::MemoryBuffer> getObject(const llvm::Module* _module) override
  	{
@@ -1653,7 +1704,13 @@ index 863624e..f335731 100644
 +				m_outcome->object_bytes = m_preloaded->getBufferSize();
 +			}
 +
++#ifdef RPCS3_IOS
++			// SPU hits already contribute to SPUPROF/JITPROF. Formatting a notice
++			// for every linked block adds work to the game's first-use path.
++			jit_log.trace("LLVM: Loaded module: %s", _module->getName().data());
++#else
 +			jit_log.notice("LLVM: Loaded module: %s", _module->getName().data());
++#endif
 +			return std::move(m_preloaded);
 +		}
 +
@@ -1684,7 +1741,7 @@ index 863624e..f335731 100644
  			jit_log.notice("LLVM: Loaded module: %s", _module->getName().data());
  			return buf;
  		}
-@@ -751,6 +951,123 @@ public:
+@@ -751,6 +1009,123 @@ public:
  	}
  };
  
@@ -1808,7 +1865,7 @@ index 863624e..f335731 100644
  std::string jit_compiler::cpu(std::string_view _cpu)
  {
  	std::string m_cpu = std::string(_cpu);
-@@ -885,6 +1202,17 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
+@@ -885,6 +1260,17 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
  	: m_context(new llvm::LLVMContext)
  	, m_cpu(cpu(_cpu))
  {
@@ -1826,7 +1883,7 @@ index 863624e..f335731 100644
  	[[maybe_unused]] static const bool s_install_llvm_error_handler = []()
  	{
  		llvm::remove_fatal_error_handler();
-@@ -904,6 +1232,26 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
+@@ -904,6 +1290,26 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
  		return true;
  	}();
  
@@ -1853,7 +1910,7 @@ index 863624e..f335731 100644
  	std::string result;
  
  	auto null_mod = std::make_unique<llvm::Module> ("null_", *m_context);
-@@ -929,38 +1277,7 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
+@@ -929,38 +1335,7 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
  		mem = std::make_unique<MemoryManager1>(std::move(symbols_cement));
  	}
  
@@ -1893,7 +1950,7 @@ index 863624e..f335731 100644
  
  	{
  		m_engine.reset(llvm::EngineBuilder(std::move(null_mod))
-@@ -1030,7 +1347,10 @@ void jit_compiler::add(std::unique_ptr<llvm::Module> _module, const std::string&
+@@ -1030,7 +1405,10 @@ void jit_compiler::add(std::unique_ptr<llvm::Module> _module, const std::string&
  
  	const auto ptr = _module.get();
  	m_engine->addModule(std::move(_module));
@@ -1905,7 +1962,7 @@ index 863624e..f335731 100644
  	m_engine->setObjectCache(nullptr);
  
  	for (auto& func : ptr->functions())
-@@ -1048,11 +1368,76 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
+@@ -1048,11 +1426,88 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
  	const auto ptr = _module.get();
  	m_engine->addModule(std::move(_module));
  
@@ -1944,12 +2001,24 @@ index 863624e..f335731 100644
 +{
 +	jit_cached_object result;
 +
++#ifndef RPCS3_IOS
 +	if (!fs::is_file(path + ".gz") && !fs::is_file(path))
 +	{
 +		return result;
 +	}
++#endif
 +
 +	std::unique_ptr<llvm::MemoryBuffer> buffer = ObjectCache::load(path, jit_phase::spu_cache_read);
++
++#ifdef RPCS3_IOS
++	// Opening the object already performs the successful lookup. Probe file
++	// existence only after a failed read so an ordinary cache miss is not
++	// reported as corruption; invalid existing objects retain their recovery.
++	if (!buffer && !fs::is_file(path + ".gz") && !fs::is_file(path))
++	{
++		return result;
++	}
++#endif
 +
 +	if (buffer && ObjectCache::validate(*buffer, required_symbol))
 +	{
@@ -1982,7 +2051,7 @@ index 863624e..f335731 100644
  		if (m_announcer) m_announcer->finalized(false);
  		return false;
  	}
-@@ -1068,6 +1453,14 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
+@@ -1068,6 +1523,14 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
  	return true;
  }
  
@@ -1997,7 +2066,7 @@ index 863624e..f335731 100644
  void jit_compiler::add(std::unique_ptr<llvm::Module> _module)
  {
  	const auto ptr = _module.get();
-@@ -1106,7 +1499,14 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, std::string& e
+@@ -1106,7 +1569,14 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, std::string& e
  
  bool jit_compiler::add(const std::string& path)
  {
@@ -2012,7 +2081,7 @@ index 863624e..f335731 100644
  
  	if (!cache)
  	{
-@@ -1114,6 +1514,8 @@ bool jit_compiler::add(const std::string& path)
+@@ -1114,6 +1584,8 @@ bool jit_compiler::add(const std::string& path)
  		return false;
  	}
  
@@ -2021,7 +2090,7 @@ index 863624e..f335731 100644
  	if (auto object_file = llvm::object::ObjectFile::createObjectFile(*cache))
  	{
  		m_engine->addObjectFile(llvm::object::OwningBinary<llvm::object::ObjectFile>(std::move(*object_file), std::move(cache)));
-@@ -1122,26 +1524,43 @@ bool jit_compiler::add(const std::string& path)
+@@ -1122,26 +1594,43 @@ bool jit_compiler::add(const std::string& path)
  	}
  	else
  	{
@@ -3894,10 +3963,10 @@ index e11a275..353f459 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 0000000..c3e051b
+index 0000000..0c58aaa
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,42 @@
+@@ -0,0 +1,47 @@
 +# CELL591: the exact reviewed JITLLVM change clears a stack ObjectCache on
 +# recoverable failure; SPULLVM drops finalized IR after obtaining native code.
 +# Neither changes object emission, relocations or the callable ABI.
@@ -3906,9 +3975,14 @@ index 0000000..c3e051b
 +# their ABI. Preserve the 536 identity for this exact source snapshot only.
 +# Unknown paths or future file changes retain their actual hash and invalidate
 +# the cache normally. Never alias older reservation implementations to 536.
++# Runtime 593 follow-up: JITLLVM only coalesces small compressed-object reads,
++# uses positional I/O, skips the redundant existence probe on a cache hit, and
++# lowers the per-SPU-hit message to trace. Emission, symbol validation and
++# relocation code are byte-identical; keep the existing objects for this exact
++# reviewed source only.
 +function(neostation_codegen_compatible_hash source actual output)
 +    if(source STREQUAL "../../Utilities/JITLLVM.cpp" AND
-+       actual STREQUAL "6dc91ec7e52f504b7af42302d90c286a922575f3d81070ef29732d9671fa828d")
++       actual STREQUAL "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf")
 +        set(${output} "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf" PARENT_SCOPE)
 +    # CELL545: spu_cache::initialize only drops duplicate programs and orders the
 +    # warmup biggest first (RPCS3 4cf9ad1e7, d3ef196ff). Each program still goes
@@ -16186,7 +16260,7 @@ index 6b30665..e56405c 100644
  
  	namespace blit_engine_helpers
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
-index 0fa80b2..72a3052 100644
+index 0fa80b2..479a239 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache.h
 +++ b/rpcs3/Emu/RSX/Common/texture_cache.h
 @@ -12,6 +12,14 @@
@@ -16204,11 +16278,25 @@ index 0fa80b2..72a3052 100644
  #define RSX_GCM_FORMAT_IGNORED 0
  
  namespace rsx
-@@ -787,6 +795,17 @@ namespace rsx
+@@ -401,6 +409,11 @@ namespace rsx
+ 			image_view_type image_handle = 0;
+ 			deferred_subresource external_subresource_desc = {};
+ 			bool flag = false;
++#ifdef RPCS3_IOS
++			rpcs3::ios::texture_validation::sampler_stamp ios_validation_stamp;
++			address_range32 ios_validation_range;
++			bool ios_direct_framebuffer = false;
++#endif
+ 
+ 			sampled_image_descriptor() = default;
+ 
+@@ -787,6 +800,20 @@ namespace rsx
  			return true;
  		}
  
 +#ifdef RPCS3_IOS
++		rpcs3::ios::texture_validation::sampler_bindings<rsx::limits::fragment_textures_count + rsx::limits::vertex_textures_count> m_sampler_validation;
++
 +		// CELL573_SCOPED_RSX_WRITES: the next validation of every section over `range` hashes again.
 +		void revalidate_overlapping(const address_range32& range)
 +		{
@@ -16216,13 +16304,14 @@ index 0fa80b2..72a3052 100644
 +			{
 +				It->reset_validation();
 +			}
++			m_sampler_validation.invalidate(range.start, range.valid() ? u64{range.end} - range.start + 1 : 0);
 +		}
 +#endif
 +
  		/**
  		 * Section invalidation
  		 */
-@@ -795,6 +814,21 @@ namespace rsx
+@@ -795,6 +822,21 @@ namespace rsx
  		void flush_set(commandbuffer_type& cmd, thrashed_set& data, std::function<void()> on_data_transfer_completed, Args&&... extras)
  		{
  			AUDIT(!data.flushed);
@@ -16244,7 +16333,7 @@ index 0fa80b2..72a3052 100644
  
  			if (data.sections_to_flush.size() > 1)
  			{
-@@ -821,6 +855,17 @@ namespace rsx
+@@ -821,6 +863,17 @@ namespace rsx
  				}
  			}
  
@@ -16262,7 +16351,7 @@ index 0fa80b2..72a3052 100644
  			if (!sections_to_transfer.empty())
  			{
  				// Batch all hard faults together
-@@ -1145,9 +1190,28 @@ namespace rsx
+@@ -1145,9 +1198,28 @@ namespace rsx
  
  			AUDIT(cause.valid());
  			AUDIT(fault_range_in.valid());
@@ -16291,7 +16380,7 @@ index 0fa80b2..72a3052 100644
  
  			thrashed_set result = {};
  			result.cause = cause;
-@@ -1237,6 +1301,22 @@ namespace rsx
+@@ -1237,6 +1309,22 @@ namespace rsx
  			// Decide which sections to flush, unprotect, and exclude
  			update_cache_tag();
  
@@ -16314,7 +16403,7 @@ index 0fa80b2..72a3052 100644
  			for (auto &obj : trampled_set.sections)
  			{
  				auto &tex = *obj;
-@@ -1281,9 +1361,49 @@ namespace rsx
+@@ -1281,9 +1369,49 @@ namespace rsx
  						{
  							tex.set_dirty(true);
  						}
@@ -16364,7 +16453,7 @@ index 0fa80b2..72a3052 100644
  					else
  					{
  						result.sections_to_flush.push_back(&tex);
-@@ -1644,6 +1764,11 @@ namespace rsx
+@@ -1644,6 +1772,11 @@ namespace rsx
  
  					lock.upgrade();
  
@@ -16376,7 +16465,7 @@ index 0fa80b2..72a3052 100644
  					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::read, {}, std::forward<Args>(extras)...);
  
  					cached_src = cache->upload_image_from_cpu(cmd, rsx_range, image_width, image_height, 1, 1, src.pitch, gcm_format, texture_upload_context::blit_engine_src,
-@@ -1734,6 +1859,11 @@ namespace rsx
+@@ -1734,6 +1867,11 @@ namespace rsx
  				{
  					// NOTE: Write flag set to remove all other overlapping regions (e.g shader_read or blit_src)
  					// NOTE: This step can potentially invalidate the newly created src image as well.
@@ -16388,7 +16477,7 @@ index 0fa80b2..72a3052 100644
  					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::cause_is_write | invalidation_cause::cause_uses_strict_data_bounds, {}, std::forward<Args>(extras)...);
  
  					bool force_dma_load = false;
-@@ -1860,6 +1990,13 @@ namespace rsx
+@@ -1860,6 +1998,13 @@ namespace rsx
  
  		virtual void on_frame_end()
  		{
@@ -16402,7 +16491,7 @@ index 0fa80b2..72a3052 100644
  			// Must manually release each cached entry
  			for (auto& entry : m_temporary_subresource_cache)
  			{
-@@ -1871,7 +2008,7 @@ namespace rsx
+@@ -1871,7 +2016,7 @@ namespace rsx
  			reset_frame_statistics();
  		}
  
@@ -16411,7 +16500,7 @@ index 0fa80b2..72a3052 100644
  		rsx::simple_array<section_storage_type*> find_texture_from_range(const address_range32 &test_range, u32 required_pitch = 0, u32 context_mask = 0xFF)
  		{
  			rsx::simple_array<section_storage_type*> results;
-@@ -1887,7 +2024,7 @@ namespace rsx
+@@ -1887,7 +2032,7 @@ namespace rsx
  						continue;
  					}
  
@@ -16420,7 +16509,7 @@ index 0fa80b2..72a3052 100644
  					{
  						continue;
  					}
-@@ -2048,6 +2185,9 @@ namespace rsx
+@@ -2048,6 +2193,9 @@ namespace rsx
  				return;
  
  			std::lock_guard lock(m_cache_mutex);
@@ -16430,7 +16519,7 @@ index 0fa80b2..72a3052 100644
  			invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::committed_as_fbo, {}, std::forward<Args>(extras)...);
  		}
  
-@@ -2321,6 +2461,102 @@ namespace rsx
+@@ -2321,6 +2469,102 @@ namespace rsx
  			return evicted_set.violation_handled;
  		}
  
@@ -16533,7 +16622,27 @@ index 0fa80b2..72a3052 100644
  		// Expands a _3d_unwrap descriptor into the explicit slice list used by _3d_gather.
  		static void expand_3d_unwrap_sections(rsx::simple_array<copy_region_descriptor>& sections, const deferred_subresource& desc, u8 level)
  		{
-@@ -2563,7 +2799,7 @@ namespace rsx
+@@ -2522,7 +2766,7 @@ namespace rsx
+ 				// Most mesh textures are stored as compressed to make the most of the limited memory
+ 				if (auto cached_texture = find_texture_from_dimensions(attr.address, attr.gcm_format, attr.width, attr.height, attr.depth))
+ 				{
+-					return
++					sampled_image_descriptor exact_match
+ 					{
+ 						cached_texture->get_view(remap),
+ 						cached_texture->get_context(),
+@@ -2531,6 +2775,10 @@ namespace rsx
+ 						cached_texture->get_image_type(),
+ 						cached_texture->get_section_base()
+ 					};
++#ifdef RPCS3_IOS
++					exact_match.ios_validation_range = cached_texture->get_section_range();
++#endif
++					return exact_match;
+ 				}
+ 
+ 				return {};
+@@ -2563,7 +2811,7 @@ namespace rsx
  
  			auto fast_fbo_check = [&]() -> sampled_image_descriptor
  			{
@@ -16542,7 +16651,7 @@ index 0fa80b2..72a3052 100644
  
  				if (!last.is_clipped) //<- A non-clipped hit fully contains the requested box. We're good to go with the framebuffer processing.
  				{
-@@ -2609,12 +2845,41 @@ namespace rsx
+@@ -2609,12 +2857,41 @@ namespace rsx
  
  			// Check shader_read storage. In a given scene, reads from local memory far outnumber reads from the surface cache
  			const u32 lookup_mask = rsx::texture_upload_context::shader_read | rsx::texture_upload_context::blit_engine_dst | rsx::texture_upload_context::blit_engine_src;
@@ -16586,7 +16695,7 @@ index 0fa80b2..72a3052 100644
  				{
  #ifdef TEXTURE_CACHE_DEBUG
  					if (!memory_range.inside(cached_texture->get_confirmed_range()))
-@@ -2632,7 +2897,12 @@ namespace rsx
+@@ -2632,10 +2909,15 @@ namespace rsx
  						rsx_log.warning("A texture was found in cache for address 0x%x, but swizzle flag does not match", attr.address);
  						cached_texture->unprotect();
  						cached_texture->set_dirty(true);
@@ -16598,8 +16707,21 @@ index 0fa80b2..72a3052 100644
 +#endif
  					}
  
- 					return
-@@ -2649,10 +2919,11 @@ namespace rsx
+-					return
++					sampled_image_descriptor exact_match
+ 					{
+ 						cached_texture->get_view(remap),
+ 						cached_texture->get_context(),
+@@ -2644,15 +2926,20 @@ namespace rsx
+ 						cached_texture->get_image_type(),
+ 						cached_texture->get_section_base()
+ 					};
++#ifdef RPCS3_IOS
++					exact_match.ios_validation_range = cached_texture->get_section_range();
++#endif
++					return exact_match;
+ 				}
+ 			}
  
  			if (!overlapping_locals.empty())
  			{
@@ -16613,7 +16735,56 @@ index 0fa80b2..72a3052 100644
  				});
  			}
  
-@@ -3326,6 +3597,11 @@ namespace rsx
+@@ -2875,6 +3162,48 @@ namespace rsx
+ 			return {};
+ 		}
+ 
++#ifdef RPCS3_IOS
++		bool sampler_requires_validation(u32 index, const sampled_image_descriptor& descriptor) const
++		{
++			// A direct RTT reference has its own surface-cache expiry protocol.
++			// Deferred FBO composites can contain CPU data and must stay tracked.
++			return descriptor.validate() && !descriptor.ios_direct_framebuffer && !m_sampler_validation.matches(index, descriptor.ios_validation_stamp);
++		}
++
++		rpcs3::ios::texture_validation::sampler_stamp prepare_sampler_validation(u32 index)
++		{
++			reader_lock lock(m_cache_mutex);
++			return m_sampler_validation.prepare(index);
++		}
++
++		template <typename surface_store_type>
++		void finish_sampler_validation(u32 index, sampled_image_descriptor& descriptor, rpcs3::ios::texture_validation::sampler_stamp stamp, const surface_store_type&)
++		{
++			descriptor.ios_validation_stamp = stamp;
++			reader_lock lock(m_cache_mutex);
++			// A clipped local view can inherit framebuffer_storage from a merge.
++			// Prove the image is an actual RTT, as is_expired() does, once per lookup.
++			descriptor.ios_direct_framebuffer = descriptor.upload_context == rsx::texture_upload_context::framebuffer_storage &&
++				descriptor.image_handle && descriptor.external_subresource_desc.op == deferred_request_command::nop &&
++				dynamic_cast<typename surface_store_type::surface_type>(descriptor.image_handle->image());
++			if (!descriptor.validate() || descriptor.ios_direct_framebuffer)
++			{
++				m_sampler_validation.forget(index);
++				return;
++			}
++			// Use the range the lookup actually consumed, including mip/gather
++			// sources. Never infer a range from partially validated RSX registers.
++			const auto range = descriptor.external_subresource_desc.op == deferred_request_command::nop
++				? descriptor.ios_validation_range : descriptor.external_subresource_desc.cache_range;
++			u64 length = range.valid() ? u64{range.end} - range.start + 1 : 0;
++			if (length && rsx::get_current_renderer()->get_tiled_memory_region(range))
++			{
++				length = 0; // tiling can touch padding outside the linear payload
++			}
++			m_sampler_validation.set_range(index, range.start, length);
++		}
++#endif
++
+ 		template <typename surface_store_type, typename RsxTextureType>
+ 		bool test_if_descriptor_expired(commandbuffer_type& cmd, surface_store_type& surface_cache, sampled_image_descriptor* descriptor, const RsxTextureType& tex)
+ 		{
+@@ -3326,13 +3655,18 @@ namespace rsx
  
  			// Invalidate
  			const address_range32 tex_range = address_range32::start_length(attributes.address, tex_size);
@@ -16625,7 +16796,26 @@ index 0fa80b2..72a3052 100644
  			invalidate_range_impl_base(cmd, tex_range, invalidation_cause::read, {}, std::forward<Args>(extras)...);
  
  			// Upload from CPU. Note that sRGB conversion is handled in the FS
-@@ -3628,6 +3904,15 @@ namespace rsx
+ 			auto uploaded = upload_image_from_cpu(cmd, tex_range, attributes.width, attributes.height, attributes.depth, tex.get_exact_mipmap_count(), attributes.pitch, attributes.gcm_format,
+ 				texture_upload_context::shader_read, subresources_layout, extended_dimension, attributes.swizzled);
+ 
+-			return
++			sampled_image_descriptor uploaded_descriptor
+ 			{
+ 				uploaded->get_view(tex.decoded_remap()),
+ 				texture_upload_context::shader_read,
+@@ -3341,6 +3675,10 @@ namespace rsx
+ 				extended_dimension,
+ 				attributes.address
+ 			};
++#ifdef RPCS3_IOS
++			uploaded_descriptor.ios_validation_range = tex_range;
++#endif
++			return uploaded_descriptor;
+ 		}
+ 
+ 		// FIXME: This function is way too large and needs an urgent refactor.
+@@ -3628,6 +3966,15 @@ namespace rsx
  
  			if (!cached_dest && !dst_is_render_target)
  			{
@@ -16641,7 +16831,7 @@ index 0fa80b2..72a3052 100644
  				blit_engine_internals::create_blit_dst(
  					this,
  					cmd,
-@@ -3724,6 +4009,26 @@ namespace rsx
+@@ -3724,6 +4071,26 @@ namespace rsx
  
  				if (!dest_section || !dest_section->is_locked())
  				{
@@ -17279,6 +17469,111 @@ index aa37fd3..703899d 100644
  			sink->queue_tag(address);
  		}
  
+diff --git a/rpcs3/Emu/RSX/NV47/HW/nv0039.cpp b/rpcs3/Emu/RSX/NV47/HW/nv0039.cpp
+index 2a50794..b8fd946 100644
+--- a/rpcs3/Emu/RSX/NV47/HW/nv0039.cpp
++++ b/rpcs3/Emu/RSX/NV47/HW/nv0039.cpp
+@@ -4,6 +4,9 @@
+ #include "Emu/RSX/RSXThread.h"
+ #include "Emu/RSX/Core/RSXReservationLock.hpp"
+ #include "Emu/RSX/Host/MM.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSTextureValidationProfile.h"
++#endif
+ 
+ #include "Utilities/deferred_op.hpp"
+ 
+@@ -118,6 +121,10 @@ namespace rsx
+ 			utils::deferred_op deferred([&]()
+ 			{
+ 				RSX(ctx)->write_barrier(write_address, write_length);
++#ifdef RPCS3_IOS
++				// Complete CPU copies before invalidating both texture validation and prehash results.
++				rpcs3::ios::texture_validation::advance_epoch();
++#endif
+ 				// res->release(0);
+ 			});
+ 
+diff --git a/rpcs3/Emu/RSX/NV47/HW/nv3089.cpp b/rpcs3/Emu/RSX/NV47/HW/nv3089.cpp
+index 6e2e716..148a1ee 100644
+--- a/rpcs3/Emu/RSX/NV47/HW/nv3089.cpp
++++ b/rpcs3/Emu/RSX/NV47/HW/nv3089.cpp
+@@ -5,6 +5,9 @@
+ #include "Emu/RSX/Core/RSXReservationLock.hpp"
+ #include "Emu/RSX/Common/tiled_dma_copy.hpp"
+ #include "Emu/RSX/Host/MM.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSTextureValidationProfile.h"
++#endif
+ #include "Emu/RSX/Utils/image_utils.hpp"
+ 
+ #include "context_accessors.define.h"
+@@ -681,6 +684,10 @@ namespace rsx
+ 					dst.clip_height
+ 				);
+ 			}
++#ifdef RPCS3_IOS
++			// The CPU fallback wrote guest bytes; GPU blits above retain their cache-managed path.
++			rpcs3::ios::texture_validation::advance_epoch();
++#endif
+ 		}
+ 	}
+ }
+diff --git a/rpcs3/Emu/RSX/NV47/HW/nv308a.cpp b/rpcs3/Emu/RSX/NV47/HW/nv308a.cpp
+index ab811eb..75a552f 100644
+--- a/rpcs3/Emu/RSX/NV47/HW/nv308a.cpp
++++ b/rpcs3/Emu/RSX/NV47/HW/nv308a.cpp
+@@ -3,6 +3,9 @@
+ 
+ #include "Emu/RSX/RSXThread.h"
+ #include "Emu/RSX/Core/RSXReservationLock.hpp"
++#ifdef RPCS3_IOS
++#include "ios/IOSTextureValidationProfile.h"
++#endif
+ 
+ #include "context_accessors.define.h"
+ 
+@@ -93,6 +96,10 @@ namespace rsx
+ 					// Move last 32 bits
+ 					reinterpret_cast<u32*>(dst)[0] = reinterpret_cast<const u32*>(src)[count - 1];
+ 					RSX(ctx)->invalidate_fragment_program(dst_dma, dst_offset, 4);
++#ifdef RPCS3_IOS
++					// Inline RSX uploads can rewrite a validated texture within one FIFO batch.
++					rpcs3::ios::texture_validation::advance_epoch();
++#endif
+ 					return;
+ 				}
+ 
+@@ -108,6 +115,9 @@ namespace rsx
+ 				}
+ 
+ 				RSX(ctx)->invalidate_fragment_program(dst_dma, dst_offset, count * 4);
++#ifdef RPCS3_IOS
++				rpcs3::ios::texture_validation::advance_epoch();
++#endif
+ 				break;
+ 			}
+ 			case blit_engine::transfer_destination_format::r5g6b5:
+@@ -144,6 +154,9 @@ namespace rsx
+ 					// Move last 16 bits
+ 					dst[0] = convert(src[count - 1]);
+ 					RSX(ctx)->invalidate_fragment_program(dst_dma, dst_offset, 2);
++#ifdef RPCS3_IOS
++					rpcs3::ios::texture_validation::advance_epoch();
++#endif
+ 					break;
+ 				}
+ 
+@@ -153,6 +166,9 @@ namespace rsx
+ 				}
+ 
+ 				RSX(ctx)->invalidate_fragment_program(dst_dma, dst_offset, count * 2);
++#ifdef RPCS3_IOS
++				rpcs3::ios::texture_validation::advance_epoch();
++#endif
+ 				break;
+ 			}
+ 			default:
 diff --git a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
 index 3eaebb1..ba26ea6 100644
 --- a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
@@ -19366,7 +19661,7 @@ index 4925d88..b2b000f 100644
  
  		// Signal fence
 diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
-index 77927e2..c28861f 100644
+index 77927e2..527ecd4 100644
 --- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
 @@ -172,14 +172,14 @@ void VKGSRender::update_draw_state()
@@ -19447,7 +19742,31 @@ index 77927e2..c28861f 100644
  
  		if (!fs_sampler_state[i])
  		{
-@@ -523,12 +520,9 @@ void VKGSRender::load_texture_env()
+@@ -308,6 +305,9 @@ void VKGSRender::load_texture_env()
+ 
+ 		if (!m_samplers_dirty &&
+ 			!m_textures_dirty[i] &&
++#ifdef RPCS3_IOS
++			(!tex.enabled() || !m_texture_cache.sampler_requires_validation(i, *sampler_state)) &&
++#endif
+ 			check_surface_cache_sampler_valid(sampler_state, tex))
+ 		{
+ 			continue;
+@@ -322,7 +322,13 @@ void VKGSRender::load_texture_env()
+ 			continue;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		const auto validation_stamp = m_texture_cache.prepare_sampler_validation(i);
++#endif
+ 		*sampler_state = m_texture_cache.upload_texture(*m_current_command_buffer, tex, m_rtts);
++#ifdef RPCS3_IOS
++		m_texture_cache.finish_sampler_validation(i, *sampler_state, validation_stamp, m_rtts);
++#endif
+ 		if (!sampler_state->validate())
+ 		{
+ 			continue;
+@@ -523,12 +529,9 @@ void VKGSRender::load_texture_env()
  			border_color, compare_enabled, depth_compare_mode);
  	}
  
@@ -19462,7 +19781,32 @@ index 77927e2..c28861f 100644
  
  		if (!vs_sampler_state[i])
  		{
-@@ -644,18 +638,70 @@ void VKGSRender::load_texture_env()
+@@ -541,6 +544,9 @@ void VKGSRender::load_texture_env()
+ 
+ 		if (!m_samplers_dirty &&
+ 			!m_vertex_textures_dirty[i] &&
++#ifdef RPCS3_IOS
++			(!tex.enabled() || !m_texture_cache.sampler_requires_validation(rsx::limits::fragment_textures_count + i, *sampler_state)) &&
++#endif
+ 			check_surface_cache_sampler_valid(sampler_state, tex))
+ 		{
+ 			continue;
+@@ -555,7 +561,14 @@ void VKGSRender::load_texture_env()
+ 			continue;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		const auto validation_index = rsx::limits::fragment_textures_count + i;
++		const auto validation_stamp = m_texture_cache.prepare_sampler_validation(validation_index);
++#endif
+ 		*sampler_state = m_texture_cache.upload_texture(*m_current_command_buffer, tex, m_rtts);
++#ifdef RPCS3_IOS
++		m_texture_cache.finish_sampler_validation(validation_index, *sampler_state, validation_stamp, m_rtts);
++#endif
+ 		if (!sampler_state->validate())
+ 		{
+ 			continue;
+@@ -644,18 +657,70 @@ void VKGSRender::load_texture_env()
  	}
  }
  
@@ -19538,7 +19882,7 @@ index 77927e2..c28861f 100644
  		if (m_fs_binding_table->ftex_location[i] == umax)
  		{
  			// Corrupt shader table
-@@ -682,6 +728,11 @@ bool VKGSRender::bind_texture_env()
+@@ -682,6 +747,11 @@ bool VKGSRender::bind_texture_env()
  			}
  		}
  
@@ -19550,7 +19894,7 @@ index 77927e2..c28861f 100644
  		if (view) [[likely]]
  		{
  			m_program->bind_uniform({ *view, *fs_sampler_handles[i] },
-@@ -727,13 +778,9 @@ bool VKGSRender::bind_texture_env()
+@@ -727,13 +797,9 @@ bool VKGSRender::bind_texture_env()
  		}
  	}
  
@@ -19566,7 +19910,7 @@ index 77927e2..c28861f 100644
  
  		if (m_vs_binding_table->vtex_location[i] == umax)
  		{
-@@ -902,10 +949,9 @@ bool VKGSRender::bind_interpreter_texture_env()
+@@ -902,10 +968,9 @@ bool VKGSRender::bind_interpreter_texture_env()
  		return image->get_view(decoded_remap, base->info.subresourceRange.aspectMask);
  	};
  
@@ -19579,7 +19923,7 @@ index 77927e2..c28861f 100644
  
  		vk::image_view* view = nullptr;
  		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(fs_sampler_state[i].get());
-@@ -961,6 +1007,12 @@ bool VKGSRender::bind_interpreter_texture_env()
+@@ -961,6 +1026,12 @@ bool VKGSRender::bind_interpreter_texture_env()
  			validate_image_layout_for_read_access(*m_current_command_buffer, view, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, sampler_state);
  		}
  
@@ -19592,7 +19936,7 @@ index 77927e2..c28861f 100644
  		const int offsets[] = { 0, 16, 48, 32 };
  		auto& sampled_image_info = texture_env[offsets[static_cast<u32>(sampler_state->image_type)] + i];
  		sampled_image_info = { *view, *fs_sampler_handles[i] };
-@@ -1404,6 +1456,10 @@ void VKGSRender::end()
+@@ -1404,6 +1475,10 @@ void VKGSRender::end()
  	}
  
  	m_rtts.on_write(m_framebuffer_layout.color_write_enabled, m_framebuffer_layout.zeta_write_enabled);
@@ -19616,7 +19960,7 @@ index af6a25a..68145ed 100644
  	m_shader_props.ROP_discard = !!(m_prog.ctrl & RSX_SHADER_CONTROL_USES_KIL);
  	m_shader_props.ROP_channel_remap = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ROP_OUTPUT_REMAP);
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-index 63cab28..284e6e1 100644
+index 63cab28..55159dd 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 @@ -16,10 +16,20 @@
@@ -20042,6 +20386,15 @@ index 63cab28..284e6e1 100644
  		}
  	}
  
+@@ -2720,7 +2896,7 @@ void VKGSRender::renderctl(u32 request_code, void* args)
+ 	{
+ 		const auto packet = reinterpret_cast<vk::queue_submit_t*>(args);
+ 		vk::queue_submit(packet);
+-		free(packet);
++		delete packet;
+ 		break;
+ 	}
+ 	default:
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
 index e3817d8..f70ed70 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.h
@@ -22683,7 +23036,7 @@ index e169caa..11fc668 100644
  		u64 m_update_after_bind_mask = 0;
  		u64 m_push_type_mask = 0;
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.cpp b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
-index 2b2e2c3..d0e7031 100644
+index 2b2e2c3..2641d69 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/device.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
 @@ -6,6 +6,8 @@
@@ -22809,14 +23162,15 @@ index 2b2e2c3..d0e7031 100644
  		enabled_features.robustBufferAccess = VK_TRUE;
  		enabled_features.fullDrawIndexUint32 = VK_TRUE;
  		enabled_features.independentBlend = VK_TRUE;
-@@ -1081,11 +1139,36 @@ namespace vk
+@@ -1081,11 +1139,39 @@ namespace vk
  			device.pNext = &provoking_vertex_info;
  		}
  
 +#ifdef RPCS3_IOS
 +		// CELL587_MVK_ENCODE_BARRIER: the queues MoltenVK creates for this device
 +		// replace those of the previous one (ios/IOSMoltenVKExec.h).
-+		rpcs3::ios::moltenvk_exec::begin_device();
++		rpcs3::ios::moltenvk_exec::begin_device(
++			present_queue_idx == umax ? graphics_queue_idx : present_queue_idx, 0);
 +#endif
  		if (auto error = vkCreateDevice(*pgpu, &device, nullptr, &dev))
  		{
@@ -22826,16 +23180,18 @@ index 2b2e2c3..d0e7031 100644
 +#ifdef RPCS3_IOS
 +		if (rpcs3::ios::get_experimental_policy().moltenvk_async_submits)
 +		{
-+			// One queue family with one queue on MoltenVK: exactly one encoding queue.
++			// The spare transfer queue has its own encoding queue. Only the
++			// configured present family's queue 0 carries vkQueuePresentKHR.
 +			const u32 exec_queues = rpcs3::ios::moltenvk_exec::queue_count();
-+			rpcs3::ios::moltenvk_exec::barrier_missing.store(exec_queues != 1, std::memory_order_relaxed);
-+			if (exec_queues == 1)
++			const bool present_queue_recorded = rpcs3::ios::moltenvk_exec::has_present_queue();
++			rpcs3::ios::moltenvk_exec::barrier_missing.store(!present_queue_recorded, std::memory_order_relaxed);
++			if (present_queue_recorded)
 +			{
 +				rsx_log.notice("MoltenVK asynchronous submits: encoding queue recorded; acquisitions wait for the last queued present");
 +			}
 +			else
 +			{
-+				rsx_log.error("MoltenVK asynchronous submits: %u encoding queues recorded instead of 1; acquisitions drain the device queue", exec_queues);
++				rsx_log.error("MoltenVK asynchronous submits: no unique present queue among %u recorded encoding queues; acquisitions drain the device queue", exec_queues);
 +			}
 +		}
 +		else
@@ -26699,10 +27055,10 @@ index 0000000..3acfa46
 +}
 diff --git a/rpcs3/ios/IOSMoltenVKExec.h b/rpcs3/ios/IOSMoltenVKExec.h
 new file mode 100644
-index 0000000..4067a67
+index 0000000..559f816
 --- /dev/null
 +++ b/rpcs3/ios/IOSMoltenVKExec.h
-@@ -0,0 +1,143 @@
+@@ -0,0 +1,199 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -26745,6 +27101,59 @@ index 0000000..4067a67
 +	constexpr std::string_view prefix = "MoltenVKQueue-";
 +	constexpr std::string_view suffix = "-Dispatch";
 +	return label.size() > prefix.size() + suffix.size() && label.starts_with(prefix) && label.ends_with(suffix);
++}
++
++// MoltenVK creates a separate encoding queue for every VkQueue, including the
++// spare transfer queue. Match the family and index used by vkQueuePresentKHR;
++// neither creation order nor the total number of queues identifies it.
++struct queue_identity
++{
++	std::uint32_t family = 0;
++	std::uint32_t index = 0;
++	bool valid = false;
++};
++
++constexpr queue_identity parse_exec_queue_label(std::string_view label) noexcept
++{
++	if (!is_exec_queue_label(label))
++	{
++		return {};
++	}
++
++	label.remove_prefix(std::string_view{"MoltenVKQueue-"}.size());
++	label.remove_suffix(std::string_view{"-Dispatch"}.size());
++	auto number = [&label](std::uint32_t& value)
++	{
++		std::size_t count = 0;
++		while (count < label.size() && label[count] >= '0' && label[count] <= '9')
++		{
++			const auto digit = static_cast<std::uint32_t>(label[count] - '0');
++			if (value > (UINT32_MAX - digit) / 10)
++			{
++				return false;
++			}
++			value = value * 10 + digit;
++			++count;
++		}
++		if (!count || count == label.size() || label[count] != '-' || (count > 1 && label[0] == '0'))
++		{
++			return false;
++		}
++		label.remove_prefix(count + 1);
++		return true;
++	};
++
++	queue_identity result;
++	if (!number(result.family) || !number(result.index))
++	{
++		return {};
++	}
++
++	// MVKQueue::initName uses %.1f for a Vulkan priority in [0, 1]. Treat an
++	// unfamiliar format as missing identity and retain the existing fallback.
++	result.valid = label.size() == 3 && label[1] == '.' &&
++		((label[0] == '0' && label[2] >= '0' && label[2] <= '9') || label == "1.0");
++	return result;
 +}
 +
 +// A waiter gives up after this long and acquires as before (a stalled queue thread is a
@@ -26834,12 +27243,15 @@ index 0000000..4067a67
 +}
 +
 +// Implemented in RPCS3IOSPlatform.mm.
-+// Forget the queues of the previous device; called before vkCreateDevice.
-+void begin_device() noexcept;
++// Forget the previous device and record which Vulkan queue presents. The index
++// is 0 in RPCS3; defaults preserve the single-family/single-queue caller.
++void begin_device(std::uint32_t present_family = 0, std::uint32_t present_index = 0) noexcept;
 +// Queues recorded since begin_device (0 with synchronous submits).
 +std::uint32_t queue_count() noexcept;
++// The configured present queue was captured exactly once, with no lost entries.
++bool has_present_queue() noexcept;
 +// After vkQueuePresentKHR: queue a marker behind the present. Returns its ticket, or 0
-+// when there is no single recorded queue (synchronous submits).
++// when the presenting queue has no unambiguous recorded identity.
 +std::uint64_t mark_present() noexcept;
 +// Before vkAcquireNextImageKHR: wait until the marker of ticket has run.
 +void wait_for_present(std::uint64_t ticket) noexcept;
@@ -26848,10 +27260,10 @@ index 0000000..4067a67
 +}
 diff --git a/rpcs3/ios/IOSMoltenVKExecQueue.h b/rpcs3/ios/IOSMoltenVKExecQueue.h
 new file mode 100644
-index 0000000..d2d0c29
+index 0000000..31c14fd
 --- /dev/null
 +++ b/rpcs3/ios/IOSMoltenVKExecQueue.h
-@@ -0,0 +1,188 @@
+@@ -0,0 +1,238 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -26896,9 +27308,17 @@ index 0000000..d2d0c29
 +
 +class registry
 +{
++	struct recorded_queue
++	{
++		dispatch_queue_t queue = nullptr;
++		queue_identity identity{};
++	};
++
 +	std::mutex m_mutex;
-+	std::array<dispatch_queue_t, 4> m_queues{};
++	std::array<recorded_queue, 4> m_queues{};
 +	std::uint32_t m_count = 0;
++	std::uint32_t m_present_family = 0;
++	std::uint32_t m_present_index = 0;
 +	present_tracker m_presents;
 +
 +	static void present_marker(void* context) noexcept
@@ -26912,16 +27332,41 @@ index 0000000..d2d0c29
 +	{
 +	}
 +
-+	// The single recorded queue with a reference for the caller, or null.
-+	dispatch_queue_t single_queue() noexcept
++	// Called with m_mutex held. An unparsed label, duplicate identity or registry
++	// overflow must not turn a partial set of queues into an apparently unique match.
++	dispatch_queue_t present_queue_locked() const noexcept
++	{
++		if (m_count > m_queues.size())
++		{
++			return nullptr;
++		}
++
++		dispatch_queue_t match = nullptr;
++		for (std::uint32_t i = 0; i < m_count; ++i)
++		{
++			const auto& entry = m_queues[i];
++			if (!entry.identity.valid)
++			{
++				return nullptr;
++			}
++			if (entry.identity.family == m_present_family && entry.identity.index == m_present_index)
++			{
++				if (match)
++				{
++					return nullptr;
++				}
++				match = entry.queue;
++			}
++		}
++		return match;
++	}
++
++	// The presenting queue with a reference for the caller, or null.
++	dispatch_queue_t present_queue() noexcept
 +	{
 +		std::lock_guard lock(m_mutex);
 +		dispatch_queue_t queue = nullptr;
-+		if (m_count == 1)
-+		{
-+			hold(queue, m_queues[0]);
-+		}
-+
++		hold(queue, present_queue_locked());
 +		return queue;
 +	}
 +
@@ -26935,7 +27380,7 @@ index 0000000..d2d0c29
 +	// rbx_mvk_exec_q_create: a queue MoltenVK created for a VkQueue.
 +	void record(dispatch_queue_t queue, const char* label) noexcept
 +	{
-+		if (!queue || !label || !is_exec_queue_label(label))
++		if (!queue || !label || !std::string_view{label}.starts_with("MoltenVKQueue-"))
 +		{
 +			return;
 +		}
@@ -26943,21 +27388,32 @@ index 0000000..d2d0c29
 +		std::lock_guard lock(m_mutex);
 +		if (m_count < m_queues.size())
 +		{
-+			hold(m_queues[m_count++], queue);
++			auto& entry = m_queues[m_count];
++			hold(entry.queue, queue);
++			entry.identity = parse_exec_queue_label(label);
++		}
++		// Keep overflow visible to has_present_queue(), including when the
++		// presenting queue happens to be among the first four entries.
++		if (m_count < UINT32_MAX)
++		{
++			++m_count;
 +		}
 +
 +		exec_queues.store(m_count, std::memory_order_relaxed);
 +	}
 +
-+	void begin_device() noexcept
++	void begin_device(std::uint32_t present_family = 0, std::uint32_t present_index = 0) noexcept
 +	{
 +		std::lock_guard lock(m_mutex);
 +		for (auto& slot : m_queues)
 +		{
-+			hold(slot, nullptr);
++			hold(slot.queue, nullptr);
++			slot.identity = {};
 +		}
 +
 +		m_count = 0;
++		m_present_family = present_family;
++		m_present_index = present_index;
 +		exec_queues.store(0, std::memory_order_relaxed);
 +	}
 +
@@ -26967,9 +27423,15 @@ index 0000000..d2d0c29
 +		return m_count;
 +	}
 +
++	bool has_present_queue() noexcept
++	{
++		std::lock_guard lock(m_mutex);
++		return present_queue_locked() != nullptr;
++	}
++
 +	std::uint64_t mark_present() noexcept
 +	{
-+		dispatch_queue_t queue = single_queue();
++		dispatch_queue_t queue = present_queue();
 +		if (!queue)
 +		{
 +			return 0;
@@ -27013,9 +27475,9 @@ index 0000000..d2d0c29
 +		std::array<dispatch_queue_t, 4> queues{};
 +		{
 +			std::lock_guard lock(m_mutex);
-+			for (std::uint32_t i = 0; i < m_count; i++)
++			for (std::uint32_t i = 0; i < m_count && i < m_queues.size(); i++)
 +			{
-+				hold(queues[i], m_queues[i]);
++				hold(queues[i], m_queues[i].queue);
 +			}
 +		}
 +
@@ -28687,14 +29149,16 @@ index 0000000..65acd8e
 +}
 diff --git a/rpcs3/ios/IOSTextureValidationProfile.h b/rpcs3/ios/IOSTextureValidationProfile.h
 new file mode 100644
-index 0000000..76aa301
+index 0000000..abea47a
 --- /dev/null
 +++ b/rpcs3/ios/IOSTextureValidationProfile.h
-@@ -0,0 +1,51 @@
+@@ -0,0 +1,137 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
++#include <array>
 +#include <atomic>
++#include <cstddef>
 +#include <cstdint>
 +
 +namespace rpcs3::ios::texture_validation
@@ -28719,6 +29183,84 @@ index 0000000..76aa301
 +inline std::atomic<std::uint64_t> validation_epoch{1};
 +inline std::atomic<std::uint64_t> epoch_skips{0}, epoch_skip_bytes{0}, epoch_bumps{0};
 +
++// A bound sampler must revisit the texture cache after a synchronization point,
++// including when per-epoch hashing is disabled. This revision never validates
++// bytes itself: buffered_section::sync() still performs the content check.
++inline std::atomic<std::uint64_t> sampler_revision{1};
++
++struct sampler_stamp
++{
++	std::uint64_t memory = 0;
++	std::uint64_t range = 0;
++};
++
++// Owned by the texture cache, one slot per fragment/vertex sampler. Store guest
++// ranges, never pointers to recyclable sections or Vulkan resources. Scoped
++// writes only invalidate overlapping bindings; unknown layouts are conservative.
++template <std::size_t Count>
++class sampler_bindings
++{
++	struct binding
++	{
++		std::atomic<std::uint64_t> range{0};
++		std::atomic<std::uint64_t> revision{1};
++	};
++	std::array<binding, Count> m_bindings{};
++	static constexpr std::uint64_t unknown_range = ~std::uint64_t{0};
++
++public:
++	bool matches(std::size_t index, sampler_stamp stamp) const noexcept
++	{
++		return stamp.memory && stamp.memory == sampler_revision.load(std::memory_order_acquire) &&
++			stamp.range == m_bindings[index].revision.load(std::memory_order_acquire);
++	}
++
++	// Called under the cache reader lock, before the lookup. A scoped writer
++	// either finishes before this snapshot or sees the new range under its
++	// exclusive lock. The lookup also takes that lock, so it cannot sample an
++	// in-progress write whose notification has already been observed.
++	void set_range(std::size_t index, std::uint32_t start, std::uint64_t length) noexcept
++	{
++		const std::uint64_t range = !length || length > 0xffffffffull || start + length > (1ull << 32)
++			? unknown_range : start | (length << 32);
++		m_bindings[index].range.store(range, std::memory_order_release);
++	}
++
++	sampler_stamp prepare(std::size_t index) noexcept
++	{
++		// Until the lookup has produced its actual source range, every scoped
++		// write must be able to invalidate this in-flight binding.
++		set_range(index, 0, 0);
++		return {sampler_revision.load(std::memory_order_acquire), m_bindings[index].revision.load(std::memory_order_acquire)};
++	}
++
++	void forget(std::size_t index) noexcept
++	{
++		m_bindings[index].range.store(0, std::memory_order_release);
++	}
++
++	// Called under the cache exclusive lock, alongside reset_validation().
++	void invalidate(std::uint32_t start, std::uint64_t length) noexcept
++	{
++		if (!length)
++		{
++			return;
++		}
++		const bool unknown_write = length > 0xffffffffull || start + length > (1ull << 32);
++		for (auto& binding : m_bindings)
++		{
++			const std::uint64_t range = binding.range.load(std::memory_order_acquire);
++			const std::uint64_t bound_start = static_cast<std::uint32_t>(range);
++			const std::uint64_t bound_length = range >> 32;
++			if (range && (unknown_write || range == unknown_range ||
++				(start < bound_start + bound_length && bound_start < start + length)))
++			{
++				binding.revision.fetch_add(1, std::memory_order_acq_rel);
++			}
++		}
++	}
++};
++
 +inline std::uint64_t current_epoch() noexcept
 +{
 +	return epoch_enabled.load(std::memory_order_relaxed) ? validation_epoch.load(std::memory_order_acquire) : 0;
@@ -28730,11 +29272,17 @@ index 0000000..76aa301
 +
 +inline void advance_epoch() noexcept
 +{
-+	if (epoch_enabled.load(std::memory_order_relaxed))
++	const bool enabled = epoch_enabled.load(std::memory_order_relaxed);
++	if (enabled)
 +	{
 +		validation_epoch.fetch_add(1, std::memory_order_acq_rel);
 +		epoch_bumps.fetch_add(1, std::memory_order_relaxed);
++	}
++	// Observing this revision also observes the preceding hash epoch and writes.
++	sampler_revision.fetch_add(1, std::memory_order_acq_rel);
 +
++	if (enabled)
++	{
 +		if (const auto listener = epoch_listener.load(std::memory_order_relaxed))
 +		{
 +			listener();
@@ -35279,10 +35827,10 @@ index 88392e0..d083837 100644
  // allocation workload, such as an LLVM compilation batch.
  u64 relieve_process_memory_pressure() noexcept;
 diff --git a/rpcs3/ios/RPCS3IOSPlatform.mm b/rpcs3/ios/RPCS3IOSPlatform.mm
-index 41559b0..895e98a 100644
+index 41559b0..4b399d3 100644
 --- a/rpcs3/ios/RPCS3IOSPlatform.mm
 +++ b/rpcs3/ios/RPCS3IOSPlatform.mm
-@@ -8,9 +8,97 @@
+@@ -8,9 +8,102 @@
  #include <TargetConditionals.h>
  
  #include <dispatch/dispatch.h>
@@ -35337,14 +35885,19 @@ index 41559b0..895e98a 100644
 +
 +namespace rpcs3::ios::moltenvk_exec
 +{
-+void begin_device() noexcept
++void begin_device(std::uint32_t present_family, std::uint32_t present_index) noexcept
 +{
-+	gcd::registry::instance().begin_device();
++	gcd::registry::instance().begin_device(present_family, present_index);
 +}
 +
 +std::uint32_t queue_count() noexcept
 +{
 +	return gcd::registry::instance().queue_count();
++}
++
++bool has_present_queue() noexcept
++{
++	return gcd::registry::instance().has_present_queue();
 +}
 +
 +std::uint64_t mark_present() noexcept

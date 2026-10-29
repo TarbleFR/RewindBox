@@ -1,0 +1,58 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "checks": 6,
+  "mode": "asan-ubsan",
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-O1",
+    "-g",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-UNDEBUG"
+  ],
+  "sourceInputs": {
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "be32ebf687a28bf36bf4f51b847afcbf5a523476a2ee3289f396be396ccf9aa0",
+    "rpcs3/Emu/RSX/VK/VKCommandStream.cpp": "fdc0b583b609006f59e2e8123a6c522c3b76cd518244b98e20c41662375fd568",
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "c7dcaa6d23930a42edf8f34a91e14c0c9c1adeb65e5d91d78db84d00a321cad7"
+  },
+  "compiledSourceInputs": [
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h",
+    "rpcs3/Emu/RSX/VK/VKCommandStream.cpp",
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp"
+  ],
+  "testInputs": {
+    "test/rpcs3_submit_packet_lifetime_test.py": "3e078d5d6cfb3c8f426565b686ec5b30f8bb66ba0f4eef11715838e1199ef932",
+    "test/native/rpcs3_submit_packet_lifetime_test.cpp.in": "369061b2d27c756623d8fff9eecc82e96f6c5528b68d0ebe37f801bed7914597"
+  },
+  "adapter_sha256": "369061b2d27c756623d8fff9eecc82e96f6c5528b68d0ebe37f801bed7914597",
+  "leakSanitizer": false,
+  "fullEngineCompiled": false,
+  "metalOrDeviceTested": false,
+  "scope": "Exact production queue type, allocation statement and renderctl function; Vulkan handle aliases and submit stub.",
+  "harness_sha256": "70fcd85bec95e4240a23d6f19ed2ddbaa48aeff623fd29b646df9260b52206ac",
+  "compileSeconds": 0.17588808400614653,
+  "testSeconds": 0.003913752996595576,
+  "exitCode": 0,
+  "compileStderr": "",
+  "testStdout": "",
+  "testStderr": "",
+  "baselineControl": {
+    "harness_sha256": "7bcff6e4d99d74be2f483a39cd2c4dd5b434f6dc8f514aa47240a8eda1d57da2",
+    "compileSeconds": 0.17066413498832844,
+    "testSeconds": 0.022222412007977255,
+    "exitCode": 1,
+    "compileStderr": "",
+    "testStdout": "",
+    "testStderr": "=================================================================\n==11==ERROR: AddressSanitizer: alloc-dealloc-mismatch (operator new vs free) on 0x50b000000040\n    #0 0x7fe2b6e124d8 in free ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:52\n    #1 0x555ec02b7fe2 in VKGSRender::renderctl(unsigned int, void*) /tmp/rpcs3-submit-lifetime-v_2e1ays/baseline.cpp:105\n    #2 0x555ec02b7fe2 in main /tmp/rpcs3-submit-lifetime-v_2e1ays/baseline.cpp:118\n    #3 0x7fe2b61811c9  (/lib/x86_64-linux-gnu/libc.so.6+0x2a1c9) (BuildId: 274eec488d230825a136fa9c4d85370fed7a0a5e)\n    #4 0x7fe2b618128a in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x2a28a) (BuildId: 274eec488d230825a136fa9c4d85370fed7a0a5e)\n    #5 0x555ec02b72e4 in _start (/tmp/rpcs3-submit-lifetime-v_2e1ays/baseline+0x32e4) (BuildId: 5588cd4c6058ba507474b13ec204bffeefe8d18d)\n\n0x50b000000040 is located 0 bytes inside of 112-byte region [0x50b000000040,0x50b0000000b0)\nallocated by thread T0 here:\n    #0 0x7fe2b6e14548 in operator new(unsigned long) ../../../../src/libsanitizer/asan/asan_new_delete.cpp:95\n    #1 0x555ec02b7989 in vk::allocate_packet(vk::queue_submit_t const&) /tmp/rpcs3-submit-lifetime-v_2e1ays/baseline.cpp:78\n    #2 0x555ec02b7fcf in main /tmp/rpcs3-submit-lifetime-v_2e1ays/baseline.cpp:118\n    #3 0x7fe2b61811c9  (/lib/x86_64-linux-gnu/libc.so.6+0x2a1c9) (BuildId: 274eec488d230825a136fa9c4d85370fed7a0a5e)\n    #4 0x7fe2b618128a in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x2a28a) (BuildId: 274eec488d230825a136fa9c4d85370fed7a0a5e)\n    #5 0x555ec02b72e4 in _start (/tmp/rpcs3-submit-lifetime-v_2e1ays/baseline+0x32e4) (BuildId: 5588cd4c6058ba507474b13ec204bffeefe8d18d)\n\nSUMMARY: AddressSanitizer: alloc-dealloc-mismatch ../../../../src/libsanitizer/asan/asan_malloc_linux.cpp:52 in free\n==11==HINT: if you don't care about these errors you may set ASAN_OPTIONS=alloc_dealloc_mismatch=0\n==11==ABORTING\n",
+    "passed": true,
+    "expectedMismatchReproduced": true,
+    "sourceInputs": {
+      "rpcs3/Emu/RSX/VK/vkutils/commands.h": "be32ebf687a28bf36bf4f51b847afcbf5a523476a2ee3289f396be396ccf9aa0",
+      "rpcs3/Emu/RSX/VK/VKCommandStream.cpp": "fdc0b583b609006f59e2e8123a6c522c3b76cd518244b98e20c41662375fd568",
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "897fecfed78009fd93fc2cf3a9ee47dc2763d1ad2215d3dfd1677681788d69f0"
+    },
+    "sourceMutationApplied": false
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "checks": 240,
+  "backend": "serial-queue-test-adapter",
+  "intentionalTimeouts": 1,
+  "metalOrDeviceTested": false,
+  "mode": "plain",
+  "compiler": "clang version 22.1.8",
+  "compilerFlags": [
+    "-std=c++20",
+    "-pthread",
+    "-O2",
+    "-UNDEBUG",
+    "-I",
+    "/workspace/scratch/c599e38ba32c/RewindBox/test/native/rpcs3_mvk_present_queue_mock"
+  ],
+  "compileSeconds": 2.1752917809935752,
+  "testSeconds": 2.025427981003304,
+  "harness_sha256": "72a65152fee7851bee9498b27d74579e85a1f61ea6891831e7bb36e33b82c2cb",
+  "adapter_sha256": "cd8e527e84b86c876d60315ff1b97ee01590c4d96ef4f45d03043f417cac397e",
+  "sourceInputs": {
+    "rpcs3/ios/IOSMoltenVKExec.h": "308be3be6d185a6bd8761e894cf7ce9be80bec2beec34fac66d8e715f3b411d4",
+    "rpcs3/ios/IOSMoltenVKExecQueue.h": "21bbc64eec0d18e8c439dd59145b3596a9f53c1c4774502e666261bdc949cfff",
+    "rpcs3/ios/RPCS3IOSPlatform.mm": "9ca15ecec27764d9923e6aba72b64edbba3d2a33ff46d4977ec42ff614272445",
+    "rpcs3/Emu/RSX/VK/vkutils/device.cpp": "3bc3d15ad80f11006df6a79171bb5291b7aed9ba90cd1072c7290b52065c1ea8"
+  },
+  "compiledSourceInputs": [
+    "rpcs3/ios/IOSMoltenVKExec.h",
+    "rpcs3/ios/IOSMoltenVKExecQueue.h"
+  ],
+  "integrationSourceInputs": [
+    "rpcs3/ios/RPCS3IOSPlatform.mm",
+    "rpcs3/Emu/RSX/VK/vkutils/device.cpp"
+  ],
+  "testInputs": {
+    "test/rpcs3_mvk_present_queue_test.py": "e42a8f9fdef3383f846f0d70ee3ad6e152fe4043d78a55f6909cfd6bd49a041b",
+    "test/native/rpcs3_mvk_present_queue_test.cpp": "72a65152fee7851bee9498b27d74579e85a1f61ea6891831e7bb36e33b82c2cb",
+    "test/native/rpcs3_mvk_present_queue_baseline.cpp": "29567369eceea85a68c31ae5d8876a6ab13f1ff4511d3443b12fdc7bafbe7261",
+    "test/native/rpcs3_mvk_present_queue_mock/dispatch/dispatch.h": "cd8e527e84b86c876d60315ff1b97ee01590c4d96ef4f45d03043f417cac397e"
+  },
+  "leakSanitizer": false,
+  "nativeLibdispatchTested": false,
+  "compileStderr": "",
+  "testStderr": ""
+}
