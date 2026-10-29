@@ -2,6 +2,31 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## Private IPA596 — compiled, verified and privately delivered
+
+The maintainer explicitly requested a new IPA containing the latest compiled
+RPCS3 and MeloNX cores. Build596 succeeds in run40968162236, job123777850588,
+attempt1, source d5c5f107f7b514980033d1b95218aa9d2f640609. Reuse the established
+private assembly recipe: neither engine was rebuilt for this delivery. RPCS3
+comes from e97137b1 / run40963062736 / artifact12937551950, retaining both
+543996ad and a363d923 and the deep-audit changes. MeloNX Core87 comes from
+07f35048 / run40949501203 / artifact12931177865. The current NeoSwap Store.cpp,
+SHA256 a812b0834df8c7301d59ac780b84a4ecc7c306b7b55f7ab02178e5705dca8571,
+was compiled into the host. Other application product roots retain delivered595.
+
+The actual downloaded IPA is 188327690 bytes, SHA256
+b8d665ab4503fc4f3492b80bb46ed582dcfed71e99982f82a8c2a8a04a842d07.
+Its independent verification passes: ZIP CRC, both real core payloads,
+88 Mach-O images, 85 thin-image preservation fingerprints, three mono-ARM64
+fat containers, and the eight application/extension versions 0.0.8 (596).
+Apple CI verified 88 ad hoc signing targets; Linux did not repeat codesign.
+Job915s, Xcode353.822921s, signing/export52.201335s; one application build.
+The private file was saved for the maintainer and the ephemeral private
+recipient key deleted. Re-sign with SideStore; minimum iOS18. No public
+release/tag or physical iPhone/gameplay/FPS validation is claimed. Do not
+reuse build596. These documentary receipts do not require another build.
+See docs/rewind596-test-ipa.md and docs/evidence/rewind596-delivery.json.
+
 ## RPCS3 deep audit after device595 — 29 October 2026
 
 This source phase follows local a363d923, preserving its three changes and the

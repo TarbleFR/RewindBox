@@ -1,0 +1,297 @@
+{
+  "schemaVersion": 1,
+  "result": "passed",
+  "build": 596,
+  "version": "0.0.8",
+  "source": "d5c5f107f7b514980033d1b95218aa9d2f640609",
+  "deliveryTree": "1e50d20224dc1461d0e15b2530736688d1039cfa",
+  "branch": "Claude",
+  "run": {
+    "id": 40968162236,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/40968162236",
+    "attempt": 1,
+    "conclusion": "success",
+    "job": 123777850588,
+    "startedAt": "2026-10-29T22:44:51Z",
+    "completedAt": "2026-10-29T23:00:06Z",
+    "seconds": 915.0,
+    "workflow": ".github/workflows/rewind596-baseline-delivery.yml"
+  },
+  "artifact": {
+    "id": 12939403565,
+    "name": "RewindBox-Build596-d5c5f107f7b514980033d1b95218aa9d2f640609-cold",
+    "bytes": 188885533,
+    "sha256": "3e990b63f051d42b028f1688c6982a7756f9b5676ac88feeb59bc9ac69308ce3",
+    "encrypted": true,
+    "downloadDigestVerified": true
+  },
+  "ipa": {
+    "bytes": 188327690,
+    "crcValid": true,
+    "name": "RewindBox-Build596.ipa",
+    "sha256": "b8d665ab4503fc4f3492b80bb46ed582dcfed71e99982f82a8c2a8a04a842d07",
+    "zipEntries": 5350
+  },
+  "installation": {
+    "method": "SideStore re-signing",
+    "appleResigningRequired": true,
+    "minimumIOS": "18.0",
+    "architectures": [
+      "arm64"
+    ],
+    "deviceInstallationTested": false
+  },
+  "baseline": {
+    "build": 595,
+    "source": "d2e5029f8d7ca33eec279546d64a7f908285e804",
+    "tree": "67de75286e052332304f49b10b4f1cdff6750f0b",
+    "run": 40928805790,
+    "ipaSHA256": "cfc1079249e4168349896a69f34a150ddbc68e318aafbb954a06cb019b00374e"
+  },
+  "productTrees": {
+    "lib": "9208336d76655b98972d11e519cd0d3337666e41",
+    "native": "0d6ae6a8464a57fee8f32d7aecb2d9fccb12e34b",
+    "packages": "6164ff03871a384267e5f20f6734225a1aaed5c4",
+    "assets": "fb15f670844075f22dd667b370961a69371d9589",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "hostDelta": {
+    "paths": [
+      "native/neoswap-storage/Store.cpp"
+    ],
+    "store": {
+      "bytes": 27400,
+      "cocoaPodsSourcesEntryPresent": true,
+      "compiledSource": "packages/neo_swap/ios/Classes/Storage/Store.cpp",
+      "nativeSuitesReplayed": false,
+      "result": "passed",
+      "sha256": "a812b0834df8c7301d59ac780b84a4ecc7c306b7b55f7ab02178e5705dca8571",
+      "source": "native/neoswap-storage/Store.cpp"
+    },
+    "unchangedProductTrees": [
+      "lib",
+      "packages",
+      "assets",
+      "pubspec.yaml",
+      "pubspec.lock"
+    ]
+  },
+  "rpcs3": {
+    "source": "e97137b1d907b4c0b0c102435d55b1f96d891d38",
+    "nativeSource": "d6da80adf9f6a089c05ba79058a32ee0032d075f",
+    "run": 40963062736,
+    "job": 123760525055,
+    "artifact": {
+      "bytes": 29286994,
+      "id": 12937551950,
+      "members": 6,
+      "sha256": "9a4b8fa8a3a072ed80898e85416d71af464a0b60bb5786dfd6da1d51002dd3e9"
+    },
+    "sourcePatchSHA256": "5ba1424bcd40afc96f3263e236d84ed643cb7aac15cbcd1fb513e85d24e27ec8",
+    "originalCoreSHA256": "9b0af4f1bae9daa3b0da1641682ef72e37b9cbe703ab4af8d9ca94a80c63d192",
+    "signedCoreSHA256": "d750e4188535e232fd046f79332151687c456b526ed0cfb1c691c706b5e405e6",
+    "payloadFingerprint": "bb410b86b2f74309eeeabbfb3e4f875cf49edeb680e80f4722cf8aed287b0440",
+    "abiVersion": 30,
+    "definedSymbols": 88,
+    "codegen": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "477a3fa442d27917"
+    },
+    "canonicalPostimages": 319,
+    "coreInputCount": 92,
+    "validationInputCount": 1888,
+    "includedSourceLots": [
+      "543996ad1e79330fda81d086af27566dce0fd79e",
+      "a363d92332657196fb3b6085a98c62e119310bcc"
+    ],
+    "changedCorePaths": [
+      "Utilities/JITArenaAllocator.h",
+      "rpcs3/Emu/CPU/JITCacheCompatibility.cmake",
+      "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp",
+      "rpcs3/Emu/Cell/SPUThread.cpp",
+      "rpcs3/Emu/Cell/SPUThread.h",
+      "rpcs3/Emu/RSX/Common/simple_array.hpp",
+      "rpcs3/Emu/RSX/Common/surface_store.h",
+      "rpcs3/Emu/RSX/Common/texture_cache.h",
+      "rpcs3/Emu/RSX/Common/texture_cache_utils.h",
+      "rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp",
+      "rpcs3/Emu/RSX/Program/ShaderParam.h",
+      "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp",
+      "rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.h",
+      "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp"
+    ],
+    "appleModes": {
+      "totalModes": 31,
+      "executedInCoreRun": 6,
+      "retainedFromPartialRuns": 25,
+      "modesReexecutedForDelivery": 0
+    },
+    "recompiledForDelivery": false
+  },
+  "melonx": {
+    "source": "07f350480ab53b15d50953fb854dd8e3fc4e8d6c",
+    "run": 40949501203,
+    "job": 123713553097,
+    "runNumber": 87,
+    "artifact": {
+      "bytes": 88124968,
+      "id": 12931177865,
+      "members": 385,
+      "sha256": "2faa3376d7cd555285b65fcd5e5fc287a9abbfd353c7ea820fde799b6235bb8c"
+    },
+    "images": {
+      "ios-arm64": {
+        "bytes": 37601544,
+        "identitySHA256": "dd39bfe95b59aea0afc1c8bcc2b24e6d7d89c0474f6833fc2c97e701f011d469",
+        "platform": 2,
+        "requiredExports": 47,
+        "sha256": "834a64d617b178112b25eeb7dc02e80316959a2509120f9ffa78d8b9d1ee3840"
+      },
+      "iossimulator-arm64": {
+        "bytes": 37911944,
+        "identitySHA256": "2bb0caa2441ebea59e69f8cfc1d5428a1bdf20c259595f6c39f680ca554a66f7",
+        "platform": 7,
+        "requiredExports": 47,
+        "sha256": "0076e3fda81e7b5220361f9ff908ab0cbb995ec8e0d1214732f4a7e6b59eda9b"
+      }
+    },
+    "packagedCoreFingerprint": "937b2a47a4d8413eca146a8afb0423a9ecffb7b4913de069f7c07074ab914e56",
+    "originalPayloadMatched": true,
+    "abiVersion": 2,
+    "requiredExports": 47,
+    "adaptationInputs": 102,
+    "buildRecipeInputs": 11,
+    "runtimeInputs": 3,
+    "preparedSourceMembers": 139,
+    "reviewedContinuationSources": 22,
+    "freshAppleGatesInProducer": 15,
+    "reusedAppleGatesInProducer": 14,
+    "simulatorSessionsInProducer": 2,
+    "recompiledForDelivery": false,
+    "testsReexecutedForDelivery": false
+  },
+  "verification": {
+    "result": "passed",
+    "originalReportSHA256": "18adfeb534fbe021aa3e9b1505f17909d852e641e7899abab9abd83c7fd9b666",
+    "scriptSHA256": "2db639f87f5fe4651061081e1344f648aa6d5f62b91637a0bd4bc40c57664a57",
+    "actualMachOImages": 88,
+    "thinMachOImages": 85,
+    "fatMachOContainers": 3,
+    "thinImagesComparedBeforeAfterSigning": 85,
+    "fatImagesWithoutBeforeAfterFingerprints": 3,
+    "fatImageNames": [
+      "Frameworks/App.framework/App",
+      "Frameworks/objective_c.framework/objective_c",
+      "Frameworks/sqlite3.framework/sqlite3"
+    ],
+    "signaturesVerifiedByAppleCI": 88,
+    "signatureCryptographicallyVerifiedIndependently": false,
+    "eightBundleVersionsMatched": true,
+    "structuralValidation": "passed",
+    "sourcesModifiedByVerification": false,
+    "compilerExecutedByVerification": false,
+    "nativeTestsExecutedByVerification": false,
+    "scope": "Actual downloaded IPA, exact source checkout, both compiled core payloads, eight bundle versions, 85 thin fingerprints and three fat-container structures agree with the authenticated delivery reports. Fat hashes are derived from this IPA and bound by the whole-IPA SHA256, with no before/after signing claim. Cryptographic signature verification is Apple CI evidence, not a Linux codesign result."
+  },
+  "timings": {
+    "workflowElapsedSeconds": 924.0,
+    "macOSJobSeconds": 915.0,
+    "observedPhasesSeconds": {
+      "dart_dependencies": 1.87,
+      "ruby_dependencies": 1.537,
+      "host_scaffold_and_registrant": 1.621,
+      "flutter_configuration_and_first_pods": 30.398,
+      "cocoa_pods": 4.603,
+      "xcode_build": 353.822920542,
+      "signature_and_ipa_export": 52.20133475
+    },
+    "longestGitHubSteps": [
+      {
+        "name": "Compile Release device binary with measured AOT and Xcode phases",
+        "seconds": 354.0
+      },
+      {
+        "name": "Package the rebuilt application and retain current component identities",
+        "seconds": 104.0
+      },
+      {
+        "name": "Set up Flutter 3.47.2",
+        "seconds": 76.0
+      },
+      {
+        "name": "Configure release host",
+        "seconds": 61.0
+      },
+      {
+        "name": "Seal every executable, framework and extension for SideStore",
+        "seconds": 52.0
+      }
+    ],
+    "previous595JobSeconds": 1017,
+    "jobSecondsReductionFrom595": 102.0
+  },
+  "evidence": {
+    "appleReportsSHA256": {
+      "SHA256SUMS": "3797614b7839ab4b20affd3ffb7337e8852a090f96fe1f9a06fbeb65ea4a5ad3",
+      "final-structure.json": "2b77b34f7a02fc41bdd06ae5540ef2d0eb781022147533312bea4901fe8ec17b",
+      "host-tree596.json": "ebac93fec8d3d0eb0991b532bfcf9848d7e0e0b3bf7ac71c47ae2dc4d5b647f3",
+      "melonx-engine596-ipa-validation.json": "81ce5ddf2d5b5e1577d74fc26557367577e5633e1612c74c581404dfef82945c",
+      "neoswap-host-source596.json": "e502664bae724b695431de67e3cb2426fdc3a57bd220884cffacd30e5c998bb9",
+      "rpcs3-runtime-candidate-ipa-validation.json": "b74bafb77dae9e7c5ad38c33f71dd3d4b8858e1edaca5c756d748a827d9be2b5",
+      "signature.json": "3715c824ff4d6cf7425d3daa2045aa4ff33162f81aacc5a731758c9319ad00ef",
+      "signed-payload-identity.json": "8a7b51ccd002461011d3c73aa2f4c85e27834fdf53f948687ecbc6f522e1df98",
+      "version-validation.json": "9aa472e15ec3fc4c3ce527640742b159220e373b0301305fc7484e0fdfa90bd7"
+    },
+    "recipeSHA256": {
+      ".github/diagnostics/rewind596_baseline.py": "058ee1cb0c33f741660ce87b199d3159df27d97441438209670f86c53876ca5e",
+      ".github/diagnostics/rewind596_baseline_delivery.py": "efc1515c4e8a8a5a0776cfd9da7e1bc45a4e00a621f35c94985c32b172ae55b5",
+      ".github/diagnostics/rewind596_engine.py": "893798e4176d558201e453b0fc8691172b9138d9f9391c3f90fe58892c8e2e39",
+      ".github/diagnostics/rpcs3runtime596_delivery_core.py": "3aeaf416d268316a2406f2e1ecc20486b706e4a56fcc07398bcfeddec96a3035",
+      ".github/workflows/rewind596-baseline-delivery.yml": "53ac1b5d744068ad7e2037d9cb16fe83d4f44d048a575b5da880cb50b1f97bfb",
+      "build-utils/delivery-596-recipient.pem": "5fcf031055010be00e897145ce5053ec7acbffd497b0470afdd4b73f7fbff666",
+      "build-utils/validate_melonx_engine596_ipa.py": "eb26d070bd50b907a5f829a7d66abb7696102ebe354a4c627c6d2626483abc13",
+      "build-utils/validate_rpcs3_core596_ipa.py": "685d3205442709e33830329a21d8a139d479be25964902da4c38dbec5dfc32b4"
+    },
+    "coreArchives": {
+      "artifact": {
+        "bytes": 29286994,
+        "id": 12937551950,
+        "members": 6,
+        "sha256": "9a4b8fa8a3a072ed80898e85416d71af464a0b60bb5786dfd6da1d51002dd3e9"
+      },
+      "diagnosticsArtifact": {
+        "bytes": 593953,
+        "id": 12938490405,
+        "members": 125,
+        "sha256": "cac2db7c91bbdefb27a596aa5bca50914f3f6aaa87ac7155494c5b061f36abe6"
+      },
+      "melonx": {
+        "bytes": 88124968,
+        "id": 12931177865,
+        "members": 385,
+        "sha256": "2faa3376d7cd555285b65fcd5e5fc287a9abbfd353c7ea820fde799b6235bb8c"
+      },
+      "preflightArtifact": {
+        "bytes": 128452,
+        "id": 12935669568,
+        "members": 30,
+        "sha256": "9eafba611f4995839fcfa19a5b6cd0a96e7688536e3b0e86d953b56feec6a248"
+      }
+    }
+  },
+  "delivery": {
+    "privateFileSaving": "completed",
+    "privateFileSaved": true,
+    "publicReleaseCreated": false,
+    "tagCreated": false,
+    "privateChatFileSaved": true,
+    "privateRecipientKeyDeleted": true
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "fpsGainMeasured": false,
+  "buildNumberReusable": false
+}
