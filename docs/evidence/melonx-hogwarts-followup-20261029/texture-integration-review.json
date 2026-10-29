@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "currentReceiptInputEntries": 17,
+  "engine82SequentialAppliedAdapters": 3,
+  "exactCompiledMethods": 20,
+  "fullClassPostimagesMatched": [
+    "SizeInfo.cs",
+    "TextureGroupHandle.cs"
+  ],
+  "combinedEngine82Postimages": {
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "2c534bf24cb156d5cfc4cdc20446f1ef8b38fb91e58221c6360bd5160b321a76",
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "23e0619e0d3e744978fc319ecfda23232b0ff99d4589f0bdc4e1e3eb79ddb017",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs": "58da2b2c112233a609d0540ca0544f161cc8f87d1acfd6e474c2fd17b456f007",
+    "src/Ryujinx.Graphics.Gpu/Image/TextureGroupHandle.cs": "f09f38507f6db569cd657459c8e6ab402076b4463f5030057f72925a6865bf5a",
+    "src/Ryujinx.Graphics.Texture/SizeInfo.cs": "6ab5af6c11fda9574bebfd36344c7bfdf634e5ff90383ae2a299fa98db1933ed"
+  }
+}

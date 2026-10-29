@@ -1,0 +1,65 @@
+{
+  "result": "passed",
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "reports": {
+    "control": {
+      "variant": "control",
+      "checks": 20019,
+      "scenarios": 139,
+      "functionalDigest": "C2A4396E813C41E000CA9A87C8BEE89782C3374436AFDC6E40F85898DC54257F",
+      "allocatedBytes": 6400000,
+      "armOperations": 200000,
+      "timingMilliseconds": [
+        8.9439,
+        7.2202,
+        6.4345,
+        6.6184,
+        6.394
+      ],
+      "waitingSlotBytes": 8,
+      "concurrentWorkerCallbacks": 2048,
+      "productionWorkerExecuted": true,
+      "forcedSequenceRolloverExercised": false
+    },
+    "candidate": {
+      "variant": "candidate",
+      "checks": 20019,
+      "scenarios": 139,
+      "functionalDigest": "C2A4396E813C41E000CA9A87C8BEE89782C3374436AFDC6E40F85898DC54257F",
+      "allocatedBytes": 0,
+      "armOperations": 200000,
+      "timingMilliseconds": [
+        5.3022,
+        5.3024,
+        6.3869,
+        5.1453,
+        4.9493
+      ],
+      "waitingSlotBytes": 32,
+      "concurrentWorkerCallbacks": 2048,
+      "productionWorkerExecuted": true,
+      "forcedSequenceRolloverExercised": true
+    }
+  },
+  "physicalDeviceTested": false,
+  "productionTimerWorkerExecuted": true,
+  "boundaries": "controlled clock, precise sleep event and kernel lock container",
+  "postimages": {
+    "control": {
+      "src/Ryujinx.HLE/HOS/Kernel/Common/KTimeManager.cs": "9da95bda86e407b37f1bfea310f323e65472c96f88d8e11d25940b8c48458efc"
+    },
+    "candidate": {
+      "src/Ryujinx.HLE/HOS/Kernel/Common/KTimeManager.cs": "807d8c319aec5c8b6ac5c1061fde99c3d3c19fb370fcf5a3b274b015b2bd89fd"
+    }
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.HLE/HOS/Kernel/Common/KTimeManager.cs": "9da95bda86e407b37f1bfea310f323e65472c96f88d8e11d25940b8c48458efc",
+    "src/Ryujinx.HLE/HOS/Kernel/Common/IKFutureSchedulerObject.cs": "c1cad00406b86aad9c9bd6a50739ed2bbfef3699a0a97680f17506539a796bdb",
+    "src/Ryujinx.Common/PreciseSleep/IPreciseSleepEvent.cs": "c04ef0310b05cbba344417cfe129c01093a5cd8bf1835d3b9f563e1d9e2189f7"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_kernel_timer_allocations.py": "a688677b1a29952979fe126b7c05d7de0710e21501407de474ad1fc50fd55289",
+    "test/melonx_kernel_timer_allocations_test.py": "a1003a77372e4ecd54e99a8cdceb87b301152f750ad9883e068c1fe8211d5b61",
+    "test/melonx_kernel_timer_allocations/Program.cs": "9f3e7987c1a895779a4ac22c71d72bbf56c3585fc11b967341647182a84530f1"
+  }
+}

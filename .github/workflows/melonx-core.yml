@@ -58,6 +58,42 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/adapt_texture_overlap.py
     - test/melonx_texture_overlap_test.py
     - test/melonx_texture_overlap/**
+    - build-utils/melonx/adapt_tracking_snapshots.py
+    - test/melonx_tracking_snapshots_test.py
+    - test/melonx_tracking_snapshots/**
+    - build-utils/melonx/adapt_multirange_slice.py
+    - test/melonx_multirange_slice_test.py
+    - test/melonx_multirange_slice/**
+    - build-utils/melonx/adapt_texture_group_callbacks.py
+    - test/melonx_texture_group_callbacks_test.py
+    - test/melonx_texture_group_callbacks/**
+    - build-utils/melonx/adapt_texture_region_cursor.py
+    - test/melonx_texture_region_cursor_test.py
+    - test/melonx_texture_region_cursor/**
+    - build-utils/melonx/adapt_auto_ownership.py
+    - test/melonx_auto_ownership_test.py
+    - test/melonx_auto_ownership/**
+    - build-utils/melonx/adapt_converted_cache.py
+    - test/melonx_converted_cache_test.py
+    - test/melonx_converted_cache/**
+    - build-utils/melonx/adapt_kernel_wait_lifetime.py
+    - test/melonx_kernel_wait_lifetime_test.py
+    - test/melonx_kernel_wait_lifetime/**
+    - build-utils/melonx/adapt_ipc_request_lifetime.py
+    - test/melonx_ipc_request_lifetime_test.py
+    - test/melonx_ipc_request_lifetime/**
+    - build-utils/melonx/adapt_kernel_timer_allocations.py
+    - test/melonx_kernel_timer_allocations_test.py
+    - test/melonx_kernel_timer_allocations/**
+    - build-utils/melonx/adapt_allocator_blocks.py
+    - test/melonx_allocator_blocks_test.py
+    - test/melonx_allocator_blocks/**
+    - build-utils/melonx/adapt_indirect_cache_key.py
+    - test/melonx_indirect_cache_key_test.py
+    - test/melonx_indirect_cache_key/**
+    - build-utils/melonx/adapt_texture_handle_dependencies.py
+    - test/melonx_texture_handle_dependencies_test.py
+    - test/melonx_texture_handle_dependencies/**
     - build-utils/melonx/adapt_cached_shader_startup.py
     - test/melonx_cached_shader_startup_test.py
     - test/melonx_cached_shader_startup/**
@@ -275,6 +311,30 @@ jobs:
       run: python3 test/melonx_memory_tracking_test.py .native-sources/MeloNX
     - name: Verify ordered texture-region intersection and fragmented fallbacks
       run: python3 test/melonx_texture_overlap_test.py .native-sources/MeloNX
+    - name: Verify private tracking snapshots, reentrance and bounded pool lifetime
+      run: python3 test/melonx_tracking_snapshots_test.py .native-sources/MeloNX
+    - name: Verify single-fragment range slices preserve holes and byte mappings
+      run: python3 test/melonx_multirange_slice_test.py .native-sources/MeloNX
+    - name: Verify texture-group visitor order and explicit per-call state
+      run: python3 test/melonx_texture_group_callbacks_test.py .native-sources/MeloNX
+    - name: Verify texture-region cursor equivalence and allocation-free ordered overlap
+      run: python3 test/melonx_texture_region_cursor_test.py .native-sources/MeloNX
+    - name: Verify inline command-buffer ownership and concurrent resource references
+      run: python3 test/melonx_auto_ownership_test.py .native-sources/MeloNX
+    - name: Verify missing converted-buffer lookups do not create cache entries
+      run: python3 test/melonx_converted_cache_test.py .native-sources/MeloNX
+    - name: Verify kernel wait references release completed participants
+      run: python3 test/melonx_kernel_wait_lifetime_test.py .native-sources/MeloNX
+    - name: Verify pooled IPC requests release completed participants
+      run: python3 test/melonx_ipc_request_lifetime_test.py .native-sources/MeloNX
+    - name: Verify timer arm identity, cancellation and zero-allocation reuse
+      run: python3 test/melonx_kernel_timer_allocations_test.py .native-sources/MeloNX
+    - name: Verify dedicated allocation retirement and failed mapping cleanup
+      run: python3 test/melonx_allocator_blocks_test.py .native-sources/MeloNX
+    - name: Verify indirect conversion keys invalidate the actual bound buffer
+      run: python3 test/melonx_indirect_cache_key_test.py .native-sources/MeloNX
+    - name: Verify retired texture dependency links preserve pending GPU copies
+      run: python3 test/melonx_texture_handle_dependencies_test.py .native-sources/MeloNX
     - name: Verify cached shader startup preserves synchronous draws and fatal errors
       run: python3 test/melonx_cached_shader_startup_test.py .native-sources/MeloNX
     - name: Verify launch firmware discovery scans once and preserves failures

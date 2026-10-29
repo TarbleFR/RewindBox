@@ -6,6 +6,18 @@ from pathlib import Path
 import shutil
 import sys
 import zipfile
+from adapt_tracking_snapshots import apply as adapt_tracking_snapshots
+from adapt_multirange_slice import apply as adapt_multirange_slice
+from adapt_texture_group_callbacks import apply as adapt_texture_group_callbacks
+from adapt_texture_region_cursor import apply as adapt_texture_region_cursor
+from adapt_auto_ownership import apply as adapt_auto_ownership
+from adapt_converted_cache import apply as adapt_converted_cache
+from adapt_kernel_wait_lifetime import apply as adapt_kernel_wait_lifetime
+from adapt_ipc_request_lifetime import apply as adapt_ipc_request_lifetime
+from adapt_kernel_timer_allocations import apply as adapt_kernel_timer_allocations
+from adapt_allocator_blocks import apply as adapt_allocator_blocks
+from adapt_indirect_cache_key import apply as adapt_indirect_cache_key
+from adapt_texture_handle_dependencies import apply as adapt_texture_handle_dependencies
 from adapt_session import apply as adapt_session
 from adapt_input import apply as adapt_input
 from adapt_runtime import apply as adapt_runtime
@@ -118,6 +130,18 @@ def main():
     adapted += adapt_descriptor_updates(source)
     adapted += adapt_memory_tracking(source)
     adapted += adapt_texture_overlap(source)
+    adapted += adapt_tracking_snapshots(source)
+    adapted += adapt_multirange_slice(source)
+    adapted += adapt_texture_group_callbacks(source)
+    adapted += adapt_texture_region_cursor(source)
+    adapted += adapt_auto_ownership(source)
+    adapted += adapt_converted_cache(source)
+    adapted += adapt_kernel_wait_lifetime(source)
+    adapted += adapt_ipc_request_lifetime(source)
+    adapted += adapt_kernel_timer_allocations(source)
+    adapted += adapt_allocator_blocks(source)
+    adapted += adapt_indirect_cache_key(source)
+    adapted += adapt_texture_handle_dependencies(source)
     adapted += adapt_cached_shader_startup(source)
     adapted += adapt_threaded_renderer_failures(source)
     adapted += adapt_shader_loader_lifetime(source)
@@ -174,6 +198,18 @@ def main():
                  'adapt_texture_uploads.py', 'adapt_pipeline_recycle.py', 'adapt_fragmented_uploads.py',
                  'adapt_texture_ownership.py', 'adapt_bindless_allocations.py', 'adapt_array_barriers.py',
                  'adapt_pipeline_lookup.py', 'adapt_binding_lookup.py', 'adapt_descriptor_updates.py', 'adapt_memory_tracking.py', 'adapt_texture_overlap.py',
+                 'adapt_tracking_snapshots.py',
+                 'adapt_multirange_slice.py',
+                 'adapt_texture_group_callbacks.py',
+                 'adapt_texture_region_cursor.py',
+                 'adapt_auto_ownership.py',
+                 'adapt_converted_cache.py',
+                 'adapt_kernel_wait_lifetime.py',
+                 'adapt_ipc_request_lifetime.py',
+                 'adapt_kernel_timer_allocations.py',
+                 'adapt_allocator_blocks.py',
+                 'adapt_indirect_cache_key.py',
+                 'adapt_texture_handle_dependencies.py',
                  'adapt_cached_shader_startup.py', 'adapt_threaded_renderer_failures.py',
                  'adapt_gpu_startup_failure.py', 'adapt_shader_loader_lifetime.py']:
         adapter = Path(__file__).with_name(name)

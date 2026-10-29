@@ -107,6 +107,44 @@ subsequent work. Do not reuse build 594. Evidence:
 `docs/evidence/rewind594-delivery.json` and `docs/evidence/rewind594/`.
 Full 13 RPCS3 + 16 MeloNX inventory: `docs/rewind594-changelog-fr.md`.
 
+## MeloNX Hogwarts additional memory and CPU candidate — 29 October 2026
+
+The maintainer requested deeper investigation and additional fixes. Twelve new
+guarded adapters are integrated locally on Claude at base
+`c609b0d05a583d2d39f636f328830a6256439807` / engine82: tracking snapshots,
+MultiRange slices, texture callbacks and region cursors, retired texture
+dependencies, inline Auto ownership, missing converted-cache lookups, indirect
+conversion-key invalidation, dedicated allocator tracking/failure cleanup,
+kernel wait references, pooled IPC references and timer wrappers.
+
+All twelve targeted production-code host gates pass. Fresh preparation binds
+86 inputs and changes 17 source paths (16 modified, one added); all 4,096 final
+source/project files match the managed build workspace. Release Library build
+passes with zero errors. Initial full compilation has 27 warnings in unchanged
+files; final incremental completion passes separately. Preserve its incomplete
+prior output instead of treating that partial attempt as a success. Exact
+receipts, build logs, postimages and independent reviews:
+`docs/melonx-hogwarts-followup-2026-10-29.md` and
+`docs/evidence/melonx-hogwarts-followup-20261029/`.
+
+Retire old texture links only after every replacement inherits; pending GPU
+actions and DeferredCopy must keep their required owners alive. The allocator
+has explicit tradeoffs: slower 32-block host case and +4096 bytes peak in one
+mixed-pool case; no universal CPU/native-memory gain is claimed. The timer list
+uses 24 additional bytes per reserved slot while eliminating per-arm objects.
+Host allocated-byte counts are not game RSS or iPhone FPS measurements.
+
+The earlier local eleven-adapter batch was unavailable after the workspace
+changed and was absent from this remote base. This candidate and its exported
+patch contain only the twelve new adapters; do not claim a combined 23-adapter
+validation. Recover and review the previous patch before cumulative integration.
+The maintainer subsequently authorized pushing this source batch to Claude.
+Publish with [skip ci] to reuse the passed host checks and leave the Apple
+engine/IPA build for a separate request. No Action, Apple engine/IPA build,
+release, telemetry or player setting is produced by this source publication.
+Reuse successful history; do not replay unchanged suites. Preserve RPCS3 and
+delivered private IPA594.
+
 ## RPCS3 Core compiled and verified — 29 October 2026
 
 The maintainer explicitly requested the Core build. Immutable source

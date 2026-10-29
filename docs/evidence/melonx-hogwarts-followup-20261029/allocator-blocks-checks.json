@@ -1,0 +1,758 @@
+{
+  "result": "passed",
+  "reports": {
+    "control": {
+      "instrumented": {
+        "checks": 1442614,
+        "random": [
+          {
+            "poolSize": 4096,
+            "allocated": 8035,
+            "released": 8035,
+            "payloadBytesChecked": 15999333,
+            "Allocations": 1870,
+            "Frees": 1870,
+            "Maps": 924,
+            "Unmaps": 924,
+            "peakNativeBytes": 251260,
+            "requestTraceSha256": "84F33079B16AE81D55E8C9CB364033812C472A8CFD957DDEE7E4C650AF034554",
+            "traceSha256": "601176C820EC39C4DF1F395EB11F4B7D0CE92FE26DB4FD3AB6800992825C1735"
+          },
+          {
+            "poolSize": 16,
+            "allocated": 8035,
+            "released": 8035,
+            "payloadBytesChecked": 15999333,
+            "Allocations": 8035,
+            "Frees": 8035,
+            "Maps": 3929,
+            "Unmaps": 3929,
+            "peakNativeBytes": 226834,
+            "requestTraceSha256": "84F33079B16AE81D55E8C9CB364033812C472A8CFD957DDEE7E4C650AF034554",
+            "traceSha256": "5E3F29D1EE144C6DD83453D6ED18CBC66A77EE9B8FBCA8CFF7DA3BDAD77E5B3E"
+          }
+        ],
+        "imported": {
+          "size": 16384,
+          "slices": 16,
+          "Allocations": 0,
+          "Frees": 1,
+          "Maps": 0,
+          "Unmaps": 0
+        },
+        "concurrent": [
+          {
+            "poolSize": 65536,
+            "workers": 8,
+            "allocations": 10240,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0
+          },
+          {
+            "poolSize": 16,
+            "workers": 8,
+            "allocations": 10240,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0
+          }
+        ],
+        "failures": [
+          {
+            "mode": "map-result",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 16,
+            "mappedLeaks": 0,
+            "Allocations": 16,
+            "Frees": 0,
+            "Maps": 0,
+            "Unmaps": 0
+          },
+          {
+            "mode": "map-throw",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 16,
+            "mappedLeaks": 0,
+            "Allocations": 16,
+            "Frees": 0,
+            "Maps": 0,
+            "Unmaps": 0
+          },
+          {
+            "mode": "allocate-result",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0,
+            "Allocations": 0,
+            "Frees": 0,
+            "Maps": 0,
+            "Unmaps": 0
+          },
+          {
+            "mode": "block-setup",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 16,
+            "mappedLeaks": 16,
+            "Allocations": 16,
+            "Frees": 0,
+            "Maps": 16,
+            "Unmaps": 0
+          },
+          {
+            "mode": "publication",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 16,
+            "mappedLeaks": 16,
+            "Allocations": 16,
+            "Frees": 0,
+            "Maps": 16,
+            "Unmaps": 0
+          }
+        ],
+        "searches": [
+          {
+            "mode": "none",
+            "dedicatedCount": 0,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 10000,
+            "elapsedMs": 9.66488
+          },
+          {
+            "mode": "large-dedicated",
+            "dedicatedCount": 2048,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 10000,
+            "elapsedMs": 3.39597
+          },
+          {
+            "mode": "small-dedicated",
+            "dedicatedCount": 2048,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 20490000,
+            "elapsedMs": 141.922827
+          },
+          {
+            "mode": "equal-dedicated",
+            "dedicatedCount": 2048,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 10240000,
+            "elapsedMs": 41.98785
+          }
+        ],
+        "churn": [
+          {
+            "liveBlocks": 1,
+            "operations": 10000,
+            "allocatedBytes": 2160000,
+            "blockVisits": 10000,
+            "comparisons": 0,
+            "elapsedMs": 11.137553
+          },
+          {
+            "liveBlocks": 32,
+            "operations": 10000,
+            "allocatedBytes": 2160000,
+            "blockVisits": 169998,
+            "comparisons": 10000,
+            "elapsedMs": 3.658245
+          },
+          {
+            "liveBlocks": 2048,
+            "operations": 10000,
+            "allocatedBytes": 2160000,
+            "blockVisits": 10250093,
+            "comparisons": 10000,
+            "elapsedMs": 30.767235
+          }
+        ],
+        "bookkeeping": {
+          "count": 10000,
+          "blockBytes": 1760000,
+          "blockListBytes": 1840000
+        },
+        "nativeDriverTested": false
+      },
+      "timing": {
+        "checks": 1475183,
+        "random": [
+          {
+            "poolSize": 4096,
+            "allocated": 8035,
+            "released": 8035,
+            "payloadBytesChecked": 15999333,
+            "Allocations": 1870,
+            "Frees": 1870,
+            "Maps": 924,
+            "Unmaps": 924,
+            "peakNativeBytes": 251260,
+            "requestTraceSha256": "84F33079B16AE81D55E8C9CB364033812C472A8CFD957DDEE7E4C650AF034554",
+            "traceSha256": "601176C820EC39C4DF1F395EB11F4B7D0CE92FE26DB4FD3AB6800992825C1735"
+          },
+          {
+            "poolSize": 16,
+            "allocated": 8035,
+            "released": 8035,
+            "payloadBytesChecked": 15999333,
+            "Allocations": 8035,
+            "Frees": 8035,
+            "Maps": 3929,
+            "Unmaps": 3929,
+            "peakNativeBytes": 226834,
+            "requestTraceSha256": "84F33079B16AE81D55E8C9CB364033812C472A8CFD957DDEE7E4C650AF034554",
+            "traceSha256": "5E3F29D1EE144C6DD83453D6ED18CBC66A77EE9B8FBCA8CFF7DA3BDAD77E5B3E"
+          }
+        ],
+        "imported": {
+          "size": 16384,
+          "slices": 16,
+          "Allocations": 0,
+          "Frees": 1,
+          "Maps": 0,
+          "Unmaps": 0
+        },
+        "concurrent": [
+          {
+            "poolSize": 65536,
+            "workers": 8,
+            "allocations": 10240,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0
+          },
+          {
+            "poolSize": 16,
+            "workers": 8,
+            "allocations": 10240,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0
+          }
+        ],
+        "failures": [
+          {
+            "mode": "map-result",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 16,
+            "mappedLeaks": 0,
+            "Allocations": 16,
+            "Frees": 0,
+            "Maps": 0,
+            "Unmaps": 0
+          },
+          {
+            "mode": "map-throw",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 16,
+            "mappedLeaks": 0,
+            "Allocations": 16,
+            "Frees": 0,
+            "Maps": 0,
+            "Unmaps": 0
+          },
+          {
+            "mode": "allocate-result",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0,
+            "Allocations": 0,
+            "Frees": 0,
+            "Maps": 0,
+            "Unmaps": 0
+          }
+        ],
+        "searches": [
+          {
+            "mode": "none",
+            "dedicatedCount": 0,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 0,
+            "elapsedMs": 11.88016
+          },
+          {
+            "mode": "large-dedicated",
+            "dedicatedCount": 2048,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 0,
+            "elapsedMs": 3.656935
+          },
+          {
+            "mode": "small-dedicated",
+            "dedicatedCount": 2048,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 0,
+            "elapsedMs": 101.215828
+          },
+          {
+            "mode": "equal-dedicated",
+            "dedicatedCount": 2048,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 0,
+            "elapsedMs": 14.180854
+          }
+        ],
+        "churn": [
+          {
+            "liveBlocks": 1,
+            "operations": 10000,
+            "allocatedBytes": 2160000,
+            "blockVisits": 0,
+            "comparisons": 0,
+            "elapsedMs": 11.425077
+          },
+          {
+            "liveBlocks": 32,
+            "operations": 10000,
+            "allocatedBytes": 2160000,
+            "blockVisits": 0,
+            "comparisons": 0,
+            "elapsedMs": 3.649845
+          },
+          {
+            "liveBlocks": 2048,
+            "operations": 10000,
+            "allocatedBytes": 2160000,
+            "blockVisits": 0,
+            "comparisons": 0,
+            "elapsedMs": 13.493069
+          }
+        ],
+        "bookkeeping": {
+          "count": 10000,
+          "blockBytes": 1760000,
+          "blockListBytes": 1840000
+        },
+        "nativeDriverTested": false
+      }
+    },
+    "candidate": {
+      "instrumented": {
+        "checks": 1505019,
+        "random": [
+          {
+            "poolSize": 4096,
+            "allocated": 8035,
+            "released": 8035,
+            "payloadBytesChecked": 15999333,
+            "Allocations": 1870,
+            "Frees": 1870,
+            "Maps": 910,
+            "Unmaps": 910,
+            "peakNativeBytes": 255356,
+            "requestTraceSha256": "84F33079B16AE81D55E8C9CB364033812C472A8CFD957DDEE7E4C650AF034554",
+            "traceSha256": "FC7D3299B084027511D705B067BDEFC4406A2CBF7E5F144A56ED2030B1440FB8"
+          },
+          {
+            "poolSize": 16,
+            "allocated": 8035,
+            "released": 8035,
+            "payloadBytesChecked": 15999333,
+            "Allocations": 8035,
+            "Frees": 8035,
+            "Maps": 3929,
+            "Unmaps": 3929,
+            "peakNativeBytes": 226834,
+            "requestTraceSha256": "84F33079B16AE81D55E8C9CB364033812C472A8CFD957DDEE7E4C650AF034554",
+            "traceSha256": "5E3F29D1EE144C6DD83453D6ED18CBC66A77EE9B8FBCA8CFF7DA3BDAD77E5B3E"
+          }
+        ],
+        "imported": {
+          "size": 16384,
+          "slices": 16,
+          "Allocations": 0,
+          "Frees": 1,
+          "Maps": 0,
+          "Unmaps": 0
+        },
+        "concurrent": [
+          {
+            "poolSize": 65536,
+            "workers": 8,
+            "allocations": 10240,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0
+          },
+          {
+            "poolSize": 16,
+            "workers": 8,
+            "allocations": 10240,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0
+          }
+        ],
+        "failures": [
+          {
+            "mode": "map-result",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0,
+            "Allocations": 16,
+            "Frees": 16,
+            "Maps": 0,
+            "Unmaps": 0
+          },
+          {
+            "mode": "map-throw",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0,
+            "Allocations": 16,
+            "Frees": 16,
+            "Maps": 0,
+            "Unmaps": 0
+          },
+          {
+            "mode": "allocate-result",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0,
+            "Allocations": 0,
+            "Frees": 0,
+            "Maps": 0,
+            "Unmaps": 0
+          },
+          {
+            "mode": "block-setup",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0,
+            "Allocations": 16,
+            "Frees": 16,
+            "Maps": 16,
+            "Unmaps": 16
+          },
+          {
+            "mode": "publication",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0,
+            "Allocations": 16,
+            "Frees": 16,
+            "Maps": 16,
+            "Unmaps": 16
+          }
+        ],
+        "searches": [
+          {
+            "mode": "none",
+            "dedicatedCount": 0,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 10000,
+            "elapsedMs": 7.099287
+          },
+          {
+            "mode": "large-dedicated",
+            "dedicatedCount": 2048,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 10000,
+            "elapsedMs": 3.526396
+          },
+          {
+            "mode": "small-dedicated",
+            "dedicatedCount": 2048,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 10000,
+            "elapsedMs": 3.173727
+          },
+          {
+            "mode": "equal-dedicated",
+            "dedicatedCount": 2048,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 10000,
+            "elapsedMs": 3.354934
+          }
+        ],
+        "churn": [
+          {
+            "liveBlocks": 1,
+            "operations": 10000,
+            "allocatedBytes": 2160000,
+            "blockVisits": 10000,
+            "comparisons": 0,
+            "elapsedMs": 11.06227
+          },
+          {
+            "liveBlocks": 32,
+            "operations": 10000,
+            "allocatedBytes": 2160000,
+            "blockVisits": 20000,
+            "comparisons": 0,
+            "elapsedMs": 5.497134
+          },
+          {
+            "liveBlocks": 2048,
+            "operations": 10000,
+            "allocatedBytes": 2160000,
+            "blockVisits": 20000,
+            "comparisons": 0,
+            "elapsedMs": 5.906372
+          }
+        ],
+        "bookkeeping": {
+          "count": 10000,
+          "blockBytes": 1760000,
+          "blockListBytes": 1920000
+        },
+        "nativeDriverTested": false
+      },
+      "timing": {
+        "checks": 1319139,
+        "random": [
+          {
+            "poolSize": 4096,
+            "allocated": 8035,
+            "released": 8035,
+            "payloadBytesChecked": 15999333,
+            "Allocations": 1870,
+            "Frees": 1870,
+            "Maps": 910,
+            "Unmaps": 910,
+            "peakNativeBytes": 255356,
+            "requestTraceSha256": "84F33079B16AE81D55E8C9CB364033812C472A8CFD957DDEE7E4C650AF034554",
+            "traceSha256": "FC7D3299B084027511D705B067BDEFC4406A2CBF7E5F144A56ED2030B1440FB8"
+          },
+          {
+            "poolSize": 16,
+            "allocated": 8035,
+            "released": 8035,
+            "payloadBytesChecked": 15999333,
+            "Allocations": 8035,
+            "Frees": 8035,
+            "Maps": 3929,
+            "Unmaps": 3929,
+            "peakNativeBytes": 226834,
+            "requestTraceSha256": "84F33079B16AE81D55E8C9CB364033812C472A8CFD957DDEE7E4C650AF034554",
+            "traceSha256": "5E3F29D1EE144C6DD83453D6ED18CBC66A77EE9B8FBCA8CFF7DA3BDAD77E5B3E"
+          }
+        ],
+        "imported": {
+          "size": 16384,
+          "slices": 16,
+          "Allocations": 0,
+          "Frees": 1,
+          "Maps": 0,
+          "Unmaps": 0
+        },
+        "concurrent": [
+          {
+            "poolSize": 65536,
+            "workers": 8,
+            "allocations": 10240,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0
+          },
+          {
+            "poolSize": 16,
+            "workers": 8,
+            "allocations": 10240,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0
+          }
+        ],
+        "failures": [
+          {
+            "mode": "map-result",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0,
+            "Allocations": 16,
+            "Frees": 16,
+            "Maps": 0,
+            "Unmaps": 0
+          },
+          {
+            "mode": "map-throw",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0,
+            "Allocations": 16,
+            "Frees": 16,
+            "Maps": 0,
+            "Unmaps": 0
+          },
+          {
+            "mode": "allocate-result",
+            "attempts": 16,
+            "caught": 16,
+            "nativeLeaks": 0,
+            "mappedLeaks": 0,
+            "Allocations": 0,
+            "Frees": 0,
+            "Maps": 0,
+            "Unmaps": 0
+          }
+        ],
+        "searches": [
+          {
+            "mode": "none",
+            "dedicatedCount": 0,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 0,
+            "elapsedMs": 6.33021
+          },
+          {
+            "mode": "large-dedicated",
+            "dedicatedCount": 2048,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 0,
+            "elapsedMs": 3.351569
+          },
+          {
+            "mode": "small-dedicated",
+            "dedicatedCount": 2048,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 0,
+            "elapsedMs": 3.04603
+          },
+          {
+            "mode": "equal-dedicated",
+            "dedicatedCount": 2048,
+            "queries": 10000,
+            "allocatedBytes": 0,
+            "sizeReads": 0,
+            "blockVisits": 0,
+            "elapsedMs": 3.048974
+          }
+        ],
+        "churn": [
+          {
+            "liveBlocks": 1,
+            "operations": 10000,
+            "allocatedBytes": 2160000,
+            "blockVisits": 0,
+            "comparisons": 0,
+            "elapsedMs": 10.897999
+          },
+          {
+            "liveBlocks": 32,
+            "operations": 10000,
+            "allocatedBytes": 2160000,
+            "blockVisits": 0,
+            "comparisons": 0,
+            "elapsedMs": 4.544984
+          },
+          {
+            "liveBlocks": 2048,
+            "operations": 10000,
+            "allocatedBytes": 2160000,
+            "blockVisits": 0,
+            "comparisons": 0,
+            "elapsedMs": 4.765198
+          }
+        ],
+        "bookkeeping": {
+          "count": 10000,
+          "blockBytes": 1760000,
+          "blockListBytes": 1920000
+        },
+        "nativeDriverTested": false
+      }
+    }
+  },
+  "physicalDeviceTested": false,
+  "completeProductionAllocatorAndHandlesAndRanges": true,
+  "nativeDriverDoubled": true,
+  "managedBlockAndPublicationFailuresInjected": true,
+  "timingGate": false,
+  "equivalentPooledBlockSelectionMayDiffer": true,
+  "dedicatedOnlyTraceAndNativeBytesIdentical": true,
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs": "e59268ccf087f483e28557de1c5c9faa2e90c24d2f73d4f49479cb8084ff0b3c",
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocation.cs": "8e871eedcbc45750022c45a497fc4c1a482ea908f1c04e3ae7cd5a8ab8e022b2",
+    "src/Ryujinx.Graphics.Vulkan/VulkanException.cs": "979b68380d45dfe405df08d78a1bb6376493855585fdecea1b6b603050adb15c",
+    "src/Ryujinx.Common/Utilities/BitUtils.cs": "3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261"
+  },
+  "callerInputs": {
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocator.cs": "15833c21c16b3698de4f872d547f0d2b050cde28843695d972c366777512f9b3",
+    "src/Ryujinx.Graphics.Vulkan/DonatedBufferAllocator.cs": "0c84a345748de604d66c9d94adc4a4dcc7709832cddc416a7c755855406003ee"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_allocator_blocks.py": "adb3d761b7d03dbc445785e8ba16cf624a3b135024802150af2479487acc1f96",
+    "test/melonx_allocator_blocks_test.py": "ab1a6d3781d906f672a2d6a9f8e6e046bcf6d8b7650905e5c7a8f735d54c866c",
+    "test/melonx_allocator_blocks/Program.cs": "951d99a5a0245199d8b6c1c4f571ea7a279787e2a659dfa5b24cbee182b20c5e",
+    "test/melonx_allocator_blocks/Boundaries.cs": "7b00ad236e58e5335ee51a0abf68d63cf9c896ac56bfc86f456fe79458f01836"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs": "bb57d6943937c038bdcc7866a6da14ae5ceb6771d836e63403da519c6fc255ae"
+  },
+  "compiledSources": {
+    "control": {
+      "instrumented": {
+        "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs": "de4de3dfa8405475ee35a4ec3ae968cbb6ac36f2238b666d85abe9d38e940453",
+        "src/Ryujinx.Graphics.Vulkan/MemoryAllocation.cs": "8e871eedcbc45750022c45a497fc4c1a482ea908f1c04e3ae7cd5a8ab8e022b2",
+        "src/Ryujinx.Graphics.Vulkan/VulkanException.cs": "979b68380d45dfe405df08d78a1bb6376493855585fdecea1b6b603050adb15c",
+        "src/Ryujinx.Common/Utilities/BitUtils.cs": "3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261",
+        "Program.cs": "951d99a5a0245199d8b6c1c4f571ea7a279787e2a659dfa5b24cbee182b20c5e",
+        "Boundaries.cs": "7b00ad236e58e5335ee51a0abf68d63cf9c896ac56bfc86f456fe79458f01836"
+      },
+      "timing": {
+        "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs": "e59268ccf087f483e28557de1c5c9faa2e90c24d2f73d4f49479cb8084ff0b3c",
+        "src/Ryujinx.Graphics.Vulkan/MemoryAllocation.cs": "8e871eedcbc45750022c45a497fc4c1a482ea908f1c04e3ae7cd5a8ab8e022b2",
+        "src/Ryujinx.Graphics.Vulkan/VulkanException.cs": "979b68380d45dfe405df08d78a1bb6376493855585fdecea1b6b603050adb15c",
+        "src/Ryujinx.Common/Utilities/BitUtils.cs": "3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261",
+        "Program.cs": "951d99a5a0245199d8b6c1c4f571ea7a279787e2a659dfa5b24cbee182b20c5e",
+        "Boundaries.cs": "7b00ad236e58e5335ee51a0abf68d63cf9c896ac56bfc86f456fe79458f01836"
+      }
+    },
+    "candidate": {
+      "instrumented": {
+        "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs": "4f28e53e2e235b20173526ea7adcb064910518386cc5949da58c5bda6a9f6878",
+        "src/Ryujinx.Graphics.Vulkan/MemoryAllocation.cs": "8e871eedcbc45750022c45a497fc4c1a482ea908f1c04e3ae7cd5a8ab8e022b2",
+        "src/Ryujinx.Graphics.Vulkan/VulkanException.cs": "979b68380d45dfe405df08d78a1bb6376493855585fdecea1b6b603050adb15c",
+        "src/Ryujinx.Common/Utilities/BitUtils.cs": "3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261",
+        "Program.cs": "951d99a5a0245199d8b6c1c4f571ea7a279787e2a659dfa5b24cbee182b20c5e",
+        "Boundaries.cs": "7b00ad236e58e5335ee51a0abf68d63cf9c896ac56bfc86f456fe79458f01836"
+      },
+      "timing": {
+        "src/Ryujinx.Graphics.Vulkan/MemoryAllocatorBlockList.cs": "bb57d6943937c038bdcc7866a6da14ae5ceb6771d836e63403da519c6fc255ae",
+        "src/Ryujinx.Graphics.Vulkan/MemoryAllocation.cs": "8e871eedcbc45750022c45a497fc4c1a482ea908f1c04e3ae7cd5a8ab8e022b2",
+        "src/Ryujinx.Graphics.Vulkan/VulkanException.cs": "979b68380d45dfe405df08d78a1bb6376493855585fdecea1b6b603050adb15c",
+        "src/Ryujinx.Common/Utilities/BitUtils.cs": "3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261",
+        "Program.cs": "951d99a5a0245199d8b6c1c4f571ea7a279787e2a659dfa5b24cbee182b20c5e",
+        "Boundaries.cs": "7b00ad236e58e5335ee51a0abf68d63cf9c896ac56bfc86f456fe79458f01836"
+      }
+    }
+  }
+}
