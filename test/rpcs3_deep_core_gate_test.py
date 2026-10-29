@@ -48,10 +48,15 @@ class ReceiptTests(unittest.TestCase):
             canonical = ('enum cpu_flag:u32 {pending=1,wait=2,temp=4};\n'
                          'constexpr int flag = cpu_flag::wait + cpu_flag::wait;\n'
                          if restore else 'program')
-            compiled = gate.apple_host_program('mfc-restore' if restore else key, canonical)
+            shader = key.startswith('shader-')
+            if shader:
+                canonical = 'constexpr auto umax=static_cast<usz>(-1);\n'
+            compiled = gate.apple_host_program('mfc-restore' if restore else 'shader' if shader else key, canonical)
             (self.out / name).write_bytes(compiled.encode())
             if restore:
                 (self.out / 'mfc-restore-canonical.cpp').write_bytes(canonical.encode())
+            if shader:
+                (self.out / 'shader-canonical.cpp').write_bytes(canonical.encode())
             (self.out / (key + '-compile.txt')).write_bytes(b'compile')
             evidence = 'evidence/' + key + '.json'
             native_result = {'passed': True}
@@ -64,7 +69,7 @@ class ReceiptTests(unittest.TestCase):
             report = dict(passed=True, results=native_result, flags=['-UNDEBUG'],
                 compiler=self.compiler, program_sha256=gate.sha(compiled.encode()), evidence=evidence,
                 canonical_program_sha256=gate.sha(canonical.encode()),
-                apple_host_adapter=restore,
+                apple_host_adapter=restore or shader,
                 output_sha256=gate.sha(b'output'), compile_sha256=gate.sha(b'compile'))
             if key.endswith('-asan-ubsan'):
                 report['flags'].append('-fsanitize=address,undefined')
@@ -129,6 +134,13 @@ class ReceiptTests(unittest.TestCase):
 
 
 class NativeSchemaTests(unittest.TestCase):
+    def test_shader_mac_adapter_only_annotates_unused_test_sentinel(self):
+        original = 'constexpr auto umax=static_cast<usz>(-1);\nint main() {}\n'
+        self.assertEqual(gate.apple_host_program('shader', original), '[[maybe_unused]] ' + original)
+        self.assertEqual(gate.apple_host_program('snr', original), original)
+        with self.assertRaises(AssertionError):
+            gate.apple_host_program('shader', 'int main() {}')
+
     def test_mfc_mac_adaptation_renames_only_test_flag(self):
         original = ('enum cpu_flag:u32 {pending=1,wait=2,temp=4};\n'
                     'u32 x=cpu_flag::wait + cpu_flag::wait;')

@@ -1,0 +1,38 @@
+{
+  "passed": true,
+  "program_sha256": "ad67cc008c9f8a0d6cdbd235cc995cc2bb8fd29c01bc7b1f76e73692788a6be6",
+  "evidence": "docs/evidence/rpcs3-temporary-remap-20261029/plain.json",
+  "canonical_program_sha256": "ad67cc008c9f8a0d6cdbd235cc995cc2bb8fd29c01bc7b1f76e73692788a6be6",
+  "apple_host_adapter": false,
+  "compiler": "Homebrew clang version 22.1.8",
+  "flags": [
+    "-std=c++20",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+    "-O3"
+  ],
+  "results": {
+    "checks": 373277,
+    "remapRequests": 373248,
+    "baselineWrongMappings": 373230,
+    "candidateWrongMappings": 0,
+    "sameImageAllocationsAndPayloadCopies": true,
+    "repeatViewAllocations": 0,
+    "formatAndSubresourcesPreserved": true,
+    "poolNativeMappingRefresh": true,
+    "viewsConstructed": 373278,
+    "viewsDestroyed": 373278,
+    "invalidationAndFrameReleaseOnce": true
+  },
+  "mode": "plain",
+  "output_sha256": "d56066dba80db1879c413daf7de29512df5d425e170f73f170514b49fce5a832",
+  "compile_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "physical_device_tested": false,
+  "gpu_executed": false,
+  "llvm_ir_builder_simulated": true
+}

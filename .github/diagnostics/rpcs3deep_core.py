@@ -102,6 +102,12 @@ def apple_host_program(name, original):
     enumerator and its qualified reads; keep the numeric flag 2. The original
     source program and its reviewed SHA256 remain separately authenticated.
     """
+    if name == 'shader':
+        # Only the isolated test preamble has an unused sentinel on Darwin.
+        # Keep its value and the entire canonical/extracted program intact.
+        sentinel = 'constexpr auto umax=static_cast<usz>(-1);'
+        assert original.count(sentinel) == 1, 'Unexpected shader test preamble'
+        return original.replace(sentinel, '[[maybe_unused]] ' + sentinel, 1)
     if name != 'mfc-restore':
         return original
     enum = 'enum cpu_flag:u32 {pending=1,wait=2,temp=4};'
@@ -139,7 +145,7 @@ def native_hashes(source, manifest):
 
 def inputs():
     import neo_swap_core_pin_test as pin
-    paths = set(pin.CORE_INPUTS) | {GATE, WORKFLOW, '.github/workflows/rpcs3-core.yml',
+    paths = set(pin.CORE_INPUTS) | {GATE, WORKFLOW, '.github/diagnostics/rpcs3deep_resume.py', '.github/workflows/rpcs3-core.yml',
         '.github/workflows/rpcs3-runtime592-core.yml',
         '.github/diagnostics/rpcs3runtime592_core.py'}
     # Close the test/extraction dependency set, including historical adapters.
@@ -349,14 +355,18 @@ def prepare(source):
         assert load(contract)['reverseDeltaMatchesBaseline']
         proof['codegen'] = load(contract)['codegenIdentity']['after']
         proof['source_contract_sha256'] = sha(contract.read_bytes())
+        import rpcs3deep_resume as resume
+        prior = resume.authenticate(sys.modules[__name__], proof)
+        proof['partial_reuse'] = resume.ORIGIN
+        save(PROOF, proof)
         suites = programs(source, roots, work)
         for name, item in suites.items():
             cpp = OUT / (name + '-program.cpp')
             original_program = item['program']
             assert sha(original_program.encode()) == load(ROOT / item['evidence'])['harnessSHA256']
             cpp.write_text(apple_host_program(name, original_program))
-            if name == 'mfc-restore':
-                (OUT / 'mfc-restore-canonical.cpp').write_text(original_program)
+            if name in ('mfc-restore', 'shader'):
+                (OUT / (name + '-canonical.cpp')).write_text(original_program)
             for mode in item['modes']:
                 key = name + '-' + mode
                 print('RUN ' + key, flush=True)
@@ -364,6 +374,11 @@ def prepare(source):
                          '-isysroot', os.environ['HOST_MACOS_SDK'], '-O1' if mode != 'plain' else '-O3']
                 if mode != 'plain':
                     flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-fno-sanitize-recover=all']
+                if key in resume.MODES:
+                    proof['tests'][key] = resume.retain(sys.modules[__name__], prior, key, item, cpp, flags, version)
+                    save(PROOF, proof)
+                    print('REUSE ' + key + ' from failed run ' + str(resume.RUN) + '; not executed again', flush=True)
+                    continue
                 exe = work / key
                 compile_log = OUT / (key + '-compile.txt')
                 output_log = OUT / (key + '-output.txt')
@@ -372,7 +387,7 @@ def prepare(source):
                 validate_native_result(name, result, load(ROOT / item['evidence'])['results'])
                 record = dict(passed=True, program_sha256=sha(cpp.read_bytes()), evidence=item['evidence'],
                               canonical_program_sha256=sha(original_program.encode()),
-                              apple_host_adapter=(name == 'mfc-restore'),
+                              apple_host_adapter=(name in ('mfc-restore', 'shader')),
                               compiler=version, flags=flags, results=result, mode=mode,
                               output_sha256=sha(output_log.read_bytes()), compile_sha256=sha(compile_log.read_bytes()),
                               physical_device_tested=False, gpu_executed=False, llvm_ir_builder_simulated=True)
@@ -399,7 +414,7 @@ def prepare(source):
     assert current == inputs()
     proof['all_tests_passed'] = True
     save(PROOF, proof)
-    print('PASS: 29 exact reviewed programs + 2 complete Store modes on Apple ARM64; no device/FPS claim', flush=True)
+    print('PASS: 31 Apple modes, 18 authenticated unchanged modes reused, 13 executed; no device/FPS claim', flush=True)
 
 
 def verify(path, source):
@@ -415,6 +430,16 @@ def verify(path, source):
     assert set(proof['tests']) == EXPECTED_KEYS and len(EXPECTED_KEYS) == 31
     assert sha((OUT / 'deep-source-contract.json').read_bytes()) == proof['source_contract_sha256']
     assert proof['codegen'] == load(ROOT / (EVIDENCE + 'gow3-source-and-proof-record.json'))['codegenIdentity']['after']
+    reused = {key for key, state in proof['tests'].items() if 'reused_from' in state}
+    if proof.get('partial_reuse'):
+        import rpcs3deep_resume as resume
+        previous = resume.authenticate(sys.modules[__name__], proof)
+        assert proof['partial_reuse'] == resume.ORIGIN and reused == resume.MODES
+        for key in reused:
+            expected = dict(previous['tests'][key], reused_from=resume.ORIGIN)
+            assert proof['tests'][key] == expected
+    else:
+        assert not reused
     for key, state in proof['tests'].items():
         assert state['passed'] is True
         if key.startswith('store-full-'):
@@ -431,9 +456,9 @@ def verify(path, source):
             assert report['compiler'] == proof['host']['compiler']
             canonical_sha = load(ROOT / report['evidence'])['harnessSHA256']
             assert report['canonical_program_sha256'] == canonical_sha
-            assert report['apple_host_adapter'] is (name == 'mfc-restore')
-            if name == 'mfc-restore':
-                canonical_path = OUT / 'mfc-restore-canonical.cpp'
+            assert report['apple_host_adapter'] is (name in ('mfc-restore', 'shader'))
+            if name in ('mfc-restore', 'shader'):
+                canonical_path = OUT / (name + '-canonical.cpp')
                 canonical_bytes = canonical_path.read_bytes()
                 assert sha(canonical_bytes) == canonical_sha
                 adapted = apple_host_program(name, canonical_bytes.decode())

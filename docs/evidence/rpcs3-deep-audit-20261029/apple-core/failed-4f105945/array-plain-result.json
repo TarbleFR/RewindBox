@@ -1,0 +1,35 @@
+{
+  "passed": true,
+  "program_sha256": "4126d098f68533944a65a78bcc975e4761372b194e42689093cfdf0a83dcc18d",
+  "evidence": "docs/evidence/rpcs3-device595-20261029/array-plain.json",
+  "canonical_program_sha256": "4126d098f68533944a65a78bcc975e4761372b194e42689093cfdf0a83dcc18d",
+  "apple_host_adapter": false,
+  "compiler": "Homebrew clang version 22.1.8",
+  "flags": [
+    "-std=c++20",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+    "-O3"
+  ],
+  "results": {
+    "contentAndAlignmentChecks": 726336,
+    "doubleFreeOrLeak": false,
+    "candidateSwapOrMoveAllocations": 0,
+    "baseline4096RegionMoveAllocations": 1,
+    "baseline4096RegionMoveBytes": 163840,
+    "candidate4096RegionMoveAllocations": 0,
+    "candidate4096RegionMoveBytes": 0,
+    "heapOwnershipTransferred": true
+  },
+  "mode": "plain",
+  "output_sha256": "b1c2cc865d5d8a27373c947cf353ec5722b28c3605e4dcf0d5da4cd4829b2ae6",
+  "compile_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "physical_device_tested": false,
+  "gpu_executed": false,
+  "llvm_ir_builder_simulated": true
+}
