@@ -61,3 +61,20 @@ destinataire ; la clé privée n'est pas versionnée.
 L'installation nécessite une nouvelle signature avec SideStore ou un outil de
 sideload compatible. Aucun gain de FPS, baisse de RAM en jeu, test sur appareil
 physique ou correction visuelle constatée n'est établi par cet assemblage.
+
+## Première tentative et correction de recette
+
+Le run `40926266201`, source `929b644327157e542d8043f4c2d7b038a7b8e697`,
+a compilé l'application avec succès en 378,903 secondes. L'étape d'intégration
+des notices a ensuite refusé une référence Dolphin incorrecte : une substitution
+du numéro de build avait aussi changé `594` en `595` à l'intérieur de son SHA.
+Le binaire Dolphin réutilisé était inchangé ; sa notice conservait sa vraie
+référence. Le contrôle a donc correctement arrêté la livraison avant signature.
+
+La recette rétablit `7cac54161659421ed95c2cd1c0b0746539a4cd38`. Son contrôle
+initial authentifie désormais les neuf pins de sources et de runs des composants.
+Le contrôle négatif reproduisant exactement la référence erronée est rejeté
+avant compilation. Les sources produit et les deux cores ne changent pas.
+Seuls les diagnostics ont été conservés après cette tentative ; l'application
+doit être assemblée à nouveau. L'échec reste documenté dans
+`evidence/rewind595/failed-929b6443.json`.

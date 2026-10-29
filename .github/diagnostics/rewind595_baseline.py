@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -41,6 +42,25 @@ RECIPE = {
     'build-utils/validate_rpcs3_core595_ipa.py',
     'build-utils/delivery-595-recipient.pem',
 }
+COMPONENT_PINS = {
+    'DOLPHIN_SHA': '7cac54161659421ed95c2cd1c0b0746539a4cd38',
+    'DOLPHIN_CORE_HOST_SHA': 'ae7d46f90dff64ce698b8c18e0c12510dbae96fe',
+    'ARMSX2_CORE_HOST_SHA': '1343906f05e33b40f10f7026a1a6e2327c338d0e',
+    'ARMSX2_CORE_RUN_ID': '39178893158',
+    'RPCS3_CORE_HOST_SHA': 'f42573afc25842ca9a0068f4ad505bbfe5342623',
+    'RPCS3_CORE_RUN_ID': '40917423708',
+    'LIBRETRO_CORES_HOST_SHA': 'ab9361c29f7c9ab769c4263dd8b7427fc4f4c036',
+    'LIBRETRO_CORES_VALIDATED_SHA': 'ab9361c29f7c9ab769c4263dd8b7427fc4f4c036',
+    'LIBRETRO_CORES_RUN_ID': '39455712245',
+}
+
+
+def component_pins(workflow):
+    """Reject altered immutable pins before expensive application compilation."""
+    for name, expected in COMPONENT_PINS.items():
+        values = re.findall(r'^      ' + re.escape(name) + r':\s*([^\r\n]+)$', workflow, re.MULTILINE)
+        assert len(values) == 1 and values[0].strip().strip("'\"") == expected, 'Wrong component pin: ' + name
+    return dict(COMPONENT_PINS)
 
 
 def git(*args):
@@ -74,6 +94,7 @@ def source_contract():
     assert not missing, 'Missing595 recipe input: ' + repr(missing)
     tracked = set(git('ls-files', '-z').split('\0'))
     assert RECIPE <= tracked, 'A595 recipe input is not committed'
+    pins = component_pins((ROOT / '.github/workflows/rewind595-baseline-delivery.yml').read_text())
 
     baseline_path = ROOT / 'docs/evidence/rewind594/host-tree594.json'
     baseline_bytes = baseline_path.read_bytes()
@@ -90,6 +111,7 @@ def source_contract():
         baseline=dict(build=594, source=BASE_SOURCE, tree=BASE_TREE, run=40848076659, ipaSHA256=BASE_IPA_SHA256),
         productTrees=actual, unchangedProductTrees=[name for name in PRODUCTS if name != 'native'],
         reviewedNativeProductDelta=[STORE_PATH], hostStore=dict(blob=STORE_BLOB, sha256=STORE_SHA256),
+        componentPins=pins,
         recipeSHA256={path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest() for path in sorted(RECIPE)},
         existingBuildAndToolInputsUnchanged=True, restoredOlderCheckout=False,
         historicalContractsReplayed=False, nativeTestsReplayed=False,

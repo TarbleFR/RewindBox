@@ -1,0 +1,462 @@
+{
+  "result": "failed",
+  "source": "929b644327157e542d8043f4c2d7b038a7b8e697",
+  "run": 40926266201,
+  "job": 123632483238,
+  "applicationCompilation": {
+    "result": "passed",
+    "seconds": 378.902970708
+  },
+  "failedStep": "Embed legal, license and source notices",
+  "cause": "Build-number text substitution accidentally changed the immutable Dolphin source revision in the workflow.",
+  "expectedDolphinSource": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+  "incorrectDolphinSource": "7cac54161659521ed95c2cd1c0b0746539a4cd38",
+  "diagnostic": "Legal notice assets/legal/Dolphin-COPYING.txt is stale: expected 'Pinned revision/tag: 7cac54161659521ed95c2cd1c0b0746539a4cd38'",
+  "diagnosticArtifacts": [
+    {
+      "id": 12921606716,
+      "name": "RewindBox-Build595-929b644327157e542d8043f4c2d7b038a7b8e697-cold-diagnostics",
+      "size_in_bytes": 5982386,
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12921606716",
+      "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12921606716/zip",
+      "expired": false,
+      "created_at": "2026-10-29T18:09:41Z",
+      "expires_at": "2026-11-12T18:09:38Z",
+      "updated_at": "2026-10-29T18:09:41Z",
+      "digest": "sha256:76d21ad8c7d16e41663bf17c6f894d9236346fc348e522291323fdb9f386484d",
+      "workflow_run": {
+        "id": 40926266201,
+        "repository_id": 1329032710,
+        "head_repository_id": 1329032710,
+        "head_branch": "Claude",
+        "head_sha": "929b644327157e542d8043f4c2d7b038a7b8e697"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "number": 1,
+      "name": "Set up job",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 2,
+      "name": "Checkout exact candidate",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 3,
+      "name": "Verify delivered 594 plus the exact latest RPCS3 MeloNX and NeoSwap inputs",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 4,
+      "name": "Retain the new RPCS3 runtime candidate and MeloNX optimization component proofs",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 5,
+      "name": "Select Xcode 26.3 for NeoPlay and Google Cast",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 6,
+      "name": "Set up Flutter 3.47.2",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 7,
+      "name": "Record exact build environment and start measurement",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 8,
+      "name": "Resolve locked Dart dependencies",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 9,
+      "name": "Prepare lightweight build tools",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 10,
+      "name": "Generate iOS host",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 11,
+      "name": "Download last published RewindBox IPA 527 (release 0.0.9)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 12,
+      "name": "Reuse verified components and resources from published IPA 527",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 13,
+      "name": "Restore unchanged canonical StikJIT compilation interfaces",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 14,
+      "name": "Build canonical StikJIT from pinned sources for iOS 18 26 and 27",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 15,
+      "name": "Install verified cached StikJIT interfaces",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 16,
+      "name": "Download and authenticate the exact RPCS3 runtime candidate archive once",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 17,
+      "name": "Verify and install the authenticated RPCS3 runtime candidate with unchanged ABI checks",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 18,
+      "name": "Verify the retained Dolphin binary digest, exports and resource donor",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 19,
+      "name": "Remove the bootstrap ARMSX2 placeholder before installing the retained artifact",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 20,
+      "name": "Download pinned ARMSX2 2.6 Core",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 21,
+      "name": "Verify the retained ARMSX2 artifact digest, ABI and shader assets",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 22,
+      "name": "Prepare the retained libretro artifact destination",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 23,
+      "name": "Download pinned libretro cores",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 24,
+      "name": "Verify retained libretro digests, source identity and exported ABI",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 25,
+      "name": "Require only the exact MeloNX compilation and successful runtime validation",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 26,
+      "name": "Download only the pinned MeloNX optimization archive by ID and SHA256",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 27,
+      "name": "Download the source-built private MeloNX dependencies",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 28,
+      "name": "Verify and materialize the six private MeloNX frameworks and original controls",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 29,
+      "name": "Package the standalone MeloNX app's own MoltenVK (maintainer exception, pinned upstream bytes)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 30,
+      "name": "Bind the downloaded MeloNX Core85 to all 87 compiled inputs and its successful runtime proof",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 31,
+      "name": "Prepare emulator build definitions",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 32,
+      "name": "Configure release host",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 33,
+      "name": "Align application and extension versions to the pubspec version",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 34,
+      "name": "Verify the reviewed NeoSwap host source is the source CocoaPods will compile",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 35,
+      "name": "Compile Release device binary with measured AOT and Xcode phases",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 36,
+      "name": "Embed NeoPlay source identity and dependency acknowledgements",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 37,
+      "name": "Embed verified RPCS3 Core and signing metadata",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 38,
+      "name": "Embed the authenticated RPCS3 runtime candidate identity and compiled payload binding",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 39,
+      "name": "Embed the MeloNX optimization engine595 identity",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 40,
+      "name": "Embed lazy-loaded ARMSX2 Core framework",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 41,
+      "name": "Embed lazy-loaded libretro cores, MoltenVK and system assets",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 42,
+      "name": "Embed legal, license and source notices",
+      "status": "completed",
+      "conclusion": "failure"
+    },
+    {
+      "number": 43,
+      "name": "Embed verified MeloNX runtime and actual build-source notices",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 44,
+      "name": "Embed the standalone MeloNX MoltenVK with its provenance and Apache-2.0 notice",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 45,
+      "name": "Package the rebuilt application and retain current component identities",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 46,
+      "name": "Seal every executable, framework and extension for SideStore",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 47,
+      "name": "Preserve sealed IPA and source receipts before final compatibility validators",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 48,
+      "name": "Preserve sealed recovery piece 1 of 4",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 49,
+      "name": "Preserve sealed recovery piece 2 of 4",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 50,
+      "name": "Preserve sealed recovery piece 3 of 4",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 51,
+      "name": "Preserve sealed recovery piece 4 of 4",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 52,
+      "name": "Verify actual packaged MeloNX exports, helper identity and native notices",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 53,
+      "name": "Verify the signed RPCS3 runtime candidate receipt against its authenticated original payload",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 54,
+      "name": "Verify the signed MeloNX optimization engine595 against its original payload",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 55,
+      "name": "Verify final signed legal bundle and application and extension versions",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 56,
+      "name": "Finalize observed timings and artifact identity",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 57,
+      "name": "Prepare encrypted delivery and evidence",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 58,
+      "name": "Upload encrypted IPA and verification reports",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 59,
+      "name": "Prepare bounded encrypted transport pieces",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 60,
+      "name": "Upload encrypted transport piece 1 of 4",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 61,
+      "name": "Upload encrypted transport piece 2 of 4",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 62,
+      "name": "Upload encrypted transport piece 3 of 4",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 63,
+      "name": "Upload encrypted transport piece 4 of 4",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 64,
+      "name": "Collect diagnostic evidence",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 65,
+      "name": "Upload diagnostics",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 66,
+      "name": "Remove temporary secrets",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 130,
+      "name": "Post Restore unchanged canonical StikJIT compilation interfaces",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "number": 131,
+      "name": "Post Set up Flutter 3.47.2",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 132,
+      "name": "Post Checkout exact candidate",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "number": 133,
+      "name": "Complete job",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "ipaProduced": false,
+  "compiledApplicationRetained": false,
+  "nativeCoresChanged": false,
+  "remedy": "Restore exact original Dolphin revision; authenticate all nine component source/run environment pins before compilation. Reassemble application because only diagnostics were retained."
+}
