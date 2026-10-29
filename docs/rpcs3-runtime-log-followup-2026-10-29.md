@@ -270,3 +270,28 @@ with `--dependency-root` when using a sparse reference tree.
    Reuse the delivered unchanged components and historical evidence. The
    supplied NeoSwap data does not establish mapping cost as the primary
    freeze source, so no NeoSwap policy or memory budget is changed here.
+
+## Authorized Apple preflight: test adapter correction
+
+The maintainer authorized publication on `Claude` and one Core build. The three
+reviewed source trees were published as `ff3297cc`, `4a636466`, and `d6f4ac09`;
+their complete Git tree IDs are identical to the corresponding local commits
+`7cf8609c`, `dcd9d4b1`, and `dee4a531`. The existing MeloNX ancestry is retained.
+
+Run `40814187509` passed the source/history gate, both shader modes and normal
+Vulkan-state checks on Apple ARM64 / Homebrew Clang 22.1.8, then stopped at the
+Vulkan sanitizer executable with SIGABRT. Its Core compile step was skipped.
+A targeted Clang 22 sanitizer reproduction exposed an invalid enum value in
+the test adapter: it omitted Vulkan's `VK_DYNAMIC_STATE_MAX_ENUM` sentinel,
+so the deliberate unknown-extension value 987654 was outside the stub's range.
+The adapter now matches the real Vulkan enum range. No sanitizer is disabled
+and unknown-state coverage remains. The runner exposes captured error output
+before failing. This changes no canonical Core source or production behavior.
+
+The corrected Clang 22 ASan/UBSan run passes all 514 mask cases and 100,000
+randomized draws with the same command counts. Its generated-code SHA is
+`fc1340dbae7ab8aa95e6d5ff21a12b909545aec293c0872d3c9c3edc9bd3d213`.
+Evidence: `docs/evidence/rpcs3-runtime-20261029b/dynamic-clang22-enum-fix.json`.
+Earlier reports remain historical executions of their recorded harness.
+Apple validation of the corrected adapter and the single Core compilation
+are still pending at this checkpoint. No IPA or release was produced.

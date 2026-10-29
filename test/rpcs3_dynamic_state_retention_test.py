@@ -71,8 +71,12 @@ def main():
             command+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
             if sys.platform.startswith('linux'):command+=['-fno-pie','-no-pie']
         subprocess.run(command,check=True)
-        run=subprocess.run([str(exe)],check=True,capture_output=True,text=True,
+        run=subprocess.run([str(exe)],capture_output=True,text=True,
             env=dict(os.environ,ASAN_OPTIONS='detect_leaks=0',UBSAN_OPTIONS='halt_on_error=1'))
+        if run.returncode:
+            print(run.stdout, end='')
+            print(run.stderr, end='', file=sys.stderr)
+            run.check_returncode()
         result=json.loads(run.stdout)
         report={'passed':True,'test':'Vulkan dynamic-state retention','sanitized':a.sanitize,'compiler':subprocess.check_output(shlex.split(a.compiler)+['--version'],text=True).splitlines()[0],
             'compilerFlags':[flag for flag in command[len(compiler):] if flag not in (str(cpp),str(exe),'-o')],
