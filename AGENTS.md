@@ -9,7 +9,11 @@ and obsolete texture expiry, remove redundant bindless reference arrays while
 preserving queued command snapshots, and reuse Vulkan array storage sets with
 barriers and descriptor invalidation intact. Three guarded adapters are wired
 into prepare_embedded and the engine workflow. Targeted production-code host
-tests and the complete managed library build pass. Evidence and limitations:
+tests and the complete managed library build pass. Apple NativeAOT candidate
+`a33eee84` passes run `40822941790` (engine 80) on its first attempt, including
+two ARM64 iOS simulator sessions; artifact `12875966763`. Reuse that exact
+engine artifact when preparing the next IPA instead of rebuilding it unchanged.
+Evidence and limitations:
 `docs/melonx-hogwarts-memory-2026-10-29.md` and its evidence directory.
 The supplied log shows a 2.6 FPS median in the final slow phase, high background
 GC activity and renderer congestion; it has no explicit application/engine

@@ -178,6 +178,44 @@ three adapters and includes them in `embedded-inputs.json`. The MeloNX engine
 workflow runs the three tests before building the Apple engine, and watches
 all their adapter and test paths.
 
+## Successful Apple engine build
+
+Commit `a33eee843956a2607754a7c8d601ea62439e4bee` completed engine build
+[#80, run 40822941790](https://github.com/TarbleFR/RewindBox/actions/runs/40822941790)
+on its first attempt. All three new tests pass on the Apple runner, with the
+same allocation counts as the initial host measurements. NativeAOT compilation
+for iOS ARM64 and its simulator variant, platform/export checks and the runtime
+smoke test all pass. The JIT comparison preserves 2,000 emitted ARM64 fragments
+(64,085,248 bytes); that comparison does not execute those generated fragments.
+
+The runtime smoke test performs two sessions in the iOS 26.5 ARM64 simulator,
+using the rebuilt NativeAOT library. Its simulator core SHA256 is
+`a8bab9862c1749d18ae1f45120ef19c3ccb58df300fdc62f34da1b785ac6ef6c`.
+It confirms initialization, donated memory backing, guest homebrew SVC activity,
+performance snapshots and session close. It does not run Hogwarts, produce
+homebrew video or establish physical-iPhone JIT execution or FPS.
+
+Artifact:
+[`MeloNX-engine-a33eee843956a2607754a7c8d601ea62439e4bee`](https://github.com/TarbleFR/RewindBox/actions/runs/40822941790/artifacts/12875966763),
+ID `12875966763`, 102,604,839 bytes. GitHub's artifact API and upload log agree on
+the ZIP digest
+`d75a4ab4539f766a929c557651436d0adb63393bb4a44190c183b79922ac64b5`.
+The artifact has not been independently downloaded and rehashed in this task.
+It includes the adapted source, input receipts, targeted checks and runtime
+evidence. The run builds the engine; it does not assemble a new application IPA.
+See the complete [Apple evidence receipt](evidence/melonx-hogwarts-20261029/apple-engine.json).
+
+The short default-JIT bindless microtimers on the Apple runner are slower for
+the candidate, despite their lower allocation counts. A targeted host diagnostic
+with `DOTNET_TieredCompilation=0` removes the approximately twofold gap, but
+does not establish a CPU speedup: smaller cases improve, while the 4,096-entry
+cases remain approximately 4.5% and 13% slower in that single short run. The
+production iOS engine uses NativeAOT, and these doubled-backend timers are not
+a device benchmark. Keep the distinction between proven allocation reductions
+and unmeasured whole-engine CPU/FPS impact. The diagnostic, including all raw
+microtimers and its runtime setting, is retained in
+[`bindless-optimized-jit-checks.json`](evidence/melonx-hogwarts-20261029/bindless-optimized-jit-checks.json).
+
 ## Device validation still needed
 
 The implementation removes demonstrated resource-lifetime defects and
