@@ -136,7 +136,8 @@ ENGINE_STEPS = [
     'Exercise this exact rebuilt engine in an ARM64 iOS app',
 ]
 CHECKS = ['jit-context', 'jit-block-split', 'buffer-view', 'pipeline-cache',
-          'gpu-allocation', 'memory-query', 'input', 'program-queue', 'warmup-close']
+          'input', 'program-queue', 'warmup-close']
+STDOUT_CHECK_STEP = 'Verify pooled allocation ownership and GPU contiguous-range reads'
 
 
 def sha(path):
@@ -236,6 +237,10 @@ def engine_identity():
 
 def engine_evidence():
     """Validate the downloaded 29 October engine, its new checks and source markers."""
+    # These two tests write stdout, not JSON receipts. Bind their actual
+    # successful step in the pinned run instead of inventing receipt files.
+    run = engine_run()
+    assert STDOUT_CHECK_STEP in run['requiredSteps']
     assert sha(APPLE_PROOF) == APPLE_PROOF_SHA256, 'published Apple proof changed'
     proof = json.loads((ROOT / APPLE_PROOF).read_bytes())
     assert proof['result'] == 'passed' and proof['runConclusion'] == 'success'
@@ -282,6 +287,8 @@ def engine_evidence():
                 artifact=MELONX_ARTIFACT_ID, expectedArchiveSHA256=MELONX_ARTIFACT_SHA256,
                 images=images, adaptationInputs=len(inputs), adaptedSourceGroups=sorted(MARKERS),
                 newCheckReceipts=checks, simulatorHomebrewSessions=2,
+                stdoutOnlyChecks=dict(tests=['gpu-allocation', 'memory-query'],
+                                      run=run['run'], step=STDOUT_CHECK_STEP, result='passed'),
                 originalPayloadFingerprint=normalized_payload_fingerprint(
                     (NEW / 'ios-arm64/Ryujinx.Library.dylib').read_bytes()),
                 physicalDeviceTested=False, gameTested=False, fpsGainMeasured=False)

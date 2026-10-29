@@ -43,6 +43,14 @@ claim a delivered IPA or physical-device performance result until the completed
 delivery receipt is recorded. The IPA still requires SideStore/Apple re-signing
 for installation. No caches, saves or per-game settings are cleared.
 
+First assembly run40802595865 stopped before Xcode because the MeloNX guard
+expected JSON receipts for two tests that write only stdout. Their successful
+official step is now authenticated directly. The complete actual engine archive
+was then downloaded, SHA-256 checked and passed the production guard: both
+binaries/platforms, 57 inputs, 12 source groups, seven JSON receipts and the
+stdout-only pool/range step. See `evidence/melonx-engine588-archive.json`.
+Both compiled engines are reused by the corrected assembly.
+
 Next device comparison: the same restored God of War III, Assassin's Creed and
 MeloNX scenes with the existing counters and retained caches. Host tests and
 successful compilation do not prove additional FPS, RAM reduction or gameplay
