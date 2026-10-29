@@ -1,0 +1,589 @@
+{
+  "candidate_measured": false,
+  "input_sha256": {
+    "RPCS3-milestones(20261029-191321).log": "ad1cd7d38276232224bac63c5eafef72cc87e3bfc972f6b814c43cde0315de1a",
+    "RPCS3-performance(5).log": "76a2883f3bddf0f79ac6d7433f079e4777d4720f3b369182e557c18423075b3c",
+    "RPCS3-performance.1(1).log": "02448705baa6ae496b4fd6af608228be45c71ace33bec9a3d9ca5c2d984c4881",
+    "ScreenRecording_10-29-2026 01-33-09_1(1).mov": "0098f502b3137e84bd203aeacb2d841caef6344b4ff9656d00b9031ae88cf3d5",
+    "app(20261029-191324).log": "a6d1bfe029ea8dd07b6b45b48de49d528fda88c5bdee4e7f91b1a6592a803110",
+    "NeoSwap-v1(1).jsonl": "fb764588c087d762a70ba7e4c00a5923955461515db1df63691200a6cf26900e",
+    "ScreenRecording_10-29-2026 10-55-36_1.mov": "b7e90925cf252f45b537e018fb28b165f17acffa99fc87d9c0c28cb473e05f0c"
+  },
+  "performance_file_build_counts": {
+    "RPCS3-performance(5).log": {
+      "595": 1406
+    },
+    "RPCS3-performance.1(1).log": {
+      "594": 2534,
+      "595": 1052
+    }
+  },
+  "analyzed_build": "595",
+  "pid": 50728,
+  "window_selection": "Contiguous guest-output windows; no scene-matched baseline comparison and no FPS gain inference. Config values are observed, not changed.",
+  "config": {
+    "BLES01717": {
+      "shader_mode": "Legacy%20Recompiler%20(single-threaded)",
+      "wcb": "false",
+      "wdb": "false",
+      "rsx_res": "100",
+      "spu_block": "Safe",
+      "async_tex": "false",
+      "mt_rsx": "false",
+      "mlaa_bypass": "0"
+    },
+    "BCES00510": {
+      "shader_mode": "Legacy%20Recompiler%20(single-threaded)",
+      "wcb": "true",
+      "wdb": "false",
+      "rsx_res": "75",
+      "spu_block": "Mega",
+      "async_tex": "false",
+      "mt_rsx": "true",
+      "mlaa_bypass": "1"
+    },
+    "BLES00158": {
+      "shader_mode": "Legacy%20Recompiler%20(single-threaded)",
+      "wcb": "false",
+      "wdb": "false",
+      "rsx_res": "100",
+      "spu_block": "Safe",
+      "async_tex": "true",
+      "mt_rsx": "true",
+      "mlaa_bypass": "0"
+    }
+  },
+  "scenes": [
+    {
+      "session": 2,
+      "title": "BLES01717",
+      "selected_windows": [
+        {
+          "window": 8,
+          "fps_from_guest_intervals": 40.06,
+          "p95_ms": 35.459,
+          "max_ms": 166.185,
+          "shader_compile_calls": {
+            "source": 1,
+            "module": 1,
+            "graphics": 0,
+            "compute": 1
+          },
+          "texture_ms": 4.983,
+          "vertex_ms": 1.554,
+          "setup_ms": 1.736,
+          "draws_per_frame": 3912.8
+        },
+        {
+          "window": 9,
+          "fps_from_guest_intervals": 41.058,
+          "p95_ms": 36.749,
+          "max_ms": 83.825,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 4.616,
+          "vertex_ms": 1.113,
+          "setup_ms": 1.379,
+          "draws_per_frame": 2739.3
+        },
+        {
+          "window": 10,
+          "fps_from_guest_intervals": 35.403,
+          "p95_ms": 37.047,
+          "max_ms": 435.285,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 5.558,
+          "vertex_ms": 1.408,
+          "setup_ms": 1.904,
+          "draws_per_frame": 2768.0
+        },
+        {
+          "window": 11,
+          "fps_from_guest_intervals": 37.016,
+          "p95_ms": 38.994,
+          "max_ms": 58.857,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 6.156,
+          "vertex_ms": 1.463,
+          "setup_ms": 1.681,
+          "draws_per_frame": 3132.4
+        },
+        {
+          "window": 12,
+          "fps_from_guest_intervals": 33.884,
+          "p95_ms": 48.808,
+          "max_ms": 67.094,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 7.131,
+          "vertex_ms": 1.628,
+          "setup_ms": 1.622,
+          "draws_per_frame": 2807.8
+        },
+        {
+          "window": 13,
+          "fps_from_guest_intervals": 28.577,
+          "p95_ms": 50.002,
+          "max_ms": 1073.586,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 5.631,
+          "vertex_ms": 1.703,
+          "setup_ms": 1.33,
+          "draws_per_frame": 1878.5
+        }
+      ]
+    },
+    {
+      "session": 4,
+      "title": "BCES00510",
+      "selected_windows": [
+        {
+          "window": 2,
+          "fps_from_guest_intervals": 26.163,
+          "p95_ms": 50.135,
+          "max_ms": 111.065,
+          "shader_compile_calls": {
+            "source": 4,
+            "module": 4,
+            "graphics": 0,
+            "compute": 4
+          },
+          "texture_ms": 6.721,
+          "vertex_ms": 1.768,
+          "setup_ms": 1.227,
+          "draws_per_frame": 1066.2
+        },
+        {
+          "window": 3,
+          "fps_from_guest_intervals": 23.234,
+          "p95_ms": 64.388,
+          "max_ms": 85.076,
+          "shader_compile_calls": {
+            "source": 2,
+            "module": 2,
+            "graphics": 1,
+            "compute": 0
+          },
+          "texture_ms": 9.038,
+          "vertex_ms": 1.929,
+          "setup_ms": 1.34,
+          "draws_per_frame": 1691.8
+        },
+        {
+          "window": 4,
+          "fps_from_guest_intervals": 19.824,
+          "p95_ms": 98.764,
+          "max_ms": 117.983,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 15.173,
+          "vertex_ms": 2.565,
+          "setup_ms": 1.53,
+          "draws_per_frame": 825.1
+        },
+        {
+          "window": 5,
+          "fps_from_guest_intervals": 25.374,
+          "p95_ms": 53.194,
+          "max_ms": 54.011,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 5.853,
+          "vertex_ms": 1.267,
+          "setup_ms": 0.74,
+          "draws_per_frame": 648.2
+        }
+      ]
+    },
+    {
+      "session": 5,
+      "title": "BLES00158",
+      "selected_windows": [
+        {
+          "window": 18,
+          "fps_from_guest_intervals": 28.535,
+          "p95_ms": 48.616,
+          "max_ms": 50.365,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 6.897,
+          "vertex_ms": 2.775,
+          "setup_ms": 4.179,
+          "draws_per_frame": 2448.4
+        },
+        {
+          "window": 19,
+          "fps_from_guest_intervals": 30.975,
+          "p95_ms": 33.929,
+          "max_ms": 50.048,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 5.478,
+          "vertex_ms": 2.656,
+          "setup_ms": 3.546,
+          "draws_per_frame": 2353.1
+        },
+        {
+          "window": 20,
+          "fps_from_guest_intervals": 30.004,
+          "p95_ms": 33.822,
+          "max_ms": 34.127,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 4.76,
+          "vertex_ms": 1.94,
+          "setup_ms": 2.693,
+          "draws_per_frame": 2146.8
+        },
+        {
+          "window": 21,
+          "fps_from_guest_intervals": 30.278,
+          "p95_ms": 36.368,
+          "max_ms": 50.444,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 5.167,
+          "vertex_ms": 1.947,
+          "setup_ms": 2.946,
+          "draws_per_frame": 1955.9
+        },
+        {
+          "window": 22,
+          "fps_from_guest_intervals": 30.591,
+          "p95_ms": 33.91,
+          "max_ms": 42.044,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 5.55,
+          "vertex_ms": 2.094,
+          "setup_ms": 3.282,
+          "draws_per_frame": 1941.3
+        },
+        {
+          "window": 23,
+          "fps_from_guest_intervals": 27.398,
+          "p95_ms": 50.149,
+          "max_ms": 61.987,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 7.053,
+          "vertex_ms": 2.802,
+          "setup_ms": 4.688,
+          "draws_per_frame": 2140.8
+        },
+        {
+          "window": 24,
+          "fps_from_guest_intervals": 29.182,
+          "p95_ms": 49.423,
+          "max_ms": 50.508,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 6.474,
+          "vertex_ms": 3.045,
+          "setup_ms": 4.524,
+          "draws_per_frame": 2239.5
+        },
+        {
+          "window": 25,
+          "fps_from_guest_intervals": 28.561,
+          "p95_ms": 50.074,
+          "max_ms": 50.824,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 6.434,
+          "vertex_ms": 2.868,
+          "setup_ms": 4.396,
+          "draws_per_frame": 2274.2
+        },
+        {
+          "window": 26,
+          "fps_from_guest_intervals": 30.491,
+          "p95_ms": 35.216,
+          "max_ms": 50.199,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 5.091,
+          "vertex_ms": 2.683,
+          "setup_ms": 3.587,
+          "draws_per_frame": 1904.6
+        },
+        {
+          "window": 27,
+          "fps_from_guest_intervals": 30.295,
+          "p95_ms": 33.837,
+          "max_ms": 34.022,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 3.883,
+          "vertex_ms": 1.81,
+          "setup_ms": 2.487,
+          "draws_per_frame": 1707.8
+        },
+        {
+          "window": 28,
+          "fps_from_guest_intervals": 29.48,
+          "p95_ms": 38.599,
+          "max_ms": 50.329,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 5.273,
+          "vertex_ms": 2.393,
+          "setup_ms": 3.499,
+          "draws_per_frame": 2091.1
+        },
+        {
+          "window": 29,
+          "fps_from_guest_intervals": 28.47,
+          "p95_ms": 42.11,
+          "max_ms": 47.753,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 7.232,
+          "vertex_ms": 3.018,
+          "setup_ms": 4.808,
+          "draws_per_frame": 2493.3
+        },
+        {
+          "window": 30,
+          "fps_from_guest_intervals": 31.662,
+          "p95_ms": 34.758,
+          "max_ms": 50.142,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 5.624,
+          "vertex_ms": 2.43,
+          "setup_ms": 3.598,
+          "draws_per_frame": 2004.1
+        },
+        {
+          "window": 31,
+          "fps_from_guest_intervals": 33.051,
+          "p95_ms": 33.871,
+          "max_ms": 35.766,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 3.955,
+          "vertex_ms": 1.549,
+          "setup_ms": 1.929,
+          "draws_per_frame": 1560.2
+        },
+        {
+          "window": 32,
+          "fps_from_guest_intervals": 31.468,
+          "p95_ms": 33.808,
+          "max_ms": 49.368,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 4.705,
+          "vertex_ms": 1.975,
+          "setup_ms": 2.613,
+          "draws_per_frame": 1664.6
+        },
+        {
+          "window": 33,
+          "fps_from_guest_intervals": 34.54,
+          "p95_ms": 33.854,
+          "max_ms": 50.619,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 4.435,
+          "vertex_ms": 1.887,
+          "setup_ms": 2.523,
+          "draws_per_frame": 1446.3
+        },
+        {
+          "window": 34,
+          "fps_from_guest_intervals": 35.648,
+          "p95_ms": 33.741,
+          "max_ms": 316.392,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 3.783,
+          "vertex_ms": 1.373,
+          "setup_ms": 1.796,
+          "draws_per_frame": 1169.7
+        },
+        {
+          "window": 35,
+          "fps_from_guest_intervals": 38.364,
+          "p95_ms": 33.872,
+          "max_ms": 35.398,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 0,
+            "compute": 0
+          },
+          "texture_ms": 3.807,
+          "vertex_ms": 1.204,
+          "setup_ms": 1.629,
+          "draws_per_frame": 970.5
+        },
+        {
+          "window": 36,
+          "fps_from_guest_intervals": 34.424,
+          "p95_ms": 33.924,
+          "max_ms": 282.985,
+          "shader_compile_calls": {
+            "source": 0,
+            "module": 0,
+            "graphics": 6,
+            "compute": 0
+          },
+          "texture_ms": 4.381,
+          "vertex_ms": 1.697,
+          "setup_ms": 2.141,
+          "draws_per_frame": 1192.7
+        }
+      ]
+    }
+  ],
+  "gow3_wait": {
+    "timestamp_utc": "2026-10-29T19:06:56.445992Z",
+    "address": "0x60300510",
+    "expected": "0x6F0E",
+    "observed": "0x6F0D",
+    "waited_us": 2000225,
+    "resolved_event_in_available_milestones": false,
+    "producer_cause_proven": false
+  },
+  "neoswap": {
+    "rows": 737,
+    "all_build595_pid50728": true,
+    "ranges": {
+      "processFootprintBytes": {
+        "min": 2030557944,
+        "max": 4643561648
+      },
+      "processAvailableBytes": {
+        "min": 2335760208,
+        "max": 4948747528
+      },
+      "processCompressedLedgerBytes": {
+        "min": 1178157056,
+        "max": 1783201792
+      },
+      "thermalState": {
+        "min": 1,
+        "max": 1
+      },
+      "ioErrors": {
+        "min": 0,
+        "max": 0
+      },
+      "iosMemoryWarningCount": {
+        "min": 0,
+        "max": 0
+      },
+      "donorLostCount": {
+        "min": 0,
+        "max": 0
+      }
+    },
+    "jetsam_confirmed": false
+  },
+  "user_feedback": {
+    "BO2": "User reports clear improvement, remaining stutters/FPS drops and weapon/forearm visual glitches. No quantitative gain inferred.",
+    "GOW3": "User reports no visual/FPS improvement and freeze on the same played scene.",
+    "AC": "User reports flickering near initial wall torches, frequent small stutters, approximately 27 FPS."
+  }
+}

@@ -2,6 +2,107 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## RPCS3 deep audit after device595 — 29 October 2026
+
+This source phase follows local a363d923, preserving its three changes and the
+preceding 543996ad lot. Remote Claude was rechecked through the GitHub branch API
+at c0df3394d81d957eb7b28c85802278b69cc0f71b before and after this phase. No push.
+The new canonical patch SHA256 is
+5ba1424bcd40afc96f3263e236d84ed643cb7aac15cbcd1fb513e85d24e27ec8:
+319 postimages, 308 historical postimages unchanged, eleven Core files changed.
+The twelfth production input is native/neoswap-storage/Store.cpp.
+
+Retained changes: correct SNR old count, re-arm restored deferred MFC work,
+publish LLVM barrier tags, use the blocking helper on a full LLVM MFC queue,
+and resume the current WRCH after an interrupt before its acceptance. Fix native
+view invalidation, temporary-pool depth/mips/format-class matching, depth format
+classification, requested image usages and vertex-read barrier scopes. Avoid
+clears only for fully covered color cube/volume copies; avoid small copy-source
+set allocations. Reduce shader formatter scanning/callback allocations, merge
+JIT free ranges directly, avoid repeated NeoSwap RAM totals, and create streaming
+synchronization objects on first use while preserving their reuse distance.
+
+The compiler-free deep contract passes on a freshly materialized candidate:
+21 recorded host modes authenticated (17 final, four intermediate MFC stages),
+plus both complete POSIX Store suites. Exact source/extracted-program hashes,
+inverse delta, source/recipe/ABI and exports pass. Barrier-mask validation is
+plain only; other retained harnesses have plain and ASan/UBSan results. LSan,
+actual LLVM compilation, Apple/GPU and iPhone execution are not claimed. The
+final MFC harness repeats intermediate tag/full-queue scenarios with IRQ/IRET.
+
+PPU codegen identity remains a987639e9f838d1c; SPU changes normally from
+d070cb361bdef607 to 477a3fa442d27917. No compatibility alias was added: first-use
+SPU cache compilation may increase startup pauses. LLVM GPR materialization may
+reduce store elimination. Small-copy specialization may duplicate the GPU body;
+the measured +955 bytes covers bookkeeping only, not Apple code size. Retain
+negative timing cases (including nine distinct copy inputs +8.7%). Three raw
+shader cache experiments were withdrawn; final rsx_cache.h matches baseline.
+
+38 JSON investigation entries plus CPU/MFC reviews cover the requested domains.
+They are not 38 independent speedups. Existing BO2/AC stutters include windows
+without shader compilation. GOW3's missing label producer remains unidentified.
+The five SPU protocol defects and rendering reproductions do not prove that
+the three reported iPhone scenes are fixed. No new FPS claim, telemetry, Core,
+IPA or release. Historical delivery pins still describe IPA595/Core f42573af,
+not these unbuilt sources. First affected Apple validation and same-scene device
+measurements remain necessary. Reuse recorded native proofs while exact inputs
+match. See docs/rpcs3-deep-audit-2026-10-29.md and its evidence directory.
+
+## RPCS3 device595 follow-up sources — 29 October 2026
+
+After local 543996ad, three additional iOS changes are retained: reselect the
+current remap on Vulkan temporary-image cache hits; retain the SPU decrementer
+worker's expiry scratch between wakeups; pack surface coverage into one bit per
+guest byte. Claude remote was rechecked at c0df3394. Canonical patch SHA256:
+037d620eb0148b7311da74d711dd2099d06e1285ad6f3079df9586a920a1a0e0.
+314 postimages, five changed, 309 unchanged relative to 543996ad.
+
+Six new GCC Linux modes pass, plain and ASan/UBSan. Remap: 373,248 requests,
+373,230 wrong selections before and zero after, unchanged image-copy counts.
+Timer: stable allocations 128 to 1 and variable allocations 768 to 4, same
+publication/wait order and failure semantics. Surface marker: 4,194,308 to
+524,296 bytes for a 4 MiB span; 391,754 row checks and 10,128 geometry cases.
+Keep all timing results: four timer and one surface case regress on this host.
+No iPhone FPS or device visual/freeze fix is established. GOW3's missing label
+producer remains unproved; no forced label or barrier removal is retained.
+
+One CMake script authenticates all 41 codegen inputs (40 physical, unchanged
+external LLVM digest), preserving PPU a987639e9f838d1c / SPU d070cb361bdef607.
+The compiler-free follow-up contract authenticates six new native results and
+reuses six exact unchanged previous results. Do not replay unaffected suites.
+No push, Apple/Core/IPA build or release. Existing delivery pins stay historical;
+the latest two source lots still require their first affected Apple validation
+for a future explicitly requested Core. No diagnostics or telemetry are added.
+See docs/rpcs3-device595-followup-2026-10-29.md and its linked raw evidence.
+
+## RPCS3 source optimizations after device595 feedback — 29 October 2026
+
+Based on Claude c0df3394, rechecked during the task, in an isolated checkout.
+Three iOS-only paths change: simple_array transfers heap ownership in mixed
+inline/heap swaps; temporary texture entries retain only encoded identity and
+invalidation range; unique/missing texture addresses avoid a second binary search.
+Canonical delta 33320812eccaf55ce7e834fe9a3a01da004e8323f0ad149cbf424a2ac3dcef9c:
+314 postimages, 311 historical postimages unchanged, two changed, one new.
+Six targeted Linux modes pass (three plain, three ASan/UBSan); no Apple/native
+Core/IPA build or release. LSan was unavailable under ptrace and is not claimed.
+Array checks: 726,336 comparisons, tracked ownership/lifetimes; temporary cache:
+12,422 checks; address lifecycle: 22,753 queries and 8,618 mutations per mode.
+The compiler-free device595 delta test authenticates these exact source inputs
+and generated harnesses. Reuse existing results while their inputs match.
+
+The maintainer reports improved BO2 with remaining weapon/forearm artifacts and
+stutters, unchanged GOW3 with a repeatable freeze, and AC torch flicker/roughly
+27 FPS. Existing logs confirm a persistent GOW3 RSX label wait (expected 0x6F0E,
+observed 0x6F0D); its producer cause is unproved. These source optimizations do
+not establish a visual fix, resolved freeze or added iPhone FPS. The inactive
+AMD primitive-restart scratch experiment was withdrawn, as was an unsafe
+unlocked exact-cache shortcut. All runtime settings, existing delivery recipes,
+Core pins, unrelated engines and other checkouts stay untouched. A future
+explicitly requested Core requires Apple validation of these changed inputs;
+its proof must not reuse the old binary receipt as if these sources were built.
+See docs/rpcs3-device595-optimization-2026-10-29.md and
+ docs/evidence/rpcs3-device595-20261029/.
+
 ## MeloNX new GPU core compilation authorized — 29 October 2026
 
 The maintainer requested compilation of the new MeloNX Core. The new frozen

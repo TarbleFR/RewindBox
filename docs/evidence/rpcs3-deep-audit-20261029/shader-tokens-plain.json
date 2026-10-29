@@ -1,0 +1,157 @@
+{
+  "passed": true,
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/Program/ShaderParam.h": "ac64b689fd3809c1ca260904cd4f59572fcb388a47a055f8e314dd50fedc6339",
+    "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp": "6ce519f38f7dcc6525c5d7965f929c2920dc9e74c63e2b6f1fd0e22f520aeaff",
+    "rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp": "3950bc618ec396d4651566ad99bcfd4eba287c9bbc382e08a7435ab30d24a98f",
+    "Utilities/StrUtil.h": "0d02bf3d7d2edef77ba61abc20cfd831bf4f5a1b3aa95bf675736843dad471a6"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/Program/ShaderParam.h": "71328b5f1fc2357467035481ca93c3d8eb88f9d6944744a60d72d93c3b19cbe8",
+    "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp": "d341208c496a02a3db1988fa2c3dfe2a092d2ef0530f8bf581d73a29cdc03766",
+    "rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp": "a97c1fa4ca12eaf8bb85dfb4a48da1b2fd5185c01d0b8602a5b090c32dace456",
+    "Utilities/StrUtil.h": "0d02bf3d7d2edef77ba61abc20cfd831bf4f5a1b3aa95bf675736843dad471a6"
+  },
+  "harnessSHA256": "2192b21868c74d7892aa0fbc360ca19afe7b264db82a81ce9e09c6ce46e11cad",
+  "adapterSHA256": "671964de5b41611e96e30e58e75f28ed360612f3aaca401221018a55bd605c56",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-g",
+    "-O3"
+  ],
+  "host": "x86_64",
+  "results": {
+    "formatChecks": 76391,
+    "addCodeChecks": 10913,
+    "productionTokenLiterals": 91,
+    "identicalTextAndCallbackOrder": true,
+    "sameDeclarations": true,
+    "benchmarks": [
+      {
+        "case": "literal",
+        "mode": 0,
+        "fragmentBeforeNs": 37070.6,
+        "fragmentAfterNs": 86.6683,
+        "fragmentBeforeAllocations": 12000,
+        "fragmentAfterAllocations": 3000,
+        "vertexBeforeNs": 22090.6,
+        "vertexAfterNs": 53.0953,
+        "vertexBeforeAllocations": 24000,
+        "vertexAfterAllocations": 3000,
+        "iterations": 3000
+      },
+      {
+        "case": "literal",
+        "mode": 1,
+        "fragmentBeforeNs": 37445,
+        "fragmentAfterNs": 86.3813,
+        "fragmentBeforeAllocations": 12000,
+        "fragmentAfterAllocations": 3000,
+        "vertexBeforeNs": 21805.6,
+        "vertexAfterNs": 53.0887,
+        "vertexBeforeAllocations": 24000,
+        "vertexAfterAllocations": 3000,
+        "iterations": 3000
+      },
+      {
+        "case": "literal",
+        "mode": 3,
+        "fragmentBeforeNs": 37877.3,
+        "fragmentAfterNs": 134.172,
+        "fragmentBeforeAllocations": 12000,
+        "fragmentAfterAllocations": 3000,
+        "vertexBeforeNs": 21948.2,
+        "vertexAfterNs": 86.5447,
+        "vertexBeforeAllocations": 24000,
+        "vertexAfterAllocations": 3000,
+        "iterations": 3000
+      },
+      {
+        "case": "typical",
+        "mode": 0,
+        "fragmentBeforeNs": 7582.32,
+        "fragmentAfterNs": 747.477,
+        "fragmentBeforeAllocations": 15000,
+        "fragmentAfterAllocations": 6000,
+        "vertexBeforeNs": 4983.52,
+        "vertexAfterNs": 627.47,
+        "vertexBeforeAllocations": 27000,
+        "vertexAfterAllocations": 6000,
+        "iterations": 3000
+      },
+      {
+        "case": "typical",
+        "mode": 1,
+        "fragmentBeforeNs": 7755.09,
+        "fragmentAfterNs": 783.711,
+        "fragmentBeforeAllocations": 12000,
+        "fragmentAfterAllocations": 3000,
+        "vertexBeforeNs": 5134.74,
+        "vertexAfterNs": 648.821,
+        "vertexBeforeAllocations": 24000,
+        "vertexAfterAllocations": 3000,
+        "iterations": 3000
+      },
+      {
+        "case": "typical",
+        "mode": 3,
+        "fragmentBeforeNs": 8118.03,
+        "fragmentAfterNs": 1054.68,
+        "fragmentBeforeAllocations": 51000,
+        "fragmentAfterAllocations": 45000,
+        "vertexBeforeNs": 5386.9,
+        "vertexAfterNs": 858.782,
+        "vertexBeforeAllocations": 51000,
+        "vertexAfterAllocations": 30000,
+        "iterations": 3000
+      },
+      {
+        "case": "tokens",
+        "mode": 0,
+        "fragmentBeforeNs": 1765.02,
+        "fragmentAfterNs": 1306.34,
+        "fragmentBeforeAllocations": 15000,
+        "fragmentAfterAllocations": 6000,
+        "vertexBeforeNs": 2627.86,
+        "vertexAfterNs": 651.622,
+        "vertexBeforeAllocations": 27000,
+        "vertexAfterAllocations": 6000,
+        "iterations": 3000
+      },
+      {
+        "case": "tokens",
+        "mode": 1,
+        "fragmentBeforeNs": 1457.88,
+        "fragmentAfterNs": 1040.54,
+        "fragmentBeforeAllocations": 12000,
+        "fragmentAfterAllocations": 3000,
+        "vertexBeforeNs": 2724.07,
+        "vertexAfterNs": 675.427,
+        "vertexBeforeAllocations": 24000,
+        "vertexAfterAllocations": 3000,
+        "iterations": 3000
+      },
+      {
+        "case": "tokens",
+        "mode": 3,
+        "fragmentBeforeNs": 1780.73,
+        "fragmentAfterNs": 1162.71,
+        "fragmentBeforeAllocations": 66000,
+        "fragmentAfterAllocations": 57000,
+        "vertexBeforeNs": 2758.33,
+        "vertexAfterNs": 815.495,
+        "vertexBeforeAllocations": 57000,
+        "vertexAfterAllocations": 36000,
+        "iterations": 3000
+      }
+    ]
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Execute exact shader Format methods with host operand/declaration adapters.\n\nAll original literal strings and generated token edge cases are checked against\nbaseline. GPU execution and GLSL-to-SPIR-V compilation are not simulated.\n"
+}

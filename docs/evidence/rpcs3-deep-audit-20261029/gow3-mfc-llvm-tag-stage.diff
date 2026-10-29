@@ -1,0 +1,10 @@
+--- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
++++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
+@@ -6258,6 +6258,7 @@
+ 				case MFC_EIEIO_CMD:
+ 				case MFC_SYNC_CMD:
+ 				{
++					m_ir->CreateStore(tag.value, _ptr(pmfc, &spu_mfc_cmd::tag));
+ 					m_ir->CreateStore(m_ir->getInt32(-1), pb);
+ 					m_ir->CreateStore(m_ir->CreateOr(m_ir->CreateLoad(get_type<u32>(), pf), mask), pf);
+ 					break;

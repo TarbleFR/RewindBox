@@ -1,0 +1,188 @@
+{
+  "passed": true,
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "61f2dbf64c3fc6e64a1486365b5a4d7a7175c39c28d3bd22f1aad61083c276e2",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.h": "152e49baa75ab313f479744ae33d90b5ceade26463faaaebbba55233778fc45f",
+    "rpcs3/Emu/RSX/VK/vkutils/image.cpp": "9282d1374018aa18971a6a28a5cdd04e7a19db35692d3c27fb964f8f3c1f3c83",
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp": "e06a7b2958b2c248b30b9d8fa3149bf513f175c11ca716f8996c86f8c8a72bee",
+    "rpcs3/Emu/RSX/VK/VKFormats.cpp": "012217aade7f2fcac1b5e35a38439e6d0d8454038ebf37859660b0e9f3d821f0",
+    "rpcs3/Emu/RSX/Utils/color_utils.hpp": "376994e979776cfd5fbf5494904f55674546e13c58cdcb6c768d1142b234d2e6",
+    "rpcs3/Emu/RSX/gcm_enums.h": "1814f59d138e3048b81b81849148a5ce695300f9d743aaff3cde3b0f7c5e5cc1",
+    "rpcs3/Emu/RSX/Common/TextureUtils.h": "f2177f51d6cc96f566cec6a99a7612cebe765afa6f7d06a459d684d8b73b7e40",
+    "rpcs3/Emu/RSX/Common/TextureUtils.cpp": "b2206ec9215cddd946cb3dd69222216968b3f33140f2732cbf0736e8737d2323",
+    "rpcs3/Emu/RSX/Common/texture_cache_types.h": "3cda978e88ee29bfbb7b2e806e1420df860f6b39d0069a1723c6f4517e6fdce0"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "12f9772af3a1dbdcc10db2b2b95446f4fb278cd28b236788134ef44874d3c9a3",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.h": "20eda27ec70aa0f15ae1e05b8ef1f84e22f104e102be29a0c738aa2a9717046e",
+    "rpcs3/Emu/RSX/VK/vkutils/image.cpp": "9282d1374018aa18971a6a28a5cdd04e7a19db35692d3c27fb964f8f3c1f3c83",
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp": "e06a7b2958b2c248b30b9d8fa3149bf513f175c11ca716f8996c86f8c8a72bee",
+    "rpcs3/Emu/RSX/VK/VKFormats.cpp": "012217aade7f2fcac1b5e35a38439e6d0d8454038ebf37859660b0e9f3d821f0",
+    "rpcs3/Emu/RSX/Utils/color_utils.hpp": "376994e979776cfd5fbf5494904f55674546e13c58cdcb6c768d1142b234d2e6",
+    "rpcs3/Emu/RSX/gcm_enums.h": "1814f59d138e3048b81b81849148a5ce695300f9d743aaff3cde3b0f7c5e5cc1",
+    "rpcs3/Emu/RSX/Common/TextureUtils.h": "f2177f51d6cc96f566cec6a99a7612cebe765afa6f7d06a459d684d8b73b7e40",
+    "rpcs3/Emu/RSX/Common/TextureUtils.cpp": "b2206ec9215cddd946cb3dd69222216968b3f33140f2732cbf0736e8737d2323",
+    "rpcs3/Emu/RSX/Common/texture_cache_types.h": "3cda978e88ee29bfbb7b2e806e1420df860f6b39d0069a1723c6f4517e6fdce0"
+  },
+  "harnessSHA256": "41fb5f3db771607f463aec187bdf4fc838165e2558d249c1d4522a5e1ab76168",
+  "adapterSHA256": "157d99ed9fbd57526ca6aa7cbf2718d214983260d5d55d899b99481d6208bfec",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-g",
+    "-O3"
+  ],
+  "host": "x86_64",
+  "sanitizer": null,
+  "results": {
+    "nativeChecks": 20739,
+    "baselineWrongNativeMappings": 6095,
+    "candidateWrongNativeMappings": 0,
+    "poolChecks": 15005,
+    "baselineWrongPoolSelections": 1600,
+    "candidateWrongPoolSelections": 0,
+    "depthChecks": 4,
+    "baselineWrongDepthFormats": 2,
+    "candidateWrongDepthFormats": 0,
+    "copyChecks": 13000,
+    "sameCopiesAndPerImageBarriers": true,
+    "viewsConstructed": 124419,
+    "viewsDestroyed": 124419,
+    "copyBenchmarks": [
+      {
+        "sections": 1,
+        "repeated": false,
+        "iterations": 30000,
+        "beforeNs": 70.9495,
+        "afterNs": 12.9448,
+        "beforeAllocations": 60000,
+        "afterAllocations": 0
+      },
+      {
+        "sections": 1,
+        "repeated": true,
+        "iterations": 30000,
+        "beforeNs": 65.6568,
+        "afterNs": 12.4524,
+        "beforeAllocations": 60000,
+        "afterAllocations": 0
+      },
+      {
+        "sections": 2,
+        "repeated": false,
+        "iterations": 30000,
+        "beforeNs": 92.2277,
+        "afterNs": 19.3143,
+        "beforeAllocations": 90000,
+        "afterAllocations": 0
+      },
+      {
+        "sections": 2,
+        "repeated": true,
+        "iterations": 30000,
+        "beforeNs": 69.2797,
+        "afterNs": 16.4205,
+        "beforeAllocations": 60000,
+        "afterAllocations": 0
+      },
+      {
+        "sections": 4,
+        "repeated": false,
+        "iterations": 30000,
+        "beforeNs": 164.968,
+        "afterNs": 32.1109,
+        "beforeAllocations": 150000,
+        "afterAllocations": 0
+      },
+      {
+        "sections": 4,
+        "repeated": true,
+        "iterations": 30000,
+        "beforeNs": 76.5366,
+        "afterNs": 24.4481,
+        "beforeAllocations": 60000,
+        "afterAllocations": 0
+      },
+      {
+        "sections": 8,
+        "repeated": false,
+        "iterations": 30000,
+        "beforeNs": 325.846,
+        "afterNs": 38.0114,
+        "beforeAllocations": 270000,
+        "afterAllocations": 0
+      },
+      {
+        "sections": 8,
+        "repeated": true,
+        "iterations": 30000,
+        "beforeNs": 70.5058,
+        "afterNs": 26.2991,
+        "beforeAllocations": 60000,
+        "afterAllocations": 0
+      },
+      {
+        "sections": 9,
+        "repeated": false,
+        "iterations": 30000,
+        "beforeNs": 311.552,
+        "afterNs": 249.474,
+        "beforeAllocations": 300000,
+        "afterAllocations": 300000
+      },
+      {
+        "sections": 9,
+        "repeated": true,
+        "iterations": 30000,
+        "beforeNs": 70.8473,
+        "afterNs": 76.4231,
+        "beforeAllocations": 60000,
+        "afterAllocations": 60000
+      },
+      {
+        "sections": 32,
+        "repeated": false,
+        "iterations": 10000,
+        "beforeNs": 729.48,
+        "afterNs": 622.764,
+        "beforeAllocations": 180000,
+        "afterAllocations": 180000
+      },
+      {
+        "sections": 32,
+        "repeated": true,
+        "iterations": 10000,
+        "beforeNs": 158.729,
+        "afterNs": 163.681,
+        "beforeAllocations": 20000,
+        "afterAllocations": 20000
+      },
+      {
+        "sections": 256,
+        "repeated": false,
+        "iterations": 1764,
+        "beforeNs": 1266.28,
+        "afterNs": 1537.04,
+        "beforeAllocations": 31752,
+        "afterAllocations": 31752
+      },
+      {
+        "sections": 256,
+        "repeated": true,
+        "iterations": 1764,
+        "beforeNs": 808.087,
+        "afterNs": 1087.1,
+        "beforeAllocations": 3528,
+        "afterAllocations": 3528
+      }
+    ]
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "leakSanitizerEnabled": false,
+  "scope": "Run extracted Vulkan texture identity, native-view and copy-input methods.\n\nVulkan handles/driver calls are host boundaries. This verifies cache ownership,\nview selection and CPU bookkeeping, not GPU execution or iPhone gameplay.\n"
+}

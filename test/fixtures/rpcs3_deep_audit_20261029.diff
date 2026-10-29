@@ -1,0 +1,896 @@
+diff --git a/Utilities/JITArenaAllocator.h b/Utilities/JITArenaAllocator.h
+--- a/Utilities/JITArenaAllocator.h
++++ b/Utilities/JITArenaAllocator.h
+@@ -116,9 +116,28 @@
+ 			return false;
+ 		}
+ 
+-		m_free.insert(next, {offset, size});
++		// Extend adjacent free ranges in place. Inserting first would shift
++		// the suffix (and possibly allocate), only to erase it during merging.
++		if (index && m_free[index - 1].offset + m_free[index - 1].size == offset)
++		{
++			auto& previous = m_free[index - 1];
++			previous.size += size;
++			if (next != m_free.end() && offset + size == next->offset)
++			{
++				previous.size += next->size;
++				m_free.erase(next);
++			}
++		}
++		else if (next != m_free.end() && offset + size == next->offset)
++		{
++			next->offset = offset;
++			next->size += size;
++		}
++		else
++		{
++			m_free.insert(next, {offset, size});
++		}
+ 		m_free_bytes += size;
+-		coalesce(index);
+ 		return true;
+ 	}
+ 
+@@ -147,14 +166,14 @@
+ 	arena_range released_data_pages(usz offset, usz size, usz page) const noexcept
+ 	{
+ 		if (!is_power_of_two(page) || !size || offset > m_capacity || size > m_capacity - offset) return {};
+-		for (const auto& free : m_free)
+-		{
+-			if (offset < free.offset || offset + size > free.offset + free.size) continue;
+-			const usz begin = std::max(align_up(free.offset, page), offset & ~(page - 1));
+-			const usz end = std::min((free.offset + free.size) & ~(page - 1), align_up(offset + size, page));
+-			return end > begin ? arena_range{begin, end - begin} : arena_range{};
+-		}
+-		return {};
++		const auto next = std::upper_bound(m_free.begin(), m_free.end(), offset,
++			[](usz value, const arena_range& item) { return value < item.offset; });
++		if (next == m_free.begin()) return {};
++		const auto& free = *(next - 1);
++		if (offset + size > free.offset + free.size) return {};
++		const usz begin = std::max(align_up(free.offset, page), offset & ~(page - 1));
++		const usz end = std::min((free.offset + free.size) & ~(page - 1), align_up(offset + size, page));
++		return end > begin ? arena_range{begin, end - begin} : arena_range{};
+ 	}
+ 
+ private:
+@@ -202,23 +221,6 @@
+ 			m_free.erase(m_free.begin() + index);
+ 		}
+ 		m_free_bytes -= size;
+-	}
+-
+-	void coalesce(usz index)
+-	{
+-		if (index && m_free[index - 1].offset + m_free[index - 1].size == m_free[index].offset)
+-		{
+-			m_free[index - 1].size += m_free[index].size;
+-			m_free.erase(m_free.begin() + index);
+-			index--;
+-		}
+-
+-		if (index + 1 < m_free.size() &&
+-			m_free[index].offset + m_free[index].size == m_free[index + 1].offset)
+-		{
+-			m_free[index].size += m_free[index + 1].size;
+-			m_free.erase(m_free.begin() + index + 1);
+-		}
+ 	}
+ 
+ 	usz m_capacity = 0;
+diff --git a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
+--- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
++++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
+@@ -6201,6 +6201,18 @@
+ 
+ 				// Get MFC slot, redirect to invalid memory address
+ 				const auto slot = m_ir->CreateLoad(get_type<u32>(), spu_ptr(&spu_thread::mfc_size));
++
++				// A full queue is a blocking channel write, not a guest HALT.
++				const auto full = llvm::BasicBlock::Create(m_context, "", m_function);
++				const auto enqueue = llvm::BasicBlock::Create(m_context, "", m_function);
++				m_ir->CreateCondBr(m_ir->CreateICmpULT(slot, m_ir->getInt32(16)), enqueue, full, m_md_likely);
++				m_ir->SetInsertPoint(full);
++				update_pc();
++				ensure_gpr_stores();
++				call("spu_write_channel", &exec_wrch, m_thread, m_ir->getInt32(MFC_Cmd), val.value);
++				m_ir->CreateBr(next);
++				m_ir->SetInsertPoint(enqueue);
++
+ 				const auto off0 = m_ir->CreateAdd(m_ir->CreateMul(slot, m_ir->getInt32(sizeof(spu_mfc_cmd))), m_ir->getInt32(::offset32(&spu_thread::mfc_queue)));
+ 				const auto ptr0 = _ptr(m_thread, m_ir->CreateZExt(off0, get_type<u64>()));
+ 				const auto ptr1 = _ptr(m_memptr, 0xffdeadf0);
+@@ -6258,6 +6270,7 @@
+ 				case MFC_EIEIO_CMD:
+ 				case MFC_SYNC_CMD:
+ 				{
++					m_ir->CreateStore(tag.value, _ptr(pmfc, &spu_mfc_cmd::tag));
+ 					m_ir->CreateStore(m_ir->getInt32(-1), pb);
+ 					m_ir->CreateStore(m_ir->CreateOr(m_ir->CreateLoad(get_type<u32>(), pf), mask), pf);
+ 					break;
+diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
+--- a/rpcs3/Emu/Cell/SPUThread.cpp
++++ b/rpcs3/Emu/Cell/SPUThread.cpp
+@@ -2044,6 +2044,13 @@
+ 
+ 	serialize_common(ar);
+ 
++	// The MFC queue is serialized, but the host pending-work flag is not.
++	// Re-arm deferred transfers so channel waits can drain them after restore.
++	if (mfc_size && g_cfg.core.mfc_transfers_shuffling)
++	{
++		state += cpu_flag::pending;
++	}
++
+ 	raddr = ::narrow<u32>(ar.pop<u64>());
+ 
+ 	if (raddr)
+@@ -4466,8 +4473,13 @@
+ 			return false;
+ 		}
+ 
+-		// Process MFC commands
+-		do_mfc();
++		// The new channel command has not been accepted yet. If draining
++		// takes an interrupt, resume this WRCH rather than the next instruction.
++		do_mfc(false);
++		if (check_mfc_interrupts(pc))
++		{
++			spu_runtime::g_escape(this);
++		}
+ 
+ 		if (mfc_size < 16)
+ 		{
+diff --git a/rpcs3/Emu/Cell/SPUThread.h b/rpcs3/Emu/Cell/SPUThread.h
+--- a/rpcs3/Emu/Cell/SPUThread.h
++++ b/rpcs3/Emu/Cell/SPUThread.h
+@@ -274,8 +274,8 @@
+ 				}
+ 			}
+ 
+-			// Return true if count has changed from 0 to 1, this condition is considered satisfied even if we pushed a value directly to the special storage for waiting SPUs
+-			return { (old & bit_count) == 0, 1, (old & bit_wait) != 0, true };
++			// Report the old count, including zero when delivering directly to a waiting SPU.
++			return { (old & bit_count) != 0, 1, (old & bit_wait) != 0, true };
+ 		}
+ 	}
+ 
+diff --git a/rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp b/rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp
+--- a/rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp
++++ b/rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp
+@@ -391,7 +391,7 @@
+ 		{ "$2", [this]() -> std::string {return GetSRC<SRC2>(src2);} },
+ 		{ "$t", [this]() -> std::string { return "tex" + std::to_string(dst.tex_num);} },
+ 		{ "$_i", [this]() -> std::string {return std::to_string(dst.tex_num);} },
+-		{ "$m", std::bind(std::mem_fn(&FragmentProgramDecompiler::GetMask), this) },
++		{ "$m", [this]() { return GetMask(); } },
+ 		{ "$ifcond ", [this]() -> std::string
+ 			{
+ 				const std::string& cond = GetCond();
+@@ -399,8 +399,8 @@
+ 				return "if(" + cond + ") ";
+ 			}
+ 		},
+-		{ "$cond", std::bind(std::mem_fn(&FragmentProgramDecompiler::GetCond), this) },
+-		{ "$_c", std::bind(std::mem_fn(&FragmentProgramDecompiler::AddConst), this) },
++		{ "$cond", [this]() { return GetCond(); } },
++		{ "$_c", [this]() { return AddConst(); } },
+ 		{ "$float4", [this]() -> std::string { return getFloatTypeName(4); } },
+ 		{ "$float3", [this]() -> std::string { return getFloatTypeName(3); } },
+ 		{ "$float2", [this]() -> std::string { return getFloatTypeName(2); } },
+@@ -425,12 +425,20 @@
+ 			std::pair<std::string_view, std::string> repl[] = { { "$0", "x2d" } };
+ 			std::string result = fmt::replace_all(code, repl);
+ 
++			#ifdef RPCS3_IOS
++			return replace_shader_tokens(result, repl_list);
++#else
+ 			return fmt::replace_all(result, repl_list);
+-		}
+-		}
+-	}
+-
++#endif
++		}
++		}
++	}
++
++	#ifdef RPCS3_IOS
++	return replace_shader_tokens(code, repl_list);
++#else
+ 	return fmt::replace_all(code, repl_list);
++#endif
+ }
+ 
+ std::string FragmentProgramDecompiler::GetRawCond()
+diff --git a/rpcs3/Emu/RSX/Program/ShaderParam.h b/rpcs3/Emu/RSX/Program/ShaderParam.h
+--- a/rpcs3/Emu/RSX/Program/ShaderParam.h
++++ b/rpcs3/Emu/RSX/Program/ShaderParam.h
+@@ -7,6 +7,42 @@
+ #include "util/types.hpp"
+ 
+ #include <unordered_map>
++
++#ifdef RPCS3_IOS
++// Shader placeholders all start with '$'. Copy literal spans once instead of
++// testing every placeholder at every character and moving the remaining text
++// after every replacement. Keep list priority and never reparse replacements.
++template <usz Count>
++std::string replace_shader_tokens(std::string_view source,
++	const std::pair<std::string_view, std::function<std::string()>> (&tokens)[Count])
++{
++	std::string result;
++	result.reserve(source.size());
++	usz cursor = 0;
++	for (usz pos; (pos = source.find('$', cursor)) != std::string_view::npos;)
++	{
++		result.append(source.substr(cursor, pos - cursor));
++		bool matched = false;
++		for (const auto& token : tokens)
++		{
++			if (source.substr(pos, token.first.size()) == token.first)
++			{
++				result += token.second();
++				cursor = pos + token.first.size();
++				matched = true;
++				break;
++			}
++		}
++		if (!matched)
++		{
++			result += '$';
++			cursor = pos + 1;
++		}
++	}
++	result.append(source.substr(cursor));
++	return result;
++}
++#endif
+ 
+ enum class FUNCTION
+ {
+diff --git a/rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp b/rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp
+--- a/rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp
++++ b/rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp
+@@ -229,11 +229,11 @@
+ 	const std::pair<std::string_view, std::function<std::string()>> repl_list[] =
+ 	{
+ 		{ "$$", []() -> std::string { return "$"; } },
+-		{ "$0", std::bind(std::mem_fn(&VertexProgramDecompiler::GetSRC), this, 0) },
+-		{ "$1", std::bind(std::mem_fn(&VertexProgramDecompiler::GetSRC), this, 1) },
+-		{ "$2", std::bind(std::mem_fn(&VertexProgramDecompiler::GetSRC), this, 2) },
+-		{ "$s", std::bind(std::mem_fn(&VertexProgramDecompiler::GetSRC), this, 2) },
+-		{ "$a", std::bind(std::mem_fn(&VertexProgramDecompiler::AddAddrReg), this) },
++		{ "$0", [this]() { return GetSRC(0); } },
++		{ "$1", [this]() { return GetSRC(1); } },
++		{ "$2", [this]() { return GetSRC(2); } },
++		{ "$s", [this]() { return GetSRC(2); } },
++		{ "$a", [this]() { return AddAddrReg(); } },
+ 		{ "$t", [this]() -> std::string { return "vtex" + std::to_string(d2.tex_num); } },
+ 		{ "$ifcond ", [this]() -> std::string
+ 			{
+@@ -242,12 +242,16 @@
+ 				return "if(" + cond + ") ";
+ 			}
+ 		},
+-		{ "$cond", std::bind(std::mem_fn(&VertexProgramDecompiler::GetCond), this) },
+-		{ "$ifbcond", std::bind(std::mem_fn(&VertexProgramDecompiler::GetOptionalBranchCond), this) },
++		{ "$cond", [this]() { return GetCond(); } },
++		{ "$ifbcond", [this]() { return GetOptionalBranchCond(); } },
+ 		{ "$Ty", [this](){ return getFloatTypeName(4); } }
+ 	};
+ 
++	#ifdef RPCS3_IOS
++	return replace_shader_tokens(code, repl_list);
++#else
+ 	return fmt::replace_all(code, repl_list);
++#endif
+ }
+ 
+ std::string VertexProgramDecompiler::GetRawCond()
+@@ -338,8 +342,16 @@
+ 
+ void VertexProgramDecompiler::AddCode(const std::string& code)
+ {
++#ifdef RPCS3_IOS
++	// Format only once: its declaration/constant registration is idempotent.
++	// Keep the two original text forms used by the full body and CFG builder.
++	auto formatted = Format(code);
++	m_body.push_back(formatted + ";");
++	m_cur_instr->body.push_back(std::move(formatted));
++#else
+ 	m_body.push_back(Format(code) + ";");
+ 	m_cur_instr->body.push_back(Format(code));
++#endif
+ }
+ 
+ void VertexProgramDecompiler::SetDSTVec(const std::string& code)
+diff --git a/rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp b/rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp
+--- a/rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp
++++ b/rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp
+@@ -51,26 +51,42 @@
+ 
+ 		if (m_use_host_scheduler)
+ 		{
++#ifdef RPCS3_IOS
++			// Keep the same reuse distance without creating thousands of driver
++			// objects before the first upload. Each slot is populated on first use.
++			m_semaphore_pool.resize(events_pool_size);
++#else
+ 			for (usz i = 0; i < events_pool_size; ++i)
+ 			{
+ 				auto sema = std::make_unique<semaphore>(*pdev);
+ 				m_semaphore_pool.emplace_back(std::move(sema));
+ 			}
+-
+-			return;
+-		}
+-
++#endif
++
++			return;
++		}
++
++#ifdef RPCS3_IOS
++		m_events_pool.resize(events_pool_size);
++#else
+ 		for (usz i = 0; i < events_pool_size; ++i)
+ 		{
+ 			auto ev = std::make_unique<vk::event>(*pdev, sync_domain::gpu);
+ 			m_events_pool.emplace_back(std::move(ev));
+ 		}
++#endif
+ 	}
+ 
+ 	void AsyncTaskScheduler::insert_sync_event()
+ 	{
+ 		ensure(m_current_cb);
+ 		auto& sync_label = m_events_pool[m_next_event_id++ % events_pool_size];
++#ifdef RPCS3_IOS
++		if (!sync_label)
++		{
++			sync_label = std::make_unique<vk::event>(*get_current_renderer(), sync_domain::gpu);
++		}
++#endif
+ 
+ 		sync_label->reset();
+ 		sync_label->signal(*m_current_cb, m_dependency_info);
+@@ -142,7 +158,16 @@
+ 		}
+ 
+ 		const u32 sema_id = static_cast<u32>(m_next_semaphore_id++ % m_semaphore_pool.size());
++#ifdef RPCS3_IOS
++		auto& sema = m_semaphore_pool[sema_id];
++		if (!sema)
++		{
++			sema = std::make_unique<semaphore>(*get_current_renderer());
++		}
++		return sema.get();
++#else
+ 		return m_semaphore_pool[sema_id].get();
++#endif
+ 	}
+ 
+ 	void AsyncTaskScheduler::flush(queue_submit_t& submit_info, VkBool32 force_flush)
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+@@ -443,7 +443,7 @@
+ 		const auto dst_aspect = dst->aspect();
+ 		const auto dst_bpp = vk::get_format_texel_width(dst->format());
+ 
+-		std::unordered_set<decltype(sections_to_transfer.front().src)> processed_input_images;
++		using source_image_type = decltype(sections_to_transfer.front().src);
+ 
+ 		// Generates a region to write data to the final destination
+ 		const auto get_output_region = [&](const copy_region_descriptor& section, s32 in_x, s32 in_y, u32 w, u32 h, vk::image* data_src)
+@@ -484,143 +484,172 @@
+ 			}
+ 		};
+ 
+-		for (const auto& section : sections_to_transfer)
+-		{
+-			if (!section.src)
+-			{
+-				continue;
+-			}
+-
+-			const bool typeless = section.src->aspect() != dst_aspect ||
+-				!formats_are_bitcast_compatible(dst, section.src);
+-
+-			if (!processed_input_images.contains(section.src))
+-			{
+-				// Avoid inserting unnecessary barrier GENERAL->TRANSFER_SRC->GENERAL in active render targets
+-				const auto preferred_layout = (section.src->current_layout != VK_IMAGE_LAYOUT_GENERAL) ?
+-					VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL;
+-
+-				section.src->push_layout(cmd, preferred_layout);
+-				processed_input_images.insert(section.src);
+-			}
+-
+-			auto src_image = section.src;
+-			auto src_x = section.src_x;
+-			auto src_y = section.src_y;
+-			auto src_w = section.src_w;
+-			auto src_h = section.src_h;
+-
+-			rsx::flags32_t transform = section.xform;
+-			if (section.xform == rsx::surface_transform::coordinate_transform)
+-			{
+-				// Dimensions were given in 'dst' space. Work out the real source coordinates
+-				const auto src_bpp = vk::get_format_texel_width(section.src->format());
+-				src_x = (src_x * dst_bpp) / src_bpp;
+-				src_w = utils::aligned_div<u16>(src_w * dst_bpp, src_bpp);
+-
+-				transform &= ~(rsx::surface_transform::coordinate_transform);
+-			}
+-
+-			if (auto surface = dynamic_cast<vk::render_target*>(section.src))
+-			{
+-				surface->transform_samples_to_pixels(src_x, src_w, src_y, src_h);
+-			}
+-
+-			if (typeless) [[unlikely]]
+-			{
+-				const auto src_bpp = vk::get_format_texel_width(section.src->format());
+-				const u16 convert_w = u16(src_w * src_bpp) / dst_bpp;
+-				const u16 convert_x = u16(src_x * src_bpp) / dst_bpp;
+-
+-				if (convert_w == section.dst_w && src_h == section.dst_h &&
+-					transform == rsx::surface_transform::identity)
+-				{
+-					// Optimization to avoid double transfer
+-					coord3i dst_rect;
+-					rsx::image_copy_subresource_layers mip_layers;
+-					configure_subresource(section, dst_rect, mip_layers);
+-
+-					const auto src_rect = coord3i{{ src_x, src_y, 0 }, { src_w, src_h, 1 }};
+-					vk::copy_image_typeless(cmd, section.src, dst, src_rect, dst_rect, mip_layers);
++		const auto transfer_regions = [&]<bool use_inline_inputs>()
++		{
++			using source_set = std::conditional_t<use_inline_inputs,
++				rsx::simple_array<source_image_type>, std::unordered_set<source_image_type>>;
++			source_set processed_input_images;
++			const auto first_use = [&](source_image_type source)
++			{
++				if constexpr (use_inline_inputs)
++				{
++					if (std::find(processed_input_images.begin(), processed_input_images.end(), source) != processed_input_images.end())
++						return false;
++
++					processed_input_images.push_back(source);
++				}
++				else
++				{
++					if (processed_input_images.contains(source))
++						return false;
++
++					processed_input_images.insert(source);
++				}
++				return true;
++			};
++
++			for (const auto& section : sections_to_transfer)
++			{
++				if (!section.src)
++				{
+ 					continue;
+ 				}
+ 
+-				src_image = vk::get_typeless_helper(dst->format(), dst->format_class(), convert_x + convert_w, src_y + src_h);
+-				src_image->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+-
+-				const areai src_rect = coordi{{ src_x, src_y }, { src_w, src_h }};
+-				const areai dst_rect = coordi{{ 0, 0 }, { convert_w, src_h }};
+-				vk::copy_image_typeless(cmd, section.src, src_image, src_rect, dst_rect);
+-				src_image->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+-
+-				src_x = 0;
+-				src_y = 0;
+-				src_w = convert_w;
+-			}
+-
+-			ensure(src_image->current_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || src_image->current_layout == VK_IMAGE_LAYOUT_GENERAL);
+-			ensure(transform == rsx::surface_transform::identity);
+-
+-			if (src_w == section.dst_w && src_h == section.dst_h) [[likely]]
+-			{
+-				const auto copy_rgn = get_output_region(section, src_x, src_y, src_w, src_h, src_image);
+-				vkCmdCopyImage(cmd, src_image->value, src_image->current_layout, dst->value, dst->current_layout, 1, &copy_rgn);
+-			}
+-			else
+-			{
+-				vk::image* _dst = dst;
+-
+-				if (src_image->info.format != dst->info.format) [[ unlikely ]]
+-				{
+-					// Either a bitcast is required or a scale+copy to mipmap level / layer
+-					const u32 requested_width = dst->width();
+-					const u32 requested_height = src_y + src_h + section.dst_h; // Accounts for possible typeless ref on the same helper on src
+-					_dst = vk::get_typeless_helper(src_image->format(), src_image->format_class(), requested_width, requested_height);
+-					_dst->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+-				}
+-
+-				auto dst_rect = coord3i{ { section.dst_x, section.dst_y, 0 }, { section.dst_w, section.dst_h, 1 } };
+-				rsx::image_copy_subresource_layers mip_layers{ .dst_mip_level = section.level };
+-
+-				if (_dst != dst)
+-				{
+-					// We place the output after the source to account for the initial typeless-xfer if applicable
+-					// If src_image == _dst then this is just a write-to-self. Either way, use best-fit placement.
+-					dst_rect.position.x = 0;
+-					dst_rect.position.y = src_y + src_h;
+-					mip_layers = {};
+-				}
+-				else if (dst->type() == VK_IMAGE_TYPE_3D)
+-				{
+-					dst_rect.position.z = section.dst_z;
++				const bool typeless = section.src->aspect() != dst_aspect ||
++					!formats_are_bitcast_compatible(dst, section.src);
++
++				if (first_use(section.src))
++				{
++					// Avoid inserting unnecessary barrier GENERAL->TRANSFER_SRC->GENERAL in active render targets
++					const auto preferred_layout = (section.src->current_layout != VK_IMAGE_LAYOUT_GENERAL) ?
++						VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL;
++
++					section.src->push_layout(cmd, preferred_layout);
++				}
++
++				auto src_image = section.src;
++				auto src_x = section.src_x;
++				auto src_y = section.src_y;
++				auto src_w = section.src_w;
++				auto src_h = section.src_h;
++
++				rsx::flags32_t transform = section.xform;
++				if (section.xform == rsx::surface_transform::coordinate_transform)
++				{
++					// Dimensions were given in 'dst' space. Work out the real source coordinates
++					const auto src_bpp = vk::get_format_texel_width(section.src->format());
++					src_x = (src_x * dst_bpp) / src_bpp;
++					src_w = utils::aligned_div<u16>(src_w * dst_bpp, src_bpp);
++
++					transform &= ~(rsx::surface_transform::coordinate_transform);
++				}
++
++				if (auto surface = dynamic_cast<vk::render_target*>(section.src))
++				{
++					surface->transform_samples_to_pixels(src_x, src_w, src_y, src_h);
++				}
++
++				if (typeless) [[unlikely]]
++				{
++					const auto src_bpp = vk::get_format_texel_width(section.src->format());
++					const u16 convert_w = u16(src_w * src_bpp) / dst_bpp;
++					const u16 convert_x = u16(src_x * src_bpp) / dst_bpp;
++
++					if (convert_w == section.dst_w && src_h == section.dst_h &&
++						transform == rsx::surface_transform::identity)
++					{
++						// Optimization to avoid double transfer
++						coord3i dst_rect;
++						rsx::image_copy_subresource_layers mip_layers;
++						configure_subresource(section, dst_rect, mip_layers);
++
++						const auto src_rect = coord3i{{ src_x, src_y, 0 }, { src_w, src_h, 1 }};
++						vk::copy_image_typeless(cmd, section.src, dst, src_rect, dst_rect, mip_layers);
++						continue;
++					}
++
++					src_image = vk::get_typeless_helper(dst->format(), dst->format_class(), convert_x + convert_w, src_y + src_h);
++					src_image->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
++
++					const areai src_rect = coordi{{ src_x, src_y }, { src_w, src_h }};
++					const areai dst_rect = coordi{{ 0, 0 }, { convert_w, src_h }};
++					vk::copy_image_typeless(cmd, section.src, src_image, src_rect, dst_rect);
++					src_image->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
++
++					src_x = 0;
++					src_y = 0;
++					src_w = convert_w;
++				}
++
++				ensure(src_image->current_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL || src_image->current_layout == VK_IMAGE_LAYOUT_GENERAL);
++				ensure(transform == rsx::surface_transform::identity);
++
++				if (src_w == section.dst_w && src_h == section.dst_h) [[likely]]
++				{
++					const auto copy_rgn = get_output_region(section, src_x, src_y, src_w, src_h, src_image);
++					vkCmdCopyImage(cmd, src_image->value, src_image->current_layout, dst->value, dst->current_layout, 1, &copy_rgn);
+ 				}
+ 				else
+ 				{
+-					mip_layers.dst_layer = static_cast<u8>(section.dst_z);
+-				}
+-
+-				vk::copy_scaled_image(cmd, src_image, _dst,
+-					coord3i{ { src_x, src_y, 0 }, { src_w, src_h, 1 } },
+-					dst_rect,
+-					mip_layers,
+-					src_image->format() == _dst->format(),
+-					VK_FILTER_NEAREST);
+-
+-				if (_dst != dst) [[unlikely]]
+-				{
+-					// Casting comes after the scaling!
+-					const auto copy_rgn = get_output_region(section, dst_rect.position.x, dst_rect.position.y, section.dst_w, section.dst_h, _dst);
+-					_dst->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+-					vkCmdCopyImage(cmd, _dst->value, _dst->current_layout, dst->value, dst->current_layout, 1, &copy_rgn);
+-				}
+-			}
+-		}
+-
+-		// Pop unique image layouts here
+-		for (auto& image : processed_input_images)
+-		{
+-			image->pop_layout(cmd);
+-		}
++					vk::image* _dst = dst;
++
++					if (src_image->info.format != dst->info.format) [[ unlikely ]]
++					{
++						// Either a bitcast is required or a scale+copy to mipmap level / layer
++						const u32 requested_width = dst->width();
++						const u32 requested_height = src_y + src_h + section.dst_h; // Accounts for possible typeless ref on the same helper on src
++						_dst = vk::get_typeless_helper(src_image->format(), src_image->format_class(), requested_width, requested_height);
++						_dst->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
++					}
++
++					auto dst_rect = coord3i{ { section.dst_x, section.dst_y, 0 }, { section.dst_w, section.dst_h, 1 } };
++					rsx::image_copy_subresource_layers mip_layers{ .dst_mip_level = section.level };
++
++					if (_dst != dst)
++					{
++						// We place the output after the source to account for the initial typeless-xfer if applicable
++						// If src_image == _dst then this is just a write-to-self. Either way, use best-fit placement.
++						dst_rect.position.x = 0;
++						dst_rect.position.y = src_y + src_h;
++						mip_layers = {};
++					}
++					else if (dst->type() == VK_IMAGE_TYPE_3D)
++					{
++						dst_rect.position.z = section.dst_z;
++					}
++					else
++					{
++						mip_layers.dst_layer = static_cast<u8>(section.dst_z);
++					}
++
++					vk::copy_scaled_image(cmd, src_image, _dst,
++						coord3i{ { src_x, src_y, 0 }, { src_w, src_h, 1 } },
++						dst_rect,
++						mip_layers,
++						src_image->format() == _dst->format(),
++						VK_FILTER_NEAREST);
++
++					if (_dst != dst) [[unlikely]]
++					{
++						// Casting comes after the scaling!
++						const auto copy_rgn = get_output_region(section, dst_rect.position.x, dst_rect.position.y, section.dst_w, section.dst_h, _dst);
++						_dst->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
++						vkCmdCopyImage(cmd, _dst->value, _dst->current_layout, dst->value, dst->current_layout, 1, &copy_rgn);
++					}
++				}
++			}
++
++			// Pop unique image layouts here
++			for (auto& image : processed_input_images)
++			{
++				image->pop_layout(cmd);
++			}
++		};
++
++		if (sections_to_transfer.size() <= 8)
++			transfer_regions.template operator()<true>();
++		else
++			transfer_regions.template operator()<false>();
+ 	}
+ 
+ 	VkComponentMapping texture_cache::apply_component_mapping_flags(u32 gcm_format, rsx::component_order flags, const rsx::texture_channel_remap_t& remap_vector) const
+@@ -696,7 +725,7 @@
+ 		return result;
+ 	}
+ 
+-	std::unique_ptr<vk::viewable_image> texture_cache::find_cached_image(VkFormat format, u16 w, u16 h, u16 d, u16 mipmaps, VkImageType type, VkImageCreateFlags create_flags, VkImageUsageFlags usage, VkSharingMode sharing)
++	std::unique_ptr<vk::viewable_image> texture_cache::find_cached_image(VkFormat format, u16 w, u16 h, u16 d, u16 mipmaps, VkImageType type, VkImageCreateFlags create_flags, VkImageUsageFlags usage, VkSharingMode sharing, rsx::format_class format_class)
+ 	{
+ 		reader_lock lock(m_cached_pool_lock);
+ 
+@@ -707,7 +736,9 @@
+ 
+ 			for (auto it = m_cached_images.begin(); it != m_cached_images.end(); ++it)
+ 			{
+-				if (it->key == desired_key && (it->data->info.usage & usage) == usage)
++				if (it->key == desired_key && (it->data->info.usage & usage) == usage &&
++					it->data->depth() == d && it->data->mipmaps() == mipmaps &&
++					it->data->format_class() == format_class)
+ 				{
+ 					auto ret = std::move(it->data);
+ 					m_cached_images.erase(it);
+@@ -725,7 +756,8 @@
+ 		u16 width, u16 height, u16 depth, u16 layers, u8 mips,
+ 		VkImageType image_type, VkFlags image_flags, VkFlags usage_flags)
+ 	{
+-		auto image = find_cached_image(format, width, height, depth, mips, image_type, image_flags, usage_flags, VK_SHARING_MODE_EXCLUSIVE);
++		usage_flags |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
++		auto image = find_cached_image(format, width, height, depth, mips, image_type, image_flags, usage_flags, VK_SHARING_MODE_EXCLUSIVE, format_class);
+ 
+ 		if (!image)
+ 		{
+@@ -733,7 +765,7 @@
+ 				image_type,
+ 				format,
+ 				width, height, depth, mips, layers, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+-				VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, image_flags | VK_IMAGE_CREATE_ALLOW_NULL_RPCS3,
++				VK_IMAGE_TILING_OPTIMAL, usage_flags, image_flags | VK_IMAGE_CREATE_ALLOW_NULL_RPCS3,
+ 				VMM_ALLOCATION_POOL_TEXTURE_CACHE, format_class);
+ 
+ 			if (!image->value)
+@@ -829,6 +861,50 @@
+ 			desc.gcm_format, desc.width, desc.height, 1, 1, desc.remap, &section);
+ 	}
+ 
++	bool texture_cache::copy_transfer_regions_fully_cover_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const
++	{
++		const u32 mipmaps = dst->mipmaps();
++		if (dst->aspect() != VK_IMAGE_ASPECT_COLOR_BIT || !mipmaps || mipmaps > 16)
++			return false;
++
++		// One bit per complete layer/depth slice. This also catches duplicate
++		// copies that leave another slice undefined on a recycled image.
++		std::array<u32, 17> mip_offsets{};
++		for (u32 level = 0; level < mipmaps; ++level)
++		{
++			const u32 slices = dst->type() == VK_IMAGE_TYPE_3D ? std::max(1u, dst->depth() >> level) : dst->layers();
++			mip_offsets[level + 1] = mip_offsets[level] + slices;
++		}
++
++		std::array<u64, 32> covered{};
++		u32 remaining = mip_offsets[mipmaps];
++		if (!remaining || remaining > covered.size() * 64 || sections.size() < remaining)
++			return false;
++
++		for (const auto& section : sections)
++		{
++			if (!section.src || section.src->aspect() != VK_IMAGE_ASPECT_COLOR_BIT ||
++				!section.src_w || !section.src_h || section.level >= mipmaps ||
++				section.dst_x || section.dst_y ||
++				section.dst_w != std::max(1u, dst->width() >> section.level) ||
++				section.dst_h != std::max(1u, dst->height() >> section.level) ||
++				section.dst_z >= mip_offsets[section.level + 1] - mip_offsets[section.level])
++			{
++				return false;
++			}
++
++			const u32 slice = mip_offsets[section.level] + section.dst_z;
++			const u64 bit = u64{1} << (slice % 64);
++			if (!(covered[slice / 64] & bit))
++			{
++				covered[slice / 64] |= bit;
++				--remaining;
++			}
++		}
++
++		return remaining == 0;
++	}
++
+ 	vk::image_view* texture_cache::generate_cubemap_from_images(vk::command_buffer& cmd, const deferred_subresource& desc)
+ 	{
+ 		const auto& sections_to_copy = desc.sections_to_copy;
+@@ -855,8 +931,11 @@
+ 		}
+ 		else if (!(dst_aspect & VK_IMAGE_ASPECT_DEPTH_BIT))
+ 		{
+-			VkClearColorValue clear = {};
+-			vkCmdClearColorImage(cmd, image->value, image->current_layout, &clear, 1, &dst_range);
++			if (!copy_transfer_regions_fully_cover_image(image, sections_to_copy))
++			{
++				VkClearColorValue clear = {};
++				vkCmdClearColorImage(cmd, image->value, image->current_layout, &clear, 1, &dst_range);
++			}
+ 		}
+ 		else
+ 		{
+@@ -904,8 +983,11 @@
+ 		}
+ 		else if (!(dst_aspect & VK_IMAGE_ASPECT_DEPTH_BIT))
+ 		{
+-			VkClearColorValue clear = {};
+-			vkCmdClearColorImage(cmd, image->value, image->current_layout, &clear, 1, &dst_range);
++			if (!copy_transfer_regions_fully_cover_image(image, sections_to_copy))
++			{
++				VkClearColorValue clear = {};
++				vkCmdClearColorImage(cmd, image->value, image->current_layout, &clear, 1, &dst_range);
++			}
+ 		}
+ 		else
+ 		{
+@@ -1210,7 +1292,7 @@
+ 				}
+ 			}
+ 
+-			if (auto found = find_cached_image(vk_format, width, height, depth, mipmaps, image_type, create_flags, usage_flags, sharing_mode))
++			if (auto found = find_cached_image(vk_format, width, height, depth, mipmaps, image_type, create_flags, usage_flags, sharing_mode, rsx::classify_format(gcm_format)))
+ 			{
+ 				image = found.release();
+ 			}
+@@ -1248,7 +1330,7 @@
+ 		region.set_swizzled(swizzled);
+ 		region.set_dirty(false);
+ 
+-		image->native_component_map = apply_component_mapping_flags(gcm_format, swizzle_flags, rsx::default_remap_vector);
++		image->set_native_component_layout(apply_component_mapping_flags(gcm_format, swizzle_flags, rsx::default_remap_vector));
+ 
+ 		// Its not necessary to lock blit dst textures as they are just reused as necessary
+ 		switch (context)
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.h b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.h
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+@@ -112,8 +112,9 @@
+ 
+ 			if (surface->is_depth_surface())
+ 			{
+-				gcm_format = (surface->get_surface_depth_format() != rsx::surface_depth_format::z16) ? CELL_GCM_TEXTURE_DEPTH16 : CELL_GCM_TEXTURE_DEPTH24_D8;
+-				swap_bytes = true;
++				const auto info = get_compatible_gcm_format(surface->get_surface_depth_format());
++				gcm_format = info.first;
++				swap_bytes = info.second;
+ 			}
+ 			else
+ 			{
+@@ -477,10 +478,11 @@
+ 		VkComponentMapping apply_component_mapping_flags(u32 gcm_format, rsx::component_order flags, const rsx::texture_channel_remap_t& remap_vector) const;
+ 
+ 		void copy_transfer_regions_impl(vk::command_buffer& cmd, vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections_to_transfer) const;
++		bool copy_transfer_regions_fully_cover_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const;
+ 
+ 		vk::image* get_template_from_collection_impl(const rsx::simple_array<copy_region_descriptor>& sections_to_transfer) const;
+ 
+-		std::unique_ptr<vk::viewable_image> find_cached_image(VkFormat format, u16 w, u16 h, u16 d, u16 mipmaps, VkImageType type, VkImageCreateFlags create_flags, VkImageUsageFlags usage, VkSharingMode sharing);
++		std::unique_ptr<vk::viewable_image> find_cached_image(VkFormat format, u16 w, u16 h, u16 d, u16 mipmaps, VkImageType type, VkImageCreateFlags create_flags, VkImageUsageFlags usage, VkSharingMode sharing, rsx::format_class format_class);
+ 
+ 	protected:
+ 		vk::image_view* create_temporary_subresource_view_impl(
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp b/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
+--- a/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
+@@ -79,7 +79,8 @@
+ 				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+ 				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
+ 				VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
+-				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
++				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
++				VK_PIPELINE_STAGE_VERTEX_SHADER_BIT
+ 			};
+ 			break;
+ 		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+@@ -146,7 +147,7 @@
+ 			{
+ 				// Finish reading before writing
+ 				barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_SHADER_READ_BIT;
+-				src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
++				src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+ 			}
+ 			else
+ 			{
+@@ -164,7 +165,8 @@
+ 					VK_PIPELINE_STAGE_TRANSFER_BIT |
+ 					VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+ 					VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
+-					VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
++					VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
++					VK_PIPELINE_STAGE_VERTEX_SHADER_BIT
+ 				};
+ 			}
+ 			break;
+@@ -191,7 +193,7 @@
+ 			break;
+ 		case VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT:
+ 			barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+-			src_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
++			src_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+ 			if (is_color_surface)
+ 			{
+ 				barrier.srcAccessMask |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;

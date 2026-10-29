@@ -1,0 +1,267 @@
+{
+  "baselineCommit": "a363d92332657196fb3b6085a98c62e119310bcc",
+  "sourceSnapshots": {
+    "Utilities/JITArenaAllocator.h": {
+      "currentSHA256": "47cd739c21c3f1e5944b912c846a7257ee15135941376fcc1b5173e07065cb4e",
+      "baselineSHA256": "1a6f57b45c599945706cf8c38a745b2865336a4b2aa53b3a13112d4788261578"
+    },
+    "Utilities/JITIOS.cpp": {
+      "currentSHA256": "17bd2138b17de431b22713d9693105d50af170f682fbbc6c2727c8e0a8bbddbb",
+      "baselineSHA256": "17bd2138b17de431b22713d9693105d50af170f682fbbc6c2727c8e0a8bbddbb"
+    },
+    "Utilities/JITLLVM.cpp": {
+      "currentSHA256": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+      "baselineSHA256": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf"
+    },
+    "native/neoswap-storage/Store.cpp": {
+      "currentSHA256": "a812b0834df8c7301d59ac780b84a4ecc7c306b7b55f7ab02178e5705dca8571",
+      "baselineSHA256": "9a951454d7e5124bea4ca1ee5589b1e4429df637dc4377b6c7e3775fcb1c99e4"
+    },
+    "native/neoswap-storage/Store.h": {
+      "currentSHA256": "52110ebca148e68c34374b6fc52cbb130c7985a39096a51e988a51968279c2ce",
+      "baselineSHA256": "52110ebca148e68c34374b6fc52cbb130c7985a39096a51e988a51968279c2ce"
+    },
+    "native/neoswap/NeoSwapClient.h": {
+      "currentSHA256": "ed6bf9bc70d4bf106463359aa87158f3352d9d0be46896c084d0c21638b5a9ab",
+      "baselineSHA256": "ed6bf9bc70d4bf106463359aa87158f3352d9d0be46896c084d0c21638b5a9ab"
+    },
+    "packages/neo_swap/ios/Classes/NeoSwap.cpp": {
+      "currentSHA256": "3205f66023fc3e43b0ea8e73375cb70d4def7578123da70196a7cf4dde765680",
+      "baselineSHA256": "3205f66023fc3e43b0ea8e73375cb70d4def7578123da70196a7cf4dde765680"
+    },
+    "rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h": {
+      "currentSHA256": "737fb3dc40e0aba43b5c8f4bffd5a18d3ef1a6ded83a07fcb0d7b78badec980b",
+      "baselineSHA256": "737fb3dc40e0aba43b5c8f4bffd5a18d3ef1a6ded83a07fcb0d7b78badec980b"
+    },
+    "rpcs3/Emu/Cell/PPUThread.cpp": {
+      "currentSHA256": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44",
+      "baselineSHA256": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44"
+    },
+    "rpcs3/Emu/Cell/PPUTranslator.cpp": {
+      "currentSHA256": "2573c07e9f75e75f19984d4a796141795942db5fd15f5290fcec37c99e97affd",
+      "baselineSHA256": "2573c07e9f75e75f19984d4a796141795942db5fd15f5290fcec37c99e97affd"
+    },
+    "rpcs3/Emu/Memory/vm.cpp": {
+      "currentSHA256": "ced39a51ef32ca7468184044d033c40a1aae85276ee85747f62906cabcbb68cc",
+      "baselineSHA256": "ced39a51ef32ca7468184044d033c40a1aae85276ee85747f62906cabcbb68cc"
+    },
+    "rpcs3/Emu/system_config.h": {
+      "currentSHA256": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4",
+      "baselineSHA256": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4"
+    }
+  },
+  "investigations": [
+    {
+      "id": "CPU01",
+      "domain": "PPU/LLVM",
+      "functions": [
+        "PPUTranslator::RegLoad",
+        "RegStore",
+        "FlushRegisters"
+      ],
+      "files": [
+        "rpcs3/Emu/Cell/PPUTranslator.cpp"
+      ],
+      "cost": "Context loads/stores at basic-block boundaries.",
+      "evidence": "RegLoad reuses m_locals[index] until invalidated; RegStore records local SSA; FlushRegisters emits only dirty m_globals entries.",
+      "status": "No additional change justified",
+      "potential": "Medium for genuinely redundant guest code",
+      "risk": "High if context flushing across calls/branches is weakened",
+      "next": "A concrete repeated guest instruction/IR sample and emitted ARM64 comparison; do not erase observable stores speculatively"
+    },
+    {
+      "id": "CPU02",
+      "domain": "PPU/LLVM pipeline",
+      "functions": [
+        "ppu_initialize2",
+        "ppu_effective_pipeline"
+      ],
+      "files": [
+        "rpcs3/Emu/Cell/PPUThread.cpp",
+        "rpcs3/Emu/system_config.h"
+      ],
+      "cost": "Stronger CSE/DSE/LICM can reduce emitted work but costs compilation and changes generated objects.",
+      "evidence": "Upstream, EarlyCSE and Extended pipelines already exist; Extended has EarlyCSE(MemorySSA), SimplifyCFG, InstCombine, DSE, LICM, ADCE; pipeline choice enters object settings. Build595 boot reports ppu_pipeline=0, ppu_ir_passes=0 and all modules cached.",
+      "status": "Still open; no blind global pipeline change",
+      "potential": "High if measured guest workload benefits",
+      "risk": "High correctness/compile latency/cache invalidation",
+      "next": "Compile representative existing guest IR under exact pinned LLVM22 and compare output/runtime. Toolchain not present here; existing source toggles are not a verified speedup"
+    },
+    {
+      "id": "CPU03",
+      "domain": "ARM64/NEON",
+      "functions": [
+        "PPUTranslator::VCFUX",
+        "rpcs3::cell::arm64::unsigned_byte_dot",
+        "halfword_pair_dot",
+        "byte_sum",
+        "signed_halfword_pair_sum",
+        "jit_compiler::target_attributes"
+      ],
+      "files": [
+        "rpcs3/Emu/Cell/PPUTranslator.cpp",
+        "rpcs3/Emu/CPU/Backends/AArch64/CellVectorLowering.h",
+        "Utilities/JITLLVM.cpp"
+      ],
+      "cost": "Guest vector widening/shuffles and multiply-add trees.",
+      "evidence": "ARM64 VCFUX already directly converts unsigned vector; UDOT/SDOT, UMULL/SMULL+ADDP and SADDLP paths already exist; dotprod/i8mm feature flags propagated to target.",
+      "status": "Existing native lowering verified by source; no duplicate rewrite",
+      "potential": "Medium for remaining opcodes only",
+      "risk": "High saturation/rounding/guest SAT and hardware-feature errors",
+      "next": "Select one remaining opcode from real hot guest code, prove exact arithmetic and inspect native output before modifying"
+    },
+    {
+      "id": "CPU04",
+      "domain": "JIT objects/cache",
+      "functions": [
+        "object_identity",
+        "validated_object_window::checked",
+        "remember",
+        "take",
+        "ObjectCache::load",
+        "jit_compiler::check"
+      ],
+      "files": [
+        "Utilities/JITLLVM.cpp"
+      ],
+      "cost": "stat, decompress, object validation and disk reads during first-use/load.",
+      "evidence": "Identity binds path/dev/inode/size/mtime/ctime nanoseconds; 4096 metadata entries and32MiB buffer window; small compressed files coalesce input reads. Take consumes ownership; invalid identities miss.",
+      "status": "No unsafe stat/validation bypass",
+      "potential": "Medium startup; unproved gameplay",
+      "risk": "High stale/foreign/truncated code execution if identity or validate skipped",
+      "next": "Measure exact cache miss versus validation costs for representative warm/cold boot; retain file-change invalidation"
+    },
+    {
+      "id": "CPU05",
+      "domain": "JIT memory retention",
+      "functions": [
+        "ppu_object_window_scope::~ppu_object_window_scope",
+        "jit_compiler::release_cached_object_buffers",
+        "jit_compiler::try_add",
+        "MemoryManager1::~MemoryManager1"
+      ],
+      "files": [
+        "rpcs3/Emu/Cell/PPUThread.cpp",
+        "Utilities/JITLLVM.cpp"
+      ],
+      "cost": "Retained decompressed objects and LLVM IR; freeing code/data sections.",
+      "evidence": "Last loading owner drops object buffers; success deletes function bodies; recoverable failure clears stack ObjectCache pointer. Memory manager releases owned code/data sections through JITIOS.",
+      "status": "Existing lifetime fixes retained; allocator path below optimized",
+      "potential": "Medium memory pressure",
+      "risk": "High concurrent load ownership/use-after-free",
+      "next": "No forced full-title cache clearing or code arena purge; device allocator lifetime profile needed to establish frame impact"
+    },
+    {
+      "id": "CPU06",
+      "domain": "JIT arena",
+      "functions": [
+        "arena_allocator::release"
+      ],
+      "files": [
+        "Utilities/JITArenaAllocator.h"
+      ],
+      "cost": "Old release inserts then coalesces: shifts metadata twice and may allocate only to immediately erase.",
+      "evidence": "Direct adjacent merges avoid allocation and suffix shifts; complete-class differential tests preserve offsets/free counts and atomic failure of separate insert.",
+      "status": "Implemented and plain/ASan verified",
+      "potential": "Medium unload/recompile metadata bursts, unproved gameplay",
+      "risk": "Low after boundary/failure tests",
+      "next": "Affected Apple/native validation when a Core is requested; adjacent release benchmark gains are not FPS"
+    },
+    {
+      "id": "CPU07",
+      "domain": "JIT data purge",
+      "functions": [
+        "arena_allocator::released_data_pages",
+        "advise_released_data"
+      ],
+      "files": [
+        "Utilities/JITArenaAllocator.h",
+        "Utilities/JITIOS.cpp"
+      ],
+      "cost": "Old whole-list linear search for the free interval containing a released range.",
+      "evidence": "Sorted disjoint intervals admit upper_bound predecessor. Same rounded page range for720000 differential queries and6561 extreme cases.64/512 free intervals improve;1/8 regress slightly.",
+      "status": "Implemented, tradeoff explicitly retained",
+      "potential": "Medium highly fragmented teardown",
+      "risk": "Low functionally; small-list timing regression",
+      "next": "Do not claim physical RSS reclaimed from MADV_FREE advice; native Apple timings still pending"
+    },
+    {
+      "id": "CPU08",
+      "domain": "NeoSwap Store accounting",
+      "functions": [
+        "Store::Impl::trim_to",
+        "ram"
+      ],
+      "files": [
+        "native/neoswap-storage/Store.cpp"
+      ],
+      "cost": "N-entry ram() sweep before every victim selection, O(K*N) redundant count work.",
+      "evidence": "mu protects entry ownership/loading; only selected raw/warm resets change bytes during trim. Local total removes K redundant sweeps without persistent accounting/ABI changes.184750\u219212000 ram scans in12000 sweeps; whole POSIX Store passes.",
+      "status": "Implemented and plain/ASan verified",
+      "potential": "Medium under Store eviction pressure; no device attribution",
+      "risk": "Low; two no-eviction microbenchmark medians regress",
+      "next": "Preserve pins, warm byte counting, except entry, victim order and quota behavior; no extra telemetry"
+    },
+    {
+      "id": "CPU09",
+      "domain": "NeoSwap Store victim algorithm",
+      "functions": [
+        "Store::Impl::trim_to",
+        "Store::try_acquire",
+        "Lease lifetime"
+      ],
+      "files": [
+        "native/neoswap-storage/Store.cpp",
+        "native/neoswap-storage/Store.h"
+      ],
+      "cost": "Remaining K victim scans over N entries; heap would nominally become O(N+KlogN).",
+      "evidence": "heat/stamp/busy/disk stable under mu, but external Lease shared_ptr can drop use_count without mu. Initial eligible-only heap can miss newly unpinned oldest candidate. Full heap must revisit skipped pinned candidates to preserve victim order.",
+      "status": "Investigated, not implemented",
+      "potential": "High in large trim bursts; game activity unproved",
+      "risk": "Changed pressure eviction order; new allocation under pressure or32KiB pointer stack at4096entries",
+      "next": "Define/test concurrent unpin semantics and allocation-failure-safe bounded candidate storage before replacing scan; no speculative heap"
+    },
+    {
+      "id": "CPU10",
+      "domain": "NeoSwap broker contention",
+      "functions": [
+        "neo_swap::try_allocate_kind",
+        "try_allocate_cpu",
+        "allocate",
+        "release"
+      ],
+      "files": [
+        "native/neoswap/NeoSwapClient.h",
+        "packages/neo_swap/ios/Classes/NeoSwap.cpp"
+      ],
+      "cost": "Broker lock and backing allocation/retirement on RSX memory paths.",
+      "evidence": "Client sets NEOSWAP_REQUEST_FAST; broker try_lock fails immediately to original allocator; small CPU title/pressure refusal precedes lock. FAST owned-address release uses atomic bitmap and deferred pending release; ordinary frees avoid broker mutex.",
+      "status": "Existing fast path confirmed; no lock removal",
+      "potential": "High only with observed broker contention/fallback",
+      "risk": "High mapping ownership and failed-unmap lifetime",
+      "next": "Reuse existing client/broker counters for eligibility and wait attribution; no bypass of retained ownership or anonymous executable mapping"
+    },
+    {
+      "id": "CPU11",
+      "domain": "VM/iOS integration",
+      "functions": [
+        "vm::_page_unmap",
+        "rpcs3::ios::jit::allocate",
+        "claim_runtime"
+      ],
+      "files": [
+        "rpcs3/Emu/Memory/vm.cpp",
+        "Utilities/JITIOS.cpp"
+      ],
+      "cost": "Zeroing mappings and protection/unmap calls, possible page faults.",
+      "evidence": "VM notifies RSX under VM lock before unmapping to avoid protection of recycled addresses; anonymous mapping zero ensures later reuse. JIT data arena can receive MADV_FREE, so allocations explicitly zero reused data. Executable and data aliases remain separate.",
+      "status": "Unsafe removal rejected by lifetime/zero semantics",
+      "potential": "Medium memory pressure paths",
+      "risk": "High stale guest data, RSX use-after-unmap, writable/executable alias errors",
+      "next": "Prove complete overwrite and consumer ordering for an individually identified allocation before removing memset/barrier"
+    }
+  ],
+  "noGameplayOrFPSProof": true,
+  "canonicalChangedByThisAgent": false,
+  "PPUGeneratedCodeChangedByThisAgent": false
+}

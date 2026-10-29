@@ -1,0 +1,75 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "intermediateSourceSHA256": "2ff386b14bcc2ab4f32f6c3d8f7cfd295b1faaa31523f79d6702caef673850dc",
+  "authenticatedTagProofs": {
+    "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-llvm-plain.json": "23f48657d6e1f40f3950452e808da85c27c5115bc52028608aace2a6f27a48df",
+    "docs/evidence/rpcs3-deep-audit-20261029/gow3-mfc-llvm-asan.json": "1bb3e54184348fe0158dc07f68304e00b880b546344242c87b03059033d82710"
+  },
+  "fullQueuePrefixSHA256": "8050bbb235f75e5063f2937c2e490e14b47e207809a491fd5e209660d517cc91",
+  "helperBodiesSHA256": "27df27498200b2c7c6e14165f9df0547554e7f7434594a6ca7fd5168380b31f5",
+  "guardSHA256": "f010c0335586cdc754c0ec1711f3605e1544e2b15f20e5fb0b4c1f3e4351a18b",
+  "results": {
+    "tagRegression": {
+      "passed": true,
+      "scenarios": 49152,
+      "baselinePrematureCompletions": 47616,
+      "candidatePrematureCompletions": 0,
+      "candidateMatchesReference": 49152,
+      "staleSlotCases": 48960,
+      "fullQueueGuards": 3,
+      "unchangedDMAEncodings": 192,
+      "barriersPreservedUntilListAck": true,
+      "publicationOrderPreserved": true
+    },
+    "fullQueue": {
+      "baselineHalts": 96,
+      "recovered": 96,
+      "stopBeforeDrain": 96,
+      "successfulRetries": 96,
+      "againEscapes": 96,
+      "stalledListWaits": 96,
+      "interruptDrainEscapes": 96,
+      "noDoubleEnqueue": true,
+      "currentPCPreservedOnStop": true
+    }
+  },
+  "sourceSHA256": {
+    "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff",
+    "rpcs3/Emu/Cell/MFC.h": "66890f55f172be2a8a7b9e54100c5dac79562f0e743b72dec619732da00f7396"
+  },
+  "runtimeBodySHA256": {
+    "bool spu_thread::do_mfc(bool can_escape, bool must_finish)": "2e3117ce0acc168d58beabdf379d1dc97f0d2a776fc0730527bcdd3dcb722df8",
+    "u32 spu_thread::get_mfc_completed() const": "770f42f87539f1818021aa6f12e461570994b9197156e712bb3150d800d2eaeb",
+    "bool spu_thread::check_mfc_interrupts(u32 next_pc)": "ecbcf18c0505089205ee56117e3896a4508c93d3a51fc175e5630bde6c8e1283",
+    "tagUpdate": "114d770c52255bf8f79a19cdc925c217e9742accf99daa278e77e1ae23bc19e4",
+    "referenceBarrierEnqueue": "4930c989e15584934912ba64d44312496be2a9353ad6f9da786da3fd55c364fd"
+  },
+  "harnessSHA256": "012ce86ef392f3605dcbcfab5609ba384c1b75b7245a4e87edf7ca6318021fb1",
+  "scriptSHA256": "ddeede766dad9f8a574fc90f15d8d3de6133b35f4ddd694cc7ffb3559a93b3c3",
+  "adapterSHA256": "0630c6f4f0964f37f9954c2acfda8a6bcfb441f02935209bfef9ced3ffd877ca",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "host": "x86_64",
+  "sanitizer": "address,undefined",
+  "llvmCompiled": false,
+  "aarch64Executed": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "realDMATransfersTested": false,
+  "concurrentMemoryOrderingTested": false,
+  "leakSanitizer": false,
+  "scope": "Exercise final MFC enqueue CFG and the real full-queue drain/retry bodies.\n\nBuilds on the independently recorded tag-stage regression, authenticates that\nintermediate source and reuses its driver in a new execution. The LLVM builder\nis evaluated with explicit block reachability and bounded memory; this is not\na native LLVM/AArch64 compilation. DMA, waits and CPU flags are host adapters.\n"
+}

@@ -1,0 +1,443 @@
+{
+  "passed": true,
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "c5a7780318b4e0a70613376e6acde23ac9984341456e33765d2af715c523734c",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.h": "719bf3bb9f994b227635a2ce485237804270e7a75bba29d38be3bbb6c3a203f5",
+    "rpcs3/Emu/RSX/VK/vkutils/image.cpp": "9282d1374018aa18971a6a28a5cdd04e7a19db35692d3c27fb964f8f3c1f3c83",
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp": "53494ea3b8cfa5e5e7f336fc8729ebb40de2f7fded4b18839653363450f8be90",
+    "rpcs3/Emu/RSX/VK/VKFormats.cpp": "012217aade7f2fcac1b5e35a38439e6d0d8454038ebf37859660b0e9f3d821f0",
+    "rpcs3/Emu/RSX/Utils/color_utils.hpp": "376994e979776cfd5fbf5494904f55674546e13c58cdcb6c768d1142b234d2e6",
+    "rpcs3/Emu/RSX/gcm_enums.h": "1814f59d138e3048b81b81849148a5ce695300f9d743aaff3cde3b0f7c5e5cc1",
+    "rpcs3/Emu/RSX/Common/TextureUtils.h": "f2177f51d6cc96f566cec6a99a7612cebe765afa6f7d06a459d684d8b73b7e40",
+    "rpcs3/Emu/RSX/Common/TextureUtils.cpp": "b2206ec9215cddd946cb3dd69222216968b3f33140f2732cbf0736e8737d2323",
+    "rpcs3/Emu/RSX/Common/texture_cache_types.h": "3cda978e88ee29bfbb7b2e806e1420df860f6b39d0069a1723c6f4517e6fdce0"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "12f9772af3a1dbdcc10db2b2b95446f4fb278cd28b236788134ef44874d3c9a3",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.h": "20eda27ec70aa0f15ae1e05b8ef1f84e22f104e102be29a0c738aa2a9717046e",
+    "rpcs3/Emu/RSX/VK/vkutils/image.cpp": "9282d1374018aa18971a6a28a5cdd04e7a19db35692d3c27fb964f8f3c1f3c83",
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp": "e06a7b2958b2c248b30b9d8fa3149bf513f175c11ca716f8996c86f8c8a72bee",
+    "rpcs3/Emu/RSX/VK/VKFormats.cpp": "012217aade7f2fcac1b5e35a38439e6d0d8454038ebf37859660b0e9f3d821f0",
+    "rpcs3/Emu/RSX/Utils/color_utils.hpp": "376994e979776cfd5fbf5494904f55674546e13c58cdcb6c768d1142b234d2e6",
+    "rpcs3/Emu/RSX/gcm_enums.h": "1814f59d138e3048b81b81849148a5ce695300f9d743aaff3cde3b0f7c5e5cc1",
+    "rpcs3/Emu/RSX/Common/TextureUtils.h": "f2177f51d6cc96f566cec6a99a7612cebe765afa6f7d06a459d684d8b73b7e40",
+    "rpcs3/Emu/RSX/Common/TextureUtils.cpp": "b2206ec9215cddd946cb3dd69222216968b3f33140f2732cbf0736e8737d2323",
+    "rpcs3/Emu/RSX/Common/texture_cache_types.h": "3cda978e88ee29bfbb7b2e806e1420df860f6b39d0069a1723c6f4517e6fdce0"
+  },
+  "harnessSHA256": "c7aa7502e19e22aebf37604709af43b2e9683b05d459ce41006e801cfd17bf31",
+  "adapterSHA256": "f071178ddba4640f232329dc31009338da2e886497aef637c0dd6c64c75749c3",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-g",
+    "-O3"
+  ],
+  "host": "x86_64",
+  "sanitizer": null,
+  "results": {
+    "nativeChecks": 20739,
+    "baselineWrongNativeMappings": 6095,
+    "candidateWrongNativeMappings": 0,
+    "poolChecks": 90005,
+    "baselineWrongPoolSelections": 2050,
+    "candidateWrongPoolSelections": 0,
+    "depthChecks": 4,
+    "baselineWrongDepthFormats": 2,
+    "candidateWrongDepthFormats": 0,
+    "copyChecks": 13000,
+    "sameCopiesAndPerImageBarriers": true,
+    "coverageChecks": 3692,
+    "colorClearEliminationsInCases": 657,
+    "sameModeledDestinationTexels": true,
+    "viewsConstructed": 124419,
+    "viewsDestroyed": 124419,
+    "copyBenchmarks": [
+      {
+        "sections": 1,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 46.1674,
+        "afterMedianNs": 8.0359,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          46.0974,
+          48.4061,
+          45.4707,
+          47.2006,
+          60.8238,
+          46.1674,
+          45.5475
+        ],
+        "afterTrialsNs": [
+          8.0359,
+          7.99587,
+          10.9416,
+          8.01857,
+          7.99587,
+          9.7955,
+          9.13553
+        ]
+      },
+      {
+        "sections": 1,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 45.1199,
+        "afterMedianNs": 8.28163,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          43.2304,
+          44.0376,
+          45.1199,
+          57.8715,
+          45.1292,
+          56.7448,
+          44.4379
+        ],
+        "afterTrialsNs": [
+          7.99687,
+          7.9885,
+          7.98783,
+          9.5388,
+          8.28163,
+          8.2826,
+          8.5333
+        ]
+      },
+      {
+        "sections": 2,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 76.7715,
+        "afterMedianNs": 12.7496,
+        "beforeAllocationsPerTrial": 90000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          75.782,
+          65.9782,
+          72.5355,
+          77.8538,
+          112.585,
+          76.7715,
+          90.3172
+        ],
+        "afterTrialsNs": [
+          14.15,
+          13.9266,
+          11.6479,
+          12.1417,
+          12.7496,
+          11.6413,
+          19.7449
+        ]
+      },
+      {
+        "sections": 2,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 51.8882,
+        "afterMedianNs": 10.6531,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          48.7329,
+          121.743,
+          51.8882,
+          47.4781,
+          76.5147,
+          51.931,
+          51.6946
+        ],
+        "afterTrialsNs": [
+          10.0375,
+          10.6531,
+          12.9445,
+          11.2574,
+          11.6867,
+          10.2889,
+          10.0205
+        ]
+      },
+      {
+        "sections": 4,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 183.936,
+        "afterMedianNs": 31.1415,
+        "beforeAllocationsPerTrial": 150000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          183.936,
+          185.634,
+          220.418,
+          163.941,
+          169.423,
+          286.003,
+          156.167
+        ],
+        "afterTrialsNs": [
+          27.3953,
+          97.0933,
+          45.5008,
+          31.1415,
+          96.4864,
+          21.2648,
+          30.2101
+        ]
+      },
+      {
+        "sections": 4,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 101.613,
+        "afterMedianNs": 18.7605,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          72.5062,
+          89.0634,
+          107.93,
+          121.184,
+          77.3514,
+          101.613,
+          116.618
+        ],
+        "afterTrialsNs": [
+          21.791,
+          37.0139,
+          15.8939,
+          16.1359,
+          14.8987,
+          18.7605,
+          48.0045
+        ]
+      },
+      {
+        "sections": 8,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 466.834,
+        "afterMedianNs": 66.2709,
+        "beforeAllocationsPerTrial": 270000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          466.834,
+          552.331,
+          363.432,
+          614.538,
+          590.626,
+          360.434,
+          357.137
+        ],
+        "afterTrialsNs": [
+          66.2709,
+          67.3335,
+          47.3655,
+          45.3339,
+          154.464,
+          180.905,
+          41.137
+        ]
+      },
+      {
+        "sections": 8,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 80.6062,
+        "afterMedianNs": 27.4818,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 0,
+        "beforeTrialsNs": [
+          75.7797,
+          84.4288,
+          84.2509,
+          78.7868,
+          80.6062,
+          93.8174,
+          72.7128
+        ],
+        "afterTrialsNs": [
+          29.6316,
+          45.4387,
+          35.2796,
+          24.9036,
+          27.4818,
+          25.9718,
+          25.0905
+        ]
+      },
+      {
+        "sections": 9,
+        "repeated": false,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 473.273,
+        "afterMedianNs": 365.482,
+        "beforeAllocationsPerTrial": 300000,
+        "afterAllocationsPerTrial": 300000,
+        "beforeTrialsNs": [
+          448.516,
+          495.378,
+          554.57,
+          690.853,
+          399.962,
+          336.223,
+          473.273
+        ],
+        "afterTrialsNs": [
+          304.955,
+          374.458,
+          764.187,
+          576.708,
+          335.767,
+          365.482,
+          338.355
+        ]
+      },
+      {
+        "sections": 9,
+        "repeated": true,
+        "iterationsPerTrial": 30000,
+        "beforeMedianNs": 112.978,
+        "afterMedianNs": 86.0305,
+        "beforeAllocationsPerTrial": 60000,
+        "afterAllocationsPerTrial": 60000,
+        "beforeTrialsNs": [
+          76.0577,
+          73.4279,
+          132.129,
+          112.978,
+          114.453,
+          86.1908,
+          127.076
+        ],
+        "afterTrialsNs": [
+          86.0305,
+          243.671,
+          152.472,
+          96.0898,
+          68.5987,
+          74.9905,
+          75.312
+        ]
+      },
+      {
+        "sections": 32,
+        "repeated": false,
+        "iterationsPerTrial": 10000,
+        "beforeMedianNs": 1360.11,
+        "afterMedianNs": 1392.62,
+        "beforeAllocationsPerTrial": 180000,
+        "afterAllocationsPerTrial": 180000,
+        "beforeTrialsNs": [
+          1473.15,
+          1202.55,
+          894.267,
+          1360.11,
+          1572.49,
+          1406.76,
+          1038.72
+        ],
+        "afterTrialsNs": [
+          1199.49,
+          1206.3,
+          1420.14,
+          1577.88,
+          1392.62,
+          1590.14,
+          1151.95
+        ]
+      },
+      {
+        "sections": 32,
+        "repeated": true,
+        "iterationsPerTrial": 10000,
+        "beforeMedianNs": 192.956,
+        "afterMedianNs": 244.65,
+        "beforeAllocationsPerTrial": 20000,
+        "afterAllocationsPerTrial": 20000,
+        "beforeTrialsNs": [
+          194.297,
+          195.415,
+          192.158,
+          192.956,
+          190.153,
+          193.077,
+          192.021
+        ],
+        "afterTrialsNs": [
+          244.65,
+          247.827,
+          244.417,
+          245.208,
+          235.851,
+          223.157,
+          245.366
+        ]
+      },
+      {
+        "sections": 256,
+        "repeated": false,
+        "iterationsPerTrial": 1764,
+        "beforeMedianNs": 2068.74,
+        "afterMedianNs": 2438.5,
+        "beforeAllocationsPerTrial": 31752,
+        "afterAllocationsPerTrial": 31752,
+        "beforeTrialsNs": [
+          2068.74,
+          2090.97,
+          2071.4,
+          2031.48,
+          2167.94,
+          2040.02,
+          2037.15
+        ],
+        "afterTrialsNs": [
+          2465.7,
+          2437.71,
+          2452.79,
+          2475.12,
+          2297.69,
+          2438.5,
+          2396.02
+        ]
+      },
+      {
+        "sections": 256,
+        "repeated": true,
+        "iterationsPerTrial": 1764,
+        "beforeMedianNs": 1002.56,
+        "afterMedianNs": 1457.65,
+        "beforeAllocationsPerTrial": 3528,
+        "afterAllocationsPerTrial": 3528,
+        "beforeTrialsNs": [
+          1040.37,
+          998.839,
+          1003.75,
+          981.234,
+          1016.96,
+          992.389,
+          1002.56
+        ],
+        "afterTrialsNs": [
+          1508.85,
+          1491.93,
+          1457.65,
+          1457.5,
+          1453.98,
+          1494.81,
+          1445.21
+        ]
+      }
+    ]
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "leakSanitizerEnabled": false,
+  "scope": "Run extracted Vulkan texture identity, native-view and copy-input methods.\n\nVulkan handles/driver calls are host boundaries. This verifies cache ownership,\nview selection and CPU bookkeeping, not GPU execution or iPhone gameplay.\n"
+}

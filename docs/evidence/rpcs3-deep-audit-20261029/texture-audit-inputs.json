@@ -1,0 +1,19 @@
+{
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "e13f7e13e5e452fa1d705f6617e9ffb665d82a26af09ef7acfaa7ef9821e7f1a",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.h": "4167c539b813e8d5ad3c684314de83fdfa1302a6f8e1403044087b1f194318f4",
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp": "53494ea3b8cfa5e5e7f336fc8729ebb40de2f7fded4b18839653363450f8be90",
+    "rpcs3/Emu/RSX/VK/VKFormats.cpp": "012217aade7f2fcac1b5e35a38439e6d0d8454038ebf37859660b0e9f3d821f0",
+    "rpcs3/Emu/RSX/VK/VKTexture.cpp": "69057779d331042f5950edd0e15632eebf0923a1d2b9a0cb684fc476ce2fdc01",
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp": "91d473f3053f5623703bb5d025112199109cbdd51b0eb47d68d37ca9e8f1d4a6",
+    "rpcs3/Emu/RSX/VK/VKPresent.cpp": "a294b01d30d8753353035142ef07ad58d40f8c788641972065cc9356f2b482d9",
+    "rpcs3/Emu/RSX/VK/VKRenderTargets.cpp": "1c9c84b3ae5f9325f6c1ab48e65854eba7dd3930534638f4a05062ca1d8c578c",
+    "rpcs3/Emu/RSX/VK/upscalers/fsr1/fsr_pass.cpp": "3e8a5a33e7e302a8e363b8bf1ad46a52e2d4ab465abc7e03bcadafcdfe5b7ff0",
+    "rpcs3/Emu/RSX/Common/surface_utils.h": "7515241c8d83f7b0de4d0146391bd40998aa6d240d319de3dfb6f4703e358dea",
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "b4443038bd7fd28aada4b3124276a2554bcc4ce3644b065f4b31107207b19b8c",
+    "rpcs3/Emu/RSX/Common/TextureUtils.cpp": "b2206ec9215cddd946cb3dd69222216968b3f33140f2732cbf0736e8737d2323"
+  },
+  "baseline": "rpcs3-followup-verify",
+  "device595": false,
+  "sourceOnly": true
+}

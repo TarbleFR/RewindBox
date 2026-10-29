@@ -1,0 +1,157 @@
+{
+  "baseline": "a363d923",
+  "scope": "Shaders, pipeline caches, compilation jobs and neighbouring formatter paths",
+  "deviceContext": {
+    "observedCompilerMode": "Legacy Recompiler (single-threaded) for all three games in build595 evidence",
+    "newSourcesExecutedOnDevice": false,
+    "stutterWithoutShaderCompilationAlreadyObserved": true
+  },
+  "investigations": [
+    {
+      "id": "SH1",
+      "paths": [
+        "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp:Format",
+        "rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp:Format",
+        "Utilities/StrUtil.h:replace_all(callback list)"
+      ],
+      "hypothesis": "Repeated placeholder parsing adds avoidable CPU work during synchronous shader decompilation.",
+      "codeEvidence": "The old callback overload tests all 11 vertex or 19 fragment placeholder strings at every literal character using temporary substrings, then erase/insert shifts the remaining suffix. All production placeholder keys start with '$'.",
+      "potential": "Medium for synchronous decompilation bursts; cannot affect a frame with no compilation.",
+      "feasibility": "High; output-preserving string algorithm with no GPU dependency.",
+      "risk": "Callback order, empty replacements, inserted dollar signs, unknown tokens and TEXBEM two-stage redirection.",
+      "status": "implemented",
+      "change": "iOS helper finds '$' boundaries and appends unchanged literal spans; retains ordered matching and never reparses emitted replacement strings.",
+      "verification": "76,391 exact Format comparisons per mode, including all 91 production literals containing tokens, 10,000 generated inputs, embedded NULs, empty/long/token-like results, both redirect opcodes, ignore_redirects and native half states. Plain and ASan/UBSan pass. Original and current desktop output also agree."
+    },
+    {
+      "id": "SH2",
+      "paths": [
+        "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp:Format",
+        "rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp:Format"
+      ],
+      "hypothesis": "std::bind member-call wrappers allocate every Format invocation even when their token is absent.",
+      "codeEvidence": "Seven vertex and three fragment wrappers store this plus a member-function pointer (and sometimes an argument) in std::function. Their replacement lambdas capture only this.",
+      "potential": "Medium for shader preparation, no new shader reuse or reduced driver compilation claimed.",
+      "feasibility": "High.",
+      "risk": "Preserve exact target method, arguments and lazy invocation.",
+      "status": "implemented",
+      "change": "Use this-capturing lambdas with the same method calls. This equivalent wrapper change also applies to desktop; the new token scanner itself remains iOS-only.",
+      "verification": "The exact original and replacement Format methods compile in the differential harness. Literal-only 3,000-call workload allocation count: fragment 12,000 to 3,000; vertex 24,000 to 3,000. One output-string allocation per call remains. Callback order matches in all Format tests."
+    },
+    {
+      "id": "SH3",
+      "paths": [
+        "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp:AddCode",
+        "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp:GetSRC",
+        "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp:AddAddrReg",
+        "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp:GetCond"
+      ],
+      "hypothesis": "Full-body and instruction-body generation repeat the same formatting work.",
+      "codeEvidence": "AddCode calls Format(code) twice without intervening renderer state mutation. Reachable callbacks register declarations, insert constant IDs, and OR the indexed-constant flag; these operations are idempotent.",
+      "potential": "Halves Format calls from this vertex decompilation path.",
+      "feasibility": "High.",
+      "risk": "Keep the original extra semicolon only in m_body and preserve declaration/constant registration.",
+      "status": "implemented",
+      "change": "On iOS, format once, append the semicolon for m_body and move the same original text into the per-instruction body.",
+      "verification": "10,913 AddCode comparisons per mode: both output vectors and declarations match; callback invocations are exactly halved. Callback operand decoding is a disclosed host adapter, not a full GLSL/driver execution."
+    },
+    {
+      "id": "SH4",
+      "paths": [
+        "rpcs3/Emu/RSX/Program/ProgramStateCache.h:search_completed_shader",
+        "rpcs3/Emu/RSX/rsx_cache.h:load_shaders",
+        "rpcs3/Emu/RSX/rsx_cache.h:compile_shaders",
+        "rpcs3/Emu/RSX/rsx_cache.h:await_workers"
+      ],
+      "hypothesis": "A shader map entry may be consumed before its compiler publishes ready.",
+      "codeEvidence": "The ordinary map-hit path can return an incomplete shader, while recent hints require ready. The parallel caller is preload_programs, which discards those references. load_shaders joins its complete named_thread_group before compile_shaders starts consuming shader fields. Runtime draws use the RSX thread after preload.",
+      "potential": "High if a new concurrently consuming caller were introduced.",
+      "feasibility": "Needs an actual consumer overlap before introducing a new wait.",
+      "risk": "An unnecessary wait would serialize independent preload work.",
+      "status": "not reproduced on current call graph",
+      "verification": "All preload_programs/add_pipeline_entry call sites and the two joined phases were inspected. No new wait or ready policy is added. This is not proof that arbitrary future concurrent callers are safe."
+    },
+    {
+      "id": "SH5",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/VKPipelineCompiler.h:compute_pipeline_props",
+        "rpcs3/Emu/RSX/VK/VKPipelineCompiler.h:pipe_compiler_job",
+        "rpcs3/Emu/RSX/VK/VKCompute.cpp:compile"
+      ],
+      "hypothesis": "Deferred compute job copies may retain a pointer into a temporary entry-name string.",
+      "codeEvidence": "compute_data = props constructs a temporary compute_pipeline_props whose implicit assignment copies stage.pName. Small strings can therefore leave pName pointing into the destroyed temporary. Every current compute consumer in VKCompute forces COMPILE_INLINE, bypassing this job constructor.",
+      "potential": "Correctness issue for future deferred compute, no current gameplay gain established.",
+      "feasibility": "A copy/assignment rebasing fix is straightforward but outside an executed path here.",
+      "risk": "Specialization info and other pNext ownership would also need a complete deferred-compute contract.",
+      "status": "inactive issue recorded, not applied",
+      "verification": "Repository-wide compile/get_pipe_compiler call sites checked. The graphics jobs used by legacy rendering do not use compute_data."
+    },
+    {
+      "id": "SH6",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h",
+        "rpcs3/Emu/RSX/VK/VKGSRender.cpp:decode_rsx_state",
+        "rpcs3/Emu/RSX/VK/VKProgramBuffer.h:validate_pipeline_properties"
+      ],
+      "hypothesis": "Unused logic op/min sample shading state creates unnecessary pipeline variants.",
+      "codeEvidence": "Dynamic states and disabled blending/depth/stencil are already normalized on the private key. decode_rsx_state constructs a fresh zeroed properties object each time, setting logicOp only when enabled and sampleShadingEnable/minSampleShading together. The suspected stale inactive fields are not generated by this live path.",
+      "potential": "Low for this specific extension; existing normalization is retained.",
+      "feasibility": "No useful live-state difference to remove demonstrated.",
+      "risk": "Front-face/cull or sample-shading normalization could alter shader/front-facing and coverage semantics.",
+      "status": "rejected for current live path",
+      "verification": "Inspected decoded state, validation, pipeline hash/equality and compiler dynamic-state declarations. No additional normalizer or cache reset is added."
+    },
+    {
+      "id": "SH7",
+      "paths": [
+        "rpcs3/Emu/RSX/VK/vkutils/device.cpp:save_pipeline_cache",
+        "rpcs3/Emu/RSX/rsx_cache.h:store",
+        "rpcs3/Emu/RSX/rsx_cache.h:load_fp_raw",
+        "rpcs3/Emu/RSX/rsx_cache.h:load_vp_raw"
+      ],
+      "hypothesis": "Repeated persistence and duplicate raw-program loads add stalls and memory retention.",
+      "codeEvidence": "Existing persistence is already deferred and unchanged libraries skip serialization. Repeated raw payload I/O was confirmed in the executed load/unpack path. The candidate retained per-record properties, actual FP-byte hash checks and existing ownership/release; only immutable verified raw data was reused. Vertex data was not shared because per-record instruction masks participate in validation.",
+      "potential": "The 256-repeat 8 KiB payload test reduces reads and temporary owned bytes: 256 to 1 with one worker, 256 to 8 with eight workers in the final measured case. Per-worker multiple-payload repeats are less effective. These are constructed workloads, not the games cache inventory.",
+      "feasibility": "Implemented and functionally exercised, but not retained because a general startup gain is unproved and unique-payload cases regress.",
+      "risk": "Additional key checks/hash proof routing and per-worker scratch initialization cost remain when no payload repeats. Shared versions also contend. Actual game raw-cache files are unavailable, so their duplicate frequency cannot justify that tradeoff.",
+      "status": "three implementations tested and withdrawn from production",
+      "verification": "Real temporary files, exact load_shaders/unpack/load_fp_raw/FP hash and lf_fifo/ownership methods: 4,096 record results checked, eight 1/8-worker scenarios, four corrupt/missing/short/oversized recovery cases, collisions, repeated load lifetime, cancellation and desktop equivalence. Three designs measured: shared blocking slots, shared try_lock slots with reused byte-hash proof, then worker-private slots without locks. First two show unique/collision regressions. Final seven-sample run: duplicates improve, but unique 8-worker median 2.03 to 2.34 ms (+15.5%).",
+      "change": "No final rsx_cache.h change. Three exact candidate fixtures are retained for reproduction."
+    },
+    {
+      "id": "SH8",
+      "paths": [
+        "rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp:Format TEXBEM redirection",
+        "rpcs3/Emu/RSX/Program/ShaderParam.h:ShaderVariable::simplify"
+      ],
+      "hypothesis": "Generalize the formatter into the redirect prepass and simplify swizzles.",
+      "codeEvidence": "TEXBEM first replaces '$0' even inside '$$0', before the callback parser consumes '$$'. Merging the two passes changes '$$0' from '$x2d' to '$0'. ShaderVariable::simplify also emits by unordered_map iteration, but it has no current call site; constructor/match_size/add_mask are the used methods.",
+      "potential": "Low relative to the retained formatting algorithm.",
+      "feasibility": "Redirect fusion needs exact two-pass semantics; swizzle helper is unused.",
+      "risk": "Different generated GLSL and possible rendering regression.",
+      "status": "not generalized",
+      "verification": "Both redirect opcodes, escaped tokens and inserted replacement tokens remain covered in the before/after differential tests. Unused simplify is not edited."
+    }
+  ],
+  "proofs": [
+    "shader-tokens-plain.json",
+    "shader-tokens-asan.json",
+    "shader-raw-preload-initial-plain.json",
+    "shader-raw-preload-revised-first-plain.json",
+    "shader-raw-preload-revised-samples-plain.json",
+    "shader-raw-preload-plain.json"
+  ],
+  "knownTestDevelopmentFailures": [
+    "The first adapter incorrectly exposed both templated fragment GetSRC and scalar vertex GetSRC on one base class and omitted src0/src1/src2; corrected by modelling their distinct class interfaces.",
+    "GCC inlined the custom allocation counter and diagnosed mismatched-new-delete; allocation boundary functions are now noinline. No production warning or safety check was disabled.",
+    "Raw-preload adapter initially modelled umax as a fixed u64 and iterated lf_array allocated capacity instead of lf_fifo logical size. Both adapter errors were corrected; production safety checks stayed enabled.",
+    "The try_lock variant disproved an overly strict test bound of at most one initial read per worker: contention on ready hits can also fall back. The bound was corrected before performance evaluation, and that shared-lock design was subsequently withdrawn."
+  ],
+  "limitations": [
+    "Exact formatter methods and replacement utility are compiled/executed; operand decoding callbacks are host adapters.",
+    "The full Core, glslang, SPIR-V module creation and MoltenVK pipeline compilation were not rebuilt or executed.",
+    "All 18 formatter timing pairs are retained; none regresses in this one host measurement. Single-host means are not device medians or gameplay measurements.",
+    "No GOW3 freeze, BO2 weapon/forearm or AC torch visual fix is established by this shader work.",
+    "Raw-preload experiments are plain host executions only, not ASan/TSan passes and not final runtime sources. They are deliberately excluded from the production patch."
+  ]
+}

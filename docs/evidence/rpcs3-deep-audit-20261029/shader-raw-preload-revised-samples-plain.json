@@ -1,0 +1,298 @@
+{
+  "passed": true,
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/rsx_cache.h": "22d50884cd9aba3009d15c493161626987bd25aee01d0defa7ba621fa09c733c",
+    "rpcs3/Emu/RSX/Program/RSXFragmentProgram.h": "783a1d7b9f68dc6262c08dfa5aefd7563a9478b8b78ecb132e5d4dfab2ed20e5",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "db261d05fd89ecaa87518bc3c56f788dc79068964949942d13e57d17010f4216",
+    "Utilities/lockless.h": "4060ce2ce9fb635aee6e7832a2f9e306c6338de4baf4c78f77c092f73ae831f7"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/rsx_cache.h": "0c0d35e06ca3599dffb09f272bc8e656c84ceb08b516d74abb0b5476668c9573",
+    "rpcs3/Emu/RSX/Program/RSXFragmentProgram.h": "783a1d7b9f68dc6262c08dfa5aefd7563a9478b8b78ecb132e5d4dfab2ed20e5",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "db261d05fd89ecaa87518bc3c56f788dc79068964949942d13e57d17010f4216",
+    "Utilities/lockless.h": "4060ce2ce9fb635aee6e7832a2f9e306c6338de4baf4c78f77c092f73ae831f7"
+  },
+  "harnessSHA256": "9115a9b0758bc73e7356323acaa8285a7dcb81aac3a03dba206742c05355e5fc",
+  "adapterSHA256": "89d32c3101604813ba8dffb5f3a54788a3b5111a14333b0335d0bd4149234303",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-g",
+    "-pthread",
+    "-O3"
+  ],
+  "host": "x86_64",
+  "results": {
+    "cases": [
+      {
+        "name": "identical",
+        "workers": 1,
+        "beforeReads": 256,
+        "afterReads": 1,
+        "beforeBytes": 2097152,
+        "afterBytes": 8192,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 8192,
+        "beforeUs": 4624.05,
+        "afterUs": 2565.99,
+        "beforeMedianUs": 4105.48,
+        "afterMedianUs": 2565.99,
+        "beforeSamplesUs": [
+          4624.05,
+          4345.97,
+          3757.74,
+          3627.42,
+          3923.36,
+          4105.48,
+          4445.01
+        ],
+        "afterSamplesUs": [
+          2565.99,
+          2462.53,
+          2202.57,
+          3706.59,
+          2986.99,
+          2106.43,
+          2688.14
+        ]
+      },
+      {
+        "name": "identical",
+        "workers": 8,
+        "beforeReads": 256,
+        "afterReads": 8,
+        "beforeBytes": 2097152,
+        "afterBytes": 65536,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 65536,
+        "beforeUs": 2113.31,
+        "afterUs": 2440,
+        "beforeMedianUs": 1527.24,
+        "afterMedianUs": 1128.41,
+        "beforeSamplesUs": [
+          2113.31,
+          1916.06,
+          1346.88,
+          1349.27,
+          1527.24,
+          2794.01,
+          1198.74
+        ],
+        "afterSamplesUs": [
+          2440,
+          1128.41,
+          896.868,
+          1352.65,
+          911.169,
+          1134.48,
+          1091.94
+        ]
+      },
+      {
+        "name": "distinct_slots",
+        "workers": 1,
+        "beforeReads": 256,
+        "afterReads": 8,
+        "beforeBytes": 2097152,
+        "afterBytes": 65536,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 65536,
+        "beforeUs": 5493.65,
+        "afterUs": 2420.11,
+        "beforeMedianUs": 3926.91,
+        "afterMedianUs": 2251.55,
+        "beforeSamplesUs": [
+          5493.65,
+          3221.3,
+          3633.66,
+          3537.47,
+          4099.37,
+          3926.91,
+          4611
+        ],
+        "afterSamplesUs": [
+          2420.11,
+          2080.41,
+          1978.44,
+          2233.44,
+          2251.55,
+          3064.99,
+          5207.25
+        ]
+      },
+      {
+        "name": "distinct_slots",
+        "workers": 8,
+        "beforeReads": 256,
+        "afterReads": 10,
+        "beforeBytes": 2097152,
+        "afterBytes": 81920,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 81920,
+        "beforeUs": 1758,
+        "afterUs": 1222.8,
+        "beforeMedianUs": 1758,
+        "afterMedianUs": 1451.91,
+        "beforeSamplesUs": [
+          1758,
+          1433.74,
+          1654.73,
+          1962.11,
+          1861.77,
+          2238.99,
+          1502.33
+        ],
+        "afterSamplesUs": [
+          1222.8,
+          1620.61,
+          1381.54,
+          1451.91,
+          1779.43,
+          1532.95,
+          1100.14
+        ]
+      },
+      {
+        "name": "collisions",
+        "workers": 1,
+        "beforeReads": 256,
+        "afterReads": 256,
+        "beforeBytes": 2097152,
+        "afterBytes": 2097152,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 2097152,
+        "beforeUs": 5399.79,
+        "afterUs": 3746.45,
+        "beforeMedianUs": 4384.21,
+        "afterMedianUs": 3784.79,
+        "beforeSamplesUs": [
+          5399.79,
+          4384.21,
+          3710.62,
+          6609.08,
+          3726.88,
+          4463.15,
+          3423.27
+        ],
+        "afterSamplesUs": [
+          3746.45,
+          3784.79,
+          3403.23,
+          3957.17,
+          4308.96,
+          4757.68,
+          3581.21
+        ]
+      },
+      {
+        "name": "collisions",
+        "workers": 8,
+        "beforeReads": 256,
+        "afterReads": 226,
+        "beforeBytes": 2097152,
+        "afterBytes": 1851392,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 1851392,
+        "beforeUs": 1816.93,
+        "afterUs": 1853.35,
+        "beforeMedianUs": 1441.57,
+        "afterMedianUs": 1563.52,
+        "beforeSamplesUs": [
+          1816.93,
+          1637.24,
+          1504.55,
+          1359.49,
+          1338.27,
+          1441.57,
+          1363.9
+        ],
+        "afterSamplesUs": [
+          1853.35,
+          1604.87,
+          2155.84,
+          1510.35,
+          1563.52,
+          1420.85,
+          1371.32
+        ]
+      },
+      {
+        "name": "unique",
+        "workers": 1,
+        "beforeReads": 256,
+        "afterReads": 256,
+        "beforeBytes": 2097152,
+        "afterBytes": 2097152,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 2097152,
+        "beforeUs": 4957.73,
+        "afterUs": 4430.11,
+        "beforeMedianUs": 4957.73,
+        "afterMedianUs": 4633.98,
+        "beforeSamplesUs": [
+          4957.73,
+          4038.5,
+          4175.65,
+          5973.44,
+          4987.13,
+          5215.56,
+          3748.05
+        ],
+        "afterSamplesUs": [
+          4430.11,
+          5471.17,
+          4547.66,
+          4418.36,
+          5556.94,
+          4763.53,
+          4633.98
+        ]
+      },
+      {
+        "name": "unique",
+        "workers": 8,
+        "beforeReads": 256,
+        "afterReads": 256,
+        "beforeBytes": 2097152,
+        "afterBytes": 2097152,
+        "beforeScratchBytes": 2097152,
+        "afterScratchBytes": 2097152,
+        "beforeUs": 2292.9,
+        "afterUs": 2420.1,
+        "beforeMedianUs": 1929.11,
+        "afterMedianUs": 2036.71,
+        "beforeSamplesUs": [
+          2292.9,
+          2338.53,
+          2181.61,
+          1609.57,
+          1469.26,
+          1914.22,
+          1929.11
+        ],
+        "afterSamplesUs": [
+          2420.1,
+          2420.81,
+          1632.46,
+          1830.55,
+          2819.36,
+          2036.71,
+          1465.5
+        ]
+      }
+    ],
+    "recordsVerified": 4096,
+    "errorRecoveryCases": 4,
+    "passLifetimeChecked": true,
+    "collisionLifetimeChecked": true,
+    "cancellationChecked": true,
+    "desktopUnchanged": true
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Execute exact raw FP loading, hash validation, unpacking and preload worker.\n\nUses real temporary files and production lf_fifo/FP ownership. Only the worker\nlauncher, filesystem facade, vertex hash and shader compiler are host adapters.\n"
+}

@@ -1,0 +1,42 @@
+{
+  "passed": true,
+  "case": "temporary",
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "b4443038bd7fd28aada4b3124276a2554bcc4ce3644b065f4b31107207b19b8c",
+    "rpcs3/Emu/RSX/Common/simple_array.hpp": "0bfc08b1aa55827758c6d985fe4af2ad129942c8b0c55c1daed00f81cc3ab2e6",
+    "Utilities/address_range.h": "1b4ce617119398f57c064b5607a29ed7e6f37c449e550f9fe9bddd83d81a75f0",
+    "rpcs3/Emu/RSX/Common/TextureUtils.h": "f2177f51d6cc96f566cec6a99a7612cebe765afa6f7d06a459d684d8b73b7e40"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "1ee38e8848f5100263165ab77df3eb1d856d732256fe64bb0bdbcd970fb08347",
+    "rpcs3/Emu/RSX/Common/simple_array.hpp": "76018074bea16510ba2453e0ec785967387b2890e63b69a3f62334ea8e407d36",
+    "Utilities/address_range.h": "1b4ce617119398f57c064b5607a29ed7e6f37c449e550f9fe9bddd83d81a75f0",
+    "rpcs3/Emu/RSX/Common/TextureUtils.h": "f2177f51d6cc96f566cec6a99a7612cebe765afa6f7d06a459d684d8b73b7e40"
+  },
+  "harnessSHA256": "e6f7b2899ebe490f3da37116866ed49a333c6c9f9c4e75df29dc9ac1ca343949",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-O3"
+  ],
+  "host": "x86_64",
+  "results": {
+    "checks": 12422,
+    "sameHitsCopiesUpdatesReleases": true,
+    "baselineRecipeCopyAllocations": 8,
+    "candidateRecipeCopyAllocations": 0,
+    "baselineRecipeCopyBytes": 26400,
+    "candidateRecipeCopyBytes": 0,
+    "baselineValueBytes": 152,
+    "candidateValueBytes": 32
+  },
+  "leakSanitizerEnabled": false,
+  "cacheVariantsUseCandidateArray": true,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false
+}

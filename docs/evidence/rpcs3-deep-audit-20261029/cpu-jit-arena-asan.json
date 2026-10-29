@@ -1,0 +1,39 @@
+{
+  "passed": true,
+  "test": "rpcs3_jit_arena_merge_test.py",
+  "sourceSHA256": "47cd739c21c3f1e5944b912c846a7257ee15135941376fcc1b5173e07065cb4e",
+  "baselineSHA256": "1a6f57b45c599945706cf8c38a745b2865336a4b2aa53b3a13112d4788261578",
+  "fixtureSHA256": "bcbc9310be5f0ffb3adfc9466e31c953eb12f30605352651591926aad0234325",
+  "harnessSHA256": "555488e086562fcbec84154c779440beb4b640a9fd33a5bb5ff25e5944c765d3",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "flags": [
+    "-std=c++20",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "sanitizer": "address,undefined",
+  "leakSanitizer": false,
+  "fullProductionClass": true,
+  "generatedCodeChanged": false,
+  "deviceTest": false,
+  "fpsClaim": false,
+  "results": {
+    "passed": true,
+    "randomOperations": 240000,
+    "purgeChecks": 720000,
+    "occupancyModelChecks": 7504,
+    "boundaryCases": 6561,
+    "baselineAdjacentReleaseAllocations": 1,
+    "candidateAdjacentReleaseAllocations": 0,
+    "allocationFailureCases": 2,
+    "benchmarks": []
+  }
+}

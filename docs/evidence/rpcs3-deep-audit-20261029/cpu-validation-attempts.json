@@ -1,0 +1,33 @@
+{
+  "jitArenaInitialCompile": {
+    "modes": [
+      "plain",
+      "ASan/UBSan"
+    ],
+    "passed": false,
+    "errors": [
+      "auto declaration combined two different namespace arena_range types",
+      "-Werror=misleading-indentation on two same-line statements"
+    ],
+    "resolution": "Split declarations/statements in test fixture only; production header unchanged. Both corrected modes pass."
+  },
+  "storeInitialCompile": {
+    "modes": [
+      "plain",
+      "ASan/UBSan"
+    ],
+    "passed": false,
+    "phase": "Complete Store compile after differential trim passed",
+    "error": "fatal error: lz4.h: No such file or directory",
+    "resolution": "Reuse existing /tmp/rewindbox-lz4-1.9.4/include/lz4.h and system liblz4.so.1; no package install. Both corrected modes pass."
+  },
+  "storeCompileWarnings": {
+    "countPerMode": 2,
+    "locations": [
+      "Store.cpp:302 fault-injection ftruncate",
+      "Store.cpp:303 fault-injection pwrite"
+    ],
+    "message": "Ignoring return value declared warn_unused_result",
+    "scope": "Existing NEOSWAP_STORAGE_TESTING-only failure injection; production logic unchanged."
+  }
+}

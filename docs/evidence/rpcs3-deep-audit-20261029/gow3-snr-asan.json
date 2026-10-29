@@ -1,0 +1,44 @@
+{
+  "passed": true,
+  "sourceSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.h": "27e7713d92eb04e5636d9e42d88b2dd7b4a2ec1fd13b8d72c497ca2984cbd67c",
+    "rpcs3/Emu/Cell/SPUThread.cpp": "c7180ee63fe2584356cd44fc8174e82787f88a31b3753ae45f94498aeae4be2b"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.h": "d9ce166841109a85c85e948723e7b79cc61b68277491ee0b6c4ac490ce5e2299",
+    "rpcs3/Emu/Cell/SPUThread.cpp": "c7180ee63fe2584356cd44fc8174e82787f88a31b3753ae45f94498aeae4be2b"
+  },
+  "harnessSHA256": "09423ce344528ad36cf8a688d3d509d5316b6cc1f2f4dce7cec14f7906e443ba",
+  "adapterSHA256": "d0474f14243d7dfb527b7319cd580cd71fb8e2dcf5c2d4c85df3ad09fd2739e9",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-g",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "host": "x86_64",
+  "results": {
+    "matrixCases": 768,
+    "baselineMissingEvents": 256,
+    "baselineSpuriousEvents": 512,
+    "candidateEventMismatches": 0,
+    "payloadComparisons": 1280,
+    "postponedAndJostlingCases": 8,
+    "deterministicCasRetryCases": 4,
+    "repeatPopRepushCycles": 512,
+    "sameChannelPayloadAndNotify": true,
+    "eventLocksReleased": true
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "concurrentMemoryOrderingTested": false,
+  "leakSanitizerEnabled": false
+}

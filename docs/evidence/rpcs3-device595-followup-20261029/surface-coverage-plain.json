@@ -1,0 +1,90 @@
+{
+  "passed": true,
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/Common/surface_store.h": "d7669020d8e962a025197b914c9013b6de7aa5c890ce2e2a3ea663e35a19e061",
+    "Utilities/address_range.h": "1b4ce617119398f57c064b5607a29ed7e6f37c449e550f9fe9bddd83d81a75f0"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/Common/surface_store.h": "663ce011d1b06631b965ba323e49fda59c3280d6aa61ef5b56a7623f9ed68500",
+    "Utilities/address_range.h": "1b4ce617119398f57c064b5607a29ed7e6f37c449e550f9fe9bddd83d81a75f0"
+  },
+  "harnessSHA256": "fb9fc2d33cfc182737171e6f7ae47fe25208ac2fe899eb3b25c51f90fb6e9263",
+  "adapterSHA256": "e824c5d915592f27f716733351c31ff4fbe1a2f9b7f006fdaa57b25c42e817c9",
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-g",
+    "-O3"
+  ],
+  "host": "x86_64",
+  "results": {
+    "rowChecks": 391754,
+    "surfaceGeometryCases": 10128,
+    "sameInvalidationsAndOrder": true,
+    "baseline4MiBMarkerBytes": 4194308,
+    "candidate4MiBMarkerBytes": 524296,
+    "benchmarks": [
+      {
+        "spanBytes": 65536,
+        "rowBytes": 16,
+        "baselineUs": 83.102,
+        "candidateUs": 85.3653
+      },
+      {
+        "spanBytes": 65536,
+        "rowBytes": 256,
+        "baselineUs": 56.434,
+        "candidateUs": 10.5642
+      },
+      {
+        "spanBytes": 65536,
+        "rowBytes": 4096,
+        "baselineUs": 55.7242,
+        "candidateUs": 3.75675
+      },
+      {
+        "spanBytes": 1048576,
+        "rowBytes": 16,
+        "baselineUs": 1269.72,
+        "candidateUs": 820.022
+      },
+      {
+        "spanBytes": 1048576,
+        "rowBytes": 256,
+        "baselineUs": 511.472,
+        "candidateUs": 89.9052
+      },
+      {
+        "spanBytes": 1048576,
+        "rowBytes": 4096,
+        "baselineUs": 474.355,
+        "candidateUs": 29.6689
+      },
+      {
+        "spanBytes": 8388608,
+        "rowBytes": 16,
+        "baselineUs": 9762.44,
+        "candidateUs": 6537.03
+      },
+      {
+        "spanBytes": 8388608,
+        "rowBytes": 256,
+        "baselineUs": 4148.45,
+        "candidateUs": 1226.51
+      },
+      {
+        "spanBytes": 8388608,
+        "rowBytes": 4096,
+        "baselineUs": 6092.88,
+        "candidateUs": 328.634
+      }
+    ],
+    "sink": 7920
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false
+}
