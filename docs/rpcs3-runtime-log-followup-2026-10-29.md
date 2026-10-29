@@ -5,8 +5,9 @@ Source candidate synchronized with `Claude` commit
 follow-up at `876a8d5` and its later macOS probe-path correction. The RPCS3 reference remains the identical Core source at
 `075d84a49e3540cdae5352908fd81bc411b78942`, after the delivered application
 588 / Core 592. This change does not assign a build number, build an IPA or
-publish a release. No Apple Core build or physical-device execution has been
-performed for this candidate.
+publish a release. The authorized Apple Core build is now validated at
+`c143be63f95751616f98d7bf9f1f34f297862df2` by run `40814736023`; see the
+completed Apple validation below. No physical-device execution has been performed.
 
 The source of truth remains the single canonical delta
 `build-utils/rpcs3/embedded-core.patch`, pinned by `canonical-source.json`
@@ -265,9 +266,10 @@ with `--dependency-root` when using a sparse reference tree.
    constant-shuffle replacement generated identical A18 instructions; no
    production JIT rewrite was retained for it. Reservation work needs a
    demonstrated benefit for the common successful case before changing it.
-4. **One authorized Apple validation.** Build the changed Core once, then use
-   the same gameplay segment/settings/cache state for an iPhone comparison.
-   Reuse the delivered unchanged components and historical evidence. The
+4. **Controlled iPhone comparison.** The candidate Core is now compiled and
+   validated. Its next test-IPA integration should reuse unchanged components
+   and historical evidence, then compare the same gameplay segment, settings
+   and cache state on an iPhone. The
    supplied NeoSwap data does not establish mapping cost as the primary
    freeze source, so no NeoSwap policy or memory budget is changed here.
 
@@ -293,5 +295,48 @@ randomized draws with the same command counts. Its generated-code SHA is
 `fc1340dbae7ab8aa95e6d5ff21a12b909545aec293c0872d3c9c3edc9bd3d213`.
 Evidence: `docs/evidence/rpcs3-runtime-20261029b/dynamic-clang22-enum-fix.json`.
 Earlier reports remain historical executions of their recorded harness.
-Apple validation of the corrected adapter and the single Core compilation
-are still pending at this checkpoint. No IPA or release was produced.
+The following successful run completed Apple validation of the corrected
+adapter and the single Core compilation. No IPA or release was produced.
+
+## Completed Apple Core validation
+
+The authorized Core was compiled once by successful run
+[40814736023](https://github.com/TarbleFR/RewindBox/actions/runs/40814736023)
+from `c143be63f95751616f98d7bf9f1f34f297862df2`. It finished on
+29 October 2026 at 05:09 Europe/Paris. The earlier preflight failed before
+Core compilation; the subsequent commit only corrected the test adapter.
+The canonical patch remains
+`b07952f3b96deb3c446e9b739f29d8f9af9e749695465bd0bfde848ce0cde6f3`.
+
+- Eight targeted runs pass on macOS ARM64 / Homebrew Clang 22.1.8: shader,
+  Vulkan dynamic state, texture prehash and VM allocation, each plain and
+  ASan/UBSan. Historical suites were authenticated and reused, not replayed.
+- Core: 77,249,112 bytes; SHA256
+  `0966c03dcd264fdbcf813f9a7af320434c5dac0f555c1460c917358394b1f0ac`.
+  The actual Mach-O is arm64 for iOS, ABI30, with exactly 88 expected exports.
+- Actual CMake identities remain PPU `a987639e9f838d1c` and SPU
+  `d070cb361bdef607`. The MoltenVK compile-QoS and encoding-queue hooks are
+  linked, with no unresolved imports of either hook. Static passive-load
+  analysis passes for direct ARM64 B/BL paths to depth 16 (2,974 initializers,
+  918 symbols; no forbidden reachability). This is not an actual iPhone
+  dlopen. The downloaded binary passes independent static checks.
+- Downloaded Core and diagnostics ZIPs match GitHub's published SHA256 digests.
+  Their identity files agree byte for byte; all 161 recipe/test inputs, all
+  308 native postimages and the eight result/output digests are verified.
+- Durations: successful run 15m04s; actual job 14m59s; targeted Apple
+  preparation/tests 1m57s; Core compilation 11m40s; binary validation 8s.
+
+[Core artifact](https://github.com/TarbleFR/RewindBox/actions/runs/40814736023/artifacts/12872058719)
+(29,097,847-byte ZIP, SHA256
+`50f713a696718b43990003a03faf56ca3ba27846962d6c3ad32499da62cfbea5`).
+The complete receipt is
+[evidence/rpcs3-runtime-20261029b/apple-core.json](evidence/rpcs3-runtime-20261029b/apple-core.json),
+with the original identity, proof, eight reports and independent binary
+verification in the adjacent `apple-core/` directory.
+
+This is a validated Core candidate, not a delivered application. No IPA,
+release or new delivery number was created. The delivered588/Core592 product
+remains the application baseline. There is still no iPhone FPS, frame-time
+or memory measurement. In particular, the dense-small-allocation timing
+limitation documented above has not been measured on an iPhone; the Apple
+checks validate correctness and work counts, not that performance tradeoff.

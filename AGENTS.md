@@ -30,8 +30,15 @@ Record/fixture: `runtime_log_followup_20261029` in the canonical manifest and
 `test/fixtures/rpcs3_runtime_log_followup_20261029.diff`.
 Host production-body tests and source integration are recorded with exact
 hashes; historical tests are reused only after generated-code identity checks.
-This candidate has no Apple Core build, new IPA/build number, device FPS result
-or release. The delivered 588 / Core 592 baseline below remains the reference.
+Authorized Apple candidate `c143be63`, successful run `40814736023`: eight
+targeted ARM64 modes pass, then one Core compilation (11m40s); actual arm64
+iOS binary, ABI30, 88 exports, PPU/SPU identities and static passive-load analysis verified.
+Core SHA256 `0966c03dcd264fdbcf813f9a7af320434c5dac0f555c1460c917358394b1f0ac`.
+Receipt: `docs/evidence/rpcs3-runtime-20261029b/apple-core.json`. The earlier
+run stopped before Core compilation on a test-only enum-range defect; its
+correction leaves the canonical patch unchanged. No IPA, new delivery number,
+physical-device result or release. Delivered588/Core592 remains the application
+baseline; the dense VM timing limitation still requires device measurement.
 
 ## Private IPA 588 / RPCS3 Core 592 — delivered, 29 October 2026
 

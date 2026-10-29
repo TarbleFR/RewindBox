@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "source_sha256": "ced39a51ef32ca7468184044d033c40a1aae85276ee85747f62906cabcbb68cc",
+  "before_sha256": "d6ffd3817287d0ea05dbe3c68bee1793392f2582fced963c9e5339de498d28f2",
+  "fixture_sha256": "e32c2692dd8f742d6366128f47aab32230837895b8e4054a4855f18528bf6b39",
+  "compiler": "Homebrew clang version 22.1.8",
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-UNDEBUG"
+  ],
+  "sanitizers": [
+    "address",
+    "undefined"
+  ],
+  "asan_options": "detect_leaks=0",
+  "assertionsActives": true,
+  "leakSanitizer": false,
+  "adapter_sha256": "b8d78fccaa93ee6ce4e1ffcb31d7489fea4177c98c855dc8110288c969140e56",
+  "harness_sha256": "7ba19dd3fa16dcffa2fca5bdd656c2640e2d60e7a3a752bda602e3a6cb054bfa",
+  "stdout": "first-probe-empty: page reads 1 -> 1, first-fit address 536870912\nfirst-probe-empty: page reads 16 -> 16, first-fit address 536870912\n128MiB-prefix: page reads 32784 -> 17, first-fit address 671088640\nforeign-pages-only: page reads 5 -> 5, first-fit address 536879104\nmixed-map-and-foreign: page reads 23 -> 20, first-fit address 536952832\ndense-mixed-map-keeps-original-scan: page reads 40 -> 40, first-fit address 538443776\ndense-map-2GiB-alignment: page reads 2 -> 2, first-fit address 2147483648\nguards: page reads 12 -> 5, first-fit address 536907776\nlast-page-at-4GiB: page reads 16 -> 2, first-fit address 4294963200\nskip-past-4GiB: page reads 16 -> 1, first-fit address 0\nPASS 20068 exact-first-fit cases; identical mapping/constructor/lock events, protection bytes, shared-memory ownership and guards. Page reads: 3275240 -> 1109939\n",
+  "scope": "Production alloc/try_alloc with host page/lock/mapping adapters; no iPhone execution"
+}

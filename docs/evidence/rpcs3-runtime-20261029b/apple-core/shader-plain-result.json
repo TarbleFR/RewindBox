@@ -1,0 +1,50 @@
+{
+  "passed": true,
+  "host": "arm64",
+  "compiler": "Homebrew clang version 22.1.8",
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-UNDEBUG",
+    "-DRPCS3_IOS",
+    "-DARCH_ARM64",
+    "-O3",
+    "-UNDEBUG"
+  ],
+  "sanitized": false,
+  "threadSanitized": false,
+  "harnessSHA256": "4e58906564edd5d99d5d463cecbb5c2491870c9cbb9798db4197c196d3f5e8a0",
+  "sourceBeforeSHA256": "2025a7cbaa52bf0ff24fb2bed93f0fd3564d88895258fc58f30800fc8f33dacc",
+  "sourceAfterSHA256": "960d26436d75aa5f68655e113c3840229e90e0e8406b7e98ff2d51e2bf0618fc",
+  "supportSHA256": {
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "2e8f3d513d3547660787f5cf7530293f2531448bc490ccb784548ba7209f2299",
+    "rpcs3/Emu/RSX/Program/RSXVertexProgram.h": "3525237ed79de2f3cdfa5042690feb5b6efeb11fbf5e3999f4087546d1df4af6",
+    "rpcs3/Emu/RSX/Program/RSXFragmentProgram.h": "783a1d7b9f68dc6262c08dfa5aefd7563a9478b8b78ecb132e5d4dfab2ed20e5",
+    "rpcs3/Emu/RSX/Program/program_util.h": "5c141941a19c060aa9afda5ed16b9d96d6cc01281bd6baca06c58b2b78bf3bba",
+    "rpcs3/util/fnv_hash.hpp": "e8d211512179c71bebab306c160220cc38736402e21b20b6b802a75a307cff63",
+    "rpcs3/util/bit_set.hpp": "38dff6cd87ceb537d6fca1e87c501e2d34158104525592cb229e9375eaf7d5d0"
+  },
+  "results": {
+    "randomizedQueries": 16000,
+    "constantOnlyChanges": 500,
+    "maskedVertexChanges": 100,
+    "differentVertexMasks": 4,
+    "collidingQueries": 400,
+    "concurrentQueries": 40000,
+    "pendingStagesChecked": 2,
+    "ownershipRehashClearPassed": true,
+    "beforeVertexHashes": 10000,
+    "afterVertexHashes": 0,
+    "beforeFragmentHashes": 10000,
+    "afterFragmentHashes": 0
+  },
+  "physicalDeviceTested": false,
+  "MetalCompiled": false,
+  "gameplayMeasured": false,
+  "scope": "Production full cache classes, key ownership, hash and comparison. GPU compilation, mutex and SIMD-lane host adapters.",
+  "followupFixtureSHA256": "f8726cd542da5864c689d320a212b38b36dfc1bc084a6724c36af88a6a9202f7"
+}
