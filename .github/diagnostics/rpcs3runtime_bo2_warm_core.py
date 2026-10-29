@@ -342,6 +342,13 @@ def prepare(source, *, gate=None):
         for name, (_, modes) in gate.all_tests().items():
             for mode in modes:
                 key = name + '-' + mode
+                reuse = getattr(gate, 'reuse_result', None)
+                retained = reuse(name, mode, receipt, expected, compiler) if reuse else None
+                if retained is not None:
+                    receipt['tests'][key] = retained
+                    PROOF.write_text(json.dumps(receipt, indent=2) + '\n')
+                    print(f'REUSE {key} from Apple run {retained["reused_from"]["run_id"]}; not executed again', flush=True)
+                    continue
                 report = OUT / (key + '-result.json')
                 report.unlink(missing_ok=True)
                 argv = gate.runner_command(name, mode, source, roots, compiler_command)
@@ -359,7 +366,8 @@ def prepare(source, *, gate=None):
     receipt['all_tests_passed'] = True
     PROOF.write_text(json.dumps(receipt, indent=2) + '\n')
     modes = sum(len(modes) for _, modes in gate.all_tests().values())
-    print(f'PASS {modes} pending Apple ARM64 modes; GCD required, CMake proof reused; no device or FPS measurement')
+    reused = sum('reused_from' in state for state in receipt['tests'].values())
+    print(f'PASS {modes} Apple ARM64 modes ({modes - reused} executed, {reused} reused); GCD required, CMake proof reused; no device or FPS measurement')
 
 
 def verify(path, source=None, *, gate=None):
@@ -391,8 +399,13 @@ def verify(path, source=None, *, gate=None):
                 key = name + '-' + mode
                 state = proof['tests'][key]
                 assert state['passed'] is True and state['returncode'] == 0
-                assert state['command'] == gate.runner_command(name, mode, Path(proof['source_root']),
-                    recorded_roots, proof['host']['compilerCommand'])
+                if 'reused_from' in state:
+                    reuse = getattr(gate, 'verify_reused_result', None)
+                    assert reuse is not None, 'This gate has no authenticated partial-result reuse'
+                    reuse(name, mode, state, proof, expected)
+                else:
+                    assert state['command'] == gate.runner_command(name, mode, Path(proof['source_root']),
+                        recorded_roots, proof['host']['compilerCommand'])
                 raw = (OUT / (key + '-result.json')).read_bytes()
                 assert sha(raw) == state['report_sha256']
                 assert sha((OUT / (key + '-output.txt')).read_bytes()) == state['output_sha256']

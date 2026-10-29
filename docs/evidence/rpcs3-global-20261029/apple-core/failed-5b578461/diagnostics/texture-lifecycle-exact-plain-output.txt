@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/Users/runner/work/RewindBox/RewindBox/test/rpcs3_texture_lifecycle_test.py", line 285, in <module>
+    main()
+    ~~~~^^
+  File "/Users/runner/work/RewindBox/RewindBox/test/rpcs3_texture_lifecycle_test.py", line 271, in main
+    verify_counts(result, args.case)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/Users/runner/work/RewindBox/RewindBox/test/rpcs3_texture_lifecycle_test.py", line 229, in verify_counts
+    assert item[key] == value, (label, key)
+           ^^^^^^^^^^^^^^^^^^
+AssertionError: ('baseline', 'rangePredicateCallsBefore')

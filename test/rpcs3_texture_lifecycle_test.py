@@ -177,6 +177,37 @@ def exact_harness(tree):
             lookups += '#undef TEXTURE_CACHE_DEBUG\n'
     code = code.replace('// @LOOKUPS@', lookups)
     code = code.replace('// @SECTION_BEGIN@', '').replace('// @SECTION_END@', '')
+    # The existing fallback stops at a matching unowned pointer. Its rank in
+    # std::unordered_set depends on the allocator and standard library, even
+    # when both lookups preserve exactly the same first match and trace.
+    # Observe that rank without changing storage or traversal order. Keep the
+    # native per-query counters exact instead of pinning one host's bucket order.
+    anchor = 'struct Counts {'
+    assert code.count(anchor) == 1
+    code = code.replace(anchor, 'inline u64 lifecycle_unowned_rank=0,lifecycle_unowned_entries=0;\n' + anchor)
+    anchor = 'const auto unowned=compare(r,q,counts);assert(unowned.selected&&unowned.view==1000);'
+    assert code.count(anchor) == 1
+    observation = '''static_assert(sizeof(Section*)==8);
+  auto& prefix_block=r.cache->m_storage.block_for(q.range.start);
+  for(auto it=prefix_block.unowned_begin();it!=prefix_block.unowned_end();++it){
+   ++lifecycle_unowned_entries;
+   if((*it)->id==1000)lifecycle_unowned_rank=lifecycle_unowned_entries;
+  }
+  assert(lifecycle_unowned_entries==24&&lifecycle_unowned_rank>=1&&lifecycle_unowned_rank<=24);
+  const auto prefix_counts=counts;
+  const auto unowned=compare(r,q,counts);assert(unowned.selected&&unowned.view==1000);
+  assert(counts.range_before-prefix_counts.range_before==2*lifecycle_unowned_rank+1);
+  assert(counts.range_after-prefix_counts.range_after==2*lifecycle_unowned_rank+1);
+  assert(counts.predicates_before-prefix_counts.predicates_before==lifecycle_unowned_rank+1);
+  assert(counts.predicates_after-prefix_counts.predicates_after==lifecycle_unowned_rank+1);
+  const u64 prefix_allocations=lifecycle_unowned_rank>8?1:0;
+  assert(counts.allocations_before-prefix_counts.allocations_before==prefix_allocations);
+  assert(counts.allocations_after-prefix_counts.allocations_after==prefix_allocations);'''
+    code = code.replace(anchor, observation)
+    anchor = 'if(argc>1)benchmark();'
+    assert code.count(anchor) == 1
+    code = code.replace(anchor, 'std::cout<<",\\\"unownedPrefixRank\\\":"<<lifecycle_unowned_rank'
+                        '<<",\\\"unownedPrefixEntries\\\":"<<lifecycle_unowned_entries;' + anchor)
     assert '// @' not in code
     return code
 
@@ -222,11 +253,20 @@ def verify_counts(result, case):
     else:
         assert set(result) == {'baseline', 'candidate'}
         for label, item in result.items():
+            assert item['unownedPrefixEntries'] == 24, (label, item['unownedPrefixEntries'])
+            rank = item['unownedPrefixRank']
+            assert type(rank) is int and 1 <= rank <= 24, (label, rank)
+            # All other cases are invariant. This prefix adds two range
+            # visits and one dirty visit per rank, and spills the production
+            # 64-byte pointer buffer only beyond its eight inline entries.
             for key, value in dict(queries=13492, debugQueries=3365, mutations=4036,
-                                  rangePredicateCallsBefore=3279642, rangePredicateCallsAfter=3200652,
-                                  dirtyPredicateCallsBefore=12722, dirtyPredicateCallsAfter=18065,
-                                  arrayAllocationsBefore=35, arrayAllocationsAfter=32).items():
-                assert item[key] == value, (label, key)
+                                  rangePredicateCallsBefore=3279618 + 2 * rank,
+                                  rangePredicateCallsAfter=3200628 + 2 * rank,
+                                  dirtyPredicateCallsBefore=12710 + rank,
+                                  dirtyPredicateCallsAfter=18053 + rank,
+                                  arrayAllocationsBefore=34 + int(rank > 8),
+                                  arrayAllocationsAfter=31 + int(rank > 8)).items():
+                assert item[key] == value, (label, key, item[key], value)
             for key in ('sameFirstMatch', 'sameValidationOrder', 'sameMergeOrder',
                         'sameMutationState', 'sameInvalidViewSelection',
                         'confirmedRangeDebugCovered', 'realStorageAndPitch'):

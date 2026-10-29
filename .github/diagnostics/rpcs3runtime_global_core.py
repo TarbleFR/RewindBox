@@ -17,10 +17,19 @@ sys.path.insert(0, str(ROOT / 'test'))
 import rpcs3_global_delta as delta
 import rpcs3runtime_device594_core as previous
 import rpcs3runtime_bo2_warm_core as pipeline
+import rpcs3runtime_global_resume as resume
 
 OUT, PROOF = previous.OUT, previous.PROOF
 MANIFEST, ENTRY, WORKFLOW = previous.MANIFEST, previous.ENTRY, previous.WORKFLOW
 GATE = '.github/diagnostics/rpcs3runtime_global_core.py'
+PIPELINE = '.github/diagnostics/rpcs3runtime_bo2_warm_core.py'
+ORIGINAL_LIFECYCLE_SCRIPT_SHA256 = '5dcd5e352bcf6ff73705efea3b8f8f29bbfb4222aa59963808615468bb343c96'
+APPLE_LIFECYCLE_SCRIPT_SHA256 = '34ccd7c55e304588f37652277bc13ad641fb8e51e372562ce4cd7906e94db623'
+APPLE_RESUME_PIPELINE_SHA256 = '3c7df8082d7d838764daa651c56ec104d2996d26d47fe07c06672ef7ea801cc7'
+APPLE_LIFECYCLE_PROGRAMS = {
+    'baseline': '12f54d6a578127105a00de0fe3dde44f09f13288547948da2e1bc9e5832dadc7',
+    'candidate': '09d247362b3ee392dfbf472781aa68f3bcdbf0eeef1870ea7b8597e6c81cb8c0',
+}
 PARENT_CONTRACT = 'docs/evidence/rpcs3-device594-20261029/committed-contract.json'
 PARENT_SOURCE = '7f8391ddf64f0d6f2e6c416255b36c9e8d5e75da'
 PARENT_CONTRACT_SHA = 'abcec31d855f84f40369c23b1a4b8663bc7cf4b1967a32c6c243c6408ceb266a'
@@ -74,7 +83,7 @@ def input_bytes(path):
 
 
 def input_paths():
-    return previous.input_paths() | TEST_INPUTS | {GATE, PARENT_CONTRACT, CODEGEN_REPORT}
+    return previous.input_paths() | TEST_INPUTS | {GATE, PARENT_CONTRACT, CODEGEN_REPORT} | resume.INPUT_PATHS
 
 
 def inputs():
@@ -191,12 +200,24 @@ def preserved_programs(source, roots, prior):
                for name, expected in current_programs.items()}
     pending = previous.expected_results(source, roots)
     for name, expected in pending.items():
+        if name == 'texture-lifecycle-exact':
+            # The Apple test observes the unordered-set rank instead of assuming
+            # one allocator's pointer order. Only these pending test programs
+            # change; all production bodies and semantic checks stay intact.
+            assert prior['expectedResults'][name]['harnessesSHA256'] == {
+                'baseline': '1d6d3f409d040caf3a87899f1905c14f9af25d123db19334120ad2a7d41d9bbb',
+                'candidate': '621c759fe00bb0c6388b03898900b9d7f4c186257f120933202bcdf6f2ad88df',
+            }
+            assert expected['harnessesSHA256'] == APPLE_LIFECYCLE_PROGRAMS
+            expected = json.loads(json.dumps(expected))
+            expected['harnessesSHA256'] = prior['expectedResults'][name]['harnessesSHA256']
         changed[name] = rehash_metadata(expected, prior['expectedResults'][name], roots['beforeGlobal'])
     reused = [name for name in delivered['reusedAppleModes']
               if not name.startswith(('viewport-scissor-', 'rsx-write-sampler-'))]
     assert len(reused) == 16
     return dict(reusedAppleModes=reused, unchangedPassedPrograms=7,
-                unchangedPendingPrograms=5, wholeFileRehashesOutsidePrograms=changed), proof
+                unchangedPendingPrograms=4, correctedPendingPrograms=['texture-lifecycle-exact'],
+                wholeFileRehashesOutsidePrograms=changed), proof
 
 
 def source_contract(source, require_committed=True):
@@ -206,7 +227,7 @@ def source_contract(source, require_committed=True):
     assert len(record['tests']) == len(TEST_INPUTS) and set(record['tests']) == TEST_INPUTS
     historical, prior = parent_receipt(parent)
     current = inputs()
-    allowed = {ENTRY, WORKFLOW, 'test/neo_swap_core_pin_test.py', MANIFEST,
+    allowed = {ENTRY, WORKFLOW, PIPELINE, 'test/neo_swap_core_pin_test.py', MANIFEST,
                'build-utils/rpcs3/embedded-core.patch'} | REUSED_TEST_INPUTS | delta.HOST_PATHS
     for path, digest in prior['inputSHA256'].items():
         assert sha(baseline_bytes(path)) == digest, path
@@ -224,7 +245,10 @@ def source_contract(source, require_committed=True):
         "    sync = 'bool buffered_section::sync() const'\n"
         "    assert current_cpp.replace(braced(current_cpp, sync), '@SYNC@', 1) == old_cpp.replace(braced(old_cpp, sync), '@SYNC@', 1)\n")
     assert baseline_bytes(guard_path).decode().count(old_guard) == 1
-    assert (ROOT / guard_path).read_text() == baseline_bytes(guard_path).decode().replace(old_guard, new_guard)
+    original_guard = baseline_bytes(guard_path).decode().replace(old_guard, new_guard)
+    assert sha(original_guard.encode()) == ORIGINAL_LIFECYCLE_SCRIPT_SHA256
+    assert sha((ROOT / guard_path).read_bytes()) == APPLE_LIFECYCLE_SCRIPT_SHA256
+    assert sha((ROOT / PIPELINE).read_bytes()) == APPLE_RESUME_PIPELINE_SHA256
     dynamic_path = 'test/rpcs3_dynamic_state_retention_test.py'
     old_declaration = "    result+='bool is_open=true; Driver* commands; mutable std::array<VkDescriptorSet,2> m_bound_descriptor_sets{}; mutable std::array<VkPipeline,2> m_bound_pipelines{}; mutable dynamic_state_cache m_dynamic_state;\\n'\n"
     new_declaration = """    header=(core/PATHS[2]).read_text()
@@ -415,6 +439,14 @@ def validate_delta_result(name, mode, payload, expected):
 def validate_result(name, mode, payload, expected, compiler):
     assert payload['compiler'] == compiler and re.search(r'clang version 22\.', compiler)
     validate_delta_result(name, mode, payload, expected)
+
+
+def reuse_result(name, mode, receipt, expected, compiler):
+    return resume.reuse_result(name, mode, receipt, expected, compiler, gate=sys.modules[__name__])
+
+
+def verify_reused_result(name, mode, state, proof, expected):
+    return resume.verify_reused_result(name, mode, state, proof, expected, gate=sys.modules[__name__])
 
 
 def main(args):

@@ -1,0 +1,80 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "results": {
+    "passed": true,
+    "assertionsActive": true,
+    "pendingCases": 960,
+    "pendingWaits": 188928,
+    "baselinePendingUnchanged": 188928,
+    "candidatePendingUnchanged": 0,
+    "resumedPendingCommands": 47232,
+    "partialPackets": 1728,
+    "baselineFirstArgumentMissed": 1728,
+    "candidateFirstArgumentMissed": 0,
+    "resumedPartialWords": 586368,
+    "headerWaits": 6912,
+    "getReentries": 576,
+    "faultCancellationRecoveryCases": 9,
+    "fastBlockingCases": 6,
+    "restoredPendingCases": 48
+  },
+  "compiler": "Homebrew clang version 22.1.8",
+  "compilerFlags": [
+    "-std=c++20",
+    "-DRPCS3_IOS",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-UNDEBUG",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk"
+  ],
+  "sanitizer": "address,undefined",
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/RSXFIFO.cpp": "74a3d0640ea905aac9c7b87144d0b11c0a658586b3f8ed8b257752719da26fb2",
+    "rpcs3/Emu/RSX/RSXFIFO.h": "ac047d734f37006362fb24b881280bd149edb38df39a50857b4292d22c8bd564",
+    "rpcs3/Emu/RSX/gcm_enums.h": "1814f59d138e3048b81b81849148a5ce695300f9d743aaff3cde3b0f7c5e5cc1",
+    "rpcs3/Emu/system_config_types.h": "e0bf44846520828f72bcda1b638fa2a03660efe78fde0e2adc9a5ac649514bf4"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/RSXFIFO.cpp": "e4f381adffa30632bb8b9d315d77bbe095632dafaddf574ae9e3cb9ab095c23b",
+    "rpcs3/Emu/RSX/RSXFIFO.h": "ac047d734f37006362fb24b881280bd149edb38df39a50857b4292d22c8bd564",
+    "rpcs3/Emu/RSX/gcm_enums.h": "1814f59d138e3048b81b81849148a5ce695300f9d743aaff3cde3b0f7c5e5cc1",
+    "rpcs3/Emu/system_config_types.h": "e0bf44846520828f72bcda1b638fa2a03660efe78fde0e2adc9a5ac649514bf4"
+  },
+  "harnessSHA256": "0fef927a1955736eda3d9003a1b499ecbb02d7bbe5da45b6f697f43e79e4fe01",
+  "adapterSHA256": {
+    "test/native/rpcs3_fifo_pending_wait.inc": "e7e70e975cb871839ea40bdd0b1fcfd428a0cb6abf49358c8da808ecb7a9943f",
+    "test/native/rpcs3_fifo_partial_packet.inc": "184419ca06f66108d6354da178e684d1758ce06e38ac4ef92a6015ad5f80f067"
+  },
+  "productionMethods": [
+    "FIFO_control::FIFO_control(::rsx::thread* pctrl)",
+    "u32 FIFO_control::translate_address(u32 address) const",
+    "void FIFO_control::sync_get() const",
+    "void FIFO_control::sync_get_force() const",
+    "void FIFO_control::restore_state(u32 cmd, u32 count)",
+    "void FIFO_control::inc_get(bool wait)",
+    "inline u32 FIFO_control::read_put() const",
+    "std::pair<bool, u32> FIFO_control::fetch_u32_refill(u32 addr)",
+    "void FIFO_control::set_get(u32 get, u32 spin_cmd)",
+    "bool FIFO_control::read_unsafe(register_pair& data)",
+    "void FIFO_control::abort()",
+    "void FIFO_control::read(register_pair& data)"
+  ],
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "leakSanitizer": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "fullSavestateSerializationTested": false,
+  "concurrentMemoryOrderingTested": false,
+  "scope": "Execute the real FIFO cache/read/GET methods on partially published packets.\n\nGuest RAM, I/O translation, reservations and CPU wait/recovery callbacks are\nexplicit host adapters. Both the delivered594 baseline and candidate bodies\nare compiled. Baseline failures use a defined sentinel, never undefined C++.\nNo GPU, game, complete savestate serialization or concurrent memory ordering\nis tested, and the results do not imply an iPhone frame-rate improvement.\n"
+}
