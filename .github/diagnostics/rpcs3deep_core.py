@@ -73,7 +73,17 @@ def validate_native_result(name, result, previous):
     Timings remain preserved in the report but are never correctness thresholds.
     """
     assert isinstance(result, dict) and isinstance(previous, dict), name
-    excluded = BENCHMARK_FIELDS.get(name, set())
+    excluded = set(BENCHMARK_FIELDS.get(name, set()))
+    if name == 'address':
+        # Iteration counts depend on the host's C++ standard-library
+        # container/layout behavior. They are not cross-platform reference
+        # values. The old and indexed production paths must still perform
+        # exactly the same positive number of predicate calls on this host.
+        counters = ('baselineDirtyPredicateCalls', 'indexedDirtyPredicateCalls')
+        for observed in (result, previous):
+            assert all(type(observed.get(k)) is int and observed[k] > 0 for k in counters), (name, 'missing predicate count')
+            assert observed[counters[0]] == observed[counters[1]], (name, 'old/new predicate calls differ')
+        excluded.update(counters)
     current = {k: v for k, v in result.items() if k not in excluded}
     expected = {k: v for k, v in previous.items() if k not in excluded}
     assert current and current == expected, (name, 'native correctness output', current, expected)
