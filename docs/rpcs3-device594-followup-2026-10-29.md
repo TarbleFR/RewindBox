@@ -264,6 +264,12 @@ lie les entrées du dépôt aux sources testées. Il ne remplace pas une future
 compilation du Core iPhone et ne transforme pas les preuves Apple historiques
 en tests de ce candidat.
 
+Le commit source [7f8391dd](https://github.com/TarbleFR/RewindBox/commit/7f8391ddf64f0d6f2e6c416255b36c9e8d5e75da)
+passe le [contrat commité](evidence/rpcs3-device594-20261029/committed-contract.json) :
+206 entrées du dépôt, 53 sources complémentaires et dix rapports hôte liés
+à leurs empreintes. Onze reçus volontairement incorrects sont rejetés.
+La vérification du commit ne relance aucun compilateur ni test natif.
+
 ## Prochaines optimisations et validations
 
 1. **BO2 : premières bibliothèques fragment Metal.** Suivre la réutilisation
