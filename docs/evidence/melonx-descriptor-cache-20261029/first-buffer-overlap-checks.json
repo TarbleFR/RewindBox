@@ -1,0 +1,337 @@
+{
+  "result": "passed",
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "dotnet": "10.0.100",
+  "physicalDeviceTested": false,
+  "completeIntervalAndRangeClasses": true,
+  "exactProductionBufferCacheMethod": true,
+  "resourceAndSparseBoundariesDoubled": true,
+  "mutableMappingAndNestedLookupCovered": true,
+  "independentIntervalOracle": true,
+  "maximumPureContainsChecksBeforeFallback": 8,
+  "consumerIdentityDriftControls": 4,
+  "inputs": {
+    "build-utils/melonx/adapt_first_buffer_overlap.py": "d1566a58dbdf17b15b724b33d7ac8a797044b6d59f382f38abd17e2d079219d1",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_first_buffer_overlap_test.py": "7547ca9fb13b8541c655f598a5b15cfdae6bb0eca50b4a7f9f0d0954ce9839d8",
+    "test/melonx_first_buffer_overlap/Program.cs": "9889a64a5fdecb77c8d1f751967259d4238ca5e7e1829260e5c9f0ca3dda36f7",
+    "test/melonx_first_buffer_overlap/Boundaries.cs": "4fcb4c7caaeec063d1126301826e2de3a7a91097f21ccd75d8bf7130ab52e857"
+  },
+  "baselineInputs": {
+    "src/Ryujinx.Common/Collections/IntervalTree.cs": "ce0acc84e8f7fccfab31e72525e47155038b1d0e051e0eb1f343de6ed4e47c67",
+    "src/Ryujinx.Common/Collections/IntrusiveRedBlackTreeImpl.cs": "f6aafa37bef615541e3395ba7ca3875351a32bb7c311b3bef2da602a316fd8d0",
+    "src/Ryujinx.Common/Collections/IntrusiveRedBlackTreeNode.cs": "6ec5648053ca09030f982b62cfbcfe6640a3feac95a4db12b6b36e7e62a6f257",
+    "src/Ryujinx.Memory/Range/MultiRangeList.cs": "b8fd139c5abfef3cb8184abe4d76fdafece608788c1dc5d2e578ffe2e4a265ec",
+    "src/Ryujinx.Memory/Range/MultiRange.cs": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b",
+    "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+    "src/Ryujinx.Memory/Range/IMultiRangeItem.cs": "f684c2a2d75c85f2e98cb786fdb9edf09420716068ea29e3785ffb8aec6d0e9c",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs": "b164837dc4320cab56ef58ea9c0cd1a70a35a95a43f25d7a408c7200c063e06f",
+    "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs": "ebb48b7a07c3b370590ab982e43024d1bd124972d5635cf39ce50033370370a8"
+  },
+  "postimages": {
+    "src/Ryujinx.Common/Collections/IntervalTree.cs": "3443285f0d1a2493519b17524c32d2324f41314578bccd8cf33509c8374097a9",
+    "src/Ryujinx.Memory/Range/MultiRangeList.cs": "85ab152b26915b160526a0252dbbc7b27ba21a3f097c0a9c940327da5c6bbf70",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs": "c22fe7a0217e89e3a7cd3e36cf6c8afd395f58aa00c6b9de0c120ecc47ccb52d"
+  },
+  "reports": {
+    "control": {
+      "assertions": 23112,
+      "cases": 4815,
+      "functionalDigest": "932b20e82e8f25f5",
+      "benchmark": [
+        {
+          "kind": "first",
+          "count": 1,
+          "iterations": 10000,
+          "bytes": 1040000,
+          "nsPerQuery": 91.2681,
+          "rangeReads": 10000,
+          "equalityCalls": 0,
+          "result": 10000
+        },
+        {
+          "kind": "first",
+          "count": 8,
+          "iterations": 10000,
+          "bytes": 1040000,
+          "nsPerQuery": 382.469,
+          "rangeReads": 10000,
+          "equalityCalls": 280000,
+          "result": 10000
+        },
+        {
+          "kind": "first",
+          "count": 128,
+          "iterations": 512,
+          "bytes": 1576960,
+          "nsPerQuery": 31821.779296875,
+          "rangeReads": 512,
+          "equalityCalls": 4161536,
+          "result": 512
+        },
+        {
+          "kind": "first",
+          "count": 1024,
+          "iterations": 32,
+          "bytes": 4435200,
+          "nsPerQuery": 1182221.34375,
+          "rangeReads": 32,
+          "equalityCalls": 16760832,
+          "result": 32
+        },
+        {
+          "kind": "miss",
+          "count": 1,
+          "iterations": 10000,
+          "bytes": 1040000,
+          "nsPerQuery": 26.5172,
+          "rangeReads": 0,
+          "equalityCalls": 0,
+          "result": 0
+        },
+        {
+          "kind": "miss",
+          "count": 128,
+          "iterations": 512,
+          "bytes": 53248,
+          "nsPerQuery": 32.041015625,
+          "rangeReads": 0,
+          "equalityCalls": 0,
+          "result": 0
+        },
+        {
+          "kind": "late",
+          "count": 8,
+          "iterations": 10000,
+          "bytes": 1040000,
+          "nsPerQuery": 238.1264,
+          "rangeReads": 80000,
+          "equalityCalls": 290000,
+          "result": 80000
+        },
+        {
+          "kind": "late",
+          "count": 9,
+          "iterations": 10000,
+          "bytes": 1040000,
+          "nsPerQuery": 263.8946,
+          "rangeReads": 90000,
+          "equalityCalls": 370000,
+          "result": 90000
+        },
+        {
+          "kind": "late",
+          "count": 32,
+          "iterations": 512,
+          "bytes": 237568,
+          "nsPerQuery": 1604.26953125,
+          "rangeReads": 16384,
+          "equalityCalls": 254464,
+          "result": 16384
+        },
+        {
+          "kind": "alias",
+          "count": 1,
+          "iterations": 128,
+          "bytes": 138240,
+          "nsPerQuery": 767.078125,
+          "rangeReads": 128,
+          "equalityCalls": 8064,
+          "result": 0
+        },
+        {
+          "kind": "alias",
+          "count": 2,
+          "iterations": 128,
+          "bytes": 394240,
+          "nsPerQuery": 3333.765625,
+          "rangeReads": 256,
+          "equalityCalls": 16256,
+          "result": 0
+        },
+        {
+          "kind": "alias",
+          "count": 8,
+          "iterations": 128,
+          "bytes": 4682752,
+          "nsPerQuery": 9221.3046875,
+          "rangeReads": 1024,
+          "equalityCalls": 68096,
+          "result": 0
+        },
+        {
+          "kind": "alias",
+          "count": 32,
+          "iterations": 128,
+          "bytes": 69022720,
+          "nsPerQuery": 57010.21875,
+          "rangeReads": 4096,
+          "equalityCalls": 321536,
+          "result": 0
+        }
+      ]
+    },
+    "candidate": {
+      "assertions": 23112,
+      "cases": 4815,
+      "functionalDigest": "932b20e82e8f25f5",
+      "benchmark": [
+        {
+          "kind": "first",
+          "count": 1,
+          "iterations": 10000,
+          "bytes": 0,
+          "nsPerQuery": 42.1394,
+          "rangeReads": 10000,
+          "equalityCalls": 0,
+          "result": 10000
+        },
+        {
+          "kind": "first",
+          "count": 8,
+          "iterations": 10000,
+          "bytes": 0,
+          "nsPerQuery": 35.9903,
+          "rangeReads": 10000,
+          "equalityCalls": 0,
+          "result": 10000
+        },
+        {
+          "kind": "first",
+          "count": 128,
+          "iterations": 512,
+          "bytes": 0,
+          "nsPerQuery": 205.71484375,
+          "rangeReads": 512,
+          "equalityCalls": 0,
+          "result": 512
+        },
+        {
+          "kind": "first",
+          "count": 1024,
+          "iterations": 32,
+          "bytes": 0,
+          "nsPerQuery": 56.96875,
+          "rangeReads": 32,
+          "equalityCalls": 0,
+          "result": 32
+        },
+        {
+          "kind": "miss",
+          "count": 1,
+          "iterations": 10000,
+          "bytes": 0,
+          "nsPerQuery": 19.4838,
+          "rangeReads": 0,
+          "equalityCalls": 0,
+          "result": 0
+        },
+        {
+          "kind": "miss",
+          "count": 128,
+          "iterations": 512,
+          "bytes": 0,
+          "nsPerQuery": 19.482421875,
+          "rangeReads": 0,
+          "equalityCalls": 0,
+          "result": 0
+        },
+        {
+          "kind": "late",
+          "count": 8,
+          "iterations": 10000,
+          "bytes": 0,
+          "nsPerQuery": 145.8328,
+          "rangeReads": 80000,
+          "equalityCalls": 0,
+          "result": 80000
+        },
+        {
+          "kind": "late",
+          "count": 9,
+          "iterations": 10000,
+          "bytes": 1040000,
+          "nsPerQuery": 480.8776,
+          "rangeReads": 170000,
+          "equalityCalls": 370000,
+          "result": 90000
+        },
+        {
+          "kind": "late",
+          "count": 32,
+          "iterations": 512,
+          "bytes": 237568,
+          "nsPerQuery": 1994.90625,
+          "rangeReads": 20480,
+          "equalityCalls": 254464,
+          "result": 16384
+        },
+        {
+          "kind": "alias",
+          "count": 1,
+          "iterations": 128,
+          "bytes": 0,
+          "nsPerQuery": 350.9140625,
+          "rangeReads": 128,
+          "equalityCalls": 0,
+          "result": 0
+        },
+        {
+          "kind": "alias",
+          "count": 2,
+          "iterations": 128,
+          "bytes": 0,
+          "nsPerQuery": 661.2890625,
+          "rangeReads": 256,
+          "equalityCalls": 0,
+          "result": 0
+        },
+        {
+          "kind": "alias",
+          "count": 8,
+          "iterations": 128,
+          "bytes": 0,
+          "nsPerQuery": 2916.734375,
+          "rangeReads": 1024,
+          "equalityCalls": 0,
+          "result": 0
+        },
+        {
+          "kind": "alias",
+          "count": 32,
+          "iterations": 128,
+          "bytes": 69022720,
+          "nsPerQuery": 80962.4609375,
+          "rangeReads": 5120,
+          "equalityCalls": 321536,
+          "result": 0
+        }
+      ]
+    }
+  },
+  "compiledSourceInputs": {
+    "control": {
+      "src/Ryujinx.Common/Collections/IntervalTree.cs": "ce0acc84e8f7fccfab31e72525e47155038b1d0e051e0eb1f343de6ed4e47c67",
+      "src/Ryujinx.Common/Collections/IntrusiveRedBlackTreeImpl.cs": "f6aafa37bef615541e3395ba7ca3875351a32bb7c311b3bef2da602a316fd8d0",
+      "src/Ryujinx.Common/Collections/IntrusiveRedBlackTreeNode.cs": "6ec5648053ca09030f982b62cfbcfe6640a3feac95a4db12b6b36e7e62a6f257",
+      "src/Ryujinx.Memory/Range/MultiRangeList.cs": "b8fd139c5abfef3cb8184abe4d76fdafece608788c1dc5d2e578ffe2e4a265ec",
+      "src/Ryujinx.Memory/Range/MultiRange.cs": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b",
+      "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+      "src/Ryujinx.Memory/Range/IMultiRangeItem.cs": "f684c2a2d75c85f2e98cb786fdb9edf09420716068ea29e3785ffb8aec6d0e9c",
+      "Program.cs": "9889a64a5fdecb77c8d1f751967259d4238ca5e7e1829260e5c9f0ca3dda36f7",
+      "Boundaries.cs": "f3cbed1815287aa55e127bc9cb5d0eb9f154b050a3c7b47fe5b4c9858811b4b0"
+    },
+    "candidate": {
+      "src/Ryujinx.Common/Collections/IntervalTree.cs": "3443285f0d1a2493519b17524c32d2324f41314578bccd8cf33509c8374097a9",
+      "src/Ryujinx.Common/Collections/IntrusiveRedBlackTreeImpl.cs": "f6aafa37bef615541e3395ba7ca3875351a32bb7c311b3bef2da602a316fd8d0",
+      "src/Ryujinx.Common/Collections/IntrusiveRedBlackTreeNode.cs": "6ec5648053ca09030f982b62cfbcfe6640a3feac95a4db12b6b36e7e62a6f257",
+      "src/Ryujinx.Memory/Range/MultiRangeList.cs": "85ab152b26915b160526a0252dbbc7b27ba21a3f097c0a9c940327da5c6bbf70",
+      "src/Ryujinx.Memory/Range/MultiRange.cs": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b",
+      "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+      "src/Ryujinx.Memory/Range/IMultiRangeItem.cs": "f684c2a2d75c85f2e98cb786fdb9edf09420716068ea29e3785ffb8aec6d0e9c",
+      "Program.cs": "9889a64a5fdecb77c8d1f751967259d4238ca5e7e1829260e5c9f0ca3dda36f7",
+      "Boundaries.cs": "837a35a31e957c86f22698fba552217910300b29d2b9b9579c351a21b17026d0"
+    }
+  }
+}

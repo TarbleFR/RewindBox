@@ -1,0 +1,63 @@
+{
+  "decision": "rejected",
+  "reason": "Single-dependency 32-byte allocation saving does not justify non-target CPU regressions in the paired host experiment; covariant explicit array path regresses about 17.5%.",
+  "productSourceChanged": false,
+  "adapterIntegrated": false,
+  "semanticsPassed": true,
+  "semanticDigest": "026F4DADC8C78445FAAE616154215A3598CBFDD1CF6FC81D475115BB8BE93D6F",
+  "singleCreationBytesBefore": 88,
+  "singleCreationBytesAfter": 56,
+  "instanceBytesUnchanged": 56,
+  "pairedTimings": [
+    {
+      "kind": 0,
+      "controlMedianNs": 10.702945,
+      "candidateMedianNs": 11.661875,
+      "ratio": 1.0895949666190008
+    },
+    {
+      "kind": 1,
+      "controlMedianNs": 22.340685,
+      "candidateMedianNs": 21.03258,
+      "ratio": 0.9414474086179542
+    },
+    {
+      "kind": 2,
+      "controlMedianNs": 24.593405,
+      "candidateMedianNs": 21.639385,
+      "ratio": 0.8798856848004577
+    },
+    {
+      "kind": 3,
+      "controlMedianNs": 29.554215,
+      "candidateMedianNs": 30.38345,
+      "ratio": 1.0280580959433367
+    },
+    {
+      "kind": 4,
+      "controlMedianNs": 17.408465,
+      "candidateMedianNs": 18.634245,
+      "ratio": 1.0704128709797216
+    },
+    {
+      "kind": 5,
+      "controlMedianNs": 16.882925,
+      "candidateMedianNs": 19.830835,
+      "ratio": 1.1746089614210808
+    }
+  ],
+  "physicalDeviceTested": false,
+  "fpsMeasured": false,
+  "files": {
+    "build-utils/melonx/adapt_auto_single_dependency.py": "155df69219ade4623449716c3abc57b3c1a158f9c1e3e1ce3cecbd1fd81154b3",
+    "test/melonx_auto_single_dependency_test.py": "b68088fbcdc06746a7e0ee2dae2af924455f2c639b44b699a00af1e9d7e0cee5",
+    "test/melonx_auto_single_dependency/Callsites.cs": "a6074eb2543ec56abc5ec2a4e14bd3b80e242e29df0dd92339123fa052000c77",
+    "test/melonx_auto_single_dependency/PairedBridge.cs": "498b628931e2e48009807db3bb64136fac8c279941ca6128fdbb02b9f8af91cf",
+    "test/melonx_auto_single_dependency/PairedProgram.cs": "7d694f3810ca2a88a19ecba12a0b6ef4a57f609b8f1b02ecbc373cfe0b58d0b7",
+    "test/melonx_auto_single_dependency/Program.cs": "81e470d87aa2831f51e65d033d859c699ffbfad8b2b551061afad88b934fd261",
+    "dist/melonx/auto-single-dependency-checks.json": "5d1f3520b6b976ce9320523d36b27c9d35a76d9ed3a9c05c5af4d3b315087785",
+    "dist/melonx/auto-single-dependency-helper-initial-checks.json": "23a64702e6bfe9340e17352b34b030f749fb7fcf88c12b378d748866f1846c7a",
+    "dist/melonx/auto-single-dependency-semantic-initial-checks.json": "0a72df02895d12b3bc58df75e61647184df370f51b08b86e5ee04aea53fc8e25",
+    "dist/melonx/auto-single-dependency-union-initial-checks.json": "000a1dc67a20f28fd2b41fa6206b71e7bd8b1af139b238ba1dc9df80ca2335ad"
+  }
+}

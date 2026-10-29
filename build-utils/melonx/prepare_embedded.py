@@ -74,6 +74,11 @@ from adapt_barrier_compaction import apply as adapt_barrier_compaction
 from adapt_bounded_binding_snapshots import apply as adapt_bounded_binding_snapshots
 from adapt_virtual_buffer_readback import apply as adapt_virtual_buffer_readback
 from adapt_uniform_buffer_spans import apply as adapt_uniform_buffer_spans
+from adapt_scalar_texture_descriptors import apply as adapt_scalar_texture_descriptors
+from adapt_fallback_descriptor_scratch import apply as adapt_fallback_descriptor_scratch
+from adapt_binding_data_snapshots import apply as adapt_binding_data_snapshots
+from adapt_first_buffer_overlap import apply as adapt_first_buffer_overlap
+from adapt_allocator_range_updates import apply as adapt_allocator_range_updates
 
 
 def replace_once(path, old, new):
@@ -168,6 +173,11 @@ def main():
     adapted += adapt_bounded_binding_snapshots(source)
     adapted += adapt_virtual_buffer_readback(source)
     adapted += adapt_uniform_buffer_spans(source)
+    adapted += adapt_scalar_texture_descriptors(source)
+    adapted += adapt_fallback_descriptor_scratch(source)
+    adapted += adapt_binding_data_snapshots(source)
+    adapted += adapt_first_buffer_overlap(source)
+    adapted += adapt_allocator_range_updates(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -239,7 +249,10 @@ def main():
                  'adapt_single_resource_bindings.py', 'adapt_render_target_snapshot.py',
                  'adapt_buffer_range_snapshots.py', 'adapt_pipeline_key_allocation.py',
                  'adapt_barrier_compaction.py', 'adapt_bounded_binding_snapshots.py',
-                 'adapt_virtual_buffer_readback.py', 'adapt_uniform_buffer_spans.py']:
+                 'adapt_virtual_buffer_readback.py', 'adapt_uniform_buffer_spans.py',
+                 'adapt_scalar_texture_descriptors.py', 'adapt_fallback_descriptor_scratch.py',
+                 'adapt_binding_data_snapshots.py',
+                 'adapt_first_buffer_overlap.py', 'adapt_allocator_range_updates.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

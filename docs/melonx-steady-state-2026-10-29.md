@@ -140,3 +140,6 @@ comparison: Hogwarts and Persona frame regularity, background GC, memory peaks,
 graphics/audio and long-session stability. Frequency of the remaining large
 snapshot/readback paths must determine further cache or algorithm changes.
 No FPS gain is inferred from a successful host build or microbenchmark.
+
+The [descriptor/cache continuation](melonx-descriptor-cache-2026-10-29.md)
+adds five further source changes. This report remains the earlier lot's proof.

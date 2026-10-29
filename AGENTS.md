@@ -2,6 +2,34 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## MeloNX descriptor/cache source continuation — 29 October 2026
+
+Five more guarded adapters follow local 55fdfeb: identical scalar descriptors
+keep their clean state, exceptional descriptor updates use bounded stack spans,
+private constant-buffer snapshots are reused at exact length, first-containing
+buffer queries use a bounded allocation-free traversal, and allocator splits/
+coalescing update intervals in place. All fifteen new adapters across these
+continuations now change twenty-two engine files. Preparation has 102 inputs,
+139 members; 133 of the previous 137 prepared members remain identical.
+
+Five affected host fixtures pass. They preserve descriptor usage/barriers and
+explicit invalidation, test full cache behavior/alias/failure cases, tree/range
+lookup order and sparse/write effects, and allocator arithmetic/first-fit/locks.
+Counts and allocation probes are evidence; some bounded fallback and small
+allocator timing rows regress and remain recorded. No universal CPU/FPS claim.
+
+Two experiments are rejected, not product changes: Auto single-parent storage
+saved 32 B but slowed other hot paths; pool binding purge could expose a stale
+graphics manager reference after compute evicted its pool. Do not retry that
+purge alone. It needs safe disposed texture/sampler pool acquisition and a real
+compute-to-graphics transition proof first. Old pool lifetime behavior remains.
+
+The final combined managed Release Library passes Linux SDK 10.0.100. No Apple
+NativeAOT core, IPA, build number, public tag or release is produced. Existing
+successful suites are reused only within their unchanged scope; fixed Core85
+Apple input contracts deliberately refuse this newer preparation set.
+Details: docs/melonx-descriptor-cache-2026-10-29.md and its evidence directory.
+
 ## MeloNX additional steady-state source candidate — 29 October 2026
 
 Four further adapters follow local 8399607: lazy virtual-buffer readback with
