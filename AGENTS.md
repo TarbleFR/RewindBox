@@ -2,6 +2,25 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## MeloNX rendering CPU follow-up — 29 October 2026
+
+Five additional guarded adapters follow engine 80: geometrically growing
+pipeline tables and order-sensitive pipeline hashes; complete bindless key
+hashes; clean descriptors for unchanged buffer assignments; a bounded
+memory-tracking locality shortcut; and linear texture-region intersection for
+valid contiguous mappings. Six production files change. Equality, resource
+ownership, dirty/protection signals, descriptor invalidations and fragmented
+texture fallbacks remain authoritative. The short-mapping and overflowing
+texture-layout cases found in review are covered, including immediate matches.
+Final targeted production-code checks and complete managed library build pass.
+The Apple engine candidate and its exact artifact will be recorded after CI.
+Evidence: `docs/melonx-fps-followup-2026-10-29.md` and
+`docs/evidence/melonx-fps-20261029/`.
+Host timings/allocations are controlled workloads, not measured Hogwarts
+iPhone FPS or resident RAM savings. Preserve the concurrent RPCS3 follow-up
+through `7d1ca65c`, private IPA 593 and its delivered identity. This work does
+not deliver a new IPA, public release, runtime setting or telemetry.
+
 ## RPCS3 follow-up from delivered IPA 593 device logs — 29 October 2026
 
 Source candidate after `571dbc08`, synchronized with concurrent MeloNX

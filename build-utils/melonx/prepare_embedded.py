@@ -42,6 +42,11 @@ from adapt_fragmented_uploads import apply as adapt_fragmented_uploads
 from adapt_texture_ownership import apply as adapt_texture_ownership
 from adapt_bindless_allocations import apply as adapt_bindless_allocations
 from adapt_array_barriers import apply as adapt_array_barriers
+from adapt_pipeline_lookup import apply as adapt_pipeline_lookup
+from adapt_binding_lookup import apply as adapt_binding_lookup
+from adapt_descriptor_updates import apply as adapt_descriptor_updates
+from adapt_memory_tracking import apply as adapt_memory_tracking
+from adapt_texture_overlap import apply as adapt_texture_overlap
 
 
 def replace_once(path, old, new):
@@ -104,6 +109,11 @@ def main():
     adapted += adapt_texture_ownership(source)
     adapted += adapt_bindless_allocations(source)
     adapted += adapt_array_barriers(source)
+    adapted += adapt_pipeline_lookup(source)
+    adapted += adapt_binding_lookup(source)
+    adapted += adapt_descriptor_updates(source)
+    adapted += adapt_memory_tracking(source)
+    adapted += adapt_texture_overlap(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -154,7 +164,8 @@ def main():
                  'adapt_device_memory.py', 'adapt_jit_context.py', 'adapt_jit_block_split.py', 'adapt_buffer_views.py',
                  'adapt_memory_queries.py', 'adapt_jit_dataflow.py', 'adapt_upload_lifetime.py',
                  'adapt_texture_uploads.py', 'adapt_pipeline_recycle.py', 'adapt_fragmented_uploads.py',
-                 'adapt_texture_ownership.py', 'adapt_bindless_allocations.py', 'adapt_array_barriers.py']:
+                 'adapt_texture_ownership.py', 'adapt_bindless_allocations.py', 'adapt_array_barriers.py',
+                 'adapt_pipeline_lookup.py', 'adapt_binding_lookup.py', 'adapt_descriptor_updates.py', 'adapt_memory_tracking.py', 'adapt_texture_overlap.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

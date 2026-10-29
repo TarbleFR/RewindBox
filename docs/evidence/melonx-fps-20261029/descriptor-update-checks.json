@@ -1,0 +1,192 @@
+{
+  "result": "passed",
+  "reports": {
+    "control": {
+      "adapted": false,
+      "checks": 44,
+      "measurements": [
+        {
+          "kind": "uniform",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 250000,
+          "descriptorBinds": 500000,
+          "bufferLookups": 500000,
+          "medianNanosecondsPerAssignmentAndDraw": 42.87624,
+          "bytesPerIteration": 0
+        },
+        {
+          "kind": "storage",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 250000,
+          "descriptorBinds": 500000,
+          "bufferLookups": 500000,
+          "medianNanosecondsPerAssignmentAndDraw": 36.3606,
+          "bytesPerIteration": 0
+        },
+        {
+          "kind": "directStorage",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 250000,
+          "descriptorBinds": 500000,
+          "bufferLookups": 0,
+          "medianNanosecondsPerAssignmentAndDraw": 34.88762,
+          "bytesPerIteration": 0
+        },
+        {
+          "kind": "uniformPush",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 0,
+          "descriptorBinds": 250000,
+          "bufferLookups": 500000,
+          "medianNanosecondsPerAssignmentAndDraw": 26.83632,
+          "bytesPerIteration": 0
+        }
+      ],
+      "productionMethodsVerbatim": true,
+      "nativeVulkanCallsDoubled": true,
+      "tieredCompilation": "0"
+    },
+    "candidate": {
+      "adapted": true,
+      "checks": 44,
+      "measurements": [
+        {
+          "kind": "uniform",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 0,
+          "descriptorBinds": 0,
+          "bufferLookups": 500000,
+          "medianNanosecondsPerAssignmentAndDraw": 10.92836,
+          "bytesPerIteration": 0
+        },
+        {
+          "kind": "storage",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 0,
+          "descriptorBinds": 0,
+          "bufferLookups": 500000,
+          "medianNanosecondsPerAssignmentAndDraw": 12.07586,
+          "bytesPerIteration": 0
+        },
+        {
+          "kind": "directStorage",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 0,
+          "descriptorBinds": 0,
+          "bufferLookups": 0,
+          "medianNanosecondsPerAssignmentAndDraw": 8.31572,
+          "bytesPerIteration": 0
+        },
+        {
+          "kind": "uniformPush",
+          "iterations": 250000,
+          "warmup": 20000,
+          "samples": 5,
+          "descriptorUpdates": 0,
+          "descriptorBinds": 0,
+          "bufferLookups": 500000,
+          "medianNanosecondsPerAssignmentAndDraw": 10.58486,
+          "bytesPerIteration": 0
+        }
+      ],
+      "productionMethodsVerbatim": true,
+      "nativeVulkanCallsDoubled": true,
+      "tieredCompilation": "0"
+    }
+  },
+  "physicalDeviceTested": false,
+  "productionMethodsVerbatim": true,
+  "normalDescriptorUpdateLoopExecuted": true,
+  "nativeVulkanCallsDoubled": true,
+  "resourceManagersDoubled": true,
+  "timingGate": false,
+  "inputs": {
+    "build-utils/melonx/adapt_descriptor_updates.py": "e767de4b338f3f4516f62efac2c03fa987d609e00d019b81e90defac9fc7ce6a",
+    "test/melonx_descriptor_updates_test.py": "c689467840b12e8cd366ea7049d02ec82ec32f2c419c1638cec0781e5bcfb3da",
+    "test/melonx_descriptor_updates/Program.cs": "196a8f18c24d41b408f2d0ec61a1246513ec4ae3053a0107e453ea456a6ce411"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs": "6b7f2c60bf579f6226326c3c3225b9d12a03879f795ecd4179ae0903552361fc",
+    "src/Ryujinx.Graphics.Vulkan/DescriptorSetTemplateUpdater.cs": "b9c48d5cbfb520d687bf0971d8a0b23b666c68bd012abee34936b58560b909aa",
+    "src/Ryujinx.Graphics.Vulkan/NativeArray.cs": "620ae9d494a30823c5d9e4f7b9cd6b37be2c267660e50413ef9fb0c991e4e77e",
+    "src/Ryujinx.Graphics.Vulkan/BitMapStruct.cs": "7abb5cef85fc75a8e196f94c2c2e3234a2ff66f2fe8d32afc16e24489dd14ee8",
+    "src/Ryujinx.Graphics.Vulkan/ResourceBindingSegment.cs": "e8d5b4e88c9fc3f4ab5407d6d95960347a0d0524b37599eff26e9038d5f628aa",
+    "src/Ryujinx.Common/Memory/IArray.cs": "0b4ba835fe89f680b0e4faff63e2f736727647a68a32f37d6ee0b193498c563b",
+    "src/Ryujinx.Common/Memory/StructArrayHelpers.cs": "ee9871e0099b206b7306214402b7241cc61d22632e5709708122f581b2d7074a",
+    "src/Ryujinx.Common/Utilities/BitUtils.cs": "3f33297b391f95cfba6d3ec848b69f94534848b74f919310181e0a51eb450261",
+    "src/Ryujinx.Graphics.GAL/BufferAssignment.cs": "765f55d1a9f8adcbe5c5cb499b7eadb5fc5bbcee063b3b353fc4c273c37fcddc",
+    "src/Ryujinx.Graphics.GAL/BufferRange.cs": "b16dcaed8fd814ade5e46cf2ff3c8a7fe149996a65a49cddb3e8566af4a0c669",
+    "src/Ryujinx.Graphics.GAL/BufferHandle.cs": "71da4d0600c311fc3c7fb6e313eedf9ee012ada58ad2e300138d518b98b6f17f",
+    "src/Ryujinx.Graphics.GAL/ResourceLayout.cs": "54a51235deb49b1aadbc3d36936869884577dd2d53f7c45dbc147720af65ae18",
+    "src/Ryujinx.Graphics.Shader/ShaderStage.cs": "bbf921732d94ce25c928a9e7ea955bcb60e26245b150046869f939940e2a25d8"
+  },
+  "productionMemberHashes": {
+    "control": {
+      "private record struct BufferRef": "03a04b925d97dba9677e791082291701bc577174aaa38c4118525a75a333db79",
+      "private record struct TextureRef": "5d484f64976009b9853527ed47028232a22ac4c23c61d6249e1c0a8462a91acc",
+      "private record struct ImageRef": "5c677eb1490df024e1523a69970c583dad1c557404b05ec0da5f0c70095fb96b",
+      "private enum DirtyFlags": "8404b708bc5c0fa52f9ecf9b271a4c604dc006843479919141a453fe71e892eb",
+      "private static bool BindingOverlaps(": "28af8541a80f9827fb10abf929e5b7b81eb7e1c63b76325d1b1a64d052e08019",
+      "internal void Rebind(": "f667b167cb30c6f522daa268c460b9170af5d4d829f45a18f602edce2020268e",
+      "public void AdvancePdSequence(": "7cb9f552fcafadd483fb5444549e4d58c87adef28d0229ff13a2f3dd5d540bcd",
+      "public void SetProgram(": "940355a383d7a62ae4e5a8232daf3e38b0b00b30faa60faadd4b4429f15e303a",
+      "public void SetUniformBuffers(CommandBuffer commandBuffer, ReadOnlySpan<BufferAssignment> buffers)": "2691938d22c0fd387d5b39f974b666afc8386dadbd42be19da441ab6c5ec7452",
+      "public void SetStorageBuffers(CommandBuffer commandBuffer, ReadOnlySpan<BufferAssignment> buffers)": "f2ee99938dd6309189a6fec547878d82370b49325e33cee06974750399103d49",
+      "public void SetStorageBuffers(CommandBuffer commandBuffer, int first, ReadOnlySpan<Auto<DisposableBuffer>> buffers)": "edb00d0430f534f0359efa883b632bf8254834709eb4b486580c8b1b87a6e673",
+      "private void SignalDirty(": "79ac5159f78e4755b43783803b76c5b2bae25bedb1ad90bad572c3b282fce0d2",
+      "public void UpdateAndBindDescriptorSets(": "66be795af656f4c7e8b5cd1005b718c46845beff603dbba746d6969d34bff30e",
+      "private static bool UpdateBuffer(": "17ce2f0873210e32180ee67c4e51337273864ca46f193fb2d54d682207cf1f06",
+      "private void UpdateAndBind(CommandBufferScoped cbs, ShaderCollection program, int setIndex, PipelineBindPoint pbp)": "a903083a33635137778c19b5c62578cb9a6ec137962ca47721b40e28b0236c7f",
+      "private void UpdateAndBindUniformBufferPd(": "6b7bd8fab22ffbcf404e4a1960d07b25338f290a5a30dc799abd9d1ceb21a560",
+      "private void Initialize(CommandBufferScoped cbs, int setIndex, DescriptorSetCollection dsc)": "ab1225ad0cbd4641c3fb466436b9bb0ad192c43c3c90c4522a256c233f040f1c",
+      "private void BindExtraSets(": "5e3ad2c52ae9a960e8a06171efcd06d378bd258c973b30d13e3bede3a91cedb8",
+      "public void SignalCommandBufferChange(": "90052aae2d998799d2e110a679a7fe18d85490281cbc9d476191a572334a8963",
+      "public void ForceTextureDirty(": "1f8a18d57ab383bc5559c1f468c84c4151ab59d9a9fa75623a56f7786bc10fa3",
+      "public void ForceImageDirty(": "c2341ebaccff084b62a033ef562d684d0004040bb14f96433bdcafafe3281be6",
+      "private static void SwapBuffer(": "620593c21aec77b879d5b93c38f17c7cf83911d245da4857d0d86d405aca1477",
+      "public void SwapBuffer(": "6f08a02a062d7136ffb7628608c5fcc2733025ea2155a3182f6c54fcfd76eddb"
+    },
+    "candidate": {
+      "private record struct BufferRef": "03a04b925d97dba9677e791082291701bc577174aaa38c4118525a75a333db79",
+      "private record struct TextureRef": "5d484f64976009b9853527ed47028232a22ac4c23c61d6249e1c0a8462a91acc",
+      "private record struct ImageRef": "5c677eb1490df024e1523a69970c583dad1c557404b05ec0da5f0c70095fb96b",
+      "private enum DirtyFlags": "8404b708bc5c0fa52f9ecf9b271a4c604dc006843479919141a453fe71e892eb",
+      "private static bool BindingOverlaps(": "28af8541a80f9827fb10abf929e5b7b81eb7e1c63b76325d1b1a64d052e08019",
+      "internal void Rebind(": "f667b167cb30c6f522daa268c460b9170af5d4d829f45a18f602edce2020268e",
+      "public void AdvancePdSequence(": "7cb9f552fcafadd483fb5444549e4d58c87adef28d0229ff13a2f3dd5d540bcd",
+      "public void SetProgram(": "940355a383d7a62ae4e5a8232daf3e38b0b00b30faa60faadd4b4429f15e303a",
+      "public void SetUniformBuffers(CommandBuffer commandBuffer, ReadOnlySpan<BufferAssignment> buffers)": "8d44cfe229d5777f7ab444080746a358fa15ab7d27b939b1ec5b1d932cf91bd6",
+      "public void SetStorageBuffers(CommandBuffer commandBuffer, ReadOnlySpan<BufferAssignment> buffers)": "390b8fd37e12bd3fc58f1135596474d65fcef4efdaac754b7d819ad73a03cb56",
+      "public void SetStorageBuffers(CommandBuffer commandBuffer, int first, ReadOnlySpan<Auto<DisposableBuffer>> buffers)": "5d0d2c8b1623807b11a4a4b933fc5325c51214e3821816336fadcbe74e68632f",
+      "private void SignalDirty(": "79ac5159f78e4755b43783803b76c5b2bae25bedb1ad90bad572c3b282fce0d2",
+      "public void UpdateAndBindDescriptorSets(": "66be795af656f4c7e8b5cd1005b718c46845beff603dbba746d6969d34bff30e",
+      "private static bool UpdateBuffer(": "17ce2f0873210e32180ee67c4e51337273864ca46f193fb2d54d682207cf1f06",
+      "private void UpdateAndBind(CommandBufferScoped cbs, ShaderCollection program, int setIndex, PipelineBindPoint pbp)": "a903083a33635137778c19b5c62578cb9a6ec137962ca47721b40e28b0236c7f",
+      "private void UpdateAndBindUniformBufferPd(": "6b7bd8fab22ffbcf404e4a1960d07b25338f290a5a30dc799abd9d1ceb21a560",
+      "private void Initialize(CommandBufferScoped cbs, int setIndex, DescriptorSetCollection dsc)": "ab1225ad0cbd4641c3fb466436b9bb0ad192c43c3c90c4522a256c233f040f1c",
+      "private void BindExtraSets(": "5e3ad2c52ae9a960e8a06171efcd06d378bd258c973b30d13e3bede3a91cedb8",
+      "public void SignalCommandBufferChange(": "90052aae2d998799d2e110a679a7fe18d85490281cbc9d476191a572334a8963",
+      "public void ForceTextureDirty(": "1f8a18d57ab383bc5559c1f468c84c4151ab59d9a9fa75623a56f7786bc10fa3",
+      "public void ForceImageDirty(": "c2341ebaccff084b62a033ef562d684d0004040bb14f96433bdcafafe3281be6",
+      "private static void SwapBuffer(": "620593c21aec77b879d5b93c38f17c7cf83911d245da4857d0d86d405aca1477",
+      "public void SwapBuffer(": "6f08a02a062d7136ffb7628608c5fcc2733025ea2155a3182f6c54fcfd76eddb"
+    }
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs": "918ad22abd943608c50d812add2e39076df4cf45a1e48ba2e2c68675a3a243ca"
+  }
+}

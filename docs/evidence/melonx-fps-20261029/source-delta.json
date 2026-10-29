@@ -1,0 +1,32 @@
+{
+  "sourceAndProjectFilesCompared": 4095,
+  "changed": [
+    {
+      "path": "src/Ryujinx.Graphics.Vulkan/HashTableSlim.cs",
+      "sha256": "e9fb1db8eac79c9aa8d16eafd4ff6b09f0b555197fad197d71c7adc1140fe624"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Vulkan/PipelineUid.cs",
+      "sha256": "de89c818038ec0eb5e31afed7face4f2652ca7123be92bf8485fec2572f3efc9"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs",
+      "sha256": "918ad22abd943608c50d812add2e39076df4cf45a1e48ba2e2c68675a3a243ca"
+    },
+    {
+      "path": "src/Ryujinx.Memory/Tracking/MemoryTracking.cs",
+      "sha256": "67a1b2e6daadc2dcc663428ddc3960222e848e62930967981e25bfed3fa6f433"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs",
+      "sha256": "b27962d8c7fcb4316ac45be63a91525f58e8215808b8a78c9dbcef6c897217d3"
+    },
+    {
+      "path": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
+      "sha256": "8e146245540154577a8c5ca40caec65d89eedc532a431ad61ef20ac31d0697c7"
+    }
+  ],
+  "updatedSincePreviousManagedBuild": [
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs"
+  ]
+}

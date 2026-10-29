@@ -1,0 +1,79 @@
+{
+  "result": "passed",
+  "sourceBase": "58809ae610d51950c54a719598aac3c2675a79c4",
+  "publishParent": "7d1ca65c8cb12d5d27934cd40cd0cf361518d9ad",
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "dotnet": "10.0.100",
+  "runtimeIdentifier": "linux-x64",
+  "managedBuilds": [
+    {
+      "name": "fps-next-managed-build.log",
+      "sha256": "13fe8cc3c8a48b5bb656b5f678242ec6a394f9d95f1037de9ecb612a3ebaf580",
+      "errors": 0,
+      "warnings": 27,
+      "elapsed": "00:01:05.18"
+    },
+    {
+      "name": "fps-final-managed-build.log",
+      "sha256": "d30d15e1abf90c04de15c5c6239470f6cac7540515a2e3413a65e243dfd1ab0c",
+      "errors": 0,
+      "warnings": 21,
+      "elapsed": "00:00:28.60"
+    }
+  ],
+  "buildArguments": [
+    "build",
+    "src/Ryujinx.Library",
+    "-c",
+    "Release",
+    "-m:1",
+    "-p:BuildInParallel=false",
+    "-p:PublishAot=false",
+    "-p:UseNativeAOTRuntime=false",
+    "-p:RuntimeIdentifier=linux-x64",
+    "-p:RuntimeIdentifiers=linux-x64",
+    "-p:SelfContained=false",
+    "-p:NuGetAudit=false"
+  ],
+  "freshPreparationComparedToEngine80": {
+    "sourceAndProjectFilesCompared": 4095,
+    "changed": [
+      {
+        "path": "src/Ryujinx.Graphics.Vulkan/HashTableSlim.cs",
+        "sha256": "e9fb1db8eac79c9aa8d16eafd4ff6b09f0b555197fad197d71c7adc1140fe624"
+      },
+      {
+        "path": "src/Ryujinx.Graphics.Vulkan/PipelineUid.cs",
+        "sha256": "de89c818038ec0eb5e31afed7face4f2652ca7123be92bf8485fec2572f3efc9"
+      },
+      {
+        "path": "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs",
+        "sha256": "918ad22abd943608c50d812add2e39076df4cf45a1e48ba2e2c68675a3a243ca"
+      },
+      {
+        "path": "src/Ryujinx.Memory/Tracking/MemoryTracking.cs",
+        "sha256": "67a1b2e6daadc2dcc663428ddc3960222e848e62930967981e25bfed3fa6f433"
+      },
+      {
+        "path": "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs",
+        "sha256": "b27962d8c7fcb4316ac45be63a91525f58e8215808b8a78c9dbcef6c897217d3"
+      },
+      {
+        "path": "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
+        "sha256": "8e146245540154577a8c5ca40caec65d89eedc532a431ad61ef20ac31d0697c7"
+      }
+    ],
+    "updatedSincePreviousManagedBuild": [
+      "src/Ryujinx.Graphics.Gpu/Image/Texture.cs"
+    ]
+  },
+  "textureIntegratedProductionMembers": "dee520cd48e27ad678c20d0b81bd5f9517504b6a6625b7626708638ea286cc84",
+  "bindingDescriptorTrackingPostimagesMatchTests": true,
+  "allTargetedTestInputHashesVerified": true,
+  "independentFinalReview": "approved",
+  "physicalDeviceTested": false,
+  "nativeAppleBuilt": false,
+  "measuredGameFpsGain": null,
+  "wholeApplicationMemoryGain": null,
+  "preservedConcurrentAgentsBaseBlob": "42e34444d74d8027f03436a9c2cd4c5080e9ee10"
+}

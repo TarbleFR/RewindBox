@@ -43,6 +43,21 @@ run-name: MeloNX engine • ${{ github.sha }}
     - test/melonx_bindless_allocations/**
     - test/melonx_array_barriers_test.py
     - test/melonx_array_barriers/**
+    - build-utils/melonx/adapt_pipeline_lookup.py
+    - test/melonx_pipeline_lookup_test.py
+    - test/melonx_pipeline_lookup/**
+    - build-utils/melonx/adapt_binding_lookup.py
+    - test/melonx_binding_lookup_test.py
+    - test/melonx_binding_lookup/**
+    - build-utils/melonx/adapt_descriptor_updates.py
+    - test/melonx_descriptor_updates_test.py
+    - test/melonx_descriptor_updates/**
+    - build-utils/melonx/adapt_memory_tracking.py
+    - test/melonx_memory_tracking_test.py
+    - test/melonx_memory_tracking/**
+    - build-utils/melonx/adapt_texture_overlap.py
+    - test/melonx_texture_overlap_test.py
+    - test/melonx_texture_overlap/**
     - test/melonx_jit_dataflow_test.py
     - test/melonx_jit_dataflow/**
     - test/melonx_jit_dataflow_codegen_test.py
@@ -236,6 +251,16 @@ jobs:
       run: python3 test/melonx_bindless_allocations_test.py .native-sources/MeloNX
     - name: Verify reused Vulkan array storage sets preserve barriers and descriptors
       run: python3 test/melonx_array_barriers_test.py .native-sources/MeloNX
+    - name: Verify exact pipeline hashes, amortized cache growth and lookup behavior
+      run: python3 test/melonx_pipeline_lookup_test.py .native-sources/MeloNX
+    - name: Verify bindless cache hash distribution and identical binding decisions
+      run: python3 test/melonx_binding_lookup_test.py .native-sources/MeloNX
+    - name: Verify unchanged buffer assignments preserve descriptor invalidation
+      run: python3 test/melonx_descriptor_updates_test.py .native-sources/MeloNX
+    - name: Verify memory tracking locality and callback topology changes
+      run: python3 test/melonx_memory_tracking_test.py .native-sources/MeloNX
+    - name: Verify ordered texture-region intersection and fragmented fallbacks
+      run: python3 test/melonx_texture_overlap_test.py .native-sources/MeloNX
     - name: Retain effective graphics journal regression proof
       run: |
         python3 - <<'PY'

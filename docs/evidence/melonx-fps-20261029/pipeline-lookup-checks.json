@@ -1,0 +1,170 @@
+{
+  "result": "passed",
+  "reports": [
+    {
+      "result": "passed",
+      "mode": "control",
+      "checks": 11355,
+      "removedValueRetained": true,
+      "insertionAllocatedBytes": 8519680,
+      "insertionBuckets": 16,
+      "insertionLargestBucket": 256,
+      "insertionAndLookupHashCalls": 12288,
+      "pipelineCount": 512,
+      "pipelineUidBytes": 1280,
+      "pipelineInsertionAllocatedBytes": 170213376,
+      "pipelineDistinctHashes": 1,
+      "pipelineEqualityChecks": 131328,
+      "lookupIterations": 8192,
+      "medianWarmLookupMilliseconds": 23.2873,
+      "physicalDeviceTested": false,
+      "distributedCaches": [
+        {
+          "count": 1,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.55
+        },
+        {
+          "count": 4,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.3523
+        },
+        {
+          "count": 16,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.4172
+        },
+        {
+          "count": 64,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.3756
+        },
+        {
+          "count": 512,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.6907
+        }
+      ],
+      "warmupIterations": 8192,
+      "timingSamples": 5,
+      "tieredCompilation": false,
+      "sink": 27107328
+    },
+    {
+      "result": "passed",
+      "mode": "table",
+      "checks": 11355,
+      "removedValueRetained": false,
+      "insertionAllocatedBytes": 259448,
+      "insertionBuckets": 512,
+      "insertionLargestBucket": 8,
+      "insertionAndLookupHashCalls": 8192,
+      "pipelineCount": 512,
+      "pipelineUidBytes": 1280,
+      "pipelineInsertionAllocatedBytes": 1825344,
+      "pipelineDistinctHashes": 1,
+      "pipelineEqualityChecks": 131328,
+      "lookupIterations": 8192,
+      "medianWarmLookupMilliseconds": 16.3541,
+      "physicalDeviceTested": false,
+      "distributedCaches": [
+        {
+          "count": 1,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.3236
+        },
+        {
+          "count": 4,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.3165
+        },
+        {
+          "count": 16,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.323
+        },
+        {
+          "count": 64,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.3569
+        },
+        {
+          "count": 512,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.4861
+        }
+      ],
+      "warmupIterations": 8192,
+      "timingSamples": 5,
+      "tieredCompilation": false,
+      "sink": 27107328
+    },
+    {
+      "result": "passed",
+      "mode": "candidate",
+      "checks": 11355,
+      "removedValueRetained": false,
+      "insertionAllocatedBytes": 259448,
+      "insertionBuckets": 512,
+      "insertionLargestBucket": 8,
+      "insertionAndLookupHashCalls": 8192,
+      "pipelineCount": 512,
+      "pipelineUidBytes": 1280,
+      "pipelineInsertionAllocatedBytes": 2685288,
+      "pipelineDistinctHashes": 512,
+      "pipelineEqualityChecks": 512,
+      "lookupIterations": 8192,
+      "medianWarmLookupMilliseconds": 0.5347,
+      "physicalDeviceTested": false,
+      "distributedCaches": [
+        {
+          "count": 1,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.3211
+        },
+        {
+          "count": 4,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.3377
+        },
+        {
+          "count": 16,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.3576
+        },
+        {
+          "count": 64,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.3703
+        },
+        {
+          "count": 512,
+          "iterations": 8192,
+          "medianWarmLookupMilliseconds": 0.5418
+        }
+      ],
+      "warmupIterations": 8192,
+      "timingSamples": 5,
+      "tieredCompilation": false,
+      "sink": 27107328
+    }
+  ],
+  "physicalDeviceTested": false,
+  "completeProductionClasses": true,
+  "nativeCallsUsed": false,
+  "silkVulkanVersion": "2.22.0",
+  "runtimeEnvironment": {
+    "DOTNET_TieredCompilation": "0"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_pipeline_lookup.py": "ea3973a7f9b3e6ce642e193b630939a3e0f7a316e30038d25d2b14c9e7a2e912",
+    "test/melonx_pipeline_lookup_test.py": "ff235457dec56cbeed9f96c44b0cee623e561450919dcd986c74b5a3f64691bc",
+    "test/melonx_pipeline_lookup/Program.cs": "955fb91cc08c3dc41719154b68157ee8871762937efb16ffd0025ed830446c73"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/HashTableSlim.cs": "22f8a03d266f8e6f8107559de967d6e3f5d56dd023635691427f697a3576ade8",
+    "src/Ryujinx.Graphics.Vulkan/PipelineUid.cs": "86f9ee7b54de323f80da642276262d1c1906a385dc7b0e7089b3755b3afa9ff3",
+    "src/Ryujinx.Common/Memory/StructArrayHelpers.cs": "ee9871e0099b206b7306214402b7241cc61d22632e5709708122f581b2d7074a",
+    "src/Ryujinx.Common/Memory/IArray.cs": "0b4ba835fe89f680b0e4faff63e2f736727647a68a32f37d6ee0b193498c563b"
+  }
+}
