@@ -1,0 +1,542 @@
+{
+  "installationMethod": "SideStore re-signing",
+  "directAppleInstallationReady": false,
+  "deviceInstallationTested": false,
+  "bundleIdentifier": "com.neogamelab.neostation",
+  "build": "593",
+  "version": "0.0.8",
+  "minimumIOS": "18.0",
+  "architectures": [
+    "arm64"
+  ],
+  "signatures": [
+    {
+      "bundle": "PlugIns/DolphinJITHelper.appex",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "PlugIns/NeoSwapPageRelay.appex",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "PlugIns/NeoSwapDonor.appex",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "PlugIns/MeloNXJITHelper.appex",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "PlugIns/ARMSX2JITHelper.appex",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "PlugIns/RPCS3JITHelper.appex",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "PlugIns/MeloNXRamDonor.appex",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/mednafen_ngp_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/wakelock_plus.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/objective_c.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/picodrive_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/neo_texture_catalog.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/freechaf_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/pokemini_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/mednafen_pcfx_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/melonx_internal_bridge.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/sqlite3.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/MeloNXJitSupport.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/neo_cheat_catalog.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/neo_shader_kit.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/gearcoleco_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/GTMSessionFetcher.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/sameduck_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/pdfium_flutter.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/mesen_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/MeloNXMoltenVK.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/video_player_avfoundation.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/MoltenVK.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/mednafen_psx_hw_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/snes9x_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/MeloNXCore.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/prosystem_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/ardens_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/potator_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/mednafen_psx_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/Flutter.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/freeintv_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/nestopia_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/genesis_plus_gx_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/mgba_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/armsx2_internal_bridge.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/DolphinCore.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/stella_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/flutter_secure_storage_darwin.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/App.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/MeloNXSDL3.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/fbneo_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/url_launcher_ios.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/mednafen_wswan_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/battery_plus.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/device_info_plus.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/PDFium.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/genesis_plus_gx_wide_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/flutter_localization.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/gambatte_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/o2em_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/StikJIT.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/wasm4_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/share_plus.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/MeloNXMoltenVKStandalone.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/mednafen_vb_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/ppsspp_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/libretro_internal_bridge.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/MeloNXAvUtil.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/stikjit_bridge.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/mednafen_pce_fast_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/package_info_plus.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/shared_preferences_foundation.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/MeloNXAvCodec.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/flutter_7zip.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/external_folder_access.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/dolphin_internal_bridge.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/external_display.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/gamepads_darwin.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/a5200_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/azahar_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/file_picker.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/neo_swap.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/gw_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/rpcs3_internal_bridge.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/ARMSX2Core.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/desmume_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/handy_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/neo_touch_layout.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/mupen64plus_next_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/uzem_libretro.framework",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": "Frameworks/libRPCS3Core.dylib",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    },
+    {
+      "bundle": ".",
+      "signatureVerified": true,
+      "signature": "adhoc",
+      "appleProvisioningVerified": false
+    }
+  ]
+}

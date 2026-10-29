@@ -47,7 +47,43 @@ artifacts, validates the legal bundle and all application/extension versions,
 and encrypts the private IPA with a fresh delivery recipient. The resulting
 IPA requires re-signing for installation, for example with SideStore.
 
-This document initially records the authorized recipe. Build completion,
-final IPA digest, delivery time and download verification will be added after
-the run succeeds. No physical iPhone gameplay, FPS improvement or whole-app
-memory reduction is claimed by this assembly.
+## Verified private delivery
+
+Source `b13dc1155e5f4971ba9e32ea4a267f6e447ea1bf`,
+[run 40818195216](https://github.com/TarbleFR/RewindBox/actions/runs/40818195216),
+attempt 1: **success**. No job was rerun. The encrypted main artifact is
+`12873597603`, 188,584,861 bytes, SHA256
+`82ff2abb275e700952a51d2100ece684d47806418889b0887cefab92a9d03480`.
+
+The downloaded archive was authenticated, decrypted, and checked against its
+own SHA256SUMS. The final `RewindBox-Build593.ipa` is **188,304,666 bytes**:
+
+```text
+6d8fe2635ef793ac24a34d760771d726174313b22f2485b1b154698c79881806
+```
+
+All 5,350 ZIP entries pass CRC validation with no duplicate names. Application
+and seven extension versions are 0.0.8 (593). The Apple runner verified 88 ad hoc
+signature records and preserved the compiled sections and ABI metadata of all
+85 Mach-O images. Separate offline checks of the downloaded IPA matched both
+signed engines to their original authenticated artifacts. RPCS3 non-signature
+load commands and LINKEDIT bytes remain unchanged, with eight bytes of allowed
+signature-alignment padding. MeloNX selects only the genuine `ios-arm64`
+payload; its source receipt and compiled payload match.
+
+The job took **15 min 37 s**. Xcode compilation took **385.55 s** and signature
+plus export **46.46 s**. There was one application build, no engine rebuild and
+no native test-suite replay. StikJIT was restored from its exact cache.
+
+The verified plaintext IPA was saved as a private downloadable chat file. Its
+ephemeral recipient private key was then deleted. It targets iOS 18 or later
+and requires re-signing with SideStore; physical installation was not tested.
+No public release or tag was created. No physical iPhone gameplay, FPS
+improvement or whole-app memory reduction is claimed by this assembly.
+
+The next delivery starts from the delivered 593 tree
+`bb3c99e15e52ac109d5eaf827c80cb8e5c7759c6`, recorded in
+`docs/evidence/rewind593/host-tree593.json`. The six product trees still match
+the delivered 588 application exactly. The compact receipt is
+`docs/evidence/rewind593-delivery.json`; signed-payload, signature, version,
+timing and host-tree receipts are retained in `docs/evidence/rewind593/`.

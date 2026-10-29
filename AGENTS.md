@@ -2,19 +2,27 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
-## Private IPA 593 — authorized assembly of latest RPCS3 and MeloNX
+## Private IPA 593 — delivered with latest RPCS3 and MeloNX, 29 October 2026
 
-The maintainer explicitly requested a new IPA with both latest engines.
-Assemble build593 on the delivered588 tree `81db3172b5ffb79e724c5ff6f944a61898fb7252`.
-Reuse RPCS3 candidate `c143be63`, run `40814736023`, artifact `12872058719`,
-and MeloNX `2f535c3`, run `40811657940`, artifact `12870529413` (ios-arm64).
-No engine rebuild, historical test replay, public release or tag is authorized
-by this recipe. Keep application version0.0.8, other products and engines from588.
-The candidate RPCS3 identity must remain verbatim: use its specific adapter
-and exact host/Core ABI/header checks, never invent old Core592 fields.
-The new recipe is `.github/workflows/rewind593-baseline-delivery.yml`; trigger
-once with `[rewind593-delivery]`. Fresh private delivery recipient. Completion
-and final signed IPA verification are pending; see `docs/rewind593-test-ipa.md`.
+The maintainer explicitly authorized this new IPA. Private version 0.0.8 (593)
+was built from `b13dc115`, successful run `40818195216`, artifact `12873597603`.
+IPA: 188,304,666 bytes; SHA256
+`6d8fe2635ef793ac24a34d760771d726174313b22f2485b1b154698c79881806`.
+RPCS3 candidate `c143be63` / run `40814736023` and MeloNX `2f535c3` /
+run `40811657940` are reused, with their original identities and signed payloads
+verified again on the downloaded IPA. All 85 Mach-O payloads retain code/data
+and ABI through signing; 88 signature records pass. The application and its
+seven extensions are version 0.0.8 (593). No physical-device/FPS result.
+One application build; no engine rebuild or native-suite replay. StikJIT cache
+reused. Job: 937 s; Xcode: 385.55 s; signing/export: 46.46 s. No rerun.
+Private file saved for the maintainer; ephemeral recipient private key deleted.
+No public release or tag. Re-sign with SideStore before installation.
+The next delivery baseline is the delivered 593 tree
+`bb3c99e15e52ac109d5eaf827c80cb8e5c7759c6`, recorded in
+`docs/evidence/rewind593/host-tree593.json`. Do not reuse build 593.
+Evidence: `docs/evidence/rewind593-delivery.json`; details:
+`docs/rewind593-test-ipa.md`. Preserve the candidate Core identity verbatim;
+use its specific adapter and exact host/Core ABI/header compatibility checks.
 
 ## MeloNX runtime optimization, second cycle — 29 October 2026
 
