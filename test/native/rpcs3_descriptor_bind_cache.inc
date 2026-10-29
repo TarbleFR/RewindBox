@@ -157,7 +157,7 @@ static int vkResetCommandBuffer(VkCommandBuffer cmd, u32 flags)
 struct { void error(const char*) const { assert(false); } } rsx_log;
 namespace rpcs3::ios::rsx_sync
 {
-    constexpr int cb_reuse = 1;
+    [[maybe_unused]] constexpr int cb_reuse = 1;
     struct SiteScope { explicit SiteScope(int) {} };
 }
 

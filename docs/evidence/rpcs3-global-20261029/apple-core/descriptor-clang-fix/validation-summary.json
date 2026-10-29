@@ -1,0 +1,73 @@
+{
+  "passed": true,
+  "change": "Mark only the iOS-only mock constant cb_reuse as maybe_unused; preserve -Werror and all production methods.",
+  "adapterBeforeSHA256": "09dbff46899ecf4e6e73c57b3117fa85bdf76bb3818efb7cffedc77e1cbfaf4a",
+  "adapterAfterSHA256": "fdf7c9337eabbada05dac13526ee9a83d7073e4d1f1f958b8c5fdad23c7a1180",
+  "programSHA256Before": {
+    "baseline": "cca3b1cc4a84a5778bc3ff4eada4e1523dfaa2960dae79de8c3d7dc899d3a3b4",
+    "candidate": "73c54218578e163278d018cd5202e81bc594c17bd124f422963d23cfc813a937"
+  },
+  "programSHA256After": {
+    "baseline": "7ffacd48fed3b04a5467d8c15b85d87beb37a825a704d9cd1027fb3c3ca40cda",
+    "candidate": "e82736f97ff76e53abdcd839d21624fe71d57e77b32b2ad9bf083b49e01c0ef2"
+  },
+  "programSHA256WithAnnotationRemoved": {
+    "baseline": "cca3b1cc4a84a5778bc3ff4eada4e1523dfaa2960dae79de8c3d7dc899d3a3b4",
+    "candidate": "73c54218578e163278d018cd5202e81bc594c17bd124f422963d23cfc813a937"
+  },
+  "productionSourceInputsUnchanged": true,
+  "negativeControl": {
+    "command": [
+      "g++",
+      "-Wunused-const-variable",
+      "-std=c++20",
+      "-g",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-UNDEBUG",
+      "-O3",
+      "/tmp/rpcs3-descriptor-clang-fix/old-baseline-desktop.cpp",
+      "-o",
+      "/tmp/rpcs3-descriptor-clang-fix/old-baseline-desktop"
+    ],
+    "returncode": 1,
+    "rejected": true,
+    "expectedDiagnostic": "unused-const-variable",
+    "constant": "rpcs3::ios::rsx_sync::cb_reuse",
+    "programSHA256": "cca3b1cc4a84a5778bc3ff4eada4e1523dfaa2960dae79de8c3d7dc899d3a3b4",
+    "outputSHA256": "c21e85c1cf8ad1c37fc8317b10f086c1a51f0091f97f157b958204df4aa3c193"
+  },
+  "compilerInvocation": [
+    "g++",
+    "-Wunused-const-variable"
+  ],
+  "reports": {
+    "plain": {
+      "path": "/tmp/rpcs3-descriptor-clang-fix/descriptor-plain.json",
+      "sha256": "5661409076e1788f707d17907b549c296b4e769bd42c44513c754c028e487a27",
+      "passed": true,
+      "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+      "variants": 4,
+      "casesPerVariant": 20,
+      "resultsMatchPreviousPassedHostReportsExceptTiming": true
+    },
+    "asan-ubsan": {
+      "path": "/tmp/rpcs3-descriptor-clang-fix/descriptor-asan-ubsan.json",
+      "sha256": "3426a265c466a6f01b9ea9f211c60942ee9e44efa7759835032ddf0e819f5542",
+      "passed": true,
+      "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+      "variants": 4,
+      "casesPerVariant": 20,
+      "resultsMatchPreviousPassedHostReportsExceptTiming": true
+    }
+  },
+  "nativeTestsReexecuted": [
+    "descriptor-bind-plain",
+    "descriptor-bind-asan-ubsan"
+  ],
+  "otherSuitesReexecuted": false,
+  "physicalDeviceTested": false,
+  "appleBuildExecuted": false,
+  "gpuExecuted": false
+}

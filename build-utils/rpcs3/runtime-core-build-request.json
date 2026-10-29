@@ -3,7 +3,7 @@
   "requestedOn": "2026-10-29",
   "branch": "Claude",
   "scope": "RPCS3 Core for iOS ARM64",
-  "baseCommit": "5b578461440ce430b4f6f523e40b8fe39d7290db",
+  "baseCommit": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
   "optimizationSourceCommit": "5f46a6cfbaf8a3c2994afe034fc2d5a098d03269",
   "sourceContractPath": "docs/evidence/rpcs3-global-20261029/committed-contract.json",
   "sourceContractSHA256": "9152485f8818e3cc11b1971626a262e6f9d607186fc02d4bcfcda6c6bad35adf",
@@ -14,14 +14,14 @@
   "packageIPA": false,
   "publishRelease": false,
   "sourceContractInputCount": 225,
-  "buildValidationInputCount": 237,
-  "pendingAppleModes": 22,
-  "reusedAppleModesFromPreviousAttempt": 4,
+  "buildValidationInputCount": 269,
+  "pendingAppleModes": 12,
+  "reusedAppleModesFromPreviousAttempt": 14,
   "previousAttempt": {
-    "source": "5b578461440ce430b4f6f523e40b8fe39d7290db",
-    "run": 40897672646,
+    "source": "2a2bfc23d49fe22ee9bf96f30df9418faf39995d",
+    "run": 40900528171,
     "conclusion": "failure",
-    "failedMode": "texture-lifecycle-exact-plain",
-    "correction": "Exact test counts account for unordered-set rank and inline allocation capacity."
+    "failedMode": "descriptor-bind-plain",
+    "correction": "Mark the iOS-only mock constant maybe_unused while keeping -Werror."
   }
 }

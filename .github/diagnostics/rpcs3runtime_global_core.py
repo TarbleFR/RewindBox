@@ -17,7 +17,8 @@ sys.path.insert(0, str(ROOT / 'test'))
 import rpcs3_global_delta as delta
 import rpcs3runtime_device594_core as previous
 import rpcs3runtime_bo2_warm_core as pipeline
-import rpcs3runtime_global_resume as resume
+import rpcs3runtime_global_resume as first_resume
+import rpcs3runtime_global_resume2 as resume
 
 OUT, PROOF = previous.OUT, previous.PROOF
 MANIFEST, ENTRY, WORKFLOW = previous.MANIFEST, previous.ENTRY, previous.WORKFLOW
@@ -83,7 +84,8 @@ def input_bytes(path):
 
 
 def input_paths():
-    return previous.input_paths() | TEST_INPUTS | {GATE, PARENT_CONTRACT, CODEGEN_REPORT} | resume.INPUT_PATHS
+    return (previous.input_paths() | TEST_INPUTS | {GATE, PARENT_CONTRACT, CODEGEN_REPORT}
+            | first_resume.INPUT_PATHS | resume.INPUT_PATHS)
 
 
 def inputs():
@@ -249,6 +251,12 @@ def source_contract(source, require_committed=True):
     assert sha(original_guard.encode()) == ORIGINAL_LIFECYCLE_SCRIPT_SHA256
     assert sha((ROOT / guard_path).read_bytes()) == APPLE_LIFECYCLE_SCRIPT_SHA256
     assert sha((ROOT / PIPELINE).read_bytes()) == APPLE_RESUME_PIPELINE_SHA256
+    descriptor_adapter = 'test/native/rpcs3_descriptor_bind_cache.inc'
+    original_descriptor = command('git', 'show', resume.SOURCE + ':' + descriptor_adapter).decode()
+    unused_mock = '    constexpr int cb_reuse = 1;'
+    assert original_descriptor.count(unused_mock) == 1
+    assert (ROOT / descriptor_adapter).read_text() == original_descriptor.replace(
+        unused_mock, '    [[maybe_unused]] constexpr int cb_reuse = 1;')
     dynamic_path = 'test/rpcs3_dynamic_state_retention_test.py'
     old_declaration = "    result+='bool is_open=true; Driver* commands; mutable std::array<VkDescriptorSet,2> m_bound_descriptor_sets{}; mutable std::array<VkPipeline,2> m_bound_pipelines{}; mutable dynamic_state_cache m_dynamic_state;\\n'\n"
     new_declaration = """    header=(core/PATHS[2]).read_text()
