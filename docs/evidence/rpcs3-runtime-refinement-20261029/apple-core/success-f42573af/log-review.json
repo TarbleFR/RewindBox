@@ -1,0 +1,129 @@
+{
+  "schema": 1,
+  "kind": "independent-refinement-final-build-log-review",
+  "passed": true,
+  "source": "f42573afc25842ca9a0068f4ad505bbfe5342623",
+  "runId": 40917423708,
+  "jobId": 123601264700,
+  "runAttempt": 1,
+  "runConclusion": "success",
+  "jobConclusion": "success",
+  "files": {
+    "/workspace/scratch/4e89feaca92b/core-build-refinement/f42573af/diagnostics/build.log": {
+      "sha256": "f08c71d8b7ff10c1ff2d25836b543a832ed0f6c58f090792bb1757f47be58b75",
+      "bytes": 611967
+    },
+    "/workspace/scratch/4e89feaca92b/core-build-refinement/f42573af/job.log": {
+      "sha256": "f3fb233d0d4d29619718ce3dcd11498d98c4503ba58f475eca7dd24de5614514",
+      "bytes": 834087
+    },
+    "/workspace/scratch/4e89feaca92b/core-build-refinement/f42573af/github-metadata.json": {
+      "sha256": "dd1663fb654901da268fdddd8f028c7848511ce4410c4c4b475175078b442bbb",
+      "bytes": 22016
+    }
+  },
+  "durationsSeconds": {
+    "job": 779,
+    "steps": {
+      "Set up job": 2,
+      "Checkout immutable candidate": 24,
+      "Select Xcode16.4": 1,
+      "Restore pinned dependencies and exact compiler objects": 21,
+      "Authenticate historical Core and execute only the candidate delta on ARM64": 79,
+      "Preserve native measurements before the single Core compilation": 2,
+      "Compile actual iPhone Core from the verified source": 574,
+      "Verify source candidate, exact exports, passive loading and source identity": 12,
+      "Upload source candidate without a delivery number": 4,
+      "Preserve verified dependencies and compiler objects": 32,
+      "Upload diagnostic results including partial failures": 2,
+      "Post Checkout immutable candidate": 0,
+      "Complete job": 3
+    }
+  },
+  "warnings": {
+    "scope": "Literal warning: lines in final diagnostics/build.log; repeated occurrences are retained, not unique defects.",
+    "totalWarningLines": 544,
+    "categories": {
+      "canonical_patch_whitespace_summary": 1,
+      "deprecated_declarations": 14,
+      "unused_variables": 18,
+      "unused_parameter": 1,
+      "ios174_unguarded_availability": 8,
+      "missing_declaration": 1,
+      "ranlib_llvm22_attribute102_applellvm17": 500,
+      "duplicate_static_libz": 1
+    },
+    "firstExamplePerCategory": {
+      "canonical_patch_whitespace_summary": "warning: 5 lines add whitespace errors.",
+      "deprecated_declarations": "/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/savestate_utils.cpp:778:12: warning: 'wait' is deprecated [-Wdeprecated-declarations]",
+      "unused_variables": "/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/PPUThread.cpp:4545:19: warning: unused variable 'jit_guard' [-Wunused-variable]",
+      "unused_parameter": "/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/system_utils.cpp:608:189: warning: unused parameter 'game_dir' [-Wunused-parameter]",
+      "ios174_unguarded_availability": "/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../../Utilities/sync.h:90:11: warning: 'os_sync_wait_on_address_with_timeout' is only available on iOS 17.4 or newer [-Wunguarded-availability-new]",
+      "missing_declaration": "/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../Emu/CPU/Backends/AArch64/AArch64Signal.h:31:9: warning: declaration does not declare anything [-Wmissing-declarations]",
+      "ranlib_llvm22_attribute102_applellvm17": "warning: /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib: Unknown attribute kind (102) (Producer: 'LLVM22.1.8' Reader: 'LLVM APPLE_1_1700.0.13.5_0')",
+      "duplicate_static_libz": "ld: warning: ignoring duplicate libraries: '3rdparty/zlib/zlib/libz.a'"
+    },
+    "availabilityOccurrences": [
+      "/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../../Utilities/sync.h:90:11: warning: 'os_sync_wait_on_address_with_timeout' is only available on iOS 17.4 or newer [-Wunguarded-availability-new]",
+      "/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../../Utilities/sync.h:90:116: warning: 'OS_SYNC_WAIT_ON_ADDRESS_NONE' is only available on iOS 17.4 or newer [-Wunguarded-availability-new]",
+      "/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../../Utilities/sync.h:94:11: warning: 'os_sync_wait_on_address' is only available on iOS 17.4 or newer [-Wunguarded-availability-new]",
+      "/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../../Utilities/sync.h:94:103: warning: 'OS_SYNC_WAIT_ON_ADDRESS_NONE' is only available on iOS 17.4 or newer [-Wunguarded-availability-new]",
+      "/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../../Utilities/sync.h:106:11: warning: 'os_sync_wake_by_address_all' is only available on iOS 17.4 or newer [-Wunguarded-availability-new]",
+      "/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../../Utilities/sync.h:106:79: warning: 'OS_SYNC_WAKE_BY_ADDRESS_NONE' is only available on iOS 17.4 or newer [-Wunguarded-availability-new]",
+      "/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../../Utilities/sync.h:110:11: warning: 'os_sync_wake_by_address_any' is only available on iOS 17.4 or newer [-Wunguarded-availability-new]",
+      "/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../../Utilities/sync.h:110:79: warning: 'OS_SYNC_WAKE_BY_ADDRESS_NONE' is only available on iOS 17.4 or newer [-Wunguarded-availability-new]"
+    ],
+    "linkingSucceeded": true,
+    "warningFreeClaim": false
+  },
+  "cache": {
+    "restored": true,
+    "key": "rpcs3-audit-arm64-xcode16.4-llvm22-a6248474ee06d48a29cc3cfef8c5179ce34b98efaa2d67c0752c65d3357ddaaf-5796e165cc0b355e779309f8a20360dc0e969f0d",
+    "restoredArchiveBytes": 779317434,
+    "ccacheConfigured": true,
+    "objectHitMissStatisticsPresent": false,
+    "objectReuseCountClaimed": false,
+    "limitation": "The archive restore and ccache configuration are observed. Per-object hits/misses and a cache-caused speedup are not measured."
+  },
+  "preflight": {
+    "totalModesPassed": 11,
+    "executedThisRun": 4,
+    "reusedModes": [
+      "refined-timer-plain",
+      "refined-timer-asan-ubsan",
+      "refined-descriptor-plain",
+      "refined-descriptor-asan-ubsan",
+      "refined-hash-plain",
+      "refined-hash-asan-ubsan",
+      "refined-hash-tsan"
+    ],
+    "sourceOfRetainedModes": 40914849302
+  },
+  "compatibility": {
+    "declaredCoreMinimumIOS": "16.3",
+    "sdk": "18.5",
+    "osSyncRequiredIOS": "17.4",
+    "hostRunnerDeploymentIOS": "17.4",
+    "neoSwapDeploymentIOS": "17.4",
+    "relevantSourceFiles": {
+      "/workspace/scratch/4e89feaca92b/RewindBox/build-utils/configure_rpcs3_ios_v1.py": "24a383243e30dc678740afd321a2818a67c66cd14f5ac9ab01e4635626fdaeb5",
+      "/workspace/scratch/4e89feaca92b/RewindBox/packages/neo_swap/ios/neo_swap.podspec": "9f45282a24451f6475517cfbf5b109208cd702d38215f322b4a8ffe394d3d6ec",
+      "/workspace/scratch/4e89feaca92b/rpcs3-refinement-verify/Utilities/sync.h": "3fff9bafc7228c1ab718fedef27d3a27fb5d2896ef34ef49eaa3a6b4d1c61a7d"
+    },
+    "limitation": "The dylib still declares iOS 16.3 while os_sync_* call sites warn of iOS 17.4 availability. No standalone support for iOS 16.3 through 17.3 is established. Host app targets already require iOS 17.4."
+  },
+  "passiveLoading": {
+    "initializerCount": 2974,
+    "initializerSymbols": 918,
+    "marker": "NEOSTATION_BUILD301_PASSIVE_DLOPEN_V1",
+    "forbiddenReachability": false,
+    "scope": "named forbidden functions via direct ARM64 B/BL edges, maximum depth 16",
+    "deviceRuntimeTested": false
+  },
+  "passiveLimitation": "Static named-forbidden-function reachability through direct ARM64 B/BL edges to maximum depth16; indirect calls are not comprehensively covered and no physical-device dlopen was executed.",
+  "nativeTestsExecutedDuringReview": false,
+  "cmakeExecutedDuringReview": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "verifiedUTC": "2026-10-29T17:18:11.222442+00:00"
+}

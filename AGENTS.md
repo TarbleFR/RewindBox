@@ -2,7 +2,15 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
-## RPCS3 refinement Core retry — 29 October 2026
+## RPCS3 refinement Core compiled and independently verified — 29 October 2026
+
+The requested retry is complete: source f42573afc25842ca9a0068f4ad505bbfe5342623
+passes run 40917423708, job 123601264700, attempt 1. Artifact 12917652510 is
+29,118,830 bytes, ZIP SHA256
+4956f76388cbe2da7eeb87f45980a91391d05e3f71af16fdb163668efe3e2cad.
+The downloaded actual ARM64/iOS Core is 77,268,488 bytes, SHA256
+05459149444fe5be32ffb8218ada79dd6a3b531377bd3d19e1bf34294dd0fbb8.
+ABI30, 88 real exports, PPU a987639e9f838d1c and SPU d070cb361bdef607 pass.
 
 The maintainer explicitly requested resuming failed run 40914849302, source
 5796e165, job 123592224611. Seven Apple modes passed before the isolated lookup
@@ -16,10 +24,26 @@ old errors; corrected lookup plain and ASan/UBSan pass for both versions. No
 unchanged native test or CMake is replayed. The partial-resume contract binds 349
 inputs, seven exact passed Apple programs and their original report/output bytes;
 36 corrupt-evidence controls are rejected. The original failure stays a failure.
-The retry runs only lookup and RSX sampler plain/ASan, then builds the actual Core.
+The retry executed only lookup and RSX sampler plain/ASan, then built the Core.
 The separate 17 global and 16 older unchanged Apple modes remain historical.
-No new IPA, release, iPhone/FPS or successful retry result is established here.
-See docs/rpcs3-runtime-refinement-core-2026-10-29.md and its evidence directory.
+All three downloaded ZIPs, actual Mach-O, 349 validation inputs, 92 Core inputs,
+313 postimages, 97 supplements and all eleven reports pass independent checks.
+Full receipt verification relocates only the fixed final --report directory
+for four command comparisons; original sources, proof and report bytes stay exact.
+Preflight79s, Core compilation574s, final checks12s, whole job779s (12m59).
+Reuse this artifact for a later authorized IPA while its exact inputs match;
+do not rebuild or replay unchanged suites for these documentary updates.
+
+All eighteen Apple timing cases are retained, including five slower medians.
+Lookup key/epoch misses improve in the host microbenchmark; descriptors retain
+slower graphics-hit/alternating cases. No iPhone FPS or GPU claim follows.
+The log retains 500 ranlib LLVM22/AppleLLVM17 warnings and eight iOS17.4
+availability warnings; minos16.3 metadata does not establish 16.3–17.3 support.
+Runner/NeoSwap require17.4. Passive loading is a static direct-branch check,
+not device execution. No IPA or release was produced. The previous 5b2a5614
+Core and all failures remain historical. Details and raw evidence:
+docs/rpcs3-runtime-refinement-core-2026-10-29.md and
+docs/evidence/rpcs3-runtime-refinement-20261029/apple-core/success-f42573af/.
 
 ## RPCS3 runtime refinements after the verified Core — 29 October 2026
 

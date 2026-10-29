@@ -1,0 +1,361 @@
+{
+  "schema_version": 1,
+  "passed": true,
+  "kind": "independent-refinement-core-artifact-verification",
+  "source": "f42573afc25842ca9a0068f4ad505bbfe5342623",
+  "run_id": 40917423708,
+  "run_attempt": 1,
+  "job_id": 123601264700,
+  "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "canonical_patch_sha256": "41c9ab4938e95b37b88e9851230920a8c38823bb26b3eebe4427038a1c32b869",
+  "fixture_sha256": "1c780f32a3d8d272daf6b2d9ca7ccd68148bc2847aa3e88f31efafd0991a41f7",
+  "core_sha256": "05459149444fe5be32ffb8218ada79dd6a3b531377bd3d19e1bf34294dd0fbb8",
+  "core_bytes": 77268488,
+  "abi_version": 30,
+  "architecture": "arm64",
+  "platform": 2,
+  "minimum_ios": "16.3.0",
+  "export_count": 88,
+  "runtime_input_count": 349,
+  "original_contract_input_count": 330,
+  "corrected_validation_inputs": {
+    ".github/diagnostics/rpcs3runtime_refinement_core.py": {
+      "before_sha256": "ec833bccc5afdcee907ee1e992b70547ea60e68d753645fdd868563654da7ac3",
+      "after_sha256": "70eabf7d10f16adfa06bb0a5bf1410876d41ef1ac5f96963e4a221290b713c75"
+    },
+    "test/rpcs3_runtime_refinement_test.py": {
+      "before_sha256": "d271852fdfec8033f5d218704fb018987de5bd8114873be9cb92eddcb6126300",
+      "after_sha256": "3c88a71c7218e31744eefd8033631370019036dfb6d07e4563f8fb6278630129"
+    }
+  },
+  "added_resume_input_count": 19,
+  "core_input_count": 92,
+  "native_postimage_count": 313,
+  "supplemental_native_count": 97,
+  "apple_modes_passed": 11,
+  "sanitizer_modes": {
+    "plain": 5,
+    "asan-ubsan": 5,
+    "tsan": 1
+  },
+  "historical_global_modes_reused": 17,
+  "historical_older_modes_reused": 16,
+  "apple_modes_executed_in_this_run": 4,
+  "apple_modes_reused_from_failed_runs": 7,
+  "executed_sanitizer_modes": {
+    "plain": 2,
+    "asan-ubsan": 2
+  },
+  "reused_sanitizer_modes": {
+    "plain": 3,
+    "asan-ubsan": 3,
+    "tsan": 1
+  },
+  "reused_partial_origins": {
+    "refined-descriptor-asan-ubsan": {
+      "source": "5796e165cc0b355e779309f8a20360dc0e969f0d",
+      "run_id": 40914849302,
+      "run_attempt": 1,
+      "job_id": 123592224611,
+      "artifact_id": 12914878675,
+      "artifact_sha256": "565b1af2d73692e410e863656a5dceae8d1214508263f1852950f7b19b289650",
+      "partial_proof_sha256": "aa8d2460bb33a8e6775e3d7644350a66539ab8f1b58820ae5dfb16a26ebafb01",
+      "metadata_sha256": "873307cbe712cdd5bfecbabe1f0fe25d3bd5409390e214d49881a8c5c802fa5b",
+      "overall_run_conclusion": "failure",
+      "mode": "refined-descriptor-asan-ubsan",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true,
+      "original_script_sha256": "d271852fdfec8033f5d218704fb018987de5bd8114873be9cb92eddcb6126300",
+      "current_script_sha256": "3c88a71c7218e31744eefd8033631370019036dfb6d07e4563f8fb6278630129",
+      "script_change_scope": "lookup-only unused-constant annotations; generated program unchanged"
+    },
+    "refined-descriptor-plain": {
+      "source": "5796e165cc0b355e779309f8a20360dc0e969f0d",
+      "run_id": 40914849302,
+      "run_attempt": 1,
+      "job_id": 123592224611,
+      "artifact_id": 12914878675,
+      "artifact_sha256": "565b1af2d73692e410e863656a5dceae8d1214508263f1852950f7b19b289650",
+      "partial_proof_sha256": "aa8d2460bb33a8e6775e3d7644350a66539ab8f1b58820ae5dfb16a26ebafb01",
+      "metadata_sha256": "873307cbe712cdd5bfecbabe1f0fe25d3bd5409390e214d49881a8c5c802fa5b",
+      "overall_run_conclusion": "failure",
+      "mode": "refined-descriptor-plain",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true,
+      "original_script_sha256": "d271852fdfec8033f5d218704fb018987de5bd8114873be9cb92eddcb6126300",
+      "current_script_sha256": "3c88a71c7218e31744eefd8033631370019036dfb6d07e4563f8fb6278630129",
+      "script_change_scope": "lookup-only unused-constant annotations; generated program unchanged"
+    },
+    "refined-hash-asan-ubsan": {
+      "source": "5796e165cc0b355e779309f8a20360dc0e969f0d",
+      "run_id": 40914849302,
+      "run_attempt": 1,
+      "job_id": 123592224611,
+      "artifact_id": 12914878675,
+      "artifact_sha256": "565b1af2d73692e410e863656a5dceae8d1214508263f1852950f7b19b289650",
+      "partial_proof_sha256": "aa8d2460bb33a8e6775e3d7644350a66539ab8f1b58820ae5dfb16a26ebafb01",
+      "metadata_sha256": "873307cbe712cdd5bfecbabe1f0fe25d3bd5409390e214d49881a8c5c802fa5b",
+      "overall_run_conclusion": "failure",
+      "mode": "refined-hash-asan-ubsan",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true,
+      "original_script_sha256": "d271852fdfec8033f5d218704fb018987de5bd8114873be9cb92eddcb6126300",
+      "current_script_sha256": "3c88a71c7218e31744eefd8033631370019036dfb6d07e4563f8fb6278630129",
+      "script_change_scope": "lookup-only unused-constant annotations; generated program unchanged"
+    },
+    "refined-hash-plain": {
+      "source": "5796e165cc0b355e779309f8a20360dc0e969f0d",
+      "run_id": 40914849302,
+      "run_attempt": 1,
+      "job_id": 123592224611,
+      "artifact_id": 12914878675,
+      "artifact_sha256": "565b1af2d73692e410e863656a5dceae8d1214508263f1852950f7b19b289650",
+      "partial_proof_sha256": "aa8d2460bb33a8e6775e3d7644350a66539ab8f1b58820ae5dfb16a26ebafb01",
+      "metadata_sha256": "873307cbe712cdd5bfecbabe1f0fe25d3bd5409390e214d49881a8c5c802fa5b",
+      "overall_run_conclusion": "failure",
+      "mode": "refined-hash-plain",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true,
+      "original_script_sha256": "d271852fdfec8033f5d218704fb018987de5bd8114873be9cb92eddcb6126300",
+      "current_script_sha256": "3c88a71c7218e31744eefd8033631370019036dfb6d07e4563f8fb6278630129",
+      "script_change_scope": "lookup-only unused-constant annotations; generated program unchanged"
+    },
+    "refined-hash-tsan": {
+      "source": "5796e165cc0b355e779309f8a20360dc0e969f0d",
+      "run_id": 40914849302,
+      "run_attempt": 1,
+      "job_id": 123592224611,
+      "artifact_id": 12914878675,
+      "artifact_sha256": "565b1af2d73692e410e863656a5dceae8d1214508263f1852950f7b19b289650",
+      "partial_proof_sha256": "aa8d2460bb33a8e6775e3d7644350a66539ab8f1b58820ae5dfb16a26ebafb01",
+      "metadata_sha256": "873307cbe712cdd5bfecbabe1f0fe25d3bd5409390e214d49881a8c5c802fa5b",
+      "overall_run_conclusion": "failure",
+      "mode": "refined-hash-tsan",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true,
+      "original_script_sha256": "d271852fdfec8033f5d218704fb018987de5bd8114873be9cb92eddcb6126300",
+      "current_script_sha256": "3c88a71c7218e31744eefd8033631370019036dfb6d07e4563f8fb6278630129",
+      "script_change_scope": "lookup-only unused-constant annotations; generated program unchanged"
+    },
+    "refined-timer-asan-ubsan": {
+      "source": "5796e165cc0b355e779309f8a20360dc0e969f0d",
+      "run_id": 40914849302,
+      "run_attempt": 1,
+      "job_id": 123592224611,
+      "artifact_id": 12914878675,
+      "artifact_sha256": "565b1af2d73692e410e863656a5dceae8d1214508263f1852950f7b19b289650",
+      "partial_proof_sha256": "aa8d2460bb33a8e6775e3d7644350a66539ab8f1b58820ae5dfb16a26ebafb01",
+      "metadata_sha256": "873307cbe712cdd5bfecbabe1f0fe25d3bd5409390e214d49881a8c5c802fa5b",
+      "overall_run_conclusion": "failure",
+      "mode": "refined-timer-asan-ubsan",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true,
+      "original_script_sha256": "d271852fdfec8033f5d218704fb018987de5bd8114873be9cb92eddcb6126300",
+      "current_script_sha256": "3c88a71c7218e31744eefd8033631370019036dfb6d07e4563f8fb6278630129",
+      "script_change_scope": "lookup-only unused-constant annotations; generated program unchanged"
+    },
+    "refined-timer-plain": {
+      "source": "5796e165cc0b355e779309f8a20360dc0e969f0d",
+      "run_id": 40914849302,
+      "run_attempt": 1,
+      "job_id": 123592224611,
+      "artifact_id": 12914878675,
+      "artifact_sha256": "565b1af2d73692e410e863656a5dceae8d1214508263f1852950f7b19b289650",
+      "partial_proof_sha256": "aa8d2460bb33a8e6775e3d7644350a66539ab8f1b58820ae5dfb16a26ebafb01",
+      "metadata_sha256": "873307cbe712cdd5bfecbabe1f0fe25d3bd5409390e214d49881a8c5c802fa5b",
+      "overall_run_conclusion": "failure",
+      "mode": "refined-timer-plain",
+      "host": {
+        "system": "Darwin",
+        "machine": "arm64",
+        "compiler": "Homebrew clang version 22.1.8",
+        "compilerCommand": "/opt/homebrew/opt/llvm@22/bin/clang++"
+      },
+      "native_executed_in_this_run": false,
+      "native_program_identity_preserved": true,
+      "original_script_sha256": "d271852fdfec8033f5d218704fb018987de5bd8114873be9cb92eddcb6126300",
+      "current_script_sha256": "3c88a71c7218e31744eefd8033631370019036dfb6d07e4563f8fb6278630129",
+      "script_change_scope": "lookup-only unused-constant annotations; generated program unchanged"
+    }
+  },
+  "partial_origin_runs": [
+    {
+      "source": "5796e165cc0b355e779309f8a20360dc0e969f0d",
+      "run_id": 40914849302,
+      "overall_conclusion": "failure",
+      "core_compilation": "skipped",
+      "valid_modes_in_checkpoint": 7,
+      "successful_modes_originating_here": 7,
+      "origin_archive_bytes_verified_here": false
+    }
+  ],
+  "compiler": "Homebrew clang version 22.1.8",
+  "ppu_codegen": "a987639e9f838d1c",
+  "spu_codegen": "d070cb361bdef607",
+  "files_sha256": {
+    "identity.json": "9f46de0d600dfa2be51482402eac8d32bd3f6b7d012140cf2e56057b9c530d9f",
+    "runtime592-proof.json": "fc81d6c5f1dac37f1c2cadfcfbacd3a8972af222949e063b3b1ffec275ed3b03",
+    "build.log": "f08c71d8b7ff10c1ff2d25836b543a832ed0f6c58f090792bb1757f47be58b75"
+  },
+  "native_report_and_output_digests": {
+    "refined-descriptor-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "5c87f31c4388bdc383e78ae08a5f7ba1109b490fbea4fa083b46f0cbee48b17a",
+      "output_sha256": "5155f161eb21c9f637d7cf9a2a5ce9f5e72182e35a624c33c757a39092649d89",
+      "native_executed_in_this_run": false
+    },
+    "refined-descriptor-plain": {
+      "mode": "plain",
+      "report_sha256": "edd3bed8ae39c64b3f9814e022ba221a7d5634092f6535acfc230ff4ee0b802e",
+      "output_sha256": "af318ce2495fe6376d09847c9bb621c2d68eed9a83a6a5b82857ddf03a38d8b0",
+      "native_executed_in_this_run": false
+    },
+    "refined-hash-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "8d6a10356ae1e41eb32e887b81611ca59b2ed8c481eaa9cd7311e448518c9361",
+      "output_sha256": "43080db2870783e3abca95a085d458e2580f3196ddcf371a16cd34476ad85b28",
+      "native_executed_in_this_run": false
+    },
+    "refined-hash-plain": {
+      "mode": "plain",
+      "report_sha256": "bbb77e27ac72a3f6eb14a85b3e3922b18943d3a1c489d8337fbf3e18a49feb97",
+      "output_sha256": "b66c6ed5650a0b4553f365a92939e1071ef0a9dd0999aaac728935b9fc1d1d54",
+      "native_executed_in_this_run": false
+    },
+    "refined-hash-tsan": {
+      "mode": "tsan",
+      "report_sha256": "95f3ce101896ddb8da697611020a7d15ca96fb92fcebf0e39c2632a6b5a082e8",
+      "output_sha256": "2a43fc90cc3a18b3ce17255f42486aafd779028766086c80b671f4a0f0439c34",
+      "native_executed_in_this_run": false
+    },
+    "refined-lookup-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "71d33416a81822ea549645acddb50b28254fd39430fc4a429b9d470096a2f9c3",
+      "output_sha256": "c029e9fbade9923616ad060ca49aae357fb2484e14d621de4382eaa741d7e547",
+      "native_executed_in_this_run": true
+    },
+    "refined-lookup-plain": {
+      "mode": "plain",
+      "report_sha256": "0c4972664daf6cb029ffb0583bbcc66eecb31463e0342946a9e7f9d80f194f78",
+      "output_sha256": "362734d64c975958d911643c929a30898f9f40bf02893820f7a6fa73eb42c337",
+      "native_executed_in_this_run": true
+    },
+    "refined-timer-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "b606c59d4c96b84a2d5d87da68ea1e404e7152e49efe5bac6c4e144f460eb67c",
+      "output_sha256": "343939911e459091a304db7908377006b7950ae46268b2acada766afd824072e",
+      "native_executed_in_this_run": false
+    },
+    "refined-timer-plain": {
+      "mode": "plain",
+      "report_sha256": "2b0c697d07a988c1619b693c2eab43ab12206148aed7f55f0e14edfa1caaaa1a",
+      "output_sha256": "b4f83cd8081bb4fcedddbc47f7bc8df2b391b902220659c989be588b02b00f93",
+      "native_executed_in_this_run": false
+    },
+    "rsx-write-sampler-asan-ubsan": {
+      "mode": "asan-ubsan",
+      "report_sha256": "0d57533975dc0aef121811dd86e88ce2dc708360305b216a31de8d9a9fc235fb",
+      "output_sha256": "0d57533975dc0aef121811dd86e88ce2dc708360305b216a31de8d9a9fc235fb",
+      "native_executed_in_this_run": true
+    },
+    "rsx-write-sampler-plain": {
+      "mode": "plain",
+      "report_sha256": "666728cd9322eaad61d835c8568bb336ea74d1037ca6a8f5a66828c8af8c02e9",
+      "output_sha256": "666728cd9322eaad61d835c8568bb336ea74d1037ca6a8f5a66828c8af8c02e9",
+      "native_executed_in_this_run": true
+    }
+  },
+  "archives": {
+    "core": {
+      "artifact_id": 12917652510,
+      "name": "RPCS3Core-f42573afc25842ca9a0068f4ad505bbfe5342623",
+      "metadata_sha256": "4956f76388cbe2da7eeb87f45980a91391d05e3f71af16fdb163668efe3e2cad",
+      "metadata_bytes": 29118830,
+      "archive_bytes_verified": true,
+      "archive_sha256": "4956f76388cbe2da7eeb87f45980a91391d05e3f71af16fdb163668efe3e2cad",
+      "archive_bytes": 29118830,
+      "verified_extracted_members": 5,
+      "zip_crc_verified": true
+    },
+    "preflight": {
+      "artifact_id": 12917655550,
+      "name": "RPCS3Core-preflight-f42573afc25842ca9a0068f4ad505bbfe5342623",
+      "metadata_sha256": "2117090390b85f4d1957297bf0579b125f9d4eadd10e0a8eb37ed07db65c246e",
+      "metadata_bytes": 62612,
+      "archive_bytes_verified": true,
+      "archive_sha256": "2117090390b85f4d1957297bf0579b125f9d4eadd10e0a8eb37ed07db65c246e",
+      "archive_bytes": 62612,
+      "verified_extracted_members": 12,
+      "zip_crc_verified": true
+    },
+    "diagnostics": {
+      "artifact_id": 12917722288,
+      "name": "RPCS3Core-diagnostics-f42573afc25842ca9a0068f4ad505bbfe5342623",
+      "metadata_sha256": "0c0e01d4a75affd50dc209223f6f974c31021658db7ae62fb59a356080b6d745",
+      "metadata_bytes": 207828,
+      "archive_bytes_verified": true,
+      "archive_sha256": "0c0e01d4a75affd50dc209223f6f974c31021658db7ae62fb59a356080b6d745",
+      "archive_bytes": 207828,
+      "verified_extracted_members": 34,
+      "zip_crc_verified": true
+    }
+  },
+  "all_three_archive_bytes_verified": true,
+  "passive_dlopen": {
+    "initializerCount": 2974,
+    "initializerSymbols": 918,
+    "marker": "NEOSTATION_BUILD301_PASSIVE_DLOPEN_V1",
+    "forbiddenReachability": false,
+    "scope": "named forbidden functions via direct ARM64 B/BL edges, maximum depth 16",
+    "deviceRuntimeTested": false
+  },
+  "metadata_sha256": "dd1663fb654901da268fdddd8f028c7848511ce4410c4c4b475175078b442bbb",
+  "verification_script_sha256": "f4e155ac22a661e17f6217ba603bd44e203369b549b21f48e8998a01c14e5678",
+  "materialized_source_reauthenticated_here": false,
+  "semantic_counters_and_recorded_commands_reauthenticated_here": false,
+  "separate_required_gate": ".github/diagnostics/rpcs3runtime592_core.py --verify-reuse <proof> --source <native-source>",
+  "native_tests_executed": false,
+  "cmake_executed": false,
+  "native_binary_executed": false,
+  "physical_device_tested": false,
+  "gameplay_measured": false,
+  "ipa_built": false,
+  "public_release": false,
+  "verified_utc": "2026-10-29T17:16:40.110921+00:00"
+}

@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "baselineCoreSource": "5b2a5614f634221ea896607b4686ad2afdd5ada3",
+  "currentSource": "f42573afc25842ca9a0068f4ad505bbfe5342623",
+  "canonicalPatchSHA256": "41c9ab4938e95b37b88e9851230920a8c38823bb26b3eebe4427038a1c32b869",
+  "postimages": 313,
+  "unchangedPostimages": 309,
+  "changedPostimages": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": {
+      "before": "e37a1bc0e2438e425f1c57ff2c3d931ecbf5b4462175cdb041d39191c5909e6d",
+      "after": "eb1cb4101ebd83fb94ae7f9914198384d9593cc67cf2e2b9d8072ca72f07b5ac"
+    },
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": {
+      "before": "db47604d47844cba40b3c8a4737cef2e59b11512a3ce30a2a4a1e63e98027ea7",
+      "after": "d38e3e2d82666baa2eb7465929b888e45e78fba03811c7d1ea956479871b68ea"
+    },
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": {
+      "before": "8d0f19e0468686a7e893f81f9c9c106b409925f93e550e64df83084345286fa6",
+      "after": "49de1afd2abe5bff86989e2200ef0c05a283d891f384cd0877fb4b7d0996b9da"
+    },
+    "rpcs3/ios/IOSTexturePrehash.h": {
+      "before": "4190c96340aa254c259817b1934a45102e65bad3c0b8e0f30cb5d5e8431c13ef",
+      "after": "177d6ab43de54e6b29c959968042f565475d0e311640b648a69c3135a549a4f0"
+    }
+  },
+  "unchangedFromFailedBuild": true,
+  "nativeTestsExecuted": false,
+  "cmakeExecuted": false
+}
