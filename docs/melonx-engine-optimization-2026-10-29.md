@@ -41,6 +41,19 @@ The changes below are new source changes, not contents of the attached IPA 587.
 - Independent code review found no blocking defect. It prompted the rejected
   pipeline-snapshot test and verification of late warm-up enqueue ordering.
 
+Apple build completed successfully in run
+[40794453036](https://github.com/TarbleFR/RewindBox/actions/runs/40794453036)
+at commit `7be2a83bd2b5b6938560c520783584f9b8e9e9ff` (15 min 19 s end to end;
+15 min 16 s for the job). All new behavioral checks passed on the Mac runner;
+NativeAOT compilation produced both iPhone and ARM64 simulator libraries.
+The actual simulator engine passed two homebrew initialization/session/close
+cases. This smoke test does not test game rendering or guest JIT performance.
+Independent download verification checked the archive digest, both Mach-O
+ARM64 platform commands and binary digests, 47 required exports in each
+binary, all 57 adaptation input digests and 12 groups of adapted-source
+markers. Exact identities and limits:
+[apple-native-build.json](evidence/melonx-engine-optimization-2026-10-29/apple-native-build.json).
+
 No new player setting, application telemetry or diagnostic was added. Existing
 bindless fixes, title-specific JIT arena, RAM donor ownership, memory-pressure
 trimming, saves, imports, audio timing, MoltenVK selection and other engines are
@@ -54,9 +67,10 @@ No new IPA number or public release is created by this source task.
 
 ## Next priorities
 
-1. Validate the emitted NEON transfers and the combined engine in the Apple
-   NativeAOT build, then compare existing equivalent Hogwarts/Persona scenes
-   with retained caches. This is needed to measure perceptible device benefit.
+1. Execute the emitted NEON transfers in a dedicated native context check and
+   compare the combined engine in existing equivalent Hogwarts/Persona scenes
+   on iPhone with retained caches. Apple compilation and simulator session
+   checks are complete; perceptible gameplay benefit remains to be measured.
 2. Investigate remaining read-back ownership across guest unmap/remap. A plain
    mapped-range check cannot provide a lifetime lease; preserve GPU ordering
    rather than removing waits without proof.
