@@ -94,6 +94,26 @@ def validate_native_result(name, result, previous):
     return current
 
 
+def apple_host_program(name, original):
+    """Adapt the isolated MFC restore test's global enum, not RPCS3 production.
+
+    Darwin declares ::wait(int*) through sys/wait.h. This adapter historically
+    declared the unscoped enumerator ::wait as well. Rename only the host-test
+    enumerator and its qualified reads; keep the numeric flag 2. The original
+    source program and its reviewed SHA256 remain separately authenticated.
+    """
+    if name != 'mfc-restore':
+        return original
+    enum = 'enum cpu_flag:u32 {pending=1,wait=2,temp=4};'
+    old_flag = 'cpu_flag::wait'
+    assert original.count(enum) == 1, 'Unexpected MFC restore enum source'
+    assert original.count(old_flag) >= 2, 'Expected MFC restore flag reads'
+    modified = original.replace(enum, 'enum cpu_flag:u32 {pending=1,rbx_wait=2,temp=4};', 1)
+    modified = modified.replace(old_flag, 'cpu_flag::rbx_wait')
+    assert old_flag not in modified
+    return modified
+
+
 def command(*args, cwd=ROOT, data=None):
     return subprocess.check_output([str(x) for x in args], cwd=cwd, input=data, timeout=240)
 
@@ -332,7 +352,11 @@ def prepare(source):
         suites = programs(source, roots, work)
         for name, item in suites.items():
             cpp = OUT / (name + '-program.cpp')
-            cpp.write_text(item['program'])
+            original_program = item['program']
+            assert sha(original_program.encode()) == load(ROOT / item['evidence'])['harnessSHA256']
+            cpp.write_text(apple_host_program(name, original_program))
+            if name == 'mfc-restore':
+                (OUT / 'mfc-restore-canonical.cpp').write_text(original_program)
             for mode in item['modes']:
                 key = name + '-' + mode
                 print('RUN ' + key, flush=True)
@@ -347,6 +371,8 @@ def prepare(source):
                 result = json.loads(run_checked([exe], output_log, env))
                 validate_native_result(name, result, load(ROOT / item['evidence'])['results'])
                 record = dict(passed=True, program_sha256=sha(cpp.read_bytes()), evidence=item['evidence'],
+                              canonical_program_sha256=sha(original_program.encode()),
+                              apple_host_adapter=(name == 'mfc-restore'),
                               compiler=version, flags=flags, results=result, mode=mode,
                               output_sha256=sha(output_log.read_bytes()), compile_sha256=sha(compile_log.read_bytes()),
                               physical_device_tested=False, gpu_executed=False, llvm_ir_builder_simulated=True)
@@ -403,7 +429,17 @@ def verify(path, source):
             validate_native_result(name, report['results'], load(ROOT / report['evidence'])['results'])
             assert report['program_sha256'] == state['program_sha256']
             assert report['compiler'] == proof['host']['compiler']
-            assert report['program_sha256'] == load(ROOT / report['evidence'])['harnessSHA256']
+            canonical_sha = load(ROOT / report['evidence'])['harnessSHA256']
+            assert report['canonical_program_sha256'] == canonical_sha
+            assert report['apple_host_adapter'] is (name == 'mfc-restore')
+            if name == 'mfc-restore':
+                canonical_path = OUT / 'mfc-restore-canonical.cpp'
+                canonical_bytes = canonical_path.read_bytes()
+                assert sha(canonical_bytes) == canonical_sha
+                adapted = apple_host_program(name, canonical_bytes.decode())
+                assert adapted.encode() == (OUT / state['program']).read_bytes()
+            else:
+                assert report['program_sha256'] == canonical_sha
             assert ('-fsanitize=address,undefined' in report['flags']) == key.endswith('-asan-ubsan')
             assert not any(f.startswith('-DNDEBUG') for f in report['flags'])
             assert sha((OUT / (key + '-output.txt')).read_bytes()) == report['output_sha256']
