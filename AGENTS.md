@@ -2,6 +2,52 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## Private IPA 595 — compiled, independently verified and privately saved, 29 October 2026
+
+The maintainer explicitly requested a private IPA with the latest RPCS3/MeloNX.
+Version 0.0.8 (595) passes corrected run 40928805790, job 123641427943,
+attempt 1, source d2e5029f8d7ca33eec279546d64a7f908285e804.
+Encrypted artifact 12921794075 is 188,666,269 bytes, SHA256
+9bbda35701fe6da477d95e9a043935096270ecf5aaa9158b4c0af20532341a35.
+The actual downloaded IPA is 188,331,345 bytes, SHA256
+cfc1079249e4168349896a69f34a150ddbc68e318aafbb954a06cb019b00374e.
+
+It embeds verified RPCS3 f42573af / artifact 12917652510 and MeloNX Core85
+3c0997d9 / artifact 12912462226. Exact 349 RPCS3 validation inputs, 92 Core
+build inputs and 87 MeloNX preparation inputs match. Core85 includes Core84's
+twelve fixes plus the reviewed timer/sync/bitmap follow-up. No engine is rebuilt
+and no unchanged native suite is replayed for packaging. The host Store.cpp
+optimization, SHA256 9a951454d7e5124bea4ca1ee5589b1e4429df637dc4377b6c7e3775fcb1c99e4,
+is actually compiled into this application; CocoaPods source equality is checked.
+Other product scopes preserve delivered594. Keep compatibility identifiers.
+
+Independent downloaded-file verification passes with the original committed
+signed-core validators, 522 authenticated source files and actual core archives.
+ZIP: 5,350 members, CRC valid. There are 88 Mach-O files: 85 thin ARM64 images
+with exact before/after-signing code/data/ABI fingerprints, and three mono-ARM64
+fat containers (App, objective_c, sqlite3) covered by strict post-signing identity,
+structure and CI signatures. Do not claim before/after fingerprints for those
+three. Apple CI verifies 88 ad hoc signing targets; Linux does not cryptographically
+reverify codesign. Main application and seven extensions are all 0.0.8 (595).
+
+Preserve failed run40926266201/source929b6443: a recipe build-number replacement
+also changed Dolphin's immutable SHA. The legal guard correctly stopped delivery
+after application compilation; no recoverable IPA was retained. The recipe now
+restores the exact Dolphin pin and authenticates nine pins before compilation. Two application builds
+were needed: Xcode378.903s then427.782s; successful job1017s, signing/export58.788s.
+The initial independent checker also wrongly rejected the three fat containers;
+its original script/failure and narrow correction remain in the verification proof.
+No product binary or committed signed-core validator changes for that correction.
+
+RewindBox-Build595.ipa is saved as a private maintainer download and the ephemeral
+recipient private key was deleted after saving. SideStore re-signing is required;
+the package declares iOS18.0 minimum. No public release/tag, physical-device launch,
+Hogwarts FPS/RSS gain or prolonged gameplay result is established. Do not reuse595.
+Preserve delivery source tree67de75286e052332304f49b10b4f1cdff6750f0b and the exact
+product roots in docs/evidence/rewind595-delivery.json; native root is now
+13f00cb5070d4bb08928be628c273ec21210b8e6. Documentary commits do not require builds.
+Details: docs/rewind595-test-ipa.md and docs/evidence/rewind595/.
+
 ## RPCS3 refinement Core compiled and independently verified — 29 October 2026
 
 The requested retry is complete: source f42573afc25842ca9a0068f4ad505bbfe5342623

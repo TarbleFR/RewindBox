@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/workspace/scratch/90582008c087/ipa595-rpcs3-selection/verify_ipa595_offline.py", line 425, in <module>
+    main()
+  File "/workspace/scratch/90582008c087/ipa595-rpcs3-selection/verify_ipa595_offline.py", line 415, in main
+    result = verify_payload(args, mirror, rpc, melon, identity, hashes, transport)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/90582008c087/ipa595-rpcs3-selection/verify_ipa595_offline.py", line 318, in verify_payload
+    require(name.startswith(root) and magic == b'\xcf\xfa\xed\xfe', 'Unexpected Mach-O type/location')
+  File "/workspace/scratch/90582008c087/ipa595-rpcs3-selection/verify_ipa595_offline.py", line 65, in require
+    raise ValueError(message)
+ValueError: Unexpected Mach-O type/location

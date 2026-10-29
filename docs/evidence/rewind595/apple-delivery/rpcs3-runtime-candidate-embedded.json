@@ -1,0 +1,100 @@
+{
+  "core": {
+    "compiledPayloadFingerprint": "2ac9f481897ac66053b2e9008a914d56ec5b5820960dd1288349866ff3c11681",
+    "definedSymbols": 88,
+    "installName": "@rpath/libRPCS3Core.dylib",
+    "metadata": {},
+    "signed": false
+  },
+  "receipt": {
+    "abiVersion": 30,
+    "baseline": 594,
+    "build": 595,
+    "candidateTestsReplayed": false,
+    "canonicalPostimages": 313,
+    "changedPaths": [
+      "rpcs3/Emu/CPU/JITCacheCompatibility.cmake",
+      "rpcs3/Emu/Cell/SPUThread.cpp",
+      "rpcs3/Emu/RSX/Common/texture_cache.cpp",
+      "rpcs3/Emu/RSX/Common/texture_cache_utils.h",
+      "rpcs3/Emu/RSX/RSXFIFO.cpp",
+      "rpcs3/Emu/RSX/RSXThread.cpp",
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+      "rpcs3/Emu/RSX/VK/vkutils/commands.cpp",
+      "rpcs3/Emu/RSX/VK/vkutils/commands.h",
+      "rpcs3/ios/IOSTexturePrehash.h"
+    ],
+    "codegen": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "compatibility": {
+      "abiVersion": 30,
+      "artifactIdentityUnmodified": true,
+      "brokerCompiledIntoHostOnly": true,
+      "hostCoreHeadersSHA256": {
+        "native/neoswap-storage/Client.h": "5698f528fe8e8916f2e9d2901234f8d719ab90df67fa724d97d6340ee82a1c79",
+        "native/neoswap-storage/FrameClient.h": "8893b1c6f7e4a068895abf4740a6505b3b4b4978eda8807377b0ddd1ebd31f3a",
+        "native/neoswap-storage/ShaderKey.h": "95c492262f49f3d22791596cef412f446c9ae3a6ec5d2696302863a2a6697bdd",
+        "native/neoswap-storage/SourceABI.h": "395955dc389c492bace3584f7818b48676ac977eb43ec117a322e90aade207e9",
+        "native/neoswap-storage/SourceClient.cpp": "938f1a0add50445fe03e1eb5d554f60feac9eb9d8d73b1f7269dcd8e3c9994d0",
+        "native/neoswap-storage/SourceClient.h": "514dfe36544460ce3b5826a1493f1ebd81abc16151efa9126d50d83bd97d8f45",
+        "native/neoswap-storage/StorageABI.h": "561696eecc439a6c55a685b4c456c944411fa689f822a13b709ed652032d7b7c",
+        "native/neoswap-storage/VideoBuffer.h": "96969e0c76af6e506815a6cdc9323c523e68bf636445bb511dcb844723ffe140",
+        "native/neoswap/NeoSwapClient.h": "ed6bf9bc70d4bf106463359aa87158f3352d9d0be46896c084d0c21638b5a9ab",
+        "packages/neo_swap/ios/Classes/NeoSwap.h": "88b334240200a68775aef35f1f5d632e04b8fcc43e504d42f65096760c7c292c",
+        "packages/neo_swap/ios/Classes/NeoSwapClientStats.h": "55e745b85142d109075f2b8f220a288e1a5501f69a79eb8d4de15c7b993902fc",
+        "packages/neo_swap/ios/Classes/NeoSwapCompilerAPI.h": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+        "packages/neo_swap/ios/Classes/NeoSwapRelay.h": "11027a70e37efb55a0ca096b9a7c027519d4fdc8a175f98a6bcea38b0b4810dc"
+      },
+      "physicalDeviceTested": false
+    },
+    "coreArtifact": {
+      "bytes": 29118830,
+      "digest": "sha256:4956f76388cbe2da7eeb87f45980a91391d05e3f71af16fdb163668efe3e2cad",
+      "id": 12917652510,
+      "name": "RPCS3Core-f42573afc25842ca9a0068f4ad505bbfe5342623"
+    },
+    "coreNativeSource": "f42573afc25842ca9a0068f4ad505bbfe5342623",
+    "corePayloadFingerprint": "2ac9f481897ac66053b2e9008a914d56ec5b5820960dd1288349866ff3c11681",
+    "coreRun": 40917423708,
+    "coreSHA256": "05459149444fe5be32ffb8218ada79dd6a3b531377bd3d19e1bf34294dd0fbb8",
+    "coreSource": "f42573afc25842ca9a0068f4ad505bbfe5342623",
+    "diagnosticsArtifact": {
+      "bytes": 207828,
+      "digest": "sha256:0c0e01d4a75affd50dc209223f6f974c31021658db7ae62fb59a356080b6d745",
+      "id": 12917722288,
+      "name": "RPCS3Core-diagnostics-f42573afc25842ca9a0068f4ad505bbfe5342623"
+    },
+    "fpsGainMeasured": false,
+    "gameplayMeasured": false,
+    "historicalTestsReplayed": false,
+    "hostCommit": "f42573afc25842ca9a0068f4ad505bbfe5342623",
+    "identitySHA256": "9f46de0d600dfa2be51482402eac8d32bd3f6b7d012140cf2e56057b9c530d9f",
+    "installName": "@rpath/libRPCS3Core.dylib",
+    "physicalDeviceTested": false,
+    "proofSHA256": "fc81d6c5f1dac37f1c2cadfcfbacd3a8972af222949e063b3b1ffec275ed3b03",
+    "sourcePatchSHA256": "41c9ab4938e95b37b88e9851230920a8c38823bb26b3eebe4427038a1c32b869",
+    "sourceReceipt": {
+      "commit": "08bc36c0032c52a34549ddbde11bb985ae611cbb",
+      "path": "docs/evidence/rpcs3-runtime-refinement-20261029/apple-core/success-f42573af/artifact-verification.json",
+      "sha256": "1b9c30c05f7b905f04962d144efe7b9ede19f7c90bed6646623636b850f9ec25"
+    },
+    "supplementalNativeSources": 97,
+    "tests": [
+      "refined-descriptor-asan-ubsan",
+      "refined-descriptor-plain",
+      "refined-hash-asan-ubsan",
+      "refined-hash-plain",
+      "refined-hash-tsan",
+      "refined-lookup-asan-ubsan",
+      "refined-lookup-plain",
+      "refined-timer-asan-ubsan",
+      "refined-timer-plain",
+      "rsx-write-sampler-asan-ubsan",
+      "rsx-write-sampler-plain"
+    ],
+    "type": "rpcs3-ios-runtime-source-candidate"
+  }
+}

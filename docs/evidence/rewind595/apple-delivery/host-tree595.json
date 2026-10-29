@@ -1,0 +1,60 @@
+{
+  "build": 595,
+  "head": "d2e5029f8d7ca33eec279546d64a7f908285e804",
+  "tree": "67de75286e052332304f49b10b4f1cdff6750f0b",
+  "reviewedSource": "08bc36c0032c52a34549ddbde11bb985ae611cbb",
+  "baseline": {
+    "build": 594,
+    "source": "97365ce57f17499101e88d50019b6c63be554b83",
+    "tree": "1d43bbac26b3146d5d24afff0553d0c18d5bc20e",
+    "run": 40848076659,
+    "ipaSHA256": "714021770922547c532e1439466d5725b4f8eb17c18ca629fe996d985124fe63"
+  },
+  "productTrees": {
+    "lib": "9208336d76655b98972d11e519cd0d3337666e41",
+    "native": "13f00cb5070d4bb08928be628c273ec21210b8e6",
+    "packages": "6164ff03871a384267e5f20f6734225a1aaed5c4",
+    "assets": "fb15f670844075f22dd667b370961a69371d9589",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "unchangedProductTrees": [
+    "lib",
+    "packages",
+    "assets",
+    "pubspec.yaml",
+    "pubspec.lock"
+  ],
+  "reviewedNativeProductDelta": [
+    "native/neoswap-storage/Store.cpp"
+  ],
+  "hostStore": {
+    "blob": "6970415fe46a24e345b2900b3ed79fa20da42291",
+    "sha256": "9a951454d7e5124bea4ca1ee5589b1e4429df637dc4377b6c7e3775fcb1c99e4"
+  },
+  "componentPins": {
+    "DOLPHIN_SHA": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+    "DOLPHIN_CORE_HOST_SHA": "ae7d46f90dff64ce698b8c18e0c12510dbae96fe",
+    "ARMSX2_CORE_HOST_SHA": "1343906f05e33b40f10f7026a1a6e2327c338d0e",
+    "ARMSX2_CORE_RUN_ID": "39178893158",
+    "RPCS3_CORE_HOST_SHA": "f42573afc25842ca9a0068f4ad505bbfe5342623",
+    "RPCS3_CORE_RUN_ID": "40917423708",
+    "LIBRETRO_CORES_HOST_SHA": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+    "LIBRETRO_CORES_VALIDATED_SHA": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+    "LIBRETRO_CORES_RUN_ID": "39455712245"
+  },
+  "recipeSHA256": {
+    ".github/diagnostics/rewind595_baseline.py": "f354d6153c900523a43ac799d1478d502390949bd987cbc2055513890e7e8143",
+    ".github/diagnostics/rewind595_baseline_delivery.py": "4a0480874a720777848e8d4b899624a5d3c702be375bd05b4f8c22ea1ea8de1f",
+    ".github/diagnostics/rewind595_engine.py": "e7f7db2e8226d24d61df7f7ba768846c1b8b2c6504ca209fc07f27f99784221a",
+    ".github/diagnostics/rpcs3runtime595_delivery_core.py": "3d972046396da51ed2f5a4e418ac113d902bfee92c70c42246de3b7604c53ee3",
+    ".github/workflows/rewind595-baseline-delivery.yml": "2bca40fc1210e6c19c42e90ee10b792171827391aa967aa514ffde8def642d7e",
+    "build-utils/delivery-595-recipient.pem": "71cd9f979ea43fdcc338bcb07661501e1c640e383112f7f8a82128dda707791a",
+    "build-utils/validate_melonx_engine595_ipa.py": "e08d7844bafb0affee284cf1b789e5e9507f4e783c8cc0cc0e0c018422e8c3b8",
+    "build-utils/validate_rpcs3_core595_ipa.py": "9c51fd759e2ad079142db64cf58ca3404b6629df07195a0a4ffb835d8461b5f1"
+  },
+  "existingBuildAndToolInputsUnchanged": true,
+  "restoredOlderCheckout": false,
+  "historicalContractsReplayed": false,
+  "nativeTestsReplayed": false
+}

@@ -1,0 +1,9 @@
+{
+  "result": "passed",
+  "source": "native/neoswap-storage/Store.cpp",
+  "compiledSource": "packages/neo_swap/ios/Classes/Storage/Store.cpp",
+  "sha256": "9a951454d7e5124bea4ca1ee5589b1e4429df637dc4377b6c7e3775fcb1c99e4",
+  "bytes": 27077,
+  "cocoaPodsSourcesEntryPresent": true,
+  "nativeSuitesReplayed": false
+}

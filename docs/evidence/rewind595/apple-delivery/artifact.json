@@ -1,0 +1,19 @@
+{
+  "id": 12921794075,
+  "name": "RewindBox-Build595-d2e5029f8d7ca33eec279546d64a7f908285e804-cold",
+  "size_in_bytes": 188666269,
+  "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12921794075",
+  "archive_download_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/artifacts/12921794075/zip",
+  "expired": false,
+  "created_at": "2026-10-29T18:30:22Z",
+  "expires_at": "2026-11-12T18:30:17Z",
+  "updated_at": "2026-10-29T18:30:22Z",
+  "digest": "sha256:9bbda35701fe6da477d95e9a043935096270ecf5aaa9158b4c0af20532341a35",
+  "workflow_run": {
+    "id": 40928805790,
+    "repository_id": 1329032710,
+    "head_repository_id": 1329032710,
+    "head_branch": "Claude",
+    "head_sha": "d2e5029f8d7ca33eec279546d64a7f908285e804"
+  }
+}

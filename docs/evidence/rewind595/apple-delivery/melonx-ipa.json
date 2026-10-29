@@ -1,0 +1,17 @@
+{
+  "result": "passed",
+  "build": "595",
+  "engineExportsVerified": 47,
+  "privateFrameworks": [
+    "MeloNXAvCodec",
+    "MeloNXAvUtil",
+    "MeloNXCore",
+    "MeloNXJitSupport",
+    "MeloNXMoltenVK",
+    "MeloNXSDL3"
+  ],
+  "nativeSourceNoticesVerified": 26,
+  "registeredFlutterBridge": true,
+  "gameplayTested": false,
+  "deviceInstallationTested": false
+}

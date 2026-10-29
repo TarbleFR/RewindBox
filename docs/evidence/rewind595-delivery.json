@@ -1,0 +1,240 @@
+{
+  "schema": 1,
+  "result": "passed",
+  "build": 595,
+  "version": "0.0.8",
+  "source": "d2e5029f8d7ca33eec279546d64a7f908285e804",
+  "workflow": ".github/workflows/rewind595-baseline-delivery.yml",
+  "run": {
+    "id": 40928805790,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/40928805790",
+    "attempt": 1,
+    "conclusion": "success",
+    "job": 123641427943,
+    "startedAt": "2026-10-29T18:13:51Z",
+    "completedAt": "2026-10-29T18:30:48Z",
+    "seconds": 1017.0
+  },
+  "artifact": {
+    "id": 12921794075,
+    "name": "RewindBox-Build595-d2e5029f8d7ca33eec279546d64a7f908285e804-cold",
+    "size_in_bytes": 188666269,
+    "digest": "sha256:9bbda35701fe6da477d95e9a043935096270ecf5aaa9158b4c0af20532341a35"
+  },
+  "ipa": {
+    "bytes": 188331345,
+    "crcValid": true,
+    "name": "RewindBox-Build595.ipa",
+    "sha256": "cfc1079249e4168349896a69f34a150ddbc68e318aafbb954a06cb019b00374e",
+    "zipEntries": 5350
+  },
+  "baseline": {
+    "build": 594,
+    "source": "97365ce57f17499101e88d50019b6c63be554b83",
+    "tree": "1d43bbac26b3146d5d24afff0553d0c18d5bc20e",
+    "run": 40848076659,
+    "ipaSHA256": "714021770922547c532e1439466d5725b4f8eb17c18ca629fe996d985124fe63"
+  },
+  "deliveryTree": "67de75286e052332304f49b10b4f1cdff6750f0b",
+  "productTrees": {
+    "lib": "9208336d76655b98972d11e519cd0d3337666e41",
+    "native": "13f00cb5070d4bb08928be628c273ec21210b8e6",
+    "packages": "6164ff03871a384267e5f20f6734225a1aaed5c4",
+    "assets": "fb15f670844075f22dd667b370961a69371d9589",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "unchangedProductTrees": [
+    "lib",
+    "packages",
+    "assets",
+    "pubspec.yaml",
+    "pubspec.lock"
+  ],
+  "reviewedNativeProductDelta": [
+    "native/neoswap-storage/Store.cpp"
+  ],
+  "sourceContract": {
+    "sourceSnapshotFiles": 522,
+    "rpcs3ValidationInputs": 349,
+    "rpcs3CoreBuildInputs": 92,
+    "melonxPreparationInputs": 87,
+    "existingBuildAndToolInputsUnchanged": true,
+    "restoredOlderCheckout": false
+  },
+  "rpcs3": {
+    "source": "f42573afc25842ca9a0068f4ad505bbfe5342623",
+    "run": 40917423708,
+    "artifact": 12917652510,
+    "rawSHA256": "05459149444fe5be32ffb8218ada79dd6a3b531377bd3d19e1bf34294dd0fbb8",
+    "signedSHA256": "bae858891f6ddd6c91ccbc108019cd726f325424d52a0d0d45a5fc062fcc3a25",
+    "payloadFingerprint": "2ac9f481897ac66053b2e9008a914d56ec5b5820960dd1288349866ff3c11681",
+    "abi": 30,
+    "exports": 88,
+    "codegen": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "signedPayloadMatchesOriginal": true,
+    "nonSignatureMetadataUnchanged": true,
+    "candidateAppleModes": [
+      "refined-descriptor-asan-ubsan",
+      "refined-descriptor-plain",
+      "refined-hash-asan-ubsan",
+      "refined-hash-plain",
+      "refined-hash-tsan",
+      "refined-lookup-asan-ubsan",
+      "refined-lookup-plain",
+      "refined-timer-asan-ubsan",
+      "refined-timer-plain",
+      "rsx-write-sampler-asan-ubsan",
+      "rsx-write-sampler-plain"
+    ]
+  },
+  "melonx": {
+    "source": "3c0997d91ebfb5554656076a93a1f167ec948c67",
+    "run": 40906908049,
+    "artifact": 12912462226,
+    "coreVersion": 85,
+    "originalCompileConclusion": "success",
+    "rawSHA256": "68fe61ddd412788d7dadc12e5e6226421f91c7354a3f61bfc0738b6635508588",
+    "payloadFingerprint": "4d14565f04801f3adb8238db5d9c33c86b107933b8a711216610bd655c42e3cc",
+    "abi": 2,
+    "requiredExports": 47,
+    "signedPayloadMatchesOriginal": true,
+    "preparationInputs": 87,
+    "preparedSourceMembers": 129,
+    "freshAppleGates": 2,
+    "reusedUnchangedCore84Gates": 12
+  },
+  "hostStore": {
+    "result": "passed",
+    "source": "native/neoswap-storage/Store.cpp",
+    "compiledSource": "packages/neo_swap/ios/Classes/Storage/Store.cpp",
+    "sha256": "9a951454d7e5124bea4ca1ee5589b1e4429df637dc4377b6c7e3775fcb1c99e4",
+    "bytes": 27077,
+    "cocoaPodsSourcesEntryPresent": true,
+    "nativeSuitesReplayed": false
+  },
+  "verification": {
+    "machOImages": 88,
+    "thinImagesComparedBeforeAfterSigning": 85,
+    "fatContainersWithoutBeforeAfterFingerprintEvidence": 3,
+    "signatureRecords": 88,
+    "allAdhocSignaturesVerifiedOnAppleRunner": true,
+    "offlineEnginePayloadChecksPassed": true,
+    "offlineCryptographicCodeSignVerificationPerformed": false,
+    "actualThinPayloadsMatchCISigningPreservationReport": true,
+    "applicationAndExtensions": {
+      "Payload/NeoStation.app/Info.plist": {
+        "build": "595",
+        "version": "0.0.8"
+      },
+      "Payload/NeoStation.app/PlugIns/ARMSX2JITHelper.appex/Info.plist": {
+        "build": "595",
+        "version": "0.0.8"
+      },
+      "Payload/NeoStation.app/PlugIns/DolphinJITHelper.appex/Info.plist": {
+        "build": "595",
+        "version": "0.0.8"
+      },
+      "Payload/NeoStation.app/PlugIns/MeloNXJITHelper.appex/Info.plist": {
+        "build": "595",
+        "version": "0.0.8"
+      },
+      "Payload/NeoStation.app/PlugIns/MeloNXRamDonor.appex/Info.plist": {
+        "build": "595",
+        "version": "0.0.8"
+      },
+      "Payload/NeoStation.app/PlugIns/NeoSwapDonor.appex/Info.plist": {
+        "build": "595",
+        "version": "0.0.8"
+      },
+      "Payload/NeoStation.app/PlugIns/NeoSwapPageRelay.appex/Info.plist": {
+        "build": "595",
+        "version": "0.0.8"
+      },
+      "Payload/NeoStation.app/PlugIns/RPCS3JITHelper.appex/Info.plist": {
+        "build": "595",
+        "version": "0.0.8"
+      }
+    },
+    "structuralValidation": "passed",
+    "legalBundleValidation": "passed",
+    "verificationScriptSHA256": "7aa20ccce8795f09a8e5e4ebcdc788dceabfabbc4bdf4a0443961908d7073639"
+  },
+  "timings": {
+    "jobSeconds": 1017.0,
+    "xcodeSeconds": 427.78234612499995,
+    "signatureAndExportSeconds": 58.787766916999885,
+    "failedFirstXcodeSeconds": 378.902970708,
+    "combinedApplicationXcodeSeconds": 806.6853168329999
+  },
+  "reuse": {
+    "applicationBuilds": 2,
+    "nativeEngineRebuildsDuringPackaging": 0,
+    "nativeTestSuitesReplayedDuringPackaging": 0,
+    "stikjitCacheReused": true
+  },
+  "retainedFailures": {
+    "firstDeliveryRun": 40926266201,
+    "firstDeliverySource": "929b644327157e542d8043f4c2d7b038a7b8e697",
+    "firstDeliveryEvidence": "docs/evidence/rewind595/failed-929b6443.json",
+    "firstDeliveryCause": "Build-number substitution corrupted the pinned Dolphin source reference; legal guard rejected it after successful application compilation. Exact reference restored and early nine-pin guard added.",
+    "offlineVerifierEvidence": "docs/evidence/rewind595/verification/offline-verifier-correction.json",
+    "offlineVerifierCause": "Initial independent checker incorrectly rejected three mono-ARM64 fat containers; exhaustive format support added without changing IPA or committed core validators."
+  },
+  "handoff": {
+    "build": 595,
+    "privateChatFileSaved": true,
+    "privateRecipientKeyDeleted": true,
+    "installationMethod": "SideStore re-signing",
+    "minimumIOS": "18.0",
+    "publicRelease": false,
+    "tagCreated": false
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "fpsGainMeasured": false,
+  "publicRelease": false,
+  "tagCreated": false,
+  "evidenceFilesSHA256": {
+    "docs/evidence/rewind595/apple-delivery/SHA256SUMS": "9bd5c1f221cc3922f28a7fb8499d8a37b963be27496edc8a118d2ffe0fdbdad0",
+    "docs/evidence/rewind595/apple-delivery/artifact.json": "2a3eb326cd2cc0494188fb7df5eec3e7e369659234b8d7b8105e00814032ba0b",
+    "docs/evidence/rewind595/apple-delivery/baseline595.json": "3013654e4f6a5fd686dea136dbb61139093d695104ba56ecdcf531df19c42eca",
+    "docs/evidence/rewind595/apple-delivery/component-runs595.json": "2460434275c9356987999b51f786afe48271d61373f608ac7482ea54acad049d",
+    "docs/evidence/rewind595/apple-delivery/final-structure.json": "24da9d3520f23d40d6e41b8d86afd2bc99b6958300483071f241286687565e91",
+    "docs/evidence/rewind595/apple-delivery/host-tree595.json": "0d8f63e60d1ddff68d646ef0d6d76b211dbab5fa638fd35698880303d65e7ea4",
+    "docs/evidence/rewind595/apple-delivery/job.json": "ba483d21351a8106dd798ca12229cc3fa2b99744d7194eb9f98b4de9dec66876",
+    "docs/evidence/rewind595/apple-delivery/melonx-components595.json": "a5d8260814c429efd8c8fa0b3fecd30da869908bcfd9abeaf107ed8830e5e131",
+    "docs/evidence/rewind595/apple-delivery/melonx-engine-evidence595.json": "68a52b2a26df130ac29e2d128db352898e9e892da60e1e0a7efb1c51fe64287c",
+    "docs/evidence/rewind595/apple-delivery/melonx-engine595-ipa-validation.json": "3c97b9c0b774ef6f3bbb90e0a04ff4f0371cfd6317326cca5e59e7d99e126b9a",
+    "docs/evidence/rewind595/apple-delivery/melonx-ipa.json": "ec218f1ccd62c4552d104bbb59dd4e012df32b88a2baf0ca57b715b6c71ada30",
+    "docs/evidence/rewind595/apple-delivery/neoswap-host-source595.json": "707205ae6d162cc7b061f79fceb3b9a5c57eddee031f9b604cf021fd4ae400bc",
+    "docs/evidence/rewind595/apple-delivery/observed-timings.json": "b720da3e5885cba60cd3fc8d63993e8bc3a4d48de98f06a0c6f057ad4c04742f",
+    "docs/evidence/rewind595/apple-delivery/rpcs3-runtime-candidate-download.json": "51a76e1708cb5cf4c947c5096405c7cd18b344e3096d7354d7c9a4b64c48f283",
+    "docs/evidence/rewind595/apple-delivery/rpcs3-runtime-candidate-embedded.json": "f839c676d3df2c4e8355cd79216e0c741fb9fd04ec47631fef44f7390f8e2f4d",
+    "docs/evidence/rewind595/apple-delivery/rpcs3-runtime-candidate-ipa-validation.json": "b8f7acde0e44a43fe4619d1154fb5c7e81e5c8348eb38ff5cf0de8471b5fe741",
+    "docs/evidence/rewind595/apple-delivery/run.json": "2c9e48c9342f48eb9525d46f0d0e8bb21bcbfd1b4a1d2189b8435cedccc47d84",
+    "docs/evidence/rewind595/apple-delivery/signature.json": "c34d5605827b26bd9c471620ae0927fe358bca5edfd9e8483542d072873468f0",
+    "docs/evidence/rewind595/apple-delivery/signed-payload-identity.json": "351c5748d558ac00d045114704aba74204d5ec266694f4506b8f1e63a879e9a8",
+    "docs/evidence/rewind595/apple-delivery/version-validation.json": "de832dfc283a046193cea73365be2f9d6e1b52599ad4be174c9a8db600400afd",
+    "docs/evidence/rewind595/failed-929b6443.json": "52d073e57a366fdcfffd1a5635a15c009a6e1035a022d65d6f9127193778de52",
+    "docs/evidence/rewind595/preflight/component-pin-regression.json": "b673885d7075b35c1da2be423bbaeaf061aa57688d9d145da9c7a965765b3232",
+    "docs/evidence/rewind595/preflight/contract-checks.json": "4581bc31ff9a7adda58a80b479296f59dd6bfa1efc13a3aed2faa09c8b06bad3",
+    "docs/evidence/rewind595/preflight/immutable-pin-audit.json": "29167628fd268c8d61709d5fc061d938b0bd31d620f5e2438405eedd77f56174",
+    "docs/evidence/rewind595/preflight/integrated-melonx-schema-check.json": "aa8fb0de0e3a2eb99cd0192f641ca404c0c89e8f5d87a41ca9cc3ede489c3da0",
+    "docs/evidence/rewind595/preflight/melonx-binding-checks.json": "ee35ca60314df65a2e837ce672a4cee1caf6acb5290febd4cc669ba1036c96ad",
+    "docs/evidence/rewind595/preflight/melonx-core85-verification.json": "efc6bf7cb2f6f5cfed6999ce010283cee502020412394ac085251fdd9f89357e",
+    "docs/evidence/rewind595/preflight/recipe-checks.json": "3987474355614ac0a06c84c88f87892e61c854c59de37103740b6eaa45a3637e",
+    "docs/evidence/rewind595/preflight/rpcs3-component-validation.json": "2054f82d2a224e7be22b038868581ef85aa1b95da48d884d05772b5e2afe8f1b",
+    "docs/evidence/rewind595/verification/README.md": "9a7e0b94132849e7db668c2485df360edece5de069965aefb0086c5470e6426c",
+    "docs/evidence/rewind595/verification/offline-ipa595-verification.json": "ea7961ab5e35a09970a63ad41dee04ebaaa230a5e38e1c27e604e078824920df",
+    "docs/evidence/rewind595/verification/offline-verification.corrected.log": "6d3c09c6b4e25855da75f15de25df34a51785e4fab6bdb3d4ddbcf2ff074ef09",
+    "docs/evidence/rewind595/verification/offline-verification.initial.log": "298c505e30da52ea8c89f1b74c373995f20e2e2cbaa9fde449a6428b9a33896a",
+    "docs/evidence/rewind595/verification/offline-verifier-correction.json": "d67f06dae7c34e300b8a355df2e74c04c28fe8043d883d62a061e05c1cd35637",
+    "docs/evidence/rewind595/verification/offline-verifier-fat-container-fix.diff": "7e14890cdf51136d5f62c372cd2d8aefc83477bb32d6f97bc5a664d293fd8e9e",
+    "docs/evidence/rewind595/verification/verify_ipa595_offline.initial.py": "6a3487ec857f5d9bee0301cafac2901b15e6f143e46fa6679af00169ba0ac4f2",
+    "docs/evidence/rewind595/verification/verify_ipa595_offline.py": "7aa20ccce8795f09a8e5e4ebcdc788dceabfabbc4bdf4a0443961908d7073639"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "result": "passed",
+  "build": 595,
+  "version": "0.0.8",
+  "bundles": [
+    "Payload/NeoStation.app/PlugIns/DolphinJITHelper.appex/Info.plist",
+    "Payload/NeoStation.app/PlugIns/NeoSwapPageRelay.appex/Info.plist",
+    "Payload/NeoStation.app/PlugIns/NeoSwapDonor.appex/Info.plist",
+    "Payload/NeoStation.app/PlugIns/MeloNXJITHelper.appex/Info.plist",
+    "Payload/NeoStation.app/PlugIns/ARMSX2JITHelper.appex/Info.plist",
+    "Payload/NeoStation.app/PlugIns/RPCS3JITHelper.appex/Info.plist",
+    "Payload/NeoStation.app/PlugIns/MeloNXRamDonor.appex/Info.plist",
+    "Payload/NeoStation.app/Info.plist"
+  ]
+}
