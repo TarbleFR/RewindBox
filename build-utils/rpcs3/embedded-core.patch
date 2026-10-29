@@ -3963,7 +3963,7 @@ index e11a27509..353f45920 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 000000000..c05ee65f8
+index 000000000..48e652402
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 @@ -0,0 +1,50 @@
@@ -4004,7 +4004,7 @@ index 000000000..c05ee65f8
 +    # decrementer timer worker change. SPU layout, translator, helper symbols,
 +    # relocation targets and every other SPUThread.cpp body remain identical.
 +    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
-+           actual STREQUAL "eb1cb4101ebd83fb94ae7f9914198384d9593cc67cf2e2b9d8072ca72f07b5ac")
++           actual STREQUAL "c7180ee63fe2584356cd44fc8174e82787f88a31b3753ae45f94498aeae4be2b")
 +        set(${output} "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c" PARENT_SCOPE)
 +    # CELL559: compile() builds the LLVM analysis managers and the function pass
 +    # pipeline only when no cached object is linked. A miss runs the same passes
@@ -12654,7 +12654,7 @@ index faf4082dc..d08c48071 100644
  	// Interpreter table (spu_itype -> ptr)
  	static std::array<u64, 256> g_interpreter_table;
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
-index bc9ec5e5b..832e7a13b 100644
+index bc9ec5e5b..12ad05b75 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
 @@ -25,11 +25,19 @@
@@ -13370,7 +13370,7 @@ index bc9ec5e5b..832e7a13b 100644
  		}
  	}
  
-@@ -5400,29 +5648,149 @@ void spu_thread::set_events(u32 bits)
+@@ -5400,29 +5648,152 @@ void spu_thread::set_events(u32 bits)
  	}
  }
  
@@ -13414,6 +13414,9 @@ index bc9ec5e5b..832e7a13b 100644
 +	void operator()()
 +	{
 +		u64 sleep_us = umax;
++		// Reuse the worker's trivial expiry scratch across wakeups. Growing it
++		// still happens before queue compaction; no thread references are retained.
++		std::vector<entry> due_entries;
 +		while (thread_ctrl::state() != thread_state::aborting)
 +		{
 +			thread_ctrl::wait_for(sleep_us);
@@ -13423,7 +13426,6 @@ index bc9ec5e5b..832e7a13b 100644
 -			// Process interrupts in cpu_work()
 -			if (state.none_of(cpu_flag::pending))
 +			const u64 now = get_timebased_time();
-+			std::vector<entry> due_entries;
 +			sleep_us = umax;
 +			{
 +				std::lock_guard lock(mutex);
@@ -13469,6 +13471,7 @@ index bc9ec5e5b..832e7a13b 100644
 +					}
 +				}
  			}
++			due_entries.clear();
  		}
  	}
  
@@ -13532,7 +13535,7 @@ index bc9ec5e5b..832e7a13b 100644
  }
  
  u32 spu_thread::get_ch_count(u32 ch)
-@@ -5760,8 +6128,16 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5760,8 +6131,16 @@ s64 spu_thread::get_ch_value(u32 ch)
  			eventstat_busy_waiting_switch = value ? 1 : 0;
  		}
  
@@ -13549,7 +13552,7 @@ index bc9ec5e5b..832e7a13b 100644
  			const auto old = +state;
  
  			if (is_stopped(old))
-@@ -5792,7 +6168,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5792,7 +6171,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  				{
  					set_lr = true;
  				}
@@ -13558,7 +13561,7 @@ index bc9ec5e5b..832e7a13b 100644
  				{
  					if (vm::reservation_acquire(raddr) == rtime)
  					{
-@@ -5929,7 +6305,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5929,7 +6308,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  						// Abort notifications are handled specially for performance reasons
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(raddr, rtime); wait_var)
  						{
@@ -13567,7 +13570,7 @@ index bc9ec5e5b..832e7a13b 100644
  							{
  								raddr = 0;
  								set_events(SPU_EVENT_LR);
-@@ -5949,7 +6325,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5949,7 +6328,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  #ifdef __linux__
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -13576,7 +13579,7 @@ index bc9ec5e5b..832e7a13b 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6029,7 +6405,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6029,7 +6408,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -13585,7 +13588,7 @@ index bc9ec5e5b..832e7a13b 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6056,6 +6432,14 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6056,6 +6435,14 @@ s64 spu_thread::get_ch_value(u32 ch)
  			thread_ctrl::wait_on(state, old, 100);
  		}
  
@@ -13600,7 +13603,7 @@ index bc9ec5e5b..832e7a13b 100644
  		if (is_reservation_data_checking_thread)
  		{
  			s_is_reservation_data_checking_thread = 0;
-@@ -6452,6 +6836,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6452,6 +6839,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  		ch_dec_start_timestamp = get_timebased_time();
  		ch_dec_value = value;
  		is_dec_frozen = false;
@@ -13610,7 +13613,7 @@ index bc9ec5e5b..832e7a13b 100644
  		return true;
  	}
  
-@@ -6479,6 +6866,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6479,6 +6869,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			}
  		}
  
@@ -13619,7 +13622,7 @@ index bc9ec5e5b..832e7a13b 100644
  		return true;
  	}
  
-@@ -6509,6 +6898,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6509,6 +6901,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			// Save current time, this will be the reported value until the decrementer resumes
  			ch_dec_value = read_dec().first;
  			is_dec_frozen = true;
@@ -15784,7 +15787,7 @@ index d3535c71f..91cd3c2e0 100644
  			{
  				*this = that;
 diff --git a/rpcs3/Emu/RSX/Common/surface_store.h b/rpcs3/Emu/RSX/Common/surface_store.h
-index 817192730..967267261 100644
+index 817192730..ceb4bce20 100644
 --- a/rpcs3/Emu/RSX/Common/surface_store.h
 +++ b/rpcs3/Emu/RSX/Common/surface_store.h
 @@ -86,6 +86,38 @@ namespace rsx
@@ -15837,6 +15840,70 @@ index 817192730..967267261 100644
  
  				Traits::clone_surface(cmd, sink, region.source, new_address, region, region.source->resolution_scaling_config);
  				allocate_rsx_memory(Traits::get(sink));
+@@ -716,6 +752,43 @@ namespace rsx
+ 
+ 			// Generic painter's algorithm to detect obsolete sections
+ 			ensure(range.length() < 64 * 0x100000);
++#ifdef RPCS3_IOS
++			// Coverage is boolean per guest byte. A packed bitmap avoids clearing
++			// and streaming a full byte for every byte of the surface address span.
++			std::vector<u64> marker((range.length() + 63u) / 64u + 1u, 0);
++			marker.back() = overrun_cookie_value;
++			u32 removed_count = 0;
++			auto compare_and_tag_row = [&](u32 offset, u32 length) -> bool
++			{
++				ensure(offset <= range.length() && length <= range.length() - offset);
++				if (!length) return false;
++
++				const u32 first = offset / 64u;
++				const u32 last = (offset + length - 1u) / 64u;
++				const u64 first_mask = ~u64{0} << (offset & 63u);
++				const u64 last_mask = ~u64{0} >> ((64u - ((offset + length) & 63u)) & 63u);
++				u64 uncovered = 0;
++				auto tag = [&](u32 word, u64 mask)
++				{
++					uncovered |= ~marker[word] & mask;
++					marker[word] |= mask;
++				};
++				if (first == last)
++				{
++					tag(first, first_mask & last_mask);
++				}
++				else
++				{
++					tag(first, first_mask);
++					for (u32 word = first + 1u; word < last; ++word)
++					{
++						tag(word, ~u64{0});
++					}
++					tag(last, last_mask);
++				}
++				return uncovered != 0;
++			};
++#else
+ 			std::vector<u8> marker(range.length() + sizeof(overrun_cookie_value), 0);
+ 
+ 			// Tag end
+@@ -770,6 +843,7 @@ namespace rsx
+ 
+ 				return !!mask;
+ 			};
++#endif
+ 
+ 			for (auto it = sections.crbegin(); it != sections.crend(); ++it)
+ 			{
+@@ -836,7 +910,11 @@ namespace rsx
+ 			rsx_log.notice("rsx::surface_cache::check_for_duplicates_fallback analysed %u overlapping sections and removed %u", ::size32(sections), removed_count);
+ 
+ 			// Verify no OOB
++#ifdef RPCS3_IOS
++			ensure(marker.back() == overrun_cookie_value);
++#else
+ 			ensure(read_from_ptr<u32>(marker, range.length()) == overrun_cookie_value);
++#endif
+ 		}
+ 
+ 	protected:
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache.cpp b/rpcs3/Emu/RSX/Common/texture_cache.cpp
 index 6b306657f..0220fde21 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache.cpp
@@ -22924,7 +22991,7 @@ index c9bbf4e31..2bc13d671 100644
  			}
  
 diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
-index c165762ea..3f413667d 100644
+index c165762ea..5cf228a1d 100644
 --- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
 @@ -6,8 +6,11 @@
@@ -22988,7 +23055,30 @@ index c165762ea..3f413667d 100644
  	}
  
  	void texture_cache::copy_transfer_regions_impl(vk::command_buffer& cmd, vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections_to_transfer) const
-@@ -957,6 +980,26 @@ namespace vk
+@@ -782,6 +805,22 @@ namespace vk
+ 		return view;
+ 	}
+ 
++#ifdef RPCS3_IOS
++	vk::image_view* texture_cache::create_temporary_subresource(vk::command_buffer& cmd, deferred_subresource& desc)
++	{
++		auto cached = baseclass::create_temporary_subresource(cmd, desc);
++		if (!cached)
++		{
++			return nullptr;
++		}
++
++		// The common cache keys image contents, not sampler channel remapping.
++		// Reuse that image but select the current request's view on every hit.
++		// get_view has a last-view fast path; as returns directly for its format.
++		return static_cast<vk::viewable_image*>(cached->image())->get_view(desc.remap)->as(cached->format());
++	}
++#endif
++
+ 	vk::image_view* texture_cache::create_temporary_subresource_view(vk::command_buffer& cmd, const deferred_subresource& desc)
+ 	{
+ 		ensure(desc.sections_to_copy.size() == 1);
+@@ -957,6 +996,26 @@ namespace vk
  		VkImageAspectFlags dst_aspect = vk::get_aspect_flags(result->info.format);
  		VkImageSubresourceRange dst_range = { dst_aspect, 0, mipmaps, 0, 1 };
  		vk::change_image_layout(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, dst_range);
@@ -23015,7 +23105,7 @@ index c165762ea..3f413667d 100644
  
  		if (desc.force_bg_load)
  		{
-@@ -965,8 +1008,13 @@ namespace vk
+@@ -965,8 +1024,13 @@ namespace vk
  		}
  		else if (!(dst_aspect & VK_IMAGE_ASPECT_DEPTH_BIT))
  		{
@@ -23031,7 +23121,7 @@ index c165762ea..3f413667d 100644
  		}
  		else
  		{
-@@ -1474,10 +1522,19 @@ namespace vk
+@@ -1474,10 +1538,19 @@ namespace vk
  				submit_info2.queue_signal(*async_sema);
  				async_scheduler->flush(submit_info2, VK_TRUE);
  
@@ -23051,7 +23141,7 @@ index c165762ea..3f413667d 100644
  			vk::wait_for_fence(&submit_fence, GENERAL_WAIT_TIMEOUT);
  
  			cmd.reset();
-@@ -1506,11 +1563,17 @@ namespace vk
+@@ -1506,11 +1579,17 @@ namespace vk
  		m_formats_support = device.get_formats_support();
  		m_submit_queue = submit_queue;
  		m_texture_upload_heap = &upload_heap;
@@ -23069,7 +23159,7 @@ index c165762ea..3f413667d 100644
  	}
  
  	bool texture_cache::is_depth_texture(u32 rsx_address, u32 rsx_size)
-@@ -1576,13 +1639,20 @@ namespace vk
+@@ -1576,13 +1655,20 @@ namespace vk
  
  		// Nuke temporary resources. They will still be visible to the GPU.
  		auto gc = vk::get_resource_manager();
@@ -23094,7 +23184,7 @@ index c165762ea..3f413667d 100644
  
  		any_released |= !m_temporary_subresource_cache.empty();
  		for (auto& e : m_temporary_subresource_cache)
-@@ -1604,20 +1674,42 @@ namespace vk
+@@ -1604,20 +1690,42 @@ namespace vk
  			purge_unreleased_sections();
  		}
  
@@ -23145,7 +23235,7 @@ index c165762ea..3f413667d 100644
  		baseclass::on_frame_end();
  		reset_frame_statistics();
  	}
-@@ -1708,6 +1800,7 @@ namespace vk
+@@ -1708,6 +1816,7 @@ namespace vk
  
  	u32 texture_cache::get_unreleased_textures_count() const
  	{
@@ -23153,7 +23243,7 @@ index c165762ea..3f413667d 100644
  		return baseclass::get_unreleased_textures_count() + ::size32(m_cached_images);
  	}
  
-@@ -1757,4 +1850,26 @@ namespace vk
+@@ -1757,4 +1866,26 @@ namespace vk
  
  		return false;
  	}
@@ -23181,7 +23271,7 @@ index c165762ea..3f413667d 100644
 +#endif
  }
 diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.h b/rpcs3/Emu/RSX/VK/VKTextureCache.h
-index b0ee05965..2bebcb6f9 100644
+index b0ee05965..91eaae057 100644
 --- a/rpcs3/Emu/RSX/VK/VKTextureCache.h
 +++ b/rpcs3/Emu/RSX/VK/VKTextureCache.h
 @@ -89,6 +89,10 @@ namespace vk
@@ -23204,7 +23294,18 @@ index b0ee05965..2bebcb6f9 100644
  
  		// Blocks some operations when exiting
  		atomic_t<bool> m_cache_is_exiting = false;
-@@ -548,5 +552,9 @@ namespace vk
+@@ -522,6 +526,10 @@ namespace vk
+ 	public:
+ 		using baseclass::texture_cache;
+ 
++#ifdef RPCS3_IOS
++		vk::image_view* create_temporary_subresource(vk::command_buffer& cmd, deferred_subresource& desc);
++#endif
++
+ 		void initialize(vk::render_device& device, VkQueue submit_queue, vk::data_heap& upload_heap);
+ 
+ 		void destroy() override;
+@@ -548,5 +556,9 @@ namespace vk
  		u64 get_temporary_memory_in_use() const;
  
  		bool is_overallocated() const;

@@ -2,6 +2,33 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## RPCS3 device595 follow-up sources — 29 October 2026
+
+After local 543996ad, three additional iOS changes are retained: reselect the
+current remap on Vulkan temporary-image cache hits; retain the SPU decrementer
+worker's expiry scratch between wakeups; pack surface coverage into one bit per
+guest byte. Claude remote was rechecked at c0df3394. Canonical patch SHA256:
+037d620eb0148b7311da74d711dd2099d06e1285ad6f3079df9586a920a1a0e0.
+314 postimages, five changed, 309 unchanged relative to 543996ad.
+
+Six new GCC Linux modes pass, plain and ASan/UBSan. Remap: 373,248 requests,
+373,230 wrong selections before and zero after, unchanged image-copy counts.
+Timer: stable allocations 128 to 1 and variable allocations 768 to 4, same
+publication/wait order and failure semantics. Surface marker: 4,194,308 to
+524,296 bytes for a 4 MiB span; 391,754 row checks and 10,128 geometry cases.
+Keep all timing results: four timer and one surface case regress on this host.
+No iPhone FPS or device visual/freeze fix is established. GOW3's missing label
+producer remains unproved; no forced label or barrier removal is retained.
+
+One CMake script authenticates all 41 codegen inputs (40 physical, unchanged
+external LLVM digest), preserving PPU a987639e9f838d1c / SPU d070cb361bdef607.
+The compiler-free follow-up contract authenticates six new native results and
+reuses six exact unchanged previous results. Do not replay unaffected suites.
+No push, Apple/Core/IPA build or release. Existing delivery pins stay historical;
+the latest two source lots still require their first affected Apple validation
+for a future explicitly requested Core. No diagnostics or telemetry are added.
+See docs/rpcs3-device595-followup-2026-10-29.md and its linked raw evidence.
+
 ## RPCS3 source optimizations after device595 feedback — 29 October 2026
 
 Based on Claude c0df3394, rechecked during the task, in an isolated checkout.
