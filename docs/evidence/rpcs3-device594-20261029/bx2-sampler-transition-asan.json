@@ -1,0 +1,79 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "compilerFlags": [
+    "-std=c++20",
+    "-g",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-O1",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "host": "x86_64",
+  "system": "Linux",
+  "sanitizer": "address,undefined",
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/RSXThread.cpp": "cd656467129aa2db822b892a4ecf37355887281dac2e943f110c1dbb8a33b40c",
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp": "91d473f3053f5623703bb5d025112199109cbdd51b0eb47d68d37ca9e8f1d4a6",
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "255c69ab2aa7baa576844421a4e87ed7508ce71b0e98d247354ba601f06a0a49",
+    "rpcs3/Emu/RSX/Core/RSXDriverState.h": "321b4b487575f422ae3c1c0252233a534663e594dcb5627496735a02735e5ac7",
+    "rpcs3/Emu/RSX/Program/program_util.h": "5c141941a19c060aa9afda5ed16b9d96d6cc01281bd6baca06c58b2b78bf3bba",
+    "rpcs3/Emu/RSX/Program/program_util.cpp": "8701f12ae16335eefca2a96fb25fcb2fe62aead50d59f6f13a1dee5a67f28d92",
+    "rpcs3/Emu/RSX/Common/TextureUtils.h": "f2177f51d6cc96f566cec6a99a7612cebe765afa6f7d06a459d684d8b73b7e40",
+    "rpcs3/Emu/RSX/Common/TextureUtils.cpp": "b2206ec9215cddd946cb3dd69222216968b3f33140f2732cbf0736e8737d2323",
+    "rpcs3/Emu/RSX/Utils/color_utils.hpp": "376994e979776cfd5fbf5494904f55674546e13c58cdcb6c768d1142b234d2e6",
+    "rpcs3/Emu/RSX/gcm_enums.h": "1814f59d138e3048b81b81849148a5ce695300f9d743aaff3cde3b0f7c5e5cc1",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "db261d05fd89ecaa87518bc3c56f788dc79068964949942d13e57d17010f4216",
+    "rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp": "732fa76af9600a8606f9797b68ee306005e3154db5343e8131a0e8128feb6493",
+    "rpcs3/Emu/RSX/Program/GLSLCommon.cpp": "8b36c1e2cac8760a842ed180906d53ca87caf7ff3ffe617bb4e7bc4aa25cdd53"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/RSXThread.cpp": "c9145bc1dbd4cfa4ed8ab80f1250d5f6dfb8a47e5d0b0d472c4943adfd89966b",
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp": "91d473f3053f5623703bb5d025112199109cbdd51b0eb47d68d37ca9e8f1d4a6",
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "fed611e598e23a21d283b5432a0e8846a6bacd4fda4735b330984c74434e53e8",
+    "rpcs3/Emu/RSX/Core/RSXDriverState.h": "321b4b487575f422ae3c1c0252233a534663e594dcb5627496735a02735e5ac7",
+    "rpcs3/Emu/RSX/Program/program_util.h": "5c141941a19c060aa9afda5ed16b9d96d6cc01281bd6baca06c58b2b78bf3bba",
+    "rpcs3/Emu/RSX/Program/program_util.cpp": "8701f12ae16335eefca2a96fb25fcb2fe62aead50d59f6f13a1dee5a67f28d92",
+    "rpcs3/Emu/RSX/Common/TextureUtils.h": "f2177f51d6cc96f566cec6a99a7612cebe765afa6f7d06a459d684d8b73b7e40",
+    "rpcs3/Emu/RSX/Common/TextureUtils.cpp": "b2206ec9215cddd946cb3dd69222216968b3f33140f2732cbf0736e8737d2323",
+    "rpcs3/Emu/RSX/Utils/color_utils.hpp": "376994e979776cfd5fbf5494904f55674546e13c58cdcb6c768d1142b234d2e6",
+    "rpcs3/Emu/RSX/gcm_enums.h": "1814f59d138e3048b81b81849148a5ce695300f9d743aaff3cde3b0f7c5e5cc1",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "db261d05fd89ecaa87518bc3c56f788dc79068964949942d13e57d17010f4216",
+    "rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp": "732fa76af9600a8606f9797b68ee306005e3154db5343e8131a0e8128feb6493",
+    "rpcs3/Emu/RSX/Program/GLSLCommon.cpp": "8b36c1e2cac8760a842ed180906d53ca87caf7ff3ffe617bb4e7bc4aa25cdd53"
+  },
+  "adapterSHA256": "08d762714024ad17580876a79a56d721f2ea43766d2b5085c153fce7ac384ddd",
+  "harnessSHA256": "230a79b49519e462114a523bdb020f790665913402a9ac77d8ec9a8aed557185",
+  "results": {
+    "desktop": {
+      "transitions": 16,
+      "baselineTransitionDefects": 16,
+      "candidateTransitionDefects": 16,
+      "lifecycleCases": 0,
+      "conversionRemovalCases": 4,
+      "baselineRedundantConversionKeys": 4,
+      "candidateRedundantConversionKeys": 4,
+      "baselineNegativeControls": 7
+    },
+    "ios": {
+      "transitions": 16,
+      "baselineTransitionDefects": 16,
+      "candidateTransitionDefects": 0,
+      "lifecycleCases": 24,
+      "conversionRemovalCases": 4,
+      "baselineRedundantConversionKeys": 4,
+      "candidateRedundantConversionKeys": 0,
+      "baselineNegativeControls": 7
+    }
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "gpuExecuted": false,
+  "scope": "Exercise shader-dependent view, filtering, conversion and parameter updates.\n\nThe complete before/after prefetch bodies and actual texture fast path, remapping,\nfilter selection, conversion-control branches and parameter transfer are compiled.\nGPU image/cache handles, guest instruction decoding and ring allocation are adapters.\nThis test produces no rendered pixels or device/FPS result.\n"
+}

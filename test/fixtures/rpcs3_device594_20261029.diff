@@ -1,0 +1,157 @@
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+--- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+@@ -288,17 +288,16 @@
+ 
+ 		void remove_address_entry(section_storage_type& section)
+ 		{
+-			const auto it = std::find_if(m_address_index.begin(), m_address_index.end(),
+-				[&](const address_entry& entry) { return entry.section == &section; });
+-			if (it != m_address_index.end()) m_address_index.erase(it);
++			if (m_address_index.empty()) return;
++			// The old range is retired before reset publishes a new address.
++			const address_entry entry{section.get_section_base(), sections.index_of(section), &section};
++			const auto it = std::lower_bound(m_address_index.begin(), m_address_index.end(), entry, address_less);
++			if (it != m_address_index.end() && it->section == &section) m_address_index.erase(it);
+ 		}
+ 
+ 		void add_address_entry(section_storage_type& section)
+ 		{
+ 			if (sections.size() <= address_index_threshold) return;
+-			// reset() can replace a valid resource-less range without first
+-			// destroying a GPU resource. Remove by slot, not by its new address.
+-			remove_address_entry(section);
+ 			const address_entry entry{section.get_section_base(), sections.index_of(section), &section};
+ 			const auto pos = std::lower_bound(m_address_index.begin(), m_address_index.end(), entry, address_less);
+ 			m_address_index.insert(pos, entry);
+@@ -412,6 +411,10 @@
+ 					section.unprotect();
+ 
+ 				section.destroy();
++#ifdef RPCS3_IOS
++				// Resource-less sections may still belong to adjacent blocks.
++				section.invalidate_range();
++#endif
+ 			}
+ 
+ 			AUDIT(exists_count == 0);
+@@ -1178,6 +1181,10 @@
+ 		using predictor_type            = texture_cache_predictor<traits>;
+ 		using predictor_key_type        = typename predictor_type::key_type;
+ 		using predictor_entry_type      = typename predictor_type::mapped_type;
++#ifdef RPCS3_IOS
++		// The owning block retires resource-less ranges during bulk clear.
++		friend ranged_storage_block_type;
++#endif
+ 
+ 	protected:
+ 		ranged_storage_type *m_storage = nullptr;
+@@ -1272,6 +1279,11 @@
+ 
+ 			// Destroy if necessary
+ 			destroy();
++#ifdef RPCS3_IOS
++			// destroy() can leave a resource-less range valid. Retire its index
++			// and adjacent-block memberships before replacing that range.
++			invalidate_range();
++#endif
+ 
+ 			// Superclass
+ 			rsx::buffered_section::reset(memory_range);
+diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
+--- a/rpcs3/Emu/RSX/RSXFIFO.cpp
++++ b/rpcs3/Emu/RSX/RSXFIFO.cpp
+@@ -458,7 +458,10 @@
+ 			if (m_remaining_commands)
+ 			{
+ 				// Previous block aborted to wait for PUT pointer
+-				read_unsafe(data);
++				if (!read_unsafe(data))
++				{
++					data.reg = FIFO_EMPTY;
++				}
+ 				return;
+ 			}
+ 
+@@ -562,6 +565,14 @@
+ 					if (arg == FIFO_ERROR)
+ 					{
+ 						data.reg = FIFO_ERROR;
++					}
++					else if (arg == FIFO_EMPTY)
++					{
++						// The header is published but its first argument is not. Retry
++						// the header: read_unsafe() would advance past that argument.
++						m_internal_get -= 4;
++						m_remaining_commands = 0;
++						data.reg = FIFO_EMPTY;
+ 					}
+ 					else
+ 					{
+diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
+--- a/rpcs3/Emu/RSX/RSXThread.cpp
++++ b/rpcs3/Emu/RSX/RSXThread.cpp
+@@ -2166,9 +2166,29 @@
+ 
+ 		const auto [program_offset, program_location] = method_registers.shader_program_address();
+ 		const auto prev_textures_reference_mask = current_fp_metadata.referenced_textures_mask;
++#ifdef RPCS3_IOS
++		const auto prev_bx2_texture_reads_mask = current_fp_metadata.bx2_texture_reads_mask;
++#endif
+ 
+ 		auto data_ptr = vm::base(rsx::get_address(program_offset, program_location));
+ 		current_fp_metadata = program_hash_util::fragment_program_utils::analyse_fragment_program(data_ptr);
++#ifdef RPCS3_IOS
++		// The shader's BX2 use also selects the texture view and filtering. Keep
++		// dormant units dirty so their next use cannot reuse the old selection.
++		const auto changed_bx2_reads = prev_bx2_texture_reads_mask ^ current_fp_metadata.bx2_texture_reads_mask;
++		for (u32 changed = changed_bx2_reads, i = 0; changed; changed >>= 1, ++i)
++		{
++			if (changed & 1) m_textures_dirty[i] = true;
++		}
++
++		// Conversion control is shared by the fragment program. Rebuild it when
++		// references change in either direction, including the last software-
++		// converted texture disappearing without any BX2 change.
++		if (changed_bx2_reads || (prev_textures_reference_mask != current_fp_metadata.referenced_textures_mask))
++		{
++			m_graphics_state |= rsx::pipeline_state::fragment_program_state_dirty;
++		}
++#endif
+ 
+ 		current_fragment_program.data = (static_cast<u8*>(data_ptr) + current_fp_metadata.program_start_offset);
+ 		current_fragment_program.offset = program_offset + current_fp_metadata.program_start_offset;
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+@@ -2574,7 +2574,13 @@
+ 		{
+ 			const VkSemaphore async_sema = *async_scheduler->get_sema();
+ 			secondary_submit_info.queue_signal(async_sema);
++			// Layout transitions and vertex sampling may consume the upload first.
++#ifdef RPCS3_IOS
++			primary_submit_info.wait_on(async_sema, VK_PIPELINE_STAGE_TRANSFER_BIT |
++				VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
++#else
+ 			primary_submit_info.wait_on(async_sema, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
++#endif
+ 
+ 			// Delay object destruction by one cycle
+ 			vk::get_resource_manager()->push_down_current_scope();
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+@@ -1522,7 +1522,13 @@
+ 				submit_info2.queue_signal(*async_sema);
+ 				async_scheduler->flush(submit_info2, VK_TRUE);
+ 
++#ifdef RPCS3_IOS
++				// Readback transfers and image transitions consume the uploaded data.
++				submit_info.wait_on(*async_sema, VK_PIPELINE_STAGE_TRANSFER_BIT |
++					VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
++#else
+ 				submit_info.wait_on(*async_sema, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
++#endif
+ 			}
+ 
+ 			cmd.submit(submit_info, VK_TRUE);

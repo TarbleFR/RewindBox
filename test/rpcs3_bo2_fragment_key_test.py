@@ -87,7 +87,11 @@ def harness(source, baseline):
     cache, comp = read(CACHE), read(COMPARE)
     before_cache, before_comp = (baseline / CACHE).read_text(), (baseline / COMPARE).read_text()
     # No persisted identity, caller ordering or common ucode-analysis changes.
-    assert sha(source / THREAD) == sha(baseline / THREAD)
+    # The device594 follow-up changes prefetch invalidation, covered by its
+    # own native test. The caller, its ordering and every other body stay exact.
+    thread_text, old_thread = read(THREAD), (baseline / THREAD).read_text()
+    prefetch = 'void thread::prefetch_fragment_program()'
+    assert thread_text.replace(braced(thread_text, prefetch), '@PREFETCH@', 1) == old_thread.replace(braced(old_thread, prefetch), '@PREFETCH@', 1)
     assert sha(source / DISK) == sha(baseline / DISK)
     analysis = 'fragment_program_utils::fragment_program_metadata fragment_program_utils::analyse_fragment_program('
     assert braced(comp, analysis) == braced(before_comp, analysis)

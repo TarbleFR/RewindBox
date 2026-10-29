@@ -95,15 +95,15 @@
     "rpcs3/Emu/RSX/Program/GLSLTypes.h": "80668e419f75c9a10bf917c03157e3238e6cbb8946dd6be7f069e972d0de48b4",
     "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "db261d05fd89ecaa87518bc3c56f788dc79068964949942d13e57d17010f4216",
     "rpcs3/Emu/RSX/Program/ProgramStateCache.h": "b5b9d02b0909aaa9264ac6c79dc106a2891b200babf7784ee25ab0f36caa9025",
-    "rpcs3/Emu/RSX/RSXFIFO.cpp": "e4f381adffa30632bb8b9d315d77bbe095632dafaddf574ae9e3cb9ab095c23b",
+    "rpcs3/Emu/RSX/RSXFIFO.cpp": "74a3d0640ea905aac9c7b87144d0b11c0a658586b3f8ed8b257752719da26fb2",
     "rpcs3/Emu/RSX/RSXFIFO.h": "ac047d734f37006362fb24b881280bd149edb38df39a50857b4292d22c8bd564",
     "rpcs3/Emu/RSX/RSXOffload.cpp": "239ea3c28baff6ee519d1ae745e4259fc329f3e5e61313ea6bc4594316f8b602",
     "rpcs3/Emu/RSX/RSXTexture.cpp": "6c8818a94f847bfc63b8fbf59d82d37cdc856e9b6ca192e6cf2a0c9f1918be7b",
-    "rpcs3/Emu/RSX/RSXThread.cpp": "c9145bc1dbd4cfa4ed8ab80f1250d5f6dfb8a47e5d0b0d472c4943adfd89966b",
+    "rpcs3/Emu/RSX/RSXThread.cpp": "cd656467129aa2db822b892a4ecf37355887281dac2e943f110c1dbb8a33b40c",
     "rpcs3/Emu/RSX/RSXThread.h": "9fc293c1510ea204bd35f31789a60f5847910b1345bf35d9146fbf5ad817a9ef",
     "rpcs3/Emu/RSX/VK/VKDraw.cpp": "91d473f3053f5623703bb5d025112199109cbdd51b0eb47d68d37ca9e8f1d4a6",
     "rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp": "732fa76af9600a8606f9797b68ee306005e3154db5343e8131a0e8128feb6493",
-    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "fed611e598e23a21d283b5432a0e8846a6bacd4fda4735b330984c74434e53e8",
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "255c69ab2aa7baa576844421a4e87ed7508ce71b0e98d247354ba601f06a0a49",
     "rpcs3/Emu/RSX/VK/VKGSRender.h": "58b3b070c934839152e6b5ea5b4882517a5a79192037885473d1125ed53b71ef",
     "rpcs3/Emu/RSX/VK/VKHelpers.cpp": "2e28c7c6c043ab2260dbf37c5a5d875b3eaf51e47e71182feac4ce6afc85f84c",
     "rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp": "e9fbccd7d6ecd58c9028958eed045bb7d079ffad55717a9398a7a452531a194e",
@@ -117,7 +117,7 @@
     "rpcs3/Emu/RSX/VK/VKResolveHelper.h": "7cd52ded579c3e0b75fee9ca7bd624a69c95009d04d054e83268fe39a89dae63",
     "rpcs3/Emu/RSX/VK/VKResourceManager.cpp": "d92b72226727c8ce5145f14185f48b7d9ebcd3c0b49462135a227769a401161f",
     "rpcs3/Emu/RSX/VK/VKResourceManager.h": "9a4520a9b11d0dd7e08e2eaa9338efbba44e4b5a6a750b2908022dbe20887dcd",
-    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "ac1e24963ec7cfae45cbcb97b0506946cdf0389782fb2e9e1a0d782109524c16",
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "c5ecab8364b42fb791fb9029d87348f7e0068c5990da3f3c0a3e787079f2059c",
     "rpcs3/Emu/RSX/VK/VKTextureCache.h": "756c680bd2b3e5b327295db439412ea12447170838776399e873f5e4b03af846",
     "rpcs3/Emu/RSX/VK/upscalers/fsr1/fsr_pass.cpp": "3e8a5a33e7e302a8e363b8bf1ad46a52e2d4ab465abc7e03bcadafcdfe5b7ff0",
     "rpcs3/Emu/RSX/VK/vkutils/VRAMBudgetPolicy.h": "df913dcb4e2d386bfcfffc36543e748acea7bb7e31373e817187f79a716e0045",
@@ -288,7 +288,7 @@
     "rpcs3/ios/IOSSpuWaitProfile.h": "9e7c76711bc02c9f73e1eec01d6a05dbe06cf5a413060f48bae4d6776b8bb4ea",
     "rpcs3/ios/RPCS3IOSConfigInheritance.h": "e66620753281aaaa8e267b9f922308ec76f0abe18c3021bfa6f80a1d5ad3e883",
     "rpcs3/ios/RPCS3IOSPlatform.mm": "9ca15ecec27764d9923e6aba72b64edbba3d2a33ff46d4977ec42ff614272445",
-    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "8afab00e043668bb964e960caffec927f918617928bd51433b9925cb18541ed4",
+    "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5",
     "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967",
     "rpcs3/ios/IOSReadbackProfile.h": "a000d21bce260c42ba072de67217ca04b3ab472ad754d3c7a3be3ff0e340033a",
     "rpcs3/Emu/RSX/Common/texture_cache.cpp": "def8569ef9a63022336a8a34b2cc5dd85f1a30132cd8130288321dc766014da7",
@@ -321,7 +321,7 @@
     "rpcs3/Emu/RSX/VK/VKOverlays.cpp": "41a30e38f39e9cb361f3ce6e9f16e80fc8ab374de7eba0e42dea8581873ea5d3",
     "rpcs3/Emu/RSX/VK/VKFramebuffer.cpp": "5674b08d747da2532138c27eef5a1b307f1c2444482f70ee38e8ca4d65ebdee6"
   },
-  "patch_sha256": "d7e8921e513dcb7caaf90ef6f903b1f9a28eb749b41fa668762304d90f876b2d",
+  "patch_sha256": "f357467b66f1c1dcec0aac94e9e6da73443e2c160a446993feb5274286bafd2e",
   "policy": "Build353 experimental; selective XITRIX Preview 0.10 engine backports (ARM64 SPU/PPU, VM reservations, RSX/Metal, audio recovery, savestate and graphics correctness); Build352 God of War III bounded-memory policy and Build350 lifecycle baseline retained; NeoSwap v1 opt-in host-owned file-backed RSX CPU data allocator, existing JIT/VM/GPU policies unchanged; selective XITRIX v0.10.1 SPU BID continuation, disabled-texture eviction, MoltenVK conditional-rendering fixes; SPU object cache v5 retires old CFG objects; optional NeoSwap client diagnostics ABI 1, main Core ABI 30 unchanged; NeoSwap coherent host-visible Vulkan SYSTEM buffer imports (1-256MiB), strict external-memory/type/alignment checks, deferred GPU resource disposal and allocator fallback; optional NeoSwap guest page relay ABI 1 for guest data shared aliases, host-owned preparation after authenticated creator exit and ordinary file fallback before first published mapping; Build395: measured God of War III opt-in for RSX CPU aligned buffers 64KiB-1MiB via verified donor loans only, fixed metadata budgets, fast pressure gate and original heap fallback; no JIT/VM/GPU/private allocations redirected; Build409: additive NeoSwap client kinds (GPU host-visible imports, owned video-frame mappings) through the unchanged allocator ABI 1, relay host loans selected by the host budget controller; no JIT/VM/GPU/private allocations redirected; Post-410: loading-time SPU guest metadata warmup and telemetry, no ARM64 object persistence; ready-only fast NeoSwap host loans and ordinary guest backing for new gameplay allocations; existing published alias coherence retained; physical device validation pending; Build435 Core delta (10 October 2026): measured per-process allowance in IOSMemoryPressurePolicy (relative moderate stage, adaptive reclaim cooldown), deferred SPU LLVM compilation on a worker pool with legacy-interpreter hand-off, unlocked snapshot precheck before vm::writer_lock on PUTLLC/stcx; no device validation; Build436: the Build435 deferred SPU compilation is switched off (deferred_compile_enabled=false) after God of War III froze about 5 s after boot on the iPhone in 3 of 3 Build435 sessions and another title stopped on SPU STOP 0x0; SPU misses compile inline as in Build434; the measured memory allowance and the writer-lock precheck are kept; no device validation of Build436.; Build436 XITRIX v0.11: five RSX/Vulkan engine commits imported verbatim with their fixtures (framebuffer source selection, Vulkan image-pool race, rendering overhead, divided vertex range, alpha-to-one); no SPU, PPU, JIT, VM or lifecycle change; no device validation of the XITRIX v0.11 import. Build441: optional prepared guest relay ABI 1 permits new eligible shared-memory objects during gameplay by borrowing host-prepared exact-size tokens only; no slow create during gameplay, no migration of published or FILE backing, unchanged alias and retirement semantics, four inline alias records, optional process-lifetime client metrics; no iPhone gameplay validation.; Build444 (11 October 2026, maintainer request): optional direct guest admission ABI 1 (NeoSwapDirectRelayAPI.try_create) lets a gameplay stock miss or an oversize request create an exact-size relay object without waiting, under the host budget allowance; no blocking create, extension request, lock wait, published-object migration or FILE migration in gameplay; optional client diagnostics extension ABI 1 (direct outcomes, live FILE exclusion, boot creations); JITPROF phase counters (PPU translate/opt/verify/codegen/cache/load/finalize/symbols, SPU build/passes/codegen, headroom minimum) in Utilities/JITPhaseProfile.h; PPU object cache name v9 with the codegen identity (LLVM release, configure-time source digest NEOSTATION_PPU_CODEGEN_ID, target features); opt-in ARM64 PPU EarlyCSE (ppu_llvm_ir_passes, default off, hashed into the settings bits); deferred SPU compilation stays off; no device validation of Build444.; Build481 persistent ARM64 SPU object cache: the SPU translator references the host only through symbols (spu_timebase_offs mapped per engine instead of a baked &g_timebase_offs), a relocatability guard refuses to persist any module that turns a host address into a pointer constant, objects are validated (parsed, entry symbol required) before MCJIT and removed when invalid, the directory key folds the cache format, settings, device features, CPU, LLVM release and the configure-time SPU codegen digest NEOSTATION_SPU_CODEGEN_ID, directories of other keys are removed, the directory is bounded to 40000 files or 512 MiB with oldest-first eviction to 90 percent, retry variants carry -notbl2/-nofma name suffixes, a hit skips the pass pipeline and verification; JITPROF phases spu_cache_read/spu_object_load/spu_cache_write and SPUPROF obj_* counters added; Persistent SPU Object Cache Automatic resolves to enabled on ARM64; interpreter module stays process-local; deferred SPU compilation stays off; no device validation of Build481.; Build483 LLVM pipelines: SPU pipeline gains InstCombine between SimplifyCFG and DSE as upstream RPCS3 x86-64 and ARMSX3 ARM64 (setting SPU LLVM Pipeline, default Upstream InstCombine, Reference 481 keeps the previous pipeline), both m_test_state calls carry their callee convention (InstCombine turns a mismatched direct call into unreachable), the SPU pipeline is folded into the object-cache key; PPU LLVM Pipeline setting (Upstream ARM64 default = no IR pass, EarlyCSE = x86-64 pipeline = the Build 444 boolean, Extended = EarlyCSE SimplifyCFG InstCombine DSE LICM ADCE) with objects named per level (arm64_ir_passes, arm64_ir_passes_extended) and PPUThread.cpp in the PPU codegen digest; JITPROF reports ppu_pipeline/ppu_ir_passes/spu_pipeline; deferred SPU compilation stays off; no device validation of Build483. Build487 (19 October 2026, maintainer request after docs/rpcs3-bottleneck-audit-2026-10-18.md): observability of the audit (metrics grow additively to 72 bytes under struct_size with guest frames, native-UI flag, emulator state and boot progress; COREPROF other/top threads and windows without frames; CONFIG_LAYERS, NEOSTATION_RESTART, JITPROF_BOOT, SAVESTATE_BOOT, bounded FREEZE_DUMP and MUTEX_DESTROY_BUSY lines; RANGELOCKPROF maximum holds; time-based RSX load) and four iOS Experimental settings whose defaults keep the Build 483 gameplay behaviour (SPU Spin Timing Reference, RSX FIFO Idle Wait Yield with a new Bounded sleep value, SPU Warmup Scope God of War III) except the cache-only SPU Object Cache Retained Keys (2); code-generation sources and object-cache key lines unchanged; the PPU and SPU codegen digests change because PPUThread.cpp, JITPhaseProfile.h and SPUCommonRecompiler.cpp changed, so each title recompiles once; deferred SPU compilation stays off; no device validation of Build487. Build 499 fixes the SHUFB 64-bit insertion mask and conditional branch-target ordering, gates compile disassembly behind explicit SPU debug, and includes the branch helper/opcode decoder in the SPU codegen digest; NeoSwap and ABI 30 remain unchanged. 23 October memory audit: bounded owned LLVM object streaming, validated PPU handoff, shared NeoSwap compiler admission and in-flight observations, fault-before-reservation ordering, data-only free-page advice, measured VMA heap granularity; minimal SPU linker remains a guarded prototype. God of War III build 508 log follow-up: mounted ISO metadata on state resume, restored archive path ownership, per-game effective JIT target diagnostics, preferred 64 MiB VMA blocks on reported iOS heaps above 4 GiB through 8 GiB; allocation ceilings and PPU/SPU codegen inputs unchanged; no device gain measured. Build 513 bounds iOS TAR restore buffers and recognizes transient LLVM JIT threads; no PPU/SPU translation or settings policy change. Restore follow-up bounds the TAR reader by its declared chunk count, preserves unsatisfied RSX acquire dependencies with bounded host waits, and retains complete bounded freeze snapshots and restore phase diagnostics; save formats and PPU/SPU code generation remain unchanged. Selective XITRIX Preview 0.12 source backports: ISO parent directory identity, ARM64 GHC PPU far jumps, constant SPU TBL1 folding, session-local shader capability fallback, dedicated grown Vulkan heaps and proven-complete mip copy clears. CPU minimum is checked by the host before JIT or dlopen. Existing NeoSwap, RSX acquire and restore deltas remain; no physical-device performance gain measured. Build526 migrates active legacy SIMD users to the common ARM64 NEON backend, adds exact PPU VMSUM lowering and bounded failed-file diagnostics; no synchronization or memory quotas change. Build527 bounds retired-image recycling, publishes only dirty JIT ranges after successful relocation, simplifies three exact PPU reductions and adds bounded guest-only frame/wait/memory observations; gameplay gains require device measurement. Build527 routes bounded frame, wait, memory and publication observations through the existing iOS COREPROF host filter. Build528 retains the 527 PPU/SPU codegen identities; source-bound NeoSwap/restoration/observability delta is recorded separately. Build534 keeps restored ISO VFS mounts on the archive device and observes synchronous Vulkan shader costs; PPU/SPU codegen and cache identities stay unchanged. CELL536 moves writer diagnostics after release, preflights running accurate STORE128 before reservation ownership, and retains applied shader configuration without changing settings or memory budgets. Build538 removes a redundant SPU cache probe, preserves precisely compatible 536 objects and records bounded slow shader operations. CELL539 validates graphics pipeline state before cache-key construction and consumes decoded unchanged pipeline state; guest rendering, user shader mode and JIT cache identities remain intact. CELL539 also replaces cancellable XOR pipeline hashes with ordered state hashes; persistent shader records remain readable and sample-state equality matches the pipeline inputs. CELL539 replaces three per-event writer-counter RMW updates with exclusive-slot loads/stores and exact cumulative reader deltas, retaining atomic overflow, retirement and bounded storage. CELL543 moves shader-cache disk publication (fsync and rename) off the RSX thread through one bounded, drained writer whose overflow writes inline; single-flights inline pipeline builds for draw requests and removes failed placeholders; hashes each validated key once with ordered program-ID mixing; normalizes depth/stencil state that the compatible render pass cannot observe; and attributes MoltenVK cost with VK_EXT_pipeline_creation_feedback when supported, rewriting the VkPipelineCache only after libraries were added. Guest commands, draws, user shader mode and JIT cache identities remain intact. CELL545: ARMSX3 22528 public fixes: SPU warmup dedup and biggest-first order (codegen identity kept), PKG path containment with custom installers held to dev_hdd0, debug SELF decryption, SCE key index bound, in-memory savestate files, cellSaveData SDK 2.6 cap, thread-local log buffer; no device claim. CELL546: iOS JIT object cache written with zlib level 1 (gzip format, reader and other compressed streams unchanged); restore trace limited to threads that began a restore; codegen identities kept; no device claim. CELL547: iOS GPU fence waits spin 100 us then block in vkWaitForFences; while a draw waits for a pipeline build, confirmed SPU GETLLAR polls of unchanged data take the existing passive wait (SPU identity kept by an exact-snapshot alias); COREPROF PRESSURE547; no device claim. CELL551: a legacy full custom config keeps only the settings it changed relative to the global config and inherits the title's database settings (the God of War III profile never applied from build 412 to 547); MoltenVK asynchronous submits on a high-priority queue as an iOS Experimental option selected by the God of War III and DBZ profiles; MoltenVK Metal compiles run in the waiting thread's QoS class through the renamed archive call; COREPROF RSXSYNC551, RSXFRAME551 and SPUWAIT551; codegen identities kept; no device claim. CELL555: preserve texture validation and JIT cache identities; correct bounded recent pipeline diagnostics and attribute GPU readbacks and texture maintenance. ARM64 candidates were rejected after host measurements; the shipped hash is unchanged.",
   "schema_version": 2,
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
@@ -3694,5 +3694,61 @@
     "apple_core_built": false,
     "new_telemetry": false,
     "scope": "Use the existing exact-address index for uncompressed texture hits under the cache reader lock; preserve validation, swizzle invalidation and ordered merge fallback. Fully initialize framebuffer storage keys. Preserve the previous candidate, JIT identities, queue boundaries, GPU ownership and non-iOS source paths. Host evidence does not establish iPhone FPS or cache-miss frequency."
+  },
+  "runtime_device594_followup_20261029": {
+    "baseline_commit": "c609b0d05a583d2d39f636f328830a6256439807",
+    "baseline_patch_sha256": "d7e8921e513dcb7caaf90ef6f903b1f9a28eb749b41fa668762304d90f876b2d",
+    "baseline_core_source": "fe587e27fcefadaa36315a3ddc7dc1edba17b825",
+    "baseline_core_run": 40839976736,
+    "baseline_ipa_build": 594,
+    "modified_paths": [
+      "rpcs3/Emu/RSX/Common/texture_cache_utils.h",
+      "rpcs3/Emu/RSX/RSXFIFO.cpp",
+      "rpcs3/Emu/RSX/RSXThread.cpp",
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.cpp"
+    ],
+    "new_files": [],
+    "new_delta_paths": [],
+    "before_sha256": {
+      "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "8afab00e043668bb964e960caffec927f918617928bd51433b9925cb18541ed4",
+      "rpcs3/Emu/RSX/RSXFIFO.cpp": "e4f381adffa30632bb8b9d315d77bbe095632dafaddf574ae9e3cb9ab095c23b",
+      "rpcs3/Emu/RSX/RSXThread.cpp": "c9145bc1dbd4cfa4ed8ab80f1250d5f6dfb8a47e5d0b0d472c4943adfd89966b",
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "fed611e598e23a21d283b5432a0e8846a6bacd4fda4735b330984c74434e53e8",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "ac1e24963ec7cfae45cbcb97b0506946cdf0389782fb2e9e1a0d782109524c16"
+    },
+    "after_sha256": {
+      "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "7c3d3bdd1239896f574b74a29ac20ae608172ced0ebbf2925a4ca0765084c2d5",
+      "rpcs3/Emu/RSX/RSXFIFO.cpp": "74a3d0640ea905aac9c7b87144d0b11c0a658586b3f8ed8b257752719da26fb2",
+      "rpcs3/Emu/RSX/RSXThread.cpp": "cd656467129aa2db822b892a4ecf37355887281dac2e943f110c1dbb8a33b40c",
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "255c69ab2aa7baa576844421a4e87ed7508ce71b0e98d247354ba601f06a0a49",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "c5ecab8364b42fb791fb9029d87348f7e0068c5990da3f3c0a3e787079f2059c"
+    },
+    "fixture": "test/fixtures/rpcs3_device594_20261029.diff",
+    "fixture_sha256": "c96a60e0023f2ffef605f43f29897ef87f21d7ae041831354565f434314dc4a3",
+    "tests": [
+      "test/fixtures/rpcs3_device594_20261029.diff",
+      "test/native/rpcs3_async_upload_wait.inc",
+      "test/native/rpcs3_bx2_sampler_transition.inc",
+      "test/native/rpcs3_fifo_partial_packet.inc",
+      "test/native/rpcs3_fifo_pending_wait.inc",
+      "test/native/rpcs3_texture_lifecycle.inc",
+      "test/rpcs3_async_upload_wait_test.py",
+      "test/rpcs3_bo2_fragment_key_test.py",
+      "test/rpcs3_bx2_sampler_transition_test.py",
+      "test/rpcs3_device594_delta.py",
+      "test/rpcs3_fifo_partial_packet_test.py",
+      "test/rpcs3_texture_lifecycle_test.py"
+    ],
+    "codegen": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "d070cb361bdef607"
+    },
+    "host_test_scope": "Extracted production bodies with explicit adapters; restored after scratch interruption.",
+    "historical_native_suites_replayed": false,
+    "apple_core_built": false,
+    "physical_device_tested": false,
+    "gameplay_measured": false,
+    "release_created": false
   }
 }

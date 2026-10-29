@@ -2,6 +2,44 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## RPCS3 source follow-up after device594 — 29 October 2026
+
+The maintainer supplied BO2, Assassin's Creed and GOW3 logs after delivered
+IPA594 and requested actual fixes without a release. Five native files in the
+single canonical delta change: explicit FIFO_EMPTY on incomplete pending
+reads; retry the header when its first argument is unpublished; retire
+resource-less texture ranges before retag/clear; remove address-index entries
+by ordered key and eliminate the redundant insertion scan; wait for safe
+uploads at TRANSFER/VERTEX/FRAGMENT on iOS; refresh views/filtering and shared
+fragment conversion state across BX2 and texture-reference changes.
+
+The complete BX2 XOR deliberately leaves dormant units dirty without upload.
+Recompute fragment state on any texture-reference-mask change: removal of the
+last non-BX2 software-converted unit otherwise retains FORMAT_CONVERT in the
+actual normalized shader key and GLSL conversion property. No new cache
+format, field, player setting, telemetry or forced guest label is introduced.
+The private range invalidation method has a narrow owning-block friend under
+iOS; the compiled regression preserves the private access check.
+
+The earlier uncommitted scratch candidate was lost after interruption. Use
+only the reconstructed source hashes and newly executed reports in
+`docs/evidence/rpcs3-device594-20261029/`, not the lost test counts or timings.
+Five optimized and five ASan/UBSan host modes cover the changed production
+paths. The new Apple gate authenticates 20 unchanged successful modes from
+Core594, supersedes four old texture modes and schedules only ten new modes
+for the next explicitly requested Apple build. Reuse historical exact program
+hashes and PPU/SPU source proof instead of replaying unaffected tests/CMake.
+PPU a987639e9f838d1c, SPU d070cb361bdef607, ABI30 and 88 exports remain fixed.
+
+Selected build594/PID49019 guest-render intervals are BO2 23.08 FPS, AC27.09
+with no graphics compilation, restored GOW3 16.67. These are not candidate
+improvements. The only new captured freeze is BO2 during pipeline creation;
+the user-reported GOW3 freeze remains open. GOW3 has zero fallback queue drains
+but substantial texture hashing and CPU-fault readbacks. Preserve WCB and
+established compatibility settings. See `docs/rpcs3-device594-followup-2026-10-29.md`.
+No new Core, IPA, delivery number, release or physical-device result exists.
+Preserve the 594 delivery and concurrent MeloNX evidence below.
+
 ## Private IPA 594 — compiled and independently verified, 29 October 2026
 
 The maintainer requested the new RPCS3 Core with the latest MeloNX fixes.
