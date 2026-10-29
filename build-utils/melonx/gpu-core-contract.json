@@ -386,7 +386,7 @@
       "receipt": "pipeline-vertex-state-checks.json",
       "inputs": {
         "build-utils/melonx/adapt_pipeline_vertex_state.py": "e24c071e154d15173e376b0134c1ccf8aa7c51379dcf26163a28f9770ac0e5ab",
-        "test/melonx_pipeline_vertex_state_test.py": "e1eee7434ca62725e1f81b6dd5c37b61d66387b1fe24b463a577a64fafdf16ec",
+        "test/melonx_pipeline_vertex_state_test.py": "1110e52df5d5810840a0989bc098ad6dfba3da6a73526148cd75bcf4db6dec05",
         "test/melonx_pipeline_vertex_state/Program.cs": "aaf67e68ea022c1bd3b2fe95938ae980ec420da281bd4570cabb5a95923f586e"
       },
       "outputs": [
@@ -482,7 +482,7 @@
       "receipt": "pipeline-key-allocation-checks.json",
       "inputs": {
         "build-utils/melonx/adapt_pipeline_key_allocation.py": "e0fb5872c891137b15d5c8171cd4f1fac83bf8ac1491b84f8d8c0cd20cc01626",
-        "test/melonx_pipeline_key_allocation_test.py": "d752d4ce8b6cf4bce18344eb2c4d2f91011415a037b787417655d28c893e41a6",
+        "test/melonx_pipeline_key_allocation_test.py": "c4d3261a0a22728ec8eab13cca8104fe70923231b003117550d09945b86f8f49",
         "test/melonx_pipeline_key_allocation/Program.cs": "36f2823402f4c22956c6b57e5ad3df3422531262f163a2e3ddd4ec7cf477210c",
         "test/melonx_pipeline_vertex_state/Program.cs": "aaf67e68ea022c1bd3b2fe95938ae980ec420da281bd4570cabb5a95923f586e"
       },
@@ -687,7 +687,7 @@
   ],
   "inputs": {
     "build-utils/melonx/adapt_pipeline_vertex_state.py": "e24c071e154d15173e376b0134c1ccf8aa7c51379dcf26163a28f9770ac0e5ab",
-    "test/melonx_pipeline_vertex_state_test.py": "e1eee7434ca62725e1f81b6dd5c37b61d66387b1fe24b463a577a64fafdf16ec",
+    "test/melonx_pipeline_vertex_state_test.py": "1110e52df5d5810840a0989bc098ad6dfba3da6a73526148cd75bcf4db6dec05",
     "test/melonx_pipeline_vertex_state/Program.cs": "aaf67e68ea022c1bd3b2fe95938ae980ec420da281bd4570cabb5a95923f586e",
     "build-utils/melonx/adapt_renderpass_queries.py": "cae8145f832ee6a4159d03a41d2e6817e0f4fa72e58cf3d0804e345a3a38bf49",
     "test/melonx_renderpass_queries_test.py": "a5597cae6953b7451d8cbf57b509b49a9560a83e076af55b354351338469fd95",
@@ -706,7 +706,7 @@
     "test/melonx_buffer_range_snapshots/Program.cs": "9aab2f56871ce715a02bc46ac920a5285f6dc07d86752afc2a7d7570d45975a8",
     "test/melonx_buffer_range_snapshots/Boundaries.cs": "8808b1262f3926cd842f317397200fa217a3ca5765d4e76d3755c2f49fa7c3dc",
     "build-utils/melonx/adapt_pipeline_key_allocation.py": "e0fb5872c891137b15d5c8171cd4f1fac83bf8ac1491b84f8d8c0cd20cc01626",
-    "test/melonx_pipeline_key_allocation_test.py": "d752d4ce8b6cf4bce18344eb2c4d2f91011415a037b787417655d28c893e41a6",
+    "test/melonx_pipeline_key_allocation_test.py": "c4d3261a0a22728ec8eab13cca8104fe70923231b003117550d09945b86f8f49",
     "test/melonx_pipeline_key_allocation/Program.cs": "36f2823402f4c22956c6b57e5ad3df3422531262f163a2e3ddd4ec7cf477210c",
     "build-utils/melonx/adapt_barrier_compaction.py": "aaeae89b1bb947c4402fb8511814a7fd88b46bc6067aa994fd81d279c3fe96be",
     "test/melonx_barrier_compaction_test.py": "c85089edf019ce665d98ab1f12e4bebcfb3298facb4d5f370a781c3adb87367f",

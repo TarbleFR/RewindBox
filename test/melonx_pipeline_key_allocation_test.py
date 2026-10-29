@@ -35,7 +35,8 @@ for name, digest in BASELINE.items():
 original = method((vulkan / 'ShaderCollection.cs').read_text(), '        private PipelineUid GetInitialGraphicsPipelineKey()')
 projects = ['Ryujinx.Graphics.Vulkan', 'Ryujinx.Common', 'Ryujinx.Graphics.GAL', 'Ryujinx.Graphics.Shader', 'Spv.Generator']
 with tempfile.TemporaryDirectory(prefix='melonx-pipeline-key-') as temporary:
-    work = Path(temporary)
+    # macOS aliases /var to /private/var; keep MSBuild project identities canonical.
+    work = Path(temporary).resolve()
     for name in ('Directory.Build.props', 'Directory.Packages.props', 'global.json', '.editorconfig'):
         if (SOURCE / name).exists(): shutil.copyfile(SOURCE / name, work / name)
     for project in projects:

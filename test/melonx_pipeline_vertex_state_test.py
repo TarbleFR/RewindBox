@@ -22,7 +22,8 @@ temporary_root = os.environ.get('MELONX_TEST_WORKDIR')
 with (contextlib.nullcontext(temporary_root) if temporary_root else
       tempfile.TemporaryDirectory(prefix='melonx-pipeline-vertex-')) as temporary:
     for variant in ('control', 'candidate'):
-        work = Path(temporary) / variant
+        # macOS aliases /var to /private/var; keep MSBuild project identities canonical.
+        work = Path(temporary).resolve() / variant
         work.mkdir()
         for name in ('Directory.Build.props', 'Directory.Packages.props', 'global.json', '.editorconfig'):
             if (SOURCE / name).exists(): shutil.copyfile(SOURCE / name, work / name)
