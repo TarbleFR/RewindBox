@@ -2,6 +2,13 @@
 
 ## Modifications livrées
 
+Source enregistrée sur `Claude` :
+[`5f46a6cf`](https://github.com/TarbleFR/RewindBox/commit/5f46a6cfbaf8a3c2994afe034fc2d5a098d03269).
+Le [contrat commité](evidence/rpcs3-global-20261029/committed-contract.json)
+authentifie ses **225 entrées de dépôt, 313 postimages RPCS3, 97 sources
+complémentaires et 16 rapports natifs**, ainsi que les 19 contrôles de rejet.
+L'arbre source distant est identique à l'arbre vérifié localement.
+
 Cinq optimisations sont implémentées dans le moteur : lecture d'horloge MFC
 conditionnelle, compaction du timer SPU, cache des descripteurs Vulkan séparé
 par type de pipeline, partage des hashes synchrones de textures et suppression
