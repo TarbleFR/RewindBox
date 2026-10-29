@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "requestedOn": "2026-10-29",
+  "branch": "Claude",
+  "scope": "RPCS3 Core for iOS ARM64",
+  "baseCommit": "5045889ff9f1a872d238435293c50cacd7c127b5",
+  "optimizationSourceCommit": "5f46a6cfbaf8a3c2994afe034fc2d5a098d03269",
+  "sourceContractPath": "docs/evidence/rpcs3-global-20261029/committed-contract.json",
+  "sourceContractSHA256": "9152485f8818e3cc11b1971626a262e6f9d607186fc02d4bcfcda6c6bad35adf",
+  "canonicalPatchSHA256": "454fafaa9060ccf7e600594d9db5a486135c79048c1f97044b0df99c1cd547f2",
+  "authenticatedInputCount": 225,
+  "expectedAppleModes": 26,
+  "reusedUnchangedAppleModes": 16,
+  "workflow": ".github/workflows/rpcs3-runtime592-core.yml",
+  "packageIPA": false,
+  "publishRelease": false
+}
