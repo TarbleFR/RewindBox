@@ -29,6 +29,22 @@ run-name: MeloNX engine • ${{ github.sha }}
     - test/melonx_engine_journal_test.py
     - build-utils/melonx/adapt_jit_decoder.py
     - build-utils/melonx/adapt_jit_context.py
+    - build-utils/melonx/adapt_jit_dataflow.py
+    - build-utils/melonx/adapt_upload_lifetime.py
+    - build-utils/melonx/adapt_texture_uploads.py
+    - build-utils/melonx/adapt_pipeline_recycle.py
+    - build-utils/melonx/adapt_fragmented_uploads.py
+    - test/melonx_jit_dataflow_test.py
+    - test/melonx_jit_dataflow/**
+    - test/melonx_jit_dataflow_codegen_test.py
+    - test/melonx_jit_dataflow_codegen/**
+    - test/melonx_upload_lifetime_test.py
+    - test/melonx_upload_lifetime/**
+    - test/melonx_texture_uploads_test.py
+    - test/melonx_texture_uploads/**
+    - test/melonx_pipeline_recycle_test.py
+    - test/melonx_fragmented_uploads_test.py
+    - test/melonx_fragmented_uploads/**
     - build-utils/melonx/adapt_jit_block_split.py
     - build-utils/melonx/adapt_buffer_views.py
     - build-utils/melonx/adapt_memory_queries.py
@@ -193,6 +209,18 @@ jobs:
       run: python3 test/melonx_program_queue_test.py .native-sources/MeloNX
     - name: Verify speculative shader cancellation before renderer close waits
       run: python3 test/melonx_warmup_close_test.py .native-sources/MeloNX
+    - name: Verify exact JIT dataflow and unchanged emitted ARM64
+      run: |
+        python3 test/melonx_jit_dataflow_test.py .native-sources/MeloNX
+        python3 test/melonx_jit_dataflow_codegen_test.py .native-sources/MeloNX
+    - name: Verify idle pool expiry and texture snapshot reuse
+      run: python3 test/melonx_upload_lifetime_test.py .native-sources/MeloNX
+    - name: Verify fenced texture upload staging and offset byte counts
+      run: python3 test/melonx_texture_uploads_test.py .native-sources/MeloNX
+    - name: Verify worker cache preservation at bounded recycling
+      run: python3 test/melonx_pipeline_recycle_test.py .native-sources/MeloNX
+    - name: Verify fragmented texture read leases and exceptional cleanup
+      run: python3 test/melonx_fragmented_uploads_test.py .native-sources/MeloNX
     - name: Retain effective graphics journal regression proof
       run: |
         python3 - <<'PY'

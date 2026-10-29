@@ -1,0 +1,61 @@
+{
+  "log": "app(20261029-022732).log",
+  "sha256": "03a9a77ecac5e82b4cd5ab943e8185b08abdd3056ee59e35c468d0d6ca171208",
+  "game": "Hogwarts Legacy",
+  "serial": "0100F7E00C70E000",
+  "gameVersion": "1.0.5",
+  "buildIdentifiedFromLog": false,
+  "engineIdentifiedFromLog": false,
+  "persona4Present": false,
+  "sessionSummaries": [
+    {
+      "startUTC": "2026-10-29T02:22:25Z",
+      "asyncShaders": true,
+      "samples": 131,
+      "summaryAverageGameFPS": 5.9,
+      "positiveUnpausedFPSMedian": 3.1,
+      "positiveSecondsBelow10FPS": 94,
+      "visibleBGCMedianInSlowSeconds": 54.5,
+      "visibleGPUThreadMedianInSlowSeconds": 61,
+      "visibleRenderThreadMedianInSlowSeconds": 42,
+      "maxFootprintMiB": 3860,
+      "minProcessHeadroomMiB": 2795,
+      "deviceAvailablePercentRange": [
+        8,
+        32
+      ]
+    },
+    {
+      "startUTC": "2026-10-29T02:24:51Z",
+      "asyncShaders": false,
+      "samples": 101,
+      "summaryAverageGameFPS": 6.8,
+      "positiveUnpausedFPSMedian": 3.1,
+      "positiveSecondsBelow10FPS": 63,
+      "visibleBGCMedianInSlowSeconds": 54,
+      "visibleGPUThreadMedianInSlowSeconds": 55,
+      "visibleRenderThreadMedianInSlowSeconds": 40,
+      "maxFootprintMiB": 4258,
+      "minProcessHeadroomMiB": 2397,
+      "deviceAvailablePercentRange": [
+        8,
+        33
+      ]
+    }
+  ],
+  "workerCacheRecycleMiB": 69.06,
+  "workerCheckpointBeforeRecycleMiB": 31.34,
+  "unhandledExceptionObserved": false,
+  "jitExhaustionObserved": false,
+  "cleanCloseSeconds": [
+    1.17,
+    1.48
+  ],
+  "caveats": [
+    "Different scenes and durations; not a controlled A/B.",
+    "Top-six CPU thread list is censored; an absent BGC thread is not zero.",
+    "Managed HeapSizeBytes is not live-object size.",
+    "FIFO percentage is not hardware GPU utilization.",
+    "No current log identifies whether the delivered IPA588 engine was installed."
+  ]
+}

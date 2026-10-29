@@ -34,6 +34,11 @@ from adapt_jit_context import apply as adapt_jit_context
 from adapt_jit_block_split import apply as adapt_jit_block_split
 from adapt_buffer_views import apply as adapt_buffer_views
 from adapt_memory_queries import apply as adapt_memory_queries
+from adapt_jit_dataflow import apply as adapt_jit_dataflow
+from adapt_upload_lifetime import apply as adapt_upload_lifetime
+from adapt_texture_uploads import apply as adapt_texture_uploads
+from adapt_pipeline_recycle import apply as adapt_pipeline_recycle
+from adapt_fragmented_uploads import apply as adapt_fragmented_uploads
 
 
 def replace_once(path, old, new):
@@ -88,6 +93,11 @@ def main():
     adapted += adapt_jit_block_split(source)
     adapted += adapt_buffer_views(source)
     adapted += adapt_memory_queries(source)
+    adapted += adapt_jit_dataflow(source)
+    adapted += adapt_upload_lifetime(source)
+    adapted += adapt_texture_uploads(source)
+    adapted += adapt_pipeline_recycle(source)
+    adapted += adapt_fragmented_uploads(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -136,7 +146,8 @@ def main():
                  'adapt_pipeline_cache.py', 'adapt_gpu_allocations.py', 'adapt_shader_waits.py',
                  'adapt_deferred_flush.py', 'adapt_bindless.py', 'adapt_bindless_sources.py',
                  'adapt_device_memory.py', 'adapt_jit_context.py', 'adapt_jit_block_split.py', 'adapt_buffer_views.py',
-                 'adapt_memory_queries.py']:
+                 'adapt_memory_queries.py', 'adapt_jit_dataflow.py', 'adapt_upload_lifetime.py',
+                 'adapt_texture_uploads.py', 'adapt_pipeline_recycle.py', 'adapt_fragmented_uploads.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

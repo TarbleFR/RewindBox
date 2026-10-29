@@ -1,0 +1,35 @@
+{
+  "result": "passed",
+  "reports": [
+    {
+      "checks": 52,
+      "mode": "control",
+      "recycledDataPreserved": false,
+      "budgetFallbackVerified": true,
+      "failedMergeFallbackVerified": true,
+      "opaqueMergeGrowthCovered": true,
+      "nativeCachesDoubled": true,
+      "physicalDeviceTested": false
+    },
+    {
+      "checks": 60,
+      "mode": "fixed",
+      "recycledDataPreserved": true,
+      "budgetFallbackVerified": true,
+      "failedMergeFallbackVerified": true,
+      "opaqueMergeGrowthCovered": true,
+      "nativeCachesDoubled": true,
+      "physicalDeviceTested": false
+    }
+  ],
+  "physicalDeviceTested": false,
+  "inputs": {
+    "build-utils/melonx/adapt_pipeline_cache.py": "77d7ff19cc0ed9b7afcc1d28ec4a55b0409e3c7a770df38c1604e7783f0796e3",
+    "build-utils/melonx/adapt_pipeline_recycle.py": "af428d2ac01bac375c7d3ac5c11abd85e2d4d6aeb456f865f3891044cedae426",
+    "test/melonx_pipeline_recycle_test.py": "f7cf730417224bf2619f02a969dd7ad68ee0c11a0d53e7740b468ce3906d835e",
+    "test/melonx_pipeline_cache/Double.cs": "b68744d0c4bc2cabc3b3641f4765c9ead1fcb3fa0f66b9c9dc4743f168189cc6"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "48dc8d422dbb9922d521895e92797cdba5a94f1a3dd3d8404dee6356f92dd29c"
+  }
+}

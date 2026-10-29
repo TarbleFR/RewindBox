@@ -1,0 +1,54 @@
+{
+  "establishedPoolRegression": {
+    "allocatedBytes": 512000,
+    "bytesPerUpload": 32,
+    "checks": 24,
+    "fifoRents": 8,
+    "fifoReturns": 8,
+    "passed": true,
+    "uploadOperations": 16000
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_gpu_allocations.py": "1d3a2fe24ddabe439fb58a4b361d1c95d513536c2535be7dac0c479c6e0e83f6",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/adapt_upload_lifetime.py": "c3eeeba74e9e82bf6f73bc964a8c34bf9d733565b37cedced0f5521c9ebf5b45",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_gpu_allocations/Fakes.cs": "91d65683a691b7fa63fbfff9315d2967b706c97dd99f280552a7fb371aa48ce7",
+    "test/melonx_gpu_allocations/Program.cs": "8a57587b2eecf8aec364d67f7cba92a9c75580f30eff0186f1e367e7f4eac8ed",
+    "test/melonx_upload_lifetime/Program.cs": "839606c4da891123d890160cc647223c87a75404936344ff97b825a73bef9f2d",
+    "test/melonx_upload_lifetime/TextureBoundary.cs": "1db7d32e60f87a33df520df72e550d8448bb329cb5fd370021e6054bec299362",
+    "test/melonx_upload_lifetime_test.py": "bf4ce9b2e0841469fb3574bf221d9bb1f3b3934b8df96e007eaded22adc07e02"
+  },
+  "physicalDeviceTested": false,
+  "reports": [
+    {
+      "changedSnapshotAllocatedBytes": 134220800,
+      "changedSnapshotUploads": 128,
+      "checks": 9,
+      "interleavedPoolLengths": 0,
+      "mode": "control",
+      "passed": true,
+      "physicalDeviceTested": false,
+      "primaryRetainedBytesAfterIdle": 35586048,
+      "primaryRetainedBytesBefore": 35586048
+    },
+    {
+      "changedSnapshotAllocatedBytes": 0,
+      "changedSnapshotUploads": 128,
+      "checks": 19,
+      "interleavedPoolLengths": 1000,
+      "mode": "fixed",
+      "passed": true,
+      "physicalDeviceTested": false,
+      "primaryRetainedBytesAfterIdle": 0,
+      "primaryRetainedBytesBefore": 35586048
+    }
+  ],
+  "result": "passed",
+  "upstreamInputs": {
+    "src/Ryujinx.Common/Memory/MemoryOwner.cs": "28de9f4232b06c52a836a41f8c3a63c00f4178dcc12a2d5a5e3f53c5d7403054",
+    "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs": "33ad89e85ebb158c527fc1072eb397ee77d71f6ce4f7f82304c1b6ce28ec27a0",
+    "src/Ryujinx.Graphics.Gpu/Image/Texture.cs": "2b0efc551b02535fe96a123dca328208313896db558c68cd9af01c7ae31c8f07"
+  },
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67"
+}

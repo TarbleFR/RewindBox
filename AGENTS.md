@@ -2,6 +2,20 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## MeloNX runtime optimization, second cycle — 29 October 2026
+
+On `075d84a4` / delivered588 engine7be: targeted JIT dataflow; cold primary
+upload arrays expire with linear compaction; texture comparison snapshots and
+fragmented conversion inputs are reused; dedicated lazy16MiB texture staging
+with fences/OOM fallback; corrected nonzero-offset copy bounds; retiring worker
+pipeline work and valid checkpoints preserved when eligible. No new setting,
+telemetry, GC knob, application build number or release. Details and exact
+host proofs: `docs/melonx-runtime-cycle2-2026-10-29.md` and its evidence folder.
+The new log has two Hogwarts v1.0.5 sessions but no build/engine identity;
+do not claim it proves an IPA588 regression. Host allocation/codegen results
+are not physical iPhone FPS or whole-process memory measurements. Preserve
+the delivered588 application and RPCS3 Core592 when packaging this engine.
+
 ## Private IPA 588 / RPCS3 Core 592 — delivered, 29 October 2026
 
 The maintainer explicitly authorized pushing on `Claude` and delivering a test
