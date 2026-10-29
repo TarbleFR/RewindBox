@@ -2,6 +2,8 @@
 
 Le lot repart de `Claude` **140f35c1**, qui reste la tête distante au début du travail. Le Core de référence est **5b2a5614**, SHA-256 `a45a9de84c7b3b82a43dc091a999da32316389f575a0afd8c983d69bd8a1f276`. Trois améliorations sont implémentées dans le delta canonique. Aucun Core, IPA, tag ni release n’est fabriqué par ce lot. Les résultats ci-dessous sont des mesures Linux et des contrôles de code généré, sans résultat de gameplay sur iPhone.
 
+Source enregistrée sur `Claude` : [`5af78bb3`](https://github.com/TarbleFR/RewindBox/commit/5af78bb3c2ca3c8d7158552b3c8d779b505b3080). Le [contrat commité](evidence/rpcs3-runtime-refinement-20261029/committed-contract.json) authentifie les 330 entrées et les 11 rapports, avec 14 contrôles de rejet. Sa vérification ne relance aucun programme natif ni CMake.
+
 ## Sources réellement modifiées
 
 | Fichier / fonction | Travail retiré | Invariants conservés |
