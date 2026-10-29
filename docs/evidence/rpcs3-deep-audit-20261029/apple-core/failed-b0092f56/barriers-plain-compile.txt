@@ -1,0 +1,7 @@
+/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/barriers-program.cpp:12:43: error: unused variable 'VK_IMAGE_ASPECT_DEPTH_BIT' [-Werror,-Wunused-const-variable]
+   12 | constexpr u32 VK_IMAGE_ASPECT_COLOR_BIT=1,VK_IMAGE_ASPECT_DEPTH_BIT=2,VK_IMAGE_ASPECT_STENCIL_BIT=4,VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER=45;
+      |                                           ^~~~~~~~~~~~~~~~~~~~~~~~~
+/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/barriers-program.cpp:12:71: error: unused variable 'VK_IMAGE_ASPECT_STENCIL_BIT' [-Werror,-Wunused-const-variable]
+   12 | constexpr u32 VK_IMAGE_ASPECT_COLOR_BIT=1,VK_IMAGE_ASPECT_DEPTH_BIT=2,VK_IMAGE_ASPECT_STENCIL_BIT=4,VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER=45;
+      |                                                                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+2 errors generated.

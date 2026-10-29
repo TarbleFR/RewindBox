@@ -1,0 +1,1 @@
+{"checks":373277,"remapRequests":373248,"baselineWrongMappings":373230,"candidateWrongMappings":0,"sameImageAllocationsAndPayloadCopies":true,"repeatViewAllocations":0,"formatAndSubresourcesPreserved":true,"poolNativeMappingRefresh":true,"viewsConstructed":373278,"viewsDestroyed":373278,"invalidationAndFrameReleaseOnce":true}
