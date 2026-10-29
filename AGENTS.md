@@ -2,6 +2,32 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## RPCS3 Core compiled and verified — 29 October 2026
+
+The maintainer explicitly requested the Core build. Immutable source
+`fe587e27fcefadaa36315a3ddc7dc1edba17b825` passes Apple run `40839976736`
+on attempt 1: all 24 pending modes (10 plain, 10 ASan/UBSan, 4 TSan),
+then the real iPhone ARM64 Core and its ABI30/88-export, codegen and static
+passive-dlopen checks. Artifact `12883027017` is the verified Core to reuse
+for the next requested IPA when its 190 exact inputs remain unchanged.
+Binary: 77,251,592 bytes, SHA256
+`13b4c505434a7a0291abad47fa157ce0c9e20741e297f24dc2575e760e0e691b`.
+
+The downloaded ZIP and dylib were independently authenticated against the
+source identity, 24 report/output digests, 313 native postimages and 42
+supplements. PPU `a987639e9f838d1c` and SPU `d070cb361bdef607` remain
+unchanged. Reuse the already passed historical suites; do not rebuild this
+unchanged Core for packaging. The cumulative inventory contains 13 runtime
+changes in 23 distinct native/recipe files since delivered IPA593:
+`docs/rpcs3-core-followup-2026-10-29.md`. Durable receipt and identities:
+`docs/evidence/rpcs3-bo2-exact-20261029/apple-core.json` and `apple-core/`.
+
+Apple host measurements confirm both dense-lookup gains and slower misses,
+first slots or recycling in some paths. No iPhone FPS, runtime-loading or
+GoW3 freeze fix is claimed. No IPA or public release was produced. Preserve
+the concurrent validated MeloNX engine82 artifact `12883480724` and its
+separate runtime-validation proof when the next IPA is requested.
+
 ## RPCS3 exact texture lookup and framebuffer keys — 29 October 2026
 
 After warm source `64ca0a0` and receipt `6d80aaa`, two native paths change:
