@@ -3,6 +3,20 @@
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 
+## MeloNX engine optimization candidate — 29 October 2026
+
+On the delivered 587 engine: paired NEON context transfers, linear JIT block
+partition, two-page decoder reader, stable Vulkan texel-buffer views, generation-based
+pipeline snapshots, pooled bookkeeping/FIFO ownership, fewer GPU PTE reads,
+atomic controller snapshots, stack rumble packets, bounded program-queue waits
+and cancellation of undemanded shader warm-ups before renderer teardown.
+Details and exact host evidence: `docs/melonx-engine-optimization-2026-10-29.md`
+and `docs/evidence/melonx-engine-optimization-2026-10-29/`.
+The real embedded library compiles in Release on Linux (.NET 10.0.100;
+test-only managed/Linux settings); generated ARM64 has not been executed.
+No iPhone FPS/footprint result, new IPA number or public release is claimed.
+Preserve the 587 baseline, other engines and existing caches/ownership.
+
 ## Delivery baseline: verify and rebuild only what changed — maintainer rule, 28 October 2026
 
 The maintainer found the deliveries far too long: build 586 (run

@@ -45,6 +45,8 @@ one allocates on every use, on the GPU thread or for it, in every game:
   4 uploads of 4 MiB per frame, gen 2 collections 237-245 -> 2 and GC
   pauses 235-252 ms -> 1 ms; 200 uploads of 256 KiB, 1,050-1,111 -> 10-20
   and 1.27-1.30 s -> 7-20 ms; peak working set 25-110 MiB higher.
+  The lease also retains its holder and detached list nodes for reuse, so a
+  reused upload does not allocate new pool bookkeeping on every return.
 - ThreadedRenderer: data passed to the render thread with a command (buffer
   uploads, per-draw state) goes through an 8 MiB ring; when the render thread
   is more than 8 MiB behind, every such span became a new array. The ring
@@ -107,7 +109,16 @@ def apply(source):
                 memoryManager.GetSpan(dstGpuVa + (ulong)dstBaseOffset, dstSize).CopyTo(dstSpan);
 ''')
 
-    fifo = gpu / 'GPFifo/GPFifoDevice.cs'
+    fifo = adapt_fifo(source)
+    owner = adapt_owner(source)
+
+    renderer = source / 'src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'
+    once(renderer, 'private const int SpanPoolBytes = 8 * 1024 * 1024;', 'private const int SpanPoolBytes = 32 * 1024 * 1024;')
+    return [dma, fifo, owner, renderer]
+
+
+def adapt_fifo(source):
+    fifo = source / 'src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs'
     once(fifo, '''            public int[] Words;
 ''', '''            public int[] Words;
 
@@ -133,15 +144,60 @@ def apply(source):
         // processed them; that pool drops arrays left unused for a while when gen 2 collections run.
         private static readonly System.Buffers.ArrayPool<int> _wordPool = System.Buffers.ArrayPool<int>.Shared;
 ''')
-    once(fifo, '''                entry.Processor.Process(entry.EntryAddress, words);
-''', '''                entry.Processor.Process(entry.EntryAddress, words);
+    once(fifo, '''                ReadOnlySpan<int> words = entry.Fetch(entry.Processor.MemoryManager, flushCommandBuffer);
 
+                // If we are changing the current channel,
+                // we need to force all the host state to be updated.
+                if (_prevChannelProcessor != entry.Processor)
+                {
+                    _prevChannelProcessor = entry.Processor;
+                    entry.Processor.ForceAllDirty();
+                }
+
+                entry.Processor.Process(entry.EntryAddress, words);
+''', '''                try
+                {
+                    ReadOnlySpan<int> words = entry.Fetch(entry.Processor.MemoryManager, flushCommandBuffer);
+
+                    // If we are changing the current channel,
+                    // we need to force all the host state to be updated.
+                    if (_prevChannelProcessor != entry.Processor)
+                    {
+                        _prevChannelProcessor = entry.Processor;
+                        entry.Processor.ForceAllDirty();
+                    }
+
+                    entry.Processor.Process(entry.EntryAddress, words);
+                }
+                finally
+                {
+                    if (entry.PooledWords)
+                    {
+                        _wordPool.Return(entry.Words);
+                    }
+                }
+''')
+    once(fifo, '''        public void Dispose() => _event.Dispose();
+''', '''        public void Dispose()
+        {
+            // The session owner stops the guest and joins the GPU worker before disposal.
+            // Entries left queued at stop own their prefetch buffers, not host command arrays.
+            while (_commandBufferQueue.TryDequeue(out CommandBuffer entry))
+            {
                 if (entry.PooledWords)
                 {
                     _wordPool.Return(entry.Words);
                 }
+            }
+
+            _event.Dispose();
+        }
 ''')
 
+    return fifo
+
+
+def adapt_owner(source):
     owner = source / 'src/Ryujinx.Common/Memory/MemoryOwner.cs'
     once(owner, '''                public int SkipCount;
                 public readonly T[]? Array = array;
@@ -165,6 +221,7 @@ def apply(source):
             private const int SpareIdleMilliseconds = 3000;
             private static readonly LinkedList<Holder> _spares = new();
             private static readonly Dictionary<int, LinkedList<Holder>> _sparesByLength = new();
+            private static readonly Stack<LinkedList<Holder>> _spareLists = new();
             private static long _spareBytes;
             private static Timer? _spareTimer;
 ''')
@@ -181,7 +238,7 @@ def apply(source):
                             _pool.RemoveAt(index);
                         }
 
-                        return holder.Array!;
+                        return holder;
 ''')
     once(owner, '''                    if (i < 0)
                     {
@@ -228,14 +285,17 @@ def apply(source):
                 }
 
                 holder.Returned = Environment.TickCount64;
-                holder.Spare = _spares.AddLast(holder);
+                holder.Spare ??= new LinkedListNode<Holder>(holder);
+                _spares.AddLast(holder.Spare);
 
                 if (!_sparesByLength.TryGetValue(holder.Array!.Length, out LinkedList<Holder>? sameLength))
                 {
-                    _sparesByLength[holder.Array!.Length] = sameLength = new();
+                    sameLength = _spareLists.TryPop(out LinkedList<Holder>? reusable) ? reusable : new();
+                    _sparesByLength[holder.Array!.Length] = sameLength;
                 }
 
-                holder.SameLength = sameLength.AddLast(holder);
+                holder.SameLength ??= new LinkedListNode<Holder>(holder);
+                sameLength.AddLast(holder.SameLength);
                 _spareBytes += bytes;
 
                 if (_spares.Count == 1)
@@ -250,13 +310,12 @@ def apply(source):
 
                 _spares.Remove(holder.Spare!);
                 sameLength.Remove(holder.SameLength);
-                holder.Spare = null;
-                holder.SameLength = null;
                 _spareBytes -= Bytes(holder.Array!);
 
                 if (sameLength.Count == 0)
                 {
                     _sparesByLength.Remove(holder.Array!.Length);
+                    _spareLists.Push(sameLength);
                 }
             }
 
@@ -287,6 +346,41 @@ def apply(source):
             }
 ''')
 
-    renderer = source / 'src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'
-    once(renderer, 'private const int SpanPoolBytes = 8 * 1024 * 1024;', 'private const int SpanPoolBytes = 32 * 1024 * 1024;')
-    return [dma, fifo, owner, renderer]
+    # Retain each holder while its array is leased. Reusing the array used to allocate a
+    # new holder on return, plus two linked-list nodes whenever it became a spare.
+    once(owner, 'public static T[] Get(int minimumSize)', 'public static Holder Get(int minimumSize)')
+    once(owner, 'return new T[minimumSize];', 'return new Holder(new T[minimumSize]);')
+    once(owner, '''            public static void Return(T[] array)
+            {
+
+                lock (_lock)
+                {
+                    Holder holder = new(array);
+''', '''            public static void Return(Holder holder)
+            {
+                lock (_lock)
+                {
+                    holder.SkipCount = 0;
+''')
+    once(owner, 'private T[]? _array;', 'private ArrayPooling.Holder? _holder;')
+    once(owner, '_array = ArrayPooling.Get(length);', '_holder = ArrayPooling.Get(length);')
+    once(owner, 'result._array.AsSpan(0, length).Clear();', 'result._holder!.Array.AsSpan(0, length).Clear();')
+    once(owner, 'buffer.CopyTo(result._array);', 'buffer.CopyTo(result._holder!.Array);')
+    text = owner.read_text(encoding='utf-8-sig')
+    assert text.count('T[]? array = _array;') == 2, str(owner)
+    owner.write_text(text.replace('T[]? array = _array;', 'T[]? array = _holder?.Array;'), encoding='utf-8')
+    once(owner, '''            T[]? array = Interlocked.Exchange(ref _array, null);
+
+            if (array is not null)
+            {
+                ArrayPooling.Return(array);
+            }
+''', '''            ArrayPooling.Holder? holder = Interlocked.Exchange(ref _holder, null);
+
+            if (holder is not null)
+            {
+                ArrayPooling.Return(holder);
+            }
+''')
+    once(owner, 'when <see cref="_array"/> is', 'when <see cref="_holder"/> is')
+    return owner

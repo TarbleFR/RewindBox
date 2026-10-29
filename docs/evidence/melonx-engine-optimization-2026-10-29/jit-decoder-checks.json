@@ -1,0 +1,482 @@
+{
+  "result": "passed",
+  "failures": [],
+  "upstream": {
+    "callThenFunction": {
+      "guestInstructions": 47,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 336,
+      "hostCalls": 1
+    },
+    "callNopsThenFunction": {
+      "guestInstructions": 48,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 328,
+      "hostCalls": 1
+    },
+    "callThenCode": {
+      "guestInstructions": 45,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 316,
+      "hostCalls": 1
+    },
+    "callBeforeTarget": {
+      "guestInstructions": 46,
+      "blocks": 3,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 324,
+      "hostCalls": 1
+    },
+    "tailJump": {
+      "guestInstructions": 49,
+      "blocks": 3,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 264,
+      "hostCalls": 0
+    },
+    "trapPadding": {
+      "guestInstructions": 144,
+      "blocks": 102,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 11500,
+      "hostCalls": 201
+    },
+    "trapBeforeTarget": {
+      "guestInstructions": 44,
+      "blocks": 3,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 340,
+      "hostCalls": 2
+    },
+    "loop": {
+      "guestInstructions": 4,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 136,
+      "hostCalls": 1
+    },
+    "switchCase": {
+      "guestInstructions": 82,
+      "blocks": 3,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 348,
+      "hostCalls": 0
+    },
+    "rotatedLoop": {
+      "guestInstructions": 73,
+      "blocks": 4,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 412,
+      "hostCalls": 1
+    },
+    "shortSkip": {
+      "guestInstructions": 22,
+      "blocks": 3,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 108,
+      "hostCalls": 0
+    },
+    "enteredSkip": {
+      "guestInstructions": 81,
+      "blocks": 5,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 344,
+      "hostCalls": 0
+    },
+    "layout": {
+      "functions": 300,
+      "guestInstructions": 542100,
+      "hostBytes": 8861400
+    },
+    "knownRunOn": {
+      "guestInstructions": 41,
+      "blocks": 1,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 184,
+      "hostCalls": 0
+    },
+    "knownBlockStart": {
+      "guestInstructions": 12,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 112,
+      "hostCalls": 0
+    },
+    "knownInLoop": {
+      "guestInstructions": 11,
+      "blocks": 3,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 164,
+      "hostCalls": 1
+    },
+    "knownAfterLoop": {
+      "guestInstructions": 11,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 164,
+      "hostCalls": 1
+    },
+    "ownEntry": {
+      "guestInstructions": 4,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 136,
+      "hostCalls": 1
+    },
+    "farLoop": {
+      "guestInstructions": 1203,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 4932,
+      "hostCalls": 1
+    },
+    "framelessLayout": {
+      "functions": 300,
+      "guestInstructions": 542100,
+      "hostBytes": 7957200
+    },
+    "knownSwitchCases": {
+      "guestInstructions": 14,
+      "blocks": 3,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 76,
+      "hostCalls": 0
+    },
+    "knownSkippedThen": {
+      "guestInstructions": 9,
+      "blocks": 3,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 56,
+      "hostCalls": 0
+    },
+    "continuationInLoop": {
+      "guestInstructions": 10,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 216,
+      "hostCalls": 1
+    },
+    "unmappedAfterCall": {
+      "throws": true
+    },
+    "silentUnmappedAfterCall": {
+      "guestInstructions": 10000,
+      "blocks": 8978,
+      "truncated": true,
+      "emptyLastBlock": true,
+      "hostBytes": 830024,
+      "hostCalls": 17953
+    },
+    "unmappedLongJump": {
+      "guestInstructions": 1011,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 4208,
+      "hostCalls": 1
+    },
+    "misalignedJump1": {
+      "decoded": 3,
+      "truncated": false,
+      "compileThrows": "ArgumentException"
+    },
+    "misalignedEntry1": {
+      "decoded": 4,
+      "truncated": false,
+      "guestInstructions": 4
+    },
+    "misalignedJump2": {
+      "decoded": 3,
+      "truncated": false,
+      "compileThrows": "ArgumentException"
+    },
+    "misalignedEntry2": {
+      "decoded": 4,
+      "truncated": false,
+      "guestInstructions": 4
+    },
+    "misalignedJump3": {
+      "decoded": 3,
+      "truncated": false,
+      "compileThrows": "ArgumentException"
+    },
+    "misalignedEntry3": {
+      "decoded": 4,
+      "truncated": false,
+      "guestInstructions": 4
+    }
+  },
+  "adapted": {
+    "callThenFunction": {
+      "guestInstructions": 3,
+      "blocks": 2,
+      "truncated": true,
+      "emptyLastBlock": true,
+      "hostBytes": 168,
+      "hostCalls": 1
+    },
+    "callNopsThenFunction": {
+      "guestInstructions": 3,
+      "blocks": 2,
+      "truncated": true,
+      "emptyLastBlock": true,
+      "hostBytes": 168,
+      "hostCalls": 1
+    },
+    "callThenCode": {
+      "guestInstructions": 45,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 320,
+      "hostCalls": 1
+    },
+    "callBeforeTarget": {
+      "guestInstructions": 46,
+      "blocks": 3,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 328,
+      "hostCalls": 1
+    },
+    "tailJump": {
+      "guestInstructions": 4,
+      "blocks": 1,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 80,
+      "hostCalls": 0
+    },
+    "trapPadding": {
+      "guestInstructions": 3,
+      "blocks": 2,
+      "truncated": true,
+      "emptyLastBlock": false,
+      "hostBytes": 264,
+      "hostCalls": 3
+    },
+    "trapBeforeTarget": {
+      "guestInstructions": 44,
+      "blocks": 3,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 340,
+      "hostCalls": 2
+    },
+    "loop": {
+      "guestInstructions": 4,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 136,
+      "hostCalls": 1
+    },
+    "switchCase": {
+      "guestInstructions": 6,
+      "blocks": 1,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 68,
+      "hostCalls": 0
+    },
+    "rotatedLoop": {
+      "guestInstructions": 73,
+      "blocks": 4,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 412,
+      "hostCalls": 1
+    },
+    "shortSkip": {
+      "guestInstructions": 22,
+      "blocks": 3,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 108,
+      "hostCalls": 0
+    },
+    "enteredSkip": {
+      "guestInstructions": 81,
+      "blocks": 5,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 344,
+      "hostCalls": 0
+    },
+    "layout": {
+      "functions": 300,
+      "guestInstructions": 3601,
+      "hostBytes": 81564
+    },
+    "knownRunOn": {
+      "guestInstructions": 20,
+      "blocks": 1,
+      "truncated": true,
+      "emptyLastBlock": false,
+      "hostBytes": 128,
+      "hostCalls": 0
+    },
+    "knownBlockStart": {
+      "guestInstructions": 2,
+      "blocks": 2,
+      "truncated": true,
+      "emptyLastBlock": true,
+      "hostBytes": 96,
+      "hostCalls": 0
+    },
+    "knownInLoop": {
+      "guestInstructions": 11,
+      "blocks": 3,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 164,
+      "hostCalls": 1
+    },
+    "knownAfterLoop": {
+      "guestInstructions": 5,
+      "blocks": 2,
+      "truncated": true,
+      "emptyLastBlock": false,
+      "hostBytes": 172,
+      "hostCalls": 1
+    },
+    "ownEntry": {
+      "guestInstructions": 4,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 136,
+      "hostCalls": 1
+    },
+    "farLoop": {
+      "guestInstructions": 100,
+      "blocks": 1,
+      "truncated": true,
+      "emptyLastBlock": false,
+      "hostBytes": 448,
+      "hostCalls": 0
+    },
+    "framelessLayout": {
+      "functions": 300,
+      "guestInstructions": 3601,
+      "hostBytes": 74364
+    },
+    "knownSwitchCases": {
+      "guestInstructions": 14,
+      "blocks": 3,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 76,
+      "hostCalls": 0
+    },
+    "knownSkippedThen": {
+      "guestInstructions": 9,
+      "blocks": 3,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 56,
+      "hostCalls": 0
+    },
+    "continuationInLoop": {
+      "guestInstructions": 10,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 216,
+      "hostCalls": 1
+    },
+    "unmappedAfterCall": {
+      "guestInstructions": 1024,
+      "blocks": 2,
+      "truncated": true,
+      "emptyLastBlock": true,
+      "hostBytes": 4236,
+      "hostCalls": 1
+    },
+    "silentUnmappedAfterCall": {
+      "guestInstructions": 1024,
+      "blocks": 2,
+      "truncated": true,
+      "emptyLastBlock": true,
+      "hostBytes": 4236,
+      "hostCalls": 1
+    },
+    "unmappedLongJump": {
+      "guestInstructions": 1011,
+      "blocks": 2,
+      "truncated": false,
+      "emptyLastBlock": false,
+      "hostBytes": 4212,
+      "hostCalls": 1
+    },
+    "misalignedJump1": {
+      "decoded": 3,
+      "truncated": false,
+      "compileThrows": "ArgumentException"
+    },
+    "misalignedEntry1": {
+      "decoded": 4,
+      "truncated": false,
+      "guestInstructions": 4
+    },
+    "misalignedJump2": {
+      "decoded": 3,
+      "truncated": false,
+      "compileThrows": "ArgumentException"
+    },
+    "misalignedEntry2": {
+      "decoded": 4,
+      "truncated": false,
+      "guestInstructions": 4
+    },
+    "misalignedJump3": {
+      "decoded": 3,
+      "truncated": false,
+      "compileThrows": "ArgumentException"
+    },
+    "misalignedEntry3": {
+      "decoded": 4,
+      "truncated": false,
+      "guestInstructions": 4
+    }
+  },
+  "executed": false,
+  "physicalDeviceTested": false,
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "inputs": {
+    "build-utils/melonx/adapt_jit_decoder.py": "7e66f8de22be055fbe27982c9e09ad21e2ab2851aff73e2103e04b868a9bf1a5",
+    "build-utils/melonx/adapt_jit_context.py": "11a9f77d70c10a7d92b8a6500d506e2c8e0b777aba05f45bc117ae894ea433b6",
+    "build-utils/melonx/adapt_jit_block_split.py": "0a1c60a92e0a49c5f93fea1a9848270dab5602b79bda16377b4813f219336769",
+    "test/melonx_jit_decoder_test.py": "80e87c7bd30dec74780839ea23dae2f1ff7bade60ada8f8e21af322e6c417bb9",
+    "test/melonx_jit_decoder/Program.cs": "bb4d032ae227090ef4d159e2b69c77142d17653d0add7d4e1367a383194877af"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/Decoder.cs": "87a7829db3cc7ea142c43b0a8390ec7df4e2406a0d59dfe90babb1900a5a8cdc",
+    "src/Ryujinx.Cpu/LightningJit/Translator.cs": "b2b20182625e431b5da96abab96b91b83d9bfd72cbd0bcc6a017325284cb6f34",
+    "src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/Compiler.cs": "1e0111a037fd6cc1f35f8e999ee8a892d706c11d1938b315a7bd411dffc1240e"
+  }
+}

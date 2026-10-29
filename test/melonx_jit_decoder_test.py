@@ -30,6 +30,8 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_jit_decoder import apply
+from adapt_jit_context import apply as apply_context
+from adapt_jit_block_split import apply as apply_block_split
 
 PIN = json.loads((ROOT / 'build-utils/melonx/source.json').read_text())
 actual = subprocess.check_output(['git', '-C', str(SOURCE), 'rev-parse', 'HEAD'], text=True).strip()
@@ -52,6 +54,8 @@ def build_variant(work: Path, adapted: bool) -> dict:
         shutil.copytree(SOURCE / 'src' / project, source / 'src' / project, ignore=shutil.ignore_patterns('bin', 'obj'))
     if adapted:
         assert [p.relative_to(source).as_posix() for p in apply(source)] == [DECODER, TRANSLATOR]
+        apply_context(source)
+        apply_block_split(source)
     cpu = source / 'src/Ryujinx.Cpu/Ryujinx.Cpu.csproj'
     text = cpu.read_text(encoding='utf-8-sig')
     assert text.count('</Project>') == 1
@@ -72,7 +76,7 @@ def build_variant(work: Path, adapted: bool) -> dict:
   </ItemGroup>
 </Project>
 ''')
-    build = subprocess.run(['dotnet', 'build', str(probe), '-c', 'Release', '-nologo', '-v', 'q'],
+    build = subprocess.run(['dotnet', 'build', str(probe), '-c', 'Release', '-nologo', '-v', 'q', '-m:1'],
                            capture_output=True, text=True, timeout=900)
     if build.returncode:
         errors = [line for line in build.stdout.splitlines() if ': error ' in line]
@@ -182,11 +186,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-jit-decoder-') as temporary:
     upstream = build_variant(work / 'upstream', False)
     adapted = build_variant(work / 'adapted', True)
 failures = check(upstream, adapted)
-inputs = ['build-utils/melonx/adapt_jit_decoder.py', 'test/melonx_jit_decoder_test.py', 'test/melonx_jit_decoder/Program.cs']
+inputs = ['build-utils/melonx/adapt_jit_decoder.py', 'build-utils/melonx/adapt_jit_context.py',
+          'build-utils/melonx/adapt_jit_block_split.py', 'test/melonx_jit_decoder_test.py', 'test/melonx_jit_decoder/Program.cs']
 receipt = dict(result='failed' if failures else 'passed', failures=failures, upstream=upstream, adapted=adapted,
                executed=False, physicalDeviceTested=False, upstreamRevision=PIN['revision'],
                inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
-               upstreamInputs={p: hashlib.sha256((SOURCE / p).read_bytes()).hexdigest() for p in (DECODER, TRANSLATOR)})
+               upstreamInputs={p: hashlib.sha256((SOURCE / p).read_bytes()).hexdigest() for p in
+                               (DECODER, TRANSLATOR, 'src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/Compiler.cs')})
 out = ROOT / 'dist/melonx/jit-decoder-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(json.dumps(receipt, indent=2) + '\n')

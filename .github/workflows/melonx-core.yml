@@ -28,6 +28,26 @@ run-name: MeloNX engine • ${{ github.sha }}
     - test/melonx_texture_pool/**
     - test/melonx_engine_journal_test.py
     - build-utils/melonx/adapt_jit_decoder.py
+    - build-utils/melonx/adapt_jit_context.py
+    - build-utils/melonx/adapt_jit_block_split.py
+    - build-utils/melonx/adapt_buffer_views.py
+    - build-utils/melonx/adapt_memory_queries.py
+    - build-utils/melonx/adapt_gpu_allocations.py
+    - build-utils/melonx/adapt_shader_waits.py
+    - test/melonx_jit_context_test.py
+    - test/melonx_jit_context/**
+    - test/melonx_jit_block_split_test.py
+    - test/melonx_jit_block_split/**
+    - test/melonx_buffer_views_test.py
+    - test/melonx_buffer_views/**
+    - test/melonx_memory_queries_test.py
+    - test/melonx_gpu_allocations_test.py
+    - test/melonx_gpu_allocations/**
+    - test/melonx_pipeline_cache_test.py
+    - test/melonx_pipeline_cache/**
+    - test/melonx_program_queue_test.py
+    - test/melonx_warmup_close_test.py
+    - test/melonx_warmup_close/**
     - build-utils/melonx/adapt_gc.py
     - build-utils/melonx/adapt_shader_warmup.py
     - build-utils/melonx/adapt_attachmentless_framebuffer.py
@@ -157,6 +177,22 @@ jobs:
       run: python3 test/melonx_engine_journal_test.py
     - name: Compile guest code with the real LightningJit decoder (units end at traps and at the next function)
       run: python3 test/melonx_jit_decoder_test.py .native-sources/MeloNX
+    - name: Verify paired SIMD transfers and decoder page reuse
+      run: python3 test/melonx_jit_context_test.py .native-sources/MeloNX
+    - name: Verify linear JIT block partitioning and control-flow equivalence
+      run: python3 test/melonx_jit_block_split_test.py .native-sources/MeloNX
+    - name: Verify texel-buffer view identity and pipeline snapshot persistence
+      run: |
+        python3 test/melonx_buffer_views_test.py .native-sources/MeloNX
+        python3 test/melonx_pipeline_cache_test.py .native-sources/MeloNX
+    - name: Verify pooled allocation ownership and GPU contiguous-range reads
+      run: |
+        python3 test/melonx_gpu_allocations_test.py .native-sources/MeloNX
+        python3 test/melonx_memory_queries_test.py .native-sources/MeloNX
+    - name: Verify bounded waiting for occupied program compilation slots
+      run: python3 test/melonx_program_queue_test.py .native-sources/MeloNX
+    - name: Verify speculative shader cancellation before renderer close waits
+      run: python3 test/melonx_warmup_close_test.py .native-sources/MeloNX
     - name: Retain effective graphics journal regression proof
       run: |
         python3 - <<'PY'

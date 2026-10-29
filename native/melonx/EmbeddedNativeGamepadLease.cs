@@ -21,7 +21,13 @@ internal sealed class EmbeddedNativeGamepadLease : IGamepad, IHighDefinitionRumb
     public void SetTriggerThreshold(float threshold) { if (IsConnected) _pad.SetTriggerThreshold(threshold); }
     public void SetConfiguration(InputConfig config) { if (IsConnected) _pad.SetConfiguration(config); }
     public void SetLed(uint color) { if (IsConnected) _pad.SetLed(color); }
-    public GamepadStateSnapshot GetStateSnapshot() => IGamepad.GetStateSnapshot(this);
+    public GamepadStateSnapshot GetStateSnapshot()
+    {
+        if (!IsConnected) return default;
+        GamepadStateSnapshot snapshot = _pad.GetStateSnapshot();
+        // A close/disconnect racing the copy must not revive this consumer.
+        return IsConnected ? snapshot : default;
+    }
     public GamepadStateSnapshot GetMappedStateSnapshot() => GetStateSnapshot();
     public void Rumble(float low, float high, uint duration) { if (IsConnected) _pad.Rumble(low, high, duration); }
     public void Rumble(GamepadVibrationValue left, GamepadVibrationValue right, uint duration)

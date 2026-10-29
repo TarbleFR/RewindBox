@@ -1,0 +1,34 @@
+{
+  "inputs": {
+    "build-utils/melonx/adapt_memory_queries.py": "ef6fad1f5a74c0ee10e1166692844efcb67874eaacb4d166d4ffd6269ad97c6e",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_memory_queries_test.py": "b45ea16bcbfedd9f9be6325a5b9b6a7b3fb3d609c0beec12dcf448ba5200e47c"
+  },
+  "physicalDeviceTested": false,
+  "provenance": {
+    "completedRun": "exec session 85901, exit 0; exact query result preserved in conversation",
+    "driverEquivalence": "The final driver adds only a Git revision assertion before the unchanged adaptation, C# harness and compile/run. The assertion was evaluated successfully while recording this evidence; the C# test was not rerun."
+  },
+  "recordedFromCompletedRun": true,
+  "report": {
+    "candidateReads": 512,
+    "checks": 100035,
+    "contiguousPages": 512,
+    "controlReads": 1023,
+    "passed": true
+  },
+  "resourceBoundaryDoubles": [
+    "page table values and read-count boundary"
+  ],
+  "result": "passed",
+  "runtime": {
+    "dotnetSdk": "10.0.100",
+    "host": "linux-x64"
+  },
+  "testsReexecuted": false,
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Gpu/Memory/MemoryManager.cs": "f9f977708cff479824309cf0a2b4a99a2476703e3028914b677c4ac67f56dec1"
+  },
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67"
+}

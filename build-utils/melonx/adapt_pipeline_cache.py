@@ -18,9 +18,11 @@ So every launch of a large game converted every pipeline again, at load
 now carries the running title's ID (GraphicsConfig.TitleId, set by the loader
 before the renderer is initialized), so a game no longer replaces another
 game's cache; homebrew without a title keeps the shared file. The main budget
-becomes 384 MiB (total 512 MiB; workers keep 64 MiB each). A snapshot whose
-size has not changed since it was loaded or saved is not rewritten when the
-session closes. The former shared files are removed once a title has its own.
+becomes 384 MiB (total 512 MiB; workers keep 64 MiB each). A clean snapshot
+is not exported again when the session closes. Dirty state
+is tracked by generation, since Vulkan cache contents may change without a
+size change. Former shared files remain intact: creating a title cache must
+not delete another snapshot before a successful replacement exists.
 
 MoltenVK keeps every converted shader's MSL source in memory only so that the
 pipeline cache can be exported (MVK_CONFIG_SHADER_COMPRESSION_ALGORITHM, off
@@ -35,9 +37,7 @@ still load. Fail closed on drift.
 from adapt_session import once
 
 
-def apply(source):
-    vulkan = source / 'src/Ryujinx.Graphics.Vulkan'
-    manager = vulkan / 'PipelineCacheManager.cs'
+def apply_cache_manager(manager):
     once(manager, '''        private const long TotalCacheBudget = 256L * 1024 * 1024;
         private const long MainCacheBudget = TotalCacheBudget / 2;
 ''', '''        private const long TotalCacheBudget = 512L * 1024 * 1024;
@@ -47,15 +47,20 @@ def apply(source):
             public int SavedPipelineCount;
 ''', '''            public int PipelineCount;
             public int SavedPipelineCount;
-            // Size of the snapshot on disk, as loaded or last saved; -1 if unknown.
-            public long SavedBytes;
+            // Generations track content, not byte length: opaque driver caches can
+            // change while retaining their size. Main writes hold _mainCacheLock;
+            // each worker owns its cache until the scheduler joins at close.
+            public long Generation;
+            public long SavedGeneration;
+            public long MergedGeneration;
 ''')
     once(manager, '''                Budget = budget;
                 _measuredBytes = loadedBytes;
             }
 ''', '''                Budget = budget;
                 _measuredBytes = loadedBytes;
-                SavedBytes = loadedBytes;
+                Generation = loadedBytes > 0 ? 1 : 0;
+                SavedGeneration = Generation;
             }
 ''')
     once(manager, '''                Cache = cache;
@@ -64,38 +69,15 @@ def apply(source):
 ''', '''                Cache = cache;
                 PipelineCount = 0;
                 SavedPipelineCount = 0;
-                SavedBytes = -1;
+                Interlocked.Increment(ref Generation);
 ''')
     once(manager, '''            string cacheKey = $"{properties.VendorID:X8}-{properties.DeviceID:X8}-{properties.DriverVersion:X8}";
 ''', '''            string cacheKey = $"{properties.VendorID:X8}-{properties.DeviceID:X8}-{properties.DriverVersion:X8}";
-            string sharedKey = cacheKey;
             string title = VulkanRenderer.PipelineCacheScope?.Invoke();
 
             if (title != null && title.Length == 16 && ulong.TryParse(title, System.Globalization.NumberStyles.HexNumber, null, out _))
             {
                 cacheKey = $"{cacheKey}-{title.ToLowerInvariant()}";
-            }
-''')
-    once(manager, '''                for (int index = 0; index < workerCount; index++)
-                {
-                    workerCachePaths[index] = Path.Combine(_cacheDirectory, $"pipeline-{cacheKey}.worker{index}.vkpc");
-                }
-            }
-''', '''                for (int index = 0; index < workerCount; index++)
-                {
-                    workerCachePaths[index] = Path.Combine(_cacheDirectory, $"pipeline-{cacheKey}.worker{index}.vkpc");
-                }
-
-                if (cacheKey != sharedKey)
-                {
-                    // The shared files held whichever game closed last.
-                    Delete(Path.Combine(_cacheDirectory, $"pipeline-{sharedKey}.vkpc"));
-
-                    for (int index = 0; index < workerCount; index++)
-                    {
-                        Delete(Path.Combine(_cacheDirectory, $"pipeline-{sharedKey}.worker{index}.vkpc"));
-                    }
-                }
             }
 ''')
     once(manager, '''                return;
@@ -106,20 +88,128 @@ def apply(source):
 ''', '''                return;
             }
 
-            if (size == state.SavedBytes)
+            if (state.Generation == state.SavedGeneration)
             {
-                // Nothing was added since this snapshot was loaded or saved.
                 return;
             }
 
             SaveCache(state, size, force);
         }
 ''')
+    once(manager, '            state.PipelineCount++;\n',
+         '            state.PipelineCount++;\n            Interlocked.Increment(ref state.Generation);\n')
+    once(manager, '            Interlocked.Increment(ref _mainState.PipelineCount);\n',
+         '            Interlocked.Increment(ref _mainState.PipelineCount);\n            Interlocked.Increment(ref _mainState.Generation);\n')
+    once(manager, '''                PipelineCache[] workerCaches = new PipelineCache[_workerStates.Length];
+
+                for (int index = 0; index < _workerStates.Length; index++)
+                {
+                    workerCaches[index] = _workerStates[index].Cache;
+                }
+
+                if (MergeInto(_mainState.Cache, workerCaches))
+                {
+                    Maintain(_mainState, force: true, allowRecycle: false);
+                }''', '''                PipelineCache[] workerCaches = new PipelineCache[_workerStates.Length];
+                int count = 0;
+
+                for (int index = 0; index < _workerStates.Length; index++)
+                {
+                    CacheState state = _workerStates[index];
+
+                    if (state.Generation != state.MergedGeneration)
+                    {
+                        workerCaches[count++] = state.Cache;
+                    }
+                }
+
+                if (MergeInto(_mainState.Cache, workerCaches.AsSpan(0, count)))
+                {
+                    if (count != 0)
+                    {
+                        Interlocked.Increment(ref _mainState.Generation);
+
+                        foreach (CacheState state in _workerStates)
+                        {
+                            state.MergedGeneration = state.Generation;
+                        }
+                    }
+
+                    Maintain(_mainState, force: true, allowRecycle: false);
+                }''')
+    once(manager, '''            string temporaryPath = state.Path + ".tmp";
+            long written;''', '''            string temporaryPath = state.Path + ".tmp";
+            long generation = state.Generation;
+            long written;''')
     once(manager, '''                File.Move(temporaryPath, state.Path, overwrite: true);
 ''', '''                File.Move(temporaryPath, state.Path, overwrite: true);
 
-                state.SavedBytes = written;
+                state.SavedGeneration = generation;
 ''')
+    once(manager, '''            public CacheState(PipelineCache cache, string path, string description, long budget, long loadedBytes)
+''', '''            public CacheState(PipelineCache cache, string path, string description, long budget, long loadedBytes, bool snapshotRejected = false)
+''')
+    once(manager, '''                Generation = loadedBytes > 0 ? 1 : 0;
+                SavedGeneration = Generation;
+''', '''                Generation = loadedBytes > 0 ? 1 : 0;
+                SavedGeneration = Generation;
+
+                if (snapshotRejected)
+                {
+                    // The driver restarted this cache empty. The snapshot on
+                    // disk is not that state, even with no new pipeline.
+                    _measuredBytes = 0;
+                    Generation++;
+                }
+''')
+    once(manager, '''            long mainSnapshotBytes;
+            PipelineCache mainCache;
+''', '''            long mainSnapshotBytes;
+            bool mainSnapshotRejected;
+            PipelineCache mainCache;
+''')
+    once(manager, '''                mainCache = CreateCache(mainSnapshot, "main");
+''', '''                mainCache = CreateCache(mainSnapshot, "main", out bool accepted);
+                mainSnapshotRejected = mainSnapshot != null && !accepted;
+''')
+    once(manager, '''                mainSnapshotBytes);
+''', '''                mainSnapshotBytes,
+                snapshotRejected: mainSnapshotRejected);
+''')
+    once(manager, '''                    CreateCache(workerSnapshot, description),
+''', '''                    CreateCache(workerSnapshot, description, out bool workerSnapshotAccepted),
+''')
+    once(manager, '''                    workerSnapshot?.Length ?? 0);
+''', '''                    workerSnapshot?.Length ?? 0,
+                    snapshotRejected: workerSnapshot != null && !workerSnapshotAccepted);
+''')
+    once(manager, '''        private unsafe PipelineCache CreateCache(MappedSnapshot snapshot, string description)
+        {
+''', '''        private PipelineCache CreateCache(MappedSnapshot snapshot, string description)
+        {
+            return CreateCache(snapshot, description, out _);
+        }
+
+        private unsafe PipelineCache CreateCache(MappedSnapshot snapshot, string description, out bool snapshotAccepted)
+        {
+            snapshotAccepted = false;
+''')
+    once(manager, '''            if (!result.IsError)
+            {
+                return pipelineCache;
+            }
+''', '''            if (!result.IsError)
+            {
+                snapshotAccepted = snapshot != null;
+                return pipelineCache;
+            }
+''')
+
+
+def apply(source):
+    vulkan = source / 'src/Ryujinx.Graphics.Vulkan'
+    manager = vulkan / 'PipelineCacheManager.cs'
+    apply_cache_manager(manager)
 
     renderer = vulkan / 'VulkanRenderer.cs'
     once(renderer, '''    public sealed class VulkanRenderer : IRenderer

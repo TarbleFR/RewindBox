@@ -45,12 +45,15 @@ namespace Ryujinx.Common.Configuration.Hid.Controller {
  public class StandardControllerInputConfig : Ryujinx.Common.Configuration.Hid.InputConfig { public float TriggerThreshold { get; set; } }
 }''')
     (work / 'Input.csproj').write_text('''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
-<OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+<OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 <EnableDefaultCompileItems>false</EnableDefaultCompileItems></PropertyGroup>
 <ItemGroup><Compile Include="*.cs" /></ItemGroup></Project>''')
     (work / 'Program.cs').write_text(r'''using System;
 using System.Linq;
+using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 using Ryujinx.Input;
 using Ryujinx.Input.Native;
 using Ryujinx.Common.Callbacks;
@@ -76,10 +79,66 @@ for(int button=0;button<mapping.Length;button++) {
 NativeGamepadDriver.SetStickAxis((nint)1,1,0.25f,-0.75f);
 NativeGamepadDriver.SetStickAxis((nint)1,2,3f,-3f);
 Check(game.GetStick(StickInputId.Left)==(0.25f,-0.75f) && game.GetStick(StickInputId.Right)==(1f,-1f));
+// Compare the fast, atomic snapshot to the interface's original field-by-field
+// snapshot for every button, including unmapped/reserved slots, and both sticks.
+var random = new Random(587);
+for(int sample=0;sample<1000;sample++) {
+ for(int button=0;button<mapping.Length;button++)
+  NativeGamepadDriver.SetButtonState((nint)1,button,(byte)random.Next(2));
+ NativeGamepadDriver.SetStickAxis((nint)1,1,(float)(random.NextDouble()*4-2),(float)(random.NextDouble()*4-2));
+ NativeGamepadDriver.SetStickAxis((nint)1,2,(float)(random.NextDouble()*4-2),(float)(random.NextDouble()*4-2));
+ var expected=IGamepad.GetStateSnapshot(game); var actual=game.GetStateSnapshot();
+ for(GamepadButtonInputId button=GamepadButtonInputId.Unbound;button<GamepadButtonInputId.Count;button++)
+  Check(expected.IsPressed(button)==actual.IsPressed(button));
+ for(StickInputId stick=StickInputId.Unbound;stick<StickInputId.Count;stick++)
+  Check(expected.GetStick(stick)==actual.GetStick(stick));
+}
+Check(!probe.GetStateSnapshot().IsPressed(GamepadButtonInputId.A) &&
+      probe.GetStateSnapshot().GetStick(StickInputId.Left)==(0f,0f));
+
+// Valid native writer states are (left,right)=(0,0),(1,0),(1,1).
+// A field-by-field snapshot can splice (0,1), which never existed at once.
+using(var raw=new NativeGamepad("Atomic snapshot", "A")) {
+ int stop=0;
+ var writer=Task.Run(()=> { while(Volatile.Read(ref stop)==0) {
+  raw.ResetStateInternal(); raw.SetStickAxisInternal(1,1,1); raw.SetStickAxisInternal(2,1,1);
+ }});
+ try {
+  for(int sample=0;sample<100000;sample++) {
+   var snapshot=raw.GetStateSnapshot();
+   if(snapshot.GetStick(StickInputId.Left)==(0f,0f) && snapshot.GetStick(StickInputId.Right)==(1f,1f))
+    throw new Exception("Snapshot combined native states that never coexisted");
+  }
+  Check(true);
+ } finally { Volatile.Write(ref stop,1); writer.GetAwaiter().GetResult(); }
+}
+
+// Host work only, not a frame-rate benchmark. Exercise the same production
+// state through the old interface loop and new native copy, with no writes.
+double TimeSnapshot(Func<GamepadStateSnapshot> snapshot) {
+ for(int i=0;i<10000;i++) _=snapshot();
+ var timer=Stopwatch.StartNew();
+ for(int i=0;i<200000;i++) { var value=snapshot(); if(value.GetStick(StickInputId.Left).Item1>10) throw new Exception(); }
+ timer.Stop(); return timer.Elapsed.TotalMilliseconds;
+}
+double interfaceMs=TimeSnapshot(()=>IGamepad.GetStateSnapshot(game));
+double nativeMs=TimeSnapshot(game.GetStateSnapshot);
+Console.WriteLine($"Host input snapshot, 200000 copies: interface {interfaceMs:F2} ms; native {nativeMs:F2} ms.");
 var enumerated = driver.GetGamepads().Single(); enumerated.Dispose();
 Check(!enumerated.IsConnected && game.IsConnected);
-int rumbles=0; CallbackRegistry.RegisterManagedCallback("rumble-1", _ => rumbles++);
+int rumbles=0; byte[] rumbleBytes=null;
+CallbackRegistry.RegisterManagedCallback("rumble-1", bytes => { rumbles++; rumbleBytes=bytes; });
 game.Rumble(0.5f,0.2f,20); probe.Rumble(1,1,10); Check(rumbles==1);
+Check(rumbleBytes.Length==Marshal.SizeOf<RumbleData>());
+var rumble=MemoryMarshal.Read<RumbleData>(rumbleBytes);
+Check(rumble.LowFrequency==0.5f && rumble.HighFrequency==0.2f && rumble.DurationMs==20 &&
+      rumble.LeftAmplitudeLow==0.5f && rumble.LeftAmplitudeHigh==0.2f &&
+      rumble.RightFrequencyLow==160f && rumble.RightFrequencyHigh==320f);
+// Callback owns its copied byte[] after the packed stack payload has returned.
+byte[] firstRumble=(byte[])rumbleBytes.Clone();
+game.Rumble(0.7f,0.9f,40);
+Check(rumbles==2 && MemoryMarshal.Read<RumbleData>(firstRumble).DurationMs==20 &&
+      MemoryMarshal.Read<RumbleData>(rumbleBytes).DurationMs==40);
 game.Dispose(); var reopened=driver.GetGamepad("1");
 Check(!game.IsConnected && reopened.IsConnected);
 NativeGamepadDriver.DetachGamepad((nint)1);

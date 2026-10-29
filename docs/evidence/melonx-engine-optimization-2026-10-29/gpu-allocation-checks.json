@@ -1,0 +1,63 @@
+{
+  "allocationComparison": {
+    "candidateBytes": 512000,
+    "candidateBytesPerOperation": 32,
+    "controlAdapterCommit": "c42012bd",
+    "controlBytes": 2832000,
+    "controlBytesPerOperation": 177,
+    "measuredOnPhysicalDevice": false,
+    "operations": 16000
+  },
+  "compileWarnings": [
+    "CS8618 and CS8625 from the unannotated upstream FIFO under the nullable-enabled harness"
+  ],
+  "inputs": {
+    "build-utils/melonx/adapt_gpu_allocations.py": "1d3a2fe24ddabe439fb58a4b361d1c95d513536c2535be7dac0c479c6e0e83f6",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_gpu_allocations/Fakes.cs": "91d65683a691b7fa63fbfff9315d2967b706c97dd99f280552a7fb371aa48ce7",
+    "test/melonx_gpu_allocations/Program.cs": "8a57587b2eecf8aec364d67f7cba92a9c75580f30eff0186f1e367e7f4eac8ed",
+    "test/melonx_gpu_allocations_test.py": "1f9b01d629efc1797dedc7da5ff4676c5d78fc3907c50cb44426786f5d257475"
+  },
+  "negativeControl": {
+    "controlAdapterCommit": "c42012bd",
+    "exitCode": 7,
+    "expectedFailure": true,
+    "fifoRents": 2,
+    "fifoReturns": 0,
+    "scenario": "Process throws after two prefetched entries; then Dispose"
+  },
+  "physicalDeviceTested": false,
+  "provenance": {
+    "allocationComparison": "exec session 69987, exit 0",
+    "completedRun": "exec session 54420, exit 0; exact final pool/FIFO test output preserved in conversation",
+    "negativeControl": "exec session 97055, expected exit 7"
+  },
+  "recordedFromCompletedRun": true,
+  "report": {
+    "allocatedBytes": 512000,
+    "bytesPerUpload": 32,
+    "checks": 24,
+    "fifoRents": 8,
+    "fifoReturns": 8,
+    "passed": true,
+    "uploadOperations": 16000
+  },
+  "resourceBoundaryDoubles": [
+    "ArrayPool counting",
+    "GPFifoProcessor",
+    "MemoryManager",
+    "GpuContext"
+  ],
+  "result": "passed",
+  "runtime": {
+    "dotnetSdk": "10.0.100",
+    "host": "linux-x64"
+  },
+  "testsReexecuted": false,
+  "upstreamInputs": {
+    "src/Ryujinx.Common/Memory/MemoryOwner.cs": "28de9f4232b06c52a836a41f8c3a63c00f4178dcc12a2d5a5e3f53c5d7403054",
+    "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs": "33ad89e85ebb158c527fc1072eb397ee77d71f6ce4f7f82304c1b6ce28ec27a0"
+  },
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67"
+}

@@ -23,6 +23,12 @@ programs. Two causes, both in upstream code:
   warm-up now computes it as the framebuffer does. The flag only gates
   logic-op enable, so the created pipelines are the same.
 
+EnsureProgramCreated can also wait with all eight compile slots occupied,
+before the requested program has a backend object. Bound that polling with
+SpinWait's 1 ms sleep after its initial spins/yields. A blocking check on an
+arbitrary in-flight program would unnecessarily wait for that particular
+compile; keep polling all slots so the first completion admits the request.
+
 No pipeline state, shader or draw changes. Not measured on an iPhone; no
 FPS gain is claimed. Fail closed on drift.
 """
@@ -31,6 +37,17 @@ from adapt_session import once
 
 def apply(source):
     queue = source / 'src/Ryujinx.Graphics.GAL/Multithreading/Resources/ProgramQueue.cs'
+    once(queue, '''                if (program.Base == null)
+                {
+                    spinWait[0].SpinOnce(-1);
+                }
+''', '''                if (program.Base == null)
+                {
+                    // No compilation slot yet. Let the compiler threads run; poll all slots
+                    // again after a bounded sleep rather than yielding and re-polling forever.
+                    spinWait[0].SpinOnce(20);
+                }
+''')
     once(queue, '''            while (!program.Compiled)
             {
                 ProcessQueue();

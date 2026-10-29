@@ -1,0 +1,23 @@
+{
+  "result": "passed",
+  "report": {
+    "checks": 19,
+    "pendingWarmupsCancelled": 128,
+    "lateModuleCompletionCovered": true,
+    "runningAndDemandedWorkJoined": true,
+    "physicalDeviceTested": false
+  },
+  "physicalDeviceTested": false,
+  "nativePipelineDouble": true,
+  "inputs": {
+    "build-utils/melonx/adapt_shader_warmup.py": "d4398a9317a4bc12bea6b1635079abc429143b5fa8dec8a0351da9e65b50f3a9",
+    "test/melonx_warmup_close_test.py": "c698d223cebf36b3edb942c0c25ed2afcd120ce450308537395b8c37e23398ad",
+    "test/melonx_warmup_close/Double.cs": "c7f6a7131fc35c36c683380881a45e4913acbe35e5b57459649c469c344a57ea",
+    "test/melonx_warmup_close/Program.cs": "63b7ae93e5740ead7c1f43c55a3c857135c1e428d67605cc9185999c5a5e8c9c"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs": "24187cd708419ea41f1bdb5b912bb04796858fc05d5dce7b94ff339aed54661a",
+    "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs": "9d49665cffdd0263bd83c056eddcbceb56580ec75b007fc9908f4fdf1a6eb571",
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "5413a18a230d7722654dd35d54cc20a2794223abce236c3dbbc5e485802b9eaf"
+  }
+}

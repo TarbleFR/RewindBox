@@ -1,0 +1,26 @@
+{
+  "result": "passed",
+  "reports": [
+    {
+      "polls": 1633264,
+      "milliseconds": 100.1737,
+      "checks": 5,
+      "deviceTested": false
+    },
+    {
+      "polls": 904,
+      "milliseconds": 100.7538,
+      "checks": 5,
+      "deviceTested": false
+    }
+  ],
+  "physicalDeviceTested": false,
+  "inputs": {
+    "build-utils/melonx/adapt_shader_waits.py": "e86329b729958b994155a25cb64d700dc65a47c82ef12891a5ca3ad9ed154824",
+    "test/melonx_program_queue_test.py": "60ae9e95b1a4cc1b9e1d27ae37c9ff15de2c821333cc37b4ed782bffaab99ddc"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.GAL/Multithreading/Resources/ProgramQueue.cs": "4548a50df9587e7aa681051f1540048408d5b28546e0860a6cb4c18f50575ac7",
+    "src/Ryujinx.Graphics.Vulkan/PipelineConverter.cs": "01109f3a62578e04c12105369f4e34c31fbddf914ee0ef86445db2018a64f86a"
+  }
+}

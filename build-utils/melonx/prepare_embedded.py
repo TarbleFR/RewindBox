@@ -30,6 +30,10 @@ from adapt_deferred_flush import apply as adapt_deferred_flush
 from adapt_bindless import apply as adapt_bindless
 from adapt_bindless_sources import apply as adapt_bindless_sources
 from adapt_device_memory import apply as adapt_device_memory
+from adapt_jit_context import apply as adapt_jit_context
+from adapt_jit_block_split import apply as adapt_jit_block_split
+from adapt_buffer_views import apply as adapt_buffer_views
+from adapt_memory_queries import apply as adapt_memory_queries
 
 
 def replace_once(path, old, new):
@@ -80,6 +84,10 @@ def main():
     adapted += adapt_bindless(source)
     adapted += adapt_bindless_sources(source)
     adapted += adapt_device_memory(source)
+    adapted += adapt_jit_context(source)
+    adapted += adapt_jit_block_split(source)
+    adapted += adapt_buffer_views(source)
+    adapted += adapt_memory_queries(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -127,7 +135,8 @@ def main():
     for name in ['adapt_attachmentless_framebuffer.py', 'adapt_kernel_sync.py', 'adapt_jit_arena.py',
                  'adapt_pipeline_cache.py', 'adapt_gpu_allocations.py', 'adapt_shader_waits.py',
                  'adapt_deferred_flush.py', 'adapt_bindless.py', 'adapt_bindless_sources.py',
-                 'adapt_device_memory.py']:
+                 'adapt_device_memory.py', 'adapt_jit_context.py', 'adapt_jit_block_split.py', 'adapt_buffer_views.py',
+                 'adapt_memory_queries.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

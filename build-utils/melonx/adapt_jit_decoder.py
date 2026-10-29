@@ -273,10 +273,13 @@ def apply(source):
             [System.ThreadStatic]
             private static CodeReader _threadReader;
 
-            private readonly uint[] _words = new uint[PageSize / 4];
+            private uint[] _words = new uint[PageSize / 4];
+            private uint[] _previousWords = new uint[PageSize / 4];
             private IMemoryManager _memoryManager;
             private ulong _page;
+            private ulong _previousPage;
             private bool _valid;
+            private bool _previousValid;
 
             public static CodeReader For(IMemoryManager memoryManager)
             {
@@ -284,6 +287,7 @@ def apply(source):
 
                 reader._memoryManager = memoryManager;
                 reader._valid = false;
+                reader._previousValid = false;
 
                 return reader;
             }
@@ -308,15 +312,31 @@ def apply(source):
 
                 if (!_valid || page != _page)
                 {
-                    try
+                    if (_previousValid && page == _previousPage)
                     {
-                        System.Runtime.InteropServices.MemoryMarshal.Cast<byte, uint>(_memoryManager.GetSpan(page, (int)PageSize)).CopyTo(_words);
+                        // EntryStop's loop look-ahead often visits the next page,
+                        // then resumes decoding this one. Keep both snapshots:
+                        // a single-page reader copied them again at every entry.
+                        (_words, _previousWords) = (_previousWords, _words);
+                        _previousPage = _page;
+                        _previousValid = _valid;
                     }
-                    catch (Ryujinx.Memory.InvalidMemoryRegionException)
+                    else
                     {
-                        // Unmapped: fail as a single read does, through the memory
-                        // manager's invalid access handler.
-                        return _memoryManager.Read<uint>(address);
+                        try
+                        {
+                            System.Runtime.InteropServices.MemoryMarshal.Cast<byte, uint>(_memoryManager.GetSpan(page, (int)PageSize)).CopyTo(_previousWords);
+                        }
+                        catch (Ryujinx.Memory.InvalidMemoryRegionException)
+                        {
+                            // Keep both valid snapshots on failure. Unmapped: fail
+                            // as a single read does, through the invalid access handler.
+                            return _memoryManager.Read<uint>(address);
+                        }
+
+                        (_words, _previousWords) = (_previousWords, _words);
+                        _previousPage = _page;
+                        _previousValid = _valid;
                     }
 
                     _page = page;

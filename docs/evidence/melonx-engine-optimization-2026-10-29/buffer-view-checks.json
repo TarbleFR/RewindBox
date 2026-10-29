@@ -1,0 +1,31 @@
+{
+  "result": "passed",
+  "reports": [
+    {
+      "mode": "control",
+      "checks": 8,
+      "unrelatedCreations": 512,
+      "steadyViewCreates": 513,
+      "physicalDeviceTested": false
+    },
+    {
+      "mode": "fixed",
+      "checks": 520,
+      "unrelatedCreations": 512,
+      "steadyViewCreates": 1,
+      "physicalDeviceTested": false
+    }
+  ],
+  "physicalDeviceTested": false,
+  "nativeViewDouble": true,
+  "inputs": {
+    "build-utils/melonx/adapt_buffer_views.py": "6b8547e10062a38ffdb67d36107583d43803c7267844e4df201c94a583e1c530",
+    "test/melonx_buffer_views_test.py": "af50bb83e80bf7964a5556d3618a118dc4a7849470e6899dac5ad25f438ba37f",
+    "test/melonx_buffer_views/Double.cs": "feba352b71dd842e15c378efd88d0d06c31b06c2b47523ce9438beb82670dabf",
+    "test/melonx_buffer_views/Program.cs": "9efdc1e05698d61e2e9278f074436bd3fe0a73b76ce6cc06d9131861f0835499"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/TextureBuffer.cs": "eebdb44a5cdd6e8abee628a5a0ebea4155dd9cd6e8a2abe8722b99c3d1220810",
+    "src/Ryujinx.Graphics.Vulkan/BufferManager.cs": "73bb8f6d328039d495a4944be52dfb6b1b1dfcb661198e05a74fcd3084b05d36"
+  }
+}

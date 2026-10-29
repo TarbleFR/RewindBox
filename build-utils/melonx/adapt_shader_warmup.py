@@ -24,7 +24,9 @@ through MoltenVK and Metal, one after the other, before the game could start.
 - Dispose of such a program cancels its warm-up if no worker took it yet,
   instead of compiling it on the way out (closing a game soon after launch);
   one already started is waited for as before. A cancelled warm-up is not
-  reported as a failure.
+  reported as a failure. Renderer teardown cancels these speculative tasks
+  before its first wait; cancellation also covers a shader-module completion
+  that has not queued its warm-up yet. Demanded and running work still joins.
 
 No compilation result, cache format or priority of play-time compilation
 changes. Fail closed on drift.
@@ -40,7 +42,8 @@ def apply(source):
         private bool _firstBackgroundUse;
         // Loaded from the shader cache: the initial pipeline warms up without
         // holding the cache loader.
-        private bool _detachedWarmUp;''')
+        private bool _detachedWarmUp;
+        private int _cancelUndemandedWarmUp;''')
     once(collection, '''            if (warmUpInitialPipeline)
             {
                 RegisterInitialBackgroundPipelineTask(_compileTask);
@@ -123,8 +126,9 @@ def apply(source):
                     return;
                 }
 
-                if (_detachedWarmUp &&
-                    !_gd.BackgroundCompilationScheduler.TryCancelPipelineCompile(Volatile.Read(ref _initialPipelineCompileTask)))
+                CancelPendingWarmUp();
+
+                if (!_detachedWarmUp || Volatile.Read(ref _backgroundCompilationDemanded) != 0)
                 {
                     PromoteBackgroundCompilation();
                 }
@@ -156,7 +160,8 @@ def apply(source):
                     if (task == null ||
                         _stopping ||
                         !_scheduled.TryGetValue(task, out item) ||
-                        item.Node == null)
+                        item.Node == null ||
+                        item.Demanded)
                     {
                         return false;
                     }
@@ -172,4 +177,58 @@ def apply(source):
             }
 
             private void Enqueue(WorkItem item, bool demanded, bool highPriority)''')
-    return [collection, scheduler]
+    once(collection, '''                bool demanded = Volatile.Read(ref _backgroundCompilationDemanded) != 0;
+                bool highPriority = _highPriorityBackgroundCompilation || demanded;
+''', '''                bool demanded = Volatile.Read(ref _backgroundCompilationDemanded) != 0;
+
+                if (Volatile.Read(ref _cancelUndemandedWarmUp) != 0 && !demanded)
+                {
+                    return;
+                }
+
+                bool highPriority = _highPriorityBackgroundCompilation || demanded;
+''')
+    once(collection, '''                Volatile.Write(ref _initialPipelineCompileTask, pipelineCompileTask);
+
+                if (Volatile.Read(ref _backgroundCompilationDemanded) != 0)''', '''                Volatile.Write(ref _initialPipelineCompileTask, pipelineCompileTask);
+
+                if (Volatile.Read(ref _cancelUndemandedWarmUp) != 0)
+                {
+                    // Close may have begun between the check and enqueue. The
+                    // scheduler refuses cancellation after demand promotion or take.
+                    _gd.BackgroundCompilationScheduler.TryCancelPipelineCompile(pipelineCompileTask);
+                }
+
+                if (Volatile.Read(ref _backgroundCompilationDemanded) != 0)''')
+    once(collection, '''        public void WaitForBackgroundCompilation()
+''', '''        public void CancelPendingWarmUp()
+        {
+            if (!_detachedWarmUp || Volatile.Read(ref _backgroundCompilationDemanded) != 0)
+            {
+                return;
+            }
+
+            Volatile.Write(ref _cancelUndemandedWarmUp, 1);
+            _gd.BackgroundCompilationScheduler.TryCancelPipelineCompile(Volatile.Read(ref _initialPipelineCompileTask));
+        }
+
+        public void WaitForBackgroundCompilation()
+''')
+    renderer = vulkan / 'VulkanRenderer.cs'
+    once(renderer, '''            foreach (ShaderCollection shader in shaders)
+            {
+                shader.WaitForBackgroundCompilation();
+            }
+''', '''            // Cancel every pending speculative warm-up before waiting for any
+            // shader. Running or demanded compiles still finish before release.
+            foreach (ShaderCollection shader in shaders)
+            {
+                shader.CancelPendingWarmUp();
+            }
+
+            foreach (ShaderCollection shader in shaders)
+            {
+                shader.WaitForBackgroundCompilation();
+            }
+''')
+    return [collection, scheduler, renderer]
