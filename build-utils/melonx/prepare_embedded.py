@@ -47,6 +47,10 @@ from adapt_binding_lookup import apply as adapt_binding_lookup
 from adapt_descriptor_updates import apply as adapt_descriptor_updates
 from adapt_memory_tracking import apply as adapt_memory_tracking
 from adapt_texture_overlap import apply as adapt_texture_overlap
+from adapt_cached_shader_startup import apply as adapt_cached_shader_startup
+from adapt_threaded_renderer_failures import apply as adapt_threaded_renderer_failures
+from adapt_gpu_startup_failure import apply as adapt_gpu_startup_failure
+from adapt_shader_loader_lifetime import apply as adapt_shader_loader_lifetime
 
 
 def replace_once(path, old, new):
@@ -114,6 +118,10 @@ def main():
     adapted += adapt_descriptor_updates(source)
     adapted += adapt_memory_tracking(source)
     adapted += adapt_texture_overlap(source)
+    adapted += adapt_cached_shader_startup(source)
+    adapted += adapt_threaded_renderer_failures(source)
+    adapted += adapt_shader_loader_lifetime(source)
+    adapted += adapt_gpu_startup_failure(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -165,7 +173,9 @@ def main():
                  'adapt_memory_queries.py', 'adapt_jit_dataflow.py', 'adapt_upload_lifetime.py',
                  'adapt_texture_uploads.py', 'adapt_pipeline_recycle.py', 'adapt_fragmented_uploads.py',
                  'adapt_texture_ownership.py', 'adapt_bindless_allocations.py', 'adapt_array_barriers.py',
-                 'adapt_pipeline_lookup.py', 'adapt_binding_lookup.py', 'adapt_descriptor_updates.py', 'adapt_memory_tracking.py', 'adapt_texture_overlap.py']:
+                 'adapt_pipeline_lookup.py', 'adapt_binding_lookup.py', 'adapt_descriptor_updates.py', 'adapt_memory_tracking.py', 'adapt_texture_overlap.py',
+                 'adapt_cached_shader_startup.py', 'adapt_threaded_renderer_failures.py',
+                 'adapt_gpu_startup_failure.py', 'adapt_shader_loader_lifetime.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

@@ -2,6 +2,40 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## MeloNX SSBU startup continuation — 29 October 2026
+
+The recent SSBU log measures 19.399 seconds from selection to first Metal
+presentation, including 11.411 seconds loading 2,743 cached shader programs.
+Its old prefix is excluded. No app/engine identity or menu-ready marker is
+present; the older SSBU interval is not a controlled comparison.
+
+On verified engine 81, cached Vulkan programs now use the existing background
+scheduler even with gameplay async shaders disabled. Modules still validate;
+only optional initial pipeline warm-up leaves link readiness. Required draws
+and dispatches remain synchronous unless both async and skip flags allow it.
+The first fatal warm-up failure is retained per renderer and propagated even
+for an unused program. Cleanup joins remaining demand tasks in finally.
+The threaded transport removes CommandHelper's silent catch, publishes failures
+before waking waits and does not replay a partially consumed queue. Shader
+translation workers are joined in finally before failed startup can return.
+GPU readiness has terminal failure/cancellation states; an active initializer
+must unwind before guest threads leave through KThread.Exit without CPU work.
+Guest stop still precedes GPU disposal.
+Launch preflight also removes its duplicate firmware scan; the version reader
+still performs one fresh scan with the same version/error behavior.
+
+Evidence and status: `docs/melonx-startup-2026-10-29.md` and
+`docs/evidence/melonx-startup-20261029/`. All five targeted host checks and the
+complete managed library build pass. Fifteen of 4,095 generated source/project
+files change; 74 preparation inputs are bound by hash. Apple validation is
+pending the source push. A blocked
+speculative worker in the 2,743-program test proves readiness independence,
+not seconds saved on iPhone. Workers are bounded; the pending queue is not.
+Preserve concurrent RPCS3 work through `66b81952` and delivered private IPA593.
+No new IPA, release, player setting, persistent cache format or telemetry is
+part of this engine work. A device run is still needed for launch-time/FPS
+claims. Do not rebuild unchanged successful engines when packaging the next IPA.
+
 ## RPCS3 BO2 stutter follow-up — 29 October 2026
 
 After verified source `7d1ca65c`, synchronized with concurrent MeloNX engine 81

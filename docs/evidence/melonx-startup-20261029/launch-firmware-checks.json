@@ -1,0 +1,59 @@
+{
+  "result": "passed",
+  "reports": {
+    "control": {
+      "checks": 62,
+      "freshLaunchScans": 2,
+      "semanticTrace": "44A0803E69AB73AA36144BB72978C21D96119E04FBA86CD3593B5B318725E4A4",
+      "scenarios": 15,
+      "realDirectoryScan": true,
+      "realLibHacLocalFileSystem": true,
+      "realSystemVersionParsing": true,
+      "syntheticNcaDecryption": true
+    },
+    "candidate": {
+      "checks": 62,
+      "freshLaunchScans": 1,
+      "semanticTrace": "44A0803E69AB73AA36144BB72978C21D96119E04FBA86CD3593B5B318725E4A4",
+      "scenarios": 15,
+      "realDirectoryScan": true,
+      "realLibHacLocalFileSystem": true,
+      "realSystemVersionParsing": true,
+      "syntheticNcaDecryption": true
+    }
+  },
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "dotnet": "10.0.100",
+  "libHacPackageSha256": "b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9",
+  "physicalDeviceTested": false,
+  "ncaDecryptionDoubled": true,
+  "realFileSystemAndVersionParsing": true,
+  "inputs": {
+    "native/melonx/EmbeddedLaunchPreflight.cs": "07beeeefccb9638b668a94fc4645a12b499706269cd177b9672ba9eca6bd7755",
+    "native/melonx/EmbeddedGameHeader.cs": "37d0621130800781281d7d098a516d7573f7e784ca192fb9cab2098418311b09",
+    "native/melonx/EmbeddedKeyValidation.cs": "7a86d2bd470afe653c14a00cdb098c06a2305ba11c67750f25c04735537fe597",
+    "native/melonx/EmbeddedLaunchDiagnostics.cs": "929c07dd72c0102ccf30cc6e1f93cd33c6044418ff0dc59a684b2ceeeee536f8",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_launch_firmware_test.py": "b5bd9da0ccaf25ae0dd361c686eb34137116486f6efe6d40e496858a9c0899b7",
+    "test/melonx_launch_firmware/Program.cs": "9a23bdb95ae33bbf41eb9ac4bc03e5b37cad6078878616ab6bde78510bf73964"
+  },
+  "upstreamFiles": {
+    "src/Ryujinx.HLE/FileSystem/ContentPath.cs": "aa0bebb29375a1b31b98973852683d18961e111eb393a19eb0bd7be136927f0c",
+    "src/Ryujinx.HLE/FileSystem/SystemVersion.cs": "8841df9e48de7522aaa6fc4070a975e2e162684eb8ad98268f82659e4cc04dba",
+    "src/Ryujinx.HLE/FileSystem/LocationEntry.cs": "3d4603fa97b32db3cce0c8cf96d270716715f0740c2cba0111938adf956c00fe"
+  },
+  "upstreamMembers": {
+    "public void LoadEntries(Switch device = null)": {
+      "path": "src/Ryujinx.HLE/FileSystem/ContentManager.cs",
+      "sha256": "e7df2b5ef95ee508994a1246e8d21115604578248a015cca99a02927bf23eea8"
+    },
+    "public SystemVersion GetCurrentFirmwareVersion()": {
+      "path": "src/Ryujinx.HLE/FileSystem/ContentManager.cs",
+      "sha256": "b2c10c0aa9ab035eb53636ffff0919e8243b52a12dfc9f8e40a04ef2bea050ed"
+    },
+    "public static string ReadInlinedAsciiString(BinaryReader reader, int maxSize)": {
+      "path": "src/Ryujinx.HLE/Utilities/StringUtils.cs",
+      "sha256": "acbb2ce3535649da77114b52fe234a28414bb59dcd43d7e38e4862855283e7af"
+    }
+  }
+}

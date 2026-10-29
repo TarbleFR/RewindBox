@@ -1,0 +1,18 @@
+{
+  "result": "passed",
+  "exitCode": 0,
+  "execSessionId": 20911,
+  "capture": "Recorded from the completed execution tool response; the check was not rerun to create this record.",
+  "command": [
+    "python3",
+    "test/melonx_launch_native_test.py",
+    "/workspace/scratch/a4e915883225/dotnet-home/.nuget/packages/ryujinx.libhac/0.21.0-alpha.129/ryujinx.libhac.0.21.0-alpha.129.nupkg"
+  ],
+  "workingDirectory": "/workspace/scratch/a4e915883225/RewindBox",
+  "dotnetSdk": "10.0.100",
+  "dotnetExecutable": "/workspace/scratch/3a8a02207686/tmp/dotnet-metal4/dotnet",
+  "stdout": "14 production preflight/key-schema/journal checks passed; native guest execution is separate.\n",
+  "testSha256": "631fc7d7277fcf9ccb4ff09db9b41f4491ed40533d138cc2ebbae6d0ac141422",
+  "preflightSha256": "07beeeefccb9638b668a94fc4645a12b499706269cd177b9672ba9eca6bd7755",
+  "libHacPackageSha256": "b68e88ab73aa48a0af2bb9575e5b07410a27f3cd03e9808920d863e1753279c9"
+}

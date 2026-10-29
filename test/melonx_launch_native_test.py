@@ -47,7 +47,7 @@ namespace Ryujinx.HLE.Loaders.Processes.Extensions {
 namespace Ryujinx.Library {
  class Files { public KeySet KeySet=KeySet.CreateDefaultKeySet(); public void ReloadKeySet(){} }
  class VersionFixture {public string VersionString="";}
- class Firmware {public int Reloads;public void LoadEntries(){Reloads++;}public VersionFixture GetCurrentFirmwareVersion()=>null;}
+ class Firmware {public int Reloads;public void LoadEntries(){Reloads++;}public VersionFixture GetCurrentFirmwareVersion(){LoadEntries();return null;}}
  class Account {public void Refresh(){} }
  partial class Library {
   static Files _virtualFileSystem=new();static Firmware _contentManager=new();static Account _accountManager=new();

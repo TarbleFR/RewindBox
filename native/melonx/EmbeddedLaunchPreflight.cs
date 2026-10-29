@@ -83,7 +83,7 @@ partial class Library
         EmbeddedLaunchDiagnostics.Record("contentPreflight", "passed", detail: packaged ? "Base program sections opened with the user's keys; no decrypted bytes logged." : "Homebrew format validated.");
 
         EmbeddedLaunchDiagnostics.Record("firmware", "begin");
-        _contentManager.LoadEntries();
+        // The version reader refreshes the content index itself.
         var version = _contentManager.GetCurrentFirmwareVersion();
         string firmware = version?.VersionString ?? "";
         json.WriteString("firmware", firmware);

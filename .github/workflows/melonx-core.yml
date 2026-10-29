@@ -58,6 +58,20 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/adapt_texture_overlap.py
     - test/melonx_texture_overlap_test.py
     - test/melonx_texture_overlap/**
+    - build-utils/melonx/adapt_cached_shader_startup.py
+    - test/melonx_cached_shader_startup_test.py
+    - test/melonx_cached_shader_startup/**
+    - test/melonx_launch_firmware_test.py
+    - test/melonx_launch_firmware/**
+    - build-utils/melonx/adapt_threaded_renderer_failures.py
+    - test/melonx_threaded_renderer_failures_test.py
+    - test/melonx_threaded_renderer_failures/**
+    - build-utils/melonx/adapt_gpu_startup_failure.py
+    - test/melonx_gpu_startup_failure_test.py
+    - test/melonx_gpu_startup_failure/**
+    - build-utils/melonx/adapt_shader_loader_lifetime.py
+    - test/melonx_shader_loader_lifetime_test.py
+    - test/melonx_shader_loader_lifetime/**
     - test/melonx_jit_dataflow_test.py
     - test/melonx_jit_dataflow/**
     - test/melonx_jit_dataflow_codegen_test.py
@@ -261,6 +275,16 @@ jobs:
       run: python3 test/melonx_memory_tracking_test.py .native-sources/MeloNX
     - name: Verify ordered texture-region intersection and fragmented fallbacks
       run: python3 test/melonx_texture_overlap_test.py .native-sources/MeloNX
+    - name: Verify cached shader startup preserves synchronous draws and fatal errors
+      run: python3 test/melonx_cached_shader_startup_test.py .native-sources/MeloNX
+    - name: Verify launch firmware discovery scans once and preserves failures
+      run: python3 test/melonx_launch_firmware_test.py .native-sources/MeloNX dist/melonx/libhac-feed/Ryujinx.LibHac.0.21.0-alpha.129.nupkg
+    - name: Verify renderer failures wake waiting threads and preserve teardown
+      run: python3 test/melonx_threaded_renderer_failures_test.py .native-sources/MeloNX
+    - name: Verify failed GPU initialization releases guest startup without executing guest code
+      run: python3 test/melonx_gpu_startup_failure_test.py .native-sources/MeloNX
+    - name: Verify shader cache translation workers drain before failed startup returns
+      run: python3 test/melonx_shader_loader_lifetime_test.py .native-sources/MeloNX
     - name: Retain effective graphics journal regression proof
       run: |
         python3 - <<'PY'

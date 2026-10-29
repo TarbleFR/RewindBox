@@ -1,0 +1,1117 @@
+{
+  "schema": "rewindbox.melonx.startup-log-summary.v1",
+  "date_utc": "2026-10-29",
+  "source": {
+    "upload_sha256": "77052931caa3ada4184131eb6db69610dfe2cb7e204848c84486e6ccb7a40d4c",
+    "upload_bytes": 1134203,
+    "upload_lines": 9053,
+    "previous_upload_sha256": "4f46d5ddc066d4d99af87d9a341b8df401dc06ec3f0cd0f1912c3f559c4c76db",
+    "previous_upload_bytes": 777729,
+    "previous_upload_lines": 5827,
+    "exact_previous_upload_byte_prefix": true,
+    "exact_previous_upload_line_prefix_count": 5827,
+    "new_line_range": [
+      5828,
+      9053
+    ],
+    "new_line_count": 3226,
+    "raw_log_included": false,
+    "private_paths_included": false
+  },
+  "clock_method": {
+    "json_markers": "Use UTC core timestamps for measured core operations; launch/native mirrors can be delayed duplicates. Do not add mirrored intervals to core intervals.",
+    "stderr": "Stderr wall timestamps are one hour ahead of adjacent core UTC timestamps in both compared sessions; normalized by subtracting one hour. Millisecond timestamps and elapsed counters can differ by one millisecond due to rounding.",
+    "first_frame": "First Metal presentation confirmation receipt, not a menu-ready, gameplay-ready or meaningful-content assertion.",
+    "perf_t": "Seconds on the native performance sampler since engine start; not seconds since user selection. No inferred exact UTC timestamps are assigned to untimestamped performance samples."
+  },
+  "application_log_segments": [
+    {
+      "lines": [
+        1,
+        1718
+      ],
+      "new_since_previous_upload": false,
+      "game_selections": [
+        {
+          "line": 69,
+          "channel": "launch",
+          "stage": "selection",
+          "status": "begin",
+          "timestamp_utc": "2026-10-29T02:22:21.541209Z",
+          "game": "Hogwarts Legacy"
+        },
+        {
+          "line": 923,
+          "channel": "launch",
+          "stage": "selection",
+          "status": "begin",
+          "timestamp_utc": "2026-10-29T02:24:50.168616Z",
+          "game": "Hogwarts Legacy"
+        }
+      ]
+    },
+    {
+      "lines": [
+        1719,
+        1865
+      ],
+      "new_since_previous_upload": false,
+      "game_selections": []
+    },
+    {
+      "lines": [
+        1866,
+        4617
+      ],
+      "new_since_previous_upload": false,
+      "game_selections": [
+        {
+          "line": 1933,
+          "channel": "launch",
+          "stage": "selection",
+          "status": "begin",
+          "timestamp_utc": "2026-10-29T02:47:13.999037Z",
+          "game": "Super Smash Bros. Ultimate"
+        }
+      ]
+    },
+    {
+      "lines": [
+        4618,
+        4843
+      ],
+      "new_since_previous_upload": false,
+      "game_selections": []
+    },
+    {
+      "lines": [
+        4844,
+        4915
+      ],
+      "new_since_previous_upload": false,
+      "game_selections": []
+    },
+    {
+      "lines": [
+        4916,
+        5827
+      ],
+      "new_since_previous_upload": false,
+      "game_selections": [
+        {
+          "line": 4984,
+          "channel": "launch",
+          "stage": "selection",
+          "status": "begin",
+          "timestamp_utc": "2026-10-29T04:54:24.175388Z",
+          "game": "Hogwarts Legacy"
+        }
+      ]
+    },
+    {
+      "lines": [
+        5828,
+        5976
+      ],
+      "new_since_previous_upload": true,
+      "game_selections": []
+    },
+    {
+      "lines": [
+        5977,
+        6320
+      ],
+      "new_since_previous_upload": true,
+      "game_selections": []
+    },
+    {
+      "lines": [
+        6321,
+        9053
+      ],
+      "new_since_previous_upload": true,
+      "game_selections": [
+        {
+          "line": 6383,
+          "channel": "launch",
+          "stage": "selection",
+          "status": "begin",
+          "timestamp_utc": "2026-10-29T07:01:17.175754Z",
+          "game": "Super Smash Bros. Ultimate"
+        }
+      ]
+    }
+  ],
+  "recent_session": {
+    "game": "Super Smash Bros. Ultimate",
+    "game_version": "13.0.4",
+    "game_title_id": "01006a800016e000",
+    "game_identity_line": 6850,
+    "application_segment_lines": [
+      6321,
+      9053
+    ],
+    "selection_to_last_observation_lines": [
+      6383,
+      9053
+    ],
+    "only_new_game_selection": true,
+    "terminal_observation": "didEnterBackground; no close/crash recorded before EOF",
+    "application_version": null,
+    "application_build": null,
+    "engine_commit": null,
+    "engine_build": null,
+    "identity_limitation": "The log does not identify an IPA or an engine commit/build. MoltenVK identity is only a component identity.",
+    "gpu": "Apple A18 Pro GPU",
+    "gpu_identity_line": 7001,
+    "firmware": "22.5.0",
+    "firmware_identity_line": 6416,
+    "jit_arena_mib": 512,
+    "jit_arena_line": 6440,
+    "moltenvk_sha256_prefix": "1ede50b4eeff3620",
+    "moltenvk_identity_lines": [
+      6405,
+      6459
+    ],
+    "configuration": {
+      "shader_cache": true,
+      "async_shaders": false,
+      "resolution_scale": 1,
+      "backend_threading": "On",
+      "texture_recompression": true,
+      "host_memory_budget_tracking": true,
+      "ptc": true,
+      "memory_manager": "HostMappedUnsafe",
+      "source_lines": [
+        6458,
+        6459
+      ]
+    },
+    "launch_to_first_metal_presentation_seconds": 19.39906,
+    "markers": {
+      "selection": {
+        "line": 6383,
+        "channel": "launch",
+        "stage": "selection",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:17.175754Z"
+      },
+      "runtime_begin": {
+        "line": 6388,
+        "channel": "launch",
+        "stage": "runtime",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:17.182232Z"
+      },
+      "runtime_passed": {
+        "line": 6393,
+        "channel": "launch",
+        "stage": "runtime",
+        "status": "passed",
+        "timestamp_utc": "2026-10-29T07:01:17.369059Z"
+      },
+      "jit_helper_begin": {
+        "line": 6394,
+        "channel": "launch",
+        "stage": "jitHelper",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:17.369645Z"
+      },
+      "core_file_begin": {
+        "line": 6399,
+        "channel": "core",
+        "stage": "file",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:19.4346400Z"
+      },
+      "core_file_passed": {
+        "line": 6400,
+        "channel": "core",
+        "stage": "file",
+        "status": "passed",
+        "timestamp_utc": "2026-10-29T07:01:19.4376830Z"
+      },
+      "core_keys_begin": {
+        "line": 6401,
+        "channel": "core",
+        "stage": "keys",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:19.4379300Z"
+      },
+      "core_keys_passed": {
+        "line": 6409,
+        "channel": "core",
+        "stage": "keys",
+        "status": "passed",
+        "timestamp_utc": "2026-10-29T07:01:19.4410140Z"
+      },
+      "content_preflight_begin": {
+        "line": 6411,
+        "channel": "core",
+        "stage": "contentPreflight",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:19.4412580Z"
+      },
+      "content_preflight_passed": {
+        "line": 6414,
+        "channel": "core",
+        "stage": "contentPreflight",
+        "status": "passed",
+        "timestamp_utc": "2026-10-29T07:01:19.4458440Z"
+      },
+      "firmware_begin": {
+        "line": 6415,
+        "channel": "core",
+        "stage": "firmware",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:19.4460480Z"
+      },
+      "firmware_passed": {
+        "line": 6416,
+        "channel": "core",
+        "stage": "firmware",
+        "status": "passed",
+        "timestamp_utc": "2026-10-29T07:01:19.6091830Z"
+      },
+      "jit_probe_begin": {
+        "line": 6420,
+        "channel": "launch",
+        "stage": "jitProbe",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:19.610229Z"
+      },
+      "jit_probe_passed": {
+        "line": 6423,
+        "channel": "launch",
+        "stage": "jitProbe",
+        "status": "passed",
+        "timestamp_utc": "2026-10-29T07:01:19.626181Z"
+      },
+      "jit_arena_begin": {
+        "line": 6422,
+        "channel": "core",
+        "stage": "jitArena",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:19.6261730Z"
+      },
+      "jit_arena_passed": {
+        "line": 6440,
+        "channel": "core",
+        "stage": "jitArena",
+        "status": "passed",
+        "timestamp_utc": "2026-10-29T07:01:20.6138210Z"
+      },
+      "jit_passed": {
+        "line": 6442,
+        "channel": "launch",
+        "stage": "jit",
+        "status": "passed",
+        "timestamp_utc": "2026-10-29T07:01:20.614734Z"
+      },
+      "memory_preparing": {
+        "line": 6444,
+        "channel": "launch",
+        "stage": "memory",
+        "status": "preparing",
+        "timestamp_utc": "2026-10-29T07:01:20.616036Z"
+      },
+      "memory_mapped": {
+        "line": 6448,
+        "channel": "launch",
+        "stage": "memory",
+        "status": "mapped",
+        "timestamp_utc": "2026-10-29T07:01:20.742061Z"
+      },
+      "presentation_begin": {
+        "line": 6453,
+        "channel": "launch",
+        "stage": "presentation",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:20.773026Z"
+      },
+      "presentation_passed": {
+        "line": 6472,
+        "channel": "launch",
+        "stage": "presentation",
+        "status": "passed",
+        "timestamp_utc": "2026-10-29T07:01:21.371660Z"
+      },
+      "session_begin": {
+        "line": 6457,
+        "channel": "core",
+        "stage": "session",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:21.2840330Z"
+      },
+      "renderer_setup_begin": {
+        "line": 6476,
+        "channel": "core",
+        "stage": "gpu",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:21.3742060Z"
+      },
+      "session_services_passed": {
+        "line": 6480,
+        "channel": "core",
+        "stage": "sessionServices",
+        "status": "passed",
+        "timestamp_utc": "2026-10-29T07:01:21.4104520Z"
+      },
+      "content_begin": {
+        "line": 6482,
+        "channel": "core",
+        "stage": "content",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:21.4105570Z"
+      },
+      "system_services_begin": {
+        "line": 6832,
+        "channel": "core",
+        "stage": "systemServices",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:21.7055960Z"
+      },
+      "system_services_passed": {
+        "line": 6834,
+        "channel": "core",
+        "stage": "systemServices",
+        "status": "passed",
+        "timestamp_utc": "2026-10-29T07:01:21.7057210Z"
+      },
+      "content_passed": {
+        "line": 6851,
+        "channel": "core",
+        "stage": "content",
+        "status": "passed",
+        "timestamp_utc": "2026-10-29T07:01:21.7694870Z"
+      },
+      "renderer_initialize_begin": {
+        "line": 6853,
+        "channel": "core",
+        "stage": "gpu",
+        "status": "begin",
+        "timestamp_utc": "2026-10-29T07:01:21.7697240Z"
+      },
+      "renderer_initialize_passed": {
+        "line": 7037,
+        "channel": "core",
+        "stage": "gpu",
+        "status": "passed",
+        "timestamp_utc": "2026-10-29T07:01:21.7846880Z"
+      },
+      "audio_backend_ready": {
+        "line": 8201,
+        "channel": "core",
+        "stage": "audio",
+        "status": "backendReady",
+        "timestamp_utc": "2026-10-29T07:01:36.3511990Z"
+      },
+      "first_metal_presentation_confirmed": {
+        "line": 8221,
+        "channel": "launch",
+        "stage": "firstFrame",
+        "status": "passed",
+        "timestamp_utc": "2026-10-29T07:01:36.574814Z"
+      },
+      "will_resign_active": {
+        "line": 9050,
+        "channel": "launch",
+        "stage": "lifecycle",
+        "status": "willResignActive",
+        "timestamp_utc": "2026-10-29T07:01:47.877198Z"
+      },
+      "did_enter_background": {
+        "line": 9053,
+        "channel": "launch",
+        "stage": "lifecycle",
+        "status": "didEnterBackground",
+        "timestamp_utc": "2026-10-29T07:01:48.541596Z"
+      },
+      "pipeline_cache_initialized": {
+        "line": 7035,
+        "channel": "stderr",
+        "event": "pipeline_cache_initialized",
+        "timestamp_utc": "2026-10-29T07:01:21.777Z",
+        "engine_elapsed": "00:00:00.402",
+        "clock_normalization": "Wall clock minus one hour, aligned with adjacent core UTC markers"
+      },
+      "shader_cache_begin": {
+        "line": 7040,
+        "channel": "stderr",
+        "event": "shader_cache_load_begin",
+        "timestamp_utc": "2026-10-29T07:01:21.785Z",
+        "engine_elapsed": "00:00:00.410",
+        "clock_normalization": "Wall clock minus one hour, aligned with adjacent core UTC markers"
+      },
+      "shader_cache_end": {
+        "line": 8146,
+        "channel": "stderr",
+        "event": "shader_cache_load_end",
+        "timestamp_utc": "2026-10-29T07:01:33.196Z",
+        "engine_elapsed": "00:00:11.822",
+        "clock_normalization": "Wall clock minus one hour, aligned with adjacent core UTC markers"
+      },
+      "first_logged_guest_service": {
+        "line": 8148,
+        "channel": "stderr",
+        "event": "first_logged_guest_service_after_shader_cache",
+        "timestamp_utc": "2026-10-29T07:01:33.237Z",
+        "engine_elapsed": "00:00:11.863",
+        "clock_normalization": "Wall clock minus one hour, aligned with adjacent core UTC markers"
+      }
+    },
+    "durations": {
+      "file_validation_core": {
+        "seconds": 0.003043,
+        "start_marker": "core_file_begin",
+        "end_marker": "core_file_passed",
+        "source_lines": [
+          6399,
+          6400
+        ]
+      },
+      "key_reload_core": {
+        "seconds": 0.003084,
+        "start_marker": "core_keys_begin",
+        "end_marker": "core_keys_passed",
+        "source_lines": [
+          6401,
+          6409
+        ]
+      },
+      "content_preflight_core": {
+        "seconds": 0.004586,
+        "start_marker": "content_preflight_begin",
+        "end_marker": "content_preflight_passed",
+        "source_lines": [
+          6411,
+          6414
+        ]
+      },
+      "firmware_core": {
+        "seconds": 0.163135,
+        "start_marker": "firmware_begin",
+        "end_marker": "firmware_passed",
+        "source_lines": [
+          6415,
+          6416
+        ]
+      },
+      "jit_probe_launch_receipts": {
+        "seconds": 0.015952,
+        "start_marker": "jit_probe_begin",
+        "end_marker": "jit_probe_passed",
+        "source_lines": [
+          6420,
+          6423
+        ]
+      },
+      "jit_arena_core": {
+        "seconds": 0.987648,
+        "start_marker": "jit_arena_begin",
+        "end_marker": "jit_arena_passed",
+        "source_lines": [
+          6422,
+          6440
+        ]
+      },
+      "donor_mapping_launch_receipts": {
+        "seconds": 0.126025,
+        "start_marker": "memory_preparing",
+        "end_marker": "memory_mapped",
+        "source_lines": [
+          6444,
+          6448
+        ]
+      },
+      "presentation_attachment_launch_receipts": {
+        "seconds": 0.598634,
+        "start_marker": "presentation_begin",
+        "end_marker": "presentation_passed",
+        "source_lines": [
+          6453,
+          6472
+        ]
+      },
+      "game_content_loader_core": {
+        "seconds": 0.35893,
+        "start_marker": "content_begin",
+        "end_marker": "content_passed",
+        "source_lines": [
+          6482,
+          6851
+        ]
+      },
+      "horizon_service_readiness_core": {
+        "seconds": 0.000125,
+        "start_marker": "system_services_begin",
+        "end_marker": "system_services_passed",
+        "source_lines": [
+          6832,
+          6834
+        ]
+      },
+      "renderer_initialize_core": {
+        "seconds": 0.014964,
+        "start_marker": "renderer_initialize_begin",
+        "end_marker": "renderer_initialize_passed",
+        "source_lines": [
+          6853,
+          7037
+        ]
+      },
+      "shader_cache_load": {
+        "seconds": 11.411,
+        "start_marker": "shader_cache_begin",
+        "end_marker": "shader_cache_end",
+        "source_lines": [
+          7040,
+          8146
+        ]
+      },
+      "cache_end_to_first_metal_presentation": {
+        "seconds": 3.378814,
+        "start_marker": "shader_cache_end",
+        "end_marker": "first_metal_presentation_confirmed",
+        "source_lines": [
+          8146,
+          8221
+        ]
+      }
+    },
+    "nonoverlapping_launch_windows": [
+      {
+        "phase": "selection_to_runtime_ready",
+        "seconds": 0.193305,
+        "source_lines": [
+          6383,
+          6393
+        ]
+      },
+      {
+        "phase": "runtime_ready_to_first_core_preflight",
+        "seconds": 2.065581,
+        "source_lines": [
+          6393,
+          6399
+        ]
+      },
+      {
+        "phase": "native_preflight_to_firmware_ready",
+        "seconds": 0.174543,
+        "source_lines": [
+          6399,
+          6416
+        ]
+      },
+      {
+        "phase": "firmware_ready_to_jit_handshake_complete",
+        "seconds": 1.005551,
+        "source_lines": [
+          6416,
+          6442
+        ]
+      },
+      {
+        "phase": "jit_complete_to_renderer_setup",
+        "seconds": 0.759472,
+        "source_lines": [
+          6442,
+          6476
+        ]
+      },
+      {
+        "phase": "renderer_setup_and_content_to_shader_cache",
+        "seconds": 0.410794,
+        "source_lines": [
+          6476,
+          7040
+        ]
+      },
+      {
+        "phase": "shader_cache_loading",
+        "seconds": 11.411,
+        "source_lines": [
+          7040,
+          8146
+        ]
+      },
+      {
+        "phase": "cache_ready_to_first_metal_presentation",
+        "seconds": 3.378814,
+        "source_lines": [
+          8146,
+          8221
+        ]
+      }
+    ],
+    "window_interpretation": "Elapsed windows sum to selection-to-first-frame time; labels are not exclusive CPU-work attribution.",
+    "pipeline_cache": {
+      "main_data_kib": 0,
+      "worker_snapshots_recovered": 2,
+      "worker_snapshots_expected": 2,
+      "main_budget_mib": 384,
+      "worker_budget_mib": 64,
+      "source_line": 7035,
+      "limitation": "Snapshot recovery does not report per-pipeline hits, validity for this workload or avoided Metal compilation."
+    },
+    "shader_cache": {
+      "program_count_reported_as_shaders": 2743,
+      "duration_seconds_from_wall_timestamps": 11.411,
+      "duration_seconds_from_engine_elapsed": 11.412,
+      "share_of_launch_to_first_frame_percent": 58.822,
+      "source_lines": [
+        7040,
+        8146
+      ],
+      "rebuild_announced": false,
+      "cache_load_read_decompression_error_announced": false
+    },
+    "primitive_restart_warnings": {
+      "message": "VK_ERROR_FEATURE_NOT_PRESENT: Metal does not support disabling primitive restart.",
+      "session_count": 1086,
+      "during_shader_cache_count": 1084,
+      "during_shader_cache_line_range": [
+        7041,
+        8145
+      ],
+      "outside_shader_cache_lines": [
+        8227,
+        8228
+      ],
+      "interpretation": "Warning-line count; not a count of unique or failed pipeline compilations"
+    },
+    "performance": {
+      "sample_count": 27,
+      "unpaused_sample_count": 26,
+      "paused_sample_count": 1,
+      "zero_fps_and_no_present_initial_samples": {
+        "t_range": [
+          1,
+          15
+        ],
+        "count": 15
+      },
+      "first_sample_with_presentation": {
+        "line": 8229,
+        "t": 16,
+        "presentation_count": 37,
+        "fps_value_is_not_ready": true,
+        "frame_time_is_uninitialized_and_excluded": true
+      },
+      "first_nonzero_fps_sample": {
+        "line": 9034,
+        "t": 17,
+        "fps": 60.3
+      },
+      "shader_load_samples": {
+        "sample_t_range_inclusive": [
+          1,
+          11
+        ],
+        "sample_count": 11,
+        "source_line_range": [
+          7085,
+          8076
+        ],
+        "cpu_percent_of_one_core": {
+          "min": 101,
+          "median": 116,
+          "max": 120
+        },
+        "footprint_mib": {
+          "min": 1237,
+          "median": 1854,
+          "max": 2383
+        },
+        "process_headroom_mib": {
+          "min": 4272,
+          "median": 4801,
+          "max": 5418
+        },
+        "device_available_percent": {
+          "min": 23,
+          "median": 30,
+          "max": 37
+        },
+        "fps": {
+          "min": 0.0,
+          "median": 0.0,
+          "max": 0.0
+        },
+        "present_count_per_sample": {
+          "min": 0,
+          "median": 0,
+          "max": 0
+        },
+        "bgc_percent_of_one_core_when_visible": {
+          "samples_visible": 0,
+          "min": null,
+          "median": null,
+          "max": null
+        },
+        "gpu_main_thread_percent_of_one_core_when_visible": {
+          "samples_visible": 9,
+          "min": 15,
+          "median": 17,
+          "max": 19
+        },
+        "guest_main_thread_percent_of_one_core_when_visible": {
+          "samples_visible": 0,
+          "min": null,
+          "median": null,
+          "max": null
+        },
+        "thermal_states": [
+          "nominal"
+        ],
+        "low_power_values": [
+          0
+        ]
+      },
+      "post_cache_pre_first_frame_samples": {
+        "sample_t_range_inclusive": [
+          12,
+          15
+        ],
+        "sample_count": 4,
+        "source_line_range": [
+          8182,
+          8204
+        ],
+        "cpu_percent_of_one_core": {
+          "min": 88,
+          "median": 99.5,
+          "max": 112
+        },
+        "footprint_mib": {
+          "min": 2464,
+          "median": 2475.5,
+          "max": 2496
+        },
+        "process_headroom_mib": {
+          "min": 4159,
+          "median": 4179.5,
+          "max": 4191
+        },
+        "device_available_percent": {
+          "min": 22,
+          "median": 23.0,
+          "max": 23
+        },
+        "fps": {
+          "min": 0.0,
+          "median": 0.0,
+          "max": 0.0
+        },
+        "present_count_per_sample": {
+          "min": 0,
+          "median": 0.0,
+          "max": 0
+        },
+        "bgc_percent_of_one_core_when_visible": {
+          "samples_visible": 0,
+          "min": null,
+          "median": null,
+          "max": null
+        },
+        "gpu_main_thread_percent_of_one_core_when_visible": {
+          "samples_visible": 1,
+          "min": 16,
+          "median": 16,
+          "max": 16
+        },
+        "guest_main_thread_percent_of_one_core_when_visible": {
+          "samples_visible": 4,
+          "min": 11,
+          "median": 72.0,
+          "max": 99
+        },
+        "thermal_states": [
+          "nominal"
+        ],
+        "low_power_values": [
+          0
+        ]
+      },
+      "subsequent_observation": "t=19 has no presents; t=20 reports 16.9 FPS and 1371.0 ms maximum presentation gap; t=21..26 reports 60.0..60.3 FPS while Nvdec/movie workers run. There is no menu-ready marker.",
+      "subsequent_source_lines": [
+        9041,
+        9042,
+        9043,
+        9044,
+        9045,
+        9046,
+        9047,
+        9048
+      ],
+      "top_threads_limitation": "Only the six busiest threads are reported. Missing BGC or translation workers does not establish zero work. CPU percentages are relative to one logical core."
+    },
+    "memory_after_shader_cache": {
+      "source_line": 8174,
+      "footprint_mib": 2459,
+      "process_headroom_mib": 4196,
+      "device_available_percent": 22,
+      "managed_heap_mib": 594,
+      "texture_cache_mib": 0,
+      "texture_cache_limit_mib": 768,
+      "buffer_cache_mib": 0,
+      "buffer_cache_limit_mib": 554
+    },
+    "startup_memory_warning_observed": false
+  },
+  "previous_ssbu_comparison": {
+    "source_is_old_prefix_not_new_observation": true,
+    "application_segment_lines": [
+      1866,
+      4617
+    ],
+    "selection": {
+      "line": 1933,
+      "channel": "launch",
+      "stage": "selection",
+      "status": "begin",
+      "timestamp_utc": "2026-10-29T02:47:13.999037Z"
+    },
+    "first_frame": {
+      "line": 3777,
+      "channel": "launch",
+      "stage": "firstFrame",
+      "status": "passed",
+      "timestamp_utc": "2026-10-29T02:47:43.053988Z"
+    },
+    "game_version": "13.0.4",
+    "game_identity_line": 2400,
+    "shader_count": 2743,
+    "async_shaders": false,
+    "configuration_lines": [
+      2008,
+      2009
+    ],
+    "jit_arena_mib": 512,
+    "jit_arena_line": 1990,
+    "moltenvk_sha256_prefix": "e16c98f057d7fbfd",
+    "moltenvk_identity_line": 2009,
+    "pipeline_cache_line": 2585,
+    "main_data_kib": 0,
+    "worker_snapshots_recovered": 2,
+    "worker_snapshots_expected": 2,
+    "selection_to_first_frame_seconds": 29.054951,
+    "selection_to_shader_cache_seconds": 4.741963,
+    "shader_cache_seconds": 20.749,
+    "shader_cache_source_lines": [
+      2590,
+      3708
+    ],
+    "cache_end_to_first_frame_seconds": 3.563988,
+    "rebuild": {
+      "announced": true,
+      "begin": {
+        "line": 3704,
+        "channel": "stderr",
+        "event": "shader_cache_rebuild_begin",
+        "timestamp_utc": "2026-10-29T02:47:38.021Z",
+        "engine_elapsed": "00:00:19.713",
+        "clock_normalization": "Wall clock minus one hour, aligned with adjacent core UTC markers"
+      },
+      "success": {
+        "line": 3707,
+        "channel": "stderr",
+        "event": "shader_cache_rebuild_success",
+        "timestamp_utc": "2026-10-29T02:47:39.489Z",
+        "engine_elapsed": "00:00:21.181",
+        "clock_normalization": "Wall clock minus one hour, aligned with adjacent core UTC markers"
+      },
+      "duration_seconds": 1.468,
+      "success_to_cache_loaded_seconds": 0.001
+    },
+    "primitive_restart_warnings": {
+      "message": "VK_ERROR_FEATURE_NOT_PRESENT: Metal does not support disabling primitive restart.",
+      "session_count": 1086,
+      "during_shader_cache_count": 1084,
+      "during_shader_cache_line_range": [
+        2591,
+        3703
+      ],
+      "outside_shader_cache_lines": [
+        3789,
+        3790
+      ],
+      "interpretation": "Warning-line count; not a count of unique or failed pipeline compilations"
+    },
+    "shader_load_translation_samples": {
+      "sample_t_range_inclusive": [
+        1,
+        19
+      ],
+      "sample_count": 19,
+      "source_line_range": [
+        2634,
+        3680
+      ],
+      "cpu_percent_of_one_core": {
+        "min": 145,
+        "median": 183,
+        "max": 206
+      },
+      "footprint_mib": {
+        "min": 1234,
+        "median": 1904,
+        "max": 2485
+      },
+      "process_headroom_mib": {
+        "min": 4170,
+        "median": 4751,
+        "max": 5421
+      },
+      "device_available_percent": {
+        "min": 24,
+        "median": 26,
+        "max": 34
+      },
+      "fps": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      },
+      "present_count_per_sample": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      },
+      "bgc_percent_of_one_core_when_visible": {
+        "samples_visible": 4,
+        "min": 9,
+        "median": 11.5,
+        "max": 16
+      },
+      "gpu_main_thread_percent_of_one_core_when_visible": {
+        "samples_visible": 0,
+        "min": null,
+        "median": null,
+        "max": null
+      },
+      "guest_main_thread_percent_of_one_core_when_visible": {
+        "samples_visible": 0,
+        "min": null,
+        "median": null,
+        "max": null
+      },
+      "thermal_states": [
+        "nominal"
+      ],
+      "low_power_values": [
+        0
+      ]
+    },
+    "observed_differences": {
+      "total_launch_seconds_saved": 9.655891,
+      "total_launch_reduction_percent": 33.233,
+      "cache_seconds_saved": 9.338,
+      "share_of_observed_total_saving_in_cache_window_percent": 96.708,
+      "jit_arena_changed": false,
+      "async_shaders_changed": false,
+      "shader_count_changed": false,
+      "warning_count_changed": false,
+      "moltenvk_identity_changed": true,
+      "cache_rebuild_announcement_changed": true
+    },
+    "causal_limit": "Two observations with different component identity and cache history, not a controlled engine A/B. No causal attribution to an engine version or the MoltenVK identity change."
+  },
+  "source_review": {
+    "kind": "Read-only review of available adapted source, not proof of the engine executed by this log",
+    "files": [
+      {
+        "file": "src/Ryujinx.Graphics.Gpu/Shader/ShaderInfoBuilder.cs",
+        "sha256": "31eaf8d65202313dc976ab308f962ae93f8d6d3683b741836d0e35df2d93a2da",
+        "lines": [
+          349,
+          369,
+          417
+        ]
+      },
+      {
+        "file": "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs",
+        "sha256": "abefaf59a80a9209f0df4fdabc649d0d833dfcbf2e9c8fc7151eb9968093e950",
+        "lines": [
+          390,
+          402,
+          415
+        ]
+      },
+      {
+        "file": "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs",
+        "sha256": "8636bc114c4d2f1d03e35c0c9f6b4dbb1729cec8849ba40cf4d97b6e515d156c",
+        "lines": [
+          628,
+          629,
+          640
+        ]
+      },
+      {
+        "file": "src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs",
+        "sha256": "21836d79b26f8c5d69bfa43ac6e617057e5b37a3e58dabb2849140c650503094",
+        "lines": [
+          206,
+          208,
+          231,
+          542,
+          553,
+          559,
+          987,
+          1019,
+          1044
+        ]
+      },
+      {
+        "file": "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/ParallelDiskCacheLoader.cs",
+        "sha256": "477fe022ac61f0acddeaa2c3becff3f7d1ff153209f3a63b88e0ce6b0e3b4fc2",
+        "lines": [
+          257,
+          286,
+          411,
+          526
+        ]
+      },
+      {
+        "file": "src/Ryujinx.Graphics.Gpu/GpuContext.cs",
+        "sha256": "194ca019672e8e5fcc37bbb32db3cb2adc206a13cad70a5d6beef8aeed3c3dfc",
+        "lines": [
+          293,
+          299,
+          302,
+          308
+        ]
+      },
+      {
+        "file": "src/Ryujinx.HLE/HOS/ArmProcessContext.cs",
+        "sha256": "a455fdf4f321c709accc58584dab97ac5b48b93d67762d39c07c579b57dd8204",
+        "lines": [
+          62
+        ]
+      },
+      {
+        "file": "src/Ryujinx.Library/Window/WindowBase.cs",
+        "sha256": "e749709340545e03dea3548f8c5cb59d3c8f85dfe1de29bbb8732d7fa0d43def",
+        "lines": [
+          221
+        ]
+      }
+    ],
+    "findings": [
+      "ShaderInfoBuilder keeps EnableAsyncCompile tied to the gameplay async setting even when fromCache=true.",
+      "VulkanRenderer forwards this flag to ShaderCollection. With async=false and a pipeline state, its constructor launches BackgroundCompilation and returns before assigning the detached warm-up flag.",
+      "That non-background branch waits for shader modules and then creates an initial compute/graphics pipeline. CheckProgramLink waits for its task; the cache loader calls blocking validation.",
+      "The existing detached-warm-up branch only applies to compileInBackground=true.",
+      "InitializeShaderCache sets the GPU-ready event only after all physical-memory shader caches initialize; ArmProcessContext.Execute waits for that event before guest execution."
+    ],
+    "hypothesis": "This source path explains why startup may still spend time creating initial pipelines while gameplay async shaders is false. The repeated warnings are compatible with this work; their count and timing do not quantify the CPU cost of logging or prove failed pipelines.",
+    "not_claimed": [
+      "The log identifies the reviewed engine build.",
+      "All 2743 cached programs produced new Metal compilations.",
+      "Each warning corresponds to a failed pipeline.",
+      "Enabling gameplay async shaders is required or validated as a fix.",
+      "A new startup optimization has been measured on the device."
+    ]
+  }
+}
