@@ -1,0 +1,22 @@
+{
+  "passed": true,
+  "kind": "canonical-exact-texture-framebuffer-integration",
+  "baselineCommit": "6d80aaaf150978d8b1f3e6bfc71aedcce71c4658",
+  "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "patchSHA256": "d7e8921e513dcb7caaf90ef6f903b1f9a28eb749b41fa668762304d90f876b2d",
+  "fixtureSHA256": "634375a7e51f7ce05ef840dfde32f8a28d67e9774f18495c2f6a51ebf205dd26",
+  "nativePostimages": 313,
+  "unchangedPreviousPostimages": 311,
+  "changedPreviousPostimages": 1,
+  "newDeltaPaths": [
+    "rpcs3/Emu/RSX/VK/VKFramebuffer.cpp"
+  ],
+  "freshMaterializationEqualsReviewedTree": true,
+  "nonIOSPathsUnchanged": true,
+  "staticHostExportContractPassed": true,
+  "materializationStdout": "PASS: single canonical RPCS3 delta, all postimage hashes verified\nPASS static link contract: all host-loaded Core functions are exported",
+  "compilerOrCMakeExecuted": false,
+  "appleCoreBuilt": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false
+}

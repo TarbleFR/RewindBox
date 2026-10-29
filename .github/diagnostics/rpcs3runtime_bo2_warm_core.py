@@ -312,9 +312,11 @@ def baseline_commits():
                 before593=previous.previous.delta.BASELINE)
 
 
-def prepare(source):
+def prepare(source, *, gate=None):
+    """Run the pending Apple checks using an explicitly supplied delta gate."""
+    gate = sys.modules[__name__] if gate is None else gate
     assert platform.system() == 'Darwin' and platform.machine() == 'arm64'
-    authenticated, current, historical, codegen, extras = source_contract(source)
+    authenticated, current, historical, codegen, extras = gate.source_contract(source)
     manifest, record, _ = authenticated
     OUT.mkdir(parents=True, exist_ok=True)
     compiler_command = os.environ['CXX']
@@ -324,25 +326,25 @@ def prepare(source):
     assert Path(sdk).is_dir()
     env = dict(os.environ, SDKROOT=sdk, ASAN_OPTIONS='detect_leaks=0',
                UBSAN_OPTIONS='halt_on_error=1', TSAN_OPTIONS='halt_on_error=1')
-    receipt = dict(schema=1, kind=delta.KEY, source=command('git', 'rev-parse', 'HEAD').decode().strip(),
+    receipt = dict(schema=1, kind=gate.delta.KEY, source=command('git', 'rev-parse', 'HEAD').decode().strip(),
                    source_root=str(source), input_sha256=current, native_source_sha256=manifest['files_sha256'],
                    supplemental_native_sha256=extras, fixture_sha256=record['fixture_sha256'],
                    host=dict(system='Darwin', machine='arm64', compiler=compiler, compilerCommand=compiler_command),
-                   baseline_commits=baseline_commits(),
+                   baseline_commits=gate.baseline_commits(),
                    exported_symbols=sorted((source / 'rpcs3/ios/RPCS3IOS.exports').read_text().split()),
                    physical_device_tested=False, gameplay_measured=False, all_tests_passed=False,
                    historical=historical, codegen_source_proof=codegen, tests={})
     PROOF.write_text(json.dumps(receipt, indent=2) + '\n')
     with tempfile.TemporaryDirectory(prefix='runtime-bo2-warm-before-') as temp:
-        roots = baselines(source, Path(temp), authenticated)
+        roots = gate.baselines(source, Path(temp), authenticated)
         receipt['baseline_roots'] = {key: str(value) for key, value in roots.items()}
-        expected = expected_results(source, roots)
-        for name, (_, modes) in all_tests().items():
+        expected = gate.expected_results(source, roots)
+        for name, (_, modes) in gate.all_tests().items():
             for mode in modes:
                 key = name + '-' + mode
                 report = OUT / (key + '-result.json')
                 report.unlink(missing_ok=True)
-                argv = runner_command(name, mode, source, roots, compiler_command)
+                argv = gate.runner_command(name, mode, source, roots, compiler_command)
                 run = subprocess.run(argv, cwd=ROOT, env=env, stdout=subprocess.PIPE,
                                      stderr=subprocess.STDOUT, timeout=300)
                 (OUT / (key + '-output.txt')).write_bytes(run.stdout)
@@ -351,19 +353,21 @@ def prepare(source):
                 receipt['tests'][key] = state
                 PROOF.write_text(json.dumps(receipt, indent=2) + '\n')
                 assert run.returncode == 0 and report.is_file(), key
-                validate_result(name, mode, json.loads(report.read_bytes()), expected, compiler)
+                gate.validate_result(name, mode, json.loads(report.read_bytes()), expected, compiler)
                 state.update(passed=True, report_sha256=sha(report.read_bytes()))
-    assert current == inputs(), 'Build or test inputs changed during preflight'
+    assert current == gate.inputs(), 'Build or test inputs changed during preflight'
     receipt['all_tests_passed'] = True
     PROOF.write_text(json.dumps(receipt, indent=2) + '\n')
-    print('PASS twenty Apple ARM64 modes: fourteen pending follow-up and six recurring-cost checks; GCD required, CMake proof reused; no device or FPS measurement')
+    modes = sum(len(modes) for _, modes in gate.all_tests().values())
+    print(f'PASS {modes} pending Apple ARM64 modes; GCD required, CMake proof reused; no device or FPS measurement')
 
 
-def verify(path, source=None):
+def verify(path, source=None, *, gate=None):
+    gate = sys.modules[__name__] if gate is None else gate
     proof = json.loads(path.read_bytes())
-    assert proof['schema'] == 1 and proof['kind'] == delta.KEY
+    assert proof['schema'] == 1 and proof['kind'] == gate.delta.KEY
     source = Path(source or proof['source_root'])
-    authenticated, current, historical, codegen, extras = source_contract(source)
+    authenticated, current, historical, codegen, extras = gate.source_contract(source)
     manifest, record, _ = authenticated
     assert proof['source'] == command('git', 'rev-parse', 'HEAD').decode().strip()
     assert proof['input_sha256'] == current and proof['native_source_sha256'] == manifest['files_sha256']
@@ -372,32 +376,33 @@ def verify(path, source=None):
     assert proof['gameplay_measured'] is False
     assert proof['host']['system'] == 'Darwin' and proof['host']['machine'] == 'arm64'
     assert re.search(r'clang version 22\.', proof['host']['compiler'])
-    assert proof['baseline_commits'] == baseline_commits()
-    assert set(proof['baseline_roots']) == set(baseline_commits())
-    assert len(set(proof['baseline_roots'].values())) == 3
+    assert proof['baseline_commits'] == gate.baseline_commits()
+    assert set(proof['baseline_roots']) == set(gate.baseline_commits())
+    assert len(set(proof['baseline_roots'].values())) == len(gate.baseline_commits())
     assert proof['exported_symbols'] == sorted((source / 'rpcs3/ios/RPCS3IOS.exports').read_text().split())
     assert proof['historical'] == historical and proof['codegen_source_proof'] == codegen
-    assert set(proof['tests']) == {name + '-' + mode for name, (_, modes) in all_tests().items() for mode in modes}
+    assert set(proof['tests']) == {name + '-' + mode for name, (_, modes) in gate.all_tests().items() for mode in modes}
     with tempfile.TemporaryDirectory(prefix='runtime-bo2-warm-recheck-') as temp:
-        roots = baselines(source, Path(temp), authenticated)
-        expected = expected_results(source, roots)
+        roots = gate.baselines(source, Path(temp), authenticated)
+        expected = gate.expected_results(source, roots)
         recorded_roots = {key: Path(value) for key, value in proof['baseline_roots'].items()}
-        for name, (_, modes) in all_tests().items():
+        for name, (_, modes) in gate.all_tests().items():
             for mode in modes:
                 key = name + '-' + mode
                 state = proof['tests'][key]
                 assert state['passed'] is True and state['returncode'] == 0
-                assert state['command'] == runner_command(name, mode, Path(proof['source_root']),
+                assert state['command'] == gate.runner_command(name, mode, Path(proof['source_root']),
                     recorded_roots, proof['host']['compilerCommand'])
                 raw = (OUT / (key + '-result.json')).read_bytes()
                 assert sha(raw) == state['report_sha256']
                 assert sha((OUT / (key + '-output.txt')).read_bytes()) == state['output_sha256']
-                validate_result(name, mode, json.loads(raw), expected, proof['host']['compiler'])
+                gate.validate_result(name, mode, json.loads(raw), expected, proof['host']['compiler'])
     return proof
 
 
-def identity(directory):
-    proof = verify(PROOF)
+def identity(directory, *, gate=None):
+    gate = sys.modules[__name__] if gate is None else gate
+    proof = verify(PROOF, gate=gate)
     manifest = json.loads((ROOT / MANIFEST).read_bytes())
     sys.path.insert(0, str(ROOT / 'packages/dolphin_internal_bridge/ci'))
     from verify_ipa import macho
@@ -412,7 +417,7 @@ def identity(directory):
     log = (OUT / 'build.log').read_text()
     actual = {kind: re.findall(r'NeoStation ' + kind + r' codegen identity: ([0-9a-f]{16})', log)
               for kind in ('PPU', 'SPU')}
-    assert actual == {kind: [value] for kind, value in manifest[delta.KEY]['codegen'].items()}
+    assert actual == {kind: [value] for kind, value in manifest[gate.delta.KEY]['codegen'].items()}
     assert all(hook in log for hook in ('MoltenVK compile QoS hook linked', 'MoltenVK encoding-queue hook linked'))
     archive = manifest['cell587']['moltenvk_archive']
     assert archive['input_sha256'] + ' -> ' + archive['patched_sha256'] in log
@@ -427,7 +432,8 @@ def identity(directory):
                   physical_device_tested=False, gameplay_measured=False, public_release=False)
     for target in (directory, OUT):
         (target / 'identity.json').write_text(json.dumps(result, indent=2) + '\n')
-    print('PASS iPhone source candidate: twenty ARM64 modes, ABI30/88 exports and unchanged PPU/SPU identities; no delivery number or physical-device claim')
+    modes = sum(len(modes) for _, modes in gate.all_tests().values())
+    print(f'PASS iPhone source candidate: {modes} ARM64 modes, ABI30/88 exports and unchanged PPU/SPU identities; no delivery number or physical-device claim')
 
 
 def main(args):

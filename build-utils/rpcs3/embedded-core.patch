@@ -16260,7 +16260,7 @@ index 6b30665..e56405c 100644
  
  	namespace blit_engine_helpers
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
-index 0fa80b2..8ef8ac9 100644
+index 0fa80b2..9387c4e 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache.h
 +++ b/rpcs3/Emu/RSX/Common/texture_cache.h
 @@ -12,6 +12,14 @@
@@ -16681,11 +16681,91 @@ index 0fa80b2..8ef8ac9 100644
  
  				if (!last.is_clipped) //<- A non-clipped hit fully contains the requested box. We're good to go with the framebuffer processing.
  				{
-@@ -2609,12 +2880,41 @@ namespace rsx
+@@ -2609,12 +2880,121 @@ namespace rsx
  
  			// Check shader_read storage. In a given scene, reads from local memory far outnumber reads from the surface cache
  			const u32 lookup_mask = rsx::texture_upload_context::shader_read | rsx::texture_upload_context::blit_engine_dst | rsx::texture_upload_context::blit_engine_src;
 -			overlapping_locals = find_texture_from_range<true>(memory_range, attr.height > 1 ? attr.pitch : 0, lookup_mask & options.lookup_mask);
++#ifdef RPCS3_IOS
++			auto& exact_block = m_storage.block_for(attr.address);
++			if (memory_range.valid() && memory_range.start == attr.address &&
++				exact_block.size() > ranged_storage_block::address_index_threshold)
++			{
++				// REWINDBOX_TEXTURE_EXACT_INDEX: the caller holds the cache reader
++				// lock. Only slots with this base can match; the address index keeps
++				// their original order. Defer overlap collection until an exact miss.
++				const u32 candidate_contexts = lookup_mask & options.lookup_mask;
++				const u32 required_pitch = attr.height > 1 ? attr.pitch : 0;
++				rsx::simple_array<section_storage_type*> invalidated_exact;
++				bool stop_exact = false;
++				for (const auto& entry : exact_block.find_address(attr.address))
++				{
++					auto* cached_texture = entry.section;
++					if (!cached_texture->is_locked() || cached_texture->is_dirty() ||
++						!(candidate_contexts & static_cast<u32>(cached_texture->get_context())) ||
++						(required_pitch && !rsx::pitch_compatible<false>(cached_texture, required_pitch, -1)))
++					{
++						continue;
++					}
++					if (!cached_texture->matches(attr.address, attr.gcm_format, attr.width, attr.height, attr.depth, 0))
++					{
++						continue;
++					}
++					if (cached_texture->sync_protection())
++					{
++#ifdef TEXTURE_CACHE_DEBUG
++						if (!memory_range.inside(cached_texture->get_confirmed_range()))
++						{
++							continue;
++						}
++#endif
++						if (attr.swizzled == cached_texture->is_swizzled())
++						{
++							sampled_image_descriptor exact_match
++							{
++								cached_texture->get_view(remap),
++								cached_texture->get_context(),
++								cached_texture->get_format_class(),
++								scale,
++								cached_texture->get_image_type(),
++								cached_texture->get_section_base()
++							};
++							exact_match.ios_validation_range = cached_texture->get_section_range();
++							return exact_match;
++						}
++						rsx_log.warning("A texture was found in cache for address 0x%x, but swizzle flag does not match", attr.address);
++						cached_texture->unprotect();
++						cached_texture->set_dirty(true);
++						stop_exact = true;
++					}
++					// The old walk appended this slot before failed validation or
++					// swizzle rejection. Preserve the swap-with-tail erase order.
++					invalidated_exact.push_back(cached_texture);
++					if (stop_exact) break;
++				}
++
++				// Exact candidates were already checked in slot order. Collect
++				// merge inputs once, including slots invalidated by those checks.
++				const bool retain_invalidated = !invalidated_exact.empty();
++				usz invalidated_pos = 0;
++				for (auto It = m_storage.range_begin(memory_range, full_range, !retain_invalidated); It != m_storage.range_end(); It++)
++				{
++					auto* cached_texture = &*It;
++					const bool was_invalidated = invalidated_pos < invalidated_exact.size() &&
++						invalidated_exact[invalidated_pos] == cached_texture;
++					if (was_invalidated) ++invalidated_pos;
++					if (!was_invalidated && ((retain_invalidated && !cached_texture->is_locked()) || cached_texture->is_dirty() ||
++						!(candidate_contexts & static_cast<u32>(cached_texture->get_context())) ||
++						(required_pitch && !rsx::pitch_compatible<false>(cached_texture, required_pitch, -1))))
++					{
++						continue;
++					}
++					overlapping_locals.push_back(cached_texture);
++				}
++			}
++			else
++			{
++#endif
 +#ifdef RPCS3_IOS
 +			// REWINDBOX_TEXTURE_EXACT_HIT: visit candidates in the same order as
 +			// find_texture_from_range, but stop at the first valid exact match.
@@ -16725,7 +16805,7 @@ index 0fa80b2..8ef8ac9 100644
  				{
  #ifdef TEXTURE_CACHE_DEBUG
  					if (!memory_range.inside(cached_texture->get_confirmed_range()))
-@@ -2632,10 +2932,15 @@ namespace rsx
+@@ -2632,10 +3012,15 @@ namespace rsx
  						rsx_log.warning("A texture was found in cache for address 0x%x, but swizzle flag does not match", attr.address);
  						cached_texture->unprotect();
  						cached_texture->set_dirty(true);
@@ -16742,7 +16822,7 @@ index 0fa80b2..8ef8ac9 100644
  					{
  						cached_texture->get_view(remap),
  						cached_texture->get_context(),
-@@ -2644,15 +2949,20 @@ namespace rsx
+@@ -2644,15 +3029,23 @@ namespace rsx
  						cached_texture->get_image_type(),
  						cached_texture->get_section_base()
  					};
@@ -16752,6 +16832,9 @@ index 0fa80b2..8ef8ac9 100644
 +					return exact_match;
  				}
  			}
++#ifdef RPCS3_IOS
++			}
++#endif
  
  			if (!overlapping_locals.empty())
  			{
@@ -16765,7 +16848,7 @@ index 0fa80b2..8ef8ac9 100644
  				});
  			}
  
-@@ -2875,6 +3185,48 @@ namespace rsx
+@@ -2875,6 +3268,48 @@ namespace rsx
  			return {};
  		}
  
@@ -16814,7 +16897,7 @@ index 0fa80b2..8ef8ac9 100644
  		template <typename surface_store_type, typename RsxTextureType>
  		bool test_if_descriptor_expired(commandbuffer_type& cmd, surface_store_type& surface_cache, sampled_image_descriptor* descriptor, const RsxTextureType& tex)
  		{
-@@ -3326,13 +3678,18 @@ namespace rsx
+@@ -3326,13 +3761,18 @@ namespace rsx
  
  			// Invalidate
  			const address_range32 tex_range = address_range32::start_length(attributes.address, tex_size);
@@ -16834,7 +16917,7 @@ index 0fa80b2..8ef8ac9 100644
  			{
  				uploaded->get_view(tex.decoded_remap()),
  				texture_upload_context::shader_read,
-@@ -3341,6 +3698,10 @@ namespace rsx
+@@ -3341,6 +3781,10 @@ namespace rsx
  				extended_dimension,
  				attributes.address
  			};
@@ -16845,7 +16928,7 @@ index 0fa80b2..8ef8ac9 100644
  		}
  
  		// FIXME: This function is way too large and needs an urgent refactor.
-@@ -3628,6 +3989,15 @@ namespace rsx
+@@ -3628,6 +4072,15 @@ namespace rsx
  
  			if (!cached_dest && !dst_is_render_target)
  			{
@@ -16861,7 +16944,7 @@ index 0fa80b2..8ef8ac9 100644
  				blit_engine_internals::create_blit_dst(
  					this,
  					cmd,
-@@ -3724,6 +4094,26 @@ namespace rsx
+@@ -3724,6 +4177,26 @@ namespace rsx
  
  				if (!dest_section || !dest_section->is_locked())
  				{
@@ -20338,6 +20421,24 @@ index af6a25a..68145ed 100644
  	m_shader_props.ROP_polygon_stipple_test = !!(m_prog.ctrl & RSX_SHADER_CONTROL_POLYGON_STIPPLE);
  	m_shader_props.ROP_discard = !!(m_prog.ctrl & RSX_SHADER_CONTROL_USES_KIL);
  	m_shader_props.ROP_channel_remap = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ROP_OUTPUT_REMAP);
+diff --git a/rpcs3/Emu/RSX/VK/VKFramebuffer.cpp b/rpcs3/Emu/RSX/VK/VKFramebuffer.cpp
+index 572935e..eaff79b 100644
+--- a/rpcs3/Emu/RSX/VK/VKFramebuffer.cpp
++++ b/rpcs3/Emu/RSX/VK/VKFramebuffer.cpp
+@@ -24,7 +24,13 @@ namespace vk
+ 		};
+ 
+ 		framebuffer_storage_key(u16 width_, u16 height_, VkBool32 has_input_attachments)
++#ifdef RPCS3_IOS
++			// Every bit enters the cache key. Initializing only the bitfields
++			// leaves the upper 31 bits dependent on the previous stack contents.
++			: encoded(u64(width_) | (u64(height_) << 16) | ((u64(has_input_attachments) & 1u) << 32))
++#else
+ 			: width(width_), height(height_), ia_ref(has_input_attachments)
++#endif
+ 		{}
+ 	};
+ 
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 index 63cab28..891f193 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
