@@ -70,6 +70,10 @@ from adapt_single_resource_bindings import apply as adapt_single_resource_bindin
 from adapt_render_target_snapshot import apply as adapt_render_target_snapshot
 from adapt_buffer_range_snapshots import apply as adapt_buffer_range_snapshots
 from adapt_pipeline_key_allocation import apply as adapt_pipeline_key_allocation
+from adapt_barrier_compaction import apply as adapt_barrier_compaction
+from adapt_bounded_binding_snapshots import apply as adapt_bounded_binding_snapshots
+from adapt_virtual_buffer_readback import apply as adapt_virtual_buffer_readback
+from adapt_uniform_buffer_spans import apply as adapt_uniform_buffer_spans
 
 
 def replace_once(path, old, new):
@@ -160,6 +164,10 @@ def main():
     adapted += adapt_render_target_snapshot(source)
     adapted += adapt_buffer_range_snapshots(source)
     adapted += adapt_pipeline_key_allocation(source)
+    adapted += adapt_barrier_compaction(source)
+    adapted += adapt_bounded_binding_snapshots(source)
+    adapted += adapt_virtual_buffer_readback(source)
+    adapted += adapt_uniform_buffer_spans(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -229,7 +237,9 @@ def main():
                  'adapt_gpu_startup_failure.py', 'adapt_shader_loader_lifetime.py',
                  'adapt_pipeline_vertex_state.py', 'adapt_renderpass_queries.py',
                  'adapt_single_resource_bindings.py', 'adapt_render_target_snapshot.py',
-                 'adapt_buffer_range_snapshots.py', 'adapt_pipeline_key_allocation.py']:
+                 'adapt_buffer_range_snapshots.py', 'adapt_pipeline_key_allocation.py',
+                 'adapt_barrier_compaction.py', 'adapt_bounded_binding_snapshots.py',
+                 'adapt_virtual_buffer_readback.py', 'adapt_uniform_buffer_spans.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

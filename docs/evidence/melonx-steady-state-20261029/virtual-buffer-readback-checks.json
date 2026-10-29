@@ -1,0 +1,372 @@
+{
+  "result": "passed",
+  "reports": {
+    "control": {
+      "variant": "control",
+      "overcopyCorrected": false,
+      "assertions": 4905,
+      "semanticDigest": "aff603bdea9fc0cd",
+      "allocations": [
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 120000
+        },
+        {
+          "length": 4096,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 913600
+        },
+        {
+          "length": 32768,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 6648000
+        },
+        {
+          "length": 4096,
+          "dependencies": 0,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 9600
+        },
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 132800
+        },
+        {
+          "length": 4096,
+          "dependencies": 1,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 926400
+        },
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 80000
+        },
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 92800
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 100800
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 140800
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 126400
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 166400
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 235200
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 275200
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 337600
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 377600
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 772800
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 812800
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 1182400
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 1222400
+        }
+      ]
+    },
+    "candidate": {
+      "variant": "candidate",
+      "overcopyCorrected": true,
+      "assertions": 4905,
+      "semanticDigest": "aff603bdea9fc0cd",
+      "allocations": [
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 89600
+        },
+        {
+          "length": 4096,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 89600
+        },
+        {
+          "length": 32768,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 89600
+        },
+        {
+          "length": 4096,
+          "dependencies": 0,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 0
+        },
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 132800
+        },
+        {
+          "length": 4096,
+          "dependencies": 1,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 926400
+        },
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 80000
+        },
+        {
+          "length": 128,
+          "dependencies": 1,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 92800
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 81600
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 91200
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 107200
+        },
+        {
+          "length": 128,
+          "dependencies": 2,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 147200
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 100800
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 110400
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 203200
+        },
+        {
+          "length": 128,
+          "dependencies": 8,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 243200
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": false,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 177600
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": false,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 187200
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": true,
+          "gpuSync": true,
+          "flushes": 200,
+          "bytes": 587200
+        },
+        {
+          "length": 128,
+          "dependencies": 32,
+          "dirty": true,
+          "gpuSync": false,
+          "flushes": 200,
+          "bytes": 627200
+        }
+      ]
+    }
+  },
+  "physicalDeviceTested": false,
+  "consumerDriftControls": 2,
+  "rendererAndTrackingDoubled": true,
+  "completeProductionClasses": true,
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs": "2e6173d5785636cadb9ab8ad4c5fc1631a6afff809cd0ac30b2bfcc384772320",
+    "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs": "ebb48b7a07c3b370590ab982e43024d1bd124972d5635cf39ce50033370370a8",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs": "94129cf9cdcb552e5e614f4aaf75914f1cbd7e222448e9474025ace69ea36580",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs": "ec0ed0907b4b9af9edcf8cf767ade285ffd8267b3e4e630792ec391cac941b4d",
+    "src/Ryujinx.Memory/Range/IRange.cs": "d7b661592c0820bba0e7ff19b7d882383f46fd7fe70a0f5f4e5bdadc6e032651",
+    "src/Ryujinx.Memory/Range/INonOverlappingRange.cs": "15d4eb27f4f4e25eb4f3bf369fb6cdc6a68ab1874990505bba0b8dd75eeaac95",
+    "src/Ryujinx.Memory/Range/RangeListBase.cs": "32e1108eb72704f942fe62ceb361f60e2df8b6e4450f11dbb6fcb89f04b156e3",
+    "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs": "cecd0546d26c60f64c62ec3438b71bd64bf4981dbd9c92ef6dbae3a9403adf95",
+    "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
+    "src/Ryujinx.Memory/Range/MultiRange.cs": "c945e4d62500263742db07c2c8afbd0c783b1fcfe811179a232ec30ac09e826b",
+    "src/Ryujinx.Memory/Range/IMultiRangeItem.cs": "f684c2a2d75c85f2e98cb786fdb9edf09420716068ea29e3785ffb8aec6d0e9c",
+    "src/Ryujinx.Graphics.GAL/BufferHandle.cs": "71da4d0600c311fc3c7fb6e313eedf9ee012ada58ad2e300138d518b98b6f17f",
+    "src/Ryujinx.Graphics.GAL/BufferRange.cs": "b16dcaed8fd814ade5e46cf2ff3c8a7fe149996a65a49cddb3e8566af4a0c669",
+    "src/Ryujinx.Graphics.GAL/PinnedSpan.cs": "f9257352a5e29b153a5af2fbc66286d97294046e196f69f1d0bf6350954fd932",
+    "src/Ryujinx.Graphics.GAL/BufferAccess.cs": "65f5bbec17fd0b3902a1256593ae858719a3016c1a8a6e96e70d2a92330d2ce4",
+    "src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs": "6626ea4e8de61591f584adde2016b3f8d2fe60c2d72e36b13892ff9b81cc34ff"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_virtual_buffer_readback.py": "4daec962829d813ebe47a8dfe6bdb37efd2c14b440abaa4db7e85ebd7e116103",
+    "test/melonx_virtual_buffer_readback_test.py": "1eacbf43db4e8e1819036111fc24d5f86b2740de96dcb3c59be6bf881d379b36",
+    "test/melonx_virtual_buffer_readback/Program.cs": "67fee3a9a3a3ac3454cfee5b09ae9075a169cc0d0e431f047844e20a1ba809b3",
+    "test/melonx_virtual_buffer_readback/Boundaries.cs": "8022855efeac755652f1ef7cb44ab25dcb5313d6ac24402965a24422ce8d904c"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs": "1ca3cd05e3617952838b2631e5ec5fee67a0069164ea7e0613baefd6b4b92769"
+  }
+}

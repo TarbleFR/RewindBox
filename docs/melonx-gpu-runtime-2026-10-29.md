@@ -143,3 +143,7 @@ readback copies. Their actual frequency and benefit in the same Hogwarts/Persona
 scenes must guide the next implementation. No quality reduction, arbitrary
 primitive-restart override, additional RAM entitlement, forced collection or
 new telemetry is included.
+
+The subsequent [steady-state continuation](melonx-steady-state-2026-10-29.md)
+implements four more changes in the readback, barrier, multi-element snapshot
+and oversized uniform paths. This report remains the first lot's evidence.

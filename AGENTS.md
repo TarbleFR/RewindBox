@@ -2,6 +2,31 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## MeloNX additional steady-state source candidate — 29 October 2026
+
+Four further adapters follow local 8399607: lazy virtual-buffer readback with
+one callback per invocation and clamped copies; stable Vulkan barrier batch
+compaction; bounded exact-length GAL snapshots; and oversized uniform spans.
+No FIFO/shadow shortcut is extended. Ten adapters across both lots now change
+sixteen engine files. Preparation has 97 inputs and 137 members: 128 of the
+first lot's 133 members are unchanged, five change and four more are included.
+Earlier receipts retain their scope.
+
+Four new affected host fixtures pass, including complete production classes,
+30,000 concurrent snapshot commands, covariance, pin lifetime, out-of-window
+dirty ranges, wrap/sentinel/reentrant uniform state and full Vulkan barrier
+traces. Clean 32 KiB readback/200 operations: 6,648,000→89,600 allocated bytes.
+Warm snapshots of 2/8/256/4096 entries: 40/88/2072/32792→0 B per command in the
+controlled test. The pool retains at most 512 KiB reference slots plus overhead;
+burst exhaustion can still allocate. Interleaved barriers improve markedly on
+the host; same-flag timing regressions remain recorded. No iPhone FPS/RSS claim.
+
+The final combined Release Library builds on Linux SDK 10.0.100; no Apple core,
+IPA, new build number, release or tag is produced. A later Apple build must
+cover changed code and reuse only authenticated unchanged evidence; the old
+fixed Core85 contract intentionally refuses changed preparation inputs.
+Details: docs/melonx-steady-state-2026-10-29.md and its evidence directory.
+
 ## MeloNX GPU execution and warm-up source candidate — 29 October 2026
 
 The maintainer requested further concrete MeloNX optimization, starting from

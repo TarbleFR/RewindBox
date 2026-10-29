@@ -1,0 +1,549 @@
+{
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "experiments": [
+    {
+      "kind": "initial-short-timing",
+      "sha256": "752064c9cafc686be3eb5e0084e8f2f6c1b62787045a178ec9ba3cb83d1aeb28",
+      "receipt": {
+        "result": "passed",
+        "report": {
+          "result": "passed",
+          "scenarios": 624,
+          "checks": 716,
+          "completeProductionBarrierBatchAndNativeArray": true,
+          "realSilkTypes": true,
+          "vulkanCallsDoubled": true,
+          "timings": [
+            {
+              "count": 1,
+              "pattern": "same",
+              "iterations": 5000,
+              "controlMedianNs": 59.0888,
+              "candidateMedianNs": 58.9904,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 1,
+              "pattern": "alternating",
+              "iterations": 5000,
+              "controlMedianNs": 58.3024,
+              "candidateMedianNs": 57.8992,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 1,
+              "pattern": "seven-stage-cycle",
+              "iterations": 5000,
+              "controlMedianNs": 58.713,
+              "candidateMedianNs": 58.8126,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 16,
+              "pattern": "same",
+              "iterations": 1250,
+              "controlMedianNs": 131.3504,
+              "candidateMedianNs": 111.8504,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 16,
+              "pattern": "alternating",
+              "iterations": 1250,
+              "controlMedianNs": 387.6384,
+              "candidateMedianNs": 168.548,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 16,
+              "pattern": "seven-stage-cycle",
+              "iterations": 1250,
+              "controlMedianNs": 713.7872,
+              "candidateMedianNs": 347.5456,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 128,
+              "pattern": "same",
+              "iterations": 156,
+              "controlMedianNs": 852.0192307692307,
+              "candidateMedianNs": 1249.378205128205,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 128,
+              "pattern": "alternating",
+              "iterations": 156,
+              "controlMedianNs": 4640.397435897436,
+              "candidateMedianNs": 919.2435897435897,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 128,
+              "pattern": "seven-stage-cycle",
+              "iterations": 156,
+              "controlMedianNs": 5597.51282051282,
+              "candidateMedianNs": 1675.5641025641025,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 1024,
+              "pattern": "same",
+              "iterations": 19,
+              "controlMedianNs": 23508.052631578947,
+              "candidateMedianNs": 20639.473684210527,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 1024,
+              "pattern": "alternating",
+              "iterations": 19,
+              "controlMedianNs": 154233.47368421053,
+              "candidateMedianNs": 17726.684210526317,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 1024,
+              "pattern": "seven-stage-cycle",
+              "iterations": 19,
+              "controlMedianNs": 249628,
+              "candidateMedianNs": 28834.842105263157,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 4096,
+              "pattern": "same",
+              "iterations": 4,
+              "controlMedianNs": 228293,
+              "candidateMedianNs": 225744.25,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 4096,
+              "pattern": "alternating",
+              "iterations": 4,
+              "controlMedianNs": 2325785.25,
+              "candidateMedianNs": 230576.25,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 4096,
+              "pattern": "seven-stage-cycle",
+              "iterations": 4,
+              "controlMedianNs": 3710745.5,
+              "candidateMedianNs": 238069.5,
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            }
+          ],
+          "limitation": "host CPU micro-measurements; no iPhone FPS or physical GPU measurement"
+        },
+        "physicalDeviceTested": false,
+        "vulkanCallsDoubled": true,
+        "inputs": {
+          "build-utils/melonx/adapt_barrier_compaction.py": "aaeae89b1bb947c4402fb8511814a7fd88b46bc6067aa994fd81d279c3fe96be",
+          "test/melonx_barrier_compaction_test.py": "c85089edf019ce665d98ab1f12e4bebcfb3298facb4d5f370a781c3adb87367f",
+          "test/melonx_barrier_compaction/Program.cs": "03624f4f4f15617b46ea69a0e8ed08b5843190e0ebb674305f197a0d03b376db",
+          "test/melonx_barrier_compaction/Boundaries.cs": "dcea059647329acaa27c0b508fe4ca15620237126e64695917c459aabc5c7cfc"
+        },
+        "productionInputs": {
+          "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs": "ac30ac1bad76d11a0d4af3d6528f6aa809abf2999dcea9d0a7cd65cbf41b7ae6",
+          "src/Ryujinx.Graphics.Vulkan/NativeArray.cs": "620ae9d494a30823c5d9e4f7b9cd6b37be2c267660e50413ef9fb0c991e4e77e"
+        },
+        "productionPostimage": "b6d5db87a7a69e5ea034e7a61a341ef9198801a8dde957eadc9babbd410944eb"
+      }
+    },
+    {
+      "kind": "reinforced-five-rounds-interleaved-order",
+      "sha256": "c720a5f3f8fcf5aab6f0c4d80a049e6f1aa4895527ac8b4aa3db45c4f84c2a20",
+      "receipt": {
+        "result": "passed",
+        "report": {
+          "result": "passed",
+          "scenarios": 624,
+          "checks": 776,
+          "completeProductionBarrierBatchAndNativeArray": true,
+          "realSilkTypes": true,
+          "vulkanCallsDoubled": true,
+          "timings": [
+            {
+              "count": 1,
+              "pattern": "same",
+              "iterations": 10000,
+              "controlMedianNs": 60.5082,
+              "candidateMedianNs": 61.4451,
+              "controlRoundsNs": [
+                59.81,
+                60.3743,
+                60.5082,
+                60.8134,
+                61.6082
+              ],
+              "candidateRoundsNs": [
+                59.2787,
+                60.3344,
+                61.4451,
+                65.6361,
+                65.741
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 1,
+              "pattern": "alternating",
+              "iterations": 10000,
+              "controlMedianNs": 61.2746,
+              "candidateMedianNs": 61.0364,
+              "controlRoundsNs": [
+                60.9019,
+                61.1348,
+                61.2746,
+                66.5371,
+                67.3594
+              ],
+              "candidateRoundsNs": [
+                58.6617,
+                60.4401,
+                61.0364,
+                62.8204,
+                63.8392
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 1,
+              "pattern": "seven-stage-cycle",
+              "iterations": 10000,
+              "controlMedianNs": 61.3369,
+              "candidateMedianNs": 60.9384,
+              "controlRoundsNs": [
+                59.6922,
+                60.1675,
+                61.3369,
+                64.089,
+                66.0784
+              ],
+              "candidateRoundsNs": [
+                57.3726,
+                57.5367,
+                60.9384,
+                62.9737,
+                70.7242
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 16,
+              "pattern": "same",
+              "iterations": 10000,
+              "controlMedianNs": 122.2324,
+              "candidateMedianNs": 120.2719,
+              "controlRoundsNs": [
+                113.2915,
+                114.4485,
+                122.2324,
+                123.9819,
+                128.4599
+              ],
+              "candidateRoundsNs": [
+                118.63,
+                119.4232,
+                120.2719,
+                122.6542,
+                127.4867
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 16,
+              "pattern": "alternating",
+              "iterations": 10000,
+              "controlMedianNs": 390.6934,
+              "candidateMedianNs": 171.6834,
+              "controlRoundsNs": [
+                322.8749,
+                348.2621,
+                390.6934,
+                396.4026,
+                720.2458
+              ],
+              "candidateRoundsNs": [
+                112.9605,
+                117.9309,
+                171.6834,
+                179.5047,
+                179.6489
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 16,
+              "pattern": "seven-stage-cycle",
+              "iterations": 10000,
+              "controlMedianNs": 725.5196,
+              "candidateMedianNs": 379.0848,
+              "controlRoundsNs": [
+                488.0816,
+                637.2163,
+                725.5196,
+                910.0598,
+                1429.9238
+              ],
+              "candidateRoundsNs": [
+                297.0827,
+                302.1757,
+                379.0848,
+                402.2722,
+                518.7093
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 128,
+              "pattern": "same",
+              "iterations": 1562,
+              "controlMedianNs": 778.1946222791294,
+              "candidateMedianNs": 767.7234314980794,
+              "controlRoundsNs": [
+                764.3162612035851,
+                765.770166453265,
+                778.1946222791294,
+                789.2151088348271,
+                800.0070422535211
+              ],
+              "candidateRoundsNs": [
+                754.0569782330346,
+                756.9430217669654,
+                767.7234314980794,
+                780.5832266325224,
+                977.3361075544174
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 128,
+              "pattern": "alternating",
+              "iterations": 1562,
+              "controlMedianNs": 4611.490396927016,
+              "candidateMedianNs": 1409.6952624839948,
+              "controlRoundsNs": [
+                3827.842509603073,
+                4521.564020486556,
+                4611.490396927016,
+                5060.876440460947,
+                5134.731754161332
+              ],
+              "candidateRoundsNs": [
+                901.1837387964149,
+                929.4801536491677,
+                1409.6952624839948,
+                1427.241357234315,
+                1436.0710627400767
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 128,
+              "pattern": "seven-stage-cycle",
+              "iterations": 1562,
+              "controlMedianNs": 7342.207426376441,
+              "candidateMedianNs": 2290.271446862996,
+              "controlRoundsNs": [
+                6422.211267605634,
+                6949.856594110115,
+                7342.207426376441,
+                7554.836747759283,
+                8656.785531370038
+              ],
+              "candidateRoundsNs": [
+                2189.97119078105,
+                2261.5877080665814,
+                2290.271446862996,
+                2523.647247119078,
+                2567.095390524968
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 1024,
+              "pattern": "same",
+              "iterations": 195,
+              "controlMedianNs": 18924.830769230768,
+              "candidateMedianNs": 24866.63076923077,
+              "controlRoundsNs": [
+                17173.184615384616,
+                17805.14358974359,
+                18924.830769230768,
+                24568.507692307692,
+                24690.610256410255
+              ],
+              "candidateRoundsNs": [
+                18288.810256410256,
+                18881.610256410255,
+                24866.63076923077,
+                24901.374358974357,
+                27075.91794871795
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 1024,
+              "pattern": "alternating",
+              "iterations": 195,
+              "controlMedianNs": 180878.28205128206,
+              "candidateMedianNs": 26727.77435897436,
+              "controlRoundsNs": [
+                156909.0923076923,
+                158520.43076923076,
+                180878.28205128206,
+                182494.9794871795,
+                198486.7435897436
+              ],
+              "candidateRoundsNs": [
+                23183.728205128205,
+                24541.56923076923,
+                26727.77435897436,
+                27119.466666666667,
+                28566.584615384614
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 1024,
+              "pattern": "seven-stage-cycle",
+              "iterations": 195,
+              "controlMedianNs": 248597.78461538462,
+              "candidateMedianNs": 26137.85128205128,
+              "controlRoundsNs": [
+                223465.09743589745,
+                229562.9794871795,
+                248597.78461538462,
+                288570.5025641026,
+                312899.3282051282
+              ],
+              "candidateRoundsNs": [
+                23235.507692307692,
+                23436.85641025641,
+                26137.85128205128,
+                28580.066666666666,
+                39248.69743589743
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 4096,
+              "pattern": "same",
+              "iterations": 48,
+              "controlMedianNs": 240337.83333333334,
+              "candidateMedianNs": 233287.14583333334,
+              "controlRoundsNs": [
+                229254.52083333334,
+                234925.27083333334,
+                240337.83333333334,
+                255691.16666666666,
+                345091.8541666667
+              ],
+              "candidateRoundsNs": [
+                218912.4375,
+                220011.04166666666,
+                233287.14583333334,
+                241183.47916666666,
+                265707.3125
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 4096,
+              "pattern": "alternating",
+              "iterations": 48,
+              "controlMedianNs": 3224737.75,
+              "candidateMedianNs": 348910.4166666667,
+              "controlRoundsNs": [
+                3179302.125,
+                3189622.125,
+                3224737.75,
+                3382811.25,
+                3549343.1041666665
+              ],
+              "candidateRoundsNs": [
+                315546.9583333333,
+                346496.4583333333,
+                348910.4166666667,
+                350638.5416666667,
+                462325.1666666667
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            },
+            {
+              "count": 4096,
+              "pattern": "seven-stage-cycle",
+              "iterations": 48,
+              "controlMedianNs": 5243736.895833333,
+              "candidateMedianNs": 380109.7708333333,
+              "controlRoundsNs": [
+                4981540.166666667,
+                5237905.145833333,
+                5243736.895833333,
+                5467544.645833333,
+                5668043.4375
+              ],
+              "candidateRoundsNs": [
+                245724.3125,
+                314484.5833333333,
+                380109.7708333333,
+                382488.2291666667,
+                386484.0625
+              ],
+              "controlAllocatedBytes": 0,
+              "candidateAllocatedBytes": 0
+            }
+          ],
+          "limitation": "host CPU micro-measurements; no iPhone FPS or physical GPU measurement"
+        },
+        "physicalDeviceTested": false,
+        "vulkanCallsDoubled": true,
+        "inputs": {
+          "build-utils/melonx/adapt_barrier_compaction.py": "aaeae89b1bb947c4402fb8511814a7fd88b46bc6067aa994fd81d279c3fe96be",
+          "test/melonx_barrier_compaction_test.py": "c85089edf019ce665d98ab1f12e4bebcfb3298facb4d5f370a781c3adb87367f",
+          "test/melonx_barrier_compaction/Program.cs": "4efea6a64527a830f98db9422ce553c87550a71492f66351d2e32b1cc0881d63",
+          "test/melonx_barrier_compaction/Boundaries.cs": "dcea059647329acaa27c0b508fe4ca15620237126e64695917c459aabc5c7cfc"
+        },
+        "productionInputs": {
+          "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs": "ac30ac1bad76d11a0d4af3d6528f6aa809abf2999dcea9d0a7cd65cbf41b7ae6",
+          "src/Ryujinx.Graphics.Vulkan/NativeArray.cs": "620ae9d494a30823c5d9e4f7b9cd6b37be2c267660e50413ef9fb0c991e4e77e"
+        },
+        "productionPostimage": "b6d5db87a7a69e5ea034e7a61a341ef9198801a8dde957eadc9babbd410944eb"
+      }
+    }
+  ],
+  "limitation": "The second timing experiment uses more iterations and retains all rounds. Both use the same production postimage; host scheduling noise remains. No iPhone FPS measurement."
+}

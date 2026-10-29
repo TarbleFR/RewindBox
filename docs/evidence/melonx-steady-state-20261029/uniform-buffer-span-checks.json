@@ -1,0 +1,113 @@
+{
+  "result": "passed",
+  "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "dotnet": "10.0.100",
+  "reports": {
+    "control": {
+      "checks": 793,
+      "smallCases": 924,
+      "largeCases": 792,
+      "unsupported": 792,
+      "failureCases": 0,
+      "sentinelCases": 0,
+      "reentrantCases": 0,
+      "smallDigest": 5689523592411087174,
+      "largeDigest": 14695981039346656037,
+      "measurements": [
+        {
+          "length": 128,
+          "scalar": false,
+          "iterations": 20000,
+          "allocatedBytes": 0,
+          "nsPerWord": 0.220351953125,
+          "writes": 20050,
+          "translates": 20050
+        },
+        {
+          "length": 8191,
+          "scalar": true,
+          "iterations": 1000,
+          "allocatedBytes": 0,
+          "nsPerWord": 4.321797338542303,
+          "writes": 16800,
+          "translates": 16800
+        }
+      ]
+    },
+    "candidate": {
+      "checks": 2626,
+      "smallCases": 924,
+      "largeCases": 792,
+      "unsupported": 0,
+      "failureCases": 48,
+      "sentinelCases": 3,
+      "reentrantCases": 32,
+      "smallDigest": 5689523592411087174,
+      "largeDigest": 15167359010346000247,
+      "measurements": [
+        {
+          "length": 128,
+          "scalar": false,
+          "iterations": 20000,
+          "allocatedBytes": 0,
+          "nsPerWord": 0.215544921875,
+          "writes": 20050,
+          "translates": 20050
+        },
+        {
+          "length": 8191,
+          "scalar": true,
+          "iterations": 1000,
+          "allocatedBytes": 0,
+          "nsPerWord": 3.9542916615797825,
+          "writes": 16800,
+          "translates": 16800
+        },
+        {
+          "length": 8191,
+          "scalar": false,
+          "iterations": 1000,
+          "allocatedBytes": 0,
+          "nsPerWord": 0.10686277621780002,
+          "writes": 16800,
+          "translates": 16800
+        }
+      ]
+    }
+  },
+  "physicalDeviceTested": false,
+  "fifoAndShadowPathsChanged": false,
+  "memoryAndRegisterStorageDoubled": true,
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/ConstantBufferUpdater.cs": "6232f9d4520689f08b67549efdca9d812e3fbe83607d54445f518aa5fba44ffc",
+    "src/Ryujinx.Graphics.Gpu/Engine/Types/GpuVa.cs": "3b016ed92eea63abd9a0c61bb1951360839ae35f25d57054c9a088968dd7cc45",
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/ThreedClassState.cs": "7e3bdbadec947a1082bd341d9149028b60ed129c725ac67544505f3d8ca6d274"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/ConstantBufferUpdater.cs": "57b882f6c7797b21bc1c796df613745bca768bc7461a1b6b15fe2e6945867555"
+  },
+  "compiledSourceInputs": {
+    "control": {
+      "UniformBufferState.cs": "a26ec5daa461cc962cedbb4bbe43aa420b47274b517e9cc7fcb98741cf776764",
+      "Program.cs": "f3209f81457f1350568515a6fdd6ab16c890f5795d43ac3c3742bbc7dd8f9d2c",
+      "Boundaries.cs": "3d9b9335ad9b14589fd64f5cb5c72448e4c43116e623d19a45d8693560b06e24",
+      "src/Ryujinx.Graphics.Gpu/Engine/Types/GpuVa.cs": "3b016ed92eea63abd9a0c61bb1951360839ae35f25d57054c9a088968dd7cc45",
+      "src/Ryujinx.Graphics.Gpu/Engine/Threed/ConstantBufferUpdater.cs": "6232f9d4520689f08b67549efdca9d812e3fbe83607d54445f518aa5fba44ffc"
+    },
+    "candidate": {
+      "UniformBufferState.cs": "a26ec5daa461cc962cedbb4bbe43aa420b47274b517e9cc7fcb98741cf776764",
+      "Program.cs": "f3209f81457f1350568515a6fdd6ab16c890f5795d43ac3c3742bbc7dd8f9d2c",
+      "Boundaries.cs": "3d9b9335ad9b14589fd64f5cb5c72448e4c43116e623d19a45d8693560b06e24",
+      "src/Ryujinx.Graphics.Gpu/Engine/Types/GpuVa.cs": "3b016ed92eea63abd9a0c61bb1951360839ae35f25d57054c9a088968dd7cc45",
+      "src/Ryujinx.Graphics.Gpu/Engine/Threed/ConstantBufferUpdater.cs": "57b882f6c7797b21bc1c796df613745bca768bc7461a1b6b15fe2e6945867555"
+    }
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_uniform_buffer_spans.py": "bc0052f33614b9fede443725847da690b7f7ed2c11dddd603b853386d44f8727",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
+    "test/melonx_uniform_buffer_spans_test.py": "67e85b6853ab29107ada2221de6a69ec3e6692d673950b95f51caf9d777b451a",
+    "test/melonx_uniform_buffer_spans/Program.cs": "f3209f81457f1350568515a6fdd6ab16c890f5795d43ac3c3742bbc7dd8f9d2c",
+    "test/melonx_uniform_buffer_spans/Boundaries.cs": "3d9b9335ad9b14589fd64f5cb5c72448e4c43116e623d19a45d8693560b06e24"
+  }
+}
