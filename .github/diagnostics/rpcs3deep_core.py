@@ -50,6 +50,40 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def canonical_sha(data):
+    """Use the canonical manifest's documented CRLF-only normalization."""
+    return sha(data.replace(b'\r\n', b'\n'))
+
+
+# These fields are emitted only by optional benchmarks, not the correctness
+# matrix. Native programs run without benchmark arguments in this Apple gate.
+BENCHMARK_FIELDS = {
+    'address': {'benchmarks', 'indexHeadersBytes', 'hostAdapterSectionBytes'},
+    'coverage': {'benchmarks', 'sink'},
+    'shader': {'benchmarks'}, 'texture': {'copyBenchmarks'},
+    'arena': {'benchmarks'}, 'trim': {'benchmarks'},
+}
+
+
+def validate_native_result(name, result, previous):
+    """Check real output schemas and exact deterministic negative controls.
+
+    Several original programs deliberately emit counters rather than a top-level
+    `passed`. Their unchanged assertions plus these counters establish success.
+    Timings remain preserved in the report but are never correctness thresholds.
+    """
+    assert isinstance(result, dict) and isinstance(previous, dict), name
+    excluded = BENCHMARK_FIELDS.get(name, set())
+    current = {k: v for k, v in result.items() if k not in excluded}
+    expected = {k: v for k, v in previous.items() if k not in excluded}
+    assert current and current == expected, (name, 'native correctness output', current, expected)
+    if name == 'coverage':
+        assert result.get('sink') == 0, 'Coverage correctness run must not run benchmarks'
+    for field in excluded - {'sink'}:
+        assert field not in result or isinstance(result[field], (list, int)), (name, field)
+    return current
+
+
 def command(*args, cwd=ROOT, data=None):
     return subprocess.check_output([str(x) for x in args], cwd=cwd, input=data, timeout=240)
 
@@ -70,7 +104,7 @@ def save(path, value):
 def native_hashes(source, manifest):
     assert command('git', '-C', source, 'rev-parse', 'HEAD').decode().strip() == manifest['upstream_commit']
     for path, digest in manifest['files_sha256'].items():
-        assert sha((source / path).read_bytes().replace(b'\r\n', b'\n')) == digest, path
+        assert canonical_sha((source / path).read_bytes()) == digest, path
 
 
 def inputs():
@@ -264,8 +298,10 @@ def prepare(source):
             assert set(old['files_sha256']) <= set(new['files_sha256'])
             assert sha((ROOT / record['delta_fixture']).read_bytes()) == record['delta_sha256']
             for p in changed:
-                assert sha((prior_tree / p).read_bytes()) == record['files_before_sha256'][p]
-                assert sha((next_tree / p).read_bytes()) == record['files_after_sha256'][p]
+                actual_before = canonical_sha((prior_tree / p).read_bytes())
+                actual_after = canonical_sha((next_tree / p).read_bytes())
+                assert actual_before == record['files_before_sha256'][p], (key, p, 'before', actual_before)
+                assert actual_after == record['files_after_sha256'][p], (key, p, 'after', actual_after)
         contract = OUT / 'deep-source-contract.json'
         run_checked(['python3', 'test/rpcs3_deep_audit_contract_test.py', source, '--baseline', roots[2], '--report', contract], OUT / 'deep-source-contract.log')
         assert load(contract)['reverseDeltaMatchesBaseline']
@@ -287,7 +323,7 @@ def prepare(source):
                 output_log = OUT / (key + '-output.txt')
                 run_checked([*compiler, *flags, cpp, '-o', exe], compile_log, env)
                 result = json.loads(run_checked([exe], output_log, env))
-                assert result.get('passed') is True, key
+                validate_native_result(name, result, load(ROOT / item['evidence'])['results'])
                 record = dict(passed=True, program_sha256=sha(cpp.read_bytes()), evidence=item['evidence'],
                               compiler=version, flags=flags, results=result, mode=mode,
                               output_sha256=sha(output_log.read_bytes()), compile_sha256=sha(compile_log.read_bytes()),
@@ -340,7 +376,9 @@ def verify(path, source):
             raw = (OUT / (key + '-result.json')).read_bytes()
             assert sha(raw) == state['report_sha256']
             report = json.loads(raw)
-            assert report['passed'] and report['results']['passed'] and '-UNDEBUG' in report['flags']
+            assert report['passed'] and '-UNDEBUG' in report['flags']
+            name = key.rsplit('-', 2)[0] if key.endswith('-asan-ubsan') else key[:-len('-plain')]
+            validate_native_result(name, report['results'], load(ROOT / report['evidence'])['results'])
             assert report['program_sha256'] == state['program_sha256']
             assert report['compiler'] == proof['host']['compiler']
             assert report['program_sha256'] == load(ROOT / report['evidence'])['harnessSHA256']

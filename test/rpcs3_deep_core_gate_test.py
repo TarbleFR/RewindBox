@@ -47,8 +47,11 @@ class ReceiptTests(unittest.TestCase):
             (self.out / name).write_bytes(b'program')
             (self.out / (key + '-compile.txt')).write_bytes(b'compile')
             evidence = 'evidence/' + key + '.json'
-            gate.save(self.root / evidence, {'harnessSHA256': gate.sha(b'program')})
-            report = dict(passed=True, results={'passed': True}, flags=['-UNDEBUG'],
+            gate.save(self.root / evidence, {'harnessSHA256': gate.sha(b'program'), 'results': {'passed': True}})
+            native_result = {'passed': True}
+            if key.startswith('coverage-'):
+                native_result['sink'] = 0
+            report = dict(passed=True, results=native_result, flags=['-UNDEBUG'],
                 compiler=self.compiler, program_sha256=gate.sha(b'program'), evidence=evidence,
                 output_sha256=gate.sha(b'output'), compile_sha256=gate.sha(b'compile'))
             if key.endswith('-asan-ubsan'):
@@ -103,6 +106,44 @@ class ReceiptTests(unittest.TestCase):
     def test_changed_report_rejected(self):
         (self.out / 'snr-plain-result.json').write_text('{}')
         with self.assertRaises(AssertionError): self.check()
+
+
+class NativeSchemaTests(unittest.TestCase):
+    def test_crlf_manifest_normalization(self):
+        self.assertEqual(gate.canonical_sha(b'a\r\nb\r\n'), gate.sha(b'a\nb\n'))
+        self.assertNotEqual(gate.canonical_sha(b'a \r\n'), gate.sha(b'a\n'))
+        self.assertNotEqual(gate.canonical_sha(b'a\rb'), gate.sha(b'a\nb'))
+
+    def test_counter_only_schema_is_not_a_missing_success(self):
+        result = {'matrixCases': 768, 'candidateEventMismatches': 0,
+                  'sameChannelPayloadAndNotify': True}
+        self.assertEqual(gate.validate_native_result('snr', result, result), result)
+
+    def test_bad_counter_rejected_without_passed_field(self):
+        expected = {'matrixCases': 768, 'candidateEventMismatches': 0}
+        with self.assertRaises(AssertionError):
+            gate.validate_native_result('snr', dict(expected, candidateEventMismatches=1), expected)
+
+    def test_missing_counter_rejected(self):
+        with self.assertRaises(AssertionError):
+            gate.validate_native_result('snr', {'matrixCases': 768},
+                {'matrixCases': 768, 'candidateEventMismatches': 0})
+
+    def test_unexpected_counter_rejected(self):
+        with self.assertRaises(AssertionError):
+            gate.validate_native_result('snr', {'matrixCases': 768, 'unknown': 1}, {'matrixCases': 768})
+
+    def test_recorded_benchmarks_not_replayed_or_thresholded(self):
+        expected = {'formatChecks': 76391, 'sameDeclarations': True,
+                    'benchmarks': [{'fragmentAfterNs': 1000}]}
+        actual = {k: v for k, v in expected.items() if k != 'benchmarks'}
+        self.assertEqual(gate.validate_native_result('shader', actual, expected), actual)
+
+    def test_coverage_benchmark_sink_must_remain_zero(self):
+        expected = {'rowChecks': 391754, 'sink': 7920, 'benchmarks': []}
+        gate.validate_native_result('coverage', {'rowChecks': 391754, 'sink': 0}, expected)
+        with self.assertRaises(AssertionError):
+            gate.validate_native_result('coverage', {'rowChecks': 391754, 'sink': 1}, expected)
 
 
 if __name__ == '__main__':
