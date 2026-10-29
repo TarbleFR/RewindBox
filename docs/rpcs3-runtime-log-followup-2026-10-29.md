@@ -219,6 +219,13 @@ invalid reports were checked without starting a workflow. See
 The committed-source contract is a separate local verification; no macOS
 execution, remote receipt download or iPhone compilation is claimed here.
 
+The real `source_contract()` subsequently passed on local source commit
+`7cf8609c43e5c87d6bc6bbb6c4372ac6aa646026`, parent `876a8d5`, checking all
+161 committed inputs and 308 canonical postimages without mocking or relaxing
+its guards. The verification ran without `prepare()`, a workflow invocation
+or another C++ compilation. Exact proof:
+[committed-source-contract.json](evidence/rpcs3-runtime-20261029b/committed-source-contract.json).
+
 ## Reproduction
 
 From the repository root, with the canonical RPCS3 source materialized at
