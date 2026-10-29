@@ -1,0 +1,360 @@
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
+--- a/rpcs3/Emu/RSX/Common/texture_cache.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache.h
+@@ -2048,6 +2048,29 @@
+ 		section_storage_type *find_texture_from_dimensions(u32 rsx_address, u32 format, u16 width = 0, u16 height = 0, u16 depth = 0, u16 mipmaps = 0)
+ 		{
+ 			auto &block = m_storage.block_for(rsx_address);
++#ifdef RPCS3_IOS
++			// The compressed lookup holds the cache reader lock. Presentation
++			// uses check_unlocked=true without that lock and keeps its old walk.
++			if constexpr (!check_unlocked)
++			{
++				if (block.size() > ranged_storage_block::address_index_threshold)
++				{
++					// Same-address candidates retain their original slot order. The
++					// index never certifies contents, dimensions or protection.
++					for (const auto& entry : block.find_address(rsx_address))
++					{
++						auto& tex = *entry.section;
++						if constexpr (check_unlocked)
++						{
++							if (!tex.is_locked()) continue;
++						}
++						if (!tex.is_dirty() && tex.matches(rsx_address, format, width, height, depth, mipmaps) && tex.sync_protection())
++							return &tex;
++					}
++					return nullptr;
++				}
++			}
++#endif
+ 			for (auto &tex : block)
+ 			{
+ 				if constexpr (check_unlocked)
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+--- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+@@ -12,6 +12,9 @@
+ #include <list>
+ #include <unordered_set>
+ #ifdef RPCS3_IOS
++#include <algorithm>
++#include <span>
++#include <vector>
+ #include "ios/IOSTextureValidationProfile.h"
+ #include "ios/IOSTexturePrehash.h"
+ #include "ios/IOSTextureResidency.h"
+@@ -163,6 +166,30 @@
+ 		inline size_type size() const { return m_size; }
+ 		inline size_type capacity() const { return m_capacity; }
+ 		inline bool empty() const { return m_size == 0; }
++
++#ifdef RPCS3_IOS
++		size_type index_of(const value_type& value) const
++		{
++			const auto address = reinterpret_cast<std::uintptr_t>(&value);
++			size_type index = 0;
++			for (const auto& array : m_data)
++			{
++				// Integer subtraction is defined even for unrelated allocations.
++				// Table membership, not allocation address order, determines rank.
++				const auto offset = address - reinterpret_cast<std::uintptr_t>(array.data());
++				if (offset < sizeof(array_type))
++				{
++					ensure(offset % sizeof(value_type) == 0);
++					index += static_cast<size_type>(offset / sizeof(value_type));
++					ensure(index < m_size);
++					return index;
++				}
++				index += array_size;
++			}
++			ensure(false);
++			return umax;
++		}
++#endif
+ 
+ 		inline void clear()
+ 		{
+@@ -230,6 +257,15 @@
+ 		using unowned_container_type = std::unordered_set<section_storage_type*>;
+ 		using unowned_iterator = typename unowned_container_type::iterator;
+ 		using unowned_const_iterator = typename unowned_container_type::const_iterator;
++#ifdef RPCS3_IOS
++		struct address_entry
++		{
++			u32 address;
++			u32 order;
++			section_storage_type* section;
++		};
++		static constexpr u32 address_index_threshold = 16;
++#endif
+ 
+ 	private:
+ 		u32 index = 0;
+@@ -240,6 +276,34 @@
+ 		atomic_t<u32> locked_count = 0;
+ 		atomic_t<u32> unreleased_count = 0;
+ 		ranged_storage_type *m_storage = nullptr;
++#ifdef RPCS3_IOS
++		// Sections live in stable list-of-array slots. Index only their addresses;
++		// dirty/protection/format checks remain at the lookup site.
++		std::vector<address_entry> m_address_index;
++
++		static bool address_less(const address_entry& lhs, const address_entry& rhs)
++		{
++			return lhs.address < rhs.address || (lhs.address == rhs.address && lhs.order < rhs.order);
++		}
++
++		void remove_address_entry(section_storage_type& section)
++		{
++			const auto it = std::find_if(m_address_index.begin(), m_address_index.end(),
++				[&](const address_entry& entry) { return entry.section == &section; });
++			if (it != m_address_index.end()) m_address_index.erase(it);
++		}
++
++		void add_address_entry(section_storage_type& section)
++		{
++			if (sections.size() <= address_index_threshold) return;
++			// reset() can replace a valid resource-less range without first
++			// destroying a GPU resource. Remove by slot, not by its new address.
++			remove_address_entry(section);
++			const address_entry entry{section.get_section_base(), sections.index_of(section), &section};
++			const auto pos = std::lower_bound(m_address_index.begin(), m_address_index.end(), entry, address_less);
++			m_address_index.insert(pos, entry);
++		}
++#endif
+ 
+ 		inline void add_owned_section_overlaps(section_storage_type &section)
+ 		{
+@@ -305,11 +369,43 @@
+ 		inline section_storage_type& create_section()
+ 		{
+ 			auto &res = sections.emplace_back(this);
++#ifdef RPCS3_IOS
++			if (sections.size() == address_index_threshold + 1)
++			{
++				// Build once on crossing the small-block threshold, before callers
++				// can search the larger block (even if this new slot stays empty).
++				m_address_index.reserve(sections.size());
++				u32 order = 0;
++				for (auto& section : sections)
++				{
++					if (section.valid_range())
++						m_address_index.push_back({section.get_section_base(), order, &section});
++					++order;
++				}
++				std::sort(m_address_index.begin(), m_address_index.end(), address_less);
++			}
++#endif
+ 			return res;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		std::span<const address_entry> find_address(u32 address) const
++		{
++			const auto first = std::lower_bound(m_address_index.begin(), m_address_index.end(), address,
++				[](const address_entry& entry, u32 value) { return entry.address < value; });
++			const auto last = std::upper_bound(first, m_address_index.end(), address,
++				[](u32 value, const address_entry& entry) { return value < entry.address; });
++			return {first, last};
++		}
++#endif
++
+ 		inline void clear()
+ 		{
++#ifdef RPCS3_IOS
++			// Bulk clear owns the cache lock. Drop this index before callbacks so
++			// destroying N sections does not perform N vector compactions.
++			m_address_index.clear();
++#endif
+ 			for (auto &section : *this)
+ 			{
+ 				if (section.is_locked())
+@@ -377,6 +473,9 @@
+ 			AUDIT(section.valid_range());
+ 			AUDIT(range.overlaps(section.get_section_base()));
+ 			add_owned_section_overlaps(section);
++#ifdef RPCS3_IOS
++			add_address_entry(section);
++#endif
+ 		}
+ 
+ 		inline void on_section_range_invalid(section_storage_type &section)
+@@ -384,6 +483,9 @@
+ 			AUDIT(section.valid_range());
+ 			AUDIT(range.overlaps(section.get_section_base()));
+ 			remove_owned_section_overlaps(section);
++#ifdef RPCS3_IOS
++			remove_address_entry(section);
++#endif
+ 		}
+ 
+ 		inline void on_section_resources_created(const section_storage_type &section)
+diff --git a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp b/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
+--- a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
++++ b/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
+@@ -109,10 +109,26 @@
+ 
+ 	void driver_manager_t::notify_completed(u64 eid)
+ 	{
++#ifdef RPCS3_IOS
++		// Only a higher watermark gives the worker another scope to reclaim.
++		// Use the result of the winning CAS: a competing advance can make this
++		// completion obsolete while atomic_op retries. drain() keeps its own wake.
++		const bool advanced = m_eid_ctr.atomic_op([eid](u64& value)
++		{
++			const u64 previous = value;
++			value = std::max(value, eid);
++			return value != previous;
++		});
++		if (!advanced)
++		{
++			return;
++		}
++#else
+ 		m_eid_ctr.atomic_op([eid](u64& value)
+ 		{
+ 			value = std::max(value, eid);
+ 		});
++#endif
+ 
+ 		m_wake_event++;
+ 		m_wake_event.notify_one();
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+@@ -1304,8 +1304,13 @@
+ 		m_graphics_state.clear(rsx::pipeline_state::zclip_config_state_dirty);
+ 	}
+ 
++#ifdef RPCS3_IOS
++	m_current_command_buffer->set_viewport(m_viewport);
++	m_current_command_buffer->set_scissor(m_scissor);
++#else
+ 	vkCmdSetViewport(*m_current_command_buffer, 0, 1, &m_viewport);
+ 	vkCmdSetScissor(*m_current_command_buffer, 0, 1, &m_scissor);
++#endif
+ }
+ 
+ void VKGSRender::on_init_thread()
+diff --git a/rpcs3/Emu/RSX/VK/VKOverlays.cpp b/rpcs3/Emu/RSX/VK/VKOverlays.cpp
+--- a/rpcs3/Emu/RSX/VK/VKOverlays.cpp
++++ b/rpcs3/Emu/RSX/VK/VKOverlays.cpp
+@@ -248,10 +248,18 @@
+ 		vp.height = static_cast<f32>(h);
+ 		vp.minDepth = 0.f;
+ 		vp.maxDepth = 1.f;
++#ifdef RPCS3_IOS
++		cmd.set_viewport(vp);
++#else
+ 		vkCmdSetViewport(cmd, 0, 1, &vp);
++#endif
+ 
+ 		VkRect2D vs = { { static_cast<s32>(x), static_cast<s32>(y) }, { w, h } };
++#ifdef RPCS3_IOS
++		cmd.set_scissor(vs);
++#else
+ 		vkCmdSetScissor(cmd, 0, 1, &vs);
++#endif
+ 	}
+ 
+ 	void overlay_pass::run(vk::command_buffer& cmd, const areau& viewport, vk::framebuffer* fbo, const std::vector<vk::image_view*>& src, VkRenderPass render_pass)
+@@ -793,9 +801,14 @@
+ 		vp.height = static_cast<f32>(h);
+ 		vp.minDepth = 0.f;
+ 		vp.maxDepth = 1.f;
++#ifdef RPCS3_IOS
++		cmd.set_viewport(vp);
++		cmd.set_scissor(region);
++#else
+ 		vkCmdSetViewport(cmd, 0, 1, &vp);
+ 
+ 		vkCmdSetScissor(cmd, 0, 1, &region);
++#endif
+ 	}
+ 
+ 	void attachment_clear_pass::run(vk::command_buffer& cmd, vk::framebuffer* target, VkRect2D rect, u32 clearmask, color4f color, VkRenderPass render_pass)
+@@ -859,9 +872,14 @@
+ 		vp.height = static_cast<f32>(h);
+ 		vp.minDepth = 0.f;
+ 		vp.maxDepth = 1.f;
++#ifdef RPCS3_IOS
++		cmd.set_viewport(vp);
++		cmd.set_scissor(region);
++#else
+ 		vkCmdSetViewport(cmd, 0, 1, &vp);
+ 
+ 		vkCmdSetScissor(cmd, 0, 1, &region);
++#endif
+ 	}
+ 
+ 	void stencil_clear_pass::run(vk::command_buffer& cmd, vk::render_target* target, VkRect2D rect, u32 stencil_clear, u32 stencil_write_mask, VkRenderPass render_pass)
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
+--- a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
+@@ -33,6 +33,9 @@
+ 				mask |= (1u << cache::stencil_compare_front) | (1u << cache::stencil_compare_back); break;
+ 			case VK_DYNAMIC_STATE_STENCIL_REFERENCE:
+ 				mask |= (1u << cache::stencil_reference_front) | (1u << cache::stencil_reference_back); break;
++			case VK_DYNAMIC_STATE_VIEWPORT:
++				mask |= (1u << cache::viewport_bounds) | (1u << cache::viewport_depth); break;
++			case VK_DYNAMIC_STATE_SCISSOR: mask |= 1u << cache::scissor_rect; break;
+ 			default: break;
+ 			}
+ 		}
+@@ -211,6 +214,27 @@
+ 		vkCmdBindPipeline(commands, bind_point, pipeline);
+ 	}
+ 
++#ifdef RPCS3_IOS
++	void command_buffer::set_viewport(const VkViewport& viewport) const
++	{
++		const bool bounds_changed = m_dynamic_state.update(dynamic_state_cache::viewport_bounds,
++			{ std::bit_cast<u32>(viewport.x), std::bit_cast<u32>(viewport.y),
++			  std::bit_cast<u32>(viewport.width), std::bit_cast<u32>(viewport.height) });
++		const bool depth_changed = m_dynamic_state.update(dynamic_state_cache::viewport_depth,
++			{ std::bit_cast<u32>(viewport.minDepth), std::bit_cast<u32>(viewport.maxDepth) });
++		if (bounds_changed || depth_changed)
++			vkCmdSetViewport(commands, 0, 1, &viewport);
++	}
++
++	void command_buffer::set_scissor(const VkRect2D& scissor) const
++	{
++		if (m_dynamic_state.update(dynamic_state_cache::scissor_rect,
++			{ std::bit_cast<u32>(scissor.offset.x), std::bit_cast<u32>(scissor.offset.y),
++			  scissor.extent.width, scissor.extent.height }))
++			vkCmdSetScissor(commands, 0, 1, &scissor);
++	}
++#endif
++
+ 	void command_buffer::set_line_width(float width) const
+ 	{
+ 		if (m_dynamic_state.update(dynamic_state_cache::line_width, { std::bit_cast<u32>(width) }))
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.h b/rpcs3/Emu/RSX/VK/vkutils/commands.h
+--- a/rpcs3/Emu/RSX/VK/vkutils/commands.h
++++ b/rpcs3/Emu/RSX/VK/vkutils/commands.h
+@@ -118,6 +118,8 @@
+ 		// Abstractions with caching
+ #ifdef RPCS3_IOS
+ 		void bind_pipeline(VkPipeline pipeline, VkPipelineBindPoint bind_point, u32 dynamic_state_mask = 0) const;
++		void set_viewport(const VkViewport& viewport) const;
++		void set_scissor(const VkRect2D& scissor) const;
+ #else
+ 		void bind_pipeline(VkPipeline pipeline, VkPipelineBindPoint bind_point) const;
+ #endif
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp b/rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp
+--- a/rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp
+@@ -18,7 +18,11 @@
+ 			line_width, blend_constants, depth_bias, depth_bounds,
+ 			stencil_write_front, stencil_write_back,
+ 			stencil_compare_front, stencil_compare_back,
+-			stencil_reference_front, stencil_reference_back, count
++			stencil_reference_front, stencil_reference_back,
++#ifdef RPCS3_IOS
++			viewport_bounds, viewport_depth, scissor_rect,
++#endif
++			count
+ 		};
+ 
+ 		std::array<std::array<std::uint32_t, 4>, count> values{};

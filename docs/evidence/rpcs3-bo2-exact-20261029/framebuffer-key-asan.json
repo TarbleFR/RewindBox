@@ -1,0 +1,57 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "results": {
+    "keyConstructionsPerVersion": 103936,
+    "fieldCases": 405,
+    "preimageCasesVaryingWithPriorBytes": 405,
+    "controlledPreimageKeyBuckets": 256,
+    "controlledFixedKeyBuckets": 1,
+    "productionCacheQueries": 1026,
+    "productionCacheHits": 1011,
+    "productionFBOCreations": 15,
+    "productionFBODestructions": 15,
+    "imageInvalidations": 3,
+    "ownershipCases": 2,
+    "allDefinedKeyBitsPreserved": true,
+    "bothLookupOverloadsExecuted": true,
+    "attachmentPredicateOrderPreserved": true,
+    "physicalDeviceCacheMissesMeasured": false
+  },
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/VK/VKFramebuffer.cpp": "5674b08d747da2532138c27eef5a1b307f1c2444482f70ee38e8ca4d65ebdee6",
+    "rpcs3/Emu/RSX/VK/vkutils/framebuffer_object.hpp": "fa859d98775d3da90bed54e5ef5671be3a867f99e147cefa632a9e18ff3418f4",
+    "rpcs3/Emu/RSX/VK/VKFramebuffer.h": "d60492519a9d4485c77796bf4577f3c5f0347f0b4810da26bcf32547bc0b07cd",
+    "rpcs3/Emu/RSX/Utils/rsx_utils.h": "335737069a998550bcdb6dff94d86d3df133c1d2dd64e63cf3465a9fb159040d"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/VK/VKFramebuffer.cpp": "5fde4884a5a5de204bd767e9c81824d77c63096a33753f821b6240dcac57380c",
+    "rpcs3/Emu/RSX/VK/vkutils/framebuffer_object.hpp": "fa859d98775d3da90bed54e5ef5671be3a867f99e147cefa632a9e18ff3418f4",
+    "rpcs3/Emu/RSX/VK/VKFramebuffer.h": "d60492519a9d4485c77796bf4577f3c5f0347f0b4810da26bcf32547bc0b07cd",
+    "rpcs3/Emu/RSX/Utils/rsx_utils.h": "335737069a998550bcdb6dff94d86d3df133c1d2dd64e63cf3465a9fb159040d"
+  },
+  "adapterSHA256": "62d4f6a830bd01191f1ff051318449bdc39ac21a137109f442c08f203e4b5915",
+  "harnessSHA256": "e12ee835e00560a21eb8309aea39452c77e8ee6b9b225324144de714b7cacb80",
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-DRPCS3_IOS",
+    "-O1",
+    "-g",
+    "-pthread",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "sanitizer": "address,undefined",
+  "host": "x86_64",
+  "leakSanitizer": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Exercise the actual FBO key, cache lookup and invalidation bodies.\n\nThe key is constructed in storage with controlled prior bytes. Both production\nget_framebuffer overloads, removal functions, matches/references and framebuffer\nconstructors/destructors execute verbatim. Vulkan objects and refcounts are host\nadapters; this is not an iPhone cache-miss or performance measurement.\n"
+}

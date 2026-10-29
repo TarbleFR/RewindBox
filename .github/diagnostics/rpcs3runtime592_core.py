@@ -336,6 +336,14 @@ if __name__ == '__main__':
     p.add_argument('--verify-reuse', type=Path)
     p.add_argument('--write-core-identity', type=Path)
     a = p.parse_args()
+    if 'runtime_bo2_exact_20261029' in manifest():
+        from rpcs3runtime_bo2_exact_core import main as exact_main
+        exact_main(a)
+        raise SystemExit
+    if 'runtime_bo2_warm_20261029' in manifest():
+        from rpcs3runtime_bo2_warm_core import main as warm_main
+        warm_main(a)
+        raise SystemExit
     if 'runtime_bo2_followup_20261029' in manifest():
         from rpcs3runtime_bo2_core import main as bo2_main
         bo2_main(a)

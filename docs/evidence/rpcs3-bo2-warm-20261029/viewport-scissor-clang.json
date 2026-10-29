@@ -1,0 +1,69 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "results": {
+    "passed": true,
+    "assertionsActive": true,
+    "maskCases": 514,
+    "identicalDraws": 10000,
+    "baselineViewportCommands": 10000,
+    "candidateViewportCommands": 1,
+    "baselineScissorCommands": 10000,
+    "candidateScissorCommands": 1,
+    "bitPatternCases": 56,
+    "staticTransitionCases": 3,
+    "overlayReturnCases": 3,
+    "recordingReuseCases": 3,
+    "randomDraws": 20000,
+    "randomBaselineViewportCommands": 20000,
+    "randomCandidateViewportCommands": 9718,
+    "randomBaselineScissorCommands": 20000,
+    "randomCandidateScissorCommands": 9897,
+    "boundsAndDepthIndependent": true,
+    "independentBuffers": true,
+    "computeRetainsGraphics": true,
+    "unknownMaskInvalidates": true,
+    "lifetimeTraceEqual": true
+  },
+  "compiler": "clang version 22.1.8",
+  "compilerFlags": [
+    "-std=c++20",
+    "-DRPCS3_IOS",
+    "-O2",
+    "-g",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "sanitizer": null,
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "1c5e35d4289a1e122b696c18b104101623d148fcc76048911c3a5627e1273611",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "70897f93822c06346bd5d2a2b2b1afcc643808a3254533b0285a9db7f29df116",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "fbc078ede7dc9cc93e129a79d9574d0bde9b4df0d8d2214fb6c4b07cb400fdb4",
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "fed611e598e23a21d283b5432a0e8846a6bacd4fda4735b330984c74434e53e8",
+    "rpcs3/Emu/RSX/VK/VKOverlays.cpp": "41a30e38f39e9cb361f3ce6e9f16e80fc8ab374de7eba0e42dea8581873ea5d3",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "fbcb635660f479635c85eb1742f77074a9f83f8f0b2c8bc77ca2aa38a428e31b",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.h": "16cd58f7e06ab7c50685f0dbcc63a149ef5be279dc3192116dcb5642f9d0ffaa"
+  },
+  "baselineSHA256": {
+    "rpcs3/Emu/RSX/VK/vkutils/dynamic_state_cache.hpp": "be65c65b46c08254cccb900cde9d6e4a094548d6ebb2695d61125fa101d34829",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.cpp": "4557a1872934d9968b3e0029ae64264b6086db93a24a9c2e7c853bcec343d970",
+    "rpcs3/Emu/RSX/VK/vkutils/commands.h": "be32ebf687a28bf36bf4f51b847afcbf5a523476a2ee3289f396be396ccf9aa0",
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "c7dcaa6d23930a42edf8f34a91e14c0c9c1adeb65e5d91d78db84d00a321cad7",
+    "rpcs3/Emu/RSX/VK/VKOverlays.cpp": "ec5a218647633c950017b762284dd6df61b39005c8cc02f5e164086511e8c25e",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "fbcb635660f479635c85eb1742f77074a9f83f8f0b2c8bc77ca2aa38a428e31b",
+    "rpcs3/Emu/RSX/VK/VKProgramPipeline.h": "16cd58f7e06ab7c50685f0dbcc63a149ef5be279dc3192116dcb5642f9d0ffaa"
+  },
+  "harnessSHA256": "ec7934ada2872259c11ca0d5af2561252e3e3c7d7aa2f36bfa0516975dd28e45",
+  "adapterSHA256": "a2e770bcc7f43c47b6e6b86f883551479ad794a05d8d14e5d3b6705f298c3f20",
+  "reusedInputSHA256": {
+    "test/rpcs3_dynamic_state_retention_test.py": "5edb68ab59bec74fcddccb64e70eff533297629a3dec20ed84e6d14f27f386ad",
+    "test/native/rpcs3_dynamic_state_retention.inc": "01b9b61e9bac1434dfb33034d296c69be028ccb2a655e310d95780524d1f54b7",
+    "test/rpcs3_runtime_log_followup.py": "b5cdfaeaac78b0186553cc58763a7629de1c7f201d293a86d87db074dd6385ae"
+  },
+  "leakSanitizer": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Exact production cache, decoder, bind, begin/reset/end and all four viewport/scissor writers; Vulkan/driver/fence boundary only. Bit-pattern unit cases do not execute invalid values on a GPU. No FPS or submit-time claim."
+}
