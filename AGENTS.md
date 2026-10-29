@@ -2,6 +2,36 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## RPCS3 BO2 stutter follow-up — 29 October 2026
+
+After verified source `7d1ca65c`, synchronized with concurrent MeloNX engine 81
+receipt `cfba697b`: protect host compiler-ticket release with the existing
+admission mutex; normalize only provably unused fragment-input properties in
+the private cache key; clone a new FP key under the writer lock before parallel
+lookups can observe it. Three canonical paths change, 308 remain byte-identical,
+including all thirteen device593 corrections. No PPU/SPU codegen, ABI or player
+setting changes. Record/fixture: `runtime_bo2_followup_20261029` and
+`test/fixtures/rpcs3_bo2_20261029.diff`. Details and exact evidence:
+`docs/rpcs3-bo2-followup-2026-10-29.md`, `docs/evidence/rpcs3-bo2-20261029/`.
+
+Input analysis is lazy, skipped for neutral properties and cached until
+`fragment_program_ucode_dirty`; conservative results are cached too. The
+historical common analyzer and RSXThread remain unchanged. Do not restore the
+rejected eager per-instruction analysis without new cost evidence. Preserve
+TXD's three operands, conservative malformed/flow/indirect fallbacks, original
+guest properties and compilation outside the key publication lock.
+
+The 593 BO2 logs show 32 long graphics creations totaling 19.926181 s and
+15.750841 s of fragment-library work; they do not run this candidate or 7d1.
+Windows 19–20 have 111 new FP programs, 8 FS compilations and 115 FS cache hits;
+these independent counters do not prove 103 of 111 were individual cache hits.
+Host equivalence and concurrency checks do not prove extra iPhone FPS or
+elimination of the 32 cold calls. Reuse previous receipts; the future Apple
+gate runs the eight still-pending device593 modes and six new BO2 modes,
+without replaying historical native suites or CMake identity calculations.
+No Core/IPA/release, telemetry or new delivery number is part of this work.
+Preserve private IPA 593 and the validated MeloNX engine 81 artifact.
+
 ## MeloNX rendering CPU follow-up — 29 October 2026
 
 Five additional guarded adapters follow engine 80: geometrically growing

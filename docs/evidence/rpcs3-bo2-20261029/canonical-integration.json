@@ -1,0 +1,56 @@
+{
+  "passed": true,
+  "baselineCommit": "7d1ca65c8cb12d5d27934cd40cd0cf361518d9ad",
+  "branchBaseCommit": "cfba697b2371958761f379ec8ca17f0020909614",
+  "upstream": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "patchSHA256": "064d6dcdcb82326b7bebc1c3070619cee526933ef3d76d6b2db4b783a42f5221",
+  "fixtureSHA256": "d10338673d5d642c17e00d934976ddbd7eb8f7758e39454716eba3ed5bb27f5f",
+  "canonicalPostimagesVerified": 311,
+  "unchangedCanonicalPostimages": 308,
+  "modifiedCanonicalPostimages": 3,
+  "preservedDevice593CorrectionPaths": [
+    "Utilities/JITLLVM.cpp",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake",
+    "rpcs3/Emu/RSX/Common/texture_cache.h",
+    "rpcs3/Emu/RSX/NV47/HW/nv0039.cpp",
+    "rpcs3/Emu/RSX/NV47/HW/nv3089.cpp",
+    "rpcs3/Emu/RSX/NV47/HW/nv308a.cpp",
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp",
+    "rpcs3/Emu/RSX/VK/VKGSRender.cpp",
+    "rpcs3/Emu/RSX/VK/vkutils/device.cpp",
+    "rpcs3/ios/IOSMoltenVKExec.h",
+    "rpcs3/ios/IOSMoltenVKExecQueue.h",
+    "rpcs3/ios/IOSTextureValidationProfile.h",
+    "rpcs3/ios/RPCS3IOSPlatform.mm"
+  ],
+  "sourceRawSHA256": {
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "db261d05fd89ecaa87518bc3c56f788dc79068964949942d13e57d17010f4216",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.h": "b5b9d02b0909aaa9264ac6c79dc106a2891b200babf7784ee25ab0f36caa9025",
+    "rpcs3/ios/RPCS3IOSPerformance.cpp": "3d4d593c63d835a582482fadf9449e120efd0f0b434c237a29fcbc7871a9e26c"
+  },
+  "reconstructedBaselineRawSHA256": {
+    "rpcs3/ios/RPCS3IOSPerformance.cpp": "2f80528b0b11c8bd531345b0ac68a4059c5e1120bfb0511c4a5747297d65e8fb",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": "2e8f3d513d3547660787f5cf7530293f2531448bc490ccb784548ba7209f2299",
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.h": "960d26436d75aa5f68655e113c3840229e90e0e8406b7e98ff2d51e2bf0618fc"
+  },
+  "pristineSource": "Fresh sparse upstream Git snapshot; original blobs, trees and upstream commit authenticated by Git object hashes. Not a Core build.",
+  "originalInputCount": 176,
+  "materializerStdout": "PASS: single canonical RPCS3 delta, all postimage hashes verified\nPASS static link contract: all host-loaded Core functions are exported\n",
+  "allFixturePreimagesByteIdenticalIncludingCRLF": true,
+  "offIOSSourceChecks": {
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.cpp": {
+      "nonblankSourceOutsideIOSGuardsIdentical": true,
+      "sha256": "1e9aeb1f2e4728e57dc8e9c26cf239527cdebe554b1c08d2ded171d15ef6a3e6"
+    },
+    "rpcs3/Emu/RSX/Program/ProgramStateCache.h": {
+      "nonblankSourceOutsideIOSGuardsIdentical": true,
+      "sha256": "167b588f348b696feb2b2a0e6de706f84dea251b28f7271a87afb2734ce2fea5"
+    }
+  },
+  "sourceExportDeclarationsUnchanged": 88,
+  "sourceABIHeaderUnchanged": true,
+  "testsRecompiledOrExecuted": false,
+  "appleCoreBuilt": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false
+}

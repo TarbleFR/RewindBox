@@ -1,0 +1,46 @@
+{
+  "passed": true,
+  "assertionsActive": true,
+  "forcedGapCasesPerVersion": 32,
+  "baselineLostNotifications": 16,
+  "candidateLostNotifications": 0,
+  "fallbackLostNotifications": [
+    0,
+    0
+  ],
+  "cancellationCasesPerVersion": 4,
+  "concurrentAdmissionsPerVersion": 768,
+  "maximumConcurrentWork": [
+    3,
+    3
+  ],
+  "admissionLimit": 3,
+  "productionTimeoutMilliseconds": 20,
+  "timingThresholdAssertions": false,
+  "compiler": "clang version 22.1.8",
+  "compilerFlags": [
+    "-std=c++20",
+    "-O2",
+    "-g",
+    "-pthread",
+    "-UNDEBUG"
+  ],
+  "mode": "plain",
+  "sourceSHA256": "3d4d593c63d835a582482fadf9449e120efd0f0b434c237a29fcbc7871a9e26c",
+  "baselineSHA256": "2f80528b0b11c8bd531345b0ac68a4059c5e1120bfb0511c4a5747297d65e8fb",
+  "headerSHA256": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61",
+  "harnessSHA256": "9350d309c5b39ff8eb7aaa89d87f141c97ab8a0e1fddd5061a6774e5475f221d",
+  "adapterSHA256": "e25f834cb33e1972c90438b6655d75a6bb4fea0dd2aa8f67d3b9384a0c26de84",
+  "hostInputSHA256": {
+    "packages/neo_swap/ios/Classes/NeoSwapCompiler.mm": "02ceff6a68e3654a82881a185c44bd7445a99d50a3ded71835b368340810125a",
+    "packages/neo_swap/ios/Classes/NeoSwapCompilerAPI.h": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+    "packages/neo_swap/ios/Classes/NeoSwapCompilerBudget.h": "2c2aaf6fad9aaf138145174034a0e8ac7653dffce35fc9624585688b66b25d71"
+  },
+  "hostWrapperGitBlob": "108c5c08f8cf62db373fca6d85fbb8f60510e215",
+  "onlyReleaseCriticalSectionChanged": true,
+  "baselineSourceMutationApplied": false,
+  "leakSanitizer": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "scope": "Exact admission constructor/destructor and host budget; controlled real mutex/CV interleaving. Memory sampling, diagnostics and asynchronous host signal are boundaries."
+}

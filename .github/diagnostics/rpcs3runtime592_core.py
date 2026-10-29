@@ -336,6 +336,10 @@ if __name__ == '__main__':
     p.add_argument('--verify-reuse', type=Path)
     p.add_argument('--write-core-identity', type=Path)
     a = p.parse_args()
+    if 'runtime_bo2_followup_20261029' in manifest():
+        from rpcs3runtime_bo2_core import main as bo2_main
+        bo2_main(a)
+        raise SystemExit
     if 'runtime_device593_followup_20261029' in manifest():
         from rpcs3runtime_device593_core import main as device593_main
         device593_main(a)
