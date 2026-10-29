@@ -15747,6 +15747,42 @@ index 000000000..9345076e5
 +		return invalidated;
 +	}
 +}
+diff --git a/rpcs3/Emu/RSX/Common/simple_array.hpp b/rpcs3/Emu/RSX/Common/simple_array.hpp
+index d3535c71f..91cd3c2e0 100644
+--- a/rpcs3/Emu/RSX/Common/simple_array.hpp
++++ b/rpcs3/Emu/RSX/Common/simple_array.hpp
+@@ -162,6 +162,31 @@ namespace rsx
+ 				return;
+ 			}
+ 
++#ifdef RPCS3_IOS
++			if (_this_is_local != _that_is_local)
++			{
++				// Transfer the heap allocation instead of copying it into the
++				// inline array (including moves into an empty destination).
++				// Only the bounded inline payload needs to change address.
++				auto& local = _this_is_local ? *this : that;
++				auto& heap = _this_is_local ? that : *this;
++				auto* heap_data = heap._data;
++				const u32 heap_capacity = heap._capacity;
++				const u32 heap_size = heap._size;
++				if (local._size)
++				{
++					std::memcpy(heap._local_storage, local._data, local.size_bytes());
++				}
++				heap._data = reinterpret_cast<Ty*>(heap._local_storage);
++				heap._capacity = _local_capacity;
++				heap._size = local._size;
++				local._data = heap_data;
++				local._capacity = heap_capacity;
++				local._size = heap_size;
++				return;
++			}
++#endif
++
+ 			if (!_size)
+ 			{
+ 				*this = that;
 diff --git a/rpcs3/Emu/RSX/Common/surface_store.h b/rpcs3/Emu/RSX/Common/surface_store.h
 index 817192730..967267261 100644
 --- a/rpcs3/Emu/RSX/Common/surface_store.h
@@ -16306,7 +16342,7 @@ index 6b306657f..0220fde21 100644
  
  	namespace blit_engine_helpers
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
-index 0fa80b230..9387c4ec4 100644
+index 0fa80b230..c012514d1 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache.h
 +++ b/rpcs3/Emu/RSX/Common/texture_cache.h
 @@ -12,6 +12,14 @@
@@ -16336,7 +16372,33 @@ index 0fa80b230..9387c4ec4 100644
  
  			sampled_image_descriptor() = default;
  
-@@ -787,6 +800,20 @@ namespace rsx
+@@ -653,7 +666,25 @@ namespace rsx
+ 
+ 		shared_mutex m_cache_mutex;
+ 		ranged_storage m_storage;
++#ifdef RPCS3_IOS
++		// The cache only consumes the encoded identity and invalidation range.
++		// Copy/gather recipes are used from the current request, never the cached
++		// entry. Do not retain and deep-copy their section arrays for every image.
++		static_assert(std::is_pointer_v<image_resource_type>);
++		struct temporary_subresource_key
++		{
++			u64 properties;
++			address_range32 cache_range;
++
++			temporary_subresource_key(const deferred_subresource& desc)
++				: properties(desc.encoded_properties()), cache_range(desc.cache_range) {}
++
++			u64 encoded_properties() const { return properties; }
++		};
++		std::unordered_multimap<u32, std::pair<temporary_subresource_key, image_view_type>> m_temporary_subresource_cache;
++#else
+ 		std::unordered_multimap<u32, std::pair<deferred_subresource, image_view_type>> m_temporary_subresource_cache;
++#endif
+ 		std::vector<image_view_type> m_uncached_subresources;
+ 		predictor_type m_predictor;
+ 
+@@ -787,6 +818,20 @@ namespace rsx
  			return true;
  		}
  
@@ -16357,7 +16419,7 @@ index 0fa80b230..9387c4ec4 100644
  		/**
  		 * Section invalidation
  		 */
-@@ -795,6 +822,21 @@ namespace rsx
+@@ -795,6 +840,21 @@ namespace rsx
  		void flush_set(commandbuffer_type& cmd, thrashed_set& data, std::function<void()> on_data_transfer_completed, Args&&... extras)
  		{
  			AUDIT(!data.flushed);
@@ -16379,7 +16441,7 @@ index 0fa80b230..9387c4ec4 100644
  
  			if (data.sections_to_flush.size() > 1)
  			{
-@@ -821,6 +863,17 @@ namespace rsx
+@@ -821,6 +881,17 @@ namespace rsx
  				}
  			}
  
@@ -16397,7 +16459,7 @@ index 0fa80b230..9387c4ec4 100644
  			if (!sections_to_transfer.empty())
  			{
  				// Batch all hard faults together
-@@ -1145,9 +1198,28 @@ namespace rsx
+@@ -1145,9 +1216,28 @@ namespace rsx
  
  			AUDIT(cause.valid());
  			AUDIT(fault_range_in.valid());
@@ -16426,7 +16488,7 @@ index 0fa80b230..9387c4ec4 100644
  
  			thrashed_set result = {};
  			result.cause = cause;
-@@ -1237,6 +1309,22 @@ namespace rsx
+@@ -1237,6 +1327,22 @@ namespace rsx
  			// Decide which sections to flush, unprotect, and exclude
  			update_cache_tag();
  
@@ -16449,7 +16511,7 @@ index 0fa80b230..9387c4ec4 100644
  			for (auto &obj : trampled_set.sections)
  			{
  				auto &tex = *obj;
-@@ -1281,9 +1369,49 @@ namespace rsx
+@@ -1281,9 +1387,49 @@ namespace rsx
  						{
  							tex.set_dirty(true);
  						}
@@ -16499,7 +16561,7 @@ index 0fa80b230..9387c4ec4 100644
  					else
  					{
  						result.sections_to_flush.push_back(&tex);
-@@ -1644,6 +1772,11 @@ namespace rsx
+@@ -1644,6 +1790,11 @@ namespace rsx
  
  					lock.upgrade();
  
@@ -16511,7 +16573,7 @@ index 0fa80b230..9387c4ec4 100644
  					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::read, {}, std::forward<Args>(extras)...);
  
  					cached_src = cache->upload_image_from_cpu(cmd, rsx_range, image_width, image_height, 1, 1, src.pitch, gcm_format, texture_upload_context::blit_engine_src,
-@@ -1734,6 +1867,11 @@ namespace rsx
+@@ -1734,6 +1885,11 @@ namespace rsx
  				{
  					// NOTE: Write flag set to remove all other overlapping regions (e.g shader_read or blit_src)
  					// NOTE: This step can potentially invalidate the newly created src image as well.
@@ -16523,7 +16585,7 @@ index 0fa80b230..9387c4ec4 100644
  					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::cause_is_write | invalidation_cause::cause_uses_strict_data_bounds, {}, std::forward<Args>(extras)...);
  
  					bool force_dma_load = false;
-@@ -1860,6 +1998,13 @@ namespace rsx
+@@ -1860,6 +2016,13 @@ namespace rsx
  
  		virtual void on_frame_end()
  		{
@@ -16537,7 +16599,7 @@ index 0fa80b230..9387c4ec4 100644
  			// Must manually release each cached entry
  			for (auto& entry : m_temporary_subresource_cache)
  			{
-@@ -1871,7 +2016,7 @@ namespace rsx
+@@ -1871,7 +2034,7 @@ namespace rsx
  			reset_frame_statistics();
  		}
  
@@ -16546,7 +16608,7 @@ index 0fa80b230..9387c4ec4 100644
  		rsx::simple_array<section_storage_type*> find_texture_from_range(const address_range32 &test_range, u32 required_pitch = 0, u32 context_mask = 0xFF)
  		{
  			rsx::simple_array<section_storage_type*> results;
-@@ -1887,7 +2032,7 @@ namespace rsx
+@@ -1887,7 +2050,7 @@ namespace rsx
  						continue;
  					}
  
@@ -16555,7 +16617,7 @@ index 0fa80b230..9387c4ec4 100644
  					{
  						continue;
  					}
-@@ -1903,6 +2048,29 @@ namespace rsx
+@@ -1903,6 +2066,29 @@ namespace rsx
  		section_storage_type *find_texture_from_dimensions(u32 rsx_address, u32 format, u16 width = 0, u16 height = 0, u16 depth = 0, u16 mipmaps = 0)
  		{
  			auto &block = m_storage.block_for(rsx_address);
@@ -16585,7 +16647,7 @@ index 0fa80b230..9387c4ec4 100644
  			for (auto &tex : block)
  			{
  				if constexpr (check_unlocked)
-@@ -2048,6 +2216,9 @@ namespace rsx
+@@ -2048,6 +2234,9 @@ namespace rsx
  				return;
  
  			std::lock_guard lock(m_cache_mutex);
@@ -16595,7 +16657,7 @@ index 0fa80b230..9387c4ec4 100644
  			invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::committed_as_fbo, {}, std::forward<Args>(extras)...);
  		}
  
-@@ -2321,6 +2492,102 @@ namespace rsx
+@@ -2321,6 +2510,102 @@ namespace rsx
  			return evicted_set.violation_handled;
  		}
  
@@ -16698,7 +16760,7 @@ index 0fa80b230..9387c4ec4 100644
  		// Expands a _3d_unwrap descriptor into the explicit slice list used by _3d_gather.
  		static void expand_3d_unwrap_sections(rsx::simple_array<copy_region_descriptor>& sections, const deferred_subresource& desc, u8 level)
  		{
-@@ -2522,7 +2789,7 @@ namespace rsx
+@@ -2522,7 +2807,7 @@ namespace rsx
  				// Most mesh textures are stored as compressed to make the most of the limited memory
  				if (auto cached_texture = find_texture_from_dimensions(attr.address, attr.gcm_format, attr.width, attr.height, attr.depth))
  				{
@@ -16707,7 +16769,7 @@ index 0fa80b230..9387c4ec4 100644
  					{
  						cached_texture->get_view(remap),
  						cached_texture->get_context(),
-@@ -2531,6 +2798,10 @@ namespace rsx
+@@ -2531,6 +2816,10 @@ namespace rsx
  						cached_texture->get_image_type(),
  						cached_texture->get_section_base()
  					};
@@ -16718,7 +16780,7 @@ index 0fa80b230..9387c4ec4 100644
  				}
  
  				return {};
-@@ -2563,7 +2834,7 @@ namespace rsx
+@@ -2563,7 +2852,7 @@ namespace rsx
  
  			auto fast_fbo_check = [&]() -> sampled_image_descriptor
  			{
@@ -16727,7 +16789,7 @@ index 0fa80b230..9387c4ec4 100644
  
  				if (!last.is_clipped) //<- A non-clipped hit fully contains the requested box. We're good to go with the framebuffer processing.
  				{
-@@ -2609,12 +2880,121 @@ namespace rsx
+@@ -2609,12 +2898,121 @@ namespace rsx
  
  			// Check shader_read storage. In a given scene, reads from local memory far outnumber reads from the surface cache
  			const u32 lookup_mask = rsx::texture_upload_context::shader_read | rsx::texture_upload_context::blit_engine_dst | rsx::texture_upload_context::blit_engine_src;
@@ -16851,7 +16913,7 @@ index 0fa80b230..9387c4ec4 100644
  				{
  #ifdef TEXTURE_CACHE_DEBUG
  					if (!memory_range.inside(cached_texture->get_confirmed_range()))
-@@ -2632,10 +3012,15 @@ namespace rsx
+@@ -2632,10 +3030,15 @@ namespace rsx
  						rsx_log.warning("A texture was found in cache for address 0x%x, but swizzle flag does not match", attr.address);
  						cached_texture->unprotect();
  						cached_texture->set_dirty(true);
@@ -16868,7 +16930,7 @@ index 0fa80b230..9387c4ec4 100644
  					{
  						cached_texture->get_view(remap),
  						cached_texture->get_context(),
-@@ -2644,15 +3029,23 @@ namespace rsx
+@@ -2644,15 +3047,23 @@ namespace rsx
  						cached_texture->get_image_type(),
  						cached_texture->get_section_base()
  					};
@@ -16894,7 +16956,7 @@ index 0fa80b230..9387c4ec4 100644
  				});
  			}
  
-@@ -2875,6 +3268,48 @@ namespace rsx
+@@ -2875,6 +3286,48 @@ namespace rsx
  			return {};
  		}
  
@@ -16943,7 +17005,7 @@ index 0fa80b230..9387c4ec4 100644
  		template <typename surface_store_type, typename RsxTextureType>
  		bool test_if_descriptor_expired(commandbuffer_type& cmd, surface_store_type& surface_cache, sampled_image_descriptor* descriptor, const RsxTextureType& tex)
  		{
-@@ -3326,13 +3761,18 @@ namespace rsx
+@@ -3326,13 +3779,18 @@ namespace rsx
  
  			// Invalidate
  			const address_range32 tex_range = address_range32::start_length(attributes.address, tex_size);
@@ -16963,7 +17025,7 @@ index 0fa80b230..9387c4ec4 100644
  			{
  				uploaded->get_view(tex.decoded_remap()),
  				texture_upload_context::shader_read,
-@@ -3341,6 +3781,10 @@ namespace rsx
+@@ -3341,6 +3799,10 @@ namespace rsx
  				extended_dimension,
  				attributes.address
  			};
@@ -16974,7 +17036,7 @@ index 0fa80b230..9387c4ec4 100644
  		}
  
  		// FIXME: This function is way too large and needs an urgent refactor.
-@@ -3628,6 +4072,15 @@ namespace rsx
+@@ -3628,6 +4090,15 @@ namespace rsx
  
  			if (!cached_dest && !dst_is_render_target)
  			{
@@ -16990,7 +17052,7 @@ index 0fa80b230..9387c4ec4 100644
  				blit_engine_internals::create_blit_dst(
  					this,
  					cmd,
-@@ -3724,6 +4177,26 @@ namespace rsx
+@@ -3724,6 +4195,26 @@ namespace rsx
  
  				if (!dest_section || !dest_section->is_locked())
  				{
@@ -17057,7 +17119,7 @@ index e6789e84a..040fe8586 100644
  		{
  			if (g_cfg.video.strict_rendering_mode)
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
-index a10770d01..3cb7f7190 100644
+index a10770d01..c5d708862 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
 +++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
 @@ -11,6 +11,16 @@
@@ -17158,7 +17220,7 @@ index a10770d01..3cb7f7190 100644
  
  		inline void add_owned_section_overlaps(section_storage_type &section)
  		{
-@@ -298,17 +368,53 @@ namespace rsx
+@@ -298,17 +368,64 @@ namespace rsx
  		inline section_storage_type& create_section()
  		{
  			auto &res = sections.emplace_back(this);
@@ -17186,7 +17248,18 @@ index a10770d01..3cb7f7190 100644
 +		{
 +			const auto first = std::lower_bound(m_address_index.begin(), m_address_index.end(), address,
 +				[](const address_entry& entry, u32 value) { return entry.address < value; });
-+			const auto last = std::upper_bound(first, m_address_index.end(), address,
++			if (first == m_address_index.end() || first->address != address)
++			{
++				return {first, first};
++			}
++			// Most addresses name one section. Avoid a second binary search for
++			// that case; duplicate addresses retain their exact ordered range.
++			const auto next = first + 1;
++			if (next == m_address_index.end() || next->address != address)
++			{
++				return {first, next};
++			}
++			const auto last = std::upper_bound(next + 1, m_address_index.end(), address,
 +				[](u32 value, const address_entry& entry) { return value < entry.address; });
 +			return {first, last};
 +		}
@@ -17212,7 +17285,7 @@ index a10770d01..3cb7f7190 100644
  			}
  
  			AUDIT(exists_count == 0);
-@@ -370,6 +476,9 @@ namespace rsx
+@@ -370,6 +487,9 @@ namespace rsx
  			AUDIT(section.valid_range());
  			AUDIT(range.overlaps(section.get_section_base()));
  			add_owned_section_overlaps(section);
@@ -17222,7 +17295,7 @@ index a10770d01..3cb7f7190 100644
  		}
  
  		inline void on_section_range_invalid(section_storage_type &section)
-@@ -377,6 +486,9 @@ namespace rsx
+@@ -377,6 +497,9 @@ namespace rsx
  			AUDIT(section.valid_range());
  			AUDIT(range.overlaps(section.get_section_base()));
  			remove_owned_section_overlaps(section);
@@ -17232,7 +17305,7 @@ index a10770d01..3cb7f7190 100644
  		}
  
  		inline void on_section_resources_created(const section_storage_type &section)
-@@ -610,6 +722,13 @@ namespace rsx
+@@ -610,6 +733,13 @@ namespace rsx
  
  		void trim_sections()
  		{
@@ -17246,7 +17319,7 @@ index a10770d01..3cb7f7190 100644
  			for (auto it = m_in_use.begin(); it != m_in_use.end(); it++)
  			{
  				auto* block = *it;
-@@ -619,11 +738,24 @@ namespace rsx
+@@ -619,11 +749,24 @@ namespace rsx
  					{
  						if (tex.is_locked() && !tex.is_locked(true))
  						{
@@ -17271,7 +17344,7 @@ index a10770d01..3cb7f7190 100644
  		}
  
  
-@@ -883,6 +1015,12 @@ namespace rsx
+@@ -883,6 +1026,12 @@ namespace rsx
  
  		section_protection_strategy protection_strat = section_protection_strategy::lock;
  		u64 mem_hash = 0;
@@ -17284,7 +17357,7 @@ index a10770d01..3cb7f7190 100644
  
  		bool locked = false;
  		void init_lockable_range(const address_range32& range);
-@@ -903,6 +1041,12 @@ namespace rsx
+@@ -903,6 +1052,12 @@ namespace rsx
  		void protect(utils::protection prot, const std::pair<u32, u32>& new_confirm);
  		void unprotect();
  		bool sync() const;
@@ -17297,7 +17370,7 @@ index a10770d01..3cb7f7190 100644
  
  		void discard();
  		const address_range32& get_bounds(section_bounds bounds) const;
-@@ -1037,6 +1181,10 @@ namespace rsx
+@@ -1037,6 +1192,10 @@ namespace rsx
  		using predictor_type            = texture_cache_predictor<traits>;
  		using predictor_key_type        = typename predictor_type::key_type;
  		using predictor_entry_type      = typename predictor_type::mapped_type;
@@ -17308,7 +17381,7 @@ index a10770d01..3cb7f7190 100644
  
  	protected:
  		ranged_storage_type *m_storage = nullptr;
-@@ -1076,6 +1224,9 @@ namespace rsx
+@@ -1076,6 +1235,9 @@ namespace rsx
  		bool synchronized = false;
  		bool flushed = false;
  		bool speculatively_flushed = false;
@@ -17318,7 +17391,7 @@ index a10770d01..3cb7f7190 100644
  
  		rsx::memory_read_flags readback_behaviour = rsx::memory_read_flags::flush_once;
  		rsx::component_order view_flags = rsx::component_order::default_;
-@@ -1091,6 +1242,10 @@ namespace rsx
+@@ -1091,6 +1253,10 @@ namespace rsx
  	public:
  		u64 cache_tag = 0;
  		u64 last_write_tag = 0;
@@ -17329,7 +17402,7 @@ index a10770d01..3cb7f7190 100644
  
  		~cached_texture_section()
  		{
-@@ -1124,6 +1279,11 @@ namespace rsx
+@@ -1124,6 +1290,11 @@ namespace rsx
  
  			// Destroy if necessary
  			destroy();
@@ -17341,7 +17414,7 @@ index a10770d01..3cb7f7190 100644
  
  			// Superclass
  			rsx::buffered_section::reset(memory_range);
-@@ -1145,9 +1305,15 @@ namespace rsx
+@@ -1145,9 +1316,15 @@ namespace rsx
  			synchronized = false;
  			flushed = false;
  			speculatively_flushed = false;
@@ -17357,7 +17430,7 @@ index a10770d01..3cb7f7190 100644
  
  			m_predictor_entry = nullptr;
  
-@@ -1403,6 +1569,9 @@ namespace rsx
+@@ -1403,6 +1580,9 @@ namespace rsx
  
  		inline void unprotect()
  		{
@@ -17367,7 +17440,7 @@ index a10770d01..3cb7f7190 100644
  			utils::protection old_prot = get_protection();
  			rsx::buffered_section::unprotect();
  			post_protect(old_prot, utils::protection::rw);
-@@ -1410,6 +1579,9 @@ namespace rsx
+@@ -1410,6 +1590,9 @@ namespace rsx
  
  		inline void discard(bool set_dirty = true)
  		{
@@ -17377,7 +17450,7 @@ index a10770d01..3cb7f7190 100644
  			utils::protection old_prot = get_protection();
  			rsx::buffered_section::discard();
  			post_protect(old_prot, utils::protection::rw);
-@@ -1422,6 +1594,9 @@ namespace rsx
+@@ -1422,6 +1605,9 @@ namespace rsx
  
  		void reprotect(const utils::protection prot)
  		{
@@ -17387,7 +17460,7 @@ index a10770d01..3cb7f7190 100644
  			if (synchronized && !flushed)
  			{
  				// Abort enqueued transfer
-@@ -1438,6 +1613,9 @@ namespace rsx
+@@ -1438,6 +1624,9 @@ namespace rsx
  
  		void reprotect(const utils::protection prot, const std::pair<u32, u32>& range)
  		{
@@ -17397,7 +17470,7 @@ index a10770d01..3cb7f7190 100644
  			if (synchronized && !flushed)
  			{
  				// Abort enqueued transfer
-@@ -1493,6 +1671,64 @@ namespace rsx
+@@ -1493,6 +1682,64 @@ namespace rsx
  			m_tex_cache->on_miss(*derived());
  		}
  
@@ -17462,7 +17535,7 @@ index a10770d01..3cb7f7190 100644
  		void touch(u64 tag)
  		{
  			last_write_tag = tag;
-@@ -1512,6 +1748,19 @@ namespace rsx
+@@ -1512,6 +1759,19 @@ namespace rsx
  
  		bool sync_protection()
  		{
@@ -17482,7 +17555,7 @@ index a10770d01..3cb7f7190 100644
  			if (!buffered_section::sync())
  			{
  				discard(true);
-@@ -1519,9 +1768,22 @@ namespace rsx
+@@ -1519,9 +1779,22 @@ namespace rsx
  				return false;
  			}
  
@@ -17505,7 +17578,7 @@ index a10770d01..3cb7f7190 100644
  
  		/**
  		 * Flush
-@@ -1642,6 +1904,9 @@ namespace rsx
+@@ -1642,6 +1915,9 @@ namespace rsx
  			auto cleanup_flush = [&]()
  			{
  				flushed = true;
@@ -17515,7 +17588,7 @@ index a10770d01..3cb7f7190 100644
  				flush_exclusions.clear();
  				on_flush();
  			};
-@@ -1657,8 +1922,20 @@ namespace rsx
+@@ -1657,8 +1933,20 @@ namespace rsx
  			// NOTE: Hard faults should have been pre-processed beforehand
  			ensure(synchronized);
  

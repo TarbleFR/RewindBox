@@ -2,6 +2,34 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## RPCS3 source optimizations after device595 feedback — 29 October 2026
+
+Based on Claude c0df3394, rechecked during the task, in an isolated checkout.
+Three iOS-only paths change: simple_array transfers heap ownership in mixed
+inline/heap swaps; temporary texture entries retain only encoded identity and
+invalidation range; unique/missing texture addresses avoid a second binary search.
+Canonical delta 33320812eccaf55ce7e834fe9a3a01da004e8323f0ad149cbf424a2ac3dcef9c:
+314 postimages, 311 historical postimages unchanged, two changed, one new.
+Six targeted Linux modes pass (three plain, three ASan/UBSan); no Apple/native
+Core/IPA build or release. LSan was unavailable under ptrace and is not claimed.
+Array checks: 726,336 comparisons, tracked ownership/lifetimes; temporary cache:
+12,422 checks; address lifecycle: 22,753 queries and 8,618 mutations per mode.
+The compiler-free device595 delta test authenticates these exact source inputs
+and generated harnesses. Reuse existing results while their inputs match.
+
+The maintainer reports improved BO2 with remaining weapon/forearm artifacts and
+stutters, unchanged GOW3 with a repeatable freeze, and AC torch flicker/roughly
+27 FPS. Existing logs confirm a persistent GOW3 RSX label wait (expected 0x6F0E,
+observed 0x6F0D); its producer cause is unproved. These source optimizations do
+not establish a visual fix, resolved freeze or added iPhone FPS. The inactive
+AMD primitive-restart scratch experiment was withdrawn, as was an unsafe
+unlocked exact-cache shortcut. All runtime settings, existing delivery recipes,
+Core pins, unrelated engines and other checkouts stay untouched. A future
+explicitly requested Core requires Apple validation of these changed inputs;
+its proof must not reuse the old binary receipt as if these sources were built.
+See docs/rpcs3-device595-optimization-2026-10-29.md and
+ docs/evidence/rpcs3-device595-20261029/.
+
 ## Private IPA 595 — compiled, independently verified and privately saved, 29 October 2026
 
 The maintainer explicitly requested a private IPA with the latest RPCS3/MeloNX.
