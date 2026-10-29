@@ -1,0 +1,42 @@
+{
+  "result": "host-validated-not-apple-compiled",
+  "baselineSource": "5045889ff9f1a872d238435293c50cacd7c127b5",
+  "baselineRun": 40895446303,
+  "baselineIndependentSha256": "93444fdee86538389ea9923c23208d79f357827dcd22cc8523d7848106bed82c",
+  "localReceiptSha256": "b829fd6c7be27bcccc198cf530358b02bf6dc7859a2b85b3943a74e80cb80327",
+  "preparationInputsSha256": "8c28cc952f290a102c550e2969eed08de3189b1e3c0cca73d8405865f74bc82f",
+  "physicalDeviceTested": false,
+  "ipaCreated": false,
+  "preparationChanges": {
+    "build-utils/melonx/prepare_embedded.py": {
+      "before": "454aa63ffc4b9a482aaf80200e02c03f9f1a0dbf3788b374cb275355a08234c2",
+      "after": "b6b744eb8e6cb44893f5408e07423f4b5ec3b2482cfa74bfba1438395dd91b5d"
+    },
+    "build-utils/melonx/adapt_kernel_timer_allocations.py": {
+      "before": "a688677b1a29952979fe126b7c05d7de0710e21501407de474ad1fc50fd55289",
+      "after": "4e2ee9215d20856cf4d72adac373ca24fab656a83646f373612f006ba9f24694"
+    }
+  },
+  "addedPreparationInputs": {
+    "build-utils/melonx/adapt_sync_allocations.py": "6897cb02848b7814768edb96a57a8c227559eb7a00707c6324eed4be016f54ab"
+  },
+  "changedSources": {
+    "src/Ryujinx.HLE/HOS/Kernel/Common/KTimeManager.cs": {
+      "before": "807d8c319aec5c8b6ac5c1061fde99c3d3c19fb370fcf5a3b274b015b2bd89fd",
+      "after": "72a9c2ebe5ad38a5259a2f8eb847e98db9a34f3c614c65710631595d79f520a3"
+    },
+    "src/Ryujinx.Graphics.Vulkan/SyncManager.cs": {
+      "before": "fcbee4e89cf44eba0b4a39fbd5b6331d29b25126a3dd9a0ed17ab9cd095bdfec",
+      "after": "b55b9c3c1fb941198d0240172dc205d8c916c6d38be82649c9e703c1c79bd6b3"
+    },
+    "src/Ryujinx.Graphics.Vulkan/BufferUsageBitmap.cs": {
+      "before": "f205e7787ecd8699117bc32771218191c3617861888afda260c1bf28411ea663",
+      "after": "a9d8acbb38e4bdc23fc3ee39c9635159b08197e3857955798e9a1917694bba44"
+    }
+  },
+  "freshGates": [
+    "kernel-timer-allocations-checks.json",
+    "sync-allocation-checks.json"
+  ],
+  "syncReceiptSha256": "4e71821ccd861c3b3238c0bb2f5f823498dad4bcb98aa4e6ad58142b78531759"
+}

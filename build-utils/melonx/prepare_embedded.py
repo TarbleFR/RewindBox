@@ -15,6 +15,7 @@ from adapt_converted_cache import apply as adapt_converted_cache
 from adapt_kernel_wait_lifetime import apply as adapt_kernel_wait_lifetime
 from adapt_ipc_request_lifetime import apply as adapt_ipc_request_lifetime
 from adapt_kernel_timer_allocations import apply as adapt_kernel_timer_allocations
+from adapt_sync_allocations import apply as adapt_sync_allocations
 from adapt_allocator_blocks import apply as adapt_allocator_blocks
 from adapt_indirect_cache_key import apply as adapt_indirect_cache_key
 from adapt_texture_handle_dependencies import apply as adapt_texture_handle_dependencies
@@ -139,6 +140,7 @@ def main():
     adapted += adapt_kernel_wait_lifetime(source)
     adapted += adapt_ipc_request_lifetime(source)
     adapted += adapt_kernel_timer_allocations(source)
+    adapted += adapt_sync_allocations(source)
     adapted += adapt_allocator_blocks(source)
     adapted += adapt_indirect_cache_key(source)
     adapted += adapt_texture_handle_dependencies(source)
@@ -207,6 +209,7 @@ def main():
                  'adapt_kernel_wait_lifetime.py',
                  'adapt_ipc_request_lifetime.py',
                  'adapt_kernel_timer_allocations.py',
+                 'adapt_sync_allocations.py',
                  'adapt_allocator_blocks.py',
                  'adapt_indirect_cache_key.py',
                  'adapt_texture_handle_dependencies.py',

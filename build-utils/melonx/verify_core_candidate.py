@@ -9,6 +9,7 @@ import argparse
 import os
 from pathlib import Path
 import platform
+import shutil
 import subprocess
 import zipfile
 
@@ -19,6 +20,9 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / 'dist/melonx'
 EVIDENCE = OUT / 'core-validation'
 PROOF = ROOT / 'docs/evidence/melonx-hogwarts-followup-20261029'
+FOLLOWUP = ROOT / 'docs/evidence/melonx-hogwarts-timer-20261029'
+CORE84 = ROOT / 'docs/evidence/melonx-hogwarts-core-20261029'
+CORE84_INDEPENDENT = '93444fdee86538389ea9923c23208d79f357827dcd22cc8523d7848106bed82c'
 SOURCE = ROOT / '.native-sources/MeloNX'
 GATES = (
     'tracking-snapshot-checks.json', 'multirange-slice-checks.json',
@@ -28,6 +32,7 @@ GATES = (
     'kernel-timer-allocations-checks.json', 'allocator-blocks-checks.json',
     'indirect-cache-key-checks.json', 'texture-handle-dependencies-checks.json',
     'fragmented-upload-slice-checks.json',
+    'sync-allocation-checks.json',
 )
 HOST_INPUTS = (
     'packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift',
@@ -47,10 +52,70 @@ def inputs_match(inputs):
 
 
 def preparation_inputs():
-    inputs = read(PROOF / 'embedded-inputs.json')
-    require(len(inputs) == 86, 'Unexpected reviewed preparation input count')
+    baseline = read(PROOF / 'embedded-inputs.json')
+    contract = read(FOLLOWUP / 'candidate.json')
+    changes = contract['preparationChanges']
+    require(set(changes) == {'build-utils/melonx/adapt_kernel_timer_allocations.py',
+                            'build-utils/melonx/prepare_embedded.py'}, 'Unexpected preparation changes')
+    for relative, change in changes.items():
+        require(baseline[relative] == change['before'], 'Unexpected preparation baseline: ' + relative)
+        baseline[relative] = change['after']
+    added = contract['addedPreparationInputs']
+    require(set(added) == {'build-utils/melonx/adapt_sync_allocations.py'} and
+            not set(added) & set(baseline), 'Unexpected new preparation input')
+    baseline.update(added)
+    require(digest(FOLLOWUP / 'embedded-inputs.json') == contract['preparationInputsSha256'],
+            'Timer preparation inventory digest changed')
+    inputs = read(FOLLOWUP / 'embedded-inputs.json')
+    require(inputs == baseline, 'Runtime follow-up changed unrelated preparation inputs')
+    require(len(inputs) == 87, 'Unexpected reviewed preparation input count')
     inputs_match(inputs)
     return inputs
+
+
+def reuse_gates():
+    """Authenticate twelve unchanged Apple results without executing them again."""
+    preparation_inputs()
+    contract = read(FOLLOWUP / 'candidate.json')
+    proof_path = CORE84 / 'independent-apple-verification.json'
+    require(digest(proof_path) == CORE84_INDEPENDENT == contract['baselineIndependentSha256'],
+            'Core84 independent evidence changed')
+    proof = read(proof_path)
+    require(proof['result'] == 'passed' and proof['source'] == contract['baselineSource'] and
+            proof['run'] == contract['baselineRun'] == 40895446303, 'Wrong historical Apple execution')
+    old_gates = CORE84 / 'apple-core/core-validation/gates.json'
+    require(digest(old_gates) == proof['coreValidationSha256']['gates'], 'Core84 gate index changed')
+    historical = read(old_gates)
+    require(set(historical['receipts']) == set(GATES) - {'sync-allocation-checks.json'}, 'Historical gate inventory changed')
+    require(historical['execution']['source'] == contract['baselineSource'] and
+            historical['execution']['run'] == contract['baselineRun'], 'Historical gate origin changed')
+    receipts = {}
+    for name in GATES:
+        if name in contract['freshGates']:
+            continue
+        path = CORE84 / 'apple-core' / name
+        require(digest(path) == historical['receipts'][name], 'Historical gate changed: ' + name)
+        report = read(path)
+        require(report['result'] == 'passed' and report['physicalDeviceTested'] is False and
+                report['upstreamRevision'] == read(ROOT / 'build-utils/melonx/source.json')['revision'],
+                'Failed or foreign historical gate: ' + name)
+        inputs_match(report['inputs'])
+        for relative, expected in report.get('upstreamInputs', {}).items():
+            require(digest(child(SOURCE, relative)) == expected, 'Wrong historical upstream input: ' + relative)
+        target = OUT / name
+        require(not target.exists(), 'Refusing existing historical gate output: ' + name)
+        receipts[name] = {'sha256': digest(path), 'source': contract['baselineSource'],
+                          'run': contract['baselineRun'], 'reexecuted': False}
+    require(len(receipts) == 12 and set(contract['freshGates']) ==
+            {'kernel-timer-allocations-checks.json', 'sync-allocation-checks.json'},
+            'Wrong reuse/fresh split')
+    # Publish only after every source, receipt and output path passes.
+    OUT.mkdir(parents=True, exist_ok=True)
+    for name in receipts:
+        shutil.copyfile(CORE84 / 'apple-core' / name, OUT / name)
+    write(EVIDENCE / 'reused-core84-gates.json', {'result': 'authenticated', 'receipts': receipts,
+          'independentProofSha256': CORE84_INDEPENDENT, 'testsExecuted': 0})
+    print('Authenticated twelve unchanged Core84 Apple receipts; no historical suite was replayed.')
 
 
 def execution():
@@ -80,7 +145,7 @@ def preflight():
         'upstreamRevision': pin['revision'], 'preparationInputs': inputs,
         'smokeInputs': {relative: digest(ROOT / relative) for relative in HOST_INPUTS},
     })
-    print('Pinned Apple ARM64 checkout, SDK 10.0.100, pristine upstream and 86 preparation inputs.')
+    print('Pinned Apple ARM64 checkout, SDK 10.0.100, pristine upstream and 87 preparation inputs.')
 
 
 def gates():
@@ -98,12 +163,18 @@ def gates():
         for relative, expected in report.get('upstreamInputs', {}).items():
             require(digest(child(SOURCE, relative)) == expected, 'Wrong gate upstream input: ' + relative)
         receipts[name] = digest(path)
+    reused = read(EVIDENCE / 'reused-core84-gates.json')
+    require(reused['result'] == 'authenticated' and reused['testsExecuted'] == 0 and
+            len(reused['receipts']) == 12, 'Missing Core84 reuse proof')
+    for name, origin in reused['receipts'].items():
+        require(receipts[name] == origin['sha256'] and origin['reexecuted'] is False,
+                'Reused receipt changed: ' + name)
     write(EVIDENCE / 'gates.json', {
         'result': 'passed', 'execution': execution(), 'receipts': receipts,
-        'newAdapterGates': 12, 'additionalCompositionGates': 1,
+        'targetedGateCount': 14, 'freshAppleGates': 2, 'reusedAppleGates': 12,
         'historicalGatesReexecuted': False, 'physicalDeviceTested': False,
     })
-    print('Authenticated twelve new Apple gate receipts and the fragmented-upload/Slice composition gate.')
+    print('Authenticated two fresh runtime gates and twelve unchanged Core84 Apple gates.')
 
 
 def compiled():
@@ -114,7 +185,19 @@ def compiled():
     for name, expected in prior['receipts'].items():
         require(digest(OUT / name) == expected, 'Gate receipt changed after compilation: ' + name)
     integration = read(PROOF / 'integration.json')
-    require(integration['result'] == 'passed' and len(integration['sourceDelta']) == 17,
+    changes = read(FOLLOWUP / 'candidate.json')['changedSources']
+    timer = 'src/Ryujinx.HLE/HOS/Kernel/Common/KTimeManager.cs'
+    require(set(changes) == {timer, 'src/Ryujinx.Graphics.Vulkan/SyncManager.cs',
+                            'src/Ryujinx.Graphics.Vulkan/BufferUsageBitmap.cs'} and
+            integration['sourceDelta'][timer]['after'] == changes[timer]['before'],
+            'Unexpected runtime production baseline')
+    for relative, change in changes.items():
+        if relative == timer:
+            integration['sourceDelta'][relative]['after'] = change['after']
+        else:
+            require(relative not in integration['sourceDelta'], 'Unexpected overlap: ' + relative)
+            integration['sourceDelta'][relative] = change
+    require(integration['result'] == 'passed' and len(integration['sourceDelta']) == 19,
             'Unexpected source integration evidence')
     with zipfile.ZipFile(OUT / 'embedded-adapted-source.zip') as archive:
         paths = archive.namelist()
@@ -165,12 +248,12 @@ def compiled():
         binaries[runtime] = {'sha256': identity['sha256'], 'bytes': identity['size']}
     write(EVIDENCE / 'compiled.json', {
         'result': 'passed', 'execution': execution(), 'identities': identities, 'binaries': binaries,
-        'adaptationCount': len(inputs), 'reviewedChangedSources': 17,
+        'adaptationCount': len(inputs), 'reviewedChangedSources': 19,
         'verifiedGatePostimages': postimages, 'compositionExceptions': list(exceptions.values()),
         'embeddedArchiveSha256': digest(OUT / 'embedded-adapted-source.zip'),
         'physicalDeviceTested': False, 'gameplayTested': False,
     })
-    print('Both fresh NativeAOT libraries match the 86 inputs, 17 source changes and 47-export ABI.')
+    print('Both fresh NativeAOT libraries match the 87 inputs, 19 source changes and 47-export ABI.')
 
 
 def finalize():
@@ -212,6 +295,6 @@ def finalize():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('phase', choices=('preflight', 'gates', 'compiled', 'finalize'))
+    parser.add_argument('phase', choices=('preflight', 'reuse_gates', 'gates', 'compiled', 'finalize'))
     args = parser.parse_args()
     globals()[args.phase]()

@@ -2,6 +2,25 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## MeloNX additional runtime candidate — 29 October 2026
+
+The maintainer supplied the extended Hogwarts log (SHA256 3aaa4bbc...e8a99b3b)
+and then explicitly asked for more improvements. The candidate preserves Core84
+and adds stable linear cancellation for multiple timer arms, FIFO sync retirement,
+flush callbacks allocated only on real requests, and shared bitmap page bounds.
+Three production paths differ from Core84; 126 other adapted members match.
+There are 87 preparation inputs and 129 adapted archive members. The two new
+host gates compile whole changed classes: timer 195 scenarios/103,769 assertions
+per variant, sync/bitmap 219 scenarios/120,566 assertions per variant. Timers
+include the exact Core84 control. Preserve measured slower small cases.
+
+The Apple recipe authenticates twelve unchanged Core84 receipts and reruns only
+the affected timer and new sync gates before both NativeAOT builds and the
+two-session SVC smoke. Nine negative controls cover receipt reuse; no historical
+suite is replayed. No iPhone FPS/RSS gain or new IPA is established by host tests.
+Current source evidence: docs/melonx-hogwarts-timer-2026-10-29.md and
+docs/evidence/melonx-hogwarts-timer-20261029/. RPCS3 work remains separate.
+
 ## RPCS3 global runtime optimization follow-up — 29 October 2026
 
 The maintainer expanded the task to global runtime performance, then asked

@@ -73,4 +73,57 @@ def apply(source):
     once(path, '''            WaitingObject selected = null;
 ''', '''            WaitingObject selected = default;
 ''')
+    once(path, '''                for (int index = _waitingObjects.Count - 1; index >= 0; index--)
+                {
+                    if (_waitingObjects[index].Object == schedulerObj)
+                    {
+                        _waitingObjects.RemoveAt(index);
+                    }
+                }
+''', '''                // Keep the original reverse scan for the usual zero/one-arm
+                // cancellation. Compact only after finding a second match.
+                int last = -1;
+
+                for (int index = _waitingObjects.Count - 1; index >= 0; index--)
+                {
+                    if (_waitingObjects[index].Object != schedulerObj)
+                    {
+                        continue;
+                    }
+
+                    if (last < 0)
+                    {
+                        last = index;
+                        continue;
+                    }
+
+                    int output = 0;
+
+                    // The suffix after last has no matching arms. Preserve all
+                    // survivor identities/order and shift that suffix just once.
+                    for (int input = 0; input <= last; input++)
+                    {
+                        WaitingObject current = _waitingObjects[input];
+
+                        if (current.Object != schedulerObj)
+                        {
+                            if (output != input)
+                            {
+                                _waitingObjects[output] = current;
+                            }
+
+                            output++;
+                        }
+                    }
+
+                    // RemoveRange also clears the trailing managed references.
+                    _waitingObjects.RemoveRange(output, last + 1 - output);
+                    return;
+                }
+
+                if (last >= 0)
+                {
+                    _waitingObjects.RemoveAt(last);
+                }
+''')
     return [path]

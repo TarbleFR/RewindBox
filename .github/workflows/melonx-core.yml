@@ -15,6 +15,12 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/reuse_core_baseline.py
     - build-utils/melonx/core-baseline.json
     - build-utils/melonx/verify_core_candidate.py
+    - test/melonx_core84_reuse_test.py
+    - build-utils/melonx/adapt_sync_allocations.py
+    - test/melonx_sync_allocations_test.py
+    - test/melonx_sync_allocations/**
+    - docs/evidence/melonx-hogwarts-timer-20261029/candidate.json
+    - docs/evidence/melonx-hogwarts-timer-20261029/embedded-inputs.json
     - test/melonx_fragmented_upload_slice_test.py
     - test/melonx_fragmented_uploads_slice/**
     - build-utils/melonx/prepare_embedded.py
@@ -234,32 +240,14 @@ jobs:
         PY_FETCH
     - name: Verify Apple ARM64, exact SDK and reviewed preparation inputs
       run: python3 build-utils/melonx/verify_core_candidate.py preflight
-    - name: Verify private tracking snapshots, reentrance and bounded pool lifetime
-      run: python3 test/melonx_tracking_snapshots_test.py .native-sources/MeloNX
-    - name: Verify single-fragment range slices preserve holes and byte mappings
-      run: python3 test/melonx_multirange_slice_test.py .native-sources/MeloNX
-    - name: Verify texture-group visitor order and explicit per-call state
-      run: python3 test/melonx_texture_group_callbacks_test.py .native-sources/MeloNX
-    - name: Verify composed texture-region cursors and new range slices
-      run: python3 test/melonx_texture_region_cursor_test.py .native-sources/MeloNX
-    - name: Verify inline command-buffer ownership and concurrent resource references
-      run: python3 test/melonx_auto_ownership_test.py .native-sources/MeloNX
-    - name: Verify missing converted-buffer lookups do not create cache entries
-      run: python3 test/melonx_converted_cache_test.py .native-sources/MeloNX
-    - name: Verify kernel wait references release completed participants
-      run: python3 test/melonx_kernel_wait_lifetime_test.py .native-sources/MeloNX
-    - name: Verify pooled IPC requests release completed participants
-      run: python3 test/melonx_ipc_request_lifetime_test.py .native-sources/MeloNX
+    - name: Verify strict Core84 receipt reuse and changed-input rejection
+      run: python3 test/melonx_core84_reuse_test.py .native-sources/MeloNX
+    - name: Reuse twelve unchanged Core84 Apple gates
+      run: python3 build-utils/melonx/verify_core_candidate.py reuse_gates
     - name: Verify timer arm identity, cancellation and zero-allocation reuse
       run: python3 test/melonx_kernel_timer_allocations_test.py .native-sources/MeloNX
-    - name: Verify dedicated allocation retirement and failed mapping cleanup
-      run: python3 test/melonx_allocator_blocks_test.py .native-sources/MeloNX
-    - name: Verify indirect conversion keys invalidate the actual bound buffer
-      run: python3 test/melonx_indirect_cache_key_test.py .native-sources/MeloNX
-    - name: Verify retired texture dependency links preserve pending GPU copies
-      run: python3 test/melonx_texture_handle_dependencies_test.py .native-sources/MeloNX
-    - name: Verify fragmented uploads with the new range slices
-      run: python3 test/melonx_fragmented_upload_slice_test.py .native-sources/MeloNX
+    - name: Verify GPU sync ownership, callback allocation and bitmap queries
+      run: python3 test/melonx_sync_allocations_test.py .native-sources/MeloNX
     - name: Authenticate all new gate receipts before compilation
       run: python3 build-utils/melonx/verify_core_candidate.py gates
     - name: Compile NativeAOT library and verify exported ABI

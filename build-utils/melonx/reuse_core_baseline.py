@@ -87,10 +87,10 @@ def verify_inputs(old, pin):
     expected_path = child(ROOT, pin['expectedInputs'])
     require(digest(expected_path) == pin['expectedInputsSha256'], 'Expected preparation receipt changed')
     expected = read(expected_path)
-    require(len(old) == 74 and len(expected) == 86 and
+    require(len(old) == 74 and len(expected) == 87 and
             set(expected) == set(old) | set(pin['newAdapters']) and
-            len(set(pin['newAdapters'])) == 12 and not set(old) & set(pin['newAdapters']),
-            'Preparation inventory is not engine82 plus the twelve adapters')
+            len(set(pin['newAdapters'])) == 13 and not set(old) & set(pin['newAdapters']),
+            'Preparation inventory is not engine82 plus the thirteen adapters')
     require(old[RECIPE] == pin['oldPreparationSha256'] and
             expected[RECIPE] == pin['newPreparationSha256'], 'Unexpected preparation composition')
     for relative, value in old.items():
@@ -249,10 +249,10 @@ def prepare():
         run=pin['run'], job=pin['job'], artifact=pin['artifact'], archiveSha256=pin['archiveSha256'],
         engineSource=pin['engineSource'], historicalReports=retained, copiedLibHacFiles=list(copied),
         unchangedPreparationInputs=73, expectedCandidateInputs=expected,
-        oldPreparationInputs=74, candidatePreparationInputs=86, newAdapters=pin['newAdapters'],
+        oldPreparationInputs=74, candidatePreparationInputs=87, newAdapters=pin['newAdapters'],
         historicalTestsReexecuted=False, historicalResultsCoverNewBodies=False,
         scope='Authenticated history only; new gates, composition, NativeAOT and smoke require separate proof.'))
-    print('Authenticated engine82 history, 73 retained inputs, 86 candidate inputs and the original LibHac package.')
+    print('Authenticated engine82 history, 73 retained inputs, 87 candidate inputs and the original LibHac package.')
 
 
 def reuse_libhac(engine, source):

@@ -20,10 +20,10 @@
     "Retain the original failure and new runtime proof"
   ],
   "validationHelperSha256": "a910628dd92e237121e92ff91765e3e69cab84a2806788359c46fb6db969641a",
-  "expectedInputs": "docs/evidence/melonx-hogwarts-followup-20261029/embedded-inputs.json",
-  "expectedInputsSha256": "8efb4f3c984bcf0132008f7d22afb8685c3f41dca9731bdaaee4ccb91a89c1aa",
+  "expectedInputs": "docs/evidence/melonx-hogwarts-timer-20261029/embedded-inputs.json",
+  "expectedInputsSha256": "8c28cc952f290a102c550e2969eed08de3189b1e3c0cca73d8405865f74bc82f",
   "oldPreparationSha256": "eef4fdbb93c7988fd0f671f95aca623a6ecf489c59c319804642d7acc0ae57e9",
-  "newPreparationSha256": "454aa63ffc4b9a482aaf80200e02c03f9f1a0dbf3788b374cb275355a08234c2",
+  "newPreparationSha256": "b6b744eb8e6cb44893f5408e07423f4b5ec3b2482cfa74bfba1438395dd91b5d",
   "newAdapters": [
     "build-utils/melonx/adapt_allocator_blocks.py",
     "build-utils/melonx/adapt_auto_ownership.py",
@@ -36,7 +36,8 @@
     "build-utils/melonx/adapt_texture_group_callbacks.py",
     "build-utils/melonx/adapt_texture_handle_dependencies.py",
     "build-utils/melonx/adapt_texture_region_cursor.py",
-    "build-utils/melonx/adapt_tracking_snapshots.py"
+    "build-utils/melonx/adapt_tracking_snapshots.py",
+    "build-utils/melonx/adapt_sync_allocations.py"
   ],
   "binarySha256": {
     "ios-arm64": "f7efba4e5025be2147f8a47fe4de9b2eba2df63537aaa2c496e74b57413af2e5",

@@ -182,6 +182,110 @@ static class Program
             Trace.Append(actual).Append(';'); _cases++;
         }
     }
+    static void CancellationCases()
+    {
+        foreach (int count in new[] { 0, 1, 2, 8, 64, 256, 4096 })
+        foreach (string pattern in new[] { "none", "all", "first", "last", "alternating", "prefix", "suffix", "sparse" })
+        {
+            KernelContext context = new(); KTimeManager manager = Manual(context);
+            TimerObject cancelled = new(-1, context);
+            List<(TimerObject obj, long deadline)> survivors = new();
+            PerformanceCounter.Now = 0;
+            for (int i = 0; i < count; i++)
+            {
+                bool remove = pattern switch {
+                    "all" => true, "first" => i == 0, "last" => i == count - 1,
+                    "alternating" => (i & 1) == 0, "prefix" => i < count / 2,
+                    "suffix" => i >= count / 2, "sparse" => i % 17 == 0, _ => false,
+                };
+                TimerObject target = remove ? cancelled : new(i, context);
+                long deadline = 1 + i % 5;
+                manager.ScheduleFutureInvocation(target, deadline);
+                if (!remove) survivors.Add((target, deadline));
+            }
+            // Retain a genuine arm selected by the worker. Cancellation must
+            // preserve its generation, not reconstruct equivalent wrappers.
+            object captured = Next(manager);
+            manager.UnscheduleFutureInvocation(cancelled);
+            manager.UnscheduleFutureInvocation(cancelled);
+            IList actual = (IList)Waiting.GetValue(manager);
+            Check(actual.Count == survivors.Count, "Cancellation must remove every matching arm only");
+            for (int i = 0; i < survivors.Count; i++)
+            {
+                Check(ReferenceEquals(Target(actual[i]), survivors[i].obj) && TimePoint(actual[i]) == survivors[i].deadline,
+                    "Cancellation must preserve survivor order, target and deadline");
+                Trace.Append(survivors[i].obj.Id).Append(':').Append(survivors[i].deadline).Append(';');
+            }
+            Array storage = (Array)Waiting.FieldType.GetField("_items", Private).GetValue(actual);
+            for (int i = actual.Count; i < storage.Length; i++)
+            {
+                object slot = storage.GetValue(i);
+                Check(slot == null || (Target(slot) == null && !Valid(slot)), "Cancelled suffix retains a timer or epoch");
+            }
+            if (Valid(captured))
+                Check(Remove(manager, captured) == !ReferenceEquals(Target(captured), cancelled), "Captured survivor identity changed");
+            // Selection after compaction still resolves equal deadlines by
+            // the original insertion order.
+            if (Valid(captured) && !ReferenceEquals(Target(captured), cancelled))
+                survivors.RemoveAll(x => ReferenceEquals(x.obj, Target(captured)));
+            foreach (var expected in survivors.OrderBy(x => x.deadline))
+            {
+                object next = Next(manager);
+                Check(ReferenceEquals(Target(next), expected.obj) && TimePoint(next) == expected.deadline,
+                    "Cancellation changed equal-deadline callback order");
+                Check(Remove(manager, next), "Surviving arm not removable");
+            }
+            Check(!Valid(Next(manager)), "Cancellation/drain leaves an unexpected arm");
+            _cases++;
+        }
+    }
+
+    static object[] CancellationMeasurements()
+    {
+        List<object> result = new();
+        foreach (int count in new[] { 1, 32, 256, 4096 })
+        foreach (string pattern in new[] { "none", "first", "alternating", "prefix", "suffix", "all" })
+        {
+            KernelContext context = new(); KTimeManager manager = Manual(context);
+            TimerObject cancelled = new(-1, context), survivor = new(1, context);
+            // Preserve complete production arm values when refilling the list;
+            // boxing and setup are outside the measured cancellation interval.
+            PerformanceCounter.Now = 0;
+            for (int i = 0; i < count; i++)
+            {
+                bool remove = pattern switch {
+                    "first" => i == 0, "alternating" => (i & 1) == 0,
+                    "prefix" => i < count / 2, "suffix" => i >= count / 2,
+                    "all" => true, _ => false,
+                };
+                manager.ScheduleFutureInvocation(remove ? cancelled : survivor, 1000);
+            }
+            IList list = (IList)Waiting.GetValue(manager);
+            object[] arms = new object[count]; list.CopyTo(arms, 0);
+            double[] timings = new double[7];
+            long bytes = 0;
+            const int rounds = 100;
+            for (int sample = -1; sample < timings.Length; sample++)
+            {
+                long ticks = 0;
+                for (int round = 0; round < rounds; round++)
+                {
+                    list.Clear(); foreach (object arm in arms) list.Add(arm);
+                    long before = GC.GetAllocatedBytesForCurrentThread();
+                    long start = Stopwatch.GetTimestamp();
+                    manager.UnscheduleFutureInvocation(cancelled);
+                    ticks += Stopwatch.GetTimestamp() - start;
+                    if (sample >= 0) bytes += GC.GetAllocatedBytesForCurrentThread() - before;
+                }
+                if (sample >= 0) timings[sample] = (double)ticks * 1_000_000_000 / Stopwatch.Frequency / rounds;
+            }
+            Check(bytes == 0, "Timer cancellation must allocate nothing");
+            Array.Sort(timings);
+            result.Add(new { count, pattern, allocatedBytes = bytes, calls = rounds * timings.Length,
+                medianNanoseconds = timings[3], samplesNanoseconds = timings });
+        }
+        return result.ToArray();
+    }
     static (KTimeManager manager, TestSleepEvent ev) Worker(KernelContext context)
     {
         Volatile.Write(ref PreciseSleepHelper.LastCreated, null);
@@ -278,9 +382,10 @@ static class Program
     }
     public static void Main(string[] args)
     {
-        _candidate = args[0] == "candidate";
-        ListCases(); WorkerRearm(false); WorkerRearm(true); WorkerConcurrentAndDispose(); WorkerCallbackRearm();
+        _candidate = args[0] != "control";
+        ListCases(); CancellationCases(); WorkerRearm(false); WorkerRearm(true); WorkerConcurrentAndDispose(); WorkerCallbackRearm();
         var measured = Measure();
+        var cancellation = CancellationMeasurements();
         Console.WriteLine(JsonSerializer.Serialize(new {
             variant = args[0], checks = _checks, scenarios = _cases,
             functionalDigest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Trace.ToString()))),
@@ -288,6 +393,7 @@ static class Program
             timingMilliseconds = measured.milliseconds, waitingSlotBytes = measured.slotBytes,
             concurrentWorkerCallbacks = 2048, productionWorkerExecuted = true,
             forcedSequenceRolloverExercised = _candidate,
+            cancellation,
         }));
     }
 }

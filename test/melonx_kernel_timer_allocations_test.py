@@ -8,6 +8,7 @@ captured identity; the real worker also runs cancellation/rearm/rollover cases.
 from pathlib import Path
 import hashlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -28,11 +29,16 @@ def digest(path):
 
 
 pin = json.loads((ROOT / 'build-utils/melonx/source.json').read_text())
+CORE84_ADAPTER_BLOB = 'fb98972df6ff638638a041eec45ac6b790b26ea0'
+historical_adapter = subprocess.check_output(['git', '-C', str(ROOT), 'cat-file', 'blob', CORE84_ADAPTER_BLOB])
+assert hashlib.sha1(b'blob ' + str(len(historical_adapter)).encode() + b'\0' + historical_adapter).hexdigest() == CORE84_ADAPTER_BLOB
+historical_namespace = {}
+exec(compile(historical_adapter, 'core84/adapt_kernel_timer_allocations.py', 'exec'), historical_namespace)
 assert subprocess.check_output(['git', '-C', str(SOURCE), 'rev-parse', 'HEAD'], text=True).strip() == pin['revision']
 assert not subprocess.check_output(['git', '-C', str(SOURCE), 'status', '--porcelain', '--', FILE, *SUPPORT], text=True).strip()
 reports, postimages = {}, {}
 with tempfile.TemporaryDirectory(prefix='melonx-kernel-timer-') as temporary:
-    for variant in ('control', 'candidate'):
+    for variant in ('control', 'core84', 'candidate'):
         work = Path(temporary) / variant
         source = work / 'source'
         target = source / FILE
@@ -40,6 +46,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-kernel-timer-') as temporary:
         shutil.copyfile(SOURCE / FILE, target)
         if variant == 'candidate':
             apply(source)
+        elif variant == 'core84':
+            historical_namespace['apply'](source)
         postimages[variant] = {FILE: digest(target)}
         shutil.copyfile(target, work / 'KTimeManager.cs')
         for relative in SUPPORT:
@@ -51,16 +59,26 @@ with tempfile.TemporaryDirectory(prefix='melonx-kernel-timer-') as temporary:
 </PropertyGroup><ItemGroup><Compile Remove="source/**/*.cs" /></ItemGroup></Project>''')
         (work / 'NuGet.Config').write_text('<configuration><packageSources><clear /></packageSources></configuration>')
         (work / 'global.json').write_text(json.dumps({'sdk': {'version': pin['dotnet'], 'rollForward': 'disable'}}))
-        result = subprocess.run(['dotnet', 'run', '--project', str(work), '-c', 'Release', '-v', 'q', '--', variant], cwd=work, capture_output=True, text=True, timeout=180)
+        environment = os.environ.copy()
+        environment.update(DOTNET_TieredCompilation='0', DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1')
+        result = subprocess.run([os.environ.get('DOTNET', 'dotnet'), 'run', '--project', str(work), '-c', 'Release', '-v', 'q', '--', variant],
+            cwd=work, env=environment, capture_output=True, text=True, timeout=180)
         if result.returncode:
             print(result.stdout + result.stderr)
             result.check_returncode()
         reports[variant] = json.loads(next(line for line in result.stdout.splitlines() if line.startswith('{')))
 assert reports['control']['functionalDigest'] == reports['candidate']['functionalDigest']
+assert reports['core84']['functionalDigest'] == reports['candidate']['functionalDigest']
 assert reports['control']['allocatedBytes'] == reports['control']['armOperations'] * 32
 assert reports['candidate']['allocatedBytes'] == 0
 assert reports['control']['waitingSlotBytes'] == 8 and reports['candidate']['waitingSlotBytes'] == 32
+assert reports['core84']['allocatedBytes'] == 0 and reports['core84']['waitingSlotBytes'] == 32
+for report in reports.values():
+    assert len(report['cancellation']) == 24
+    assert all(item['allocatedBytes'] == 0 for item in report['cancellation'])
 report = dict(result='passed', upstreamRevision=pin['revision'], reports=reports,
+              sdk=pin['dotnet'], tieredCompilation=False, historicalAdapterBlob=CORE84_ADAPTER_BLOB,
+              historicalAdapterSha256=hashlib.sha256(historical_adapter).hexdigest(),
               physicalDeviceTested=False, productionTimerWorkerExecuted=True,
               boundaries='controlled clock, precise sleep event and kernel lock container',
               postimages=postimages,

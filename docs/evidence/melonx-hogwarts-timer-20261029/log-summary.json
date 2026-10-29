@@ -1,0 +1,113 @@
+{
+  "attachmentSha256": "3aaa4bbc8ca7325cb9e0fc7c328ecb12f206522d92a09ede30620605e8a99b3b",
+  "sessions": [
+    {
+      "game": "Hogwarts Legacy",
+      "startUtc": "2026-10-29T02:22:21.541209Z",
+      "runningSamples": 126,
+      "peakFootprintMiB": 3849.0,
+      "slowSamplesAt1to5Fps": 90,
+      "seriousOrCriticalThermalSamples": 0,
+      "slowMedianFps": 2.95,
+      "slowMedianFootprintMiB": 3654.5,
+      "slowMedianHeadroomMiB": 3000.5,
+      "slowMedianDeviceAvailablePercent": 9.0,
+      "slowMedianFifo": 100.0,
+      "slowMedianFrameMs": 337.15,
+      "slowBgcVisibleSamples": 89,
+      "slowBgcMedianVisibleCpuPercent": 55
+    },
+    {
+      "game": "Hogwarts Legacy",
+      "startUtc": "2026-10-29T02:24:50.168616Z",
+      "runningSamples": 97,
+      "peakFootprintMiB": 4258.0,
+      "slowSamplesAt1to5Fps": 59,
+      "seriousOrCriticalThermalSamples": 0,
+      "slowMedianFps": 2.9,
+      "slowMedianFootprintMiB": 3731.0,
+      "slowMedianHeadroomMiB": 2924.0,
+      "slowMedianDeviceAvailablePercent": 10.0,
+      "slowMedianFifo": 100.0,
+      "slowMedianFrameMs": 347.3,
+      "slowBgcVisibleSamples": 58,
+      "slowBgcMedianVisibleCpuPercent": 54.0
+    },
+    {
+      "game": "Super Smash Bros. Ultimate",
+      "startUtc": "2026-10-29T02:47:13.999037Z",
+      "runningSamples": 40,
+      "peakFootprintMiB": 2997.0,
+      "slowSamplesAt1to5Fps": 0,
+      "seriousOrCriticalThermalSamples": 0
+    },
+    {
+      "game": "Hogwarts Legacy",
+      "startUtc": "2026-10-29T04:54:24.175388Z",
+      "runningSamples": 132,
+      "peakFootprintMiB": 3812.0,
+      "slowSamplesAt1to5Fps": 96,
+      "seriousOrCriticalThermalSamples": 0,
+      "slowMedianFps": 2.8,
+      "slowMedianFootprintMiB": 3650.5,
+      "slowMedianHeadroomMiB": 3004.5,
+      "slowMedianDeviceAvailablePercent": 10.0,
+      "slowMedianFifo": 100.0,
+      "slowMedianFrameMs": 351.85,
+      "slowBgcVisibleSamples": 96,
+      "slowBgcMedianVisibleCpuPercent": 60.0
+    },
+    {
+      "game": "Super Smash Bros. Ultimate",
+      "startUtc": "2026-10-29T07:01:17.175754Z",
+      "runningSamples": 26,
+      "peakFootprintMiB": 2886.0,
+      "slowSamplesAt1to5Fps": 0,
+      "seriousOrCriticalThermalSamples": 0
+    },
+    {
+      "game": "Hogwarts Legacy",
+      "startUtc": "2026-10-29T09:44:52.821960Z",
+      "runningSamples": 96,
+      "peakFootprintMiB": 3716.0,
+      "slowSamplesAt1to5Fps": 62,
+      "seriousOrCriticalThermalSamples": 0,
+      "slowMedianFps": 3.6,
+      "slowMedianFootprintMiB": 3326.5,
+      "slowMedianHeadroomMiB": 3328.5,
+      "slowMedianDeviceAvailablePercent": 9.0,
+      "slowMedianFifo": 100.0,
+      "slowMedianFrameMs": 276.35,
+      "slowBgcVisibleSamples": 61,
+      "slowBgcMedianVisibleCpuPercent": 46
+    },
+    {
+      "game": "Super Smash Bros. Ultimate",
+      "startUtc": "2026-10-29T09:46:44.393501Z",
+      "runningSamples": 24,
+      "peakFootprintMiB": 3963.0,
+      "slowSamplesAt1to5Fps": 0,
+      "seriousOrCriticalThermalSamples": 0
+    },
+    {
+      "game": "Hogwarts Legacy",
+      "startUtc": "2026-10-29T09:47:26.022191Z",
+      "runningSamples": 33,
+      "peakFootprintMiB": 3908.0,
+      "slowSamplesAt1to5Fps": 10,
+      "seriousOrCriticalThermalSamples": 0,
+      "slowMedianFps": 2.75,
+      "slowMedianFootprintMiB": 3842.5,
+      "slowMedianHeadroomMiB": 2812.5,
+      "slowMedianDeviceAvailablePercent": 10.0,
+      "slowMedianFifo": 100.0,
+      "slowMedianFrameMs": 365.70000000000005,
+      "slowBgcVisibleSamples": 8,
+      "slowBgcMedianVisibleCpuPercent": 39.0
+    }
+  ],
+  "exactApplicationOrEngineBuildIdentified": false,
+  "physicalDeviceCandidateComparison": false,
+  "cpuUnits": "percent of one CPU core; thread visible only among six busiest",
+  "privacy": "No raw log, device identifiers, process identifiers or local paths published."
+}
