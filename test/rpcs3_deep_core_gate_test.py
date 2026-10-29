@@ -49,6 +49,9 @@ class ReceiptTests(unittest.TestCase):
             evidence = 'evidence/' + key + '.json'
             gate.save(self.root / evidence, {'harnessSHA256': gate.sha(b'program'), 'results': {'passed': True}})
             native_result = {'passed': True}
+            if key.startswith('address-'):
+                native_result['baselineDirtyPredicateCalls'] = 123
+                native_result['indexedDirtyPredicateCalls'] = 123
             if key.startswith('coverage-'):
                 native_result['sink'] = 0
             report = dict(passed=True, results=native_result, flags=['-UNDEBUG'],
