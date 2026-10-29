@@ -119,7 +119,9 @@ def native_hashes(source, manifest):
 
 def inputs():
     import neo_swap_core_pin_test as pin
-    paths = set(pin.CORE_INPUTS) | {GATE, WORKFLOW, '.github/workflows/rpcs3-core.yml'}
+    paths = set(pin.CORE_INPUTS) | {GATE, WORKFLOW, '.github/workflows/rpcs3-core.yml',
+        '.github/workflows/rpcs3-runtime592-core.yml',
+        '.github/diagnostics/rpcs3runtime592_core.py'}
     # Close the test/extraction dependency set, including historical adapters.
     paths.update(command('git', 'ls-files', 'test', 'native/neoswap-storage').decode().splitlines())
     for folder in [EVIDENCE, HISTORY, 'docs/evidence/rpcs3-device595-20261029/',
@@ -136,6 +138,16 @@ def source_contract(source):
     assert manifest['patch_sha256'] == sha((ROOT / PATCH).read_bytes()) == PATCH_SHA
     assert len(manifest['files_sha256']) == 319
     native_hashes(source, manifest)
+    # Protect the historically successful 592 recipe without changing it.
+    # This candidate changes the validator dispatch, not the compiler steps.
+    old_workflow = '.github/workflows/rpcs3-runtime592-core.yml'
+    assert (ROOT / old_workflow).read_bytes() == at(SOURCE, old_workflow), 'Original runtime592 workflow modified'
+    route = (ROOT / '.github/diagnostics/rpcs3runtime592_core.py').read_text()
+    assert "if 'deep_audit_20261029' in manifest():" in route
+    assert "deep.prepare(a.source.resolve())" in route
+    assert "deep.verify(a.verify_reuse, a.source.resolve())" in route
+    assert "deep.identity(a.write_core_identity)" in route
+    assert "shutil.copyfile(deep.PROOF, OUT / 'runtime592-proof.json')" in route
     original = at(SOURCE, BUILD).decode()
     assert original.count(ANCHOR) == 1
     assert (ROOT / BUILD).read_text() == original.replace(ANCHOR, HOOK, 1), 'Unexpected recipe edits'
