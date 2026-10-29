@@ -5,8 +5,9 @@
 Five additional engine optimizations follow the Hogwarts memory candidate
 `a33eee84` (successful engine 80). They change six production C# files through
 guarded preparation adapters. The complete managed library builds with the
-final adapters, and all five targeted production-code checks pass. The Apple
-engine workflow is the next gate; its exact result will be recorded here.
+final adapters, and all five targeted production-code checks pass. Apple engine
+81, source `9dd570ee`, also passes on its first attempt: native iOS/simulator
+compilation, exported ABI verification and two ARM64 iOS simulator sessions.
 
 The work was prepared against `58809ae6`. Publication preserves the concurrent
 RPCS3 follow-up through `7d1ca65c`; those changes and the delivered IPA 593 are
@@ -208,3 +209,39 @@ same device and settings, recording the exact new engine identity and comparable
 warm-cache frame times. No numerical FPS target or whole-app RAM reduction is
 claimed from these host tests. The existing IPA 593 still contains its delivered
 engine until a separately requested app build packages this candidate.
+
+## Successful Apple engine 81
+
+Source commit: `9dd570ee71c5df9edb5a593c90e1757e17f57d93`.
+Source tree: `6da9529ee77447cdd63fbd51e970c09e99c076a0`.
+The 27 committed source/test/documentation blobs match the verified local
+files, with concurrent RPCS3 work preserved in the parent tree.
+
+[Run 40827952992](https://github.com/TarbleFR/RewindBox/actions/runs/40827952992)
+is successful on attempt 1. All five new production-code gates pass on the
+macOS ARM64 runner. The run compiles actual `ios-arm64` and
+`iossimulator-arm64` NativeAOT libraries and verifies exported ABI symbols.
+The job takes 14 min 47 s; native compilation takes 4 min 31 s and the iOS
+application smoke step 4 min 22 s.
+
+The exact simulator library passes two consecutive homebrew sessions on
+iOS 26.5, with the original homebrew SVC confirmed, initialization/idempotency,
+teardown and stale-session refusal checked. Simulator core SHA-256:
+`9181688313618dbe54c05e825bffb21ee6ef88b9868188f5080481e19116d08a`.
+These sessions do not render gameplay/video or measure physical iPhone FPS;
+the runtime receipt explicitly leaves JIT and physical-device testing false.
+
+Artifact:
+[MeloNX-engine-9dd570ee](https://github.com/TarbleFR/RewindBox/actions/runs/40827952992/artifacts/12878071074),
+ID `12878071074`, 102,641,031 bytes. SHA-256 from the upload log and artifact
+API, which agree:
+
+```text
+157d76bd129af0c1e04acc878259c795c4982d188a340101b1b4e2b9f7b4eb52
+```
+
+The archive was not separately downloaded and rehashed in this session.
+Reuse this exact verified engine artifact when preparing the next IPA instead
+of rebuilding unchanged sources. The delivered IPA 593 identity remains intact.
+Complete CI results, host measurements from the Apple runner and runtime
+proof: [apple-engine.json](evidence/melonx-fps-20261029/apple-engine.json).

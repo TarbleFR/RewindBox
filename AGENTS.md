@@ -13,7 +13,10 @@ ownership, dirty/protection signals, descriptor invalidations and fragmented
 texture fallbacks remain authoritative. The short-mapping and overflowing
 texture-layout cases found in review are covered, including immediate matches.
 Final targeted production-code checks and complete managed library build pass.
-The Apple engine candidate and its exact artifact will be recorded after CI.
+Apple engine 81, source `9dd570ee`, passes run `40827952992` on attempt 1:
+five new gates on macOS ARM64, iOS/simulator NativeAOT libraries, exported ABI
+and two ARM64 simulator homebrew sessions. Artifact `12878071074` is the exact
+verified engine to reuse for the next IPA; do not rebuild unchanged sources.
 Evidence: `docs/melonx-fps-followup-2026-10-29.md` and
 `docs/evidence/melonx-fps-20261029/`.
 Host timings/allocations are controlled workloads, not measured Hogwarts
