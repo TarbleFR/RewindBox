@@ -16,3 +16,6 @@ build-utils/armsx2/neostation-core.patch -whitespace
 
 # Reversible source fixture: context prefixes and upstream tabs are data.
 test/fixtures/rpcs3_cell539.diff -whitespace
+
+# Exact device597 inverse delta must retain mixed original line endings.
+test/rpcs3_device597/core-delta.patch -text -whitespace
