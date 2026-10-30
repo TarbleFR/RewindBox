@@ -43,6 +43,13 @@ def generate_dma(tree,baseline,repo,mode):
         renames=[('void spu_thread::do_dma_transfer(', 'void {label}_dma_transfer(')]
     else:
         code=(fixtures/'dma_list_harness_prefix.cpp').read_text()
+        # This trace-only list harness does not execute MFC command decoding.
+        # Keep the historical shared fixture immutable and omit its unused
+        # command constants only from this generated translation unit.
+        unused='constexpr u8 MFC_BARRIER_MASK=1,MFC_FENCE_MASK=2,MFC_LIST_MASK=4;'
+        assert code.count(unused)==1
+        code=code.replace(unused, '')
+        code=code.replace('constexpr u32 MFC_TAG_UPDATE_IMMEDIATE=0,MFC_TAG_UPDATE_ANY=1,MFC_TAG_UPDATE_ALL=2,SPU_EVENT_SN=2;', 'constexpr u32 SPU_EVENT_SN=2;')
         code=code.replace('u32 ch_stall_mask=0,events=0;', 'u32 id=0x2000001;u32 ch_stall_mask=0,events=0;')
         code+='\ntemplate<class T>struct atomic_t{T value;T load()const{return value;}};\nnamespace vm{template<class T>T& _ref(u32 address){return *_ptr<T>(address);}}\n'
         signatures=['bool spu_thread::do_list_transfer(']

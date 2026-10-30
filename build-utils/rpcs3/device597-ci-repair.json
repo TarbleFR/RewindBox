@@ -20,5 +20,13 @@
     "baselineCases": 2537,
     "expectedBaselineStaleShaderStates": 306
   },
-  "physicalDeviceTested": false
+  "physicalDeviceTested": false,
+  "followUp": {
+    "failedRun": 41030504298,
+    "failedJob": 123978842145,
+    "fixture": "test/rpcs3_device597/cpu/run_signal_tests.py",
+    "cause": "Six unused shared MFC constants in the generated trace-only list harness",
+    "fix": "Omit only the unused command constants from this generated list translation unit; original historical fixture and strict flags unchanged",
+    "fixtureSHA256": "0bdfaf90744494284aba74d7651e9c08cdff5bb1fe2204562e33f7d272ae2131"
+  }
 }
