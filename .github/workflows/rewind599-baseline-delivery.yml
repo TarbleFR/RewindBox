@@ -1,4 +1,5 @@
 name: RewindBox private IPA 599 from delivered 598 — Hogwarts GPU activation
+# Private assembly is deliberately gated by [rewind599-delivery] in the push message.
 run-name: RewindBox Build 599 from delivered 598 — ${{ github.sha }}
 'on':
   push:
