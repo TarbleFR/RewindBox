@@ -2,6 +2,36 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## RPCS3 continuation Core compiled and independently verified — 30 October 2026
+
+The maintainer requested the new RPCS3 Core. The complete source lot
+`c0d5bc7cd271445fcb10f5fdda4f1eea9798b101` is now on Claude and compiled from
+`88cdc5e3e115a0b8587711d77147467baf38128b` in successful run `40981514937`
+(job `123822448947`). The original `rpcs3-runtime592-core.yml` workflow and
+`build_rpcs3_embedded_core.sh` are byte-identical to the successful historical
+recipe. Two Darwin/Clang host-test preamble adaptations are isolated in the
+continuation validator; production sources and frozen fixtures are unchanged.
+
+All 24 affected Apple modes pass: 16 authenticated results reused from the
+two preserved failed preflight attempts, eight remaining modes executed in the
+successful run. Eleven unchanged historical Apple modes retain their scoped
+evidence. Both failed runs stopped before Core compilation. The actual Core
+compile took 717 seconds; the successful job took 904 seconds.
+
+Core artifact `12946200694` is 29,139,881 bytes, ZIP SHA256
+`18f76b5e28187cf28c46047ad8b4b13a631420412bb6efad2e9a5e5c19aae989`.
+The downloaded archive was independently checked against GitHub's digest.
+Its `libRPCS3Core.dylib` is 77,270,224 bytes, SHA256
+`cc7362544f922aebdc021b5dbe6ca68d9c0bfb15d79145606f71af584509edd1`,
+iOS ARM64, ABI 30, exactly 88 exports. All 319 canonical postimages and the
+continuation patch `099651cae54c7bc567ff325735acde0cf3e931ed6e25b2b5bbcc14e5f5ecf33b`
+match. PPU `a987639e9f838d1c` and SPU `477a3fa442d27917` are retained.
+Receipt: `docs/evidence/rpcs3-continuation-20261030/apple-core.json`.
+
+The native NeoSwap Store checks passed, but that host component is not packaged
+by this Core-only build. No new IPA, release, physical-device test or FPS result
+is claimed. Delivered IPA596 remains the application baseline.
+
 ## RPCS3 source continuation after IPA596 — 30 October 2026
 
 Based on Claude `de8169848ecfa9c95946fc957861263a9fd1b879`, rechecked through
