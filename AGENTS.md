@@ -1,5 +1,19 @@
 # Current application identity — RewindBox (21 October 2026)
 
+## Hogwarts after602 — requested core-only correction, 30 October2026
+
+The new602 log proves actual1024MiB JIT/probe and first presentation work.
+It then stalls and raises NativePageTable.VirtualMemoryEvent at16:30:27UTC.
+Source audit finds LDR W literal incorrectly emitted as LDR X and valid SIMD31
+literals removed as ZR. Fix their exact lowering, retain real invalid-access
+faults, and add startup scopes to localize the pre-cache59.998s interval.
+The log lacks the faulting guest instruction: do not claim causal attribution
+or physical Hogwarts recovery from host code-generation/simulator checks.
+Core-only rebuild is explicitly requested; no new application IPA or public
+release is part of this request. Preserve all prior lots and Core827f as the
+immediate authenticated baseline; only affected gates execute freshly.
+See docs/melonx-hogwarts-launch-2026-10-30.md.
+
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
 ## MeloNX helper initialization regression and private602 — 30 October 2026

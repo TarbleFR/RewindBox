@@ -84,6 +84,8 @@ from adapt_query_batching import apply as adapt_query_batching
 from adapt_jit_single_attempt import apply as adapt_jit_single_attempt
 from adapt_sized_jit import apply as adapt_sized_jit
 from adapt_texture_readback_bounds import apply as adapt_texture_readback_bounds
+from adapt_literal_memory import apply as adapt_literal_memory
+from adapt_startup_trace import apply as adapt_startup_trace
 
 
 def replace_once(path, old, new):
@@ -188,6 +190,8 @@ def main():
     adapted += adapt_jit_single_attempt(source)
     adapted += adapt_sized_jit(source)
     adapted += adapt_texture_readback_bounds(source)
+    adapted += adapt_literal_memory(source)
+    adapted += adapt_startup_trace(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -196,6 +200,7 @@ def main():
                    'EmbeddedNativeGamepadLease.cs': 'Ryujinx.Input.Native',
                    'EmbeddedNativeLibraries.cs': 'Ryujinx.Common',
                    'EmbeddedLaunchDiagnostics.cs': 'Ryujinx.Common',
+                   'EmbeddedStartupTrace.cs': 'Ryujinx.Common',
                    'EmbeddedAudioPacing.cs': 'Ryujinx.Common',
                    'EmbeddedFirmwareStore.cs': 'Ryujinx.HLE',
                    'EmbeddedFirmwareArchive.cs': 'Ryujinx.HLE'}.get(path.name, 'Ryujinx.Library')
@@ -267,7 +272,8 @@ def main():
                  'adapt_query_batching.py', 'query-batching-adapter-contract.json',
                  'adapt_jit_single_attempt.py', 'jit-single-attempt-adapter-contract.json',
                  'adapt_sized_jit.py', 'sized-jit-adapter-contract.json',
-                 'adapt_texture_readback_bounds.py', 'texture-readback-bounds-contract.json']:
+                 'adapt_texture_readback_bounds.py', 'texture-readback-bounds-contract.json',
+                 'adapt_literal_memory.py', 'adapt_startup_trace.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
