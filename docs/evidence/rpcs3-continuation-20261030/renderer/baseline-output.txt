@@ -1,0 +1,3 @@
+{"cases":4608,"mismatches":112,"stale_native_cases":112,"sequence_draws":20000,"sequence_mismatches":13333,"warm_extra_lookups":0,"clean_native_lookups":0,"late_texture_mismatch":1}
+mismatch flags=1048580 mode=0 old=1 ready=0
+mismatch flags=1048580 mode=0 old=1 ready=0

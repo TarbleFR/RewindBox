@@ -1,0 +1,225 @@
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
+--- a/rpcs3/Emu/RSX/Common/texture_cache.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache.h
+@@ -532,8 +532,10 @@
+ 			// Returns true if at least threshold% is covered in pixels
+ 			bool atlas_covers_target_area(int threshold) const
+ 			{
+-				const int target_area = (external_subresource_desc.width * external_subresource_desc.height * external_subresource_desc.depth * threshold) / 100;
+-				int covered_area = 0;
++				// Volume dimensions and the percentage multiply can exceed 32 bits
++				// even when the texture itself fits in RSX memory.
++				const u64 target_area = (u64{external_subresource_desc.width} * external_subresource_desc.height * external_subresource_desc.depth * threshold) / 100;
++				u64 covered_area = 0;
+ 				areai bbox{smax, smax, 0, 0};
+ 
+ 				for (const auto& section : external_subresource_desc.sections_to_copy)
+@@ -548,7 +550,7 @@
+ 					const auto dst_y = (section.dst_z * external_subresource_desc.height) + section.dst_y;
+ 
+ 					// Add this slice's dimensions to the total
+-					covered_area += section.dst_w * section.dst_h;
++					covered_area += u64{section.dst_w} * section.dst_h;
+ 
+ 					// Extend the covered bbox
+ 					bbox.x1 = std::min<int>(section.dst_x, bbox.x1);
+@@ -562,7 +564,7 @@
+ 					return false;
+ 				}
+ 
+-				if (const auto bounds_area = bbox.width() * bbox.height();
++				if (const auto bounds_area = static_cast<u64>(bbox.width()) * bbox.height();
+ 					bounds_area < target_area)
+ 				{
+ 					return false;
+@@ -3548,8 +3550,6 @@
+ 				{
+ 				case rsx::texture_dimension_extended::texture_dimension_3d:
+ 				case rsx::texture_dimension_extended::texture_dimension_cubemap:
+-					scale.depth /= attributes.depth;
+-					[[ fallthrough ]];
+ 				case rsx::texture_dimension_extended::texture_dimension_2d:
+ 					scale.height /= attributes.height;
+ 					[[ fallthrough ]];
+@@ -3620,6 +3620,16 @@
+ 					attributes.address, static_cast<s32>(extended_dimension),
+ 					attributes.width, attributes.height, attributes.depth);
+ 				return {};
++			}
++
++			// Depth is assigned by the dimension switch above. Normalizing it
++			// before that switch divides by the zero-initialized attributes.depth.
++			// Keep zero-pitch sampling's zero scale and 1D/2D coordinates intact.
++			if (is_unnormalized &&
++				(extended_dimension == rsx::texture_dimension_extended::texture_dimension_3d ||
++				 extended_dimension == rsx::texture_dimension_extended::texture_dimension_cubemap))
++			{
++				scale.depth /= attributes.depth;
+ 			}
+ 
+ 			if (options.is_compressed_format)
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+@@ -861,6 +861,64 @@
+ 			desc.gcm_format, desc.width, desc.height, 1, 1, desc.remap, &section);
+ 	}
+ 
++	bool texture_cache::copy_transfer_regions_fully_cover_2d_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const
++	{
++		// A small atlas often consists of strips/tiles that collectively replace
++		// every texel. Prove their union without a pixel-sized scratch allocation.
++		// Larger or non-color/2D requests keep the existing clear path.
++		if (dst->aspect() != VK_IMAGE_ASPECT_COLOR_BIT || dst->type() != VK_IMAGE_TYPE_2D ||
++			dst->mipmaps() != 1 || dst->layers() != 1 || !dst->width() || !dst->height() ||
++			sections.empty() || sections.size() > 8)
++		{
++			return false;
++		}
++
++		std::array<u32, 18> row_edges{};
++		u32 edge_count = 2;
++		row_edges[1] = dst->height();
++		for (const auto& section : sections)
++		{
++			if (!section.src || section.src == dst || section.src->aspect() != VK_IMAGE_ASPECT_COLOR_BIT ||
++				!section.src_w || !section.src_h || !section.dst_w || !section.dst_h ||
++				section.level || section.dst_z ||
++				u32{section.dst_x} + section.dst_w > dst->width() ||
++				u32{section.dst_y} + section.dst_h > dst->height())
++			{
++				return false;
++			}
++			row_edges[edge_count++] = section.dst_y;
++			row_edges[edge_count++] = u32{section.dst_y} + section.dst_h;
++		}
++		std::sort(row_edges.begin(), row_edges.begin() + edge_count);
++
++		for (u32 row = 1; row < edge_count; ++row)
++		{
++			const u32 y0 = row_edges[row - 1], y1 = row_edges[row];
++			if (y0 == y1)
++				continue;
++
++			// Each extension reaches an edge of one of the at most eight
++			// rectangles. Gaps stop immediately; overlaps never count twice.
++			u32 covered_x = 0;
++			while (covered_x < dst->width())
++			{
++				u32 next_x = covered_x;
++				for (const auto& section : sections)
++				{
++					if (section.dst_y <= y0 && u32{section.dst_y} + section.dst_h >= y1 &&
++						section.dst_x <= covered_x)
++					{
++						next_x = std::max(next_x, u32{section.dst_x} + section.dst_w);
++					}
++				}
++				if (next_x == covered_x)
++					return false;
++				covered_x = next_x;
++			}
++		}
++		return true;
++	}
++
+ 	bool texture_cache::copy_transfer_regions_fully_cover_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const
+ 	{
+ 		const u32 mipmaps = dst->mipmaps();
+@@ -1032,7 +1090,8 @@
+ 			// The memory load covers the whole image, no need to clear it first
+ 			initialize_subresource_from_memory(cmd, image, desc, rsx::texture_dimension_extended::texture_dimension_2d);
+ 		}
+-		else if (sections_to_copy[0].dst_w != desc.width || sections_to_copy[0].dst_h != desc.height)
++		else if ((sections_to_copy[0].dst_w != desc.width || sections_to_copy[0].dst_h != desc.height) &&
++			!copy_transfer_regions_fully_cover_2d_image(image, sections_to_copy))
+ 		{
+ 			if (!(dst_aspect & VK_IMAGE_ASPECT_DEPTH_BIT))
+ 			{
+@@ -1610,9 +1669,9 @@
+ 				}
+ 			}
+ 
+-			// Primary access command queue, must restart it after
+-			vk::fence submit_fence(*m_device);
+-			vk::queue_submit_t submit_info{ m_submit_queue, &submit_fence };
++			// Use the command buffer-owned fence so a failed wait cannot destroy
++			// a fence still referenced by the queue. submit() also marks it pending.
++			vk::queue_submit_t submit_info{ m_submit_queue, nullptr };
+ 
+ 			if (async_sema)
+ 			{
+@@ -1633,9 +1692,10 @@
+ #ifdef RPCS3_IOS
+ 			const rpcs3::ios::rsx_sync::SiteScope ios_sync_site(rpcs3::ios::rsx_sync::texture, true);
+ #endif
+-			vk::wait_for_fence(&submit_fence, GENERAL_WAIT_TIMEOUT);
+-
+-			cmd.reset();
++			// A timeout leaves this command buffer pending; it must not be reset.
++			CHECK_RESULT(vk::wait_for_fence(submit_info.pfence, GENERAL_WAIT_TIMEOUT));
++
++			// begin() recycles the now-completed owned fence and resets the buffer.
+ 			cmd.begin();
+ 		}
+ 		else
+@@ -1736,7 +1796,11 @@
+ 		}
+ 
+ 		// Nuke temporary resources. They will still be visible to the GPU.
++		// Pooled images have already passed GPU retirement; active temporary
++		// views below still need the normal deferred-release path.
++#ifndef RPCS3_IOS
+ 		auto gc = vk::get_resource_manager();
++#endif
+ 		std::deque<cached_image_t> discarded_images;
+ 		{
+ 			// The driver thread returns completed images to this pool. Detach the
+@@ -1747,10 +1811,12 @@
+ 			m_cached_memory_size = 0;
+ 		}
+ 		any_released |= !discarded_images.empty();
++#ifndef RPCS3_IOS
+ 		for (auto& img : discarded_images)
+ 		{
+ 			gc->dispose(img.data);
+ 		}
++#endif
+ 
+ 		any_released |= !m_temporary_subresource_cache.empty();
+ 		for (auto& e : m_temporary_subresource_cache)
+@@ -1759,6 +1825,14 @@
+ 			release_temporary_subresource(e.second.second);
+ 		}
+ 		m_temporary_subresource_cache.clear();
++
++#ifdef RPCS3_IOS
++		// Re-enqueuing an already retired image under the current event would
++		// retain its allocation until another submission completes. Free this
++		// detached batch now, outside both cache locks, as on_frame_end does.
++		lock.unlock();
++		discarded_images.clear();
++#endif
+ 
+ 		return any_released;
+ 	}
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.h b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.h
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+@@ -307,7 +307,7 @@
+ 			AUDIT(synchronized);
+ 
+ 			// Synchronize, reset dma_fence after waiting
+-			vk::wait_for_event(dma_fence.get(), GENERAL_WAIT_TIMEOUT);
++			CHECK_RESULT(vk::wait_for_event(dma_fence.get(), GENERAL_WAIT_TIMEOUT));
+ 
+ 			// Calculate smallest range to flush - for framebuffers, the raster region is enough
+ 			const auto range = (context == rsx::texture_upload_context::framebuffer_storage) ? get_section_range() : get_confirmed_range();
+@@ -479,6 +479,7 @@
+ 
+ 		void copy_transfer_regions_impl(vk::command_buffer& cmd, vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections_to_transfer) const;
+ 		bool copy_transfer_regions_fully_cover_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const;
++		bool copy_transfer_regions_fully_cover_2d_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const;
+ 
+ 		vk::image* get_template_from_collection_impl(const rsx::simple_array<copy_region_descriptor>& sections_to_transfer) const;
+ 

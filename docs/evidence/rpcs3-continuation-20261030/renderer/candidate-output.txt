@@ -1,0 +1,1 @@
+{"cases":4608,"mismatches":0,"stale_native_cases":0,"sequence_draws":20000,"sequence_mismatches":0,"warm_extra_lookups":0,"clean_native_lookups":0,"late_texture_mismatch":0}

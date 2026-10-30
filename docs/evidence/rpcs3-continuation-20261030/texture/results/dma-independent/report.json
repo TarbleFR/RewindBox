@@ -1,0 +1,92 @@
+{
+  "baseline": {
+    "fence_failure_cases": 32,
+    "event_failure_cases": 32,
+    "success_cases": 20,
+    "mismatches": 0,
+    "unsafe_resets": 24,
+    "unsafe_fence_destructions": 24,
+    "unsafe_readbacks": 8,
+    "success_local_fence_creates": 8,
+    "success_local_fence_destroys": 8
+  },
+  "candidate": {
+    "fence_failure_cases": 32,
+    "event_failure_cases": 32,
+    "success_cases": 20,
+    "mismatches": 0,
+    "unsafe_resets": 0,
+    "unsafe_fence_destructions": 0,
+    "unsafe_readbacks": 0,
+    "success_local_fence_creates": 0,
+    "success_local_fence_destroys": 0
+  },
+  "variants": {
+    "baseline": {
+      "source_sha256": {
+        "VKTextureCache.cpp": "e13f7e13e5e452fa1d705f6617e9ffb665d82a26af09ef7acfaa7ef9821e7f1a",
+        "VKTextureCache.h": "4167c539b813e8d5ad3c684314de83fdfa1302a6f8e1403044087b1f194318f4"
+      },
+      "extracted_sha256": {
+        "ERROR_HANDLER": "d7e7fe3646aa525d7ca0f2d558ad84dcee15c6e40bf9b5382ddbf12714eacd00",
+        "FENCE_CREATE": "4af71a7d9ecb4f1784af7835adef43691b634f8fe26ee8b8f3a43b6cd1c9e662",
+        "FENCE_DESTROY": "1f02a8eb2c06b1cb930e3b6834f28f314b9b19cebe353c6a61eba014c6ffde45",
+        "COMMAND_CREATE": "1ec981573cf6774d5126854ef12722ae618a7dd522589fbfe1347c80989f387c",
+        "COMMAND_DESTROY": "70a6e42900b20a7d4a917c3488914c5a75a8361f6ae97b0eebae00056695875d",
+        "COMMAND_RESET": "5f8cd8f567a8d6093b2d225b0e1f3764ef2ebad1cd9170f78914b9dcc380bc0b",
+        "COMMAND_BEGIN": "1f5e5fa3187303efc5d1730bd8291168530b3e06f59fc2dc19c46ed59ac86b9f",
+        "COMMAND_END": "21081eb8428af3629847a442ace2d30eb6a5ad5b8f4e1a71b7fd8d0f43aaea5d",
+        "COMMAND_SUBMIT": "f9e64f2e5c5e0fe3f27fec78f684d308fb23bef2e97acd085bfe240b7755f443",
+        "COMMAND_CHUNK": "6816eed970077d4598109c4a81152ba3e9e0a2896933bdf5d1355dd17130dc68",
+        "FLUSH_ALL": "d926cb49c896e4404044e96d5aed7cd00e66d2d291909db570ea30d9b70dfe37",
+        "CLEANUP": "7dd6bcc12e713195c2412d9908137fdafd5e215293dfe800beeabd12d4a97609",
+        "IMP_FLUSH": "4e7168ddfe2c832cbc28c37d8ceb69d44102fa88c260712f963b297db27d19ba"
+      }
+    },
+    "candidate": {
+      "source_sha256": {
+        "VKTextureCache.cpp": "4d60f83651755a4a60abeacb6e345d0e78a6ae41fd49759d3392aa5ac1f22a7a",
+        "VKTextureCache.h": "b1aba39cc7525244f01df1b680bef2fddc12a92b28dd52899ed84eed7d077314"
+      },
+      "extracted_sha256": {
+        "ERROR_HANDLER": "d7e7fe3646aa525d7ca0f2d558ad84dcee15c6e40bf9b5382ddbf12714eacd00",
+        "FENCE_CREATE": "4af71a7d9ecb4f1784af7835adef43691b634f8fe26ee8b8f3a43b6cd1c9e662",
+        "FENCE_DESTROY": "1f02a8eb2c06b1cb930e3b6834f28f314b9b19cebe353c6a61eba014c6ffde45",
+        "COMMAND_CREATE": "1ec981573cf6774d5126854ef12722ae618a7dd522589fbfe1347c80989f387c",
+        "COMMAND_DESTROY": "70a6e42900b20a7d4a917c3488914c5a75a8361f6ae97b0eebae00056695875d",
+        "COMMAND_RESET": "5f8cd8f567a8d6093b2d225b0e1f3764ef2ebad1cd9170f78914b9dcc380bc0b",
+        "COMMAND_BEGIN": "1f5e5fa3187303efc5d1730bd8291168530b3e06f59fc2dc19c46ed59ac86b9f",
+        "COMMAND_END": "21081eb8428af3629847a442ace2d30eb6a5ad5b8f4e1a71b7fd8d0f43aaea5d",
+        "COMMAND_SUBMIT": "f9e64f2e5c5e0fe3f27fec78f684d308fb23bef2e97acd085bfe240b7755f443",
+        "COMMAND_CHUNK": "6816eed970077d4598109c4a81152ba3e9e0a2896933bdf5d1355dd17130dc68",
+        "FLUSH_ALL": "d926cb49c896e4404044e96d5aed7cd00e66d2d291909db570ea30d9b70dfe37",
+        "CLEANUP": "955bc069cb860094f031f3793e79d154729ebf0bcad2965821b11a813f7d49d5",
+        "IMP_FLUSH": "da88f59b8ba434584227ad5e25bccc9b7763533648881dc21489c2508313567d"
+      }
+    }
+  },
+  "harness_sha256": "4f5cf93e58a1116fc4e8ab09ae47e9d66d266bd6f490db33c30837fa1d8619ae",
+  "support_source_sha256": {
+    "commands.cpp": "d38e3e2d82666baa2eb7465929b888e45e78fba03811c7d1ea956479871b68ea",
+    "sync.cpp": "c7bf51f5b9941a5f2fff792a61e284b967fa727e0743c5d904d01e6b16200517",
+    "VKGSRenderTypes.hpp": "7da9a0b9c8a0d79d3748c9234fbee02f0b914a964480ceb9c2ed59c1d8342cdb",
+    "Common/texture_cache.h": "b4443038bd7fd28aada4b3124276a2554bcc4ce3644b065f4b31107207b19b8c",
+    "shared.cpp": "0c992efd6bab0ce4d91dee598f480753163eedcc020dc5b84099a2fcd2050040"
+  },
+  "command": [
+    "g++",
+    "-std=c++20",
+    "-DRPCS3_IOS",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O2",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "renderer-review/portable/evidence/dma-wait-comparison.cpp",
+    "-o",
+    "renderer-review/portable/evidence/dma-wait-comparison.exe"
+  ],
+  "sanitized": true,
+  "scope": "Exact production DMA cleanup/imp_flush, command-buffer create/destroy/begin/end/reset/submit/chunk, fence constructor/destructor, flush_all lock and existing error handler; driver/scheduler/guest-copy shims, no GPU execution"
+}

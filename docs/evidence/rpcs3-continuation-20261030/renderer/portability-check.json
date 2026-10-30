@@ -1,0 +1,30 @@
+[
+  {
+    "label": "baseline",
+    "recorded_harness_sha256": "7f877f9ba7a2c6b88759330df1366293f2d79ec7f4ee2c76be71ca310cdf191d",
+    "portable_generation_matches_recorded": true,
+    "recorded_sanitized": false,
+    "native_compilation_or_execution": false
+  },
+  {
+    "label": "candidate",
+    "recorded_harness_sha256": "46a5736c6253729e1d9c80cb3d63b8ef80770305bd2dbf0e2f2134e6c3d2b1c6",
+    "portable_generation_matches_recorded": true,
+    "recorded_sanitized": false,
+    "native_compilation_or_execution": false
+  },
+  {
+    "label": "wait-baseline",
+    "recorded_harness_sha256": "9251f5fe73c0e7f14d1bf36c8d615aba17c7e8c26ff26e915f687aac9cd35687",
+    "portable_generation_matches_recorded": true,
+    "recorded_sanitized": false,
+    "native_compilation_or_execution": false
+  },
+  {
+    "label": "wait-candidate",
+    "recorded_harness_sha256": "32d90a62a032902dbda03d618f0d150a4411db41d096a8163d361f5ef95aa6a4",
+    "portable_generation_matches_recorded": true,
+    "recorded_sanitized": true,
+    "native_compilation_or_execution": false
+  }
+]

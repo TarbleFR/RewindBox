@@ -1,0 +1,22 @@
+{
+  "mode": "plain",
+  "status": "generated",
+  "executed": false,
+  "baseline": "/workspace/scratch/144c744e94bb/cpu-review/baseline",
+  "source": "/workspace/scratch/144c744e94bb/cpu-review/core",
+  "program_sha256": "7faa7633afa5a218243d3ed4200cea58f8cbc5317fb70b5f18cf046b2abb6ddd",
+  "sources": {
+    "old": "5bd12ad41ec92443781f06643153e98aef4aaf68eb74c92f51e3e0167f4026c1",
+    "new": "fffe3c7ed854223d7c73402fad97d087d199d05cfdf8d4601371409112a2799c"
+  },
+  "scope": "Complete production do_dma_transfer, with bounded VM and CPU/atomic/lock adapters; vm range-lock implementations independently exercised in vm-mmio-program.cpp. No native race or iPhone claim; 128-byte atomic helper uses destination-resolution adapter.",
+  "limitations": [
+    "The 128-byte atomic helper adapter models effective-address resolution and copying; it does not execute the real concurrent atomic helper.",
+    "Native ARM64 instructions and iOS vector-copy specialization are not compiled/executed.",
+    "VM range-lock bodies are validated separately by run_vm_mmio_test.py; this harness uses their tested MMIO gate contract.",
+    "Invalid offset cases are explicitly rejected by the production MMIO dispatcher; unmapped absent-thread MMIO faults are not modeled by the placeholder mapping.",
+    "No FPS, device RSS, or game-scene resolution claim."
+  ],
+  "reference_result": "/workspace/scratch/144c744e94bb/cpu-review/evidence/dma-mmio-asan-ubsan-result.json",
+  "matches_reference_program": true
+}

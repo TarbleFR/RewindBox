@@ -1,0 +1,197 @@
+{
+  "review": "read-only source-level compatibility audit",
+  "nativeCompiles": 0,
+  "nativeTestExecutions": 0,
+  "productionFilesModified": false,
+  "physicalCodegenInputsVerified": 40,
+  "changedPhysicalCodegenInputs": [
+    {
+      "path": "Cell/SPUThread.cpp",
+      "before": "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4",
+      "after": "4d138e76afc25d12d8eff04a5794153cbe9a4562c8dcbe5d9eac274ab4c927d3",
+      "unchanged": false
+    }
+  ],
+  "nonmaterializedInputEvidence": [
+    {
+      "path": "../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp",
+      "state": "before",
+      "recorded_sha256": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507"
+    },
+    {
+      "path": "../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp",
+      "state": "after",
+      "recorded_sha256": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507"
+    }
+  ],
+  "existingExactAliases": 4,
+  "calculatedIdentities": {
+    "PPU": {
+      "entries": 21,
+      "baseline": "a987639e9f838d1c",
+      "candidate_unaliased": "a987639e9f838d1c",
+      "candidate_proposed_alias": "a987639e9f838d1c"
+    },
+    "SPU": {
+      "entries": 33,
+      "baseline": "477a3fa442d27917",
+      "candidate_unaliased": "b7f2660b046076f6",
+      "candidate_proposed_alias": "477a3fa442d27917"
+    }
+  },
+  "hostBodyIsolation": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": {
+      "outsideReviewedHostBodiesByteIdentical": true,
+      "unchangedSignatures": [
+        "void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8* ls)",
+        "bool spu_thread::do_list_transfer(spu_mfc_cmd& args)"
+      ],
+      "maskedSHA256": "c34d01af9acb533038d151a512d28f8ef4ef5277f8ed275ade9b9644ec916129"
+    },
+    "rpcs3/Emu/Memory/vm.cpp": {
+      "outsideReviewedHostBodiesByteIdentical": true,
+      "unchangedSignatures": [
+        "void range_lock_internal(atomic_t<u64, 128>* range_lock, u32 begin, u32 size)"
+      ],
+      "maskedSHA256": "0cf263364c9cd84b5245f21a2438ffc53e23ac7c586db145361a2674890eb5ca"
+    }
+  },
+  "proposedExactAlias": {
+    "source": "Cell/SPUThread.cpp",
+    "actual": "4d138e76afc25d12d8eff04a5794153cbe9a4562c8dcbe5d9eac274ab4c927d3",
+    "compatible": "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4"
+  },
+  "decision": "An exact new-SPUThread-to-current-baseline alias is justified by unchanged emitters, ABI, constants and regenerated symbol relocations; do not map to older pre-596 hashes.",
+  "primaryLLVMSource": {
+    "repository": "llvm/llvm-project",
+    "commit": "ca7933e47d3a3451d81e72ac174dcb5aa28b59d1",
+    "path": "llvm/lib/ExecutionEngine/MCJIT/MCJIT.cpp",
+    "gitBlob": "5f3067b2a97eac9e7b1a1a30698f3b5bbc3c380a",
+    "url": "https://github.com/llvm/llvm-project/blob/ca7933e47d3a3451d81e72ac174dcb5aa28b59d1/llvm/lib/ExecutionEngine/MCJIT/MCJIT.cpp"
+  },
+  "scope": "Source proof only, no cross-build on-device object replay or object-byte identity measurement. Benefit is avoiding invalidation/recompilation of compatible existing SPU objects; no FPS claim.",
+  "callAndReloadProof": {
+    "emittedHelperCalls": [
+      {
+        "symbol": "spu_exec_mfc_cmd_saveable",
+        "nativeTarget": "exec_mfc_cmd<true>",
+        "route": "process_mfc_cmd -> do_list_transfer",
+        "source": "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp",
+        "lines": [
+          5978,
+          5997
+        ]
+      },
+      {
+        "symbol": "spu_exec_mfc_cmd",
+        "nativeTarget": "exec_mfc_cmd<false>",
+        "route": "process_mfc_cmd -> do_dma_transfer for MMIO",
+        "source": "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp",
+        "lines": [
+          6059,
+          6074
+        ]
+      },
+      {
+        "symbol": "spu_list_unstall",
+        "nativeTarget": "exec_list_unstall",
+        "route": "do_mfc -> do_list_transfer / do_dma_transfer",
+        "source": "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp",
+        "lines": [
+          5777,
+          5788,
+          6294,
+          6310
+        ]
+      },
+      {
+        "symbol": "spu_write_mfc_command / spu_write_channel",
+        "nativeTarget": "exec_mfc_wrch / exec_wrch",
+        "route": "process_mfc_cmd / set_ch_value -> current MFC runtime helpers",
+        "source": "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp",
+        "lines": [
+          5751,
+          5774,
+          6323,
+          6334
+        ]
+      }
+    ],
+    "callEmission": {
+      "source": "rpcs3/Emu/CPU/CPUTranslator.h",
+      "function": "cpu_translator::call",
+      "lines": [
+        3320,
+        3339
+      ],
+      "operation": "getOrInsertFunction creates the external function declaration; updateGlobalMapping supplies the current native address; CreateCall emits the symbolic call. The native helper body is not imported into the LLVM module."
+    },
+    "cacheHitPath": {
+      "source": "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp",
+      "lookupLines": [
+        2228,
+        2243
+      ],
+      "mappingResetAndModuleConstructionLines": [
+        2312,
+        2322
+      ],
+      "cacheAddLines": [
+        4549,
+        4559
+      ],
+      "operation": "A validated hit still reconstructs the module and its symbol/patchpoint mappings. Only LLVM passes and object generation are skipped."
+    },
+    "persistentBytes": {
+      "source": "Utilities/JITLLVM.cpp",
+      "function": "ObjectCache::notifyObjectCompiled",
+      "lines": [
+        810,
+        847
+      ],
+      "operation": "Compresses the provided compiled-object buffer. It does not serialize finalized executable arena memory."
+    },
+    "reload": {
+      "source": "Utilities/JITLLVM.cpp",
+      "functions": [
+        "jit_compiler::try_add_cached",
+        "jit_compiler::try_fin"
+      ],
+      "lines": [
+        1497,
+        1515,
+        1647,
+        1659
+      ],
+      "operation": "getObject supplies the persisted object to MCJIT generateCodeForModule; finalizeObject applies relocation resolution before execution."
+    },
+    "pinnedLLVMContract": {
+      "source": "https://github.com/llvm/llvm-project/blob/ca7933e47d3a3451d81e72ac174dcb5aa28b59d1/llvm/lib/ExecutionEngine/MCJIT/MCJIT.cpp",
+      "compiledNotLoadedObjectLines": [
+        173,
+        182
+      ],
+      "cachedObjectDynamicLoadingLines": [
+        200,
+        224
+      ],
+      "resolveRelocationsLines": [
+        237,
+        253
+      ],
+      "mappedSymbolLookupLines": [
+        283,
+        289
+      ]
+    },
+    "cacheKeyConditions": {
+      "source": "rpcs3/Emu/Cell/SPUCommonRecompiler.cpp",
+      "lines": [
+        2025,
+        2065
+      ],
+      "operation": "Format version, settings, device features, CPU, LLVM/codegen identity and core commit/revision remain key inputs. The proposed exact source-hash alias relaxes none of these other inputs."
+    }
+  },
+  "supersedes": "The original CPU handoff recommended normal identity invalidation before this additional cache-call/relocation review. This evidence justifies only the exact new-to-immediate-baseline exception, not any earlier codegen identity."
+}

@@ -1,0 +1,39 @@
+{
+  "mode": "asan-ubsan",
+  "exit_code": 0,
+  "command": [
+    "g++",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O1",
+    "-g",
+    "/workspace/scratch/144c744e94bb/cpu-review/evidence/vm-mmio-program.cpp",
+    "-o",
+    "/workspace/scratch/144c744e94bb/cpu-review/evidence/vm-mmio-asan-ubsan"
+  ],
+  "sources": {
+    "old": {
+      "slow": "4ef3223097da48cc035d6ec7f28936e55139b1a76028967380a67fc369ddb051",
+      "fast": "0c563f94902933ad6ed5c4cbfb18b6eb02815eee9cfd82951c7f43cd186c22b9",
+      "sweep": "cf57b24e675e1a08d10c862ffe4a91683ecb5cc6655b31944c2045fd29671257"
+    },
+    "new": {
+      "slow": "d5502890ace3bb19c650d5cce8d59d84830871db91ac835d6715b1bb26fc6839",
+      "fast": "0c563f94902933ad6ed5c4cbfb18b6eb02815eee9cfd82951c7f43cd186c22b9",
+      "sweep": "cf57b24e675e1a08d10c862ffe4a91683ecb5cc6655b31944c2045fd29671257"
+    }
+  },
+  "program_sha256": "99948de731c66e846211cb68e95ef521ef63420b6c6a3e3f6291b7770820e5fd",
+  "scope": "Complete production range_lock, range_lock_internal and lock sweep, with deterministic atomic/VM page and scheduler adapters; no native race or iPhone claim.",
+  "results": {
+    "normal_permission_cases": 100,
+    "mmio_cases": 50,
+    "mmio_conflicting_lock_cases": 25,
+    "unreadable_cross_page_cases": 9,
+    "fixed_failures": 0
+  }
+}

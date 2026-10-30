@@ -1,0 +1,36 @@
+{
+  "failure_cases": 36,
+  "failure_mismatches": 36,
+  "success_cases": 12,
+  "success_mismatches": 0,
+  "false_completions": 56,
+  "false_fence_resets": 56,
+  "false_heap_restores": 4,
+  "unsafe_driver_resets": 8,
+  "unsafe_frame_cleanup": 4,
+  "source_sha256": "972966edf09811b4f7e4ef7fbb1bd92ec12974f4e8aa03e4680575f23007072e",
+  "caller_sha256": "a294b01d30d8753353035142ef07ad58d40f8c788641972065cc9356f2b482d9",
+  "error_handler_source_sha256": "0c992efd6bab0ce4d91dee598f480753163eedcc020dc5b84099a2fcd2050040",
+  "extracted_sha256": {
+    "PRODUCTION_ERROR_HANDLER": "d7e7fe3646aa525d7ca0f2d558ad84dcee15c6e40bf9b5382ddbf12714eacd00",
+    "PRODUCTION_COMMAND_RESET": "1706f72e9f936af17de47ec63375ceda8349604208f16bb1e7d778d1010e9690",
+    "PRODUCTION_CHUNK": "c697a47e27a9b14f749ef9da7862db423c2af6a94aa28c98772b78f1e22cfa34",
+    "PRODUCTION_WAIT_ALL": "d1aaecb3ad887fb8d2398e080b8eb77bf9515f2a5117fbde54d6bb4dc055aace",
+    "PRODUCTION_FRAME_CLEANUP": "ddfcb9925a364f196083bd36dd618ae8a9aba4c4a5261cbd727ea2c83440a755"
+  },
+  "harness_sha256": "9251f5fe73c0e7f14d1bf36c8d615aba17c7e8c26ff26e915f687aac9cd35687",
+  "command": [
+    "g++",
+    "-std=c++20",
+    "-DRPCS3_IOS",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O2",
+    "/workspace/scratch/144c744e94bb/renderer-review/evidence/wait-baseline.cpp",
+    "-o",
+    "/workspace/scratch/144c744e94bb/renderer-review/evidence/wait-baseline.exe"
+  ],
+  "sanitized": false,
+  "scope": "Exact production command_buffer_chunk/reset/frame_context_cleanup/wait_all/die_with_error; injected driver results and deterministic lock-upgrade interleaving; no Vulkan/GPU execution"
+}

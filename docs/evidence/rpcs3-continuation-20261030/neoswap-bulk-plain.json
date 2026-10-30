@@ -1,0 +1,674 @@
+{
+  "passed": true,
+  "baselineCommit": "de8169848ecfa9c95946fc957861263a9fd1b879",
+  "baselineSHA256": "a812b0834df8c7301d59ac780b84a4ecc7c306b7b55f7ab02178e5705dca8571",
+  "sourceSHA256": "87df68227cf9e113af51ec2ea8968d8af88170834611d560ce711cf168f1ca46",
+  "fixtureSHA256": "215b870606e961c6c68aea9eaa66c84ccb8f01f6d7893b6617e8b1ac0ced9440",
+  "programSHA256": "c66a4d71b42dfb37a14b943093dede018d89093094b9346264b528a29a645676",
+  "methodSHA256": {
+    "before": {
+      "trim": "bd17b23aaeb8cd3296b9a2cc6af95850e8ea5bf2748b15866e81331fe759fd6b",
+      "ram": "0771082fbc5bf32074f48c6109849b1cdd0bd3fcb713030cb4ceaf33ab918e45"
+    },
+    "after": {
+      "trim": "94129631a322056b4fcf5d542d77efa2ac34f1af39c140ed350b3ed2b04ce00b",
+      "ram": "0771082fbc5bf32074f48c6109849b1cdd0bd3fcb713030cb4ceaf33ab918e45"
+    }
+  },
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "flags": [
+    "-std=c++20",
+    "-pthread",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Wno-misleading-indentation",
+    "-O2"
+  ],
+  "commands": [
+    [
+      "g++",
+      "-std=c++20",
+      "-pthread",
+      "-UNDEBUG",
+      "-Wall",
+      "-Wextra",
+      "-Wno-misleading-indentation",
+      "-O2",
+      "-Werror",
+      "-Wno-mismatched-new-delete",
+      "/tmp/neoswap-bulk-trim-nlpt_xzc/trim.cpp",
+      "-o",
+      "/tmp/neoswap-bulk-trim-nlpt_xzc/trim"
+    ],
+    [
+      "/tmp/neoswap-bulk-trim-nlpt_xzc/trim",
+      "benchmark"
+    ],
+    [
+      "g++",
+      "-std=c++20",
+      "-pthread",
+      "-UNDEBUG",
+      "-Wall",
+      "-Wextra",
+      "-Wno-misleading-indentation",
+      "-O2",
+      "-I",
+      "/workspace/scratch/144c744e94bb/memory-review/include",
+      "-DNEOSWAP_STORAGE_TESTING",
+      "-I",
+      "/workspace/scratch/144c744e94bb/RewindBox/native/neoswap-storage",
+      "/workspace/scratch/144c744e94bb/RewindBox/native/neoswap-storage/Store.cpp",
+      "/workspace/scratch/144c744e94bb/RewindBox/native/neoswap-storage/tests/store_test.cpp",
+      "-l:liblz4.so.1",
+      "-lz",
+      "-o",
+      "/tmp/neoswap-bulk-trim-nlpt_xzc/store-tests"
+    ],
+    [
+      "/tmp/neoswap-bulk-trim-nlpt_xzc/store-tests",
+      "/tmp/neoswap-bulk-trim-nlpt_xzc/private-cache"
+    ]
+  ],
+  "sanitizer": "none",
+  "leakSanitizer": false,
+  "lz4HeaderSHA256": "c1614ecf7ada7b0be1acb560d4239595f96fbb7aa6a79a7c40cb358753830be6",
+  "lz4Library": "-l:liblz4.so.1",
+  "results": {
+    "passed": true,
+    "cases": 2400,
+    "sweeps": 12000,
+    "baselineRamScans": 12000,
+    "candidateRamScans": 12000,
+    "baselineSelectionVisits": 46712043,
+    "candidateSelectionVisits": 14367269,
+    "dynamicUnpinCases": 16,
+    "trimAllocations": 0,
+    "benchmarks": [
+      {
+        "entries": 16,
+        "evictions": 0,
+        "baselineMedianNs": 55.7031,
+        "candidateMedianNs": 47.5781,
+        "baselineSamplesNs": [
+          54.9375,
+          48.6562,
+          55.7031,
+          45.375,
+          64.9375,
+          189.656,
+          69.6406
+        ],
+        "candidateSamplesNs": [
+          48.8281,
+          48.8281,
+          45.8438,
+          47.5781,
+          47.1094,
+          48.3594,
+          46.9531
+        ]
+      },
+      {
+        "entries": 16,
+        "evictions": 1,
+        "baselineMedianNs": 150.688,
+        "candidateMedianNs": 143.656,
+        "baselineSamplesNs": [
+          143.5,
+          152.266,
+          155.391,
+          153.344,
+          147.562,
+          139.578,
+          150.688
+        ],
+        "candidateSamplesNs": [
+          169.312,
+          154.141,
+          143.969,
+          143.656,
+          141.156,
+          139.891,
+          142.547
+        ]
+      },
+      {
+        "entries": 16,
+        "evictions": 4,
+        "baselineMedianNs": 312.188,
+        "candidateMedianNs": 299.344,
+        "baselineSamplesNs": [
+          303.109,
+          295.906,
+          333,
+          312.188,
+          325.953,
+          293.547,
+          325.172
+        ],
+        "candidateSamplesNs": [
+          291.047,
+          303.25,
+          628.281,
+          297.953,
+          308.906,
+          299.344,
+          297.781
+        ]
+      },
+      {
+        "entries": 16,
+        "evictions": 8,
+        "baselineMedianNs": 501.688,
+        "candidateMedianNs": 505.281,
+        "baselineSamplesNs": [
+          511.688,
+          501.688,
+          502.625,
+          499.328,
+          499.328,
+          493.391,
+          765.359
+        ],
+        "candidateSamplesNs": [
+          505.281,
+          534.375,
+          545.328,
+          504.188,
+          507.469,
+          501.672,
+          500.578
+        ]
+      },
+      {
+        "entries": 16,
+        "evictions": 8,
+        "baselineMedianNs": 498.859,
+        "candidateMedianNs": 502.781,
+        "baselineSamplesNs": [
+          495.109,
+          505.438,
+          501.516,
+          498.859,
+          496.203,
+          494.484,
+          502.766
+        ],
+        "candidateSamplesNs": [
+          499.172,
+          1631.95,
+          501.375,
+          523.125,
+          501.062,
+          505.438,
+          502.781
+        ]
+      },
+      {
+        "entries": 16,
+        "evictions": 16,
+        "baselineMedianNs": 866.766,
+        "candidateMedianNs": 751.109,
+        "baselineSamplesNs": [
+          865.188,
+          1623.34,
+          868.156,
+          861.75,
+          880.688,
+          866.766,
+          855.484
+        ],
+        "candidateSamplesNs": [
+          751.109,
+          761.438,
+          755.969,
+          755.031,
+          743.453,
+          741.266,
+          743.922
+        ]
+      },
+      {
+        "entries": 128,
+        "evictions": 0,
+        "baselineMedianNs": 678.5,
+        "candidateMedianNs": 650.172,
+        "baselineSamplesNs": [
+          698.375,
+          670.516,
+          681,
+          678.5,
+          643.453,
+          828.578,
+          665.672
+        ],
+        "candidateSamplesNs": [
+          958.453,
+          643.766,
+          705.109,
+          658.625,
+          650.172,
+          641.891,
+          634.219
+        ]
+      },
+      {
+        "entries": 128,
+        "evictions": 1,
+        "baselineMedianNs": 1009,
+        "candidateMedianNs": 1009.78,
+        "baselineSamplesNs": [
+          1009,
+          988.812,
+          1002.11,
+          1229.33,
+          1014.95,
+          1262.97,
+          976.75
+        ],
+        "candidateSamplesNs": [
+          1009.78,
+          1019.64,
+          1024.17,
+          986.922,
+          976.609,
+          970.656,
+          1016.5
+        ]
+      },
+      {
+        "entries": 128,
+        "evictions": 4,
+        "baselineMedianNs": 1960.09,
+        "candidateMedianNs": 1933.95,
+        "baselineSamplesNs": [
+          1915.02,
+          1957.12,
+          2200.59,
+          3267.5,
+          1960.09,
+          2736.08,
+          1938.03
+        ],
+        "candidateSamplesNs": [
+          1912.36,
+          1951,
+          1956.17,
+          1933.95,
+          1897.48,
+          1928.78,
+          1935.69
+        ]
+      },
+      {
+        "entries": 128,
+        "evictions": 8,
+        "baselineMedianNs": 3292.38,
+        "candidateMedianNs": 3167.5,
+        "baselineSamplesNs": [
+          3141.22,
+          3166.7,
+          4112.64,
+          3292.38,
+          3542.58,
+          3125.09,
+          3702.67
+        ],
+        "candidateSamplesNs": [
+          3137.61,
+          3166.41,
+          6564.72,
+          3181.27,
+          3167.5,
+          3445.56,
+          3136.2
+        ]
+      },
+      {
+        "entries": 128,
+        "evictions": 64,
+        "baselineMedianNs": 21064,
+        "candidateMedianNs": 6472.22,
+        "baselineSamplesNs": [
+          21539,
+          19753.8,
+          21606.2,
+          21064,
+          20745.5,
+          20401.6,
+          22985.1
+        ],
+        "candidateSamplesNs": [
+          6202.61,
+          6687.08,
+          6366.3,
+          6049.89,
+          7111.61,
+          7793.09,
+          6472.22
+        ]
+      },
+      {
+        "entries": 128,
+        "evictions": 128,
+        "baselineMedianNs": 38207.8,
+        "candidateMedianNs": 8245.95,
+        "baselineSamplesNs": [
+          35895.8,
+          38207.8,
+          38761.2,
+          36599.3,
+          35667.1,
+          41133.7,
+          39070
+        ],
+        "candidateSamplesNs": [
+          7942.06,
+          7633.02,
+          8267.08,
+          8704.75,
+          9472.91,
+          8162.84,
+          8245.95
+        ]
+      },
+      {
+        "entries": 1024,
+        "evictions": 0,
+        "baselineMedianNs": 3872,
+        "candidateMedianNs": 3799.38,
+        "baselineSamplesNs": [
+          3795.5,
+          3872,
+          5791.12,
+          3750.62,
+          3847,
+          7740.25,
+          3875.75
+        ],
+        "candidateSamplesNs": [
+          3799.38,
+          3841.88,
+          5931.25,
+          3885.75,
+          3759.25,
+          3748,
+          3698
+        ]
+      },
+      {
+        "entries": 1024,
+        "evictions": 1,
+        "baselineMedianNs": 7215.62,
+        "candidateMedianNs": 7210.62,
+        "baselineSamplesNs": [
+          7165.62,
+          7198.25,
+          7215.62,
+          7215.62,
+          7282,
+          7329.62,
+          7196.88
+        ],
+        "candidateSamplesNs": [
+          7165.62,
+          7050.38,
+          12687.6,
+          16189,
+          7080.38,
+          7647.62,
+          7210.62
+        ]
+      },
+      {
+        "entries": 1024,
+        "evictions": 4,
+        "baselineMedianNs": 17064,
+        "candidateMedianNs": 17117.9,
+        "baselineSamplesNs": [
+          17534.6,
+          17064,
+          18846.6,
+          16865,
+          16901.2,
+          19791.9,
+          17037.8
+        ],
+        "candidateSamplesNs": [
+          17470.9,
+          17117.9,
+          19408.8,
+          17019,
+          17034,
+          17386.9,
+          17031.4
+        ]
+      },
+      {
+        "entries": 1024,
+        "evictions": 8,
+        "baselineMedianNs": 37646.9,
+        "candidateMedianNs": 37056.1,
+        "baselineSamplesNs": [
+          30312.4,
+          30526.4,
+          49230.2,
+          30194.8,
+          52658,
+          43157.6,
+          37646.9
+        ],
+        "candidateSamplesNs": [
+          30331.1,
+          37056.1,
+          43004.9,
+          52485.1,
+          39927.9,
+          32877.4,
+          33396.9
+        ]
+      },
+      {
+        "entries": 1024,
+        "evictions": 512,
+        "baselineMedianNs": 1759910.0,
+        "candidateMedianNs": 62179.5,
+        "baselineSamplesNs": [
+          1730010.0,
+          1764290.0,
+          1747490.0,
+          1759910.0,
+          1701750.0,
+          1766890.0,
+          2217180.0
+        ],
+        "candidateSamplesNs": [
+          63237.2,
+          60320.4,
+          68990.8,
+          60374.4,
+          62179.5,
+          76852.5,
+          61696.2
+        ]
+      },
+      {
+        "entries": 1024,
+        "evictions": 1024,
+        "baselineMedianNs": 3354490.0,
+        "candidateMedianNs": 75222.5,
+        "baselineSamplesNs": [
+          3335120.0,
+          4003470.0,
+          7109620.0,
+          5347250.0,
+          3312000.0,
+          3354490.0,
+          3326150.0
+        ],
+        "candidateSamplesNs": [
+          73960.8,
+          75639.4,
+          75222.5,
+          77480.9,
+          74294.9,
+          75639.5,
+          74312.4
+        ]
+      },
+      {
+        "entries": 4096,
+        "evictions": 0,
+        "baselineMedianNs": 13512.5,
+        "candidateMedianNs": 13754,
+        "baselineSamplesNs": [
+          15859.6,
+          13247.1,
+          13393.6,
+          13512.5,
+          13469.9,
+          14943.4,
+          14398.8
+        ],
+        "candidateSamplesNs": [
+          15277.6,
+          13754,
+          13252.1,
+          13557.5,
+          13523.8,
+          18602.5,
+          18597.5
+        ]
+      },
+      {
+        "entries": 4096,
+        "evictions": 1,
+        "baselineMedianNs": 27718.5,
+        "candidateMedianNs": 27579.5,
+        "baselineSamplesNs": [
+          27965.1,
+          27449.4,
+          27718.5,
+          37635.8,
+          27161.5,
+          29583.8,
+          27355.4
+        ],
+        "candidateSamplesNs": [
+          27579.5,
+          27848.8,
+          28442.1,
+          33731.1,
+          27493.2,
+          27060.1,
+          27470.6
+        ]
+      },
+      {
+        "entries": 4096,
+        "evictions": 4,
+        "baselineMedianNs": 67815.2,
+        "candidateMedianNs": 69976,
+        "baselineSamplesNs": [
+          69807,
+          67716.5,
+          67755.2,
+          67815.2,
+          68347.4,
+          67685.1,
+          68018.1
+        ],
+        "candidateSamplesNs": [
+          69571.6,
+          67775.2,
+          69658,
+          69976,
+          71259.1,
+          70019.9,
+          72881.5
+        ]
+      },
+      {
+        "entries": 4096,
+        "evictions": 8,
+        "baselineMedianNs": 124663,
+        "candidateMedianNs": 125928,
+        "baselineSamplesNs": [
+          126332,
+          123858,
+          126581,
+          123339,
+          124663,
+          128185,
+          124473
+        ],
+        "candidateSamplesNs": [
+          132751,
+          124087,
+          126296,
+          123857,
+          125928,
+          127494,
+          123738
+        ]
+      },
+      {
+        "entries": 4096,
+        "evictions": 2048,
+        "baselineMedianNs": 28149200.0,
+        "candidateMedianNs": 287657,
+        "baselineSamplesNs": [
+          28149200.0,
+          28013400.0,
+          27866500.0,
+          31828700.0,
+          29844500.0,
+          30003600.0,
+          27790900.0
+        ],
+        "candidateSamplesNs": [
+          277732,
+          269392,
+          287657,
+          290497,
+          400341,
+          278349,
+          288449
+        ]
+      },
+      {
+        "entries": 4096,
+        "evictions": 4096,
+        "baselineMedianNs": 58581100.0,
+        "candidateMedianNs": 356815,
+        "baselineSamplesNs": [
+          54611600.0,
+          55643300.0,
+          61091400.0,
+          58867500.0,
+          60073700.0,
+          55955900.0,
+          58581100.0
+        ],
+        "candidateSamplesNs": [
+          324639,
+          322000,
+          518641,
+          494660,
+          356815,
+          327767,
+          507761
+        ]
+      }
+    ]
+  },
+  "completeStoreResult": "PASS: real POSIX file round trips, larger-than-RAM working set, hot/cold, compression, lease safety, pressure, eligible prefetch and measured-latency refusal with demand fallback, read priority, quotas, short I/O, ENOSPC, sync/read failures, corruption, truncation, concurrency, teardown, reusable extents, coalescing, stale IDs, deferred ownership retirement",
+  "preallocatedCandidateBytesAtMaximumEntries": 65536,
+  "preallocatedCandidateBytesAtDefaultEntries": 16384,
+  "deviceTest": false,
+  "fpsClaim": false,
+  "concurrencyScope": "Controlled release points, including a separate thread; not every possible interleaving."
+}

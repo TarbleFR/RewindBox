@@ -2,6 +2,37 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## RPCS3 source continuation after IPA596 — 30 October 2026
+
+Based on Claude `de8169848ecfa9c95946fc957861263a9fd1b879`, rechecked through
+the GitHub branch API again at 00:02:36 UTC on 30 October. The source lot changes
+eight canonical Core files and the native NeoSwap Store, preserving the other
+311 canonical postimages. DMA empty-list/zero-byte/MMIO fixes, late shader
+invalidation, successful-wait resource retirement, owned DMA fence reuse,
+retired image pressure release, bounded complete-atlas clear elision, texture
+depth/64-bit coverage arithmetic and bulk Store victim selection are included.
+
+The exact host-only SPUThread.cpp compatibility mapping preserves PPU
+`a987639e9f838d1c` and SPU `477a3fa442d27917`; its source/relocation justification
+supersedes the preliminary CPU report's no-alias recommendation. Do not extend
+that mapping to unknown hashes or older reservation implementations.
+
+Canonical patch SHA256:
+`099651cae54c7bc567ff325735acde0cf3e931ed6e25b2b5bbcc14e5f5ecf33b`.
+Fresh materialization verifies all 319 postimages and host-loaded exports.
+The continuation contract verifies 89 frozen repository/evidence inputs,
+reconstructs the previous files and regenerates ten harness jobs plus NeoSwap
+without recompiling unchanged programs. Affected production-extracted host
+checks and the full POSIX Store suite have recorded normal/sanitizer results;
+GPU-wait and DMA-ownership candidate checks have sanitizer receipts only.
+See `docs/rpcs3-continuation-2026-10-30.md` and
+`test/rpcs3_continuation_contract_test.py` for scope and reproduction.
+
+No Apple Core/IPA build, push, CI dispatch, release, iPhone FPS gain or resolution
+of the BO2/AC visual defects or GOW3 scene freeze is claimed. Existing delivery
+and deep-audit Apple receipts describe their original source; a later authorized
+Core build must account for these new inputs rather than relabel old receipts.
+
 ## Private IPA596 — compiled, verified and privately delivered
 
 The maintainer explicitly requested a new IPA containing the latest compiled

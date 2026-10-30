@@ -1,0 +1,1 @@
+{"case":"atlas_coverage","cases":84000,"checks":694279,"newly_omitted_color_clears":22263,"unchanged_clear_cases":61737,"unsafe_fallbacks":14,"helper_allocations":0}

@@ -1,0 +1,93 @@
+{
+  "kind": "separate-current-input-hash-attestation",
+  "observedAtUTC": "2026-10-29T23:50:08.516858+00:00",
+  "nativeCompilationInvoked": false,
+  "nativeTestsRerun": false,
+  "previousExecutionReportsRewritten": false,
+  "baselineCommit": "de8169848ecfa9c95946fc957861263a9fd1b879",
+  "currentBuildInputs": {
+    "completeStoreInputsSHA256": {
+      "native/neoswap-storage/CacheEntry.h": "e503c5bafd3a4311a14b3ed09bc470331344ba2791aaa014ecbbbe914e1205bb",
+      "native/neoswap-storage/Store.cpp": "87df68227cf9e113af51ec2ea8968d8af88170834611d560ce711cf168f1ca46",
+      "native/neoswap-storage/Store.h": "52110ebca148e68c34374b6fc52cbb130c7985a39096a51e988a51968279c2ce",
+      "native/neoswap-storage/tests/store_test.cpp": "904bbd9a0c968072c9ff5d8b17c2c65dc34f387d519b66011c9b7821c13ef5ea"
+    },
+    "harnessInputsSHA256": {
+      "test/native/neoswap_bulk_trim.inc": "215b870606e961c6c68aea9eaa66c84ccb8f01f6d7893b6617e8b1ac0ced9440",
+      "test/neoswap_bulk_trim_test.py": "a5c01d5c3d3afc61559652938bb22843f67b4dc5532c9b235d503ab45522b3bb"
+    },
+    "explicitExternalHeadersSHA256": {
+      "/workspace/scratch/144c744e94bb/memory-review/include/lz4.h": "c1614ecf7ada7b0be1acb560d4239595f96fbb7aa6a79a7c40cb358753830be6"
+    },
+    "scope": "Repository Store translation units and their literal local include closure, runner, fixture, and explicitly supplied LZ4 header. Compiler/system headers, resolved library binaries and toolchain executables are not hashed; compiler version, platform and link arguments are recorded separately. Local conditional literal includes, if added, are conservatively included in this inventory."
+  },
+  "existingReports": {
+    "docs/evidence/rpcs3-continuation-20261030/neoswap-bulk-plain.json": {
+      "reportSHA256": "a8fceb5cd57b89d120d762cda3dec9d6784e4962c8140e7e9f40f3e634a30d0f",
+      "previouslyRecordedHashesMatchCurrent": {
+        "baselineSHA256": true,
+        "sourceSHA256": true,
+        "fixtureSHA256": true,
+        "programSHA256": true,
+        "methodSHA256": true,
+        "lz4HeaderSHA256": true
+      },
+      "completeStoreSourcePathRecorded": true,
+      "missingHistoricalHashes": [
+        "native/neoswap-storage/Store.h",
+        "native/neoswap-storage/CacheEntry.h",
+        "native/neoswap-storage/tests/store_test.cpp"
+      ],
+      "reportUnchanged": true
+    },
+    "docs/evidence/rpcs3-continuation-20261030/neoswap-bulk-asan.json": {
+      "reportSHA256": "84f0e3e0e64285b6efaaca4a7b129f8ea3d336dca9999881bfb09ba15760323b",
+      "previouslyRecordedHashesMatchCurrent": {
+        "baselineSHA256": true,
+        "sourceSHA256": true,
+        "fixtureSHA256": true,
+        "programSHA256": true,
+        "methodSHA256": true,
+        "lz4HeaderSHA256": true
+      },
+      "completeStoreSourcePathRecorded": true,
+      "missingHistoricalHashes": [
+        "native/neoswap-storage/Store.h",
+        "native/neoswap-storage/CacheEntry.h",
+        "native/neoswap-storage/tests/store_test.cpp"
+      ],
+      "reportUnchanged": true
+    }
+  },
+  "previouslyUnrecordedInputs": {
+    "native/neoswap-storage/CacheEntry.h": {
+      "currentSHA256": "e503c5bafd3a4311a14b3ed09bc470331344ba2791aaa014ecbbbe914e1205bb",
+      "baselineCommitSHA256": "e503c5bafd3a4311a14b3ed09bc470331344ba2791aaa014ecbbbe914e1205bb",
+      "matchesBaselineCommitBytes": true,
+      "historicalExecutionIdentity": "not independently recorded in the two native execution reports"
+    },
+    "native/neoswap-storage/Store.h": {
+      "currentSHA256": "52110ebca148e68c34374b6fc52cbb130c7985a39096a51e988a51968279c2ce",
+      "baselineCommitSHA256": "52110ebca148e68c34374b6fc52cbb130c7985a39096a51e988a51968279c2ce",
+      "matchesBaselineCommitBytes": true,
+      "historicalExecutionIdentity": "not independently recorded in the two native execution reports"
+    },
+    "native/neoswap-storage/tests/store_test.cpp": {
+      "currentSHA256": "904bbd9a0c968072c9ff5d8b17c2c65dc34f387d519b66011c9b7821c13ef5ea",
+      "baselineCommitSHA256": "904bbd9a0c968072c9ff5d8b17c2c65dc34f387d519b66011c9b7821c13ef5ea",
+      "matchesBaselineCommitBytes": true,
+      "historicalExecutionIdentity": "not independently recorded in the two native execution reports"
+    }
+  },
+  "runnerBeforeMetadataChangeSHA256": "53223e25ac5e40f6161af24fe5d1ecdaaa5e56ef2e93438d102b37655ee14279",
+  "runnerAfterMetadataChangeSHA256": "a5c01d5c3d3afc61559652938bb22843f67b4dc5532c9b235d503ab45522b3bb",
+  "generatedHarnessSHA256": "c66a4d71b42dfb37a14b943093dede018d89093094b9346264b528a29a645676",
+  "generatedHarnessMatchesBothPreviousRuns": true,
+  "futureRunnerBehavior": "Reports repository Store translation units and local include closure, fixture, runner and explicitly supplied LZ4 header; verifies these files have identical hashes before and after execution. This updated runner has not performed a native build or run during this attestation.",
+  "limitations": [
+    "Store.h, CacheEntry.h and store_test.cpp were not individually hashed in the previous native reports. Their current bytes match the baseline commit, but these newly collected hashes cannot retrospectively prove the exact bytes present at execution time.",
+    "Compiler/system headers, resolved shared/static library binaries and compiler/linker executables are not hashed by this repository-input manifest. Existing reports identify compiler version, platform and link arguments, not a hermetic toolchain identity.",
+    "Literal local includes are inventoried transitively from the two source files. This is a repository source inventory, not a compiler-emitted dependency trace; future conditional local includes are conservatively included.",
+    "No new timing, allocation, memory, concurrency or FPS measurement was performed."
+  ]
+}

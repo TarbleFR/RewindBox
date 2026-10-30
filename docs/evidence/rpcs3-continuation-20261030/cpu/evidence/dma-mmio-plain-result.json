@@ -1,0 +1,35 @@
+{
+  "mode": "plain",
+  "exit_code": 0,
+  "command": [
+    "g++",
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O2",
+    "-g",
+    "/workspace/scratch/144c744e94bb/cpu-review/evidence/dma-mmio-program.cpp",
+    "-o",
+    "/workspace/scratch/144c744e94bb/cpu-review/evidence/dma-mmio-plain"
+  ],
+  "source_bodies_sha256": {
+    "old": "5bd12ad41ec92443781f06643153e98aef4aaf68eb74c92f51e3e0167f4026c1",
+    "new": "fffe3c7ed854223d7c73402fad97d087d199d05cfdf8d4601371409112a2799c"
+  },
+  "program_sha256": "7faa7633afa5a218243d3ed4200cea58f8cbc5317fb70b5f18cf046b2abb6ddd",
+  "scope": "Complete production do_dma_transfer, with bounded VM and CPU/atomic/lock adapters; vm range-lock implementations independently exercised in vm-mmio-program.cpp. No native race or iPhone claim; 128-byte atomic helper uses destination-resolution adapter.",
+  "results": {
+    "group_put_cases": 1008,
+    "group_get_cases": 1008,
+    "ordinary_ram_cases": 672,
+    "raw_spu_cases": 672,
+    "invalid_offset_cases": 240,
+    "snr_cases": 12,
+    "original_group_address_faults": 1008,
+    "fixed_group_address_faults": 0,
+    "original_atomic_group_misroutes": 75,
+    "fixed_atomic_group_misroutes": 0,
+    "failures": 0
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "name": "baseline",
+  "source_hashes": {
+    "rpcs3/Emu/RSX/VK/VKTextureCache.cpp": "e13f7e13e5e452fa1d705f6617e9ffb665d82a26af09ef7acfaa7ef9821e7f1a",
+    "rpcs3/Emu/RSX/Common/texture_cache.h": "b4443038bd7fd28aada4b3124276a2554bcc4ce3644b065f4b31107207b19b8c"
+  },
+  "baseline_expected": true,
+  "sanitizers": "none",
+  "reports": [
+    {
+      "case": "retired_image_pressure",
+      "checks": 5234,
+      "completed_pool_bytes": 268435456,
+      "active_temporary_bytes": 2097152,
+      "retained_after_pressure": 270532608,
+      "late_driver_returns": 1000,
+      "program_sha256": "6fd4ce4c58e831f2dd68377eaa6ee2502d26734d47223b71c273436cdcc209d1",
+      "command": [
+        "g++",
+        "-DEXPECT_BASELINE",
+        "-std=c++20",
+        "-O2",
+        "-pthread",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DRPCS3_IOS",
+        "/workspace/scratch/144c744e94bb/texture-review/results/baseline/pressure.cpp",
+        "-o",
+        "/workspace/scratch/144c744e94bb/texture-review/results/baseline/pressure"
+      ]
+    },
+    {
+      "case": "unnormalized_depth",
+      "cases": 69120,
+      "bad_depth_scales": 15120,
+      "program_sha256": "0138b0ea1145a5f1e27efc962bf19bb5dda89995894ac36ff15b3aff85a65d1b",
+      "command": [
+        "g++",
+        "-DEXPECT_BASELINE",
+        "-std=c++20",
+        "-O2",
+        "-pthread",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DRPCS3_IOS",
+        "/workspace/scratch/144c744e94bb/texture-review/results/baseline/depth.cpp",
+        "-o",
+        "/workspace/scratch/144c744e94bb/texture-review/results/baseline/depth"
+      ]
+    }
+  ],
+  "limits": [
+    "GPU allocation/destruction APIs are recording substitutes.",
+    "Memory bytes are allocation lifetimes, not device RSS.",
+    "Texture prefix is extracted, not a complete Core compilation.",
+    "No iPhone or FPS measurement."
+  ]
+}

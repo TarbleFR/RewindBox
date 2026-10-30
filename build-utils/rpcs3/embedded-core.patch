@@ -3999,10 +3999,10 @@ index e11a27509..353f45920 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 000000000..48e652402
+index 000000000..c339e20da
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,58 @@
 +# CELL591: the exact reviewed JITLLVM change clears a stack ObjectCache on
 +# recoverable failure; SPULLVM drops finalized IR after obtaining native code.
 +# Neither changes object emission, relocations or the callable ABI.
@@ -4042,6 +4042,14 @@ index 000000000..48e652402
 +    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
 +           actual STREQUAL "c7180ee63fe2584356cd44fc8174e82787f88a31b3753ae45f94498aeae4be2b")
 +        set(${output} "9d0a2e1fedc6f3ee5a1e0888b40522d6517ecee96d6d57d015f15dcff319eb3c" PARENT_SCOPE)
++    # Runtime DMA continuation: only do_dma_transfer and do_list_transfer host
++    # bodies change. Emitters, helper signatures, SPU layout and constants are
++    # unchanged; cached relocatable objects bind the current host helpers again.
++    # Preserve the immediate Claude de816984 baseline for this exact file only,
++    # without admitting any older reservation/codegen implementation.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "4d138e76afc25d12d8eff04a5794153cbe9a4562c8dcbe5d9eac274ab4c927d3")
++        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
 +    # CELL559: compile() builds the LLVM analysis managers and the function pass
 +    # pipeline only when no cached object is linked. A miss runs the same passes
 +    # in the same order on the same IR; a hit generates no code. Generated
@@ -12717,7 +12725,7 @@ index faf4082dc..d08c48071 100644
  	// Interpreter table (spu_itype -> ptr)
  	static std::array<u64, 256> g_interpreter_table;
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
-index bc9ec5e5b..7bfa5dcfd 100644
+index bc9ec5e5b..2c0e96429 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
 @@ -25,11 +25,19 @@
@@ -13000,7 +13008,41 @@ index bc9ec5e5b..7bfa5dcfd 100644
  				if (time0 != vm::reservation_acquire(eal) || (size0 == 128 && !cmp_rdata(*reinterpret_cast<spu_rdata_t*>(dst0), *reinterpret_cast<const spu_rdata_t*>(src))))
  				{
  					continue;
-@@ -3450,6 +3562,18 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -2340,7 +2452,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+ 			}
+ 		}
+ 
+-		if (g_cfg.core.spu_accurate_dma) [[unlikely]]
++		// Accurate PUT stores resolve the effective address again. MMIO LS
++		// transfers must keep the pointer selected by the MMIO dispatcher.
++		if (eal < RAW_SPU_BASE_ADDR && g_cfg.core.spu_accurate_dma) [[unlikely]]
+ 		{
+ 			for (u32 size0, size = args.size;; size -= size0, dst += size0, src += size0, eal += size0)
+ 			{
+@@ -2878,6 +2992,13 @@ bool spu_thread::do_dma_check(const spu_mfc_cmd& args)
+ 
+ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
+ {
++	// Deferred zero-length lists must complete without reading the list address.
++	// The immediate path already accepts them, but queued commands enter here.
++	if (!args.size)
++	{
++		return true;
++	}
++
+ 	perf_meter<"MFC_LIST"_u64> perf0(nullptr);
+ 
+ 	// Amount of elements to fetch in one go
+@@ -3298,7 +3419,7 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
+ 			arg_lsa += utils::align<u32>(size, 16);
+ 		}
+ 		// Avoid inlining huge transfers because it intentionally drops range lock unlock
+-		else if (optimization_compatible == MFC_PUT_CMD && ((addr >> 28 == rsx::constants::local_mem_base >> 28) || (addr < RAW_SPU_BASE_ADDR && size - 1 <= 0x400 - 1 && (addr % 0x10000 + (size - 1)) < 0x10000)))
++		else if (size && optimization_compatible == MFC_PUT_CMD && ((addr >> 28 == rsx::constants::local_mem_base >> 28) || (addr < RAW_SPU_BASE_ADDR && size - 1 <= 0x400 - 1 && (addr % 0x10000 + (size - 1)) < 0x10000)))
+ 		{
+ 			if (addr >> 28 != rsx::constants::local_mem_base >> 28)
+ 			{
+@@ -3450,6 +3571,18 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		}
  
  		const auto& to_write = _ref<spu_rdata_t>(args.lsa & 0x3ff80);
@@ -13019,7 +13061,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  		auto& res = vm::reservation_acquire(addr);
  
  		// TODO: Limit scope!!
-@@ -3457,26 +3581,32 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3457,26 +3590,32 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  
  		if (rtime != res)
  		{
@@ -13064,7 +13106,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  			{
  				raddr = 0; // Disable notification
  				return true;
-@@ -3488,7 +3618,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3488,7 +3627,13 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		static const auto cast_as = [](void* ptr, usz pos){ return reinterpret_cast<u128*>(ptr) + pos; };
  		static const auto cast_as_const = [](const void* ptr, usz pos){ return reinterpret_cast<const u128*>(ptr) + pos; };
  
@@ -13079,7 +13121,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  
  		auto [_oldd, _ok] = res.fetch_op([&](u64& r)
  		{
-@@ -3507,25 +3643,53 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3507,25 +3652,53 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  			return false;
  		}
  
@@ -13135,7 +13177,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  			vm::writer_lock lock(addr, range_lock);
  
  			if (cmp_rdata(rdata, super_data))
-@@ -3552,6 +3716,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3552,6 +3725,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  		return success;
  	}())
  	{
@@ -13145,7 +13187,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  		if (raddr)
  		{
  			if (raddr != spurs_addr || pc != 0x11e4)
-@@ -3579,6 +3746,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+@@ -3579,6 +3755,9 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
  	}
  	else
  	{
@@ -13155,7 +13197,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  		if (raddr)
  		{
  			// Last check for event before we clear the reservation
-@@ -3631,7 +3801,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3631,7 +3810,7 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  
  			if (!(at_read_time & 127))
  			{
@@ -13164,7 +13206,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  				{
  					// Write of the same data (verified atomically)
  					vm::try_reservation_update(addr);
-@@ -3640,6 +3810,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3640,6 +3819,19 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  			}
  		}
  
@@ -13184,7 +13226,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  		for (u64 j = 0;; j++)
  		{
  			auto [_oldd, _ok] = res.fetch_op([&](u128& r)
-@@ -3714,8 +3897,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3714,8 +3906,11 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  		}
  		else
  		{
@@ -13198,7 +13240,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  
  			// Hard lock
  			auto spu = cpu ? cpu->try_get<spu_thread>() : nullptr;
-@@ -3726,6 +3912,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
+@@ -3726,6 +3921,9 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write)
  				cpu->state += cpu_flag::wait;
  			}
  
@@ -13208,7 +13250,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  			vm::writer_lock lock(addr, spu ? spu->range_lock : nullptr);
  			mov_rdata(sdata, *static_cast<const spu_rdata_t*>(to_write));
  			vm::reservation_acquire(addr) += 32;
-@@ -3880,8 +4069,15 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3880,8 +4078,15 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  	auto get_exec_mask = [&size = mfc_size]
  	{
  		// Get commands' execution mask
@@ -13226,7 +13268,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  	};
  
  	// Process enqueued commands
-@@ -3941,8 +4137,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
+@@ -3941,8 +4146,9 @@ bool spu_thread::do_mfc(bool can_escape, bool must_finish)
  
  bool spu_thread::check_mfc_interrupts(u32 next_pc)
  {
@@ -13237,7 +13279,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  		srr0 = next_pc;
  
  		// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -4276,8 +4473,13 @@ bool spu_thread::process_mfc_cmd()
+@@ -4276,8 +4482,13 @@ bool spu_thread::process_mfc_cmd()
  			return false;
  		}
  
@@ -13253,7 +13295,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  
  		if (mfc_size < 16)
  		{
-@@ -4306,6 +4508,25 @@ bool spu_thread::process_mfc_cmd()
+@@ -4306,6 +4517,25 @@ bool spu_thread::process_mfc_cmd()
  	{
  		perf_meter<"GETLLAR"_u64> perf0;
  
@@ -13279,7 +13321,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  		const u32 addr = ch_mfc_cmd.eal & -128;
  		const auto& data = vm::_ref<spu_rdata_t>(addr);
  
-@@ -4315,7 +4536,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4315,7 +4545,7 @@ bool spu_thread::process_mfc_cmd()
  			spu_log.trace(u8"GETLLAR after fail: addr=0x%x, time=%u c", last_faddr, (perf0.get() - last_ftsc));
  		}
  
@@ -13288,7 +13330,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  		{
  			rtime = last_ftime;
  			raddr = last_faddr;
-@@ -4355,8 +4576,14 @@ bool spu_thread::process_mfc_cmd()
+@@ -4355,8 +4585,14 @@ bool spu_thread::process_mfc_cmd()
  					// Need to check twice for it to be accurate, the code is before and not after this check for:
  					// 1. Reduce time between reservation accesses so TSX panelty would be lowered
  					// 2. Increase the chance of change detection: if GETLLAR has been called again new data is probably wanted
@@ -13304,7 +13346,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  						if (this_time != rtime)
  						{
  							// Reservation was lost but the data itself remains unchanged so try to ignore it
-@@ -4367,7 +4594,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4367,7 +4603,7 @@ bool spu_thread::process_mfc_cmd()
  						if ([&]() -> bool
  						{
  							// Validation that it is indeed GETLLAR spinning (large time window is intentional)
@@ -13313,7 +13355,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  							{
  								// Seemingly not
  								getllar_busy_waiting_switch = umax;
-@@ -4441,7 +4668,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4441,7 +4677,7 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  							// Don't be stubborn, force operating sleep if too much time has passed
@@ -13322,7 +13364,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  							{
  								// Hidden value to force busy waiting
  								if (!g_cfg.core.spu_getllar_spin_optimization_disabled)
-@@ -4452,6 +4679,18 @@ bool spu_thread::process_mfc_cmd()
+@@ -4452,6 +4688,18 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  
@@ -13341,7 +13383,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  							// Either 1 or umax
  							return getllar_busy_waiting_switch != 0;
  						}())
-@@ -4472,6 +4711,11 @@ bool spu_thread::process_mfc_cmd()
+@@ -4472,6 +4720,11 @@ bool spu_thread::process_mfc_cmd()
  							if (getllar_busy_waiting_switch == 1)
  							{
  								getllar_wait_time[(addr % SPU_LS_SIZE) / 128].front() = 0;
@@ -13353,7 +13395,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  
  #if defined(ARCH_X64)
  								if (utils::has_um_wait())
-@@ -4522,7 +4766,15 @@ bool spu_thread::process_mfc_cmd()
+@@ -4522,7 +4775,15 @@ bool spu_thread::process_mfc_cmd()
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(addr, rtime); wait_var)
  						{
  							cache_line_waiter_index = register_cache_line_waiter(addr);
@@ -13369,7 +13411,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  							vm::reservation_notifier_end_wait(*wait_var);
  						}
  
-@@ -4533,7 +4785,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4533,7 +4794,7 @@ bool spu_thread::process_mfc_cmd()
  						// Quick check if there were reservation changes
  						const u64 new_time = res;
  
@@ -13378,7 +13420,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  						{
  							if (g_cfg.core.mfc_debug)
  							{
-@@ -4551,8 +4803,13 @@ bool spu_thread::process_mfc_cmd()
+@@ -4551,8 +4812,13 @@ bool spu_thread::process_mfc_cmd()
  								rtime = new_time;
  							}
  
@@ -13394,7 +13436,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  
  							// Reset perf
  							perf0.restart();
-@@ -4659,6 +4916,8 @@ bool spu_thread::process_mfc_cmd()
+@@ -4659,6 +4925,8 @@ bool spu_thread::process_mfc_cmd()
  
  			mov_rdata(rdata, data);
  
@@ -13403,7 +13445,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  			if (u64 time0 = vm::reservation_acquire(addr); ntime != time0)
  			{
  				// Reservation data has been modified recently
-@@ -5075,7 +5334,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5075,7 +5343,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -13412,7 +13454,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  	}
  
  	if ((addr >> 20) == (current_eal >> 20))
-@@ -5083,13 +5342,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5083,13 +5351,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  		if (vm::check_addr(addr, vm::page_1m_size))
  		{
  			// Same random-access-memory page as the current MFC command, assume allocated
@@ -13428,7 +13470,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  		}
  	}
  
-@@ -5163,7 +5422,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5163,7 +5431,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	const bool res = cmp_rdata(data, vm::_ref<decltype(rdata)>(addr));
  
  	range_lock->release(0);
@@ -13437,7 +13479,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  }
  
  bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range_lock)
-@@ -5171,7 +5430,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5171,7 +5439,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -13446,7 +13488,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  	}
  
  	// Ensure data is allocated (HACK: would raise LR event if not)
-@@ -5244,7 +5503,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5244,7 +5512,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	const bool res = compute_rdata_hash32(*vm::get_super_ptr<decltype(rdata)>(addr)) == hash;
  
  	range_lock->release(0);
@@ -13455,7 +13497,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  }
  
  usz spu_thread::register_cache_line_waiter(u32 addr)
-@@ -5352,6 +5611,7 @@ retry:
+@@ -5352,6 +5620,7 @@ retry:
  			// Set next event to the next time the decrementer underflows
  			ch_dec_start_timestamp -= res << 32;
  			collect |= SPU_EVENT_TM;
@@ -13463,7 +13505,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  		}
  	}
  
-@@ -5400,29 +5660,152 @@ void spu_thread::set_events(u32 bits)
+@@ -5400,29 +5669,152 @@ void spu_thread::set_events(u32 bits)
  	}
  }
  
@@ -13551,7 +13593,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
 +					// than one per pending entry. No allocation when nothing expires.
 +					sleep_us = sleep_scaled_ticks / (80 * std::max<u64>(g_cfg.core.clocks_scale, 1)) + 1;
 +				}
- 			}
++			}
 +			for (const auto& e : due_entries)
 +			{
 +				// Retain the thread while publishing work, outside the timer lock.
@@ -13563,7 +13605,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
 +						spu->state.notify_one();
 +					}
 +				}
-+			}
+ 			}
 +			due_entries.clear();
  		}
  	}
@@ -13628,7 +13670,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  }
  
  u32 spu_thread::get_ch_count(u32 ch)
-@@ -5760,8 +6143,16 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5760,8 +6152,16 @@ s64 spu_thread::get_ch_value(u32 ch)
  			eventstat_busy_waiting_switch = value ? 1 : 0;
  		}
  
@@ -13645,7 +13687,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  			const auto old = +state;
  
  			if (is_stopped(old))
-@@ -5792,7 +6183,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5792,7 +6192,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  				{
  					set_lr = true;
  				}
@@ -13654,7 +13696,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  				{
  					if (vm::reservation_acquire(raddr) == rtime)
  					{
-@@ -5929,7 +6320,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5929,7 +6329,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  						// Abort notifications are handled specially for performance reasons
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(raddr, rtime); wait_var)
  						{
@@ -13663,7 +13705,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  							{
  								raddr = 0;
  								set_events(SPU_EVENT_LR);
-@@ -5949,7 +6340,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5949,7 +6349,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  #ifdef __linux__
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -13672,7 +13714,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6029,7 +6420,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6029,7 +6429,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -13681,7 +13723,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6056,6 +6447,14 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6056,6 +6456,14 @@ s64 spu_thread::get_ch_value(u32 ch)
  			thread_ctrl::wait_on(state, old, 100);
  		}
  
@@ -13696,7 +13738,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  		if (is_reservation_data_checking_thread)
  		{
  			s_is_reservation_data_checking_thread = 0;
-@@ -6452,6 +6851,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6452,6 +6860,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  		ch_dec_start_timestamp = get_timebased_time();
  		ch_dec_value = value;
  		is_dec_frozen = false;
@@ -13706,7 +13748,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  		return true;
  	}
  
-@@ -6479,6 +6881,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6479,6 +6890,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			}
  		}
  
@@ -13715,7 +13757,7 @@ index bc9ec5e5b..7bfa5dcfd 100644
  		return true;
  	}
  
-@@ -6509,6 +6913,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6509,6 +6922,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			// Save current time, this will be the reported value until the decrementer resumes
  			ch_dec_value = read_dec().first;
  			is_dec_frozen = true;
@@ -14673,7 +14715,7 @@ index 669f7594e..d0e01fd8c 100644
  
  		return false;
 diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
-index e7f55d727..488b43749 100644
+index e7f55d727..80ecf35ab 100644
 --- a/rpcs3/Emu/Memory/vm.cpp
 +++ b/rpcs3/Emu/Memory/vm.cpp
 @@ -12,7 +12,10 @@
@@ -14719,7 +14761,19 @@ index e7f55d727..488b43749 100644
  	// Memory pages
  	std::array<memory_page, 0x100000000 / 4096> g_pages;
  
-@@ -416,6 +435,21 @@ namespace vm
+@@ -241,7 +260,10 @@ namespace vm
+ 
+ 			if (!busy) [[likely]]
+ 			{
+-				if (vm::check_addr(begin, vm::page_readable, size)) [[likely]]
++				// SPU MMIO DMA may already target a validated, redirected LS pointer.
++				// Its MMIO address is not a normal guest page; keep range exclusion
++				// above without faulting that synthetic address here.
++				if (begin >= RAW_SPU_BASE_ADDR || vm::check_addr(begin, vm::page_readable, size)) [[likely]]
+ 				{
+ 					break;
+ 				}
+@@ -416,6 +438,21 @@ namespace vm
  
  		if (!ok || cpu.state & cpu_flag::memory)
  		{
@@ -14741,7 +14795,7 @@ index e7f55d727..488b43749 100644
  			for (u64 i = 0;; i++)
  			{
  				if (cpu.is_paused())
-@@ -429,10 +463,29 @@ namespace vm
+@@ -429,10 +466,29 @@ namespace vm
  					return;
  				}
  
@@ -14773,7 +14827,7 @@ index e7f55d727..488b43749 100644
  
  				if (cpu_flag::wait - cpu.state)
  				{
-@@ -470,6 +523,28 @@ namespace vm
+@@ -470,6 +526,28 @@ namespace vm
  		}
  	}
  
@@ -14802,7 +14856,7 @@ index e7f55d727..488b43749 100644
  	writer_lock::writer_lock() noexcept
  		: writer_lock(0, nullptr, 1)
  	{
-@@ -478,6 +553,12 @@ namespace vm
+@@ -478,6 +556,12 @@ namespace vm
  	writer_lock::writer_lock(u32 const addr, atomic_t<u64, 128>* range_lock, u32 const size, u64 const flags) noexcept
  		: range_lock(range_lock)
  	{
@@ -14815,7 +14869,7 @@ index e7f55d727..488b43749 100644
  		if (cpu_thread* cpu = cpu_thread::get_current(); cpu && cpu->get_class() == thread_class::ppu)
  		{
  			// cpu_flag::wait must be added by the caller
-@@ -494,6 +575,15 @@ namespace vm
+@@ -494,6 +578,15 @@ namespace vm
  			}
  		}
  
@@ -14831,7 +14885,7 @@ index e7f55d727..488b43749 100644
  		for (u64 i = 0;; i++)
  		{
  			auto& bits = get_range_lock_bits(true);
-@@ -539,7 +629,7 @@ namespace vm
+@@ -539,7 +632,7 @@ namespace vm
  
  		if (range_lock)
  		{
@@ -14840,7 +14894,7 @@ index e7f55d727..488b43749 100644
  
  			for (auto lock = g_locks.cbegin(), end = lock + g_cfg.core.ppu_threads; lock != end; lock++)
  			{
-@@ -601,6 +691,10 @@ namespace vm
+@@ -601,6 +694,10 @@ namespace vm
  				}
  			}
  		}
@@ -14851,7 +14905,7 @@ index e7f55d727..488b43749 100644
  	}
  
  	atomic_t<u32>* reservation_notifier_notify(u32 raddr, u64 rtime, bool postpone)
-@@ -1044,7 +1138,7 @@ namespace vm
+@@ -1044,7 +1141,7 @@ namespace vm
  		else
  		{
  			shm->unmap_critical(g_base_addr + addr);
@@ -14860,7 +14914,7 @@ index e7f55d727..488b43749 100644
  			shm->unmap_critical(g_sudo_addr + addr);
  #endif
  		}
-@@ -1321,7 +1415,7 @@ namespace vm
+@@ -1321,7 +1418,7 @@ namespace vm
  			};
  
  			// Special path for whole-allocated areas allowing 4k granularity
@@ -14869,7 +14923,7 @@ index e7f55d727..488b43749 100644
  
  			if (!map_critical(vm::_ptr<u8>(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no) || !map_critical(vm::get_super_ptr(addr), utils::protection::rw))
  			{
-@@ -1361,7 +1455,7 @@ namespace vm
+@@ -1361,7 +1458,7 @@ namespace vm
  			if (m_common)
  			{
  				m_common->unmap_critical(vm::base(addr));
@@ -14878,7 +14932,7 @@ index e7f55d727..488b43749 100644
  				m_common->unmap_critical(vm::get_super_ptr(addr));
  #endif
  				ensure(m_common.use_count() == 1);
-@@ -1415,7 +1509,7 @@ namespace vm
+@@ -1415,7 +1512,7 @@ namespace vm
  			shm = *src;
  		else
  		{
@@ -14887,7 +14941,7 @@ index e7f55d727..488b43749 100644
  		}
  
  		const u32 max = (this->addr + this->size - size) & (0 - align);
-@@ -1435,6 +1529,101 @@ namespace vm
+@@ -1435,6 +1532,101 @@ namespace vm
  			return 0;
  		}
  
@@ -14989,7 +15043,7 @@ index e7f55d727..488b43749 100644
  		// Search for an appropriate place (unoptimized)
  		for (;; addr += align)
  		{
-@@ -1494,7 +1683,7 @@ namespace vm
+@@ -1494,7 +1686,7 @@ namespace vm
  			shm = *src;
  		else
  		{
@@ -14998,7 +15052,7 @@ index e7f55d727..488b43749 100644
  		}
  
  		vm::writer_lock lock;
-@@ -1725,6 +1914,52 @@ namespace vm
+@@ -1725,6 +1917,52 @@ namespace vm
  
  		ar.breathe();
  
@@ -15051,7 +15105,7 @@ index e7f55d727..488b43749 100644
  		for (usz iter_count = 0; size; iter_count += sizeof(u32), ptr += byte_of_pages * sizeof(u32))
  		{
  			const u32 bitmap = read_from_ptr<le_t<u32>>(bit_array, iter_count);
-@@ -1757,6 +1992,7 @@ namespace vm
+@@ -1757,6 +1995,7 @@ namespace vm
  			}
  		}
  
@@ -15059,7 +15113,7 @@ index e7f55d727..488b43749 100644
  		ar.breathe();
  	}
  
-@@ -1808,7 +2044,7 @@ namespace vm
+@@ -1808,7 +2047,7 @@ namespace vm
  	{
  		if (flags & preallocated)
  		{
@@ -15068,7 +15122,7 @@ index e7f55d727..488b43749 100644
  			m_common->map_critical(vm::base(addr), this->flags & page_size_4k && utils::get_page_size() > 4096 ? utils::protection::rw : utils::protection::no);
  			m_common->map_critical(vm::get_super_ptr(addr));
  		}
-@@ -1849,6 +2085,13 @@ namespace vm
+@@ -1849,6 +2088,13 @@ namespace vm
  			{
  				pflags |= page_size_64k;
  			}
@@ -15082,7 +15136,7 @@ index e7f55d727..488b43749 100644
  			else if (!(flags & (page_size_mask & ~page_size_1m)))
  			{
  				pflags |= page_size_1m;
-@@ -2403,7 +2646,7 @@ namespace vm
+@@ -2403,7 +2649,7 @@ namespace vm
  
  			const u32 flags = ar.pop<u32>();
  			const u64 size = ar.pop<u64>();
@@ -16513,7 +16567,7 @@ index 6b306657f..0220fde21 100644
  
  	namespace blit_engine_helpers
 diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
-index 0fa80b230..c012514d1 100644
+index 0fa80b230..24ccf4262 100644
 --- a/rpcs3/Emu/RSX/Common/texture_cache.h
 +++ b/rpcs3/Emu/RSX/Common/texture_cache.h
 @@ -12,6 +12,14 @@
@@ -16543,7 +16597,38 @@ index 0fa80b230..c012514d1 100644
  
  			sampled_image_descriptor() = default;
  
-@@ -653,7 +666,25 @@ namespace rsx
+@@ -519,8 +532,10 @@ namespace rsx
+ 			// Returns true if at least threshold% is covered in pixels
+ 			bool atlas_covers_target_area(int threshold) const
+ 			{
+-				const int target_area = (external_subresource_desc.width * external_subresource_desc.height * external_subresource_desc.depth * threshold) / 100;
+-				int covered_area = 0;
++				// Volume dimensions and the percentage multiply can exceed 32 bits
++				// even when the texture itself fits in RSX memory.
++				const u64 target_area = (u64{external_subresource_desc.width} * external_subresource_desc.height * external_subresource_desc.depth * threshold) / 100;
++				u64 covered_area = 0;
+ 				areai bbox{smax, smax, 0, 0};
+ 
+ 				for (const auto& section : external_subresource_desc.sections_to_copy)
+@@ -535,7 +550,7 @@ namespace rsx
+ 					const auto dst_y = (section.dst_z * external_subresource_desc.height) + section.dst_y;
+ 
+ 					// Add this slice's dimensions to the total
+-					covered_area += section.dst_w * section.dst_h;
++					covered_area += u64{section.dst_w} * section.dst_h;
+ 
+ 					// Extend the covered bbox
+ 					bbox.x1 = std::min<int>(section.dst_x, bbox.x1);
+@@ -549,7 +564,7 @@ namespace rsx
+ 					return false;
+ 				}
+ 
+-				if (const auto bounds_area = bbox.width() * bbox.height();
++				if (const auto bounds_area = static_cast<u64>(bbox.width()) * bbox.height();
+ 					bounds_area < target_area)
+ 				{
+ 					return false;
+@@ -653,7 +668,25 @@ namespace rsx
  
  		shared_mutex m_cache_mutex;
  		ranged_storage m_storage;
@@ -16569,7 +16654,7 @@ index 0fa80b230..c012514d1 100644
  		std::vector<image_view_type> m_uncached_subresources;
  		predictor_type m_predictor;
  
-@@ -787,6 +818,20 @@ namespace rsx
+@@ -787,6 +820,20 @@ namespace rsx
  			return true;
  		}
  
@@ -16590,7 +16675,7 @@ index 0fa80b230..c012514d1 100644
  		/**
  		 * Section invalidation
  		 */
-@@ -795,6 +840,21 @@ namespace rsx
+@@ -795,6 +842,21 @@ namespace rsx
  		void flush_set(commandbuffer_type& cmd, thrashed_set& data, std::function<void()> on_data_transfer_completed, Args&&... extras)
  		{
  			AUDIT(!data.flushed);
@@ -16612,7 +16697,7 @@ index 0fa80b230..c012514d1 100644
  
  			if (data.sections_to_flush.size() > 1)
  			{
-@@ -821,6 +881,17 @@ namespace rsx
+@@ -821,6 +883,17 @@ namespace rsx
  				}
  			}
  
@@ -16630,7 +16715,7 @@ index 0fa80b230..c012514d1 100644
  			if (!sections_to_transfer.empty())
  			{
  				// Batch all hard faults together
-@@ -1145,9 +1216,28 @@ namespace rsx
+@@ -1145,9 +1218,28 @@ namespace rsx
  
  			AUDIT(cause.valid());
  			AUDIT(fault_range_in.valid());
@@ -16659,7 +16744,7 @@ index 0fa80b230..c012514d1 100644
  
  			thrashed_set result = {};
  			result.cause = cause;
-@@ -1237,6 +1327,22 @@ namespace rsx
+@@ -1237,6 +1329,22 @@ namespace rsx
  			// Decide which sections to flush, unprotect, and exclude
  			update_cache_tag();
  
@@ -16682,7 +16767,7 @@ index 0fa80b230..c012514d1 100644
  			for (auto &obj : trampled_set.sections)
  			{
  				auto &tex = *obj;
-@@ -1281,9 +1387,49 @@ namespace rsx
+@@ -1281,9 +1389,49 @@ namespace rsx
  						{
  							tex.set_dirty(true);
  						}
@@ -16732,7 +16817,7 @@ index 0fa80b230..c012514d1 100644
  					else
  					{
  						result.sections_to_flush.push_back(&tex);
-@@ -1644,6 +1790,11 @@ namespace rsx
+@@ -1644,6 +1792,11 @@ namespace rsx
  
  					lock.upgrade();
  
@@ -16744,7 +16829,7 @@ index 0fa80b230..c012514d1 100644
  					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::read, {}, std::forward<Args>(extras)...);
  
  					cached_src = cache->upload_image_from_cpu(cmd, rsx_range, image_width, image_height, 1, 1, src.pitch, gcm_format, texture_upload_context::blit_engine_src,
-@@ -1734,6 +1885,11 @@ namespace rsx
+@@ -1734,6 +1887,11 @@ namespace rsx
  				{
  					// NOTE: Write flag set to remove all other overlapping regions (e.g shader_read or blit_src)
  					// NOTE: This step can potentially invalidate the newly created src image as well.
@@ -16756,7 +16841,7 @@ index 0fa80b230..c012514d1 100644
  					cache->invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::cause_is_write | invalidation_cause::cause_uses_strict_data_bounds, {}, std::forward<Args>(extras)...);
  
  					bool force_dma_load = false;
-@@ -1860,6 +2016,13 @@ namespace rsx
+@@ -1860,6 +2018,13 @@ namespace rsx
  
  		virtual void on_frame_end()
  		{
@@ -16770,7 +16855,7 @@ index 0fa80b230..c012514d1 100644
  			// Must manually release each cached entry
  			for (auto& entry : m_temporary_subresource_cache)
  			{
-@@ -1871,7 +2034,7 @@ namespace rsx
+@@ -1871,7 +2036,7 @@ namespace rsx
  			reset_frame_statistics();
  		}
  
@@ -16779,7 +16864,7 @@ index 0fa80b230..c012514d1 100644
  		rsx::simple_array<section_storage_type*> find_texture_from_range(const address_range32 &test_range, u32 required_pitch = 0, u32 context_mask = 0xFF)
  		{
  			rsx::simple_array<section_storage_type*> results;
-@@ -1887,7 +2050,7 @@ namespace rsx
+@@ -1887,7 +2052,7 @@ namespace rsx
  						continue;
  					}
  
@@ -16788,7 +16873,7 @@ index 0fa80b230..c012514d1 100644
  					{
  						continue;
  					}
-@@ -1903,6 +2066,29 @@ namespace rsx
+@@ -1903,6 +2068,29 @@ namespace rsx
  		section_storage_type *find_texture_from_dimensions(u32 rsx_address, u32 format, u16 width = 0, u16 height = 0, u16 depth = 0, u16 mipmaps = 0)
  		{
  			auto &block = m_storage.block_for(rsx_address);
@@ -16818,7 +16903,7 @@ index 0fa80b230..c012514d1 100644
  			for (auto &tex : block)
  			{
  				if constexpr (check_unlocked)
-@@ -2048,6 +2234,9 @@ namespace rsx
+@@ -2048,6 +2236,9 @@ namespace rsx
  				return;
  
  			std::lock_guard lock(m_cache_mutex);
@@ -16828,7 +16913,7 @@ index 0fa80b230..c012514d1 100644
  			invalidate_range_impl_base(cmd, rsx_range, invalidation_cause::committed_as_fbo, {}, std::forward<Args>(extras)...);
  		}
  
-@@ -2321,6 +2510,102 @@ namespace rsx
+@@ -2321,6 +2512,102 @@ namespace rsx
  			return evicted_set.violation_handled;
  		}
  
@@ -16931,7 +17016,7 @@ index 0fa80b230..c012514d1 100644
  		// Expands a _3d_unwrap descriptor into the explicit slice list used by _3d_gather.
  		static void expand_3d_unwrap_sections(rsx::simple_array<copy_region_descriptor>& sections, const deferred_subresource& desc, u8 level)
  		{
-@@ -2522,7 +2807,7 @@ namespace rsx
+@@ -2522,7 +2809,7 @@ namespace rsx
  				// Most mesh textures are stored as compressed to make the most of the limited memory
  				if (auto cached_texture = find_texture_from_dimensions(attr.address, attr.gcm_format, attr.width, attr.height, attr.depth))
  				{
@@ -16940,7 +17025,7 @@ index 0fa80b230..c012514d1 100644
  					{
  						cached_texture->get_view(remap),
  						cached_texture->get_context(),
-@@ -2531,6 +2816,10 @@ namespace rsx
+@@ -2531,6 +2818,10 @@ namespace rsx
  						cached_texture->get_image_type(),
  						cached_texture->get_section_base()
  					};
@@ -16951,7 +17036,7 @@ index 0fa80b230..c012514d1 100644
  				}
  
  				return {};
-@@ -2563,7 +2852,7 @@ namespace rsx
+@@ -2563,7 +2854,7 @@ namespace rsx
  
  			auto fast_fbo_check = [&]() -> sampled_image_descriptor
  			{
@@ -16960,7 +17045,7 @@ index 0fa80b230..c012514d1 100644
  
  				if (!last.is_clipped) //<- A non-clipped hit fully contains the requested box. We're good to go with the framebuffer processing.
  				{
-@@ -2609,12 +2898,121 @@ namespace rsx
+@@ -2609,12 +2900,121 @@ namespace rsx
  
  			// Check shader_read storage. In a given scene, reads from local memory far outnumber reads from the surface cache
  			const u32 lookup_mask = rsx::texture_upload_context::shader_read | rsx::texture_upload_context::blit_engine_dst | rsx::texture_upload_context::blit_engine_src;
@@ -17084,7 +17169,7 @@ index 0fa80b230..c012514d1 100644
  				{
  #ifdef TEXTURE_CACHE_DEBUG
  					if (!memory_range.inside(cached_texture->get_confirmed_range()))
-@@ -2632,10 +3030,15 @@ namespace rsx
+@@ -2632,10 +3032,15 @@ namespace rsx
  						rsx_log.warning("A texture was found in cache for address 0x%x, but swizzle flag does not match", attr.address);
  						cached_texture->unprotect();
  						cached_texture->set_dirty(true);
@@ -17101,7 +17186,7 @@ index 0fa80b230..c012514d1 100644
  					{
  						cached_texture->get_view(remap),
  						cached_texture->get_context(),
-@@ -2644,15 +3047,23 @@ namespace rsx
+@@ -2644,15 +3049,23 @@ namespace rsx
  						cached_texture->get_image_type(),
  						cached_texture->get_section_base()
  					};
@@ -17127,7 +17212,7 @@ index 0fa80b230..c012514d1 100644
  				});
  			}
  
-@@ -2875,6 +3286,48 @@ namespace rsx
+@@ -2875,6 +3288,48 @@ namespace rsx
  			return {};
  		}
  
@@ -17176,7 +17261,33 @@ index 0fa80b230..c012514d1 100644
  		template <typename surface_store_type, typename RsxTextureType>
  		bool test_if_descriptor_expired(commandbuffer_type& cmd, surface_store_type& surface_cache, sampled_image_descriptor* descriptor, const RsxTextureType& tex)
  		{
-@@ -3326,13 +3779,18 @@ namespace rsx
+@@ -3095,8 +3550,6 @@ namespace rsx
+ 				{
+ 				case rsx::texture_dimension_extended::texture_dimension_3d:
+ 				case rsx::texture_dimension_extended::texture_dimension_cubemap:
+-					scale.depth /= attributes.depth;
+-					[[ fallthrough ]];
+ 				case rsx::texture_dimension_extended::texture_dimension_2d:
+ 					scale.height /= attributes.height;
+ 					[[ fallthrough ]];
+@@ -3169,6 +3622,16 @@ namespace rsx
+ 				return {};
+ 			}
+ 
++			// Depth is assigned by the dimension switch above. Normalizing it
++			// before that switch divides by the zero-initialized attributes.depth.
++			// Keep zero-pitch sampling's zero scale and 1D/2D coordinates intact.
++			if (is_unnormalized &&
++				(extended_dimension == rsx::texture_dimension_extended::texture_dimension_3d ||
++				 extended_dimension == rsx::texture_dimension_extended::texture_dimension_cubemap))
++			{
++				scale.depth /= attributes.depth;
++			}
++
+ 			if (options.is_compressed_format)
+ 			{
+ 				// Compressed textures cannot be 1D in some APIs
+@@ -3326,13 +3789,18 @@ namespace rsx
  
  			// Invalidate
  			const address_range32 tex_range = address_range32::start_length(attributes.address, tex_size);
@@ -17196,7 +17307,7 @@ index 0fa80b230..c012514d1 100644
  			{
  				uploaded->get_view(tex.decoded_remap()),
  				texture_upload_context::shader_read,
-@@ -3341,6 +3799,10 @@ namespace rsx
+@@ -3341,6 +3809,10 @@ namespace rsx
  				extended_dimension,
  				attributes.address
  			};
@@ -17207,7 +17318,7 @@ index 0fa80b230..c012514d1 100644
  		}
  
  		// FIXME: This function is way too large and needs an urgent refactor.
-@@ -3628,6 +4090,15 @@ namespace rsx
+@@ -3628,6 +4100,15 @@ namespace rsx
  
  			if (!cached_dest && !dst_is_render_target)
  			{
@@ -17223,7 +17334,7 @@ index 0fa80b230..c012514d1 100644
  				blit_engine_internals::create_blit_dst(
  					this,
  					cmd,
-@@ -3724,6 +4195,26 @@ namespace rsx
+@@ -3724,6 +4205,26 @@ namespace rsx
  
  				if (!dest_section || !dest_section->is_locked())
  				{
@@ -21034,7 +21145,7 @@ index 572935e7f..eaff79baf 100644
  	};
  
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-index 63cab28e9..bf0f8fa61 100644
+index 63cab28e9..a2a9d5a36 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 @@ -16,10 +16,20 @@
@@ -21320,7 +21431,7 @@ index 63cab28e9..bf0f8fa61 100644
  		// wait for the latest instruction to execute
  		m_current_command_buffer->reset();
  
-@@ -1801,7 +1901,7 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
+@@ -1801,12 +1901,15 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
  
  bool VKGSRender::load_program()
  {
@@ -21329,7 +21440,16 @@ index 63cab28e9..bf0f8fa61 100644
  
  	// TODO: EXT_dynamic_state should get rid of this sillyness soon (kd)
  	const auto vertex_state = vk::decode_vertex_input_assembly_state();
-@@ -1862,6 +1962,10 @@ bool VKGSRender::load_program()
+ 
+-	if (m_graphics_state & rsx::pipeline_state::invalidate_pipeline_bits)
++	// Preserve shader invalidation before the resolved-program helpers consume
++	// it. Equal fixed-function properties do not imply the same shader program.
++	const bool program_state_dirty = !!(m_graphics_state & rsx::pipeline_state::invalidate_pipeline_bits);
++	if (program_state_dirty)
+ 	{
+ 		get_current_fragment_program(fs_sampler_state);
+ 		ensure(current_fragment_program.valid);
+@@ -1862,8 +1965,13 @@ bool VKGSRender::load_program()
  		);
  
  		properties.renderpass_key = m_current_renderpass_key;
@@ -21339,8 +21459,11 @@ index 63cab28e9..bf0f8fa61 100644
 +		m_graphics_state.clear(rsx::pipeline_state::pipeline_config_dirty);
  		if (m_program &&
  			!m_shader_interpreter.is_interpreter(m_program) &&
++			!program_state_dirty &&
  			m_pipeline_properties == properties)
-@@ -1872,7 +1976,6 @@ bool VKGSRender::load_program()
+ 		{
+ 			// Nothing changed
+@@ -1872,7 +1980,6 @@ bool VKGSRender::load_program()
  
  		// Fallthrough
  		m_pipeline_properties = properties;
@@ -21348,7 +21471,7 @@ index 63cab28e9..bf0f8fa61 100644
  	}
  	else
  	{
-@@ -1912,7 +2015,11 @@ bool VKGSRender::load_program()
+@@ -1912,7 +2019,11 @@ bool VKGSRender::load_program()
  
  		vk::leave_uninterruptible();
  
@@ -21361,7 +21484,7 @@ index 63cab28e9..bf0f8fa61 100644
  		{
  			// Notify the user with HUD notification
  			if (g_cfg.misc.show_shader_compilation_hint)
-@@ -2467,7 +2574,13 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+@@ -2467,7 +2578,13 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
  		{
  			const VkSemaphore async_sema = *async_scheduler->get_sema();
  			secondary_submit_info.queue_signal(async_sema);
@@ -21375,7 +21498,7 @@ index 63cab28e9..bf0f8fa61 100644
  
  			// Delay object destruction by one cycle
  			vk::get_resource_manager()->push_down_current_scope();
-@@ -2482,10 +2595,61 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+@@ -2482,10 +2599,61 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
  	}
  
  	m_current_command_buffer->submit(primary_submit_info, force_flush);
@@ -21437,7 +21560,7 @@ index 63cab28e9..bf0f8fa61 100644
  void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  {
  	const bool clipped_scissor = (context == rsx::framebuffer_creation_context::context_draw);
-@@ -2602,6 +2766,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2602,6 +2770,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		flush_command_queue();
  	}
  
@@ -21458,7 +21581,7 @@ index 63cab28e9..bf0f8fa61 100644
  	if (!m_rtts.superseded_surfaces.empty())
  	{
  		for (auto& surface : m_rtts.superseded_surfaces)
-@@ -2636,6 +2814,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2636,6 +2818,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  			if (!lock) [[likely]]
  			{
  				m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface->get_memory_range());
@@ -21468,7 +21591,7 @@ index 63cab28e9..bf0f8fa61 100644
  				continue;
  			}
  
-@@ -2663,6 +2844,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2663,6 +2848,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		else
  		{
  			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
@@ -21478,7 +21601,7 @@ index 63cab28e9..bf0f8fa61 100644
  		}
  	}
  
-@@ -2679,6 +2863,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2679,6 +2867,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		else
  		{
  			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
@@ -21488,7 +21611,7 @@ index 63cab28e9..bf0f8fa61 100644
  		}
  	}
  
-@@ -2720,7 +2907,7 @@ void VKGSRender::renderctl(u32 request_code, void* args)
+@@ -2720,7 +2911,7 @@ void VKGSRender::renderctl(u32 request_code, void* args)
  	{
  		const auto packet = reinterpret_cast<vk::queue_submit_t*>(args);
  		vk::queue_submit(packet);
@@ -21551,10 +21674,18 @@ index e3817d8e6..f70ed70e2 100644
  	bool bind_interpreter_texture_env();
  
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp b/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
-index e6dae0f19..dffd7be40 100644
+index e6dae0f19..4b0175c1d 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
-@@ -14,6 +14,10 @@
+@@ -2,6 +2,7 @@
+ 
+ #include "vkutils/commands.h"
+ #include "vkutils/descriptors.h"
++#include "vkutils/shared.h"
+ #include "VKDataHeapManager.h"
+ #include "VKResourceManager.h"
+ 
+@@ -14,6 +15,10 @@
  #include <optional>
  #include <thread>
  
@@ -21565,7 +21696,7 @@ index e6dae0f19..dffd7be40 100644
  // Initial heap allocation values. The heaps are growable and will automatically increase in size to accomodate demands
  #define VK_ATTRIB_RING_BUFFER_SIZE_M 64
  #define VK_TEXTURE_UPLOAD_RING_BUFFER_SIZE_M 64
-@@ -94,6 +98,9 @@ namespace vk
+@@ -94,6 +99,9 @@ namespace vk
  		{
  			if (is_pending && !poke())
  			{
@@ -21575,7 +21706,21 @@ index e6dae0f19..dffd7be40 100644
  				wait(FRAME_PRESENT_TIMEOUT);
  			}
  
-@@ -216,6 +223,11 @@ namespace vk
+@@ -143,6 +151,13 @@ namespace vk
+ 			}
+ 
+ 			const auto ret = vk::wait_for_fence(m_submit_fence, timeout);
++			if (ret != VK_SUCCESS)
++			{
++				// A timed-out fence has not completed. Report the existing Vulkan
++				// error before callers can recycle this command buffer or its heaps.
++				vk::die_with_error(ret);
++				return ret;
++			}
+ 
+ 			lock.upgrade();
+ 
+@@ -216,6 +231,11 @@ namespace vk
  		data_heap_manager::managed_heap_snapshot_t heap_snapshot;
  		u64 heap_snapshot_id = 0;
  		u64 last_frame_sync_time = 0;
@@ -23308,7 +23453,7 @@ index c9bbf4e31..2bc13d671 100644
  			}
  
 diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
-index c165762ea..8dca79f3e 100644
+index c165762ea..e73807b1b 100644
 --- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
 @@ -6,8 +6,11 @@
@@ -23389,7 +23534,11 @@ index c165762ea..8dca79f3e 100644
 +		const auto transfer_regions = [&]<bool use_inline_inputs>()
  		{
 -			if (!section.src)
--			{
++			using source_set = std::conditional_t<use_inline_inputs,
++				rsx::simple_array<source_image_type>, std::unordered_set<source_image_type>>;
++			source_set processed_input_images;
++			const auto first_use = [&](source_image_type source)
+ 			{
 -				continue;
 -			}
 -
@@ -23397,11 +23546,7 @@ index c165762ea..8dca79f3e 100644
 -				!formats_are_bitcast_compatible(dst, section.src);
 -
 -			if (!processed_input_images.contains(section.src))
-+			using source_set = std::conditional_t<use_inline_inputs,
-+				rsx::simple_array<source_image_type>, std::unordered_set<source_image_type>>;
-+			source_set processed_input_images;
-+			const auto first_use = [&](source_image_type source)
- 			{
+-			{
 -				// Avoid inserting unnecessary barrier GENERAL->TRANSFER_SRC->GENERAL in active render targets
 -				const auto preferred_layout = (section.src->current_layout != VK_IMAGE_LAYOUT_GENERAL) ?
 -					VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL : VK_IMAGE_LAYOUT_GENERAL;
@@ -23465,15 +23610,15 @@ index c165762ea..8dca79f3e 100644
 -				const u16 convert_x = u16(src_x * src_bpp) / dst_bpp;
 +					section.src->push_layout(cmd, preferred_layout);
 +				}
-+
+ 
+-				if (convert_w == section.dst_w && src_h == section.dst_h &&
+-					transform == rsx::surface_transform::identity)
 +				auto src_image = section.src;
 +				auto src_x = section.src_x;
 +				auto src_y = section.src_y;
 +				auto src_w = section.src_w;
 +				auto src_h = section.src_h;
- 
--				if (convert_w == section.dst_w && src_h == section.dst_h &&
--					transform == rsx::surface_transform::identity)
++
 +				rsx::flags32_t transform = section.xform;
 +				if (section.xform == rsx::surface_transform::coordinate_transform)
  				{
@@ -23581,13 +23726,7 @@ index c165762ea..8dca79f3e 100644
 -					mip_layers.dst_layer = static_cast<u8>(section.dst_z);
 -				}
 +					vk::image* _dst = dst;
- 
--				vk::copy_scaled_image(cmd, src_image, _dst,
--					coord3i{ { src_x, src_y, 0 }, { src_w, src_h, 1 } },
--					dst_rect,
--					mip_layers,
--					src_image->format() == _dst->format(),
--					VK_FILTER_NEAREST);
++
 +					if (src_image->info.format != dst->info.format) [[ unlikely ]]
 +					{
 +						// Either a bitcast is required or a scale+copy to mipmap level / layer
@@ -23597,15 +23736,21 @@ index c165762ea..8dca79f3e 100644
 +						_dst->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 +					}
  
+-				vk::copy_scaled_image(cmd, src_image, _dst,
+-					coord3i{ { src_x, src_y, 0 }, { src_w, src_h, 1 } },
+-					dst_rect,
+-					mip_layers,
+-					src_image->format() == _dst->format(),
+-					VK_FILTER_NEAREST);
++					auto dst_rect = coord3i{ { section.dst_x, section.dst_y, 0 }, { section.dst_w, section.dst_h, 1 } };
++					rsx::image_copy_subresource_layers mip_layers{ .dst_mip_level = section.level };
+ 
 -				if (_dst != dst) [[unlikely]]
 -				{
 -					// Casting comes after the scaling!
 -					const auto copy_rgn = get_output_region(section, dst_rect.position.x, dst_rect.position.y, section.dst_w, section.dst_h, _dst);
 -					_dst->change_layout(cmd, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
 -					vkCmdCopyImage(cmd, _dst->value, _dst->current_layout, dst->value, dst->current_layout, 1, &copy_rgn);
-+					auto dst_rect = coord3i{ { section.dst_x, section.dst_y, 0 }, { section.dst_w, section.dst_h, 1 } };
-+					rsx::image_copy_subresource_layers mip_layers{ .dst_mip_level = section.level };
-+
 +					if (_dst != dst)
 +					{
 +						// We place the output after the source to account for the initial typeless-xfer if applicable
@@ -23722,10 +23867,68 @@ index c165762ea..8dca79f3e 100644
  	vk::image_view* texture_cache::create_temporary_subresource_view(vk::command_buffer& cmd, const deferred_subresource& desc)
  	{
  		ensure(desc.sections_to_copy.size() == 1);
-@@ -790,6 +861,50 @@ namespace vk
+@@ -790,6 +861,108 @@ namespace vk
  			desc.gcm_format, desc.width, desc.height, 1, 1, desc.remap, &section);
  	}
  
++	bool texture_cache::copy_transfer_regions_fully_cover_2d_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const
++	{
++		// A small atlas often consists of strips/tiles that collectively replace
++		// every texel. Prove their union without a pixel-sized scratch allocation.
++		// Larger or non-color/2D requests keep the existing clear path.
++		if (dst->aspect() != VK_IMAGE_ASPECT_COLOR_BIT || dst->type() != VK_IMAGE_TYPE_2D ||
++			dst->mipmaps() != 1 || dst->layers() != 1 || !dst->width() || !dst->height() ||
++			sections.empty() || sections.size() > 8)
++		{
++			return false;
++		}
++
++		std::array<u32, 18> row_edges{};
++		u32 edge_count = 2;
++		row_edges[1] = dst->height();
++		for (const auto& section : sections)
++		{
++			if (!section.src || section.src == dst || section.src->aspect() != VK_IMAGE_ASPECT_COLOR_BIT ||
++				!section.src_w || !section.src_h || !section.dst_w || !section.dst_h ||
++				section.level || section.dst_z ||
++				u32{section.dst_x} + section.dst_w > dst->width() ||
++				u32{section.dst_y} + section.dst_h > dst->height())
++			{
++				return false;
++			}
++			row_edges[edge_count++] = section.dst_y;
++			row_edges[edge_count++] = u32{section.dst_y} + section.dst_h;
++		}
++		std::sort(row_edges.begin(), row_edges.begin() + edge_count);
++
++		for (u32 row = 1; row < edge_count; ++row)
++		{
++			const u32 y0 = row_edges[row - 1], y1 = row_edges[row];
++			if (y0 == y1)
++				continue;
++
++			// Each extension reaches an edge of one of the at most eight
++			// rectangles. Gaps stop immediately; overlaps never count twice.
++			u32 covered_x = 0;
++			while (covered_x < dst->width())
++			{
++				u32 next_x = covered_x;
++				for (const auto& section : sections)
++				{
++					if (section.dst_y <= y0 && u32{section.dst_y} + section.dst_h >= y1 &&
++						section.dst_x <= covered_x)
++					{
++						next_x = std::max(next_x, u32{section.dst_x} + section.dst_w);
++					}
++				}
++				if (next_x == covered_x)
++					return false;
++				covered_x = next_x;
++			}
++		}
++		return true;
++	}
++
 +	bool texture_cache::copy_transfer_regions_fully_cover_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const
 +	{
 +		const u32 mipmaps = dst->mipmaps();
@@ -23773,7 +23976,7 @@ index c165762ea..8dca79f3e 100644
  	vk::image_view* texture_cache::generate_cubemap_from_images(vk::command_buffer& cmd, const deferred_subresource& desc)
  	{
  		const auto& sections_to_copy = desc.sections_to_copy;
-@@ -816,8 +931,11 @@ namespace vk
+@@ -816,8 +989,11 @@ namespace vk
  		}
  		else if (!(dst_aspect & VK_IMAGE_ASPECT_DEPTH_BIT))
  		{
@@ -23787,7 +23990,7 @@ index c165762ea..8dca79f3e 100644
  		}
  		else
  		{
-@@ -865,8 +983,11 @@ namespace vk
+@@ -865,8 +1041,11 @@ namespace vk
  		}
  		else if (!(dst_aspect & VK_IMAGE_ASPECT_DEPTH_BIT))
  		{
@@ -23801,7 +24004,17 @@ index c165762ea..8dca79f3e 100644
  		}
  		else
  		{
-@@ -957,6 +1078,26 @@ namespace vk
+@@ -911,7 +1090,8 @@ namespace vk
+ 			// The memory load covers the whole image, no need to clear it first
+ 			initialize_subresource_from_memory(cmd, image, desc, rsx::texture_dimension_extended::texture_dimension_2d);
+ 		}
+-		else if (sections_to_copy[0].dst_w != desc.width || sections_to_copy[0].dst_h != desc.height)
++		else if ((sections_to_copy[0].dst_w != desc.width || sections_to_copy[0].dst_h != desc.height) &&
++			!copy_transfer_regions_fully_cover_2d_image(image, sections_to_copy))
+ 		{
+ 			if (!(dst_aspect & VK_IMAGE_ASPECT_DEPTH_BIT))
+ 			{
+@@ -957,6 +1137,26 @@ namespace vk
  		VkImageAspectFlags dst_aspect = vk::get_aspect_flags(result->info.format);
  		VkImageSubresourceRange dst_range = { dst_aspect, 0, mipmaps, 0, 1 };
  		vk::change_image_layout(cmd, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, dst_range);
@@ -23828,7 +24041,7 @@ index c165762ea..8dca79f3e 100644
  
  		if (desc.force_bg_load)
  		{
-@@ -965,8 +1106,13 @@ namespace vk
+@@ -965,8 +1165,13 @@ namespace vk
  		}
  		else if (!(dst_aspect & VK_IMAGE_ASPECT_DEPTH_BIT))
  		{
@@ -23844,7 +24057,7 @@ index c165762ea..8dca79f3e 100644
  		}
  		else
  		{
-@@ -1146,7 +1292,7 @@ namespace vk
+@@ -1146,7 +1351,7 @@ namespace vk
  				}
  			}
  
@@ -23853,7 +24066,7 @@ index c165762ea..8dca79f3e 100644
  			{
  				image = found.release();
  			}
-@@ -1184,7 +1330,7 @@ namespace vk
+@@ -1184,7 +1389,7 @@ namespace vk
  		region.set_swizzled(swizzled);
  		region.set_dirty(false);
  
@@ -23862,7 +24075,20 @@ index c165762ea..8dca79f3e 100644
  
  		// Its not necessary to lock blit dst textures as they are just reused as necessary
  		switch (context)
-@@ -1474,10 +1620,19 @@ namespace vk
+@@ -1464,9 +1669,9 @@ namespace vk
+ 				}
+ 			}
+ 
+-			// Primary access command queue, must restart it after
+-			vk::fence submit_fence(*m_device);
+-			vk::queue_submit_t submit_info{ m_submit_queue, &submit_fence };
++			// Use the command buffer-owned fence so a failed wait cannot destroy
++			// a fence still referenced by the queue. submit() also marks it pending.
++			vk::queue_submit_t submit_info{ m_submit_queue, nullptr };
+ 
+ 			if (async_sema)
+ 			{
+@@ -1474,13 +1679,23 @@ namespace vk
  				submit_info2.queue_signal(*async_sema);
  				async_scheduler->flush(submit_info2, VK_TRUE);
  
@@ -23876,13 +24102,19 @@ index c165762ea..8dca79f3e 100644
  			}
  
  			cmd.submit(submit_info, VK_TRUE);
+-			vk::wait_for_fence(&submit_fence, GENERAL_WAIT_TIMEOUT);
 +#ifdef RPCS3_IOS
 +			const rpcs3::ios::rsx_sync::SiteScope ios_sync_site(rpcs3::ios::rsx_sync::texture, true);
 +#endif
- 			vk::wait_for_fence(&submit_fence, GENERAL_WAIT_TIMEOUT);
++			// A timeout leaves this command buffer pending; it must not be reset.
++			CHECK_RESULT(vk::wait_for_fence(submit_info.pfence, GENERAL_WAIT_TIMEOUT));
  
- 			cmd.reset();
-@@ -1506,11 +1661,17 @@ namespace vk
+-			cmd.reset();
++			// begin() recycles the now-completed owned fence and resets the buffer.
+ 			cmd.begin();
+ 		}
+ 		else
+@@ -1506,11 +1721,17 @@ namespace vk
  		m_formats_support = device.get_formats_support();
  		m_submit_queue = submit_queue;
  		m_texture_upload_heap = &upload_heap;
@@ -23900,12 +24132,17 @@ index c165762ea..8dca79f3e 100644
  	}
  
  	bool texture_cache::is_depth_texture(u32 rsx_address, u32 rsx_size)
-@@ -1576,13 +1737,20 @@ namespace vk
+@@ -1575,14 +1796,27 @@ namespace vk
+ 		}
  
  		// Nuke temporary resources. They will still be visible to the GPU.
++		// Pooled images have already passed GPU retirement; active temporary
++		// views below still need the normal deferred-release path.
++#ifndef RPCS3_IOS
  		auto gc = vk::get_resource_manager();
 -		any_released |= !m_cached_images.empty();
 -		for (auto& img : m_cached_images)
++#endif
 +		std::deque<cached_image_t> discarded_images;
 +		{
 +			// The driver thread returns completed images to this pool. Detach the
@@ -23916,16 +24153,33 @@ index c165762ea..8dca79f3e 100644
 +			m_cached_memory_size = 0;
 +		}
 +		any_released |= !discarded_images.empty();
++#ifndef RPCS3_IOS
 +		for (auto& img : discarded_images)
  		{
  			gc->dispose(img.data);
  		}
 -		m_cached_images.clear();
 -		m_cached_memory_size = 0;
++#endif
  
  		any_released |= !m_temporary_subresource_cache.empty();
  		for (auto& e : m_temporary_subresource_cache)
-@@ -1604,20 +1772,42 @@ namespace vk
+@@ -1592,6 +1826,14 @@ namespace vk
+ 		}
+ 		m_temporary_subresource_cache.clear();
+ 
++#ifdef RPCS3_IOS
++		// Re-enqueuing an already retired image under the current event would
++		// retain its allocation until another submission completes. Free this
++		// detached batch now, outside both cache locks, as on_frame_end does.
++		lock.unlock();
++		discarded_images.clear();
++#endif
++
+ 		return any_released;
+ 	}
+ 
+@@ -1604,20 +1846,42 @@ namespace vk
  			purge_unreleased_sections();
  		}
  
@@ -23976,7 +24230,7 @@ index c165762ea..8dca79f3e 100644
  		baseclass::on_frame_end();
  		reset_frame_statistics();
  	}
-@@ -1708,6 +1898,7 @@ namespace vk
+@@ -1708,6 +1972,7 @@ namespace vk
  
  	u32 texture_cache::get_unreleased_textures_count() const
  	{
@@ -23984,7 +24238,7 @@ index c165762ea..8dca79f3e 100644
  		return baseclass::get_unreleased_textures_count() + ::size32(m_cached_images);
  	}
  
-@@ -1757,4 +1948,26 @@ namespace vk
+@@ -1757,4 +2022,26 @@ namespace vk
  
  		return false;
  	}
@@ -24012,7 +24266,7 @@ index c165762ea..8dca79f3e 100644
 +#endif
  }
 diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.h b/rpcs3/Emu/RSX/VK/VKTextureCache.h
-index b0ee05965..59984a874 100644
+index b0ee05965..efb2ab3d6 100644
 --- a/rpcs3/Emu/RSX/VK/VKTextureCache.h
 +++ b/rpcs3/Emu/RSX/VK/VKTextureCache.h
 @@ -89,6 +89,10 @@ namespace vk
@@ -24038,6 +24292,15 @@ index b0ee05965..59984a874 100644
  			}
  			else
  			{
+@@ -302,7 +307,7 @@ namespace vk
+ 			AUDIT(synchronized);
+ 
+ 			// Synchronize, reset dma_fence after waiting
+-			vk::wait_for_event(dma_fence.get(), GENERAL_WAIT_TIMEOUT);
++			CHECK_RESULT(vk::wait_for_event(dma_fence.get(), GENERAL_WAIT_TIMEOUT));
+ 
+ 			// Calculate smallest range to flush - for framebuffers, the raster region is enough
+ 			const auto range = (context == rsx::texture_upload_context::framebuffer_storage) ? get_section_range() : get_confirmed_range();
 @@ -463,7 +468,7 @@ namespace vk
  		const u32 max_cached_image_pool_size = 256;
  		std::deque<cached_image_t> m_cached_images;
@@ -24047,11 +24310,12 @@ index b0ee05965..59984a874 100644
  
  		// Blocks some operations when exiting
  		atomic_t<bool> m_cache_is_exiting = false;
-@@ -473,10 +478,11 @@ namespace vk
+@@ -473,10 +478,12 @@ namespace vk
  		VkComponentMapping apply_component_mapping_flags(u32 gcm_format, rsx::component_order flags, const rsx::texture_channel_remap_t& remap_vector) const;
  
  		void copy_transfer_regions_impl(vk::command_buffer& cmd, vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections_to_transfer) const;
 +		bool copy_transfer_regions_fully_cover_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const;
++		bool copy_transfer_regions_fully_cover_2d_image(vk::image* dst, const rsx::simple_array<copy_region_descriptor>& sections) const;
  
  		vk::image* get_template_from_collection_impl(const rsx::simple_array<copy_region_descriptor>& sections_to_transfer) const;
  
@@ -24060,7 +24324,7 @@ index b0ee05965..59984a874 100644
  
  	protected:
  		vk::image_view* create_temporary_subresource_view_impl(
-@@ -522,6 +528,10 @@ namespace vk
+@@ -522,6 +529,10 @@ namespace vk
  	public:
  		using baseclass::texture_cache;
  
@@ -24071,7 +24335,7 @@ index b0ee05965..59984a874 100644
  		void initialize(vk::render_device& device, VkQueue submit_queue, vk::data_heap& upload_heap);
  
  		void destroy() override;
-@@ -548,5 +558,9 @@ namespace vk
+@@ -548,5 +559,9 @@ namespace vk
  		u64 get_temporary_memory_in_use() const;
  
  		bool is_overallocated() const;

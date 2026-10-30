@@ -1,0 +1,32 @@
+{
+  "cases": 4608,
+  "mismatches": 0,
+  "stale_native_cases": 0,
+  "sequence_draws": 20000,
+  "sequence_mismatches": 0,
+  "warm_extra_lookups": 0,
+  "clean_native_lookups": 0,
+  "late_texture_mismatch": 0,
+  "source_sha256": "12b2c22305aa75c81be075882863bb4c552baa4ea4878f105d0fb5e1fc881bec",
+  "function_sha256": "02950cf0d453f1f8648a14810aef4deb5c9b1e0cde6a1034edd494c5ee0b4742",
+  "draw_source_sha256": "91d473f3053f5623703bb5d025112199109cbdd51b0eb47d68d37ca9e8f1d4a6",
+  "begin_sha256": "02676691d35761f9ceabff4570efd679632d5aa1ee6455bf08a98a9ab4d084aa",
+  "late_texture_block_sha256": "f59ca001759acea199dc53458d7ffa6578b959398921ab9ed5e34e4686cb5a82",
+  "harness_sha256": "46a5736c6253729e1d9c80cb3d63b8ef80770305bd2dbf0e2f2134e6c3d2b1c6",
+  "command": [
+    "g++",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-std=c++20",
+    "-DRPCS3_IOS",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-O2",
+    "/workspace/scratch/144c744e94bb/renderer-review/evidence/candidate-asan.cpp",
+    "-o",
+    "/workspace/scratch/144c744e94bb/renderer-review/evidence/candidate-asan.exe"
+  ],
+  "sanitized": true,
+  "scope": "Full production load_program and begin, late texture-class invalidation block; deterministic shader/cache/upload stubs; no Vulkan execution"
+}
