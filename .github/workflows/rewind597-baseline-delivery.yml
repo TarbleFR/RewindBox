@@ -58,10 +58,10 @@ jobs:
         fetch-depth: 0
         persist-credentials: false
         ref: ${{ github.sha }}
-    - name: Verify delivered 596 plus the exact latest RPCS3 MeloNX and NeoSwap inputs
+    - name: Verify delivered 596 plus the new RPCS3 and NeoSwap inputs
       run: |
         python3 .github/diagnostics/rewind597_baseline.py --pin
-    - name: Retain the new RPCS3 runtime candidate and MeloNX optimization component proofs
+    - name: Authenticate the new RPCS3 and retained MeloNX producer receipts
       run: |
         python3 .github/diagnostics/rewind597_baseline_delivery.py --retain-checks
     - name: Select Xcode 26.3 for NeoPlay and Google Cast
