@@ -1,0 +1,1582 @@
+
+==> Provision pinned MoltenVK 1.4.2 for iOS
+
+==> Build pinned FFmpeg 8.1.1 statically for iOS arm64
+
+==> Fetch pinned RPCS3 source for the embedded Core
+From https://github.com/XITRIX/rpcs3
+ * branch            22f1152783cef1f7e04af7b1c895173e28fd5b03 -> FETCH_HEAD
+Submodule '3rdparty/7zip/7zip' (https://github.com/ip7z/7zip.git) registered for path '3rdparty/7zip/7zip'
+Submodule '3rdparty/FAudio' (https://github.com/FNA-XNA/FAudio.git) registered for path '3rdparty/FAudio'
+Submodule '3rdparty/GPUOpen/VulkanMemoryAllocator' (https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git) registered for path '3rdparty/GPUOpen/VulkanMemoryAllocator'
+Submodule '3rdparty/OpenAL/openal-soft' (https://github.com/kcat/openal-soft.git) registered for path '3rdparty/OpenAL/openal-soft'
+Submodule '3rdparty/SoundTouch/soundtouch' (https://github.com/RPCS3/soundtouch.git) registered for path '3rdparty/SoundTouch/soundtouch'
+Submodule 'asmjit' (https://github.com/asmjit/asmjit.git) registered for path '3rdparty/asmjit/asmjit'
+Submodule '3rdparty/cubeb/cubeb' (https://github.com/mozilla/cubeb.git) registered for path '3rdparty/cubeb/cubeb'
+Submodule '3rdparty/curl' (https://github.com/curl/curl.git) registered for path '3rdparty/curl/curl'
+Submodule '3rdparty/discord-rpc/discord-rpc' (https://github.com/Vestrel/discord-rpc) registered for path '3rdparty/discord-rpc/discord-rpc'
+Submodule '3rdparty/feralinteractive/feralinteractive' (https://github.com/FeralInteractive/gamemode.git) registered for path '3rdparty/feralinteractive/feralinteractive'
+Submodule 'rpcs3-ffmpeg' (https://github.com/RPCS3/ffmpeg-core.git) registered for path '3rdparty/ffmpeg'
+Submodule '3rdparty/fusion/fusion' (https://github.com/xioTechnologies/Fusion.git) registered for path '3rdparty/fusion/fusion'
+Submodule '3rdparty/glslang' (https://github.com/KhronosGroup/glslang.git) registered for path '3rdparty/glslang/glslang'
+Submodule '3rdparty/hidapi' (https://github.com/libusb/hidapi.git) registered for path '3rdparty/hidapi/hidapi'
+Submodule '3rdparty/libpng' (https://github.com/glennrp/libpng.git) registered for path '3rdparty/libpng/libpng'
+Submodule '3rdparty/libsdl-org/SDL' (https://github.com/libsdl-org/SDL.git) registered for path '3rdparty/libsdl-org/SDL'
+Submodule '3rdparty/libusb' (https://github.com/libusb/libusb.git) registered for path '3rdparty/libusb/libusb'
+Submodule '3rdparty/llvm/llvm' (https://github.com/llvm/llvm-project.git) registered for path '3rdparty/llvm/llvm'
+Submodule '3rdparty/miniupnp/miniupnp' (https://github.com/miniupnp/miniupnp.git) registered for path '3rdparty/miniupnp/miniupnp'
+Submodule '3rdparty/opencv/opencv' (https://github.com/Megamouse/opencv_minimal.git) registered for path '3rdparty/opencv/opencv'
+Submodule '3rdparty/protobuf/protobuf' (https://github.com/protocolbuffers/protobuf.git) registered for path '3rdparty/protobuf/protobuf'
+Submodule '3rdparty/pugixml' (https://github.com/zeux/pugixml.git) registered for path '3rdparty/pugixml'
+Submodule '3rdparty/rtmidi/rtmidi' (https://github.com/thestk/rtmidi) registered for path '3rdparty/rtmidi/rtmidi'
+Submodule '3rdparty/stblib/stb' (https://github.com/nothings/stb.git) registered for path '3rdparty/stblib/stb'
+Submodule '3rdparty/wolfssl' (https://github.com/wolfSSL/wolfssl.git) registered for path '3rdparty/wolfssl/wolfssl'
+Submodule '3rdparty/yaml-cpp' (https://github.com/RPCS3/yaml-cpp.git) registered for path '3rdparty/yaml-cpp/yaml-cpp'
+Submodule '3rdparty/zlib' (https://github.com/madler/zlib) registered for path '3rdparty/zlib/zlib'
+Submodule '3rdparty/zstd/zstd' (https://github.com/facebook/zstd) registered for path '3rdparty/zstd/zstd'
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/7zip/7zip'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/cubeb/cubeb'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/GPUOpen/VulkanMemoryAllocator'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/SoundTouch/soundtouch'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/FAudio'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/OpenAL/openal-soft'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/fusion/fusion'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/asmjit/asmjit'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/feralinteractive/feralinteractive'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/libsdl-org/SDL'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/discord-rpc/discord-rpc'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/hidapi/hidapi'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/curl/curl'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/libpng/libpng'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/glslang/glslang'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/ffmpeg'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/libusb/libusb'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/miniupnp/miniupnp'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/pugixml'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/rtmidi/rtmidi'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/opencv/opencv'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/stblib/stb'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/zlib/zlib'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/protobuf/protobuf'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/yaml-cpp/yaml-cpp'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/zstd/zstd'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/llvm/llvm'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/wolfssl/wolfssl'...
+From https://github.com/ip7z/7zip
+ * branch            f9d78aff31a5f2521ae7ddbdc97c4a8855808959 -> FETCH_HEAD
+Submodule path '3rdparty/7zip/7zip': checked out 'f9d78aff31a5f2521ae7ddbdc97c4a8855808959'
+From https://github.com/FNA-XNA/FAudio
+ * branch            667942a9097991f5cb6d1532a7ac3142e0581102 -> FETCH_HEAD
+Submodule path '3rdparty/FAudio': checked out '667942a9097991f5cb6d1532a7ac3142e0581102'
+From https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+ * branch            1d8f600fd424278486eade7ed3e877c99f0846b1 -> FETCH_HEAD
+Submodule path '3rdparty/GPUOpen/VulkanMemoryAllocator': checked out '1d8f600fd424278486eade7ed3e877c99f0846b1'
+From https://github.com/kcat/openal-soft
+ * branch            b2c48f7718ef3fcf67921a8b6534c4914e328970 -> FETCH_HEAD
+Submodule path '3rdparty/OpenAL/openal-soft': checked out 'b2c48f7718ef3fcf67921a8b6534c4914e328970'
+Submodule path '3rdparty/SoundTouch/soundtouch': checked out 'a0fba77b6f9cfbdb71f8bbec58b6ac4e5e3b1097'
+From https://github.com/asmjit/asmjit
+ * branch            416f7356967c1f66784dc1580fe157f9406d8bff -> FETCH_HEAD
+Submodule path '3rdparty/asmjit/asmjit': checked out '416f7356967c1f66784dc1580fe157f9406d8bff'
+From https://github.com/mozilla/cubeb
+ * branch            484857522c73318c06f18ba0a3e17525fa98c608 -> FETCH_HEAD
+Submodule path '3rdparty/cubeb/cubeb': checked out '484857522c73318c06f18ba0a3e17525fa98c608'
+Submodule 'cmake/sanitizers-cmake' (https://github.com/arsenm/sanitizers-cmake) registered for path '3rdparty/cubeb/cubeb/cmake/sanitizers-cmake'
+Submodule 'googletest' (https://github.com/google/googletest) registered for path '3rdparty/cubeb/cubeb/googletest'
+Submodule 'src/cubeb-coreaudio-rs' (https://github.com/mozilla/cubeb-coreaudio-rs) registered for path '3rdparty/cubeb/cubeb/src/cubeb-coreaudio-rs'
+Submodule 'src/cubeb-pulse-rs' (https://github.com/mozilla/cubeb-pulse-rs) registered for path '3rdparty/cubeb/cubeb/src/cubeb-pulse-rs'
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/cubeb/cubeb/cmake/sanitizers-cmake'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/cubeb/cubeb/googletest'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/cubeb/cubeb/src/cubeb-coreaudio-rs'...
+Cloning into '/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/cubeb/cubeb/src/cubeb-pulse-rs'...
+From https://github.com/arsenm/sanitizers-cmake
+ * branch            aab6948fa863bc1cbe5d0850bc46b9ef02ed4c1a -> FETCH_HEAD
+Submodule path '3rdparty/cubeb/cubeb/cmake/sanitizers-cmake': checked out 'aab6948fa863bc1cbe5d0850bc46b9ef02ed4c1a'
+From https://github.com/google/googletest
+ * branch            40412d85124f7c6f3d88454583c4633e5e10fc8c -> FETCH_HEAD
+Submodule path '3rdparty/cubeb/cubeb/googletest': checked out '40412d85124f7c6f3d88454583c4633e5e10fc8c'
+From https://github.com/mozilla/cubeb-coreaudio-rs
+ * branch            2c5675cde871a07d1f456f47346386b02cc776b6 -> FETCH_HEAD
+Submodule path '3rdparty/cubeb/cubeb/src/cubeb-coreaudio-rs': checked out '2c5675cde871a07d1f456f47346386b02cc776b6'
+From https://github.com/mozilla/cubeb-pulse-rs
+ * branch            9cebfcceb073e9dd10cfb275a7590bca58d4c251 -> FETCH_HEAD
+Submodule path '3rdparty/cubeb/cubeb/src/cubeb-pulse-rs': checked out '9cebfcceb073e9dd10cfb275a7590bca58d4c251'
+From https://github.com/curl/curl
+ * branch            01346829096c61b372692f6dc43ffa778c6caccd -> FETCH_HEAD
+Submodule path '3rdparty/curl/curl': checked out '01346829096c61b372692f6dc43ffa778c6caccd'
+Submodule path '3rdparty/discord-rpc/discord-rpc': checked out 'fb04b1766bbbe7d2f47985b8b82fded0366efdf9'
+From https://github.com/FeralInteractive/gamemode
+ * branch            c54d6d4243b0dd0afcb49f2c9836d432da171a2b -> FETCH_HEAD
+Submodule path '3rdparty/feralinteractive/feralinteractive': checked out 'c54d6d4243b0dd0afcb49f2c9836d432da171a2b'
+Submodule path '3rdparty/ffmpeg': checked out '649d9d9353184a17ae78d9df4a6fbbe7456f0428'
+From https://github.com/xioTechnologies/Fusion
+ * branch            9325424011892abacc0ce42b8bb1a8ae20264b9b -> FETCH_HEAD
+Submodule path '3rdparty/fusion/fusion': checked out '9325424011892abacc0ce42b8bb1a8ae20264b9b'
+From https://github.com/KhronosGroup/glslang
+ * branch            f0bd0257c308b9a26562c1a30c4748a0219cc951 -> FETCH_HEAD
+Submodule path '3rdparty/glslang/glslang': checked out 'f0bd0257c308b9a26562c1a30c4748a0219cc951'
+From https://github.com/libusb/hidapi
+ * branch            d6b2a974608dec3b76fb1e36c189f22b9cf3650c -> FETCH_HEAD
+Submodule path '3rdparty/hidapi/hidapi': checked out 'd6b2a974608dec3b76fb1e36c189f22b9cf3650c'
+From https://github.com/glennrp/libpng
+ * branch            3061454d980de7d53608f594194cfac722721d2a -> FETCH_HEAD
+Submodule path '3rdparty/libpng/libpng': checked out '3061454d980de7d53608f594194cfac722721d2a'
+From https://github.com/libsdl-org/SDL
+ * branch            fa2c02bb6e21974a89ea9824bc53c9932abe5f9c -> FETCH_HEAD
+Submodule path '3rdparty/libsdl-org/SDL': checked out 'fa2c02bb6e21974a89ea9824bc53c9932abe5f9c'
+From https://github.com/libusb/libusb
+ * branch            87a55632db62c9bdc58cd31d3ccfa673f1bb017f -> FETCH_HEAD
+Submodule path '3rdparty/libusb/libusb': checked out '87a55632db62c9bdc58cd31d3ccfa673f1bb017f'
+From https://github.com/llvm/llvm-project
+ * branch                  ca7933e47d3a3451d81e72ac174dcb5aa28b59d1 -> FETCH_HEAD
+Submodule path '3rdparty/llvm/llvm': checked out 'ca7933e47d3a3451d81e72ac174dcb5aa28b59d1'
+From https://github.com/miniupnp/miniupnp
+ * branch            d66872e34d9ff83a07f8b71371b13419b2089953 -> FETCH_HEAD
+Submodule path '3rdparty/miniupnp/miniupnp': checked out 'd66872e34d9ff83a07f8b71371b13419b2089953'
+From https://github.com/Megamouse/opencv_minimal
+ * branch            d4dde8afe3098f33f253278e25d45d6554afb10c -> FETCH_HEAD
+Submodule path '3rdparty/opencv/opencv': checked out 'd4dde8afe3098f33f253278e25d45d6554afb10c'
+From https://github.com/protocolbuffers/protobuf
+ * branch            edaa823d8b36a8656d7b2b9241b7d0bfe50af878 -> FETCH_HEAD
+Submodule path '3rdparty/protobuf/protobuf': checked out 'edaa823d8b36a8656d7b2b9241b7d0bfe50af878'
+From https://github.com/zeux/pugixml
+ * branch            c8033ce9d039e7f9d134877c363397b3cfe20816 -> FETCH_HEAD
+Submodule path '3rdparty/pugixml': checked out 'c8033ce9d039e7f9d134877c363397b3cfe20816'
+From https://github.com/thestk/rtmidi
+ * branch            1e5b49925aa60065db52de44c366d446a902547b -> FETCH_HEAD
+Submodule path '3rdparty/rtmidi/rtmidi': checked out '1e5b49925aa60065db52de44c366d446a902547b'
+From https://github.com/nothings/stb
+ * branch            013ac3beddff3dbffafd5177e7972067cd2b5083 -> FETCH_HEAD
+Submodule path '3rdparty/stblib/stb': checked out '013ac3beddff3dbffafd5177e7972067cd2b5083'
+From https://github.com/wolfSSL/wolfssl
+ * branch            ac01707f552c611fbd135cc723b2682b3e7f80f2 -> FETCH_HEAD
+Submodule path '3rdparty/wolfssl/wolfssl': checked out 'ac01707f552c611fbd135cc723b2682b3e7f80f2'
+Submodule path '3rdparty/yaml-cpp/yaml-cpp': checked out '51a5d623e3fde1f58829a56ba910f1cb33596222'
+From https://github.com/madler/zlib
+ * branch            da607da739fa6047df13e66a2af6b8bec7c2a498 -> FETCH_HEAD
+Submodule path '3rdparty/zlib/zlib': checked out 'da607da739fa6047df13e66a2af6b8bec7c2a498'
+From https://github.com/facebook/zstd
+ * branch            f8745da6ff1ad1e7bab384bd1f9d742439278e99 -> FETCH_HEAD
+Submodule path '3rdparty/zstd/zstd': checked out 'f8745da6ff1ad1e7bab384bd1f9d742439278e99'
+
+==> Apply the single reviewed NeoStation Core source delta
+/Users/runner/work/RewindBox/RewindBox/build-utils/rpcs3/embedded-core.patch:3443: trailing whitespace.
+		
+/Users/runner/work/RewindBox/RewindBox/build-utils/rpcs3/embedded-core.patch:3449: trailing whitespace.
+			
+/Users/runner/work/RewindBox/RewindBox/build-utils/rpcs3/embedded-core.patch:11095: trailing whitespace.
+	
+/Users/runner/work/RewindBox/RewindBox/build-utils/rpcs3/embedded-core.patch:11097: trailing whitespace.
+	
+/Users/runner/work/RewindBox/RewindBox/build-utils/rpcs3/embedded-core.patch:43313: new blank line at EOF.
++
+warning: 5 lines add whitespace errors.
+PASS: single canonical RPCS3 delta, all postimage hashes verified
+PASS static link contract: all host-loaded Core functions are exported
+PASS: pinned LLVM AArch64 GHC spill fix applied
+
+==> Link MoltenVK with Metal compiles in the waiting thread's QoS class
+MoltenVK compile QoS: libMoltenVK.a-arm64-prelink.o: _dispatch_get_global_queue -> _rbx_mvk_compile_qos_queue (245e7e05926c55ae97ace1b1822190139d87bda5aaefbcfd2f5156e1287f448b -> b91a46f74456949aa2a6cb73de9696d0b5508efe3a7c30041e0ff07232fc9de4)
+MoltenVK compile QoS: already patched (b91a46f74456949aa2a6cb73de9696d0b5508efe3a7c30041e0ff07232fc9de4)
+
+==> Link MoltenVK with its encoding queue visible to the Core
+MoltenVK encoding queue: libMoltenVK.a-arm64-prelink.o: _dispatch_queue_create -> _rbx_mvk_exec_q_create (b91a46f74456949aa2a6cb73de9696d0b5508efe3a7c30041e0ff07232fc9de4 -> 0ee6ae968193749e56d76be71dafb7c36ce4aa19b84f5bb69acd8154d38e06a1)
+MoltenVK encoding queue: already patched (0ee6ae968193749e56d76be71dafb7c36ce4aa19b84f5bb69acd8154d38e06a1)
+PASS device601: new native modes only; historical 28 Apple modes not replayed; no device result
+
+==> Configure RPCS3Core for iPhoneOS arm64 with macOS TableGen
+-- Using ccache: /opt/homebrew/bin/ccache
+-- The C compiler identification is Clang 22.1.8
+-- The CXX compiler identification is Clang 22.1.8
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /opt/homebrew/opt/llvm@22/bin/clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /opt/homebrew/opt/llvm@22/bin/clang++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found PkgConfig: /opt/homebrew/bin/pkg-config (found version "3.0.10")
+-- RPCS3: Using builtin ZLIB
+-- Looking for sys/types.h
+-- Looking for sys/types.h - found
+-- Looking for stdint.h
+-- Looking for stdint.h - found
+-- Looking for stddef.h
+-- Looking for stddef.h - found
+-- Check size of off64_t
+-- Check size of off64_t - failed
+-- Looking for fseeko
+-- Looking for fseeko - found
+-- Looking for stdarg.h
+-- Looking for stdarg.h - found
+-- Looking for unistd.h
+-- Looking for unistd.h - found
+-- Performing Test HAVE___ATTR__VIS_HIDDEN
+-- Performing Test HAVE___ATTR__VIS_HIDDEN - Success
+-- The ASM compiler identification is Clang with GNU-like command-line
+-- Found assembler: /opt/homebrew/opt/llvm@22/bin/clang
+-- ZSTD VERSION: 1.5.7
+-- Performing Test C_FLAG_WALL
+-- Performing Test C_FLAG_WALL - Success
+-- Performing Test CXX_FLAG_WALL
+-- Performing Test CXX_FLAG_WALL - Success
+-- Performing Test C_FLAG_WEXTRA
+-- Performing Test C_FLAG_WEXTRA - Success
+-- Performing Test CXX_FLAG_WEXTRA
+-- Performing Test CXX_FLAG_WEXTRA - Success
+-- Performing Test C_FLAG_WUNDEF
+-- Performing Test C_FLAG_WUNDEF - Success
+-- Performing Test CXX_FLAG_WUNDEF
+-- Performing Test CXX_FLAG_WUNDEF - Success
+-- Performing Test C_FLAG_WSHADOW
+-- Performing Test C_FLAG_WSHADOW - Success
+-- Performing Test CXX_FLAG_WSHADOW
+-- Performing Test CXX_FLAG_WSHADOW - Success
+-- Performing Test C_FLAG_WCAST_ALIGN
+-- Performing Test C_FLAG_WCAST_ALIGN - Success
+-- Performing Test CXX_FLAG_WCAST_ALIGN
+-- Performing Test CXX_FLAG_WCAST_ALIGN - Success
+-- Performing Test C_FLAG_WCAST_QUAL
+-- Performing Test C_FLAG_WCAST_QUAL - Success
+-- Performing Test CXX_FLAG_WCAST_QUAL
+-- Performing Test CXX_FLAG_WCAST_QUAL - Success
+-- Performing Test C_FLAG_WSTRICT_PROTOTYPES
+-- Performing Test C_FLAG_WSTRICT_PROTOTYPES - Success
+-- Performing Test LD_FLAG_WL_Z_NOEXECSTACK
+-- Performing Test LD_FLAG_WL_Z_NOEXECSTACK - Failed
+-- Performing Test C_FLAG_QUNUSED_ARGUMENTS
+-- Performing Test C_FLAG_QUNUSED_ARGUMENTS - Success
+-- Performing Test CXX_FLAG_QUNUSED_ARGUMENTS
+-- Performing Test CXX_FLAG_QUNUSED_ARGUMENTS - Success
+-- Performing Test C_FLAG_WA_NOEXECSTACK
+-- Performing Test C_FLAG_WA_NOEXECSTACK - Success
+-- Performing Test CXX_FLAG_WA_NOEXECSTACK
+-- Performing Test CXX_FLAG_WA_NOEXECSTACK - Success
+-- CMAKE_INSTALL_PREFIX: /usr/local
+-- CMAKE_INSTALL_LIBDIR: lib
+-- ZSTD_LEGACY_SUPPORT defined!
+-- ZSTD_MULTITHREAD_SUPPORT is enabled
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+CMake Warning (deprecated) at 3rdparty/protobuf/protobuf/CMakeLists.txt:7 (cmake_policy):
+  The OLD behavior for policy CMP0141 will be removed from a future version
+  of CMake.
+
+  The cmake-policies(7) manual explains that the OLD behaviors of all
+  policies are deprecated and that a policy should be set to OLD only under
+  specific short-term circumstances.  Projects should be ported to the NEW
+  behavior and not rely on setting a policy to OLD.
+This warning is for project developers.  Use -Wno-author or -Wno-deprecated
+to suppress it.
+
+-- protobuf version: 33.4.0
+-- Performing Test protobuf_HAVE_LD_VERSION_SCRIPT
+-- Performing Test protobuf_HAVE_LD_VERSION_SCRIPT - Failed
+-- Performing Test protobuf_HAVE_BUILTIN_ATOMICS
+-- Performing Test protobuf_HAVE_BUILTIN_ATOMICS - Success
+-- Could NOT find absl (missing: absl_DIR)
+-- Fallback to downloading Abseil 20250512.1 from GitHub
+-- Performing Test ABSL_INTERNAL_AT_LEAST_CXX17
+-- Performing Test ABSL_INTERNAL_AT_LEAST_CXX17 - Success
+-- Performing Test ABSL_INTERNAL_AT_LEAST_CXX20
+-- Performing Test ABSL_INTERNAL_AT_LEAST_CXX20 - Success
+-- Building for target architecture: arm64
+-- Using standard libconf header: /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/libpng/libpng/scripts/pnglibconf.h.prebuilt
+-- RPCS3: Using pinned iOS MoltenVK at /Users/runner/work/_temp/neostation-rpcs3-embedded/moltenvk-1.4.2-compile-qos
+CMake Warning (deprecated) at 3rdparty/asmjit/asmjit/CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.10 will be removed from a future version of
+  CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+Call Stack (most recent call first):
+  3rdparty/asmjit/CMakeLists.txt:9 (include)
+This warning is for project developers.  Use -Wno-author or -Wno-deprecated
+to suppress it.
+
+-- Performing Test __CxxFlag__fno_threadsafe_statics
+-- Performing Test __CxxFlag__fno_threadsafe_statics - Success
+-- Performing Test __CxxFlag__fno_semantic_interposition
+-- Performing Test __CxxFlag__fno_semantic_interposition - Success
+-- Performing Test __CxxFlag__fmerge_all_constants
+-- Performing Test __CxxFlag__fmerge_all_constants - Success
+-- Performing Test __CxxFlag__fno_enforce_eh_specs
+-- Performing Test __CxxFlag__fno_enforce_eh_specs - Failed
+-- Dependency: adding libc (Linux, BSD, or other UNIX/POSIX environment)
+-- Performing Test ASMJIT_LIBC_HAS_LIBPTHREAD
+-- Performing Test ASMJIT_LIBC_HAS_LIBPTHREAD - Success
+-- Dependency: libpthread provided by libc (not linking to libpthread)
+** AsmJit Summary **
+   ASMJIT_DIR=/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/asmjit/asmjit
+   ASMJIT_TEST=FALSE
+   ASMJIT_TARGET_TYPE=EMBED
+   ASMJIT_DEPS=c
+   ASMJIT_LIBS=c
+   ASMJIT_CFLAGS=-DASMJIT_STATIC;-DASMJIT_NO_DEPRECATED
+   ASMJIT_PRIVATE_CFLAGS=-Wall;-Wextra;-Wconversion;-fno-math-errno;-fno-threadsafe-statics;-fno-semantic-interposition;-DASMJIT_STATIC;-DASMJIT_NO_DEPRECATED
+   ASMJIT_PRIVATE_CFLAGS_DBG=
+   ASMJIT_PRIVATE_CFLAGS_REL=-O2;-fmerge-all-constants
+-- RPCS3: Using pinned Apple mobile FFmpeg 8.1.1 at /Users/runner/work/_temp/neostation-rpcs3-embedded/deps/ffmpeg-8.1.1-ios-arm64
+-- Performing Test COMPILER_X86
+-- Performing Test COMPILER_X86 - Failed
+-- Performing Test COMPILER_ARM
+-- Performing Test COMPILER_ARM - Success
+-- LLVM will be built from the submodule.
+-- Found libtool - /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/libtool
+-- Found Python3: /opt/homebrew/Frameworks/Python.framework/Versions/3.15/bin/python3.15 (found suitable version "3.15.2", minimum required is "3.0") found components: Interpreter
+-- Performing Test LLVM_LIBSTDCXX_MIN
+-- Performing Test LLVM_LIBSTDCXX_MIN - Success
+-- Performing Test LLVM_LIBSTDCXX_SOFT_ERROR
+-- Performing Test LLVM_LIBSTDCXX_SOFT_ERROR - Success
+-- Looking for __GLIBC__
+-- Looking for __GLIBC__ - not found
+-- Looking for valgrind/valgrind.h
+-- Looking for valgrind/valgrind.h - not found
+-- Looking for FE_ALL_EXCEPT
+-- Looking for FE_ALL_EXCEPT - found
+-- Looking for FE_INEXACT
+-- Looking for FE_INEXACT - found
+-- Performing Test HAVE_BUILTIN_THREAD_POINTER
+-- Performing Test HAVE_BUILTIN_THREAD_POINTER - Success
+-- Looking for CrashReporterClient.h
+-- Looking for CrashReporterClient.h - not found
+-- Performing Test HAVE_CRASHREPORTER_INFO
+-- Performing Test HAVE_CRASHREPORTER_INFO - Success
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - found
+-- Looking for pthread_rwlock_init in pthread
+-- Looking for pthread_rwlock_init in pthread - found
+-- Looking for pthread_mutex_lock in pthread
+-- Looking for pthread_mutex_lock in pthread - found
+-- Looking for dlopen in dl
+-- Looking for dlopen in dl - found
+-- Looking for shm_open in rt
+-- Looking for shm_open in rt - found
+-- Looking for pfm_initialize in pfm
+-- Looking for pfm_initialize in pfm - found
+-- Looking for perfmon/perf_event.h
+-- Looking for perfmon/perf_event.h - not found
+-- Looking for perfmon/pfmlib.h
+-- Looking for perfmon/pfmlib.h - not found
+-- Looking for perfmon/pfmlib_perf_event.h
+-- Looking for perfmon/pfmlib_perf_event.h - not found
+-- Looking for compress2
+-- Looking for compress2 - found
+-- Found LibXml2: /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk/usr/lib/libxml2.tbd (found version "2.9.13")
+-- Looking for xmlReadMemory
+-- Looking for xmlReadMemory - found
+-- Could NOT find LibEdit (missing: LibEdit_INCLUDE_DIRS) 
+-- Looking for arc4random
+-- Looking for arc4random - found
+-- Looking for backtrace
+-- Looking for backtrace - found
+-- backtrace facility detected in default set of libraries
+-- Found Backtrace: /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk/usr/include
+-- Performing Test C_SUPPORTS_WERROR_UNGUARDED_AVAILABILITY_NEW
+-- Performing Test C_SUPPORTS_WERROR_UNGUARDED_AVAILABILITY_NEW - Success
+-- Looking for __register_frame
+-- Looking for __register_frame - found
+-- Looking for __deregister_frame
+-- Looking for __deregister_frame - found
+-- Looking for __unw_add_dynamic_fde
+-- Looking for __unw_add_dynamic_fde - found
+-- Looking for _Unwind_Backtrace
+-- Looking for _Unwind_Backtrace - found
+-- Looking for getpagesize
+-- Looking for getpagesize - found
+-- Looking for sysconf
+-- Looking for sysconf - found
+-- Looking for getrusage
+-- Looking for getrusage - found
+-- Looking for isatty
+-- Looking for isatty - found
+-- Looking for futimens
+-- Looking for futimens - found
+-- Looking for futimes
+-- Looking for futimes - found
+-- Looking for getauxval
+-- Looking for getauxval - not found
+-- Looking for mallctl
+-- Looking for mallctl - not found
+-- Looking for mallinfo
+-- Looking for mallinfo - not found
+-- Looking for mallinfo2
+-- Looking for mallinfo2 - not found
+-- Looking for malloc_zone_statistics
+-- Looking for malloc_zone_statistics - found
+-- Looking for posix_spawn
+-- Looking for posix_spawn - found
+-- Looking for pread
+-- Looking for pread - found
+-- Looking for sbrk
+-- Looking for sbrk - found
+-- Looking for strerror_r
+-- Looking for strerror_r - found
+-- Looking for strerror_s
+-- Looking for strerror_s - not found
+-- Looking for setenv
+-- Looking for setenv - found
+-- Performing Test HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC
+-- Performing Test HAVE_STRUCT_STAT_ST_MTIMESPEC_TV_NSEC - Success
+-- Performing Test HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC
+-- Performing Test HAVE_STRUCT_STAT_ST_MTIM_TV_NSEC - Failed
+-- Looking for pthread_getname_np
+-- Looking for pthread_getname_np - found
+-- Looking for pthread_setname_np
+-- Looking for pthread_setname_np - found
+-- Looking for pthread_get_name_np
+-- Looking for pthread_get_name_np - not found
+-- Looking for pthread_set_name_np
+-- Looking for pthread_set_name_np - not found
+-- Looking for dlopen
+-- Looking for dlopen - found
+-- Looking for proc_pid_rusage
+-- Looking for proc_pid_rusage - not found
+-- Performing Test HAVE_CXX_ATOMICS_WITHOUT_LIB
+-- Performing Test HAVE_CXX_ATOMICS_WITHOUT_LIB - Success
+-- Performing Test HAVE_CXX_ATOMICS64_WITHOUT_LIB
+-- Performing Test HAVE_CXX_ATOMICS64_WITHOUT_LIB - Success
+-- Performing Test LLVM_HAS_ATOMICS
+-- Performing Test LLVM_HAS_ATOMICS - Success
+-- LLVM host triple: arm64-apple-darwin24.6.0
+-- Native target architecture is AArch64
+-- Threads enabled.
+-- Doxygen disabled.
+-- Ninja version: 1.13.2
+-- Found ld64 - /Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld-classic
+-- Could NOT find OCaml (missing: OCAMLFIND OCAML_VERSION OCAML_STDLIB_PATH) 
+-- Could NOT find OCaml (missing: OCAMLFIND OCAML_VERSION OCAML_STDLIB_PATH) 
+-- OCaml bindings disabled.
+-- Could NOT find Python module pygments
+-- Could NOT find Python module pygments.lexers.c_cpp
+-- Could NOT find Python module yaml
+-- LLVM default target triple: arm64-apple-darwin24.6.0
+-- Performing Test LLVM_USES_LIBSTDCXX
+-- Performing Test LLVM_USES_LIBSTDCXX - Failed
+-- Performing Test LLVM_DEFAULT_TO_GLIBCXX_USE_CXX11_ABI
+-- Performing Test LLVM_DEFAULT_TO_GLIBCXX_USE_CXX11_ABI - Failed
+-- Performing Test C_SUPPORTS_FPIC
+-- Performing Test C_SUPPORTS_FPIC - Success
+-- Performing Test CXX_SUPPORTS_FPIC
+-- Performing Test CXX_SUPPORTS_FPIC - Success
+-- Building with -fPIC
+-- Performing Test C_SUPPORTS_FNO_SEMANTIC_INTERPOSITION
+-- Performing Test C_SUPPORTS_FNO_SEMANTIC_INTERPOSITION - Failed
+-- Performing Test CXX_SUPPORTS_FNO_SEMANTIC_INTERPOSITION
+-- Performing Test CXX_SUPPORTS_FNO_SEMANTIC_INTERPOSITION - Failed
+-- Performing Test SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG
+-- Performing Test SUPPORTS_FVISIBILITY_INLINES_HIDDEN_FLAG - Success
+-- Performing Test LINKER_SUPPORTS_COLOR_DIAGNOSTICS
+-- Performing Test LINKER_SUPPORTS_COLOR_DIAGNOSTICS - Failed
+-- Looking for os_signpost_interval_begin
+-- Looking for os_signpost_interval_begin - found
+-- Performing Test macos_signposts_usable
+-- Performing Test macos_signposts_usable - Success
+-- Looking for flock
+-- Looking for flock - found
+-- Linker detection: Apple
+-- Setting native build dir to /Users/runner/work/_temp/neostation-rpcs3-embedded/build/3rdparty/llvm/llvm_build/NATIVE
+-- Setting native stamp dir to /Users/runner/work/_temp/neostation-rpcs3-embedded/build/3rdparty/llvm/llvm_build/NATIVE-stamps
+-- Performing Test LLVM_LINKER_SUPPORTS_B_SYMBOLIC_FUNCTIONS
+-- Performing Test LLVM_LINKER_SUPPORTS_B_SYMBOLIC_FUNCTIONS - Failed
+-- Performing Test HAS_WERROR_GLOBAL_CTORS
+-- Performing Test HAS_WERROR_GLOBAL_CTORS - Success
+-- Performing Test LLVM_HAS_NOGLOBAL_CTOR_MUTEX
+-- Performing Test LLVM_HAS_NOGLOBAL_CTOR_MUTEX - Success
+-- Looking for __x86_64__
+-- Looking for __x86_64__ - not found
+-- Found Git: /opt/homebrew/bin/git (found version "2.56.0")
+-- Looking for logf128
+-- Looking for logf128 - not found
+-- Targeting AArch64
+-- Looking for arpa/inet.h
+-- Looking for arpa/inet.h - found
+-- Looking for fcntl.h
+-- Looking for fcntl.h - found
+-- Looking for limits.h
+-- Looking for limits.h - found
+-- Looking for netdb.h
+-- Looking for netdb.h - found
+-- Looking for netinet/in.h
+-- Looking for netinet/in.h - found
+-- Looking for time.h
+-- Looking for time.h - found
+-- Looking for sys/ioctl.h
+-- Looking for sys/ioctl.h - found
+-- Looking for sys/socket.h
+-- Looking for sys/socket.h - found
+-- Looking for sys/time.h
+-- Looking for sys/time.h - found
+-- Looking for errno.h
+-- Looking for errno.h - found
+-- Looking for dlfcn.h
+-- Looking for dlfcn.h - found
+-- Looking for inttypes.h
+-- Looking for inttypes.h - found
+-- Looking for memory.h
+-- Looking for memory.h - found
+-- Looking for stdlib.h
+-- Looking for stdlib.h - found
+-- Looking for string.h
+-- Looking for string.h - found
+-- Looking for strings.h
+-- Looking for strings.h - found
+-- Looking for sys/stat.h
+-- Looking for sys/stat.h - found
+-- Looking for gethostbyname
+-- Looking for gethostbyname - found
+-- Looking for getaddrinfo
+-- Looking for getaddrinfo - found
+-- Looking for gettimeofday
+-- Looking for gettimeofday - found
+-- Looking for gmtime_r
+-- Looking for gmtime_r - found
+-- Looking for inet_ntoa
+-- Looking for inet_ntoa - found
+-- Looking for memset
+-- Looking for memset - found
+-- Looking for socket
+-- Looking for socket - found
+-- Looking for strftime
+-- Looking for strftime - found
+-- Looking for __atomic_fetch_add
+-- Looking for __atomic_fetch_add - not found
+-- Looking for getpid
+-- Looking for getpid - found
+-- Looking for isascii
+-- Looking for isascii - found
+-- Check size of __uint128_t
+-- Check size of __uint128_t - done
+-- Check size of long long
+-- Check size of long long - done
+-- Check size of long
+-- Check size of long - done
+-- Check size of time_t
+-- Check size of time_t - done
+-- Check size of uintptr_t
+-- Check size of uintptr_t - done
+-- Performing Test THREAD_LS_ON
+-- Performing Test THREAD_LS_ON - Success
+-- C Compiler ID: Clang
+-- WOLFSSL_HAVE_MLKEM not found in WOLFSSL_DEFINITIONS.
+-- Enabling WOLFSSL_HAVE_MLKEM
+-- Enabling WOLFSSL_HAVE_MLKEM - success
+-- WOLFSSL_SHA3 not found in WOLFSSL_DEFINITIONS.
+-- Enabling WOLFSSL_SHA3
+-- Enabling WOLFSSL_SHA3 - success
+-- WOLFSSL_SHAKE128 not found in WOLFSSL_DEFINITIONS.
+-- Enabling WOLFSSL_SHAKE128
+-- Enabling WOLFSSL_SHAKE128 - success
+-- WOLFSSL_SHAKE256 not found in WOLFSSL_DEFINITIONS.
+-- Enabling WOLFSSL_SHAKE256
+-- Enabling WOLFSSL_SHAKE256 - success
+-- Looking for WOLFSSL_EXPERIMENTAL
+-- Looking for WOLFSSL_EXPERIMENTAL - not found
+-- Looking for Security/SecTrustSettings.h
+-- Looking for Security/SecTrustSettings.h - not found
+-- Looking for Security/SecCertificate.h
+-- Looking for Security/SecCertificate.h - found
+-- Looking for Security/SecTrust.h
+-- Looking for Security/SecTrust.h - found
+-- Looking for Security/SecPolicy.h
+-- Looking for Security/SecPolicy.h - found
+-- Generating user options header...
+-- Static Libs: wolfcrypt/src/hmac.c;wolfcrypt/src/hash.c;wolfcrypt/src/cpuid.c;wolfcrypt/src/kdf.c;wolfcrypt/src/random.c;wolfcrypt/src/sha256.c;wolfcrypt/src/rsa.c;wolfcrypt/src/sp_int.c;wolfcrypt/src/aes.c;wolfcrypt/src/des3.c;wolfcrypt/src/sha.c;wolfcrypt/src/sha512.c;wolfcrypt/src/sha3.c;wolfcrypt/src/logging.c;wolfcrypt/src/wc_port.c;wolfcrypt/src/error.c;wolfcrypt/src/wc_encrypt.c;wolfcrypt/src/signature.c;wolfcrypt/src/wolfmath.c;wolfcrypt/src/memory.c;wolfcrypt/src/dh.c;wolfcrypt/src/asn.c;wolfcrypt/src/coding.c;wolfcrypt/src/poly1305.c;wolfcrypt/src/md5.c;wolfcrypt/src/pwdbased.c;wolfcrypt/src/pkcs12.c;wolfcrypt/src/chacha.c;wolfcrypt/src/chacha20_poly1305.c;wolfcrypt/src/tfm.c;wolfcrypt/src/integer.c;wolfcrypt/src/ecc.c;wolfcrypt/src/wc_mlkem.c;wolfcrypt/src/wc_mlkem_poly.c;src/internal.c;src/wolfio.c;src/keys.c;src/ssl.c;src/ocsp.c;src/tls.c;src/tls13.c
+-- WOLFSSL_INCLUDE_DIRS is blank. No additional directories will be added.
+Building on Apple
+-- RPCS3: building libcurl + wolfssl submodules
+-- Using CMake version 4.4.4
+-- curl version=[8.22.0-DEV]
+-- CMake platform flags: APPLE UNIX LLVM-CLANG CROSS
+-- Cross-compiling: Darwin/arm64 -> iOS/arm64
+-- CMAKE_TRY_COMPILE_TARGET_TYPE was found set to STATIC_LIBRARY. Overriding with EXECUTABLE for feature detections to work.
+-- Picky compiler options: -Werror=partial-availability -Werror-implicit-function-declaration -Wextra -Wall -Wpedantic -Wbad-function-cast -Wconversion -Wmissing-declarations -Wmissing-prototypes -Wnested-externs -Wno-long-long -Wno-multichar -Wpointer-arith -Wshadow -Wsign-compare -Wundef -Wunused -Wwrite-strings -Waddress -Wattributes -Wcast-align -Wcast-qual -Wdeclaration-after-statement -Wdiv-by-zero -Wempty-body -Wendif-labels -Wfloat-equal -Wformat-security -Wignored-qualifiers -Wmissing-field-initializers -Wmissing-noreturn -Wno-padded -Wno-sign-conversion -Wno-switch-default -Wno-switch-enum -Wno-system-headers -Wold-style-definition -Wredundant-decls -Wstrict-prototypes -Wtype-limits -Wunreachable-code -Wunused-parameter -Wvla -Wconditional-uninitialized -Wno-used-but-marked-unused -Wshift-sign-overflow -Wshorten-64-to-32 -Wformat=2 -Wlanguage-extension-token -Wno-covered-switch-default -Wno-disabled-macro-expansion -Wformat-non-iso -Wenum-conversion -Wmissing-variable-declarations -Wno-documentation-unknown-command -Wsometimes-uninitialized -Wdouble-promotion -Wheader-guard -Wpragmas -Wunused-const-variable -Wcomma -Wassign-enum -Wextra-semi-stmt -Wimplicit-fallthrough -Wxor-used-as-pow -Wcast-function-type -Wreserved-identifier -Wno-reserved-macro-identifier -Wno-unsafe-buffer-usage -Wcast-function-type-strict -Wformat-signedness -Warray-compare -Wc++-hidden-decl -Wimplicit-int-enum-cast -Wjump-misses-init -Wno-implicit-void-ptr-cast -Wtentative-definition-compat -Wc++-keyword
+-- Found Perl: /opt/homebrew/bin/perl (found version "5.44.0")
+-- Performing Test HAVE_SOCKADDR_IN6_SIN6_SCOPE_ID
+-- Performing Test HAVE_SOCKADDR_IN6_SIN6_SCOPE_ID - Success
+-- Performing Test HAVE_SOCKADDR_IN6_SIN6_ADDR
+-- Performing Test HAVE_SOCKADDR_IN6_SIN6_ADDR - Success
+-- Found WolfSSL: /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/3rdparty/wolfssl
+-- Could NOT find Brotli (missing: BROTLI_INCLUDE_DIR BROTLIDEC_LIBRARY BROTLICOMMON_LIBRARY) 
+-- Could NOT find Zstd (missing: ZSTD_INCLUDE_DIR ZSTD_LIBRARY) 
+-- Looking for wolfSSL_get_peer_certificate
+-- Looking for wolfSSL_get_peer_certificate - not found
+-- Looking for wolfSSL_UseALPN
+-- Looking for wolfSSL_UseALPN - not found
+-- Looking for wolfSSL_BIO_new
+-- Looking for wolfSSL_BIO_new - not found
+-- Looking for wolfSSL_BIO_set_shutdown
+-- Looking for wolfSSL_BIO_set_shutdown - not found
+-- Looking for wc_Des_EcbEncrypt
+-- Looking for wc_Des_EcbEncrypt - not found
+-- Could NOT find NGHTTP2 (missing: NGHTTP2_INCLUDE_DIR NGHTTP2_LIBRARY) 
+-- Performing Test USE_UNIX_SOCKETS
+-- Performing Test USE_UNIX_SOCKETS - Success
+-- Looking for sys/eventfd.h
+-- Looking for sys/eventfd.h - not found
+-- Looking for sys/filio.h
+-- Looking for sys/filio.h - found
+-- Looking for sys/param.h
+-- Looking for sys/param.h - found
+-- Looking for sys/poll.h
+-- Looking for sys/poll.h - found
+-- Looking for sys/resource.h
+-- Looking for sys/resource.h - found
+-- Looking for 3 include files sys/socket.h, ..., sys/select.h
+-- Looking for 3 include files sys/socket.h, ..., sys/select.h - found
+-- Looking for sys/sockio.h
+-- Looking for sys/sockio.h - found
+-- Looking for sys/un.h
+-- Looking for sys/un.h - found
+-- Looking for 5 include files sys/socket.h, ..., sys/utime.h
+-- Looking for 5 include files sys/socket.h, ..., sys/utime.h - not found
+-- Looking for 6 include files sys/socket.h, ..., ifaddrs.h
+-- Looking for 6 include files sys/socket.h, ..., ifaddrs.h - found
+-- Looking for io.h
+-- Looking for io.h - not found
+-- Looking for 7 include files sys/socket.h, ..., libgen.h
+-- Looking for 7 include files sys/socket.h, ..., libgen.h - found
+-- Looking for linux/tcp.h
+-- Looking for linux/tcp.h - not found
+-- Looking for locale.h
+-- Looking for locale.h - found
+-- Looking for 8 include files sys/socket.h, ..., net/if.h
+-- Looking for 8 include files sys/socket.h, ..., net/if.h - found
+-- Looking for netinet/in6.h
+-- Looking for netinet/in6.h - not found
+-- Looking for netinet/ip.h
+-- Looking for netinet/ip.h - found
+-- Looking for 11 include files sys/socket.h, ..., netinet/tcp.h
+-- Looking for 11 include files sys/socket.h, ..., netinet/tcp.h - found
+-- Looking for 12 include files sys/socket.h, ..., netinet/udp.h
+-- Looking for 12 include files sys/socket.h, ..., netinet/udp.h - found
+-- Looking for poll.h
+-- Looking for poll.h - found
+-- Looking for pwd.h
+-- Looking for pwd.h - found
+-- Looking for stdatomic.h
+-- Looking for stdatomic.h - found
+-- Looking for stdbool.h
+-- Looking for stdbool.h - found
+-- Looking for stropts.h
+-- Looking for stropts.h - not found
+-- Looking for termio.h
+-- Looking for termio.h - not found
+-- Looking for termios.h
+-- Looking for termios.h - found
+-- Looking for utime.h
+-- Looking for utime.h - found
+-- Check size of size_t
+-- Check size of size_t - done
+-- Check size of ssize_t
+-- Check size of ssize_t - done
+-- Check size of int
+-- Check size of int - done
+-- Check size of __int64
+-- Check size of __int64 - failed
+-- Check size of suseconds_t
+-- Check size of suseconds_t - done
+-- Looking for accept4
+-- Looking for accept4 - not found
+-- Looking for fnmatch
+-- Looking for fnmatch - found
+-- Looking for basename
+-- Looking for basename - found
+-- Looking for poll
+-- Looking for poll - found
+-- Looking for socketpair
+-- Looking for socketpair - found
+-- Looking for recv
+-- Looking for recv - found
+-- Looking for send
+-- Looking for send - found
+-- Looking for sendmsg
+-- Looking for sendmsg - found
+-- Looking for memrchr
+-- Looking for memrchr - not found
+-- Looking for alarm
+-- Looking for alarm - found
+-- Looking for fcntl
+-- Looking for fcntl - found
+-- Looking for getppid
+-- Looking for getppid - found
+-- Looking for utimes
+-- Looking for utimes - found
+-- Looking for closesocket
+-- Looking for closesocket - not found
+-- Looking for sigsetjmp
+-- Looking for sigsetjmp - found
+-- Looking for getpwuid
+-- Looking for getpwuid - found
+-- Looking for getpwuid_r
+-- Looking for getpwuid_r - found
+-- Looking for geteuid
+-- Looking for geteuid - found
+-- Looking for utime
+-- Looking for utime - found
+-- Looking for localtime_r
+-- Looking for localtime_r - found
+-- Looking for gethostbyname_r
+-- Looking for gethostbyname_r - not found
+-- Looking for gethostname
+-- Looking for gethostname - found
+-- Looking for signal
+-- Looking for signal - found
+-- Looking for sigaction
+-- Looking for sigaction - found
+-- Looking for siginterrupt
+-- Looking for siginterrupt - found
+-- Looking for getifaddrs
+-- Looking for getifaddrs - found
+-- Looking for freeaddrinfo
+-- Looking for freeaddrinfo - found
+-- Looking for pipe
+-- Looking for pipe - found
+-- Looking for getpeername
+-- Looking for getpeername - found
+-- Looking for getsockname
+-- Looking for getsockname - found
+-- Looking for getrlimit
+-- Looking for getrlimit - found
+-- Looking for setlocale
+-- Looking for setlocale - found
+-- Looking for setrlimit
+-- Looking for setrlimit - found
+-- Looking for mach_absolute_time
+-- Looking for mach_absolute_time - found
+-- Looking for dirent.h
+-- Looking for dirent.h - found
+-- Looking for if_nametoindex
+-- Looking for if_nametoindex - found
+-- Looking for realpath
+-- Looking for realpath - found
+-- Looking for sched_yield
+-- Looking for sched_yield - found
+-- Looking for opendir
+-- Looking for opendir - found
+-- Looking for strcasecmp
+-- Looking for strcasecmp - found
+-- Looking for stricmp
+-- Looking for stricmp - not found
+-- Looking for strcmpi
+-- Looking for strcmpi - not found
+-- Looking for memset_s
+-- Looking for memset_s - found
+-- Looking for fsetxattr
+-- Looking for fsetxattr - found
+-- Performing Test HAVE_FSETXATTR_5
+-- Performing Test HAVE_FSETXATTR_5 - Failed
+-- Performing Test HAVE_FSETXATTR_6
+-- Performing Test HAVE_FSETXATTR_6 - Success
+-- Check size of sa_family_t
+-- Check size of sa_family_t - done
+-- Performing Test HAVE_FCNTL_O_NONBLOCK
+-- Performing Test HAVE_FCNTL_O_NONBLOCK - Success
+-- Performing Test HAVE_IOCTLSOCKET
+-- Performing Test HAVE_IOCTLSOCKET - Failed
+-- Performing Test HAVE_IOCTLSOCKET_CAMEL
+-- Performing Test HAVE_IOCTLSOCKET_CAMEL - Failed
+-- Performing Test HAVE_IOCTLSOCKET_CAMEL_FIONBIO
+-- Performing Test HAVE_IOCTLSOCKET_CAMEL_FIONBIO - Failed
+-- Performing Test HAVE_IOCTLSOCKET_FIONBIO
+-- Performing Test HAVE_IOCTLSOCKET_FIONBIO - Failed
+-- Performing Test HAVE_IOCTL_FIONBIO
+-- Performing Test HAVE_IOCTL_FIONBIO - Success
+-- Performing Test HAVE_IOCTL_SIOCGIFADDR
+-- Performing Test HAVE_IOCTL_SIOCGIFADDR - Success
+-- Performing Test HAVE_SETSOCKOPT_SO_NONBLOCK
+-- Performing Test HAVE_SETSOCKOPT_SO_NONBLOCK - Failed
+-- Performing Test HAVE_GETHOSTBYNAME_R_3
+-- Performing Test HAVE_GETHOSTBYNAME_R_3 - Failed
+-- Performing Test HAVE_GETHOSTBYNAME_R_5
+-- Performing Test HAVE_GETHOSTBYNAME_R_5 - Failed
+-- Performing Test HAVE_GETHOSTBYNAME_R_6
+-- Performing Test HAVE_GETHOSTBYNAME_R_6 - Failed
+-- Performing Test HAVE_BOOL_T
+-- Performing Test HAVE_BOOL_T - Success
+-- Performing Test HAVE_ATOMIC
+-- Performing Test HAVE_ATOMIC - Success
+-- Performing Test HAVE_GETHOSTBYNAME_R_3_REENTRANT
+-- Performing Test HAVE_GETHOSTBYNAME_R_3_REENTRANT - Failed
+-- Performing Test HAVE_GETHOSTBYNAME_R_5_REENTRANT
+-- Performing Test HAVE_GETHOSTBYNAME_R_5_REENTRANT - Failed
+-- Performing Test HAVE_GETHOSTBYNAME_R_6_REENTRANT
+-- Performing Test HAVE_GETHOSTBYNAME_R_6_REENTRANT - Failed
+-- Performing Test HAVE_FILE_OFFSET_BITS
+-- Performing Test HAVE_FILE_OFFSET_BITS - Success
+-- Check size of off_t
+-- Check size of off_t - done
+-- Check size of curl_off_t
+-- Check size of curl_off_t - done
+-- Check size of curl_socket_t
+-- Check size of curl_socket_t - done
+-- Performing Test HAVE_GLIBC_STRERROR_R
+-- Performing Test HAVE_GLIBC_STRERROR_R - Failed
+-- Performing Test HAVE_POSIX_STRERROR_R
+-- Performing Test HAVE_POSIX_STRERROR_R - Success
+-- Performing Test HAVE_CLOCK_GETTIME_MONOTONIC
+-- Performing Test HAVE_CLOCK_GETTIME_MONOTONIC - Success
+-- Performing Test HAVE_BUILTIN_AVAILABLE
+-- Performing Test HAVE_BUILTIN_AVAILABLE - Success
+-- Check size of struct sockaddr_storage
+-- Check size of struct sockaddr_storage - done
+-- Performing Test HAVE_STRUCT_TIMEVAL
+-- Performing Test HAVE_STRUCT_TIMEVAL - Success
+-- Performing Test HAVE_CLOCK_GETTIME_MONOTONIC_RAW
+-- Performing Test HAVE_CLOCK_GETTIME_MONOTONIC_RAW - Success
+-- Protocols: http https
+-- Features: alt-svc AsynchDNS HSTS IPv6 Largefile libz SSL threadsafe UnixSockets
+-- Enabled SSL backends: wolfSSL
+-- 
+buildinfo.configure.tool: cmake
+buildinfo.configure.command: /opt/homebrew/bin/cmake
+buildinfo.configure.version: 4.4.4
+buildinfo.configure.args: -DCMAKE_CXX_COMPILER_TARGET="arm64-apple-ios16.3" -DCMAKE_CXX_STANDARD_LIBRARIES="/Applications/Xcode_16.4.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/17/lib/darwin/libclang_rt.ios.a" -DCMAKE_C_COMPILER_TARGET="arm64-apple-ios16.3" -DWITH_DISCORD_RPC="OFF" -DWITH_FAUDIO="OFF"
+buildinfo.configure.generator: Ninja
+buildinfo.configure.make: /opt/homebrew/bin/ninja
+buildinfo.host.cpu: arm64
+buildinfo.host.os: Darwin
+buildinfo.target.cpu: arm64
+buildinfo.target.os: iOS
+buildinfo.target.flags: APPLE UNIX LLVM-CLANG CROSS
+buildinfo.compiler: Clang
+buildinfo.compiler.version: 22.1.8
+buildinfo.sysroot: /Applications/Xcode_16.4.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.5.sdk
+
+-- Checking for module 'jack'
+--   Package 'jack' not found
+-- Could NOT find ALSA (missing: ALSA_LIBRARY ALSA_INCLUDE_DIR) 
+-- Compiling with support for: coremidi
+-- Performing Test COMPILER_SUPPORTS_MARCH_NATIVE
+-- Performing Test COMPILER_SUPPORTS_MARCH_NATIVE - Success
+-- NeoStation PPU codegen identity: a987639e9f838d1c
+-- NeoStation SPU codegen identity: 477a3fa442d27917
+-- Looking for clock_gettime
+-- Looking for clock_gettime - found
+-- RPCS3_GIT_VERSION: 1-22f11527
+-- RPCS3_GIT_BRANCH: HEAD
+-- RPCS3_GIT_FULL_BRANCH: local_build
+-- Configuring done (60.0s)
+-- Generating done (1.1s)
+CMake Warning (unused-cli):
+  Manually-specified variables were not used by the project:
+
+    WITH_DISCORD_RPC
+    WITH_FAUDIO
+
+
+-- Build files have been written to: /Users/runner/work/_temp/neostation-rpcs3-embedded/build
+RPCS3 Build 264 God of War ARM64/ThinLTO contract: OK
+
+==> Syntax-check all modified startup units with the actual iOS toolchain
+[0/2] Re-checking globbed directories...
+[1/23] Building Attributes.inc...
+[2/23] Building IntrinsicEnums.inc...
+[3/23] Building IntrinsicsAArch64.h...
+[4/23] Building IntrinsicImpl.inc...
+[5/23] Building IntrinsicsAMDGPU.h...
+[6/23] Building IntrinsicsARM.h...
+[7/23] Building IntrinsicsBPF.h...
+[8/23] Building IntrinsicsDirectX.h...
+[9/23] Building IntrinsicsHexagon.h...
+[10/23] Building IntrinsicsLoongArch.h...
+[11/23] Building IntrinsicsMips.h...
+[12/23] Building IntrinsicsNVPTX.h...
+[13/23] Building IntrinsicsPowerPC.h...
+[14/23] Building IntrinsicsR600.h...
+[15/23] Building IntrinsicsRISCV.h...
+[16/23] Building IntrinsicsS390.h...
+[17/23] Building IntrinsicsSPIRV.h...
+[18/23] Building IntrinsicsVE.h...
+[19/23] Building IntrinsicsWebAssembly.h...
+[20/23] Building RuntimeLibcalls.inc...
+[21/23] Building IntrinsicsX86.h...
+[22/23] Building IntrinsicsXCore.h...
+Generate actual CMake module maps before syntax checking
+[0/2] Re-checking globbed directories...
+[1/563] Building GenVT.inc...
+[2/563] Building TargetLibraryInfo.inc...
+[3/563] Building OMP.h.inc...
+[4/563] Building OMP.inc...
+[5/563] Generating VCSRevision.h
+[6/563] Building PPCGenTargetFeatures.inc...
+[7/563] Building ARMTargetParserDef.inc...
+[8/563] Building AArch64TargetParserDef.inc...
+[9/563] Building AArch64GenAsmWriter.inc...
+[10/563] Building AArch64GenAsmMatcher.inc...
+[11/563] Building RISCVTargetParserDef.inc...
+[12/563] Building AArch64GenCallingConv.inc...
+[13/563] Building AArch64GenAsmWriter1.inc...
+[14/563] Building AArch64GenExegesis.inc...
+[15/563] Building AArch64GenDisassemblerTables.inc...
+[16/563] Building AArch64GenDAGISel.inc...
+[17/563] Building AArch64GenFastISel.inc...
+[18/563] Building AArch64GenGlobalISel.inc...
+[19/563] Building AArch64GenMCCodeEmitter.inc...
+[20/563] Building AArch64GenMCPseudoLowering.inc...
+[21/563] Building AArch64GenO0PreLegalizeGICombiner.inc...
+[22/563] Building AArch64GenPostLegalizeGICombiner.inc...
+[23/563] Building AArch64GenPostLegalizeGILowering.inc...
+[24/563] Building AArch64GenPreLegalizeGICombiner.inc...
+[25/563] Building AArch64GenRegisterBank.inc...
+[26/563] Building AArch64GenSDNodeInfo.inc...
+[27/563] Building AArch64GenRegisterInfo.inc...
+[28/563] Building AArch64GenSystemOperands.inc...
+[29/563] Building AArch64GenInstrInfo.inc...
+[30/563] Building AArch64GenSubtargetInfo.inc...
+[31/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/GameUpdateManifest.cpp for CXX dependencies
+[32/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/FirmwareInstaller.cpp for CXX dependencies
+[33/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/GameLibrary.cpp for CXX dependencies
+[34/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/TrophyLibrary.cpp for CXX dependencies
+[35/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/RPCS3IOSConfigDatabase.cpp for CXX dependencies
+[36/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/IOSGSFrame.cpp for CXX dependencies
+[37/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/RPCS3IOSLocalization.cpp for CXX dependencies
+[38/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/RPCS3IOSOverlayMedia.cpp for CXX dependencies
+[39/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/RPCS3IOSPerformance.cpp for CXX dependencies
+[40/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/RPCS3IOS.cpp for CXX dependencies
+[41/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/RPCS3IOSFreezeDump.cpp for CXX dependencies
+[42/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/RPCS3IOSPlatform.mm for CXX dependencies
+[43/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/RPCS3IOSRuntimePatches.cpp for CXX dependencies
+[44/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/RPCS3IOSSaveDialog.cpp for CXX dependencies
+[45/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/RPCS3IOSSettings.cpp for CXX dependencies
+[46/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/cache_utils.cpp for CXX dependencies
+[47/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/IdManager.cpp for CXX dependencies
+[48/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/games_config.cpp for CXX dependencies
+[49/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/localized_string.cpp for CXX dependencies
+[50/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/scoped_progress_dialog.cpp for CXX dependencies
+[51/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/savestate_utils.cpp for CXX dependencies
+[52/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/stb_image.cpp for CXX dependencies
+[53/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/system_config.cpp for CXX dependencies
+[54/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/system_config_types.cpp for CXX dependencies
+[55/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/System.cpp for CXX dependencies
+[56/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/system_progress.cpp for CXX dependencies
+[57/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/system_utils.cpp for CXX dependencies
+[58/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/vfs_config.cpp for CXX dependencies
+[59/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/VFS.cpp for CXX dependencies
+[60/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/GDB.cpp for CXX dependencies
+[61/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/title.cpp for CXX dependencies
+[62/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/perf_meter.cpp for CXX dependencies
+[63/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/perf_monitor.cpp for CXX dependencies
+[64/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/IPC_config.cpp for CXX dependencies
+[65/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/IPC_socket.cpp for CXX dependencies
+[66/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/util/atomic.cpp for CXX dependencies
+[67/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/util/console.cpp for CXX dependencies
+[68/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/util/emu_utils.cpp for CXX dependencies
+[69/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/util/video_provider.cpp for CXX dependencies
+[70/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/util/media_utils.cpp for CXX dependencies
+[71/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/util/logs.cpp for CXX dependencies
+[72/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/util/yaml.cpp for CXX dependencies
+[73/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/util/vm_native.cpp for CXX dependencies
+[74/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/util/dyn_lib.cpp for CXX dependencies
+[75/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/util/cpu_stats.cpp for CXX dependencies
+[76/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/util/serialization_ext.cpp for CXX dependencies
+[77/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/util/sysinfo.cpp for CXX dependencies
+[78/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/bin_patch.cpp for CXX dependencies
+[79/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/cond.cpp for CXX dependencies
+[80/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/cheat_info.cpp for CXX dependencies
+[81/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/Config.cpp for CXX dependencies
+[82/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/date_time.cpp for CXX dependencies
+[83/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/File.cpp for CXX dependencies
+[84/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/JITASM.cpp for CXX dependencies
+[85/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/LUrlParser.cpp for CXX dependencies
+[86/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/JITLLVM.cpp for CXX dependencies
+[87/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/mutex.cpp for CXX dependencies
+[88/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/rXml.cpp for CXX dependencies
+[89/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/sema.cpp for CXX dependencies
+[90/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/simple_ringbuf.cpp for CXX dependencies
+[91/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/stack_trace.cpp for CXX dependencies
+[92/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/stereo_config.cpp for CXX dependencies
+[93/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/StrFmt.cpp for CXX dependencies
+[94/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/version.cpp for CXX dependencies
+[95/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/darwin/util/sysinfo_darwin.mm for CXX dependencies
+[96/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/Thread.cpp for CXX dependencies
+[97/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/NeoSwapStorage/SourceClient.cpp for CXX dependencies
+[98/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/IOS/IOSPadHandler.cpp for CXX dependencies
+[99/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/Utilities/JITIOS.cpp for CXX dependencies
+[100/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/FrontendSupport.cpp for CXX dependencies
+[101/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp for CXX dependencies
+[102/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/IOSTextureHash.cpp for CXX dependencies
+[103/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/ios/UPnPStubs.cpp for CXX dependencies
+[104/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Input/mouse_gyro_handler.cpp for CXX dependencies
+[105/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Input/product_info.cpp for CXX dependencies
+[106/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Input/pad_thread.cpp for CXX dependencies
+[107/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Input/ps_move_config.cpp for CXX dependencies
+[108/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Input/ps_move_tracker.cpp for CXX dependencies
+[109/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/rpcs3_version.cpp for CXX dependencies
+[110/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/CPU/Backends/AArch64/AArch64ASM.cpp for CXX dependencies
+[111/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/CPU/Backends/AArch64/AArch64Common.cpp for CXX dependencies
+[112/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/CPU/Backends/AArch64/AArch64JIT.cpp for CXX dependencies
+[113/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/CPU/Backends/AArch64/AArch64Signal.cpp for CXX dependencies
+[114/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Crypto/aesni.cpp for CXX dependencies
+[115/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Crypto/aes.cpp for CXX dependencies
+[116/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Crypto/ec.cpp for CXX dependencies
+[117/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Crypto/decrypt_binaries.cpp for CXX dependencies
+[118/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Crypto/key_vault.cpp for CXX dependencies
+[119/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Crypto/lz.cpp for CXX dependencies
+[120/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Crypto/md5.cpp for CXX dependencies
+[121/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Crypto/sha1.cpp for CXX dependencies
+[122/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Crypto/sha256.cpp for CXX dependencies
+[123/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Crypto/unedat.cpp for CXX dependencies
+[124/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Crypto/unpkg.cpp for CXX dependencies
+[125/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Crypto/unself.cpp for CXX dependencies
+[126/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Crypto/unzip.cpp for CXX dependencies
+[127/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Crypto/utils.cpp for CXX dependencies
+[128/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Loader/disc.cpp for CXX dependencies
+[129/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Loader/ELF.cpp for CXX dependencies
+[130/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Loader/mself.cpp for CXX dependencies
+[131/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Loader/PSF.cpp for CXX dependencies
+[132/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Loader/PUP.cpp for CXX dependencies
+[133/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Loader/TAR.cpp for CXX dependencies
+[134/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Loader/ISO.cpp for CXX dependencies
+[135/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Loader/iso_cache.cpp for CXX dependencies
+[136/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Loader/content_validation.cpp for CXX dependencies
+[137/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Loader/TROPUSR.cpp for CXX dependencies
+[138/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Loader/TRP.cpp for CXX dependencies
+[139/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Audio/audio_resampler.cpp for CXX dependencies
+[140/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Audio/audio_utils.cpp for CXX dependencies
+[141/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Audio/AudioDumper.cpp for CXX dependencies
+[142/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Audio/AudioBackend.cpp for CXX dependencies
+[143/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp for CXX dependencies
+[144/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/ErrorCodes.cpp for CXX dependencies
+[145/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/MFC.cpp for CXX dependencies
+[146/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/PPUDisAsm.cpp for CXX dependencies
+[147/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/PPUAnalyser.cpp for CXX dependencies
+[148/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/PPUFunction.cpp for CXX dependencies
+[149/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/PPUInterpreter.cpp for CXX dependencies
+[150/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/PPUModule.cpp for CXX dependencies
+[151/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/RawSPUThread.cpp for CXX dependencies
+[152/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/PPUTranslator.cpp for CXX dependencies
+[153/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/PPUThread.cpp for CXX dependencies
+[154/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPUAnalyser.cpp for CXX dependencies
+[155/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPUASMJITRecompiler.cpp for CXX dependencies
+[156/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPUDisAsm.cpp for CXX dependencies
+[157/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPUInterpreter.cpp for CXX dependencies
+[158/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp for CXX dependencies
+[159/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp for CXX dependencies
+[160/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPUThread.cpp for CXX dependencies
+[161/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/lv2.cpp for CXX dependencies
+[162/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_bdemu.cpp for CXX dependencies
+[163/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_btsetting.cpp for CXX dependencies
+[164/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_cond.cpp for CXX dependencies
+[165/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_console.cpp for CXX dependencies
+[166/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_crypto_engine.cpp for CXX dependencies
+[167/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_config.cpp for CXX dependencies
+[168/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_dbg.cpp for CXX dependencies
+[169/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_event.cpp for CXX dependencies
+[170/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_event_flag.cpp for CXX dependencies
+[171/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_fs.cpp for CXX dependencies
+[172/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_game.cpp for CXX dependencies
+[173/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_gamepad.cpp for CXX dependencies
+[174/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_gpio.cpp for CXX dependencies
+[175/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_hid.cpp for CXX dependencies
+[176/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_interrupt.cpp for CXX dependencies
+[177/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_io.cpp for CXX dependencies
+[178/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_lwmutex.cpp for CXX dependencies
+[179/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_lwcond.cpp for CXX dependencies
+[180/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_memory.cpp for CXX dependencies
+[181/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_mmapper.cpp for CXX dependencies
+[182/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_mutex.cpp for CXX dependencies
+[183/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_net.cpp for CXX dependencies
+[184/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_net/lv2_socket.cpp for CXX dependencies
+[185/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_net/lv2_socket_native.cpp for CXX dependencies
+[186/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_net/lv2_socket_raw.cpp for CXX dependencies
+[187/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_net/lv2_socket_p2p.cpp for CXX dependencies
+[188/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_net/lv2_socket_p2ps.cpp for CXX dependencies
+[189/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_net/network_context.cpp for CXX dependencies
+[190/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_net/nt_p2p_port.cpp for CXX dependencies
+[191/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_net/sys_net_helpers.cpp for CXX dependencies
+[192/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_overlay.cpp for CXX dependencies
+[193/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_process.cpp for CXX dependencies
+[194/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_ppu_thread.cpp for CXX dependencies
+[195/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_prx.cpp for CXX dependencies
+[196/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_rsx.cpp for CXX dependencies
+[197/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_rsxaudio.cpp for CXX dependencies
+[198/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_rwlock.cpp for CXX dependencies
+[199/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_semaphore.cpp for CXX dependencies
+[200/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_spu.cpp for CXX dependencies
+[201/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_sm.cpp for CXX dependencies
+[202/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_ss.cpp for CXX dependencies
+[203/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_storage.cpp for CXX dependencies
+[204/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_time.cpp for CXX dependencies
+[205/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_timer.cpp for CXX dependencies
+[206/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_trace.cpp for CXX dependencies
+[207/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_tty.cpp for CXX dependencies
+[208/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_uart.cpp for CXX dependencies
+[209/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_vm.cpp for CXX dependencies
+[210/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/lv2/sys_usbd.cpp for CXX dependencies
+[211/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellAdec.cpp for CXX dependencies
+[212/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellAtrac.cpp for CXX dependencies
+[213/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellAtracMulti.cpp for CXX dependencies
+[214/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellAtracXdec.cpp for CXX dependencies
+[215/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellAudio.cpp for CXX dependencies
+[216/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellAudioOut.cpp for CXX dependencies
+[217/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellAuthDialog.cpp for CXX dependencies
+[218/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellBgdl.cpp for CXX dependencies
+[219/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellAvconfExt.cpp for CXX dependencies
+[220/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellCamera.cpp for CXX dependencies
+[221/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellCelp8Enc.cpp for CXX dependencies
+[222/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellCelpEnc.cpp for CXX dependencies
+[223/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellCrossController.cpp for CXX dependencies
+[224/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellDaisy.cpp for CXX dependencies
+[225/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellDmux.cpp for CXX dependencies
+[226/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellDmuxPamf.cpp for CXX dependencies
+[227/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellDtcpIpUtility.cpp for CXX dependencies
+[228/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellFiber.cpp for CXX dependencies
+[229/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellFont.cpp for CXX dependencies
+[230/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellFontFT.cpp for CXX dependencies
+[231/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cell_FreeType2.cpp for CXX dependencies
+[232/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellFs.cpp for CXX dependencies
+[233/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellGame.cpp for CXX dependencies
+[234/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellGameExec.cpp for CXX dependencies
+[235/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellGcmSys.cpp for CXX dependencies
+[236/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellGem.cpp for CXX dependencies
+[237/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellGifDec.cpp for CXX dependencies
+[238/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellHttp.cpp for CXX dependencies
+[239/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellHttpUtil.cpp for CXX dependencies
+[240/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellImeJp.cpp for CXX dependencies
+[241/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellJpgDec.cpp for CXX dependencies
+[242/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellJpgEnc.cpp for CXX dependencies
+[243/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellKb.cpp for CXX dependencies
+[244/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellKey2char.cpp for CXX dependencies
+[245/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellL10n.cpp for CXX dependencies
+[246/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellLibprof.cpp for CXX dependencies
+[247/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellMic.cpp for CXX dependencies
+[248/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellMouse.cpp for CXX dependencies
+[249/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellMsgDialog.cpp for CXX dependencies
+[250/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellMusic.cpp for CXX dependencies
+[251/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellMusicDecode.cpp for CXX dependencies
+[252/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellMusicSelectionContext.cpp for CXX dependencies
+[253/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellMusicExport.cpp for CXX dependencies
+[254/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellNetAoi.cpp for CXX dependencies
+[255/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellNetCtl.cpp for CXX dependencies
+[256/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellOskDialog.cpp for CXX dependencies
+[257/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellOvis.cpp for CXX dependencies
+[258/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellPad.cpp for CXX dependencies
+[259/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellPamf.cpp for CXX dependencies
+[260/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellPesmUtility.cpp for CXX dependencies
+[261/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellPhotoDecode.cpp for CXX dependencies
+[262/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellPhotoExport.cpp for CXX dependencies
+[263/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellPhotoImport.cpp for CXX dependencies
+[264/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellPngDec.cpp for CXX dependencies
+[265/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellPngEnc.cpp for CXX dependencies
+[266/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellPrint.cpp for CXX dependencies
+[267/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellRec.cpp for CXX dependencies
+[268/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellRemotePlay.cpp for CXX dependencies
+[269/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellResc.cpp for CXX dependencies
+[270/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellRtcAlarm.cpp for CXX dependencies
+[271/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellRtc.cpp for CXX dependencies
+[272/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellRudp.cpp for CXX dependencies
+[273/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSail.cpp for CXX dependencies
+[274/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSailRec.cpp for CXX dependencies
+[275/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSaveData.cpp for CXX dependencies
+[276/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellScreenshot.cpp for CXX dependencies
+[277/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSearch.cpp for CXX dependencies
+[278/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSheap.cpp for CXX dependencies
+[279/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSpudll.cpp for CXX dependencies
+[280/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSpursJq.cpp for CXX dependencies
+[281/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSpurs.cpp for CXX dependencies
+[282/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSpursSpu.cpp for CXX dependencies
+[283/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSsl.cpp for CXX dependencies
+[284/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellStorage.cpp for CXX dependencies
+[285/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSubDisplay.cpp for CXX dependencies
+[286/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSync2.cpp for CXX dependencies
+[287/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSync.cpp for CXX dependencies
+[288/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSysconf.cpp for CXX dependencies
+[289/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSysCache.cpp for CXX dependencies
+[290/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSysmodule.cpp for CXX dependencies
+[291/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSysutilAp.cpp for CXX dependencies
+[292/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSysutilAvc2.cpp for CXX dependencies
+[293/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSysutilAvc.cpp for CXX dependencies
+[294/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSysutilAvcExt.cpp for CXX dependencies
+[295/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSysutil.cpp for CXX dependencies
+[296/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSysutilMisc.cpp for CXX dependencies
+[297/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellSysutilNpEula.cpp for CXX dependencies
+[298/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellUsbd.cpp for CXX dependencies
+[299/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellUsbpspcm.cpp for CXX dependencies
+[300/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellUserInfo.cpp for CXX dependencies
+[301/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellVideoExport.cpp for CXX dependencies
+[302/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellVdec.cpp for CXX dependencies
+[303/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellVideoOut.cpp for CXX dependencies
+[304/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellVideoPlayerUtility.cpp for CXX dependencies
+[305/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellVideoUpload.cpp for CXX dependencies
+[306/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellVoice.cpp for CXX dependencies
+[307/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellVpost.cpp for CXX dependencies
+[308/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/cellWebBrowser.cpp for CXX dependencies
+[309/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/HLE_PATCHES.cpp for CXX dependencies
+[310/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libad_async.cpp for CXX dependencies
+[311/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libad_core.cpp for CXX dependencies
+[312/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libavcdec.cpp for CXX dependencies
+[313/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libdivx311dec.cpp for CXX dependencies
+[314/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libdivxdec.cpp for CXX dependencies
+[315/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libmixer.cpp for CXX dependencies
+[316/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libmedi.cpp for CXX dependencies
+[317/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libmvcdec.cpp for CXX dependencies
+[318/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libsjvtd.cpp for CXX dependencies
+[319/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libsmvd2.cpp for CXX dependencies
+[320/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libsmvd4.cpp for CXX dependencies
+[321/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libsnd3.cpp for CXX dependencies
+[322/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libsvc1d.cpp for CXX dependencies
+[323/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libsynth2.cpp for CXX dependencies
+[324/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sceNp2.cpp for CXX dependencies
+[325/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sceNpCommerce2.cpp for CXX dependencies
+[326/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sceNpClans.cpp for CXX dependencies
+[327/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sceNpMatchingInt.cpp for CXX dependencies
+[328/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sceNp.cpp for CXX dependencies
+[329/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sceNpPlus.cpp for CXX dependencies
+[330/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sceNpSns.cpp for CXX dependencies
+[331/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sceNpTus.cpp for CXX dependencies
+[332/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sceNpTrophy.cpp for CXX dependencies
+[333/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sceNpUtil.cpp for CXX dependencies
+[334/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/StaticHLE.cpp for CXX dependencies
+[335/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_crashdump.cpp for CXX dependencies
+[336/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_game_.cpp for CXX dependencies
+[337/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_heap.cpp for CXX dependencies
+[338/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_io_.cpp for CXX dependencies
+[339/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_libc_.cpp for CXX dependencies
+[340/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_lv2dbg.cpp for CXX dependencies
+[341/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_libc.cpp for CXX dependencies
+[342/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_lwcond_.cpp for CXX dependencies
+[343/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_lwmutex_.cpp for CXX dependencies
+[344/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_mempool.cpp for CXX dependencies
+[345/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_mmapper_.cpp for CXX dependencies
+[346/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_net_.cpp for CXX dependencies
+[347/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_ppu_thread_.cpp for CXX dependencies
+[348/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_prx_.cpp for CXX dependencies
+[349/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sysPrxForUser.cpp for CXX dependencies
+[350/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_rsxaudio_.cpp for CXX dependencies
+[351/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_spinlock.cpp for CXX dependencies
+[352/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/libfs_utility_init.cpp for CXX dependencies
+[353/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/Modules/sys_spu_.cpp for CXX dependencies
+[354/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/CPU/CPUThread.cpp for CXX dependencies
+[355/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/Buzz.cpp for CXX dependencies
+[356/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/CPU/CPUTranslator.cpp for CXX dependencies
+[357/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/evdev_gun_handler.cpp for CXX dependencies
+[358/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/camera_config.cpp for CXX dependencies
+[359/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/Dimensions.cpp for CXX dependencies
+[360/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/GameTablet.cpp for CXX dependencies
+[361/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/gem_config.cpp for CXX dependencies
+[362/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/GHLtar.cpp for CXX dependencies
+[363/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/GunCon3.cpp for CXX dependencies
+[364/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/Infinity.cpp for CXX dependencies
+[365/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/interception.cpp for CXX dependencies
+[366/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/KamenRider.cpp for CXX dependencies
+[367/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/KeyboardHandler.cpp for CXX dependencies
+[368/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/midi_config_types.cpp for CXX dependencies
+[369/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/mouse_config.cpp for CXX dependencies
+[370/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/pad_config.cpp for CXX dependencies
+[371/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/MouseHandler.cpp for CXX dependencies
+[372/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/pad_config_types.cpp for CXX dependencies
+[373/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/pad_types.cpp for CXX dependencies
+[374/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/PadHandler.cpp for CXX dependencies
+[375/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/ps_move_data.cpp for CXX dependencies
+[376/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/rb3drums_config.cpp for CXX dependencies
+[377/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/RB3MidiDrums.cpp for CXX dependencies
+[378/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/RB3MidiGuitar.cpp for CXX dependencies
+[379/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/RB3MidiKeyboard.cpp for CXX dependencies
+[380/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/recording_config.cpp for CXX dependencies
+[381/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/Skylander.cpp for CXX dependencies
+[382/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/TopShotElite.cpp for CXX dependencies
+[383/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/TopShotFearmaster.cpp for CXX dependencies
+[384/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/usb_device.cpp for CXX dependencies
+[385/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/Turntable.cpp for CXX dependencies
+[386/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/usb_microphone.cpp for CXX dependencies
+[387/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/usb_vfs.cpp for CXX dependencies
+[388/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/usio.cpp for CXX dependencies
+[389/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/LogitechG27.cpp for CXX dependencies
+[390/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Io/LogitechG27Config.cpp for CXX dependencies
+[391/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/np_cache.cpp for CXX dependencies
+[392/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/np_gui_cache.cpp for CXX dependencies
+[393/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/pb_helpers.cpp for CXX dependencies
+[394/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/np_contexts.cpp for CXX dependencies
+[395/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/np_dnshook.cpp for CXX dependencies
+[396/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/np_requests_gui.cpp for CXX dependencies
+[397/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/np_handler.cpp for CXX dependencies
+[398/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/np_helpers.cpp for CXX dependencies
+[399/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/np_notifications.cpp for CXX dependencies
+[400/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/signaling_handler.cpp for CXX dependencies
+[401/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/np_requests.cpp for CXX dependencies
+[402/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/np_structs_extra.cpp for CXX dependencies
+[403/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/clans_config.cpp for CXX dependencies
+[404/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/clans_client.cpp for CXX dependencies
+[405/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/rpcn_config.cpp for CXX dependencies
+[406/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/rpcn_countries.cpp for CXX dependencies
+[407/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/rpcn_client.cpp for CXX dependencies
+[408/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/upnp_config.cpp for CXX dependencies
+[409/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/ip_address.cpp for CXX dependencies
+[410/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/NP/generated/np2_structs.pb.cc for CXX dependencies
+[411/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Capture/rsx_capture.cpp for CXX dependencies
+[412/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Memory/vm.cpp for CXX dependencies
+[413/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Capture/rsx_replay.cpp for CXX dependencies
+[414/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Common/surface_store.cpp for CXX dependencies
+[415/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Common/BufferUtils.cpp for CXX dependencies
+[416/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Common/TextureUtils.cpp for CXX dependencies
+[417/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Common/texture_cache_types.cpp for CXX dependencies
+[418/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Common/texture_cache.cpp for CXX dependencies
+[419/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Core/RSXContext.cpp for CXX dependencies
+[420/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Core/RSXDisplay.cpp for CXX dependencies
+[421/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/gcm_enums.cpp for CXX dependencies
+[422/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp for CXX dependencies
+[423/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/gcm_printing.cpp for CXX dependencies
+[424/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/GSRender.cpp for CXX dependencies
+[425/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Host/MM.cpp for CXX dependencies
+[426/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Host/RSXDMAWriter.cpp for CXX dependencies
+[427/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Null/NullGSRender.cpp for CXX dependencies
+[428/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/NV47/FW/draw_call.cpp for CXX dependencies
+[429/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/NV47/FW/reg_context.cpp for CXX dependencies
+[430/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/NV47/HW/common.cpp for CXX dependencies
+[431/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/NV47/HW/nv0039.cpp for CXX dependencies
+[432/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/NV47/HW/nv3089.cpp for CXX dependencies
+[433/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/NV47/HW/nv308a.cpp for CXX dependencies
+[434/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp for CXX dependencies
+[435/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/NV47/HW/nv4097.cpp for CXX dependencies
+[436/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/FriendsList/overlay_friends_list_dialog.cpp for CXX dependencies
+[437/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_icons.cpp for CXX dependencies
+[438/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu.cpp for CXX dependencies
+[439/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_components.cpp for CXX dependencies
+[440/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_main_menu.cpp for CXX dependencies
+[441/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_message_box.cpp for CXX dependencies
+[442/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_page.cpp for CXX dependencies
+[443/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_settings.cpp for CXX dependencies
+[444/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_savestate.cpp for CXX dependencies
+[445/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_sidebar_page.cpp for CXX dependencies
+[446/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/BigPicture/overlay_big_picture.cpp for CXX dependencies
+[447/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/BigPicture/overlay_big_picture_game_details.cpp for CXX dependencies
+[448/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/BigPicture/overlay_big_picture_game_grid.cpp for CXX dependencies
+[449/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/BigPicture/overlay_big_picture_game_info.cpp for CXX dependencies
+[450/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/BigPicture/overlay_big_picture_main_menu.cpp for CXX dependencies
+[451/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/Network/overlay_recvmessage_dialog.cpp for CXX dependencies
+[452/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/Network/overlay_sendmessage_dialog.cpp for CXX dependencies
+[453/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/Trophies/overlay_trophy_list_dialog.cpp for CXX dependencies
+[454/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlays.cpp for CXX dependencies
+[455/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_animated_icon.cpp for CXX dependencies
+[456/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_animation.cpp for CXX dependencies
+[457/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_audio.cpp for CXX dependencies
+[458/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_checkbox.cpp for CXX dependencies
+[459/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_compile_notification.cpp for CXX dependencies
+[460/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_controls.cpp for CXX dependencies
+[461/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_cursor.cpp for CXX dependencies
+[462/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_debug_overlay.cpp for CXX dependencies
+[463/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_edit_text.cpp for CXX dependencies
+[464/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_fonts.cpp for CXX dependencies
+[465/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_list_view.cpp for CXX dependencies
+[466/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_manager.cpp for CXX dependencies
+[467/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_media_list_dialog.cpp for CXX dependencies
+[468/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_message.cpp for CXX dependencies
+[469/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_message_dialog.cpp for CXX dependencies
+[470/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_osk.cpp for CXX dependencies
+[471/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_osk_panel.cpp for CXX dependencies
+[472/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_perf_metrics.cpp for CXX dependencies
+[473/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_progress_bar.cpp for CXX dependencies
+[474/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_save_dialog.cpp for CXX dependencies
+[475/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_select.cpp for CXX dependencies
+[476/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_slider.cpp for CXX dependencies
+[477/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_tabs.cpp for CXX dependencies
+[478/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_trophy_notification.cpp for CXX dependencies
+[479/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_user_list_dialog.cpp for CXX dependencies
+[480/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_utils.cpp for CXX dependencies
+[481/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/overlay_video.cpp for CXX dependencies
+[482/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/Shaders/shader_loading_dialog.cpp for CXX dependencies
+[483/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Overlays/Shaders/shader_loading_dialog_native.cpp for CXX dependencies
+[484/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/Assembler/FPASM.cpp for CXX dependencies
+[485/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/Assembler/FPOpcodes.cpp for CXX dependencies
+[486/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp for CXX dependencies
+[487/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/Assembler/Passes/FP/RegisterAnnotationPass.cpp for CXX dependencies
+[488/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/Assembler/Passes/FP/RegisterDependencyPass.cpp for CXX dependencies
+[489/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/CgBinaryProgram.cpp for CXX dependencies
+[490/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/CgBinaryFragmentProgram.cpp for CXX dependencies
+[491/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/CgBinaryVertexProgram.cpp for CXX dependencies
+[492/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/FragmentProgramDecompiler.cpp for CXX dependencies
+[493/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/GLSLCommon.cpp for CXX dependencies
+[494/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/program_util.cpp for CXX dependencies
+[495/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/ProgramStateCache.cpp for CXX dependencies
+[496/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/ShaderInterpreter.cpp for CXX dependencies
+[497/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp for CXX dependencies
+[498/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/GSFrameBase.cpp for CXX dependencies
+[499/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Program/SPIRVCommon.cpp for CXX dependencies
+[500/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/RSXDisAsm.cpp for CXX dependencies
+[501/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/RSXFIFO.cpp for CXX dependencies
+[502/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/RSXOffload.cpp for CXX dependencies
+[503/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/RSXTexture.cpp for CXX dependencies
+[504/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/RSXThread.cpp for CXX dependencies
+[505/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/RSXZCULL.cpp for CXX dependencies
+[506/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/rsx_vertex_data.cpp for CXX dependencies
+[507/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/rsx_methods.cpp for CXX dependencies
+[508/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/Utils/rsx_utils.cpp for CXX dependencies
+[509/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/upscalers/fsr1/fsr_pass.cpp for CXX dependencies
+[510/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/barriers.cpp for CXX dependencies
+[511/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/buffer_object.cpp for CXX dependencies
+[512/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/chip_class.cpp for CXX dependencies
+[513/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/commands.cpp for CXX dependencies
+[514/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/ex.cpp for CXX dependencies
+[515/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/data_heap.cpp for CXX dependencies
+[516/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/debug_print.cpp for CXX dependencies
+[517/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/descriptors.cpp for CXX dependencies
+[518/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/image.cpp for CXX dependencies
+[519/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/instance.cpp for CXX dependencies
+[520/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp for CXX dependencies
+[521/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/scratch.cpp for CXX dependencies
+[522/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/sync.cpp for CXX dependencies
+[523/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/swapchain.cpp for CXX dependencies
+[524/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/memory.cpp for CXX dependencies
+[525/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/device.cpp for CXX dependencies
+[526/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/sampler.cpp for CXX dependencies
+[527/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/shared.cpp for CXX dependencies
+[528/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/unique_resource.cpp for CXX dependencies
+[529/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp for CXX dependencies
+[530/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKCommandStream.cpp for CXX dependencies
+[531/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKCommonDecompiler.cpp for CXX dependencies
+[532/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKCommonPipelineLayout.cpp for CXX dependencies
+[533/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKCompute.cpp for CXX dependencies
+[534/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKDataHeapManager.cpp for CXX dependencies
+[535/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKDMA.cpp for CXX dependencies
+[536/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKFormats.cpp for CXX dependencies
+[537/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKDraw.cpp for CXX dependencies
+[538/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp for CXX dependencies
+[539/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKFramebuffer.cpp for CXX dependencies
+[540/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKGSRender.cpp for CXX dependencies
+[541/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKHelpers.cpp for CXX dependencies
+[542/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKMemAlloc.cpp for CXX dependencies
+[543/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKOverlays.cpp for CXX dependencies
+[544/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp for CXX dependencies
+[545/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKPresent.cpp for CXX dependencies
+[546/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp for CXX dependencies
+[547/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKQueryPool.cpp for CXX dependencies
+[548/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKRenderPass.cpp for CXX dependencies
+[549/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp for CXX dependencies
+[550/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKResolveHelper.cpp for CXX dependencies
+[551/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKResourceManager.cpp for CXX dependencies
+[552/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKShaderInterpreter.cpp for CXX dependencies
+[553/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKTexture.cpp for CXX dependencies
+[554/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKVertexBuffers.cpp for CXX dependencies
+[555/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp for CXX dependencies
+[556/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VKTextureCache.cpp for CXX dependencies
+[557/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/VulkanAPI.cpp for CXX dependencies
+[558/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/metal_layer.mm for CXX dependencies
+[559/563] Generating CXX dyndep file rpcs3/CMakeFiles/RPCS3Core.dir/CXX.dd
+[560/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/vkutils/metal_event.mm for CXX dependencies
+[561/563] Scanning /Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/RSX/VK/upscalers/metalfx_spatial.mm for CXX dependencies
+[562/563] Generating CXX dyndep file rpcs3/Emu/CMakeFiles/rpcs3_emu.dir/CXX.dd
+iOS syntax gate: RPCS3IOS.cpp
+iOS syntax gate: RPCS3IOSPerformance.cpp
+iOS syntax gate: RPCS3IOSFreezeDump.cpp
+iOS syntax gate: RPCS3IOSSettings.cpp
+iOS syntax gate: savestate_utils.cpp
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/savestate_utils.cpp:778:12: warning: 'wait' is deprecated [-Wdeprecated-declarations]
+  778 |                 lock_val.wait(old);
+      |                          ^
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../util/atomic.hpp:1699:4: note: 'wait' has been explicitly marked deprecated here
+ 1699 |         [[deprecated]] void wait(type old_value, atomic_wait_timeout timeout = atomic_wait_timeout::inf) const
+      |           ^
+1 warning generated.
+iOS syntax gate: System.cpp
+iOS syntax gate: system_config_types.cpp
+iOS syntax gate: JITASM.cpp
+iOS syntax gate: JITLLVM.cpp
+iOS syntax gate: SourceClient.cpp
+iOS syntax gate: JITIOS.cpp
+iOS syntax gate: RPCS3IOSExperimentalPolicy.cpp
+iOS syntax gate: IOSTextureHash.cpp
+iOS syntax gate: TAR.cpp
+iOS syntax gate: ISO.cpp
+iOS syntax gate: PPUAnalyser.cpp
+iOS syntax gate: PPUFunction.cpp
+iOS syntax gate: PPUModule.cpp
+iOS syntax gate: PPUThread.cpp
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/PPUThread.cpp:4545:19: warning: unused variable 'jit_guard' [-Wunused-variable]
+ 4545 |                 jit_write_guard jit_guard;
+      |                                 ^~~~~~~~~
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/PPUThread.cpp:5258:18: warning: unused variable 'jit_guard' [-Wunused-variable]
+ 5258 |         jit_write_guard jit_guard;
+      |                         ^~~~~~~~~
+2 warnings generated.
+iOS syntax gate: PPUTranslator.cpp
+iOS syntax gate: SPUInterpreter.cpp
+PASS native SIMD dependency closure: SPUInterpreter.cpp no sse2neon.h sha256=a70e216c9180eb0f7d787538a2fa86e30c72a046113be89afd6c698989e372f9
+iOS syntax gate: SPUCommonRecompiler.cpp
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp:313:18: warning: unused variable 'jit_guard' [-Wunused-variable]
+  313 |         jit_write_guard jit_guard;
+      |                         ^~~~~~~~~
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp:344:18: warning: unused variable 'jit_guard' [-Wunused-variable]
+  344 |         jit_write_guard jit_guard;
+      |                         ^~~~~~~~~
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp:373:18: warning: unused variable 'jit_guard' [-Wunused-variable]
+  373 |         jit_write_guard jit_guard;
+      |                         ^~~~~~~~~
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp:398:18: warning: unused variable 'jit_guard' [-Wunused-variable]
+  398 |         jit_write_guard jit_guard;
+      |                         ^~~~~~~~~
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp:417:18: warning: unused variable 'jit_guard' [-Wunused-variable]
+  417 |         jit_write_guard jit_guard;
+      |                         ^~~~~~~~~
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp:1551:19: warning: unused variable 'jit_guard' [-Wunused-variable]
+ 1551 |                 jit_write_guard jit_guard;
+      |                                 ^~~~~~~~~
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp:1356:18: warning: unused variable 'jit_guard' [-Wunused-variable]
+ 1356 |         jit_write_guard jit_guard;
+      |                         ^~~~~~~~~
+7 warnings generated.
+iOS syntax gate: SPULLVMRecompiler.cpp
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp:2132:23: warning: 'wait' is deprecated [-Wdeprecated-declarations]
+ 2132 |                                 add_loc->compiled.wait(nullptr, atomic_wait_timeout{10'000'000});
+      |                                                   ^
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../util/atomic.hpp:1699:4: note: 'wait' has been explicitly marked deprecated here
+ 1699 |         [[deprecated]] void wait(type old_value, atomic_wait_timeout timeout = atomic_wait_timeout::inf) const
+      |           ^
+1 warning generated.
+iOS syntax gate: SPUThread.cpp
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Cell/SPUThread.cpp:5881:12: error: member 'notify' found in multiple base classes of different types
+ 5881 |                                                 spu->notify();
+      |                                                      ^
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../Emu/Cell/../CPU/CPUThread.h:155:7: note: member found by ambiguous name lookup
+  155 |         void notify();
+      |              ^
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../../Utilities/Thread.h:203:7: note: member found by ambiguous name lookup
+  203 |         void notify();
+      |              ^
+1 error generated.
+iOS syntax gate: sys_fs.cpp
+iOS syntax gate: sys_game.cpp
+iOS syntax gate: sys_mutex.cpp
+iOS syntax gate: cellVdec.cpp
+iOS syntax gate: vm.cpp
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/Memory/vm.cpp:484:32: warning: 'wait' is deprecated [-Wdeprecated-declarations]
+  484 |                                         get_range_lock_bits(true).wait(bits, atomic_wait_timeout{50'000});
+      |                                                                   ^
+/Users/runner/work/_temp/neostation-rpcs3-embedded/rpcs3/rpcs3/Emu/../util/atomic.hpp:1699:4: note: 'wait' has been explicitly marked deprecated here
+ 1699 |         [[deprecated]] void wait(type old_value, atomic_wait_timeout timeout = atomic_wait_timeout::inf) const
+      |           ^
+1 warning generated.
+iOS syntax gate: BufferUtils.cpp
+PASS native SIMD dependency closure: BufferUtils.cpp no sse2neon.h sha256=09232887617472b036adbd9a29b7ccac1a62b9fbed719aa110c1607c68324fac
+iOS syntax gate: nv406e.cpp
+iOS syntax gate: overlay_home_menu_main_menu.cpp
+iOS syntax gate: overlay_home_menu_savestate.cpp
+iOS syntax gate: FPToCFG.cpp
+PASS native SIMD dependency closure: FPToCFG.cpp no sse2neon.h sha256=7abb1f66084fbc97a15d9731ded77902b344b5d874bceb7644d3ddfd16414ff0
+iOS syntax gate: ProgramStateCache.cpp
+PASS native SIMD dependency closure: ProgramStateCache.cpp no sse2neon.h sha256=09a96462501c7a034d7cf7a67afef4a54a0d6f5b8714a585805c6dcd73d01391
+iOS syntax gate: RSXFIFO.cpp
+iOS syntax gate: RSXTexture.cpp
+PASS native SIMD dependency closure: RSXTexture.cpp no sse2neon.h sha256=5fadc8c49f603e307188c8f71b93e7a559681fb088b8766e1d9ed3810855d6c5
+iOS syntax gate: RSXThread.cpp
+iOS syntax gate: fsr_pass.cpp
+iOS syntax gate: buffer_object.cpp
+iOS syntax gate: data_heap.cpp
+iOS syntax gate: memory.cpp
+iOS syntax gate: device.cpp
+iOS syntax gate: VKGSRender.cpp
+iOS syntax gate: VKProgramPipeline.cpp
+iOS syntax gate: VKResourceManager.cpp
+iOS syntax gate: VKTextureCache.cpp
+Traceback (most recent call last):
+  File "/Users/runner/work/RewindBox/RewindBox/build-utils/rpcs3_core_syntax_gate.py", line 112, in <module>
+    main(Path(sys.argv[1]))
+    ~~~~^^^^^^^^^^^^^^^^^^^
+  File "/Users/runner/work/RewindBox/RewindBox/build-utils/rpcs3_core_syntax_gate.py", line 106, in main
+    raise RuntimeError('iOS syntax errors in: ' + ', '.join(failed))
+RuntimeError: iOS syntax errors in: SPUThread.cpp

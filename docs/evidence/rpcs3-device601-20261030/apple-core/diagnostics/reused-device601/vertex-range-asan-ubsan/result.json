@@ -1,0 +1,75 @@
+{
+  "scope": "production vertex upload cache range vs uncached production copy; host VM/DMA/heap adapters; no GPU",
+  "inputs": {
+    "rpcs3/Emu/RSX/VK/VKVertexBuffers.cpp": "c76f7ff4a16a48373b1f65ff7eed52293cb74e8b4a86e2c7ca7dec819df5ac85",
+    "rpcs3/ios/IOSRendererCausality.h": "a9943fab3d362e4fd6ea391c8898cc58d4fcfdfd13965c86f7f6dafc3d303413",
+    "rpcs3/Emu/RSX/RSXThread.cpp": "d8fa8a17481261615563a7bb73ff8b286d42abae5deb1e1151bf10bae5c7401f",
+    "rpcs3/Emu/RSX/rsx_cache.h": "abcdffa894b8da53113bd5b37d4c1f96eafccdeee07b0b0682903a6e0ce6dffb",
+    "rpcs3/Emu/RSX/Core/RSXVertexTypes.h": "a756b80c78e010e7678e6680e2dac894929b5807efcfb0b4e927ca354033446b",
+    "rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp": "6115d41176e7effa7f713830786f9433a21936ec93ea16b5a87d6bfc2a0caa9e"
+  },
+  "sanitizer": true,
+  "variants": {
+    "before": {
+      "result": {
+        "cases": 1656,
+        "wrong_range_reuses": 300,
+        "ordinary_mismatches": 0,
+        "equivalent_range_uploads": 32,
+        "weak_first_eight_byte_validation_unchanged": true
+      },
+      "generated_sha256": "df7f46ea736dc99081148a5b099dbfaed9ca7ec9bd0e5521e0f9909d3d5b4f6b",
+      "command": [
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/device601-cxx-wrapper.py",
+        "-std=c++20",
+        "-O2",
+        "-g",
+        "-UNDEBUG",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DRPCS3_IOS",
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/device601/vertex-range-asan-ubsan/before.cpp",
+        "-o",
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/device601/vertex-range-asan-ubsan/before",
+        "-isysroot",
+        "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-fno-sanitize-recover=all"
+      ],
+      "returncode": 0
+    },
+    "after": {
+      "result": {
+        "cases": 1656,
+        "wrong_range_reuses": 0,
+        "ordinary_mismatches": 0,
+        "equivalent_range_uploads": 8,
+        "weak_first_eight_byte_validation_unchanged": true
+      },
+      "generated_sha256": "1758f9ae877923e7686ddd49b118b6348ae99838b94dba7c1e4c91f6e9431b8a",
+      "command": [
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/device601-cxx-wrapper.py",
+        "-std=c++20",
+        "-O2",
+        "-g",
+        "-UNDEBUG",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DRPCS3_IOS",
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/device601/vertex-range-asan-ubsan/after.cpp",
+        "-o",
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-core-diagnostics/device601/vertex-range-asan-ubsan/after",
+        "-isysroot",
+        "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+        "-DCANDIDATE",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-fno-sanitize-recover=all"
+      ],
+      "returncode": 0
+    }
+  }
+}

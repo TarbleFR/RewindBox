@@ -29,24 +29,31 @@ receipts stay attributed to their original exact inputs. See
 local reports, current scope and the launch-time investigation.
 
 
-## RPCS3 device601 Core compilation requested — 30 October2026
+## RPCS3 device601 Core compiled and verified — 30 October2026
 
-The maintainer now authorizes the new iPhone Core compilation, not an IPA
-or release. Restore the reviewed17cc8faf source lot without losing the
-private603 records. Apple attempt82e318a1 failed only on Darwin temporary
-symlink paths before tests. Attempt532ca40e passed all12 modes, then the
-full iOS syntax gate exposed the ambiguous SPU notifier. Qualify it as
-cpu_thread::notify; keep its state notification and sticky host wake.
+The maintainer authorized only the new iPhone Core. Source
+a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a succeeds inrun41117115264,
+job124274114161, attempt1. The actual29263531-byte CoreZIP is SHA256
+b260bb4fa48b72ff889d6e9c4eb061591676b18e12427c0160a44974c9ff2b07.
+Its77424528-byte iOSARM64 dylib is SHA256
+f2f167af5cfa7889e76af150b6c9f02e6a19b7f3e881de0397bcafe185dbe19a.
+ABI30, exactly88exports,326postimages,318preserved and both guest codegen
+identities are verified. Actual downloaded Core/diagnostic archives and the
+original532 diagnostics authenticate reports, traces and captured C++.
 
-The updated canonical patch70d694bb3ef812b87b8839e53335376028aa16476893512d012b77ef1952fd79
-has326 verified postimages, eight cumulative changes and318 preserved from
-compiled378509e8. Guest codegen identities and ABI30/88exports stay exact.
-Reuse the ten unaffected Apple modes from532ca40e only after authenticating
-the original reports/traces and regenerating identical programs. Execute
-only the two changed MFC modes. Keep all28 historical modes and both failed
-attempts scoped to their actual origins; no invented fresh success.
-The immutable workflow/compiler recipe remains. See
-docs/rpcs3-device601-core-2026-10-30.md. No physical game recovery or FPS gain.
+The unqualified SPU notify call failed the full iOS syntax gate despite the
+initial adapter passing. Explicit cpu_thread::notify and a real two-parent
+fixture resolve it. Only the two changed MFC modes execute in the final run;
+ten exact Apple532 modes and28older modes retain their original provenance.
+The immutable workflow/compiler recipe stays. Two failed preflight/syntax
+attempts are preserved, not relabeled as built cores. The successful compile
+takes686s; job1262s including a recovered checkout network failure.
+
+The CoreZIP is privately delivered as libfile_3c054d49988c8191a7296bfcc5c4a67c.
+No new IPA/build number, release/tag, physical game recovery or FPS gain.
+Do not rebuild this unchanged Core or replay unchanged fixtures for receipts.
+Application603 still contains the old Core until a separate authorized
+integration. See docs/rpcs3-device601-core-2026-10-30.md and its evidence.
 
 ## RPCS3 open-issue continuation — 30 October 2026
 

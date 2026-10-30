@@ -1,0 +1,10 @@
+{
+  "source": "532ca40efc91730a6770db63879e9db759c7867d",
+  "run": 41113741373,
+  "artifact": 13005716946,
+  "archive_bytes": 153758703,
+  "archive_sha256": "14bf88f0c5fb2698b82656932c174886b42778d55c562a38c17f5c1742a4bb74",
+  "proof_sha256": "138526c6a87ba56a2c08302bcd87d0949776989e877e3274d7289c1fbd67e07c",
+  "full_archive_uploaded_again": false,
+  "previous_ios_syntax_failed": true
+}

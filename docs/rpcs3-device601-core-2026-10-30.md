@@ -1,4 +1,4 @@
-# Compilation du core RPCS3 après les retours BO2, GOW3 et AC
+# Core RPCS3 compilé après les retours BO2, GOW3 et AC
 
 Le mainteneur demande la compilation du nouveau core. Le lot préparé dans
 `17cc8faf` a été restauré depuis son export authentifié, en conservant les
@@ -34,14 +34,50 @@ par Clang 22.1.8 ARM64 sont authentifiés dans l'archive d'origine
 `14bf88f0c5fb2698b82656932c174886b42778d55c562a38c17f5c1742a4bb74`).
 Les dix programmes inchangés sont régénérés sans compilation et doivent
 rester identiques aux captures Apple. Leur origine reste 532ca40e et
-`native_executed_now` vaut `false`. Seuls les deux modes MFC affectés seront
-réexécutés sur Apple. Les 28 anciens modes de 378509e8 gardent aussi leur
+`native_executed_now` vaut `false`. Seuls les deux modes MFC affectés ont été
+réexécutés sur Apple dans la tentative finale. Les 28 anciens modes de 378509e8 gardent aussi leur
 origine et leurs archives authentifiées.
 
 La recette du workflow `rpcs3-runtime592-core.yml` et le script de
-compilation restent identiques à la recette historique. Les résultats de
-compilation et les identités du binaire seront ajoutés après le véritable
-succès et la vérification des octets téléchargés.
+compilation restent identiques à la recette historique.
+
+## Livraison du core vérifiée
+
+La source `a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a` réussit dans le
+[run 41117115264](https://github.com/TarbleFR/RewindBox/actions/runs/41117115264),
+job `124274114161`, tentative 1. Les deux modes MFC passent en normal et
+ASan/UBSan ; dix autres modes sont réutilisés depuis 532ca40e. Aucun des 28
+modes historiques n'est rejoué. Une seule tentative atteint la production
+du binaire ; les deux précédentes s'arrêtent avant cette étape.
+
+| Élément vérifié | Valeur |
+|---|---|
+| Archive core | Artefact 13007148559, 29 263 531 octets |
+| SHA256 archive | `b260bb4fa48b72ff889d6e9c4eb061591676b18e12427c0160a44974c9ff2b07` |
+| `libRPCS3Core.dylib` | 77 424 528 octets, iOS ARM64, ABI 30, exactement 88 exports |
+| SHA256 dylib | `f2f167af5cfa7889e76af150b6c9f02e6a19b7f3e881de0397bcafe185dbe19a` |
+| Diagnostics | Artefact 13006694440, SHA256 `3663b28d81f196509618a15a8cf18c61b39ac8d582ee800521a96f27f129284e` |
+| Durée de compilation du core | 686 secondes |
+| Durée totale du job | 1 262 secondes |
+
+L'archive téléchargée et ses diagnostics passent les contrôles indépendants :
+empreintes GitHub, CRC ZIP, vrais en-têtes Mach-O, install name, 88 exports,
+identités, 326 postimages et fermeture des entrées source. Les rapports,
+traces et sources C++ réellement capturées par le compilateur sont vérifiés,
+avec une nouvelle lecture de l'archive d'origine 532ca40e. Le vérificateur
+ne compile ni n'exécute de programme natif. Le contrôle CI du chargement
+passif est une validation Mach-O ; il ne constitue pas un essai de jeu.
+
+Le checkout a subi une remise à zéro de connexion, puis a réussi lors de la
+reprise automatique. Les erreurs transitoires sont conservées dans le vrai
+journal ; le run et toutes ses étapes finales sont réussis.
+
+[Télécharger RewindBox-RPCS3Core-a4d0c9a5.zip](https://chatgpt.com/library?file_id=libfile_3c054d49988c8191a7296bfcc5c4a67c&account_id=personal).
+Le fichier contient le core et ses identités ; aucune IPA ni release publique.
+Les preuves texte originales sont conservées sous
+`docs/evidence/rpcs3-device601-20261030/apple-core/`, avec le vérificateur
+`test/verify_rpcs3_device601_core_archive.py`.
+
 
 Les scénarios BO2 multijoueur, introduction GOW3 et torches AC restent à
 rejouer sur iPhone. Les tests hôtes et la compilation ne démontrent pas leur

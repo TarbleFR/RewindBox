@@ -1,0 +1,96 @@
+{
+  "passed": true,
+  "mutation": null,
+  "returncode": 0,
+  "stderr": "",
+  "sourceSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "84cd797c8ebd47211f97ca1bb78af6c5dd71410530aa563b08bed39545852309",
+    "rpcs3/Emu/Cell/SPUThread.h": "27e7713d92eb04e5636d9e42d88b2dd7b4a2ec1fd13b8d72c497ca2984cbd67c",
+    "Utilities/Thread.h": "14bf216d4c8d804ba3475335c3cdd8a4447629338c195db72105fa0664ea23ce",
+    "Utilities/Thread.cpp": "54cbbb76102708af70118eeebe3208a32b235705fb6a7b791097932e729a0075",
+    "rpcs3/Emu/CPU/CPUThread.h": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+    "rpcs3/Emu/CPU/CPUThread.cpp": "e49423f3875037c6a31da937ea9bc6df20a5ab600794fe06b04b72eece52cf34",
+    "rpcs3/Emu/Cell/MFC.h": "66890f55f172be2a8a7b9e54100c5dac79562f0e743b72dec619732da00f7396",
+    "rpcs3/Emu/Cell/SPUInterpreter.cpp": "b6966a7bb26fb4016a52ef1ac5d0eaeeb77cfbe95e7377a080692c0d5e652bd3",
+    "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff",
+    "rpcs3/ios/IOSSignalTrace.h": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6"
+  },
+  "extractionHelperSHA256": "cd880a6a0c11b26c98c997ce375a736b2adb28c04547dc607de0adc19db5be17",
+  "baselineSHA256": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440",
+  "bodySHA256": {
+    "before": {
+      "processPrefix": "653cdfce7e5060c88c23e6e769338407eeaaba1404f27667e8e02fd38db0af65",
+      "timerPublication": "3e05364bfc2f259a6e73badee83d9bdba9c7105b924562977d25e2054e3769ee",
+      "methods": {
+        "bool spu_thread::do_mfc(": "2e3117ce0acc168d58beabdf379d1dc97f0d2a776fc0730527bcdd3dcb722df8",
+        "u32 spu_thread::get_mfc_completed() const": "770f42f87539f1818021aa6f12e461570994b9197156e712bb3150d800d2eaeb",
+        "bool spu_thread::check_mfc_interrupts(": "ecbcf18c0505089205ee56117e3896a4508c93d3a51fc175e5630bde6c8e1283",
+        "void spu_thread::push_snr(": "c69e4b5a93160c1be5236ba0eee6e5c1cd002247ef90da90da924a7cee31950f",
+        "void spu_thread::set_events(": "f9b4f42ec7af811e5c0755e53c47d58520ddbdcaee409ea9122011f190c452a7",
+        "void spu_thread::cpu_work()": "d54a0d8045d7d4a68cb2affe43d11a2042b66e86b801ba72c60008611a66d892",
+        "spu_thread::ch_events_t spu_thread::get_events(": "581e06ab952031a38b43f80f43c20aeec4dddfbfffcdc7325f946df4844cc845",
+        "std::pair<u32, u32> spu_thread::read_dec() const": "fb1e8cb07f876b499ce95637fdf71d70e201f3f45d9c6e27e483460be578f3fe",
+        "void spu_thread::cancel_dec_interrupt()": "0011ea9ff91692e699bd8941586c0c71108eb6a51a047fb8ffa59464ee9a2f61",
+        "void spu_thread::arm_dec_interrupt()": "bb41452009ca53ed925f366bbb48ca619f8aaa044a132f01cc8bd0fc526f1e89"
+      }
+    },
+    "after": {
+      "processPrefix": "f0711148b0b381e78fb7e0263c32de704babb065313b31e3b20aace5664ab8df",
+      "timerPublication": "4d066710a3ba999d9754f2521abfe89bfa16160547faca28c1694c4fc342be6a",
+      "methods": {
+        "bool spu_thread::do_mfc(": "2e3117ce0acc168d58beabdf379d1dc97f0d2a776fc0730527bcdd3dcb722df8",
+        "u32 spu_thread::get_mfc_completed() const": "770f42f87539f1818021aa6f12e461570994b9197156e712bb3150d800d2eaeb",
+        "bool spu_thread::check_mfc_interrupts(": "ecbcf18c0505089205ee56117e3896a4508c93d3a51fc175e5630bde6c8e1283",
+        "void spu_thread::push_snr(": "c69e4b5a93160c1be5236ba0eee6e5c1cd002247ef90da90da924a7cee31950f",
+        "void spu_thread::set_events(": "f9b4f42ec7af811e5c0755e53c47d58520ddbdcaee409ea9122011f190c452a7",
+        "void spu_thread::cpu_work()": "d54a0d8045d7d4a68cb2affe43d11a2042b66e86b801ba72c60008611a66d892",
+        "spu_thread::ch_events_t spu_thread::get_events(": "581e06ab952031a38b43f80f43c20aeec4dddfbfffcdc7325f946df4844cc845",
+        "std::pair<u32, u32> spu_thread::read_dec() const": "fb1e8cb07f876b499ce95637fdf71d70e201f3f45d9c6e27e483460be578f3fe",
+        "void spu_thread::cancel_dec_interrupt()": "0011ea9ff91692e699bd8941586c0c71108eb6a51a047fb8ffa59464ee9a2f61",
+        "void spu_thread::arm_dec_interrupt()": "bb41452009ca53ed925f366bbb48ca619f8aaa044a132f01cc8bd0fc526f1e89"
+      }
+    }
+  },
+  "runnerSHA256": "7fede7d73a95fa629a54d12960c4c83793b6542a8b58368b8184206ba8abe154",
+  "adapterSHA256": "d35cb6267a003edceac1158eb51e229941259858d7914e2f81e48b6cd8fe8c42",
+  "scenariosSHA256": "d7dae867791f20a51fa2f63c10569c8e93fea49785a14e5b90a0d55daa196410",
+  "generatedSHA256": "dd3d048131a9f356d2ce18ccec0bcc96a010929301b4f308e84587e07145cbb7",
+  "compiler": "Homebrew clang version 22.1.8",
+  "flags": [
+    "-std=c++20",
+    "-O1",
+    "-g",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-DRPCS3_IOS",
+    "-I/Users/runner/work/_temp/runtime592-source-preflight/rpcs3",
+    "-isysroot",
+    "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.5.sdk",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-sanitize-recover=all"
+  ],
+  "host": "arm64",
+  "sanitizer": "address,undefined",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "cpuStateDispatcherAdapted": true,
+  "kernelWaitBackendExecuted": false,
+  "realDMATransfersTested": false,
+  "clockAndTimerQueueAdapted": true,
+  "guestTimeoutAdded": false,
+  "results": {
+    "baselineBlockedDueSchedules": 3,
+    "candidateDeadlineInterrupts": 3,
+    "commandsAcceptedExactlyOnce": 96,
+    "lateSnrPreserved": 4,
+    "maskedDisabledFrozenOrStale": 8,
+    "concurrentDeadlineInterrupts": 64,
+    "currentPcPreserved": true,
+    "unacceptedCommandPreserved": true,
+    "guestTimeoutAdded": false
+  }
+}
