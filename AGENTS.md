@@ -1,5 +1,17 @@
 # Current application identity — RewindBox (21 October 2026)
 
+## Private603 requested — integrate the verified Hogwarts Core, 30 October2026
+
+The maintainer now explicitly requests a new private IPA with the corrected
+Core. This supersedes the preceding core-only scope. Retain delivered602's
+application product roots except the Core's new EmbeddedStartupTrace source;
+use actual MeloNX1630bd02/artifact12995694624 and unchanged RPCS3378509e8.
+No Core rebuild or unchanged native fixture replay. Assemble and verify a
+new0.0.8(603) IPA; never reuse602. Preserve the tested helper and all prior
+lots, settings, libraries and stable identifiers. No public release/tag.
+No physical Hogwarts recovery, GPU-delay removal or FPS gain is established.
+See docs/rewind603-test-ipa.md and the603 source/payload delivery bindings.
+
 ## Hogwarts after602 — Core compiled and independently verified, 30 October2026
 
 Final source1630bd0230c9431de92faec9c5e2662262b1ede6 succeeds in
