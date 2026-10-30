@@ -69,6 +69,8 @@ class FakeAPI:
             return {"object": {"sha": self.claude_sha}}
         if path == cleanup.PREFIX + "/git/ref/heads/main":
             return {"object": {"sha": self.main_sha}}
+        if path.startswith(cleanup.PREFIX + '/actions/runs/') and '?' not in path:
+            return deepcopy(self.runs[int(path.rsplit('/', 1)[1])])
         page = int(path.rsplit("=", 1)[1])
         ordered = sorted(self.runs.values(), key=cleanup.run_key, reverse=True)
         return {"total_count": len(ordered), "workflow_runs": deepcopy(ordered[(page-1)*100:page*100])}
@@ -88,6 +90,42 @@ class FakeAPI:
 
 
 class CleanupSafetyTest(unittest.TestCase):
+    def test_skipped_only_policy_protects_executed_jobs_and_allows_product_push(self):
+        runs = records(302)
+        for r in runs:
+            r['conclusion'] = 'skipped'
+        runs[-1]['conclusion'] = 'success'
+        plan = plan_for(runs, skipped_only=True)
+        with self.assertRaises(cleanup.SafetyError):
+            cleanup.validate_plan(plan)
+        plan['protected_runs'] = [{'id': runs[-1]['id'], 'reasons': ['successful_build']}]
+        cleanup.validate_plan(plan)
+        api = FakeAPI(runs)
+        api.claude_sha = 'e' * 40
+        cleanup.check_refs(api, EXEC_SHA, MAIN_SHA, allow_claude_advance=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            env, event = context()
+            journal = cleanup.Journal(Path(tmp), execute=True)
+            result = cleanup.run_cleanup(api, plan, journal, execute=True, environment=env, event=event)
+            self.assertEqual(result['status'], 'completed')
+            self.assertEqual(api.deleted, [runs[-2]['id']])
+        current = deepcopy(runs)
+        current[-2]['conclusion'] = 'success'
+        self.assertEqual(cleanup.refresh_selection(plan, current, {}, {}, None), [])
+
+    def test_api_id_order_with_inverted_creation_clock_is_normalized(self):
+        runs = records(4)
+        runs[0]['created_at'], runs[1]['created_at'] = runs[1]['created_at'], runs[0]['created_at']
+        class IDOrderedAPI(FakeAPI):
+            def get_json(self, path):
+                value = super().get_json(path)
+                if 'workflow_runs' in value:
+                    value['workflow_runs'].sort(key=lambda r: r['id'], reverse=True)
+                return value
+        api = IDOrderedAPI(runs)
+        self.assertEqual(cleanup.list_all_runs(api), sorted(runs, key=cleanup.run_key, reverse=True))
+        self.assertEqual(api.deleted, [])
+
     def test_same_second_api_order_is_normalized_after_stability_check(self):
         runs = records(4)
         for run in runs:
