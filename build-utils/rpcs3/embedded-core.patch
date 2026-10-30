@@ -3999,7 +3999,7 @@ index e11a275..353f459 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 0000000..eb6e22e
+index 0000000..6970b26
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 @@ -0,0 +1,75 @@
@@ -4065,7 +4065,7 @@ index 0000000..eb6e22e
 +    # bodies and external helper signatures remain identical. Preserve the
 +    # immediate delivered effective hash for this exact reviewed snapshot.
 +    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
-+           actual STREQUAL "d3aa29b2eab67c9036c5007cba356a52bf3d4abea2c06da66ffd83f9ff602d7c")
++           actual STREQUAL "84cd797c8ebd47211f97ca1bb78af6c5dd71410530aa563b08bed39545852309")
 +        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
 +    # CELL559: compile() builds the LLVM analysis managers and the function pass
 +    # pipeline only when no cached object is linked. A miss runs the same passes
@@ -12742,7 +12742,7 @@ index faf4082..d08c480 100644
  	// Interpreter table (spu_itype -> ptr)
  	static std::array<u64, 256> g_interpreter_table;
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
-index bc9ec5e..6f8d84f 100644
+index bc9ec5e..9c7d859 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
 @@ -25,11 +25,20 @@
@@ -13807,7 +13807,7 @@ index bc9ec5e..6f8d84f 100644
 +						// Preserve the host notification latch as well as waking a
 +						// state waiter: the deadline can arrive just before a blocked
 +						// WRCH registers its wait with these pending flags already set.
-+						spu->notify();
++						spu->cpu_thread::notify();
 +					}
 +				}
 +			}

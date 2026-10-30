@@ -1,5 +1,24 @@
 # Current application identity — RewindBox (21 October 2026)
 
+## RPCS3 device601 Core compilation requested — 30 October2026
+
+The maintainer now authorizes the new iPhone Core compilation, not an IPA
+or release. Restore the reviewed17cc8faf source lot without losing the
+private603 records. Apple attempt82e318a1 failed only on Darwin temporary
+symlink paths before tests. Attempt532ca40e passed all12 modes, then the
+full iOS syntax gate exposed the ambiguous SPU notifier. Qualify it as
+cpu_thread::notify; keep its state notification and sticky host wake.
+
+The updated canonical patch70d694bb3ef812b87b8839e53335376028aa16476893512d012b77ef1952fd79
+has326 verified postimages, eight cumulative changes and318 preserved from
+compiled378509e8. Guest codegen identities and ABI30/88exports stay exact.
+Reuse the ten unaffected Apple modes from532ca40e only after authenticating
+the original reports/traces and regenerating identical programs. Execute
+only the two changed MFC modes. Keep all28 historical modes and both failed
+attempts scoped to their actual origins; no invented fresh success.
+The immutable workflow/compiler recipe remains. See
+docs/rpcs3-device601-core-2026-10-30.md. No physical game recovery or FPS gain.
+
 ## RPCS3 open-issue continuation — 30 October 2026
 
 After local b9346b5, three source defects were reproduced and corrected:

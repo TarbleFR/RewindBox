@@ -1,7 +1,27 @@
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+index 554d040..6970b26 100644
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -54,6 +54,14 @@ function(neostation_codegen_compatible_hash source actual output)
+     elseif(source STREQUAL "Cell/SPUThread.cpp" AND
+            actual STREQUAL "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440")
+         set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
++    # Device601 decrementer follow-up: only the host full-MFC-queue owner
++    # checks the decrementer event and the existing timer worker uses the
++    # thread notification latch. Other SPUThread.cpp bytes, layout, emitter
++    # bodies and external helper signatures remain identical. Preserve the
++    # immediate delivered effective hash for this exact reviewed snapshot.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "84cd797c8ebd47211f97ca1bb78af6c5dd71410530aa563b08bed39545852309")
++        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
+     # CELL559: compile() builds the LLVM analysis managers and the function pass
+     # pipeline only when no cached object is linked. A miss runs the same passes
+     # in the same order on the same IR; a hit generates no code. Generated
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
+index bce82c3..9c7d859 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
-@@ -4572,6 +4572,15 @@
+@@ -4572,6 +4572,15 @@ bool spu_thread::process_mfc_cmd()
  			ch_events.atomic_op([](ch_events_t& events) { events.waiting = true; });
  		}
  
@@ -17,7 +37,7 @@ diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
  		if (check_mfc_interrupts(pc))
  		{
  			if (wait_for_events)
-@@ -5866,7 +5875,10 @@
+@@ -5866,7 +5875,10 @@ struct spu_dec_intr_timer
  					if (spu->dec_intr_armed.compare_and_swap_test(e.token, 0))
  					{
  						spu->state += cpu_flag::pending + cpu_flag::pending_recheck;
@@ -25,14 +45,96 @@ diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
 +						// Preserve the host notification latch as well as waking a
 +						// state waiter: the deadline can arrive just before a blocked
 +						// WRCH registers its wait with these pending flags already set.
-+						spu->notify();
++						spu->cpu_thread::notify();
  					}
  				}
  			}
+diff --git a/rpcs3/Emu/Cell/lv2/sys_process.cpp b/rpcs3/Emu/Cell/lv2/sys_process.cpp
+index a9bb216..8aa384f 100644
+--- a/rpcs3/Emu/Cell/lv2/sys_process.cpp
++++ b/rpcs3/Emu/Cell/lv2/sys_process.cpp
+@@ -25,6 +25,9 @@
+ #include "sys_fs.h"
+ #include "sys_vm.h"
+ #include "sys_spu.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSRestoreExecutor.h"
++#endif
+ 
+ // Check all flags known to be related to extended permissions (TODO)
+ // It's possible anything which has root flags implicitly has debug perm as well
+@@ -417,7 +420,15 @@ void lv2_exitspawn(ppu_thread& ppu, std::vector<std::string>& argv, std::vector<
+ 	// sys_sm_shutdown
+ 	const bool is_real_reboot = (ppu.gpr[11] == 379);
+ 
++#ifdef RPCS3_IOS
++	// Capture before any queueing; a later wrapper stop/new boot invalidates
++	// both phases before either may read the FXO or apply captured arguments.
++	const u64 generation = rpcs3::ios::continuous_boot_generation();
++	const u64 emulation_id = static_cast<u64>(Emu.GetEmulationIdentifier());
++	auto stop_process = [is_real_reboot, argv = std::move(argv), envp = std::move(envp), data = std::move(data), generation](u64 current_emulation_id) mutable
++#else
+ 	Emu.CallFromMainThread([is_real_reboot, argv = std::move(argv), envp = std::move(envp), data = std::move(data)]() mutable
++#endif
+ 	{
+ 		sys_process.success("Process finished -> %s", argv[0]);
+ 
+@@ -475,8 +486,17 @@ void lv2_exitspawn(ppu_thread& ppu, std::vector<std::string>& argv, std::vector<
+ 		};
+ 
+ 		Emu.after_kill_callback = [func = std::move(func), argv = std::move(argv), envp = std::move(envp), data = std::move(data),
+-			disc = std::move(disc), path = std::move(path), hdd1 = std::move(hdd1), old_config = Emu.GetUsedConfig(), old_db_config = Emu.GetUsedDatabaseConfig(), klic]() mutable
++			disc = std::move(disc), path = std::move(path), hdd1 = std::move(hdd1), old_config = Emu.GetUsedConfig(), old_db_config = Emu.GetUsedDatabaseConfig(), klic
++#ifdef RPCS3_IOS
++			, generation, current_emulation_id, title_id = Emu.GetTitleID()
++#endif
++		]() mutable
+ 		{
++#ifdef RPCS3_IOS
++			auto boot_process = [func = std::move(func), argv = std::move(argv), envp = std::move(envp), data = std::move(data),
++				disc = std::move(disc), path = std::move(path), hdd1 = std::move(hdd1), old_config = std::move(old_config), old_db_config = std::move(old_db_config), klic]() mutable
++			{
++#endif
+ 			Emu.argv = std::move(argv);
+ 			Emu.envp = std::move(envp);
+ 			Emu.data = std::move(data);
+@@ -497,6 +517,15 @@ void lv2_exitspawn(ppu_thread& ppu, std::vector<std::string>& argv, std::vector<
+ 			{
+ 				sys_process.fatal("Failed to boot from exitspawn! (path=\"%s\", error=%s)", path, res);
+ 			}
++#ifdef RPCS3_IOS
++			};
++			// UIKit has finished the old renderer's cleanup. Only the owned
++			// worker may now apply arguments and read/compile the next SELF.
++			if (!rpcs3::ios::defer_continuous_boot(std::move(boot_process), generation, current_emulation_id + 1, std::move(title_id)))
++			{
++				sys_process.error("Could not schedule the internal process boot");
++			}
++#endif
+ 		};
+ 
+ 		signal_system_cache_can_stay();
+@@ -504,7 +533,15 @@ void lv2_exitspawn(ppu_thread& ppu, std::vector<std::string>& argv, std::vector<
+ 		// Make sure we keep the game window opened
+ 		Emu.SetContinuousMode(true);
+ 		Emu.Kill(false);
++#ifdef RPCS3_IOS
++	};
++	if (!rpcs3::ios::defer_continuous_stop(std::move(stop_process), generation, emulation_id, Emu.GetTitleID()))
++	{
++		sys_process.error("Could not schedule the internal process stop");
++	}
++#else
+ 	});
++#endif
+ 
+ 	// Wait for GUI thread
+ 	while (auto state = +ppu.state)
 diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+index 4868c97..94d6b13 100644
 --- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
-@@ -754,7 +754,9 @@
+@@ -754,7 +754,9 @@ void VKGSRender::load_texture_env()
  vk::image_view* VKGSRender::snapshot_color_feedback(u32 texture_index, vk::image_view* view)
  {
  	if (vk::get_driver_vendor() != vk::driver_vendor::MVK ||
@@ -42,7 +144,7 @@ diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
  		view->info.subresourceRange.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT ||
  		view->image()->samples() != 1)
  	{
-@@ -768,11 +770,11 @@
+@@ -768,11 +770,11 @@ vk::image_view* VKGSRender::snapshot_color_feedback(u32 texture_index, vk::image
  			continue;
  		}
  
@@ -60,6 +162,7 @@ diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
  		const auto* desc = static_cast<vk::texture_cache::sampled_image_descriptor*>(fs_sampler_state[texture_index].get());
  		rsx::image_section_attributes_t attrs{};
 diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
+index 2fa3185..ae970a4 100644
 --- a/rpcs3/Emu/RSX/rsx_cache.h
 +++ b/rpcs3/Emu/RSX/rsx_cache.h
 @@ -16,6 +16,7 @@
@@ -70,7 +173,7 @@ diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
  #endif
  
  #include "util/sysinfo.hpp"
-@@ -692,6 +693,26 @@
+@@ -692,6 +693,26 @@ namespace rsx
  				return u64(local_addr) | (u64(data_length) << 32);
  			}
  
@@ -97,7 +200,7 @@ diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
  		public:
  
  			const storage_type* find_vertex_range(u32 local_addr, u32 data_length) override
-@@ -705,8 +726,12 @@
+@@ -705,8 +726,12 @@ namespace rsx
  				}
  
  				// Check if data in local_address changed vs what was stored in the vertex_cache
@@ -110,7 +213,7 @@ diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
  				{
  					vertex_ranges.erase(key);
  					return nullptr;
-@@ -722,10 +747,14 @@
+@@ -722,10 +747,14 @@ namespace rsx
  				v.local_address = local_addr;
  				v.offset_in_heap = offset_in_heap;
  
@@ -126,6 +229,7 @@ diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
  				const auto key = hash(local_addr, data_length);
  				vertex_ranges[key] = v;
 diff --git a/rpcs3/ios/IOSRestoreExecutor.h b/rpcs3/ios/IOSRestoreExecutor.h
+index 31b2c81..102b061 100644
 --- a/rpcs3/ios/IOSRestoreExecutor.h
 +++ b/rpcs3/ios/IOSRestoreExecutor.h
 @@ -6,11 +6,14 @@
@@ -145,7 +249,7 @@ diff --git a/rpcs3/ios/IOSRestoreExecutor.h b/rpcs3/ios/IOSRestoreExecutor.h
  // invalidates a task even after dequeue while it waits for the Core API lock.
  class restore_executor final {
  public:
-@@ -20,6 +23,7 @@
+@@ -20,6 +23,7 @@ public:
      restore_executor(const restore_executor&) = delete;
      restore_executor& operator=(const restore_executor&) = delete;
      bool post(task work, std::uint64_t token) noexcept;
@@ -153,7 +257,7 @@ diff --git a/rpcs3/ios/IOSRestoreExecutor.h b/rpcs3/ios/IOSRestoreExecutor.h
      bool cancel() noexcept;
      bool current(std::uint64_t token) const noexcept;
      std::uint64_t generation() const noexcept { return generation_.load(std::memory_order_acquire); }
-@@ -33,6 +37,7 @@
+@@ -33,6 +37,7 @@ private:
      std::thread::id worker_id_{}; // mutex_: self-close check never reads a joining std::thread
      std::atomic<std::uint64_t> generation_{1};
      bool closed_ = false, active_ = false;
@@ -161,7 +265,7 @@ diff --git a/rpcs3/ios/IOSRestoreExecutor.h b/rpcs3/ios/IOSRestoreExecutor.h
      void run() noexcept;
  };
  // Called after UIKit has completed the existing stop/renderer cleanup.
-@@ -43,4 +48,13 @@
+@@ -43,4 +48,13 @@ std::uint64_t savestate_restore_generation() noexcept;
  // admission failed for the still-current request. No stale callback may mutate
  // a newer title, even if UIKit delivers it only after a later boot/stop.
  bool defer_savestate_restore(std::function<void()> continuation, std::uint64_t token) noexcept;
@@ -176,6 +280,7 @@ diff --git a/rpcs3/ios/IOSRestoreExecutor.h b/rpcs3/ios/IOSRestoreExecutor.h
 +bool defer_continuous_boot(std::function<void()> boot, std::uint64_t token, std::uint64_t emulation_id, std::string title_id) noexcept;
  }
 diff --git a/rpcs3/ios/NeoStationSavestateStatus.h b/rpcs3/ios/NeoStationSavestateStatus.h
+index 006640b..8a12de3 100644
 --- a/rpcs3/ios/NeoStationSavestateStatus.h
 +++ b/rpcs3/ios/NeoStationSavestateStatus.h
 @@ -2,7 +2,9 @@
@@ -188,7 +293,7 @@ diff --git a/rpcs3/ios/NeoStationSavestateStatus.h b/rpcs3/ios/NeoStationSavesta
  #include <string>
  #include <utility>
  
-@@ -27,13 +29,39 @@
+@@ -27,14 +29,40 @@ class operation
  {
      mutable std::mutex mutex;
      snapshot value{phase::idle, false, false, 0, {}};
@@ -209,7 +314,7 @@ diff --git a/rpcs3/ios/NeoStationSavestateStatus.h b/rpcs3/ios/NeoStationSavesta
          value = {phase::preparing, true, false, slot, {}};
 +        owner_emulation_id = emulation_id;
          return true;
-+    }
+     }
 +    // One process switch can wait behind this operation. The callback must be
 +    // nonthrowing and is invoked outside the status mutex. If finish won the
 +    // registration race, return its outcome only for the requested owner.
@@ -226,10 +331,11 @@ diff --git a/rpcs3/ios/NeoStationSavestateStatus.h b/rpcs3/ios/NeoStationSavesta
 +            return {registration_state::busy, std::nullopt};
 +        completion = std::move(callback);
 +        return {registration_state::registered, std::nullopt};
-     }
++    }
      snapshot read() const
      {
-@@ -60,11 +88,18 @@
+         std::lock_guard lock(mutex);
+@@ -60,11 +88,18 @@ public:
      }
      void finish(bool success, std::string fallback = {})
      {
@@ -254,6 +360,7 @@ diff --git a/rpcs3/ios/NeoStationSavestateStatus.h b/rpcs3/ios/NeoStationSavesta
  };
  
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
+index 848875c..bdfdbad 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -115,6 +115,7 @@
@@ -264,7 +371,7 @@ diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
  #include <pthread.h>
  
  namespace
-@@ -4941,7 +4942,7 @@
+@@ -4941,7 +4942,7 @@ static rpcs3_ios_status neostation_rpcs3_ios_save_state_impl(uint32_t requested_
              return RPCS3_IOS_SAVESTATE_STORAGE_FAILED;
          }
  
@@ -273,7 +380,7 @@ diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
          {
              set_error("A savestate is already being created or restored. Wait for it to finish.");
              return RPCS3_IOS_INVALID_STATE;
-@@ -5114,7 +5115,11 @@
+@@ -5114,7 +5115,11 @@ extern "C" rpcs3_ios_status rpcs3_ios_stop_emulation(void) noexcept
  		return RPCS3_IOS_INVALID_STATE;
  	}
  
@@ -286,10 +393,11 @@ diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
  
  	try
  	{
-@@ -5247,11 +5252,19 @@
+@@ -5246,12 +5251,20 @@ namespace rpcs3::ios {
+ // REWINDBOX_RESTORE_EXECUTOR_BEGIN: portable owned-queue implementation.
  restore_executor::~restore_executor() { close(); }
  bool restore_executor::post(task work, std::uint64_t token) noexcept
- {
++{
 +	return post_impl(std::move(work), token, false);
 +}
 +bool restore_executor::post_continuation(task work, std::uint64_t token) noexcept
@@ -297,7 +405,7 @@ diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
 +	return post_impl(std::move(work), token, true);
 +}
 +bool restore_executor::post_impl(task work, std::uint64_t token, bool allow_active) noexcept
-+{
+ {
  	if (!work) return false;
  	try
  	{
@@ -307,7 +415,7 @@ diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
  		if (!worker_.joinable())
  		{
  			worker_ = std::thread([this] { run(); });
-@@ -5375,6 +5388,160 @@
+@@ -5375,6 +5388,160 @@ bool defer_savestate_restore(std::function<void()> continuation, std::uint64_t t
  	}
  	catch (...) { return false; }
  }
@@ -468,102 +576,3 @@ diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
  }
  
  [[noreturn]] void report_fatal_error(std::string_view text, bool, bool)
-diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
---- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-+++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -54,6 +54,14 @@
-     elseif(source STREQUAL "Cell/SPUThread.cpp" AND
-            actual STREQUAL "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440")
-         set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
-+    # Device601 decrementer follow-up: only the host full-MFC-queue owner
-+    # checks the decrementer event and the existing timer worker uses the
-+    # thread notification latch. Other SPUThread.cpp bytes, layout, emitter
-+    # bodies and external helper signatures remain identical. Preserve the
-+    # immediate delivered effective hash for this exact reviewed snapshot.
-+    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
-+           actual STREQUAL "d3aa29b2eab67c9036c5007cba356a52bf3d4abea2c06da66ffd83f9ff602d7c")
-+        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
-     # CELL559: compile() builds the LLVM analysis managers and the function pass
-     # pipeline only when no cached object is linked. A miss runs the same passes
-     # in the same order on the same IR; a hit generates no code. Generated
-diff --git a/rpcs3/Emu/Cell/lv2/sys_process.cpp b/rpcs3/Emu/Cell/lv2/sys_process.cpp
---- a/rpcs3/Emu/Cell/lv2/sys_process.cpp
-+++ b/rpcs3/Emu/Cell/lv2/sys_process.cpp
-@@ -25,6 +25,9 @@
- #include "sys_fs.h"
- #include "sys_vm.h"
- #include "sys_spu.h"
-+#ifdef RPCS3_IOS
-+#include "ios/IOSRestoreExecutor.h"
-+#endif
- 
- // Check all flags known to be related to extended permissions (TODO)
- // It's possible anything which has root flags implicitly has debug perm as well
-@@ -417,7 +420,15 @@
- 	// sys_sm_shutdown
- 	const bool is_real_reboot = (ppu.gpr[11] == 379);
- 
-+#ifdef RPCS3_IOS
-+	// Capture before any queueing; a later wrapper stop/new boot invalidates
-+	// both phases before either may read the FXO or apply captured arguments.
-+	const u64 generation = rpcs3::ios::continuous_boot_generation();
-+	const u64 emulation_id = static_cast<u64>(Emu.GetEmulationIdentifier());
-+	auto stop_process = [is_real_reboot, argv = std::move(argv), envp = std::move(envp), data = std::move(data), generation](u64 current_emulation_id) mutable
-+#else
- 	Emu.CallFromMainThread([is_real_reboot, argv = std::move(argv), envp = std::move(envp), data = std::move(data)]() mutable
-+#endif
- 	{
- 		sys_process.success("Process finished -> %s", argv[0]);
- 
-@@ -475,8 +486,17 @@
- 		};
- 
- 		Emu.after_kill_callback = [func = std::move(func), argv = std::move(argv), envp = std::move(envp), data = std::move(data),
--			disc = std::move(disc), path = std::move(path), hdd1 = std::move(hdd1), old_config = Emu.GetUsedConfig(), old_db_config = Emu.GetUsedDatabaseConfig(), klic]() mutable
--		{
-+			disc = std::move(disc), path = std::move(path), hdd1 = std::move(hdd1), old_config = Emu.GetUsedConfig(), old_db_config = Emu.GetUsedDatabaseConfig(), klic
-+#ifdef RPCS3_IOS
-+			, generation, current_emulation_id, title_id = Emu.GetTitleID()
-+#endif
-+		]() mutable
-+		{
-+#ifdef RPCS3_IOS
-+			auto boot_process = [func = std::move(func), argv = std::move(argv), envp = std::move(envp), data = std::move(data),
-+				disc = std::move(disc), path = std::move(path), hdd1 = std::move(hdd1), old_config = std::move(old_config), old_db_config = std::move(old_db_config), klic]() mutable
-+			{
-+#endif
- 			Emu.argv = std::move(argv);
- 			Emu.envp = std::move(envp);
- 			Emu.data = std::move(data);
-@@ -497,6 +517,15 @@
- 			{
- 				sys_process.fatal("Failed to boot from exitspawn! (path=\"%s\", error=%s)", path, res);
- 			}
-+#ifdef RPCS3_IOS
-+			};
-+			// UIKit has finished the old renderer's cleanup. Only the owned
-+			// worker may now apply arguments and read/compile the next SELF.
-+			if (!rpcs3::ios::defer_continuous_boot(std::move(boot_process), generation, current_emulation_id + 1, std::move(title_id)))
-+			{
-+				sys_process.error("Could not schedule the internal process boot");
-+			}
-+#endif
- 		};
- 
- 		signal_system_cache_can_stay();
-@@ -504,7 +533,15 @@
- 		// Make sure we keep the game window opened
- 		Emu.SetContinuousMode(true);
- 		Emu.Kill(false);
-+#ifdef RPCS3_IOS
-+	};
-+	if (!rpcs3::ios::defer_continuous_stop(std::move(stop_process), generation, emulation_id, Emu.GetTitleID()))
-+	{
-+		sys_process.error("Could not schedule the internal process stop");
-+	}
-+#else
- 	});
-+#endif
- 
- 	// Wait for GUI thread
- 	while (auto state = +ppu.state)

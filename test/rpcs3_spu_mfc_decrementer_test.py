@@ -44,6 +44,7 @@ def generate(source, baseline, mutation=None):
     for method in METHODS:
         assert braced(current, method) == braced(original, method), method
     files = [HEADER, 'Utilities/Thread.h', 'Utilities/Thread.cpp',
+             'rpcs3/Emu/CPU/CPUThread.h', 'rpcs3/Emu/CPU/CPUThread.cpp',
              'rpcs3/Emu/Cell/MFC.h', 'rpcs3/Emu/Cell/SPUInterpreter.cpp',
              'rpcs3/Emu/Cell/SPULLVMRecompiler.cpp']
     for name in files:
@@ -51,10 +52,29 @@ def generate(source, baseline, mutation=None):
     head = (source / HEADER).read_text()
     thread = (source / 'Utilities/Thread.h').read_text()
     thread_cpp = (source / 'Utilities/Thread.cpp').read_text()
+    cpu_cpp = (source / 'rpcs3/Emu/CPU/CPUThread.cpp').read_text()
     mfc = (source / 'rpcs3/Emu/Cell/MFC.h').read_text()
     interpreter = (source / 'rpcs3/Emu/Cell/SPUInterpreter.cpp').read_text()
     llvm = (source / 'rpcs3/Emu/Cell/SPULLVMRecompiler.cpp').read_text()
     code = ADAPTER.read_text().split('template<class T>void fixture', 1)[0]
+    # Reproduce named_thread's actual two-parent lookup. The old fixture put a
+    # notify() member on spu_thread itself, hiding the production ambiguity.
+    cpu_adapter = braced(code, 'struct cpu_thread {') + ';'
+    code = code.replace(cpu_adapter, 'struct cpu_thread;')
+    cpu_adapter = cpu_adapter.replace('static cpu_thread* get_current(){return nullptr;}', '''
+    static cpu_thread* get_current(){return nullptr;}
+    thread_class get_class()const{return thread_class::spu;}
+    void notify();''')
+    code = code.replace('struct atomic_wait_timeout{', '''
+enum class thread_class{ppu,spu,rsx};
+template<class>struct result_storage{};
+''' + thread[thread.index('template <class Context>\nclass named_thread final'):thread.index('{', thread.index('template <class Context>\nclass named_thread final'))] + '''{
+    friend struct thread_ctrl;
+public:
+    thread_base& host_thread(){return *this;}
+};
+struct atomic_wait_timeout{''')
+    code = code.replace('    @WAIT_CUSTOM@', '    ' + braced(thread, 'template <typename T>\n\tstatic void notify(') + '\n    @WAIT_CUSTOM@')
     code = code.replace('enum class cpu_flag:u32 {wait=1,stop=2,again=4};', '''
 enum class cpu_flag:u32 {wait=1,stop=2,again=4,pending=8,pending_recheck=16,dbg_pause=32};
 template<class T>using bs_t=u32;
@@ -78,7 +98,7 @@ constexpr u32 SPU_EVENT_LR=0x400,SPU_EVENT_TM=0x20,SPU_EVENT_SN=2;
 constexpr u32 SPU_EVENT_IMPLEMENTED=SPU_EVENT_LR|SPU_EVENT_TM|SPU_EVENT_SN|0x300;
 constexpr u32 SPU_EVENT_INTR_BUSY_CHECK=SPU_EVENT_IMPLEMENTED&~SPU_EVENT_SN;
 struct Logger{template<class...T>void error(T...){};}spu_log;
-struct spu_dec_intr_timer;template<class T>struct named_thread;
+struct spu_dec_intr_timer;template<class T>class named_thread;
 struct TimerQueue{u64 calls{},due{},token{};void arm(u64 d,u32,u64 t){++calls;due=d;token=t;}};
 struct FixedObjects{template<class T>TimerQueue& get(){static TimerQueue queue;return queue;}}fixed_objects;
 auto* g_fxo=&fixed_objects;
@@ -86,6 +106,8 @@ auto* g_fxo=&fixed_objects;
     start = code.index('// @CLASS_BEGIN@\n')
     end = code.index('// @CLASS_END@\n') + len('// @CLASS_END@\n')
     cls = code[start:end].replace("// @CLASS_BEGIN@\n", "").replace("// @CLASS_END@\n", "")
+    cls = cls.replace('    thread_base host;\n', '')
+    cls = cls.replace('    void notify(){++notified;state.notify_one();host.notify();}\n', '')
     cls = cls.replace('bool test_stopped(){return is_stopped(state.load());}', '''
     // CPUThread::check_state boundary: pending invokes real cpu_work, then wait
     // is cleared before returning to the real full-queue loop. Suspend/debug
@@ -121,14 +143,17 @@ auto* g_fxo=&fixed_objects;
             process_text = original
         if name == 'after' and mutation == 'omit-sticky-notify':
             timer_text = original
-        versions += 'namespace ' + name + ' {\n' + cls + '\n'
+        if name == 'after' and mutation == 'ambiguous-notify':
+            timer_text = timer_text.replace('spu->cpu_thread::notify();', 'spu->notify();')
+        versions += 'namespace ' + name + ' {\n' + cpu_adapter + '\nstruct ppu_thread:cpu_thread{};\n' + cls + '\n'
+        versions += braced(cpu_cpp, 'void cpu_thread::notify()') + '\n'
         versions += braced(text, 'static void ios_publish_mfc_snapshot(') + '\n'
         versions += '\n'.join(braced(text, method) for method in METHODS)
         dispatch = braced(text, 'bool spu_thread::process_mfc_cmd()')
         barrier = dispatch[dispatch.index('\tcase MFC_BARRIER_CMD:\n'):dispatch.index('\n\tdefault:', dispatch.index('\tcase MFC_BARRIER_CMD:\n'))]
         versions += '\nbool spu_thread::process_prefix(){' + prefix(process_text) + '\n++accepted;switch(ch_mfc_cmd.cmd){\n' + barrier + '\n default: assert(false);return false;} }\n'
         timer_publish = braced(braced(timer_text, 'struct spu_dec_intr_timer\n'), 'if (spu->dec_intr_armed.compare_and_swap_test(e.token, 0))')
-        versions += '\nvoid publish_timer(spu_thread& target,u64 token){auto* spu=&target;struct{u64 token;}e{token};\n' + timer_publish + '\n}\n'
+        versions += '\nvoid publish_timer(named_thread<spu_thread>& target,u64 token){auto* spu=&target;struct{u64 token;}e{token};\n' + timer_publish + '\n}\n'
         versions += '''
 struct spu_opcode_t{};
 namespace spu_interpreter{
@@ -161,7 +186,7 @@ def main():
     p.add_argument('--baseline', type=Path, required=True)
     p.add_argument('--compiler', default=os.environ.get('CXX', 'c++'))
     p.add_argument('--sanitizer', choices=['address,undefined'])
-    p.add_argument('--mutation', choices=['omit-owner-collect', 'omit-sticky-notify'])
+    p.add_argument('--mutation', choices=['omit-owner-collect', 'omit-sticky-notify', 'ambiguous-notify'])
     p.add_argument('--report', type=Path, required=True)
     a = p.parse_args()
     source, baseline = a.source.resolve(), a.baseline.resolve()
@@ -178,11 +203,23 @@ def main():
     with tempfile.TemporaryDirectory(prefix='rpcs3-mfc-decrementer-') as temporary:
         cpp, executable = Path(temporary) / 'probe.cpp', Path(temporary) / 'probe'
         cpp.write_text(program)
-        subprocess.run([*compiler, *flags, str(cpp), '-o', str(executable)], check=True)
+        built = subprocess.run([*compiler, *flags, str(cpp), '-o', str(executable)],
+                               capture_output=a.mutation == 'ambiguous-notify', text=True)
+        if a.mutation == 'ambiguous-notify':
+            report = dict(passed=built.returncode != 0 and 'ambiguous' in built.stderr,
+                          mutation=a.mutation, mutationRejected=built.returncode != 0 and 'ambiguous' in built.stderr,
+                          compilationReturncode=built.returncode, compilerDiagnostics=built.stderr,
+                          generatedSHA256=sha(program.encode()), runnerSHA256=sha(Path(__file__).read_bytes()),
+                          physicalDeviceTested=False, gameplayMeasured=False, native_program_executed=False)
+            a.report.parent.mkdir(parents=True, exist_ok=True)
+            a.report.write_text(json.dumps(report, indent=2) + '\n')
+            print(json.dumps(report, indent=2))
+            raise SystemExit(0 if report['passed'] else 1)
+        built.check_returncode()
         run = subprocess.run([str(executable)], capture_output=True, text=True, timeout=45,
                              env=dict(os.environ, ASAN_OPTIONS='detect_leaks=0:halt_on_error=1', UBSAN_OPTIONS='halt_on_error=1'))
     report = dict(passed=run.returncode == 0, mutation=a.mutation, returncode=run.returncode, stderr=run.stderr,
-                  sourceSHA256={name: sha((source / name).read_bytes()) for name in [CPP, HEADER, 'Utilities/Thread.h', 'Utilities/Thread.cpp', 'rpcs3/Emu/Cell/MFC.h', 'rpcs3/Emu/Cell/SPUInterpreter.cpp', 'rpcs3/Emu/Cell/SPULLVMRecompiler.cpp', 'rpcs3/ios/IOSSignalTrace.h']},
+                  sourceSHA256={name: sha((source / name).read_bytes()) for name in [CPP, HEADER, 'Utilities/Thread.h', 'Utilities/Thread.cpp', 'rpcs3/Emu/CPU/CPUThread.h', 'rpcs3/Emu/CPU/CPUThread.cpp', 'rpcs3/Emu/Cell/MFC.h', 'rpcs3/Emu/Cell/SPUInterpreter.cpp', 'rpcs3/Emu/Cell/SPULLVMRecompiler.cpp', 'rpcs3/ios/IOSSignalTrace.h']},
                   extractionHelperSHA256=sha((ROOT / 'test/rpcs3_device597/cpu/run_late_snr.py').read_bytes()),
                   baselineSHA256=sha((baseline / CPP).read_bytes()), bodySHA256=hashes,
                   runnerSHA256=sha(Path(__file__).read_bytes()), adapterSHA256=sha(ADAPTER.read_bytes()),

@@ -216,6 +216,7 @@ def jobs(record):
 
 
 def prepare(source):
+    import rpcs3device601_reuse as reuse
     compiler, version = support.compiler_identity()
     OUT.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='device601-baseline-') as tmp:
@@ -232,8 +233,16 @@ def prepare(source):
                      host={'system': 'Darwin', 'machine': 'arm64', 'compiler': version, 'compiler_argv': compiler},
                      tests={}, all_tests_passed=False, physical_device_tested=False, gameplay_measured=False, public_release=False,
                      neoswap_host_component_packaged=False)
+        proof['native_reuse'], reused = reuse.authenticate(source, baseline, manifest, record, proof['host'],
+                                                           proof['upstream_dependencies'], download=True, install=True)
+        proof['tests'].update(reused)
+        proof['native_modes_executed_now'] = 0
+        proof['native_modes_reused'] = len(reused)
         save(PROOF, proof)
         for job in jobs(record):
+            if job['name'] in reuse.REUSED:
+                continue
+            require(job['name'] in reuse.FRESH, 'Unreviewed fresh native job')
             directory = OUT / 'device601' / job['name']
             directory.mkdir(parents=True, exist_ok=True)
             values = dict(repo=str(ROOT), source=str(source), baseline=str(baseline), output=str(directory))
@@ -255,6 +264,7 @@ def prepare(source):
                 item[member] = str(path.relative_to(OUT))
                 item[member + '_sha256'] = file_sha(path)
             proof['tests'][job['name']] = item
+            proof['native_modes_executed_now'] += 1
             save(PROOF, proof)
         proof['all_tests_passed'] = True
         save(PROOF, proof)
@@ -262,20 +272,32 @@ def prepare(source):
 
 
 def verify(path, source):
+    import rpcs3device601_reuse as reuse
     proof = load(path)
-    manifest, record, inputs, exports, codegen = source_contract(source)
+    with tempfile.TemporaryDirectory(prefix='device601-reuse-verification-') as tmp:
+        baseline = Path(tmp).resolve() / 'baseline'
+        manifest, record, inputs, exports, codegen = source_contract(source, baseline)
+        current_upstream = support.upstream_dependencies(source, manifest)
+        reuse_provenance, reused = reuse.authenticate(source, baseline, manifest, record, proof['host'], current_upstream)
     require(proof['schema'] == 1 and proof['type'] == KEY and proof['all_tests_passed'] is True, 'Wrong/incomplete native proof')
     require(proof['source'] == command('git', 'rev-parse', 'HEAD').decode().strip(), 'Proof source commit changed')
     require(proof['source_patch_sha256'] == manifest['patch_sha256'] and proof['native_source_sha256'] == manifest['files_sha256']
             and proof['input_sha256'] == inputs and proof['codegen'] == codegen and proof['exported_symbols'] == exports, 'Proof source closure changed')
     require(proof['historical'] == historical_archives(), 'Historical archive authentication changed')
-    require(proof['upstream_dependencies'] == support.upstream_dependencies(source, manifest), 'Upstream support changed')
+    require(proof['upstream_dependencies'] == current_upstream, 'Upstream support changed')
+    require(proof['native_reuse'] == reuse_provenance and proof['native_modes_executed_now'] == 2
+            and proof['native_modes_reused'] == 10, 'Current/reused Apple scope changed')
+    reuse.verify_installed(proof['tests'], reused)
     require(all(proof[key] is False for key in ('physical_device_tested', 'gameplay_measured', 'public_release', 'neoswap_host_component_packaged')), 'Mis-scoped proof')
     require(proof['host']['system'] == 'Darwin' and proof['host']['machine'] == 'arm64'
             and re.search(r'clang version 22\.', proof['host']['compiler']), 'Wrong native host/compiler')
     require(set(proof['tests']) == {job['name'] for job in jobs(record)}, 'New native modes incomplete')
     for job in jobs(record):
         item = proof['tests'][job['name']]
+        if job['name'] in reuse.REUSED:
+            require(item['native_executed_now'] is False, 'Reused Apple mode relabeled as a current execution')
+            continue
+        require(job['name'] in reuse.FRESH, 'Unreviewed current native mode')
         require(item['passed'] is True and item['mode'] == job['mode'] and item['native_executed_now'] is True, 'Native mode changed')
         values = dict(repo=str(ROOT), source=proof['source_root'], baseline=proof['baseline_root'],
                       output=str(OUT / 'device601' / job['name']))
@@ -285,7 +307,7 @@ def verify(path, source):
         support.check_report(load(OUT / item['report']), job)
         require(support.check_compile_trace(OUT / item['compile_trace'], job, proof['host']['compiler_argv']) == item['compile_count'],
                 'Native compiler observations changed')
-    print('PASS device601: new native modes only; historical 28 Apple modes not replayed; no device result')
+    print('PASS device601: two current MFC modes, ten exact Apple modes reused from 532ca40e, historical 28 not replayed; no device result')
     return proof
 
 
@@ -318,7 +340,9 @@ def identity(directory):
                 source_patch_sha256=manifest['patch_sha256'], core_input_sha256=pin.core_input_hashes(),
                 device601_input_sha256=proof['input_sha256'], native_source_sha256=manifest['files_sha256'],
                 exported_symbols=proof['exported_symbols'], codegen=proof['codegen'], physical_device_tested=False,
-                gameplay_measured=False, public_release=False, neoswap_host_component_packaged=False)
+                gameplay_measured=False, public_release=False, neoswap_host_component_packaged=False,
+                native_modes_executed_now=proof['native_modes_executed_now'], native_modes_reused=proof['native_modes_reused'],
+                native_reuse=proof['native_reuse'])
     save(directory / 'identity.json', item)
     save(OUT / 'identity.json', item)
     shutil.copyfile(PROOF, directory / PROOF.name)

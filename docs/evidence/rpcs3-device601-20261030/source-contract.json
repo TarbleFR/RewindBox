@@ -4,11 +4,11 @@
   "schema": 1,
   "baseline_app_commit": "f41eb5ef4ce87cab08a18781c2e09a55a8319773",
   "historical_core_source": "378509e82d360bc2cb2fcc9fb23d4d9d98787506",
-  "canonical_patch_sha256": "720d0d72d8ab93bbf7596d859652b8e21dd603995b8f455b3b8674de6fc53ac8",
+  "canonical_patch_sha256": "70d694bb3ef812b87b8839e53335376028aa16476893512d012b77ef1952fd79",
   "native_changes": {
     "rpcs3/Emu/Cell/SPUThread.cpp": {
       "before": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440",
-      "after": "d3aa29b2eab67c9036c5007cba356a52bf3d4abea2c06da66ffd83f9ff602d7c"
+      "after": "84cd797c8ebd47211f97ca1bb78af6c5dd71410530aa563b08bed39545852309"
     },
     "rpcs3/Emu/RSX/VK/VKDraw.cpp": {
       "before": "45023f8eb619e8c6972af3ef531d93b93b94488f59955312305407692fd75494",
@@ -32,7 +32,7 @@
     },
     "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": {
       "before": "7891895841c71c6cd361f8b227284b6447ec1ce7ac0e455c69b18a050128d8fa",
-      "after": "e75e91136414e7a28be5edb209ff3b0df13bfcf85bb4409171cec591ae03e58e"
+      "after": "ae6f9965a8202725a2bf4d42bf04f3ec2c29a27af8c382aa96639ac1a5baad9a"
     },
     "rpcs3/Emu/Cell/lv2/sys_process.cpp": {
       "before": "de9541c42f0a8a4e295a5806f177fdf65dccdfd9382489f63178737e156e6b4c",
@@ -40,11 +40,11 @@
       "upstream_preimage_blob": "a9bb216e821372b15fec2488793aba0cdb4f4ebc"
     }
   },
-  "delta_sha256": "3e3414551398a4c2b531552f095f69ea2ce4b841496c9d3c641479e1fa028356",
+  "delta_sha256": "8b36c9233326557aa7d52cb241cd25daae398f4cd9266e05d9a9c24f3746b51c",
   "repository_inputs": {
     ".github/diagnostics/rpcs3runtime592_core.py": "49753a929b4304205db13e57b630c3d558f610ecdca3a13ddfc20a6aeebbde56",
     ".github/diagnostics/rpcs3runtime_device597_core.py": "f21892ff613694fe3807611fead5aade24a3654d9fbac13b5e147f67192d057d",
-    ".github/diagnostics/rpcs3runtime_device601_core.py": "1cb8484a5d654dd6c88e713c1a1a03dda2d0a7691626b3e1faec32215db47842",
+    ".github/diagnostics/rpcs3runtime_device601_core.py": "9e34e32b5fa6ed87140d72782a07e6d33c33e67ba42c9b0fc6b886bbfd0221b4",
     ".github/workflows/rpcs3-runtime592-core.yml": "7d6cd1d74e7503a406719932b8fddf13dd79ed0d67d775e1d49cafcc43ff036e",
     "build-utils/build_rpcs3_embedded_core.sh": "ec79fb073908151d8413a201ef61d242078d363eb317395b6c98f01421eb9a5d",
     "build-utils/configure_neoswap_donor.py": "d7a2031c2b64dadfbeddfe62724e32c3fcb915f479056831d438ef2608b9c19f",
@@ -59,13 +59,13 @@
     "build-utils/validate_single_ipa_distribution.py": "3b00c763cb0e66f8bea24869fac7a5d5cf3908315c64abb5d98a41d8e5bbb93b",
     "docs/evidence/rpcs3-device597-20261030/apple-core.json": "6daf327c775c1d195d8c4c2a6390569aa1659d4ce4190a829801f6464818494f",
     "docs/evidence/rpcs3-device597-20261030/cpu/codegen-review-final.json": "32b0c5238d26974244dca5fe1de8dafd47e51ef2ffc38b6881d6326d94e8332c",
-    "docs/evidence/rpcs3-device601-20261030/cpu/decrementer-codegen.json": "29e0b0f0c4d40731cb650b9527ebc7c795720d55d3a454c737840dbf98310b8f",
+    "docs/evidence/rpcs3-device601-20261030/cpu/decrementer-codegen.json": "cf22234807a5bb4e1c1d974af62947204ce286f0deb85d23ef706dc41e749ed4",
     "packages/dolphin_internal_bridge/ci/verify_ipa.py": "0bd457d94dfe8e54209a5d351527acf717b7ba68d1e0001b512b8f9ca7629c2c",
-    "test/fixtures/rpcs3_device601.diff": "3e3414551398a4c2b531552f095f69ea2ce4b841496c9d3c641479e1fa028356",
+    "test/fixtures/rpcs3_device601.diff": "8b36c9233326557aa7d52cb241cd25daae398f4cd9266e05d9a9c24f3746b51c",
     "test/native/rpcs3_exitspawn_worker601.cpp": "c8f08b10aedda25f0799645a26dd84aa4077cf64711f59cc4d547cbaa8033883",
     "test/native/rpcs3_savestate_completion601.cpp": "d1befb64e00a2cb6fcb0879eaa072e5fcb490ed567cbd5ddc01f7090bd0c3422",
-    "test/native/rpcs3_spu_mfc_decrementer.inc": "76d4a73e4184c5415892bb1c90e16298a00b286d3727e6708bb87e10dc39c314",
-    "test/neo_swap_core_pin_test.py": "8e5574e06f9fc7182bd947a72c46abbc45b53b5bf3fa354611d1ded41717ff28",
+    "test/native/rpcs3_spu_mfc_decrementer.inc": "d7dae867791f20a51fa2f63c10569c8e93fea49785a14e5b90a0d55daa196410",
+    "test/neo_swap_core_pin_test.py": "d0ab2a42d0041cc7b86c7a861086bf9c534b972854ec69c1c20bcdcecc86e29b",
     "test/rpcs3_color_feedback_test.py": "a48f65b5074be7e8defb0f58d889e8079b165a9b35e9aebbe176724a8e3e5ff3",
     "test/rpcs3_device597/cpu/late_snr.cpp.in": "d35cb6267a003edceac1158eb51e229941259858d7914e2f81e48b6cd8fe8c42",
     "test/rpcs3_device597/cpu/run_late_snr.py": "cd880a6a0c11b26c98c997ce375a736b2adb28c04547dc607de0adc19db5be17",
@@ -75,8 +75,11 @@
     "test/rpcs3_device601_gate_test.py": "0cee076d6d6fe1f88e9f7055a8befe17c0fbbae3f5be2744f98f5f389a21bacf",
     "test/rpcs3_exitspawn_worker601_test.py": "5170ff16eecd648e82cc00492e610cc880a8e556a198eebfdd4e8d51103c9aab",
     "test/rpcs3_savestate_completion601_test.py": "478a8a26d123a56e7ebbca873277518ff592f4b1c3cc4a2911f9317885505499",
-    "test/rpcs3_spu_mfc_decrementer_test.py": "434ca273a4d8164d2e6bf74c49951c100d1fa8bf045b93b559198f5f1be28ce3",
-    "test/rpcs3_tiny_vertex_cache_test.py": "73d1e237c56d22d393f2cb2363b6324d19bd71c8dc2932f4c2f51071f4cd2d82"
+    "test/rpcs3_spu_mfc_decrementer_test.py": "7fede7d73a95fa629a54d12960c4c83793b6542a8b58368b8184206ba8abe154",
+    "test/rpcs3_tiny_vertex_cache_test.py": "73d1e237c56d22d393f2cb2363b6324d19bd71c8dc2932f4c2f51071f4cd2d82",
+    ".github/diagnostics/rpcs3device601_reuse.py": "53fea151acff3f2a605e705a1d2b224cbdb57a78d0e8ab0b1d5880b6008298ac",
+    "test/rpcs3_device601_reuse_programs.py": "718d3d0deeca9fe431d5c55b29805484aad0233f77f321fb7145ea1e271e2079",
+    "test/rpcs3_device601_reuse_test.py": "b17b8e428ec6e70c276e4f40ac47c5186976b4bc863bcf84d65d6f2a77115bcc"
   },
   "baseline_support": {
     "Utilities/Thread.h": {
@@ -86,12 +89,20 @@
     "rpcs3/Emu/Cell/MFC.h": {
       "sha256": "66890f55f172be2a8a7b9e54100c5dac79562f0e743b72dec619732da00f7396",
       "upstream_blob": "c7fe58835e7111267cbd58c03acfc28aa8d0a023"
+    },
+    "rpcs3/Emu/CPU/CPUThread.h": {
+      "sha256": "0bc55d73a0dd34938b90073a8d363be40a7f9f3ac37109c959aa6535f36fbd2d",
+      "upstream_blob": "e723fd2d4bf057c8ad8d88a5958580ecb72e2ff3"
+    },
+    "rpcs3/Emu/CPU/CPUThread.cpp": {
+      "sha256": "e49423f3875037c6a31da937ea9bc6df20a5ab600794fe06b04b72eece52cf34",
+      "upstream_blob": "a446d5871a66a97d363320dc11e4b081f58fa5d1"
     }
   },
   "host_codegen_audit": {
     "runner": "test/rpcs3_device601_codegen_test.py",
     "report": "docs/evidence/rpcs3-device601-20261030/cpu/decrementer-codegen.json",
-    "report_sha256": "29e0b0f0c4d40731cb650b9527ebc7c795720d55d3a454c737840dbf98310b8f"
+    "report_sha256": "cf22234807a5bb4e1c1d974af62947204ce286f0deb85d23ef706dc41e749ed4"
   },
   "apple_validation_jobs": [
     {
@@ -821,6 +832,6 @@
     }
   ],
   "historical_scope": "Original 28 Apple native modes remain historical; archived bytes authenticate only during an authorized native build.",
-  "affected_historical_tests": "Vertex, full-MFC-queue/decrementer, feedback and restart programs execute on changed production paths; no old generated-program equivalence is claimed.",
+  "affected_historical_tests": "Twelve device601 Apple modes passed on source532ca40e. The qualified notifier changes two MFC modes, which execute again. Ten unchanged programs are regenerated and authenticated against the exact original Apple compiler captures; their prior execution is explicitly reused.",
   "unchanged_scope": "All native paths outside the eight recorded changes are exact. CPU emission inputs are unchanged except the two host bodies with an independently checked exact alias; exports/settings remain exact."
 }
