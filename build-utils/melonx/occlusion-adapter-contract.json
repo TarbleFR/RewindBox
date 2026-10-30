@@ -1,0 +1,26 @@
+{
+  "before": {
+    "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs": "6af5ab9745d2578ce1afc6c8687a380cd7a008b78e2a70f90bfbbb194d221ce4",
+    "src/Ryujinx.Graphics.Gpu/Memory/MemoryManager.cs": "5e75a7ef5644ca7a16a676deb5b70e07117bedfc1f37b38e9e2fa6866ab35596",
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "2c534bf24cb156d5cfc4cdc20446f1ef8b38fb91e58221c6360bd5160b321a76",
+    "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoClass.cs": "7e77a7600a463d98719d03d1670b2d3395132add9209e291643a00e01692021d",
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/SemaphoreUpdater.cs": "e0f0e778b7985112e925fa361617e5e0b63c783d7d789bdadc00229e3ea4cce9",
+    "src/Ryujinx.Graphics.Vulkan/Queries/BufferedQuery.cs": "ce00a45e20a3240eb60edc31146a34ec7dacbac18d7160547c45c12f9e0e2baf",
+    "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueueEvent.cs": "3d4c3c3e9b9cb80cde60cae6fb44368cde0a6da691e98288dacb4957b05171b9",
+    "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueue.cs": "e691a2784f8a0e74db41936f4930fbd52623def9f621214382db58d4ee31a95a",
+    "src/Ryujinx.Library/Library.cs": "73837bc3b3081b40d4d42819972881c9d66c72c5d30da718577874992e1b0d04",
+    "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs": null
+  },
+  "after": {
+    "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs": "22c2f921f1bfce229ea1a831fa15cf2f6a7c98a125fe344feb424f853c6c6f04",
+    "src/Ryujinx.Graphics.Gpu/Memory/MemoryManager.cs": "1e8be56f18bdb48f2bc86b55fdce8f3f7e7d8acc9069e06ebd73f764f7ae2dd4",
+    "src/Ryujinx.Graphics.Gpu/GpuContext.cs": "906f19669ebfb4abc1e41595b30b2c172432949f7481261e5268b82a4d74b243",
+    "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoClass.cs": "43643f71982b450397a001ea08065a303004517c5ff3150882404804b4a94b6d",
+    "src/Ryujinx.Graphics.Gpu/Engine/Threed/SemaphoreUpdater.cs": "21203441c93f9c3155b3b75fcf022b916bcdc7bd03db15561cbf4a3b668f33d9",
+    "src/Ryujinx.Graphics.Vulkan/Queries/BufferedQuery.cs": "91054f656d99c9439d0a4209b827696c20dba20a03a1fe5445a6f4db7f4ab676",
+    "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueueEvent.cs": "338fe36a8511ca4b3b0debf117b71fe494e186b61c782ce8c52f28fe504f95a9",
+    "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueue.cs": "f6334bdfc647399e6d4e5709cf8f00cdc9084a9253fc1dd26ef410c9a7e97bdf",
+    "src/Ryujinx.Library/Library.cs": "d2cfc8e3d7aaeb11515116791dc62eae79d64729bd62f7f07a859b835f5a338d",
+    "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs": "5cd082788d9108b83ea9ec61dea0dbb9f348d63ea2d72f4cefa69150bf5cee51"
+  }
+}

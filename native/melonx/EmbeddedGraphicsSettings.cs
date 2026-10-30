@@ -22,6 +22,9 @@ internal sealed class EmbeddedGraphicsSettings
     // Null leaves the base default (On, matching standalone). An explicit
     // per-game value is the escape hatch for a title that misbehaves threaded.
     internal BackendThreading? Threading;
+    // Core-only experimental controls, off for every fresh configuration.
+    internal bool OcclusionQuerySync;
+    internal bool RelaxQueryFlushing;
 
     internal static EmbeddedGraphicsSettings Parse(string text)
     {
@@ -33,6 +36,8 @@ internal sealed class EmbeddedGraphicsSettings
         {
             switch (property.Name)
             {
+                case "occlusionQuerySync": settings.OcclusionQuerySync = property.Value.GetBoolean(); break;
+                case "relaxQueryFlushing": settings.RelaxQueryFlushing = property.Value.GetBoolean(); break;
                 case "aspectRatio":
                     settings.Aspect = (AspectRatio)property.Value.GetInt32();
                     if (!Enum.IsDefined(settings.Aspect.Value)) throw new ArgumentException("Unsupported aspect ratio.");
@@ -81,6 +86,20 @@ internal sealed class EmbeddedGraphicsSettings
 partial class Library
 {
     private static EmbeddedGraphicsSettings EmbeddedGraphics = new();
+
+    private static bool EmbeddedIsHogwarts(string path)
+    {
+        // Read the actual launched content, not a stale preflight or UI id.
+        // A failed identity check disables both experiments for this session.
+        try
+        {
+            using var stream = System.IO.File.OpenRead(path);
+            string extension = System.IO.Path.GetExtension(path).TrimStart('.').ToLowerInvariant();
+            string title = GameInfoLoader.GetGameInfo(_virtualFileSystem, stream, extension)?.TitleId?.TrimEnd('\0');
+            return string.Equals(title, "0100F7E00C70E000", StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
+    }
 
     // Uses the engine's existing SurfaceFlinger crop/ratio path. The session
     // gate rejects delayed UI callbacks after stop or for a different game.

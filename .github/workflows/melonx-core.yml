@@ -17,6 +17,18 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/verify_core_candidate.py
     - build-utils/melonx/verify_gpu_core.py
     - build-utils/melonx/gpu-core-contract.json
+    - build-utils/melonx/verify_occlusion_core.py
+    - build-utils/melonx/occlusion-core-contract.json
+    - build-utils/melonx/adapt_occlusion_reports.py
+    - build-utils/melonx/occlusion-adapter-contract.json
+    - build-utils/melonx/adapt_query_batching.py
+    - build-utils/melonx/query-batching-adapter-contract.json
+    - build-utils/melonx/adapt_jit_single_attempt.py
+    - build-utils/melonx/jit-single-attempt-adapter-contract.json
+    - test/melonx_occlusion_test.py
+    - test/melonx_occlusion/**
+    - test/melonx_query_policy_test.py
+    - test/melonx_occlusion_contract_test.py
     - test/melonx_core84_reuse_test.py
     - build-utils/melonx/adapt_sync_allocations.py
     - test/melonx_sync_allocations_test.py
@@ -218,7 +230,7 @@ jobs:
     - name: Authenticate engine82 evidence and reuse unchanged LibHac
       env:
         GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/verify_gpu_core.py prepare_dependencies
+      run: python3 build-utils/melonx/verify_occlusion_core.py prepare_dependencies
     - name: Fetch exact MeloNX source
       run: |
         python3 - <<'PY_FETCH'
@@ -240,21 +252,21 @@ jobs:
         assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD'],text=True).strip()==pin['revision']
         assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD^{tree}'],text=True).strip()=='82a29e6f593f6244869481e9a489b8d5154175fe'
         PY_FETCH
-    - name: Verify Apple ARM64, exact SDK and reviewed preparation inputs
+    - name: Verify Apple ARM64, exact SDK and reviewed occlusion preparation inputs
       run: |
-        python3 test/melonx_gpu_core_contract_test.py
-        python3 build-utils/melonx/verify_gpu_core.py preflight
-    - name: Run fifteen new Apple gates and retain fourteen unchanged Core85 results
+        python3 test/melonx_occlusion_contract_test.py
+        python3 build-utils/melonx/verify_occlusion_core.py preflight
+    - name: Run three affected Apple gates and authenticate 29 historical results
       env:
         GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/verify_gpu_core.py run_gates
+      run: python3 build-utils/melonx/verify_occlusion_core.py run_gates
     - name: Compile NativeAOT library and verify exported ABI
       env:
         MELONX_AUTHENTICATED_BASELINE: ${{ github.workspace }}/.native-sources/melonx-engine82.zip
         MELONX_BUILD_SIMULATOR: '1'
       run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX .native-sources/LibHac
     - name: Bind both new libraries to reviewed sources and gate receipts
-      run: python3 build-utils/melonx/verify_gpu_core.py compiled
+      run: python3 build-utils/melonx/verify_occlusion_core.py compiled
     - uses: actions/download-artifact@v4
       with:
         name: MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314
@@ -274,7 +286,7 @@ jobs:
         if source.exists():shutil.copytree(source,'dist/melonx/runtime-smoke')
         PY_SMOKE
     - name: Verify fresh guest execution, teardown and backing release
-      run: python3 build-utils/melonx/verify_gpu_core.py finalize
+      run: python3 build-utils/melonx/verify_occlusion_core.py finalize
     - uses: actions/upload-artifact@v4
       if: ${{ always() }}
       with:

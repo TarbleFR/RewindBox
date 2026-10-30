@@ -1,0 +1,47 @@
+{
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "nativeQueryBoundariesDoubled": true,
+  "reports": {
+    "control": {
+      "checks": 5,
+      "scenarios": 2,
+      "controlLatePublication": true
+    },
+    "candidate": {
+      "checks": 16432,
+      "scenarios": 274,
+      "controlLatePublication": false
+    }
+  },
+  "compiledSourceInputs": {
+    "control": {
+      "SemaphoreUpdater.cs": "e0f0e778b7985112e925fa361617e5e0b63c783d7d789bdadc00229e3ea4cce9",
+      "Fifo.cs": "40c7755e86eed66df3a905444d83332123c3ea4791a2216c00c22c079df6b5ab",
+      "CounterCache.cs": "6af5ab9745d2578ce1afc6c8687a380cd7a008b78e2a70f90bfbbb194d221ce4",
+      "CounterQueue.cs": "e691a2784f8a0e74db41936f4930fbd52623def9f621214382db58d4ee31a95a",
+      "CounterQueueEvent.cs": "3d4c3c3e9b9cb80cde60cae6fb44368cde0a6da691e98288dacb4957b05171b9",
+      "Boundaries.cs": "c6a3540ebc5f1a9c26d303587b66a77ca7ee63f63e98595cdbe6627a840cb0bb",
+      "Program.cs": "42a434a07e82d486c6da2a5644a1b5d664e7c34755550079bddd6faa080583ac"
+    },
+    "candidate": {
+      "SemaphoreUpdater.cs": "21203441c93f9c3155b3b75fcf022b916bcdc7bd03db15561cbf4a3b668f33d9",
+      "DeferredCounterReport.cs": "5cd082788d9108b83ea9ec61dea0dbb9f348d63ea2d72f4cefa69150bf5cee51",
+      "Memory.cs": "490b5d6e75900335afcc4cc29e433cc9a4b9e4e3aa233c261140abc25cb2eb3a",
+      "Fifo.cs": "bed6110dc3adfccd5d050a0f91422d38d93124322f5217344fc9b48f860b8f7c",
+      "CounterCache.cs": "22c2f921f1bfce229ea1a831fa15cf2f6a7c98a125fe344feb424f853c6c6f04",
+      "CounterQueue.cs": "f6334bdfc647399e6d4e5709cf8f00cdc9084a9253fc1dd26ef410c9a7e97bdf",
+      "Context.cs": "33184311543c5794d00a4e5045fe19ad6d63ae8b4b5c8d0ae9ce712ef90ae547",
+      "CounterQueueEvent.cs": "338fe36a8511ca4b3b0debf117b71fe494e186b61c782ce8c52f28fe504f95a9",
+      "Boundaries.cs": "c6a3540ebc5f1a9c26d303587b66a77ca7ee63f63e98595cdbe6627a840cb0bb",
+      "Program.cs": "42a434a07e82d486c6da2a5644a1b5d664e7c34755550079bddd6faa080583ac"
+    }
+  },
+  "inputs": {
+    "test/melonx_occlusion_test.py": "f2a7c79c4773e74ffa0ea2a14c9b45cb9ad0813dd6dc64f8d4b6830e3cf0ff7e",
+    "test/melonx_occlusion/Program.cs": "42a434a07e82d486c6da2a5644a1b5d664e7c34755550079bddd6faa080583ac",
+    "test/melonx_occlusion/Boundaries.cs": "c6a3540ebc5f1a9c26d303587b66a77ca7ee63f63e98595cdbe6627a840cb0bb",
+    "build-utils/melonx/adapt_occlusion_reports.py": "a9836979601ac264a1ad72f5c3bb949aaecdca79950bac2f3b365f5fe1e1de31",
+    "build-utils/melonx/occlusion-adapter-contract.json": "d5a44caae321a10abf756ae0cb4d4e839c9e6dbf84e190fa0e851d731957431d"
+  }
+}

@@ -41,7 +41,11 @@ class Device {public Configuration Configuration=new();public PerformanceStatist
 // Ryujinx.HLE.Switch's present-cap entry point (Switch.cs:193).
 class Switch {public int PresentTargetFps;public void SetUnboundedPresentTargetFps(int fps)=>PresentTargetFps=fps;}
 class Window {public Device Device=new();}
+class GameInfo {public string TitleId;}
+static class GameInfoLoader {public static string NextTitle;public static bool Fail;public static GameInfo GetGameInfo(object fs,System.IO.Stream s,string ext){if(Fail)throw new Exception("metadata unavailable");return new GameInfo{TitleId=NextTitle};}}
 partial class Library {
+ internal static object _virtualFileSystem;
+ internal static bool TestHogwarts(string path)=>EmbeddedIsHogwarts(path);
  static readonly object EmbeddedHostGate=new();
  internal static EmbeddedSessionCoordinator EmbeddedSessions=new();
  internal static Window _window;
@@ -51,6 +55,16 @@ partial class Library {
  (w/'Program.cs').write_text(r'''using System;using Ryujinx.Library;using Ryujinx.Common.Configuration;using System.Runtime.InteropServices;using Ryujinx.Memory;using Ryujinx.Common;
 unsafe class Program {static void Main(){
 int checks=0;void Check(bool v){if(!v)throw new Exception("display assertion "+checks);checks++;}
+var defaults=EmbeddedGraphicsSettings.Parse("{}");Check(!defaults.OcclusionQuerySync&&!defaults.RelaxQueryFlushing);
+var experiments=EmbeddedGraphicsSettings.Parse("{\"occlusionQuerySync\":true,\"relaxQueryFlushing\":true}");Check(experiments.OcclusionQuerySync&&experiments.RelaxQueryFlushing);
+Check(!EmbeddedGraphicsSettings.Parse("{}").OcclusionQuerySync);
+string identityFile=System.IO.Path.GetTempFileName();try{
+GameInfoLoader.NextTitle="0100f7e00c70e000";Check(Library.TestHogwarts(identityFile));
+GameInfoLoader.NextTitle="0100F7E00C70E001";Check(!Library.TestHogwarts(identityFile));
+GameInfoLoader.NextTitle=null;Check(!Library.TestHogwarts(identityFile));
+GameInfoLoader.Fail=true;Check(!Library.TestHogwarts(identityFile));GameInfoLoader.Fail=false;
+}finally{System.IO.File.Delete(identityFile);}
+Check(!Library.TestHogwarts("/absent/rewindbox-game.nsp"));
 var old=new Options {AspectRatio=AspectRatio.Fixed21x9,EnableHostMemoryBudgetTracking=false,EnableTextureRecompression=false};
 EmbeddedGraphicsSettings.Parse("{}").Apply(old);
 Check(old.AspectRatio==AspectRatio.Fixed21x9 && !old.EnableHostMemoryBudgetTracking && !old.EnableTextureRecompression);

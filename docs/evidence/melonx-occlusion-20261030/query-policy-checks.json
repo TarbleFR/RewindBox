@@ -1,0 +1,42 @@
+{
+  "result": "passed",
+  "physicalDeviceTested": false,
+  "nativeMappingAndClockDoubled": true,
+  "reports": {
+    "control": {
+      "checks": 28,
+      "normalSubmissions": 64,
+      "batchedSubmissions": 64
+    },
+    "candidate": {
+      "checks": 50,
+      "normalSubmissions": 64,
+      "batchedSubmissions": 8
+    }
+  },
+  "compiledSourceInputs": {
+    "control": {
+      "Arena.cs": "dfaa0dc6bbce574a7eb0ad8ce7aa3f7898d1dc906556af6b9a1cc6449c3a0218",
+      "AutoFlushCounter.cs": "d50946f39c921bd77532a066694b1cbabc3b900188e7a7391b0b338d50df9df7",
+      "Boundaries.cs": "57c7dbad2f58613109f30770f585127d71bac11291e5e6b45f36e2e93b41bdff",
+      "Program.cs": "91637e91b7b4f374b42833b573f9784b51191eda5a091fa0a71827cf1d66f895",
+      "QueryRead.cs": "318fa5e12aa3f3ff58367b9c8cbd435876f25a5031492d3d68e24c1aa4839d24"
+    },
+    "candidate": {
+      "Arena.cs": "b92cb057394d51e18eddfa8fbcdbb43666e9c2a8b14e1ba041755104b16b9329",
+      "AutoFlushCounter.cs": "2b2adb0c956a1853950c9db795e61510c68ff22ae87fa7b24515f4117f3f7f51",
+      "Boundaries.cs": "57c7dbad2f58613109f30770f585127d71bac11291e5e6b45f36e2e93b41bdff",
+      "Program.cs": "91637e91b7b4f374b42833b573f9784b51191eda5a091fa0a71827cf1d66f895",
+      "QueryRead.cs": "74ff16bacff0cfcb497a827420669df477d4ba3898ad4f196c5487fa6036daa4"
+    }
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_occlusion_reports.py": "a9836979601ac264a1ad72f5c3bb949aaecdca79950bac2f3b365f5fe1e1de31",
+    "build-utils/melonx/occlusion-adapter-contract.json": "d5a44caae321a10abf756ae0cb4d4e839c9e6dbf84e190fa0e851d731957431d",
+    "test/melonx_query_policy_test.py": "1e3b04f2dc1e51353384ac9707ddf9a97ede6cc8cdf1742594d4dc8fa3226219",
+    "build-utils/melonx/adapt_query_batching.py": "b3ca8b36a53997f262e4d6a7b218cfae22d9b7f6c5cc833b4c1fa8a523715895",
+    "build-utils/melonx/query-batching-adapter-contract.json": "435dc317d118b48c39c9bfaf868b1d30d93b48a3f7ec2dc8595b836761c5fc11",
+    "build-utils/melonx/adapt_jit_single_attempt.py": "c1b0c16354fb638afa9e5eab7c976af786489d7cbffa3e433059a46d234071f5",
+    "build-utils/melonx/jit-single-attempt-adapter-contract.json": "885852f522a07cd30ca107127004ca79f2ebfcc8e6eee4f4545c5ff6f907dae7"
+  }
+}
