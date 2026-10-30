@@ -2,6 +2,48 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## MeloNX occlusion Core compiled and independently verified — 30 October 2026
+
+The maintainer supplied the engineering brief and authorized implementation,
+commits on Claude and a core-only build. Final source
+`e7143e566462bf6e3d9c143ce24532c1ad7aeb10` passes run `40998920652`, job
+`123878488200`, attempt 1. Artifact `12953505421` is 87,766,998 bytes, ZIP SHA256
+`0b734460e07c35dc81575940b0feff86af5d755a6f8a25b5d395d3b99b8818c1`.
+iOS core: 37,601,600 bytes, SHA256
+`b0bb4cd7da18337fd66eedec218df4a783efeff38f7c412cef2a00be813f41e6`;
+simulator: 37,911,992 bytes, SHA256
+`a53e404f668b4c470247092ea83e877004f4a6661548b704b508aeee2fb7556e`.
+
+Fifteen production files change, 108 preparation inputs and 148 adapted members
+are authenticated. Two affected Apple gates execute; 29 old Core87/Core85
+receipts plus the unchanged Apple display fixture from intermediate run
+`40997549028` are authenticated without replay. Both fresh NativeAOT libraries
+pass ABI2/47 required exports; independent Mach-O inspection finds 84 public
+symbols. Two homebrew simulator SVC sessions close and release their backing.
+The job takes 726 s: NativeAOT/ABI 367 s, smoke 225 s, affected gates/reuse 38 s.
+
+Optional deferred occlusion publication orders guest writes before syncpoints;
+query batching remains bounded and preserves mandatory submissions. Both
+experiments are OFF by default, Hogwarts-only, with no new settings UI yet.
+Common fixes cover cache index-zero/unmap handling, queue ownership, partial
+results and the Vulkan conditional-rendering path that falsely claimed host
+handling despite commented-out GPU commands. It now uses the real guest CPU
+visibility comparison. No device visual/FPS or RAM reduction is established.
+
+JIT budgets remain 1 GiB for updated Hogwarts and 512 MiB by default under TXM.
+The unsafe catch-all second allocation is removed; an opaque native mapping
+failure requires a new process. Progressive 64 MiB fallback remains blocked by
+lack of a proven native rollback contract. Unreal CVars and physical-device
+black-texture fixes remain unvalidated. No private-fork library is imported.
+
+Core-only: no IPA, commercial version change, tag or release. RPCS3 and the
+last private application baseline remain unchanged. Reuse this exact compiled
+core for a subsequently requested application integration while its preparation
+inputs match; never rebuild it for documentation-only changes. The intermediate
+`24b1ad9a` core is superseded. Details and independent receipt:
+`docs/melonx-occlusion-delivery-2026-10-30.md` and
+`docs/evidence/melonx-occlusion-20261030/apple-core.json`.
+
 ## Private IPA597 — compiled, verified and privately delivered
 
 The maintainer requested a new IPA with the newly compiled RPCS3 Core.
