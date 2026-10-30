@@ -1,0 +1,7 @@
+{
+  "off_ios_preprocessed_equal": true,
+  "sha256": "ace24a70cddab0781118c9a670f7b61d876056c790dd6e6a77b97368d2cab55e",
+  "baseline_execution_reused": "rpcs3-tiny-plain/result.json",
+  "source": "rpcs3/Emu/RSX/rsx_cache.h",
+  "scope": "Complete extracted cache and test driver after preprocessing without RPCS3_IOS; not the whole header."
+}

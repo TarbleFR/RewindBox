@@ -1,0 +1,18 @@
+{
+  "expectedFailure": true,
+  "returncode": 1,
+  "command": [
+    "python",
+    "RewindBox/test/rpcs3_exitspawn_worker601_test.py",
+    "RPCS3-source",
+    "--baseline",
+    "RPCS3-verify"
+  ],
+  "stdout": "\n170 after 18 cases assertion !Emu.boots&&!Emu.kills&&Emu.continuous&&Emu.force&&Emu.argv[0]==\"quarantined-later-session\"\n\n",
+  "stderr": "Traceback (most recent call last):\n  File \"/workspace/scratch/e5c0462e637a/RewindBox/test/rpcs3_exitspawn_worker601_test.py\", line 119, in <module>\n    main()\n  File \"/workspace/scratch/e5c0462e637a/RewindBox/test/rpcs3_exitspawn_worker601_test.py\", line 94, in main\n    completed.check_returncode()\n  File \"/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/subprocess.py\", line 502, in check_returncode\n    raise CalledProcessError(self.returncode, self.args, self.stdout,\nsubprocess.CalledProcessError: Command '['/tmp/rpcs3-exitspawn601-5gts2sic/test']' died with <Signals.SIGABRT: 6>.\n",
+  "source_sha256": {
+    "rpcs3/ios/RPCS3IOS.cpp": "e8b2b880c7187f2385181497227f6ca06bbece24bc91747206e6dd62ff5d01b1",
+    "rpcs3/ios/NeoStationSavestateStatus.h": "d325d7c7263dc85535fdb013cb9fb203a5733120bb1f78e83d601df870518601"
+  },
+  "harness_sha256": "c5793e3cc928a77b69ac1fccad682b2a03601189b271c8276d83856436c40eef"
+}

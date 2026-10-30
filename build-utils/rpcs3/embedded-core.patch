@@ -3999,10 +3999,10 @@ index e11a275..353f459 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 0000000..554d040
+index 0000000..eb6e22e
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,75 @@
 +# CELL591: the exact reviewed JITLLVM change clears a stack ObjectCache on
 +# recoverable failure; SPULLVM drops finalized IR after obtaining native code.
 +# Neither changes object emission, relocations or the callable ABI.
@@ -4058,6 +4058,14 @@ index 0000000..554d040
 +    # delivered597 effective hash for this exact reviewed source file.
 +    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
 +           actual STREQUAL "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440")
++        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
++    # Device601 decrementer follow-up: only the host full-MFC-queue owner
++    # checks the decrementer event and the existing timer worker uses the
++    # thread notification latch. Other SPUThread.cpp bytes, layout, emitter
++    # bodies and external helper signatures remain identical. Preserve the
++    # immediate delivered effective hash for this exact reviewed snapshot.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "d3aa29b2eab67c9036c5007cba356a52bf3d4abea2c06da66ffd83f9ff602d7c")
 +        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
 +    # CELL559: compile() builds the LLVM analysis managers and the function pass
 +    # pipeline only when no cached object is linked. A miss runs the same passes
@@ -12734,7 +12742,7 @@ index faf4082..d08c480 100644
  	// Interpreter table (spu_itype -> ptr)
  	static std::array<u64, 256> g_interpreter_table;
 diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
-index bc9ec5e..bce82c3 100644
+index bc9ec5e..6f8d84f 100644
 --- a/rpcs3/Emu/Cell/SPUThread.cpp
 +++ b/rpcs3/Emu/Cell/SPUThread.cpp
 @@ -25,11 +25,20 @@
@@ -13407,7 +13415,7 @@ index bc9ec5e..bce82c3 100644
  	// Stall infinitely if MFC queue is full
  	while (mfc_size >= 16) [[unlikely]]
  	{
-@@ -4273,11 +4553,37 @@ bool spu_thread::process_mfc_cmd()
+@@ -4273,11 +4553,46 @@ bool spu_thread::process_mfc_cmd()
  
  		if (test_stopped())
  		{
@@ -13432,6 +13440,15 @@ index bc9ec5e..bce82c3 100644
 +			ch_events.atomic_op([](ch_events_t& events) { events.waiting = true; });
 +		}
 +
++		// A blocked WRCH suppresses cpu_work's ordinary interrupt collection:
++		// its command is not accepted yet and must resume at this PC. Collect
++		// an expired decrementer on the owner before checking the interrupt;
++		// the timer only publishes pending work, not the guest event itself.
++		if (interrupts_enabled && (ch_events.load().mask & SPU_EVENT_TM))
++		{
++			get_events(SPU_EVENT_TM);
++		}
++
 +		if (check_mfc_interrupts(pc))
 +		{
 +			if (wait_for_events)
@@ -13447,7 +13464,7 @@ index bc9ec5e..bce82c3 100644
  
  		if (mfc_size < 16)
  		{
-@@ -4288,11 +4594,32 @@ bool spu_thread::process_mfc_cmd()
+@@ -4288,11 +4603,32 @@ bool spu_thread::process_mfc_cmd()
  
  		if (is_stopped(old))
  		{
@@ -13480,7 +13497,7 @@ index bc9ec5e..bce82c3 100644
  
  	spu::scheduler::concurrent_execution_watchdog watchdog(*this);
  	spu_log.trace("DMAC: (%s)", ch_mfc_cmd);
-@@ -4306,6 +4633,25 @@ bool spu_thread::process_mfc_cmd()
+@@ -4306,6 +4642,25 @@ bool spu_thread::process_mfc_cmd()
  	{
  		perf_meter<"GETLLAR"_u64> perf0;
  
@@ -13506,7 +13523,7 @@ index bc9ec5e..bce82c3 100644
  		const u32 addr = ch_mfc_cmd.eal & -128;
  		const auto& data = vm::_ref<spu_rdata_t>(addr);
  
-@@ -4315,7 +4661,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4315,7 +4670,7 @@ bool spu_thread::process_mfc_cmd()
  			spu_log.trace(u8"GETLLAR after fail: addr=0x%x, time=%u c", last_faddr, (perf0.get() - last_ftsc));
  		}
  
@@ -13515,7 +13532,7 @@ index bc9ec5e..bce82c3 100644
  		{
  			rtime = last_ftime;
  			raddr = last_faddr;
-@@ -4355,8 +4701,14 @@ bool spu_thread::process_mfc_cmd()
+@@ -4355,8 +4710,14 @@ bool spu_thread::process_mfc_cmd()
  					// Need to check twice for it to be accurate, the code is before and not after this check for:
  					// 1. Reduce time between reservation accesses so TSX panelty would be lowered
  					// 2. Increase the chance of change detection: if GETLLAR has been called again new data is probably wanted
@@ -13531,7 +13548,7 @@ index bc9ec5e..bce82c3 100644
  						if (this_time != rtime)
  						{
  							// Reservation was lost but the data itself remains unchanged so try to ignore it
-@@ -4367,7 +4719,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4367,7 +4728,7 @@ bool spu_thread::process_mfc_cmd()
  						if ([&]() -> bool
  						{
  							// Validation that it is indeed GETLLAR spinning (large time window is intentional)
@@ -13540,7 +13557,7 @@ index bc9ec5e..bce82c3 100644
  							{
  								// Seemingly not
  								getllar_busy_waiting_switch = umax;
-@@ -4441,7 +4793,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4441,7 +4802,7 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  							// Don't be stubborn, force operating sleep if too much time has passed
@@ -13549,7 +13566,7 @@ index bc9ec5e..bce82c3 100644
  							{
  								// Hidden value to force busy waiting
  								if (!g_cfg.core.spu_getllar_spin_optimization_disabled)
-@@ -4452,6 +4804,18 @@ bool spu_thread::process_mfc_cmd()
+@@ -4452,6 +4813,18 @@ bool spu_thread::process_mfc_cmd()
  								}
  							}
  
@@ -13568,7 +13585,7 @@ index bc9ec5e..bce82c3 100644
  							// Either 1 or umax
  							return getllar_busy_waiting_switch != 0;
  						}())
-@@ -4472,6 +4836,11 @@ bool spu_thread::process_mfc_cmd()
+@@ -4472,6 +4845,11 @@ bool spu_thread::process_mfc_cmd()
  							if (getllar_busy_waiting_switch == 1)
  							{
  								getllar_wait_time[(addr % SPU_LS_SIZE) / 128].front() = 0;
@@ -13580,7 +13597,7 @@ index bc9ec5e..bce82c3 100644
  
  #if defined(ARCH_X64)
  								if (utils::has_um_wait())
-@@ -4522,7 +4891,15 @@ bool spu_thread::process_mfc_cmd()
+@@ -4522,7 +4900,15 @@ bool spu_thread::process_mfc_cmd()
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(addr, rtime); wait_var)
  						{
  							cache_line_waiter_index = register_cache_line_waiter(addr);
@@ -13596,7 +13613,7 @@ index bc9ec5e..bce82c3 100644
  							vm::reservation_notifier_end_wait(*wait_var);
  						}
  
-@@ -4533,7 +4910,7 @@ bool spu_thread::process_mfc_cmd()
+@@ -4533,7 +4919,7 @@ bool spu_thread::process_mfc_cmd()
  						// Quick check if there were reservation changes
  						const u64 new_time = res;
  
@@ -13605,7 +13622,7 @@ index bc9ec5e..bce82c3 100644
  						{
  							if (g_cfg.core.mfc_debug)
  							{
-@@ -4551,8 +4928,13 @@ bool spu_thread::process_mfc_cmd()
+@@ -4551,8 +4937,13 @@ bool spu_thread::process_mfc_cmd()
  								rtime = new_time;
  							}
  
@@ -13621,7 +13638,7 @@ index bc9ec5e..bce82c3 100644
  
  							// Reset perf
  							perf0.restart();
-@@ -4659,6 +5041,8 @@ bool spu_thread::process_mfc_cmd()
+@@ -4659,6 +5050,8 @@ bool spu_thread::process_mfc_cmd()
  
  			mov_rdata(rdata, data);
  
@@ -13630,7 +13647,7 @@ index bc9ec5e..bce82c3 100644
  			if (u64 time0 = vm::reservation_acquire(addr); ntime != time0)
  			{
  				// Reservation data has been modified recently
-@@ -5075,7 +5459,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5075,7 +5468,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -13639,7 +13656,7 @@ index bc9ec5e..bce82c3 100644
  	}
  
  	if ((addr >> 20) == (current_eal >> 20))
-@@ -5083,13 +5467,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5083,13 +5476,13 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  		if (vm::check_addr(addr, vm::page_1m_size))
  		{
  			// Same random-access-memory page as the current MFC command, assume allocated
@@ -13655,7 +13672,7 @@ index bc9ec5e..bce82c3 100644
  		}
  	}
  
-@@ -5163,7 +5547,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
+@@ -5163,7 +5556,7 @@ bool spu_thread::reservation_check(u32 addr, const decltype(rdata)& data, u32 cu
  	const bool res = cmp_rdata(data, vm::_ref<decltype(rdata)>(addr));
  
  	range_lock->release(0);
@@ -13664,7 +13681,7 @@ index bc9ec5e..bce82c3 100644
  }
  
  bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range_lock)
-@@ -5171,7 +5555,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5171,7 +5564,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	if ((addr >> 28) < 2 || (addr >> 28) == 0xd)
  	{
  		// Always-allocated memory does not need strict checking (vm::main or vm::stack)
@@ -13673,7 +13690,7 @@ index bc9ec5e..bce82c3 100644
  	}
  
  	// Ensure data is allocated (HACK: would raise LR event if not)
-@@ -5244,7 +5628,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
+@@ -5244,7 +5637,7 @@ bool spu_thread::reservation_check(u32 addr, u32 hash, atomic_t<u64, 128>* range
  	const bool res = compute_rdata_hash32(*vm::get_super_ptr<decltype(rdata)>(addr)) == hash;
  
  	range_lock->release(0);
@@ -13682,7 +13699,7 @@ index bc9ec5e..bce82c3 100644
  }
  
  usz spu_thread::register_cache_line_waiter(u32 addr)
-@@ -5352,6 +5736,7 @@ retry:
+@@ -5352,6 +5745,7 @@ retry:
  			// Set next event to the next time the decrementer underflows
  			ch_dec_start_timestamp -= res << 32;
  			collect |= SPU_EVENT_TM;
@@ -13690,7 +13707,7 @@ index bc9ec5e..bce82c3 100644
  		}
  	}
  
-@@ -5400,29 +5785,152 @@ void spu_thread::set_events(u32 bits)
+@@ -5400,29 +5794,155 @@ void spu_thread::set_events(u32 bits)
  	}
  }
  
@@ -13787,7 +13804,10 @@ index bc9ec5e..bce82c3 100644
 +					if (spu->dec_intr_armed.compare_and_swap_test(e.token, 0))
 +					{
 +						spu->state += cpu_flag::pending + cpu_flag::pending_recheck;
-+						spu->state.notify_one();
++						// Preserve the host notification latch as well as waking a
++						// state waiter: the deadline can arrive just before a blocked
++						// WRCH registers its wait with these pending flags already set.
++						spu->notify();
 +					}
 +				}
 +			}
@@ -13855,7 +13875,7 @@ index bc9ec5e..bce82c3 100644
  }
  
  u32 spu_thread::get_ch_count(u32 ch)
-@@ -5760,8 +6268,16 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5760,8 +6280,16 @@ s64 spu_thread::get_ch_value(u32 ch)
  			eventstat_busy_waiting_switch = value ? 1 : 0;
  		}
  
@@ -13872,7 +13892,7 @@ index bc9ec5e..bce82c3 100644
  			const auto old = +state;
  
  			if (is_stopped(old))
-@@ -5792,7 +6308,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5792,7 +6320,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  				{
  					set_lr = true;
  				}
@@ -13881,7 +13901,7 @@ index bc9ec5e..bce82c3 100644
  				{
  					if (vm::reservation_acquire(raddr) == rtime)
  					{
-@@ -5929,7 +6445,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5929,7 +6457,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  						// Abort notifications are handled specially for performance reasons
  						if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(raddr, rtime); wait_var)
  						{
@@ -13890,7 +13910,7 @@ index bc9ec5e..bce82c3 100644
  							{
  								raddr = 0;
  								set_events(SPU_EVENT_LR);
-@@ -5949,7 +6465,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -5949,7 +6477,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  #ifdef __linux__
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -13899,7 +13919,7 @@ index bc9ec5e..bce82c3 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6029,7 +6545,7 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6029,7 +6557,7 @@ s64 spu_thread::get_ch_value(u32 ch)
  
  					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(_raddr, rtime); wait_var)
  					{
@@ -13908,7 +13928,7 @@ index bc9ec5e..bce82c3 100644
  						{
  							raddr = 0;
  							set_events(SPU_EVENT_LR);
-@@ -6056,6 +6572,14 @@ s64 spu_thread::get_ch_value(u32 ch)
+@@ -6056,6 +6584,14 @@ s64 spu_thread::get_ch_value(u32 ch)
  			thread_ctrl::wait_on(state, old, 100);
  		}
  
@@ -13923,7 +13943,7 @@ index bc9ec5e..bce82c3 100644
  		if (is_reservation_data_checking_thread)
  		{
  			s_is_reservation_data_checking_thread = 0;
-@@ -6452,6 +6976,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6452,6 +6988,9 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  		ch_dec_start_timestamp = get_timebased_time();
  		ch_dec_value = value;
  		is_dec_frozen = false;
@@ -13933,7 +13953,7 @@ index bc9ec5e..bce82c3 100644
  		return true;
  	}
  
-@@ -6479,6 +7006,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6479,6 +7018,8 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			}
  		}
  
@@ -13942,7 +13962,7 @@ index bc9ec5e..bce82c3 100644
  		return true;
  	}
  
-@@ -6509,6 +7038,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
+@@ -6509,6 +7050,7 @@ bool spu_thread::set_ch_value(u32 ch, u32 value)
  			// Save current time, this will be the reported value until the decrementer resumes
  			ch_dec_value = read_dec().first;
  			is_dec_frozen = true;
@@ -14606,6 +14626,87 @@ index 0d2a598..cc8055e 100644
  		events_happening += lv2_socket::poll_t::write;
  	if (native_pfd.revents & POLLERR && events.test_and_reset(lv2_socket::poll_t::error))
  		events_happening += lv2_socket::poll_t::error;
+diff --git a/rpcs3/Emu/Cell/lv2/sys_process.cpp b/rpcs3/Emu/Cell/lv2/sys_process.cpp
+index a9bb216..8aa384f 100644
+--- a/rpcs3/Emu/Cell/lv2/sys_process.cpp
++++ b/rpcs3/Emu/Cell/lv2/sys_process.cpp
+@@ -25,6 +25,9 @@
+ #include "sys_fs.h"
+ #include "sys_vm.h"
+ #include "sys_spu.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSRestoreExecutor.h"
++#endif
+ 
+ // Check all flags known to be related to extended permissions (TODO)
+ // It's possible anything which has root flags implicitly has debug perm as well
+@@ -417,7 +420,15 @@ void lv2_exitspawn(ppu_thread& ppu, std::vector<std::string>& argv, std::vector<
+ 	// sys_sm_shutdown
+ 	const bool is_real_reboot = (ppu.gpr[11] == 379);
+ 
++#ifdef RPCS3_IOS
++	// Capture before any queueing; a later wrapper stop/new boot invalidates
++	// both phases before either may read the FXO or apply captured arguments.
++	const u64 generation = rpcs3::ios::continuous_boot_generation();
++	const u64 emulation_id = static_cast<u64>(Emu.GetEmulationIdentifier());
++	auto stop_process = [is_real_reboot, argv = std::move(argv), envp = std::move(envp), data = std::move(data), generation](u64 current_emulation_id) mutable
++#else
+ 	Emu.CallFromMainThread([is_real_reboot, argv = std::move(argv), envp = std::move(envp), data = std::move(data)]() mutable
++#endif
+ 	{
+ 		sys_process.success("Process finished -> %s", argv[0]);
+ 
+@@ -475,8 +486,17 @@ void lv2_exitspawn(ppu_thread& ppu, std::vector<std::string>& argv, std::vector<
+ 		};
+ 
+ 		Emu.after_kill_callback = [func = std::move(func), argv = std::move(argv), envp = std::move(envp), data = std::move(data),
+-			disc = std::move(disc), path = std::move(path), hdd1 = std::move(hdd1), old_config = Emu.GetUsedConfig(), old_db_config = Emu.GetUsedDatabaseConfig(), klic]() mutable
++			disc = std::move(disc), path = std::move(path), hdd1 = std::move(hdd1), old_config = Emu.GetUsedConfig(), old_db_config = Emu.GetUsedDatabaseConfig(), klic
++#ifdef RPCS3_IOS
++			, generation, current_emulation_id, title_id = Emu.GetTitleID()
++#endif
++		]() mutable
+ 		{
++#ifdef RPCS3_IOS
++			auto boot_process = [func = std::move(func), argv = std::move(argv), envp = std::move(envp), data = std::move(data),
++				disc = std::move(disc), path = std::move(path), hdd1 = std::move(hdd1), old_config = std::move(old_config), old_db_config = std::move(old_db_config), klic]() mutable
++			{
++#endif
+ 			Emu.argv = std::move(argv);
+ 			Emu.envp = std::move(envp);
+ 			Emu.data = std::move(data);
+@@ -497,6 +517,15 @@ void lv2_exitspawn(ppu_thread& ppu, std::vector<std::string>& argv, std::vector<
+ 			{
+ 				sys_process.fatal("Failed to boot from exitspawn! (path=\"%s\", error=%s)", path, res);
+ 			}
++#ifdef RPCS3_IOS
++			};
++			// UIKit has finished the old renderer's cleanup. Only the owned
++			// worker may now apply arguments and read/compile the next SELF.
++			if (!rpcs3::ios::defer_continuous_boot(std::move(boot_process), generation, current_emulation_id + 1, std::move(title_id)))
++			{
++				sys_process.error("Could not schedule the internal process boot");
++			}
++#endif
+ 		};
+ 
+ 		signal_system_cache_can_stay();
+@@ -504,7 +533,15 @@ void lv2_exitspawn(ppu_thread& ppu, std::vector<std::string>& argv, std::vector<
+ 		// Make sure we keep the game window opened
+ 		Emu.SetContinuousMode(true);
+ 		Emu.Kill(false);
++#ifdef RPCS3_IOS
++	};
++	if (!rpcs3::ios::defer_continuous_stop(std::move(stop_process), generation, emulation_id, Emu.GetTitleID()))
++	{
++		sys_process.error("Could not schedule the internal process stop");
++	}
++#else
+ 	});
++#endif
+ 
+ 	// Wait for GUI thread
+ 	while (auto state = +ppu.state)
 diff --git a/rpcs3/Emu/Cell/lv2/sys_semaphore.cpp b/rpcs3/Emu/Cell/lv2/sys_semaphore.cpp
 index dea96fc..f238df8 100644
 --- a/rpcs3/Emu/Cell/lv2/sys_semaphore.cpp
@@ -21146,7 +21247,7 @@ index 4925d88..5de62da 100644
  		m_wake_event++;
  		m_wake_event.notify_one();
 diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
-index 77927e2..4868c97 100644
+index 77927e2..94d6b13 100644
 --- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
 @@ -7,8 +7,13 @@
@@ -21474,7 +21575,7 @@ index 77927e2..4868c97 100644
  			}
  
  			if (vs_sampler_handles[i])
-@@ -644,18 +751,70 @@ void VKGSRender::load_texture_env()
+@@ -644,18 +751,72 @@ void VKGSRender::load_texture_env()
  	}
  }
  
@@ -21483,7 +21584,9 @@ index 77927e2..4868c97 100644
  {
 -	bool out_of_memory = false;
 +	if (vk::get_driver_vendor() != vk::driver_vendor::MVK ||
++#ifndef RPCS3_IOS
 +		!(current_fp_metadata.multiple_texture_reads_mask & (1u << texture_index)) ||
++#endif
 +		view->info.subresourceRange.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT ||
 +		view->image()->samples() != 1)
 +	{
@@ -21500,11 +21603,11 @@ index 77927e2..4868c97 100644
  			continue;
  		}
  
-+		// Neighborhood reads from an active color attachment are not ordered against
-+		// other fragments' writes on MoltenVK. Snapshot multi-tap shaders without
-+		// enabling all strict-rendering paths. Static instruction count is a conservative
-+		// filter for these shaders, not a general proof that single-read feedback is safe.
-+		// Already-separated (including strict-mode) views never match the attachment.
++		// Sampling an active color attachment can read neighboring fragments even
++		// with one TEX instruction (offset coordinates or linear filtering). Static
++		// instruction count cannot prove this feedback safe on MoltenVK. Snapshot
++		// each actual attachment alias; already-separated views, including strict
++		// mode copies, never match the attachment and keep their existing path.
 +		surface->memory_barrier(*m_current_command_buffer, rsx::surface_access::transfer_read);
 +		const auto* desc = static_cast<vk::texture_cache::sampled_image_descriptor*>(fs_sampler_state[texture_index].get());
 +		rsx::image_section_attributes_t attrs{};
@@ -21550,7 +21653,7 @@ index 77927e2..4868c97 100644
  		if (m_fs_binding_table->ftex_location[i] == umax)
  		{
  			// Corrupt shader table
-@@ -682,6 +841,11 @@ bool VKGSRender::bind_texture_env()
+@@ -682,6 +843,11 @@ bool VKGSRender::bind_texture_env()
  			}
  		}
  
@@ -21562,7 +21665,7 @@ index 77927e2..4868c97 100644
  		if (view) [[likely]]
  		{
  			m_program->bind_uniform({ *view, *fs_sampler_handles[i] },
-@@ -727,13 +891,9 @@ bool VKGSRender::bind_texture_env()
+@@ -727,13 +893,9 @@ bool VKGSRender::bind_texture_env()
  		}
  	}
  
@@ -21578,7 +21681,7 @@ index 77927e2..4868c97 100644
  
  		if (m_vs_binding_table->vtex_location[i] == umax)
  		{
-@@ -902,10 +1062,9 @@ bool VKGSRender::bind_interpreter_texture_env()
+@@ -902,10 +1064,9 @@ bool VKGSRender::bind_interpreter_texture_env()
  		return image->get_view(decoded_remap, base->info.subresourceRange.aspectMask);
  	};
  
@@ -21591,7 +21694,7 @@ index 77927e2..4868c97 100644
  
  		vk::image_view* view = nullptr;
  		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(fs_sampler_state[i].get());
-@@ -961,6 +1120,12 @@ bool VKGSRender::bind_interpreter_texture_env()
+@@ -961,6 +1122,12 @@ bool VKGSRender::bind_interpreter_texture_env()
  			validate_image_layout_for_read_access(*m_current_command_buffer, view, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, sampler_state);
  		}
  
@@ -21604,7 +21707,7 @@ index 77927e2..4868c97 100644
  		const int offsets[] = { 0, 16, 48, 32 };
  		auto& sampled_image_info = texture_env[offsets[static_cast<u32>(sampler_state->image_type)] + i];
  		sampled_image_info = { *view, *fs_sampler_handles[i] };
-@@ -1404,6 +1569,10 @@ void VKGSRender::end()
+@@ -1404,6 +1571,10 @@ void VKGSRender::end()
  	}
  
  	m_rtts.on_write(m_framebuffer_layout.color_write_enabled, m_framebuffer_layout.zeta_write_enabled);
@@ -26807,10 +26910,10 @@ index fe5cf89..a01d0b4 100644
  		// Meta
  		RSX_SHADER_CONTROL_META_USES_DISCARD       = (RSX_SHADER_CONTROL_USES_KIL | RSX_SHADER_CONTROL_TEXTURE_ALPHA_KILL | RSX_SHADER_CONTROL_ALPHA_TEST | RSX_SHADER_CONTROL_POLYGON_STIPPLE | RSX_SHADER_CONTROL_ALPHA_TO_COVERAGE),
 diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
-index 625311f..2fa3185 100644
+index 625311f..ae970a4 100644
 --- a/rpcs3/Emu/RSX/rsx_cache.h
 +++ b/rpcs3/Emu/RSX/rsx_cache.h
-@@ -11,8 +11,12 @@
+@@ -11,8 +11,13 @@
  #include "Emu/RSX/Program/RSXVertexProgram.h"
  #include "Emu/RSX/Program/RSXFragmentProgram.h"
  #include "Overlays/Shaders/shader_loading_dialog.h"
@@ -26819,11 +26922,12 @@ index 625311f..2fa3185 100644
  #include <chrono>
 +#ifdef RPCS3_IOS
 +#include "ios/IOSShaderTiming.h"
++#include <cstring>
 +#endif
  
  #include "util/sysinfo.hpp"
  #include "util/fnv_hash.hpp"
-@@ -67,6 +71,18 @@ namespace rsx
+@@ -67,6 +72,18 @@ namespace rsx
  			pipeline_storage_type pipeline_properties;
  		};
  
@@ -26842,7 +26946,7 @@ index 625311f..2fa3185 100644
  		std::string version_prefix;
  		std::string root_path;
  		std::string pipeline_class_name;
-@@ -74,6 +90,28 @@ namespace rsx
+@@ -74,6 +91,28 @@ namespace rsx
  
  		backend_storage& m_storage;
  
@@ -26871,7 +26975,7 @@ index 625311f..2fa3185 100644
  		static std::string get_message(u32 index, u32 processed, u32 entry_count)
  		{
  			return fmt::format("%s pipeline object %u of %u", index == 0 ? "Loading" : "Compiling", processed, entry_count);
-@@ -109,7 +147,13 @@ namespace rsx
+@@ -109,7 +148,13 @@ namespace rsx
  					}
  
  					pipeline_data pdata{};
@@ -26886,7 +26990,7 @@ index 625311f..2fa3185 100644
  
  					auto entry = unpack(pdata);
  
-@@ -220,8 +264,18 @@ namespace rsx
+@@ -220,8 +265,18 @@ namespace rsx
  					root_path = std::move(cache_path) + "shaders_cache/";
  				}
  			}
@@ -26905,7 +27009,7 @@ index 625311f..2fa3185 100644
  		template <typename... Args>
  		void load(shader_loading_dialog* dlg, Args&& ...args)
  		{
-@@ -282,6 +336,16 @@ namespace rsx
+@@ -282,6 +337,16 @@ namespace rsx
  			entry_count = unpacked.size();
  
  			compile_shaders(nb_workers, unpacked, entry_count, dlg, std::forward<Args>(args)...);
@@ -26922,7 +27026,7 @@ index 625311f..2fa3185 100644
  
  			dlg->refresh();
  			dlg->close();
-@@ -300,21 +364,93 @@ namespace rsx
+@@ -300,21 +365,93 @@ namespace rsx
  				return;
  			}
  
@@ -27023,7 +27127,7 @@ index 625311f..2fa3185 100644
  			}
  
  			const u32 state_params[] =
-@@ -338,16 +474,38 @@ namespace rsx
+@@ -338,16 +475,38 @@ namespace rsx
  
  			const std::string pipeline_file_name = fmt::format("%llX+%llX+%llX+%llX.bin", data.vertex_program_hash, data.fragment_program_hash, data.pipeline_storage_hash, state_hash);
  			const std::string pipeline_path = root_path + "/pipelines/" + pipeline_class_name + "/" + version_prefix + "/" + pipeline_file_name;
@@ -27067,7 +27171,7 @@ index 625311f..2fa3185 100644
  			return vp;
  		}
  
-@@ -357,16 +515,28 @@ namespace rsx
+@@ -357,16 +516,28 @@ namespace rsx
  
  			RSXFragmentProgram fp = {};
  
@@ -27100,7 +27204,7 @@ index 625311f..2fa3185 100644
  			fragment_program_data[fragment_program_data.push_begin()] = std::move(buf);
  			return fp;
  		}
-@@ -410,6 +580,25 @@ namespace rsx
+@@ -410,6 +581,25 @@ namespace rsx
  			fp.two_sided_lighting = !!(data.fp_lighting_flags & 0x1);
  			fp.mrt_buffers_count = data.fp_mrt_count;
  
@@ -27126,7 +27230,7 @@ index 625311f..2fa3185 100644
  			return result;
  		}
  
-@@ -459,6 +648,11 @@ namespace rsx
+@@ -459,6 +649,11 @@ namespace rsx
  
  			return data_block;
  		}
@@ -27138,6 +27242,61 @@ index 625311f..2fa3185 100644
  	};
  
  	namespace vertex_cache
+@@ -498,6 +693,26 @@ namespace rsx
+ 				return u64(local_addr) | (u64(data_length) << 32);
+ 			}
+ 
++#ifdef RPCS3_IOS
++			static u64 prefix_fingerprint(u32 local_addr, u32 data_length)
++			{
++				// Constant/short vertex attributes may occupy fewer than eight
++				// bytes. Validate those bytes too, without reading beyond their
++				// guest range; larger uploads retain the existing weak prefix.
++				u64 result = 0;
++				if (data_length >= sizeof(result))
++				{
++					// Keep the common path a single fixed-width load.
++					std::memcpy(&result, vm::get_super_ptr<char>(local_addr), sizeof(result));
++				}
++				else if (data_length)
++				{
++					std::memcpy(&result, vm::get_super_ptr<char>(local_addr), data_length);
++				}
++				return result;
++			}
++#endif
++
+ 		public:
+ 
+ 			const storage_type* find_vertex_range(u32 local_addr, u32 data_length) override
+@@ -511,8 +726,12 @@ namespace rsx
+ 				}
+ 
+ 				// Check if data in local_address changed vs what was stored in the vertex_cache
++#ifdef RPCS3_IOS
++				if (found->second.fingerprint != prefix_fingerprint(local_addr, data_length))
++#else
+ 				if (auto sudo_ptr = vm::get_super_ptr<char>(local_addr);
+ 					data_length >= 8 && found->second.fingerprint != *utils::bless<u64>(sudo_ptr))
++#endif
+ 				{
+ 					vertex_ranges.erase(key);
+ 					return nullptr;
+@@ -528,10 +747,14 @@ namespace rsx
+ 				v.local_address = local_addr;
+ 				v.offset_in_heap = offset_in_heap;
+ 
++#ifdef RPCS3_IOS
++				v.fingerprint = prefix_fingerprint(local_addr, data_length);
++#else
+ 				if (auto sudo_ptr = vm::get_super_ptr<char>(local_addr); data_length >= 8)
+ 				{
+ 					v.fingerprint = *utils::bless<u64>(sudo_ptr);
+ 				}
++#endif
+ 
+ 				const auto key = hash(local_addr, data_length);
+ 				vertex_ranges[key] = v;
 diff --git a/rpcs3/Emu/RSX/rsx_methods.cpp b/rpcs3/Emu/RSX/rsx_methods.cpp
 index 8aea1a4..ab99381 100644
 --- a/rpcs3/Emu/RSX/rsx_methods.cpp
@@ -31016,10 +31175,10 @@ index f475237..322cfc5 100644
  }
 diff --git a/rpcs3/ios/IOSRestoreExecutor.h b/rpcs3/ios/IOSRestoreExecutor.h
 new file mode 100644
-index 0000000..31b2c81
+index 0000000..102b061
 --- /dev/null
 +++ b/rpcs3/ios/IOSRestoreExecutor.h
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,60 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later
 +#pragma once
 +#include <atomic>
@@ -31028,11 +31187,14 @@ index 0000000..31b2c81
 +#include <functional>
 +#include <mutex>
 +#include <optional>
++#include <string>
 +#include <thread>
 +
 +namespace rpcs3::ios {
-+// One owned worker, created only on the first internal restore. One admission
-+// at a time; no unbounded queue, detached thread or new host ABI. Cancellation
++// One owned worker, created only on the first internal restore or reboot. The
++// restore entry remains exclusive. A process transition may enqueue one next
++// phase while the current phase retires; no unbounded queue or detached thread.
++// Cancellation
 +// invalidates a task even after dequeue while it waits for the Core API lock.
 +class restore_executor final {
 +public:
@@ -31042,6 +31204,7 @@ index 0000000..31b2c81
 +    restore_executor(const restore_executor&) = delete;
 +    restore_executor& operator=(const restore_executor&) = delete;
 +    bool post(task work, std::uint64_t token) noexcept;
++    bool post_continuation(task work, std::uint64_t token) noexcept;
 +    bool cancel() noexcept;
 +    bool current(std::uint64_t token) const noexcept;
 +    std::uint64_t generation() const noexcept { return generation_.load(std::memory_order_acquire); }
@@ -31055,6 +31218,7 @@ index 0000000..31b2c81
 +    std::thread::id worker_id_{}; // mutex_: self-close check never reads a joining std::thread
 +    std::atomic<std::uint64_t> generation_{1};
 +    bool closed_ = false, active_ = false;
++    bool post_impl(task work, std::uint64_t token, bool allow_active) noexcept;
 +    void run() noexcept;
 +};
 +// Called after UIKit has completed the existing stop/renderer cleanup.
@@ -31065,6 +31229,15 @@ index 0000000..31b2c81
 +// admission failed for the still-current request. No stale callback may mutate
 +// a newer title, even if UIKit delivers it only after a later boot/stop.
 +bool defer_savestate_restore(std::function<void()> continuation, std::uint64_t token) noexcept;
++
++// Process-switch phases share the same generation, worker and Core API lock.
++// The first phase dispatches only the existing stop/capture closure to UIKit
++// and waits for that short closure to return. The second phase runs BootGame
++// after UIKit finishes renderer cleanup. Captured arguments are not applied
++// until the second phase has rechecked the generation and stopped state.
++std::uint64_t continuous_boot_generation() noexcept;
++bool defer_continuous_stop(std::function<void(std::uint64_t)> main_stop, std::uint64_t token, std::uint64_t emulation_id, std::string title_id) noexcept;
++bool defer_continuous_boot(std::function<void()> boot, std::uint64_t token, std::uint64_t emulation_id, std::string title_id) noexcept;
 +}
 diff --git a/rpcs3/ios/IOSRestoreFailure.h b/rpcs3/ios/IOSRestoreFailure.h
 new file mode 100644
@@ -33111,15 +33284,17 @@ index 0000000..d6f54a1
 +}
 diff --git a/rpcs3/ios/NeoStationSavestateStatus.h b/rpcs3/ios/NeoStationSavestateStatus.h
 new file mode 100644
-index 0000000..006640b
+index 0000000..8a12de3
 --- /dev/null
 +++ b/rpcs3/ios/NeoStationSavestateStatus.h
-@@ -0,0 +1,72 @@
+@@ -0,0 +1,107 @@
 +// SPDX-License-Identifier: GPL-3.0-or-later
 +#pragma once
 +
 +#include <cstdint>
++#include <functional>
 +#include <mutex>
++#include <optional>
 +#include <string>
 +#include <utility>
 +
@@ -33144,13 +33319,39 @@ index 0000000..006640b
 +{
 +    mutable std::mutex mutex;
 +    snapshot value{phase::idle, false, false, 0, {}};
++    std::uint64_t owner_emulation_id = 0;
++    std::function<void(bool)> completion;
 +public:
-+    bool begin(std::uint32_t slot = 0)
++    enum class registration_state { inactive, registered, busy };
++    struct finish_registration
++    {
++        registration_state state;
++        std::optional<bool> finished;
++    };
++    bool begin(std::uint32_t slot = 0, std::uint64_t emulation_id = 0)
 +    {
 +        std::lock_guard lock(mutex);
 +        if (value.active || slot > 10) return false;
 +        value = {phase::preparing, true, false, slot, {}};
++        owner_emulation_id = emulation_id;
 +        return true;
++    }
++    // One process switch can wait behind this operation. The callback must be
++    // nonthrowing and is invoked outside the status mutex. If finish won the
++    // registration race, return its outcome only for the requested owner.
++    finish_registration after_finish(std::uint64_t emulation_id, std::function<void(bool)> callback)
++    {
++        std::lock_guard lock(mutex);
++        if (!value.active)
++        {
++            if (owner_emulation_id == emulation_id && (value.state == phase::succeeded || value.state == phase::failed))
++                return {registration_state::inactive, value.state == phase::succeeded};
++            return {registration_state::inactive, std::nullopt};
++        }
++        if (owner_emulation_id != emulation_id || completion || !callback)
++            return {registration_state::busy, std::nullopt};
++        completion = std::move(callback);
++        return {registration_state::registered, std::nullopt};
 +    }
 +    snapshot read() const
 +    {
@@ -33177,11 +33378,18 @@ index 0000000..006640b
 +    }
 +    void finish(bool success, std::string fallback = {})
 +    {
-+        std::lock_guard lock(mutex);
-+        if (!value.active) return;
-+        value.state = success ? phase::succeeded : phase::failed;
-+        value.active = false;
-+        if (!success && value.message.empty()) value.message = std::move(fallback);
++        std::function<void(bool)> callback;
++        {
++            std::lock_guard lock(mutex);
++            if (!value.active) return;
++            value.state = success ? phase::succeeded : phase::failed;
++            value.active = false;
++            if (!success && value.message.empty()) value.message = std::move(fallback);
++            // swap() guarantees that the one stored slot is empty before
++            // another begin()/registration can acquire the status mutex.
++            callback.swap(completion);
++        }
++        if (callback) callback(success);
 +    }
 +};
 +
@@ -34713,7 +34921,7 @@ index 0000000..112f20b
 +}
 +} // namespace vk
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 74a6dc7..848875c 100644
+index 74a6dc7..bdfdbad 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,6 +1,15 @@
@@ -34757,16 +34965,17 @@ index 74a6dc7..848875c 100644
  #include "Emu/IdManager.h"
  #include "Emu/Audio/IOS/IOSAudioBackend.h"
  #include "Emu/Audio/Null/null_enumerator.h"
-@@ -98,6 +114,8 @@
+@@ -98,6 +114,9 @@
  #include <thread>
  #include <unordered_map>
  #include <vector>
 +#include "IOSRestoreExecutor.h"
++#include <exception>
 +#include <pthread.h>
  
  namespace
  {
-@@ -106,10 +124,17 @@ std::mutex g_progress_mutex;
+@@ -106,10 +125,17 @@ std::mutex g_progress_mutex;
  rpcs3::ios::lifecycle g_lifecycle;
  rpcs3::ios::error_store g_last_error;
  rpcs3_ios_config g_config{};
@@ -34784,7 +34993,7 @@ index 74a6dc7..848875c 100644
  std::atomic_bool g_accept_display_surfaces = false;
  std::atomic_bool g_accept_pad_state = false;
  rpcs3::ios::display_surface_registry g_display_surface;
-@@ -312,7 +337,8 @@ boot_progress_snapshot capture_boot_progress()
+@@ -312,7 +338,8 @@ boot_progress_snapshot capture_boot_progress()
  	};
  
  	boot_progress_snapshot snapshot = read();
@@ -34794,7 +35003,7 @@ index 74a6dc7..848875c 100644
  	{
  		boot_progress_snapshot next = read();
  		if (next == snapshot)
-@@ -321,6 +347,7 @@ boot_progress_snapshot capture_boot_progress()
+@@ -321,6 +348,7 @@ boot_progress_snapshot capture_boot_progress()
  		}
  		snapshot = std::move(next);
  	}
@@ -34802,7 +35011,7 @@ index 74a6dc7..848875c 100644
  }
  
  rpcs3_ios_emulation_state current_emulation_state() noexcept
-@@ -378,6 +405,11 @@ void emit_log(int32_t level, std::string_view message)
+@@ -378,6 +406,11 @@ void emit_log(int32_t level, std::string_view message)
  	g_config.log_callback(g_config.user_context, level, terminated.c_str());
  }
  
@@ -34814,7 +35023,7 @@ index 74a6dc7..848875c 100644
  void emit_jit_arena_statistics(std::string_view phase)
  {
  	constexpr usz mib = 1024 * 1024;
-@@ -385,7 +417,7 @@ void emit_jit_arena_statistics(std::string_view phase)
+@@ -385,7 +418,7 @@ void emit_jit_arena_statistics(std::string_view phase)
  	emit_log(4, fmt::format(
  		"iOS JIT arena %s: code live=%u MiB, free=%u MiB (%llu bytes), largest_free=%u MiB (%llu bytes), "
  		"runtime=%u MiB, peak=%u MiB; data live=%u MiB, free=%u MiB (%llu bytes), "
@@ -34823,7 +35032,7 @@ index 74a6dc7..848875c 100644
  		phase,
  		stats.live_code_bytes / mib,
  		stats.free_code_bytes / mib,
-@@ -401,7 +433,15 @@ void emit_jit_arena_statistics(std::string_view phase)
+@@ -401,7 +434,15 @@ void emit_jit_arena_statistics(std::string_view phase)
  		static_cast<u64>(stats.largest_free_data_bytes),
  		stats.runtime_data_bytes / mib,
  		stats.peak_data_bytes / mib,
@@ -34840,7 +35049,7 @@ index 74a6dc7..848875c 100644
  }
  
  class callback_log_listener final : public logs::listener
-@@ -448,16 +488,32 @@ private:
+@@ -448,16 +489,32 @@ private:
  	std::string m_name;
  };
  
@@ -34877,7 +35086,7 @@ index 74a6dc7..848875c 100644
  }
  
  bool apply_database_settings_for_api(std::string_view title_id)
-@@ -904,10 +960,10 @@ EmuCallbacks make_callbacks()
+@@ -904,10 +961,10 @@ EmuCallbacks make_callbacks()
  		g_config.main_thread_callback(g_config.user_context, &invoke_main_thread_payload, payload);
  	};
  
@@ -34890,7 +35099,7 @@ index 74a6dc7..848875c 100644
  	callbacks.on_ready = []() {};
  	callbacks.on_missing_fw = []() { emit_log(5, "PlayStation 3 firmware is not installed yet"); };
  	callbacks.on_emulation_stop_no_response = [](std::shared_ptr<atomic_t<bool>>, int)
-@@ -1267,15 +1323,15 @@ extern "C" uint32_t rpcs3_ios_abi_version(void) noexcept
+@@ -1267,15 +1324,15 @@ extern "C" uint32_t rpcs3_ios_abi_version(void) noexcept
  
  extern "C" const char* rpcs3_ios_build_info(void) noexcept
  {
@@ -34909,7 +35118,7 @@ index 74a6dc7..848875c 100644
  		return RPCS3_IOS_INVALID_STATE;
  	}
  
-@@ -1289,40 +1345,105 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+@@ -1289,40 +1346,105 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  		return result;
  	}
  
@@ -34984,27 +35193,27 @@ index 74a6dc7..848875c 100644
 +	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "ppu_trampolines",
 +			trampoline_error + "; " + rpcs3::ios::jit::last_error());
-+	}
-+	trampoline_error.clear();
-+	if (!ppu_function_manager::initialize_ghc_trampolines(trampoline_error))
-+	{
-+		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "ppu_hle_trampolines",
-+			trampoline_error + "; " + rpcs3::ios::jit::last_error());
  	}
 -	if (!rpcs3::ios::jit::prepare_arena(config->expanded_jit_arena != 0) ||
 -		!rpcs3::ios::jit::seal_arena())
++	trampoline_error.clear();
++	if (!ppu_function_manager::initialize_ghc_trampolines(trampoline_error))
+ 	{
+-		set_error(rpcs3::ios::jit::last_error());
+-		g_lifecycle.finish_initialize(false);
+-		return RPCS3_IOS_JIT_MAPPING_FAILED;
++		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "ppu_hle_trampolines",
++			trampoline_error + "; " + rpcs3::ios::jit::last_error());
+ 	}
 +	emit_log(2, "ppu_trampoline_init_end");
 +
 +	trampoline_error.clear();
 +	emit_log(2, "spu_trampoline_init_begin");
 +	if (!spu_runtime::initialize_static_trampolines(trampoline_error))
- 	{
--		set_error(rpcs3::ios::jit::last_error());
--		g_lifecycle.finish_initialize(false);
--		return RPCS3_IOS_JIT_MAPPING_FAILED;
++	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "spu_trampolines",
 +			trampoline_error + "; " + rpcs3::ios::jit::last_error());
- 	}
++	}
 +	emit_log(2, "spu_trampoline_init_end");
 +
 +	emit_jit_arena_statistics("after JIT preparation before seal");
@@ -35038,7 +35247,7 @@ index 74a6dc7..848875c 100644
  		// A developer can request one bounded SPU profile through the injected
  		// cache root. Consume the request so subsequent launches stay unchanged.
  		const std::string profile_request = fs::get_cache_dir() + "jit-profile.once";
-@@ -1385,18 +1506,25 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+@@ -1385,18 +1507,25 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  		Emu.SetCallbacks(make_callbacks());
  		Emu.SetSupportedRenderers({video_renderer::vulkan});
  		Emu.SetDefaultRenderer(video_renderer::vulkan);
@@ -35066,7 +35275,7 @@ index 74a6dc7..848875c 100644
  		emit_jit_arena_statistics("after core initialization");
  		return RPCS3_IOS_OK;
  	}
-@@ -1519,6 +1647,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_run_llvm_self_test(uint64_t input, uint64_
+@@ -1519,6 +1648,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_run_llvm_self_test(uint64_t input, uint64_
  
  		using test_function = uint64_t (*)(uint64_t);
  		const auto function_address = compiler.get("rpcs3_ios_test_function");
@@ -35074,7 +35283,7 @@ index 74a6dc7..848875c 100644
  		if (!function_address)
  		{
  			set_error("LLVM did not publish the self-test function");
-@@ -3161,7 +3290,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_enumerate_game_settings(
+@@ -3161,7 +3291,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_enumerate_game_settings(
  		}
  		bool custom_config = false;
  		const bool loaded = load_settings_for_api(title_id, custom_config);
@@ -35083,7 +35292,7 @@ index 74a6dc7..848875c 100644
  		if (!loaded)
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
-@@ -3233,12 +3362,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+@@ -3233,12 +3363,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
  		{
  			return result;
  		}
@@ -35102,7 +35311,7 @@ index 74a6dc7..848875c 100644
  		return RPCS3_IOS_OK;
  	}
  	catch (const std::exception& error)
-@@ -3310,7 +3442,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_remove_game_settings(const char* title_id)
+@@ -3310,7 +3443,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_remove_game_settings(const char* title_id)
  
  	try
  	{
@@ -35112,7 +35321,7 @@ index 74a6dc7..848875c 100644
  		{
  			set_error(fmt::format("Unable to remove the custom configuration for %s", title_id));
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
-@@ -3388,10 +3521,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_save_game_settings_preset(
+@@ -3388,10 +3522,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_save_game_settings_preset(
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
  		}
@@ -35123,7 +35332,7 @@ index 74a6dc7..848875c 100644
  		normalize_current_game_resolution(game.resolution);
  		const auto result = finish_game_settings_preset_result(
  			rpcs3::ios::save_current_game_settings_preset(title_id, name));
-@@ -4444,6 +4573,12 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4444,6 +4574,12 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  	const char* savestate_id) noexcept
  {
  	std::lock_guard lock(g_api_mutex);
@@ -35136,7 +35345,7 @@ index 74a6dc7..848875c 100644
  	if (!title_id || !title_id[0])
  	{
  		set_error("An installed title ID is required");
-@@ -4471,6 +4606,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4471,6 +4607,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  		set_error("RPCS3Core must be ready and emulation stopped before booting a game");
  		return result;
  	}
@@ -35145,7 +35354,7 @@ index 74a6dc7..848875c 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting a game");
-@@ -4486,7 +4623,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4486,7 +4624,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  			return RPCS3_IOS_GAME_NOT_FOUND;
  		}
  
@@ -35184,7 +35393,7 @@ index 74a6dc7..848875c 100644
  		if (!requested_savestate_id.empty())
  		{
  			const auto savestates = enumerate_title_savestates(game->title_id, game->path);
-@@ -4503,21 +4670,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4503,21 +4671,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  				return RPCS3_IOS_BOOT_FAILED;
  			}
  			boot_path = selected->path;
@@ -35206,7 +35415,7 @@ index 74a6dc7..848875c 100644
  		}
  
  		if (requested_savestate_id.empty())
-@@ -4532,11 +4684,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4532,11 +4685,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  		prepare_rpcn_for_guest_boot();
  		Emu.DeactivateBigPictureMode();
  		Emu.SetForceBoot(true);
@@ -35223,12 +35432,12 @@ index 74a6dc7..848875c 100644
  			return RPCS3_IOS_BOOT_FAILED;
  		}
  
-@@ -4644,7 +4800,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
+@@ -4644,7 +4801,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
  		if (result != RPCS3_IOS_OK)
  		{
  			set_error("Performance metrics require a compatible output structure");
 +			return result;
-+		}
+ 		}
 +
 +		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D1): the snapshot leaves struct_size at
 +		// the Build 487 size only when the caller passed it; then the emulator state
@@ -35256,12 +35465,12 @@ index 74a6dc7..848875c 100644
 +				metrics->boot_progress_total = permille.total;
 +				metrics->valid_fields |= RPCS3_IOS_PERFORMANCE_BOOT_PROGRESS_VALID;
 +			}
- 		}
++		}
 +
  		return result;
  	}
  	catch (const std::exception& error)
-@@ -4730,15 +4916,206 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
+@@ -4730,15 +4917,210 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
  	return RPCS3_IOS_INTERNAL_ERROR;
  }
  
@@ -35290,7 +35499,7 @@ index 74a6dc7..848875c 100644
 +            return RPCS3_IOS_SAVESTATE_STORAGE_FAILED;
 +        }
 +
-+        if (!neostation::savestate::current.begin(requested_slot))
++        if (!neostation::savestate::current.begin(requested_slot, static_cast<u64>(Emu.GetEmulationIdentifier())))
 +        {
 +            set_error("A savestate is already being created or restored. Wait for it to finish.");
 +            return RPCS3_IOS_INVALID_STATE;
@@ -35463,12 +35672,16 @@ index 74a6dc7..848875c 100644
  		return RPCS3_IOS_INVALID_STATE;
  	}
  
-+	if (restore_jobs().cancel()) Emu.SetContinuousMode(false);
++	restore_jobs().cancel();
++	// An internal Kill may have finished while its boot continuation is still
++	// on UIKit, before it is visible to the worker. Explicit stop also closes
++	// that idle gap; cancelled callbacks never reapply captured process state.
++	Emu.SetContinuousMode(false);
 +
  	try
  	{
  		// An explicit wrapper stop leaves the full-screen session. It must not
-@@ -4783,7 +5160,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
+@@ -4783,7 +5165,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
  
  extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  {
@@ -35485,7 +35698,7 @@ index 74a6dc7..848875c 100644
  	bool should_run = false;
  	if (const auto result = g_lifecycle.begin_shutdown(should_run); result != RPCS3_IOS_OK)
  	{
-@@ -4822,7 +5207,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
+@@ -4822,7 +5212,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  		g_display_surface.clear();
  		emit_jit_arena_statistics("before core shutdown completion");
  		logs::listener::sync_all();
@@ -35505,7 +35718,7 @@ index 74a6dc7..848875c 100644
  		emit_log(4, "RPCS3Core shutdown completed");
  		return RPCS3_IOS_OK;
  	}
-@@ -4846,9 +5242,196 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
+@@ -4846,9 +5247,358 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
  	return copy.c_str();
  }
  
@@ -35514,11 +35727,19 @@ index 74a6dc7..848875c 100644
 +restore_executor::~restore_executor() { close(); }
 +bool restore_executor::post(task work, std::uint64_t token) noexcept
 +{
++	return post_impl(std::move(work), token, false);
++}
++bool restore_executor::post_continuation(task work, std::uint64_t token) noexcept
++{
++	return post_impl(std::move(work), token, true);
++}
++bool restore_executor::post_impl(task work, std::uint64_t token, bool allow_active) noexcept
++{
 +	if (!work) return false;
 +	try
 +	{
 +		std::lock_guard lock(mutex_);
-+		if (closed_ || active_ || pending_ || !current(token)) return false;
++		if (closed_ || (active_ && !allow_active) || pending_ || !current(token)) return false;
 +		if (!worker_.joinable())
 +		{
 +			worker_ = std::thread([this] { run(); });
@@ -35639,6 +35860,160 @@ index 74a6dc7..848875c 100644
 +			return true;
 +		}
 +		return admitted;
++	}
++	catch (...) { return false; }
++}
++
++std::uint64_t continuous_boot_generation() noexcept
++{
++	return restore_jobs().generation();
++}
++
++namespace
++{
++struct continuous_stop_request
++{
++	std::function<void(std::uint64_t)> main_stop;
++	std::uint64_t generation;
++	std::uint64_t emulation_id;
++	std::string title_id;
++};
++
++bool schedule_continuous_stop(std::shared_ptr<continuous_stop_request> request) noexcept
++{
++	try
++	{
++		const auto token = request->generation;
++		const bool admitted = restore_jobs().post_continuation([request](std::uint64_t generation)
++		{
++			std::lock_guard api_lock(g_api_mutex);
++			if (!restore_jobs().current(generation) || Emu.GetTitleID() != request->title_id) return;
++			if (g_lifecycle.state() != RPCS3_IOS_STATE_READY) return;
++
++			using registration_state = neostation::savestate::operation::registration_state;
++			const auto registration = neostation::savestate::current.after_finish(request->emulation_id,
++				[request](bool success) noexcept
++				{
++					// A successful automatic restore replaced the old PPU/FXO once.
++					// A failed preparation may leave that original process alive.
++					if (success) ++request->emulation_id;
++					if (!schedule_continuous_stop(request))
++						emit_log(1, "RPCS3 could not resume the process transition after saving.");
++				});
++			if (registration.state == registration_state::registered) return;
++			if (registration.state == registration_state::busy)
++			{
++				emit_log(1, "RPCS3 process transition is already queued or belongs to another save operation.");
++				return;
++			}
++			const auto current_id = static_cast<std::uint64_t>(Emu.GetEmulationIdentifier());
++			// finish() can win the race before after_finish() takes its mutex.
++			// An exact successful save owner authorizes only its one replacement.
++			if (registration.finished == true && current_id == request->emulation_id + 1)
++				++request->emulation_id;
++			if (Emu.IsStopped() || current_id != request->emulation_id)
++			{
++				// A write/restore failure after Kill has no live PPU or FXO to
++				// recapture. Stay stopped with an explicit error, never dereference
++				// missing objects or apply this request to an unrelated title.
++				if (Emu.GetStatus(false) == system_state::stopped &&
++					(current_id == request->emulation_id ||
++						(registration.finished == false && current_id == request->emulation_id + 1)))
++				{
++					Emu.SetContinuousMode(false);
++					Emu.SetForceBoot(false);
++					set_error("RPCS3 could not switch processes because the preceding session stopped. Start the game again.");
++					emit_log(1, "RPCS3 internal process transition ended after the preceding session stopped.");
++				}
++				return;
++			}
++
++			// Capture the old VFS/FXO and start its asynchronous Kill on UIKit,
++			// while the API lock excludes a simultaneous wrapper stop/new boot.
++			std::mutex completed_mutex;
++			std::condition_variable completed_cv;
++			bool completed = false;
++			std::exception_ptr failure;
++			Emu.GetCallbacks().call_from_main_thread([&]
++			{
++				try
++				{
++					// Native main-thread restarts do not change the worker generation.
++					// Keep the original stop-ID guard through the UIKit dispatch gap.
++					if (restore_jobs().current(generation) && !Emu.IsStopped() &&
++						static_cast<std::uint64_t>(Emu.GetEmulationIdentifier()) == request->emulation_id &&
++						Emu.GetTitleID() == request->title_id && !neostation::savestate::current.read().active)
++					{
++						request->main_stop(request->emulation_id);
++					}
++				}
++				catch (...) { failure = std::current_exception(); }
++				std::lock_guard lock(completed_mutex);
++				completed = true;
++				completed_cv.notify_one();
++			}, nullptr);
++			std::unique_lock lock(completed_mutex);
++			completed_cv.wait(lock, [&] { return completed; });
++			if (failure)
++			{
++				Emu.SetContinuousMode(false);
++				Emu.SetForceBoot(false);
++				set_error("RPCS3 could not prepare the internal process transition.");
++				emit_log(1, "RPCS3 internal process transition preparation failed.");
++			}
++		}, token);
++		return admitted || !restore_jobs().current(token);
++	}
++	catch (...) { return false; }
++}
++}
++
++bool defer_continuous_stop(std::function<void(std::uint64_t)> main_stop, std::uint64_t token, std::uint64_t emulation_id, std::string title_id) noexcept
++{
++	if (!main_stop) return false;
++	try
++	{
++		return schedule_continuous_stop(std::make_shared<continuous_stop_request>(continuous_stop_request{
++			std::move(main_stop), token, emulation_id, std::move(title_id)}));
++	}
++	catch (...) { return false; }
++}
++
++bool defer_continuous_boot(std::function<void()> boot, std::uint64_t token, std::uint64_t emulation_id, std::string title_id) noexcept
++{
++	if (!boot) return false;
++	try
++	{
++		const bool admitted = restore_jobs().post_continuation([boot = std::move(boot), emulation_id, title_id = std::move(title_id)](std::uint64_t generation)
++		{
++			std::lock_guard api_lock(g_api_mutex);
++			if (!restore_jobs().current(generation) || Emu.GetTitleID() != title_id) return;
++			if (g_lifecycle.state() != RPCS3_IOS_STATE_READY ||
++				!g_accept_display_surfaces.load() || Emu.GetStatus(false) != system_state::stopped ||
++				static_cast<std::uint64_t>(Emu.GetEmulationIdentifier()) != emulation_id ||
++				neostation::savestate::current.read().active)
++			{
++				emit_log(1, "RPCS3 internal process boot was no longer ready.");
++				return;
++			}
++			thread_base::set_name("RPCS3 Reboot");
++			try { boot(); }
++			catch (const std::exception& error)
++			{
++				Emu.SetContinuousMode(false);
++				Emu.SetForceBoot(false);
++				set_error(error.what());
++				emit_log(1, "RPCS3 internal process boot failed.");
++			}
++			catch (...)
++			{
++				Emu.SetContinuousMode(false);
++				Emu.SetForceBoot(false);
++				set_error("RPCS3 could not boot the next internal process.");
++				emit_log(1, "RPCS3 internal process boot failed.");
++			}
++		}, token);
++		return admitted || !restore_jobs().current(token);
 +	}
 +	catch (...) { return false; }
 +}

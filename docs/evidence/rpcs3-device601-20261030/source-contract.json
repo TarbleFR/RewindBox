@@ -1,0 +1,826 @@
+{
+  "phase": "reboot-timer-feedback",
+  "policy_append": " Device601 log follow-up (30 October 2026): validate one-to-seven-byte vertex uploads on iOS; retain the eight-byte weak prefix for larger ranges and all previous compatibility settings. Sampler-mask and inflater prototypes were withdrawn after host regressions. Source-only, no new Core, IPA or iPhone FPS result. Device601 open-issue continuation (30 October 2026): serialize internal SELF boots off UIKit with bounded save-completion handoff and stale-session guards; collect decrementer interrupts during full-MFC waits and retain host wake notifications; snapshot true iOS MoltenVK color-attachment feedback aliases even for single-TEX shaders. Exact host-only SPU compatibility mapping preserves existing JIT identities. Source and host tests only; Metal loading time, BO2 multiplayer, GOW3 introduction and AC torch rendering remain unverified on device; feedback copies may cost performance. No new Core, IPA, CI or release.",
+  "schema": 1,
+  "baseline_app_commit": "f41eb5ef4ce87cab08a18781c2e09a55a8319773",
+  "historical_core_source": "378509e82d360bc2cb2fcc9fb23d4d9d98787506",
+  "canonical_patch_sha256": "720d0d72d8ab93bbf7596d859652b8e21dd603995b8f455b3b8674de6fc53ac8",
+  "native_changes": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": {
+      "before": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440",
+      "after": "d3aa29b2eab67c9036c5007cba356a52bf3d4abea2c06da66ffd83f9ff602d7c"
+    },
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp": {
+      "before": "45023f8eb619e8c6972af3ef531d93b93b94488f59955312305407692fd75494",
+      "after": "e24bac01f5f0e40f1b479739e8a8b875bbddbfd87c6da174b94801318393ce74"
+    },
+    "rpcs3/Emu/RSX/rsx_cache.h": {
+      "before": "0c0d35e06ca3599dffb09f272bc8e656c84ceb08b516d74abb0b5476668c9573",
+      "after": "abcdffa894b8da53113bd5b37d4c1f96eafccdeee07b0b0682903a6e0ce6dffb"
+    },
+    "rpcs3/ios/IOSRestoreExecutor.h": {
+      "before": "3e02896bc6b0d7b99524d36ca851abdc4f80114d2b3c06d34f429b9e941c15bc",
+      "after": "e2fa017be2e7d0c15a34516aec555aa8c5833b3e96db175dad30decb039a9456"
+    },
+    "rpcs3/ios/NeoStationSavestateStatus.h": {
+      "before": "b5d4b1597563ef978433fa0a2f19543d4d51ba32775c4add8bc228de9bbd7692",
+      "after": "d325d7c7263dc85535fdb013cb9fb203a5733120bb1f78e83d601df870518601"
+    },
+    "rpcs3/ios/RPCS3IOS.cpp": {
+      "before": "f10ba0eb66a08a1b0254e1f64103a23cc35942c6cec23defe2641ec539a26a0d",
+      "after": "8b233678d5ae264444cbef28d6e03e61c60d9e87089ec417b9aa57a137c87651"
+    },
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": {
+      "before": "7891895841c71c6cd361f8b227284b6447ec1ce7ac0e455c69b18a050128d8fa",
+      "after": "e75e91136414e7a28be5edb209ff3b0df13bfcf85bb4409171cec591ae03e58e"
+    },
+    "rpcs3/Emu/Cell/lv2/sys_process.cpp": {
+      "before": "de9541c42f0a8a4e295a5806f177fdf65dccdfd9382489f63178737e156e6b4c",
+      "after": "4dfc45d978c42b8615eae6a36fecd44ec84547e3e2d838ff0c561f7b40a0005e",
+      "upstream_preimage_blob": "a9bb216e821372b15fec2488793aba0cdb4f4ebc"
+    }
+  },
+  "delta_sha256": "3e3414551398a4c2b531552f095f69ea2ce4b841496c9d3c641479e1fa028356",
+  "repository_inputs": {
+    ".github/diagnostics/rpcs3runtime592_core.py": "49753a929b4304205db13e57b630c3d558f610ecdca3a13ddfc20a6aeebbde56",
+    ".github/diagnostics/rpcs3runtime_device597_core.py": "f21892ff613694fe3807611fead5aade24a3654d9fbac13b5e147f67192d057d",
+    ".github/diagnostics/rpcs3runtime_device601_core.py": "9bb4d11de3e67cc186106c5966a448f337dee33b6cdaa333ff999e1ef486b22a",
+    ".github/workflows/rpcs3-runtime592-core.yml": "7d6cd1d74e7503a406719932b8fddf13dd79ed0d67d775e1d49cafcc43ff036e",
+    "build-utils/build_rpcs3_embedded_core.sh": "ec79fb073908151d8413a201ef61d242078d363eb317395b6c98f01421eb9a5d",
+    "build-utils/configure_neoswap_donor.py": "d7a2031c2b64dadfbeddfe62724e32c3fcb915f479056831d438ef2608b9c19f",
+    "build-utils/configure_neoswap_relay.py": "faa6c957ccda639dd31e577edfddd389a6e4b1c874762ca1029a12b4c79eece5",
+    "build-utils/configure_rpcs3_ios_v2.py": "8d3864b481e740e1f27c8365915e0e4f667bf2eddd722dc16cee279ad76eab71",
+    "build-utils/embed_rpcs3_host_entitlements.py": "2f09c53466017f34a5957cfe2dd1c8c6f3ffb028b8e32be4bbf133d832625245",
+    "build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch": "8db9dc0e3701069ca3d42c534b2bcd0bba5eea1f21fbd54c466fb454130a9a3f",
+    "build-utils/rpcs3/patch_moltenvk_compile_qos.py": "347228917c5880641d1c7459b381c24d2c9328aa7130a303f40e4a4227db2ca1",
+    "build-utils/rpcs3/patch_moltenvk_exec_queue.py": "0bf571fd46ef50d75a815d7e6991180e3d122ba65f28fb97dfa793dce2397e6e",
+    "build-utils/validate_rpcs3_embedded_core.py": "f0a70357087e099c6dfb7187d8564c724f7b9b5ce8c7cbacb808539f03e0ca89",
+    "build-utils/validate_rpcs3_passive_dlopen.py": "e051ffc47d722e1f53e28a9919ef29502022edb68b34a545e81d2b5f01258b9a",
+    "build-utils/validate_single_ipa_distribution.py": "3b00c763cb0e66f8bea24869fac7a5d5cf3908315c64abb5d98a41d8e5bbb93b",
+    "docs/evidence/rpcs3-device597-20261030/apple-core.json": "6daf327c775c1d195d8c4c2a6390569aa1659d4ce4190a829801f6464818494f",
+    "docs/evidence/rpcs3-device597-20261030/cpu/codegen-review-final.json": "32b0c5238d26974244dca5fe1de8dafd47e51ef2ffc38b6881d6326d94e8332c",
+    "docs/evidence/rpcs3-device601-20261030/cpu/decrementer-codegen.json": "29e0b0f0c4d40731cb650b9527ebc7c795720d55d3a454c737840dbf98310b8f",
+    "packages/dolphin_internal_bridge/ci/verify_ipa.py": "0bd457d94dfe8e54209a5d351527acf717b7ba68d1e0001b512b8f9ca7629c2c",
+    "test/fixtures/rpcs3_device601.diff": "3e3414551398a4c2b531552f095f69ea2ce4b841496c9d3c641479e1fa028356",
+    "test/native/rpcs3_exitspawn_worker601.cpp": "c8f08b10aedda25f0799645a26dd84aa4077cf64711f59cc4d547cbaa8033883",
+    "test/native/rpcs3_savestate_completion601.cpp": "d1befb64e00a2cb6fcb0879eaa072e5fcb490ed567cbd5ddc01f7090bd0c3422",
+    "test/native/rpcs3_spu_mfc_decrementer.inc": "76d4a73e4184c5415892bb1c90e16298a00b286d3727e6708bb87e10dc39c314",
+    "test/neo_swap_core_pin_test.py": "8e5574e06f9fc7182bd947a72c46abbc45b53b5bf3fa354611d1ded41717ff28",
+    "test/rpcs3_color_feedback_test.py": "a48f65b5074be7e8defb0f58d889e8079b165a9b35e9aebbe176724a8e3e5ff3",
+    "test/rpcs3_device597/cpu/late_snr.cpp.in": "d35cb6267a003edceac1158eb51e229941259858d7914e2f81e48b6cd8fe8c42",
+    "test/rpcs3_device597/cpu/run_late_snr.py": "cd880a6a0c11b26c98c997ce375a736b2adb28c04547dc607de0adc19db5be17",
+    "test/rpcs3_device597/renderer/fixtures/VKVertexBuffers.before.cpp": "09a0283b6c9729eba8abe17aa81759f12f5f745384287411288c55cf07d63cd0",
+    "test/rpcs3_device597/renderer/test_vertex_upload_key.py": "babadbb6bb0db8731a706e7382744d1bf209b51116100b777c00b0f66eda6769",
+    "test/rpcs3_device601_codegen_test.py": "5dec0438637b807d507efb3d6ef2ed0f919e23e306313b6391a80a2b1da876df",
+    "test/rpcs3_device601_gate_test.py": "0cee076d6d6fe1f88e9f7055a8befe17c0fbbae3f5be2744f98f5f389a21bacf",
+    "test/rpcs3_exitspawn_worker601_test.py": "5170ff16eecd648e82cc00492e610cc880a8e556a198eebfdd4e8d51103c9aab",
+    "test/rpcs3_savestate_completion601_test.py": "478a8a26d123a56e7ebbca873277518ff592f4b1c3cc4a2911f9317885505499",
+    "test/rpcs3_spu_mfc_decrementer_test.py": "434ca273a4d8164d2e6bf74c49951c100d1fa8bf045b93b559198f5f1be28ce3",
+    "test/rpcs3_tiny_vertex_cache_test.py": "73d1e237c56d22d393f2cb2363b6324d19bd71c8dc2932f4c2f51071f4cd2d82"
+  },
+  "baseline_support": {
+    "Utilities/Thread.h": {
+      "sha256": "14bf216d4c8d804ba3475335c3cdd8a4447629338c195db72105fa0664ea23ce",
+      "upstream_blob": "24ace6c38858d22ac94b90c7b7586175909a7ba6"
+    },
+    "rpcs3/Emu/Cell/MFC.h": {
+      "sha256": "66890f55f172be2a8a7b9e54100c5dac79562f0e743b72dec619732da00f7396",
+      "upstream_blob": "c7fe58835e7111267cbd58c03acfc28aa8d0a023"
+    }
+  },
+  "host_codegen_audit": {
+    "runner": "test/rpcs3_device601_codegen_test.py",
+    "report": "docs/evidence/rpcs3-device601-20261030/cpu/decrementer-codegen.json",
+    "report_sha256": "29e0b0f0c4d40731cb650b9527ebc7c795720d55d3a454c737840dbf98310b8f"
+  },
+  "apple_validation_jobs": [
+    {
+      "name": "tiny-vertex-plain",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_tiny_vertex_cache_test.py",
+        "--source",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--output",
+        "{output}"
+      ],
+      "report": "{output}/result.json",
+      "checks": [
+        {
+          "path": [
+            "sanitizer"
+          ],
+          "equals": false
+        },
+        {
+          "path": [
+            "results",
+            1,
+            "result",
+            "stale_short"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "results",
+            1,
+            "result",
+            "guard_page_lengths"
+          ],
+          "equals": 7
+        },
+        {
+          "path": [
+            "gpu_executed"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "vertex-range-plain",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/renderer/test_vertex_upload_key.py",
+        "--source",
+        "{source}",
+        "--output",
+        "{output}"
+      ],
+      "report": "{output}/result.json",
+      "checks": [
+        {
+          "path": [
+            "sanitizer"
+          ],
+          "equals": false
+        },
+        {
+          "path": [
+            "variants",
+            "before",
+            "result",
+            "wrong_range_reuses"
+          ],
+          "equals": 300
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "wrong_range_reuses"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "ordinary_mismatches"
+          ],
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "tiny-vertex-asan-ubsan",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_tiny_vertex_cache_test.py",
+        "--source",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--output",
+        "{output}",
+        "--sanitizer",
+        "--variant",
+        "candidate-ios"
+      ],
+      "report": "{output}/result.json",
+      "checks": [
+        {
+          "path": [
+            "sanitizer"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            0,
+            "result",
+            "stale_short"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "results",
+            0,
+            "result",
+            "guard_page_lengths"
+          ],
+          "equals": 7
+        },
+        {
+          "path": [
+            "gpu_executed"
+          ],
+          "equals": false
+        }
+      ]
+    },
+    {
+      "name": "vertex-range-asan-ubsan",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/renderer/test_vertex_upload_key.py",
+        "--source",
+        "{source}",
+        "--output",
+        "{output}",
+        "--sanitizer"
+      ],
+      "report": "{output}/result.json",
+      "checks": [
+        {
+          "path": [
+            "sanitizer"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "variants",
+            "before",
+            "result",
+            "wrong_range_reuses"
+          ],
+          "equals": 300
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "wrong_range_reuses"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "ordinary_mismatches"
+          ],
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "mfc-decrementer-plain",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_spu_mfc_decrementer_test.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--report",
+        "{output}/result.json"
+      ],
+      "report": "{output}/result.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "baselineBlockedDueSchedules"
+          ],
+          "equals": 3
+        },
+        {
+          "path": [
+            "results",
+            "candidateDeadlineInterrupts"
+          ],
+          "equals": 3
+        },
+        {
+          "path": [
+            "results",
+            "commandsAcceptedExactlyOnce"
+          ],
+          "equals": 96
+        },
+        {
+          "path": [
+            "results",
+            "lateSnrPreserved"
+          ],
+          "equals": 4
+        },
+        {
+          "path": [
+            "results",
+            "maskedDisabledFrozenOrStale"
+          ],
+          "equals": 8
+        },
+        {
+          "path": [
+            "results",
+            "concurrentDeadlineInterrupts"
+          ],
+          "equals": 64
+        }
+      ]
+    },
+    {
+      "name": "exitspawn-worker-plain",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_exitspawn_worker601_test.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--report",
+        "{output}/result.json"
+      ],
+      "report": "{output}/result.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "cases"
+          ],
+          "equals": 22
+        },
+        {
+          "path": [
+            "candidate_boots_on_worker"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "stop_and_cleanup_on_ui"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "ui_heartbeat_while_native_boot_blocked"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "api_stop_waits_without_native_overlap"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "failed_save_before_kill_resumes_self"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "successful_save_resumes_self_after_exact_replacement"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "failed_save_after_kill_reports_stopped_without_fxo_read"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "finish_registration_race_preserved"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "actual_savestate_operation"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "stale_stopped_incarnation_flags_untouched"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "savestate-completion-plain",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_savestate_completion601_test.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--report",
+        "{output}/result.json"
+      ],
+      "report": "{output}/result.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "actual_header_compiled"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "exceptions_disabled"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "callback_outside_mutex"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "callback_lifetime_released"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "registration_finish_races"
+          ],
+          "equals": 1200
+        }
+      ]
+    },
+    {
+      "name": "color-feedback-plain",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_color_feedback_test.py",
+        "--source",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--output",
+        "{output}"
+      ],
+      "report": "{output}/result.json",
+      "checks": [
+        {
+          "path": [
+            "sanitizer"
+          ],
+          "equals": false
+        },
+        {
+          "path": [
+            "gpu_executed"
+          ],
+          "equals": false
+        },
+        {
+          "path": [
+            "variants",
+            0,
+            "result",
+            "order_dependent_cases"
+          ],
+          "equals": 2
+        },
+        {
+          "path": [
+            "variants",
+            1,
+            "result",
+            "order_dependent_cases"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "variants",
+            2,
+            "result",
+            "order_dependent_cases"
+          ],
+          "equals": 2
+        }
+      ]
+    },
+    {
+      "name": "mfc-decrementer-asan-ubsan",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_spu_mfc_decrementer_test.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--report",
+        "{output}/result.json",
+        "--sanitizer",
+        "address,undefined"
+      ],
+      "report": "{output}/result.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "baselineBlockedDueSchedules"
+          ],
+          "equals": 3
+        },
+        {
+          "path": [
+            "results",
+            "candidateDeadlineInterrupts"
+          ],
+          "equals": 3
+        },
+        {
+          "path": [
+            "results",
+            "commandsAcceptedExactlyOnce"
+          ],
+          "equals": 96
+        },
+        {
+          "path": [
+            "results",
+            "lateSnrPreserved"
+          ],
+          "equals": 4
+        },
+        {
+          "path": [
+            "results",
+            "maskedDisabledFrozenOrStale"
+          ],
+          "equals": 8
+        },
+        {
+          "path": [
+            "results",
+            "concurrentDeadlineInterrupts"
+          ],
+          "equals": 64
+        }
+      ]
+    },
+    {
+      "name": "exitspawn-worker-asan-ubsan",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_exitspawn_worker601_test.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--report",
+        "{output}/result.json",
+        "--sanitize"
+      ],
+      "report": "{output}/result.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "cases"
+          ],
+          "equals": 22
+        },
+        {
+          "path": [
+            "candidate_boots_on_worker"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "stop_and_cleanup_on_ui"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "ui_heartbeat_while_native_boot_blocked"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "api_stop_waits_without_native_overlap"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "failed_save_before_kill_resumes_self"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "successful_save_resumes_self_after_exact_replacement"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "failed_save_after_kill_reports_stopped_without_fxo_read"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "finish_registration_race_preserved"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "actual_savestate_operation"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "stale_stopped_incarnation_flags_untouched"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "savestate-completion-asan-ubsan",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_savestate_completion601_test.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--report",
+        "{output}/result.json",
+        "--sanitize"
+      ],
+      "report": "{output}/result.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "actual_header_compiled"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "exceptions_disabled"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "callback_outside_mutex"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "callback_lifetime_released"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "registration_finish_races"
+          ],
+          "equals": 1200
+        }
+      ]
+    },
+    {
+      "name": "color-feedback-asan-ubsan",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_color_feedback_test.py",
+        "--source",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--output",
+        "{output}",
+        "--sanitizer"
+      ],
+      "report": "{output}/result.json",
+      "checks": [
+        {
+          "path": [
+            "sanitizer"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "gpu_executed"
+          ],
+          "equals": false
+        },
+        {
+          "path": [
+            "variants",
+            0,
+            "result",
+            "order_dependent_cases"
+          ],
+          "equals": 2
+        },
+        {
+          "path": [
+            "variants",
+            1,
+            "result",
+            "order_dependent_cases"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "variants",
+            2,
+            "result",
+            "order_dependent_cases"
+          ],
+          "equals": 2
+        }
+      ]
+    }
+  ],
+  "historical_scope": "Original 28 Apple native modes remain historical; archived bytes authenticate only during an authorized native build.",
+  "affected_historical_tests": "Vertex, full-MFC-queue/decrementer, feedback and restart programs execute on changed production paths; no old generated-program equivalence is claimed.",
+  "unchanged_scope": "All native paths outside the eight recorded changes are exact. CPU emission inputs are unchanged except the two host bodies with an independently checked exact alias; exports/settings remain exact."
+}

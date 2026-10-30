@@ -1,0 +1,249 @@
+{
+  "passed": true,
+  "source_sha256": "d3aa29b2eab67c9036c5007cba356a52bf3d4abea2c06da66ffd83f9ff602d7c",
+  "baseline_sha256": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440",
+  "compatibility_sha256": "e75e91136414e7a28be5edb209ff3b0df13bfcf85bb4409171cec591ae03e58e",
+  "baseline_compatibility_sha256": "7891895841c71c6cd361f8b227284b6447ec1ce7ac0e455c69b18a050128d8fa",
+  "addition_sha256": "e0ea7ab6d21cc737d13caae21e1432433defab8e511b989a932b20635f0888cc",
+  "existing_aliases_preserved": 6,
+  "new_exact_aliases": 1,
+  "changed_host_bodies": {
+    "process_mfc_cmd": {
+      "before": "c3f39d3560c03b92ebb2e7eb599e37a80d89ff873c31735fd2027efe97bed2c1",
+      "after": "50f212be2cbad8eb54e42feea00255ad5d3e6f54c1b2e66827bfa3b6f2ff4dec"
+    },
+    "decrementer_callback": {
+      "before": "8ee4d2864ee5f0e92f5664da568bfa2c1ef2eec6c30079ab4580eb4f4dd5bd8c",
+      "after": "e2be74d837bcd1e9ffddd51bcb2a80480bbd286c86b89dc43ce8202b36a4a0e3"
+    }
+  },
+  "physical_codegen_inputs_checked": 40,
+  "external_llvm_inputs_reused": [
+    "../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp"
+  ],
+  "unchanged_baseline_digests_reused": [
+    "Cell/PPUTranslator.cpp",
+    "Cell/PPUTranslator.h",
+    "Cell/PPUThread.cpp",
+    "Cell/PPUThread.h",
+    "Cell/PPUFunction.h",
+    "Cell/PPUOpcodes.h",
+    "CPU/CPUTranslator.cpp",
+    "CPU/CPUTranslator.h",
+    "CPU/Backends/AArch64/CellVectorLowering.h",
+    "../util/simd.hpp",
+    "../util/v128.hpp",
+    "../../Utilities/JIT.h",
+    "../../Utilities/JITLLVM.cpp",
+    "../../Utilities/JITPublicationQueue.h",
+    "../../Utilities/JITObjectBuffer.h",
+    "../../Utilities/JITMemoryProfile.h",
+    "../../Utilities/JITMinimalObject.h",
+    "../ios/IOSCompileAdmission.h",
+    "../ios/NeoSwapCompilerAPI.h",
+    "../../Utilities/JITPhaseProfile.h",
+    "Cell/SPULLVMRecompiler.cpp",
+    "Cell/SPUCommonRecompiler.cpp",
+    "Cell/SPURecompiler.h",
+    "Cell/SPUThread.h",
+    "Cell/SPUInterpreter.cpp",
+    "Cell/SPUInterpreter.h",
+    "Cell/SPUOpcodes.h",
+    "Cell/SPUAnalyser.h",
+    "Cell/SPUObjectCachePolicy.h",
+    "Cell/SPUARM64Lowering.h",
+    "Cell/SPUARM64ConstantTable.h",
+    "Cell/SPUARM64CompareLowering.h",
+    "CPU/Backends/AArch64/AArch64JIT.cpp",
+    "CPU/Backends/AArch64/AArch64JIT.h",
+    "CPU/Backends/AArch64/SPUChecksum.h",
+    "CPU/Backends/AArch64/SPUInterrupts.h",
+    "CPU/Backends/AArch64/SPUInterpreterGateway.h",
+    "CPU/Backends/AArch64/SPUReservationHash.h",
+    "CPU/Backends/AArch64/SPUReservationScan.h"
+  ],
+  "inputs": {
+    "Cell/PPUTranslator.cpp": {
+      "before": "2573c07e9f75e75f19984d4a796141795942db5fd15f5290fcec37c99e97affd",
+      "after": "2573c07e9f75e75f19984d4a796141795942db5fd15f5290fcec37c99e97affd"
+    },
+    "Cell/PPUTranslator.h": {
+      "before": "78c7b817d792de7c3b08abf40502724245736385bd414666a0b2d958e2fdd3c3",
+      "after": "78c7b817d792de7c3b08abf40502724245736385bd414666a0b2d958e2fdd3c3"
+    },
+    "Cell/PPUThread.cpp": {
+      "before": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44",
+      "after": "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44"
+    },
+    "Cell/PPUThread.h": {
+      "before": "ebc4928070976a8544fe5862b804a288bb2cf283f20cc4fc2ccdf1d1a91821e3",
+      "after": "ebc4928070976a8544fe5862b804a288bb2cf283f20cc4fc2ccdf1d1a91821e3"
+    },
+    "Cell/PPUFunction.h": {
+      "before": "277e970a05dc808c8851aef12fd985d8b35ecf62559cf3ab3751e04cd6264a15",
+      "after": "277e970a05dc808c8851aef12fd985d8b35ecf62559cf3ab3751e04cd6264a15"
+    },
+    "Cell/PPUOpcodes.h": {
+      "before": "fcc5b3f3379946904458e9c0bc1414c5ea82e3e7e071d78451424bb65d57223c",
+      "after": "fcc5b3f3379946904458e9c0bc1414c5ea82e3e7e071d78451424bb65d57223c"
+    },
+    "CPU/CPUTranslator.cpp": {
+      "before": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219",
+      "after": "c5aedd4d545623f9f385f16de6d52e2a8ae4e42439f7707941a37507cb28b219"
+    },
+    "CPU/CPUTranslator.h": {
+      "before": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce",
+      "after": "6a75ba938064bb21f1a6c87f9b737192588c8dd64360c58ce8df37bbb2bc51ce"
+    },
+    "CPU/Backends/AArch64/CellVectorLowering.h": {
+      "before": "737fb3dc40e0aba43b5c8f4bffd5a18d3ef1a6ded83a07fcb0d7b78badec980b",
+      "after": "737fb3dc40e0aba43b5c8f4bffd5a18d3ef1a6ded83a07fcb0d7b78badec980b"
+    },
+    "../util/simd.hpp": {
+      "before": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4",
+      "after": "a0aa419c826b6501cfe3824b18998089849206f456b2e20afffb998804cfb2b4"
+    },
+    "../util/v128.hpp": {
+      "before": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b",
+      "after": "c3e277646ddab61f50b0d8fe12d91b569bb26ea13eb62b36899985a44505b91b"
+    },
+    "../../Utilities/JIT.h": {
+      "before": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061",
+      "after": "ca9739e94afd945543ae6ccc94535d17a777e341281571ca5f30abc689074061"
+    },
+    "../../Utilities/JITLLVM.cpp": {
+      "before": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf",
+      "after": "772636dc0bd451e1c580a677a5450647f0727b16d6105d9f304d8aee9b0112bf"
+    },
+    "../../Utilities/JITPublicationQueue.h": {
+      "before": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211",
+      "after": "d8984d26bff0d204ffd8bdfccd05ec9c9faf2ec2b0028141474137e387e4a211"
+    },
+    "../../Utilities/JITObjectBuffer.h": {
+      "before": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0",
+      "after": "00761c08f7fe59a9cdc91cc2445f8556c512ecd1fc8fc2e0e743ac5809f4f9a0"
+    },
+    "../../Utilities/JITMemoryProfile.h": {
+      "before": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e",
+      "after": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e"
+    },
+    "../../Utilities/JITMinimalObject.h": {
+      "before": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20",
+      "after": "6c5b684c02bd8a6a7316276b2719ded3f15e8e213724e8d5c67f8c739fe9cc20"
+    },
+    "../ios/IOSCompileAdmission.h": {
+      "before": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61",
+      "after": "36d87781fb5a316cce522a713e4a7753763702f6d457829aa82ed8e89f55ba61"
+    },
+    "../ios/NeoSwapCompilerAPI.h": {
+      "before": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5",
+      "after": "7059ae33e69bcce8160946b41e2ff3410e29c3f0a5a403a27c670519669b75d5"
+    },
+    "../../Utilities/JITPhaseProfile.h": {
+      "before": "326313fec8689034e54cbdb27bf6777ba9e6a4abaf3cab6a542d7520310d6230",
+      "after": "326313fec8689034e54cbdb27bf6777ba9e6a4abaf3cab6a542d7520310d6230"
+    },
+    "../../3rdparty/llvm/llvm/llvm/lib/Target/AArch64/AArch64FrameLowering.cpp": {
+      "before": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507",
+      "after": "c6ee2a2a736b72b8f9109bbe9ad82e43a84d0ca1d5e2c75670603e423fd4c507"
+    },
+    "Cell/SPULLVMRecompiler.cpp": {
+      "before": "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff",
+      "after": "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff"
+    },
+    "Cell/SPUCommonRecompiler.cpp": {
+      "before": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb",
+      "after": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb"
+    },
+    "Cell/SPURecompiler.h": {
+      "before": "0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07",
+      "after": "0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07"
+    },
+    "Cell/SPUThread.h": {
+      "before": "27e7713d92eb04e5636d9e42d88b2dd7b4a2ec1fd13b8d72c497ca2984cbd67c",
+      "after": "27e7713d92eb04e5636d9e42d88b2dd7b4a2ec1fd13b8d72c497ca2984cbd67c"
+    },
+    "Cell/SPUThread.cpp": {
+      "before": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440",
+      "after": "d3aa29b2eab67c9036c5007cba356a52bf3d4abea2c06da66ffd83f9ff602d7c"
+    },
+    "Cell/SPUInterpreter.cpp": {
+      "before": "b6966a7bb26fb4016a52ef1ac5d0eaeeb77cfbe95e7377a080692c0d5e652bd3",
+      "after": "b6966a7bb26fb4016a52ef1ac5d0eaeeb77cfbe95e7377a080692c0d5e652bd3"
+    },
+    "Cell/SPUInterpreter.h": {
+      "before": "a2f451c677f26d7af540af90a800240cbb37a4454511a9f64b4313fc5d9dc4b3",
+      "after": "a2f451c677f26d7af540af90a800240cbb37a4454511a9f64b4313fc5d9dc4b3"
+    },
+    "Cell/SPUOpcodes.h": {
+      "before": "6a5b3ae3021439e8ed3e86b8ad622bba05ec9cd081b4c9df559f5d16f8d995fc",
+      "after": "6a5b3ae3021439e8ed3e86b8ad622bba05ec9cd081b4c9df559f5d16f8d995fc"
+    },
+    "Cell/SPUAnalyser.h": {
+      "before": "5b61d1774986652d734d16a3847c5231013c1f97ed3d02f6e1edc61e9609e1aa",
+      "after": "5b61d1774986652d734d16a3847c5231013c1f97ed3d02f6e1edc61e9609e1aa"
+    },
+    "Cell/SPUObjectCachePolicy.h": {
+      "before": "a5fbf16daa366fd599c6d77ddeea8265f7d3e00750d3479c4b3dc94060c38233",
+      "after": "a5fbf16daa366fd599c6d77ddeea8265f7d3e00750d3479c4b3dc94060c38233"
+    },
+    "Cell/SPUARM64Lowering.h": {
+      "before": "72287a5c64b9d63a907003d9a2cc80bb31af9af621bae02064a7eb6d939c1a7d",
+      "after": "72287a5c64b9d63a907003d9a2cc80bb31af9af621bae02064a7eb6d939c1a7d"
+    },
+    "Cell/SPUARM64ConstantTable.h": {
+      "before": "35f1bea81df932ccf582de52575d1043caa3a2af6cd614e90f33a15216b4366e",
+      "after": "35f1bea81df932ccf582de52575d1043caa3a2af6cd614e90f33a15216b4366e"
+    },
+    "Cell/SPUARM64CompareLowering.h": {
+      "before": "9cb95d57a460cbc7f6717649661f1dd6b6e126de773cf1be57f70dea6fa43958",
+      "after": "9cb95d57a460cbc7f6717649661f1dd6b6e126de773cf1be57f70dea6fa43958"
+    },
+    "CPU/Backends/AArch64/AArch64JIT.cpp": {
+      "before": "2e42b8b2e076805f0d388bdcb729ae78994406d5a7ebd9dd2c0bc947e8161017",
+      "after": "2e42b8b2e076805f0d388bdcb729ae78994406d5a7ebd9dd2c0bc947e8161017"
+    },
+    "CPU/Backends/AArch64/AArch64JIT.h": {
+      "before": "6212064b32c8eaf9ce04070e830bac93b6999fdcbf314426838ea1e9c11de0c8",
+      "after": "6212064b32c8eaf9ce04070e830bac93b6999fdcbf314426838ea1e9c11de0c8"
+    },
+    "CPU/Backends/AArch64/SPUChecksum.h": {
+      "before": "50701386284418dfa1f6aeb4cf4d72c64aa8c7369782b3e0a7ad374594a5fb63",
+      "after": "50701386284418dfa1f6aeb4cf4d72c64aa8c7369782b3e0a7ad374594a5fb63"
+    },
+    "CPU/Backends/AArch64/SPUInterrupts.h": {
+      "before": "1f1dfd0dbe38e665cc0b48216504a41d01bb5e123fb69bc81c3a7c1ae721a4e5",
+      "after": "1f1dfd0dbe38e665cc0b48216504a41d01bb5e123fb69bc81c3a7c1ae721a4e5"
+    },
+    "CPU/Backends/AArch64/SPUInterpreterGateway.h": {
+      "before": "225a20768e91a4c3fa1c361327c58cd3aad01bcadc94f98a5d10c51ae0e38fd3",
+      "after": "225a20768e91a4c3fa1c361327c58cd3aad01bcadc94f98a5d10c51ae0e38fd3"
+    },
+    "CPU/Backends/AArch64/SPUReservationHash.h": {
+      "before": "682f3bed5668268dc8173b1c583706f26bbe5d2adc8225395ca32629a04a18f3",
+      "after": "682f3bed5668268dc8173b1c583706f26bbe5d2adc8225395ca32629a04a18f3"
+    },
+    "CPU/Backends/AArch64/SPUReservationScan.h": {
+      "before": "7a55a0d7c655283be28926cbd7bf9a1cf75c82fbbe62824e6ab784aac6829cf0",
+      "after": "7a55a0d7c655283be28926cbd7bf9a1cf75c82fbbe62824e6ab784aac6829cf0"
+    }
+  },
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "477a3fa442d27917"
+  },
+  "without_new_alias": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "1f8b0c6519b6f01d"
+  },
+  "future_unknown_source": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "50b8eda695a3a490"
+  },
+  "history_sha256": "32b0c5238d26974244dca5fe1de8dafd47e51ef2ffc38b6881d6326d94e8332c",
+  "script_sha256": "5dec0438637b807d507efb3d6ef2ed0f919e23e306313b6391a80a2b1da876df",
+  "compiler_executed": false,
+  "cmake_executed": false,
+  "emitted_objects_compared": false,
+  "scope": "Exact host-body restoration and existing ordered CMake identity recipe; no physical gameplay claim"
+}

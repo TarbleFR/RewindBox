@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "current_postimages": 325,
+  "changed_paths": [
+    "rpcs3/Emu/RSX/rsx_cache.h"
+  ],
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "477a3fa442d27917"
+  },
+  "abi_exports": 88,
+  "historical_receipt_authenticated": true,
+  "historical_archives_authenticated": false,
+  "native_executed_now": 0,
+  "apple_executed_now": 0
+}

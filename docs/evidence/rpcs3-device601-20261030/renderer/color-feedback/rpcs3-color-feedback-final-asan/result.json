@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "gpu_executed": false,
+  "sanitizer": true,
+  "variants": [
+    {
+      "name": "before",
+      "command": [
+        "c++",
+        "-std=c++20",
+        "-O2",
+        "-g",
+        "-UNDEBUG",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/rpcs3-color-feedback-final-asan/before.cpp",
+        "-o",
+        "/tmp/rpcs3-color-feedback-final-asan/before",
+        "-DRPCS3_IOS",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-fno-sanitize-recover=all",
+        "-no-pie"
+      ],
+      "result": {
+        "checks": 68,
+        "order_dependent_cases": 2,
+        "repeated_copy_requests": 16,
+        "reusable_image_allocations_modeled": 1,
+        "gpu_executed": false
+      },
+      "source_sha256": "45023f8eb619e8c6972af3ef531d93b93b94488f59955312305407692fd75494",
+      "helper_sha256": "27d0f97c01c1f1ecd01196ca02108fb667e807e44cc0099e799403f273679292",
+      "program_sha256": "db6968e581883c91594ff99ea2170aae97d9fddbabc955c7079b4a8ad0eb36ae"
+    },
+    {
+      "name": "after",
+      "command": [
+        "c++",
+        "-std=c++20",
+        "-O2",
+        "-g",
+        "-UNDEBUG",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/rpcs3-color-feedback-final-asan/after.cpp",
+        "-o",
+        "/tmp/rpcs3-color-feedback-final-asan/after",
+        "-DRPCS3_IOS",
+        "-DCANDIDATE",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-fno-sanitize-recover=all",
+        "-no-pie"
+      ],
+      "result": {
+        "checks": 70,
+        "order_dependent_cases": 0,
+        "repeated_copy_requests": 16,
+        "reusable_image_allocations_modeled": 1,
+        "gpu_executed": false
+      },
+      "source_sha256": "e24bac01f5f0e40f1b479739e8a8b875bbddbfd87c6da174b94801318393ce74",
+      "helper_sha256": "b236f8ecf34abdd7e13abfd6567cc0c7500c16df37e65dff044b4ef42af898ec",
+      "program_sha256": "d256f0d20708742ed06f3576ec7d84d227918232f4c7883c1fd54cea3e977926"
+    },
+    {
+      "name": "after-nonios",
+      "command": [
+        "c++",
+        "-std=c++20",
+        "-O2",
+        "-g",
+        "-UNDEBUG",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/rpcs3-color-feedback-final-asan/after-nonios.cpp",
+        "-o",
+        "/tmp/rpcs3-color-feedback-final-asan/after-nonios",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-fno-sanitize-recover=all",
+        "-no-pie"
+      ],
+      "result": {
+        "checks": 68,
+        "order_dependent_cases": 2,
+        "repeated_copy_requests": 16,
+        "reusable_image_allocations_modeled": 1,
+        "gpu_executed": false
+      },
+      "source_sha256": "e24bac01f5f0e40f1b479739e8a8b875bbddbfd87c6da174b94801318393ce74",
+      "helper_sha256": "b236f8ecf34abdd7e13abfd6567cc0c7500c16df37e65dff044b4ef42af898ec",
+      "program_sha256": "d256f0d20708742ed06f3576ec7d84d227918232f4c7883c1fd54cea3e977926"
+    }
+  ]
+}

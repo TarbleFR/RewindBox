@@ -1,5 +1,53 @@
 # Current application identity — RewindBox (21 October 2026)
 
+## RPCS3 open-issue continuation — 30 October 2026
+
+After local b9346b5, three source defects were reproduced and corrected:
+internal SELF boots ran on UIKit; a full-MFC WRCH could miss a decrementer
+interrupt/host wake; and single-instruction color feedback was incorrectly
+excluded from the existing iOS MoltenVK snapshot path. Keep the save-completion
+handoff, generation/title/native-ID guards and the exact SPU host-only alias.
+Do not replace them with dropped requests during a save or force a guest label.
+
+The cumulative canonical patch is
+720d0d72d8ab93bbf7596d859652b8e21dd603995b8f455b3b8674de6fc53ac8:
+326 postimages, eight cumulative changed paths relative to compiled 378509e8,
+318 preserved. ABI30/88 exports, PPU a987639e9f838d1c and SPU477a3fa442d27917
+remain exact. Host results: boot22 scenarios, completion51228 checks/1200
+registration races, three decrementer blocking schedules and two order-dependent
+feedback cases. Normal/ASan-UBSan modes pass with explicit OS/VM/GPU adapters.
+No iPhone game recovery or FPS gain is proven; newly covered feedback aliases
+request one additional copy per draw. Failed saves after killing the old PPU
+stay stopped with an explicit error instead of accessing absent FXO objects.
+
+The source gate schedules only twelve affected Apple jobs; the original28
+modes remain historical, and no Apple/Core/IPA build, push, CI dispatch, tag or
+release is performed. The related LR full-queue issue is reproduced but not
+fixed: direct reservation stores do not always notify, so do not claim a simple
+notifier wait resolves it. See docs/rpcs3-open-issues-2026-10-30.md and phase2
+evidence under docs/evidence/rpcs3-device601-20261030/.
+
+## RPCS3 device601 source follow-up — 30 October 2026
+
+The new BO2/GOW3/Assassin's Creed logs were compared with delivered Core
+378509e8 and the previous device595/597 source investigations. Only
+rsx_cache.h changes: iOS now validates one-to-seven-byte vertex uploads,
+preserving the eight-byte weak prefix for larger uploads. The canonical
+patch is b3d70ba67af95196d44f872baf1f19ae0cc3deba9cc67a5a124e1c0098126ff2;
+325 postimages, 324 unchanged. ABI30, 88 exports, codegen identities,
+profiles, saved data and other engines are retained. No new Core/IPA,
+CI dispatch, push, tag or release is authorized or performed in this lot.
+
+Host tests reproduce 28 stale tiny uploads before and zero after; the
+existing vertex-range regression was rerun because its input changed.
+Sampler active-mask and inflater-reuse experiments were withdrawn after
+negative timing cases. Preserve their evidence instead of proposing them
+again as established speedups. No on-device visual fix, FPS gain or resolved
+BO2 multiplayer/GOW3 freeze is demonstrated. The latest GOW3 boot continues
+Metal library preparation before guest execution, a separate incident from
+the historical missing-label freeze. See
+docs/rpcs3-device601-followup-2026-10-30.md and its exact source contract.
+
 ## Private603 compiled, verified and delivered — 30 October 2026
 
 The maintainer requested a private IPA with the corrected Hogwarts Core.

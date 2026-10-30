@@ -1,0 +1,60 @@
+{
+  "schema": 1,
+  "gpu_executed": false,
+  "sanitizer": false,
+  "variants": [
+    {
+      "name": "before",
+      "command": [
+        "c++",
+        "-std=c++20",
+        "-O2",
+        "-g",
+        "-UNDEBUG",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/rpcs3-color-feedback-plain/before.cpp",
+        "-o",
+        "/tmp/rpcs3-color-feedback-plain/before"
+      ],
+      "result": {
+        "checks": 68,
+        "order_dependent_cases": 2,
+        "repeated_copy_requests": 16,
+        "reusable_image_allocations_modeled": 1,
+        "gpu_executed": false
+      },
+      "source_sha256": "45023f8eb619e8c6972af3ef531d93b93b94488f59955312305407692fd75494",
+      "helper_sha256": "27d0f97c01c1f1ecd01196ca02108fb667e807e44cc0099e799403f273679292",
+      "program_sha256": "db6968e581883c91594ff99ea2170aae97d9fddbabc955c7079b4a8ad0eb36ae"
+    },
+    {
+      "name": "after",
+      "command": [
+        "c++",
+        "-std=c++20",
+        "-O2",
+        "-g",
+        "-UNDEBUG",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "/tmp/rpcs3-color-feedback-plain/after.cpp",
+        "-o",
+        "/tmp/rpcs3-color-feedback-plain/after",
+        "-DCANDIDATE"
+      ],
+      "result": {
+        "checks": 70,
+        "order_dependent_cases": 0,
+        "repeated_copy_requests": 16,
+        "reusable_image_allocations_modeled": 1,
+        "gpu_executed": false
+      },
+      "source_sha256": "86e0feb7f34f8cbbdd479a9caf7d0b9246cca4a1db3ce13d35254e57c2af41fb",
+      "helper_sha256": "8917f4f0da7d14df95d57118c0f6ca45596d9de515a0f1186b4aa0daa2c193c7",
+      "program_sha256": "12c15fb99a4cd181c1afa965cf218871d4c6d2ed496ba1cf1c4a8acc6015d900"
+    }
+  ]
+}

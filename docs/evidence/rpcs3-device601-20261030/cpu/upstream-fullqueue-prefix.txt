@@ -1,0 +1,32 @@
+bool spu_thread::process_mfc_cmd()
+{
+	// Stall infinitely if MFC queue is full
+	while (mfc_size >= 16) [[unlikely]]
+	{
+		// Reset MFC timestamp in the case of full queue
+		mfc_queued_ops_timeout = 0;
+
+		if (test_stopped())
+		{
+			return false;
+		}
+
+		// Process MFC commands
+		do_mfc();
+
+		if (mfc_size < 16)
+		{
+			break;
+		}
+
+		auto old = state.add_fetch(cpu_flag::wait);
+
+		if (is_stopped(old))
+		{
+			return false;
+		}
+
+		thread_ctrl::wait_on(state, old);
+	}
+
+

@@ -1,0 +1,30 @@
+{
+  "scope": "read-only LR follow-up; reservation state is an explicit adapter; no production LR correction retained",
+  "passed": true,
+  "results": {
+    "ownerCollectionMissing": true,
+    "fullQueueBlocksWithLostReservation": true,
+    "manualCollectionEntersIRQ": true,
+    "causalGow3LinkProven": false
+  },
+  "generated_sha256": "d9715a6a07106e643d42ff2d8a21eca52e991610ab419eeea3edee341661d02a",
+  "source_sha256": "d3aa29b2eab67c9036c5007cba356a52bf3d4abea2c06da66ffd83f9ff602d7c",
+  "command": [
+    "c++",
+    "-std=c++20",
+    "-O1",
+    "-g",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-DRPCS3_IOS",
+    "-I/workspace/scratch/e5c0462e637a/RPCS3-source/rpcs3",
+    "/workspace/scratch/e5c0462e637a/gow3-timer-probe/lr-probe.cpp",
+    "-o",
+    "/workspace/scratch/e5c0462e637a/gow3-timer-probe/lr-probe"
+  ],
+  "real_reservation_memory_tested": false,
+  "kernel_wait_backend_executed": false
+}

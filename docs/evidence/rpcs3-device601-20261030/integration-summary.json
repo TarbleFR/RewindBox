@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "baseline_app_commit": "f41eb5ef4ce87cab08a18781c2e09a55a8319773",
+  "reference_core_source": "378509e82d360bc2cb2fcc9fb23d4d9d98787506",
+  "baseline_patch_sha256": "68234e0ead31d40c61c2b3b29c0c962f89d8687407e0cc60eb45d60b68dd71e8",
+  "canonical_patch_sha256": "b3d70ba67af95196d44f872baf1f19ae0cc3deba9cc67a5a124e1c0098126ff2",
+  "canonical_postimages": 325,
+  "unchanged_postimages": 324,
+  "changed_native_files": {
+    "rpcs3/Emu/RSX/rsx_cache.h": {
+      "before": "0c0d35e06ca3599dffb09f272bc8e656c84ceb08b516d74abb0b5476668c9573",
+      "after": "abcdffa894b8da53113bd5b37d4c1f96eafccdeee07b0b0682903a6e0ce6dffb"
+    }
+  },
+  "fresh_materialization_verified": true,
+  "abi_version": 30,
+  "exports": 88,
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "477a3fa442d27917"
+  },
+  "workflow_changed": false,
+  "core_recipe_changed": false,
+  "host_sources_changed": false,
+  "new_core_compiled": false,
+  "new_ipa_built": false,
+  "physical_device_tested": false,
+  "fps_gain_claimed": false,
+  "pushed": false,
+  "release_published": false
+}

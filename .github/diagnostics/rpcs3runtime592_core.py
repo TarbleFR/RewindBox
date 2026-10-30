@@ -336,6 +336,18 @@ if __name__ == '__main__':
     p.add_argument('--verify-reuse', type=Path)
     p.add_argument('--write-core-identity', type=Path)
     a = p.parse_args()
+    if 'device601_20261030' in manifest():
+        # New affected tests only; preserve device597's historical Apple scope.
+        import rpcs3runtime_device601_core as device601
+        if a.write_core_identity:
+            device601.identity(a.write_core_identity)
+        elif a.source and a.verify_reuse:
+            device601.verify(a.verify_reuse, a.source.resolve())
+        elif a.source:
+            device601.prepare(a.source.resolve())
+        else:
+            p.error('device601 follow-up requires --source or --write-core-identity')
+        raise SystemExit
     if 'device597_20261030' in manifest():
         # The workflow and compiler recipe stay unchanged; only this new lot runs.
         import rpcs3runtime_device597_core as device597
