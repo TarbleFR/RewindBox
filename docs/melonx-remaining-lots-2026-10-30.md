@@ -73,3 +73,24 @@ and corrected incremental output are retained locally. Apple NativeAOT/ABI,
 new Apple fixtures, Flutter host tests, simulator lifecycle and final IPA checks
 must succeed before a compiled/delivered claim. No physical FPS or black-texture
 resolution is claimed by this source report.
+
+## Apple validation and private600 assembly
+
+The complete new core producer827f4653/run41028130487/job123971057648
+succeeded: NativeAOT iPhone and simulator,47-export ABI,114 preparation inputs,
+151 prepared members, three fresh affected Apple fixtures and32 authenticated
+receipts retained only in their original scopes. Two actual ARM64 iOS simulator
+guest SVC sessions closed and released their donated backing. The downloaded
+87,580,969-byte archive matches3d94e1bd81c5b710af7668068ff339799749a426f6e9d4d155bea781c07689f7.
+Host run41029226263 atd3a75178 passes all23 Flutter tests and analyzer. Earlier
+widget runs remain failed: bounded real event-loop waits between fake-clock pumps
+correct their disk-I/O deadlock; production filesystem checks were not weakened.
+
+Private600 is reserved for final host assembly with this exact new MeloNX core.
+The successful delivered599 RPCS3 core88cdc5e3 remains selected because concurrent
+RPCS3 device597 candidate runs have not produced a successful replacement. Their
+source changes and host diagnostics remain on Claude. The600 binding authenticates
+all191 original compiled RPCS3 inputs at88cdc5e3, validates current host headers
+and ABI separately, and embeds that actual source snapshot under Legal. It does
+not misidentify the concurrent unbuilt canonical candidate as the packaged core.
+No private600 delivery success is claimed until final signed-byte verification.

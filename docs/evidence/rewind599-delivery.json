@@ -1,0 +1,161 @@
+{
+  "result": "passed",
+  "build": 599,
+  "version": "0.0.8",
+  "source": "00e372238ade33f3d58157aece54d89df7d630e7",
+  "run": {
+    "id": 41024302714,
+    "job": 123958648922,
+    "conclusion": "success",
+    "attempt": 1,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/41024302714"
+  },
+  "artifact": 12964101051,
+  "encryptedArchiveSHA256": "f419d1ce76d0eb25216090f9bda60ed6c583b9535f7cecc8e91601277cff5dbc",
+  "encryptedArchiveBytes": 188666909,
+  "ipaSHA256": "c7d4337016c7db77ae130e43708141bf68bb8010c8cbe39f1555ddd1b0c27939",
+  "ipaBytes": 188344854,
+  "ipaName": "RewindBox-Build599.ipa",
+  "zipEntries": 5351,
+  "zipCrcVerified": true,
+  "baselineBuild": 598,
+  "productTrees": {
+    "lib": "19a49c340ae1ed9d37d65be19c0587d82e76a3a7",
+    "native": "608d3ce80c309e07e445b018c72ea43505779b90",
+    "packages": "6837aa129fc0bec97d46389e945643988b80fb40",
+    "assets": "fb15f670844075f22dd667b370961a69371d9589",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "bundleVersions": {
+    "Payload/NeoStation.app/PlugIns/DolphinJITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "599"
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapPageRelay.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "599"
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapDonor.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "599"
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXJITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "599"
+    },
+    "Payload/NeoStation.app/PlugIns/ARMSX2JITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "599"
+    },
+    "Payload/NeoStation.app/PlugIns/RPCS3JITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "599"
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXRamDonor.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "599"
+    },
+    "Payload/NeoStation.app/Info.plist": {
+      "version": "0.0.8",
+      "build": "599"
+    }
+  },
+  "machOImages": 88,
+  "thinPayloadFingerprintsVerified": 85,
+  "fatContainers": {
+    "Frameworks/objective_c.framework/objective_c": {
+      "sha256": "76c35d43663fbcec182d307ee8c43d5a0476880745236ea1979ed3467e198d8d",
+      "bytes": 165392,
+      "platform": 2,
+      "id": "@rpath/objective_c.framework/objective_c",
+      "exports": 139
+    },
+    "Frameworks/sqlite3.framework/sqlite3": {
+      "sha256": "b542ae8763ec8288d3c3267839da48f080aadbd8ea1ea2a0bc27d82af0f8d6c3",
+      "bytes": 1648496,
+      "platform": 2,
+      "id": "@rpath/sqlite3.framework/sqlite3",
+      "exports": 330
+    },
+    "Frameworks/App.framework/App": {
+      "sha256": "16160f3e71486556d5627f56592d1abab8baa82900bd72b3a629704d52fd0d7b",
+      "bytes": 23762512,
+      "platform": 2,
+      "id": "@rpath/App.framework/App",
+      "exports": 2
+    }
+  },
+  "signaturesVerifiedByAppleCI": 88,
+  "signatureCryptographicallyVerifiedIndependently": false,
+  "melonx": {
+    "source": "e7143e566462bf6e3d9c143ce24532c1ad7aeb10",
+    "run": 40998920652,
+    "artifact": 12953505421,
+    "rawCoreSHA256": "b0bb4cd7da18337fd66eedec218df4a783efeff38f7c412cef2a00be813f41e6",
+    "packagedFingerprint": "6b4d3dd2f4747183827046907b0de93ad6d99a18a06b867e1c4983252c9b99ed",
+    "packagedSHA256": "6e1d80d3974c533ea17354318e116b92da4344edb3765cdb5e18ee9074828864",
+    "requiredExports": 47,
+    "originalPayloadMatched": true,
+    "unchangedFrom598": true
+  },
+  "rpcs3": {
+    "source": "88cdc5e3e115a0b8587711d77147467baf38128b",
+    "run": 40981514937,
+    "artifact": 12946200694,
+    "rawCoreSHA256": "cc7362544f922aebdc021b5dbe6ca68d9c0bfb15d79145606f71af584509edd1",
+    "packagedFingerprint": "035547c4813a8bc0e108a95b98488effcb5f354921ab9ceae260bc7dafb65081",
+    "packagedSHA256": "f5861f004a2d07d606ebedfd54d0df53d28b8de67322409084462cee559fe956",
+    "unchangedFrom598": true,
+    "payloadFingerprint": "035547c4813a8bc0e108a95b98488effcb5f354921ab9ceae260bc7dafb65081",
+    "originalCoreSHA256": "cc7362544f922aebdc021b5dbe6ca68d9c0bfb15d79145606f71af584509edd1"
+  },
+  "activation": {
+    "build": 599,
+    "titleId": "0100F7E00C70E000",
+    "hostSource": "00e372238ade33f3d58157aece54d89df7d630e7",
+    "defaultOptions": {
+      "occlusionQuerySync": true,
+      "relaxQueryFlushing": true
+    },
+    "explicitOptOutRespected": true,
+    "batchingRequiresSync": true,
+    "nativePreflightIdentityRequired": true,
+    "coreContentIdentityCheckedAgain": true,
+    "shaderChoicesPreserved": true,
+    "sourceSHA256": {
+      "lib/widgets/melonx_hogwarts_graphics_options.dart": "4549ea9fbb5c29ab7f618a9e8e91c1334ae8a2df0945c5121b92ca95407b9d9f",
+      "lib/widgets/melonx_internal_playlist_actions.dart": "6936f3dd123b1915b5ef2e0aaa4eddfe8bf8c366c4e74f78aa751db5adfe332e",
+      "lib/l10n/melonx_library_locale.dart": "2926d1888c5993def26643cac3a1bf8c91c111ed9c27aa7283ed07d418cd5143",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "0f76377f1160c433b20d7d820a182ac2b3cf0daf65e93102fe54cf1ab027cd71",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXHogwartsGraphics.swift": "c9ccc867ef1aaecc8fa734ab69e382f3c561760518a165b1ae94c4c40dca5c2a"
+    },
+    "swiftChecks": 3342,
+    "flutterTests": 10,
+    "deviceGameplayTested": false,
+    "coreRebuilt": false
+  },
+  "engineRecompiled": false,
+  "historicalNativeTestsReexecuted": false,
+  "newHostSwiftChecks": 3342,
+  "flutterTests": 10,
+  "minimumIOS": "18.0",
+  "sideStoreResigningRequired": true,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "deliveryTree": "f5b07496a60ab58db8b94a979cc409798bf45e78",
+  "branch": "Claude",
+  "ipa": {
+    "name": "RewindBox-Build599.ipa",
+    "bytes": 188344854,
+    "sha256": "c7d4337016c7db77ae130e43708141bf68bb8010c8cbe39f1555ddd1b0c27939",
+    "crcValid": true,
+    "zipEntries": 5351
+  },
+  "delivery": {
+    "privateFileSaved": true,
+    "ephemeralKeyDeleted": true,
+    "intermediateActivationBuild": true,
+    "fullRemainingLotsIncluded": false
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "result": "passed",
+  "source": "d3a75178a445ff7a1cf6a16109f9b388b10ff610",
+  "run": 41029226263,
+  "job": 123974653945,
+  "artifact": 12965226546,
+  "artifactSHA256": "94bfb49415f15773a366e400d1476764e08d623f25c83146a8ee612ae17bc27a",
+  "tests": 23,
+  "analyzer": "passed",
+  "testOutputSHA256": "9eebd5483d49ebb64d36c4afed17e8523ba484a7aa802eeb2fb5b04f1b3f7f4a",
+  "sourceSHA256": {
+    "test/melonx_unreal_profiles_test.dart": "848d307d0afe419af7214dc971f9df4c0f8038ed61ce8e19733be40f48287fa2",
+    "test/melonx_unreal_profile_dialog_test.dart": "6f8efe44712736d26580198e4202083abc094623a6e99a0a2eea394a04385e08",
+    "test/melonx_hogwarts_graphics_options_test.dart": "5c60972b9dc41fa1f52ae33b288fedbadbb181d348974c08cbfa9686289f670a",
+    "test/melonx_graphics_durable_test.dart": "b1ec81dd41128b3ed96630ceeae7b128117b8d8701c0f894b41648b294d207c5",
+    "lib/services/melonx_unreal_profiles.dart": "5601614dddb2e8a5f5e2877b92ddf63063431c13fd42ae462b8eb5799e849540",
+    "lib/widgets/melonx_unreal_profile_dialog.dart": "3ed8b1123b1132f9aaf12aaba9b24a8d7f7508c7c9093f15bb8fb41b7e596149"
+  },
+  "physicalDeviceTested": false
+}
