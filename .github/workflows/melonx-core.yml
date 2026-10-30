@@ -256,7 +256,7 @@ jobs:
       run: |
         python3 test/melonx_occlusion_contract_test.py
         python3 build-utils/melonx/verify_occlusion_core.py preflight
-    - name: Run three affected Apple gates and authenticate 29 historical results
+    - name: Run two affected Apple gates and authenticate 30 historical results
       env:
         GH_TOKEN: ${{ github.token }}
       run: python3 build-utils/melonx/verify_occlusion_core.py run_gates

@@ -276,6 +276,26 @@ def edits(source):
             Interlocked.Increment(ref _waiterCount);''')
     change(queue, '            while (!evt.Disposed)', '            while (!evt.Disposed && !Disposed)')
     change(queue, '                Disposed = true;', '                _disposed = true;')
+    # This pinned backend never encodes the conditional-rendering extension:
+    # its Begin/End calls are commented out, yet it returned true. Claiming
+    # host handling suppresses the guest CPU comparison and draws everything.
+    pipeline = source / 'src/Ryujinx.Graphics.Vulkan/PipelineFull.cs'
+    text = pipeline.read_text(encoding='utf-8-sig')
+    start = text.index('        public bool TryHostConditionalRendering(ICounterEvent value, ulong compare, bool isEqual)')
+    end = text.index('        public bool TryHostConditionalRendering(ICounterEvent value, ICounterEvent compare, bool isEqual)', start)
+    original = text[start:end]
+    if original.count('return true;') != 1 or original.count('// Gd.ConditionalRenderingApi.CmdBeginConditionalRendering') != 1:
+        raise RuntimeError('Vulkan conditional-rendering implementation drift')
+    result[pipeline] = text[:start] + '''        public bool TryHostConditionalRendering(ICounterEvent value, ulong compare, bool isEqual)
+        {
+            // This backend does not encode CmdBeginConditionalRenderingEXT.
+            // Never claim host handling without an actual GPU condition:
+            // submit pending results and let the guest-side CPU comparison run.
+            FlushPendingQuery();
+            return false;
+        }
+
+''' + text[end:]
     # Declarative integration points; settings are assigned before threads run.
     library = 'src/Ryujinx.Library/Library.cs'
     change(library, '            renderer = renderer.TryMakeThreaded(options.BackendThreading);', '''            bool querySync = EmbeddedGraphics.OcclusionQuerySync && EmbeddedIsHogwarts(options.InputPath);

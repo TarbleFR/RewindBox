@@ -112,8 +112,8 @@
     "build-utils/melonx/adapt_binding_data_snapshots.py": "fd08c40c6b8c618c86f2c24eca3de5c6d5eecad035e61b4e3c41b1106f72330b",
     "build-utils/melonx/adapt_first_buffer_overlap.py": "d1566a58dbdf17b15b724b33d7ac8a797044b6d59f382f38abd17e2d079219d1",
     "build-utils/melonx/adapt_allocator_range_updates.py": "41319d3f33db2d4ad7a9c1a12f5c46114c7334393921f19fd5eebcefecbceaf8",
-    "build-utils/melonx/adapt_occlusion_reports.py": "a9836979601ac264a1ad72f5c3bb949aaecdca79950bac2f3b365f5fe1e1de31",
-    "build-utils/melonx/occlusion-adapter-contract.json": "d5a44caae321a10abf756ae0cb4d4e839c9e6dbf84e190fa0e851d731957431d",
+    "build-utils/melonx/adapt_occlusion_reports.py": "0e44310671f1470c83248247357cd1b4730c23093815b6921313d85df76d025a",
+    "build-utils/melonx/occlusion-adapter-contract.json": "cc845777ac91c2e63f2afd6ff6291651a1c4e3d7455d59ce6ac23f68d4147e46",
     "build-utils/melonx/adapt_query_batching.py": "b3ca8b36a53997f262e4d6a7b218cfae22d9b7f6c5cc833b4c1fa8a523715895",
     "build-utils/melonx/query-batching-adapter-contract.json": "435dc317d118b48c39c9bfaf868b1d30d93b48a3f7ec2dc8595b836761c5fc11",
     "build-utils/melonx/adapt_jit_single_attempt.py": "c1b0c16354fb638afa9e5eab7c976af786489d7cbffa3e433059a46d234071f5",
@@ -244,6 +244,7 @@
     "src/Ryujinx.Graphics.Vulkan/Queries/BufferedQuery.cs": "91054f656d99c9439d0a4209b827696c20dba20a03a1fe5445a6f4db7f4ab676",
     "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueueEvent.cs": "338fe36a8511ca4b3b0debf117b71fe494e186b61c782ce8c52f28fe504f95a9",
     "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueue.cs": "f6334bdfc647399e6d4e5709cf8f00cdc9084a9253fc1dd26ef410c9a7e97bdf",
+    "src/Ryujinx.Graphics.Vulkan/PipelineFull.cs": "0e9cd10f392b9c2f66c7236280bcd50cddd5bdcda229e066dcd3a11c8a56b8ef",
     "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs": "5cd082788d9108b83ea9ec61dea0dbb9f348d63ea2d72f4cefa69150bf5cee51",
     "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs": "d7c0ec0ce5014d76244a703d7645fcc6587d3bd94f0101532455f3aa63581a7d",
     "src/Ryujinx.Common/Configuration/AppDataManager.cs": "1c1016fea5c0a1edaa2a3b1eb7fd7550466ee597b2eeb97eb49936bc05a92fca",
@@ -288,6 +289,7 @@
     "src/Ryujinx.Graphics.Vulkan/Queries/BufferedQuery.cs",
     "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueueEvent.cs",
     "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueue.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineFull.cs",
     "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs",
     "src/Ryujinx.Graphics.Vulkan/AutoFlushCounter.cs",
     "src/Ryujinx.Library/EmbeddedGraphicsSettings.cs"
@@ -303,34 +305,34 @@
     "test/melonx_display_native_test.py": "display-checks.json"
   },
   "inputs": {
-    ".github/workflows/melonx-core.yml": "f4656af6f3a6854a6509da6da6b755ceb4fe72a6c4be2faa45ad247926b3bcbf",
+    ".github/workflows/melonx-core.yml": "b2837de477e24ae297e9a508129bcc5e85c248afd732f37d0b141744d419f459",
     "build-utils/melonx/prepare_embedded.py": "2b058334a354cb66775ed55193e5aa3c94537fe84e809a56d1f41c75e16789f7",
     "native/melonx/EmbeddedGraphicsSettings.cs": "b329489db7022cea80d21eede1b396d9045d82eca8f6adc943d9a5f5f2ce25b7",
-    "build-utils/melonx/verify_occlusion_core.py": "cef2af6cebbc4cac3c7315e21b698f10104f0222cf8aaea1d1d73301cdb48c87",
+    "build-utils/melonx/verify_occlusion_core.py": "3b88e3e8d8436c68510a9a05332ad44ad9dbbca3ee2f0d4e3b1b1f7555466f10",
     "build-utils/melonx/verify_gpu_core.py": "b2662f0d7f1c329462e3fef8074f23c90fda99af389400221ce9c059281dab24",
     "build-utils/melonx/gpu-core-contract.json": "dfa9a68c53d1cf4560cc4dfe8c0dd2e18d276997d5ca1a4287ed692b06d20d1a",
     "build-utils/melonx/verify_core_candidate.py": "ef88b181ad7073e0de8eec59bbb649c22058a7204aa1338c67ab049c00e2b0b9",
     "build-utils/melonx/build_core.sh": "bf9589ca807104f888db884485d32070b68d86fa6535997a84934e8d698f4547",
     "build-utils/melonx/build_libhac.py": "68519a96e5a2c3e94285bfb65d42ae7c053a3b2a1893fd6509acf1d8080ce9e5",
     "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
-    "test/melonx_occlusion_contract_test.py": "d7e1b771b0bd15e29262eee51f6340fd069d5e290541db7dd3a257b507709e08",
+    "test/melonx_occlusion_contract_test.py": "3093f6c99fa55edf5e1e6f6805770d842177626487db7a3ad5de54940a95dd71",
     "test/melonx_occlusion_test.py": "f2a7c79c4773e74ffa0ea2a14c9b45cb9ad0813dd6dc64f8d4b6830e3cf0ff7e",
     "test/melonx_occlusion/Program.cs": "42a434a07e82d486c6da2a5644a1b5d664e7c34755550079bddd6faa080583ac",
     "test/melonx_occlusion/Boundaries.cs": "c6a3540ebc5f1a9c26d303587b66a77ca7ee63f63e98595cdbe6627a840cb0bb",
-    "test/melonx_query_policy_test.py": "1e3b04f2dc1e51353384ac9707ddf9a97ede6cc8cdf1742594d4dc8fa3226219",
+    "test/melonx_query_policy_test.py": "f798749ec77ef70280995e67588b1af8df6c323c93bb8102621ead6967ee941b",
     "test/melonx_display_native_test.py": "ad69ab866ded90170c74f100309d5bcb05dc980767960be41d423c8cd2aad719",
     "build-utils/melonx/adapt_jit_single_attempt.py": "c1b0c16354fb638afa9e5eab7c976af786489d7cbffa3e433059a46d234071f5",
-    "build-utils/melonx/adapt_occlusion_reports.py": "a9836979601ac264a1ad72f5c3bb949aaecdca79950bac2f3b365f5fe1e1de31",
+    "build-utils/melonx/adapt_occlusion_reports.py": "0e44310671f1470c83248247357cd1b4730c23093815b6921313d85df76d025a",
     "build-utils/melonx/adapt_query_batching.py": "b3ca8b36a53997f262e4d6a7b218cfae22d9b7f6c5cc833b4c1fa8a523715895",
     "build-utils/melonx/jit-single-attempt-adapter-contract.json": "885852f522a07cd30ca107127004ca79f2ebfcc8e6eee4f4545c5ff6f907dae7",
-    "build-utils/melonx/occlusion-adapter-contract.json": "d5a44caae321a10abf756ae0cb4d4e839c9e6dbf84e190fa0e851d731957431d",
+    "build-utils/melonx/occlusion-adapter-contract.json": "cc845777ac91c2e63f2afd6ff6291651a1c4e3d7455d59ce6ac23f68d4147e46",
     "build-utils/melonx/query-batching-adapter-contract.json": "435dc317d118b48c39c9bfaf868b1d30d93b48a3f7ec2dc8595b836761c5fc11",
-    "docs/melonx-occlusion-2026-10-30.md": "f822c5a2e9cecc98c58997c2b08cccc385dbf0d048b96be6f0438092a2b8545c"
+    "docs/melonx-occlusion-2026-10-30.md": "c9256075d4b504eabbdd6172b9e7cdc9b131fa18f10f353a6bd1741b199e9fe1"
   },
   "reviewedHistoricalChanges": {
     ".github/workflows/melonx-core.yml": {
       "before": "93468fb40c2df944b92a451f0363e9206efa6df9e1ae90b034356e0fe8fd94a2",
-      "after": "f4656af6f3a6854a6509da6da6b755ceb4fe72a6c4be2faa45ad247926b3bcbf"
+      "after": "b2837de477e24ae297e9a508129bcc5e85c248afd732f37d0b141744d419f459"
     },
     "build-utils/melonx/prepare_embedded.py": {
       "before": "723e433472606b211a9ba1da2270c8a2c8c61d6cdaba709a133e5353f0d40530",
@@ -340,5 +342,13 @@
       "before": "e14561950f54df9c657ce9be0e9dac12c14289f360d84cbf7f3bea8fc2ffb10a",
       "after": "b329489db7022cea80d21eede1b396d9045d82eca8f6adc943d9a5f5f2ce25b7"
     }
+  },
+  "displayBaseline": {
+    "run": 40997549028,
+    "source": "24b1ad9a2294e108b4f9483f87fb448b913650b4",
+    "artifact": 12951728490,
+    "bytes": 87760756,
+    "sha256": "0c8fd8188fbba21c212e032e6a142b36a71af13f2754a2cf0610bbf1872bd4a4",
+    "receiptSha256": "f299d2c950c947eb461fc6605ed48f09b7b2e689848d05c783ea516b95b3a072"
   }
 }

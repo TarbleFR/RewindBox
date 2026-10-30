@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT/'build-utils/melonx'))
 import verify_occlusion_core as candidate
 v=candidate.contract();assert len(candidate.preparation_inputs())==108
-assert len(v['preparedMembers'])==147 and len(v['productionChanges'])==14
+assert len(v['preparedMembers'])==148 and len(v['productionChanges'])==15
 assert len(v['gates'])==3 and len(v['adapters'])==3
 controls=0
 original=candidate.CONTRACT
@@ -32,4 +32,4 @@ with tempfile.TemporaryDirectory(prefix='melonx-occlusion-contract-')as temp:
 try:candidate.historical.preparation_inputs()
 except (RuntimeError,AssertionError):controls+=1
 else:raise AssertionError('Frozen Core87 verifier accepted newer preparation')
-print(f'108 inputs, 147 adapted members, 14 production paths; {controls} rejection controls; no compiler or historical test replay.')
+print(f'108 inputs, 148 adapted members, 15 production paths; {controls} rejection controls; no compiler or historical test replay.')

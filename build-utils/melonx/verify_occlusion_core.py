@@ -99,6 +99,26 @@ def authenticate_core87():
  return path
 
 
+def reuse_display_gate():
+ pin=contract()['displayBaseline'];api_pin=dict(repository='TarbleFR/RewindBox')
+ run=baseline.api(api_pin,'actions/runs/'+str(pin['run']));artifact=baseline.api(api_pin,'actions/artifacts/'+str(pin['artifact']))
+ require(run['head_sha']==pin['source'] and run['conclusion']=='success' and run['path']=='.github/workflows/melonx-core.yml' and run['run_attempt']==1,'Wrong display baseline run')
+ require(artifact['digest']=='sha256:'+pin['sha256'] and artifact['workflow_run']['id']==pin['run'] and artifact['workflow_run']['head_sha']==pin['source'] and not artifact['expired'],'Wrong display baseline artifact')
+ path=ROOT/'.native-sources/melonx-display-baseline.zip'
+ if not path.exists():
+  with path.open('xb')as out:subprocess.run(['gh','api',f"repos/TarbleFR/RewindBox/actions/artifacts/{pin['artifact']}/zip"],stdout=out,check=True,timeout=300)
+ require(digest(path)==pin['sha256'] and path.stat().st_size==pin['bytes'],'Display baseline ZIP drift')
+ with zipfile.ZipFile(path)as z:
+  preflight=json.loads(z.read('core-validation/preflight.json'));gates=json.loads(z.read('core-validation/gates.json'))
+  require(preflight['system']=='Darwin' and preflight['architecture']=='arm64' and gates['execution']['source']==pin['source'] and gates['execution']['run']==pin['run'],'Wrong Apple display provenance')
+  data=z.read('display-checks.json');h=hashlib.sha256(data).hexdigest()
+  require(h==pin['receiptSha256']==gates['receipts']['display-checks.json'],'Display receipt drift')
+  report=json.loads(data);require(report['result']=='passed' and report['gameplayTested'] is False,'Failed display baseline')
+  previous.inputs_match(report['inputs'])
+  (OUT/'display-checks.json').write_bytes(data)
+ write(EVIDENCE/'reused-display-gate.json',dict(result='authenticated',source=pin['source'],run=pin['run'],artifact=pin['artifact'],archiveSha256=pin['sha256'],receiptSha256=h,testsExecuted=0,scope='Unchanged display/configuration fixture only; new query and visibility gates execute freshly'))
+
+
 def materialize_baseline(source,recipe_root):
  v=contract()
  shutil.copytree(ROOT/'build-utils/melonx',recipe_root/'build-utils/melonx',ignore=shutil.ignore_patterns('__pycache__'))
@@ -127,9 +147,10 @@ def run_gates():
  receipts={}
  for name in ('test/melonx_occlusion_test.py','test/melonx_query_policy_test.py','test/melonx_display_native_test.py'):
   receipt=v['gates'][name];require(not (OUT/receipt).exists(),'Refusing stale receipt: '+receipt)
-  # The display fixture applies its unchanged allocator adapter to pristine source.
-  source=SOURCE if 'display' in name else TEST_SOURCE
-  subprocess.run([sys.executable,str(ROOT/name),str(source)],check=True,timeout=600)
+  if 'display' in name:
+   reuse_display_gate()
+  else:
+   subprocess.run([sys.executable,str(ROOT/name),str(TEST_SOURCE)],check=True,timeout=600)
   report=read(OUT/receipt);require(report['result']=='passed','New gate failed')
   previous.inputs_match(report['inputs']);receipts[receipt]=digest(OUT/receipt)
  for name in v['adapters']:
@@ -137,7 +158,7 @@ def run_gates():
  for p in sorted((ROOT/'native/melonx').glob('*.cs')):
   if p.name=='EmbeddedGraphicsSettings.cs':shutil.copyfile(p,TEST_SOURCE/'src/Ryujinx.Library'/p.name)
  require(all(digest(TEST_SOURCE/p)==h for p,h in v['preparedMembers'].items()),'New gate source composition drift')
- write(EVIDENCE/'gates.json',dict(result='passed',execution=previous.execution(),receipts=receipts,freshAppleGates=3,reusedAppleGates=29,historicalGatesReexecuted=False,reusedGateProofSha256=digest(EVIDENCE/'reused-core87-gates.json'),finalSourceInputs=historical.source_members(TEST_SOURCE),physicalDeviceTested=False))
+ write(EVIDENCE/'gates.json',dict(result='passed',execution=previous.execution(),receipts=receipts,freshAppleGates=2,reusedAppleGates=30,historicalGatesReexecuted=False,reusedGateProofSha256=digest(EVIDENCE/'reused-core87-gates.json'),finalSourceInputs=historical.source_members(TEST_SOURCE),physicalDeviceTested=False))
 
 
 def compiled():
@@ -166,13 +187,13 @@ def compiled():
 
 def finalize():
  previous.finalize() # identical two-session SVC, close and backing-release gates
- result=read(EVIDENCE/'result.json');result.update(freshAppleGates=3,reusedAppleGates=29,occlusionContractSha256=digest(CONTRACT),core87HistoricalProofSha256=digest(EVIDENCE/'reused-core87-gates.json'))
+ result=read(EVIDENCE/'result.json');result.update(freshAppleGates=2,reusedAppleGates=30,occlusionContractSha256=digest(CONTRACT),core87HistoricalProofSha256=digest(EVIDENCE/'reused-core87-gates.json'),reusedDisplayProofSha256=digest(EVIDENCE/'reused-display-gate.json'))
  result['inputs'].update({p:digest(ROOT/p)for p in ('build-utils/melonx/verify_occlusion_core.py','build-utils/melonx/occlusion-core-contract.json')})
  write(EVIDENCE/'result.json',result)
  shutil.copyfile(ROOT/'docs/melonx-occlusion-2026-10-30.md',OUT/'melonx-occlusion-2026-10-30.md')
  lines=['# RewindBox MeloNX Core', '', 'Commit: `'+previous.execution()['source']+'`',
         'Workflow: https://github.com/TarbleFR/RewindBox/actions/runs/'+str(previous.execution()['run']), '',
-        'Three fresh Apple gates; 29 authenticated historical gates. Two fresh homebrew simulator sessions closed and released their backing. No iPhone gameplay or FPS measurement.', '',
+        'Two fresh Apple gates; 30 authenticated historical gates, including the unchanged Apple display/configuration fixture. Two fresh homebrew simulator sessions closed and released their backing. No iPhone gameplay or FPS measurement.', '',
         'Both experimental GPU controls are OFF by default; Hogwarts only. Progressive JIT fallback remains unavailable because native rollback is unproved.', '']
  for runtime,binary in result['binaries'].items():lines.append(runtime+': SHA256 `'+binary['sha256']+'`, '+str(binary['bytes'])+' bytes.')
  (OUT/'CORE_DELIVERY.md').write_text('\n'.join(lines)+'\n')

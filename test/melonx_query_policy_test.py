@@ -32,6 +32,20 @@ with tempfile.TemporaryDirectory(prefix='melonx-policy-') as temp:
   query_text=query_path.read_text() if variant=='control' else importlib.import_module('adapt_occlusion_reports').edits(SOURCE)[query_path]
   query_methods='\n'.join(method(query_text,s)for s in ['private bool WaitingForValue(', 'public bool TryGetResult('])
   (work/'QueryRead.cs').write_text('using System;using System.Runtime.InteropServices;sealed class QueryRead:IDisposable {const ulong HighMask=0xFFFFFFFF00000000;readonly bool _result32Bit;readonly long _defaultValue;readonly nint _bufferMap;public QueryRead(bool small){_result32Bit=small;_defaultValue=small?0xFFFFFFFE:unchecked((long)0xFFFFFFFEFFFFFFFE);_bufferMap=Marshal.AllocHGlobal(8);}public void Set(long value)=>Marshal.WriteInt64(_bufferMap,value);public void Dispose()=>Marshal.FreeHGlobal(_bufferMap);'+query_methods+'}')
+  pipeline_path=SOURCE/'src/Ryujinx.Graphics.Vulkan/PipelineFull.cs'
+  pipeline_text=pipeline_path.read_text() if variant=='control' else importlib.import_module('adapt_occlusion_reports').edits(SOURCE)[pipeline_path]
+  host=method(pipeline_text,'public bool TryHostConditionalRendering(ICounterEvent value, ulong compare, bool isEqual)')
+  guest=method((SOURCE/'src/Ryujinx.Graphics.Gpu/Engine/Threed/ConditionalRendering.cs').read_text(),'private static ConditionalRenderEnabled CounterNonZero(').replace('private static','public static')
+  (work/'Conditional.cs').write_text('''using System;using Ryujinx.Graphics.GAL;using Ryujinx.Graphics.Vulkan.Queries;
+namespace Ryujinx.Graphics.GAL {enum CounterType{SamplesPassed}interface ICounterEvent{bool ReserveForHostAccess();void Flush();}}
+namespace Ryujinx.Graphics.Vulkan.Queries {class CounterQueueEvent:ICounterEvent {public CounterType Type=CounterType.SamplesPassed;public bool ClearCounter=true;public int Reserves,Flushes;public Action Publish;public bool ReserveForHostAccess(){Reserves++;return true;}public void Flush(){Flushes++;Publish?.Invoke();}}}
+class Caps {public bool SupportsConditionalRendering;}
+class ConditionalProbe {public class Device{public Caps Capabilities=new();}public Device Gd=new();CounterQueueEvent _activeConditionalRender;public int Submits;void FlushPendingQuery()=>Submits++;
+'''+host+'''}
+enum ConditionalRenderEnabled{False,True,Host}
+class MemoryManager {public ulong Value;public CounterQueueEvent Event;public MemoryManager CounterCache=>this;public ICounterEvent FindEvent(ulong a)=>Event;public T Read<T>(ulong a,bool tracked)=>(T)(object)Value;}
+class GpuContext {public class RendererStub{public ConditionalProbe Pipeline=new();}public RendererStub Renderer=new();}
+class GuestConditional {'''+guest+'}')
   (work/'Boundaries.cs').write_text('''using System;using System.Threading;
 static class TestClock {public static long Frequency=1000000,Now;public static long GetTimestamp()=>Now;}
 namespace Ryujinx.Common.Logging {enum LogClass{Gpu}class Log{public void PrintMsg(LogClass c,string s){}}static class Logger{public static Log Debug;}}
@@ -44,6 +58,13 @@ class Program {
  static int checks;static void Check(bool v,string s){checks++;if(!v)throw new Exception(s);}
  static int Scenario(bool relaxed){var renderer=new VulkanRenderer{RelaxQueryFlushing=relaxed};var c=new AutoFlushCounter(renderer);int submissions=0;ulong draw=0;c.RegisterFlush(0);for(int i=1;i<=1024;i++){draw++;bool flush=c.RegisterPendingQuery();if(i%16==0)flush|=c.ShouldFlushAttachmentChange(draw);if(flush){submissions++;c.RegisterFlush(draw);}}Check(c.ShouldFlushQuery()==(1024%128!=0||!relaxed),"pending query predicate");return submissions;}
  static void Main(){
+ foreach(bool cap in new[]{false,true})foreach(ulong result in new[]{0UL,7UL}){var memory=new MemoryManager{Value=123};var evt=new Ryujinx.Graphics.Vulkan.Queries.CounterQueueEvent();evt.Publish=()=>memory.Value=result;memory.Event=evt;var context=new GpuContext();context.Renderer.Pipeline.Gd.Capabilities.SupportsConditionalRendering=cap;var decision=GuestConditional.CounterNonZero(context,memory,0);
+#if CANDIDATE
+ Check(decision==(result==0?ConditionalRenderEnabled.False:ConditionalRenderEnabled.True),"actual guest visibility comparison");Check(evt.Reserves==0&&evt.Flushes==1&&context.Renderer.Pipeline.Submits==1,"no unencoded host condition or leaked query reservation");
+#else
+ Check(decision==ConditionalRenderEnabled.Host&&evt.Flushes==0&&evt.Reserves==1,"control bypasses guest comparison without encoding GPU condition");
+#endif
+ }
  foreach(bool small in new[]{false,true}){using var q=new QueryRead(small);q.Set(small?0xFFFFFFFE:unchecked((long)0xFFFFFFFEFFFFFFFE));Check(!q.TryGetResult(out _),"sentinel pending");foreach(long n in new[]{0L,1L,7L,long.MaxValue}){q.Set(n);Check(q.TryGetResult(out var got)&&got==n,"complete counter available");}q.Set(unchecked((long)0xFFFFFFFE00000007));
 #if CANDIDATE
  Check(q.TryGetResult(out _)==small,"partial 64-bit result rejected");

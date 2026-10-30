@@ -41,7 +41,7 @@
     "test/melonx_occlusion_test.py": "f2a7c79c4773e74ffa0ea2a14c9b45cb9ad0813dd6dc64f8d4b6830e3cf0ff7e",
     "test/melonx_occlusion/Program.cs": "42a434a07e82d486c6da2a5644a1b5d664e7c34755550079bddd6faa080583ac",
     "test/melonx_occlusion/Boundaries.cs": "c6a3540ebc5f1a9c26d303587b66a77ca7ee63f63e98595cdbe6627a840cb0bb",
-    "build-utils/melonx/adapt_occlusion_reports.py": "a9836979601ac264a1ad72f5c3bb949aaecdca79950bac2f3b365f5fe1e1de31",
-    "build-utils/melonx/occlusion-adapter-contract.json": "d5a44caae321a10abf756ae0cb4d4e839c9e6dbf84e190fa0e851d731957431d"
+    "build-utils/melonx/adapt_occlusion_reports.py": "0e44310671f1470c83248247357cd1b4730c23093815b6921313d85df76d025a",
+    "build-utils/melonx/occlusion-adapter-contract.json": "cc845777ac91c2e63f2afd6ff6291651a1c4e3d7455d59ce6ac23f68d4147e46"
   }
 }

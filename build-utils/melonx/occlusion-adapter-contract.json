@@ -8,6 +8,7 @@
     "src/Ryujinx.Graphics.Vulkan/Queries/BufferedQuery.cs": "ce00a45e20a3240eb60edc31146a34ec7dacbac18d7160547c45c12f9e0e2baf",
     "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueueEvent.cs": "3d4c3c3e9b9cb80cde60cae6fb44368cde0a6da691e98288dacb4957b05171b9",
     "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueue.cs": "e691a2784f8a0e74db41936f4930fbd52623def9f621214382db58d4ee31a95a",
+    "src/Ryujinx.Graphics.Vulkan/PipelineFull.cs": "351b7315d293b8a27159a9c1ad3c14fe86a1f49e53b1bdc4c0054f6504cfccef",
     "src/Ryujinx.Library/Library.cs": "73837bc3b3081b40d4d42819972881c9d66c72c5d30da718577874992e1b0d04",
     "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs": null
   },
@@ -20,6 +21,7 @@
     "src/Ryujinx.Graphics.Vulkan/Queries/BufferedQuery.cs": "91054f656d99c9439d0a4209b827696c20dba20a03a1fe5445a6f4db7f4ab676",
     "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueueEvent.cs": "338fe36a8511ca4b3b0debf117b71fe494e186b61c782ce8c52f28fe504f95a9",
     "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueue.cs": "f6334bdfc647399e6d4e5709cf8f00cdc9084a9253fc1dd26ef410c9a7e97bdf",
+    "src/Ryujinx.Graphics.Vulkan/PipelineFull.cs": "0e9cd10f392b9c2f66c7236280bcd50cddd5bdcda229e066dcd3a11c8a56b8ef",
     "src/Ryujinx.Library/Library.cs": "d2cfc8e3d7aaeb11515116791dc62eae79d64729bd62f7f07a859b835f5a338d",
     "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs": "5cd082788d9108b83ea9ec61dea0dbb9f348d63ea2d72f4cefa69150bf5cee51"
   }

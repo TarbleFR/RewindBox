@@ -1,0 +1,44 @@
+  Ryujinx.Common -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Common/bin/Release/net10.0/linux-x64/Ryujinx.Common.dll
+  Spv.Generator -> /tmp/rewind-audit/candidate-source/src/Spv.Generator/bin/Release/net10.0/linux-x64/Spv.Generator.dll
+  Ryujinx.Graphics.Shader -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Shader/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Shader.dll
+  Ryujinx.Graphics.GAL -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.GAL/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.GAL.dll
+/tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs(1260,33): warning CA2265: Comparing a span to 'null' might be redundant, the 'null' literal will be implicitly converted to a 'Span<T>.Empty' (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2265) [/tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj]
+/tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs(1280,33): warning CA2265: Comparing a span to 'null' might be redundant, the 'null' literal will be implicitly converted to a 'Span<T>.Empty' (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2265) [/tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj]
+  Ryujinx.Graphics.Vulkan -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Vulkan/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Vulkan.dll
+  Ryujinx.Memory -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Memory/bin/Release/net10.0/linux-x64/Ryujinx.Memory.dll
+  ARMeilleure -> /tmp/rewind-audit/candidate-source/src/ARMeilleure/bin/Release/net10.0/linux-x64/ARMeilleure.dll
+  Ryujinx.Cpu -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Cpu/bin/Release/net10.0/linux-x64/Ryujinx.Cpu.dll
+  Ryujinx.Audio -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Audio/bin/Release/net10.0/linux-x64/Ryujinx.Audio.dll
+  Ryujinx.Graphics.Device -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Device/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Device.dll
+  Ryujinx.Graphics.Host1x -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Host1x/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Host1x.dll
+  Ryujinx.Graphics.Video -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Video/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Video.dll
+  Ryujinx.Graphics.Nvdec.FFmpeg -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Nvdec.FFmpeg/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Nvdec.FFmpeg.dll
+  Ryujinx.Graphics.Nvdec.Vp9 -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Nvdec.Vp9/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Nvdec.Vp9.dll
+  Ryujinx.Graphics.Texture -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Texture/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Texture.dll
+  Ryujinx.Graphics.Nvdec -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Nvdec/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Nvdec.dll
+  Ryujinx.Graphics.Vic -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Vic/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Vic.dll
+  Ryujinx.Horizon.Common -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Horizon.Common/bin/Release/net10.0/linux-x64/Ryujinx.Horizon.Common.dll
+  Ryujinx.Horizon.Generators -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Horizon.Generators/bin/Release/netstandard2.0/linux-x64/Ryujinx.Horizon.Generators.dll
+  Ryujinx.Horizon -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Horizon/bin/Release/net10.0/linux-x64/Ryujinx.Horizon.dll
+  Ryujinx.Graphics.Gpu -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Gpu/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.Gpu.dll
+  Ryujinx.HLE.Generators -> /tmp/rewind-audit/candidate-source/src/Ryujinx.HLE.Generators/bin/Release/netstandard2.0/linux-x64/Ryujinx.HLE.Generators.dll
+  Ryujinx.Horizon.Kernel.Generators -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Horizon.Kernel.Generators/bin/Release/netstandard2.0/linux-x64/Ryujinx.Horizon.Kernel.Generators.dll
+  Ryujinx.HLE -> /tmp/rewind-audit/candidate-source/src/Ryujinx.HLE/bin/Release/net10.0/linux-x64/Ryujinx.HLE.dll
+  Ryujinx.Input -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Input/bin/Release/net10.0/linux-x64/Ryujinx.Input.dll
+  Ryujinx.SDL3.Common -> /tmp/rewind-audit/candidate-source/src/Ryujinx.SDL3.Common/bin/Release/net10.0/linux-x64/Ryujinx.SDL3.Common.dll
+  Ryujinx.Input.SDL3 -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Input.SDL3/bin/Release/net10.0/linux-x64/Ryujinx.Input.SDL3.dll
+  Ryujinx.Audio.Backends.SDL3 -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Audio.Backends.SDL3/bin/Release/net10.0/linux-x64/Ryujinx.Audio.Backends.SDL3.dll
+  Ryujinx.Graphics.OpenGL -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.OpenGL/bin/Release/net10.0/linux-x64/Ryujinx.Graphics.OpenGL.dll
+  Ryujinx.Audio.Backends.OpenAL -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Audio.Backends.OpenAL/bin/Release/net10.0/linux-x64/Ryujinx.Audio.Backends.OpenAL.dll
+  Ryujinx.Audio.Backends.Apple -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Audio.Backends.Apple/bin/Release/net10.0/linux-x64/Ryujinx.Audio.Backends.Apple.dll
+  Ryujinx.Input.Native -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Input.Native/bin/Release/net10.0/linux-x64/Ryujinx.Input.Native.dll
+  Ryujinx.Library -> /tmp/rewind-audit/candidate-source/src/Ryujinx.Library/bin/Release/net10.0/linux-x64/Ryujinx.Library.dll
+
+Build succeeded.
+
+/tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs(1260,33): warning CA2265: Comparing a span to 'null' might be redundant, the 'null' literal will be implicitly converted to a 'Span<T>.Empty' (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2265) [/tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj]
+/tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs(1280,33): warning CA2265: Comparing a span to 'null' might be redundant, the 'null' literal will be implicitly converted to a 'Span<T>.Empty' (https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca2265) [/tmp/rewind-audit/candidate-source/src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj]
+    2 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:08.35
