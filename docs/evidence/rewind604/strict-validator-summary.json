@@ -1,0 +1,16 @@
+{
+  "ipa": "/workspace/scratch/17fcc7f76cc4/private604/decrypted/RewindBox-Build604-60add3d79b3e4d9d76b68ef154cb5d3f8772c323-cold.ipa",
+  "ipaBytes": 189410630,
+  "ipaSHA256": "50a248491142fdee7148f0d695d6716a385e780a621506367b78b4308326c095",
+  "originalChecksUnchanged": true,
+  "originalMetadataSnapshot": true,
+  "physicalDeviceTested": false,
+  "reports": {
+    "hogwarts604-host.json": "22ebe1b93897b794b29c408575a9ca9666ff2569d663521ff6f0863e82112174",
+    "melonx-engine604.json": "02cc0adccc93bc6ab9f5f0323842429feaa550beeef49ed06393480fcc1d3a91",
+    "rpcs3-core604.json": "6a374d31ff8c1419dec8140a3cecc72b65c1dd5edd942588054c1d0a6ba24f1d"
+  },
+  "result": "passed",
+  "signatureCryptographicallyVerifiedHere": false,
+  "source": "60add3d79b3e4d9d76b68ef154cb5d3f8772c323"
+}

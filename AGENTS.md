@@ -1,5 +1,30 @@
 # Current application identity — RewindBox (21 October 2026)
 
+## Private604 compiled, independently verified and delivered — 30 October 2026
+
+Build 0.0.8 (604), source60add3d79b3e4d9d76b68ef154cb5d3f8772c323,
+succeeds in run41122746325/job124293077616, attempt1. Actual downloaded
+IPA189410630 bytes, SHA256
+50a248491142fdee7148f0d695d6716a385e780a621506367b78b4308326c095.
+Base603 and its four reviewed host-path changes are preserved. MeloNX
+ada4058 plus successful runtime510e683 and latest successful RPCS3 a4d0c9a5
+are matched against their original authenticated payloads. No retired feature
+is restored, engine rebuilt or unchanged native fixture replayed for delivery.
+
+Independent strict engine/host and packaging checks pass:5354ZIP entries,
+eight604bundles,88ARM64iOS images,85sealed fingerprints,three monoARM64fat
+containers, full dependencies and legal/source notices. AppleCI verifies88
+ad hoc signatures; Linux independently checks their structures, not Apple
+cryptographic validity. Xcode372.707s; signing/export49.942s. Private file
+RewindBox-604.ipa delivered as libfile_4913b71897348191ad559a63dc9f8f3d;
+ephemeral private recipient key deleted after saving. Re-sign with SideStore,
+iOS18minimum. No public tag/release. Do not reuse604.
+
+MeloNX presentation animation is removed (old cost0.510–0.513s), with unchanged
+view attachment/JIT/generation/audio gates. New physical launch gain, Hogwarts
+crash recovery, minute-long GPU-wait removal, Unreal CVar consumption and FPS
+remain unproven. See docs/rewind604-test-ipa.md and its exact delivery evidence.
+
 ## Build 604 validated components and authorized private IPA — 30 October 2026
 
 The maintainer authorizes push, requests a valid downloadable IPA, reports that

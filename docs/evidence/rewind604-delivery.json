@@ -1,0 +1,214 @@
+{
+  "result": "passed",
+  "build": 604,
+  "source": "60add3d79b3e4d9d76b68ef154cb5d3f8772c323",
+  "ipaName": "RewindBox-Build604-60add3d79b3e4d9d76b68ef154cb5d3f8772c323-cold.ipa",
+  "ipaSHA256": "50a248491142fdee7148f0d695d6716a385e780a621506367b78b4308326c095",
+  "ipaBytes": 189410630,
+  "zipEntries": 5354,
+  "zipCrcVerified": true,
+  "bundleVersions": {
+    "Payload/NeoStation.app/PlugIns/DolphinJITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapPageRelay.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapDonor.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXJITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    },
+    "Payload/NeoStation.app/PlugIns/ARMSX2JITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    },
+    "Payload/NeoStation.app/PlugIns/RPCS3JITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXRamDonor.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    },
+    "Payload/NeoStation.app/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    }
+  },
+  "displayName": "RewindBox",
+  "minimumIOS": "18.0",
+  "machOImages": 88,
+  "thinPayloadFingerprintsVerified": 85,
+  "fatContainers": {
+    "Frameworks/objective_c.framework/objective_c": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 139,
+      "sha256": "76c35d43663fbcec182d307ee8c43d5a0476880745236ea1979ed3467e198d8d",
+      "bytes": 165392,
+      "signatureStructureValid": true
+    },
+    "Frameworks/sqlite3.framework/sqlite3": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 330,
+      "sha256": "b542ae8763ec8288d3c3267839da48f080aadbd8ea1ea2a0bc27d82af0f8d6c3",
+      "bytes": 1648496,
+      "signatureStructureValid": true
+    },
+    "Frameworks/App.framework/App": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 2,
+      "sha256": "8abd9e1e3fdd4352ca5113f1569b3232b1155109bb3dc37a18fd5a08126bdfd2",
+      "bytes": 23812048,
+      "signatureStructureValid": true
+    }
+  },
+  "signatureStructuresVerified": 88,
+  "signaturesVerifiedByAppleCI": 88,
+  "signatureCryptographicallyVerifiedIndependently": false,
+  "structuralValidation": "passed",
+  "legalBundleValidation": "passed",
+  "retiredComponentPathsAbsent": true,
+  "relocatedDependenciesVerified": 83,
+  "melonxOriginalPayloadMatched": true,
+  "rpcs3": {
+    "source": "a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a",
+    "run": 41117115264,
+    "artifact": 13007148559,
+    "originalCoreSHA256": "f2f167af5cfa7889e76af150b6c9f02e6a19b7f3e881de0397bcafe185dbe19a",
+    "payloadMatched": true,
+    "abi": 30,
+    "exports": 88
+  },
+  "sideStoreAppleReSigningRequired": true,
+  "physicalDeviceTested": false,
+  "scriptSHA256": "09963a683fc3ecdb28163fff34236f4181f9980aa972dffabc6a96731f124d31",
+  "verifiedUTC": "2026-10-30T20:42:27.507607+00:00",
+  "version": "0.0.8",
+  "run": 41122746325,
+  "job": 124293077616,
+  "attempt": 1,
+  "artifact": 13009534101,
+  "encryptedArchiveSHA256": "d1fa35b570f2c2b494f18786148eda48ff0f9f977fcc3566b41048c783568306",
+  "encryptedArchiveBytes": 189808029,
+  "transportParts": [
+    {
+      "part": 0,
+      "artifactId": 13009204359,
+      "bytes": 47453934,
+      "sha256": "134e9ca7b79842a7a917e8c9f0fe1919ee336e25df1cbe0f02bddad2bcd49d0f"
+    },
+    {
+      "part": 1,
+      "artifactId": 13009174203,
+      "bytes": 47453934,
+      "sha256": "4397b1b0d879eb97e24a820efa9311df8820e695231ddad4e69a97200c12e611"
+    },
+    {
+      "part": 2,
+      "artifactId": 13009258995,
+      "bytes": 47453934,
+      "sha256": "a47e5f48de7f6c3973d6ef1d9d81151d84b0c01fc783d5efa7e3f679389f684b"
+    },
+    {
+      "part": 3,
+      "artifactId": 13009727776,
+      "bytes": 47453934,
+      "sha256": "5b672654796fe4173f3b822450e08dd92ee8f675f70c3b57ea76038ca4955d02"
+    }
+  ],
+  "productTrees": {
+    "lib": "9ce47bc9ad641f399246b085d3f9ebeb8e37d81e",
+    "native": "9ff87f370b91fe45924857bdc76d789fe883e496",
+    "packages": "e94bd0301d4427f950d94947cfeb53ff4241191c",
+    "assets": "fb15f670844075f22dd667b370961a69371d9589",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "melonx": {
+    "source": "ada4058f5738465ac882934bb87224b637bcd0a1",
+    "runtimeValidationSource": "510e683a149e811e68ea6ab5e766e85c44ab1057",
+    "runtimeRun": 41121572662,
+    "runtimeArtifact": 13009521221,
+    "originalCoreSHA256": "7620fa3009e6df971665e7b8adec1a0bac654e6efa4bc3fceb292daefa6adb55",
+    "payloadMatched": true
+  },
+  "observedTimings": {
+    "mode": "cold",
+    "commit": "60add3d79b3e4d9d76b68ef154cb5d3f8772c323",
+    "phases": [
+      {
+        "phase": "dart_dependencies",
+        "seconds": 1.6239878749999832,
+        "exitCode": 0
+      },
+      {
+        "phase": "ruby_dependencies",
+        "seconds": 2.121549249999987,
+        "exitCode": 0
+      },
+      {
+        "phase": "host_scaffold_and_registrant",
+        "seconds": 1.3905582499999696,
+        "exitCode": 0
+      },
+      {
+        "phase": "flutter_configuration_and_first_pods",
+        "seconds": 43.678053417,
+        "exitCode": 0
+      },
+      {
+        "phase": "cocoa_pods",
+        "seconds": 4.772391792000008,
+        "exitCode": 0
+      },
+      {
+        "phase": "xcode_build",
+        "seconds": 372.707026209,
+        "exitCode": 0
+      },
+      {
+        "phase": "signature_and_ipa_export",
+        "seconds": 49.94244083299998,
+        "exitCode": 0
+      }
+    ]
+  },
+  "launchOptimization": {
+    "engine": "MeloNX",
+    "baselineTransitionSeconds": [
+      0.51,
+      0.513
+    ],
+    "presentationAnimationRemoved": true,
+    "deviceGainMeasured": false
+  },
+  "enginesRecompiledForDelivery": false,
+  "nativeFixturesReexecutedForDelivery": false,
+  "hogwartsCrashCauseProven": false,
+  "hogwartsPhysicalRecoveryProven": false,
+  "gpuStartupDelayFixed": false,
+  "gameplayMeasured": false,
+  "unrealCVarConsumptionProven": false,
+  "recipientPrivateKeyDeleted": true,
+  "libraryFileId": "libfile_4913b71897348191ad559a63dc9f8f3d",
+  "libraryFileName": "RewindBox-604.ipa",
+  "evidenceSHA256": {
+    "hogwarts604-host.json": "22ebe1b93897b794b29c408575a9ca9666ff2569d663521ff6f0863e82112174",
+    "independent-validation.json": "605659aa2523dd4dace52679e706f4d30010bbbb7a8d655c21fb1632ce2aeee6",
+    "melonx-engine604.json": "02cc0adccc93bc6ab9f5f0323842429feaa550beeef49ed06393480fcc1d3a91",
+    "provider-metadata.json": "d418946fc31386ae92f5f09063cf2dd0e74078a4ffdf59a5720a2a042af7c566",
+    "rpcs3-core604.json": "6a374d31ff8c1419dec8140a3cecc72b65c1dd5edd942588054c1d0a6ba24f1d",
+    "strict-validator-summary.json": "6eebd578b03cd0ebba684622f70103e2a4d7bbe85f8e2d235b24b0b0f71687f5",
+    "verify-downloaded.py": "09963a683fc3ecdb28163fff34236f4181f9980aa972dffabc6a96731f124d31",
+    "verify-strict.py": "e641eb09615c078228cb63f88e3e4d47c76509ea60567539584ad4c03bc9fa18"
+  }
+}

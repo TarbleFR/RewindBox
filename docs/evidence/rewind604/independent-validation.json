@@ -1,0 +1,99 @@
+{
+  "result": "passed",
+  "build": 604,
+  "source": "60add3d79b3e4d9d76b68ef154cb5d3f8772c323",
+  "ipaName": "RewindBox-Build604-60add3d79b3e4d9d76b68ef154cb5d3f8772c323-cold.ipa",
+  "ipaSHA256": "50a248491142fdee7148f0d695d6716a385e780a621506367b78b4308326c095",
+  "ipaBytes": 189410630,
+  "zipEntries": 5354,
+  "zipCrcVerified": true,
+  "bundleVersions": {
+    "Payload/NeoStation.app/PlugIns/DolphinJITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapPageRelay.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapDonor.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXJITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    },
+    "Payload/NeoStation.app/PlugIns/ARMSX2JITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    },
+    "Payload/NeoStation.app/PlugIns/RPCS3JITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXRamDonor.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    },
+    "Payload/NeoStation.app/Info.plist": {
+      "version": "0.0.8",
+      "build": "604"
+    }
+  },
+  "displayName": "RewindBox",
+  "minimumIOS": "18.0",
+  "machOImages": 88,
+  "thinPayloadFingerprintsVerified": 85,
+  "fatContainers": {
+    "Frameworks/objective_c.framework/objective_c": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 139,
+      "sha256": "76c35d43663fbcec182d307ee8c43d5a0476880745236ea1979ed3467e198d8d",
+      "bytes": 165392,
+      "signatureStructureValid": true
+    },
+    "Frameworks/sqlite3.framework/sqlite3": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 330,
+      "sha256": "b542ae8763ec8288d3c3267839da48f080aadbd8ea1ea2a0bc27d82af0f8d6c3",
+      "bytes": 1648496,
+      "signatureStructureValid": true
+    },
+    "Frameworks/App.framework/App": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 2,
+      "sha256": "8abd9e1e3fdd4352ca5113f1569b3232b1155109bb3dc37a18fd5a08126bdfd2",
+      "bytes": 23812048,
+      "signatureStructureValid": true
+    }
+  },
+  "signatureStructuresVerified": 88,
+  "signaturesVerifiedByAppleCI": 88,
+  "signatureCryptographicallyVerifiedIndependently": false,
+  "structuralValidation": "passed",
+  "legalBundleValidation": "passed",
+  "retiredComponentPathsAbsent": true,
+  "relocatedDependenciesVerified": 83,
+  "melonxOriginalPayloadMatched": true,
+  "rpcs3": {
+    "compiledPayloadFingerprint": "b68bdd203ee61cb769b07d0802a66898c034a641a25cba6e1b4373a79885ca42",
+    "installName": "@rpath/libRPCS3Core.dylib",
+    "signed": true,
+    "definedSymbols": 88,
+    "metadata": {
+      "nonSignatureLoadCommandsSHA256": "55c731fa3a9cfb102692e9cf30bfe351be36a11814623efa6a2edb343ad1de58",
+      "nonSignatureLinkeditSHA256": "c411949d41cdf97414ec4e9df20e672fc6d4f1b427398770e778c588f366fcf6",
+      "nonSignatureLoadCommandsUnchanged": true,
+      "nonSignatureLinkeditUnchanged": true,
+      "alignmentPaddingDifference": 0
+    }
+  },
+  "sideStoreAppleReSigningRequired": true,
+  "physicalDeviceTested": false,
+  "scriptSHA256": "09963a683fc3ecdb28163fff34236f4181f9980aa972dffabc6a96731f124d31",
+  "verifiedUTC": "2026-10-30T20:42:27.507607+00:00"
+}
