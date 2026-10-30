@@ -35,7 +35,6 @@ jobs:
   host:
     # The completion push reruns the changed plugin's actual UIKit presentation
     # fixture in melonx-completion-host and retains unchanged host scopes.
-    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[melonx-completion-host]')) }}
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -100,5 +99,5 @@ jobs:
         path: dist/melonx-host/
         if-no-files-found: ignore
         retention-days: 14
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-launch-only]') || (!contains(github.event.head_commit.message, '[retroarch-delivery]')
-      && !contains(github.event.head_commit.message, '[melonx-validated-integration]')) }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[melonx-completion-host]')) && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-launch-only]') || (!contains(github.event.head_commit.message, '[retroarch-delivery]')
+      && !contains(github.event.head_commit.message, '[melonx-validated-integration]'))) }}
