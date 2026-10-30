@@ -463,7 +463,8 @@ def compiler_identity():
     require(len(compiler) == 1, 'Expected the workflow selected compiler, without a wrapper')
     resolved = shutil.which(compiler[0])
     require(resolved is not None, 'Selected CXX is missing')
-    compiler = [str(Path(resolved).resolve())]
+    # Preserve clang++ argv[0]: resolving its symlink to clang-22 loses C++ link mode.
+    compiler = [os.path.abspath(resolved)]
     version = command(*compiler, '--version').decode().splitlines()[0]
     require(re.search(r'clang version 22\.', version), 'Expected LLVM22: ' + version)
     return compiler, version
