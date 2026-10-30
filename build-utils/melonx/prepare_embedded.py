@@ -86,6 +86,9 @@ from adapt_sized_jit import apply as adapt_sized_jit
 from adapt_texture_readback_bounds import apply as adapt_texture_readback_bounds
 from adapt_literal_memory import apply as adapt_literal_memory
 from adapt_startup_trace import apply as adapt_startup_trace
+from adapt_vector_register_masks import apply as adapt_vector_register_masks
+from adapt_guard_context import apply as adapt_guard_context
+from adapt_occlusion_completion import apply as adapt_occlusion_completion
 
 
 def replace_once(path, old, new):
@@ -186,12 +189,15 @@ def main():
     adapted += adapt_first_buffer_overlap(source)
     adapted += adapt_allocator_range_updates(source)
     adapted += adapt_occlusion_reports(source)
+    adapted += adapt_occlusion_completion(source)
     adapted += adapt_query_batching(source)
     adapted += adapt_jit_single_attempt(source)
     adapted += adapt_sized_jit(source)
     adapted += adapt_texture_readback_bounds(source)
     adapted += adapt_literal_memory(source)
     adapted += adapt_startup_trace(source)
+    adapted += adapt_vector_register_masks(source)
+    adapted += adapt_guard_context(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -273,7 +279,9 @@ def main():
                  'adapt_jit_single_attempt.py', 'jit-single-attempt-adapter-contract.json',
                  'adapt_sized_jit.py', 'sized-jit-adapter-contract.json',
                  'adapt_texture_readback_bounds.py', 'texture-readback-bounds-contract.json',
-                 'adapt_literal_memory.py', 'adapt_startup_trace.py']:
+                 'adapt_literal_memory.py', 'adapt_startup_trace.py',
+                 'adapt_vector_register_masks.py', 'adapt_guard_context.py',
+                 'adapt_occlusion_completion.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

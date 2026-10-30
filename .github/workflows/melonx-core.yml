@@ -20,6 +20,19 @@ run-name: MeloNX engine • ${{ github.sha }}
     - build-utils/melonx/verify_hogwarts_launch_core.py
     - build-utils/melonx/continuation-core-contract.json
     - build-utils/melonx/hogwarts-launch-core-contract.json
+    - build-utils/melonx/verify_guard_core.py
+    - build-utils/melonx/freeze_guard_core.py
+    - build-utils/melonx/guard-core-contract.json
+    - build-utils/melonx/adapt_vector_register_masks.py
+    - build-utils/melonx/adapt_guard_context.py
+    - build-utils/melonx/adapt_occlusion_completion.py
+    - test/melonx_guard_core_contract_test.py
+    - test/melonx_vector_register_masks_test.py
+    - test/melonx_vector_register_masks/**
+    - test/melonx_guard_context_test.py
+    - test/melonx_guard_context/**
+    - test/melonx_occlusion_completion_test.py
+    - test/melonx_occlusion_completion/**
     - build-utils/melonx/adapt_literal_memory.py
     - build-utils/melonx/adapt_startup_trace.py
     - native/melonx/EmbeddedStartupTrace.cs
@@ -247,7 +260,7 @@ jobs:
     - name: Authenticate engine82 evidence and reuse unchanged LibHac
       env:
         GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/verify_hogwarts_launch_core.py prepare_dependencies
+      run: python3 build-utils/melonx/verify_guard_core.py prepare_dependencies
     - name: Fetch exact MeloNX source
       run: |
         python3 - <<'PY_FETCH'
@@ -269,21 +282,21 @@ jobs:
         assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD'],text=True).strip()==pin['revision']
         assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD^{tree}'],text=True).strip()=='82a29e6f593f6244869481e9a489b8d5154175fe'
         PY_FETCH
-    - name: Verify Apple ARM64, exact SDK and reviewed Hogwarts launch preparation inputs
+    - name: Verify Apple ARM64, exact SDK and reviewed guard Core inputs
       run: |
-        python3 test/melonx_hogwarts_launch_contract_test.py
-        python3 build-utils/melonx/verify_hogwarts_launch_core.py preflight
-    - name: Run changed startup gate and authenticate36 exact-input receipts
+        python3 test/melonx_guard_core_contract_test.py
+        python3 build-utils/melonx/verify_guard_core.py preflight
+    - name: Run three affected gates and authenticate 37 scoped historical receipts
       env:
         GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/verify_hogwarts_launch_core.py run_gates
+      run: python3 build-utils/melonx/verify_guard_core.py run_gates
     - name: Compile NativeAOT library and verify exported ABI
       env:
         MELONX_AUTHENTICATED_BASELINE: ${{ github.workspace }}/.native-sources/melonx-engine82.zip
         MELONX_BUILD_SIMULATOR: '1'
       run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX .native-sources/LibHac
     - name: Bind both new libraries to reviewed sources and gate receipts
-      run: python3 build-utils/melonx/verify_hogwarts_launch_core.py compiled
+      run: python3 build-utils/melonx/verify_guard_core.py compiled
     - uses: actions/download-artifact@v4
       with:
         name: MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314
@@ -303,7 +316,7 @@ jobs:
         if source.exists():shutil.copytree(source,'dist/melonx/runtime-smoke')
         PY_SMOKE
     - name: Verify fresh guest execution, teardown and backing release
-      run: python3 build-utils/melonx/verify_hogwarts_launch_core.py finalize
+      run: python3 build-utils/melonx/verify_guard_core.py finalize
     - uses: actions/upload-artifact@v4
       if: ${{ always() }}
       with:
