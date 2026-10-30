@@ -1,0 +1,442 @@
+{
+  "schemaVersion": 1,
+  "result": "passed",
+  "build": 597,
+  "version": "0.0.8",
+  "source": "6ce5097737701afb4dc371013889bacdcef15140",
+  "deliveryTree": "0b8afa0d8614e1ceae519f6d2489fa49b9cbf368",
+  "branch": "Claude",
+  "run": {
+    "id": 40985625413,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/40985625413",
+    "attempt": 1,
+    "conclusion": "success",
+    "event": "push",
+    "job": 123835845426,
+    "startedAt": "2026-10-30T01:24:21Z",
+    "completedAt": "2026-10-30T01:42:10Z",
+    "seconds": 1069.0,
+    "workflow": ".github/workflows/rewind597-baseline-delivery.yml"
+  },
+  "artifact": {
+    "id": 12946864822,
+    "name": "RewindBox-Build597-6ce5097737701afb4dc371013889bacdcef15140-cold",
+    "bytes": 188643869,
+    "sha256": "2348e6212a051926a9dcd231fccef1cd65e35483441c40dfca05ba13f7e5903a",
+    "encrypted": true,
+    "downloadDigestVerified": true
+  },
+  "ipa": {
+    "bytes": 188329029,
+    "crcValid": true,
+    "name": "RewindBox-Build597.ipa",
+    "sha256": "b9e97907210458dfafe76fe471a3cde58fa18564488324e9adfd04dc7a7bb57d",
+    "zipEntries": 5350
+  },
+  "installation": {
+    "method": "SideStore re-signing",
+    "appleResigningRequired": true,
+    "minimumIOS": "18.0",
+    "architectures": [
+      "arm64"
+    ],
+    "deviceInstallationTested": false
+  },
+  "baseline": {
+    "build": 596,
+    "source": "d5c5f107f7b514980033d1b95218aa9d2f640609",
+    "tree": "1e50d20224dc1461d0e15b2530736688d1039cfa",
+    "run": 40968162236,
+    "ipaSHA256": "b8d665ab4503fc4f3492b80bb46ed582dcfed71e99982f82a8c2a8a04a842d07"
+  },
+  "productTrees": {
+    "lib": "9208336d76655b98972d11e519cd0d3337666e41",
+    "native": "dafd731244ebcc35d6ab63a21ee77871ca080153",
+    "packages": "6164ff03871a384267e5f20f6734225a1aaed5c4",
+    "assets": "fb15f670844075f22dd667b370961a69371d9589",
+    "pubspec.yaml": "4060a4840b2332a4ef1b492bfb3c4bc4140acf26",
+    "pubspec.lock": "719ea3b6767c10e60209e144a4e7793520a88b54"
+  },
+  "hostDelta": {
+    "paths": [
+      "native/neoswap-storage/Store.cpp"
+    ],
+    "store": {
+      "bytes": 29239,
+      "cocoaPodsSourcesEntryPresent": true,
+      "compiledSource": "packages/neo_swap/ios/Classes/Storage/Store.cpp",
+      "nativeSuitesReplayed": false,
+      "result": "passed",
+      "sha256": "87df68227cf9e113af51ec2ea8968d8af88170834611d560ce711cf168f1ca46",
+      "source": "native/neoswap-storage/Store.cpp"
+    },
+    "unchangedProductTrees": [
+      "lib",
+      "packages",
+      "assets",
+      "pubspec.yaml",
+      "pubspec.lock"
+    ]
+  },
+  "rpcs3": {
+    "source": "88cdc5e3e115a0b8587711d77147467baf38128b",
+    "optimizationSource": "c0d5bc7cd271445fcb10f5fdda4f1eea9798b101",
+    "upstreamSource": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+    "run": 40981514937,
+    "job": 123822448947,
+    "artifact": {
+      "bytes": 29139881,
+      "id": 12946200694,
+      "members": 6,
+      "sha256": "18f76b5e28187cf28c46047ad8b4b13a631420412bb6efad2e9a5e5c19aae989"
+    },
+    "sourcePatchSHA256": "099651cae54c7bc567ff325735acde0cf3e931ed6e25b2b5bbcc14e5f5ecf33b",
+    "originalCoreSHA256": "cc7362544f922aebdc021b5dbe6ca68d9c0bfb15d79145606f71af584509edd1",
+    "signedCoreSHA256": "f5861f004a2d07d606ebedfd54d0df53d28b8de67322409084462cee559fe956",
+    "payloadFingerprint": "035547c4813a8bc0e108a95b98488effcb5f354921ab9ceae260bc7dafb65081",
+    "abiVersion": 30,
+    "definedSymbols": 88,
+    "codegen": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "477a3fa442d27917"
+    },
+    "canonicalPostimages": 319,
+    "coreInputCount": 92,
+    "validationInputCount": 191,
+    "changedCorePaths": [
+      "rpcs3/Emu/CPU/JITCacheCompatibility.cmake",
+      "rpcs3/Emu/Cell/SPUThread.cpp",
+      "rpcs3/Emu/Memory/vm.cpp",
+      "rpcs3/Emu/RSX/Common/texture_cache.h",
+      "rpcs3/Emu/RSX/VK/VKGSRender.cpp",
+      "rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.cpp",
+      "rpcs3/Emu/RSX/VK/VKTextureCache.h"
+    ],
+    "appleModes": {
+      "executedInCoreRun": 8,
+      "historicalOrigins": {
+        "arena-asan-ubsan": {
+          "run": 40963062736,
+          "source": "e97137b1d907b4c0b0c102435d55b1f96d891d38"
+        },
+        "arena-plain": {
+          "run": 40963062736,
+          "source": "e97137b1d907b4c0b0c102435d55b1f96d891d38"
+        },
+        "array-asan-ubsan": {
+          "run": 40963062736,
+          "source": "e97137b1d907b4c0b0c102435d55b1f96d891d38"
+        },
+        "array-plain": {
+          "run": 40963062736,
+          "source": "e97137b1d907b4c0b0c102435d55b1f96d891d38"
+        },
+        "async-asan-ubsan": {
+          "run": 40963062736,
+          "source": "e97137b1d907b4c0b0c102435d55b1f96d891d38"
+        },
+        "async-plain": {
+          "run": 40963062736,
+          "source": "e97137b1d907b4c0b0c102435d55b1f96d891d38"
+        },
+        "barriers-plain": {
+          "run": 40963062736,
+          "source": "e97137b1d907b4c0b0c102435d55b1f96d891d38"
+        },
+        "coverage-asan-ubsan": {
+          "run": 40963062736,
+          "source": "e97137b1d907b4c0b0c102435d55b1f96d891d38"
+        },
+        "coverage-plain": {
+          "run": 40963062736,
+          "source": "e97137b1d907b4c0b0c102435d55b1f96d891d38"
+        },
+        "shader-asan-ubsan": {
+          "run": 40963062736,
+          "source": "e97137b1d907b4c0b0c102435d55b1f96d891d38"
+        },
+        "shader-plain": {
+          "run": 40963062736,
+          "source": "e97137b1d907b4c0b0c102435d55b1f96d891d38"
+        }
+      },
+      "modesReexecutedForDelivery": 0,
+      "originalProofSHA256": "b74d89b8befc2f207d3d6db883738412889827a0379a4d7a5dd159d7dc98beaa",
+      "origins": {
+        "depth-asan-ubsan": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "depth-baseline-plain": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "depth-plain": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "dma-list-asan-ubsan": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "dma-list-plain": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "dma-mmio-asan-ubsan": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "dma-mmio-plain": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "dma-ownership-asan-ubsan": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "gpu-wait-asan-ubsan": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "pipeline-asan-ubsan": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "pipeline-plain": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "pressure-asan-ubsan": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "pressure-baseline-plain": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "pressure-plain": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "vm-mmio-asan-ubsan": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        },
+        "vm-mmio-plain": {
+          "archive_sha256": "e34fc370c34f4e6dbb6e97b8cac58ba3b74dcc9a9afcf14d56ccf379d73eb198",
+          "artifact": 12945101088,
+          "core_compilation": "skipped",
+          "job": 123820049425,
+          "overall_conclusion": "failure",
+          "run": 40980790186,
+          "size": 59771400,
+          "source": "36348545f85a62078339a742936f88dc78841466"
+        }
+      },
+      "retainedFromPartialRuns": 16,
+      "totalModes": 24,
+      "unchangedHistoricalModes": 11,
+      "verifiedReceiptSHA256": "4941b9e69de2684cb4ab3364179b31828826994e004d2b7f37a5030b54e1af28"
+    },
+    "recompiledForDelivery": false
+  },
+  "melonx": {
+    "source": "07f350480ab53b15d50953fb854dd8e3fc4e8d6c",
+    "run": 40949501203,
+    "artifact": {
+      "bytes": 88124968,
+      "id": 12931177865,
+      "members": 385,
+      "sha256": "2faa3376d7cd555285b65fcd5e5fc287a9abbfd353c7ea820fde799b6235bb8c"
+    },
+    "originalCoreSHA256": "834a64d617b178112b25eeb7dc02e80316959a2509120f9ffa78d8b9d1ee3840",
+    "packagedCoreFingerprint": "937b2a47a4d8413eca146a8afb0423a9ecffb7b4913de069f7c07074ab914e56",
+    "originalPayloadMatched": true,
+    "retainedFromDelivery": 596,
+    "requiredExports": 47,
+    "recompiledForDelivery": false,
+    "testsReexecutedForDelivery": false
+  },
+  "verification": {
+    "result": "passed",
+    "originalReportSHA256": "eebed6e5142c9f7d16540ae1af50d64774efb4373a037e624886ffc832a29f69",
+    "scriptSHA256": "d96b124d76046971f727881491891c86db80d5b6406994a663fac2210cb9d11d",
+    "actualMachOImages": 88,
+    "thinMachOImages": 85,
+    "fatMachOContainers": 3,
+    "signingPreservationCoverage": {
+      "fatImagesWithoutBeforeAfterFingerprints": 3,
+      "thinImagesComparedBeforeAfterSigning": 85
+    },
+    "signaturesVerifiedByAppleCI": 88,
+    "signatureCryptographicallyVerifiedIndependently": false,
+    "eightBundleVersionsMatched": true,
+    "structuralValidation": "passed",
+    "sourcesModifiedByVerification": false,
+    "compilerExecutedByVerification": false,
+    "nativeTestsExecutedByVerification": false,
+    "scope": "Actual downloaded IPA, exact source checkout, both compiled core payloads, eight bundle versions, 85 thin fingerprints and three fat-container structures agree with the authenticated delivery reports. Fat hashes are derived from this IPA and bound by the whole-IPA SHA256, with no before/after signing claim. Cryptographic signature verification is Apple CI evidence, not a Linux codesign result."
+  },
+  "timings": {
+    "macOSJobSeconds": 1069.0,
+    "observedPhasesSeconds": {
+      "dart_dependencies": 2.967642875000024,
+      "ruby_dependencies": 2.213583832999973,
+      "host_scaffold_and_registrant": 2.5953734160000295,
+      "flutter_configuration_and_first_pods": 41.89238479200003,
+      "cocoa_pods": 6.2450600829999985,
+      "xcode_build": 467.72614662499996,
+      "signature_and_ipa_export": 50.045568958999866
+    },
+    "longestGitHubSteps": [
+      {
+        "name": "Compile Release device binary with measured AOT and Xcode phases",
+        "seconds": 469.0
+      },
+      {
+        "name": "Set up Flutter 3.47.2",
+        "seconds": 93.0
+      },
+      {
+        "name": "Package the rebuilt application and retain current component identities",
+        "seconds": 91.0
+      },
+      {
+        "name": "Configure release host",
+        "seconds": 71.0
+      },
+      {
+        "name": "Seal every executable, framework and extension for SideStore",
+        "seconds": 50.0
+      }
+    ]
+  },
+  "evidence": {
+    "appleReportsSHA256": {
+      "SHA256SUMS": "8e6d012d4cd44b0391139a01ffab6cf86ec2f0918eb36b209a4115b8a27c25a2",
+      "environment.json": "3c934a28bf8c8d54f2072a46a0afaa6f3441688414ec52ae66415f58190e37f0",
+      "final-structure.json": "296db66f0d32677703d21de7e8090099c94ebdd402acc8c6020d685a24b4bd93",
+      "host-tree597.json": "4ad8732b2b8d1223df5df1a4281b11f3d3b981c59906c59c106f499e8637089f",
+      "melonx-engine597-ipa-validation.json": "31208bb4912a0cefe7714c2da3f245e5a7a93d2a87f04efc0bb0fe522c0aad43",
+      "neoswap-host-source597.json": "2d9ddecd48dbb26c8b73de96bdafdbf8440564154ae7e3de059addf45f0ba593",
+      "rpcs3-runtime-candidate-ipa-validation.json": "f7572d198cab55d7d8eb0a07abf0c3817ed1715b7668982d96890176553914a5",
+      "signature.json": "3f19d950b0bf3fdfe4ac23da5c9de95db83631a5da4d62366d8f013149c6f40e",
+      "signed-payload-identity.json": "c543889d5393dc46c207e0da793e0c2bc071275788f7281caa047a609e0549c3",
+      "version-validation.json": "96e1a57fc023ef59247231d4eba1681549320556a80f71e1c5bdd05cc4b4afe1"
+    },
+    "recipeSHA256": {
+      ".github/diagnostics/rewind597_baseline.py": "28ff20ed4bf9f29a4e2787b154c21b7a593b0f2d85cdfa1a88baea5bf420c1ac",
+      ".github/diagnostics/rewind597_baseline_delivery.py": "a1c786c9e87aeaef056b4610c2db7233d4119cf9bc558128489efd278474dcb8",
+      ".github/diagnostics/rewind597_engine.py": "99f944c7ce17b8557f152143df7a744fd589e335a4a49603f60001b2b7462edb",
+      ".github/diagnostics/rpcs3runtime597_delivery_core.py": "38768dedad581d5e6fe5bc70edf61766f11a038683f7977fc2b40673494b0ab6",
+      ".github/workflows/rewind597-baseline-delivery.yml": "c41095dcaec6264aba9927a87af4885e25d36bf51b375bcd0f07e21bf88614d0",
+      "build-utils/delivery-597-recipient.pem": "e25a5119c0f5cbbb843f8c003f0f3e69d877cb690845b28822b67ae2bffa7430",
+      "build-utils/validate_melonx_engine597_ipa.py": "fbc1104a6a0dcc3c7c313bcd15483d4ad289f23a25ebf2f4a3e249ef4152a30b",
+      "build-utils/validate_rpcs3_core597_ipa.py": "044dd858391a4af7d9dadf8cbad0d4697ae0a58ee3657300049a217473eba480"
+    },
+    "coreReceiptSHA256": "4941b9e69de2684cb4ab3364179b31828826994e004d2b7f37a5030b54e1af28"
+  },
+  "delivery": {
+    "privateFileSaved": true,
+    "privateChatFileSaved": true,
+    "privateRecipientKeyDeleted": true,
+    "publicReleaseCreated": false,
+    "tagCreated": false
+  },
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "fpsGainMeasured": false,
+  "buildNumberReusable": false
+}

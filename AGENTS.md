@@ -2,20 +2,31 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
-## Private IPA597 requested — latest compiled RPCS3, retained MeloNX Core87
+## Private IPA597 — compiled, verified and privately delivered
 
-The maintainer explicitly requested a new IPA with the new RPCS3 Core.
-Use delivered596 (source d5c5f107, run40968162236) as the application baseline.
-The only host product delta is the already reviewed continuation Store.cpp,
-SHA256 87df68227cf9e113af51ec2ea8968d8af88170834611d560ce711cf168f1ca46.
-Install the authenticated RPCS3 artifact12946200694 from source88cdc5e3,
-run40981514937; retain the exact MeloNX Core87 artifact12931177865.
-Neither Core nor unchanged native suites are rebuilt. The new597 recipe
-verifies source pins and existing producer receipts, compiles the application,
-checks the final signed IPA and encrypts the private delivery to a fresh public
-recipient. The private recipient key is never committed. No public release or
-tag is requested. Compilation and private delivery remain pending until their
-actual receipts are recorded. Do not treat this preparation note as success.
+The maintainer requested a new IPA with the newly compiled RPCS3 Core.
+Build 597 succeeds in run 40985625413, job 123835845426, attempt1, source
+6ce5097737701afb4dc371013889bacdcef15140. Delivered 596 is the baseline.
+RPCS3 uses source 88cdc5e3 / run 40981514937 / artifact 12946200694;
+MeloNX Core 87 remains source 07f35048 / run 40949501203 / artifact 12931177865.
+Neither engine nor unchanged native suites were rebuilt. The new NeoSwap
+Store.cpp, SHA256 87df68227cf9e113af51ec2ea8968d8af88170834611d560ce711cf168f1ca46,
+was verified in CocoaPods sources and compiled into the application. The other
+five product roots remain identical to delivered 596.
+
+The actual downloaded IPA is 188329029 bytes, SHA256
+b9e97907210458dfafe76fe471a3cde58fa18564488324e9adfd04dc7a7bb57d.
+Independent verification passes: ZIP CRC, exact compiled payloads of both cores,
+88 Mach-O images, 85 thin-image preservation fingerprints, three mono-ARM64 fat
+containers and eight app/extension versions 0.0.8 (597). Apple CI verified 88 ad hoc
+signing targets; independent Linux verification does not claim codesign.
+Job 1069 s, Xcode467.726s, signing/export50.046s; one application compilation.
+
+The private file was saved and the ephemeral private recipient key deleted.
+Re-sign with SideStore; minimum iOS 18. No public release/tag or physical-device,
+gameplay or FPS result is claimed. Do not reuse build 597. These documentary
+receipts do not require another build. See docs/rewind597-test-ipa.md and
+ docs/evidence/rewind597-delivery.json.
 
 ## RPCS3 continuation Core compiled and independently verified — 30 October 2026
 
