@@ -2,6 +2,33 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## Private IPA598 — compiled, verified and privately delivered
+
+The maintainer requested a new IPA with the just-compiled MeloNX core.
+Version 0.0.8 (598), source 1c30df6870e4c45bbc4b405e7bc8e1ba5dd5d2e4,
+succeeds in run41010479756, job123914984519, attempt1. Delivered597 is the
+application baseline. MeloNX is source e7143e56 / run40998920652 /
+artifact12953505421. RPCS3 source88cdc5e3 / artifact12946200694 is retained;
+its signed dylib hash is identical to597. No engine or unchanged native suite
+was rebuilt. Only the new native MeloNX C# boundary differs from597's product
+sources; five other roots and the latest NeoSwap Store are retained.
+Experimental GPU options remain OFF by default.
+
+The downloaded IPA is 188340669 bytes, SHA256
+27cc3ce633a3378949d88448792b48691f99e313e6be723063f7be958272325b.
+Independent checks pass: CRC, actual core identities/payloads, 88 iOS ARM64
+Mach-O images, 85 thin preservation fingerprints, three mono-ARM64 fat
+containers and eight app/extension versions 0.0.8 (598). Apple CI verified
+88 ad hoc signing targets; independent Linux checks do not claim codesign.
+Job784s, Xcode335.121s, signing/export52.734s; one application compilation.
+
+The private file was saved and the ephemeral private recipient key deleted.
+Re-sign with SideStore, iOS18 minimum. No public release/tag or physical-device
+visual/gameplay/FPS proof is claimed. Do not reuse build598 or rebuild for these
+documentary receipts. See docs/rewind598-test-ipa.md and
+ docs/evidence/rewind598-delivery.json. The core-only entry below predates this
+explicitly authorized application integration.
+
 ## MeloNX occlusion Core compiled and independently verified — 30 October 2026
 
 The maintainer supplied the engineering brief and authorized implementation,
