@@ -1,0 +1,18 @@
+{
+  "source": "82e318a1b6d520cc1dfa261d0a50606b6aeac860",
+  "run": 41112827942,
+  "job": 124259319193,
+  "conclusion": "failure",
+  "stage": "source contract inverse delta before native tests",
+  "reason": "macOS /var is a symbolic link; git apply --directory rejects paths through it",
+  "native_modes_executed": 0,
+  "core_compiled": false,
+  "canonical_patch_sha256": "720d0d72d8ab93bbf7596d859652b8e21dd603995b8f455b3b8674de6fc53ac8",
+  "diagnostics_artifact": {
+    "id": 13004037885,
+    "bytes": 432,
+    "sha256": "57e12a0004d484b43d90a0b56e83ec224f9005a24fb69859221a9123ccd234e5"
+  },
+  "correction": "Resolve the two TemporaryDirectory paths before inverse-delta preparation; native source and compiler recipe unchanged",
+  "job_log_sha256": "c81e48f13d107e7dfad632d5ac3bf5a4a96c60d494fc32cb49e1ec6279edb6ce"
+}

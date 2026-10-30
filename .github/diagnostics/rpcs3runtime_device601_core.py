@@ -127,7 +127,9 @@ def source_contract(source, baseline_out=None):
     # Invert only this small lot. Baseline test trees need no full clone or rebuild.
     require(file_sha(ROOT / DELTA) == record['delta_sha256'], 'Follow-up delta changed')
     with tempfile.TemporaryDirectory(prefix='rpcs3-followup-inverse-') as tmp:
-        before = Path(tmp)
+        # Darwin's TMPDIR can start with /var -> /private/var. Git rejects
+        # --directory paths traversing a symlink even with --unsafe-paths.
+        before = Path(tmp).resolve()
         for name, entry in record['baseline_support'].items():
             raw = relative_file(source, name).read_bytes()
             blob = command('git', '-C', source, 'rev-parse', 'HEAD:' + name).decode().strip()
@@ -217,7 +219,7 @@ def prepare(source):
     compiler, version = support.compiler_identity()
     OUT.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='device601-baseline-') as tmp:
-        baseline = Path(tmp) / 'baseline'
+        baseline = Path(tmp).resolve() / 'baseline'
         manifest, record, inputs, exports, codegen = source_contract(source, baseline)
         wrapper = OUT / 'device601-cxx-wrapper.py'
         wrapper.write_text(support.WRAPPER_SOURCE)
