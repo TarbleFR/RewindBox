@@ -18,7 +18,14 @@ retaining MeloNX827f4653 and RPCS3378509e8 with all cumulative improvements.
 No engine rebuild or unchanged fixture replay. Existing114 binary inputs and
 151 prepared MeloNX members remain exact; the old producer helper digest is
 historical and only the strict reviewed relocation may differ at runtime.
-Final Apple compilation/signing and independent delivery verification pending.
+Private602 succeeds fromf015b6cb inrun41085116632/job124164117275.
+Independent downloaded-byte verification passes:189828656-byte IPA SHA256
+ff99f2a72a5053b00543ef3efeeaf64423d8feaceb749fbe5069141c02b941f2,
+88Mach-O images,85thin fingerprints,three mono-ARM64 fat containers and
+eight0.0.8(602)bundles. Apple verifies88ad hoc signatures. Xcode363.512s;
+signing/export50.050s. File privately delivered and ephemeral key deleted.
+No physical TXM/gameplay validation. Do not reuse602 or rebuild unchanged
+cores for documentary receipts. See docs/rewind602-test-ipa.md.
 
 The log has no Smash session601: latestSmash02:10 UTC has JIT ready0.323s,
 first Metal presentation8.952s and2743 cached shaders loaded in3.014s. Keep

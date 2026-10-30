@@ -1,0 +1,22 @@
+{
+  "inputLogSHA256": "c9c30d001ec15f1bf32900d8d02fb9b6f8d8c23531bd5d719b2e770f977bef0f",
+  "hogs601FailurePids": [
+    54910,
+    54931
+  ],
+  "hogs601Stage": "jitArena",
+  "originalFailure": "The sized JIT helper protocol is required.",
+  "latestSmashLoggedUTC": "2026-10-30T02:10:07.908002Z",
+  "latestSmashJitReadySeconds": 0.322627,
+  "latestSmashFirstMetalPresentationSeconds": 8.951764,
+  "latestSmashCachedShaders": 2743,
+  "latestSmashCachedShaderLoadSeconds": 3.014,
+  "smash601SessionPresent": false,
+  "userReportedNewDelayBeforeFirstImage": true,
+  "causeOfNewSmashRegressionEstablished": false,
+  "noNewUnrealInspectionAtLaunch": true,
+  "hogwartsGpuPolicyTitleGated": true,
+  "note": "First Metal presentation does not prove arrival at the game menu. Earlier Smash timings do not establish a601 regression.",
+  "activeFixScope": "Hogwarts Legacy JIT startup",
+  "smashDeferredPendingNewLogAtUserRequest": true
+}

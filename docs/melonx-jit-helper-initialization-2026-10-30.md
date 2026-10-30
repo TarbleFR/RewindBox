@@ -60,4 +60,7 @@ pour sa provenance historique; seule la relocation exacte de cette ressource
 hôte est autorisée dans la nouvelle livraison. Les23 tests Flutter,3342
 contrôles de politique Swift et les tests complets Apple du helper sont
 authentifiés avec leur origine et leurs entrées, sans nouvelle exécution.
-Compilation et vérification de l’IPA602 restent en attente.
+La compilation602 passe dans le run41085116632; le fichier téléchargé est
+vérifié indépendamment et remis au mainteneur. Voir
+[le reçu de livraison](rewind602-test-ipa.md). Le mainteneur a différé
+l’investigation Smash jusqu’à un nouveau log: le correctif livré cible Hogwarts.
