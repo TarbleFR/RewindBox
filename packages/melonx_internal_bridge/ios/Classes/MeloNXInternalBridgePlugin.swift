@@ -268,7 +268,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
             result(["success":false,"error":"invalidLaunch"]); return
         }
         let locale = arguments["locale"] as? String ?? "en"
-        let settings = arguments["graphics"] as? [String:Any] ?? [:]
+        let requestedSettings = arguments["graphics"] as? [String:Any] ?? [:]
         let reuseArena = arenaReady
         let token = replaceToken()
         // The integrated helper is the only JIT method. The removed StikDebug
@@ -296,7 +296,16 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                 }
                 let titleID = preflight["titleId"] as? String
                 guard isCurrent(token) else { return }
+                let settings = MeloNXHogwartsGraphics.resolve(requestedSettings,title:titleID)
                 try runtime.prepareGraphics(settings,universalJit:universal)
+                MeloNXLaunchJournal.record("configuration","hogwartsPolicy",detail:MeloNXHogwartsGraphics.diagnostic(settings,title:titleID))
+                var identity: [String:Any] = [:]
+                if let identityURL = Bundle.main.url(forResource:"MeloNX-native-identity",withExtension:"json"),
+                   let data = try? Data(contentsOf:identityURL),
+                   let parsed = try? JSONSerialization.jsonObject(with:data) as? [String:Any] {
+                    identity = parsed
+                }
+                MeloNXLaunchJournal.record("provenance","packaged",detail:MeloNXHogwartsGraphics.provenance(info:Bundle.main.infoDictionary ?? [:],identity:identity))
                 stage = "jit"
                 MeloNXLaunchJournal.record("jit", "begin")
                 if !reuseArena {

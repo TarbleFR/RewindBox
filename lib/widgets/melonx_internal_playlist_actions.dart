@@ -1,6 +1,7 @@
 import '../l10n/melonx_transfer_locale.dart';
 import 'melonx_transfer_dialog.dart';
 import 'playlist_import_button.dart';
+import 'melonx_hogwarts_graphics_options.dart';
 
 import 'dart:io';
 import 'dart:async';
@@ -252,7 +253,7 @@ class _MelonxInternalPlaylistActionsState
           if (!mounted) return;
           await showDialog<void>(
             context: context,
-            builder: (_) => _MelonxGraphicsDialog(gamePath: widget.gamePath!),
+            builder: (_) => _MelonxGraphicsDialog(gamePath: widget.gamePath!, titleId: widget.titleId),
           );
         case 'status':
           final status = await MelonxInternalService.content('firmwareInfo');
@@ -420,27 +421,40 @@ class _MelonxInternalPlaylistActionsState
 }
 
 class _MelonxGraphicsDialog extends StatefulWidget {
-  const _MelonxGraphicsDialog({required this.gamePath});
+  const _MelonxGraphicsDialog({required this.gamePath, this.titleId});
   final String gamePath;
+  final String? titleId;
   @override
   State<_MelonxGraphicsDialog> createState() => _MelonxGraphicsDialogState();
 }
 
 class _MelonxGraphicsDialogState extends State<_MelonxGraphicsDialog> {
   Map<String, dynamic>? _settings;
+  String? _titleId;
   String? _failure;
   String _text(String key) =>
       MelonxLibraryLocale.text(Localizations.localeOf(context), key);
   @override
   void initState() {
     super.initState();
-    MelonxInternalService.graphicsForGame(widget.gamePath)
-        .then((value) {
-          if (mounted) setState(() => _settings = value);
-        })
-        .catchError((Object error) {
-          if (mounted) setState(() => _failure = error.toString());
-        });
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final settings = await MelonxInternalService.graphicsForGame(widget.gamePath);
+      var titleId = widget.titleId;
+      // Metadata is read only while editing; launches keep their one native preflight.
+      try {
+        final metadata = await MelonxInternalService.content('metadata', filePath: widget.gamePath);
+        titleId = metadata['titleId'] as String?;
+      } catch (_) {
+        // Keep the row's editor escape hatch when metadata is unavailable.
+      }
+      if (mounted) setState(() { _settings = settings; _titleId = titleId; });
+    } catch (error) {
+      if (mounted) setState(() => _failure = error.toString());
+    }
   }
 
   @override
@@ -471,6 +485,8 @@ class _MelonxGraphicsDialogState extends State<_MelonxGraphicsDialog> {
                       onChanged: (value) => setState(() => settings['showRamGraph'] = value),
                     ),
                     Text(_text('Memory settings apply on the next launch.')),
+                    if (_titleId?.toUpperCase() == '0100F7E00C70E000')
+                      MelonxHogwartsGraphicsOptions(settings: settings, onChanged: () => setState(() {})),
                     for (final item in [('donateMemory', 'Use RamDonor'), ('hostMemoryBudget', 'Track available memory'), ('textureRecompression', 'Texture recompression')])
                       SwitchListTile(
                         title: Text(_text(item.$2)),
