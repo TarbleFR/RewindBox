@@ -162,3 +162,17 @@ RPCS3 source `a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a` has now completed
 run 41117115264 successfully and its actual Core, diagnostics and preflight
 archives are authenticated. It replaces 378 only in the new IPA selection;
 the delivered 603 receipt continues to identify its historical 378 payload.
+
+## Runtime validation of the unchanged Core
+
+Source `510e683a149e811e68ea6ab5e766e85c44ab1057` ran the corrected fixture
+in run 41121572662/job 124288787086. The actual reports confirm SVC sequence
+57/generation 1 and sequence 92/generation 2, with donated-backing release
+in both sessions. The new archive preserves all 393 original members byte
+for byte; it does not relabel the failed original run or rebuild either binary.
+Artifact 13009521221 is 87,656,173 bytes, SHA256
+`ed70ba31b1b52fc0fbd55e695b25cc4254d5f90c4f86b930d8bf2958235ac278`.
+Its runtime result SHA256 is
+`3d56f23c61d379728eb62d514449c7ce20d02c5d95f22551a44b44f84efea6c3`.
+The separate private IPA assembly now pins this archive and the successful
+RPCS3 a4d0c9a5 artifact, retaining application 603 as the product baseline.

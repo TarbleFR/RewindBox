@@ -1,33 +1,47 @@
 # Current application identity — RewindBox (21 October 2026)
 
-## Build 604 crash repair and unfinished lots — source candidate, 30 October 2026
+## Build 604 validated components and authorized private IPA — 30 October 2026
 
-The maintainer reports that delivered 603 still crashes after the first frame,
-authorizes push and requests a valid downloadable IPA. They additionally ask
-to complete unfinished lots and reduce game launch time. Preserve delivered
-603 and the latest verified successful RPCS3 Core; do not restore retired
-Mario Kart Pad or old application features. The concurrent a4d0c9a5 RPCS3 run
-is not available until it and its actual artifact pass validation.
+The maintainer authorizes push, requests a valid downloadable IPA, reports that
+603 still crashes after its first frame, and asks to complete unfinished lots
+and reduce launch time. Build 604 assembles delivered 603 plus the four reviewed
+host paths and the independently compiled components below. Do not restore
+Mario Kart Pad or other retired features. The separate RPCS3 Core-only task is
+complete; this current task explicitly authorizes its integration in an IPA.
 
-Current MeloNX source corrections preserve SIMD V31, wrapping vector lists
-and TBX destination liveness; complete 3D syncpoint report publication and
-return the actual threaded conditional backend result with backend-owned
-reservation. The fatal guard records bounded last-dispatch context without
-claiming it is the faulting guest PC. Local executable fixtures reproduce the
-source defects and pass. Core source ada4058f5738465ac882934bb87224b637bcd0a1
-is compiling in run41118873328; Apple Core and physical game success are not
-yet claimed. The shared guard offset and fixed signal size do not identify the
-faulting guest address or instruction width.
+MeloNX ada4058f5738465ac882934bb87224b637bcd0a1 compiled both libraries and
+passed its three affected Apple gates in run41118873328/job124280125758. That
+run remains failed because its 30-second simulator startup budget stopped the
+session before GPU readiness; the diagnostic sampler then obscured the missing
+SVC report. Source510e683a149e811e68ea6ab5e766e85c44ab1057 validates those exact
+binaries separately in run41121572662/job124288787086. Both distinct guest SVC
+sessions and donated-backing releases pass. All393 original archive members
+are identical. Runtime artifact13009521221 is87656173 bytes, SHA256
+ed70ba31b1b52fc0fbd55e695b25cc4254d5f90c4f86b930d8bf2958235ac278.
+No Core or successful historical gate is replayed for delivery.
 
-The Unreal profile dialog now has all 12 translations and localized error
-explanations. Keep explicit consent, default OFF, reversible owned files and
-the mutation gate. Existing JIT fallback, query batching, depth readback and
-thin-mip fixes are retained. CVar consumption and physical black-texture/FPS
-recovery remain unproven. Only changed scopes get fresh tests; historical
-receipts stay attributed to their original exact inputs. See
-`docs/melonx-build603-guard-crash-2026-10-30.md` for sanitized journal evidence,
-local reports, current scope and the launch-time investigation.
+The corrections preserve SIMD V31, wrapped vector lists and TBX destination
+liveness; complete report publication at both syncpoint paths; and return the
+actual threaded conditional backend answer with backend-owned reservations.
+The fatal guard retains safety and records bounded last-dispatch context,
+explicitly not a fault PC or access width. No physical crash recovery is proven.
 
+Host source3c47542cd3a732d60f11a97fe9e6baf42e483539 ran19 Flutter tests,
+zero-error/zero-warning analysis and14 actual UIKit checks successfully. The
+original run41119381432 remains failed only at its receipt parser. Strict
+recovery authenticates its six original outputs and recognizes the dependency
+preamble/two process sidebands; it does not relabel the original run. The
+Unreal dialog has all12 translations and localized error explanations, keeping
+consent, default OFF, reversible owned files and the mutation gate. Presenting
+the game view without animation removes the measured0.510–0.513-second
+baseline transition wait; new iPhone launch-time gain remains unmeasured.
+
+The latest successful RPCS3 a4d0c9a5 Core is selected, with its verified original
+artifact and source. Existing JIT fallback, query batching, depth readback and
+thin-mip fixes remain. CVar consumption, black-texture recovery, device stability
+and FPS are still unproven. The IPA itself must compile and its actual downloaded
+bytes must pass validation before claiming delivery. See
+`docs/melonx-build603-guard-crash-2026-10-30.md` and the604 delivery recipe.
 
 ## RPCS3 device601 Core compiled and verified — 30 October2026
 

@@ -1,0 +1,29 @@
+{
+  "conclusion": "success",
+  "run": 41117115264,
+  "runAttempt": 1,
+  "job": 124274114161,
+  "source": "a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a",
+  "coreSHA256": "f2f167af5cfa7889e76af150b6c9f02e6a19b7f3e881de0397bcafe185dbe19a",
+  "identitySHA256": "9e4e50249aa5aa33c5e2d6a824fbca54cc5e315c67837cc0113110dce6b05296",
+  "proofSHA256": "fcc51ecef5ad3b90ca11f1960080459871f70a4e1c0aef8b8079259aa326eb78",
+  "coreBytes": 77424528,
+  "artifact": {
+    "id": 13007148559,
+    "name": "RPCS3Core-a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a",
+    "bytes": 29263531,
+    "digest": "sha256:b260bb4fa48b72ff889d6e9c4eb061591676b18e12427c0160a44974c9ff2b07"
+  },
+  "diagnosticsArtifact": {
+    "id": 13006694440,
+    "name": "RPCS3Core-diagnostics-a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a",
+    "bytes": 152518949,
+    "digest": "sha256:3663b28d81f196509618a15a8cf18c61b39ac8d582ee800521a96f27f129284e"
+  },
+  "preflightArtifact": {
+    "id": 13005744578,
+    "name": "RPCS3Core-preflight-a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a",
+    "bytes": 109966,
+    "digest": "sha256:bc6d55aa4ae49d7db3dd16a3fc983c7fabc682c03803fc0be8101576dfb2eaf7"
+  }
+}
