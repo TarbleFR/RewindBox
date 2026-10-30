@@ -23,7 +23,7 @@ import urllib.error
 import urllib.request
 
 
-REPOSITORY = "TarbleFR/neostation-ios"
+REPOSITORY = "TarbleFR/RewindBox"
 BRANCH = "Claude"
 API_URL = "https://api.github.com"
 PREFIX = f"/repos/{REPOSITORY}"
