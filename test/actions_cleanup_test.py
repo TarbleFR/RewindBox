@@ -88,6 +88,21 @@ class FakeAPI:
 
 
 class CleanupSafetyTest(unittest.TestCase):
+    def test_same_second_api_order_is_normalized_after_stability_check(self):
+        runs = records(4)
+        for run in runs:
+            run['created_at'] = runs[0]['created_at']
+        class TiedAPI(FakeAPI):
+            def get_json(self, path):
+                value = super().get_json(path)
+                if 'workflow_runs' in value:
+                    value['workflow_runs'].reverse()
+                return value
+        api = TiedAPI(runs)
+        actual = cleanup.list_all_runs(api)
+        self.assertEqual([r['id'] for r in actual], sorted((r['id'] for r in runs), reverse=True))
+        self.assertEqual(api.deleted, [])
+
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)

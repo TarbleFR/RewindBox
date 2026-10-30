@@ -90,7 +90,7 @@ def validate_run(run: object) -> dict:
 
 def validate_order(runs: list[dict]) -> None:
     keys = [run_key(run) for run in runs]
-    if keys != sorted(keys, reverse=True):
+    if [key[0] for key in keys] != sorted((key[0] for key in keys), reverse=True):
         raise SafetyError("Run listing is not in descending creation time/ID order")
     if len({run["id"] for run in runs}) != len(runs):
         raise SafetyError("Duplicate run IDs: pagination moved; refusing cleanup")
@@ -337,7 +337,7 @@ def list_all_runs(api) -> list[dict]:
     check = api.get_json(PREFIX + "/actions/runs?per_page=100&page=1")
     if check.get("total_count") != total or [r.get("id") for r in check.get("workflow_runs", [])] != [r["id"] for r in runs[:100]]:
         raise SafetyError("First page moved during pagination; refusing cleanup")
-    return runs
+    return sorted(runs, key=run_key, reverse=True)
 
 
 def check_refs(api, expected_claude_sha: str, main_sha: str) -> None:
