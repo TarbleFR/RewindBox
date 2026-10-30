@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Authenticate the immediate compiled baseline and build only the Hogwarts literal-memory correction."""
-import argparse,hashlib,importlib,json,os,platform,shutil,subprocess,sys,tempfile,zipfile
+import argparse,hashlib,importlib,json,os,platform,shutil,subprocess,sys,tempfile,time,zipfile
 from pathlib import Path
 import reuse_core_baseline as dependencies
 import verify_core_candidate as common
@@ -13,9 +13,16 @@ def contract():
  for p,h in v['preparationInputs'].items():require(digest(ROOT/p)==h,'Changed Core preparation input: '+p)
  return v
 
+def origin(api, endpoint):
+ for attempt in range(3):
+  try:return dependencies.api(api,endpoint)
+  except subprocess.CalledProcessError:
+   if attempt==2:raise
+   print('Retrying transient GitHub metadata transfer',flush=True);time.sleep(2**attempt)
+
 def prior_archive():
  pin=contract()['baseline'];api=dict(repository='TarbleFR/RewindBox')
- r=dependencies.api(api,'actions/runs/'+str(pin['run']));j=dependencies.api(api,'actions/jobs/'+str(pin['job']));a=dependencies.api(api,'actions/artifacts/'+str(pin['artifact']))
+ r=origin(api,'actions/runs/'+str(pin['run']));j=origin(api,'actions/jobs/'+str(pin['job']));a=origin(api,'actions/artifacts/'+str(pin['artifact']))
  require(r['head_sha']==pin['source']and r['conclusion']=='success'and r['status']=='completed'and r['run_attempt']==1 and r['path']=='.github/workflows/melonx-core.yml','Wrong immediate Core baseline run')
  require(j['head_sha']==pin['source']and j['run_id']==pin['run']and j['conclusion']=='success','Wrong baseline Core job')
  require(a['digest']=='sha256:'+pin['sha256']and a['size_in_bytes']==pin['bytes']and not a['expired']and a['workflow_run']['id']==pin['run']and a['workflow_run']['head_sha']==pin['source'],'Wrong baseline Core archive')
@@ -45,7 +52,7 @@ def preflight():
 
 def reuse_literal_gate(v):
  pin=v['reusedLiteralGate'];api=dict(repository='TarbleFR/RewindBox')
- r=dependencies.api(api,'actions/runs/'+str(pin['run']));j=dependencies.api(api,'actions/jobs/'+str(pin['job']));a=dependencies.api(api,'actions/artifacts/'+str(pin['artifact']))
+ r=origin(api,'actions/runs/'+str(pin['run']));j=origin(api,'actions/jobs/'+str(pin['job']));a=origin(api,'actions/artifacts/'+str(pin['artifact']))
  require(r['head_sha']==pin['source']and r['status']=='completed'and r['conclusion']=='success'and r['run_attempt']==1 and r['path']=='.github/workflows/melonx-core.yml','Wrong successful literal gate producer')
  require(j['head_sha']==pin['source']and j['run_id']==pin['run']and j['conclusion']=='success','Wrong literal gate job')
  require(a['digest']=='sha256:'+pin['sha256']and a['size_in_bytes']==pin['bytes']and not a['expired']and a['workflow_run']['id']==pin['run']and a['workflow_run']['head_sha']==pin['source'],'Wrong literal gate artifact')

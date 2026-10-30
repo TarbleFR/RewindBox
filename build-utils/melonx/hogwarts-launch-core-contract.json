@@ -583,7 +583,7 @@
   ],
   "inputs": {
     ".github/workflows/melonx-core.yml": "1a6777ec5c7796575404f9ad3a305bce41cbf4769a5237abed01b605cde8973b",
-    "build-utils/melonx/verify_hogwarts_launch_core.py": "a7476c5e419011876e3618c43ec14efdd9364f7c6ef728365a0f4ce8c549417e",
+    "build-utils/melonx/verify_hogwarts_launch_core.py": "00b606a2d07b0baa2e65250d98c0d38b7871bcf6ee2e01b32f7e3f3d4d6aa9e2",
     "test/melonx_hogwarts_launch_contract_test.py": "54369a421dde8b9909a270354096d1a7f44727df6df14ef50420bfc1d2dc9b34",
     "test/melonx_literal_memory_test.py": "e866dcc5c7fcfb3a5e9002b9de916b462223f8b077ba6aa118d161a767fe2ee3",
     "test/melonx_literal_memory/Program.cs": "bfce5e8cfdb3828780bc582020fbb57360eba9e16353bf56389b7c4f6a9e37cc",
