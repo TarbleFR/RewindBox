@@ -2,6 +2,21 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## Private IPA597 requested — latest compiled RPCS3, retained MeloNX Core87
+
+The maintainer explicitly requested a new IPA with the new RPCS3 Core.
+Use delivered596 (source d5c5f107, run40968162236) as the application baseline.
+The only host product delta is the already reviewed continuation Store.cpp,
+SHA256 87df68227cf9e113af51ec2ea8968d8af88170834611d560ce711cf168f1ca46.
+Install the authenticated RPCS3 artifact12946200694 from source88cdc5e3,
+run40981514937; retain the exact MeloNX Core87 artifact12931177865.
+Neither Core nor unchanged native suites are rebuilt. The new597 recipe
+verifies source pins and existing producer receipts, compiles the application,
+checks the final signed IPA and encrypts the private delivery to a fresh public
+recipient. The private recipient key is never committed. No public release or
+tag is requested. Compilation and private delivery remain pending until their
+actual receipts are recorded. Do not treat this preparation note as success.
+
 ## RPCS3 continuation Core compiled and independently verified — 30 October 2026
 
 The maintainer requested the new RPCS3 Core. The complete source lot
