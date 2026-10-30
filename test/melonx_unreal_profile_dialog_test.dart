@@ -36,6 +36,14 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(MelonxInternalService.channel,null);
     PathProviderPlatform.instance=previous;documents.deleteSync(recursive:true);
   });
+  Future<void> waitFor(WidgetTester tester, bool Function() ready) async {
+    for (var i=0; i<500; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds:10)));
+      await tester.pump();
+      if (ready()) return;
+    }
+    throw StateError('Real filesystem operation did not finish');
+  }
   Future<void> show(WidgetTester tester) async {
     await tester.pumpWidget(MaterialApp(home:Scaffold(body:Builder(builder:(context) => TextButton(
       onPressed:() => showDialog<void>(context:context,builder:(_) => const MelonxUnrealProfileDialog(gamePath:'/local/Hogwarts.xci')),
@@ -44,21 +52,14 @@ void main() {
     await tester.tap(find.text('Open'));
     // Real filesystem futures need the real event loop; fake-clock animation
     // settling cannot complete them while an indeterminate spinner is active.
-    await tester.runAsync(() async {
-      for (var i=0; i<200; i++) {
-        await Future<void>.delayed(const Duration(milliseconds:10));
-        await tester.pump();
-        if (find.byType(DropdownButtonFormField<String>).evaluate().isNotEmpty) return;
-      }
-      throw StateError('Profile inspection did not finish');
-    });
+    await waitFor(tester, () => find.byType(DropdownButtonFormField<String>).evaluate().isNotEmpty);
     await tester.pumpAndSettle();
   }
   testWidgets('inspection starts with no profile and never writes a mod', (tester) async {
     await show(tester);
     expect(find.text('No experimental profile'),findsOneWidget);
     expect(find.byType(CheckboxListTile),findsNothing);
-    expect(await Directory('${documents.path}/MeloNX/mods').exists(),isFalse);
+    expect(Directory('${documents.path}/MeloNX/mods').existsSync(),isFalse);
     expect(inspections,1);expect(leases,0);
   });
   testWidgets('quality experiment needs explicit consent and uses a fresh gated inspection', (tester) async {
@@ -70,13 +71,11 @@ void main() {
     await tester.tap(find.byType(CheckboxListTile));await tester.pump();
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,isNotNull);
     await tester.ensureVisible(find.text('Apply'));
-    await tester.runAsync(() async {
-      await tester.tap(find.text('Apply'));
-      await mutationComplete.future.timeout(const Duration(seconds:5));
-    });
+    await tester.tap(find.text('Apply'));
+    await waitFor(tester, () => mutationComplete.isCompleted);
     await tester.pumpAndSettle();
     final ini=File('${documents.path}/MeloNX/mods/contents/${MelonxUnrealProfiles.titleId}/${MelonxUnrealProfiles.folder}/romfs/Phoenix/Config/UserEngine.ini');
-    expect(await ini.readAsString(),contains('r.MotionBlurQuality=0'));
+    expect(ini.readAsStringSync(),contains('r.MotionBlurQuality=0'));
     expect(inspections,2);expect(leases,0);
   });
 }
