@@ -137,6 +137,86 @@ def predicate_program(logger):
     return body, len(cases)
 
 
+
+def foundation_dispatch_compatibility(compiler, flags, work, sanitizer):
+    """Exercise the real libdispatch ABI without the SDK's inline predicate assumption.
+
+    LLVM22 UBSan diagnoses the MacOSX15.5 once.h inline assumption on this
+    runner. The production logger and fixture remain byte-identical; only this
+    sanitizer test invokes the public out-of-line dispatch_once function. No
+    sanitizer check, warning or assertion is disabled. Preserve the SDK-inline
+    probe's actual result rather than relabeling it as a passing application test.
+    """
+    if 'undefined' not in sanitizer.split(','):
+        return [], {'mode': 'sdk-inline', 'sanitizerChecksDisabled': False}
+    header = work / 'dispatch-once-public-api.h'
+    header_text = ('#pragma once\n'
+        '#if !defined(__APPLE__) || !defined(RPCS3_DIAGNOSTICS_TESTING)\n'
+        '#error "This adapter is restricted to the Apple logger regression fixture"\n'
+        '#endif\n'
+        '#import <dispatch/dispatch.h>\n'
+        '// Keep the public declarations and select the real library functions.\n'
+        '#undef dispatch_once\n'
+        '#undef dispatch_once_f\n')
+    header.write_text(header_text)
+    probe = work / 'dispatch-once-probe.mm'
+    probe_text = r"""#import <Foundation/Foundation.h>
+#include <atomic>
+#include <cassert>
+#include <cstdio>
+#include <thread>
+#include <vector>
+static dispatch_once_t token;
+static std::atomic<unsigned> calls{0};
+static unsigned initialized;
+static void observe() {
+    dispatch_once(&token, ^{ initialized = 0x597u; ++calls; });
+    assert(initialized == 0x597u);
+}
+int main() {
+    observe();
+    std::vector<std::thread> threads;
+    for (unsigned i = 0; i < 8; ++i)
+        threads.emplace_back([] { for (unsigned j = 0; j < 1000; ++j) observe(); });
+    for (auto& thread : threads) thread.join();
+    assert(calls.load() == 1);
+    std::puts("{\"passed\":true,\"initializations\":1,\"observations\":8001}");
+}
+"""
+    probe.write_text(probe_text)
+    environment = dict(os.environ, ASAN_OPTIONS='detect_leaks=0:halt_on_error=1',
+                       UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')
+    results = {}
+    for name, includes in [('sdk-inline', []), ('public-out-of-line', ['-include', str(header)])]:
+        exe = work / ('dispatch-once-' + name)
+        argv = compiler + flags + ['-fobjc-arc', '-fblocks', '-DRPCS3_DIAGNOSTICS_TESTING=1',
+            '-framework', 'Foundation'] + includes + [str(probe), '-o', str(exe)]
+        build = subprocess.run(argv, capture_output=True, text=True)
+        (work / (name + '-dispatch-build.log')).write_text(build.stdout + build.stderr)
+        build.check_returncode()
+        run = subprocess.run([str(exe)], capture_output=True, text=True, timeout=30, env=environment)
+        (work / (name + '-dispatch-run.log')).write_text(run.stdout + run.stderr)
+        results[name] = {'buildReturnCode': build.returncode, 'runReturnCode': run.returncode,
+                         'stdout': run.stdout, 'stderr': run.stderr}
+        if name == 'sdk-inline' and run.returncode:
+            known = ('/dispatch/once.h:' in run.stderr
+                     and 'runtime error: assumption is violated during execution' in run.stderr
+                     and run.stderr.count('runtime error:') == 1)
+            if not known:
+                raise RuntimeError('Unexpected SDK-inline probe failure: ' + run.stderr)
+            results[name]['knownSDKAssumptionFailure'] = True
+        else:
+            run.check_returncode()
+            assert json.loads(run.stdout) == {'passed': True, 'initializations': 1, 'observations': 8001}
+    receipt = {'mode': 'public-out-of-line', 'sanitizerChecksDisabled': False,
+        'productionSourceModified': False, 'sdkInlineWrapperInstrumented': False,
+        'scope': 'Real libdispatch once-only initialization; SDK-inline assumption excluded by public API selection, not a sanitizer suppression',
+        'adapterSHA256': sha(header_text.encode()), 'probeSHA256': sha(probe_text.encode()),
+        'probes': results}
+    (work / 'dispatch-compatibility.json').write_text(json.dumps(receipt, indent=2) + '\n')
+    return ['-include', str(header)], receipt
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--app', type=Path, default=ROOT)
@@ -186,7 +266,9 @@ def main():
         exe = work / 'foundation-causes'
         logs = work / 'logs'
         logs.mkdir(exist_ok=True)
-        command = compiler + flags + ['-fobjc-arc', '-fblocks', '-DRPCS3_DIAGNOSTICS_TESTING=1',
+        compatibility_flags, compatibility = foundation_dispatch_compatibility(compiler, flags, work, args.sanitizer)
+        report['foundationCompatibility'] = compatibility
+        command = compiler + flags + compatibility_flags + ['-fobjc-arc', '-fblocks', '-DRPCS3_DIAGNOSTICS_TESTING=1',
                    '-framework', 'Foundation', '-I', str(app), '-I', str((app / LOGGER).parent)]
         command += [str(app / LOGGER), str(app / NATIVE), '-o', str(exe)]
         native_build = subprocess.run(command, capture_output=True, text=True)
