@@ -1,0 +1,56 @@
+name: MeloNX ada4058 runtime validation
+run-name: MeloNX unchanged ada4058 runtime validation only • ${{ github.sha }}
+'on':
+  push:
+    branches: [Claude]
+    paths:
+    - .github/workflows/melonx-guard-runtime-validation.yml
+    - build-utils/melonx/validate_guard_runtime.py
+    - build-utils/melonx/guard-runtime-validation.json
+    - test/melonx_runtime_smoke.py
+    - test/melonx_runtime_smoke_evidence_test.py
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: melonx-guard-runtime-validation-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  runtime:
+    if: ${{ contains(github.event.head_commit.message, '[melonx-guard-runtime-validation]') && contains(github.event.head_commit.message, '[melonx-host-only]') }}
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+    - name: Verify primary failure evidence survives diagnostic timeouts
+      run: python3 test/melonx_runtime_smoke_evidence_test.py
+    - name: Restore unchanged native dependencies
+      uses: actions/download-artifact@v4
+      with:
+        name: MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314
+        run-id: 39854858591
+        github-token: ${{ github.token }}
+        path: dist/melonx-native
+    - name: Authenticate original compiled Core and successful gates
+      id: restored
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python3 build-utils/melonx/validate_guard_runtime.py prepare
+    - name: Validate unchanged Core in ARM64 simulator
+      id: smoke
+      run: python3 test/melonx_runtime_smoke.py
+    - name: Preserve original failure and verify fresh runtime proof
+      id: retained
+      if: ${{ always() && steps.restored.outcome == 'success' }}
+      env:
+        MELONX_SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+      run: python3 build-utils/melonx/validate_guard_runtime.py finalize
+    - uses: actions/upload-artifact@v4
+      if: ${{ always() && steps.retained.outputs.verified == 'true' }}
+      with:
+        name: MeloNX-ada4058-runtime-validation-${{ github.run_id }}
+        path: dist/melonx/
+        if-no-files-found: error
+        retention-days: 14

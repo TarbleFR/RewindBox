@@ -95,9 +95,9 @@ exact. The affected MeloNX
 Core is rebuilt from authenticated Core 1630 provenance with seven changed
 production paths, 120 preparation inputs and 160 prepared members.
 
-RPCS3 378509e82 is the currently verified successful Core. Run 41113741373
-failed and produced no Core. The separate a4d0c9a5 attempt is pending and may
-replace 378 only after its complete build and actual artifact verification.
+Delivered 603 contains RPCS3 378509e82. Run 41113741373 failed and produced
+no Core. The later a4d0c9a5 attempt has completed successfully and its actual
+artifact has been verified for the new IPA selection.
 No retired application component is restored.
 
 The immediate MeloNX baseline is the actual authenticated 1630bd02 archive.
@@ -128,3 +128,37 @@ guards. The existing real UIKit presentation/retry/cancellation fixture is
 rerun against the current plugin; its historical registration-failure control
 is not repeated. The observed half-second cost is a baseline measurement, not
 a measured improvement from the new IPA.
+
+## Actual Apple execution and scoped validation recovery
+
+Core source `ada4058f5738465ac882934bb87224b637bcd0a1` compiled both NativeAOT
+libraries in run 41118873328/job 124280125758. All three new Apple gates and
+compiled-source binding passed. The run remains failed: its simulator fixture
+requested stop after 30 seconds, before GPU initialization at about 35 seconds.
+The native session drained cleanly, but the required guest SVC was not proven.
+A subsequent optional stack-sampling timeout masked the primary test report.
+The retained artifact 13007577275 is 87,638,481 bytes, SHA256
+`93771c1ff47396f841534463ec6ea49ad3657d8a815e8c39c3d63e138c926395`.
+
+A targeted runtime validation reuses those exact compiled bytes and successful
+gate reports. Its fixture allows 90 seconds for the guest SVC, then separately
+45 seconds for teardown, within a 300-second overall app bound. Both distinct
+sessions, generation checks, guest SVC evidence and donated-backing release
+remain mandatory. Primary outcomes are saved before optional diagnostics.
+Thirty evidence-writer checks pass; the new actual simulator execution remains
+a delivery prerequisite. No Core or unchanged regression gate is rebuilt.
+
+Host source `3c47542cd3a732d60f11a97fe9e6baf42e483539`, run 41119381432/job
+124281873638, passed 19 Flutter tests, the analyzer (zero errors or warnings,
+six informational diagnostics) and 14 actual UIKit checks. Its run also remains
+failed because the receipt parser rejected Flutter dependency output and valid
+`test.startedProcess` sideband events. The original six-output archive is
+authenticated: artifact 13008895566, 6,148 bytes, SHA256
+`618cf64968a41b554ca691499a645590fca03d85972035064ab6246a59b31b30`.
+The strict corrected parser recovers the actual successful evidence while
+retaining the producer failure; no successful host fixture is replayed.
+
+RPCS3 source `a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a` has now completed
+run 41117115264 successfully and its actual Core, diagnostics and preflight
+archives are authenticated. It replaces 378 only in the new IPA selection;
+the delivered 603 receipt continues to identify its historical 378 payload.

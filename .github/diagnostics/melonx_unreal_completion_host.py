@@ -88,7 +88,33 @@ def prepare():
 
 
 def test_result(raw):
-    events = [json.loads(line) for line in raw.decode().splitlines() if line.strip()]
+    events, preamble, sidebands = [], [], []
+    for line in raw.decode().splitlines():
+        if not line.strip():
+            continue
+        if not events and not line.startswith(('{', '[')):
+            # Flutter resolves dependencies before package:test opens its stream.
+            preamble.append(line)
+            continue
+        event = json.loads(line)  # No non-JSON text is accepted after stream start.
+        if isinstance(event, list):
+            require(events and event == [{'event': 'test.startedProcess',
+                                          'params': {'vmServiceUri': None}}],
+                    'Unexpected Flutter sideband event')
+            sidebands.append(event[0]['event'])
+            continue
+        require(isinstance(event, dict) and isinstance(event.get('type'), str),
+                'Invalid package:test event')
+        require(events or event['type'] == 'start', 'Missing machine stream start')
+        events.append(event)
+    if preamble:
+        require(preamble[:2] == ['Resolving dependencies...', 'Downloading packages...'] and
+                preamble[-3] == 'Got dependencies!' and
+                re.fullmatch(r'\d+ packages have newer versions incompatible with dependency constraints\.', preamble[-2]) and
+                preamble[-1] == 'Try `flutter pub outdated` for more information.',
+                'Unexpected dependency preamble')
+        require(all(re.fullmatch(r'(?:  |! )[a-zA-Z0-9_]+ [0-9][A-Za-z0-9.+-]*(?: \(overridden in \./pubspec_overrides\.yaml\))? \([0-9][A-Za-z0-9.+-]* available\)', line)
+                    for line in preamble[2:-3]), 'Unexpected dependency resolver output')
     done = [event for event in events if event.get('type') == 'done']
     require(len(done) == 1 and done[0].get('success') is True, 'Flutter suite did not pass')
     require(not any(event.get('type') == 'error' for event in events), 'Flutter reported an error')
@@ -116,7 +142,10 @@ def test_result(raw):
         paths.add(matches[0])
     require(paths == set(TEST_PATHS), 'Unexpected or missing executed test file')
     require(RETAINED_TEST_NAMES <= names, 'Existing consent scenarios were not executed')
-    return dict(tests=len(tests), names=sorted(names), files=sorted(paths))
+    return dict(tests=len(tests), names=sorted(names), files=sorted(paths),
+                dependencyPreambleLines=len(preamble),
+                dependencyPreambleSHA256=sha(('\n'.join(preamble) + ('\n' if preamble else '')).encode()),
+                sidebandEvents={name: sidebands.count(name) for name in sorted(set(sidebands))})
 
 
 def analyzer_result(raw):
@@ -167,26 +196,25 @@ def analyze():
     return dict(record, diagnostics=analyzer_result(process.stdout))
 
 
-def finalize():
-    before = json.loads((OUT / 'preflight.json').read_bytes())
-    require(before['execution'] == execution() and before['inputs'] == current_inputs(),
-            'Host inputs changed during validation')
-    tests_raw = (OUT / 'flutter-tests.jsonl').read_bytes()
-    analyzer = (OUT / 'analyzer.txt').read_bytes()
-    analysis = json.loads((OUT / 'analyzer-execution.json').read_bytes())
+def result_from_outputs(before, outputs):
+    """Parse authenticated outputs without claiming their execution happened here."""
+    tests_raw = outputs['flutter-tests.jsonl']
+    analyzer = outputs['analyzer.txt']
+    analysis = json.loads(outputs['analyzer-execution.json'])
     require(analysis['exitCode'] == 0 and analysis['stdoutSHA256'] == sha(analyzer), 'Analyzer exit/output mismatch')
-    require(analysis['stderrSHA256'] == sha((OUT / 'analyzer-stderr.txt').read_bytes()), 'Analyzer stderr changed')
+    require(analysis['stderrSHA256'] == sha(outputs['analyzer-stderr.txt']), 'Analyzer stderr changed')
+    require(analysis['command'] == ['dart', 'analyze', '--format=machine', '--fatal-warnings', *ANALYZER_PATHS], 'Wrong analyzer scope')
     diagnostics = analyzer_result(analyzer)
-    presentation_raw = (OUT / 'presentation.json').read_bytes()
+    presentation_raw = outputs['presentation.json']
     presentation = json.loads(presentation_raw)
-    require(presentation['result'] == 'passed' and presentation['source'] == source(), 'Wrong UIKit source/result')
+    require(presentation['result'] == 'passed' and presentation['source'] == before['execution']['source'], 'Wrong UIKit source/result')
     require(presentation['inputs'] == {path: before['inputs'][path] for path in UIKIT_PATHS}, 'UIKit input boundary mismatch')
     require(presentation['historicalControlReexecuted'] is False and presentation['oldControlSource'] is None, 'Historical UIKit control replayed')
     require(len(presentation['reports']) == 1 and presentation['reports'][0]['result'] == 'passed' and presentation['reports'][0]['oldControl'] is False, 'Current UIKit scenario did not pass')
     current_presentation = presentation['reports'][0]
     require(all(current_presentation[key] is True for key in ('actualUIKit','actualFlutterFramework','registrarBoundaryDouble','engineAndJitDouble','guestFrameDouble')), 'Missing actual UIKit or declared doubles')
     require(presentation['physicalDeviceTested'] is False and presentation['gameplayTested'] is False, 'UIKit scope mislabeled')
-    result = dict(result='passed', execution=execution(), inputs=before['inputs'],
+    return dict(result='passed', execution=before['execution'], inputs=before['inputs'],
                   productPaths=list(PRODUCT_PATHS), testPaths=list(TEST_PATHS),
                   **test_result(tests_raw), analyzer='passed', analyzerDiagnostics=diagnostics, analyzerExecution=analysis,
                   presentation=presentation, presentationSHA256=sha(presentation_raw),
@@ -195,6 +223,15 @@ def finalize():
                   unchangedNativeSuitesReexecuted=False,
                   unchangedServiceSuitesReexecuted=False,
                   physicalDeviceTested=False, gameplayTested=False)
+
+
+def finalize():
+    before = json.loads((OUT / 'preflight.json').read_bytes())
+    require(before['execution'] == execution() and before['inputs'] == current_inputs(),
+            'Host inputs changed during validation')
+    names = ('flutter-tests.jsonl', 'analyzer.txt', 'analyzer-execution.json',
+             'analyzer-stderr.txt', 'presentation.json')
+    result = result_from_outputs(before, {name: (OUT / name).read_bytes() for name in names})
     (OUT / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
     return result
 

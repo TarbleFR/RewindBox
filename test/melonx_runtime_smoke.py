@@ -19,6 +19,42 @@ ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'dist/melonx-smoke';OUT.mkdir(parents=True,exist_ok=True)
 def run(*args): return subprocess.check_output(list(map(str,args)),text=True,stderr=subprocess.STDOUT,timeout=300).strip()
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+
+def retain_runtime_evidence(result,container,runtime,core,sources,pid,device):
+ # Persist the primary app outcome before optional diagnostics can time out.
+ missing=not result.exists()
+ if not missing:
+  raw=result.read_bytes();(OUT/'smoke-raw.json').write_bytes(raw)
+  try:report=json.loads(raw)
+  except (ValueError,UnicodeError):report={'result':'failed','diagnostic':'Actual NativeAOT app wrote an invalid smoke report'}
+ else:report={'result':'failed','diagnostic':'Actual NativeAOT bootstrap did not report completion'}
+ report['runtime']=runtime;report['coreSha256']=sha(core)
+ report['inputs']={str(p.relative_to(ROOT)):sha(p) for p in sources}
+ target=OUT/'actual-runtime.json'
+ target.write_text(json.dumps(report,indent=2)+'\n')
+ diagnostics=[]
+ for name in ('native-runtime.log','app.log'):
+  try:
+   path=container/'Documents'/name
+   if path.exists():
+    text=path.read_text(errors='replace')[-1000000:];(OUT/name).write_text(text)
+    if name=='native-runtime.log':print(text[-20000:],flush=True)
+  except OSError as error:diagnostics.append(name+': '+type(error).__name__)
+ if report.get('result')!='passed':
+  try:
+   sampled=subprocess.run(['sample',pid,'1','1','-file',str(OUT/'native-stacks.txt')],capture_output=True,text=True,timeout=20)
+   diagnostics.append('sample exit '+str(sampled.returncode))
+   if (OUT/'native-stacks.txt').exists():print((OUT/'native-stacks.txt').read_text(errors='replace')[:70000],flush=True)
+  except (subprocess.TimeoutExpired,OSError) as error:diagnostics.append('sample: '+type(error).__name__)
+  if missing:
+   try:
+    logged=subprocess.run(['xcrun','simctl','spawn',device,'log','show','--last','5m','--predicate','process == "MeloNXSmoke"'],capture_output=True,text=True,timeout=20)
+    (OUT/'simulator.log').write_text(logged.stdout);diagnostics.append('simulator log exit '+str(logged.returncode))
+   except (subprocess.TimeoutExpired,OSError) as error:diagnostics.append('simulator log: '+type(error).__name__)
+ if diagnostics:
+  report['diagnosticCollection']=diagnostics;target.write_text(json.dumps(report,indent=2)+'\n')
+ return report
+
 core=ROOT/'dist/melonx/iossimulator-arm64/Ryujinx.Library.dylib'
 identity=json.loads(core.with_name('identity.json').read_text());assert sha(core)==identity['sha256']
 deps=ROOT/'dist/melonx-native';native=json.loads((deps/'identity.json').read_text())
@@ -187,8 +223,9 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
          // Bind this proof to events produced after this session's start.
          let beforeEvents=runtime.diagnostics()["events"] as? [[String:Any]] ?? []
          let beforeSequence=beforeEvents.compactMap { ($0["sequence"] as? NSNumber)?.int64Value }.max() ?? 0
-         let guestDeadline=DispatchTime.now()+30
-         let sessionDeadline=DispatchTime.now()+45
+         // A cold simulator GPU can initialize after the former 30-second
+         // deadline. Bound startup separately from the mandatory clean stop.
+         let guestDeadline=DispatchTime.now()+90
          guard runtime.offerMemory(donation,bytes:UInt64(donationBytes)) else {throw NSError(domain:"actual-memory-offer",code:22)}
          var borrowedWhileRunning=false
          var liveWithdrawalRefused=false
@@ -237,7 +274,7 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
            owner?.requestStop()
          }
          if !sessionEnded {
-           guard ended.wait(timeout:sessionDeadline) == .success else {throw NSError(domain:"homebrew-session-timeout",code:9)}
+           guard ended.wait(timeout:.now()+45) == .success else {throw NSError(domain:"homebrew-session-timeout",code:9)}
          }
          guard let completedOutcome=outcome else {throw NSError(domain:"homebrew-result",code:12)}
          if case .failure(let error)=completedOutcome {throw error}
@@ -287,21 +324,9 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
   launched=run('xcrun','simctl','launch',device,bundle)
   pid=launched.rsplit(':',1)[-1].strip();assert pid.isdigit(),launched
   container=Path(run('xcrun','simctl','get_app_container',device,bundle,'data'));result=container/'Documents/smoke.json'
-  deadline=time.monotonic()+120
+  deadline=time.monotonic()+300
   while not result.exists() and time.monotonic()<deadline:time.sleep(1)
-  native_log=container/'Documents/native-runtime.log'
-  if native_log.exists():
-   text=native_log.read_text(errors='replace');(OUT/'native-runtime.log').write_text(text[-1000000:]);print(text[-20000:],flush=True)
-  if not result.exists() or json.loads(result.read_text()).get('result') != 'passed':
-   sampled=subprocess.run(['sample',pid,'1','1','-file',str(OUT/'native-stacks.txt')],capture_output=True,text=True,timeout=20)
-   print('Native process stack sampling:',sampled.returncode,flush=True)
-   if (OUT/'native-stacks.txt').exists():print((OUT/'native-stacks.txt').read_text(errors='replace')[:70000],flush=True)
-  if not result.exists():
-   (OUT/'simulator.log').write_text(run('xcrun','simctl','spawn',device,'log','show','--last','3m','--predicate','process == "MeloNXSmoke"'))
-   raise RuntimeError('Actual NativeAOT bootstrap did not report completion')
-  report=json.loads(result.read_text());report['runtime']=runtime;report['coreSha256']=sha(core)
-  report['inputs']={str(p.relative_to(ROOT)):sha(p) for p in [*sources,Path(__file__)]}
-  (OUT/'actual-runtime.json').write_text(json.dumps(report,indent=2)+'\n')
+  report=retain_runtime_evidence(result,container,runtime,core,[*sources,Path(__file__)],pid,device)
   print(json.dumps(report,indent=2));assert report['result']=='passed',report
  finally:
   subprocess.run(['xcrun','simctl','shutdown',device],check=False);subprocess.run(['xcrun','simctl','delete',device],check=False)

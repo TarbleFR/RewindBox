@@ -1,0 +1,208 @@
+{
+  "result": "passed",
+  "execution": {
+    "source": "3c47542cd3a732d60f11a97fe9e6baf42e483539",
+    "run": 41119381432,
+    "attempt": 1
+  },
+  "inputs": {
+    "lib/l10n/melonx_unreal_profile_locale.dart": "5c4afbb2266d677a405847bf149bfaf9d72313379f8ea4158549b1ac77e55fd4",
+    "lib/widgets/melonx_unreal_profile_dialog.dart": "f0d8854e54fc73be822ecf44129eb12a3e3a9d83d5d71181d60306ca2117d6d5",
+    "lib/widgets/melonx_internal_playlist_actions.dart": "440d338063c96e48236bf8d8fab8d4f2d88b9d6fd5430efb9e850a96aaea9020",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "ad4cc5d47118b7e8f6faf8e498aedb99f0211be091131a99353eb07b2544a8bc",
+    "test/melonx_unreal_profile_dialog_test.dart": "1f7907b663d19bbc44f83e914c4a7ab217b2333c98a9a5867fa2f52a38ce85c0",
+    "test/melonx_unreal_profile_locale_test.dart": "f91b74b1c8b6ed67543f1fb58008ee4ab739b8daf4a3177b27498cc5b1e52e2d",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXPresentation.swift": "94882dac3c73ebc3cda382a90267cae14586afeab12349c6ac81e2c8ac277b1f",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift": "a97bdfd93c49401841eb94869cc1496fc33f08e12faa17d07ff97186709729a7",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXHogwartsGraphics.swift": "c9ccc867ef1aaecc8fa734ab69e382f3c561760518a165b1ae94c4c40dca5c2a",
+    "test/melonx_presentation_test.py": "026631dc8d6289066c11c28e3b6d8f05764200ba7639f5773dc7ed9575ecafdc",
+    "test/melonx_presentation/App.swift": "2d40df9b9c657254ac5cc01a7d77fbe1f31185d862e923f0dfd68ad24ed7b6e6",
+    "test/melonx_presentation/Doubles.swift": "042d1f41a27c6f4f2aaa5be975eeb525e0a7ef7e22ec13d6dd5a818624dd8b47",
+    "test/melonx_presentation/Registrar.h": "f033df62f4cd06c95d651c1944a62694fe3aa4aa6bff0584df61d31dd22c1715",
+    "test/melonx_presentation/Registrar.m": "26d97d355c659107fe3527dcedf4083f33c5f7dfba44d0a9c6982ae1177e99b2",
+    "lib/l10n/app_locale.dart": "837d845440cc2f01ba37f66ec8252569b5b246edc764a931e914f1f5665bf2c4",
+    "lib/services/melonx_unreal_profiles.dart": "5601614dddb2e8a5f5e2877b92ddf63063431c13fd42ae462b8eb5799e849540",
+    "lib/services/melonx_internal_service.dart": "5662294195f0caf4522a1118609ad8fe4187785e5be941af7ca011b945351b52",
+    "pubspec.yaml": "09cb00db684ff0649a1f4a501d1ce4b3e6547b5403ec98477da1e68f675bf83b",
+    "pubspec.lock": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+    ".github/workflows/melonx-completion-host.yml": "859133e13a4db67a5706563ef5fc9f1538c341c7f88766269a220da0fafd0cf7",
+    ".github/diagnostics/melonx_unreal_completion_host.py": "62b92fde1bad7f67bccfc4e98865e25c16cfea9ff379940150bc53432bc7e0ba"
+  },
+  "productPaths": [
+    "lib/l10n/melonx_unreal_profile_locale.dart",
+    "lib/widgets/melonx_unreal_profile_dialog.dart",
+    "lib/widgets/melonx_internal_playlist_actions.dart",
+    "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift"
+  ],
+  "testPaths": [
+    "test/melonx_unreal_profile_dialog_test.dart",
+    "test/melonx_unreal_profile_locale_test.dart"
+  ],
+  "tests": 19,
+  "names": [
+    "Traditional Chinese script and regional selections use their catalog",
+    "Unreal profile catalog covers all twelve application languages",
+    "de: all messages and placeholders are translated",
+    "en: all messages and placeholders are translated",
+    "es: all messages and placeholders are translated",
+    "failed fresh inspection writes no profile and releases the mutation gate",
+    "fr: all messages and placeholders are translated",
+    "id: all messages and placeholders are translated",
+    "inspection failure separates explanation from technical details",
+    "inspection starts with no profile and never writes a mod",
+    "it: all messages and placeholders are translated",
+    "ja: all messages and placeholders are translated",
+    "ko: all messages and placeholders are translated",
+    "project names are substituted without changing technical identifiers",
+    "pt: all messages and placeholders are translated",
+    "quality experiment needs explicit consent and uses a fresh gated inspection",
+    "ru: all messages and placeholders are translated",
+    "zh: all messages and placeholders are translated",
+    "zh_Hant: all messages and placeholders are translated"
+  ],
+  "files": [
+    "test/melonx_unreal_profile_dialog_test.dart",
+    "test/melonx_unreal_profile_locale_test.dart"
+  ],
+  "dependencyPreambleLines": 83,
+  "dependencyPreambleSHA256": "586c7f9cdefad8be858a173981013e78bc19fbfb96c947eef72926799f3cee96",
+  "sidebandEvents": {
+    "test.startedProcess": 2
+  },
+  "analyzer": "passed",
+  "analyzerDiagnostics": {
+    "result": "passed",
+    "errors": 0,
+    "warnings": 0,
+    "infos": 6,
+    "diagnostics": [
+      {
+        "severity": "INFO",
+        "type": "LINT",
+        "code": "CURLY_BRACES_IN_FLOW_CONTROL_STRUCTURES",
+        "path": "/Users/runner/work/RewindBox/RewindBox/lib/widgets/melonx_internal_playlist_actions.dart",
+        "line": 70,
+        "column": 7,
+        "length": 133,
+        "message": "Statements in an if should be enclosed in a block."
+      },
+      {
+        "severity": "INFO",
+        "type": "LINT",
+        "code": "CURLY_BRACES_IN_FLOW_CONTROL_STRUCTURES",
+        "path": "/Users/runner/work/RewindBox/RewindBox/lib/widgets/melonx_internal_playlist_actions.dart",
+        "line": 85,
+        "column": 7,
+        "length": 7,
+        "message": "Statements in an if should be enclosed in a block."
+      },
+      {
+        "severity": "INFO",
+        "type": "LINT",
+        "code": "CURLY_BRACES_IN_FLOW_CONTROL_STRUCTURES",
+        "path": "/Users/runner/work/RewindBox/RewindBox/lib/widgets/melonx_internal_playlist_actions.dart",
+        "line": 133,
+        "column": 7,
+        "length": 88,
+        "message": "Statements in an if should be enclosed in a block."
+      },
+      {
+        "severity": "INFO",
+        "type": "LINT",
+        "code": "CURLY_BRACES_IN_FLOW_CONTROL_STRUCTURES",
+        "path": "/Users/runner/work/RewindBox/RewindBox/lib/widgets/melonx_internal_playlist_actions.dart",
+        "line": 172,
+        "column": 27,
+        "length": 265,
+        "message": "Statements in an if should be enclosed in a block."
+      },
+      {
+        "severity": "INFO",
+        "type": "LINT",
+        "code": "CURLY_BRACES_IN_FLOW_CONTROL_STRUCTURES",
+        "path": "/Users/runner/work/RewindBox/RewindBox/lib/widgets/melonx_internal_playlist_actions.dart",
+        "line": 298,
+        "column": 9,
+        "length": 517,
+        "message": "Statements in an if should be enclosed in a block."
+      },
+      {
+        "severity": "INFO",
+        "type": "LINT",
+        "code": "DEPEND_ON_REFERENCED_PACKAGES",
+        "path": "/Users/runner/work/RewindBox/RewindBox/test/melonx_unreal_profile_dialog_test.dart",
+        "line": 6,
+        "column": 8,
+        "length": 80,
+        "message": "The imported package 'path_provider_platform_interface' isn't a dependency of the importing package."
+      }
+    ]
+  },
+  "analyzerExecution": {
+    "command": [
+      "dart",
+      "analyze",
+      "--format=machine",
+      "--fatal-warnings",
+      "lib/l10n/melonx_unreal_profile_locale.dart",
+      "lib/widgets/melonx_unreal_profile_dialog.dart",
+      "lib/widgets/melonx_internal_playlist_actions.dart",
+      "test/melonx_unreal_profile_dialog_test.dart",
+      "test/melonx_unreal_profile_locale_test.dart"
+    ],
+    "exitCode": 0,
+    "stdoutSHA256": "f200631aa71f42d57818bb78f4429f7cb3a8a0e601be606b232693c911908cb5",
+    "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "presentation": {
+    "result": "passed",
+    "source": "3c47542cd3a732d60f11a97fe9e6baf42e483539",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+    "oldControlSource": null,
+    "historicalControlReexecuted": false,
+    "reports": [
+      {
+        "actualFlutterFramework": true,
+        "actualUIKit": true,
+        "checks": 14,
+        "detachCalls": 1,
+        "detail": "presentation, retry and donor quarantine passed",
+        "engineAndJitDouble": true,
+        "gameplayTested": false,
+        "guestFrameDouble": true,
+        "oldControl": false,
+        "physicalDeviceTested": false,
+        "presentedSessions": 3,
+        "registrarBoundaryDouble": true,
+        "result": "passed"
+      }
+    ],
+    "inputs": {
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXInternalBridgePlugin.swift": "ad4cc5d47118b7e8f6faf8e498aedb99f0211be091131a99353eb07b2544a8bc",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXPresentation.swift": "94882dac3c73ebc3cda382a90267cae14586afeab12349c6ac81e2c8ac277b1f",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXStandaloneParity.swift": "a97bdfd93c49401841eb94869cc1496fc33f08e12faa17d07ff97186709729a7",
+      "packages/melonx_internal_bridge/ios/Classes/MeloNXHogwartsGraphics.swift": "c9ccc867ef1aaecc8fa734ab69e382f3c561760518a165b1ae94c4c40dca5c2a",
+      "test/melonx_presentation_test.py": "026631dc8d6289066c11c28e3b6d8f05764200ba7639f5773dc7ed9575ecafdc",
+      "test/melonx_presentation/App.swift": "2d40df9b9c657254ac5cc01a7d77fbe1f31185d862e923f0dfd68ad24ed7b6e6",
+      "test/melonx_presentation/Doubles.swift": "042d1f41a27c6f4f2aaa5be975eeb525e0a7ef7e22ec13d6dd5a818624dd8b47",
+      "test/melonx_presentation/Registrar.h": "f033df62f4cd06c95d651c1944a62694fe3aa4aa6bff0584df61d31dd22c1715",
+      "test/melonx_presentation/Registrar.m": "26d97d355c659107fe3527dcedf4083f33c5f7dfba44d0a9c6982ae1177e99b2"
+    },
+    "physicalDeviceTested": false,
+    "gameplayTested": false
+  },
+  "presentationSHA256": "456dea6a77c82b489a2747c38f3bcdad708bf01046249a15790fa1b9b295bbb2",
+  "testOutputSHA256": "a1c2a0b8d2f3873a70ce16ae098bf8f464775c0af0bb825c6e726950523b8a93",
+  "analyzerOutputSHA256": "f200631aa71f42d57818bb78f4429f7cb3a8a0e601be606b232693c911908cb5",
+  "sourceEnvironment": "macos-26/Flutter3.47.2",
+  "hostEnvironment": {
+    "system": "Darwin",
+    "machine": "arm64",
+    "xcode": "Xcode 26.6\nBuild version 17F113",
+    "swift": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0"
+  },
+  "unchangedNativeSuitesReexecuted": false,
+  "unchangedServiceSuitesReexecuted": false,
+  "physicalDeviceTested": false,
+  "gameplayTested": false
+}
