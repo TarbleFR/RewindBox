@@ -336,6 +336,18 @@ if __name__ == '__main__':
     p.add_argument('--verify-reuse', type=Path)
     p.add_argument('--write-core-identity', type=Path)
     a = p.parse_args()
+    if 'continuation_20261030' in manifest():
+        # Keep the established workflow and compiler recipe unchanged.
+        import rpcs3continuation_core as continuation
+        if a.write_core_identity:
+            continuation.identity(a.write_core_identity)
+        elif a.source and a.verify_reuse:
+            continuation.verify(a.verify_reuse, a.source.resolve())
+        elif a.source:
+            continuation.prepare(a.source.resolve())
+        else:
+            p.error('continuation source requires --source or --write-core-identity')
+        raise SystemExit
     if 'deep_audit_20261029' in manifest():
         # The original runtime592 workflow remains byte-for-byte unchanged.
         # Only the candidate validation is routed to its changed SPU/RSX
