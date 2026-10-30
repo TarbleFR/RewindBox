@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Run the real registered Swift plugin in UIKit with explicit guest/JIT doubles."""
-import hashlib,json,os,plistlib,shutil,subprocess,tempfile,time,uuid
+import argparse,hashlib,json,os,plistlib,shutil,subprocess,tempfile,time,uuid
 from pathlib import Path
 
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--current-only',action='store_true',help='Validate the changed current plugin without replaying the historical registration failure')
+args=parser.parse_args()
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'dist/melonx-host';OUT.mkdir(parents=True,exist_ok=True)
 CLASSES=ROOT/'packages/melonx_internal_bridge/ios/Classes'
@@ -14,14 +17,19 @@ flutter=Path(os.environ['FLUTTER_ROOT'])/'bin/cache/artifacts/engine/ios/Flutter
 framework=next(flutter.glob('*simulator*/Flutter.framework'))
 sdk=run('xcrun','--sdk','iphonesimulator','--show-sdk-path')
 runtimes=json.loads(run('xcrun','simctl','list','runtimes','-j'))['runtimes']
-runtime=next(r['identifier'] for r in reversed(runtimes) if r.get('isAvailable') and '.iOS-' in r['identifier'])
+# The existing scenarios exercise the iOS26 universal one-time handshake.
+# Selecting an older simulator would take a different production JIT branch.
+available=[r for r in runtimes if r.get('isAvailable') and '.iOS-' in r['identifier']
+           and int(r['version'].split('.')[0]) >= 26]
+assert available, 'An available iOS26+ simulator is required for the universal JIT presentation scenarios'
+runtime=max(available,key=lambda r:tuple(int(n) for n in r['version'].split('.')))['identifier']
 device=run('xcrun','simctl','create','MeloNX presentation '+uuid.uuid4().hex[:8],'com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro',runtime)
 reports=[]
 try:
     run('xcrun','simctl','boot',device);run('xcrun','simctl','bootstatus',device,'-b')
     with tempfile.TemporaryDirectory(prefix='melonx-presentation-') as temporary:
         work=Path(temporary)
-        for old in [True,False]:
+        for old in ([False] if args.current_only else [True,False]):
             name='Old' if old else 'New'
             app=work/(name+'.app');(app/'Frameworks').mkdir(parents=True)
             shutil.copytree(framework,app/'Frameworks/Flutter.framework')
@@ -41,7 +49,7 @@ try:
                 run('xcrun','swiftc','-swift-version','5','-target','arm64-apple-ios18.0-simulator','-sdk',sdk,
                     '-F',framework.parent,'-framework','Flutter','-framework','UIKit','-framework','AVFoundation',
                     '-import-objc-header',FIXTURES/'Registrar.h','-Xlinker','-rpath','-Xlinker','@executable_path/Frameworks',
-                    source,CLASSES/'MeloNXPresentation.swift',CLASSES/'MeloNXStandaloneParity.swift',FIXTURES/'Doubles.swift',FIXTURES/'App.swift',obj,'-o',app/name)
+                    source,CLASSES/'MeloNXPresentation.swift',CLASSES/'MeloNXStandaloneParity.swift',CLASSES/'MeloNXHogwartsGraphics.swift',FIXTURES/'Doubles.swift',FIXTURES/'App.swift',obj,'-o',app/name)
                 run('codesign','--force','--sign','-',app/'Frameworks/Flutter.framework')
                 run('codesign','--force','--sign','-',app)
                 run('xcrun','simctl','install',device,app)
@@ -62,9 +70,10 @@ try:
 finally:
     subprocess.run(['xcrun','simctl','shutdown',device],check=False,capture_output=True)
     subprocess.run(['xcrun','simctl','delete',device],check=False,capture_output=True)
-inputs=[CLASSES/'MeloNXInternalBridgePlugin.swift',CLASSES/'MeloNXPresentation.swift',CLASSES/'MeloNXStandaloneParity.swift',Path(__file__),*sorted(FIXTURES.glob('*'))]
+inputs=[CLASSES/'MeloNXInternalBridgePlugin.swift',CLASSES/'MeloNXPresentation.swift',CLASSES/'MeloNXStandaloneParity.swift',CLASSES/'MeloNXHogwartsGraphics.swift',Path(__file__),*sorted(FIXTURES.glob('*'))]
 receipt=dict(result='passed',source=run('git','-C',ROOT,'rev-parse','HEAD'),runtime=runtime,
-    oldControlSource='fa6d056e668e55fb7b96959b20cc15064e52e68a',reports=reports,
+    oldControlSource=None if args.current_only else 'fa6d056e668e55fb7b96959b20cc15064e52e68a',
+    historicalControlReexecuted=not args.current_only,reports=reports,
     inputs={str(p.relative_to(ROOT)):sha(p) for p in inputs},physicalDeviceTested=False,gameplayTested=False)
 (OUT/'presentation.json').write_text(json.dumps(receipt,indent=2)+'\n')
 print('PASS actual UIKit registration/presentation/retry; engine, JIT and guest frames are explicit doubles.')

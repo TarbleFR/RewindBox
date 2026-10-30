@@ -1,5 +1,34 @@
 # Current application identity — RewindBox (21 October 2026)
 
+## Build 604 crash repair and unfinished lots — source candidate, 30 October 2026
+
+The maintainer reports that delivered 603 still crashes after the first frame,
+authorizes push and requests a valid downloadable IPA. They additionally ask
+to complete unfinished lots and reduce game launch time. Preserve delivered
+603 and the latest verified successful RPCS3 Core; do not restore retired
+Mario Kart Pad or old application features. The concurrent a4d0c9a5 RPCS3 run
+is not available until it and its actual artifact pass validation.
+
+Current MeloNX source corrections preserve SIMD V31, wrapping vector lists
+and TBX destination liveness; complete 3D syncpoint report publication and
+return the actual threaded conditional backend result with backend-owned
+reservation. The fatal guard records bounded last-dispatch context without
+claiming it is the faulting guest PC. Local executable fixtures reproduce the
+source defects and pass. Core source ada4058f5738465ac882934bb87224b637bcd0a1
+is compiling in run41118873328; Apple Core and physical game success are not
+yet claimed. The shared guard offset and fixed signal size do not identify the
+faulting guest address or instruction width.
+
+The Unreal profile dialog now has all 12 translations and localized error
+explanations. Keep explicit consent, default OFF, reversible owned files and
+the mutation gate. Existing JIT fallback, query batching, depth readback and
+thin-mip fixes are retained. CVar consumption and physical black-texture/FPS
+recovery remain unproven. Only changed scopes get fresh tests; historical
+receipts stay attributed to their original exact inputs. See
+`docs/melonx-build603-guard-crash-2026-10-30.md` for sanitized journal evidence,
+local reports, current scope and the launch-time investigation.
+
+
 ## RPCS3 device601 Core compilation requested — 30 October2026
 
 The maintainer now authorizes the new iPhone Core compilation, not an IPA

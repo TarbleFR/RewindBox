@@ -1,4 +1,5 @@
 import '../l10n/melonx_transfer_locale.dart';
+import '../l10n/melonx_unreal_profile_locale.dart';
 import 'melonx_transfer_dialog.dart';
 import 'playlist_import_button.dart';
 import 'melonx_hogwarts_graphics_options.dart';
@@ -492,8 +493,7 @@ class _MelonxGraphicsDialogState extends State<_MelonxGraphicsDialog> {
                       TextButton(
                         onPressed: () => showDialog<void>(context: context,
                           builder: (_) => MelonxUnrealProfileDialog(gamePath: widget.gamePath)),
-                        child: Text(Localizations.localeOf(context).languageCode == 'fr'
-                            ? 'Expériences Unreal Engine' : 'Unreal Engine experiments'),
+                        child: Text(MelonxUnrealProfileLocale.text(context, 'title')),
                       ),
                     for (final item in [('donateMemory', 'Use RamDonor'), ('hostMemoryBudget', 'Track available memory'), ('textureRecompression', 'Texture recompression')])
                       SwitchListTile(

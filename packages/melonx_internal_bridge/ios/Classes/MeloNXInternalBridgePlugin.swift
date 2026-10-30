@@ -402,7 +402,9 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                                 _ = self.replaceToken()
                             }
                         sessionView = view
-                        presenter.present(view,animated:true) {
+                        // The engine starts in viewDidAppear, after its Metal view is attached.
+                        // Avoid putting the modal animation on every game's launch path.
+                        presenter.present(view,animated:false) {
                             guard self.isCurrent(token), view.viewIfLoaded?.window != nil else { return }
                             MeloNXLaunchJournal.record("presentation", "passed", detail:"Embedded MeloNX view attached to the foreground application window.")
                         }

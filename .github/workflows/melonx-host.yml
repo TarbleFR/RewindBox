@@ -33,6 +33,9 @@ permissions:
   contents: read
 jobs:
   host:
+    # The completion push reruns the changed plugin's actual UIKit presentation
+    # fixture in melonx-completion-host and retains unchanged host scopes.
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[melonx-completion-host]')) }}
     runs-on: macos-26
     timeout-minutes: 20
     steps:

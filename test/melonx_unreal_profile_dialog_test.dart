@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:neostation/services/melonx_internal_service.dart';
 import 'package:neostation/services/melonx_unreal_profiles.dart';
+import 'package:neostation/l10n/melonx_unreal_profile_locale.dart';
 import 'package:neostation/widgets/melonx_unreal_profile_dialog.dart';
 
 class _Documents extends PathProviderPlatform {
@@ -18,14 +20,16 @@ void main() {
   late Directory documents;
   late PathProviderPlatform previous;
   var inspections = 0, leases = 0;
+  var failInspection = false;
   late Completer<void> mutationComplete;
   setUp(() {
     documents = Directory.systemTemp.createTempSync('unreal-dialog-');
     previous = PathProviderPlatform.instance;PathProviderPlatform.instance = _Documents(documents.path);
     inspections=leases=0;
+    failInspection=false;
     mutationComplete=Completer<void>();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(MelonxInternalService.channel, (call) async {
-      if (call.method == 'inspectUnreal') { inspections++;return {'success':true,'available':true,'titleId':MelonxUnrealProfiles.titleId,'project':'Phoenix','baseConfiguration':'','configurationPath':'Phoenix/Config/UserEngine.ini',
+      if (call.method == 'inspectUnreal') { inspections++;if(failInspection) throw PlatformException(code:'unreal_inspection',message:'inspection diagnostic');return {'success':true,'available':true,'titleId':MelonxUnrealProfiles.titleId,'project':'Phoenix','baseConfiguration':'','configurationPath':'Phoenix/Config/UserEngine.ini',
         'modRoots':['${documents.path}/MeloNX/mods/contents/${MelonxUnrealProfiles.titleId}']}; }
       if (call.method == 'beginLibraryMutation') { leases++;return true; }
       if (call.method == 'endLibraryMutation') { leases--;mutationComplete.complete();return null; }
@@ -52,7 +56,8 @@ void main() {
     await tester.tap(find.text('Open'));
     // Real filesystem futures need the real event loop; fake-clock animation
     // settling cannot complete them while an indeterminate spinner is active.
-    await waitFor(tester, () => find.byType(DropdownButtonFormField<String>).evaluate().isNotEmpty);
+    await waitFor(tester, () => find.byType(DropdownButtonFormField<String>).evaluate().isNotEmpty ||
+        find.text(MelonxUnrealProfileLocale.values['en']!['inspectFailed']!).evaluate().isNotEmpty);
     await tester.pumpAndSettle();
   }
   testWidgets('inspection starts with no profile and never writes a mod', (tester) async {
@@ -76,6 +81,34 @@ void main() {
     await tester.pumpAndSettle();
     final ini=File('${documents.path}/MeloNX/mods/contents/${MelonxUnrealProfiles.titleId}/${MelonxUnrealProfiles.folder}/romfs/Phoenix/Config/UserEngine.ini');
     expect(ini.readAsStringSync(),contains('r.MotionBlurQuality=0'));
+    expect(inspections,2);expect(leases,0);
+  });
+  testWidgets('inspection failure separates explanation from technical details', (tester) async {
+    failInspection=true;
+    await show(tester);
+    expect(find.text(MelonxUnrealProfileLocale.values['en']!['inspectFailed']!), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed, isNull);
+    expect(find.byType(SelectableText), findsNothing);
+    await tester.ensureVisible(find.text('Technical details'));
+    await tester.tap(find.text('Technical details'));
+    await tester.pumpAndSettle();
+    expect(find.byType(SelectableText), findsOneWidget);
+    expect(tester.widget<SelectableText>(find.byType(SelectableText)).data, contains('inspection diagnostic'));
+    expect(Directory('${documents.path}/MeloNX/mods').existsSync(), isFalse);
+    expect(leases,0);
+  });
+  testWidgets('failed fresh inspection writes no profile and releases the mutation gate', (tester) async {
+    await show(tester);
+    failInspection=true;
+    await tester.ensureVisible(find.text('Apply'));
+    await tester.tap(find.text('Apply'));
+    await waitFor(tester, () => mutationComplete.isCompleted);
+    await tester.pumpAndSettle();
+    expect(find.text(MelonxUnrealProfileLocale.values['en']!['applyFailed']!), findsOneWidget);
+    expect(find.byType(MelonxUnrealProfileDialog), findsOneWidget);
+    expect(find.byType(SelectableText), findsNothing);
+    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed, isNotNull);
+    expect(Directory('${documents.path}/MeloNX/mods').existsSync(), isFalse);
     expect(inspections,2);expect(leases,0);
   });
 }

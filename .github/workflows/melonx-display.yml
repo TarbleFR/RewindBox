@@ -13,7 +13,10 @@ on:
 permissions: {contents: read}
 jobs:
   display:
-    if: ${{ !contains(github.event.head_commit.message, '[retroarch-delivery]') }}
+    # Existing display/preferences and playlist-lifetime receipts remain in force.
+    # The explicit completion push runs the changed Unreal UI in melonx-completion-host;
+    # unmarked pushes and workflow_dispatch keep the original checks.
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[melonx-completion-host]')) && (!contains(github.event.head_commit.message, '[retroarch-delivery]')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

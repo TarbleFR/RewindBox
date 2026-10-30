@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/melonx_unreal_profile_locale.dart';
 import '../services/melonx_internal_service.dart';
 import '../services/melonx_unreal_profiles.dart';
 
@@ -15,8 +16,9 @@ class _MelonxUnrealProfileDialogState extends State<MelonxUnrealProfileDialog> {
   String _selected = 'off';
   bool _accepted = false, _busy = false;
   String? _error;
-  bool get _fr => Localizations.localeOf(context).languageCode == 'fr';
-  String _text(String en, String fr) => _fr ? fr : en;
+  String? _errorKey;
+  String _text(String key, [Map<String, Object?> parameters = const {}]) =>
+      MelonxUnrealProfileLocale.text(context, key, parameters);
 
   @override
   void initState() { super.initState(); _load(); }
@@ -26,18 +28,18 @@ class _MelonxUnrealProfileDialogState extends State<MelonxUnrealProfileDialog> {
       final service = MelonxUnrealProfiles(await MelonxInternalService.rootDirectory());
       final current = await service.current(info);
       if (mounted) setState(() { _inspection = info; _profiles = service; _selected = current?['experiment'] as String? ?? 'off'; });
-    } catch (e) { if (mounted) setState(() => _error = e.toString()); }
+    } catch (e) { if (mounted) setState(() { _error = e.toString(); _errorKey = 'inspectFailed'; }); }
   }
 
   Future<void> _apply() async {
-    setState(() { _busy = true; _error = null; });
+    setState(() { _busy = true; _error = null; _errorKey = null; });
     try {
       await MelonxInternalService.editLibrary(() async {
         final fresh = await MelonxInternalService.content('inspectUnreal', filePath: widget.gamePath);
         await _profiles!.apply(fresh, _selected);
       });
       if (mounted) Navigator.pop(context);
-    } catch (e) { if (mounted) setState(() { _busy = false; _error = e.toString(); }); }
+    } catch (e) { if (mounted) setState(() { _busy = false; _error = e.toString(); _errorKey = 'applyFailed'; }); }
   }
 
   @override
@@ -45,37 +47,41 @@ class _MelonxUnrealProfileDialogState extends State<MelonxUnrealProfileDialog> {
     final info = _inspection;
     final choice = MelonxUnrealProfiles.experiments[_selected];
     return AlertDialog(
-      title: Text(_text('Unreal Engine experiments', 'Expériences Unreal Engine')),
+      title: Text(_text('title')),
       content: SizedBox(width: 460, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Text(_text('One setting at a time. These Switch CVars and their loading path are unverified; an installed profile may have no effect. Original game files, saves and other mods remain intact.',
-          'Un réglage à la fois. Ces CVars Switch et leur chargement ne sont pas validés : le profil installé peut rester sans effet. Les fichiers du jeu, sauvegardes et autres mods sont conservés.')),
+        Text(_text('intro')),
         if (info != null) ...[
-          Text('${_text('Inspected RomFS project', 'Projet RomFS inspecté')} : ${info['project']}'),
+          Text(_text('project', {'project': info['project']})),
           DropdownButtonFormField<String>(
             initialValue: _selected,
             isExpanded: true,
             items: [
-              DropdownMenuItem(value: 'off', child: Text(_text('No experimental profile', 'Aucun profil expérimental'))),
+              DropdownMenuItem(value: 'off', child: Text(_text('off'))),
               for (final entry in MelonxUnrealProfiles.experiments.entries)
                 DropdownMenuItem(value: entry.key, child: Text('${entry.value.$1}=${entry.value.$2}', overflow: TextOverflow.ellipsis)),
             ],
             onChanged: _busy ? null : (value) => setState(() { _selected = value!; _accepted = false; }),
           ),
-          if (choice?.$3 == true) Text(_text('This test changes visual quality.', 'Cet essai modifie la qualité graphique.')),
+          if (choice?.$3 == true) Text(_text('quality')),
           if (_selected != 'off') CheckboxListTile(
-            title: Text(_text('Install this unverified experiment for the next launch', 'Installer cet essai non validé pour le prochain lancement')),
+            title: Text(_text('consent')),
             value: _accepted,
             onChanged: _busy ? null : (value) => setState(() => _accepted = value ?? false),
           ),
-          Text(_text('Choosing no profile removes only RewindBox’s verified experiment. Edited files are preserved. Previous experiments are backed up.',
-            'Le choix « Aucun profil » retire uniquement l’essai RewindBox vérifié. Les fichiers modifiés sont préservés. Les essais précédents sont sauvegardés.')),
+          Text(_text('removal')),
         ] else if (_error == null) const CircularProgressIndicator(),
-        if (_error != null) Text(_error!),
+        if (_error != null) ...[
+          Text(_text(_errorKey!)),
+          ExpansionTile(
+            title: Text(_text('technicalDetails')),
+            children: [SelectableText(_error!)],
+          ),
+        ],
       ]))),
       actions: [
-        TextButton(onPressed: _busy ? null : () => Navigator.pop(context), child: Text(_text('Close', 'Fermer'))),
+        TextButton(onPressed: _busy ? null : () => Navigator.pop(context), child: Text(_text('close'))),
         FilledButton(onPressed: info == null || _busy || (_selected != 'off' && !_accepted) ? null : _apply,
-          child: Text(_busy ? _text('Applying…', 'Application…') : _text('Apply', 'Appliquer'))),
+          child: Text(_text(_busy ? 'applying' : 'apply'))),
       ],
     );
   }
