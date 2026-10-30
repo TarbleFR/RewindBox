@@ -75,10 +75,14 @@ def baseline_component():
 
 
 def _query_engine_run():
- baseline_component();run=api(f'actions/runs/{MELONX_RUN}');job=api(f'actions/jobs/{MELONX_JOB}');artifact=api(f'actions/artifacts/{MELONX_ARTIFACT_ID}')
+ baseline_component();run=api(f'actions/runs/{MELONX_RUN}')
+ jobs=api(f'actions/runs/{MELONX_RUN}/jobs?per_page=100')['jobs']
+ matches=[item for item in jobs if item['id']==MELONX_JOB]
+ require(len(matches)==1,'Missing exact producer job in run collection');job=matches[0]
+ artifact=api(f'actions/artifacts/{MELONX_ARTIFACT_ID}')
  require(run['head_sha']==MELONX_SOURCE and run['path']==MELONX_WORKFLOW and run['run_attempt']==1 and run['conclusion']=='success'and run['status']=='completed','Wrong new engine producer')
  require(job['run_id']==MELONX_RUN and job['head_sha']==MELONX_SOURCE and job['conclusion']=='success'and job['run_attempt']==1,'Wrong new engine job')
- require(ENGINE_STEPS<={s['name']for s in job['steps']if s['conclusion']=='success'},'Missing successful new engine steps')
+ require(ENGINE_STEPS<={s['name']for s in job['steps']if s['conclusion']=='success'},'Missing successful producer steps: '+repr(sorted(ENGINE_STEPS-{s['name']for s in job['steps']if s['conclusion']=='success'})))
  require(artifact['id']==MELONX_ARTIFACT_ID and artifact['name']==MELONX_ARTIFACT_NAME and artifact['size_in_bytes']==MELONX_ARTIFACT_BYTES and artifact['digest']=='sha256:'+MELONX_ARTIFACT_SHA256 and not artifact['expired']and artifact['workflow_run']['id']==MELONX_RUN and artifact['workflow_run']['head_sha']==MELONX_SOURCE,'Wrong engine archive metadata')
  return dict(result='passed',source=MELONX_SOURCE,run=MELONX_RUN,job=MELONX_JOB,runAttempt=1,compileRun=MELONX_RUN,originalRunConclusion='success',validationSource=MELONX_SOURCE,artifact=MELONX_ARTIFACT_ID,artifactSHA256=MELONX_ARTIFACT_SHA256,engineRecompiled=False,priorGatesReexecuted=False)
 
