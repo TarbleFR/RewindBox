@@ -68,6 +68,121 @@ if (!processMatch || parseInt(processMatch[1], 16) !== pid) {
 }
 log(`NEOSTATION_DEBUGGER_ATTACHED_V1 pid=${pid} nonce=${neostationProbeNonce}`);
     
+// Initialize protocol state before the first continue can dispatch command 1.
+// REWINDBOX_SIZED_ARENA_V1_BEGIN
+// Same command-1 trampoline, with an explicit versioned descriptor.
+// Retry only a definite allocation refusal before any region is prepared.
+const rewindboxSizedArenaV1 = 0x5242574a49543031n;
+let rewindboxSizedArenaAttempted = false;
+
+function rewindboxWriteSizedReply(address, fields, returned) {
+    const bytes = fields.map(numberToLittleEndianHexString).join("");
+    if (send_command(`M${address.toString(16)},40:${bytes}`) !== "OK") {
+        throw new Error("Sized JIT descriptor write failed; restart required");
+    }
+    if (send_command(`P0=${numberToLittleEndianHexString(returned)};thread:${tid};`) !== "OK") {
+        throw new Error("Sized JIT register reply failed; restart required");
+    }
+}
+
+function rewindboxPrepareSizedArena() {
+    const descriptor = x0;
+    const raw = send_command(`m${descriptor.toString(16)},40`);
+    if (!/^[0-9a-fA-F]{128}$/.test(raw)) throw new Error("Invalid sized JIT descriptor read");
+    const fields = [];
+    for (let i = 0; i < 8; i++) fields.push(littleEndianHexStringToNumber(raw.slice(i * 16, i * 16 + 16)));
+    const minimum = 512n << 20n, step = 64n << 20n;
+    if (fields[0] !== rewindboxSizedArenaV1 || fields[1] < minimum || fields[1] > (1024n << 20n) ||
+        fields[1] % step !== 0n || fields[2] !== minimum || fields[3] !== step ||
+        fields.slice(4).some(value => value !== 0n)) throw new Error("Invalid sized JIT request");
+    if (rewindboxSizedArenaAttempted) {
+        fields[6] = 4n;
+        rewindboxWriteSizedReply(descriptor, fields, 0n);
+        return;
+    }
+    rewindboxSizedArenaAttempted = true;
+    for (let size = fields[1]; size >= minimum; size -= step) {
+        fields[7]++;
+        const response = send_command(`_M${size.toString(16)},rx`);
+        // LLDB specifies EXX as allocation failure, an empty packet as
+        // unsupported. A lost or malformed reply never authorizes a retry.
+        if (/^E[0-9a-fA-F]{2}$/.test(response)) continue;
+        if (!/^[0-9a-fA-F]{1,16}$/.test(response)) {
+            fields[6] = 4n;
+            rewindboxWriteSizedReply(descriptor, fields, 0n);
+            return;
+        }
+        const address = BigInt(`0x${response}`);
+        if (address < 0x10000n || address % 0x4000n !== 0n || address > 0x0000ffffffffffffn) {
+            fields[6] = 4n;
+            rewindboxWriteSizedReply(descriptor, fields, 0n);
+            return;
+        }
+        fields[4] = size;
+        fields[5] = address;
+        fields[6] = 3n;
+        // Terminal from this point: never allocate again after preparation
+        // starts, including an exception or a partial preparation failure.
+        if (prepare_memory_region(address, size) !== "OK") {
+            rewindboxWriteSizedReply(descriptor, fields, 0n);
+            return;
+        }
+        fields[6] = 1n;
+        rewindboxWriteSizedReply(descriptor, fields, address);
+        log(`REWINDBOX_SIZED_ARENA_V1 selectedMiB=${size >> 20n} attempts=${fields[7]}`);
+        return;
+    }
+    fields[6] = 2n; // No region allocated or prepared.
+    rewindboxWriteSizedReply(descriptor, fields, 0n);
+}
+
+function JIT26PrepareRegion(brkResponse) {
+    let instructionResponse = send_command(`m${pc.toString(16)},4`);
+    log(`instruction at pc: ${instructionResponse}`);
+    let instrU32 = littleEndianHexToU32(instructionResponse);
+    let brkImmediate = extractBrkImmediate(instrU32);
+    
+    if (x0 == 0n && x1 == 0n) {
+        if (send_command(`P0=${numberToLittleEndianHexString(rewindboxSizedArenaV1)};thread:${tid};`) !== "OK") {
+            throw new Error("Sized JIT capability reply failed");
+        }
+        return;
+    }
+
+    if (x0 !== 0n && x1 === rewindboxSizedArenaV1) {
+        rewindboxPrepareSizedArena();
+        return;
+    }
+
+    let jitPageAddress = x0;
+    if (x0 == 0n) {
+        let requestRXResponse = send_command(`_M${x1.toString(16)},rx`);
+        log_verbose(`requestRXResponse = ${requestRXResponse}`);
+        
+        if (!requestRXResponse || requestRXResponse.length === 0) {
+            log(`Failed to allocate RX memory`);
+            return;
+        }
+        
+        jitPageAddress = BigInt(`0x${requestRXResponse}`);
+        log(`Allocated JIT page at address: 0x${jitPageAddress.toString(16)}`);
+    }
+
+    let prepareJITPageResponse = prepare_memory_region(jitPageAddress, x1);
+    log(`prepareJITPageResponse = ${prepareJITPageResponse}`);
+    if (prepareJITPageResponse !== "OK") {
+        log(`NEOSTATION_STIKJIT_UNIVERSAL_V1: debugserver page preparation failed; returning zero to the target`);
+        let putFailureX0Response = send_command(`P0=${numberToLittleEndianHexString(0n)};thread:${tid};`);
+        log(`putFailureX0Response = ${putFailureX0Response}`);
+        return;
+    }
+
+    let putX0Response = send_command(`P0=${numberToLittleEndianHexString(jitPageAddress)};thread:${tid};`);
+    log(`putX0Response = ${putX0Response}`);
+}
+
+// REWINDBOX_SIZED_ARENA_V1_END
+
 let totalBreakpoints = 0;
 while (!detached) {
     totalBreakpoints++;
@@ -207,119 +322,7 @@ function JIT26HandleBrk0xf00d(brkResponse) {
     command(brkResponse);
 }
 
-// REWINDBOX_SIZED_ARENA_V1_BEGIN
-// Same command-1 trampoline, with an explicit versioned descriptor.
-// Retry only a definite allocation refusal before any region is prepared.
-const rewindboxSizedArenaV1 = 0x5242574a49543031n;
-let rewindboxSizedArenaAttempted = false;
 
-function rewindboxWriteSizedReply(address, fields, returned) {
-    const bytes = fields.map(numberToLittleEndianHexString).join("");
-    if (send_command(`M${address.toString(16)},40:${bytes}`) !== "OK") {
-        throw new Error("Sized JIT descriptor write failed; restart required");
-    }
-    if (send_command(`P0=${numberToLittleEndianHexString(returned)};thread:${tid};`) !== "OK") {
-        throw new Error("Sized JIT register reply failed; restart required");
-    }
-}
-
-function rewindboxPrepareSizedArena() {
-    const descriptor = x0;
-    const raw = send_command(`m${descriptor.toString(16)},40`);
-    if (!/^[0-9a-fA-F]{128}$/.test(raw)) throw new Error("Invalid sized JIT descriptor read");
-    const fields = [];
-    for (let i = 0; i < 8; i++) fields.push(littleEndianHexStringToNumber(raw.slice(i * 16, i * 16 + 16)));
-    const minimum = 512n << 20n, step = 64n << 20n;
-    if (fields[0] !== rewindboxSizedArenaV1 || fields[1] < minimum || fields[1] > (1024n << 20n) ||
-        fields[1] % step !== 0n || fields[2] !== minimum || fields[3] !== step ||
-        fields.slice(4).some(value => value !== 0n)) throw new Error("Invalid sized JIT request");
-    if (rewindboxSizedArenaAttempted) {
-        fields[6] = 4n;
-        rewindboxWriteSizedReply(descriptor, fields, 0n);
-        return;
-    }
-    rewindboxSizedArenaAttempted = true;
-    for (let size = fields[1]; size >= minimum; size -= step) {
-        fields[7]++;
-        const response = send_command(`_M${size.toString(16)},rx`);
-        // LLDB specifies EXX as allocation failure, an empty packet as
-        // unsupported. A lost or malformed reply never authorizes a retry.
-        if (/^E[0-9a-fA-F]{2}$/.test(response)) continue;
-        if (!/^[0-9a-fA-F]{1,16}$/.test(response)) {
-            fields[6] = 4n;
-            rewindboxWriteSizedReply(descriptor, fields, 0n);
-            return;
-        }
-        const address = BigInt(`0x${response}`);
-        if (address < 0x10000n || address % 0x4000n !== 0n || address > 0x0000ffffffffffffn) {
-            fields[6] = 4n;
-            rewindboxWriteSizedReply(descriptor, fields, 0n);
-            return;
-        }
-        fields[4] = size;
-        fields[5] = address;
-        fields[6] = 3n;
-        // Terminal from this point: never allocate again after preparation
-        // starts, including an exception or a partial preparation failure.
-        if (prepare_memory_region(address, size) !== "OK") {
-            rewindboxWriteSizedReply(descriptor, fields, 0n);
-            return;
-        }
-        fields[6] = 1n;
-        rewindboxWriteSizedReply(descriptor, fields, address);
-        log(`REWINDBOX_SIZED_ARENA_V1 selectedMiB=${size >> 20n} attempts=${fields[7]}`);
-        return;
-    }
-    fields[6] = 2n; // No region allocated or prepared.
-    rewindboxWriteSizedReply(descriptor, fields, 0n);
-}
-
-function JIT26PrepareRegion(brkResponse) {
-    let instructionResponse = send_command(`m${pc.toString(16)},4`);
-    log(`instruction at pc: ${instructionResponse}`);
-    let instrU32 = littleEndianHexToU32(instructionResponse);
-    let brkImmediate = extractBrkImmediate(instrU32);
-    
-    if (x0 == 0n && x1 == 0n) {
-        if (send_command(`P0=${numberToLittleEndianHexString(rewindboxSizedArenaV1)};thread:${tid};`) !== "OK") {
-            throw new Error("Sized JIT capability reply failed");
-        }
-        return;
-    }
-
-    if (x0 !== 0n && x1 === rewindboxSizedArenaV1) {
-        rewindboxPrepareSizedArena();
-        return;
-    }
-
-    let jitPageAddress = x0;
-    if (x0 == 0n) {
-        let requestRXResponse = send_command(`_M${x1.toString(16)},rx`);
-        log_verbose(`requestRXResponse = ${requestRXResponse}`);
-        
-        if (!requestRXResponse || requestRXResponse.length === 0) {
-            log(`Failed to allocate RX memory`);
-            return;
-        }
-        
-        jitPageAddress = BigInt(`0x${requestRXResponse}`);
-        log(`Allocated JIT page at address: 0x${jitPageAddress.toString(16)}`);
-    }
-
-    let prepareJITPageResponse = prepare_memory_region(jitPageAddress, x1);
-    log(`prepareJITPageResponse = ${prepareJITPageResponse}`);
-    if (prepareJITPageResponse !== "OK") {
-        log(`NEOSTATION_STIKJIT_UNIVERSAL_V1: debugserver page preparation failed; returning zero to the target`);
-        let putFailureX0Response = send_command(`P0=${numberToLittleEndianHexString(0n)};thread:${tid};`);
-        log(`putFailureX0Response = ${putFailureX0Response}`);
-        return;
-    }
-
-    let putX0Response = send_command(`P0=${numberToLittleEndianHexString(jitPageAddress)};thread:${tid};`);
-    log(`putX0Response = ${putX0Response}`);
-}
-
-// REWINDBOX_SIZED_ARENA_V1_END
 
 // utilities
 function littleEndianHexStringToNumber(hexStr) {
