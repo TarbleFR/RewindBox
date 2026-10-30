@@ -1,0 +1,71 @@
+{
+  "result": "passed",
+  "execution": {
+    "source": "1630bd0230c9431de92faec9c5e2662262b1ede6",
+    "run": 41097173966,
+    "attempt": 1,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/41097173966"
+  },
+  "identities": {
+    "ios-arm64": "303a9aa42d1ae865a8e2bfb65671b7b428f0d6569669400ae0e91035b641da95",
+    "iossimulator-arm64": "42257cb4921ae1d00f497a7208a097d1df692ca526c429df248f8185fef3f355"
+  },
+  "binaries": {
+    "ios-arm64": {
+      "sha256": "423f2af029a5c1319d518a67114dc0b963ba5399747960cb6155b44014037ddc",
+      "bytes": 37618024
+    },
+    "iossimulator-arm64": {
+      "sha256": "43d3a82ce66e19441190b120b5c3807f82f76659d275ab378c99888980a12a77",
+      "bytes": 37928552
+    }
+  },
+  "adaptationCount": 117,
+  "preparedMembers": 154,
+  "freshAppleGates": 1,
+  "reusedAppleGates": 36,
+  "embeddedArchiveSha256": "9689fb8f795e155b7d98edf8cd1e502920979acd32749721df7c2f2801cf4438",
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "runtimeSmokeSha256": "41acdc1ca60318a22ea3ce4696cc92942515c8d2a5883bf04148375669179d0d",
+  "guestSvcSessions": [
+    {
+      "afterSequence": 23,
+      "generation": 1,
+      "session": 1,
+      "svcSequence": 57
+    },
+    {
+      "afterSequence": 58,
+      "generation": 2,
+      "session": 2,
+      "svcSequence": 92
+    }
+  ],
+  "homebrewSimulatorSessions": 2,
+  "releasedBackingSessions": 2,
+  "gateReceiptSha256": "9f1dbe93df0638f8d31a230a16da424b2da46faa4147abba10421a726d79fdfc",
+  "reusedEvidenceSha256": {
+    "baseline-engine82/authentication/result.json": "04ab9646a206fdb046b33d7ebc43321f1019337d0a0dd3eae2745bbf7a78ee6b",
+    "libhac-authenticated-reuse.json": "77ada960f7b6f7e4ae4654e29daab7400da97a72a340683b73ed3c67b35bf369",
+    "native-dependencies-reused.json": "c1fcb34886a3b5afb8a8337406a9c395303f0311f71fd15f23578b157cde0810"
+  },
+  "historicalGatesReexecuted": false,
+  "nativeDependenciesRecompiled": false,
+  "status": "compiled-and-simulator-validated-not-gameplay-tested",
+  "inputs": {
+    ".github/workflows/melonx-core.yml": "1a6777ec5c7796575404f9ad3a305bce41cbf4769a5237abed01b605cde8973b",
+    "build-utils/melonx/build_core.sh": "bf9589ca807104f888db884485d32070b68d86fa6535997a84934e8d698f4547",
+    "build-utils/melonx/build_libhac.py": "68519a96e5a2c3e94285bfb65d42ae7c053a3b2a1893fd6509acf1d8080ce9e5",
+    "build-utils/melonx/reuse_core_baseline.py": "9638b84da0f4e6ac5514b12d4169820e4d0c10465e4467326caff3d00d1f8a73",
+    "build-utils/melonx/core-baseline.json": "3c9d1b86b88ce5d37a704820bcd9a2fd03c541dc30a3cefc9938db3213ce015d",
+    "build-utils/melonx/verify_core_candidate.py": "ef88b181ad7073e0de8eec59bbb649c22058a7204aa1338c67ab049c00e2b0b9",
+    "build-utils/melonx/verify_hogwarts_launch_core.py": "00b606a2d07b0baa2e65250d98c0d38b7871bcf6ee2e01b32f7e3f3d4d6aa9e2",
+    "build-utils/melonx/hogwarts-launch-core-contract.json": "4405a0afaf12e56b4c4d710b48983b90648f3ccf1ba8d6491d1123c1dee6bdac",
+    "packages/melonx_jit_helper/ios/Resources/melonx-universal.js": "fe162e0bd44471aa930db8582203b85ed135baf51712b57249dfcbfc6fe112fc"
+  },
+  "hogwartsLaunchContractSha256": "4405a0afaf12e56b4c4d710b48983b90648f3ccf1ba8d6491d1123c1dee6bdac",
+  "literalMemoryCorrection": "32-bit-width-and-register31",
+  "hogwartsCrashCauseProven": false,
+  "gpuStartupDelayFixed": false
+}

@@ -1,0 +1,46 @@
+{
+  "result": "passed",
+  "execution": {
+    "source": "1630bd0230c9431de92faec9c5e2662262b1ede6",
+    "run": 41097173966,
+    "attempt": 1,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/41097173966"
+  },
+  "archive": {
+    "filename": "MeloNX-Hogwarts-Core-1630bd02.zip",
+    "bytes": 87595452,
+    "sha256": "7dd844774ff7991a406db8d37e35bba8f7b3b46284d1a8e05359b1d3ba135928"
+  },
+  "binaries": {
+    "ios-arm64": {
+      "sha256": "423f2af029a5c1319d518a67114dc0b963ba5399747960cb6155b44014037ddc",
+      "bytes": 37618024,
+      "cpu": "arm64",
+      "platform": 2,
+      "minOS": 786944,
+      "sdk": 1705216,
+      "publicDefinitions": 84,
+      "requiredExports": 47
+    },
+    "iossimulator-arm64": {
+      "sha256": "43d3a82ce66e19441190b120b5c3807f82f76659d275ab378c99888980a12a77",
+      "bytes": 37928552,
+      "cpu": "arm64",
+      "platform": 7,
+      "minOS": 917504,
+      "sdk": 1705216,
+      "publicDefinitions": 84,
+      "requiredExports": 47
+    }
+  },
+  "preparationInputs": 117,
+  "preparedMembers": 154,
+  "freshAppleGates": 1,
+  "reusedAppleReceipts": 36,
+  "literalChecks": 12167,
+  "homebrewSimulatorSessions": 2,
+  "releasedBackingSessions": 2,
+  "physicalHogwartsTested": false,
+  "hogwartsCrashCauseProven": false,
+  "gpuStartupDelayFixed": false
+}

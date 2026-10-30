@@ -1,0 +1,16 @@
+{
+  "result": "passed",
+  "checks": 8,
+  "nativeVulkanExecuted": false,
+  "physicalDeviceTested": false,
+  "inputs": {
+    "test/melonx_startup_trace_test.py": "4b0bd904981fa50fa1fa2879c07540fae5a351a987cab0630f922768cfcfcffa",
+    "build-utils/melonx/adapt_startup_trace.py": "d59089ca875c33e5fd2f001c98592cd3f82522ebb77333c6f8c4f16ea2986868",
+    "native/melonx/EmbeddedStartupTrace.cs": "fed4576d30d283af24254b18fee4c3c90b06f4f82232390c58aebc8378073d33"
+  },
+  "postimages": {
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "52d86f7c12b4e779ff038b5788a28dc66bd268261c667a79eab567ad7ffadd4e",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "b2046145e15b441309ea4229b1a638a8c9fa1817e7de451ca0d8ec2a59efc403",
+    "src/Ryujinx.Cpu/Jit/HostTracked/NativePageTable.cs": "8e5b11a0ab01023f2db03937b36883863060f0c96cb44dcd507258becda1ee30"
+  }
+}

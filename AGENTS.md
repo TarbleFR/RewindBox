@@ -1,17 +1,28 @@
 # Current application identity — RewindBox (21 October 2026)
 
-## Hogwarts after602 — requested core-only correction, 30 October2026
+## Hogwarts after602 — Core compiled and independently verified, 30 October2026
 
-The new602 log proves actual1024MiB JIT/probe and first presentation work.
-It then stalls and raises NativePageTable.VirtualMemoryEvent at16:30:27UTC.
-Source audit finds LDR W literal incorrectly emitted as LDR X and valid SIMD31
-literals removed as ZR. Fix their exact lowering, retain real invalid-access
-faults, and add startup scopes to localize the pre-cache59.998s interval.
-The log lacks the faulting guest instruction: do not claim causal attribution
-or physical Hogwarts recovery from host code-generation/simulator checks.
-Core-only rebuild is explicitly requested; no new application IPA or public
-release is part of this request. Preserve all prior lots and Core827f as the
-immediate authenticated baseline; only affected gates execute freshly.
+Final source1630bd0230c9431de92faec9c5e2662262b1ede6 succeeds in
+run41097173966/job124205742820, artifact12995694624. Actual87595452-byte
+ZIP SHA2567dd844774ff7991a406db8d37e35bba8f7b3b46284d1a8e05359b1d3ba135928
+passes independent verification:117 preparation inputs,154 prepared members,
+ABI2/47 required exports and84 real public definitions on both ARM64 targets.
+iOS37618024 bytes/SHA423f2af029a5c1319d518a67114dc0b963ba5399747960cb6155b44014037ddc;
+simulator37928552 bytes/SHA43d3a82ce66e19441190b120b5c3807f82f76659d275ab378c99888980a12a77.
+
+The new602 log proves1024MiB JIT/probe and first presentation work, then a
+NativePageTable guard exception. Corrected LDR W literals now read32bits;
+S/D/Q31 and actual ZR reads are preserved. The12167-check Apple code-generation
+proof from successful8a82bb25 is reused exactly. The final changed startup
+scope fixture passes8 checks and preserves the launch stage. All35 old Core
+receipts are authenticated without replay. Two fresh actual NativeAOT
+simulator SVC sessions close and release backing. All cumulative lots stay.
+
+Source audit fixes are real, but the log lacks the faulting guest instruction:
+physical Hogwarts recovery and causal attribution remain unproven. The59.998s
+GPU pause is instrumented, not established fixed; do not purge caches or
+invent FPS claims. Only the Core is produced: no new IPA/build603 or public
+release. Do not rebuild this unchanged Core for documentary receipts.
 See docs/melonx-hogwarts-launch-2026-10-30.md.
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
