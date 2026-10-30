@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
@@ -17,15 +18,17 @@ void main() {
   late Directory documents;
   late PathProviderPlatform previous;
   var inspections = 0, leases = 0;
+  late Completer<void> mutationComplete;
   setUp(() {
     documents = Directory.systemTemp.createTempSync('unreal-dialog-');
     previous = PathProviderPlatform.instance;PathProviderPlatform.instance = _Documents(documents.path);
     inspections=leases=0;
+    mutationComplete=Completer<void>();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(MelonxInternalService.channel, (call) async {
       if (call.method == 'inspectUnreal') { inspections++;return {'success':true,'available':true,'titleId':MelonxUnrealProfiles.titleId,'project':'Phoenix','baseConfiguration':'','configurationPath':'Phoenix/Config/UserEngine.ini',
         'modRoots':['${documents.path}/MeloNX/mods/contents/${MelonxUnrealProfiles.titleId}']}; }
       if (call.method == 'beginLibraryMutation') { leases++;return true; }
-      if (call.method == 'endLibraryMutation') { leases--;return null; }
+      if (call.method == 'endLibraryMutation') { leases--;mutationComplete.complete();return null; }
       throw StateError(call.method);
     });
   });
@@ -39,6 +42,16 @@ void main() {
       child:const Text('Open'),
     )))));
     await tester.tap(find.text('Open'));
+    // Real filesystem futures need the real event loop; fake-clock animation
+    // settling cannot complete them while an indeterminate spinner is active.
+    await tester.runAsync(() async {
+      for (var i=0; i<200; i++) {
+        await Future<void>.delayed(const Duration(milliseconds:10));
+        await tester.pump();
+        if (find.byType(DropdownButtonFormField<String>).evaluate().isNotEmpty) return;
+      }
+      throw StateError('Profile inspection did not finish');
+    });
     await tester.pumpAndSettle();
   }
   testWidgets('inspection starts with no profile and never writes a mod', (tester) async {
@@ -56,7 +69,12 @@ void main() {
     await tester.ensureVisible(find.byType(CheckboxListTile));
     await tester.tap(find.byType(CheckboxListTile));await tester.pump();
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,isNotNull);
-    await tester.ensureVisible(find.text('Apply'));await tester.tap(find.text('Apply'));await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Apply'));
+    await tester.runAsync(() async {
+      await tester.tap(find.text('Apply'));
+      await mutationComplete.future.timeout(const Duration(seconds:5));
+    });
+    await tester.pumpAndSettle();
     final ini=File('${documents.path}/MeloNX/mods/contents/${MelonxUnrealProfiles.titleId}/${MelonxUnrealProfiles.folder}/romfs/Phoenix/Config/UserEngine.ini');
     expect(await ini.readAsString(),contains('r.MotionBlurQuality=0'));
     expect(inspections,2);expect(leases,0);
