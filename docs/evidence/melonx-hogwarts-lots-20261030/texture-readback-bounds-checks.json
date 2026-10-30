@@ -1,0 +1,20 @@
+{
+  "result": "passed",
+  "reports": {
+    "control": {
+      "checks": 20373,
+      "result": "passed"
+    },
+    "candidate": {
+      "checks": 20379,
+      "result": "passed"
+    }
+  },
+  "productionMethodsExtracted": true,
+  "vulkanDriverExecuted": false,
+  "physicalBlackTextureFixProven": false,
+  "inputs": {
+    "build-utils/melonx/adapt_texture_readback_bounds.py": "df0d8da12f87ac52918ece4981ddb23ac4c975919f16cf86459afab529a3585f",
+    "test/melonx_texture_readback_bounds_test.py": "07d82792f1270f767a0ba1603a61259c813121e377fe514ddd32ed3d831af7c5"
+  }
+}

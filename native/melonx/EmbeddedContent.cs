@@ -114,6 +114,9 @@ partial class Library
                             case 9:
                                 EmbeddedLaunchDiagnostics.ConfigureJournal(path);
                                 break;
+                            case 10:
+                                EmbeddedInspectUnreal(path, json);
+                                break;
                             default: throw new ArgumentOutOfRangeException(nameof(operation));
                         }
                         json.WriteBoolean("success", true);

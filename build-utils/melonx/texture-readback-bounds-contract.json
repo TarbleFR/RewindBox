@@ -1,0 +1,10 @@
+{
+  "before": {
+    "src/Ryujinx.Graphics.Vulkan/TextureView.cs": "db0b749d403beaed5ae42b1b8dd9ff8fe59e3d551e5216515229e8e713149806",
+    "src/Ryujinx.Graphics.Vulkan/TextureCopy.cs": "b73cf955cea5df0b06662e3f25b760b89b10decd2da932d02aa42ef53e10969e"
+  },
+  "after": {
+    "src/Ryujinx.Graphics.Vulkan/TextureView.cs": "c7ecc07151a14de6dbbb2650c4d4007f99f170b95009f900081d305d665dcf9c",
+    "src/Ryujinx.Graphics.Vulkan/TextureCopy.cs": "029c828de5928117fa6c422017088c19f4a13d8ec50882918e441aecf56811ff"
+  }
+}

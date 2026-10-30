@@ -1,0 +1,38 @@
+name: MeloNX remaining lots host checks
+'on':
+  push:
+    branches: [Claude]
+    paths:
+      - .github/workflows/melonx-lots-host.yml
+      - lib/services/melonx_unreal_profiles.dart
+      - lib/widgets/melonx_unreal_profile_dialog.dart
+      - test/melonx_unreal_profiles_test.dart
+      - test/melonx_unreal_profile_dialog_test.dart
+permissions:
+  contents: read
+jobs:
+  host:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Test actual profile files, conflicts, recovery and experimental consent
+        run: |
+          set -euo pipefail
+          mkdir -p build/melonx-lots-host
+          flutter test --concurrency=1 --reporter expanded test/melonx_unreal_profiles_test.dart test/melonx_unreal_profile_dialog_test.dart test/melonx_hogwarts_graphics_options_test.dart test/melonx_graphics_durable_test.dart | tee build/melonx-lots-host/flutter-tests.txt
+      - name: Analyze the changed profile service and UI
+        run: dart analyze lib/services/melonx_unreal_profiles.dart lib/widgets/melonx_unreal_profile_dialog.dart
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: MeloNX-lots-host-${{ github.sha }}
+          path: build/melonx-lots-host

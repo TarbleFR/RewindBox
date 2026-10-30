@@ -1,0 +1,21 @@
+{
+  "result": "passed",
+  "helper": {
+    "checks": 101,
+    "result": "passed",
+    "nativeDebugserverDoubled": true,
+    "stagedPreparationFailureNeverRetried": true
+  },
+  "managed": {
+    "checks": 45,
+    "result": "passed"
+  },
+  "physicalDeviceTested": false,
+  "nativeVMAndTransportDoubled": true,
+  "inputs": {
+    "build-utils/melonx/adapt_sized_jit.py": "c79ed373ae37eff740e7205b22fbc4ec38b63da71fffb3b8a12f4992af6f0f9a",
+    "packages/melonx_jit_helper/ios/Resources/melonx-universal.js": "879df6151e9b292b5c8dab7f8a88634aa92a3f25518d080c68722d243adaf0b3",
+    "test/melonx_sized_jit_test.py": "64b9c7fe5afcda0ede747b27aef5b7bb123ba3794c4edbb076c91827372a7d64",
+    "test/melonx_sized_jit/Protocol.js": "43c1e91463d9faec892930a122402940b190816a3d60bbd31c5a1a0d26ba97cb"
+  }
+}

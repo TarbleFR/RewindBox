@@ -1,0 +1,8 @@
+{
+  "before": {
+    "src/Ryujinx.Memory/DualMappedJitAllocator.cs": "bde13d4fd301621da81f47ae98bc10740757e56cc7f1407925dd9f19d47cbf1c"
+  },
+  "after": {
+    "src/Ryujinx.Memory/DualMappedJitAllocator.cs": "73722405ea0cbe06636ccf639e8fc1304f15f2cba5257dc05509336a12c06d35"
+  }
+}

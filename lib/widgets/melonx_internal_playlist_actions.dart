@@ -2,6 +2,7 @@ import '../l10n/melonx_transfer_locale.dart';
 import 'melonx_transfer_dialog.dart';
 import 'playlist_import_button.dart';
 import 'melonx_hogwarts_graphics_options.dart';
+import 'melonx_unreal_profile_dialog.dart';
 
 import 'dart:io';
 import 'dart:async';
@@ -487,6 +488,13 @@ class _MelonxGraphicsDialogState extends State<_MelonxGraphicsDialog> {
                     Text(_text('Memory settings apply on the next launch.')),
                     if (_titleId?.toUpperCase() == '0100F7E00C70E000')
                       MelonxHogwartsGraphicsOptions(settings: settings, onChanged: () => setState(() {})),
+                    if (_titleId?.toUpperCase() == '0100F7E00C70E000')
+                      TextButton(
+                        onPressed: () => showDialog<void>(context: context,
+                          builder: (_) => MelonxUnrealProfileDialog(gamePath: widget.gamePath)),
+                        child: Text(Localizations.localeOf(context).languageCode == 'fr'
+                            ? 'Expériences Unreal Engine' : 'Unreal Engine experiments'),
+                      ),
                     for (final item in [('donateMemory', 'Use RamDonor'), ('hostMemoryBudget', 'Track available memory'), ('textureRecompression', 'Texture recompression')])
                       SwitchListTile(
                         title: Text(_text(item.$2)),

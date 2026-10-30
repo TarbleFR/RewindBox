@@ -188,9 +188,9 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                     DispatchQueue.main.async { [self] in result(["available":true,"initialized":true,"sessionActive":starting || host?.isSessionActive == true,"jitArenaReady":arenaReady,"gameplayVerified":false,"lastFailure":lastFailure]) }
                 } catch { DispatchQueue.main.async { result(["available":false,"initialized":false,"diagnostic":String(describing:error)]) } }
             }
-        case "metadata", "installFirmware", "reloadKeys", "firmwareInfo", "inspectUpdate", "inspectDlc", "storageInfo", "saveTarget", "launchPreflight":
+        case "metadata", "installFirmware", "reloadKeys", "firmwareInfo", "inspectUpdate", "inspectDlc", "storageInfo", "saveTarget", "launchPreflight", "inspectUnreal":
             guard !starting, host?.isSessionActive != true else { result(FlutterError(code:"busy",message:"Close the current game first.",details:nil)); return }
-            let operation: Int32 = ["metadata":0,"installFirmware":1,"reloadKeys":2,"firmwareInfo":3,"inspectUpdate":4,"inspectDlc":5,"storageInfo":6,"saveTarget":7,"launchPreflight":8][call.method]!
+            let operation: Int32 = ["metadata":0,"installFirmware":1,"reloadKeys":2,"firmwareInfo":3,"inspectUpdate":4,"inspectDlc":5,"storageInfo":6,"saveTarget":7,"launchPreflight":8,"inspectUnreal":10][call.method]!
             var path = arguments["path"] as? String ?? ""
             if operation == 7 {
                 guard let data = try? JSONSerialization.data(withJSONObject:arguments),

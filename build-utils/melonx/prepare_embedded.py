@@ -82,6 +82,8 @@ from adapt_allocator_range_updates import apply as adapt_allocator_range_updates
 from adapt_occlusion_reports import apply as adapt_occlusion_reports
 from adapt_query_batching import apply as adapt_query_batching
 from adapt_jit_single_attempt import apply as adapt_jit_single_attempt
+from adapt_sized_jit import apply as adapt_sized_jit
+from adapt_texture_readback_bounds import apply as adapt_texture_readback_bounds
 
 
 def replace_once(path, old, new):
@@ -184,6 +186,8 @@ def main():
     adapted += adapt_occlusion_reports(source)
     adapted += adapt_query_batching(source)
     adapted += adapt_jit_single_attempt(source)
+    adapted += adapt_sized_jit(source)
+    adapted += adapt_texture_readback_bounds(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -261,7 +265,9 @@ def main():
                  'adapt_first_buffer_overlap.py', 'adapt_allocator_range_updates.py',
                  'adapt_occlusion_reports.py', 'occlusion-adapter-contract.json',
                  'adapt_query_batching.py', 'query-batching-adapter-contract.json',
-                 'adapt_jit_single_attempt.py', 'jit-single-attempt-adapter-contract.json']:
+                 'adapt_jit_single_attempt.py', 'jit-single-attempt-adapter-contract.json',
+                 'adapt_sized_jit.py', 'sized-jit-adapter-contract.json',
+                 'adapt_texture_readback_bounds.py', 'texture-readback-bounds-contract.json']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
