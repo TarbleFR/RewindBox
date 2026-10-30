@@ -54,7 +54,7 @@
     "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff",
     "rpcs3/Emu/Cell/SPUObjectCachePolicy.h": "a5fbf16daa366fd599c6d77ddeea8265f7d3e00750d3479c4b3dc94060c38233",
     "rpcs3/Emu/Cell/SPURecompiler.h": "0cc7ed8ea11b3b6f8bd15b933c6d9291bf21cbe7cf10a610f479e24d6f891f07",
-    "rpcs3/Emu/Cell/SPUThread.cpp": "4d138e76afc25d12d8eff04a5794153cbe9a4562c8dcbe5d9eac274ab4c927d3",
+    "rpcs3/Emu/Cell/SPUThread.cpp": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440",
     "rpcs3/Emu/Cell/SPUThread.h": "27e7713d92eb04e5636d9e42d88b2dd7b4a2ec1fd13b8d72c497ca2984cbd67c",
     "rpcs3/Emu/Cell/SPUWarmupPolicy.h": "f25e9e67b591f58a4fc4993bccdd086b2f49e489eabdf0a75655fd8b546a67eb",
     "rpcs3/Emu/Cell/lv2/sys_fs.cpp": "de1fddfb476e3c028a6f9bebd6a024011074ed52b9a8be33250141e83ef910f2",
@@ -84,7 +84,7 @@
     "rpcs3/Emu/RSX/Core/RSXVertexTypes.h": "019d4e09b4c672025b46ee3802fae7232b61e97a9097fd5db3e64e24fc175ff0",
     "rpcs3/Emu/RSX/GL/GLFragmentProgram.cpp": "c1b7411727763c97bfaed14e01bdc2cbeb24c7b3f8b199a2011d82ee73699167",
     "rpcs3/Emu/RSX/GL/GLRenderTargets.h": "c86b211fe016e64b6097bbc33e850398e3d2c86b6f620ecdd81c47a7e13927ed",
-    "rpcs3/Emu/RSX/NV47/HW/nv406e.cpp": "4c976a1df2cda8f324595aeac7d44a41000ca106228e68760317bdfb983787a5",
+    "rpcs3/Emu/RSX/NV47/HW/nv406e.cpp": "c1a5d71f20f6fa5dfdd9b1277a0b1dec0b7e6018027bd6767386d30c29434824",
     "rpcs3/Emu/RSX/NV47/HW/nv4097.cpp": "fca4cbcbad9cbe2a81888791f3c811b7d79009320d4f1d671ac68cd67a187a8e",
     "rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_main_menu.cpp": "77ec7fa7c72a55c8748e804baf8ad6a09382276557e88570bc20aafdb3e6e0a7",
     "rpcs3/Emu/RSX/Overlays/HomeMenu/overlay_home_menu_savestate.cpp": "b81c33e63848e3fe622cc3f7246e492fd45b27a7a3625ebb45c551fb246bf8a2",
@@ -99,16 +99,16 @@
     "rpcs3/Emu/RSX/RSXFIFO.h": "ac047d734f37006362fb24b881280bd149edb38df39a50857b4292d22c8bd564",
     "rpcs3/Emu/RSX/RSXOffload.cpp": "239ea3c28baff6ee519d1ae745e4259fc329f3e5e61313ea6bc4594316f8b602",
     "rpcs3/Emu/RSX/RSXTexture.cpp": "6c8818a94f847bfc63b8fbf59d82d37cdc856e9b6ca192e6cf2a0c9f1918be7b",
-    "rpcs3/Emu/RSX/RSXThread.cpp": "cd656467129aa2db822b892a4ecf37355887281dac2e943f110c1dbb8a33b40c",
+    "rpcs3/Emu/RSX/RSXThread.cpp": "d8fa8a17481261615563a7bb73ff8b286d42abae5deb1e1151bf10bae5c7401f",
     "rpcs3/Emu/RSX/RSXThread.h": "9fc293c1510ea204bd35f31789a60f5847910b1345bf35d9146fbf5ad817a9ef",
-    "rpcs3/Emu/RSX/VK/VKDraw.cpp": "91d473f3053f5623703bb5d025112199109cbdd51b0eb47d68d37ca9e8f1d4a6",
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp": "45023f8eb619e8c6972af3ef531d93b93b94488f59955312305407692fd75494",
     "rpcs3/Emu/RSX/VK/VKFragmentProgram.cpp": "732fa76af9600a8606f9797b68ee306005e3154db5343e8131a0e8128feb6493",
     "rpcs3/Emu/RSX/VK/VKGSRender.cpp": "12b2c22305aa75c81be075882863bb4c552baa4ea4878f105d0fb5e1fc881bec",
     "rpcs3/Emu/RSX/VK/VKGSRender.h": "58b3b070c934839152e6b5ea5b4882517a5a79192037885473d1125ed53b71ef",
     "rpcs3/Emu/RSX/VK/VKHelpers.cpp": "2e28c7c6c043ab2260dbf37c5a5d875b3eaf51e47e71182feac4ce6afc85f84c",
     "rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp": "e9fbccd7d6ecd58c9028958eed045bb7d079ffad55717a9398a7a452531a194e",
     "rpcs3/Emu/RSX/VK/VKPipelineCompiler.h": "d63c1961de5a00d647dfccdde469057674c346314033e0751b9726a87940b273",
-    "rpcs3/Emu/RSX/VK/VKPresent.cpp": "a294b01d30d8753353035142ef07ad58d40f8c788641972065cc9356f2b482d9",
+    "rpcs3/Emu/RSX/VK/VKPresent.cpp": "afadbb3088f709382b5e7fb4217d2cd038a608972f648063c94b66152d6919ab",
     "rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp": "fbcb635660f479635c85eb1742f77074a9f83f8f0b2c8bc77ca2aa38a428e31b",
     "rpcs3/Emu/RSX/VK/VKProgramPipeline.h": "16cd58f7e06ab7c50685f0dbcc63a149ef5be279dc3192116dcb5642f9d0ffaa",
     "rpcs3/Emu/RSX/VK/VKQueryPool.cpp": "04f36f77a9df42c2e9a174dc55826c0cf9991321b42a552740b4a476ed252675",
@@ -166,8 +166,8 @@
     "rpcs3/ios/IOSRestoreExecutor.h": "3e02896bc6b0d7b99524d36ca851abdc4f80114d2b3c06d34f429b9e941c15bc",
     "rpcs3/ios/IOSRestoreFailure.h": "fc1790878daaac1614b30163c5b1a7c378f758b6b06806b86bda51e28cd01752",
     "rpcs3/ios/IOSRuntimeMetrics.h": "b81026d64e037f040cdf80db3aa2e3e9c3a03be0db2419f735812cf0adf0ac1e",
-    "rpcs3/ios/IOSTextureHash.cpp": "561c3a31438f3c492493c778bbeebba8291e180a29defab75a34c86b45688e72",
-    "rpcs3/ios/IOSTextureHash.h": "83d4f2a310604a5a72d83e25e8a1180ca8acba3cd4069394166bdfa3e3393724",
+    "rpcs3/ios/IOSTextureHash.cpp": "b01ceabbed2f50f5a044f1c277f5bd561433c4220f40bcb0ffb3731245b5c6dc",
+    "rpcs3/ios/IOSTextureHash.h": "f7fdff357f542f69a08860716f17e6057b582097be378cb87f6bc1bd6c691816",
     "rpcs3/ios/NeoStationSavestateIO.h": "d82e1fae306e025e580954e24f35b3aaa3a782dcfeea2f16722d1dbf9b1dd6e6",
     "rpcs3/ios/NeoStationSavestateStatus.h": "b5d4b1597563ef978433fa0a2f19543d4d51ba32775c4add8bc228de9bbd7692",
     "rpcs3/ios/NeoSwap.h": "88b334240200a68775aef35f1f5d632e04b8fcc43e504d42f65096760c7c292c",
@@ -195,7 +195,7 @@
     "rpcs3/ios/RPCS3IOSFreezeDump.cpp": "68b30b9ebe8b869051d8d18f88ebc1aac36de25b940fc7b12c072625e3a815fc",
     "rpcs3/ios/RPCS3IOSFreezeDump.h": "368a0174d1516b809b59eb7699c714196a8eaecb73239d73f736512ef8ad4e84",
     "rpcs3/ios/RPCS3IOSLeverHelpers.h": "21669d8eb5f06d7c6ac1fccd5fb4cdd8e7516e67f2801027e21680eb0ea75c65",
-    "rpcs3/ios/RPCS3IOSPerformance.cpp": "3d4d593c63d835a582482fadf9449e120efd0f0b434c237a29fcbc7871a9e26c",
+    "rpcs3/ios/RPCS3IOSPerformance.cpp": "cc7a7d2871f498439eaad41fbacfce1928fa4f89e38d05a8efb448022b9ef1cb",
     "rpcs3/ios/RPCS3IOSPerformance.h": "e24b1cefd5cab075d0de045a741e68f6648f3c42495c0b5311bedc3f116efef1",
     "rpcs3/ios/RPCS3IOSProfilerHelpers.h": "d11297d9ac5025a8335b4ff18215a0222f63a90f8f95c4c6bc4ee72bb740ea83",
     "rpcs3/ios/RPCS3IOSSettings.cpp": "66d0486830e52b3a162cee774915d453ac68d4f40a9b57d2ab9127fb5f305221",
@@ -270,7 +270,7 @@
     "rpcs3/util/vm.hpp": "ac58df153ca5e9b1e9f69511879035493338265ee2de96656072ab777a07ecbc",
     "rpcs3/util/vm_native.cpp": "2c8c9547fc4ae1b6c7d2b39d19475c64b6922d4ac21b193cbded859fc2796a8c",
     "rpcs3/ios/IOSShaderTiming.h": "e6e01cbc2457813dd9e5c01973a4323690d7bad0749f8c41cafaecde25213a54",
-    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "acf9518ceed92ca6024939054a83060b9fdc9dce2f1281dbfed0bebda040a4db",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "7891895841c71c6cd361f8b227284b6447ec1ce7ac0e455c69b18a050128d8fa",
     "rpcs3/Emu/RSX/VK/VKProgramBuffer.h": "6e125eb9dfe1e73ff8675db7b3d6f3f202047298378c076f82642dfa1c0d3c74",
     "rpcs3/Emu/RSX/VK/vkutils/pipeline_key_normalization.h": "184a98ccd0d724c476405f30c16d03838f3e59f61731979eaf4ce658f027c207",
     "rpcs3/Emu/RSX/Common/deferred_publisher.h": "007b32a0aabd3be9c7663a4bc6c2f2c1696b121b6f7a2065c9f9c3797ec44edb",
@@ -280,18 +280,18 @@
     "rpcs3/util/serialization.hpp": "f4abf27993a67aa5e0d03a32bde2101b7ab5d07945ef5d9405b529125a95057d",
     "rpcs3/Crypto/unzip.cpp": "bc67cedfead56fc32bef166815e17092ba01f3e897d21fd5ff2599e896462bf4",
     "rpcs3/util/serialization_ext.hpp": "d00c883abf5af188cbcac7e05535e0170b5c51bd3c2b40ddfc3eaa2f797ef28c",
-    "rpcs3/ios/IOSCompilePressure.h": "d62e305fc5ddba3565e31014044ce9c399feff304b16bcd5148fc6837c97e5a9",
-    "rpcs3/Emu/RSX/VK/VKCommandStream.cpp": "afd51290efacad8fdb43947f4f4d9e4996fd3095356699f3d1804508a9a3513f",
+    "rpcs3/ios/IOSCompilePressure.h": "b45b0415882dce357734d04495948b6815dcf3e8a1683bfaca02b37f5856548f",
+    "rpcs3/Emu/RSX/VK/VKCommandStream.cpp": "2a3c919ec0f6dd8743b7705085d1231e093bfc07fc2a42356b433bfb3a0fe731",
     "rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp": "7da9a0b9c8a0d79d3748c9234fbee02f0b914a964480ceb9c2ed59c1d8342cdb",
     "rpcs3/Emu/RSX/VK/vkutils/instance.cpp": "f9f1db8df684fb57bcd219a91dc223cab01a34a9f4c659333a12e4ba2d3fa227",
-    "rpcs3/ios/IOSRsxSyncProfile.h": "1c5c9f29739196f736c9ca3bb65763280326485feff07fe39742813d36b66efe",
+    "rpcs3/ios/IOSRsxSyncProfile.h": "d87c8394ed4772255edf01a592b9ad08eed4dd79295886f569894f56cb14c04c",
     "rpcs3/ios/IOSSpuWaitProfile.h": "9e7c76711bc02c9f73e1eec01d6a05dbe06cf5a413060f48bae4d6776b8bb4ea",
     "rpcs3/ios/RPCS3IOSConfigInheritance.h": "e66620753281aaaa8e267b9f922308ec76f0abe18c3021bfa6f80a1d5ad3e883",
     "rpcs3/ios/RPCS3IOSPlatform.mm": "9ca15ecec27764d9923e6aba72b64edbba3d2a33ff46d4977ec42ff614272445",
     "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "8fe947c46018fa9e2b0ee10594fced5aff02aea265b96fdb4d22975901d203f0",
     "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967",
     "rpcs3/ios/IOSReadbackProfile.h": "a000d21bce260c42ba072de67217ca04b3ab472ad754d3c7a3be3ff0e340033a",
-    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "062d37c54ab62d943be89c9e78d8e72c4340b67ebf5e0a39dd9ab805be282748",
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "85c75155f09f2ffd0554fadfbaf9987510173323e008ad09edb70cd6809707ed",
     "rpcs3/ios/IOSFullOverwrite.h": "75a9cd542e595d4a78dac51a7263682319cbd103a60fb26c80e0bf9747316de7",
     "rpcs3/ios/IOSDeferredCommit.h": "4e00304b7ceb07fda07ad68a05e329859b9922b04e78bd2a82841b433ac5b719",
     "rpcs3/ios/IOSEarlySubmit.h": "9d3a2be35192b00eeab551ed986952ca5933b40ae5760463aa6babdb1c3e20a2",
@@ -308,7 +308,7 @@
     "rpcs3/Emu/Cell/lv2/sys_lwmutex.cpp": "d1a4fde8c5d4483739e5e526cea12404a4f2951521bd9531365ed2d34d242169",
     "rpcs3/Emu/Cell/lv2/sys_semaphore.cpp": "fe4b68857b063e4b000287192c416dcb8431f71c21fa4e659ac6e27f32c2a2a7",
     "rpcs3/ios/IOSReservationLockPolicy.h": "6a71a8fb997ce8a02431b7815f6de545419161c0d56c1f3a18aed13334b2c3e8",
-    "rpcs3/ios/IOSTexturePrehash.h": "177d6ab43de54e6b29c959968042f565475d0e311640b648a69c3135a549a4f0",
+    "rpcs3/ios/IOSTexturePrehash.h": "4b615553f3e4684b76f6b4b6bc1b2aba502879a69bf6053972ae053db194e235",
     "rpcs3/ios/IOSMoltenVKExec.h": "308be3be6d185a6bd8761e894cf7ce9be80bec2beec34fac66d8e715f3b411d4",
     "rpcs3/ios/IOSMoltenVKExecQueue.h": "21bbc64eec0d18e8c439dd59145b3596a9f53c1c4774502e666261bdc949cfff",
     "rpcs3/ios/IOSMoltenVKAsyncCanary.h": "85407b2308ac7e3ef31d7b05a7325da89d390c8ad704341925ed2fda95e53d6b",
@@ -325,10 +325,16 @@
     "rpcs3/Emu/RSX/Program/ShaderParam.h": "ac64b689fd3809c1ca260904cd4f59572fcb388a47a055f8e314dd50fedc6339",
     "rpcs3/Emu/RSX/Program/VertexProgramDecompiler.cpp": "6ce519f38f7dcc6525c5d7965f929c2920dc9e74c63e2b6f1fd0e22f520aeaff",
     "rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp": "2e369af95d2e00e889c3b91ad61c06412d7f8bc1fa298b3806943fdbe17c93e5",
-    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp": "53494ea3b8cfa5e5e7f336fc8729ebb40de2f7fded4b18839653363450f8be90"
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp": "53494ea3b8cfa5e5e7f336fc8729ebb40de2f7fded4b18839653363450f8be90",
+    "rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp": "c5ca7d51fb7a195796f5a474c4fbec6d513ca475e7c3373433a73444defaf13f",
+    "rpcs3/Emu/RSX/VK/VKVertexBuffers.cpp": "c76f7ff4a16a48373b1f65ff7eed52293cb74e8b4a86e2c7ca7dec819df5ac85",
+    "rpcs3/Emu/RSX/VK/vkutils/sampler_shader_state.hpp": "2c87816317eeabe688e2b68c895ab4ad066c268eb8f6343a6dfe03c5e6212fca",
+    "rpcs3/ios/IOSFrameTrace.h": "4a2b171d57c837216dbb79cae955b9e30b4bee35c4108ecb2422ba64590468f3",
+    "rpcs3/ios/IOSRendererCausality.h": "a9943fab3d362e4fd6ea391c8898cc58d4fcfdfd13965c86f7f6dafc3d303413",
+    "rpcs3/ios/IOSSignalTrace.h": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6"
   },
-  "patch_sha256": "099651cae54c7bc567ff325735acde0cf3e931ed6e25b2b5bbcc14e5f5ecf33b",
-  "policy": "Build353 experimental; selective XITRIX Preview 0.10 engine backports (ARM64 SPU/PPU, VM reservations, RSX/Metal, audio recovery, savestate and graphics correctness); Build352 God of War III bounded-memory policy and Build350 lifecycle baseline retained; NeoSwap v1 opt-in host-owned file-backed RSX CPU data allocator, existing JIT/VM/GPU policies unchanged; selective XITRIX v0.10.1 SPU BID continuation, disabled-texture eviction, MoltenVK conditional-rendering fixes; SPU object cache v5 retires old CFG objects; optional NeoSwap client diagnostics ABI 1, main Core ABI 30 unchanged; NeoSwap coherent host-visible Vulkan SYSTEM buffer imports (1-256MiB), strict external-memory/type/alignment checks, deferred GPU resource disposal and allocator fallback; optional NeoSwap guest page relay ABI 1 for guest data shared aliases, host-owned preparation after authenticated creator exit and ordinary file fallback before first published mapping; Build395: measured God of War III opt-in for RSX CPU aligned buffers 64KiB-1MiB via verified donor loans only, fixed metadata budgets, fast pressure gate and original heap fallback; no JIT/VM/GPU/private allocations redirected; Build409: additive NeoSwap client kinds (GPU host-visible imports, owned video-frame mappings) through the unchanged allocator ABI 1, relay host loans selected by the host budget controller; no JIT/VM/GPU/private allocations redirected; Post-410: loading-time SPU guest metadata warmup and telemetry, no ARM64 object persistence; ready-only fast NeoSwap host loans and ordinary guest backing for new gameplay allocations; existing published alias coherence retained; physical device validation pending; Build435 Core delta (10 October 2026): measured per-process allowance in IOSMemoryPressurePolicy (relative moderate stage, adaptive reclaim cooldown), deferred SPU LLVM compilation on a worker pool with legacy-interpreter hand-off, unlocked snapshot precheck before vm::writer_lock on PUTLLC/stcx; no device validation; Build436: the Build435 deferred SPU compilation is switched off (deferred_compile_enabled=false) after God of War III froze about 5 s after boot on the iPhone in 3 of 3 Build435 sessions and another title stopped on SPU STOP 0x0; SPU misses compile inline as in Build434; the measured memory allowance and the writer-lock precheck are kept; no device validation of Build436.; Build436 XITRIX v0.11: five RSX/Vulkan engine commits imported verbatim with their fixtures (framebuffer source selection, Vulkan image-pool race, rendering overhead, divided vertex range, alpha-to-one); no SPU, PPU, JIT, VM or lifecycle change; no device validation of the XITRIX v0.11 import. Build441: optional prepared guest relay ABI 1 permits new eligible shared-memory objects during gameplay by borrowing host-prepared exact-size tokens only; no slow create during gameplay, no migration of published or FILE backing, unchanged alias and retirement semantics, four inline alias records, optional process-lifetime client metrics; no iPhone gameplay validation.; Build444 (11 October 2026, maintainer request): optional direct guest admission ABI 1 (NeoSwapDirectRelayAPI.try_create) lets a gameplay stock miss or an oversize request create an exact-size relay object without waiting, under the host budget allowance; no blocking create, extension request, lock wait, published-object migration or FILE migration in gameplay; optional client diagnostics extension ABI 1 (direct outcomes, live FILE exclusion, boot creations); JITPROF phase counters (PPU translate/opt/verify/codegen/cache/load/finalize/symbols, SPU build/passes/codegen, headroom minimum) in Utilities/JITPhaseProfile.h; PPU object cache name v9 with the codegen identity (LLVM release, configure-time source digest NEOSTATION_PPU_CODEGEN_ID, target features); opt-in ARM64 PPU EarlyCSE (ppu_llvm_ir_passes, default off, hashed into the settings bits); deferred SPU compilation stays off; no device validation of Build444.; Build481 persistent ARM64 SPU object cache: the SPU translator references the host only through symbols (spu_timebase_offs mapped per engine instead of a baked &g_timebase_offs), a relocatability guard refuses to persist any module that turns a host address into a pointer constant, objects are validated (parsed, entry symbol required) before MCJIT and removed when invalid, the directory key folds the cache format, settings, device features, CPU, LLVM release and the configure-time SPU codegen digest NEOSTATION_SPU_CODEGEN_ID, directories of other keys are removed, the directory is bounded to 40000 files or 512 MiB with oldest-first eviction to 90 percent, retry variants carry -notbl2/-nofma name suffixes, a hit skips the pass pipeline and verification; JITPROF phases spu_cache_read/spu_object_load/spu_cache_write and SPUPROF obj_* counters added; Persistent SPU Object Cache Automatic resolves to enabled on ARM64; interpreter module stays process-local; deferred SPU compilation stays off; no device validation of Build481.; Build483 LLVM pipelines: SPU pipeline gains InstCombine between SimplifyCFG and DSE as upstream RPCS3 x86-64 and ARMSX3 ARM64 (setting SPU LLVM Pipeline, default Upstream InstCombine, Reference 481 keeps the previous pipeline), both m_test_state calls carry their callee convention (InstCombine turns a mismatched direct call into unreachable), the SPU pipeline is folded into the object-cache key; PPU LLVM Pipeline setting (Upstream ARM64 default = no IR pass, EarlyCSE = x86-64 pipeline = the Build 444 boolean, Extended = EarlyCSE SimplifyCFG InstCombine DSE LICM ADCE) with objects named per level (arm64_ir_passes, arm64_ir_passes_extended) and PPUThread.cpp in the PPU codegen digest; JITPROF reports ppu_pipeline/ppu_ir_passes/spu_pipeline; deferred SPU compilation stays off; no device validation of Build483. Build487 (19 October 2026, maintainer request after docs/rpcs3-bottleneck-audit-2026-10-18.md): observability of the audit (metrics grow additively to 72 bytes under struct_size with guest frames, native-UI flag, emulator state and boot progress; COREPROF other/top threads and windows without frames; CONFIG_LAYERS, NEOSTATION_RESTART, JITPROF_BOOT, SAVESTATE_BOOT, bounded FREEZE_DUMP and MUTEX_DESTROY_BUSY lines; RANGELOCKPROF maximum holds; time-based RSX load) and four iOS Experimental settings whose defaults keep the Build 483 gameplay behaviour (SPU Spin Timing Reference, RSX FIFO Idle Wait Yield with a new Bounded sleep value, SPU Warmup Scope God of War III) except the cache-only SPU Object Cache Retained Keys (2); code-generation sources and object-cache key lines unchanged; the PPU and SPU codegen digests change because PPUThread.cpp, JITPhaseProfile.h and SPUCommonRecompiler.cpp changed, so each title recompiles once; deferred SPU compilation stays off; no device validation of Build487. Build 499 fixes the SHUFB 64-bit insertion mask and conditional branch-target ordering, gates compile disassembly behind explicit SPU debug, and includes the branch helper/opcode decoder in the SPU codegen digest; NeoSwap and ABI 30 remain unchanged. 23 October memory audit: bounded owned LLVM object streaming, validated PPU handoff, shared NeoSwap compiler admission and in-flight observations, fault-before-reservation ordering, data-only free-page advice, measured VMA heap granularity; minimal SPU linker remains a guarded prototype. God of War III build 508 log follow-up: mounted ISO metadata on state resume, restored archive path ownership, per-game effective JIT target diagnostics, preferred 64 MiB VMA blocks on reported iOS heaps above 4 GiB through 8 GiB; allocation ceilings and PPU/SPU codegen inputs unchanged; no device gain measured. Build 513 bounds iOS TAR restore buffers and recognizes transient LLVM JIT threads; no PPU/SPU translation or settings policy change. Restore follow-up bounds the TAR reader by its declared chunk count, preserves unsatisfied RSX acquire dependencies with bounded host waits, and retains complete bounded freeze snapshots and restore phase diagnostics; save formats and PPU/SPU code generation remain unchanged. Selective XITRIX Preview 0.12 source backports: ISO parent directory identity, ARM64 GHC PPU far jumps, constant SPU TBL1 folding, session-local shader capability fallback, dedicated grown Vulkan heaps and proven-complete mip copy clears. CPU minimum is checked by the host before JIT or dlopen. Existing NeoSwap, RSX acquire and restore deltas remain; no physical-device performance gain measured. Build526 migrates active legacy SIMD users to the common ARM64 NEON backend, adds exact PPU VMSUM lowering and bounded failed-file diagnostics; no synchronization or memory quotas change. Build527 bounds retired-image recycling, publishes only dirty JIT ranges after successful relocation, simplifies three exact PPU reductions and adds bounded guest-only frame/wait/memory observations; gameplay gains require device measurement. Build527 routes bounded frame, wait, memory and publication observations through the existing iOS COREPROF host filter. Build528 retains the 527 PPU/SPU codegen identities; source-bound NeoSwap/restoration/observability delta is recorded separately. Build534 keeps restored ISO VFS mounts on the archive device and observes synchronous Vulkan shader costs; PPU/SPU codegen and cache identities stay unchanged. CELL536 moves writer diagnostics after release, preflights running accurate STORE128 before reservation ownership, and retains applied shader configuration without changing settings or memory budgets. Build538 removes a redundant SPU cache probe, preserves precisely compatible 536 objects and records bounded slow shader operations. CELL539 validates graphics pipeline state before cache-key construction and consumes decoded unchanged pipeline state; guest rendering, user shader mode and JIT cache identities remain intact. CELL539 also replaces cancellable XOR pipeline hashes with ordered state hashes; persistent shader records remain readable and sample-state equality matches the pipeline inputs. CELL539 replaces three per-event writer-counter RMW updates with exclusive-slot loads/stores and exact cumulative reader deltas, retaining atomic overflow, retirement and bounded storage. CELL543 moves shader-cache disk publication (fsync and rename) off the RSX thread through one bounded, drained writer whose overflow writes inline; single-flights inline pipeline builds for draw requests and removes failed placeholders; hashes each validated key once with ordered program-ID mixing; normalizes depth/stencil state that the compatible render pass cannot observe; and attributes MoltenVK cost with VK_EXT_pipeline_creation_feedback when supported, rewriting the VkPipelineCache only after libraries were added. Guest commands, draws, user shader mode and JIT cache identities remain intact. CELL545: ARMSX3 22528 public fixes: SPU warmup dedup and biggest-first order (codegen identity kept), PKG path containment with custom installers held to dev_hdd0, debug SELF decryption, SCE key index bound, in-memory savestate files, cellSaveData SDK 2.6 cap, thread-local log buffer; no device claim. CELL546: iOS JIT object cache written with zlib level 1 (gzip format, reader and other compressed streams unchanged); restore trace limited to threads that began a restore; codegen identities kept; no device claim. CELL547: iOS GPU fence waits spin 100 us then block in vkWaitForFences; while a draw waits for a pipeline build, confirmed SPU GETLLAR polls of unchanged data take the existing passive wait (SPU identity kept by an exact-snapshot alias); COREPROF PRESSURE547; no device claim. CELL551: a legacy full custom config keeps only the settings it changed relative to the global config and inherits the title's database settings (the God of War III profile never applied from build 412 to 547); MoltenVK asynchronous submits on a high-priority queue as an iOS Experimental option selected by the God of War III and DBZ profiles; MoltenVK Metal compiles run in the waiting thread's QoS class through the renamed archive call; COREPROF RSXSYNC551, RSXFRAME551 and SPUWAIT551; codegen identities kept; no device claim. CELL555: preserve texture validation and JIT cache identities; correct bounded recent pipeline diagnostics and attribute GPU readbacks and texture maintenance. ARM64 candidates were rejected after host measurements; the shipped hash is unchanged. The 30 October source continuation preserves prior work and adds reviewed DMA/MMIO fixes with an exact compatible-SPU-cache alias, shader invalidation and GPU ownership fixes, bounded texture work and memory-pressure improvements. Host regression evidence is scoped in docs/rpcs3-continuation-2026-10-30.md; no Apple build, device FPS claim or release is implied.",
+  "patch_sha256": "68234e0ead31d40c61c2b3b29c0c962f89d8687407e0cc60eb45d60b68dd71e8",
+  "policy": "Build353 experimental; selective XITRIX Preview 0.10 engine backports (ARM64 SPU/PPU, VM reservations, RSX/Metal, audio recovery, savestate and graphics correctness); Build352 God of War III bounded-memory policy and Build350 lifecycle baseline retained; NeoSwap v1 opt-in host-owned file-backed RSX CPU data allocator, existing JIT/VM/GPU policies unchanged; selective XITRIX v0.10.1 SPU BID continuation, disabled-texture eviction, MoltenVK conditional-rendering fixes; SPU object cache v5 retires old CFG objects; optional NeoSwap client diagnostics ABI 1, main Core ABI 30 unchanged; NeoSwap coherent host-visible Vulkan SYSTEM buffer imports (1-256MiB), strict external-memory/type/alignment checks, deferred GPU resource disposal and allocator fallback; optional NeoSwap guest page relay ABI 1 for guest data shared aliases, host-owned preparation after authenticated creator exit and ordinary file fallback before first published mapping; Build395: measured God of War III opt-in for RSX CPU aligned buffers 64KiB-1MiB via verified donor loans only, fixed metadata budgets, fast pressure gate and original heap fallback; no JIT/VM/GPU/private allocations redirected; Build409: additive NeoSwap client kinds (GPU host-visible imports, owned video-frame mappings) through the unchanged allocator ABI 1, relay host loans selected by the host budget controller; no JIT/VM/GPU/private allocations redirected; Post-410: loading-time SPU guest metadata warmup and telemetry, no ARM64 object persistence; ready-only fast NeoSwap host loans and ordinary guest backing for new gameplay allocations; existing published alias coherence retained; physical device validation pending; Build435 Core delta (10 October 2026): measured per-process allowance in IOSMemoryPressurePolicy (relative moderate stage, adaptive reclaim cooldown), deferred SPU LLVM compilation on a worker pool with legacy-interpreter hand-off, unlocked snapshot precheck before vm::writer_lock on PUTLLC/stcx; no device validation; Build436: the Build435 deferred SPU compilation is switched off (deferred_compile_enabled=false) after God of War III froze about 5 s after boot on the iPhone in 3 of 3 Build435 sessions and another title stopped on SPU STOP 0x0; SPU misses compile inline as in Build434; the measured memory allowance and the writer-lock precheck are kept; no device validation of Build436.; Build436 XITRIX v0.11: five RSX/Vulkan engine commits imported verbatim with their fixtures (framebuffer source selection, Vulkan image-pool race, rendering overhead, divided vertex range, alpha-to-one); no SPU, PPU, JIT, VM or lifecycle change; no device validation of the XITRIX v0.11 import. Build441: optional prepared guest relay ABI 1 permits new eligible shared-memory objects during gameplay by borrowing host-prepared exact-size tokens only; no slow create during gameplay, no migration of published or FILE backing, unchanged alias and retirement semantics, four inline alias records, optional process-lifetime client metrics; no iPhone gameplay validation.; Build444 (11 October 2026, maintainer request): optional direct guest admission ABI 1 (NeoSwapDirectRelayAPI.try_create) lets a gameplay stock miss or an oversize request create an exact-size relay object without waiting, under the host budget allowance; no blocking create, extension request, lock wait, published-object migration or FILE migration in gameplay; optional client diagnostics extension ABI 1 (direct outcomes, live FILE exclusion, boot creations); JITPROF phase counters (PPU translate/opt/verify/codegen/cache/load/finalize/symbols, SPU build/passes/codegen, headroom minimum) in Utilities/JITPhaseProfile.h; PPU object cache name v9 with the codegen identity (LLVM release, configure-time source digest NEOSTATION_PPU_CODEGEN_ID, target features); opt-in ARM64 PPU EarlyCSE (ppu_llvm_ir_passes, default off, hashed into the settings bits); deferred SPU compilation stays off; no device validation of Build444.; Build481 persistent ARM64 SPU object cache: the SPU translator references the host only through symbols (spu_timebase_offs mapped per engine instead of a baked &g_timebase_offs), a relocatability guard refuses to persist any module that turns a host address into a pointer constant, objects are validated (parsed, entry symbol required) before MCJIT and removed when invalid, the directory key folds the cache format, settings, device features, CPU, LLVM release and the configure-time SPU codegen digest NEOSTATION_SPU_CODEGEN_ID, directories of other keys are removed, the directory is bounded to 40000 files or 512 MiB with oldest-first eviction to 90 percent, retry variants carry -notbl2/-nofma name suffixes, a hit skips the pass pipeline and verification; JITPROF phases spu_cache_read/spu_object_load/spu_cache_write and SPUPROF obj_* counters added; Persistent SPU Object Cache Automatic resolves to enabled on ARM64; interpreter module stays process-local; deferred SPU compilation stays off; no device validation of Build481.; Build483 LLVM pipelines: SPU pipeline gains InstCombine between SimplifyCFG and DSE as upstream RPCS3 x86-64 and ARMSX3 ARM64 (setting SPU LLVM Pipeline, default Upstream InstCombine, Reference 481 keeps the previous pipeline), both m_test_state calls carry their callee convention (InstCombine turns a mismatched direct call into unreachable), the SPU pipeline is folded into the object-cache key; PPU LLVM Pipeline setting (Upstream ARM64 default = no IR pass, EarlyCSE = x86-64 pipeline = the Build 444 boolean, Extended = EarlyCSE SimplifyCFG InstCombine DSE LICM ADCE) with objects named per level (arm64_ir_passes, arm64_ir_passes_extended) and PPUThread.cpp in the PPU codegen digest; JITPROF reports ppu_pipeline/ppu_ir_passes/spu_pipeline; deferred SPU compilation stays off; no device validation of Build483. Build487 (19 October 2026, maintainer request after docs/rpcs3-bottleneck-audit-2026-10-18.md): observability of the audit (metrics grow additively to 72 bytes under struct_size with guest frames, native-UI flag, emulator state and boot progress; COREPROF other/top threads and windows without frames; CONFIG_LAYERS, NEOSTATION_RESTART, JITPROF_BOOT, SAVESTATE_BOOT, bounded FREEZE_DUMP and MUTEX_DESTROY_BUSY lines; RANGELOCKPROF maximum holds; time-based RSX load) and four iOS Experimental settings whose defaults keep the Build 483 gameplay behaviour (SPU Spin Timing Reference, RSX FIFO Idle Wait Yield with a new Bounded sleep value, SPU Warmup Scope God of War III) except the cache-only SPU Object Cache Retained Keys (2); code-generation sources and object-cache key lines unchanged; the PPU and SPU codegen digests change because PPUThread.cpp, JITPhaseProfile.h and SPUCommonRecompiler.cpp changed, so each title recompiles once; deferred SPU compilation stays off; no device validation of Build487. Build 499 fixes the SHUFB 64-bit insertion mask and conditional branch-target ordering, gates compile disassembly behind explicit SPU debug, and includes the branch helper/opcode decoder in the SPU codegen digest; NeoSwap and ABI 30 remain unchanged. 23 October memory audit: bounded owned LLVM object streaming, validated PPU handoff, shared NeoSwap compiler admission and in-flight observations, fault-before-reservation ordering, data-only free-page advice, measured VMA heap granularity; minimal SPU linker remains a guarded prototype. God of War III build 508 log follow-up: mounted ISO metadata on state resume, restored archive path ownership, per-game effective JIT target diagnostics, preferred 64 MiB VMA blocks on reported iOS heaps above 4 GiB through 8 GiB; allocation ceilings and PPU/SPU codegen inputs unchanged; no device gain measured. Build 513 bounds iOS TAR restore buffers and recognizes transient LLVM JIT threads; no PPU/SPU translation or settings policy change. Restore follow-up bounds the TAR reader by its declared chunk count, preserves unsatisfied RSX acquire dependencies with bounded host waits, and retains complete bounded freeze snapshots and restore phase diagnostics; save formats and PPU/SPU code generation remain unchanged. Selective XITRIX Preview 0.12 source backports: ISO parent directory identity, ARM64 GHC PPU far jumps, constant SPU TBL1 folding, session-local shader capability fallback, dedicated grown Vulkan heaps and proven-complete mip copy clears. CPU minimum is checked by the host before JIT or dlopen. Existing NeoSwap, RSX acquire and restore deltas remain; no physical-device performance gain measured. Build526 migrates active legacy SIMD users to the common ARM64 NEON backend, adds exact PPU VMSUM lowering and bounded failed-file diagnostics; no synchronization or memory quotas change. Build527 bounds retired-image recycling, publishes only dirty JIT ranges after successful relocation, simplifies three exact PPU reductions and adds bounded guest-only frame/wait/memory observations; gameplay gains require device measurement. Build527 routes bounded frame, wait, memory and publication observations through the existing iOS COREPROF host filter. Build528 retains the 527 PPU/SPU codegen identities; source-bound NeoSwap/restoration/observability delta is recorded separately. Build534 keeps restored ISO VFS mounts on the archive device and observes synchronous Vulkan shader costs; PPU/SPU codegen and cache identities stay unchanged. CELL536 moves writer diagnostics after release, preflights running accurate STORE128 before reservation ownership, and retains applied shader configuration without changing settings or memory budgets. Build538 removes a redundant SPU cache probe, preserves precisely compatible 536 objects and records bounded slow shader operations. CELL539 validates graphics pipeline state before cache-key construction and consumes decoded unchanged pipeline state; guest rendering, user shader mode and JIT cache identities remain intact. CELL539 also replaces cancellable XOR pipeline hashes with ordered state hashes; persistent shader records remain readable and sample-state equality matches the pipeline inputs. CELL539 replaces three per-event writer-counter RMW updates with exclusive-slot loads/stores and exact cumulative reader deltas, retaining atomic overflow, retirement and bounded storage. CELL543 moves shader-cache disk publication (fsync and rename) off the RSX thread through one bounded, drained writer whose overflow writes inline; single-flights inline pipeline builds for draw requests and removes failed placeholders; hashes each validated key once with ordered program-ID mixing; normalizes depth/stencil state that the compatible render pass cannot observe; and attributes MoltenVK cost with VK_EXT_pipeline_creation_feedback when supported, rewriting the VkPipelineCache only after libraries were added. Guest commands, draws, user shader mode and JIT cache identities remain intact. CELL545: ARMSX3 22528 public fixes: SPU warmup dedup and biggest-first order (codegen identity kept), PKG path containment with custom installers held to dev_hdd0, debug SELF decryption, SCE key index bound, in-memory savestate files, cellSaveData SDK 2.6 cap, thread-local log buffer; no device claim. CELL546: iOS JIT object cache written with zlib level 1 (gzip format, reader and other compressed streams unchanged); restore trace limited to threads that began a restore; codegen identities kept; no device claim. CELL547: iOS GPU fence waits spin 100 us then block in vkWaitForFences; while a draw waits for a pipeline build, confirmed SPU GETLLAR polls of unchanged data take the existing passive wait (SPU identity kept by an exact-snapshot alias); COREPROF PRESSURE547; no device claim. CELL551: a legacy full custom config keeps only the settings it changed relative to the global config and inherits the title's database settings (the God of War III profile never applied from build 412 to 547); MoltenVK asynchronous submits on a high-priority queue as an iOS Experimental option selected by the God of War III and DBZ profiles; MoltenVK Metal compiles run in the waiting thread's QoS class through the renamed archive call; COREPROF RSXSYNC551, RSXFRAME551 and SPUWAIT551; codegen identities kept; no device claim. CELL555: preserve texture validation and JIT cache identities; correct bounded recent pipeline diagnostics and attribute GPU readbacks and texture maintenance. ARM64 candidates were rejected after host measurements; the shipped hash is unchanged. The 30 October source continuation preserves prior work and adds reviewed DMA/MMIO fixes with an exact compatible-SPU-cache alias, shader invalidation and GPU ownership fixes, bounded texture work and memory-pressure improvements. Host regression evidence is scoped in docs/rpcs3-continuation-2026-10-30.md; no Apple build, device FPS claim or release is implied. Device597 follow-up (30 October 2026): fix late SNR wake registration, divided vertex upload keys and sampler shader state refresh; reject stale speculative hash publication and cancel obsolete speculative work; retain bounded frame, renderer and label-producer evidence with explicit coverage limits. New source-scoped host tests are recorded separately; Apple and iPhone validation remain pending and no FPS gain or release is claimed.",
   "schema_version": 2,
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "upstream_repository": "XITRIX/rpcs3",
@@ -4045,6 +4051,1107 @@
       "SPU": "477a3fa442d27917"
     },
     "native_host_regressions": "Affected production-extracted regressions plus real POSIX Store suite; see execution scopes and sanitizer distinctions.",
+    "apple_core_built": false,
+    "iphone_tested": false,
+    "fps_gain_measured": false,
+    "release_created": false
+  },
+  "device597_20261030": {
+    "baseline_app_commit": "293f7feba68eddb0dc7f4a5ec3940b209cc5de35",
+    "baseline_core_source": "88cdc5e3e115a0b8587711d77147467baf38128b",
+    "baseline_patch_sha256": "099651cae54c7bc567ff325735acde0cf3e931ed6e25b2b5bbcc14e5f5ecf33b",
+    "scope": "Late-SNR full-MFC wake registration, exact divided vertex upload keys, sampler shader refresh, monotone speculative-hash publication, cancellable speculative hashing and bounded causal diagnostics. Correct profiler time capture across reset. No game setting or synchronization dependency is bypassed.",
+    "source_evidence": "docs/evidence/rpcs3-device597-20261030/core-source-record.json",
+    "contract": "test/rpcs3_device597_contract_test.py",
+    "contract_record": "docs/evidence/rpcs3-device597-20261030/contract.json",
+    "delta": "test/rpcs3_device597/core-delta.patch",
+    "delta_sha256": "d9e4973033be0eee30b60ab1d39d14a18fb9d5dab124843e6e926ba782bc870f",
+    "codegen_evidence": "docs/evidence/rpcs3-device597-20261030/cpu/codegen-review-final.json",
+    "codegen_identities": {
+      "PPU": "a987639e9f838d1c",
+      "SPU": "477a3fa442d27917"
+    },
+    "report": "docs/rpcs3-device597-2026-10-30.md",
+    "apple_validation": {
+      "jobs": [
+        {
+          "name": "renderer-vertex-plain",
+          "kind": "native",
+          "mode": "plain",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/renderer/test_vertex_upload_key.py",
+            "--source",
+            "{source}",
+            "--output",
+            "{output}/renderer-vertex-plain"
+          ],
+          "report": "{output}/renderer-vertex-plain/result.json",
+          "checks": [
+            {
+              "path": [
+                "variants",
+                "before",
+                "result",
+                "wrong_range_reuses"
+              ],
+              "equals": 300
+            },
+            {
+              "path": [
+                "variants",
+                "after",
+                "result",
+                "wrong_range_reuses"
+              ],
+              "equals": 0
+            },
+            {
+              "path": [
+                "variants",
+                "after",
+                "result",
+                "ordinary_mismatches"
+              ],
+              "equals": 0
+            },
+            {
+              "path": [
+                "variants",
+                "after",
+                "result",
+                "cases"
+              ],
+              "equals": 1656
+            }
+          ]
+        },
+        {
+          "name": "renderer-vertex-asan-ubsan",
+          "kind": "native",
+          "mode": "asan-ubsan",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/renderer/test_vertex_upload_key.py",
+            "--source",
+            "{source}",
+            "--output",
+            "{output}/renderer-vertex-asan-ubsan",
+            "--sanitizer"
+          ],
+          "report": "{output}/renderer-vertex-asan-ubsan/result.json",
+          "checks": [
+            {
+              "path": [
+                "variants",
+                "before",
+                "result",
+                "wrong_range_reuses"
+              ],
+              "equals": 300
+            },
+            {
+              "path": [
+                "variants",
+                "after",
+                "result",
+                "wrong_range_reuses"
+              ],
+              "equals": 0
+            },
+            {
+              "path": [
+                "variants",
+                "after",
+                "result",
+                "ordinary_mismatches"
+              ],
+              "equals": 0
+            },
+            {
+              "path": [
+                "variants",
+                "after",
+                "result",
+                "cases"
+              ],
+              "equals": 1656
+            }
+          ]
+        },
+        {
+          "name": "renderer-sampler-plain",
+          "kind": "native",
+          "mode": "plain",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/renderer/test_sampler_shader_refresh.py",
+            "--source",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--output",
+            "{output}/renderer-sampler-plain"
+          ],
+          "report": "{output}/renderer-sampler-plain/result.json",
+          "checks": [
+            {
+              "path": [
+                "variants",
+                "before",
+                "result",
+                "stale_shader_states"
+              ],
+              "equals": 306
+            },
+            {
+              "path": [
+                "variants",
+                "after",
+                "result",
+                "stale_shader_states"
+              ],
+              "equals": 0
+            },
+            {
+              "path": [
+                "variants",
+                "after",
+                "result",
+                "unchanged_state_invalidations"
+              ],
+              "equals": 0
+            },
+            {
+              "path": [
+                "variants",
+                "after",
+                "result",
+                "cases"
+              ],
+              "equals": 2537
+            }
+          ]
+        },
+        {
+          "name": "renderer-sampler-asan-ubsan",
+          "kind": "native",
+          "mode": "asan-ubsan",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/renderer/test_sampler_shader_refresh.py",
+            "--source",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--output",
+            "{output}/renderer-sampler-asan-ubsan",
+            "--sanitizer"
+          ],
+          "report": "{output}/renderer-sampler-asan-ubsan/result.json",
+          "checks": [
+            {
+              "path": [
+                "variants",
+                "before",
+                "result",
+                "stale_shader_states"
+              ],
+              "equals": 306
+            },
+            {
+              "path": [
+                "variants",
+                "after",
+                "result",
+                "stale_shader_states"
+              ],
+              "equals": 0
+            },
+            {
+              "path": [
+                "variants",
+                "after",
+                "result",
+                "unchanged_state_invalidations"
+              ],
+              "equals": 0
+            },
+            {
+              "path": [
+                "variants",
+                "after",
+                "result",
+                "cases"
+              ],
+              "equals": 2537
+            }
+          ]
+        },
+        {
+          "name": "renderer-causality-plain",
+          "kind": "native",
+          "mode": "plain",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/renderer/test_renderer_causality.py",
+            "--source",
+            "{source}",
+            "--output",
+            "{output}/renderer-causality-plain"
+          ],
+          "report": "{output}/renderer-causality-plain/result.json",
+          "checks": [
+            {
+              "path": [
+                "returncode"
+              ],
+              "equals": 0
+            },
+            {
+              "path": [
+                "result",
+                "checks"
+              ],
+              "equals": 276
+            },
+            {
+              "path": [
+                "result",
+                "retained"
+              ],
+              "equals": 8
+            },
+            {
+              "path": [
+                "result",
+                "allocations_while_recording"
+              ],
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "name": "renderer-causality-asan-ubsan",
+          "kind": "native",
+          "mode": "asan-ubsan",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/renderer/test_renderer_causality.py",
+            "--source",
+            "{source}",
+            "--output",
+            "{output}/renderer-causality-asan-ubsan",
+            "--sanitizer"
+          ],
+          "report": "{output}/renderer-causality-asan-ubsan/result.json",
+          "checks": [
+            {
+              "path": [
+                "returncode"
+              ],
+              "equals": 0
+            },
+            {
+              "path": [
+                "result",
+                "checks"
+              ],
+              "equals": 276
+            },
+            {
+              "path": [
+                "result",
+                "retained"
+              ],
+              "equals": 8
+            },
+            {
+              "path": [
+                "result",
+                "allocations_while_recording"
+              ],
+              "equals": 0
+            }
+          ]
+        },
+        {
+          "name": "cpu-late-snr-plain",
+          "kind": "native",
+          "mode": "plain",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/cpu/run_late_snr.py",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--report",
+            "{output}/cpu-late-snr-plain.json"
+          ],
+          "report": "{output}/cpu-late-snr-plain.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "results",
+                "baselineLostWakeSchedules"
+              ],
+              "equals": 4
+            },
+            {
+              "path": [
+                "results",
+                "candidateInterruptDeliveries"
+              ],
+              "equals": 6
+            },
+            {
+              "path": [
+                "results",
+                "ownerPublishedMfcSnapshotVerified"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "cpu-late-snr-asan-ubsan",
+          "kind": "native",
+          "mode": "asan-ubsan",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/cpu/run_late_snr.py",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--report",
+            "{output}/cpu-late-snr-asan-ubsan.json",
+            "--sanitizer",
+            "address,undefined"
+          ],
+          "report": "{output}/cpu-late-snr-asan-ubsan.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "results",
+                "baselineLostWakeSchedules"
+              ],
+              "equals": 4
+            },
+            {
+              "path": [
+                "results",
+                "candidateInterruptDeliveries"
+              ],
+              "equals": 6
+            },
+            {
+              "path": [
+                "results",
+                "ownerPublishedMfcSnapshotVerified"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "signal-helper-plain",
+          "kind": "native",
+          "mode": "plain",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--repo",
+            "{repo}",
+            "--mode",
+            "helper",
+            "--report",
+            "{output}/signal-helper-plain.json"
+          ],
+          "report": "{output}/signal-helper-plain.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "signal-helper-asan-ubsan",
+          "kind": "native",
+          "mode": "asan-ubsan",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--repo",
+            "{repo}",
+            "--mode",
+            "helper",
+            "--report",
+            "{output}/signal-helper-asan-ubsan.json",
+            "--sanitizer",
+            "address,undefined"
+          ],
+          "report": "{output}/signal-helper-asan-ubsan.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "signal-rsx-plain",
+          "kind": "native",
+          "mode": "plain",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--repo",
+            "{repo}",
+            "--mode",
+            "rsx",
+            "--report",
+            "{output}/signal-rsx-plain.json"
+          ],
+          "report": "{output}/signal-rsx-plain.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "signal-rsx-asan-ubsan",
+          "kind": "native",
+          "mode": "asan-ubsan",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--repo",
+            "{repo}",
+            "--mode",
+            "rsx",
+            "--report",
+            "{output}/signal-rsx-asan-ubsan.json",
+            "--sanitizer",
+            "address,undefined"
+          ],
+          "report": "{output}/signal-rsx-asan-ubsan.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "signal-dma-plain",
+          "kind": "native",
+          "mode": "plain",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--repo",
+            "{repo}",
+            "--mode",
+            "dma",
+            "--report",
+            "{output}/signal-dma-plain.json"
+          ],
+          "report": "{output}/signal-dma-plain.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "signal-dma-asan-ubsan",
+          "kind": "native",
+          "mode": "asan-ubsan",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--repo",
+            "{repo}",
+            "--mode",
+            "dma",
+            "--report",
+            "{output}/signal-dma-asan-ubsan.json",
+            "--sanitizer",
+            "address,undefined"
+          ],
+          "report": "{output}/signal-dma-asan-ubsan.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "signal-list-plain",
+          "kind": "native",
+          "mode": "plain",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--repo",
+            "{repo}",
+            "--mode",
+            "list",
+            "--report",
+            "{output}/signal-list-plain.json"
+          ],
+          "report": "{output}/signal-list-plain.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "signal-list-asan-ubsan",
+          "kind": "native",
+          "mode": "asan-ubsan",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--repo",
+            "{repo}",
+            "--mode",
+            "list",
+            "--report",
+            "{output}/signal-list-asan-ubsan.json",
+            "--sanitizer",
+            "address,undefined"
+          ],
+          "report": "{output}/signal-list-asan-ubsan.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "prehash-publication-plain",
+          "kind": "native",
+          "mode": "plain",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/prehash/validate_prehash_publication.py",
+            "--baseline",
+            "{baseline}",
+            "--candidate",
+            "{source}",
+            "--work",
+            "{output}/prehash-publication-plain",
+            "--report",
+            "{output}/prehash-publication-plain.json"
+          ],
+          "report": "{output}/prehash-publication-plain.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "prehash-publication-asan-ubsan",
+          "kind": "native",
+          "mode": "asan-ubsan",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/prehash/validate_prehash_publication.py",
+            "--baseline",
+            "{baseline}",
+            "--candidate",
+            "{source}",
+            "--work",
+            "{output}/prehash-publication-asan-ubsan",
+            "--report",
+            "{output}/prehash-publication-asan-ubsan.json",
+            "--sanitizer",
+            "address,undefined"
+          ],
+          "report": "{output}/prehash-publication-asan-ubsan.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "hash-cancellation-plain",
+          "kind": "native",
+          "mode": "plain",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/hash/run_hash_cancellation.py",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--dependencies",
+            "{source}",
+            "--report",
+            "{output}/hash-cancellation-plain.json"
+          ],
+          "report": "{output}/hash-cancellation-plain.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "foregroundFunctionUnchanged"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "xxhashSHA256"
+              ],
+              "equals": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c"
+            }
+          ]
+        },
+        {
+          "name": "hash-cancellation-asan-ubsan",
+          "kind": "native",
+          "mode": "asan-ubsan",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/hash/run_hash_cancellation.py",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--dependencies",
+            "{source}",
+            "--report",
+            "{output}/hash-cancellation-asan-ubsan.json",
+            "--sanitizer",
+            "address,undefined"
+          ],
+          "report": "{output}/hash-cancellation-asan-ubsan.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "foregroundFunctionUnchanged"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "xxhashSHA256"
+              ],
+              "equals": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c"
+            }
+          ]
+        },
+        {
+          "name": "worker-cancellation-plain",
+          "kind": "native",
+          "mode": "plain",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/worker/run_worker_cancellation.py",
+            "--source",
+            "{source}",
+            "--dependencies",
+            "{source}",
+            "--vm-adapter",
+            "{repo}/test/native/rpcs3_prehash581.inc",
+            "--work",
+            "{output}/worker-cancellation-plain",
+            "--report",
+            "{output}/worker-cancellation-plain.json"
+          ],
+          "report": "{output}/worker-cancellation-plain.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "worker-cancellation-asan-ubsan",
+          "kind": "native",
+          "mode": "asan-ubsan",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/worker/run_worker_cancellation.py",
+            "--source",
+            "{source}",
+            "--dependencies",
+            "{source}",
+            "--vm-adapter",
+            "{repo}/test/native/rpcs3_prehash581.inc",
+            "--work",
+            "{output}/worker-cancellation-asan-ubsan",
+            "--report",
+            "{output}/worker-cancellation-asan-ubsan.json",
+            "--sanitizer",
+            "address,undefined"
+          ],
+          "report": "{output}/worker-cancellation-asan-ubsan.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "frame-trace-plain",
+          "kind": "native",
+          "mode": "plain",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/frame/run_frame_trace.py",
+            "{source}",
+            "--report",
+            "{output}/frame-trace-plain.json"
+          ],
+          "report": "{output}/frame-trace-plain.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "productionHeaderExecuted"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "frame-trace-asan-ubsan",
+          "kind": "native",
+          "mode": "asan-ubsan",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/frame/run_frame_trace.py",
+            "{source}",
+            "--report",
+            "{output}/frame-trace-asan-ubsan.json",
+            "--sanitizer",
+            "address,undefined"
+          ],
+          "report": "{output}/frame-trace-asan-ubsan.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "productionHeaderExecuted"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "report-format-plain",
+          "kind": "native",
+          "mode": "plain",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/frame/run_format.py",
+            "{source}",
+            "--report",
+            "{output}/report-format-plain.json"
+          ],
+          "report": "{output}/report-format-plain.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "results",
+                "formatArgumentCountsChecked"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "results",
+                "resolvedStallRetained"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "results",
+                "unsampledIsUnavailable"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "report-format-asan-ubsan",
+          "kind": "native",
+          "mode": "asan-ubsan",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/frame/run_format.py",
+            "{source}",
+            "--report",
+            "{output}/report-format-asan-ubsan.json",
+            "--sanitizer",
+            "address,undefined"
+          ],
+          "report": "{output}/report-format-asan-ubsan.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "results",
+                "formatArgumentCountsChecked"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "results",
+                "resolvedStallRetained"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "results",
+                "unsampledIsUnavailable"
+              ],
+              "equals": true
+            }
+          ]
+        },
+        {
+          "name": "host-causes-plain",
+          "kind": "native",
+          "mode": "plain",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_causes_history_test.py",
+            "--app",
+            "{repo}",
+            "--baseline",
+            "{repo}/test/rpcs3_device597/host/baseline",
+            "--work",
+            "{output}/host-causes-plain",
+            "--report",
+            "{output}/host-causes-plain.json"
+          ],
+          "report": "{output}/host-causes-plain.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "admission",
+                "cases"
+              ],
+              "equals": 85
+            },
+            {
+              "path": [
+                "foundation",
+                "executed"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "foundation",
+                "runReturnCode"
+              ],
+              "equals": 0
+            }
+          ],
+          "requires_foundation": true
+        },
+        {
+          "name": "host-causes-asan-ubsan",
+          "kind": "native",
+          "mode": "asan-ubsan",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_causes_history_test.py",
+            "--app",
+            "{repo}",
+            "--baseline",
+            "{repo}/test/rpcs3_device597/host/baseline",
+            "--work",
+            "{output}/host-causes-asan-ubsan",
+            "--report",
+            "{output}/host-causes-asan-ubsan.json",
+            "--sanitizer",
+            "address,undefined"
+          ],
+          "report": "{output}/host-causes-asan-ubsan.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "admission",
+                "cases"
+              ],
+              "equals": 85
+            },
+            {
+              "path": [
+                "foundation",
+                "executed"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "foundation",
+                "runReturnCode"
+              ],
+              "equals": 0
+            }
+          ],
+          "requires_foundation": true
+        },
+        {
+          "name": "audit_codegen",
+          "kind": "source",
+          "argv": [
+            "python3",
+            "{repo}/test/rpcs3_device597/cpu/audit_codegen.py",
+            "{source}",
+            "--baseline",
+            "{baseline}",
+            "--repo",
+            "{repo}",
+            "--report",
+            "{output}/codegen-source.json"
+          ],
+          "report": "{output}/codegen-source.json",
+          "checks": [
+            {
+              "path": [
+                "passed"
+              ],
+              "equals": true
+            },
+            {
+              "path": [
+                "candidateWithExactAlias"
+              ],
+              "equals": {
+                "PPU": "a987639e9f838d1c",
+                "SPU": "477a3fa442d27917"
+              }
+            }
+          ]
+        }
+      ]
+    },
     "apple_core_built": false,
     "iphone_tested": false,
     "fps_gain_measured": false,

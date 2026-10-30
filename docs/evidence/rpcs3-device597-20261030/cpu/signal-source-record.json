@@ -1,0 +1,33 @@
+{
+  "files": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": {
+      "before_sha256": "4d138e76afc25d12d8eff04a5794153cbe9a4562c8dcbe5d9eac274ab4c927d3",
+      "after_sha256": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440",
+      "after_lf_sha256": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440"
+    },
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": {
+      "before_sha256": "acf9518ceed92ca6024939054a83060b9fdc9dce2f1281dbfed0bebda040a4db",
+      "after_sha256": "7891895841c71c6cd361f8b227284b6447ec1ce7ac0e455c69b18a050128d8fa",
+      "after_lf_sha256": "7891895841c71c6cd361f8b227284b6447ec1ce7ac0e455c69b18a050128d8fa"
+    },
+    "rpcs3/Emu/RSX/NV47/HW/nv406e.cpp": {
+      "before_sha256": "67b78d21235bc944559b32d07e821f69d93e9f0cc4df0253e33e1f86f399d652",
+      "after_sha256": "742e1c536d53f7279cd3ca0fff9df729dc2c99e8a33c5721273f52b663f2fef6",
+      "after_lf_sha256": "c1a5d71f20f6fa5dfdd9b1277a0b1dec0b7e6018027bd6767386d30c29434824"
+    },
+    "rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp": {
+      "before_sha256": "370ef0ef8221cd72cbe9435fc8cb387640b6b0629c0e0cd4585ef737d21ea893",
+      "after_sha256": "233ff027cc3bb660cd5c5d6e812782b9fab438d844a7606a3f504ede24374576",
+      "after_lf_sha256": "c5ca7d51fb7a195796f5a474c4fbec6d513ca475e7c3373433a73444defaf13f"
+    },
+    "rpcs3/ios/IOSSignalTrace.h": {
+      "before_sha256": null,
+      "after_sha256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+      "after_lf_sha256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6"
+    }
+  },
+  "patch_sha256": "5ba3420689a0b3078c7b9ac4eb88827e9d4544678f7d0ffcdd61302544dc58b3",
+  "patch_bytes": 26191,
+  "applies_to_exact_597": true,
+  "reproduces_all_postimages": true
+}

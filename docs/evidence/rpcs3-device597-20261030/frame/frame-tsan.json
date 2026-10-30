@@ -1,0 +1,41 @@
+{
+  "passed": true,
+  "host": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "machine": "x86_64",
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-O2",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-fno-omit-frame-pointer",
+    "-fsanitize=thread",
+    "-g"
+  ],
+  "sourceSHA256": "4a2b171d57c837216dbb79cae955b9e30b4bee35c4108ecb2422ba64590468f3",
+  "adapterSHA256": "f26fe41e0bde2a6cc5ee4143935603308906085d91b1c454a3d627bef24ab88b",
+  "sanitizer": "thread",
+  "sanitizerSuppressions": [],
+  "productionHeaderExecuted": true,
+  "fullCoreBuilt": false,
+  "gameplayMeasured": false,
+  "results": {
+    "passed": true,
+    "fpsRegressionCase": {
+      "completedIntervalFps": 60.2572,
+      "wallGuestFps": 2.55968
+    },
+    "boundedCapacity": 8,
+    "threadTrials": 100000,
+    "recorded": 12155,
+    "contended": 87845,
+    "acceptedEvents": 9645,
+    "profileBytes": 1520,
+    "sessionReset": true,
+    "threadWaitIsolation": true,
+    "deviceTested": false
+  }
+}

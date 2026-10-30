@@ -1,0 +1,2197 @@
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+index c339e20..554d040 100644
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -45,6 +45,15 @@ function(neostation_codegen_compatible_hash source actual output)
+     elseif(source STREQUAL "Cell/SPUThread.cpp" AND
+            actual STREQUAL "4d138e76afc25d12d8eff04a5794153cbe9a4562c8dcbe5d9eac274ab4c927d3")
+         set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
++    # Device597 follow-up: host full-queue SNR wake registration and bounded
++    # owner-published signal diagnostics in process_mfc_cmd / DMA copy bodies.
++    # Every other SPUThread.cpp byte, SPU layout, native helper signatures,
++    # LLVM emitters and external-symbol bindings are unchanged. The diagnostic
++    # helper does not enter generated objects. Reuse only the immediate
++    # delivered597 effective hash for this exact reviewed source file.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440")
++        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
+     # CELL559: compile() builds the LLVM analysis managers and the function pass
+     # pipeline only when no cached object is linked. A miss runs the same passes
+     # in the same order on the same IR; a hit generates no code. Generated
+diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
+index 2c0e964..bce82c3 100644
+--- a/rpcs3/Emu/Cell/SPUThread.cpp
++++ b/rpcs3/Emu/Cell/SPUThread.cpp
+@@ -35,6 +35,7 @@
+ #include "ios/IOSDMACopy.h"
+ #include "ios/IOSCompilePressure.h"
+ #include "ios/IOSSpuWaitProfile.h"
++#include "ios/IOSSignalTrace.h"
+ #ifdef ARCH_ARM64
+ #include "Emu/CPU/Backends/AArch64/SPUReservationScan.h"
+ #include "Emu/CPU/Backends/AArch64/SPUReservationHash.h"
+@@ -2189,6 +2190,22 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+ 
+ 	u32 eal = args.eal;
+ 	u32 lsa = args.lsa & 0x3ffff;
++#ifdef RPCS3_IOS
++	// Capture the session before the copy; a completion from a previous
++	// session must never appear as a producer of a new session's acquire.
++	const auto label_trace = !is_get && eal < RAW_SPU_BASE_ADDR
++		? rpcs3::ios::signal_trace::overlap(eal, args.size) : rpcs3::ios::signal_trace::watch_token{};
++	const auto trace_dma_commit = [&]
++	{
++		if (label_trace)
++		{
++			const bool owner = _this && get_current_cpu_thread<spu_thread>() == _this;
++			rpcs3::ios::signal_trace::write_event(label_trace, rpcs3::ios::signal_trace::event_kind::spu_dma_commit,
++				0, get_system_time(),
++				args.eal, args.size, _this ? _this->id : 0, owner ? _this->pc : 0, args.cmd);
++		}
++	};
++#endif
+ 
+ 	// Keep src point to const
+ 	u8* dst = nullptr;
+@@ -2649,6 +2666,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+ 				std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
+ 			}
+ 
++#ifdef RPCS3_IOS
++			trace_dma_commit();
++#endif
+ 			return;
+ 		}
+ 		else
+@@ -2861,6 +2881,9 @@ void spu_thread::do_dma_transfer(spu_thread* _this, const spu_mfc_cmd& args, u8*
+ 			std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
+ 		}
+ 
++#ifdef RPCS3_IOS
++		trace_dma_commit();
++#endif
+ 		return;
+ 	}
+ 
+@@ -2937,6 +2960,9 @@ plain_access:
+ 		dump.block_hash = _this->block_hash;
+ 		std::memcpy(dump.data, is_get ? dst : src, std::min<u32>(args.size, 128));
+ 	}
++#ifdef RPCS3_IOS
++	trace_dma_commit();
++#endif
+ }
+ 
+ bool spu_thread::do_dma_check(const spu_mfc_cmd& args)
+@@ -3421,6 +3447,9 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
+ 		// Avoid inlining huge transfers because it intentionally drops range lock unlock
+ 		else if (size && optimization_compatible == MFC_PUT_CMD && ((addr >> 28 == rsx::constants::local_mem_base >> 28) || (addr < RAW_SPU_BASE_ADDR && size - 1 <= 0x400 - 1 && (addr % 0x10000 + (size - 1)) < 0x10000)))
+ 		{
++#ifdef RPCS3_IOS
++			const auto label_trace = rpcs3::ios::signal_trace::overlap(addr, size);
++#endif
+ 			if (addr >> 28 != rsx::constants::local_mem_base >> 28)
+ 			{
+ 				rsx_lock.update_if_enabled(addr, size, range_lock);
+@@ -3499,6 +3528,12 @@ bool spu_thread::do_list_transfer(spu_mfc_cmd& args)
+ 			}
+ 			}
+ 
++#ifdef RPCS3_IOS
++			if (label_trace)
++				rpcs3::ios::signal_trace::write_event(label_trace, rpcs3::ios::signal_trace::event_kind::spu_list_commit,
++					0, get_system_time(),
++					addr, size, id, pc, args.cmd);
++#endif
+ 			arg_lsa += utils::align<u32>(size, 16);
+ 		}
+ 		else if (size)
+@@ -4469,8 +4504,47 @@ u32 evaluate_spin_optimization(std::span<u8> stats, u64 evaluate_time, const cfg
+ 	return busy_waiting_switch;
+ }
+ 
++#ifdef RPCS3_IOS
++// Called only by the SPU owner at the full-queue wait boundary. Reporters read
++// this fixed published copy, never the live queue or non-atomic SPU fields.
++static void ios_publish_mfc_snapshot(const spu_thread& spu, rpcs3::ios::signal_trace::producer_phase phase, u64 session)
++{
++	namespace trace = rpcs3::ios::signal_trace;
++	trace::producer_state value{};
++	value.session = session;
++	value.published_us = get_system_time();
++	value.id = spu.id;
++	value.pc = spu.pc;
++	value.return_pc = spu.srr0;
++	value.size = spu.mfc_size;
++	value.barrier = spu.mfc_barrier;
++	value.fence = spu.mfc_fence;
++	value.stall_mask = spu.ch_stall_mask;
++	value.tag_mask = spu.ch_tag_mask;
++	value.tag_update = spu.ch_tag_upd;
++	const auto events = spu.ch_events.load();
++	value.event_bits = events.events;
++	value.event_mask = events.mask;
++	value.event_count = events.count;
++	value.event_waiting = events.waiting;
++	value.interrupts_enabled = spu.interrupts_enabled;
++	value.snr1_count = spu.ch_snr1.get_count();
++	value.snr2_count = spu.ch_snr2.get_count();
++	value.phase = phase;
++	const auto copy = [](const spu_mfc_cmd& cmd) -> trace::queue_entry { return {cmd.cmd, cmd.tag, cmd.lsa, cmd.eal, cmd.size}; };
++	value.unaccepted = copy(spu.ch_mfc_cmd);
++	for (u32 i = 0; i < std::min<u32>(spu.mfc_size, trace::queue_capacity); ++i)
++		value.queue[i] = copy(spu.mfc_queue[i]);
++	trace::publish_producer(value);
++}
++#endif
++
+ bool spu_thread::process_mfc_cmd()
+ {
++#ifdef RPCS3_IOS
++	const bool trace_full_queue = mfc_size >= 16 && rpcs3::ios::signal_trace::enabled.load(std::memory_order_relaxed);
++	const u64 trace_session = trace_full_queue ? rpcs3::ios::signal_trace::current_session.load(std::memory_order_acquire) : 0;
++#endif
+ 	// Stall infinitely if MFC queue is full
+ 	while (mfc_size >= 16) [[unlikely]]
+ 	{
+@@ -4479,14 +4553,35 @@ bool spu_thread::process_mfc_cmd()
+ 
+ 		if (test_stopped())
+ 		{
++#ifdef RPCS3_IOS
++			if (trace_full_queue) ios_publish_mfc_snapshot(*this, rpcs3::ios::signal_trace::producer_phase::mfc_stopped, trace_session);
++#endif
+ 			return false;
+ 		}
+ 
+ 		// The new channel command has not been accepted yet. If draining
+ 		// takes an interrupt, resume this WRCH rather than the next instruction.
+ 		do_mfc(false);
++
++		// A stalled queue can need an interrupt handler to acknowledge a list.
++		// Register before checking the event: a later SNR must notify this
++		// blocked WRCH too, including the interval before wait_on starts.
++		const bool wait_for_events = mfc_size >= 16 && interrupts_enabled;
++		if (wait_for_events)
++		{
++			ch_events.atomic_op([](ch_events_t& events) { events.waiting = true; });
++		}
++
+ 		if (check_mfc_interrupts(pc))
+ 		{
++			if (wait_for_events)
++			{
++				ch_events.atomic_op([](ch_events_t& events) { events.waiting = false; });
++			}
++
++#ifdef RPCS3_IOS
++			if (trace_full_queue) ios_publish_mfc_snapshot(*this, rpcs3::ios::signal_trace::producer_phase::mfc_irq, trace_session);
++#endif
+ 			spu_runtime::g_escape(this);
+ 		}
+ 
+@@ -4499,11 +4594,32 @@ bool spu_thread::process_mfc_cmd()
+ 
+ 		if (is_stopped(old))
+ 		{
++			if (wait_for_events)
++			{
++				ch_events.atomic_op([](ch_events_t& events) { events.waiting = false; });
++			}
++
++#ifdef RPCS3_IOS
++			if (trace_full_queue) ios_publish_mfc_snapshot(*this, rpcs3::ios::signal_trace::producer_phase::mfc_stopped, trace_session);
++#endif
+ 			return false;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		if (trace_full_queue) ios_publish_mfc_snapshot(*this, rpcs3::ios::signal_trace::producer_phase::mfc_blocked, trace_session);
++#endif
+ 		thread_ctrl::wait_on(state, old);
++		if (wait_for_events)
++		{
++			ch_events.atomic_op([](ch_events_t& events) { events.waiting = false; });
++		}
++#ifdef RPCS3_IOS
++		if (trace_full_queue) ios_publish_mfc_snapshot(*this, rpcs3::ios::signal_trace::producer_phase::mfc_woke, trace_session);
++#endif
+ 	}
++#ifdef RPCS3_IOS
++	if (trace_full_queue) ios_publish_mfc_snapshot(*this, rpcs3::ios::signal_trace::producer_phase::mfc_ready, trace_session);
++#endif
+ 
+ 	spu::scheduler::concurrent_execution_watchdog watchdog(*this);
+ 	spu_log.trace("DMAC: (%s)", ch_mfc_cmd);
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.cpp b/rpcs3/Emu/RSX/Common/texture_cache.cpp
+index 0220fde..405ba84 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache.cpp
++++ b/rpcs3/Emu/RSX/Common/texture_cache.cpp
+@@ -119,15 +119,40 @@ namespace rpcs3::ios::texture_prehash
+ 			return vm::alloc_range_lock();
+ 		}
+ 
+-		bool hash_guest_range(atomic_t<u64, 128>* range_lock, u32 start, u32 length, u64& out) noexcept
++		bool hash_guest_range(atomic_t<u64, 128>* range_lock, u32 start, u32 length,
++			const texture_hash_cancellation& cancellation, u64& out, usz& processed) noexcept
+ 		{
++			processed = 0;
++			if (!cancellation.current())
++			{
++				return false;
++			}
++
++			const auto hash = [&]() noexcept
++			{
++				if (rpcs3::ios::get_experimental_policy().texture_hash_hybrid)
++				{
++					return texture_hash_hybrid_cancellable(vm::g_sudo_addr + start, length,
++						g_ios_xxh3_seeded_secret.bytes, sizeof(g_ios_xxh3_seeded_secret.bytes),
++						rpcs3::fnv_seed, cancellation, out, processed);
++				}
++
++				const u64 result = range_hash(vm::g_sudo_addr + start, length);
++				processed = length;
++				if (!cancellation.current())
++				{
++					return false;
++				}
++				out = result;
++				return true;
++			};
++
+ 			const u64 end = u64{start} + length;
+ 
+ 			if (start >= rsx::constants::local_mem_base && end <= u64{rsx::constants::local_mem_base} + 0x1000'0000)
+ 			{
+ 				// RSX local memory stays mapped while the RSX thread runs (vm::range_lock skips it too).
+-				out = range_hash(vm::g_sudo_addr + start, length);
+-				return true;
++				return hash();
+ 			}
+ 
+ 			if (!range_lock)
+@@ -147,9 +172,9 @@ namespace rpcs3::ios::texture_prehash
+ 				return false;
+ 			}
+ 
+-			out = range_hash(vm::g_sudo_addr + start, length);
++			const bool complete = hash();
+ 			range_lock->release(0);
+-			return true;
++			return complete;
+ 		}
+ 
+ 		void worker_main()
+@@ -248,8 +273,17 @@ namespace rpcs3::ios::texture_prehash
+ 					}
+ 
+ 					const u64 begin = utils::get_tsc();
++					const texture_hash_cancellation cancellation{
++						validation::validation_epoch, g_position, enabled, epoch, index};
++					usz processed = 0;
++					const bool complete = hash_guest_range(range_lock, range.start,
++						range.length, cancellation, hash, processed);
++					// Account for the prefix even when it became obsolete during the
++					// read. Only complete hashes can be published or counted as such.
++					worker_bytes.fetch_add(processed, std::memory_order_relaxed);
++					worker_ticks.fetch_add(utils::get_tsc() - begin, std::memory_order_relaxed);
+ 
+-					if (!hash_guest_range(range_lock, range.start, range.length, hash))
++					if (!complete)
+ 					{
+ 						worker_skips.fetch_add(1, std::memory_order_relaxed);
+ 						continue;
+@@ -257,8 +291,6 @@ namespace rpcs3::ios::texture_prehash
+ 
+ 					publish(range.start, range.length, epoch, hash);
+ 					worker_hashes.fetch_add(1, std::memory_order_relaxed);
+-					worker_bytes.fetch_add(range.length, std::memory_order_relaxed);
+-					worker_ticks.fetch_add(utils::get_tsc() - begin, std::memory_order_relaxed);
+ 				}
+ 
+ 				lock.lock();
+diff --git a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
+index ba26ea6..c3f2716 100644
+--- a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
++++ b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
+@@ -7,6 +7,7 @@
+ #ifdef RPCS3_IOS
+ #include "ios/RPCS3IOSPerformance.h"
+ #include "ios/IOSTextureValidationProfile.h"
++#include "ios/IOSSignalTrace.h"
+ #endif
+ 
+ // NEOSTATION_BUILD258_RUNTIME_RESILIENCE_V1
+@@ -39,6 +40,13 @@ namespace rsx
+ 
+ 			const auto& atomic_sema = vm::_ref<atomic_t<RsxSemaphore>>(addr);
+ 			RsxSemaphore observed = atomic_sema.load();
++#ifdef RPCS3_IOS
++			// Retain the last non-flip address between acquires so preceding writes
++			// can be correlated with the next wait on that same label.
++			const auto label_trace = rpcs3::ios::signal_trace::enabled.load(std::memory_order_relaxed) && addr != RSX(ctx)->label_addr + 0x10
++				? rpcs3::ios::signal_trace::begin_acquire(addr, arg, static_cast<u32>(observed), get_system_time())
++				: rpcs3::ios::signal_trace::watch_token{};
++#endif
+ 
+ 			// ARM64 must observe guest label writes with acquire semantics. Reading
+ 			// through a non-atomic alias can keep an old value in the hot loop even
+@@ -72,6 +80,11 @@ namespace rsx
+ 				if (RSX(ctx)->test_stopped())
+ 				{
+ 					RSX(ctx)->state += cpu_flag::again;
++#ifdef RPCS3_IOS
++					if (label_trace)
++						rpcs3::ios::signal_trace::acquire_state(label_trace, rpcs3::ios::signal_trace::event_kind::aborted,
++							static_cast<u32>(observed), get_system_time());
++#endif
+ 					return;
+ 				}
+ 
+@@ -120,6 +133,9 @@ namespace rsx
+ #endif
+ 						timed_out = true;
+ #ifdef RPCS3_IOS
++						if (label_trace)
++							rpcs3::ios::signal_trace::acquire_state(label_trace, rpcs3::ios::signal_trace::event_kind::stalled,
++								static_cast<u32>(observed), current);
+ 						// REWINDBOX_RSX_ACQUIRE_V1: a timeout is not a guest signal.
+ 						// Keep servicing the producer and honor stop/pause below. Advancing
+ 						// the FIFO here can consume resources which have not been published.
+@@ -167,6 +183,9 @@ namespace rsx
+ 			if (timed_out)
+ 				rsx_log.notice("RSX_ACQUIRE resolved address=0x%X expected=0x%X observed=0x%X waited_us=%llu",
+ 					addr, arg, static_cast<u32>(observed), waited);
++			if (label_trace)
++				rpcs3::ios::signal_trace::acquire_state(label_trace, rpcs3::ios::signal_trace::event_kind::resolved,
++					static_cast<u32>(observed), get_system_time());
+ 			rpcs3::ios::record_rsx_semaphore_wait(waited, timed_out);
+ #endif
+ 			RSX(ctx)->fifo_wake_delay();
+@@ -209,6 +228,11 @@ namespace rsx
+ 				arg = 1;
+ 			}
+ 
++#ifdef RPCS3_IOS
++			if (const auto label_trace = rpcs3::ios::signal_trace::overlap(addr, 4))
++				rpcs3::ios::signal_trace::write_event(label_trace, rpcs3::ios::signal_trace::event_kind::rsx_release_requested,
++					arg, get_system_time(), addr, 4, 0, 0, reg);
++#endif
+ 			util::write_gcm_label<false, true>(ctx, reg, addr, arg);
+ 		}
+ 	}
+diff --git a/rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp b/rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp
+index a77da37..f34c65a 100644
+--- a/rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp
++++ b/rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp
+@@ -2,6 +2,10 @@
+ 
+ #include <util/types.hpp>
+ #include "Emu/RSX/RSXThread.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSSignalTrace.h"
++#include "Emu/Cell/timers.hpp"
++#endif
+ 
+ #include "context_accessors.define.h"
+ 
+@@ -15,11 +19,19 @@ namespace rsx
+ 		template <bool FlushDMA, bool FlushPipe>
+ 		static void write_gcm_label(context* ctx, u32 type, u32 address, u32 data)
+ 		{
++#ifdef RPCS3_IOS
++			const auto label_trace = rpcs3::ios::signal_trace::overlap(address, 4);
++#endif
+ 			const bool is_flip_sema = (address == (RSX(ctx)->label_addr + 0x10) || address == (RSX(ctx)->device_addr + 0x30));
+ 			if (!is_flip_sema)
+ 			{
+ 				// First, queue the GPU work. If it flushes the queue for us, the following routines will be faster.
+ 				const bool handled = RSX(ctx)->get_backend_config().supports_host_gpu_labels && RSX(ctx)->release_GCM_label(type, address, data);
++#ifdef RPCS3_IOS
++				if (handled && label_trace)
++					rpcs3::ios::signal_trace::write_event(label_trace, rpcs3::ios::signal_trace::event_kind::rsx_gpu_deferred,
++						data, get_system_time(), address, 4, 0, 0, type);
++#endif
+ 
+ 				if (vm::_ref<RsxSemaphore>(address) == data)
+ 				{
+@@ -59,6 +71,11 @@ namespace rsx
+ 			}
+ 
+ 			vm::write<atomic_t<RsxSemaphore>>(address, data);
++#ifdef RPCS3_IOS
++			if (label_trace)
++				rpcs3::ios::signal_trace::write_event(label_trace, rpcs3::ios::signal_trace::event_kind::rsx_cpu_commit,
++					data, get_system_time(), address, 4, 0, 0, type);
++#endif
+ 		}
+ 	}
+ }
+diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
+index 45f1e30..0460b42 100644
+--- a/rpcs3/Emu/RSX/RSXThread.cpp
++++ b/rpcs3/Emu/RSX/RSXThread.cpp
+@@ -3603,6 +3603,17 @@ namespace rsx
+ 		// frame's statistics, then time every rsx_frame_sample_period-th frame.
+ 		{
+ 			auto& window = rpcs3::ios::rsx_sync::rsx_frames;
++			rpcs3::ios::frame_trace::Frame frame;
++			frame.frame = int_flip_index;
++			frame.end_ticks = utils::get_tsc();
++			frame.frequency = utils::get_tsc_freq();
++			frame.forced = forced;
++			frame.stages_sampled = m_profiler.enabled;
++			frame.draws = m_frame_stats.draw_calls;
++			frame.submits = m_frame_stats.submit_count;
++			frame.vertex_requests = m_frame_stats.vertex_cache_request_count;
++			frame.vertex_misses = m_frame_stats.vertex_cache_miss_count;
++			frame.waits = rpcs3::ios::frame_trace::take_thread_waits();
+ 			constexpr auto relaxed = std::memory_order_relaxed;
+ 			window.frames.fetch_add(1, relaxed);
+ 			window.draws.fetch_add(m_frame_stats.draw_calls, relaxed);
+@@ -3621,7 +3632,13 @@ namespace rsx
+ 				window.texture_us.fetch_add(us(m_frame_stats.textures_upload_time), relaxed);
+ 				window.exec_us.fetch_add(us(m_frame_stats.draw_exec_time), relaxed);
+ 				window.flip_us.fetch_add(us(m_frame_stats.flip_time), relaxed);
++				frame.setup_us = us(m_frame_stats.setup_time);
++				frame.vertex_us = us(m_frame_stats.vertex_upload_time);
++				frame.texture_us = us(m_frame_stats.textures_upload_time);
++				frame.execution_us = us(m_frame_stats.draw_exec_time);
++				frame.flip_us = us(m_frame_stats.flip_time);
+ 			}
++			rpcs3::ios::frame_trace::profile.record(frame);
+ 		}
+ 		static u64 s_ios_frame_ordinal = 0;
+ 		const bool ios_sample_frame = (++s_ios_frame_ordinal % rpcs3::ios::rsx_sync::rsx_frame_sample_period) == 0;
+diff --git a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp b/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
+index a63cb10..5de62da 100644
+--- a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
++++ b/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
+@@ -54,7 +54,9 @@ namespace vk
+ #endif
+ 		vkQueueSubmit(submit_info.queue, 1, &info, submit_info.pfence->handle);
+ #ifdef RPCS3_IOS
+-		rpcs3::ios::rsx_sync::submit_ticks.record(utils::get_tsc() - ios_submit_begin);
++		const u64 ios_submit_ticks = utils::get_tsc() - ios_submit_begin;
++		rpcs3::ios::rsx_sync::submit_ticks.record(ios_submit_ticks);
++		rpcs3::ios::frame_trace::waits().submit_ticks += ios_submit_ticks;
+ #endif
+ 		release_global_submit_lock();
+ 
+diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+index 527ecd4..4868c97 100644
+--- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
++++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+@@ -7,8 +7,13 @@
+ #include "VKGSRender.h"
+ #include "vkutils/buffer_object.h"
+ #include "vkutils/chip_class.h"
++#include "vkutils/sampler_shader_state.hpp"
+ #include <vulkan/vulkan_core.h>
+ 
++#ifdef RPCS3_IOS
++#include "ios/IOSRendererCausality.h"
++#endif
++
+ namespace vk
+ {
+ 	VkImageViewType get_view_type(rsx::texture_dimension_extended type)
+@@ -270,9 +275,47 @@ void VKGSRender::load_texture_env()
+ {
+ 	// Load textures
+ 	bool check_for_cyclic_refs = false;
+-	auto check_surface_cache_sampler_valid = [&](auto descriptor, const auto& tex)
++#ifdef RPCS3_IOS
++	auto record_sampler_change = [&](const vk::sampler_shader_state& before, const auto& descriptor,
++		u32 previous_address, u32 slot, bool vertex,
++		rpcs3::ios::renderer_causality::Kind kind = rpcs3::ios::renderer_causality::Kind::sampler_refresh)
++	{
++		namespace cause = rpcs3::ios::renderer_causality;
++		const auto after = vertex ? vk::sampler_shader_state::capture_vertex(descriptor)
++			: vk::sampler_shader_state::capture_fragment(descriptor);
++		cause::profile.record(kind, cause::changed_reasons(before, after, vertex), [&](cause::Event& event)
++		{
++			event.frame = int_flip_index;
++			event.draw = m_frame_stats.draw_calls;
++			event.fragment_offset = current_fragment_program.offset;
++			event.vertex_start = rsx::method_registers.transform_program_start();
++			event.slot = slot;
++			event.vertex = vertex;
++			event.old_resource = previous_address;
++			event.new_resource = descriptor.ref_address;
++			event.before = cause::SamplerState::from(before);
++			event.after = cause::SamplerState::from(after);
++		});
++	};
++#endif
++	auto check_surface_cache_sampler_valid = [&](auto descriptor, const auto& tex, bool fragment_sampler, [[maybe_unused]] u32 slot)
+ 	{
+-		if (!m_texture_cache.test_if_descriptor_expired(*m_current_command_buffer, m_rtts, descriptor, tex))
++		const bool was_cyclic = descriptor->is_cyclic_reference;
++		const bool expired = m_texture_cache.test_if_descriptor_expired(*m_current_command_buffer, m_rtts, descriptor, tex);
++		if (fragment_sampler && descriptor->format_class != RSX_FORMAT_CLASS_COLOR &&
++			was_cyclic != descriptor->is_cyclic_reference)
++		{
++			// Fast framebuffer refreshes can change early-Z/cyclic-depth state
++			// without replacing the image or changing any sampler registers.
++			m_graphics_state |= rsx::fragment_program_state_dirty;
++#ifdef RPCS3_IOS
++			auto before = vk::sampler_shader_state::capture_fragment(*descriptor);
++			before.cyclic = was_cyclic;
++			record_sampler_change(before, *descriptor, descriptor->ref_address, slot, false,
++				rpcs3::ios::renderer_causality::Kind::sampler_cyclic_fast);
++#endif
++		}
++		if (!expired)
+ 		{
+ 			check_for_cyclic_refs |= descriptor->is_cyclic_reference;
+ 			return true;
+@@ -301,20 +344,24 @@ void VKGSRender::load_texture_env()
+ 
+ 		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(fs_sampler_state[i].get());
+ 		const auto& tex = rsx::method_registers.fragment_textures[i];
+-		const auto previous_format_class = fs_sampler_state[i]->format_class;
+ 
+ 		if (!m_samplers_dirty &&
+ 			!m_textures_dirty[i] &&
+ #ifdef RPCS3_IOS
+ 			(!tex.enabled() || !m_texture_cache.sampler_requires_validation(i, *sampler_state)) &&
+ #endif
+-			check_surface_cache_sampler_valid(sampler_state, tex))
++			check_surface_cache_sampler_valid(sampler_state, tex, true, i))
+ 		{
+ 			continue;
+ 		}
+ 
+ 		const bool is_sampler_dirty = m_textures_dirty[i];
+ 		m_textures_dirty[i] = false;
++		const auto previous_shader_state = is_sampler_dirty
++			? vk::sampler_shader_state{} : vk::sampler_shader_state::capture_fragment(*sampler_state);
++#ifdef RPCS3_IOS
++		const auto previous_address = sampler_state->ref_address;
++#endif
+ 
+ 		if (!tex.enabled())
+ 		{
+@@ -331,6 +378,13 @@ void VKGSRender::load_texture_env()
+ #endif
+ 		if (!sampler_state->validate())
+ 		{
++			if (!is_sampler_dirty && previous_shader_state.valid)
++			{
++				m_graphics_state |= rsx::fragment_program_state_dirty;
++#ifdef RPCS3_IOS
++				record_sampler_change(previous_shader_state, *sampler_state, previous_address, i, false);
++#endif
++			}
+ 			continue;
+ 		}
+ 
+@@ -339,16 +393,29 @@ void VKGSRender::load_texture_env()
+ 			check_for_cyclic_refs |= true;
+ 		}
+ 
++		const bool shader_state_changed = !is_sampler_dirty && !previous_shader_state.matches_fragment(*sampler_state);
+ 		if (!is_sampler_dirty)
+ 		{
+-			if (sampler_state->format_class != previous_format_class)
++			if (shader_state_changed)
+ 			{
+-				// Host details changed but RSX is not aware
++				// Host subresource changes can also alter coordinates, MSAA or
++				// cyclic-depth handling without changing the guest texture state.
+ 				m_graphics_state |= rsx::fragment_program_state_dirty;
+ 			}
+ 
+ 			if (sampler_state->format_ex)
+ 			{
++				const bool format_state_changed = !previous_shader_state.matches_format(*sampler_state);
++				if (format_state_changed)
++				{
++					m_graphics_state |= rsx::fragment_program_state_dirty;
++				}
++#ifdef RPCS3_IOS
++				if (shader_state_changed || format_state_changed)
++				{
++					record_sampler_change(previous_shader_state, *sampler_state, previous_address, i, false);
++				}
++#endif
+ 				// Nothing to change, use cached sampler
+ 				continue;
+ 			}
+@@ -389,6 +456,19 @@ void VKGSRender::load_texture_env()
+ 			}
+ 		}
+ 
++		const bool format_state_changed = !is_sampler_dirty && !previous_shader_state.matches_format(*sampler_state);
++		if (format_state_changed)
++		{
++			// Host view capabilities decide which conversions remain in shader.
++			m_graphics_state |= rsx::fragment_program_state_dirty;
++		}
++#ifdef RPCS3_IOS
++		if (shader_state_changed || format_state_changed)
++		{
++			record_sampler_change(previous_shader_state, *sampler_state, previous_address, i, false);
++		}
++#endif
++
+ 		VkFilter mag_filter;
+ 		vk::minification_filter min_filter;
+ 		f32 min_lod = 0.f, max_lod = 0.f;
+@@ -540,20 +620,24 @@ void VKGSRender::load_texture_env()
+ 
+ 		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(vs_sampler_state[i].get());
+ 		const auto& tex = rsx::method_registers.vertex_textures[i];
+-		const auto previous_format_class = sampler_state->format_class;
+ 
+ 		if (!m_samplers_dirty &&
+ 			!m_vertex_textures_dirty[i] &&
+ #ifdef RPCS3_IOS
+ 			(!tex.enabled() || !m_texture_cache.sampler_requires_validation(rsx::limits::fragment_textures_count + i, *sampler_state)) &&
+ #endif
+-			check_surface_cache_sampler_valid(sampler_state, tex))
++			check_surface_cache_sampler_valid(sampler_state, tex, false, i))
+ 		{
+ 			continue;
+ 		}
+ 
+ 		const bool is_sampler_dirty = m_vertex_textures_dirty[i];
+ 		m_vertex_textures_dirty[i] = false;
++		const auto previous_shader_state = is_sampler_dirty
++			? vk::sampler_shader_state{} : vk::sampler_shader_state::capture_vertex(*sampler_state);
++#ifdef RPCS3_IOS
++		const auto previous_address = sampler_state->ref_address;
++#endif
+ 
+ 		if (!rsx::method_registers.vertex_textures[i].enabled())
+ 		{
+@@ -571,6 +655,13 @@ void VKGSRender::load_texture_env()
+ #endif
+ 		if (!sampler_state->validate())
+ 		{
++			if (!is_sampler_dirty && previous_shader_state.valid)
++			{
++				m_graphics_state |= rsx::vertex_program_state_dirty;
++#ifdef RPCS3_IOS
++				record_sampler_change(previous_shader_state, *sampler_state, previous_address, i, true);
++#endif
++			}
+ 			continue;
+ 		}
+ 
+@@ -581,10 +672,13 @@ void VKGSRender::load_texture_env()
+ 
+ 		if (!is_sampler_dirty)
+ 		{
+-			if (sampler_state->format_class != previous_format_class)
++			if (!previous_shader_state.matches_vertex(*sampler_state))
+ 			{
+ 				// Host details changed but RSX is not aware
+ 				m_graphics_state |= rsx::vertex_program_state_dirty;
++#ifdef RPCS3_IOS
++				record_sampler_change(previous_shader_state, *sampler_state, previous_address, i, true);
++#endif
+ 			}
+ 
+ 			if (vs_sampler_handles[i])
+diff --git a/rpcs3/Emu/RSX/VK/VKPresent.cpp b/rpcs3/Emu/RSX/VK/VKPresent.cpp
+index 0fe2c55..5f5e3ae 100644
+--- a/rpcs3/Emu/RSX/VK/VKPresent.cpp
++++ b/rpcs3/Emu/RSX/VK/VKPresent.cpp
+@@ -172,7 +172,9 @@ void VKGSRender::present(vk::frame_context_t *ctx)
+ #ifdef RPCS3_IOS
+ 		const u64 ios_present_begin = utils::get_tsc();
+ 		const VkResult ios_present_result = m_swapchain->present(ctx->present_wait_semaphore, ctx->present_image);
+-		rpcs3::ios::rsx_sync::present_ticks.record(utils::get_tsc() - ios_present_begin);
++		const u64 ios_present_ticks = utils::get_tsc() - ios_present_begin;
++		rpcs3::ios::rsx_sync::present_ticks.record(ios_present_ticks);
++		rpcs3::ios::frame_trace::waits().present_ticks += ios_present_ticks;
+ 		// CELL587_MVK_ENCODE_BARRIER: a marker behind the present, still queued for
+ 		// encoding with asynchronous MoltenVK submits (ios/IOSMoltenVKExec.h).
+ 		if (const u64 ticket = rpcs3::ios::moltenvk_exec::mark_present())
+@@ -775,7 +777,9 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+ 	}
+ 
+ #ifdef RPCS3_IOS
+-	rpcs3::ios::rsx_sync::acquire_ticks.record(utils::get_tsc() - ios_acquire_begin);
++	const u64 ios_acquire_ticks = utils::get_tsc() - ios_acquire_begin;
++	rpcs3::ios::rsx_sync::acquire_ticks.record(ios_acquire_ticks);
++	rpcs3::ios::frame_trace::waits().drawable_ticks += ios_acquire_ticks;
+ #endif
+ 
+ 	// Confirm that the driver did not silently fail
+diff --git a/rpcs3/Emu/RSX/VK/VKVertexBuffers.cpp b/rpcs3/Emu/RSX/VK/VKVertexBuffers.cpp
+index d9e9cee..7074463 100644
+--- a/rpcs3/Emu/RSX/VK/VKVertexBuffers.cpp
++++ b/rpcs3/Emu/RSX/VK/VKVertexBuffers.cpp
+@@ -1,5 +1,9 @@
+ #include "stdafx.h"
+ #include "VKGSRender.h"
++
++#ifdef RPCS3_IOS
++#include "ios/IOSRendererCausality.h"
++#endif
+ #include "../Common/BufferUtils.h"
+ #include "../rsx_methods.h"
+ #include "vkutils/buffer_object.h"
+@@ -248,8 +252,13 @@ vk::vertex_upload_info VKGSRender::upload_vertex_data()
+ 		if (m_vertex_layout.interleaved_blocks.size() == 1 &&
+ 			rsx::method_registers.current_draw_clause.command != rsx::draw_command::inlined_array)
+ 		{
+-			const auto data_offset = (vertex_base * m_vertex_layout.interleaved_blocks[0]->attribute_stride);
+-			storage_address = m_vertex_layout.interleaved_blocks[0]->real_offset_address + data_offset;
++			const auto block = m_vertex_layout.interleaved_blocks[0];
++			// Frequency division, modulo and constant attributes may upload a
++			// different range from the draw's vertex IDs. Key and fingerprint
++			// the exact bytes used by write_vertex_data_to_memory().
++			const auto range = block->get_required_range(vertex_base, vertex_count);
++			const auto data_offset = range.first * block->attribute_stride;
++			storage_address = block->real_offset_address + data_offset;
+ 
+ 			if (auto cached = m_vertex_cache->find_vertex_range(storage_address, required.first))
+ 			{
+@@ -262,6 +271,29 @@ vk::vertex_upload_info VKGSRender::upload_vertex_data()
+ 			{
+ 				to_store = true;
+ 			}
++#ifdef RPCS3_IOS
++			const auto legacy_address = block->real_offset_address + vertex_base * block->attribute_stride;
++			if (legacy_address != storage_address)
++			{
++				namespace cause = rpcs3::ios::renderer_causality;
++				cause::profile.record(cause::Kind::vertex_range, cause::source_range, [&](cause::Event& event)
++				{
++					event.frame = int_flip_index;
++					event.draw = m_frame_stats.draw_calls;
++					event.fragment_offset = current_fragment_program.offset;
++					event.vertex_start = rsx::method_registers.transform_program_start();
++					event.vertex = true;
++					event.legacy_address = legacy_address;
++					event.actual_address = storage_address;
++					event.bytes = required.first;
++					event.draw_first = vertex_base;
++					event.source_first = range.first;
++					event.count = vertex_count;
++					event.stride = block->attribute_stride;
++					event.cache_hit = in_cache;
++				});
++			}
++#endif
+ 		}
+ 
+ 		if (!in_cache)
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/sampler_shader_state.hpp b/rpcs3/Emu/RSX/VK/vkutils/sampler_shader_state.hpp
+new file mode 100644
+index 0000000..f8fb59f
+--- /dev/null
++++ b/rpcs3/Emu/RSX/VK/vkutils/sampler_shader_state.hpp
+@@ -0,0 +1,91 @@
++#pragma once
++
++#include "../../Common/TextureUtils.h"
++
++#include <array>
++#include <cstdint>
++#include <cstring>
++
++namespace vk
++{
++	// A texture can be rebound to a different host subresource without a guest
++	// sampler-register write. Keep only the descriptor fields consumed by shader
++	// selection/uniform preparation; do not copy deferred image lists or pixels.
++	struct sampler_shader_state
++	{
++		std::array<std::uint32_t, 10> coordinates{};
++		std::uint32_t dimension = 0;
++		std::uint32_t format_class = 0;
++		std::uint32_t format_features = 0;
++		std::uint32_t texel_remap_control = 0;
++		std::uint8_t samples = 1;
++		bool cyclic = false;
++		bool clamp = false;
++		bool valid = false;
++
++		template <typename Descriptor>
++		static sampler_shader_state capture_vertex(const Descriptor& descriptor)
++		{
++			sampler_shader_state result;
++			result.valid = descriptor.validate();
++			if (!result.valid)
++			{
++				return result;
++			}
++
++			result.dimension = static_cast<std::uint32_t>(descriptor.image_type);
++			result.format_class = static_cast<std::uint32_t>(descriptor.format_class);
++			result.samples = descriptor.samples;
++			return result;
++		}
++
++		template <typename Descriptor>
++		static sampler_shader_state capture_fragment(const Descriptor& descriptor)
++		{
++			auto result = capture_vertex(descriptor);
++			if (!result.valid)
++			{
++				return result;
++			}
++			result.cyclic = descriptor.format_class != rsx::RSX_FORMAT_CLASS_COLOR && descriptor.is_cyclic_reference;
++			result.clamp = descriptor.texcoord_xform.clamp;
++			result.format_features = descriptor.format_ex.features;
++			result.texel_remap_control = result.format_features ? descriptor.format_ex.texel_remap_control : 0;
++			std::memcpy(result.coordinates.data(), descriptor.texcoord_xform.scale, 6 * sizeof(std::uint32_t));
++			if (result.clamp)
++			{
++				// Inactive clamp bounds are intentionally not read: descriptors do
++				// not initialize them until clipping is required.
++				std::memcpy(result.coordinates.data() + 6, descriptor.texcoord_xform.clamp_min, 4 * sizeof(std::uint32_t));
++			}
++			return result;
++		}
++
++		template <typename Descriptor>
++		bool matches_vertex(const Descriptor& descriptor) const
++		{
++			return valid && descriptor.validate() &&
++				dimension == static_cast<std::uint32_t>(descriptor.image_type) &&
++				format_class == static_cast<std::uint32_t>(descriptor.format_class) &&
++				samples == descriptor.samples;
++		}
++
++		template <typename Descriptor>
++		bool matches_fragment(const Descriptor& descriptor) const
++		{
++			return matches_vertex(descriptor) &&
++				cyclic == (descriptor.format_class != rsx::RSX_FORMAT_CLASS_COLOR && descriptor.is_cyclic_reference) &&
++				clamp == descriptor.texcoord_xform.clamp &&
++				std::memcmp(coordinates.data(), descriptor.texcoord_xform.scale, 6 * sizeof(std::uint32_t)) == 0 &&
++				(!clamp || std::memcmp(coordinates.data() + 6, descriptor.texcoord_xform.clamp_min, 4 * sizeof(std::uint32_t)) == 0);
++		}
++
++		template <typename Descriptor>
++		bool matches_format(const Descriptor& descriptor) const
++		{
++			return valid &&
++				format_features == descriptor.format_ex.features &&
++				(!format_features || texel_remap_control == descriptor.format_ex.texel_remap_control);
++		}
++	};
++}
+diff --git a/rpcs3/ios/IOSCompilePressure.h b/rpcs3/ios/IOSCompilePressure.h
+index 98abac4..1bec705 100644
+--- a/rpcs3/ios/IOSCompilePressure.h
++++ b/rpcs3/ios/IOSCompilePressure.h
+@@ -2,6 +2,7 @@
+ #pragma once
+ 
+ #include "IOSRuntimeMetrics.h"
++#include "IOSFrameTrace.h"
+ #include <atomic>
+ #include <chrono>
+ #include <cstdint>
+@@ -48,8 +49,10 @@ public:
+     {
+         if (!active_) return;
+         blocking_builds.fetch_sub(1, std::memory_order_relaxed);
+-        blocking_build_us.record(static_cast<std::uint64_t>(
+-            std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - begin_).count()));
++        const auto duration_us = static_cast<std::uint64_t>(
++            std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - begin_).count());
++        blocking_build_us.record(duration_us);
++        frame_trace::waits().pipeline_us += duration_us;
+     }
+     BlockingBuildScope(const BlockingBuildScope&) = delete;
+     BlockingBuildScope& operator=(const BlockingBuildScope&) = delete;
+diff --git a/rpcs3/ios/IOSFrameTrace.h b/rpcs3/ios/IOSFrameTrace.h
+new file mode 100644
+index 0000000..2a1e153
+--- /dev/null
++++ b/rpcs3/ios/IOSFrameTrace.h
+@@ -0,0 +1,187 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <algorithm>
++#include <array>
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <limits>
++#include <mutex>
++
++// Diagnostic observations only. Nothing in emulation consumes these values.
++// A frame-end record uses the existing sampled stage timers. Wait hooks add
++// owner-thread integers only, with no additional clock read or allocation.
++namespace rpcs3::ios::frame_trace
++{
++inline std::atomic<std::uint64_t> active_session{0};
++
++struct Waits
++{
++    std::uint64_t fence_ticks = 0, submit_ticks = 0, drawable_ticks = 0, present_ticks = 0;
++    std::uint64_t semaphore_us = 0, pipeline_us = 0;
++};
++inline thread_local Waits thread_waits{};
++inline thread_local std::uint64_t thread_session = 0;
++
++inline Waits& waits() noexcept
++{
++    const auto session = active_session.load(std::memory_order_relaxed);
++    if (thread_session != session)
++    {
++        thread_session = session;
++        thread_waits = {};
++    }
++    return thread_waits;
++}
++
++inline Waits take_thread_waits() noexcept
++{
++    auto& pending = waits();
++    const auto result = pending;
++    pending = {};
++    return result;
++}
++
++inline std::uint64_t microseconds(std::uint64_t ticks, std::uint64_t frequency) noexcept
++{
++    if (!frequency) return 0;
++    const auto seconds = ticks / frequency;
++    const auto remainder = ticks % frequency;
++    constexpr auto maximum = std::numeric_limits<std::uint64_t>::max();
++    if (seconds > maximum / 1'000'000) return maximum;
++    const auto fraction = remainder <= maximum / 1'000'000
++        ? remainder * 1'000'000 / frequency
++        : static_cast<std::uint64_t>(static_cast<long double>(remainder) * 1'000'000 / frequency);
++    const auto whole = seconds * 1'000'000;
++    return fraction > maximum - whole ? maximum : whole + fraction;
++}
++
++struct Progress
++{
++    double wall_guest_fps = 0.0, completed_interval_fps = 0.0, last_guest_flip_age_ms = -1.0;
++};
++
++inline Progress progress(std::uint64_t flips, double window_ms,
++    std::uint64_t intervals, std::uint64_t interval_us,
++    std::uint64_t last_flip_ticks, std::uint64_t now_ticks, std::uint64_t frequency) noexcept
++{
++    Progress result;
++    if (window_ms > 0.0) result.wall_guest_fps = static_cast<double>(flips) * 1000.0 / window_ms;
++    if (interval_us) result.completed_interval_fps = static_cast<double>(intervals) * 1'000'000.0 / interval_us;
++    if (last_flip_ticks && frequency && now_ticks >= last_flip_ticks)
++        result.last_guest_flip_age_ms = microseconds(now_ticks - last_flip_ticks, frequency) / 1000.0;
++    return result;
++}
++
++struct Frame
++{
++    std::uint64_t session = 0, frame = 0, begin_ticks = 0, end_ticks = 0, frequency = 0;
++    std::uint64_t interval_us = 0, draws = 0, submits = 0, vertex_requests = 0, vertex_misses = 0;
++    std::uint64_t setup_us = 0, vertex_us = 0, texture_us = 0, execution_us = 0, flip_us = 0;
++    Waits waits{};
++    bool interval_available = false, stages_sampled = false, forced = false;
++};
++
++class Profile final
++{
++public:
++    static constexpr std::size_t per_group = 4;
++    static constexpr std::size_t capacity = 2 * per_group;
++    static constexpr std::uint64_t slow_threshold_us = 35'000;
++    struct Snapshot
++    {
++        bool captured = false;
++        std::uint64_t session = 0, frames = 0, slow = 0, sampled = 0, unretained = 0, contended = 0;
++        std::size_t size = 0;
++        std::array<Frame, capacity> events{};
++    };
++
++    // Lifecycle owner, after the previous RSX producer has stopped. Serialized
++    // with report take() by performance_registry's existing profile mutex.
++    void reset(std::uint64_t session)
++    {
++        std::lock_guard lock(mutex_);
++        session_ = session;
++        previous_ticks_ = 0;
++        frames_ = slow_ = sampled_ = eligible_ = 0;
++        slow_size_ = sampled_size_ = 0;
++        contended_.store(0, std::memory_order_relaxed);
++        active_session.store(session, std::memory_order_release);
++    }
++
++    // One RSX producer. The baseline advances even if the diagnostic buffer
++    // is busy, so a missed observation cannot manufacture a long interval.
++    void record(Frame event) noexcept
++    {
++        event.begin_ticks = previous_ticks_;
++        previous_ticks_ = event.end_ticks;
++        event.interval_available = event.begin_ticks && event.frequency && event.end_ticks >= event.begin_ticks;
++        event.interval_us = event.interval_available
++            ? microseconds(event.end_ticks - event.begin_ticks, event.frequency) : 0;
++        if (!mutex_.try_lock())
++        {
++            contended_.fetch_add(1, std::memory_order_relaxed);
++            return;
++        }
++        std::lock_guard lock(mutex_, std::adopt_lock);
++        if (!session_) return;
++        event.session = session_;
++        ++frames_;
++        const bool slow = event.interval_available && event.interval_us >= slow_threshold_us;
++        slow_ += slow;
++        sampled_ += event.stages_sampled;
++        eligible_ += slow || event.stages_sampled;
++        if (slow) retain(slow_events_, slow_size_, event);
++        if (event.stages_sampled) retain(sampled_events_, sampled_size_, event);
++    }
++
++    // Keep four worst intervals plus four worst sampled frames. Deduplicate a
++    // frame retained by both groups. Unretained is explicit, never silence
++    // interpreted as absence of stutter. The sampler never waits for RSX.
++    Snapshot take() noexcept
++    {
++        Snapshot result;
++        if (!mutex_.try_lock()) return result;
++        std::lock_guard lock(mutex_, std::adopt_lock);
++        result.captured = true;
++        result.session = session_;
++        result.frames = frames_;
++        result.slow = slow_;
++        result.sampled = sampled_;
++        result.contended = contended_.exchange(0, std::memory_order_relaxed);
++        for (std::size_t i = 0; i < slow_size_; ++i) result.events[result.size++] = slow_events_[i];
++        for (std::size_t i = 0; i < sampled_size_; ++i)
++        {
++            const auto& event = sampled_events_[i];
++            bool duplicate = false;
++            for (std::size_t j = 0; j < result.size; ++j)
++                duplicate |= result.events[j].end_ticks == event.end_ticks && result.events[j].frame == event.frame;
++            if (!duplicate) result.events[result.size++] = event;
++        }
++        result.unretained = eligible_ >= result.size ? eligible_ - result.size : 0;
++        std::sort(result.events.begin(), result.events.begin() + result.size,
++            [](const Frame& a, const Frame& b) { return a.end_ticks < b.end_ticks; });
++        frames_ = slow_ = sampled_ = eligible_ = 0;
++        slow_size_ = sampled_size_ = 0;
++        return result;
++    }
++
++private:
++    static void retain(std::array<Frame, per_group>& events, std::size_t& size, const Frame& event) noexcept
++    {
++        if (size < events.size()) { events[size++] = event; return; }
++        const auto smallest = std::min_element(events.begin(), events.end(),
++            [](const Frame& a, const Frame& b) { return a.interval_us < b.interval_us; });
++        if (smallest->interval_us <= event.interval_us) *smallest = event;
++    }
++
++    std::mutex mutex_;
++    std::atomic<std::uint64_t> contended_{0};
++    std::uint64_t session_ = 0, previous_ticks_ = 0;
++    std::uint64_t frames_ = 0, slow_ = 0, sampled_ = 0, eligible_ = 0;
++    std::size_t slow_size_ = 0, sampled_size_ = 0;
++    std::array<Frame, per_group> slow_events_{}, sampled_events_{};
++};
++inline Profile profile;
++}
+diff --git a/rpcs3/ios/IOSRendererCausality.h b/rpcs3/ios/IOSRendererCausality.h
+new file mode 100644
+index 0000000..0ec4dd8
+--- /dev/null
++++ b/rpcs3/ios/IOSRendererCausality.h
+@@ -0,0 +1,183 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <array>
++#include <atomic>
++#include <chrono>
++#include <cstddef>
++#include <cstdint>
++#include <mutex>
++
++// Bounded observations of corrected renderer decisions. No guest-memory reads,
++// driver calls, allocations or logging. The RSX producer never waits for the
++// reporting thread. Counts include events rejected at capacity; contention is
++// separately counted because its kind/reasons could not be safely attributed.
++namespace rpcs3::ios::renderer_causality
++{
++enum class Kind : std::uint32_t { vertex_range, sampler_refresh, sampler_cyclic_fast, count };
++enum Reason : std::uint32_t
++{
++    source_range = 1u << 0,
++    validity = 1u << 1,
++    coordinates = 1u << 2,
++    clamp = 1u << 3,
++    dimension = 1u << 4,
++    samples = 1u << 5,
++    format = 1u << 6,
++    cyclic = 1u << 7,
++};
++inline constexpr std::size_t reason_count = 8;
++inline constexpr std::size_t event_capacity = 8;
++// Reserve observations for both defects even when one dominates a window.
++inline constexpr std::array<std::size_t, 3> event_budgets{2, 4, 2};
++
++struct SamplerState
++{
++    // Bit patterns of scale[3], bias[3], active clamp_min[2]/clamp_max[2].
++    // Inactive clamp values are zero; no uninitialized descriptor bytes are read.
++    std::array<std::uint32_t, 10> coordinates{};
++    std::uint32_t dimension = 0, format_class = 0, format_features = 0, texel_remap_control = 0;
++    std::uint8_t samples = 1;
++    bool cyclic = false, clamp = false, valid = false;
++
++    template <typename State>
++    static SamplerState from(const State& state) noexcept
++    {
++        return {state.coordinates, state.dimension, state.format_class,
++            state.format_features, state.texel_remap_control, state.samples,
++            state.cyclic, state.clamp, state.valid};
++    }
++};
++
++template <typename State>
++inline std::uint32_t changed_reasons(const State& before, const State& after, bool vertex) noexcept
++{
++    if (before.valid != after.valid) return validity;
++    if (!before.valid) return 0;
++    std::uint32_t result = 0;
++    if (before.dimension != after.dimension) result |= dimension;
++    if (before.format_class != after.format_class) result |= format;
++    if (before.samples != after.samples) result |= samples;
++    if (vertex) return result;
++    if (before.cyclic != after.cyclic) result |= cyclic;
++    for (std::size_t i = 0; i < 6; ++i)
++        if (before.coordinates[i] != after.coordinates[i]) result |= coordinates;
++    if (before.clamp != after.clamp) result |= clamp;
++    if (before.clamp && after.clamp)
++        for (std::size_t i = 6; i < before.coordinates.size(); ++i)
++            if (before.coordinates[i] != after.coordinates[i]) result |= clamp;
++    if (before.format_features != after.format_features ||
++        before.texel_remap_control != after.texel_remap_control) result |= format;
++    return result;
++}
++
++struct Event
++{
++    std::uint64_t session = 0, monotonic_us = 0, frame = 0;
++    Kind kind{};
++    std::uint32_t reasons = 0, draw = 0, fragment_offset = 0, vertex_start = 0;
++    std::uint32_t slot = 0, old_resource = 0, new_resource = 0;
++    bool vertex = false;
++    // vertex_range describes differing cache keys, not proven visible corruption.
++    std::uint32_t legacy_address = 0, actual_address = 0, bytes = 0;
++    std::uint32_t draw_first = 0, source_first = 0, count = 0, stride = 0;
++    bool cache_hit = false;
++    SamplerState before{}, after{};
++};
++
++class Profile final
++{
++    std::mutex mutex_;
++    std::uint64_t session_ = 0;
++    std::array<Event, event_capacity> events_{};
++    std::size_t size_ = 0;
++    std::array<std::uint64_t, static_cast<std::size_t>(Kind::count)> counts_{};
++    std::array<std::size_t, static_cast<std::size_t>(Kind::count)> kept_{};
++    std::array<std::uint64_t, reason_count> reasons_{};
++    std::uint64_t full_dropped_ = 0;
++    std::atomic<std::uint64_t> contended_{0};
++
++public:
++    struct Snapshot
++    {
++        bool captured = false;
++        std::uint64_t session = 0;
++        std::array<Event, event_capacity> events{};
++        std::size_t size = 0;
++        std::array<std::uint64_t, static_cast<std::size_t>(Kind::count)> counts{};
++        std::array<std::uint64_t, reason_count> reasons{};
++        std::uint64_t dropped = 0, contended = 0;
++    };
++
++    template <typename Fill>
++    bool record(Kind kind, std::uint32_t reasons, Fill&& fill) noexcept
++    {
++        reasons &= (1u << reason_count) - 1;
++        if (!reasons || kind >= Kind::count) return false;
++        std::unique_lock lock(mutex_, std::try_to_lock);
++        if (!lock)
++        {
++            contended_.fetch_add(1, std::memory_order_relaxed);
++            return false;
++        }
++        if (!session_) return false;
++        const auto index = static_cast<std::size_t>(kind);
++        ++counts_[index];
++        for (std::size_t bit = 0; bit < reason_count; ++bit)
++            reasons_[bit] += bool(reasons & (1u << bit));
++        if (size_ == events_.size() || kept_[index] == event_budgets[index])
++        {
++            ++full_dropped_;
++            return false;
++        }
++        auto& event = events_[size_++];
++        ++kept_[index];
++        event = {};
++        event.session = session_;
++        event.kind = kind;
++        event.reasons = reasons;
++        // Only retained events pay for a clock read or the caller's context copy.
++        event.monotonic_us = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
++            std::chrono::steady_clock::now().time_since_epoch()).count());
++        fill(event);
++        return true;
++    }
++
++    // Called from the profiler's session reset, outside the RSX hot path.
++    // All retained events and attributed counts are cleared together. A
++    // concurrent rejected attempt can straddle the reset only in contended.
++    void reset(std::uint64_t session) noexcept
++    {
++        std::lock_guard lock(mutex_);
++        session_ = session;
++        size_ = 0;
++        counts_ = {};
++        kept_ = {};
++        reasons_ = {};
++        full_dropped_ = 0;
++        contended_.store(0, std::memory_order_relaxed);
++    }
++
++    Snapshot take() noexcept
++    {
++        std::unique_lock lock(mutex_, std::try_to_lock);
++        if (!lock) return {};
++        Snapshot result;
++        result.captured = true;
++        result.session = session_;
++        result.events = events_;
++        result.size = size_;
++        result.counts = counts_;
++        result.reasons = reasons_;
++        result.contended = contended_.exchange(0, std::memory_order_relaxed);
++        result.dropped = full_dropped_ + result.contended;
++        size_ = 0;
++        counts_ = {};
++        kept_ = {};
++        reasons_ = {};
++        full_dropped_ = 0;
++        return result;
++    }
++};
++inline constinit Profile profile;
++}
+diff --git a/rpcs3/ios/IOSRsxSyncProfile.h b/rpcs3/ios/IOSRsxSyncProfile.h
+index 612c9b4..cb0aa8a 100644
+--- a/rpcs3/ios/IOSRsxSyncProfile.h
++++ b/rpcs3/ios/IOSRsxSyncProfile.h
+@@ -2,6 +2,7 @@
+ #pragma once
+ 
+ #include "IOSRuntimeMetrics.h"
++#include "IOSFrameTrace.h"
+ #include <array>
+ #include <atomic>
+ #include <cstdint>
+@@ -86,5 +87,6 @@ inline rsx_frame_window rsx_frames{};
+ inline void record_fence_wait(std::uint64_t ticks) noexcept
+ {
+     fence_wait_ticks[t_site < site_count ? t_site : other].record(ticks);
++    frame_trace::waits().fence_ticks += ticks;
+ }
+ }
+diff --git a/rpcs3/ios/IOSSignalTrace.h b/rpcs3/ios/IOSSignalTrace.h
+new file mode 100644
+index 0000000..ca7a32c
+--- /dev/null
++++ b/rpcs3/ios/IOSSignalTrace.h
+@@ -0,0 +1,375 @@
++#pragma once
++
++// Bounded provenance for one recently acquired non-flip RSX label. This is
++// observational: a completed DMA range does not establish its written value.
++// No additional guest-memory read is performed to guess that value.
++// PPU direct stores, deferred GPU commits and reservation stores are outside
++// this coverage. Absence of a record is never proof of absence of a write.
++
++#include <array>
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++
++namespace rpcs3::ios::signal_trace
++{
++
++inline constexpr std::size_t history_capacity = 64;
++inline constexpr std::size_t producer_capacity = 32;
++inline constexpr std::size_t queue_capacity = 16;
++
++enum class event_kind : std::uint32_t
++{
++	acquire = 1, stalled, resolved, aborted,
++	rsx_release_requested, rsx_cpu_commit, rsx_gpu_deferred,
++	spu_dma_commit, spu_list_commit,
++};
++
++enum class producer_phase : std::uint32_t
++{
++	mfc_blocked = 1, mfc_woke, mfc_irq, mfc_stopped, mfc_ready,
++};
++
++struct watch_state
++{
++	std::uint64_t session{}, acquire_sequence{}, watch_since_us{}, acquire_start_us{}, published_us{};
++	std::uint32_t address{}, expected{}, observed{};
++	bool active{}, stalled{};
++};
++
++struct watch_token
++{
++	std::uint64_t session{}, acquire_sequence{};
++	std::uint32_t address{}, expected{};
++	explicit operator bool() const noexcept { return session != 0; }
++};
++
++struct event
++{
++	std::uint64_t session{}, sequence{}, acquire_sequence{}, timestamp_us{};
++	event_kind kind{};
++	std::uint32_t address{}, expected{}, value{}, producer_id{}, pc{}, write_address{}, write_size{}, command{};
++	// True only for the argument of an executed CPU atomic label store.
++	// DMA records contain a completed range, without an extra guest-memory read.
++	bool value_is_written_argument{};
++	bool value_valid{true};
++};
++
++struct queue_entry
++{
++	std::uint32_t cmd{}, tag{}, lsa{}, eal{}, size{};
++};
++
++struct producer_state
++{
++	std::uint64_t session{}, serial{}, published_us{}, blocked_since_us{}, last_progress_us{};
++	std::uint32_t id{}, pc{}, return_pc{}, size{}, barrier{}, fence{}, stall_mask{}, tag_mask{}, tag_update{};
++	std::uint32_t event_bits{}, event_mask{}, event_count{}, event_waiting{}, interrupts_enabled{}, snr1_count{}, snr2_count{};
++	producer_phase phase{};
++	queue_entry unaccepted{};
++	std::array<queue_entry, queue_capacity> queue{};
++};
++
++template <typename T>
++struct guarded
++{
++	std::atomic_flag busy = ATOMIC_FLAG_INIT;
++	T value{};
++	bool try_lock() noexcept { return !busy.test_and_set(std::memory_order_acquire); }
++	void unlock() noexcept { busy.clear(std::memory_order_release); }
++};
++
++struct counters
++{
++	std::uint64_t events_published{}, events_dropped{}, history_overwritten{}, stale_session_dropped{};
++	std::uint64_t producer_published{}, producer_dropped{}, producer_replaced{}, read_busy{}, watch_changes{};
++	std::uint64_t stalls_total{}, stall_latched{}, stall_overwritten{}, stall_dropped{};
++};
++
++// Counters are process totals, deliberately not reset while old producers can
++// still finish. Session tags isolate payloads, including writes in flight at a
++// reset. Sequence/serial values are process-unique and support deduplication.
++inline std::atomic<bool> enabled{false};
++inline std::atomic<std::uint64_t> current_session{}, next_event{}, next_acquire{}, next_producer{};
++inline std::atomic<std::uint32_t> watched_address{};
++inline guarded<watch_state> watch{};
++inline std::array<guarded<event>, history_capacity> history{};
++inline std::array<guarded<producer_state>, producer_capacity> producers{};
++inline std::atomic<std::uint64_t> events_published{}, events_dropped{}, history_overwritten{}, stale_session_dropped{};
++inline std::atomic<std::uint64_t> producer_published{}, producer_dropped{}, producer_replaced{}, read_busy{}, watch_changes{};
++inline std::atomic<std::uint64_t> stalls_total{}, stall_latched{}, stall_overwritten{}, stall_dropped{};
++
++inline void latch_stall(watch_token token, std::uint32_t observed, std::uint64_t now_us) noexcept;
++
++inline void reset(std::uint64_t session, bool active) noexcept
++{
++	// The profiler supplies a new monotonically increasing session ID for
++	// every start/restore. Old in-flight publications retain their old ID.
++	enabled.store(false, std::memory_order_release);
++	current_session.store(session, std::memory_order_release);
++	watched_address.store(0, std::memory_order_release);
++	enabled.store(active && session != 0, std::memory_order_release);
++}
++
++inline void append(event value) noexcept
++{
++	if (!enabled.load(std::memory_order_relaxed) || value.session != current_session.load(std::memory_order_acquire))
++	{
++		stale_session_dropped.fetch_add(1, std::memory_order_relaxed);
++		return;
++	}
++	value.sequence = next_event.fetch_add(1, std::memory_order_relaxed) + 1;
++	auto& slot = history[(value.sequence - 1) % history_capacity];
++	if (!slot.try_lock())
++	{
++		events_dropped.fetch_add(1, std::memory_order_relaxed);
++		return;
++	}
++	if (slot.value.sequence > value.sequence)
++	{
++		events_dropped.fetch_add(1, std::memory_order_relaxed);
++	}
++	else
++	{
++		if (slot.value.sequence)
++			history_overwritten.fetch_add(1, std::memory_order_relaxed);
++		slot.value = value;
++		events_published.fetch_add(1, std::memory_order_relaxed);
++	}
++	slot.unlock();
++}
++
++inline watch_token begin_acquire(std::uint32_t address, std::uint32_t expected, std::uint32_t observed, std::uint64_t now_us) noexcept
++{
++	if (!enabled.load(std::memory_order_relaxed))
++		return {};
++	const auto session = current_session.load(std::memory_order_acquire);
++	if (!watch.try_lock())
++	{
++		events_dropped.fetch_add(1, std::memory_order_relaxed);
++		return {};
++	}
++	const bool changed = watch.value.session != session || watch.value.address != address;
++	if (changed)
++		watch_changes.fetch_add(1, std::memory_order_relaxed);
++	watch_state value{session, next_acquire.fetch_add(1, std::memory_order_relaxed) + 1,
++		changed ? now_us : watch.value.watch_since_us, now_us, now_us, address, expected, observed,
++		observed != expected, false};
++	watch.value = value;
++	watched_address.store(address, std::memory_order_release);
++	watch.unlock();
++	append({session, 0, value.acquire_sequence, now_us, event_kind::acquire, address, expected, observed});
++	return {session, value.acquire_sequence, address, expected};
++}
++
++inline void acquire_state(watch_token token, event_kind kind, std::uint32_t observed, std::uint64_t now_us) noexcept
++{
++	if (!token)
++		return;
++	if (watch.try_lock())
++	{
++		if (watch.value.session == token.session && watch.value.acquire_sequence == token.acquire_sequence)
++		{
++			watch.value.observed = observed;
++			watch.value.published_us = now_us;
++			watch.value.stalled = kind == event_kind::stalled;
++			watch.value.active = kind == event_kind::stalled;
++		}
++		watch.unlock();
++	}
++	else
++	{
++		events_dropped.fetch_add(1, std::memory_order_relaxed);
++	}
++	append({token.session, 0, token.acquire_sequence, now_us, kind, token.address, token.expected, observed});
++	if (kind == event_kind::stalled)
++		latch_stall(token, observed, now_us);
++}
++
++inline watch_token overlap(std::uint32_t address, std::uint32_t size) noexcept
++{
++	if (!size || !enabled.load(std::memory_order_relaxed))
++		return {};
++	const auto target = watched_address.load(std::memory_order_acquire);
++	// Widen before addition: an invalid wrap must not match an unrelated label.
++	if (!target || std::uint64_t(address) >= std::uint64_t(target) + 4 || std::uint64_t(address) + size <= target)
++		return {};
++	if (!watch.try_lock())
++	{
++		events_dropped.fetch_add(1, std::memory_order_relaxed);
++		return {};
++	}
++	const auto value = watch.value;
++	watch.unlock();
++	if (value.address != target || value.session != current_session.load(std::memory_order_acquire))
++		return {};
++	return {value.session, value.acquire_sequence, target, value.expected};
++}
++
++inline void write_event(watch_token token, event_kind kind, std::uint32_t value, std::uint64_t now_us,
++	std::uint32_t address, std::uint32_t size, std::uint32_t id = 0, std::uint32_t pc = 0, std::uint32_t command = 0) noexcept
++{
++	if (token)
++		append({token.session, 0, token.acquire_sequence, now_us, kind, token.address, token.expected,
++			value, id, pc, address, size, command, kind == event_kind::rsx_cpu_commit,
++			kind != event_kind::spu_dma_commit && kind != event_kind::spu_list_commit});
++}
++
++inline void publish_producer(producer_state value) noexcept
++{
++	if (!enabled.load(std::memory_order_relaxed))
++		return;
++	if (!value.session || value.session != current_session.load(std::memory_order_acquire))
++	{
++		stale_session_dropped.fetch_add(1, std::memory_order_relaxed);
++		return;
++	}
++	auto& slot = producers[value.id % producer_capacity];
++	if (!slot.try_lock())
++	{
++		producer_dropped.fetch_add(1, std::memory_order_relaxed);
++		return;
++	}
++	const bool previous = slot.value.session == value.session && slot.value.id == value.id;
++	if (previous)
++	{
++		value.last_progress_us = value.size < slot.value.size ? value.published_us : slot.value.last_progress_us;
++		value.blocked_since_us = value.phase == producer_phase::mfc_blocked && slot.value.phase == producer_phase::mfc_blocked
++			? slot.value.blocked_since_us : value.published_us;
++	}
++	else if (slot.value.serial)
++	{
++		producer_replaced.fetch_add(1, std::memory_order_relaxed);
++	}
++	if (!value.blocked_since_us && value.phase == producer_phase::mfc_blocked)
++		value.blocked_since_us = value.published_us;
++	value.serial = next_producer.fetch_add(1, std::memory_order_relaxed) + 1;
++	slot.value = value;
++	slot.unlock();
++	producer_published.fetch_add(1, std::memory_order_relaxed);
++}
++
++struct summary_result
++{
++	std::uint64_t session{};
++	bool enabled{};
++	watch_state watch{};
++	counters totals{};
++};
++
++inline summary_result summary() noexcept
++{
++	summary_result out{};
++	out.session = current_session.load(std::memory_order_acquire);
++	out.enabled = enabled.load(std::memory_order_relaxed);
++	if (watch.try_lock())
++	{
++		if (watch.value.session == out.session)
++			out.watch = watch.value;
++		watch.unlock();
++	}
++	else
++		read_busy.fetch_add(1, std::memory_order_relaxed);
++	out.totals = {events_published.load(), events_dropped.load(), history_overwritten.load(), stale_session_dropped.load(),
++		producer_published.load(), producer_dropped.load(), producer_replaced.load(), read_busy.load(), watch_changes.load(),
++		stalls_total.load(), stall_latched.load(), stall_overwritten.load(), stall_dropped.load()};
++	return out;
++}
++
++struct snapshot_result : summary_result
++{
++	std::array<event, history_capacity> events{};
++	std::array<producer_state, producer_capacity> producers{};
++	std::size_t event_count{}, producer_count{};
++};
++
++// Non-destructive. Ordinary reporting uses summary(); details are sampled only
++// on a bounded stall report. The caller sorts/deduplicates by event sequence
++// and producer serial, and must label snapshot age rather than call it live.
++inline snapshot_result snapshot() noexcept
++{
++	snapshot_result out{};
++	static_cast<summary_result&>(out) = summary();
++	for (auto& slot : history)
++	{
++		if (slot.try_lock())
++		{
++			if (slot.value.session == out.session && slot.value.sequence)
++				out.events[out.event_count++] = slot.value;
++			slot.unlock();
++		}
++		else
++			read_busy.fetch_add(1, std::memory_order_relaxed);
++	}
++	for (auto& slot : producers)
++	{
++		if (slot.try_lock())
++		{
++			if (slot.value.session == out.session && slot.value.serial)
++				out.producers[out.producer_count++] = slot.value;
++			slot.unlock();
++		}
++		else
++			read_busy.fetch_add(1, std::memory_order_relaxed);
++	}
++	return out;
++}
++
++struct retained_stall_state
++{
++	snapshot_result snapshot{};
++	bool pending{};
++};
++
++inline guarded<retained_stall_state> retained_stall{};
++static_assert(sizeof(history) + sizeof(producers) + sizeof(watch) + sizeof(retained_stall) <= 40 * 1024);
++
++inline void latch_stall(watch_token token, std::uint32_t observed, std::uint64_t now_us) noexcept
++{
++	stalls_total.fetch_add(1, std::memory_order_relaxed);
++	auto value = snapshot();
++	if (value.session != token.session || !value.enabled)
++	{
++		stale_session_dropped.fetch_add(1, std::memory_order_relaxed);
++		return;
++	}
++	// A busy watch slot must not change the identity of the incident. Unknown
++	// start/watch timestamps remain zero rather than borrowing another acquire.
++	if (value.watch.acquire_sequence != token.acquire_sequence)
++		value.watch = {token.session, token.acquire_sequence, 0, 0, now_us, token.address, token.expected, observed, true, true};
++	value.watch.observed = observed;
++	value.watch.published_us = now_us;
++	value.watch.active = value.watch.stalled = true;
++	if (!retained_stall.try_lock())
++	{
++		stall_dropped.fetch_add(1, std::memory_order_relaxed);
++		return;
++	}
++	if (retained_stall.value.pending)
++		stall_overwritten.fetch_add(1, std::memory_order_relaxed);
++	retained_stall.value = {value, true};
++	retained_stall.unlock();
++	stall_latched.fetch_add(1, std::memory_order_relaxed);
++}
++
++// Called only when the reporter's detail-rate quota allows a dump. Resolution
++// and ordinary ring eviction never consume this snapshot of the actual stall.
++inline bool take_stall_snapshot(snapshot_result& out) noexcept
++{
++	if (!enabled.load(std::memory_order_relaxed))
++		return false;
++	if (!retained_stall.try_lock())
++	{
++		read_busy.fetch_add(1, std::memory_order_relaxed);
++		return false;
++	}
++	const bool valid = retained_stall.value.pending &&
++		retained_stall.value.snapshot.session == current_session.load(std::memory_order_acquire);
++	if (valid)
++		out = retained_stall.value.snapshot;
++	retained_stall.value.pending = false;
++	retained_stall.unlock();
++	return valid;
++}
++
++}
+diff --git a/rpcs3/ios/IOSTextureHash.cpp b/rpcs3/ios/IOSTextureHash.cpp
+index cb021bc..18eebb8 100644
+--- a/rpcs3/ios/IOSTextureHash.cpp
++++ b/rpcs3/ios/IOSTextureHash.cpp
+@@ -1,6 +1,7 @@
+ #include "IOSTextureHash.h"
+ #include "Utilities/JITMemoryProfile.h"
+ #include "util/tsc.hpp"
++#include <algorithm>
+ 
+ // Use the bundled implementation's existing six-NEON/two-scalar-lane variant.
+ // Keep this in its own translation unit so other hashes retain their lowering.
+@@ -32,6 +33,49 @@ XXH_FORCE_INLINE void accumulate_texture_stripes(xxh_u64* XXH_RESTRICT acc,
+ 	}
+ }
+ #endif
++
++// The pinned xxHash block, scramble, final-stripe and merge operations remain
++// unchanged. Only speculative work gets a cancellation point between groups
++// of 64 complete 1024-byte blocks; no streaming buffer or allocation is used.
++template <XXH3_f_accumulate Accumulate, XXH3_f_scrambleAcc Scramble, typename StillCurrent>
++bool hash_long_cancellable(const void* source, std::size_t size,
++	const void* secret_source, StillCurrent&& still_current,
++	std::uint64_t& hash, std::size_t& processed) noexcept
++{
++	constexpr std::size_t secret_size = XXH3_SECRET_DEFAULT_SIZE;
++	constexpr std::size_t stripes_per_block =
++		(secret_size - XXH_STRIPE_LEN) / XXH_SECRET_CONSUME_RATE;
++	constexpr std::size_t block_size = XXH_STRIPE_LEN * stripes_per_block;
++	static_assert(block_size == 1024);
++	XXH_ALIGN(XXH_ACC_ALIGN) xxh_u64 acc[XXH_ACC_NB] = XXH3_INIT_ACC;
++	const auto* input = static_cast<const xxh_u8*>(source);
++	const auto* secret = static_cast<const xxh_u8*>(secret_source);
++	const std::size_t blocks = (size - 1) / block_size;
++	processed = 0;
++
++	for (std::size_t block = 0; block < blocks;)
++	{
++		if (!still_current()) return false;
++		const std::size_t end = std::min(block + 64, blocks);
++		do
++		{
++			Accumulate(acc, input + block * block_size, secret, stripes_per_block);
++			Scramble(acc, secret + secret_size - XXH_STRIPE_LEN);
++		} while (++block < end);
++		processed = block * block_size;
++	}
++
++	if (!still_current()) return false;
++	const std::size_t stripes = ((size - 1) - blocks * block_size) / XXH_STRIPE_LEN;
++	Accumulate(acc, input + blocks * block_size, secret, stripes);
++	XXH3_accumulate_512(acc, input + size - XXH_STRIPE_LEN,
++		secret + secret_size - XXH_STRIPE_LEN - XXH_SECRET_LASTACC_START);
++	processed = size;
++	if (!still_current()) return false;
++	hash = XXH3_mergeAccs(acc, secret + XXH_SECRET_MERGEACCS_START,
++		static_cast<xxh_u64>(size) * XXH_PRIME64_1);
++	return true;
++}
+ }
+ 
+ namespace rpcs3::ios
+@@ -59,4 +103,41 @@ std::uint64_t texture_hash_hybrid(const void* src, std::size_t size,
+ #endif
+ 	return XXH3_64bits_withSecretandSeed(src, size, secret, secret_size, seed);
+ }
++
++bool texture_hash_hybrid_cancellable(const void* src, std::size_t size,
++	const void* secret, std::size_t secret_size, std::uint64_t seed,
++	const texture_hash_cancellation& cancellation, std::uint64_t& hash,
++	std::size_t& processed) noexcept
++{
++	processed = 0;
++	if (!cancellation.current()) return false;
++	const auto start = utils::get_tsc();
++	struct measurement
++	{
++		std::uint64_t start;
++		const std::size_t& bytes;
++		~measurement()
++		{
++			jit_memory::texture_hash_bytes.fetch_add(bytes, std::memory_order_relaxed);
++			jit_memory::texture_hash_ticks.fetch_add(utils::get_tsc() - start, std::memory_order_relaxed);
++		}
++	} measure{start, processed};
++
++	if (size >= 4096 && secret_size == XXH3_SECRET_DEFAULT_SIZE)
++	{
++#if defined(__aarch64__) || defined(__arm64__)
++		return hash_long_cancellable<accumulate_texture_stripes, XXH3_scrambleAcc_neon>(
++			src, size, secret, [&] { return cancellation.current(); }, hash, processed);
++#else
++		return hash_long_cancellable<XXH3_accumulate, XXH3_scrambleAcc>(
++			src, size, secret, [&] { return cancellation.current(); }, hash, processed);
++#endif
++	}
++
++	const auto result = XXH3_64bits_withSecretandSeed(src, size, secret, secret_size, seed);
++	processed = size;
++	if (!cancellation.current()) return false;
++	hash = result;
++	return true;
++}
+ }
+diff --git a/rpcs3/ios/IOSTextureHash.h b/rpcs3/ios/IOSTextureHash.h
+index 5ec26b9..c25fd6f 100644
+--- a/rpcs3/ios/IOSTextureHash.h
++++ b/rpcs3/ios/IOSTextureHash.h
+@@ -1,5 +1,6 @@
+ #pragma once
+ 
++#include <atomic>
+ #include <cstddef>
+ #include <cstdint>
+ 
+@@ -11,4 +12,30 @@ namespace rpcs3::ios
+ // arbitrary secret sizes retain the generic implementation.
+ std::uint64_t texture_hash_hybrid(const void* src, std::size_t size,
+ 	const void* secret, std::size_t secret_size, std::uint64_t seed) noexcept;
++
++// Borrowed for one speculative read only. The synchronous validator never
++// waits for this work and retains its complete, unchanged hash path.
++struct texture_hash_cancellation
++{
++	const std::atomic<std::uint64_t>& epoch;
++	const std::atomic<std::size_t>& position;
++	const std::atomic<bool>& enabled;
++	std::uint64_t expected_epoch;
++	std::size_t expected_position;
++
++	bool current() const noexcept
++	{
++		return enabled.load(std::memory_order_relaxed) &&
++			epoch.load(std::memory_order_acquire) == expected_epoch &&
++			position.load(std::memory_order_relaxed) <= expected_position;
++	}
++};
++
++// Poll between 64 KiB groups of the same XXH3 blocks. A cancelled operation
++// leaves hash untouched and reports only its processed prefix; it never
++// publishes a partial fingerprint. Completed hashes are bit-identical.
++bool texture_hash_hybrid_cancellable(const void* src, std::size_t size,
++	const void* secret, std::size_t secret_size, std::uint64_t seed,
++	const texture_hash_cancellation& cancellation, std::uint64_t& hash,
++	std::size_t& processed) noexcept;
+ }
+diff --git a/rpcs3/ios/IOSTexturePrehash.h b/rpcs3/ios/IOSTexturePrehash.h
+index 4d12752..fea2f33 100644
+--- a/rpcs3/ios/IOSTexturePrehash.h
++++ b/rpcs3/ios/IOSTexturePrehash.h
+@@ -116,8 +116,14 @@ inline void publish(std::uint32_t start, std::uint32_t length, std::uint64_t epo
+ {
+ 	const std::uint64_t key = make_key(start, length);
+ 	auto& slot = table[slot_of(key)];
+-	std::uint64_t seq = slot.seq.load(std::memory_order_relaxed);
+-	if ((seq & 1) || !slot.seq.compare_exchange_strong(seq, seq + 1,
++	std::uint64_t seq = slot.seq.load(std::memory_order_acquire);
++	// A worker may finish after the next epoch's synchronous validator. Do not
++	// evict that newer result with obsolete speculation. Read the epoch after
++	// the acquired sequence: a completed writer's epoch is visible; a concurrent
++	// writer either rejects us here or changes the sequence and makes the
++	// one-shot CAS fail. Epochs are process-monotone.
++	if ((seq & 1) || slot.epoch.load(std::memory_order_acquire) > epoch ||
++		!slot.seq.compare_exchange_strong(seq, seq + 1,
+ 		std::memory_order_acquire, std::memory_order_relaxed))
+ 	{
+ 		return;
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 44c39bd..79e0163 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -23,6 +23,10 @@
+ #include "IOSShaderTiming.h"
+ #include "IOSCompilePressure.h"
+ #include "IOSRsxSyncProfile.h"
++#include "IOSFrameTrace.h"
++#include "IOSRendererCausality.h"
++#include "IOSSignalTrace.h"
++#include "Emu/Cell/timers.hpp"
+ #include "IOSSpuWaitProfile.h"
+ #include "RPCS3IOSExperimentalPolicy.h"
+ #include "Utilities/JITPublicationQueue.h"
+@@ -218,6 +222,132 @@ rpcs3::ios::diagnostics::ProcessMemorySample sample_process_memory()
+     return sample;
+ }
+ 
++void report_renderer_causes(const rpcs3::ios::renderer_causality::Profile::Snapshot& captured,
++    u64 session, u64 window)
++{
++    ios_core_profiler.notice(
++        "COREPROF RENDERCAUSE session=%llu window=%llu captured=%u retained=%llu vertex_range=%llu "
++        "sampler_refresh=%llu sampler_cyclic_fast=%llu dropped=%llu contended=%llu capacity=8 "
++        "budgets=2:4:2 reasons=range:validity:coordinates:clamp:dimension:samples:format:cyclic "
++        "reason_counts=%llu:%llu:%llu:%llu:%llu:%llu:%llu:%llu "
++        "frame_scope=rsx_flip_index vertex_range_scope=legacy_key_divergence visual_error_proven=0",
++        session, window, captured.captured ? 1u : 0u, static_cast<u64>(captured.size),
++        captured.counts[0], captured.counts[1], captured.counts[2], captured.dropped, captured.contended,
++        captured.reasons[0], captured.reasons[1], captured.reasons[2], captured.reasons[3],
++        captured.reasons[4], captured.reasons[5], captured.reasons[6], captured.reasons[7]);
++    for (usz i = 0; i < captured.size; ++i)
++    {
++        const auto& event = captured.events[i];
++        if (event.kind == rpcs3::ios::renderer_causality::Kind::vertex_range)
++        {
++            ios_core_profiler.notice(
++                "COREPROF RENDERCAUSE_EVENT session=%llu window=%llu kind=vertex_range reasons=0x%x "
++                "monotonic_us=%llu frame=%llu draw=%u fragment_offset=0x%x vertex_start=0x%x "
++                "legacy_address=0x%x actual_address=0x%x bytes=%u draw_first=%u source_first=%u count=%u stride=%u "
++                "cache_hit=%u visual_error_proven=0",
++                event.session, window, event.reasons, event.monotonic_us, event.frame, event.draw,
++                event.fragment_offset, event.vertex_start, event.legacy_address, event.actual_address,
++                event.bytes, event.draw_first, event.source_first, event.count, event.stride, event.cache_hit ? 1u : 0u);
++            continue;
++        }
++        std::string before_coordinates, after_coordinates;
++        for (usz coordinate = 0; coordinate < event.before.coordinates.size(); ++coordinate)
++        {
++            fmt::append(before_coordinates, "%s%08x", coordinate ? ":" : "", event.before.coordinates[coordinate]);
++            fmt::append(after_coordinates, "%s%08x", coordinate ? ":" : "", event.after.coordinates[coordinate]);
++        }
++        ios_core_profiler.notice(
++            "COREPROF RENDERCAUSE_EVENT session=%llu window=%llu kind=%s reasons=0x%x monotonic_us=%llu "
++            "frame=%llu draw=%u fragment_offset=0x%x vertex_start=0x%x stage=%s slot=%u "
++            "old_resource=0x%x new_resource=0x%x state_tuple=valid:dimension:class:samples:features:remap:cyclic:clamp "
++            "before=%u:%u:%u:%u:%x:%x:%u:%u after=%u:%u:%u:%u:%x:%x:%u:%u "
++            "coord_encoding=float32_hex_scale3_bias3_clamp_min2_max2 before_coord=%s after_coord=%s",
++            event.session, window,
++            event.kind == rpcs3::ios::renderer_causality::Kind::sampler_refresh ? "sampler_refresh" : "sampler_cyclic_fast",
++            event.reasons, event.monotonic_us, event.frame, event.draw, event.fragment_offset, event.vertex_start,
++            event.vertex ? "vertex" : "fragment", event.slot, event.old_resource, event.new_resource,
++            event.before.valid ? 1u : 0u, event.before.dimension, event.before.format_class, static_cast<u32>(event.before.samples),
++            event.before.format_features, event.before.texel_remap_control, event.before.cyclic ? 1u : 0u, event.before.clamp ? 1u : 0u,
++            event.after.valid ? 1u : 0u, event.after.dimension, event.after.format_class, static_cast<u32>(event.after.samples),
++            event.after.format_features, event.after.texel_remap_control, event.after.cyclic ? 1u : 0u, event.after.clamp ? 1u : 0u,
++            before_coordinates, after_coordinates);
++    }
++}
++
++void report_signal_causes(const rpcs3::ios::signal_trace::summary_result& current,
++    rpcs3::ios::signal_trace::snapshot_result* captured, u64 session, u64 window, u64 now_us)
++{
++    const auto& watch = current.watch;
++    const auto& totals = current.totals;
++    ios_core_profiler.notice(
++        "COREPROF SIGNALCAUSE session=%llu window=%llu enabled=%u watch_valid=%u watch_active=%u watch_stalled=%u "
++        "acquire=%llu address=0x%x expected=0x%x observed=0x%x watch_since_us=%llu acquire_start_us=%llu "
++        "watch_published_us=%llu report_us=%llu clock=get_system_time_us "
++        "events_published=%llu events_dropped=%llu history_overwritten=%llu stale_session_dropped=%llu "
++        "producer_published=%llu producer_dropped=%llu producer_replaced=%llu read_busy=%llu watch_changes=%llu "
++        "stalls_total=%llu stall_latched=%llu stall_overwritten=%llu stall_dropped=%llu dump=%u "
++        "history_capacity=64 producer_capacity=32 counters_scope=process dump_min_period_s=30 "
++        "coverage=rsx_cpu_label_and_spu_put_copy excluded=ppu_direct_gpu_commit_reservation_store dma_value_sampled=0 "
++        "kinds=1_acquire:2_stalled:3_resolved:4_aborted:5_release_requested:6_cpu_commit:7_gpu_deferred:8_dma_commit:9_list_commit "
++        "absence_proves_no_write=0",
++        session, window, current.enabled ? 1u : 0u, watch.session == session && watch.address ? 1u : 0u,
++        watch.active ? 1u : 0u, watch.stalled ? 1u : 0u, watch.acquire_sequence, watch.address, watch.expected, watch.observed,
++        watch.watch_since_us, watch.acquire_start_us, watch.published_us, now_us,
++        totals.events_published, totals.events_dropped, totals.history_overwritten, totals.stale_session_dropped,
++        totals.producer_published, totals.producer_dropped, totals.producer_replaced, totals.read_busy, totals.watch_changes,
++        totals.stalls_total, totals.stall_latched, totals.stall_overwritten, totals.stall_dropped, captured ? 1u : 0u);
++    if (!captured) return;
++    std::sort(captured->events.begin(), captured->events.begin() + captured->event_count,
++        [](const auto& a, const auto& b) { return a.sequence < b.sequence; });
++    const auto& blocked = captured->watch;
++    ios_core_profiler.notice(
++        "COREPROF SIGNALCAUSE_EVENT session=%llu window=%llu kind=stall_snapshot acquire=%llu address=0x%x "
++        "expected=0x%x observed=0x%x begin_us=%llu captured_us=%llu report_us=%llu events=%llu producers=%llu "
++        "retained_after_resolution=1 snapshot_scope=owner_published_copies snapshot_globally_atomic=0",
++        captured->session, window, blocked.acquire_sequence, blocked.address, blocked.expected, blocked.observed,
++        blocked.acquire_start_us, blocked.published_us, now_us,
++        static_cast<u64>(captured->event_count), static_cast<u64>(captured->producer_count));
++    for (usz i = 0; i < captured->event_count; ++i)
++    {
++        const auto& event = captured->events[i];
++        ios_core_profiler.notice(
++            "COREPROF SIGNALCAUSE_EVENT session=%llu window=%llu dump_acquire=%llu sequence=%llu kind=%u "
++            "acquire=%llu timestamp_us=%llu address=0x%x expected=0x%x value=0x%x value_valid=%u value_is_written_argument=%u "
++            "producer_id=0x%x pc=0x%x write_address=0x%x write_size=%u command=0x%x",
++            event.session, window, blocked.acquire_sequence, event.sequence, static_cast<u32>(event.kind),
++            event.acquire_sequence, event.timestamp_us, event.address, event.expected, event.value,
++            event.value_valid ? 1u : 0u, event.value_is_written_argument ? 1u : 0u, event.producer_id, event.pc,
++            event.write_address, event.write_size, event.command);
++    }
++    for (usz i = 0; i < captured->producer_count; ++i)
++    {
++        const auto& producer = captured->producers[i];
++        if (producer.phase != rpcs3::ios::signal_trace::producer_phase::mfc_blocked) continue;
++        std::string queue;
++        for (usz entry = 0; entry < std::min<usz>(producer.size, producer.queue.size()); ++entry)
++        {
++            const auto& command = producer.queue[entry];
++            fmt::append(queue, "%s%x:%u:%x:%x:%u", entry ? "," : "", command.cmd,
++                command.tag, command.lsa, command.eal, command.size);
++        }
++        ios_core_profiler.notice(
++            "COREPROF SIGNALCAUSE_PRODUCER session=%llu window=%llu dump_acquire=%llu serial=%llu "
++            "phase=mfc_blocked producer_id=0x%x pc=0x%x return_pc=0x%x published_us=%llu snapshot_age_at_report_us=%llu "
++            "blocked_since_us=%llu last_queue_progress_us=%llu mfc_size=%u barrier=0x%x fence=0x%x stall_mask=0x%x "
++            "tag_mask=0x%x tag_update=%u event_bits=0x%x event_mask=0x%x event_count=%u event_waiting=%u irq_enabled=%u "
++            "snr1_count=%u snr2_count=%u command_tuple=cmd:tag:lsa:ea:size unaccepted=%x:%u:%x:%x:%u queue=%s "
++            "scope=state_at_publication_not_live_at_report queue_progress_scope=size_decrease",
++            producer.session, window, blocked.acquire_sequence, producer.serial, producer.id, producer.pc, producer.return_pc,
++            producer.published_us, now_us >= producer.published_us ? now_us - producer.published_us : 0,
++            producer.blocked_since_us, producer.last_progress_us, producer.size,
++            producer.barrier, producer.fence, producer.stall_mask, producer.tag_mask, producer.tag_update,
++            producer.event_bits, producer.event_mask, producer.event_count, producer.event_waiting,
++            producer.interrupts_enabled, producer.snr1_count, producer.snr2_count,
++            producer.unaccepted.cmd, producer.unaccepted.tag, producer.unaccepted.lsa,
++            producer.unaccepted.eal, producer.unaccepted.size, queue.empty() ? "none" : queue);
++    }
++}
++
+ class performance_registry final
+ {
+ public:
+@@ -297,6 +427,12 @@ public:
+ 		m_spu_interp_branches = 0;
+ 		m_spu_interp_handoffs = 0;
+ 		m_profile_session.fetch_add(1, std::memory_order_relaxed);
++		rpcs3::ios::frame_trace::profile.reset(m_profile_session.load(std::memory_order_relaxed));
++		rpcs3::ios::renderer_causality::profile.reset(m_profile_session.load(std::memory_order_relaxed));
++		rpcs3::ios::signal_trace::reset(m_profile_session.load(std::memory_order_relaxed), true);
++		m_last_signal_dump_us = 0;
++		m_profile_guest_baseline = 0;
++		m_last_guest_flip_tsc.store(0, std::memory_order_relaxed);
+ 		m_memory_reclaim_attempts = 0;
+ 		m_memory_reclaim_effective = 0;
+ 		m_memory_reclaim_deferred = 0;
+@@ -482,6 +618,7 @@ public:
+ 
+ 	void record_rsx_semaphore_wait(u64 wait_microseconds, bool timed_out) noexcept
+ 	{
++		rpcs3::ios::frame_trace::waits().semaphore_us += wait_microseconds;
+ 		m_event_costs[4].record(wait_microseconds);
+ 		m_rsx_semaphore_waits.fetch_add(1, std::memory_order_relaxed);
+ 		m_rsx_semaphore_wait_us.fetch_add(wait_microseconds, std::memory_order_relaxed);
+@@ -549,9 +686,11 @@ public:
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1: every rsx::thread::flip(); lock-free.
+ 	void record_flip(bool emu_flip, bool native_ui_visible) noexcept
+ 	{
+-		if (emu_flip) m_guest_frame_window.record(true, utils::get_tsc(), utils::get_tsc_freq());
+ 		if (emu_flip)
+ 		{
++			const u64 now = utils::get_tsc();
++			m_guest_frame_window.record(true, now, utils::get_tsc_freq());
++			m_last_guest_flip_tsc.store(now, std::memory_order_release);
+ 			m_guest_frames.fetch_add(1, std::memory_order_relaxed);
+ 		}
+ 		m_native_ui_visible.store(native_ui_visible ? 1u : 0u, std::memory_order_relaxed);
+@@ -708,8 +847,7 @@ private:
+ 
+ 	void report_profile_window()
+ 	{
+-		const auto now = sample_clock::now();
+-		const u64 current_frames = m_presented_frames.load(std::memory_order_acquire);
++		u64 current_frames = 0;
+ 		const u64 frequency = utils::get_tsc_freq();
+ 		std::array<double, core_group_count> average_cores{};
+ 		std::array<double, core_group_count> average_threads{};
+@@ -729,6 +867,13 @@ private:
+ 
+         double seconds_without_frames = 0.0;
+         rpcs3::ios::diagnostics::GuestFrameWindow::Sample guest_frames;
++        rpcs3::ios::frame_trace::Profile::Snapshot frame_causes;
++        rpcs3::ios::renderer_causality::Profile::Snapshot renderer_causes;
++        rpcs3::ios::signal_trace::summary_result signal_summary;
++        rpcs3::ios::signal_trace::snapshot_result signal_snapshot;
++        bool signal_dump = false;
++        u64 signal_report_us = 0;
++        u64 guest_window_flips = 0, last_guest_flip_ticks = 0, progress_now_ticks = 0;
+         rpcs3::ios::diagnostics::ProcessMemoryWindow memory_window;
+         std::array<rpcs3::ios::diagnostics::EventCost::Sample, 7> costs{};
+         jit_publication::snapshot publication;
+@@ -737,10 +882,29 @@ private:
+ 			std::lock_guard lock(m_profile_mutex);
+ 			// reset() shares this mutex: keep the epoch and all new samples
+ 			// together, then format diagnostics after releasing the lock.
++			// Capture the boundary after acquiring the reset lock. An earlier
++			// timestamp can precede a new session's window start after a reset.
++			const auto now = sample_clock::now();
++			current_frames = m_presented_frames.load(std::memory_order_acquire);
+ 
+             profile_session = m_profile_session.load(std::memory_order_relaxed);
+             profile_window = ++m_report_window;
+             guest_frames = m_guest_frame_window.take();
++            frame_causes = rpcs3::ios::frame_trace::profile.take();
++            renderer_causes = rpcs3::ios::renderer_causality::profile.take();
++            signal_report_us = get_system_time();
++            signal_summary = rpcs3::ios::signal_trace::summary();
++            if (!m_last_signal_dump_us || (signal_report_us >= m_last_signal_dump_us &&
++                signal_report_us - m_last_signal_dump_us >= 30'000'000))
++            {
++                signal_dump = rpcs3::ios::signal_trace::take_stall_snapshot(signal_snapshot);
++                if (signal_dump) m_last_signal_dump_us = signal_report_us;
++            }
++            const u64 guest_count = m_guest_frames.load(std::memory_order_acquire);
++            guest_window_flips = guest_count >= m_profile_guest_baseline ? guest_count - m_profile_guest_baseline : 0;
++            m_profile_guest_baseline = guest_count;
++            last_guest_flip_ticks = m_last_guest_flip_tsc.load(std::memory_order_acquire);
++            progress_now_ticks = utils::get_tsc();
+             memory_window = m_process_memory;
+             for (usz index = 0; index < costs.size(); ++index) costs[index] = m_event_costs[index].take();
+             publication = jit_publication::metrics().exchange();
+@@ -800,6 +964,8 @@ private:
+ 		}
+ 
+ 		const auto milliseconds = [frequency](u64 ticks) { return frequency ? static_cast<double>(ticks) * 1000.0 / frequency : 0.0; };
++        const auto guest_progress = rpcs3::ios::frame_trace::progress(guest_window_flips, elapsed_ms,
++            guest_frames.intervals, guest_frames.total_us, last_guest_flip_ticks, progress_now_ticks, frequency);
+         const auto state = Emu.GetStatus(false);
+         // The game itself does not supply menu/cinematic/gameplay labels. The
+         // short device protocol supplies those by timestamp, never by FPS guess.
+@@ -817,11 +983,58 @@ private:
+             "COREPROF FRAMEPROF527 session=%llu window=%llu phase=%s state=%u native_ui_visible=%u intervals=%llu unavailable=%llu "
+             "median_ms=%.3f p95_ms=%.3f p99_ms=%.3f max_ms=%.3f over50ms=%llu over100ms=%llu "
+             "guest_only=1 interval_quantization_us=1 total_interval_ms=%.3f window_ms=%.3f histogram_upper_us=%s "
+-            "phase_scope=report_snapshot interval_saturation_us=4294967295",
++            "phase_scope=report_snapshot interval_saturation_us=4294967295 "
++            "window_guest_flips=%llu wall_guest_fps=%.3f completed_interval_fps=%.3f last_guest_flip_age_ms=%.3f "
++            "guest_progress_boundary_approximate=1 gpu_time_available=0",
+             profile_session, profile_window, phase, static_cast<u32>(state), m_native_ui_visible.load(std::memory_order_relaxed),
+             guest_frames.intervals, guest_frames.unavailable, guest_frames.median_us / 1000.0,
+             guest_frames.p95_us / 1000.0, guest_frames.p99_us / 1000.0, guest_frames.maximum_us / 1000.0,
+-            guest_frames.over_50ms, guest_frames.over_100ms, guest_frames.total_us / 1000.0, elapsed_ms, frame_histogram.empty() ? "none" : frame_histogram);
++            guest_frames.over_50ms, guest_frames.over_100ms, guest_frames.total_us / 1000.0, elapsed_ms, frame_histogram.empty() ? "none" : frame_histogram,
++            guest_window_flips, guest_progress.wall_guest_fps, guest_progress.completed_interval_fps, guest_progress.last_guest_flip_age_ms);
++        {
++            const u64 anchor_before = utils::get_tsc();
++            const u64 anchor_us = static_cast<u64>(std::chrono::duration_cast<std::chrono::microseconds>(
++                sample_clock::now().time_since_epoch()).count());
++            const u64 anchor_after = utils::get_tsc();
++            ios_core_profiler.notice(
++                "COREPROF FRAMECAUSE session=%llu window=%llu captured=%u frames=%llu slow=%llu sampled=%llu "
++                "retained=%llu unretained=%llu contended=%llu threshold_us=35000 capacity=8 "
++                "retention=worst4_intervals_and_worst4_sampled frame_scope=rsx_frame_end frame_id=rsx_flip_index "
++                "stage_sample_period=%u wait_scope=completed_on_same_rsx_thread pipeline_scope=inline_owner_build values_overlap=1 "
++                "anchor_tsc_before=%llu anchor_steady_us=%llu anchor_tsc_after=%llu frequency=%llu",
++                profile_session, profile_window, frame_causes.captured ? 1u : 0u,
++                frame_causes.frames, frame_causes.slow, frame_causes.sampled,
++                static_cast<u64>(frame_causes.size), frame_causes.unretained, frame_causes.contended,
++                rpcs3::ios::rsx_sync::rsx_frame_sample_period, anchor_before, anchor_us, anchor_after, frequency);
++            for (usz i = 0; i < frame_causes.size; ++i)
++            {
++                const auto& frame = frame_causes.events[i];
++                const auto wait_ms = [&](u64 ticks) {
++                    return rpcs3::ios::frame_trace::microseconds(ticks, frame.frequency) / 1000.0;
++                };
++                ios_core_profiler.notice(
++                    "COREPROF FRAMECAUSE_EVENT session=%llu window=%llu frame=%llu begin_tsc=%llu end_tsc=%llu frequency=%llu "
++                    "interval_available=%u interval_ms=%.3f stages_sampled=%u forced=%u draws=%llu submits=%llu "
++                    "vertex_cache=%llu:%llu setup_ms=%.3f vertex_ms=%.3f texture_ms=%.3f exec_ms=%.3f flip_ms=%.3f "
++                    "rsx_fence_ms=%.3f rsx_submit_ms=%.3f rsx_drawable_ms=%.3f rsx_present_ms=%.3f "
++                    "guest_semaphore_ms=%.3f blocking_pipeline_ms=%.3f gpu_execution_ms=-1 values_overlap=1",
++                    frame.session, profile_window, frame.frame, frame.begin_ticks, frame.end_ticks, frame.frequency,
++                    frame.interval_available ? 1u : 0u, frame.interval_us / 1000.0,
++                    frame.stages_sampled ? 1u : 0u, frame.forced ? 1u : 0u, frame.draws, frame.submits,
++                    frame.vertex_requests, frame.vertex_misses,
++                    frame.stages_sampled ? frame.setup_us / 1000.0 : -1.0,
++                    frame.stages_sampled ? frame.vertex_us / 1000.0 : -1.0,
++                    frame.stages_sampled ? frame.texture_us / 1000.0 : -1.0,
++                    frame.stages_sampled ? frame.execution_us / 1000.0 : -1.0,
++                    frame.stages_sampled ? frame.flip_us / 1000.0 : -1.0,
++                    wait_ms(frame.waits.fence_ticks), wait_ms(frame.waits.submit_ticks),
++                    wait_ms(frame.waits.drawable_ticks), wait_ms(frame.waits.present_ticks),
++                    frame.waits.semaphore_us / 1000.0, frame.waits.pipeline_us / 1000.0);
++            }
++        }
++        report_renderer_causes(renderer_causes, profile_session, profile_window);
++        report_signal_causes(signal_summary, signal_dump ? &signal_snapshot : nullptr,
++            profile_session, profile_window, signal_report_us);
+         {
+             using namespace neostation::source_client;
+             ios_core_profiler.notice(
+@@ -1387,7 +1600,8 @@ private:
+ 			"rsx_threads=%.2f jit_threads=%.2f memory_mib=%llu headroom_mib=%llu limit_mib=%llu "
+ 			// NEOSTATION_BUILD487_DIAGNOSTICS_V1: appended fields (existing order kept).
+ 			"other_ms=%.3f window_ms=%.3f ppu_cores=%.3f spu_cores=%.3f rsx_cores=%.3f jit_cores=%.3f other_cores=%.3f "
+-			"compile_threads=%.2f compile_cores=%.3f other_threads=%.2f rsx_fifo_busy=%.1f rsx_thread_cpu=%.3f top=%s",
++			"compile_threads=%.2f compile_cores=%.3f other_threads=%.2f rsx_fifo_busy=%.1f rsx_thread_cpu=%.3f top=%s "
++			"wall_guest_fps=%.3f last_guest_flip_age_ms=%.3f avg_fps_scope=completed_present_intervals gpu_time_available=0",
+ 			window_frames, average_fps, low_1_fps, frametime_ms,
+ 			p95_ms, p99_ms,
+ 			group_ms_per_frame(core_group::ppu), group_ms_per_frame(core_group::spu),
+@@ -1404,7 +1618,7 @@ private:
+ 			group_cores(core_group::ppu), group_cores(core_group::spu), group_cores(core_group::rsx),
+ 			group_cores(core_group::jit), group_cores(core_group::other),
+ 			compile_threads, compile_cores, average_threads[static_cast<usz>(core_group::other)],
+-			rsx_fifo_busy, rsx_main_cores, top_list);
++			rsx_fifo_busy, rsx_main_cores, top_list, guest_progress.wall_guest_fps, guest_progress.last_guest_flip_age_ms);
+ 
+ 		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D6, contract § 3.3): request a bounded
+ 		// FREEZE_DUMP when no frame was presented for more than 3 s while one thread
+@@ -1420,6 +1634,7 @@ private:
+ 
+ 
+     u64 m_report_window = 0; // guarded by m_profile_mutex
++    u64 m_last_signal_dump_us = 0; // guarded by m_profile_mutex
+     rpcs3::ios::diagnostics::GuestFrameWindow m_guest_frame_window;
+     rpcs3::ios::diagnostics::ProcessMemoryWindow m_process_memory;
+     std::array<rpcs3::ios::diagnostics::EventCost, 7> m_event_costs{};
+@@ -1470,6 +1685,8 @@ private:
+ 	// m_profile_mutex (per-thread cores for top=, compile workers, the RSX puller
+ 	// and the frame-change clock of the freeze trigger).
+ 	std::atomic<u64> m_guest_frames{0};
++	std::atomic<u64> m_last_guest_flip_tsc{0};
++	u64 m_profile_guest_baseline = 0; // guarded by m_profile_mutex
+ 	std::atomic<u32> m_native_ui_visible{0};
+ 	std::atomic_bool m_has_flip_info{false};
+ 	std::atomic<u64> m_rsx_window_elapsed_us{0};

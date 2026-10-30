@@ -1,0 +1,31 @@
+{
+  "scope": "Dedicated validator and minimal dispatch only; no native Apple execution",
+  "filesSHA256": {
+    ".github/diagnostics/rpcs3runtime_device597_core.py": "e306a6a30756c78badda74b82cb302ede9c0f030bd77c3f7131cca742dc6e1f0",
+    ".github/diagnostics/rpcs3runtime592_core.py": "7b8be9e7467abf943faa89aa1cf10a916190edf9730b3bf33a92eeae67e69370",
+    "dispatch-only.patch": "c3799e4c3ac47e0c36abef0ed7785d1b46420f4b88833c84e4cdc1a81a80d67b",
+    "apple-validation.json": "805f401ed48cf2177e4bfe419c9693e84ccc22a6d9e6377bd5ad6f74c164aa7d",
+    "test_preflight_policy.py": "01ac3a44c0e74e9505d05f6ab623b2f1c3f568b3df64fd6e298d27c1afd86d6a",
+    "policy-evidence/result.json": "bf655cc5bfb8169bc90993bc20832c9619c293d1b74d483b1cb0c41f55d3c40e",
+    "policy-evidence/upstream-dependencies.json": "aed6fa182e49448bd72fb8cce2f01b1c8004453a8a673ed2d62cadbd21238a46",
+    "codegen-fresh-source.json": "190a7f2f7318084871605c1a5f88dfc212511d53d5aaeae03dadd0eb9f7ce018",
+    "historical-closure/historical-closure-report.json": "216960133968b8155dd3dae295b9ad7d5055883be814464a73fd04ae7c2ac116",
+    "historical-closure/historical-cpu-excluded-block-proof.json": "80ae8421ae57e2635a754da6830eb0206f9cce52ab038f80f1b50fdd6ad13daa",
+    "README.md": "690ed96ca239ce92d225156b8035ad10a828cfd7c0fb4d0369f3a5b8cb0f236a"
+  },
+  "unchangedRecipeSHA256": {
+    ".github/workflows/rpcs3-runtime592-core.yml": "7d6cd1d74e7503a406719932b8fddf13dd79ed0d67d775e1d49cafcc43ff036e",
+    "build-utils/build_rpcs3_embedded_core.sh": "ec79fb073908151d8413a201ef61d242078d363eb317395b6c98f01421eb9a5d"
+  },
+  "policyChecksPassed": 50,
+  "nativeJobsDeclared": 28,
+  "sourceJobsDeclared": 1,
+  "canonicalPostimages": 325,
+  "ordinaryUpstreamDependencies": 1861,
+  "historicalRepositoryObjectsAuthenticated": 191,
+  "historicalDiagnosticsArchiveOpenedLocally": false,
+  "compilerInvokedForThisPreflightReview": false,
+  "appleBuild": false,
+  "ciTriggered": false,
+  "release": false
+}

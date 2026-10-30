@@ -336,6 +336,18 @@ if __name__ == '__main__':
     p.add_argument('--verify-reuse', type=Path)
     p.add_argument('--write-core-identity', type=Path)
     a = p.parse_args()
+    if 'device597_20261030' in manifest():
+        # The workflow and compiler recipe stay unchanged; only this new lot runs.
+        import rpcs3runtime_device597_core as device597
+        if a.write_core_identity:
+            device597.identity(a.write_core_identity)
+        elif a.source and a.verify_reuse:
+            device597.verify(a.verify_reuse, a.source.resolve())
+        elif a.source:
+            device597.prepare(a.source.resolve())
+        else:
+            p.error('device597 source requires --source or --write-core-identity')
+        raise SystemExit
     if 'continuation_20261030' in manifest():
         # Keep the established workflow and compiler recipe unchanged.
         import rpcs3continuation_core as continuation

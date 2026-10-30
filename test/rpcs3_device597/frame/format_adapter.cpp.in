@@ -1,0 +1,142 @@
+// Only logging/clock adapters are substitutes. Reporter bodies and diagnostic
+// data structures below come from the exact candidate source, unmodified.
+#include "ios/IOSFrameTrace.h"
+#include "ios/IOSRendererCausality.h"
+#include "ios/IOSSignalTrace.h"
+#include <cassert>
+#include <chrono>
+#include <cstdio>
+#include <iostream>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+using u64 = std::uint64_t;
+using u32 = std::uint32_t;
+using usz = std::size_t;
+using sample_clock = std::chrono::steady_clock;
+namespace utils { inline u64 get_tsc() { return 10000000; } }
+namespace rpcs3::ios::rsx_sync { inline constexpr unsigned rsx_frame_sample_period = 8; }
+
+template <typename T> auto printable(const T& value)
+{
+    if constexpr (std::is_same_v<std::remove_cvref_t<T>, std::string>) return value.c_str();
+    else if constexpr (std::is_integral_v<T> && sizeof(T) == 8) return static_cast<unsigned long long>(value);
+    else return value;
+}
+template <typename... Args> std::string formatted(const char* format, const Args&... arguments)
+{
+    unsigned specifiers = 0;
+    for (const char* at = format; *at; ++at)
+        if (*at == '%' && at[1] != '%') ++specifiers;
+    assert(specifiers == sizeof...(Args));
+    char buffer[8192];
+    const auto length = std::snprintf(buffer, sizeof(buffer), format, printable(arguments)...);
+    assert(length > 0 && static_cast<std::size_t>(length) < sizeof(buffer));
+    return buffer;
+}
+namespace fmt {
+template <typename... Args> void append(std::string& target, const char* format, const Args&... arguments)
+{ target += formatted(format, arguments...); }
+}
+struct Logger {
+    std::vector<std::string> lines;
+    template <typename... Args> void notice(const char* format, const Args&... arguments)
+    { lines.push_back(formatted(format, arguments...)); }
+} ios_core_profiler;
+
+@REPORTERS@
+
+void report_frames(const rpcs3::ios::frame_trace::Profile::Snapshot& frame_causes,
+    u64 profile_session, u64 profile_window, u64 frequency)
+@FRAME_BLOCK@
+
+int main()
+{
+    namespace render = rpcs3::ios::renderer_causality;
+    namespace signal = rpcs3::ios::signal_trace;
+    namespace frame = rpcs3::ios::frame_trace;
+    render::profile.reset(3);
+    render::profile.record(render::Kind::vertex_range, render::source_range, [](auto& event) {
+        event.frame = 71; event.draw = 38; event.fragment_offset = 0x2100; event.vertex_start = 0x30;
+        event.legacy_address = 0x1000; event.actual_address = 0x1040; event.bytes = 64;
+        event.draw_first = 0; event.source_first = 4; event.count = 8; event.stride = 16;
+    });
+    render::profile.record(render::Kind::sampler_refresh, render::coordinates | render::clamp, [](auto& event) {
+        event.frame = 72; event.slot = 4; event.old_resource = 0x2000; event.new_resource = 0x3000;
+        event.before.valid = event.after.valid = true;
+        event.before.coordinates[0] = 0x3f800000; event.after.coordinates[0] = 0x3f000000;
+        event.after.clamp = true;
+    });
+    render::profile.record(render::Kind::sampler_cyclic_fast, render::cyclic, [](auto& event) {
+        event.frame = 73; event.before.valid = event.after.valid = true; event.after.cyclic = true;
+    });
+    const auto renderer = render::profile.take();
+    report_renderer_causes(renderer, 3, 4);
+    assert(ios_core_profiler.lines.size() == 4);
+    assert(ios_core_profiler.lines[0].find("retained=3 vertex_range=1 sampler_refresh=1 sampler_cyclic_fast=1") != std::string::npos);
+    assert(ios_core_profiler.lines[1].find("legacy_address=0x1000 actual_address=0x1040 bytes=64") != std::string::npos);
+    assert(ios_core_profiler.lines[2].find("before_coord=3f800000:") != std::string::npos);
+    assert(ios_core_profiler.lines[2].find("after_coord=3f000000:") != std::string::npos);
+
+    signal::reset(3, true);
+    const auto token = signal::begin_acquire(0x60300510, 0x1a24, 0x1a23, 1000000);
+    signal::write_event(token, signal::event_kind::spu_dma_commit, 0x1a23, 1100000,
+        0x60300510, 4, 0x1200001, 0x1234, 0x20);
+    signal::producer_state producer{};
+    producer.session = 3; producer.id = 0x1200001; producer.pc = 0x2345;
+    producer.size = 16; producer.phase = signal::producer_phase::mfc_blocked;
+    producer.published_us = 1200000; producer.interrupts_enabled = 1; producer.event_waiting = 1;
+    producer.unaccepted = {0x20, 4, 0x100, 0x60300510, 4};
+    for (auto& command : producer.queue) command = {0x24, 7, 0x200, 0x60300500, 16};
+    signal::publish_producer(producer);
+    signal::acquire_state(token, signal::event_kind::stalled, 0x1a23, 3000000);
+    signal::acquire_state(token, signal::event_kind::resolved, 0x1a24, 3100000);
+    signal::snapshot_result snapshot{};
+    assert(signal::take_stall_snapshot(snapshot));
+    const auto current = signal::summary();
+    const auto signal_offset = ios_core_profiler.lines.size();
+    report_signal_causes(current, &snapshot, 3, 4, 5000000);
+    assert(ios_core_profiler.lines[signal_offset].find("watch_stalled=0") != std::string::npos);
+    assert(ios_core_profiler.lines[signal_offset].find("dump=1") != std::string::npos);
+    assert(ios_core_profiler.lines[signal_offset + 1].find("kind=stall_snapshot") != std::string::npos);
+    bool producer_found = false, dma_found = false;
+    for (const auto& line : ios_core_profiler.lines)
+    {
+        if (line.find("SIGNALCAUSE_PRODUCER") != std::string::npos) {
+            producer_found = true;
+            assert(line.find("pc=0x2345") != std::string::npos);
+            assert(line.find("unaccepted=20:4:100:60300510:4") != std::string::npos);
+            assert(line.find("queue=24:7:200:60300500:16,") != std::string::npos);
+            assert(line.find("snapshot_age_at_report_us=3800000") != std::string::npos);
+        }
+        if (line.find("kind=8 ") != std::string::npos) {
+            dma_found = true;
+            assert(line.find("value_valid=0") != std::string::npos);
+            assert(line.find("value_is_written_argument=0") != std::string::npos);
+        }
+    }
+    assert(producer_found && dma_found);
+    frame::profile.reset(3);
+    frame::Frame event{};
+    event.frame = 1; event.end_ticks = 1'000'000; event.frequency = 1'000'000;
+    frame::profile.record(event);
+    event.frame = 2; event.end_ticks += 50'000;
+    event.waits.fence_ticks = 7000; event.waits.semaphore_us = 8000;
+    frame::profile.record(event);
+    event.frame = 3; event.end_ticks += 60'000; event.stages_sampled = true;
+    event.texture_us = 12000; event.draws = 41;
+    frame::profile.record(event);
+    const auto trace = frame::profile.take();
+    const auto frame_offset = ios_core_profiler.lines.size();
+    report_frames(trace, 3, 4, 1'000'000);
+    assert(ios_core_profiler.lines[frame_offset].find("capacity=8") != std::string::npos);
+    assert(ios_core_profiler.lines[frame_offset + 1].find("texture_ms=-1.000") != std::string::npos);
+    assert(ios_core_profiler.lines[frame_offset + 1].find("rsx_fence_ms=7.000") != std::string::npos);
+    assert(ios_core_profiler.lines[frame_offset + 2].find("texture_ms=12.000") != std::string::npos);
+    std::size_t max_length = 0;
+    for (const auto& line : ios_core_profiler.lines) max_length = std::max(max_length, line.size());
+    std::cout << "{\"passed\":true,\"linesChecked\":" << ios_core_profiler.lines.size()
+        << ",\"maxLineBytes\":" << max_length
+        << ",\"resolvedStallRetained\":true,\"unsampledIsUnavailable\":true,\"formatArgumentCountsChecked\":true}\n";
+}

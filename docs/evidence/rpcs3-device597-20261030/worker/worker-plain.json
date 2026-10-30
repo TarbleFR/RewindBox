@@ -1,0 +1,237 @@
+{
+  "scope": "new cancellable texture prehash worker integration only",
+  "sourceSHA256": {
+    "rpcs3/Emu/RSX/Common/texture_cache.cpp": "85c75155f09f2ffd0554fadfbaf9987510173323e008ad09edb70cd6809707ed",
+    "rpcs3/ios/IOSTextureHash.cpp": "b01ceabbed2f50f5a044f1c277f5bd561433c4220f40bcb0ffb3731245b5c6dc",
+    "rpcs3/ios/IOSTextureHash.h": "f7fdff357f542f69a08860716f17e6057b582097be378cb87f6bc1bd6c691816",
+    "rpcs3/ios/IOSTexturePrehash.h": "4b615553f3e4684b76f6b4b6bc1b2aba502879a69bf6053972ae053db194e235",
+    "rpcs3/ios/IOSTextureValidationProfile.h": "88d6df99503097849dfcabf4606ca752c659cdcbda788634e0b46c8f6a058967",
+    "rpcs3/ios/IOSThreadQoS.h": "1ee09d9d0bbe020392612448945687ba43f060cbacd052f700afff76b7d8decb",
+    "Utilities/JITMemoryProfile.h": "579c681fb66eb3f378d82e9506bce0260af49d0a7242433666deb2d5133ea31e",
+    "dependency:Utilities/xxhash3.h": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c"
+  },
+  "productionBodySHA256": {
+    "workerNamespace": "779296e67c4c35333fda73324f783697a956a9ba93382dddf26e230816dc4feb",
+    "workerMain": "0e41f73aa68d4774c5965e93b869203534057438de7cfe18cc618d4a923af257",
+    "hashGuestRange": "f0ac8de0cf1a0fb6fe2246e2c3ac18110822816409853e9f1a73b779346f1092",
+    "reserveRangeLock": "1d325fcb27ba3217904ca89eca98e8a478ec5e122140279b8ec825fb8eecbcec",
+    "seededSecret": "92e0965da26bc05b241ed2ad8ef8efec53c1e610d6e95e107ebc8a110eff597d"
+  },
+  "vmAdapterFileSHA256": "134e0629e2e7e44e0c2e43117b5c30356b35da1cc224bce631c615d323197ac6",
+  "vmAdapterSliceSHA256": "eaf6c5798a96b12e1389f2afb1141fec1e008f9935e321cde077c65e4d2ad46b",
+  "testTemplateSHA256": "4a3bc57f9be6b37cd3ecc830abf5999407957ac5b41a334f17941646451a2c76",
+  "generatedHarnessSHA256": "d8225bbc90490a304bf9d1bce45bf11a7dd7c496befdd73b0ad05b446969d310",
+  "observedHashCppSHA256": "25813f0c6da9c64ceefda198b16a8cb3560d34ba36b19a13e3a2c520b44922a0",
+  "predicateAdaptation": "Pause at selected processed prefix; return the unchanged guard current(). Two architecture-selected lambda expressions only.",
+  "workerBodyAdapted": false,
+  "mutation": null,
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-O2",
+    "-g",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-Wno-unknown-pragmas",
+    "-pthread",
+    "-fno-omit-frame-pointer",
+    "-fno-exceptions",
+    "-I/workspace/scratch/82df14a3df84/device597-prehash-review/worker/plain-work/adapters",
+    "-I/workspace/scratch/82df14a3df84/device597-prehash-review/worker/plain-work/inputs",
+    "-I/workspace/scratch/82df14a3df84/device597-prehash-review/worker/plain-work/inputs/rpcs3"
+  ],
+  "sanitizer": "",
+  "machine": "x86_64",
+  "host": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "fpsGainClaimed": false,
+  "fullCoreBuilt": false,
+  "nativeARM64Executed": false,
+  "buildReturnCode": 0,
+  "limits": [
+    "VM adapter implements range-slot/exclusive-bit/page-flag protocol; this does not execute the complete emulator VM.",
+    "Controlled pauses synchronize cancellation after a processed 64 KiB prefix, so elapsed ticks are not performance measurements.",
+    "This test checks worker integration, not comprehensive kernel equivalence, uncancelled cost or all possible interleavings.",
+    "Sanitizers use no race suppressions; ASan leak detection is disabled and LSan is not claimed."
+  ],
+  "runReturnCode": 0,
+  "passed": true,
+  "caseCount": 19,
+  "cases": [
+    {
+      "name": "helper_entry_guards_5",
+      "processedBytes": 0,
+      "completed": 0,
+      "skips": 0,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": true
+    },
+    {
+      "name": "helper_cancel",
+      "processedBytes": 65536,
+      "completed": 0,
+      "skips": 1,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": true
+    },
+    {
+      "name": "helper_complete_main",
+      "processedBytes": 1048609,
+      "completed": 1,
+      "skips": 0,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": false
+    },
+    {
+      "name": "helper_complete_local",
+      "processedBytes": 1048609,
+      "completed": 1,
+      "skips": 0,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": false
+    },
+    {
+      "name": "helper_fallback_main",
+      "processedBytes": 1048609,
+      "completed": 1,
+      "skips": 0,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": false
+    },
+    {
+      "name": "helper_fallback_local",
+      "processedBytes": 1048609,
+      "completed": 1,
+      "skips": 0,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": false
+    },
+    {
+      "name": "epoch_main",
+      "processedBytes": 65536,
+      "completed": 0,
+      "skips": 1,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": true
+    },
+    {
+      "name": "epoch_local",
+      "processedBytes": 65536,
+      "completed": 0,
+      "skips": 1,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": true
+    },
+    {
+      "name": "position_main",
+      "processedBytes": 65536,
+      "completed": 0,
+      "skips": 1,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": true
+    },
+    {
+      "name": "position_local",
+      "processedBytes": 65536,
+      "completed": 0,
+      "skips": 1,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": true
+    },
+    {
+      "name": "disabled_main",
+      "processedBytes": 65536,
+      "completed": 0,
+      "skips": 1,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": true
+    },
+    {
+      "name": "disabled_local",
+      "processedBytes": 65536,
+      "completed": 0,
+      "skips": 1,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": true
+    },
+    {
+      "name": "stop_main",
+      "processedBytes": 65536,
+      "completed": 0,
+      "skips": 1,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": true
+    },
+    {
+      "name": "stop_local",
+      "processedBytes": 65536,
+      "completed": 0,
+      "skips": 1,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": true
+    },
+    {
+      "name": "epoch_unmap",
+      "processedBytes": 65536,
+      "completed": 0,
+      "skips": 1,
+      "rangeReleased": true,
+      "unmapCompleted": true,
+      "outputOrTableUnchanged": true
+    },
+    {
+      "name": "stop_unmap",
+      "processedBytes": 65536,
+      "completed": 0,
+      "skips": 1,
+      "rangeReleased": true,
+      "unmapCompleted": true,
+      "outputOrTableUnchanged": true
+    },
+    {
+      "name": "worker_complete_main",
+      "processedBytes": 1048576,
+      "completed": 1,
+      "skips": 0,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": false
+    },
+    {
+      "name": "worker_complete_local",
+      "processedBytes": 1048576,
+      "completed": 1,
+      "skips": 0,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": false
+    },
+    {
+      "name": "worker_fallback_main",
+      "processedBytes": 1048576,
+      "completed": 1,
+      "skips": 0,
+      "rangeReleased": true,
+      "unmapCompleted": false,
+      "outputOrTableUnchanged": false
+    }
+  ],
+  "sourceChangedDuringRun": []
+}

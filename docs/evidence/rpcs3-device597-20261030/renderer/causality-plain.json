@@ -1,0 +1,36 @@
+{
+  "scope": "production bounded observation queue and reason classifier; no renderer or GPU",
+  "header_sha256": "a9943fab3d362e4fd6ea391c8898cc58d4fcfdfd13965c86f7f6dafc3d303413",
+  "generated_sha256": "c759e218f3d0f2d13386754ab1bf657d82c0d04d56bfc3e090058d8fad5643da",
+  "sanitizer": false,
+  "command": [
+    "g++",
+    "-std=c++20",
+    "-O2",
+    "-g",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "/workspace/scratch/82df14a3df84/device597-final-tests/causality-plain/causality.cpp",
+    "-o",
+    "/workspace/scratch/82df14a3df84/device597-final-tests/causality-plain/causality"
+  ],
+  "result": {
+    "checks": 276,
+    "burst_triggers": 15000,
+    "retained": 8,
+    "dropped_at_capacity": 14992,
+    "retained_by_kind": [
+      2,
+      4,
+      2
+    ],
+    "context_callbacks": 8,
+    "allocations_while_recording": 0,
+    "nonblocking_contention_drop": 1,
+    "session_resets_verified": 3
+  },
+  "returncode": 0
+}

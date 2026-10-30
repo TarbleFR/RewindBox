@@ -1,0 +1,71 @@
+{
+  "scope": "complete production load_texture_env + real descriptor/clip/uniform copy and bounded diagnostic producer; modeled Vulkan and texture lookup, no GPU",
+  "sanitizer": true,
+  "inputs": {
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp": "45023f8eb619e8c6972af3ef531d93b93b94488f59955312305407692fd75494",
+    "rpcs3/Emu/RSX/VK/vkutils/sampler_shader_state.hpp": "2c87816317eeabe688e2b68c895ab4ad066c268eb8f6343a6dfe03c5e6212fca",
+    "rpcs3/ios/IOSRendererCausality.h": "a9943fab3d362e4fd6ea391c8898cc58d4fcfdfd13965c86f7f6dafc3d303413",
+    "rpcs3/Emu/RSX/Common/texture_cache_helpers.h": "bae05aab4c737a4d4bd65944ac0cc8215df26c10860d63e0043eb798b33bfb8f",
+    "rpcs3/Emu/RSX/RSXThread.cpp": "d8fa8a17481261615563a7bb73ff8b286d42abae5deb1e1151bf10bae5c7401f"
+  },
+  "variants": {
+    "before": {
+      "result": {
+        "cases": 2537,
+        "stale_shader_states": 306,
+        "unchanged_state_invalidations": 0,
+        "unchanged_fast_path_uploads": 0
+      },
+      "generated_sha256": "38760fc9f0c09dd836bb7a4c5468895d919ac1d992f8a75ea08efdcfbc3c3cbd",
+      "command": [
+        "g++",
+        "-std=c++20",
+        "-O2",
+        "-g",
+        "-UNDEBUG",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DRPCS3_IOS",
+        "/workspace/scratch/82df14a3df84/device597-final-tests/sampler-asan/before.cpp",
+        "-o",
+        "/workspace/scratch/82df14a3df84/device597-final-tests/sampler-asan/before",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-fno-sanitize-recover=all",
+        "-no-pie"
+      ],
+      "returncode": 0
+    },
+    "after": {
+      "result": {
+        "cases": 2537,
+        "stale_shader_states": 0,
+        "unchanged_state_invalidations": 0,
+        "unchanged_fast_path_uploads": 0
+      },
+      "generated_sha256": "2b87ebf1420530c137318f10627cbcd67410301522550f3ab5f302f4bce71797",
+      "command": [
+        "g++",
+        "-std=c++20",
+        "-O2",
+        "-g",
+        "-UNDEBUG",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-DRPCS3_IOS",
+        "/workspace/scratch/82df14a3df84/device597-final-tests/sampler-asan/after.cpp",
+        "-o",
+        "/workspace/scratch/82df14a3df84/device597-final-tests/sampler-asan/after",
+        "-DCANDIDATE",
+        "-fsanitize=address,undefined",
+        "-fno-omit-frame-pointer",
+        "-fno-sanitize-recover=all",
+        "-no-pie"
+      ],
+      "returncode": 0
+    }
+  },
+  "support_TextureUtils_sha256": "f2177f51d6cc96f566cec6a99a7612cebe765afa6f7d06a459d684d8b73b7e40"
+}

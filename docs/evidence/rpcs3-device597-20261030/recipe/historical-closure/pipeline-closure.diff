@@ -1,0 +1,31 @@
+--- historical/pipeline
++++ integrated/pipeline
+@@ -179,14 +179,26 @@
+         do {
+ 		if (!is_sampler_dirty)
+ 		{
+-			if (sampler_state->format_class != previous_format_class)
++			if (shader_state_changed)
+ 			{
+-				// Host details changed but RSX is not aware
++				// Host subresource changes can also alter coordinates, MSAA or
++				// cyclic-depth handling without changing the guest texture state.
+ 				m_graphics_state |= rsx::fragment_program_state_dirty;
+ 			}
+ 
+ 			if (sampler_state->format_ex)
+ 			{
++				const bool format_state_changed = !previous_shader_state.matches_format(*sampler_state);
++				if (format_state_changed)
++				{
++					m_graphics_state |= rsx::fragment_program_state_dirty;
++				}
++#ifdef RPCS3_IOS
++				if (shader_state_changed || format_state_changed)
++				{
++					record_sampler_change(previous_shader_state, *sampler_state, previous_address, i, false);
++				}
++#endif
+ 				// Nothing to change, use cached sampler
+ 				continue;
+ 			}

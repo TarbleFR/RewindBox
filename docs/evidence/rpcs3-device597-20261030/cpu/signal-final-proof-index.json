@@ -1,0 +1,304 @@
+{
+  "passed": true,
+  "lot": "device597_20261030",
+  "scope": "CPU late-SNR fix and bounded causal signal diagnostic; source-only lot; no Apple/core/game execution claimed.",
+  "nativeExecutions": 11,
+  "nativeReports": {
+    "late-snr-signal-plain.json": {
+      "sha256": "2258a9991f2126108e4983a8ec82861572e03d43f0919a3c4fa40415e764db42",
+      "passed": true,
+      "sanitizer": null,
+      "programSHA256": "0405eac6980238cd141232b99664165a7ed9755e51c64c61ae090d678f0fa088",
+      "scriptSHA256": "cd880a6a0c11b26c98c997ce375a736b2adb28c04547dc607de0adc19db5be17",
+      "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+      "results": {
+        "baselineLostWakeSchedules": 4,
+        "candidateInterruptDeliveries": 6,
+        "maskedOrDisabledCases": 18,
+        "stopAfterRegistration": 2,
+        "handlerAckRetriesAcceptedOnce": 2,
+        "concurrentProducerConsumerCases": 128,
+        "ownerPublishedMfcSnapshotVerified": true,
+        "disabledInstrumentationPreservesLateIrq": true,
+        "oldSessionProducerSnapshotDropped": true,
+        "guestTimeoutAdded": false,
+        "testPlatformWakeBackend": "std::condition_variable"
+      }
+    },
+    "late-snr-signal-asan.json": {
+      "sha256": "202ebc6e745cad1c51988188cd0672c52bcbdd57e5eec883b70c2b7d0166dd63",
+      "passed": true,
+      "sanitizer": "address,undefined",
+      "programSHA256": "0405eac6980238cd141232b99664165a7ed9755e51c64c61ae090d678f0fa088",
+      "scriptSHA256": "cd880a6a0c11b26c98c997ce375a736b2adb28c04547dc607de0adc19db5be17",
+      "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+      "results": {
+        "baselineLostWakeSchedules": 4,
+        "candidateInterruptDeliveries": 6,
+        "maskedOrDisabledCases": 18,
+        "stopAfterRegistration": 2,
+        "handlerAckRetriesAcceptedOnce": 2,
+        "concurrentProducerConsumerCases": 128,
+        "ownerPublishedMfcSnapshotVerified": true,
+        "disabledInstrumentationPreservesLateIrq": true,
+        "oldSessionProducerSnapshotDropped": true,
+        "guestTimeoutAdded": false,
+        "testPlatformWakeBackend": "std::condition_variable"
+      }
+    },
+    "signal-helper-plain.json": {
+      "sha256": "a42da15f9b897ad6ee09d4d015241befe0c9dc855c0bd0e374d7365f34c3fab7",
+      "passed": true,
+      "sanitizer": null,
+      "programSHA256": "413a781615ce5f39ba430a14f94c22c71488b8f8aad77006908194e820f71840",
+      "scriptSHA256": "b10093fec7fd3b193aaa31a9f4736aaae22b0000063cf669e8ae03eb554a61bf",
+      "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+      "results": {
+        "disabledNoRecords": true,
+        "priorWriteRetained": true,
+        "historyNonDestructive": true,
+        "sessionIsolation": true,
+        "overlapBoundaryCases": 7,
+        "historyCapacity": 64,
+        "producerCapacity": 32,
+        "overflowAndBusyDrops": true,
+        "allocationTrapPassed": true,
+        "concurrentWrites": 40000,
+        "concurrentSnapshots": 6073,
+        "concurrentStallSnapshots": 1,
+        "resolvedStallRetainedAfter200HealthyAcquires": true,
+        "stallReplacementAndBusyDrops": true,
+        "storageBytes": 38928
+      }
+    },
+    "signal-helper-asan.json": {
+      "sha256": "cfc8e74f27477e96d245e05fd7b3af82c397dd2a705178b2d7d7edc49b8b265a",
+      "passed": true,
+      "sanitizer": "address,undefined",
+      "programSHA256": "413a781615ce5f39ba430a14f94c22c71488b8f8aad77006908194e820f71840",
+      "scriptSHA256": "b10093fec7fd3b193aaa31a9f4736aaae22b0000063cf669e8ae03eb554a61bf",
+      "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+      "results": {
+        "disabledNoRecords": true,
+        "priorWriteRetained": true,
+        "historyNonDestructive": true,
+        "sessionIsolation": true,
+        "overlapBoundaryCases": 7,
+        "historyCapacity": 64,
+        "producerCapacity": 32,
+        "overflowAndBusyDrops": true,
+        "allocationTrapPassed": true,
+        "concurrentWrites": 40000,
+        "concurrentSnapshots": 4403,
+        "concurrentStallSnapshots": 1,
+        "resolvedStallRetainedAfter200HealthyAcquires": true,
+        "stallReplacementAndBusyDrops": true,
+        "storageBytes": 38928
+      }
+    },
+    "signal-rsx-plain.json": {
+      "sha256": "70446b21bfabbd6b4018b41064747fd3aebcc71f68cfe5e79c28f0a3bfb16230",
+      "passed": true,
+      "sanitizer": null,
+      "programSHA256": "ca52d128011e1b2f6e1679cf8e4da54b2a12cef8f6335e48b3c4a2bb26f3ce5e",
+      "scriptSHA256": "b10093fec7fd3b193aaa31a9f4736aaae22b0000063cf669e8ae03eb554a61bf",
+      "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+      "results": {
+        "productionAcquireAndReleaseExtracted": true,
+        "noSignalInventedAfterTimeout": true,
+        "unresolvedPolls": 80,
+        "unresolvedTraceEvents": 3,
+        "cpuCommitAfterActualWrite": true,
+        "deferredGpuNotReportedAsCommit": true,
+        "noOpNotReportedAsCommit": true,
+        "failedWriteNotReportedAsCommit": true,
+        "priorReleaseRetained": true,
+        "disabledModeNoRecords": true
+      }
+    },
+    "signal-rsx-asan.json": {
+      "sha256": "6040fa882deecb3c51e1a1c310f770cdcdde2c250b7d52d8ab786d8babb053c4",
+      "passed": true,
+      "sanitizer": "address,undefined",
+      "programSHA256": "ca52d128011e1b2f6e1679cf8e4da54b2a12cef8f6335e48b3c4a2bb26f3ce5e",
+      "scriptSHA256": "b10093fec7fd3b193aaa31a9f4736aaae22b0000063cf669e8ae03eb554a61bf",
+      "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+      "results": {
+        "productionAcquireAndReleaseExtracted": true,
+        "noSignalInventedAfterTimeout": true,
+        "unresolvedPolls": 80,
+        "unresolvedTraceEvents": 3,
+        "cpuCommitAfterActualWrite": true,
+        "deferredGpuNotReportedAsCommit": true,
+        "noOpNotReportedAsCommit": true,
+        "failedWriteNotReportedAsCommit": true,
+        "priorReleaseRetained": true,
+        "disabledModeNoRecords": true
+      }
+    },
+    "signal-dma-plain.json": {
+      "sha256": "6c373d1363e8c12305fae6b2492f60b504f5debdb11b59013844b3fa929c4724",
+      "passed": true,
+      "sanitizer": null,
+      "programSHA256": "83baebf8333ed07ea74891584a2a3cb7933feb5b5e4d9364994d0e010bb94e22",
+      "scriptSHA256": "b10093fec7fd3b193aaa31a9f4736aaae22b0000063cf669e8ae03eb554a61bf",
+      "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+      "results": {
+        "completeDmaFunctionExtracted": true,
+        "beforeAfterCopyCases": 320,
+        "observedCommitRecords": 44,
+        "failedCopyNoCommit": true,
+        "inFlightSessionResetDropsOldCommit": true,
+        "getAndUnwatchedPathsNoCommit": true,
+        "noAdditionalGuestRead": true,
+        "dmaValueExplicitlyUnknown": true
+      }
+    },
+    "signal-dma-asan.json": {
+      "sha256": "21fb2e5df195029aa333baf55450d01c22c45c1b8b0762bb5e3f426c1ae66059",
+      "passed": true,
+      "sanitizer": "address,undefined",
+      "programSHA256": "83baebf8333ed07ea74891584a2a3cb7933feb5b5e4d9364994d0e010bb94e22",
+      "scriptSHA256": "b10093fec7fd3b193aaa31a9f4736aaae22b0000063cf669e8ae03eb554a61bf",
+      "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+      "results": {
+        "completeDmaFunctionExtracted": true,
+        "beforeAfterCopyCases": 320,
+        "observedCommitRecords": 44,
+        "failedCopyNoCommit": true,
+        "inFlightSessionResetDropsOldCommit": true,
+        "getAndUnwatchedPathsNoCommit": true,
+        "noAdditionalGuestRead": true,
+        "dmaValueExplicitlyUnknown": true
+      }
+    },
+    "signal-list-plain.json": {
+      "sha256": "34a5251934ae329afa6b1edcb780904f01cff45fe3d2e0fb64ba689d6c12e93c",
+      "passed": true,
+      "sanitizer": null,
+      "programSHA256": "4f60257d59cadfed18aa76b59cecb0caa91ca6d4a8f100024b0a742884add962",
+      "scriptSHA256": "b10093fec7fd3b193aaa31a9f4736aaae22b0000063cf669e8ae03eb554a61bf",
+      "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+      "results": {
+        "completeListFunctionExtracted": true,
+        "beforeAfterCopyCases": 88,
+        "observedCommitRecords": 10,
+        "zeroElementsNoCommitCases": 8,
+        "getAndUnwatchedPathsNoCommit": true
+      }
+    },
+    "signal-list-asan.json": {
+      "sha256": "1bf30acd7aa7ad71011348ff6e3605c3cdde25ff7cb081d29f611b57d6964ae1",
+      "passed": true,
+      "sanitizer": "address,undefined",
+      "programSHA256": "4f60257d59cadfed18aa76b59cecb0caa91ca6d4a8f100024b0a742884add962",
+      "scriptSHA256": "b10093fec7fd3b193aaa31a9f4736aaae22b0000063cf669e8ae03eb554a61bf",
+      "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+      "results": {
+        "completeListFunctionExtracted": true,
+        "beforeAfterCopyCases": 88,
+        "observedCommitRecords": 10,
+        "zeroElementsNoCommitCases": 8,
+        "getAndUnwatchedPathsNoCommit": true
+      }
+    },
+    "signal-helper-tsan.json": {
+      "sha256": "7d6ec32e062f026aaeaf2bd08d1a1ca004ba2b539287681149f5f0a179d725f6",
+      "passed": true,
+      "sanitizer": "thread",
+      "programSHA256": "413a781615ce5f39ba430a14f94c22c71488b8f8aad77006908194e820f71840",
+      "scriptSHA256": "b10093fec7fd3b193aaa31a9f4736aaae22b0000063cf669e8ae03eb554a61bf",
+      "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+      "results": {
+        "disabledNoRecords": true,
+        "priorWriteRetained": true,
+        "historyNonDestructive": true,
+        "sessionIsolation": true,
+        "overlapBoundaryCases": 7,
+        "historyCapacity": 64,
+        "producerCapacity": 32,
+        "overflowAndBusyDrops": true,
+        "allocationTrapPassed": true,
+        "concurrentWrites": 40000,
+        "concurrentSnapshots": 344,
+        "concurrentStallSnapshots": 76,
+        "resolvedStallRetainedAfter200HealthyAcquires": true,
+        "stallReplacementAndBusyDrops": true,
+        "storageBytes": 38928
+      }
+    }
+  },
+  "productionFiles": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": {
+      "before_sha256": "4d138e76afc25d12d8eff04a5794153cbe9a4562c8dcbe5d9eac274ab4c927d3",
+      "after_sha256": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440",
+      "after_lf_sha256": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440"
+    },
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": {
+      "before_sha256": "acf9518ceed92ca6024939054a83060b9fdc9dce2f1281dbfed0bebda040a4db",
+      "after_sha256": "7891895841c71c6cd361f8b227284b6447ec1ce7ac0e455c69b18a050128d8fa",
+      "after_lf_sha256": "7891895841c71c6cd361f8b227284b6447ec1ce7ac0e455c69b18a050128d8fa"
+    },
+    "rpcs3/Emu/RSX/NV47/HW/nv406e.cpp": {
+      "before_sha256": "67b78d21235bc944559b32d07e821f69d93e9f0cc4df0253e33e1f86f399d652",
+      "after_sha256": "742e1c536d53f7279cd3ca0fff9df729dc2c99e8a33c5721273f52b663f2fef6",
+      "after_lf_sha256": "c1a5d71f20f6fa5dfdd9b1277a0b1dec0b7e6018027bd6767386d30c29434824"
+    },
+    "rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp": {
+      "before_sha256": "370ef0ef8221cd72cbe9435fc8cb387640b6b0629c0e0cd4585ef737d21ea893",
+      "after_sha256": "233ff027cc3bb660cd5c5d6e812782b9fab438d844a7606a3f504ede24374576",
+      "after_lf_sha256": "c5ca7d51fb7a195796f5a474c4fbec6d513ca475e7c3373433a73444defaf13f"
+    },
+    "rpcs3/ios/IOSSignalTrace.h": {
+      "before_sha256": null,
+      "after_sha256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+      "after_lf_sha256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6"
+    }
+  },
+  "sourceRecordSHA256": "bcd354d3044bf67edd6b4de8af9e28c23c80c0b5847cede88caee1360d28e9f5",
+  "patchSHA256": "5ba3420689a0b3078c7b9ac4eb88827e9d4544678f7d0ffcdd61302544dc58b3",
+  "codegenReportSHA256": "32b0c5238d26974244dca5fe1de8dafd47e51ef2ffc38b6881d6326d94e8332c",
+  "codegenBaseline": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "477a3fa442d27917"
+  },
+  "codegenCandidateWithoutAlias": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "6987b1df811a7338"
+  },
+  "codegenCandidateWithExactAlias": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "477a3fa442d27917"
+  },
+  "codegenFutureMutation": "7f6dd90c44603c6f",
+  "compatibleEffectiveSHA256": "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4",
+  "exactSourceAndCompatibilityHashesMatchAudit": true,
+  "testFiles": {
+    "run_late_snr.py": "cd880a6a0c11b26c98c997ce375a736b2adb28c04547dc607de0adc19db5be17",
+    "late_snr.cpp.in": "d35cb6267a003edceac1158eb51e229941259858d7914e2f81e48b6cd8fe8c42",
+    "run_signal_tests.py": "b10093fec7fd3b193aaa31a9f4736aaae22b0000063cf669e8ae03eb554a61bf",
+    "signal_trace_test.cpp": "413a781615ce5f39ba430a14f94c22c71488b8f8aad77006908194e820f71840",
+    "signal_rsx.cpp.in": "d7e0ef6829b265ef9a27952509f51ec02ce07c96bc3807cde82995a0dfc5a4c3",
+    "signal_dma_suffix.cpp": "eac85a247095de324ab278db66929418ca0a04dbcf5ace95823175fe2af8de28",
+    "signal_list_suffix.cpp": "3abd8e76f554bf3635a7f10da1d6424a8fc085eb6b8d57bde9870b8406e139ba",
+    "audit_codegen.py": "5e4d13a27ae4e160573d29e199baec3976dec36cb10253fcbc9776980aff337f",
+    "README.md": "10519c6fe30fc1257beffb28bd56a3f9d1256c36acaad4739f36f2b2a7510ab2"
+  },
+  "optionalSparseSupportFiles": {
+    "MFC.h": "66890f55f172be2a8a7b9e54100c5dac79562f0e743b72dec619732da00f7396",
+    "Utilities/Thread.h": "2806dcb61877c84b682aa5e3d0de8eb6b85fee9938b066e93a5e8461b636d87a"
+  },
+  "fullBaselineSourcesToIntegrate": [],
+  "reusedAdapterFixtures": {
+    "test/rpcs3_continuation/cpu/dma_mmio_prefix.cpp": "e001be3121a4462c54f5d9ec43520b19ef0ec24ebd35b7cd83c7cb156e725187",
+    "test/rpcs3_continuation/cpu/dma_list_harness_prefix.cpp": "331926c45add6584c083b99f9a0d98bb48e3f86fb41be15477b1d4c207e8eedf"
+  },
+  "finalReviewSHA256": "48120ea31221c782fd99259fe75d177fd47c3b5fb87516b5757f2f09a0c4dc27",
+  "integratedFiveFilesRawSHA256Matched": true,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false,
+  "newCoreCompiled": false,
+  "appleHostTested": false,
+  "cmakeBinaryExecuted": false,
+  "llvmBinaryExecuted": false
+}

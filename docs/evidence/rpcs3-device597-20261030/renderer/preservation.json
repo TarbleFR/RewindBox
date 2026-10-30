@@ -1,0 +1,38 @@
+{
+  "canonical_manifest_sha256": "b3351e3ae9241916b8e39c7dca8e5e36e7ad5538d0039d9f41350933ca851a11",
+  "canonical_postimages": 319,
+  "base_matches_canonical_after_crlf_normalization": 319,
+  "byte_identical_to_base": 318,
+  "authored_changed_postimages": [
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp"
+  ],
+  "preexisting_crlf_only": [
+    "rpcs3/Emu/RSX/Common/buffer_stream.hpp",
+    "rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp",
+    "rpcs3/Emu/RSX/Core/RSXIOMap.hpp",
+    "rpcs3/Emu/RSX/Core/RSXReservationLock.hpp",
+    "rpcs3/Emu/RSX/Core/RSXVertexTypes.h",
+    "rpcs3/Emu/RSX/NV47/HW/nv406e.cpp",
+    "rpcs3/Emu/RSX/NV47/HW/nv4097.cpp",
+    "rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp",
+    "rpcs3/Emu/RSX/Program/GLSLSnippets/GPUDeswizzle.glsl",
+    "rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXROPEpilogue.glsl",
+    "rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp",
+    "rpcs3/Emu/RSX/VK/VKQueryPool.cpp",
+    "rpcs3/Emu/RSX/VK/VKQueryPool.h",
+    "rpcs3/Emu/RSX/VK/upscalers/fsr1/fsr_pass.cpp",
+    "rpcs3/Emu/RSX/VK/vkutils/data_heap.cpp",
+    "rpcs3/Emu/RSX/VK/vkutils/image.cpp",
+    "rpcs3/Emu/RSX/VK/vkutils/image.h",
+    "rpcs3/Crypto/unself.h",
+    "rpcs3/Emu/RSX/RSXZCULL.cpp",
+    "rpcs3/Emu/RSX/NV47/HW/nv0039.cpp",
+    "rpcs3/Emu/RSX/NV47/HW/nv3089.cpp",
+    "rpcs3/Emu/RSX/NV47/HW/nv308a.cpp",
+    "rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp",
+    "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp"
+  ],
+  "preexisting_crlf_only_count": 24,
+  "normalization_performed": false,
+  "expected_changed_only": true
+}

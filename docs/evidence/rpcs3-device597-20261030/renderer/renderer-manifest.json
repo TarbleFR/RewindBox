@@ -1,0 +1,94 @@
+{
+  "baseline_app_commit": "293f7feba68eddb0dc7f4a5ec3940b209cc5de35",
+  "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "source_files": [
+    {
+      "path": "rpcs3/Emu/RSX/VK/VKVertexBuffers.cpp",
+      "before_sha256": "09a0283b6c9729eba8abe17aa81759f12f5f745384287411288c55cf07d63cd0",
+      "after_sha256": "c76f7ff4a16a48373b1f65ff7eed52293cb74e8b4a86e2c7ca7dec819df5ac85",
+      "before_bytes": 14269,
+      "after_bytes": 15499,
+      "before_git_blob": "d9e9cee9e2d8b4b5f126f9f0b183baf7323c1c61"
+    },
+    {
+      "path": "rpcs3/Emu/RSX/VK/VKDraw.cpp",
+      "before_sha256": "91d473f3053f5623703bb5d025112199109cbdd51b0eb47d68d37ca9e8f1d4a6",
+      "after_sha256": "45023f8eb619e8c6972af3ef531d93b93b94488f59955312305407692fd75494",
+      "before_bytes": 51198,
+      "after_bytes": 55048,
+      "before_git_blob": "527ecd40e24fb7237cfdfb2a8c5b03db2c97995d"
+    },
+    {
+      "path": "rpcs3/Emu/RSX/VK/vkutils/sampler_shader_state.hpp",
+      "before_sha256": null,
+      "after_sha256": "2c87816317eeabe688e2b68c895ab4ad066c268eb8f6343a6dfe03c5e6212fca",
+      "before_bytes": 0,
+      "after_bytes": 3176
+    },
+    {
+      "path": "rpcs3/ios/IOSRendererCausality.h",
+      "before_sha256": null,
+      "after_sha256": "a9943fab3d362e4fd6ea391c8898cc58d4fcfdfd13965c86f7f6dafc3d303413",
+      "before_bytes": 0,
+      "after_bytes": 6706
+    }
+  ],
+  "patch_sha256": "ac2ca37a80605f9a9a0680ac21b884e292846bba311f0dbb2b2d4e10f24eeb98",
+  "patch_applied_exact": true,
+  "fixtures": {
+    "TextureUtils.h": "f2177f51d6cc96f566cec6a99a7612cebe765afa6f7d06a459d684d8b73b7e40",
+    "VKDraw.before.cpp": "91d473f3053f5623703bb5d025112199109cbdd51b0eb47d68d37ca9e8f1d4a6",
+    "VKVertexBuffers.before.cpp": "09a0283b6c9729eba8abe17aa81759f12f5f745384287411288c55cf07d63cd0"
+  },
+  "evidence": {
+    "vertex-plain/result.json": "a977c92527cd5a348ce19b715250270118bf4cbae33fc0bf18215848c72b2612",
+    "vertex-asan/result.json": "d2f28cbed8a5698d01c3fd0c454a0d2af73b8274b29780c1ab17107f356c8034",
+    "sampler-plain/result.json": "e68b593784351ddec91924b728e709ad408375472c93e98b0014d8ac51dcd220",
+    "sampler-asan/result.json": "5f4a7da91cdded56b86aa85d9ac8be94dbaa8b47241dd9a8b377fd584e6c1fac",
+    "causality-plain/result.json": "2f39c13cf5bc15a02146688469cde32a4b83ebdbb1d84eeb04f051198f933c01",
+    "causality-asan/result.json": "ab8fb94202f95612bcc0f7458cec874c952a5dc8c92af3b9267d23b0a30e5b00"
+  },
+  "preservation": {
+    "canonical_manifest_sha256": "b3351e3ae9241916b8e39c7dca8e5e36e7ad5538d0039d9f41350933ca851a11",
+    "canonical_postimages": 319,
+    "base_matches_canonical_after_crlf_normalization": 319,
+    "byte_identical_to_base": 318,
+    "authored_changed_postimages": [
+      "rpcs3/Emu/RSX/VK/VKDraw.cpp"
+    ],
+    "preexisting_crlf_only": [
+      "rpcs3/Emu/RSX/Common/buffer_stream.hpp",
+      "rpcs3/Emu/RSX/Core/RSXDrawCommands.cpp",
+      "rpcs3/Emu/RSX/Core/RSXIOMap.hpp",
+      "rpcs3/Emu/RSX/Core/RSXReservationLock.hpp",
+      "rpcs3/Emu/RSX/Core/RSXVertexTypes.h",
+      "rpcs3/Emu/RSX/NV47/HW/nv406e.cpp",
+      "rpcs3/Emu/RSX/NV47/HW/nv4097.cpp",
+      "rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp",
+      "rpcs3/Emu/RSX/Program/GLSLSnippets/GPUDeswizzle.glsl",
+      "rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXROPEpilogue.glsl",
+      "rpcs3/Emu/RSX/VK/VKPipelineCompiler.cpp",
+      "rpcs3/Emu/RSX/VK/VKQueryPool.cpp",
+      "rpcs3/Emu/RSX/VK/VKQueryPool.h",
+      "rpcs3/Emu/RSX/VK/upscalers/fsr1/fsr_pass.cpp",
+      "rpcs3/Emu/RSX/VK/vkutils/data_heap.cpp",
+      "rpcs3/Emu/RSX/VK/vkutils/image.cpp",
+      "rpcs3/Emu/RSX/VK/vkutils/image.h",
+      "rpcs3/Crypto/unself.h",
+      "rpcs3/Emu/RSX/RSXZCULL.cpp",
+      "rpcs3/Emu/RSX/NV47/HW/nv0039.cpp",
+      "rpcs3/Emu/RSX/NV47/HW/nv3089.cpp",
+      "rpcs3/Emu/RSX/NV47/HW/nv308a.cpp",
+      "rpcs3/Emu/RSX/VK/VKAsyncScheduler.cpp",
+      "rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp"
+    ],
+    "preexisting_crlf_only_count": 24,
+    "normalization_performed": false,
+    "expected_changed_only": true
+  },
+  "scripts": {
+    "test_renderer_causality.py": "af24c0b552250e9ca01fba7f6e35ccbe0f909514b1e7233e931a538dcbb7b573",
+    "test_sampler_shader_refresh.py": "0f0978f5bb92507d3070d64e9332d274ad0d47a90970cf0f9b4c6af6fa8d897d",
+    "test_vertex_upload_key.py": "d2950b7d24adef0729bd97a5de17c91c2b838b2ec985a46f4b4de37a71351373"
+  }
+}

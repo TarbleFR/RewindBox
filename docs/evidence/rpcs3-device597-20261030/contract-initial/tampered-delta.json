@@ -1,0 +1,17 @@
+{
+  "passed": false,
+  "scope": "Canonical Core/repository byte authentication and inverse delta only",
+  "checker_sha256": "328942b73b58c531c71837702b9c8ba71077c64bfef3610250b6dfc62102cd13",
+  "source": "/tmp/device597-contract-oracle-trg8c9u1/core",
+  "repository": "/tmp/device597-contract-oracle-trg8c9u1/app",
+  "compiler_invoked": false,
+  "native_test_executed": false,
+  "harness_regenerated": false,
+  "codegen_identities_computed": false,
+  "apple_build": false,
+  "device_test": false,
+  "fps_claim": false,
+  "receipt_scope": "Repository inputs authenticate recorded receipt bytes only. Historical Apple/host receipts retain their original source and harness scope; no new execution or applicability is inferred.",
+  "reusability_scope": "Exact source/harness reuse and partial/stale receipt exclusions are documented separately in the authenticated review inputs.",
+  "failure": "Inverse delta SHA-256 mismatch"
+}

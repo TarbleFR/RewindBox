@@ -1,0 +1,263 @@
+{
+  "passed": true,
+  "scope": "compiler-free preflight policy and real historical Core authentication",
+  "gateSHA256": "e306a6a30756c78badda74b82cb302ede9c0f030bd77c3f7131cca742dc6e1f0",
+  "planSHA256": "805f401ed48cf2177e4bfe419c9693e84ccc22a6d9e6377bd5ad6f74c164aa7d",
+  "scriptSHA256": "01ac3a44c0e74e9505d05f6ab623b2f1c3f568b3df64fd6e298d27c1afd86d6a",
+  "cases": [
+    {
+      "name": "explicit_catalogue_28_native_plus_1_source",
+      "passed": true
+    },
+    {
+      "name": "empty_catalogue",
+      "passed": true,
+      "rejected": "The new Apple job list must not be empty"
+    },
+    {
+      "name": "duplicate_job",
+      "passed": true,
+      "rejected": "Duplicate job: renderer-vertex-plain"
+    },
+    {
+      "name": "native_mode_missing",
+      "passed": true,
+      "rejected": "Missing/invalid explicit native mode: renderer-vertex-plain"
+    },
+    {
+      "name": "source_as_native",
+      "passed": true,
+      "rejected": "Codegen audit is a separate source job"
+    },
+    {
+      "name": "source_as_sanitizer",
+      "passed": true,
+      "rejected": "Missing/invalid explicit native mode: audit_codegen"
+    },
+    {
+      "name": "source_audit_missing",
+      "passed": true,
+      "rejected": "Exactly one current codegen source audit is required"
+    },
+    {
+      "name": "foreign_runner",
+      "passed": true,
+      "rejected": "Runner must belong to this new lot: renderer-vertex-plain"
+    },
+    {
+      "name": "runner_traversal",
+      "passed": true,
+      "rejected": "Runner must belong to this new lot: renderer-vertex-plain"
+    },
+    {
+      "name": "report_traversal",
+      "passed": true,
+      "rejected": "Explicit safe report path required"
+    },
+    {
+      "name": "no_result_check",
+      "passed": true,
+      "rejected": "Explicit output checks required: renderer-vertex-plain"
+    },
+    {
+      "name": "foundation_not_required",
+      "passed": true,
+      "rejected": "Both real Foundation modes are required"
+    },
+    {
+      "name": "accept_explicit_flags_plain",
+      "passed": true
+    },
+    {
+      "name": "accept_explicit_flags_asan-ubsan",
+      "passed": true
+    },
+    {
+      "name": "accept_explicit_flags_tsan",
+      "passed": true
+    },
+    {
+      "name": "missing_assertions_flag",
+      "passed": true,
+      "rejected": "Native checks must explicitly retain assertions with -UNDEBUG"
+    },
+    {
+      "name": "ndebug_compact",
+      "passed": true,
+      "rejected": "Assertions disabled by NDEBUG"
+    },
+    {
+      "name": "ndebug_value",
+      "passed": true,
+      "rejected": "Assertions disabled by NDEBUG"
+    },
+    {
+      "name": "ndebug_separate",
+      "passed": true,
+      "rejected": "Assertions disabled by NDEBUG"
+    },
+    {
+      "name": "response_file",
+      "passed": true,
+      "rejected": "Unexpanded compiler response file"
+    },
+    {
+      "name": "preprocessor_indirection",
+      "passed": true,
+      "rejected": "Indirect preprocessor flags need explicit review"
+    },
+    {
+      "name": "unexpected_sanitizer",
+      "passed": true,
+      "rejected": "Wrong sanitizer mode: {'address'}"
+    },
+    {
+      "name": "missing_ubsan",
+      "passed": true,
+      "rejected": "Wrong sanitizer mode: {'address'}"
+    },
+    {
+      "name": "disabled_sanitizer",
+      "passed": true,
+      "rejected": "A sanitizer is selectively disabled"
+    },
+    {
+      "name": "foreign_architecture",
+      "passed": true,
+      "rejected": "Wrong native architecture"
+    },
+    {
+      "name": "iphone_target_for_host_fixture",
+      "passed": true,
+      "rejected": "The native regression target must be Apple ARM64 macOS"
+    },
+    {
+      "name": "missing_target",
+      "passed": true,
+      "rejected": "Missing target triple"
+    },
+    {
+      "name": "nested_native_result_accepted",
+      "passed": true
+    },
+    {
+      "name": "false_native_result",
+      "passed": true,
+      "rejected": "Failed result check for check: ['nested', 'passed']"
+    },
+    {
+      "name": "integer_not_boolean_pass",
+      "passed": true,
+      "rejected": "Failed result check for check: ['nested', 'passed']"
+    },
+    {
+      "name": "foundation_execution_report_accepted",
+      "passed": true
+    },
+    {
+      "name": "linux_foundation_skip_is_not_pass",
+      "passed": true,
+      "rejected": "Failed result check for host-causes-plain: ['foundation', 'executed']"
+    },
+    {
+      "name": "foundation_execution_failure",
+      "passed": true,
+      "rejected": "Failed result check for host-causes-plain: ['foundation', 'runReturnCode']"
+    },
+    {
+      "name": "wrapper_forwards_argv_unchanged_and_captures_source_fixture",
+      "passed": true
+    },
+    {
+      "name": "trace_wrong_compiler",
+      "passed": true,
+      "rejected": "Runner substituted another compiler"
+    },
+    {
+      "name": "trace_failed_compile",
+      "passed": true,
+      "rejected": "A native compiler invocation failed"
+    },
+    {
+      "name": "trace_version_only",
+      "passed": true,
+      "rejected": "The runner never invoked the selected CXX compiler"
+    },
+    {
+      "name": "trace_preprocess_only",
+      "passed": true,
+      "rejected": "Native job did not build executable code"
+    },
+    {
+      "name": "trace_syntax_only",
+      "passed": true,
+      "rejected": "Native job did not build executable code"
+    },
+    {
+      "name": "trace_source_tampered",
+      "passed": true,
+      "rejected": "Captured compile input changed"
+    },
+    {
+      "name": "compile_does_not_substitute_for_foundation",
+      "passed": true,
+      "rejected": "Missing real Objective-C++ Foundation compilation"
+    },
+    {
+      "name": "runner_bypassed_CXX",
+      "passed": true,
+      "rejected": "The runner never invoked the selected CXX compiler"
+    },
+    {
+      "name": "fresh_source_codegen_audit_matches_current_source_and_review",
+      "passed": true
+    },
+    {
+      "name": "foreign_codegen_source",
+      "passed": true,
+      "rejected": "Current codegen audit differs from its reviewed source-equivalence proof"
+    },
+    {
+      "name": "different_codegen_identity",
+      "passed": true,
+      "rejected": "Current codegen audit differs from its reviewed source-equivalence proof"
+    },
+    {
+      "name": "missing_codegen_alias_case",
+      "passed": true,
+      "rejected": "Current codegen audit differs from its reviewed source-equivalence proof"
+    },
+    {
+      "name": "borrowed_codegen_candidate_input",
+      "passed": true,
+      "rejected": "Current codegen audit differs from its reviewed source-equivalence proof"
+    },
+    {
+      "name": "actual_ordinary_dependency_tree_matches_pinned_upstream",
+      "passed": true
+    },
+    {
+      "name": "different_upstream_header_rejected",
+      "passed": true,
+      "rejected": "Noncanonical source differs from pinned upstream: Utilities/xxhash3.h"
+    },
+    {
+      "name": "historical_core_proof_and_original_repository_objects_authenticated",
+      "passed": true
+    }
+  ],
+  "caseCount": 50,
+  "nativeJobsDeclared": 28,
+  "sourceJobsDeclared": 1,
+  "ordinaryUpstreamDependencies": 1861,
+  "historicalRepositoryInputs": 191,
+  "historicalDiagnosticsArchiveOpened": false,
+  "compilerInvoked": false,
+  "argumentRecordingStubInvoked": true,
+  "nativeTestsExecuted": false,
+  "appleBuild": false,
+  "coreBuild": false,
+  "foundationExecuted": false,
+  "ciTriggered": false,
+  "release": false
+}

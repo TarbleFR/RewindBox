@@ -1,0 +1,1080 @@
+{
+  "jobs": [
+    {
+      "name": "renderer-vertex-plain",
+      "kind": "native",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/renderer/test_vertex_upload_key.py",
+        "--source",
+        "{source}",
+        "--output",
+        "{output}/renderer-vertex-plain"
+      ],
+      "report": "{output}/renderer-vertex-plain/result.json",
+      "checks": [
+        {
+          "path": [
+            "variants",
+            "before",
+            "result",
+            "wrong_range_reuses"
+          ],
+          "equals": 300
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "wrong_range_reuses"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "ordinary_mismatches"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "cases"
+          ],
+          "equals": 1656
+        }
+      ]
+    },
+    {
+      "name": "renderer-vertex-asan-ubsan",
+      "kind": "native",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/renderer/test_vertex_upload_key.py",
+        "--source",
+        "{source}",
+        "--output",
+        "{output}/renderer-vertex-asan-ubsan",
+        "--sanitizer"
+      ],
+      "report": "{output}/renderer-vertex-asan-ubsan/result.json",
+      "checks": [
+        {
+          "path": [
+            "variants",
+            "before",
+            "result",
+            "wrong_range_reuses"
+          ],
+          "equals": 300
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "wrong_range_reuses"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "ordinary_mismatches"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "cases"
+          ],
+          "equals": 1656
+        }
+      ]
+    },
+    {
+      "name": "renderer-sampler-plain",
+      "kind": "native",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/renderer/test_sampler_shader_refresh.py",
+        "--source",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--output",
+        "{output}/renderer-sampler-plain"
+      ],
+      "report": "{output}/renderer-sampler-plain/result.json",
+      "checks": [
+        {
+          "path": [
+            "variants",
+            "before",
+            "result",
+            "stale_shader_states"
+          ],
+          "equals": 306
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "stale_shader_states"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "unchanged_state_invalidations"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "cases"
+          ],
+          "equals": 2537
+        }
+      ]
+    },
+    {
+      "name": "renderer-sampler-asan-ubsan",
+      "kind": "native",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/renderer/test_sampler_shader_refresh.py",
+        "--source",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--output",
+        "{output}/renderer-sampler-asan-ubsan",
+        "--sanitizer"
+      ],
+      "report": "{output}/renderer-sampler-asan-ubsan/result.json",
+      "checks": [
+        {
+          "path": [
+            "variants",
+            "before",
+            "result",
+            "stale_shader_states"
+          ],
+          "equals": 306
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "stale_shader_states"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "unchanged_state_invalidations"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "variants",
+            "after",
+            "result",
+            "cases"
+          ],
+          "equals": 2537
+        }
+      ]
+    },
+    {
+      "name": "renderer-causality-plain",
+      "kind": "native",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/renderer/test_renderer_causality.py",
+        "--source",
+        "{source}",
+        "--output",
+        "{output}/renderer-causality-plain"
+      ],
+      "report": "{output}/renderer-causality-plain/result.json",
+      "checks": [
+        {
+          "path": [
+            "returncode"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "result",
+            "checks"
+          ],
+          "equals": 276
+        },
+        {
+          "path": [
+            "result",
+            "retained"
+          ],
+          "equals": 8
+        },
+        {
+          "path": [
+            "result",
+            "allocations_while_recording"
+          ],
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "renderer-causality-asan-ubsan",
+      "kind": "native",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/renderer/test_renderer_causality.py",
+        "--source",
+        "{source}",
+        "--output",
+        "{output}/renderer-causality-asan-ubsan",
+        "--sanitizer"
+      ],
+      "report": "{output}/renderer-causality-asan-ubsan/result.json",
+      "checks": [
+        {
+          "path": [
+            "returncode"
+          ],
+          "equals": 0
+        },
+        {
+          "path": [
+            "result",
+            "checks"
+          ],
+          "equals": 276
+        },
+        {
+          "path": [
+            "result",
+            "retained"
+          ],
+          "equals": 8
+        },
+        {
+          "path": [
+            "result",
+            "allocations_while_recording"
+          ],
+          "equals": 0
+        }
+      ]
+    },
+    {
+      "name": "cpu-late-snr-plain",
+      "kind": "native",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/cpu/run_late_snr.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--report",
+        "{output}/cpu-late-snr-plain.json"
+      ],
+      "report": "{output}/cpu-late-snr-plain.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "baselineLostWakeSchedules"
+          ],
+          "equals": 4
+        },
+        {
+          "path": [
+            "results",
+            "candidateInterruptDeliveries"
+          ],
+          "equals": 6
+        },
+        {
+          "path": [
+            "results",
+            "ownerPublishedMfcSnapshotVerified"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "cpu-late-snr-asan-ubsan",
+      "kind": "native",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/cpu/run_late_snr.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--report",
+        "{output}/cpu-late-snr-asan-ubsan.json",
+        "--sanitizer",
+        "address,undefined"
+      ],
+      "report": "{output}/cpu-late-snr-asan-ubsan.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "baselineLostWakeSchedules"
+          ],
+          "equals": 4
+        },
+        {
+          "path": [
+            "results",
+            "candidateInterruptDeliveries"
+          ],
+          "equals": 6
+        },
+        {
+          "path": [
+            "results",
+            "ownerPublishedMfcSnapshotVerified"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "signal-helper-plain",
+      "kind": "native",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--repo",
+        "{repo}",
+        "--mode",
+        "helper",
+        "--report",
+        "{output}/signal-helper-plain.json"
+      ],
+      "report": "{output}/signal-helper-plain.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "signal-helper-asan-ubsan",
+      "kind": "native",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--repo",
+        "{repo}",
+        "--mode",
+        "helper",
+        "--report",
+        "{output}/signal-helper-asan-ubsan.json",
+        "--sanitizer",
+        "address,undefined"
+      ],
+      "report": "{output}/signal-helper-asan-ubsan.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "signal-rsx-plain",
+      "kind": "native",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--repo",
+        "{repo}",
+        "--mode",
+        "rsx",
+        "--report",
+        "{output}/signal-rsx-plain.json"
+      ],
+      "report": "{output}/signal-rsx-plain.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "signal-rsx-asan-ubsan",
+      "kind": "native",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--repo",
+        "{repo}",
+        "--mode",
+        "rsx",
+        "--report",
+        "{output}/signal-rsx-asan-ubsan.json",
+        "--sanitizer",
+        "address,undefined"
+      ],
+      "report": "{output}/signal-rsx-asan-ubsan.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "signal-dma-plain",
+      "kind": "native",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--repo",
+        "{repo}",
+        "--mode",
+        "dma",
+        "--report",
+        "{output}/signal-dma-plain.json"
+      ],
+      "report": "{output}/signal-dma-plain.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "signal-dma-asan-ubsan",
+      "kind": "native",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--repo",
+        "{repo}",
+        "--mode",
+        "dma",
+        "--report",
+        "{output}/signal-dma-asan-ubsan.json",
+        "--sanitizer",
+        "address,undefined"
+      ],
+      "report": "{output}/signal-dma-asan-ubsan.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "signal-list-plain",
+      "kind": "native",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--repo",
+        "{repo}",
+        "--mode",
+        "list",
+        "--report",
+        "{output}/signal-list-plain.json"
+      ],
+      "report": "{output}/signal-list-plain.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "signal-list-asan-ubsan",
+      "kind": "native",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/cpu/run_signal_tests.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--repo",
+        "{repo}",
+        "--mode",
+        "list",
+        "--report",
+        "{output}/signal-list-asan-ubsan.json",
+        "--sanitizer",
+        "address,undefined"
+      ],
+      "report": "{output}/signal-list-asan-ubsan.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "prehash-publication-plain",
+      "kind": "native",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/prehash/validate_prehash_publication.py",
+        "--baseline",
+        "{baseline}",
+        "--candidate",
+        "{source}",
+        "--work",
+        "{output}/prehash-publication-plain",
+        "--report",
+        "{output}/prehash-publication-plain.json"
+      ],
+      "report": "{output}/prehash-publication-plain.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "prehash-publication-asan-ubsan",
+      "kind": "native",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/prehash/validate_prehash_publication.py",
+        "--baseline",
+        "{baseline}",
+        "--candidate",
+        "{source}",
+        "--work",
+        "{output}/prehash-publication-asan-ubsan",
+        "--report",
+        "{output}/prehash-publication-asan-ubsan.json",
+        "--sanitizer",
+        "address,undefined"
+      ],
+      "report": "{output}/prehash-publication-asan-ubsan.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "hash-cancellation-plain",
+      "kind": "native",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/hash/run_hash_cancellation.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--dependencies",
+        "{source}",
+        "--report",
+        "{output}/hash-cancellation-plain.json"
+      ],
+      "report": "{output}/hash-cancellation-plain.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "foregroundFunctionUnchanged"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "xxhashSHA256"
+          ],
+          "equals": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c"
+        }
+      ]
+    },
+    {
+      "name": "hash-cancellation-asan-ubsan",
+      "kind": "native",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/hash/run_hash_cancellation.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--dependencies",
+        "{source}",
+        "--report",
+        "{output}/hash-cancellation-asan-ubsan.json",
+        "--sanitizer",
+        "address,undefined"
+      ],
+      "report": "{output}/hash-cancellation-asan-ubsan.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "foregroundFunctionUnchanged"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "xxhashSHA256"
+          ],
+          "equals": "4eeb0db9470a10e82a820ab504d99b8aafe46077582239479b897009ea243f7c"
+        }
+      ]
+    },
+    {
+      "name": "worker-cancellation-plain",
+      "kind": "native",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/worker/run_worker_cancellation.py",
+        "--source",
+        "{source}",
+        "--dependencies",
+        "{source}",
+        "--vm-adapter",
+        "{repo}/test/native/rpcs3_prehash581.inc",
+        "--work",
+        "{output}/worker-cancellation-plain",
+        "--report",
+        "{output}/worker-cancellation-plain.json"
+      ],
+      "report": "{output}/worker-cancellation-plain.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "worker-cancellation-asan-ubsan",
+      "kind": "native",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/worker/run_worker_cancellation.py",
+        "--source",
+        "{source}",
+        "--dependencies",
+        "{source}",
+        "--vm-adapter",
+        "{repo}/test/native/rpcs3_prehash581.inc",
+        "--work",
+        "{output}/worker-cancellation-asan-ubsan",
+        "--report",
+        "{output}/worker-cancellation-asan-ubsan.json",
+        "--sanitizer",
+        "address,undefined"
+      ],
+      "report": "{output}/worker-cancellation-asan-ubsan.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "frame-trace-plain",
+      "kind": "native",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/frame/run_frame_trace.py",
+        "{source}",
+        "--report",
+        "{output}/frame-trace-plain.json"
+      ],
+      "report": "{output}/frame-trace-plain.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "productionHeaderExecuted"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "frame-trace-asan-ubsan",
+      "kind": "native",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/frame/run_frame_trace.py",
+        "{source}",
+        "--report",
+        "{output}/frame-trace-asan-ubsan.json",
+        "--sanitizer",
+        "address,undefined"
+      ],
+      "report": "{output}/frame-trace-asan-ubsan.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "productionHeaderExecuted"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "report-format-plain",
+      "kind": "native",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/frame/run_format.py",
+        "{source}",
+        "--report",
+        "{output}/report-format-plain.json"
+      ],
+      "report": "{output}/report-format-plain.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "formatArgumentCountsChecked"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "resolvedStallRetained"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "unsampledIsUnavailable"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "report-format-asan-ubsan",
+      "kind": "native",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/frame/run_format.py",
+        "{source}",
+        "--report",
+        "{output}/report-format-asan-ubsan.json",
+        "--sanitizer",
+        "address,undefined"
+      ],
+      "report": "{output}/report-format-asan-ubsan.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "formatArgumentCountsChecked"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "resolvedStallRetained"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "results",
+            "unsampledIsUnavailable"
+          ],
+          "equals": true
+        }
+      ]
+    },
+    {
+      "name": "host-causes-plain",
+      "kind": "native",
+      "mode": "plain",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_causes_history_test.py",
+        "--app",
+        "{repo}",
+        "--baseline",
+        "{repo}/test/rpcs3_device597/host/baseline",
+        "--work",
+        "{output}/host-causes-plain",
+        "--report",
+        "{output}/host-causes-plain.json"
+      ],
+      "report": "{output}/host-causes-plain.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "admission",
+            "cases"
+          ],
+          "equals": 85
+        },
+        {
+          "path": [
+            "foundation",
+            "executed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "foundation",
+            "runReturnCode"
+          ],
+          "equals": 0
+        }
+      ],
+      "requires_foundation": true
+    },
+    {
+      "name": "host-causes-asan-ubsan",
+      "kind": "native",
+      "mode": "asan-ubsan",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_causes_history_test.py",
+        "--app",
+        "{repo}",
+        "--baseline",
+        "{repo}/test/rpcs3_device597/host/baseline",
+        "--work",
+        "{output}/host-causes-asan-ubsan",
+        "--report",
+        "{output}/host-causes-asan-ubsan.json",
+        "--sanitizer",
+        "address,undefined"
+      ],
+      "report": "{output}/host-causes-asan-ubsan.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "admission",
+            "cases"
+          ],
+          "equals": 85
+        },
+        {
+          "path": [
+            "foundation",
+            "executed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "foundation",
+            "runReturnCode"
+          ],
+          "equals": 0
+        }
+      ],
+      "requires_foundation": true
+    },
+    {
+      "name": "audit_codegen",
+      "kind": "source",
+      "argv": [
+        "python3",
+        "{repo}/test/rpcs3_device597/cpu/audit_codegen.py",
+        "{source}",
+        "--baseline",
+        "{baseline}",
+        "--repo",
+        "{repo}",
+        "--report",
+        "{output}/codegen-source.json"
+      ],
+      "report": "{output}/codegen-source.json",
+      "checks": [
+        {
+          "path": [
+            "passed"
+          ],
+          "equals": true
+        },
+        {
+          "path": [
+            "candidateWithExactAlias"
+          ],
+          "equals": {
+            "PPU": "a987639e9f838d1c",
+            "SPU": "477a3fa442d27917"
+          }
+        }
+      ]
+    }
+  ]
+}

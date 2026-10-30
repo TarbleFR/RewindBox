@@ -1,0 +1,71 @@
+{
+  "passed": true,
+  "fullExtractedMethods": [
+    "bool spu_thread::do_mfc(",
+    "u32 spu_thread::get_mfc_completed() const",
+    "bool spu_thread::check_mfc_interrupts(",
+    "void spu_thread::push_snr(",
+    "void spu_thread::set_events(",
+    "spu_channel",
+    "thread_base::notify",
+    "thread_ctrl::wait_on_custom",
+    "thread_ctrl::wait_on",
+    "ios_publish_mfc_snapshot"
+  ],
+  "beforePrefixSHA256": "7d2359ef1e873e24401bfc06727ff85a304005017af586a0270a3e14ad0ea80f",
+  "afterPrefixSHA256": "653cdfce7e5060c88c23e6e769338407eeaaba1404f27667e8e02fd38db0af65",
+  "results": {
+    "baselineLostWakeSchedules": 4,
+    "candidateInterruptDeliveries": 6,
+    "maskedOrDisabledCases": 18,
+    "stopAfterRegistration": 2,
+    "handlerAckRetriesAcceptedOnce": 2,
+    "concurrentProducerConsumerCases": 128,
+    "ownerPublishedMfcSnapshotVerified": true,
+    "disabledInstrumentationPreservesLateIrq": true,
+    "oldSessionProducerSnapshotDropped": true,
+    "guestTimeoutAdded": false,
+    "testPlatformWakeBackend": "std::condition_variable"
+  },
+  "sourceSHA256": {
+    "rpcs3/Emu/Cell/SPUThread.cpp": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440",
+    "rpcs3/Emu/Cell/SPUThread.h": "27e7713d92eb04e5636d9e42d88b2dd7b4a2ec1fd13b8d72c497ca2984cbd67c",
+    "Utilities/Thread.cpp": "54cbbb76102708af70118eeebe3208a32b235705fb6a7b791097932e729a0075"
+  },
+  "baselineSHA256": "4d138e76afc25d12d8eff04a5794153cbe9a4562c8dcbe5d9eac274ab4c927d3",
+  "harnessSHA256": "0405eac6980238cd141232b99664165a7ed9755e51c64c61ae090d678f0fa088",
+  "scriptSHA256": "cd880a6a0c11b26c98c997ce375a736b2adb28c04547dc607de0adc19db5be17",
+  "adapterSHA256": "d35cb6267a003edceac1158eb51e229941259858d7914e2f81e48b6cd8fe8c42",
+  "supportSHA256": {
+    "rpcs3/Emu/Cell/MFC.h": "66890f55f172be2a8a7b9e54100c5dac79562f0e743b72dec619732da00f7396",
+    "Utilities/Thread.h": "2806dcb61877c84b682aa5e3d0de8eb6b85fee9938b066e93a5e8461b636d87a"
+  },
+  "compiler": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "flags": [
+    "-std=c++20",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-UNDEBUG",
+    "-g",
+    "-pthread",
+    "-O1",
+    "-DRPCS3_IOS",
+    "-I",
+    "/workspace/scratch/82df14a3df84/device597-core-cpu/rpcs3",
+    "-fsanitize=address,undefined",
+    "-fno-omit-frame-pointer",
+    "-fno-pie",
+    "-no-pie"
+  ],
+  "host": "x86_64",
+  "sanitizer": "address,undefined",
+  "assertionsActive": true,
+  "platformAtomicWaitBackendExecuted": false,
+  "traceHeaderSHA256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+  "realDMATransfersTested": false,
+  "llvmCompiled": false,
+  "aarch64Executed": false,
+  "physicalDeviceTested": false,
+  "gameplayMeasured": false
+}

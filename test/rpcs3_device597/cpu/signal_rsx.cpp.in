@@ -1,0 +1,98 @@
+#include "ios/IOSSignalTrace.h"
+#include <atomic>
+#include <cassert>
+#include <cstdint>
+#include <iostream>
+#include <stdexcept>
+#include <type_traits>
+#include <functional>
+using u32=std::uint32_t;using u64=std::uint64_t;using RsxSemaphore=u32;
+namespace trace=rpcs3::ios::signal_trace;
+constexpr u32 label=0x60300510;
+static u64 clock_us{};u64 get_system_time(){return clock_us+=100;}
+template<class T>struct atomic_t{std::atomic<T> value{};T load()const{return value.load();}void release(T v){value.store(v);}};
+atomic_t<RsxSemaphore> memory;
+static u32 cpu_writes{};static bool fail_write{};
+namespace vm{
+template<class T>decltype(auto) _ref(u32 address){assert(address==label);if constexpr(std::is_same_v<T,atomic_t<RsxSemaphore>>)return(memory);else return memory.load();}
+template<class T>void write(u32 address,u32 value){assert(address==label);if(fail_write)throw 7;memory.release(value);++cpu_writes;}
+}
+namespace cpu_flag{constexpr u32 again=1,dbg_global_pause=2,exit=4;}
+static unsigned pumps{};static std::function<void()> on_pump;
+static void pump(){++pumps;if(on_pump)on_pump();}
+namespace thread_ctrl{void wait_for(u64){pump();}}
+namespace utils{template<class T>void spin_on_cacheline_once(const T&,u32,u32){pump();}}
+struct logger{template<class...T>void warning(const char*,T...){}template<class...T>void error(const char*,T...){}template<class...T>void notice(const char*,T...){} }rsx_log;
+namespace rpcs3::ios{
+namespace texture_validation{void advance_epoch(){}}
+void record_rsx_semaphore_wait(u64,bool){}
+}
+namespace rsx{
+namespace pipeline_state{constexpr u32 fragment_program_needs_rehash=1;}
+struct dma_manager{void sync(){}};
+void mm_flush(){}
+}
+struct Fx{template<class T>T& get(){static T result;return result;}}fx;
+auto* g_fxo=&fx;
+static struct{struct{u64 driver_recovery_timeout=500;}video;}g_cfg;
+constexpr u32 CELL_GCM_CONTEXT_DMA_SEMAPHORE_R=3;
+struct fake_rsx{
+    atomic_t<bool> sync_point_request;
+    u32 m_graphics_state{},label_addr=0x60300000,device_addr=0x60400000,state{},external_interrupt_lock{};
+    struct{u64 idle_time{};}performance_counters;
+    struct backend{bool supports_host_gpu_labels{};}config;
+    bool backend_handles{};unsigned syncs{},flushes{},stops_at=80;
+    const backend& get_backend_config()const{return config;}
+    bool release_GCM_label(u32,u32,u32){return backend_handles;}
+    void sync(){++syncs;}void flush_fifo(){++flushes;}void fifo_wake_delay(u32=0){}
+    bool test_stopped(){return pumps>=stops_at;}void on_semaphore_acquire_wait(){}void cpu_wait(u32){pump();}
+    void recover_fifo(){throw std::runtime_error("unexpected invalid semaphore");}
+};
+struct registers{u32 address=label;u32 semaphore_offset_406e()const{return address;}u32 semaphore_context_dma_406e()const{return 0;}};
+struct context{fake_rsx rsx;registers regs;};
+#define RSX(ctx) (&(ctx)->rsx)
+#define REGS(ctx) (&(ctx)->regs)
+u32 get_address(u32 address,u32){return address;}
+namespace before{namespace util{@BEFORE_SYNC@}
+@BEFORE_ACQUIRE@
+@BEFORE_RELEASE@
+}
+namespace after{namespace util{@AFTER_SYNC@}
+@AFTER_ACQUIRE@
+@AFTER_RELEASE@
+}
+u32 count(trace::event_kind kind){auto s=trace::snapshot();u32 n=0;for(std::size_t i=0;i<s.event_count;++i)n+=s.events[i].kind==kind;return n;}
+void reset(u64 session,bool enabled){trace::reset(session,enabled);clock_us=0;pumps=0;cpu_writes=0;fail_write=false;memory.release(1);on_pump={};}
+int main(){
+    for(bool enabled:{false,true}){
+        reset(enabled?2:1,enabled);context ctx;after::semaphore_acquire(&ctx,0,1);
+        assert(memory.load()==1&&!pumps&&!cpu_writes);assert(trace::snapshot().event_count==(enabled?1u:0u));
+    }
+    reset(3,false);context old;before::semaphore_acquire(&old,0,2);auto old_pumps=pumps;auto old_syncs=old.rsx.syncs;
+    assert(memory.load()==1&&!cpu_writes&&old.rsx.state==cpu_flag::again);
+    reset(4,true);context stuck;after::semaphore_acquire(&stuck,0,2);
+    assert(memory.load()==1&&!cpu_writes&&stuck.rsx.state==old.rsx.state&&pumps==old_pumps&&stuck.rsx.syncs==old_syncs);
+    assert(count(trace::event_kind::stalled)==1&&count(trace::event_kind::aborted)==1);
+    assert(trace::snapshot().event_count==3); // 80 polls, only acquire/stall/abort.
+    reset(5,true);context resolved;
+    on_pump=[&]{if(pumps==50)after::semaphore_release(&resolved,0x64,2);};
+    after::semaphore_acquire(&resolved,0,2);
+    assert(memory.load()==2&&cpu_writes==1&&resolved.rsx.state==0);
+    assert(count(trace::event_kind::rsx_release_requested)==1&&count(trace::event_kind::rsx_cpu_commit)==1&&count(trace::event_kind::resolved)==1);
+    auto s=trace::snapshot();bool written_argument=false;
+    for(std::size_t i=0;i<s.event_count;++i)if(s.events[i].kind==trace::event_kind::rsx_cpu_commit){assert(s.events[i].value==2&&s.events[i].write_address==label);written_argument=s.events[i].value_is_written_argument;}
+    assert(written_argument);
+    // Completed release stays in history before the following acquire.
+    on_pump={};const auto previous=trace::summary().watch.acquire_sequence;
+    after::semaphore_acquire(&resolved,0,2);assert(trace::summary().watch.acquire_sequence>previous&&count(trace::event_kind::rsx_cpu_commit)==1);
+
+    reset(6,true);context deferred;trace::begin_acquire(label,2,1,1);deferred.rsx.config.supports_host_gpu_labels=true;deferred.rsx.backend_handles=true;
+    after::semaphore_release(&deferred,0x64,2);
+    assert(memory.load()==1&&cpu_writes==0&&count(trace::event_kind::rsx_gpu_deferred)==1&&count(trace::event_kind::rsx_cpu_commit)==0);
+    reset(7,true);context noop;trace::begin_acquire(label,1,1,1);after::semaphore_release(&noop,0x64,1);
+    assert(!cpu_writes&&count(trace::event_kind::rsx_release_requested)==1&&count(trace::event_kind::rsx_cpu_commit)==0);
+    reset(8,true);context failed;trace::begin_acquire(label,2,1,1);fail_write=true;bool caught=false;try{after::semaphore_release(&failed,0x64,2);}catch(int){caught=true;}
+    assert(caught&&!cpu_writes&&memory.load()==1&&count(trace::event_kind::rsx_cpu_commit)==0);
+    std::cout<<"{\"productionAcquireAndReleaseExtracted\":true,\"noSignalInventedAfterTimeout\":true,\"unresolvedPolls\":"<<old_pumps
+             <<",\"unresolvedTraceEvents\":3,\"cpuCommitAfterActualWrite\":true,\"deferredGpuNotReportedAsCommit\":true,\"noOpNotReportedAsCommit\":true,\"failedWriteNotReportedAsCommit\":true,\"priorReleaseRetained\":true,\"disabledModeNoRecords\":true}";
+}

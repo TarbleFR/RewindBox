@@ -1,0 +1,29 @@
+{
+  "scope": "compiler-invocation portability only; generated native program bytes unchanged",
+  "compiled": false,
+  "native_tests_executed": false,
+  "historical_results_rewritten": false,
+  "program_sha256": {
+    "vertex/before": "21d6ebe0cceb13c48a312e42f38b494356b05d1e6483e95930af0adc5612003c",
+    "vertex/after": "bdc89fe599f30216825fe06aca0d02ea48af6d8f1bc9fdfb456741b3acb12992",
+    "sampler/before": "38760fc9f0c09dd836bb7a4c5468895d919ac1d992f8a75ea08efdcfbc3c3cbd",
+    "sampler/after": "2b87ebf1420530c137318f10627cbcd67410301522550f3ab5f302f4bce71797",
+    "causality/causality": "c759e218f3d0f2d13386754ab1bf657d82c0d04d56bfc3e090058d8fad5643da"
+  },
+  "previous_executed_scripts_sha256": {
+    "test_renderer_causality.py": "af24c0b552250e9ca01fba7f6e35ccbe0f909514b1e7233e931a538dcbb7b573",
+    "test_sampler_shader_refresh.py": "0f0978f5bb92507d3070d64e9332d274ad0d47a90970cf0f9b4c6af6fa8d897d",
+    "test_vertex_upload_key.py": "d2950b7d24adef0729bd97a5de17c91c2b838b2ec985a46f4b4de37a71351373"
+  },
+  "current_scripts_sha256": {
+    "test_renderer_causality.py": "3f315a8c56ad973b8ae8e09394e991fc4f80b124d65856d4d8b59338232652da",
+    "test_sampler_shader_refresh.py": "96dc80c81b7259d6ac19a412f887ef1aa7b8c1e39eb837ed0b9eadd6ae7da12e",
+    "test_vertex_upload_key.py": "babadbb6bb0db8731a706e7382744d1bf209b51116100b777c00b0f66eda6769"
+  },
+  "changes": [
+    "CXX environment or --compiler parsed with shlex",
+    "explicit -UNDEBUG",
+    "HOST_MACOS_SDK on Darwin",
+    "-no-pie only on Linux sanitizer builds"
+  ]
+}

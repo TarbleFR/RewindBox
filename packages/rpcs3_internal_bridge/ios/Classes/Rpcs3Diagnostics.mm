@@ -8,10 +8,14 @@
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
+#include <initializer_list>
 
 static const unsigned long long kRPCS3DiagnosticLimit = 2 * 1024 * 1024;
 static const unsigned long long kRPCS3MilestoneLimit = 512 * 1024;
 static const unsigned long long kRPCS3RuntimeHistoryLimit = 2 * 1024 * 1024;
+// Compact causal evidence keeps two bounded generations independently of the
+// verbose profiler/restore stream (at most 8 MiB across both cause files).
+static const unsigned long long kRPCS3CauseHistoryLimit = 4 * 1024 * 1024;
 // CELL546: one restore writes up to ~350 KiB of constructor/file stages.
 static const unsigned long long kRPCS3RestoreTraceLimit = 1024 * 1024;
 // CELL546: one compact row per Core report window (~5 s, ~1.9 KiB): each
@@ -34,11 +38,34 @@ static BOOL RPCS3KeepRuntimeHistory(NSString* message) {
   return NO;
 }
 
+// Plain C++ admission: only bounded Core reports/events and boot/freeze facts.
+// Keep the complete original message, including unknown future fields. The
+// producers bound the event records; per-draw/per-poll families are excluded.
+static bool RPCS3CauseToken(const char* message, const char* token) noexcept {
+  if (!message) return false;
+  for (const char* at = strstr(message, token); at; at = strstr(at + 1, token)) {
+    if (at == message || at[-1] == ' ' || at[-1] == '\n' || at[-1] == '\t') return true;
+  }
+  return false;
+}
+
+static bool RPCS3KeepCauseHistory(const char* message) noexcept {
+  for (const char* token : {
+      "CONFIG_LAYERS ", "JITPROF_BOOT ", "SAVESTATE_BOOT ", "NEOSTATION_RESTART ",
+      "COREPROF FRAMEPROF527 ", "COREPROF FRAMECAUSE ", "COREPROF FRAMECAUSE_EVENT ",
+      "COREPROF RENDERCAUSE ", "COREPROF RENDERCAUSE_EVENT ",
+      "COREPROF SIGNALCAUSE ", "COREPROF SIGNALCAUSE_EVENT ", "COREPROF SIGNALCAUSE_PRODUCER ",
+      "RSX_ACQUIRE ", "FREEZE_DUMP snapshot\n", "LOG_BUDGET "}) {
+    if (RPCS3CauseToken(message, token)) return true;
+  }
+  return false;
+}
+
 // CELL546: generations discarded by each bounded file since launch. A reader
 // of the compact timeline sees how much history rotated away.
 enum RPCS3LogFile : size_t {
   kRPCS3DiagnosticFile, kRPCS3PerformanceFile, kRPCS3MilestoneFile,
-  kRPCS3RestoreTraceFile, kRPCS3TimelineFile, kRPCS3LogFileCount
+  kRPCS3RestoreTraceFile, kRPCS3TimelineFile, kRPCS3CauseFile, kRPCS3LogFileCount
 };
 static std::atomic<uint32_t> gRPCS3Rotations[kRPCS3LogFileCount];
 
@@ -140,6 +167,11 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
   // CELL551: title and effective layers of the current boot (CONFIG_LAYERS).
   NSString* _timelineTitle;
   NSDictionary* _timelineConfig;
+  // Owned by the same serial diagnostic queue. Every causal record carries
+  // its identity, even if the original boot has rotated out of both files.
+  NSString* _causeTitle;
+  NSString* _causeSession;
+  NSString* _causeBootKind;
 #if defined(RPCS3_DIAGNOSTICS_TESTING)
   NSString* _testDirectory;
 #endif
@@ -253,6 +285,16 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
               timestamp:(NSTimeInterval)timestamp
          monotonicBegin:(uint64_t)monotonicBegin
            monotonicEnd:(uint64_t)monotonicEnd {
+  return [self lineForStage:stage message:message timestamp:timestamp
+            monotonicBegin:monotonicBegin monotonicEnd:monotonicEnd context:nil];
+}
+
+- (NSData*)lineForStage:(nullable NSString*)stage
+                message:(nullable NSString*)message
+              timestamp:(NSTimeInterval)timestamp
+         monotonicBegin:(uint64_t)monotonicBegin
+           monotonicEnd:(uint64_t)monotonicEnd
+                 context:(nullable NSDictionary*)context {
   NSDictionary* entry = @{
     @"pid": @(getpid()),
     @"build": [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleVersion"] ?: @"unknown",
@@ -263,6 +305,11 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
     @"stage": stage ?: @"",
     @"message": message ?: @"",
   };
+  if (context.count) {
+    NSMutableDictionary* contextual = [entry mutableCopy];
+    [contextual addEntriesFromDictionary:context];
+    entry = contextual;
+  }
   NSData* json = [NSJSONSerialization dataWithJSONObject:entry
                                                  options:0
                                                    error:nil];
@@ -309,12 +356,15 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
       [old truncateFileAtOffset:0]; [old closeFile];
     }
     gRPCS3Rotations[index].fetch_add(1, std::memory_order_relaxed);
-    if (index == kRPCS3TimelineFile) marker = [self rotationLineForFile:path rotated:rotated index:index];
+    if (index == kRPCS3TimelineFile || index == kRPCS3CauseFile)
+      marker = [self rotationLineForFile:path rotated:rotated index:index];
   }
   if (![files fileExistsAtPath:path]) [files createFileAtPath:path contents:nil attributes:nil];
   NSFileHandle* file = [NSFileHandle fileHandleForWritingAtPath:path];
   [file seekToEndOfFile];
-  if (marker) [file writeData:marker];
+  // An unusually large complete record wins over the optional marker, so
+  // adding a rotation header can never exceed the file's byte limit.
+  if (marker && marker.length + line.length <= limit) [file writeData:marker];
   [file writeData:line]; [file closeFile];
 }
 
@@ -322,6 +372,36 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
   // The current plus one previous generation occupy at most 4 MiB on disk.
   [self appendLine:line name:@"RPCS3-performance.log"
              limit:kRPCS3RuntimeHistoryLimit index:kRPCS3PerformanceFile];
+}
+
+// Called only on _diagnosticQueue. No additional queue, flush or truncation
+// of individual causes is introduced; appendLine keeps the full JSON record.
+- (void)writeCauseStage:(NSString*)stage
+                 message:(NSString*)message
+               timestamp:(NSTimeInterval)timestamp
+          monotonicBegin:(uint64_t)monotonicBegin
+            monotonicEnd:(uint64_t)monotonicEnd {
+  const char* raw = message.UTF8String;
+  const BOOL bootBegin = [stage isEqualToString:@"game_boot_begin"];
+  const BOOL bootReturn = [stage isEqualToString:@"game_boot_return"];
+  if (!bootBegin && !bootReturn &&
+      (![stage isEqualToString:@"core_log"] || !RPCS3KeepCauseHistory(raw))) return;
+  if (bootBegin || RPCS3CauseToken(raw, "CONFIG_LAYERS ")) {
+    _causeTitle = bootBegin ? [message componentsSeparatedByString:@" "].firstObject
+                           : RPCS3TokenValue(raw, "title");
+    _causeSession = nil;
+    _causeBootKind = nil;
+  }
+  if (NSString* session = RPCS3TokenValue(raw ?: "", "session")) _causeSession = session;
+  else if (NSString* session = RPCS3TokenValue(raw ?: "", "report_session")) _causeSession = session;
+  if (NSString* kind = RPCS3TokenValue(raw ?: "", "boot_kind")) _causeBootKind = kind;
+  NSMutableDictionary* context = [@{@"title": _causeTitle.length ? _causeTitle : @"unknown"} mutableCopy];
+  if (_causeSession.length) context[@"session"] = RPCS3TimelineValue(_causeSession);
+  if (_causeBootKind.length) context[@"boot_kind"] = _causeBootKind;
+  NSData* line = [self lineForStage:stage message:message timestamp:timestamp
+                    monotonicBegin:monotonicBegin monotonicEnd:monotonicEnd context:context];
+  [self appendLine:line name:@"RPCS3-causes.log"
+             limit:kRPCS3CauseHistoryLimit index:kRPCS3CauseFile];
 }
 
 - (void)resetTimelineAccumulators {
@@ -371,12 +451,13 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
   row[@"lost"] = @{
     @"log_budget_dropped": @(_timelineLogDropped),
     @"rotations": [NSString stringWithFormat:
-        @"diagnostic=%u performance=%u milestones=%u restore_trace=%u timeline=%u",
+        @"diagnostic=%u performance=%u milestones=%u restore_trace=%u timeline=%u causes=%u",
         gRPCS3Rotations[kRPCS3DiagnosticFile].load(std::memory_order_relaxed),
         gRPCS3Rotations[kRPCS3PerformanceFile].load(std::memory_order_relaxed),
         gRPCS3Rotations[kRPCS3MilestoneFile].load(std::memory_order_relaxed),
         gRPCS3Rotations[kRPCS3RestoreTraceFile].load(std::memory_order_relaxed),
-        gRPCS3Rotations[kRPCS3TimelineFile].load(std::memory_order_relaxed)],
+        gRPCS3Rotations[kRPCS3TimelineFile].load(std::memory_order_relaxed),
+        gRPCS3Rotations[kRPCS3CauseFile].load(std::memory_order_relaxed)],
   };
   // CELL551: every row names its title; the first row after a boot carries
   // the configuration layers that boot applied.
@@ -429,7 +510,9 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
     row[@"session"] = RPCS3TimelineValue(RPCS3TokenValue(line, "session"));
     row[@"window"] = RPCS3TimelineValue(RPCS3TokenValue(line, "window"));
     row[@"frame_ms"] = RPCS3TimelineFamily(line, @[@"phase", @"intervals", @"median_ms", @"p95_ms", @"p99_ms",
-        @"max_ms", @"over50ms", @"over100ms", @"window_ms"]);
+        @"max_ms", @"over50ms", @"over100ms", @"window_ms", @"total_interval_ms",
+        @"window_guest_flips", @"wall_guest_fps", @"completed_interval_fps", @"last_guest_flip_age_ms",
+        @"guest_progress_boundary_approximate"]);
     return;
   }
   if (strstr(line, "CONFIG_LAYERS ") != nullptr) {
@@ -454,7 +537,18 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
   }
   NSString* family = nil;
   NSArray<NSString*>* keys = nil;
-  if (strstr(line, "COREPROF SHADERSTALL538 ") != nullptr) {
+  if (RPCS3CauseToken(line, "COREPROF FRAMECAUSE ")) {
+    family = @"frame_cause"; keys = @[@"captured", @"frames", @"slow", @"sampled", @"retained",
+        @"unretained", @"contended", @"threshold_us", @"capacity"];
+  } else if (RPCS3CauseToken(line, "COREPROF RENDERCAUSE ")) {
+    family = @"render_cause"; keys = @[@"captured", @"retained", @"vertex_range", @"sampler_refresh",
+        @"sampler_cyclic_fast", @"dropped", @"contended"];
+  } else if (RPCS3CauseToken(line, "COREPROF SIGNALCAUSE ")) {
+    family = @"signal_cause"; keys = @[@"enabled", @"watch_valid", @"watch_active", @"watch_stalled",
+        @"acquire", @"address", @"expected", @"observed", @"events_dropped", @"history_overwritten",
+        @"stale_session_dropped", @"producer_dropped", @"producer_replaced", @"read_busy",
+        @"stalls_total", @"stall_latched", @"stall_overwritten", @"stall_dropped", @"dump", @"coverage", @"excluded"];
+  } else if (strstr(line, "COREPROF SHADERSTALL538 ") != nullptr) {
     family = @"shader_stall"; keys = @[@"retained", @"dropped", @"capacity", @"threshold_us"];
   } else if (strstr(line, "COREPROF SHADERCOST534 ") != nullptr) {
     family = @"shader_cost_us"; keys = @[@"source", @"module", @"graphics", @"compute"];
@@ -497,7 +591,7 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
   } else if (strstr(line, "COREPROF frames=") != nullptr) {
     [self timelineRow][@"summary"] = RPCS3TimelineFamily(line, @[@"frames", @"avg_fps", @"low1_fps",
         @"frametime_ms", @"ppu_ms", @"spu_ms", @"rsx_ms", @"gpu_fence_wait_ms", @"memory_mib",
-        @"headroom_mib", @"rsx_fifo_busy"]);
+        @"headroom_mib", @"rsx_fifo_busy", @"wall_guest_fps", @"last_guest_flip_age_ms", @"avg_fps_scope"]);
     [self emitTimelineRowAt:timestamp complete:YES];
     return;
   }
@@ -516,6 +610,12 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
     @autoreleasepool {
       @try {
         [self observeTimelineStage:stageCopy message:messageCopy timestamp:timestamp];
+        @try {
+          [self writeCauseStage:stageCopy message:messageCopy timestamp:timestamp
+                 monotonicBegin:monotonicBegin monotonicEnd:monotonicEnd];
+        } @catch (__unused NSException* exception) {
+          // A best-effort cause append must not suppress the existing journal.
+        }
         NSString* path = [self diagnosticPath];
         if (![self openDiagnosticFileAtPath:path]) return;
         NSData* line = [self lineForStage:stageCopy
@@ -567,6 +667,20 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
   const uint64_t monotonicBegin = RPCS3MonotonicUs();
   NSTimeInterval timestamp = [NSDate.date timeIntervalSince1970];
   const uint64_t monotonicEnd = RPCS3MonotonicUs();
+
+  // These host boot boundaries do not also arrive as core_log. Core boot
+  // reports are already mirrored by writeDiagnosticStage and are not doubled.
+  if ([stageCopy isEqualToString:@"game_boot_begin"] || [stageCopy isEqualToString:@"game_boot_return"]) {
+    dispatch_async(_diagnosticQueue, ^{
+      @autoreleasepool {
+        @try {
+          [self writeCauseStage:stageCopy message:messageCopy timestamp:timestamp
+                 monotonicBegin:monotonicBegin monotonicEnd:monotonicEnd];
+        } @catch (__unused NSException* exception) {
+        }
+      }
+    });
+  }
 
   @synchronized(_milestoneLock) {
     @try {
@@ -691,6 +805,7 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
     [self closeDiagnosticFile];
     self->_testDirectory = directoryCopy;
     self->_diagnosticPath = nil;
+    self->_causeTitle = self->_causeSession = self->_causeBootKind = nil;
   });
   @synchronized(_milestoneLock) {
     _testDirectory = directoryCopy;

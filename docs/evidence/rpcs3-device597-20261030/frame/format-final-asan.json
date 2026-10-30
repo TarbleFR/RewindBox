@@ -1,0 +1,37 @@
+{
+  "passed": true,
+  "host": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0",
+  "compilerFlags": [
+    "-std=c++20",
+    "-O2",
+    "-UNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-pthread",
+    "-fno-omit-frame-pointer",
+    "-fsanitize=address,undefined",
+    "-g"
+  ],
+  "sanitizer": "address,undefined",
+  "sourceSHA256": "cc7a7d2871f498439eaad41fbacfce1928fa4f89e38d05a8efb448022b9ef1cb",
+  "adapterSHA256": "7204241ff52db561749a2edec2d8f20e6012282889d6645626f9581a9a68eed6",
+  "harnessSHA256": "0d80ca745b0d0cc0556765011e377290b71b5d39ddfb67f73029c47aa33515d3",
+  "supportSHA256": {
+    "ios/IOSFrameTrace.h": "4a2b171d57c837216dbb79cae955b9e30b4bee35c4108ecb2422ba64590468f3",
+    "ios/IOSRendererCausality.h": "a9943fab3d362e4fd6ea391c8898cc58d4fcfdfd13965c86f7f6dafc3d303413",
+    "ios/IOSSignalTrace.h": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6"
+  },
+  "productionReportersExtractedVerbatim": true,
+  "logBackend": "host snprintf adapter, production fmt/log sink not executed",
+  "fullCoreBuilt": false,
+  "results": {
+    "passed": true,
+    "linesChecked": 13,
+    "maxLineBytes": 904,
+    "resolvedStallRetained": true,
+    "unsampledIsUnavailable": true,
+    "formatArgumentCountsChecked": true
+  }
+}

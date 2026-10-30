@@ -1,0 +1,195 @@
+{
+  "schema": 1,
+  "passed": true,
+  "scope": "Final source and evidence consistency after all production edits; no native tests rerun by this aggregation.",
+  "baseline_app_commit": "293f7feba68eddb0dc7f4a5ec3940b209cc5de35",
+  "canonical_patch_sha256": "68234e0ead31d40c61c2b3b29c0c962f89d8687407e0cc60eb45d60b68dd71e8",
+  "delta_sha256": "d9e4973033be0eee30b60ab1d39d14a18fb9d5dab124843e6e926ba782bc870f",
+  "contract_sha256": "52b8066a6791e546f3c2c33f0b31ebfd17c984bb77a000157c2e78a60966bae8",
+  "contract_report_sha256": "599a6a1c2109449c2fb8e048624b66f81af46966ce00b11931299b36e830e483",
+  "preflight_source_report_sha256": "4da70ad88fb06b68d262782283c6c570f40f691e15dacb7d9e0aa107e35aed26",
+  "contract_repository_inputs_checked": 208,
+  "core_source_record_files_checked": 20,
+  "direct_receipt_source_references_exact": 89,
+  "equivalent_support_references": [
+    {
+      "report": "docs/evidence/rpcs3-device597-20261030/cpu/late-snr-signal-asan.json",
+      "recorded_support_sha256": "2806dcb61877c84b682aa5e3d0de8eb6b85fee9938b066e93a5e8461b636d87a",
+      "exact_upstream_sha256": "14bf216d4c8d804ba3475335c3cdd8a4447629338c195db72105fa0664ea23ce",
+      "difference": "one additional trailing LF in the historical support file",
+      "applicability": "Both extracted templates and entire generated harness were compared byte for byte; see closure receipt below."
+    },
+    {
+      "report": "docs/evidence/rpcs3-device597-20261030/cpu/late-snr-signal-plain.json",
+      "recorded_support_sha256": "2806dcb61877c84b682aa5e3d0de8eb6b85fee9938b066e93a5e8461b636d87a",
+      "exact_upstream_sha256": "14bf216d4c8d804ba3475335c3cdd8a4447629338c195db72105fa0664ea23ce",
+      "difference": "one additional trailing LF in the historical support file",
+      "applicability": "Both extracted templates and entire generated harness were compared byte for byte; see closure receipt below."
+    }
+  ],
+  "selected_successful_native_receipts": {
+    "cpu/late-snr-signal-plain.json": "2258a9991f2126108e4983a8ec82861572e03d43f0919a3c4fa40415e764db42",
+    "cpu/late-snr-signal-asan.json": "202ebc6e745cad1c51988188cd0672c52bcbdd57e5eec883b70c2b7d0166dd63",
+    "cpu/signal-helper-plain.json": "a42da15f9b897ad6ee09d4d015241befe0c9dc855c0bd0e374d7365f34c3fab7",
+    "cpu/signal-helper-asan.json": "cfc8e74f27477e96d245e05fd7b3af82c397dd2a705178b2d7d7edc49b8b265a",
+    "cpu/signal-helper-tsan.json": "7d6ec32e062f026aaeaf2bd08d1a1ca004ba2b539287681149f5f0a179d725f6",
+    "cpu/signal-rsx-plain.json": "70446b21bfabbd6b4018b41064747fd3aebcc71f68cfe5e79c28f0a3bfb16230",
+    "cpu/signal-rsx-asan.json": "6040fa882deecb3c51e1a1c310f770cdcdde2c250b7d52d8ab786d8babb053c4",
+    "cpu/signal-dma-plain.json": "6c373d1363e8c12305fae6b2492f60b504f5debdb11b59013844b3fa929c4724",
+    "cpu/signal-dma-asan.json": "21fb2e5df195029aa333baf55450d01c22c45c1b8b0762bb5e3f426c1ae66059",
+    "cpu/signal-list-plain.json": "34a5251934ae329afa6b1edcb780904f01cff45fe3d2e0fb64ba689d6c12e93c",
+    "cpu/signal-list-asan.json": "1bf30acd7aa7ad71011348ff6e3605c3cdde25ff7cb081d29f611b57d6964ae1",
+    "renderer/vertex-plain.json": "a87987204bc06f6c5efd04666b56db609e5645ef4aa7785a47f8890a93899162",
+    "renderer/vertex-asan.json": "9ef52fc5336e7526db9dce6511d94f99bb0c127149b5d196e69184115be34fcd",
+    "renderer/sampler-plain.json": "bc9ba7e8e53a243d7ff050dace8cc8117cc31161310653fdb64dd636f7ccbb5c",
+    "renderer/sampler-asan.json": "beb78a9e3679e1b930e20f1429a72d36e5ac09beca6bfec96852101cc83b6903",
+    "renderer/causality-plain.json": "f42cb054f7deb154c373d946839a5890beb942bd8ec37bf7bbbf8d4baa4a69ee",
+    "renderer/causality-asan.json": "2ce6263b2d99bfc2d0df9b638ac87ecfcb60ad144b54a06de49a771db2f3a495",
+    "prehash/publication-plain.json": "0e0248291d7c43fae70e0a0f0994e6f0b8b4af9512954f62803882445f40086c",
+    "prehash/publication-asan.json": "c5a784f27e7c639919d2d476f0c0865871c05092943ac95eb831cdd5d3406283",
+    "prehash/publication-tsan.json": "e4948f4fade9a8070f8e3cd60ad553f82d3ba35b3bf120cc2a77175ab250409a",
+    "worker/worker-plain.json": "679c5f3981deb8a96945c7647d7d0650668d766b52f2204559f67f83e05650c3",
+    "worker/worker-asan.json": "9ef3105aa934988581f7677f6617122d78dfe592244b28c4bb6600bf31bd3823",
+    "worker/worker-tsan.json": "207d8a6c3234a987cc67f083fd752e90bae01a19f1ef01aa6843426987803f04",
+    "frame/frame-plain.json": "3e4ef4030c73367d9df10239e47f84155194d0af60f147ec3e400bbe4a71cb30",
+    "frame/frame-asan.json": "83e6b907a3c2f703183ea890c8e5a0f496a4879d153e0b873e5d76b2d258a1d5",
+    "frame/frame-tsan.json": "6a0e81e9d13836ec8a253a5a547d51bb53528ed2e4cf7d9a0043d62681f66ce3",
+    "frame/format-final-plain.json": "14ff79d23ebc892c30cd824ce585e9b37c02adc51a749ab6bd4b6d8ef1f7243b",
+    "frame/format-final-asan.json": "10e02c65a7b5de1fe025f8e4cb58222a96ca94d66ee4b64d64b09bcf6624d855",
+    "hash/hash-plain-final.json": "74f61ce43667deb565c9d8c9566bd9c8439ec676cd5f03bd5ceca4a9160b25a8",
+    "hash/hash-asan.json": "89ae564301a8f2afb94a0c28d11ccbe14b91d27adf713f969397a32f1170ba80",
+    "host/final-plain.json": "eb0c51603189f1d99c3296da6eacd3499719b7ab6d372ecb230cacfa6787efe6",
+    "host/causes-asan.json": "e26f19554e68256cef9d8e69b7f61bddbc1150d7d2876e78c66f652b2667bb5e"
+  },
+  "selected_successful_native_receipt_count": 32,
+  "native_receipt_scope": "Existing executed host reports only. Source extraction and adapters, no full emulator/GPU/Apple execution. Thread.h support equivalence is established separately; historical result bytes are unchanged.",
+  "scanner_and_late_snr_closure_receipt_sha256": "3334abad4c66867ab2b13b606a3cd3005b9919671cb671621e571bb24ab4202e",
+  "scanner_and_late_snr_closure_receipt": {
+    "passed": true,
+    "scope": "Receipt of already completed Python checker executions and compiler-free late-SNR harness generation; no new native execution and no native receipt relabelling.",
+    "scanner": {
+      "path": "/workspace/scratch/82df14a3df84/device597-work/test/rpcs3_preprocessor_balance_test.py",
+      "sha256": "e28414917ba428816afbe83e06d698c272a442264b9d25b7fc3cfba01982d491",
+      "frozen": true,
+      "changed_repository_files_by_this_subtask": [
+        "test/rpcs3_preprocessor_balance_test.py"
+      ],
+      "diagnosis": "Historical false positive: unchanged delivered597 FragmentProgramDecompiler.cpp line890 emits the GLSL string #if 0; line892 emits #endif. The same block exists in pinned upstream at lines882/884. Scanner now masks C++ comments, ordinary/raw literals and character literals while preserving line numbers; directive stack rules remain unchanged.",
+      "executions_already_completed": [
+        {
+          "cwd": "/workspace/scratch/82df14a3df84/device597-work",
+          "env": {
+            "PYTHONDONTWRITEBYTECODE": "1"
+          },
+          "argv": [
+            "python3",
+            "test/rpcs3_preprocessor_balance_test.py"
+          ],
+          "exit_code": 0,
+          "unittest_tests_run": 10,
+          "unittest_result": "OK",
+          "native_execution": false
+        },
+        {
+          "cwd": "/workspace/scratch/82df14a3df84/device597-work",
+          "env": {
+            "PYTHONDONTWRITEBYTECODE": "1"
+          },
+          "argv": [
+            "python3",
+            "test/rpcs3_preprocessor_balance_test.py",
+            "/workspace/scratch/82df14a3df84/device597-core-integrated"
+          ],
+          "exit_code": 0,
+          "stdout": "PASS: conditional directives in 276 materialized Core files\n",
+          "materialized_files_checked": 276,
+          "native_execution": false
+        },
+        {
+          "cwd": "/workspace/scratch/82df14a3df84/device597-work",
+          "argv": [
+            "git",
+            "diff",
+            "--check",
+            "--",
+            "test/rpcs3_preprocessor_balance_test.py"
+          ],
+          "exit_code": 0,
+          "stdout": ""
+        }
+      ]
+    },
+    "late_snr_thread_header": {
+      "historical_support": {
+        "path": "/workspace/scratch/82df14a3df84/device597-cpu-review/support/Utilities/Thread.h",
+        "bytes": 21667,
+        "sha256": "2806dcb61877c84b682aa5e3d0de8eb6b85fee9938b066e93a5e8461b636d87a"
+      },
+      "exact_baseline": {
+        "path": "/workspace/scratch/82df14a3df84/device597-contract-review/baseline-linked-final/Utilities/Thread.h",
+        "bytes": 21666,
+        "sha256": "14bf216d4c8d804ba3475335c3cdd8a4447629338c195db72105fa0664ea23ce"
+      },
+      "byte_comparison": "historical_support == exact_baseline + b\"\\n\"",
+      "only_difference_one_terminal_lf": true,
+      "extracted_templates_identical": true,
+      "extracted_template_sha256": {
+        "template <uint Max, typename Func>": "949333ef13abcce5a844ef2c2031be662ec25eb1201032cce13f228c82dfbb58",
+        "template <typename T, typename U>\n\tstatic inline void wait_on(": "5de0b030d5d13687da3e4c27a26631d7c3eb4ff40c6e6500bbbd3429d8d78ab3"
+      },
+      "generation_already_completed": {
+        "runner": "/workspace/scratch/82df14a3df84/device597-work/test/rpcs3_device597/cpu/run_late_snr.py",
+        "call": "harness(source, baseline, support)",
+        "source": "/workspace/scratch/82df14a3df84/device597-core-integrated",
+        "baseline": "/workspace/scratch/82df14a3df84/device597-contract-review/baseline-linked-final",
+        "support": "/workspace/scratch/82df14a3df84/device597-work/test/rpcs3_device597/cpu/support",
+        "support_selection": "Existing baseline Utilities/Thread.h selected by runner; no fallback needed.",
+        "exit_code": 0,
+        "harness_sha256": "0405eac6980238cd141232b99664165a7ed9755e51c64c61ae090d678f0fa088",
+        "spu_source_sha256": "254336c40c34189064bea97d4ab25021929b763f8c9f60ff72b433196cb61440",
+        "trace_header_sha256": "4a667c7b40839349aa7be20508873312f6a5f4e0d304bee6e71b552920b5d8f6",
+        "compiler_invoked": false,
+        "native_execution": false
+      },
+      "unchanged_native_receipts": {
+        "plain": {
+          "path": "/workspace/scratch/82df14a3df84/device597-work/docs/evidence/rpcs3-device597-20261030/cpu/late-snr-signal-plain.json",
+          "receipt_sha256": "2258a9991f2126108e4983a8ec82861572e03d43f0919a3c4fa40415e764db42",
+          "recorded_harness_sha256": "0405eac6980238cd141232b99664165a7ed9755e51c64c61ae090d678f0fa088",
+          "matches_generated_harness": true,
+          "receipt_changed": false
+        },
+        "asan": {
+          "path": "/workspace/scratch/82df14a3df84/device597-work/docs/evidence/rpcs3-device597-20261030/cpu/late-snr-signal-asan.json",
+          "receipt_sha256": "202ebc6e745cad1c51988188cd0672c52bcbdd57e5eec883b70c2b7d0166dd63",
+          "recorded_harness_sha256": "0405eac6980238cd141232b99664165a7ed9755e51c64c61ae090d678f0fa088",
+          "matches_generated_harness": true,
+          "receipt_changed": false
+        }
+      },
+      "native_rerun_needed_for_this_difference": false
+    },
+    "new_tests_executed_while_writing_receipt": false,
+    "native_receipts_or_indices_modified": false,
+    "contract_inputs_modified_while_writing_receipt": false,
+    "apple_execution": false,
+    "core_compiled": false,
+    "device_tested": false,
+    "fps_claim": false
+  },
+  "unchanged_workflow_sha256": "7d6cd1d74e7503a406719932b8fddf13dd79ed0d67d775e1d49cafcc43ff036e",
+  "unchanged_build_shell_sha256": "ec79fb073908151d8413a201ef61d242078d363eb317395b6c98f01421eb9a5d",
+  "core_source_changed_by_final_scanner_fix": false,
+  "full_apple_core_built": false,
+  "foundation_executed": false,
+  "iphone_tested": false,
+  "fps_gain_measured": false,
+  "push_performed": false,
+  "ci_triggered": false,
+  "release_created": false,
+  "remaining_validation": [
+    "Apple ARM64 native preflight including real Foundation logger fixture",
+    "Complete iOS Core compilation and binary identity checks",
+    "Comparable iPhone scenes and source-linked cause logs"
+  ]
+}
