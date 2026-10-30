@@ -590,7 +590,7 @@
     ".github/workflows/melonx-core.yml": "0cf5798d82ab58f2763a8b6b1440cba4021eaba50ab1ec933461274aac09b773",
     "build-utils/melonx/verify_hogwarts_launch_core.py": "911f9b5051104c201d476eadeea183913ce67755d1f1567e9852ca7d91c768e1",
     "test/melonx_hogwarts_launch_contract_test.py": "5aea1fa85e01631baaa5de4a80a1ca9e59fe21e9ef452d9c9f8a937686555c01",
-    "test/melonx_literal_memory_test.py": "9a2d0fbe20dbb7681776f256fd23d62e63580f69dd9c86601d881ed9f49cb9ae",
+    "test/melonx_literal_memory_test.py": "e866dcc5c7fcfb3a5e9002b9de916b462223f8b077ba6aa118d161a767fe2ee3",
     "test/melonx_literal_memory/Program.cs": "bfce5e8cfdb3828780bc582020fbb57360eba9e16353bf56389b7c4f6a9e37cc",
     "test/melonx_startup_trace_test.py": "22e27e20f00c319c01c90ae3c80bc91e56accf2d398258a1e1747089af9eaf31",
     "packages/melonx_jit_helper/ios/Resources/melonx-universal.js": "fe162e0bd44471aa930db8582203b85ed135baf51712b57249dfcbfc6fe112fc",

@@ -19,7 +19,7 @@ assert subprocess.check_output(['git','-C',str(ROOT/'.native-sources/MeloNX'),'r
 assert (SOURCE/path).read_bytes()==(ROOT/'.native-sources/MeloNX'/path).read_bytes()
 with tempfile.TemporaryDirectory(prefix='melonx-literal-')as tmp:
  w=Path(tmp);a=w/'source';p=a/path;p.parent.mkdir(parents=True);shutil.copyfile(SOURCE/path,p);apply(a)
- imports='''using System; using System.Diagnostics;
+ imports='''using System; using System.Diagnostics; using Ryujinx.Cpu.LightningJit;
 using ARMeilleure.Memory; using Ryujinx.Cpu.LightningJit.CodeGen;
 using Ryujinx.Cpu.LightningJit.CodeGen.Arm64; using Ryujinx.Cpu.LightningJit.Arm64;
 '''
