@@ -152,7 +152,7 @@
     "native/melonx/EmbeddedSaveTransfer.cs": "9d2cdda63fcd0c2ad1332bf163fbaa3e09b8511065b0df85f8b5a85e5d5799b0",
     "native/melonx/EmbeddedSession.cs": "f08004f1e3a23e15c7d388502faab1785c65b740319f528853955bedd577d4ce",
     "native/melonx/EmbeddedSessionCoordinator.cs": "2a6e32fb2c304365d8eb4036b83ab1dac950d9b2bba1870dbbc6cb04dd70c268",
-    "native/melonx/EmbeddedStartupTrace.cs": "a47c6e497c8b448b3aa2966074c99e8a808a6a99cd0656013885b9805fe17342",
+    "native/melonx/EmbeddedStartupTrace.cs": "fed4576d30d283af24254b18fee4c3c90b06f4f82232390c58aebc8378073d33",
     "native/melonx/EmbeddedUnrealContent.cs": "57444c034af4b530318562179d9f4889ae7e1b8a386fde5f545cdcc76a7fe8e7",
     "native/melonx/EmbeddedUnrealProjectProbe.cs": "acb035903fa7be136e5a4063d40954a258867028d673a5da3bc7d35b3bc3c797",
     "native/melonx/EmbeddedWindowLifetime.cs": "c2a4e8b87af11aadb158d3ef03298306676f62efe804479cde5dc4c18c321650",
@@ -547,7 +547,7 @@
     "src/Ryujinx.Library/EmbeddedSaveTransfer.cs": "9d2cdda63fcd0c2ad1332bf163fbaa3e09b8511065b0df85f8b5a85e5d5799b0",
     "src/Ryujinx.Library/EmbeddedSession.cs": "f08004f1e3a23e15c7d388502faab1785c65b740319f528853955bedd577d4ce",
     "src/Ryujinx.Library/EmbeddedSessionCoordinator.cs": "2a6e32fb2c304365d8eb4036b83ab1dac950d9b2bba1870dbbc6cb04dd70c268",
-    "src/Ryujinx.Common/EmbeddedStartupTrace.cs": "a47c6e497c8b448b3aa2966074c99e8a808a6a99cd0656013885b9805fe17342",
+    "src/Ryujinx.Common/EmbeddedStartupTrace.cs": "fed4576d30d283af24254b18fee4c3c90b06f4f82232390c58aebc8378073d33",
     "src/Ryujinx.Library/EmbeddedUnrealContent.cs": "57444c034af4b530318562179d9f4889ae7e1b8a386fde5f545cdcc76a7fe8e7",
     "src/Ryujinx.Library/EmbeddedUnrealProjectProbe.cs": "acb035903fa7be136e5a4063d40954a258867028d673a5da3bc7d35b3bc3c797",
     "src/Ryujinx.Library/EmbeddedWindowLifetime.cs": "c2a4e8b87af11aadb158d3ef03298306676f62efe804479cde5dc4c18c321650"
@@ -576,28 +576,32 @@
   ],
   "gates": [
     [
-      "test/melonx_literal_memory_test.py",
-      "literal-memory-checks.json",
-      true
-    ],
-    [
       "test/melonx_startup_trace_test.py",
       "startup-trace-checks.json",
       true
     ]
   ],
   "inputs": {
-    ".github/workflows/melonx-core.yml": "0cf5798d82ab58f2763a8b6b1440cba4021eaba50ab1ec933461274aac09b773",
-    "build-utils/melonx/verify_hogwarts_launch_core.py": "911f9b5051104c201d476eadeea183913ce67755d1f1567e9852ca7d91c768e1",
-    "test/melonx_hogwarts_launch_contract_test.py": "5aea1fa85e01631baaa5de4a80a1ca9e59fe21e9ef452d9c9f8a937686555c01",
+    ".github/workflows/melonx-core.yml": "1a6777ec5c7796575404f9ad3a305bce41cbf4769a5237abed01b605cde8973b",
+    "build-utils/melonx/verify_hogwarts_launch_core.py": "a7476c5e419011876e3618c43ec14efdd9364f7c6ef728365a0f4ce8c549417e",
+    "test/melonx_hogwarts_launch_contract_test.py": "54369a421dde8b9909a270354096d1a7f44727df6df14ef50420bfc1d2dc9b34",
     "test/melonx_literal_memory_test.py": "e866dcc5c7fcfb3a5e9002b9de916b462223f8b077ba6aa118d161a767fe2ee3",
     "test/melonx_literal_memory/Program.cs": "bfce5e8cfdb3828780bc582020fbb57360eba9e16353bf56389b7c4f6a9e37cc",
-    "test/melonx_startup_trace_test.py": "22e27e20f00c319c01c90ae3c80bc91e56accf2d398258a1e1747089af9eaf31",
+    "test/melonx_startup_trace_test.py": "4b0bd904981fa50fa1fa2879c07540fae5a351a987cab0630f922768cfcfcffa",
     "packages/melonx_jit_helper/ios/Resources/melonx-universal.js": "fe162e0bd44471aa930db8582203b85ed135baf51712b57249dfcbfc6fe112fc",
     "build-utils/melonx/build_core.sh": "bf9589ca807104f888db884485d32070b68d86fa6535997a84934e8d698f4547",
     "build-utils/melonx/build_libhac.py": "68519a96e5a2c3e94285bfb65d42ae7c053a3b2a1893fd6509acf1d8080ce9e5",
     "build-utils/melonx/reuse_core_baseline.py": "9638b84da0f4e6ac5514b12d4169820e4d0c10465e4467326caff3d00d1f8a73",
     "build-utils/melonx/core-baseline.json": "3c9d1b86b88ce5d37a704820bcd9a2fd03c541dc30a3cefc9938db3213ce015d",
     "build-utils/melonx/verify_core_candidate.py": "ef88b181ad7073e0de8eec59bbb649c22058a7204aa1338c67ab049c00e2b0b9"
+  },
+  "reusedLiteralGate": {
+    "source": "8a82bb25c968a2e06a4f2ef3a6c7830f76560659",
+    "run": 41094416545,
+    "job": 124196332413,
+    "artifact": 12996721647,
+    "sha256": "d753e600dde9da25c6929c3284ce71bbab4771c80b63bfbf089dbc5f65758045",
+    "bytes": 87594846,
+    "receiptSha256": "29985605d22ad52897fffc51fa7ce14c6df1a480f9b80856d07fb9f24d59f33f"
   }
 }

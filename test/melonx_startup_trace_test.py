@@ -25,13 +25,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-startup-')as tmp:
  shutil.copyfile(ROOT/'native/melonx/EmbeddedStartupTrace.cs',w/'EmbeddedStartupTrace.cs')
  (w/'Program.cs').write_text('''using System; using System.Collections.Generic; using System.Text.Json;
 namespace Ryujinx.Common { public static class EmbeddedLaunchDiagnostics {
- public static List<string> Events=new(); public static bool Fail;
- public static void Record(string stage,string status,string detail) { if(Fail)throw new Exception("journal");Events.Add(stage+":"+status+":"+detail); } } }
+ public static List<string> Events=new(); public static bool Fail; public static string Stage="gpu";
+ public static void Record(string stage,string status,string detail) { if(Fail)throw new Exception("journal");if(status=="begin")Stage=stage;Events.Add(stage+":"+status+":"+detail); } } }
 class Program { static int checks;static void C(bool b) {checks++;if(!b)throw new Exception("trace contract");}
 static void Main() {
  var e=Ryujinx.Common.EmbeddedLaunchDiagnostics.Events;
- var trace=new Ryujinx.Common.EmbeddedStartupTrace("device");C(e.Count==1&&e[0]=="gpuStartup:begin:device");
- trace.Dispose();trace.Dispose();C(e.Count==2&&e[1].StartsWith("gpuStartup:end:device; elapsedMs="));
+ var trace=new Ryujinx.Common.EmbeddedStartupTrace("device");C(e.Count==1&&e[0]=="gpuStartup:scopeBegin:device");
+ trace.Dispose();trace.Dispose();C(e.Count==2&&e[1].StartsWith("gpuStartup:scopeEnd:device; elapsedMs="));
  var original=new InvalidOperationException("native failure");
  try { using var t=new Ryujinx.Common.EmbeddedStartupTrace("mainPipelineCache");throw original; }
  catch(Exception x) {C(ReferenceEquals(original,x));}
@@ -39,7 +39,7 @@ static void Main() {
  Ryujinx.Common.EmbeddedLaunchDiagnostics.Fail=true;
  try {using var t=new Ryujinx.Common.EmbeddedStartupTrace("surface");throw original;}
  catch(Exception x) {C(ReferenceEquals(original,x));}
- C(e.Count==4);Console.WriteLine(JsonSerializer.Serialize(new {result="passed",checks,nativeVulkanExecuted=false})); } }
+ C(e.Count==4);C(Ryujinx.Common.EmbeddedLaunchDiagnostics.Stage=="gpu");Console.WriteLine(JsonSerializer.Serialize(new {result="passed",checks,nativeVulkanExecuted=false})); } }
 ''')
  (w/'Probe.csproj').write_text('''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally><NuGetAudit>false</NuGetAudit></PropertyGroup><ItemGroup><Compile Remove="source/**/*.cs" /></ItemGroup></Project>''')
  (w/'global.json').write_text(json.dumps({'sdk':{'version':'10.0.100','rollForward':'disable'}}))

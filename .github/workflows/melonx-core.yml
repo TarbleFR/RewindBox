@@ -273,7 +273,7 @@ jobs:
       run: |
         python3 test/melonx_hogwarts_launch_contract_test.py
         python3 build-utils/melonx/verify_hogwarts_launch_core.py preflight
-    - name: Run affected memory and startup gates and authenticate35 historical results
+    - name: Run changed startup gate and authenticate36 exact-input receipts
       env:
         GH_TOKEN: ${{ github.token }}
       run: python3 build-utils/melonx/verify_hogwarts_launch_core.py run_gates

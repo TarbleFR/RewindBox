@@ -19,4 +19,6 @@ check(({p for p in old if old[p]!=new[p]}|set(new)-set(old))==set(c['productionC
 for p,h in {**b,**c['inputs']}.items():check(hashlib.sha256((ROOT/p).read_bytes()).hexdigest()==h,'Changed reviewed input: '+p)
 check(c['baseline']['source']=='827f4653e0dee5b86258f598373255d179638bdb','Immediate successful Core')
 check(c['adapters']==['adapt_literal_memory','adapt_startup_trace'],'Only literal correction and diagnostics')
+check(c['gates']==[['test/melonx_startup_trace_test.py','startup-trace-checks.json',True]],'Only changed trace gate reexecutes')
+check(c['reusedLiteralGate']['source']=='8a82bb25c968a2e06a4f2ef3a6c7830f76560659','Exact successful literal proof producer')
 print(json.dumps(dict(result='passed',checks=checks,preparationInputs=len(b),preparedMembers=len(new),nativeTestsExecuted=0)))

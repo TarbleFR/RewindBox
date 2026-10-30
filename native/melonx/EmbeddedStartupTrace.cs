@@ -16,7 +16,7 @@ public sealed class EmbeddedStartupTrace : IDisposable
     {
         _stage = stage;
         _begin = Stopwatch.GetTimestamp();
-        Record("begin", "");
+        Record("scopeBegin", "");
     }
 
     private void Record(string status, string detail)
@@ -29,6 +29,6 @@ public sealed class EmbeddedStartupTrace : IDisposable
     {
         if (Interlocked.Exchange(ref _ended, 1) != 0) return;
         double ms = Stopwatch.GetElapsedTime(_begin).TotalMilliseconds;
-        Record("end", FormattableString.Invariant($"; elapsedMs={ms:F3}"));
+        Record("scopeEnd", FormattableString.Invariant($"; elapsedMs={ms:F3}"));
     }
 }

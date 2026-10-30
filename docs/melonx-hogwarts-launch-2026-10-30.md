@@ -42,8 +42,8 @@ The guard keeps throwing; its diagnostic adds the relative offset, size and
 read/write flag without logging contents or private pointers. Startup-only
 timing scopes surround instance, surface, device selection/device creation,
 main and worker cache imports, feature setup and swapchain creation. Scope
-`end` means elapsed interval, not initialization success. Tracing must never
-replace a native exception, add a wait or change cache ownership.
+`scopeEnd` means elapsed interval, not initialization success. Tracing must never
+replace a native exception, change the current launch stage, add a wait or change cache ownership.
 
 ## Build and validation scope
 
@@ -56,8 +56,10 @@ paths differ: literal lowering, guard diagnostic, two startup call sites and
 the new trace helper. Native dependencies, ABI2/47 required exports, sized-JIT
 negotiation, memory budgets, graphics policy and all other core lots remain.
 
-Two fresh Apple gates exercise the real literal-lowering bodies with the
-actual pinned ARM64 assembler and startup-scope semantics. Thirty-five
+The Apple literal-lowering gate exercises the real production bodies with
+the actual pinned ARM64 assembler. Its successful exact-input proof from
+8a82bb25 is reused after the trace scope statuses are corrected to preserve
+the launch stage. The affected startup-scope gate executes freshly. Thirty-five
 unchanged historical receipts are authenticated without replay. NativeAOT
 builds both iOS/simulator ARM64 libraries and runs two actual simulator guest
 SVC/close/backing-release sessions. Apple execution and downloadable artifact

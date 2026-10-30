@@ -43,6 +43,29 @@ def preflight():
  require(common.command('git','rev-parse','HEAD^{tree}',cwd=SOURCE)=='82a29e6f593f6244869481e9a489b8d5154175fe'and not common.command('git','status','--porcelain',cwd=SOURCE),'Upstream is not pristine')
  write(EVIDENCE/'preflight.json',dict(result='passed',execution=common.execution(),system='Darwin',architecture='arm64',preparationInputs=v['preparationInputs'],contractSha256=digest(CONTRACT),smokeInputs={p:digest(ROOT/p)for p in common.HOST_INPUTS}))
 
+def reuse_literal_gate(v):
+ pin=v['reusedLiteralGate'];api=dict(repository='TarbleFR/RewindBox')
+ r=dependencies.api(api,'actions/runs/'+str(pin['run']));j=dependencies.api(api,'actions/jobs/'+str(pin['job']));a=dependencies.api(api,'actions/artifacts/'+str(pin['artifact']))
+ require(r['head_sha']==pin['source']and r['status']=='completed'and r['conclusion']=='success'and r['run_attempt']==1 and r['path']=='.github/workflows/melonx-core.yml','Wrong successful literal gate producer')
+ require(j['head_sha']==pin['source']and j['run_id']==pin['run']and j['conclusion']=='success','Wrong literal gate job')
+ require(a['digest']=='sha256:'+pin['sha256']and a['size_in_bytes']==pin['bytes']and not a['expired']and a['workflow_run']['id']==pin['run']and a['workflow_run']['head_sha']==pin['source'],'Wrong literal gate artifact')
+ p=ROOT/'.native-sources/melonx-literal-proof.zip'
+ if not p.exists():
+  with p.open('xb')as f:subprocess.run(['gh','api',f"repos/TarbleFR/RewindBox/actions/artifacts/{pin['artifact']}/zip"],stdout=f,check=True,timeout=300)
+ require(p.stat().st_size==pin['bytes']and digest(p)==pin['sha256'],'Wrong literal proof bytes')
+ with zipfile.ZipFile(p)as z:
+  result=json.loads(z.read('core-validation/result.json'));index=json.loads(z.read('core-validation/gates.json'))
+  require(result['result']=='passed'and result['execution']['source']==pin['source']and index['execution']['source']==pin['source'],'Failed literal producer')
+  raw=z.read('literal-memory-checks.json');require(hashlib.sha256(raw).hexdigest()==index['receipts']['literal-memory-checks.json']==pin['receiptSha256'],'Changed literal receipt')
+  report=json.loads(raw);require(report['result']=='passed'and report['generatedArm64Executed']is False,'Wrong literal proof scope')
+  common.inputs_match(report['inputs'])
+  for n,h in report['upstreamInputs'].items():require(digest(child(SOURCE,n))==h,'Changed literal code-generation input: '+n)
+  with zipfile.ZipFile(__import__('io').BytesIO(z.read('embedded-adapted-source.zip')))as prepared:
+   name='src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/InstEmitMemory.cs'
+   require(hashlib.sha256(prepared.read(name)).hexdigest()==v['preparedMembers'][name],'Changed tested literal lowering')
+ target=OUT/'reused-literal/literal-memory-checks.json';target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(raw)
+ return {'reused-literal/literal-memory-checks.json':hashlib.sha256(raw).hexdigest()}
+
 def run_gates():
  v=contract();archive=prior_archive();require(not TEST_SOURCE.exists(),'Stale gate source');shutil.copytree(SOURCE,TEST_SOURCE,ignore=shutil.ignore_patterns('.git'))
  retained={}
@@ -62,6 +85,7 @@ def run_gates():
     receipt=json.loads(raw);require(receipt['result']=='passed','Failed retained fixture')
     target=OUT/'historical-827f'/prefix/n;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(raw);retained['historical-827f/'+prefix+n]=h
  require(len(retained)==35,'Expected35 original scoped Apple receipts')
+ retained.update(reuse_literal_gate(v))
  receipts={}
  for script,report,with_source in v['gates']:
   target=OUT/report;require(not target.exists(),'Stale affected receipt: '+report)
@@ -71,7 +95,7 @@ def run_gates():
  for name in v['adapters']:importlib.import_module(name).apply(TEST_SOURCE)
  shutil.copyfile(ROOT/'native/melonx/EmbeddedStartupTrace.cs',TEST_SOURCE/'src/Ryujinx.Common/EmbeddedStartupTrace.cs')
  require(all(digest(TEST_SOURCE/n)==h for n,h in v['preparedMembers'].items()),'Tested source composition drift')
- write(EVIDENCE/'gates.json',dict(result='passed',execution=common.execution(),receipts=receipts,freshAppleGates=2,reusedAppleGates=35,historicalGatesReexecuted=False,retainedReceipts=retained,retainedScope='Original fixtures and unchanged production paths only; literal memory lowering and startup tracing have fresh affected gates',physicalDeviceTested=False))
+ write(EVIDENCE/'gates.json',dict(result='passed',execution=common.execution(),receipts=receipts,freshAppleGates=1,reusedAppleGates=36,historicalGatesReexecuted=False,retainedReceipts=retained,retainedScope='35 historical paths plus the exact successful literal-lowering gate; changed startup trace executes freshly',literalGateOrigin=v['reusedLiteralGate'],physicalDeviceTested=False))
 
 def compiled():
  v=contract();gates=read(EVIDENCE/'gates.json');require(gates['execution']==common.execution(),'Gate execution mismatch')
@@ -89,12 +113,12 @@ def compiled():
   symbols={l.split()[-1]for l in(d/'exports.txt').read_text().splitlines()if l.split()};require(all('_'+n in symbols for n in identity['exports']),'Missing native export')
   require('platform '+('IOS'if runtime=='ios-arm64'else'IOSSIMULATOR')+'\n'in(d/'platform.txt').read_text(),'Wrong native platform')
   common.command('xcrun','lipo',str(binary),'-verify_arch','arm64');identities[runtime]=digest(d/'identity.json');binaries[runtime]=dict(sha256=digest(binary),bytes=binary.stat().st_size)
- write(EVIDENCE/'compiled.json',dict(result='passed',execution=common.execution(),identities=identities,binaries=binaries,adaptationCount=len(v['preparationInputs']),preparedMembers=len(v['preparedMembers']),freshAppleGates=2,reusedAppleGates=35,embeddedArchiveSha256=digest(OUT/'embedded-adapted-source.zip'),physicalDeviceTested=False,gameplayTested=False))
+ write(EVIDENCE/'compiled.json',dict(result='passed',execution=common.execution(),identities=identities,binaries=binaries,adaptationCount=len(v['preparationInputs']),preparedMembers=len(v['preparedMembers']),freshAppleGates=1,reusedAppleGates=36,embeddedArchiveSha256=digest(OUT/'embedded-adapted-source.zip'),physicalDeviceTested=False,gameplayTested=False))
 
 def finalize():
  common.finalize()
- p=EVIDENCE/'result.json';r=read(p);r.update(freshAppleGates=2,reusedAppleGates=35,continuationContractSha256=digest(CONTRACT),literalMemoryCorrection='32-bit-width-and-register31',hogwartsCrashCauseProven=False,gpuStartupDelayFixed=False)
+ p=EVIDENCE/'result.json';r=read(p);r.update(freshAppleGates=1,reusedAppleGates=36,hogwartsLaunchContractSha256=digest(CONTRACT),literalMemoryCorrection='32-bit-width-and-register31',hogwartsCrashCauseProven=False,gpuStartupDelayFixed=False)
  r['inputs'].update({n:digest(ROOT/n)for n in ['build-utils/melonx/verify_hogwarts_launch_core.py','build-utils/melonx/hogwarts-launch-core-contract.json','packages/melonx_jit_helper/ios/Resources/melonx-universal.js']});write(p,r)
- (OUT/'CORE_DELIVERY.md').write_text('# RewindBox Hogwarts launch Core\n\n'+json.dumps(dict(execution=common.execution(),binaries=r['binaries'],freshAppleGates=2,reusedScopedAppleReceipts=35,gameplayMeasured=False),indent=2)+'\n')
+ (OUT/'CORE_DELIVERY.md').write_text('# RewindBox Hogwarts launch Core\n\n'+json.dumps(dict(execution=common.execution(),binaries=r['binaries'],freshAppleGates=1,reusedScopedAppleReceipts=36,gameplayMeasured=False),indent=2)+'\n')
 if __name__=='__main__':
  p=argparse.ArgumentParser();p.add_argument('phase',choices=['prepare_dependencies','preflight','run_gates','compiled','finalize']);a=p.parse_args();globals()[a.phase]()
