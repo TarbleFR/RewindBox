@@ -45,6 +45,13 @@ ARCHIVES = {
     'core': (12937551950, 29286994, '9a4b8fa8a3a072ed80898e85416d71af464a0b60bb5786dfd6da1d51002dd3e9'),
     'diagnostics': (12938490405, 593953, 'cac2db7c91bbdefb27a596aa5bca50914f3f6aaa87ac7155494c5b061f36abe6'),
 }
+PARTIAL_ORIGIN = dict(source='09f623b748cd4d910c353d2c99d373079599103e',
+                      run=40980093782, job=123817753311, artifact=12945040077,
+                      size=29872063,
+                      archive_sha256='0767acbea81ea315e3ff5288f81a506b4a3694276bf0a202141f4a47e06d3e3b',
+                      overall_conclusion='failure', core_compilation='skipped')
+PARTIAL_GATE_SHA = 'e87a03d8cefd948d9acf35eb9b2dcfd02159e30da71971d1ea61cb1566d09586'
+PARTIAL_MODES = {'dma-list-plain', 'dma-list-asan-ubsan'}
 CODEGEN = {'PPU': 'a987639e9f838d1c', 'SPU': '477a3fa442d27917'}
 ROUTE_BLOCK = '''    if 'continuation_20261030' in manifest():
         # Keep the established workflow and compiler recipe unchanged.
@@ -290,6 +297,75 @@ def generate_programs(source, baseline, directory, record):
     return result
 
 
+def apple_host_program(name, canonical):
+    """Rename one isolated VM enum that collides with Darwin's ::wait().
+
+    The canonical extracted program stays separately hashed. Both old/new
+    production bodies retain their flag value and operations; only the adapter
+    name and its two qualified references change, as in the earlier MFC gate.
+    """
+    if name != 'vm-mmio':
+        return canonical
+    declaration = 'enum cpu_flag{wait=1,temp=2};'
+    assert canonical.count(declaration) == 1
+    assert canonical.count('cpu_flag::wait') == 2
+    return canonical.replace(declaration, 'enum cpu_flag{rbx_wait=1,temp=2};', 1).replace(
+        'cpu_flag::wait', 'cpu_flag::rbx_wait')
+
+
+def partial_reference(proof, download=False, restore=False):
+    """Reuse only two completed modes, never the failed overall preflight."""
+    directory = OUT / 'partial-40980093782'
+    directory.mkdir(parents=True, exist_ok=True)
+    archive = directory / 'diagnostics.zip'
+    if download:
+        state = json.loads(command('gh', 'api', f"repos/TarbleFR/RewindBox/actions/runs/{PARTIAL_ORIGIN['run']}"))
+        assert state['head_sha'] == PARTIAL_ORIGIN['source'] and state['path'] == WORKFLOW
+        assert state['status'] == 'completed' and state['conclusion'] == 'failure'
+        save(directory / 'run.json', state)
+        if not archive.exists():
+            with archive.open('wb') as output:
+                subprocess.run(['gh', 'api', f"repos/TarbleFR/RewindBox/actions/artifacts/{PARTIAL_ORIGIN['artifact']}/zip"],
+                               cwd=ROOT, stdout=output, check=True, timeout=300)
+    state = load(directory / 'run.json')
+    assert state['id'] == PARTIAL_ORIGIN['run'] and state['head_sha'] == PARTIAL_ORIGIN['source']
+    assert state['conclusion'] == 'failure' and state['path'] == WORKFLOW
+    assert archive.stat().st_size == PARTIAL_ORIGIN['size']
+    assert file_sha(archive) == PARTIAL_ORIGIN['archive_sha256']
+    with zipfile.ZipFile(archive) as zipped:
+        previous = json.loads(zipped.read('runtime592-proof.json'))
+        assert previous['source'] == PARTIAL_ORIGIN['source']
+        assert previous['schema'] == 1 and previous['type'] == proof['type']
+        assert previous['all_tests_passed'] is False and set(previous['tests']) == PARTIAL_MODES
+        assert previous['input_sha256'][GATE] == PARTIAL_GATE_SHA
+        assert set(previous['input_sha256']) == set(proof['input_sha256'])
+        assert {p: h for p, h in previous['input_sha256'].items() if p != GATE} == {
+            p: h for p, h in proof['input_sha256'].items() if p != GATE}
+        for key in ('source_patch_sha256', 'native_source_sha256', 'exported_symbols', 'codegen',
+                    'host', 'historical', 'source_contract_sha256'):
+            assert previous[key] == proof[key], key
+        assert sha(zipped.read('continuation-source-contract.json')) == previous['source_contract_sha256']
+        retained = {}
+        for key in sorted(PARTIAL_MODES):
+            item = previous['tests'][key]
+            raw = zipped.read(key + '-result.json')
+            assert item['passed'] and sha(raw) == item['report_sha256']
+            report = json.loads(raw)
+            assert report['passed'] and report['name'] == 'dma-list'
+            assert report['compiler'] == proof['host']['compiler']
+            assert report['flags'] == flags('dma-list', report['mode'], proof['host']['macos_sdk'])
+            assert sha(zipped.read(report['program'])) == report['program_sha256'] == program_hashes()['dma-list']
+            assert sha(zipped.read(key + '-compile.txt')) == report['compile_sha256']
+            assert sha(zipped.read(key + '-output.txt')) == report['output_sha256']
+            assert json.loads(zipped.read(key + '-output.txt')) == report['results']
+            validate_result('dma-list', report['results'])
+            if restore:
+                for suffix in ('-result.json', '-compile.txt', '-output.txt'):
+                    (OUT / (key + suffix)).write_bytes(zipped.read(key + suffix))
+            retained[key] = dict(item, reused_from=PARTIAL_ORIGIN)
+    return retained
+
+
 def expected_result(name):
     evidence = ROOT / EVIDENCE
     if name in ('dma-list', 'vm-mmio', 'dma-mmio'):
@@ -414,9 +490,21 @@ def prepare(source):
         baseline = baseline_tree(source, work / 'baseline', record)
         programs = generate_programs(source, baseline, work / 'generated', record)
         assert {name: file_sha(path) for name, path in programs.items()} == program_hashes()
+        partial = partial_reference(proof, download=True, restore=True)
+        proof['partial_reuse'] = PARTIAL_ORIGIN
+        save(PROOF, proof)
         for name, cpp in programs.items():
+            canonical = cpp.read_text()
+            if name == 'vm-mmio':
+                (OUT / (name + '-canonical.cpp')).write_text(canonical)
+                cpp.write_text(apple_host_program(name, canonical))
             for mode in modes(name):
                 key = name + '-' + mode
+                if key in partial:
+                    proof['tests'][key] = partial[key]
+                    save(PROOF, proof)
+                    print(f"REUSE {key} from run {PARTIAL_ORIGIN['run']}; not executed again", flush=True)
+                    continue
                 print('RUN ' + key, flush=True)
                 argv = flags(name, mode)
                 executable = work / key
@@ -428,6 +516,9 @@ def prepare(source):
                               program=cpp.name, program_sha256=file_sha(cpp), compiler=version, flags=argv,
                               output_sha256=file_sha(output_log), compile_sha256=file_sha(compile_log),
                               physical_device_tested=False, gpu_executed=False)
+                if name == 'vm-mmio':
+                    report['canonical_program_sha256'] = sha(canonical.encode())
+                    report['apple_host_adapter'] = 'darwin-vm-wait-enumerator-v1'
                 if name == 'atlas-area' and mode == 'asan-ubsan':
                     probe = subprocess.run([str(executable), '--baseline-overflow-probe'],
                                            cwd=ROOT, env=env, capture_output=True, timeout=30)
@@ -480,6 +571,11 @@ def verify(path, source):
              'pressure', 'depth', 'pressure-baseline', 'depth-baseline', 'atlas', 'atlas-area', 'neoswap-trim')
     expected = {n + '-' + m for n in names for m in modes(n)} | {'store-full-plain', 'store-full-asan-ubsan'}
     assert set(proof['tests']) == expected
+    assert proof['partial_reuse'] == PARTIAL_ORIGIN
+    partial = partial_reference(proof)
+    assert {k for k, v in proof['tests'].items() if 'reused_from' in v} == PARTIAL_MODES
+    for key, item in partial.items():
+        assert proof['tests'][key] == item
     program_sha256 = program_hashes()
     for key, item in proof['tests'].items():
         report_path = OUT / (key + '-result.json')
@@ -498,7 +594,14 @@ def verify(path, source):
         if report['name'] == 'store-full':
             assert (OUT / (key + '-output.txt')).read_bytes().startswith(b'PASS: real POSIX file round trips')
         else:
-            assert file_sha(OUT / report['program']) == report['program_sha256'] == program_sha256[report['name']]
+            assert file_sha(OUT / report['program']) == report['program_sha256']
+            if report['name'] == 'vm-mmio':
+                canonical = (OUT / 'vm-mmio-canonical.cpp').read_bytes()
+                assert sha(canonical) == report['canonical_program_sha256'] == program_sha256['vm-mmio']
+                assert report['apple_host_adapter'] == 'darwin-vm-wait-enumerator-v1'
+                assert apple_host_program('vm-mmio', canonical.decode()).encode() == (OUT / report['program']).read_bytes()
+            else:
+                assert report['program_sha256'] == program_sha256[report['name']]
             assert json.loads((OUT / (key + '-output.txt')).read_bytes()) == report['results']
             validate_result(report['name'], report['results'])
         if 'baseline_overflow_sha256' in report:
