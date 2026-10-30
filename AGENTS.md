@@ -1,16 +1,29 @@
 # Current application identity — RewindBox (21 October 2026)
 
-## Private603 requested — integrate the verified Hogwarts Core, 30 October2026
+## Private603 compiled, verified and delivered — 30 October 2026
 
-The maintainer now explicitly requests a new private IPA with the corrected
-Core. This supersedes the preceding core-only scope. Retain delivered602's
-application product roots except the Core's new EmbeddedStartupTrace source;
-use actual MeloNX1630bd02/artifact12995694624 and unchanged RPCS3378509e8.
-No Core rebuild or unchanged native fixture replay. Assemble and verify a
-new0.0.8(603) IPA; never reuse602. Preserve the tested helper and all prior
-lots, settings, libraries and stable identifiers. No public release/tag.
-No physical Hogwarts recovery, GPU-delay removal or FPS gain is established.
-See docs/rewind603-test-ipa.md and the603 source/payload delivery bindings.
+The maintainer requested a private IPA with the corrected Hogwarts Core.
+Build 0.0.8 (603), source808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd,
+succeeds in run41102769156/job124223520172, attempt1. The actual downloaded
+IPA is189835284 bytes, SHA256
+4807cba308ec8fd0cf47a912afddaae8c0f781c20c42a8e14e7af61bfe44dddd.
+MeloNX1630bd02/artifact12995694624 and RPCS3378509e8 are authenticated
+against the signed payload. All delivered602 product roots except native
+remain exact; its only native source addition is EmbeddedStartupTrace.cs.
+The tested helper and every previous lot remain. No Core was rebuilt and
+no unchanged native fixture was replayed. One Release app compilation.
+
+Independent downloaded-byte checks pass: ZIP CRC, both Core payloads,
+88 ARM64 iOS Mach-O images,85 thin preservation fingerprints,three
+mono-ARM64 fat containers and eight0.0.8(603) bundles. Apple CI verifies
+88 ad hoc signatures. Xcode385.015s; signing/export44.657s. Raw job APIs
+returned no individual steps; actual job-log excerpts, sealed successful
+phase receipts and independent payload validation are recorded explicitly.
+The IPA is privately delivered; ephemeral recipient key deleted after saving.
+Re-sign via SideStore, iOS18 minimum. No public tag/release, physical Hogwarts
+recovery, GPU-delay removal or FPS gain is established. Smash remains deferred.
+Do not reuse603 or rebuild unchanged cores for documentary receipts.
+See docs/rewind603-test-ipa.md and docs/evidence/rewind603-delivery.json.
 
 ## Hogwarts after602 — Core compiled and independently verified, 30 October2026
 

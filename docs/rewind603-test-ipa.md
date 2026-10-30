@@ -34,6 +34,40 @@ effectivement signés et tous les autres composants, puis chiffre l’artefact
 privé. Seule la clé publique du destinataire est suivie dans Git. La clé privée
 éphémère sera supprimée après vérification et remise du fichier final.
 
-Installation prévue via SideStore, iOS18minimum. Aucun tag ni release publique.
-Les identités et le lien de l’IPA seront ajoutés après la véritable réussite
-Apple et la vérification indépendante des octets téléchargés.
+## Livraison vérifiée
+
+La compilation privée a réussi depuis
+`808b64e16bb0f5112a2a7b5a07b400c19bb9cfbd`,
+[run 41102769156](https://github.com/TarbleFR/RewindBox/actions/runs/41102769156),
+job `124223520172`, tentative 1. L’IPA téléchargée a été déchiffrée puis
+vérifiée indépendamment avant son enregistrement.
+
+| Élément final | Identité |
+|---|---|
+| Version | 0.0.8 (603), application et sept extensions |
+| IPA | 189 835 284 octets |
+| SHA-256 IPA | `4807cba308ec8fd0cf47a912afddaae8c0f781c20c42a8e14e7af61bfe44dddd` |
+| Artefact chiffré | `13000847907`, 190 230 045 octets |
+| SHA-256 archive | `3f8cfd963d67e63da8f4c166fa46fa9c17a2d7459aa6c77eaa98aaf95f2290b4` |
+| Contrôles indépendants | CRC ZIP, 88 Mach-O iOS ARM64, 85 empreintes de préservation, trois conteneurs mono-ARM64, huit versions |
+| Signatures | 88 vérifiées par Apple CI ; aucune vérification cryptographique codesign revendiquée sous Linux |
+| Compilation de l’application | 385,015 s ; scellement et export 44,657 s |
+
+[Télécharger RewindBox-Build603.ipa](https://chatgpt.com/library?file_id=libfile_3804daeef7a481919ad1f165d82e5ab3&account_id=personal).
+Installation via SideStore, iOS 18 minimum. La clé privée éphémère a été
+supprimée après vérification et enregistrement du fichier. Aucun tag ni
+release publique.
+
+La première tentative `41100584922` a échoué avant compilation : le contrôle
+des étapes du producteur lisait une réponse API incomplète. La recette finale
+interroge la collection des jobs du run exact et conserve les exigences de
+source, identifiants, étapes réussies et empreintes du Core. Pour le job final,
+les API ont aussi renvoyé `steps: []` après réussite. Les métadonnées originales
+sont conservées telles quelles : le vérificateur indépendant utilise en plus
+l’extrait du vrai journal, les reçus scellés des phases réussies et les octets
+de l’IPA. Il ne reconstruit aucune liste d’étapes API fictive.
+
+Preuves : `docs/evidence/rewind603-delivery.json` et dossier
+`docs/evidence/rewind603/`. Aucun lancement physique de Hogwarts ni gain de
+chargement GPU n’est établi ; ils restent à mesurer avec cette IPA. Aucun
+correctif Super Smash Bros. Ultimate n’est revendiqué.

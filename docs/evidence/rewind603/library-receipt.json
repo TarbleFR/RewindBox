@@ -1,0 +1,13 @@
+{
+  "local_path": "/workspace/scratch/44ba5f3125d9/RewindBox-Build603.ipa",
+  "purpose": "create_library_file",
+  "status": "succeeded",
+  "file_id": "file_0000000077148209a103bebb3b65f098",
+  "library_file_id": "libfile_3804daeef7a481919ad1f165d82e5ab3",
+  "file_name": "RewindBox-Build603.ipa",
+  "local_metadata_applied": true,
+  "path": "/RewindBox-Build603.ipa",
+  "current_version_number": 0,
+  "ipaBytes": 189835284,
+  "ipaSHA256": "4807cba308ec8fd0cf47a912afddaae8c0f781c20c42a8e14e7af61bfe44dddd"
+}
