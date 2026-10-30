@@ -76,7 +76,7 @@ struct texture {
     texture_magnify_filter mag_filter()const{return texture_magnify_filter::nearest;}
     f32 min_lod()const{return 0;}f32 max_lod()const{return 0;}f32 bias()const{return 0;}
 };
-struct method_regs{std::array<texture,16> fragment_textures;std::array<texture,4> vertex_textures;u32 transform_program_start()const{return 19;}} method_registers;
+struct method_regs{std::array<texture,limits::fragment_textures_count> fragment_textures;std::array<texture,limits::vertex_textures_count> vertex_textures;u32 transform_program_start()const{return 19;}} method_registers;
 color4f decode_border_color(u32){return color4f{0.f};}
 bool is_border_clamped_texture(const texture&){return false;}
 format_class classify_format(u32){return RSX_FORMAT_CLASS_COLOR;}

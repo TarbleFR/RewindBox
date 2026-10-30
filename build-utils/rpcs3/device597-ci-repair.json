@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "failedRun": 41029816707,
+  "failedJob": 123976569376,
+  "failedSource": "144f2a3329c954ef84aee6a5791a16e759b9a4c4",
+  "diagnosticsArtifact": 12964813962,
+  "diagnosticsZipSHA256": "3ee643db2236cca897f24443e195d4daebe841d5d15391e05fd936c86330c5b0",
+  "stage": "Apple regression preflight; actual Core compile skipped",
+  "cause": "Unused fixture constant rsx::limits::vertex_textures_count under -Werror,-Wunused-const-variable",
+  "fix": "Use the named texture-count constants for both fixture arrays",
+  "fixture": "test/rpcs3_device597/renderer/test_sampler_shader_refresh.py",
+  "fixtureSHA256": "41c72915332fc54d47465847eb1eb1c090011f951921ae7bc98a9f07f5645a40",
+  "strictCompilerFlagsUnchanged": true,
+  "coreProductionSourceChanged": false,
+  "localReproducer": {
+    "compiler": "g++",
+    "extraDiagnostic": "-Wunused-const-variable=2",
+    "unmodifiedFixtureRejected": true,
+    "fixedFixtureCompiles": true,
+    "baselineCases": 2537,
+    "expectedBaselineStaleShaderStates": 306
+  },
+  "physicalDeviceTested": false
+}

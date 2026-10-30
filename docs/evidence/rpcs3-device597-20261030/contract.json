@@ -845,7 +845,7 @@
     "test/rpcs3_device597/renderer/fixtures/VKDraw.before.cpp": "91d473f3053f5623703bb5d025112199109cbdd51b0eb47d68d37ca9e8f1d4a6",
     "test/rpcs3_device597/renderer/fixtures/VKVertexBuffers.before.cpp": "09a0283b6c9729eba8abe17aa81759f12f5f745384287411288c55cf07d63cd0",
     "test/rpcs3_device597/renderer/test_renderer_causality.py": "3f315a8c56ad973b8ae8e09394e991fc4f80b124d65856d4d8b59338232652da",
-    "test/rpcs3_device597/renderer/test_sampler_shader_refresh.py": "96dc80c81b7259d6ac19a412f887ef1aa7b8c1e39eb837ed0b9eadd6ae7da12e",
+    "test/rpcs3_device597/renderer/test_sampler_shader_refresh.py": "41c72915332fc54d47465847eb1eb1c090011f951921ae7bc98a9f07f5645a40",
     "test/rpcs3_device597/renderer/test_vertex_upload_key.py": "babadbb6bb0db8731a706e7382744d1bf209b51116100b777c00b0f66eda6769",
     "test/rpcs3_device597/worker/run_worker_cancellation.py": "0f57580caddba8f8a50ad9a672d064cb2feed152e2ba3c27d2464258216b78d2",
     "test/rpcs3_device597/worker/worker_cancellation.inc": "4a3bc57f9be6b37cd3ecc830abf5999407957ac5b41a334f17941646451a2c76",
