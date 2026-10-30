@@ -116,10 +116,7 @@ def validate_plan(plan: object, now: datetime | None = None) -> dict:
         raise SafetyError("Missing snapshot_runs")
     for run in runs:
         validate_run(run)
-    # API pagination is stable by ID, while creation timestamps can invert by
-    # a second across workers. Check completeness before normalizing locally.
-    if len({run['id'] for run in runs}) != len(runs):
-        raise SafetyError('Duplicate run IDs: pagination moved; refusing cleanup')
+    validate_order(runs)
     if "snapshot_total" in plan and plan["snapshot_total"] != len(runs):
         raise SafetyError("Snapshot count disagrees with snapshot_runs")
     protected = plan.get("protected_runs")
@@ -339,7 +336,10 @@ def list_all_runs(api) -> list[dict]:
         runs.extend(validate_run(item) for item in part)
     if len(runs) != total:
         raise SafetyError("Unique enumeration does not match total_count")
-    validate_order(runs)
+    # Across GitHub workers, timestamps may invert while IDs stay stable.
+    # Detect shifted/duplicate pages, then sort the complete set locally.
+    if len({run['id'] for run in runs}) != len(runs):
+        raise SafetyError('Duplicate run IDs: pagination moved; refusing cleanup')
     # Detect insertion/deletion at the first-page boundary while later pages
     # were read. There is no API transaction spanning this listing and DELETE.
     check = api.get_json(PREFIX + "/actions/runs?per_page=100&page=1")
