@@ -31,9 +31,33 @@ réentrée et détachement. Il couvre les neuf tailles, refus complet, échec de
 préparation, répétition de capacité, ancien chemin512MiB et mauvais attachement.
 Les transports debugserver et VM sont doublés.99 contrôles du script complet et
 101 contrôles du protocole passent sous Node; la preuve Apple JavaScriptCore
-est attendue dans le workflow dédié. Aucune exécution physique TXM, validation
+passe dans le run41083688288, job124159148692:14 sessions complètes, avec
+échec original reproduit et observations identiques à Node. Le chemin512MiB
+produit exactement les mêmes16 paquets avant/après, sans nouvelle attente. Aucune exécution physique TXM, validation
 du lancement sur iPhone ou mesure FPS n’est encore établie par ces tests.
 
 Preuves locales: `docs/evidence/melonx-jit-helper-init-20261030/`. Le négatif
 original est conservé. La comparaison de source exige le déplacement exact,
 sans normaliser ni ignorer d’autre changement.
+
+## Smash et intégration privée602
+
+Le dernier lancement Smash du journal est le30 octobre à02:10:07.908 UTC,
+avant les deux tentatives Hogwarts de la601. Son JIT réutilisé est prêt à
++0.323s; première présentation Metal à+8.952s.2743 shaders sont rechargés
+entre02:10:09.456 et02:10:12.470, avec un worker de compilation actif et
+plusieurs checkpoints/recyclages64MiB. Les autres lancements Smash du journal
+prennent8.658,10.759,19.399 et29.055s jusqu’à la première présentation. Ces
+mesures ne définissent ni l’arrivée au menu ni une régression de la601: aucune
+tentative Smash601 n’est présente. Ne pas déduire un gain ou une résolution de
+ce nouveau ralentissement de la correction du helper Hogwarts.
+
+La602 ne change qu’une ressource produit par rapport à601: le script helper.
+MeloNX827f4653 et RPCS3378509e8 sont réutilisés à l’octet du payload compilé,
+avec les lots cumulatifs. Les114 entrées binaires et151 membres préparés
+MeloNX restent identiques. Le reçu de compilation conserve l’ancien helper
+pour sa provenance historique; seule la relocation exacte de cette ressource
+hôte est autorisée dans la nouvelle livraison. Les23 tests Flutter,3342
+contrôles de politique Swift et les tests complets Apple du helper sont
+authentifiés avec leur origine et leurs entrées, sans nouvelle exécution.
+Compilation et vérification de l’IPA602 restent en attente.

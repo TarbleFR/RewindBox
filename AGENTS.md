@@ -2,6 +2,30 @@
 
 The maintainer renamed this independent fork to **RewindBox**. Use that name in all new user-facing text, releases and output files. Repository: `TarbleFR/RewindBox`. Preserve upstream NeoStation attribution, copyrights, original license files, historical evidence and stable compatibility identifiers. Do not rename bundle IDs, storage paths, preference keys, method channels or native ABI symbols as a cosmetic change. See `docs/REBRANDING.md`. No new release or IPA is authorized by the rebranding task.
 
+## MeloNX helper initialization regression and private602 — 30 October 2026
+
+The supplied601 log shows Hogwarts failing sized-JIT capability in two fresh
+processes. Whole-script reproduction finds the protocol const/attempt guard
+initialized after the blocking debugger loop. Source fixdb7aa6e8 relocates
+exactly the unchanged block before dispatch. Node99 whole-script checks plus
+101 protocol checks pass; Apple JavaScriptCore run41083688288/job124159148692
+passes14 complete sessions and reproduces the original ReferenceError. Legacy
+512MiB before/after command traces are identical(16packets,no added waits).
+Safety quarantine, user settings, pairing, caches and native Core bytes stay.
+
+Private602 assembles this host resource correction on exact601 product roots,
+retaining MeloNX827f4653 and RPCS3378509e8 with all cumulative improvements.
+No engine rebuild or unchanged fixture replay. Existing114 binary inputs and
+151 prepared MeloNX members remain exact; the old producer helper digest is
+historical and only the strict reviewed relocation may differ at runtime.
+Final Apple compilation/signing and independent delivery verification pending.
+
+The log has no Smash session601: latestSmash02:10 UTC has JIT ready0.323s,
+first Metal presentation8.952s and2743 cached shaders loaded in3.014s. Keep
+the newly reported Smash regression separate and unproven until its own log
+exists. No physical TXM launch, gameplay/FPS gain or Smash fix is established.
+See docs/melonx-jit-helper-initialization-2026-10-30.md.
+
 ## Private IPA598 — compiled, verified and privately delivered
 
 The maintainer requested a new IPA with the just-compiled MeloNX core.

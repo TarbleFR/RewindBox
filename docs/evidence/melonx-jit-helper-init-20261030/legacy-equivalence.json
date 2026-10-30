@@ -1,0 +1,17 @@
+{
+  "result": "passed",
+  "entireObservedLegacySessionIdentical": true,
+  "packetCount": 16,
+  "allocations": [
+    "536870912"
+  ],
+  "preparations": [
+    [
+      "17179869184",
+      "536870912"
+    ]
+  ],
+  "newWaits": 0,
+  "nativeBoundaryDoubled": true,
+  "deviceTimingMeasured": false
+}
