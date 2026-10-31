@@ -2,7 +2,7 @@
 
 Read this guide before work. It contains current project state and permanent
 rules; detailed investigations and build receipts belong in `docs/`.
-Last reconciled: **30 October 2026**, after private Build **604**.
+Last reconciled: **31 October 2026**, after private Build **605**.
 
 ## Start here
 
@@ -21,15 +21,16 @@ Last reconciled: **30 October 2026**, after private Build **604**.
 
 | Item | Verified reference |
 | --- | --- |
-| Application | **RewindBox 0.0.8 (604)**, private IPA; iOS 18+, SideStore re-signing |
-| Delivery source | `60add3d79b3e4d9d76b68ef154cb5d3f8772c323` |
-| Delivery run / job | `41122746325` / `124293077616`, attempt 1, both successful |
-| Product baseline | Delivered 603 plus four reviewed host paths and the validated engines |
+| Application | **RewindBox 0.0.8 (605)**, private IPA; iOS 18+, SideStore re-signing |
+| Delivery source | `5de451091208c13926ccdb373a0a34f35ec2ee2d` |
+| Delivery run / job | `41216465880` / `124584748706`, attempt 1, both successful |
+| Product baseline | Delivered 604 plus 39 reviewed achievement-presentation product paths; other engines retained |
 | MeloNX Core | `ada4058f5738465ac882934bb87224b637bcd0a1`; unchanged binaries validated by runtime source `510e683a149e811e68ea6ab5e766e85c44ab1057`, run `41121572662` |
 | RPCS3 Core | `a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a`, successful run `41117115264` |
-| Delivery proof | [Build 604 report](docs/rewind604-test-ipa.md), [exact receipt](docs/evidence/rewind604-delivery.json), [downloaded-file checks](docs/evidence/rewind604/) |
+| Dolphin Core | Upstream `7cac54161659421ed95c2cd1c0b0746539a4cd38`, new presentation hook from producer `af5b18e67864e6555f54b7b4b6f1452ed82f6982`, successful run `41209480072` |
+| Delivery proof | [Achievement translation / Build 605](docs/achievement-translation.md), [exact receipt](docs/evidence/achievement-translation-ipa/delivery.json), [downloaded-file checks](docs/evidence/achievement-translation-ipa/) |
 
-604 is delivered, not a pending candidate. Do not reuse its number. Before
+605 is delivered, not a pending candidate. Do not reuse its number. Before
 allocating another number, reconcile concurrent deliveries. A newer source
 commit or Core-only artifact is not automatically a newer delivered IPA.
 Old donor builds provide only their explicitly retained native resources;
@@ -41,6 +42,8 @@ minute-long GPU wait, Unreal CVar consumption, black-texture recovery and FPS
 gains. The MeloNX presentation animation was removed; its old measured cost
 was 0.510–0.513 s, not a measured new-device speedup. The 604 receipt does not
 establish resolution of BO2/GOW3 freezes or Assassin's Creed flickering.
+Apple model download/consent, real achievement translation and in-game unlock
+presentation still require physical-device validation; see the [605 report](docs/achievement-translation.md).
 
 ## Identity, scope and coordination
 
@@ -129,6 +132,7 @@ establish resolution of BO2/GOW3 freezes or Assassin's Creed flickering.
 | Architecture or handoff | [Architecture](ARCHITECTURE.md), [Claude entry point](CLAUDE.md), [manual workflow](docs/AI_WORKFLOW_CURSOR_CLAUDE.md) |
 | MeloNX / Hogwarts / launch times | [Current crash and lot analysis](docs/melonx-build603-guard-crash-2026-10-30.md), [604 delivery](docs/rewind604-test-ipa.md), [MeloNX rules](docs/PROJECT_RULES.md#melonx) |
 | RPCS3 / NeoSwap | [Latest compiled Core](docs/rpcs3-device601-core-2026-10-30.md), [open issues](docs/rpcs3-open-issues-2026-10-30.md), [RPCS3 rules](docs/PROJECT_RULES.md#rpcs3) |
+| Achievement translation / app language | [Integration and validation](docs/achievement-translation.md), [exact tests](docs/evidence/achievement-translation-validation.json) |
 | Library, UI, native routing | [Library and lifecycle rules](docs/PROJECT_RULES.md#library-and-lifecycle), [Liquid Glass](docs/liquid-glass-ui.md) |
 | Shaders, cheats, HD textures | [Catalog and content rules](docs/PROJECT_RULES.md#catalogs-shaders-and-content), [enhancements](docs/ENHANCEMENTS.md), [licenses](docs/LEGAL_AND_CREDITS.md) |
 | Previous decisions or rejected attempts | [Historical guide and exact snapshot](docs/history/README.md); search only the relevant component/build |

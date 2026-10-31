@@ -1,0 +1,31 @@
+{
+  "result": "passed",
+  "source": "5de451091208c13926ccdb373a0a34f35ec2ee2d",
+  "run": 41216465837,
+  "attempt": 1,
+  "jobs": [
+    124581910401,
+    124581910595
+  ],
+  "inputPaths": [
+    "packages",
+    "lib",
+    "assets",
+    "pubspec.yaml",
+    "pubspec.lock",
+    "pubspec_overrides.yaml",
+    "analysis_options.yaml",
+    "test/achievement_translation_test.dart",
+    "test/achievement_translation_contract_test.py",
+    "test/retro_achievements_service_test.dart",
+    "test/retro_achievements_credentials_test.dart",
+    "test/retro_achievements_repository_test.dart",
+    "test/retro_achievements_resolver_test.dart",
+    "test/secondary_achievement_item_test.dart",
+    "test/retro_achievements_layout_test.dart",
+    "test/database_test_helper.dart",
+    ".github/workflows/achievement-translation.yml"
+  ],
+  "inputsIdenticalToApplication": true,
+  "physicalDeviceTested": false
+}

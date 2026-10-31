@@ -1,0 +1,119 @@
+{
+  "result": "passed",
+  "build": 605,
+  "source": "5de451091208c13926ccdb373a0a34f35ec2ee2d",
+  "ipaName": "RewindBox-605.ipa",
+  "ipaSHA256": "d51a4b138f54f5bbf88ab00a09856e3915a30ab71d9849b8aeaa9a7d8fb35337",
+  "ipaBytes": 189643236,
+  "zipEntries": 5363,
+  "zipCrcVerified": true,
+  "bundleVersions": {
+    "Payload/NeoStation.app/PlugIns/DolphinJITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapPageRelay.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    },
+    "Payload/NeoStation.app/PlugIns/NeoSwapDonor.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXJITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    },
+    "Payload/NeoStation.app/PlugIns/ARMSX2JITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    },
+    "Payload/NeoStation.app/PlugIns/RPCS3JITHelper.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    },
+    "Payload/NeoStation.app/PlugIns/MeloNXRamDonor.appex/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    },
+    "Payload/NeoStation.app/Info.plist": {
+      "version": "0.0.8",
+      "build": "605"
+    }
+  },
+  "displayName": "RewindBox",
+  "minimumIOS": "18.0",
+  "machOImages": 89,
+  "thinPayloadFingerprintsVerified": 86,
+  "fatContainers": {
+    "Frameworks/objective_c.framework/objective_c": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 139,
+      "sha256": "76c35d43663fbcec182d307ee8c43d5a0476880745236ea1979ed3467e198d8d",
+      "bytes": 165392,
+      "signatureStructureValid": true
+    },
+    "Frameworks/sqlite3.framework/sqlite3": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 330,
+      "sha256": "b542ae8763ec8288d3c3267839da48f080aadbd8ea1ea2a0bc27d82af0f8d6c3",
+      "bytes": 1648496,
+      "signatureStructureValid": true
+    },
+    "Frameworks/App.framework/App": {
+      "platform": 2,
+      "kind": 6,
+      "exports": 2,
+      "sha256": "598d269a25b9dfe805398c77565a7cccbe2cca02232bc7d586d61de9ded548bb",
+      "bytes": 23845072,
+      "signatureStructureValid": true
+    }
+  },
+  "signatureStructuresVerified": 89,
+  "signaturesVerifiedByAppleCI": 89,
+  "signatureCryptographicallyVerifiedIndependently": false,
+  "structuralValidation": "passed",
+  "legalBundleValidation": "passed",
+  "retiredComponentPathsAbsent": true,
+  "relocatedDependenciesVerified": 88,
+  "actualTranslationPluginPresent": true,
+  "systemTranslationLinked": true,
+  "nativeConsumerMinimumIOS": {
+    "armsx2_internal_bridge": "18.0.0",
+    "dolphin_internal_bridge": "18.0.0",
+    "libretro_internal_bridge": "18.0.0"
+  },
+  "newDolphinPayloadMatched": true,
+  "rpcCompiledSourceMembersVerified": true,
+  "melonxActualPayloadValidation": "passed",
+  "retainedNeoPlay": {
+    "build": "605",
+    "commit": "5de451091208c13926ccdb373a0a34f35ec2ee2d",
+    "neoplayPackaged": true,
+    "controllerBatteryPackaged": true,
+    "appleTVSystemRoutePackaged": true,
+    "nativeLinkage": "static_framework",
+    "nativeImage": "Payload/NeoStation.app/Runner",
+    "nativeImageSHA256": "c78b64c77590f68cdedc23930263855a5a388153f3774954db3bd9333856c6d4",
+    "physicalTVValidation": false,
+    "physicalControllerValidation": false
+  },
+  "shaderCompilerIsolation": {
+    "build": "605",
+    "kitSha256": "e23fa7fdaae308b3460b8c6f6f5b445e5220e6b6b4554923fe5e633af838c6a1",
+    "publicExportCount": 62,
+    "compilerExports": 0,
+    "oldDolphinWeakSwizzles": [
+      "__ZN7glslang13TIntermediate10addSwizzleINS_15TMatrixSelectorEEEPNS_12TIntermTypedERNS_17TSwizzleSelectorsIT_EERKNS_10TSourceLocE",
+      "__ZN7glslang13TIntermediate10addSwizzleIiEEPNS_12TIntermTypedERNS_17TSwizzleSelectorsIT_EERKNS_10TSourceLocE"
+    ],
+    "compilerIsolationPackaged": true,
+    "physicalDeviceGameplayValidated": false
+  },
+  "sideStoreAppleReSigningRequired": true,
+  "physicalDeviceTested": false,
+  "scriptSHA256": "3aa7f5baa543c532d5950c564893cc4a10c5aa7587584e5f92ea15759bb0b586",
+  "verifiedUTC": "2026-10-31T16:15:19.095061+00:00"
+}
