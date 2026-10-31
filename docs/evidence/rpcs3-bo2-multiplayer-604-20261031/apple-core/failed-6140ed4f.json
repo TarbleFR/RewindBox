@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "source": "6140ed4f9a52786fcf3d72598cc643d24cfbb43f",
+  "run": 41240930719,
+  "job": 124654485128,
+  "run_conclusion": "failure",
+  "stage": "Python Core protocol tests before native source preparation and compilation",
+  "error": "RSP test indexed /var while the verifier records the canonical /private/var path",
+  "core_compilation_started": false,
+  "new_core_produced": false,
+  "unchanged_cpu_native_modes_replayed": 0,
+  "dependency_validation_run": 41239096061,
+  "dependency_validation_remains_successful": true,
+  "diagnostic_artifact": {
+    "id": 13057770681,
+    "bytes": 2397,
+    "sha256": "a5bf272d6dabb0db5ad45f4345f156aad5a12a870f2b4e39155f8416c7ce1225"
+  },
+  "fps_gain_claimed": false
+}

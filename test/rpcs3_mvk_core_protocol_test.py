@@ -25,7 +25,7 @@ ADAPTER = load_module("candidate_recipe_test", "build-utils/rpcs3/build_rpcs3_mv
 class ProtocolTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
 
     def tearDown(self):
         self.temp.cleanup()
@@ -118,6 +118,16 @@ class ProtocolTests(unittest.TestCase):
         response.write_text(str(library))
         with self.assertRaisesRegex(ValueError, "escapes"):
             GATE.linked_archive('clang++ @../outside.rsp -o libRPCS3Core.dylib', library, build)
+
+    def test_response_file_canonical_key_through_directory_alias(self):
+        library = self.library()
+        response = self.root / "link.rsp"
+        response.write_text(f'"{library}" -framework Metal')
+        alias = self.root / "build-alias"
+        alias.symlink_to(self.root, target_is_directory=True)
+        result = GATE.linked_archive('clang++ @link.rsp -o libRPCS3Core.dylib', library, alias)
+        self.assertEqual(set(result["response_files"]), {str(response.resolve())})
+        self.assertEqual(result["response_files"][str(response.resolve())]["sha256"], GATE.file_sha(response))
 
 
 if __name__ == "__main__":
