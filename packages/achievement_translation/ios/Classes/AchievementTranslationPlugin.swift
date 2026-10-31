@@ -3,6 +3,25 @@ import UIKit
 import SwiftUI
 import Combine
 
+private enum AchievementMethodCommand: Sendable {
+    case setLanguage(String?)
+    case texts([AchievementSource])
+    case retry
+    case notImplemented
+}
+
+private struct AchievementMethodRow: Sendable {
+    let id: Int
+    let values: [String: String]
+}
+
+private enum AchievementMethodReply: Sendable {
+    case done
+    case texts([AchievementMethodRow])
+    case invalidLanguage
+    case notImplemented
+}
+
 /// A non-key window keeps the one translation host mounted while Flutter presents
 /// a full-screen native game controller. It only receives touches for Apple UI.
 @MainActor
@@ -86,7 +105,7 @@ public final class RBAchievementText: NSObject {
         AchievementTextProvider.shared.prefetch(achievements.compactMap(source))
     }
 
-    static func source(_ row: [String: Any]) -> AchievementSource? {
+    nonisolated static func source(_ row: [String: Any]) -> AchievementSource? {
         guard let id = row["id"] as? NSNumber, id.intValue > 0,
               let title = row["title"] as? String, let description = row["description"] as? String else { return nil }
         return AchievementSource(id: id.intValue, title: title, description: description)
@@ -123,35 +142,54 @@ public final class AchievementTranslationPlugin: NSObject, FlutterPlugin {
     }
 
     public nonisolated func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-        MainActor.assumeIsolated { handleOnMain(call, result: result) }
+        let arguments = call.arguments as? [String: Any] ?? [:]
+        let command: AchievementMethodCommand
+        switch call.method {
+        case "setLanguage": command = .setLanguage(arguments["language"] as? String)
+        case "texts":
+            command = .texts((arguments["achievements"] as? [[String: Any]] ?? []).compactMap(RBAchievementText.source))
+        case "retry": command = .retry
+        default: command = .notImplemented
+        }
+        // Only value types enter/leave the actor boundary. Flutter's unannotated
+        // result closure stays here and is called synchronously on the same
+        // platform thread, never captured or transferred into another actor.
+        let reply = MainActor.assumeIsolated { handleOnMain(command) }
+        switch reply {
+        case .done: result(nil)
+        case .texts(let rows):
+            result(rows.map { row -> [String: Any] in
+                var value: [String: Any] = row.values
+                value["id"] = row.id
+                return value
+            })
+        case .invalidLanguage:
+            result(FlutterError(code: "invalid_language", message: "Unknown app language", details: nil))
+        case .notImplemented: result(FlutterMethodNotImplemented)
+        }
     }
 
-    private func handleOnMain(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-        let arguments = call.arguments as? [String: Any] ?? [:]
-        switch call.method {
-        case "setLanguage":
-            guard let code = arguments["language"] as? String,
+    private func handleOnMain(_ command: AchievementMethodCommand) -> AchievementMethodReply {
+        switch command {
+        case .setLanguage(let language):
+            guard let code = language,
                   AchievementLanguage.identifiers[code] != nil else {
-                result(FlutterError(code: "invalid_language", message: "Unknown app language", details: nil)); return
+                return .invalidLanguage
             }
             TranslationRuntime.shared.attachHost()
             AchievementTextProvider.shared.setLanguage(code)
-            result(nil)
-        case "texts":
-            let rows = arguments["achievements"] as? [[String: Any]] ?? []
-            let response = rows.compactMap { row -> [String: Any]? in
-                guard let source = RBAchievementText.source(row) else { return nil }
-                var value: [String: Any] = RBAchievementText.payload(AchievementTextProvider.shared.text(for: source))
-                value["id"] = source.id
+            return .done
+        case .texts(let sources):
+            return .texts(sources.map { source in
+                var value = RBAchievementText.payload(AchievementTextProvider.shared.text(for: source))
                 value["sourceTitle"] = source.title
                 value["sourceDescription"] = source.description
-                return value
-            }
-            result(response)
-        case "retry":
+                return AchievementMethodRow(id: source.id, values: value)
+            })
+        case .retry:
             AchievementTextProvider.shared.retryUnavailable()
-            result(nil)
-        default: result(FlutterMethodNotImplemented)
+            return .done
+        case .notImplemented: return .notImplemented
         }
     }
 }

@@ -22,7 +22,7 @@
     "packages/achievement_translation/ci/TestHost/AppDelegate.swift": "c114b0e7e5d4bf4d2da0c0a9ebda1f095574558d95d89f9a556b7ffc3f3185c5",
     "packages/achievement_translation/ci/project.yml": "635dc9931d53d4dbdc542c802b9975c99305c627032796356325216bb608b362",
     "packages/achievement_translation/ios/Classes/AchievementToastPresenter.swift": "9f587a24fcfb3e37655c50a57cdc92780c7ddc9371ef7a6be68631c7886629f3",
-    "packages/achievement_translation/ios/Classes/AchievementTranslationPlugin.swift": "f8ee066910b0acdfe2185fbb0dee7ecf0105f48865cda7807cc8500e38268bd0",
+    "packages/achievement_translation/ios/Classes/AchievementTranslationPlugin.swift": "714b25a35cd1fa585e3282553b84022d9ca942870ebcedeefcf7885f918136d6",
     "packages/achievement_translation/ios/Classes/Core/AchievementModels.swift": "7f356e3795e89b1f6efcd774b3dca0ee1b47b57233f8ac43b0afefcd7662c442",
     "packages/achievement_translation/ios/Classes/Core/AchievementTextProvider.swift": "4a77514ae8914930db0db75a516bbd4a279edd7df80bc083c93ffb6a82221324",
     "packages/achievement_translation/ios/Classes/Core/AchievementTextViews.swift": "13c92980983f0cf9a471bcd7970a09e6989169797a6ffb756937ed871975b3e8",
