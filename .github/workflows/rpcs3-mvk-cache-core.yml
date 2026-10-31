@@ -128,6 +128,8 @@ jobs:
             2>&1 | tee build/rpcs3-core-diagnostics/core-protocol-tests.log
           python3 test/rpcs3_mvk_dependency_artifact_test.py \
             2>&1 | tee build/rpcs3-core-diagnostics/dependency-protocol-tests.log
+          python3 test/rpcs3_mvk_unverified_core_collector_test.py \
+            2>&1 | tee build/rpcs3-core-diagnostics/recovery-collector-tests.log
           SOURCE="$RUNNER_TEMP/rpcs3-mvk-cache-source-preflight"
           git init -q "$SOURCE"
           git -C "$SOURCE" remote add origin https://github.com/XITRIX/rpcs3.git
@@ -205,6 +207,18 @@ jobs:
               saved[name] = dict(expected, artifact_path=str(relative))
           (dist / 'link-response-manifest.json').write_text(json.dumps(saved, indent=2) + '\n')
           PYCODE
+      - name: Preserve an unverified binary and actual inputs after metadata failure
+        if: always()
+        shell: bash
+        env:
+          PRIOR_JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          python3 build-utils/rpcs3/collect_rpcs3_mvk_unverified_core.py \
+            --dist "$PWD/dist/rpcs3" \
+            --proof "$PWD/build/rpcs3-core-diagnostics/mvk-cache-core-proof.json" \
+            --diagnostics "$PWD/build/rpcs3-core-diagnostics" \
+            --source "$GITHUB_SHA" --run-id "$GITHUB_RUN_ID" --job-status "$PRIOR_JOB_STATUS"
       - name: Record observed compiler-cache counters and compile duration
         if: always()
         shell: bash
@@ -270,6 +284,8 @@ jobs:
             build/rpcs3-core-diagnostics/mvk-cache-reference/*.json
             build/rpcs3-core-diagnostics/mvk-cache-reference/*.log
             build/rpcs3-core-diagnostics/mvk-cache-dependency/
+            build/rpcs3-core-diagnostics/unverified-core/
+            build/rpcs3-core-diagnostics/captured-build-inputs/
             !build/rpcs3-core-diagnostics/mvk-cache-reference/*.zip
             !build/rpcs3-core-diagnostics/mvk-cache-reference/a4-source/**
           if-no-files-found: warn

@@ -33,6 +33,19 @@ HOST = "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm"
 HOST_BEFORE = "60f7140fd100aab0fab929864a171a027d05cd2d5b3523a51c471792225bce01"
 HOST_AFTER = "d6326d968f3552c5539d48a0933b41d3e61a3e61c0302972ec370e8df5bd3d16"
 CODEGEN = {"PPU": "a987639e9f838d1c", "SPU": "477a3fa442d27917"}
+GENERATED_HEADER = "rpcs3/git-version.h"
+VERSION_GENERATOR = "rpcs3/git-version.cmake"
+VERSION_GENERATOR_SHA = "ff5ab78fe7e35c78f4fd7efe49d13e4bd5b85b99ff9070a36f74080f913696f0"
+VERSION_GENERATOR_BLOB = "51c41da9d7fe3aed7cffcd49d895a8c11030cd2a"
+GENERATED_HEADER_BYTES = b'''// This is a generated file.
+
+#define RPCS3_GIT_VERSION "1-22f11527"
+#define RPCS3_GIT_BRANCH "HEAD"
+#define RPCS3_GIT_FULL_BRANCH "local_build"
+
+// If you don't want this file to update/recompile, change to 1.
+#define RPCS3_GIT_VERSION_NO_UPDATE 0
+'''
 REFERENCES = {
     "a4-core": (13007148559, 29263531, "b260bb4fa48b72ff889d6e9c4eb061591676b18e12427c0160a44974c9ff2b07"),
     "a4-diagnostics": (13006694440, 152518949, "3663b28d81f196509618a15a8cf18c61b39ac8d582ee800521a96f27f129284e"),
@@ -49,6 +62,7 @@ INPUTS = [
     "build-utils/rpcs3/patches/moltenvk-1.4.2-deferred-cache.patch",
     "test/rpcs3_mvk_core_protocol_test.py",
     "test/rpcs3_mvk_dependency_artifact_test.py",
+    "test/fixtures/rpcs3_git_version_22f11527.cmake",
     VERIFIER,
 ]
 
@@ -183,7 +197,78 @@ def reference_verification(source, references, directory):
                                 "native_compilations": 0, "native_executions": 0}
 
 
-def source_closure(source, original_identity, original_proof):
+def generated_version_header(source, build_log):
+    """Bind only the actual pinned generator's exact depth-one detached output."""
+    generator, header = source / VERSION_GENERATOR, source / GENERATED_HEADER
+    require(generator.is_file() and not generator.is_symlink() and file_sha(generator) == VERSION_GENERATOR_SHA,
+            "pinned git-version generator changed")
+    require(header.is_file() and not header.is_symlink(), "generated git-version header is missing or a symlink")
+    git_context = {
+        "head": command("git", "-C", source, "rev-parse", "HEAD"),
+        "count": command("git", "-C", source, "rev-list", "HEAD", "--count"),
+        "short": command("git", "-C", source, "rev-parse", "--short=8", "HEAD"),
+        "branch": command("git", "-C", source, "rev-parse", "--abbrev-ref", "HEAD"),
+        "generator_blob": command("git", "-C", source, "rev-parse", "HEAD:" + VERSION_GENERATOR),
+    }
+    require(git_context == {"head": UPSTREAM, "count": "1", "short": "22f11527", "branch": "HEAD",
+                            "generator_blob": VERSION_GENERATOR_BLOB}, "generated version Git context differs")
+    data = header.read_bytes()
+    require(data == GENERATED_HEADER_BYTES, "generated git-version header differs from the exact pinned output")
+    expected = {"RPCS3_GIT_VERSION": "1-22f11527", "RPCS3_GIT_BRANCH": "HEAD",
+                "RPCS3_GIT_FULL_BRANCH": "local_build"}
+    observed = {}
+    for name, value in expected.items():
+        values = re.findall(r"^-- " + name + r": ([^\n]*)$", build_log, re.M)
+        require(values and all(item == value for item in values), "actual CMake version context differs: " + name)
+        observed[name] = values
+    return {GENERATED_HEADER: {"sha256": sha(data), "bytes": len(data), "content": data.decode("utf-8"),
+                              "category": "generated build input; outside canonical native postimages",
+                              "generator": {"path": VERSION_GENERATOR, "sha256": VERSION_GENERATOR_SHA,
+                                            "git_blob": VERSION_GENERATOR_BLOB, "upstream_commit": UPSTREAM},
+                              "git_context": git_context, "cmake_log_values": observed}}
+
+
+def postbuild_upstream_dependencies(source, manifest, generated):
+    """Preserve the old ordinary-source map; admit one separately verified output."""
+    require(set(generated) == {GENERATED_HEADER} and
+            generated[GENERATED_HEADER]["sha256"] == sha(GENERATED_HEADER_BYTES)
+            and (source / GENERATED_HEADER).read_bytes() == GENERATED_HEADER_BYTES,
+            "generated build input scope or bytes changed")
+    entries = subprocess.check_output(["git", "-C", str(source), "ls-tree", "-rz", "HEAD"]).split(b"\0")
+    ordinary, links, modules = {}, {}, {}
+    canonical = set(manifest["files_sha256"])
+    for entry in entries:
+        if not entry:
+            continue
+        metadata, raw_name = entry.split(b"\t", 1)
+        mode, kind, blob = metadata.decode().split()
+        name = raw_name.decode()
+        if kind == "commit":
+            modules[name] = blob
+            continue
+        require(kind == "blob", "unexpected upstream tree object")
+        if name in canonical:
+            continue
+        path = source / name
+        if mode == "120000":
+            require(path.is_symlink(), "missing upstream symlink: " + name)
+            raw = os.fsencode(os.readlink(path))
+            links[name] = raw.decode()
+        else:
+            require(path.is_file() and not path.is_symlink(), "ordinary upstream file changed type: " + name)
+            raw = path.read_bytes()
+        require(hashlib.sha1(b"blob " + str(len(raw)).encode() + b"\0" + raw).hexdigest() == blob,
+                "noncanonical source differs from pinned upstream: " + name)
+        ordinary[name] = sha(raw)
+    untracked = {name.decode() for name in subprocess.check_output(
+        ["git", "-C", str(source), "ls-files", "--others", "-z"]).split(b"\0") if name}
+    require(untracked <= canonical | {GENERATED_HEADER},
+            "unreviewed postbuild source files: " + repr(sorted(untracked - canonical - {GENERATED_HEADER})))
+    return {"files_sha256": ordinary, "symlinks": links, "submodule_commits": modules,
+            "submodule_contents_authenticated": False}
+
+
+def source_closure(source, original_identity, original_proof, generated=None):
     manifest = load(ROOT / "build-utils/rpcs3/canonical-source.json")
     record = load(ROOT / RECORD)
     require(manifest["upstream_commit"] == UPSTREAM and manifest["patch_sha256"] == PATCH_SHA
@@ -205,7 +290,8 @@ def source_closure(source, original_identity, original_proof):
     require(differences == {HOST} and before[HOST] == HOST_BEFORE and current[HOST] == HOST_AFTER,
             "Core inputs differ outside the reviewed bounded host milestones")
     support = module("candidate_upstream_source_support", ROOT / ".github/diagnostics/rpcs3runtime_device597_core.py")
-    upstream = support.upstream_dependencies(source, manifest)
+    upstream = (support.upstream_dependencies(source, manifest) if generated is None
+                else postbuild_upstream_dependencies(source, manifest, generated))
     require(upstream == original_proof["upstream_dependencies"], "ordinary native/dependency recipe inputs changed")
     exports = sorted((source / "rpcs3/ios/RPCS3IOS.exports").read_text().split())
     require(len(exports) == len(set(exports)) == 88 and exports == original_proof["exported_symbols"], "ABI exports changed")
@@ -305,11 +391,15 @@ def verify_package(path):
     return proof
 
 
-def verify_reuse(path, source):
+def verify_reuse(path, source, *, post_build=False):
     proof = verify_package(path)
     identity, original = load(proof["original_identity_path"]), load(proof["original_proof_path"])
-    require(source_closure(source, identity, original) == proof["source_closure"], "materialized Core source closure changed")
+    generated = generated_version_header(source, (OUT / "build.log").read_text(errors="replace")) if post_build else None
+    require(source_closure(source, identity, original, generated) == proof["source_closure"], "materialized Core source closure changed")
     require(reuse_modes(original) == proof["tests"], "native mode origins changed")
+    if post_build:
+        proof["generated_build_inputs"] = generated
+        save(path, proof)
     print("PASS: exact canonical Core source; twelve historical modes reused, zero native modes executed now")
     return proof
 
@@ -367,7 +457,7 @@ def common_abi_identity(source):
 def identity(directory):
     proof = load(PROOF)
     require("compiled_source_root" in proof and "build_root" in proof, "candidate compile did not complete")
-    proof = verify_reuse(PROOF, Path(proof["compiled_source_root"]))
+    proof = verify_reuse(PROOF, Path(proof["compiled_source_root"]), post_build=True)
     core = directory / "libRPCS3Core.dylib"
     sys.path.insert(0, str(ROOT / "packages/dolphin_internal_bridge/ci"))
     from verify_ipa import macho
@@ -403,6 +493,7 @@ def identity(directory):
             "core_input_sha256": closure["current_core_input_sha256"], "candidate_input_sha256": proof["input_sha256"],
             "codegen": CODEGEN, "build_recipe": proof["build_recipe"], "moltenvk_dependency": proof["dependency"],
             "actual_link": link, "actual_ios_syntax_compile_link_passed": True,
+            "generated_build_inputs": proof["generated_build_inputs"],
             "native_modes_executed_now": 0, "native_modes_reused": 12, "tests": proof["tests"],
             "physical_device_tested": False, "gameplay_measured": False, "public_release": False,
             "new_ipa": False, "host_application_built": False, "neoswap_host_component_packaged": False,

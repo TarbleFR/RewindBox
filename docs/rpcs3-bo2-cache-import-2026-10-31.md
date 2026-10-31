@@ -138,6 +138,16 @@ journaux téléchargés sont sous `apple-preflight/` et `apple-metal/` dans les
 preuves du 31 octobre. La compilation complète iOS du pilote a pris environ
 320 s ; ce temps de build n'est pas un gain de temps de chargement du jeu.
 
+La première demande de compilation du core, source `6140ed4f`,
+[run 41240930719](https://github.com/TarbleFR/RewindBox/actions/runs/41240930719),
+s'arrête avant préparation des sources natives et compilation. Le test des
+fichiers de liaison indexait un chemin temporaire `/var` alors que le gate
+conservait son chemin canonique `/private/var`. Le test normalise maintenant
+son répertoire et exerce explicitement un alias de répertoire ; ses contrôles
+de contenu et de confinement restent exigés. Les neuf cas passent localement.
+L'échec original et son journal sont conservés sous `apple-core/failed-6140ed4f.*`.
+Le pilote, le gate et la recette de compilation n'ont pas changé pour cette reprise.
+
 ## Suite concrète
 
 1. Compiler un nouveau core sous un contrat qui lie le paquet iOS vérifié,
