@@ -1,0 +1,59 @@
+name: AchievementTranslation
+options:
+  bundleIdPrefix: org.rewindbox.tests
+  deploymentTarget:
+    iOS: '18.0'
+settings:
+  base:
+    SWIFT_VERSION: '6.0'
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    GENERATE_INFOPLIST_FILE: YES
+    CODE_SIGNING_ALLOWED: NO
+targets:
+  AchievementTranslation:
+    type: framework
+    platform: iOS
+    sources:
+      - path: ../ios/Classes/Core
+    dependencies:
+      - sdk: Translation.framework
+      - sdk: SwiftUI.framework
+      - sdk: Combine.framework
+      - sdk: CryptoKit.framework
+      - sdk: libsqlite3.tbd
+  AchievementTranslationPluginCompile:
+    type: framework
+    platform: iOS
+    sources:
+      - path: ../ios/Classes
+    settings:
+      base:
+        PRODUCT_MODULE_NAME: achievement_translation
+        SWIFT_OBJC_INTERFACE_HEADER_NAME: achievement_translation-Swift.h
+        DEFINES_MODULE: YES
+    dependencies:
+      - framework: ${FLUTTER_ROOT}/bin/cache/artifacts/engine/ios/Flutter.xcframework
+      - sdk: Translation.framework
+      - sdk: SwiftUI.framework
+      - sdk: UIKit.framework
+      - sdk: Combine.framework
+      - sdk: CryptoKit.framework
+      - sdk: libsqlite3.tbd
+  AchievementTranslationTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: ../Tests
+    dependencies:
+      - target: AchievementTranslation
+schemes:
+  AchievementTranslation:
+    build:
+      targets:
+        AchievementTranslation: all
+        AchievementTranslationPluginCompile: all
+        AchievementTranslationTests: [test]
+    test:
+      targets:
+        - AchievementTranslationTests

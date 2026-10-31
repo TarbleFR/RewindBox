@@ -1,0 +1,89 @@
+name: Achievement translation - Xcode 16 Swift 6
+on:
+  push:
+    branches: [Claude]
+    paths:
+      - packages/achievement_translation/**
+      - lib/widgets/translated_achievement_text.dart
+      - lib/l10n/achievement_translation_locale.dart
+      - test/achievement_translation*
+      - .github/workflows/achievement-translation.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: achievement-translation-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  swift:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+      - name: Verify app language mapping and display integration
+        run: python3 test/achievement_translation_contract_test.py
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          channel: stable
+          cache: true
+      - name: Fetch real Flutter iOS headers for the plugin compile target
+        run: flutter precache --ios
+      - name: Generate isolated iOS framework and XCTest targets
+        run: |
+          command -v xcodegen || brew install xcodegen
+          xcodegen generate --spec packages/achievement_translation/ci/project.yml --project packages/achievement_translation/ci
+      - name: Compile with Xcode 16 and Swift 6, then run actual XCTest
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun swift --version
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import sys,json; d=json.load(sys.stdin); print(next(v["udid"] for k,vs in d["devices"].items() if "iOS-18" in k for v in vs if "iPhone" in v["name"]))')
+          xcodebuild -project packages/achievement_translation/ci/AchievementTranslation.xcodeproj \
+            -scheme AchievementTranslation -destination "platform=iOS Simulator,id=$DEVICE" \
+            -parallel-testing-enabled NO -resultBundlePath build/AchievementTranslation.xcresult \
+            test CODE_SIGNING_ALLOWED=NO 2>&1 | tee achievement-translation-xcodebuild.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: achievement-translation-xcode16-${{ github.sha }}
+          path: |
+            achievement-translation-xcodebuild.log
+            build/AchievementTranslation.xcresult
+          retention-days: 14
+  flutter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.2
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Analyze changed presentation layer
+        run: >-
+          flutter analyze packages/achievement_translation/lib
+          lib/widgets/translated_achievement_text.dart
+          lib/l10n/achievement_translation_locale.dart
+          lib/screens/game_screen/game_details_card/tabs/game_details_achievements_tab.dart
+          lib/screens/retro_achievements_screen/ra_dashboard.dart
+          lib/screens/secondary_screen/widgets/achievement_panel.dart
+          lib/screens/secondary_screen/widgets/achievement_comments.dart
+      - name: Run translation and RA regression tests
+        run: >-
+          flutter test test/achievement_translation_test.dart
+          test/retro_achievements_service_test.dart test/retro_achievements_credentials_test.dart
+          test/retro_achievements_repository_test.dart test/retro_achievements_resolver_test.dart
+          test/secondary_achievement_item_test.dart test/retro_achievements_layout_test.dart
