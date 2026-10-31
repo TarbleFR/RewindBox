@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -49,7 +48,7 @@ class AchievementTranslationClient extends ChangeNotifier {
   bool _fetching = false;
   bool _available = true;
   Future<void> _languageReady = Future<void>.value();
-  final _known = LinkedHashMap<(int, String, String), AchievementSource>();
+  final _known = <(int, String, String), AchievementSource>{};
   final _cache = <(int, String, String), AchievementDisplayText>{};
   final _pending = <(int, String, String)>{};
 

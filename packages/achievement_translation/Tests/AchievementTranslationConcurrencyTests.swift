@@ -25,6 +25,24 @@ struct UnsupportedTranslator: AchievementTranslator {
     }
 }
 
+actor SuspendedFirstTranslator: AchievementTranslator {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private(set) var requests: [[String]] = []
+
+    func translate(_ texts: [String], from source: String, to target: String) async throws -> [String] {
+        requests.append(texts)
+        if requests.count == 1 {
+            await withCheckedContinuation { continuation = $0 }
+        }
+        return texts.map { "[\(target)] \($0)" }
+    }
+
+    func release() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
 @MainActor
 final class AchievementTranslationConcurrencyTests: XCTestCase {
     let source = AchievementSource(id: 123, title: "Éclair 勇者", description: "إنجاز البداية 🎮")
@@ -68,6 +86,27 @@ final class AchievementTranslationConcurrencyTests: XCTestCase {
         let idle = await provider.waitUntilIdle()
         XCTAssertTrue(idle)
         XCTAssertEqual(provider.text(for: changed).title, "[fr-FR] Changed")
+    }
+
+    func testSourceChangeWhileEngineIsSuspendedReplacesOldResult() async throws {
+        let translator = SuspendedFirstTranslator()
+        let provider = AchievementTextProvider(language: "fr", cacheURL: nil, translator: translator)
+        _ = provider.text(for: source)
+        let deadline = ContinuousClock.now.advanced(by: .seconds(1))
+        while await translator.requests.isEmpty, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        let first = await translator.requests
+        XCTAssertEqual(first.count, 1, "The old source must actually be in flight")
+        let changed = AchievementSource(id: source.id, title: "Changed in flight", description: "New requirements")
+        _ = provider.text(for: changed)
+        await translator.release()
+        let idle = await provider.waitUntilIdle()
+        XCTAssertTrue(idle)
+        let requests = await translator.requests
+        XCTAssertEqual(requests.count, 2)
+        XCTAssertEqual(provider.text(for: changed).title, "[fr-FR] Changed in flight")
+        XCTAssertEqual(provider.text(for: changed).description, "[fr-FR] New requirements")
     }
 
     func testLateEngineConfigurationRecoversWithoutBackoff() async {

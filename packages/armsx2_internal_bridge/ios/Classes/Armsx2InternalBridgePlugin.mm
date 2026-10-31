@@ -348,6 +348,9 @@ static UIViewController* ARMSX2RootViewController(void) {
 @property(nonatomic, strong) Armsx2TextureBridge* textures;
 @property(nonatomic, copy) NSString* activeGamePath;
 @property(nonatomic, assign) uint32_t activeBootKind;
+@property(nonatomic, weak) Armsx2GameViewController* achievementPrefetchOwner;
+@property(nonatomic, assign) NSUInteger achievementPrefetchGameID;
+@property(nonatomic, assign) BOOL achievementPrefetchPending;
 @end
 
 @implementation Armsx2InternalBridgePlugin {
@@ -379,6 +382,8 @@ static UIViewController* ARMSX2RootViewController(void) {
         DISPATCH_QUEUE_SERIAL);
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(presentAchievementNotification:)
         name:@"ARMSX2RetroAchievementsNotification" object:nil];
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(prefetchAchievementSources:)
+        name:@"ARMSX2RetroAchievementsStateChanged" object:nil];
   }
   return self;
 }
@@ -392,6 +397,38 @@ static UIViewController* ARMSX2RootViewController(void) {
   if (!bridge || ![bridge respondsToSelector:selector]) return @[];
   id rows = ((id (*)(id, SEL))objc_msgSend)(bridge, selector);
   return [rows isKindOfClass:NSArray.class] ? rows : @[];
+}
+
+- (void)prefetchAchievementSources:(NSNotification*)notification {
+  if (!NSThread.isMainThread) {
+    dispatch_async(dispatch_get_main_queue(), ^{ [self prefetchAchievementSources:notification]; });
+    return;
+  }
+  Armsx2GameViewController* owner = self.gameController;
+  if (!owner || self.stopInProgress || owner.closing || self.achievementPrefetchPending) return;
+  // The core posts this event when the game's state becomes available, even
+  // when its optional summary toast is disabled. Rich presence also posts it;
+  // copy the full list only once per loaded game and controller.
+  self.achievementPrefetchPending = YES;
+  __weak Armsx2InternalBridgePlugin* weakSelf = self;
+  __weak Armsx2GameViewController* weakOwner = owner;
+  [self readRetroAchievementsForController:owner completion:^(NSDictionary<NSString*, id>* state) {
+    Armsx2InternalBridgePlugin* active = weakSelf;
+    active.achievementPrefetchPending = NO;
+    if (!active || !weakOwner || active.gameController != weakOwner || active.stopInProgress || weakOwner.closing) return;
+    NSUInteger gameID = [state[@"gameId"] unsignedIntegerValue];
+    if (![state[@"hasActiveGame"] boolValue] || ![state[@"hasAchievements"] boolValue] || gameID == 0) {
+      active.achievementPrefetchOwner = nil;
+      active.achievementPrefetchGameID = 0;
+      return;
+    }
+    if (active.achievementPrefetchOwner == weakOwner && active.achievementPrefetchGameID == gameID) return;
+    NSArray<NSDictionary*>* sources = [active achievementSources];
+    if (sources.count == 0) return;
+    RBAchievementPrefetch(sources);
+    active.achievementPrefetchOwner = weakOwner;
+    active.achievementPrefetchGameID = gameID;
+  }];
 }
 
 - (void)presentAchievementNotification:(NSNotification*)notification {
