@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "platform": "Linux C++17 source-extracted adapters",
+  "upstream_commit": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+  "source_postimages": {
+    "MoltenVK/MoltenVK/GPUObjects/MVKDeferredCompilation.h": "cb2be170bf8033c52df7e5d1cd4cb2c76073cfe052066ac8614e6483c39c103f",
+    "MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h": "053ddce4ef78daf1fddefab4b0bfc01b6365a4eed42e54ed8f8de8333c60ec7e",
+    "MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm": "14e25d611580971159d491adf82ae0066ef01c20c8b89b06fd7195f705e4b63e",
+    "MoltenVK/MoltenVK/GPUObjects/MVKQueue.mm": "d7f64fd428a07c859b02d1639a9f4f165e2f64ba1723f27ca25c9a34a152b584",
+    "MoltenVK/MoltenVK/GPUObjects/MVKSync.mm": "fc90ab52817375f04ed543dfc0dcbf2e827f12fb4baec8af457cadf9f7fae60c"
+  },
+  "patch_sha256": "f176ffc09bcd1cbae22dcf9be7f4fb62aa7dd4d79e13cc63275978ddaa78b6a1",
+  "behavior": {
+    "behavioral_cases": 12,
+    "same_entry_threads": 24,
+    "metal_execution": false
+  },
+  "import_constructor_modes": [
+    {
+      "macro": 0,
+      "imported_entries": 64,
+      "import_compiles": 64,
+      "variant_compiles": 1
+    },
+    {
+      "macro": 1,
+      "imported_entries": 64,
+      "import_compiles": 0,
+      "variant_compiles": 1
+    }
+  ],
+  "sanitizers": {
+    "ASan": "passed",
+    "UBSan": "passed",
+    "LeakSanitizer": "disabled: host ptrace cannot enumerate /proc tasks"
+  },
+  "patch_contract_cases": 4,
+  "apple_objcxx_build": "not_run",
+  "real_metal_execution": "not_run",
+  "iphone_bo2_multiplayer": "not_run",
+  "fps_gain_claimed": false
+}

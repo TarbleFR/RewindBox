@@ -523,6 +523,41 @@ static NSString* RPCS3HostCPUTopology(void) {
       integer("hw.memsize")];
 }
 
+// These existing driver-cache boundaries precede RSX shader warmup. Retain
+// them even at notice level so a slow vkCreatePipelineCache import can be
+// distinguished from the later native warmup without logging each shader.
+static BOOL RPCS3PipelineCacheBoundary(const char* message) {
+  return strstr(message, "Vulkan driver pipeline cache: ") != nullptr ||
+      strstr(message, "Vulkan driver pipeline cache path: ") != nullptr ||
+      strstr(message, "Vulkan driver pipeline cache is ") != nullptr ||
+      strstr(message, "Vulkan driver pipeline cache could not be read completely;") != nullptr ||
+      strstr(message, "Vulkan driver pipeline cache has an invalid size (") != nullptr ||
+      strstr(message, "Vulkan driver pipeline cache initialized ") != nullptr ||
+      (strstr(message, "Vulkan driver rejected ") != nullptr &&
+       strstr(message, " bytes of persisted pipeline cache data (VkResult ") != nullptr);
+}
+
+// This independent group cannot consume the ordinary 128-line budget or the
+// older milestone groups. All boot sessions share a maximum of 16 writes per
+// second; take the clock under the lock to keep concurrent callers ordered.
+static BOOL RPCS3AdmitPipelineCacheMilestone(void) {
+  static os_unfair_lock cacheLock = OS_UNFAIR_LOCK_INIT;
+  static CFTimeInterval cacheWindow = 0;
+  static BOOL cacheWindowKnown = NO;
+  static uint32_t cacheCount = 0;
+  os_unfair_lock_lock(&cacheLock);
+  const CFTimeInterval now = CACurrentMediaTime();
+  if (!cacheWindowKnown || now - cacheWindow >= 1.0) {
+    cacheWindowKnown = YES;
+    cacheWindow = now;
+    cacheCount = 0;
+  }
+  const BOOL allowed = cacheCount < 16;
+  if (allowed) ++cacheCount;
+  os_unfair_lock_unlock(&cacheLock);
+  return allowed;
+}
+
 // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1: milestone stage of a Build 487 Core
 // line, or nullptr. Complete bounded freeze snapshots are persisted as one milestone.
 static const char* RPCS3Build487MilestoneStage(const char* message) {
@@ -605,6 +640,10 @@ static void RPCS3Log(void* context, int32_t level, const char* message) {
   } else if (RPCS3RestoreTraceDetail(message)) {
     RPCS3RestoreTrace(RPCS3Build487MilestoneText(message));
     return;
+  } else if (RPCS3PipelineCacheBoundary(message)) {
+    if (RPCS3AdmitPipelineCacheMilestone()) {
+      RPCS3Milestone(@"vk_pipeline_cache", RPCS3Build487MilestoneText(message));
+    }
   } else if (const char* stage = RPCS3Build487MilestoneStage(message)) {
     // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1: boot facts of the audit (D3, D4,
     // D5, D6, D8, D10) survive the 2 MiB diagnostic rotation as milestones.

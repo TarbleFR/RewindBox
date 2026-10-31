@@ -1,0 +1,423 @@
+--- /dev/null
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKDeferredCompilation.h
+@@ -0,0 +1,33 @@
++/*
++ * RewindBox RPCS3 candidate: a terminal, per-library compile-once state.
++ * Copyright (c) 2026 RewindBox contributors
++ * SPDX-License-Identifier: Apache-2.0
++ */
++#pragma once
++#include <memory>
++#include <mutex>
++
++// Value owns its compiled resource; this gate itself holds no Vulkan owner.
++// The value is immutable after resolve returns and can be shared across cache merges.
++template<class Value> class MVKDeferredCompilation {
++public:
++	template<class Compile> bool resolve(bool failOnCompileRequired, Compile&& compile) {
++		std::unique_lock<std::mutex> lock(_lock, std::defer_lock);
++		if (failOnCompileRequired) {
++			if (!lock.try_lock()) { return false; }
++		} else {
++			lock.lock();
++		}
++		if (!_attempted && !failOnCompileRequired) {
++			// Set before calling the compiler: errors are terminal, not retry loops.
++			_attempted = true;
++			compile(_value);
++		}
++		return static_cast<bool>(_value);
++	}
++	const Value& value() const { return _value; }
++private:
++	std::mutex _lock;
++	bool _attempted = false;
++	Value _value;
++};
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
+@@ -24,6 +24,14 @@
+ #include "MVKSmallVector.h"
+ #include <MoltenVKShaderConverter/SPIRVToMSLConverter.h>
+ #include <mutex>
++
++// RPCS3 candidate only. Other producers retain the upstream eager import.
++#ifndef RBX_MVK_DEFERRED_CACHE_IMPORT
++#define RBX_MVK_DEFERRED_CACHE_IMPORT 0
++#endif
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++#include "MVKDeferredCompilation.h"
++#endif
+ 
+ #import <Metal/Metal.h>
+ 
+@@ -87,6 +95,18 @@
+  * MVKShaderLibrary creates specialized variants (each one also a MVKShaderLibrary) behind
+  * the scene and cache them in a map according to the macro-value mapping.
+  */
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++// Runtime state is shared by cache merges, but never retains the source cache owner.
++struct MVKDeferredShaderLibrary {
++	id<MTLLibrary> library = nil;
++	mvk::SPIRVToMSLConversionResultInfo resultInfo;
++	MVKCompressor<std::string> compressedMSL;
++	mvk::SPIRVToMSLConversionConfiguration shaderConfig;
++	~MVKDeferredShaderLibrary();
++	explicit operator bool() const { return library != nil; }
++};
++#endif
++
+ class MVKShaderLibrary : public MVKBaseDeviceObject {
+ 
+ public:
+@@ -122,7 +142,8 @@
+ 	MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
+ 					 const mvk::SPIRVToMSLConversionResultInfo& resultInfo,
+ 					 const MVKCompressor<std::string> compressedMSL,
+-					 const std::vector<std::pair<uint32_t, MVKShaderMacroValue>>* specializationMacroDef = nullptr);
++					 const std::vector<std::pair<uint32_t, MVKShaderMacroValue>>* specializationMacroDef = nullptr,
++					 bool deferCacheImport = false);
+ 
+ 	MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
+ 					 const void* mslCompiledCodeData,
+@@ -142,6 +163,12 @@
+ 	MVKMTLFunction getMTLFunction(const VkSpecializationInfo* pSpecializationInfo,
+ 								  VkPipelineCreationFeedback* pShaderFeedback,
+ 								  MVKShaderModule* shaderModule);
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++	bool prepareDeferredLibrary(mvk::SPIRVToMSLConversionConfiguration* pShaderConfig,
++								MVKShaderModule* shaderModule, MVKPipeline* pipeline);
++	std::shared_ptr<MVKDeferredCompilation<MVKDeferredShaderLibrary>> _deferredLibrary;
++	std::mutex _specializationLock;
++#endif
+ 	void handleCompilationError(NSError* err, const char* opDesc);
+     MTLFunctionConstant* getFunctionConstant(NSArray<MTLFunctionConstant*>* mtlFCs, NSUInteger mtlFCID);
+ 	void compileLibrary(const std::string& msl,
+@@ -151,7 +178,7 @@
+ 	MVKCompressor<std::string>& getCompressedMSL() { return _compressedMSL; }
+ 
+ 	MVKVulkanAPIDeviceObject* _owner;
+-	id<MTLLibrary> _mtlLibrary;
++	id<MTLLibrary> _mtlLibrary = nil;
+ 	MVKCompressor<std::string> _compressedMSL;
+ 	mvk::SPIRVToMSLConversionResultInfo _shaderConversionResultInfo;
+ 
+@@ -272,6 +299,14 @@
+ 
+ protected:
+ 	friend MVKShaderCacheIterator;
++	friend MVKShaderLibrary;
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++	bool convertFresh(mvk::SPIRVToMSLConversionConfiguration* pShaderConfig,
++					  mvk::SPIRVToMSLConversionResult& conversionResult);
++	bool convertWithConverter(mvk::SPIRVToMSLConversionConfiguration* pShaderConfig,
++							  mvk::SPIRVToMSLConversionResult& conversionResult,
++							  mvk::SPIRVToMSLConverter& converter);
++#endif
+ 
+ 	void propagateDebugName() override {}
+ 
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
+@@ -55,6 +55,67 @@
+ #pragma mark -
+ #pragma mark MVKShaderLibrary
+ 
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++MVKDeferredShaderLibrary::~MVKDeferredShaderLibrary() {
++	[library release];
++}
++
++// A bad imported entry must not poison the entire cache (setConfigurationResult
++// is sticky). The existing graphics/compute caller reports a terminal pipeline
++// failure if both the imported MSL and the one fresh SPIR-V conversion fail.
++class MVKImportedShaderLibraryCompiler : public MVKShaderLibraryCompiler {
++public:
++	MVKImportedShaderLibraryCompiler(MVKVulkanAPIDeviceObject* owner) : MVKShaderLibraryCompiler(owner) {}
++protected:
++	void handleError() override {
++		if (_mtlLibrary) {
++			MVKShaderLibraryCompiler::handleError();
++		} else {
++			MVKLogWarn("Imported shader library compile failed (Error code %li): %s",
++				(long)_compileError.code, _compileError.localizedDescription.UTF8String);
++		}
++	}
++};
++
++static id<MTLLibrary> compileImportedMSL(MVKPipeline* pipeline, const string& msl,
++									   const SPIRVToMSLConversionResultInfo& resultInfo) {
++	auto* compiler = new MVKImportedShaderLibraryCompiler(pipeline);
++	NSString* source = [[NSString alloc] initWithUTF8String:msl.c_str()];
++	id<MTLLibrary> library = compiler->newMTLLibrary(source, resultInfo, {});
++	[source release];
++	compiler->destroy();
++	return library; // retained
++}
++
++bool MVKShaderLibrary::prepareDeferredLibrary(SPIRVToMSLConversionConfiguration* pShaderConfig,
++											MVKShaderModule* shaderModule, MVKPipeline* pipeline) {
++	if (!_deferredLibrary) { return true; }
++	bool ready = _deferredLibrary->resolve(pipeline->shouldFailOnPipelineCompileRequired(),
++		[&](MVKDeferredShaderLibrary& runtime) {
++			runtime.resultInfo = _shaderConversionResultInfo;
++			runtime.compressedMSL = _compressedMSL;
++			string msl;
++			decompressMSL(msl);
++			runtime.library = compileImportedMSL(pipeline, msl, runtime.resultInfo);
++			if (!runtime.library && !shaderModule->getSPIRV().empty()) {
++				// One fresh conversion per imported entry, with a private converter.
++				// Concurrent ordinary cache misses may use the module's converter.
++				SPIRVToMSLConversionResult conversion;
++				if (shaderModule->convertFresh(pShaderConfig, conversion)) {
++					runtime.library = compileImportedMSL(pipeline, conversion.msl, conversion.resultInfo);
++					if (runtime.library) {
++						runtime.resultInfo = conversion.resultInfo;
++						runtime.compressedMSL.compress(conversion.msl, getMVKConfig().shaderSourceCompressionAlgorithm);
++					}
++				}
++			}
++			runtime.shaderConfig = *pShaderConfig;
++		});
++	if (ready) { pShaderConfig->alignWith(_deferredLibrary->value().shaderConfig); }
++	return ready;
++}
++#endif
++
+ // If the size of the workgroup dimension is specialized, extract it from the
+ // specialization info, otherwise use the value specified in the SPIR-V shader code.
+ static uint32_t getWorkgroupDimensionSize(const SPIRVWorkgroupSizeDimension& wgDim, const VkSpecializationInfo* pSpecInfo) {
+@@ -73,9 +134,19 @@
+ 												VkPipelineCreationFeedback* pShaderFeedback,
+ 												MVKShaderModule* shaderModule) {
+ 
+-	if ( !_mtlLibrary ) { return MVKMTLFunctionNull; }
+-
+ 	id<MTLLibrary> lib = _mtlLibrary;
++	const auto* resultInfo = &_shaderConversionResultInfo;
++	const auto* compressedMSL = &_compressedMSL;
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++	if (_deferredLibrary) {
++		const auto& runtime = _deferredLibrary->value();
++		lib = runtime.library;
++		resultInfo = &runtime.resultInfo;
++		compressedMSL = &runtime.compressedMSL;
++	}
++#endif
++	if (!lib) { return MVKMTLFunctionNull; }
++	const auto& shaderConversionResultInfo = *resultInfo;
+ 
+ 	// If specialization happens on constants mapped to macro, find or compile a library variant
+ 	// with proper macro definition instead of the "generic" library
+@@ -90,7 +161,7 @@
+ 
+ 			memcpy(&macro_value.value, (char *)pSpecializationInfo->pData + pMapEntry->offset, size);
+ 			macro_value.size = size;
+-			if (_shaderConversionResultInfo.specializationMacros.find(const_id) != _shaderConversionResultInfo.specializationMacros.end()) {
++			if (shaderConversionResultInfo.specializationMacros.find(const_id) != shaderConversionResultInfo.specializationMacros.end()) {
+ 				spec_list.push_back(make_pair(const_id, macro_value));
+ 			}
+ 		}
+@@ -98,11 +169,14 @@
+ 		if (!spec_list.empty()) {
+ 			// Sort the specialization list before it is used as a key to index the variants
+ 			std::sort(spec_list.begin(), spec_list.end());
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++			lock_guard<mutex> variantLock(_specializationLock);
++#endif
+ 			auto entry = _specializationVariants.find(spec_list);
+ 			if (entry != _specializationVariants.end()) {
+ 				lib = entry->second->_mtlLibrary;
+ 			} else {
+-				MVKShaderLibrary *new_mvklib = new MVKShaderLibrary(_owner, _shaderConversionResultInfo, _compressedMSL, &spec_list);
++				MVKShaderLibrary *new_mvklib = new MVKShaderLibrary(_owner, shaderConversionResultInfo, *compressedMSL, &spec_list);
+ 				_specializationVariants[spec_list] = new_mvklib;
+ 				lib = new_mvklib->_mtlLibrary;
+ 			}
+@@ -112,7 +186,7 @@
+ 
+ 	@synchronized (getMTLDevice()) {
+ 		@autoreleasepool {
+-			NSString* mtlFuncName = @(_shaderConversionResultInfo.entryPoint.mtlFunctionName.c_str());
++			NSString* mtlFuncName = @(shaderConversionResultInfo.entryPoint.mtlFunctionName.c_str());
+ 
+ 			uint64_t startTime = pShaderFeedback ? mvkGetTimestamp() : getPerformanceTimestamp();
+ 			id<MTLFunction> mtlFunc = [[lib newFunctionWithName: mtlFuncName] autorelease];
+@@ -166,8 +240,8 @@
+ 			if ( !dbName ) { dbName = _owner->getDebugName(); }
+ 			_owner->setMetalObjectLabel(mtlFunc, dbName);
+ 
+-			auto& wgSize = _shaderConversionResultInfo.entryPoint.workgroupSize;
+-			return MVKMTLFunction(mtlFunc, _shaderConversionResultInfo, MTLSizeMake(getWorkgroupDimensionSize(wgSize.width, pSpecializationInfo),
++			auto& wgSize = shaderConversionResultInfo.entryPoint.workgroupSize;
++			return MVKMTLFunction(mtlFunc, shaderConversionResultInfo, MTLSizeMake(getWorkgroupDimensionSize(wgSize.width, pSpecializationInfo),
+ 																					getWorkgroupDimensionSize(wgSize.height, pSpecializationInfo),
+ 																					getWorkgroupDimensionSize(wgSize.depth, pSpecializationInfo)));
+ 		}
+@@ -213,13 +287,20 @@
+ MVKShaderLibrary::MVKShaderLibrary(MVKVulkanAPIDeviceObject* owner,
+ 								   const SPIRVToMSLConversionResultInfo& resultInfo,
+ 								   const MVKCompressor<std::string> compressedMSL,
+-								   const vector<pair<uint32_t, MVKShaderMacroValue> >* specializationMacroDef) :
++								   const vector<pair<uint32_t, MVKShaderMacroValue> >* specializationMacroDef,
++								   bool deferCacheImport) :
+ 	MVKBaseDeviceObject(owner->getDevice()),
+ 	_owner(owner),
+ 	_maySpecializeWithMacro(specializationMacroDef == nullptr) {
+ 
+ 	_shaderConversionResultInfo = resultInfo;
+ 	_compressedMSL = compressedMSL;
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++	if (deferCacheImport && !specializationMacroDef) {
++		_deferredLibrary = std::make_shared<MVKDeferredCompilation<MVKDeferredShaderLibrary>>();
++		return;
++	}
++#endif
+ 	string msl;
+ 	decompressMSL(msl);
+ 	compileLibrary(msl, specializationMacroDef);
+@@ -271,7 +352,16 @@
+ 	MVKBaseDeviceObject(other._device),
+ 	_owner(other._owner),
+ 	_maySpecializeWithMacro(other._maySpecializeWithMacro),
+-	_specializationVariants(other._specializationVariants) {
++	_specializationVariants(
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++		{}
++#else
++		other._specializationVariants
++#endif
++	) {
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++	_deferredLibrary = other._deferredLibrary;
++#endif
+ 
+ 	_mtlLibrary = [other._mtlLibrary retain];
+ 	_shaderConversionResultInfo = other._shaderConversionResultInfo;
+@@ -279,6 +369,13 @@
+ }
+ 
+ MVKShaderLibrary& MVKShaderLibrary::operator=(const MVKShaderLibrary& other) {
++	if (this == &other) { return *this; }
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++	for (auto& item : _specializationVariants) { delete item.second; }
++	_specializationVariants.clear();
++	_deferredLibrary = other._deferredLibrary;
++	_maySpecializeWithMacro = other._maySpecializeWithMacro;
++#endif
+ 	if (_mtlLibrary != other._mtlLibrary) {
+ 		[_mtlLibrary release];
+ 		_mtlLibrary = [other._mtlLibrary retain];
+@@ -369,7 +466,7 @@
+ MVKShaderLibrary* MVKShaderLibraryCache::addShaderLibrary(const SPIRVToMSLConversionConfiguration* pShaderConfig,
+ 														  const SPIRVToMSLConversionResultInfo& resultInfo,
+ 														  const MVKCompressor<std::string> compressedMSL) {
+-	MVKShaderLibrary* shLib = new MVKShaderLibrary(_owner, resultInfo, compressedMSL);
++	MVKShaderLibrary* shLib = new MVKShaderLibrary(_owner, resultInfo, compressedMSL, nullptr, true);
+ 	_shaderLibraries.emplace_back(*pShaderConfig, shLib);
+ 	return shLib;
+ }
+@@ -412,17 +509,39 @@
+ 		pShaderConfig->markAllInterfaceVarsAndResourcesUsed();
+ 	}
+ 
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++	if (mvkLib && !mvkLib->prepareDeferredLibrary(pShaderConfig, this, pipeline)) {
++		return MVKMTLFunctionNull;
++	}
++#endif
+ 	return mvkLib ? mvkLib->getMTLFunction(pSpecializationInfo, pShaderFeedback, this) : MVKMTLFunctionNull;
+ }
+ 
+ bool MVKShaderModule::convert(SPIRVToMSLConversionConfiguration* pShaderConfig,
+ 							  SPIRVToMSLConversionResult& conversionResult) {
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++	return convertWithConverter(pShaderConfig, conversionResult, _spvConverter);
++}
++
++bool MVKShaderModule::convertFresh(SPIRVToMSLConversionConfiguration* pShaderConfig,
++								 SPIRVToMSLConversionResult& conversionResult) {
++	SPIRVToMSLConverter converter;
++	converter.setSPIRV(getSPIRV());
++	return convertWithConverter(pShaderConfig, conversionResult, converter);
++}
++
++bool MVKShaderModule::convertWithConverter(SPIRVToMSLConversionConfiguration* pShaderConfig,
++										 SPIRVToMSLConversionResult& conversionResult,
++										 SPIRVToMSLConverter& converter) {
++#else
++	auto& converter = _spvConverter;
++#endif
+ 	const auto& mvkCfg = getMVKConfig();
+ 	bool shouldLogCode = mvkCfg.debugMode;
+ 	bool shouldLogEstimatedGLSL = shouldLogCode && mvkCfg.shaderLogEstimatedGLSL;
+ 
+ 	uint64_t startTime = getPerformanceTimestamp();
+-	bool wasConverted = _spvConverter.convert(*pShaderConfig, conversionResult, shouldLogCode, shouldLogCode, shouldLogEstimatedGLSL);
++	bool wasConverted = converter.convert(*pShaderConfig, conversionResult, shouldLogCode, shouldLogCode, shouldLogEstimatedGLSL);
+ 	addPerformanceInterval(getPerformanceStats().shaderCompilation.spirvToMSL, startTime);
+ 
+ 	const char* dumpDir = getMVKConfig().shaderDumpDir;
+@@ -444,7 +563,7 @@
+ 		snprintf(path, sizeof(path), "%s/shader%s-%016zx.spv", dumpDir, type, _key.codeHash);
+ 		FILE* file = fopen(path, "wb");
+ 		if (file) {
+-			fwrite(_spvConverter.getSPIRV().data(), sizeof(uint32_t), _spvConverter.getSPIRV().size(), file);
++			fwrite(converter.getSPIRV().data(), sizeof(uint32_t), converter.getSPIRV().size(), file);
+ 			fclose(file);
+ 		}
+ 		snprintf(path, sizeof(path), "%s/shader%s-%016zx.metal", dumpDir, type, _key.codeHash);
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKQueue.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKQueue.mm
+@@ -18,6 +18,9 @@
+ 
+ #include "MVKInstance.h"
+ #include "MVKQueue.h"
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++extern "C" dispatch_queue_t rbx_mvk_exec_q_create(const char* label, dispatch_queue_attr_t attr);
++#endif
+ #include "MVKSurface.h"
+ #include "MVKSwapchain.h"
+ #include "MVKSync.h"
+@@ -321,7 +324,13 @@
+ 		dispatch_queue_attr_t dqAttr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, dqQOS, dqPriority);
+ 
+ 		// Create the dispatch queue
+-		_execQueue = dispatch_queue_create((getName() + "-Dispatch").c_str(), dqAttr);		// retained
++		_execQueue =
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++		rbx_mvk_exec_q_create((getName() + "-Dispatch").c_str(), dqAttr)
++#else
++		dispatch_queue_create((getName() + "-Dispatch").c_str(), dqAttr)
++#endif
++	;		// retained
+ 	}
+ }
+ 
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKSync.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKSync.mm
+@@ -17,6 +17,9 @@
+  */
+ 
+ #include "MVKSync.h"
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++extern "C" dispatch_queue_t rbx_mvk_compile_qos_queue(intptr_t priority, uintptr_t flags);
++#endif
+ #include "MVKFoundation.h"
+ 
+ using namespace std;
+@@ -448,7 +451,13 @@
+ 
+ 	_startTime = getPerformanceTimestamp();
+ 
+-	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{ @autoreleasepool { block(); } });
++	dispatch_async(
++#if RBX_MVK_DEFERRED_CACHE_IMPORT
++		rbx_mvk_compile_qos_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)
++#else
++		dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)
++#endif
++	, ^{ @autoreleasepool { block(); } });
+ 
+ 	// Limit timeout to avoid overflow since wait_for() uses wait_until()
+ 	chrono::nanoseconds nanoTimeout(min(getMVKConfig().metalCompileTimeout, kMVKUndefinedLargeUInt64));

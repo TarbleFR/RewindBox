@@ -136,7 +136,7 @@ presentation still require physical-device validation; see the [605 report](docs
 | --- | --- |
 | Architecture or handoff | [Architecture](ARCHITECTURE.md), [Claude entry point](CLAUDE.md), [manual workflow](docs/AI_WORKFLOW_CURSOR_CLAUDE.md) |
 | MeloNX / Hogwarts / launch times | [Current crash and lot analysis](docs/melonx-build603-guard-crash-2026-10-30.md), [604 delivery](docs/rewind604-test-ipa.md), [MeloNX rules](docs/PROJECT_RULES.md#melonx) |
-| RPCS3 / NeoSwap | [Latest compiled Core](docs/rpcs3-device601-core-2026-10-30.md), [open issues](docs/rpcs3-open-issues-2026-10-30.md), [RPCS3 rules](docs/PROJECT_RULES.md#rpcs3) |
+| RPCS3 / NeoSwap | [Latest compiled Core](docs/rpcs3-device601-core-2026-10-30.md), [BO2 cache candidate](docs/rpcs3-bo2-cache-import-2026-10-31.md), [open issues](docs/rpcs3-open-issues-2026-10-30.md), [RPCS3 rules](docs/PROJECT_RULES.md#rpcs3) |
 | Achievement translation / app language | [Integration and validation](docs/achievement-translation.md), [exact tests](docs/evidence/achievement-translation-validation.json) |
 | Library, UI, native routing | [Library and lifecycle rules](docs/PROJECT_RULES.md#library-and-lifecycle), [Liquid Glass](docs/liquid-glass-ui.md) |
 | Shaders, cheats, HD textures | [Catalog and content rules](docs/PROJECT_RULES.md#catalogs-shaders-and-content), [enhancements](docs/ENHANCEMENTS.md), [licenses](docs/LEGAL_AND_CREDITS.md) |

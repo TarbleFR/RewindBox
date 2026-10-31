@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "source": "int main(){return 0;}\n",
+  "build_command": [
+    "c++",
+    "-fsanitize=address,undefined",
+    "/tmp/rbx-asan-capability.cpp",
+    "-o",
+    "/tmp/rbx-asan-capability"
+  ],
+  "run_command": [
+    "/tmp/rbx-asan-capability"
+  ],
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "==10==Can't open /proc/9/task for reading.\n==9==LeakSanitizer has encountered a fatal error.\n==9==HINT: For debugging, try setting environment variable LSAN_OPTIONS=verbosity=1:log_threads=1\n==9==HINT: LeakSanitizer does not work under ptrace (strace, gdb, etc)\n",
+  "original_candidate_sanitized_run": {
+    "exit_code": 1,
+    "stdout": "{\"behavioral_cases\":12,\"same_entry_threads\":24,\"metal_execution\":false}\n",
+    "stderr": "==77==Can't open /proc/46/task for reading.\n==46==LeakSanitizer has encountered a fatal error.\n==46==HINT: For debugging, try setting environment variable LSAN_OPTIONS=verbosity=1:log_threads=1\n==46==HINT: LeakSanitizer does not work under ptrace (strace, gdb, etc)\n"
+  },
+  "followup": "ASan/UBSan separately rerun with explicit ASAN_OPTIONS=detect_leaks=0; LeakSanitizer remains unverified"
+}

@@ -1,0 +1,4 @@
+MoltenVK/MoltenVK/GPUObjects/MVKQueue.mm
+MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h
+MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm
+MoltenVK/MoltenVK/GPUObjects/MVKSync.mm
