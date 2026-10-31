@@ -13,7 +13,7 @@ permissions:
   contents: read
 concurrency:
   group: achievement-translation-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   swift:
     runs-on: macos-15

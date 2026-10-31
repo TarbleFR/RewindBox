@@ -118,7 +118,9 @@ def tests():
              'test/retro_achievements_resolver_test.dart', 'test/secondary_achievement_item_test.dart',
              'test/retro_achievements_layout_test.dart', 'test/database_test_helper.dart',
              '.github/workflows/achievement-translation.yml']
-    deadline = time.monotonic() + 1800
+    started = time.monotonic()
+    deadline = started + 1800
+    discovery_deadline = started + 120
     while True:
         runs = api('actions/workflows/achievement-translation.yml/runs?branch=Claude&per_page=30')['workflow_runs']
         matching = [run for run in runs if not git('diff', '--name-only', run['head_sha'], 'HEAD', '--', *paths)]
@@ -130,16 +132,19 @@ def tests():
                         run=success['id'], attempt=success['run_attempt'], jobs=[job['id'] for job in jobs],
                         inputPaths=paths, inputsIdenticalToApplication=True, physicalDeviceTested=False))
         pending = any(run['status'] != 'completed' for run in matching)
-        if not pending or time.monotonic() >= deadline:
+        # A prerequisite can start before the Actions API lists the sibling
+        # workflow from this push. Allow only a bounded empty-list discovery
+        # window; known terminal failures still fail closed.
+        discovering = not matching and time.monotonic() < discovery_deadline
+        if (not pending and not discovering) or time.monotonic() >= deadline:
             raise RuntimeError('No successful Swift6/XCTest + Flutter run for these exact inputs: ' +
                                repr([(r['id'], r['status'], r['conclusion']) for r in matching]))
         print('Waiting for the matching Swift/Flutter validation run', flush=True)
         time.sleep(30)
 
 
-def dolphin():
-    from verify_ipa import macho
-    from delivery_benchmark import payload_fingerprint
+def dolphin_run():
+    """Wait without reserving an Apple build machine for a producer still running."""
     run_id = int(os.environ['DOLPHIN_CORE_RUN_ID'])
     producer = os.environ['DOLPHIN_CORE_HOST_SHA']
     deadline = time.monotonic() + 3600
@@ -154,6 +159,21 @@ def dolphin():
             raise TimeoutError('Dolphin compilation is still pending; no older core may substitute')
         print('Waiting for the newly compiled Dolphin presentation hook', flush=True)
         time.sleep(30)
+    return run
+
+
+def dolphin_ready():
+    run = dolphin_run()
+    return save('achievement-dolphin-producer-ready.json',
+                dict(result='passed', source=run['head_sha'], run=run['id'], attempt=run['run_attempt']))
+
+
+def dolphin():
+    from verify_ipa import macho
+    from delivery_benchmark import payload_fingerprint
+    run = dolphin_run()
+    run_id = int(os.environ['DOLPHIN_CORE_RUN_ID'])
+    producer = os.environ['DOLPHIN_CORE_HOST_SHA']
     artifacts = api(f'actions/runs/{run_id}/artifacts?per_page=100')['artifacts']
     found = [a for a in artifacts if a['name'] == 'DolphinCore-AchievementTranslation-' + producer]
     assert len(found) == 1 and not found[0]['expired']
@@ -304,7 +324,7 @@ def validate(ipa):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('operation', choices=['contract', 'baseline', 'tests', 'dolphin', 'download-core',
+    parser.add_argument('operation', choices=['contract', 'baseline', 'tests', 'dolphin', 'dolphin-ready', 'download-core',
                         'component-runs', 'download-components', 'engine-evidence', 'embed', 'structure', 'validate'])
     parser.add_argument('path', nargs='?', type=Path)
     args = parser.parse_args()
@@ -313,6 +333,8 @@ if __name__ == '__main__':
         result = globals()[args.operation](args.path)
     elif args.operation in ('download-core', 'component-runs', 'download-components', 'engine-evidence'):
         result = retained(args.operation)
+    elif args.operation == 'dolphin-ready':
+        result = dolphin_ready()
     else:
         result = globals()[args.operation]()
     print(json.dumps(result, indent=2))

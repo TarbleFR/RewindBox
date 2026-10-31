@@ -17,13 +17,13 @@ targets:
     sources:
       - path: ../ios/Classes
         excludes:
-          - AchievementToastPresenter.swift
           - AchievementTranslationPlugin.swift
           - RBAchievementTranslation.m
           - Public/**
     dependencies:
       - sdk: Translation.framework
       - sdk: SwiftUI.framework
+      - sdk: UIKit.framework
       - sdk: Combine.framework
       - sdk: CryptoKit.framework
       - sdk: libsqlite3.tbd
@@ -52,12 +52,37 @@ targets:
       - path: ../Tests
     dependencies:
       - target: AchievementTranslation
+      - target: AchievementTranslationTestHost
+    settings:
+      base:
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/AchievementTranslationTestHost.app/AchievementTranslationTestHost
+        BUNDLE_LOADER: $(TEST_HOST)
+  AchievementTranslationTestHost:
+    type: application
+    platform: iOS
+    sources:
+      - path: TestHost
+        excludes: [Info.plist]
+    info:
+      path: TestHost/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+          UISceneConfigurations:
+            UIWindowSceneSessionRoleApplication:
+              - UISceneConfigurationName: Tests
+                UISceneDelegateClassName: $(PRODUCT_MODULE_NAME).TestSceneDelegate
+    dependencies:
+      - target: AchievementTranslation
+      - sdk: UIKit.framework
 schemes:
   AchievementTranslation:
     build:
       targets:
         AchievementTranslation: all
         AchievementTranslationPluginCompile: all
+        AchievementTranslationTestHost: all
         AchievementTranslationTests: [test]
     test:
       targets:

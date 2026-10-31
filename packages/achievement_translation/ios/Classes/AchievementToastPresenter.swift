@@ -47,7 +47,14 @@ public final class AchievementToastPresenter: NSObject {
             let source = AchievementSource(id: achievementID, title: title, description: description)
             let text: LocalizedAchievementText
             if achievementID > 0 {
-                text = await AchievementTextProvider.shared.resolve(source, timeout: 0.25)
+                // Frequent progress replaces its predecessor. Waiting here can
+                // starve every display while Apple downloads a model; present
+                // the current text immediately and let revision refresh it.
+                if isProgress {
+                    text = AchievementTextProvider.shared.text(for: source)
+                } else {
+                    text = await AchievementTextProvider.shared.resolve(source, timeout: 0.25)
+                }
             } else {
                 text = LocalizedAchievementText(title: title, description: description,
                     provenance: .original, fallback: .unavailable)

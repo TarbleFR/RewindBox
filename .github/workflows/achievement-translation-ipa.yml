@@ -17,9 +17,31 @@ permissions:
 concurrency:
   group: rewindbox-achievement-ipa-${{ github.ref }}
   cancel-in-progress: true
+env:
+  DOLPHIN_CORE_HOST_SHA: af5b18e67864e6555f54b7b4b6f1452ed82f6982
+  DOLPHIN_CORE_RUN_ID: '41209480072'
 jobs:
+  validation:
+    name: Wait for exact test inputs and Dolphin producer
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[achievement-ipa]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - name: Checkout exact candidate and validation history
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        persist-credentials: false
+        ref: ${{ github.sha }}
+    - name: Require actual Swift XCTest and Flutter success
+      run: python3 .github/diagnostics/achievement_translation_delivery.py tests
+    - name: Require the new Dolphin producer to finish successfully
+      run: python3 .github/diagnostics/achievement_translation_delivery.py dolphin-ready
   application:
     name: Compile complete app with translated achievement presentation
+    needs: validation
     runs-on: macos-15
     timeout-minutes: 120
     env:
@@ -28,7 +50,6 @@ jobs:
       IPA_NAME: NeoStation
       ARTIFACT_NAME: RewindBox-Build605-${{ github.sha }}-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
-      DOLPHIN_CORE_HOST_SHA: af5b18e67864e6555f54b7b4b6f1452ed82f6982
       ARMSX2_CORE_HOST_SHA: 1343906f05e33b40f10f7026a1a6e2327c338d0e
       ARMSX2_CORE_RUN_ID: '39178893158'
       RPCS3_CORE_HOST_SHA: a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a
@@ -45,7 +66,6 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUNDLE_PATH: ${{ github.workspace }}/build/ruby-gems
       DELIVERY_MODE: cold
-      DOLPHIN_CORE_RUN_ID: '41209480072'
     steps:
     - name: Checkout exact candidate
       uses: actions/checkout@v4
