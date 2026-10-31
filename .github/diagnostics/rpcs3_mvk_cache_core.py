@@ -63,6 +63,7 @@ INPUTS = [
     "test/rpcs3_mvk_core_protocol_test.py",
     "test/rpcs3_mvk_dependency_artifact_test.py",
     "test/fixtures/rpcs3_git_version_22f11527.cmake",
+    "test/fixtures/rpcs3_mvk_link_a4ae86d0.txt",
     VERIFIER,
 ]
 
@@ -413,19 +414,26 @@ def linked_archive(log, library, build_root=None):
         args = shlex.split(line)
         response_files = {}
         expanded = []
-        for arg in args:
-            if arg.startswith("@"):
+        def append_arguments(values, *, inside_response=False):
+            for arg in values:
+                # Mach-O install names are literal option values. This state
+                # follows expansion too: a real RSP can contain the option and
+                # its @rpath value without containing a nested response file.
+                install_name = bool(expanded and expanded[-1] in ("-install_name", "-dylib_install_name")
+                                    and arg.startswith(("@rpath/", "@loader_path/", "@executable_path/")))
+                if not arg.startswith("@") or install_name:
+                    expanded.append(arg)
+                    continue
+                require(not inside_response, "nested linker response file is not reviewed")
                 require(build_root is not None, "actual linker response file needs its build directory")
                 path = (Path(build_root) / arg[1:]).resolve()
                 require(path.is_relative_to(Path(build_root).resolve()) and path.is_file() and not path.is_symlink(),
                         "linker response file escapes the actual build")
                 content = path.read_bytes()
-                values = shlex.split(content.decode())
-                require(not any(value.startswith("@") for value in values), "nested linker response file is not reviewed")
+                response_arguments = shlex.split(content.decode())
                 response_files[str(path)] = {"bytes": len(content), "sha256": sha(content)}
-                expanded.extend(values)
-            else:
-                expanded.append(arg)
+                append_arguments(response_arguments, inside_response=True)
+        append_arguments(args)
         args = expanded
         if str(library) in args and "-o" in args and any(arg.endswith("libRPCS3Core.dylib") for arg in args):
             require(args.count(str(library)) == 1, "candidate archive occurs twice in the linker arguments")

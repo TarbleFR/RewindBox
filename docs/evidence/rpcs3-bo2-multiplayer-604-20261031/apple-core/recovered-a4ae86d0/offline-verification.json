@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "passed": true,
+  "profile": "offline_metadata_recovery",
+  "source": "a4ae86d085c231e3c5c93f7f72d2eced0f38ec24",
+  "run": 41243687649,
+  "original_ci_conclusion": "failure",
+  "original_artifact": 13059157171,
+  "core_sha256": "f512e6c4a6a2bf3b2ff6f41a2f2e2f6b966240ec2295a35e31f406a36229001f",
+  "archive_sha256": "ff70d3cdb5bf89e032531b15f2ffe71cfef9e261442578304c8e08cbf4316658",
+  "archive_bytes": 28319202,
+  "abi_version": 30,
+  "exports": 88,
+  "canonical_postimages": 326,
+  "native_modes_reused": 12,
+  "verifier_native_compilations": 0,
+  "verifier_native_executions": 0,
+  "binary_modified": false,
+  "original_proof_modified": false,
+  "physical_device_tested": false,
+  "fps_gain_claimed": false,
+  "limits": [
+    "The original CI remains failed; this ZIP was finalized and checked offline without another native build.",
+    "No successful Core GitHub artifact is invented. Historical native tests keep their original runs.",
+    "This is not an IPA, iPhone gameplay test, visual recovery or FPS measurement."
+  ]
+}

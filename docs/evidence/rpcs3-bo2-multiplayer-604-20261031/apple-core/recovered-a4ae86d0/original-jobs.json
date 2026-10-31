@@ -1,0 +1,177 @@
+{
+  "total_count": 1,
+  "jobs": [
+    {
+      "id": 124662626330,
+      "run_id": 41243687649,
+      "workflow_name": "RPCS3 deferred MoltenVK cache Core \u2022 a4ae86d085c231e3c5c93f7f72d2eced0f38ec24",
+      "head_branch": "Claude",
+      "run_url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/runs/41243687649",
+      "run_attempt": 1,
+      "node_id": "CR_kwDOTzduBs8AAAAdBni4Gg",
+      "head_sha": "a4ae86d085c231e3c5c93f7f72d2eced0f38ec24",
+      "url": "https://api.github.com/repos/TarbleFR/RewindBox/actions/jobs/124662626330",
+      "html_url": "https://github.com/TarbleFR/RewindBox/actions/runs/41243687649/job/124662626330",
+      "status": "completed",
+      "conclusion": "failure",
+      "created_at": "2026-10-31T21:27:42Z",
+      "started_at": "2026-10-31T21:27:44Z",
+      "completed_at": "2026-10-31T21:47:34Z",
+      "name": "RPCS3 iPhone Core with authenticated source-built MoltenVK",
+      "steps": [
+        {
+          "name": "Set up job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 1,
+          "started_at": "2026-10-31T21:27:44Z",
+          "completed_at": "2026-10-31T21:27:46Z"
+        },
+        {
+          "name": "Bind the request to exact source identities",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 2,
+          "started_at": "2026-10-31T21:27:46Z",
+          "completed_at": "2026-10-31T21:27:46Z"
+        },
+        {
+          "name": "Checkout immutable candidate and retained source history",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 3,
+          "started_at": "2026-10-31T21:27:46Z",
+          "completed_at": "2026-10-31T21:28:08Z"
+        },
+        {
+          "name": "Select the retained Core toolchain",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 4,
+          "started_at": "2026-10-31T21:28:08Z",
+          "completed_at": "2026-10-31T21:28:09Z"
+        },
+        {
+          "name": "Restore candidate compiler objects with the retained recipe identity",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 5,
+          "started_at": "2026-10-31T21:28:09Z",
+          "completed_at": "2026-10-31T21:28:30Z"
+        },
+        {
+          "name": "Restore historical compiler objects on a candidate cache miss",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 6,
+          "started_at": "2026-10-31T21:28:30Z",
+          "completed_at": "2026-10-31T21:28:30Z"
+        },
+        {
+          "name": "Keep restored historical dependencies outside the fresh candidate build",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 7,
+          "started_at": "2026-10-31T21:28:30Z",
+          "completed_at": "2026-10-31T21:28:30Z"
+        },
+        {
+          "name": "Authenticate original Core evidence and the new native dependency",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 8,
+          "started_at": "2026-10-31T21:28:30Z",
+          "completed_at": "2026-10-31T21:30:54Z"
+        },
+        {
+          "name": "Preserve authenticated preflight without replaying unchanged CPU modes",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 9,
+          "started_at": "2026-10-31T21:30:54Z",
+          "completed_at": "2026-10-31T21:31:05Z"
+        },
+        {
+          "name": "Compile and link the actual iPhone Core with the new dependency",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 10,
+          "started_at": "2026-10-31T21:31:05Z",
+          "completed_at": "2026-10-31T21:46:25Z"
+        },
+        {
+          "name": "Verify the actual binary and bind its new dependency identity",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 11,
+          "started_at": "2026-10-31T21:46:25Z",
+          "completed_at": "2026-10-31T21:46:32Z"
+        },
+        {
+          "name": "Preserve an unverified binary and actual inputs after metadata failure",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 12,
+          "started_at": "2026-10-31T21:46:32Z",
+          "completed_at": "2026-10-31T21:46:32Z"
+        },
+        {
+          "name": "Record observed compiler-cache counters and compile duration",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 13,
+          "started_at": "2026-10-31T21:46:32Z",
+          "completed_at": "2026-10-31T21:46:33Z"
+        },
+        {
+          "name": "Upload the verified Core without an application delivery",
+          "status": "completed",
+          "conclusion": "skipped",
+          "number": 14,
+          "started_at": "2026-10-31T21:46:33Z",
+          "completed_at": "2026-10-31T21:46:33Z"
+        },
+        {
+          "name": "Preserve compiler objects for the same recipe",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 15,
+          "started_at": "2026-10-31T21:46:33Z",
+          "completed_at": "2026-10-31T21:47:00Z"
+        },
+        {
+          "name": "Preserve real diagnostics including partial failures",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 16,
+          "started_at": "2026-10-31T21:47:00Z",
+          "completed_at": "2026-10-31T21:47:07Z"
+        },
+        {
+          "name": "Post Checkout immutable candidate and retained source history",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 32,
+          "started_at": "2026-10-31T21:47:07Z",
+          "completed_at": "2026-10-31T21:47:07Z"
+        },
+        {
+          "name": "Complete job",
+          "status": "completed",
+          "conclusion": "success",
+          "number": 33,
+          "started_at": "2026-10-31T21:47:07Z",
+          "completed_at": "2026-10-31T21:47:08Z"
+        }
+      ],
+      "check_run_url": "https://api.github.com/repos/TarbleFR/RewindBox/check-runs/124662626330",
+      "labels": [
+        "macos-15"
+      ],
+      "runner_id": 1000012398,
+      "runner_name": "GitHub Actions 1000012398",
+      "runner_group_id": 0,
+      "runner_group_name": "GitHub Actions"
+    }
+  ]
+}

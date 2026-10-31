@@ -1,8 +1,8 @@
 # BO2 : réduire le travail de compilation à l'entrée multijoueur
 
 Le nouveau retour appareil maintient le gel à l'entrée multijoueur ouvert.
-La build 605 conserve le core `a4d0c9a5` de la build 604 ; elle n'intègre pas
-le candidat décrit ici. Le changement porte sur l'import du cache MoltenVK,
+Les builds 605 et 606 conservent le core `a4d0c9a5` de la build 604 ; elles
+n'intègrent pas le nouveau core décrit ici. Le changement porte sur l'import du cache MoltenVK,
 pas sur les réglages du jeu ou les budgets mémoire.
 
 ## Ce que les journaux précédemment analysés établissent
@@ -148,16 +148,98 @@ de contenu et de confinement restent exigés. Les neuf cas passent localement.
 L'échec original et son journal sont conservés sous `apple-core/failed-6140ed4f.*`.
 Le pilote, le gate et la recette de compilation n'ont pas changé pour cette reprise.
 
+La deuxième demande, source `6c03067c`,
+[run 41241336642](https://github.com/TarbleFR/RewindBox/actions/runs/41241336642),
+compile et lie le core iOS. Les contrôles préliminaires ABI et chargement
+passif passent, puis la production de l'identité échoue : CMake a créé
+`rpcs3/git-version.h`, absent de la liste des sources ordinaires figées.
+Cette tentative reste en échec. Son binaire n'était pas inclus dans les
+artefacts conservés ; son empreinte dans le journal ne permet pas de le livrer.
+Les preuves disponibles sont conservées sous `apple-core/failed-6c03067c/`.
+
+Le contrôle distingue maintenant cet unique fichier généré après compilation.
+Il vérifie les octets attendus, le générateur CMake verrouillé, le commit et
+l'état du checkout ainsi que les trois valeurs observées dans le journal de
+configuration. Le fichier figure dans une identité séparée des **326 postimages
+canoniques**. Les autres fichiers inconnus restent refusés. Les nouveaux tests
+exercent le générateur CMake réel et le refus d'une dérive ou d'un fichier ajouté.
+Une sauvegarde distincte conserve aussi le binaire marqué **non validé** si
+un contrôle ultérieur échoue ; elle ne le transforme pas en core validé.
+
+Le troisième [run 41243687649](https://github.com/TarbleFR/RewindBox/actions/runs/41243687649),
+source `a4ae86d085c231e3c5c93f7f72d2eced0f38ec24`, compile et lie le core, puis
+échoue dans le parseur de la commande de liaison. Il traite la valeur
+`-install_name @rpath/libRPCS3Core.dylib` comme un fichier réponse. La vraie
+commande ne contient aucun argument de fichier réponse. Le contrôle des
+sources, dont le header généré, a passé avant cet échec. Le run reste en échec.
+
+Cette fois, la sauvegarde contient le binaire original et les entrées nécessaires.
+L'artefact diagnostics **13059157171**, de **51 408 674 octets**, est téléchargé ;
+taille, SHA-256 et CRC ZIP sont vérifiés. Son empreinte est
+`59386bd5fe26c07b1c99b7adc8f0f2b152d16f505fe606d4308c03ecaf9a9cf7`.
+Le core contient **77 422 944 octets**, SHA-256
+`f512e6c4a6a2bf3b2ff6f41a2f2e2f6b966240ec2295a35e31f406a36229001f`.
+La finalisation reprend séparément à partir de ces octets conservés, sans
+nouvelle compilation native et sans requalifier le run en réussite.
+Les douze modes CPU/rendu conservent leurs résultats antérieurs authentifiés ;
+aucun n'est réexécuté ou présenté comme un nouvel essai appareil.
+
+Cette route produit uniquement le core. Elle ne compile ni n'emballe le
+composant NeoSwap ou le pont hôte de l'application. Les nouvelles bornes de
+journal côté hôte sont des sources prêtes à intégrer dans une compilation
+application distincte ; elles ne sont pas contenues dans le dylib. Une future
+intégration doit conserver cette distinction et vérifier le contrat de l'hôte.
+
+## Core compilé, archive finalisée et vérifiée hors ligne
+
+L'archive **`RewindBox-RPCS3Core-a4ae86d0.zip`** est créée puis vérifiée contre
+l'artefact diagnostics original. Elle contient **28 319 202 octets**, SHA-256
+`ff70d3cdb5bf89e032531b15f2ffe71cfef9e261442578304c8e08cbf4316658`.
+Le binaire et la preuve d'origine restent inchangés. Les 13 membres incluent
+les métadonnées du run échoué, le reçu du collecteur et le header capturé.
+Il ne s'agit pas d'un nouvel artefact Core produit par une CI réussie.
+
+L'identité porte explicitement le type
+`rpcs3-ios-mvk-deferred-cache-offline-recovery` et conserve la conclusion
+`failure` du run original. Le profil normal du vérificateur exige toujours
+une CI réussie et refuse ce type. La finalisation hors ligne a ses propres
+empreintes de code ; elle ne réécrit pas les 12 entrées de compilation de la
+source `a4ae86d0`, ni la preuve originale.
+
+| Vérification sur les octets récupérés | Résultat |
+| --- | --- |
+| Mach-O du core | ARM64 iOS, dylib, minimum 16.3.0, `@rpath/libRPCS3Core.dylib` |
+| Interface | ABI 30, 88 exports exacts ; les sept ABI NeoSwap communes restent à 1 |
+| Sources | 326 postimages natives matérialisées vérifiées, 38 entrées figées et 92 entrées Core conservées avec le seul delta hôte documenté |
+| Génération de code | PPU `a987639e9f838d1c`, SPU `477a3fa442d27917`, identités observées dans le vrai journal |
+| Dépendance liée | Une seule archive MoltenVK candidate dans la commande exécutée ; ses octets et son paquet source vérifiés |
+| Entrée générée | Les 249 octets du header capturé correspondent à la preuve et aux messages CMake |
+| Réutilisation | 12 modes historiques authentifiés par la CI ; zéro mode natif rejoué pour cette finalisation |
+
+Le correctif du parseur et six cas ciblés couvrent la commande réellement
+exécutée, les valeurs Mach-O dans les vrais fichiers réponse et le maintien
+des refus de chemins sortants ou de réponses imbriquées. La validation de
+récupération s'exécute sans compilation ni exécution native. Le profil de
+récupération refuse aussi une archive différente des données vérifiées.
+
+Les reçus, le journal compressé, la preuve originale et le rapport final sont
+sous `apple-core/recovered-a4ae86d0/`. Le producteur est
+`build-utils/rpcs3/finalize_mvk_cache_core_recovery.py` ; le vérificateur
+`test/verify_rpcs3_mvk_cache_core_archive.py --recovery-profile` exige le ZIP
+diagnostics, ses métadonnées run/artefact/jobs et les deux racines explicites :
+sources application `a4ae86d0` et sources natives canoniques matérialisées.
+Le binaire n'a été ni modifié ni signé par la finalisation.
+
 ## Suite concrète
 
-1. Compiler un nouveau core sous un contrat qui lie le paquet iOS vérifié,
-   ses sources, son SDK et les contrôles ABI/export/codegen existants.
+1. Intégrer ce core et les bornes hôtes dans une future compilation application
+   autorisée, en vérifiant le contrat et le type de récupération explicite.
 2. Mesurer séparément import, préchauffage et première frame sur iPhone,
    cache conservé. Le préchauffage RPCS3 complet n'est pas exercé par le probe compute.
 3. Rejouer l'entrée multijoueur BO2 sur iPhone, puis un second lancement du
    même mode. Vérifier l'arrêt/reprise et les autres jeux avant promotion.
 
-Le code source et ses adaptateurs ne démontrent pas encore la disparition
-du gel. Aucun FPS supplémentaire ni temps gagné sur iPhone n'est établi.
-GOW3 et le flickering AC restent ouverts. Aucun nouveau core, IPA ou release
-n'est présenté comme livré par ce lot.
+Le core est compilé et son archive est vérifiée hors ligne. La disparition
+du gel BO2, un temps gagné sur iPhone ou des FPS supplémentaires ne sont pas
+établis. GOW3 et le flickering AC restent ouverts. Aucune IPA ni release
+n'est créée par ce lot ; la référence application livrée conserve son core antérieur.

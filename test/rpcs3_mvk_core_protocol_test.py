@@ -5,6 +5,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -131,6 +132,49 @@ class ProtocolTests(unittest.TestCase):
         result = GATE.linked_archive('clang++ @link.rsp -o libRPCS3Core.dylib', library, alias)
         self.assertEqual(set(result["response_files"]), {str(response.resolve())})
         self.assertEqual(result["response_files"][str(response.resolve())]["sha256"], GATE.file_sha(response))
+
+    def test_observed_darwin_install_name_is_literal(self):
+        line = (ROOT / "test/fixtures/rpcs3_mvk_link_a4ae86d0.txt").read_text().strip()
+        args = shlex.split(line)
+        self.assertEqual(len(args), 247)
+        self.assertEqual([(args[index - 1], arg) for index, arg in enumerate(args) if arg.startswith("@")],
+                         [("-install_name", "@rpath/libRPCS3Core.dylib")])
+        archives = [arg for arg in args if arg.endswith("/libMoltenVK.a")]
+        self.assertEqual(len(archives), 1)
+        library = self.library()
+        # Preserve the real observed argument structure; bind only the archive
+        # path to fixture bytes instead of the original runner's filesystem.
+        rebound = line.replace(archives[0], shlex.quote(str(library)))
+        result = GATE.linked_archive(rebound, library, self.root)
+        self.assertEqual(result["response_files"], {})
+        self.assertEqual(result["library_sha256"], GATE.file_sha(library))
+
+    def test_install_name_literal_inside_real_response_file(self):
+        library = self.library()
+        response = self.root / "link.rsp"
+        response.write_text(f'-install_name @rpath/libRPCS3Core.dylib "{library}" -framework Metal')
+        result = GATE.linked_archive('clang++ @link.rsp -dynamiclib -o libRPCS3Core.dylib', library, self.root)
+        self.assertEqual(set(result["response_files"]), {str(response)})
+        self.assertEqual(result["response_files"][str(response)]["sha256"], GATE.file_sha(response))
+        # Option context also crosses each edge of a real response file.
+        response.write_text(f'@rpath/libRPCS3Core.dylib "{library}"')
+        GATE.linked_archive('clang++ -install_name @link.rsp -o libRPCS3Core.dylib', library, self.root)
+        response.write_text(f'"{library}" -install_name')
+        GATE.linked_archive('clang++ @link.rsp @rpath/libRPCS3Core.dylib -o libRPCS3Core.dylib', library, self.root)
+        response.write_text(f'-install_name @rpath/libRPCS3Core.dylib @nested.rsp "{library}"')
+        with self.assertRaisesRegex(ValueError, "nested"):
+            GATE.linked_archive('clang++ @link.rsp -o libRPCS3Core.dylib', library, self.root)
+
+    def test_install_name_does_not_hide_real_response_file_escape(self):
+        library = self.library()
+        build = self.root / "build"
+        build.mkdir()
+        (self.root / "outside.rsp").write_text(str(library))
+        with self.assertRaisesRegex(ValueError, "escapes"):
+            GATE.linked_archive('clang++ -install_name @rpath/libRPCS3Core.dylib @../outside.rsp -o libRPCS3Core.dylib',
+                                library, build)
+        with self.assertRaisesRegex(ValueError, "escapes"):
+            GATE.linked_archive('clang++ @rpath/libRPCS3Core.dylib -o libRPCS3Core.dylib', library, build)
 
     def generated_fixture(self):
         source = self.root / "source"
