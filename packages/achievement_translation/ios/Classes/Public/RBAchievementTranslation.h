@@ -7,5 +7,6 @@ FOUNDATION_EXPORT void RBAchievementResolve(NSInteger achievementID, NSString *t
     NSString *description, void (^completion)(NSDictionary<NSString *, NSString *> *text));
 FOUNDATION_EXPORT void RBAchievementPrefetch(NSArray<NSDictionary *> *achievements);
 FOUNDATION_EXPORT void RBAchievementPresent(UIViewController *owner, NSInteger achievementID,
-    NSString *title, NSString *description, NSString *suffix, NSTimeInterval duration, BOOL (^valid)(void));
+    NSString *title, NSString *description, NSString *suffix, NSTimeInterval duration, NSInteger kind,
+    UIView *_Nullable (^surface)(void), BOOL (^valid)(void));
 NS_ASSUME_NONNULL_END

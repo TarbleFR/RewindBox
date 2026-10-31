@@ -415,16 +415,28 @@ static UIViewController* ARMSX2RootViewController(void) {
   for (id value in sources) {
     if (![value isKindOfClass:NSDictionary.class]) continue;
     NSDictionary* row = value;
-    if ([row[@"title"] isEqual:title] && [row[@"description"] isEqual:message]) [matches addObject:row];
+    NSString* rawTitle = [row[@"title"] isKindOfClass:NSString.class] ? row[@"title"] : @"";
+    BOOL unofficial = [row[@"category"] integerValue] == 2 &&
+        [title isEqual:[rawTitle stringByAppendingString:@" (Unofficial)"]];
+    if (([rawTitle isEqual:title] || unofficial) && [row[@"description"] isEqual:message]) [matches addObject:row];
   }
   // No guessed ID: a summary/game title or an ambiguous toast stays original.
   NSInteger achievementID = matches.count == 1 ? [matches.firstObject[@"id"] integerValue] : 0;
-  if (achievementID <= 0) { [owner showStatus:[NSString stringWithFormat:@"%@\n%@", title, message]]; return; }
+  if (matches.count == 0) { [owner showStatus:[NSString stringWithFormat:@"%@\n%@", title, message]]; return; }
   NSTimeInterval duration = [toast respondsToSelector:NSSelectorFromString(@"duration")]
       ? [[toast valueForKey:@"duration"] doubleValue] : 4.0;
   __weak Armsx2InternalBridgePlugin* weakSelf = self;
   __weak Armsx2GameViewController* weakOwner = owner;
-  RBAchievementPresent(owner, achievementID, title, message, @"", duration, ^BOOL {
+  NSString* sourceTitle = achievementID > 0 ? matches.firstObject[@"title"] : title;
+  NSString* marker = achievementID > 0 && ![sourceTitle isEqual:title] ? @"(Unofficial)" : @"";
+  RBAchievementPresent(owner, achievementID, sourceTitle, message, marker, duration, 1, ^UIView* {
+        UIViewController* controller = weakOwner;
+        NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
+        if (controller && display.renderHost.placeholderView == controller.view && !display.window.hidden &&
+            display.renderHost.renderView.window == display.window && display.window != nil)
+          return display.window.rootViewController.view;
+        return controller.view;
+      }, ^BOOL {
     Armsx2InternalBridgePlugin* active = weakSelf;
     return active && weakOwner && active.gameController == weakOwner && !active.stopInProgress && !weakOwner.closing;
   });

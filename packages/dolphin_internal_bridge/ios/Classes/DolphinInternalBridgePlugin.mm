@@ -1,3 +1,4 @@
+#import <external_display/NeoExternalDisplayCoordinator.h>
 #import <achievement_translation/RBAchievementTranslation.h>
 #import <dlfcn.h>
 #include <atomic>
@@ -912,15 +913,18 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   __weak DolphinInternalBridgePlugin* weakSelf = self;
   __weak DOLDolphinViewController* weakOwner = owner;
   RBAchievementPresent(owner, [event[@"id"] integerValue], event[@"title"], event[@"description"], suffix ?: @"",
-      [event[@"kind"] intValue] == 1 ? 5.0 : 2.0, ^BOOL {
+      [event[@"kind"] intValue] == 1 ? 5.0 : 2.0, [event[@"kind"] integerValue], ^UIView* {
+        UIViewController* controller = weakOwner;
+        NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
+        if (controller && display.renderHost.placeholderView == controller.view && !display.window.hidden &&
+            display.renderHost.renderView.window == display.window && display.window != nil)
+          return display.window.rootViewController.view;
+        return controller.view;
+      }, ^BOOL {
         DolphinInternalBridgePlugin* active = weakSelf;
         return active && weakOwner && active.dolphinController == weakOwner && !active.stopInProgress &&
             active.achievementPresentationSession == session;
       });
-}
-
-- (void)dealloc {
-  [NSNotificationCenter.defaultCenter removeObserver:self];
 }
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {

@@ -908,7 +908,14 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
       LibretroSession *session = weakSelf;
       if (session == nil || session->_controller == nil) return;
       __weak LibretroGameViewController *owner = session->_controller;
-      RBAchievementPresent(session->_controller, achievementID, title, description, @"", 4.0, ^BOOL {
+      RBAchievementPresent(session->_controller, achievementID, title, description, @"", 4.0, 1, ^UIView* {
+        UIViewController* controller = owner;
+        NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
+        if (controller && display.renderHost.placeholderView == controller.view && !display.window.hidden &&
+            display.renderHost.renderView.window == display.window && display.window != nil)
+          return display.window.rootViewController.view;
+        return controller.view;
+      }, ^BOOL {
         LibretroSession *active = weakSelf;
         if (active == nil || owner == nil || active->_controller != owner) return NO;
         [active->_condition lock];

@@ -9,29 +9,40 @@ public final class AchievementToastPresenter: NSObject {
         weak var owner: UIViewController?
         var tail: Task<Void, Never>?
         var count = 0
+        var progressID: UUID?
+        var progress: Task<Void, Never>?
         init(owner: UIViewController) { self.owner = owner }
     }
     private static var queues: [ObjectIdentifier: Queue] = [:]
 
-    @objc(presentOn:achievementID:title:description:suffix:duration:valid:)
+    @objc(presentOn:achievementID:title:description:suffix:duration:kind:surface:valid:)
     public static func present(on owner: UIViewController, achievementID: Int, title: String,
                                description: String, suffix: String, duration: Double,
-                               valid: @escaping () -> Bool) {
+                               kind: Int, surface: @escaping () -> UIView?, valid: @escaping () -> Bool) {
         queues = queues.filter { $0.value.owner != nil || $0.value.count > 0 }
         let identity = ObjectIdentifier(owner)
         let queue = queues[identity] ?? Queue(owner: owner)
         queues[identity] = queue
-        // A flood of progress updates must not retain an unbounded UI queue.
-        guard queue.count < 32 else { return }
-        queue.count += 1
-        let previous = queue.tail
-        queue.tail = Task { @MainActor [weak owner] in
+        let isProgress = kind == 2
+        // Progress is coalesced and never occupies/delays the unlock FIFO.
+        if isProgress && queue.count > 0 { return }
+        let token = UUID()
+        queue.progress?.cancel()
+        if isProgress { queue.progressID = token }
+        else { queue.progress = nil; queue.progressID = nil; queue.count += 1 }
+        let previous = isProgress ? nil : queue.tail
+        let task = Task { @MainActor [weak owner] in
             await previous?.value
             defer {
-                queue.count -= 1
-                if queue.count == 0 { queue.tail = nil; queues.removeValue(forKey: identity) }
+                if isProgress {
+                    if queue.progressID == token { queue.progress = nil; queue.progressID = nil }
+                } else {
+                    queue.count -= 1
+                    if queue.count == 0 { queue.tail = nil }
+                }
+                if queue.count == 0 && queue.progressID == nil { queues.removeValue(forKey: identity) }
             }
-            guard let owner, owner.viewIfLoaded?.window != nil, valid() else { return }
+            guard let owner, owner.viewIfLoaded?.window != nil, valid(), !Task.isCancelled else { return }
             let source = AchievementSource(id: achievementID, title: title, description: description)
             let text: LocalizedAchievementText
             if achievementID > 0 {
@@ -40,7 +51,7 @@ public final class AchievementToastPresenter: NSObject {
                 text = LocalizedAchievementText(title: title, description: description,
                     provenance: .original, fallback: .unavailable)
             }
-            guard owner.viewIfLoaded?.window != nil, valid() else { return }
+            guard let initialSurface = surface(), initialSurface.window != nil, valid(), !Task.isCancelled else { return }
             let panel = UIVisualEffectView(effect: UIBlurEffect(style: .systemChromeMaterialDark))
             panel.translatesAutoresizingMaskIntoConstraints = false
             panel.layer.cornerRadius = 12
@@ -80,24 +91,38 @@ public final class AchievementToastPresenter: NSObject {
                 noticeLabel.isHidden = note == nil
             }
             defer { observer.cancel() }
-            owner.view.addSubview(panel)
+            var attachedSurface: UIView?
+            var surfaceConstraints: [NSLayoutConstraint] = []
             NSLayoutConstraint.activate([
-                panel.topAnchor.constraintEqualToSystemSpacingBelow(owner.view.safeAreaLayoutGuide.topAnchor, multiplier: 1),
-                panel.centerXAnchor.constraint(equalTo: owner.view.centerXAnchor),
-                panel.widthAnchor.constraint(lessThanOrEqualToConstant: 420),
-                panel.leadingAnchor.constraint(greaterThanOrEqualTo: owner.view.safeAreaLayoutGuide.leadingAnchor, constant: 12),
-                panel.trailingAnchor.constraint(lessThanOrEqualTo: owner.view.safeAreaLayoutGuide.trailingAnchor, constant: -12),
                 stack.leadingAnchor.constraint(equalTo: panel.contentView.leadingAnchor, constant: 12),
                 stack.trailingAnchor.constraint(equalTo: panel.contentView.trailingAnchor, constant: -12),
                 stack.topAnchor.constraint(equalTo: panel.contentView.topAnchor, constant: 8),
                 stack.bottomAnchor.constraint(equalTo: panel.contentView.bottomAnchor, constant: -8)
             ])
+            func attach(to target: UIView) {
+                guard attachedSurface !== target else { return }
+                NSLayoutConstraint.deactivate(surfaceConstraints)
+                panel.removeFromSuperview()
+                target.addSubview(panel)
+                attachedSurface = target
+                surfaceConstraints = [
+                    panel.topAnchor.constraint(equalTo: target.safeAreaLayoutGuide.topAnchor, constant: 8),
+                    panel.centerXAnchor.constraint(equalTo: target.centerXAnchor),
+                    panel.widthAnchor.constraint(lessThanOrEqualToConstant: 420),
+                    panel.leadingAnchor.constraint(greaterThanOrEqualTo: target.safeAreaLayoutGuide.leadingAnchor, constant: 12),
+                    panel.trailingAnchor.constraint(lessThanOrEqualTo: target.safeAreaLayoutGuide.trailingAnchor, constant: -12)
+                ]
+                NSLayoutConstraint.activate(surfaceConstraints)
+            }
+            attach(to: initialSurface)
             // Re-check session ownership while displayed; no toast survives a game switch.
             let deadline = ContinuousClock.now.advanced(by: .seconds(min(8, max(1, duration))))
             while ContinuousClock.now < deadline, valid(), owner.view.window != nil, !Task.isCancelled {
+                if let target = surface(), target.window != nil { attach(to: target) }
                 do { try await Task.sleep(for: .milliseconds(100)) } catch { break }
             }
             panel.removeFromSuperview()
         }
+        if isProgress { queue.progress = task } else { queue.tail = task }
     }
 }

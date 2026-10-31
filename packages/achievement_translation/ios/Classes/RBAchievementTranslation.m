@@ -13,9 +13,10 @@ void RBAchievementPrefetch(NSArray<NSDictionary *> *achievements) {
 }
 
 void RBAchievementPresent(UIViewController *owner, NSInteger achievementID, NSString *title,
-                          NSString *description, NSString *suffix, NSTimeInterval duration, BOOL (^valid)(void)) {
+                          NSString *description, NSString *suffix, NSTimeInterval duration, NSInteger kind,
+                          UIView *(^surface)(void), BOOL (^valid)(void)) {
     dispatch_async(dispatch_get_main_queue(), ^{
         [RBAchievementToast presentOn:owner achievementID:achievementID title:title description:description
-                              suffix:suffix duration:duration valid:valid];
+                              suffix:suffix duration:duration kind:kind surface:surface valid:valid];
     });
 }
