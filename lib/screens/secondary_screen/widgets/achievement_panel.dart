@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/translated_achievement_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -263,8 +264,8 @@ class AchievementPanel extends StatelessWidget {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(
-                              a.title,
+                            child: TranslatedAchievementText(
+ id: a.id, title: a.title, description: a.description,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -288,8 +289,8 @@ class AchievementPanel extends StatelessWidget {
                       ),
                       if (a.description.isNotEmpty) ...[
                         SizedBox(height: 2.r),
-                        Text(
-                          a.description,
+                        TranslatedAchievementText(
+ id: a.id, title: a.title, description: a.description, showDescription: true,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(

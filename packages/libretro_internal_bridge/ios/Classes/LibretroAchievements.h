@@ -17,7 +17,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (void)setEnabled:(BOOL)enabled;
 + (BOOL)hasStoredLogin;
 
-@property(nonatomic, copy, nullable) void (^unlocked)(NSString *title);
+@property(nonatomic, copy, nullable) void (^unlocked)(NSUInteger achievementID, NSString *title, NSString *description);
 @property(nonatomic, copy, nullable) dispatch_block_t stateChanged;
 @property(nonatomic, readonly) BOOL loggedIn;
 @property(nonatomic, readonly, nullable) NSString *username;

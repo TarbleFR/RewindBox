@@ -1423,6 +1423,9 @@ BRIDGE_SOURCE = BRIDGE_SOURCE.replace('// NEOSTATION_SAVESTATE_HELPERS',
 
 BRIDGE_SOURCE = BRIDGE_SOURCE.replace('// NEOSTATION_PERFORMANCE_HELPERS',
     (Path(__file__).resolve().parents[1] / 'packages/dolphin_internal_bridge/core/NeoStationPerformance.inc').read_text())
+BRIDGE_SOURCE += "\n" + (Path(__file__).resolve().parents[1] /
+    'packages/dolphin_internal_bridge/core/NeoStationAchievementPresentation.inc').read_text()
+
 
 def replace_once(path: Path, old: str, new: str, description: str) -> None:
     text = path.read_text(encoding='utf-8')
@@ -1643,6 +1646,21 @@ def patch_cheat_ini_resolution(root: Path) -> None:
         path.write_text('#include <map>\n' + content)
 
 
+def patch_achievement_presentation(root: Path) -> None:
+    path = root / 'Source/Core/Core/AchievementManager.cpp'
+    declaration = 'extern "C" bool neostation_dolphin_present_achievement(uint32_t, const char*, const char*, uint32_t, const char*, int);\n'
+    original = path.read_text()
+    if declaration not in original:
+        # Global declaration outside the class/namespace; types come from the original includes.
+        marker = 'static const Common::HttpRequest::Headers USER_AGENT_HEADER ='
+        assert original.count(marker) == 1, 'Pinned achievement handler changed'
+        original = original.replace(marker, declaration + '\n' + marker, 1)
+        path.write_text(original)
+    replace_once(path, '  std::lock_guard lg{instance.GetLock()};\n  auto* leaderboard_list =', '  std::lock_guard lg{instance.GetLock()};\n  // Copy display metadata to the host before the first unlock; no RA state is changed.\n  auto* achievement_list = rc_client_create_achievement_list(client,\n      RC_CLIENT_ACHIEVEMENT_CATEGORY_CORE_AND_UNOFFICIAL, RC_CLIENT_ACHIEVEMENT_LIST_GROUPING_LOCK_STATE);\n  if (achievement_list)\n  {\n    for (uint32_t b = 0; b < achievement_list->num_buckets; ++b)\n    {\n      const auto& bucket = achievement_list->buckets[b];\n      for (uint32_t i = 0; i < bucket.num_achievements; ++i)\n      {\n        const auto* item = bucket.achievements[i];\n        if (item) neostation_dolphin_present_achievement(item->id, item->title, item->description,\n                                                        item->points, "", 0);\n      }\n    }\n    rc_client_destroy_achievement_list(achievement_list);\n  }\n  auto* leaderboard_list =', 'achievement display prefetch')
+    replace_once(path, '  OSD::AddMessage(fmt::format("Unlocked: {} ({})", client_event->achievement->title,\n                              client_event->achievement->points),\n                  OSD::Duration::VERY_LONG,\n                  (rc_client_get_hardcore_enabled(instance.m_client)) ? OSD::Color::YELLOW :\n                                                                        OSD::Color::CYAN,\n                  &instance.GetAchievementBadge(client_event->achievement->id, false));\n', '  if (!neostation_dolphin_present_achievement(client_event->achievement->id,\n        client_event->achievement->title, client_event->achievement->description,\n        client_event->achievement->points, client_event->achievement->measured_progress, 1))\n  {\n    OSD::AddMessage(fmt::format("Unlocked: {} ({})", client_event->achievement->title,\n                                client_event->achievement->points),\n                    OSD::Duration::VERY_LONG,\n                    (rc_client_get_hardcore_enabled(instance.m_client)) ? OSD::Color::YELLOW :\n                                                                          OSD::Color::CYAN,\n                    &instance.GetAchievementBadge(client_event->achievement->id, false));\n  }\n', 'achievement unlock presentation')
+    replace_once(path, '  OSD::AddMessage(fmt::format("{} {}", client_event->achievement->title,\n                              client_event->achievement->measured_progress),\n                  OSD::Duration::SHORT, OSD::Color::GREEN,\n                  &instance.GetAchievementBadge(client_event->achievement->id, false));\n', '  if (!neostation_dolphin_present_achievement(client_event->achievement->id,\n        client_event->achievement->title, client_event->achievement->description,\n        client_event->achievement->points, client_event->achievement->measured_progress, 2))\n  {\n    OSD::AddMessage(fmt::format("{} {}", client_event->achievement->title,\n                                client_event->achievement->measured_progress),\n                    OSD::Duration::SHORT, OSD::Color::GREEN,\n                    &instance.GetAchievementBadge(client_event->achievement->id, false));\n  }\n', 'achievement progress presentation')
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument('dolphin_root', type=Path)
@@ -1670,6 +1688,7 @@ def main() -> None:
     patch_performance_metrics(root)
     patch_metal_shutdown(root)
     patch_cheat_ini_resolution(root)
+    patch_achievement_presentation(root)
     bridge.write_text(BRIDGE_SOURCE, encoding='utf-8')
     updated = memory.read_text()
     required = ('brk #0x69', '"mov x0, %0\\n"', '"mov x1, %1\\n"', 'if (rx_ptr == MAP_FAILED)')

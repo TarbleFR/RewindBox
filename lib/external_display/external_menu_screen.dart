@@ -1,3 +1,4 @@
+import 'package:achievement_translation/achievement_translation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -14,6 +15,7 @@ bool applyExternalDisplayLanguage(String code) {
   if (localization.currentLocale?.languageCode == code) return false;
   try {
     localization.translate(code, save: false);
+    AchievementTranslationClient.shared.followAppLanguage(code);
     return true;
   } catch (error) {
     debugPrint('External display menu: language $code not applied ($error)');

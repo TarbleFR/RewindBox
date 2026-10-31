@@ -1,3 +1,5 @@
+#import <achievement_translation/RBAchievementTranslation.h>
+#import <objc/message.h>
 #include <vector>
 #import "Armsx2InternalBridgePlugin.h"
 #import "Armsx2JitBridgePlugin.h"
@@ -375,8 +377,61 @@ static UIViewController* ARMSX2RootViewController(void) {
     _runtimeQueue = dispatch_queue_create(
         "com.neogamelab.neostation.armsx2.runtime",
         DISPATCH_QUEUE_SERIAL);
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(presentAchievementNotification:)
+        name:@"ARMSX2RetroAchievementsNotification" object:nil];
   }
   return self;
+}
+
+// The pinned core owns award/authentication state; these public ObjC methods
+// only copy presentation data. Resolve them dynamically because its C ABI hides
+// the upstream ObjC symbols from direct linking.
+- (NSArray<NSDictionary*>*)achievementSources {
+  Class bridge = NSClassFromString(@"ARMSX2Bridge");
+  SEL selector = NSSelectorFromString(@"retroAchievementsForCurrentGame");
+  if (!bridge || ![bridge respondsToSelector:selector]) return @[];
+  id rows = ((id (*)(id, SEL))objc_msgSend)(bridge, selector);
+  return [rows isKindOfClass:NSArray.class] ? rows : @[];
+}
+
+- (void)presentAchievementNotification:(NSNotification*)notification {
+  if (!NSThread.isMainThread) {
+    dispatch_async(dispatch_get_main_queue(), ^{ [self presentAchievementNotification:notification]; });
+    return;
+  }
+  Armsx2GameViewController* owner = self.gameController;
+  if (!owner || self.stopInProgress || owner.closing) return;
+  Class bridge = NSClassFromString(@"ARMSX2Bridge");
+  SEL consume = NSSelectorFromString(@"consumePendingRetroAchievementsNotification");
+  if (!bridge || ![bridge respondsToSelector:consume]) return;
+  id toast = ((id (*)(id, SEL))objc_msgSend)(bridge, consume);
+  if (!toast || ![toast respondsToSelector:@selector(title)] ||
+      ![toast respondsToSelector:NSSelectorFromString(@"message")]) return;
+  NSString* title = [toast valueForKey:@"title"] ?: @"";
+  NSString* message = [toast valueForKey:@"message"] ?: @"";
+  NSArray<NSDictionary*>* sources = [self achievementSources];
+  RBAchievementPrefetch(sources);
+  NSMutableArray<NSDictionary*>* matches = [NSMutableArray array];
+  for (id value in sources) {
+    if (![value isKindOfClass:NSDictionary.class]) continue;
+    NSDictionary* row = value;
+    if ([row[@"title"] isEqual:title] && [row[@"description"] isEqual:message]) [matches addObject:row];
+  }
+  // No guessed ID: a summary/game title or an ambiguous toast stays original.
+  NSInteger achievementID = matches.count == 1 ? [matches.firstObject[@"id"] integerValue] : 0;
+  if (achievementID <= 0) { [owner showStatus:[NSString stringWithFormat:@"%@\n%@", title, message]]; return; }
+  NSTimeInterval duration = [toast respondsToSelector:NSSelectorFromString(@"duration")]
+      ? [[toast valueForKey:@"duration"] doubleValue] : 4.0;
+  __weak Armsx2InternalBridgePlugin* weakSelf = self;
+  __weak Armsx2GameViewController* weakOwner = owner;
+  RBAchievementPresent(owner, achievementID, title, message, @"", duration, ^BOOL {
+    Armsx2InternalBridgePlugin* active = weakSelf;
+    return active && weakOwner && active.gameController == weakOwner && !active.stopInProgress && !weakOwner.closing;
+  });
+}
+
+- (void)dealloc {
+  [NSNotificationCenter.defaultCenter removeObserver:self];
 }
 
 - (NSString*)corePath {

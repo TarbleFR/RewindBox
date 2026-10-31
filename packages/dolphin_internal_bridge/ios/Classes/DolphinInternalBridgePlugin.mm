@@ -1,3 +1,6 @@
+#import <achievement_translation/RBAchievementTranslation.h>
+#import <dlfcn.h>
+#include <atomic>
 #import "DolphinInternalBridgePlugin.h"
 #import "DolphinSessionMenu.h"
 #import "DolphinRetroAchievementsAccount.h"
@@ -184,6 +187,30 @@ static UIViewController* _Nullable DOLRootViewController(void) {
     controller = controller.presentedViewController;
   }
   return controller;
+}
+
+// Optional additive presentation export. An older core retains its original OSD;
+// the new IPA validator requires this export in the newly compiled core.
+typedef void (*DOLAchievementPresenter)(uint64_t, uint32_t, const char*, const char*, uint32_t, const char*, int);
+static std::atomic<uint64_t> DOLAchievementNextSession{1};
+static NSString* const DOLAchievementNotification = @"RewindBoxDolphinAchievementPresentation";
+static void DOLSetAchievementPresenter(DOLAchievementPresenter presenter, uint64_t session) {
+  typedef void (*Setter)(DOLAchievementPresenter, uint64_t);
+  Setter setter = reinterpret_cast<Setter>(dlsym(RTLD_DEFAULT, "neostation_dolphin_set_achievement_presenter"));
+  if (setter) setter(presenter, session);
+}
+static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, const char* title,
+                                  const char* description, uint32_t points, const char* progress, int kind) {
+  @autoreleasepool {
+    // The event and all core-owned pointers expire when this callback returns.
+    NSDictionary* copied = @{@"session": @(session), @"id": @(achievementID), @"points": @(points), @"kind": @(kind),
+      @"title": title ? ([NSString stringWithUTF8String:title] ?: @"") : @"",
+      @"description": description ? ([NSString stringWithUTF8String:description] ?: @"") : @"",
+      @"progress": progress ? ([NSString stringWithUTF8String:progress] ?: @"") : @""};
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [NSNotificationCenter.defaultCenter postNotificationName:DOLAchievementNotification object:nil userInfo:copied];
+    });
+  }
 }
 
 @interface DOLDolphinViewController : UIViewController
@@ -836,6 +863,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 
 @interface DolphinInternalBridgePlugin ()
 @property(nonatomic, strong) FlutterMethodChannel* channel;
+@property(atomic, assign) uint64_t achievementPresentationSession;
 @property(atomic, strong, nullable) DOLDolphinViewController* dolphinController;
 @property(nonatomic, strong, nullable) DOLHelperSession* helperSession;
 @property(nonatomic, strong, nullable) dispatch_source_t runningTimer;
@@ -874,6 +902,27 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   dispatch_queue_t _runtimeQueue;
 }
 
+- (void)presentAchievement:(NSNotification*)notification {
+  NSDictionary* event = notification.userInfo;
+  uint64_t session = [event[@"session"] unsignedLongLongValue];
+  DOLDolphinViewController* owner = self.dolphinController;
+  if (!session || self.achievementPresentationSession != session || !owner || self.stopInProgress) return;
+  if ([event[@"kind"] intValue] == 0) { RBAchievementPrefetch(@[event]); return; }
+  NSString* suffix = [event[@"kind"] intValue] == 1 ? [event[@"points"] stringValue] : event[@"progress"];
+  __weak DolphinInternalBridgePlugin* weakSelf = self;
+  __weak DOLDolphinViewController* weakOwner = owner;
+  RBAchievementPresent(owner, [event[@"id"] integerValue], event[@"title"], event[@"description"], suffix ?: @"",
+      [event[@"kind"] intValue] == 1 ? 5.0 : 2.0, ^BOOL {
+        DolphinInternalBridgePlugin* active = weakSelf;
+        return active && weakOwner && active.dolphinController == weakOwner && !active.stopInProgress &&
+            active.achievementPresentationSession == session;
+      });
+}
+
+- (void)dealloc {
+  [NSNotificationCenter.defaultCenter removeObserver:self];
+}
+
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   // Build 484: Dolphin's controls for the editor opened from the settings.
   DOLTouchLayoutRegisterPreviews();
@@ -889,6 +938,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   if (self) {
     _runtimeQueue = dispatch_queue_create("com.neogamelab.neostation.dolphin.runtime", DISPATCH_QUEUE_SERIAL);
     DOLPhoneShakeSetRuntimeQueue(_runtimeQueue);
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(presentAchievement:)
+        name:DOLAchievementNotification object:nil];
     self.recorder = [DolphinRecordingController new];
     __weak DolphinInternalBridgePlugin* weakSelf = self;
     self.recorder.statusHandler = ^(DolphinRecordingState state, NSError* error) {
@@ -1253,6 +1304,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
         });
       };
       self.dolphinController = controller;
+      self.achievementPresentationSession = DOLAchievementNextSession.fetch_add(1);
+      DOLSetAchievementPresenter(DOLReceiveAchievement, self.achievementPresentationSession);
       [controller loadViewIfNeeded];
       metalReady = controller.metalView.device != nil && [controller.metalView.device newCommandQueue] != nil;
       layer = (CAMetalLayer*)controller.metalView.layer;
@@ -1976,6 +2029,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 }
 
 - (void)prepareSessionForStop {
+  self.achievementPresentationSession = 0;
+  DOLSetAchievementPresenter(nullptr, 0);
   // The runtime queue waits only for this short UI operation, before entering
   // any core shutdown locks. Keep the game and its Metal layer attached until
   // the real emulation thread has joined.

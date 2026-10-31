@@ -1,3 +1,4 @@
+#import <achievement_translation/RBAchievementTranslation.h>
 #import "LibretroAchievements.h"
 
 #import "LibretroCoreHost.h"
@@ -147,9 +148,12 @@ static void EventHandler(const rc_client_event_t *event, rc_client_t *client) {
   if (achievements == nil || event == NULL) return;
   if (event->type == RC_CLIENT_EVENT_ACHIEVEMENT_TRIGGERED && event->achievement != NULL) {
     NSString *title = event->achievement->title != NULL ? [NSString stringWithUTF8String:event->achievement->title] : @"";
+    NSUInteger achievementID = event->achievement->id;
+    NSString *description = event->achievement->description != NULL
+        ? [NSString stringWithUTF8String:event->achievement->description] : @"";
     [achievements refreshSummary];
     dispatch_async(dispatch_get_main_queue(), ^{
-      if (achievements.unlocked != nil) achievements.unlocked(title ?: @"");
+      if (achievements.unlocked != nil) achievements.unlocked(achievementID, title ?: @"", description ?: @"");
     });
   }
 }
@@ -160,6 +164,24 @@ static void GameLoaded(int result, const char *message, rc_client_t *client, voi
   if (result == RC_OK) {
     atomic_store(&achievements->_gameReady, true);
     [achievements refreshSummary];
+    // Copy source metadata on the client thread; never retain rcheevos pointers.
+    rc_client_achievement_list_t *list = rc_client_create_achievement_list(client,
+        RC_CLIENT_ACHIEVEMENT_CATEGORY_CORE_AND_UNOFFICIAL, RC_CLIENT_ACHIEVEMENT_LIST_GROUPING_LOCK_STATE);
+    NSMutableArray *sources = [NSMutableArray array];
+    if (list != NULL) {
+      for (uint32_t b = 0; b < list->num_buckets; ++b) {
+        const rc_client_achievement_bucket_t *bucket = &list->buckets[b];
+        for (uint32_t i = 0; i < bucket->num_achievements; ++i) {
+          const rc_client_achievement_t *item = bucket->achievements[i];
+          if (item == NULL) continue;
+          [sources addObject:@{@"id": @(item->id),
+              @"title": item->title ? ([NSString stringWithUTF8String:item->title] ?: @"") : @"",
+              @"description": item->description ? ([NSString stringWithUTF8String:item->description] ?: @"") : @""}];
+        }
+      }
+      rc_client_destroy_achievement_list(list);
+    }
+    RBAchievementPrefetch(sources);
   } else {
     NSLog(@"[Libretro] RetroAchievements game not loaded (%d): %s", result, message ?: "");
   }

@@ -18,6 +18,7 @@ starts; no external RetroArch application is involved.
   s.preserve_paths   = 'ThirdParty/**/*'
   s.resource_bundles = { 'NeoStationCheats' => ['Resources/Cheats/*'] }
   s.dependency 'Flutter'
+  s.dependency 'achievement_translation'
   # The game view adopts NeoExternalRenderHost: the external-display
   # coordinator shows the Metal view on an AirPlay / adapter screen.
   s.dependency 'external_display'

@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/translated_achievement_text.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_localization/flutter_localization.dart';
@@ -491,8 +492,8 @@ class _SelectedAchievementInfo extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Center(
-          child: Text(
-            achievement.title,
+          child: TranslatedAchievementText(
+ id: achievement.id, title: achievement.title, description: achievement.description,
             style: TextStyle(
               color: isUnlocked
                   ? Colors.orange
@@ -506,8 +507,8 @@ class _SelectedAchievementInfo extends StatelessWidget {
         SizedBox(height: 4.r),
         Expanded(
           child: SingleChildScrollView(
-            child: Text(
-              achievement.description,
+            child: TranslatedAchievementText(
+ id: achievement.id, title: achievement.title, description: achievement.description, showDescription: true,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 9.r,

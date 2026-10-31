@@ -1,3 +1,4 @@
+#import <achievement_translation/RBAchievementTranslation.h>
 #import "LibretroSession.h"
 
 #import "LibretroAchievements.h"
@@ -903,10 +904,18 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   if (configuration.achievementsAllowed && configuration.achievementsConsoleId > 0) {
     _achievements = [[LibretroAchievements alloc] initWithConsoleId:configuration.achievementsConsoleId host:_host];
     __weak LibretroSession *weakSelf = self;
-    _achievements.unlocked = ^(NSString *title) {
+    _achievements.unlocked = ^(NSUInteger achievementID, NSString *title, NSString *description) {
       LibretroSession *session = weakSelf;
-      if (session == nil) return;
-      [session showStatus:[session text:@"achievementsUnlocked" replacing:@"{title}" with:title]];
+      if (session == nil || session->_controller == nil) return;
+      __weak LibretroGameViewController *owner = session->_controller;
+      RBAchievementPresent(session->_controller, achievementID, title, description, @"", 4.0, ^BOOL {
+        LibretroSession *active = weakSelf;
+        if (active == nil || owner == nil || active->_controller != owner) return NO;
+        [active->_condition lock];
+        BOOL stopped = active->_stopRequested || active->_coreStopRequested;
+        [active->_condition unlock];
+        return !stopped;
+      });
     };
     [_achievements startWithContentPath:configuration.contentPath];
   }

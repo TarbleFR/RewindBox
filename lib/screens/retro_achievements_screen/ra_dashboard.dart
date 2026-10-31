@@ -1,3 +1,4 @@
+import 'package:neostation/widgets/translated_achievement_text.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -422,8 +423,8 @@ class _RADashboardHubState extends State<RADashboardHub> {
                           ),
                         ),
                         SizedBox(height: 8.r),
-                        Text(
-                          gotw.achievement.title,
+                        TranslatedAchievementText(
+ id: gotw.achievement.id, title: gotw.achievement.title, description: gotw.achievement.description,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodyMedium?.copyWith(
@@ -433,8 +434,8 @@ class _RADashboardHubState extends State<RADashboardHub> {
                           ),
                         ),
                         SizedBox(height: 4.r),
-                        Text(
-                          gotw.achievement.description,
+                        TranslatedAchievementText(
+ id: gotw.achievement.id, title: gotw.achievement.title, description: gotw.achievement.description, showDescription: true,
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -687,8 +688,8 @@ class _RADashboardHubState extends State<RADashboardHub> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  item.title,
+                TranslatedAchievementText(
+ id: item.achievementId, title: item.title, description: item.description,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyMedium?.copyWith(

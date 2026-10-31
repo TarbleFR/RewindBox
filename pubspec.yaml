@@ -4,6 +4,7 @@ description: RewindBox - emulation frontend for iPhone and iPad with embedded na
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 workspace:
+  - packages/achievement_translation
   - packages/external_folder_access
   - packages/flutter_7zip
   - packages/gamepads
@@ -30,6 +31,8 @@ environment:
   sdk: '>=3.9.2'
 
 dependencies:
+  achievement_translation:
+    path: packages/achievement_translation
   flutter:
     sdk: flutter
   flutter_localizations:

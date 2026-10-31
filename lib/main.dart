@@ -1,3 +1,4 @@
+import 'package:achievement_translation/achievement_translation.dart';
 import 'package:neostation/widgets/rewind_startup.dart';
 import 'package:neostation/providers/menu_app_provider.dart';
 import 'package:neostation/providers/sqlite_config_provider.dart';
@@ -486,6 +487,7 @@ void main() async {
     ],
     initLanguageCode: initLang.isNotEmpty ? initLang : 'en',
   );
+  await AchievementTranslationClient.shared.setLanguage(initLang.isNotEmpty ? initLang : 'en');
 
   // Inicializar providers criticos
   final sqliteConfigProvider = SqliteConfigProvider();
@@ -838,6 +840,7 @@ Future<void> subDisplay() async {
     ],
     initLanguageCode: initLang.isNotEmpty ? initLang : 'en',
   );
+  await AchievementTranslationClient.shared.setLanguage(initLang.isNotEmpty ? initLang : 'en');
 
   runApp(SecondaryScreen(initialThemeName: initThemeName));
 }
