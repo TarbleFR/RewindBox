@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "review_date": "2026-10-31",
+  "scope": "Achievement translation: local Flutter workspace plugin and native presentation dependencies only. Static declaration review; no new hosted dependency. Unresolved findings of the original audit remain open.",
+  "baseline_inventory": "docs/evidence/package-sources-license-audit-2026-10-21.json",
+  "baseline_inventory_sha256": "348c5c7840a9262e095519b46aca8d632341ba82483c386a96653108f4a8b72c",
+  "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+  "dependency_changes": {
+    "local_plugin": "achievement_translation",
+    "host_license": "LICENSE.md (repository GPL-3.0); podspec declares GPL-3.0",
+    "external_packages_added": [],
+    "existing_sdk_dependency": "Flutter",
+    "system_frameworks": [
+      "Foundation",
+      "UIKit",
+      "SwiftUI",
+      "Translation",
+      "Combine",
+      "CryptoKit"
+    ],
+    "system_libraries": [
+      "sqlite3"
+    ],
+    "native_consumers": [
+      "armsx2_internal_bridge",
+      "dolphin_internal_bridge",
+      "libretro_internal_bridge"
+    ]
+  },
+  "declarations": {
+    "pubspec.yaml": {
+      "before": "09cb00db684ff0649a1f4a501d1ce4b3e6547b5403ec98477da1e68f675bf83b",
+      "after": "49f39f24539cbd07c7d1a4ccf9b308a6e7cc21f87e8585aed393c7bf98796dfb"
+    },
+    "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec": {
+      "before": "0f8ffa61186c4c539bb8b11cd706a6f825b55c52a70cebaa07e19039e42343f1",
+      "after": "38e451371ce20bef7bafbfdf7b993cd80d13277d6149a2b1e629e9c8e1be329d"
+    },
+    "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec": {
+      "before": "36df673b046bd0eaf7eb6f0843f7c4d6f31e4b4c12e57d616fbc4b054fab799d",
+      "after": "103e10d526378873c3128d686bb9912660bbf9c761a040ba06eabbec11a97a53"
+    },
+    "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": {
+      "before": "1f6e51c0689b6e4935727624b18cf7657530bfaa0f50de0d7653b94ba0825890",
+      "after": "1088dfd9de549e77e7ab9905d717fcb1b4c0b3f260a0b9bbccc2dc5929c506c9"
+    },
+    "packages/achievement_translation/pubspec.yaml": {
+      "before": null,
+      "after": "8f3d568dc5b25f2c9af58bb7e4314b3d869fe0b1243b7fc64298122b7169a019"
+    },
+    "packages/achievement_translation/ios/achievement_translation.podspec": {
+      "before": null,
+      "after": "e3d115c612cc00832fbb06fe3304fa71bc10dc0c18f745986ff28f79d596e726"
+    }
+  },
+  "complete_corresponding_source_attested": false
+}

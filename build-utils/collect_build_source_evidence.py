@@ -26,6 +26,7 @@ SOURCE_EVIDENCE = (
     "engine-source-license-audit-2026-10-21.json",
     "ppsspp-source-license-audit-2026-10-21.json",
     "modified-sources-since-0.0.8-2026-10-21.json",
+    "achievement-translation-declarations-2026-10-31.json",
 )
 
 
@@ -52,9 +53,36 @@ def repository_inputs(root: Path) -> dict[str, str]:
     package_audit = json.loads(read_input(root, root / "docs/evidence/package-sources-license-audit-2026-10-21.json"))
     if package_audit.get("pubspec_lock_sha256") != sha256(read_input(root, root / "pubspec.lock")):
         raise SystemExit("Package source/license inventory is stale for pubspec.lock")
-    declarations = package_audit.get("source_declaration_sha256", {})
+    declarations = dict(package_audit.get("source_declaration_sha256", {}))
     if not declarations:
         raise SystemExit("Package source/license inventory lacks dependency declaration identities")
+    # Preserve the historical review; authenticate the narrowly scoped follow-up
+    # instead of silently relabeling old package evidence as a new review.
+    followup_path = root / "docs/evidence/achievement-translation-declarations-2026-10-31.json"
+    followup = json.loads(read_input(root, followup_path))
+    baseline_path = "docs/evidence/package-sources-license-audit-2026-10-21.json"
+    if (followup.get("schema") != 1 or followup.get("baseline_inventory") != baseline_path or
+            followup.get("baseline_inventory_sha256") != sha256(read_input(root, root / baseline_path)) or
+            followup.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+            followup.get("complete_corresponding_source_attested") is not False):
+        raise SystemExit("Achievement translation declaration review has a different baseline")
+    updates = followup.get("declarations", {})
+    expected_updates = {
+        "pubspec.yaml",
+        "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec",
+        "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec",
+        "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec",
+        "packages/achievement_translation/pubspec.yaml",
+        "packages/achievement_translation/ios/achievement_translation.podspec",
+    }
+    if set(updates) != expected_updates:
+        raise SystemExit("Achievement translation review scope changed")
+    for name, update in updates.items():
+        if update.get("before") != declarations.get(name):
+            raise SystemExit(f"Wrong historical declaration identity: {name}")
+        if update.get("after") != sha256(read_input(root, root / name)):
+            raise SystemExit(f"Package source/license declaration changed since review: {name}")
+        declarations[name] = update["after"]
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:
             raise SystemExit(f"Package source/license declaration changed since review: {name}")
