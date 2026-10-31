@@ -7,9 +7,11 @@ enum Probe {
     static var detachCalls=0; static var handshakes=0; static var starts=0
     private static let lock=NSLock()
     private static var report:[String:Any] = ["events":[]]
+    private static var polls=0
     private static var journal=""
     static func setReport(_ value:[String:Any]) { lock.lock(); report=value; lock.unlock() }
-    static func snapshot()->[String:Any] { lock.lock(); defer {lock.unlock()}; return report }
+    static func snapshot()->[String:Any] { lock.lock(); defer {lock.unlock()}; polls += 1; return report }
+    static var pollCount:Int { lock.lock(); defer {lock.unlock()}; return polls }
     static func setJournal(_ path:String) { lock.lock(); journal=path; lock.unlock() }
     static var journalPath:String { lock.lock(); defer {lock.unlock()}; return journal }
     static func finalPerformance() {

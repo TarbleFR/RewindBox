@@ -56,19 +56,27 @@ for index in (1, 2):
     generation = index + 100
     smoke['homebrewGuestSvcSessions'].append(dict(session=index, generation=generation, svcSequence=index * 10))
     payload = dict(schema=1, generation=generation, final=True, windowMs=1.5,
-                   phases={'phase': [0, 0.0, 0]}, counts={'counter': 0}, managed={'allocatedBytesApprox': 0})
+                   phases={'phase': [0, 0.0, 0]}, counts={'counter': 0},
+                   managed=dict(allocatedBytesApprox=0, gcPauseMs=0.0, lastGcIndex=7,
+                                lastGcHeapBytes=62493616, lastGcCommittedBytes=71598080,
+                                lastGcFragmentedBytes=57056, collections=[6, 4, 3]))
     event = dict(sequence=index * 10 + 1, generation=generation, pid=42, timestamp='2026-10-31T00:00:00Z',
                  stage='performance', status='final', nativeStatus=0, diagnostic=json.dumps(payload))
     smoke['performanceDiagnosticsFinalSessions'].append(dict(session=index, generation=generation, event=event))
 check(verify.verify_performance_smoke(smoke) == 2, 'Valid actual-runtime diagnostic schema rejected')
-for mutation in ('missingRequired', 'staleGeneration', 'beforeSvc', 'nonfinite'):
+for mutation in ('missingRequired', 'staleGeneration', 'beforeSvc', 'nonfinite',
+                 'negativeCollection', 'wrongCollectionCount', 'booleanCollection'):
     invalid = copy.deepcopy(smoke)
     event = invalid['performanceDiagnosticsFinalSessions'][1]['event']
     if mutation == 'missingRequired': invalid.pop('performanceDiagnosticsRequired')
     elif mutation == 'staleGeneration': event['generation'] = 101
     elif mutation == 'beforeSvc': event['sequence'] = 20
     else:
-        payload = json.loads(event['diagnostic']); payload['managed']['allocatedBytesApprox'] = float('nan')
+        payload = json.loads(event['diagnostic'])
+        if mutation == 'nonfinite': payload['managed']['allocatedBytesApprox'] = float('nan')
+        elif mutation == 'negativeCollection': payload['managed']['collections'][1] = -1
+        elif mutation == 'wrongCollectionCount': payload['managed']['collections'].pop()
+        else: payload['managed']['collections'][1] = True
         event['diagnostic'] = json.dumps(payload)
     rejects(lambda: verify.verify_performance_smoke(invalid), 'Invalid actual-runtime diagnostics accepted: ' + mutation)
 if args.archive:

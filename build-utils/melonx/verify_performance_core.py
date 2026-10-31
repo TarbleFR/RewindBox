@@ -278,9 +278,17 @@ def verify_performance_smoke(report):
         require(isinstance(value['phases'], dict) and bool(value['phases']) and
                 all(isinstance(row, list) and len(row) == 3 and all(nonnegative(number) for number in row)
                     for row in value['phases'].values()), 'Invalid final phase metrics')
-        for key in ('counts', 'managed'):
-            require(isinstance(value[key], dict) and bool(value[key]) and all(nonnegative(number) for number in value[key].values()),
-                    'Invalid final ' + key + ' metrics')
+        require(isinstance(value['counts'], dict) and bool(value['counts']) and
+                all(nonnegative(number) for number in value['counts'].values()), 'Invalid final counts metrics')
+        managed = value['managed']
+        scalar_fields = {'allocatedBytesApprox', 'gcPauseMs', 'lastGcIndex', 'lastGcHeapBytes',
+                         'lastGcCommittedBytes', 'lastGcFragmentedBytes'}
+        require(isinstance(managed, dict) and set(managed) == scalar_fields | {'collections'} and
+                all(nonnegative(managed[key]) for key in scalar_fields), 'Invalid final managed metrics')
+        collections = managed['collections']
+        require(isinstance(collections, list) and len(collections) == 3 and
+                all(type(number) is int and number >= 0 for number in collections),
+                'Invalid final managed generation collection counts')
         previous_sequence = event['sequence']
     require(sessions[0]['generation'] != sessions[1]['generation'], 'Repeated diagnostic generation')
     return len(finals)

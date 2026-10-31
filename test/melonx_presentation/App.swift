@@ -18,6 +18,25 @@ final class ProbeScene:UIResponder,UIWindowSceneDelegate {
     var game=""
     var legacy:URL!
     var diagnostics:URL!
+    func performanceText()->String {
+        guard let diagnostics else {return ""}
+        return (try? String(contentsOf:diagnostics.appendingPathComponent("MeloNX-performance.log"),encoding:.utf8)) ?? ""
+    }
+    func performanceRows()->[[String:Any]] {
+        performanceText().split(separator:"\n").compactMap { line -> [String:Any]? in
+            let prefix="[MeloNX:core-performance] "
+            guard line.hasPrefix(prefix) else {return nil}
+            return try? JSONSerialization.jsonObject(with:Data(line.dropFirst(prefix.count).utf8)) as? [String:Any]
+        }
+    }
+    func awaitDiagnostic(_ label:String,until deadline:Date = Date().addingTimeInterval(5),
+                         condition:@escaping()->Bool,then:@escaping()->Void) {
+        if condition() {checks += 1;then();return}
+        guard Date() < deadline else {finish(false,label);return}
+        DispatchQueue.main.asyncAfter(deadline:.now()+0.05) {
+            self.awaitDiagnostic(label,until:deadline,condition:condition,then:then)
+        }
+    }
     func scene(_ scene:UIScene,willConnectTo session:UISceneSession,options:UIScene.ConnectionOptions) {
         guard let scene=scene as? UIWindowScene else { return }
         // The exact registration ordering that the previous code mishandled.
@@ -85,18 +104,23 @@ final class ProbeScene:UIResponder,UIWindowSceneDelegate {
     func performanceRouting() {
         // The engine snapshot is an explicit boundary double. The actual Swift
         // plugin polls, orders, deduplicates, enriches and writes these events.
+        let initialPolls=Probe.pollCount
         Probe.setReport(["events":[],"performance":["sequence":101,"stage":"performance","status":"sample",
             "generation":1,"nativeStatus":0,"diagnostic":"{\"schema\":1}",
             "timestampUTC":"2026-10-31T00:00:00Z","pid":ProcessInfo.processInfo.processIdentifier]])
-        DispatchQueue.main.asyncAfter(deadline:.now()+0.75) {
+        // Utility queues need not run before a fixed wall-clock delay on a
+        // freshly booted simulator. Observe the actual persisted sample and
+        // multiple subsequent snapshots before asking the session to finish.
+        awaitDiagnostic("sample persisted while repeated snapshots remain deduplicated",condition:{
+            Probe.pollCount >= initialPolls + 3 &&
+                self.performanceRows().contains { ($0["sequence"] as? Int) == 101 }
+        }) {
+            self.check(self.performanceRows().count == 1,"repeated sample polls persist one row")
             self.close {
-                let path=self.diagnostics.appendingPathComponent("MeloNX-performance.log")
-                let text=(try? String(contentsOf:path,encoding:.utf8)) ?? ""
-                let rows=text.split(separator:"\n").compactMap { line -> [String:Any]? in
-                    let prefix="[MeloNX:core-performance] "
-                    guard line.hasPrefix(prefix) else {return nil}
-                    return try? JSONSerialization.jsonObject(with:Data(line.dropFirst(prefix.count).utf8)) as? [String:Any]
-                }
+              self.awaitDiagnostic("final performance persisted after native run",condition:{
+                self.performanceRows().contains { ($0["sequence"] as? Int) == 102 }
+              }) {
+                let rows=self.performanceRows()
                 self.check(rows.count == 2,"native performance sample/final persisted exactly once")
                 self.check(rows.compactMap {$0["sequence"] as? Int} == [101,102],"preceding/current sequence order")
                 self.check(rows.compactMap {$0["status"] as? String} == ["sample","final"],"post-run final drain")
@@ -108,6 +132,7 @@ final class ProbeScene:UIResponder,UIWindowSceneDelegate {
                 },"immutable native performance context")
                 self.check((try? String(contentsOf:self.legacy,encoding:.utf8)) == "legacy fixture\n","legacy journal retained")
                 self.fallback()
+              }
             }
         }
     }
@@ -160,6 +185,7 @@ final class ProbeScene:UIResponder,UIWindowSceneDelegate {
             "checks":checks,"detail":detail,"actualUIKit":true,"actualFlutterFramework":true,
             "registrarBoundaryDouble":true,"engineAndJitDouble":true,"guestFrameDouble":true,
             "nativeDiagnosticsBoundaryDouble":true,"actualPluginDiagnosticsRouting":!old,
+            "diagnosticPollCount":Probe.pollCount,"performanceJournal":performanceText(),
             "physicalDeviceTested":false,"gameplayTested":false,"detachCalls":Probe.detachCalls,"presentedSessions":Probe.starts]
         let docs=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
         try! JSONSerialization.data(withJSONObject:result,options:[.prettyPrinted,.sortedKeys]).write(to:docs.appendingPathComponent("presentation.json"),options:.atomic)

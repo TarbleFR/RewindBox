@@ -97,3 +97,23 @@ The one-dependency GPU/readback cases measured 519→100 and 736→205 ns. These
 isolated, noisy timings include the new instrumentation and establish neither
 universal acceleration nor physical-device FPS. The next categorized journal
 must identify actual branch frequencies and remaining costs.
+
+### First Apple execution
+
+Source `ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284`, Core run
+`41239330287`, job `124649711327`: the four affected fixtures, both NativeAOT
+compilations, ABI/source checks and actual simulator smoke passed. The smoke
+contains two final diagnostic events: generation 1/sequence 59 and generation
+2/sequence 95. The run nevertheless **failed** in the final Python validator:
+it incorrectly required every managed-memory field to be scalar, including
+the valid three-element `collections` array. The failed run and its original
+bytes remain distinct from the separate corrected final validation.
+
+Host run `41239330429`, job `124649711439`: Flutter, Dart analysis, Foundation
+(54 Swift and 34 Objective-C checks), parity and performance checks passed.
+UIKit failed its exact sample/final persistence assertion after fixed delays;
+the captured report did not contain the observed rows, so a scheduling race
+is not yet proven as the cause. The follow-up fixture waits for actual writes
+with a deadline, keeps the exact sequence/count assertions, and records the
+observed journal on failure. The following achievement integration command
+had not run when this first native step stopped.
