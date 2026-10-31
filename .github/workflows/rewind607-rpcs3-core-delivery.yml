@@ -699,3 +699,5 @@ env:
   FLUTTER_SUPPRESS_ANALYTICS: 'true'
   DOLPHIN_CORE_HOST_SHA: af5b18e67864e6555f54b7b4b6f1452ed82f6982
   DOLPHIN_CORE_RUN_ID: '41209480072'
+
+# Build607 trigger: private recovered RPCS3 Core delivery, exact app tree preserved.
