@@ -30,8 +30,8 @@ legacy gate. It does not replace or modify other emulator integrations.
   # Build 484: stored touch layouts, on-screen editor and controller policy
   # shared with ARMSX2 and RPCS3 (DOLTouchLayout.mm).
   s.dependency 'neo_touch_layout'
-  s.platform = :ios, '17.4'
-  s.ios.deployment_target = '17.4'
+  s.platform = :ios, '18.0'
+  s.ios.deployment_target = '18.0'
   s.swift_version = '5.0'
   s.frameworks = 'CoreMotion', 'UniformTypeIdentifiers', 'UIKit', 'Metal', 'MetalKit', 'QuartzCore', 'Security', 'AVFoundation', 'AudioToolbox', 'GameController', 'ReplayKit', 'CoreImage', 'VideoToolbox', 'CoreMedia', 'CoreVideo'
   s.libraries = 'c++', 'z', 'bz2', 'iconv', 'compression'

@@ -34,15 +34,15 @@
     "packages/achievement_translation/lib/achievement_translation.dart": "e2531be4f7ffdddb49c98d5980461e544848560f39e91b029dc7c29ab8139118",
     "packages/achievement_translation/pubspec.yaml": "8f3d568dc5b25f2c9af58bb7e4314b3d869fe0b1243b7fc64298122b7169a019",
     "packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm": "6cd1557b50ac64e8bc3396bf2b260c9c589b15ac407d0473a5c037a363bc962b",
-    "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec": "38e451371ce20bef7bafbfdf7b993cd80d13277d6149a2b1e629e9c8e1be329d",
+    "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec": "0cd8428a3bbd73aa19ec985f69435d3e49a7a962666f3ecb1ed901863753fffd",
     "packages/dolphin_internal_bridge/core/NeoStationAchievementPresentation.inc": "19af127472d560f067a442e31f1a932760931ce5db53710f769e1e595eecdc70",
     "packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm": "fd1a12fef85698ef244df40a2d3e1725e4ed4df1b049245a5bd10a1d8ce43205",
-    "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec": "103e10d526378873c3128d686bb9912660bbf9c761a040ba06eabbec11a97a53",
+    "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec": "a2d4571b8cafd060ba4b541fcf97795a2b562c890f50016fad923ef52af8d6f0",
     "packages/external_display/ios/Classes/NeoExternalDisplayMenuEngine.m": "4460062b6060fce3c4d6b4ce636295cfcd1a70e8d991739ce3cd630538c30028",
     "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.h": "7e4eb7302870cb3cbebd186175b3ac7723432a105cd85459428196e3663226a3",
     "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m": "a5213deef3bbd3b6f4014e3bb19f67d445431b2dbc05294b4e45c61fe5da208b",
     "packages/libretro_internal_bridge/ios/Classes/LibretroSession.m": "c5b0379038d7626b24f77e82f492d1ce60867adc9c5e6b8383184e2c388addb1",
-    "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": "1088dfd9de549e77e7ab9905d717fcb1b4c0b3f260a0b9bbccc2dc5929c506c9",
+    "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": "8532452db081f5075b1c47aa9d64f956092ada4a31e3e3b3e626b872d5eecc8a",
     "pubspec.yaml": "49f39f24539cbd07c7d1a4ccf9b308a6e7cc21f87e8585aed393c7bf98796dfb"
   }
 }

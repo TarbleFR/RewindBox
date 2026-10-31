@@ -7,6 +7,15 @@ ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT / 'packages/achievement_translation/ios/Classes/Core'
 
 class AchievementTranslationContracts(unittest.TestCase):
+    def test_native_consumers_match_translation_deployment_floor(self):
+        for name in ('achievement_translation', 'armsx2_internal_bridge',
+                     'dolphin_internal_bridge', 'libretro_internal_bridge'):
+            spec = (ROOT / f'packages/{name}/ios/{name}.podspec').read_text()
+            self.assertIn("s.platform = :ios, '18.0'", spec, name)
+            self.assertIn("s.ios.deployment_target = '18.0'", spec, name)
+            if name != 'achievement_translation':
+                self.assertIn("s.dependency 'achievement_translation'", spec, name)
+
     def test_real_locales_and_bcp47_mapping(self):
         locale = (ROOT / 'lib/l10n/app_locale.dart').read_text()
         block = locale.split('supportedLanguages = {', 1)[1].split('};', 1)[0]

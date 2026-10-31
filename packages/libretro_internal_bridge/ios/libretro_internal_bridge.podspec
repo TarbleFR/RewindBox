@@ -26,8 +26,8 @@ starts; no external RetroArch application is involved.
   # catalog and verified storage, shared with the Dolphin bridge.
   s.dependency 'neo_shader_kit'
   s.dependency 'neo_cheat_catalog'
-  s.platform = :ios, '17.4'
-  s.ios.deployment_target = '17.4'
+  s.platform = :ios, '18.0'
+  s.ios.deployment_target = '18.0'
   s.frameworks = 'UIKit', 'Foundation', 'Metal', 'QuartzCore', 'AVFoundation', 'GameController',
                  'OpenGLES', 'CoreVideo', 'Security', 'ImageIO', 'CoreGraphics', 'UniformTypeIdentifiers'
   s.libraries = 'z'

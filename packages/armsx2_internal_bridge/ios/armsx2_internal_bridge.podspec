@@ -25,8 +25,8 @@ attached to the NeoStation PID. No standalone ARMSX2 application is embedded.
   s.dependency 'external_display'
   # Build 484: touch layouts, editor and controller policy (Armsx2TouchControls.mm).
   s.dependency 'neo_touch_layout'
-  s.platform = :ios, '17.4'
-  s.ios.deployment_target = '17.4'
+  s.platform = :ios, '18.0'
+  s.ios.deployment_target = '18.0'
   s.frameworks = 'UniformTypeIdentifiers', 'UIKit', 'Foundation', 'Security', 'GameController', 'Metal'
   # Build 485: zlib inflates ZIP texture packs (ARMSX2TexturePackCore.h).
   s.libraries = 'c++', 'z'

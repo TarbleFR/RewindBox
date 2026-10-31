@@ -306,6 +306,11 @@ def validate(ipa):
                        b'rewindbox/achievement_translation', b'RBAchievementPresent'):
             assert marker in plugin, 'Missing compiled translation implementation: ' + repr(marker)
         assert any('Translation.framework' in d['path'] for d in image['dependencies'])
+        # Every direct native consumer must declare the same deployment floor;
+        # otherwise ld warns about linking an iOS18 translation dylib from17.4.
+        for consumer in ('armsx2_internal_bridge', 'dolphin_internal_bridge', 'libretro_internal_bridge'):
+            consumer_image = macho(z.read(root + f'Frameworks/{consumer}.framework/{consumer}'))
+            assert consumer_image['minimumOS'].startswith('18.'), consumer
         helper_path = 'PlugIns/MeloNXJITHelper.appex/melonx-universal.js'
         assert z.read(root + helper_path) == (ROOT / 'packages/melonx_jit_helper/ios/Resources/melonx-universal.js').read_bytes()
         host = z.read(root + 'Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge')
