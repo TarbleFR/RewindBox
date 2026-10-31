@@ -29,11 +29,13 @@ targets:
       - sdk: libsqlite3.tbd
   AchievementTranslationPluginCompile:
     type: framework
+    productName: achievement_translation
     platform: iOS
     sources:
       - path: ../ios/Classes
     settings:
       base:
+        PRODUCT_NAME: achievement_translation
         PRODUCT_MODULE_NAME: achievement_translation
         SWIFT_OBJC_INTERFACE_HEADER_NAME: achievement_translation-Swift.h
         DEFINES_MODULE: YES

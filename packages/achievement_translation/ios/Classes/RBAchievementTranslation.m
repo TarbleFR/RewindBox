@@ -1,5 +1,5 @@
 #import "Public/RBAchievementTranslation.h"
-#import "achievement_translation-Swift.h"
+#import <achievement_translation/achievement_translation-Swift.h>
 
 void RBAchievementResolve(NSInteger achievementID, NSString *title, NSString *description,
                           void (^completion)(NSDictionary<NSString *, NSString *> *)) {
