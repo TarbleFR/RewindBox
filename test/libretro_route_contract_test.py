@@ -62,11 +62,14 @@ require('@"profile"' not in plugin, 'the touch profile is retired from the launc
 for key in ('console', 'consoleName', 'gameKey', 'skinsDirectory', 'frontendDirectory', 'consoleGeometry',
             'lockedOptions', 'logsDirectory'):
     require(f'@"{key}"' in plugin, f'launch key {key} parsed natively')
-# The session journal (Documents/Libretro/Logs) is sent with every launch.
+# The actual console chooses its journal; shared process failures retain a fixed root.
 libretro_service = read('lib/services/libretro_internal_service.dart')
-require("'logsDirectory': (await logsDirectory()).path" in libretro_service, 'session journal directory sent')
-require("static Future<Directory> logsDirectory() => _child('Logs');" in libretro_service,
-        'session journal under Documents/Libretro/Logs')
+require("'logsDirectory': (await logsDirectory(console: console.id)).path" in libretro_service, 'actual console journal directory sent')
+require("static Future<Directory> logsDirectory({String? console}) =>" in libretro_service and
+        "DiagnosticsDirectory.directory(system: console ?? 'System', service: 'Libretro')" in libretro_service,
+        'console-scoped diagnostics with explicit shared fallback')
+require('crashDirectory:crashDirectory' in read('packages/libretro_internal_bridge/ios/Classes/LibretroSession.m'),
+        'fatal capture directory is independent of the current console')
 # Build 440: game settings no longer offer the RetroArch app, but a game whose
 # stored choice is already 'retroarch' keeps opening the app (no preference
 # migration): the eligibility guard, the stored value and the per-game key

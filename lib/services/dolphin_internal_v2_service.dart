@@ -15,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 import '../models/dolphin_phone_shake_settings.dart';
 import '../repositories/retro_achievements_repository.dart';
 import 'logger_service.dart';
+import 'diagnostics_directory.dart';
 import 'dolphin_system_files.dart';
 import 'local_dev_vpn_route_service.dart';
 import 'pairing_file_service.dart';
@@ -588,7 +589,7 @@ class DolphinInternalV2Service {
         Directory(path.join(root.path, 'User', 'Wii')),
       );
     } else if (!path.isWithin(normalizedLibrary, normalizedGame)) {
-      final logPath = await _sessionLogPath();
+      final logPath = await _sessionLogPath(system: system);
       await _appendLogTo(
         logPath,
         'route.path_rejected',
@@ -608,7 +609,7 @@ class DolphinInternalV2Service {
         .replaceFirst('.', '')
         .toLowerCase();
     if (!wiiSystemMenu && !extensionsFor(system).contains(extension)) {
-      final logPath = await _sessionLogPath();
+      final logPath = await _sessionLogPath(system: system);
       await _appendLogTo(
         logPath,
         'image.extension_rejected',
@@ -624,7 +625,7 @@ class DolphinInternalV2Service {
     }
 
     final pairing = await _locatePairingFile();
-    final logPath = await _sessionLogPath();
+    final logPath = await _sessionLogPath(system: system);
     final marker = File(
       path.join(root.path, 'CrashMarkers', 'active-session.json'),
     );
@@ -977,18 +978,17 @@ class DolphinInternalV2Service {
     'gameSubmitted': false,
   };
 
-  static Future<String> _sessionLogPath() async {
-    final root = await rootDirectory();
+  static Future<String> _sessionLogPath({required String system}) async {
     // One session log per launch, asked for only by _launch once the native
     // side reported no running session: keep the ten newest and bound the
     // persistent log like app.log (docs/storage-audit-cleanup.md § 4).
-    final logs = Directory(path.join(root.path, 'Logs'));
+    final logs = await DiagnosticsDirectory.directory(system: system, service: 'Dolphin');
     await StorageLogRotation.keepNewest(logs, name: _sessionLogName, keep: 10);
     await StorageLogRotation.rotateAtSize(
-      File(path.join(logs.path, 'dolphin-persistent.jsonl')),
+      File(path.join((await DiagnosticsDirectory.directory(system: 'Dolphin')).path, 'dolphin-persistent.jsonl')),
     );
     final name = DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
-    return path.join(root.path, 'Logs', 'dolphin-$name.jsonl');
+    return path.join(logs.path, 'dolphin-$name.jsonl');
   }
 
   static Future<void> _appendLog(
@@ -997,9 +997,9 @@ class DolphinInternalV2Service {
     Map<String, dynamic>? details,
   ]) async {
     await ensureLayout();
-    final root = await rootDirectory();
+    final logs = await DiagnosticsDirectory.directory(system: 'Dolphin');
     await _appendLogTo(
-      path.join(root.path, 'Logs', 'dolphin-persistent.jsonl'),
+      path.join(logs.path, 'dolphin-persistent.jsonl'),
       stage,
       message,
       details,

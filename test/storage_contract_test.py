@@ -414,13 +414,13 @@ class LogsBoundedAtTheirPoints(unittest.TestCase):
         # Only _launch names a session log, once the native side reported no
         # running session: never ensureLayout, the scanner or startup.
         launch = Span(source, 'static Future<DolphinLaunchReport> _launch(')
-        at = source.masked.find('_sessionLogPath()')
+        at = source.masked.find('_sessionLogPath(system: system)')
         calls = 0
         while at >= 0:
             if not span.start - len('static Future<String> _sessionLogPath(') <= at < span.end:
-                self.assertTrue(launch.start <= at < launch.end, f'_sessionLogPath() at line {source.line(at)}')
+                self.assertTrue(launch.start <= at < launch.end, f'_sessionLogPath(system: system) at line {source.line(at)}')
                 calls += 1
-            at = source.masked.find('_sessionLogPath()', at + 1)
+            at = source.masked.find('_sessionLogPath(system: system)', at + 1)
         self.assertGreater(calls, 0)
         session = Span(source, 'static Future<DolphinLaunchReport> _launchSession(')
         self.assertLess(session.find("invokeMethod<bool>('isRunning')", original=True),

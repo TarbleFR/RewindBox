@@ -1360,6 +1360,13 @@ class StorageRootRegistry {
             deletionClass: confirmation,
             id: 'INV-06.diagnostics',
           ),
+          StorageRule(
+            relative: 'Diagnostics/System/Application',
+            namePattern: 'app.log',
+            category: logs,
+            deletionClass: never,
+            id: 'INV-06.activeAppLog',
+          ),
         ],
       ),
       StorageRoot(

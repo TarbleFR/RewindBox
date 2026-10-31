@@ -1,0 +1,90 @@
+{
+  "result": "passed",
+  "sourceKind": "baselinePreparedWithFinalInstrumentedCandidate",
+  "physicalDeviceTested": false,
+  "fpsGainProven": false,
+  "completeProductionClasses": true,
+  "vulkanBoundaryDoubled": true,
+  "realFileMappingAndSnapshots": true,
+  "adapterIdempotent": true,
+  "sourceDriftControlsPassed": 3,
+  "reports": {
+    "control": {
+      "variant": "control",
+      "assertions": 646,
+      "scenarios": 13,
+      "results": [
+        {
+          "scenario": "nearBudget193Creates",
+          "creationProbes": 193,
+          "exportsBeforeFinal": 193,
+          "exportsIncludingFinal": 193,
+          "bytesIncludingFinal": 11857920
+        }
+      ]
+    },
+    "candidate": {
+      "variant": "candidate",
+      "assertions": 646,
+      "scenarios": 13,
+      "results": [
+        {
+          "scenario": "nearBudget193Creates",
+          "creationProbes": 193,
+          "exportsBeforeFinal": 1,
+          "exportsIncludingFinal": 2,
+          "bytesIncludingFinal": 122880
+        }
+      ]
+    }
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_pipeline_checkpoint_pacing.py": "f49a83af2a580bac0f9a5965e24d538717c056e893b3a47ff4e81d093030c33d",
+    "test/melonx_pipeline_checkpoint_test.py": "15423b2b4df12be96b824ffb6edb592315a52424bb571f89ee0a4fdbc78f9b1b",
+    "test/melonx_pipeline_checkpoint/Program.cs": "a8fe24c69375d5d997cd78e3f1ea3a2fabac3aef01d067f6472ec17de2338071",
+    "test/melonx_pipeline_checkpoint/Boundaries.cs": "1506ed199c62abd053255e03befd3a546bad735a7da484a8e8f3580d742afc6a"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "b2046145e15b441309ea4229b1a638a8c9fa1817e7de451ca0d8ec2a59efc403"
+  },
+  "preimages": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "b2046145e15b441309ea4229b1a638a8c9fa1817e7de451ca0d8ec2a59efc403"
+  },
+  "postimages": {
+    "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs": "9a6a4037bb3f8f27ff6f67a08abed07d8e9587cf161a3562e5fb623001f29fff",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "802f3ac51305acd2218a2f2b2e35d77c845d441c7f8ea93894762cb5b12e58cc"
+  },
+  "compiledSourceInputs": {
+    "control": {
+      "Program.cs": "a8fe24c69375d5d997cd78e3f1ea3a2fabac3aef01d067f6472ec17de2338071",
+      "Boundaries.cs": "1506ed199c62abd053255e03befd3a546bad735a7da484a8e8f3580d742afc6a",
+      "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "b2046145e15b441309ea4229b1a638a8c9fa1817e7de451ca0d8ec2a59efc403"
+    },
+    "candidate": {
+      "Program.cs": "a8fe24c69375d5d997cd78e3f1ea3a2fabac3aef01d067f6472ec17de2338071",
+      "EmbeddedPerformanceDiagnostics.cs": "9a6a4037bb3f8f27ff6f67a08abed07d8e9587cf161a3562e5fb623001f29fff",
+      "Boundaries.cs": "1506ed199c62abd053255e03befd3a546bad735a7da484a8e8f3580d742afc6a",
+      "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "802f3ac51305acd2218a2f2b2e35d77c845d441c7f8ea93894762cb5b12e58cc"
+    }
+  },
+  "compiledBindings": [
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "EmbeddedPerformanceDiagnostics.cs"
+      ],
+      "productionPath": "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs"
+    }
+  ]
+}

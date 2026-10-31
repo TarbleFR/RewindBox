@@ -17,14 +17,21 @@ NS_ASSUME_NONNULL_BEGIN
 /// started after a failure (retries, other games) would otherwise rotate
 /// it away before it can be read.
 ///
-/// Files, in Files › NeoStation › Libretro › Logs: `session.log` (current
-/// or last session), `previous-session.log`, `unfinished-session.log`,
-/// `failed-launch.log`. Thread-safe.
+/// Files live in Diagnostics/<console>/Libretro. Each session has at most
+/// two 2 MiB generations: session.log and session-overflow.log. Previous,
+/// unfinished and failed-launch snapshots retain both matching generations.
+/// The process fatal descriptor belongs to Diagnostics/System/Libretro and
+/// does not change when a later session selects another console. Thread-safe.
 @interface LibretroSessionJournal : NSObject
 
 /// Starts `session.log` in `directory` (created when missing), after
 /// rotating the previous file. nil when the file cannot be created.
 + (nullable instancetype)journalInDirectory:(NSString *)directory;
+
+/// The production crash directory remains fixed across console changes. The
+/// one-argument entry retains the caller's original directory for fixtures.
++ (nullable instancetype)journalInDirectory:(NSString *)directory
+                           crashDirectory:(NSString *)crashDirectory;
 
 /// The session before this one never wrote its END line.
 @property(nonatomic, readonly) BOOL previousSessionUnfinished;

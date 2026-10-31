@@ -1,0 +1,659 @@
+{
+  "schemaVersion": 1,
+  "reviewedScope": "Three measured host algorithm changes and ten bounded diagnostic hooks. Existing Ada engine behavior, SDK, ABI, source pin and smoke remain the baseline; no physical gameplay or FPS claim.",
+  "changedPreparationInputs": [
+    "build-utils/melonx/prepare_embedded.py",
+    "native/melonx/EmbeddedLaunchDiagnostics.cs",
+    "native/melonx/EmbeddedSession.cs"
+  ],
+  "addedPreparationInputs": [
+    "build-utils/melonx/adapt_pipeline_checkpoint_pacing.py",
+    "build-utils/melonx/adapt_counter_report_compaction.py",
+    "build-utils/melonx/adapt_single_virtual_dependency.py",
+    "build-utils/melonx/adapt_performance_diagnostics.py",
+    "native/melonx/EmbeddedPerformanceDiagnostics.cs"
+  ],
+  "productionChanges": [
+    "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Model/CircularSpanPool.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs",
+    "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs",
+    "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs",
+    "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs",
+    "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs",
+    "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueueEvent.cs",
+    "src/Ryujinx.Library/EmbeddedSession.cs"
+  ],
+  "productionAdditions": [
+    "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs"
+  ],
+  "fixtureInputs": [
+    "build-utils/melonx/adapt_counter_report_compaction.py",
+    "build-utils/melonx/adapt_performance_diagnostics.py",
+    "build-utils/melonx/adapt_pipeline_checkpoint_pacing.py",
+    "build-utils/melonx/adapt_single_virtual_dependency.py",
+    "native/melonx/EmbeddedLaunchDiagnostics.cs",
+    "native/melonx/EmbeddedPerformanceDiagnostics.cs",
+    "native/melonx/EmbeddedSession.cs",
+    "test/melonx_counter_report_compaction/JournalBoundary.cs",
+    "test/melonx_counter_report_compaction/Program.cs",
+    "test/melonx_counter_report_compaction_test.py",
+    "test/melonx_performance_diagnostics/Program.cs",
+    "test/melonx_performance_diagnostics_test.py",
+    "test/melonx_pipeline_checkpoint/Boundaries.cs",
+    "test/melonx_pipeline_checkpoint/Program.cs",
+    "test/melonx_pipeline_checkpoint_test.py",
+    "test/melonx_single_virtual_dependency/CostRunner.cs",
+    "test/melonx_single_virtual_dependency/Extra.cs",
+    "test/melonx_single_virtual_dependency/JournalBoundary.cs",
+    "test/melonx_single_virtual_dependency_test.py",
+    "test/melonx_virtual_buffer_readback/Boundaries.cs",
+    "test/melonx_virtual_buffer_readback/Program.cs"
+  ],
+  "fixtureProductionInputs": [
+    "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
+    "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
+    "src/Ryujinx.Graphics.GAL/BufferAccess.cs",
+    "src/Ryujinx.Graphics.GAL/BufferHandle.cs",
+    "src/Ryujinx.Graphics.GAL/BufferRange.cs",
+    "src/Ryujinx.Graphics.GAL/ICounterEvent.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/Model/CircularSpanPool.cs",
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs",
+    "src/Ryujinx.Graphics.GAL/PinnedSpan.cs",
+    "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs",
+    "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs",
+    "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs",
+    "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs",
+    "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs",
+    "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs",
+    "src/Ryujinx.Graphics.Gpu/Memory/UnmapEventArgs.cs",
+    "src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs",
+    "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs",
+    "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueueEvent.cs",
+    "src/Ryujinx.Library/EmbeddedPerformance.cs",
+    "src/Ryujinx.Library/EmbeddedSession.cs",
+    "src/Ryujinx.Memory/Range/IMultiRangeItem.cs",
+    "src/Ryujinx.Memory/Range/INonOverlappingRange.cs",
+    "src/Ryujinx.Memory/Range/IRange.cs",
+    "src/Ryujinx.Memory/Range/MemoryRange.cs",
+    "src/Ryujinx.Memory/Range/MultiRange.cs",
+    "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs",
+    "src/Ryujinx.Memory/Range/RangeListBase.cs"
+  ],
+  "gates": [
+    {
+      "name": "pipeline-checkpoint",
+      "script": "test/melonx_pipeline_checkpoint_test.py",
+      "report": "pipeline-checkpoint-checks.json",
+      "arguments": [
+        "{baseline}",
+        "--candidate-source",
+        "{candidate}"
+      ],
+      "timeoutSeconds": 600,
+      "assertions": {
+        "completeProductionClasses": true,
+        "adapterIdempotent": true,
+        "sourceDriftControlsPassed": 3,
+        "physicalDeviceTested": false,
+        "fpsGainProven": false,
+        "sourceKind": "baselinePreparedWithFinalInstrumentedCandidate",
+        "reports.control.assertions": 646,
+        "reports.control.scenarios": 13,
+        "reports.candidate.assertions": 646,
+        "reports.candidate.scenarios": 13,
+        "vulkanBoundaryDoubled": true,
+        "realFileMappingAndSnapshots": true,
+        "reports.control.results": [
+          {
+            "scenario": "nearBudget193Creates",
+            "creationProbes": 193,
+            "exportsBeforeFinal": 193,
+            "exportsIncludingFinal": 193,
+            "bytesIncludingFinal": 11857920
+          }
+        ],
+        "reports.candidate.results": [
+          {
+            "scenario": "nearBudget193Creates",
+            "creationProbes": 193,
+            "exportsBeforeFinal": 1,
+            "exportsIncludingFinal": 2,
+            "bytesIncludingFinal": 122880
+          }
+        ]
+      },
+      "requiredPostimages": [
+        "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
+        "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+      ],
+      "compiledBindings": [
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+        },
+        {
+          "productionPath": "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "EmbeddedPerformanceDiagnostics.cs"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "counter-report-compaction",
+      "script": "test/melonx_counter_report_compaction_test.py",
+      "report": "counter-report-compaction-final-checks.json",
+      "arguments": [
+        "{baseline}",
+        "--candidate-source",
+        "{candidate}"
+      ],
+      "timeoutSeconds": 600,
+      "assertions": {
+        "completeProductionClasses": true,
+        "adapterIdempotent": true,
+        "sourceDriftControlsPassed": 2,
+        "physicalDeviceTested": false,
+        "fpsGainProven": false,
+        "sourceKind": "baselinePreparedWithFinalInstrumentedCandidate",
+        "reports.control.checks": 10171,
+        "reports.control.scenarios": 28,
+        "reports.control.semanticSHA256": "07ce6ed591d59149edf374d21ca4238bac1adf95d7527e21e59c06f1cb8f21da",
+        "reports.candidate.checks": 10171,
+        "reports.candidate.scenarios": 28,
+        "reports.candidate.semanticSHA256": "07ce6ed591d59149edf374d21ca4238bac1adf95d7527e21e59c06f1cb8f21da",
+        "gcReductionClaimed": false
+      },
+      "requiredPostimages": [
+        "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
+        "src/Ryujinx.Graphics.GAL/ICounterEvent.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/UnmapEventArgs.cs"
+      ],
+      "compiledBindings": [
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Gpu/Memory/UnmapEventArgs.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/UnmapEventArgs.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.GAL/ICounterEvent.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.GAL/ICounterEvent.cs"
+        },
+        {
+          "productionPath": "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "EmbeddedPerformanceDiagnostics.cs"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "single-virtual-dependency",
+      "script": "test/melonx_single_virtual_dependency_test.py",
+      "report": "single-virtual-dependency-final-checks.json",
+      "arguments": [
+        "{baseline}",
+        "--candidate-source",
+        "{candidate}"
+      ],
+      "timeoutSeconds": 600,
+      "assertions": {
+        "completeProductionClasses": true,
+        "adapterIdempotent": true,
+        "sourceDriftControlsPassed": 3,
+        "physicalDeviceTested": false,
+        "fpsGainProven": false,
+        "sourceKind": "baselinePreparedWithFinalInstrumentedCandidate",
+        "reports.control.assertions": 4939,
+        "reports.control.semanticDigest": "d6683e2dce9156cd",
+        "reports.control.overcopyCorrected": true,
+        "reports.candidate.assertions": 4939,
+        "reports.candidate.semanticDigest": "d6683e2dce9156cd",
+        "reports.candidate.overcopyCorrected": true,
+        "rendererAndTrackingDoubled": true,
+        "savings": [
+          {
+            "length": 128,
+            "dependencies": 1,
+            "dirty": false,
+            "gpuSync": false,
+            "flushes": 200,
+            "savedBytesPerCall": 304.0
+          },
+          {
+            "length": 4096,
+            "dependencies": 1,
+            "dirty": false,
+            "gpuSync": false,
+            "flushes": 200,
+            "savedBytesPerCall": 304.0
+          },
+          {
+            "length": 32768,
+            "dependencies": 1,
+            "dirty": false,
+            "gpuSync": false,
+            "flushes": 200,
+            "savedBytesPerCall": 304.0
+          },
+          {
+            "length": 4096,
+            "dependencies": 0,
+            "dirty": false,
+            "gpuSync": false,
+            "flushes": 200,
+            "savedBytesPerCall": 0.0
+          },
+          {
+            "length": 128,
+            "dependencies": 1,
+            "dirty": true,
+            "gpuSync": false,
+            "flushes": 200,
+            "savedBytesPerCall": 304.0
+          },
+          {
+            "length": 4096,
+            "dependencies": 1,
+            "dirty": true,
+            "gpuSync": false,
+            "flushes": 200,
+            "savedBytesPerCall": 304.0
+          },
+          {
+            "length": 128,
+            "dependencies": 1,
+            "dirty": false,
+            "gpuSync": true,
+            "flushes": 200,
+            "savedBytesPerCall": 304.0
+          },
+          {
+            "length": 128,
+            "dependencies": 1,
+            "dirty": true,
+            "gpuSync": true,
+            "flushes": 200,
+            "savedBytesPerCall": 304.0
+          },
+          {
+            "length": 128,
+            "dependencies": 2,
+            "dirty": false,
+            "gpuSync": true,
+            "flushes": 200,
+            "savedBytesPerCall": 0.0
+          },
+          {
+            "length": 128,
+            "dependencies": 2,
+            "dirty": false,
+            "gpuSync": false,
+            "flushes": 200,
+            "savedBytesPerCall": 0.0
+          },
+          {
+            "length": 128,
+            "dependencies": 2,
+            "dirty": true,
+            "gpuSync": true,
+            "flushes": 200,
+            "savedBytesPerCall": 0.0
+          },
+          {
+            "length": 128,
+            "dependencies": 2,
+            "dirty": true,
+            "gpuSync": false,
+            "flushes": 200,
+            "savedBytesPerCall": 0.0
+          },
+          {
+            "length": 128,
+            "dependencies": 8,
+            "dirty": false,
+            "gpuSync": true,
+            "flushes": 200,
+            "savedBytesPerCall": 0.0
+          },
+          {
+            "length": 128,
+            "dependencies": 8,
+            "dirty": false,
+            "gpuSync": false,
+            "flushes": 200,
+            "savedBytesPerCall": 0.0
+          },
+          {
+            "length": 128,
+            "dependencies": 8,
+            "dirty": true,
+            "gpuSync": true,
+            "flushes": 200,
+            "savedBytesPerCall": 0.0
+          },
+          {
+            "length": 128,
+            "dependencies": 8,
+            "dirty": true,
+            "gpuSync": false,
+            "flushes": 200,
+            "savedBytesPerCall": 0.0
+          },
+          {
+            "length": 128,
+            "dependencies": 32,
+            "dirty": false,
+            "gpuSync": true,
+            "flushes": 200,
+            "savedBytesPerCall": 0.0
+          },
+          {
+            "length": 128,
+            "dependencies": 32,
+            "dirty": false,
+            "gpuSync": false,
+            "flushes": 200,
+            "savedBytesPerCall": 0.0
+          },
+          {
+            "length": 128,
+            "dependencies": 32,
+            "dirty": true,
+            "gpuSync": true,
+            "flushes": 200,
+            "savedBytesPerCall": 0.0
+          },
+          {
+            "length": 128,
+            "dependencies": 32,
+            "dirty": true,
+            "gpuSync": false,
+            "flushes": 200,
+            "savedBytesPerCall": 0.0
+          }
+        ]
+      },
+      "requiredPostimages": [
+        "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
+        "src/Ryujinx.Graphics.GAL/BufferAccess.cs",
+        "src/Ryujinx.Graphics.GAL/BufferHandle.cs",
+        "src/Ryujinx.Graphics.GAL/BufferRange.cs",
+        "src/Ryujinx.Graphics.GAL/PinnedSpan.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs",
+        "src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs",
+        "src/Ryujinx.Memory/Range/IMultiRangeItem.cs",
+        "src/Ryujinx.Memory/Range/INonOverlappingRange.cs",
+        "src/Ryujinx.Memory/Range/IRange.cs",
+        "src/Ryujinx.Memory/Range/MemoryRange.cs",
+        "src/Ryujinx.Memory/Range/MultiRange.cs",
+        "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs",
+        "src/Ryujinx.Memory/Range/RangeListBase.cs"
+      ],
+      "compiledBindings": [
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/BufferMigration.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Memory/Range/IRange.cs"
+          ],
+          "productionPath": "src/Ryujinx.Memory/Range/IRange.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Memory/Range/INonOverlappingRange.cs"
+          ],
+          "productionPath": "src/Ryujinx.Memory/Range/INonOverlappingRange.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Memory/Range/RangeListBase.cs"
+          ],
+          "productionPath": "src/Ryujinx.Memory/Range/RangeListBase.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs"
+          ],
+          "productionPath": "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Memory/Range/MemoryRange.cs"
+          ],
+          "productionPath": "src/Ryujinx.Memory/Range/MemoryRange.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Memory/Range/MultiRange.cs"
+          ],
+          "productionPath": "src/Ryujinx.Memory/Range/MultiRange.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Memory/Range/IMultiRangeItem.cs"
+          ],
+          "productionPath": "src/Ryujinx.Memory/Range/IMultiRangeItem.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.GAL/BufferHandle.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.GAL/BufferHandle.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.GAL/BufferRange.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.GAL/BufferRange.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.GAL/PinnedSpan.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.GAL/PinnedSpan.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.GAL/BufferAccess.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.GAL/BufferAccess.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs"
+        },
+        {
+          "productionPath": "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "EmbeddedPerformanceDiagnostics.cs"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "performance-diagnostics",
+      "script": "test/melonx_performance_diagnostics_test.py",
+      "report": "performance-diagnostics-checks.json",
+      "arguments": [
+        "{baseline}",
+        "--candidate-source",
+        "{candidate}"
+      ],
+      "timeoutSeconds": 600,
+      "assertions": {
+        "sourceKind": "finalPrepared",
+        "sourceChecks": 22,
+        "gameplayTested": false,
+        "fpsGainProven": false,
+        "resultDetails.result": "passed",
+        "resultDetails.checks": 103,
+        "resultDetails.actualProductionCollector": true,
+        "resultDetails.actualProductionJournal": true,
+        "resultDetails.hotCounterAllocatedBytes": 0,
+        "resultDetails.hotScopeAllocatedBytes": 0,
+        "resultDetails.normalMetricsRetained": 1,
+        "resultDetails.finalMetricsRetained": 2,
+        "resultDetails.threadCounterSlots": 16,
+        "resultDetails.physicalDeviceTested": false
+      },
+      "requiredPostimages": [
+        "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
+        "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
+        "src/Ryujinx.Graphics.GAL/Multithreading/Model/CircularSpanPool.cs",
+        "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs",
+        "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/BufferModifiedRangeList.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/MultiRangeBuffer.cs",
+        "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
+        "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
+        "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
+        "src/Ryujinx.Graphics.Vulkan/PipelineState.cs",
+        "src/Ryujinx.Graphics.Vulkan/Queries/CounterQueueEvent.cs",
+        "src/Ryujinx.Library/EmbeddedPerformance.cs",
+        "src/Ryujinx.Library/EmbeddedSession.cs"
+      ],
+      "compiledBindings": [
+        {
+          "productionPath": "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
+          "reportPath": [
+            "compiledSourceInputs",
+            "EmbeddedPerformanceDiagnostics.cs"
+          ]
+        },
+        {
+          "productionPath": "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
+          "reportPath": [
+            "compiledSourceInputs",
+            "EmbeddedLaunchDiagnostics.cs"
+          ]
+        }
+      ]
+    }
+  ]
+}

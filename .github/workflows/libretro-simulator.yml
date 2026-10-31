@@ -61,7 +61,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   probe:
-    if: ${{ !inputs.shaders_only && !inputs.beetle_only && !inputs.mesen_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!inputs.shaders_only && !inputs.beetle_only && !inputs.mesen_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]')) }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -100,7 +100,7 @@ jobs:
   # cores refuse content they cannot run. On a runner of its own, so its
   # verdict does not depend on the main job's scenarios.
   lot1:
-    if: ${{ !inputs.shaders_only && !inputs.beetle_only && !inputs.mesen_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!inputs.shaders_only && !inputs.beetle_only && !inputs.mesen_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]')) }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -135,7 +135,7 @@ jobs:
   # Beetle PC-FX, each launched twice, run and closed; O2EM and Beetle PC-FX
   # boot stand-in BIOS images the probe writes (a single jump to itself).
   lot2:
-    if: ${{ !inputs.shaders_only && !inputs.beetle_only && !inputs.mesen_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!inputs.shaders_only && !inputs.beetle_only && !inputs.mesen_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]')) }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -170,7 +170,7 @@ jobs:
   # its texture dump, a green replacement pack made from it (the quad must
   # turn green) and replacement off again. Stand-in BIOS written by the probe.
   beetle:
-    if: ${{ !inputs.shaders_only && !inputs.mesen_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!inputs.shaders_only && !inputs.mesen_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]')) }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -207,7 +207,7 @@ jobs:
   # core package that has Mesen (lot 3).
   # Mesen (lot 3): on dispatch with mesen_only, or on every push with the package the delivery pins.
   mesen:
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.mesen_only) || github.event_name == 'push' }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && ((github.event_name == 'workflow_dispatch' && inputs.mesen_only) || github.event_name == 'push') }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -244,7 +244,7 @@ jobs:
   # never started). Informational: it records whether closing the game ends
   # the process; it does not fail the run.
   shaders:
-    if: ${{ !inputs.beetle_only && !inputs.mesen_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!inputs.beetle_only && !inputs.mesen_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]')) }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -277,7 +277,7 @@ jobs:
         if-no-files-found: warn
         retention-days: 14
   official-shaders:
-    if: ${{ !inputs.beetle_only && !inputs.mesen_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!inputs.beetle_only && !inputs.mesen_only && !inputs.legacy_only && !contains(github.event.head_commit.message, '[libretro-legacy-compat]') && !contains(github.event.head_commit.message, '[unified-cheats]')) }}
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -310,7 +310,7 @@ jobs:
         if-no-files-found: warn
         retention-days: 14
   before-fix:
-    if: ${{ !inputs.shaders_only && !inputs.beetle_only && !inputs.mesen_only && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!inputs.shaders_only && !inputs.beetle_only && !inputs.mesen_only && !contains(github.event.head_commit.message, '[unified-cheats]')) }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:
@@ -359,7 +359,7 @@ jobs:
   # whether PPSSPP finds no memory base, as on the iPhone; it does not fail
   # the run.
   before-reservation:
-    if: ${{ !inputs.shaders_only && !inputs.beetle_only && !inputs.mesen_only && !contains(github.event.head_commit.message, '[unified-cheats]') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!inputs.shaders_only && !inputs.beetle_only && !inputs.mesen_only && !contains(github.event.head_commit.message, '[unified-cheats]')) }}
     runs-on: macos-15
     timeout-minutes: 30
     steps:

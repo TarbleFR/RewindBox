@@ -761,7 +761,7 @@ class Libretro3dsSystemDataService {
            savesDirectory ?? LibretroInternalService.savesDirectory,
        backupsDirectory = backupsDirectory ?? _defaultBackupsDirectory,
        diagnosticsDirectory =
-           diagnosticsDirectory ?? DiagnosticsDirectory.directory,
+           diagnosticsDirectory ?? (() => DiagnosticsDirectory.directory(system: '3ds')),
        sessionProbe = sessionProbe ?? LibretroInternalBridge.isSessionActive;
 
   /// Folder of the core under `Saves` and `Backups` (its `SafeFolderName`).

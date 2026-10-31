@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Per-second MeloNX performance journal ("[MeloNX:perf]" lines in app.log).
+"""Per-second MeloNX performance journal (Diagnostics/Switch/MeloNX-performance.log).
 
 The wiring and the engine/host counter contract are checked anywhere. The
 Swift sampler is compiled and executed only where xcrun exists (macOS CI):
@@ -56,7 +56,7 @@ pause = controller[controller.index('private func applyPause()'):]
 check(pause.index('perf?.setPaused(!pauseReasons.isEmpty)') < pause.index('host.setPaused('), 'pause flag')
 check('surface.metalLayer.restartPacing()' in pause[:400], 'pause counted as a held frame')
 check(controller[controller.index('deinit {'):].startswith('deinit {\n        perf?.stop()'), 'journal not stopped on deinit')
-check('static func appendLine(_ text: String, to path: String, limit: Int64 = 5 * 1024 * 1024) -> Bool' in parity and 'appendLine("[MeloNX:stderr] " + safe, to:path)' in parity, 'shared writer')
+check('static func appendLine(_ text: String, to path: String, limit: Int64 = 5 * 1024 * 1024) -> Bool' in parity and 'appendLine(contextualLine("[MeloNX:stderr] " + safe,context:context), to:path)' in parity, 'shared writer')
 check(journal.count('MeloNXStdioCapture.appendLine(') == journal.count(', to:path, limit:Self.fileLimit)') == 4 and 'open(' not in journal, 'journal writes outside the shared writer or under the general cap')
 check('static let fileLimit: Int64 = 8 * 1024 * 1024' in journal and 'if !isPaused && rate > 0 {' in journal, 'journal cap or FPS average')
 check('qos:.utility' in journal and 'func stop() {\n        queue.async' in journal, 'sampler priority or synchronous stop')

@@ -76,3 +76,24 @@ resolution reduction or skipped GPU synchronization is justified by this log.
 Sanitized numeric samples and recomputed aggregates:
 [device-window.json](evidence/hogwarts604-performance/device-window.json).
 The raw private journal is not committed.
+
+## Reconstructed 606 candidate, 31 October
+
+The integrated candidate starts from delivered 605 and preserves its achievement
+translation and Dolphin hook. Four fresh Linux .NET 10.0.100 receipts bind the
+actual prepared sources and collector under [hogwarts606-local](evidence/hogwarts606-local/):
+pipeline checkpoint 646 assertions per variant, CounterCache 10,171 per variant,
+Buffer 4,939 per variant, and diagnostics 103 runtime assertions plus 22 source
+checks. They do not replace the pending Apple builds and runtime sessions.
+
+The instrumented final candidate preserves 193 cache pressure probes while
+reducing exports from 193 to 2, including final persistence. Its single virtual
+dependency path avoids 304 bytes per call; other dependency counts have unchanged
+allocation. CounterCache keeps allocation and semantic traces identical.
+
+Negative host timings are retained: empty Counter batches measured 89→199 ns;
+GPU Buffer synchronization with 2 dependencies was +11.9% and with 8 was +20.1%.
+The one-dependency GPU/readback cases measured 519→100 and 736→205 ns. These
+isolated, noisy timings include the new instrumentation and establish neither
+universal acceleration nor physical-device FPS. The next categorized journal
+must identify actual branch frequencies and remaining costs.

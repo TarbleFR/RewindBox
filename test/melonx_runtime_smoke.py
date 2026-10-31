@@ -4,6 +4,7 @@
 Exercises an original non-graphical homebrew in Simulator only.
 No physical-device signing, helper, personal content or gameplay proof is inferred.
 """
+import argparse
 import hashlib
 import json
 import os
@@ -14,6 +15,11 @@ import subprocess
 import tempfile
 import time
 import uuid
+
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--require-performance-diagnostics',action='store_true',
+                    help='Require final schema-1 collector metrics for both fresh NativeAOT sessions.')
+args=parser.parse_args()
 
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'dist/melonx-smoke';OUT.mkdir(parents=True,exist_ok=True)
@@ -81,6 +87,8 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
      let log=documents.appendingPathComponent("native-runtime.log")
      log.path.withCString { _ = freopen($0,"w",stderr) }
      var report:[String:Any]=["actualNativeAOT":true,"gameplayTested":false,"jitTested":false]
+     let requirePerformanceDiagnostics = __REQUIRE_PERFORMANCE_DIAGNOSTICS__
+     if requirePerformanceDiagnostics {report["performanceDiagnosticsRequired"]=true}
      var observedRuntime:MeloNXRuntimeAPI?
      do {
        let frameworks=Bundle.main.privateFrameworksURL!
@@ -218,6 +226,7 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        var donatedSessions=0
        var livePerformanceSessions=0
        var guestSvcSessions:[[String:Any]]=[]
+       var performanceFinalSessions:[[String:Any]]=[]
        for sessionIndex in 1...2 {
          // The diagnostic ring retains earlier sessions and may evict them.
          // Bind this proof to events produced after this session's start.
@@ -281,6 +290,47 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
          guard let svcSequence=guestSvcSequence else {throw NSError(domain:"homebrew-guest-svc-unconfirmed",code:11,userInfo:["session":sessionIndex,"generation":liveGeneration,"afterSequence":beforeSequence])}
          guestSvcSessions.append(["session":sessionIndex,"generation":liveGeneration,"afterSequence":beforeSequence,"svcSequence":svcSequence])
          guard runtime.session.state == 0, owner?.isSessionActive == false else {throw NSError(domain:"homebrew-session-cleanup",code:10)}
+         if requirePerformanceDiagnostics {
+           // Read off the main queue after Run/Stop, including a short session's
+           // final partial window. A concurrent snapshot may finish publishing
+           // the final event just after Stop returns; bound that drain to 2 s.
+           let metricsDeadline=DispatchTime.now()+2
+           var finalEvent:[String:Any]?
+           repeat {
+             let snapshot=runtime.diagnostics()
+             if let event=snapshot["performance"] as? [String:Any],
+                event["status"] as? String == "final",
+                (event["generation"] as? NSNumber)?.int64Value == liveGeneration {
+               finalEvent=event;break
+             }
+             Thread.sleep(forTimeInterval:0.01)
+           } while DispatchTime.now() < metricsDeadline
+           guard let event=finalEvent,
+                 event["stage"] as? String == "performance",
+                 ((event["sequence"] as? NSNumber)?.int64Value ?? 0) > svcSequence,
+                 (event["pid"] as? NSNumber)?.int32Value == getpid(),
+                 let timestamp=event["timestamp"] as? String,!timestamp.isEmpty,
+                 let raw=event["diagnostic"] as? String,let bytes=raw.data(using:.utf8),
+                 let metrics=try JSONSerialization.jsonObject(with:bytes) as? [String:Any],
+                 (metrics["schema"] as? NSNumber)?.intValue == 1,
+                 (metrics["generation"] as? NSNumber)?.int64Value == liveGeneration,
+                 metrics["final"] as? Bool == true,
+                 let window=(metrics["windowMs"] as? NSNumber)?.doubleValue,window.isFinite,window >= 0,
+                 let phases=metrics["phases"] as? [String:[NSNumber]],!phases.isEmpty,
+                 phases.values.allSatisfy({$0.count == 3 && $0.allSatisfy({$0.doubleValue.isFinite && $0.doubleValue >= 0})}),
+                 let counts=metrics["counts"] as? [String:NSNumber],!counts.isEmpty,
+                 counts.values.allSatisfy({$0.doubleValue.isFinite && $0.doubleValue >= 0}),
+                 let managed=metrics["managed"] as? [String:Any],
+                 ["allocatedBytesApprox","gcPauseMs","lastGcIndex","lastGcHeapBytes","lastGcCommittedBytes","lastGcFragmentedBytes"].allSatisfy({key in
+                   (managed[key] as? NSNumber).map {$0.doubleValue.isFinite && $0.doubleValue >= 0} ?? false
+                 }),
+                 let collections=managed["collections"] as? [NSNumber],collections.count == 3,
+                 collections.allSatisfy({$0.doubleValue.isFinite && $0.doubleValue >= 0})
+           else {throw NSError(domain:"actual-performance-final",code:27,userInfo:["session":sessionIndex,"generation":liveGeneration])}
+           performanceFinalSessions.append(["session":sessionIndex,"generation":liveGeneration,"event":event])
+           // Retain the first session's evidence even if rebootstrap later fails.
+           report["performanceDiagnosticsFinalSessions"]=performanceFinalSessions
+         }
          DispatchQueue.main.sync {surface?.removeFromSuperview()}
          // Homebrew presents no frames, so a live snapshot (when the window is
          // already initialized) is well-formed zeros; it proves the gated path,
@@ -298,6 +348,13 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
        }
        guard guestSvcSessions.count == 2,
              Set(guestSvcSessions.compactMap { $0["svcSequence"] as? Int64 }).count == 2 else {throw NSError(domain:"homebrew-guest-svc-unconfirmed",code:11)}
+       if requirePerformanceDiagnostics {
+         let finalSequences=performanceFinalSessions.compactMap {($0["event"] as? [String:Any])?["sequence"] as? NSNumber}.map {$0.int64Value}
+         guard performanceFinalSessions.count == 2,finalSequences.count == 2,
+               finalSequences[1] > finalSequences[0],
+               Set(performanceFinalSessions.compactMap {$0["generation"] as? Int64}).count == 2
+         else {throw NSError(domain:"actual-performance-rebootstrap",code:28)}
+       }
        report["homebrewGuestSvcSessions"]=guestSvcSessions
        report["actualCoreDonatedBackingSessions"]=donatedSessions
        report["performanceSnapshotStaleAndEndedRefused"]=true
@@ -310,7 +367,7 @@ final class ProbeView:UIView {override class var layerClass:AnyClass { CAMetalLa
      try? JSONSerialization.data(withJSONObject:report,options:[.prettyPrinted,.sortedKeys]).write(to:documents.appendingPathComponent("smoke.json"),options:.atomic)
    };return true
  }
-}''')
+}'''.replace('__REQUIRE_PERFORMANCE_DIAGNOSTICS__','true' if args.require_performance_diagnostics else 'false'))
  sdk=run('xcrun','--sdk','iphonesimulator','--show-sdk-path')
  sources=[ROOT/'packages/melonx_internal_bridge/ios/Classes'/name for name in ['MeloNXSessionHost.swift','MeloNXRuntimeAPI.swift']]
  run('xcrun','swiftc','-swift-version','5','-target','arm64-apple-ios18.0-simulator','-sdk',sdk,'-framework','UIKit','-Xlinker','-rpath','-Xlinker','@executable_path/Frameworks',*sources,swift,'-o',app/'MeloNXSmoke')

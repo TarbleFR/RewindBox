@@ -15,6 +15,12 @@ public static partial class EmbeddedLaunchDiagnostics
 {
     private static readonly object Gate = new();
     private static readonly Queue<(long Id, string Stage, string Status, int Code, string Detail)> Events = new();
+    private static (long Id, long Generation, string Stage, string Status, int Code, string Detail, string Timestamp)? Performance;
+    private static (long Id, long Generation, string Stage, string Status, int Code, string Detail, string Timestamp)? PrecedingPerformance;
+    private static long PerformanceGeneration;
+    // Optional hook: old standalone journal fixtures and callers do not need
+    // to reference the performance collector or its engine dependencies.
+    public static Action PerformanceObserver;
     private static long Sequence;
     private static string JournalPath;
     private static string JournalFailure = "";
@@ -31,7 +37,8 @@ public static partial class EmbeddedLaunchDiagnostics
     public static void ConfigureJournal(string path)
     {
         if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path) ||
-            Path.GetFileName(path) != "app.log") throw new ArgumentException("Invalid application journal path.");
+            (Path.GetFileName(path) != "app.log" && Path.GetFileName(path) != "MeloNX-core.log"))
+            throw new ArgumentException("Invalid application journal path.");
         // Darwin's open mode is a variadic argument. Let the runtime create
         // the file with its platform ABI, then append via the two-argument call.
         using (var file = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite)) { }
@@ -64,7 +71,16 @@ public static partial class EmbeddedLaunchDiagnostics
                 json.WriteEndObject();
             }
             var file = new FileInfo(JournalPath);
-            if (!force && file.Exists && file.Length >= 5 * 1024 * 1024) return;
+            if (!force && file.Exists && file.Length >= 5 * 1024 * 1024)
+            {
+                // Only the dedicated Core journal is owned by this writer.
+                // Never rename the legacy app.log shared with Dart/Swift.
+                if (Path.GetFileName(JournalPath) != "MeloNX-core.log") return;
+                File.Move(JournalPath, JournalPath + ".1", overwrite: true);
+                // A fatal writer can recreate the path while bypassing Gate.
+                // OpenOrCreate preserves its report instead of truncating it.
+                using var next = new FileStream(JournalPath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite);
+            }
             byte[] prefix = Encoding.UTF8.GetBytes("[MeloNX:core] ");
             byte[] record = new byte[prefix.Length + memory.Length + 1];
             prefix.CopyTo(record, 0);
@@ -75,6 +91,13 @@ public static partial class EmbeddedLaunchDiagnostics
             // returns before control reaches the next native operation.
             bool darwin = OperatingSystem.IsIOS() || OperatingSystem.IsMacOS() || OperatingSystem.IsMacCatalyst();
             int descriptor = OpenJournal(JournalPath, 1 | (darwin ? 0x8 : 0x400));
+            if (descriptor < 0 && force && Marshal.GetLastPInvokeError() == 2)
+            {
+                // One bounded retry across a rotation's rename/create gap.
+                // Keep creation in the runtime: Darwin open mode is variadic.
+                using (var created = new FileStream(JournalPath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite)) { }
+                descriptor = OpenJournal(JournalPath, 1 | (darwin ? 0x8 : 0x400));
+            }
             if (descriptor < 0) { JournalFailure = "open errno=" + Marshal.GetLastPInvokeError(); return; }
             try
             {
@@ -131,12 +154,31 @@ public static partial class EmbeddedLaunchDiagnostics
         finally { if (locked) Monitor.Exit(Gate); }
     }
 
-    public static void Record(string stage, string status, int code = 0, string detail = "")
+    public static void BeginPerformance(long generation)
+    {
+        lock (Gate)
+        {
+            if (generation > PerformanceGeneration) PerformanceGeneration = generation;
+        }
+    }
+
+    public static void Record(string stage, string status, int code = 0, string detail = "", long performanceGeneration = 0)
     {
         lock (Gate)
         {
             if (status == "begin") Stage = stage;
             string safeDetail = Safe(detail);
+            if (stage == "performance")
+            {
+                // One current sample, with the preceding sample only when a
+                // final partial window replaces it before Swift has drained.
+                // Never let a delayed prior game replace the next generation.
+                if (performanceGeneration != PerformanceGeneration || performanceGeneration <= 0) return;
+                PrecedingPerformance = status == "final" && Performance is { } previous &&
+                    previous.Generation == performanceGeneration && previous.Status != "final" ? previous : null;
+                Performance = (++Sequence, performanceGeneration, stage, status, code, safeDetail, DateTime.UtcNow.ToString("O"));
+                return; // Swift owns the dedicated performance file, not this ring or Core journal.
+            }
             Events.Enqueue((++Sequence, stage, status, code, safeDetail));
             while (Events.Count > 64) Events.Dequeue();
             Persist(Sequence, stage, status, code, safeDetail);
@@ -167,6 +209,8 @@ public static partial class EmbeddedLaunchDiagnostics
     // metadata for anonymous objects or JsonSerializer's reflection fallback.
     public static byte[] Snapshot()
     {
+        try { Volatile.Read(ref PerformanceObserver)?.Invoke(); }
+        catch { } // A diagnostic observer cannot alter the queried engine result.
         lock (Gate)
         {
             using var memory = new MemoryStream();
@@ -184,7 +228,19 @@ public static partial class EmbeddedLaunchDiagnostics
                     json.WriteNumber("nativeStatus", item.Code); json.WriteString("diagnostic", item.Detail);
                     json.WriteEndObject();
                 }
-                json.WriteEndArray(); json.WriteEndObject();
+                json.WriteEndArray();
+                void WritePerformance(string name, (long Id, long Generation, string Stage, string Status, int Code, string Detail, string Timestamp) value)
+                {
+                    json.WriteStartObject(name); json.WriteNumber("sequence", value.Id);
+                    json.WriteNumber("generation", value.Generation);
+                    json.WriteNumber("pid", Environment.ProcessId); json.WriteString("timestamp", value.Timestamp);
+                    json.WriteString("stage", value.Stage); json.WriteString("status", value.Status);
+                    json.WriteNumber("nativeStatus", value.Code); json.WriteString("diagnostic", value.Detail);
+                    json.WriteEndObject();
+                }
+                if (PrecedingPerformance is { } preceding) WritePerformance("precedingPerformance", preceding);
+                if (Performance is { } performance) WritePerformance("performance", performance);
+                json.WriteEndObject();
             }
             return memory.ToArray();
         }

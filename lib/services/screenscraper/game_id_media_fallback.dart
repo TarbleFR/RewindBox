@@ -328,7 +328,7 @@ class ScreenscraperGameIdMediaFallback {
 
   static Future<void> _writeDebug(String fileName, String content) async {
     try {
-      final file = await DiagnosticsDirectory.file(fileName);
+      final file = await DiagnosticsDirectory.file(fileName, system: 'System', service: 'Scraper');
       await file
           .writeAsString('--- ${DateTime.now()} ---\n$content');
     } catch (e) {
@@ -338,7 +338,7 @@ class ScreenscraperGameIdMediaFallback {
 
   static Future<void> _appendDebug(String fileName, String content) async {
     try {
-      final file = await DiagnosticsDirectory.file(fileName);
+      final file = await DiagnosticsDirectory.file(fileName, system: 'System', service: 'Scraper');
       await file
           .writeAsString(content, mode: FileMode.append);
     } catch (e) {

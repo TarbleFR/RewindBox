@@ -651,6 +651,16 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
         return candidate.isEmpty ? "jit_launch_debug.txt" : candidate
     }
 
+    private static func launchDiagnosticComponents(_ name: String) -> [String] {
+        let lower = name.lowercased()
+        if lower.hasPrefix("rpcs3") { return ["PS3"] }
+        if lower.hasPrefix("armsx2") { return ["PS2"] }
+        if lower.hasPrefix("melonx") || lower.hasPrefix("ryujinx") { return ["Switch"] }
+        if lower.hasPrefix("dolphin") { return ["Dolphin"] }
+        if lower.hasPrefix("libretro") || lower.hasPrefix("retroarch") { return ["System", "Libretro"] }
+        return ["System", "JIT"]
+    }
+
     private static func writeLaunchDebug(
         fileName: String,
         replace: Bool,
@@ -661,15 +671,15 @@ public class ExternalFolderAccessPlugin: NSObject, FlutterPlugin, UIDocumentPick
             in: .userDomainMask
         ).first else { return }
 
-        let diagnostics = documents.appendingPathComponent(
-            "Diagnostics",
-            isDirectory: true
-        )
+        let safeName = safeDebugFileName(fileName)
+        let diagnostics = launchDiagnosticComponents(safeName).reduce(
+            documents.appendingPathComponent("Diagnostics",isDirectory:true)
+        ) { $0.appendingPathComponent($1,isDirectory:true) }
         try? FileManager.default.createDirectory(
             at: diagnostics,
             withIntermediateDirectories: true
         )
-        let fileURL = diagnostics.appendingPathComponent(fileName)
+        let fileURL = diagnostics.appendingPathComponent(safeName)
         let line = "--- \(ISO8601DateFormatter().string(from: Date())) ---\n\(message)\n"
         guard let data = line.data(using: .utf8) else { return }
 

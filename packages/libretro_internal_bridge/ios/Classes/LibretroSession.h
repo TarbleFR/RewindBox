@@ -50,7 +50,7 @@ NS_ASSUME_NONNULL_BEGIN
 /// citra_render_3d=off). Applied before retro_init and read-only in the
 /// menu.
 @property(nonatomic, copy) NSDictionary<NSString *, NSString *> *lockedOptions;
-/// Documents/Libretro/Logs: the session journal (LibretroSessionJournal);
+/// Diagnostics/<console>/Libretro: the session journal (LibretroSessionJournal);
 /// empty for none.
 @property(nonatomic, copy) NSString *logsDirectory;
 /// NeoStation core id ("ppsspp", "azahar"): names the core's resolution

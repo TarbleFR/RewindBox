@@ -280,7 +280,7 @@ class StorageDeletionManager {
       Rpcs3InternalService.runSaveExchange<void>(body);
 
   static Future<String> _defaultJournalDirectory() async =>
-      (await DiagnosticsDirectory.directory()).path;
+      (await DiagnosticsDirectory.directory(system: 'System', service: 'Storage')).path;
 
   static Future<void> _defaultClearLibraryCache(StorageCacheApi cache) =>
       switch (cache) {
@@ -597,6 +597,7 @@ class _Run {
   }
 
   bool _excludedNow(StorageCleanupCandidate candidate) =>
+      StorageCleanupPlanner.classifiedLogBusy(candidate, containers, _state) ||
       (_state.libretroBusy &&
           StorageCleanupPlanner.libretroRootIds.contains(candidate.rootId)) ||
       (_state.dolphinMarker &&

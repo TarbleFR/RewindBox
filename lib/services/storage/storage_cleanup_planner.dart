@@ -560,12 +560,7 @@ class StorageSessionGuard {
     final journal = await probe(
       'libretroJournal',
       _libretroJournalUnfinished ??
-          () async => journalUnfinished(
-            p.join(
-              (await _paths()).documents,
-              StorageLayout.libretroSessionLog,
-            ),
-          ),
+          () async => anyLibretroJournalUnfinished((await _paths()).documents),
     );
     var scanning = true;
     try {
@@ -590,6 +585,60 @@ class StorageSessionGuard {
     );
   }
 
+  /// Legacy bytes are retained. A complete canonical journal proves that the
+  /// new writer took ownership; only then can a readable interrupted legacy
+  /// file stop blocking cleanup forever. Any current incomplete/empty journal
+  /// or unreadable/linked parent still blocks, as do the native activity gates.
+  static Future<bool> anyLibretroJournalUnfinished(String documents) async {
+    try {
+      bool completeCanonical = false;
+      final root = p.join(documents, StorageLayout.diagnostics);
+      final rootType = await FileSystemEntity.type(root, followLinks: false);
+      if (rootType != FileSystemEntityType.notFound) {
+        if (rootType != FileSystemEntityType.directory) return true;
+        await for (final system in Directory(root).list(followLinks: false)) {
+          if (system is Link) return true;
+          if (system is! Directory) continue;
+          final directory = p.join(system.path, 'Libretro');
+          final type = await FileSystemEntity.type(directory, followLinks: false);
+          if (type == FileSystemEntityType.notFound) continue;
+          if (type != FileSystemEntityType.directory) return true;
+          final state = await _journalState(p.join(directory, 'session.log'));
+          if (state == 0) continue;
+          if (state != 1) return true;
+          completeCanonical = true;
+        }
+      }
+      for (final parent in [p.join(documents, 'Libretro'), p.join(documents, 'Libretro', 'Logs')]) {
+        final type = await FileSystemEntity.type(parent, followLinks: false);
+        if (type == FileSystemEntityType.notFound) return false;
+        if (type != FileSystemEntityType.directory) return true;
+      }
+      final legacy = await _journalState(p.join(documents, StorageLayout.libretroSessionLog));
+      if (legacy == 3) return true;
+      return legacy == 2 && !completeCanonical;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  // 0 absent, 1 completed, 2 unfinished, 3 unreadable/linked, 4 empty.
+  static Future<int> _journalState(String path) async {
+    RandomAccessFile? handle;
+    try {
+      final type = await FileSystemEntity.type(path, followLinks: false);
+      if (type == FileSystemEntityType.notFound) return 0;
+      if (type != FileSystemEntityType.file) return 3;
+      handle = await File(path).open();
+      final length = await handle.length();
+      if (length <= 0) return 4;
+      final start = length > journalTail ? length - journalTail : 0;
+      await handle.setPosition(start);
+      return journalTailHasEnd(await handle.read(length - start)) ? 1 : 2;
+    } catch (_) { return 3; }
+    finally { try { await handle?.close(); } catch (_) {} }
+  }
+
   /// The Dolphin marker exists at [path] (any kind of entry; a failure to
   /// check counts as present).
   static Future<bool> markerPresent(String path) async {
@@ -605,24 +654,8 @@ class StorageSessionGuard {
   /// in its last [journalTail] bytes. Absent or empty: false; unreadable:
   /// true.
   static Future<bool> journalUnfinished(String path) async {
-    RandomAccessFile? handle;
-    try {
-      final type = await FileSystemEntity.type(path, followLinks: false);
-      if (type == FileSystemEntityType.notFound) return false;
-      handle = await File(path).open();
-      final length = await handle.length();
-      if (length <= 0) return false;
-      final start = length > journalTail ? length - journalTail : 0;
-      await handle.setPosition(start);
-      final tail = await handle.read(length - start);
-      return !journalTailHasEnd(tail);
-    } catch (_) {
-      return true;
-    } finally {
-      try {
-        await handle?.close();
-      } catch (_) {}
-    }
+    final state = await _journalState(path);
+    return state == 2 || state == 3;
   }
 
   static final Uint8List _endMarker = Uint8List.fromList('\nEND '.codeUnits);
@@ -720,6 +753,17 @@ class _Unit {
 }
 
 class StorageCleanupPlanner {
+  static bool classifiedLogBusy(StorageCleanupCandidate candidate,
+      StorageContainers containers, StorageSessionState session) {
+    if (candidate.rootId != 'INV-06') return false;
+    final parts = p.split(p.relative(candidate.path, from: containers.documents));
+    if (session.libretroBusy && parts.length >= 2 &&
+        ((parts.length == 2 && candidate.kind == StorageEntryKind.directory) ||
+         (parts.length > 2 && parts[2] == 'Libretro'))) return true;
+    return session.dolphinMarker && parts.length >= 2 &&
+        const {'Dolphin', 'GameCube', 'Wii'}.contains(parts[1]);
+  }
+
   StorageCleanupPlanner({
     required StorageRootRegistry registry,
     required StorageSessionGuard guard,
@@ -1305,7 +1349,8 @@ class _PlanBuilder {
 
   void _offer(StorageCleanupCandidate candidate) {
     if (!_seen.add(storageCanonicalPath(candidate.path))) return;
-    if (_excluded(candidate.rootId, candidate.ruleId)) {
+    if (_excluded(candidate.rootId, candidate.ruleId) ||
+        StorageCleanupPlanner.classifiedLogBusy(candidate, containers, session)) {
       _refusals.add(
         StoragePlanRefusal(
           path: candidate.path,

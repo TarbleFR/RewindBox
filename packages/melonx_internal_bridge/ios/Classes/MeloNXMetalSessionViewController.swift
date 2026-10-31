@@ -96,6 +96,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
     private var router: MeloNXInputRouter?
     private var controls: UIHostingController<AnyView>?
     private var perf: MeloNXPerfJournal?
+    private let diagnosticContext = MeloNXStdioCapture.sessionContext
     var presentedFrameCount: UInt64 { surface.metalLayer.frameCount }
 
     init(host: MeloNXSessionHost, game: URL, locale: String,
@@ -181,6 +182,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
 
     private func installControls(generation: Int64) {
         self.generation = generation
+        MeloNXStdioCapture.bindGeneration(generation,context:diagnosticContext)
         guard let runtime else { return }
         startPerfJournal(runtime:runtime,generation:generation)
         // The Switch keyboard, inline text and amiibo names (standalone AlertHandlers).
@@ -196,7 +198,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
     private func startPerfJournal(runtime: MeloNXRuntimeAPI, generation: Int64) {
         guard perf == nil, let path = MeloNXStdioCapture.journalPath else { return }
         let layer = surface.metalLayer
-        let journal = MeloNXPerfJournal(path:path,
+        let journal = MeloNXPerfJournal(path:path,context:MeloNXStdioCapture.context(generation:generation),
             fps:{ runtime.performanceSnapshot(generation:generation) },
             presentation:{ layer.presentation() },
             audio:{ runtime.audioPacing() },

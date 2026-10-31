@@ -56,7 +56,7 @@ concurrency:
 jobs:
   host:
     name: Readers, identities, installer, labels, catalogue, contracts and Flutter
-    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'host') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'host')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -85,7 +85,7 @@ jobs:
           retention-days: 14
   native:
     name: Store and adapters on Foundation, iPhone SDK build of every changed source
-    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'native') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'native')) }}
     runs-on: macos-15
     timeout-minutes: 120
     steps:
@@ -107,7 +107,7 @@ jobs:
           retention-days: 14
   uikit:
     name: The HD textures page on UIKit with the bundled catalogue
-    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'uikit') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'uikit')) }}
     runs-on: macos-15
     timeout-minutes: 90
     steps:
@@ -254,7 +254,7 @@ jobs:
     name: Texture replacement in the pinned libretro cores (N64, PS1, NES) and in Mesen on the buildbot
     # On push: the binaries of the delivered package (Mesen included) against the catalogue's option,
     # folder and BIOS contracts. The buildbot read runs on dispatch only.
-    if: ${{ !contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'cores') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!contains(github.event.head_commit.message, '[frontend-motion]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'cores')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

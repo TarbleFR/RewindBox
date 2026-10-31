@@ -200,7 +200,8 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
   NSString* documents = NSSearchPathForDirectoriesInDomains(
       NSDocumentDirectory, NSUserDomainMask, YES).firstObject ?: @"";
   if (documents.length == 0) return @"";
-  NSString* diagnostics = [documents stringByAppendingPathComponent:@"Diagnostics"];
+  NSString* diagnostics = [[documents stringByAppendingPathComponent:@"Diagnostics"]
+      stringByAppendingPathComponent:@"PS3"];
   [NSFileManager.defaultManager createDirectoryAtPath:diagnostics
                            withIntermediateDirectories:YES
                                             attributes:nil

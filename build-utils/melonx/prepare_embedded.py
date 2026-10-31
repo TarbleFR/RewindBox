@@ -89,6 +89,10 @@ from adapt_startup_trace import apply as adapt_startup_trace
 from adapt_vector_register_masks import apply as adapt_vector_register_masks
 from adapt_guard_context import apply as adapt_guard_context
 from adapt_occlusion_completion import apply as adapt_occlusion_completion
+from adapt_pipeline_checkpoint_pacing import apply as adapt_pipeline_checkpoint_pacing
+from adapt_counter_report_compaction import apply as adapt_counter_report_compaction
+from adapt_single_virtual_dependency import apply as adapt_single_virtual_dependency
+from adapt_performance_diagnostics import apply as adapt_performance_diagnostics
 
 
 def replace_once(path, old, new):
@@ -198,6 +202,10 @@ def main():
     adapted += adapt_startup_trace(source)
     adapted += adapt_vector_register_masks(source)
     adapted += adapt_guard_context(source)
+    adapted += adapt_pipeline_checkpoint_pacing(source)
+    adapted += adapt_counter_report_compaction(source)
+    adapted += adapt_single_virtual_dependency(source)
+    adapted += adapt_performance_diagnostics(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -206,6 +214,7 @@ def main():
                    'EmbeddedNativeGamepadLease.cs': 'Ryujinx.Input.Native',
                    'EmbeddedNativeLibraries.cs': 'Ryujinx.Common',
                    'EmbeddedLaunchDiagnostics.cs': 'Ryujinx.Common',
+                   'EmbeddedPerformanceDiagnostics.cs': 'Ryujinx.Common',
                    'EmbeddedStartupTrace.cs': 'Ryujinx.Common',
                    'EmbeddedAudioPacing.cs': 'Ryujinx.Common',
                    'EmbeddedFirmwareStore.cs': 'Ryujinx.HLE',
@@ -281,7 +290,9 @@ def main():
                  'adapt_texture_readback_bounds.py', 'texture-readback-bounds-contract.json',
                  'adapt_literal_memory.py', 'adapt_startup_trace.py',
                  'adapt_vector_register_masks.py', 'adapt_guard_context.py',
-                 'adapt_occlusion_completion.py']:
+                 'adapt_occlusion_completion.py', 'adapt_pipeline_checkpoint_pacing.py',
+                 'adapt_counter_report_compaction.py', 'adapt_single_virtual_dependency.py',
+                 'adapt_performance_diagnostics.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

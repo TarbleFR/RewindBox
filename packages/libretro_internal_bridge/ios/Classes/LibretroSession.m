@@ -299,7 +299,11 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   }
   _launchAccepted = YES;
   _startCompletion = [completion copy];
-  _journal = [LibretroSessionJournal journalInDirectory:_configuration.logsDirectory ?: @""];
+  NSString *documents = [NSFileManager.defaultManager URLsForDirectory:NSDocumentDirectory
+      inDomains:NSUserDomainMask].firstObject.path;
+  NSString *crashDirectory = [documents stringByAppendingPathComponent:@"Diagnostics/System/Libretro"];
+  _journal = [LibretroSessionJournal journalInDirectory:_configuration.logsDirectory ?: @""
+                                      crashDirectory:crashDirectory ?: @""];
   [_journal note:[NSString stringWithFormat:@"launch: \"%@\" (%@) with %@, console %@, locale %@",
                                             _configuration.gameTitle ?: @"",
                                             _configuration.contentPath.lastPathComponent ?: @"",

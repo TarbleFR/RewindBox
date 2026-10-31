@@ -99,6 +99,7 @@ partial class Library
             {
                 if (options == null || GetNativeMetalLayer() == nint.Zero)
                     throw new InvalidOperationException("No prepared game or CAMetalLayer.");
+                EmbeddedPerformanceDiagnostics.Start(generation);
                 try { Load(options); EmbeddedLaunchDiagnostics.Record("close", "passed"); return 0; }
                 catch (Exception error)
                 {
@@ -108,6 +109,7 @@ partial class Library
                 }
                 finally
                 {
+                    EmbeddedPerformanceDiagnostics.Stop(generation);
                     lock (metalLayerLock) nativeMetalLayer = nint.Zero;
                 }
             });

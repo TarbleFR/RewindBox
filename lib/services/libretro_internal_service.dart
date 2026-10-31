@@ -19,6 +19,7 @@ import 'libretro_3ds_language.dart';
 import 'libretro_core_catalog.dart';
 import 'libretro_resolution.dart';
 import 'logger_service.dart';
+import 'diagnostics_directory.dart';
 import 'storage/storage_import_activity.dart';
 import 'storage/storage_picker_copies.dart';
 
@@ -148,7 +149,8 @@ abstract final class LibretroInternalService {
   /// Journal of the last sessions, written by the native session as it goes
   /// (`session.log`, `previous-session.log`, `unfinished-session.log`), for
   /// diagnosing a launch failure or a session the process did not survive.
-  static Future<Directory> logsDirectory() => _child('Logs');
+  static Future<Directory> logsDirectory({String? console}) =>
+      DiagnosticsDirectory.directory(system: console ?? 'System', service: 'Libretro');
 
   /// Per-console frontend settings, written only by the native
   /// LibretroFrontendStore (`Config/Frontend/<console>.json`).
@@ -299,7 +301,7 @@ abstract final class LibretroInternalService {
       'cacheDirectory': (await cacheDirectory()).path,
       'skinsDirectory': (await skinsDirectory()).path,
       'frontendDirectory': (await frontendDirectory()).path,
-      'logsDirectory': (await logsDirectory()).path,
+      'logsDirectory': (await logsDirectory(console: console.id)).path,
       'consoleGeometry': LibretroCoreCatalog.consoleGeometry(),
       'uiLocale': locale.toLanguageTag(),
       'retroLanguage': LibretroLocale.retroLanguage(locale),

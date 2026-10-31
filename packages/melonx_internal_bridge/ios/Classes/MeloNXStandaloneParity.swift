@@ -6,7 +6,7 @@ import Darwin
 // Standalone MeloNX writes the process's stdout and stderr to its own log file
 // (RyujinxController.redirectStdIOToFile). MoltenVK reports there, including
 // "Resumed VkDevice after MTLCommandBuffer ... failed", which RewindBox's
-// journal never saw. While a MeloNX session runs, stderr is teed into app.log
+// journal never saw. While a MeloNX session runs, stderr is teed into its classified log
 // as "[MeloNX:stderr]" lines and still reaches the original stderr. Lines are
 // written directly (no NSLog, no Flutter hop), bounded per session.
 // While fd 2 is a pipe, NSLog copies its messages there too, and .NET's
@@ -23,15 +23,73 @@ enum MeloNXStdioCapture {
     private static var journal: String?
     private static var savedStderr: Int32 = -1
 
+    // This lock must remain distinct from capture's lock. end() flushes stderr
+    // while holding capture's lock, and a full pipe must still be drained by
+    // pump -> appendLine. appendLine NEVER acquires the capture lock.
+    private static let routeLock = NSLock()
+    private static let appendLock = NSLock()
+    private static var diagnosticsDirectory: URL?
+    private static var pendingContext: [String:String] = [:]
+    private static var contexts: [Int64:[String:String]] = [:]
+
+    static func configureDiagnostics(directory: URL) throws {
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
+        routeLock.lock(); diagnosticsDirectory = directory; routeLock.unlock()
+    }
+    private static func diagnosticPath(_ name: String) -> String? {
+        routeLock.lock(); defer { routeLock.unlock() }
+        return diagnosticsDirectory?.appendingPathComponent(name).path
+    }
+    static var coreJournalPath: String? {
+        if let path = diagnosticPath("MeloNX-core.log") { return path }
+        lock.lock(); defer { lock.unlock() }; return journal
+    }
+    static func prepareSession(titleID: String?, info: [String:Any], identity: [String:Any]) {
+        let core = identity["sourceCoreIdentity"] as? [String:Any] ?? [:]
+        let context: [String:String] = ["session":UUID().uuidString,
+            "pid":String(ProcessInfo.processInfo.processIdentifier),
+            "titleId":titleID ?? "unavailable", "console":"Switch",
+            "build":info["CFBundleVersion"] as? String ?? "unavailable",
+            "version":info["CFBundleShortVersionString"] as? String ?? "unavailable",
+            "coreSource":core["host"] as? String ?? "unavailable",
+            "coreSHA256":core["sha256"] as? String ?? "unavailable"]
+        routeLock.lock(); pendingContext = context; routeLock.unlock()
+    }
+    static var sessionContext: [String:String] {
+        routeLock.lock(); defer { routeLock.unlock() }; return pendingContext
+    }
+    static func bindGeneration(_ generation: Int64, context: [String:String]) {
+        var owned = context; owned["generation"] = String(generation)
+        routeLock.lock(); defer { routeLock.unlock() }
+        contexts[generation] = owned
+        for old in contexts.keys.sorted().dropLast(8) { contexts.removeValue(forKey:old) }
+    }
+    static func context(generation: Int64) -> [String:String] {
+        routeLock.lock(); defer { routeLock.unlock() }
+        return contexts[generation] ?? ["generation":String(generation),
+            "pid":String(ProcessInfo.processInfo.processIdentifier), "context":"unavailable"]
+    }
+    static func contextualLine(_ text: String, context: [String:String]) -> String {
+        guard !context.isEmpty else { return text }
+        var fields = context
+        fields["timestamp"] = ISO8601DateFormatter().string(from:Date())
+        guard let data = try? JSONSerialization.data(withJSONObject:fields,options:[.sortedKeys]),
+              let value = String(data:data,encoding:.utf8) else { return text }
+        return text + " context=" + value
+    }
+
     static func configure(path: String) {
         guard path.hasPrefix("/"), URL(fileURLWithPath:path).lastPathComponent == "app.log" else { return }
         lock.lock(); journal = path; lock.unlock()
     }
-    static var journalPath: String? { lock.lock(); defer { lock.unlock() }; return journal }
+    static var journalPath: String? {
+        if let path = diagnosticPath("MeloNX-performance.log") { return path }
+        lock.lock(); defer { lock.unlock() }; return journal
+    }
 
     static func begin() {
         lock.lock(); defer { lock.unlock() }
-        guard savedStderr < 0, let journal else { return }
+        guard savedStderr < 0, let journal = diagnosticPath("MeloNX-stderr.log") ?? journal else { return }
         var fds: [Int32] = [-1, -1]
         guard pipe(&fds) == 0 else { return }
         let saved = dup(STDERR_FILENO)
@@ -43,7 +101,13 @@ enum MeloNXStdioCapture {
         close(fds[1])
         savedStderr = saved
         let source = fds[0]
-        let thread = Thread { MeloNXStdioCapture.pump(source, mirror: mirror, journal: journal) }
+        var context = sessionContext
+        if diagnosticPath("MeloNX-stderr.log") != nil {
+            context["capture"] = UUID().uuidString
+            context["pid"] = String(ProcessInfo.processInfo.processIdentifier)
+        } else { context = [:] }
+        let capturedContext = context
+        let thread = Thread { MeloNXStdioCapture.pump(source, mirror: mirror, journal: journal, context:capturedContext) }
         thread.name = "RewindBox.MeloNX.Stderr"
         // Above the writers' default, so little is left in the pipe if the
         // process ends abruptly.
@@ -61,11 +125,13 @@ enum MeloNXStdioCapture {
         savedStderr = -1
     }
 
-    private static func pump(_ source: Int32, mirror: Int32, journal: String) {
+    private static func pump(_ source: Int32, mirror: Int32, journal: String, context: [String:String]) {
         var pending = [UInt8](), buffer = [UInt8](repeating:0, count:4096)
         var lines = 0, nslogLines = 0, dropped = 0, repeated = 0
-        var seen = [String: Int]()
-        append("capture begin", to:journal)
+        var seen = [String:Int](), driverSeen = [String:Int]()
+        var driverRepeated = 0
+        func record(_ message: String) { append(message, to:journal, context:context) }
+        record("capture begin")
         // NSLog may echo MeloNXLaunchJournal's own events to stderr; app.log
         // already has those as [MeloNX:native] lines.
         let echo = Array("[MeloNX:launch]".utf8)
@@ -82,10 +148,20 @@ enum MeloNXStdioCapture {
                 guard nslogLines < nslogLineLimit else { dropped += 1; return }
                 nslogLines += 1
             } else {
+                let message = String(decoding:bytes.prefix(2048),as:UTF8.self)
+                if message.hasPrefix("[mvk-error]") || message.hasPrefix("[mvk-warn]") {
+                    if let previous = driverSeen[message] {
+                        let count = previous + 1
+                        driverSeen[message] = count; driverRepeated += 1
+                        if count & (count - 1) == 0 { record("driver repeated \(count) times: \(message)") }
+                        return
+                    }
+                    if driverSeen.count < repeatLimit { driverSeen[message] = 1 }
+                }
                 guard lines < lineLimit else { dropped += 1; return }
                 lines += 1
             }
-            append(String(decoding:bytes.prefix(2048), as:UTF8.self), to:journal)
+            record(String(decoding:bytes.prefix(2048), as:UTF8.self))
         }
         while true {
             let count = read(source, &buffer, buffer.count)
@@ -101,8 +177,9 @@ enum MeloNXStdioCapture {
         }
         if !pending.isEmpty { emit(pending[...]) }
         let most = seen.filter { $0.value > 0 }.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
-        for (message, count) in most.prefix(10) { append("repeated \(count) more times: \(message)", to:journal) }
-        append("capture end: \(lines) lines, \(nslogLines) NSLog lines, \(repeated) repeats, \(dropped) not copied", to:journal)
+        for (message, count) in most.prefix(10) { record("repeated \(count) more times: \(message)") }
+        if driverRepeated > 0 { record("driver repeated total \(driverRepeated)") }
+        record("capture end: \(lines) lines, \(nslogLines) NSLog lines, \(repeated) repeats, \(dropped) not copied")
         close(source); close(mirror)
     }
 
@@ -132,18 +209,31 @@ enum MeloNXStdioCapture {
         return nil
     }
 
-    private static func append(_ text: String, to path: String) {
+    private static func append(_ text: String, to path: String, context: [String:String] = [:]) {
         let safe = text
             .replacingOccurrences(of:"(?i)\\b[0-9a-f]{32,}\\b", with:"[redacted]", options:.regularExpression)
             .replacingOccurrences(of:"(?im)^\\s*[a-z0-9_]+\\s*=\\s*[^\\r\\n]+", with:"[redacted key entry]", options:.regularExpression)
-        appendLine("[MeloNX:stderr] " + safe, to:path)
+        appendLine(contextualLine("[MeloNX:stderr] " + safe,context:context), to:path)
     }
 
-    // Same discipline as MeloNXLaunchJournal: O_APPEND per line, shared with
-    // Dart's logger, skipped once app.log reaches `limit` (5 MiB by default).
+    // O_APPEND per complete line. Canonical logs rotate to one previous file;
+    // the compatibility app.log route retains its historical size cap.
     @discardableResult
     static func appendLine(_ text: String, to path: String, limit: Int64 = 5 * 1024 * 1024) -> Bool {
         let line = Array((text + "\n").utf8)
+        guard Int64(line.count) <= limit else { return false }
+        routeLock.lock()
+        let categorized = diagnosticsDirectory.map { directory in
+            URL(fileURLWithPath:path).deletingLastPathComponent().standardizedFileURL == directory.standardizedFileURL &&
+            ["MeloNX-stderr.log", "MeloNX-performance.log"].contains(URL(fileURLWithPath:path).lastPathComponent)
+        } ?? false
+        routeLock.unlock()
+        appendLock.lock(); defer { appendLock.unlock() }
+        if categorized,
+           let size = (try? FileManager.default.attributesOfItem(atPath:path)[.size]) as? NSNumber,
+           size.int64Value + Int64(line.count) > limit {
+            guard rename(path,path + ".previous") == 0 else { return false }
+        }
         let fd = open(path, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, S_IRUSR | S_IWUSR)
         guard fd >= 0 else { return false }
         defer { close(fd) }

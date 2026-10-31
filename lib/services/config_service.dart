@@ -8,6 +8,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:neostation/services/logger_service.dart';
 
+import 'diagnostics_directory.dart';
+
 import '../models/system_model.dart';
 import '../models/config_model.dart';
 import '../models/emulator_model.dart';
@@ -456,6 +458,7 @@ class ConfigService {
 
   /// Returns the path to the current session log file.
   static Future<String> getLogFilePath() async {
+    if (Platform.isIOS) return (await DiagnosticsDirectory.file('app.log')).path;
     final userDataPath = await getUserDataPath();
     return path.join(userDataPath, 'app.log');
   }

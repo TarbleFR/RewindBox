@@ -34,7 +34,7 @@ concurrency:
 jobs:
   host:
     name: Texts, geometry, pad merge, engine contracts and Flutter
-    if: ${{ !contains(github.event.head_commit.message, '[rpcs3-memory508]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'host') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!contains(github.event.head_commit.message, '[rpcs3-memory508]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'host')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -56,7 +56,7 @@ jobs:
 
   native:
     name: iPhone SDK build and the affected UIKit suites
-    if: ${{ !contains(github.event.head_commit.message, '[rpcs3-memory508]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'native') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!contains(github.event.head_commit.message, '[rpcs3-memory508]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'native')) }}
     runs-on: macos-15
     timeout-minutes: 120
     steps:
@@ -80,7 +80,7 @@ jobs:
 
   uikit:
     name: Editor, five layouts, orientations, multitouch, controller policy and persistence on UIKit
-    if: ${{ !contains(github.event.head_commit.message, '[rpcs3-memory508]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'uikit') }}
+    if: ${{ !(github.event_name == 'push' && contains(github.event.head_commit.message, '[hogwarts606-checks]')) && (!contains(github.event.head_commit.message, '[rpcs3-memory508]') && (github.event_name == 'push' || inputs.parts == 'all' || inputs.parts == 'uikit')) }}
     runs-on: macos-15
     timeout-minutes: 90
     steps:

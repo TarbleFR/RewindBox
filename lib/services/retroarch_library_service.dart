@@ -440,7 +440,7 @@ class RetroArchLibraryService {
   /// `<name>`") — there's no Xcode console access to check this otherwise.
   static Future<void> _writeDebugFile(String name, String content) async {
     try {
-      final file = await DiagnosticsDirectory.file(name);
+      final file = await DiagnosticsDirectory.file(name, system: 'System', service: 'RetroArch');
       await file.writeAsString('--- ${DateTime.now()} ---\n$content');
     } catch (e) {
       _log.e('RetroArchLibraryService: failed writing debug file $name: $e');

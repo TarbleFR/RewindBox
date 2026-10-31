@@ -2,6 +2,8 @@
 #include "LibretroCrashCapture.h"
 
 #include <fcntl.h>
+#include <errno.h>
+#include <stdio.h>
 #include <mach/mach_time.h>
 #include <os/lock.h>
 #include <unistd.h>
@@ -13,6 +15,8 @@ static _Atomic uintptr_t gNativeCaptureOwner;
 
 static NSString *const kCurrentName = @"session.log";
 static NSString *const kPreviousName = @"previous-session.log";
+static NSString *const kOverflowName = @"session-overflow.log";
+static const size_t kJournalFileLimit = 2 * 1024 * 1024;
 static NSString *const kUnfinishedName = @"unfinished-session.log";
 static NSString *const kFailedLaunchName = @"failed-launch.log";
 static NSString *const kFailedLaunchOutcome = @"launch failed";
@@ -41,15 +45,23 @@ static NSString *JournalTimestamp(void) {
 @implementation LibretroSessionJournal {
   os_unfair_lock _lock;
   int _descriptor;
+  size_t _written;
+  NSString *_overflowPath;
   uint64_t _start;
   mach_timebase_info_data_t _timebase;
 }
 
 + (instancetype)journalInDirectory:(NSString *)directory {
+  return [self journalInDirectory:directory crashDirectory:directory];
+}
+
++ (instancetype)journalInDirectory:(NSString *)directory
+                   crashDirectory:(NSString *)crashDirectory {
   if (directory.length == 0) return nil;
   NSFileManager *files = NSFileManager.defaultManager;
   [files createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:nil];
   NSString *current = [directory stringByAppendingPathComponent:kCurrentName];
+  NSString *overflow = [directory stringByAppendingPathComponent:kOverflowName];
   BOOL unfinished = NO;
   if ([files fileExistsAtPath:current]) {
     NSData *data = [NSData dataWithContentsOfFile:current options:NSDataReadingMappedIfSafe error:nil];
@@ -59,10 +71,16 @@ static NSString *JournalTimestamp(void) {
       NSString *kept = [directory stringByAppendingPathComponent:kUnfinishedName];
       [files removeItemAtPath:kept error:nil];
       [files copyItemAtPath:current toPath:kept error:nil];
+      NSString *keptOverflow = [directory stringByAppendingPathComponent:@"unfinished-session-overflow.log"];
+      [files removeItemAtPath:keptOverflow error:nil];
+      if ([files fileExistsAtPath:overflow]) [files copyItemAtPath:overflow toPath:keptOverflow error:nil];
     }
     NSString *previous = [directory stringByAppendingPathComponent:kPreviousName];
     [files removeItemAtPath:previous error:nil];
     [files moveItemAtPath:current toPath:previous error:nil];
+    NSString *previousOverflow = [directory stringByAppendingPathComponent:@"previous-session-overflow.log"];
+    [files removeItemAtPath:previousOverflow error:nil];
+    if ([files fileExistsAtPath:overflow]) [files moveItemAtPath:overflow toPath:previousOverflow error:nil];
   }
   int descriptor = open(current.fileSystemRepresentation, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
   if (descriptor < 0) return nil;
@@ -72,18 +90,21 @@ static NSString *JournalTimestamp(void) {
   mach_timebase_info(&journal->_timebase);
   journal->_previousSessionUnfinished = unfinished;
   journal->_path = [current copy];
+  journal->_overflowPath = [overflow copy];
   journal->_sessionIdentifier = NSUUID.UUID.UUIDString;
   [journal writeText:[NSString stringWithFormat:@"RewindBox libretro session journal 1, started %@\n",
                                                 JournalTimestamp()]];
   static int crashDescriptor = -1;
   static dispatch_once_t captureOnce;
   dispatch_once(&captureOnce, ^{
-    NSString *crash = [directory stringByAppendingPathComponent:@"native-termination.log"];
+    NSString *crashRoot = crashDirectory.length > 0 ? crashDirectory : directory;
+    [files createDirectoryAtPath:crashRoot withIntermediateDirectories:YES attributes:nil error:nil];
+    NSString *crash = [crashRoot stringByAppendingPathComponent:@"native-termination.log"];
     NSData *priorCrash = [NSData dataWithContentsOfFile:crash];
     NSData *fatal = [@"\nfatal signal=" dataUsingEncoding:NSUTF8StringEncoding];
     if (priorCrash.length > 0 && [priorCrash rangeOfData:fatal options:0
         range:NSMakeRange(0, priorCrash.length)].location != NSNotFound) {
-      NSString *kept = [directory stringByAppendingPathComponent:@"previous-native-termination.log"];
+      NSString *kept = [crashRoot stringByAppendingPathComponent:@"previous-native-termination.log"];
       [files removeItemAtPath:kept error:nil];
       [files moveItemAtPath:crash toPath:kept error:nil];
     }
@@ -121,18 +142,59 @@ static NSString *JournalTimestamp(void) {
   if (_descriptor >= 0) close(_descriptor);
 }
 
-/// Appends `text` as is; nothing once the journal is finished.
+/// Called under the writer lock. Keep the current descriptor alive if rotation
+/// cannot create its replacement; no change to the process crash descriptor.
+- (BOOL)rotateLocked {
+  if (rename(_path.fileSystemRepresentation, _overflowPath.fileSystemRepresentation) != 0) return NO;
+  int replacement = open(_path.fileSystemRepresentation, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
+  if (replacement < 0) {
+    rename(_overflowPath.fileSystemRepresentation, _path.fileSystemRepresentation);
+    return NO;
+  }
+  close(_descriptor);
+  _descriptor = replacement;
+  _written = 0;
+  NSData *header = [[NSString stringWithFormat:@"RewindBox libretro session journal continued session=%@ pid=%d %@\n",
+      _sessionIdentifier, getpid(), JournalTimestamp()] dataUsingEncoding:NSUTF8StringEncoding];
+  const uint8_t *bytes = header.bytes;
+  size_t remaining = header.length;
+  while (remaining > 0) {
+    ssize_t written = write(_descriptor, bytes, remaining);
+    if (written < 0 && errno == EINTR) continue;
+    if (written <= 0) return NO;
+    bytes += written; remaining -= (size_t)written; _written += (size_t)written;
+  }
+  return YES;
+}
+
+/// Raw records retain their original text. Large records stream through the
+/// same file bound, splitting only at UTF-8 character boundaries.
 - (void)writeText:(NSString *)text {
   NSData *data = [text dataUsingEncoding:NSUTF8StringEncoding allowLossyConversion:YES];
   os_unfair_lock_lock(&_lock);
   if (_descriptor >= 0) {
     const uint8_t *bytes = data.bytes;
     size_t remaining = data.length;
+    // Keep ordinary records whole; leave space for the next generation header.
+    if (_written > 0 && remaining <= kJournalFileLimit - 512 &&
+        remaining > kJournalFileLimit - _written && ![self rotateLocked]) {
+      os_unfair_lock_unlock(&_lock);
+      return;
+    }
     while (remaining > 0) {
-      ssize_t written = write(_descriptor, bytes, remaining);
+      if (_written == kJournalFileLimit && ![self rotateLocked]) break;
+      size_t count = MIN(remaining, kJournalFileLimit - _written);
+      if (count < remaining) {
+        while (count > 0 && (bytes[count] & 0xc0) == 0x80) count--;
+        if (count == 0) {
+          if (![self rotateLocked]) break;
+          continue;
+        }
+      }
+      ssize_t written = write(_descriptor, bytes, count);
+      if (written < 0 && errno == EINTR) continue;
       if (written <= 0) break;
-      bytes += written;
-      remaining -= (size_t)written;
+      bytes += written; remaining -= (size_t)written; _written += (size_t)written;
     }
   }
   os_unfair_lock_unlock(&_lock);
@@ -203,6 +265,10 @@ static NSString *JournalTimestamp(void) {
     NSString *kept = [_path.stringByDeletingLastPathComponent stringByAppendingPathComponent:kFailedLaunchName];
     [files removeItemAtPath:kept error:nil];
     [files copyItemAtPath:_path toPath:kept error:nil];
+    NSString *keptOverflow = [_path.stringByDeletingLastPathComponent
+        stringByAppendingPathComponent:@"failed-launch-overflow.log"];
+    [files removeItemAtPath:keptOverflow error:nil];
+    if ([files fileExistsAtPath:_overflowPath]) [files copyItemAtPath:_overflowPath toPath:keptOverflow error:nil];
   }
 }
 

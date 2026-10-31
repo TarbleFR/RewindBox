@@ -13,7 +13,12 @@
 static inline NSString* RPCS3EarlyLoaderPath() {
   NSString* documents = NSSearchPathForDirectoriesInDomains(
       NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
-  return [documents stringByAppendingPathComponent:@"RPCS3-core-load-stderr.log"];
+  if (documents.length == 0) return nil;
+  NSString* diagnostics = [[documents stringByAppendingPathComponent:@"Diagnostics"]
+      stringByAppendingPathComponent:@"PS3"];
+  [NSFileManager.defaultManager createDirectoryAtPath:diagnostics
+      withIntermediateDirectories:YES attributes:nil error:nil];
+  return [diagnostics stringByAppendingPathComponent:@"RPCS3-core-load-stderr.log"];
 }
 
 static inline void RPCS3RecoverEarlyLoaderLog() {

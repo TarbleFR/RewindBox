@@ -15,6 +15,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     private var fingerprintGeneration = 0 // fingerprintLock
     private var diagnosticsTimer: DispatchSourceTimer?
     private var nativeSequence: Int64 = 0 // diagnosticsQueue only
+    private var performanceSequence: Int64 = 0 // diagnosticsQueue only
     private var diagnosticsChannel: FlutterMethodChannel?
     // Registration may precede attachment of the Flutter view controller.
     // Resolve it from the registrar at launch, never freeze its initial nil value.
@@ -72,16 +73,28 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
     }
 
     private func drainDiagnostics(_ runtime: MeloNXRuntimeAPI) {
-            let report = runtime.diagnostics()
-            for event in report["events"] as? [[String:Any]] ?? [] {
-                let sequence = (event["sequence"] as? NSNumber)?.int64Value ?? 0
-                guard sequence > self.nativeSequence else { continue }
-                self.nativeSequence = sequence
-                MeloNXLaunchJournal.record(event["stage"] as? String ?? "native",
-                    event["status"] as? String ?? "unknown",
-                    code:(event["nativeStatus"] as? NSNumber)?.int64Value ?? 0,
-                    detail:event["diagnostic"] as? String ?? "")
+        let report = runtime.diagnostics()
+        for event in report["events"] as? [[String:Any]] ?? [] {
+            let sequence = (event["sequence"] as? NSNumber)?.int64Value ?? 0
+            guard sequence > nativeSequence else { continue }
+            nativeSequence = sequence
+            MeloNXLaunchJournal.relayCore(event)
+        }
+        // One sample normally, at most preceding+final on stop. Neither is in
+        // the Core's 64-event ring. Append exactly once on this utility queue.
+        for key in ["precedingPerformance", "performance"] {
+            guard var event = report[key] as? [String:Any],
+                  let sequence = (event["sequence"] as? NSNumber)?.int64Value,
+                  sequence > performanceSequence,
+                  let path = MeloNXStdioCapture.journalPath else { continue }
+            let generation = (event["generation"] as? NSNumber)?.int64Value ?? -1
+            event["context"] = MeloNXStdioCapture.context(generation:generation)
+            guard let data = try? JSONSerialization.data(withJSONObject:event,options:[.sortedKeys]),
+                  let text = String(data:data,encoding:.utf8) else { continue }
+            if MeloNXStdioCapture.appendLine("[MeloNX:core-performance] " + text,to:path,limit:8 * 1024 * 1024) {
+                performanceSequence = sequence
             }
+        }
     }
 
     // Accessed only on libraryQueue. Success includes actual dependency loading
@@ -152,7 +165,11 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
             MeloNXStdioCapture.configure(path:path)
             libraryQueue.async { [self] in
                 do {
-                    let response = try ensureRuntime().content(path:path,operation:9)
+                    let documents = FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
+                    let diagnostics = documents.appendingPathComponent("Diagnostics/Switch",isDirectory:true)
+                    try MeloNXLaunchJournal.configureDiagnostics(directory:diagnostics)
+                    try MeloNXStdioCapture.configureDiagnostics(directory:diagnostics)
+                    let response = try ensureRuntime().content(path:MeloNXStdioCapture.coreJournalPath ?? path,operation:9)
                     DispatchQueue.main.async { result(response) }
                 } catch { DispatchQueue.main.async { result(FlutterError(code:"journalUnavailable",message:String(describing:error),details:nil)) } }
             }
@@ -306,6 +323,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                     identity = parsed
                 }
                 MeloNXLaunchJournal.record("provenance","packaged",detail:MeloNXHogwartsGraphics.provenance(info:Bundle.main.infoDictionary ?? [:],identity:identity))
+                MeloNXStdioCapture.prepareSession(titleID:titleID,info:Bundle.main.infoDictionary ?? [:],identity:identity)
                 stage = "jit"
                 MeloNXLaunchJournal.record("jit", "begin")
                 if !reuseArena {
@@ -394,6 +412,7 @@ public final class MeloNXInternalBridgePlugin: NSObject, FlutterPlugin {
                                 self.starting = false; self.sessionView = nil
                                 if self.host?.isSessionActive != true { self.host = nil; self.restoreAudio() }
                                 if case .failure(let error) = outcome { self.lastFailure = error.description }
+                                self.diagnosticsQueue.async { [self] in drainDiagnostics(runtime) }
                                 self.diagnosticsTimer?.cancel(); self.diagnosticsTimer = nil
                                 // The completion runs after the native run returned. A host still
                                 // active now is retained, not presented: end the frontend route.

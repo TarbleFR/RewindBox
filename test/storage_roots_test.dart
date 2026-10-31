@@ -309,6 +309,25 @@ void main() {
     },
   );
 
+  test('canonical application writer is protected and archived console logs remain reviewable', () {
+    final value = registry();
+    final active = doc('Diagnostics/System/Application/app.log');
+    expect(value.rootIdFor(active), 'INV-06');
+    expect(value.ruleFor(active)!.id, 'INV-06.activeAppLog');
+    expect(value.isProtected(active), isTrue);
+    for (final relative in [
+      'System/Application/app.log.old',
+      'PS1/Libretro/previous-session.log',
+      'Switch/MeloNX-performance.log',
+      'PS3/RPCS3-performance.log',
+    ]) {
+      final path = doc('Diagnostics/$relative');
+      expect(value.rootIdFor(path), 'INV-06');
+      expect(value.ruleFor(path)!.id, 'INV-06.diagnostics');
+      expect(value.isProtected(path), isFalse);
+    }
+  });
+
   test('a redirected RPCS3 tree protects every RPCS3 root', () {
     final open = registry();
     final redirected = registry(redirected: true);

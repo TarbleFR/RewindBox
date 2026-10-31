@@ -3,7 +3,22 @@
 import Flutter
 import UIKit
 
-enum Probe { static var detachCalls=0; static var handshakes=0; static var starts=0 }
+enum Probe {
+    static var detachCalls=0; static var handshakes=0; static var starts=0
+    private static let lock=NSLock()
+    private static var report:[String:Any] = ["events":[]]
+    private static var journal=""
+    static func setReport(_ value:[String:Any]) { lock.lock(); report=value; lock.unlock() }
+    static func snapshot()->[String:Any] { lock.lock(); defer {lock.unlock()}; return report }
+    static func setJournal(_ path:String) { lock.lock(); journal=path; lock.unlock() }
+    static var journalPath:String { lock.lock(); defer {lock.unlock()}; return journal }
+    static func finalPerformance() {
+        lock.lock(); defer {lock.unlock()}
+        guard let previous=report["performance"] as? [String:Any],previous["status"] as? String == "sample" else {return}
+        var final=previous;final["sequence"]=102;final["status"]="final"
+        report["precedingPerformance"]=previous;report["performance"]=final
+    }
+}
 func MeloNXMemoryEntitlements() -> [String:Any] { ["allowed":true] }
 func MeloNXJitHasActiveCoreHandshake() -> Bool { true }
 func MeloNXJitConfirmCoreLoadHandoff() -> Bool { Probe.handshakes += 1; return true }
@@ -19,6 +34,8 @@ enum MeloNXStrings { static var locale="en" }
 enum MeloNXLaunchJournal {
     static var sink: (([String:Any])->Void)?
     static func configure(path:String) {}
+    static func configureDiagnostics(directory:URL) throws {}
+    static func relayCore(_ event:[String:Any]) {}
     static func record(_ stage:String,_ status:String,code:Int64=0,detail:String="") {}
 }
 enum MeloNXHostError: Error {
@@ -29,8 +46,11 @@ final class SessionAPI {}
 final class MeloNXRuntimeAPI {
     let session=SessionAPI()
     init(library:URL,frameworks:URL,root:URL,moltenVk:Int32=0) throws {}
-    func content(path:String="",operation:Int32) throws -> [String:Any] { ["success":true] }
-    func diagnostics() -> [String:Any] { ["events":[]] }
+    func content(path:String="",operation:Int32) throws -> [String:Any] {
+        if operation == 9 { Probe.setJournal(path) }
+        return operation == 8 ? ["success":true,"titleId":"0100AAAA00000000"] : ["success":true]
+    }
+    func diagnostics() -> [String:Any] { Probe.snapshot() }
     func contentProgress() -> Int32 { 0 }
     func cancelContent() {}
     func prepareGraphics(_ settings:[String:Any],universalJit:Bool) throws {}
@@ -57,10 +77,14 @@ final class MeloNXMetalSessionViewController:UIViewController {
         super.viewDidAppear(animated)
         guard beforeRun() else { return }
         Probe.starts += 1;host.isSessionActive=true
+        // The real controller binds in SessionHost.prepared before native run.
+        // This explicit session double exposes the same generation boundary.
+        MeloNXStdioCapture.bindGeneration(Int64(Probe.starts),context:MeloNXStdioCapture.sessionContext)
         // Explicit guest-frame double, not a graphics/gameplay claim.
         firstFrame()
     }
     func requestClose() {
+        Probe.finalPerformance()
         host.isSessionActive=false
         dismiss(animated:false) { self.finished(.success(())) }
     }

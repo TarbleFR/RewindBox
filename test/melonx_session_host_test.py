@@ -34,7 +34,13 @@ for source in [memory/'MLXRamDonor.m',memory/'Helper/MeloNXRamDonor.m']:
         '-target','arm64-apple-ios18.0','-isysroot',sdk,'-I',str(memory),str(source)],check=True)
 if '--sdk-only' in sys.argv:
     unchanged = 'packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift'
-    assert subprocess.check_output(['git','show','084fdb5d71609d3529c39cca9efa26093459827d:'+unchanged],cwd=root) == (root/unchanged).read_bytes()
+    baseline = subprocess.check_output(['git','show','084fdb5d71609d3529c39cca9efa26093459827d:'+unchanged],cwd=root)
+    current = (root/unchanged).read_bytes()
+    boundary = b'\nenum MeloNXHostError:'
+    # The independently exercised launch journal changed; every byte of the
+    # FFI/session lifecycle below it must still match the validated ABI run.
+    assert baseline.count(boundary) == current.count(boundary) == 1
+    assert baseline[baseline.index(boundary):] == current[current.index(boundary):]
     inputs=[*sources,*controller_sources,header,jit_header,jit_header.with_suffix('.mm'),Path(__file__)]
     out=root/'dist/melonx-host/checks.json';out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(dict(source=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),

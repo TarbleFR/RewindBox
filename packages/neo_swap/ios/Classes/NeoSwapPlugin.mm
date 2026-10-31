@@ -184,7 +184,8 @@ extern "C" void NeoSwapCompilerBudgetChanged() {
     NSArray<NSString*>* caches = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES);
     self.directory = [caches.firstObject stringByAppendingPathComponent:@"NeoSwap-v1"];
     NSArray<NSString*>* docs = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
-    NSString* diagnosticDir = [docs.firstObject stringByAppendingPathComponent:@"Diagnostics"];
+    NSString* diagnosticDir = [[[docs.firstObject stringByAppendingPathComponent:@"Diagnostics"]
+        stringByAppendingPathComponent:@"System"] stringByAppendingPathComponent:@"NeoSwap"];
     self.diagnosticPath = [diagnosticDir stringByAppendingPathComponent:kDiagnostic];
     self.operationPath = [diagnosticDir stringByAppendingPathComponent:@"NeoSwap-operations.jsonl"];
     // Runtime policy, not an optional user feature. Old Off/budget preferences
