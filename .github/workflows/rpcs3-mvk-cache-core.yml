@@ -1,7 +1,7 @@
 # Core-only candidate. Source changes use [skip ci]; a separate marker commit
 # touching only this workflow requests the reviewed native dependency build.
 # No application build, IPA, release or publication is performed by this route.
-# Core compile request: verified BO2 cache dependency, 31 October 2026.
+# Core compile request: retry with canonical Darwin RSP test paths, 31 October 2026.
 name: RPCS3 deferred MoltenVK cache Core
 run-name: "RPCS3 deferred MoltenVK cache Core • ${{ github.sha }}"
 'on':
