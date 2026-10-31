@@ -1,7 +1,8 @@
 import UIKit
 import Combine
 
-/// Independent of award state. Each owner gets an ordered, bounded display queue.
+/// Independent of award state. Each owner gets an ordered unlock display queue;
+/// each translation lookup and displayed toast has a bounded lifetime.
 @objc(RBAchievementToast)
 @MainActor
 public final class AchievementToastPresenter: NSObject {
@@ -62,7 +63,7 @@ public final class AchievementToastPresenter: NSObject {
             stack.spacing = 3
             stack.translatesAutoresizingMaskIntoConstraints = false
             panel.contentView.addSubview(stack)
-            func add(_ value: String, size: CGFloat, lines: Int) -> UILabel {
+            @MainActor func add(_ value: String, size: CGFloat, lines: Int) -> UILabel {
                 let label = UILabel()
                 label.text = value
                 label.textColor = .white
@@ -99,7 +100,7 @@ public final class AchievementToastPresenter: NSObject {
                 stack.topAnchor.constraint(equalTo: panel.contentView.topAnchor, constant: 8),
                 stack.bottomAnchor.constraint(equalTo: panel.contentView.bottomAnchor, constant: -8)
             ])
-            func attach(to target: UIView) {
+            @MainActor func attach(to target: UIView) {
                 guard attachedSurface !== target else { return }
                 NSLayoutConstraint.deactivate(surfaceConstraints)
                 panel.removeFromSuperview()

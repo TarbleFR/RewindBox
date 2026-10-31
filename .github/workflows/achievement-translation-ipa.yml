@@ -16,7 +16,7 @@ permissions:
   actions: read
 concurrency:
   group: rewindbox-achievement-ipa-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   application:
     name: Compile complete app with translated achievement presentation

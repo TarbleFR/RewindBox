@@ -34,6 +34,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BRIDGE = ROOT / 'packages/libretro_internal_bridge/ios'
 # Pods the bridge depends on: name -> folder of its podspec.
 DEPENDENCY_PODS = {
+    'achievement_translation': ROOT / 'packages/achievement_translation/ios',
     'external_display': ROOT / 'packages/external_display/ios',
     'neo_shader_kit': ROOT / 'packages/neo_shader_kit/ios',
     'neo_cheat_catalog': ROOT / 'packages/neo_cheat_catalog/ios',
@@ -89,6 +90,17 @@ def stage_external_display(directory):
     print(f'Staged {len(headers)} public external_display header(s) as <external_display/...>: '
           + ', '.join(header.name for header in headers), flush=True)
     return include
+
+
+def achievement_boundary_units(sources):
+    """Codec/gameplay fixtures do not exercise achievements. Fail explicitly if
+    they unexpectedly cross that boundary; the real Swift plugin is built and
+    tested by achievement-translation.yml and the full application recipe.
+    Historical source checkouts without this dependency need no such unit.
+    """
+    files = list((sources / 'Classes').glob('*.[mM]'))
+    return [ROOT / 'test/achievement_translation_test_boundary.m'] if any(
+        '<achievement_translation/' in path.read_text() for path in files) else []
 
 
 def stage_dependency_headers(directory):

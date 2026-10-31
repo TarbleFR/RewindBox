@@ -32,9 +32,15 @@ private final class TranslationRuntime {
     }
 
     func attachHost() {
-        guard window == nil else { return }
         guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene })
             .first(where: { $0.session.role == .windowApplication && $0.activationState == .foregroundActive }) else { return }
+        if window?.windowScene === scene { return }
+        // A recreated application scene must not keep using a detached host.
+        // Remove the old host before creating the replacement: there is one
+        // mounted translation window even across scene restoration.
+        window?.isHidden = true
+        window?.rootViewController = nil
+        window = nil
         let host = UIHostingController(rootView: AchievementTranslationHost(bridge: bridge))
         host.view.backgroundColor = .clear
         let window = TranslationHostWindow(windowScene: scene)

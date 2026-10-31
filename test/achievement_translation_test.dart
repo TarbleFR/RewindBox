@@ -133,4 +133,31 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(writes, 0);
   });
+
+  test('native revision changes an already translated secondary display without a language write', () async {
+    var writes = 0;
+    nativeLanguage = 'fr';
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'setLanguage') { writes++; return null; }
+      return [{'id': source.id, 'sourceTitle': source.title, 'sourceDescription': source.description,
+        'title': '[$nativeLanguage] ${source.title}', 'description': source.description,
+        'provenance': 'machine'}];
+    });
+    final client = AchievementTranslationClient(channel: channel, enabled: true);
+    addTearDown(client.dispose);
+    client.followAppLanguage('fr');
+    client.text(source);
+    await Future<void>.delayed(Duration.zero);
+    expect(client.text(source).title, '[fr] ${source.title}');
+    nativeLanguage = 'ja';
+    final reply = Completer<void>();
+    await messenger.handlePlatformMessage(channel.name,
+      const StandardMethodCodec().encodeMethodCall(const MethodCall('revision',
+        {'revision': 8, 'appLanguage': 'ja', 'language': 'ja-JP'})), (_) => reply.complete());
+    await reply.future;
+    await Future<void>.delayed(Duration.zero);
+    expect(client.language, 'ja');
+    expect(client.text(source).title, '[ja] ${source.title}');
+    expect(writes, 0);
+  });
 }
