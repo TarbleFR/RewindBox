@@ -85,7 +85,7 @@ EXTERNAL_DISPLAY = ROOT / 'packages/external_display/ios/Classes'
 EXTERNAL_DISPLAY_SOURCES = ('NeoExternalDisplayCoordinator.m', 'NeoExternalDisplayPreferences.m',
                             'NeoExternalDisplaySceneDelegate.m')
 sys.path.insert(0, str(ROOT / 'test'))
-from libretro_ios_syntax_test import stage_dependency_headers  # noqa: E402
+from libretro_ios_syntax_test import achievement_boundary_units, stage_dependency_headers  # noqa: E402
 # Build 450: the bridge imports <neo_shader_kit/Name.h> (slang shaders). The
 # kit without its Flutter plugin class is compiled for the simulator and
 # linked with the bridge, as the delivery links the pod.
@@ -1040,6 +1040,7 @@ def compile_probe(sources, sdk, work, app):
     if imports_shader_kit(sources):
         base += ['-DNEOSTATION_SHADER_SESSION_PROBE=1']
     units = [path for path in sorted((sources / 'Classes').glob('*.m')) if path.name != 'LibretroInternalBridgePlugin.m']
+    units += achievement_boundary_units(sources)
     units += cheat_catalog_units(sources)
     units += [EXTERNAL_DISPLAY / name for name in EXTERNAL_DISPLAY_SOURCES]
     units += sorted((sources / 'ThirdParty/rcheevos/src').rglob('*.c'))
