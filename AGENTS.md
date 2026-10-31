@@ -37,6 +37,11 @@ Old donor builds provide only their explicitly retained native resources;
 they are never the application baseline. The public release and private IPA
 are separate records; do not promote a private build through a README edit.
 
+**Reserved, not delivered:** private Build **606**, Hogwarts performance and
+console-organized diagnostics, is being prepared from delivered605. Its work
+is tracked in [the device analysis](docs/hogwarts604-performance-2026-10-30.md).
+Do not reuse this number or call the pending changes a shipped FPS improvement.
+
 **Still unproven on iPhone:** Hogwarts crash recovery, removal of the intermittent
 minute-long GPU wait, Unreal CVar consumption, black-texture recovery and FPS
 gains. The MeloNX presentation animation was removed; its old measured cost
