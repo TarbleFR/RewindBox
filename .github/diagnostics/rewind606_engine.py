@@ -30,6 +30,7 @@ CORE_STEPS = {
 }
 RECOVERY_STEPS = {'Authenticate original Core artifact', 'Validate final performance metrics regression',
                   'Authenticate and finalize unchanged Core evidence'}
+LOCAL_PACKAGING_RECEIPTS = {'packaging-identity.json', 'standalone-moltenvk-identity.json'}
 EXPORTS = parsing.EXPORTS
 PACKAGED_ID = parsing.PACKAGED_ID
 check_image = parsing.check_image
@@ -254,13 +255,41 @@ def validate_recovered_members(pin, read_member, names, proof, config, frozen, h
     return result
 
 
+def validate_extracted_members(directory, read_member, names):
+    """Bind extraction to the authenticated ZIP, separating local packaging output."""
+    require(directory.is_dir() and not directory.is_symlink(), 'Unsafe extracted Core directory')
+    expected = set(names)
+    require(not expected & LOCAL_PACKAGING_RECEIPTS, 'Local packaging receipt relabelled as producer evidence')
+    parents = {parent.as_posix() for name in expected for parent in PurePosixPath(name).parents
+               if parent.as_posix() != '.'}
+    files = {}
+    for path in directory.rglob('*'):
+        relative = path.relative_to(directory).as_posix()
+        require(not path.is_symlink(), 'Symlink in extracted Core evidence: ' + relative)
+        if path.is_dir():
+            require(relative in parents, 'Unknown directory in extracted Core evidence: ' + relative)
+        else:
+            require(path.is_file(), 'Special file in extracted Core evidence: ' + relative)
+            files[relative] = path
+    require(expected <= set(files) and set(files) <= expected | LOCAL_PACKAGING_RECEIPTS,
+            'Extracted Core member missing or unknown staging output')
+    for name in expected:
+        require(files[name].read_bytes() == read_member(name), 'Extracted producer member changed: ' + name)
+    # These two receipts are generated and validated by the existing packaging
+    # helpers. They are never added to the producer ZIP or its proof inventory.
+    return {name: sha(files[name].read_bytes()) for name in sorted(set(files) - expected)}
+
+
 def recovered_engine_evidence(pin):
     origin = producer('core')
     helper, config, frozen = recovery_configuration(pin)
     original = artifact_archive(config['originalProducer'], 'core-original')
     proof = helper.verify_archive(original, config, frozen)
-    names = {path.relative_to(NEW).as_posix() for path in NEW.rglob('*') if path.is_file()}
-    result = validate_recovered_members(pin, lambda name: (NEW / name).read_bytes(), names, proof, config, frozen, helper)
+    validated = artifact_archive(pin['validation'], 'core')
+    with zipfile.ZipFile(validated) as archive:
+        names = safe_members(archive)
+        result = validate_recovered_members(pin, archive.read, names, proof, config, frozen, helper)
+        local_receipts = validate_extracted_members(NEW, archive.read, names)
     for runtime in RUNTIMES:
         require(engine_identity(runtime)['adaptations'] == frozen['preparationInputs'], 'Original prepared Core inputs changed')
     fingerprint = normalized_payload_fingerprint((NEW / 'ios-arm64/Ryujinx.Library.dylib').read_bytes())
@@ -270,6 +299,7 @@ def recovered_engine_evidence(pin):
         originalRunConclusion='failure', originalFailedStep=config['originalFailedStep'],
         originalProducer=config['originalProducer'], separateValidation=result['validation'],
         validationResultSHA256=pin['validation']['resultSha256'], originalMembersSHA256=result['originalMembersSha256'],
+        authenticatedProducerArchiveMembers=len(names), locallyGeneratedPackagingReceiptSHA256=local_receipts,
         originalContractSHA256=config['contractSha256'], currentContractSHA256=config['currentContractSha256'],
         verifierChanges=config['verifierChanges'], freshAppleGatesInProducer=4,
         reusedScopedAppleGatesInProducer=frozen['reusedAppleGates'], historicalAppleReceiptsInProducer=40,

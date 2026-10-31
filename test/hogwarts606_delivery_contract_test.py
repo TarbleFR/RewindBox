@@ -343,6 +343,10 @@ class RecoveredProducerBinding(unittest.TestCase):
         self.proof['members']['core-validation/result.json'] = tree.sha(self.files['core-validation/result.json'])
         with self.assertRaises(ValueError): self.validate()
 
+    def test_packaging_receipt_inside_producer_archive_is_still_rejected(self):
+        self.files['packaging-identity.json'] = b'{}'
+        with self.assertRaises(ValueError): self.validate()
+
     def test_original_failure_cannot_be_relabelled_after_rehashing_result(self):
         self.result['originalRunConclusion'] = 'success'
         with self.assertRaises(ValueError): self.validate()
@@ -369,6 +373,54 @@ class RecoveredProducerBinding(unittest.TestCase):
         self.assertEqual(engine.validate_origin(pin, run, job, artifact, 'core-validation')['run'], 20)
         run['conclusion'] = 'failure'
         with self.assertRaises(ValueError): engine.validate_origin(pin, run, job, artifact, 'core-validation')
+
+
+class ExtractedCoreStaging(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name) / 'core'
+        self.root.mkdir()
+        self.members = {'ios-arm64/identity.json': b'original identity',
+                        'finalization-validation/result.json': b'original validation'}
+        for name, raw in self.members.items():
+            path = self.root / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(raw)
+
+    def validate(self):
+        return engine.validate_extracted_members(self.root, self.members.__getitem__, set(self.members))
+
+    def test_exact_extraction_and_two_local_packaging_receipts_are_accepted(self):
+        self.assertEqual(self.validate(), {})
+        for name in engine.LOCAL_PACKAGING_RECEIPTS:
+            (self.root / name).write_bytes(b'{"fixture":"local packaging output"}')
+        expected = {name: tree.sha((self.root / name).read_bytes()) for name in engine.LOCAL_PACKAGING_RECEIPTS}
+        self.assertEqual(self.validate(), expected)
+
+    def test_unknown_file_is_rejected(self):
+        (self.root / 'unknown.json').write_bytes(b'{}')
+        with self.assertRaises(ValueError): self.validate()
+
+    def test_changed_original_is_rejected(self):
+        (self.root / 'ios-arm64/identity.json').write_bytes(b'changed identity')
+        with self.assertRaises(ValueError): self.validate()
+
+    def test_missing_original_is_rejected(self):
+        (self.root / 'ios-arm64/identity.json').unlink()
+        with self.assertRaises(ValueError): self.validate()
+
+    def test_symlink_including_allowed_packaging_name_is_rejected(self):
+        (self.root / 'packaging-identity.json').symlink_to(self.root / 'ios-arm64/identity.json')
+        with self.assertRaises(ValueError): self.validate()
+
+    def test_symlink_directory_is_rejected(self):
+        (self.root / 'linked').symlink_to(self.root / 'ios-arm64', target_is_directory=True)
+        with self.assertRaises(ValueError): self.validate()
+
+    def test_unknown_empty_directory_is_rejected(self):
+        (self.root / 'unknown').mkdir()
+        with self.assertRaises(ValueError): self.validate()
 
 
 class RecoveredHostBinding(unittest.TestCase):

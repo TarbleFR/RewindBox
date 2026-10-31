@@ -312,6 +312,8 @@ jobs:
       run: python3 .github/diagnostics/rewind606_delivery.py component-runs
     - name: Download exact fresh MeloNX producer without recompilation
       run: python3 .github/diagnostics/rewind606_delivery.py download-components
+    - name: Verify fresh MeloNX inputs, final-source gates and actual runtime sessions
+      run: python3 .github/diagnostics/rewind606_delivery.py engine-evidence
     - name: Download the source-built private MeloNX dependencies
       uses: actions/download-artifact@v4
       with:
@@ -348,8 +350,6 @@ jobs:
         python3 build-utils/melonx/vendor_controller.py .native-sources/Melo-Controller .native-sources/MeloNX
     - name: Package the standalone MeloNX app's own MoltenVK (maintainer exception, pinned upstream bytes)
       run: python3 build-utils/melonx/package_standalone_moltenvk.py --source .native-sources/MeloNX
-    - name: Verify fresh MeloNX inputs, final-source gates and actual runtime sessions
-      run: python3 .github/diagnostics/rewind606_delivery.py engine-evidence
     - name: Prepare emulator build definitions
       shell: bash
       run: |
