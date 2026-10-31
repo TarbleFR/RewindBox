@@ -1,0 +1,1112 @@
+{
+  "result": "passed",
+  "mode": "downloaded606-offline-validation",
+  "ipaSHA256": "4610e26bdbfc84cac091cddac38941aeaf5a0219d625e70d998155bbe21aa5f1",
+  "ipaBytes": 189838983,
+  "baseline": {
+    "build": 605,
+    "ipaSHA256": "d51a4b138f54f5bbf88ab00a09856e3915a30ab71d9849b8aeaa9a7d8fb35337",
+    "ipaBytes": 189643236,
+    "source": "5de451091208c13926ccdb373a0a34f35ec2ee2d"
+  },
+  "origin": {
+    "source": "a95654f4cb9a9fc04657c33773cc14d1d05b46af",
+    "run": 41242511117,
+    "job": 124659230427,
+    "attempt": 1,
+    "macOSSignatureChecksReportedPassed": true,
+    "cryptographicSignatureVerificationPerformedHere": false
+  },
+  "entries": 5363,
+  "bundleCount": 8,
+  "machoCount": 89,
+  "images": {
+    "PlugIns/DolphinJITHelper.appex/DolphinJITHelper": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 2,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "PlugIns/NeoSwapPageRelay.appex/NeoSwapPageRelay": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 2,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "PlugIns/NeoSwapDonor.appex/NeoSwapDonor": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 2,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "PlugIns/MeloNXJITHelper.appex/MeloNXJITHelper": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 2,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "PlugIns/ARMSX2JITHelper.appex/ARMSX2JITHelper": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 2,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "PlugIns/RPCS3JITHelper.appex/RPCS3JITHelper": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 2,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "PlugIns/MeloNXRamDonor.appex/MeloNXRamDonor": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 2,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Runner": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 2,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/wakelock_plus.framework/wakelock_plus": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/objective_c.framework/objective_c": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "13.0.0",
+      "codeSignature": true,
+      "container": "single-arm64-fat32"
+    },
+    "Frameworks/picodrive_libretro.framework/picodrive_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/neo_texture_catalog.framework/neo_texture_catalog": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/freechaf_libretro.framework/freechaf_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "7.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/pokemini_libretro.framework/pokemini_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/achievement_translation.framework/achievement_translation": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/sqlite3.framework/sqlite3": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "12.0.0",
+      "codeSignature": true,
+      "container": "single-arm64-fat32"
+    },
+    "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/neo_shader_kit.framework/neo_shader_kit": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "15.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/GTMSessionFetcher.framework/GTMSessionFetcher": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "15.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/sameduck_libretro.framework/sameduck_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/pdfium_flutter.framework/pdfium_flutter": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/mesen_libretro.framework/mesen_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "9.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "13.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/video_player_avfoundation.framework/video_player_avfoundation": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/MoltenVK.framework/MoltenVK": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "13.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/snes9x_libretro.framework/snes9x_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/MeloNXCore.framework/MeloNXCore": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "12.2.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/prosystem_libretro.framework/prosystem_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/ardens_libretro.framework/ardens_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/potator_libretro.framework/potator_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/Flutter.framework/Flutter": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "15.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/freeintv_libretro.framework/freeintv_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/nestopia_libretro.framework/nestopia_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/mgba_libretro.framework/mgba_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/DolphinCore.framework/DolphinCore": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/stella_libretro.framework/stella_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/App.framework/App": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "15.0.0",
+      "codeSignature": true,
+      "container": "single-arm64-fat32"
+    },
+    "Frameworks/MeloNXSDL3.framework/MeloNXSDL3": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/fbneo_libretro.framework/fbneo_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "14.2.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/url_launcher_ios.framework/url_launcher_ios": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/battery_plus.framework/battery_plus": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/device_info_plus.framework/device_info_plus": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/PDFium.framework/PDFium": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "13.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/flutter_localization.framework/flutter_localization": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/gambatte_libretro.framework/gambatte_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/o2em_libretro.framework/o2em_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/StikJIT.framework/StikJIT": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/wasm4_libretro.framework/wasm4_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/share_plus.framework/share_plus": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "13.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/ppsspp_libretro.framework/ppsspp_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/libRPCS3Core.dylib": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "16.3.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/stikjit_bridge.framework/stikjit_bridge": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/package_info_plus.framework/package_info_plus": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/flutter_7zip.framework/flutter_7zip": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/external_folder_access.framework/external_folder_access": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/external_display.framework/external_display": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/gamepads_darwin.framework/gamepads_darwin": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/a5200_libretro.framework/a5200_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/azahar_libretro.framework/azahar_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "14.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/file_picker.framework/file_picker": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/neo_swap.framework/neo_swap": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/gw_libretro.framework/gw_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/ARMSX2Core.framework/ARMSX2Core": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "18.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/desmume_libretro.framework/desmume_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/handy_libretro.framework/handy_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/neo_touch_layout.framework/neo_touch_layout": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "17.4.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    },
+    "Frameworks/uzem_libretro.framework/uzem_libretro": {
+      "architecture": "arm64",
+      "platform": 2,
+      "fileType": 6,
+      "minimumOS": "8.0.0",
+      "codeSignature": true,
+      "container": "thin-arm64"
+    }
+  },
+  "retainedPayloadFingerprints": {
+    "Frameworks/ARMSX2Core.framework/ARMSX2Core": "dd59e7ddd1a9a86f02dfc6bc579d0b0187ed3dd6bc4430e6950792911371e9fb",
+    "Frameworks/DolphinCore.framework/DolphinCore": "18635a03b07fc07be508024f1761f87f119b6901872a16148498dd43b9914290",
+    "Frameworks/Flutter.framework/Flutter": "e2e4e0b9b6a52e5076e5596d65ff99df3ac654938d4dbcb47f69bbdc0dbf7194",
+    "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec": "cad556ba3651eece2068166f1fb61671d33d56ff68444475865a0055d316c01d",
+    "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil": "15acad8827f4dc80c453647c5196c91e393c8eb52e3f6367d1838454f7dee1c9",
+    "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport": "b85104bbc6e7464cd949b1cbf51989b6c3d6af16bddc10c33728cacca043700e",
+    "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK": "ea81c0e4728457b9e2fa6faf6360232467bda505f5f2c3927376fe7535083aac",
+    "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone": "03a50b7516b57540f05d9a0239959537c8676f097e76218732057584a2ca1f3c",
+    "Frameworks/MeloNXSDL3.framework/MeloNXSDL3": "cfd1e95b4fe64309b8f16efd2b2d3134cef3390cd6d5172bb13c4b8520aba942",
+    "Frameworks/MoltenVK.framework/MoltenVK": "7cbd35be66c78e741768528c7b0fbf3cf20f5b468dc5361893033d4924741520",
+    "Frameworks/StikJIT.framework/StikJIT": "57e75fbd4ee836e209772cb3a0f732626b1e7becdf7654d4f0f05111926542f6",
+    "Frameworks/a5200_libretro.framework/a5200_libretro": "cfa6fedeb2b2ae954565491f0e103c67d62c0168edf3480fc08a301a9ca1a19b",
+    "Frameworks/ardens_libretro.framework/ardens_libretro": "5b1b62c69036580263c57d482cb8be16faa793a42614b556b5a32c7ff08ababc",
+    "Frameworks/azahar_libretro.framework/azahar_libretro": "65545169819d1c1270bf3d54a9f4dbabfb445affb54ccab8b27fbc615c7845fc",
+    "Frameworks/desmume_libretro.framework/desmume_libretro": "bd20ed434cc857b52dfdc9c3a5cdbd001bf15b4854c5ccdc162a653bbef5d12c",
+    "Frameworks/fbneo_libretro.framework/fbneo_libretro": "18102405bbe565cbba25fc822871ba87bee1db7dda5cf1da02302f6904ce5aec",
+    "Frameworks/freechaf_libretro.framework/freechaf_libretro": "fd60db6eac893840535a18cf3e025730a5682814120f4aacf339f437c37aab1c",
+    "Frameworks/freeintv_libretro.framework/freeintv_libretro": "dcccda5d6ca628c30dea61694cbe3115f4d35e04eef1615875b69ed02d15b9c1",
+    "Frameworks/gambatte_libretro.framework/gambatte_libretro": "3e803dca4a105e7d8469c3cd1ec79c41c5fe5d87137ebe3a91afbafc25957e30",
+    "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro": "9f5496ac38b3b464ac3dfe0b2d90c0ac5a1a365fe6c160e07d5f67be0b8a276e",
+    "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro": "e732f8a67cce93ad7bf2a3ad0c27bd8c6444882cb6ab67855b2354f1e838c7c1",
+    "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro": "145e71994f9cf2d7b72bd8e30ba49a348099aebb805450e7736619dee916b904",
+    "Frameworks/gw_libretro.framework/gw_libretro": "1561851ab719f3c1063bce1059d93982bd6fd0ad7ed8fa99144961ccd8fbd7c0",
+    "Frameworks/handy_libretro.framework/handy_libretro": "7a46ec1712e3e0f95db8a2c04c6626cc0882c374d904c4e1673d9e7781fcad31",
+    "Frameworks/libRPCS3Core.dylib": "b68bdd203ee61cb769b07d0802a66898c034a641a25cba6e1b4373a79885ca42",
+    "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro": "7a22292d47f0d92c7fcc75c9b4b72b71172edd0f11132d5edc20afc11ae36c3f",
+    "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro": "e9f0abcb0f5b71111a6631e4e29f3ee0387325af3804e20a2a7a2717ec51a354",
+    "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro": "ad5aa730fb7862d5185da7b4c66fea236bbbdeb981d83f1be856800e5d675887",
+    "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro": "20febed54a2e7e53db2652fadcdf4fd7294c057f313225f9c89b01a7f1d8f5fb",
+    "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro": "21e108a787d92761ea6b49dbed20ae098b0e5dd94692e21377e19d866d3853b3",
+    "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro": "8eb3437fa0c5e247c15c959a18a9d3179f7646d1c616f6d6d6dc07ad59d70d16",
+    "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro": "29cce20057b765de6d99d962ea5e55a1a4a47e86cee83255e6d16b0e1ba0c545",
+    "Frameworks/mesen_libretro.framework/mesen_libretro": "e76d6c1dd46f8eb51a5478a1a21b2808d79bae0c7175199594b0f6781ee38684",
+    "Frameworks/mgba_libretro.framework/mgba_libretro": "a8f8613a1895d58cbac8effd04ccd84bb6dbb4c59a60cbc18efc2bf268a6d181",
+    "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro": "ba845fc8a78edf87639a750203b2d09eb0fd294cd7969473115ad816f9280286",
+    "Frameworks/nestopia_libretro.framework/nestopia_libretro": "847be8672c95558feebe0be55bdf3264e7e241009451b11a023a835b44d3e0ef",
+    "Frameworks/o2em_libretro.framework/o2em_libretro": "535cdf027548eab1117dff0522d9a589ac403d996e8fc569b81996c5bc3f1209",
+    "Frameworks/picodrive_libretro.framework/picodrive_libretro": "65d6dc5a241efda5ea1965443b3c9fe1e763538a36e14ca290d9ec571377d9e1",
+    "Frameworks/pokemini_libretro.framework/pokemini_libretro": "c1c03e755afc328ba64bfce2f8491f8838d224e6f9685a73f2bd060c67b4ff6e",
+    "Frameworks/potator_libretro.framework/potator_libretro": "19a67f1d4f65a819cc87cb1576d7348a8eb1451e1b509aad25d7d73636fea681",
+    "Frameworks/ppsspp_libretro.framework/ppsspp_libretro": "377f669eacb492181ca3681e6ccd017bea78263b45320a575d8172dab2bd88c1",
+    "Frameworks/prosystem_libretro.framework/prosystem_libretro": "82b4af35d8c61093d1e7edb0f6c3eeca361acb4b8c96d3e83ddf3ffbad5150af",
+    "Frameworks/sameduck_libretro.framework/sameduck_libretro": "f648c6efc1455c280441c1f70dd62d3f2451a6e36b57268f3acf7ed6ff2256cb",
+    "Frameworks/snes9x_libretro.framework/snes9x_libretro": "e0326b241edce3f8860b85e3a08684806e611e292a21204534456b3af08ba788",
+    "Frameworks/stella_libretro.framework/stella_libretro": "a44e78a4e58dc481233737681fa3547ecebdfef0178219de8213aa067e8cf368",
+    "Frameworks/uzem_libretro.framework/uzem_libretro": "ae053a29eff0b1490f7cedd6af8a79d0df45950ef71fd604a93703ceaa039d93",
+    "Frameworks/wasm4_libretro.framework/wasm4_libretro": "41dec5ccf2fdb0153db049f027424f42993ae0c83df61e4bd1db24b0cf9a4dde"
+  },
+  "newCoreFingerprint": "66124c2afb63e063711d1da18827d0b5a1fee55e58ef3e808494663b9262aa2c",
+  "nativeDependencyIdentitiesUnchanged": true,
+  "retainedRPCS3": {
+    "compiledPayloadFingerprint": "b68bdd203ee61cb769b07d0802a66898c034a641a25cba6e1b4373a79885ca42",
+    "installName": "@rpath/libRPCS3Core.dylib",
+    "signed": true,
+    "definedSymbols": 88,
+    "metadata": {
+      "nonSignatureLoadCommandsSHA256": "55c731fa3a9cfb102692e9cf30bfe351be36a11814623efa6a2edb343ad1de58",
+      "nonSignatureLinkeditSHA256": "c411949d41cdf97414ec4e9df20e672fc6d4f1b427398770e778c588f366fcf6",
+      "nonSignatureLoadCommandsUnchanged": true,
+      "nonSignatureLinkeditUnchanged": true,
+      "alignmentPaddingDifference": 0
+    }
+  },
+  "retainedDolphinResourceFiles": 2467,
+  "removedComponents": {
+    "kartpad": {
+      "ipa": "RewindBox-606.ipa",
+      "kartpadMembers": [],
+      "contentGate": {
+        "members": 5363,
+        "findings": [],
+        "passed": true
+      },
+      "passed": true
+    },
+    "dusklight": {
+      "ipa": "RewindBox-606.ipa",
+      "membersInspected": 4600,
+      "findings": {
+        "Hogwarts-performance-build-identity.json": [
+          "3 occurrence(s) of 'dusklight'"
+        ]
+      },
+      "allowedHistoricalOrAbi": [
+        "Frameworks/App.framework/flutter_assets/assets/legal/THIRD_PARTY_NOTICES.md",
+        "Frameworks/neo_swap.framework/neo_swap",
+        "Legal/LEGAL_AND_CREDITS.md",
+        "Legal/NeoStation-NOTICE.md",
+        "Legal/Sources/Reviews/modified-sources-since-0.0.8-2026-10-21.json",
+        "Legal/THIRD_PARTY_NOTICES.md"
+      ],
+      "passed": false
+    },
+    "dusklightMetadataResolution": {
+      "result": "accepted-authenticated-audit-metadata-only",
+      "canonicalGuardPassed": false,
+      "member": "Hogwarts-performance-build-identity.json",
+      "memberSHA256": "6f5df9452ac6eb3eca1a99617e8c57de6d2b286fd4f2d85792c3f9c39b524354",
+      "occurrenceCount": 3,
+      "occurrences": [
+        {
+          "kind": "key",
+          "path": [
+            "hostChecks",
+            "originalHostResult",
+            "inputs",
+            "test/no_dusklight_ipa_test.py"
+          ],
+          "value": "2fc8fe45d34ee164e77b96dacabdffdcbc5fba449c38292a9f025b388f3198b4"
+        },
+        {
+          "kind": "value",
+          "path": [
+            "hostChecks",
+            "originalHostResult",
+            "flutter",
+            "names",
+            18
+          ],
+          "value": "what Dusklight left is unknown, hence never deletable"
+        },
+        {
+          "kind": "value",
+          "path": [
+            "hostChecks",
+            "originalHostResult",
+            "flutter",
+            "names",
+            54
+          ],
+          "value": "the KartPad cache folder is level 2, never during a game; Dusklight's is never proposed"
+        }
+      ],
+      "authenticatedHostExecution": {
+        "source": "b584e4c6d0f1c2519c7d9ce3bdbbab1967528737",
+        "run": 41240588338,
+        "attempt": 1
+      },
+      "runtimeOrAssetExceptionGranted": false,
+      "sharedCanonicalGuardModified": false,
+      "scope": "One removal-guard input filename and two actual storage-cleanup test names in the exact authenticated host result"
+    }
+  },
+  "melonx": {
+    "result": "passed",
+    "build": "606",
+    "engineExportsVerified": 47,
+    "privateFrameworks": [
+      "MeloNXAvCodec",
+      "MeloNXAvUtil",
+      "MeloNXCore",
+      "MeloNXJitSupport",
+      "MeloNXMoltenVK",
+      "MeloNXSDL3"
+    ],
+    "nativeSourceNoticesVerified": 26,
+    "registeredFlutterBridge": true,
+    "gameplayTested": false,
+    "deviceInstallationTested": false
+  },
+  "neoplay": {
+    "build": "606",
+    "commit": "a95654f4cb9a9fc04657c33773cc14d1d05b46af",
+    "neoplayPackaged": true,
+    "controllerBatteryPackaged": true,
+    "appleTVSystemRoutePackaged": true,
+    "nativeLinkage": "static_framework",
+    "nativeImage": "Payload/NeoStation.app/Runner",
+    "nativeImageSHA256": "373b08a3839b5858ff352ab6f7d527fb18ea401c770ce2d66ce05534eb2b16c7",
+    "physicalTVValidation": false,
+    "physicalControllerValidation": false
+  },
+  "shaders": {
+    "build": "606",
+    "kitSha256": "e23fa7fdaae308b3460b8c6f6f5b445e5220e6b6b4554923fe5e633af838c6a1",
+    "publicExportCount": 62,
+    "compilerExports": 0,
+    "oldDolphinWeakSwizzles": [
+      "__ZN7glslang13TIntermediate10addSwizzleINS_15TMatrixSelectorEEEPNS_12TIntermTypedERNS_17TSwizzleSelectorsIT_EERKNS_10TSourceLocE",
+      "__ZN7glslang13TIntermediate10addSwizzleIiEEPNS_12TIntermTypedERNS_17TSwizzleSelectorsIT_EERKNS_10TSourceLocE"
+    ],
+    "compilerIsolationPackaged": true,
+    "physicalDeviceGameplayValidated": false
+  },
+  "legal": {
+    "result": "passed",
+    "stdoutSHA256": "c682b067e4a611d732284c4d588b81783b22d0990d2830199966b2f36371a00e"
+  },
+  "receiptSHA256": {
+    "rewind606-ipa-validation.json": "6edcf7716e1cc16128436931a5da3555fc6d4385312ccf60fbadd72cbb5aa692",
+    "signed-payload-identity.json": "b088b71dadf923a302cb1bd174f2999db33f7d52d5f9020708e55abaf6272ad6",
+    "signature.json": "4124148ac47036d3f494b7e6b673a5e7fb2b01ad39a6bbe1400f8f6dfd467b73",
+    "version-validation.json": "e8a1441d8afc7712f60f4fc4310352e0a0af46d418634ee8342b240806ef32b5"
+  },
+  "producerArchivesSHA256": {
+    "core": "8643daa4c5dc34839d1d7e88c33dd59c35aafc03b7cb946adbde3ad93a15efc6",
+    "host": "7f8358522f62cb3c0eb86ab32f36580370aa53fbad0ef4d620137903ee4e6eba",
+    "originalCore": "c5baa6c2a0765ffedfdb0440d8f5e1604190cb6232f0d544e5f38b4c72c63182"
+  },
+  "coreOriginalRunConclusion": "failure",
+  "coreSeparateValidation": {
+    "source": "b584e4c6d0f1c2519c7d9ce3bdbbab1967528737",
+    "run": 41240588272,
+    "attempt": 1,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/41240588272"
+  },
+  "hostRecovery": {
+    "schema": 1,
+    "original": {
+      "repository": "TarbleFR/RewindBox",
+      "source": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+      "run": 41239330429,
+      "attempt": 1,
+      "job": 124649711439,
+      "conclusion": "failure",
+      "artifact": 13057550430,
+      "zip": "original-host.zip",
+      "zipSize": 139443,
+      "zipSHA256": "19fd19e819e3d4d31a159058bcdf6397427b813bb84af882c731a3d70231784e",
+      "metadata": "reused-origin.json",
+      "metadataSHA256": "cd3f531108800e5aecdb3bbb8cd27105fa5750d1cc7d96e859727fc29d1fd67b"
+    },
+    "freshCommands": [
+      "presentation",
+      "retained-achievement-integration"
+    ],
+    "reusedCommands": {
+      "flutter": {
+        "source": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+        "run": 41239330429,
+        "attempt": 1,
+        "job": 124649711439,
+        "artifact": 13057550430,
+        "execution": {
+          "command": [
+            "flutter",
+            "test",
+            "--no-pub",
+            "--concurrency=1",
+            "--machine",
+            "test/diagnostics_directory_test.dart",
+            "test/storage_roots_test.dart",
+            "test/storage_cleanup_planner_test.dart",
+            "test/logger_append_test.dart",
+            "test/user_data_migration_log_test.dart",
+            "test/retroarch_launch_diagnostics_test.dart"
+          ],
+          "exitCode": 0,
+          "stdoutSHA256": "1bc2b6e8d0da0b774bafe2f1942e159c4153374ea62323e35192e4a9b2891071",
+          "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "originalPreflightSHA256": "d6ef925bea79573b4644041a0fbaed91360df16bdfcdf6ded8276648c9ed380e"
+      },
+      "analyzer": {
+        "source": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+        "run": 41239330429,
+        "attempt": 1,
+        "job": 124649711439,
+        "artifact": 13057550430,
+        "execution": {
+          "command": [
+            "dart",
+            "analyze",
+            "--format=machine",
+            "--fatal-warnings",
+            "lib/services/config_service.dart",
+            "lib/services/diagnostics_directory.dart",
+            "lib/services/dolphin_internal_v2_service.dart",
+            "lib/services/libretro_3ds_system_data_service.dart",
+            "lib/services/libretro_internal_service.dart",
+            "lib/services/retroarch_library_service.dart",
+            "lib/services/screenscraper/game_id_media_fallback.dart",
+            "lib/services/storage/storage_cleanup_planner.dart",
+            "lib/services/storage/storage_deletion_manager.dart",
+            "lib/services/storage/storage_roots.dart",
+            "test/diagnostics_directory_test.dart",
+            "test/logger_append_test.dart",
+            "test/retroarch_launch_diagnostics_test.dart",
+            "test/storage_cleanup_planner_test.dart",
+            "test/storage_roots_test.dart",
+            "test/user_data_migration_log_test.dart"
+          ],
+          "exitCode": 0,
+          "stdoutSHA256": "877561159bb2c49fa62138de232bb622082f5025c284e22a09974fe5d3f3e02a",
+          "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "originalPreflightSHA256": "d6ef925bea79573b4644041a0fbaed91360df16bdfcdf6ded8276648c9ed380e"
+      },
+      "routing": {
+        "source": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+        "run": 41239330429,
+        "attempt": 1,
+        "job": 124649711439,
+        "artifact": 13057550430,
+        "execution": {
+          "command": [
+            "python3",
+            "test/diagnostics_routing_native_test.py",
+            "--require-native",
+            "--receipt",
+            "build/hogwarts606-host/routing-native.json"
+          ],
+          "exitCode": 0,
+          "stdoutSHA256": "e2fa1ba20047a7431f83d248ba397d987afc8c41095d80200d143dc45e47d85b",
+          "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "originalPreflightSHA256": "d6ef925bea79573b4644041a0fbaed91360df16bdfcdf6ded8276648c9ed380e"
+      },
+      "standalone-parity": {
+        "source": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+        "run": 41239330429,
+        "attempt": 1,
+        "job": 124649711439,
+        "artifact": 13057550430,
+        "execution": {
+          "command": [
+            "python3",
+            "test/melonx_standalone_parity_test.py"
+          ],
+          "exitCode": 0,
+          "stdoutSHA256": "5a52e5a8e5bf1efa30eb6d3c0392abf610e8dbb9ec95e1ee78c556882d13eba3",
+          "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "originalPreflightSHA256": "d6ef925bea79573b4644041a0fbaed91360df16bdfcdf6ded8276648c9ed380e"
+      },
+      "performance-journal": {
+        "source": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+        "run": 41239330429,
+        "attempt": 1,
+        "job": 124649711439,
+        "artifact": 13057550430,
+        "execution": {
+          "command": [
+            "python3",
+            "test/melonx_perf_journal_test.py"
+          ],
+          "exitCode": 0,
+          "stdoutSHA256": "c3af92f6cd6b7e3d51527e35ecc564215455ce5a45514db35324f98d3cb126fd",
+          "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "originalPreflightSHA256": "d6ef925bea79573b4644041a0fbaed91360df16bdfcdf6ded8276648c9ed380e"
+      }
+    },
+    "inputDelta": {
+      "test/melonx_performance_core_contract_test.py": {
+        "from": "56a021c8274d9f424381bb8cd94f1fc8a1ad7906b258ee14632225ef58f5492a",
+        "to": "e083077db50bc8e85bc2039425266421473def93055faba79678781277516689"
+      },
+      "test/melonx_performance_finalization_test.py": {
+        "from": null,
+        "to": "3e1d5f425982f361938931a0234343d046329d038fd661aaee523c5eb59310b4"
+      },
+      "test/melonx_presentation/App.swift": {
+        "from": "19979b67f14b0e5775765932990e1de24ebbc1ed13e13b9dbae24c06a6f99912",
+        "to": "a73329b97e74702a546bfb8c06b9342855bf106828dc76cf8c85c390bac2d361"
+      },
+      "test/melonx_presentation/Doubles.swift": {
+        "from": "53ce9a4da7df7b7f4f92fc1eb49394b61d9ecc30e9b8c3a89a4a0d2e915c4d91",
+        "to": "013df1f142949e781b6b2addeb69fbea7370d45bcc5551152a82ce8597e0d692"
+      }
+    },
+    "recoverySources": {
+      ".github/diagnostics/hogwarts606_presentation_recovery.py": "d6497528b748235ef93ef4aca8e27f51ad67edbf9d8c9aba6d2a72525f021fa2",
+      ".github/workflows/hogwarts606-host-recovery.yml": "b6ef7c307f47edd08fbc274fdaa36d9dbac7f9d3cb2c721ce2a842e95f9dfa3c"
+    },
+    "note": "Original job remains failed. Only passed unaffected commands are reused with their original provenance."
+  },
+  "signaturePresenceCheckedForAllImages": true,
+  "cryptographicSignatureVerificationPerformedHere": false,
+  "appleProvisioningVerified": false,
+  "sideStoreAppleReSigningRequired": true,
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "fpsGainProven": false
+}

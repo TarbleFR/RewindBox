@@ -1,8 +1,10 @@
 # Hogwarts Legacy: device evidence and targeted performance work
 
 The supplied `app(1).log` confirms sustained poor performance in Build 604.
-The later delivered Build 605 adds achievement presentation/translation and
-retains the same MeloNX Core; it does not ship this performance work.
+Build 605 added achievement presentation/translation with the previous MeloNX Core.
+**Build 606 is now delivered** with the targeted changes and diagnostics below;
+its downloaded IPA is verified. No new iPhone gameplay or FPS measurement is
+claimed. [Exact delivery and validation evidence](evidence/rewind606/delivery.json).
 
 The exact attachment is 5,078,608 bytes, SHA-256
 `39776381e25defdf494c01e4613f745733e4c1c7a7ab06256e7dda2c6d8c8aa2`.
@@ -84,7 +86,8 @@ translation and Dolphin hook. Four fresh Linux .NET 10.0.100 receipts bind the
 actual prepared sources and collector under [hogwarts606-local](evidence/hogwarts606-local/):
 pipeline checkpoint 646 assertions per variant, CounterCache 10,171 per variant,
 Buffer 4,939 per variant, and diagnostics 103 runtime assertions plus 22 source
-checks. They do not replace the pending Apple builds and runtime sessions.
+checks. The Apple builds, runtime sessions and their separate finalization
+are recorded below; the local fixtures are not device-gameplay evidence.
 
 The instrumented final candidate preserves 193 cache pressure probes while
 reducing exports from 193 to 2, including final persistence. Its single virtual
@@ -117,3 +120,45 @@ is not yet proven as the cause. The follow-up fixture waits for actual writes
 with a deadline, keeps the exact sequence/count assertions, and records the
 observed journal on failure. The following achievement integration command
 had not run when this first native step stopped.
+
+## Verified delivery 606
+
+Source `a95654f4cb9a9fc04657c33773cc14d1d05b46af`, run `41242511117`,
+application job `124659230427`, attempt 1: successful. The downloaded
+`RewindBox-606.ipa` is **189838983 bytes**, SHA-256
+`4610e26bdbfc84cac091cddac38941aeaf5a0219d625e70d998155bbe21aa5f1`.
+It contains 5363 ZIP entries, eight bundles at 0.0.8 (606), and 89 ARM64 images.
+All 89 compiled payloads, including three single-slice fat containers, match
+the macOS signing receipt. The 47 retained payloads and 2467 Dolphin resources
+match the actual delivered 605 IPA. RPCS3 a4d0 and the 605 achievement hook remain.
+Apple re-signing/provisioning through SideStore is still required.
+
+The Core finalization succeeded separately in run `41240588272`, without
+recompilation or new native execution. Host recovery `41240588338` preserved
+the five earlier successful commands and added fresh UIKit (24 checks) and
+achievement integration results, with all 2676 tested inputs authenticated.
+Neither original failed run was relabelled successful.
+
+The first application recipe run `41241694539` failed before compilation:
+it mistook two generated packaging receipts for additions to the Core archive.
+The corrected recipe verifies the closed 418-member ZIP and every extracted
+producer byte separately from those two local receipts. Its regression and
+original failure are retained in [the 606 evidence folder](evidence/rewind606/).
+
+The broad retired-component scan found three words in the authenticated host
+audit: one removal-test filename and two storage-cleanup test titles. Its raw
+failed result remains recorded, with an exact metadata-only resolution tested
+against changed inputs, extra mentions, executable findings and Ports assets.
+No retired executable, framework, playlist or game asset was found. The shared
+scanner was not weakened and the IPA was not modified after signing.
+
+The successful application job took 20 min 14 s; measured Xcode time was
+407.92 s and signing/export 55.82 s. Compiler tasks overlap and are not summed
+as wall time. Full job logs were unavailable through the connector; the
+recorded timing report is retained without claiming zero compiler warnings.
+
+The new `Diagnostics/Switch/MeloNX-{core,launch,performance,stderr}.log` files
+and per-console/system routing are ready for the next physical-device session.
+Their build/Core, PID, generation, phase and allocation/GC fields distinguish
+measured bottlenecks. This delivery does not establish an iPhone FPS gain,
+a shorter Hogwarts load, crash resolution or removal of the intermittent GPU wait.

@@ -2,7 +2,7 @@
 
 Read this guide before work. It contains current project state and permanent
 rules; detailed investigations and build receipts belong in `docs/`.
-Last reconciled: **31 October 2026**, after private Build **605**.
+Last reconciled: **31 October 2026**, after private Build **606**.
 
 ## Start here
 
@@ -21,26 +21,26 @@ Last reconciled: **31 October 2026**, after private Build **605**.
 
 | Item | Verified reference |
 | --- | --- |
-| Application | **RewindBox 0.0.8 (605)**, private IPA; iOS 18+, SideStore re-signing |
-| Delivery source | `5de451091208c13926ccdb373a0a34f35ec2ee2d` |
-| Delivery run / job | `41216465880` / `124584748706`, attempt 1, both successful |
-| Product baseline | Delivered 604 plus 39 reviewed achievement-presentation product paths; other engines retained |
-| MeloNX Core | `ada4058f5738465ac882934bb87224b637bcd0a1`; unchanged binaries validated by runtime source `510e683a149e811e68ea6ab5e766e85c44ab1057`, run `41121572662` |
+| Application | **RewindBox 0.0.8 (606)**, private IPA; iOS 18+, SideStore re-signing |
+| Delivery source | `a95654f4cb9a9fc04657c33773cc14d1d05b46af` |
+| Delivery run / job | `41242511117` / `124659230427`, attempt 1, both successful |
+| Product baseline | Delivered 605 plus 29 reviewed Hogwarts/diagnostics product paths; achievement presentation and other engines retained |
+| MeloNX Core | New binaries from `ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284`; original finalizer failure preserved, separate successful validation `41240588272` on `b584e4c6d0f1c2519c7d9ce3bdbbab1967528737` |
 | RPCS3 Core | `a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a`, successful run `41117115264` |
 | Dolphin Core | Upstream `7cac54161659421ed95c2cd1c0b0746539a4cd38`, new presentation hook from producer `af5b18e67864e6555f54b7b4b6f1452ed82f6982`, successful run `41209480072` |
-| Delivery proof | [Achievement translation / Build 605](docs/achievement-translation.md), [exact receipt](docs/evidence/achievement-translation-ipa/delivery.json), [downloaded-file checks](docs/evidence/achievement-translation-ipa/) |
+| Delivery proof | [Hogwarts performance / Build 606](docs/hogwarts604-performance-2026-10-30.md), [exact receipt](docs/evidence/rewind606/delivery.json), [downloaded-file checks](docs/evidence/rewind606/) |
 
-605 is delivered, not a pending candidate. Do not reuse its number. Before
+606 is delivered, not a pending candidate. Do not reuse its number. Before
 allocating another number, reconcile concurrent deliveries. A newer source
 commit or Core-only artifact is not automatically a newer delivered IPA.
 Old donor builds provide only their explicitly retained native resources;
 they are never the application baseline. The public release and private IPA
 are separate records; do not promote a private build through a README edit.
 
-**Reserved, not delivered:** private Build **606**, Hogwarts performance and
-console-organized diagnostics, is being prepared from delivered605. Its work
-is tracked in [the device analysis](docs/hogwarts604-performance-2026-10-30.md).
-Do not reuse this number or call the pending changes a shipped FPS improvement.
+**Delivered 606:** targeted pipeline/report/buffer optimizations and journals
+organized by console or system. The downloaded IPA, eight bundles and all
+89 native images passed verification. Device FPS and loading-time gains are
+still unmeasured; see [the device analysis](docs/hogwarts604-performance-2026-10-30.md).
 
 **Still unproven on iPhone:** Hogwarts crash recovery, removal of the intermittent
 minute-long GPU wait, Unreal CVar consumption, black-texture recovery and FPS

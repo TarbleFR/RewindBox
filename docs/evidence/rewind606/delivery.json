@@ -1,0 +1,295 @@
+{
+  "result": "passed",
+  "build": 606,
+  "version": "0.0.8",
+  "source": "a95654f4cb9a9fc04657c33773cc14d1d05b46af",
+  "tree": "f0df5047d8ed8e7725788279c0ac9d55c43021e2",
+  "run": 41242511117,
+  "job": 124659230427,
+  "attempt": 1,
+  "workflowResult": "success",
+  "baseline": {
+    "build": 605,
+    "ipaSHA256": "d51a4b138f54f5bbf88ab00a09856e3915a30ab71d9849b8aeaa9a7d8fb35337",
+    "ipaBytes": 189643236,
+    "source": "5de451091208c13926ccdb373a0a34f35ec2ee2d"
+  },
+  "ipaName": "RewindBox-606.ipa",
+  "ipaBytes": 189838983,
+  "ipaSHA256": "4610e26bdbfc84cac091cddac38941aeaf5a0219d625e70d998155bbe21aa5f1",
+  "zipEntries": 5363,
+  "bundleCount": 8,
+  "machOImages": 89,
+  "all89NativePayloadFingerprintsVerified": true,
+  "signaturesVerifiedByAppleCI": 89,
+  "signatureCryptographicallyVerifiedLocally": false,
+  "retainedPayloads": 47,
+  "retainedDolphinResourceFiles": 2467,
+  "coreProducerSource": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+  "coreProducerOriginalRunConclusion": "failure",
+  "coreSeparateValidation": {
+    "source": "b584e4c6d0f1c2519c7d9ce3bdbbab1967528737",
+    "run": 41240588272,
+    "attempt": 1,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/41240588272"
+  },
+  "hostProducerSource": "b584e4c6d0f1c2519c7d9ce3bdbbab1967528737",
+  "hostRecovery": {
+    "schema": 1,
+    "original": {
+      "repository": "TarbleFR/RewindBox",
+      "source": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+      "run": 41239330429,
+      "attempt": 1,
+      "job": 124649711439,
+      "conclusion": "failure",
+      "artifact": 13057550430,
+      "zip": "original-host.zip",
+      "zipSize": 139443,
+      "zipSHA256": "19fd19e819e3d4d31a159058bcdf6397427b813bb84af882c731a3d70231784e",
+      "metadata": "reused-origin.json",
+      "metadataSHA256": "cd3f531108800e5aecdb3bbb8cd27105fa5750d1cc7d96e859727fc29d1fd67b"
+    },
+    "freshCommands": [
+      "presentation",
+      "retained-achievement-integration"
+    ],
+    "reusedCommands": {
+      "flutter": {
+        "source": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+        "run": 41239330429,
+        "attempt": 1,
+        "job": 124649711439,
+        "artifact": 13057550430,
+        "execution": {
+          "command": [
+            "flutter",
+            "test",
+            "--no-pub",
+            "--concurrency=1",
+            "--machine",
+            "test/diagnostics_directory_test.dart",
+            "test/storage_roots_test.dart",
+            "test/storage_cleanup_planner_test.dart",
+            "test/logger_append_test.dart",
+            "test/user_data_migration_log_test.dart",
+            "test/retroarch_launch_diagnostics_test.dart"
+          ],
+          "exitCode": 0,
+          "stdoutSHA256": "1bc2b6e8d0da0b774bafe2f1942e159c4153374ea62323e35192e4a9b2891071",
+          "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "originalPreflightSHA256": "d6ef925bea79573b4644041a0fbaed91360df16bdfcdf6ded8276648c9ed380e"
+      },
+      "analyzer": {
+        "source": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+        "run": 41239330429,
+        "attempt": 1,
+        "job": 124649711439,
+        "artifact": 13057550430,
+        "execution": {
+          "command": [
+            "dart",
+            "analyze",
+            "--format=machine",
+            "--fatal-warnings",
+            "lib/services/config_service.dart",
+            "lib/services/diagnostics_directory.dart",
+            "lib/services/dolphin_internal_v2_service.dart",
+            "lib/services/libretro_3ds_system_data_service.dart",
+            "lib/services/libretro_internal_service.dart",
+            "lib/services/retroarch_library_service.dart",
+            "lib/services/screenscraper/game_id_media_fallback.dart",
+            "lib/services/storage/storage_cleanup_planner.dart",
+            "lib/services/storage/storage_deletion_manager.dart",
+            "lib/services/storage/storage_roots.dart",
+            "test/diagnostics_directory_test.dart",
+            "test/logger_append_test.dart",
+            "test/retroarch_launch_diagnostics_test.dart",
+            "test/storage_cleanup_planner_test.dart",
+            "test/storage_roots_test.dart",
+            "test/user_data_migration_log_test.dart"
+          ],
+          "exitCode": 0,
+          "stdoutSHA256": "877561159bb2c49fa62138de232bb622082f5025c284e22a09974fe5d3f3e02a",
+          "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "originalPreflightSHA256": "d6ef925bea79573b4644041a0fbaed91360df16bdfcdf6ded8276648c9ed380e"
+      },
+      "routing": {
+        "source": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+        "run": 41239330429,
+        "attempt": 1,
+        "job": 124649711439,
+        "artifact": 13057550430,
+        "execution": {
+          "command": [
+            "python3",
+            "test/diagnostics_routing_native_test.py",
+            "--require-native",
+            "--receipt",
+            "build/hogwarts606-host/routing-native.json"
+          ],
+          "exitCode": 0,
+          "stdoutSHA256": "e2fa1ba20047a7431f83d248ba397d987afc8c41095d80200d143dc45e47d85b",
+          "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "originalPreflightSHA256": "d6ef925bea79573b4644041a0fbaed91360df16bdfcdf6ded8276648c9ed380e"
+      },
+      "standalone-parity": {
+        "source": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+        "run": 41239330429,
+        "attempt": 1,
+        "job": 124649711439,
+        "artifact": 13057550430,
+        "execution": {
+          "command": [
+            "python3",
+            "test/melonx_standalone_parity_test.py"
+          ],
+          "exitCode": 0,
+          "stdoutSHA256": "5a52e5a8e5bf1efa30eb6d3c0392abf610e8dbb9ec95e1ee78c556882d13eba3",
+          "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "originalPreflightSHA256": "d6ef925bea79573b4644041a0fbaed91360df16bdfcdf6ded8276648c9ed380e"
+      },
+      "performance-journal": {
+        "source": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+        "run": 41239330429,
+        "attempt": 1,
+        "job": 124649711439,
+        "artifact": 13057550430,
+        "execution": {
+          "command": [
+            "python3",
+            "test/melonx_perf_journal_test.py"
+          ],
+          "exitCode": 0,
+          "stdoutSHA256": "c3af92f6cd6b7e3d51527e35ecc564215455ce5a45514db35324f98d3cb126fd",
+          "stderrSHA256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "originalPreflightSHA256": "d6ef925bea79573b4644041a0fbaed91360df16bdfcdf6ded8276648c9ed380e"
+      }
+    },
+    "inputDelta": {
+      "test/melonx_performance_core_contract_test.py": {
+        "from": "56a021c8274d9f424381bb8cd94f1fc8a1ad7906b258ee14632225ef58f5492a",
+        "to": "e083077db50bc8e85bc2039425266421473def93055faba79678781277516689"
+      },
+      "test/melonx_performance_finalization_test.py": {
+        "from": null,
+        "to": "3e1d5f425982f361938931a0234343d046329d038fd661aaee523c5eb59310b4"
+      },
+      "test/melonx_presentation/App.swift": {
+        "from": "19979b67f14b0e5775765932990e1de24ebbc1ed13e13b9dbae24c06a6f99912",
+        "to": "a73329b97e74702a546bfb8c06b9342855bf106828dc76cf8c85c390bac2d361"
+      },
+      "test/melonx_presentation/Doubles.swift": {
+        "from": "53ce9a4da7df7b7f4f92fc1eb49394b61d9ecc30e9b8c3a89a4a0d2e915c4d91",
+        "to": "013df1f142949e781b6b2addeb69fbea7370d45bcc5551152a82ce8597e0d692"
+      }
+    },
+    "recoverySources": {
+      ".github/diagnostics/hogwarts606_presentation_recovery.py": "d6497528b748235ef93ef4aca8e27f51ad67edbf9d8c9aba6d2a72525f021fa2",
+      ".github/workflows/hogwarts606-host-recovery.yml": "b6ef7c307f47edd08fbc274fdaa36d9dbac7f9d3cb2c721ce2a842e95f9dfa3c"
+    },
+    "note": "Original job remains failed. Only passed unaffected commands are reused with their original provenance."
+  },
+  "retainedRPCS3Source": "a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a",
+  "rawDusklightScanPassed": false,
+  "dusklightAuditMetadataResolution": {
+    "result": "accepted-authenticated-audit-metadata-only",
+    "canonicalGuardPassed": false,
+    "member": "Hogwarts-performance-build-identity.json",
+    "memberSHA256": "6f5df9452ac6eb3eca1a99617e8c57de6d2b286fd4f2d85792c3f9c39b524354",
+    "occurrenceCount": 3,
+    "occurrences": [
+      {
+        "kind": "key",
+        "path": [
+          "hostChecks",
+          "originalHostResult",
+          "inputs",
+          "test/no_dusklight_ipa_test.py"
+        ],
+        "value": "2fc8fe45d34ee164e77b96dacabdffdcbc5fba449c38292a9f025b388f3198b4"
+      },
+      {
+        "kind": "value",
+        "path": [
+          "hostChecks",
+          "originalHostResult",
+          "flutter",
+          "names",
+          18
+        ],
+        "value": "what Dusklight left is unknown, hence never deletable"
+      },
+      {
+        "kind": "value",
+        "path": [
+          "hostChecks",
+          "originalHostResult",
+          "flutter",
+          "names",
+          54
+        ],
+        "value": "the KartPad cache folder is level 2, never during a game; Dusklight's is never proposed"
+      }
+    ],
+    "authenticatedHostExecution": {
+      "source": "b584e4c6d0f1c2519c7d9ce3bdbbab1967528737",
+      "run": 41240588338,
+      "attempt": 1
+    },
+    "runtimeOrAssetExceptionGranted": false,
+    "sharedCanonicalGuardModified": false,
+    "scope": "One removal-guard input filename and two actual storage-cleanup test names in the exact authenticated host result"
+  },
+  "runtimeComponentsRetiredRemainAbsent": true,
+  "libraryFileId": "libfile_bc265850e3f081918df859d0680181bd",
+  "libraryFileName": "RewindBox-606.ipa",
+  "recipientPrivateKeyDeleted": true,
+  "sideStoreAppleReSigningRequired": true,
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "fpsGainProven": false,
+  "applicationJobSeconds": 1214,
+  "transportParts": [
+    {
+      "artifactId": 13058580849,
+      "name": "RewindBox-Build606-a95654f4cb9a9fc04657c33773cc14d1d05b46af-cold-part00",
+      "bytes": 47859950,
+      "digest": "sha256:3e7e2916e8569bddbc8f15830e650b80c3630557be358def433e9d5f13087519"
+    },
+    {
+      "artifactId": 13058516125,
+      "name": "RewindBox-Build606-a95654f4cb9a9fc04657c33773cc14d1d05b46af-cold-part01",
+      "bytes": 47859950,
+      "digest": "sha256:e6c4a8a34276288fa49f06a9b0ebcc14d2a46c441ad902578b683bc2eaf85abb"
+    },
+    {
+      "artifactId": 13058466279,
+      "name": "RewindBox-Build606-a95654f4cb9a9fc04657c33773cc14d1d05b46af-cold-part02",
+      "bytes": 47859950,
+      "digest": "sha256:5db115e9451f9cccaf1a3bb34efa4b9fcaa35f059393fa5384d82aca2b7bb0cb"
+    },
+    {
+      "artifactId": 13059125004,
+      "name": "RewindBox-Build606-a95654f4cb9a9fc04657c33773cc14d1d05b46af-cold-part03",
+      "bytes": 47859950,
+      "digest": "sha256:11575da31b5f18a7fc49a8bb955e1cdcbb8857e7684bc819edc1b01546665de9"
+    }
+  ],
+  "evidenceSHA256": {
+    "downloaded-ipa-verification.json": "bab23e65c09f843aec2007a5408c28b93886e86df69438885e0ba9cedbf14cc9",
+    "download-decryption.json": "da774eb1a23907f9807f53c14178d8ea683b8568cc093c1409b9288ddedbc7f9",
+    "retired-metadata-resolution-test.py": "eb45fac88ce5586311f4ac8356809a524a0f10d139ddcc81fa5e24dbc2dd7c7d",
+    "signature.json": "4124148ac47036d3f494b7e6b673a5e7fb2b01ad39a6bbe1400f8f6dfd467b73",
+    "signed-payload-identity.json": "b088b71dadf923a302cb1bd174f2999db33f7d52d5f9020708e55abaf6272ad6",
+    "version-validation.json": "e8a1441d8afc7712f60f4fc4310352e0a0af46d418634ee8342b240806ef32b5",
+    "observed-timings.json": "0a36404321efd6c4bd91adf6ba37c6fea235919fb4b95ff3ad644f59bd8c1621",
+    "verify_downloaded_ipa606.py": "aa76e5f445d8d57f236cb2c9658621b7eac5f6b57aeaa746fe9ed9047d21c6bf"
+  },
+  "verifiedUTC": "2026-10-31T21:40:05.428120+00:00"
+}
