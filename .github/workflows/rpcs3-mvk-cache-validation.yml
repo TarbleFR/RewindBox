@@ -1,6 +1,6 @@
 # Explicit candidate validation only. Source pushes use [skip ci]; a separate
 # marker commit touching only this workflow avoids historical broad Core routes.
-# Validation request: pending explicit marker commit.
+# Validation request: BO2 cache candidate, 31 October 2026; no IPA or release.
 name: RPCS3 MoltenVK cache candidate validation
 run-name: "RPCS3 MoltenVK cache candidate • ${{ github.sha }}"
 'on':
