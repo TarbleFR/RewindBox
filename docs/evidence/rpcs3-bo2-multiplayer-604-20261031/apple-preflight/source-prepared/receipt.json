@@ -1,0 +1,186 @@
+{
+  "schema": 1,
+  "component": "RewindBox RPCS3 MoltenVK deferred-cache candidate",
+  "status": "source_prepared_only",
+  "upstream_repository": "https://github.com/KhronosGroup/MoltenVK.git",
+  "upstream_commit": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+  "candidate_macro": "RBX_MVK_DEFERRED_CACHE_IMPORT=1",
+  "platform": "ios",
+  "configuration": "Release",
+  "static_only": true,
+  "core_dependency_selected": false,
+  "apple_native_build_executed": false,
+  "core_built": false,
+  "ipa_built": false,
+  "device_tested": false,
+  "producer_sha256": "704c5013c3960f6ca151aed469f998d6d62629ffa0b3cb94f0fb591d2ff49387",
+  "adapter_sha256": "424476c68304e8a581684de58b86719035f931401f9ccd307003a3e4e321e57c",
+  "planned_build_command": [
+    "xcodebuild",
+    "build",
+    "-project",
+    "MoltenVK/MoltenVK.xcodeproj",
+    "-target",
+    "MoltenVK-iOS-static",
+    "-configuration",
+    "Release",
+    "-sdk",
+    "iphoneos",
+    "ARCHS=arm64",
+    "ONLY_ACTIVE_ARCH=NO",
+    "CODE_SIGNING_ALLOWED=NO",
+    "GCC_PREPROCESSOR_DEFINITIONS=$(inherited) RBX_MVK_DEFERRED_CACHE_IMPORT=1",
+    "IPHONEOS_DEPLOYMENT_TARGET=16.3",
+    "CONFIGURATION_BUILD_DIR=/Users/runner/work/_temp/rpcs3-mvk-preflight/products"
+  ],
+  "upstream_tree": "efebd918bbe772eead074100c0a18789ad39606d",
+  "dependency_pins": {
+    "cereal": "a56bad8bbb770ee266e930c95d37fff2a5be7fea",
+    "Vulkan-Headers": "e3b1eec08173d6b825cd3ac88c885a63b621504a",
+    "SPIRV-Cross": "6c09849fe88c48eaed08413aa022aaa136a3a057",
+    "SPIRV-Tools": "0d6fd73ca73830ccab5fa1f00ed5ed40124e2c55",
+    "SPIRV-Headers": "29981f65241605e08b0ede4cfeb999fe3b723c6a",
+    "Vulkan-Tools": "8c66b352925cb771f793a4d3220b1321ae0febf1",
+    "Volk": "776893306c5d3b22b6185b5d4a258b81d94572bf"
+  },
+  "source_patch_report_sha256": "59803b928f3c952a5f311bc6208a2786c3c136ea7137fa43d09cd3df8e73d08e",
+  "source_patch": {
+    "schema": 1,
+    "upstream_commit": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+    "macro": "RBX_MVK_DEFERRED_CACHE_IMPORT",
+    "default_enabled": false,
+    "status": "applied",
+    "source_postimages": {
+      "MoltenVK/MoltenVK/GPUObjects/MVKDeferredCompilation.h": "cb2be170bf8033c52df7e5d1cd4cb2c76073cfe052066ac8614e6483c39c103f",
+      "MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.h": "053ddce4ef78daf1fddefab4b0bfc01b6365a4eed42e54ed8f8de8333c60ec7e",
+      "MoltenVK/MoltenVK/GPUObjects/MVKShaderModule.mm": "14e25d611580971159d491adf82ae0066ef01c20c8b89b06fd7195f705e4b63e",
+      "MoltenVK/MoltenVK/GPUObjects/MVKQueue.mm": "d7f64fd428a07c859b02d1639a9f4f165e2f64ba1723f27ca25c9a34a152b584",
+      "MoltenVK/MoltenVK/GPUObjects/MVKSync.mm": "fc90ab52817375f04ed543dfc0dcbf2e827f12fb4baec8af457cadf9f7fae60c"
+    },
+    "patch_sha256": "f176ffc09bcd1cbae22dcf9be7f4fb62aa7dd4d79e13cc63275978ddaa78b6a1",
+    "requires_full_framework_rebuild": true,
+    "apple_validation": "not_run"
+  },
+  "limits": [
+    "No dependencies fetched/built, no Apple compilation, no Core/IPA/device validation.",
+    "The candidate is not selected by the delivered Core recipe."
+  ],
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "init",
+        "-q",
+        "/Users/runner/work/_temp/rpcs3-mvk-preflight/MoltenVK"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.03315683400001035,
+      "log": "01-git.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-preflight/MoltenVK",
+        "fetch",
+        "--depth",
+        "1",
+        "https://github.com/KhronosGroup/MoltenVK.git",
+        "db66022459ffb663aa2b50f6b018bc2e124f5edf"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 1.2437855840000225,
+      "log": "02-git.log",
+      "log_sha256": "1abcee2133750595e89888b794201dec8cae2aeb84a60eb7e1bb296843e9c2ec"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-preflight/MoltenVK",
+        "checkout",
+        "-q",
+        "--detach",
+        "FETCH_HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.08101904199997989,
+      "log": "03-git.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-preflight/MoltenVK",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.00912204200000133,
+      "log": "04-git.log",
+      "log_sha256": "b38394f59a90558c3f3d21d0d38867a18f439c8468d2cd4b1807db9f33a01935"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-preflight/MoltenVK",
+        "rev-parse",
+        "HEAD^{tree}"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.011542917000042507,
+      "log": "05-git.log",
+      "log_sha256": "f2043a47785a8b01d74a89f809a88f623da309674258b9ae1b51f811dfc1a828"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/Users/runner/work/RewindBox/RewindBox/build-utils/rpcs3/patch_moltenvk_deferred_cache.py",
+        "/Users/runner/work/_temp/rpcs3-mvk-preflight/MoltenVK",
+        "--report",
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-mvk-cache-validation/source-prepared/source-patch.json"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.09130420799999683,
+      "log": "06-python3.15.log",
+      "log_sha256": "b2d44445a3b4bf869bfc75e777caa0289dbbfeee3ef3b36970b59f8c29cb7928"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/opt/python@3.15/bin/python3.15",
+        "/Users/runner/work/RewindBox/RewindBox/build-utils/rpcs3/patch_moltenvk_deferred_cache.py",
+        "/Users/runner/work/_temp/rpcs3-mvk-preflight/MoltenVK",
+        "--check"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.0576570419999598,
+      "log": "07-python3.15.log",
+      "log_sha256": "6bac509662680f368c43d0b9f483b6fa3bacf2dd45eeb0fc2bed952a31652a64"
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/Users/runner/work/_temp/rpcs3-mvk-preflight/MoltenVK",
+        "diff",
+        "--name-only",
+        "HEAD"
+      ],
+      "cwd": null,
+      "exit_code": 0,
+      "seconds": 0.02629158299998835,
+      "log": "08-git.log",
+      "log_sha256": "4b5b0edd581f29d240ad2aefc366bed46d4d85172fc5db78d0fc4e44a5c30759"
+    }
+  ]
+}

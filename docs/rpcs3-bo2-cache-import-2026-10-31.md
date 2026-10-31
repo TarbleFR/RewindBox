@@ -105,13 +105,45 @@ et les empreintes des objets ARM64. Le workflow ciblé
 essai de cache/dispatch Metal sur macOS. Son existence ne vaut pas résultat
 d'exécution ; les résultats effectifs doivent être liés au run et aux artefacts.
 
+## Validation Apple effectuée
+
+Le [run 41239096061](https://github.com/TarbleFR/RewindBox/actions/runs/41239096061),
+source `7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed`, réussit ses trois jobs dès
+la première tentative. Les nouveaux adaptateurs passent sur Apple ARM64 avec
+ASan/UBSan. Les bibliothèques statiques entières sont effectivement compilées
+avec Xcode 16.4 ; le paquet iOS utilise le SDK 18.5 et cible iOS 16.3.
+
+Les archives téléchargées ont été vérifiées contre leurs tailles, SHA-256 et
+CRC ZIP. Le paquet iOS contient une bibliothèque ARM64 de 11 714 256 octets,
+SHA-256 `0d711e4ad3610bb176e3c91e727940f7c448a25571158cc1919d633f1d622b1f`,
+avec un objet Mach-O ciblant iOS 16.3.0. Les headers correspondent au manifeste.
+
+| Artefact du run | Octets | SHA-256 |
+| --- | ---: | --- |
+| Prévalidation 13056672047 | 9 516 | `c3a968fde0254e477c83f5174e615f9414432ea78152db640efa1c2947b6e441` |
+| Dépendance iOS 13056518647 | 5 144 230 | `833e431b0274002fba4fe36db65219144dedfa5440c7b7c821591c264352da0c` |
+| Dépendance macOS et Metal 13057525542 | 5 696 056 | `8649ce9caf18ac7af9dc7b1fa68ffca3e9a94f338dbbb237b887d8aa6c0f4adc` |
+
+Le probe appelle le vrai pilote Metal sur **Apple Paravirtual device**, le
+périphérique virtualisé du runner macOS. Il crée les pipelines et termine
+des dispatchs compute avec une fence ; il n'utilise pas un renderer simulé.
+Une entrée de cache de 452 octets est sérialisée puis relue : **zéro compilation
+de bibliothèque à l'import**, **une à la première demande**, aucune nouvelle
+à la demande répétée. Huit demandes concurrentes de la même entrée déclenchent
+une compilation et ne produisent aucun échec de pipeline.
+
+Ces résultats vérifient le mécanisme avec Metal sur macOS. Ils ne mesurent
+pas le multijoueur BO2, les images PS3 ou les FPS sur un iPhone. Les reçus et
+journaux téléchargés sont sous `apple-preflight/` et `apple-metal/` dans les
+preuves du 31 octobre. La compilation complète iOS du pilote a pris environ
+320 s ; ce temps de build n'est pas un gain de temps de chargement du jeu.
+
 ## Suite concrète
 
-1. Construire la bibliothèque statique complète avec le producteur candidat,
-   puis compiler un nouveau core sous un contrat qui lie ce nouveau paquet,
+1. Compiler un nouveau core sous un contrat qui lie le paquet iOS vérifié,
    ses sources, son SDK et les contrôles ABI/export/codegen existants.
-2. Tester l'import et le préchauffage avec le vrai pilote Metal ; mesurer
-   séparément import, préchauffage et première frame, cache conservé.
+2. Mesurer séparément import, préchauffage et première frame sur iPhone,
+   cache conservé. Le préchauffage RPCS3 complet n'est pas exercé par le probe compute.
 3. Rejouer l'entrée multijoueur BO2 sur iPhone, puis un second lancement du
    même mode. Vérifier l'arrêt/reprise et les autres jeux avant promotion.
 

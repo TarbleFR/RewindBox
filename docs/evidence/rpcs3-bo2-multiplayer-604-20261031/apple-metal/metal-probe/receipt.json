@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "real_metal_execution": true,
+  "iphone_tested": false,
+  "fps_gain_claimed": false,
+  "source_sha256": "dbd9e85e3752c3910b31938fcb6a4b1f0d2e2ee195f2c11901e8f99dacc04f35",
+  "runner_sha256": "51b193c06852d2530924e1084947d0c8d5244afc260231e8a88061f5adb2fcba",
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "commands": [
+    {
+      "argv": [
+        "/opt/homebrew/bin/spirv-val",
+        "--version"
+      ],
+      "exit_code": 0,
+      "seconds": 0.035421500000097694,
+      "log": "spirv-val-version.log",
+      "log_sha256": "3f0ae05093de44cefafa15a117371fcc7ad25aabca0dfbc222a6a29f1c55f26a"
+    },
+    {
+      "argv": [
+        "/opt/homebrew/bin/spirv-val",
+        "--target-env",
+        "vulkan1.0",
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-mvk-cache-validation/metal-probe/compute.spv"
+      ],
+      "exit_code": 0,
+      "seconds": 0.028046083000049293,
+      "log": "spirv-val.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "xcodebuild",
+        "-version"
+      ],
+      "exit_code": 0,
+      "seconds": 0.5459965420000117,
+      "log": "xcode-version.log",
+      "log_sha256": "a8be4f9af0a29137fe7e59b9928056d4a0df297bb46ba40f80eaa6b0ae982f12"
+    },
+    {
+      "argv": [
+        "xcrun",
+        "--sdk",
+        "macosx",
+        "clang++",
+        "--version"
+      ],
+      "exit_code": 0,
+      "seconds": 0.0685252920000039,
+      "log": "compiler-version.log",
+      "log_sha256": "df12815703ce3452ab4bd51ecbea4cf8155246b94b5b15113a580ff6aec2befd"
+    },
+    {
+      "argv": [
+        "xcrun",
+        "--sdk",
+        "macosx",
+        "clang++",
+        "-std=c++17",
+        "-O2",
+        "-pthread",
+        "-arch",
+        "arm64",
+        "-mmacosx-version-min=12.0",
+        "-fno-objc-arc",
+        "-Wall",
+        "-Wextra",
+        "-Wno-missing-field-initializers",
+        "-I",
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-mvk-cache-validation/macos-package/MoltenVK/include",
+        "/Users/runner/work/RewindBox/RewindBox/test/native/rpcs3_moltenvk_metal_probe.mm",
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-mvk-cache-validation/macos-package/MoltenVK/static/MoltenVK.xcframework/macos-arm64/libMoltenVK.a",
+        "-o",
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-mvk-cache-validation/metal-probe/metal-probe",
+        "-framework",
+        "Foundation",
+        "-framework",
+        "Metal",
+        "-framework",
+        "QuartzCore",
+        "-framework",
+        "IOSurface",
+        "-framework",
+        "IOKit",
+        "-framework",
+        "AppKit",
+        "-framework",
+        "CoreGraphics"
+      ],
+      "exit_code": 0,
+      "seconds": 3.420556708999925,
+      "log": "compile.log",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "argv": [
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-mvk-cache-validation/metal-probe/metal-probe",
+        "/Users/runner/work/RewindBox/RewindBox/build/rpcs3-mvk-cache-validation/metal-probe/metal-result.json"
+      ],
+      "exit_code": 0,
+      "seconds": 1.7477170419999766,
+      "log": "execution.log",
+      "log_sha256": "6a11cea337c4fd84d0ccba2c51bd9de5ca45c742a0818b75989bc5299d4aab26"
+    }
+  ],
+  "package_receipt_sha256": "ecd0f44e62f7454fd1a87d81a937301e2180ef5a9c562e0b9abd7daa6fbc79c9",
+  "library_sha256": "18acc1c90b52697938b610dc60354a82ea4f71909e4bcd7c3b854624ce06ae94",
+  "upstream_commit": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+  "fixture_sha256": "d73f42d8ec16b852de875b7cd328e5d9c62f8d0567e5e1a43d67f4b2dc916719",
+  "binary_sha256": "e8caa60c151e02b33fcb152b41a3ad30026721d2bb862f5e84052c24d5644794",
+  "probe_environment": {
+    "MVK_CONFIG_PERFORMANCE_TRACKING": "1",
+    "MVK_CONFIG_ACTIVITY_PERFORMANCE_LOGGING_STYLE": "0"
+  },
+  "metal_result_sha256": "79c39ae3d0a6db61b660d97c3f830de799e06f760baa7be98a3dbd3319376852",
+  "metal_result": {
+    "status": "passed",
+    "iphone_tested": false,
+    "real_metal_execution": true,
+    "limits": "macOS compute cache probe only; no game, iPhone recovery, visual correctness or speedup measurement",
+    "concurrent_threads": 8,
+    "imported_shader_entries": 1,
+    "schema": 1,
+    "first_demand_library_compiles": 1,
+    "seed_library_compiles": 1,
+    "fps_gain_claimed": false,
+    "serialized_cache_bytes": 452,
+    "concurrent_library_compiles": 1,
+    "metal_device": "Apple Paravirtual device",
+    "vulkan_device": "Apple Paravirtual device",
+    "queue_hooks": "test executable adapters using real dispatch; product hooks unchanged",
+    "import_library_compiles": 0,
+    "concurrent_pipeline_failures": 0
+  },
+  "limits": [
+    "macOS compute shader/cache probe, not an iPhone or game test.",
+    "No performance gain, FPS gain, graphics fix or BO2 recovery is established.",
+    "Dispatch hook adapters exist only in the test executable; product hooks are unchanged."
+  ]
+}

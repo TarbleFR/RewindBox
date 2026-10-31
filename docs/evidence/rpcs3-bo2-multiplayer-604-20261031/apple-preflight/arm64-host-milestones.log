@@ -1,0 +1,1 @@
+PASS: 14 native cache boundaries, independent 16/s cap, notice routing, raw128 budget and 32 concurrent writers (portable mutex/clock shim).

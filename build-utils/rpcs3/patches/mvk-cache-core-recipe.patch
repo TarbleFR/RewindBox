@@ -1,0 +1,92 @@
+--- a/build-utils/build_rpcs3_embedded_core.sh
++++ b/build-utils/build_rpcs3_embedded_core.sh
+@@ -48,23 +48,15 @@
+ mkdir -p "$WORK_ROOT" "$DEPS" "$OUTPUT_DIR"
+ ccache --max-size=3G >/dev/null
+ 
+-log "Provision pinned MoltenVK $MOLTENVK_VERSION for iOS"
+-MOLTENVK_LIB="$(find "$MOLTENVK_EXTRACT" -type f -path '*/MoltenVK/static/MoltenVK.xcframework/ios-arm64/libMoltenVK.a' -print -quit 2>/dev/null || true)"
+-if [[ -z "$MOLTENVK_LIB" ]]; then
+-  rm -rf "$MOLTENVK_EXTRACT"
+-  mkdir -p "$MOLTENVK_EXTRACT"
+-  ARCHIVE="$WORK_ROOT/MoltenVK-ios-$MOLTENVK_VERSION.tar"
+-  curl -fL --retry 4 --retry-delay 2 \
+-    "https://github.com/KhronosGroup/MoltenVK/releases/download/v${MOLTENVK_VERSION}/MoltenVK-ios.tar" \
+-    -o "$ARCHIVE"
+-  printf '%s  %s\n' "$MOLTENVK_SHA256" "$ARCHIVE" | shasum -a 256 -c -
+-  tar -xf "$ARCHIVE" -C "$MOLTENVK_EXTRACT"
+-  MOLTENVK_LIB="$(find "$MOLTENVK_EXTRACT" -type f -path '*/MoltenVK/static/MoltenVK.xcframework/ios-arm64/libMoltenVK.a' -print -quit)"
+-fi
+-[[ -n "$MOLTENVK_LIB" ]] || die "MoltenVK archive does not contain the ios-arm64 static XCFramework library"
++# REWINDBOX_MVK_SOURCE_CACHE_CANDIDATE_V1: complete source-built dependency,
++# authenticated separately from the frozen a4 prebuilt recipe.
++[[ -n "${RPCS3_MVK_CANDIDATE_PROOF:-}" && -n "${RPCS3_MVK_CANDIDATE_PACKAGE:-}" ]] \
++  || die "explicit MoltenVK candidate proof and package are required"
++python3 "$PWD/.github/diagnostics/rpcs3_mvk_cache_core.py" --verify-package "$RPCS3_MVK_CANDIDATE_PROOF"
++MOLTENVK_ROOT="$RPCS3_MVK_CANDIDATE_PACKAGE"
+ MOLTENVK_SUFFIX='/MoltenVK/static/MoltenVK.xcframework/ios-arm64/libMoltenVK.a'
+-MOLTENVK_ROOT="${MOLTENVK_LIB%$MOLTENVK_SUFFIX}"
+-test -f "$MOLTENVK_ROOT/MoltenVK/include/vulkan/vulkan.h" || die "MoltenVK headers are missing beside the resolved package root: $MOLTENVK_ROOT"
++MOLTENVK_LIB="$MOLTENVK_ROOT$MOLTENVK_SUFFIX"
++test -f "$MOLTENVK_ROOT/MoltenVK/include/vulkan/vulkan.h" || die "candidate Vulkan headers are missing"
+ 
+ log "Build pinned FFmpeg $FFMPEG_VERSION statically for iOS arm64"
+ if [[ ! -f "$FFMPEG_ROOT/lib/libavcodec.a" || ! -f "$FFMPEG_ROOT/include/libavutil/ffversion.h" ]]; then
+@@ -114,38 +106,15 @@
+ log "Apply the single reviewed NeoStation Core source delta"
+ python3 "$PWD/build-utils/materialize_rpcs3_core.py" "$SRC"
+ python3 "$PWD/build-utils/apply_rpcs3_llvm_patch.py" "$SRC"
+-# REWINDBOX_MOLTENVK_COMPILE_QOS_V1: a Core source that defines
+-# rbx_mvk_compile_qos_queue (rpcs3/ios/RPCS3IOSPlatform.mm) links a copy of the
+-# pinned archive whose single dispatch_get_global_queue reference
+-# (MVKMetalCompiler::compile) is renamed to it. The cached pinned package stays
+-# pristine for Core sources without that definition.
+-if grep -q 'REWINDBOX_MOLTENVK_COMPILE_QOS_V1' "$SRC/rpcs3/ios/RPCS3IOSPlatform.mm"; then
+-  log "Link MoltenVK with Metal compiles in the waiting thread's QoS class"
+-  MOLTENVK_QOS_ROOT="$WORK_ROOT/moltenvk-$MOLTENVK_VERSION-compile-qos"
+-  rm -rf "$MOLTENVK_QOS_ROOT"
+-  mkdir -p "$MOLTENVK_QOS_ROOT"
+-  cp -R "$MOLTENVK_ROOT/." "$MOLTENVK_QOS_ROOT/"
+-  python3 "$PWD/build-utils/rpcs3/patch_moltenvk_compile_qos.py" "$MOLTENVK_QOS_ROOT$MOLTENVK_SUFFIX" \
+-    || die "MoltenVK compile QoS patch failed"
+-  python3 "$PWD/build-utils/rpcs3/patch_moltenvk_compile_qos.py" "$MOLTENVK_QOS_ROOT$MOLTENVK_SUFFIX" --check \
+-    || die "MoltenVK archive is not the pinned compile-QoS archive"
+-  MOLTENVK_ROOT="$MOLTENVK_QOS_ROOT"
+-  MOLTENVK_LIB="$MOLTENVK_QOS_ROOT$MOLTENVK_SUFFIX"
+-fi
+-# REWINDBOX_MOLTENVK_EXEC_BARRIER_V1: a Core source that defines
+-# rbx_mvk_exec_q_create (rpcs3/ios/RPCS3IOSPlatform.mm) also renames the
+-# archive's single dispatch_queue_create reference (MVKQueue::initExecQueue,
+-# the encoding queue of asynchronous submits) to it, on the compile-QoS copy.
+-if grep -q 'REWINDBOX_MOLTENVK_EXEC_BARRIER_V1' "$SRC/rpcs3/ios/RPCS3IOSPlatform.mm"; then
+-  [[ "${MOLTENVK_QOS_ROOT:-}" && "$MOLTENVK_LIB" = "$MOLTENVK_QOS_ROOT$MOLTENVK_SUFFIX" ]] \
+-    || die "the MoltenVK encoding-queue patch applies to the compile-QoS archive"
+-  log "Link MoltenVK with its encoding queue visible to the Core"
+-  python3 "$PWD/build-utils/rpcs3/patch_moltenvk_exec_queue.py" "$MOLTENVK_LIB" \
+-    || die "MoltenVK encoding-queue patch failed"
+-  python3 "$PWD/build-utils/rpcs3/patch_moltenvk_exec_queue.py" "$MOLTENVK_LIB" --check \
+-    || die "MoltenVK archive is not the pinned encoding-queue archive"
+-fi
+-if [[ -n "${RPCS3_DEEP_NATIVE_PROOF:-}" ]]; then
++# The source-built dependency calls the same two Core hooks directly.
++# Never apply the old single-object binary rename patchers to this archive.
++for marker in REWINDBOX_MOLTENVK_COMPILE_QOS_V1 REWINDBOX_MOLTENVK_EXEC_BARRIER_V1; do
++  grep -q "$marker" "$SRC/rpcs3/ios/RPCS3IOSPlatform.mm" || die "Core queue hook source is missing"
++done
++MOLTENVK_QOS_ROOT="$MOLTENVK_ROOT"
++if [[ -n "${RPCS3_MVK_CANDIDATE_PROOF:-}" ]]; then
++  python3 "$PWD/.github/diagnostics/rpcs3_mvk_cache_core.py" --source "$SRC" --verify-reuse "$RPCS3_MVK_CANDIDATE_PROOF"
++elif [[ -n "${RPCS3_DEEP_NATIVE_PROOF:-}" ]]; then
+   python3 "$PWD/.github/diagnostics/rpcs3deep_core.py" --source "$SRC" --verify-reuse "$RPCS3_DEEP_NATIVE_PROOF"
+ elif [[ -n "${RPCS3_RUNTIME592_NATIVE_PROOF:-}" ]]; then
+   # The delivered Core591 authenticates unchanged history; only runtime592 is new.
+@@ -321,7 +290,8 @@
+ python3 "$PWD/build-utils/rpcs3_core_syntax_gate.py" "$BUILD/compile_commands.json"
+ 
+ log "Compile RPCS3Core only"
+-cmake --build "$BUILD" --target RPCS3Core --parallel "$BUILD_JOBS"
++# Preserve the actually executed linker arguments for the dependency identity.
++cmake --build "$BUILD" --target RPCS3Core --parallel "$BUILD_JOBS" --verbose -- -d keeprsp
+ CORE="$(find "$BUILD" -type f \( -name 'libRPCS3Core.dylib' -o -name 'RPCS3Core.dylib' \) -print -quit)"
+ [[ -n "$CORE" && -s "$CORE" ]] || { find "$BUILD" -maxdepth 6 -name '*RPCS3Core*' -print >&2 || true; die "libRPCS3Core.dylib was not produced"; }
+ 

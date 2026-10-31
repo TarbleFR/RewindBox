@@ -1,0 +1,276 @@
+# Core-only candidate. Source changes use [skip ci]; a separate marker commit
+# touching only this workflow requests the reviewed native dependency build.
+# No application build, IPA, release or publication is performed by this route.
+# Core compile request: pending integration verification by the parent.
+name: RPCS3 deferred MoltenVK cache Core
+run-name: "RPCS3 deferred MoltenVK cache Core • ${{ github.sha }}"
+'on':
+  push:
+    branches: [Claude]
+    paths:
+      - '.github/workflows/rpcs3-mvk-cache-core.yml'
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact full commit SHA, equal to the selected workflow ref
+        required: true
+        type: string
+      dependency_run:
+        description: Successful standalone MoltenVK cache validation run
+        required: true
+        default: '41239096061'
+        type: string
+      dependency_source:
+        description: Exact source SHA of the standalone dependency validation run
+        required: true
+        default: '7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed'
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: rewindbox-rpcs3-mvk-cache-core-${{ github.sha }}
+  cancel-in-progress: false
+env:
+  HOMEBREW_NO_AUTO_UPDATE: '1'
+  # The gate rejects a pending/failed run, wrong job/source or changed payload.
+  # Update these only after authenticating a replacement dependency run.
+  RPCS3_MVK_DEPENDENCY_RUN: '41239096061'
+  RPCS3_MVK_DEPENDENCY_SOURCE: '7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed'
+jobs:
+  core:
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-mvk-cache-core]') }}
+    name: RPCS3 iPhone Core with authenticated source-built MoltenVK
+    runs-on: macos-15
+    timeout-minutes: 180
+    steps:
+      - name: Bind the request to exact source identities
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha || github.sha }}
+          DEPENDENCY_RUN: ${{ inputs.dependency_run || env.RPCS3_MVK_DEPENDENCY_RUN }}
+          DEPENDENCY_SOURCE: ${{ inputs.dependency_source || env.RPCS3_MVK_DEPENDENCY_SOURCE }}
+        run: |
+          set -euo pipefail
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CANDIDATE_SHA" == "$GITHUB_SHA" ]]
+          [[ "$DEPENDENCY_RUN" =~ ^[0-9]+$ ]]
+          [[ "$DEPENDENCY_SOURCE" =~ ^[0-9a-f]{40}$ ]]
+      - name: Checkout immutable candidate and retained source history
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select the retained Core toolchain
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '16.4'
+      - name: Restore candidate compiler objects with the retained recipe identity
+        id: candidate-objects
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/Library/Caches/ccache
+          key: rpcs3-mvk-cache-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
+          restore-keys: rpcs3-mvk-cache-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-
+      # Historical cache versions bind both paths. Restore that version only
+      # on a true candidate cache miss, then quarantine its dependency directory.
+      - name: Restore historical compiler objects on a candidate cache miss
+        if: ${{ steps.candidate-objects.outputs.cache-matched-key == '' }}
+        id: historical-objects
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/Library/Caches/ccache
+            ${{ runner.temp }}/neostation-rpcs3-embedded/deps
+          key: rpcs3-audit-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
+          restore-keys: rpcs3-audit-arm64-xcode16.4-llvm22-
+      - name: Keep restored historical dependencies outside the fresh candidate build
+        if: ${{ steps.historical-objects.outputs.cache-matched-key != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PYCODE'
+          import os
+          from pathlib import Path
+          temp = Path(os.environ['RUNNER_TEMP']).resolve(strict=True)
+          previous = temp / 'neostation-rpcs3-embedded'
+          staging = temp / 'rpcs3-retained-dependency-cache'
+          if previous.exists() or previous.is_symlink():
+              if previous.is_symlink() or not previous.is_dir():
+                  raise RuntimeError('Historical cache root is not an owned directory')
+              if {child.name for child in previous.iterdir()} != {'deps'}:
+                  raise RuntimeError('Unexpected contents in historical cache root; preserve them')
+              deps = previous / 'deps'
+              if deps.is_symlink() or not deps.is_dir():
+                  raise RuntimeError('Historical dependency cache is not an owned directory')
+              if staging.exists() or staging.is_symlink():
+                  raise RuntimeError('Historical cache staging already exists; preserve it')
+              deps.rename(staging)
+              previous.rmdir()
+          if previous.exists() or previous.is_symlink():
+              raise RuntimeError('Candidate work root must be absent before its producer runs')
+          PYCODE
+      - name: Authenticate original Core evidence and the new native dependency
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPENDENCY_RUN: ${{ inputs.dependency_run || env.RPCS3_MVK_DEPENDENCY_RUN }}
+          DEPENDENCY_SOURCE: ${{ inputs.dependency_source || env.RPCS3_MVK_DEPENDENCY_SOURCE }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/rpcs3-core-diagnostics
+          git diff --check
+          for formula in ccache ninja cmake llvm@22 ffmpeg; do
+            brew list --versions "$formula" >/dev/null 2>&1 || brew install "$formula"
+          done
+          python3 test/rpcs3_mvk_core_protocol_test.py \
+            2>&1 | tee build/rpcs3-core-diagnostics/core-protocol-tests.log
+          python3 test/rpcs3_mvk_dependency_artifact_test.py \
+            2>&1 | tee build/rpcs3-core-diagnostics/dependency-protocol-tests.log
+          SOURCE="$RUNNER_TEMP/rpcs3-mvk-cache-source-preflight"
+          git init -q "$SOURCE"
+          git -C "$SOURCE" remote add origin https://github.com/XITRIX/rpcs3.git
+          UPSTREAM=$(python3 -c 'import json; print(json.load(open("build-utils/rpcs3/canonical-source.json"))["upstream_commit"])')
+          git -C "$SOURCE" fetch --depth 1 origin "$UPSTREAM"
+          git -C "$SOURCE" checkout -q --detach FETCH_HEAD
+          python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
+          CXX="$(brew --prefix llvm@22)/bin/clang++" \
+          SDKROOT="$(xcrun --sdk macosx --show-sdk-path)" \
+          HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)" \
+          LLVM_CONFIG="$(brew --prefix llvm@22)/bin/llvm-config" \
+          LLVM_DIR="$(brew --prefix llvm@22)/lib/cmake/llvm" \
+            python3 .github/diagnostics/rpcs3_mvk_cache_core.py \
+              --prepare --source "$SOURCE" \
+              --dependency-run "$DEPENDENCY_RUN" --dependency-source "$DEPENDENCY_SOURCE" \
+              2>&1 | tee build/rpcs3-core-diagnostics/mvk-cache-preflight.log
+      - name: Preserve authenticated preflight without replaying unchanged CPU modes
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3Core-MVK-cache-preflight-${{ github.sha }}
+          path: |
+            build/rpcs3-core-diagnostics/mvk-cache-core-proof.json
+            build/rpcs3-core-diagnostics/mvk-cache-preflight.log
+          if-no-files-found: error
+          retention-days: 14
+      - name: Compile and link the actual iPhone Core with the new dependency
+        shell: bash
+        run: |
+          set -euo pipefail
+          ccache --show-stats > build/rpcs3-core-diagnostics/ccache-before.txt
+          ccache --print-stats > build/rpcs3-core-diagnostics/ccache-before-counters.txt
+          date +%s > build/rpcs3-core-diagnostics/core-compile-start-epoch.txt
+          env -u GITHUB_ENV BUILD_JOBS=3 \
+            python3 build-utils/rpcs3/build_rpcs3_mvk_cache_core.py \
+              --proof "$PWD/build/rpcs3-core-diagnostics/mvk-cache-core-proof.json" \
+              --output "$PWD/dist/rpcs3" \
+              --work-root "$RUNNER_TEMP/neostation-rpcs3-embedded" \
+              2>&1 | tee build/rpcs3-core-diagnostics/core-driver.log
+      - name: Verify the actual binary and bind its new dependency identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          CORE=dist/rpcs3/libRPCS3Core.dylib
+          test -s "$CORE"
+          python3 build-utils/validate_rpcs3_embedded_core.py "$CORE"
+          python3 build-utils/validate_rpcs3_passive_dlopen.py "$CORE" \
+            | tee build/rpcs3-core-diagnostics/passive-dlopen.txt
+          file "$CORE" | tee build/rpcs3-core-diagnostics/file.txt
+          lipo -archs "$CORE" | tee build/rpcs3-core-diagnostics/archs.txt
+          nm -gU "$CORE" > build/rpcs3-core-diagnostics/exports.txt
+          python3 .github/diagnostics/rpcs3_mvk_cache_core.py \
+            --write-core-identity "$PWD/dist/rpcs3"
+          python3 - <<'PYCODE'
+          import hashlib, json
+          from pathlib import Path
+          dist = Path('dist/rpcs3')
+          diagnostics = Path('build/rpcs3-core-diagnostics')
+          identity = json.loads((dist / 'identity.json').read_text())
+          if (diagnostics / 'identity.json').read_bytes() != (dist / 'identity.json').read_bytes():
+              raise RuntimeError('Core and diagnostic identities differ after ABI validation')
+          proof = json.loads((dist / 'mvk-cache-core-proof.json').read_text())
+          build = Path(proof['build_root']).resolve(strict=True)
+          saved = {}
+          for index, (name, expected) in enumerate(identity['actual_link']['response_files'].items()):
+              source = Path(name)
+              if source.is_symlink() or not source.resolve(strict=True).is_relative_to(build):
+                  raise RuntimeError('Validated linker response file escaped the actual build')
+              raw = source.read_bytes()
+              if len(raw) != expected['bytes'] or hashlib.sha256(raw).hexdigest() != expected['sha256']:
+                  raise RuntimeError('Validated linker response file changed')
+              relative = Path('link-response') / f'{index:03d}.rsp'
+              destination = dist / relative
+              destination.parent.mkdir(parents=True, exist_ok=True)
+              destination.write_bytes(raw)
+              saved[name] = dict(expected, artifact_path=str(relative))
+          (dist / 'link-response-manifest.json').write_text(json.dumps(saved, indent=2) + '\n')
+          PYCODE
+      - name: Record observed compiler-cache counters and compile duration
+        if: always()
+        shell: bash
+        env:
+          CANDIDATE_CACHE_MATCH: ${{ steps.candidate-objects.outputs.cache-matched-key }}
+          HISTORICAL_CACHE_MATCH: ${{ steps.historical-objects.outputs.cache-matched-key }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/rpcs3-core-diagnostics
+          if command -v ccache >/dev/null 2>&1; then
+            ccache --show-stats > build/rpcs3-core-diagnostics/ccache-after.txt
+            ccache --print-stats > build/rpcs3-core-diagnostics/ccache-after-counters.txt
+          fi
+          python3 - <<'PYCODE'
+          import json, os, time
+          from pathlib import Path
+          out = Path('build/rpcs3-core-diagnostics')
+          def counters(name):
+              path = out / name
+              if not path.is_file():
+                  return None
+              return {parts[0]: int(parts[1]) for line in path.read_text().splitlines()
+                      if len(parts := line.split()) == 2 and parts[1].isdigit()}
+          before = counters('ccache-before-counters.txt')
+          after = counters('ccache-after-counters.txt')
+          start = out / 'core-compile-start-epoch.txt'
+          receipt = {'schema': 1, 'source': os.environ['GITHUB_SHA'],
+                     'candidate_cache_match': os.environ['CANDIDATE_CACHE_MATCH'],
+                     'historical_cache_match': os.environ['HISTORICAL_CACHE_MATCH'],
+                     'ccache_before': before, 'ccache_after': after,
+                     'ccache_counter_deltas': {key: after[key] - value for key, value in before.items()
+                                               if key in after} if before is not None and after is not None else None,
+                     'core_compile_started': start.is_file(),
+                     'elapsed_seconds_since_compile_start': int(time.time()) - int(start.read_text())
+                                                             if start.is_file() else None,
+                     'historical_dependencies_linked': False,
+                     'cache_speedup_claimed': False, 'fps_gain_claimed': False}
+          (out / 'compiler-cache-observed.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          PYCODE
+      - name: Upload the verified Core without an application delivery
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3Core-MVK-cache-${{ github.sha }}
+          path: dist/rpcs3/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Preserve compiler objects for the same recipe
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/Library/Caches/ccache
+          key: rpcs3-mvk-cache-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
+      - name: Preserve real diagnostics including partial failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RPCS3Core-MVK-cache-diagnostics-${{ github.sha }}
+          path: |
+            build/rpcs3-core-diagnostics/*.json
+            build/rpcs3-core-diagnostics/*.txt
+            build/rpcs3-core-diagnostics/*.log
+            build/rpcs3-core-diagnostics/*.sh
+            build/rpcs3-core-diagnostics/mvk-cache-reference/*.json
+            build/rpcs3-core-diagnostics/mvk-cache-reference/*.log
+            build/rpcs3-core-diagnostics/mvk-cache-dependency/
+            !build/rpcs3-core-diagnostics/mvk-cache-reference/*.zip
+            !build/rpcs3-core-diagnostics/mvk-cache-reference/a4-source/**
+          if-no-files-found: warn
+          retention-days: 14

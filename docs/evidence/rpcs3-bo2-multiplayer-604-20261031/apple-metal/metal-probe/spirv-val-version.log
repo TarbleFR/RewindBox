@@ -1,0 +1,15 @@
+SPIRV-Tools v2026.4 unknown hash, 2026-09-10T13:28:18+00:00
+Targets:
+  SPIR-V 1.0
+  SPIR-V 1.1
+  SPIR-V 1.2
+  SPIR-V 1.3
+  SPIR-V 1.4
+  SPIR-V 1.5
+  SPIR-V 1.6
+  SPIR-V 1.2 (under OpenCL 2.2 Full Profile semantics)
+  SPIR-V 1.0 (under Vulkan 1.0 semantics)
+  SPIR-V 1.3 (under Vulkan 1.1 semantics)
+  SPIR-V 1.4 (under Vulkan 1.1 semantics)
+  SPIR-V 1.5 (under Vulkan 1.2 semantics)
+  SPIR-V 1.6 (under Vulkan 1.3 semantics) SPIR-V 1.6 (under Vulkan 1.4 semantics)
