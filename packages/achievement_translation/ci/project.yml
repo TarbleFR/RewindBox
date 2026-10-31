@@ -15,7 +15,12 @@ targets:
     type: framework
     platform: iOS
     sources:
-      - path: ../ios/Classes/Core
+      - path: ../ios/Classes
+        excludes:
+          - AchievementToastPresenter.swift
+          - AchievementTranslationPlugin.swift
+          - RBAchievementTranslation.m
+          - Public/**
     dependencies:
       - sdk: Translation.framework
       - sdk: SwiftUI.framework

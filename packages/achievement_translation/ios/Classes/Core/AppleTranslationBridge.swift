@@ -101,7 +101,7 @@ private struct AchievementTranslationJobView: View {
     var body: some View {
         Color.clear.translationTask(TranslationSession.Configuration(
             source: Locale.Language(identifier: job.source), target: Locale.Language(identifier: job.target)
-        )) { session in
+        )) { @Sendable [job, bridge] session in
             // Session and Request never leave this callback or enter a singleton.
             // A fresh view identity, rather than an equal configuration assignment,
             // starts each job, including repeated requests for the same pair.

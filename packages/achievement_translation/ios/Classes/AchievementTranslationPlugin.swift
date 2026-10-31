@@ -88,7 +88,7 @@ public final class RBAchievementText: NSObject {
 }
 
 @MainActor
-public final class AchievementTranslationPlugin: NSObject, @preconcurrency FlutterPlugin {
+public final class AchievementTranslationPlugin: NSObject, FlutterPlugin {
     private let channel: FlutterMethodChannel
     private var observer: AnyCancellable?
 
@@ -105,13 +105,22 @@ public final class AchievementTranslationPlugin: NSObject, @preconcurrency Flutt
         }
     }
 
-    public static func register(with registrar: FlutterPluginRegistrar) {
-        let channel = FlutterMethodChannel(name: "rewindbox/achievement_translation", binaryMessenger: registrar.messenger())
-        let instance = AchievementTranslationPlugin(channel: channel)
-        registrar.addMethodCallDelegate(instance, channel: channel)
+    public nonisolated static func register(with registrar: FlutterPluginRegistrar) {
+        // Flutter's default iOS registrar and method channel callbacks execute
+        // on the platform main thread. Keep non-Sendable ObjC values in this
+        // synchronous boundary instead of transferring them into a Task.
+        MainActor.assumeIsolated {
+            let channel = FlutterMethodChannel(name: "rewindbox/achievement_translation", binaryMessenger: registrar.messenger())
+            let instance = AchievementTranslationPlugin(channel: channel)
+            registrar.addMethodCallDelegate(instance, channel: channel)
+        }
     }
 
-    public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    public nonisolated func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        MainActor.assumeIsolated { handleOnMain(call, result: result) }
+    }
+
+    private func handleOnMain(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         let arguments = call.arguments as? [String: Any] ?? [:]
         switch call.method {
         case "setLanguage":
