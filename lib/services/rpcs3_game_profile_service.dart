@@ -126,16 +126,25 @@ abstract final class Rpcs3GameProfileService {
   // This list remains intentionally small: it contains iOS evidence or a
   // platform-independent guest-timing fix, never speculative desktop tweaks.
   static const Map<String, Map<String, String>> _serialOverrides = {
-    // Dynasty Warriors 6: the iOS ARM64 PPU LLVM path terminated during boot.
+    // Dynasty Warriors 6: Build ~231 moved this title to the static PPU
+    // interpreter after the iOS ARM64 PPU LLVM path terminated during boot,
+    // while a host watchdog still stopped long 'ppu'/'applying' boot stages.
+    // Build 303 removed that watchdog and Builds 345+ fixed several ARM64 PPU
+    // LLVM paths; with the interpreter the title is reported as not starting
+    // (Build 610 request) and no record shows it ever reached gameplay.
+    // Build 610 returns the decoder to LLVM explicitly (an explicit value
+    // also replaces a cached interpreter entry) and keeps the other four
+    // values, so only one variable changes. CONFIG_LAYERS ppu_decoder and
+    // JITPROF_BOOT show the outcome; no iPhone result yet.
     'BLES00215': {
-      'cpu.ppu_decoder': 'Interpreter (static)',
+      'cpu.ppu_decoder': 'Recompiler (LLVM)',
       'advanced.llvm_precompilation': 'false',
       'emulator.max_llvm_threads': '0',
       'experimental.mobile_spu_scheduling': 'Automatic',
       'cpu.spu_block_size': 'Safe',
     },
     'BLUS30110': {
-      'cpu.ppu_decoder': 'Interpreter (static)',
+      'cpu.ppu_decoder': 'Recompiler (LLVM)',
       'advanced.llvm_precompilation': 'false',
       'emulator.max_llvm_threads': '0',
       'experimental.mobile_spu_scheduling': 'Automatic',

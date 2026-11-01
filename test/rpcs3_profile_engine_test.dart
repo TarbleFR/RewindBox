@@ -46,6 +46,54 @@ Video:
     expect(merged, contains('iOS Experimental:\n  RSX FIFO Read Cache: 4 KiB'));
   });
 
+  test('drops upstream-only keys the Core rejects and sections they empty', () {
+    // Live GameDB shapes (1 November 2026): BCES00009 carries both VFS keys,
+    // BLES00028 the Core key; the Core's strict validation refuses the whole
+    // publication when any published entry contains one of them.
+    const source = '''
+Core:
+  SPU MMIO Delay Enabled: true
+  SPU Block Size: Safe
+  Libraries Control:
+    - libvdec.sprx:lle
+VFS:
+  Emulate HDD Read Speed: true
+  Emulate BD-ROM Read Speed: true
+Video:
+  Write Color Buffers: true
+''';
+    final result = Rpcs3ConfigAdapter.sanitiseForIOS(source);
+    expect(result, isNot(contains('SPU MMIO Delay Enabled')));
+    expect(result, isNot(contains('Emulate HDD Read Speed')));
+    expect(result, isNot(contains('Emulate BD-ROM Read Speed')));
+    expect(result, isNot(contains('VFS:')));
+    expect(result, contains('Core:\n  SPU Block Size: Safe'));
+    expect(result, contains('  Libraries Control:\n    - libvdec.sprx:lle'));
+    expect(result, contains('Video:\n  Write Color Buffers: true'));
+
+    // A section with a kept sibling stays; a key of the same name in another
+    // section is not touched; an entry left empty is not useful.
+    final sibling = Rpcs3ConfigAdapter.sanitiseForIOS('''
+VFS:
+  Emulate HDD Read Speed: true
+  Enable /host_root/: false
+Miscellaneous:
+  SPU MMIO Delay Enabled: true
+''');
+    expect(sibling, contains('VFS:\n  Enable /host_root/: false'));
+    expect(sibling, contains('Miscellaneous:\n  SPU MMIO Delay Enabled: true'));
+    final emptied = Rpcs3ConfigAdapter.sanitiseForIOS('''
+VFS:
+  Emulate BD-ROM Read Speed: true
+''');
+    expect(emptied.trim(), isEmpty);
+    expect(Rpcs3ConfigAdapter.hasUsefulSetting(emptied), isFalse);
+    expect(
+      Rpcs3ConfigAdapter.sanitiseForIOS('Video:\n  Renderer: OpenGL\n').trim(),
+      isEmpty,
+    );
+  });
+
   test('drops only desktop renderer and unbounded handheld frame limits', () {
     const source = '''
 Video:

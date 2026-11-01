@@ -4,8 +4,22 @@
 /// leaves.  Editing lines in place preserves upstream values and lists while
 /// avoiding a second YAML serialization dependency in the launch path.
 abstract final class Rpcs3ConfigAdapter {
+  /// Keys of the live official GameDB that this RPCS3 fork does not define
+  /// (rpcs3/Emu/system_config.h). The Core validates every entry strictly and
+  /// refuses the whole publication when one entry is invalid
+  /// (RPCS3IOSConfigDatabase.cpp), so a single installed title carrying one of
+  /// them (39 of 2294 live entries on 1 November 2026) would block every
+  /// RewindBox title profile. They are desktop recommendations this Core
+  /// cannot honour; every key the fork knows is kept.
+  static const unsupportedUpstreamKeys = <String, String>{
+    'Emulate HDD Read Speed': 'VFS',
+    'Emulate BD-ROM Read Speed': 'VFS',
+    'SPU MMIO Delay Enabled': 'Core',
+  };
+
   static String sanitiseForIOS(String source) {
     final output = <String>[];
+    String? section;
     for (final line in source.split('\n')) {
       final separator = line.indexOf(':');
       if (separator < 0) {
@@ -14,13 +28,54 @@ abstract final class Rpcs3ConfigAdapter {
       }
       final key = line.substring(0, separator).trim().replaceFirst('- ', '');
       final value = line.substring(separator + 1).trim();
+      final indent = line.length - line.trimLeft().length;
+      if (indent == 0) section = key;
       if (key == 'Renderer' && value == 'OpenGL') continue;
       if (key == 'Frame limit' && (value == 'Off' || value == 'Infinite')) {
         continue;
       }
+      if (indent == 2 && unsupportedUpstreamKeys[key] == section) continue;
       output.add(line);
     }
-    return '${output.join('\n').trim()}\n';
+    return '${_dropEmptySections(output).join('\n').trim()}\n';
+  }
+
+  /// A section left without children decodes as null and fails the Core's
+  /// "node is not a map" check, which would still invalidate the entry.
+  /// Only sections emptied by [sanitiseForIOS] can exist here: upstream
+  /// entries never publish an empty mapping.
+  static List<String> _dropEmptySections(List<String> lines) {
+    var current = lines;
+    while (true) {
+      final kept = <String>[];
+      var removed = false;
+      for (var index = 0; index < current.length; index++) {
+        final line = current[index];
+        final trimmed = line.trim();
+        if (trimmed.endsWith(':') &&
+            !trimmed.startsWith('- ') &&
+            !trimmed.startsWith('#')) {
+          final indent = line.length - line.trimLeft().length;
+          var next = index + 1;
+          while (next < current.length && current[next].trim().isEmpty) {
+            next++;
+          }
+          final child = next < current.length ? current[next] : null;
+          final childIndent =
+              child == null ? -1 : child.length - child.trimLeft().length;
+          final listChild = child != null &&
+              child.trimLeft().startsWith('- ') &&
+              childIndent >= indent;
+          if (childIndent <= indent && !listChild) {
+            removed = true;
+            continue;
+          }
+        }
+        kept.add(line);
+      }
+      if (!removed) return kept;
+      current = kept;
+    }
   }
 
   static String mergeScalarOverrides(

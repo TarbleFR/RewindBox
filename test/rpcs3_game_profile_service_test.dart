@@ -37,14 +37,22 @@ void main() {
     );
 
     test(
-      'isolates the PPU interpreter fallback to Dynasty Warriors 6 serials',
+      'returns Dynasty Warriors 6 to PPU LLVM explicitly, only for its serials',
       () {
         final eu = Rpcs3GameProfileService.profileForSerial('BLES00215')!;
         final us = Rpcs3GameProfileService.profileForSerial('BLUS30110')!;
         final other = Rpcs3GameProfileService.profileForSerial('BLES00412')!;
 
-        expect(eu.settings['cpu.ppu_decoder'], 'Interpreter (static)');
-        expect(us.settings['cpu.ppu_decoder'], 'Interpreter (static)');
+        // Build 610: one variable changes; the other four values stay.
+        for (final profile in [eu, us]) {
+          expect(profile.settings, {
+            'cpu.ppu_decoder': 'Recompiler (LLVM)',
+            'advanced.llvm_precompilation': 'false',
+            'emulator.max_llvm_threads': '0',
+            'experimental.mobile_spu_scheduling': 'Automatic',
+            'cpu.spu_block_size': 'Safe',
+          });
+        }
         expect(other.settings, isNot(contains('cpu.ppu_decoder')));
         expect(other.settings, isEmpty);
       },
@@ -131,7 +139,8 @@ void main() {
       final bles = games['BLES00215'] as Map<String, dynamic>;
       final yaml = bles['config'] as String;
       expect(yaml, contains('Core:'));
-      expect(yaml, contains('PPU Decoder: Interpreter (static)'));
+      expect(yaml, contains('PPU Decoder: Recompiler (LLVM)'));
+      expect(yaml, isNot(contains('Interpreter (static)')));
       expect(yaml, contains('SPU Block Size: Safe'));
       expect(yaml, contains('iOS Experimental:'));
       expect(yaml, isNot(contains('Video:')));
