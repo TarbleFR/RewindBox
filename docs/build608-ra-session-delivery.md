@@ -1,119 +1,205 @@
-# Build608 — central RetroAchievements session delivery
+# Build 608 — central RetroAchievements session delivery
 
-This is an authorized delivery recipe, not a successful build receipt. The
-integration branch is `Claude`. No device login, award, translation-model
-download or gameplay success follows from a successful simulator or IPA build.
+**Delivered and independently verified:** RewindBox 0.0.8 (608), private IPA,
+iOS 18 or later. Release compilation, export, signatures and the downloaded
+file passed their recorded checks. Installation and gameplay on a physical
+device remain separate, unperformed validations.
 
-## Product and producer selection
+## Verified delivery
 
-The product baseline is the delivered Build607 source
+| Item | Result |
+| --- | --- |
+| Compiled source | `90a9e8fcaa9bf68e2f5a2270cab6b636d62fff07`, branch `Claude` |
+| Compiled tree | `067a0be8c34e44247f7abcdf6fd8bb4aeedf52f3` |
+| Workflow / application job | [41303386398](https://github.com/TarbleFR/RewindBox/actions/runs/41303386398) / [124838986809](https://github.com/TarbleFR/RewindBox/actions/runs/41303386398/job/124838986809), attempt 1; both `success` |
+| Delivered file | `RewindBox-608.ipa`, 189825138 bytes |
+| IPA SHA-256 | `575321ba6daed2678bedbb7da2a8412930bffb7f67c340980a235ee46c95450d` |
+| Application toolchain | Flutter 3.47.2 / Xcode 26.3, full Release application rebuild; [recorded environment](evidence/rewind608/environment.json) |
+| Release compilation | `BUILD SUCCEEDED`; compilation step 395 seconds |
+| Download verification | `passed-offline-checks`, 1 November 2026 at 12:06:10 UTC |
+| Reconciled proof | [delivery.json](evidence/rewind608/delivery.json), [independent verification](evidence/rewind608/download608-verification.json) |
+
+The producer filename was
+`RewindBox-Build608-90a9e8fcaa9bf68e2f5a2270cab6b636d62fff07-cold.ipa`.
+The delivered filename denotes the same verified bytes. A later documentation
+commit does not replace the compiled source/tree identity above.
+
+The product baseline is delivered 607, source
 `68552e27770b114ecc9a347600816132794b4fae`, run `41246903346`, application job
-`124672229557`. Its previously verified private IPA was 189741645 bytes,
-SHA-256 `817a196dd6452c1b6fc876b07f2337d09ade5a148751888c136d0e12dd90d2d4`.
-The workflow authenticates that successful run/job and the reviewed source
-delta. It does not claim to download the previous encrypted private IPA.
+`124672229557`. Its verified IPA was 189741645 bytes, SHA-256
+`817a196dd6452c1b6fc876b07f2337d09ade5a148751888c136d0e12dd90d2d4`.
+Historical donor 527 supplies only its authenticated native resource subset;
+it is not the application baseline.
 
-The full application is rebuilt. The resource donor527 is retained only for
-its previously authenticated native resource subset; it is not the product
-baseline. Every bootstrap Core is replaced before application compilation.
+## Product scope
 
-RPCS3 remains the recovered607 `a4ae86d0…` Core, ABI30. Its original producer
-`41243687649` failed after linking; `rpcs3runtime607_core.py` retains that failure,
-the original diagnostic archive, offline recovery evidence and exact input
-bindings. No replacement Core or fabricated successful producer is allowed.
-MeloNX remains the exact606/607 engine authenticated by `rewind606_engine.py`,
-including its original finalization failure and separate successful validation.
+The main RetroAchievements tab owns the emulator account, enabled/Hardcore
+policy, migration and actual session status. Libretro, Dolphin and ARMSX2
+consume immutable launch snapshots; old engine preferences cannot independently
+enable the current session. Notifications follow that snapshot. Existing
+achievement translation is retained and Flutter delegates now respect all
+twelve application locales, including the saved `zh_Hant` catalog identity.
 
-Dolphin is rebuilt from upstream `7cac54161659421ed95c2cd1c0b0746539a4cd38`
-with both additive session exports and the original exported ABI. ARMSX2 is
-rebuilt from its unchanged pinned iOSv2.6.0 revision with host/Core ABI9. The
-original shader resources and its one exported API entry point remain checked.
+The source/declaration audit still covers the root pubspec, three consumer
+podspecs and the central plugin's pubspec/podspec. The hosted package lock is
+unchanged. Existing unresolved source/license findings are not relabeled as
+resolved; `complete_corresponding_source_attested` remains false in the
+[declaration supplement](evidence/retro-achievements-session-declarations-2026-11-01.json).
 
-## One workflow
+## Original prerequisites and current checks
 
-Push the final reviewed commit on `Claude` with `[rewind608-delivery]` in its
-message. The workflow also permits an explicit dispatch on `Claude`.
+The four original jobs below succeeded on
+`0279198b1c33d869550cae3cf35f155b9d3a4f79`, tree
+`67f9f0c891d86b09d04c4f273931eeb0d33f602e`, run
+[41293321826](https://github.com/TarbleFR/RewindBox/actions/runs/41293321826),
+attempt 1. **That whole workflow failed in its application consumer.** Its
+individually successful jobs retain their own valid provenance.
 
-1. Ubuntu authenticates the reviewed607 baseline and retained native origins.
-2. Flutter3.47.2 tests and macOS Xcode16.4 native tests run as prerequisites.
-   The latter compile the actual Translation plugin with Swift6, run its
-   XCTest, the central session XCTest using real Flutter, the changed Dolphin
-   and ARMSX2 menu XCTest, libretro policy behavior and affected host compilation.
-3. Dolphin and ARMSX2 build concurrently after both test jobs succeed.
-4. A full Flutter3.47.2/Xcode26.3 Release application build consumes their
-   artifact IDs and SHA-256 digests through `needs` outputs.
+| Original successful job | Artifact | Actual result |
+| --- | --- | --- |
+| Flutter `124808995458` | `13077931904` | 159 tests in 15 files; analysis `No issues found` |
+| Native `124808995448` | `13078266751` | 90 XCTest; affected hosts compiled; 78 libretro iPhone source units compiled and linked |
+| Dolphin `124810929735` | `13078193437` | Compiled arm64 Core and authenticated producer receipt |
+| ARMSX2 `124810929747` | `13078023872` | Compiled arm64 ABI 9 Core and authenticated producer receipt |
 
-Producer jobs, exact source SHA, run attempt, complete archive digests, member
-inventories and compiled source inputs are checked before use. The application
-job never waits on another producer workflow while occupying a macOS runner.
-Compilation times are recorded, not predicted as measured performance. Two
-fresh native cores can exceed the usual delivery-time target on cold runners.
+The 90 XCTest comprise 33 Translation, 35 central session/migration, 8 Dolphin
+UIKit and 14 ARMSX2 UIKit tests. The Translation target was compiled with
+**Xcode 16.4 / Swift 6**, distinct from the full Xcode 26.3 application build.
+The original recipe also passed 31 delivery contracts. The original
+[Flutter receipt](evidence/rewind608/flutter-0279198-validation.json),
+[native receipt](evidence/rewind608/native-0279198-validation.json) and
+[assembled test provenance](evidence/rewind608/rewind608-tests.json) preserve
+these results and their source.
 
-## Freeze after integration
+The final workflow explicitly reused those unchanged product tests and Core
+builds. Its guard authenticated Git trees/modes, compiled and tested inputs,
+protected producer/workflow code, archives, receipts and command logs.
+Only reviewed recipe changes were allowed. The four fresh prerequisite jobs
+were deliberately skipped; they are not new successful test executions.
+The application was fully rebuilt using the authenticated original artifacts.
 
-The integrator must run the following after all product, test and recipe files
-are final, before the delivery commit:
+The final guard job `124838897878` passed **36 delivery contracts and 32 reuse
+contracts**; see the [guard receipt](evidence/rewind608/guard-90a9e8fc-validation.json).
+The actual final-run interpreters were **Python 3.14.4 on the Linux guard** and
+**Python 3.15.2 on the macOS consumer**, recorded in the
+[CI receipt](evidence/rewind608/final90a9e8fc-ci-receipt.json).
+The same 36 + 32 contracts also passed locally under Python 3.12.14, 3.13.16,
+3.14.8 and 3.15.0; the [local matrix](evidence/rewind608/python-contract-matrix.json)
+is a separate eight-execution record, not another Flutter/XCTest count.
 
-```sh
-python3 -B .github/diagnostics/rewind608_baseline.py freeze
-```
+The workflow remains `.github/workflows/rewind608-retro-achievements-delivery.yml`.
+Reuse is explicit: both `[rewind608-delivery]` and `[rewind608-reuse0279198]`
+for push, or `reuse_0279198` for dispatch on `Claude`. There is no automatic
+fallback to another artifact when an identity or required check fails.
 
-Review and commit the resulting `build-utils/rewind608-source-scope.json` and
-`docs/evidence/retro-achievements-session-declarations-2026-11-01.json` with the
-code they describe. The freeze command is deliberately refused in CI. Later
-changes to any scoped source byte or executable mode require review and a new
-freeze. Missing scope evidence is a hard failure, not an automatic regeneration.
+## Native payload provenance
 
-The new declaration review preserves the old license/source audit and605
-translation follow-up verbatim. It covers exactly six changed declarations:
-the root pubspec, three native consumers and the central plugin's pubspec and
-podspec. The hosted package lock must remain unchanged. Existing unresolved
-source/license findings are not relabeled as resolved by this review.
+Dolphin retains upstream `7cac54161659421ed95c2cd1c0b0746539a4cd38`, with
+additive session exports and its original exported ABI. Its original compiled
+archive SHA-256 is
+`9d32c236c79c43cd57053b000dfaba94c4e0d6f627bd04a657f74b36dd58c064`.
+ARMSX2 uses pinned iOSv2.6.0 revision
+`9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe` and host/Core ABI 9. Its archive
+SHA-256 is `e4354b47eee93d5dc8d53be070a88cc83ceb8b31ff4f7ccdca2eb2c2067b8763`.
+Both reused Core payloads and compiled-source snapshots matched the actual
+IPA. These archive digests are distinct from the IPA digest.
 
-`build-utils/delivery-608-recipient.pem` contains only the new recipient public
-key. The private key stays with the integrator and must not be committed.
+RPCS3 remains the recovered 607 Core, source
+`a4ae86d085c231e3c5c93f7f72d2eced0f38ec24`, ABI 30, 88 exports. Original
+producer `41243687649` failed after linking; separate recovery/verification
+for 607 remains its provenance. Its retained payload fingerprint,
+`7289ce4ef4f723d203995b4a76d5b2e1c2cd5a874e8a72c04b774c7d2dc1d22e`, matched.
+MeloNX also retained the exact 606/607 engine from
+`ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284`, including its original finalizer
+failure and separate successful validation. Its fingerprint matched
+`66124c2afb63e063711d1da18827d0b5a1fee55e58ef3e808494663b9262aa2c`.
+Neither engine gains an invented RetroAchievements integration.
 
-## Native inventory and signed export
+## Failed consumers retained in the record
 
-The complete named89-image inventory is preserved; the only addition is
-`Frameworks/retro_achievements_session.framework/retro_achievements_session`.
-The resulting exact90-image set is checked before signing, after signing and
-inside the final ZIP, including single-arm64 fat containers. Every image must
-have an actual successful macOS signature verification. Code/data sections,
-exports, dependencies, run paths, OS floor and install names must be preserved
-by signing. Dropping a baseline image and adding a replacement cannot satisfy
-the named inventory even if the total count still equals90.
+- `0279198` / run `41293321826`: the application consumer incorrectly compared
+  the 28 ARMSX2 iOS shader assets with all 52 packaged resources. The additional
+  24 native renderer shaders are expected by `target.cmake`. The correction
+  keeps exact equality with the complete producer inventory, plus the 28 iOS
+  assets and 12 presets; no compiled Core replacement was required.
+- `90948403` / run `41297363274`: 36 delivery and 27 reuse contracts passed,
+  then the macOS consumer failed before xcodebuild because of a
+  Python-dependent AST representation. A structural projection replaced it.
+- `3c942d38` / run `41302591486`: 36 delivery and 30 reuse contracts passed,
+  then a different projection for `rewind608_delivery.py` again stopped the
+  macOS consumer before xcodebuild. The defect was reproduced with Python
+  3.15's `Import.is_lazy` / `ImportFrom.is_lazy` field. That old runner's
+  Python version was not recorded and remains unknown. The final correction
+  supplies zero only for older nodes lacking this field, preserves meaningful
+  lazy-import differences and logs interpreter versions on both sides.
 
-The actual central C exports and its dependency from all three engine bridges
-are inspected in the signed IPA. Both rebuilt cores are compared with their
-authenticated producer payloads; exact RPCS3/MeloNX preservation, existing
-NeoPlay/shader isolation, source/legal notices, eight bundle versions and the
-single application structure retain their own validators.
+No unsuccessful whole run is relabeled as successful by the final delivery.
 
-## Transfer and runtime requirements
+## Compiler warnings
 
-The runner needs read access to the retained private Actions artifacts, the
-original recovered RPCS3 diagnostics, pinned libretro cores and MeloNX native
-dependencies. Expired, missing or mismatched artifacts fail the recipe; an
-older engine must not be substituted. Pinned upstream source/submodule fetches,
-Flutter/CocoaPods dependencies and Xcode16.4/26.3 availability remain external
-build requirements. Existing ScreenScraper build secrets are required as in607.
+The complete Release build is **not warning-free**. The
+[CI receipt](evidence/rewind608/final90a9e8fc-ci-receipt.json) records no
+qualified compiler errors or warnings attributed to the central session or
+achievement translation plugins. The [warning review](evidence/rewind608/final90a9e8fc-warning-review.json)
+counts 470 warning entries in the complete log, not 470 distinct new defects.
 
-Read-only GitHub verification on 1 November2026 found the retained libretro
-archive `12280822192` available until 3 November16:19UTC and the MeloNX native
-dependency archive `12458409441` until 5 November21:09UTC. The original RPCS3
-diagnostic archive `13059157171` expires on 14 November21:47UTC. Preflight
-authenticates these immutable IDs/digests before either new Core build. Runtime
-downloads verify the exact archive size and SHA-256 again before extraction.
+Four Swift concurrency warnings concern `writer`, `video`, `audio` and
+`adaptor` in `packages/neoplay_bridge/ios/Classes/NPMuxer.swift`: stored
+AVFoundation properties of its `Sendable` class are not Sendable. This source
+is unchanged from 607. Other reviewed bridge warnings include existing
+deprecated APIs, nullability, parameter types, unused functions, conversions
+and an uninitialized-variable warning. Of the 17 other bridge/header files
+identified by this review, only `DolphinInternalBridgePlugin.mm` was changed
+by the RA work; its deprecated `windows` line is unchanged from 607. These
+warnings are retained and disclosed, not claimed to have been fixed.
 
-Delivery and diagnostic archives are encrypted for608. Four bounded transport
-pieces preserve the existing download path. The recipient must download,
-decrypt and verify the actual delivered IPA and its embedded receipts before
-offering it to the user. Ad hoc preparation does not replace SideStore's Apple
-provisioning and signing.
+## Downloaded IPA and signature checks
 
-Physical-device checks still include Apple language-model consent/download,
-real supported-language availability, authentication/account changes, first
-launch/relaunch and genuine game recognition, Hardcore restrictions, unlock
-awards and notifications for each engine. Simulator fixtures cannot establish
-those outcomes or official RetroAchievements approval of the embedded forks.
+The actual IPA passed the exact named **90-image native inventory**: all 89
+baseline images plus the central `retro_achievements_session` framework.
+All **eight application/extension bundles** have version 0.0.8 (608). The
+checks cover architectures, source identities, exports, dependencies, install
+names, run paths and code/data fingerprints before/after signing and in the
+final ZIP, including single-arm64 fat containers.
+
+All 90 images passed macOS ad hoc signature verification. The shared C exports
+and three bridge dependencies, both producer Core payloads, retained
+RPCS3/MeloNX, NeoPlay/shader isolation and legal/version validators passed.
+The [IPA validation](evidence/rewind608/rewind608-ipa-validation.json),
+[signature receipt](evidence/rewind608/signature.json) and
+[signed payload identity](evidence/rewind608/signed-payload-identity.json)
+retain the actual production checks.
+
+Four authenticated encrypted parts were downloaded and reassembled. The
+actual decrypted IPA matched the production size/SHA-256 and passed ZIP/CRC,
+content, receipt, Mach-O and fingerprint checks plus all six offline validators.
+The [independent receipt](evidence/rewind608/download608-verification.json)
+binds the saved API responses and macOS signature receipts to those exact
+bytes. Linux did not execute or independently reproduce Apple codesign
+cryptographic verification. SideStore Apple provisioning/re-signing remains
+required. The private recipient key was deleted after successful verification
+and saving of the delivered files; no private key or Library identifier is
+published in these receipts.
+
+## Language and physical-device limits
+
+The twelve actual locales remain `en`, `es`, `ru`, `zh`, `zh_Hant`, `pt`, `fr`,
+`de`, `it`, `id`, `ja`, `ko`; the existing app language manager remains the
+authority. Arabic/RTL is a content test, not a thirteenth UI locale. No official
+RA translation source is configured; Apple output retains `machine` provenance.
+The existing cache, source fingerprints and localized original-text fallback
+remain documented in the [translation report](achievement-translation.md).
+
+Apple's published availability list for iOS/iPadOS 27 includes these twelve
+languages/scripts, but it does not guarantee availability on every iOS 18
+device. Runtime `LanguageAvailability` is authoritative. WWDC24/10117 describes
+the same languages as Translate, on-device models and no actual translation
+in the simulator. Model availability and model installation are distinct.
+
+No physical-device validation was executed by the assistant. Model consent
+and download, real translations, authentication/account changes, first launch
+and relaunch, real game recognition, Hardcore restrictions, awards,
+notifications, engine transitions and external-screen presentation still need
+device observation. Simulator/host success does not establish these outcomes
+or official RA approval of the embedded forks. Existing Hogwarts, BO2/GOW3 and
+other performance/recovery limitations remain unchanged.

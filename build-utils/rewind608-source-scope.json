@@ -60,6 +60,12 @@
       "modeBefore": null,
       "modeAfter": "100644"
     },
+    "AGENTS.md": {
+      "before": "c2b930c52f752bba32732e93f022d19b5f415034ababb504db481a0fa385b057",
+      "after": "ce193b997c92f7474c93d066feb52be50fdf528cef3f416e90b24400ee66d16b",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
     "build-utils/armsx2/source.json": {
       "before": "430a1baca240181c1bd407bbb3edf1d7a5aa2a00397023f8d42935e8a756e073",
       "after": "f3321d9b573a4e5562b6583d1bda8509fd75124c6e8d0f062a0d8ffa55e30810",
@@ -98,13 +104,91 @@
     },
     "docs/build608-ra-session-delivery.md": {
       "before": null,
-      "after": "0b6be823d3f9aefe25e16a351d522666bd67ae2fd0296331ec2a97f61f9bcfe0",
+      "after": "378edf3957281e7f93f13bc7a175fcc77d432e9e9f8f52a812048418e9c5faef",
       "modeBefore": null,
       "modeAfter": "100644"
     },
     "docs/evidence/retro-achievements-session-declarations-2026-11-01.json": {
       "before": null,
       "after": "7d341d4f57dfdfc4abe32a6b8f6845ba4d6236f32615fc0eed848c9b9679ad1e",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/delivery.json": {
+      "before": null,
+      "after": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/download608-verification.json": {
+      "before": null,
+      "after": "65fe55402d75d0360dfb84ca0d876b5935f304252a8fe9ccb9f81a87629c3ac5",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/environment.json": {
+      "before": null,
+      "after": "5e1008801dd2eb1835cff41be633e225296db39e6c07db4b9211fff77c5106e9",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/final90a9e8fc-ci-receipt.json": {
+      "before": null,
+      "after": "85b564d536c93d8e7e1e8a99e9b3650c3799da3b823ab82cc4a76143f794fe84",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/final90a9e8fc-warning-review.json": {
+      "before": null,
+      "after": "9481aa27bf901d68a429f537149d03e08d0b11e2d4a4f4f54b16e0670f95be47",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/flutter-0279198-validation.json": {
+      "before": null,
+      "after": "734d40b80f70df494c20fcf72626c86125d0691a3ab0a553b6bd1da2d850fb6f",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/guard-90a9e8fc-validation.json": {
+      "before": null,
+      "after": "5f9aeb6b6f39230bbecca5973a7992aec57258b533decca6341ad344ca781b8d",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/native-0279198-validation.json": {
+      "before": null,
+      "after": "1d96174e11d0f340d9f87d197c6fce0b3ac5c51fadfc1d80d070a5b0da7240e4",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/python-contract-matrix.json": {
+      "before": null,
+      "after": "e108a8023e852d2179de5f5682fe9d8e4db092a79f9354e17d40b4d9da7dc80e",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/rewind608-ipa-validation.json": {
+      "before": null,
+      "after": "d689461826d07d601525f5c0c7e83e1c6949a561a86d6d8f6adb5fa93f54882a",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/rewind608-tests.json": {
+      "before": null,
+      "after": "15929ac6654d07ec7651b8b341ae3264c4a6683c007f4ee475cd5cd1bf1b793b",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/signature.json": {
+      "before": null,
+      "after": "9dc5b59d0a195a1abd5ac240b565ed11af866dbc283723692bc041ba20075a0b",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind608/signed-payload-identity.json": {
+      "before": null,
+      "after": "ebfbef4d1d45f947e7ef520e7eb500e5d4ea6ce74b8d857bcd38f1508840ed5c",
       "modeBefore": null,
       "modeAfter": "100644"
     },

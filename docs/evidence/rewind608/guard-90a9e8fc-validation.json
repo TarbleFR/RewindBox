@@ -1,0 +1,241 @@
+{
+  "result": "passed-current-guard-validation",
+  "purpose": "Actual current recovery guard only; no final workflow or IPA success claimed",
+  "candidateExecution": {
+    "source": "90a9e8fcaa9bf68e2f5a2270cab6b636d62fff07",
+    "tree": "067a0be8c34e44247f7abcdf6fd8bb4aeedf52f3",
+    "run": 41303386398,
+    "attempt": 1
+  },
+  "artifact": {
+    "id": 13082188507,
+    "name": "RewindBox608-reuse-90a9e8fcaa9bf68e2f5a2270cab6b636d62fff07-attempt1",
+    "bytes": 3963,
+    "sha256": "2e0c75375fe10c730802819f8682c52929bd9fe24ae93ac33ec67a9cbe5485e6",
+    "metadataOrigin": "Authenticated artifact metadata supplied by root; exact local ZIP checked here"
+  },
+  "currentGuardReceiptMatchesPublishedSource": true,
+  "scopeAndProjectionExactlyRecomputed": true,
+  "inputEquivalence": {
+    "schema": 1,
+    "originSource": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+    "candidateSource": "90a9e8fcaa9bf68e2f5a2270cab6b636d62fff07",
+    "originTree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+    "candidateTree": "067a0be8c34e44247f7abcdf6fd8bb4aeedf52f3",
+    "originalSourceScopeSHA256": "e1a10e7ac140b1c018989c59efd59cb0c301f0e460b355663a9700b78e182b1a",
+    "candidateSourceScopeSHA256": "8cddafcc7cc8cfc75fb47e70afca379eb5675a8ec681a99b32a1a206c94629c1",
+    "unchangedTrackedEntries": 9482,
+    "changedRecipePaths": {
+      ".github/diagnostics/rewind608_delivery.py": {
+        "before": {
+          "mode": "100644",
+          "type": "blob",
+          "object": "2f40909b6a30849cc80e73b8ef4b85cb9076fedd"
+        },
+        "after": {
+          "mode": "100644",
+          "type": "blob",
+          "object": "b8c3c7b64186360eb11bf85fdd6f8a44a28b8db8"
+        }
+      },
+      ".github/diagnostics/rewind608_producers.py": {
+        "before": {
+          "mode": "100644",
+          "type": "blob",
+          "object": "d1b03fd10df36e46fc51894df5672c58067e1089"
+        },
+        "after": {
+          "mode": "100644",
+          "type": "blob",
+          "object": "9e9e988e32c8a5b817cd4f1dcec774fd2ba9ec0c"
+        }
+      },
+      ".github/diagnostics/rewind608_reuse.py": {
+        "before": null,
+        "after": {
+          "mode": "100644",
+          "type": "blob",
+          "object": "de07fa01193f70fe7740d88914accd5accf5043b"
+        }
+      },
+      ".github/workflows/rewind608-retro-achievements-delivery.yml": {
+        "before": {
+          "mode": "100644",
+          "type": "blob",
+          "object": "93f4a0cd50e69f0c35e1bce430a6c2e4faa77eaf"
+        },
+        "after": {
+          "mode": "100644",
+          "type": "blob",
+          "object": "69af7a18508768123eca4c6cb05a0b782b1d98eb"
+        }
+      },
+      "build-utils/rewind608-source-scope.json": {
+        "before": {
+          "mode": "100644",
+          "type": "blob",
+          "object": "952ca3cd1bfafa4c48f5665e5d5191dff69d56e1"
+        },
+        "after": {
+          "mode": "100644",
+          "type": "blob",
+          "object": "3302e71d25aeaf2e3d028e2d7c748cefd8141199"
+        }
+      },
+      "test/rewind608_delivery_contract_test.py": {
+        "before": {
+          "mode": "100644",
+          "type": "blob",
+          "object": "a13d9c6520bff8d848089762196e4917c139ad6e"
+        },
+        "after": {
+          "mode": "100644",
+          "type": "blob",
+          "object": "9d60ddf182e1bb90d13870c917313a4961cb3bf1"
+        }
+      },
+      "test/rewind608_reuse_test.py": {
+        "before": null,
+        "after": {
+          "mode": "100644",
+          "type": "blob",
+          "object": "62a06309ed5e59831e8344266ca9668c6cefc440"
+        }
+      }
+    },
+    "producerCodeProjectionSHA256": {
+      ".github/diagnostics/rewind608_producers.py": "8311059a4f823683c1ba649999bc0b6897b64d95dba4a70ee970048e6d286971",
+      ".github/diagnostics/rewind608_delivery.py": "b1c2da2bab325e18d5002ef737ad9a935b83b4cc8fd9ffd50e3e64b6646d0502"
+    },
+    "originalWorkflowSHA256": "7ebf71d919f7fd40e98e31c9fc2982a68d6931aae528ccfd834f9654172bc494",
+    "candidateWorkflowSHA256": "f94ecfb3d0826e285a85bf9d0ed264315ff44493a34f285c517a3a462d559881",
+    "producerStepsAndInheritedContextIdentical": true,
+    "originalWholeInputHashesMayDifferForReviewedRecipeFiles": true,
+    "affectedChecks": [
+      "delivery-contract-tests",
+      "reuse-contract-tests"
+    ]
+  },
+  "originalOrigins": {
+    "flutter": {
+      "result": "authenticated",
+      "evidenceMode": "reused",
+      "kind": "flutter",
+      "execution": {
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1
+      },
+      "job": 124808995458,
+      "artifact": 13077931904,
+      "archiveBytes": 12621,
+      "archiveSHA256": "39e91ced6ab771c9a09087db9336cda93d6528ad5a356f0a810f53983f0693ff",
+      "artifactName": "RewindBox608-flutter-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+      "originalRunConclusion": "failure",
+      "originalJobConclusion": "success"
+    },
+    "native": {
+      "result": "authenticated",
+      "evidenceMode": "reused",
+      "kind": "native",
+      "execution": {
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1
+      },
+      "job": 124808995448,
+      "artifact": 13078266751,
+      "archiveBytes": 69659,
+      "archiveSHA256": "8aaf4a7c1f36c68352d143f7962998f30ad6a574c56ee0c8f71cbc5c39e044e9",
+      "artifactName": "RewindBox608-native-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+      "originalRunConclusion": "failure",
+      "originalJobConclusion": "success"
+    },
+    "dolphin": {
+      "result": "authenticated",
+      "evidenceMode": "reused",
+      "kind": "dolphin",
+      "execution": {
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1
+      },
+      "job": 124810929735,
+      "artifact": 13078193437,
+      "archiveBytes": 11191038,
+      "archiveSHA256": "9d32c236c79c43cd57053b000dfaba94c4e0d6f627bd04a657f74b36dd58c064",
+      "artifactName": "RewindBox608-dolphin-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+      "originalRunConclusion": "failure",
+      "originalJobConclusion": "success"
+    },
+    "armsx2": {
+      "result": "authenticated",
+      "evidenceMode": "reused",
+      "kind": "armsx2",
+      "execution": {
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1
+      },
+      "job": 124810929747,
+      "artifact": 13078023872,
+      "archiveBytes": 14042625,
+      "archiveSHA256": "e4354b47eee93d5dc8d53be070a88cc83ceb8b31ff4f7ccdca2eb2c2067b8763",
+      "artifactName": "RewindBox608-armsx2-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+      "originalRunConclusion": "failure",
+      "originalJobConclusion": "success"
+    }
+  },
+  "affectedChecks": [
+    {
+      "name": "delivery-contract-tests",
+      "argv": [
+        "python3",
+        "-B",
+        "test/rewind608_delivery_contract_test.py"
+      ],
+      "exitCode": 0,
+      "testsObserved": 36,
+      "summary": "Ran 36 tests in 0.089s",
+      "log": "delivery-contract-tests.log",
+      "logSHA256": "49c170ff2c6ea24956c33e003dee8f56068374dfdb2e134a1c48e1d59c4c4215",
+      "finalUnittestResult": "OK"
+    },
+    {
+      "name": "reuse-contract-tests",
+      "argv": [
+        "python3",
+        "-B",
+        "test/rewind608_reuse_test.py"
+      ],
+      "exitCode": 0,
+      "testsObserved": 32,
+      "summary": "Ran 32 tests in 0.210s",
+      "log": "reuse-contract-tests.log",
+      "logSHA256": "25c2fc67d5b85a30e0779459215095e6eeeb8f08d4a2a80df12ace9c1336d6c3",
+      "finalUnittestResult": "OK"
+    }
+  ],
+  "originalTestCommands": 19,
+  "originalNativeMemberCounts": {
+    "dolphin": 2485,
+    "armsx2": 161
+  },
+  "originalArchiveBytesAndLogsAndSourcesVerified": true,
+  "originalRunConclusion": "failure",
+  "unchangedProductSuitesReexecuted": false,
+  "coresRecompiled": false,
+  "wholeCurrentWorkflowStatusNotValidatedHere": true,
+  "currentWorkflowStateReportedByParent": "in_progress",
+  "guardRunnerPythonReportedByParent": "3.14.4",
+  "finalIPAReceiptsAvailable": false,
+  "artifactDecryptionPerformed": false,
+  "actualIPAValidationPerformed": false,
+  "privateKeyAccessed": false,
+  "networkPerformed": false,
+  "sourceCheckoutWritten": false
+}

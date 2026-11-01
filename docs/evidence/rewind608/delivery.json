@@ -1,0 +1,201 @@
+{
+  "schema": 1,
+  "build": 608,
+  "version": "0.0.8",
+  "result": "delivered-and-verified",
+  "deliveryType": "private",
+  "execution": {
+    "source": "90a9e8fcaa9bf68e2f5a2270cab6b636d62fff07",
+    "tree": "067a0be8c34e44247f7abcdf6fd8bb4aeedf52f3",
+    "run": 41303386398,
+    "attempt": 1,
+    "branch": "Claude",
+    "job": 124838986809,
+    "runConclusion": "success",
+    "jobConclusion": "success"
+  },
+  "baseline": {
+    "build": 607,
+    "source": "68552e27770b114ecc9a347600816132794b4fae"
+  },
+  "ipa": {
+    "name": "RewindBox-608.ipa",
+    "producerName": "RewindBox-Build608-90a9e8fcaa9bf68e2f5a2270cab6b636d62fff07-cold.ipa",
+    "bytes": 189825138,
+    "sha256": "575321ba6daed2678bedbb7da2a8412930bffb7f67c340980a235ee46c95450d"
+  },
+  "verification": {
+    "result": "passed-offline-checks",
+    "verifiedUTC": "2026-11-01T12:06:10.685141+00:00",
+    "apiOriginIndependentlyBound": true,
+    "nativeImageCount": 90,
+    "bundleCount": 8,
+    "macSignatureReceiptsBoundToExactBytes": true,
+    "cryptographicSignatureVerificationPerformedOffline": false,
+    "offlineValidators": {
+      "melonx": 0,
+      "neoplay": 0,
+      "shaders": 0,
+      "legal": 0,
+      "no-kartpad": 0,
+      "no-dusklight": 0
+    }
+  },
+  "toolchains": {
+    "application": "Flutter 3.47.2 / Xcode 26.3",
+    "targetedTranslationTests": "Xcode 16.4 / Swift 6",
+    "currentGuardPythonLinux": "3.14.4",
+    "currentConsumerPythonMacOS": "3.15.2"
+  },
+  "releaseCompilationSeconds": 395,
+  "currentAffectedChecks": [
+    {
+      "name": "delivery-contract-tests",
+      "exitCode": 0,
+      "tests": 36,
+      "logSHA256": "49c170ff2c6ea24956c33e003dee8f56068374dfdb2e134a1c48e1d59c4c4215"
+    },
+    {
+      "name": "reuse-contract-tests",
+      "exitCode": 0,
+      "tests": 32,
+      "logSHA256": "25c2fc67d5b85a30e0779459215095e6eeeb8f08d4a2a80df12ace9c1336d6c3"
+    }
+  ],
+  "reusedEvidence": {
+    "evidenceMode": "reused",
+    "execution": {
+      "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+      "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+      "run": 41293321826,
+      "attempt": 1
+    },
+    "wholeRunConclusion": "failure",
+    "originalApplicationConclusion": "failure",
+    "unchangedSuitesReexecuted": false,
+    "coresRecompiled": false,
+    "flutterPassed": 159,
+    "xctestPassed": 90,
+    "xctestBreakdown": {
+      "translation": 33,
+      "sessionAndMigration": 35,
+      "dolphinUIKit": 8,
+      "armsx2UIKit": 14
+    },
+    "libretroIPhoneUnitsCompiledAndLinked": 78,
+    "originalArchives": {
+      "flutter": {
+        "job": 124808995458,
+        "artifact": 13077931904,
+        "archiveSHA256": "39e91ced6ab771c9a09087db9336cda93d6528ad5a356f0a810f53983f0693ff",
+        "originalJobConclusion": "success"
+      },
+      "native": {
+        "job": 124808995448,
+        "artifact": 13078266751,
+        "archiveSHA256": "8aaf4a7c1f36c68352d143f7962998f30ad6a574c56ee0c8f71cbc5c39e044e9",
+        "originalJobConclusion": "success"
+      },
+      "dolphin": {
+        "job": 124810929735,
+        "artifact": 13078193437,
+        "archiveSHA256": "9d32c236c79c43cd57053b000dfaba94c4e0d6f627bd04a657f74b36dd58c064",
+        "originalJobConclusion": "success"
+      },
+      "armsx2": {
+        "job": 124810929747,
+        "artifact": 13078023872,
+        "archiveSHA256": "e4354b47eee93d5dc8d53be070a88cc83ceb8b31ff4f7ccdca2eb2c2067b8763",
+        "originalJobConclusion": "success"
+      }
+    }
+  },
+  "coreChecks": {
+    "rpcs3": {
+      "fingerprint": "7289ce4ef4f723d203995b4a76d5b2e1c2cd5a874e8a72c04b774c7d2dc1d22e",
+      "abi": 30,
+      "exports": 88,
+      "originalCIConclusion": "failure",
+      "rawArtifactComparisonPerformed": false
+    },
+    "melonx": {
+      "fingerprint": "66124c2afb63e063711d1da18827d0b5a1fee55e58ef3e808494663b9262aa2c",
+      "source": "ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284",
+      "abi": 2
+    },
+    "dolphin": {
+      "fingerprint": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+      "exportCount": 21266,
+      "patchedSourceFiles": 12,
+      "source": "7cac54161659421ed95c2cd1c0b0746539a4cd38"
+    },
+    "armsx2": {
+      "fingerprint": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
+      "exportCount": 1,
+      "patchedSourceFiles": 9,
+      "source": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe"
+    }
+  },
+  "compilerReview": {
+    "completeBuildIsNotWarningFree": true,
+    "logWarningEntries": 470,
+    "qualifiedErrors": [],
+    "centralPluginWarnings": [],
+    "translationPluginWarnings": [],
+    "existingConcurrencyWarnings": {
+      "file": "packages/neoplay_bridge/ios/Classes/NPMuxer.swift",
+      "count": 4,
+      "properties": [
+        "writer",
+        "video",
+        "audio",
+        "adaptor"
+      ],
+      "sourceUnchangedFrom607": true
+    },
+    "otherBridgeWarningFileCount": 17,
+    "onlyChangedWarningFile": "packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm",
+    "itsDeprecatedWindowsLineUnchangedFrom607": true
+  },
+  "previousFailedConsumers": [
+    {
+      "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+      "run": 41293321826,
+      "conclusion": "failure",
+      "reason": "28 iOS shader assets compared with all 52 packaged resources"
+    },
+    {
+      "source": "9094840302e4704d59eb230f73c65bf9c013a245",
+      "run": 41297363274,
+      "conclusion": "failure",
+      "beforeXcodebuild": true,
+      "reason": "Python-dependent AST representation"
+    },
+    {
+      "source": "3c942d3854c34df9b84bf086d51090e9111f4996",
+      "run": 41302591486,
+      "conclusion": "failure",
+      "beforeXcodebuild": true,
+      "reason": "Import/ImportFrom.is_lazy difference reproduced under Python 3.15; old macOS interpreter unrecorded"
+    }
+  ],
+  "limits": {
+    "physicalDeviceTested": false,
+    "translationModelsDownloaded": false,
+    "gameplayTested": false,
+    "appleProvisioningVerified": false,
+    "directAppleInstallationReady": false,
+    "officialAchievementTranslationSourceConfigured": false
+  },
+  "privateRecipientKeyDeletedAfterVerifiedDelivery": true,
+  "proofFiles": {
+    "download608-verification.json": "65fe55402d75d0360dfb84ca0d876b5935f304252a8fe9ccb9f81a87629c3ac5",
+    "final90a9e8fc-ci-receipt.json": "85b564d536c93d8e7e1e8a99e9b3650c3799da3b823ab82cc4a76143f794fe84",
+    "final90a9e8fc-warning-review.json": "9481aa27bf901d68a429f537149d03e08d0b11e2d4a4f4f54b16e0670f95be47"
+  },
+  "apiMetadataSHA256": {
+    "artifacts": "214e312785ca979fce8e4687406f2b44c36c0893967d08a9585b6dae005ca228",
+    "run": "965674f88efb4d92b2ef8d3f502d4c6cc9b7a86bb6b68c99eef3849bc86f017f",
+    "jobs": "41e97c6149b68859a3cd5ba16697ddb6e8b32dba5e8910a2635bcd0cc34204f1"
+  }
+}

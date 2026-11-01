@@ -2,7 +2,7 @@
 
 Read this guide before work. It contains current project state and permanent
 rules; detailed investigations and build receipts belong in `docs/`.
-Last reconciled: **31 October 2026**, after private Build **606**.
+Last reconciled: **1 November 2026**, after private Build **608**.
 
 ## Start here
 
@@ -21,26 +21,33 @@ Last reconciled: **31 October 2026**, after private Build **606**.
 
 | Item | Verified reference |
 | --- | --- |
-| Application | **RewindBox 0.0.8 (606)**, private IPA; iOS 18+, SideStore re-signing |
-| Delivery source | `a95654f4cb9a9fc04657c33773cc14d1d05b46af` |
-| Delivery run / job | `41242511117` / `124659230427`, attempt 1, both successful |
-| Product baseline | Delivered 605 plus 29 reviewed Hogwarts/diagnostics product paths; achievement presentation and other engines retained |
-| MeloNX Core | New binaries from `ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284`; original finalizer failure preserved, separate successful validation `41240588272` on `b584e4c6d0f1c2519c7d9ce3bdbbab1967528737` |
-| RPCS3 Core | `a4d0c9a5e00ace8d2036c62ef1a653e50bb79a3a`, successful run `41117115264` |
-| Dolphin Core | Upstream `7cac54161659421ed95c2cd1c0b0746539a4cd38`, new presentation hook from producer `af5b18e67864e6555f54b7b4b6f1452ed82f6982`, successful run `41209480072` |
-| Delivery proof | [Hogwarts performance / Build 606](docs/hogwarts604-performance-2026-10-30.md), [exact receipt](docs/evidence/rewind606/delivery.json), [downloaded-file checks](docs/evidence/rewind606/) |
+| Application | **RewindBox 0.0.8 (608)**, private IPA; iOS 18+, SideStore re-signing |
+| Delivery source | `90a9e8fcaa9bf68e2f5a2270cab6b636d62fff07`, tree `067a0be8c34e44247f7abcdf6fd8bb4aeedf52f3` |
+| Delivery run / job | `41303386398` / `124838986809`, attempt 1, both successful |
+| Downloaded IPA | `RewindBox-608.ipa`, 189825138 bytes; SHA-256 `575321ba6daed2678bedbb7da2a8412930bffb7f67c340980a235ee46c95450d` |
+| Product baseline | Delivered 607, source `68552e27770b114ecc9a347600816132794b4fae`, plus the reviewed central RetroAchievements session delta; existing translation and unrelated engines retained |
+| MeloNX Core | Exact 606/607 engine from `ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284` preserved and verified in 608; original finalizer failure and separate validation `41240588272` on `b584e4c6d0f1c2519c7d9ce3bdbbab1967528737` retained |
+| RPCS3 Core | Recovered 607 Core `a4ae86d085c231e3c5c93f7f72d2eced0f38ec24`, ABI 30, preserved and verified in 608; original producer `41243687649` failed after linking, separately recovered/verified for 607 |
+| Dolphin Core | Upstream `7cac54161659421ed95c2cd1c0b0746539a4cd38`; producer on `0279198b1c33d869550cae3cf35f155b9d3a4f79`, job `124810929735` **SUCCESS** within whole run `41293321826` **FAILURE**; authenticated reuse and final payload verified |
+| ARMSX2 Core | Pinned iOSv2.6.0, ABI 9; producer on `0279198b1c33d869550cae3cf35f155b9d3a4f79`, job `124810929747` **SUCCESS** within whole run `41293321826` **FAILURE**; authenticated reuse and final payload verified |
+| Delivery proof | [Build 608 session delivery](docs/build608-ra-session-delivery.md), [delivery receipt](docs/evidence/rewind608/delivery.json), [downloaded-file checks](docs/evidence/rewind608/download608-verification.json) |
 
-606 is delivered, not a pending candidate. Do not reuse its number. Before
+608 is delivered, not a pending candidate. Do not reuse its number. Before
 allocating another number, reconcile concurrent deliveries. A newer source
 commit or Core-only artifact is not automatically a newer delivered IPA.
 Old donor builds provide only their explicitly retained native resources;
 they are never the application baseline. The public release and private IPA
 are separate records; do not promote a private build through a README edit.
 
-**Delivered 606:** targeted pipeline/report/buffer optimizations and journals
-organized by console or system. The downloaded IPA, eight bundles and all
-89 native images passed verification. Device FPS and loading-time gains are
-still unmeasured; see [the device analysis](docs/hogwarts604-performance-2026-10-30.md).
+**Delivered 608:** one RetroAchievements account and launch policy for the three
+integrated adapters, actual session status, existing achievement translation
+and corrected Flutter language delegates. The downloaded IPA, eight bundles
+and all 90 native images passed verification. Product tests and Core builds
+retain their authenticated `0279198` origin; current recipe checks and the
+full application build have separate successful evidence. Existing unrelated
+compiler warnings remain documented in the 608 report. Device FPS and
+loading-time gains are still unmeasured; see
+[the device analysis](docs/hogwarts604-performance-2026-10-30.md).
 
 **Still unproven on iPhone:** Hogwarts crash recovery, removal of the intermittent
 minute-long GPU wait, Unreal CVar consumption, black-texture recovery and FPS
@@ -136,8 +143,8 @@ presentation still require physical-device validation; see the [605 report](docs
 | --- | --- |
 | Architecture or handoff | [Architecture](ARCHITECTURE.md), [Claude entry point](CLAUDE.md), [manual workflow](docs/AI_WORKFLOW_CURSOR_CLAUDE.md) |
 | MeloNX / Hogwarts / launch times | [Current crash and lot analysis](docs/melonx-build603-guard-crash-2026-10-30.md), [604 delivery](docs/rewind604-test-ipa.md), [MeloNX rules](docs/PROJECT_RULES.md#melonx) |
-| RPCS3 / NeoSwap | [Currently delivered Core](docs/rpcs3-device601-core-2026-10-30.md), [new compiled BO2 cache candidate, finalized offline](docs/rpcs3-bo2-cache-import-2026-10-31.md), [open issues](docs/rpcs3-open-issues-2026-10-30.md), [RPCS3 rules](docs/PROJECT_RULES.md#rpcs3) |
-| Achievement translation / app language | [Integration and validation](docs/achievement-translation.md), [exact tests](docs/evidence/achievement-translation-validation.json) |
+| RPCS3 / NeoSwap | [Retained 607 Core identity and recovery contract](.github/diagnostics/rpcs3runtime607_core.py), [Verified 608 preservation](docs/build608-ra-session-delivery.md), [RPCS3 rules](docs/PROJECT_RULES.md#rpcs3) |
+| RetroAchievements session / translation / app language | [Central session and 608 delivery](docs/build608-ra-session-delivery.md), [existing translation](docs/achievement-translation.md), [original translation tests](docs/evidence/achievement-translation-validation.json) |
 | Library, UI, native routing | [Library and lifecycle rules](docs/PROJECT_RULES.md#library-and-lifecycle), [Liquid Glass](docs/liquid-glass-ui.md) |
 | Shaders, cheats, HD textures | [Catalog and content rules](docs/PROJECT_RULES.md#catalogs-shaders-and-content), [enhancements](docs/ENHANCEMENTS.md), [licenses](docs/LEGAL_AND_CREDITS.md) |
 | Previous decisions or rejected attempts | [Historical guide and exact snapshot](docs/history/README.md); search only the relevant component/build |
