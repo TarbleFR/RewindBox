@@ -136,6 +136,13 @@ void main() {
 
     expect(branch, greaterThan(handler));
     expect(gate, greaterThan(branch));
+    // Relay-only symbols stay inside the NEOSWAP_RELAY build configuration.
+    final guardStart = plugin.lastIndexOf('#if defined(NEOSWAP_RELAY)', branch);
+    final guardEnd = plugin.indexOf('#endif', branch);
+    expect(guardStart, greaterThan(handler));
+    expect(guardEnd, greaterThan(branch));
+    expect(guardEnd, lessThan(gate));
+    expect(plugin.substring(guardStart, branch), isNot(contains('#endif')));
     expect(body, contains('[value longLongValue] > 10000'));
     expect(body, contains('dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0)'));
     expect(body.indexOf('NeoSwapRelay_Start();'), greaterThan(0));

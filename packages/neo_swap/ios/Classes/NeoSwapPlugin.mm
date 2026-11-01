@@ -1419,6 +1419,7 @@ extern "C" void NeoSwapCompilerBudgetChanged() {
         @"underlyingCode":underlying ? @(underlying.code) : NSNull.null} : nil;
 }
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+#if defined(NEOSWAP_RELAY)
     // Build 610: an RPCS3 launch prepares the guest page relay before its boot
     // maps the preallocated guest blocks. A block mapped while the relay is not
     // ready stays file-backed for the whole session, the relay manager shuts the
@@ -1426,6 +1427,8 @@ extern "C" void NeoSwapCompilerBudgetChanged() {
     // only at Core load (once per process). Every later launch therefore asks
     // here: bounded by the manager's 10 s limit, never on the main thread (where
     // WaitReady refuses to wait), no allocation, budget or policy change.
+    // Builds without the relay fall through to FlutterMethodNotImplemented, which
+    // the Dart caller reports as unavailable before booting normally.
     if ([call.method isEqualToString:@"prepareGuestRelay"]) {
         id value = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments[@"timeoutMs"] : nil;
         if (![value isKindOfClass:NSNumber.class] || CFGetTypeID((__bridge CFTypeRef)value) == CFBooleanGetTypeID() ||
@@ -1458,6 +1461,7 @@ extern "C" void NeoSwapCompilerBudgetChanged() {
         });
         return;
     }
+#endif
 #if defined(NEOSWAP_SHADER_STORAGE)
     if ([call.method isEqualToString:@"setShaderStorage"]) {
         id flag = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments[@"enabled"] : nil;
