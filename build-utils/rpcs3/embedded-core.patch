@@ -35269,7 +35269,7 @@ index 0000000..112f20b
 +}
 +} // namespace vk
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 74a6dc7..5cd30c7 100644
+index 74a6dc7..32d8182 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,6 +1,15 @@
@@ -35541,18 +35541,13 @@ index 74a6dc7..5cd30c7 100644
 +	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "ppu_trampolines",
 +			trampoline_error + "; " + rpcs3::ios::jit::last_error());
- 	}
--	if (!rpcs3::ios::jit::prepare_arena(config->expanded_jit_arena != 0) ||
--		!rpcs3::ios::jit::seal_arena())
++	}
 +	trampoline_error.clear();
 +	if (!ppu_function_manager::initialize_ghc_trampolines(trampoline_error))
- 	{
--		set_error(rpcs3::ios::jit::last_error());
--		g_lifecycle.finish_initialize(false);
--		return RPCS3_IOS_JIT_MAPPING_FAILED;
++	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "ppu_hle_trampolines",
 +			trampoline_error + "; " + rpcs3::ios::jit::last_error());
- 	}
++	}
 +	emit_log(2, "ppu_trampoline_init_end");
 +
 +	trampoline_error.clear();
@@ -35561,15 +35556,20 @@ index 74a6dc7..5cd30c7 100644
 +	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "spu_trampolines",
 +			trampoline_error + "; " + rpcs3::ios::jit::last_error());
-+	}
+ 	}
+-	if (!rpcs3::ios::jit::prepare_arena(config->expanded_jit_arena != 0) ||
+-		!rpcs3::ios::jit::seal_arena())
 +	emit_log(2, "spu_trampoline_init_end");
 +
 +	emit_jit_arena_statistics("after JIT preparation before seal");
 +	if (!rpcs3::ios::jit::seal_arena())
-+	{
+ 	{
+-		set_error(rpcs3::ios::jit::last_error());
+-		g_lifecycle.finish_initialize(false);
+-		return RPCS3_IOS_JIT_MAPPING_FAILED;
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "arena_seal",
 +			rpcs3::ios::jit::last_error());
-+	}
+ 	}
 +	emit_log(2, "jit_initialize_success");
  
  	try
@@ -36066,7 +36066,7 @@ index 74a6dc7..5cd30c7 100644
  		emit_log(4, "RPCS3Core shutdown completed");
  		return RPCS3_IOS_OK;
  	}
-@@ -4846,9 +5247,378 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
+@@ -4846,9 +5247,384 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
  	return copy.c_str();
  }
  
@@ -36358,13 +36358,11 @@ index 74a6dc7..5cd30c7 100644
 +			// boot(); a boot that never returns leaves boot_begin without boot_return.
 +			emit_log(6, fmt::format("COREPROF EXITSPAWN phase=boot_begin generation=%llu emulation_id=%llu", generation, emulation_id));
 +			const auto boot_started = std::chrono::steady_clock::now();
++			bool boot_returned = false;
 +			try
 +			{
 +				boot();
-+				// 7 (starting) is expected: Run(true) ended Load; RunPPU follows the warmup.
-+				emit_log(6, fmt::format("COREPROF EXITSPAWN phase=boot_return raw_state=%u boot_ms=%.3f",
-+					static_cast<u32>(Emu.GetStatus(false)),
-+					std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - boot_started).count()));
++				boot_returned = true;
 +			}
 +			catch (const std::exception& error)
 +			{
@@ -36379,6 +36377,14 @@ index 74a6dc7..5cd30c7 100644
 +				Emu.SetForceBoot(false);
 +				set_error("RPCS3 could not boot the next internal process.");
 +				emit_log(1, "RPCS3 internal process boot failed.");
++			}
++			if (boot_returned)
++			{
++				// 7 (starting) is expected: Run(true) ended Load; RunPPU follows the warmup.
++				// Outside the boot try block: a logging failure is never a boot failure.
++				emit_log(6, fmt::format("COREPROF EXITSPAWN phase=boot_return raw_state=%u boot_ms=%.3f",
++					static_cast<u32>(Emu.GetStatus(false)),
++					std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - boot_started).count()));
 +			}
 +		}, token);
 +		return admitted || !restore_jobs().current(token);
