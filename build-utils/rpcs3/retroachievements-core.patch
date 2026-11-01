@@ -253,10 +253,10 @@ index 7c44b0f..1f6b86c 100644
  #endif
 diff --git a/rpcs3/ios/RPCS3IOSAchievements.h b/rpcs3/ios/RPCS3IOSAchievements.h
 new file mode 100644
-index 0000000..6066da4
+index 0000000..6e4c976
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSAchievements.h
-@@ -0,0 +1,210 @@
+@@ -0,0 +1,215 @@
 +#pragma once
 +
 +// NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
@@ -408,7 +408,12 @@ index 0000000..6066da4
 +			return false;
 +		}
 +
-+		std::memcpy(destination, text.data(), text.size());
++		// An empty view may carry a null pointer, which memcpy must never receive.
++		if (!text.empty())
++		{
++			std::memcpy(destination, text.data(), text.size());
++		}
++
 +		destination[text.size()] = '\0';
 +		return true;
 +	}

@@ -6,7 +6,7 @@
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/retroachievements-core.patch",
-  "patch_sha256": "4b90337bc984648daf8593c13eadf2e294da6666904c3d283ed7cf69d7b0163c",
+  "patch_sha256": "518dc4a0740a4041a7ee2356f5728c19bb4068ebcfff13673e946a1269ee1682",
   "abi_version": 30,
   "abi_version_changed": false,
   "ra_api_version": 1,
@@ -27,7 +27,7 @@
     "rpcs3/ios/RPCS3IOS.cpp": "555421727765f101434617714365d3a59fa88816af3559225cb0ff3703243889",
     "rpcs3/ios/RPCS3IOS.exports": "4a7d309cc7a0df18f215f8582897931fc1d14bf0ec399e4c18afe2e87ccbad7d",
     "rpcs3/ios/RPCS3IOS.h": "2e159116a7bd8ba19c44d141d2ff1babb43c369101d4606e2c6df072fe6134ea",
-    "rpcs3/ios/RPCS3IOSAchievements.h": "7f1f94bba64ac2cf94a2d43dd912174758b10d8d688f2d83d0ec5a13fb79f8aa"
+    "rpcs3/ios/RPCS3IOSAchievements.h": "bf04cc1b6ef98e4ebf777b33ce921803a17409b6cbc52b224e145f67708d9399"
   },
   "new_files": [
     "rpcs3/ios/RPCS3IOSAchievements.h"
@@ -43,5 +43,6 @@
   "core_build_run": false,
   "ios_build_run": false,
   "iphone_validation_run": false,
-  "rebased_on": "core610_20261101 (canonical patch a63b9643): RSXThread.cpp and RPCS3IOS.cpp changed upstream; the same 376 added lines re-applied"
+  "rebased_on": "core610_20261101 (canonical patch a63b9643): RSXThread.cpp and RPCS3IOS.cpp changed upstream; the same 376 added lines re-applied",
+  "revised_before_fold": "copy_text() calls memcpy only for a non-empty view: copy_text(..., {}) passed the empty view's null data() to memcpy (GCC UBSan: null pointer passed as argument 2, RPCS3IOSAchievements.h:152). Behaviour unchanged; RPCS3IOSAchievements.h 210 -> 215 lines, 381 added lines; only that file's postimage changed."
 }
