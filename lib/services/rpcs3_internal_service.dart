@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:neo_swap/neo_swap.dart';
 import 'package:rpcs3_internal_bridge/rpcs3_internal_bridge.dart';
 
 import 'logger_service.dart';
@@ -814,6 +815,40 @@ class Rpcs3InternalService {
     return true;
   });
 
+  /// NeoSwap guest relay before every boot (Build 610). The Core maps its
+  /// preallocated guest blocks during boot; a block mapped before the relay is
+  /// ready stays file-backed for that session. The bridge waits for the relay
+  /// only at Core load, and the relay shuts down when idle after a session, so
+  /// a relaunch or a game switch used to boot without it. This bounded wait
+  /// never fails or retries the launch.
+  @visibleForTesting
+  static Future<Map<String, dynamic>> Function({int timeoutMs})
+  guestRelayPreparer = NeoSwap.prepareGuestRelay;
+  @visibleForTesting
+  static Duration guestRelayTimeout = const Duration(seconds: 12);
+
+  @visibleForTesting
+  static Future<String> prepareGuestRelayForBoot(String titleId) async {
+    final timer = Stopwatch()..start();
+    String outcome;
+    try {
+      final report = await guestRelayPreparer(
+        timeoutMs: 10000,
+      ).timeout(guestRelayTimeout);
+      outcome =
+          'result=${report['result']} ok=${report['ok']} '
+          'relayEnabled=${report['relayEnabled']} '
+          'waitedMs=${report['waitedMs']}';
+    } catch (error) {
+      outcome = 'unavailable error=$error';
+    }
+    final line =
+        'RPCS3 guest relay before boot $titleId: $outcome; '
+        'elapsedMs=${timer.elapsedMilliseconds}.';
+    _log.i(line);
+    return line;
+  }
+
   static Future<bool> launchTitle(
     String titleId, {
     required String uiLocale,
@@ -848,6 +883,8 @@ class Rpcs3InternalService {
       jitReady: true,
       coreReady: true,
     );
+
+    await prepareGuestRelayForBoot(normalized);
 
     final bootTimer = Stopwatch()..start();
     final report = await Rpcs3InternalBridge.launchGame(

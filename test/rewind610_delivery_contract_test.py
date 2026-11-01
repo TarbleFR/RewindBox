@@ -82,7 +82,9 @@ class Scope(unittest.TestCase):
         self.assertEqual(value['productReview']['raFix'], commit)
         self.assertEqual(value['productReview']['raProductPaths'], len(paths))
         concurrent = {path for path in tree.CONCURRENT_UNCOMPILED if tree.is_product(path)}
-        self.assertEqual(set(value['productDelta']) - set(paths), set(tree.RPCS3_PRODUCT_PATHS) | concurrent)
+        self.assertEqual(set(value['productDelta']) - set(paths),
+                         set(tree.RPCS3_PRODUCT_PATHS) | set(tree.NEOSWAP_PRODUCT_PATHS) | concurrent)
+        self.assertEqual(value['productReview']['neoswapProductPaths'], sorted(tree.NEOSWAP_PRODUCT_PATHS))
         self.assertEqual(value['productReview']['concurrentUncompiledProductPaths'], sorted(concurrent))
 
     def test_concurrent_melonx_inputs_are_exact_and_not_compiled(self):
@@ -108,7 +110,8 @@ class Groups(unittest.TestCase):
         behaviour = commands['flutter-behavior']
         for test in checks608.FLUTTER_TESTS + ('test/retro_achievements_login_regression_test.dart',
                                                'test/rpcs3_game_profile_service_test.dart',
-                                               'test/rpcs3_profile_engine_test.dart'):
+                                               'test/rpcs3_profile_engine_test.dart',
+                                               'test/rpcs3_guest_relay_launch_test.dart'):
             self.assertIn(test, behaviour)
             self.assertTrue((ROOT / test).is_file(), test)
 

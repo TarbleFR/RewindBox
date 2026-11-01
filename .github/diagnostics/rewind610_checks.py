@@ -25,9 +25,11 @@ FLUTTER_TESTS = checks608.FLUTTER_TESTS + (
     'test/retro_achievements_login_regression_test.dart',
     'test/rpcs3_game_profile_service_test.dart',
     'test/rpcs3_profile_engine_test.dart',
+    'test/rpcs3_guest_relay_launch_test.dart',
 )
 ANALYZE = checks608.ANALYZE + ('lib/services/rpcs3_config_adapter.dart', 'lib/services/rpcs3_game_profile_service.dart',
-                               'lib/l10n/retro_achievements_status_locale.dart')
+                               'lib/l10n/retro_achievements_status_locale.dart', 'lib/services/rpcs3_internal_service.dart',
+                               'packages/neo_swap/lib')
 
 
 def _flutter_group():

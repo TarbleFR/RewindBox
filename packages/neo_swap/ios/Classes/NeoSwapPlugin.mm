@@ -1419,6 +1419,45 @@ extern "C" void NeoSwapCompilerBudgetChanged() {
         @"underlyingCode":underlying ? @(underlying.code) : NSNull.null} : nil;
 }
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
+    // Build 610: an RPCS3 launch prepares the guest page relay before its boot
+    // maps the preallocated guest blocks. A block mapped while the relay is not
+    // ready stays file-backed for the whole session, the relay manager shuts the
+    // backend down when idle after a session, and the RPCS3 bridge waits for it
+    // only at Core load (once per process). Every later launch therefore asks
+    // here: bounded by the manager's 10 s limit, never on the main thread (where
+    // WaitReady refuses to wait), no allocation, budget or policy change.
+    if ([call.method isEqualToString:@"prepareGuestRelay"]) {
+        id value = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments[@"timeoutMs"] : nil;
+        if (![value isKindOfClass:NSNumber.class] || CFGetTypeID((__bridge CFTypeRef)value) == CFBooleanGetTypeID() ||
+            [value doubleValue] != (double)[value longLongValue] || [value longLongValue] < 0 || [value longLongValue] > 10000) {
+            result([FlutterError errorWithCode:@"invalid_argument" message:@"timeoutMs must be an integer in [0, 10000]" details:nil]);
+            return;
+        }
+        const uint32_t timeout = (uint32_t)[value longLongValue];
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+            const NSTimeInterval begin = NSProcessInfo.processInfo.systemUptime;
+            const BOOL enabled = NeoSwapExperimentProfile().relay();
+            int code = NEOSWAP_RELAY_DISABLED;
+            if (enabled) {
+                NeoSwapRelay_Start();
+                code = NeoSwapRelay_WaitReady(timeout);
+            }
+            const double waited = (NSProcessInfo.processInfo.systemUptime - begin) * 1000.0;
+            dispatch_async(self.queue, ^{
+                NSMutableDictionary* event = [[self snapshot:@"guest_relay_prepare"] mutableCopy];
+                event[@"result"] = @(code);
+                event[@"relayEnabled"] = @(enabled);
+                event[@"waitedMs"] = @(waited);
+                event[@"timeoutMs"] = @(timeout);
+                event[@"scope"] = @"GUEST_DATA_before_rpcs3_boot";
+                [self appendRecord:event];
+                NSDictionary* response = @{@"result":@(code), @"ok":@(code == NEOSWAP_RELAY_OK),
+                                           @"relayEnabled":@(enabled), @"waitedMs":@(waited), @"timeoutMs":@(timeout)};
+                dispatch_async(dispatch_get_main_queue(), ^{ result(response); });
+            });
+        });
+        return;
+    }
 #if defined(NEOSWAP_SHADER_STORAGE)
     if ([call.method isEqualToString:@"setShaderStorage"]) {
         id flag = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments[@"enabled"] : nil;
