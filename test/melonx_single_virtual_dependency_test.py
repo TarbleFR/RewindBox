@@ -20,6 +20,7 @@ SOURCE, REPO = args.source.resolve(), args.repo_root.resolve()
 CANDIDATE = args.candidate_source.resolve() if args.candidate_source else None
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_single_virtual_dependency import apply, RELATIVE, CONSUMERS
+from adapt_fragmented_reads import BUFFER_UPLOADS
 
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 paths = ['src/Ryujinx.Graphics.Gpu/Memory/' + name + '.cs' for name in ('Buffer','MultiRangeBuffer','BufferModifiedRangeList','BufferMigration')]
@@ -29,7 +30,11 @@ paths += ['src/Ryujinx.Graphics.Gpu/Synchronization/ISyncActionHandler.cs']
 preimages = {p: sha(SOURCE / p) for p in paths}
 retained = ['test/melonx_virtual_buffer_readback/Program.cs','test/melonx_virtual_buffer_readback/Boundaries.cs']
 owned = ['build-utils/melonx/adapt_single_virtual_dependency.py','test/melonx_single_virtual_dependency_test.py',
-         'test/melonx_single_virtual_dependency/Extra.cs','test/melonx_single_virtual_dependency/CostRunner.cs','test/melonx_single_virtual_dependency/JournalBoundary.cs']
+         'test/melonx_single_virtual_dependency/Extra.cs','test/melonx_single_virtual_dependency/CostRunner.cs','test/melonx_single_virtual_dependency/JournalBoundary.cs',
+         'build-utils/melonx/adapt_fragmented_reads.py','test/melonx_single_virtual_dependency/RegionBoundary.cs']
+REGION = 'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'
+# Later reviewed adapters own these Buffer.cs scopes; each must appear exactly this often.
+WORK_SCOPES = (('BufferLoad', 2), ('BufferFlush', 1))
 reports, compiled, postimages, binaries = {}, {}, {}, []
 environment = dict(os.environ, DOTNET_TieredCompilation='0', DOTNET_CLI_TELEMETRY_OPTOUT='1')
 dotnet = os.environ.get('DOTNET', 'dotnet')
@@ -77,14 +82,24 @@ with tempfile.TemporaryDirectory(prefix='melonx-single-dependency-') as temporar
                     hook = '                PD.Count(PD.Counter.' + counter + ');\n'
                     assert plain.count(hook) == 2, 'wrong observer scope: ' + counter
                     plain = plain.replace(hook,'')
-                assert plain == optimized, 'final Buffer changes beyond reviewed branch and counters'
+                for kind, count in WORK_SCOPES:
+                    scope = '            using var gpuWork = PD.Track(PD.Work.' + kind + ');\n'
+                    assert plain.count(scope) == count, 'wrong GPU work scope: ' + kind
+                    plain = plain.replace(scope, '')
+                for old, new in BUFFER_UPLOADS:
+                    assert plain.count(new) == 1 and plain.count(old) == 0, 'wrong fragmented upload edit'
+                    plain = plain.replace(new, old)
+                assert plain == optimized, 'final Buffer changes beyond reviewed branch, counters, work scopes and pooled uploads'
                 for path in paths:
                     if path != RELATIVE: assert sha(CANDIDATE / path) == preimages[path], 'changed retained consumer: ' + path
                     shutil.copyfile(CANDIDATE / path, work / path)
                 collector = 'src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'
                 shutil.copyfile(CANDIDATE / collector, work / 'EmbeddedPerformanceDiagnostics.cs')
                 shutil.copyfile(ROOT / 'test/melonx_single_virtual_dependency/JournalBoundary.cs', work / 'JournalBoundary.cs')
+                shutil.copyfile(CANDIDATE / REGION, work / 'ReadOnlyRegion.cs')
+                shutil.copyfile(ROOT / 'test/melonx_single_virtual_dependency/RegionBoundary.cs', work / 'RegionBoundary.cs')
                 postimages[collector] = sha(CANDIDATE / collector)
+                postimages[REGION] = sha(CANDIDATE / REGION)
             postimages.update({path: sha(work / path) for path in paths})
         program = (REPO / retained[0]).read_text()
         assert program.count('static class Program') == 1 and program.count('        bool overcopyCorrected = Clamp() & FragmentedClamp(); Functional(); VolatileLease();') == 1
@@ -124,7 +139,9 @@ receipt = dict(result='passed', sourceKind='baselinePreparedWithFinalInstrumente
     preimages={RELATIVE:preimages[RELATIVE]}, postimages=postimages, compiledSourceInputs=compiled,
     compiledBindings=[dict(variant='candidate',reportPath=['compiledSourceInputs','candidate',p],productionPath=p) for p in paths] +
         ([dict(variant='candidate',reportPath=['compiledSourceInputs','candidate','EmbeddedPerformanceDiagnostics.cs'],
-               productionPath='src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs')] if CANDIDATE else []),
+               productionPath='src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'),
+          dict(variant='candidate',reportPath=['compiledSourceInputs','candidate','ReadOnlyRegion.cs'],
+               productionPath=REGION)] if CANDIDATE else []),
     timingScope='Paired same-process host algorithm probe; no production GC policy change or iPhone prediction')
 out=ROOT/('dist/melonx/single-virtual-dependency-final-checks.json' if CANDIDATE else 'dist/melonx/single-virtual-dependency-checks.json')
 out.parent.mkdir(parents=True,exist_ok=True);out.write_text(json.dumps(receipt,indent=2)+'\n')

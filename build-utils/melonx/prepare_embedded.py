@@ -94,6 +94,8 @@ from adapt_counter_report_compaction import apply as adapt_counter_report_compac
 from adapt_single_virtual_dependency import apply as adapt_single_virtual_dependency
 from adapt_performance_diagnostics import apply as adapt_performance_diagnostics
 from adapt_register_liveness import apply as adapt_register_liveness
+from adapt_fragmented_reads import apply as adapt_fragmented_reads
+from adapt_gpu_work_diagnostics import apply as adapt_gpu_work_diagnostics
 
 
 def replace_once(path, old, new):
@@ -208,6 +210,9 @@ def main():
     adapted += adapt_single_virtual_dependency(source)
     adapted += adapt_performance_diagnostics(source)
     adapted += adapt_register_liveness(source)
+    adapted += adapt_fragmented_reads(source)
+    # Last: its scopes anchor on the final text of every earlier adapter.
+    adapted += adapt_gpu_work_diagnostics(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -294,7 +299,8 @@ def main():
                  'adapt_vector_register_masks.py', 'adapt_guard_context.py',
                  'adapt_occlusion_completion.py', 'adapt_pipeline_checkpoint_pacing.py',
                  'adapt_counter_report_compaction.py', 'adapt_single_virtual_dependency.py',
-                 'adapt_performance_diagnostics.py', 'adapt_register_liveness.py']:
+                 'adapt_performance_diagnostics.py', 'adapt_register_liveness.py',
+                 'adapt_fragmented_reads.py', 'adapt_gpu_work_diagnostics.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

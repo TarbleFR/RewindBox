@@ -19,7 +19,7 @@ public static partial class EmbeddedPerformanceDiagnostics
         GraphicsPipelineBuild, ComputePipelineBuild, CounterReports, CacheSizeProbe, CacheSave, Count }
     public enum Counter { Draws, Dispatches, BarrierRequests, SpanFallbacks,
         SpanFallbackBytes, CounterReportBatches, CounterReportsFlushed, CacheExports, CacheExportBytes,
-        VirtualDependencySingle, VirtualDependencyMultiple, Count }
+        VirtualDependencySingle, VirtualDependencyMultiple, ReadCopies, ReadCopyBytes, PooledReads, PooledReadBytes, Count }
     // Inclusive CPU work per GPU subsystem: draws, compute, copies, texture/buffer/pool
     // synchronization and flushes, shader lookup and binding commits. Nested and
     // cross-thread scopes overlap; bytes are the executing thread's allocations.
@@ -34,7 +34,7 @@ public static partial class EmbeddedPerformanceDiagnostics
         "graphicsPipelineBuild", "computePipelineBuild", "counterReports", "cacheSizeProbe", "cacheSave" };
     private static readonly string[] CounterNames = { "draws", "dispatches", "barrierRequests", "spanFallbacks",
         "spanFallbackBytes", "counterReportBatches", "counterReportsFlushed", "cacheExports", "cacheExportBytes",
-        "virtualDependencySingle", "virtualDependencyMultiple" };
+        "virtualDependencySingle", "virtualDependencyMultiple", "readCopies", "readCopyBytes", "pooledReads", "pooledReadBytes" };
 
     private sealed class Epoch
     {
