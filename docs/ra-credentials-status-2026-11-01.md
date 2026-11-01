@@ -180,3 +180,59 @@ central plugin). Dolphin, ARMSX2, RPCS3 and MeloNX Core sources are unchanged.
 The 608 reuse of product tests no longer applies to these inputs: a new IPA
 needs fresh Flutter/native tests and a full application build, which require
 the maintainer's explicit authorization.
+
+## Follow-up: one sign-in, Hardcore in the tab (same day)
+
+Maintainer requests after the Build 610 recordings: "tout centraliser sur les
+premiers identifiants à rentrer et non avoir à me connecter deux fois", then
+"rajouter le bouton mode hardcore dans l'onglet RetroAchievements et non dans
+un bouton où l'on doit encore rentrer ces identifiants".
+
+What the 21:17 recording showed (no secret was copied from it): a
+32-character string, the length of a Web API key, was pasted into the in-game
+password field; the keyboard's Done key submitted it; RetroAchievements
+refused it; the error was rendered below the visible part of the dialog and
+the field had already been cleared, so the next tap only produced "enter
+your password". The 20:43 recording contains no RetroAchievements screen.
+
+RetroAchievements itself still needs two different secrets: emulators obtain
+their Connect token only from the account password (`login2`), and the
+statistics need the Web API key, which cannot produce a token. The app now
+asks for them once, in one place:
+
+- **One form in the RetroAchievements tab**: username, password (only while
+  the in-game session is not signed in) and Web API key, one button. The
+  password signs the in-game session in for every supported emulator (token
+  in the Keychain, password never stored) and turns in-game achievements on;
+  the key connects the statistics. Either may be given alone. The password
+  runs first; when it is refused nothing else is sent, both fields keep their
+  text and the reason is shown as a notification.
+- **Key pasted as password**: the same value in both fields (or the saved key
+  pasted in the dialog) is refused locally with "This is your Web API key…",
+  without any request.
+- **Already connected for statistics**: the status chip reads "Password
+  needed" and opens the in-game dialog, which reuses the tab's account (no
+  second username) and asks only for its password.
+- **Dialog fixes**: a refused password stays in the (obscured) field,
+  selected for correction; the error is shown directly under the sign-in
+  button and scrolled into view; the password field's keyboard key is "Next"
+  in the tab form.
+- **Switches in the tab header**: "RetroAchievements in games" and "Hardcore
+  mode" are switched in place, without a dialog or credentials. Hardcore can
+  be chosen before signing in; turning games on while signed out focuses the
+  password field (or opens the password-only dialog when the statistics are
+  already connected). "Changes pending game restart" appears there while a
+  running game keeps its mode.
+
+New strings, in the 12 locales: `ra_unified_password_help`,
+`ra_password_is_api_key`, `ra_sign_in_secret_required`,
+`ra_session_password_only`, `ra_in_game_signed_in_add_key`,
+`ra_session_status_password_needed`; `ra_session_sign_in_hint` reworded.
+
+Validation: `flutter analyze` on the changed files (no issues); the
+RetroAchievements and RPCS3 widget/unit suites (196 tests, all passing),
+including six new widget tests (one-entry sign-in, password alone, key pasted
+as password, refused password kept, Hardcore switched in the tab, password-only
+dialog for the connected account with the keyboard Done key); the 12-locale
+coverage script. Not executed: the application build and anything on an
+iPhone. Only Dart sources and catalogs changed; no Core or native plugin.

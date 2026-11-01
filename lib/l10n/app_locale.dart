@@ -1133,6 +1133,12 @@ mixin AppLocale {
   static const String raSessionServerError = 'ra_session_server_error';
   static const String raSessionTokenRejected = 'ra_session_token_rejected';
   static const String raSessionSignInHint = 'ra_session_sign_in_hint';
+  static const String raUnifiedPasswordHelp = 'ra_unified_password_help';
+  static const String raPasswordIsApiKey = 'ra_password_is_api_key';
+  static const String raSignInSecretRequired = 'ra_sign_in_secret_required';
+  static const String raSessionPasswordOnly = 'ra_session_password_only';
+  static const String raInGameSignedInAddKey = 'ra_in_game_signed_in_add_key';
+  static const String raSessionStatusPasswordNeeded = 'ra_session_status_password_needed';
   static const String raSessionEnableHint = 'ra_session_enable_hint';
   static const String raSessionStatusSignedOut = 'ra_session_status_signed_out';
   static const String raSessionStatusDisabled = 'ra_session_status_disabled';

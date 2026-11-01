@@ -389,6 +389,20 @@ void main() {
       if (item.type == GlobalNotificationType.error) item.message,
   ];
 
+  List<String> notifications(GlobalNotificationType type) => [
+    for (final item in GlobalNotificationService().notifier.value)
+      if (item.type == type) item.message,
+  ];
+
+  Future<void> tapTabLogin(WidgetTester tester) async {
+    final button = find.widgetWithText(ElevatedButton, AppLocale.fr[AppLocale.login] as String);
+    await tester.ensureVisible(button);
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+  }
+
+  String fr(String key) => AppLocale.fr[key] as String;
+
   testWidgets('main tab Web form signs in while the in-game session is signed out', (tester) async {
     final native = RANativeFixture(username: '');
     final source = RADashboardFixture();
@@ -397,13 +411,14 @@ void main() {
     await provider.initialize();
     await pumpTab(tester, provider);
 
-    final fields = find.byType(TextFormField);
-    await tester.enterText(fields.at(0), 'Reckkles');
-    await tester.enterText(fields.at(1), 'web-key');
-    await tester.tap(find.widgetWithText(ElevatedButton, AppLocale.fr[AppLocale.login] as String));
-    await tester.pumpAndSettle();
+    // The key alone still connects the statistics; the password of the same
+    // form is optional (it only turns on achievements in games).
+    await tester.enterText(find.byKey(const ValueKey('ra-web-username')), 'Reckkles');
+    await tester.enterText(find.byKey(const ValueKey('ra-web-api-key')), 'web-key');
+    await tapTabLogin(tester);
 
     expect(errorNotifications(), isEmpty);
+    expect(native.calls.where((call) => call.method == 'login'), isEmpty);
     expect(provider.isConnected, isTrue);
     expect(source.profiles, [('Reckkles', 'web-key')]);
     await tester.pumpWidget(const SizedBox.shrink());
@@ -418,15 +433,16 @@ void main() {
     await provider.initialize();
     await pumpTab(tester, provider);
 
-    final fields = find.byType(TextFormField);
-    await tester.enterText(fields.at(0), 'Reckkles');
-    await tester.enterText(fields.at(1), 'pasted-web-key');
+    await tester.enterText(find.byKey(const ValueKey('ra-web-username')), 'Reckkles');
+    await tester.enterText(find.byKey(const ValueKey('ra-web-api-key')), 'pasted-web-key');
     expect(await native.service.login('Reckkles', 'fixture-password'), isTrue);
     await tester.pumpAndSettle();
 
-    final key = tester.widget<TextFormField>(find.byType(TextFormField).at(1));
+    // Signed in for games: the password field leaves the form, the key stays.
+    expect(find.byKey(const ValueKey('ra-web-password')), findsNothing);
+    final key = tester.widget<TextFormField>(find.byKey(const ValueKey('ra-web-api-key')));
     expect(key.controller!.text, 'pasted-web-key');
-    final user = tester.widget<TextFormField>(find.byType(TextFormField).at(0));
+    final user = tester.widget<TextFormField>(find.byKey(const ValueKey('ra-web-username')));
     expect(user.controller!.text, 'Reckkles');
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
@@ -516,4 +532,205 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+  group('one sign-in for statistics and games (maintainer request, 1 November 2026)', () {
+    setUp(() => GlobalNotificationService().notifier.value = const []);
+
+    testWidgets('the tab form signs games and statistics in with one entry', (tester) async {
+      final native = RANativeFixture(username: '');
+      final source = RADashboardFixture();
+      final provider = RetroAchievementsProvider(sessionService: native.service, source: source);
+      addTearDown(() { provider.dispose(); native.dispose(); });
+      await provider.initialize();
+      await pumpTab(tester, provider);
+
+      expect(find.text(fr(AppLocale.raUnifiedPasswordHelp)), findsOneWidget);
+      final password = tester.widget<TextField>(find.descendant(
+        of: find.byKey(const ValueKey('ra-web-password')), matching: find.byType(TextField)));
+      expect(password.obscureText, isTrue);
+      expect(password.autocorrect, isFalse);
+      expect(password.enableSuggestions, isFalse);
+      // "Next", not "Done": the keyboard key never submits the form.
+      expect(password.textInputAction, TextInputAction.next);
+
+      await tester.enterText(find.byKey(const ValueKey('ra-web-username')), 'Reckkles');
+      await tester.enterText(find.byKey(const ValueKey('ra-web-password')), 'fixture-password');
+      await tester.enterText(find.byKey(const ValueKey('ra-web-api-key')), 'web-key');
+      await tapTabLogin(tester);
+
+      expect(errorNotifications(), isEmpty);
+      final logins = native.calls.where((call) => call.method == 'login').toList();
+      expect(logins, hasLength(1));
+      expect((logins.single.arguments as Map)['password'], 'fixture-password');
+      expect(native.service.authenticated, isTrue);
+      // Signing in for games turns achievements in games on.
+      expect(native.service.preferences.enabled, isTrue);
+      expect(provider.isConnected, isTrue);
+      expect(source.profiles, [('Reckkles', 'web-key')]);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+    testWidgets('the password alone turns on achievements in games', (tester) async {
+      final native = RANativeFixture(username: '');
+      final source = RADashboardFixture();
+      final provider = RetroAchievementsProvider(sessionService: native.service, source: source);
+      addTearDown(() { provider.dispose(); native.dispose(); });
+      await provider.initialize();
+      await pumpTab(tester, provider);
+
+      await tester.enterText(find.byKey(const ValueKey('ra-web-username')), 'Reckkles');
+      await tester.enterText(find.byKey(const ValueKey('ra-web-password')), 'fixture-password');
+      await tapTabLogin(tester);
+
+      expect(errorNotifications(), isEmpty);
+      expect(native.service.authenticated, isTrue);
+      expect(native.service.preferences.enabled, isTrue);
+      expect(provider.isConnected, isFalse);
+      expect(source.profiles, isEmpty);
+      expect(notifications(GlobalNotificationType.success), contains(fr(AppLocale.raInGameSignedInAddKey)));
+      expect(find.byKey(const ValueKey('ra-web-password')), findsNothing);
+      expect(tester.widget<Switch>(find.byKey(const ValueKey('ra-tab-enabled'))).value, isTrue);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+    testWidgets('the Web API key typed as the password is caught before any request', (tester) async {
+      final native = RANativeFixture(username: '');
+      final source = RADashboardFixture();
+      final provider = RetroAchievementsProvider(sessionService: native.service, source: source);
+      addTearDown(() { provider.dispose(); native.dispose(); });
+      await provider.initialize();
+      await pumpTab(tester, provider);
+
+      await tester.enterText(find.byKey(const ValueKey('ra-web-username')), 'Reckkles');
+      await tester.enterText(find.byKey(const ValueKey('ra-web-password')), 'same-web-key');
+      await tester.enterText(find.byKey(const ValueKey('ra-web-api-key')), 'same-web-key');
+      await tapTabLogin(tester);
+
+      expect(errorNotifications(), [fr(AppLocale.raPasswordIsApiKey)]);
+      expect(native.calls.where((call) => call.method == 'login'), isEmpty);
+      expect(source.profiles, isEmpty);
+      final password = tester.widget<TextFormField>(find.byKey(const ValueKey('ra-web-password')));
+      expect(password.controller!.text, 'same-web-key');
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+    testWidgets('a refused password keeps what was typed and says why', (tester) async {
+      final native = RANativeFixture(username: '')..loginError = 'RA_AUTHENTICATION_FAILED';
+      final source = RADashboardFixture();
+      final provider = RetroAchievementsProvider(sessionService: native.service, source: source);
+      addTearDown(() { provider.dispose(); native.dispose(); });
+      await provider.initialize();
+      await pumpTab(tester, provider);
+
+      await tester.enterText(find.byKey(const ValueKey('ra-web-username')), 'Reckkles');
+      await tester.enterText(find.byKey(const ValueKey('ra-web-password')), 'wrong-password');
+      await tester.enterText(find.byKey(const ValueKey('ra-web-api-key')), 'web-key');
+      await tapTabLogin(tester);
+
+      expect(errorNotifications(), [fr(AppLocale.raSessionLoginError)]);
+      expect(native.service.authenticated, isFalse);
+      // No half sign-in: the statistics wait for a password that works.
+      expect(source.profiles, isEmpty);
+      expect(tester.widget<TextFormField>(find.byKey(const ValueKey('ra-web-password'))).controller!.text,
+        'wrong-password');
+      expect(tester.widget<TextFormField>(find.byKey(const ValueKey('ra-web-api-key'))).controller!.text,
+        'web-key');
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+    testWidgets('Hardcore is switched in the tab itself, without credentials', (tester) async {
+      final native = RANativeFixture(username: '');
+      final provider = RetroAchievementsProvider(sessionService: native.service, source: RADashboardFixture());
+      addTearDown(() { provider.dispose(); native.dispose(); });
+      await provider.initialize();
+      await pumpTab(tester, provider);
+
+      expect(find.byType(AlertDialog), findsNothing);
+      final hardcore = find.byKey(const ValueKey('ra-tab-hardcore'));
+      expect(tester.widget<Switch>(hardcore).value, isFalse);
+      await tester.tap(hardcore);
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(native.service.preferences.hardcore, isTrue);
+      expect(tester.widget<Switch>(hardcore).value, isTrue);
+      expect(native.calls.where((call) => call.method == 'login'), isEmpty);
+
+      // Signed in: achievements in games are switched off and on in place.
+      expect(await native.service.login('Reckkles', 'fixture-password'), isTrue);
+      expect(await native.service.setEnabled(true), isTrue);
+      await tester.pumpAndSettle();
+      final enabled = find.byKey(const ValueKey('ra-tab-enabled'));
+      expect(tester.widget<Switch>(enabled).value, isTrue);
+      await tester.tap(enabled);
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(native.service.preferences.enabled, isFalse);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+    testWidgets('an account already connected for statistics asks only for its password', (tester) async {
+      final native = RANativeFixture(username: '');
+      final source = RADashboardFixture();
+      final provider = RetroAchievementsProvider(sessionService: native.service, source: source);
+      addTearDown(() { provider.dispose(); native.dispose(); });
+      await provider.initialize();
+      expect(await provider.connect('Reckkles', apiKey: 'web-key'), isTrue);
+      await pumpTab(tester, provider);
+      // The connected dashboard keeps its own loading spinners running here
+      // (fixture without section data): advance time instead of settling.
+      Future<void> settle() async {
+        for (var i = 0; i < 4; i++) { await tester.pump(const Duration(milliseconds: 150)); }
+      }
+
+      // The status says what is missing, and opens the password-only form.
+      expect(find.text(fr(AppLocale.raSessionStatusPasswordNeeded)), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('ra-central-settings')));
+      await settle();
+      expect(find.byKey(const ValueKey('ra-native-username')), findsNothing);
+      expect(find.descendant(of: find.byKey(const ValueKey('ra-native-account')),
+        matching: find.text('Reckkles')), findsOneWidget);
+      expect(find.text(fr(AppLocale.raSessionPasswordOnly)), findsOneWidget);
+
+      // The Web API key pasted as the password: caught locally, kept for correction.
+      final password = find.byKey(const ValueKey('ra-native-password'));
+      await tester.enterText(password, 'web-key');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle();
+      expect(find.text(fr(AppLocale.raPasswordIsApiKey)), findsOneWidget);
+      expect(native.calls.where((call) => call.method == 'login'), isEmpty);
+      expect(tester.widget<TextField>(password).controller!.text, 'web-key');
+
+      // A refused password submitted with the keyboard key stays, with the
+      // reason shown next to the button (Build 610 video: it was cleared and
+      // the error stayed below the visible area).
+      native.loginError = 'RA_AUTHENTICATION_FAILED';
+      await tester.enterText(password, 'wrong-password');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await settle();
+      expect(find.text(fr(AppLocale.raSessionLoginError)), findsOneWidget);
+      expect(tester.widget<TextField>(password).controller!.text, 'wrong-password');
+      final logins = native.calls.where((call) => call.method == 'login').toList();
+      expect(logins, hasLength(1));
+      expect((logins.single.arguments as Map)['username'], 'Reckkles');
+
+      native.loginError = null;
+      await tester.enterText(password, 'fixture-password');
+      final login = find.descendant(of: find.byType(AlertDialog), matching: find.byType(FilledButton));
+      await tester.ensureVisible(login);
+      await tester.tap(login);
+      await settle();
+      expect(native.service.authenticated, isTrue);
+      expect(native.service.username, 'Reckkles');
+      expect(native.service.preferences.enabled, isTrue);
+      expect(provider.isConnected, isTrue);
+      expect(provider.username, 'Reckkles');
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+  });
 }

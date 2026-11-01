@@ -106,7 +106,16 @@ void main() {
       String text(String key) => catalog[key] as String;
       expect(find.byKey(const ValueKey('ra-central-settings')), findsOneWidget);
       expect(find.text(text(AppLocale.raSessionSettings)), findsOneWidget);
-      expect(find.text(text(AppLocale.raSessionWeb)), findsOneWidget);
+      // One sign-in form: password (games) and Web API key (statistics).
+      expect(find.text(text(AppLocale.raLogin)), findsOneWidget);
+      expect(find.text(text(AppLocale.raUnifiedPasswordHelp)), findsOneWidget);
+      final tabPassword = tester.widget<TextField>(find.descendant(
+        of: find.byKey(const ValueKey('ra-web-password')), matching: find.byType(TextField)));
+      expect(tabPassword.decoration!.labelText, text(AppLocale.password));
+      // Hardcore is switched in the tab itself.
+      expect(find.text(text(AppLocale.raSessionHardcore)), findsOneWidget);
+      expect(find.byKey(const ValueKey('ra-tab-hardcore')), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: code);
       await tester.tap(find.byKey(const ValueKey('ra-central-settings')));
       await tester.pumpAndSettle();
       expect(dialogText(text(AppLocale.raSessionSettings)), findsOneWidget);
@@ -149,7 +158,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(dialogText(text(AppLocale.raSessionLoginError)), findsOneWidget);
       expect(find.text('RA_AUTHENTICATION_FAILED'), findsNothing);
-      expect(tester.widget<TextField>(find.byKey(const ValueKey('ra-native-password'))).controller!.text, isEmpty);
+      // A refused password stays for correction (Build 610 video).
+      expect(tester.widget<TextField>(find.byKey(const ValueKey('ra-native-password'))).controller!.text,
+        'fixture-password');
 
       native.loginError = null;
       expect(await native.service.login('Alice', 'fixture-password'), isTrue);

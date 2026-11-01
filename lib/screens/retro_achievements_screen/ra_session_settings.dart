@@ -41,10 +41,19 @@ String raSessionErrorLabel(String? code) {
 /// console settings page. The native adapters have no equivalent write UI.
 class RASessionSettings extends StatefulWidget {
   const RASessionSettings({super.key, required this.initialUsername,
-    required this.onAccountChanged, this.service});
+    required this.onAccountChanged, this.service, this.dashboardAccount = '', this.webApiKey = ''});
   final String initialUsername;
   final Future<void> Function(String?) onAccountChanged;
   final RetroAchievementsSessionService? service;
+
+  /// One account for everything: when the RetroAchievements tab is already
+  /// signed in, the in-game session uses that account and only asks for its
+  /// password once (no second username/sign-in).
+  final String dashboardAccount;
+
+  /// The saved Web API key, only to recognize it when it is pasted into the
+  /// password field (a refused sign-in that looked like a lost password).
+  final String webApiKey;
 
   @override
   State<RASessionSettings> createState() => _RASessionSettingsState();
@@ -60,6 +69,11 @@ class _RASessionSettingsState extends State<RASessionSettings>
   final scroll = ScrollController();
   late final GamepadNavigation navigation;
 
+  final _formErrorKey = GlobalKey();
+
+  /// A local refusal (the Web API key pasted as password); never sent.
+  String? _localErrorKey;
+
   int get _migrationSlots => !service.authenticated && service.migrationCandidates.isNotEmpty
       ? service.migrationCandidates.length + 1 : 0;
 
@@ -67,12 +81,21 @@ class _RASessionSettingsState extends State<RASessionSettings>
   /// reported that RetroAchievements refused the stored token.
   bool get _showForm => !service.authenticated || service.tokenRejected;
 
+  /// The account of the RetroAchievements tab, reused instead of a second
+  /// username field.
+  String get _sharedAccount => widget.dashboardAccount.trim();
+  bool get _usesSharedAccount => _sharedAccount.isNotEmpty;
+
+  int get _passwordSlot => _migrationSlots + (_usesSharedAccount ? 0 : 1);
+  int get _loginSlot => _passwordSlot + 1;
+
   @override
   List<FocusNode?> get selectionSlots => !_showForm
       ? [null, null, null, null]
-      : [for (var i = 0; i < _migrationSlots; i++) null, usernameFocus, passwordFocus, null, null];
+      : [for (var i = 0; i < _migrationSlots; i++) null,
+         if (!_usesSharedAccount) usernameFocus, passwordFocus, null, null];
 
-  int get _closeSlot => _showForm ? _migrationSlots + 3 : 3;
+  int get _closeSlot => _showForm ? _loginSlot + 1 : 3;
   @override
   List<FocusNode> get ownedFocusNodes => [usernameFocus, passwordFocus];
 
@@ -115,7 +138,7 @@ class _RASessionSettingsState extends State<RASessionSettings>
       } else {
         unawaited(_ignoreLegacy());
       }
-    } else if (selectedSlot == _migrationSlots + 2) {
+    } else if (selectedSlot == _loginSlot) {
       unawaited(_login());
     } else {
       Navigator.of(context).pop();
@@ -139,12 +162,40 @@ class _RASessionSettingsState extends State<RASessionSettings>
   Future<void> _login() async {
     if (service.busy) return;
     final enteredPassword = password.text;
-    password.clear();
-    final success = await service.login(username.text, enteredPassword);
+    final webKey = widget.webApiKey.trim();
+    if (webKey.isNotEmpty && enteredPassword.trim() == webKey) {
+      // The 1 November 2026 recording: the Web API key (32 characters) was
+      // pasted here; RetroAchievements refused it and the field was cleared.
+      setState(() => _localErrorKey = AppLocale.raPasswordIsApiKey);
+      _keepPasswordForCorrection();
+      return;
+    }
+    if (_localErrorKey != null) setState(() => _localErrorKey = null);
+    final success = await service.login(_usesSharedAccount ? _sharedAccount : username.text, enteredPassword);
     if (success) {
+      // Only now: a refused password stays in the (obscured) field so the
+      // player sees what was sent and can correct it. Never stored. The
+      // dialog may already be closed (its controller then is disposed).
+      if (mounted) password.clear();
+      // Signing in for games is asking for achievements in games.
+      if (!service.preferences.enabled) await service.setEnabled(true);
       await widget.onAccountChanged(service.username);
       if (mounted) { exitTextEntry(); resetSelection(); }
+    } else if (mounted) {
+      _keepPasswordForCorrection();
     }
+  }
+
+  /// Keeps the refused password selected (typing replaces it) and brings its
+  /// error, shown under the button, into view.
+  void _keepPasswordForCorrection() {
+    password.selection = TextSelection(baseOffset: 0, extentOffset: password.text.length);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _formErrorKey.currentContext;
+      if (mounted && target != null) {
+        unawaited(Scrollable.ensureVisible(target, duration: const Duration(milliseconds: 150)));
+      }
+    });
   }
 
   Future<void> _logout() async {
@@ -186,7 +237,8 @@ class _RASessionSettingsState extends State<RASessionSettings>
       content: SizedBox(width: 560, child: SingleChildScrollView(controller: scroll,
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           if (!service.initialized && service.errorCode == null) const LinearProgressIndicator(),
-          Text(text(AppLocale.raSessionAccountHelp)),
+          Text(text(_showForm && _usesSharedAccount
+              ? AppLocale.raSessionPasswordOnly : AppLocale.raSessionAccountHelp)),
           const SizedBox(height: 12),
           if (service.migrationCandidates.isNotEmpty && !service.authenticated) ...[
             Text(text(AppLocale.raSessionMigrationChoice)),
@@ -209,15 +261,20 @@ class _RASessionSettingsState extends State<RASessionSettings>
             // RetroAchievements usernames are ASCII letters/digits: no
             // autocorrection, smart punctuation or capitalization may alter
             // them (an accidental "´" or autocorrected name was a refusal).
-            _highlight(_migrationSlots, TextField(key: const ValueKey('ra-native-username'), controller: username,
-              focusNode: usernameFocus, enabled: !service.busy, autocorrect: false,
-              enableSuggestions: false, textCapitalization: TextCapitalization.none,
-              smartDashesType: SmartDashesType.disabled, smartQuotesType: SmartQuotesType.disabled,
-              keyboardType: TextInputType.visiblePassword,
-              decoration: InputDecoration(labelText: text(AppLocale.username)),
-              textInputAction: TextInputAction.next, onSubmitted: (_) => passwordFocus.requestFocus())),
+            if (_usesSharedAccount)
+              InputDecorator(key: const ValueKey('ra-native-account'),
+                decoration: InputDecoration(labelText: text(AppLocale.username)),
+                child: Text(_sharedAccount))
+            else
+              _highlight(_migrationSlots, TextField(key: const ValueKey('ra-native-username'), controller: username,
+                focusNode: usernameFocus, enabled: !service.busy, autocorrect: false,
+                enableSuggestions: false, textCapitalization: TextCapitalization.none,
+                smartDashesType: SmartDashesType.disabled, smartQuotesType: SmartQuotesType.disabled,
+                keyboardType: TextInputType.visiblePassword,
+                decoration: InputDecoration(labelText: text(AppLocale.username)),
+                textInputAction: TextInputAction.next, onSubmitted: (_) => passwordFocus.requestFocus())),
             const SizedBox(height: 8),
-            _highlight(_migrationSlots + 1, TextField(key: const ValueKey('ra-native-password'), controller: password,
+            _highlight(_passwordSlot, TextField(key: const ValueKey('ra-native-password'), controller: password,
               focusNode: passwordFocus, enabled: !service.busy, obscureText: true,
               enableSuggestions: false, autocorrect: false,
               smartDashesType: SmartDashesType.disabled, smartQuotesType: SmartQuotesType.disabled,
@@ -225,8 +282,15 @@ class _RASessionSettingsState extends State<RASessionSettings>
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _login())),
             const SizedBox(height: 12),
-            _highlight(_migrationSlots + 2, FilledButton(onPressed: service.busy ? null : _login,
+            _highlight(_loginSlot, FilledButton(onPressed: service.busy ? null : _login,
               child: Text(text(AppLocale.login)))),
+            // Directly under the button: a refusal must never be hidden below
+            // the visible part of the dialog (the recording showed only the
+            // later "enter your password" message for an emptied field).
+            if (_localErrorKey != null || error != null)
+              Padding(key: _formErrorKey, padding: const EdgeInsets.only(top: 8),
+                child: Text(text(_localErrorKey ?? raSessionErrorLabel(error)),
+                  style: TextStyle(color: theme.colorScheme.error))),
           ] else ...[
             Text(service.username, style: Theme.of(context).textTheme.titleMedium),
             _highlight(0, SwitchListTile.adaptive(key: const ValueKey('ra-central-enabled'),
@@ -254,8 +318,9 @@ class _RASessionSettingsState extends State<RASessionSettings>
             Text('${text(AppLocale.raSessionHardcore)}: ${text(session.hardcoreActive ? AppLocale.enabled : AppLocale.disabled)}'),
           if (error != null) ...[
             const SizedBox(height: 8),
-            Text(text(raSessionErrorLabel(error)),
-              style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            if (!_showForm)
+              Text(text(raSessionErrorLabel(error)),
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
             if (!service.initialized || const {'RA_MIGRATION_EXPIRED', 'RA_STORAGE_UNAVAILABLE'}.contains(service.errorCode)) TextButton(onPressed: service.busy ? null : service.retry,
               child: Text(text(AppLocale.retry))),
             if (service.canRecoverLegacy) TextButton(onPressed: service.busy ? null : _ignoreLegacy,
