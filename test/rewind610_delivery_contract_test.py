@@ -81,7 +81,17 @@ class Scope(unittest.TestCase):
         commit, paths = tree.ra_fix_product_paths()
         self.assertEqual(value['productReview']['raFix'], commit)
         self.assertEqual(value['productReview']['raProductPaths'], len(paths))
-        self.assertEqual(set(value['productDelta']) - set(paths), set(tree.RPCS3_PRODUCT_PATHS))
+        concurrent = {path for path in tree.CONCURRENT_UNCOMPILED if tree.is_product(path)}
+        self.assertEqual(set(value['productDelta']) - set(paths), set(tree.RPCS3_PRODUCT_PATHS) | concurrent)
+        self.assertEqual(value['productReview']['concurrentUncompiledProductPaths'], sorted(concurrent))
+
+    def test_concurrent_melonx_inputs_are_exact_and_not_compiled(self):
+        digests = tree.concurrent_uncompiled()
+        for path, commit in tree.CONCURRENT_UNCOMPILED.items():
+            self.assertEqual(digests[path], sha(show(commit, path)))
+            self.assertEqual(sha((ROOT / path).read_bytes()), digests[path])
+        # The retained609 MeloNX check accepts these paths only through the 610 wrapper.
+        self.assertIs(delivery.engine.inputs_match, delivery._inputs_match_retained)
 
     def test_retained_inputs_unchanged(self):
         tree.check_preserved()

@@ -45,6 +45,30 @@ REQUIRED_STEPS = {'flutter': {'Run source contracts and Flutter behavior'},
                   'native': {'Run actual Xcode16.4 tests and host compilation'}}
 RETAINED_CORES = delivered609.RETAINED_CORES
 sha, git, require = tree.sha, tree.git, tree.require
+_retained_melonx_divergence = {}
+
+
+def _inputs_match_retained(inputs, source):
+    """rewind609_engine.inputs_match for the retained609 MeloNX Core.
+
+    Every producer input must still equal its bytes at the producer source
+    commit. The current checkout may differ only for the reviewed concurrent
+    MeloNX diagnostics inputs (exact bytes of their commit); those changes are
+    present in the source but not compiled into this IPA's retained MeloNX Core.
+    """
+    require(bool(inputs), 'Empty producer input inventory')
+    concurrent = tree.concurrent_uncompiled()
+    for path, expected in inputs.items():
+        require(not Path(path).is_absolute() and '..' not in Path(path).parts, 'Unsafe input path')
+        require(sha(engine.original_bytes(source, path)) == expected, 'Producer input changed: ' + path)
+        current = sha((ROOT / path).read_bytes())
+        if current != expected:
+            require(path in concurrent and current == concurrent[path], 'Producer input changed: ' + path)
+            _retained_melonx_divergence[path] = dict(producerSHA256=expected, headSHA256=current,
+                commit=tree.CONCURRENT_UNCOMPILED[path], compiledIntoIPA610=False)
+
+
+engine.inputs_match = _inputs_match_retained
 
 
 def save(name, value):
@@ -349,7 +373,9 @@ def expected():
     require(rpc_receipt['corePayloadFingerprint'] != delivered['images']['Frameworks/libRPCS3Core.dylib'],
             '610 must replace the delivered RPCS3 payload with Core 610')
     return dict(schema=1, build=BUILD, application=application, testEvidence=tests_value, evidenceMode='fresh',
-        **cores, newRPCS3=rpc_receipt, retainedMeloNX=dict(engine.engine_evidence(), retainedFrom=609),
+        **cores, newRPCS3=rpc_receipt,
+        retainedMeloNX=dict(engine.engine_evidence(), retainedFrom=609,
+                            sourceInputsChangedAfterProducerNotCompiled=dict(_retained_melonx_divergence)),
         physicalDeviceTested=False, gameTested=False, fpsGainProven=False,
         raCredentialsFixDeviceTested=False)
 

@@ -31,6 +31,14 @@ RECEIPT609 = 'docs/evidence/rewind609/delivery.json'
 PRODUCTS = ('lib', 'native', 'packages', 'assets', 'pubspec.yaml', 'pubspec.lock')
 # Reviewed RPCS3 Dart changes of the Core 610 lot (AC profile, DW6 decoder, GameDB keys).
 RPCS3_PRODUCT_PATHS = ('lib/services/rpcs3_config_adapter.dart', 'lib/services/rpcs3_game_profile_service.dart')
+# Concurrent MeloNX diagnostics (another session) committed before this build:
+# MeloNX Core preparation inputs only (compiled by the MeloNX Core producer,
+# never by Xcode; the adapter is not wired yet). IPA610 retains the delivered609
+# MeloNX Core, so these bytes are present in the source but not compiled into it.
+CONCURRENT_UNCOMPILED = {
+    'native/melonx/EmbeddedPerformanceDiagnostics.cs': '2e0793ac6f9fbf384cbd557f1a4575c4154c898f',
+    'build-utils/melonx/adapt_gpu_work_diagnostics.py': '2e0793ac6f9fbf384cbd557f1a4575c4154c898f',
+}
 # Inputs of the retained engines, the delivered recipes and the MeloNX liveness
 # Core; none may change for this build.
 PRESERVED = ('native', 'assets', 'pubspec.yaml', 'pubspec.lock',
@@ -123,9 +131,21 @@ def ra_fix_product_paths():
     return commit, sorted(p for p in paths if is_product(p))
 
 
+def concurrent_uncompiled():
+    """Exact bytes of the reviewed concurrent MeloNX diagnostics commit."""
+    result = {}
+    for path, commit in CONCURRENT_UNCOMPILED.items():
+        subprocess.run(['git', 'merge-base', '--is-ancestor', commit, 'HEAD'], cwd=ROOT, check=True)
+        result[path] = sha(subprocess.check_output(['git', 'show', commit + ':' + path], cwd=ROOT, timeout=60))
+    return result
+
+
 def check_product_delta(product):
     commit, ra_paths = ra_fix_product_paths()
-    allowed = set(ra_paths) | set(RPCS3_PRODUCT_PATHS)
+    concurrent = {p: d for p, d in concurrent_uncompiled().items() if is_product(p)}
+    for path, digest in concurrent.items():
+        require(product.get(path, {}).get('after') == digest, 'Concurrent MeloNX input differs from its commit: ' + path)
+    allowed = set(ra_paths) | set(RPCS3_PRODUCT_PATHS) | set(concurrent)
     require(set(product) <= allowed, 'Unreviewed product change: ' + repr(sorted(set(product) - allowed)))
     require(set(ra_paths) <= set(product), 'The RA credentials fix is not fully contained')
     for path in ra_paths:
@@ -136,13 +156,18 @@ def check_product_delta(product):
         require(product[path]['after'] == sha(fixed), 'RA path differs from the reviewed fix: ' + path)
     for record in product.values():
         require(record['modeAfter'] in (None, '100644'), 'Unexpected product file mode')
-    return dict(raFix=commit, raProductPaths=len(ra_paths), rpcs3ProductPaths=sorted(set(product) & set(RPCS3_PRODUCT_PATHS)))
+    return dict(raFix=commit, raProductPaths=len(ra_paths), rpcs3ProductPaths=sorted(set(product) & set(RPCS3_PRODUCT_PATHS)),
+                concurrentUncompiledProductPaths=sorted(concurrent))
 
 
 def check_preserved(target='HEAD'):
+    concurrent = concurrent_uncompiled()
     for path in PRESERVED:
         arguments = ('diff', '--name-only', BASE, target, '--', path) if target else ('diff', '--name-only', BASE, '--', path)
-        require(not git(*arguments), 'Retained609 component changed: ' + path)
+        changed = set(git(*arguments).splitlines())
+        require(changed <= set(concurrent), 'Retained609 component changed: ' + path + ' ' + repr(sorted(changed - set(concurrent))))
+        for name in changed:
+            require(sha(safe_path(name).read_bytes()) == concurrent[name], 'Concurrent MeloNX input changed again: ' + name)
 
 
 def freeze():
