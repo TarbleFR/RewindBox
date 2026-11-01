@@ -17,11 +17,40 @@ void main() {
   const channel = MethodChannel('neostation/neo_swap');
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  // The production wiring, captured before any test replaces it.
+  final productionPreparer = Rpcs3InternalService.guestRelayPreparer;
+  final productionTimeout = Rpcs3InternalService.guestRelayTimeout;
 
   tearDown(() {
     messenger.setMockMethodCallHandler(channel, null);
-    Rpcs3InternalService.guestRelayPreparer = NeoSwap.prepareGuestRelay;
-    Rpcs3InternalService.guestRelayTimeout = const Duration(seconds: 12);
+    Rpcs3InternalService.guestRelayPreparer = productionPreparer;
+    Rpcs3InternalService.guestRelayTimeout = productionTimeout;
+  });
+
+  test('the boot asks the NeoSwap plugin through the production preparer',
+      () async {
+    expect(productionTimeout, const Duration(seconds: 12));
+    final calls = <MethodCall>[];
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call);
+      return <String, Object?>{
+        'result': 0,
+        'ok': true,
+        'relayEnabled': true,
+        'waitedMs': 12.5,
+        'timeoutMs': 10000,
+      };
+    });
+
+    final line = await Rpcs3InternalService.prepareGuestRelayForBoot(
+      'BLES01717',
+    );
+
+    expect(calls, hasLength(1));
+    expect(calls.single.method, 'prepareGuestRelay');
+    expect(calls.single.arguments, {'timeoutMs': 10000});
+    expect(line, contains('BLES01717'));
+    expect(line, contains('result=0 ok=true relayEnabled=true'));
   });
 
   test('NeoSwap.prepareGuestRelay sends one bounded request', () async {
@@ -105,8 +134,9 @@ void main() {
     ).readAsStringSync();
     final launch = service.indexOf('static Future<bool> launchTitle(');
     final firmware = service.indexOf("'firmwareRequired'", launch);
+    // The call is a standalone statement of launchTitle, never a comment.
     final relay = service.indexOf(
-      'await prepareGuestRelayForBoot(normalized);',
+      '\n    await prepareGuestRelayForBoot(normalized);\n',
       launch,
     );
     final boot = service.indexOf('Rpcs3InternalBridge.launchGame(', launch);
@@ -145,14 +175,79 @@ void main() {
     expect(plugin.substring(guardStart, branch), isNot(contains('#endif')));
     expect(body, contains('[value longLongValue] > 10000'));
     expect(body, contains('dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0)'));
-    expect(body.indexOf('NeoSwapRelay_Start();'), greaterThan(0));
-    expect(
-      body.indexOf('NeoSwapRelay_WaitReady(timeout)'),
-      greaterThan(body.indexOf('NeoSwapRelay_Start();')),
-    );
+    // The relay service owns its lifecycle: the request goes through the boot
+    // preparation (which starts the relay itself and keeps a still-ready relay
+    // for the coming session), never through an explicit start.
+    expect(body, contains('NeoSwapRelay_PrepareForBoot(timeout)'));
+    expect(body, isNot(contains('NeoSwapRelay_Start(')));
+    expect(body, isNot(contains('NeoSwapRelay_WaitReady(')));
     expect(body, contains('NeoSwapExperimentProfile().relay()'));
-    expect(body, contains('[self appendRecord:event];'));
-    expect(body, contains('dispatch_async(dispatch_get_main_queue(), ^{ result(response); });'));
+    // The journal record is appended before Dart is answered (and boots).
+    final record = body.indexOf('[self appendRecord:event];');
+    final answer = body.indexOf(
+      'dispatch_async(dispatch_get_main_queue(), ^{ result(response); });',
+    );
+    final work = body.indexOf(
+      'dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0)',
+    );
+    expect(record, greaterThan(work));
+    expect(answer, greaterThan(record));
+    expect(body.substring(work, record), isNot(contains('result(')));
     expect(body, isNot(contains('NeoSwap_SetOwnerSessionActive')));
+  });
+
+  test('the boot preparation keeps a still-ready relay for the coming session', () {
+    final service = File(
+      'packages/neo_swap/ios/Classes/NeoSwapRelayService.mm',
+    ).readAsStringSync();
+    final header = File(
+      'packages/neo_swap/ios/Classes/NeoSwapRelayService.h',
+    ).readAsStringSync();
+    expect(
+      header,
+      contains('int NeoSwapRelay_PrepareForBoot(uint32_t timeout_ms);'),
+    );
+    expect(
+      service,
+      contains('extern "C" int NeoSwapRelay_PrepareForBoot(uint32_t timeout_ms) '
+          '{ return [manager() prepareForBoot:timeout_ms]; }'),
+    );
+    final prepare = service.indexOf('- (int)prepareForBoot:(uint32_t)timeout {');
+    final maintain = service.indexOf('- (void)maintain {', prepare);
+    expect(prepare, greaterThan(0));
+    expect(maintain, greaterThan(prepare));
+    final body = service.substring(prepare, maintain);
+    final clear = body.indexOf(
+      'if (_ready && !NeoSwap_OwnerSessionActive(kRPCS3)) _sessionObserved = NO;',
+    );
+    expect(clear, greaterThan(body.indexOf('[_lock lock];')));
+    expect(body.indexOf('[_lock unlock];'), greaterThan(clear));
+    expect(body.indexOf('return [self waitReady:timeout];'), greaterThan(clear));
+    // Idle maintenance re-checks the observation where it clears readiness.
+    expect(
+      service.substring(maintain),
+      contains('const BOOL idle = self->_sessionObserved && '
+          '!self->_running && !stats.object_count;'),
+    );
+  });
+
+  test('the readiness wait retries a refused start once, never in a loop', () {
+    final service = File(
+      'packages/neo_swap/ios/Classes/NeoSwapRelayService.mm',
+    ).readAsStringSync();
+    final wait = service.indexOf('- (int)waitReady:(uint32_t)timeout {');
+    final end = service.indexOf('- (int)prepareForBoot:(uint32_t)timeout {', wait);
+    final body = service.substring(wait, end);
+    final finalPass = body.indexOf(
+      'if (retried) return pressure ? NEOSWAP_RELAY_PRESSURE : NEOSWAP_RELAY_DISABLED;',
+    );
+    final retry = body.indexOf('retried = YES;\n        [self start];');
+    expect(body, contains('const BOOL pressure = _memoryPressureRaised;'));
+    expect(finalPass, greaterThan(body.indexOf('if (running && pending) {')));
+    expect(retry, greaterThan(finalPass));
+    expect(
+      service,
+      contains('if (raised) self->_fastFootprintRetryPending = NO;'),
+    );
   });
 }

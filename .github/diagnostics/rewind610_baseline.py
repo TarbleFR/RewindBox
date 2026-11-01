@@ -33,11 +33,16 @@ PRODUCTS = ('lib', 'native', 'packages', 'assets', 'pubspec.yaml', 'pubspec.lock
 # and the guest-relay preparation before every RPCS3 boot.
 RPCS3_PRODUCT_PATHS = ('lib/services/rpcs3_config_adapter.dart', 'lib/services/rpcs3_game_profile_service.dart',
                        'lib/services/rpcs3_internal_service.dart')
-# Reviewed NeoSwap host change: the prepareGuestRelay request. Neither file is a
-# Core input nor a MoltenVK dependency input; the NeoSwap headers the Core shares
-# (NeoSwap.h, NeoSwapClientStats.h, NeoSwapCompilerAPI.h, NeoSwapCompilerBudget.h,
+# Reviewed NeoSwap host change: the prepareGuestRelay request and the relay
+# service's boot preparation (a still-ready relay is kept for the coming session;
+# the readiness wait retries a refused start once). No file is a Core input nor a
+# MoltenVK dependency input; the NeoSwap headers the Core shares (NeoSwap.h,
+# NeoSwapClientStats.h, NeoSwapCompilerAPI.h, NeoSwapCompilerBudget.h,
 # NeoSwapRelay.h) and every other NeoSwap source stay byte-identical.
-NEOSWAP_PRODUCT_PATHS = ('packages/neo_swap/ios/Classes/NeoSwapPlugin.mm', 'packages/neo_swap/lib/neo_swap.dart')
+NEOSWAP_PRODUCT_PATHS = ('packages/neo_swap/ios/Classes/NeoSwapPlugin.mm',
+                         'packages/neo_swap/ios/Classes/NeoSwapRelayService.h',
+                         'packages/neo_swap/ios/Classes/NeoSwapRelayService.mm',
+                         'packages/neo_swap/lib/neo_swap.dart')
 # Concurrent MeloNX diagnostics (another session) committed before this build:
 # MeloNX Core preparation inputs only (compiled by the MeloNX Core producer,
 # never by Xcode; the adapter is not wired yet). IPA610 retains the delivered609

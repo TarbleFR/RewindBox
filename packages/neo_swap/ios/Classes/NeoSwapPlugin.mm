@@ -1440,12 +1440,13 @@ extern "C" void NeoSwapCompilerBudgetChanged() {
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
             const NSTimeInterval begin = NSProcessInfo.processInfo.systemUptime;
             const BOOL enabled = NeoSwapExperimentProfile().relay();
-            int code = NEOSWAP_RELAY_DISABLED;
-            if (enabled) {
-                NeoSwapRelay_Start();
-                code = NeoSwapRelay_WaitReady(timeout);
-            }
+            // The relay service owns its lifecycle: the boot preparation starts the
+            // relay itself (through its readiness wait) and keeps a still-ready relay
+            // for the coming session. The plugin never starts it directly.
+            const int code = enabled ? NeoSwapRelay_PrepareForBoot(timeout) : NEOSWAP_RELAY_DISABLED;
             const double waited = (NSProcessInfo.processInfo.systemUptime - begin) * 1000.0;
+            // The record is written before the answer, so it precedes the boot even
+            // when the boot itself ends the process.
             dispatch_async(self.queue, ^{
                 NSMutableDictionary* event = [[self snapshot:@"guest_relay_prepare"] mutableCopy];
                 event[@"result"] = @(code);
