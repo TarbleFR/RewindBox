@@ -93,6 +93,7 @@ from adapt_pipeline_checkpoint_pacing import apply as adapt_pipeline_checkpoint_
 from adapt_counter_report_compaction import apply as adapt_counter_report_compaction
 from adapt_single_virtual_dependency import apply as adapt_single_virtual_dependency
 from adapt_performance_diagnostics import apply as adapt_performance_diagnostics
+from adapt_register_liveness import apply as adapt_register_liveness
 
 
 def replace_once(path, old, new):
@@ -206,6 +207,7 @@ def main():
     adapted += adapt_counter_report_compaction(source)
     adapted += adapt_single_virtual_dependency(source)
     adapted += adapt_performance_diagnostics(source)
+    adapted += adapt_register_liveness(source)
     inputs = {}
     copied = []
     for path in sorted((root / 'native/melonx').glob('*.cs')):
@@ -292,7 +294,7 @@ def main():
                  'adapt_vector_register_masks.py', 'adapt_guard_context.py',
                  'adapt_occlusion_completion.py', 'adapt_pipeline_checkpoint_pacing.py',
                  'adapt_counter_report_compaction.py', 'adapt_single_virtual_dependency.py',
-                 'adapt_performance_diagnostics.py']:
+                 'adapt_performance_diagnostics.py', 'adapt_register_liveness.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
