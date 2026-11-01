@@ -1,0 +1,146 @@
+{
+  "note": "Fields transcribed from the GitHub REST responses returned by the GitHub MCP tools on 2026-11-01 after run completion",
+  "total_count": 10,
+  "artifacts": [
+    {
+      "id": 13092150067,
+      "name": "RewindBox-Build609-3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a-attempt1-cold-recovery-part02",
+      "size_in_bytes": 47584878,
+      "digest": "sha256:dd371f6a0328b4a46629b5b534c682e24efa3f27a786f62b5414148ccd327873",
+      "expired": false,
+      "created_at": "2026-11-01T16:29:41Z",
+      "expires_at": "2026-11-15T16:29:40Z",
+      "workflow_run": {
+        "id": 41325785563,
+        "head_branch": "Claude",
+        "head_sha": "3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a"
+      }
+    },
+    {
+      "id": 13091950675,
+      "name": "RewindBox-Build609-3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a-attempt1-cold-recovery-part00",
+      "size_in_bytes": 47584878,
+      "digest": "sha256:6ff954e39dacd2d970f367cc74f6becaa17e0aa1b469d46b92acc98742ff2a2e",
+      "expired": false,
+      "created_at": "2026-11-01T16:29:38Z",
+      "expires_at": "2026-11-15T16:29:37Z",
+      "workflow_run": {
+        "id": 41325785563,
+        "head_branch": "Claude",
+        "head_sha": "3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a"
+      }
+    },
+    {
+      "id": 13091711403,
+      "name": "RewindBox-Build609-3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a-attempt1-cold-part03",
+      "size_in_bytes": 47613678,
+      "digest": "sha256:843c3ab9f098b57b49c1bcd6c5b712ffafb4d4d80cc6cf415a66db73db030c65",
+      "expired": false,
+      "created_at": "2026-11-01T16:30:16Z",
+      "expires_at": "2026-11-15T16:30:14Z",
+      "workflow_run": {
+        "id": 41325785563,
+        "head_branch": "Claude",
+        "head_sha": "3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a"
+      }
+    },
+    {
+      "id": 13091681463,
+      "name": "RewindBox-Build609-3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a-attempt1-cold-part00",
+      "size_in_bytes": 47613678,
+      "digest": "sha256:c64edb6f5b27a25609f42f19fcf7573ced3c43e1dbefdbbe79c9d7be34369d2e",
+      "expired": false,
+      "created_at": "2026-11-01T16:30:11Z",
+      "expires_at": "2026-11-15T16:30:10Z",
+      "workflow_run": {
+        "id": 41325785563,
+        "head_branch": "Claude",
+        "head_sha": "3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a"
+      }
+    },
+    {
+      "id": 13091566897,
+      "name": "RewindBox-Build609-3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a-attempt1-cold-recovery-part03",
+      "size_in_bytes": 47584878,
+      "digest": "sha256:91b12d19d8ab4f039cec0b960df66dee3f5295050d6cc716c1186dd6fbda2689",
+      "expired": false,
+      "created_at": "2026-11-01T16:29:43Z",
+      "expires_at": "2026-11-15T16:29:42Z",
+      "workflow_run": {
+        "id": 41325785563,
+        "head_branch": "Claude",
+        "head_sha": "3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a"
+      }
+    },
+    {
+      "id": 13091512096,
+      "name": "RewindBox-Build609-3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a-attempt1-cold-recovery-part01",
+      "size_in_bytes": 47584878,
+      "digest": "sha256:fe0b48091429f83b437c02e0f15e96c306a6d92224c3036302fea72519d8aaa9",
+      "expired": false,
+      "created_at": "2026-11-01T16:29:40Z",
+      "expires_at": "2026-11-15T16:29:39Z",
+      "workflow_run": {
+        "id": 41325785563,
+        "head_branch": "Claude",
+        "head_sha": "3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a"
+      }
+    },
+    {
+      "id": 13091317832,
+      "name": "RewindBox-Build609-3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a-attempt1-cold",
+      "size_in_bytes": 190446621,
+      "digest": "sha256:1c063b068eb879095cca16a172a394b1011c61cf274c158bfa0c1711c9354a99",
+      "expired": false,
+      "created_at": "2026-11-01T16:30:09Z",
+      "expires_at": "2026-11-15T16:30:07Z",
+      "workflow_run": {
+        "id": 41325785563,
+        "head_branch": "Claude",
+        "head_sha": "3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a"
+      }
+    },
+    {
+      "id": 13091287894,
+      "name": "RewindBox-Build609-3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a-attempt1-cold-diagnostics",
+      "size_in_bytes": 6697998,
+      "digest": "sha256:1b53e0073b4fec9cadc28250c31f0077d8098865130fc881fdd2da08d37e2f78",
+      "expired": false,
+      "created_at": "2026-11-01T16:30:17Z",
+      "expires_at": "2026-11-15T16:30:16Z",
+      "workflow_run": {
+        "id": 41325785563,
+        "head_branch": "Claude",
+        "head_sha": "3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a"
+      }
+    },
+    {
+      "id": 13091223115,
+      "name": "RewindBox-Build609-3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a-attempt1-cold-part01",
+      "size_in_bytes": 47613678,
+      "digest": "sha256:5bd34776562bd16b8e00ebbdc446adcdbea0495a9990fe96373dd15311eefdea",
+      "expired": false,
+      "created_at": "2026-11-01T16:30:12Z",
+      "expires_at": "2026-11-15T16:30:11Z",
+      "workflow_run": {
+        "id": 41325785563,
+        "head_branch": "Claude",
+        "head_sha": "3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a"
+      }
+    },
+    {
+      "id": 13091218100,
+      "name": "RewindBox-Build609-3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a-attempt1-cold-part02",
+      "size_in_bytes": 47613678,
+      "digest": "sha256:e2016d7fd7615487c2c63d75d4deb9e66d0ce4e6dd4542160296acb4cf465704",
+      "expired": false,
+      "created_at": "2026-11-01T16:30:14Z",
+      "expires_at": "2026-11-15T16:30:13Z",
+      "workflow_run": {
+        "id": 41325785563,
+        "head_branch": "Claude",
+        "head_sha": "3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a"
+      }
+    }
+  ]
+}

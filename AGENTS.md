@@ -2,7 +2,7 @@
 
 Read this guide before work. It contains current project state and permanent
 rules; detailed investigations and build receipts belong in `docs/`.
-Last reconciled: **1 November 2026**, after private Build **608**.
+Last reconciled: **1 November 2026**, after private Build **609**.
 
 ## Start here
 
@@ -21,35 +21,41 @@ Last reconciled: **1 November 2026**, after private Build **608**.
 
 | Item | Verified reference |
 | --- | --- |
-| Application | **RewindBox 0.0.8 (608)**, private IPA; iOS 18+, SideStore re-signing |
-| Delivery source | `90a9e8fcaa9bf68e2f5a2270cab6b636d62fff07`, tree `067a0be8c34e44247f7abcdf6fd8bb4aeedf52f3` |
-| Delivery run / job | `41303386398` / `124838986809`, attempt 1, both successful |
-| Downloaded IPA | `RewindBox-608.ipa`, 189825138 bytes; SHA-256 `575321ba6daed2678bedbb7da2a8412930bffb7f67c340980a235ee46c95450d` |
-| Product baseline | Delivered 607, source `68552e27770b114ecc9a347600816132794b4fae`, plus the reviewed central RetroAchievements session delta; existing translation and unrelated engines retained |
-| MeloNX Core | Exact 606/607 engine from `ae78b4be6aa3fbc2db3537fd0a17c9aad75b2284` preserved and verified in 608; original finalizer failure and separate validation `41240588272` on `b584e4c6d0f1c2519c7d9ce3bdbbab1967528737` retained |
-| RPCS3 Core | Recovered 607 Core `a4ae86d085c231e3c5c93f7f72d2eced0f38ec24`, ABI 30, preserved and verified in 608; original producer `41243687649` failed after linking, separately recovered/verified for 607 |
-| Dolphin Core | Upstream `7cac54161659421ed95c2cd1c0b0746539a4cd38`; producer on `0279198b1c33d869550cae3cf35f155b9d3a4f79`, job `124810929735` **SUCCESS** within whole run `41293321826` **FAILURE**; authenticated reuse and final payload verified |
-| ARMSX2 Core | Pinned iOSv2.6.0, ABI 9; producer on `0279198b1c33d869550cae3cf35f155b9d3a4f79`, job `124810929747` **SUCCESS** within whole run `41293321826` **FAILURE**; authenticated reuse and final payload verified |
-| Delivery proof | [Build 608 session delivery](docs/build608-ra-session-delivery.md), [delivery receipt](docs/evidence/rewind608/delivery.json), [downloaded-file checks](docs/evidence/rewind608/download608-verification.json) |
+| Application | **RewindBox 0.0.8 (609)**, private IPA; iOS 18+, SideStore re-signing |
+| Delivery source | `3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a`, tree `5b8090c5cc3a7410c3bdece0888c6470acd4da20` |
+| Delivery run / jobs | `41325785563`, attempt 1: preflight `124905314379`, application `124905435858`, all successful |
+| Downloaded IPA | `RewindBox-609.ipa`, 189813193 bytes; SHA-256 `7908d1283f722e6b8ed7999c374aab073736740a4cb9f0ce588468bf95620f97` |
+| Product baseline | Delivered 608, source `90a9e8fcaa9bf68e2f5a2270cab6b636d62fff07` (IPA `575321ba…`); application sources byte-identical, only the MeloNX Core replaced |
+| MeloNX Core | Liveness Core from `1f12796c6b8c3d509bc203e52c561e0d345e7bfc`: run `41323968050`, job `124899905807`, artifact `13090479414` (`83827a94…`), iPhone dylib `34fb7a5c…`, packaged fingerprint `c43a80bf…`; the delivered `ae78b4b` engine plus the A57 register/NZCV liveness fix and GC memory-load diagnostics ([contract](build-utils/melonx/liveness-core-contract.json)) |
+| RPCS3 Core | Recovered 607 Core `a4ae86d085c231e3c5c93f7f72d2eced0f38ec24`, ABI 30, payload `7289ce4e…`, preserved and verified in 608 and 609; original producer `41243687649` failed after linking, separately recovered/verified for 607 |
+| Dolphin Core | Upstream `7cac54161659421ed95c2cd1c0b0746539a4cd38`; producer on `0279198b1c33d869550cae3cf35f155b9d3a4f79`, job `124810929735` **SUCCESS** within whole run `41293321826` **FAILURE**; payload `640e4389…` retained from 608 and verified |
+| ARMSX2 Core | Pinned iOSv2.6.0, ABI 9; producer on `0279198b1c33d869550cae3cf35f155b9d3a4f79`, job `124810929747` **SUCCESS** within whole run `41293321826` **FAILURE**; payload `fab55193…` retained from 608 and verified |
+| Delivery proof | [Build 609 Hogwarts liveness delivery](docs/hogwarts609-liveness-2026-11-01.md), [delivery receipt](docs/evidence/rewind609/delivery.json), [downloaded-file checks](docs/evidence/rewind609/download609-verification.json); 608: [session delivery](docs/build608-ra-session-delivery.md), [receipt](docs/evidence/rewind608/delivery.json) |
 
-608 is delivered, not a pending candidate. Do not reuse its number. Before
+609 is delivered, not a pending candidate. Do not reuse its number. Before
 allocating another number, reconcile concurrent deliveries. A newer source
 commit or Core-only artifact is not automatically a newer delivered IPA.
 Old donor builds provide only their explicitly retained native resources;
 they are never the application baseline. The public release and private IPA
 are separate records; do not promote a private build through a README edit.
 
-**Delivered 608:** one RetroAchievements account and launch policy for the three
-integrated adapters, actual session status, existing achievement translation
-and corrected Flutter language delegates. The downloaded IPA, eight bundles
-and all 90 native images passed verification. Product tests and Core builds
-retain their authenticated `0279198` origin; current recipe checks and the
-full application build have separate successful evidence. Existing unrelated
-compiler warnings remain documented in the 608 report. Device FPS and
-loading-time gains are still unmeasured; see
+**Delivered 609:** delivered 608 with only the MeloNX Core replaced. The new
+Core corrects LightningJit liveness metadata that lost guest NZCV/vector state
+(FMOV marked as writing flags, 41 entries missing a destination read, 16-bit
+by-element `Vm` width). It also logs the GC memory-load inputs behind gen2
+activity. The downloaded IPA, eight bundles and all 90 images passed
+verification. 86 images keep their 608 fingerprints; `Runner`
+(version string) and two bridges rebuilt from identical sources differ, with
+the bridge cause not identified. 608's RetroAchievements session and
+translation features, the other engines and the `0279198` test evidence are
+retained. These liveness defects are demonstrated by executable
+reproductions, but they are **not proven** to cause the Hogwarts guard crash.
+Existing unrelated compiler warnings are retained (see the 609 log review).
+Device FPS and loading-time gains are still unmeasured; see
 [the device analysis](docs/hogwarts604-performance-2026-10-30.md).
 
-**Still unproven on iPhone:** Hogwarts crash recovery, removal of the intermittent
+**Still unproven on iPhone:** whether the 609 liveness fix affects the
+Hogwarts crash, what the new GC fields show, removal of the intermittent
 minute-long GPU wait, Unreal CVar consumption, black-texture recovery and FPS
 gains. The MeloNX presentation animation was removed; its old measured cost
 was 0.510–0.513 s, not a measured new-device speedup. The 604 receipt does not
@@ -142,7 +148,7 @@ presentation still require physical-device validation; see the [605 report](docs
 | Task | Read before changing it |
 | --- | --- |
 | Architecture or handoff | [Architecture](ARCHITECTURE.md), [Claude entry point](CLAUDE.md), [manual workflow](docs/AI_WORKFLOW_CURSOR_CLAUDE.md) |
-| MeloNX / Hogwarts / launch times | [Current crash and lot analysis](docs/melonx-build603-guard-crash-2026-10-30.md), [604 delivery](docs/rewind604-test-ipa.md), [MeloNX rules](docs/PROJECT_RULES.md#melonx) |
+| MeloNX / Hogwarts / launch times | [609 liveness and GC diagnostics](docs/hogwarts609-liveness-2026-11-01.md), [crash and lot analysis](docs/melonx-build603-guard-crash-2026-10-30.md), [604 delivery](docs/rewind604-test-ipa.md), [MeloNX rules](docs/PROJECT_RULES.md#melonx) |
 | RPCS3 / NeoSwap | [Retained 607 Core identity and recovery contract](.github/diagnostics/rpcs3runtime607_core.py), [Verified 608 preservation](docs/build608-ra-session-delivery.md), [RPCS3 rules](docs/PROJECT_RULES.md#rpcs3) |
 | RetroAchievements session / translation / app language | [Central session and 608 delivery](docs/build608-ra-session-delivery.md), [credentials regression and in-game status (source fix after 608)](docs/ra-credentials-status-2026-11-01.md), [existing translation](docs/achievement-translation.md), [original translation tests](docs/evidence/achievement-translation-validation.json) |
 | Library, UI, native routing | [Library and lifecycle rules](docs/PROJECT_RULES.md#library-and-lifecycle), [Liquid Glass](docs/liquid-glass-ui.md) |
