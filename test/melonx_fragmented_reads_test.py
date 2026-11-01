@@ -189,6 +189,13 @@ check(before['handledInvalidAccess'] == after['handledInvalidAccess'] and
 for key in ('orderedHash', 'shuffledHash', 'prefetchHash'):
     check(before['gpuMemory'][key] == after['gpuMemory'][key], 'GPU memory bytes changed: ' + key)
 check(before['softwarePageTable'] == after['softwarePageTable'] and after['softwarePageTable']['matchesGetSpan'], 'software page table changed')
+# MemoryManagerHostMapped (4 KiB hosts only; never iOS): tracked reads skip its mapping assertion. Every case,
+# including the throws, must be identical, and the armed tracked read across the hole must return its data.
+host_mapped = before['hostMapped']
+check(host_mapped == after['hostMapped'], 'HostMapped behaviour changed: ' + json.dumps(dict(control=host_mapped, candidate=after['hostMapped'])))
+if host_mapped['supported']:
+    check(host_mapped['trackedAcrossHole'].startswith('ok length=262144') and host_mapped['trackedAcrossHole'].endswith('fired=1') and
+          host_mapped['trackedReadIntoMapped'].endswith('fired=1'), 'HostMapped tracked scenario not exercised')
 # Allocation: the control copies each fragmented read; the candidate does not.
 upload = 1 << 20
 check(before['bufferUploads']['fragmentedWhole']['allocatedPerUpload'] >= upload, 'control did not reproduce the per-upload copy')
@@ -217,13 +224,16 @@ page = os.sysconf('SC_PAGESIZE')
 reproduced = before['privatePartitions'].get('crossingUploadAllocated', 0) >= 0x30000
 limits = ['managed Release build of the GPU assembly closure, not the NativeAOT library; no Apple timing, device memory or FPS claim']
 if not reproduced:
-    limits.append('host pages of ' + str(page) + ' bytes bridge adjacent private partitions, so the iOS partition-crossing copy is not reproduced here')
+    limits.append('the partition-crossing range was borrowed by both builds on this host (no copy in the control)')
+if not host_mapped['supported']:
+    limits.append('MemoryManagerHostMapped not exercised: ' + host_mapped['reason'])
 report = dict(result='passed', checks=checks + before['checks'] + after['checks'], probeChecks=dict(control=before['checks'], candidate=after['checks']),
               compiledProjects=projects, preimages=preimages, postimages=postimages, compiledSourceInputs=compiled,
               finalPreparedSourceBound=bool(CANDIDATE), sourceKind='deliveredPreparedWithFinalCandidate' if CANDIDATE else 'deliveredPreparedComposed',
               control=before, candidate=after, inputs={name: sha(ROOT / name) for name in INPUTS},
               host=platform.system() + ' ' + platform.machine() + ' Release managed build', pageSize=page,
-              privatePartitionCopyReproducedOnHost=reproduced, physicalDeviceTested=False, fpsGainProven=False, limits=limits)
+              privatePartitionCopyReproducedOnHost=reproduced, hostMappedChecked=host_mapped['supported'],
+              physicalDeviceTested=False, fpsGainProven=False, limits=limits)
 args.report.parent.mkdir(parents=True, exist_ok=True)
 args.report.write_text(json.dumps(report, indent=2) + '\n')
 print(json.dumps(dict(result='passed', checks=report['checks'],

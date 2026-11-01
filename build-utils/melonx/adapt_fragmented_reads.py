@@ -11,9 +11,12 @@ covered by a private allocation, is returned as a new byte[] copy. The GPU reads
 memory that way for every buffer upload, texture reload, command prefetch and copy.
 
 The bytes read, the tracking calls and their order are unchanged:
-- IVirtualMemoryManager.TryGetContiguousSpan borrows like GetSpan; its default IS
-  GetSpan, so every manager other than HostTracked behaves exactly as before.
-  HostTracked answers false for fragmented ranges instead of allocating.
+- IVirtualMemoryManager.TryGetContiguousSpan(va, size, tracked) borrows like GetSpan;
+  its default IS GetSpan(va, size, tracked), the same single call as before, so
+  every manager other than HostTracked behaves exactly as before (HostMapped skips
+  its mapping assertion for tracked reads; that is preserved). HostTracked signals
+  tracking in GetSpan's order and answers false for fragmented ranges instead of
+  allocating.
 - PhysicalMemory.GetReadOnlyRegion(address, size) borrows, or reads with the same
   Read call into a cleared pooled array that the caller disposes after use;
   PhysicalMemory.ReadInto copies into the caller's own span. Bytes a handled invalid
@@ -78,9 +81,9 @@ def apply(source):
         /// Borrows the range when the manager can do so without copying. A manager that cannot answers false
         /// without allocating, and the caller copies the range with Read. The default keeps GetSpan's behaviour.
         /// </summary>
-        bool TryGetContiguousSpan(ulong va, int size, out ReadOnlySpan<byte> span)
+        bool TryGetContiguousSpan(ulong va, int size, bool tracked, out ReadOnlySpan<byte> span)
         {
-            span = GetSpan(va, size);
+            span = GetSpan(va, size, tracked);
             return true;
         }
 ''')
@@ -93,14 +96,20 @@ def apply(source):
             throw new NotImplementedException();
         }
 
-        // Borrows a range held in one host block exactly as GetSpan does; a fragmented or
-        // partly private range answers false instead of allocating a copy.
-        public bool TryGetContiguousSpan(ulong va, int size, out ReadOnlySpan<byte> span)
+        // GetSpan's own order: size 0, then the tracking signal, then the borrow. A fragmented
+        // or partly private range answers false instead of allocating a copy; the caller
+        // then reads it without signalling again.
+        public bool TryGetContiguousSpan(ulong va, int size, bool tracked, out ReadOnlySpan<byte> span)
         {
             if (size == 0)
             {
                 span = ReadOnlySpan<byte>.Empty;
                 return true;
+            }
+
+            if (tracked)
+            {
+                SignalMemoryTracking(va, (ulong)size, false);
             }
 
             if (TryGetVirtualContiguous(va, size, out MemoryBlock memoryBlock, out ulong offset))
@@ -138,17 +147,8 @@ def apply(source):
         /// </summary>
         internal ReadOnlyRegion GetReadOnlyRegion(ulong address, int size, bool tracked = false)
         {
-            if (size == 0)
-            {
-                return new ReadOnlyRegion(ReadOnlySpan<byte>.Empty);
-            }
-
-            if (tracked)
-            {
-                _cpuMemory.SignalMemoryTracking(address, (ulong)size, false);
-            }
-
-            if (_cpuMemory.TryGetContiguousSpan(address, size, out ReadOnlySpan<byte> borrowed))
+            // The manager makes GetSpan's exact call, tracking included.
+            if (_cpuMemory.TryGetContiguousSpan(address, size, tracked, out ReadOnlySpan<byte> borrowed))
             {
                 return new ReadOnlyRegion(borrowed);
             }
@@ -176,17 +176,8 @@ def apply(source):
         /// </summary>
         internal void ReadInto(ulong address, Span<byte> destination, bool tracked = false)
         {
-            if (destination.Length == 0)
-            {
-                return;
-            }
-
-            if (tracked)
-            {
-                _cpuMemory.SignalMemoryTracking(address, (ulong)destination.Length, false);
-            }
-
-            if (_cpuMemory.TryGetContiguousSpan(address, destination.Length, out ReadOnlySpan<byte> borrowed))
+            // The manager makes GetSpan's exact call, tracking included.
+            if (_cpuMemory.TryGetContiguousSpan(address, destination.Length, tracked, out ReadOnlySpan<byte> borrowed))
             {
                 borrowed.CopyTo(destination);
                 destination[borrowed.Length..].Clear();

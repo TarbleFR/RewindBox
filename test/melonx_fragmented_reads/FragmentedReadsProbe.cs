@@ -162,6 +162,117 @@ namespace Ryujinx.Graphics.Gpu.Memory
             return (GC.GetAllocatedBytesForCurrentThread() - before) / repeats;
         }
 
+        private static object HostMappedScenario()
+        {
+            if (MemoryBlock.GetPageSize() > 0x1000)
+            {
+                return new { supported = false, reason = "host pages above 4 KiB: production never selects MemoryManagerHostMapped" };
+            }
+
+            MemoryBlock backing = new(16UL << 20, MemoryAllocationFlags.Reserve | MemoryAllocationFlags.Mirrorable);
+            if (!AddressSpace.TryCreate(backing, 1UL << 36, out AddressSpace addressSpace))
+            {
+                return new { supported = false, reason = "no host-mapped address space on this host" };
+            }
+
+            MemoryManagerHostMapped cpu = new(addressSpace, false, null);
+            const ulong Va = 0x10_0000;        // tracking bitmap word 8 (32 pages per word)
+            const int Size = 0x4_0000;         // words 8 and 9
+            const ulong Hole = Va + 0x3_0000;  // unmapped page in word 9
+            cpu.Map(Va, 0, (ulong)Size, MemoryMapFlags.None);
+            for (int offset = 0; offset < Size; offset += (int)Page)
+            {
+                cpu.Write(Va + (ulong)offset, (byte)(offset >> 12));
+            }
+
+            cpu.Unmap(Hole, Page);
+            RegionHandle first = cpu.BeginTracking(Va, Page, 0);
+            PhysicalMemory physical = NewPhysical(cpu);
+            int fired = 0;
+
+            ulong HashOutsideHole(ReadOnlySpan<byte> span, ulong va)
+            {
+                ulong hash = 1469598103934665603UL;
+                for (int i = 0; i < span.Length; i++)
+                {
+                    ulong address = va + (ulong)i;
+                    if (address >= Hole && address < Hole + Page)
+                    {
+                        continue;
+                    }
+
+                    hash = (hash ^ span[i]) * 1099511628211UL;
+                }
+
+                return hash;
+            }
+
+            string Read(ulong va, int size, bool tracked, bool armed)
+            {
+                if (armed)
+                {
+                    first.RegisterAction((address, length) => fired++);
+                }
+
+                int before = fired;
+                try
+                {
+#if FRAGMENTED_READS_CANDIDATE
+                    using ReadOnlyRegion region = physical.GetReadOnlyRegion(va, size, tracked);
+                    ReadOnlySpan<byte> span = region.Span;
+#else
+                    ReadOnlySpan<byte> span = physical.GetSpan(va, size, tracked);
+#endif
+                    return $"ok length={span.Length} hash={HashOutsideHole(span, va):x16} fired={fired - before}";
+                }
+                catch (Exception exception)
+                {
+                    return $"throws {exception.GetType().Name} fired={fired - before}";
+                }
+                finally
+                {
+                    // Consume a pending action so the next case starts unarmed.
+                    try { cpu.SignalMemoryTracking(Va, Page, false); } catch (Exception) { }
+                }
+            }
+
+            string ReadIntoMapped(int size, bool tracked)
+            {
+                first.RegisterAction((address, length) => fired++);
+                int before = fired;
+                byte[] destination = new byte[size];
+                try
+                {
+#if FRAGMENTED_READS_CANDIDATE
+                    physical.ReadInto(Va, destination, tracked);
+#else
+                    physical.GetSpan(Va, size, tracked).CopyTo(destination);
+#endif
+                    return $"ok hash={Hash(destination):x16} fired={fired - before}";
+                }
+                catch (Exception exception)
+                {
+                    return $"throws {exception.GetType().Name} fired={fired - before}";
+                }
+                finally
+                {
+                    try { cpu.SignalMemoryTracking(Va, Page, false); } catch (Exception) { }
+                }
+            }
+
+            return new
+            {
+                supported = true,
+                trackedAcrossHole = Read(Va, Size, true, true),
+                trackedPartialAcrossHole = Read(Va, 0x3_1800, true, true),
+                trackedUnarmedAcrossHole = Read(Va, Size, true, false),
+                untrackedAcrossHole = Read(Va, Size, false, false),
+                emptyInHoleTracked = Read(Hole + 0x10, 0, true, false),
+                emptyInHoleUntracked = Read(Hole + 0x10, 0, false, false),
+                trackedReadIntoMapped = ReadIntoMapped(0x3_0000, true),
+            };
+        }
+
         private static PhysicalMemory NewPhysical(IVirtualMemoryManagerTracked cpu)
         {
             PhysicalMemory physical = (PhysicalMemory)RuntimeHelpers.GetUninitializedObject(typeof(PhysicalMemory));
@@ -370,13 +481,17 @@ namespace Ryujinx.Graphics.Gpu.Memory
                 matchesGetSpan = RegionHash(softwarePhysical, single) == Hash(software.GetSpan(FragmentedVa, Pages * (int)Page)),
             };
 
+            // 7b. Production selects MemoryManagerHostMapped only with 4 KiB host pages (never on iOS). Its GetSpan
+            //     skips the mapping assertion for tracked reads; every converted call must keep that behaviour.
+            Results["hostMapped"] = HostMappedScenario();
+
 #if FRAGMENTED_READS_CANDIDATE
             // 8. Candidate-only entry points, checked against the unchanged GetSpan of the same build.
-            Check(!cpu.TryGetContiguousSpan(FragmentedVa, 0x2000, out _), "fragmented range borrowed");
-            Check(cpu.TryGetContiguousSpan(ContiguousVa, 0x8000, out ReadOnlySpan<byte> borrowed) &&
+            Check(!cpu.TryGetContiguousSpan(FragmentedVa, 0x2000, false, out _), "fragmented range borrowed");
+            Check(cpu.TryGetContiguousSpan(ContiguousVa, 0x8000, false, out ReadOnlySpan<byte> borrowed) &&
                   Hash(borrowed) == Hash(cpu.GetSpan(ContiguousVa, 0x8000)), "contiguous range not borrowed");
-            Check(cpu.TryGetContiguousSpan(FragmentedVa + 0x100, 0x200, out _), "single-page range not borrowed");
-            Check(((IVirtualMemoryManager)software).TryGetContiguousSpan(FragmentedVa, 0x2000, out ReadOnlySpan<byte> copied) &&
+            Check(cpu.TryGetContiguousSpan(FragmentedVa + 0x100, 0x200, false, out _), "single-page range not borrowed");
+            Check(((IVirtualMemoryManager)software).TryGetContiguousSpan(FragmentedVa, 0x2000, false, out ReadOnlySpan<byte> copied) &&
                   Hash(copied) == Hash(software.GetSpan(FragmentedVa, 0x2000)), "software default path changed");
             byte[] destination = new byte[gpuSize / 2];
             destination.AsSpan().Fill(0xEE);

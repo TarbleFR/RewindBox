@@ -51,9 +51,9 @@ measure exactly that.
 
 | File | Function | Mechanism |
 |---|---|---|
-| `Ryujinx.Memory/IVirtualMemoryManager.cs` | `TryGetContiguousSpan` (new, default interface method) | Default returns `GetSpan`: every manager other than HostTracked keeps its behaviour |
-| `Ryujinx.Cpu/Jit/MemoryManagerHostTracked.cs` | `TryGetContiguousSpan`, `GetSpan` | Borrows exactly like `GetSpan`, answers false instead of copying; the remaining `GetSpan` copy is counted |
-| `Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs` | `GetReadOnlyRegion(address, size)`, `ReadInto`, `GetReadOnlyRegion(MultiRange)` | Borrow, or the same `Read` into a cleared pooled snapshot owned by the region; `ReadInto` copies into the caller's span |
+| `Ryujinx.Memory/IVirtualMemoryManager.cs` | `TryGetContiguousSpan(va, size, tracked)` (new, default interface method) | Default is exactly `GetSpan(va, size, tracked)`: every manager other than HostTracked makes its previous single call |
+| `Ryujinx.Cpu/Jit/MemoryManagerHostTracked.cs` | `TryGetContiguousSpan`, `GetSpan` | Same order as `GetSpan` (size 0, tracking signal, borrow); answers false instead of copying; the remaining `GetSpan` copy is counted |
+| `Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs` | `GetReadOnlyRegion(address, size)`, `ReadInto`, `GetReadOnlyRegion(MultiRange)` | Borrow through the manager, or the same `Read` into a cleared pooled snapshot owned by the region; `ReadInto` copies into the caller's span |
 | `Ryujinx.Graphics.Gpu/Memory/MemoryManager.cs` | `GetReadOnlyRegion`, `ReadInto`, `ReadImpl` | Same entry points for GPU virtual addresses; page runs are read with `ReadInto` |
 | `Ryujinx.Graphics.Gpu/Memory/Buffer.cs` | both `SetBufferData` uploads | Region disposed after the synchronous `SetBufferData` copy |
 | `Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs` | `CommandBuffer.Prefetch` | Reads straight into the pooled word array |
@@ -101,6 +101,20 @@ the private allocator placed both halves in one block, so this layout is not
 a copy source. The Apple receipt's generated note attributes this to
 partition bridging; the observation (no copy in the control) is what holds.
 
+An independent adversarial review (five dimensions: lifetimes and aliasing,
+semantic equivalence, concurrency, other memory managers and callers, GPU
+memory manager and engines; each finding re-checked by a separate verifier)
+found no defect on the iOS paths (56 checks recorded clean) and confirmed one
+low-severity divergence for `MemoryManagerHostMapped`, which production
+selects only with 4 KiB host pages: a tracked read crossing a 128 KiB tracking
+word that holds an unmapped page threw, where the delivered
+`GetSpan(tracked: true)` returned the data. The flag now travels with
+`TryGetContiguousSpan`, so that manager makes exactly its previous call. The
+fixture gained a HostMapped scenario (tracked, partial, unarmed, untracked and
+empty reads across a hole, and a tracked `ReadInto`) whose control and
+candidate results must be identical; it runs wherever HostMapped exists (66
+checks on Linux x64) and reports itself as not applicable on 16 KiB hosts.
+
 The four collector-dependent fixtures also pass against the final source:
 pipeline checkpoint, counter-report compaction, single virtual dependency
 (4939 assertions, semantic digest `d6683e2dce9156cd` unchanged) and
@@ -131,15 +145,12 @@ Status `compiled-and-simulator-validated-not-gameplay-tested`.
 
 ## 5b. Private IPA 611
 
-IPA 610 (RA credentials fix and RPCS3 Core 610, another session) is not
-delivered, so 611 is built on the last verified delivery, 609, with only the
-MeloNX Core replaced. The 610 lot is committed on `Claude`; the 611 build
-restores its 42 application, retained-engine and reused-test paths to their
-delivered609 bytes before any check or compilation, and its source contract
-proves the restored checkout equals delivered609 except the Core input Xcode
-never compiles. **611 therefore contains neither the RA credentials fix nor
-RPCS3 Core 610.** RPCS3 607, Dolphin/ARMSX2 608, libretro and the MeloNX native
-frameworks keep the bytes and provenance IPA609 used.
+At the maintainer's request, 611 is built on top of delivered 610 with the
+standard delivery recipe (see AGENTS.md): this MeloNX Core, the RPCS3 Core 611
+carrying the RetroAchievements PS3 Core patch (RPCS3 Core route) and the
+RetroAchievements commits. A first 609-based 611 run (`41340417135`) was
+cancelled during its Xcode step at the maintainer's request; nothing was
+delivered and its `rewind611_*` recipe is superseded.
 
 ## 6. Not done, and why
 
