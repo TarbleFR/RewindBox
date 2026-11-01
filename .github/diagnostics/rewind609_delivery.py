@@ -137,7 +137,9 @@ def contract():
 def baseline():
     result = contract()
     base = tree.BASELINE
-    run = engine.api('actions/runs/' + str(base['run']))
+    # The delivered IPA is attempt 1. A later separate attempt of the same run
+    # (attempt 2 failed on 1 November at 14:37 UTC) must not replace its identity.
+    run = engine.api(f"actions/runs/{base['run']}/attempts/{base['attempt']}")
     job = engine.api('actions/jobs/' + str(base['job']))
     require(run['head_sha'] == job['head_sha'] == tree.BASE and
             run['conclusion'] == job['conclusion'] == 'success' and
@@ -153,7 +155,7 @@ def baseline():
 @lru_cache(maxsize=None)
 def reused_origin(kind):
     pin = REUSED_ARTIFACTS[kind]
-    run = engine.api('actions/runs/' + str(REUSED['run']))
+    run = engine.api(f"actions/runs/{REUSED['run']}/attempts/{REUSED['attempt']}")
     require(run['id'] == REUSED['run'] and run['head_sha'] == REUSED['source'] and run['head_branch'] == 'Claude' and
             run['path'] == WORKFLOW608 and run['run_attempt'] == REUSED['attempt'] and run['status'] == 'completed' and
             run['conclusion'] == 'failure', 'The original whole 0279198 run must keep its actual failure')
