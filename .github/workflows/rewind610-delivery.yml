@@ -138,8 +138,8 @@ jobs:
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
       ARMSX2_CORE_HOST_SHA: 0279198b1c33d869550cae3cf35f155b9d3a4f79
       ARMSX2_CORE_RUN_ID: '41293321826'
-      RPCS3_CORE_HOST_SHA: 14ee0abc625f049721f7533935c4a7324e882a50
-      RPCS3_CORE_RUN_ID: '41332088781'
+      RPCS3_CORE_HOST_SHA: fefad81dbfc6890294def9b529f6e0d915fcfcbe
+      RPCS3_CORE_RUN_ID: '41333351872'
       FLUTTER_ARTIFACT_ID: ${{ needs.flutter.outputs.artifact-id }}
       FLUTTER_ARTIFACT_DIGEST: ${{ needs.flutter.outputs.artifact-digest }}
       NATIVE_ARTIFACT_ID: ${{ needs.native.outputs.artifact-id }}

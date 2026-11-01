@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "source": "14ee0abc625f049721f7533935c4a7324e882a50",
-  "run": 41332088781,
-  "host": "Darwin sat12-bq166-e7414ecb-13b1-406c-b224-b9159ffa8950-FA3962BBB602.local 24.6.0 Darwin Kernel Version 24.6.0: Sun Oct 11 23:44:11 PDT 2026; root:xnu-11417.140.69.713.47~2/RELEASE_ARM64_VMAPPLE arm64",
+  "source": "fefad81dbfc6890294def9b529f6e0d915fcfcbe",
+  "run": 41333351872,
+  "host": "Darwin iad20-fj924-f8529e83-4a8f-4719-8168-1334c969f589-DE9308D88F7F.local 24.6.0 Darwin Kernel Version 24.6.0: Sun Oct 11 23:44:11 PDT 2026; root:xnu-11417.140.69.713.47~2/RELEASE_ARM64_VMAPPLE arm64",
   "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
   "commands": [
     {
@@ -20,7 +20,7 @@
         "build/core610-apple-host/lr-full-queue.json"
       ],
       "exit_code": 0,
-      "seconds": 23.358
+      "seconds": 34.357
     },
     {
       "name": "exitspawn-worker-plain",
@@ -36,7 +36,7 @@
         "build/core610-apple-host/exitspawn-worker-plain.json"
       ],
       "exit_code": 0,
-      "seconds": 3.68
+      "seconds": 5.208
     },
     {
       "name": "exitspawn-worker-asan-ubsan",
@@ -53,7 +53,7 @@
         "build/core610-apple-host/exitspawn-worker-asan-ubsan.json"
       ],
       "exit_code": 0,
-      "seconds": 6.462
+      "seconds": 8.293
     },
     {
       "name": "feedback-census",
@@ -70,7 +70,7 @@
         "build/core610-apple-host/feedback-census.json"
       ],
       "exit_code": 0,
-      "seconds": 6.707
+      "seconds": 8.054
     },
     {
       "name": "transition-phases",
@@ -85,7 +85,7 @@
         "build/core610-apple-host/transition-phases.json"
       ],
       "exit_code": 0,
-      "seconds": 0.62
+      "seconds": 1.01
     },
     {
       "name": "codegen-audit",
@@ -99,7 +99,7 @@
         "build/core610-apple-host/codegen-audit.json"
       ],
       "exit_code": 0,
-      "seconds": 0.066
+      "seconds": 0.115
     },
     {
       "name": "reuse-audit",
@@ -114,7 +114,7 @@
         "build/core610-apple-host/reuse-audit.json"
       ],
       "exit_code": 0,
-      "seconds": 0.047
+      "seconds": 0.077
     },
     {
       "name": "position-invariance-contract",
@@ -127,7 +127,7 @@
         "build/core610-apple-host/position-invariance-contract.json"
       ],
       "exit_code": 0,
-      "seconds": 0.422
+      "seconds": 0.558
     }
   ],
   "physical_device_tested": false,

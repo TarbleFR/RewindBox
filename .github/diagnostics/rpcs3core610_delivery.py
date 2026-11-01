@@ -33,17 +33,20 @@ CORE_TYPE = 'rpcs3-ios-core610'
 PATCH_SHA = 'a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf'
 CODEGEN = {'PPU': 'a987639e9f838d1c', 'SPU': '477a3fa442d27917'}
 # Pinned after the Core run completed (integrator, never CI).
-# Run 41332088781 built the Core and ran the Apple host harnesses on one commit;
-# run 41331403021 (an earlier identical request) was cancelled and is not used.
+# Run 41333351872 built, verified and uploaded the Core and passed the Apple host
+# harnesses on one commit. Runs 41331403021 (cancelled duplicate) and 41332088781
+# (identity step failed on a shadowed function; binary not delivered) are not used.
 PIN = dict(
-    source='14ee0abc625f049721f7533935c4a7324e882a50',
-    run=41332088781, attempt=1, job=124924134424,
-    artifact=None, name='RPCS3Core-610-14ee0abc625f049721f7533935c4a7324e882a50', bytes=None, sha256=None,
-    core_sha256=None, core_bytes=None, identity_sha256=None,
+    source='fefad81dbfc6890294def9b529f6e0d915fcfcbe',
+    run=41333351872, attempt=1, job=124927901486,
+    artifact=13094491719, name='RPCS3Core-610-fefad81dbfc6890294def9b529f6e0d915fcfcbe', bytes=29269128,
+    sha256='c22c3c9a62b9e6cee08143c5d43cd454c6e78046f021609d3c974061580c6fba',
+    core_sha256='e5e494ae8b6921de8fe2148d522bc0b31f76d6f162e57a8aeff4229ae93abc09', core_bytes=77423912,
+    identity_sha256='1599d181b25753c841846acb0e2efa90c0c631e0b527fe275ebd7b93fdff1793',
 )
-HOST_TESTS = dict(source='14ee0abc625f049721f7533935c4a7324e882a50', run=41332088781, attempt=1, job=124924134778,
-                  artifact=13094041505, name='RPCS3Core-610-apple-host-tests-14ee0abc625f049721f7533935c4a7324e882a50',
-                  bytes=21022, sha256='a0a7a90f50b7f88ca37f45c776a58fecc7b6bd7036ca1a165113454a69dd3234')
+HOST_TESTS = dict(source='fefad81dbfc6890294def9b529f6e0d915fcfcbe', run=41333351872, attempt=1, job=124927901813,
+                  artifact=13094565494, name='RPCS3Core-610-apple-host-tests-fefad81dbfc6890294def9b529f6e0d915fcfcbe',
+                  bytes=21024, sha256='33857562f708eeec933528ecf0dc8ca6a4056ebfbecef22dca0725cb04c4815a')
 CORE_STEPS = {
     'Authenticate the Core 610 source closure and the native dependency',
     'Compile and link the actual iPhone Core 610',
