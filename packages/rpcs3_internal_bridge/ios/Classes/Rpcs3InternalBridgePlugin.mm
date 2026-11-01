@@ -24,6 +24,11 @@
 #import "RPCS3InGameLocalization.h"
 #import "Rpcs3SessionMenu.h"
 #import "RPCS3UnifiedCheats.h"
+// NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: central RetroAchievements session,
+// shared toasts and the PS3 rcheevos client (optional Core hooks via dlsym).
+#import "Rpcs3Achievements.h"
+#import <achievement_translation/RBAchievementTranslation.h>
+#import <retro_achievements_session/RBRASession.h>
 // NEOSTATION_RPCS3_EXTERNAL_DISPLAY_V1: the game's Metal view can be shown on
 // NeoStation's window on the TV (docs/external-display-universal.md § 5).
 #import <external_display/NeoExternalDisplayCoordinator.h>
@@ -426,6 +431,10 @@ static UIViewController* RPCS3RootViewController(void) {
 @property(nonatomic, assign) BOOL ppuIdentityConflict;
 @property(nonatomic, assign) BOOL observePPUIdentity;
 @property(nonatomic, strong) RPCS3UnifiedCheats* unifiedCheats;
+// NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: the single-use launch snapshot and its
+// client. Read from the main and runtime queues.
+@property(atomic, strong) NSDictionary* achievementConfiguration;
+@property(atomic, strong) Rpcs3Achievements* achievements;
 @property(nonatomic, copy) NSString* activeUiLocale;
 @property(nonatomic, assign) BOOL audioSessionActive;
 @property(nonatomic, copy) NSString* previousAudioCategory;
@@ -454,6 +463,7 @@ static UIViewController* RPCS3RootViewController(void) {
   uint64_t _diagnosticPreviousGuestFrames;  // NEOSTATION_BUILD487_HOST_DIAGNOSTICS_V1
   BOOL _diagnosticGuestFramesKnown;
   rpcs3_ios_api _api;
+  rpcs3_ios_ra_api _raAPI;  // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1 (optional exports)
   int32_t (*_neoSwapClientStats)(NeoSwapClientStats*);
   rpcs3_ios_neoswap_relay_stats_getter _neoSwapRelayClientStats;
   rpcs3_ios_neoswap_relay_stats_ext_getter _neoSwapRelayClientStatsExt;
@@ -1443,11 +1453,18 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       return;
     }
     self.operationBusy = YES;
+    Rpcs3Achievements* achievements = self.achievements;  // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
+    [achievements suspendForRestart];
     rpcs3_ios_status status = self->_api.stop_emulation();
+    const BOOL stopped = status == 0;
     if (status == 0)
       status = self->_api.set_game_setting(titleId.UTF8String, setting.UTF8String, settingValue.UTF8String);
     if (status == 0)
       status = [self bootTitleForCore:titleId.UTF8String savestate:NULL];
+    // The title restarted (or kept running when the stop was refused).
+    if (!stopped) [achievements resumeWithoutRestart];
+    else [achievements resumeAfterRestart:status == 0 savestateBoot:NO
+                            cheatsEnabled:[self titleHasEnabledCheats:titleId]];
     NSString* message = status == 0 ? @"" : [self lastError];
     self.operationBusy = NO;
     if (status == 0)
@@ -1516,6 +1533,12 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
     if (completion) completion(NO, [self localized:@"stateFailed"]);
     return;
   }
+  // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: RetroAchievements Hardcore forbids
+  // loading a state (saving stays available).
+  if (load && [self achievementHardcoreRestrictionsActive]) {
+    completion(NO, RBRALocalizedText(@"hardcoreBlocked", self.activeUiLocale ?: @"en"));
+    return;
+  }
   dispatch_async(_runtimeQueue, ^{
     if (self.operationBusy) {
       dispatch_async(dispatch_get_main_queue(), ^{ completion(NO, [self localized:@"stateBusy"]); });
@@ -1543,17 +1566,25 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       dispatch_async(dispatch_get_main_queue(), ^{ completion(NO, [self localized:@"stateInvalid"]); });
       return;
     }
+    Rpcs3Achievements* achievements = self.achievements;  // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
+    [achievements suspendForRestart];
     rpcs3_ios_status status = self->_api.stop_emulation();
     if (status == 0) status = [self bootTitleForCore:titleId.UTF8String savestate:identifier.UTF8String];
     NSString* message = @"";
+    BOOL booted = status == 0;
+    BOOL savestateBoot = status == 0;
     if (status != 0) {
       NSString* original = [self lastError];
       if (self->_api.stop_emulation) self->_api.stop_emulation();
       rpcs3_ios_status recovery = [self bootTitleForCore:titleId.UTF8String savestate:NULL];
+      booted = recovery == 0;
       message = [self localizedSavestateError:original];
       if (recovery == 0)
         message = [NSString stringWithFormat:@"%@\n%@", message, [self localized:@"stateFreshRestart"]];
     }
+    // Restored state or fresh restart: the run changed, rcheevos is reset.
+    [achievements resumeAfterRestart:booted savestateBoot:savestateBoot
+                       cheatsEnabled:[self titleHasEnabledCheats:titleId]];
     self.operationBusy = NO;
     dispatch_async(dispatch_get_main_queue(), ^{ completion(status == 0, message); });
   });
@@ -1612,6 +1643,113 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
   RPCS3Diagnostic(@"external_display", @"menu=released reason=core_stopped");
 }
 
+#pragma mark - RetroAchievements (NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1)
+
+// The game view, or the TV when the external display shows the game.
+static UIView* RPCS3AchievementSurface(UIViewController* owner) {
+  NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
+  if (owner && display.renderHost.placeholderView == owner.view && !display.window.hidden &&
+      display.renderHost.renderView.window == display.window && display.window != nil)
+    return display.window.rootViewController.view;
+  return owner.view;
+}
+
+// Any enabled patch or cheat of this title: Hardcore is then not applied.
+// Runtime queue only: the unified cheats store and its runtimePPUHash are
+// used there exclusively. The PPU-hash filter of the menu snapshot is
+// ignored here (stricter, never weaker).
+- (BOOL)titleHasEnabledCheats:(NSString*)titleId {
+  RPCS3UnifiedCheats* cheats = self.unifiedCheats;
+  if (!cheats || !titleId.length) return NO;
+  NSString* runtimeHash = cheats.runtimePPUHash;
+  cheats.runtimePPUHash = @"";
+  NSDictionary* snapshot = [cheats snapshotForTitle:titleId version:self.activeGameVersion ?: @""];
+  cheats.runtimePPUHash = runtimeHash ?: @"";
+  for (NSDictionary* item in snapshot[@"items"])
+    if ([item isKindOfClass:NSDictionary.class] && [item[@"enabled"] boolValue]) return YES;
+  return NO;
+}
+
+- (BOOL)achievementHardcoreRestrictionsActive {
+  return self.achievements.hardcoreRestrictionsActive;
+}
+
+// Main queue. The hub announces the launch status (account, recognition,
+// achievement set, observed Hardcore) from the state the client published.
+- (void)registerAchievementStatusPresenterForController:(RPCS3GameViewController*)controller {
+  NSDictionary* configuration = self.achievementConfiguration;
+  if (!configuration || !controller || self.gameController != controller) return;
+  __weak Rpcs3InternalBridgePlugin* weakSelf = self;
+  __weak RPCS3GameViewController* weakOwner = controller;
+  RBRASetStatusPresenter(configuration, ^(NSString* key, NSString* title, NSString* message,
+                                          NSTimeInterval duration) {
+    Rpcs3InternalBridgePlugin* bridge = weakSelf;
+    RPCS3GameViewController* owner = weakOwner;
+    if (!bridge || !owner || bridge.gameController != owner || bridge.achievementConfiguration != configuration) return;
+    RPCS3Diagnostic(@"achievements.status", key ?: @"");
+    RBAchievementPresent(owner, 0, title, message, @"", duration, 3, ^UIView* {
+      return RPCS3AchievementSurface(weakOwner);
+    }, ^BOOL {
+      Rpcs3InternalBridgePlugin* active = weakSelf;
+      return active && weakOwner && active.gameController == weakOwner &&
+          active.achievementConfiguration == configuration;
+    });
+  });
+}
+
+// Runtime queue, after the Core accepted the boot of the launched title.
+- (void)startAchievementsForController:(RPCS3GameViewController*)controller
+                               titleId:(NSString*)titleId
+                         savestateBoot:(BOOL)savestateBoot {
+  NSDictionary* configuration = self.achievementConfiguration;
+  __weak Rpcs3InternalBridgePlugin* weakSelf = self;
+  __weak RPCS3GameViewController* weakOwner = controller;
+  if (!configuration || ![configuration[@"enabled"] boolValue] || ![configuration[@"supported"] boolValue]) {
+    // RA off, no usable account or unsupported: the status (if any) comes
+    // from the snapshot alone.
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [weakSelf registerAchievementStatusPresenterForController:weakOwner];
+    });
+    return;
+  }
+  const BOOL hooks = [Rpcs3Achievements resolveCoreAPI:_api.handle api:&_raAPI];
+  RPCS3Diagnostic(@"achievements.core", [NSString stringWithFormat:@"hooks=%d savestate_boot=%d", hooks, savestateBoot]);
+  Rpcs3Achievements* achievements = [[Rpcs3Achievements alloc] initWithConfiguration:configuration api:_raAPI];
+  achievements.journal = ^(NSString* event, NSString* detail) { RPCS3Diagnostic(event, detail); };
+  achievements.presentationReady = ^{
+    [weakSelf registerAchievementStatusPresenterForController:weakOwner];
+  };
+  achievements.unlocked = ^(NSUInteger achievementID, NSString* title, NSString* description, NSUInteger points) {
+    Rpcs3InternalBridgePlugin* bridge = weakSelf;
+    RPCS3GameViewController* owner = weakOwner;
+    if (!bridge || !owner || bridge.gameController != owner || bridge.achievementConfiguration != configuration ||
+        ![configuration[@"notifications"] boolValue]) return;
+    RPCS3Diagnostic(@"achievements.unlock_presented", [NSString stringWithFormat:@"id=%lu", (unsigned long)achievementID]);
+    // Title, description and points in the app language of this launch.
+    RBAchievementPresent(owner, (NSInteger)achievementID, title, description, RBRAPointsText(configuration, points),
+                         4.0, 1, ^UIView* {
+      return RPCS3AchievementSurface(weakOwner);
+    }, ^BOOL {
+      Rpcs3InternalBridgePlugin* active = weakSelf;
+      return active && weakOwner && active.gameController == weakOwner &&
+          active.achievementConfiguration == configuration && [configuration[@"notifications"] boolValue];
+    });
+  };
+  self.achievements = achievements;
+  [achievements startWithSavestateBoot:savestateBoot cheatsEnabled:[self titleHasEnabledCheats:titleId]];
+}
+
+// Any queue; idempotent. The client stops before the Core memory goes away,
+// then the central ticket of this launch is released.
+- (void)endAchievementSession {
+  Rpcs3Achievements* achievements = self.achievements;
+  self.achievements = nil;
+  [achievements shutdown];
+  NSDictionary* configuration = self.achievementConfiguration;
+  self.achievementConfiguration = nil;
+  if (configuration) RBRAEndSession(configuration);
+}
+
 - (void)showGameMenu {
   RPCS3GameViewController* controller = self.gameController;
   if (!controller || controller.presentedViewController) return;
@@ -1645,6 +1783,10 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       @synchronized(bridge){bridge.unifiedCheats.runtimePPUHash=bridge.observedPPUHash ?: @"";}
       NSDictionary* snapshot=bridge.gameController==owner
           ? [bridge.unifiedCheats snapshotForTitle:bridge.activeTitleId ?: @"" version:bridge.activeGameVersion ?: @""] : nil;
+      // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: no cheat can be enabled in Hardcore.
+      if (snapshot && [bridge achievementHardcoreRestrictionsActive]) {
+        NSMutableDictionary* restricted=[snapshot mutableCopy]; restricted[@"hardcore"]=@YES; snapshot=[restricted copy];
+      }
       dispatch_async(dispatch_get_main_queue(),^{ completion(snapshot); });
     });
   };
@@ -1662,6 +1804,8 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
   menu.setCheat = ^(NSString* identifier,BOOL enabled,void (^completion)(BOOL)) {
     Rpcs3InternalBridgePlugin* bridge=weakSelf; RPCS3GameViewController* owner=weakController;
     if (!bridge || !owner) { completion(NO); return; }
+    // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: disabling stays possible.
+    if (enabled && [bridge achievementHardcoreRestrictionsActive]) { completion(NO); return; }
     dispatch_async(bridge->_runtimeQueue,^{
       BOOL current=bridge.gameController==owner && [bridge.activeTitleId isEqual:cheatSerial] && [bridge.activeGameVersion isEqual:cheatVersion];
       BOOL success=current && [bridge.unifiedCheats setIdentifier:identifier enabled:enabled serial:cheatSerial];
@@ -1863,6 +2007,10 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
         @"stage": @"game_boot", @"message": @"NeoSwap could not open the RPCS3 adaptive memory session."});
       return;
     }
+    // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: the single-use central snapshot
+    // of this launch (disabled when RA is off, unsupported or signed out).
+    // Released by endAchievementSession on every exit path below.
+    self.achievementConfiguration = RBRATakeLaunchConfiguration(args, @"rpcs3");
     // Sub-MiB RSX buffers borrow relay host loans or donor pages for every
     // title; the global budget closes the gate under measured pressure. The
     // God of War III list only selects the high-footprint Core profile now.
@@ -1910,6 +2058,7 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       self.activeTitleId = nil;
       @synchronized(self){self.observePPUIdentity=NO;self.observedPPUHash=nil;}
       self.activeUiLocale = nil;
+      [self endAchievementSession];
       NeoSwapStorage_EndSession();
       NeoSwap_SetOwnerSessionActive(NEOSWAP_RPCS3, 0);
       result(@{@"success": @NO, @"code": @"RPCS3_DISPLAY_SURFACE_FAILED",
@@ -2013,6 +2162,9 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       }
       if (bootStatus == 0) [self startDiagnosticPerformanceSampling];
       else [self stopAndDismiss:nil];
+      // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: the Core accepted this title.
+      if (bootStatus == 0)
+        [self startAchievementsForController:controller titleId:titleId savestateBoot:savestateId.length > 0];
       dispatch_async(dispatch_get_main_queue(), ^{ result(payload); });
     });
     return;
@@ -2050,8 +2202,12 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
   [self detachExternalDisplay];
   dispatch_async(_runtimeQueue, ^{
     BOOL ok = YES;
+    // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: no frame is evaluated while the
+    // Core stops; the client ends only if the stop succeeds.
+    [self.achievements suspendForRestart];
     if (self.initialized && self->_api.stop_emulation) ok = self->_api.stop_emulation() == 0;
     if (!ok) {
+      [self.achievements resumeWithoutRestart];
       [self showMessage:[self localized:@"state"] message:[self lastError]];
       dispatch_async(dispatch_get_main_queue(), ^{
         // The save still owns Emu and the session goes on: the game returns
@@ -2063,6 +2219,7 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       });
       return; // Keep Metal, controls and audio attached while the save owns Emu.
     }
+    [self endAchievementSession];
     if (self.activeTitleId.length && self.unifiedCheats &&
         ![self.unifiedCheats applyPendingWhileStoppedForTitle:self.activeTitleId])
       RPCS3Diagnostic(@"cheats.pending",@"Catalogue changes remain pending; no personal patch was replaced.");

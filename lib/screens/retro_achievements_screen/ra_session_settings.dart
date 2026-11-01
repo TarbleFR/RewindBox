@@ -263,8 +263,10 @@ class _RASessionSettingsState extends State<RASessionSettings>
           ],
           ExpansionTile(tilePadding: EdgeInsets.zero,
             title: Text(text(AppLocale.raSessionCompatibility)), children: [
-              ListTile(title: const Text('PS3 · Switch · 3DS · Atari 5200 · Game & Watch · Sega Pico'),
+              ListTile(title: const Text('Switch · 3DS · Atari 5200 · Game & Watch · Sega Pico'),
                 subtitle: Text(text(AppLocale.raSessionUnsupported))),
+              // Implemented through optional RPCS3 Core hooks, not yet validated on device.
+              ListTile(title: const Text('PS3 · RPCS3'), subtitle: Text(text(AppLocale.raSessionUnverified))),
               ListTile(title: const Text('NES/FDS · Nestopia'), subtitle: Text(text(AppLocale.raSessionUnsupported))),
               ListTile(title: const Text('Gearcoleco · Genesis Plus GX Wide · PicoDrive (SMS/Game Gear)'),
                 subtitle: Text(text(AppLocale.raSessionUnverified))),

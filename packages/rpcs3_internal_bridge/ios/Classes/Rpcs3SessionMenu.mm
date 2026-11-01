@@ -5,6 +5,7 @@
 #import "RPCS3UnifiedCheats.h"
 #import <neo_cheat_catalog/NeoUnifiedCheatBrowser.h>
 #import <neo_touch_layout/NeoTouchLayoutStrings.h>
+#import <retro_achievements_session/RBRASession.h>
 
 typedef NS_ENUM(NSInteger, RPCS3MenuPage) {
   RPCS3MenuRoot,
@@ -175,7 +176,10 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   return @{@"identity":@{@"system":@"ps3",@"title":self.gameTitle ?: @"",@"revision":version,@"regions":@[],@"languages":@[],
       @"identities":identities},@"items":items,
       @"available":@([raw[@"available"] boolValue] && ![raw[@"conflict"] boolValue]),
-      @"help":[self text:[raw[@"conflict"] boolValue] ? @"cheatConflict" : (![raw[@"available"] boolValue] ? @"cheatFailed" : @"cheatNextBoot")]};
+      // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: the shared list keeps toggles off.
+      @"hardcore":@([raw[@"hardcore"] boolValue]),
+      @"help":[raw[@"hardcore"] boolValue] ? RBRALocalizedText(@"hardcoreBlocked", self.localeIdentifier ?: @"en")
+          : [self text:[raw[@"conflict"] boolValue] ? @"cheatConflict" : (![raw[@"available"] boolValue] ? @"cheatFailed" : @"cheatNextBoot")]};
 }
 - (UIViewController*)directCheats {
   NeoUnifiedCheatList* list=[NeoUnifiedCheatList new];list.locale=self.localeIdentifier;list.engine=@"rpcs3";

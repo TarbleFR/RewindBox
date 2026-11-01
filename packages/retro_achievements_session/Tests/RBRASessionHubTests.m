@@ -385,7 +385,7 @@ static RBRATestResponse RBRAProtocolResponse;
   NSDictionary *missing = [self start:@{}];
   XCTAssertEqualObjects(missing[@"enabled"], @NO);
   [self seedAccount:@"player" token:RBRAFixtureToken];
-  for (NSString *engine in @[@"rpcs3", @"melonx"]) {
+  for (NSString *engine in @[@"melonx"]) {
     NSDictionary *snapshot = [self start:@{@"engine": engine, @"supported": @YES}];
     XCTAssertEqualObjects(snapshot[@"supported"], @NO);
     XCTAssertEqualObjects(snapshot[@"enabled"], @NO);
@@ -393,6 +393,13 @@ static RBRATestResponse RBRAProtocolResponse;
     XCTAssertEqualObjects(self.lastState[@"active"], @NO);
     XCTAssertEqualObjects(self.lastState[@"hardcoreActive"], @NO);
   }
+  // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: RPCS3 (PS3) owns an rcheevos client.
+  NSDictionary *ps3 = [self start:@{@"engine": @"rpcs3", @"system": @"ps3", @"core": @"rpcs3", @"supported": @YES}];
+  XCTAssertEqualObjects(ps3[@"supported"], @YES);
+  XCTAssertEqualObjects(ps3[@"enabled"], @YES);
+  RBRAPublishSessionState(ps3, @{@"active": @YES, @"gameLoaded": @YES, @"hardcoreActive": @NO});
+  XCTAssertEqualObjects(self.lastState[@"active"], @YES);
+  RBRAEndSession(ps3);
   id invalid = [self call:@"prepareSession" arguments:@{@"engine": @"invented"}];
   XCTAssertTrue([invalid isKindOfClass:FlutterError.class]);
   XCTAssertEqualObjects(((FlutterError *)invalid).code, @"RA_UNSUPPORTED");

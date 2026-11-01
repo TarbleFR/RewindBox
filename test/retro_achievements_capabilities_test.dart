@@ -85,10 +85,14 @@ void main() {
     for (final core in ['fmsx', 'pcsx_rearmed', 'future-core']) {
       expect(RetroAchievementsCapabilities.forEngine('libretro', system: 'ps1', core: core), unsupported);
     }
-    for (final engine in ['melonx', 'rpcs3', 'future-engine']) {
+    for (final engine in ['melonx', 'future-engine']) {
       for (final system in ['switch', 'ps3', 'gc', 'gba']) {
         expect(RetroAchievementsCapabilities.forEngine(engine, system: system, core: 'mgba'), unsupported);
       }
+    }
+    // RPCS3 runs only PS3 titles: no other console inherits its support.
+    for (final system in ['switch', 'ps2', 'gc', 'gba', '']) {
+      expect(RetroAchievementsCapabilities.forEngine('rpcs3', system: system), unsupported, reason: system);
     }
     expect(RetroAchievementsCapabilities.forEngine('libretro', system: 'gba'), unsupported);
   });
@@ -103,5 +107,12 @@ void main() {
     expect(RetroAchievementsCapabilities.forEngine('dolphin', system: 'ps2'), unsupported);
     expect(RetroAchievementsCapabilities.forEngine('armsx2', system: 'gc'), unsupported);
     expect(RetroAchievementsCapabilities.forEngine('libretro', system: 'gba', core: 'mgba', systemMenu: true), unsupported);
+  });
+
+  test('RPCS3 supports PS3 titles only, never a system menu', () {
+    expect(RetroAchievementsCapabilities.forEngine('rpcs3', system: 'ps3'), supported);
+    expect(RetroAchievementsCapabilities.forEngine('rpcs3', system: 'ps3', systemMenu: true), unsupported);
+    expect(RetroAchievementsCapabilities.forEngine('libretro', system: 'ps3', core: 'mgba'), unsupported);
+    expect(RetroAchievementsCapabilities.forEngine('armsx2', system: 'ps3'), unsupported);
   });
 }

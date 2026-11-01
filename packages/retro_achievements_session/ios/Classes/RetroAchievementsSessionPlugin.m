@@ -333,7 +333,8 @@ static NSString *RBRAPublicErrorCode(id value) {
     OSStatus status;
     NSDictionary *credentials = RBRAReadCredentials(@".retroachievements", &status);
     if (status != errSecSuccess && status != errSecItemNotFound) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
-    BOOL supported = RBRABool(args[@"supported"]) && ![@[@"rpcs3", @"melonx"] containsObject:engine];
+    // RPCS3 (PS3) has its own rcheevos client; MeloNX has no integration.
+    BOOL supported = RBRABool(args[@"supported"]) && ![@[@"melonx"] containsObject:engine];
     BOOL enabled = RBRABool(args[@"enabled"]) && supported && credentials != nil;
     // The player's own RA choice (even without a usable account) drives the
     // display-only launch status; it never enables anything by itself.

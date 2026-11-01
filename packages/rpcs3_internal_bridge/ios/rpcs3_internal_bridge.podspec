@@ -12,7 +12,13 @@ The standalone RPCS3 SwiftUI application is not embedded.
   s.license          = { :type => 'GPL-3.0' }
   s.author           = { 'RewindBox' => 'TarbleFR' }
   s.source           = { :path => '.' }
-  s.source_files     = 'Classes/**/*'
+  # NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: the pinned rcheevos v12.5.0 sources
+  # (identical to the libretro bridge copy, without its rc_libretro adapter)
+  # for the PS3 RetroAchievements client. Each dynamic framework keeps its own
+  # C symbols; no rcheevos header is public.
+  s.source_files     = 'Classes/**/*',
+                       'ThirdParty/rcheevos/include/*.h',
+                       'ThirdParty/rcheevos/src/**/*.{h,c}'
   # Only Flutter-facing Objective-C headers are public. The arena/Core headers
   # contain C++ and must not be pulled into GeneratedPluginRegistrant.m.
   s.public_header_files = [
@@ -26,7 +32,7 @@ The standalone RPCS3 SwiftUI application is not embedded.
   # dylib into Runner/rpcs3_internal_bridge and dyld would load RPCS3 before
   # NeoStation reaches its menus. Build 216 copies this file after Xcode builds
   # the host, and Rpcs3InternalBridgePlugin opens it later with dlopen().
-  s.preserve_paths   = 'Frameworks/libRPCS3Core.dylib'
+  s.preserve_paths   = 'Frameworks/libRPCS3Core.dylib', 'ThirdParty/**/*'
   s.dependency 'Flutter'
   s.dependency 'neo_cheat_catalog'
   s.dependency 'neo_swap'
@@ -37,13 +43,21 @@ The standalone RPCS3 SwiftUI application is not embedded.
   s.dependency 'external_display'
   # Build 484: touch layouts, editor and controller policy (RPCS3TouchControls.mm).
   s.dependency 'neo_touch_layout'
-  s.platform = :ios, '17.4'
-  s.ios.deployment_target = '17.4'
+  # NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: one central RetroAchievements account
+  # and launch snapshot, shared unlock/status toasts. Both require iOS 18.0,
+  # which is already the application's floor.
+  s.dependency 'achievement_translation'
+  s.dependency 'retro_achievements_session'
+  s.platform = :ios, '18.0'
+  s.ios.deployment_target = '18.0'
   s.frameworks = 'UIKit', 'GameController', 'Metal', 'QuartzCore', 'Security', 'CoreFoundation', 'AudioToolbox', 'AVFAudio', 'CoreGraphics', 'IOSurface', 'CoreServices', 'CoreAudio', 'CoreMIDI', 'Foundation', 'MetalFX'
   s.libraries = 'c++', 'iconv'
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20',
+    'HEADER_SEARCH_PATHS' => '$(inherited) "${PODS_TARGET_SRCROOT}/ThirdParty/rcheevos/include" ' \
+                             '"${PODS_TARGET_SRCROOT}/ThirdParty/rcheevos/src"',
+    'GCC_PREPROCESSOR_DEFINITIONS' => '$(inherited) RC_CLIENT_SUPPORTS_HASH=1',
     'OTHER_LDFLAGS' => '$(inherited) -ObjC'
   }
 end

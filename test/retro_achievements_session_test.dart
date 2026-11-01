@@ -58,12 +58,12 @@ void main() {
     expect(service.preferences.enabled, isFalse);
   });
 
-  for (final engine in ['dolphin', 'armsx2', 'libretro']) {
+  for (final engine in ['dolphin', 'armsx2', 'libretro', 'rpcs3']) {
     test('$engine consumes one central policy, never a web key or a password', () async {
       await service.setEnabled(true);
       await service.setHardcore(true);
       final launch = await service.prepareLaunch(engine: engine,
-        system: engine == 'dolphin' ? 'gc' : engine == 'armsx2' ? 'ps2' : 'gba',
+        system: engine == 'dolphin' ? 'gc' : engine == 'armsx2' ? 'ps2' : engine == 'rpcs3' ? 'ps3' : 'gba',
         core: engine == 'libretro' ? 'mgba' : null, language: 'zh_Hant');
       expect(launch['enabled'], isTrue);
       expect(prepared.single['hardcore'], isTrue);
@@ -146,7 +146,7 @@ void main() {
 
   test('unsupported systems never get an enabled session', () async {
     await service.setEnabled(true);
-    for (final pair in [('rpcs3', 'ps3', ''), ('melonx', 'switch', ''),
+    for (final pair in [('rpcs3', 'ps2', ''), ('rpcs3', 'switch', ''), ('melonx', 'switch', ''),
       ('libretro', '3ds', 'azahar'), ('libretro', '5200', 'a5200'),
       ('libretro', 'gw', 'gw'), ('libretro', 'pico', 'picodrive'), ('libretro', 'nes', 'nestopia')]) {
       final launch = await service.prepareLaunch(engine: pair.$1, system: pair.$2, core: pair.$3, language: 'en');

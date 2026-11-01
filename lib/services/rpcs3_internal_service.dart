@@ -17,6 +17,7 @@ import 'package:neo_swap/neo_swap.dart';
 import 'package:rpcs3_internal_bridge/rpcs3_internal_bridge.dart';
 
 import 'logger_service.dart';
+import 'retro_achievements_session_service.dart';
 import 'local_dev_vpn_route_service.dart';
 import 'pairing_file_service.dart';
 import 'rpcs3_game_profile_service.dart';
@@ -886,13 +887,37 @@ class Rpcs3InternalService {
 
     await prepareGuestRelayForBoot(normalized);
 
+    // RetroAchievements: one single-use ticket from the central session (the
+    // app language labels the in-game status). Its preparation never blocks
+    // or fails the game launch.
+    final raService = RetroAchievementsSessionService.shared;
+    Map<String, Object?> raLaunch = const {};
+    try {
+      raLaunch = await raService.prepareLaunch(
+        engine: 'rpcs3',
+        system: 'ps3',
+        language: uiLocale,
+      );
+    } catch (error) {
+      _log.w('RPCS3 RetroAchievements preparation skipped: $error');
+    }
     final bootTimer = Stopwatch()..start();
-    final report = await Rpcs3InternalBridge.launchGame(
-      titleId: normalized,
-      uiLocale: uiLocale,
-      savestateId: savestateId,
-    );
+    final Map<String, dynamic> report;
+    try {
+      report = await Rpcs3InternalBridge.launchGame(
+        titleId: normalized,
+        uiLocale: uiLocale,
+        savestateId: savestateId,
+        raSessionId: raLaunch['raSessionId'] as String?,
+      );
+    } catch (_) {
+      await raService.finishLaunch(raLaunch);
+      rethrow;
+    }
     if (report['success'] != true) {
+      // The native bridge already released a consumed ticket; this also
+      // drops one it never took (idempotent).
+      await raService.finishLaunch(raLaunch);
       throw Rpcs3InternalException(
         report['code']?.toString() ?? 'RPCS3_GAME_BOOT_FAILED',
         report['message']?.toString() ??

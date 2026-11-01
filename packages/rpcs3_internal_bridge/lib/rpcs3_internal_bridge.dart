@@ -237,15 +237,19 @@ class Rpcs3InternalBridge {
             const <String, dynamic>{},
       );
 
+  /// [raSessionId] is the single-use RetroAchievements launch ticket of the
+  /// central session (never credentials); the native bridge consumes it.
   static Future<Map<String, dynamic>> launchGame({
     required String titleId,
     required String uiLocale,
     String? savestateId,
+    String? raSessionId,
   }) async => Map<String, dynamic>.from(
     await _channel.invokeMapMethod<String, dynamic>('launchGame', {
           'titleId': titleId,
           'uiLocale': uiLocale,
           'savestateId': ?savestateId,
+          'raSessionId': ?raSessionId,
         }) ??
         const <String, dynamic>{},
   );
