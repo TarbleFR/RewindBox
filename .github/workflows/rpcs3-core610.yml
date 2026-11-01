@@ -3,7 +3,7 @@
 # workflow requests the build. No application build, IPA, release or
 # publication is performed here: the private IPA 610 consumes the verified
 # artifact of a successful run in its own delivery route.
-# Core compile request: Core 610 source lot, 1 November 2026.
+# Core compile request: Core 610 source lot, 1 November 2026 (patch a63b9643, request 1).
 name: RPCS3 Core 610
 run-name: "RPCS3 Core 610 • ${{ github.sha }}"
 'on':
