@@ -38,7 +38,10 @@ credentials fix `45d19d7` and the RPCS3 Core 610 lot (`core610_20261101`, patch
 `a63b9643`, Core route `.github/workflows/rpcs3-core610.yml`) to delivered 609;
 it retains the 609 liveness MeloNX Core. The concurrent MeloNX diagnostics
 commit `2e0793ac` is source-only in 610 (not compiled into its MeloNX Core);
-the next MeloNX Core increment must use **611 or later**. See
+the next MeloNX Core increment must use **611 or later**. 610 also changes the
+NeoSwap guest-relay request and boot preparation (`packages/neo_swap/lib/neo_swap.dart`,
+`packages/neo_swap/ios/Classes/{NeoSwapPlugin.mm,NeoSwapRelayService.h,NeoSwapRelayService.mm}`);
+a 611 scope frozen from a later head must restore them too. See
 [the Core 610 report](docs/rpcs3-core610-2026-11-01.md). Before
 allocating another number, reconcile concurrent deliveries. A newer source
 commit or Core-only artifact is not automatically a newer delivered IPA.

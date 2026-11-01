@@ -43,13 +43,28 @@ NEOSWAP_PRODUCT_PATHS = ('packages/neo_swap/ios/Classes/NeoSwapPlugin.mm',
                          'packages/neo_swap/ios/Classes/NeoSwapRelayService.h',
                          'packages/neo_swap/ios/Classes/NeoSwapRelayService.mm',
                          'packages/neo_swap/lib/neo_swap.dart')
-# Concurrent MeloNX diagnostics (another session) committed before this build:
-# MeloNX Core preparation inputs only (compiled by the MeloNX Core producer,
-# never by Xcode; the adapter is not wired yet). IPA610 retains the delivered609
-# MeloNX Core, so these bytes are present in the source but not compiled into it.
+# Concurrent MeloNX work (another session) committed before this build: the GPU
+# work diagnostics (2e0793ac) and the fragmented-read Core of IPA611 (9034d32b,
+# a8d22fe8). MeloNX Core preparation inputs and its producer workflow only
+# (compiled by the MeloNX Core producer, never by Xcode). IPA610 retains the
+# delivered609 MeloNX Core, so these bytes are present in the source but not
+# compiled into it; AGENTS.md records the same split for 611. The retained609
+# Core check accepts a divergent producer input only when it is listed here with
+# the exact bytes of its commit.
 CONCURRENT_UNCOMPILED = {
-    'native/melonx/EmbeddedPerformanceDiagnostics.cs': '2e0793ac6f9fbf384cbd557f1a4575c4154c898f',
+    'native/melonx/EmbeddedPerformanceDiagnostics.cs': '9034d32b6a888bebb77fc6c5bdd9235f0f62e245',
     'build-utils/melonx/adapt_gpu_work_diagnostics.py': '2e0793ac6f9fbf384cbd557f1a4575c4154c898f',
+    'build-utils/melonx/adapt_fragmented_reads.py': '9034d32b6a888bebb77fc6c5bdd9235f0f62e245',
+    'build-utils/melonx/prepare_embedded.py': '9034d32b6a888bebb77fc6c5bdd9235f0f62e245',
+    'build-utils/melonx/freeze_reads_core.py': 'a8d22fe8aca6acbffce07a82560351c6ea413278',
+    'build-utils/melonx/reads-core-contract.json': 'a8d22fe8aca6acbffce07a82560351c6ea413278',
+    'build-utils/melonx/reads-core-plan.json': 'a8d22fe8aca6acbffce07a82560351c6ea413278',
+    'build-utils/melonx/verify_reads_core.py': 'a8d22fe8aca6acbffce07a82560351c6ea413278',
+    '.github/workflows/melonx-core.yml': 'a8d22fe8aca6acbffce07a82560351c6ea413278',
+    # Fixture inputs of the retained609 MeloNX Core producer's gates (tests only).
+    'test/melonx_performance_diagnostics/Program.cs': '2e0793ac6f9fbf384cbd557f1a4575c4154c898f',
+    'test/melonx_performance_diagnostics_test.py': '9034d32b6a888bebb77fc6c5bdd9235f0f62e245',
+    'test/melonx_single_virtual_dependency_test.py': '9034d32b6a888bebb77fc6c5bdd9235f0f62e245',
 }
 # Inputs of the retained engines, the delivered recipes and the MeloNX liveness
 # Core; none may change for this build.
