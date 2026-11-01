@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "source": "14ee0abc625f049721f7533935c4a7324e882a50",
+  "run": 41332088781,
+  "host": "Darwin sat12-bq166-e7414ecb-13b1-406c-b224-b9159ffa8950-FA3962BBB602.local 24.6.0 Darwin Kernel Version 24.6.0: Sun Oct 11 23:44:11 PDT 2026; root:xnu-11417.140.69.713.47~2/RELEASE_ARM64_VMAPPLE arm64",
+  "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+  "commands": [
+    {
+      "name": "lr-full-queue",
+      "argv": [
+        "python3",
+        "test/rpcs3_spu_mfc_lr_test.py",
+        "--source",
+        "/Users/runner/work/_temp/core610",
+        "--baseline",
+        "/Users/runner/work/_temp/delivered",
+        "--cxx",
+        "clang++",
+        "--report",
+        "build/core610-apple-host/lr-full-queue.json"
+      ],
+      "exit_code": 0,
+      "seconds": 23.358
+    },
+    {
+      "name": "exitspawn-worker-plain",
+      "argv": [
+        "python3",
+        "test/rpcs3_exitspawn_worker610_test.py",
+        "/Users/runner/work/_temp/core610",
+        "--baseline",
+        "/Users/runner/work/_temp/delivered",
+        "--compiler",
+        "clang++",
+        "--report",
+        "build/core610-apple-host/exitspawn-worker-plain.json"
+      ],
+      "exit_code": 0,
+      "seconds": 3.68
+    },
+    {
+      "name": "exitspawn-worker-asan-ubsan",
+      "argv": [
+        "python3",
+        "test/rpcs3_exitspawn_worker610_test.py",
+        "/Users/runner/work/_temp/core610",
+        "--baseline",
+        "/Users/runner/work/_temp/delivered",
+        "--compiler",
+        "clang++",
+        "--sanitize",
+        "--report",
+        "build/core610-apple-host/exitspawn-worker-asan-ubsan.json"
+      ],
+      "exit_code": 0,
+      "seconds": 6.462
+    },
+    {
+      "name": "feedback-census",
+      "argv": [
+        "python3",
+        "test/rpcs3_feedback_census_test.py",
+        "--source",
+        "/Users/runner/work/_temp/core610",
+        "--baseline",
+        "/Users/runner/work/_temp/delivered",
+        "--compiler",
+        "clang++",
+        "--report",
+        "build/core610-apple-host/feedback-census.json"
+      ],
+      "exit_code": 0,
+      "seconds": 6.707
+    },
+    {
+      "name": "transition-phases",
+      "argv": [
+        "python3",
+        "test/rpcs3_transition_phases_test.py",
+        "--source",
+        "/Users/runner/work/_temp/core610",
+        "--baseline",
+        "/Users/runner/work/_temp/delivered",
+        "--report",
+        "build/core610-apple-host/transition-phases.json"
+      ],
+      "exit_code": 0,
+      "seconds": 0.62
+    },
+    {
+      "name": "codegen-audit",
+      "argv": [
+        "python3",
+        "test/rpcs3_core610_codegen_test.py",
+        "/Users/runner/work/_temp/core610",
+        "--baseline",
+        "/Users/runner/work/_temp/delivered",
+        "--report",
+        "build/core610-apple-host/codegen-audit.json"
+      ],
+      "exit_code": 0,
+      "seconds": 0.066
+    },
+    {
+      "name": "reuse-audit",
+      "argv": [
+        "python3",
+        "test/rpcs3_core610_reuse_audit_test.py",
+        "--source",
+        "/Users/runner/work/_temp/core610",
+        "--baseline",
+        "/Users/runner/work/_temp/delivered",
+        "--report",
+        "build/core610-apple-host/reuse-audit.json"
+      ],
+      "exit_code": 0,
+      "seconds": 0.047
+    },
+    {
+      "name": "position-invariance-contract",
+      "argv": [
+        "python3",
+        "test/rpcs3_position_invariance_test.py",
+        "--source",
+        "/Users/runner/work/_temp/core610",
+        "--report",
+        "build/core610-apple-host/position-invariance-contract.json"
+      ],
+      "exit_code": 0,
+      "seconds": 0.422
+    }
+  ],
+  "physical_device_tested": false,
+  "result": "passed"
+}

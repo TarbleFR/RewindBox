@@ -1,0 +1,115 @@
+{
+  "candidate": {
+    "checks": 60,
+    "failed": [],
+    "program_sha256": "b32e04a844bbd7b13f8000cffe93ad37e4e4e178079dffe904571a36470b9748",
+    "returncode": 0,
+    "stderr_tail": "checks=60 failed=0\n"
+  },
+  "candidate_asan_ubsan": {
+    "checks": 60,
+    "failed": [],
+    "leak_detection": "disabled (not claimed)"
+  },
+  "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+  "contract": {
+    "baseline_prefix_sha256": "f0711148b0b381e78fb7e0263c32de704babb065313b31e3b20aace5664ab8df",
+    "baseline_sha256": "84cd797c8ebd47211f97ca1bb78af6c5dd71410530aa563b08bed39545852309",
+    "candidate_prefix_sha256": "50147cca1a4208c5fce71c37d09d39168c9557ebbf06b38d95f94b562b6d4bf8",
+    "candidate_sha256": "97da453d7717a1a63cd44f58d6ae1b6c0053f1f7e3a1c1626e90c83c1cfd518d",
+    "only_full_queue_prefix_changed": true,
+    "probe_sha256": "d9715a6a07106e643d42ff2d8a21eca52e991610ab419eeea3edee341661d02a",
+    "unarmed_projection_equals_delivered_prefix": true
+  },
+  "guestTimeoutAdded": false,
+  "host": "macOS-15.8.2-arm64-arm-64bit-Mach-O",
+  "labelForced": false,
+  "limits": [
+    "Adapters stand in for the Apple wait backend, range-lock contention and LLVM entry paths.",
+    "Proves the host protocol of the candidate wait, not a God of War III fix."
+  ],
+  "mutations": {
+    "no_bound": {
+      "failed_checks": [
+        "main.candidate_direct_contents_store_irq_after_one_bound",
+        "main.candidate_direct_generation_store_irq_after_one_bound",
+        "main.candidate_intact_bound_equals_rdeventstat",
+        "main.candidate_intact_registered_while_waiting_released_after",
+        "main.candidate_intact_three_bounded_rechecks_then_stop",
+        "rsx_window.candidate_direct_contents_store_irq_after_one_bound",
+        "rsx_window.candidate_direct_generation_store_irq_after_one_bound",
+        "rsx_window.candidate_intact_bound_equals_rdeventstat",
+        "rsx_window.candidate_intact_registered_while_waiting_released_after",
+        "rsx_window.candidate_intact_three_bounded_rechecks_then_stop"
+      ],
+      "rejected": true
+    },
+    "no_materialization_guard": {
+      "failed_checks": [
+        "main.candidate_negative_non_materialized_entry_infinite_wait_only",
+        "rsx_window.candidate_negative_non_materialized_entry_infinite_wait_only"
+      ],
+      "rejected": true
+    },
+    "no_notifier": {
+      "failed_checks": [
+        "main.candidate_intact_registered_while_waiting_released_after",
+        "main.candidate_notifying_store_wakes_without_bound",
+        "main.candidate_window_contents_revalidated_without_waiting",
+        "main.candidate_window_generation_revalidated_without_waiting",
+        "rsx_window.candidate_intact_registered_while_waiting_released_after",
+        "rsx_window.candidate_notifying_store_wakes_without_bound",
+        "rsx_window.candidate_window_contents_revalidated_without_waiting",
+        "rsx_window.candidate_window_generation_revalidated_without_waiting"
+      ],
+      "rejected": true
+    },
+    "no_owner_collection": {
+      "failed_checks": [
+        "main.candidate_after_ack_accepted_exactly_once",
+        "main.candidate_direct_contents_store_irq_after_one_bound",
+        "main.candidate_direct_generation_store_irq_after_one_bound",
+        "main.candidate_iret_reexecutes_wrch_once",
+        "main.candidate_lost_contents_irq_at_wrch_pc",
+        "main.candidate_lost_generation_irq_at_wrch_pc",
+        "main.candidate_notifying_store_wakes_without_bound",
+        "main.candidate_window_contents_revalidated_without_waiting",
+        "main.candidate_window_generation_revalidated_without_waiting",
+        "rsx_window.candidate_after_ack_accepted_exactly_once",
+        "rsx_window.candidate_direct_contents_store_irq_after_one_bound",
+        "rsx_window.candidate_direct_generation_store_irq_after_one_bound",
+        "rsx_window.candidate_iret_reexecutes_wrch_once",
+        "rsx_window.candidate_lost_contents_irq_at_wrch_pc",
+        "rsx_window.candidate_lost_generation_irq_at_wrch_pc",
+        "rsx_window.candidate_notifying_store_wakes_without_bound",
+        "rsx_window.candidate_window_contents_revalidated_without_waiting",
+        "rsx_window.candidate_window_generation_revalidated_without_waiting"
+      ],
+      "rejected": true
+    },
+    "no_revalidation": {
+      "failed_checks": [
+        "main.candidate_window_contents_revalidated_without_waiting",
+        "rsx_window.candidate_window_contents_revalidated_without_waiting"
+      ],
+      "rejected": true
+    },
+    "unconditional_bound": {
+      "failed_checks": [
+        "main.candidate_negative_interrupts_disabled_infinite_wait_only",
+        "main.candidate_negative_lr_masked_off_infinite_wait_only",
+        "main.candidate_negative_no_reservation_infinite_wait_only",
+        "main.candidate_negative_non_materialized_entry_infinite_wait_only",
+        "rsx_window.candidate_negative_interrupts_disabled_infinite_wait_only",
+        "rsx_window.candidate_negative_lr_masked_off_infinite_wait_only",
+        "rsx_window.candidate_negative_no_reservation_infinite_wait_only",
+        "rsx_window.candidate_negative_non_materialized_entry_infinite_wait_only"
+      ],
+      "rejected": true
+    }
+  },
+  "physicalDeviceTested": false,
+  "result": "passed",
+  "schema": 1,
+  "tests_inc_sha256": "360b967ae2cd6ad37406282bc5c96715128857de6c6959d8c34500d49f51309b"
+}
