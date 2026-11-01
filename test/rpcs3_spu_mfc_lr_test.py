@@ -244,6 +244,11 @@ def build_and_run(program: str, work: Path, name: str, cxx: str, sanitize: bool,
     # The recorded probe command (lr-probe.json) with the tested tree's include path.
     flags = ['-std=c++20', '-O1', '-g', '-UNDEBUG', '-Wall', '-Wextra', '-Werror', '-pthread', '-DRPCS3_IOS',
              f'-I{source / "rpcs3"}']
+    if 'clang' in subprocess.check_output([cxx, '--version'], text=True):
+        # The program inlines production headers (vm_reservation.h) into this main
+        # file; clang, unlike in a real header, then reports their unused static
+        # inline helpers. GCC never does. Every other warning stays an error.
+        flags += ['-Wno-unused-function']
     if sanitize:
         flags += ['-fsanitize=address,undefined', '-fno-sanitize-recover=all']
     build = subprocess.run([cxx, *flags, str(cpp), '-o', str(binary)], capture_output=True, text=True)

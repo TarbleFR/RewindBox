@@ -4,6 +4,7 @@
 # publication is performed here: the private IPA 610 consumes the verified
 # artifact of a successful run in its own delivery route.
 # Core compile request: Core 610 source lot, 1 November 2026 (patch a63b9643, request 1).
+# Apple host harness rerun: LR harness accepts clang's unused static inline report (request 2).
 name: RPCS3 Core 610
 run-name: "RPCS3 Core 610 • ${{ github.sha }}"
 'on':
@@ -230,7 +231,8 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
   apple-host-tests:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-core610]') }}
+    # '[rpcs3-core610-apple]' reruns only this job (the core job needs '[rpcs3-core610]').
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-core610]') || contains(github.event.head_commit.message, '[rpcs3-core610-apple]') }}
     name: Core 610 host harnesses on Apple ARM64 (affected and new)
     runs-on: macos-15
     timeout-minutes: 60
