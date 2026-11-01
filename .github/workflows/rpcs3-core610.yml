@@ -5,6 +5,7 @@
 # artifact of a successful run in its own delivery route.
 # Core compile request: Core 610 source lot, 1 November 2026 (patch a63b9643, request 1).
 # Apple host harness rerun: LR harness accepts clang's unused static inline report (request 2).
+# Core compile request 3: identity step fixed (a local variable shadowed identity() in main()).
 name: RPCS3 Core 610
 run-name: "RPCS3 Core 610 • ${{ github.sha }}"
 'on':

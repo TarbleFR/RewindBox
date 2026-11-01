@@ -94,16 +94,16 @@ def delivered():
     proof_raw = (DELIVERED / "mvk-cache-core-proof.json").read_bytes()
     require(sha(identity_raw) == DELIVERED_IDENTITY_SHA and sha(proof_raw) == DELIVERED_PROOF_SHA,
             "delivered a4ae86d0 identity or proof changed")
-    identity, proof = json.loads(identity_raw), json.loads(proof_raw)
-    require(identity["host_commit"] == DELIVERED_SOURCE and identity["source_patch_sha256"] == DELIVERED_PATCH_SHA
-            and identity["abi_version"] == 30 and len(identity["exported_symbols"]) == 88
-            and identity["codegen"] == CODEGEN and len(identity["tests"]) == 12,
+    reference_identity, proof = json.loads(identity_raw), json.loads(proof_raw)
+    require(reference_identity["host_commit"] == DELIVERED_SOURCE and reference_identity["source_patch_sha256"] == DELIVERED_PATCH_SHA
+            and reference_identity["abi_version"] == 30 and len(reference_identity["exported_symbols"]) == 88
+            and reference_identity["codegen"] == CODEGEN and len(reference_identity["tests"]) == 12,
             "delivered a4ae86d0 identity differs from its reviewed contract")
-    return identity, proof
+    return reference_identity, proof
 
 
 def source_closure(source, generated=None):
-    identity, original = delivered()
+    reference_identity, original = delivered()
     manifest = load(ROOT / "build-utils/rpcs3/canonical-source.json")
     require(manifest["upstream_commit"] == UPSTREAM and manifest["patch_sha256"] == PATCH_SHA
             and file_sha(ROOT / "build-utils/rpcs3/embedded-core.patch") == PATCH_SHA
@@ -115,7 +115,7 @@ def source_closure(source, generated=None):
     sys.path.insert(0, str(ROOT / "test"))
     import neo_swap_core_pin_test as pin
     current = pin.core_input_hashes(ROOT)
-    before = identity["core_input_sha256"]
+    before = reference_identity["core_input_sha256"]
     require(len(current) == len(before) == 92 and set(current) == set(before), "Core input scope changed")
     drift = {name for name in current if current[name] != before[name]}
     require(drift == REVIEWED_CORE_INPUT_DRIFT and current[HOST] == HOST_SHA,
@@ -131,7 +131,7 @@ def source_closure(source, generated=None):
             "reviewed upstream file is not newly carried by the delta")
     require(upstream == expected, "ordinary native/dependency recipe inputs changed")
     exports = sorted((source / "rpcs3/ios/RPCS3IOS.exports").read_text().split())
-    require(len(exports) == len(set(exports)) == 88 and exports == identity["exported_symbols"], "ABI exports changed")
+    require(len(exports) == len(set(exports)) == 88 and exports == reference_identity["exported_symbols"], "ABI exports changed")
     return {"native_source_sha256": manifest["files_sha256"], "canonical_patch_sha256": PATCH_SHA,
             "current_core_input_sha256": current,
             "reviewed_core_input_drift": {name: {"delivered": before[name], "core610": current[name]}
@@ -167,7 +167,7 @@ def prepare(source, dependency_run, dependency_source):
     import rpcs3_mvk_dependency_artifact as dependency
     require(not PROOF.exists(), "candidate proof already exists")
     OUT.mkdir(parents=True, exist_ok=True)
-    identity, original = delivered()
+    reference_identity, original = delivered()
     closure = source_closure(source)
     dep = dependency.authenticate(dependency_run, dependency_source, OUT / "mvk-cache-dependency")
     recipe = module("core610_recipe", ROOT / "build-utils/rpcs3/build_rpcs3_core610.py")
@@ -175,7 +175,7 @@ def prepare(source, dependency_run, dependency_source):
     proof = {"schema": 1, "type": "rpcs3-ios-core610", "source": command("git", "rev-parse", "HEAD"),
              "source_root": str(source), "input_sha256": input_hashes(), "source_closure": closure,
              "delivered_identity_sha256": DELIVERED_IDENTITY_SHA, "delivered_proof_sha256": DELIVERED_PROOF_SHA,
-             "dependency": dep, "reused_native_modes": reused_modes(identity),
+             "dependency": dep, "reused_native_modes": reused_modes(reference_identity),
              "affected_native_modes": AFFECTED_MODES, "native_modes_executed_in_core_job": 0,
              "core_compiler": compiler(), "delivered_core_compiler": original["expected_core_compiler"],
              "physical_device_tested": False, "gameplay_measured": False, "public_release": False,
@@ -306,11 +306,11 @@ def main():
     elif args.check_source_closure:
         require(args.source, "native source missing")
         closure = source_closure(args.source.resolve())
-        identity, _ = delivered()
+        delivered_identity, _ = delivered()  # never shadow identity() in main()
         print(json.dumps({"reviewed_core_input_drift": closure["reviewed_core_input_drift"],
                           "upstream_files": len(closure["upstream_dependencies"]["files_sha256"]),
-                          "reused_native_modes": sorted(reused_modes(identity)), "exports": len(closure["exported_symbols"])},
-                         indent=2))
+                          "reused_native_modes": sorted(reused_modes(delivered_identity)),
+                          "exports": len(closure["exported_symbols"])}, indent=2))
     elif args.verify_package:
         verify_package(args.verify_package.resolve())
     elif args.verify_reuse:
