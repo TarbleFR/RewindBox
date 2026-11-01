@@ -20,8 +20,15 @@ public static partial class EmbeddedPerformanceDiagnostics
     public enum Counter { Draws, Dispatches, BarrierRequests, SpanFallbacks,
         SpanFallbackBytes, CounterReportBatches, CounterReportsFlushed, CacheExports, CacheExportBytes,
         VirtualDependencySingle, VirtualDependencyMultiple, Count }
+    // Inclusive CPU work per GPU subsystem: draws, compute, copies, texture/buffer/pool
+    // synchronization and flushes, shader lookup and binding commits. Nested and
+    // cross-thread scopes overlap; bytes are the executing thread's allocations.
+    public enum Work { Draw, Compute, Dma, InlineToMemory, TextureSync, TextureFlush, TextureFlushAction,
+        BufferLoad, BufferFlush, PoolSync, ShaderLookup, Bindings, Count }
     private const int ThreadSlots = 16;
     private const double IntervalSeconds = 5;
+    private static readonly string[] WorkNames = { "draw", "compute", "dma", "i2m", "texSync", "texFlush",
+        "texFlushAction", "bufLoad", "bufFlush", "poolSync", "shader", "bindings" };
     private static readonly string[] PhaseNames = { "gpuDispatch", "gpuFifoWait", "renderDrain", "renderIdle",
         "syncInvoke", "frameWait", "queueBackpressure", "queryReadback", "bufferReadback",
         "graphicsPipelineBuild", "computePipelineBuild", "counterReports", "cacheSizeProbe", "cacheSave" };
@@ -35,6 +42,9 @@ public static partial class EmbeddedPerformanceDiagnostics
         public readonly long[] Calls = new long[(int)Phase.Count], Ticks = new long[(int)Phase.Count],
             Bytes = new long[(int)Phase.Count], LastCalls = new long[(int)Phase.Count],
             LastTicks = new long[(int)Phase.Count], LastBytes = new long[(int)Phase.Count];
+        public readonly long[] WorkCalls = new long[(int)Work.Count], WorkTicks = new long[(int)Work.Count],
+            WorkBytes = new long[(int)Work.Count], LastWorkCalls = new long[(int)Work.Count],
+            LastWorkTicks = new long[(int)Work.Count], LastWorkBytes = new long[(int)Work.Count];
         public readonly long[][] Counters = new long[ThreadSlots][];
         public readonly long[] LastCounters = new long[(int)Counter.Count];
         public readonly long[] FirstStarts = new long[(int)Phase.Count];
@@ -116,6 +126,37 @@ public static partial class EmbeddedPerformanceDiagnostics
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static Scope Measure(Phase phase) => Scope.Create(phase);
+
+    // Same completion contract as Scope, without in-flight tracking: these
+    // scopes run per draw and per synchronization, so they stay three adds.
+    public readonly struct WorkScope : IDisposable
+    {
+        private readonly Epoch _epoch;
+        private readonly int _work;
+        private readonly long _start, _allocated;
+        private WorkScope(Epoch epoch, Work work)
+        {
+            _epoch = epoch; _work = (int)work;
+            _start = Stopwatch.GetTimestamp();
+            _allocated = GC.GetAllocatedBytesForCurrentThread();
+        }
+        public void Dispose()
+        {
+            if (_epoch == null) return;
+            long elapsed = Stopwatch.GetTimestamp() - _start;
+            long bytes = GC.GetAllocatedBytesForCurrentThread() - _allocated;
+            Interlocked.Add(ref _epoch.WorkTicks[_work], elapsed);
+            Interlocked.Add(ref _epoch.WorkBytes[_work], Math.Max(0, bytes));
+            Interlocked.Increment(ref _epoch.WorkCalls[_work]);
+        }
+        internal static WorkScope Create(Work work)
+        {
+            Epoch epoch = Volatile.Read(ref _current);
+            return epoch == null ? default : new WorkScope(epoch, work);
+        }
+    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static WorkScope Track(Work work) => WorkScope.Create(work);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static int Slot(Epoch epoch)
@@ -241,6 +282,18 @@ public static partial class EmbeddedPerformanceDiagnostics
             for (int slot = 0; slot < slots; slot++) maxBatch = Math.Max(maxBatch, Volatile.Read(ref epoch.MaxReportBatch[slot]));
             json.WriteNumber("counterReportBatchMaxSession", maxBatch);
             json.WriteNumber("untrackedCounterThreads", Volatile.Read(ref epoch.DroppedThreadRegistrations)); json.WriteEndObject();
+            json.WriteStartObject("gpuWork");
+            for (int i = 0; i < (int)Work.Count; i++)
+            {
+                long calls = Volatile.Read(ref epoch.WorkCalls[i]), ticks = Volatile.Read(ref epoch.WorkTicks[i]), bytes = Volatile.Read(ref epoch.WorkBytes[i]);
+                json.WriteStartArray(WorkNames[i]);
+                json.WriteNumberValue(calls - epoch.LastWorkCalls[i]);
+                json.WriteNumberValue(Math.Round((ticks - epoch.LastWorkTicks[i]) * 1000.0 / Stopwatch.Frequency, 1));
+                json.WriteNumberValue((bytes - epoch.LastWorkBytes[i]) >> 10); json.WriteEndArray();
+                epoch.LastWorkCalls[i] = calls; epoch.LastWorkTicks[i] = ticks; epoch.LastWorkBytes[i] = bytes;
+            }
+            json.WriteEndObject();
+            json.WriteString("gpuWorkColumns", "completedCalls,wallMs,allocatedKiB");
             json.WriteStartObject("managed");
             json.WriteNumber("allocatedBytesApprox", Math.Max(0, allocated - epoch.PreviousAllocation));
             json.WriteNumber("gcPauseMs", Math.Max(0, (pause - epoch.PreviousPauseTicks) / (double)TimeSpan.TicksPerMillisecond));

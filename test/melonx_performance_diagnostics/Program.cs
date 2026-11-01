@@ -64,6 +64,13 @@ static class Program
             using var scope = PD.Measure(PD.Phase.CounterReports);
         }
     }
+    static void HotWork(int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            using var work = PD.Track(PD.Work.Draw);
+        }
+    }
     static (long Bytes, double Nanoseconds) Cost(Action<int> action)
     {
         action(20_000);
@@ -106,8 +113,22 @@ static class Program
             {
                 byte[] allocated = new byte[1024]; GC.KeepAlive(allocated);
                 using (PD.Measure(PD.Phase.RenderDrain)) Thread.Sleep(2);
+                using (PD.Track(PD.Work.TextureSync))
+                {
+                    byte[] upload = new byte[96 * 1024]; GC.KeepAlive(upload);
+                    using (PD.Track(PD.Work.ShaderLookup)) Thread.Sleep(2);
+                }
+                using (PD.Track(PD.Work.Draw)) { }
             }
             var first = Poll(); var detail = Details(first);
+            var work = detail.GetProperty("gpuWork");
+            Check(work.EnumerateObject().Count() == 12, "gpu work rows missing");
+            Check(detail.GetProperty("gpuWorkColumns").GetString() == "completedCalls,wallMs,allocatedKiB", "gpu work columns wrong");
+            Check(work.GetProperty("texSync")[0].GetInt64() == 1 && work.GetProperty("texSync")[2].GetInt64() >= 96, "gpu work allocations missing");
+            Check(work.GetProperty("shader")[0].GetInt64() == 1 && work.GetProperty("shader")[1].GetDouble() > 0, "gpu work wall time missing");
+            Check(work.GetProperty("texSync")[1].GetDouble() >= work.GetProperty("shader")[1].GetDouble(), "nested gpu work not inclusive");
+            Check(work.GetProperty("draw")[0].GetInt64() == 1 && work.GetProperty("dma")[0].GetInt64() == 0, "gpu work rows mixed");
+            Check(detail.GetProperty("phases").GetProperty("gpuDispatch")[2].GetInt64() >= 1024 + 96 * 1024, "outer phase lost nested work");
             Check(detail.GetProperty("schema").GetInt32() == 1, "wrong schema");
             Check(detail.GetProperty("generation").GetInt64() == g, "wrong detail generation");
             Check(first.GetProperty("performance").GetProperty("generation").GetInt64() == g, "wrong event generation");
@@ -129,6 +150,11 @@ static class Program
             Check(Count(next, "draws") == 0 && Count(next, "counterReportBatches") == 0, "window counters not deltas");
             Check(Count(next, "counterReportBatchMaxSession") == 31, "session maximum reset");
             Check(next.GetProperty("phases").GetProperty("gpuDispatch")[0].GetInt64() == 0, "completed calls not delta");
+            Check(next.GetProperty("gpuWork").GetProperty("texSync")[0].GetInt64() == 0 &&
+                  next.GetProperty("gpuWork").GetProperty("texSync")[2].GetInt64() == 0, "gpu work not delta");
+            try { using var tracked = PD.Track(PD.Work.BufferFlush); throw new InvalidOperationException("fixture"); }
+            catch (InvalidOperationException) { }
+            Check(Details(Poll()).GetProperty("gpuWork").GetProperty("bufFlush")[0].GetInt64() == 1, "exception lost gpu work completion");
 
             var active = PD.Measure(PD.Phase.GpuDispatch);
             detail = Details(Poll());
@@ -148,6 +174,7 @@ static class Program
             var counterCost = Cost(HotCounters); var scopeCost = Cost(HotScopes);
             Check(counterCost.Bytes == 0, "hot counters allocate");
             Check(scopeCost.Bytes == 0, "coarse scopes allocate");
+            Check(Cost(HotWork).Bytes == 0, "gpu work scopes allocate");
             for (int i = 0; i < 64; i++) { PD.Count(PD.Counter.CacheExports); Poll(); }
             var latest = Snapshot();
             Check(latest.GetProperty("events").GetArrayLength() == 64, "metrics entered ordinary ring");
@@ -175,12 +202,15 @@ static class Program
             Check(Snapshot().GetProperty("performance").GetProperty("sequence").GetInt64() == finalSequence, "stopped collector emitted");
             var disabledCounters = Cost(HotCounters); var disabledScopes = Cost(HotScopes);
             Check(disabledCounters.Bytes == 0 && disabledScopes.Bytes == 0, "disabled instrumentation allocates");
+            Check(Cost(HotWork).Bytes == 0, "disabled gpu work allocates");
 
             g = Start();
             var oldScope = PD.Measure(PD.Phase.GpuDispatch);
-            PD.Stop(g); long newer = Start(); oldScope.Dispose();
+            var oldWork = PD.Track(PD.Work.Dma);
+            PD.Stop(g); long newer = Start(); oldScope.Dispose(); oldWork.Dispose();
             detail = Details(Poll());
             Check(detail.GetProperty("phases").GetProperty("gpuDispatch")[0].GetInt64() == 0, "late scope charged next generation");
+            Check(detail.GetProperty("gpuWork").GetProperty("dma")[0].GetInt64() == 0, "late gpu work charged next generation");
             long newSequence = Snapshot().GetProperty("performance").GetProperty("sequence").GetInt64();
             Journal.Record("performance", "final", detail: "{}", performanceGeneration: g);
             Check(Snapshot().GetProperty("performance").GetProperty("sequence").GetInt64() == newSequence, "old final replaced new sample");
@@ -254,7 +284,7 @@ static class Program
             // Max-width counters plus all active phase names must survive the
             // real journal redactor without truncated or malformed JSON.
             epoch = Current;
-            foreach (string name in new[] { "Calls", "Ticks", "Bytes" }) Array.Fill(Get<long[]>(epoch, name), long.MaxValue / 4);
+            foreach (string name in new[] { "Calls", "Ticks", "Bytes", "WorkCalls", "WorkTicks", "WorkBytes" }) Array.Fill(Get<long[]>(epoch, name), long.MaxValue / 4);
             Array.Fill(Get<int[]>(epoch, "Active"), 1);
             Array.Fill(Get<long[]>(epoch, "FirstStarts"), Stopwatch.GetTimestamp() - Stopwatch.Frequency * 3600);
             Array.Fill(Get<long[][]>(epoch, "Counters")[0], long.MaxValue / 4);
@@ -264,6 +294,8 @@ static class Program
             Check(maximumJson.Length <= 4000, "metric JSON exceeds redaction bound");
             detail = Details(latest);
             Check(detail.GetProperty("active").EnumerateObject().Count() == 14, "max-width report dropped phases");
+            Check(detail.GetProperty("gpuWork").EnumerateObject().Count() == 12 &&
+                  detail.GetProperty("gpuWork").GetProperty("bindings")[2].GetInt64() > 0, "max-width report dropped gpu work");
             Check(detail.GetProperty("counts").GetProperty("virtualDependencyMultiple").GetInt64() > 0, "max-width metric lost");
             PD.Stop(g);
             Journal.PerformanceObserver = () => throw new InvalidOperationException("fixture observer");
