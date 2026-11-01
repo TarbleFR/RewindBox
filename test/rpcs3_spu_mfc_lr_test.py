@@ -101,9 +101,29 @@ def contract(source: Path, baseline: Path) -> dict:
     rdeventstat = braced(new, 'u32 spu_thread::get_ch_value(u32 ch)') if 'u32 spu_thread::get_ch_value(u32 ch)' in new else new
     if 'atomic_wait_timeout{50\'000}' not in rdeventstat or 'atomic_wait_timeout{100\'000}' not in rdeventstat:
         raise AssertionError('RdEventStat bounds changed; the candidate bound no longer matches them')
+    if unarmed_projection(added) != prefix(old):
+        raise AssertionError('removing the LR-armed statements does not give back the delivered prefix')
     return {'baseline_sha256': BASELINE_SHA, 'candidate_sha256': CANDIDATE_SHA, 'probe_sha256': PROBE_SHA,
             'only_full_queue_prefix_changed': True, 'baseline_prefix_sha256': sha(prefix(old).encode()),
-            'candidate_prefix_sha256': sha(added.encode())}
+            'candidate_prefix_sha256': sha(added.encode()),
+            # With lr_armed false (LR masked, interrupts off, no reservation or an unsavable
+            # entry) the candidate executes exactly the delivered statements; the delivered
+            # decrementer/SNR harness results therefore still describe those paths.
+            'unarmed_projection_equals_delivered_prefix': True}
+
+
+def unarmed_projection(candidate: str) -> str:
+    """Delete exactly the statements reachable only when lr_armed is true."""
+    a = candidate.index('\t\t// [LR] A held reservation')
+    b = candidate.index('\t\tif (check_mfc_interrupts(pc))')
+    text = candidate[:a] + candidate[b:]
+    wait_else = '\t\telse\n\t\t{\n\t\t\tthread_ctrl::wait_on(state, old);\n\t\t}\n\n'
+    a = text.index('\t\t[[maybe_unused]] bool lr_bound_only = false;\n')
+    b = text.index(wait_else)
+    text = text[:a] + '\t\tthread_ctrl::wait_on(state, old);\n' + text[b + len(wait_else):]
+    return once(text, '\t\t// [LR] A bare bound expiry is not progress: keep the producer row in\n'
+                      '\t\t// mfc_blocked so blocked_since_us and the stall reporter stay meaningful.\n'
+                      '\t\tif (trace_full_queue && !lr_bound_only)', '\t\tif (trace_full_queue)')
 
 
 def generate(source: Path, mutation: str | None) -> str:

@@ -18,7 +18,8 @@
     "candidate_prefix_sha256": "50147cca1a4208c5fce71c37d09d39168c9557ebbf06b38d95f94b562b6d4bf8",
     "candidate_sha256": "97da453d7717a1a63cd44f58d6ae1b6c0053f1f7e3a1c1626e90c83c1cfd518d",
     "only_full_queue_prefix_changed": true,
-    "probe_sha256": "d9715a6a07106e643d42ff2d8a21eca52e991610ab419eeea3edee341661d02a"
+    "probe_sha256": "d9715a6a07106e643d42ff2d8a21eca52e991610ab419eeea3edee341661d02a",
+    "unarmed_projection_equals_delivered_prefix": true
   },
   "guestTimeoutAdded": false,
   "host": "Linux-6.18.44-fc-v185-x86_64-with-glibc2.39",
