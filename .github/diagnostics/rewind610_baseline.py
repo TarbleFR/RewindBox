@@ -187,7 +187,7 @@ def freeze():
     check_preserved(target=None)
     paths = changed_paths(include_untracked=True)
     require(all(p.startswith(('.github/', 'build-utils/', 'test/', 'docs/', 'lib/', 'packages/')) or p == 'AGENTS.md'
-                for p in paths), 'Unexpected source scope; inspect before freezing')
+                or p in CONCURRENT_UNCOMPILED for p in paths), 'Unexpected source scope; inspect before freezing')
     source = {p: change_record(p) for p in paths}
     product = {p: v for p, v in source.items() if is_product(p)}
     review = check_product_delta(product)
