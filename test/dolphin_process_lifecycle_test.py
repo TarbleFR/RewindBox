@@ -42,8 +42,8 @@ class DolphinProcessLifecycleTests(unittest.TestCase):
 #include <optional>
 #include <string>
 #include <vector>
-int ui_init=0, controllers_init=0, process_shutdown=0, joins=0, host_depth=0;
-bool uninitialized=true, stop_requested=false;
+int ui_init=0, controllers_init=0, process_shutdown=0, joins=0, host_depth=0, achievement_clears=0;
+bool uninitialized=true, stop_requested=false, achievement_configuration_active=false;
 std::vector<std::string> stages;
 std::mutex g_state_mutex;
 std::atomic<bool> g_initialized{false}, g_running{false}, g_cleanup_started{false};
@@ -98,6 +98,14 @@ struct StateManager {
 };
 }
 void ApplyConsolePreferences() { assert(host_depth); }
+// The RA implementation is exercised separately by dolphin_ra_session_test.
+// This lifecycle boundary proves it runs on the host queue after the VM join,
+// including a launch that obtained credentials but never started a game.
+void DOLClearAchievementSession() {
+ assert(host_depth && uninitialized && !stop_requested);
+ achievement_configuration_active=false;
+ ++achievement_clears;
+}
 void ConfigurePhysicalControllers() { assert(host_depth); }
 void ResetInputProfiles() {}
 void DeclareMainAsHostThread() {}
@@ -127,6 +135,7 @@ int main() {
    g_validated_system=cycle%2 ? "gc" : "wii";
    g_validated_game="game";
    g_running=true; uninitialized=false;
+   achievement_configuration_active=true;
    g_jit_handshake=true; g_executable_probe=true;
    g_metal_surface=reinterpret_cast<void*>(uintptr_t{42});
    g_boot_language=3;
@@ -139,12 +148,16 @@ int main() {
    assert(g_metal_surface==nullptr && g_validated_game.empty());
    assert(current_scale==0 && !g_capture_previous_scale);
    assert(joins==cycle+1);
+   assert(achievement_clears==cycle+1 && !achievement_configuration_active);
  }
  // An aborted launch has no running core. Cleanup remains safe and permits
  // another validated session without rebuilding the controller callbacks.
  assert(neostation_dolphin_initialize("User","Sys","failed")==1);
+ achievement_configuration_active=true;
  assert(neostation_dolphin_stop("failed")==1);
+ assert(!achievement_configuration_active && achievement_clears==21);
  assert(neostation_dolphin_stop("failed")==1);
+ assert(!achievement_configuration_active && achievement_clears==22);
  assert(neostation_dolphin_initialize("User","Sys","next")==1);
  assert(ui_init==1 && controllers_init==1 && process_shutdown==0);
 }

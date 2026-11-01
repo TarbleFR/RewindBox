@@ -40,7 +40,7 @@ DEPENDENCY_PODS = {
     'neo_shader_kit': ROOT / 'packages/neo_shader_kit/ios',
     'neo_cheat_catalog': ROOT / 'packages/neo_cheat_catalog/ios',
 }
-TARGET = 'arm64-apple-ios17.4'
+TARGET = 'arm64-apple-ios18.0'
 DEFINES = ('GLES_SILENCE_DEPRECATION=1', 'COREVIDEO_SILENCE_GL_DEPRECATION=1', 'VK_USE_PLATFORM_METAL_EXT=1',
            'VK_NO_PROTOTYPES=1', 'RC_CLIENT_SUPPORTS_HASH=1')
 # The podspec's frameworks, plus ImageIO and CoreGraphics used by the skin

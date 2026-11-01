@@ -27,6 +27,7 @@ SOURCE_EVIDENCE = (
     "ppsspp-source-license-audit-2026-10-21.json",
     "modified-sources-since-0.0.8-2026-10-21.json",
     "achievement-translation-declarations-2026-10-31.json",
+    "retro-achievements-session-declarations-2026-11-01.json",
 )
 
 
@@ -80,8 +81,35 @@ def repository_inputs(root: Path) -> dict[str, str]:
     for name, update in updates.items():
         if update.get("before") != declarations.get(name):
             raise SystemExit(f"Wrong historical declaration identity: {name}")
+        declarations[name] = update["after"]
+    # Build608 adds a second, separately reviewed local plugin. Preserve the
+    # original audit and605 follow-up verbatim; this overlay must start at their
+    # exact postimages and may change only the six session declarations.
+    session_path = root / "docs/evidence/retro-achievements-session-declarations-2026-11-01.json"
+    session = json.loads(read_input(root, session_path))
+    prior_name = "docs/evidence/achievement-translation-declarations-2026-10-31.json"
+    if (session.get("schema") != 1 or session.get("baseline_inventory") != prior_name or
+            session.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or
+            session.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+            session.get("complete_corresponding_source_attested") is not False or
+            session.get("dependency_changes", {}).get("external_packages_added") != []):
+        raise SystemExit("RetroAchievements session review has a different baseline or dependency scope")
+    updates = session.get("declarations", {})
+    expected_updates = {
+        "pubspec.yaml",
+        "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec",
+        "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec",
+        "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec",
+        "packages/retro_achievements_session/pubspec.yaml",
+        "packages/retro_achievements_session/ios/retro_achievements_session.podspec",
+    }
+    if set(updates) != expected_updates:
+        raise SystemExit("RetroAchievements session declaration review scope changed")
+    for name, update in updates.items():
+        if update.get("before") != declarations.get(name):
+            raise SystemExit(f"Wrong previous declaration identity: {name}")
         if update.get("after") != sha256(read_input(root, root / name)):
-            raise SystemExit(f"Package source/license declaration changed since review: {name}")
+            raise SystemExit(f"Session source/license declaration changed since review: {name}")
         declarations[name] = update["after"]
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:

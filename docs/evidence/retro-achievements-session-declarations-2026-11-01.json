@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "review_date": "2026-11-01",
+  "scope": "Central RetroAchievements session: local workspace plugin and its three native consumers only. No hosted package or engine source selection changes.",
+  "baseline_inventory": "docs/evidence/achievement-translation-declarations-2026-10-31.json",
+  "baseline_inventory_sha256": "c8edd7472b7944348e39499ef1d2a59cd4e8a9e91338c3d7da46c8baf582df6b",
+  "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+  "declarations": {
+    "pubspec.yaml": {
+      "before": "49f39f24539cbd07c7d1a4ccf9b308a6e7cc21f87e8585aed393c7bf98796dfb",
+      "after": "1ac51ade0fda56cbc87af452d788ea105497caa1b0afe2ffbb513f621a4e7925"
+    },
+    "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec": {
+      "before": "0cd8428a3bbd73aa19ec985f69435d3e49a7a962666f3ecb1ed901863753fffd",
+      "after": "c6da4da90d9a9bba629e39c767227de67e507ee319a2a091a46c004e892cc657"
+    },
+    "packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec": {
+      "before": "a2d4571b8cafd060ba4b541fcf97795a2b562c890f50016fad923ef52af8d6f0",
+      "after": "c9680e341ef31c6f4710ee46fc9483afd824ad3b0b0c31b59400456cd969eb12"
+    },
+    "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": {
+      "before": "8532452db081f5075b1c47aa9d64f956092ada4a31e3e3b3e626b872d5eecc8a",
+      "after": "2da2d0822c0488e5367db85a6eb696df8cd6b27e6cef30fd4ff9a55bea29bdab"
+    },
+    "packages/retro_achievements_session/pubspec.yaml": {
+      "before": null,
+      "after": "c2998dc4e9e37c33ccb8028e875724d59e82f787a1be559668ad7d111f8208ce"
+    },
+    "packages/retro_achievements_session/ios/retro_achievements_session.podspec": {
+      "before": null,
+      "after": "616b4cae9663c545bc3ad6766021b686d7918f3d27a8eaea44fcf3d53195fb7d"
+    }
+  },
+  "dependency_changes": {
+    "local_plugin": "retro_achievements_session",
+    "host_license": "LICENSE.md (repository GPL-3.0); podspec declares GPL-3.0",
+    "external_packages_added": [],
+    "existing_sdk_dependency": "Flutter",
+    "system_frameworks": [
+      "Foundation",
+      "Security"
+    ],
+    "native_consumers": [
+      "armsx2_internal_bridge",
+      "dolphin_internal_bridge",
+      "libretro_internal_bridge"
+    ]
+  },
+  "complete_corresponding_source_attested": false
+}
