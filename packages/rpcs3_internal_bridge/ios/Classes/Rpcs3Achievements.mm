@@ -66,6 +66,9 @@ static bool Rpcs3RAFileExists(const std::string& path) {
   std::atomic<uint64_t> _generation;
   std::atomic<unsigned> _total;
   std::atomic<unsigned> _unlockedCount;
+  // RetroAchievements id of the loaded game, published so the library can
+  // remember that this title is recognized (NEOSTATION_RA_IDENTIFICATION_V1).
+  std::atomic<unsigned> _gameId;
   std::atomic<uint64_t> _framesProcessed;
   std::atomic<uint64_t> _framesSkipped;
 }
@@ -218,6 +221,7 @@ static void Rpcs3RAGameLoaded(int result, const char* message, rc_client_t* clie
     [achievements failWithCode:@"RA_GAME_NOT_RECOGNIZED"];
     return;
   }
+  achievements->_gameId.store(game->id);
   achievements->_gameReady.store(true);
   achievements->_evaluated.store(false);
   achievements->_errorCode = @"";
@@ -343,6 +347,7 @@ static void Rpcs3RATokenLogin(int result, const char* message, rc_client_t* clie
     @"hardcoreActive": @(_hardcoreActive.load()),
     @"totalCount": @(_total.load()),
     @"unlockedCount": @(_unlockedCount.load()),
+    @"gameId": @(_gameReady.load() ? _gameId.load() : 0u),
     @"errorCode": _errorCode ?: @""
   });
 }

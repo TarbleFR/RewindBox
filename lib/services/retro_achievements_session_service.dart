@@ -7,6 +7,7 @@ import 'package:retro_achievements_session/retro_achievements_session.dart';
 import '../l10n/retro_achievements_status_locale.dart';
 import '../models/retro_achievements_session.dart';
 import '../repositories/retro_achievements_repository.dart';
+import 'retroachievements_hash_service.dart';
 import 'logger_service.dart';
 
 /// Session error codes meaning RetroAchievements refused the stored in-game
@@ -21,18 +22,30 @@ const raTokenRejectionCodes = {
 class RetroAchievementsSessionService extends ChangeNotifier {
   RetroAchievementsSessionService({RetroAchievementsNativeClient? native,
     Future<RetroAchievementsPreferences> Function()? readPreferences,
-    Future<void> Function(RetroAchievementsPreferences)? writePreferences})
+    Future<void> Function(RetroAchievementsPreferences)? writePreferences,
+    Future<void> Function(String contentPath, int gameId)? gameIdentified})
     : _native = native ?? RetroAchievementsNativeClient(),
       _readPreferences = readPreferences ?? RetroAchievementsRepository.loadSessionPreferences,
-      _writePreferences = writePreferences ?? RetroAchievementsRepository.saveSessionPreferences {
+      _writePreferences = writePreferences ?? RetroAchievementsRepository.saveSessionPreferences,
+      _gameIdentified = gameIdentified ?? _rememberLaunchIdentity {
     _native.onSessionChanged = _onSessionChanged;
   }
+
+  /// NEOSTATION_RA_IDENTIFICATION_V1: an emulator that loaded the set
+  /// recognized the file itself; the library then shows its achievements
+  /// whatever its format (Dolphin excepted: it reports no RetroAchievements id).
+  static Future<void> _rememberLaunchIdentity(String contentPath, int gameId) =>
+      RetroAchievementsHashService.identityStore.saveGameId(contentPath, gameId, source: 'launch');
 
   static final shared = RetroAchievementsSessionService();
   static final _log = LoggerService.instance;
   final RetroAchievementsNativeClient _native;
   final Future<RetroAchievementsPreferences> Function() _readPreferences;
   final Future<void> Function(RetroAchievementsPreferences) _writePreferences;
+  final Future<void> Function(String contentPath, int gameId) _gameIdentified;
+  /// Library file of each prepared session (sessionId -> path), until its
+  /// game id is reported once.
+  final Map<String, String> _launchContent = {};
   Future<void>? _initializing;
   Future<void> _writes = Future<void>.value();
   RetroAchievementsPreferences _preferences = const RetroAchievementsPreferences();
@@ -265,8 +278,12 @@ class RetroAchievementsSessionService extends ChangeNotifier {
     _log.i('RetroAchievements in-game session signed out');
   }, allowLegacyRecovery: true);
 
+  /// [contentPath] is the library file being launched (never sent to the
+  /// native side): when the engine reports the RetroAchievements game it
+  /// loaded, the library remembers it for this file.
   Future<Map<String, Object?>> prepareLaunch({required String engine,
-    required String system, String? core, required String language, bool systemMenu = false}) async {
+    required String system, String? core, required String language, bool systemMenu = false,
+    String? contentPath}) async {
     await initialize();
     await _writes;
     final capability = RetroAchievementsCapabilities.forEngine(engine,
@@ -291,6 +308,11 @@ class RetroAchievementsSessionService extends ChangeNotifier {
           'capability=${capability.name} requested=${_preferences.enabled} '
           'account=${_authenticated ? 'present' : 'absent'} enabled=${result['enabled'] == true} '
           'hardcoreRequested=${result['hardcore'] == true} generation=$_generation');
+      final sessionId = result['raSessionId'];
+      if (sessionId is String && sessionId.isNotEmpty && contentPath != null && contentPath.isNotEmpty) {
+        if (_launchContent.length > 16) _launchContent.remove(_launchContent.keys.first);
+        _launchContent[sessionId] = contentPath;
+      }
       return result;
     } on PlatformException catch (error) {
       _errorCode = error.code;
@@ -333,6 +355,13 @@ class RetroAchievementsSessionService extends ChangeNotifier {
     if (next.enabled && raTokenRejectionCodes.contains(next.errorCode) &&
         next.generation == _generation && _authenticated) {
       _tokenRejected = true;
+    }
+    final contentPath = next.gameLoaded && next.gameId > 0 ? _launchContent.remove(next.id) : null;
+    if (contentPath != null) {
+      _log.i('RetroAchievements: ${next.engine} recognized the launched game (id ${next.gameId})');
+      _gameIdentified(contentPath, next.gameId).catchError((Object error) {
+        _log.w('RetroAchievements launch identity not saved: $error');
+      });
     }
     _notify();
   }

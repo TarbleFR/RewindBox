@@ -289,7 +289,7 @@ abstract final class LibretroInternalService {
     }
     final raService = RetroAchievementsSessionService.shared;
     var raLaunch = await raService.prepareLaunch(engine: 'libretro', system: key,
-      core: coreId, language: locale.toLanguageTag());
+      core: coreId, language: locale.toLanguageTag(), contentPath: romPath);
     final request = <String, Object?>{
       'coreId': coreId,
       'contentPath': path.normalize(romPath),
@@ -334,7 +334,7 @@ abstract final class LibretroInternalService {
         _log.w('Beetle PSX HW: Vulkan unavailable (${result['message'] ?? ''}); relaunching with the software renderer');
         await raService.finishLaunch(raLaunch);
         raLaunch = await raService.prepareLaunch(engine: 'libretro', system: key,
-          core: coreId, language: locale.toLanguageTag());
+          core: coreId, language: locale.toLanguageTag(), contentPath: romPath);
         result = await LibretroInternalBridge.launch(<String, Object?>{
           ...request,
           'raSessionId': raLaunch['raSessionId'],

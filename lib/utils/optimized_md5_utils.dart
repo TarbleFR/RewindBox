@@ -286,6 +286,17 @@ class OptimizedMd5Utils {
     }
   }
 
+  /// Calculates the MD5 hash for PC Engine / TurboGrafx-16 HuCards with the
+  /// rcheevos rule (rc_hash_pce): when the size has the 512 bit set, the first
+  /// 512 bytes are a copier header and are not hashed.
+  static Future<String> calculatePceMd5(String filePath) async {
+    final bytes = await readAllBytes(filePath);
+    if ((bytes.length & 512) != 0 && bytes.length > 512) {
+      return crypto.md5.convert(Uint8List.sublistView(bytes, 512)).toString();
+    }
+    return crypto.md5.convert(bytes).toString();
+  }
+
   /// Calculates the MD5 hash for SNES/Super Famicom ROMs.
   ///
   /// If the ROM contains a 512-byte copier header (identified if file size is

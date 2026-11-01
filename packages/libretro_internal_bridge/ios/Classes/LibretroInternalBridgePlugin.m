@@ -14,6 +14,8 @@
 
 #include <math.h>
 
+#include "RBDiscHashReader.h"
+
 static NSString *const kLibretroChannel = @"neostation/libretro_internal";
 
 /// Labels the native session needs; Dart sends them translated. A missing
@@ -253,7 +255,49 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
   return [[self frameworksDirectory] stringByAppendingPathComponent:relative];
 }
 
+/// NEOSTATION_RA_DISC_READER_V1: the library hashes a game file with
+/// rcheevos and the same .chd/.cso reader as the in-game client, so it shows
+/// what the emulator will recognize. One file at a time, off the main thread;
+/// the path is never logged. Answers the hash, or NSNull when rcheevos cannot
+/// hash this file for the console.
++ (void)retroAchievementsHashWithArguments:(id)arguments result:(FlutterResult)result {
+  NSDictionary *values = [arguments isKindOfClass:NSDictionary.class] ? arguments : @{};
+  NSString *path = [values[@"path"] isKindOfClass:NSString.class] ? values[@"path"] : nil;
+  NSNumber *console = [values[@"consoleId"] isKindOfClass:NSNumber.class] ? values[@"consoleId"] : nil;
+  if (path.length == 0 || console == nil || console.integerValue <= 0 || console.integerValue > 255) {
+    result([FlutterError errorWithCode:@"RA_HASH_INPUT" message:nil details:nil]);
+    return;
+  }
+  static dispatch_queue_t queue;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    queue = dispatch_queue_create("neostation.retroachievements.hash",
+        dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL, QOS_CLASS_UTILITY, 0));
+  });
+  const uint32_t consoleId = console.unsignedIntValue;
+  NSString *file = [path copy];
+  dispatch_async(queue, ^{
+    char hash[33] = {0};
+    int hashed = 0;
+    @autoreleasepool {
+      @try {
+        hashed = rb_hash_generate_for_file(hash, consoleId, file.fileSystemRepresentation);
+      } @catch (NSException *exception) {
+        hashed = 0;  // a path without a file-system representation
+      }
+    }
+    NSString *value = hashed ? [NSString stringWithUTF8String:hash] : nil;
+    dispatch_async(dispatch_get_main_queue(), ^{
+      result(value.length == 32 ? value : NSNull.null);
+    });
+  });
+}
+
 - (void)handleMethodCall:(FlutterMethodCall *)call result:(FlutterResult)result {
+  if ([call.method isEqualToString:@"retroAchievementsHash"]) {
+    [LibretroInternalBridgePlugin retroAchievementsHashWithArguments:call.arguments result:result];
+    return;
+  }
   if ([call.method isEqualToString:@"isSessionActive"]) {
     // @YES or @NO, the only NSNumbers Flutter's codec sends as a bool. In
     // this Objective-C file `a || b` is a C int: @(a || b) boxed it with

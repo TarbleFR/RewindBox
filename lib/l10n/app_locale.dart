@@ -1144,6 +1144,13 @@ mixin AppLocale {
   static const String raApiKeyStatsLabel = 'ra_api_key_stats_label';
   static const String raTwoSecretsIntro = 'ra_two_secrets_intro';
   static const String raPasswordLooksLikeApiKey = 'ra_password_looks_like_api_key';
+  static const String raFileNotRecognized = 'ra_file_not_recognized';
+  static const String raFileNotRecognizedHelp = 'ra_file_not_recognized_help';
+  static const String raFileHash = 'ra_file_hash';
+  static const String raCopyHash = 'ra_copy_hash';
+  static const String raHashCopied = 'ra_hash_copied';
+  static const String raTitleOnlyMatch = 'ra_title_only_match';
+  static const String raOpenGamePage = 'ra_open_game_page';
   static const String raSessionEnableHint = 'ra_session_enable_hint';
   static const String raSessionStatusSignedOut = 'ra_session_status_signed_out';
   static const String raSessionStatusDisabled = 'ra_session_status_disabled';

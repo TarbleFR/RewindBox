@@ -42,7 +42,14 @@ DEPENDENCY_PODS = {
 }
 TARGET = 'arm64-apple-ios18.0'
 DEFINES = ('GLES_SILENCE_DEPRECATION=1', 'COREVIDEO_SILENCE_GL_DEPRECATION=1', 'VK_USE_PLATFORM_METAL_EXT=1',
-           'VK_NO_PROTOTYPES=1', 'RC_CLIENT_SUPPORTS_HASH=1')
+           'VK_NO_PROTOTYPES=1', 'RC_CLIENT_SUPPORTS_HASH=1', 'CHDR_SYSTEM_ZLIB=1', 'ZSTD_DISABLE_ASM=1')
+# NEOSTATION_RA_DISC_READER_V1: the C sources the podspec compiles besides
+# rcheevos (the .chd/.cso reader and the pinned libchdr).
+LIBCHDR = BRIDGE / 'ThirdParty/libchdr'
+DISC_READER_SOURCES = (sorted((BRIDGE / 'Classes').glob('*.c')) + sorted((LIBCHDR / 'src').glob('*.c'))
+                       + [LIBCHDR / 'deps/lzma-26.02/src/LzmaDec.c', LIBCHDR / 'deps/zstd-1.5.7/zstddeclib.c'])
+# Symbols of the reader and of libchdr that must be defined by these sources.
+DISC_READER_SYMBOLS = ('rb_hash_', 'chd_open', 'chd_read', 'chd_get_metadata')
 # The podspec's frameworks, plus ImageIO and CoreGraphics used by the skin
 # code. Modules imported by the Objective-C sources are also auto-linked.
 FRAMEWORKS = ('UIKit', 'Foundation', 'Metal', 'QuartzCore', 'AVFoundation', 'GameController', 'OpenGLES',
@@ -129,7 +136,7 @@ def compile_sources(sdk, sources, directory, include):
     includes = [
         BRIDGE / 'Classes', BRIDGE / 'ThirdParty/include', BRIDGE / 'ThirdParty/include/libretro',
         BRIDGE / 'ThirdParty/rcheevos/include', BRIDGE / 'ThirdParty/rcheevos/src',
-        ROOT / 'test/libretro_host/stubs', include,
+        LIBCHDR / 'include', ROOT / 'test/libretro_host/stubs', include,
     ]
     base = ['xcrun', '--sdk', 'iphoneos', 'clang', '-target', TARGET, '-isysroot', sdk,
             '-Wall', '-Wno-unused-function']
@@ -192,6 +199,7 @@ def main():
     sdk = subprocess.run(['xcrun', '--sdk', 'iphoneos', '--show-sdk-path'], check=True,
                          capture_output=True, text=True).stdout.strip()
     sources = sorted((BRIDGE / 'Classes').glob('*.m')) + sorted((BRIDGE / 'ThirdParty/rcheevos/src').rglob('*.c'))
+    sources += DISC_READER_SOURCES
     sources += sorted(path for path in (DEPENDENCY_PODS['neo_cheat_catalog'] / 'Classes').glob('*.m')
                       if path.name != 'NeoCheatCatalogPlugin.m')
     with tempfile.TemporaryDirectory(prefix='libretro-ios-') as temporary:
@@ -204,7 +212,8 @@ def main():
         library = directory / 'liblibretro_internal_bridge.dylib'
         link(sdk, objects, library)
         undefined = undefined_symbols(library)
-    missing = sorted(name for name in undefined if BRIDGE_SYMBOL in name or 'NeoUnifiedCheat' in name)
+    missing = sorted(name for name in undefined if BRIDGE_SYMBOL in name or 'NeoUnifiedCheat' in name
+                     or any(prefix in name for prefix in DISC_READER_SYMBOLS))
     if missing:
         print('Bridge symbols used but defined by no source:', flush=True)
         for name in missing:

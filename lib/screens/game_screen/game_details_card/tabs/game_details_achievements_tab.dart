@@ -7,6 +7,8 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:neostation/themes/corner_radii.dart';
 import '../../../../models/retro_achievements_game_info.dart';
+import '../../../../services/retro_achievements_identity.dart';
+import 'ra_identity_note.dart';
 
 /// An overlay component that renders RetroAchievements progress, stats, and a navigable grid.
 ///
@@ -22,9 +24,14 @@ class GameDetailsAchievementsTab extends StatefulWidget {
   final double rightOffset;
   final Widget? headerAction;
 
+  /// How the game was identified (recognized file, title-only match, or not
+  /// recognized): shown with the achievements or in place of them.
+  final RetroAchievementsIdentity? identity;
+
   const GameDetailsAchievementsTab({
     super.key,
     this.gameInfo,
+    this.identity,
     required this.isLoading,
     required this.onRefresh,
     this.topOffset = 55.0,
@@ -243,6 +250,8 @@ class GameDetailsAchievementsTabState
                     fontSize: 14.r,
                   ),
                 ),
+                if (widget.identity != null)
+                  RetroAchievementsIdentityNote(identity: widget.identity!),
               ],
             ),
           ),
@@ -368,6 +377,9 @@ class GameDetailsAchievementsTabState
                       ),
                     ],
                   ),
+                  // Found from the title only: this file may not track in game.
+                  if (RetroAchievementsIdentityNote.hasContent(widget.identity))
+                    RetroAchievementsIdentityNote(identity: widget.identity!, compact: true),
                   Divider(
                     color: Theme.of(
                       context,

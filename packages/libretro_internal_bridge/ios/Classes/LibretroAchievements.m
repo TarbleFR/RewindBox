@@ -9,6 +9,7 @@
 #include "rc_api_request.h"
 #include "rc_client.h"
 #include "rc_hash.h"
+#include "RBDiscHashReader.h"
 #include "rc_libretro.h"
 
 /// rc_libretro's memory-info callback carries no context pointer. Only the
@@ -42,6 +43,9 @@ static __unsafe_unretained LibretroCoreHost *gAchievementHost = nil;
   _Atomic uint64_t _callbackGeneration;
   _Atomic unsigned _totalAchievements;
   _Atomic unsigned _unlockedAchievements;
+  // RetroAchievements id of the loaded game, published so the library can
+  // remember that this file is recognized (NEOSTATION_RA_IDENTIFICATION_V1).
+  _Atomic unsigned _gameId;
 }
 
 + (BOOL)isHardcoreOptionAllowedForLibrary:(NSString *)library consoleId:(unsigned)consoleId
@@ -185,6 +189,7 @@ static void GameLoaded(int result, const char *message, rc_client_t *client, voi
     [achievements failWithCode:@"RA_GAME_NOT_RECOGNIZED"];
     return;
   }
+  atomic_store(&achievements->_gameId, game->id);
   atomic_store(&achievements->_gameReady, true);
   achievements->_evaluated = NO;
   achievements->_errorCode = @"";
@@ -284,6 +289,7 @@ static void TokenLogin(int result, const char *message, rc_client_t *client, voi
     @"hardcoreActive": @(atomic_load(&_hardcoreActive)),
     @"totalCount": @(atomic_load(&_totalAchievements)),
     @"unlockedCount": @(atomic_load(&_unlockedAchievements)),
+    @"gameId": @(atomic_load(&_gameReady) ? atomic_load(&_gameId) : 0u),
     @"errorCode": _errorCode ?: @""
   });
 }
@@ -377,13 +383,19 @@ static void TokenLogin(int result, const char *message, rc_client_t *client, voi
     [self failWithCode:@"RA_CREDENTIALS_MISSING"];
     return;
   }
-  static dispatch_once_t once;
-  dispatch_once(&once, ^{ rc_hash_init_default_cdreader(); });
   _client = rc_client_create(ReadMemory, ServerCall);
   if (_client == NULL) {
     [self failWithCode:@"RA_CLIENT_UNAVAILABLE"];
     return;
   }
+  // NEOSTATION_RA_DISC_READER_V1: .chd and .cso images are read through
+  // libchdr/zlib (rcheevos alone read them as raw images and never recognized
+  // the game); every other format keeps rcheevos' default reader. The library
+  // hashes files with the same reader (RBDiscHashReader).
+  rc_hash_callbacks_t hashCallbacks;
+  memset(&hashCallbacks, 0, sizeof(hashCallbacks));
+  rb_hash_install_disc_reader(&hashCallbacks);
+  rc_client_set_hash_callbacks(_client, &hashCallbacks);
   rc_client_set_userdata(_client, (__bridge void *)self);
   rc_client_set_event_handler(_client, EventHandler);
   rc_client_set_allow_background_memory_reads(_client, 0);

@@ -8,6 +8,8 @@ import '../models/secondary_achievement_item.dart';
 import '../providers/retro_achievements_provider.dart';
 import '../repositories/retro_achievements_repository.dart';
 import 'logger_service.dart';
+import 'retro_achievements_helper.dart';
+import 'retro_achievements_identity.dart';
 import 'retroachievements_hash_service.dart';
 
 /// A condensed snapshot of a game's RetroAchievements progress, ready to be
@@ -74,6 +76,10 @@ class RetroAchievementsResolver {
     GameModel game, {
     required bool hasSpecificGenerator,
   }) async {
+    // iOS: rcheevos hashes every file the way the emulators do (cached).
+    if (RetroAchievementsNativeHash.available) {
+      return RetroAchievementsHashService.generateHashForGame(game);
+    }
     var md5Hash = game.raHash;
     if (md5Hash != null && md5Hash.isNotEmpty) return md5Hash;
 
@@ -99,16 +105,13 @@ class RetroAchievementsResolver {
     required bool hasSpecificGenerator,
     String? md5Hash,
   }) async {
-    // Strategy 1: exact hash match against the local RA database.
-    if (md5Hash != null && md5Hash.isNotEmpty) {
-      try {
-        final gameId = await RetroAchievementsRepository.findGameIdByHash(
-          md5Hash,
-        );
-        if (gameId != null && gameId != 0) return gameId;
-      } catch (e) {
-        _log.e('RA resolver: hash lookup failed: $e');
-      }
+    // Strategy 1: the file itself — learned at launch, bundled hash list,
+    // then RetroAchievements online (cached), as in the details view.
+    try {
+      final byFile = await RetroAchievementsHelper.fileIdentity(game, md5Hash);
+      if (byFile?.gameId != null) return byFile!.gameId;
+    } catch (e) {
+      _log.e('RA resolver: file identification failed: $e');
     }
 
     // Hash-specific systems must match by hash only to avoid false positives.

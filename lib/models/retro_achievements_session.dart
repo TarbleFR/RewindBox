@@ -104,4 +104,7 @@ class RetroAchievementsSessionState {
   /// Achievement counts observed in the engine (0 until the set is loaded).
   int get unlockedCount => (values['unlockedCount'] as num?)?.toInt() ?? 0;
   int get totalCount => (values['totalCount'] as num?)?.toInt() ?? 0;
+  /// RetroAchievements id of the game the engine loaded (0 until then; not
+  /// reported by Dolphin).
+  int get gameId => (values['gameId'] as num?)?.toInt() ?? 0;
 }

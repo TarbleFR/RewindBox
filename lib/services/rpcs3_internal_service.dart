@@ -854,6 +854,7 @@ class Rpcs3InternalService {
     String titleId, {
     required String uiLocale,
     String? savestateId,
+    String? contentPath,
   }) async {
     final normalized = titleId.trim().toUpperCase();
     if (normalized.isEmpty) return false;
@@ -897,6 +898,7 @@ class Rpcs3InternalService {
         engine: 'rpcs3',
         system: 'ps3',
         language: uiLocale,
+        contentPath: contentPath,
       );
     } catch (error) {
       _log.w('RPCS3 RetroAchievements preparation skipped: $error');

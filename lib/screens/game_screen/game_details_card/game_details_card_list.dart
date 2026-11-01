@@ -1,3 +1,4 @@
+import 'package:neostation/services/retro_achievements_identity.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
@@ -185,6 +186,7 @@ class _GameDetailsCardListState extends State<GameDetailsCardList>
 
   // RetroAchievements Integration state.
   GameInfoAndUserProgress? _currentGameInfo;
+  RetroAchievementsIdentity? _currentIdentity;
   bool _isLoadingAchievements = false;
 
   // Media playback configuration state.
@@ -413,6 +415,7 @@ class _GameDetailsCardListState extends State<GameDetailsCardList>
       setState(() {
         _game = widget.game;
         _currentGameInfo = null;
+        _currentIdentity = null;
         _isLoadingAchievements = false;
 
         if (_effectiveSystem.folderName == 'android') {
@@ -529,7 +532,7 @@ class _GameDetailsCardListState extends State<GameDetailsCardList>
     });
 
     try {
-      final gameInfo = await RetroAchievementsHelper.loadGameInfo(
+      final (gameInfo, identity) = await RetroAchievementsHelper.loadGameInfoWithIdentity(
         game: gameTarget,
         provider: widget.retroAchievementsProvider,
         effectiveSystem: _effectiveSystem,
@@ -546,6 +549,7 @@ class _GameDetailsCardListState extends State<GameDetailsCardList>
 
         setState(() {
           _currentGameInfo = gameInfo;
+          _currentIdentity = identity;
           _isLoadingAchievements = false;
         });
       }
@@ -702,6 +706,7 @@ class _GameDetailsCardListState extends State<GameDetailsCardList>
             GameDetailsAchievementsTab(
               key: _achievementsTabKey,
               gameInfo: _currentGameInfo,
+              identity: _currentIdentity,
               isLoading: _isLoadingAchievements,
               onRefresh: refreshAchievements,
             ),

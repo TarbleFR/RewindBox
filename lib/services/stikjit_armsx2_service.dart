@@ -143,7 +143,8 @@ class StikJitArmsx2Service {
       );
 
       raLaunch = await RetroAchievementsSessionService.shared.prepareLaunch(
-        engine: 'armsx2', system: 'ps2', language: uiLocale, systemMenu: bootBios);
+        engine: 'armsx2', system: 'ps2', language: uiLocale, systemMenu: bootBios,
+        contentPath: bootBios ? null : gamePath);
       final launch = await Armsx2InternalBridge.launch(
         transaction: transaction,
         gamePath: normalized,

@@ -11,9 +11,18 @@ starts; no external RetroArch application is involved.
   s.license          = { :type => 'GPL-3.0' }
   s.author           = { 'RewindBox' => 'TarbleFR' }
   s.source           = { :path => '.' }
-  s.source_files     = 'Classes/**/*.{h,m}',
+  # NEOSTATION_RA_DISC_READER_V1: RBDiscHashReader.c lets rcheevos identify
+  # .chd and .cso images, with the pinned libchdr (BSD-3-Clause; LZMA SDK
+  # public domain; zstd BSD; dr_flac public domain/MIT-0; see
+  # ThirdParty/libchdr/NEOSTATION_NOTICE.md). Only its .c files are compiled:
+  # its headers (two named LzmaDec.h) are reached by relative includes and the
+  # header search path, never through the pod's header map.
+  s.source_files     = 'Classes/**/*.{h,m,c}',
                        'ThirdParty/rcheevos/include/*.h',
-                       'ThirdParty/rcheevos/src/**/*.{h,c}'
+                       'ThirdParty/rcheevos/src/**/*.{h,c}',
+                       'ThirdParty/libchdr/src/*.c',
+                       'ThirdParty/libchdr/deps/lzma-26.02/src/LzmaDec.c',
+                       'ThirdParty/libchdr/deps/zstd-1.5.7/zstddeclib.c'
   s.public_header_files = 'Classes/LibretroInternalBridgePlugin.h'
   s.preserve_paths   = 'ThirdParty/**/*'
   s.resource_bundles = { 'NeoStationCheats' => ['Resources/Cheats/*'] }
@@ -38,9 +47,11 @@ starts; no external RetroArch application is involved.
     'HEADER_SEARCH_PATHS' => '$(inherited) "${PODS_TARGET_SRCROOT}/ThirdParty/include" ' \
                              '"${PODS_TARGET_SRCROOT}/ThirdParty/include/libretro" ' \
                              '"${PODS_TARGET_SRCROOT}/ThirdParty/rcheevos/include" ' \
-                             '"${PODS_TARGET_SRCROOT}/ThirdParty/rcheevos/src"',
+                             '"${PODS_TARGET_SRCROOT}/ThirdParty/rcheevos/src" ' \
+                             '"${PODS_TARGET_SRCROOT}/ThirdParty/libchdr/include"',
     'GCC_PREPROCESSOR_DEFINITIONS' => '$(inherited) GLES_SILENCE_DEPRECATION=1 COREVIDEO_SILENCE_GL_DEPRECATION=1 ' \
-                                      'VK_USE_PLATFORM_METAL_EXT=1 VK_NO_PROTOTYPES=1 RC_CLIENT_SUPPORTS_HASH=1',
+                                      'VK_USE_PLATFORM_METAL_EXT=1 VK_NO_PROTOTYPES=1 RC_CLIENT_SUPPORTS_HASH=1 ' \
+                                      'CHDR_SYSTEM_ZLIB=1 ZSTD_DISABLE_ASM=1',
     'OTHER_LDFLAGS' => '$(inherited) -ObjC'
   }
 end
