@@ -9,6 +9,13 @@ namespace {
 std::mutex g_achievement_presenter_mutex;
 DOLAchievementPresenter g_achievement_presenter = nullptr;
 uint64_t g_achievement_presenter_session = 0;
+bool g_achievement_notifications = false;
+
+void DOLSetAchievementNotifications(bool enabled)
+{
+  std::lock_guard<std::mutex> lock(g_achievement_presenter_mutex);
+  g_achievement_notifications = enabled;
+}
 }
 extern "C" __attribute__((visibility("default")))
 void neostation_dolphin_set_achievement_presenter(DOLAchievementPresenter presenter, uint64_t session)
@@ -16,6 +23,8 @@ void neostation_dolphin_set_achievement_presenter(DOLAchievementPresenter presen
   std::lock_guard<std::mutex> lock(g_achievement_presenter_mutex);
   g_achievement_presenter = presenter;
   g_achievement_presenter_session = session;
+  // Teardown must not resurrect the original OSD while UIKit is detached.
+  if (!presenter) g_achievement_notifications = false;
 }
 extern "C" __attribute__((visibility("default")))
 bool neostation_dolphin_present_achievement(uint32_t id, const char* title, const char* description,
@@ -25,6 +34,9 @@ bool neostation_dolphin_present_achievement(uint32_t id, const char* title, cons
   uint64_t session;
   {
     std::lock_guard<std::mutex> lock(g_achievement_presenter_mutex);
+    // Consume presentation only. Native unlock/award handling has already run.
+    // Returning true also suppresses the upstream OSD fallback when muted.
+    if (kind != 0 && !g_achievement_notifications) return true;
     presenter = g_achievement_presenter;
     session = g_achievement_presenter_session;
   }

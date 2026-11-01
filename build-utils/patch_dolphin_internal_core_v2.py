@@ -102,6 +102,7 @@ void DOLClearAchievementSession();
 void DOLApplyAchievementConfiguration();
 bool DOLHardcoreModeActive();
 bool DOLHardcorePolicyBlocksUnsafeActions();
+void DOLSetAchievementNotifications(bool enabled);
 std::atomic<int> g_boot_language{-1};
 // Runtime-only capture budget. Never persist this cap to the user's GFX.ini.
 std::optional<int> g_capture_previous_scale;

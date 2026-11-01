@@ -407,7 +407,9 @@ static UIViewController* ARMSX2RootViewController(void) {
     return;
   }
   Armsx2GameViewController* owner = self.gameController;
-  if (!owner || self.stopInProgress || owner.closing || self.achievementPrefetchPending) return;
+  NSDictionary* configuration = self.achievementConfiguration;
+  if (!owner || self.stopInProgress || owner.closing || self.achievementPrefetchPending ||
+      ![configuration[@"enabled"] boolValue] || ![configuration[@"supported"] boolValue]) return;
   // The core posts this event when the game's state becomes available, even
   // when its optional summary toast is disabled. Rich presence also posts it;
   // copy the full list only once per loaded game and controller.
@@ -416,8 +418,9 @@ static UIViewController* ARMSX2RootViewController(void) {
   __weak Armsx2GameViewController* weakOwner = owner;
   [self readRetroAchievementsForController:owner completion:^(NSDictionary<NSString*, id>* state) {
     Armsx2InternalBridgePlugin* active = weakSelf;
+    if (!active || active.achievementConfiguration != configuration) return;
     active.achievementPrefetchPending = NO;
-    if (!active || !weakOwner || active.gameController != weakOwner || active.stopInProgress || weakOwner.closing) return;
+    if (!weakOwner || active.gameController != weakOwner || active.stopInProgress || weakOwner.closing) return;
     NSUInteger gameID = [state[@"gameId"] unsignedIntegerValue];
     if (![state[@"hasActiveGame"] boolValue] || ![state[@"hasAchievements"] boolValue] || gameID == 0) {
       active.achievementPrefetchOwner = nil;
@@ -438,12 +441,17 @@ static UIViewController* ARMSX2RootViewController(void) {
     dispatch_async(dispatch_get_main_queue(), ^{ [self presentAchievementNotification:notification]; });
     return;
   }
-  Armsx2GameViewController* owner = self.gameController;
-  if (!owner || self.stopInProgress || owner.closing) return;
   Class bridge = NSClassFromString(@"ARMSX2Bridge");
   SEL consume = NSSelectorFromString(@"consumePendingRetroAchievementsNotification");
   if (!bridge || ![bridge respondsToSelector:consume]) return;
   id toast = ((id (*)(id, SEL))objc_msgSend)(bridge, consume);
+  // Always drain the native presentation event, even after stop or when RA is
+  // disabled. The engine has already processed the award independently.
+  Armsx2GameViewController* owner = self.gameController;
+  NSDictionary* configuration = self.achievementConfiguration;
+  if (!owner || self.stopInProgress || owner.closing ||
+      ![configuration[@"enabled"] boolValue] || ![configuration[@"supported"] boolValue] ||
+      ![configuration[@"notifications"] boolValue]) return;
   if (!toast || ![toast respondsToSelector:@selector(title)] ||
       ![toast respondsToSelector:NSSelectorFromString(@"message")]) return;
   NSString* title = [toast valueForKey:@"title"] ?: @"";
@@ -477,7 +485,8 @@ static UIViewController* ARMSX2RootViewController(void) {
         return controller.view;
       }, ^BOOL {
     Armsx2InternalBridgePlugin* active = weakSelf;
-    return active && weakOwner && active.gameController == weakOwner && !active.stopInProgress && !weakOwner.closing;
+    return active && weakOwner && active.achievementConfiguration == configuration &&
+        active.gameController == weakOwner && !active.stopInProgress && !weakOwner.closing;
   });
 }
 
@@ -697,6 +706,7 @@ static UIViewController* ARMSX2RootViewController(void) {
   self.achievementConfiguration = nil;
   self.achievementPrefetchOwner = nil;
   self.achievementPrefetchGameID = 0;
+  self.achievementPrefetchPending = NO;
   if (configuration) RBRAEndSession(configuration);
 }
 

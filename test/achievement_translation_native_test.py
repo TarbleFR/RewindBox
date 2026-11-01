@@ -42,7 +42,12 @@ def main():
 #include <thread>
 std::atomic<int> errors{0};
 std::atomic<int> calls{0};
+int prefetches=0;
 std::string copied;
+static void prefetch(uint64_t session,uint32_t id,const char* title,const char*,uint32_t,const char*,int kind) {
+  assert(session==42 && id==17 && kind==0 && std::string(title)=="metadata");
+  ++prefetches;
+}
 static void capture(uint64_t session,uint32_t id,const char* title,const char* description,
                     uint32_t points,const char* progress,int kind) {
   assert(session==42 && id==17 && points==25 && kind==1);
@@ -58,12 +63,28 @@ static void odd(uint64_t session,uint32_t,const char*,const char*,uint32_t,const
   ++calls;
 }
 int main() {
+  // No central session: presentation is consumed silently, including fallback.
+  assert(neostation_dolphin_present_achievement(17,"original","requirements",25,"3/5",1));
+  assert(neostation_dolphin_present_achievement(17,"original","requirements",25,"3/5",2));
+  assert(calls==0);
+  neostation_dolphin_set_achievement_presenter(prefetch,42);
+  assert(neostation_dolphin_present_achievement(17,"metadata","requirements",25,"",0));
+  assert(prefetches==1 && calls==0);
+  neostation_dolphin_set_achievement_presenter(nullptr,0);
+  DOLSetAchievementNotifications(true);
   assert(!neostation_dolphin_present_achievement(17,"original","requirements",25,"3/5",1));
   neostation_dolphin_set_achievement_presenter(capture,42);
   char title[]="original";
+  DOLSetAchievementNotifications(false);
+  assert(neostation_dolphin_present_achievement(17,title,"requirements",25,"3/5",1));
+  assert(neostation_dolphin_present_achievement(17,title,"requirements",25,"3/5",2));
+  assert(calls==0);
+  DOLSetAchievementNotifications(true);
   assert(neostation_dolphin_present_achievement(17,title,"requirements",25,"3/5",1));
   title[0]='X'; assert(copied=="original");
   neostation_dolphin_set_achievement_presenter(nullptr,0);
+  assert(neostation_dolphin_present_achievement(17,title,"requirements",25,"3/5",1));
+  DOLSetAchievementNotifications(true);
   assert(!neostation_dolphin_present_achievement(17,title,"requirements",25,"3/5",1));
   assert(calls==1);
   std::thread writer([] { for (uint64_t i=1;i<10000;++i)
@@ -79,6 +100,6 @@ int main() {
         output = folder / 'presenter'
         subprocess.run([compiler, '-std=c++17', '-Wall', '-Wextra', '-Werror', '-pthread', str(source), '-o', str(output)], check=True)
         subprocess.run([str(output)], check=True)
-        print('Native presenter: real compile and runtime passed; copied payload, unregistration, concurrent callback/token pairing')
+        print('Native presenter: real compile and runtime passed; mute/unlock/progress/fallback, copied payload, unregistration, concurrent callback/token pairing')
 
 if __name__ == '__main__': main()

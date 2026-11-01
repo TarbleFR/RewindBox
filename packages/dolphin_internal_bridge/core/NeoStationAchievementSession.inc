@@ -46,6 +46,7 @@ void DOLApplyAchievementConfiguration()
 {
 #ifdef USE_RETRO_ACHIEVEMENTS
   const auto& session = g_achievement_configuration;
+  DOLSetAchievementNotifications(session.enabled && session.notifications);
   // CurrentRun outranks the base/game INIs and has no persistent loader. The
   // upstream login callback also writes only to CurrentRun in this build.
   Config::ConfigChangeCallbackGuard guard;
@@ -70,6 +71,8 @@ void DOLApplyAchievementConfiguration()
     Config::SetCurrent(Config::FREE_LOOK_ENABLED, false);
     Config::SetCurrent(Config::MAIN_ENABLE_CHEATS, false);
   }
+#else
+  DOLSetAchievementNotifications(false);
 #endif
 }
 

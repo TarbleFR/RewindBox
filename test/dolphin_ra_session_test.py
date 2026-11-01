@@ -65,6 +65,7 @@ private:
   Client* client=nullptr;
   std::recursive_mutex mutex;
 };
+PRESENTATION_INCLUDE
 SESSION_INCLUDE
 int main() {
   auto& manager=AchievementManager::GetInstance();
@@ -135,6 +136,8 @@ int main() {
 '''
     include = ROOT / 'packages/dolphin_internal_bridge/core/NeoStationAchievementSession.inc'
     fixture = fixture.replace('SESSION_INCLUDE', '#include "' + str(include) + '"')
+    presenter = ROOT / 'packages/dolphin_internal_bridge/core/NeoStationAchievementPresentation.inc'
+    fixture = fixture.replace('PRESENTATION_INCLUDE', '#include "' + str(presenter) + '"')
     with tempfile.TemporaryDirectory(prefix='dolphin-session-') as folder:
         source = Path(folder) / 'policy.cpp'
         source.write_text(fixture)

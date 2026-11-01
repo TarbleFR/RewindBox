@@ -29,7 +29,8 @@ struct ARMSX2RALaunchPolicy {
       return policy;
     policy.enabled = true;
     policy.hardcore = source->hardcore != 0;
-    policy.notifications = source->notifications != 0;
+    // Notifications follow central activation, never an old independent switch.
+    policy.notifications = policy.enabled;
     policy.username.assign(source->username, user_size);
     policy.token.assign(source->token, token_size);
     return policy;
@@ -71,6 +72,7 @@ public:
     if (m_scope != Scope::Secrets && AchievementSection(section)) {
       if (std::strcmp(key, "Enabled") == 0) { *value = m_policy.enabled; return true; }
       if (std::strcmp(key, "ChallengeMode") == 0) { *value = m_policy.hardcore; return true; }
+      if (PresentationKey(key)) { *value = m_policy.notifications; return true; }
     }
     return !Owned(section, key) && m_backing && m_backing->GetBoolValue(section, key, value);
   }
@@ -195,6 +197,11 @@ public:
 
 private:
   static bool AchievementSection(const char* section) { return std::strcmp(section, "Achievements") == 0; }
+  static bool PresentationKey(const char* key) {
+    return std::strcmp(key, "Notifications") == 0 ||
+        std::strcmp(key, "LeaderboardNotifications") == 0 ||
+        std::strcmp(key, "Overlays") == 0 || std::strcmp(key, "LBOverlays") == 0;
+  }
   bool HardcoreSetting(const char* s, const char* k) const {
     if (m_scope == Scope::Secrets || !m_policy.HardcoreGuard()) return false;
     if (std::strcmp(s, "EmuCore") == 0)
@@ -224,7 +231,8 @@ private:
     if (std::strcmp(key, "Token") == 0) return true;
     return m_scope != Scope::Secrets &&
         (std::strcmp(key, "Username") == 0 || std::strcmp(key, "Host") == 0 ||
-         std::strcmp(key, "Enabled") == 0 || std::strcmp(key, "ChallengeMode") == 0);
+         std::strcmp(key, "Enabled") == 0 || std::strcmp(key, "ChallengeMode") == 0 ||
+         PresentationKey(key));
   }
   void ReplaceSection(const char* section, const std::vector<std::pair<std::string, std::string>>& incoming) {
     if (!m_backing) return;

@@ -109,6 +109,8 @@ int main() {
   disk.SetStringValue("Achievements","Host","legacy.example.invalid");
   disk.SetBoolValue("Achievements","Enabled",true);
   disk.SetBoolValue("Achievements","ChallengeMode",true);
+  for(const char* key:{"Notifications","LeaderboardNotifications","Overlays","LBOverlays"})
+    disk.SetBoolValue("Achievements",key,false);
   disk.SetIntValue("EmuCore/GS","upscale_multiplier",2);
   disk.Save();const auto original=disk.persisted;
   auto missing=ARMSX2RALaunchPolicy::Copy(nullptr);
@@ -127,6 +129,13 @@ int main() {
   ARMSX2RALaunchSettings secrets(&disk,policy,Scope::Secrets);
   ARMSX2RALaunchSettings launch(nullptr,policy,Scope::Launch);
   assert(flag(base,"Enabled") && flag(base,"ChallengeMode"));
+  for(const char* key:{"Notifications","LeaderboardNotifications","Overlays","LBOverlays"}) {
+    assert(flag(base,key) && flag(launch,key) && !flag(disabled,key));
+    base.SetBoolValue("Achievements",key,false); assert(flag(base,key));
+  }
+  config.notifications=0;
+  assert(ARMSX2RALaunchPolicy::Copy(&config).notifications);
+  config.notifications=1;
   assert(text(base,"Username")=="central-user" && text(base,"Token").empty());
   assert(text(base,"Host").empty() && text(launch,"Host").empty());
   assert(text(secrets,"Token")=="central-token" && text(launch,"Token")=="central-token");
@@ -195,7 +204,7 @@ int main() {
   assert(unguarded.GetIntValue("EmuCore/Speedhacks","EECycleRate",&rate) && rate==-2);
   policy.Clear();assert(policy.token.empty() && !policy.enabled && !policy.hardcore);
   assert(!flag(base,"Enabled") && text(secrets,"Token").empty());
-  std::cout<<"PASS: launch-only RA policy; copied credentials; disabled/invalid fail closed; legacy storage preserved; non-RA settings forwarded\n";
+  std::cout<<"PASS: launch-only RA policy; copied credentials; disabled/invalid fail closed; legacy storage preserved; non-RA settings forwarded; notifications follow activation\n";
 }
 '''
 
@@ -223,6 +232,10 @@ def main():
     assert 'RBRAEndSession(configuration)' in host
     assert 'hardcoreGuardActive' in host and 'gameLoaded && [state[@"hasAchievements"] boolValue]' in host
     assert 'runtime().achievements.HardcoreGuard() || Achievements::IsHardcoreModeActive()' in core
+    presentation=host[host.index('- (void)presentAchievementNotification:'):host.index('- (void)presentAchievementNotification:')+5000]
+    assert presentation.index('objc_msgSend)(bridge, consume)') < presentation.index('configuration[@"notifications"]')
+    assert 'active.achievementConfiguration == configuration' in presentation
+    assert 'RBAchievementPresent(owner' in presentation and 'RBAchievementPrefetch(sources)' in presentation
     print('PASS: adapter wired before engine initialization; effective-state publication and native-session end hooks present')
 
 if __name__=='__main__':

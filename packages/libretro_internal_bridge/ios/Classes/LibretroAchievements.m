@@ -147,6 +147,9 @@ static void EventHandler(const rc_client_event_t *event, rc_client_t *client) {
         ? [NSString stringWithUTF8String:event->achievement->description] : @"";
     [achievements refreshSummary];
     [achievements publishState];
+    // Presentation only: the rcheevos event/award path above is never gated or
+    // delayed by notifications or translation. This launch owns the preference.
+    if (![achievements->_configuration[@"notifications"] boolValue]) return;
     const uint64_t generation = atomic_load(&achievements->_callbackGeneration);
     dispatch_async(dispatch_get_main_queue(), ^{
       if (atomic_load(&achievements->_shutdown) ||

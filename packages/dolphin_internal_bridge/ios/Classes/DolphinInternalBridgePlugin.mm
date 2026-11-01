@@ -943,7 +943,11 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   uint64_t session = [event[@"session"] unsignedLongLongValue];
   DOLDolphinViewController* owner = self.dolphinController;
   if (!session || self.achievementPresentationSession != session || !owner || self.stopInProgress) return;
+  NSDictionary* configuration = self.achievementConfiguration;
+  if (![configuration[@"enabled"] boolValue] || ![configuration[@"supported"] boolValue] ||
+      self.systemMenuSession) return;
   if ([event[@"kind"] intValue] == 0) { RBAchievementPrefetch(@[event]); return; }
+  if (![configuration[@"notifications"] boolValue]) return;
   NSString* suffix = [event[@"kind"] intValue] == 1 ? [event[@"points"] stringValue] : event[@"progress"];
   __weak DolphinInternalBridgePlugin* weakSelf = self;
   __weak DOLDolphinViewController* weakOwner = owner;
@@ -958,7 +962,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       }, ^BOOL {
         DolphinInternalBridgePlugin* active = weakSelf;
         return active && weakOwner && active.dolphinController == weakOwner && !active.stopInProgress &&
-            active.achievementPresentationSession == session;
+            active.achievementPresentationSession == session &&
+            active.achievementConfiguration == configuration && [configuration[@"notifications"] boolValue];
       });
 }
 

@@ -927,7 +927,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     __weak LibretroSession *weakSelf = self;
     _achievements.unlocked = ^(NSUInteger achievementID, NSString *title, NSString *description) {
       LibretroSession *session = weakSelf;
-      if (session == nil || session->_controller == nil) return;
+      if (session == nil || session->_controller == nil ||
+          ![session->_achievementSession[@"notifications"] boolValue]) return;
       __weak LibretroGameViewController *owner = session->_controller;
       RBAchievementPresent(session->_controller, achievementID, title, description, @"", 4.0, 1, ^UIView* {
         UIViewController* controller = owner;
@@ -938,7 +939,9 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
         return controller.view;
       }, ^BOOL {
         LibretroSession *active = weakSelf;
-        if (active == nil || owner == nil || active->_controller != owner) return NO;
+        if (active == nil || owner == nil || active->_controller != owner ||
+            atomic_load(&active->_achievementSessionEnded) ||
+            ![active->_achievementSession[@"notifications"] boolValue]) return NO;
         [active->_condition lock];
         BOOL stopped = active->_stopRequested || active->_coreStopRequested;
         [active->_condition unlock];
