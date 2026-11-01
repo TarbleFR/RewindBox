@@ -72,6 +72,58 @@ class Inventory608(unittest.TestCase):
             self.assertEqual((root / 'retained' / path).read_bytes(), (source / path).read_bytes())
 
 
+class ARMSX2ShaderResources608(unittest.TestCase):
+    """Presets and native renderer shaders share the packaged shaders directory."""
+    def setUp(self):
+        self.prefix = 'ARMSX2Core.framework/shaders/'
+        self.assets = {f'presets/preset-{i}.slangp': baseline.sha(f'preset{i}'.encode()) for i in range(12)}
+        self.assets.update({f'stages/stage-{i}.slang': baseline.sha(f'stage{i}'.encode()) for i in range(16)})
+        native = {f'opengl/native-{i}.glsl': baseline.sha(f'native{i}'.encode()) for i in range(24)}
+        self.files = {**self.assets, **native}
+        self.manifest = {self.prefix + name: digest for name, digest in self.files.items()}
+        self.manifest['identity.json'] = baseline.sha(b'unrelated authenticated member')
+        self.identity = dict(bundled_shader_presets=12, bundled_shader_files=28,
+                             bundled_shader_sha256=self.assets)
+
+    def test_all_native_shaders_and_the_28_ios_assets_are_preserved(self):
+        self.assertEqual(len(self.files), 52)
+        producers.validate_armsx2_shaders(self.identity, self.manifest, self.files)
+
+    def test_added_removed_or_changed_native_resource_rejected(self):
+        changed = dict(self.files, **{'opengl/native-0.glsl': '0' * 64})
+        removed = {name: value for name, value in self.files.items() if name != 'opengl/native-0.glsl'}
+        added = dict(self.files, **{'unreviewed.glsl': '0' * 64})
+        for files in (changed, removed, added):
+            with self.subTest(files=len(files)):
+                with self.assertRaisesRegex(ValueError, 'producer inventory'):
+                    producers.validate_armsx2_shaders(self.identity, self.manifest, files)
+
+    def test_ios_asset_source_hash_still_required_with_matching_complete_inventory(self):
+        for replacement in (None, '0' * 64):
+            files = dict(self.files)
+            if replacement is None:
+                files.pop('stages/stage-0.slang')
+            else:
+                files['stages/stage-0.slang'] = replacement
+            manifest = {self.prefix + name: digest for name, digest in files.items()}
+            with self.subTest(replacement=replacement):
+                with self.assertRaisesRegex(ValueError, 'iOS shader assets'):
+                    producers.validate_armsx2_shaders(self.identity, manifest, files)
+
+    def test_extra_preset_rejected_even_when_complete_inventory_matches(self):
+        files = dict(self.files, **{'presets/unreviewed.slangp': '0' * 64})
+        manifest = {self.prefix + name: digest for name, digest in files.items()}
+        with self.assertRaisesRegex(ValueError, 'iOS shader assets'):
+            producers.validate_armsx2_shaders(self.identity, manifest, files)
+
+    def test_identity_counts_or_incomplete_asset_manifest_rejected(self):
+        for change in ({'bundled_shader_presets': 11}, {'bundled_shader_files': 27},
+                       {'bundled_shader_sha256': dict(list(self.assets.items())[:-1])}):
+            with self.subTest(change=change):
+                with self.assertRaisesRegex(ValueError, 'iOS shader assets'):
+                    producers.validate_armsx2_shaders(dict(self.identity, **change), self.manifest, self.files)
+
+
 class SameRun608(unittest.TestCase):
     def setUp(self):
         self.execution = dict(source='a' * 40, tree='b' * 40, run=123, attempt=2)

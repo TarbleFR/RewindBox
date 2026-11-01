@@ -105,7 +105,12 @@ def seal():
 
 
 def contract():
-    return save('rewind608-host-contract.json', tree.verify())
+    value = tree.verify()
+    from rewind608_reuse import enabled
+    if enabled():
+        value = dict(value, rebuiltForDelivery=['Flutter application'],
+            reusedForDelivery=['Dolphin', 'ARMSX2'], prerequisiteEvidenceMode='reused')
+    return save('rewind608-host-contract.json', value)
 
 
 def baseline():
@@ -184,15 +189,19 @@ def expected():
     require(application['source'] == git('rev-parse', 'HEAD') and application['build'] == BUILD,
             'Application checkout changed after the contract')
     tests = json.loads((OUT / 'rewind608-tests.json').read_bytes())
-    require(set(tests) == {'flutter', 'native'} and
-            all(t['execution'] == producers.execution() for t in tests.values()),
-            'Fresh608 prerequisite test evidence is absent')
+    from rewind608_reuse import enabled, verified_guard
+    recovery = verified_guard() if enabled() else None
+    require(set(tests) == {'flutter', 'native'}, '608 prerequisite test evidence is absent')
     cores = {kind: json.loads((OUT / f'rewind608-{kind}.json').read_bytes()) for kind in ('dolphin', 'armsx2')}
-    require(all(c['execution'] == producers.execution() for c in cores.values()), 'Wrong608 native producer')
+    for kind, value in {**tests, **cores}.items():
+        origin = producers.origin(kind)
+        require(all(value.get(key) == origin[key] for key in origin),
+                '608 evidence differs from its authenticated original producer: ' + kind)
     rpc_receipt = rpc.core_receipt()
     require(rpc_receipt['corePayloadFingerprint'] == RPC607_FINGERPRINT,
             '608 would replace the actual recovered607 RPCS3 payload')
-    return dict(schema=1, build=BUILD, application=application, freshTests=tests,
+    return dict(schema=1, build=BUILD, application=application, testEvidence=tests,
+        evidenceMode='reused' if recovery else 'fresh', recoveryValidation=recovery,
         **cores, retainedRPCS3=rpc_receipt, retainedMeloNX=engine.engine_evidence(),
         physicalDeviceTested=False, translationModelsTestedOnDevice=False,
         gameTested=False, fpsGainProven=False)

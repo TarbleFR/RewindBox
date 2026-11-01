@@ -1,4 +1,4 @@
-"""Create and authenticate same-run608 producer artifacts, never older fallbacks."""
+"""Authenticate fresh608 artifacts or the explicitly pinned, input-equivalent recovery."""
 from __future__ import annotations
 
 import argparse
@@ -90,6 +90,25 @@ def member_hashes(folder, excluded=()):
     return result
 
 
+def validate_armsx2_shaders(identity, producer_files, shader_files):
+    """Verify both upstream resource trees against their authenticated receipts.
+
+    target.cmake packages bin/resources/shaders as well as the iOS asset tree.
+    verify_core.py's bundled_shader_sha256 describes only that second tree;
+    producer608.files binds every packaged file from both trees.
+    """
+    prefix = 'ARMSX2Core.framework/shaders/'
+    complete = {name.removeprefix(prefix): digest for name, digest in producer_files.items()
+                if name.startswith(prefix)}
+    require(complete and shader_files == complete,
+            'ARMSX2 shader resources differ from producer inventory')
+    assets = identity['bundled_shader_sha256']
+    require(identity['bundled_shader_presets'] == 12 and identity['bundled_shader_files'] == 28 and
+            len(assets) == 28 and all(shader_files.get(name) == digest for name, digest in assets.items()) and
+            sum(name.endswith('.slangp') for name in shader_files) == 12,
+            'ARMSX2 bundled iOS shader assets differ')
+
+
 def retain_patched_sources(source, destination):
     """Keep actual modified upstream files, including generated untracked units."""
     paths = set(subprocess.check_output(['git', 'diff', '--name-only', 'HEAD'], cwd=source, text=True).splitlines())
@@ -152,6 +171,9 @@ def api(endpoint):
 
 
 def origin(kind):
+    from rewind608_reuse import enabled, origin as reused_origin
+    if enabled():
+        return reused_origin(kind)
     current = execution()
     require(kind in JOBS, 'Unknown608 producer')
     run = api('actions/runs/' + str(current['run']))
@@ -178,7 +200,7 @@ def origin(kind):
     require(artifact['name'] == expected_name and artifact['digest'] == 'sha256:' + digest and
             not artifact['expired'] and artifact['workflow_run']['id'] == current['run'] and
             artifact['workflow_run']['head_sha'] == current['source'], 'Wrong608 artifact binding: ' + kind)
-    return dict(result='authenticated', kind=kind, execution=current, job=job['id'],
+    return dict(result='authenticated', evidenceMode='fresh', kind=kind, execution=current, job=job['id'],
                 artifact=artifact_id, artifactName=expected_name,
                 archiveSHA256=digest, archiveBytes=artifact['size_in_bytes'])
 
@@ -212,9 +234,12 @@ def tests():
         value, directory = fetch(kind)
         receipt = json.loads((directory / 'validation.json').read_bytes())
         require(receipt['result'] == 'passed' and receipt['group'] == kind and
-                receipt['execution'] == execution(), 'Wrong608 test execution receipt')
-        require(receipt['sourceScopeSHA256'] == sha((ROOT / tree.CONFIG).read_bytes()),
-                'Tests were run on another reviewed source scope')
+                receipt['execution'] == value['execution'], 'Wrong608 test execution receipt')
+        from rewind608_reuse import source_bytes, verified_guard
+        scope = (sha(source_bytes(value['execution']['source'], tree.CONFIG))
+                 if value['evidenceMode'] == 'reused' else sha((ROOT / tree.CONFIG).read_bytes()))
+        require(receipt['sourceScopeSHA256'] == scope,
+                'Tests were run on another original reviewed source scope')
         require(receipt['commands'] and all(c['exitCode'] == 0 for c in receipt['commands']),
                 'A required608 test command did not succeed')
         from rewind608_checks import command_names
@@ -226,22 +251,35 @@ def tests():
         if kind == 'native':
             require(receipt['xcodeVersion'].startswith('Xcode 16.4\n'), 'Wrong targeted native compiler')
             require('Apple Swift version 6.' in receipt['swiftVersion'], 'Translation was not compiled with Swift6')
-        checked[kind] = dict(value, receipt=receipt)
+        command_evidence = []
+        recovery = verified_guard() if value['evidenceMode'] == 'reused' else None
+        for command in receipt['commands']:
+            current = (next(c for c in recovery['receipt']['affectedChecks']
+                            if c['name'] == 'delivery-contract-tests')
+                       if recovery and command['name'] == 'delivery-contract-tests' else None)
+            command_evidence.append(dict(name=command['name'],
+                evidenceMode='fresh' if current else value['evidenceMode'],
+                execution=recovery['execution'] if current else value['execution'],
+                argv=current['argv'] if current else command['argv'],
+                logSHA256=current['logSHA256'] if current else command['logSHA256']))
+        checked[kind] = dict(value, receipt=receipt, commandEvidence=command_evidence)
     return save(OUT / 'rewind608-tests.json', checked)
 
 
 def native(kind):
     value, directory = fetch(kind)
     record = json.loads((directory / 'producer608.json').read_bytes())
+    from rewind608_reuse import original_input_hashes
+    expected_inputs = original_input_hashes(kind) if value['evidenceMode'] == 'reused' else input_hashes(kind)
     require(record['schema'] == 1 and record['build'] == 608 and record['kind'] == kind and
-            record['execution'] == execution() and record['inputs'] == input_hashes(kind),
+            record['execution'] == value['execution'] and record['inputs'] == expected_inputs,
             'Native608 compiled inputs differ')
     require(record['files'] == member_hashes(directory, ('producer608.json',)),
             'Native608 artifact member changed, missing or added')
     require(record['compiledSourcePostimages'] == member_hashes(directory / 'patched-source608'),
             'Actual patched upstream source snapshot differs')
     identity = json.loads((directory / 'identity.json').read_bytes())
-    require(identity['host_commit'] == execution()['source'] and identity['architectures'] == ['arm64'],
+    require(identity['host_commit'] == value['execution']['source'] and identity['architectures'] == ['arm64'],
             'Wrong608 native host/architecture')
     sys.path[:0] = [str(ROOT / 'packages/dolphin_internal_bridge/ci'), str(ROOT / 'build-utils')]
     from verify_ipa import macho
@@ -256,7 +294,7 @@ def native(kind):
     if kind == 'dolphin':
         require(record['upstreamRevision'] == identity['source_revision'] == DOLPHIN_SOURCE and
                 identity['achievement_session_policy'] == 1 and identity['achievement_presenter'] == 1 and
-                identity['use_retro_achievements'] is True and identity['source_inputs'] == input_hashes(kind),
+                identity['use_retro_achievements'] is True and identity['source_inputs'] == expected_inputs,
                 'Wrong608 Dolphin policy provenance')
         require(DOLPHIN_EXPORTS <= set(image['definedSymbols']), 'Missing additive Dolphin RA exports')
         replacements = ((directory / 'DolphinCore.framework', ROOT / 'packages/dolphin_internal_bridge/ios/Frameworks/DolphinCore.framework'),
@@ -277,9 +315,7 @@ def native(kind):
                 'Wrong ARMSX2 ABI9/release/shader contract')
         require(set(image['definedSymbols']) == {'_NeoARMSX2_GetAPI'}, 'ARMSX2 exported ABI changed')
         shaders = directory / 'ARMSX2Core.framework/shaders'
-        require(identity['bundled_shader_presets'] == 12 and identity['bundled_shader_files'] == 28 and
-                len(list(shaders.rglob('*.slangp'))) == 12 and
-                identity['bundled_shader_sha256'] == member_hashes(shaders), 'ARMSX2 shader resources differ')
+        validate_armsx2_shaders(identity, record['files'], member_hashes(shaders))
         destination = ROOT / 'dist/armsx2'
         if destination.exists():
             shutil.rmtree(destination)
@@ -288,14 +324,14 @@ def native(kind):
     fast_path = ROOT / 'build/fast-native/identity.json'
     fast = json.loads(fast_path.read_bytes())
     prefix = 'dolphin' if kind == 'dolphin' else 'armsx2'
-    fast.update({prefix + 'CoreSha256': identity['sha256'], prefix + 'CoreHostCommit': execution()['source'],
-                 prefix + 'CoreRunId': execution()['run'], prefix + 'SourceRevision': record['upstreamRevision']})
+    fast.update({prefix + 'CoreSha256': identity['sha256'], prefix + 'CoreHostCommit': value['execution']['source'],
+                 prefix + 'CoreRunId': value['execution']['run'], prefix + 'SourceRevision': record['upstreamRevision']})
     if kind == 'dolphin':
         fast.update(dolphinAchievementPresentationVersion=1, dolphinAchievementSessionPolicyVersion=1)
     save(fast_path, fast)
     return save(OUT / f'rewind608-{kind}.json', dict(value, identity=identity,
         payloadFingerprint=payload_fingerprint(raw), sourceInputs=record['inputs'],
-        compiledSourcePostimages=record['compiledSourcePostimages'], physicalDeviceTested=False))
+        candidateSourceInputs=input_hashes(kind), compiledSourcePostimages=record['compiledSourcePostimages'], physicalDeviceTested=False))
 
 
 if __name__ == '__main__':

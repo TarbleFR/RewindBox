@@ -4,7 +4,13 @@ run-name: RewindBox Build608 - RA session - ${{ github.sha }}
   push:
     branches:
     - Claude
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      reuse_0279198:
+        description: Reuse only verified0279198 tests and cores; fail on any changed input
+        type: boolean
+        required: false
+        default: false
 permissions:
   contents: read
   actions: read
@@ -33,6 +39,7 @@ jobs:
     - name: Require reviewed607 delta and authenticated retained producer archives
       run: python3 -B .github/diagnostics/rewind608_delivery.py retained-ready
   flutter:
+    if: ${{ !(inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) }}
     name: Build608 source and Flutter tests
     needs: preflight
     runs-on: ubuntu-latest
@@ -67,6 +74,7 @@ jobs:
         if-no-files-found: error
         retention-days: 14
   native:
+    if: ${{ !(inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) }}
     name: Build608 Xcode16.4 native tests
     needs: preflight
     runs-on: macos-15
@@ -122,6 +130,7 @@ jobs:
         if-no-files-found: warn
         retention-days: 14
   dolphin:
+    if: ${{ !(inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) }}
     name: Build608 Dolphin arm64
     runs-on: macos-15
     timeout-minutes: 180
@@ -287,6 +296,7 @@ jobs:
       artifact-id: ${{ steps.core.outputs.artifact-id }}
       artifact-digest: ${{ steps.core.outputs.artifact-digest }}
   armsx2:
+    if: ${{ !(inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) }}
     name: Build608 ARMSX2 ABI9 arm64
     runs-on: macos-26
     timeout-minutes: 90
@@ -415,14 +425,54 @@ jobs:
     outputs:
       artifact-id: ${{ steps.core.outputs.artifact-id }}
       artifact-digest: ${{ steps.core.outputs.artifact-digest }}
+  reuse:
+    name: Build608 reuse verified0279198 prerequisites
+    needs: preflight
+    if: ${{ (inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      REWIND608_REUSE: 0279198b1c33d869550cae3cf35f155b9d3a4f79
+    outputs:
+      artifact-id: ${{ steps.proof.outputs.artifact-id }}
+      artifact-digest: ${{ steps.proof.outputs.artifact-digest }}
+      flutter-artifact-id: ${{ steps.check.outputs.flutter-artifact-id }}
+      flutter-artifact-digest: ${{ steps.check.outputs.flutter-artifact-digest }}
+      native-artifact-id: ${{ steps.check.outputs.native-artifact-id }}
+      native-artifact-digest: ${{ steps.check.outputs.native-artifact-digest }}
+      dolphin-artifact-id: ${{ steps.check.outputs.dolphin-artifact-id }}
+      dolphin-artifact-digest: ${{ steps.check.outputs.dolphin-artifact-digest }}
+      armsx2-artifact-id: ${{ steps.check.outputs.armsx2-artifact-id }}
+      armsx2-artifact-digest: ${{ steps.check.outputs.armsx2-artifact-digest }}
+    steps:
+    - name: Checkout exact candidate and original history
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.sha }}
+        fetch-depth: 0
+        persist-credentials: false
+    - name: Authenticate identical inputs and run only affected recipe contracts
+      id: check
+      run: python3 -B .github/diagnostics/rewind608_reuse.py prepare
+    - name: Preserve explicit reused-origin proof and current contract logs
+      id: proof
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: RewindBox608-reuse-${{ github.sha }}-attempt${{ github.run_attempt }}
+        path: build/validation608/reuse/
+        if-no-files-found: error
+        retention-days: 14
   application:
     name: Build608 full Flutter IPA with exact607 retained engines
+    if: ${{ always() && !cancelled() && needs.preflight.result == 'success' && (((inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && needs.reuse.result == 'success' && needs.flutter.result == 'skipped' && needs.native.result == 'skipped' && needs.dolphin.result == 'skipped' && needs.armsx2.result == 'skipped') || (!(inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && needs.reuse.result == 'skipped' && needs.flutter.result == 'success' && needs.native.result == 'success' && needs.dolphin.result == 'success' && needs.armsx2.result == 'success')) }}
     needs:
     - preflight
     - flutter
     - native
     - dolphin
     - armsx2
+    - reuse
     runs-on: macos-15
     timeout-minutes: 120
     env:
@@ -431,8 +481,8 @@ jobs:
       IPA_NAME: NeoStation
       ARTIFACT_NAME: RewindBox-Build608-${{ github.sha }}-attempt${{ github.run_attempt }}-cold
       DOLPHIN_SHA: 7cac54161659421ed95c2cd1c0b0746539a4cd38
-      ARMSX2_CORE_HOST_SHA: ${{ github.sha }}
-      ARMSX2_CORE_RUN_ID: ${{ github.run_id }}
+      ARMSX2_CORE_HOST_SHA: ${{ (inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && '0279198b1c33d869550cae3cf35f155b9d3a4f79' || github.sha }}
+      ARMSX2_CORE_RUN_ID: ${{ (inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && '41293321826' || github.run_id }}
       RPCS3_CORE_HOST_SHA: a4ae86d085c231e3c5c93f7f72d2eced0f38ec24
       RPCS3_CORE_RUN_ID: '41243687649'
       LIBRETRO_CORES_HOST_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
@@ -447,16 +497,19 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       BUNDLE_PATH: ${{ github.workspace }}/build/ruby-gems
       DELIVERY_MODE: cold
-      DOLPHIN_CORE_HOST_SHA: ${{ github.sha }}
-      DOLPHIN_CORE_RUN_ID: ${{ github.run_id }}
-      FLUTTER_ARTIFACT_ID: ${{ needs.flutter.outputs.artifact-id }}
-      FLUTTER_ARTIFACT_DIGEST: ${{ needs.flutter.outputs.artifact-digest }}
-      NATIVE_ARTIFACT_ID: ${{ needs.native.outputs.artifact-id }}
-      NATIVE_ARTIFACT_DIGEST: ${{ needs.native.outputs.artifact-digest }}
-      DOLPHIN_ARTIFACT_ID: ${{ needs.dolphin.outputs.artifact-id }}
-      DOLPHIN_ARTIFACT_DIGEST: ${{ needs.dolphin.outputs.artifact-digest }}
-      ARMSX2_ARTIFACT_ID: ${{ needs.armsx2.outputs.artifact-id }}
-      ARMSX2_ARTIFACT_DIGEST: ${{ needs.armsx2.outputs.artifact-digest }}
+      REWIND608_REUSE: ${{ (inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && '0279198b1c33d869550cae3cf35f155b9d3a4f79' || '' }}
+      REUSE_ARTIFACT_ID: ${{ needs.reuse.outputs.artifact-id }}
+      REUSE_ARTIFACT_DIGEST: ${{ needs.reuse.outputs.artifact-digest }}
+      DOLPHIN_CORE_HOST_SHA: ${{ (inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && '0279198b1c33d869550cae3cf35f155b9d3a4f79' || github.sha }}
+      DOLPHIN_CORE_RUN_ID: ${{ (inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && '41293321826' || github.run_id }}
+      FLUTTER_ARTIFACT_ID: ${{ (inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && needs.reuse.outputs.flutter-artifact-id || needs.flutter.outputs.artifact-id }}
+      FLUTTER_ARTIFACT_DIGEST: ${{ (inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && needs.reuse.outputs.flutter-artifact-digest || needs.flutter.outputs.artifact-digest }}
+      NATIVE_ARTIFACT_ID: ${{ (inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && needs.reuse.outputs.native-artifact-id || needs.native.outputs.artifact-id }}
+      NATIVE_ARTIFACT_DIGEST: ${{ (inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && needs.reuse.outputs.native-artifact-digest || needs.native.outputs.artifact-digest }}
+      DOLPHIN_ARTIFACT_ID: ${{ (inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && needs.reuse.outputs.dolphin-artifact-id || needs.dolphin.outputs.artifact-id }}
+      DOLPHIN_ARTIFACT_DIGEST: ${{ (inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && needs.reuse.outputs.dolphin-artifact-digest || needs.dolphin.outputs.artifact-digest }}
+      ARMSX2_ARTIFACT_ID: ${{ (inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && needs.reuse.outputs.armsx2-artifact-id || needs.armsx2.outputs.artifact-id }}
+      ARMSX2_ARTIFACT_DIGEST: ${{ (inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[rewind608-reuse0279198]'))) && needs.reuse.outputs.armsx2-artifact-digest || needs.armsx2.outputs.artifact-digest }}
     steps:
     - name: Checkout exact candidate
       uses: actions/checkout@v4
@@ -607,9 +660,9 @@ jobs:
         assert not missing, f'Missing RPCS3 Core exports: {sorted(missing)}'
         assert not forbidden, f'Retired RPCS3 Core exports: {sorted(forbidden)}'
         PY
-    - name: Authenticate and install same-run608 Dolphin session Core
+    - name: Authenticate and install explicitly selected608 Dolphin session Core
       run: python3 -B .github/diagnostics/rewind608_delivery.py dolphin
-    - name: Authenticate and install same-run608 ARMSX2 ABI9 Core
+    - name: Authenticate and install explicitly selected608 ARMSX2 ABI9 Core
       run: python3 -B .github/diagnostics/rewind608_delivery.py armsx2
     - name: Prepare the retained libretro artifact destination
       run: |
@@ -805,7 +858,7 @@ jobs:
             'sha256': STORE_SHA256, 'bytes': len(copied), 'cocoaPodsSourcesEntryPresent': True,
             'nativeSuitesReplayed': False}, indent=2) + '\n')
         PY_STORE
-    - name: Authenticate actual same-run608 test jobs, receipts and command logs
+    - name: Authenticate original608 test jobs, current recovery guards and command logs
       run: python3 .github/diagnostics/rewind608_delivery.py tests
     - name: Compile Release device binary with measured AOT and Xcode phases
       shell: bash
