@@ -1,0 +1,86 @@
+{
+  "limits": [
+    "No Metal compilation, GPU execution, game, iPhone or frame measurement.",
+    "Programs A/B are composed around the real generated prologue; the full decompiler is not run."
+  ],
+  "schema": 1,
+  "shader_chain": {
+    "compiler": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "native_sources_sha256": {
+      "mvk_adapters.cpp": "4095103de532f8c9826929c56dfb13142a94441e555cadd3962e02f6bab8ae99",
+      "mvk_probe.cpp": "a63f201b2bc5004471bd501a8610eb35abedb892276961226f5cb164eb4d3e7e",
+      "prologue_adapters.cpp": "a622c78e6d758b5a80369b48f30bf3edec9ed95550f78c03edb91615fb1fe6c7",
+      "prologue_probe.cpp": "05090966be5ca0ea067d3eaffd7653b9152789c673d23d50fc0dce1bea0a0aaa",
+      "shim/TargetConditionals.h": "4061f25cc3988f86c27eb86d20ef14b8c1a57dff5422ea644de82f7f905dc9dc"
+    },
+    "prologue_invariant_sha256": "dd4dda2132120ef548aec6d62dfe644e3704c116578ef4d7f27eee6ddd9641f2",
+    "prologue_plain_sha256": "d9d460d2a40c6c5432678896258bcc15691b3275f4582e847646bf90641a7d54",
+    "shaders": {
+      "invariant-A": {
+        "converted": true,
+        "glsl_sha256": "7aa1722107b3bd6c0751734c25213410eadeb64fe58bd5a34b443e6df36c9e15",
+        "msl_position_attribute": "position, invariant",
+        "mvk_fpFastMathFlags": "0xffffffff",
+        "mvk_isPositionInvariant": true,
+        "spirv_position_invariant_decoration": true,
+        "spirv_sha256": "485b2063a1761015789f3faa5cc197cc89ea3f683b64e65377c1d38fc3f86944"
+      },
+      "invariant-B": {
+        "converted": true,
+        "glsl_sha256": "01bf7733e8272b92e0c9e974e48af38f03d6eab82903cb274ea38e4c5f451dc7",
+        "msl_position_attribute": "position, invariant",
+        "mvk_fpFastMathFlags": "0xffffffff",
+        "mvk_isPositionInvariant": true,
+        "spirv_position_invariant_decoration": true,
+        "spirv_sha256": "14a5f751de74b8bc0f02ee2a20708ba128f2bdb05f4448e91c3e6799d1b2f9f2"
+      },
+      "plain-A": {
+        "converted": true,
+        "glsl_sha256": "152cb032135789f899555cf09e954ec4a0b30ab4b7625d5884327c9e779f8144",
+        "msl_position_attribute": "position",
+        "mvk_fpFastMathFlags": "0xffffffff",
+        "mvk_isPositionInvariant": false,
+        "spirv_position_invariant_decoration": false,
+        "spirv_sha256": "9c2c936a99334418cae3a748c282f7649bc1b92307b722ad59b9a1d4462c4a70"
+      },
+      "plain-B": {
+        "converted": true,
+        "glsl_sha256": "0b81c4d6abcc8736577f8ba0ce03df29d92d471b1efe3b086f758b395cd045b2",
+        "msl_position_attribute": "position",
+        "mvk_fpFastMathFlags": "0xffffffff",
+        "mvk_isPositionInvariant": false,
+        "spirv_position_invariant_decoration": false,
+        "spirv_sha256": "8a95ba955ff7244061f0a35b005e67fb2b15f15904b3c2f1c8c7603f5bd39b2e"
+      }
+    },
+    "tool_pins": {
+      "glslang": "f0bd0257c308b9a26562c1a30c4748a0219cc951",
+      "moltenvk": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+      "spirv_cross": "6c09849fe88c48eaed08413aa022aaa136a3a057"
+    }
+  },
+  "source_contract": {
+    "levers_sha256": "e2fe6c906db5f7c27726c0247094e1a76fcbee4ed0765b4898ab2c2e3cbdcf6c",
+    "non_ios_line_unchanged": true,
+    "policy_cpp_sha256": "a99e4b0fd01d7e724d64d329891205d424326be2c8c0fc2222d4dffb54573138",
+    "policy_h_sha256": "caeb669cca75c5878c4fe424962e06174d25725ed16a19b21d111246babf5bd1",
+    "vertex_sha256": "30bb6c6a19295dd25c1be70d96b293f0b90aefd814e34b06bcb2fbf776263ab5"
+  },
+  "title_predicate": {
+    "result": "pass",
+    "scoped": [
+      "BLES01717",
+      "BLES00158",
+      "BLUS30089"
+    ],
+    "unscoped_checked": [
+      "BCES00510",
+      "BCUS98111",
+      "BLES01658",
+      "BLES00113",
+      "BLUS30070",
+      "BLUS31011",
+      "NPEB00000"
+    ]
+  }
+}

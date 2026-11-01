@@ -240,10 +240,13 @@ void main() {
       () async {
         // Build 589: the build 585 logs show Black Ops II's signature, about
         // one million data-changing PUTLLC per window under the writer lock.
+        // Build 609: asynchronous texture streaming off again, as for God of
+        // War III; the Core decides asynchronous MoltenVK submits.
         for (final serial in <String>['BLES00158', 'BLUS30089']) {
           final profile = Rpcs3GameProfileService.profileForSerial(serial)!;
           expect(profile.settings, <String, String>{
             'advanced.accurate_spu_reservations': 'false',
+            'gpu.async_texture_uploads': 'false',
           });
           final payload =
               await Rpcs3GameProfileService.databasePayloadForSerials(
@@ -256,7 +259,8 @@ void main() {
               (games[serial] as Map<String, dynamic>)['config'] as String;
           expect(yaml, contains('Accurate SPU Reservations: false'));
           expect(yaml, contains('Multithreaded RSX: true'));
-          expect(yaml, contains('Asynchronous Texture Streaming: true'));
+          expect(yaml, contains('Asynchronous Texture Streaming: false'));
+          expect(yaml, isNot(contains('Asynchronous Texture Streaming: true')));
           expect(yaml, contains('Relaxed ZCULL Sync: true'));
           expect(yaml, isNot(contains('MoltenVK Asynchronous Submits')));
         }

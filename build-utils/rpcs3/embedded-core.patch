@@ -25013,6 +25013,39 @@ index d9e9cee..7074463 100644
  		}
  
  		if (!in_cache)
+diff --git a/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp b/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp
+index 23efdce..68ba1ac 100644
+--- a/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp
++++ b/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp
+@@ -6,6 +6,10 @@
+ #include "vkutils/device.h"
+ #include "../Program/GLSLCommon.h"
+ 
++#ifdef RPCS3_IOS
++#include "ios/RPCS3IOSExperimentalPolicy.h"
++#endif
++
+ std::string VKVertexDecompilerThread::getFloatTypeName(usz elementCount)
+ {
+ 	return glsl::getFloatTypeNameImpl(elementCount);
+@@ -343,7 +347,17 @@ void VKVertexDecompilerThread::insertMainStart(std::stringstream& OS)
+ 	properties2.emulate_zclip_transform = true;
+ 	properties2.emulate_depth_clip_only = vk::g_render_device->get_shader_types_support().allow_float64;
+ 	properties2.low_precision_tests = vk::is_NVIDIA(vk::get_driver_vendor());
++#ifdef RPCS3_IOS
++	// REWINDBOX_POSITION_INVARIANCE_609: MoltenVK compiles these shaders with fast math
++	// and asks Metal for preserveInvariance only for an invariant position. The scoped
++	// titles (ios/IOSTitleLevers.h) declare it as upstream does on NVIDIA, under the same
++	// shader precision condition. Resolved before the renderer exists, never during a frame.
++	properties2.require_explicit_invariance = (vk::is_NVIDIA(vk::get_driver_vendor()) ||
++		rpcs3::ios::get_experimental_policy().position_invariance) &&
++		g_cfg.video.shader_precision != gpu_preset_level::low;
++#else
+ 	properties2.require_explicit_invariance = (vk::is_NVIDIA(vk::get_driver_vendor()) && g_cfg.video.shader_precision != gpu_preset_level::low);
++#endif
+ 	properties2.require_instanced_render = !!(m_prog.ctrl & RSX_SHADER_CONTROL_INSTANCED_CONSTANTS);
+ 
+ 	glsl::insert_glsl_legacy_function(OS, properties2);
 diff --git a/rpcs3/Emu/RSX/VK/upscalers/fsr1/fsr_pass.cpp b/rpcs3/Emu/RSX/VK/upscalers/fsr1/fsr_pass.cpp
 index dd10f2a..e1f251b 100644
 --- a/rpcs3/Emu/RSX/VK/upscalers/fsr1/fsr_pass.cpp
@@ -33176,10 +33209,10 @@ index 0000000..0f2f94b
 +}
 diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
 new file mode 100644
-index 0000000..4d0bcdd
+index 0000000..1f3aa90
 --- /dev/null
 +++ b/rpcs3/ios/IOSTitleLevers.h
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,87 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -33218,6 +33251,32 @@ index 0000000..4d0bcdd
 +// preparation per frame (RSXFRAME551 texture_ms) and no epoch (OPT559
 +// texture_epoch=0): every texture lookup hashing again.
 +// Serials of the shipped cheat catalogue (BLES00158, BLUS30089).
++//
++// REWINDBOX_POSITION_INVARIANCE_609: Black Ops II (weapon and forearm
++// corruption, reported since it became playable with 587) and Assassin's Creed
++// (flicker on torch-lit walls) are still reported on the delivered 608, whose
++// colour-feedback copy, sampler refresh and vertex-range corrections left
++// RENDERCAUSE at zero in those scenes on the 601 logs. On Apple GPUs every
++// RPCS3 shader is compiled with MTLMathModeFast: its SPIR-V carries no float
++// controls, so SPIRV-Cross reports every fast-math flag and MoltenVK selects
++// them. No vertex shader declares an invariant position, so MoltenVK never
++// requests preserveInvariance either. Two pipelines that compute the same RSX
++// position may then round it differently, and a later pass that tests against
++// the depth of an earlier one (EQUAL light pass, depth prepass) fails on some
++// pixels. RPCS3 already forces position invariance on NVIDIA ("PS3 has shader
++// invariance"); these titles get the same declaration on iOS. It is the
++// hypothesis to check on the same iPhone scenes, not a measured fix. Their
++// vertex SPIR-V changes once, so their vertex Metal libraries are compiled again
++// on the next boot; fragment shaders and the PPU/SPU caches are unchanged.
++//
++// REWINDBOX_AC_MVK_ASYNC_609: Assassin's Creed joins God of War III in the
++// Automatic mode of asynchronous MoltenVK submits (CELL587). Its build 601 game
++// windows 22-37 (PID 55119, 27-36 fps) keep the RSX FIFO busy 60-97 % and spend
++// 0.93-1.36 s per 5 s window inside vkQueueSubmit (4,065-5,435 submits, RSXSYNC
++// submit=), the Metal encoding that the RSX thread waits for at each submission,
++// above the 490-640 ms that made God of War III the first Automatic title. The
++// boot canary of 587 still returns the title to synchronous submits after a boot
++// that did not finish. No frame-rate gain is measured yet.
 +namespace rpcs3::ios::title_levers
 +{
 +constexpr bool is_black_ops_ii_title(std::string_view title_id) noexcept
@@ -33233,6 +33292,12 @@ index 0000000..4d0bcdd
 +constexpr bool is_assassins_creed_title(std::string_view title_id) noexcept
 +{
 +	return title_id == "BLES00158" || title_id == "BLUS30089";
++}
++
++// REWINDBOX_POSITION_INVARIANCE_609
++constexpr bool requires_position_invariance(std::string_view title_id) noexcept
++{
++	return is_black_ops_ii_title(title_id) || is_assassins_creed_title(title_id);
 +}
 +}
 diff --git a/rpcs3/ios/NeoStationSavestateIO.h b/rpcs3/ios/NeoStationSavestateIO.h
@@ -36840,7 +36905,7 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..cfe7333 100644
+index 7c3389b..29fc61e 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -1,10 +1,31 @@
@@ -37153,7 +37218,7 @@ index 7c3389b..cfe7333 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +336,120 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +336,127 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -37162,8 +37227,12 @@ index 7c3389b..cfe7333 100644
 +	// Metal encoding took 490-640 ms per 5 s window on build 583 (RSXSYNC551 submit), now that
 +	// acquisitions wait for the last queued present (ios/IOSMoltenVKExec.h), and only while its
 +	// last asynchronous boot finished (ios/IOSMoltenVKAsyncCanary.h).
++	// REWINDBOX_AC_MVK_ASYNC_609 adds Assassin's Creed: 0.93-1.36 s per window on build 601.
 +	resolved.moltenvk_async_submits = resolve_mvk_async(title_id,
-+		resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits, is_god_of_war_iii_title(title_id)));
++		resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits,
++			is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id)));
++	// REWINDBOX_POSITION_INVARIANCE_609: no setting; the title list is the only input.
++	resolved.position_invariance = rpcs3::ios::title_levers::requires_position_invariance(title_id);
 +
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
 +	resolve_spu_spin_timing(resolved);
@@ -37203,9 +37272,11 @@ index 7c3389b..cfe7333 100644
 +	// appends spin_timing= fifo_idle= spuobj_keys= warmup_scope= plus the
 +	// counter facts behind spin_timing: cntfrq=, timer_scale= and
 +	// getllar_ticks=<refail>/<spin window>/<forced sleep>.
++	// REWINDBOX_POSITION_INVARIANCE_609 appends position_invariance= and mvk_async=
++	// (the policy request; the canary may still turn the latter off at instance creation).
  	ios_experimental_log.notice(
 -		"Resolved boot policy: swap=%d restart=%d precomputed=%d mobile_spu=%d fifo=%u wfe=%d deferred_get=%d getllar=%d rsx_park=%d vk_cb_reclaim=%d spu_scratch=%u spu_object_cache=%d",
-+		"Resolved boot policy: swap=%d restart=%d precomputed=%d mobile_spu=%d fifo=%u wfe=%d deferred_get=%d getllar=%d rsx_park=%d vk_cb_reclaim=%d spu_scratch=%u spu_object_cache=%d gow3_mlaa=%d spin_timing=%s fifo_idle=%s spuobj_keys=%u warmup_scope=%s cntfrq=%u timer_scale=%u getllar_ticks=%u/%u/%u",
++		"Resolved boot policy: swap=%d restart=%d precomputed=%d mobile_spu=%d fifo=%u wfe=%d deferred_get=%d getllar=%d rsx_park=%d vk_cb_reclaim=%d spu_scratch=%u spu_object_cache=%d gow3_mlaa=%d spin_timing=%s fifo_idle=%s spuobj_keys=%u warmup_scope=%s cntfrq=%u timer_scale=%u getllar_ticks=%u/%u/%u position_invariance=%d mvk_async=%d",
  		resolved.neon_byte_swap, resolved.neon_primitive_restart, resolved.precomputed_indices,
  		resolved.mobile_spu_scheduling, resolved.fifo_cache_bytes, resolved.fifo_idle_wfe,
  		resolved.deferred_get_publishing, resolved.getllar_backoff, resolved.rsx_dma_wait_parking,
@@ -37215,7 +37286,8 @@ index 7c3389b..cfe7333 100644
 +		spin_timing_token(g_cfg.ios_experimental.spu_spin_timing), fifo_idle_token(g_cfg.ios_experimental.fifo_idle_mode),
 +		resolved.spu_object_cache_retained_keys, warmup_scope_token(g_cfg.ios_experimental.spu_warmup_scope),
 +		resolved.spu_spin_cntfrq, resolved.spu_spin_timer_scale,
-+		resolved.spu_spin.getllar_refail_ticks, resolved.spu_spin.getllar_spin_window_ticks, resolved.spu_spin.getllar_forced_sleep_ticks);
++		resolved.spu_spin.getllar_refail_ticks, resolved.spu_spin.getllar_spin_window_ticks, resolved.spu_spin.getllar_forced_sleep_ticks,
++		resolved.position_invariance, resolved.moltenvk_async_submits);
 +}
 +
 +void apply_spu_spin_timing_policy() noexcept
@@ -37285,7 +37357,7 @@ index 7c3389b..cfe7333 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..ca8c10d 100644
+index 8fba197..9d6278b 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -37325,13 +37397,17 @@ index 8fba197..ca8c10d 100644
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,14 +43,62 @@ struct experimental_policy
+@@ -20,14 +43,66 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
 +	bool gow3_mlaa_bypass = false;
 +	// REWINDBOX_MOLTENVK_ASYNC_SUBMITS_V1: read when the Vulkan instance is created.
 +	bool moltenvk_async_submits = false;
++	// REWINDBOX_POSITION_INVARIANCE_609 (ios/IOSTitleLevers.h): vertex programs
++	// declare an invariant position, as upstream does on NVIDIA. Title scoped,
++	// without a setting; read by the vertex decompiler after boot resolution.
++	bool position_invariance = false;
 +
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers), resolved once per boot
 +	// like the fields above; none of them enters an object-cache key.

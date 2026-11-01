@@ -189,8 +189,25 @@ abstract final class Rpcs3GameProfileService {
     // official RPCS3 entry (Multithreaded RSX, asynchronous texture
     // streaming, relaxed ZCULL) stays underneath and does not ask for
     // accurate reservations. Measured on the next run by the same counters.
-    'BLES00158': {'advanced.accurate_spu_reservations': 'false'},
-    'BLUS30089': {'advanced.accurate_spu_reservations': 'false'},
+    //
+    // Build 609: asynchronous texture streaming is turned off again, as for
+    // God of War III since Build 552. The desktop entry turns on, on
+    // MoltenVK, a second transfer queue synchronized with the graphics queue
+    // by semaphores; the 595 logs show this title as the only one running
+    // it (async_tex=true), with the torch flicker still reported on 608. The
+    // Core 609 also gives this title asynchronous MoltenVK submits
+    // (Automatic, behind the 587 encode barrier and boot canary): with
+    // streaming off, Assassin's Creed runs the combination God of War III
+    // runs on the iPhone (one queue, asynchronous encoding), not an untested
+    // pairing of both. No visual or frame-rate gain is established yet.
+    'BLES00158': {
+      'advanced.accurate_spu_reservations': 'false',
+      'gpu.async_texture_uploads': 'false',
+    },
+    'BLUS30089': {
+      'advanced.accurate_spu_reservations': 'false',
+      'gpu.async_texture_uploads': 'false',
+    },
 
     // ARMSX3 issue #77 is guest pacing rather than an Android driver hack.
     // PS3 Native honours the title's alternate-vblank flip cadence.
