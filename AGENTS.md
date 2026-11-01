@@ -50,6 +50,11 @@ the bridge cause not identified. 608's RetroAchievements session and
 translation features, the other engines and the `0279198` test evidence are
 retained. These liveness defects are demonstrated by executable
 reproductions, but they are **not proven** to cause the Hogwarts guard crash.
+**609 does not contain** the RetroAchievements credentials fix (`45d19d7`,
+[report](docs/ra-credentials-status-2026-11-01.md)) that landed on `Claude`
+after the 609 source `3d92f19`. 609 therefore keeps the 608 RA sign-in
+regression. The next IPA needs that fix with fresh Flutter/native tests and a
+full application build.
 Existing unrelated compiler warnings are retained (see the 609 log review).
 Device FPS and loading-time gains are still unmeasured; see
 [the device analysis](docs/hogwarts604-performance-2026-10-30.md).

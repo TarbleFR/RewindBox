@@ -161,6 +161,14 @@ cause is **not identified**: the 608 binaries are not available here for a
 section comparison. `melonx_internal_bridge` and `dolphin_internal_bridge`
 are unchanged.
 
+**Not in 609:** a concurrent session pushed the RetroAchievements
+credentials fix (`45d19d7`, `a57703b`;
+[report](ra-credentials-status-2026-11-01.md)) on top of the 609 source
+`3d92f19`. It was committed at 16:35 UTC, after this build completed at
+16:30, so IPA609 keeps the 608 RA sign-in regression. The head of `Claude` is
+no longer the 609 application source: the next IPA must include that fix with
+fresh Flutter/native tests and a full application build.
+
 The Xcode log has one `BUILD SUCCEEDED` marker and no errors. Every
 repository-owned warning listed for 608 is still present verbatim,
 including the four existing `NPMuxer.swift` concurrency warnings. The
