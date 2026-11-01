@@ -21,6 +21,9 @@ request on Darwin's main thread skips collection.
 | `managed.allocatedBytesApprox` | Approximate allocation delta across all managed threads, including diagnostic work. |
 | `managed.collections`, `gcPauseMs` | Collection-count deltas for generations 0/1/2 and cumulative GC pause-time delta. Background GC CPU cost is a separate host-thread measurement. |
 | `lastGc*` | Statistics from the last completed GC, identified by `lastGcIndex`; these are not current process RSS or physical memory pressure. |
+| `lastGcGeneration`, `lastGcConcurrent`, `lastGcCompacted`, `lastGcPromotedBytes` | Generation, background (1) or blocking (0), compaction and promoted bytes of that same last GC. Added after Build 608 (schema unchanged, fields only appended). |
+| `lastGcMemoryLoadBytes`, `lastGcHighMemoryLoadThresholdBytes`, `lastGcTotalAvailableMemoryBytes` | The GC's own memory-load input and its "high memory load" threshold at that GC. Load at or above the threshold makes the .NET GC favour full gen2 work. On Apple platforms the load is device-wide, not this process's footprint. |
+| `lastBackgroundGcIndex`, `lastFullBlockingGcIndex` | Index of the latest background and full blocking GC. Compared with `lastGcIndex` and the gen2 delta, they separate background from blocking gen2 activity. |
 
 Phases overlap through nesting and parallel execution and must not be summed
 as frame time. Their call/time/allocation counters are independently sampled,

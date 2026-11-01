@@ -248,6 +248,18 @@ public static partial class EmbeddedPerformanceDiagnostics
             json.WriteNumber("lastGcHeapBytes", memory.HeapSizeBytes);
             json.WriteNumber("lastGcCommittedBytes", memory.TotalCommittedBytes);
             json.WriteNumber("lastGcFragmentedBytes", memory.FragmentedBytes);
+            // The GC's own inputs for its gen2 decisions at that collection:
+            // memory load versus its high-load threshold (device-wide on Apple
+            // platforms), promotions, and which kind ran last. Numbers only.
+            json.WriteNumber("lastGcGeneration", memory.Generation);
+            json.WriteNumber("lastGcConcurrent", memory.Concurrent ? 1 : 0);
+            json.WriteNumber("lastGcCompacted", memory.Compacted ? 1 : 0);
+            json.WriteNumber("lastGcPromotedBytes", memory.PromotedBytes);
+            json.WriteNumber("lastGcMemoryLoadBytes", memory.MemoryLoadBytes);
+            json.WriteNumber("lastGcHighMemoryLoadThresholdBytes", memory.HighMemoryLoadThresholdBytes);
+            json.WriteNumber("lastGcTotalAvailableMemoryBytes", memory.TotalAvailableMemoryBytes);
+            json.WriteNumber("lastBackgroundGcIndex", GC.GetGCMemoryInfo(GCKind.Background).Index);
+            json.WriteNumber("lastFullBlockingGcIndex", GC.GetGCMemoryInfo(GCKind.FullBlocking).Index);
             json.WriteStartArray("collections");
             for (int i = 0; i < 3; i++)
             {

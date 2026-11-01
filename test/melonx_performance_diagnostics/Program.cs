@@ -241,6 +241,16 @@ static class Program
             Check(detail.GetProperty("managed").GetProperty("lastGcHeapBytes").GetInt64() > 0, "last GC heap missing");
             Check(detail.GetProperty("managed").GetProperty("gcPauseMs").GetDouble() >= 0, "negative GC pause");
             Check(detail.GetProperty("managed").GetProperty("allocatedBytesApprox").GetInt64() >= 0, "negative global allocation");
+            // The forced blocking compacting gen2 above is the last collection.
+            var managedGc = detail.GetProperty("managed");
+            Check(managedGc.GetProperty("lastGcGeneration").GetInt32() == 2, "last GC generation missing");
+            Check(managedGc.GetProperty("lastGcConcurrent").GetInt32() == 0 && managedGc.GetProperty("lastGcCompacted").GetInt32() == 1, "last GC kind missing");
+            Check(managedGc.GetProperty("lastFullBlockingGcIndex").GetInt64() == managedGc.GetProperty("lastGcIndex").GetInt64(), "full blocking GC index missing");
+            Check(managedGc.GetProperty("lastBackgroundGcIndex").GetInt64() >= 0 && managedGc.GetProperty("lastGcPromotedBytes").GetInt64() >= 0, "background index or promotions missing");
+            // The threshold derives from physical memory; available memory can
+            // be a lower process/container limit, so the two are not ordered.
+            Check(managedGc.GetProperty("lastGcTotalAvailableMemoryBytes").GetInt64() > 0 && managedGc.GetProperty("lastGcHighMemoryLoadThresholdBytes").GetInt64() > 0 &&
+                  managedGc.GetProperty("lastGcMemoryLoadBytes").GetInt64() >= 0, "GC memory-load inputs missing");
             // Max-width counters plus all active phase names must survive the
             // real journal redactor without truncated or malformed JSON.
             epoch = Current;
