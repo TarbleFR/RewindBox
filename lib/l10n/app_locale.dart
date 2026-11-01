@@ -1102,6 +1102,33 @@ mixin AppLocale {
   static const String raRecentlyPlayedTitle = 'ra_recently_played_title';
   static const String raNoRecentlyPlayed = 'ra_no_recently_played';
 
+  // Central RetroAchievements account and launch policy.
+  static const String raSessionSettings = 'ra_session_settings';
+  static const String raSessionEnable = 'ra_session_enable';
+  static const String raSessionHardcore = 'ra_session_hardcore';
+  static const String raSessionHardcoreHelp = 'ra_session_hardcore_help';
+  static const String raSessionAccountHelp = 'ra_session_account_help';
+  static const String raSessionNextLaunch = 'ra_session_next_launch';
+  static const String raSessionPending = 'ra_session_pending';
+  static const String raSessionReady = 'ra_session_ready';
+  static const String raSessionActive = 'ra_session_active';
+  static const String raSessionUnsupported = 'ra_session_unsupported';
+  static const String raSessionUnverified = 'ra_session_unverified';
+  static const String raSessionUnavailable = 'ra_session_unavailable';
+  static const String raSessionLoginError = 'ra_session_login_error';
+  static const String raSessionNetworkError = 'ra_session_network_error';
+  static const String raSessionStorageError = 'ra_session_storage_error';
+  static const String raSessionHardcoreError = 'ra_session_hardcore_error';
+  static const String raSessionNotifications = 'ra_session_notifications';
+  static const String raSessionWeb = 'ra_session_web';
+  static const String raSessionDifferentAccount = 'ra_session_different_account';
+  static const String raSessionMigrationChoice = 'ra_session_migration_choice';
+  static const String raSessionMigrationImport = 'ra_session_migration_import';
+  static const String raSessionCompatibility = 'ra_session_compatibility';
+  static const String raSessionNoGame = 'ra_session_no_game';
+  static const String raSessionAwaiting = 'ra_session_awaiting';
+  static const String raSessionLoginNeeded = 'ra_session_login_needed';
+
   // ==========================================================================
   // Localization Maps
   // ==========================================================================

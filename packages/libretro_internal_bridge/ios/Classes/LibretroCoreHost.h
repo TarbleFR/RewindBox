@@ -139,6 +139,15 @@ typedef struct {
 @property(nonatomic, assign) BOOL fastForwarding;
 @property(nonatomic, readonly) BOOL shutdownRequested;
 @property(nonatomic, readonly) BOOL supportsAchievements;
+/// Armed before core/content loading for a central Hardcore launch, including
+/// the asynchronous login interval. Never inferred from a global preference.
+@property(nonatomic, assign) BOOL hardcoreRestrictionsEnabled;
+@property(nonatomic, assign) unsigned achievementsConsoleId;
+@property(nonatomic, copy, nullable) BOOL (^hardcoreOptionAllowed)(NSString *library, unsigned consoleId,
+                                                                 NSString *key, NSString *value);
+/// Applies the pinned rcheevos library/system option policy to actual declared
+/// options. Incompatible persisted values are reported, never rewritten.
+- (BOOL)validateHardcoreOptions:(NSError *_Nullable *_Nullable)error;
 
 /// Calls the core's context_reset / context_destroy for its hardware context.
 - (void)hardwareContextReset;

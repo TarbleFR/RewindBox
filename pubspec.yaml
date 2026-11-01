@@ -5,6 +5,7 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 workspace:
   - packages/achievement_translation
+  - packages/retro_achievements_session
   - packages/external_folder_access
   - packages/flutter_7zip
   - packages/gamepads
@@ -33,6 +34,8 @@ environment:
 dependencies:
   achievement_translation:
     path: packages/achievement_translation
+  retro_achievements_session:
+    path: packages/retro_achievements_session
   flutter:
     sdk: flutter
   flutter_localizations:

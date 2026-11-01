@@ -4,6 +4,7 @@
 #include "NeoUnifiedNativeImport.h"
 #import <neo_cheat_catalog/NeoUnifiedCheatBrowser.h>
 #import "Armsx2RetroAchievementsMenu.h"
+#import <retro_achievements_session/RBRASession.h>
 #import "ARMSX2InGameLocalization.h"
 #import <neo_touch_layout/NeoTouchLayoutStrings.h>
 #import "ARMSX2TexturePage.h"
@@ -796,13 +797,24 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
         ? ARMSX2MenuText(@"Saved state available", @"État sauvegardé disponible")
         : ARMSX2MenuText(@"Empty", @"Vide");
     cell.accessoryType = UITableViewCellAccessoryNone;
-    if (self.page == ARMSX2MenuLoadStates && !occupied) {
+    if (self.page == ARMSX2MenuLoadStates && (!occupied || [self.snapshot[@"hardcoreGuardActive"] boolValue])) {
+      if ([self.snapshot[@"hardcoreGuardActive"] boolValue])
+        cell.detailTextLabel.text = RBRALocalizedText(@"hardcoreBlocked", self.localeIdentifier);
       cell.textLabel.textColor = UIColor.secondaryLabelColor;
       cell.selectionStyle = UITableViewCellSelectionStyleNone;
       cell.userInteractionEnabled = NO;
     }
   }
 
+  const BOOL hardcoreBlocked = [self.snapshot[@"hardcoreGuardActive"] boolValue] &&
+      ((self.page == ARMSX2MenuRoot && [self.rootKeys[indexPath.row] isEqual:@"load"]) ||
+       (self.page == ARMSX2MenuCheats && indexPath.row == 0));
+  if (hardcoreBlocked) {
+    cell.detailTextLabel.text = RBRALocalizedText(@"hardcoreBlocked", self.localeIdentifier);
+    cell.textLabel.textColor = UIColor.secondaryLabelColor;
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    cell.userInteractionEnabled = NO;
+  }
   if (self.loading) {
     cell.selectionStyle = UITableViewCellSelectionStyleNone;
     cell.userInteractionEnabled = NO;
@@ -875,6 +887,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
 
   if (self.page == ARMSX2MenuRoot) {
     NSString* key = self.rootKeys[row];
+    if ([key isEqual:@"load"] && [self.snapshot[@"hardcoreGuardActive"] boolValue]) return;
     if ([key isEqual:@"graphics"]) {
       [self.navigationController pushViewController:[self child:ARMSX2MenuGraphics
           title:ARMSX2MenuText(@"Graphics", @"Graphismes")] animated:YES];
@@ -1043,6 +1056,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
     if (row == 4) {[self openUnifiedCheatCatalogue];return;}
     if (row == 3) {[self openManualCheatEditor:NO];return;}
     if (row == 0) {
+      if ([self.snapshot[@"hardcoreGuardActive"] boolValue]) return;
       const BOOL enabled = [self.snapshot[@"cheats"] boolValue];
       [self pushChoice:ARMSX2MenuText(@"Enable Cheats", @"Activer les cheats")
                 command:@"cheats" values:@[@NO, @YES]
@@ -1114,6 +1128,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
                titles:@[ARMSX2MenuText(@"Off", @"Désactivées"), ARMSX2MenuText(@"On", @"Activées")]
         selectedIndex:enabled ? 1 : 0];
   } else if (self.page == ARMSX2MenuSaveStates || self.page == ARMSX2MenuLoadStates) {
+    if (self.page == ARMSX2MenuLoadStates && [self.snapshot[@"hardcoreGuardActive"] boolValue]) return;
     const NSUInteger slot = row + 1;
     [self perform:self.page == ARMSX2MenuLoadStates ? @"loadState" : @"saveState"
             value:@(slot)

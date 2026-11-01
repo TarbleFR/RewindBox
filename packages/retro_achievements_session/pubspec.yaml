@@ -1,0 +1,15 @@
+name: retro_achievements_session
+description: RewindBox shared RetroAchievements account and native launch sessions.
+version: 0.1.0
+publish_to: none
+resolution: workspace
+environment:
+  sdk: '>=3.9.2'
+dependencies:
+  flutter:
+    sdk: flutter
+flutter:
+  plugin:
+    platforms:
+      ios:
+        pluginClass: RetroAchievementsSessionPlugin

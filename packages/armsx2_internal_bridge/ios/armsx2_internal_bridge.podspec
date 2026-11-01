@@ -17,6 +17,7 @@ attached to the NeoStation PID. No standalone ARMSX2 application is embedded.
                            'Classes/ARMSX2Texture*.h', 'Classes/Armsx2TextureBridge.h', 'Classes/upstream/*.h'
   s.dependency 'Flutter'
   s.dependency 'achievement_translation'
+  s.dependency 'retro_achievements_session'
   s.dependency 'neo_cheat_catalog'
   # Build 447: the Core's render view is a NeoExternalRenderHost of the
   # external_display pod (docs/external-display-universal.md § 5, row ARMSX2):

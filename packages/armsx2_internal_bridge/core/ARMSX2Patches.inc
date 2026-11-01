@@ -69,7 +69,7 @@ int get_available_patches_json(char* output,size_t capacity) {
         @"activePatches":@(Patch::GetActivePatchesCount()),
         @"activeCheats":@(Patch::GetActiveCheatsCount()),
         @"masterEnabled":@(EmuConfig.EnableCheats),
-        @"hardcore":@(Achievements::IsHardcoreModeActive()),
+        @"hardcore":@(hardcore_restrictions_active()),
         @"items":items,
       };
       encoded=[[NSJSONSerialization dataWithJSONObject:payload options:0 error:nil] retain];
@@ -104,6 +104,7 @@ int set_patch_state(const char* patch_name,int state,char* error,size_t capacity
   }
   BOOL success=NO;
   BOOL unsupportedAutomatic=NO;
+  BOOL hardcoreBlocked=NO;
   Host::RunOnCPUThread([&]{
     @autoreleasepool {
       const std::string serial=VMManager::GetDiscSerial();
@@ -117,7 +118,7 @@ int set_patch_state(const char* patch_name,int state,char* error,size_t capacity
           [&](const Patch::PatchInfo& patch){return patch.name==wanted;});
       if(found==patches.end()) return;
 
-      if(cheats && state==1 && Achievements::IsHardcoreModeActive()) return;
+      if(cheats && state==1 && hardcore_restrictions_active()) { hardcoreBlocked=YES; return; }
       const BOOL toggleable=!cheats && Patch::IsGloballyToggleablePatch(*found);
       if(state==-1 && !toggleable) {
         unsupportedAutomatic=YES;
@@ -155,6 +156,7 @@ int set_patch_state(const char* patch_name,int state,char* error,size_t capacity
       success=YES;
     }
   },true);
+  if(hardcoreBlocked) return error_out("hardcore_blocked",error,capacity);
   if(unsupportedAutomatic)
     return error_out("Automatic is only available for globally toggleable ARMSX2 patches.",error,capacity);
   return success ? 1 :

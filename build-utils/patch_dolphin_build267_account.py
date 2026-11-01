@@ -113,17 +113,18 @@ if 'NEOSTATION_DOLPHIN_ACCOUNT_267' not in text:
 host = CLASSES / 'DolphinInternalBridgePlugin.mm'
 replace(host, '#import "DolphinSessionMenu.h"',
         '#import "DolphinSessionMenu.h"\n#import "DolphinRetroAchievementsAccount.h"')
-replace(host, '''  NSString* raUsername = [arguments[@"raUsername"] isKindOfClass:NSString.class]
-                              ? arguments[@"raUsername"] : @"";
-  NSString* raApiToken = [arguments[@"raApiToken"] isKindOfClass:NSString.class]
-                              ? arguments[@"raApiToken"] : @"";''', '''  // Only a validated emulator token is accepted. Do not use the Web API key.
-  NSDictionary* raCredentials = [DolphinRetroAchievementsAccount credentials];
-  NSString* raUsername = raCredentials[@"username"] ?: @"";
-  NSString* raApiToken = raCredentials[@"token"] ?: @"";''')
-replace(host, '''    // Configure the core without ever logging or persisting credentials in the
-    // Objective-C host. Missing credentials simply disable achievements.''', '''    // Take account changes only at a fresh launch, before booting the game.
-    // The password is never persisted; the emulator token is read from Keychain.
-    [DolphinRetroAchievementsAccount beginSession];''')
+if 'RBRATakeLaunchConfiguration' not in host.read_text():
+    replace(host, '''  NSString* raUsername = [arguments[@"raUsername"] isKindOfClass:NSString.class]
+                                  ? arguments[@"raUsername"] : @"";
+      NSString* raApiToken = [arguments[@"raApiToken"] isKindOfClass:NSString.class]
+                                  ? arguments[@"raApiToken"] : @"";''', '''  // Only a validated emulator token is accepted. Do not use the Web API key.
+      NSDictionary* raCredentials = [DolphinRetroAchievementsAccount credentials];
+      NSString* raUsername = raCredentials[@"username"] ?: @"";
+      NSString* raApiToken = raCredentials[@"token"] ?: @"";''')
+    replace(host, '''    // Configure the core without ever logging or persisting credentials in the
+        // Objective-C host. Missing credentials simply disable achievements.''', '''    // Take account changes only at a fresh launch, before booting the game.
+        // The password is never persisted; the emulator token is read from Keychain.
+        [DolphinRetroAchievementsAccount beginSession];''')
 replace(host, '''          NSData* data = [NSJSONSerialization dataWithJSONObject:request options:0 error:nil];
           NSString* text = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
           const BOOL success = text && neostation_dolphin_menu_apply(text.UTF8String) != 0;''', '''          NSData* data = DOLSerializeMenuRequest(request);

@@ -79,7 +79,7 @@ void main() {
       'packages/armsx2_internal_bridge/ios/Classes/Armsx2SessionMenu.mm',
     ).readAsStringSync();
 
-    expect(abi, contains('NEO_ARMSX2_ABI_VERSION 8u'));
+    expect(abi, contains('NEO_ARMSX2_ABI_VERSION 9u'));
     // ABI 8 (Build 485): HD replacement textures of the running game.
     expect(abi, contains('get_texture_replacements_json'));
     expect(abi, contains('set_texture_replacements'));

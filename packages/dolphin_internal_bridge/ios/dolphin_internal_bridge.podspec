@@ -17,6 +17,7 @@ legacy gate. It does not replace or modify other emulator integrations.
   s.vendored_frameworks = 'Frameworks/DolphinCore.framework'
   s.dependency 'Flutter'
   s.dependency 'achievement_translation'
+  s.dependency 'retro_achievements_session'
   s.dependency 'neo_cheat_catalog'
   s.dependency 'stikjit_bridge'
   # Build 447: the session's Metal view is a NeoExternalRenderHost of the

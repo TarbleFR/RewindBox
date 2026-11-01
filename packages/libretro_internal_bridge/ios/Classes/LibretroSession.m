@@ -1,4 +1,5 @@
 #import <achievement_translation/RBAchievementTranslation.h>
+#import <retro_achievements_session/RBRASession.h>
 #import "LibretroSession.h"
 
 #import "LibretroAchievements.h"
@@ -113,6 +114,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   LibretroAudioOutput *_audio;
   LibretroCoreHost *_host;
   LibretroAchievements *_achievements;
+  NSDictionary *_achievementSession;
+  _Atomic bool _achievementSessionEnded;
   NSThread *_thread;
   NSCondition *_condition;
   NSMutableArray<dispatch_block_t> *_commands;
@@ -133,6 +136,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   uint64_t _ppssppCandidateBase;
   NSMutableArray<NSString *> *_ppssppMemoryLog;
   BOOL _menuPaused;
+  BOOL _menuPausePending;
   BOOL _backgroundPaused;
   _Atomic bool _fastForward;
   BOOL _loaded;
@@ -221,6 +225,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   self = [super init];
   if (self) {
     _configuration = configuration;
+    _achievementSession = [configuration.achievementSession copy] ?: @{};
     _input = [LibretroInputState new];
     _condition = [NSCondition new];
     _commands = [NSMutableArray array];
@@ -278,6 +283,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 #pragma mark - Start and stop
 
 - (void)dealloc {
+  [self endAchievementSession];
   [NSNotificationCenter.defaultCenter removeObserver:self];
   [_journal note:[NSString stringWithFormat:@"session=%p deallocated", self]];
 }
@@ -421,6 +427,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 }
 
 - (void)finishStop {
+  [self endAchievementSession];
   _closing = YES;
   _thread = nil;
   // unloadCore retained the PSP ownership record outside the rolling log.
@@ -463,6 +470,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 }
 
 - (void)failStartWithResult:(NSDictionary<NSString *, id> *)result {
+  [self endAchievementSession];
   _closing = YES;
   _thread = nil;
   _finalLog = result[@"log"];
@@ -789,6 +797,13 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                                             language:configuration.retroLanguage
                                           jitCapable:LibretroJitUsableByCores()];
   _host.delegate = self;
+  _host.achievementsConsoleId = configuration.achievementsConsoleId;
+  _host.hardcoreRestrictionsEnabled = [_achievementSession[@"enabled"] boolValue] &&
+      [_achievementSession[@"supported"] boolValue] && [_achievementSession[@"hardcore"] boolValue] &&
+      configuration.achievementsAllowed && configuration.achievementsConsoleId > 0;
+  _host.hardcoreOptionAllowed = ^BOOL(NSString *library, unsigned consoleId, NSString *key, NSString *value) {
+    return [LibretroAchievements isHardcoreOptionAllowedForLibrary:library consoleId:consoleId key:key value:value];
+  };
   // Given to the option store before retro_set_environment and retro_init:
   // DeSmuME reads its options only in retro_init. Locked options (DS / 3DS
   // screen layout and pointer) win over everything and stay read-only.
@@ -905,8 +920,10 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   [self loadCheats];
   [_journal note:@"services: cheats scheduled"];
   [self refreshDiskSnapshot];
-  if (configuration.achievementsAllowed && configuration.achievementsConsoleId > 0) {
-    _achievements = [[LibretroAchievements alloc] initWithConsoleId:configuration.achievementsConsoleId host:_host];
+  if ([_achievementSession[@"enabled"] boolValue] && [_achievementSession[@"supported"] boolValue] &&
+      configuration.achievementsAllowed && configuration.achievementsConsoleId > 0) {
+    _achievements = [[LibretroAchievements alloc] initWithConsoleId:configuration.achievementsConsoleId
+                                                            host:_host configuration:_achievementSession];
     __weak LibretroSession *weakSelf = self;
     _achievements.unlocked = ^(NSUInteger achievementID, NSString *title, NSString *description) {
       LibretroSession *session = weakSelf;
@@ -929,6 +946,9 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
       });
     };
     [_achievements startWithContentPath:configuration.contentPath];
+  } else {
+    RBRAPublishSessionState(_achievementSession, @{@"active": @NO, @"gameLoaded": @NO,
+        @"hardcoreActive": @NO, @"errorCode": [_achievementSession[@"enabled"] boolValue] ? @"RA_UNSUPPORTED" : @""});
   }
   _loaded = YES;
   // Stored slang activation runs on the main queue and refuses an unloaded
@@ -1047,6 +1067,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   });
   [_achievements shutdown];
   _achievements = nil;
+  [self endAchievementSession];
   [_audio stop];
   _audio = nil;
   LibretroGLRenderer *gl = _gl;
@@ -1107,6 +1128,16 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   [_commands addObject:[command copy]];
   [_condition signal];
   [_condition unlock];
+}
+
+- (void)endAchievementSession {
+  if (!atomic_exchange(&_achievementSessionEnded, true)) RBRAEndSession(_achievementSession);
+}
+
+- (NSString *)achievementNotice:(NSString *)key {
+  NSString *language = [_achievementSession[@"language"] isKindOfClass:NSString.class]
+      ? _achievementSession[@"language"] : (_configuration.uiLocale ?: @"en");
+  return RBRALocalizedText(key, language);
 }
 
 #pragma mark - LibretroCoreHostDelegate (emulation thread)
@@ -2440,7 +2471,10 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   __weak LibretroSession *weakSelf = self;
   [self enqueue:^{
     NSString *key = nil;
-    if (!saving && ![NSFileManager.defaultManager fileExistsAtPath:[host statePathForSlot:kQuickSlot]]) {
+    BOOL hardcoreBlocked = !saving && host.hardcoreRestrictionsEnabled;
+    if (hardcoreBlocked) {
+      key = @"stateFailed";
+    } else if (!saving && ![NSFileManager.defaultManager fileExistsAtPath:[host statePathForSlot:kQuickSlot]]) {
       key = @"quickMissing";
     } else {
       NSError *error = nil;
@@ -2451,7 +2485,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     dispatch_async(dispatch_get_main_queue(), ^{
       LibretroSession *session = weakSelf;
       if (session == nil) return;
-      [session showStatus:[session text:key]];
+      [session showStatus:hardcoreBlocked ? [session achievementNotice:@"hardcoreBlocked"] : [session text:key]];
     });
   }];
 }
@@ -2926,7 +2960,30 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 #pragma mark - Menu (main thread)
 
 - (void)openMenu {
-  if (_menu != nil || !_loaded || _controller == nil || _editingControls) return;
+  if (_menu != nil || !_loaded || _controller == nil || _editingControls || _menuPausePending) return;
+  if (_controller.presentedViewController != nil) return;
+  // Ask rcheevos on the emulation thread so repeated menu pauses cannot act
+  // as frame advance in Hardcore. System backgrounding remains unconditional.
+  _menuPausePending = YES;
+  __weak LibretroSession *weakSelf = self;
+  __weak LibretroGameViewController *owner = _controller;
+  [self enqueue:^{
+    LibretroSession *session = weakSelf;
+    if (session == nil) return;
+    BOOL allowed = session->_achievements == nil || [session->_achievements canPause];
+    dispatch_async(dispatch_get_main_queue(), ^{
+      LibretroSession *active = weakSelf;
+      if (active == nil) return;
+      active->_menuPausePending = NO;
+      if (owner == nil || active->_controller != owner || active->_closing) return;
+      if (allowed) [active presentMenuAfterPauseApproval];
+      else [active showStatus:[active achievementNotice:@"hardcorePause"]];
+    });
+  }];
+}
+
+- (void)presentMenuAfterPauseApproval {
+  if (_menu != nil || !_loaded || _controller == nil || _editingControls || _closing) return;
   if (_controller.presentedViewController != nil) return;
   if (_fastForwardHeld) {
     _fastForwardHeld = NO;
@@ -3010,6 +3067,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                                                    [page push:[weakSelf statePage:NO]];
                                                  }];
   load.disclosure = YES;
+  load.enabled = !_host.hardcoreRestrictionsEnabled;
+  if (!load.enabled) load.detail = [self achievementNotice:@"hardcoreBlocked"];
   [sections addObject:[LibretroMenuSection sectionWithTitle:nil rows:@[ save, load ]]];
 
   if (_diskCount > 1) {
@@ -3069,6 +3128,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                                                      [page push:[weakSelf cheatsPage]];
                                                    }];
   cheats.disclosure = YES;
+  cheats.enabled = !_host.hardcoreRestrictionsEnabled;
+  if (!cheats.enabled) cheats.detail = [self achievementNotice:@"hardcoreBlocked"];
   NSUInteger enabledCheats = _cheatMenu.enabledCount;
   if (enabledCheats > 0) cheats.detail = @(enabledCheats).stringValue;
   [extras addObject:cheats];
@@ -3151,7 +3212,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
                             [session performState:saving slot:slot];
                           }];
                 row.detail = date != nil ? [formatter stringFromDate:date] : [session text:@"emptySlot"];
-                row.enabled = saving || date != nil;
+                row.enabled = saving || (date != nil && !session->_host.hardcoreRestrictionsEnabled);
                 [rows addObject:row];
               }
               return @[ [LibretroMenuSection sectionWithTitle:nil rows:rows] ];
@@ -3163,6 +3224,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   __weak LibretroSession *weakSelf = self;
   [self enqueue:^{
     NSError *error = nil;
+    BOOL hardcoreBlocked = !saving && host.hardcoreRestrictionsEnabled;
     BOOL ok = saving ? [host saveStateToSlot:slot error:&error] : [host loadStateFromSlot:slot error:&error];
     if (!ok) NSLog(@"[Libretro] state %@ slot %ld failed: %@", saving ? @"save" : @"load", (long)slot, error);
     dispatch_async(dispatch_get_main_queue(), ^{
@@ -3170,7 +3232,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
       if (session == nil) return;
       NSString *number = @(slot).stringValue;
       NSString *message = ok ? [session text:saving ? @"stateSaved" : @"stateLoaded" replacing:@"{number}" with:number]
-                             : [session text:@"stateFailed"];
+                             : hardcoreBlocked ? [session achievementNotice:@"hardcoreBlocked"] : [session text:@"stateFailed"];
       [session closeMenu];
       [session showStatus:message];
     });

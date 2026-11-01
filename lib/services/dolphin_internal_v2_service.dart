@@ -13,7 +13,7 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
 import '../models/dolphin_phone_shake_settings.dart';
-import '../repositories/retro_achievements_repository.dart';
+import 'retro_achievements_session_service.dart';
 import 'logger_service.dart';
 import 'diagnostics_directory.dart';
 import 'dolphin_system_files.dart';
@@ -693,26 +693,13 @@ class DolphinInternalV2Service {
       flush: true,
     );
 
+    final raService = RetroAchievementsSessionService.shared;
+    Map<String, Object?> raLaunch = const {};
     try {
-      String raUsername = '';
-      String raApiToken = '';
-      // The embedded Dolphin core is iOS-only. Avoid touching platform plugins
-      // when routing tests exercise this service on the macOS test runner.
       if (Platform.isIOS) {
-        try {
-          raUsername =
-              (await RetroAchievementsRepository.getRAUser())?.trim() ?? '';
-          raApiToken =
-              (await RetroAchievementsRepository.getRAApiKey())?.trim() ?? '';
-        } catch (error) {
-          // A Keychain/database read failure must never block game launch and
-          // credentials must never be written to the diagnostic log.
-          await _appendLogTo(
-            logPath,
-            'achievements.credentials_unavailable',
-            'RetroAchievements credentials could not be read for this session.',
-          );
-        }
+        raLaunch = await raService.prepareLaunch(engine: 'dolphin', system: system,
+          systemMenu: wiiSystemMenu,
+          language: FlutterLocalization.instance.currentLocale?.toLanguageTag() ?? 'en');
       }
       final raw = await _channel.invokeMapMethod<String, dynamic>(
         'launchGame',
@@ -730,10 +717,7 @@ class DolphinInternalV2Service {
           'systemDirectory': systemDirectory,
           'logPath': logPath,
           'pairingFilePath': pairing.path,
-          if (raUsername.isNotEmpty && raApiToken.isNotEmpty) ...{
-            'raUsername': raUsername,
-            'raApiToken': raApiToken,
-          },
+          'raSessionId': raLaunch['raSessionId'],
         },
       );
       final response = Map<String, dynamic>.from(raw ?? const {});
@@ -769,6 +753,7 @@ class DolphinInternalV2Service {
           flush: true,
         );
       } else {
+        await raService.finishLaunch(raLaunch);
         await _deleteIfExists(marker);
       }
       await _appendLogTo(
@@ -785,6 +770,7 @@ class DolphinInternalV2Service {
         gates: gates,
       );
     } on PlatformException catch (error) {
+      await raService.finishLaunch(raLaunch);
       await _deleteIfExists(marker);
       await _appendLogTo(
         logPath,
@@ -800,6 +786,7 @@ class DolphinInternalV2Service {
         gates: _emptyGates(),
       );
     } catch (error, stackTrace) {
+      await raService.finishLaunch(raLaunch);
       await _deleteIfExists(marker);
       await _appendLogTo(logPath, 'bridge.exception', '$error', {
         'stack': '$stackTrace',

@@ -9,6 +9,7 @@
 #include <dlfcn.h>
 #include <mach/mach_time.h>
 #include <stdarg.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -152,6 +153,39 @@ static bool ManagedOptionsDeclared(LibretroCoreHost *host, BOOL declared) {
   BOOL _supportsAchievements;
   BOOL _shutdownRequested;
   uint64_t _serializationQuirks;
+  _Atomic bool _hardcoreRestrictionsEnabled;
+  BOOL _hardcoreOptionsChecked;
+  uint64_t _hardcoreOptionsRevision;
+  NSString *_hardcoreOptionsError;
+}
+
+- (BOOL)hardcoreRestrictionsEnabled { return atomic_load(&_hardcoreRestrictionsEnabled); }
+- (void)setHardcoreRestrictionsEnabled:(BOOL)enabled {
+  atomic_store(&_hardcoreRestrictionsEnabled, enabled);
+}
+
+- (BOOL)hardcoreAllowsOption:(NSString *)key value:(NSString *)value {
+  BOOL (^policy)(NSString *, unsigned, NSString *, NSString *) = self.hardcoreOptionAllowed;
+  return value == nil || (policy != nil && policy(_libraryName, self.achievementsConsoleId, key, value));
+}
+
+- (BOOL)validateHardcoreOptions:(NSError **)error {
+  const uint64_t revision = _options.effectiveRevision;
+  if (!_hardcoreOptionsChecked || revision != _hardcoreOptionsRevision) {
+    _hardcoreOptionsError = nil;
+    for (LibretroCoreOption *option in _options.options) {
+      NSString *value = [_options currentValueForKey:option.key];
+      if (![self hardcoreAllowsOption:option.key value:value]) {
+        _hardcoreOptionsError = [NSString stringWithFormat:@"Hardcore rejects core option %@=%@", option.key, value];
+        break;
+      }
+    }
+    _hardcoreOptionsRevision = revision;
+    _hardcoreOptionsChecked = YES;
+  }
+  if (_hardcoreOptionsError != nil && error != NULL)
+    *error = HostError(LibretroHostErrorContentRejected, _hardcoreOptionsError);
+  return _hardcoreOptionsError == nil;
 }
 
 - (instancetype)initWithCorePath:(NSString *)corePath
@@ -798,6 +832,12 @@ static bool HostEnvironment(unsigned command, void *data) {
   _options = [[LibretroCoreOptions alloc] initWithStorePath:optionsPath
                                               gameStorePath:gameOptionsPath
                                                     gameKey:self.optionsGameKey];
+  __weak LibretroCoreHost *weakHost = self;
+  _options.valueAllowed = ^BOOL(NSString *key, NSString *value) {
+    LibretroCoreHost *host = weakHost;
+    return host != nil && (!host.hardcoreRestrictionsEnabled || [host hardcoreAllowsOption:key value:value]);
+  };
+  _hardcoreOptionsChecked = NO;
   _managedFBNeoOptions = nil;
   _fbneoCheatsNeedRestart = NO;
   _fbneoImportedPath = nil;
@@ -1151,6 +1191,10 @@ static bool HostEnvironment(unsigned command, void *data) {
 }
 
 - (BOOL)unserializeState:(NSData *)state error:(NSError **)error {
+  if (self.hardcoreRestrictionsEnabled) {
+    if (error) *error = HostError(LibretroHostErrorStateRejected, @"Hardcore blocks state restoration");
+    return NO;
+  }
   if (!_contentLoaded || state.length == 0) {
     if (error) *error = HostError(LibretroHostErrorStateRejected, @"no content or empty state");
     return NO;
@@ -1175,6 +1219,10 @@ static bool HostEnvironment(unsigned command, void *data) {
 }
 
 - (BOOL)loadStateFromSlot:(NSInteger)slot error:(NSError **)error {
+  if (self.hardcoreRestrictionsEnabled) {
+    if (error) *error = HostError(LibretroHostErrorStateRejected, @"Hardcore blocks state restoration");
+    return NO;
+  }
   NSData *file = [NSData dataWithContentsOfFile:[self statePathForSlot:slot]];
   if (file == nil) {
     if (error) *error = HostError(LibretroHostErrorStateUnavailable, @"no state in slot");
@@ -1233,6 +1281,7 @@ static bool HostEnvironment(unsigned command, void *data) {
 }
 - (void)setFBNeoCheatsMasterEnabled:(BOOL)enabled {
   if (!_fbneoCheatMaster) return;
+  if (self.hardcoreRestrictionsEnabled) enabled = NO;
   *_fbneoCheatMaster = enabled;
   // CheatApply reads a cached bCheatsEnabled flag. Updating the exported
   // master alone does not stop a previously active write on the next frame.
@@ -1355,6 +1404,10 @@ static bool HostEnvironment(unsigned command, void *data) {
     for (NSDictionary *option in [self fbneoCheatSnapshot][@"options"]) {
       if (![option[@"key"] isEqual:key] || ![option[@"values"] containsObject:value]) continue;
       if (![option[@"available"] boolValue] && ![value isEqual:option[@"off_value"]]) continue;
+      if (self.hardcoreRestrictionsEnabled && ![value isEqual:option[@"off_value"]]) {
+        if (error) *error = HostError(LibretroHostErrorContentRejected, @"Hardcore blocks FBNeo cheat activation");
+        return nil;
+      }
       [_options applySessionOverrides:@{key:value}];
       _fbneoExplicitCheatsEnabled = [[self fbneoCheatSnapshot][@"enabled_count"] unsignedIntegerValue] > 0;
       [self setFBNeoCheatsMasterEnabled:_fbneoExplicitCheatsEnabled];
@@ -1367,6 +1420,10 @@ static bool HostEnvironment(unsigned command, void *data) {
 
 - (void)applyCheats:(NSArray<NSString *> *)codes {
   if (!_contentLoaded) return;
+  if (self.hardcoreRestrictionsEnabled && codes.count > 0) {
+    [self appendLog:@"[HOST] Hardcore blocks cheat activation"];
+    return;
+  }
   _symbols.retro_cheat_reset();
   unsigned index = 0;
   NSString *core = [_corePath.lastPathComponent stringByDeletingPathExtension];

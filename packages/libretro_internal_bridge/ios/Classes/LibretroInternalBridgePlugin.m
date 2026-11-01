@@ -1,4 +1,5 @@
 #import "LibretroInternalBridgePlugin.h"
+#import <retro_achievements_session/RBRASession.h>
 
 #import "LibretroAddressSpace.h"
 #import "LibretroDefaultSkins.h"
@@ -652,6 +653,7 @@ static NSDictionary<NSString *, id> *Failure(NSString *code, NSString *message) 
   configuration.achievementsConsoleId = [arguments[@"achievementsConsoleId"] isKindOfClass:NSNumber.class]
                                             ? [arguments[@"achievementsConsoleId"] unsignedIntValue]
                                             : 0;
+  configuration.achievementSession = RBRATakeLaunchConfiguration(arguments, @"libretro");
   configuration.preferredHardwareContext = [arguments[@"preferredHardwareContext"] isKindOfClass:NSNumber.class]
                                                ? [arguments[@"preferredHardwareContext"] unsignedIntValue]
                                                : 0;

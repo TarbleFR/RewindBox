@@ -2,9 +2,39 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../data/datasources/sqlite_service.dart';
 import '../models/database_game_model.dart';
 import '../models/retro_achievements_dashboard_models.dart';
+import '../models/retro_achievements_session.dart';
 
 /// Repository for RetroAchievements data access.
 class RetroAchievementsRepository {
+  // Lives in the existing application database. Native engine preferences are
+  // migration inputs only; they are never another source of session policy.
+  static Future<DatabaseAdapter> _sessionDatabase() async {
+    final db = await SqliteService.getDatabase();
+    await db.execute('''CREATE TABLE IF NOT EXISTS ra_session_settings (
+      id INTEGER PRIMARY KEY CHECK(id = 1),
+      enabled INTEGER NOT NULL DEFAULT 0,
+      hardcore INTEGER NOT NULL DEFAULT 0,
+      migration_version INTEGER NOT NULL DEFAULT 0
+    )''');
+    return db;
+  }
+
+  static Future<RetroAchievementsPreferences> loadSessionPreferences() async {
+    final db = await _sessionDatabase();
+    final rows = await db.query('ra_session_settings', where: 'id = ?', whereArgs: [1]);
+    return rows.isEmpty ? const RetroAchievementsPreferences()
+        : RetroAchievementsPreferences.fromRow(rows.first);
+  }
+
+  static Future<void> saveSessionPreferences(RetroAchievementsPreferences preferences) async {
+    final db = await _sessionDatabase();
+    await db.rawInsert('''INSERT INTO ra_session_settings (id, enabled, hardcore, migration_version)
+      VALUES (1, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET
+      enabled = excluded.enabled, hardcore = excluded.hardcore,
+      migration_version = excluded.migration_version''',
+      [preferences.enabled ? 1 : 0, preferences.hardcore ? 1 : 0, preferences.migrationVersion]);
+  }
+
   static const String _raApiKeyStorageKey = 'ra_api_key';
   // Do not let a transient Android Keystore error erase credentials. This can
   // happen during cold boot on some launchers, and the default resetOnError

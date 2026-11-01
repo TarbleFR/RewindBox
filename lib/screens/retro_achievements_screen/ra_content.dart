@@ -16,6 +16,8 @@ import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import '../../utils/login_form_selection.dart';
 import 'ra_dashboard.dart';
+import 'ra_session_settings.dart';
+import '../../services/retro_achievements_session_service.dart';
 import '../../widgets/glass/glass_surface.dart';
 
 class RAContent extends StatefulWidget {
@@ -66,6 +68,7 @@ class _RAContentState extends State<RAContent>
       onNextTab: AppNavigation.nextTab,
       onLeftBumper: AppNavigation.previousTab,
       onRightBumper: AppNavigation.nextTab,
+      onSettings: _openSessionSettings,
       allowRepeat: false,
       isTextFieldFocused: isAnyFieldFocused,
       onBack: exitTextEntry,
@@ -116,6 +119,13 @@ class _RAContentState extends State<RAContent>
       icon: Symbols.logout_rounded,
     );
     if (!confirmed || !mounted) return;
+    final session = RetroAchievementsSessionService.shared;
+    if (session.available && !await session.logout()) {
+      if (mounted) AppNotification.showNotification(context,
+        raSessionErrorLabel(session.errorCode).getString(context), type: NotificationType.error);
+      return;
+    }
+    if (!mounted) return;
     context.read<RetroAchievementsProvider>().disconnect(clearSavedUser: true);
     if (!mounted) return;
     resetSelection();
@@ -129,7 +139,14 @@ class _RAContentState extends State<RAContent>
 
   Future<void> _connectToRA() async {
     final raProvider = context.read<RetroAchievementsProvider>();
+    final session = RetroAchievementsSessionService.shared;
     if (raProvider.isLoading) return;
+    if (session.available && session.authenticated &&
+        _usernameController.text.trim().toLowerCase() != session.username.toLowerCase()) {
+      AppNotification.showNotification(context,
+        AppLocale.raSessionDifferentAccount.getString(context), type: NotificationType.error);
+      return;
+    }
     if (_usernameController.text.trim().isEmpty ||
         _apiKeyController.text.trim().isEmpty) {
       AppNotification.showNotification(
@@ -167,6 +184,24 @@ class _RAContentState extends State<RAContent>
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
+  }
+
+  Future<void> _openSessionSettings() async {
+    final session = RetroAchievementsSessionService.shared;
+    if (!session.available) return;
+    final provider = context.read<RetroAchievementsProvider>();
+    await showDialog<void>(context: context, builder: (_) => RASessionSettings(
+      initialUsername: provider.username.isNotEmpty ? provider.username : _usernameController.text,
+      onAccountChanged: (username) async {
+        if (!mounted) return;
+        if (username == null || (provider.isConnected && provider.username.toLowerCase() != username.toLowerCase())) {
+          provider.disconnect(clearSavedUser: true);
+          _apiKeyController.clear();
+        }
+        _usernameController.text = username ?? '';
+        setState(() {});
+      },
+    ));
   }
 
   @override
@@ -270,6 +305,11 @@ class _RAContentState extends State<RAContent>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(height: 64.r),
+          if (RetroAchievementsSessionService.shared.available)
+            Align(alignment: Alignment.centerRight, child: TextButton.icon(
+              key: const ValueKey('ra-central-settings'), onPressed: _openSessionSettings,
+              icon: const Icon(Symbols.settings_rounded),
+              label: Text(AppLocale.raSessionSettings.getString(context)))),
           if (!raProvider.isConnected)
             Expanded(
               child: LayoutBuilder(
@@ -398,7 +438,8 @@ class _RAContentState extends State<RAContent>
             children: [
               Expanded(
                 child: Text(
-                  AppLocale.raLogin.getString(context),
+                  (RetroAchievementsSessionService.shared.available
+                    ? AppLocale.raSessionWeb : AppLocale.raLogin).getString(context),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.primary,

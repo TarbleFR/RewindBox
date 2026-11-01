@@ -25,7 +25,7 @@ SOURCE = r'''
 #include <string_view>
 #include <vector>
 using u32 = unsigned;
-static bool running=true, hardcore=false, savedMaster=false;
+static bool running=true, hardcore=false, hardcoreRequested=false, savedMaster=false;
 static int settingsReloads=0, fileReloads=0;
 static std::map<std::string,std::vector<std::string>> disk, memory;
 struct { bool EnableCheats=false; } EmuConfig;
@@ -36,6 +36,7 @@ int error_out(const std::string& text,char* error,size_t capacity) {
 }
 namespace Host { template<class F> void RunOnCPUThread(F&& f,bool) { f(); } }
 namespace Achievements { bool IsHardcoreModeActive() { return hardcore; } }
+bool hardcore_restrictions_active() { return hardcoreRequested || Achievements::IsHardcoreModeActive(); }
 namespace VMManager {
 std::string GetDiscSerial() { return "SLES-54182"; }
 u32 GetDiscCRC() { return 0x301A1B6E; }
@@ -114,6 +115,11 @@ int main() { @autoreleasepool {
   assert(!set_patch_state([cheat[@"id"] UTF8String],-1,error,sizeof(error)));
   assert(!set_patch_state("neo-patch-v1:broken",1,error,sizeof(error)));
   assert(!set_patch_state("missing",1,error,sizeof(error)));
+  hardcoreRequested=true;
+  assert([snapshot()[@"hardcore"] boolValue]);
+  assert(!set_patch_state([cheat[@"id"] UTF8String],1,error,sizeof(error)));
+  assert(std::string(error)=="hardcore_blocked");
+  hardcoreRequested=false;
   hardcore=true;
   assert(!set_patch_state([cheat[@"id"] UTF8String],1,error,sizeof(error)));
   assert(disk==unchanged);

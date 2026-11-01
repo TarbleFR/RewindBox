@@ -1,5 +1,6 @@
 #import <external_display/NeoExternalDisplayCoordinator.h>
 #import <achievement_translation/RBAchievementTranslation.h>
+#import <retro_achievements_session/RBRASession.h>
 #import <dlfcn.h>
 #include <atomic>
 #import "DolphinInternalBridgePlugin.h"
@@ -44,8 +45,9 @@ char* neostation_dolphin_save_identity(const char* game_path, const char* expect
 int32_t neostation_dolphin_initialize(const char* user_directory,
                                       const char* system_directory,
                                       const char* log_path);
-int32_t neostation_dolphin_configure_achievements(const char* username,
-                                                   const char* api_token);
+int32_t neostation_dolphin_configure_achievements_session(int32_t enabled, int32_t hardcore,
+    int32_t notifications, const char* username, const char* api_token);
+char* neostation_dolphin_achievements_snapshot(void);
 int32_t neostation_dolphin_validate_image(const char* game_path,
                                           const char* expected_system,
                                           const char* log_path);
@@ -96,6 +98,15 @@ static NSDictionary* DOLReadCheatSnapshot(void) {
   NSData* data=[NSData dataWithBytes:text length:strlen(text)];free(text);
   id decoded=[NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
   return [decoded isKindOfClass:NSDictionary.class]?decoded:nil;
+}
+
+static NSDictionary* DOLReadAchievementState(void) {
+  char* text = neostation_dolphin_achievements_snapshot();
+  if (!text) return nil;
+  NSData* data = [NSData dataWithBytes:text length:strlen(text)];
+  free(text);
+  id decoded = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+  return [decoded isKindOfClass:NSDictionary.class] ? decoded : nil;
 }
 
 static NSString* const kDolphinChannel = @"neostation/dolphin_internal";
@@ -865,6 +876,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 @interface DolphinInternalBridgePlugin ()
 @property(nonatomic, strong) FlutterMethodChannel* channel;
 @property(atomic, assign) uint64_t achievementPresentationSession;
+@property(atomic, copy, nullable) NSDictionary* achievementConfiguration;
+@property(nonatomic, copy, nullable) NSDictionary* lastAchievementState;
 @property(atomic, strong, nullable) DOLDolphinViewController* dolphinController;
 @property(nonatomic, strong, nullable) DOLHelperSession* helperSession;
 @property(nonatomic, strong, nullable) dispatch_source_t runningTimer;
@@ -901,6 +914,28 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 
 @implementation DolphinInternalBridgePlugin {
   dispatch_queue_t _runtimeQueue;
+}
+
+// Invoked only from the serial runtime queue. The central publisher filters
+// stale generations and dispatches Flutter events without exposing credentials.
+- (void)publishAchievementState {
+  NSDictionary* configuration = self.achievementConfiguration;
+  if (!configuration) return;
+  NSDictionary* native = DOLReadAchievementState();
+  NSDictionary* state = @{@"active": @([native[@"active"] boolValue]),
+      @"gameLoaded": @([native[@"gameLoaded"] boolValue]),
+      @"hardcoreActive": @([native[@"hardcoreActive"] boolValue]),
+      @"errorCode": native ? (native[@"errorCode"] ?: @"") : @"state_unavailable"};
+  if ([self.lastAchievementState isEqual:state]) return;
+  self.lastAchievementState = state;
+  RBRAPublishSessionState(configuration, state);
+}
+
+- (void)endAchievementSession {
+  NSDictionary* configuration = self.achievementConfiguration;
+  self.achievementConfiguration = nil;
+  self.lastAchievementState = nil;
+  if (configuration) RBRAEndSession(configuration);
 }
 
 - (void)presentAchievement:(NSNotification*)notification {
@@ -1100,10 +1135,17 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
                           ? arguments[@"logPath"] : @"";
   NSString* pairingPath = [arguments[@"pairingFilePath"] isKindOfClass:NSString.class]
                               ? arguments[@"pairingFilePath"] : @"";
-  // Only a validated emulator token is accepted. Do not use the Web API key.
-  NSDictionary* raCredentials = [DolphinRetroAchievementsAccount credentials];
-  NSString* raUsername = raCredentials[@"username"] ?: @"";
-  NSString* raApiToken = raCredentials[@"token"] ?: @"";
+  // Consume the central one-shot launch ticket once, after owning the launch.
+  // Missing/invalid tickets return a disabled snapshot; never read a local account.
+  NSDictionary* raConfiguration = [RBRATakeLaunchConfiguration(arguments, @"dolphin") copy];
+  self.achievementConfiguration = raConfiguration;
+  self.lastAchievementState = nil;
+  const BOOL raEnabled = [raConfiguration[@"enabled"] boolValue] &&
+      [raConfiguration[@"supported"] boolValue] && !wiiMenu;
+  NSString* raUsername = raEnabled && [raConfiguration[@"username"] isKindOfClass:NSString.class]
+      ? raConfiguration[@"username"] : @"";
+  NSString* raApiToken = raEnabled && [raConfiguration[@"token"] isKindOfClass:NSString.class]
+      ? raConfiguration[@"token"] : @"";
   self.activeLogPath = logPath;
   self.activeUserDirectory = userDirectory;
   self.activeSystemDirectory = systemDirectory;
@@ -1177,11 +1219,19 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       fail(@"core.initialize_failed", @"The embedded Dolphin core could not initialize.");
       return [self finishFailedLaunch:state];
     }
-    // Take account changes only at a fresh launch, before booting the game.
-    // The password is never persisted; the emulator token is read from Keychain.
-    [DolphinRetroAchievementsAccount beginSession];
-    neostation_dolphin_configure_achievements(raUsername.UTF8String,
-                                              raApiToken.UTF8String);
+    // The core receives explicit policy before boot. Its native token login,
+    // Wii/GameCube hash selection and award callbacks remain the authority.
+    const BOOL raConfigured = neostation_dolphin_configure_achievements_session(
+        raEnabled ? 1 : 0, raEnabled && [raConfiguration[@"hardcore"] boolValue] ? 1 : 0,
+        raEnabled && [raConfiguration[@"notifications"] boolValue] ? 1 : 0,
+        raUsername.UTF8String, raApiToken.UTF8String) != 0;
+    if (!raConfigured) {
+      RBRAPublishSessionState(raConfiguration, @{@"active": @NO, @"gameLoaded": @NO,
+          @"hardcoreActive": @NO, @"errorCode": @"configuration_failed"});
+      // The new export fails closed; a missing/disabled RA client never blocks boot.
+    } else {
+      [self publishAchievementState];
+    }
 
     const BOOL accepted = wiiMenu
         ? neostation_dolphin_validate_wii_menu(logPath.fileSystemRepresentation) == 1
@@ -1768,7 +1818,11 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
         dispatch_async(bridge->_runtimeQueue, ^{
           @autoreleasepool {
             DOLAppendJSONLog(bridge.activeLogPath ?: @"", @"state.operation.begin", @"Starting savestate operation.", @{@"slot": @(slot), @"load": @(load)});
-            const BOOL success = neostation_dolphin_state_operation((int32_t)slot, load ? 1 : 0) != 0;
+            // Check the live client again on the runtime queue, not a setting
+            // captured when the menu opened. The core independently enforces it.
+            const BOOL blocked = load && [DOLReadAchievementState()[@"hardcoreEnforced"] boolValue];
+            const BOOL success = !blocked &&
+                neostation_dolphin_state_operation((int32_t)slot, load ? 1 : 0) != 0;
             DOLAppendJSONLog(bridge.activeLogPath ?: @"", @"state.operation.complete", @"Savestate operation finished.", @{@"slot": @(slot), @"load": @(load), @"success": @(success)});
             dispatch_async(dispatch_get_main_queue(), ^{
               if (bridge.stopInProgress || bridge.dolphinController != owner) return;
@@ -1870,6 +1924,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   self.helperSession = nil;
   neostation_dolphin_stop(self.activeLogPath.fileSystemRepresentation);
   DOLRestoreDisplayTrial(self.activeUserDirectory);
+  [self endAchievementSession];
   [self cleanupSharedResourcesAndUI];
   @synchronized(self) { self.launchInProgress = NO; }
   return state;
@@ -1917,6 +1972,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
           [strongSelf stopRuntimeWithReason:@"core_stopped"];
           return;
         }
+        [strongSelf publishAchievementState];
         const double inputStart=CACurrentMediaTime();
         const int32_t layout = refreshInput ? neostation_dolphin_refresh_controllers() : 0;
         const double inputMs=refreshInput ? (CACurrentMediaTime()-inputStart)*1000 : 0;
@@ -2019,6 +2075,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   DOLAppendJSONLog(logPath,@"display.trial_restored",@"Restored only temporary display keys; kept other settings and cheats.",@{@"success":@(displayRestored)});
   [self.helperSession close];
   self.helperSession = nil;
+  [self endAchievementSession];
   [self cleanupSharedResourcesAndUI];
   @synchronized(self) { self.launchInProgress = NO; }
   if (saveToken.length > 0 && savesFlushed) {

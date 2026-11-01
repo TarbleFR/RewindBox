@@ -1,4 +1,5 @@
 #import <achievement_translation/RBAchievementTranslation.h>
+#import <retro_achievements_session/RBRASession.h>
 #import <objc/message.h>
 #include <vector>
 #import "Armsx2InternalBridgePlugin.h"
@@ -351,6 +352,7 @@ static UIViewController* ARMSX2RootViewController(void) {
 @property(nonatomic, weak) Armsx2GameViewController* achievementPrefetchOwner;
 @property(nonatomic, assign) NSUInteger achievementPrefetchGameID;
 @property(nonatomic, assign) BOOL achievementPrefetchPending;
+@property(atomic, copy) NSDictionary* achievementConfiguration;
 @end
 
 @implementation Armsx2InternalBridgePlugin {
@@ -674,6 +676,7 @@ static UIViewController* ARMSX2RootViewController(void) {
         if (completion) completion(NO, message);
         return;
       }
+      [self endAchievementSession];
       [self dismissGameControllerWithCompletion:^{
         self.operationBusy = NO;
         self.stopInProgress = NO;
@@ -689,15 +692,27 @@ static UIViewController* ARMSX2RootViewController(void) {
   });
 }
 
+- (void)endAchievementSession {
+  NSDictionary* configuration = self.achievementConfiguration;
+  self.achievementConfiguration = nil;
+  self.achievementPrefetchOwner = nil;
+  self.achievementPrefetchGameID = 0;
+  if (configuration) RBRAEndSession(configuration);
+}
+
 - (void)failTransaction:(NSString*)message result:(FlutterResult)result {
+  BOOL stopped = YES;
   if (self.api) {
     char ignored[256] = {};
     self.api->request_stop();
-    self.api->shutdown(30000, ignored, sizeof(ignored));
+    stopped = self.api->shutdown(30000, ignored, sizeof(ignored)) != 0;
   }
   ARMSX2JitAbortTransaction();
   self.operationBusy = NO;
   dispatch_async(dispatch_get_main_queue(), ^{
+    if (stopped) [self endAchievementSession];
+    else if (self.achievementConfiguration)
+      RBRAPublishSessionState(self.achievementConfiguration, @{@"errorCode": @"cleanup_pending"});
     [self dismissGameController];
     result(@{@"success": @NO, @"message": message ?: @"ARMSX2 launch failed."});
   });
@@ -734,9 +749,30 @@ static UIViewController* ARMSX2RootViewController(void) {
 
 - (void)readRetroAchievementsForController:(Armsx2GameViewController*)controller
                                 completion:(void (^)(NSDictionary<NSString*, id>* state))completion {
+  NSDictionary* configuration = self.achievementConfiguration;
   dispatch_async(_runtimeQueue, ^{
-    NSDictionary* state = self.gameController == controller ? [self decodeRetroAchievementsState] : nil;
-    dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(state); });
+    NSDictionary* state = self.gameController == controller && !self.stopInProgress
+        ? [self decodeRetroAchievementsState] : nil;
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (self.gameController != controller || self.achievementConfiguration != configuration || self.stopInProgress) {
+        if (completion) completion(nil);
+        return;
+      }
+      if (configuration && state) {
+        const BOOL gameLoaded = [state[@"hasActiveGame"] boolValue];
+        const BOOL active = [state[@"active"] boolValue] && [state[@"loggedIn"] boolValue] &&
+            gameLoaded && [state[@"hasAchievements"] boolValue];
+        const BOOL hardcoreActive = [state[@"hardcoreActive"] boolValue];
+        NSString* code = [configuration[@"hardcore"] boolValue] && active && gameLoaded && !hardcoreActive
+            ? @"hardcore_inactive" : @"";
+        RBRAPublishSessionState(configuration, @{@"active": @(active), @"gameLoaded": @(gameLoaded),
+            @"hardcoreActive": @(hardcoreActive), @"errorCode": code,
+            @"gameId": state[@"gameId"] ?: @0,
+            @"totalCount": state[@"totalAchievements"] ?: @0,
+            @"unlockedCount": state[@"unlockedAchievements"] ?: @0});
+      }
+      if (completion) completion(state);
+    });
   });
 }
 
@@ -859,7 +895,8 @@ static UIViewController* ARMSX2RootViewController(void) {
     NSString* message=ok
         ? [controller en:@"Patch setting updated for this game."
                       fr:@"Réglage du patch mis à jour pour ce jeu."]
-        : (error[0] ? [NSString stringWithUTF8String:error] : @"Patch update failed.");
+        : (strcmp(error, "hardcore_blocked") == 0 ? RBRALocalizedText(@"hardcoreBlocked", controller.uiLocale) :
+           (error[0] ? [NSString stringWithUTF8String:error] : @"Patch update failed."));
     dispatch_async(dispatch_get_main_queue(), ^{
       if (completion) completion(ok,message ?: @"");
     });
@@ -876,6 +913,10 @@ static UIViewController* ARMSX2RootViewController(void) {
     const float upscale = self.api->get_upscale_multiplier();
     const uint32_t aspect = self.api->get_aspect_ratio();
     const BOOL cheats = self.api->get_cheats_enabled() != 0;
+    const BOOL hardcoreActive = [[self decodeRetroAchievementsState][@"hardcoreActive"] boolValue];
+    const BOOL hardcoreGuardActive = hardcoreActive ||
+        ([self.achievementConfiguration[@"enabled"] boolValue] &&
+         [self.achievementConfiguration[@"hardcore"] boolValue]);
     uint32_t mask = 0;
     for (uint32_t slot = 1; slot <= 5; slot++)
       if (self.api->has_save_state(slot)) mask |= (1u << (slot - 1));
@@ -904,6 +945,8 @@ static UIViewController* ARMSX2RootViewController(void) {
         @"aspect": @(aspect),
         @"cheats": @(cheats),
         @"saveStateMask": @(mask),
+        @"hardcoreActive": @(hardcoreActive),
+        @"hardcoreGuardActive": @(hardcoreGuardActive),
         @"touch": @(controller.touchControlsVisible),
         @"touchHideWithController": @(NeoTouchHidesControlsWithController(@"ps2")),
         @"touchLayoutEditable": @YES,
@@ -1016,6 +1059,17 @@ static UIViewController* ARMSX2RootViewController(void) {
     BOOL ok = NO;
     NSString* success = @"";
 
+    const BOOL forbiddenInHardcore = [command isEqualToString:@"loadState"] ||
+        ([command isEqualToString:@"cheats"] && [value boolValue]);
+    const BOOL hardcoreGuardActive =
+        ([self.achievementConfiguration[@"enabled"] boolValue] &&
+         [self.achievementConfiguration[@"hardcore"] boolValue]) ||
+        [[self decodeRetroAchievementsState][@"hardcoreActive"] boolValue];
+    if (forbiddenInHardcore && hardcoreGuardActive) {
+      NSString* blocked = RBRALocalizedText(@"hardcoreBlocked", controller.uiLocale);
+      dispatch_async(dispatch_get_main_queue(), ^{ if (completion) completion(NO, blocked); });
+      return;
+    }
     if ([command isEqualToString:@"upscale"]) {
       ok = self.api->set_upscale_multiplier([value floatValue], error, sizeof(error)) != 0;
       NSString* format = [controller en:@"Internal resolution: %.0f×"
@@ -1068,7 +1122,8 @@ static UIViewController* ARMSX2RootViewController(void) {
     }
 
     NSString* message = ok ? success :
-        (error[0] ? [NSString stringWithUTF8String:error] : @"ARMSX2 command failed.");
+        (strcmp(error, "hardcore_blocked") == 0 ? RBRALocalizedText(@"hardcoreBlocked", controller.uiLocale) :
+         (error[0] ? [NSString stringWithUTF8String:error] : @"ARMSX2 command failed."));
     [self publishMenuStateForController:controller message:message ?: @""];
     dispatch_async(dispatch_get_main_queue(), ^{
       if (completion) completion(ok, message ?: @"");
@@ -1315,7 +1370,7 @@ static UIViewController* ARMSX2RootViewController(void) {
     return;
   }
 
-  if (self.operationBusy) {
+  if (self.operationBusy || self.gameController || self.achievementConfiguration) {
     result(@{@"success": @NO, @"message": @"An ARMSX2 transaction is already active."});
     return;
   }
@@ -1339,6 +1394,10 @@ static UIViewController* ARMSX2RootViewController(void) {
     return;
   }
 
+  NSDictionary* achievementConfiguration = [RBRATakeLaunchConfiguration(args, @"armsx2") copy] ?: @{};
+  self.achievementConfiguration = achievementConfiguration;
+  RBRAPublishSessionState(achievementConfiguration, @{@"active": @NO, @"gameLoaded": @NO,
+      @"hardcoreActive": @NO, @"errorCode": @""});
   self.operationBusy = YES;
   dispatch_async(_runtimeQueue, ^{
     NSString* loadError = nil;
@@ -1395,6 +1454,20 @@ static UIViewController* ARMSX2RootViewController(void) {
     config.bios_filename = biosFilename.length ? biosFilename.fileSystemRepresentation : "";
     config.event = NULL;
     config.context = NULL;
+    const BOOL achievementsEnabled = [achievementConfiguration[@"enabled"] boolValue] &&
+        [achievementConfiguration[@"supported"] boolValue] && !biosBoot;
+    NSString* raUsername = [achievementConfiguration[@"username"] isKindOfClass:NSString.class]
+        ? achievementConfiguration[@"username"] : @"";
+    NSString* raToken = [achievementConfiguration[@"token"] isKindOfClass:NSString.class]
+        ? achievementConfiguration[@"token"] : @"";
+    NeoARMSX2RALaunchConfiguration ra = {};
+    ra.size = sizeof(ra);
+    ra.enabled = achievementsEnabled ? 1u : 0u;
+    ra.hardcore = achievementsEnabled && [achievementConfiguration[@"hardcore"] boolValue] ? 1u : 0u;
+    ra.notifications = achievementsEnabled && [achievementConfiguration[@"notifications"] boolValue] ? 1u : 0u;
+    ra.username = raUsername.UTF8String;
+    ra.token = raToken.UTF8String;
+    config.achievements = &ra;
 
     if (!self.api->prepare(&config, 120000, error, sizeof(error))) {
       NSString* message = error[0] ? [NSString stringWithUTF8String:error] : @"ARMSX2 Core preparation failed.";
@@ -1450,6 +1523,7 @@ static UIViewController* ARMSX2RootViewController(void) {
       // Presented earlier and booted with the surface the Core sized for the
       // iPhone: from here the render view may be shown on the TV.
       [self attachExternalDisplayForController:controller];
+      [self readRetroAchievementsForController:controller completion:nil];
       result(@{
         @"success": @YES,
         @"transaction": transactionNumber,

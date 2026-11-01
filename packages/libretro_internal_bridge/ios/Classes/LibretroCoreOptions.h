@@ -46,6 +46,12 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property(nonatomic, copy, readonly) NSArray<LibretroCoreOption *> *options;
 @property(nonatomic, assign, readonly) BOOL updatePending;
+/// Monotonic revision of effective values/declarations, for cheap validation
+/// by the emulation thread. No persistence or user preference is added.
+@property(nonatomic, assign, readonly) uint64_t effectiveRevision;
+/// Optional session policy. All mutation paths consult it before changing an
+/// effective value, including core SET_VARIABLE and internal overrides.
+@property(nonatomic, copy, nullable) BOOL (^valueAllowed)(NSString *key, NSString *value);
 @property(nonatomic, assign, nullable) retro_core_options_update_display_callback_t updateDisplayCallback;
 
 /// Session-only values that take precedence over stored ones (for instance

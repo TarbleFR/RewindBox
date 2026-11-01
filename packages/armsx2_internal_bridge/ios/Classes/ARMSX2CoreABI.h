@@ -6,7 +6,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define NEO_ARMSX2_ABI_VERSION 8u
+#define NEO_ARMSX2_ABI_VERSION 9u
 #define NEO_ARMSX2_BOOT_DISC 1u
 #define NEO_ARMSX2_BOOT_ELF 2u
 // No ROM: use the installed BIOS and the same owned VM lifecycle.
@@ -24,6 +24,18 @@ extern "C" {
 
 typedef void (*NeoARMSX2Event)(void* context, uint64_t transaction,
                              const char* event, const char* message);
+// ABI 9: launch-only policy. The Core copies these bytes during prepare();
+// pointers are never retained and credentials never enter a status/event payload.
+// A null/invalid policy disables RA, regardless of old engine INI preferences.
+typedef struct NeoARMSX2RALaunchConfiguration {
+  uint32_t size;
+  uint32_t enabled;
+  uint32_t hardcore;
+  uint32_t notifications;
+  const char* username;
+  const char* token;
+} NeoARMSX2RALaunchConfiguration;
+
 typedef struct NeoARMSX2Configuration {
   uint32_t size;
   uint64_t transaction;
@@ -33,6 +45,7 @@ typedef struct NeoARMSX2Configuration {
   const char* bios_filename; // Empty selects a valid BIOS, never copies it.
   NeoARMSX2Event event;
   void* context;
+  const NeoARMSX2RALaunchConfiguration* achievements;
 } NeoARMSX2Configuration;
 
 typedef struct NeoARMSX2API {

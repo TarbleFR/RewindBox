@@ -59,6 +59,7 @@ static NSString *const kGamesKey = @"games";
   // value changed from the menu never dangles.
   NSMutableArray<NSData *> *_retiredCStrings;
   BOOL _updatePending;
+  uint64_t _effectiveRevision;
 }
 
 - (instancetype)initWithStorePath:(NSString *)storePath {
@@ -103,6 +104,15 @@ static NSString *const kGamesKey = @"games";
   }
 }
 
+- (uint64_t)effectiveRevision {
+  @synchronized(self) { return _effectiveRevision; }
+}
+
+- (BOOL)policyAllowsValue:(NSString *)value forKey:(NSString *)key {
+  BOOL (^policy)(NSString *, NSString *) = self.valueAllowed;
+  return value == nil || policy == nil || policy(key, value);
+}
+
 /// Merges `values` into `target` (session overrides or NeoStation defaults).
 /// Values given before the core declares its options are kept and resolved
 /// once declared. Only keys whose effective value changes lose their cached
@@ -114,6 +124,7 @@ static NSString *const kGamesKey = @"games";
   for (id key in values) {
     id value = values[key];
     if (![key isKindOfClass:[NSString class]] || ![value isKindOfClass:[NSString class]]) continue;
+    if (![self policyAllowsValue:value forKey:key]) continue;
     NSString *previous = [self effectiveValueLocked:key pinned:YES];
     target[key] = value;
     if (locked) [_locked addObject:key];
@@ -140,6 +151,7 @@ static NSString *const kGamesKey = @"games";
 - (void)noteChangeLocked:(NSString *)key from:(NSString *)previous flagUpdate:(BOOL)flagUpdate {
   NSString *current = [self effectiveValueLocked:key pinned:YES];
   if (current == previous || [current isEqualToString:previous]) return;
+  _effectiveRevision++;
   [self retireCStringLocked:key];
   if (flagUpdate && [self optionForKeyLocked:key] != nil) _updatePending = YES;
 }
@@ -185,6 +197,7 @@ static NSString *const kGamesKey = @"games";
   LibretroCoreOption *existing = [self optionForKeyLocked:option.key];
   if (existing != nil) [_options removeObject:existing];
   [_options addObject:option];
+  _effectiveRevision++;
   [self retireCStringLocked:option.key];
 }
 
@@ -377,6 +390,7 @@ static LibretroCoreOption *OptionFromValues(NSString *key, const char *desc, con
   @synchronized(self) {
     // NeoStation needs these values for the whole session (DS / 3DS screens).
     if ([_locked containsObject:key]) return NO;
+    if (![self policyAllowsValue:value forKey:key]) return NO;
     LibretroCoreOption *option = [self optionForKeyLocked:key];
     if (option != nil && ![option.values containsObject:value]) return NO;
     NSString *previous = [self effectiveValueLocked:key pinned:YES];
@@ -385,7 +399,10 @@ static LibretroCoreOption *OptionFromValues(NSString *key, const char *desc, con
     _stored[key] = value;
     [self retireCStringLocked:key];
     NSString *current = [self effectiveValueLocked:key pinned:YES];
-    if (![previous isEqualToString:current]) _updatePending = YES;
+    if (![previous isEqualToString:current]) {
+      _updatePending = YES;
+      _effectiveRevision++;
+    }
   }
   if (persist) [self save];
   return YES;
@@ -400,7 +417,11 @@ static LibretroCoreOption *OptionFromValues(NSString *key, const char *desc, con
     if (game && _gameKey == nil) return NO;
     LibretroCoreOption *option = [self optionForKeyLocked:key];
     if (value != nil && option != nil && ![option.values containsObject:value]) return NO;
+    if (![self policyAllowsValue:value forKey:key]) return NO;
     NSString *previous = [self effectiveValueLocked:key pinned:YES];
+    NSDictionary *oldPinned = [_pinned copy];
+    NSDictionary *oldOverrides = [_overrides copy];
+    NSDictionary *oldLayer = [(game ? _game : _stored) copy];
     if (applyNow) {
       [_pinned removeObjectForKey:key];
     } else if (_pinned[key] == nil && previous != nil) {
@@ -414,6 +435,15 @@ static LibretroCoreOption *OptionFromValues(NSString *key, const char *desc, con
       layer[key] = value;
     } else {
       [layer removeObjectForKey:key];
+    }
+    // Removing a setting can reveal an incompatible stored/default value.
+    // Reject that transition atomically, without saving a partial mutation.
+    if (![self policyAllowsValue:[self effectiveValueLocked:key pinned:YES] forKey:key]) {
+      _pinned = [oldPinned mutableCopy];
+      _overrides = [oldOverrides mutableCopy];
+      if (game) _game = [oldLayer mutableCopy];
+      else _stored = [oldLayer mutableCopy];
+      return NO;
     }
     [self noteChangeLocked:key from:previous flagUpdate:YES];
     if (game) gameValues = [_game copy];

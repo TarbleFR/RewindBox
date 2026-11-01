@@ -35,6 +35,7 @@ BRIDGE = ROOT / 'packages/libretro_internal_bridge/ios'
 # Pods the bridge depends on: name -> folder of its podspec.
 DEPENDENCY_PODS = {
     'achievement_translation': ROOT / 'packages/achievement_translation/ios',
+    'retro_achievements_session': ROOT / 'packages/retro_achievements_session/ios',
     'external_display': ROOT / 'packages/external_display/ios',
     'neo_shader_kit': ROOT / 'packages/neo_shader_kit/ios',
     'neo_cheat_catalog': ROOT / 'packages/neo_cheat_catalog/ios',
@@ -99,8 +100,13 @@ def achievement_boundary_units(sources):
     Historical source checkouts without this dependency need no such unit.
     """
     files = list((sources / 'Classes').glob('*.[mM]'))
-    return [ROOT / 'test/achievement_translation_test_boundary.m'] if any(
-        '<achievement_translation/' in path.read_text() for path in files) else []
+    contents = [path.read_text() for path in files]
+    units = []
+    if any('<achievement_translation/' in text for text in contents):
+        units.append(ROOT / 'test/achievement_translation_test_boundary.m')
+    if any('<retro_achievements_session/' in text for text in contents):
+        units.append(ROOT / 'test/retro_achievements_session_test_boundary.m')
+    return units
 
 
 def stage_dependency_headers(directory):

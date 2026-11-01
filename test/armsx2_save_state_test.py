@@ -33,10 +33,18 @@ program = r'''
 #include <algorithm>
 #include <cassert>
 #include <cstring>
+#include <mutex>
 @interface ARMSX2Bridge : NSObject
 '''+ '\n'.join(declarations) + r'''
 @end
 static BOOL running=YES, result=YES, deferred=NO;
+static bool hardcoreRequested=false;
+namespace Achievements {
+static bool hardcore=false;
+static std::mutex mutex;
+static auto GetLock() { return std::unique_lock<std::mutex>(mutex); }
+static bool IsHardcoreModeActive() { return hardcore; }
+}
 static NSInteger calls=0, lastSlot=0;
 static void (^lateCallback)(BOOL, NSString*)=nil;
 static void respond(void (^callback)(BOOL, NSString*)) {
@@ -54,6 +62,7 @@ static void respond(void (^callback)(BOOL, NSString*)) {
   lastSlot=slot;respond(completion);
 }
 @end
+static bool hardcore_restrictions_active() { return hardcoreRequested || Achievements::IsHardcoreModeActive(); }
 static bool has_running_game() { return running; }
 static int error_out(const char* text,char* output,size_t capacity) {
   if(output && capacity) snprintf(output,capacity,"%s",text);
@@ -64,6 +73,16 @@ int main() { @autoreleasepool {
   char error[256]{};
   assert(save_state(3,1000,error,sizeof(error))==1 && lastSlot==3);
   assert(load_state(7,1000,error,sizeof(error))==1 && lastSlot==7);
+  Achievements::hardcore=true;
+  NSInteger beforeHardcore=calls;
+  assert(load_state(7,1000,error,sizeof(error))==0);
+  assert(strcmp(error,"hardcore_blocked")==0 && calls==beforeHardcore);
+  assert(save_state(3,1000,error,sizeof(error))==1 && calls==beforeHardcore+1);
+  Achievements::hardcore=false; hardcoreRequested=true;
+  beforeHardcore=calls;
+  assert(load_state(7,1000,error,sizeof(error))==0 && calls==beforeHardcore);
+  assert(save_state(3,1000,error,sizeof(error))==1 && calls==beforeHardcore+1);
+  hardcoreRequested=false;
   result=NO;
   assert(save_state(4,1000,error,sizeof(error))==0);
   assert(strstr(error,"could not save"));

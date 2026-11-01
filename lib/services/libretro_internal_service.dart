@@ -18,6 +18,7 @@ import 'libretro_3ds_containers.dart';
 import 'libretro_3ds_language.dart';
 import 'libretro_core_catalog.dart';
 import 'libretro_resolution.dart';
+import 'retro_achievements_session_service.dart';
 import 'logger_service.dart';
 import 'diagnostics_directory.dart';
 import 'storage/storage_import_activity.dart';
@@ -286,6 +287,9 @@ abstract final class LibretroInternalService {
         );
       }
     }
+    final raService = RetroAchievementsSessionService.shared;
+    var raLaunch = await raService.prepareLaunch(engine: 'libretro', system: key,
+      core: coreId, language: locale.toLanguageTag());
     final request = <String, Object?>{
       'coreId': coreId,
       'contentPath': path.normalize(romPath),
@@ -313,7 +317,8 @@ abstract final class LibretroInternalService {
       // Internal resolution (Build 455): how the session recognizes the
       // core's resolution option among those it declares.
       'resolution': LibretroResolution.nativeRules(),
-      'achievementsAllowed': binding.achievementsConsoleId > 0,
+      'raSessionId': raLaunch['raSessionId'],
+      'achievementsAllowed': raLaunch['enabled'] == true,
       'achievementsConsoleId': binding.achievementsConsoleId,
       'preferredHardwareContext': core.preferredHardwareContext,
     };
@@ -327,8 +332,13 @@ abstract final class LibretroInternalService {
         // (MoltenVK, GPU features): one new session on its software renderer,
         // which never replaces textures (the HD page says so).
         _log.w('Beetle PSX HW: Vulkan unavailable (${result['message'] ?? ''}); relaunching with the software renderer');
+        await raService.finishLaunch(raLaunch);
+        raLaunch = await raService.prepareLaunch(engine: 'libretro', system: key,
+          core: coreId, language: locale.toLanguageTag());
         result = await LibretroInternalBridge.launch(<String, Object?>{
           ...request,
+          'raSessionId': raLaunch['raSessionId'],
+          'achievementsAllowed': raLaunch['enabled'] == true,
           'preferredHardwareContext': LibretroHardwareContext.none,
           'lockedOptions': <String, String>{...core.lockedOptions, 'beetle_psx_hw_renderer': 'software'},
         });
@@ -342,6 +352,7 @@ abstract final class LibretroInternalService {
         return const LibretroLaunchOutcome(success: true);
       }
       final log = result['log'];
+      await raService.finishLaunch(raLaunch);
       final details = <String>[
         'Core: $coreId',
         'Code: ${result['code'] ?? 'unknown'}',
@@ -355,6 +366,7 @@ abstract final class LibretroInternalService {
         technicalDetails: details,
       );
     } catch (error) {
+      await raService.finishLaunch(raLaunch);
       _log.e('Embedded libretro launch error: $error');
       return LibretroLaunchOutcome(success: false, technicalDetails: '$error');
     }

@@ -76,7 +76,9 @@ class RetroAchievementsService {
     'gcn': 16,
     'wii': 82,
     'nds': 18,
-    '3ds': 78,
+    // Reserved console ID, not an assertion of native achievement support.
+    // The central capability policy keeps 3DS disabled until official rollout.
+    '3ds': 62,
     'genesis': 1,
     'sms': 11,
     'gg': 15,
