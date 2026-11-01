@@ -1,21 +1,24 @@
 #!/usr/bin/env python3
 """Execute the real A57 decoder, liveness masks, dataflow and context transfers.
 
-Baseline is the delivered ae78b4b preparation of these sources (vector-mask,
-context and dataflow adapters applied). Candidate adds adapt_register_liveness.
-Both keep the pinned production table, RegisterUtils, Block/MultiBlock/DataFlow,
-context-transfer methods and ARM64 assembler. Emitted words are decoded
+Baseline is the delivered ae78b4b prepared source (vector-mask, context and
+dataflow adapters applied). Candidate is the final prepared source; the
+liveness adapter applied to the baseline must reproduce it exactly. Both keep
+the production table, RegisterUtils, Block/MultiBlock/DataFlow, context
+transfer methods and ARM64 assembler. Emitted words are decoded
 independently; generated ARM64 is not executed and no device is involved.
 """
 from pathlib import Path
-import hashlib, json, shutil, subprocess, sys, tempfile
+import argparse, hashlib, json, shutil, subprocess, sys, tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = Path(sys.argv[1]).resolve()
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('source', type=Path, help='Delivered prepared baseline source tree')
+parser.add_argument('--candidate-source', type=Path, required=True, help='Final prepared source tree')
+args = parser.parse_args()
+SOURCE = args.source.resolve()
+CANDIDATE = args.candidate_source.resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
-from adapt_vector_register_masks import apply as vector_apply
-from adapt_jit_context import apply as context_apply
-from adapt_jit_dataflow import apply as dataflow_apply
 from adapt_register_liveness import apply as liveness_apply
 
 
@@ -41,7 +44,7 @@ TABLE = BASE + 'Arm64/Target/Arm64/InstTable.cs'
 DECODER = BASE + 'Arm64/Target/Arm64/Decoder.cs'
 DATAFLOW = BASE + 'Graph/DataFlow.cs'
 # Decoder.DecodeMulti's PSTATE liveness, replicated by the fixture.
-PSTATE = '''                if (flags.HasFlag(InstFlags.Nzcv) || IsMrsNzcv(encoding))
+PSTATE = """                if (flags.HasFlag(InstFlags.Nzcv) || IsMrsNzcv(encoding))
                 {
                     instPStateReadMask = NzcvFlags;
                 }
@@ -53,37 +56,35 @@ PSTATE = '''                if (flags.HasFlag(InstFlags.Nzcv) || IsMrsNzcv(encod
                 if (flags.HasFlag(InstFlags.S) || IsMsrNzcv(encoding))
                 {
                     instPStateWriteMask = NzcvFlags;
-                }'''
+                }"""
 PSTATE_HELPERS = ['return (encoding & ~0x1fu) == 0xd53b4200u;', 'return (encoding & ~0x1fu) == 0xd51b4200u;',
                   'private const uint NzcvFlags = 0xfu << 28;', 'private const uint CFlag = 0x1u << 29;']
 
 pin = json.loads((ROOT / 'build-utils/melonx/source.json').read_text())
-assert subprocess.check_output(['git', '-C', str(SOURCE), 'rev-parse', 'HEAD'], text=True).strip() == pin['revision']
-decoder = (SOURCE / DECODER).read_text(encoding='utf-8-sig')
+decoder = (CANDIDATE / DECODER).read_text(encoding='utf-8-sig')
 assert decoder.count(PSTATE) == 1 and all(decoder.count(line) == 1 for line in PSTATE_HELPERS), 'Decoder PSTATE logic drifted'
+for name in (COMPILER, DECODER, DATAFLOW):
+    assert digest(SOURCE / name) == digest(CANDIDATE / name), 'Unexpected change outside the reviewed scope: ' + name
 
 with tempfile.TemporaryDirectory(prefix='melonx-register-liveness-') as temporary:
     work = Path(temporary).resolve()
-    trees = {}
-    for kind in ('baseline', 'candidate'):
-        tree = work / kind
-        for name in (REGISTERS, COMPILER, TABLE, DATAFLOW):
-            path = tree / name
-            path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(SOURCE / name, path)
-        vector_apply(tree); context_apply(tree); dataflow_apply(tree)
-        trees[kind] = tree
-    liveness_apply(trees['candidate'])
+    expected = work / 'expected'
+    for name in (REGISTERS, TABLE):
+        (expected / name).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(SOURCE / name, expected / name)
+    liveness_apply(expected)
+    for name in (REGISTERS, TABLE):
+        assert digest(expected / name) == digest(CANDIDATE / name), 'Candidate is not the reviewed adapter output: ' + name
     try:
-        liveness_apply(trees['candidate'])
+        liveness_apply(expected)
     except AssertionError:
         reapplied = False
     else:
         reapplied = True
     assert not reapplied, 'Liveness adapter must refuse to apply twice'
+    baseline, candidate = SOURCE, CANDIDATE
     project = work / 'probe'
     project.mkdir()
-    baseline, candidate = trees['baseline'], trees['candidate']
     (project / 'BaselineRegisterUtils.cs').write_text(
         (baseline / REGISTERS).read_text().replace('static class RegisterUtils', 'static class BaselineRegisterUtils', 1))
     (project / 'BaselineInstTable.cs').write_text(
@@ -93,7 +94,6 @@ with tempfile.TemporaryDirectory(prefix='melonx-register-liveness-') as temporar
     shutil.copyfile(candidate / TABLE, project / 'InstTable.cs')
     shutil.copyfile(candidate / DATAFLOW, project / 'DataFlow.cs')
     compiler = (candidate / COMPILER).read_text()
-    assert compiler == (baseline / COMPILER).read_text(), 'Adapter must not change context transfers'
     methods = '\n'.join(member(compiler, f'private void {operation}{kind}{direction}Context')
                         for kind in ('FpSimd', 'PState') for operation, direction in (('Load', 'From'), ('Store', 'To')))
     (project / 'ContextTransfers.cs').write_text('''using System;using System.Numerics;
@@ -124,11 +124,12 @@ namespace Ryujinx.Cpu.LightningJit.Arm64 {
              'IsaVersion.cs', 'IsaFeature.cs', 'AddressForm.cs', 'CodeWriter.cs', 'CpuPreset.cs', 'CpuPresets.cs',
              'CodeGen/Arm64/Assembler.cs', 'CodeGen/Arm64/ArmCondition.cs', 'CodeGen/Arm64/ArmExtensionType.cs',
              'CodeGen/Arm64/ArmShiftType.cs', 'CodeGen/Arm64/CodeGenCommon.cs']
-    files = [SOURCE / (BASE + name) for name in names]
+    files = [BASE + name for name in names]
     for folder in ('Graph', 'Table', 'CodeGen'):
-        files += sorted(path for path in (SOURCE / (BASE + folder)).glob('*.cs') if path.name != 'DataFlow.cs')
-    for path in files:
-        shutil.copyfile(path, project / path.name)
+        files += sorted(str(path.relative_to(CANDIDATE)) for path in (CANDIDATE / (BASE + folder)).glob('*.cs') if path.name != 'DataFlow.cs')
+    for name in files:
+        assert digest(SOURCE / name) == digest(CANDIDATE / name), 'Unexpected dependency change: ' + name
+        shutil.copyfile(CANDIDATE / name, project / Path(name).name)
     shutil.copyfile(ROOT / 'test/melonx_register_liveness/Program.cs', project / 'Program.cs')
     (project / 'Probe.csproj').write_text('''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
 <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><LangVersion>preview</LangVersion>
@@ -143,14 +144,12 @@ namespace Ryujinx.Cpu.LightningJit.Arm64 {
     report = json.loads(next(line for line in result.stdout.splitlines() if line.startswith('{')))
     report.update(result='passed', generatedArm64Executed=False, physicalDeviceTested=False,
                   hogwartsCrashCauseProven=False, adapterRefusesReapplication=True, upstreamRevision=pin['revision'],
+                  adapterExplainsCandidate=True, sourceKind='deliveredPreparedBaselineWithFinalCandidate',
                   inputs={str(path.relative_to(ROOT)): digest(path) for path in [
                       Path(__file__), ROOT / 'test/melonx_register_liveness/Program.cs',
-                      ROOT / 'build-utils/melonx/adapt_register_liveness.py',
-                      ROOT / 'build-utils/melonx/adapt_vector_register_masks.py',
-                      ROOT / 'build-utils/melonx/adapt_jit_context.py', ROOT / 'build-utils/melonx/adapt_jit_dataflow.py']},
-                  upstreamInputs={str(path.relative_to(SOURCE)): digest(path) for path in
-                                  [SOURCE / REGISTERS, SOURCE / COMPILER, SOURCE / TABLE, SOURCE / DECODER,
-                                   SOURCE / DATAFLOW, *files]},
+                      ROOT / 'build-utils/melonx/adapt_register_liveness.py']},
+                  upstreamInputs={name: digest(SOURCE / name) for name in
+                                  [COMPILER, DECODER, DATAFLOW, *files]},
                   preimages={name: digest(baseline / name) for name in (REGISTERS, TABLE)},
                   postimages={name: digest(candidate / name) for name in (REGISTERS, TABLE)})
     out = ROOT / 'dist/melonx/register-liveness-checks.json'

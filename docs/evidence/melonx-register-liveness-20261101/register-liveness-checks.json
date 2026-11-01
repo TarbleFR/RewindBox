@@ -121,20 +121,17 @@
   "hogwartsCrashCauseProven": false,
   "adapterRefusesReapplication": true,
   "upstreamRevision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+  "adapterExplainsCandidate": true,
+  "sourceKind": "deliveredPreparedBaselineWithFinalCandidate",
   "inputs": {
-    "test/melonx_register_liveness_test.py": "7aaa0cfe299cc9f67fd92c88c19a7798ddba3383dba978f7cecc69b09ecb9f82",
+    "test/melonx_register_liveness_test.py": "dba1f668499d2c5ec03230d4e119dbc92fb015165c3364c2efa51397f1c35739",
     "test/melonx_register_liveness/Program.cs": "668b731da41d2c134b98bcceb15ecc21d603324cc1466693ee13f41aee912ed0",
-    "build-utils/melonx/adapt_register_liveness.py": "be37aa724d628c3a06737008c0d22756fe26eaf9d3c2f657aa4dbd057d39903a",
-    "build-utils/melonx/adapt_vector_register_masks.py": "ee631b03d199c149e7a0dc7b6087cd2ac9a1059545d9269b073ba79960721726",
-    "build-utils/melonx/adapt_jit_context.py": "11a9f77d70c10a7d92b8a6500d506e2c8e0b777aba05f45bc117ae894ea433b6",
-    "build-utils/melonx/adapt_jit_dataflow.py": "959bdfc031a8616fad8dfd066cf9f349d6c4ed08bead451ac2e67bb388acc4e0"
+    "build-utils/melonx/adapt_register_liveness.py": "be37aa724d628c3a06737008c0d22756fe26eaf9d3c2f657aa4dbd057d39903a"
   },
   "upstreamInputs": {
-    "src/Ryujinx.Cpu/LightningJit/Arm64/RegisterUtils.cs": "40bb192558666b2d21072a2981ea8cb9b8f78e4b4a03d9d36be4eb82e805e88b",
-    "src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/Compiler.cs": "1e0111a037fd6cc1f35f8e999ee8a892d706c11d1938b315a7bd411dffc1240e",
-    "src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/InstTable.cs": "d082ecbf70cf7e0cdeb35dade79d92e456f772ab629293d14e15c90a1e5d63a7",
-    "src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/Decoder.cs": "87a7829db3cc7ea142c43b0a8390ec7df4e2406a0d59dfe90babb1900a5a8cdc",
-    "src/Ryujinx.Cpu/LightningJit/Graph/DataFlow.cs": "de7831abfcead47f062c03c1b66a62699e84ae4e6d7e9ffc0e1cbdafb62e02c2",
+    "src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/Compiler.cs": "0b5aac1f7b786a88818f131c02c5aea9188bd6c5e993ebbf77a54d5e7f82b249",
+    "src/Ryujinx.Cpu/LightningJit/Arm64/Target/Arm64/Decoder.cs": "7992fab438db8defc8df32d89e76ec8a76696324713afe21d7855e3abb7e7780",
+    "src/Ryujinx.Cpu/LightningJit/Graph/DataFlow.cs": "513b41a8decfcde9b87c414acedf56ee13ac7097bb7658e8d53b6ec41c2a4f22",
     "src/Ryujinx.Cpu/LightningJit/Arm64/InstFlags.cs": "260e4cd3bfb0705a66d2fb7d659409d25845713cb5ae56011755c891a1f9e570",
     "src/Ryujinx.Cpu/LightningJit/Arm64/InstName.cs": "52649c00e450a43cfe955b0488dd3512b42cc8d59584eca6b52912aa45073318",
     "src/Ryujinx.Cpu/LightningJit/Arm64/InstInfo.cs": "6c8109fd54eeb1b3bd0b48796ef05ef7ee2cfd0f4a4ae06fe96a58d7e6649498",
