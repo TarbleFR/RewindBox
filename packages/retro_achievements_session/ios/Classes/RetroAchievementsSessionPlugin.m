@@ -1,5 +1,6 @@
 #import "Public/RetroAchievementsSessionPlugin.h"
 #import "Public/RBRASession.h"
+#import "RBRALegacyMigration.h"
 #import <Security/Security.h>
 
 static NSString *RBRAString(id value) {
@@ -37,7 +38,12 @@ static NSDictionary *RBRAReadCredentials(NSString *suffix, OSStatus *status) {
     if (status) *status = errSecDecode;
     return nil;
   }
-  return @{ @"username": decoded[@"username"], @"token": decoded[@"token"] };
+  NSMutableDictionary *credentials = [@{ @"username": decoded[@"username"], @"token": decoded[@"token"] } mutableCopy];
+  NSDictionary *policy = [decoded[@"migrationPolicy"] isKindOfClass:NSDictionary.class] ? decoded[@"migrationPolicy"] : nil;
+  if ([policy[@"enabled"] isKindOfClass:NSNumber.class] && [policy[@"hardcore"] isKindOfClass:NSNumber.class]) {
+    credentials[@"migrationPolicy"] = @{@"enabled": @(RBRABool(policy[@"enabled"])), @"hardcore": @(RBRABool(policy[@"hardcore"]))};
+  }
+  return [credentials copy];
 }
 
 static OSStatus RBRAWriteCredentials(NSDictionary *credentials) {
@@ -73,6 +79,7 @@ static FlutterError *RBRAError(NSString *code) {
 @property(nonatomic, strong) NSLock *lock;
 @property(nonatomic, strong) NSMutableDictionary<NSString *, NSDictionary *> *pending;
 @property(nonatomic, strong) NSMutableDictionary<NSString *, NSDictionary *> *active;
+@property(nonatomic, copy) NSDictionary<NSString *, NSDictionary *> *legacyCandidates;
 @property(nonatomic, strong) NSHashTable<FlutterMethodChannel *> *channels;
 @property(nonatomic, copy) NSDictionary *lastState;
 @property(nonatomic, copy) NSString *currentSessionId;
@@ -94,6 +101,7 @@ static FlutterError *RBRAError(NSString *code) {
     hub.lock = [NSLock new];
     hub.pending = [NSMutableDictionary dictionary];
     hub.active = [NSMutableDictionary dictionary];
+    hub.legacyCandidates = @{};
     hub.channels = [NSHashTable weakObjectsHashTable];
     hub.lastState = @{};
     hub.currentSessionId = @"";
@@ -130,6 +138,73 @@ static FlutterError *RBRAError(NSString *code) {
 - (void)handle:(FlutterMethodCall *)call result:(FlutterResult)result {
   NSAssert(NSThread.isMainThread, @"Flutter account operations must be serialized on main");
   NSDictionary *args = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{};
+  if ([call.method isEqualToString:@"inspectLegacy"]) {
+    OSStatus status;
+    NSDictionary *central = RBRAReadCredentials(@".retroachievements", &status);
+    if (status != errSecSuccess && status != errSecItemNotFound) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
+    if (central) {
+      // An interrupted DB write resumes the same import. Never overwrite a
+      // confirmed central account with credentials rediscovered in old files.
+      self.legacyCandidates = @{};
+      result(@{@"central": @YES, @"authenticated": @YES, @"username": central[@"username"],
+               @"policy": central[@"migrationPolicy"] ?: @{}, @"candidates": @[]});
+      return;
+    }
+    NSDictionary *libretro = RBRAReadCredentials(@".libretro.retroachievements", &status);
+    if (status != errSecSuccess && status != errSecItemNotFound) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
+    NSDictionary *dolphin = RBRAReadCredentials(@".dolphin.retroachievements", &status);
+    if (status != errSecSuccess && status != errSecItemNotFound) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
+    NSString *support = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES).firstObject;
+    NSString *documents = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES).firstObject;
+    if (!support.length || !documents.length) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
+    NSError *error = nil;
+    NSDictionary *dolphinValues = [RBRALegacyMigration achievementValuesAtPath:
+      [support stringByAppendingPathComponent:@"NeoStation/Dolphin/User/Config/RetroAchievements.ini"] error:&error];
+    if (!dolphinValues) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
+    NSDictionary *armsx2Values = [RBRALegacyMigration achievementValuesAtPath:
+      [documents stringByAppendingPathComponent:@"ARMSX2/inis/PCSX2.ini"] error:&error];
+    if (!armsx2Values) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
+    NSDictionary *armsx2Secrets = [RBRALegacyMigration achievementValuesAtPath:
+      [documents stringByAppendingPathComponent:@"ARMSX2/inis/secrets.ini"] error:&error];
+    if (!armsx2Secrets) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
+    NSArray *candidates = [RBRALegacyMigration candidatesWithLibretro:libretro
+      libretroEnabled:[NSUserDefaults.standardUserDefaults objectForKey:@"libretro.achievements.enabled"]
+      dolphin:dolphin dolphinValues:dolphinValues armsx2Values:armsx2Values armsx2Secrets:armsx2Secrets];
+    NSMutableDictionary *privateCandidates = [NSMutableDictionary dictionary];
+    NSMutableArray *publicCandidates = [NSMutableArray array];
+    for (NSDictionary *candidate in candidates) {
+      NSString *identifier = NSUUID.UUID.UUIDString;
+      privateCandidates[identifier] = candidate;
+      [publicCandidates addObject:@{@"id": identifier, @"username": candidate[@"username"],
+        @"sources": candidate[@"sources"], @"enabled": candidate[@"enabled"], @"hardcore": candidate[@"hardcore"]}];
+    }
+    self.legacyCandidates = [privateCandidates copy];
+    result(@{@"central": @NO, @"candidates": publicCandidates});
+    return;
+  }
+  if ([call.method isEqualToString:@"importLegacy"]) {
+    NSDictionary *candidate = self.legacyCandidates[RBRAString(args[@"id"])];
+    if (!candidate) { result(RBRAError(@"RA_MIGRATION_EXPIRED")); return; }
+    OSStatus status;
+    NSDictionary *central = RBRAReadCredentials(@".retroachievements", &status);
+    if (status != errSecSuccess && status != errSecItemNotFound) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
+    if (central && [central[@"username"] caseInsensitiveCompare:candidate[@"username"]] != NSOrderedSame) {
+      result(RBRAError(@"RA_MIGRATION_EXPIRED")); return;
+    }
+    if (!central) {
+      central = @{@"username": candidate[@"username"], @"token": candidate[@"token"],
+        @"migrationPolicy": @{@"enabled": candidate[@"enabled"], @"hardcore": candidate[@"hardcore"]}};
+      if (RBRAWriteCredentials(central) != errSecSuccess) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
+    }
+    result(@{@"authenticated": @YES, @"username": central[@"username"], @"policy": central[@"migrationPolicy"] ?: @{}});
+    return;
+  }
+  if ([call.method isEqualToString:@"completeLegacy"]) {
+    // Dart calls only after the existing SQLite preference transaction commits.
+    // The legacy files/Keychain items remain intact but are never consulted again.
+    self.legacyCandidates = @{};
+    result(@{}); return;
+  }
   if ([call.method isEqualToString:@"account"]) {
     OSStatus status;
     NSDictionary *credentials = RBRAReadCredentials(@".retroachievements", &status);
@@ -143,6 +218,7 @@ static FlutterError *RBRAError(NSString *code) {
     NSString *username = [RBRAString(args[@"username"]) stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
     NSString *password = RBRAString(args[@"password"]);
     if (!username.length || !password.length) { result(RBRAError(@"RA_LOGIN_REQUIRED")); return; }
+    self.legacyCandidates = @{};
     [self.authTask cancel];
     NSUInteger generation = ++self.authGeneration;
     NSMutableCharacterSet *allowed = [NSCharacterSet.alphanumericCharacterSet mutableCopy];
@@ -188,6 +264,7 @@ static FlutterError *RBRAError(NSString *code) {
     OSStatus status = SecItemDelete((__bridge CFDictionaryRef)RBRAKeychainQuery(@".retroachievements"));
     if (status != errSecSuccess && status != errSecItemNotFound) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
     // Active snapshots retain their own credentials until their game ends.
+    self.legacyCandidates = @{};
     [self.lock lock]; [self.pending removeAllObjects]; [self.lock unlock];
     result(@{@"authenticated": @NO, @"username": @""});
     return;

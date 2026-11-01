@@ -13,7 +13,7 @@ String raSessionErrorLabel(String? code) => switch (code) {
   'RA_LOGIN_REQUIRED' || 'RA_CREDENTIALS_MISSING' => AppLocale.raSessionLoginNeeded,
   'RA_AUTHENTICATION_FAILED' || 'RA_LOGIN_FAILED' => AppLocale.raSessionLoginError,
   'RA_NETWORK_UNAVAILABLE' || 'RA_NETWORK' || 'RA_RATE_LIMITED' => AppLocale.raSessionNetworkError,
-  'RA_STORAGE_UNAVAILABLE' => AppLocale.raSessionStorageError,
+  'RA_STORAGE_UNAVAILABLE' || 'RA_MIGRATION_EXPIRED' => AppLocale.raSessionStorageError,
   'RA_HARDCORE_OPTIONS' || 'RA_HARDCORE_RESET_REQUIRED' => AppLocale.raSessionHardcoreError,
   'RA_UNSUPPORTED' => AppLocale.raSessionUnsupported,
   'RA_CORE_UNSUPPORTED' || 'RA_MEMORY_UNAVAILABLE' || 'RA_ACHIEVEMENTS_UNSUPPORTED' => AppLocale.raSessionUnverified,
@@ -44,9 +44,13 @@ class _RASessionSettingsState extends State<RASessionSettings>
   final scroll = ScrollController();
   late final GamepadNavigation navigation;
 
+  int get _migrationSlots => !service.authenticated && service.migrationCandidates.isNotEmpty
+      ? service.migrationCandidates.length + 1 : 0;
+
   @override
   List<FocusNode?> get selectionSlots => service.authenticated
-      ? [null, null, null, null] : [usernameFocus, passwordFocus, null, null];
+      ? [null, null, null, null]
+      : [for (var i = 0; i < _migrationSlots; i++) null, usernameFocus, passwordFocus, null, null];
   @override
   List<FocusNode> get ownedFocusNodes => [usernameFocus, passwordFocus];
 
@@ -83,10 +87,30 @@ class _RASessionSettingsState extends State<RASessionSettings>
         case 2: unawaited(_logout());
         default: Navigator.of(context).pop();
       }
-    } else if (selectedSlot == 2) {
+    } else if (selectedSlot < _migrationSlots) {
+      if (selectedSlot < service.migrationCandidates.length) {
+        unawaited(_importLegacy(service.migrationCandidates[selectedSlot].id));
+      } else {
+        unawaited(_ignoreLegacy());
+      }
+    } else if (selectedSlot == _migrationSlots + 2) {
       unawaited(_login());
     } else {
       Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _importLegacy(String id) async {
+    if (await service.importLegacy(id)) {
+      await widget.onAccountChanged(service.username);
+      if (mounted) resetSelection();
+    }
+  }
+
+  Future<void> _ignoreLegacy() async {
+    if (await service.ignoreLegacy()) {
+      await widget.onAccountChanged(null);
+      if (mounted) resetSelection();
     }
   }
 
@@ -125,30 +149,47 @@ class _RASessionSettingsState extends State<RASessionSettings>
           if (!service.initialized && service.errorCode == null) const LinearProgressIndicator(),
           Text(text(AppLocale.raSessionAccountHelp)),
           const SizedBox(height: 12),
+          if (service.migrationCandidates.isNotEmpty && !service.authenticated) ...[
+            Text(text(AppLocale.raSessionMigrationChoice)),
+            for (final (index, candidate) in service.migrationCandidates.indexed)
+              Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  Text(candidate.username, style: Theme.of(context).textTheme.titleMedium),
+                  Text(candidate.sources.join(' · ')),
+                  Text('${text(AppLocale.raSessionEnable)}: ${text(candidate.enabled ? AppLocale.enabled : AppLocale.disabled)}'),
+                  Text('${text(AppLocale.raSessionHardcore)}: ${text(candidate.hardcore ? AppLocale.enabled : AppLocale.disabled)}'),
+                  _highlight(index, TextButton(onPressed: service.busy ? null : () => _importLegacy(candidate.id),
+                    child: Text(text(AppLocale.raSessionMigrationImport)))),
+                ]))),
+            _highlight(service.migrationCandidates.length, TextButton(
+              onPressed: service.busy ? null : _ignoreLegacy,
+              child: Text(text(AppLocale.raSessionMigrationSkip)))),
+            const Divider(),
+          ],
           if (!service.authenticated) ...[
-            _highlight(0, TextField(key: const ValueKey('ra-native-username'), controller: username,
+            _highlight(_migrationSlots, TextField(key: const ValueKey('ra-native-username'), controller: username,
               focusNode: usernameFocus, enabled: !service.busy, autocorrect: false,
               decoration: InputDecoration(labelText: text(AppLocale.username)),
               textInputAction: TextInputAction.next, onSubmitted: (_) => passwordFocus.requestFocus())),
             const SizedBox(height: 8),
-            _highlight(1, TextField(key: const ValueKey('ra-native-password'), controller: password,
+            _highlight(_migrationSlots + 1, TextField(key: const ValueKey('ra-native-password'), controller: password,
               focusNode: passwordFocus, enabled: !service.busy, obscureText: true,
               enableSuggestions: false, autocorrect: false,
               decoration: InputDecoration(labelText: text(AppLocale.password)),
               onSubmitted: (_) => _login())),
             const SizedBox(height: 12),
-            _highlight(2, FilledButton(onPressed: service.busy ? null : _login,
+            _highlight(_migrationSlots + 2, FilledButton(onPressed: service.busy ? null : _login,
               child: Text(text(AppLocale.login)))),
           ] else ...[
             Text(service.username, style: Theme.of(context).textTheme.titleMedium),
             _highlight(0, SwitchListTile.adaptive(key: const ValueKey('ra-central-enabled'),
               contentPadding: EdgeInsets.zero, title: Text(text(AppLocale.raSessionEnable)),
               value: service.preferences.enabled,
-              onChanged: service.busy ? null : (value) => service.setEnabled(value))),
+              onChanged: service.busy || !service.initialized ? null : (value) => service.setEnabled(value))),
             _highlight(1, SwitchListTile.adaptive(key: const ValueKey('ra-central-hardcore'),
               contentPadding: EdgeInsets.zero, title: Text(text(AppLocale.raSessionHardcore)),
               subtitle: Text(text(AppLocale.raSessionHardcoreHelp)), value: service.preferences.hardcore,
-              onChanged: service.busy ? null : (value) => service.setHardcore(value))),
+              onChanged: service.busy || !service.initialized ? null : (value) => service.setHardcore(value))),
             _highlight(2, TextButton(onPressed: service.busy ? null : _logout,
               child: Text(text(AppLocale.logout)))),
           ],
@@ -167,8 +208,10 @@ class _RASessionSettingsState extends State<RASessionSettings>
             const SizedBox(height: 8),
             Text(text(raSessionErrorLabel(service.errorCode ?? session?.errorCode)),
               style: TextStyle(color: Theme.of(context).colorScheme.error)),
-            if (!service.initialized) TextButton(onPressed: service.busy ? null : service.retry,
+            if (!service.initialized || const {'RA_MIGRATION_EXPIRED', 'RA_STORAGE_UNAVAILABLE'}.contains(service.errorCode)) TextButton(onPressed: service.busy ? null : service.retry,
               child: Text(text(AppLocale.retry))),
+            if (service.canRecoverLegacy) TextButton(onPressed: service.busy ? null : _ignoreLegacy,
+              child: Text(text(AppLocale.raSessionMigrationSkip))),
           ],
           ExpansionTile(tilePadding: EdgeInsets.zero,
             title: Text(text(AppLocale.raSessionCompatibility)), children: [
@@ -180,7 +223,7 @@ class _RASessionSettingsState extends State<RASessionSettings>
             ]),
           if (service.busy) const LinearProgressIndicator(),
         ]))),
-      actions: [_highlight(3, TextButton(onPressed: () => Navigator.of(context).pop(),
+      actions: [_highlight(_migrationSlots + 3, TextButton(onPressed: () => Navigator.of(context).pop(),
         child: Text(text(AppLocale.close))))],
     );
   }

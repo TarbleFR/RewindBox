@@ -1124,6 +1124,7 @@ mixin AppLocale {
   static const String raSessionDifferentAccount = 'ra_session_different_account';
   static const String raSessionMigrationChoice = 'ra_session_migration_choice';
   static const String raSessionMigrationImport = 'ra_session_migration_import';
+  static const String raSessionMigrationSkip = 'ra_session_migration_skip';
   static const String raSessionCompatibility = 'ra_session_compatibility';
   static const String raSessionNoGame = 'ra_session_no_game';
   static const String raSessionAwaiting = 'ra_session_awaiting';

@@ -18,6 +18,23 @@ class RetroAchievementsPreferences {
 
 enum RetroAchievementsCapability { supported, unsupported, unverified }
 
+@immutable
+class RetroAchievementsMigrationCandidate {
+  const RetroAchievementsMigrationCandidate({required this.id, required this.username,
+    required this.sources, required this.enabled, required this.hardcore});
+  final String id;
+  final String username;
+  final List<String> sources;
+  final bool enabled;
+  final bool hardcore;
+
+  factory RetroAchievementsMigrationCandidate.fromMap(Map<Object?, Object?> value) =>
+    RetroAchievementsMigrationCandidate(id: value['id'] as String,
+      username: value['username'] as String,
+      sources: List<String>.unmodifiable((value['sources'] as List).cast<String>()),
+      enabled: value['enabled'] == true, hardcore: value['hardcore'] == true);
+}
+
 /// Console IDs identify a system; they are not evidence that a particular core
 /// exposes the memory required by achievements. Keep this separate from routing.
 abstract final class RetroAchievementsCapabilities {

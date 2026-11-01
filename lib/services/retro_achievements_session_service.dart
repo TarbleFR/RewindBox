@@ -36,12 +36,16 @@ class RetroAchievementsSessionService extends ChangeNotifier {
   bool get available => _native.available;
   bool _initialized = false;
   bool get initialized => _initialized;
+  bool _accountLoaded = false;
+  bool get canRecoverLegacy => !_initialized && _accountLoaded && _preferences.migrationVersion < 1;
   bool _busy = false;
   bool get busy => _busy;
   String? _errorCode;
   String? get errorCode => _errorCode;
   int _generation = 0;
   bool _disposed = false;
+  List<RetroAchievementsMigrationCandidate> _migrationCandidates = const [];
+  List<RetroAchievementsMigrationCandidate> get migrationCandidates => _migrationCandidates;
   bool get changesPending => _session?.running == true && _session!.generation != _generation;
 
   void _notify() { if (!_disposed) notifyListeners(); }
@@ -49,17 +53,21 @@ class RetroAchievementsSessionService extends ChangeNotifier {
   Future<void> initialize() => _initializing ??= _initialize();
 
   Future<void> _initialize() async {
+    _initialized = false;
+    _accountLoaded = false;
     if (!available) { _initialized = true; _notify(); return; }
     try {
       _preferences = await _readPreferences();
       final account = await _native.invoke('account');
       _authenticated = account['authenticated'] == true;
       _username = account['username'] as String? ?? '';
+      _accountLoaded = true;
       final active = account['session'];
       if (active is Map && active.isNotEmpty) {
         _session = RetroAchievementsSessionState(Map<String, Object?>.from(active));
         _generation = _session!.generation;
       }
+      if (_preferences.migrationVersion < 1) await _migrateLegacy();
       _errorCode = null;
       _initialized = true;
     } on PlatformException catch (error) {
@@ -78,15 +86,77 @@ class RetroAchievementsSessionService extends ChangeNotifier {
     await initialize();
   }
 
-  Future<bool> _mutate(Future<void> Function() operation) {
+  Future<void> _migrateLegacy() async {
+    final legacy = await _native.invoke('inspectLegacy');
+    if (legacy['central'] == true) {
+      await _finishMigration(legacy);
+      return;
+    }
+    final candidates = (legacy['candidates'] as List? ?? const [])
+      .map((item) => RetroAchievementsMigrationCandidate.fromMap(Map<Object?, Object?>.from(item as Map)))
+      .toList(growable: false);
+    _migrationCandidates = List.unmodifiable(candidates);
+    if (candidates.length == 1) {
+      await _finishMigration(await _native.invoke('importLegacy', {'id': candidates.single.id}));
+    } else if (candidates.isEmpty) {
+      final next = _preferences.copyWith(enabled: false, migrationVersion: 1);
+      await _writePreferences(next);
+      _preferences = next;
+      await _native.invoke('completeLegacy');
+    }
+    // Conflicting accounts/settings are shown only in the main RA tab. Games
+    // may still launch, but no legacy store can independently enable RA.
+  }
+
+  Future<void> _finishMigration(Map<String, Object?> account) async {
+    if (account['authenticated'] != true) throw PlatformException(code: 'RA_LOGIN_REQUIRED');
+    final policy = account['policy'] is Map ? account['policy'] as Map : const {};
+    final next = _preferences.copyWith(
+      enabled: policy['enabled'] is bool ? policy['enabled'] as bool : _preferences.enabled,
+      hardcore: policy['hardcore'] is bool ? policy['hardcore'] as bool : _preferences.hardcore,
+      migrationVersion: 1);
+    // The native Keychain record keeps this policy until this transaction has
+    // committed. A crash/write failure resumes the same account on next start.
+    await _writePreferences(next);
+    _preferences = next;
+    _authenticated = true;
+    _username = account['username'] as String? ?? '';
+    _migrationCandidates = const [];
+    _generation++;
+    await _native.invoke('completeLegacy');
+  }
+
+  Future<bool> importLegacy(String id) => _mutate(() async {
+    if (!_migrationCandidates.any((candidate) => candidate.id == id)) {
+      throw PlatformException(code: 'RA_MIGRATION_EXPIRED');
+    }
+    await _finishMigration(await _native.invoke('importLegacy', {'id': id}));
+  });
+
+  Future<bool> ignoreLegacy() => _mutate(() async {
+    final next = _preferences.copyWith(enabled: false, hardcore: false, migrationVersion: 1);
+    await _writePreferences(next);
+    _preferences = next; _generation++;
+    _initialized = true;
+    await _native.invoke('logout');
+    _authenticated = false; _username = '';
+    _migrationCandidates = const [];
+    await _native.invoke('completeLegacy');
+    _initialized = true;
+  }, allowLegacyRecovery: true);
+
+  Future<bool> _mutate(Future<void> Function() operation, {bool allowLegacyRecovery = false}) {
     final completed = Completer<bool>();
     // Durable writes and account changes use one queue; a fast second toggle
     // cannot overwrite the last choice with an older database completion.
     _writes = _writes.then((_) async {
+      final previousError = _errorCode;
       _busy = true; _errorCode = null; _notify();
       try {
         await initialize();
-        if (!available || !_initialized) throw PlatformException(code: _errorCode ?? 'RA_UNAVAILABLE');
+        if (!available || (!_initialized && !(allowLegacyRecovery && canRecoverLegacy))) {
+          throw PlatformException(code: _errorCode ?? previousError ?? 'RA_UNAVAILABLE');
+        }
         await operation();
         _errorCode = null;
         completed.complete(true);
@@ -120,17 +190,27 @@ class RetroAchievementsSessionService extends ChangeNotifier {
     _authenticated = true;
     _username = account['username'] as String? ?? username.trim();
     _generation++;
-  });
+    final next = _preferences.copyWith(migrationVersion: 1);
+    await _writePreferences(next);
+    _preferences = next;
+    _migrationCandidates = const [];
+    await _native.invoke('completeLegacy');
+    _initialized = true;
+  }, allowLegacyRecovery: true);
 
   Future<bool> logout() => _mutate(() async {
     // Persist disabled first: even an interrupted sign-out cannot enable RA at
     // the next launch. A failed Keychain delete remains visible and retryable.
-    final next = _preferences.copyWith(enabled: false);
+    final next = _preferences.copyWith(enabled: false, migrationVersion: 1);
     await _writePreferences(next);
     _preferences = next; _generation++;
+    _initialized = true;
     await _native.invoke('logout');
     _authenticated = false; _username = '';
-  });
+    _migrationCandidates = const [];
+    await _native.invoke('completeLegacy');
+    _initialized = true;
+  }, allowLegacyRecovery: true);
 
   Future<Map<String, Object?>> prepareLaunch({required String engine,
     required String system, String? core, required String language, bool systemMenu = false}) async {

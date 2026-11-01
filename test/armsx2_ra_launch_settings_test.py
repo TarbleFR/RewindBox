@@ -202,9 +202,32 @@ int main() {
   assert(unguarded.GetBoolValue("EmuCore","EnableCheats",&enabled) && enabled);
   assert(unguarded.GetFloatValue("Framerate","NominalScalar",&speed) && speed==0.25f);
   assert(unguarded.GetIntValue("EmuCore/Speedhacks","EECycleRate",&rate) && rate==-2);
+  // A later disk/account change cannot mutate an already-owned launch. Only
+  // a new central snapshot supplies a replacement account for the next game.
+  disk.SetStringValue("Achievements","Username","changed-legacy-user");
+  disk.SetStringValue("Achievements","Token","changed-legacy-token");
+  disk.SetBoolValue("Achievements","Enabled",true);
+  disk.SetBoolValue("Achievements","Notifications",false);
+  disk.Save();const auto legacyAfterChange=disk.persisted;
+  assert(text(base,"Username")=="central-user" && text(secrets,"Token")=="central-token");
+  config={sizeof(config),1,0,0,"next-central-user","next-central-token"};
+  auto nextPolicy=ARMSX2RALaunchPolicy::Copy(&config);
+  ARMSX2RALaunchSettings nextBase(&disk,nextPolicy,Scope::Base);
+  ARMSX2RALaunchSettings nextSecrets(&disk,nextPolicy,Scope::Secrets);
+  assert(text(nextBase,"Username")=="next-central-user");
+  assert(text(nextSecrets,"Token")=="next-central-token");
+  assert(!nextPolicy.HardcoreGuard() && nextPolicy.notifications);
+  assert(text(base,"Username")=="central-user" && text(secrets,"Token")=="central-token");
+  auto loggedOut=ARMSX2RALaunchPolicy::Copy(nullptr);
+  ARMSX2RALaunchSettings offBase(&disk,loggedOut,Scope::Base);
+  ARMSX2RALaunchSettings offSecrets(&disk,loggedOut,Scope::Secrets);
+  assert(!flag(offBase,"Enabled") && !flag(offBase,"Notifications"));
+  assert(text(offBase,"Username").empty() && text(offSecrets,"Token").empty());
+  assert(text(offBase,"Token").empty()); // no upstream legacy migration trigger
+  offBase.Save();offSecrets.Save();assert(disk.persisted==legacyAfterChange);
   policy.Clear();assert(policy.token.empty() && !policy.enabled && !policy.hardcore);
   assert(!flag(base,"Enabled") && text(secrets,"Token").empty());
-  std::cout<<"PASS: launch-only RA policy; copied credentials; disabled/invalid fail closed; legacy storage preserved; non-RA settings forwarded; notifications follow activation\n";
+  std::cout<<"PASS: launch-only RA policy; copied credentials; disabled/invalid fail closed; legacy storage preserved; next launch/account/logout; non-RA settings forwarded; notifications follow activation; pending Hardcore guards\n";
 }
 '''
 
