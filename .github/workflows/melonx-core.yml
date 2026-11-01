@@ -6,6 +6,15 @@ run-name: MeloNX engine • ${{ github.sha }}
     - Claude
     - work/melonx-embedded-20261022
     paths:
+    - build-utils/melonx/verify_reads_core.py
+    - build-utils/melonx/freeze_reads_core.py
+    - build-utils/melonx/reads-core-plan.json
+    - build-utils/melonx/reads-core-contract.json
+    - test/melonx_reads_core_contract_test.py
+    - build-utils/melonx/adapt_fragmented_reads.py
+    - build-utils/melonx/adapt_gpu_work_diagnostics.py
+    - test/melonx_fragmented_reads_test.py
+    - test/melonx_fragmented_reads/**
     - build-utils/melonx/verify_liveness_core.py
     - build-utils/melonx/freeze_liveness_core.py
     - build-utils/melonx/liveness-core-plan.json
@@ -261,7 +270,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   core:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-liveness-core]') || contains(github.event.head_commit.message, '[hogwarts606-checks]') || contains(github.event.head_commit.message, '[melonx-launch-only]') || (!contains(github.event.head_commit.message, '[melonx-host-only]')
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[melonx-reads-core]') || contains(github.event.head_commit.message, '[melonx-liveness-core]') || contains(github.event.head_commit.message, '[hogwarts606-checks]') || contains(github.event.head_commit.message, '[melonx-launch-only]') || (!contains(github.event.head_commit.message, '[melonx-host-only]')
       && !contains(github.event.head_commit.message, '[retroarch-delivery]') && !contains(github.event.head_commit.message,
       '[melonx-validated-integration]')) }}
     runs-on: macos-26
@@ -286,7 +295,7 @@ jobs:
     - name: Authenticate engine82 evidence and reuse unchanged LibHac
       env:
         GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/verify_liveness_core.py prepare_dependencies
+      run: python3 build-utils/melonx/verify_reads_core.py prepare_dependencies
     - name: Fetch exact MeloNX source
       run: |
         python3 - <<'PY_FETCH'
@@ -308,21 +317,21 @@ jobs:
         assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD'],text=True).strip()==pin['revision']
         assert subprocess.check_output(['git','-C',path,'rev-parse','HEAD^{tree}'],text=True).strip()=='82a29e6f593f6244869481e9a489b8d5154175fe'
         PY_FETCH
-    - name: Verify Apple ARM64, exact SDK and reviewed liveness Core inputs
+    - name: Verify Apple ARM64, exact SDK and reviewed fragmented-read Core inputs
       run: |
-        python3 test/melonx_liveness_core_contract_test.py
-        python3 build-utils/melonx/verify_liveness_core.py preflight
-    - name: Run five affected final-source gates and authenticate delivered ae78b4b evidence
+        python3 test/melonx_reads_core_contract_test.py
+        python3 build-utils/melonx/verify_reads_core.py preflight
+    - name: Run five affected final-source gates and authenticate the delivered 609 Core evidence
       env:
         GH_TOKEN: ${{ github.token }}
-      run: python3 build-utils/melonx/verify_liveness_core.py run_gates
+      run: python3 build-utils/melonx/verify_reads_core.py run_gates
     - name: Compile NativeAOT library and verify exported ABI
       env:
         MELONX_AUTHENTICATED_BASELINE: ${{ github.workspace }}/.native-sources/melonx-engine82.zip
         MELONX_BUILD_SIMULATOR: '1'
       run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX .native-sources/LibHac
     - name: Bind both new libraries to reviewed sources and gate receipts
-      run: python3 build-utils/melonx/verify_liveness_core.py compiled
+      run: python3 build-utils/melonx/verify_reads_core.py compiled
     - uses: actions/download-artifact@v4
       with:
         name: MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314
@@ -342,7 +351,7 @@ jobs:
         if source.exists():shutil.copytree(source,'dist/melonx/runtime-smoke')
         PY_SMOKE
     - name: Verify fresh guest execution, teardown and backing release
-      run: python3 build-utils/melonx/verify_liveness_core.py finalize
+      run: python3 build-utils/melonx/verify_reads_core.py finalize
     - uses: actions/upload-artifact@v4
       if: ${{ always() }}
       with:
