@@ -4,6 +4,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import plistlib
 import sys
 import tempfile
 import unittest
@@ -256,6 +257,76 @@ class CentralReceipt608(unittest.TestCase):
             with self.subTest(update=update):
                 with self.assertRaises(ValueError):
                     checks.validate_central_receipt(value)
+
+
+class FlutterDeviceSlice608(unittest.TestCase):
+    """Synthetic directory fixtures test selection only; no native build is claimed."""
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.bundle = self.root / 'bin/cache/artifacts/engine/ios/Flutter.xcframework'
+        self.bundle.mkdir(parents=True)
+
+    def library(self, identifier='ios-arm64', *, variant=None, architectures=('arm64',)):
+        record = dict(LibraryIdentifier=identifier, LibraryPath='Flutter.framework',
+                      SupportedPlatform='ios', SupportedArchitectures=list(architectures))
+        if variant:
+            record['SupportedPlatformVariant'] = variant
+        framework = self.bundle / identifier / 'Flutter.framework'
+        for relative in ('Flutter', 'Headers/Flutter.h', 'Modules/module.modulemap'):
+            path = framework / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b'selection fixture; not a real Flutter binary')
+        return record, framework
+
+    def manifest(self, *libraries):
+        (self.bundle / 'Info.plist').write_bytes(plistlib.dumps(dict(AvailableLibraries=list(libraries))))
+
+    def test_device_selected_without_scanning_other_flutter_copies(self):
+        device, expected = self.library()
+        simulator, _ = self.library('ios-arm64_x86_64-simulator', variant='simulator',
+                                    architectures=('arm64', 'x86_64'))
+        alternate = self.bundle.parent / 'extension_safe/Flutter.xcframework/ios-arm64/Flutter.framework'
+        alternate.mkdir(parents=True)
+        self.manifest(device, simulator)
+        self.assertEqual(checks.flutter_device_framework(self.root), expected)
+
+    def test_metadata_can_name_an_arm64_device_slice_without_fixed_directory_spelling(self):
+        device, expected = self.library('ios-arm64_armv7', architectures=('arm64', 'armv7'))
+        self.manifest(device)
+        self.assertEqual(checks.flutter_device_framework(self.root), expected)
+
+    def test_simulator_only_framework_is_rejected(self):
+        simulator, _ = self.library('ios-arm64_x86_64-simulator', variant='simulator')
+        self.manifest(simulator)
+        with self.assertRaises(ValueError):
+            checks.flutter_device_framework(self.root)
+
+    def test_ambiguous_device_slices_are_rejected(self):
+        first, _ = self.library()
+        second, _ = self.library('another-arm64-device')
+        self.manifest(first, second)
+        with self.assertRaises(ValueError):
+            checks.flutter_device_framework(self.root)
+
+    def test_non_arm64_device_slice_is_rejected(self):
+        device, _ = self.library('ios-armv7', architectures=('armv7',))
+        self.manifest(device)
+        with self.assertRaises(ValueError):
+            checks.flutter_device_framework(self.root)
+
+    def test_missing_real_binary_or_public_header_is_rejected(self):
+        device, framework = self.library()
+        self.manifest(device)
+        for relative in ('Flutter', 'Headers/Flutter.h', 'Modules/module.modulemap'):
+            with self.subTest(relative=relative):
+                path = framework / relative
+                raw = path.read_bytes()
+                path.unlink()
+                with self.assertRaises(ValueError):
+                    checks.flutter_device_framework(self.root)
+                path.write_bytes(raw)
 
 
 class FailedChecks608(unittest.TestCase):

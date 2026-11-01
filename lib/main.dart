@@ -22,13 +22,13 @@ import 'package:neostation/widgets/permission_check_wrapper.dart';
 import 'package:neostation/utils/custom_scroll_behavior.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
+import 'package:neostation/l10n/app_widget_localizations.dart';
 import 'package:neostation/services/config_service.dart';
 import 'package:neostation/services/diagnostics_directory.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/sfx_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -57,6 +57,9 @@ import 'package:neostation/data/datasources/sqlite_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/audio_policy_service.dart';
+
+export 'l10n/app_widget_localizations.dart'
+    show FallbackMaterialLocalizationsDelegate;
 
 final _rewindStartup = RewindStartupController();
 
@@ -847,27 +850,6 @@ Future<void> subDisplay() async {
   runApp(SecondaryScreen(initialThemeName: initThemeName));
 }
 
-/// Provides MaterialLocalizations as a fallback for locales that Flutter's
-/// global delegates do not support (e.g. zh_Hant). This prevents TextField
-/// and other Material widgets from crashing when MaterialLocalizations.of
-/// returns null.
-class FallbackMaterialLocalizationsDelegate
-    extends LocalizationsDelegate<MaterialLocalizations> {
-  const FallbackMaterialLocalizationsDelegate();
-
-  @override
-  bool isSupported(Locale locale) => true;
-
-  @override
-  Future<MaterialLocalizations> load(Locale locale) =>
-      GlobalMaterialLocalizations.delegate.load(const Locale('en'));
-
-  @override
-  bool shouldReload(
-    covariant LocalizationsDelegate<MaterialLocalizations> old,
-  ) => false;
-}
-
 class MyApp extends StatefulWidget {
   final FileProvider fileProvider;
   final SqliteConfigProvider sqliteConfigProvider;
@@ -964,8 +946,8 @@ class _MyAppState extends State<MyApp> {
                       title: 'RewindBox',
                       locale: _locale,
                       localizationsDelegates: [
-                        const FallbackMaterialLocalizationsDelegate(),
                         ...FlutterLocalization.instance.localizationsDelegates,
+                        ...appWidgetLocalizationsDelegates,
                       ],
                       supportedLocales:
                           FlutterLocalization.instance.supportedLocales,

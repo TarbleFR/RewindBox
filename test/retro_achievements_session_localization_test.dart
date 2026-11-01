@@ -1,11 +1,15 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart' show CupertinoLocalizations;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localization/flutter_localization.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/l10n/app_locale.dart';
+import 'package:neostation/l10n/app_widget_localizations.dart'
+    show appWidgetLocalizationsDelegates;
 import 'package:neostation/main.dart' show FallbackMaterialLocalizationsDelegate;
 import 'package:neostation/providers/retro_achievements_provider.dart';
 import 'package:neostation/screens/retro_achievements_screen/ra_content.dart';
@@ -77,8 +81,9 @@ void main() {
       builder: (_, _) => ChangeNotifierProvider.value(value: provider,
         child: MaterialApp(locale: Locale(language),
           supportedLocales: localization.supportedLocales,
-          localizationsDelegates: [const FallbackMaterialLocalizationsDelegate(),
-            ...localization.localizationsDelegates],
+          localizationsDelegates: [
+            ...localization.localizationsDelegates,
+            ...appWidgetLocalizationsDelegates],
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.4)),
             child: direction == null ? child! : Directionality(textDirection: direction, child: child!)),
@@ -112,6 +117,26 @@ void main() {
       expect(password.obscureText, isTrue);
       expect(password.enableSuggestions, isFalse);
       expect(password.autocorrect, isFalse);
+
+      // Keep the real catalog/manager key while verifying that standard
+      // widgets use Flutter's own translations for the requested language.
+      final fieldContext = tester.element(find.byKey(const ValueKey('ra-native-password')));
+      expect(Localizations.localeOf(fieldContext).languageCode, code);
+      expect(localization.currentLocale!.languageCode, code);
+      final frameworkLocale = code == 'zh_Hant'
+          ? const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant')
+          : Locale(code);
+      final expectedMaterial = await GlobalMaterialLocalizations.delegate.load(frameworkLocale);
+      final expectedCupertino = await GlobalCupertinoLocalizations.delegate.load(frameworkLocale);
+      final expectedWidgets = await GlobalWidgetsLocalizations.delegate.load(frameworkLocale);
+      expect(MaterialLocalizations.of(fieldContext).runtimeType, expectedMaterial.runtimeType);
+      expect(MaterialLocalizations.of(fieldContext).pasteButtonLabel, expectedMaterial.pasteButtonLabel);
+      expect(CupertinoLocalizations.of(fieldContext).runtimeType, expectedCupertino.runtimeType);
+      expect(CupertinoLocalizations.of(fieldContext).pasteButtonLabel, expectedCupertino.pasteButtonLabel);
+      expect(WidgetsLocalizations.of(fieldContext).runtimeType, expectedWidgets.runtimeType);
+      // The historical public class imported from main.dart must remain usable.
+      final compatibility = await const FallbackMaterialLocalizationsDelegate().load(Locale(code));
+      expect(compatibility.runtimeType, expectedMaterial.runtimeType);
       expect(tester.takeException(), isNull);
 
       // Exercise the real UI -> central service -> native error mapping.

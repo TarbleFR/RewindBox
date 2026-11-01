@@ -2,6 +2,8 @@ import 'package:achievement_translation/achievement_translation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localization/flutter_localization.dart';
+
+import '../l10n/app_widget_localizations.dart';
 import 'package:neostation/models/secondary_display_state.dart';
 import 'package:neostation/screens/secondary_screen/secondary_screen.dart';
 
@@ -152,7 +154,11 @@ class _ExternalMenuAppState extends State<ExternalMenuApp> {
       ),
       // The twelve NeoStation languages, initialised by the entrypoint like
       // `subDisplay` does for the Android bottom display.
-      localizationsDelegates: localization.localizationsDelegates,
+      locale: localization.currentLocale,
+      localizationsDelegates: [
+        ...localization.localizationsDelegates,
+        ...appWidgetLocalizationsDelegates,
+      ],
       supportedLocales: locales,
       home: ColoredBox(
         key: ExternalMenuApp.backgroundKey,

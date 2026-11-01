@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import plistlib
 import shutil
 import subprocess
 import sys
@@ -24,6 +25,7 @@ FLUTTER_TESTS = (
     'test/retro_achievements_resolver_test.dart',
     'test/retro_achievements_layout_test.dart',
     'test/secondary_achievement_item_test.dart',
+    'test/external_menu_screen_test.dart',
     'test/retro_achievements_session_test.dart',
     'test/retro_achievements_migration_test.dart',
     'test/retro_achievements_account_consistency_test.dart',
@@ -40,6 +42,7 @@ ANALYZE = (
     'lib/providers/retro_achievements_provider.dart',
     'lib/screens/retro_achievements_screen', 'lib/widgets/translated_achievement_text.dart',
     'lib/l10n/achievement_translation_locale.dart',
+    'lib/l10n/app_widget_localizations.dart',
     'lib/services/dolphin_internal_v2_service.dart', 'lib/services/libretro_internal_service.dart',
     'lib/services/stikjit_armsx2_service.dart', 'packages/armsx2_internal_bridge/lib',
 )
@@ -107,14 +110,34 @@ def translation():
     tree.require(result.is_dir(), 'XCTest produced no Translation result bundle')
 
 
+def flutter_device_framework(flutter_root):
+    """Select the real iPhone slice by XCFramework metadata, not folder spelling."""
+    bundle = Path(flutter_root) / 'bin/cache/artifacts/engine/ios/Flutter.xcframework'
+    metadata = plistlib.loads((bundle / 'Info.plist').read_bytes())
+    candidates = [library for library in metadata.get('AvailableLibraries', [])
+                  if library.get('SupportedPlatform') == 'ios' and
+                  not library.get('SupportedPlatformVariant') and
+                  'arm64' in library.get('SupportedArchitectures', [])]
+    tree.require(len(candidates) == 1, 'Expected one arm64 iPhoneOS slice in the real Flutter XCFramework')
+    library = candidates[0]
+    identifier, relative = library['LibraryIdentifier'], library['LibraryPath']
+    tree.require(isinstance(identifier, str) and Path(identifier).name == identifier and
+                 identifier not in ('', '.', '..') and relative == 'Flutter.framework',
+                 'Unexpected Flutter XCFramework library path')
+    framework = bundle / identifier / relative
+    tree.require(all((framework / path).is_file() for path in
+                     ('Flutter', 'Headers/Flutter.h', 'Modules/module.modulemap')),
+                 'The selected real Flutter iPhoneOS framework is incomplete')
+    print('Selected real Flutter iPhoneOS slice: ' + identifier, flush=True)
+    return framework
+
+
 def hosts():
     sys.path.insert(0, str(ROOT / 'test'))
     from libretro_ios_syntax_test import stage_dependency_headers
     from touch_layout_support import stage_touch_layout
     sdk = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-path'], text=True).strip()
-    flutter = Path(os.environ['FLUTTER_ROOT']) / 'bin/cache/artifacts/engine/ios'
-    frameworks = [p for p in flutter.rglob('Flutter.framework') if p.parent.name == 'ios-arm64']
-    tree.require(len(frameworks) == 1, 'Expected the real Flutter iPhoneOS framework')
+    framework = flutter_device_framework(Path(os.environ['FLUTTER_ROOT']))
     with tempfile.TemporaryDirectory(prefix='rewind608-public-headers-') as temporary:
         include = stage_touch_layout(stage_dependency_headers(Path(temporary)))
         tree.require((include / 'retro_achievements_session/RBRASession.h').is_file(),
@@ -128,7 +151,7 @@ def hosts():
                 subprocess.run(['xcrun', 'clang++', '-std=c++20', '-fobjc-arc', '-fblocks', '-fsyntax-only',
                     '-Werror=implicit-function-declaration', '-Werror=incompatible-pointer-types',
                     '-x', 'objective-c++', '-isysroot', sdk, '-target', 'arm64-apple-ios18.0',
-                    '-F', str(frameworks[0].parent), '-I', str(include),
+                    '-F', str(framework.parent), '-I', str(include),
                     '-I', str(ROOT / 'packages' / helper / 'ios/Classes'), str(path)],
                     cwd=ROOT, check=True, timeout=300)
 

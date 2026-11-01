@@ -20,7 +20,7 @@
     },
     ".github/diagnostics/rewind608_checks.py": {
       "before": null,
-      "after": "cfb9b6ca1d6b969fb4dc346def92959106ec008cc438960168a42a53363f339f",
+      "after": "a0715282bf561db37435e7c270df880816e78a881d602ba5b40d829dbae51645",
       "modeBefore": null,
       "modeAfter": "100644"
     },
@@ -102,6 +102,12 @@
       "modeBefore": null,
       "modeAfter": "100644"
     },
+    "lib/external_display/external_menu_screen.dart": {
+      "before": "f0cfdc0965f036dc41beedd9065fb5e78e3d69bc9d1cdab1501fd6e110bf7b49",
+      "after": "43c3abc6dd0fbe2d615e2794e45eb95c49f03f5b8901ce57f711c14f9a49a674",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
     "lib/l10n/app_locale.dart": {
       "before": "837d845440cc2f01ba37f66ec8252569b5b246edc764a931e914f1f5665bf2c4",
       "after": "2105ccca7dc53f28764cde1d25f32e5d48b226664251ea9bb05ffaaeec706f3e",
@@ -180,6 +186,12 @@
       "modeBefore": "100644",
       "modeAfter": "100644"
     },
+    "lib/l10n/app_widget_localizations.dart": {
+      "before": null,
+      "after": "4a3408c263b1729146789f9c490aa91211f9d2ec06356e9ad2ed921bd6bc5226",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
     "lib/l10n/libretro_locale.dart": {
       "before": "74024382172a7701932653dbfff2e9c3c6ccd0a70f7f590c8b247879bd94639f",
       "after": "aa701f0fc70949cf0d7cd6635b143bfbd507578063c7aa99e135d5470d49040e",
@@ -188,7 +200,7 @@
     },
     "lib/main.dart": {
       "before": "a00ab562c7e9bdd249063e05b31e3ea350ff8467ca89e5289ef5d9efb0e5e9b7",
-      "after": "e445daeb16bd2e43a0754ed6cefdc34b85ddfc272049e83dab5bd3d5040f4d30",
+      "after": "9fa9cf37bc3a570be10b5bb426ac38c17090592750ba9d1f41c5a6684fe9c43d",
       "modeBefore": "100644",
       "modeAfter": "100644"
     },
@@ -226,6 +238,12 @@
       "before": null,
       "after": "9054abdffd8e38673f810c9a7c68ce9f3d458406fbf9c66ae6e7f2b0bd112fd6",
       "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "lib/screens/secondary_screen/secondary_screen.dart": {
+      "before": "9cb51ca0a15c7b068f272cb4ce44aae7257363ed5a2c2d81505345a60861577a",
+      "after": "1cb4ffa662de143e50937b028df1361d5ea1b225f02e0c8fff9263e1bcaf9ae6",
+      "modeBefore": "100644",
       "modeAfter": "100644"
     },
     "lib/services/dolphin_internal_v2_service.dart": {
@@ -476,7 +494,7 @@
     },
     "packages/retro_achievements_session/ci/project.yml": {
       "before": null,
-      "after": "d431ebc569d54f109329b13dc2f06aa28b829f416417b9f001f4f5f12232b19d",
+      "after": "fc5dbf53139d9f00aac9891cc45dcc7050e917e208e25a8ba888595bcec7866e",
       "modeBefore": null,
       "modeAfter": "100644"
     },
@@ -674,7 +692,7 @@
     },
     "test/retro_achievements_session_localization_test.dart": {
       "before": null,
-      "after": "29a47853d58a47e1c3851c561801cf26648225004548c005e8031fcab72494f7",
+      "after": "5e3227d4ef9199ee5f9b14c5129bc14db596c5fb8d6ec0e328805e3f1dff5538",
       "modeBefore": null,
       "modeAfter": "100644"
     },
@@ -698,7 +716,7 @@
     },
     "test/rewind608_delivery_contract_test.py": {
       "before": null,
-      "after": "853c28a6f031aafc579665fba16c2ea86a42bd6d24173d98376a482dc9535576",
+      "after": "80684975625537032713416932950322067170f83c6834ec04feb91dd1e1c8a9",
       "modeBefore": null,
       "modeAfter": "100644"
     },
@@ -710,6 +728,12 @@
     }
   },
   "productDelta": {
+    "lib/external_display/external_menu_screen.dart": {
+      "before": "f0cfdc0965f036dc41beedd9065fb5e78e3d69bc9d1cdab1501fd6e110bf7b49",
+      "after": "43c3abc6dd0fbe2d615e2794e45eb95c49f03f5b8901ce57f711c14f9a49a674",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
     "lib/l10n/app_locale.dart": {
       "before": "837d845440cc2f01ba37f66ec8252569b5b246edc764a931e914f1f5665bf2c4",
       "after": "2105ccca7dc53f28764cde1d25f32e5d48b226664251ea9bb05ffaaeec706f3e",
@@ -788,6 +812,12 @@
       "modeBefore": "100644",
       "modeAfter": "100644"
     },
+    "lib/l10n/app_widget_localizations.dart": {
+      "before": null,
+      "after": "4a3408c263b1729146789f9c490aa91211f9d2ec06356e9ad2ed921bd6bc5226",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
     "lib/l10n/libretro_locale.dart": {
       "before": "74024382172a7701932653dbfff2e9c3c6ccd0a70f7f590c8b247879bd94639f",
       "after": "aa701f0fc70949cf0d7cd6635b143bfbd507578063c7aa99e135d5470d49040e",
@@ -796,7 +826,7 @@
     },
     "lib/main.dart": {
       "before": "a00ab562c7e9bdd249063e05b31e3ea350ff8467ca89e5289ef5d9efb0e5e9b7",
-      "after": "e445daeb16bd2e43a0754ed6cefdc34b85ddfc272049e83dab5bd3d5040f4d30",
+      "after": "9fa9cf37bc3a570be10b5bb426ac38c17090592750ba9d1f41c5a6684fe9c43d",
       "modeBefore": "100644",
       "modeAfter": "100644"
     },
@@ -834,6 +864,12 @@
       "before": null,
       "after": "9054abdffd8e38673f810c9a7c68ce9f3d458406fbf9c66ae6e7f2b0bd112fd6",
       "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "lib/screens/secondary_screen/secondary_screen.dart": {
+      "before": "9cb51ca0a15c7b068f272cb4ce44aae7257363ed5a2c2d81505345a60861577a",
+      "after": "1cb4ffa662de143e50937b028df1361d5ea1b225f02e0c8fff9263e1bcaf9ae6",
+      "modeBefore": "100644",
       "modeAfter": "100644"
     },
     "lib/services/dolphin_internal_v2_service.dart": {
@@ -1084,7 +1120,7 @@
     },
     "packages/retro_achievements_session/ci/project.yml": {
       "before": null,
-      "after": "d431ebc569d54f109329b13dc2f06aa28b829f416417b9f001f4f5f12232b19d",
+      "after": "fc5dbf53139d9f00aac9891cc45dcc7050e917e208e25a8ba888595bcec7866e",
       "modeBefore": null,
       "modeAfter": "100644"
     },

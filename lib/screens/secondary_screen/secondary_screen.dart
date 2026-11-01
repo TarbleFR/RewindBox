@@ -10,6 +10,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../l10n/app_locale.dart';
+import '../../l10n/app_widget_localizations.dart';
 import '../../l10n/secondary_ui_locale.dart';
 
 import 'package:neostation/services/sfx_service.dart';
@@ -844,8 +845,11 @@ class _SecondaryScreenState extends State<SecondaryScreen> {
           );
           return MaterialApp(
             debugShowCheckedModeBanner: false,
-            localizationsDelegates:
-                FlutterLocalization.instance.localizationsDelegates,
+            locale: FlutterLocalization.instance.currentLocale,
+            localizationsDelegates: [
+              ...FlutterLocalization.instance.localizationsDelegates,
+              ...appWidgetLocalizationsDelegates,
+            ],
             supportedLocales: FlutterLocalization.instance.supportedLocales,
             // Suppress Android's overscroll glow/stretch: on this display a
             // slight drag near the edge would flash white arcs at the screen

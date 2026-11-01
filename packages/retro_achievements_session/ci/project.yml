@@ -8,6 +8,9 @@ settings:
     CLANG_ENABLE_OBJC_ARC: YES
     CLANG_ENABLE_MODULES: YES
     GCC_TREAT_WARNINGS_AS_ERRORS: YES
+    # Flutter's distributed framework quotes its own internal headers. Disable
+    # only that vendor packaging-style diagnostic; keep all other warnings fatal.
+    CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER: NO
     GENERATE_INFOPLIST_FILE: YES
     CODE_SIGNING_ALLOWED: YES
     CODE_SIGN_IDENTITY: '-'
