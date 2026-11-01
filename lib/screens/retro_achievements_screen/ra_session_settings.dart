@@ -9,6 +9,18 @@ import '../../services/retro_achievements_session_service.dart';
 import '../../utils/gamepad_nav.dart';
 import '../../utils/login_form_selection.dart';
 
+/// RetroAchievements Web API keys are 32 letters and digits. A password field
+/// holding that shape, or the account's own key, almost certainly received
+/// the key by mistake (Build 610 recording). Only a live warning for the
+/// shape: a real password may look the same and is still sent.
+bool raLooksLikeWebApiKey(String value, {String knownKey = ''}) {
+  final entered = value.trim();
+  if (entered.isEmpty) return false;
+  final key = knownKey.trim();
+  if (key.isNotEmpty && entered == key) return true;
+  return RegExp(r'^[A-Za-z0-9]{32}$').hasMatch(entered);
+}
+
 /// Input errors, authentication refusals and network/server failures keep
 /// separate messages. Raw codes are never shown to the player.
 String raSessionErrorLabel(String? code) {
@@ -278,9 +290,17 @@ class _RASessionSettingsState extends State<RASessionSettings>
               focusNode: passwordFocus, enabled: !service.busy, obscureText: true,
               enableSuggestions: false, autocorrect: false,
               smartDashesType: SmartDashesType.disabled, smartQuotesType: SmartQuotesType.disabled,
-              decoration: InputDecoration(labelText: text(AppLocale.password)),
+              // "Account password": the Web API key never goes here.
+              decoration: InputDecoration(labelText: text(AppLocale.raAccountPasswordLabel),
+                hintText: text(AppLocale.raAccountPasswordHint)),
               textInputAction: TextInputAction.done,
+              onChanged: (_) => setState(() {}),
               onSubmitted: (_) => _login())),
+            if (raLooksLikeWebApiKey(password.text, knownKey: widget.webApiKey))
+              Padding(key: const ValueKey('ra-native-password-looks-like-key'),
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(text(AppLocale.raPasswordLooksLikeApiKey),
+                  style: TextStyle(color: theme.colorScheme.error))),
             const SizedBox(height: 12),
             _highlight(_loginSlot, FilledButton(onPressed: service.busy ? null : _login,
               child: Text(text(AppLocale.login)))),

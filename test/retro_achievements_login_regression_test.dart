@@ -570,6 +570,51 @@ void main() {
       await tester.pump();
     }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 
+    testWidgets('the form says the password and the key are two different entries', (tester) async {
+      final native = RANativeFixture(username: '');
+      final provider = RetroAchievementsProvider(sessionService: native.service, source: RADashboardFixture());
+      addTearDown(() { provider.dispose(); native.dispose(); });
+      await provider.initialize();
+      await pumpTab(tester, provider);
+
+      expect(find.text(fr(AppLocale.raTwoSecretsIntro)), findsOneWidget);
+      final password = find.byKey(const ValueKey('ra-web-password'));
+      final passwordField = tester.widget<TextField>(find.descendant(of: password, matching: find.byType(TextField)));
+      expect(passwordField.decoration!.labelText, fr(AppLocale.raAccountPasswordLabel));
+      expect(passwordField.decoration!.hintText, fr(AppLocale.raAccountPasswordHint));
+      final keyField = tester.widget<TextField>(find.descendant(
+        of: find.byKey(const ValueKey('ra-web-api-key')), matching: find.byType(TextField)));
+      expect(keyField.decoration!.labelText, fr(AppLocale.raApiKeyStatsLabel));
+
+      // A Web API key is 32 letters and digits: warned live in the password field.
+      final keyShaped = 'k' * 32;
+      await tester.enterText(password, keyShaped);
+      await tester.pump();
+      expect(find.byKey(const ValueKey('ra-password-looks-like-key')), findsOneWidget);
+      expect(find.text(fr(AppLocale.raPasswordLooksLikeApiKey)), findsOneWidget);
+      expect(find.byKey(const ValueKey('ra-unified-password-help')), findsNothing);
+      await tester.enterText(password, 'fixture-password');
+      await tester.pump();
+      expect(find.byKey(const ValueKey('ra-password-looks-like-key')), findsNothing);
+      expect(find.byKey(const ValueKey('ra-unified-password-help')), findsOneWidget);
+      // The same text in both fields is warned as soon as the key is typed.
+      await tester.enterText(find.byKey(const ValueKey('ra-web-api-key')), 'fixture-password');
+      await tester.pump();
+      expect(find.byKey(const ValueKey('ra-password-looks-like-key')), findsOneWidget);
+      await tester.enterText(find.byKey(const ValueKey('ra-web-api-key')), '');
+      await tester.pump();
+
+      // Only a warning for the shape: a real password like that is still sent.
+      await tester.enterText(find.byKey(const ValueKey('ra-web-username')), 'Reckkles');
+      await tester.enterText(password, keyShaped);
+      await tapTabLogin(tester);
+      final logins = native.calls.where((call) => call.method == 'login').toList();
+      expect(logins, hasLength(1));
+      expect((logins.single.arguments as Map)['password'], keyShaped);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+    }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
     testWidgets('the password alone turns on achievements in games', (tester) async {
       final native = RANativeFixture(username: '');
       final source = RADashboardFixture();
@@ -698,6 +743,9 @@ void main() {
       // The Web API key pasted as the password: caught locally, kept for correction.
       final password = find.byKey(const ValueKey('ra-native-password'));
       await tester.enterText(password, 'web-key');
+      await settle();
+      // Warned while typing, before anything is submitted.
+      expect(find.byKey(const ValueKey('ra-native-password-looks-like-key')), findsOneWidget);
       await tester.testTextInput.receiveAction(TextInputAction.done);
       await settle();
       expect(find.text(fr(AppLocale.raPasswordIsApiKey)), findsOneWidget);

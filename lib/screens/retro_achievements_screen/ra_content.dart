@@ -637,6 +637,20 @@ class _RAContentState extends State<RAContent>
               ),
             ],
           ),
+          if (_needsInGamePassword) ...[
+            SizedBox(height: 6.r),
+            // Two different secrets, each typed once (maintainer request):
+            // say so before the fields, so the key is not pasted twice.
+            Text(
+              AppLocale.raTwoSecretsIntro.getString(context),
+              key: const ValueKey('ra-two-secrets-intro'),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                fontSize: 9.r,
+              ),
+            ),
+          ],
           SizedBox(height: 12.r),
           Container(
             constraints: BoxConstraints(maxWidth: 220.r),
@@ -733,7 +747,12 @@ class _RAContentState extends State<RAContent>
                     autofillHints: const [AutofillHints.password],
                     scrollPadding: EdgeInsets.only(bottom: keyboardInset + 120.r),
                     decoration: InputDecoration(
-                      labelText: AppLocale.password.getString(context),
+                      labelText: AppLocale.raAccountPasswordLabel.getString(context),
+                      hintText: AppLocale.raAccountPasswordHint.getString(context),
+                      hintStyle: TextStyle(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                        fontSize: 10.r,
+                      ),
                       labelStyle: TextStyle(
                         color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                         fontSize: 10.r,
@@ -780,21 +799,36 @@ class _RAContentState extends State<RAContent>
                     // (Build 610 video: the Done key sent the form and the
                     // error stayed off screen).
                     textInputAction: TextInputAction.next,
+                    onChanged: (_) => setState(() {}),
                     onFieldSubmitted: (_) => _apiKeyFocus.requestFocus(),
                   ),
                 ),
               ),
             ),
             SizedBox(height: 4.r),
-            Text(
-              AppLocale.raUnifiedPasswordHelp.getString(context),
-              key: const ValueKey('ra-unified-password-help'),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
-                fontSize: 8.r,
+            // Live warning while the password field holds what looks like
+            // the Web API key; otherwise what the password is for.
+            if (raLooksLikeWebApiKey(_passwordController.text, knownKey: _apiKeyController.text))
+              Text(
+                AppLocale.raPasswordLooksLikeApiKey.getString(context),
+                key: const ValueKey('ra-password-looks-like-key'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.error,
+                  fontSize: 9.r,
+                  fontWeight: FontWeight.w600,
+                ),
+              )
+            else
+              Text(
+                AppLocale.raUnifiedPasswordHelp.getString(context),
+                key: const ValueKey('ra-unified-password-help'),
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+                  fontSize: 8.r,
+                ),
               ),
-            ),
           ],
           SizedBox(height: 6.r),
           Container(
@@ -817,7 +851,7 @@ class _RAContentState extends State<RAContent>
                   keyboardType: TextInputType.visiblePassword,
                   scrollPadding: EdgeInsets.only(bottom: keyboardInset + 96.r),
                   decoration: InputDecoration(
-                    labelText: AppLocale.raApiKey.getString(context),
+                    labelText: AppLocale.raApiKeyStatsLabel.getString(context),
                     suffixStyle: TextStyle(
                       color: theme.colorScheme.primary.withValues(alpha: 0.7),
                       fontSize: 12.r,
@@ -881,6 +915,8 @@ class _RAContentState extends State<RAContent>
                   enabled: !busy,
                   style: TextStyle(fontSize: 11.r),
                   textInputAction: TextInputAction.done,
+                  // The password warning compares against this key.
+                  onChanged: _needsInGamePassword ? (_) => setState(() {}) : null,
                   onFieldSubmitted: (_) => _connectToRA(),
                 ),
               ),

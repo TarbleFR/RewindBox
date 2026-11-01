@@ -236,3 +236,24 @@ as password, refused password kept, Hardcore switched in the tab, password-only
 dialog for the connected account with the keyboard Done key); the 12-locale
 coverage script. Not executed: the application build and anything on an
 iPhone. Only Dart sources and catalogs changed; no Core or native plugin.
+
+### Two different entries, said plainly (same evening)
+
+Maintainer request: make it clear to the player that the API key is not
+entered twice. While the password is still needed, the tab form now opens
+with "Two different entries, each typed once: your account password
+(achievements in games) and your Web API key (statistics, optional). Never
+paste the key into the password field." The fields read "Account password"
+(hint: "The website password, not the API key") and "Web API key
+(statistics)"; the in-game dialog uses the same password label and hint.
+While the password field holds the Web API key's shape (32 letters and
+digits) or the same text as the key, a red warning replaces its help line
+("This looks like a Web API key… enter your account password"), in the tab
+and in the dialog. The shape is only a warning (a real password may look the
+same and is still sent); an exact match with the key stays refused locally.
+
+New strings, 12 locales: `ra_account_password_label`,
+`ra_account_password_hint`, `ra_api_key_stats_label`, `ra_two_secrets_intro`,
+`ra_password_looks_like_api_key`. Validation: `flutter analyze` on the changed
+files clean; RetroAchievements and RPCS3 Dart suites 197/197 (one new widget
+test); 12-locale coverage script pass. Not executed: app build, device.

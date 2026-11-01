@@ -1139,6 +1139,11 @@ mixin AppLocale {
   static const String raSessionPasswordOnly = 'ra_session_password_only';
   static const String raInGameSignedInAddKey = 'ra_in_game_signed_in_add_key';
   static const String raSessionStatusPasswordNeeded = 'ra_session_status_password_needed';
+  static const String raAccountPasswordLabel = 'ra_account_password_label';
+  static const String raAccountPasswordHint = 'ra_account_password_hint';
+  static const String raApiKeyStatsLabel = 'ra_api_key_stats_label';
+  static const String raTwoSecretsIntro = 'ra_two_secrets_intro';
+  static const String raPasswordLooksLikeApiKey = 'ra_password_looks_like_api_key';
   static const String raSessionEnableHint = 'ra_session_enable_hint';
   static const String raSessionStatusSignedOut = 'ra_session_status_signed_out';
   static const String raSessionStatusDisabled = 'ra_session_status_disabled';

@@ -111,7 +111,9 @@ void main() {
       expect(find.text(text(AppLocale.raUnifiedPasswordHelp)), findsOneWidget);
       final tabPassword = tester.widget<TextField>(find.descendant(
         of: find.byKey(const ValueKey('ra-web-password')), matching: find.byType(TextField)));
-      expect(tabPassword.decoration!.labelText, text(AppLocale.password));
+      expect(tabPassword.decoration!.labelText, text(AppLocale.raAccountPasswordLabel));
+      expect(find.text(text(AppLocale.raTwoSecretsIntro)), findsOneWidget);
+      expect(find.text(text(AppLocale.raApiKeyStatsLabel)), findsOneWidget);
       // Hardcore is switched in the tab itself.
       expect(find.text(text(AppLocale.raSessionHardcore)), findsOneWidget);
       expect(find.byKey(const ValueKey('ra-tab-hardcore')), findsOneWidget);
@@ -122,7 +124,8 @@ void main() {
       expect(dialogText(text(AppLocale.raSessionAccountHelp)), findsOneWidget);
       expect(dialogText(text(AppLocale.raSessionNotifications)), findsOneWidget);
       final password = tester.widget<TextField>(find.byKey(const ValueKey('ra-native-password')));
-      expect(password.decoration!.labelText, text(AppLocale.password));
+      expect(password.decoration!.labelText, text(AppLocale.raAccountPasswordLabel));
+      expect(password.decoration!.hintText, text(AppLocale.raAccountPasswordHint));
       expect(password.obscureText, isTrue);
       expect(password.enableSuggestions, isFalse);
       expect(password.autocorrect, isFalse);
