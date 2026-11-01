@@ -45,8 +45,11 @@ def between(rel, start, end):
 
 
 HARNESSES = {
+    # The harness compiles exactly this block (block(data, 'vk::image_view*
+    # VKGSRender::snapshot_color_feedback(')); the census adds callers only.
     'color-feedback': {'test': 'test/rpcs3_color_feedback_test.py',
-                       'inputs': {'VKDraw.cpp': whole('rpcs3/Emu/RSX/VK/VKDraw.cpp')}},
+                       'inputs': {'VKDraw.cpp snapshot_color_feedback': part('rpcs3/Emu/RSX/VK/VKDraw.cpp',
+                                  'vk::image_view* VKGSRender::snapshot_color_feedback(')}},
     'tiny-vertex': {'test': 'test/rpcs3_tiny_vertex_cache_test.py',
                     'inputs': {'rsx_cache.h vertex_cache': part('rpcs3/Emu/RSX/rsx_cache.h', 'namespace vertex_cache')}},
     'vertex-range': {'test': 'test/rpcs3_device597/renderer/test_vertex_upload_key.py',

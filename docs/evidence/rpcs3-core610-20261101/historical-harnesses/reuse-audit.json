@@ -4,9 +4,9 @@
       "changed_extracted_inputs": [],
       "delivered_result_reusable": true,
       "inputs": {
-        "VKDraw.cpp": {
-          "core610": "e24bac01f5f0e40f1b479739e8a8b875bbddbfd87c6da174b94801318393ce74",
-          "delivered": "e24bac01f5f0e40f1b479739e8a8b875bbddbfd87c6da174b94801318393ce74"
+        "VKDraw.cpp snapshot_color_feedback": {
+          "core610": "b236f8ecf34abdd7e13abfd6567cc0c7500c16df37e65dff044b4ef42af898ec",
+          "delivered": "b236f8ecf34abdd7e13abfd6567cc0c7500c16df37e65dff044b4ef42af898ec"
         }
       },
       "test": "test/rpcs3_color_feedback_test.py"

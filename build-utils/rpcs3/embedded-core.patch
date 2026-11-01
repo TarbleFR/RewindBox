@@ -21337,10 +21337,10 @@ index 4925d88..5de62da 100644
  		m_wake_event++;
  		m_wake_event.notify_one();
 diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
-index 77927e2..94d6b13 100644
+index 77927e2..686f40f 100644
 --- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
-@@ -7,8 +7,13 @@
+@@ -7,8 +7,14 @@
  #include "VKGSRender.h"
  #include "vkutils/buffer_object.h"
  #include "vkutils/chip_class.h"
@@ -21348,13 +21348,90 @@ index 77927e2..94d6b13 100644
  #include <vulkan/vulkan_core.h>
  
 +#ifdef RPCS3_IOS
++#include "ios/IOSFeedbackCensus.h" // REWINDBOX_FEEDBACK_CENSUS_610
 +#include "ios/IOSRendererCausality.h"
 +#endif
 +
  namespace vk
  {
  	VkImageViewType get_view_type(rsx::texture_dimension_extended type)
-@@ -172,14 +177,14 @@ void VKGSRender::update_draw_state()
+@@ -120,8 +126,75 @@ namespace vk
+ 	}
+ }
+ 
++#ifdef RPCS3_IOS
++namespace
++{
++	// REWINDBOX_FEEDBACK_CENSUS_610: observes the views around the unchanged
++	// snapshot_color_feedback() call of one draw. RSX thread only; counts only.
++	struct feedback_census_draw
++	{
++		std::array<const vk::image*, 16> copied{};
++		u32 copied_count = 0;
++		bool snapshotted = false;
++
++		void observe(vk::image_view* before, vk::image_view* after, bool cyclic_reference)
++		{
++			namespace census = rpcs3::ios::feedback_census;
++
++			if (!before || !after)
++			{
++				return;
++			}
++
++			if (after != before)
++			{
++				// The helper returns its argument unless it copied the attachment.
++				const vk::image* image = after->image();
++				const auto end = copied.begin() + copied_count;
++				if (std::find(copied.begin(), end, image) != end)
++				{
++					census::add(census::counters.duplicate_copies);
++				}
++				else if (copied_count < copied.size())
++				{
++					copied[copied_count++] = image;
++				}
++
++				census::add(census::counters.snapshot_copies);
++				census::add(census::counters.snapshot_pixels, u64{image->width()} * image->height());
++				snapshotted = true;
++				return;
++			}
++
++			if (cyclic_reference)
++			{
++				if (before->info.subresourceRange.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
++				{
++					census::add(census::counters.depth_feedback_reads);
++				}
++				else if (before->image()->samples() > 1)
++				{
++					census::add(census::counters.msaa_feedback_reads);
++				}
++			}
++		}
++
++		~feedback_census_draw()
++		{
++			if (snapshotted)
++			{
++				rpcs3::ios::feedback_census::add(rpcs3::ios::feedback_census::counters.snapshot_draws);
++			}
++		}
++	};
++}
++#endif
++
+ void VKGSRender::begin_render_pass()
+ {
++#ifdef RPCS3_IOS
++	rpcs3::ios::feedback_census::add(rpcs3::ios::feedback_census::counters.draw_renderpasses);
++#endif
+ 	vk::begin_renderpass(
+ 		*m_current_command_buffer,
+ 		get_render_pass(),
+@@ -172,14 +245,14 @@ void VKGSRender::update_draw_state()
  	{
  		const float actual_line_width =
  			m_device->get_wide_lines_support() ? rsx::method_registers.line_width() * resolution_scaling_config.scale_factor() : 1.f;
@@ -21371,7 +21448,7 @@ index 77927e2..94d6b13 100644
  	}
  
  	if (rsx::method_registers.stencil_test_enabled())
-@@ -187,15 +192,15 @@ void VKGSRender::update_draw_state()
+@@ -187,15 +260,15 @@ void VKGSRender::update_draw_state()
  		const bool two_sided_stencil = rsx::method_registers.two_sided_stencil_test_enabled();
  		VkStencilFaceFlags face_flag = (two_sided_stencil) ? VK_STENCIL_FACE_FRONT_BIT : VK_STENCIL_FRONT_AND_BACK;
  
@@ -21393,7 +21470,7 @@ index 77927e2..94d6b13 100644
  		}
  	}
  
-@@ -226,12 +231,12 @@ void VKGSRender::update_draw_state()
+@@ -226,12 +299,12 @@ void VKGSRender::update_draw_state()
  			polygon_offset_bias *= 0.5f;
  		}
  
@@ -21408,7 +21485,7 @@ index 77927e2..94d6b13 100644
  	}
  
  	if (m_device->get_depth_bounds_support())
-@@ -256,7 +261,7 @@ void VKGSRender::update_draw_state()
+@@ -256,7 +329,7 @@ void VKGSRender::update_draw_state()
  			bounds_max = std::clamp(bounds_max, 0.f, 1.f);
  		}
  
@@ -21417,7 +21494,7 @@ index 77927e2..94d6b13 100644
  	}
  
  	bind_viewport();
-@@ -270,9 +275,47 @@ void VKGSRender::load_texture_env()
+@@ -270,9 +343,47 @@ void VKGSRender::load_texture_env()
  {
  	// Load textures
  	bool check_for_cyclic_refs = false;
@@ -21467,7 +21544,7 @@ index 77927e2..94d6b13 100644
  		{
  			check_for_cyclic_refs |= descriptor->is_cyclic_reference;
  			return true;
-@@ -290,12 +333,9 @@ void VKGSRender::load_texture_env()
+@@ -290,12 +401,9 @@ void VKGSRender::load_texture_env()
  
  	std::lock_guard lock(m_sampler_mutex);
  
@@ -21482,7 +21559,7 @@ index 77927e2..94d6b13 100644
  
  		if (!fs_sampler_state[i])
  		{
-@@ -304,17 +344,24 @@ void VKGSRender::load_texture_env()
+@@ -304,17 +412,24 @@ void VKGSRender::load_texture_env()
  
  		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(fs_sampler_state[i].get());
  		const auto& tex = rsx::method_registers.fragment_textures[i];
@@ -21509,7 +21586,7 @@ index 77927e2..94d6b13 100644
  
  		if (!tex.enabled())
  		{
-@@ -322,9 +369,22 @@ void VKGSRender::load_texture_env()
+@@ -322,9 +437,22 @@ void VKGSRender::load_texture_env()
  			continue;
  		}
  
@@ -21532,7 +21609,7 @@ index 77927e2..94d6b13 100644
  			continue;
  		}
  
-@@ -333,16 +393,29 @@ void VKGSRender::load_texture_env()
+@@ -333,16 +461,29 @@ void VKGSRender::load_texture_env()
  			check_for_cyclic_refs |= true;
  		}
  
@@ -21564,7 +21641,7 @@ index 77927e2..94d6b13 100644
  				// Nothing to change, use cached sampler
  				continue;
  			}
-@@ -383,6 +456,19 @@ void VKGSRender::load_texture_env()
+@@ -383,6 +524,19 @@ void VKGSRender::load_texture_env()
  			}
  		}
  
@@ -21584,7 +21661,7 @@ index 77927e2..94d6b13 100644
  		VkFilter mag_filter;
  		vk::minification_filter min_filter;
  		f32 min_lod = 0.f, max_lod = 0.f;
-@@ -523,12 +609,9 @@ void VKGSRender::load_texture_env()
+@@ -523,12 +677,9 @@ void VKGSRender::load_texture_env()
  			border_color, compare_enabled, depth_compare_mode);
  	}
  
@@ -21599,7 +21676,7 @@ index 77927e2..94d6b13 100644
  
  		if (!vs_sampler_state[i])
  		{
-@@ -537,17 +620,24 @@ void VKGSRender::load_texture_env()
+@@ -537,17 +688,24 @@ void VKGSRender::load_texture_env()
  
  		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(vs_sampler_state[i].get());
  		const auto& tex = rsx::method_registers.vertex_textures[i];
@@ -21626,7 +21703,7 @@ index 77927e2..94d6b13 100644
  
  		if (!rsx::method_registers.vertex_textures[i].enabled())
  		{
-@@ -555,9 +645,23 @@ void VKGSRender::load_texture_env()
+@@ -555,9 +713,23 @@ void VKGSRender::load_texture_env()
  			continue;
  		}
  
@@ -21650,7 +21727,7 @@ index 77927e2..94d6b13 100644
  			continue;
  		}
  
-@@ -568,10 +672,13 @@ void VKGSRender::load_texture_env()
+@@ -568,10 +740,13 @@ void VKGSRender::load_texture_env()
  
  		if (!is_sampler_dirty)
  		{
@@ -21665,7 +21742,7 @@ index 77927e2..94d6b13 100644
  			}
  
  			if (vs_sampler_handles[i])
-@@ -644,18 +751,72 @@ void VKGSRender::load_texture_env()
+@@ -644,18 +819,75 @@ void VKGSRender::load_texture_env()
  	}
  }
  
@@ -21735,6 +21812,9 @@ index 77927e2..94d6b13 100644
 +bool VKGSRender::bind_texture_env()
 +{
 +	bool out_of_memory = false;
++#ifdef RPCS3_IOS
++	feedback_census_draw census_draw;
++#endif
 +
 +	for (u32 textures_ref = current_fp_metadata.referenced_textures_mask; textures_ref; textures_ref &= textures_ref - 1)
 +	{
@@ -21743,19 +21823,28 @@ index 77927e2..94d6b13 100644
  		if (m_fs_binding_table->ftex_location[i] == umax)
  		{
  			// Corrupt shader table
-@@ -682,6 +843,11 @@ bool VKGSRender::bind_texture_env()
+@@ -682,6 +914,20 @@ bool VKGSRender::bind_texture_env()
  			}
  		}
  
++#ifdef RPCS3_IOS
++		vk::image_view* const census_before = view;
++#endif
 +		if (view && !(view = snapshot_color_feedback(i, view)))
 +		{
 +			out_of_memory = true;
 +		}
++#ifdef RPCS3_IOS
++		if (census_before && view)
++		{
++			census_draw.observe(census_before, view, sampler_state->is_cyclic_reference);
++		}
++#endif
 +
  		if (view) [[likely]]
  		{
  			m_program->bind_uniform({ *view, *fs_sampler_handles[i] },
-@@ -727,13 +893,9 @@ bool VKGSRender::bind_texture_env()
+@@ -727,13 +973,9 @@ bool VKGSRender::bind_texture_env()
  		}
  	}
  
@@ -21771,11 +21860,14 @@ index 77927e2..94d6b13 100644
  
  		if (m_vs_binding_table->vtex_location[i] == umax)
  		{
-@@ -902,10 +1064,9 @@ bool VKGSRender::bind_interpreter_texture_env()
+@@ -902,10 +1144,12 @@ bool VKGSRender::bind_interpreter_texture_env()
  		return image->get_view(decoded_remap, base->info.subresourceRange.aspectMask);
  	};
  
 -	for (u32 textures_ref = current_fp_metadata.referenced_textures_mask, i = 0; textures_ref; textures_ref >>= 1, ++i)
++#ifdef RPCS3_IOS
++	feedback_census_draw census_draw;
++#endif
 +	for (u32 textures_ref = current_fp_metadata.referenced_textures_mask; textures_ref; textures_ref &= textures_ref - 1)
  	{
 -		if (!(textures_ref & 1))
@@ -21784,20 +21876,43 @@ index 77927e2..94d6b13 100644
  
  		vk::image_view* view = nullptr;
  		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(fs_sampler_state[i].get());
-@@ -961,6 +1122,12 @@ bool VKGSRender::bind_interpreter_texture_env()
+@@ -961,6 +1205,21 @@ bool VKGSRender::bind_interpreter_texture_env()
  			validate_image_layout_for_read_access(*m_current_command_buffer, view, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, sampler_state);
  		}
  
++#ifdef RPCS3_IOS
++		vk::image_view* const census_before = view;
++#endif
 +		if (!(view = snapshot_color_feedback(i, view)))
 +		{
 +			out_of_memory = true;
 +			continue;
 +		}
++#ifdef RPCS3_IOS
++		if (census_before && view)
++		{
++			census_draw.observe(census_before, view, sampler_state->is_cyclic_reference);
++		}
++#endif
 +
  		const int offsets[] = { 0, 16, 48, 32 };
  		auto& sampled_image_info = texture_env[offsets[static_cast<u32>(sampler_state->image_type)] + i];
  		sampled_image_info = { *view, *fs_sampler_handles[i] };
-@@ -1404,6 +1571,10 @@ void VKGSRender::end()
+@@ -1110,6 +1369,13 @@ void VKGSRender::emit_geometry(u32 sub_index)
+ 
+ 	if (current_fragment_program.ctrl & RSX_SHADER_CONTROL_PROGRAMMABLE_BLENDING)
+ 	{
++#ifdef RPCS3_IOS
++		if (sub_index == 0)
++		{
++			// REWINDBOX_FEEDBACK_CENSUS_610: one count per draw call.
++			rpcs3::ios::feedback_census::add(rpcs3::ios::feedback_census::counters.pb_draws);
++		}
++#endif
+ 		// Subpass inter-draw dependency for input attachment reads. Preserves open renderpasses.
+ 		for (u32 i = 0; i < current_fragment_program.mrt_buffers_count; ++i)
+ 		{
+@@ -1404,6 +1670,10 @@ void VKGSRender::end()
  	}
  
  	m_rtts.on_write(m_framebuffer_layout.color_write_enabled, m_framebuffer_layout.zeta_write_enabled);
@@ -29626,6 +29741,51 @@ index 0000000..e5df604
 +	}
 +
 +	return gpu_idle ? verdict::submit : verdict::gpu_busy;
++}
++}
+diff --git a/rpcs3/ios/IOSFeedbackCensus.h b/rpcs3/ios/IOSFeedbackCensus.h
+new file mode 100644
+index 0000000..8365203
+--- /dev/null
++++ b/rpcs3/ios/IOSFeedbackCensus.h
+@@ -0,0 +1,39 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_FEEDBACK_CENSUS_610: counts of the MoltenVK color-feedback work that
++// no existing journal line separates (Assassin's Creed torch passages: the
++// render-pass split and full-surface copy of each snapshot, programmable
++// blending draws, feedback reads the snapshot does not cover). The RSX thread
++// increments them (relaxed) around the unchanged snapshot helper; the
++// performance reporter exchanges them once per window into one COREPROF line.
++// Counting never changes a view, a copy, a barrier or a render pass.
++namespace rpcs3::ios::feedback_census
++{
++struct window_counters
++{
++	std::atomic<std::uint64_t> draw_renderpasses{0};    // VKGSRender::begin_render_pass calls
++	std::atomic<std::uint64_t> snapshot_draws{0};       // draws that took at least one snapshot
++	std::atomic<std::uint64_t> snapshot_copies{0};      // snapshot copies (one per sampler slot)
++	std::atomic<std::uint64_t> duplicate_copies{0};     // same snapshot image copied again in one draw
++	std::atomic<std::uint64_t> snapshot_pixels{0};      // copied surface pixels (width x height)
++	std::atomic<std::uint64_t> pb_draws{0};             // draws with programmable blending
++	std::atomic<std::uint64_t> msaa_feedback_reads{0};  // cyclic MSAA color reads left unsnapshotted
++	std::atomic<std::uint64_t> depth_feedback_reads{0}; // cyclic depth/stencil reads left unsnapshotted
++};
++
++inline window_counters counters{};
++
++inline void add(std::atomic<std::uint64_t>& counter, std::uint64_t value = 1) noexcept
++{
++	counter.fetch_add(value, std::memory_order_relaxed);
++}
++
++inline std::uint64_t take(std::atomic<std::uint64_t>& counter) noexcept
++{
++	return counter.exchange(0, std::memory_order_relaxed);
 +}
 +}
 diff --git a/rpcs3/ios/IOSFrameTrace.h b/rpcs3/ios/IOSFrameTrace.h
@@ -38394,10 +38554,10 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..18ecafc 100644
+index d800542..08e293e 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,191 @@
+@@ -1,26 +1,192 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -38424,6 +38584,7 @@ index d800542..18ecafc 100644
 +#include "IOSCompilePressure.h"
 +#include "IOSRsxSyncProfile.h"
 +#include "IOSFrameTrace.h"
++#include "IOSFeedbackCensus.h"
 +#include "IOSRendererCausality.h"
 +#include "IOSSignalTrace.h"
 +#include "Emu/Cell/timers.hpp"
@@ -38589,7 +38750,7 @@ index d800542..18ecafc 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +203,527 @@ u64 process_memory_footprint()
+@@ -38,31 +204,527 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -39127,7 +39288,7 @@ index d800542..18ecafc 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +733,10 @@ public:
+@@ -72,10 +734,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -39140,7 +39301,7 @@ index d800542..18ecafc 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +769,883 @@ public:
+@@ -108,12 +770,901 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -39604,6 +39765,24 @@ index d800542..18ecafc 100644
 +                per_sample(setup), per_sample(vertex), per_sample(texture), per_sample(exec), per_sample(flip),
 +                vc_requests, vc_misses, lookups, elided, idles, rpcs3::ios::rsx_sync::rsx_frame_sample_period);
 +        }
++        // REWINDBOX_FEEDBACK_CENSUS_610: color-feedback work of the window. Per-frame
++        // values divide by RSXFRAME551 frames= of the same window; render passes
++        // are VKGSRender::begin_render_pass calls (draw passes, splits included).
++        {
++            namespace census = rpcs3::ios::feedback_census;
++            auto& c = census::counters;
++            const u64 renderpasses = census::take(c.draw_renderpasses);
++            const u64 snapshot_draws = census::take(c.snapshot_draws), copies = census::take(c.snapshot_copies);
++            const u64 duplicates = census::take(c.duplicate_copies), pixels = census::take(c.snapshot_pixels);
++            const u64 pb_draws = census::take(c.pb_draws);
++            const u64 msaa_reads = census::take(c.msaa_feedback_reads), depth_reads = census::take(c.depth_feedback_reads);
++            ios_core_profiler.notice(
++                "COREPROF FEEDBACK610 session=%llu window=%llu draw_renderpasses=%llu snapshot_draws=%llu snapshot_copies=%llu "
++                "duplicate_copies=%llu snapshot_mpix=%.3f pb_draws=%llu msaa_feedback_reads=%llu depth_feedback_reads=%llu "
++                "scope=process_window_counters gpu_time_available=0 window_boundary_approximate=1",
++                profile_session, profile_window, renderpasses, snapshot_draws, copies, duplicates,
++                static_cast<double>(pixels) / 1000000.0, pb_draws, msaa_reads, depth_reads);
++        }
 +        // REWINDBOX_SPU_WAIT_PROFILE_V1: SPU time outside guest code, summed over
 +        // the SPU threads (deltas of monotonic per-thread totals).
 +        {
@@ -40026,7 +40205,7 @@ index d800542..18ecafc 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1653,93 @@ private:
+@@ -121,6 +1672,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -40120,7 +40299,7 @@ index d800542..18ecafc 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1747,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +1766,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -40214,7 +40393,7 @@ index d800542..18ecafc 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1844,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1863,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -40343,7 +40522,7 @@ index d800542..18ecafc 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1975,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1994,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  

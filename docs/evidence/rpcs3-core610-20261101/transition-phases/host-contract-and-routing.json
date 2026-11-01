@@ -34,7 +34,7 @@
       "rpcs3/Emu/RSX/rsx_cache.h": "ff634a57663c847d8462fcac25b30b04006262ca1631f061c568b816f68b2ba7",
       "rpcs3/Emu/System.cpp": "49f0ef26c9d0bf686f628aee0c0b3e4e0b360ef5b2f2e88f621c320d3be09e1a",
       "rpcs3/ios/RPCS3IOS.cpp": "53907df407b06f3059b75518017d1ae854b7a2625454759a215c43afcef7c309",
-      "rpcs3/ios/RPCS3IOSPerformance.cpp": "c10f084274261fdd311778ddba57df44d7b24ca4ffcdd9d100e8aed8f0b4c528"
+      "rpcs3/ios/RPCS3IOSPerformance.cpp": "1058a69273de3e44608b0dc7281d6e53edbe0085c12fefc6f70648fc0d7cc91e"
     },
     "run_ppu_ui_store_only": true,
     "stop_main_after_ui_handoff": true

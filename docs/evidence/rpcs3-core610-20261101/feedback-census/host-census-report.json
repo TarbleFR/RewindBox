@@ -1,0 +1,49 @@
+{
+  "behaviourChanged": false,
+  "codegenInputsChanged": false,
+  "execution": {
+    "asan_ubsan": {
+      "checks": 12,
+      "gpu_executed": false,
+      "production_header_sha256": "3c9cedda9ce16a770b888c28fee3c8de5346289a3de439208c850e98da89ac16",
+      "production_struct_sha256": "a92e8b9947ae3b82fa44efdae7ebd73ddc2966f081a45108f8ef22377227b181",
+      "sanitizers": "address,undefined"
+    },
+    "plain": {
+      "checks": 12,
+      "gpu_executed": false,
+      "production_header_sha256": "3c9cedda9ce16a770b888c28fee3c8de5346289a3de439208c850e98da89ac16",
+      "production_struct_sha256": "a92e8b9947ae3b82fa44efdae7ebd73ddc2966f081a45108f8ef22377227b181",
+      "sanitizers": null
+    }
+  },
+  "gpuTimeMeasured": false,
+  "host": "Linux-6.18.44-fc-v185-x86_64-with-glibc2.39",
+  "mutations": {
+    "cyclic_flag_ignored": "rejected",
+    "depth_counted_as_msaa": "rejected",
+    "no_duplicate_count": "rejected",
+    "no_snapshot_draw_count": "rejected",
+    "pixels_not_counted": "rejected"
+  },
+  "physicalDeviceTested": false,
+  "result": "passed",
+  "routing": {
+    "bridge_sha256": "d6326d968f3552c5539d48a0933b41d3e61a3e61c0302972ec370e8df5bd3d16",
+    "diagnostics_sha256": "bde09327357fb99ee27560bdaa6b7977fea8ad5a7f206a61f09fa3726dbf456e",
+    "routes": {
+      "iOS Core Profiler: COREPROF FEEDBACK610 session=4 window=12 draw_renderpasses=4210 snapshot_draws=380 snapshot_copies=402 duplicate_copies=22 snapshot_mpix=355.123 pb_draws=61 msaa_feedback_reads=0 depth_feedback_reads=0 scope=process_window_counters gpu_time_available=0 window_boundary_approximate=1": "diagnostic:profiler performance"
+    }
+  },
+  "schema": 1,
+  "source_contract": {
+    "files_sha256": {
+      "rpcs3/Emu/RSX/VK/VKDraw.cpp": "c89406101be986fa0018c8ebc311976f62d228983ad04e3b03efaa2bed82efb8",
+      "rpcs3/ios/IOSFeedbackCensus.h": "3c9cedda9ce16a770b888c28fee3c8de5346289a3de439208c850e98da89ac16",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp": "1058a69273de3e44608b0dc7281d6e53edbe0085c12fefc6f70648fc0d7cc91e"
+    },
+    "snapshot_helper_identical_to_delivered": true,
+    "vkdraw_lines_added_inside_rpcs3_ios": 99,
+    "vkdraw_lines_removed_or_replaced": 0
+  }
+}
