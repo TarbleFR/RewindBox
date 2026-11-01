@@ -163,6 +163,39 @@ def expected_reuse_workflow(original):
     return value
 
 
+def canonical_ast(value):
+    """Portable structural AST; optional schema fields never hide literal values."""
+    if isinstance(value, ast.AST):
+        name = type(value).__name__
+        fields = dict(ast.iter_fields(value))
+        optional = {}
+        if name in ('FunctionDef', 'AsyncFunctionDef', 'ClassDef'):
+            optional['type_params'] = []
+        if name in ('FunctionDef', 'AsyncFunctionDef', 'Assign', 'For', 'AsyncFor',
+                    'With', 'AsyncWith', 'arg'):
+            optional['type_comment'] = None
+        if name == 'Constant':
+            optional['kind'] = None
+        if name in ('TypeVar', 'ParamSpec', 'TypeVarTuple'):
+            optional['default_value'] = None
+        for field, default in optional.items():
+            if field not in fields or fields[field] is None or fields[field] == [] or fields[field] == '':
+                fields[field] = default
+        return dict(node=name, fields={key: canonical_ast(item) for key, item in fields.items()})
+    if isinstance(value, list):
+        return [canonical_ast(item) for item in value]
+    if isinstance(value, tuple):
+        return dict(constantTuple=[canonical_ast(item) for item in value])
+    if isinstance(value, bytes):
+        return dict(constantBytes=value.hex())
+    if isinstance(value, complex):
+        return dict(constantComplex=[value.real.hex(), value.imag.hex()])
+    if value is Ellipsis:
+        return dict(constantEllipsis=True)
+    require(value is None or type(value) in (str, int, float, bool), 'Unsupported semantic AST value')
+    return value
+
+
 def python_projection(raw, bodies, new_helpers=()):
     parsed = ast.parse(raw)
     seen = set()
@@ -185,7 +218,7 @@ def python_projection(raw, bodies, new_helpers=()):
         kept.append(node)
     require(bodies <= seen, 'An existing consumer definition was removed')
     parsed.body = kept
-    return ast.dump(parsed, include_attributes=False)
+    return json.dumps(canonical_ast(parsed), ensure_ascii=True, sort_keys=True, separators=(',', ':'))
 
 
 def verify_python(before, after, bodies, new_helpers=()):
@@ -379,14 +412,30 @@ def _guard_archive(value):
     return directory
 
 
+def require_same(actual, expected, path):
+    """Fail on the exact field, without printing receipt contents."""
+    require(type(actual) is type(expected), 'Recovery receipt type differs: ' + path)
+    if isinstance(expected, dict):
+        require(actual.keys() == expected.keys(), 'Recovery receipt fields differ: ' + path)
+        for key in sorted(expected):
+            require_same(actual[key], expected[key], path + '.' + str(key))
+    elif isinstance(expected, list):
+        require(len(actual) == len(expected), 'Recovery receipt length differs: ' + path)
+        for index, (item, wanted) in enumerate(zip(actual, expected)):
+            require_same(item, wanted, path + '[' + str(index) + ']')
+    else:
+        require(actual == expected, 'Recovery receipt value differs: ' + path)
+
+
 def validate_guard(value, current, equivalence, originals, directory):
-    require(value['schema'] == 1 and value['build'] == 608 and value['result'] == 'passed' and
-        value['evidenceMode'] == 'reused' and value['candidateExecution'] == current and
-        value['originalExecution'] == ORIGINAL and value['originalRunConclusion'] == 'failure' and
-        value['inputEquivalence'] == equivalence and value['originalOrigins'] == originals and
-        value['currentGuardInputs'] == guard_input_hashes() and value['unchangedSuitesReexecuted'] is False and
-        value['coresRebuilt'] is False and value['physicalDeviceTested'] is False,
-        'Current recovery receipt source/inputs/provenance differs')
+    expected = dict(schema=1, build=608, result='passed', evidenceMode='reused',
+        candidateExecution=current, originalExecution=ORIGINAL, originalRunConclusion='failure',
+        inputEquivalence=equivalence, originalOrigins=originals, currentGuardInputs=guard_input_hashes(),
+        unchangedSuitesReexecuted=False, coresRebuilt=False, physicalDeviceTested=False)
+    require(isinstance(value, dict), 'Current recovery receipt is not an object')
+    for field, wanted in expected.items():
+        require(field in value, 'Recovery receipt field missing: ' + field)
+        require_same(value[field], wanted, field)
     require(len(value['affectedChecks']) == len(COMMANDS), 'An affected recipe test was omitted')
     for command, (name, argv) in zip(value['affectedChecks'], COMMANDS):
         require(command['name'] == name and command['argv'] == list(argv) and command['exitCode'] == 0 and

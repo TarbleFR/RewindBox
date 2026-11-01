@@ -1,4 +1,5 @@
 """Behavioral failures of explicit608 reuse; no emulator/simulator is run."""
+import ast
 import copy
 import json
 import os
@@ -21,6 +22,42 @@ def entry(marker='a', mode='100644', kind='blob'):
 
 
 class ExactInputs(unittest.TestCase):
+    def test_projection_does_not_depend_on_ast_dump_format(self):
+        raw = b"def producer(a=None, b='', c=False, d=b'abc'):\n return (a, b, c, d, ...)\n"
+        expected = reuse.python_projection(raw, set())
+        for formatter in ('old formatting with empty fields', 'new formatting omitting empty fields'):
+            with mock.patch.object(ast, 'dump', return_value=formatter) as dump:
+                self.assertEqual(reuse.python_projection(raw, set()), expected)
+                dump.assert_not_called()
+        structured = json.loads(expected)
+        defaults = structured['fields']['body'][0]['fields']['args']['fields']['defaults']
+        self.assertIsNone(defaults[0]['fields']['value'])
+        self.assertEqual(defaults[1]['fields']['value'], '')
+        self.assertIs(defaults[2]['fields']['value'], False)
+        self.assertEqual(defaults[3]['fields']['value'], {'constantBytes': '616263'})
+
+    def test_only_known_optional_ast_fields_are_normalized(self):
+        node = ast.parse("def producer(arg):\n return None\n").body[0]
+        expected = reuse.canonical_ast(node)
+        self.assertEqual(expected['fields']['type_params'], [])
+        self.assertIsNone(expected['fields']['type_comment'])
+        for field in ('type_params', 'type_comment'):
+            if hasattr(node, field):
+                delattr(node, field)
+        self.assertEqual(reuse.canonical_ast(node), expected)
+        for field in ('type_params', 'type_comment'):
+            setattr(node, field, None)
+        self.assertEqual(reuse.canonical_ast(node), expected)
+        literal = node.body[0].value
+        for value in (None, '', False, 0, 0.0):
+            literal.value = value
+            result = reuse.canonical_ast(node)
+            actual = result['fields']['body'][0]['fields']['value']['fields']['value']
+            self.assertIs(type(actual), type(value))
+            self.assertEqual(actual, value)
+        node.decorator_list = [ast.Name(id='new_policy', ctx=ast.Load())]
+        self.assertNotEqual(reuse.canonical_ast(node), expected)
+
     def test_selection_is_explicit_and_unknown_values_fail(self):
         for value, expected in (('', False), (reuse.SOURCE, True)):
             with mock.patch.dict(os.environ, {'REWIND608_REUSE': value}):
@@ -84,8 +121,13 @@ class ExactInputs(unittest.TestCase):
     def test_actual_producer_projection_keeps_shared_executed_code(self):
         before = reuse.source_bytes(reuse.SOURCE, reuse.PRODUCERS)
         after = (SUBJECT / reuse.PRODUCERS).read_bytes()
-        self.assertTrue(reuse.verify_python(before, after, {'origin', 'tests', 'native'},
-                                            {'validate_armsx2_shaders'}))
+        self.assertEqual(reuse.verify_python(before, after, {'origin', 'tests', 'native'},
+                                            {'validate_armsx2_shaders'}),
+                         '9e2e67b4da4f4e7353f6ae1a6a8e6acbf7d1db54874392fc2b4d95464af103d4')
+        self.assertEqual(reuse.verify_python(
+            reuse.source_bytes(reuse.SOURCE, reuse.DELIVERY), (SUBJECT / reuse.DELIVERY).read_bytes(),
+            {'contract', 'expected'}),
+            'c980295ae762a45a37f63dde6a778c64eb3d9342c8a3339a8842bce895f7c1a0')
         for name in ('native_manifest', 'execution', 'input_paths', 'input_hashes', 'fetch', 'save'):
             changed = after.replace(('def ' + name + '(').encode(),
                                     ('def replaced_' + name + '(').encode(), 1)
@@ -225,6 +267,13 @@ class CurrentGuard(unittest.TestCase):
         self.assertEqual(self.call()['candidateExecution'], self.current)
         self.assertEqual(self.call()['originalExecution'], reuse.ORIGINAL)
         self.assertNotEqual(self.current['source'], reuse.SOURCE)
+
+    def test_nested_receipt_difference_identifies_the_exact_field(self):
+        self.equivalence['producerCodeProjectionSHA256'] = {'producer.py': 'a' * 64}
+        self.proof['inputEquivalence'] = copy.deepcopy(self.equivalence)
+        self.proof['inputEquivalence']['producerCodeProjectionSHA256']['producer.py'] = 'b' * 64
+        with self.assertRaisesRegex(ValueError, r'inputEquivalence\.producerCodeProjectionSHA256\.producer\.py'):
+            self.call()
 
     def test_wrong_candidate_origin_inputs_or_asserted_rebuild_fails(self):
         baseline = copy.deepcopy(self.proof)
