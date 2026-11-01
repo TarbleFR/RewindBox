@@ -9,17 +9,20 @@ import '../../services/retro_achievements_session_service.dart';
 import '../../utils/gamepad_nav.dart';
 import '../../utils/login_form_selection.dart';
 
-String raSessionErrorLabel(String? code) => switch (code) {
+String raSessionErrorLabel(String? code) {
+  if (code?.startsWith('login_failed_') ?? false) return AppLocale.raSessionLoginError;
+  return switch (code) {
   'RA_LOGIN_REQUIRED' || 'RA_CREDENTIALS_MISSING' => AppLocale.raSessionLoginNeeded,
   'RA_AUTHENTICATION_FAILED' || 'RA_LOGIN_FAILED' => AppLocale.raSessionLoginError,
   'RA_NETWORK_UNAVAILABLE' || 'RA_NETWORK' || 'RA_RATE_LIMITED' => AppLocale.raSessionNetworkError,
   'RA_STORAGE_UNAVAILABLE' || 'RA_MIGRATION_EXPIRED' => AppLocale.raSessionStorageError,
-  'RA_HARDCORE_OPTIONS' || 'RA_HARDCORE_RESET_REQUIRED' => AppLocale.raSessionHardcoreError,
+  'RA_HARDCORE_OPTIONS' || 'RA_HARDCORE_RESET_REQUIRED' || 'hardcore_inactive' => AppLocale.raSessionHardcoreError,
   'RA_UNSUPPORTED' => AppLocale.raSessionUnsupported,
   'RA_CORE_UNSUPPORTED' || 'RA_MEMORY_UNAVAILABLE' || 'RA_ACHIEVEMENTS_UNSUPPORTED' => AppLocale.raSessionUnverified,
   'RA_NO_ACHIEVEMENTS' || 'RA_GAME_NOT_RECOGNIZED' => AppLocale.noAchievementsFound,
   _ => AppLocale.raSessionUnavailable,
 };
+}
 
 /// This dialog is opened only by RAContent, never by an in-game menu or a
 /// console settings page. The native adapters have no equivalent write UI.

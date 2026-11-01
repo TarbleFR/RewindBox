@@ -14,6 +14,8 @@ FOUNDATION_EXPORT NSDictionary<NSString *, id> *RBRATakeLaunchConfiguration(
 
 /// Publish observed engine state, not merely the requested setting. Only
 /// non-secret status fields are forwarded; obsolete session callbacks are ignored.
+/// Pass the exact immutable snapshot returned by Take, not a reconstructed
+/// dictionary containing its public sessionId. End is idempotent.
 FOUNDATION_EXPORT void RBRAPublishSessionState(NSDictionary *configuration,
                                                NSDictionary *state);
 FOUNDATION_EXPORT void RBRAEndSession(NSDictionary *configuration);

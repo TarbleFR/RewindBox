@@ -923,7 +923,9 @@ class _MyAppState extends State<MyApp> {
           // game straight from the systems/recent screen (which never reads the
           // provider) would find RA disconnected and skip the secondary panel.
           lazy: false,
-          create: (context) => RetroAchievementsProvider()..initialize(),
+          create: (context) => RetroAchievementsProvider(
+            sessionService: RetroAchievementsSessionService.shared,
+          )..initialize(),
         ),
         ChangeNotifierProvider(create: (context) => SystemBackgroundProvider()),
         ChangeNotifierProvider(

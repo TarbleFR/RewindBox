@@ -40,6 +40,33 @@ class _RAContentState extends State<RAContent>
   bool _scrollingToLogout = false;
   bool _obscureApiKey = true;
   GamepadNavigation? _gamepadNav;
+  RetroAchievementsSessionService? _boundSession;
+  String? _displayedAccount;
+
+  RetroAchievementsSessionService get _session =>
+      _boundSession ?? RetroAchievementsSessionService.shared;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final session = context.read<RetroAchievementsProvider>().sessionService ??
+        RetroAchievementsSessionService.shared;
+    if (identical(session, _boundSession)) return;
+    _boundSession?.removeListener(_syncAccountFields);
+    _boundSession = session;
+    session.addListener(_syncAccountFields);
+    _syncAccountFields();
+  }
+
+  void _syncAccountFields() {
+    if (!mounted || !_session.available || !_session.initialized) return;
+    final account = _session.authenticated ? _session.username : '';
+    if (_displayedAccount == account.toLowerCase()) return;
+    _displayedAccount = account.toLowerCase();
+    _usernameController.text = account;
+    _apiKeyController.clear();
+    setState(() {});
+  }
 
   @override
   List<FocusNode?> get selectionSlots => [
@@ -119,14 +146,14 @@ class _RAContentState extends State<RAContent>
       icon: Symbols.logout_rounded,
     );
     if (!confirmed || !mounted) return;
-    final session = RetroAchievementsSessionService.shared;
+    final session = _session;
+    final provider = context.read<RetroAchievementsProvider>();
     if (session.available && !await session.logout()) {
       if (mounted) AppNotification.showNotification(context,
         raSessionErrorLabel(session.errorCode).getString(context), type: NotificationType.error);
       return;
     }
-    if (!mounted) return;
-    context.read<RetroAchievementsProvider>().disconnect(clearSavedUser: true);
+    provider.disconnect(clearSavedUser: true);
     if (!mounted) return;
     resetSelection();
     _setLogoutSelected(false);
@@ -139,8 +166,13 @@ class _RAContentState extends State<RAContent>
 
   Future<void> _connectToRA() async {
     final raProvider = context.read<RetroAchievementsProvider>();
-    final session = RetroAchievementsSessionService.shared;
+    final session = _session;
     if (raProvider.isLoading) return;
+    if (session.available && !session.authenticated) {
+      AppNotification.showNotification(context,
+        AppLocale.raSessionLoginNeeded.getString(context), type: NotificationType.error);
+      return;
+    }
     if (session.available && session.authenticated &&
         _usernameController.text.trim().toLowerCase() != session.username.toLowerCase()) {
       AppNotification.showNotification(context,
@@ -168,6 +200,9 @@ class _RAContentState extends State<RAContent>
         AppLocale.successConnectedRA.getString(context),
         type: NotificationType.success,
       );
+    } else if (raProvider.accountErrorKey != null) {
+      AppNotification.showNotification(context,
+        raProvider.accountErrorKey!.getString(context), type: NotificationType.error);
     } else if (raProvider.error != null) {
       AppNotification.showNotification(
         context,
@@ -187,25 +222,21 @@ class _RAContentState extends State<RAContent>
   }
 
   Future<void> _openSessionSettings() async {
-    final session = RetroAchievementsSessionService.shared;
+    final session = _session;
     if (!session.available) return;
     final provider = context.read<RetroAchievementsProvider>();
     await showDialog<void>(context: context, builder: (_) => RASessionSettings(
       initialUsername: provider.username.isNotEmpty ? provider.username : _usernameController.text,
-      onAccountChanged: (username) async {
-        if (!mounted) return;
-        if (username == null || (provider.isConnected && provider.username.toLowerCase() != username.toLowerCase())) {
-          provider.disconnect(clearSavedUser: true);
-          _apiKeyController.clear();
-        }
-        _usernameController.text = username ?? '';
-        setState(() {});
-      },
+      service: session,
+      // Identity follows the provider's lifetime listener. This callback only
+      // refreshes visible fields and is safe when the dialog/tab has closed.
+      onAccountChanged: (_) async => _syncAccountFields(),
     ));
   }
 
   @override
   void dispose() {
+    _boundSession?.removeListener(_syncAccountFields);
     GamepadNavigationManager.popLayer('ra_content');
     _gamepadNav?.dispose();
     detachFocusSelectionListeners();
@@ -305,7 +336,7 @@ class _RAContentState extends State<RAContent>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(height: 64.r),
-          if (RetroAchievementsSessionService.shared.available)
+          if (_session.available)
             Align(alignment: Alignment.centerRight, child: TextButton.icon(
               key: const ValueKey('ra-central-settings'), onPressed: _openSessionSettings,
               icon: const Icon(Symbols.settings_rounded),
@@ -438,7 +469,7 @@ class _RAContentState extends State<RAContent>
             children: [
               Expanded(
                 child: Text(
-                  (RetroAchievementsSessionService.shared.available
+                  (_session.available
                     ? AppLocale.raSessionWeb : AppLocale.raLogin).getString(context),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,

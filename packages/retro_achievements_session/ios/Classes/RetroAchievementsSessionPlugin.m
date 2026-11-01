@@ -65,6 +65,33 @@ static FlutterError *RBRAError(NSString *code) {
   return [FlutterError errorWithCode:code message:code details:nil];
 }
 
+// Engine diagnostics crossing the Flutter boundary are codes, never raw
+// service responses or arbitrary strings which could contain credentials.
+static NSString *RBRAPublicErrorCode(id value) {
+  if (![value isKindOfClass:NSString.class]) return @"";
+  NSString *code = [value copy];
+  static NSSet<NSString *> *allowed;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    allowed = [NSSet setWithArray:@[@"", @"state_unavailable", @"configuration_failed",
+      @"hardcore_inactive", @"cleanup_pending", @"RA_UNAVAILABLE", @"RA_UNSUPPORTED",
+      @"RA_NETWORK_UNAVAILABLE", @"RA_LOGIN_REQUIRED", @"RA_LOGIN_FAILED",
+      @"RA_AUTHENTICATION_FAILED", @"RA_RATE_LIMITED", @"RA_STORAGE_UNAVAILABLE",
+      @"RA_CREDENTIALS_MISSING", @"RA_CLIENT_UNAVAILABLE", @"RA_CORE_UNSUPPORTED",
+      @"RA_MEMORY_UNAVAILABLE", @"RA_GAME_LOAD_FAILED", @"RA_GAME_NOT_RECOGNIZED",
+      @"RA_NO_ACHIEVEMENTS", @"RA_ACHIEVEMENTS_UNSUPPORTED", @"RA_SERVER_ERROR",
+      @"RA_SYNC_PENDING", @"RA_HARDCORE_OPTIONS", @"RA_HARDCORE_RESET_REQUIRED",
+      @"RA_CANCELLED", @"RA_MIGRATION_EXPIRED", @"RA_SESSION_ERROR"]];
+  });
+  if ([allowed containsObject:code]) return code;
+  // Dolphin preserves its signed integer rcheevos error without response text.
+  if (code.length <= 24) {
+    NSRange match = [code rangeOfString:@"^login_failed_-?[0-9]{1,10}$" options:NSRegularExpressionSearch];
+    if (match.location == 0 && match.length == code.length) return code;
+  }
+  return @"RA_SESSION_ERROR";
+}
+
 @interface RBRANoRedirectDelegate : NSObject <NSURLSessionTaskDelegate>
 @end
 @implementation RBRANoRedirectDelegate
@@ -320,7 +347,11 @@ NSDictionary *RBRATakeLaunchConfiguration(NSDictionary *arguments, NSString *eng
   RBRASessionHub *hub = RBRASessionHub.shared;
   [hub.lock lock];
   NSDictionary *snapshot = hub.pending[identifier];
-  if (!snapshot || ![snapshot[@"engine"] isEqualToString:engine] || [snapshot[@"expires"] timeIntervalSinceNow] <= 0) {
+  if (snapshot && [snapshot[@"expires"] timeIntervalSinceNow] <= 0) {
+    [hub.pending removeObjectForKey:identifier];
+    [hub.lock unlock]; return RBRADisabled();
+  }
+  if (!snapshot || ![snapshot[@"engine"] isEqualToString:engine]) {
     [hub.lock unlock]; return RBRADisabled();
   }
   [hub.pending removeObjectForKey:identifier];
@@ -339,16 +370,19 @@ NSDictionary *RBRATakeLaunchConfiguration(NSDictionary *arguments, NSString *eng
 }
 
 void RBRAPublishSessionState(NSDictionary *configuration, NSDictionary *state) {
+  if (![configuration isKindOfClass:NSDictionary.class] || ![state isKindOfClass:NSDictionary.class]) return;
   NSString *identifier = RBRAString(configuration[@"sessionId"]);
   RBRASessionHub *hub = RBRASessionHub.shared;
   [hub.lock lock];
   NSDictionary *snapshot = hub.active[identifier];
-  if (!snapshot || ![identifier isEqualToString:hub.currentSessionId]) { [hub.lock unlock]; return; }
+  if (snapshot != configuration || ![identifier isEqualToString:hub.currentSessionId]) {
+    [hub.lock unlock]; return;
+  }
   NSMutableDictionary *next = [hub.lastState mutableCopy];
   for (NSString *key in @[@"active", @"gameLoaded", @"hardcoreActive", @"gameId", @"totalCount", @"unlockedCount"]) {
     if ([state[key] isKindOfClass:NSNumber.class]) next[key] = state[key];
   }
-  if ([state[@"errorCode"] isKindOfClass:NSString.class]) next[@"errorCode"] = state[@"errorCode"];
+  if ([state[@"errorCode"] isKindOfClass:NSString.class]) next[@"errorCode"] = RBRAPublicErrorCode(state[@"errorCode"]);
   // An engine cannot announce active RA for an unsupported/disabled snapshot.
   if (![snapshot[@"enabled"] boolValue] || ![next[@"gameLoaded"] boolValue]) {
     next[@"active"] = @NO; next[@"hardcoreActive"] = @NO;
@@ -362,9 +396,13 @@ void RBRAPublishSessionState(NSDictionary *configuration, NSDictionary *state) {
 }
 
 void RBRAEndSession(NSDictionary *configuration) {
+  if (![configuration isKindOfClass:NSDictionary.class]) return;
   NSString *identifier = RBRAString(configuration[@"sessionId"]);
   RBRASessionHub *hub = RBRASessionHub.shared;
   [hub.lock lock];
+  // Public session IDs are metadata. Only the exact launch snapshot owns its
+  // native session; an already-ended snapshot cannot emit another end event.
+  if (hub.active[identifier] != configuration) { [hub.lock unlock]; return; }
   [hub.active removeObjectForKey:identifier];
   BOOL current = identifier.length && [identifier isEqualToString:hub.currentSessionId];
   NSDictionary *state = nil;
