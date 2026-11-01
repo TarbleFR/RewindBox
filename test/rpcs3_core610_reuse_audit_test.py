@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""Which delivered native harness results still describe the Core 610 sources.
+"""Which delivered native harness results still describe the declared Core build's sources.
 
 Core a4ae86d0 (delivered 607/608) reused twelve authenticated Apple modes: six
 harnesses in plain and ASan/UBSan form. Each harness compiles production code it
-extracts from the Core. A result can be reused for 610 only when every extracted
-production body is byte-identical between the delivered tree and the 610 tree;
-otherwise the harness is affected and needs its own new execution or proof.
-This audit extracts the same bodies the harnesses extract and classifies them.
-It runs no compiler and claims no new native execution.
+extracts from the Core. A result can be reused for the build declared in
+build-utils/rpcs3/core-build.json only when every extracted production body is
+byte-identical between the delivered tree and the build's tree; otherwise the
+harness is affected and needs its own new execution or proof. The affected set
+must equal the spec's native_modes.affected (Core 610 and Core 611:
+exitspawn-worker and mfc-decrementer). This audit extracts the same bodies the
+harnesses extract and classifies them. It runs no compiler and claims no new
+native execution.
 """
 from __future__ import annotations
 
@@ -15,6 +18,18 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SPEC = ROOT / 'build-utils/rpcs3/core-build.json'
+
+
+def declared(spec_path: Path = SPEC) -> tuple[int, set]:
+    """The build number (report column) and the reviewed affected harnesses of the declared build."""
+    spec = json.loads(spec_path.read_text())
+    build, affected = spec['build'], set(spec['native_modes']['affected'])
+    if type(build) is not int or not affected:
+        raise AssertionError('core build spec lacks its build number or affected harnesses')
+    return build, affected
 
 
 def sha(data: bytes) -> str:
@@ -76,13 +91,14 @@ HARNESSES = {
 }
 
 
-def audit(source: Path, baseline: Path) -> dict:
+def audit(source: Path, baseline: Path, spec_path: Path = SPEC) -> dict:
+    build, expected_affected = declared(spec_path)
     result = {}
     for name, harness in HARNESSES.items():
         changed, digests = [], {}
         for label, extract in harness['inputs'].items():
             before, after = extract(baseline), extract(source)
-            digests[label] = {'delivered': sha(before.encode()), 'core610': sha(after.encode())}
+            digests[label] = {'delivered': sha(before.encode()), f'core{build}': sha(after.encode())}
             if before != after:
                 changed.append(label)
         entry = {'test': harness['test'], 'changed_extracted_inputs': changed, 'inputs': digests,
@@ -92,7 +108,6 @@ def audit(source: Path, baseline: Path) -> dict:
                 raise AssertionError(f'{name}: extracted inputs changed without replacement evidence: {changed}')
             entry['replacement_evidence'] = harness['replacement']
         result[name] = entry
-    expected_affected = {'exitspawn-worker', 'mfc-decrementer'}
     affected = {name for name, entry in result.items() if entry['changed_extracted_inputs']}
     if affected != expected_affected:
         raise AssertionError(f'affected harnesses differ from the reviewed set: {sorted(affected)}')
@@ -104,8 +119,10 @@ def main():
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--baseline', type=Path, required=True)
     parser.add_argument('--report', type=Path)
+    parser.add_argument('--spec', type=Path, default=SPEC, help='declared Core build (default: the committed spec)')
     args = parser.parse_args()
-    report = {'schema': 1, 'harnesses': audit(args.source, args.baseline), 'native_execution_claimed': False}
+    report = {'schema': 1, 'build': declared(args.spec)[0], 'harnesses': audit(args.source, args.baseline, args.spec),
+              'native_execution_claimed': False}
     text = json.dumps(report, indent=2, sort_keys=True) + '\n'
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)

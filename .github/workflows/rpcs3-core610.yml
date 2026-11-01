@@ -1,13 +1,20 @@
-# Core-only route for the Core 610 source lot (canonical patch a63b9643).
+# Core-only producer route of the RPCS3 iPhone Core, for the build declared in
+# build-utils/rpcs3/core-build.json (build number, delivered reference Core,
+# canonical delta, expected exports, pins, reused and rerun Apple harnesses).
+# The route keeps its Core 610 file names: the frozen recipe patch and the
+# driver pins name its gate path, so every build executes the same recipe.
 # Source changes use [skip ci]; a separate marker commit touching only this
-# workflow requests the build. No application build, IPA, release or
-# publication is performed here: the private IPA 610 consumes the verified
-# artifact of a successful run in its own delivery route.
+# workflow requests the build: '[rpcs3-core-build]' runs both jobs and
+# '[rpcs3-core-build-apple]' only the Apple host harnesses. No application
+# build, IPA, release or publication is performed here: the private IPA
+# consumes the verified artifact of a successful run in its own delivery route.
 # Core compile request: Core 610 source lot, 1 November 2026 (patch a63b9643, request 1).
 # Apple host harness rerun: LR harness accepts clang's unused static inline report (request 2).
 # Core compile request 3: identity step fixed (a local variable shadowed identity() in main()).
-name: RPCS3 Core 610
-run-name: "RPCS3 Core 610 • ${{ github.sha }}"
+name: RPCS3 Core
+# run-name is evaluated before any job and cannot read the spec; the build
+# number is in the step names, the artifact names and the identity type.
+run-name: "RPCS3 Core producer • ${{ github.sha }}"
 'on':
   push:
     branches: [Claude]
@@ -23,18 +30,14 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: rewindbox-rpcs3-core610-${{ github.sha }}
+  group: rewindbox-rpcs3-core-${{ github.sha }}
   cancel-in-progress: false
 env:
   HOMEBREW_NO_AUTO_UPDATE: '1'
-  # The gate rejects a pending/failed run, wrong job/source or changed payload.
-  RPCS3_MVK_DEPENDENCY_RUN: '41239096061'
-  RPCS3_MVK_DEPENDENCY_SOURCE: '7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed'
-  RPCS3_DELIVERED_CORE_SOURCE: 'a4ae86d085c231e3c5c93f7f72d2eced0f38ec24'
 jobs:
   core:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-core610]') }}
-    name: RPCS3 iPhone Core 610 with authenticated source-built MoltenVK
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-core-build]') }}
+    name: RPCS3 iPhone Core with authenticated source-built MoltenVK
     runs-on: macos-15
     timeout-minutes: 180
     steps:
@@ -52,6 +55,12 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Read the declared Core build
+        id: core-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/diagnostics/rpcs3_core610.py --github-outputs | tee -a "$GITHUB_OUTPUT"
       - name: Select the retained Core toolchain
         uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -63,10 +72,12 @@ jobs:
           path: ~/Library/Caches/ccache
           key: rpcs3-mvk-cache-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-${{ github.sha }}
           restore-keys: rpcs3-mvk-cache-arm64-xcode16.4-llvm22-${{ hashFiles('build-utils/build_rpcs3_embedded_core.sh','build-utils/rpcs3/llvm-aarch64-ghc-emergency-spill.patch') }}-
-      - name: Authenticate the Core 610 source closure and the native dependency
+      - name: Authenticate the Core ${{ steps.core-build.outputs.build }} source closure and the native dependency
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          RPCS3_MVK_DEPENDENCY_RUN: ${{ steps.core-build.outputs.dependency_run }}
+          RPCS3_MVK_DEPENDENCY_SOURCE: ${{ steps.core-build.outputs.dependency_source }}
         run: |
           set -euo pipefail
           mkdir -p build/rpcs3-core-diagnostics
@@ -78,7 +89,7 @@ jobs:
             2>&1 | tee build/rpcs3-core-diagnostics/dependency-protocol-tests.log
           python3 test/rpcs3_mvk_unverified_core_collector_test.py \
             2>&1 | tee build/rpcs3-core-diagnostics/recovery-collector-tests.log
-          SOURCE="$RUNNER_TEMP/rpcs3-core610-source-preflight"
+          SOURCE="$RUNNER_TEMP/rpcs3-core-source-preflight"
           git init -q "$SOURCE"
           git -C "$SOURCE" remote add origin https://github.com/XITRIX/rpcs3.git
           UPSTREAM=$(python3 -c 'import json; print(json.load(open("build-utils/rpcs3/canonical-source.json"))["upstream_commit"])')
@@ -97,13 +108,13 @@ jobs:
       - name: Preserve the authenticated preflight
         uses: actions/upload-artifact@v4
         with:
-          name: RPCS3Core-610-preflight-${{ github.sha }}
+          name: RPCS3Core-${{ steps.core-build.outputs.build }}-preflight-${{ github.sha }}
           path: |
             build/rpcs3-core-diagnostics/core610-proof.json
             build/rpcs3-core-diagnostics/core610-preflight.log
           if-no-files-found: error
           retention-days: 14
-      - name: Compile and link the actual iPhone Core 610
+      - name: Compile and link the actual iPhone Core ${{ steps.core-build.outputs.build }}
         shell: bash
         run: |
           set -euo pipefail
@@ -116,7 +127,7 @@ jobs:
               --output "$PWD/dist/rpcs3" \
               --work-root "$RUNNER_TEMP/neostation-rpcs3-embedded" \
               2>&1 | tee build/rpcs3-core-diagnostics/core-driver.log
-      - name: Verify the actual binary and write its Core 610 identity
+      - name: Verify the actual binary and write its Core ${{ steps.core-build.outputs.build }} identity
         shell: bash
         run: |
           set -euo pipefail
@@ -203,10 +214,10 @@ jobs:
                      'cache_speedup_claimed': False, 'fps_gain_claimed': False}
           (out / 'compiler-cache-observed.json').write_text(json.dumps(receipt, indent=2) + '\n')
           PYCODE
-      - name: Upload the verified Core 610 without an application delivery
+      - name: Upload the verified Core ${{ steps.core-build.outputs.build }} without an application delivery
         uses: actions/upload-artifact@v4
         with:
-          name: RPCS3Core-610-${{ github.sha }}
+          name: RPCS3Core-${{ steps.core-build.outputs.build }}-${{ github.sha }}
           path: dist/rpcs3/
           if-no-files-found: error
           retention-days: 30
@@ -220,7 +231,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RPCS3Core-610-diagnostics-${{ github.sha }}
+          name: RPCS3Core-${{ steps.core-build.outputs.build }}-diagnostics-${{ github.sha }}
           path: |
             build/rpcs3-core-diagnostics/*.json
             build/rpcs3-core-diagnostics/*.txt
@@ -232,9 +243,9 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
   apple-host-tests:
-    # '[rpcs3-core610-apple]' reruns only this job (the core job needs '[rpcs3-core610]').
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-core610]') || contains(github.event.head_commit.message, '[rpcs3-core610-apple]') }}
-    name: Core 610 host harnesses on Apple ARM64 (affected and new)
+    # '[rpcs3-core-build-apple]' reruns only this job (the core job needs '[rpcs3-core-build]').
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[rpcs3-core-build]') || contains(github.event.head_commit.message, '[rpcs3-core-build-apple]') }}
+    name: Core host harnesses on Apple ARM64 (changed, new and reused)
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -244,79 +255,58 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Read the declared Core build
+        id: core-build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/diagnostics/rpcs3_core610.py --github-outputs | tee -a "$GITHUB_OUTPUT"
       - name: Select the retained Core toolchain
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: '16.4'
-      - name: Materialize the Core 610 sources and the delivered a4ae86d0 sources
+      - name: Materialize the Core ${{ steps.core-build.outputs.build }} sources and the delivered ${{ steps.core-build.outputs.apple_baseline_short }} sources
         shell: bash
+        env:
+          RPCS3_DELIVERED_CORE_SOURCE: ${{ steps.core-build.outputs.apple_baseline_source }}
+          RPCS3_DELIVERED_CORE_PATCH: ${{ steps.core-build.outputs.apple_baseline_patch_sha256 }}
         run: |
           set -euo pipefail
           UPSTREAM=$(python3 -c 'import json; print(json.load(open("build-utils/rpcs3/canonical-source.json"))["upstream_commit"])')
-          for tree in core610 delivered; do
+          for tree in core delivered; do
             git init -q "$RUNNER_TEMP/$tree"
             git -C "$RUNNER_TEMP/$tree" remote add origin https://github.com/XITRIX/rpcs3.git
             git -C "$RUNNER_TEMP/$tree" fetch --depth 1 origin "$UPSTREAM"
             git -C "$RUNNER_TEMP/$tree" checkout -q --detach FETCH_HEAD
           done
-          python3 build-utils/materialize_rpcs3_core.py "$RUNNER_TEMP/core610"
+          python3 build-utils/materialize_rpcs3_core.py "$RUNNER_TEMP/core"
           git worktree add --detach "$RUNNER_TEMP/repo-delivered" "$RPCS3_DELIVERED_CORE_SOURCE"
           python3 "$RUNNER_TEMP/repo-delivered/build-utils/materialize_rpcs3_core.py" "$RUNNER_TEMP/delivered"
           test "$(python3 -c 'import json; print(json.load(open("'"$RUNNER_TEMP"'/repo-delivered/build-utils/rpcs3/canonical-source.json"))["patch_sha256"])')" \
-            = 70d694bb3ef812b87b8839e53335376028aa16476893512d012b77ef1952fd79
-      - name: Run the affected and new Core 610 harnesses with Apple clang
+            = "$RPCS3_DELIVERED_CORE_PATCH"
+      - name: Authenticate the reused Core ${{ steps.core-build.outputs.reference_build }} Apple harness evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 .github/diagnostics/rpcs3_core_apple_host.py --authenticate-reused \
+            --source "$RUNNER_TEMP/core" --baseline "$RUNNER_TEMP/delivered" --output build/core-apple-host
+      - name: Run the affected and new Core ${{ steps.core-build.outputs.build }} harnesses with Apple clang
         shell: bash
         run: |
           set -euo pipefail
           export HOST_MACOS_SDK="$(xcrun --sdk macosx --show-sdk-path)"
-          python3 - <<'PYCODE'
-          import json, os, subprocess, sys, time
-          from pathlib import Path
-          temp = Path(os.environ['RUNNER_TEMP'])
-          source, delivered = str(temp / 'core610'), str(temp / 'delivered')
-          out = Path('build/core610-apple-host'); out.mkdir(parents=True, exist_ok=True)
-          runs = [
-              ('lr-full-queue', ['python3', 'test/rpcs3_spu_mfc_lr_test.py', '--source', source, '--baseline', delivered,
-                                 '--cxx', 'clang++', '--report', str(out / 'lr-full-queue.json')]),
-              ('exitspawn-worker-plain', ['python3', 'test/rpcs3_exitspawn_worker610_test.py', source, '--baseline', delivered,
-                                          '--compiler', 'clang++', '--report', str(out / 'exitspawn-worker-plain.json')]),
-              ('exitspawn-worker-asan-ubsan', ['python3', 'test/rpcs3_exitspawn_worker610_test.py', source, '--baseline', delivered,
-                                               '--compiler', 'clang++', '--sanitize', '--report', str(out / 'exitspawn-worker-asan-ubsan.json')]),
-              ('feedback-census', ['python3', 'test/rpcs3_feedback_census_test.py', '--source', source, '--baseline', delivered,
-                                   '--compiler', 'clang++', '--report', str(out / 'feedback-census.json')]),
-              ('transition-phases', ['python3', 'test/rpcs3_transition_phases_test.py', '--source', source, '--baseline', delivered,
-                                     '--report', str(out / 'transition-phases.json')]),
-              ('codegen-audit', ['python3', 'test/rpcs3_core610_codegen_test.py', source, '--baseline', delivered,
-                                 '--report', str(out / 'codegen-audit.json')]),
-              ('reuse-audit', ['python3', 'test/rpcs3_core610_reuse_audit_test.py', '--source', source, '--baseline', delivered,
-                               '--report', str(out / 'reuse-audit.json')]),
-              ('position-invariance-contract', ['python3', 'test/rpcs3_position_invariance_test.py', '--source', source,
-                                                '--report', str(out / 'position-invariance-contract.json')]),
-          ]
-          receipt = {'schema': 1, 'source': os.environ['GITHUB_SHA'], 'run': int(os.environ['GITHUB_RUN_ID']),
-                     'host': subprocess.check_output(['uname', '-a'], text=True).strip(),
-                     'compiler': subprocess.check_output(['clang++', '--version'], text=True).splitlines()[0],
-                     'commands': [], 'physical_device_tested': False}
-          failed = 0
-          for name, argv in runs:
-              start = time.monotonic()
-              log = out / (name + '.log')
-              with log.open('wb') as stream:
-                  code = subprocess.run(argv, stdout=stream, stderr=subprocess.STDOUT).returncode
-              print(f'{name}: exit {code}', flush=True)
-              print(log.read_text(errors='replace')[-6000:], flush=True)
-              receipt['commands'].append({'name': name, 'argv': argv, 'exit_code': code,
-                                          'seconds': round(time.monotonic() - start, 3)})
-              failed += code != 0
-          receipt['result'] = 'passed' if not failed else 'failed'
-          (out / 'apple-host-tests.json').write_text(json.dumps(receipt, indent=2) + '\n')
-          sys.exit(1 if failed else 0)
-          PYCODE
+          python3 .github/diagnostics/rpcs3_core_apple_host.py --run \
+            --source "$RUNNER_TEMP/core" --baseline "$RUNNER_TEMP/delivered" --output build/core-apple-host
       - name: Preserve the Apple host harness reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: RPCS3Core-610-apple-host-tests-${{ github.sha }}
-          path: build/core610-apple-host/
+          name: RPCS3Core-${{ steps.core-build.outputs.build }}-apple-host-tests-${{ github.sha }}
+          path: |
+            build/core-apple-host/*.json
+            build/core-apple-host/*.log
+            build/core-apple-host/reused-reference/*.json
           if-no-files-found: warn
           retention-days: 30

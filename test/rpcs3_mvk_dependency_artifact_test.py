@@ -5,7 +5,9 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import re
 import stat
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -139,6 +141,91 @@ class ArtifactTests(unittest.TestCase):
                         GATE.verify_host(path, "ios", RUN, SOURCE, 1)
                     blobs[name] = original
                     host["input_sha256"][name] = hashlib.sha256(original).hexdigest()
+
+    def recorded_bridge(self):
+        """The bridge bytes run 41239096061 recorded, read from its source commit."""
+        raw = subprocess.check_output(["git", "show", SOURCE + ":" + GATE.HOST], cwd=ROOT)
+        self.assertEqual(hashlib.sha256(raw).hexdigest(), GATE.HOST_BEFORE)
+        self.assertEqual(GATE.digest(ROOT / GATE.HOST), GATE.HOST_AFTER)
+        return raw
+
+    def test_reviewed_host_delta_accepts_only_the_pinned_bridge_pair(self):
+        names = GATE.load_module("host_inputs_delta", ROOT / ".github/diagnostics/rpcs3_mvk_cache_host.py").INPUTS
+        blobs = {name: (ROOT / name).read_bytes() for name in names}
+        blobs[GATE.HOST] = self.recorded_bridge()
+        host = {"status": "verified_host_and_inputs", "phase": "ios", "source_commit": SOURCE,
+                "requested_source_commit": SOURCE, "run_id": str(RUN), "run_attempt": "1", "runner_arch": "ARM64",
+                "uname": {"system": "Darwin", "machine": "arm64"}, "xcode": "Xcode 16.4\nBuild version 16F6",
+                "sdk": "iphoneos", "physical_iphone_test": False, "core_built_by_this_job": False, "ipa_built_by_this_job": False,
+                "input_sha256": {name: hashlib.sha256(raw).hexdigest() for name, raw in blobs.items()}}
+        path = self.root / "host.json"
+
+        def write():
+            path.write_text(json.dumps(host))
+
+        def historical(*argv):
+            self.assertEqual(argv[:2], ("git", "show"))
+            self.assertTrue(argv[2].startswith(SOURCE + ":"))
+            return blobs[argv[2].split(":", 1)[1]]
+
+        write()
+        real_digest = GATE.digest
+        with patch.object(GATE, "capture", side_effect=historical):
+            # The strict default still refuses the bridge change.
+            with self.assertRaisesRegex(ValueError, "Current compiled/host input differs: " + re.escape(GATE.HOST)):
+                GATE.verify_host(path, "ios", RUN, SOURCE, 1)
+            GATE.verify_host(path, "ios", RUN, SOURCE, 1, reviewed_host_delta=True)
+            # Any other recorded bridge, including the current one, is not the reviewed pair.
+            recorded = blobs[GATE.HOST]
+            for other in (b"another historical bridge", (ROOT / GATE.HOST).read_bytes()):
+                with self.subTest(recorded=hashlib.sha256(other).hexdigest()):
+                    blobs[GATE.HOST] = other
+                    host["input_sha256"][GATE.HOST] = hashlib.sha256(other).hexdigest()
+                    write()
+                    with self.assertRaisesRegex(ValueError, "Unreviewed host delta"):
+                        GATE.verify_host(path, "ios", RUN, SOURCE, 1, reviewed_host_delta=True)
+            blobs[GATE.HOST] = recorded
+            host["input_sha256"][GATE.HOST] = GATE.HOST_BEFORE
+            write()
+            # A later bridge edit (current bytes other than HOST_AFTER) is refused.
+            with patch.object(GATE, "digest", side_effect=lambda p: "1" * 64 if str(p).endswith(GATE.HOST) else real_digest(p)):
+                with self.assertRaisesRegex(ValueError, "Unreviewed host delta"):
+                    GATE.verify_host(path, "ios", RUN, SOURCE, 1, reviewed_host_delta=True)
+            # Every other current input stays strict with the opt-in.
+            for name in (n for n in GATE.CURRENT_REQUIRED if n != GATE.HOST):
+                with self.subTest(changed=name):
+                    original = blobs[name]
+                    blobs[name] = b"historical bytes differ from current reviewed source"
+                    host["input_sha256"][name] = hashlib.sha256(blobs[name]).hexdigest()
+                    write()
+                    with self.assertRaisesRegex(ValueError, "Current compiled/host input differs: " + re.escape(name)):
+                        GATE.verify_host(path, "ios", RUN, SOURCE, 1, reviewed_host_delta=True)
+                    blobs[name] = original
+                    host["input_sha256"][name] = hashlib.sha256(original).hexdigest()
+                    write()
+            GATE.verify_host(path, "ios", RUN, SOURCE, 1, reviewed_host_delta=True)
+
+    def test_reviewed_host_delta_needs_the_same_milestones_unit_and_load_set(self):
+        before, after = self.recorded_bridge(), (ROOT / GATE.HOST).read_bytes()
+        result = GATE.host_delta_equivalence(before, after)
+        self.assertEqual(result["milestones_translation_unit_sha256"],
+                         "6b4efab6ea212ca50083c5159d7ff382bfb9ec2bfbd6071a966f2c2f9f179cb9")
+        self.assertEqual((result["milestones_translation_unit_bytes"], result["load_symbols"]), (7369, 22))
+        self.assertEqual((result["before"], result["after"]), (GATE.HOST_BEFORE, GATE.HOST_AFTER))
+        self.assertIs(result["consumed_library_reads_bridge"], False)
+        text = after.decode()
+        anchor = "BOOL RPCS3PipelineCacheBoundary(const char* message)"
+        self.assertEqual(text.count(anchor), 1)
+        changed_unit = text.replace(anchor, anchor + " /* edited */", 1).encode()
+        changed_load = (text + '\n// LOAD("rpcs3_ios_unreviewed_symbol")\n').encode()
+        for label, candidate, message in (("milestones unit", changed_unit, "milestones test changed"),
+                                          ("LOAD set", changed_load, "LOAD\\(\\) Core contract changed")):
+            with self.subTest(label), patch.object(GATE, "HOST_AFTER", hashlib.sha256(candidate).hexdigest()):
+                with self.assertRaisesRegex(ValueError, message):
+                    GATE.host_delta_equivalence(before, candidate)
+        for old, new in ((before, changed_unit), (after, after), (before, before)):
+            with self.assertRaisesRegex(ValueError, "Unreviewed host delta"):
+                GATE.host_delta_equivalence(old, new)
 
 
 if __name__ == "__main__":

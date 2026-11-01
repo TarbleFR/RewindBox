@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
-"""Compile the reviewed Core 610 source lot with the authenticated MoltenVK dependency.
+"""Compile one declared RPCS3 iPhone Core build with the authenticated MoltenVK dependency.
 
-The delivered Core a4ae86d0 (IPA 607/608/609) is the reference: its committed
-identity and proof (bound by digest) give the exact 92 Core inputs, the 88
-exports, the ordinary upstream dependency map and the reused native modes.
-Core 610 may differ only by the reviewed canonical delta (patch a63b9643, 329
-postimages) and its pin, and one upstream file that the delta now carries.
-The MoltenVK 1.4.2 dependency is the separately authenticated source build
-(run 41239096061). Generic checks (generated version header, postbuild
-upstream map, executed link line, common ABI constants) are those of the
-delivered gate, imported unchanged. This route compiles only the Core; it never
-creates an IPA or a release, and claims no device or FPS result.
+The build is declared in build-utils/rpcs3/core-build.json: its number, the
+delivered reference Core (committed identity, proof and run receipt, bound by
+digest), the canonical delta (patch, postimages, records), the folded record
+that is the only change on top of the reference, the expected exports, the
+reviewed Core-input drift, the codegen identities, the runtime markers, the
+MoltenVK dependency run and the native harness accounting. No per-build value
+is written in this file; it keeps its Core 610 path because the frozen recipe
+patch (build-utils/rpcs3/patches/core610-recipe.patch) and the driver pins
+name it, so every build executes the recipe Core 610 executed.
+
+Generic checks (generated version header, postbuild upstream map, executed
+link line, common ABI constants) are those of the delivered gate, imported
+unchanged. This route compiles only the Core; it never creates an IPA or a
+release, and claims no device or FPS result.
 """
 import argparse
 import hashlib
@@ -27,54 +31,162 @@ import sys
 import rpcs3_mvk_cache_core as base
 
 ROOT = base.ROOT
+SPEC_PATH = ROOT / "build-utils/rpcs3/core-build.json"
+GATE_PATH = ".github/diagnostics/rpcs3_core610.py"
 OUT = ROOT / "build/rpcs3-core-diagnostics"
+# Route file names (not build numbers): the driver writes core610-recipe.sh.
 PROOF = OUT / "core610-proof.json"
 RECIPE_OUTPUT = OUT / "core610-recipe.sh"
-UPSTREAM = base.UPSTREAM
-PATCH_SHA = "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf"
-POSTIMAGES = 329
-RECORD = "core610_20261101"
-DELIVERED_SOURCE = "a4ae86d085c231e3c5c93f7f72d2eced0f38ec24"
-DELIVERED = ROOT / "docs/evidence/rpcs3-bo2-multiplayer-604-20261031/apple-core/recovered-a4ae86d0"
-DELIVERED_IDENTITY_SHA = "01555aa3fc02d32857e711c70d787c528305acbf17246abb80548f202a1f458c"
-DELIVERED_PROOF_SHA = "382a1ac4f5782122d57181e8b5a15d9fcae02c1c25b5906d10c77fe80e9f8418"
-DELIVERED_PATCH_SHA = base.PATCH_SHA
-HOST = base.HOST
-HOST_SHA = base.HOST_AFTER
-# Core inputs (test/neo_swap_core_pin_test.py) that may differ from a4ae86d0.
-REVIEWED_CORE_INPUT_DRIFT = {
-    "build-utils/rpcs3/canonical-source.json",
-    "build-utils/rpcs3/embedded-core.patch",
-    "test/neo_swap_core_pin_test.py",
-}
-# Ordinary upstream files the Core 610 delta now carries as postimages.
-NEW_CANONICAL_UPSTREAM = {"rpcs3/Emu/RSX/VK/VKVertexProgram.cpp"}
-# Delivered native modes whose extracted inputs are byte-identical in Core 610
-# (test/rpcs3_core610_reuse_audit_test.py); the two affected harnesses run again
-# on Apple ARM64 in the apple-host-tests job of the same workflow.
-REUSED_MODES = ("color-feedback", "savestate-completion", "tiny-vertex", "vertex-range")
-AFFECTED_MODES = {"exitspawn-worker": "test/rpcs3_exitspawn_worker610_test.py (plain and ASan/UBSan)",
-                  "mfc-decrementer": "test/rpcs3_spu_mfc_lr_test.py (plain, ASan/UBSan, mutations)"}
-CODEGEN = base.CODEGEN
-WORKFLOW = ".github/workflows/rpcs3-core610.yml"
+require, sha, file_sha, load, save, command = base.require, base.sha, base.file_sha, base.load, base.save, base.command
+HEX40, HEX64 = re.compile(r"[0-9a-f]{40}"), re.compile(r"[0-9a-f]{64}")
+
+
+def _hex(value, pattern, what):
+    require(isinstance(value, str) and pattern.fullmatch(value) is not None, "core build spec: bad " + what)
+    return value
+
+
+def _artifact(item, what):
+    require(isinstance(item, dict) and set(item) == {"id", "name", "bytes", "sha256"}
+            and type(item["id"]) is int and type(item["bytes"]) is int and isinstance(item["name"], str),
+            "core build spec: bad " + what)
+    _hex(item["sha256"], HEX64, what + " digest")
+    return item
+
+
+def load_spec(path=SPEC_PATH):
+    """Read and check the declared Core build; every caller sees the same validated values."""
+    spec = load(path)
+    require(spec.get("schema") == 1 and type(spec.get("build")) is int and spec["build"] > 0,
+            "core build spec: schema or build number")
+    build = spec["build"]
+    require(spec["identity_type"] == f"rpcs3-ios-core{build}", "core build spec: identity type must carry the build")
+    route = spec["route"]
+    require(route["gate"] == GATE_PATH and route["workflow"] == ".github/workflows/rpcs3-core610.yml"
+            and route["driver"] == "build-utils/rpcs3/build_rpcs3_core610.py"
+            and route["recipe_patch"] == "build-utils/rpcs3/patches/core610-recipe.patch",
+            "core build spec: another route")
+    markers = route["markers"]
+    require(set(markers) == {"core_and_apple", "apple_only"} and markers["core_and_apple"] != markers["apple_only"]
+            and all(re.fullmatch(r"\[[a-z0-9-]+\]", m) for m in [*markers.values(), *route["retired_markers"]])
+            and not set(markers.values()) & set(route["retired_markers"])
+            and not any(a != b and a in b for a in markers.values() for b in markers.values()),
+            "core build spec: markers")
+    require(_hex(spec["upstream_commit"], HEX40, "upstream") == base.UPSTREAM,
+            "core build spec: the imported generic checks pin another upstream")
+    require(type(spec["abi_version"]) is int and re.fullmatch(r"\d+\.\d+\.\d+", spec["minimum_os"]),
+            "core build spec: ABI or minimum OS")
+    canonical = spec["canonical"]
+    _hex(canonical["patch_sha256"], HEX64, "canonical patch")
+    require(type(canonical["postimages"]) is int and canonical["records"] and len(set(canonical["records"])) == len(canonical["records"]),
+            "core build spec: canonical scope")
+    reference = spec["reference"]
+    require(type(reference["build"]) is int and reference["build"] < build
+            and reference["type"] == f"rpcs3-ios-core{reference['build']}", "core build spec: reference build")
+    _hex(reference["source"], HEX40, "reference source")
+    for key in ("identity_sha256", "proof_sha256", "run_receipt_sha256", "patch_sha256"):
+        _hex(reference[key], HEX64, "reference " + key)
+    for key in ("run", "attempt", "core_job", "apple_host_test_job", "postimages", "exports"):
+        require(type(reference[key]) is int, "core build spec: reference " + key)
+    _artifact(reference["artifact"], "reference artifact")
+    _artifact(reference["apple_host_tests_artifact"], "reference Apple host test artifact")
+    require(reference["artifact"]["name"] == f"RPCS3Core-{reference['build']}-{reference['source']}"
+            and reference["apple_host_tests_artifact"]["name"] == f"RPCS3Core-{reference['build']}-apple-host-tests-{reference['source']}",
+            "core build spec: reference artifact names")
+    delta = spec["delta"]
+    require(delta["record"] in canonical["records"], "core build spec: the folded record is not a canonical record")
+    _hex(delta["patch_sha256"], HEX64, "folded patch")
+    require(type(spec["exports"]) is int and spec["exports"] > reference["exports"], "core build spec: exports")
+    inputs = spec["core_inputs"]
+    _hex(inputs["host_sha256"], HEX64, "host")
+    require(type(inputs["count"]) is int and inputs["host"] == base.HOST
+            and inputs["reviewed_drift"] == sorted(set(inputs["reviewed_drift"])) and inputs["host"] in inputs["reviewed_drift"],
+            "core build spec: Core inputs")
+    require(spec["new_canonical_upstream"] == sorted(set(spec["new_canonical_upstream"])), "core build spec: new upstream files")
+    require(set(spec["codegen"]) == {"PPU", "SPU"} and all(re.fullmatch(r"[0-9a-f]{16}", v) for v in spec["codegen"].values()),
+            "core build spec: codegen")
+    require(spec["runtime_markers"] and all(isinstance(m, str) and m for m in spec["runtime_markers"]),
+            "core build spec: runtime markers")
+    dependency = spec["moltenvk_dependency"]
+    require(type(dependency["run"]) is int and isinstance(dependency["reviewed_host_delta"], bool),
+            "core build spec: MoltenVK dependency")
+    _hex(dependency["source"], HEX40, "MoltenVK dependency source")
+    _hex(dependency["library_sha256"], HEX64, "MoltenVK library")
+    modes = spec["native_modes"]
+    require(modes["reused"] == sorted(set(modes["reused"])) and type(modes["reused_count"]) is int
+            and modes["reused_count"] == 2 * len(modes["reused"]) and modes["affected"]
+            and not set(modes["reused"]) & set(modes["affected"]), "core build spec: native modes")
+    _hex(modes["reuse_audit"]["sha256"], HEX64, "reuse audit evidence")
+    apple = spec["apple_host_tests"]
+    _hex(apple["baseline"]["source"], HEX40, "Apple baseline source")
+    _hex(apple["baseline"]["canonical_patch_sha256"], HEX64, "Apple baseline patch")
+    names = [item["name"] for item in apple["rerun"]]
+    reused = apple["reused"]
+    require(names and len(names) == len(set(names)) and all(item["argv"][:1] == ["python3"] and item["reason"] for item in apple["rerun"])
+            and set(reused["reused_commands"]) <= set(reused["commands"]) and len(reused["commands"]) == len(set(reused["commands"])),
+            "core build spec: Apple harness accounting")
+    for name, item in reused["reused_commands"].items():
+        require(item.get("rerun_by_this_build", False) == (name in names), "core build spec: reused or rerun: " + name)
+    # Every Apple result of the reference run is either authenticated and reused or run again.
+    require(set(reused["commands"]) <= set(reused["reused_commands"]) | set(names),
+            "core build spec: a reference Apple result is neither reused nor rerun")
+    return spec
+
+
+SPEC = load_spec()
+BUILD = SPEC["build"]
+CORE_TYPE = SPEC["identity_type"]
+UPSTREAM = SPEC["upstream_commit"]
+ABI = SPEC["abi_version"]
+PATCH_SHA = SPEC["canonical"]["patch_sha256"]
+POSTIMAGES = SPEC["canonical"]["postimages"]
+RECORDS = tuple(SPEC["canonical"]["records"])
+REFERENCE = SPEC["reference"]
+REFERENCE_BUILD = REFERENCE["build"]
+DELIVERED_SOURCE = REFERENCE["source"]
+DELIVERED = ROOT / REFERENCE["evidence"]
+DELIVERED_IDENTITY_SHA = REFERENCE["identity_sha256"]
+DELIVERED_PROOF_SHA = REFERENCE["proof_sha256"]
+DELIVERED_PATCH_SHA = REFERENCE["patch_sha256"]
+HOST = SPEC["core_inputs"]["host"]
+HOST_SHA = SPEC["core_inputs"]["host_sha256"]
+# Core inputs (test/neo_swap_core_pin_test.py) that may differ from the reference Core.
+REVIEWED_CORE_INPUT_DRIFT = set(SPEC["core_inputs"]["reviewed_drift"])
+# Ordinary upstream files the delta newly carries as postimages since the reference.
+NEW_CANONICAL_UPSTREAM = set(SPEC["new_canonical_upstream"])
+# Delivered native modes whose extracted inputs stay byte-identical
+# (test/rpcs3_core610_reuse_audit_test.py); the affected harnesses have their own
+# Apple ARM64 evidence (apple-host-tests job of the same workflow, rerun or reused).
+REUSED_MODES = tuple(SPEC["native_modes"]["reused"])
+AFFECTED_MODES = dict(SPEC["native_modes"]["affected"])
+CODEGEN = dict(SPEC["codegen"])
+RUNTIME_MARKERS = tuple(SPEC["runtime_markers"])
+WORKFLOW = SPEC["route"]["workflow"]
 INPUTS = [
-    ".github/diagnostics/rpcs3_core610.py",
+    GATE_PATH,
     ".github/diagnostics/rpcs3_mvk_cache_core.py",
     ".github/diagnostics/rpcs3_mvk_dependency_artifact.py",
+    ".github/diagnostics/rpcs3_core_apple_host.py",
     WORKFLOW,
-    "build-utils/rpcs3/build_rpcs3_core610.py",
-    "build-utils/rpcs3/patches/core610-recipe.patch",
+    "build-utils/rpcs3/core-build.json",
+    SPEC["delta"]["manifest"],
+    SPEC["delta"]["patch"],
+    SPEC["route"]["driver"],
+    SPEC["route"]["recipe_patch"],
     "build-utils/rpcs3/build_moltenvk_deferred_cache.py",
     "build-utils/rpcs3/patch_moltenvk_deferred_cache.py",
     "build-utils/rpcs3/patches/moltenvk-1.4.2-deferred-cache.patch",
     "build-utils/rpcs3/collect_rpcs3_mvk_unverified_core.py",
     "test/rpcs3_mvk_dependency_artifact_test.py",
+    "test/rpcs3_pipeline_cache_milestones_test.py",
     "test/fixtures/rpcs3_git_version_22f11527.cmake",
     "test/rpcs3_core610_reuse_audit_test.py",
     "test/rpcs3_core610_codegen_test.py",
-    "docs/evidence/rpcs3-core610-20261101/historical-harnesses/reuse-audit.json",
+    "test/rpcs3_retroachievements_test.py",
+    "test/rpcs3_retroachievements_core_test.cpp",
+    "test/rpcs3_retroachievements_policy_test.cpp",
+    SPEC["native_modes"]["reuse_audit"]["path"],
 ]
-require, sha, file_sha, load, save, command = base.require, base.sha, base.file_sha, base.load, base.save, base.command
 
 
 def module(name, path):
@@ -89,17 +201,59 @@ def input_hashes():
 
 
 def delivered():
-    """The committed a4ae86d0 identity and proof, bound by their reviewed digests."""
-    identity_raw = (DELIVERED / "identity.json").read_bytes()
-    proof_raw = (DELIVERED / "mvk-cache-core-proof.json").read_bytes()
-    require(sha(identity_raw) == DELIVERED_IDENTITY_SHA and sha(proof_raw) == DELIVERED_PROOF_SHA,
-            "delivered a4ae86d0 identity or proof changed")
-    reference_identity, proof = json.loads(identity_raw), json.loads(proof_raw)
-    require(reference_identity["host_commit"] == DELIVERED_SOURCE and reference_identity["source_patch_sha256"] == DELIVERED_PATCH_SHA
-            and reference_identity["abi_version"] == 30 and len(reference_identity["exported_symbols"]) == 88
-            and reference_identity["codegen"] == CODEGEN and len(reference_identity["tests"]) == 12,
-            "delivered a4ae86d0 identity differs from its reviewed contract")
+    """The committed reference Core identity and proof, bound by their reviewed digests and run receipt."""
+    identity_raw = (DELIVERED / REFERENCE["identity"]).read_bytes()
+    proof_raw = (DELIVERED / REFERENCE["proof"]).read_bytes()
+    receipt_raw = (DELIVERED / REFERENCE["run_receipt"]).read_bytes()
+    require(sha(identity_raw) == DELIVERED_IDENTITY_SHA and sha(proof_raw) == DELIVERED_PROOF_SHA
+            and sha(receipt_raw) == REFERENCE["run_receipt_sha256"],
+            f"delivered Core {REFERENCE_BUILD} identity, proof or run receipt changed")
+    reference_identity, proof, receipt = json.loads(identity_raw), json.loads(proof_raw), json.loads(receipt_raw)
+    require(reference_identity["type"] == proof["type"] == REFERENCE["type"]
+            and reference_identity["host_commit"] == proof["source"] == DELIVERED_SOURCE
+            and reference_identity["source_commit"] == UPSTREAM
+            and reference_identity["source_patch_sha256"] == DELIVERED_PATCH_SHA
+            and len(reference_identity["native_source_sha256"]) == REFERENCE["postimages"]
+            and reference_identity["abi_version"] == ABI and len(reference_identity["exported_symbols"]) == REFERENCE["exports"]
+            and reference_identity["codegen"] == CODEGEN
+            and reference_identity["sha256"] == REFERENCE["core"]["sha256"]
+            and reference_identity["bytes"] == REFERENCE["core"]["bytes"]
+            and len(reference_identity["reused_native_modes"]) == SPEC["native_modes"]["reused_count"]
+            and set(reference_identity["affected_native_modes"]) == set(AFFECTED_MODES)
+            and reference_identity["native_modes_executed_in_core_job"] == 0,
+            f"delivered Core {REFERENCE_BUILD} identity differs from its reviewed contract")
+    tests = REFERENCE["apple_host_tests_artifact"]
+    require(receipt["run"] == REFERENCE["run"] and receipt["attempt"] == REFERENCE["attempt"]
+            and receipt["source"] == DELIVERED_SOURCE and receipt["core_job"] == REFERENCE["core_job"]
+            and receipt["apple_host_test_job"] == REFERENCE["apple_host_test_job"]
+            and receipt["artifact"] == REFERENCE["artifact"]
+            and receipt["apple_host_tests"] == {key: tests[key] for key in ("id", "bytes", "sha256")}
+            and receipt["core"]["bytes"] == REFERENCE["core"]["bytes"] and receipt["core"]["sha256"] == REFERENCE["core"]["sha256"]
+            and receipt["core"]["identity_sha256"] == DELIVERED_IDENTITY_SHA,
+            f"delivered Core {REFERENCE_BUILD} run receipt differs from the reviewed reference pins")
     return reference_identity, proof
+
+
+def folded_delta(manifest, reference_identity):
+    """The canonical delta is the reference postimages plus only the declared folded record."""
+    declared = SPEC["delta"]
+    staged = load(ROOT / declared["manifest"])
+    record = manifest[declared["record"]]
+    require(record == staged, "canonical record differs from the reviewed staged manifest: " + declared["record"])
+    require(record["folded_into_canonical_delta"] is True and record["base_canonical_patch_sha256"] == DELIVERED_PATCH_SHA
+            and record["upstream_commit"] == UPSTREAM and record["patch"] == declared["patch"]
+            and record["patch_sha256"] == declared["patch_sha256"] == file_sha(ROOT / declared["patch"])
+            and record["abi_version"] == ABI and record["abi_version_changed"] is False,
+            "folded delta record differs from its reviewed contract")
+    reference = reference_identity["native_source_sha256"]
+    before, after, new = record["files_before_sha256"], record["files_after_sha256"], record["new_files"]
+    require(all(reference.get(name) == digest for name, digest in before.items()) and not set(new) & set(reference)
+            and set(after) == set(before) | set(new), "folded delta does not start from the reference postimages")
+    require(manifest["files_sha256"] == {**reference, **after},
+            f"canonical Core {BUILD} is not the reference Core {REFERENCE_BUILD} plus only the folded delta")
+    return {"record": declared["record"], "patch_sha256": record["patch_sha256"],
+            "base_canonical_patch_sha256": record["base_canonical_patch_sha256"],
+            "files_after_sha256": after, "new_files": new, "exports_added": record["exports_added"]}
 
 
 def source_closure(source, generated=None):
@@ -107,8 +261,9 @@ def source_closure(source, generated=None):
     manifest = load(ROOT / "build-utils/rpcs3/canonical-source.json")
     require(manifest["upstream_commit"] == UPSTREAM and manifest["patch_sha256"] == PATCH_SHA
             and file_sha(ROOT / "build-utils/rpcs3/embedded-core.patch") == PATCH_SHA
-            and len(manifest["files_sha256"]) == POSTIMAGES and RECORD in manifest,
-            "canonical Core 610 source changed")
+            and len(manifest["files_sha256"]) == POSTIMAGES and all(name in manifest for name in RECORDS),
+            f"canonical Core {BUILD} source changed")
+    delta = folded_delta(manifest, reference_identity)
     require(command("git", "-C", source, "rev-parse", "HEAD") == UPSTREAM, "wrong native upstream")
     for name, digest in manifest["files_sha256"].items():
         require(sha((source / name).read_bytes().replace(b"\r\n", b"\n")) == digest, "native postimage changed: " + name)
@@ -116,11 +271,16 @@ def source_closure(source, generated=None):
     import neo_swap_core_pin_test as pin
     current = pin.core_input_hashes(ROOT)
     before = reference_identity["core_input_sha256"]
-    require(len(current) == len(before) == 92 and set(current) == set(before), "Core input scope changed")
+    require(len(current) == len(before) == SPEC["core_inputs"]["count"] and set(current) == set(before),
+            "Core input scope changed")
     drift = {name for name in current if current[name] != before[name]}
     require(drift == REVIEWED_CORE_INPUT_DRIFT and current[HOST] == HOST_SHA,
-            "Core inputs differ outside the reviewed Core 610 delta: " + repr(sorted(drift ^ REVIEWED_CORE_INPUT_DRIFT)))
-    support = module("core610_upstream_source_support", ROOT / ".github/diagnostics/rpcs3runtime_device597_core.py")
+            f"Core inputs differ outside the reviewed Core {BUILD} delta: " + repr(sorted(drift ^ REVIEWED_CORE_INPUT_DRIFT)))
+    if SPEC["moltenvk_dependency"]["reviewed_host_delta"]:
+        import rpcs3_mvk_dependency_artifact as dependency
+        require(dependency.HOST == HOST and before[HOST] == dependency.HOST_BEFORE and current[HOST] == dependency.HOST_AFTER,
+                "Core-input host delta differs from the reviewed MoltenVK host delta")
+    support = module("core_upstream_source_support", ROOT / ".github/diagnostics/rpcs3runtime_device597_core.py")
     upstream = (support.upstream_dependencies(source, manifest) if generated is None
                 else base.postbuild_upstream_dependencies(source, manifest, generated))
     expected = dict(original["source_closure"]["upstream_dependencies"])
@@ -131,30 +291,50 @@ def source_closure(source, generated=None):
             "reviewed upstream file is not newly carried by the delta")
     require(upstream == expected, "ordinary native/dependency recipe inputs changed")
     exports = sorted((source / "rpcs3/ios/RPCS3IOS.exports").read_text().split())
-    require(len(exports) == len(set(exports)) == 88 and exports == reference_identity["exported_symbols"], "ABI exports changed")
+    declared = sorted(reference_identity["exported_symbols"] + ["_" + name for name in delta["exports_added"]])
+    require(len(exports) == len(set(exports)) == SPEC["exports"] == len(set(declared)) and exports == declared,
+            "ABI exports changed")
     return {"native_source_sha256": manifest["files_sha256"], "canonical_patch_sha256": PATCH_SHA,
             "current_core_input_sha256": current,
-            "reviewed_core_input_drift": {name: {"delivered": before[name], "core610": current[name]}
+            "reviewed_core_input_drift": {name: {"delivered": before[name], f"core{BUILD}": current[name]}
                                           for name in sorted(drift)},
             "upstream_dependencies": upstream, "upstream_files_newly_in_delta": sorted(NEW_CANONICAL_UPSTREAM),
-            "exported_symbols": exports, "codegen": CODEGEN, "delivered_reference": DELIVERED_SOURCE}
+            "folded_delta": delta, "exported_symbols": exports, "exports_added": sorted(set(exports) - set(reference_identity["exported_symbols"])),
+            "codegen": CODEGEN, "delivered_reference": DELIVERED_SOURCE}
 
 
-def reused_modes(identity):
+def reused_modes(identity, source=None):
+    """The reference's reused delivered modes, still valid only while every extracted input is unchanged."""
     result = {}
-    for name, item in identity["tests"].items():
+    for name, item in identity["reused_native_modes"].items():
         harness = name.rsplit("-", 1)[0].removesuffix("-asan")
-        if harness in REUSED_MODES:
-            require(item["passed"] is True, "reused native mode did not pass")
-            result[name] = {"passed": True, "native_executed_now": False, "reused_from_delivered": DELIVERED_SOURCE,
-                            "report_sha256": item["report_sha256"],
-                            "compile_trace_sha256": item["compile_trace_sha256"]}
-    require(len(result) == 8, "reused native mode count changed")
-    audit = load(ROOT / "docs/evidence/rpcs3-core610-20261101/historical-harnesses/reuse-audit.json")
+        require(harness in REUSED_MODES, "unexpected reused native mode: " + name)
+        require(item["passed"] is True and item["native_executed_now"] is False, "reused native mode did not pass")
+        result[name] = {"passed": True, "native_executed_now": False, "reused_from_delivered": item["reused_from_delivered"],
+                        "carried_by": {"build": REFERENCE_BUILD, "source": DELIVERED_SOURCE,
+                                       "identity_sha256": DELIVERED_IDENTITY_SHA},
+                        "report_sha256": item["report_sha256"], "compile_trace_sha256": item["compile_trace_sha256"]}
+    require(len(result) == SPEC["native_modes"]["reused_count"], "reused native mode count changed")
+    evidence = SPEC["native_modes"]["reuse_audit"]
+    raw = (ROOT / evidence["path"]).read_bytes()
+    require(sha(raw) == evidence["sha256"], "reuse audit evidence changed")
+    audit = json.loads(raw)
     for harness in REUSED_MODES:
         require(audit["harnesses"][harness]["delivered_result_reusable"] is True, "reuse audit no longer covers " + harness)
     for harness in AFFECTED_MODES:
         require(audit["harnesses"][harness]["delivered_result_reusable"] is False, "affected harness relabelled: " + harness)
+    if source is not None:
+        # The audit recorded the reference tree's extracted inputs; the same
+        # extractors must give the same bytes on this build's tree.
+        extractors = module("core_reuse_audit_extractors", ROOT / "test/rpcs3_core610_reuse_audit_test.py").HARNESSES
+        require(set(extractors) == set(audit["harnesses"]), "reuse audit harness scope changed")
+        column = f"core{REFERENCE_BUILD}"
+        for harness, entry in extractors.items():
+            recorded = audit["harnesses"][harness]["inputs"]
+            require(set(recorded) == set(entry["inputs"]), "reuse audit input scope changed: " + harness)
+            for label, extract in entry["inputs"].items():
+                require(sha(extract(source).encode()) == recorded[label][column],
+                        f"extracted input changed since Core {REFERENCE_BUILD}: {harness} {label}")
     return result
 
 
@@ -163,35 +343,64 @@ def compiler():
     return command(str(Path(llvm) / "bin/clang++"), "--version").splitlines()[0]
 
 
+def apple_host_test_plan():
+    apple = SPEC["apple_host_tests"]
+    return {"baseline": apple["baseline"], "rerun": {item["name"]: item["reason"] for item in apple["rerun"]},
+            "reused_from_reference": {"build": REFERENCE_BUILD, "run": REFERENCE["run"], "job": REFERENCE["apple_host_test_job"],
+                                      "artifact": REFERENCE["apple_host_tests_artifact"],
+                                      "commands": sorted(name for name, item in apple["reused"]["reused_commands"].items()
+                                                         if not item.get("rerun_by_this_build"))},
+            "executed_in_core_job": 0}
+
+
 def prepare(source, dependency_run, dependency_source):
     import rpcs3_mvk_dependency_artifact as dependency
+    declared = SPEC["moltenvk_dependency"]
+    require(dependency_run == declared["run"] and dependency_source == declared["source"],
+            "MoltenVK dependency arguments differ from the declared Core build")
     require(not PROOF.exists(), "candidate proof already exists")
     OUT.mkdir(parents=True, exist_ok=True)
     reference_identity, original = delivered()
     closure = source_closure(source)
-    dep = dependency.authenticate(dependency_run, dependency_source, OUT / "mvk-cache-dependency")
-    recipe = module("core610_recipe", ROOT / "build-utils/rpcs3/build_rpcs3_core610.py")
+    dep = dependency.authenticate(dependency_run, dependency_source, OUT / "mvk-cache-dependency",
+                                  reviewed_host_delta=declared["reviewed_host_delta"])
+    require(dep["library_sha256"] == declared["library_sha256"] == reference_identity["moltenvk_dependency"]["library_sha256"]
+            and dep["run"] == reference_identity["moltenvk_dependency"]["run"],
+            f"MoltenVK dependency differs from the one Core {REFERENCE_BUILD} linked")
+    recipe = module("core_recipe", ROOT / SPEC["route"]["driver"])
     require(sha(recipe.recipe_bytes()) == recipe.AFTER, "candidate recipe identity changed")
-    proof = {"schema": 1, "type": "rpcs3-ios-core610", "source": command("git", "rev-parse", "HEAD"),
-             "source_root": str(source), "input_sha256": input_hashes(), "source_closure": closure,
+    require({"original_recipe_sha256": recipe.BEFORE, "recipe_patch_sha256": recipe.PATCH_SHA,
+             "candidate_recipe_sha256": recipe.AFTER} == {key: reference_identity["build_recipe"][key] for key in
+                                                          ("original_recipe_sha256", "recipe_patch_sha256", "candidate_recipe_sha256")},
+            f"the recipe differs from the one Core {REFERENCE_BUILD} executed")
+    core_compiler = compiler()
+    proof = {"schema": 1, "type": CORE_TYPE, "build": BUILD, "source": command("git", "rev-parse", "HEAD"),
+             "source_root": str(source), "input_sha256": input_hashes(), "build_spec_sha256": file_sha(SPEC_PATH),
+             "source_closure": closure,
              "delivered_identity_sha256": DELIVERED_IDENTITY_SHA, "delivered_proof_sha256": DELIVERED_PROOF_SHA,
-             "dependency": dep, "reused_native_modes": reused_modes(reference_identity),
+             "delivered_reference_build": REFERENCE_BUILD,
+             "dependency": dep, "reused_native_modes": reused_modes(reference_identity, source),
              "affected_native_modes": AFFECTED_MODES, "native_modes_executed_in_core_job": 0,
-             "core_compiler": compiler(), "delivered_core_compiler": original["expected_core_compiler"],
+             "apple_host_tests": apple_host_test_plan(),
+             "core_compiler": core_compiler, "delivered_core_compiler": original["core_compiler"],
+             "core_compiler_equals_delivered": core_compiler == original["core_compiler"],
              "physical_device_tested": False, "gameplay_measured": False, "public_release": False,
              "new_ipa": False, "host_application_built": False}
     save(PROOF, proof)
     verify_package(PROOF)
-    print("PASS: Core 610 source closure, a4ae86d0 reference and MoltenVK dependency authenticated")
+    print(f"PASS: Core {BUILD} source closure (Core {REFERENCE_BUILD} + {SPEC['delta']['record']}), "
+          "reference and MoltenVK dependency authenticated")
 
 
 def verify_package(path):
     import rpcs3_mvk_dependency_artifact as dependency
     proof = load(path)
-    require(proof["schema"] == 1 and proof["type"] == "rpcs3-ios-core610"
+    require(proof["schema"] == 1 and proof["type"] == CORE_TYPE and proof["build"] == BUILD
             and proof["source"] == command("git", "rev-parse", "HEAD")
-            and proof["input_sha256"] == input_hashes(), "candidate proof/source inputs changed")
-    require(proof["native_modes_executed_in_core_job"] == 0 and len(proof["reused_native_modes"]) == 8,
+            and proof["input_sha256"] == input_hashes() and proof["build_spec_sha256"] == file_sha(SPEC_PATH),
+            "candidate proof/source inputs changed")
+    require(proof["native_modes_executed_in_core_job"] == 0
+            and len(proof["reused_native_modes"]) == SPEC["native_modes"]["reused_count"],
             "native mode accounting changed")
     dep = proof["dependency"]
     require(set(dep["metadata_paths"]) == set(dep["metadata_sha256"]), "dependency metadata scope changed")
@@ -227,7 +436,8 @@ def verify_reuse(path, source, *, post_build=False):
     if post_build:
         proof["generated_build_inputs"] = generated
         save(path, proof)
-    print("PASS: exact canonical Core 610 source; eight delivered modes reused, two affected harnesses run on Apple")
+    print(f"PASS: exact canonical Core {BUILD} source; {len(proof['reused_native_modes'])} delivered modes reused, "
+          "affected harnesses on Apple")
     return proof
 
 
@@ -241,12 +451,12 @@ def identity(directory):
     image = macho(core.read_bytes())
     closure = proof["source_closure"]
     require(image["architecture"] == "arm64" and image["platform"] == 2 and image["fileType"] == 6
-            and image["minimumOS"] == "16.3.0"
+            and image["minimumOS"] == SPEC["minimum_os"]
             and image["id"] == "@rpath/libRPCS3Core.dylib"
             and sorted(image["definedSymbols"]) == closure["exported_symbols"], "actual iPhone dylib/ABI differs")
     require(not {"_rbx_mvk_compile_qos_queue", "_rbx_mvk_exec_q_create"} & set(image["undefinedSymbols"]),
             "unresolved Core queue hook")
-    require((directory / "RPCS3_IOS_ABI.txt").read_text().strip() == "30"
+    require((directory / "RPCS3_IOS_ABI.txt").read_text().strip() == str(ABI)
             and (directory / "RPCS3_SOURCE_COMMIT.txt").read_text().strip() == UPSTREAM, "ABI/upstream receipt differs")
     log = (OUT / "build.log").read_text(errors="replace")
     for kind, expected in CODEGEN.items():
@@ -256,28 +466,32 @@ def identity(directory):
     require("PASS: actual compiler, target, flags and module maps for all " in log
             and " startup units" in log, "actual iOS syntax gate did not pass")
     raw = core.read_bytes()
-    for marker in (b"COREPROF FEEDBACK610", b"COREPROF EXITSPAWN phase=stop_main", b"COREPROF RUNPPU phase=running",
-                   b"position_invariance=%d", b"MoltenVK asynchronous submits"):
-        require(marker in raw, "Core 610 runtime marker absent: " + marker.decode())
+    for marker in RUNTIME_MARKERS:
+        require(marker.encode() in raw, f"Core {BUILD} runtime marker absent: " + marker)
     library = Path(proof["staged_package_root"]) / "MoltenVK/static/MoltenVK.xcframework/ios-arm64/libMoltenVK.a"
     link = base.linked_archive(log, library, Path(proof["build_root"]))
     require(link["library_sha256"] == proof["dependency"]["library_sha256"], "linked dependency hash differs")
-    recipe = module("core610_recipe_identity", ROOT / "build-utils/rpcs3/build_rpcs3_core610.py")
+    recipe = module("core_recipe_identity", ROOT / SPEC["route"]["driver"])
     require(proof["build_recipe"]["candidate_recipe_sha256"] == recipe.AFTER
             and file_sha(RECIPE_OUTPUT) == recipe.AFTER, "executed recipe differs")
-    item = {"schema_version": 1, "type": "rpcs3-ios-core610", "host_commit": proof["source"],
-            "source_commit": UPSTREAM, "sha256": file_sha(core), "bytes": core.stat().st_size, "abi_version": 30,
+    item = {"schema_version": 1, "type": CORE_TYPE, "build": BUILD, "host_commit": proof["source"],
+            "source_commit": UPSTREAM, "sha256": file_sha(core), "bytes": core.stat().st_size, "abi_version": ABI,
             "minimum_os": image["minimumOS"], "architectures": ["arm64"],
-            "exported_symbols": closure["exported_symbols"], "source_patch_sha256": PATCH_SHA,
-            "native_source_sha256": closure["native_source_sha256"],
+            "exported_symbols": closure["exported_symbols"], "exports_added": closure["exports_added"],
+            "source_patch_sha256": PATCH_SHA, "native_source_sha256": closure["native_source_sha256"],
+            "folded_delta": closure["folded_delta"],
             "core_input_sha256": closure["current_core_input_sha256"], "candidate_input_sha256": proof["input_sha256"],
+            "build_spec_sha256": proof["build_spec_sha256"],
             "codegen": CODEGEN, "build_recipe": proof["build_recipe"], "moltenvk_dependency": proof["dependency"],
             "actual_link": link, "actual_ios_syntax_compile_link_passed": True,
             "generated_build_inputs": proof["generated_build_inputs"],
-            "delivered_reference": {"source": DELIVERED_SOURCE, "identity_sha256": DELIVERED_IDENTITY_SHA,
-                                    "proof_sha256": DELIVERED_PROOF_SHA},
+            "delivered_reference": {"build": REFERENCE_BUILD, "source": DELIVERED_SOURCE,
+                                    "identity_sha256": DELIVERED_IDENTITY_SHA, "proof_sha256": DELIVERED_PROOF_SHA},
             "reused_native_modes": proof["reused_native_modes"], "affected_native_modes": proof["affected_native_modes"],
+            "apple_host_tests": proof["apple_host_tests"],
             "native_modes_executed_in_core_job": 0, "core_compiler": proof["core_compiler"],
+            "delivered_core_compiler": proof["delivered_core_compiler"],
+            "core_compiler_equals_delivered": proof["core_compiler_equals_delivered"],
             "physical_device_tested": False, "gameplay_measured": False, "public_release": False,
             "new_ipa": False, "host_application_built": False,
             "host_change_requires_full_application_build": True}
@@ -285,7 +499,17 @@ def identity(directory):
     save(directory / "identity.json", item)
     save(OUT / "identity.json", item)
     shutil.copy2(PROOF, directory / PROOF.name)
-    print("PASS: actual Core 610, iOS syntax/compile/link, ABI30/88 exports, preserved PPU/SPU codegen; no device/FPS result")
+    print(f"PASS: actual Core {BUILD}, iOS syntax/compile/link, ABI{ABI}/{len(closure['exported_symbols'])} exports, "
+          "preserved PPU/SPU codegen; no device/FPS result")
+
+
+def github_outputs():
+    """Values the workflow needs before the gate runs (run-name and job names cannot read a file)."""
+    baseline = SPEC["apple_host_tests"]["baseline"]
+    return {"build": BUILD, "reference_build": REFERENCE_BUILD, "reference_source": DELIVERED_SOURCE,
+            "dependency_run": SPEC["moltenvk_dependency"]["run"], "dependency_source": SPEC["moltenvk_dependency"]["source"],
+            "apple_baseline_source": baseline["source"], "apple_baseline_short": baseline["source"][:8],
+            "apple_baseline_patch_sha256": baseline["canonical_patch_sha256"]}
 
 
 def main():
@@ -299,18 +523,25 @@ def main():
     parser.add_argument("--write-core-identity", type=Path)
     parser.add_argument("--check-source-closure", action="store_true",
                         help="host-side check of the materialized source against the delivered reference")
+    parser.add_argument("--github-outputs", action="store_true", help="print the declared build values as KEY=VALUE lines")
     args = parser.parse_args()
     if args.prepare:
         require(args.source and args.dependency_run and args.dependency_source, "prepare arguments missing")
         prepare(args.source.resolve(), args.dependency_run, args.dependency_source)
     elif args.check_source_closure:
         require(args.source, "native source missing")
-        closure = source_closure(args.source.resolve())
+        source = args.source.resolve()
+        closure = source_closure(source)
         delivered_identity, _ = delivered()  # never shadow identity() in main()
-        print(json.dumps({"reviewed_core_input_drift": closure["reviewed_core_input_drift"],
+        print(json.dumps({"build": BUILD, "reference_build": REFERENCE_BUILD,
+                          "reviewed_core_input_drift": closure["reviewed_core_input_drift"],
+                          "folded_delta": {key: closure["folded_delta"][key] for key in ("record", "patch_sha256", "new_files")},
                           "upstream_files": len(closure["upstream_dependencies"]["files_sha256"]),
-                          "reused_native_modes": sorted(reused_modes(delivered_identity)),
-                          "exports": len(closure["exported_symbols"])}, indent=2))
+                          "reused_native_modes": sorted(reused_modes(delivered_identity, source)),
+                          "exports": len(closure["exported_symbols"]), "exports_added": closure["exports_added"]}, indent=2))
+    elif args.github_outputs:
+        for key, value in github_outputs().items():
+            print(f"{key}={value}")
     elif args.verify_package:
         verify_package(args.verify_package.resolve())
     elif args.verify_reuse:
@@ -319,7 +550,8 @@ def main():
     elif args.write_core_identity:
         identity(args.write_core_identity.resolve())
     else:
-        parser.error("choose --prepare, --check-source-closure, --verify-package, --verify-reuse or --write-core-identity")
+        parser.error("choose --prepare, --check-source-closure, --github-outputs, --verify-package, --verify-reuse "
+                     "or --write-core-identity")
 
 
 if __name__ == "__main__":

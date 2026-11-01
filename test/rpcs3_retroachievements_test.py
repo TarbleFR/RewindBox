@@ -12,6 +12,8 @@ dlsym and a Core without them reports "not available for this core".
 
 --source (optional) proves that the staged patch applies to, or is already
 applied in, a tree produced by build-utils/materialize_rpcs3_core.py.
+--sanitize (optional) compiles and runs the two C++ host tests under
+AddressSanitizer and UndefinedBehaviorSanitizer, every report fatal.
 """
 import argparse
 import hashlib
@@ -34,6 +36,16 @@ CLIENT = CLASSES / 'Rpcs3Achievements.mm'
 LIBRETRO_RCHEEVOS = ROOT / 'packages/libretro_internal_bridge/ios/ThirdParty/rcheevos'
 RPCS3_RCHEEVOS = BRIDGE / 'ThirdParty/rcheevos'
 SOURCE_TREE = None
+SANITIZE = False
+
+
+def sanitizer_flags() -> list:
+    return ['-g', '-fsanitize=address,undefined', '-fno-sanitize-recover=all', '-fno-omit-frame-pointer'] if SANITIZE else []
+
+
+def sanitizer_env() -> dict:
+    import os
+    return dict(os.environ, ASAN_OPTIONS='detect_leaks=0', UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')
 
 
 def read(path: Path) -> str:
@@ -197,10 +209,11 @@ class StagedCorePatch(unittest.TestCase):
             (work / 'ra_exports.inc').write_text(exports)
             binary = work / 'core_test'
             subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', '-Wno-unused-parameter',
-                            '-pthread', '-I', str(work), str(ROOT / 'test/rpcs3_retroachievements_core_test.cpp'),
-                            '-o', str(binary)], check=True)
-            result = subprocess.run([str(binary)], capture_output=True, text=True, timeout=60)
+                            *sanitizer_flags(), '-pthread', '-I', str(work),
+                            str(ROOT / 'test/rpcs3_retroachievements_core_test.cpp'), '-o', str(binary)], check=True)
+            result = subprocess.run([str(binary)], capture_output=True, text=True, timeout=120 if SANITIZE else 60, env=sanitizer_env())
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn('runtime error', result.stdout + result.stderr)
             print(result.stdout.strip())
 
     def test_optional_source_tree(self):
@@ -311,11 +324,12 @@ class HostClient(unittest.TestCase):
             self.skipTest('no C++ compiler')
         with tempfile.TemporaryDirectory(prefix='rpcs3-ra-policy-') as tmp:
             binary = Path(tmp) / 'policy_test'
-            subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', '-I', str(CLASSES),
+            subprocess.run([compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', *sanitizer_flags(), '-I', str(CLASSES),
                             str(ROOT / 'test/rpcs3_retroachievements_policy_test.cpp'), '-o', str(binary)],
                            check=True)
-            result = subprocess.run([str(binary)], capture_output=True, text=True, timeout=60)
+            result = subprocess.run([str(binary)], capture_output=True, text=True, timeout=120 if SANITIZE else 60, env=sanitizer_env())
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertNotIn('runtime error', result.stdout + result.stderr)
             print(result.stdout.strip())
 
     def test_rcheevos_copy_compiles_without_the_libretro_adapter(self):
@@ -352,6 +366,8 @@ class Wiring(unittest.TestCase):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--source', type=Path, default=None)
+    parser.add_argument('--sanitize', action='store_true')
     args, rest = parser.parse_known_args()
     SOURCE_TREE = args.source.resolve() if args.source else None
+    SANITIZE = args.sanitize
     unittest.main(argv=[sys.argv[0], *rest], verbosity=2)

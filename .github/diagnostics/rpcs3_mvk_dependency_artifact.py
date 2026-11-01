@@ -22,6 +22,15 @@ PRODUCER = "build-utils/rpcs3/build_moltenvk_deferred_cache.py"
 ADAPTER = "build-utils/rpcs3/patch_moltenvk_deferred_cache.py"
 PATCH = "build-utils/rpcs3/patches/moltenvk-1.4.2-deferred-cache.patch"
 HOST = "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm"
+# Reviewed exact host delta (opt-in, Core 611): run 41239096061 recorded the
+# 7aa81cfb bridge; the RetroAchievements host (57eb301e, +157/-0 lines) keeps
+# every region its only bridge reader, the milestones test, compiles, and the
+# host LOAD() Core contract. The consumed libMoltenVK.a never reads the bridge.
+HOST_BEFORE = "d6326d968f3552c5539d48a0933b41d3e61a3e61c0302972ec370e8df5bd3d16"
+HOST_AFTER = "c0395ba188740987abd5510a4ff95d33d939e83ef5bab0c20753117fce3b4233"
+MILESTONES_TEST = "test/rpcs3_pipeline_cache_milestones_test.py"
+LOAD_CONTRACT = "build-utils/materialize_rpcs3_core.py"
+LOAD_PATTERN = r'LOAD\("([^"]+)"'
 CURRENT_REQUIRED = (
     WORKFLOW, ".github/diagnostics/rpcs3_mvk_cache_host.py",
     PRODUCER, ADAPTER, PATCH, HOST,
@@ -127,7 +136,48 @@ def validate_run(run, jobs, run_id, source):
     return table
 
 
-def verify_host(path, phase, run_id, source, run_attempt):
+def milestones_translation_unit(bridge_text):
+    """The C++ unit that the milestones test compiles from one bridge, built by the test's own code."""
+    test = (ROOT / MILESTONES_TEST).read_text()
+    cut = test.find("compiler = shutil.which(")
+    anchor = "host = HOST.read_text()\n"
+    require(cut > 0 and test[:cut].count(anchor) == 1, "Milestones test no longer reads the bridge exactly once")
+    scope = {"__file__": str(ROOT / MILESTONES_TEST), "__name__": "rpcs3_mvk_milestones_unit", "BRIDGE_TEXT": bridge_text}
+    exec(compile(test[:cut].replace(anchor, "host = BRIDGE_TEXT\n"), MILESTONES_TEST, "exec"), scope)
+    require(isinstance(scope.get("source"), str) and scope["source"], "Milestones test built no translation unit")
+    return scope["source"].encode()
+
+
+def load_symbols(bridge_text):
+    """The host LOAD() set checked by materialize_rpcs3_core.py (same pattern, verified below)."""
+    contract = (ROOT / LOAD_CONTRACT).read_text()
+    require("re.findall(r'" + LOAD_PATTERN + "', host)" in contract, "Host LOAD() contract changed")
+    return sorted(set(re.findall(LOAD_PATTERN, bridge_text)))
+
+
+def reviewed_host_delta_equivalence(source_commit):
+    """Executable proof that the reviewed bridge delta is invisible to everything the run read."""
+    return host_delta_equivalence(capture("git", "show", source_commit + ":" + HOST), (ROOT / HOST).read_bytes())
+
+
+def host_delta_equivalence(before, after):
+    require(hashlib.sha256(before).hexdigest() == HOST_BEFORE and hashlib.sha256(after).hexdigest() == HOST_AFTER,
+            "Unreviewed host delta: " + HOST)
+    old, new = before.decode("utf-8"), after.decode("utf-8")
+    unit = milestones_translation_unit(new)
+    require(milestones_translation_unit(old) == unit,
+            "The bridge regions compiled by the dependency run's milestones test changed")
+    loads = load_symbols(new)
+    require(loads and load_symbols(old) == loads, "Host LOAD() Core contract changed")
+    return {"path": HOST, "before": HOST_BEFORE, "after": HOST_AFTER,
+            "milestones_test": MILESTONES_TEST, "milestones_test_sha256": digest(ROOT / MILESTONES_TEST),
+            "milestones_translation_unit_sha256": hashlib.sha256(unit).hexdigest(),
+            "milestones_translation_unit_bytes": len(unit), "milestones_apple_result_reused": True,
+            "load_symbols": len(loads), "load_symbols_sha256": hashlib.sha256("\n".join(loads).encode()).hexdigest(),
+            "consumed_library_reads_bridge": False}
+
+
+def verify_host(path, phase, run_id, source, run_attempt, *, reviewed_host_delta=False):
     host = json.loads(path.read_bytes())
     require(host["status"] == "verified_host_and_inputs" and host["phase"] == phase and
             host["source_commit"] == host["requested_source_commit"] == source and
@@ -145,6 +195,12 @@ def verify_host(path, phase, run_id, source, run_attempt):
         raw = capture("git", "show", source + ":" + name)
         require(hashlib.sha256(raw).hexdigest() == expected, "Historical dependency input changed: " + name)
     for name in CURRENT_REQUIRED:
+        if reviewed_host_delta and name == HOST:
+            # Only the exact reviewed pair, and only with its executable equivalence.
+            require(host["input_sha256"][name] == HOST_BEFORE and digest(ROOT / name) == HOST_AFTER,
+                    "Unreviewed host delta: " + name)
+            reviewed_host_delta_equivalence(source)
+            continue
         require(host["input_sha256"][name] == digest(ROOT / name), "Current compiled/host input differs: " + name)
     return host
 
@@ -295,8 +351,13 @@ def verify_metal(root, adapter):
             "native_tests_executed_now": 0, "real_metal_execution_reused": True, "physical_iphone_tested": False}
 
 
-def authenticate(run_id, source_commit, output, *, download=True):
-    """Fetch exact run artifacts, or recheck an existing authenticated directory."""
+def authenticate(run_id, source_commit, output, *, download=True, reviewed_host_delta=False):
+    """Fetch exact run artifacts, or recheck an existing authenticated directory.
+
+    reviewed_host_delta=True (opt-in) accepts only the pinned HOST_BEFORE ->
+    HOST_AFTER bridge change, with its executable equivalence; every other
+    recorded input stays bound to the historical and the current bytes.
+    """
     output = Path(output).resolve()
     if download:
         require(not output.exists(), "Dependency output already exists; use a new owned directory")
@@ -329,7 +390,7 @@ def authenticate(run_id, source_commit, output, *, download=True):
         phase = {"preflight": "preflight", "ios": "ios", "metal": "macos"}[label]
         host_file = {"preflight": "host-preflight.json", "ios": "host-ios.json", "metal": "host-macos.json"}[label]
         host = verify_host(root / host_file,
-                           phase, run_id, source_commit, run["run_attempt"])
+                           phase, run_id, source_commit, run["run_attempt"], reviewed_host_delta=reviewed_host_delta)
         bindings[label] = {"artifact": {"id": metadata["id"], "bytes": archive_path.stat().st_size,
                                          "sha256": digest(archive_path)},
                            "host_receipt_sha256": digest(root / host_file),
@@ -352,4 +413,6 @@ def authenticate(run_id, source_commit, output, *, download=True):
                    "metadata_sha256": {name: digest(output / name) for name in
                                        ("run.json", "jobs.json", "artifacts.json", "ios-artifact.json", "preflight-artifact.json", "metal-artifact.json")},
                    "native_tests_executed_now": 0, "physical_device_tested": False, "fps_gain_claimed": False})
+    if reviewed_host_delta:
+        result["reviewed_host_delta"] = reviewed_host_delta_equivalence(source_commit)
     return result

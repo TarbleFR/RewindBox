@@ -1,0 +1,233 @@
+{
+  "schema": 1,
+  "build": 611,
+  "identity_type": "rpcs3-ios-core611",
+  "summary": "RPCS3 Core 611 = the delivered Core 610 plus only the RetroAchievements PS3 Core patch (4 new rpcs3_ios_ra_* exports, ABI 30 unchanged), with the PPU/SPU codegen identities and the MoltenVK dependency of Core 610 unchanged.",
+  "route": {
+    "workflow": ".github/workflows/rpcs3-core610.yml",
+    "gate": ".github/diagnostics/rpcs3_core610.py",
+    "driver": "build-utils/rpcs3/build_rpcs3_core610.py",
+    "recipe_patch": "build-utils/rpcs3/patches/core610-recipe.patch",
+    "markers": {
+      "core_and_apple": "[rpcs3-core-build]",
+      "apple_only": "[rpcs3-core-build-apple]"
+    },
+    "retired_markers": [
+      "[rpcs3-core610]",
+      "[rpcs3-core610-apple]"
+    ],
+    "note": "The route keeps its Core 610 file names (workflow, gate, driver, recipe patch, core610-proof.json, core610-recipe.sh): the frozen recipe patch and the driver pins name the gate path, so the executed recipe stays byte-identical to the one Core 610 executed. Every per-build value is declared here."
+  },
+  "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "abi_version": 30,
+  "minimum_os": "16.3.0",
+  "canonical": {
+    "patch_sha256": "c96f071b33b6e3b6a831f217d70fd486aeaed5a31c362b6a52ea7bfd41e6df88",
+    "postimages": 330,
+    "records": [
+      "core610_20261101",
+      "retroachievements_core"
+    ]
+  },
+  "reference": {
+    "build": 610,
+    "type": "rpcs3-ios-core610",
+    "source": "fefad81dbfc6890294def9b529f6e0d915fcfcbe",
+    "run": 41333351872,
+    "attempt": 1,
+    "core_job": 124927901486,
+    "apple_host_test_job": 124927901813,
+    "artifact": {
+      "id": 13094491719,
+      "name": "RPCS3Core-610-fefad81dbfc6890294def9b529f6e0d915fcfcbe",
+      "bytes": 29269128,
+      "sha256": "c22c3c9a62b9e6cee08143c5d43cd454c6e78046f021609d3c974061580c6fba"
+    },
+    "apple_host_tests_artifact": {
+      "id": 13094565494,
+      "name": "RPCS3Core-610-apple-host-tests-fefad81dbfc6890294def9b529f6e0d915fcfcbe",
+      "bytes": 21024,
+      "sha256": "33857562f708eeec933528ecf0dc8ca6a4056ebfbecef22dca0725cb04c4815a"
+    },
+    "core": {
+      "bytes": 77423912,
+      "sha256": "e5e494ae8b6921de8fe2148d522bc0b31f76d6f162e57a8aeff4229ae93abc09"
+    },
+    "evidence": "docs/evidence/rpcs3-core610-20261101/apple-core",
+    "identity": "identity.json",
+    "identity_sha256": "1599d181b25753c841846acb0e2efa90c0c631e0b527fe275ebd7b93fdff1793",
+    "proof": "core610-proof.json",
+    "proof_sha256": "167218dec8ed7294cb6a30f797feef1fc104cc3472617dd72d68e98ff4f4aae7",
+    "run_receipt": "run-41333351872.json",
+    "run_receipt_sha256": "19d73ee49842b2e9fe8c51d1323eeb1d5ccddbfddaafd62a1c95c97da07fa9f3",
+    "delivery_scope": "build-utils/rewind610-source-scope.json",
+    "patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
+    "postimages": 329,
+    "exports": 88
+  },
+  "delta": {
+    "record": "retroachievements_core",
+    "manifest": "build-utils/rpcs3/retroachievements-core.json",
+    "patch": "build-utils/rpcs3/retroachievements-core.patch",
+    "patch_sha256": "518dc4a0740a4041a7ee2356f5728c19bb4068ebcfff13673e946a1269ee1682"
+  },
+  "exports": 92,
+  "core_inputs": {
+    "count": 92,
+    "host": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
+    "host_sha256": "c0395ba188740987abd5510a4ff95d33d939e83ef5bab0c20753117fce3b4233",
+    "reviewed_drift": [
+      "build-utils/rpcs3/canonical-source.json",
+      "build-utils/rpcs3/embedded-core.patch",
+      "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
+      "test/neo_swap_core_pin_test.py"
+    ]
+  },
+  "new_canonical_upstream": [],
+  "codegen": {
+    "PPU": "a987639e9f838d1c",
+    "SPU": "477a3fa442d27917"
+  },
+  "runtime_markers": [
+    "COREPROF FEEDBACK610",
+    "COREPROF EXITSPAWN phase=stop_main",
+    "COREPROF RUNPPU phase=running",
+    "COREPROF RENDERCAUSE",
+    "position_invariance=%d",
+    "MoltenVK asynchronous submits"
+  ],
+  "moltenvk_dependency": {
+    "run": 41239096061,
+    "source": "7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed",
+    "library_sha256": "0d711e4ad3610bb176e3c91e727940f7c448a25571158cc1919d633f1d622b1f",
+    "reviewed_host_delta": true
+  },
+  "native_modes": {
+    "reused": [
+      "color-feedback",
+      "savestate-completion",
+      "tiny-vertex",
+      "vertex-range"
+    ],
+    "reused_count": 8,
+    "affected": {
+      "exitspawn-worker": "test/rpcs3_exitspawn_worker610_test.py (plain and ASan/UBSan), run again on Apple clang by this build",
+      "mfc-decrementer": "test/rpcs3_spu_mfc_lr_test.py (plain, ASan/UBSan, mutations), Core 610 Apple result reused with unchanged inputs"
+    },
+    "reuse_audit": {
+      "path": "docs/evidence/rpcs3-core610-20261101/historical-harnesses/reuse-audit.json",
+      "sha256": "64defc9dced498da137436d9783023d073aa41777f51ef65b874470feb8cbc14"
+    }
+  },
+  "apple_host_tests": {
+    "baseline": {
+      "source": "a4ae86d085c231e3c5c93f7f72d2eced0f38ec24",
+      "canonical_patch_sha256": "70d694bb3ef812b87b8839e53335376028aa16476893512d012b77ef1952fd79"
+    },
+    "rerun": [
+      {
+        "name": "ra-core-hooks",
+        "argv": ["python3", "test/rpcs3_retroachievements_test.py", "--source", "{source}"],
+        "reason": "new RetroAchievements Core hooks and host client; never compiled with Apple clang"
+      },
+      {
+        "name": "ra-core-hooks-asan-ubsan",
+        "argv": ["python3", "test/rpcs3_retroachievements_test.py", "--source", "{source}", "--sanitize"],
+        "reason": "the Core hooks under ASan/UBSan, which found the copy_text null source fixed before the fold"
+      },
+      {
+        "name": "exitspawn-worker-plain",
+        "argv": ["python3", "test/rpcs3_exitspawn_worker610_test.py", "{source}", "--baseline", "{baseline}",
+                 "--compiler", "clang++", "--report", "{out}/exitspawn-worker-plain.json"],
+        "reason": "whole-file input RPCS3IOS.cpp changed (its extracted bodies did not)"
+      },
+      {
+        "name": "exitspawn-worker-asan-ubsan",
+        "argv": ["python3", "test/rpcs3_exitspawn_worker610_test.py", "{source}", "--baseline", "{baseline}",
+                 "--compiler", "clang++", "--sanitize", "--report", "{out}/exitspawn-worker-asan-ubsan.json"],
+        "reason": "whole-file input RPCS3IOS.cpp changed (its extracted bodies did not)"
+      },
+      {
+        "name": "transition-phases",
+        "argv": ["python3", "test/rpcs3_transition_phases_test.py", "--source", "{source}", "--baseline", "{baseline}",
+                 "--report", "{out}/transition-phases.json"],
+        "reason": "whole-file inputs RPCS3IOS.cpp, RSXThread.cpp and the host bridge changed (routes and formats did not)"
+      },
+      {
+        "name": "reuse-audit",
+        "argv": ["python3", "test/rpcs3_core610_reuse_audit_test.py", "--source", "{source}", "--baseline", "{baseline}",
+                 "--report", "{out}/reuse-audit.json"],
+        "reason": "its script now reads this spec; the Core 610 report it replaces is also authenticated as reused"
+      }
+    ],
+    "reused": {
+      "steps": [
+        "Materialize the Core 610 sources and the delivered a4ae86d0 sources",
+        "Run the affected and new Core 610 harnesses with Apple clang"
+      ],
+      "commands": [
+        "lr-full-queue",
+        "exitspawn-worker-plain",
+        "exitspawn-worker-asan-ubsan",
+        "feedback-census",
+        "transition-phases",
+        "codegen-audit",
+        "reuse-audit",
+        "position-invariance-contract"
+      ],
+      "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+      "evidence": "docs/evidence/rpcs3-core610-20261101/apple-host-tests",
+      "reused_commands": {
+        "lr-full-queue": {
+          "repo_inputs": [
+            "test/rpcs3_spu_mfc_lr_test.py",
+            "test/rpcs3_device597/cpu/run_late_snr.py",
+            "docs/evidence/rpcs3-device601-20261030/cpu/lr-followup/lr-probe.cpp",
+            "test/native/rpcs3_spu_mfc_lr/tests.inc"
+          ],
+          "tree_inputs": [
+            "rpcs3/Emu/Cell/SPUThread.cpp",
+            "rpcs3/Emu/Memory/vm_reservation.h",
+            "rpcs3/Emu/Memory/vm.cpp",
+            "rpcs3/ios/IOSSignalTrace.h"
+          ]
+        },
+        "feedback-census": {
+          "repo_inputs": [
+            "test/rpcs3_feedback_census_test.py",
+            "test/rpcs3_transition_phases_test.py",
+            "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Diagnostics.mm"
+          ],
+          "bridge_routing_unit": true,
+          "tree_inputs": [
+            "rpcs3/Emu/RSX/VK/VKDraw.cpp",
+            "rpcs3/ios/IOSFeedbackCensus.h",
+            "rpcs3/ios/RPCS3IOSPerformance.cpp"
+          ]
+        },
+        "position-invariance-contract": {
+          "repo_inputs": [
+            "test/rpcs3_position_invariance_test.py"
+          ],
+          "tree_inputs": [
+            "rpcs3/Emu/RSX/VK/VKVertexProgram.cpp",
+            "rpcs3/ios/RPCS3IOSExperimentalPolicy.h",
+            "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp",
+            "rpcs3/ios/IOSTitleLevers.h"
+          ]
+        },
+        "codegen-audit": {
+          "repo_inputs": [
+            "test/rpcs3_core610_codegen_test.py"
+          ],
+          "static_report": true
+        },
+        "reuse-audit": {
+          "repo_inputs": [],
+          "static_report": true,
+          "rerun_by_this_build": true
+        }
+      }
+    }
+  }
+}
