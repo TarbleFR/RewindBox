@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "marker": "NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1",
-  "status": "staged: additive delta over the canonical Core postimage; not folded into embedded-core.patch, never built",
-  "reason_not_folded": "Every IPA workflow (for example ios-ci.yml) requires canonical-source.json, embedded-core.patch and Rpcs3CoreABI.h to equal the commit of the prebuilt Core it installs. Folding this patch before an authorized Core build would block every IPA build, including fixes unrelated to PS3.",
+  "status": "folded into the canonical delta for RPCS3 Core 611 (canonical patch a63b9643 plus this patch); Core 611 not built yet, no IPA, no iPhone validation",
+  "fold_consequence": "Every IPA workflow (for example ios-ci.yml) requires canonical-source.json, embedded-core.patch and Rpcs3CoreABI.h to equal the commit of the prebuilt Core it installs: from this fold until a Core 611 built from this delta is pinned, no IPA can install the prebuilt Core 610.",
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/retroachievements-core.patch",
@@ -39,7 +39,7 @@
     "locks": "No hook takes g_api_mutex or calls set_error()."
   },
   "fold": "python3 build-utils/rpcs3/fold_retroachievements_core_patch.py <materialized canonical tree> (then the authorized Core build)",
-  "folded_into_canonical_delta": false,
+  "folded_into_canonical_delta": true,
   "core_build_run": false,
   "ios_build_run": false,
   "iphone_validation_run": false,

@@ -20576,10 +20576,10 @@ index a710d66..f6c2cbc 100644
  
  	color4f fragment_texture::remapped_border_color(bool apply_colorspace_remapping) const
 diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
-index dff27c6..b9eb12e 100644
+index dff27c6..f397369 100644
 --- a/rpcs3/Emu/RSX/RSXThread.cpp
 +++ b/rpcs3/Emu/RSX/RSXThread.cpp
-@@ -26,6 +26,16 @@
+@@ -26,6 +26,17 @@
  #include "Overlays/overlay_perf_metrics.h"
  #include "Overlays/overlay_debug_overlay.h"
  #include "Overlays/overlay_manager.h"
@@ -20591,12 +20591,13 @@ index dff27c6..b9eb12e 100644
 +#include "ios/IOSRsxSyncProfile.h"
 +#include "ios/IOSRsxIdlePark.h"
 +#include "ios/IOSTransitionPhases.h" // REWINDBOX_TRANSITION_PHASES_610
++#include "ios/RPCS3IOSAchievements.h" // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
 +#include "Overlays/overlay_cursor.h"
 +#endif
  
  #include "Utilities/date_time.h"
  
-@@ -42,6 +52,8 @@ class GSRender;
+@@ -42,6 +53,8 @@ class GSRender;
  atomic_t<bool> g_user_asked_for_recording = false;
  atomic_t<bool> g_user_asked_for_screenshot = false;
  atomic_t<bool> g_user_asked_for_frame_capture = false;
@@ -20605,7 +20606,7 @@ index dff27c6..b9eb12e 100644
  atomic_t<bool> g_disable_frame_limit = false;
  rsx::frame_trace_data frame_debug;
  rsx::frame_capture_data frame_capture;
-@@ -478,15 +490,15 @@ namespace rsx
+@@ -478,15 +491,15 @@ namespace rsx
  				}
  				else
  				{
@@ -20626,7 +20627,7 @@ index dff27c6..b9eb12e 100644
  						// Discard lower frequencies because it has been proven that there are indices higher than them
  						const usz discard_cnt = frequencies + freq_count - std::remove_if(frequencies, frequencies + freq_count, [&max_result_by_division](u32 freq)
  						{
-@@ -523,7 +535,8 @@ namespace rsx
+@@ -523,7 +536,8 @@ namespace rsx
  				break;
  			}
  
@@ -20636,7 +20637,7 @@ index dff27c6..b9eb12e 100644
  
  			const auto re_evaluate = [&] <typename T> (const std::byte* ptr, T)
  			{
-@@ -586,59 +599,6 @@ namespace rsx
+@@ -586,59 +600,6 @@ namespace rsx
  		return vertex_range;
  	}
  
@@ -20696,7 +20697,7 @@ index dff27c6..b9eb12e 100644
  	void tiled_region::write(const void *src, u32 width, u32 height, u32 pitch)
  	{
  		if (!tile)
-@@ -752,6 +712,10 @@ namespace rsx
+@@ -752,6 +713,10 @@ namespace rsx
  
  	thread::~thread()
  	{
@@ -20707,7 +20708,7 @@ index dff27c6..b9eb12e 100644
  		g_access_violation_handler = nullptr;
  	}
  
-@@ -833,6 +797,8 @@ namespace rsx
+@@ -833,6 +798,8 @@ namespace rsx
  		m_graphics_state |= pipeline_state::all_dirty;
  
  		g_user_asked_for_frame_capture = false;
@@ -20716,7 +20717,20 @@ index dff27c6..b9eb12e 100644
  
  		// TODO: Proper context management in the driver
  		s_ctx.rsxthr = this;
-@@ -1101,6 +1067,14 @@ namespace rsx
+@@ -1051,6 +1018,12 @@ namespace rsx
+ 		{
+ 			sys_rsx_context_attribute(0x55555555, 0xFED, 1, get_guest_system_time(post_event_time), 0, 0);
+ 		}
++
++#ifdef RPCS3_IOS
++		// NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: after the guest event; a single
++		// atomic load when no RetroAchievements session is attached.
++		rpcs3::ios::achievements::vblank_hook().notify(vblank_count.load());
++#endif
+ 	}
+ 
+ 	namespace nv4097
+@@ -1101,6 +1074,14 @@ namespace rsx
  
  		const u64 event_flags = unsent_gcm_events.exchange(0);
  
@@ -20731,7 +20745,7 @@ index dff27c6..b9eb12e 100644
  		if (Emu.IsStarting())
  		{
  			Emu.CallFromMainThread([]
-@@ -1252,13 +1226,40 @@ namespace rsx
+@@ -1252,13 +1233,40 @@ namespace rsx
  			manager->stop_audio();
  		}
  
@@ -20772,7 +20786,7 @@ index dff27c6..b9eb12e 100644
  				if (!rsx_thread_running)
  				{
  					return;
-@@ -1278,6 +1279,16 @@ namespace rsx
+@@ -1278,6 +1286,16 @@ namespace rsx
  			// If something is going on in the backend that requires an update, set the interrupt bit explicitly.
  			if ((m_cycles_counter++ & 63) == 0 || m_eng_interrupt_mask)
  			{
@@ -20789,7 +20803,7 @@ index dff27c6..b9eb12e 100644
  				// Execute backend-local tasks first
  				do_local_task(performance_counters.state);
  
-@@ -2164,9 +2175,29 @@ namespace rsx
+@@ -2164,9 +2182,29 @@ namespace rsx
  
  		const auto [program_offset, program_location] = method_registers.shader_program_address();
  		const auto prev_textures_reference_mask = current_fp_metadata.referenced_textures_mask;
@@ -20819,7 +20833,7 @@ index dff27c6..b9eb12e 100644
  
  		current_fragment_program.data = (static_cast<u8*>(data_ptr) + current_fp_metadata.program_start_offset);
  		current_fragment_program.offset = program_offset + current_fp_metadata.program_start_offset;
-@@ -2367,6 +2398,11 @@ namespace rsx
+@@ -2367,6 +2405,11 @@ namespace rsx
  			{
  				// Emulation required
  				current_fragment_program.ctrl |= RSX_SHADER_CONTROL_ALPHA_TO_COVERAGE;
@@ -20831,7 +20845,7 @@ index dff27c6..b9eb12e 100644
  			}
  		}
  
-@@ -2718,6 +2754,37 @@ namespace rsx
+@@ -2718,6 +2761,37 @@ namespace rsx
  			}
  		}
  
@@ -20869,7 +20883,7 @@ index dff27c6..b9eb12e 100644
  		last_host_flip_timestamp = get_system_time();
  	}
  
-@@ -3351,6 +3418,47 @@ namespace rsx
+@@ -3351,6 +3425,47 @@ namespace rsx
  
  	u32 thread::get_load()
  	{
@@ -20917,7 +20931,7 @@ index dff27c6..b9eb12e 100644
  		// Average load over around 30 frames
  		if (!performance_counters.last_update_timestamp || performance_counters.sampled_frames > 30)
  		{
-@@ -3367,6 +3475,7 @@ namespace rsx
+@@ -3367,6 +3482,7 @@ namespace rsx
  			performance_counters.sampled_frames = 0;
  			performance_counters.last_update_timestamp = timestamp;
  		}
@@ -20925,7 +20939,7 @@ index dff27c6..b9eb12e 100644
  
  		return performance_counters.approximate_load;
  	}
-@@ -3378,56 +3487,73 @@ namespace rsx
+@@ -3378,56 +3494,73 @@ namespace rsx
  		// MM sync. This is a pre-emptive operation, so we can use a deferred request.
  		rsx::mm_flush_lazy();
  
@@ -21035,7 +21049,7 @@ index dff27c6..b9eb12e 100644
  		if (zcull_ctrl->has_pending())
  		{
  			// NOTE: This is a workaround for buggy games.
-@@ -3481,9 +3607,57 @@ namespace rsx
+@@ -3481,9 +3614,57 @@ namespace rsx
  			thread_ctrl::wait_for(30'000);
  		}
  
@@ -21093,7 +21107,7 @@ index dff27c6..b9eb12e 100644
  	}
  
  	f64 thread::get_cached_display_refresh_rate()
-@@ -3538,6 +3712,9 @@ namespace rsx
+@@ -3538,6 +3719,9 @@ namespace rsx
  			async_flip_requested |= flip_request::emu_requested;
  
  			m_eng_interrupt_mask |= rsx::display_interrupt;
@@ -35429,7 +35443,7 @@ index 0000000..112f20b
 +}
 +} // namespace vk
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 74a6dc7..607ca5f 100644
+index 74a6dc7..85d4419 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,6 +1,15 @@
@@ -35448,7 +35462,7 @@ index 74a6dc7..607ca5f 100644
  #include "RPCS3IOSCapabilities.h"
  #include "RPCS3IOSConfigDatabase.h"
  #include "RPCS3IOSContract.h"
-@@ -10,6 +19,8 @@
+@@ -10,21 +19,30 @@
  #include "RPCS3IOSPath.h"
  #include "RPCS3IOSPlatform.h"
  #include "RPCS3IOSPerformance.h"
@@ -35457,7 +35471,11 @@ index 74a6dc7..607ca5f 100644
  #include "RAPLicenseContract.h"
  #include "RPCS3IOSRuntimePatches.h"
  #include "RPCS3IOSSaveDialog.h"
-@@ -20,10 +31,15 @@
+ #include "RPCS3IOSResolution.h"
+ #include "RPCS3IOSSettings.h"
+ #include "RPCS3IOSZcullAccuracy.h"
++#include "RPCS3IOSAchievements.h" // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
+ #include "FirmwareInstaller.h"
  #include "GameLibrary.h"
  #include "GameUpdateManifest.h"
  #include "IOSGSFrame.h"
@@ -35471,9 +35489,11 @@ index 74a6dc7..607ca5f 100644
 +#include "Emu/Cell/PPUThread.h"
 +#include "Emu/Cell/SPURecompiler.h"
  #include "Emu/IdManager.h"
++#include "Emu/Memory/vm.h"
  #include "Emu/Audio/IOS/IOSAudioBackend.h"
  #include "Emu/Audio/Null/null_enumerator.h"
-@@ -98,6 +114,9 @@
+ #include "Emu/Cell/Modules/cellMsgDialog.h"
+@@ -98,6 +116,9 @@
  #include <thread>
  #include <unordered_map>
  #include <vector>
@@ -35483,7 +35503,7 @@ index 74a6dc7..607ca5f 100644
  
  namespace
  {
-@@ -106,10 +125,17 @@ std::mutex g_progress_mutex;
+@@ -106,10 +127,17 @@ std::mutex g_progress_mutex;
  rpcs3::ios::lifecycle g_lifecycle;
  rpcs3::ios::error_store g_last_error;
  rpcs3_ios_config g_config{};
@@ -35501,7 +35521,7 @@ index 74a6dc7..607ca5f 100644
  std::atomic_bool g_accept_display_surfaces = false;
  std::atomic_bool g_accept_pad_state = false;
  rpcs3::ios::display_surface_registry g_display_surface;
-@@ -312,7 +338,8 @@ boot_progress_snapshot capture_boot_progress()
+@@ -312,7 +340,8 @@ boot_progress_snapshot capture_boot_progress()
  	};
  
  	boot_progress_snapshot snapshot = read();
@@ -35511,7 +35531,7 @@ index 74a6dc7..607ca5f 100644
  	{
  		boot_progress_snapshot next = read();
  		if (next == snapshot)
-@@ -321,6 +348,7 @@ boot_progress_snapshot capture_boot_progress()
+@@ -321,6 +350,7 @@ boot_progress_snapshot capture_boot_progress()
  		}
  		snapshot = std::move(next);
  	}
@@ -35519,7 +35539,7 @@ index 74a6dc7..607ca5f 100644
  }
  
  rpcs3_ios_emulation_state current_emulation_state() noexcept
-@@ -378,6 +406,11 @@ void emit_log(int32_t level, std::string_view message)
+@@ -378,6 +408,11 @@ void emit_log(int32_t level, std::string_view message)
  	g_config.log_callback(g_config.user_context, level, terminated.c_str());
  }
  
@@ -35531,7 +35551,7 @@ index 74a6dc7..607ca5f 100644
  void emit_jit_arena_statistics(std::string_view phase)
  {
  	constexpr usz mib = 1024 * 1024;
-@@ -385,7 +418,7 @@ void emit_jit_arena_statistics(std::string_view phase)
+@@ -385,7 +420,7 @@ void emit_jit_arena_statistics(std::string_view phase)
  	emit_log(4, fmt::format(
  		"iOS JIT arena %s: code live=%u MiB, free=%u MiB (%llu bytes), largest_free=%u MiB (%llu bytes), "
  		"runtime=%u MiB, peak=%u MiB; data live=%u MiB, free=%u MiB (%llu bytes), "
@@ -35540,7 +35560,7 @@ index 74a6dc7..607ca5f 100644
  		phase,
  		stats.live_code_bytes / mib,
  		stats.free_code_bytes / mib,
-@@ -401,7 +434,15 @@ void emit_jit_arena_statistics(std::string_view phase)
+@@ -401,7 +436,15 @@ void emit_jit_arena_statistics(std::string_view phase)
  		static_cast<u64>(stats.largest_free_data_bytes),
  		stats.runtime_data_bytes / mib,
  		stats.peak_data_bytes / mib,
@@ -35557,7 +35577,7 @@ index 74a6dc7..607ca5f 100644
  }
  
  class callback_log_listener final : public logs::listener
-@@ -448,16 +489,32 @@ private:
+@@ -448,16 +491,32 @@ private:
  	std::string m_name;
  };
  
@@ -35594,7 +35614,7 @@ index 74a6dc7..607ca5f 100644
  }
  
  bool apply_database_settings_for_api(std::string_view title_id)
-@@ -904,10 +961,10 @@ EmuCallbacks make_callbacks()
+@@ -904,10 +963,10 @@ EmuCallbacks make_callbacks()
  		g_config.main_thread_callback(g_config.user_context, &invoke_main_thread_payload, payload);
  	};
  
@@ -35607,7 +35627,7 @@ index 74a6dc7..607ca5f 100644
  	callbacks.on_ready = []() {};
  	callbacks.on_missing_fw = []() { emit_log(5, "PlayStation 3 firmware is not installed yet"); };
  	callbacks.on_emulation_stop_no_response = [](std::shared_ptr<atomic_t<bool>>, int)
-@@ -1267,15 +1324,15 @@ extern "C" uint32_t rpcs3_ios_abi_version(void) noexcept
+@@ -1267,15 +1326,15 @@ extern "C" uint32_t rpcs3_ios_abi_version(void) noexcept
  
  extern "C" const char* rpcs3_ios_build_info(void) noexcept
  {
@@ -35626,7 +35646,7 @@ index 74a6dc7..607ca5f 100644
  		return RPCS3_IOS_INVALID_STATE;
  	}
  
-@@ -1289,40 +1346,105 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+@@ -1289,40 +1348,105 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  		return result;
  	}
  
@@ -35680,7 +35700,9 @@ index 74a6dc7..607ca5f 100644
 +	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "arena_prepare",
 +			rpcs3::ios::jit::last_error());
-+	}
+ 	}
+-	if (!rpcs3::ios::jit::prepare_arena(config->expanded_jit_arena != 0) ||
+-		!rpcs3::ios::jit::seal_arena())
 +
 +	// No process-global runtime has been changed before this point. An early
 +	// reservation failure can be retried by the user after helper completion.
@@ -35704,10 +35726,13 @@ index 74a6dc7..607ca5f 100644
 +	}
 +	trampoline_error.clear();
 +	if (!ppu_function_manager::initialize_ghc_trampolines(trampoline_error))
-+	{
+ 	{
+-		set_error(rpcs3::ios::jit::last_error());
+-		g_lifecycle.finish_initialize(false);
+-		return RPCS3_IOS_JIT_MAPPING_FAILED;
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "ppu_hle_trampolines",
 +			trampoline_error + "; " + rpcs3::ios::jit::last_error());
-+	}
+ 	}
 +	emit_log(2, "ppu_trampoline_init_end");
 +
 +	trampoline_error.clear();
@@ -35716,20 +35741,15 @@ index 74a6dc7..607ca5f 100644
 +	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "spu_trampolines",
 +			trampoline_error + "; " + rpcs3::ios::jit::last_error());
- 	}
--	if (!rpcs3::ios::jit::prepare_arena(config->expanded_jit_arena != 0) ||
--		!rpcs3::ios::jit::seal_arena())
++	}
 +	emit_log(2, "spu_trampoline_init_end");
 +
 +	emit_jit_arena_statistics("after JIT preparation before seal");
 +	if (!rpcs3::ios::jit::seal_arena())
- 	{
--		set_error(rpcs3::ios::jit::last_error());
--		g_lifecycle.finish_initialize(false);
--		return RPCS3_IOS_JIT_MAPPING_FAILED;
++	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "arena_seal",
 +			rpcs3::ios::jit::last_error());
- 	}
++	}
 +	emit_log(2, "jit_initialize_success");
  
  	try
@@ -35755,7 +35775,7 @@ index 74a6dc7..607ca5f 100644
  		// A developer can request one bounded SPU profile through the injected
  		// cache root. Consume the request so subsequent launches stay unchanged.
  		const std::string profile_request = fs::get_cache_dir() + "jit-profile.once";
-@@ -1385,18 +1507,25 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+@@ -1385,18 +1509,25 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
  		Emu.SetCallbacks(make_callbacks());
  		Emu.SetSupportedRenderers({video_renderer::vulkan});
  		Emu.SetDefaultRenderer(video_renderer::vulkan);
@@ -35783,7 +35803,7 @@ index 74a6dc7..607ca5f 100644
  		emit_jit_arena_statistics("after core initialization");
  		return RPCS3_IOS_OK;
  	}
-@@ -1519,6 +1648,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_run_llvm_self_test(uint64_t input, uint64_
+@@ -1519,6 +1650,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_run_llvm_self_test(uint64_t input, uint64_
  
  		using test_function = uint64_t (*)(uint64_t);
  		const auto function_address = compiler.get("rpcs3_ios_test_function");
@@ -35791,7 +35811,7 @@ index 74a6dc7..607ca5f 100644
  		if (!function_address)
  		{
  			set_error("LLVM did not publish the self-test function");
-@@ -3161,7 +3291,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_enumerate_game_settings(
+@@ -3161,7 +3293,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_enumerate_game_settings(
  		}
  		bool custom_config = false;
  		const bool loaded = load_settings_for_api(title_id, custom_config);
@@ -35800,7 +35820,7 @@ index 74a6dc7..607ca5f 100644
  		if (!loaded)
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
-@@ -3233,12 +3363,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+@@ -3233,12 +3365,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
  		{
  			return result;
  		}
@@ -35819,7 +35839,7 @@ index 74a6dc7..607ca5f 100644
  		return RPCS3_IOS_OK;
  	}
  	catch (const std::exception& error)
-@@ -3310,7 +3443,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_remove_game_settings(const char* title_id)
+@@ -3310,7 +3445,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_remove_game_settings(const char* title_id)
  
  	try
  	{
@@ -35829,7 +35849,7 @@ index 74a6dc7..607ca5f 100644
  		{
  			set_error(fmt::format("Unable to remove the custom configuration for %s", title_id));
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
-@@ -3388,10 +3522,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_save_game_settings_preset(
+@@ -3388,10 +3524,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_save_game_settings_preset(
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
  		}
@@ -35840,7 +35860,23 @@ index 74a6dc7..607ca5f 100644
  		normalize_current_game_resolution(game.resolution);
  		const auto result = finish_game_settings_preset_result(
  			rpcs3::ios::save_current_game_settings_preset(title_id, name));
-@@ -4444,6 +4574,12 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4353,6 +4485,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_big_picture_mode(void) noexcept
+ 		set_error("RPCS3Core must be ready and emulation stopped before booting Big Picture Mode");
+ 		return result;
+ 	}
++	rpcs3::ios::achievements::last_boot().clear(); // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
+ 	if (!g_display_surface.snapshot().valid())
+ 	{
+ 		set_error("Attach a valid iOS Metal display surface before booting Big Picture Mode");
+@@ -4396,6 +4529,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_vsh(void) noexcept
+ 		set_error("RPCS3Core must be ready and emulation stopped before booting XMB");
+ 		return result;
+ 	}
++	rpcs3::ios::achievements::last_boot().clear(); // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
+ 	if (!g_display_surface.snapshot().valid())
+ 	{
+ 		set_error("Attach a valid iOS Metal display surface before booting XMB");
+@@ -4444,6 +4578,12 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  	const char* savestate_id) noexcept
  {
  	std::lock_guard lock(g_api_mutex);
@@ -35853,7 +35889,7 @@ index 74a6dc7..607ca5f 100644
  	if (!title_id || !title_id[0])
  	{
  		set_error("An installed title ID is required");
-@@ -4471,6 +4607,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4471,6 +4611,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  		set_error("RPCS3Core must be ready and emulation stopped before booting a game");
  		return result;
  	}
@@ -35862,7 +35898,7 @@ index 74a6dc7..607ca5f 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting a game");
-@@ -4486,7 +4624,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4486,7 +4628,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  			return RPCS3_IOS_GAME_NOT_FOUND;
  		}
  
@@ -35901,7 +35937,7 @@ index 74a6dc7..607ca5f 100644
  		if (!requested_savestate_id.empty())
  		{
  			const auto savestates = enumerate_title_savestates(game->title_id, game->path);
-@@ -4503,21 +4671,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4503,21 +4675,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  				return RPCS3_IOS_BOOT_FAILED;
  			}
  			boot_path = selected->path;
@@ -35923,11 +35959,13 @@ index 74a6dc7..607ca5f 100644
  		}
  
  		if (requested_savestate_id.empty())
-@@ -4532,11 +4685,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4532,14 +4689,23 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  		prepare_rpcn_for_guest_boot();
  		Emu.DeactivateBigPictureMode();
  		Emu.SetForceBoot(true);
 +		rpcs3::ios::restore_failure::reset();
++		// NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: never describe a previous title.
++		rpcs3::ios::achievements::last_boot().clear();
  		const game_boot_result result = Emu.BootGame(boot_path, game->title_id);
  		if (result != game_boot_result::no_errors)
  		{
@@ -35940,12 +35978,18 @@ index 74a6dc7..607ca5f 100644
  			return RPCS3_IOS_BOOT_FAILED;
  		}
  
-@@ -4644,7 +4801,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
++		// The base library entry (ISO or directory), also for savestate boots:
++		// RetroAchievements identifies the game, not the restored state.
++		rpcs3::ios::achievements::last_boot().set(game->title_id, game->path);
+ 		emit_log(4, requested_savestate_id.empty()
+ 			? fmt::format("Installed game boot request completed: %s", game->title_id)
+ 			: fmt::format("Save-state boot request completed: %s", game->title_id));
+@@ -4644,7 +4810,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
  		if (result != RPCS3_IOS_OK)
  		{
  			set_error("Performance metrics require a compatible output structure");
 +			return result;
-+		}
+ 		}
 +
 +		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D1): the snapshot leaves struct_size at
 +		// the Build 487 size only when the caller passed it; then the emulator state
@@ -35973,12 +36017,12 @@ index 74a6dc7..607ca5f 100644
 +				metrics->boot_progress_total = permille.total;
 +				metrics->valid_fields |= RPCS3_IOS_PERFORMANCE_BOOT_PROGRESS_VALID;
 +			}
- 		}
++		}
 +
  		return result;
  	}
  	catch (const std::exception& error)
-@@ -4730,15 +4917,210 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
+@@ -4730,15 +4926,210 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
  	return RPCS3_IOS_INTERNAL_ERROR;
  }
  
@@ -36189,7 +36233,7 @@ index 74a6dc7..607ca5f 100644
  	try
  	{
  		// An explicit wrapper stop leaves the full-screen session. It must not
-@@ -4783,7 +5165,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
+@@ -4783,7 +5174,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
  
  extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  {
@@ -36206,7 +36250,7 @@ index 74a6dc7..607ca5f 100644
  	bool should_run = false;
  	if (const auto result = g_lifecycle.begin_shutdown(should_run); result != RPCS3_IOS_OK)
  	{
-@@ -4822,7 +5212,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
+@@ -4822,7 +5221,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  		g_display_surface.clear();
  		emit_jit_arena_statistics("before core shutdown completion");
  		logs::listener::sync_all();
@@ -36226,7 +36270,7 @@ index 74a6dc7..607ca5f 100644
  		emit_log(4, "RPCS3Core shutdown completed");
  		return RPCS3_IOS_OK;
  	}
-@@ -4846,9 +5247,384 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
+@@ -4846,9 +5256,485 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
  	return copy.c_str();
  }
  
@@ -36611,11 +36655,112 @@ index 74a6dc7..607ca5f 100644
 +{
 +    return neostation::source_client::install(api);
 +}
++
++// NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: optional RetroAchievements hooks
++// (see RPCS3IOS.h). They never write guest memory, never call set_error()
++// (reads run every frame) and never take g_api_mutex, which a boot or stop
++// holds for seconds; the guest memory itself is protected by vm::try_access.
++extern "C" uint32_t rpcs3_ios_ra_api_version(void) noexcept
++{
++	return RPCS3_IOS_RA_API_VERSION;
++}
++
++extern "C" rpcs3_ios_status rpcs3_ios_ra_set_frame_callback(
++	rpcs3_ios_ra_frame_callback callback,
++	void* context) noexcept
++{
++	rpcs3::ios::achievements::vblank_hook().set(callback, context);
++	return RPCS3_IOS_OK;
++}
++
++extern "C" rpcs3_ios_status rpcs3_ios_ra_read_memory(
++	uint32_t address,
++	void* buffer,
++	uint32_t size,
++	uint32_t* mapped_bytes) noexcept
++{
++	if (mapped_bytes)
++	{
++		*mapped_bytes = 0;
++	}
++
++	if (!rpcs3::ios::achievements::valid_read(address, buffer, size))
++	{
++		return RPCS3_IOS_INVALID_ARGUMENT;
++	}
++
++	u8* const bytes = static_cast<u8*>(buffer);
++
++	if (!Emu.IsRunning() && !Emu.IsPaused())
++	{
++		std::memset(bytes, 0, size);
++		return RPCS3_IOS_INVALID_STATE;
++	}
++
++	try
++	{
++		const u32 copied = rpcs3::ios::achievements::read_guest(address, bytes, size,
++			[](u32 at, u8* out, u32 count)
++			{
++				return vm::try_access(at, out, count, false);
++			});
++
++		if (mapped_bytes)
++		{
++			*mapped_bytes = copied;
++		}
++
++		return RPCS3_IOS_OK;
++	}
++	catch (...)
++	{
++		std::memset(bytes, 0, size);
++		return RPCS3_IOS_INTERNAL_ERROR;
++	}
++}
++
++extern "C" rpcs3_ios_status rpcs3_ios_ra_get_session_info(rpcs3_ios_ra_session_info* info) noexcept
++{
++	if (!info || info->struct_size < sizeof(rpcs3_ios_ra_session_info))
++	{
++		return RPCS3_IOS_INVALID_ARGUMENT;
++	}
++
++	try
++	{
++		const u32 struct_size = info->struct_size;
++		std::memset(info, 0, sizeof(rpcs3_ios_ra_session_info));
++		info->struct_size = struct_size;
++		info->emulation_state = static_cast<u32>(current_emulation_state());
++
++		const frame_limit_type limit = g_cfg.video.frame_limit.get();
++		rpcs3::ios::achievements::speed_settings speed;
++		speed.vblank_rate = static_cast<u32>(g_cfg.video.vblank_rate.get());
++		speed.clocks_scale = static_cast<u32>(g_cfg.core.clocks_scale.get());
++		speed.frame_limit_unbounded = limit == frame_limit_type::none ||
++			limit == frame_limit_type::_120 || limit == frame_limit_type::infinite;
++
++		info->vblank_rate = speed.vblank_rate;
++		info->clocks_scale = speed.clocks_scale;
++		info->frame_limit_unbounded = speed.frame_limit_unbounded ? 1 : 0;
++		info->hardcore_compatible = rpcs3::ios::achievements::hardcore_compatible(speed) ? 1 : 0;
++
++		u64 generation = 0;
++		rpcs3::ios::achievements::last_boot().copy(info->title_id, sizeof(info->title_id),
++			info->content_path, sizeof(info->content_path), generation);
++		info->boot_generation = generation;
++		return RPCS3_IOS_OK;
++	}
++	catch (...)
++	{
++		return RPCS3_IOS_INTERNAL_ERROR;
++	}
++}
 diff --git a/rpcs3/ios/RPCS3IOS.exports b/rpcs3/ios/RPCS3IOS.exports
-index d7529ab..de1231a 100644
+index d7529ab..2b14c63 100644
 --- a/rpcs3/ios/RPCS3IOS.exports
 +++ b/rpcs3/ios/RPCS3IOS.exports
-@@ -72,3 +72,19 @@ _rpcs3_ios_stop_emulation
+@@ -72,3 +72,23 @@ _rpcs3_ios_stop_emulation
  _rpcs3_ios_get_state
  _rpcs3_ios_shutdown
  _rpcs3_ios_last_error
@@ -36635,8 +36780,12 @@ index d7529ab..de1231a 100644
 +_rpcs3_ios_set_source_archive_api
 +
 +_rpcs3_ios_set_compiler_budget_api
++_rpcs3_ios_ra_api_version
++_rpcs3_ios_ra_set_frame_callback
++_rpcs3_ios_ra_read_memory
++_rpcs3_ios_ra_get_session_info
 diff --git a/rpcs3/ios/RPCS3IOS.h b/rpcs3/ios/RPCS3IOS.h
-index 20526d0..7c44b0f 100644
+index 20526d0..1f6b86c 100644
 --- a/rpcs3/ios/RPCS3IOS.h
 +++ b/rpcs3/ios/RPCS3IOS.h
 @@ -3,6 +3,8 @@
@@ -36722,6 +36871,279 @@ index 20526d0..7c44b0f 100644
  // Uses the same Emulator::Pause/Resume lifecycle as the desktop frontend.
  // Pause is accepted only from running; resume is accepted only from paused.
  RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_pause_emulation(void) RPCS3_IOS_NOEXCEPT;
+@@ -801,6 +841,51 @@ RPCS3_IOS_EXPORT rpcs3_ios_state rpcs3_ios_get_state(void) RPCS3_IOS_NOEXCEPT;
+ RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_shutdown(void) RPCS3_IOS_NOEXCEPT;
+ RPCS3_IOS_EXPORT const char* rpcs3_ios_last_error(void) RPCS3_IOS_NOEXCEPT;
+ 
++// NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1: optional RetroAchievements hooks.
++// The host resolves them with dlsym; RPCS3_IOS_ABI_VERSION and every earlier
++// export are unchanged, and a host that never calls them changes nothing.
++// None of them writes guest memory, sets last_error or takes the API lock.
++#define RPCS3_IOS_RA_API_VERSION 1u
++
++// Called on the RSX VBlank thread after each emulated VBlank (60 Hz, none
++// while paused or stopped). The callback must return quickly and must not
++// call rpcs3_ios_ra_set_frame_callback.
++typedef void (*rpcs3_ios_ra_frame_callback)(void* context, uint64_t frame);
++
++typedef struct rpcs3_ios_ra_session_info
++{
++    uint32_t struct_size;           // in: sizeof(rpcs3_ios_ra_session_info)
++    uint32_t emulation_state;       // rpcs3_ios_emulation_state, sampled by the call
++    uint32_t hardcore_compatible;   // VBlank 60 Hz, clocks 100 %, bounded frame limit
++    uint32_t vblank_rate;           // effective Video/Vblank Rate (Hz)
++    uint32_t clocks_scale;          // effective Core/Clocks scale (%)
++    uint32_t frame_limit_unbounded; // Frame limit Off, 120 or Infinite
++    uint64_t boot_generation;       // successful rpcs3_ios_boot_game calls
++    char title_id[64];
++    // Library entry of the last boot: the base game ISO or directory, never an
++    // installed update or a savestate file. Empty when unknown.
++    char content_path[1024];
++} rpcs3_ios_ra_session_info;
++
++RPCS3_IOS_EXPORT uint32_t rpcs3_ios_ra_api_version(void) RPCS3_IOS_NOEXCEPT;
++// Pass NULL to detach. Returns after a callback that used the previous
++// registration has finished, so its context may be released afterwards.
++RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_ra_set_frame_callback(
++    rpcs3_ios_ra_frame_callback callback,
++    void* context) RPCS3_IOS_NOEXCEPT;
++// Copies guest bytes (PS3 byte order) while a game is running or paused.
++// Unmapped or protected pages are zero-filled; mapped_bytes (optional)
++// receives the number of bytes read from guest pages. size is 1..65536 and
++// the range must stay inside the 32-bit guest address space. Returns
++// RPCS3_IOS_INVALID_STATE (buffer zeroed) when no game is running.
++RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_ra_read_memory(
++    uint32_t address,
++    void* buffer,
++    uint32_t size,
++    uint32_t* mapped_bytes) RPCS3_IOS_NOEXCEPT;
++RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_ra_get_session_info(
++    rpcs3_ios_ra_session_info* info) RPCS3_IOS_NOEXCEPT;
++
+ #if defined(__cplusplus)
+ }
+ #endif
+diff --git a/rpcs3/ios/RPCS3IOSAchievements.h b/rpcs3/ios/RPCS3IOSAchievements.h
+new file mode 100644
+index 0000000..6e4c976
+--- /dev/null
++++ b/rpcs3/ios/RPCS3IOSAchievements.h
+@@ -0,0 +1,215 @@
++#pragma once
++
++// NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
++// Core side of the optional RetroAchievements hooks exported by RPCS3IOS.cpp
++// (rpcs3_ios_ra_*). The host owns the rcheevos client, the account and every
++// network request; the Core only reports emulated VBlanks, copies guest bytes
++// and describes the booted title. Nothing here writes guest memory, changes
++// emulation timing or the main RPCS3 iOS ABI (RPCS3_IOS_ABI_VERSION).
++//
++// Self-contained on purpose (standard library only) so the contract can be
++// compiled and tested on a host without the rest of the Core.
++
++#include <algorithm>
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <cstring>
++#include <mutex>
++#include <string>
++#include <string_view>
++
++namespace rpcs3::ios::achievements
++{
++	using frame_callback = void (*)(void* context, std::uint64_t frame);
++
++	// One optional observer of the emulated VBlank (RetroAchievements frame
++	// processing). notify() runs on the RSX VBlank thread, which only exists
++	// while a game is running and is joined before the guest memory is
++	// released; it never waits for the host: a frame that coincides with a
++	// (de)registration is skipped.
++	class frame_hook
++	{
++	public:
++		void notify(std::uint64_t frame) noexcept
++		{
++			if (!m_armed.load(std::memory_order_acquire))
++			{
++				return;
++			}
++
++			std::unique_lock lock(m_mutex, std::try_to_lock);
++
++			if (lock.owns_lock() && m_callback)
++			{
++				m_callback(m_context, frame);
++			}
++		}
++
++		// Host thread. Returns only after a callback using the previous
++		// registration has returned, so its context may be released at once.
++		// Must never be called from inside the callback.
++		void set(frame_callback callback, void* context) noexcept
++		{
++			std::lock_guard lock(m_mutex);
++			m_callback = callback;
++			m_context = callback ? context : nullptr;
++			m_armed.store(callback != nullptr, std::memory_order_release);
++		}
++
++		bool armed() const noexcept
++		{
++			return m_armed.load(std::memory_order_acquire);
++		}
++
++	private:
++		std::mutex m_mutex;
++		frame_callback m_callback = nullptr;
++		void* m_context = nullptr;
++		std::atomic<bool> m_armed{false};
++	};
++
++	// Never destroyed: the VBlank thread may still exist during process exit.
++	inline frame_hook& vblank_hook() noexcept
++	{
++		static frame_hook* const hook = new frame_hook();
++		return *hook;
++	}
++
++	inline constexpr std::uint32_t guest_page_size = 4096;
++	inline constexpr std::uint32_t max_read_size = 65536;
++
++	// Arguments accepted by rpcs3_ios_ra_read_memory: a non-empty bounded
++	// range inside the 32-bit guest address space.
++	constexpr bool valid_read(std::uint32_t address, const void* buffer, std::uint32_t size) noexcept
++	{
++		return buffer != nullptr && size != 0 && size <= max_read_size &&
++			std::uint64_t{address} + size <= 0x1'0000'0000ull;
++	}
++
++	// Copies [address, address + size) one guest page at a time. A page that
++	// try_read refuses (unmapped, protected, or released concurrently) is
++	// zero-filled: PS3 titles allocate their memory at run time, so a region
++	// listed by the RetroAchievements memory map may not exist yet. Returns
++	// the number of bytes that came from readable guest pages.
++	template <typename TryRead>
++	std::uint32_t read_guest(std::uint32_t address, std::uint8_t* buffer, std::uint32_t size, TryRead&& try_read)
++	{
++		std::uint32_t copied = 0;
++		std::uint32_t offset = 0;
++
++		while (offset < size)
++		{
++			const std::uint32_t current = address + offset;
++			const std::uint32_t page_left = guest_page_size - (current % guest_page_size);
++			const std::uint32_t chunk = std::min(page_left, size - offset);
++
++			if (try_read(current, buffer + offset, chunk))
++			{
++				copied += chunk;
++			}
++			else
++			{
++				std::memset(buffer + offset, 0, chunk);
++			}
++
++			offset += chunk;
++		}
++
++		return copied;
++	}
++
++	struct speed_settings
++	{
++		std::uint32_t vblank_rate = 60;
++		std::uint32_t clocks_scale = 100;
++		bool frame_limit_unbounded = false;
++	};
++
++	// RetroAchievements Hardcore forbids running a game faster or slower than
++	// the console: the guest VBlank must stay at 60 Hz, the guest clock at
++	// 100 % and presentation must stay limited (not Off, 120 or Infinite).
++	constexpr bool hardcore_compatible(const speed_settings& settings) noexcept
++	{
++		return settings.vblank_rate == 60 && settings.clocks_scale == 100 && !settings.frame_limit_unbounded;
++	}
++
++	// Copies text into a fixed C buffer. Refuses (empty result) rather than
++	// truncating: a shortened path would name another file.
++	inline bool copy_text(char* destination, std::size_t capacity, std::string_view text) noexcept
++	{
++		if (!destination || capacity == 0)
++		{
++			return false;
++		}
++
++		if (text.size() >= capacity || text.find('\0') != std::string_view::npos)
++		{
++			destination[0] = '\0';
++			return false;
++		}
++
++		// An empty view may carry a null pointer, which memcpy must never receive.
++		if (!text.empty())
++		{
++			std::memcpy(destination, text.data(), text.size());
++		}
++
++		destination[text.size()] = '\0';
++		return true;
++	}
++
++	// The library entry of the last title started by rpcs3_ios_boot_game: the
++	// base game ISO or directory (never an installed update or a savestate
++	// file), which the host hashes like RetroAchievements does.
++	class boot_record
++	{
++	public:
++		void clear() noexcept
++		{
++			std::lock_guard lock(m_mutex);
++			m_title_id.clear();
++			m_content_path.clear();
++		}
++
++		void set(std::string_view title_id, std::string_view content_path)
++		{
++			std::lock_guard lock(m_mutex);
++			m_title_id.assign(title_id);
++			m_content_path.assign(content_path);
++			++m_generation;
++		}
++
++		// Fills both buffers; false (and empty buffers) when nothing was booted
++		// or a value does not fit.
++		bool copy(char* title_id, std::size_t title_capacity, char* content_path, std::size_t path_capacity,
++			std::uint64_t& generation) const noexcept
++		{
++			std::lock_guard lock(m_mutex);
++			generation = m_generation;
++			const bool title = copy_text(title_id, title_capacity, m_title_id);
++			const bool path = copy_text(content_path, path_capacity, m_content_path);
++
++			if (!title || !path || m_title_id.empty() || m_content_path.empty())
++			{
++				copy_text(title_id, title_capacity, {});
++				copy_text(content_path, path_capacity, {});
++				return false;
++			}
++
++			return true;
++		}
++
++	private:
++		mutable std::mutex m_mutex;
++		std::string m_title_id;
++		std::string m_content_path;
++		std::uint64_t m_generation = 0;
++	};
++
++	inline boot_record& last_boot() noexcept
++	{
++		static boot_record* const record = new boot_record();
++		return *record;
++	}
++}
 diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
 new file mode 100644
 index 0000000..74ff550
