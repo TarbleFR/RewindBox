@@ -66,7 +66,10 @@ reproductions, but they are **not proven** to cause the Hogwarts guard crash.
 [report](docs/ra-credentials-status-2026-11-01.md)) that landed on `Claude`
 after the 609 source `3d92f19`. 609 therefore keeps the 608 RA sign-in
 regression. The next IPA needs that fix with fresh Flutter/native tests and a
-full application build.
+full application build. PS3 RetroAchievements through RPCS3
+([report](docs/ra-ps3-rpcs3-2026-11-01.md)) is source only: its Core hooks are
+staged outside the canonical delta (folding them requires an authorized Core
+build); with the current Core, PS3 reports "not available for this core".
 Existing unrelated compiler warnings are retained (see the 609 log review).
 Device FPS and loading-time gains are still unmeasured; see
 [the device analysis](docs/hogwarts604-performance-2026-10-30.md).
@@ -178,7 +181,7 @@ presentation still require physical-device validation; see the [605 report](docs
 | Architecture or handoff | [Architecture](ARCHITECTURE.md), [Claude entry point](CLAUDE.md), [manual workflow](docs/AI_WORKFLOW_CURSOR_CLAUDE.md) |
 | MeloNX / Hogwarts / launch times | [609 liveness and GC diagnostics](docs/hogwarts609-liveness-2026-11-01.md), [crash and lot analysis](docs/melonx-build603-guard-crash-2026-10-30.md), [604 delivery](docs/rewind604-test-ipa.md), [MeloNX rules](docs/PROJECT_RULES.md#melonx) |
 | RPCS3 / NeoSwap | [Retained 607 Core identity and recovery contract](.github/diagnostics/rpcs3runtime607_core.py), [Verified 608 preservation](docs/build608-ra-session-delivery.md), [RPCS3 rules](docs/PROJECT_RULES.md#rpcs3) |
-| RetroAchievements session / translation / app language | [Central session and 608 delivery](docs/build608-ra-session-delivery.md), [credentials regression and in-game status (source fix after 608)](docs/ra-credentials-status-2026-11-01.md), [existing translation](docs/achievement-translation.md), [original translation tests](docs/evidence/achievement-translation-validation.json) |
+| RetroAchievements session / translation / app language | [Central session and 608 delivery](docs/build608-ra-session-delivery.md), [credentials regression and in-game status (source fix after 608)](docs/ra-credentials-status-2026-11-01.md), [PS3 through RPCS3 (staged Core hooks, host client)](docs/ra-ps3-rpcs3-2026-11-01.md), [existing translation](docs/achievement-translation.md), [original translation tests](docs/evidence/achievement-translation-validation.json) |
 | Library, UI, native routing | [Library and lifecycle rules](docs/PROJECT_RULES.md#library-and-lifecycle), [Liquid Glass](docs/liquid-glass-ui.md) |
 | Shaders, cheats, HD textures | [Catalog and content rules](docs/PROJECT_RULES.md#catalogs-shaders-and-content), [enhancements](docs/ENHANCEMENTS.md), [licenses](docs/LEGAL_AND_CREDITS.md) |
 | Previous decisions or rejected attempts | [Historical guide and exact snapshot](docs/history/README.md); search only the relevant component/build |

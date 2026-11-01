@@ -94,7 +94,8 @@ Hardcore is shown only from the engine's observed `hardcoreActive`. Each
 distinct final status is shown once (at most four notices per launch); the
 presenter is detached when the launch ends or another starts. Status toasts
 use the shared FIFO presenter (kind 3): no trophy, no translation note, never
-overlapping an unlock. RPCS3 and MeloNX have no RA integration and show none.
+overlapping an unlock. MeloNX has no RA integration and shows none. RPCS3
+(PS3) was added afterwards, see [PS3 through RPCS3](ra-ps3-rpcs3-2026-11-01.md).
 
 Per engine:
 
@@ -133,14 +134,11 @@ Per engine:
 
 ## PlayStation 3
 
-The vendored rcheevos already knows `RC_CONSOLE_PLAYSTATION_3 = 82` (disc and
-extracted-folder hashing, 4-region memory map). The embedded RPCS3 Core
-(ABI 30) exposes neither guest-memory reads nor a per-frame hook, which an
-rcheevos client requires; RPCS3 therefore stays "not supported". Enabling a
-flag would only claim activity that cannot exist. A real integration needs a
-new Core ABI (bounded guest reads for the RA regions, frame/VBlank callback,
-Hardcore gates for states/patches/speed), a host rc_client, a Core rebuild and
-device validation: a separate, explicitly authorized task.
+At the time of this fix the embedded RPCS3 Core (ABI 30) exposed neither
+guest-memory reads nor a per-frame hook, so PS3 stayed "not supported". The
+follow-up integration (optional Core hooks staged without a Core build, host
+rcheevos client, Hardcore gates) is described in
+[PS3 through RPCS3](ra-ps3-rpcs3-2026-11-01.md).
 
 ## Validation
 
