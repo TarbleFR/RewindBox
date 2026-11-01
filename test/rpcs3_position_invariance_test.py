@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""REWINDBOX_POSITION_INVARIANCE_609: the scoped titles declare an invariant position.
+"""REWINDBOX_POSITION_INVARIANCE_610: the scoped titles declare an invariant position.
 
 Three layers, each reported separately; none executes Metal, a game or an iPhone:
 

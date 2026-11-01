@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""REWINDBOX_TRANSITION_PHASES_609: bounded Core lines that separate the seven phases of a SELF transition.
+"""REWINDBOX_TRANSITION_PHASES_610: bounded Core lines that separate the seven phases of a SELF transition.
 
 The BO2 multiplayer entry (internal exitspawn to t6mp_ps3f.self) still freezes
 on delivered 608, and the existing journals cannot separate: (1) the old
@@ -102,7 +102,7 @@ def source_contract(source: Path, baseline: Path) -> dict:
     if 'COREPROF' in run_ppu or 'runppu_main_us.store(get_system_time()' not in run_ppu:
         raise AssertionError('RunPPU (UIKit) must only store its timestamp')
     finalize = body(system, 'void Emulator::FinalizeRunRequest()')
-    if 'if (thread_ctrl::get_current())' not in finalize[finalize.index('REWINDBOX_TRANSITION_PHASES_609'):]:
+    if 'if (thread_ctrl::get_current())' not in finalize[finalize.index('REWINDBOX_TRANSITION_PHASES_610'):]:
         raise AssertionError('the running line is not restricted to emulator threads')
     return {'files_sha256': found, 'stop_main_after_ui_handoff': True, 'run_ppu_ui_store_only': True}
 

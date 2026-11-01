@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Authenticate the host-only Core 609 SPUThread.cpp change and its exact cache alias.
+"""Authenticate the host-only Core 610 SPUThread.cpp change and its exact cache alias.
 
-REWINDBOX_CORE609_LR changes only the full-MFC-queue wait inside
+REWINDBOX_CORE610_LR changes only the full-MFC-queue wait inside
 spu_thread::process_mfc_cmd(). SPU objects reach that host body through helper
 symbols, so emitted code is unchanged, and one exact alias keeps the delivered
 SPU identity. This audit reads both materialized trees and recomputes the
@@ -21,7 +21,7 @@ import re
 CPP = 'rpcs3/Emu/Cell/SPUThread.cpp'
 COMPAT = 'rpcs3/Emu/CPU/JITCacheCompatibility.cmake'
 CMAKE = 'rpcs3/Emu/CMakeLists.txt'
-ALIAS_MARK = '    # Core 609 LR follow-up:'
+ALIAS_MARK = '    # Core 610 LR follow-up:'
 NEXT_MARK = '    # CELL559:'
 BASELINE_SHA = '84cd797c8ebd47211f97ca1bb78af6c5dd71410530aa563b08bed39545852309'
 CANDIDATE_SHA = '97da453d7717a1a63cd44f58d6ae1b6c0053f1f7e3a1c1626e90c83c1cfd518d'

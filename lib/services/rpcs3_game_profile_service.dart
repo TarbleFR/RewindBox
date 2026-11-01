@@ -190,12 +190,12 @@ abstract final class Rpcs3GameProfileService {
     // streaming, relaxed ZCULL) stays underneath and does not ask for
     // accurate reservations. Measured on the next run by the same counters.
     //
-    // Build 609: asynchronous texture streaming is turned off again, as for
+    // Build 610: asynchronous texture streaming is turned off again, as for
     // God of War III since Build 552. The desktop entry turns on, on
     // MoltenVK, a second transfer queue synchronized with the graphics queue
     // by semaphores; the 595 logs show this title as the only one running
     // it (async_tex=true), with the torch flicker still reported on 608. The
-    // Core 609 also gives this title asynchronous MoltenVK submits
+    // Core 610 also gives this title asynchronous MoltenVK submits
     // (Automatic, behind the 587 encode barrier and boot canary): with
     // streaming off, Assassin's Creed runs the combination God of War III
     // runs on the iPhone (one queue, asynchronous encoding), not an untested

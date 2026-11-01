@@ -2,9 +2,9 @@
   "passed": true,
   "source_sha256": "97da453d7717a1a63cd44f58d6ae1b6c0053f1f7e3a1c1626e90c83c1cfd518d",
   "baseline_sha256": "84cd797c8ebd47211f97ca1bb78af6c5dd71410530aa563b08bed39545852309",
-  "compatibility_sha256": "e22c10a44f49ad4cfae9e38f0375cf416554ae27506675212b374d987db5fe20",
+  "compatibility_sha256": "aa61e1d64363dc98c19a16150bc12c8add3850862847b21df3c9948f2e31e787",
   "baseline_compatibility_sha256": "ae6f9965a8202725a2bf4d42bf04f3ec2c29a27af8c382aa96639ac1a5baad9a",
-  "addition_sha256": "aab316ed5cf6ed7ea6e3f903d2daca12a5eb93c7d6ff8fa1267e8c20ed109dbf",
+  "addition_sha256": "805f584d50f46a155a62e3c4cc7fc72b64c7d5d72864905a9234904a23743322",
   "existing_aliases_preserved": 7,
   "new_exact_aliases": 1,
   "changed_host_bodies": {

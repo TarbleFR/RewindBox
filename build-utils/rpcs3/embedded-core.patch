@@ -3999,7 +3999,7 @@ index e11a275..353f459 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 0000000..fac1134
+index 0000000..7f0f61d
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 @@ -0,0 +1,85 @@
@@ -4067,7 +4067,7 @@ index 0000000..fac1134
 +    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
 +           actual STREQUAL "84cd797c8ebd47211f97ca1bb78af6c5dd71410530aa563b08bed39545852309")
 +        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
-+    # Core 609 LR follow-up: only the host full-MFC-queue wait in
++    # Core 610 LR follow-up: only the host full-MFC-queue wait in
 +    # process_mfc_cmd collects an armed reservation loss (owner get_events,
 +    # cache-line waiter and reservation notifier registration with generation
 +    # and content revalidation, SPU_RdEventStat's existing host bound). Every
@@ -14693,7 +14693,7 @@ index 0d2a598..cc8055e 100644
  	if (native_pfd.revents & POLLERR && events.test_and_reset(lv2_socket::poll_t::error))
  		events_happening += lv2_socket::poll_t::error;
 diff --git a/rpcs3/Emu/Cell/lv2/sys_process.cpp b/rpcs3/Emu/Cell/lv2/sys_process.cpp
-index a9bb216..bc07e80 100644
+index a9bb216..a67f6b8 100644
 --- a/rpcs3/Emu/Cell/lv2/sys_process.cpp
 +++ b/rpcs3/Emu/Cell/lv2/sys_process.cpp
 @@ -25,6 +25,9 @@
@@ -14715,7 +14715,7 @@ index a9bb216..bc07e80 100644
 +	// both phases before either may read the FXO or apply captured arguments.
 +	const u64 generation = rpcs3::ios::continuous_boot_generation();
 +	const u64 emulation_id = static_cast<u64>(Emu.GetEmulationIdentifier());
-+	// REWINDBOX_TRANSITION_PHASES_609: the executable the guest asked for, named
++	// REWINDBOX_TRANSITION_PHASES_610: the executable the guest asked for, named
 +	// before argv moves into the stop request (basename, at most 64 characters).
 +	const std::string exitspawn_target = argv.empty() ? std::string{} :
 +		argv[0].substr(argv[0].find_last_of("/\\") == umax ? 0 : argv[0].find_last_of("/\\") + 1).substr(0, 64);
@@ -14768,7 +14768,7 @@ index a9bb216..bc07e80 100644
 +#ifdef RPCS3_IOS
 +	};
 +	const bool exitspawn_scheduled = rpcs3::ios::defer_continuous_stop(std::move(stop_process), generation, emulation_id, Emu.GetTitleID());
-+	// REWINDBOX_TRANSITION_PHASES_609: phase 1 begins (one line per transition, guest PPU thread).
++	// REWINDBOX_TRANSITION_PHASES_610: phase 1 begins (one line per transition, guest PPU thread).
 +	sys_process.notice("COREPROF EXITSPAWN phase=request scheduled=%u generation=%llu emulation_id=%llu target=%s",
 +		exitspawn_scheduled ? 1u : 0u, generation, emulation_id, exitspawn_target);
 +	if (!exitspawn_scheduled)
@@ -20576,7 +20576,7 @@ index a710d66..f6c2cbc 100644
  
  	color4f fragment_texture::remapped_border_color(bool apply_colorspace_remapping) const
 diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
-index dff27c6..0224eb5 100644
+index dff27c6..b9eb12e 100644
 --- a/rpcs3/Emu/RSX/RSXThread.cpp
 +++ b/rpcs3/Emu/RSX/RSXThread.cpp
 @@ -26,6 +26,16 @@
@@ -20590,7 +20590,7 @@ index dff27c6..0224eb5 100644
 +#include "ios/RPCS3IOSProfilerHelpers.h"
 +#include "ios/IOSRsxSyncProfile.h"
 +#include "ios/IOSRsxIdlePark.h"
-+#include "ios/IOSTransitionPhases.h" // REWINDBOX_TRANSITION_PHASES_609
++#include "ios/IOSTransitionPhases.h" // REWINDBOX_TRANSITION_PHASES_610
 +#include "Overlays/overlay_cursor.h"
 +#endif
  
@@ -20721,7 +20721,7 @@ index dff27c6..0224eb5 100644
  		const u64 event_flags = unsent_gcm_events.exchange(0);
  
 +#ifdef RPCS3_IOS
-+		// REWINDBOX_TRANSITION_PHASES_609: phase 6 begins after the warmup (RSX thread).
++		// REWINDBOX_TRANSITION_PHASES_610: phase 6 begins after the warmup (RSX thread).
 +		// starting=0 means no RunPPU is posted (a stop already ended this boot).
 +		rpcs3::ios::transition_phases::runppu_main_us.store(0, std::memory_order_relaxed);
 +		rpcs3::ios::transition_phases::runppu_dispatch_us.store(get_system_time(), std::memory_order_relaxed);
@@ -25104,7 +25104,7 @@ index d9e9cee..7074463 100644
  
  		if (!in_cache)
 diff --git a/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp b/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp
-index 23efdce..68ba1ac 100644
+index 23efdce..af736c9 100644
 --- a/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp
 @@ -6,6 +6,10 @@
@@ -25123,7 +25123,7 @@ index 23efdce..68ba1ac 100644
  	properties2.emulate_depth_clip_only = vk::g_render_device->get_shader_types_support().allow_float64;
  	properties2.low_precision_tests = vk::is_NVIDIA(vk::get_driver_vendor());
 +#ifdef RPCS3_IOS
-+	// REWINDBOX_POSITION_INVARIANCE_609: MoltenVK compiles these shaders with fast math
++	// REWINDBOX_POSITION_INVARIANCE_610: MoltenVK compiles these shaders with fast math
 +	// and asks Metal for preserveInvariance only for an invariant position. The scoped
 +	// titles (ios/IOSTitleLevers.h) declare it as upstream does on NVIDIA, under the same
 +	// shader precision condition. Resolved before the renderer exists, never during a frame.
@@ -25874,7 +25874,7 @@ index e169caa..11fc668 100644
  		u64 m_update_after_bind_mask = 0;
  		u64 m_push_type_mask = 0;
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.cpp b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
-index 2b2e2c3..b12bd05 100644
+index 2b2e2c3..60d9ecb 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/device.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
 @@ -6,6 +6,8 @@
@@ -25916,7 +25916,7 @@ index 2b2e2c3..b12bd05 100644
 +		if (!unsaved && m_pipeline_cache_restored.load(std::memory_order_relaxed))
 +		{
 +			rsx_log.notice("NEOSTATION_CELL543_PIPELINE_CACHE: no library added since the persisted cache; save skipped.");
-+			// REWINDBOX_TRANSITION_PHASES_609: teardown (UIKit, phase 1) and checkpoint
++			// REWINDBOX_TRANSITION_PHASES_610: teardown (UIKit, phase 1) and checkpoint
 +			// (RSX thread, end of phase 5) saves reach the milestones journal.
 +			rsx_log.notice("Vulkan driver pipeline cache: save skipped (reason=%s, no library added).", reason);
 +			return;
@@ -26107,7 +26107,7 @@ index 2b2e2c3..b12bd05 100644
  		// Dump some diagnostics to the log
  		rsx_log.notice("%u extensions loaded:", ::size32(requested_extensions));
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.h b/rpcs3/Emu/RSX/VK/vkutils/device.h
-index ffafbae..76ff8f9 100644
+index ffafbae..38bd947 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/device.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/device.h
 @@ -5,6 +5,7 @@
@@ -26163,7 +26163,7 @@ index ffafbae..76ff8f9 100644
  			const VkPhysicalDeviceFeatures& requested_features) const;
  		void create_pipeline_cache();
 -		void save_pipeline_cache() const;
-+		// REWINDBOX_TRANSITION_PHASES_609: the reason names the save in its milestone lines.
++		// REWINDBOX_TRANSITION_PHASES_610: the reason names the save in its milestone lines.
 +		void save_pipeline_cache(const char* reason = "teardown") const;
  		void save_and_destroy_pipeline_cache();
  
@@ -27109,7 +27109,7 @@ index fe5cf89..a01d0b4 100644
  		// Meta
  		RSX_SHADER_CONTROL_META_USES_DISCARD       = (RSX_SHADER_CONTROL_USES_KIL | RSX_SHADER_CONTROL_TEXTURE_ALPHA_KILL | RSX_SHADER_CONTROL_ALPHA_TEST | RSX_SHADER_CONTROL_POLYGON_STIPPLE | RSX_SHADER_CONTROL_ALPHA_TO_COVERAGE),
 diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
-index 625311f..591c965 100644
+index 625311f..3c7b548 100644
 --- a/rpcs3/Emu/RSX/rsx_cache.h
 +++ b/rpcs3/Emu/RSX/rsx_cache.h
 @@ -11,8 +11,13 @@
@@ -27209,7 +27209,7 @@ index 625311f..591c965 100644
  		void load(shader_loading_dialog* dlg, Args&& ...args)
  		{
 +#ifdef RPCS3_IOS
-+			// REWINDBOX_TRANSITION_PHASES_609: phase 5 (RPCS3 pipeline warmup) bounds,
++			// REWINDBOX_TRANSITION_PHASES_610: phase 5 (RPCS3 pipeline warmup) bounds,
 +			// two lines per renderer on the RSX thread. A warmup that never ends
 +			// leaves a begin line without its end line.
 +			const auto warmup_started = std::chrono::steady_clock::now();
@@ -27594,7 +27594,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..a21a134 100644
+index 1f53c64..6eab393 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1,4 +1,7 @@
@@ -27618,7 +27618,7 @@ index 1f53c64..a21a134 100644
  
  #ifdef RPCS3_IOS
  #include "ios/RPCS3IOSExperimentalPolicy.h"
-+#include "ios/IOSTransitionPhases.h" // REWINDBOX_TRANSITION_PHASES_609
++#include "ios/IOSTransitionPhases.h" // REWINDBOX_TRANSITION_PHASES_610
 +#include "ios/RPCS3IOSSettings.h"
 +#include "ios/RPCS3IOSBootDiagnostics.h" // NEOSTATION_BUILD487_DIAGNOSTICS_V1
 +#include "ios/RPCS3IOSConfigInheritance.h" // REWINDBOX_LEGACY_CONFIG_INHERITANCE_V1
@@ -28106,7 +28106,7 @@ index 1f53c64..a21a134 100644
  {
  	ensure(IsStarting());
 +#ifdef RPCS3_IOS
-+	// REWINDBOX_TRANSITION_PHASES_609: UIKit ran RunPPU; only a timestamp here,
++	// REWINDBOX_TRANSITION_PHASES_610: UIKit ran RunPPU; only a timestamp here,
 +	// reported by FinalizeRunRequest from an emulator thread.
 +	rpcs3::ios::transition_phases::runppu_main_us.store(get_system_time(), std::memory_order_relaxed);
 +#endif
@@ -28129,7 +28129,7 @@ index 1f53c64..a21a134 100644
  
  	m_state.compare_and_swap_test(system_state::starting, system_state::running);
 +#ifdef RPCS3_IOS
-+	// REWINDBOX_TRANSITION_PHASES_609: phase 6 ends (state 3 = running). Never
++	// REWINDBOX_TRANSITION_PHASES_610: phase 6 ends (state 3 = running). Never
 +	// written from UIKit: RunPPU's direct call without a signalled PPU skips it.
 +	if (thread_ctrl::get_current())
 +	{
@@ -33463,7 +33463,7 @@ index 0000000..0f2f94b
 +}
 diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
 new file mode 100644
-index 0000000..1f3aa90
+index 0000000..2fe17df
 --- /dev/null
 +++ b/rpcs3/ios/IOSTitleLevers.h
 @@ -0,0 +1,87 @@
@@ -33506,7 +33506,7 @@ index 0000000..1f3aa90
 +// texture_epoch=0): every texture lookup hashing again.
 +// Serials of the shipped cheat catalogue (BLES00158, BLUS30089).
 +//
-+// REWINDBOX_POSITION_INVARIANCE_609: Black Ops II (weapon and forearm
++// REWINDBOX_POSITION_INVARIANCE_610: Black Ops II (weapon and forearm
 +// corruption, reported since it became playable with 587) and Assassin's Creed
 +// (flicker on torch-lit walls) are still reported on the delivered 608, whose
 +// colour-feedback copy, sampler refresh and vertex-range corrections left
@@ -33523,7 +33523,7 @@ index 0000000..1f3aa90
 +// vertex SPIR-V changes once, so their vertex Metal libraries are compiled again
 +// on the next boot; fragment shaders and the PPU/SPU caches are unchanged.
 +//
-+// REWINDBOX_AC_MVK_ASYNC_609: Assassin's Creed joins God of War III in the
++// REWINDBOX_AC_MVK_ASYNC_610: Assassin's Creed joins God of War III in the
 +// Automatic mode of asynchronous MoltenVK submits (CELL587). Its build 601 game
 +// windows 22-37 (PID 55119, 27-36 fps) keep the RSX FIFO busy 60-97 % and spend
 +// 0.93-1.36 s per 5 s window inside vkQueueSubmit (4,065-5,435 submits, RSXSYNC
@@ -33548,7 +33548,7 @@ index 0000000..1f3aa90
 +	return title_id == "BLES00158" || title_id == "BLUS30089";
 +}
 +
-+// REWINDBOX_POSITION_INVARIANCE_609
++// REWINDBOX_POSITION_INVARIANCE_610
 +constexpr bool requires_position_invariance(std::string_view title_id) noexcept
 +{
 +	return is_black_ops_ii_title(title_id) || is_assassins_creed_title(title_id);
@@ -33556,7 +33556,7 @@ index 0000000..1f3aa90
 +}
 diff --git a/rpcs3/ios/IOSTransitionPhases.h b/rpcs3/ios/IOSTransitionPhases.h
 new file mode 100644
-index 0000000..e8a0849
+index 0000000..ecf9024
 --- /dev/null
 +++ b/rpcs3/ios/IOSTransitionPhases.h
 @@ -0,0 +1,23 @@
@@ -33566,7 +33566,7 @@ index 0000000..e8a0849
 +#include <atomic>
 +#include <cstdint>
 +
-+// REWINDBOX_TRANSITION_PHASES_609: timestamps (get_system_time, microseconds)
++// REWINDBOX_TRANSITION_PHASES_610: timestamps (get_system_time, microseconds)
 +// that split phase 6 of a boot or internal SELF transition (PPU/SPU start) on
 +// the next device journal: the RSX thread's RunPPU dispatch after its warmup,
 +// UIKit's execution of RunPPU, and the starting->running transition that
@@ -35269,7 +35269,7 @@ index 0000000..112f20b
 +}
 +} // namespace vk
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 74a6dc7..32d8182 100644
+index 74a6dc7..607ca5f 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,6 +1,15 @@
@@ -36281,7 +36281,7 @@ index 74a6dc7..32d8182 100644
 +			std::mutex completed_mutex;
 +			std::condition_variable completed_cv;
 +			bool completed = false;
-+			bool executed = false; // REWINDBOX_TRANSITION_PHASES_609
++			bool executed = false; // REWINDBOX_TRANSITION_PHASES_610
 +			std::exception_ptr failure;
 +			const auto stop_started = std::chrono::steady_clock::now();
 +			Emu.GetCallbacks().call_from_main_thread([&]
@@ -36305,7 +36305,7 @@ index 74a6dc7..32d8182 100644
 +			}, nullptr);
 +			std::unique_lock lock(completed_mutex);
 +			completed_cv.wait(lock, [&] { return completed; });
-+			// REWINDBOX_TRANSITION_PHASES_609: UIKit ran (or skipped) the old-process stop.
++			// REWINDBOX_TRANSITION_PHASES_610: UIKit ran (or skipped) the old-process stop.
 +			// Written here on the worker, never from UIKit. Kill continues asynchronously.
 +			emit_log(6, fmt::format("COREPROF EXITSPAWN phase=stop_main executed=%u failure=%u ui_wait_ms=%.3f generation=%llu emulation_id=%llu",
 +				executed ? 1u : 0u, failure ? 1u : 0u,
@@ -36354,7 +36354,7 @@ index 74a6dc7..32d8182 100644
 +				return;
 +			}
 +			thread_base::set_name("RPCS3 Reboot");
-+			// REWINDBOX_TRANSITION_PHASES_609: phases 2-4 and the rest of Load run inside
++			// REWINDBOX_TRANSITION_PHASES_610: phases 2-4 and the rest of Load run inside
 +			// boot(); a boot that never returns leaves boot_begin without boot_return.
 +			emit_log(6, fmt::format("COREPROF EXITSPAWN phase=boot_begin generation=%llu emulation_id=%llu", generation, emulation_id));
 +			const auto boot_started = std::chrono::steady_clock::now();
@@ -37214,7 +37214,7 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..29fc61e 100644
+index 7c3389b..df33283 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -1,10 +1,31 @@
@@ -37536,11 +37536,11 @@ index 7c3389b..29fc61e 100644
 +	// Metal encoding took 490-640 ms per 5 s window on build 583 (RSXSYNC551 submit), now that
 +	// acquisitions wait for the last queued present (ios/IOSMoltenVKExec.h), and only while its
 +	// last asynchronous boot finished (ios/IOSMoltenVKAsyncCanary.h).
-+	// REWINDBOX_AC_MVK_ASYNC_609 adds Assassin's Creed: 0.93-1.36 s per window on build 601.
++	// REWINDBOX_AC_MVK_ASYNC_610 adds Assassin's Creed: 0.93-1.36 s per window on build 601.
 +	resolved.moltenvk_async_submits = resolve_mvk_async(title_id,
 +		resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits,
 +			is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id)));
-+	// REWINDBOX_POSITION_INVARIANCE_609: no setting; the title list is the only input.
++	// REWINDBOX_POSITION_INVARIANCE_610: no setting; the title list is the only input.
 +	resolved.position_invariance = rpcs3::ios::title_levers::requires_position_invariance(title_id);
 +
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
@@ -37581,7 +37581,7 @@ index 7c3389b..29fc61e 100644
 +	// appends spin_timing= fifo_idle= spuobj_keys= warmup_scope= plus the
 +	// counter facts behind spin_timing: cntfrq=, timer_scale= and
 +	// getllar_ticks=<refail>/<spin window>/<forced sleep>.
-+	// REWINDBOX_POSITION_INVARIANCE_609 appends position_invariance= and mvk_async=
++	// REWINDBOX_POSITION_INVARIANCE_610 appends position_invariance= and mvk_async=
 +	// (the policy request; the canary may still turn the latter off at instance creation).
  	ios_experimental_log.notice(
 -		"Resolved boot policy: swap=%d restart=%d precomputed=%d mobile_spu=%d fifo=%u wfe=%d deferred_get=%d getllar=%d rsx_park=%d vk_cb_reclaim=%d spu_scratch=%u spu_object_cache=%d",
@@ -37666,7 +37666,7 @@ index 7c3389b..29fc61e 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..9d6278b 100644
+index 8fba197..c349a27 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -37713,7 +37713,7 @@ index 8fba197..9d6278b 100644
 +	bool gow3_mlaa_bypass = false;
 +	// REWINDBOX_MOLTENVK_ASYNC_SUBMITS_V1: read when the Vulkan instance is created.
 +	bool moltenvk_async_submits = false;
-+	// REWINDBOX_POSITION_INVARIANCE_609 (ios/IOSTitleLevers.h): vertex programs
++	// REWINDBOX_POSITION_INVARIANCE_610 (ios/IOSTitleLevers.h): vertex programs
 +	// declare an invariant position, as upstream does on NVIDIA. Title scoped,
 +	// without a setting; read by the vertex decompiler after boot resolution.
 +	bool position_invariance = false;
@@ -38394,7 +38394,7 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..c743b92 100644
+index d800542..18ecafc 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,191 @@
@@ -39090,7 +39090,7 @@ index d800542..c743b92 100644
 +			const u64 now = utils::get_tsc();
 +			m_guest_frame_window.record(true, now, utils::get_tsc_freq());
 +			m_last_guest_flip_tsc.store(now, std::memory_order_release);
-+			// REWINDBOX_TRANSITION_PHASES_609: phase 7, the first guest flip of this
++			// REWINDBOX_TRANSITION_PHASES_610: phase 7, the first guest flip of this
 +			// renderer session (the counter restarts with each renderer). One line.
 +			if (m_guest_frames.fetch_add(1, std::memory_order_relaxed) == 0)
 +			{

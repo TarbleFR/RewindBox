@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Production exitspawn + owned worker; explicit Core/VFS/FXO/UIKit adapters.
-// REWINDBOX_TRANSITION_PHASES_609 variant of rpcs3_exitspawn_worker601.cpp: the same
-// scenarios on the Core 609 sources, with three widened adapters (variadic printf-style
+// REWINDBOX_TRANSITION_PHASES_610 variant of rpcs3_exitspawn_worker601.cpp: the same
+// scenarios on the Core 610 sources, with three widened adapters (variadic printf-style
 // fmt::format, RPCS3's umax and a capturing Log::notice) and one scenario that counts
 // the transition phase lines of a complete, a guard-skipped and a cancelled transition.
 #include "ios/IOSRestoreExecutor.h"
@@ -143,7 +143,7 @@ void finish_cleanup(){ensure(on_ui());Emu.argv.clear();Emu.envp.clear();Emu.data
 void ensure_args(){ensure(Emu.argv.size()==2&&Emu.argv[0].ends_with("t6mp_ps3f.self")&&Emu.argv[1]=="bots");ensure(Emu.envp==std::vector<std::string>{"LANG=fr"});ensure(Emu.data==std::vector<u8>({1,2,3}));ensure(Emu.disc=="disc/"&&Emu.hdd1=="hdd1/"&&Emu.klic==std::vector<u128>{73});}
 void quiet(rpcs3::ios::restore_executor& q){Latch done;const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);while(!q.post([&](u64){done.signal();},q.generation())){ensure(std::chrono::steady_clock::now()<deadline);std::this_thread::yield();}done.wait();}
 int main(){cases=0;
- // 609: "before" is the delivered 601 exitspawn (worker boot), not the 597 UIKit boot.
+ // 610: "before" is the delivered 601 exitspawn (worker boot), not the 597 UIKit boot.
  {reset();rpcs3::ios::restore_executor q;selected_jobs=&q;ppu_thread p;auto guest=launch(p,before::lv2_exitspawn);pump_ui();guest.join();finish_cleanup();boot_entered.wait();quiet(q);q.close();ensure(!Emu.boot_on_ui&&Emu.kill_on_ui&&Emu.boots==1);ensure_args();++cases;}
  {reset();rpcs3::ios::restore_executor q;selected_jobs=&q;ppu_thread p;auto guest=launch(p,after::lv2_exitspawn);pump_ui();guest.join();block_boot=true;finish_cleanup();boot_entered.wait();ensure(!Emu.boot_on_ui&&Emu.kill_on_ui&&native_active==1);
   bool heartbeat=false;queue_ui([&]{heartbeat=true;});pump_ui();ensure(heartbeat);Latch api_attempt,api_done;
@@ -183,7 +183,7 @@ int main(){cases=0;
  {reset();rpcs3::ios::restore_executor q;selected_jobs=&q;Emu.state=system_state::stopped;Emu.continuous=true;Emu.force=true;ensure(rpcs3::ios::defer_continuous_boot([]{throw std::runtime_error("fixture");},q.generation(),1,"BLES01717"));wait_log("process boot failed");q.close();ensure(!Emu.continuous&&!Emu.force);++cases;}
  {reset();rpcs3::ios::restore_executor q;selected_jobs=&q;ppu_thread p;auto guest=launch(p,after::lv2_exitspawn);pump_ui();guest.join();block_boot=true;finish_cleanup();boot_entered.wait();std::atomic<bool> joined{false};std::thread closer([&]{ensure(q.close());joined=true;});bool heartbeat=false;queue_ui([&]{heartbeat=true;});pump_ui();ensure(heartbeat&&!joined);boot_release.signal();closer.join();ensure(joined&&native_peak==1);++cases;}
  {reset();rpcs3::ios::restore_executor q;selected_jobs=&q;q.close();ensure(!rpcs3::ios::defer_continuous_stop([](u64){},q.generation(),1,"BLES01717"));ensure(!rpcs3::ios::defer_continuous_boot([]{},q.generation(),1,"BLES01717"));ensure(!rpcs3::ios::defer_continuous_stop({},q.generation(),1,"BLES01717"));ensure(!rpcs3::ios::defer_continuous_boot({},q.generation(),1,"BLES01717"));++cases;}
- // REWINDBOX_TRANSITION_PHASES_609: one complete transition logs exactly one line per boundary.
+ // REWINDBOX_TRANSITION_PHASES_610: one complete transition logs exactly one line per boundary.
  unsigned complete_lines=0,skipped_lines=0;
  {reset();rpcs3::ios::restore_executor q;selected_jobs=&q;ppu_thread p;auto guest=launch(p,after::lv2_exitspawn);pump_ui();guest.join();finish_cleanup();boot_entered.wait();quiet(q);q.close();
   ensure(Emu.boots==1);ensure_args();

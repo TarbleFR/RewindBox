@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Which delivered native harness results still describe the Core 609 sources.
+"""Which delivered native harness results still describe the Core 610 sources.
 
 Core a4ae86d0 (delivered 607/608) reused twelve authenticated Apple modes: six
 harnesses in plain and ASan/UBSan form. Each harness compiles production code it
-extracts from the Core. A result can be reused for 609 only when every extracted
-production body is byte-identical between the delivered tree and the 609 tree;
+extracts from the Core. A result can be reused for 610 only when every extracted
+production body is byte-identical between the delivered tree and the 610 tree;
 otherwise the harness is affected and needs its own new execution or proof.
 This audit extracts the same bodies the harnesses extract and classifies them.
 It runs no compiler and claims no new native execution.
@@ -65,7 +65,7 @@ HARNESSES = {
                                                                    '[[noreturn]] void report_fatal_error'),
                                     'IOSRestoreExecutor.h': whole('rpcs3/ios/IOSRestoreExecutor.h'),
                                     'NeoStationSavestateStatus.h': whole('rpcs3/ios/NeoStationSavestateStatus.h')},
-                         'replacement': ['test/rpcs3_exitspawn_worker609_test.py (plain and ASan/UBSan, new execution)']},
+                         'replacement': ['test/rpcs3_exitspawn_worker610_test.py (plain and ASan/UBSan, new execution)']},
     'mfc-decrementer': {'test': 'test/rpcs3_spu_mfc_decrementer_test.py',
                         'inputs': {'process_mfc_cmd': part('rpcs3/Emu/Cell/SPUThread.cpp', 'bool spu_thread::process_mfc_cmd()')},
                         'replacement': ['test/rpcs3_spu_mfc_lr_test.py unarmed projection equals the delivered prefix',
@@ -79,7 +79,7 @@ def audit(source: Path, baseline: Path) -> dict:
         changed, digests = [], {}
         for label, extract in harness['inputs'].items():
             before, after = extract(baseline), extract(source)
-            digests[label] = {'delivered': sha(before.encode()), 'core609': sha(after.encode())}
+            digests[label] = {'delivered': sha(before.encode()), 'core610': sha(after.encode())}
             if before != after:
                 changed.append(label)
         entry = {'test': harness['test'], 'changed_extracted_inputs': changed, 'inputs': digests,

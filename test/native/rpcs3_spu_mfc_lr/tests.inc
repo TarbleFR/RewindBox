@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------- tests
-// REWINDBOX_CORE609_LR: checks of the candidate full-MFC-queue wait, generated
+// REWINDBOX_CORE610_LR: checks of the candidate full-MFC-queue wait, generated
 // by test/rpcs3_spu_mfc_lr_test.py. Adapters: clock, guest memory/reservation
 // table, kernel wait (condition variable or deterministic expiry), CPU-state
 // dispatcher and g_escape (exception). Production bodies: do_mfc,

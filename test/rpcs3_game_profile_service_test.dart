@@ -240,7 +240,7 @@ void main() {
       () async {
         // Build 589: the build 585 logs show Black Ops II's signature, about
         // one million data-changing PUTLLC per window under the writer lock.
-        // Build 609: asynchronous texture streaming off again, as for God of
+        // Build 610: asynchronous texture streaming off again, as for God of
         // War III; the Core decides asynchronous MoltenVK submits.
         for (final serial in <String>['BLES00158', 'BLUS30089']) {
           final profile = Rpcs3GameProfileService.profileForSerial(serial)!;

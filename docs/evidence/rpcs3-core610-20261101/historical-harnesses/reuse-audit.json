@@ -5,7 +5,7 @@
       "delivered_result_reusable": true,
       "inputs": {
         "VKDraw.cpp": {
-          "core609": "e24bac01f5f0e40f1b479739e8a8b875bbddbfd87c6da174b94801318393ce74",
+          "core610": "e24bac01f5f0e40f1b479739e8a8b875bbddbfd87c6da174b94801318393ce74",
           "delivered": "e24bac01f5f0e40f1b479739e8a8b875bbddbfd87c6da174b94801318393ce74"
         }
       },
@@ -19,24 +19,24 @@
       "delivered_result_reusable": false,
       "inputs": {
         "IOSRestoreExecutor.h": {
-          "core609": "e2fa017be2e7d0c15a34516aec555aa8c5833b3e96db175dad30decb039a9456",
+          "core610": "e2fa017be2e7d0c15a34516aec555aa8c5833b3e96db175dad30decb039a9456",
           "delivered": "e2fa017be2e7d0c15a34516aec555aa8c5833b3e96db175dad30decb039a9456"
         },
         "NeoStationSavestateStatus.h": {
-          "core609": "d325d7c7263dc85535fdb013cb9fb203a5733120bb1f78e83d601df870518601",
+          "core610": "d325d7c7263dc85535fdb013cb9fb203a5733120bb1f78e83d601df870518601",
           "delivered": "d325d7c7263dc85535fdb013cb9fb203a5733120bb1f78e83d601df870518601"
         },
         "lv2_exitspawn": {
-          "core609": "c9d6de451a0e92da0622765090230c685e0d5f789482beedbef4f5beffc61526",
+          "core610": "56886bbcf13f886c12c7d9a688a985dc74676d1c562df8e2da5705945f92d315",
           "delivered": "60bb469bc7aea879db368c7a602c635e1047a2e61e5e395f9a8212bf88cadf64"
         },
         "transition wrappers": {
-          "core609": "438cc74c6ebd36e7674992c3ec6422c082fd20c36d14e96fa62d8709f96d8d00",
+          "core610": "0455ef80905bc0b8f188a75c06095496f16fcafa459489b029bc97a77b8a4db4",
           "delivered": "557b14dd4cc15929140a1eecb2a7f2972822329f2cd788057d29654db7e9bd52"
         }
       },
       "replacement_evidence": [
-        "test/rpcs3_exitspawn_worker609_test.py (plain and ASan/UBSan, new execution)"
+        "test/rpcs3_exitspawn_worker610_test.py (plain and ASan/UBSan, new execution)"
       ],
       "test": "test/rpcs3_exitspawn_worker601_test.py"
     },
@@ -47,7 +47,7 @@
       "delivered_result_reusable": false,
       "inputs": {
         "process_mfc_cmd": {
-          "core609": "b7d517eabfcd1160e701dda307db187ced91d46b37683edeccf06fd3fe0c27e0",
+          "core610": "b7d517eabfcd1160e701dda307db187ced91d46b37683edeccf06fd3fe0c27e0",
           "delivered": "50f212be2cbad8eb54e42feea00255ad5d3e6f54c1b2e66827bfa3b6f2ff4dec"
         }
       },
@@ -62,7 +62,7 @@
       "delivered_result_reusable": true,
       "inputs": {
         "NeoStationSavestateStatus.h": {
-          "core609": "d325d7c7263dc85535fdb013cb9fb203a5733120bb1f78e83d601df870518601",
+          "core610": "d325d7c7263dc85535fdb013cb9fb203a5733120bb1f78e83d601df870518601",
           "delivered": "d325d7c7263dc85535fdb013cb9fb203a5733120bb1f78e83d601df870518601"
         }
       },
@@ -73,7 +73,7 @@
       "delivered_result_reusable": true,
       "inputs": {
         "rsx_cache.h vertex_cache": {
-          "core609": "ffd35f98eeed90a6bdeddf2b423aa69a0f75f41e61e8dc4dea9ec5c12d25da75",
+          "core610": "ffd35f98eeed90a6bdeddf2b423aa69a0f75f41e61e8dc4dea9ec5c12d25da75",
           "delivered": "ffd35f98eeed90a6bdeddf2b423aa69a0f75f41e61e8dc4dea9ec5c12d25da75"
         }
       },
@@ -84,27 +84,27 @@
       "delivered_result_reusable": true,
       "inputs": {
         "IOSRendererCausality.h": {
-          "core609": "a9943fab3d362e4fd6ea391c8898cc58d4fcfdfd13965c86f7f6dafc3d303413",
+          "core610": "a9943fab3d362e4fd6ea391c8898cc58d4fcfdfd13965c86f7f6dafc3d303413",
           "delivered": "a9943fab3d362e4fd6ea391c8898cc58d4fcfdfd13965c86f7f6dafc3d303413"
         },
         "RSXDrawCommands.cpp": {
-          "core609": "f4ac9bd68ccb458195305849e4cda328d6d99d915f68a33afa0806b8d3a90fd2",
+          "core610": "f4ac9bd68ccb458195305849e4cda328d6d99d915f68a33afa0806b8d3a90fd2",
           "delivered": "f4ac9bd68ccb458195305849e4cda328d6d99d915f68a33afa0806b8d3a90fd2"
         },
         "RSXThread.cpp calculate_required_range": {
-          "core609": "4e83a00846459749f855ccec26c8d6e4ab4f0b5dac08b4b3c25d37e15d58178d",
+          "core610": "4e83a00846459749f855ccec26c8d6e4ab4f0b5dac08b4b3c25d37e15d58178d",
           "delivered": "4e83a00846459749f855ccec26c8d6e4ab4f0b5dac08b4b3c25d37e15d58178d"
         },
         "RSXVertexTypes.h": {
-          "core609": "019d4e09b4c672025b46ee3802fae7232b61e97a9097fd5db3e64e24fc175ff0",
+          "core610": "019d4e09b4c672025b46ee3802fae7232b61e97a9097fd5db3e64e24fc175ff0",
           "delivered": "019d4e09b4c672025b46ee3802fae7232b61e97a9097fd5db3e64e24fc175ff0"
         },
         "VKVertexBuffers.cpp": {
-          "core609": "c76f7ff4a16a48373b1f65ff7eed52293cb74e8b4a86e2c7ca7dec819df5ac85",
+          "core610": "c76f7ff4a16a48373b1f65ff7eed52293cb74e8b4a86e2c7ca7dec819df5ac85",
           "delivered": "c76f7ff4a16a48373b1f65ff7eed52293cb74e8b4a86e2c7ca7dec819df5ac85"
         },
         "rsx_cache.h vertex_cache": {
-          "core609": "ffd35f98eeed90a6bdeddf2b423aa69a0f75f41e61e8dc4dea9ec5c12d25da75",
+          "core610": "ffd35f98eeed90a6bdeddf2b423aa69a0f75f41e61e8dc4dea9ec5c12d25da75",
           "delivered": "ffd35f98eeed90a6bdeddf2b423aa69a0f75f41e61e8dc4dea9ec5c12d25da75"
         }
       },

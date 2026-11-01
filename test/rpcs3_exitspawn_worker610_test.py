@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Execute production exitspawn, transition wrappers and owned worker (Core 609 sources).
+"""Execute production exitspawn, transition wrappers and owned worker (Core 610 sources).
 
-REWINDBOX_TRANSITION_PHASES_609: the device601 runner applied to the Core 609
-sources with test/native/rpcs3_exitspawn_worker609.cpp, whose widened adapters
+REWINDBOX_TRANSITION_PHASES_610: the device601 runner applied to the Core 610
+sources with test/native/rpcs3_exitspawn_worker610.cpp, whose widened adapters
 accept the new phase lines and whose extra scenarios count them.
 
 Core/VFS/FXO and UIKit are explicit adapters. The worker, its queue and both
@@ -71,7 +71,7 @@ def main():
     signatures = ['std::uint64_t continuous_boot_generation() noexcept',
                   'bool defer_continuous_stop(', 'bool defer_continuous_boot(']
     wrappers = body(api, signatures[0]) + '\n' + api[api.index('namespace\n{\nstruct continuous_stop_request'):api.index('\n}\n\n[[noreturn]] void report_fatal_error', api.index('struct continuous_stop_request'))]
-    with tempfile.TemporaryDirectory(prefix='rpcs3-exitspawn609-') as tmp:
+    with tempfile.TemporaryDirectory(prefix='rpcs3-exitspawn610-') as tmp:
         work = Path(tmp)
         (work / 'executor.inc').write_text(methods)
         (work / 'continuations.inc').write_text(wrappers)
@@ -87,7 +87,7 @@ def main():
         if args.sanitize:
             flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
         command = compiler + flags + ['-I' + str(work), '-I' + str(source / 'rpcs3'),
-                   str(ROOT / 'test/native/rpcs3_exitspawn_worker609.cpp'), '-o', str(work / 'test')]
+                   str(ROOT / 'test/native/rpcs3_exitspawn_worker610.cpp'), '-o', str(work / 'test')]
         subprocess.run(command, check=True)
         env = dict(os.environ)
         if args.sanitize:

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""REWINDBOX_CORE609_LR: an armed reservation loss interrupts a WRCH blocked on a full MFC queue.
+"""REWINDBOX_CORE610_LR: an armed reservation loss interrupts a WRCH blocked on a full MFC queue.
 
 The open LR follow-up of device601 (docs/evidence/rpcs3-device601-20261030/cpu/
 lr-followup) showed that the delivered full-queue wait of process_mfc_cmd never

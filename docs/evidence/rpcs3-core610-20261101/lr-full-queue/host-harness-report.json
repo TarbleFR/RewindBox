@@ -2,7 +2,7 @@
   "candidate": {
     "checks": 60,
     "failed": [],
-    "program_sha256": "12a4e6e3b450f8c52d0953b7c535c3f0a9e234edeb269ae107eb4d9e1537ed56",
+    "program_sha256": "b32e04a844bbd7b13f8000cffe93ad37e4e4e178079dffe904571a36470b9748",
     "returncode": 0,
     "stderr_tail": "checks=60 failed=0\n"
   },
@@ -113,5 +113,5 @@
   "physicalDeviceTested": false,
   "result": "passed",
   "schema": 1,
-  "tests_inc_sha256": "0e1dba5735c070ea9021b2c0dc0061fa6dd8085721314ab7e09eefa4de3532a6"
+  "tests_inc_sha256": "360b967ae2cd6ad37406282bc5c96715128857de6c6959d8c34500d49f51309b"
 }

@@ -60,11 +60,11 @@
     }
   },
   "source_contract": {
-    "levers_sha256": "e2fe6c906db5f7c27726c0247094e1a76fcbee4ed0765b4898ab2c2e3cbdcf6c",
+    "levers_sha256": "42dea18801bafe08dc96b50fae2a5003f492fb498b97ea264d67b673a414a144",
     "non_ios_line_unchanged": true,
-    "policy_cpp_sha256": "a99e4b0fd01d7e724d64d329891205d424326be2c8c0fc2222d4dffb54573138",
-    "policy_h_sha256": "caeb669cca75c5878c4fe424962e06174d25725ed16a19b21d111246babf5bd1",
-    "vertex_sha256": "30bb6c6a19295dd25c1be70d96b293f0b90aefd814e34b06bcb2fbf776263ab5"
+    "policy_cpp_sha256": "6ab3f2a71783cce85eabd12d2477bf24ed6b2d6b5392149d6065d6e167eedb3d",
+    "policy_h_sha256": "e6556e47f85ff6863452df70c085806b8d1ee406a1e29cab58656e27dc89e081",
+    "vertex_sha256": "bcba0cbe6063f916b02041345059a0aa9eeff59c9f5e872f030cf9fa263f4c8a"
   },
   "title_predicate": {
     "result": "pass",
