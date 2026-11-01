@@ -1,7 +1,7 @@
 # MeloNX fragmented guest reads — 1 November 2026
 
 Status: **Core compiled and simulator-validated (run
-[41339055246](https://github.com/TarbleFR/RewindBox/actions/runs/41339055246));
+[41347064464](https://github.com/TarbleFR/RewindBox/actions/runs/41347064464));
 private IPA 611 in preparation; iPhone measurement pending.** No FPS or
 device-allocation gain is claimed.
 
@@ -132,11 +132,11 @@ work rows and four read counters in both simulator sessions' final payloads.
 
 | Core identity | Value |
 |---|---|
-| Source | `a8d22fe8aca6acbffce07a82560351c6ea413278` |
-| Run / job | `41339055246` / `124944961086`, attempt 1, success (10 min) |
-| Artifact | `13096647082`, 88,367,223 bytes, SHA-256 `e460a910851848325bf739ee14afb0d54e003d8e188362460c1e743883ed77f1` |
-| `ios-arm64` library | 37,765,760 bytes, SHA-256 `ac650ab8196e7d09383cdbbe4c1eaf7093d8e66292138a792f61ae480eb22608` |
-| Simulator library | 38,060,920 bytes, SHA-256 `99d3be097868ea367018909ffc4e8e59208994baf7f556a5e2faaca0ad9c1d6d` |
+| Source | `b99e754de165661437548121918cf75ae24649ae` (supersedes `a8d22fe`, run `41339055246`, before the HostMapped fix) |
+| Run / job | `41347064464` / `124969067860`, attempt 1, success (10 min) |
+| Artifact | `13099194047`, 88,369,353 bytes, SHA-256 `052857e37772f7ab8b855a564f5293b0ee8ae77674d81b846b25e81bba74d534` |
+| `ios-arm64` library | 37,765,760 bytes, SHA-256 `e45d1b3229ecbe804b4c8c48719f089443466ea3d599500fd10bda47443fc3ac`; packaged fingerprint `98ecdb25671822974488ad5449ef88d4c84d6ae38f763a4a5d523d4d5448f915` |
+| Simulator library | 38,060,920 bytes, SHA-256 `2822c4fadaba50817a259044acd0d8e572917df9912eb952173b531b1b97dd51` |
 | Gates on Apple ARM64 | 5/5 passed (84 s); two NativeAOT simulator sessions, backing released |
 
 Summary: [core-summary.json](evidence/melonx-reads-core-20261101/core-summary.json);

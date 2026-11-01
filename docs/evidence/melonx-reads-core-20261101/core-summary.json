@@ -3,35 +3,35 @@
   "result": "passed",
   "status": "compiled-and-simulator-validated-not-gameplay-tested",
   "execution": {
-    "source": "a8d22fe8aca6acbffce07a82560351c6ea413278",
-    "run": 41339055246,
+    "source": "b99e754de165661437548121918cf75ae24649ae",
+    "run": 41347064464,
     "attempt": 1,
-    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/41339055246"
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/41347064464"
   },
-  "job": 124944961086,
+  "job": 124969067860,
   "artifact": {
-    "id": 13096647082,
-    "name": "MeloNX-engine-a8d22fe8aca6acbffce07a82560351c6ea413278",
-    "bytes": 88367223,
-    "sha256": "e460a910851848325bf739ee14afb0d54e003d8e188362460c1e743883ed77f1",
-    "expiresAt": "2026-11-15T19:05:08Z"
+    "id": 13099194047,
+    "name": "MeloNX-engine-b99e754de165661437548121918cf75ae24649ae",
+    "bytes": 88369353,
+    "sha256": "052857e37772f7ab8b855a564f5293b0ee8ae77674d81b846b25e81bba74d534",
+    "expiresAt": "2026-11-15T20:38:38Z"
   },
-  "resultSHA256": "75c7f70fc1c0ffd9c3458d2f0c4c165c13a35741820a068d16e00a6d5a14b581",
+  "resultSHA256": "9031b9303c0202949c31ca88fbdc83348683eff31a1d7af00ef1e53dfe4a5b72",
   "binaries": {
     "ios-arm64": {
-      "sha256": "ac650ab8196e7d09383cdbbe4c1eaf7093d8e66292138a792f61ae480eb22608",
+      "sha256": "e45d1b3229ecbe804b4c8c48719f089443466ea3d599500fd10bda47443fc3ac",
       "bytes": 37765760
     },
     "iossimulator-arm64": {
-      "sha256": "99d3be097868ea367018909ffc4e8e59208994baf7f556a5e2faaca0ad9c1d6d",
+      "sha256": "2822c4fadaba50817a259044acd0d8e572917df9912eb952173b531b1b97dd51",
       "bytes": 38060920
     }
   },
   "identities": {
-    "ios-arm64": "a70503cbdf5278411944aaac091d20f619ecf36c4efdf7b4f74a4f70fdaa4499",
-    "iossimulator-arm64": "eb8b1e2ceb451e4592ad7ec91a55dcee92448cfa5a082c072c6e67c2c33d43d0"
+    "ios-arm64": "3e2fcb08dc79168dd5802a4f8da9752170b9e1165a15cff64dcded268c5d2db3",
+    "iossimulator-arm64": "dd2104e2bdb480d3a7ae37b021fe75f02eec6a3ef8bb5a33c5abcd768d7a011d"
   },
-  "readsCoreContractSha256": "25f02056aa60ef2c13f16aa60b9482efbd0cb5cb55fb847b322941da684afbd6",
+  "readsCoreContractSha256": "bd832290fdd44807a8fb85c52e14121657ece789e8f2b7c6d64b9de48f11f6e6",
   "deliveredBaseline": {
     "source": "1f12796c6b8c3d509bc203e52c561e0d345e7bfc",
     "workflow": ".github/workflows/melonx-core.yml",
@@ -50,11 +50,11 @@
   "preparedMembers": 171,
   "freshAppleGates": 5,
   "freshReceipts": {
-    "fragmented-reads-checks.json": "6f093ad72c49a7a23143de6209a16fa00b39da7f0f1df40c993213caaa3910cd",
+    "fragmented-reads-checks.json": "3f848e4b51da695f603397654dc124264bff6e4ac88f4e9be39832c0a838d46b",
     "pipeline-checkpoint-checks.json": "28e4103e5cf256e058bab02825ceb70cbd561dab3c39770f5733afdd1db2dd0f",
-    "counter-report-compaction-final-checks.json": "9f657e2d24b8599f6bec4245986de538f6d93368507d583a39be00f3b5ee91e3",
-    "single-virtual-dependency-final-checks.json": "eca1a99427092ba36cdfbf389022cb5dafbad0fa012c053467b5d8fed17f7c58",
-    "performance-diagnostics-checks.json": "de7032eb38ad312e8ca203d6e535fbc01f86b5e4604a38cb0f8d9d9ef09f4121"
+    "counter-report-compaction-final-checks.json": "21929cfedab7e12767ff079a380dba7ce30a4988c41f485ac31226c4f66f539f",
+    "single-virtual-dependency-final-checks.json": "26fc82edf6996d1fa7295ce4003bd533e2104bc614f460a82661764c319c4268",
+    "performance-diagnostics-checks.json": "b2a03121510288a66ff0a050057ffbff25b90296114dcc78b87f58ad4c5c2ff3"
   },
   "reusedAppleGates": 27,
   "historicalAppleReceipts": 49,
@@ -62,11 +62,12 @@
   "releasedBackingSessions": 2,
   "performanceDiagnosticsFinalSessions": 2,
   "gpuWorkRows": 12,
-  "runtimeSmokeSha256": "4548015e11eddd80bc85c51a851a13e8e6500221fe41a593906e1228270d7a2d",
+  "runtimeSmokeSha256": "bc9e14851c9c78754cf8496945be2948df8859eaa83eafea6b4e3860be6c8a2b",
   "appleFragmentedReads": {
-    "checks": 64,
+    "checks": 65,
     "host": "Darwin arm64 Release managed build",
     "pageSize": 16384,
+    "hostMappedChecked": false,
     "bufferUpload1MiB": [
       1048688,
       120
@@ -79,27 +80,13 @@
       98464,
       136
     ],
-    "privatePartitionCrossingCopiedInControl": false,
-    "privatePartitions": {
-      "control": {
-        "supported": true,
-        "crossingUploadHash": "9d98b616d15e5799",
-        "crossingUploadAllocated": 88,
-        "insideUploadAllocated": 88,
-        "crossingSnapshotHash": "1b7ace8dc69fc383",
-        "crossingSnapshotAllocated": 0,
-        "matchesGuestBytes": true
-      },
-      "candidate": {
-        "supported": true,
-        "crossingUploadHash": "9d98b616d15e5799",
-        "crossingUploadAllocated": 88,
-        "insideUploadAllocated": 88,
-        "crossingSnapshotHash": "1b7ace8dc69fc383",
-        "crossingSnapshotAllocated": 0,
-        "matchesGuestBytes": true
-      }
-    }
+    "privatePartitionCrossingCopiedInControl": false
+  },
+  "supersedes": {
+    "source": "a8d22fe8aca6acbffce07a82560351c6ea413278",
+    "run": 41339055246,
+    "artifact": 13096647082,
+    "reason": "HostMapped tracked-read equivalence fix (adversarial review); iOS paths unchanged"
   },
   "physicalDeviceTested": false,
   "gameplayTested": false,

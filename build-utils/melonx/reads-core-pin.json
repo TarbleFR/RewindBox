@@ -1,4 +1,36 @@
 {
-  "status": "pending-ci",
-  "note": "Filled after the Core run of the HostMapped-equivalence fix is downloaded and verified."
+  "status": "verified",
+  "source": "b99e754de165661437548121918cf75ae24649ae",
+  "run": 41347064464,
+  "job": 124969067860,
+  "attempt": 1,
+  "workflow": ".github/workflows/melonx-core.yml",
+  "artifact": 13099194047,
+  "name": "MeloNX-engine-b99e754de165661437548121918cf75ae24649ae",
+  "bytes": 88369353,
+  "sha256": "052857e37772f7ab8b855a564f5293b0ee8ae77674d81b846b25e81bba74d534",
+  "expiresAt": "2026-11-15T20:38:38Z",
+  "binaries": {
+    "ios-arm64": {
+      "sha256": "e45d1b3229ecbe804b4c8c48719f089443466ea3d599500fd10bda47443fc3ac",
+      "bytes": 37765760
+    },
+    "iossimulator-arm64": {
+      "sha256": "2822c4fadaba50817a259044acd0d8e572917df9912eb952173b531b1b97dd51",
+      "bytes": 38060920
+    }
+  },
+  "identities": {
+    "ios-arm64": "3e2fcb08dc79168dd5802a4f8da9752170b9e1165a15cff64dcded268c5d2db3",
+    "iossimulator-arm64": "dd2104e2bdb480d3a7ae37b021fe75f02eec6a3ef8bb5a33c5abcd768d7a011d"
+  },
+  "contractSha256": "bd832290fdd44807a8fb85c52e14121657ece789e8f2b7c6d64b9de48f11f6e6",
+  "resultSha256": "9031b9303c0202949c31ca88fbdc83348683eff31a1d7af00ef1e53dfe4a5b72",
+  "packagedFingerprint": "98ecdb25671822974488ad5449ef88d4c84d6ae38f763a4a5d523d4d5448f915",
+  "supersedes": {
+    "source": "a8d22fe8aca6acbffce07a82560351c6ea413278",
+    "run": 41339055246,
+    "artifact": 13096647082,
+    "reason": "HostMapped tracked-read equivalence fix found by the adversarial review; iOS paths unchanged"
+  }
 }

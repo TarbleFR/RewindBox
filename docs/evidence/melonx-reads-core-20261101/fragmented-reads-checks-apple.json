@@ -1,6 +1,6 @@
 {
   "result": "passed",
-  "checks": 64,
+  "checks": 65,
   "probeChecks": {
     "control": 5,
     "candidate": 12
@@ -38,7 +38,7 @@
   },
   "postimages": {
     "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs": "95732befcbfe919f6f5a16c40621dfd7ee9b94c47d510806aebf020ef761ca39",
-    "src/Ryujinx.Cpu/Jit/MemoryManagerHostTracked.cs": "d3d3fb439663b2af65fb44cad52739b531ed95a6f68847a0f42234c752514c4c",
+    "src/Ryujinx.Cpu/Jit/MemoryManagerHostTracked.cs": "ffd48399d30caa34fec2088122ec6eb78c39c8d4e8305b55ca7e0f5c263bdea6",
     "src/Ryujinx.Graphics.Gpu/Engine/Compute/ComputeClass.cs": "7ebb4526a79018ab2cadf725623d01a65d1451b9be9780f09db8a35922104f17",
     "src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs": "d39011a040cc8204da61be65a738713cfcfa59a4df2134be9346e20fdd46abb8",
     "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs": "7a4a612da36cda9d8bee63ebd1766a06fc85a4799cf1609cd0b37c4538749c78",
@@ -51,9 +51,9 @@
     "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs": "388f3a7ca9e412ea5bd55d2551911ce316078b5d63adf6adb7d2984ca16dc50f",
     "src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs": "29a41e9601612687bdb45d5de3463c7207aba460e22ea34a22de8cfc4aec2586",
     "src/Ryujinx.Graphics.Gpu/Memory/MemoryManager.cs": "608945fd1d9769e52d9c9f7e58c7f3e10bc3bc324947e6bc76467dbe4ab80786",
-    "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs": "fee208d4450d10d856687acb2f82e1d6886bd8248a669c5cbcd9aa92464e7e40",
+    "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs": "da8266f381fd97f8893c0c3e5a7ea694fd625d12382b2a4b6b6ebdd9cc882e98",
     "src/Ryujinx.Graphics.Gpu/Shader/ShaderCache.cs": "755a1308ff4047be4078c59560dabc4b712b54b52e2f08cde84169792ca1b7f5",
-    "src/Ryujinx.Memory/IVirtualMemoryManager.cs": "fc3ad956536917d06a1b01e3f1aafe0fb3704ad66550079e4881eb440eb109d3"
+    "src/Ryujinx.Memory/IVirtualMemoryManager.cs": "e5780e075bb2f8c03e3f3ec7196e567a7d8956e3feabf9902781a0c7e554f16a"
   },
   "compiledSourceInputs": {
     "control": {
@@ -78,7 +78,7 @@
     },
     "candidate": {
       "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs": "95732befcbfe919f6f5a16c40621dfd7ee9b94c47d510806aebf020ef761ca39",
-      "src/Ryujinx.Cpu/Jit/MemoryManagerHostTracked.cs": "d3d3fb439663b2af65fb44cad52739b531ed95a6f68847a0f42234c752514c4c",
+      "src/Ryujinx.Cpu/Jit/MemoryManagerHostTracked.cs": "ffd48399d30caa34fec2088122ec6eb78c39c8d4e8305b55ca7e0f5c263bdea6",
       "src/Ryujinx.Graphics.Gpu/Engine/Compute/ComputeClass.cs": "7ebb4526a79018ab2cadf725623d01a65d1451b9be9780f09db8a35922104f17",
       "src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs": "d39011a040cc8204da61be65a738713cfcfa59a4df2134be9346e20fdd46abb8",
       "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs": "7a4a612da36cda9d8bee63ebd1766a06fc85a4799cf1609cd0b37c4538749c78",
@@ -91,10 +91,10 @@
       "src/Ryujinx.Graphics.Gpu/Memory/Buffer.cs": "388f3a7ca9e412ea5bd55d2551911ce316078b5d63adf6adb7d2984ca16dc50f",
       "src/Ryujinx.Graphics.Gpu/Memory/BufferCache.cs": "29a41e9601612687bdb45d5de3463c7207aba460e22ea34a22de8cfc4aec2586",
       "src/Ryujinx.Graphics.Gpu/Memory/MemoryManager.cs": "608945fd1d9769e52d9c9f7e58c7f3e10bc3bc324947e6bc76467dbe4ab80786",
-      "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs": "fee208d4450d10d856687acb2f82e1d6886bd8248a669c5cbcd9aa92464e7e40",
+      "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs": "da8266f381fd97f8893c0c3e5a7ea694fd625d12382b2a4b6b6ebdd9cc882e98",
       "src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs": "6e795f339912d5e0c83a017fad23f2109bd937ae242b616722a1e90deba8a88a",
       "src/Ryujinx.Graphics.Gpu/Shader/ShaderCache.cs": "755a1308ff4047be4078c59560dabc4b712b54b52e2f08cde84169792ca1b7f5",
-      "src/Ryujinx.Memory/IVirtualMemoryManager.cs": "fc3ad956536917d06a1b01e3f1aafe0fb3704ad66550079e4881eb440eb109d3"
+      "src/Ryujinx.Memory/IVirtualMemoryManager.cs": "e5780e075bb2f8c03e3f3ec7196e567a7d8956e3feabf9902781a0c7e554f16a"
     }
   },
   "finalPreparedSourceBound": true,
@@ -157,6 +157,10 @@
       "hash": "7959207297b50383",
       "matchesGetSpan": true
     },
+    "hostMapped": {
+      "supported": false,
+      "reason": "host pages above 4 KiB: production never selects MemoryManagerHostMapped"
+    },
     "mode": "control",
     "checks": 5
   },
@@ -218,6 +222,10 @@
       "hash": "7959207297b50383",
       "matchesGetSpan": true
     },
+    "hostMapped": {
+      "supported": false,
+      "reason": "host pages above 4 KiB: production never selects MemoryManagerHostMapped"
+    },
     "candidateEntryPoints": {
       "readIntoAllocated": 0,
       "gpuRegionShuffledAllocated": 32,
@@ -227,19 +235,21 @@
     "checks": 12
   },
   "inputs": {
-    "test/melonx_fragmented_reads_test.py": "fb36bfae88ce0061e365eb2760e6e03acb2b085ae8dcb252adfc355342e019b8",
-    "test/melonx_fragmented_reads/FragmentedReadsProbe.cs": "3d0d21270c9c451b31d22a6ebfd1e166d7fec8d93a91da27258921347423fa74",
-    "build-utils/melonx/adapt_fragmented_reads.py": "e5145f2798fe096c71e4d61453a63d2d7aa580c9bf26532144552e85299e0261",
+    "test/melonx_fragmented_reads_test.py": "1e85fac488498a7879ca783832bbc0c85252b9219d07edefaf8d2ac4c74ee921",
+    "test/melonx_fragmented_reads/FragmentedReadsProbe.cs": "5f7905baae8da92fef9f7496bb285bd4ad399e19c992141e85bb4c9394027616",
+    "build-utils/melonx/adapt_fragmented_reads.py": "10bfc515166061757fd0d393a634e3c38d4f015725dca96deff331b8d6c02734",
     "build-utils/melonx/adapt_gpu_work_diagnostics.py": "b81d502d52d269b5d2c0c7c96bc283b63864c46025f9658e0cb3487089681249",
     "native/melonx/EmbeddedPerformanceDiagnostics.cs": "95732befcbfe919f6f5a16c40621dfd7ee9b94c47d510806aebf020ef761ca39"
   },
   "host": "Darwin arm64 Release managed build",
   "pageSize": 16384,
   "privatePartitionCopyReproducedOnHost": false,
+  "hostMappedChecked": false,
   "physicalDeviceTested": false,
   "fpsGainProven": false,
   "limits": [
     "managed Release build of the GPU assembly closure, not the NativeAOT library; no Apple timing, device memory or FPS claim",
-    "host pages of 16384 bytes bridge adjacent private partitions, so the iOS partition-crossing copy is not reproduced here"
+    "the partition-crossing range was borrowed by both builds on this host (no copy in the control)",
+    "MemoryManagerHostMapped not exercised: host pages above 4 KiB: production never selects MemoryManagerHostMapped"
   ]
 }
