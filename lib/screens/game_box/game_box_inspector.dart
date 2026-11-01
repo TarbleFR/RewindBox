@@ -12,11 +12,15 @@ import 'package:neostation/models/game_model.dart';
 import 'package:neostation/models/system_model.dart';
 import 'package:neostation/providers/file_provider.dart';
 import 'package:neostation/screens/game_box/box_back_reader_screen.dart';
+import 'package:neostation/screens/game_box/game_box_media_sheet.dart';
 import 'package:neostation/screens/game_box/game_box_scan_viewer.dart';
 import 'package:neostation/screens/game_screen/game_manual_reader_screen.dart';
+import 'package:neostation/services/game_box/game_box_art_fit.dart';
 import 'package:neostation/services/game_box/game_box_fetcher.dart';
 import 'package:neostation/services/game_box/game_box_manual.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
+import 'package:neostation/services/game_box/game_box_media_check.dart';
+import 'package:neostation/services/game_box/game_box_media_service.dart';
 import 'package:neostation/services/game_box/game_box_preferences.dart';
 import 'package:neostation/services/game_box/game_box_profile.dart';
 import 'package:neostation/services/game_box/game_box_regions.dart';
@@ -24,6 +28,7 @@ import 'package:neostation/services/game_box/game_box_sharp_scan.dart';
 import 'package:neostation/services/game_launch_manager.dart';
 import 'package:neostation/services/game_manual_service.dart';
 import 'package:neostation/services/game_service.dart' show GamepadNavigationManager;
+import 'package:neostation/utils/artwork_cache.dart';
 import 'package:neostation/utils/gamepad_nav.dart';
 import 'package:neostation/widgets/game_box/game_box_art_loader.dart';
 import 'package:neostation/widgets/game_box/game_box_geometry.dart';
@@ -170,7 +175,27 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   late GameBoxArtSet _artSet;
   GameBoxProfile? _profile;
   Color? _edge;
+  Color? _frontBand;
+  Color? _backBand;
   bool _detailed = false;
+
+  /// Checks of the face files (uniform placeholder, empty, unreadable):
+  /// a refused file is drawn as a missing scan (docs/game-box-3d.md § 15).
+  final Map<String, GameBoxImageCheck> _checks = {};
+
+  /// Incremented each time the media are read again: a late result of an
+  /// earlier read (another file, a previous fetch) is dropped.
+  int _mediaGeneration = 0;
+  @visibleForTesting
+  int get mediaGeneration => _mediaGeneration;
+
+  /// Faces whose file was refused by its check, for the info lines.
+  @visibleForTesting
+  Map<GameBoxMediaKind, GameBoxImageVerdict> get refusedFaces => {
+        for (final kind in GameBoxMediaKind.values)
+          if (_media.pathOf(kind) case final path?)
+            if (_checks[path] case final check? when !check.ok) kind: check.verdict,
+      };
 
   // The back made for the size it is shown at (docs/game-box-3d.md § 12).
   late final GameBoxSharpTexture _sharp = GameBoxSharpTexture(onChanged: () {
@@ -295,16 +320,61 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   // Media -------------------------------------------------------------------
 
   void _loadMedia() {
+    final generation = ++_mediaGeneration;
     final store = GameBoxMediaStore(widget.subject.fileProvider);
     _media = store.read(_game, widget.subject.systemFolder);
     _artSet = GameBoxArtSet(media: _media, title: _game.name);
+    final media = _media;
+    bool current() => mounted && generation == _mediaGeneration;
     GameBoxProfiles.load(widget.subject.systemId ?? _game.systemId).then((p) {
-      if (mounted) setState(() => _profile = p.withFrontAspect(_artSet.frontAspect));
+      if (current()) setState(() => _profile = _caseOf(p.withFrontAspect(_artSet.frontAspect), media));
     });
-    GameBoxArtSet.edgeColor(_media.front).then((c) {
-      if (mounted) setState(() => _edge = c);
+    GameBoxArtSet.edgeColor(media.front).then((c) {
+      if (current()) setState(() => _edge = c);
     });
+    GameBoxArtSet.bandColor(media.front).then((c) {
+      if (current()) setState(() => _frontBand = c);
+    });
+    GameBoxArtSet.bandColor(media.back).then((c) {
+      if (current()) setState(() => _backBand = c);
+    });
+    _checkFaces(generation, media);
     _selectBack();
+  }
+
+  /// The case of an identified edition (a coloured case listed by GameTDB
+  /// for this product code), else the platform's standard case.
+  static GameBoxProfile _caseOf(GameBoxProfile profile, GameBoxLocalMedia media) {
+    final identified = media.manifest?.identifiedCase;
+    if (identified == null) return profile;
+    return profile.withIdentifiedCase(identified.color, source: identified.source);
+  }
+
+  /// Checks every face file once; a refused one is drawn as missing.
+  Future<void> _checkFaces(int generation, GameBoxLocalMedia media) async {
+    for (final kind in GameBoxMediaKind.values) {
+      final path = media.pathOf(kind);
+      if (path == null) continue;
+      final check = await GameBoxMediaChecker.checkFile(path);
+      if (!mounted || generation != _mediaGeneration) return;
+      if (_checks[path]?.verdict != check.verdict) {
+        setState(() => _checks[path] = check);
+      } else {
+        _checks[path] = check;
+      }
+    }
+  }
+
+  /// Reads the media again after files changed on disk, forgetting only the
+  /// decodes of the files that changed.
+  void _reloadMedia(Iterable<String> changed) {
+    for (final path in changed) {
+      GameBoxArtSet.evictPath(path);
+      _checks.remove(path);
+    }
+    _artSet.evictDetailed();
+    _sharp.clear();
+    setState(_loadMedia);
   }
 
   String get _appLanguage {
@@ -325,6 +395,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   /// The back shown: a scan published for the reading language when the
   /// manifest lists one (downloaded once, on demand), else the default back.
   Future<void> _selectBack() async {
+    final generation = _mediaGeneration;
     final manifest = _media.manifest;
     final edition = manifest == null
         ? null
@@ -343,7 +414,13 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
       fileProvider: widget.subject.fileProvider,
       edition: edition,
     );
-    if (!mounted || language != _readingLanguage) return;
+    // A later read of the media, or another language, owns the back now.
+    if (!mounted || language != _readingLanguage || generation != _mediaGeneration) return;
+    if (path != null) {
+      final check = await GameBoxMediaChecker.checkFile(path);
+      if (!mounted || language != _readingLanguage || generation != _mediaGeneration) return;
+      _checks[path] = check;
+    }
     setState(() {
       _downloadingLanguage = null;
       if (path != null) {
@@ -376,7 +453,8 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   String? get _backRegion {
     final e = _backEdition;
     if (e != null) return e.regions.first;
-    return _media.manifest?.defaultEntry(GameBoxMediaKind.back)?.region;
+    return _media.manifest?.defaultEntry(GameBoxMediaKind.back)?.region ??
+        _media.recordOf(GameBoxMediaKind.back)?.region;
   }
 
   // Motion ------------------------------------------------------------------
@@ -440,12 +518,50 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
 
   bool get _zoomed => _pose.zoom > 1.05 || _pose.panX.abs() > 1 || _pose.panY.abs() > 1;
 
+  /// Where the gesture's focal point was when it started, in the box area.
+  Offset _gestureLocalFocal = Offset.zero;
+
+  /// Pan that keeps the box point under [startFocal] (at [start]'s zoom and
+  /// pan) under [focal] at [zoom]: pinching zooms where the fingers are, not
+  /// into the middle of the box.
+  @visibleForTesting
+  static Offset focalPan({
+    required Size viewport,
+    required BoxPose start,
+    required Offset startFocal,
+    required Offset focal,
+    required double zoom,
+  }) {
+    final c = viewport.center(Offset.zero);
+    final k = zoom / (start.zoom <= 0 ? 1 : start.zoom);
+    final b0 = c + Offset(start.panX, start.panY);
+    final b = focal - (startFocal - b0) * k;
+    return b - c;
+  }
+
+  /// Pan limits at [zoom]: every edge of the zoomed box can be brought into
+  /// view, and the box never leaves it entirely.
+  Offset _panLimit(double zoom) =>
+      Offset(_viewport.width * (zoom - 1) * 0.6, _viewport.height * (zoom - 1) * 0.6);
+
+  /// Perspective while turning by hand: it starts from where the pose is
+  /// (the flatter reading pose of the back, for example) and returns to the
+  /// normal perspective as the turn grows, without any step
+  /// (docs/game-box-3d.md § 14).
+  @visibleForTesting
+  static double turningPerspective(double start, double turned) {
+    final t = (turned.abs() / (math.pi / 2)).clamp(0.0, 1.0);
+    final eased = t * t * (3 - 2 * t);
+    return start + (1 - start) * eased;
+  }
+
   void _onScaleStart(ScaleStartDetails d) {
     if (!_interactive) return;
     _stopMotion();
     _gesture = true;
     _gestureStart = _pose;
     _gestureFocal = d.focalPoint;
+    _gestureLocalFocal = d.localFocalPoint;
     _rotating = d.pointerCount < 2 && _pose.zoom <= 1.05;
   }
 
@@ -454,24 +570,36 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     final delta = d.focalPoint - _gestureFocal;
     final width = math.max(200.0, _viewport.width);
     if (d.pointerCount >= 2 || !_rotating) {
+      if (_rotating) {
+        // A second finger joined a turn: zoom from here.
+        _gestureStart = _pose;
+        _gestureLocalFocal = d.localFocalPoint;
+      }
       _rotating = false;
       final zoom = (_gestureStart.zoom * d.scale).clamp(BoxPose.minZoom, BoxPose.maxZoom).toDouble();
-      final limitX = _viewport.width * (zoom - 1) * 0.6;
-      final limitY = _viewport.height * (zoom - 1) * 0.6;
+      final limit = _panLimit(zoom);
+      final pan = focalPan(
+        viewport: _viewport,
+        start: _gestureStart,
+        startFocal: _gestureLocalFocal,
+        focal: d.localFocalPoint,
+        zoom: zoom,
+      );
       setState(() => _pose = _pose.copyWith(
             zoom: zoom,
-            panX: zoom <= 1 ? 0 : (_gestureStart.panX + delta.dx).clamp(-limitX, limitX).toDouble(),
-            panY: zoom <= 1 ? 0 : (_gestureStart.panY + delta.dy).clamp(-limitY, limitY).toDouble(),
+            panX: zoom <= 1 ? 0 : pan.dx.clamp(-limit.dx, limit.dx).toDouble(),
+            panY: zoom <= 1 ? 0 : pan.dy.clamp(-limit.dy, limit.dy).toDouble(),
           ));
       return;
     }
     // One finger at zoom 1: turn the box (free yaw, bounded pitch). Dragging
     // right turns the front to the right, as on a turntable.
     final k = 3.4 / width;
+    final turned = -delta.dx * k;
     setState(() => _pose = _clampOpen(_pose.copyWith(
-          yaw: _gestureStart.yaw - delta.dx * k,
+          yaw: _gestureStart.yaw + turned,
           pitch: (_gestureStart.pitch + delta.dy * k).clamp(-BoxPose.maxPitch, BoxPose.maxPitch).toDouble(),
-          perspective: 1,
+          perspective: turningPerspective(_gestureStart.perspective, turned),
         )));
   }
 
@@ -486,9 +614,24 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     _spin.animateWith(FrictionSimulation(0.12, _pose.yaw, v));
   }
 
+  Offset? _doubleTapAt;
+
   void _onDoubleTap() {
     if (!_interactive) return;
-    _goTo(_pose.zoom > 1.05 ? _pose.copyWith(zoom: 1, panX: 0, panY: 0) : _pose.copyWith(zoom: 2.2));
+    if (_pose.zoom > 1.05) {
+      _goTo(_pose.copyWith(zoom: 1, panX: 0, panY: 0));
+      return;
+    }
+    // Zoom in where the double tap was: that point stays under the finger.
+    const zoom = 2.2;
+    final at = _doubleTapAt ?? _viewport.center(Offset.zero);
+    final pan = focalPan(viewport: _viewport, start: _pose, startFocal: at, focal: at, zoom: zoom);
+    final limit = _panLimit(zoom);
+    _goTo(_pose.copyWith(
+      zoom: zoom,
+      panX: pan.dx.clamp(-limit.dx, limit.dx).toDouble(),
+      panY: pan.dy.clamp(-limit.dy, limit.dy).toDouble(),
+    ));
   }
 
   /// A tap on the manual lying in the open box takes it.
@@ -563,43 +706,36 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     ));
   }
 
+  /// The ScreenScraper button: "Box media" — complete the missing faces or
+  /// choose better sources (docs/game-box-3d.md § 14). Only the files the
+  /// sheet changed are read again; the library's covers are refreshed when
+  /// the front changed.
   Future<void> _fetchFaces() async {
     final appSystemId = widget.subject.appSystemId;
-    if (_fetching || appSystemId == null) return;
+    final profile = _profile;
+    if (_fetching || appSystemId == null || profile == null) return;
     setState(() => _fetching = true);
-    final messenger = ScaffoldMessenger.maybeOf(context);
-    final result = await GameBoxMediaFetcher.fetch(
-      game: _game,
-      appSystemId: appSystemId,
-      systemFolder: widget.subject.systemFolder,
-      fileProvider: widget.subject.fileProvider,
+    final changes = await GameBoxMediaSheet.show(
+      context,
+      GameBoxSearchContext(
+        game: _game,
+        systemFolder: widget.subject.systemFolder,
+        fileProvider: widget.subject.fileProvider,
+        profile: GameBoxProfiles.of(widget.subject.systemId ?? _game.systemId),
+        appSystemId: appSystemId,
+      ),
     );
     if (!mounted) return;
-    setState(() {
-      _fetching = false;
-      _artSet.evictDetailed();
-      _sharp.clear();
-      for (final path in [_media.back, _media.spine, _media.support]) {
-        if (path != null) GameBoxImageSize.evict(path);
-      }
-      _media = GameBoxMediaStore(widget.subject.fileProvider).read(_game, widget.subject.systemFolder);
-      _artSet = GameBoxArtSet(media: _media, title: _game.name);
-    });
-    // Replaced files keep their path: drop their decodes.
-    imageCache.clear();
-    imageCache.clearLiveImages();
+    setState(() => _fetching = false);
+    if (changes.isEmpty) return;
+    if (changes.frontChanged && _media.front != null) {
+      // The front is shared with the library's own covers (several decode
+      // widths): their cache is dropped as after a scrape.
+      await evictScrapedArtwork([_media.front!]);
+      if (!mounted) return;
+    }
+    _reloadMedia(changes.paths);
     await _selectBack();
-    if (!mounted) return;
-    final key = switch (result.status) {
-      GameBoxFetchStatus.updated => GameBoxLocale.fetchDone,
-      GameBoxFetchStatus.nothingNew => GameBoxLocale.fetchNothing,
-      GameBoxFetchStatus.needsLogin => GameBoxLocale.fetchNeedsLogin,
-      GameBoxFetchStatus.systemNotMapped => GameBoxLocale.fetchSystemNotMapped,
-      GameBoxFetchStatus.notFound => GameBoxLocale.fetchNotFound,
-      GameBoxFetchStatus.quota => GameBoxLocale.fetchQuota,
-      GameBoxFetchStatus.failed => GameBoxLocale.fetchFailed,
-    };
-    messenger?.showSnackBar(SnackBar(content: Text(GameBoxLocale.text(context, key))));
   }
 
   /// The back scan alone, flat and full size, without the box's perspective.
@@ -697,20 +833,19 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     return BoxProjector(
       model: model,
       viewport: viewport,
-      pose: _shownPose,
+      pose: _pose,
       opening: _opening,
       outlineBlend: _outline,
     );
   }
 
-  /// The back is read straight on, with a lower perspective.
-  BoxPose get _shownPose {
-    final reading = _facingBack &&
-        _pose.zoom <= 1.05 &&
-        _phase == GameBoxInspectorPhase.inspecting &&
-        _inside == GameBoxInsideState.closed;
-    return reading ? _pose.copyWith(perspective: math.min(_pose.perspective, 0.35)) : _pose;
-  }
+  /// The pose drawn is the pose itself. The flatter perspective of the
+  /// reading pose of the back belongs to that pose ([BoxPose.back]) and is
+  /// reached by its animation, then left gradually when the box is turned
+  /// (see [turningPerspective]): no threshold of angle or zoom changes the
+  /// projection (docs/game-box-3d.md § 14).
+  @visibleForTesting
+  BoxPose get shownPose => _pose;
 
   /// Same file as Game Settings › Manual (GameModel.getManualPath through
   /// the FileProvider); nothing is downloaded here.
@@ -1239,24 +1374,36 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
       if (_readingManual) return const SizedBox.expand();
       final model = _model;
       if (profile == null || model == null) return const Center(child: CircularProgressIndicator());
+      final backRefused = _backPath != null && !(_checks[_backPath!]?.ok ?? true);
       final art = _artSet.art(
         detailed: _detailed,
         backPath: _backPath,
         edgeColor: _edge,
         frontFallback: widget.subject.frontFallback?.call(),
-        backUnavailable: GameBoxLocale.text(context, GameBoxLocale.backUnavailable),
-        gloss: !_facingBack && _pose.zoom <= 1.1 && _inside == GameBoxInsideState.closed,
+        backUnavailable: GameBoxLocale.text(
+            context, backRefused ? GameBoxLocale.backRefused : GameBoxLocale.backUnavailable),
+        gloss: _inside == GameBoxInsideState.closed,
+        // The sleeve reflection fades out while zooming in, never in a step.
+        glossStrength: ((1.3 - _pose.zoom) / 0.3).clamp(0.0, 1.0).toDouble(),
         bookletCover: _manualPage?.image,
+        profile: profile,
+        checks: _checks,
+        frontBand: _frontBand,
+        backBand: _backBand,
       );
       // Read straight on, the back is the render made for its size.
       final readingBack =
           _facingBack && _phase == GameBoxInspectorPhase.inspecting && _inside == GameBoxInsideState.closed;
-      final sharpBack = readingBack ? _sharp.providerFor(_backPath, sharpen: _sharpText) : null;
-      if (readingBack && _detailed) _scheduleSharpBack(c.biggest);
+      final sharpBack = readingBack && art.back != null && art.backWindow == GameBoxArtLayout.full
+          ? _sharp.providerFor(_backPath, sharpen: _sharpText)
+          : null;
+      if (readingBack && _detailed && art.back != null && art.backWindow == GameBoxArtLayout.full) {
+        _scheduleSharpBack(c.biggest);
+      }
       final scene = GameBoxScene(
         model: model,
         art: sharpBack == null ? art : art.copyWith(back: sharpBack),
-        pose: _shownPose,
+        pose: _pose,
         opening: _opening,
         outlineBlend: _outline,
         groundShadow: _inside == GameBoxInsideState.closed,
@@ -1289,6 +1436,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
             onScaleStart: _onScaleStart,
             onScaleUpdate: _onScaleUpdate,
             onScaleEnd: _onScaleEnd,
+            onDoubleTapDown: (d) => _doubleTapAt = d.localPosition,
             onDoubleTap: _onDoubleTap,
             onTapUp: _onTapUp,
             child: ClipRect(child: zoomed),
@@ -1509,10 +1657,13 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
       );
     }
     // Portrait: the title and any progress, then the buttons and the notes
-    // scrolling under them, Play always shown at the bottom.
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: maxHeight),
-      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    // scrolling under them, Play always shown at the bottom. The panel keeps
+    // one height whatever buttons it shows ("Flat view" when the back is
+    // turned, "Recenter" when zoomed…), so the box area above never changes
+    // size while the box turns (docs/game-box-3d.md § 14).
+    return SizedBox(
+      height: maxHeight,
+      child: Column(mainAxisSize: MainAxisSize.max, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         title,
         ...progress,
         Flexible(
@@ -1531,11 +1682,46 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   }
 
   bool get _missingFaces =>
-      _media.manifest == null || _media.back == null || _media.spine == null || _media.support == null;
+      _media.manifest == null ||
+      _media.back == null ||
+      _media.spine == null ||
+      _media.support == null ||
+      _frontIsNotACover ||
+      refusedFaces.isNotEmpty;
+
+  /// What the front file is, as the box draws it.
+  GameBoxArtNature? get _frontNature {
+    final profile = _profile;
+    final front = _media.front;
+    if (profile == null || front == null) return null;
+    return _artSet.art(detailed: false, profile: profile, checks: _checks).frontNature;
+  }
+
+  bool get _frontIsNotACover {
+    final n = _frontNature;
+    return n == GameBoxArtNature.promo || n == GameBoxArtNature.render3d;
+  }
 
   List<String> _infoLines(BuildContext context) {
     if (_inside != GameBoxInsideState.closed) return _insideLines(context);
     final out = <String>[];
+    // What the front really is, before anything else.
+    switch (_frontNature) {
+      case GameBoxArtNature.promo:
+        out.add(GameBoxLocale.text(context, GameBoxLocale.frontIsCatalogueArt));
+      case GameBoxArtNature.render3d:
+        out.add(GameBoxLocale.text(context, GameBoxLocale.frontIsRender));
+      case GameBoxArtNature.wrap:
+        out.add(GameBoxLocale.text(context, GameBoxLocale.frontFromSheet));
+      default:
+        break;
+    }
+    for (final entry in refusedFaces.entries) {
+      out.add(GameBoxLocale.format(context, GameBoxLocale.faceRefused, {
+        'face': GameBoxLocale.text(context, _faceKey(entry.key)),
+        'reason': GameBoxLocale.text(context, _verdictKey(entry.value)),
+      }));
+    }
     final region = _backRegion;
     final regions = _gameRegions;
     final edition = _backEdition;
@@ -1585,9 +1771,55 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
       out.add(GameBoxLocale.format(context, GameBoxLocale.supportUnavailable,
           {'support': GameBoxLocale.text(context, kind)}));
     }
-    if (_media.manifest != null) out.add(GameBoxLocale.text(context, GameBoxLocale.source));
+    // Where each face comes from, when the faces search recorded it.
+    final sources = <String>[];
+    for (final kind in GameBoxMediaKind.values) {
+      final record = _media.recordOf(kind);
+      if (record == null) continue;
+      sources.add('${GameBoxLocale.text(context, _faceKey(kind))}: ${providerLabel(record)}');
+    }
+    if (sources.isNotEmpty) {
+      out.add(GameBoxLocale.format(context, GameBoxLocale.sourcesLine, {'sources': sources.join(' · ')}));
+    } else if (_media.manifest != null) {
+      out.add(GameBoxLocale.text(context, GameBoxLocale.source));
+    }
     return out;
   }
+
+  /// Short provenance of a face: provider, type, region and native size.
+  @visibleForTesting
+  static String providerLabel(GameBoxFaceRecord record) {
+    final provider = switch (record.provider) {
+      'screenscraper' => 'ScreenScraper',
+      'gametdb' => 'GameTDB',
+      'mobygames' => 'MobyGames',
+      'rpcs3' => 'RPCS3',
+      'melonx' => 'MeloNX',
+      final other => other,
+    };
+    final parts = <String>[provider];
+    final type = record.type.contains(':') ? record.type.split(':').last : record.type;
+    if (type.isNotEmpty && record.provider != 'manual') parts.add(type);
+    if (record.region != null) parts.add(record.region!);
+    if (record.width != null && record.height != null) parts.add('${record.width}×${record.height}');
+    if (record.note != null) parts.add(record.note!);
+    return parts.join(' ');
+  }
+
+  static String _faceKey(GameBoxMediaKind kind) => switch (kind) {
+        GameBoxMediaKind.front => GameBoxLocale.front,
+        GameBoxMediaKind.back => GameBoxLocale.back,
+        GameBoxMediaKind.spine => GameBoxLocale.titleSpine,
+        GameBoxMediaKind.support => GameBoxLocale.faceSupport,
+        GameBoxMediaKind.full => GameBoxLocale.faceSheet,
+      };
+
+  static String _verdictKey(GameBoxImageVerdict verdict) => switch (verdict) {
+        GameBoxImageVerdict.uniform => GameBoxLocale.refusedUniform,
+        GameBoxImageVerdict.transparent => GameBoxLocale.refusedTransparent,
+        GameBoxImageVerdict.tiny => GameBoxLocale.refusedTiny,
+        GameBoxImageVerdict.unreadable || GameBoxImageVerdict.ok => GameBoxLocale.refusedUnreadable,
+      };
 
   /// What the open box shows, said plainly: the manual is the local PDF in
   /// its own language (never presented as translated), the inside is neutral.

@@ -23,6 +23,8 @@ ZH_SHARED = {
     'front', 'back', 'reset', 'original', 'textSize', 'faceFront', 'faceBack',
     'faceBottom', 'edition', 'translationNotNeeded', 'region.jp', 'region.sp',
     'region.br', 'region.pt', 'region.ca', 'region.se', 'region.wor', 'goBack',
+    # "Cancel" and "cancelled" (取消, 已取消) are written alike in both scripts.
+    'mediaCancel', 'srcCancelled',
 }
 
 PLACEHOLDER = re.compile(r'\{(\w+)\}')

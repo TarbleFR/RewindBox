@@ -11,8 +11,11 @@ import 'package:neostation/providers/file_provider.dart';
 import 'package:neostation/screens/game_box/game_box_inspector.dart';
 import 'package:neostation/screens/game_box/game_box_scan_viewer.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
+import 'package:neostation/services/game_box/game_box_media_check.dart';
 import 'package:neostation/services/game_box/game_box_preferences.dart';
+import 'package:neostation/services/game_box/game_box_profile.dart';
 import 'package:neostation/services/game_box/game_box_sharp_scan.dart';
+import 'package:neostation/widgets/game_box/game_box_geometry.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -116,6 +119,9 @@ void main() {
       ..createSync(recursive: true)
       ..writeAsBytesSync(_pngOfSize(_scanWidth, _scanHeight));
     calls.clear();
+    // The back fixture is a PNG header only (its size is what matters here);
+    // the picture check would rightly refuse it as unreadable.
+    GameBoxMediaChecker.debugCheck = (_) => const GameBoxImageCheck(GameBoxImageVerdict.ok);
     GameBoxSharpScan.debugProcessor = (path, width, sharpen) async {
       calls.add((path, width, sharpen));
       final h = (_scanHeight * width / _scanWidth).round();
@@ -130,6 +136,7 @@ void main() {
   tearDown(() {
     GameBoxLaunchGate.leave();
     GameBoxSharpScan.debugProcessor = null;
+    GameBoxMediaChecker.debugCheck = null;
     GameBoxImageSize.evict(backPath);
     dir.deleteSync(recursive: true);
   });
@@ -188,7 +195,9 @@ void main() {
       drawn = drawn > (b - a).distance ? drawn : (b - a).distance;
     }
     final shownPx = drawn * 2;
-    expect(shownPx, greaterThan(400), reason: 'the back panel, not a corner facet ($shownPx)');
+    // A corner facet of the rounded case is a few pixels wide; the back
+    // panel of the real 135 × 190 mm PS2 case is hundreds.
+    expect(shownPx, greaterThan(300), reason: 'the back panel, not a corner facet ($shownPx)');
     expect(state.backScreenWidth(state.viewport)! * 2, closeTo(shownPx, shownPx * 0.05));
     expect(width, greaterThanOrEqualTo(shownPx.floor()), reason: 'never smaller than shown ($shownPx)');
     expect(width, lessThan(shownPx * 1.05 + GameBoxSharpScan.widthStep), reason: 'not larger than needed');
@@ -293,7 +302,15 @@ void main() {
         expect(state.viewport.height, greaterThanOrEqualTo(screen.height * 0.54), reason: '${state.viewport}');
         final back = state.backScreenWidth(state.viewport);
         expect(back, isNotNull);
-        expect(back!, greaterThanOrEqualTo(screen.width * 0.68), reason: 'back drawn $back pt wide');
+        // The case keeps its physical proportions (135 × 190 mm); before the
+        // correction the 1 × 1 px test front turned it into a square box,
+        // which is what made a 68 % share of the width reachable. The back
+        // is now as large as the box area allows for the real case: its
+        // height is the limit, used to the full fitting margin.
+        final profile = GameBoxProfile.forSystem('ps2');
+        final fit = BoxProjector(model: GameBoxModel(profile), viewport: state.viewport, pose: BoxPose.back).scale;
+        expect(back!, greaterThanOrEqualTo(profile.width * fit * 0.98), reason: 'back drawn $back pt wide');
+        expect(back, greaterThanOrEqualTo(screen.width * 0.5), reason: 'back drawn $back pt wide');
         expect(find.text('Play').hitTestable(), findsOneWidget);
         expect(tester.takeException(), isNull);
         await tester.pump(const Duration(seconds: 1));

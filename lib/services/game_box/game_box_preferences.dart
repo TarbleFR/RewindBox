@@ -68,6 +68,31 @@ class GameBoxPreferences {
     await prefs.setBool(sharpTextKey, value);
   }
 
+  static const mobyGamesKeyKey = 'NeoStation.GameBox.MobyGamesApiKey';
+
+  /// The player's own MobyGames API key (optional source of box scans,
+  /// docs/game-box-3d.md § 14), or null when none is set. It stays on the
+  /// device and is only sent to api.mobygames.com.
+  static Future<String?> mobyGamesKey() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final value = prefs.getString(mobyGamesKeyKey)?.trim();
+      return (value == null || value.isEmpty) ? null : value;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> setMobyGamesKey(String? key) async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = key?.trim() ?? '';
+    if (value.isEmpty) {
+      await prefs.remove(mobyGamesKeyKey);
+    } else {
+      await prefs.setString(mobyGamesKeyKey, value);
+    }
+  }
+
   static Future<double> readerTextScale() async {
     try {
       final prefs = await SharedPreferences.getInstance();

@@ -15,6 +15,7 @@ import 'package:neostation/repositories/scraper_repository.dart';
 import 'package:neostation/repositories/system_repository.dart';
 import 'package:neostation/screens/game_screen/my_games_carousel.dart';
 import 'package:neostation/screens/game_screen/my_games_grid.dart';
+import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/screenscraper_service.dart';
 import 'package:neostation/services/sfx_service.dart';
@@ -339,6 +340,17 @@ class GameSettingsScrappingTabState extends State<GameSettingsScrappingTab> {
           await evictScrapedArtwork([targetPath]);
           GamesGrid.evictArtworkCaches([targetPath]);
           GamesCarousel.evictArtworkCaches([targetPath]);
+
+          // A front chosen here is the player's: the 3D box's faces search
+          // never replaces it (docs/game-box-3d.md § 14).
+          if (type == 'box2d') {
+            try {
+              await GameBoxMediaStore(widget.fileProvider)
+                  .recordManualFace(widget.game, _folder, GameBoxMediaKind.front, targetPath);
+            } catch (e) {
+              _log.e('Box face record failed: $e');
+            }
+          }
 
           // Keep the grid's layout math correct for the new boxart dimensions.
           if (type == 'box2d' && widget.game.systemId != null) {

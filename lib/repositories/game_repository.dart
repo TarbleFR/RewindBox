@@ -226,6 +226,7 @@ class GameRepository {
       'box2dback',
       'box2dside',
       'support2d',
+      'box2dfull',
       'boxmeta',
     ];
     const extensions = ['png', 'jpg', 'jpeg', 'webp', 'mp4', 'pdf', 'json'];

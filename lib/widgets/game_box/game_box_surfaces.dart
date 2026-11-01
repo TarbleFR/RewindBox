@@ -298,6 +298,7 @@ class GameBoxEdgePainter extends CustomPainter {
     this.ridged = false,
     this.seam = false,
     this.cardboard = false,
+    this.clear = false,
     this.pxPerMm = 1,
   });
 
@@ -305,12 +306,28 @@ class GameBoxEdgePainter extends CustomPainter {
   final bool ridged;
   final bool seam;
   final bool cardboard;
+
+  /// Clear plastic seen edge-on: lighter along both long borders, where
+  /// light runs through the plastic.
+  final bool clear;
   final double pxPerMm;
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     canvas.drawRect(rect, Paint()..color = color);
+    if (clear) {
+      final band = math.max(0.6, math.min(size.width, size.height) * 0.18);
+      final horizontal = size.width >= size.height;
+      final glow = Paint()..color = _lift(color, 0.35).withValues(alpha: 0.85);
+      if (horizontal) {
+        canvas.drawRect(Rect.fromLTWH(0, 0, size.width, band), glow);
+        canvas.drawRect(Rect.fromLTWH(0, size.height - band, size.width, band), glow);
+      } else {
+        canvas.drawRect(Rect.fromLTWH(0, 0, band, size.height), glow);
+        canvas.drawRect(Rect.fromLTWH(size.width - band, 0, band, size.height), glow);
+      }
+    }
     final dark = Paint()
       ..strokeWidth = math.max(0.6, pxPerMm * 0.25)
       ..color = _shade(color, 0.72);
@@ -345,7 +362,76 @@ class GameBoxEdgePainter extends CustomPainter {
   @override
   bool shouldRepaint(GameBoxEdgePainter old) =>
       old.color != color || old.ridged != ridged || old.seam != seam ||
-      old.cardboard != cardboard || old.pxPerMm != pxPerMm;
+      old.cardboard != cardboard || old.clear != clear || old.pxPerMm != pxPerMm;
+}
+
+/// A cover that is not a scan of this case: catalogue art (an XMB or
+/// console icon, a logo, a 3D render) shown whole and small on a plain
+/// sheet, with the known title in plain type (docs/game-box-3d.md § 13). It
+/// keeps the art recognisable in the library without presenting it as the
+/// print of the box.
+class GameBoxNeutralCover extends StatelessWidget {
+  const GameBoxNeutralCover({
+    super.key,
+    required this.art,
+    required this.title,
+    required this.color,
+    this.artAspect,
+    this.compact = false,
+  });
+
+  final Widget art;
+  final String title;
+  final Color color;
+
+  /// Width / height of the art (null: square).
+  final double? artAspect;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final onColor = _onColor(color);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color,
+        border: Border.all(color: onColor.withValues(alpha: 0.10), width: 1),
+      ),
+      child: LayoutBuilder(builder: (context, c) {
+        final w = c.maxWidth, h = c.maxHeight;
+        final aspect = (artAspect ?? 1).clamp(0.3, 3.0).toDouble();
+        var artW = w * 0.72;
+        var artH = artW / aspect;
+        if (artH > h * 0.46) {
+          artH = h * 0.46;
+          artW = artH * aspect;
+        }
+        final size = (w * 0.075).clamp(6.0, 16.0).toDouble();
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(width: artW, height: artH, child: art),
+            if (!compact) ...[
+              SizedBox(height: size),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: w * 0.08),
+                child: Text(
+                  title,
+                  maxLines: 3,
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: size,
+                    color: onColor.withValues(alpha: 0.82),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      }),
+    );
+  }
 }
 
 /// A disc, with its original art when one is known.

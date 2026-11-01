@@ -687,6 +687,9 @@ IMPORT_SITES = {
         'Future<void> _pickCustomBackground(',),
     'lib/screens/game_screen/game_settings_dialog/game_settings_scrapping_tab.dart': (
         'Future<void> _replaceImage(',),
+    # A box face imported by hand (docs/game-box-3d.md § 14).
+    'lib/screens/game_box/game_box_media_sheet.dart': (
+        'Future<GameBoxAdoption?> _importPicked(',),
     'lib/widgets/system_emulator_settings_dialog/tabs.dart': (
         'Future<void> _pickAndSaveImage(',
         'Future<void> _pickAndSaveLogoImage(',),

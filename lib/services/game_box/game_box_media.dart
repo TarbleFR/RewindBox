@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'dart:ui' show Size;
+import 'dart:ui' show Color, Size;
 
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
@@ -16,7 +16,12 @@ enum GameBoxMediaKind {
   front('box-2D', 'box2d'),
   back('box-2D-back', 'box2dback'),
   spine('box-2D-side', 'box2dside'),
-  support('support-2D', 'support2d');
+  support('support-2D', 'support2d'),
+
+  /// The whole cover sheet laid flat (back | spine | front), kept as the
+  /// original from which faces are cut (GameTDB `coverfull`, ScreenScraper
+  /// `box-texture` when its layout is recognised).
+  full('box-texture', 'box2dfull');
 
   const GameBoxMediaKind(this.screenScraperType, this.folder);
   final String screenScraperType;
@@ -36,13 +41,132 @@ abstract final class GameBoxMediaFolders {
   static const spine = 'box2dside';
   static const support = 'support2d';
 
+  /// Full cover sheets (back | spine | front), kept as downloaded.
+  static const full = 'box2dfull';
+
   /// Back scans of other editions, one folder per game.
   static const backEditions = 'box2dback-editions';
 
   /// Per-game JSON manifest of the editions ScreenScraper lists.
   static const manifest = 'boxmeta';
 
-  static const all = [back, spine, support, backEditions, manifest];
+  static const all = [back, spine, support, full, backEditions, manifest];
+}
+
+/// Where one face file on disk comes from (docs/game-box-3d.md § 14).
+///
+/// Written by the faces search for every file it adopts, and by a manual
+/// import. A face whose record is [manual] is never replaced automatically:
+/// only an explicit choice of the player replaces it.
+class GameBoxFaceRecord {
+  GameBoxFaceRecord({
+    required this.provider,
+    required this.type,
+    this.region,
+    this.language,
+    this.edition,
+    this.productId,
+    this.sourceIdentity,
+    this.width,
+    this.height,
+    this.transforms = const [],
+    this.md5,
+    this.bytes,
+    this.manual = false,
+    this.note,
+    this.attribution,
+    DateTime? fetchedAt,
+  }) : fetchedAt = fetchedAt ?? DateTime.now().toUtc();
+
+  /// `screenscraper`, `gametdb`, `mobygames`, `manual`, `rpcs3`, `melonx`.
+  final String provider;
+
+  /// Provider media type, prefixed (`screenscraper:box-2D-back`,
+  /// `gametdb:coverfullHQ`, `manual:import`…).
+  final String type;
+
+  /// Region or language code of the scan at its provider (`eu`, `fr`, `EN`).
+  final String? region;
+  final String? language;
+
+  /// Edition label when known (a "Deluxe Edition" sheet, a coloured case).
+  final String? edition;
+
+  /// Product code of the scanned edition when known (PS3 serial, Switch
+  /// product code).
+  final String? productId;
+
+  /// Identity of the scan at its provider (MD5 or URL path), never a URL
+  /// with credentials.
+  final String? sourceIdentity;
+
+  /// Native pixel size of the downloaded original.
+  final int? width;
+  final int? height;
+
+  /// Changes made to the original (`crop:front 0.5249,0,0.4751,1 of …`).
+  final List<String> transforms;
+
+  /// MD5 and length of the file saved on disk: a record whose length no
+  /// longer matches the file describes a file replaced since.
+  final String? md5;
+  final int? bytes;
+  final bool manual;
+
+  /// Free note of a manual import (for example "The Cover Project — Retail").
+  final String? note;
+
+  /// Credit shown with the scan (provider name and site).
+  final String? attribution;
+  final DateTime fetchedAt;
+
+  Map<String, dynamic> toJson() => {
+        'provider': provider,
+        'type': type,
+        if (region != null) 'region': region,
+        if (language != null) 'language': language,
+        if (edition != null) 'edition': edition,
+        if (productId != null) 'productId': productId,
+        if (sourceIdentity != null) 'sourceIdentity': sourceIdentity,
+        if (width != null) 'width': width,
+        if (height != null) 'height': height,
+        if (transforms.isNotEmpty) 'transforms': transforms,
+        if (md5 != null) 'md5': md5,
+        if (bytes != null) 'bytes': bytes,
+        if (manual) 'manual': true,
+        if (note != null) 'note': note,
+        if (attribution != null) 'attribution': attribution,
+        'fetchedAt': fetchedAt.toIso8601String(),
+      };
+
+  static GameBoxFaceRecord? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final provider = raw['provider']?.toString() ?? '';
+    final type = raw['type']?.toString() ?? '';
+    if (provider.isEmpty || type.isEmpty) return null;
+    String? s(String k) {
+      final v = raw[k]?.toString().trim() ?? '';
+      return v.isEmpty ? null : v;
+    }
+    return GameBoxFaceRecord(
+      provider: provider,
+      type: type,
+      region: s('region'),
+      language: s('language'),
+      edition: s('edition'),
+      productId: s('productId'),
+      sourceIdentity: s('sourceIdentity'),
+      width: int.tryParse(raw['width']?.toString() ?? ''),
+      height: int.tryParse(raw['height']?.toString() ?? ''),
+      transforms: [for (final t in (raw['transforms'] as List? ?? const [])) t.toString()],
+      md5: s('md5'),
+      bytes: int.tryParse(raw['bytes']?.toString() ?? ''),
+      manual: raw['manual'] == true,
+      note: s('note'),
+      attribution: s('attribution'),
+      fetchedAt: DateTime.tryParse(raw['fetchedAt']?.toString() ?? ''),
+    );
+  }
 }
 
 /// One scan listed by ScreenScraper for a game, without any credential.
@@ -148,6 +272,28 @@ class GameBoxMediaEntry {
 /// How the game was identified when its editions were listed.
 enum GameBoxMatch { md5, serial, fileName, title }
 
+/// A case variant identified for the game's edition by a source that lists
+/// it for this product code (GameTDB `case color`), never guessed.
+class GameBoxIdentifiedCase {
+  const GameBoxIdentifiedCase({required this.color, required this.source});
+  final Color color;
+  final String source;
+
+  Map<String, dynamic> toJson() => {
+        'color': (color.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0'),
+        'source': source,
+      };
+
+  static GameBoxIdentifiedCase? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final hex = raw['color']?.toString() ?? '';
+    final source = raw['source']?.toString() ?? '';
+    final value = int.tryParse(hex, radix: 16);
+    if (value == null || hex.length != 6 || source.isEmpty) return null;
+    return GameBoxIdentifiedCase(color: Color(0xFF000000 | value), source: source);
+  }
+}
+
 /// Record of the editions available for one game (`boxmeta/<rom>.json`).
 ///
 /// It is the offline source of truth of the 3D box: which scans exist, for
@@ -165,12 +311,69 @@ class GameBoxManifest {
     this.frontConfirmed = false,
     Map<GameBoxMediaKind, String>? defaults,
     Map<String, String>? backEditionFiles,
+    Map<GameBoxMediaKind, GameBoxFaceRecord>? faces,
+    Set<String>? rejected,
+    this.identifiedCase,
     DateTime? fetchedAt,
   })  : defaults = defaults ?? {},
         backEditionFiles = backEditionFiles ?? {},
+        faces = faces ?? {},
+        rejected = rejected ?? {},
         fetchedAt = fetchedAt ?? DateTime.now().toUtc();
 
-  static const int version = 1;
+  /// Written version. Version 1 manifests (no face records) are still read.
+  static const int version = 2;
+  static const Set<int> readable = {1, 2};
+
+  /// Where each face file on disk comes from (version 2).
+  final Map<GameBoxMediaKind, GameBoxFaceRecord> faces;
+
+  /// Scans refused after download (uniform, empty or unreadable picture),
+  /// by provider identity: never adopted again (docs/game-box-3d.md § 15).
+  final Set<String> rejected;
+
+  /// Case variant of the identified edition, when a source lists one.
+  final GameBoxIdentifiedCase? identifiedCase;
+
+  /// The same manifest with other face records, rejections or defaults.
+  GameBoxManifest copyWith({
+    Map<GameBoxMediaKind, GameBoxFaceRecord>? faces,
+    Set<String>? rejected,
+    Map<GameBoxMediaKind, String>? defaults,
+    Map<String, String>? backEditionFiles,
+    List<GameBoxMediaEntry>? entries,
+    String? screenScraperSystemId,
+    String? screenScraperGameId,
+    GameBoxMatch? matchedBy,
+    List<String>? gameRegions,
+    String? gameRegionSource,
+    GameBoxIdentifiedCase? identifiedCase,
+  }) =>
+      GameBoxManifest(
+        screenScraperSystemId: screenScraperSystemId ?? this.screenScraperSystemId,
+        screenScraperGameId: screenScraperGameId ?? this.screenScraperGameId,
+        matchedBy: matchedBy ?? this.matchedBy,
+        entries: entries ?? this.entries,
+        gameRegions: gameRegions ?? this.gameRegions,
+        gameRegionSource: gameRegionSource ?? this.gameRegionSource,
+        frontRegion: frontRegion,
+        frontConfirmed: frontConfirmed,
+        defaults: defaults ?? Map.of(this.defaults),
+        backEditionFiles: backEditionFiles ?? Map.of(this.backEditionFiles),
+        faces: faces ?? Map.of(this.faces),
+        rejected: rejected ?? Set.of(this.rejected),
+        identifiedCase: identifiedCase ?? this.identifiedCase,
+        fetchedAt: fetchedAt,
+      );
+
+  /// An empty manifest for a game known only locally (manual import,
+  /// GameTDB) until ScreenScraper identifies it.
+  static GameBoxManifest local() => GameBoxManifest(
+        screenScraperSystemId: '',
+        screenScraperGameId: '',
+        matchedBy: GameBoxMatch.title,
+        entries: const [],
+      );
 
   final String screenScraperSystemId;
   final String screenScraperGameId;
@@ -233,12 +436,15 @@ class GameBoxManifest {
         'frontConfirmed': frontConfirmed,
         'defaults': {for (final e in defaults.entries) e.key.name: e.value},
         'backEditionFiles': backEditionFiles,
+        if (faces.isNotEmpty) 'faces': {for (final e in faces.entries) e.key.name: e.value.toJson()},
+        if (rejected.isNotEmpty) 'rejected': rejected.toList()..sort(),
+        if (identifiedCase != null) 'identifiedCase': identifiedCase!.toJson(),
         'fetchedAt': fetchedAt.toIso8601String(),
         'media': [for (final e in entries) e.toJson()],
       };
 
   static GameBoxManifest? fromJson(Map<String, dynamic> json) {
-    if (json['version'] != version) return null;
+    if (!readable.contains(json['version'])) return null;
     final ss = json['screenscraper'];
     if (ss is! Map) return null;
     final entries = <GameBoxMediaEntry>[];
@@ -265,6 +471,14 @@ class GameBoxManifest {
         if (name == p.basename(name) && !name.startsWith('.')) files[k.toString()] = name;
       });
     }
+    final faces = <GameBoxMediaKind, GameBoxFaceRecord>{};
+    final rawFaces = json['faces'];
+    if (rawFaces is Map) {
+      for (final k in GameBoxMediaKind.values) {
+        final record = GameBoxFaceRecord.fromJson(rawFaces[k.name]);
+        if (record != null) faces[k] = record;
+      }
+    }
     return GameBoxManifest(
       screenScraperSystemId: ss['systemId']?.toString() ?? '',
       screenScraperGameId: ss['gameId']?.toString() ?? '',
@@ -279,6 +493,9 @@ class GameBoxManifest {
       frontConfirmed: json['frontConfirmed'] == true,
       defaults: defaults,
       backEditionFiles: files,
+      faces: faces,
+      rejected: {for (final r in (json['rejected'] as List? ?? const [])) r.toString()},
+      identifiedCase: GameBoxIdentifiedCase.fromJson(json['identifiedCase']),
       fetchedAt: DateTime.tryParse(json['fetchedAt']?.toString() ?? ''),
     );
   }
@@ -353,6 +570,7 @@ class GameBoxLocalMedia {
     this.back,
     this.spine,
     this.support,
+    this.full,
     this.manifest,
     this.manifestPath,
     this.backEditionsDir,
@@ -362,11 +580,39 @@ class GameBoxLocalMedia {
   final String? back;
   final String? spine;
   final String? support;
+
+  /// The full cover sheet kept as downloaded, when one was fetched.
+  final String? full;
   final GameBoxManifest? manifest;
   final String? manifestPath;
   final String? backEditionsDir;
 
   bool get hasBack => back != null;
+
+  /// Path of the file of [kind] (null when missing).
+  String? pathOf(GameBoxMediaKind kind) => switch (kind) {
+        GameBoxMediaKind.front => front,
+        GameBoxMediaKind.back => back,
+        GameBoxMediaKind.spine => spine,
+        GameBoxMediaKind.support => support,
+        GameBoxMediaKind.full => full,
+      };
+
+  /// Provenance of the file of [kind], when the faces search or a manual
+  /// import recorded it and the file is still the one recorded (same
+  /// length; a file replaced by another tool loses its record).
+  GameBoxFaceRecord? recordOf(GameBoxMediaKind kind) {
+    final record = manifest?.faces[kind];
+    final path = pathOf(kind);
+    if (record == null || path == null) return null;
+    final expected = record.bytes;
+    if (expected == null) return record;
+    try {
+      return File(path).lengthSync() == expected ? record : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Path of an already downloaded back scan of another edition.
   String? backEditionFile(GameBoxMediaEntry entry) {
@@ -424,10 +670,39 @@ class GameBoxMediaStore {
       back: orNull(_existing(game, system, GameBoxMediaFolders.back)),
       spine: orNull(_existing(game, system, GameBoxMediaFolders.spine)),
       support: orNull(_existing(game, system, GameBoxMediaFolders.support)),
+      full: orNull(_existing(game, system, GameBoxMediaFolders.full)),
       manifest: manifest,
       manifestPath: mPath,
       backEditionsDir: backEditionsDir(game, system),
     );
+  }
+
+  /// Records that the player chose the file of [kind] by hand (Game Settings
+  /// › Scraping › Media): the faces search never replaces it automatically
+  /// (docs/game-box-3d.md § 14).
+  Future<void> recordManualFace(GameModel game, String system, GameBoxMediaKind kind, String path) async {
+    final file = File(path);
+    if (!await file.exists()) return;
+    final bytes = await file.readAsBytes();
+    final size = GameBoxImageSize.fromBytes(bytes);
+    final current = read(game, system).manifest ??
+        GameBoxManifest(
+          screenScraperSystemId: '',
+          screenScraperGameId: '',
+          matchedBy: GameBoxMatch.title,
+          entries: const [],
+        );
+    final faces = Map.of(current.faces)
+      ..[kind] = GameBoxFaceRecord(
+        provider: 'manual',
+        type: 'manual:settings',
+        width: size?.width.round(),
+        height: size?.height.round(),
+        md5: md5.convert(bytes).toString(),
+        bytes: bytes.length,
+        manual: true,
+      );
+    await writeManifest(game, system, current.copyWith(faces: faces));
   }
 
   /// Writes [manifest] atomically.
@@ -441,21 +716,39 @@ class GameBoxMediaStore {
   }
 }
 
-/// Pixel size of a PNG or JPEG from its header (no decoding).
+/// Pixel size of an image from its header, without decoding it: PNG, JPEG,
+/// WebP (lossy VP8, lossless VP8L, extended VP8X), GIF and BMP — the formats
+/// the scraper accepts (docs/game-box-3d.md § 16).
 class GameBoxImageSize {
   GameBoxImageSize._();
 
-  static final Map<String, Size?> _cache = {};
+  /// Results by path, with the length and modification time they were read
+  /// at: a file replaced at the same path is read again.
+  static final Map<String, (int, int, Size?)> _cache = {};
+
+  /// Bytes read at most to find the size (a JPEG's EXIF or ICC block can
+  /// come before its frame header).
+  static const int headerLimit = 1024 * 1024;
 
   static void evict(String path) => _cache.remove(path);
 
   static Size? of(String path) {
-    if (_cache.containsKey(path)) return _cache[path];
+    int length, modified;
+    try {
+      final stat = File(path).statSync();
+      if (stat.type == FileSystemEntityType.notFound) return null;
+      length = stat.size;
+      modified = stat.modified.microsecondsSinceEpoch;
+    } catch (_) {
+      return null;
+    }
+    final hit = _cache[path];
+    if (hit != null && hit.$1 == length && hit.$2 == modified) return hit.$3;
     Size? result;
     try {
       final raf = File(path).openSync();
       try {
-        final len = raf.lengthSync().clamp(0, 262144).toInt();
+        final len = raf.lengthSync().clamp(0, headerLimit).toInt();
         final buf = Uint8List(len);
         raf.readIntoSync(buf);
         result = fromBytes(buf);
@@ -465,31 +758,101 @@ class GameBoxImageSize {
     } catch (_) {
       result = null;
     }
-    _cache[path] = result;
+    _cache[path] = (length, modified, result);
     return result;
   }
 
+  static Size? _size(int w, int h) =>
+      (w > 0 && h > 0 && w < 65536 && h < 65536) ? Size(w.toDouble(), h.toDouble()) : null;
+
   static Size? fromBytes(Uint8List b) {
-    if (b.length > 24 && b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47) {
+    // PNG: IHDR is the first chunk.
+    if (b.length >= 24 && b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47) {
       final w = (b[16] << 24) | (b[17] << 16) | (b[18] << 8) | b[19];
       final h = (b[20] << 24) | (b[21] << 16) | (b[22] << 8) | b[23];
-      return (w > 0 && h > 0 && w < 30000 && h < 30000) ? Size(w.toDouble(), h.toDouble()) : null;
+      return _size(w, h);
     }
-    if (b.length > 4 && b[0] == 0xFF && b[1] == 0xD8) {
-      var i = 2;
-      while (i + 9 < b.length) {
-        if (b[i] != 0xFF) {
-          i++;
-          continue;
-        }
-        final marker = b[i + 1];
-        if (marker >= 0xC0 && marker <= 0xCF && marker != 0xC4 && marker != 0xC8 && marker != 0xCC) {
-          final h = (b[i + 5] << 8) | b[i + 6];
-          final w = (b[i + 7] << 8) | b[i + 8];
-          return (w > 0 && h > 0) ? Size(w.toDouble(), h.toDouble()) : null;
-        }
-        i += ((b[i + 2] << 8) | b[i + 3]) + 2;
+    if (b.length > 4 && b[0] == 0xFF && b[1] == 0xD8) return _jpeg(b);
+    // WebP: RIFF....WEBP then a VP8 , VP8L or VP8X chunk.
+    if (b.length >= 30 &&
+        b[0] == 0x52 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x46 &&
+        b[8] == 0x57 && b[9] == 0x45 && b[10] == 0x42 && b[11] == 0x50) {
+      return _webp(b);
+    }
+    // GIF87a / GIF89a: logical screen size, little endian.
+    if (b.length >= 10 && b[0] == 0x47 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x38) {
+      return _size(b[6] | (b[7] << 8), b[8] | (b[9] << 8));
+    }
+    // BMP: BITMAPINFOHEADER (or later) width and height, little endian; a
+    // negative height is a top-down bitmap.
+    if (b.length >= 26 && b[0] == 0x42 && b[1] == 0x4D) {
+      final header = b[14] | (b[15] << 8) | (b[16] << 16) | (b[17] << 24);
+      if (header == 12) return _size(b[18] | (b[19] << 8), b[20] | (b[21] << 8));
+      final data = ByteData.sublistView(b);
+      return _size(data.getInt32(18, Endian.little).abs(), data.getInt32(22, Endian.little).abs());
+    }
+    return null;
+  }
+
+  static Size? _jpeg(Uint8List b) {
+    var i = 2;
+    while (i + 3 < b.length) {
+      if (b[i] != 0xFF) {
+        i++;
+        continue;
       }
+      final marker = b[i + 1];
+      // Fill bytes before a marker.
+      if (marker == 0xFF) {
+        i++;
+        continue;
+      }
+      // Markers without a length: TEM, RST0..7, SOI, EOI.
+      if (marker == 0x01 || (marker >= 0xD0 && marker <= 0xD9)) {
+        i += 2;
+        continue;
+      }
+      // Start of frame (baseline, progressive, lossless…), not DHT/JPG/DAC.
+      if (marker >= 0xC0 && marker <= 0xCF && marker != 0xC4 && marker != 0xC8 && marker != 0xCC) {
+        if (i + 8 >= b.length) return null;
+        final h = (b[i + 5] << 8) | b[i + 6];
+        final w = (b[i + 7] << 8) | b[i + 8];
+        return _size(w, h);
+      }
+      // Start of scan before a frame header: not a usable JPEG.
+      if (marker == 0xDA) return null;
+      final length = (b[i + 2] << 8) | b[i + 3];
+      if (length < 2) return null;
+      i += length + 2;
+    }
+    return null;
+  }
+
+  static Size? _webp(Uint8List b) {
+    var i = 12;
+    while (i + 8 <= b.length) {
+      final tag = String.fromCharCodes(b.sublist(i, i + 4));
+      final size = b[i + 4] | (b[i + 5] << 8) | (b[i + 6] << 16) | (b[i + 7] << 24);
+      final d = i + 8;
+      if (tag == 'VP8X' && d + 10 <= b.length) {
+        final w = 1 + (b[d + 4] | (b[d + 5] << 8) | (b[d + 6] << 16));
+        final h = 1 + (b[d + 7] | (b[d + 8] << 8) | (b[d + 9] << 16));
+        return _size(w, h);
+      }
+      if (tag == 'VP8 ' && d + 10 <= b.length) {
+        // Key frame start code 9D 01 2A, then 14-bit width and height.
+        if (b[d + 3] != 0x9D || b[d + 4] != 0x01 || b[d + 5] != 0x2A) return null;
+        final w = (b[d + 6] | (b[d + 7] << 8)) & 0x3FFF;
+        final h = (b[d + 8] | (b[d + 9] << 8)) & 0x3FFF;
+        return _size(w, h);
+      }
+      if (tag == 'VP8L' && d + 5 <= b.length) {
+        if (b[d] != 0x2F) return null;
+        final bits = b[d + 1] | (b[d + 2] << 8) | (b[d + 3] << 16) | (b[d + 4] << 24);
+        return _size((bits & 0x3FFF) + 1, ((bits >> 14) & 0x3FFF) + 1);
+      }
+      if (size < 0) return null;
+      i = d + size + (size & 1);
     }
     return null;
   }
