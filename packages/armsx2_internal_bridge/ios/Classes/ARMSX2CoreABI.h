@@ -11,11 +11,6 @@ extern "C" {
 #define NEO_ARMSX2_BOOT_ELF 2u
 // No ROM: use the installed BIOS and the same owned VM lifecycle.
 #define NEO_ARMSX2_BOOT_BIOS 3u
-#define NEO_ARMSX2_RA_ENABLED 1u
-#define NEO_ARMSX2_RA_HARDCORE 2u
-#define NEO_ARMSX2_RA_NOTIFICATIONS 3u
-#define NEO_ARMSX2_RA_LEADERBOARDS 4u
-#define NEO_ARMSX2_RA_OVERLAYS 5u
 // Blending accuracy scopes (ABI 7): this game's INI, or PCSX2.ini for all PS2 games.
 #define NEO_ARMSX2_BLENDING_SCOPE_GAME 0u
 #define NEO_ARMSX2_BLENDING_SCOPE_DEFAULT 1u
@@ -89,15 +84,9 @@ typedef struct NeoARMSX2API {
   int (*save_state)(uint32_t slot, uint32_t timeout_ms, char* error, size_t capacity);
   int (*load_state)(uint32_t slot, uint32_t timeout_ms, char* error, size_t capacity);
 
-  // RetroAchievements is implemented by upstream ARMSX2/PCSX2. The host only
-  // exposes that native state and its persisted settings through this stable C ABI.
+  // Upstream RA authentication/evaluation stay native. The sole configuration
+  // input is the immutable prepare() snapshot; only status is exposed in-game.
   int (*get_retroachievements_state_json)(char* output, size_t capacity);
-  int (*set_retroachievements_option)(uint32_t option, int enabled,
-                                      uint32_t timeout_ms, char* error, size_t capacity);
-  int (*login_retroachievements)(const char* username, const char* password,
-                                 uint32_t timeout_ms, char* error, size_t capacity);
-  int (*logout_retroachievements)(uint32_t timeout_ms, char* error, size_t capacity);
-
   // Whitelisted per-game GS hacks. -1 removes this game's explicit override;
   // 0/1 select off/on. Effective state comes from the upstream GS/GameDB path.
   int (*get_graphics_hacks_json)(char* output, size_t capacity);

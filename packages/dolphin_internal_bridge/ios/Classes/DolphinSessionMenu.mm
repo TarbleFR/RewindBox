@@ -13,7 +13,7 @@
 #include "DolphinPhoneShakePreferences.h"
 
 typedef NS_ENUM(NSInteger, DOLMenuPage) {
-  DOLMenuRoot, DOLMenuGraphics, DOLMenuHacks, DOLMenuCheats, DOLMenuAchievements, DOLMenuControls, DOLMenuChoices, DOLMenuDevices, DOLMenuInputs, DOLMenuConsole, DOLMenuSaveStates, DOLMenuLoadStates, DOLMenuRecording,
+  DOLMenuRoot, DOLMenuGraphics, DOLMenuHacks, DOLMenuCheats, DOLMenuControls = 5, DOLMenuChoices, DOLMenuDevices, DOLMenuInputs, DOLMenuConsole, DOLMenuSaveStates, DOLMenuLoadStates, DOLMenuRecording,
   DOLMenuTouchControls
 };
 
@@ -48,7 +48,7 @@ static void DOLMenuOnMain(dispatch_block_t block) {
 }
 
 - (NSArray<NSString*>*)rootKeys {
-  NSMutableArray* keys = [NSMutableArray arrayWithArray:@[@"graphics", @"hacks", @"cheats", @"controls", @"console", @"achievements"]];
+  NSMutableArray* keys = [NSMutableArray arrayWithArray:@[@"graphics", @"hacks", @"cheats", @"controls", @"console"]];
   // Build 484: the touch controls page follows Controls when the session offers the editor.
   if (self.openTouchEditor) [keys insertObject:@"touchControls" atIndex:[keys indexOfObject:@"controls"] + 1];
   if (self.stateActionsAvailable) [keys addObjectsFromArray:@[@"saveState", @"loadState"]];
@@ -277,7 +277,7 @@ static void DOLMenuOnMain(dispatch_block_t block) {
 
 - (void)viewWillAppear:(BOOL)animated {
   [super viewWillAppear:animated];
-  if (self.page == DOLMenuConsole || self.page == DOLMenuGraphics || self.page == DOLMenuHacks || self.page == DOLMenuAchievements || self.page == DOLMenuControls)
+  if (self.page == DOLMenuConsole || self.page == DOLMenuGraphics || self.page == DOLMenuHacks || self.page == DOLMenuControls)
     [self reloadSettings];
   if (self.page == DOLMenuCheats) [self reloadCheats];
   if (self.page == DOLMenuSaveStates || self.page == DOLMenuLoadStates) [self reloadStates];
@@ -534,7 +534,6 @@ static void DOLMenuOnMain(dispatch_block_t block) {
       return self.cheatsSnapshot ? 5 +
           [self.cheatsSnapshot[@"gecko"] count] +
           [self.cheatsSnapshot[@"actionReplay"] count] : 0;
-    case DOLMenuAchievements: return self.snapshot ? 3 : 0;
     case DOLMenuControls:
       // Wii: controller type, player, physical controller, extension, phone
       // shake on/off, phone shake sensitivity (Build 442).
@@ -565,7 +564,6 @@ static void DOLMenuOnMain(dispatch_block_t block) {
     }
     return help;
   }
-  if (self.page == DOLMenuAchievements) return [self text:@"achievementsHelp"];
   if (self.page == DOLMenuRecording) {
     NSString* help = [self text:@"recordingHelp"];
     return self.stateMessage ? [NSString stringWithFormat:@"%@\n\n%@",
@@ -630,7 +628,6 @@ static void DOLMenuOnMain(dispatch_block_t block) {
       @"controls": @"gamecontroller",
       @"touchControls": @"hand.tap",
       @"console": @"gearshape.2",
-      @"achievements": @"trophy",
       @"saveState": @"square.and.arrow.down",
       @"loadState": @"square.and.arrow.up",
       @"recording": @"record.circle",
@@ -781,28 +778,6 @@ static void DOLMenuOnMain(dispatch_block_t block) {
         @"disableBoundingBox", @"vertexRounding"][row];
     cell.textLabel.text = [self text:key];
     cell.detailTextLabel.text = [self text:[self.snapshot[@"hacks"][key] boolValue] ? @"on" : @"off"];
-  } else if (self.page == DOLMenuAchievements) {
-    // NEOSTATION_DOLPHIN_ACCOUNT_267: keychain identity and runtime status differ.
-    NSDictionary* achievements = [self.snapshot[@"achievements"] isKindOfClass:NSDictionary.class]
-        ? self.snapshot[@"achievements"] : @{};
-    NSString* key = @[@"raAccount", @"raStatus", @"raMode"][row];
-    cell.textLabel.text = [self text:key];
-    cell.accessoryType = row == 0 ? UITableViewCellAccessoryDisclosureIndicator : UITableViewCellAccessoryNone;
-    cell.selectionStyle = row == 0 ? UITableViewCellSelectionStyleDefault : UITableViewCellSelectionStyleNone;
-    cell.userInteractionEnabled = row == 0;
-    if (row == 0) {
-      NSString* username = [DolphinRetroAchievementsAccount credentials][@"username"];
-      cell.detailTextLabel.text = username.length ? username : [self text:@"notConnected"];
-    } else if (row == 1) {
-      if ([DolphinRetroAchievementsAccount hasPendingChanges])
-        cell.detailTextLabel.text = [self text:@"raRestartRequired"];
-      else cell.detailTextLabel.text = [self text:
-          [achievements[@"enabled"] respondsToSelector:@selector(boolValue)] && [achievements[@"enabled"] boolValue]
-            ? ([achievements[@"gameLoaded"] respondsToSelector:@selector(boolValue)] && [achievements[@"gameLoaded"] boolValue]
-                ? @"active" : @"enabled") : @"disabled"];
-    } else cell.detailTextLabel.text = [self text:
-        [achievements[@"hardcore"] respondsToSelector:@selector(boolValue)] && [achievements[@"hardcore"] boolValue]
-          ? @"hardcore" : @"standard"];
   } else if (self.page == DOLMenuControls) {
     if (indexPath.section == 0 && self.wii && row == 4) {
       cell.textLabel.text=DOLPhoneShakeText(@"title",self.labels[@"__locale"]);
@@ -894,15 +869,6 @@ static void DOLMenuOnMain(dispatch_block_t block) {
   NSInteger row = indexPath.row;
   if (indexPath.section < 0 || indexPath.section >= [self numberOfSectionsInTableView:tableView] ||
       row < 0 || row >= [self tableView:tableView numberOfRowsInSection:indexPath.section]) return;
-  // Account is navigation, never a core-setting request. Status/mode are read-only.
-  if (self.page == DOLMenuAchievements) {
-    if (row == 0 && self.navigationController.topViewController == self) {
-      DolphinRetroAchievementsAccount* account = [[DolphinRetroAchievementsAccount alloc]
-          initWithLabels:self.labels];
-      [self.navigationController pushViewController:account animated:YES];
-    }
-    return;
-  }
   if (self.page == DOLMenuRoot) {
     NSString* key = self.rootKeys[row];
     if ([key isEqual:@"resume"]) { [self resumePressed]; return; }
@@ -925,7 +891,6 @@ static void DOLMenuOnMain(dispatch_block_t block) {
     DOLMenuPage page = [key isEqual:@"graphics"] ? DOLMenuGraphics :
         [key isEqual:@"hacks"] ? DOLMenuHacks :
         [key isEqual:@"cheats"] ? DOLMenuCheats :
-        [key isEqual:@"achievements"] ? DOLMenuAchievements :
         [key isEqual:@"controls"] ? DOLMenuControls :
         [key isEqual:@"console"] ? DOLMenuConsole :
         [key isEqual:@"saveState"] ? DOLMenuSaveStates :

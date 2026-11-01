@@ -44,17 +44,6 @@ static __unsafe_unretained LibretroCoreHost *gAchievementHost = nil;
   _Atomic unsigned _unlockedAchievements;
 }
 
-// Removed with the in-game account page in step 3. A legacy menu cannot
-// alter the immutable launch snapshot or restore an old account.
-+ (BOOL)enabled { return NO; }
-+ (void)setEnabled:(BOOL)enabled { (void)enabled; }
-+ (BOOL)hasStoredLogin { return NO; }
-- (void)loginWithUsername:(NSString *)username password:(NSString *)password completion:(void (^)(BOOL))completion {
-  (void)username; (void)password;
-  if (completion != nil) completion(NO);
-}
-- (void)logout {}
-
 + (BOOL)isHardcoreOptionAllowedForLibrary:(NSString *)library consoleId:(unsigned)consoleId
                                      key:(NSString *)key value:(NSString *)value {
   const rc_disallowed_setting_t *core = rc_libretro_get_disallowed_settings(library.UTF8String);
@@ -279,11 +268,6 @@ static void TokenLogin(int result, const char *message, rc_client_t *client, voi
     @"gameLoaded": @(atomic_load(&_gameReady)),
     @"hardcoreActive": @(atomic_load(&_hardcoreActive)),
     @"errorCode": _errorCode ?: @""
-  });
-  const uint64_t generation = atomic_load(&_callbackGeneration);
-  dispatch_async(dispatch_get_main_queue(), ^{
-    if (atomic_load(&self->_shutdown) || generation != atomic_load(&self->_callbackGeneration)) return;
-    if (self.stateChanged != nil) self.stateChanged();
   });
 }
 

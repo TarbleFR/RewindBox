@@ -3,7 +3,6 @@
 #include "ARMSX2ManualCheatEditor.h"
 #include "NeoUnifiedNativeImport.h"
 #import <neo_cheat_catalog/NeoUnifiedCheatBrowser.h>
-#import "Armsx2RetroAchievementsMenu.h"
 #import <retro_achievements_session/RBRASession.h>
 #import "ARMSX2InGameLocalization.h"
 #import <neo_touch_layout/NeoTouchLayoutStrings.h>
@@ -165,7 +164,7 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
 }
 
 - (NSArray<NSString*>*)rootKeys {
-  return @[@"graphics", @"cheats", @"controls", @"touchControls", @"retroachievements",
+  return @[@"graphics", @"cheats", @"controls", @"touchControls",
            @"save", @"load", @"resume", @"quit"];
 }
 
@@ -425,8 +424,6 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
   child.snapshot = self.snapshot;
   child.readSnapshot = self.readSnapshot;
   child.performCommand = self.performCommand;
-  child.readRetroAchievements = self.readRetroAchievements;
-  child.performRetroAchievementsCommand = self.performRetroAchievementsCommand;
   child.readGraphicsHacks = self.readGraphicsHacks;
   child.performGraphicsHack = self.performGraphicsHack;
   child.graphicsHacks = self.graphicsHacks;
@@ -610,7 +607,6 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
       @"cheats": ARMSX2MenuText(@"Compatibility / Cheats", @"Hacks / Cheats"),
       @"controls": ARMSX2MenuText(@"Controls", @"Commandes"),
       @"touchControls": [self touchText:@"touchControls"],
-      @"retroachievements": @"RetroAchievements",
       @"save": ARMSX2MenuText(@"Save State", @"Sauvegarder un état"),
       @"load": ARMSX2MenuText(@"Load State", @"Charger un état"),
       @"resume": ARMSX2MenuText(@"Resume Game", @"Reprendre le jeu"),
@@ -621,7 +617,6 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
       @"cheats": @"wrench.and.screwdriver",
       @"controls": @"gamecontroller",
       @"touchControls": @"hand.tap",
-      @"retroachievements": @"trophy",
       @"save": @"square.and.arrow.down",
       @"load": @"square.and.arrow.up",
       @"resume": @"play.fill",
@@ -899,12 +894,6 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
     } else if ([key isEqual:@"touchControls"]) {
       [self.navigationController pushViewController:[self child:ARMSX2MenuTouchControls
           title:[self touchText:@"touchControls"]] animated:YES];
-    } else if ([key isEqual:@"retroachievements"]) {
-      Armsx2RetroAchievementsMenu* ra = [Armsx2RetroAchievementsMenu new];
-      ra.readState = self.readRetroAchievements;
-      ra.performCommand = self.performRetroAchievementsCommand;
-      ra.localeIdentifier = self.localeIdentifier;
-      [self.navigationController pushViewController:ra animated:YES];
     } else if ([key isEqual:@"save"]) {
       [self.navigationController pushViewController:[self child:ARMSX2MenuSaveStates
           title:ARMSX2MenuText(@"Save State", @"Sauvegarder un état")] animated:YES];

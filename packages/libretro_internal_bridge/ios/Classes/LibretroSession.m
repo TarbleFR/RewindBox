@@ -3138,18 +3138,6 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   [extras addObject:cheats];
   LibretroMenuRow *textures = [self hdTexturesRow];
   if (textures != nil) [extras addObject:textures];
-  if (_achievements != nil) {
-    LibretroMenuRow *achievements = [LibretroMenuRow rowWithTitle:[self text:@"achievements"]
-                                                           action:^(LibretroMenuPage *page) {
-                                                             [page push:[weakSelf achievementsPage]];
-                                                           }];
-    achievements.disclosure = YES;
-    if (_achievements.gameLoaded) {
-      achievements.detail = [NSString stringWithFormat:@"%u / %u", _achievements.unlockedCount,
-                                                       _achievements.totalCount];
-    }
-    [extras addObject:achievements];
-  }
   [sections addObject:[LibretroMenuSection sectionWithTitle:nil rows:extras]];
 
   // Developer diagnostics of the touch chain (finger, control, command sent,
@@ -3512,81 +3500,6 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     };
   }
   return [_cheatMenu rootPage];
-}
-
-- (LibretroMenuPage *)achievementsPage {
-  __weak LibretroSession *weakSelf = self;
-  LibretroMenuPage *page = [[LibretroMenuPage alloc]
-      initWithTitle:[self text:@"achievements"]
-            builder:^NSArray<LibretroMenuSection *> * {
-              LibretroSession *session = weakSelf;
-              if (session == nil) return @[];
-              LibretroAchievements *achievements = session->_achievements;
-              if (achievements == nil) return @[];
-              NSMutableArray<LibretroMenuRow *> *rows = [NSMutableArray array];
-              [rows addObject:[LibretroMenuRow toggleWithTitle:[session text:@"achievementsEnabled"]
-                                                            on:[LibretroAchievements enabled]
-                                                        toggle:^(LibretroMenuPage *page, BOOL on) {
-                                                          [LibretroAchievements setEnabled:on];
-                                                          if (on) {
-                                                            NSString *path = session->_configuration.contentPath;
-                                                            [session enqueue:^{
-                                                              [achievements startWithContentPath:path];
-                                                            }];
-                                                          }
-                                                          [page rebuild];
-                                                        }]];
-              if (achievements.loggedIn) {
-                LibretroMenuRow *user = [LibretroMenuRow
-                    rowWithTitle:[session text:@"achievementsLoggedIn"
-                                     replacing:@"{user}"
-                                          with:achievements.username ?: @""]
-                          action:nil];
-                if (achievements.gameLoaded) {
-                  user.detail = [NSString stringWithFormat:@"%u / %u", achievements.unlockedCount,
-                                                           achievements.totalCount];
-                } else {
-                  user.detail = [session text:@"achievementsNone"];
-                }
-                [rows addObject:user];
-                LibretroMenuRow *logout = [LibretroMenuRow rowWithTitle:[session text:@"achievementsLogout"]
-                                                                 action:^(LibretroMenuPage *page) {
-                                                                   [achievements logout];
-                                                                   [page rebuild];
-                                                                 }];
-                logout.destructive = YES;
-                [rows addObject:logout];
-              } else {
-                [rows addObject:[LibretroMenuRow
-                                    rowWithTitle:[session text:@"achievementsLogin"]
-                                          action:^(LibretroMenuPage *page) {
-                                            [page askWithTitle:[session text:@"achievementsLogin"]
-                                                        fields:@[
-                                                          [session text:@"achievementsUser"],
-                                                          [session text:@"achievementsPassword"]
-                                                        ]
-                                                        secure:@[ @NO, @YES ]
-                                                        action:[session text:@"achievementsLogin"]
-                                                   cancelTitle:[session text:@"cancel"]
-                                                       handler:^(NSArray<NSString *> *values) {
-                                                         [achievements
-                                                             loginWithUsername:values.firstObject ?: @""
-                                                                      password:values.lastObject ?: @""
-                                                                    completion:^(BOOL success) {
-                                                                      if (!success) {
-                                                                        [session showStatus:[session
-                                                                                                text:@"achievementsLoginFailed"]];
-                                                                      }
-                                                                      [page rebuild];
-                                                                    }];
-                                                       }];
-                                          }]];
-              }
-              LibretroMenuSection *section = [LibretroMenuSection sectionWithTitle:nil rows:rows];
-              section.footer = [session text:@"achievementsHelp"];
-              return @[ section ];
-            }];
-  return page;
 }
 
 @end

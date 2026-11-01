@@ -626,66 +626,6 @@ int get_retroachievements_state_json(char* output,size_t capacity) {
     return 1;
   }
 }
-bool wait_ra_value(NSString* key,bool expected,uint32_t timeout) {
-  const auto deadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(std::max<uint32_t>(timeout,250u));
-  do {
-    @autoreleasepool {
-      id value=[ARMSX2Bridge retroAchievementsState][key];
-      if([value respondsToSelector:@selector(boolValue)] && [value boolValue]==expected) return true;
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  } while(std::chrono::steady_clock::now()<deadline);
-  return false;
-}
-int set_retroachievements_option(uint32_t option,int enabled,uint32_t timeout,char* error,size_t capacity) {
-  if(!has_running_game()) return error_out("RetroAchievements requires a running ARMSX2 game.",error,capacity);
-  const BOOL value=enabled!=0;
-  NSString* key=nil;
-  switch(option) {
-    case NEO_ARMSX2_RA_ENABLED: key=@"enabled"; [ARMSX2Bridge setRetroAchievementsEnabled:value]; break;
-    case NEO_ARMSX2_RA_HARDCORE: key=@"hardcorePreference"; [ARMSX2Bridge setRetroAchievementsHardcore:value]; break;
-    case NEO_ARMSX2_RA_NOTIFICATIONS: key=@"notifications"; [ARMSX2Bridge setRetroAchievementsNotifications:value]; break;
-    case NEO_ARMSX2_RA_LEADERBOARDS: key=@"leaderboardNotifications"; [ARMSX2Bridge setRetroAchievementsLeaderboards:value]; break;
-    case NEO_ARMSX2_RA_OVERLAYS: key=@"overlays"; [ARMSX2Bridge setRetroAchievementsOverlays:value]; break;
-    default: return error_out("Unsupported RetroAchievements option.",error,capacity);
-  }
-  return wait_ra_value(key,value,timeout) ? 1 :
-      error_out("RetroAchievements setting did not settle before timeout.",error,capacity);
-}
-int login_retroachievements(const char* username,const char* password,uint32_t timeout,char* error,size_t capacity) {
-  if(!has_running_game()) return error_out("RetroAchievements login requires a running ARMSX2 game.",error,capacity);
-  if(!username || !password || !username[0] || !password[0])
-    return error_out("RetroAchievements username and password are required.",error,capacity);
-  if([NSThread isMainThread])
-    return error_out("RetroAchievements login must run off the main thread.",error,capacity);
-  __block BOOL completed=NO,success=NO;
-  dispatch_semaphore_t done=dispatch_semaphore_create(0);
-  NSString* user=[NSString stringWithUTF8String:username];
-  NSString* pass=[NSString stringWithUTF8String:password];
-  if(!user || !pass) return error_out("RetroAchievements credentials are not valid UTF-8.",error,capacity);
-  [ARMSX2Bridge loginRetroAchievementsWithUsername:user password:pass completion:^(BOOL ok,NSString* message){
-    success=ok; completed=YES; dispatch_semaphore_signal(done);
-  }];
-  const int64_t nanos=(int64_t)std::max<uint32_t>(timeout,1000u)*NSEC_PER_MSEC;
-  if(dispatch_semaphore_wait(done,dispatch_time(DISPATCH_TIME_NOW,nanos))!=0 || !completed)
-    return error_out("RetroAchievements login timed out.",error,capacity);
-  return success ? 1 : error_out("RetroAchievements login failed.",error,capacity);
-}
-int logout_retroachievements(uint32_t timeout,char* error,size_t capacity) {
-  if(!has_running_game()) return error_out("RetroAchievements logout requires a running ARMSX2 game.",error,capacity);
-  [ARMSX2Bridge logoutRetroAchievements];
-  const auto deadline=std::chrono::steady_clock::now()+std::chrono::milliseconds(std::max<uint32_t>(timeout,250u));
-  do {
-    @autoreleasepool {
-      NSDictionary* state=[ARMSX2Bridge retroAchievementsState];
-      const bool logged=[state[@"loggedIn"] boolValue] || [state[@"savedLogin"] boolValue];
-      if(!logged) return 1;
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  } while(std::chrono::steady_clock::now()<deadline);
-  return error_out("RetroAchievements logout did not settle before timeout.",error,capacity);
-}
-
 // All GS-setting operations use the existing upstream INI and apply paths.
 // Never write BIOS bytes, arbitrary INI keys or a global performance preset.
 int get_graphics_hacks_json(char* output,size_t capacity) {
@@ -763,8 +703,7 @@ const NeoARMSX2API api={sizeof(NeoARMSX2API),NEO_ARMSX2_ABI_VERSION,NEO_ARMSX2_S
   get_upscale_multiplier,get_aspect_ratio,get_cheats_enabled,set_upscale_multiplier,set_aspect_ratio,
   set_cheats_enabled,reload_cheats,get_available_patches_json,set_patch_state,
   has_save_state,save_state,load_state,
-  get_retroachievements_state_json,set_retroachievements_option,
-  login_retroachievements,logout_retroachievements,
+  get_retroachievements_state_json,
   get_graphics_hacks_json,set_graphics_hack,
   get_graphics_assets_json,set_shader_preset,set_performance_overlay,install_shader_pack,
   get_blending_accuracy_json,set_blending_accuracy,

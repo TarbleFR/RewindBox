@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Execute the actual ARMSX2 Graphics menu on UIKit (iOS Simulator), without a VM.
 
-The host application links the production menu, its RetroAchievements page,
+The host application links the production menu, the shared RA restriction labels,
 the native localization, the unified cheat catalogue classes the menu
 imports since Build 474 and the HD textures page (Build 485, fake host). No
 emulator core, GPU, JIT or device is involved: this proves navigation,
@@ -21,6 +21,7 @@ TOUCH_STRINGS = TOUCH_CLASSES / 'NeoTouchLayoutStrings.m'
 
 CLASSES = ROOT / 'packages/armsx2_internal_bridge/ios/Classes'
 CATALOGUE = ROOT / 'packages/neo_cheat_catalog/ios/Classes'
+RA_STRINGS = ROOT / 'packages/retro_achievements_session/ios/Classes/RBRALocalization.m'
 
 APP = r'''
 #import <UIKit/UIKit.h>
@@ -143,6 +144,41 @@ TESTS = r'''
  Armsx2SessionMenu* page=(id)nav.topViewController;[page loadViewIfNeeded];[page viewWillAppear:NO];
  XCTAssertNotEqual(page,graphics);
  return page;
+}
+- (void)testRootMenuRemovesRASettingsAndRetainsGameActions {
+ UINavigationController* nav=nil;[self menu:&nav];
+ Armsx2SessionMenu* root=(id)nav.viewControllers.firstObject;
+ XCTAssertEqual([root tableView:root.tableView numberOfRowsInSection:0],8);
+ for(NSInteger row=0;row<8;row++)
+  XCTAssertNotEqualObjects([self title:root row:row section:0],@"RetroAchievements");
+ XCTAssertEqualObjects([self title:root row:4 section:0],@"Sauvegarder un état");
+ XCTAssertEqualObjects([self title:root row:5 section:0],@"Charger un état");
+ XCTAssertEqualObjects([self title:root row:6 section:0],@"Reprendre le jeu");
+ XCTAssertEqualObjects([self title:root row:7 section:0],@"Quitter le jeu");
+}
+- (void)testRequestedHardcoreBlocksLoadingButKeepsSavingBeforeClientActivation {
+ self.snapshot[@"hardcoreActive"]=@NO;
+ self.snapshot[@"hardcoreGuardActive"]=@YES;
+ self.snapshot[@"saveStateMask"]=@1;
+ UINavigationController* nav=nil;[self menu:&nav];
+ Armsx2SessionMenu* root=(id)nav.viewControllers.firstObject;
+ [nav popToRootViewControllerAnimated:NO];
+ UITableViewCell* load=[self cell:root row:5 section:0];
+ XCTAssertFalse(load.userInteractionEnabled);
+ XCTAssertEqualObjects(load.detailTextLabel.text,@"Indisponible en mode Hardcore");
+ XCTAssertTrue([self cell:root row:4 section:0].userInteractionEnabled);
+ [root tableView:root.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:5 inSection:0]];
+ XCTAssertEqual(nav.topViewController,root);
+ __block NSString* command=nil;
+ root.performCommand=^(NSString* name,id value,void (^done)(BOOL,NSString*)) {
+  command=name;done(YES,@"");
+ };
+ [root tableView:root.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:4 inSection:0]];
+ Armsx2SessionMenu* save=(id)nav.topViewController;[save loadViewIfNeeded];[save viewWillAppear:NO];
+ XCTAssertNotEqual(save,root);
+ XCTAssertTrue([self cell:save row:1 section:0].userInteractionEnabled);
+ [save tableView:save.tableView didSelectRowAtIndexPath:[NSIndexPath indexPathForRow:1 inSection:0]];
+ XCTAssertEqualObjects(command,@"saveState");
 }
 - (void)testGraphicsRowsPlaceBlendingAfterScreenFormat {
  UINavigationController* nav=nil;Armsx2SessionMenu* graphics=[self menu:&nav];
@@ -425,7 +461,7 @@ def native():
         search_paths = ' '.join(str(p) for p in (CLASSES, include, CATALOGUE, CATALOGUE / 'Public'))
         project = {
             'name': 'ARMSX2Graphics26',
-            'options': {'deploymentTarget': {'iOS': '17.4'}},
+            'options': {'deploymentTarget': {'iOS': '18.0'}},
             'settings': {'base': {'CLANG_ENABLE_OBJC_ARC': 'YES', 'CLANG_ENABLE_MODULES': 'YES',
                                   'CLANG_CXX_LANGUAGE_STANDARD': 'c++20',
                                   'CODE_SIGNING_ALLOWED': 'YES', 'CODE_SIGN_IDENTITY': '-',
@@ -434,7 +470,7 @@ def native():
             'targets': {
                 'ARMSX2GraphicsHost': {'type': 'application', 'platform': 'iOS',
                     'sources': [str(directory / 'main.m'), str(CLASSES / 'Armsx2SessionMenu.mm'),
-                                str(CLASSES / 'Armsx2RetroAchievementsMenu.mm'), str(CLASSES / 'ARMSX2InGameLocalization.mm'),
+                                str(RA_STRINGS), str(CLASSES / 'ARMSX2InGameLocalization.mm'),
                                 # Build 485: the Graphics menu's HD textures page.
                                 str(CLASSES / 'ARMSX2TexturePage.mm'), str(CLASSES / 'ARMSX2TextureStrings.m'),
                                 str(CLASSES / 'ARMSX2TexturePackStore.mm')]

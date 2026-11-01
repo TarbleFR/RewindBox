@@ -5,7 +5,6 @@
 #import "Armsx2InternalBridgePlugin.h"
 #import "Armsx2JitBridgePlugin.h"
 #import "ARMSX2CoreABI.h"
-#import "Armsx2RetroAchievementsMenu.h"
 #import "Armsx2SessionMenu.h"
 #include "NeoCheatStore.h"
 #include "NeoUnifiedNativeImport.h"
@@ -553,8 +552,6 @@ static UIViewController* ARMSX2RootViewController(void) {
       !api->set_patch_state || !api->has_save_state ||
       !api->save_state || !api->load_state ||
       !api->get_retroachievements_state_json ||
-      !api->set_retroachievements_option ||
-      !api->login_retroachievements || !api->logout_retroachievements ||
       !api->get_graphics_hacks_json || !api->set_graphics_hack ||
       !api->get_graphics_assets_json || !api->set_shader_preset ||
       !api->set_performance_overlay || !api->install_shader_pack ||
@@ -623,7 +620,7 @@ static UIViewController* ARMSX2RootViewController(void) {
     if (completion) completion();
   };
 
-  // Dismiss from the presenter so any child settings/account controller is
+  // Dismiss from the presenter so any child settings controller is
   // removed with the game surface. Only release g_gameRenderView after UIKit
   // confirms that the presentation hierarchy no longer owns it.
   UIViewController* presenter = controller.presentingViewController;
@@ -782,54 +779,6 @@ static UIViewController* ARMSX2RootViewController(void) {
             @"unlockedCount": state[@"unlockedAchievements"] ?: @0});
       }
       if (completion) completion(state);
-    });
-  });
-}
-
-- (void)performRetroAchievementsCommand:(NSString*)command
-                                  value:(id)value
-                             controller:(Armsx2GameViewController*)controller
-                             completion:(void (^)(BOOL success, NSString* message))completion {
-  dispatch_async(_runtimeQueue, ^{
-    if (!self.api || self.gameController != controller) {
-      dispatch_async(dispatch_get_main_queue(), ^{
-        if (completion) completion(NO, @"ARMSX2 session is no longer active.");
-      });
-      return;
-    }
-
-    char error[1024] = {};
-    BOOL ok = NO;
-    NSString* success = @"";
-    uint32_t option = 0;
-    if ([command isEqualToString:@"enabled"]) option = NEO_ARMSX2_RA_ENABLED;
-    else if ([command isEqualToString:@"hardcore"]) option = NEO_ARMSX2_RA_HARDCORE;
-    else if ([command isEqualToString:@"notifications"]) option = NEO_ARMSX2_RA_NOTIFICATIONS;
-    else if ([command isEqualToString:@"leaderboards"]) option = NEO_ARMSX2_RA_LEADERBOARDS;
-    else if ([command isEqualToString:@"overlays"]) option = NEO_ARMSX2_RA_OVERLAYS;
-
-    if (option) {
-      ok = self.api->set_retroachievements_option(option, [value boolValue] ? 1 : 0,
-                                                   5000, error, sizeof(error)) != 0;
-      success = [controller en:@"RetroAchievements setting updated."
-                            fr:@"Paramètre RetroAchievements mis à jour."];
-    } else if ([command isEqualToString:@"login"] && [value isKindOfClass:NSDictionary.class]) {
-      NSString* username = [value[@"username"] isKindOfClass:NSString.class] ? value[@"username"] : @"";
-      NSString* password = [value[@"password"] isKindOfClass:NSString.class] ? value[@"password"] : @"";
-      ok = self.api->login_retroachievements(username.UTF8String, password.UTF8String,
-                                              30000, error, sizeof(error)) != 0;
-      success = [controller en:@"RetroAchievements account linked."
-                            fr:@"Compte RetroAchievements lié."];
-    } else if ([command isEqualToString:@"logout"]) {
-      ok = self.api->logout_retroachievements(5000, error, sizeof(error)) != 0;
-      success = [controller en:@"RetroAchievements account unlinked."
-                            fr:@"Compte RetroAchievements déconnecté."];
-    }
-
-    NSString* message = ok ? success :
-        (error[0] ? [NSString stringWithUTF8String:error] : @"RetroAchievements operation failed.");
-    dispatch_async(dispatch_get_main_queue(), ^{
-      if (completion) completion(ok, message ?: @"");
     });
   });
 }
@@ -1213,22 +1162,6 @@ static UIViewController* ARMSX2RootViewController(void) {
           return;
         }
         [bridge performGameCommand:command value:value controller:owner completion:completion];
-      };
-      menu.readRetroAchievements = ^(void (^completion)(NSDictionary<NSString*, id>* state)) {
-        Armsx2InternalBridgePlugin* bridge = weakSelf;
-        Armsx2GameViewController* owner = weakController;
-        if (!bridge || !owner) { if (completion) completion(nil); return; }
-        [bridge readRetroAchievementsForController:owner completion:completion];
-      };
-      menu.performRetroAchievementsCommand = ^(NSString* command, id value,
-                                                void (^completion)(BOOL success, NSString* message)) {
-        Armsx2InternalBridgePlugin* bridge = weakSelf;
-        Armsx2GameViewController* owner = weakController;
-        if (!bridge || !owner) {
-          if (completion) completion(NO, @"ARMSX2 session is no longer active.");
-          return;
-        }
-        [bridge performRetroAchievementsCommand:command value:value controller:owner completion:completion];
       };
       menu.readGraphicsHacks = ^(void (^completion)(NSDictionary<NSString*, id>* state)) {
         Armsx2InternalBridgePlugin* bridge=weakSelf;

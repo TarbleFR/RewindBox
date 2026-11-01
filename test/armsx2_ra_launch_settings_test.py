@@ -236,7 +236,15 @@ def main():
     assert presentation.index('objc_msgSend)(bridge, consume)') < presentation.index('configuration[@"notifications"]')
     assert 'active.achievementConfiguration == configuration' in presentation
     assert 'RBAchievementPresent(owner' in presentation and 'RBAchievementPrefetch(sources)' in presentation
-    print('PASS: adapter wired before engine initialization; effective-state publication and native-session end hooks present')
+    abi=(ABI/'ARMSX2CoreABI.h').read_text()
+    menu=(ABI/'Armsx2SessionMenu.mm').read_text()
+    for removed in ('set_retroachievements_option','login_retroachievements','logout_retroachievements'):
+        assert removed not in abi and removed not in core and removed not in host
+    assert 'performRetroAchievementsCommand' not in host
+    assert '@"retroachievements"' not in menu and not (ABI/'Armsx2RetroAchievementsMenu.mm').exists()
+    assert 'get_retroachievements_state_json' in abi and 'RBAchievementPresent(owner' in host
+    assert 'saveState' in host and 'loadState' in host and 'ARMSX2MenuSaveStates' in menu
+    print('PASS: adapter wired before engine initialization; effective-state publication, session end and removed interactive RA entry points')
 
 if __name__=='__main__':
     main()
