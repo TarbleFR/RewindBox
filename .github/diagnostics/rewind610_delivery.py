@@ -59,6 +59,8 @@ REUSED_TESTS = dict(source='6d17e6d601171ed50263d5c11c02188994e34b8c', run=41341
 RECIPE_PATHS = ('.github/diagnostics/rewind610_delivery.py', '.github/workflows/rewind610-delivery.yml',
                 'build-utils/rewind610-source-scope.json', 'test/rewind610_delivery_contract_test.py')
 CONTRACT_TEST = ('python3', '-B', 'test/rewind610_delivery_contract_test.py')
+PREFLIGHT_JOB = 'Build610 authenticate delivered609, the Core 610 run and retained engines'
+REUSE_STEP = 'Authenticate the reused fresh610 test jobs and re-run the delivery contract'
 RETAINED_CORES = delivered609.RETAINED_CORES
 sha, git, require = tree.sha, tree.git, tree.require
 _retained_melonx_divergence = {}
@@ -152,8 +154,9 @@ def reuse_equivalence():
     """The tested source and this checkout differ only in the delivery recipe."""
     source = REUSED_TESTS['source']
     subprocess.run(['git', 'merge-base', '--is-ancestor', source, 'HEAD'], cwd=ROOT, check=True, timeout=60)
-    # Working tree against the tested commit: committed and uncommitted tracked changes.
-    changed = check_recipe_only(git('diff', '--name-only', '--no-renames', source).splitlines())
+    # Commits only: later build steps of the application job edit the checkout; a clean
+    # tracked checkout at HEAD is enforced by contract() before any of them runs.
+    changed = check_recipe_only(git('diff', '--name-only', '--no-renames', source, 'HEAD').splitlines())
     tested_raw = subprocess.check_output(['git', 'show', source + ':' + tree.CONFIG], cwd=ROOT, timeout=60)
     tested, current = json.loads(tested_raw), json.loads((ROOT / tree.CONFIG).read_bytes())
     require(tested['productDelta'] == current['productDelta'] and tested['productReview'] == current['productReview'],
@@ -171,9 +174,27 @@ def contract_rerun():
 
 
 def reuse_check():
-    """Preflight: fail within a minute when the reused test evidence does not apply."""
+    """Preflight, on the clean checkout: fail within a minute when the reused test
+    evidence does not apply, and run the delivery contract fresh."""
+    contract()
     return save('rewind610-reuse-check.json', dict(result='authenticated',
         reused={kind: origin(kind) for kind in JOBS}, contract=contract_rerun()))
+
+
+def preflight_contract():
+    """The application job: the fresh delivery contract of this same run's preflight."""
+    current = checks.execution()
+    jobs = api(f"actions/runs/{current['run']}/attempts/{current['attempt']}/jobs?per_page=100")
+    matching = [job for job in jobs['jobs'] if job['name'] == PREFLIGHT_JOB]
+    require(len(matching) == 1, 'Missing or duplicated610 preflight job')
+    job = matching[0]
+    require(job['head_sha'] == current['source'] and job['run_id'] == current['run'] and
+            job['run_attempt'] == current['attempt'] and job['status'] == 'completed' and
+            job['conclusion'] == 'success', 'The610 preflight did not succeed')
+    steps = {step['name']: step['conclusion'] for step in job['steps']}
+    require(steps.get(REUSE_STEP) == 'success', 'The610 preflight did not re-run the delivery contract')
+    return dict(result='authenticated', command=' '.join(CONTRACT_TEST), rerunInThisRun=True,
+                job=job['id'], step=REUSE_STEP, execution=current)
 
 
 def save(name, value):
@@ -333,7 +354,7 @@ def tests():
             require('Apple Swift version 6.' in receipt['swiftVersion'], 'Translation was not compiled with Swift6')
             checks.checks608.validate_central_receipt(receipt['centralSessionXCTest'])
         checked[kind] = dict(value, receipt=receipt, testsReexecutedInThisRun=False)
-    checked['deliveryContract'] = contract_rerun()
+    checked['deliveryContract'] = preflight_contract()
     return save('rewind610-tests.json', checked)
 
 
@@ -463,7 +484,7 @@ def expected():
             'Application checkout changed after the contract')
     tests_value = json.loads((OUT / 'rewind610-tests.json').read_bytes())
     require(set(tests_value) == {'flutter', 'native', 'deliveryContract'} and
-            tests_value['deliveryContract']['exitCode'] == 0, 'Fresh610 test evidence is absent')
+            tests_value['deliveryContract'] == preflight_contract(), 'Fresh610 test evidence is absent')
     for kind in JOBS:
         value, current = tests_value[kind], origin(kind)
         require(all(value.get(key) == current[key] for key in current), 'Fresh610 test evidence changed: ' + kind)

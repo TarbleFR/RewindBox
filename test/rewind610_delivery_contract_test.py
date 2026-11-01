@@ -99,6 +99,12 @@ class ReusedTests(unittest.TestCase):
                     continue
                 self.assertFalse(any(path in ' '.join(arguments) for path in delivery.RECIPE_PATHS), name)
 
+    def test_the_application_authenticates_this_preflight_step(self):
+        text = (ROOT / delivery.WORKFLOW).read_text()
+        self.assertIn('    name: ' + delivery.PREFLIGHT_JOB + '\n', text)
+        self.assertIn('    - name: ' + delivery.REUSE_STEP +
+                      '\n      run: python3 -B .github/diagnostics/rewind610_delivery.py reuse-check\n', text)
+
     def test_retained_melonx_packaging_accepts_only_reviewed_inputs(self):
         concurrent = tree.concurrent_uncompiled()
         name = 'native/melonx/EmbeddedPerformanceDiagnostics.cs'
