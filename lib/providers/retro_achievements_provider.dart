@@ -61,7 +61,9 @@ class RetroAchievementsProvider extends ChangeNotifier {
   void _onCentralAccountChanged() {
     final session = _sessionService;
     if (_disposed || !_observeCentralAccount || session == null ||
-        !session.available || !session.initialized) return;
+        !session.available || !session.initialized) {
+      return;
+    }
     final identity = session.authenticated ? _identity(session.username) : '';
     if (_centralIdentity == identity) return;
     _centralIdentity = identity;
@@ -548,7 +550,7 @@ class RetroAchievementsProvider extends ChangeNotifier {
       if (user.hasValue && !_authorityAllows(user.value!)) return false;
       switch (resolveRaAutoLoginAction(user: user, apiKey: apiKey)) {
         case RaAutoLoginAction.attemptLogin:
-          return _connect(user.value!, apiKey: apiKey.value);
+          return await _connect(user.value!, apiKey: apiKey.value);
         case RaAutoLoginAction.clearOrphanedKey:
           // Native migration owns legacy inputs. Desktop retains the previous
           // orphan-key cleanup, but never after a concurrent manual connection.

@@ -258,5 +258,32 @@ class CentralReceipt608(unittest.TestCase):
                     checks.validate_central_receipt(value)
 
 
+class FailedChecks608(unittest.TestCase):
+    def test_failed_command_keeps_later_diagnostics_and_fails_the_job(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            scope = root / baseline.CONFIG
+            scope.parent.mkdir(parents=True)
+            scope.write_text('{}\n')
+            commands = (
+                ('failure', (sys.executable, '-c', 'raise SystemExit(7)')),
+                ('independent', (sys.executable, '-c',
+                    "from pathlib import Path; Path('independent-ran').write_text('yes')")),
+            )
+            with mock.patch.object(checks, 'ROOT', root), \
+                 mock.patch.object(checks, 'GROUPS', {'flutter': commands}), \
+                 mock.patch.object(checks.tree, 'verify'), \
+                 mock.patch.object(checks, 'execution', return_value={'source': 'a' * 40}):
+                with self.assertRaises(SystemExit) as failure:
+                    checks.run('flutter')
+            self.assertEqual(failure.exception.code, 7)
+            self.assertEqual((root / 'independent-ran').read_text(), 'yes')
+            receipt = json.loads((root / 'build/validation608/flutter/validation.json').read_text())
+            self.assertEqual(receipt['result'], 'failed')
+            self.assertEqual([item['exitCode'] for item in receipt['commands']], [7, 0])
+            self.assertEqual([item['name'] for item in receipt['commands']],
+                             ['failure', 'independent'])
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)

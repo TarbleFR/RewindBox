@@ -20,7 +20,7 @@
     },
     ".github/diagnostics/rewind608_checks.py": {
       "before": null,
-      "after": "26c1f61ee5dbb9b6dc7df55eafb26763890b04a76f381c4f894cfda34ba64e09",
+      "after": "cfb9b6ca1d6b969fb4dc346def92959106ec008cc438960168a42a53363f339f",
       "modeBefore": null,
       "modeAfter": "100644"
     },
@@ -180,6 +180,12 @@
       "modeBefore": "100644",
       "modeAfter": "100644"
     },
+    "lib/l10n/libretro_locale.dart": {
+      "before": "74024382172a7701932653dbfff2e9c3c6ccd0a70f7f590c8b247879bd94639f",
+      "after": "aa701f0fc70949cf0d7cd6635b143bfbd507578063c7aa99e135d5470d49040e",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
     "lib/main.dart": {
       "before": "a00ab562c7e9bdd249063e05b31e3ea350ff8467ca89e5289ef5d9efb0e5e9b7",
       "after": "e445daeb16bd2e43a0754ed6cefdc34b85ddfc272049e83dab5bd3d5040f4d30",
@@ -188,7 +194,7 @@
     },
     "lib/models/retro_achievements_session.dart": {
       "before": null,
-      "after": "92137c586f829c00bc371aec2f9a471620fb7d00c7381f59fe22e9878650bc6a",
+      "after": "3a18a1c755239264d4b6f99fc7daf8c561beea1e0ccd4c8b3d1c40489990a5c5",
       "modeBefore": null,
       "modeAfter": "100644"
     },
@@ -200,7 +206,7 @@
     },
     "lib/providers/retro_achievements_provider.dart": {
       "before": "88c1bfb464eb8dda8daceb5605c248bc076dcd292609fda01e3eb1586a382183",
-      "after": "e075cd469831565fba60bb2ff1f0741429299bdf74cd167543b0f523db92eeb5",
+      "after": "f486590a9610cde23bef95a1c7ac36bd36564215efd81f0305fa343e138bcf3e",
       "modeBefore": "100644",
       "modeAfter": "100644"
     },
@@ -212,7 +218,7 @@
     },
     "lib/screens/retro_achievements_screen/ra_content.dart": {
       "before": "feab3e4b17253675010e2f59fb12d6c598ed1702b74c584596f0d5cab36f3b88",
-      "after": "4f5202a9c324c6a757d1a4ac5df3080fc010f81249c82be3435f1effef8579c6",
+      "after": "40dbdaf08e2a9dc060838524b008f5628e1a1cb5ea24f0b819c32d2957622327",
       "modeBefore": "100644",
       "modeAfter": "100644"
     },
@@ -674,7 +680,7 @@
     },
     "test/retro_achievements_session_native_test.py": {
       "before": null,
-      "after": "a28b4b52c79e928cb649c53e54de7ff76fb42bbefc3c9367d8db67ba8a362eb2",
+      "after": "2cdecd858b11e06c62e3569218cbf32071e64e371441051bc1b01bd58a7b9856",
       "modeBefore": null,
       "modeAfter": "100644"
     },
@@ -692,7 +698,7 @@
     },
     "test/rewind608_delivery_contract_test.py": {
       "before": null,
-      "after": "ab1f8c2e2aa86c7ec76dabd9bdd11c5389d6d820f229dfb488b9bb4bfe6b3d8e",
+      "after": "853c28a6f031aafc579665fba16c2ea86a42bd6d24173d98376a482dc9535576",
       "modeBefore": null,
       "modeAfter": "100644"
     },
@@ -782,6 +788,12 @@
       "modeBefore": "100644",
       "modeAfter": "100644"
     },
+    "lib/l10n/libretro_locale.dart": {
+      "before": "74024382172a7701932653dbfff2e9c3c6ccd0a70f7f590c8b247879bd94639f",
+      "after": "aa701f0fc70949cf0d7cd6635b143bfbd507578063c7aa99e135d5470d49040e",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
     "lib/main.dart": {
       "before": "a00ab562c7e9bdd249063e05b31e3ea350ff8467ca89e5289ef5d9efb0e5e9b7",
       "after": "e445daeb16bd2e43a0754ed6cefdc34b85ddfc272049e83dab5bd3d5040f4d30",
@@ -790,7 +802,7 @@
     },
     "lib/models/retro_achievements_session.dart": {
       "before": null,
-      "after": "92137c586f829c00bc371aec2f9a471620fb7d00c7381f59fe22e9878650bc6a",
+      "after": "3a18a1c755239264d4b6f99fc7daf8c561beea1e0ccd4c8b3d1c40489990a5c5",
       "modeBefore": null,
       "modeAfter": "100644"
     },
@@ -802,7 +814,7 @@
     },
     "lib/providers/retro_achievements_provider.dart": {
       "before": "88c1bfb464eb8dda8daceb5605c248bc076dcd292609fda01e3eb1586a382183",
-      "after": "e075cd469831565fba60bb2ff1f0741429299bdf74cd167543b0f523db92eeb5",
+      "after": "f486590a9610cde23bef95a1c7ac36bd36564215efd81f0305fa343e138bcf3e",
       "modeBefore": "100644",
       "modeAfter": "100644"
     },
@@ -814,7 +826,7 @@
     },
     "lib/screens/retro_achievements_screen/ra_content.dart": {
       "before": "feab3e4b17253675010e2f59fb12d6c598ed1702b74c584596f0d5cab36f3b88",
-      "after": "4f5202a9c324c6a757d1a4ac5df3080fc010f81249c82be3435f1effef8579c6",
+      "after": "40dbdaf08e2a9dc060838524b008f5628e1a1cb5ea24f0b819c32d2957622327",
       "modeBefore": "100644",
       "modeAfter": "100644"
     },

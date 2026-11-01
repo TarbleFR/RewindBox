@@ -50,6 +50,9 @@ GROUPS = {
         ('central-harness-contract', ('python3', '-B', 'test/retro_achievements_session_native_test.py', '--check-only')),
         ('libretro-policy', ('python3', '-B', 'test/libretro_ra_policy_test.py')),
         ('libretro-retired-account', ('python3', '-B', 'test/libretro_legacy_ra_contract_test.py')),
+        ('libretro-native-labels', ('python3', '-B', 'test/cheat_bootstrap_test.py',
+                                   'Bootstrap.test_native_label_contract',
+                                   'Bootstrap.test_twelve_complete_locales')),
         ('dolphin-policy', ('python3', '-B', 'test/dolphin_ra_session_test.py')),
         ('dolphin-presentation', ('python3', '-B', 'test/achievement_translation_native_test.py')),
         ('dolphin-retired-account', ('python3', '-B', 'test/dolphin_account_267_test.py')),
@@ -142,6 +145,7 @@ def run(group):
         receipt['xcodeVersion'] = subprocess.check_output(['xcodebuild', '-version'], text=True).strip()
         receipt['swiftVersion'] = subprocess.check_output(['xcrun', 'swift', '--version'], text=True).strip()
         tree.require(receipt['xcodeVersion'].startswith('Xcode 16.4\n'), 'Select Xcode16.4 before targeted tests')
+    first_failure = 0
     for name, arguments in GROUPS[group]:
         start = time.monotonic()
         log = directory / (name + '.log')
@@ -158,9 +162,13 @@ def run(group):
         receipt['commands'].append(dict(name=name, argv=list(arguments), exitCode=code,
             seconds=round(time.monotonic() - start, 3), log=log.name, logSHA256=tree.sha(raw)))
         if code:
+            first_failure = first_failure or code
             receipt['result'] = 'failed'
-            save(directory / 'validation.json', receipt)
-            raise SystemExit(code)
+        save(directory / 'validation.json', receipt)
+    if first_failure:
+        # Keep independent diagnostics from this exact source while preserving
+        # the failed prerequisite: no native producer or IPA can consume it.
+        raise SystemExit(first_failure)
     receipt['result'] = 'passed'
     if group == 'native':
         result = json.loads((ROOT / 'build/ra-session-validation/validation.json').read_bytes())

@@ -125,7 +125,12 @@ def main():
         run_logged(['xcrun', 'simctl', 'bootstatus', device['udid'], '-b'], log)
         with tempfile.TemporaryDirectory(prefix='ra-session-xctest-') as directory:
             project = Path(directory)
-            run_logged(['xcodegen', 'generate', '--spec', str(PACKAGE / 'ci/project.yml'),
+            # XcodeGen makes file references relative to the spec's directory.
+            # Keep the spec beside the generated project so moving generation
+            # to a temporary directory cannot corrupt source/Flutter paths.
+            spec = project / 'project.yml'
+            shutil.copyfile(PACKAGE / 'ci/project.yml', spec)
+            run_logged(['xcodegen', 'generate', '--spec', str(spec),
                         '--project', str(project)], log, env=environment)
             run_logged(['xcodebuild', 'test', '-project', str(project / 'RetroAchievementsSession.xcodeproj'),
                         '-scheme', 'RetroAchievementsSession',

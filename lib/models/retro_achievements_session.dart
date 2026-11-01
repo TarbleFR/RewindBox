@@ -44,8 +44,10 @@ abstract final class RetroAchievementsCapabilities {
       return const {'gc', 'gamecube', 'wii'}.contains(system)
           ? RetroAchievementsCapability.supported : RetroAchievementsCapability.unsupported;
     }
-    if (engine == 'armsx2') return system == 'ps2'
-        ? RetroAchievementsCapability.supported : RetroAchievementsCapability.unsupported;
+    if (engine == 'armsx2') {
+      return system == 'ps2'
+          ? RetroAchievementsCapability.supported : RetroAchievementsCapability.unsupported;
+    }
     if (engine != 'libretro') return RetroAchievementsCapability.unsupported;
     if (const {'3ds', '5200', 'gw', 'pico'}.contains(system) ||
         const {'azahar', 'a5200', 'gw', 'nestopia'}.contains(core)) {

@@ -149,8 +149,10 @@ class _RAContentState extends State<RAContent>
     final session = _session;
     final provider = context.read<RetroAchievementsProvider>();
     if (session.available && !await session.logout()) {
-      if (mounted) AppNotification.showNotification(context,
-        raSessionErrorLabel(session.errorCode).getString(context), type: NotificationType.error);
+      if (mounted) {
+        AppNotification.showNotification(context,
+          raSessionErrorLabel(session.errorCode).getString(context), type: NotificationType.error);
+      }
       return;
     }
     provider.disconnect(clearSavedUser: true);
