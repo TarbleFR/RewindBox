@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "result": "passed",
+  "status": "compiled-and-simulator-validated-not-gameplay-tested",
+  "execution": {
+    "source": "a8d22fe8aca6acbffce07a82560351c6ea413278",
+    "run": 41339055246,
+    "attempt": 1,
+    "url": "https://github.com/TarbleFR/RewindBox/actions/runs/41339055246"
+  },
+  "job": 124944961086,
+  "artifact": {
+    "id": 13096647082,
+    "name": "MeloNX-engine-a8d22fe8aca6acbffce07a82560351c6ea413278",
+    "bytes": 88367223,
+    "sha256": "e460a910851848325bf739ee14afb0d54e003d8e188362460c1e743883ed77f1",
+    "expiresAt": "2026-11-15T19:05:08Z"
+  },
+  "resultSHA256": "75c7f70fc1c0ffd9c3458d2f0c4c165c13a35741820a068d16e00a6d5a14b581",
+  "binaries": {
+    "ios-arm64": {
+      "sha256": "ac650ab8196e7d09383cdbbe4c1eaf7093d8e66292138a792f61ae480eb22608",
+      "bytes": 37765760
+    },
+    "iossimulator-arm64": {
+      "sha256": "99d3be097868ea367018909ffc4e8e59208994baf7f556a5e2faaca0ad9c1d6d",
+      "bytes": 38060920
+    }
+  },
+  "identities": {
+    "ios-arm64": "a70503cbdf5278411944aaac091d20f619ecf36c4efdf7b4f74a4f70fdaa4499",
+    "iossimulator-arm64": "eb8b1e2ceb451e4592ad7ec91a55dcee92448cfa5a082c072c6e67c2c33d43d0"
+  },
+  "readsCoreContractSha256": "25f02056aa60ef2c13f16aa60b9482efbd0cb5cb55fb847b322941da684afbd6",
+  "deliveredBaseline": {
+    "source": "1f12796c6b8c3d509bc203e52c561e0d345e7bfc",
+    "workflow": ".github/workflows/melonx-core.yml",
+    "run": 41323968050,
+    "job": 124899905807,
+    "artifact": 13090479414,
+    "artifactName": "MeloNX-engine-1f12796c6b8c3d509bc203e52c561e0d345e7bfc",
+    "bytes": 88300108,
+    "sha256": "83827a94d5812a4dd85d83501d2bee5e31879e1c6961bb1043605ee90b7957fb",
+    "resultSha256": "0f5121087e57b60a35351b616e0e564c01e698ebd3fbf626245f3e6690261672",
+    "gatesSha256": "2aabb3290ee875a68ad82a198e64a6ae25d0603d4174226390e5637a96522ccf",
+    "livenessContractSha256": "4e899e791d30ebd8e9f6a7183093aa5d51c6a7414f2b53642c5726c47ed55006",
+    "deliveredBuild": 609
+  },
+  "adaptationCount": 128,
+  "preparedMembers": 171,
+  "freshAppleGates": 5,
+  "freshReceipts": {
+    "fragmented-reads-checks.json": "6f093ad72c49a7a23143de6209a16fa00b39da7f0f1df40c993213caaa3910cd",
+    "pipeline-checkpoint-checks.json": "28e4103e5cf256e058bab02825ceb70cbd561dab3c39770f5733afdd1db2dd0f",
+    "counter-report-compaction-final-checks.json": "9f657e2d24b8599f6bec4245986de538f6d93368507d583a39be00f3b5ee91e3",
+    "single-virtual-dependency-final-checks.json": "eca1a99427092ba36cdfbf389022cb5dafbad0fa012c053467b5d8fed17f7c58",
+    "performance-diagnostics-checks.json": "de7032eb38ad312e8ca203d6e535fbc01f86b5e4604a38cb0f8d9d9ef09f4121"
+  },
+  "reusedAppleGates": 27,
+  "historicalAppleReceipts": 49,
+  "homebrewSimulatorSessions": 2,
+  "releasedBackingSessions": 2,
+  "performanceDiagnosticsFinalSessions": 2,
+  "gpuWorkRows": 12,
+  "runtimeSmokeSha256": "4548015e11eddd80bc85c51a851a13e8e6500221fe41a593906e1228270d7a2d",
+  "appleFragmentedReads": {
+    "checks": 64,
+    "host": "Darwin arm64 Release managed build",
+    "pageSize": 16384,
+    "bufferUpload1MiB": [
+      1048688,
+      120
+    ],
+    "textureSnapshot1MiB": [
+      1048600,
+      32
+    ],
+    "prefetch96KiB": [
+      98464,
+      136
+    ],
+    "privatePartitionCrossingCopiedInControl": false,
+    "privatePartitions": {
+      "control": {
+        "supported": true,
+        "crossingUploadHash": "9d98b616d15e5799",
+        "crossingUploadAllocated": 88,
+        "insideUploadAllocated": 88,
+        "crossingSnapshotHash": "1b7ace8dc69fc383",
+        "crossingSnapshotAllocated": 0,
+        "matchesGuestBytes": true
+      },
+      "candidate": {
+        "supported": true,
+        "crossingUploadHash": "9d98b616d15e5799",
+        "crossingUploadAllocated": 88,
+        "insideUploadAllocated": 88,
+        "crossingSnapshotHash": "1b7ace8dc69fc383",
+        "crossingSnapshotAllocated": 0,
+        "matchesGuestBytes": true
+      }
+    }
+  },
+  "physicalDeviceTested": false,
+  "gameplayTested": false,
+  "fpsGainProven": false,
+  "deviceAllocationReductionProven": false
+}

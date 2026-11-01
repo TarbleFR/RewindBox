@@ -46,6 +46,20 @@ Old donor builds provide only their explicitly retained native resources;
 they are never the application baseline. The public release and private IPA
 are separate records; do not promote a private build through a README edit.
 
+**Build 611 is allocated** (1 November 2026) to the private IPA that replaces
+only the MeloNX Core of delivered 609 with the fragmented-read Core (source
+`a8d22fe`, run `41339055246`, artifact `13096647082`; see
+[the fragmented-read report](docs/melonx-fragmented-reads-2026-11-01.md)).
+Its build restores the 42 application, retained-engine and reused-test paths
+that the 610 lot changed to their delivered609 bytes, so 611 contains neither
+the RA credentials fix nor RPCS3 Core 610. For the 610 scope, the MeloNX Core
+inputs changed by `9034d32` and `a8d22fe` (`native/melonx/EmbeddedPerformanceDiagnostics.cs`,
+`build-utils/melonx/{adapt_fragmented_reads.py,prepare_embedded.py,verify_reads_core.py,freeze_reads_core.py,reads-core-plan.json,reads-core-contract.json}`,
+`.github/workflows/melonx-core.yml`) are source-only: none is compiled into
+IPA610. The libretro cores retained since 608 (artifact `12280822192`) expire
+on 3 November 2026 and the MeloNX native dependencies (`12458409441`) on
+5 November; a later build needs fresh producers.
+
 **Delivered 609:** delivered 608 with only the MeloNX Core replaced. The new
 Core corrects LightningJit liveness metadata that lost guest NZCV/vector state
 (FMOV marked as writing flags, 41 entries missing a destination read, 16-bit

@@ -1,0 +1,967 @@
+{
+  "schema": 1,
+  "build": 611,
+  "baseline": {
+    "build": 609,
+    "source": "3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a",
+    "tree": "5b8090c5cc3a7410c3bdece0888c6470acd4da20",
+    "run": 41325785563,
+    "job": 124905435858,
+    "attempt": 1,
+    "ipaBytes": 189813193,
+    "ipaSHA256": "7908d1283f722e6b8ed7999c374aab073736740a4cb9f0ce588468bf95620f97",
+    "receipt": "docs/evidence/rewind609/delivery.json",
+    "receiptSHA256": "a4ae8587c49f931d81d6a7d5e6944a33a32c58c0cdf3044b932621c4d6630a69"
+  },
+  "sourceDelta": {
+    ".github/diagnostics/rewind610_baseline.py": {
+      "before": null,
+      "after": "c2f259150664392df4b0a446bf196a18a1662a1523301c65bd71536db0790aa5",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    ".github/diagnostics/rewind610_checks.py": {
+      "before": null,
+      "after": "302b4bb38215eae91b61efdacd4044034770075c4e43a839d5a51bc1dba887fb",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    ".github/diagnostics/rewind610_delivery.py": {
+      "before": null,
+      "after": "67233c1b91aef8a56db71e90b928bf6c6cc4a4386a27fc940233a7bdd5c330c3",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    ".github/diagnostics/rewind611_baseline.py": {
+      "before": null,
+      "after": "b766d486e7d1c80ff2bccfa743074a0b4b4341114dc5e688dab0eca049b168d1",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    ".github/diagnostics/rewind611_delivery.py": {
+      "before": null,
+      "after": "0960d6c8d92047709ac630f70640cc15679bf2080ddc307c9ae97b235c43c0df",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    ".github/diagnostics/rewind611_engine.py": {
+      "before": null,
+      "after": "796c32be4a881611357de1ba3af32afb505da8cbad68de3421afd823e28bd3b2",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    ".github/diagnostics/rpcs3_core610.py": {
+      "before": null,
+      "after": "1996414f9e8dda6aaa47c3745d80735434483be89d3fc7aa46a2d6468e663dec",
+      "modeBefore": null,
+      "modeAfter": "100755"
+    },
+    ".github/diagnostics/rpcs3core610_delivery.py": {
+      "before": null,
+      "after": "e8cb03ba2a74ee6ef009a3043571590da49083a6e1e40154bf749c2337ea8fa0",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    ".github/workflows/melonx-core.yml": {
+      "before": "4c4c03df80d656c2baa437592a1c914a1b1aef1be0e38770ef6cc7ac6091382e",
+      "after": "0fa5fdc0c6e0713772481ffba0c714b732ec37613d772f692cc482623e98ef07",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    ".github/workflows/rewind610-delivery.yml": {
+      "before": null,
+      "after": "b1a7ded0c481865b893e0fe23bc89bea6100bd4dd1edc7e27987561667776bdb",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    ".github/workflows/rewind611-melonx-reads-delivery.yml": {
+      "before": null,
+      "after": "41af7e40bf9cce9f8425527c60cc29e8009708cab164dbbe5fdab91de6865714",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    ".github/workflows/rpcs3-core610.yml": {
+      "before": null,
+      "after": "b6938d360268fd866bac1615d69e04aa66f50782f4c17533dab4ae5396063de8",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "AGENTS.md": {
+      "before": "ce193b997c92f7474c93d066feb52be50fdf528cef3f416e90b24400ee66d16b",
+      "after": "39a4269a43521ad1db0a9cf529412a79269445676b9d55fc9d3290666fdc6702",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "build-utils/delivery-610-recipient.pem": {
+      "before": null,
+      "after": "ce300900b0b25ae3419335f60e23b28e30ad3020167d17d818d289c1b007d5fb",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/delivery-611-recipient.pem": {
+      "before": null,
+      "after": "5f1c0cabd41879247c34f3ba9418d18c52cf1f0bf22de94fc4b432d138f31e04",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/melonx/adapt_fragmented_reads.py": {
+      "before": null,
+      "after": "e5145f2798fe096c71e4d61453a63d2d7aa580c9bf26532144552e85299e0261",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/melonx/adapt_gpu_work_diagnostics.py": {
+      "before": null,
+      "after": "b81d502d52d269b5d2c0c7c96bc283b63864c46025f9658e0cb3487089681249",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/melonx/freeze_reads_core.py": {
+      "before": null,
+      "after": "92cd374fcdea49e0264ec4db640f98fdf7503b2b7994e753420b6b334392741f",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/melonx/prepare_embedded.py": {
+      "before": "36b0f6ede620802d6ee288fe3ce3ae4619ff37837bf4496e92f5d37bb1184077",
+      "after": "6bb5e1bc53ecd91ea0133257cd8d52c0269bbf42928530e85e14c12f50fdf0ef",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "build-utils/melonx/reads-core-contract.json": {
+      "before": null,
+      "after": "25f02056aa60ef2c13f16aa60b9482efbd0cb5cb55fb847b322941da684afbd6",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/melonx/reads-core-plan.json": {
+      "before": null,
+      "after": "fcfac8c1d117496079b5d774d4aab057139ab317a57cb97bf2274b24cecf5c32",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/melonx/verify_reads_core.py": {
+      "before": null,
+      "after": "e65a8e0b210333fc09741b12e538809bcc0f68008a7b46a7706ff505632dc0f4",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/rewind610-native-inventory.json": {
+      "before": null,
+      "after": "5d3ef005afa08897b12c900b792ec5332999cbebd1276d64da909279a0f77f9b",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/rewind611-native-inventory.json": {
+      "before": null,
+      "after": "691bb5d7d14647effa7940466e8f047c91c321530c21206198b5f6aab61c4dd9",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "build-utils/rpcs3/build_rpcs3_core610.py": {
+      "before": null,
+      "after": "75336ac6d0801f3c078428ff619c29049ea0aa7a4580c50f22cdbea2564b7acb",
+      "modeBefore": null,
+      "modeAfter": "100755"
+    },
+    "build-utils/rpcs3/canonical-source.json": {
+      "before": "60fdd6513d33d0b2ffbe34057050a5174b8c6f739b75c62e5b01b75a8f727ada",
+      "after": "3295bec47781008e001cc54cbbb1cf50f37c2a4703952c9759929a9cc91c55a9",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "build-utils/rpcs3/embedded-core.patch": {
+      "before": "70d694bb3ef812b87b8839e53335376028aa16476893512d012b77ef1952fd79",
+      "after": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "build-utils/rpcs3/patches/core610-recipe.patch": {
+      "before": null,
+      "after": "7ad2bcf20680d948f22ac89e474b2a600f8bd4c910d82646a84bb5886019525a",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/hogwarts609-device-20261101/hogwarts609-device-metrics.json": {
+      "before": null,
+      "after": "c333c68522f004284661c33f6ba08e664e67c89c4e4e97b75c31650095987d00",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/melonx-fragmented-reads-20261101/fragmented-reads-checks.json": {
+      "before": null,
+      "after": "12083765bd9f03f2707d98dc414151ea1d0780ad79e5ace0850c3311dbf8ddc5",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/melonx-reads-core-20261101/core-summary.json": {
+      "before": null,
+      "after": "dde73797998755d4d5635f4f39ba9eb6f30cabf2040548a3f60408a3bb30a303",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/melonx-reads-core-20261101/fragmented-reads-checks-apple.json": {
+      "before": null,
+      "after": "6f093ad72c49a7a23143de6209a16fa00b39da7f0f1df40c993213caaa3910cd",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind609/api/artifacts.json": {
+      "before": null,
+      "after": "1a7f0e62bf17d1fe7107f552213dc51c54e487978ac06eb1dc8add2ce9ae511f",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind609/api/jobs.json": {
+      "before": null,
+      "after": "5348ef51d3e742f263185f79f13523bf5b3b338edea7bf591df88be9118cb691",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind609/api/run-attempt.json": {
+      "before": null,
+      "after": "6364b80927a099be3683a0f0102e6d1bbe0b814111cc558187098e31948576f8",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind609/delivery.json": {
+      "before": null,
+      "after": "a4ae8587c49f931d81d6a7d5e6944a33a32c58c0cdf3044b932621c4d6630a69",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind609/download609-verification.json": {
+      "before": null,
+      "after": "802c9912ecd2a937624c9594207fd30d00626559a962f5db5f82d2bed2cbef60",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind609/environment.json": {
+      "before": null,
+      "after": "050f68748abb633e52db743eb96ac6f0cd9150732282c7af3b9581ccb3c523c5",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind609/observed-timings.json": {
+      "before": null,
+      "after": "a842e5f3bf69f7e15d99a4fec5d4a3bb15cdb3421c324457ae24c144a59b31ee",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind609/rewind609-engine-evidence.json": {
+      "before": null,
+      "after": "e2b8d06ffa525de88ca3a492e57ea45369ec4065f31f3ecca7b3e7ffb9436062",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind609/rewind609-ipa-validation.json": {
+      "before": null,
+      "after": "f34fdc814d78bc0fafca581b562c7342d59cff5bd89646a724464bca01e02a33",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind609/rewind609-tests.json": {
+      "before": null,
+      "after": "a5c095f1d386a8e816ce20af1da522f734bfdeaa07dbb8c29e4cf9701b78de8b",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind609/signature.json": {
+      "before": null,
+      "after": "68ed5b766002c76ec0119df3a1114366043ce98950880acc08240bd4ae62c110",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind609/signed-payload-identity.json": {
+      "before": null,
+      "after": "055d10cc7320a6c7d992bec821199d97c82856d7bd33d512cdda2a500f374fa3",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind609/version-validation.json": {
+      "before": null,
+      "after": "b6948f2267ef5bf0d77a6fff8be903a62ad5a017ec2c7ed6e9dc66131d541b02",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rewind609/warning-review.json": {
+      "before": null,
+      "after": "9ffe96698c752630721b8bc85eee0d3b1bdc73a7d098610036d05d1f336a6149",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-core/RPCS3_IOS_ABI.txt": {
+      "before": null,
+      "after": "f4ccd05b3271c386ee55d9876c7450012a3b361e5065c09dc22075e38b3cc35c",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-core/RPCS3_SOURCE_COMMIT.txt": {
+      "before": null,
+      "after": "53b29e1e6ee68cc9a67052ba4f20bb519b52bc5f4f381cb1d5cfb160422992a5",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-core/core610-proof.json": {
+      "before": null,
+      "after": "167218dec8ed7294cb6a30f797feef1fc104cc3472617dd72d68e98ff4f4aae7",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-core/identity.json": {
+      "before": null,
+      "after": "1599d181b25753c841846acb0e2efa90c0c631e0b527fe275ebd7b93fdff1793",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-core/libRPCS3Core.dylib.sha256": {
+      "before": null,
+      "after": "c5b9f8420f703848f45948e4c4a65ae8ca3ac114fba21619144c5aeebc67b8f6",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-core/link-response-manifest.json": {
+      "before": null,
+      "after": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-core/run-41333351872.json": {
+      "before": null,
+      "after": "19d73ee49842b2e9fe8c51d1323eeb1d5ccddbfddaafd62a1c95c97da07fa9f3",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-host-tests/apple-host-tests.json": {
+      "before": null,
+      "after": "d99682a57764823e01da02dd5f6ebd31449fb0adae5f4dae7800ef869aaefc2c",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-host-tests/codegen-audit.json": {
+      "before": null,
+      "after": "de68276c626edf8ce8d04d0e69833b4e30244a59feff73f0d2c30ef5fcc281fd",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-host-tests/exitspawn-worker-asan-ubsan.json": {
+      "before": null,
+      "after": "f8f2ccb4d7f61aa2bb91b12b3cce072e2a09bf2d4ae7b47ef58c242087858e6b",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-host-tests/exitspawn-worker-plain.json": {
+      "before": null,
+      "after": "aff1571a8ae83f6804417462a3a1b8f2a63c637e6e13ffb2c82653f1db838c56",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-host-tests/feedback-census.json": {
+      "before": null,
+      "after": "0203d2c4879ca82226bb4d9111bbe57dc58c1c1e2470d7881a717c6f7390cb88",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-host-tests/lr-full-queue.json": {
+      "before": null,
+      "after": "c2c3d395392e809698466b88f62a5f747ccde6419da58b548de85f31680f356c",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-host-tests/position-invariance-contract.json": {
+      "before": null,
+      "after": "2189bf553ba5fecef018df4a89e01b4c5108b545f59c6304010549972b50276d",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-host-tests/reuse-audit.json": {
+      "before": null,
+      "after": "64defc9dced498da137436d9783023d073aa41777f51ef65b874470feb8cbc14",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/apple-host-tests/transition-phases.json": {
+      "before": null,
+      "after": "4fd17fc95a13af7d68868c672ec3d8f458d9c231b1925de47d988f65e4ead07c",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/feedback-census/host-census-report.json": {
+      "before": null,
+      "after": "ed81c35d09f28ad6975eb5755afdca6b522c66a83fc1dcfdfdd62bc8a0a2c020",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/historical-harnesses/exitspawn-worker610-asan-ubsan.json": {
+      "before": null,
+      "after": "a42280dacfb3e93a2c3372de365848f9243d7c6e63bf7e96b7e8125a7f116cfb",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/historical-harnesses/exitspawn-worker610-plain.json": {
+      "before": null,
+      "after": "60e8bf1cd3dde49aabf5355dae58ae48d76c318c4206642d9d99b28735bdb0e5",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/historical-harnesses/reuse-audit.json": {
+      "before": null,
+      "after": "64defc9dced498da137436d9783023d073aa41777f51ef65b874470feb8cbc14",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/lr-full-queue/codegen-audit.json": {
+      "before": null,
+      "after": "de68276c626edf8ce8d04d0e69833b4e30244a59feff73f0d2c30ef5fcc281fd",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/lr-full-queue/host-harness-report.json": {
+      "before": null,
+      "after": "37c982319722fe74ae05b41b420d2218d1fbd95cb065a0375e28ee8e8248dde4",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/position-invariance/host-chain-report.json": {
+      "before": null,
+      "after": "b75f33ef987fc816d6283d666b2725271e2b64a6a5a1c7c0d7f7d5d78aacc748",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/evidence/rpcs3-core610-20261101/transition-phases/host-contract-and-routing.json": {
+      "before": null,
+      "after": "4fd17fc95a13af7d68868c672ec3d8f458d9c231b1925de47d988f65e4ead07c",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/hogwarts609-liveness-2026-11-01.md": {
+      "before": null,
+      "after": "00322f28befeed4d7d4fd9ca806055922595fbe6dcc2b13d0da50fc142e2d702",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/melonx-fragmented-reads-2026-11-01.md": {
+      "before": null,
+      "after": "2a2738add7c0c49553b1775b379cd68229aa9fd4f1530d1e2c83eb43c650dc8f",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/ra-credentials-status-2026-11-01.md": {
+      "before": null,
+      "after": "613142c088b9115d44abe9374b859453aac250826cd17aa00a9800df99e87250",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "docs/rpcs3-core610-2026-11-01.md": {
+      "before": null,
+      "after": "a7024cddaaa80be6312eb962009169ae313ae0c3a01cce4e5bf65ab87991a490",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "lib/l10n/app_locale.dart": {
+      "before": "2105ccca7dc53f28764cde1d25f32e5d48b226664251ea9bb05ffaaeec706f3e",
+      "after": "469f2937036efbdaa9f6aed4c69fd8f6af98e45f1d132e49b5340c9a368c00d0",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/l10n/app_locale_de.dart": {
+      "before": "012569d8974fbf20cc043e546982ef29dadf47294fb3567da1e66dd1cf36ec7b",
+      "after": "c04d5e26589c885b41b144dd94a51ef770b8d67f33db3b5f3ebfa40ef538c715",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/l10n/app_locale_en.dart": {
+      "before": "60d7c1c89593db3baf9d6070063a0a482ff660f9673308bf1a2b1445fb7ba943",
+      "after": "9677f7a8bec24122753d6634adad5a7b46d39f1c5d51a8ca6ccea61c195fb97d",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/l10n/app_locale_es.dart": {
+      "before": "60d35ceb9541756e5dff4896ad75efc51f3136e1f5f68d3d73f3fc29306af8d3",
+      "after": "e583be727a54b4178f046e5707caa3979b2dad441d2ca0cb81f6c5a17481fc99",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/l10n/app_locale_fr.dart": {
+      "before": "7890b2efcce72c880f34ef01377d0fbfa1ac4e9fad3e188c3b6ba66483945b51",
+      "after": "0d67eb9aa8569abb15396e303ecc8f1792010c5c35ec0eee07db4635826a1713",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/l10n/app_locale_id.dart": {
+      "before": "6a399fef160cc466ccd5857c056506b612fdd3e7213e25775311e9cafacefac2",
+      "after": "50aeaca4ba0843cccf8e015ea95973cdaf49b72bb1b6d359ea0310f7acc43abd",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/l10n/app_locale_it.dart": {
+      "before": "be7eaeee6e56acd7409d96b5d8c49c4ffc9f1b081ad4cc7002b4e78173bd9c8b",
+      "after": "8ccb6815c4c034536040061f9ab79e478183d3aefea3d4f7909bae44b77b6865",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/l10n/app_locale_ja.dart": {
+      "before": "e912067cd0d65c47ede17bacc309698dc29cb4507b0987c02738a4f9ec7951c3",
+      "after": "ca9a767d2795d49ad06e5ba35de2d6bb94c20cad8dc1d1b2a9e26796472ba5f1",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/l10n/app_locale_ko.dart": {
+      "before": "b3b762aaaa346af6351bb814f9d0f0045b3524e837116e8268f4ae9f8283e3a0",
+      "after": "6e002ad799acb555631edc757b7743c8e195afd07d89bde0b3212061e7273816",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/l10n/app_locale_pt.dart": {
+      "before": "1d59c4a96b8d91f3f50b75c7286bdfbd0d9adeb745661105dc0ff5b748cdb367",
+      "after": "4842686ce68212fc476425b0d53e7c975c536560235e59b9215b9ae14096390e",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/l10n/app_locale_ru.dart": {
+      "before": "321db74766792a71e13ed0a39ba4dacfe0de4e5185b547afc5247e609db188e8",
+      "after": "26218f570983605b805fdec699d91a98f8ce7e27f40c67e374df6b5ca8372b92",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/l10n/app_locale_zh.dart": {
+      "before": "f7ad2d7a4d2ed49ebdd95a6f6ee0664cd7b84c838e5d8e8d78cc4948061f6771",
+      "after": "f61716171c2a2925374e63a171e1dbe4262990ba3750f50b80ce52bceface4f5",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/l10n/app_locale_zh_hant.dart": {
+      "before": "e04e18098230729263f9361af00c95d47bbc65655881d33a6231e9ee5a295b27",
+      "after": "935675381cab70afe1fb7494491146bdf4ce29c5f5d2f33a7bf53c05af280272",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/l10n/retro_achievements_status_locale.dart": {
+      "before": null,
+      "after": "ceba27f710350f7b419901f2a6069cdb13c0d8d7cb9a132f32157c3fb3486a6a",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "lib/models/retro_achievements_session.dart": {
+      "before": "3a18a1c755239264d4b6f99fc7daf8c561beea1e0ccd4c8b3d1c40489990a5c5",
+      "after": "322bc36040ffe6e4a6d25d9ae6bd4cee0e1a60651c24185450df2c8c763733a1",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/providers/retro_achievements_provider.dart": {
+      "before": "f486590a9610cde23bef95a1c7ac36bd36564215efd81f0305fa343e138bcf3e",
+      "after": "c38f7013a614ac516405ead763e0164dcfba924ba07680c88968a2b3a81ab4e3",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/screens/retro_achievements_screen/ra_content.dart": {
+      "before": "40dbdaf08e2a9dc060838524b008f5628e1a1cb5ea24f0b819c32d2957622327",
+      "after": "f33688b42ccff6651f283c0d577d4fab05910daacc31d780528bc8d50c48003d",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/screens/retro_achievements_screen/ra_session_settings.dart": {
+      "before": "9054abdffd8e38673f810c9a7c68ce9f3d458406fbf9c66ae6e7f2b0bd112fd6",
+      "after": "b310d00695edb4cda564367963862148cc7a77ab68790d11397bb990638c6c36",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/services/retro_achievements_service.dart": {
+      "before": "4bd0473bc3eb9d131e2a7cc463528865d4ca9ce36767507876db6bf9e1473922",
+      "after": "3b8b7d796eb563dfc459bc0463d83e3334a05964ae5ba3c4315751e47370f85e",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/services/retro_achievements_session_service.dart": {
+      "before": "77ebadc3f45d380fd69944b240791e656465b812a37945a14cba14cc2aa14982",
+      "after": "e026ebb8df3847ef38e007eac3a1e1b3eade55fe5c74f279cc3b6f0493495274",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/services/rpcs3_config_adapter.dart": {
+      "before": "0ea4e83708c2477b7bf2b671e74ed7cd57acec391892d01d4d0d47b4aed28a2e",
+      "after": "6720f506f88755428e2b3d6d096896e6cb7074883c62e6889e28b7427dce2ec2",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/services/rpcs3_game_profile_service.dart": {
+      "before": "26de43c2187f1b40e4aecfb84164f04f305cc0ab182caea874e7b7d789638397",
+      "after": "84f14eb8d1102592607c37733d44c41f65a05731bf8a33d16693f3e3c2eaf7a2",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "lib/services/rpcs3_internal_service.dart": {
+      "before": "e075f75e3747bcd32e7ea0171643739af333008e1d729336d91269f6dc79089d",
+      "after": "3a98de9746ccfaabfc19e1d2573a180bd3225d2beeafb6ebfbb2be982a2043ee",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "native/melonx/EmbeddedPerformanceDiagnostics.cs": {
+      "before": "36e47c24a47409d7fde622bd771ac96234ea5c3366b442b0ad73f756b6454182",
+      "after": "95732befcbfe919f6f5a16c40621dfd7ee9b94c47d510806aebf020ef761ca39",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "packages/achievement_translation/Tests/AchievementToastPresentationTests.swift": {
+      "before": "ce6b48dd24979fcbbf306ea06620fbd93736235ffb08f88a339f8f3cc602ff93",
+      "after": "d965c68972e5e9c01729d447af5450e1f183bbdbe8daba35fac9cba5fae7c9c7",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "packages/achievement_translation/ios/Classes/AchievementToastPresenter.swift": {
+      "before": "9f587a24fcfb3e37655c50a57cdc92780c7ddc9371ef7a6be68631c7886629f3",
+      "after": "d697dcea963e8b726f9b4fc7926e807a6f99f7d2f24d617cf1d8e014d3b69921",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm": {
+      "before": "9cde63bc23eed5097587bc152c396b1004f1b9f499a942b786cfa10b2f5e5d3b",
+      "after": "ca6bc6dc877746fa1971a109331076306f1557572829a8b84b1abcaceb822617",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm": {
+      "before": "f993e0563bb1d05e723cd73ca416ba263ed3ecf7390055fd6fbfd756cfc644e8",
+      "after": "4becc8b65aa06172edfe9ea6d006f26391977b5cd00b56133e16f19b973a7dcf",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.h": {
+      "before": "bedec04446bf0c23c490b998a61e55d7ed13afb59baa72ee39144bb6a0a001d7",
+      "after": "e70e62dcd4afb66e8e01409e98253c3c7b1b6c094b80d119fa3d0ac7dbbbd5e8",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m": {
+      "before": "a1ac6dd71e5ddc5a04ce196b255c95e88ff5c65f7fe0c8e2f105d5d7b7c57dcd",
+      "after": "020d56ac77755233604186c1e9f4ea5496702cc2b16645d1e434f8c3f8e9a8b9",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "packages/libretro_internal_bridge/ios/Classes/LibretroSession.m": {
+      "before": "1e9f886c2f33a2d3a8f3d75c453fa3654104af14d77214aded2e24e69ee5c6c5",
+      "after": "318d40b521b824190c3f13ecb7e3d17bc769ae17ad8ed35b5cf367d0765ed094",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "packages/neo_swap/ios/Classes/NeoSwapPlugin.mm": {
+      "before": "90dd6d9da2644f2338095fa4abd9e3fbd593a02f952180f5a30b91c5a24b0598",
+      "after": "35425c4bf67427d3fe912affd0769acee7411634a0e50fe008f5393dc67dec45",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "packages/neo_swap/lib/neo_swap.dart": {
+      "before": "09239ca0e797cc48c6806d6fd319d0966341bec9e64842b3f3a5b2655c5182ab",
+      "after": "dcd6fa655b53b059a5ddbde4a0fb43283828257c3f0198b8f54fa3d151774c9a",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "packages/retro_achievements_session/Tests/RBRASessionHubTests.m": {
+      "before": "b91a9fe1578a908bab807c13a0e2d8171aa59cbd8648ea9468f726cb241b03a3",
+      "after": "e37897b16f952acc2fd6854b2ab275a0f21802194490ff733aab372f395a7ba9",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "packages/retro_achievements_session/ios/Classes/Public/RBRASession.h": {
+      "before": "533267aeade79261437806c23b35749927308934fbda484259dd0ba962e1b0ea",
+      "after": "dde2967bc7de1657d000dbdf58082f7ab8a651ba020734ea828cf3469adc5236",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "packages/retro_achievements_session/ios/Classes/RetroAchievementsSessionPlugin.m": {
+      "before": "c5ba32f292624f5c775221bb1edcf30d1faf021c30c8b81e9b6d43634d30a057",
+      "after": "aeb39fb3d71d8131f139da8aeec7b52c641da8995e17e697574f3ea1a98b44ef",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "test/melonx_fragmented_reads/FragmentedReadsProbe.cs": {
+      "before": null,
+      "after": "3d0d21270c9c451b31d22a6ebfd1e166d7fec8d93a91da27258921347423fa74",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/melonx_fragmented_reads_test.py": {
+      "before": null,
+      "after": "fb36bfae88ce0061e365eb2760e6e03acb2b085ae8dcb252adfc355342e019b8",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/melonx_performance_diagnostics/Program.cs": {
+      "before": "10465981fa2ce5cc04519146f533ceeefdc98b0a51472b91d344f93817b3d8cc",
+      "after": "73b89620a1a88d360d54ea0d47ff783c7ac52a9916114cb521938a248b1387e8",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "test/melonx_performance_diagnostics_test.py": {
+      "before": "fd20efaff2880d4c3a6972de4816ae7be290864506d61173a49f6fefb302fe0f",
+      "after": "ac1cc87053da839dd7cd1cd9ad04aa0ccb4c23f5eede00a67584877a3dbc2444",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "test/melonx_reads_core_contract_test.py": {
+      "before": null,
+      "after": "8a65f0bcacd0b0cb659d18ae6bc4194cd26e70f41ac3afc831b4fc4486b9a2fc",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/melonx_single_virtual_dependency/RegionBoundary.cs": {
+      "before": null,
+      "after": "13672e3df97cff15b66dc483760bddc045ddcad4da1b8d6d01eb7eb56ab54498",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/melonx_single_virtual_dependency_test.py": {
+      "before": "aa2fdc829f5bae4a8aab119da4f73a8e0254f2488c688e8d2c67cbf48392ced5",
+      "after": "94642e206ed92d7b324a1fb9bda5519b0f87ab94b00656bf4ec2e4f9d7d7bfc1",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "test/native/rpcs3_exitspawn_worker610.cpp": {
+      "before": null,
+      "after": "bba412a8ada883c85c339dec2f412eb169d5ec025b6d9bba01f7f288036794af",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/native/rpcs3_position_invariance/mvk_adapters.cpp": {
+      "before": null,
+      "after": "4095103de532f8c9826929c56dfb13142a94441e555cadd3962e02f6bab8ae99",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/native/rpcs3_position_invariance/mvk_probe.cpp": {
+      "before": null,
+      "after": "a63f201b2bc5004471bd501a8610eb35abedb892276961226f5cb164eb4d3e7e",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/native/rpcs3_position_invariance/prologue_adapters.cpp": {
+      "before": null,
+      "after": "a622c78e6d758b5a80369b48f30bf3edec9ed95550f78c03edb91615fb1fe6c7",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/native/rpcs3_position_invariance/prologue_probe.cpp": {
+      "before": null,
+      "after": "05090966be5ca0ea067d3eaffd7653b9152789c673d23d50fc0dce1bea0a0aaa",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/native/rpcs3_position_invariance/shim/TargetConditionals.h": {
+      "before": null,
+      "after": "4061f25cc3988f86c27eb86d20ef14b8c1a57dff5422ea644de82f7f905dc9dc",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/native/rpcs3_spu_mfc_lr/tests.inc": {
+      "before": null,
+      "after": "360b967ae2cd6ad37406282bc5c96715128857de6c6959d8c34500d49f51309b",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/neo_swap_core_pin_test.py": {
+      "before": "d0ab2a42d0041cc7b86c7a861086bf9c534b972854ec69c1c20bcdcecc86e29b",
+      "after": "86fbe1329b9aa97acd64db96b2f91883bec150ee5dabdea72dc154ab1e220e70",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "test/retro_achievements_account_consistency_test.dart": {
+      "before": "535ea27118f6b87ad1b0b198fbb0450791bfc6d0d6e33022a68ccabe118a62e6",
+      "after": "a311a656ab92e7979bcc858dac4cb67ecf5a7a3b7558b22082a00f924078814d",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "test/retro_achievements_login_regression_test.dart": {
+      "before": null,
+      "after": "18859be2c2902009905173b38e7c40195a9c67c56283081d6163544b5ba4b553",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/retro_achievements_session_localization_test.dart": {
+      "before": "5e3227d4ef9199ee5f9b14c5129bc14db596c5fb8d6ec0e328805e3f1dff5538",
+      "after": "d2c8d1c88a54f7de19941d838ce6a54b7427a70b69a80bc76b26b20321a126c6",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "test/retro_achievements_session_test_boundary.m": {
+      "before": "ef709d19c91ef446f2c6440f644630c8870f230a3a567992441ac45c48ab09f7",
+      "after": "2ae1d165f9f44d04272055ef9625c61fe8f257173cea0b3ebf65e42ffb4bdc6f",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "test/rewind610_delivery_contract_test.py": {
+      "before": null,
+      "after": "fe3cbc86669d7255970aa2f1e6cb5c64e9613945666acd916bd2c9887a048679",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/rewind611_delivery_contract_test.py": {
+      "before": null,
+      "after": "6b7736873fdcd679f7f5da7e989cc63496e8da9f09ddec6a30cf440bb9994a65",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/rpcs3_core610_codegen_test.py": {
+      "before": null,
+      "after": "3e6e53ea8c48c11a59d0d5904ab7ea28c2c552b6afecdb375abc8d6e8c603b1d",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/rpcs3_core610_reuse_audit_test.py": {
+      "before": null,
+      "after": "1b26750c3d54308d65af62196902cb433c2521657c771d3522b2e9c5b9e3d0c3",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/rpcs3_core610_route_test.py": {
+      "before": null,
+      "after": "8ceee8dc17524473de4fd4ae18340a4f9e16a023f87b3e47141dc8a5bab121e3",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/rpcs3_exitspawn_worker610_test.py": {
+      "before": null,
+      "after": "03d3762a4ea4a470a95e1b045ea6911d29cdfd38498f82d364b00c9f56797aeb",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/rpcs3_feedback_census_test.py": {
+      "before": null,
+      "after": "e4f5114a98fc54710b180399786aae8de201152491f029c087e4807dc3799faa",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/rpcs3_game_profile_service_test.dart": {
+      "before": "b19ef33c48c450ffa6f7ce7aa0a63eaf0a7966e22948263ca6f47467f30ed920",
+      "after": "d1a6e52e3e5a4e9a4e5d233fe731b217d72c6c4b6e1b36b3da59adda6c9baa09",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "test/rpcs3_guest_relay_launch_test.dart": {
+      "before": null,
+      "after": "41a1d384554fcdea2bfe2b133432f515763cb5f54d954bd6757020ca7f738982",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/rpcs3_import_spu_build230_contract_test.dart": {
+      "before": "ac6cda72108157ceaa9f13e2df7a43188f4933c27bd7104171bbeb922a25246d",
+      "after": "e5ac20a7a0e1fb77a9ecdbc0c382aded94213510198b67eed17ff47adccd07d6",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "test/rpcs3_position_invariance_test.py": {
+      "before": null,
+      "after": "cc507f0d9a9b413497f7ab038a5741fce246dca5a6ae8c00682ca7709603fe69",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/rpcs3_profile_engine_test.dart": {
+      "before": "b833da92d6cb4744b52131ca476f7f090c58a874341a9537209b7b5bd97392bf",
+      "after": "94af9d55371729f67b94be8915c4c0007342df479e542607fac5e6bb9a7844df",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    },
+    "test/rpcs3_spu_mfc_lr_test.py": {
+      "before": null,
+      "after": "6e7f0a30538d1c9b2eaefcbc306d0aaa5c391e6042d7321eb27f93de9a8d34e3",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/rpcs3_transition_phases_test.py": {
+      "before": null,
+      "after": "e5e39bf55bf5013a29dccf82949b443c3c83e885ec51dda2288a14dc1ca3cd3d",
+      "modeBefore": null,
+      "modeAfter": "100644"
+    },
+    "test/support/ra_dashboard_fixture.dart": {
+      "before": "ce9766dd9f19e413e4c48107eb4c054f317c7074ff4c9cd0b5c9863580558ba9",
+      "after": "19ce3d81d1ac3e4d8e7e4fe0960d022610dd36268168ac58ae5b9366f6515222",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    }
+  },
+  "productDelta": {
+    "native/melonx/EmbeddedPerformanceDiagnostics.cs": {
+      "before": "36e47c24a47409d7fde622bd771ac96234ea5c3366b442b0ad73f756b6454182",
+      "after": "95732befcbfe919f6f5a16c40621dfd7ee9b94c47d510806aebf020ef761ca39",
+      "modeBefore": "100644",
+      "modeAfter": "100644"
+    }
+  },
+  "restoredToBaseline": [
+    "build-utils/rpcs3/build_rpcs3_core610.py",
+    "build-utils/rpcs3/canonical-source.json",
+    "build-utils/rpcs3/embedded-core.patch",
+    "build-utils/rpcs3/patches/core610-recipe.patch",
+    "lib/l10n/app_locale.dart",
+    "lib/l10n/app_locale_de.dart",
+    "lib/l10n/app_locale_en.dart",
+    "lib/l10n/app_locale_es.dart",
+    "lib/l10n/app_locale_fr.dart",
+    "lib/l10n/app_locale_id.dart",
+    "lib/l10n/app_locale_it.dart",
+    "lib/l10n/app_locale_ja.dart",
+    "lib/l10n/app_locale_ko.dart",
+    "lib/l10n/app_locale_pt.dart",
+    "lib/l10n/app_locale_ru.dart",
+    "lib/l10n/app_locale_zh.dart",
+    "lib/l10n/app_locale_zh_hant.dart",
+    "lib/l10n/retro_achievements_status_locale.dart",
+    "lib/models/retro_achievements_session.dart",
+    "lib/providers/retro_achievements_provider.dart",
+    "lib/screens/retro_achievements_screen/ra_content.dart",
+    "lib/screens/retro_achievements_screen/ra_session_settings.dart",
+    "lib/services/retro_achievements_service.dart",
+    "lib/services/retro_achievements_session_service.dart",
+    "lib/services/rpcs3_config_adapter.dart",
+    "lib/services/rpcs3_game_profile_service.dart",
+    "lib/services/rpcs3_internal_service.dart",
+    "packages/achievement_translation/Tests/AchievementToastPresentationTests.swift",
+    "packages/achievement_translation/ios/Classes/AchievementToastPresenter.swift",
+    "packages/armsx2_internal_bridge/ios/Classes/Armsx2InternalBridgePlugin.mm",
+    "packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm",
+    "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.h",
+    "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m",
+    "packages/libretro_internal_bridge/ios/Classes/LibretroSession.m",
+    "packages/neo_swap/ios/Classes/NeoSwapPlugin.mm",
+    "packages/neo_swap/lib/neo_swap.dart",
+    "packages/retro_achievements_session/Tests/RBRASessionHubTests.m",
+    "packages/retro_achievements_session/ios/Classes/Public/RBRASession.h",
+    "packages/retro_achievements_session/ios/Classes/RetroAchievementsSessionPlugin.m",
+    "test/retro_achievements_account_consistency_test.dart",
+    "test/retro_achievements_session_localization_test.dart",
+    "test/support/ra_dashboard_fixture.dart"
+  ],
+  "coreContractSHA256": "25f02056aa60ef2c13f16aa60b9482efbd0cb5cb55fb847b322941da684afbd6",
+  "nativeInventorySHA256": "691bb5d7d14647effa7940466e8f047c91c321530c21206198b5f6aab61c4dd9",
+  "publicKeySHA256": "5f1c0cabd41879247c34f3ba9418d18c52cf1f0bf22de94fc4b432d138f31e04",
+  "core": {
+    "source": "a8d22fe8aca6acbffce07a82560351c6ea413278",
+    "run": 41339055246,
+    "job": 124944961086,
+    "attempt": 1,
+    "workflow": ".github/workflows/melonx-core.yml",
+    "artifact": 13096647082,
+    "name": "MeloNX-engine-a8d22fe8aca6acbffce07a82560351c6ea413278",
+    "bytes": 88367223,
+    "sha256": "e460a910851848325bf739ee14afb0d54e003d8e188362460c1e743883ed77f1",
+    "binaries": {
+      "ios-arm64": {
+        "sha256": "ac650ab8196e7d09383cdbbe4c1eaf7093d8e66292138a792f61ae480eb22608",
+        "bytes": 37765760
+      },
+      "iossimulator-arm64": {
+        "sha256": "99d3be097868ea367018909ffc4e8e59208994baf7f556a5e2faaca0ad9c1d6d",
+        "bytes": 38060920
+      }
+    },
+    "identities": {
+      "ios-arm64": "a70503cbdf5278411944aaac091d20f619ecf36c4efdf7b4f74a4f70fdaa4499",
+      "iossimulator-arm64": "eb8b1e2ceb451e4592ad7ec91a55dcee92448cfa5a082c072c6e67c2c33d43d0"
+    },
+    "contractSha256": "25f02056aa60ef2c13f16aa60b9482efbd0cb5cb55fb847b322941da684afbd6",
+    "resultSha256": "75c7f70fc1c0ffd9c3458d2f0c4c165c13a35741820a068d16e00a6d5a14b581",
+    "packagedFingerprint": "a0620ffc0912f91fdf8cebdfc6fb333876b51f9f40c646eb974f4df51d54742c"
+  },
+  "scopeGeneratedInCI": false,
+  "physicalDeviceTested": false
+}
