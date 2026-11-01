@@ -1,0 +1,80 @@
+{
+ "schema": 1,
+ "buildSucceededMarkers": 1,
+ "buildFailedMarkers": 0,
+ "warningLines": 446,
+ "errorLines": 2,
+ "errorSamples": [
+  " 37 | /// Wraps the underlying asset's statusOfValueForKey:error: method.",
+  " 39 |                                   error:(NSError *_Nullable *_Nullable)outError;"
+ ],
+ "logSHA256": "f64a8116336b48a8b0d986ad606a769c03d7f22749f3a942198905c0e9150a74",
+ "scope": "application job log of the delivery run",
+ "neoswapLinesChangedSince609": {
+  "NeoSwapPlugin.mm": [
+   [
+    1422,
+    1465
+   ]
+  ],
+  "NeoSwapRelayService.mm": [
+   [
+    81,
+    81
+   ],
+   [
+    121,
+    123
+   ],
+   [
+    271,
+    271
+   ],
+   [
+    277,
+    277
+   ],
+   [
+    292,
+    295
+   ],
+   [
+    301,
+    301
+   ],
+   [
+    305,
+    317
+   ],
+   [
+    344,
+    346
+   ],
+   [
+    473,
+    473
+   ]
+  ],
+  "NeoSwapRelayService.h": [
+   [
+    13,
+    16
+   ]
+  ]
+ },
+ "warningsInLinesChangedBy610": [],
+ "warningsElsewhereInNeoSwapFilesChangedBy610": [
+  "/Users/runner/work/RewindBox/RewindBox/packages/neo_swap/ios/Classes/NeoSwapPlugin.mm:576:76: warning: implicit conversion loses integer precision: 'NSUInteger' (aka 'unsigned long') to 'std::uint32_t' (aka 'unsigned int') [-Wshorten-64-to-32]",
+  "/Users/runner/work/RewindBox/RewindBox/packages/neo_swap/ios/Classes/NeoSwapPlugin.mm:695:51: warning: implicit conversion loses integer precision: 'NSUInteger' (aka 'unsigned long') to 'std::uint32_t' (aka 'unsigned int') [-Wshorten-64-to-32]",
+  "/Users/runner/work/RewindBox/RewindBox/packages/neo_swap/ios/Classes/NeoSwapPlugin.mm:726:51: warning: implicit conversion loses integer precision: 'NSUInteger' (aka 'unsigned long') to 'std::uint32_t' (aka 'unsigned int') [-Wshorten-64-to-32]",
+  "/Users/runner/work/RewindBox/RewindBox/packages/neo_swap/ios/Classes/NeoSwapPlugin.mm:732:30: warning: implicit conversion loses integer precision: 'NSUInteger' (aka 'unsigned long') to 'std::uint32_t' (aka 'unsigned int') [-Wshorten-64-to-32]",
+  "/Users/runner/work/RewindBox/RewindBox/packages/neo_swap/ios/Classes/NeoSwapPlugin.mm:745:17: warning: implicit conversion loses integer precision: 'NSUInteger' (aka 'unsigned long') to 'std::uint32_t' (aka 'unsigned int') [-Wshorten-64-to-32]",
+  "/Users/runner/work/RewindBox/RewindBox/packages/neo_swap/ios/Classes/NeoSwapPlugin.mm:755:13: warning: implicit conversion loses integer precision: 'NSUInteger' (aka 'unsigned long') to 'std::uint32_t' (aka 'unsigned int') [-Wshorten-64-to-32]",
+  "/Users/runner/work/RewindBox/RewindBox/packages/neo_swap/ios/Classes/NeoSwapPlugin.mm:792:68: warning: implicit conversion loses integer precision: 'NSUInteger' (aka 'unsigned long') to 'std::uint32_t' (aka 'unsigned int') [-Wshorten-64-to-32]",
+  "/Users/runner/work/RewindBox/RewindBox/packages/neo_swap/ios/Classes/NeoSwapPlugin.mm:798:64: warning: implicit conversion loses integer precision: 'NSUInteger' (aka 'unsigned long') to 'std::uint32_t' (aka 'unsigned int') [-Wshorten-64-to-32]",
+  "/Users/runner/work/RewindBox/RewindBox/packages/neo_swap/ios/Classes/NeoSwapPlugin.mm:1065:51: warning: implicit conversion loses integer precision: 'NSUInteger' (aka 'unsigned long') to 'std::uint32_t' (aka 'unsigned int') [-Wshorten-64-to-32]",
+  "/Users/runner/work/RewindBox/RewindBox/packages/neo_swap/ios/Classes/NeoSwapPlugin.mm:1069:68: warning: implicit conversion loses integer precision: 'NSUInteger' (aka 'unsigned long') to 'std::uint32_t' (aka 'unsigned int') [-Wshorten-64-to-32]",
+  "/Users/runner/work/RewindBox/RewindBox/packages/neo_swap/ios/Classes/NeoSwapPlugin.mm:1070:55: warning: implicit conversion loses integer precision: 'NSUInteger' (aka 'unsigned long') to 'std::uint32_t' (aka 'unsigned int') [-Wshorten-64-to-32]"
+ ],
+ "note": "No warning comes from a line changed by 610. The listed NeoSwapPlugin.mm warnings are in code unchanged since delivered609 (the only 610 change in that file is the inserted block at the recorded range)."
+}

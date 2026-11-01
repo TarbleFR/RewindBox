@@ -21,46 +21,34 @@ Last reconciled: **1 November 2026**, after private Build **609**.
 
 | Item | Verified reference |
 | --- | --- |
-| Application | **RewindBox 0.0.8 (609)**, private IPA; iOS 18+, SideStore re-signing |
-| Delivery source | `3d92f19ee9c1e37d0813bc4a44a775923ccc2f5a`, tree `5b8090c5cc3a7410c3bdece0888c6470acd4da20` |
-| Delivery run / jobs | `41325785563`, attempt 1: preflight `124905314379`, application `124905435858`, all successful |
-| Downloaded IPA | `RewindBox-609.ipa`, 189813193 bytes; SHA-256 `7908d1283f722e6b8ed7999c374aab073736740a4cb9f0ce588468bf95620f97` |
-| Product baseline | Delivered 608, source `90a9e8fcaa9bf68e2f5a2270cab6b636d62fff07` (IPA `575321ba…`); application sources byte-identical, only the MeloNX Core replaced |
-| MeloNX Core | Liveness Core from `1f12796c6b8c3d509bc203e52c561e0d345e7bfc`: run `41323968050`, job `124899905807`, artifact `13090479414` (`83827a94…`), iPhone dylib `34fb7a5c…`, packaged fingerprint `c43a80bf…`; the delivered `ae78b4b` engine plus the A57 register/NZCV liveness fix and GC memory-load diagnostics ([contract](build-utils/melonx/liveness-core-contract.json)) |
-| RPCS3 Core | Recovered 607 Core `a4ae86d085c231e3c5c93f7f72d2eced0f38ec24`, ABI 30, payload `7289ce4e…`, preserved and verified in 608 and 609; original producer `41243687649` failed after linking, separately recovered/verified for 607 |
+| Application | **RewindBox 0.0.8 (610)**, private IPA; iOS 18+, SideStore re-signing |
+| Delivery source | `df337fe7fcb52f512dc1c76195120e077b175f9b`, tree `ae37cc70ad0fcb0f54b04585130859ec560d34b5` |
+| Delivery run / jobs | `41344399524`, attempt 1: preflight `124961014608`, application `124961131649`, both successful (11.5 min end to end); Flutter `124953301162` and Xcode16.4 native `124953301200` test jobs **reused** from run `41341797604` on identical product sources (only the recipe changed; the delivery contract was re-run fresh) |
+| Downloaded IPA | `RewindBox-610.ipa`, 189880489 bytes; SHA-256 `6e92f25108d6e189858fdfa1df8758c35eeaf5ebad737f197816b6be150fb426` |
+| Product baseline | Delivered 609 (`3d92f19e`, IPA `7908d128…`) plus the RA credentials fix `45d19d7`, the RPCS3 Dart profile changes (AC, DW6, GameDB keys) and the NeoSwap guest-relay boot preparation |
+| MeloNX Core | Liveness Core retained from 609 (`1f12796c`, run `41323968050`, packaged fingerprint `c43a80bf…`); the later fragmented-read MeloNX inputs are source-only in 610 and recorded as such |
+| RPCS3 Core | **Core 610** from `fefad81dbfc6890294def9b529f6e0d915fcfcbe`: run `41333351872`, artifact `13094491719`, dylib `e5e494ae…`, payload `9af73ca8…`; ABI 30, 88 exports, PPU/SPU cache identities unchanged ([report](docs/rpcs3-core610-2026-11-01.md)) |
 | Dolphin Core | Upstream `7cac54161659421ed95c2cd1c0b0746539a4cd38`; producer on `0279198b1c33d869550cae3cf35f155b9d3a4f79`, job `124810929735` **SUCCESS** within whole run `41293321826` **FAILURE**; payload `640e4389…` retained from 608 and verified |
 | ARMSX2 Core | Pinned iOSv2.6.0, ABI 9; producer on `0279198b1c33d869550cae3cf35f155b9d3a4f79`, job `124810929747` **SUCCESS** within whole run `41293321826` **FAILURE**; payload `fab55193…` retained from 608 and verified |
-| Delivery proof | [Build 609 Hogwarts liveness delivery](docs/hogwarts609-liveness-2026-11-01.md), [delivery receipt](docs/evidence/rewind609/delivery.json), [downloaded-file checks](docs/evidence/rewind609/download609-verification.json); 608: [session delivery](docs/build608-ra-session-delivery.md), [receipt](docs/evidence/rewind608/delivery.json) |
+| Delivery proof | [Core 610 and IPA 610 report](docs/rpcs3-core610-2026-11-01.md), [delivery receipt](docs/evidence/rewind610/delivery.json), [downloaded-file checks](docs/evidence/rewind610/download610-verification.json); 609: [liveness delivery](docs/hogwarts609-liveness-2026-11-01.md), [receipt](docs/evidence/rewind609/delivery.json) |
 
-609 is delivered, not a pending candidate. Do not reuse its number.
-**Build 610 is allocated** (1 November 2026) to the private IPA that adds the RA
-credentials fix `45d19d7` and the RPCS3 Core 610 lot (`core610_20261101`, patch
-`a63b9643`, Core route `.github/workflows/rpcs3-core610.yml`) to delivered 609;
-it retains the 609 liveness MeloNX Core. The concurrent MeloNX diagnostics
-commit `2e0793ac` is source-only in 610 (not compiled into its MeloNX Core);
-the next MeloNX Core increment must use **611 or later**. 610 also changes the
-NeoSwap guest-relay request and boot preparation (`packages/neo_swap/lib/neo_swap.dart`,
-`packages/neo_swap/ios/Classes/{NeoSwapPlugin.mm,NeoSwapRelayService.h,NeoSwapRelayService.mm}`);
-a 611 scope frozen from a later head must restore them too. See
-[the Core 610 report](docs/rpcs3-core610-2026-11-01.md). Before
-allocating another number, reconcile concurrent deliveries. A newer source
-commit or Core-only artifact is not automatically a newer delivered IPA.
-Old donor builds provide only their explicitly retained native resources;
-they are never the application baseline. The public release and private IPA
-are separate records; do not promote a private build through a README edit.
+610 is delivered, not a pending candidate. Do not reuse its number. Its first
+delivery run `41341797604` failed in the retained MeloNX packaging check
+(concurrent source-only MeloNX inputs); its successful test jobs were reused by
+the delivered run. 609 (delivered 608 with the liveness MeloNX Core) remains
+recorded in its own report.
 
-**Build 611 is allocated** (1 November 2026) to the private IPA that replaces
-only the MeloNX Core of delivered 609 with the fragmented-read Core (source
-`a8d22fe`, run `41339055246`, artifact `13096647082`; see
-[the fragmented-read report](docs/melonx-fragmented-reads-2026-11-01.md)).
-Its build restores the 42 application, retained-engine and reused-test paths
-that the 610 lot changed to their delivered609 bytes, so 611 contains neither
-the RA credentials fix nor RPCS3 Core 610. For the 610 scope, the MeloNX Core
-inputs changed by `9034d32` and `a8d22fe` (`native/melonx/EmbeddedPerformanceDiagnostics.cs`,
-`build-utils/melonx/{adapt_fragmented_reads.py,prepare_embedded.py,verify_reads_core.py,freeze_reads_core.py,reads-core-plan.json,reads-core-contract.json}`,
-`.github/workflows/melonx-core.yml`) are source-only: none is compiled into
-IPA610. The libretro cores retained since 608 (artifact `12280822192`) expire
-on 3 November 2026 and the MeloNX native dependencies (`12458409441`) on
+**Build 611 is allocated** (1 November 2026) to the private IPA built on top of
+delivered 610 with the standard recipe (below): the fragmented-read MeloNX Core
+(source `a8d22fe`, run `41339055246`, artifact `13096647082`; see
+[the fragmented-read report](docs/melonx-fragmented-reads-2026-11-01.md)), an
+RPCS3 Core 611 carrying the RetroAchievements PS3 Core patch (built on the
+RPCS3 Core route by the RPCS3 session), and the RetroAchievements commits held
+until 610 was delivered. The MeloNX session triggers the single 611 delivery
+after the RPCS3 session reviews its manifest. The 609-based 611 recipe
+(`462620d`, `rewind611_*`, run `41340417135` cancelled) is superseded.
+The libretro cores retained since 608 (artifact `12280822192`) expire on
+3 November 2026 and the MeloNX native dependencies (`12458409441`) on
 5 November; a later build needs fresh producers.
 
 **Delivered 609:** delivered 608 with only the MeloNX Core replaced. The new
@@ -140,6 +128,17 @@ presentation still require physical-device validation; see the [605 report](docs
 - Start each delivery from the last verified delivered IPA and add only reviewed
   changes. Check the new components, unchanged component identities, licenses
   and actual signed IPA; do not recursively re-prove every historical delivery.
+- **Same recipe for every build (maintainer rule, 1 November 2026).** Every
+  private IPA is built by the same standard delivery recipe, which adds only what
+  changed since the last verified delivered IPA. Changed components are rebuilt
+  by their own producer route and replaced; unchanged components keep their
+  authenticated identity; a test group reruns only when one of its inputs changed
+  (otherwise its pinned evidence is reused and labelled), and the delivery
+  contract always reruns. Do not copy a new per-build recipe
+  (`rewindNNN_*.py`, `rewindNNN-*.yml`): declare the build's changes in its
+  manifest and extend the standard recipe only for a new kind of change. A
+  failed delivery is retried by changing only the recipe, reusing its successful
+  test jobs. See [standard delivery recipe](docs/standard-delivery-recipe.md).
 - Compute shared source contracts once per job with
   `build-utils/delivery_contract_memo.py`; preserve file modes and invalidate on
   changed inputs. Report observed durations and bottlenecks; target under
