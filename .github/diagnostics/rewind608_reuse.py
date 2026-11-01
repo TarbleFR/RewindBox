@@ -168,6 +168,10 @@ def canonical_ast(value):
     if isinstance(value, ast.AST):
         name = type(value).__name__
         fields = dict(ast.iter_fields(value))
+        if name in ('Import', 'ImportFrom'):
+            # Python 3.15 adds this field. Older imports are eager (0);
+            # explicit lazy imports (1) remain semantically distinct.
+            fields['is_lazy'] = getattr(value, 'is_lazy', 0)
         optional = {}
         if name in ('FunctionDef', 'AsyncFunctionDef', 'ClassDef'):
             optional['type_params'] = []
@@ -349,6 +353,8 @@ def guard_input_hashes():
 
 def prepare():
     require(enabled(), 'Explicit reuse selection is required')
+    print('Recovery prepare Python:', sys.version.replace('\n', ' '),
+          'version_info=' + repr(tuple(sys.version_info[:3])), flush=True)
     tree.verify()
     current = producers.execution()
     proof = dict(schema=1, build=608, result='running', evidenceMode='reused',
@@ -447,6 +453,8 @@ def validate_guard(value, current, equivalence, originals, directory):
 @lru_cache(maxsize=1)
 def verified_guard():
     require(enabled(), 'Recovery proof requires explicit selected origin')
+    print('Recovery consumer Python:', sys.version.replace('\n', ' '),
+          'version_info=' + repr(tuple(sys.version_info[:3])), flush=True)
     current = producers.execution()
     run = producers.api('actions/runs/' + str(current['run']))
     require(run['id'] == current['run'] and run['head_sha'] == current['source'] and

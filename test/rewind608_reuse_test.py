@@ -22,6 +22,43 @@ def entry(marker='a', mode='100644', kind='blob'):
 
 
 class ExactInputs(unittest.TestCase):
+    def test_eager_import_default_is_portable_but_lazy_values_are_preserved(self):
+        for source in ('import os', 'from os import path'):
+            parsed = ast.parse(source).body[0]
+            # Model the older node schema, rather than deleting a 3.15
+            # instance field whose class-level default is still None.
+            older_type = type(type(parsed).__name__, (ast.AST,),
+                              {'_fields': tuple(f for f in parsed._fields if f != 'is_lazy')})
+            node = older_type()
+            for field, value in ast.iter_fields(parsed):
+                if field != 'is_lazy':
+                    setattr(node, field, value)
+            self.assertFalse(hasattr(node, 'is_lazy'))
+            absent = reuse.canonical_ast(node)
+            self.assertEqual(absent['fields']['is_lazy'], 0)
+            self.assertEqual(reuse.canonical_ast(parsed), absent)
+            node.is_lazy = 0
+            self.assertEqual(reuse.canonical_ast(node), absent)
+            for lazy in (1, None, '', []):
+                node.is_lazy = lazy
+                actual = reuse.canonical_ast(node)
+                self.assertIs(type(actual['fields']['is_lazy']), type(lazy))
+                self.assertEqual(actual['fields']['is_lazy'], lazy)
+                self.assertNotEqual(actual, absent)
+
+    def test_actual_lazy_import_syntax_cannot_change_a_protected_import(self):
+        for eager, lazy in (('import os', 'lazy import os'),
+                            ('from os import path', 'lazy from os import path')):
+            before = eager + '\ndef consumer():\n return 1\n'
+            after = lazy + '\ndef consumer():\n return 2\n'
+            if sys.version_info < (3, 15):
+                with self.assertRaises(SyntaxError):
+                    ast.parse(after)
+            else:
+                self.assertEqual(ast.parse(after).body[0].is_lazy, 1)
+                with self.assertRaisesRegex(ValueError, 'outside the reviewed consumer bodies'):
+                    reuse.verify_python(before, after, {'consumer'})
+
     def test_projection_does_not_depend_on_ast_dump_format(self):
         raw = b"def producer(a=None, b='', c=False, d=b'abc'):\n return (a, b, c, d, ...)\n"
         expected = reuse.python_projection(raw, set())
@@ -123,11 +160,11 @@ class ExactInputs(unittest.TestCase):
         after = (SUBJECT / reuse.PRODUCERS).read_bytes()
         self.assertEqual(reuse.verify_python(before, after, {'origin', 'tests', 'native'},
                                             {'validate_armsx2_shaders'}),
-                         '9e2e67b4da4f4e7353f6ae1a6a8e6acbf7d1db54874392fc2b4d95464af103d4')
+                         '8311059a4f823683c1ba649999bc0b6897b64d95dba4a70ee970048e6d286971')
         self.assertEqual(reuse.verify_python(
             reuse.source_bytes(reuse.SOURCE, reuse.DELIVERY), (SUBJECT / reuse.DELIVERY).read_bytes(),
             {'contract', 'expected'}),
-            'c980295ae762a45a37f63dde6a778c64eb3d9342c8a3339a8842bce895f7c1a0')
+            'b1c2da2bab325e18d5002ef737ad9a935b83b4cc8fd9ffd50e3e64b6646d0502')
         for name in ('native_manifest', 'execution', 'input_paths', 'input_hashes', 'fetch', 'save'):
             changed = after.replace(('def ' + name + '(').encode(),
                                     ('def replaced_' + name + '(').encode(), 1)
