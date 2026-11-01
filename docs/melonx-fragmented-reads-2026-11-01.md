@@ -152,16 +152,34 @@ RetroAchievements commits. A first 609-based 611 run (`41340417135`) was
 cancelled during its Xcode step at the maintainer's request; nothing was
 delivered and its `rewind611_*` recipe is superseded.
 
-## 6. Not done, and why
+## 6. What this change probably does not explain, and what is next
 
-- GC configuration changes (thresholds, conserve memory): rejected earlier;
-  they move pauses without removing the allocations.
-- Quality reductions: none.
-- Not converted yet, but counted by `readCopies`: shader code comparison
-  (`ShaderCache.IsShaderEqual` via `GetSpanMapped`), non-prefetched command
-  words (`GPFifoDevice.GetWords`), constant-buffer and bindless reads through
-  `GetSpan(MultiRange)`, `LayoutConverter` pool misses. They are next only if
-  the iPhone counters show they matter.
+A separate 28-agent investigation of the 609 GPU-thread allocations, each
+candidate checked by two adversarial verifiers (execution path and size),
+reached these conclusions (source-level, not measured on the device):
+
+- **The copies this change removes are probably rare on the device.** The
+  guest heap is mapped Private by `SetHeapSize`, one private allocation per
+  `Map` call (one per page-list node), so it consists of a few very large
+  mappings, not 32 MiB slices. A texture or buffer range only copies when it
+  crosses one of those few boundaries, or lies in memory built from many small
+  `MapPhysicalMemory` chunks. Its estimate is about 0 MB per frame, at most a
+  few MB, against 55-82 MB per observed 3D frame. The fix stays correct and
+  free; `readCopies`/`pooledReads` will show its real share.
+- **Confirmed path, unmeasured size: full-pool texture-array rebuilds.**
+  `TextureBindingsArrayCache` rents binding scratch of the pool length and
+  pools it only up to 4096 entries; above that each rebuild allocates new
+  arrays (`new T[length]`), and the threaded renderer copies them again
+  (`ThreadedArrayPool`, also capped at 4096). A rebuild follows any write to
+  the texture pool, which this game rewrites continuously. Size: 16 x L bytes
+  per rebuild, with neither the pool length L nor the rebuild count R measured
+  (0 to about 41 MB per frame). The new `bindings` row of `gpuWork` measures
+  exactly this site and decides the next change.
+- Refuted as per-frame sources: texture decoding or recompression (ASTC, BCn
+  and ETC2 are native on the A18), pool misses, DMA and copy-buffer CPU paths,
+  and the conversion output buffers (pooled).
+- Not done on purpose: GC configuration changes (they move pauses without
+  removing allocations) and any quality reduction.
 
 ## 7. iPhone measurement protocol
 
