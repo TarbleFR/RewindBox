@@ -14,63 +14,98 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
     remplacé ;
   - les autres sont conservés avec leur identité authentifiée : run, job, empreinte d'artefact,
     empreinte de charge utile.
-- **Sources produit** :
-  - seul le delta revu depuis la base entre dans la build (périmètre gelé) ;
-  - le travail concurrent qui n'en fait pas partie est déclaré « source seulement » et n'est jamais
-    compilé en silence.
-- **Tests** :
-  - un groupe de tests n'est rejoué que si l'une de ses entrées a changé ;
-  - sinon, sa preuve épinglée est authentifiée et réutilisée, avec le libellé « réutilisée » ;
-  - le contrat de livraison, qui lit la recette, est toujours rejoué.
-- **Recette** :
-  - on ne copie plus une recette par build (`rewindNNN_*.py`, `rewindNNN-*.yml`) ;
-  - on déclare les changements de la build dans son manifeste ;
-  - on n'étend la recette standard que pour un nouveau type de changement.
+- **Sources produit** : seul le delta revu depuis la base entre dans la build ; le travail concurrent
+  est déclaré « source seulement » et n'est jamais compilé en silence.
+- **Tests** : un groupe n'est rejoué que si l'une de ses entrées a changé ; sinon sa preuve épinglée
+  est authentifiée et réutilisée, avec le libellé « réutilisée ». Le contrat de livraison est
+  toujours rejoué.
+- **Recette** : plus de copie par build (`rewindNNN_*.py`, `rewindNNN-*.yml`) ; les changements de la
+  build sont déclarés dans son manifeste.
 - **Échec** : une livraison échouée est relancée en ne modifiant que la recette, et ses jobs de test
   réussis sont réutilisés.
 
-## 2. Déjà en place dans la recette 610 (mesuré)
+## 2. Ce qui est en place (première cible : 611)
 
-| Mécanisme | Où | Effet mesuré |
-| --- | --- | --- |
-| Réutilisation des tests d'une tentative précédente | `REUSED_TESTS`, `reuse_equivalence()`, opération `reuse-check` de `.github/diagnostics/rewind610_delivery.py` | Livraison 610 en **11,5 min** au lieu d'environ 27 : tests natifs 15,5 min et Flutter 2,6 min évités |
-| Contrat de livraison rejoué à chaque run | contrôle préalable (`reuse-check`), authentifié par l'API dans le job application | Contrat 16/16, journal `7cbdd99c…` |
-| Entrées concurrentes « source seulement » | `CONCURRENT_UNCOMPILED` de `rewind610_baseline.py`, enveloppes `_inputs_match_retained` et `melonx-materialize` | Le Core MeloNX 609 est conservé malgré les commits MeloNX concurrents ; chaque écart est consigné |
+| Élément | Fichier |
+| --- | --- |
+| Workflow unique, sans constante de build | `.github/workflows/standard-delivery.yml` |
+| Script unique d'opérations (fusion des 610 `rewind610_delivery`, `_baseline`, `_checks`) | `.github/diagnostics/standard_delivery.py` |
+| Core RPCS3 remplacé (constantes dans le pin) | `.github/diagnostics/rpcs3_core_component.py`, `build-utils/rpcs3/core-pin.json` |
+| Core MeloNX remplacé | `.github/diagnostics/melonx_reads_core_component.py`, `build-utils/melonx/reads-core-pin.json` |
+| Composants conservés (Dolphin/ARMSX2 608, archives libretro et dépendances MeloNX) et republication | `.github/diagnostics/retained_components.py` |
+| Manifeste de build (brouillon, puis gelé localement) | `build-utils/delivery/<N>.json` |
+| Contrat hors ligne (Linux) | `test/standard_delivery_contract_test.py` |
+| Vérification du fichier téléchargé | `build-utils/verify_downloaded_delivery.py` |
 
-Conditions de la réutilisation :
-- depuis le commit testé, seuls les chemins de recette (`RECIPE_PATHS`) ont changé ;
-- le delta produit gelé est identique ;
-- les jobs réutilisés ont réussi avec leurs étapes requises ;
-- leurs artefacts ne sont pas expirés et correspondent aux empreintes épinglées ;
-- leurs reçus lient l'exécution testée et le périmètre testé.
+- **Manifeste** : base (reçus 610 liés par empreinte, 16 fichiers de preuve, 90 images), composants
+  (remplacer, conserver, archive conservée, source épinglée, release épinglée), produit (commits revus
+  et « source seulement »), images (doivent changer, remplacées = empreinte du pin, conservées =
+  empreinte de la base, autres écarts signalés), tests (frais ou réutilisés, commandes figées),
+  destinataire, archives à republier.
+- **Arbre effectif** : le gel rejoue `base..HEAD` depuis l'arbre de la base et n'applique que les
+  chemins produit des commits revus. Un commit revu doit partir des octets déjà présents dans l'arbre
+  effectif (sinon refus) ; un commit « source seulement » est différé ; un commit non classé qui
+  touche le produit est refusé. Le manifeste enregistre les écarts avec la base, la liste à restaurer
+  par rapport au HEAD gelé et `effectiveDigest`. En CI, l'opération `materialize` est la première
+  étape après le checkout de chaque job : elle vérifie que les commits postérieurs au gel ne touchent
+  que des chemins de recette, restaure les chemins (modes, liens, suppressions) depuis les objets git
+  et recalcule l'empreinte depuis les fichiers. Aucun checkout ultérieur.
+- **Chemins de recette** (jamais compilés) : `.github/**`, `docs/**`, `*.md` à la racine,
+  `.claude/**`, `build-utils/delivery/**`, `build-utils/delivery-*-recipient.pem`, les deux pins de
+  Core, le contrat et le vérificateur. Exception liée par le gel : les fichiers de ce type que l'IPA
+  embarque (notices légales, déclarations de sources, `LICENSE.md`, `NOTICE.md`).
+- **Parallélisme** : le job application ne dépend que du preflight ; il compile tout de suite et,
+  juste avant d'embarquer l'identité de test, l'opération `await-tests` attend les jobs `flutter` et
+  `native` du même run, authentifie leurs étapes requises, leur artefact (empreinte API et ligne
+  d'upload du journal du job) et leurs reçus. Le contrat rejoué par le preflight est authentifié par
+  l'empreinte de son journal. L'IPA n'est scellée et chiffrée qu'ensuite.
+- **Réutilisation** : même `effectiveDigest`, mêmes commandes, et mêmes octets pour chaque fichier de
+  recette que les commandes lisent réellement (scripts, modules importés, chemins cités) ; les deux
+  manifestes sont lus depuis les commits.
+- **Republication** : après la livraison chiffrée, les archives de composants authentifiées sont
+  republiées une par une (rétention 90 jours) avec `republication.json` qui les lie au producteur
+  d'origine ; une build suivante les accepte comme origine si l'enregistrement et l'empreinte du
+  contenu sont ceux de l'original.
+- **Contrôles conservés de la 610** : base authentifiée, contrat source, composants, installation et
+  ABI du Core RPCS3, Dolphin/ARMSX2, libretro, MeloNX, signature, inventaire des images, validateurs,
+  chiffrement, 4 pièces, rétention 14 jours ; ajoutés : KartPad/Dusklight en CI, dépendances Pods de
+  `rpcs3_internal_bridge`, `DELIVERY_RECIPIENT` obligatoire (sinon repli silencieux sur la clé 422).
 
-## 3. La recette standard (en préparation, première cible : 611)
+## 3. Mode d'emploi
 
-- **Un manifeste par build** déclare :
-  - la base (reçu de la dernière IPA livrée) ;
-  - les composants remplacés, avec leurs identifiants de producteur ;
-  - le delta source revu ;
-  - les entrées concurrentes « source seulement » ;
-  - les preuves de test réutilisables.
-- **Un seul script et un seul workflow** stables, avec un vérificateur par type de composant
-  (conserver ou remplacer).
-- **Composants conservés republiés** par chaque livraison, pour que la build suivante ne dépende plus
-  d'artefacts producteurs qui expirent. Les cœurs libretro conservés depuis la 608 expirent le
-  3 novembre 2026, et les dépendances natives MeloNX le 5 novembre.
-- **Compilation en parallèle des tests.** L'application démarre en même temps que les tests à
-  rejouer, et ne les attend qu'avant d'embarquer l'identité. Gain estimé : environ 10 min quand les
-  tests natifs doivent être rejoués.
-- **Corrections issues de la relecture contradictoire de la recette 610 :**
-  - conserver la preuve du contrat rejoué sous forme d'artefact authentifié par empreinte ;
-  - remplacer le champ ambigu `freshTests` par `testsExecutedInThisRun` et `testsRun` ;
-  - lire les deux périmètres depuis les commits ;
-  - remplacer le test de garde des chemins de recette par une vérification des lectures réelles.
+1. **Brouillon** : `build-utils/delivery/<N>.json` (`status: draft`) déclare base, composants,
+   commits revus et « source seulement », images, tests et destinataire.
+2. **Contrôle** : `python3 -B test/standard_delivery_contract_test.py`, puis
+   `python3 -B .github/diagnostics/standard_delivery.py contract <N>` (ajoute les contrôles API ;
+   `--offline` pour s'en passer).
+3. **Gel** (local, checkout `Claude` propre et à jour) :
+   `python3 -B .github/diagnostics/standard_delivery.py freeze <N> --dry-run` liste ce qui bloque,
+   la restauration et `effectiveDigest` ; sans `--dry-run`, le manifeste gelé est écrit. Le gel refuse
+   un pin en attente, un commit non classé et un arbre effectif que le contrôle légal de
+   l'application (`embed_legal_bundle.py --validate-only`) refuse.
+4. **Commit déclencheur** : vérifier ses chemins avec
+   `python3 -B .github/diagnostics/standard_delivery.py trigger-paths <N> build-utils/delivery/<N>.json`
+   (refuse tout chemin produit et tout autre workflow qui lancerait un job), puis committer le
+   manifeste gelé avec le sujet `… [ipa-delivery:<N>]` (pas de `[skip ci]`). Un sujet sans balise ne
+   lance rien.
+5. **Après le run** : télécharger les 4 pièces et les métadonnées API, lancer
+   `build-utils/verify_downloaded_delivery.py` (clé privée hors Git), puis
+   `standard_delivery.py record <N> --run <ID> --verification … --api …` écrit
+   `docs/evidence/rewind<N>/delivery.json` au schéma 610. Supprimer la clé privée.
+6. **Relance** : ne changer que la recette ; pour réutiliser un groupe, passer `tests.<groupe>.mode`
+   à `reuse` avec ses épingles (source, run, job, artefact, empreinte) et regeler.
 
-La 611 sera la première build construite ainsi :
-- elle part de la 610 livrée ;
-- le Core MeloNX est remplacé par le Core à lectures fragmentées ;
-- le Core RPCS3 est remplacé par le Core 611, qui porte le patch RetroAchievements PS3 ;
-- elle ajoute les commits RetroAchievements.
+## 4. État de la 611 (1er novembre 2026)
 
-La session MeloNX déclenche l'unique livraison 611, après relecture de son manifeste par la session
-RPCS3.
+Le manifeste `build-utils/delivery/611.json` est un **brouillon**. `freeze 611 --dry-run` sur
+`feaaeea3` + la recette : aucun conflit, aucun commit non classé ; 83 chemins produit de `b06888a9`
+(612) restaurés (52 supprimés, dont libchdr ; 31 remis aux octets revus, dont `lib/l10n/app_locale*`
+et `Rpcs3Achievements.mm` de `6f4244a0`) ; empreinte effective `334b9bb3…`, 6651 fichiers produit.
+Bloquants :
+- pin du Core RPCS3 611 en attente (aucun run producteur) ; les commits de la route Core 611 (pli
+  du patch RetroAchievements, gate) devront être ajoutés aux commits revus avant le gel ;
+- `packages/rpcs3_internal_bridge/ios/rpcs3_internal_bridge.podspec`, modifié par `57eb301e`
+  (rcheevos vendu, nouvelles dépendances), n'est couvert par aucune revue de déclarations de sources
+  (`collect_build_source_evidence.py`) : il faut un commit produit revu avant le gel ;
+- archives conservées qui expirent : libretro le 3 novembre 2026 à 16:19Z, dépendances MeloNX le
+  5 novembre ; Dolphin/ARMSX2 et le Core MeloNX le 15 novembre.
