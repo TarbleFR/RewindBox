@@ -1,8 +1,9 @@
-"""Authenticate the fresh fragmented-read MeloNX Core producer; never run an old suite.
+"""Verify the fragmented-read MeloNX Core as a replaced delivery component; never run an old suite.
 
-Producer identity, complete artifact digest, exact inputs, gate receipts,
+Producer identity, complete artifact digest, exact inputs, gate receipts, the
 retained 609 Core history and the two NativeAOT simulator sessions are checked
-again by the application delivery. A pending pin is a hard failure.
+again by the delivery that embeds it. The producer is pinned in
+build-utils/melonx/reads-core-pin.json; a pending pin is a hard failure.
 """
 import hashlib
 import io
@@ -13,13 +14,13 @@ import subprocess
 import sys
 import zipfile
 
-import rewind611_baseline as tree
 import rewind596_engine as parsing
 from rewind606_engine import safe_members, value_at
 
 ROOT = Path(__file__).resolve().parents[2]
 NEW = ROOT / 'dist/melonx'
-CACHE = ROOT / 'build/components611'
+CACHE = ROOT / 'build/components-melonx-reads'
+PIN = 'build-utils/melonx/reads-core-pin.json'
 CONTRACT = 'build-utils/melonx/reads-core-contract.json'
 LIVENESS_CONTRACT = 'build-utils/melonx/liveness-core-contract.json'
 WORKFLOW = '.github/workflows/melonx-core.yml'
@@ -38,8 +39,15 @@ EXPORTS = parsing.EXPORTS
 PACKAGED_ID = parsing.PACKAGED_ID
 check_image = parsing.check_image
 normalized_payload_fingerprint = parsing.normalized_payload_fingerprint
-require = tree.require
-sha = tree.sha
+
+
+def require(value, message):
+    if not value:
+        raise ValueError(message)
+
+
+def sha(raw):
+    return hashlib.sha256(raw).hexdigest()
 
 
 def read(path):
@@ -52,7 +60,8 @@ def api(endpoint):
 
 
 def pin():
-    value = tree.pins()['core']
+    value = read(ROOT / PIN)
+    require(value.get('status') == 'verified', 'The fragmented-read Core producer pin is pending')
     require(value['workflow'] == WORKFLOW and value['name'] == 'MeloNX-engine-' + value['source'] and
             value['contractSha256'] == sha((ROOT / CONTRACT).read_bytes()), 'Wrong fragmented-read Core pin')
     return value
@@ -76,7 +85,7 @@ def validate_origin(core, run, job, artifact):
 
 
 def producer(kind='core'):
-    require(kind == 'core', 'Build611 replaces only the MeloNX Core')
+    require(kind == 'core', 'Only the MeloNX Core producer is pinned here')
     core = pin()
     return validate_origin(core, api('actions/runs/' + str(core['run'])), api('actions/jobs/' + str(core['job'])),
                            api('actions/artifacts/' + str(core['artifact'])))
@@ -273,7 +282,7 @@ def engine_evidence():
         require(engine_identity(runtime)['adaptations'] == frozen['preparationInputs'], 'Compiled adaptations differ')
     fingerprint = normalized_payload_fingerprint((NEW / 'ios-arm64/Ryujinx.Library.dylib').read_bytes())
     require(fingerprint == core['packagedFingerprint'], 'Unexpected packaged Core fingerprint')
-    return dict(result='passed', build=611, baselineDelivery=609, origin=origin, source=core['source'],
+    return dict(result='passed', component='melonx-fragmented-read-core', origin=origin, source=core['source'],
         binaries=core['binaries'], identities=core['identities'], payloadFingerprint=fingerprint,
         replacedCoreSource=baseline['source'], freshAppleGatesInProducer=5,
         reusedScopedAppleGatesInProducer=frozen['reusedAppleGates'], historicalAppleReceiptsInProducer=49,
