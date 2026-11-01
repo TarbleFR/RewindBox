@@ -1,0 +1,42 @@
+{
+  "host_build_required": false,
+  "limits": [
+    "Thread ordering and timings are observed only in the next device journal."
+  ],
+  "physicalDeviceTested": false,
+  "result": "passed",
+  "routing": {
+    "bridge_sha256": "d6326d968f3552c5539d48a0933b41d3e61a3e61c0302972ec370e8df5bd3d16",
+    "diagnostics_sha256": "bde09327357fb99ee27560bdaa6b7977fea8ad5a7f206a61f09fa3726dbf456e",
+    "routes": {
+      "COREPROF EXITSPAWN phase=boot_begin generation=3 emulation_id=8": "diagnostic:profiler performance",
+      "COREPROF EXITSPAWN phase=boot_return raw_state=7 boot_ms=4210.000": "diagnostic:profiler performance",
+      "COREPROF EXITSPAWN phase=stop_main executed=1 failure=0 ui_wait_ms=812.125 generation=3 emulation_id=7": "diagnostic:profiler performance",
+      "RSX: COREPROF RUNPPU phase=dispatch starting=1 raw_state=7": "diagnostic:profiler performance",
+      "RSX: COREPROF SHADERWARMUP phase=begin entries=4100 workers=6": "diagnostic:profiler performance",
+      "RSX: COREPROF SHADERWARMUP phase=end entries=0 reason=empty": "diagnostic:profiler performance",
+      "RSX: COREPROF SHADERWARMUP phase=end entries=4100 valid=4098 preload_ms=1200.000 compile_ms=88000.000 stopped=0": "diagnostic:profiler performance",
+      "RSX: Vulkan driver pipeline cache: save returned after 2100 ms (reason=teardown, bytes=104857600, result=saved).": "milestone:vk_pipeline_cache",
+      "RSX: Vulkan driver pipeline cache: save skipped (reason=checkpoint, no library added).": "milestone:vk_pipeline_cache",
+      "RSX: Vulkan driver pipeline cache: save started (reason=checkpoint, unsaved=3).": "milestone:vk_pipeline_cache",
+      "SYS: COREPROF RUNPPU phase=running raw_state=3 since_dispatch_ms=9000.000 ui_latency_ms=3.000 since_main_ms=8997.000 restore=0": "diagnostic:profiler performance",
+      "iOS Core Profiler: COREPROF FIRSTFLIP session=4": "diagnostic:profiler performance",
+      "iOS Experimental: Resolved boot policy: swap=1 restart=1 precomputed=1 position_invariance=1 mvk_async=1": "milestone:boot_policy",
+      "sys_process: COREPROF EXITSPAWN phase=request scheduled=1 generation=3 emulation_id=7 target=t6mp_ps3f.self": "diagnostic:profiler performance"
+    }
+  },
+  "schema": 1,
+  "source_contract": {
+    "files_sha256": {
+      "rpcs3/Emu/Cell/lv2/sys_process.cpp": "7b4f9a32444b5feb7749dfb8a2f61f15a04b0774f96185921ec764be9183e9ff",
+      "rpcs3/Emu/RSX/RSXThread.cpp": "6372a1d4cf3e2e0bf2b17edb9b2b09bfa913078371d117e30b71ca502d67451e",
+      "rpcs3/Emu/RSX/VK/vkutils/device.cpp": "4125b7f6dc1e08db310f3b88e3d59fa35541ed19f051fadd6e97603667b2a0cc",
+      "rpcs3/Emu/RSX/rsx_cache.h": "31253993b79da465f7eabf01d8ba39fd7e31a2c695e8efece011ce232ba07769",
+      "rpcs3/Emu/System.cpp": "b751b302864d9ecd4fab0e70b4119b3c00e0d1eebf8a40e7b625eaa4dbaca350",
+      "rpcs3/ios/RPCS3IOS.cpp": "c13496fb8e4b44c0885d69fdfc16be953e7d8e2d7eac0615a037d5fc0a00b49d",
+      "rpcs3/ios/RPCS3IOSPerformance.cpp": "1691c5978e2ac8edbfc7ad09c174e14dfdbcb1ff3c9f09f593dfd40ae4157c33"
+    },
+    "run_ppu_ui_store_only": true,
+    "stop_main_after_ui_handoff": true
+  }
+}
