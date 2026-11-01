@@ -636,7 +636,13 @@ class EffectiveTree611(unittest.TestCase):
         tree = effective_of_head()
         self.assertEqual(tree['conflicts'], [])
         self.assertEqual(tree['missing'], [])
-        self.assertEqual(tree['unclassified'], [], 'Classify every product commit before freezing')
+        if manifest['status'] == 'draft':
+            # The freeze refuses these; a draft only reports them.
+            for item in tree['unclassified']:
+                print(f"\nTo classify before the freeze: {item['commit'][:12]} {item['subject']} "
+                      f"({item['productPaths']} product paths)", flush=True)
+        else:
+            self.assertEqual(tree['unclassified'], [], 'A frozen manifest classifies every product commit')
         if manifest['status'] == 'frozen':
             product = manifest['product']
             self.assertEqual(product['effective'], tree['effectiveRecords'])
@@ -651,7 +657,9 @@ class EffectiveTree611(unittest.TestCase):
         tree = effective_of_head()
         restore = tree['restoreRecords']
         deferred = tree['deferred'][B06888A9]
-        self.assertEqual(sorted(restore), sorted(deferred), 'Exactly the deferred b06888a9 product paths differ from HEAD')
+        pending = {path for item in tree['unclassified'] for path in item['paths']}
+        self.assertEqual(sorted(restore), sorted(set(deferred) | pending),
+                         'Exactly the deferred b06888a9 product paths (and paths of commits still to classify) differ')
         entries = REPO.entries(REVIEWED_RA)
         for path in [p for p in deferred if p.startswith('lib/l10n/app_locale')] + [
                 'packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Achievements.mm']:
