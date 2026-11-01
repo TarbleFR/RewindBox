@@ -142,6 +142,22 @@ def hosts():
         include = stage_touch_layout(stage_dependency_headers(Path(temporary)))
         tree.require((include / 'retro_achievements_session/RBRASession.h').is_file(),
                      'The central session public header was not staged')
+        # Match test/touch_layout_ios_build.py: compile the actual Swift controls
+        # to produce the Objective-C interface imported by the Dolphin host.
+        touch = ROOT / 'packages/dolphin_internal_bridge/ios/Classes/TouchController'
+        swift_sources = sorted(touch.glob('*.swift'))
+        tree.require(swift_sources, 'The actual Dolphin Swift touch controls are missing')
+        swift_header = include / 'dolphin_internal_bridge/dolphin_internal_bridge-Swift.h'
+        swift_header.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['xcrun', '--sdk', 'iphoneos', 'swiftc', '-typecheck', '-swift-version', '5',
+            '-sdk', sdk, '-target', 'arm64-apple-ios18.0', '-module-name', 'dolphin_internal_bridge',
+            '-import-objc-header', str(touch / 'TCManagerInterface.h'),
+            '-emit-objc-header-path', str(swift_header), *map(str, swift_sources)],
+            cwd=ROOT, check=True, timeout=300)
+        tree.require(swift_header.is_file() and 'cancelTouchInteractions' in swift_header.read_text(),
+                     'The actual Dolphin Swift Objective-C interface was not generated')
+        print(f'PASS Swift: {len(swift_sources)} actual Dolphin touch-control sources typechecked; '
+              'Objective-C header generated', flush=True)
         for package, filenames, helper in (
             ('armsx2_internal_bridge', ('Armsx2InternalBridgePlugin.mm', 'Armsx2TextureBridge.mm'), 'armsx2_jit_helper'),
             ('dolphin_internal_bridge', ('DolphinInternalBridgePlugin.mm',), 'dolphin_jit_helper'),
