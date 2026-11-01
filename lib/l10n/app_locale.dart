@@ -1129,6 +1129,35 @@ mixin AppLocale {
   static const String raSessionNoGame = 'ra_session_no_game';
   static const String raSessionAwaiting = 'ra_session_awaiting';
   static const String raSessionLoginNeeded = 'ra_session_login_needed';
+  static const String raSessionInputRequired = 'ra_session_input_required';
+  static const String raSessionServerError = 'ra_session_server_error';
+  static const String raSessionTokenRejected = 'ra_session_token_rejected';
+  static const String raSessionSignInHint = 'ra_session_sign_in_hint';
+  static const String raSessionEnableHint = 'ra_session_enable_hint';
+  static const String raSessionStatusSignedOut = 'ra_session_status_signed_out';
+  static const String raSessionStatusDisabled = 'ra_session_status_disabled';
+  static const String raSessionStatusEnabled = 'ra_session_status_enabled';
+  static const String raSessionStatusRejected = 'ra_session_status_rejected';
+  static const String raWebKeyRejected = 'ra_web_key_rejected';
+  static const String raWebUserNotFound = 'ra_web_user_not_found';
+  static const String raStatusProgress = 'ra_status_progress';
+  static const String raStatusHardcoreOn = 'ra_status_hardcore_on';
+  static const String raStatusHardcoreOff = 'ra_status_hardcore_off';
+  static const String raStatusHardcoreNotApplied = 'ra_status_hardcore_not_applied';
+  static const String raStatusSigningIn = 'ra_status_signing_in';
+  static const String raStatusIdentifying = 'ra_status_identifying';
+  static const String raStatusNoAchievements = 'ra_status_no_achievements';
+  static const String raStatusSetUnsupported = 'ra_status_set_unsupported';
+  static const String raStatusUnknownGame = 'ra_status_unknown_game';
+  static const String raStatusUnsupported = 'ra_status_unsupported';
+  static const String raStatusSignIn = 'ra_status_sign_in';
+  static const String raStatusAuthRejected = 'ra_status_auth_rejected';
+  static const String raStatusNetwork = 'ra_status_network';
+  static const String raStatusLoginFailed = 'ra_status_login_failed';
+  static const String raStatusHardcoreOptions = 'ra_status_hardcore_options';
+  static const String raStatusLoadFailed = 'ra_status_load_failed';
+  static const String raStatusUnavailable = 'ra_status_unavailable';
+  static const String raStatusUnconfirmed = 'ra_status_unconfirmed';
 
   // ==========================================================================
   // Localization Maps

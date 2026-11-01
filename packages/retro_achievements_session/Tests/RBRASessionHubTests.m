@@ -702,4 +702,105 @@ static RBRATestResponse RBRAProtocolResponse;
   XCTAssertEqualObjects(RBRALocalizedText(@"hardcoreBlocked", @"zh-HK"), RBRALocalizedText(@"hardcoreBlocked", @"zh_Hant"));
   XCTAssertNotEqualObjects(RBRALocalizedText(@"hardcoreBlocked", @"zh"), RBRALocalizedText(@"hardcoreBlocked", @"zh_Hant"));
 }
+// Build 609 follow-up: launch status classification, sign-in error classes and
+// the display-only presenter lifecycle.
+- (void)testStatusClassificationUsesObservedEngineStateOnly {
+  NSDictionary *texts = @{@"active": @"Succès actifs", @"progress": @"{unlocked}/{total} débloqués",
+    @"hardcoreOn": @"Hardcore activé", @"hardcoreOff": @"Hardcore désactivé",
+    @"hardcoreNotApplied": @"Hardcore non appliqué", @"unknownGame": @"Jeu non reconnu"};
+  NSDictionary *base = @{@"sessionId": @"s", @"enabled": @YES, @"supported": @YES, @"requested": @YES,
+    @"hardcore": @YES, @"username": @"player", @"token": RBRAFixtureToken, @"statusText": texts};
+  // Switched off by the player: never any in-game notice.
+  XCTAssertNil(RBRAStatusForState(@{@"enabled": @NO, @"requested": @NO, @"supported": @YES}, @{}, NO));
+  XCTAssertEqualObjects(RBRAStatusForState(@{@"enabled": @NO, @"requested": @YES, @"supported": @NO}, @{}, NO)[@"key"], @"unsupported");
+  XCTAssertEqualObjects(RBRAStatusForState(@{@"enabled": @NO, @"requested": @YES, @"supported": @YES}, @{}, NO)[@"key"], @"signIn");
+  // A signed-in account alone is pending, not active.
+  NSDictionary *pending = RBRAStatusForState(base, @{@"loggedIn": @YES}, NO);
+  XCTAssertEqualObjects(pending[@"key"], @"pending"); XCTAssertEqualObjects(pending[@"final"], @NO);
+  NSDictionary *active = RBRAStatusForState(base, @{@"active": @YES, @"gameLoaded": @YES,
+    @"hardcoreActive": @YES, @"totalCount": @10, @"unlockedCount": @3}, NO);
+  XCTAssertEqualObjects(active[@"key"], @"activeHardcore");
+  XCTAssertEqualObjects(active[@"message"], @"Succès actifs · player · 3/10 débloqués · Hardcore activé");
+  NSDictionary *notApplied = RBRAStatusForState(base, @{@"active": @YES, @"gameLoaded": @YES}, NO);
+  XCTAssertEqualObjects(notApplied[@"key"], @"active");
+  XCTAssertTrue([notApplied[@"message"] hasSuffix:@"Hardcore non appliqué"]);
+  NSDictionary *codes = @{@"login_failed_-34": @"authRejected", @"login_failed_-35": @"authRejected",
+    @"RA_AUTHENTICATION_FAILED": @"authRejected", @"login_failed_-32": @"network",
+    @"RA_NETWORK_UNAVAILABLE": @"network", @"login_failed_-1": @"loginFailed",
+    @"RA_GAME_NOT_RECOGNIZED": @"unknownGame", @"RA_NO_ACHIEVEMENTS": @"noAchievements",
+    @"RA_ACHIEVEMENTS_UNSUPPORTED": @"setUnsupported", @"RA_HARDCORE_OPTIONS": @"hardcoreOptions",
+    @"RA_GAME_LOAD_FAILED": @"loadFailed", @"configuration_failed": @"unavailable",
+    @"RA_SYNC_PENDING": @"pending", @"cleanup_pending": @"pending", @"": @"pending"};
+  for (NSString *code in codes)
+    XCTAssertEqualObjects(RBRAStatusForState(base, @{@"errorCode": code}, NO)[@"key"], codes[code], @"%@", code);
+  XCTAssertEqualObjects(RBRAStatusForState(base, @{@"errorCode": @"RA_GAME_NOT_RECOGNIZED"}, NO)[@"message"], @"Jeu non reconnu");
+  XCTAssertEqualObjects(RBRAStatusForState(base, @{}, YES)[@"key"], @"unconfirmed");
+  for (NSDictionary *state in @[@{}, @{@"active": @YES, @"gameLoaded": @YES}, @{@"errorCode": @"RA_LOGIN_FAILED"}])
+    [self assertRedacted:RBRAStatusForState(base, state, NO)];
+}
+- (void)testSignInSeparatesRefusalNetworkAndUnexpectedServerAnswers {
+  NSArray *cases = @[
+    @[@{@"status": @200, @"data": [@"<html>portal</html>" dataUsingEncoding:NSUTF8StringEncoding]}, @"RA_SERVER_ERROR"],
+    @[@{@"status": @503, @"json": @{}}, @"RA_SERVER_ERROR"],
+    @[@{@"status": @429, @"json": @{}}, @"RA_RATE_LIMITED"],
+    @[@{@"status": @401, @"json": @{@"Success": @NO, @"Code": @"invalid_credentials"}}, @"RA_AUTHENTICATION_FAILED"],
+    @[@{@"error": [NSError errorWithDomain:NSURLErrorDomain code:NSURLErrorNotConnectedToInternet userInfo:nil]}, @"RA_NETWORK_UNAVAILABLE"],
+    @[@{@"status": @200, @"json": @{@"Success": @YES, @"User": @"player"}}, @"RA_SERVER_ERROR"],
+  ];
+  for (NSArray *entry in cases) {
+    [RBRATestURLProtocol setResponse:^NSDictionary *(NSURLRequest *request) { return entry[0]; }];
+    id response = [self call:@"login" arguments:@{@"username": @"player", @"password": RBRAFixturePassword}];
+    XCTAssertTrue([response isKindOfClass:FlutterError.class]);
+    XCTAssertEqualObjects(((FlutterError *)response).code, entry[1]);
+    [self assertRedacted:response];
+    XCTAssertEqualObjects([self call:@"account" arguments:nil][@"authenticated"], @NO);
+  }
+}
+- (void)testStatusPresenterAnnouncesOnceAndNeverOutlivesItsLaunch {
+  [self seedAccount:@"player" token:RBRAFixtureToken];
+  NSDictionary *snapshot = [self start:@{@"requested": @YES,
+    @"statusText": @{@"active": @"Succès actifs", @"token": RBRAFixtureToken}}];
+  NSMutableArray<NSString *> *keys = [NSMutableArray array];
+  NSMutableArray<NSString *> *messages = [NSMutableArray array];
+  XCTestExpectation *announced = [self expectationWithDescription:@"active status"];
+  RBRASetStatusPresenter(snapshot, ^(NSString *key, NSString *title, NSString *message, NSTimeInterval duration) {
+    XCTAssertTrue(NSThread.isMainThread);
+    XCTAssertEqualObjects(title, @"RetroAchievements");
+    XCTAssertGreaterThan(duration, 0);
+    [keys addObject:key]; [messages addObject:message];
+    if ([key hasPrefix:@"active"]) [announced fulfill];
+  });
+  RBRAPublishSessionState(snapshot, @{@"active": @YES, @"gameLoaded": @YES, @"loggedIn": @YES,
+    @"totalCount": @4, @"unlockedCount": @1});
+  [self waitFor:@[announced]];
+  // The same state published again is not announced twice.
+  RBRAPublishSessionState(snapshot, @{@"active": @YES, @"gameLoaded": @YES});
+  [self drainMain];
+  // Hardcore was requested but the engine did not report it applied, and the
+  // final state was known before the initial delay: no pending notice.
+  XCTAssertEqualObjects(keys, (@[@"active"]));
+  XCTAssertTrue([messages.firstObject hasPrefix:@"Succès actifs · player · 1/4"]);
+  XCTAssertEqualObjects(self.lastState[@"loggedIn"], @YES);
+  for (NSString *message in messages) XCTAssertFalse([message containsString:RBRAFixtureToken]);
+  // After the game ends (or a new launch), the old presenter is never called.
+  RBRAEndSession(snapshot);
+  NSUInteger before = keys.count;
+  RBRAPublishSessionState(snapshot, @{@"errorCode": @"RA_LOGIN_FAILED"});
+  [self drainMain];
+  XCTAssertEqual(keys.count, before);
+  [self assertEventsRedacted];
+}
+- (void)testPresenterCannotAttachToAStaleOrForgedSnapshot {
+  [self seedAccount:@"player" token:RBRAFixtureToken];
+  NSDictionary *old = [self start:@{}];
+  NSDictionary *current = [self start:@{}];
+  __block NSUInteger calls = 0;
+  RBRAStatusPresenter presenter = ^(NSString *key, NSString *title, NSString *message, NSTimeInterval duration) { calls++; };
+  RBRASetStatusPresenter(old, presenter);
+  RBRASetStatusPresenter([current mutableCopy], presenter);
+  RBRASetStatusPresenter((NSDictionary *)NSNull.null, presenter);
+  RBRAPublishSessionState(current, @{@"errorCode": @"RA_LOGIN_FAILED"});
+  [self drainMain];
+  XCTAssertEqual(calls, 0u);
+}
 @end

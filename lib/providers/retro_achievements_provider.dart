@@ -51,11 +51,24 @@ class RetroAchievementsProvider extends ChangeNotifier {
 
   static String _identity(String username) => username.trim().toLowerCase();
 
-  bool _authorityAllows(String username) {
+  String _centralAccountIdentity() {
     final session = _sessionService;
-    if (session == null || !session.available) return true;
-    return session.initialized && session.authenticated &&
-        _identity(username) == _identity(session.username);
+    if (session == null || !session.available || !session.initialized ||
+        !session.authenticated) {
+      return '';
+    }
+    return _identity(session.username);
+  }
+
+  /// The Web dashboard (Web API key) and the in-game session (password-derived
+  /// Connect token kept in the Keychain) are different credentials. Build 608
+  /// refused the dashboard whenever the in-game session was signed out, which
+  /// rejected valid usernames/keys locally without contacting RetroAchievements.
+  /// Only a confirmed in-game account with another identity is a conflict:
+  /// one screen never mixes two accounts.
+  bool _conflictsWithCentralAccount(String username) {
+    final central = _centralAccountIdentity();
+    return central.isNotEmpty && central != _identity(username);
   }
 
   void _onCentralAccountChanged() {
@@ -64,19 +77,27 @@ class RetroAchievementsProvider extends ChangeNotifier {
         !session.available || !session.initialized) {
       return;
     }
-    final identity = session.authenticated ? _identity(session.username) : '';
+    final identity = _centralAccountIdentity();
     if (_centralIdentity == identity) return;
     _centralIdentity = identity;
-    final restoration = ++_restoreGeneration;
-    _resetMemory();
-    _notify();
     // A closed dialog, an unmounted tab and background account migration all
     // use this listener. Never depend on a widget callback for identity.
-    if (identity.isNotEmpty) {
+    final dashboard = (_isConnected || _isLoading) ? _identity(_username) : '';
+    if (dashboard.isNotEmpty && identity.isNotEmpty && dashboard != identity) {
+      // Another account signed in for games: drop the old dashboard and every
+      // pending response. The saved pair is kept; restore refuses it.
+      _log.i('RetroAchievements dashboard cleared: in-game account changed');
+      final restoration = ++_restoreGeneration;
+      _resetMemory();
+      _notify();
       _restoringCentralAccount = _restoreSavedAccount(restoration);
-    } else {
-      _restoringCentralAccount = null;
+      return;
     }
+    if (dashboard.isEmpty) {
+      // A sign-in or sign-out may have resolved an earlier conflict.
+      _restoringCentralAccount = _restoreSavedAccount(++_restoreGeneration);
+    }
+    // Same account, or an in-game sign-out: the Web dashboard is unaffected.
   }
 
   Future<void> _queueCredentialWrite(Future<void> Function() operation) {
@@ -205,9 +226,11 @@ class RetroAchievementsProvider extends ChangeNotifier {
       _completionProgressLoaded &&
       _gotwLoaded;
 
-  /// Connects the Web dashboard for the centrally selected emulator account.
-  /// The native password/token never enters this provider. Desktop platforms
-  /// without the native session plugin keep their existing Web-only login.
+  /// Connects the Web dashboard with the player's Web API key. It works with
+  /// or without the in-game session and never signs in an emulator; only a
+  /// confirmed in-game account with another name is refused. The native
+  /// password/token never enters this provider. Desktop platforms without the
+  /// native session plugin keep their existing Web-only login.
   Future<bool> connect(String username, {String? apiKey}) {
     ++_restoreGeneration;
     return _connect(username, apiKey: apiKey);
@@ -216,25 +239,23 @@ class RetroAchievementsProvider extends ChangeNotifier {
   Future<bool> _connect(String username, {String? apiKey}) async {
     if (_disposed) return false;
     final requestedUsername = username.trim();
-    if (!_authorityAllows(requestedUsername)) {
-      _accountErrorKey = _sessionService?.authenticated == true
-          ? AppLocale.raSessionDifferentAccount : AppLocale.raSessionLoginNeeded;
+    final resolvedApiKey = RetroAchievementsService.resolveApiKey(apiKey);
+    if (requestedUsername.isEmpty || resolvedApiKey.isEmpty) {
+      // Input error: nothing is sent to RetroAchievements.
+      _accountErrorKey = AppLocale.pleaseCompleteAllFields;
+      _error = requestedUsername.isEmpty
+          ? 'Please enter a username'
+          : 'Please enter your RetroAchievements web API key';
+      _notify();
+      return false;
+    }
+    if (_conflictsWithCentralAccount(requestedUsername)) {
+      _accountErrorKey = AppLocale.raSessionDifferentAccount;
+      _log.w('RetroAchievements dashboard sign-in refused: different in-game account');
       _notify();
       return false;
     }
     _accountErrorKey = null;
-    if (requestedUsername.isEmpty) {
-      _error = 'Please enter a username';
-      _notify();
-      return false;
-    }
-
-    final resolvedApiKey = RetroAchievementsService.resolveApiKey(apiKey);
-    if (resolvedApiKey.isEmpty) {
-      _error = 'Please enter your RetroAchievements web API key';
-      _notify();
-      return false;
-    }
 
     // Account and key changes invalidate every outstanding dashboard request,
     // including game caches and errors/finally blocks from the previous user.
@@ -251,8 +272,9 @@ class RetroAchievementsProvider extends ChangeNotifier {
       );
       if (!_isCurrent(generation)) return false;
 
-      if (userProfile != null &&
-          _identity(userProfile.user) == _identity(requestedUsername)) {
+      // RetroAchievements resolves the requested name (or a previous name of
+      // the same account) to the profile it returns; that profile is the user.
+      if (userProfile != null && userProfile.user.trim().isNotEmpty) {
         await _queueCredentialWrite(() async {
           if (!_isCurrent(generation)) return;
           // Keep each pair ordered with disconnect/new-account writes. Once
@@ -264,16 +286,34 @@ class RetroAchievementsProvider extends ChangeNotifier {
         _accountErrorKey = null;
         _user = userProfile;
         _isConnected = true;
+        _log.i('RetroAchievements dashboard signed in');
         unawaited(loadUserSummary());
         _notify();
         return true;
       }
+      _accountErrorKey = AppLocale.raWebUserNotFound;
       _error = 'User not found on RetroAchievements';
       _isConnected = false;
+      _log.w('RetroAchievements dashboard sign-in: user not found');
+      _notify();
+      return false;
+    } on RetroAchievementsWebException catch (e) {
+      if (!_isCurrent(generation)) return false;
+      _accountErrorKey = switch (e.failure) {
+        RetroAchievementsWebFailure.rejected => AppLocale.raWebKeyRejected,
+        RetroAchievementsWebFailure.notFound => AppLocale.raWebUserNotFound,
+        RetroAchievementsWebFailure.network ||
+        RetroAchievementsWebFailure.rateLimited => AppLocale.raSessionNetworkError,
+        RetroAchievementsWebFailure.server => AppLocale.raSessionServerError,
+      };
+      _error = 'RetroAchievements sign-in failed: ${e.failure.name}';
+      _isConnected = false;
+      _log.w('RetroAchievements dashboard sign-in failed: $e');
       _notify();
       return false;
     } catch (e) {
       if (!_isCurrent(generation)) return false;
+      _accountErrorKey = AppLocale.raSessionNetworkError;
       _error = 'Error connecting to RetroAchievements: $e';
       _isConnected = false;
       _log.e('$_error');
@@ -498,15 +538,19 @@ class RetroAchievementsProvider extends ChangeNotifier {
   Future<void> initialize() => _initializing ??= _initialize();
 
   Future<void> _initialize() async {
-    if (_sessionService?.available == true) {
-      _observeCentralAccount = true;
-      await _sessionService!.initialize();
+    final session = _sessionService;
+    if (session?.available == true) {
+      await session!.initialize();
       if (_disposed) return;
-      _onCentralAccountChanged();
-      await _restoringCentralAccount;
-      return;
+      // Record the current in-game identity first: the listener reacts only to
+      // later sign-in/sign-out changes. A failed Keychain read never blocks the
+      // Web dashboard (Build 608 left it signed out after every restart).
+      _centralIdentity = session.initialized ? _centralAccountIdentity() : null;
+      _observeCentralAccount = true;
     }
-    await _restoreSavedAccount(++_restoreGeneration);
+    final restoration = ++_restoreGeneration;
+    _restoringCentralAccount = _restoreSavedAccount(restoration);
+    await _restoringCentralAccount;
   }
 
   Future<void> _restoreSavedAccount(int restoration) async {
@@ -522,10 +566,16 @@ class RetroAchievementsProvider extends ChangeNotifier {
           await fetchGOTW();
           return;
         }
+        // RetroAchievements explicitly refused the saved pair: retrying the
+        // same key cannot succeed. The pair stays saved for the player to fix.
+        if (_accountErrorKey == AppLocale.raWebKeyRejected ||
+            _accountErrorKey == AppLocale.raWebUserNotFound) {
+          return;
+        }
         final user = await _readRAUserFromConfig();
         final apiKey = await _readRAApiKeyFromConfig();
         if (!_isRestoring(restoration)) return;
-        if (user.hasValue && !_authorityAllows(user.value!)) return;
+        if (user.hasValue && _conflictsWithCentralAccount(user.value!)) return;
         final worthRetrying =
             !user.ok || !apiKey.ok || (user.hasValue && apiKey.hasValue);
         if (!worthRetrying || attempt == maxAttempts) return;
@@ -547,7 +597,10 @@ class RetroAchievementsProvider extends ChangeNotifier {
       final user = await _readRAUserFromConfig();
       final apiKey = await _readRAApiKeyFromConfig();
       if (!_isRestoring(restoration)) return false;
-      if (user.hasValue && !_authorityAllows(user.value!)) return false;
+      if (user.hasValue && _conflictsWithCentralAccount(user.value!)) {
+        _log.i('RetroAchievements saved dashboard account not restored: different in-game account');
+        return false;
+      }
       switch (resolveRaAutoLoginAction(user: user, apiKey: apiKey)) {
         case RaAutoLoginAction.attemptLogin:
           return await _connect(user.value!, apiKey: apiKey.value);

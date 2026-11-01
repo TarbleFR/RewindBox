@@ -134,6 +134,7 @@ static void EventHandler(const rc_client_event_t *event, rc_client_t *client) {
     NSUInteger achievementID = event->achievement->id;
     NSString *description = event->achievement->description != NULL
         ? [NSString stringWithUTF8String:event->achievement->description] : @"";
+    const NSUInteger points = event->achievement->points;
     [achievements refreshSummary];
     [achievements publishState];
     // Presentation only: the rcheevos event/award path above is never gated or
@@ -143,7 +144,7 @@ static void EventHandler(const rc_client_event_t *event, rc_client_t *client) {
     dispatch_async(dispatch_get_main_queue(), ^{
       if (atomic_load(&achievements->_shutdown) ||
           generation != atomic_load(&achievements->_callbackGeneration)) return;
-      if (achievements.unlocked != nil) achievements.unlocked(achievementID, title ?: @"", description ?: @"");
+      if (achievements.unlocked != nil) achievements.unlocked(achievementID, title ?: @"", description ?: @"", points);
     });
   } else if (event->type == RC_CLIENT_EVENT_SERVER_ERROR) {
     // rcheevos retains its own award/retry/synchronization behavior.
@@ -172,7 +173,11 @@ static void GameLoaded(int result, const char *message, rc_client_t *client, voi
   const rc_client_game_t *game = result == RC_OK ? rc_client_get_game_info(client) : NULL;
   if (result != RC_OK) {
     [achievements->_host appendLog:[NSString stringWithFormat:@"[HOST] RA game load failed (%d)", result]];
-    [achievements failWithCode:@"RA_GAME_LOAD_FAILED"];
+    // rcheevos reports an unknown hash as RC_NO_GAME_LOADED ("Unknown game"):
+    // the game is not recognized, which is not a server/load failure.
+    [achievements failWithCode:result == RC_NO_GAME_LOADED ? @"RA_GAME_NOT_RECOGNIZED"
+                             : result == RC_NO_RESPONSE ? @"RA_NETWORK_UNAVAILABLE"
+                             : @"RA_GAME_LOAD_FAILED"];
     return;
   }
   // rc_client_get_game_info can return a dummy record for an unknown hash.
@@ -212,10 +217,17 @@ static void TokenLogin(int result, const char *message, rc_client_t *client, voi
       (uint64_t)(uintptr_t)userdata != atomic_load(&achievements->_callbackGeneration)) return;
   if (result == RC_OK && rc_client_get_user_info(client) != NULL) {
     atomic_store(&achievements->_loggedIn, true);
+    [achievements->_host appendLog:@"[HOST] RA token login succeeded"];
     [achievements loadGame];
   } else {
     [achievements->_host appendLog:[NSString stringWithFormat:@"[HOST] RA token login failed (%d)", result]];
-    [achievements failWithCode:@"RA_LOGIN_FAILED"];
+    // An explicit refusal of the stored token (password changed, token reset,
+    // access denied) asks for a new sign-in; no answer is a network problem.
+    const BOOL refused = result == RC_INVALID_CREDENTIALS || result == RC_EXPIRED_TOKEN ||
+                         result == RC_ACCESS_DENIED;
+    const BOOL unreachable = result == RC_NO_RESPONSE || result == RC_INVALID_JSON;
+    [achievements failWithCode:refused ? @"RA_AUTHENTICATION_FAILED"
+                             : unreachable ? @"RA_NETWORK_UNAVAILABLE" : @"RA_LOGIN_FAILED"];
   }
   [achievements publishState];
 }
@@ -263,10 +275,15 @@ static void TokenLogin(int result, const char *message, rc_client_t *client, voi
 
 - (void)publishState {
   if (atomic_load(&_shutdown)) return;
+  // Observed facts only (no username/token): the hub derives the in-game
+  // status from them and forwards them to the main tab and its journal.
   RBRAPublishSessionState(_configuration, @{
     @"active": @(_active),
+    @"loggedIn": @(atomic_load(&_loggedIn)),
     @"gameLoaded": @(atomic_load(&_gameReady)),
     @"hardcoreActive": @(atomic_load(&_hardcoreActive)),
+    @"totalCount": @(atomic_load(&_totalAchievements)),
+    @"unlockedCount": @(atomic_load(&_unlockedAchievements)),
     @"errorCode": _errorCode ?: @""
   });
 }

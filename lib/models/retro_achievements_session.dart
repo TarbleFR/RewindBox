@@ -95,4 +95,7 @@ class RetroAchievementsSessionState {
   bool get hardcoreActive => values['hardcoreActive'] == true;
   int get generation => (values['generation'] as num?)?.toInt() ?? 0;
   String? get errorCode => values['errorCode'] as String?;
+  /// Achievement counts observed in the engine (0 until the set is loaded).
+  int get unlockedCount => (values['unlockedCount'] as num?)?.toInt() ?? 0;
+  int get totalCount => (values['totalCount'] as num?)?.toInt() ?? 0;
 }

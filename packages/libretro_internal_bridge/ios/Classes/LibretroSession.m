@@ -920,17 +920,23 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   [self loadCheats];
   [_journal note:@"services: cheats scheduled"];
   [self refreshDiskSnapshot];
+  [self registerAchievementStatusPresenter];
   if ([_achievementSession[@"enabled"] boolValue] && [_achievementSession[@"supported"] boolValue] &&
       configuration.achievementsAllowed && configuration.achievementsConsoleId > 0) {
     _achievements = [[LibretroAchievements alloc] initWithConsoleId:configuration.achievementsConsoleId
                                                             host:_host configuration:_achievementSession];
     __weak LibretroSession *weakSelf = self;
-    _achievements.unlocked = ^(NSUInteger achievementID, NSString *title, NSString *description) {
+    _achievements.unlocked = ^(NSUInteger achievementID, NSString *title, NSString *description,
+                               NSUInteger points) {
       LibretroSession *session = weakSelf;
       if (session == nil || session->_controller == nil ||
           ![session->_achievementSession[@"notifications"] boolValue]) return;
       __weak LibretroGameViewController *owner = session->_controller;
-      RBAchievementPresent(session->_controller, achievementID, title, description, @"", 4.0, 1, ^UIView* {
+      [session->_journal note:[NSString stringWithFormat:@"retroachievements: unlock %lu presented",
+                                                         (unsigned long)achievementID]];
+      // Title, description and points in the app language of this launch.
+      RBAchievementPresent(session->_controller, achievementID, title, description,
+                           RBRAPointsText(session->_achievementSession, points), 4.0, 1, ^UIView* {
         UIViewController* controller = owner;
         NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
         if (controller && display.renderHost.placeholderView == controller.view && !display.window.hidden &&
@@ -1135,6 +1141,38 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
 
 - (void)endAchievementSession {
   if (!atomic_exchange(&_achievementSessionEnded, true)) RBRAEndSession(_achievementSession);
+}
+
+/// Display-only launch status for players who turned RetroAchievements on:
+/// signed in, game recognized and tracking active, or the precise reason it is
+/// not. The central hub derives it from the state this session publishes; the
+/// toast stays on this game view and never survives the session.
+- (void)registerAchievementStatusPresenter {
+  __weak LibretroSession *weakSelf = self;
+  __weak LibretroGameViewController *owner = _controller;
+  RBRASetStatusPresenter(_achievementSession, ^(NSString *key, NSString *title, NSString *message,
+                                                NSTimeInterval duration) {
+    LibretroSession *session = weakSelf;
+    LibretroGameViewController *controller = owner;
+    if (session == nil || controller == nil || session->_controller != controller) return;
+    [session->_journal note:[NSString stringWithFormat:@"retroachievements: status %@", key]];
+    RBAchievementPresent(controller, 0, title, message, @"", duration, 3, ^UIView* {
+      UIViewController* surfaceOwner = owner;
+      NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
+      if (surfaceOwner && display.renderHost.placeholderView == surfaceOwner.view && !display.window.hidden &&
+          display.renderHost.renderView.window == display.window && display.window != nil)
+        return display.window.rootViewController.view;
+      return surfaceOwner.view;
+    }, ^BOOL {
+      LibretroSession *active = weakSelf;
+      if (active == nil || owner == nil || active->_controller != owner ||
+          atomic_load(&active->_achievementSessionEnded)) return NO;
+      [active->_condition lock];
+      BOOL stopped = active->_stopRequested || active->_coreStopRequested;
+      [active->_condition unlock];
+      return !stopped;
+    });
+  });
 }
 
 - (NSString *)achievementNotice:(NSString *)key {

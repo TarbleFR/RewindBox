@@ -113,6 +113,13 @@ static NSString *RBRAPublicErrorCode(id value) {
 @property(nonatomic, strong) NSURLSessionDataTask *authTask;
 @property(nonatomic) NSUInteger authGeneration;
 @property(nonatomic) NSUInteger stateRevision;
+// In-game status notices for the current launch only (guarded by lock).
+@property(nonatomic, copy, nullable) RBRAStatusPresenter statusPresenter;
+@property(nonatomic, copy) NSString *statusSessionId;
+@property(nonatomic, copy) NSString *statusAnnounced;
+@property(nonatomic) NSUInteger statusCount;
+@property(nonatomic) BOOL statusReady;
+@property(nonatomic) BOOL statusTimedOut;
 + (instancetype)shared;
 - (NSDictionary *)publicState:(NSDictionary *)configuration;
 - (void)emit:(NSDictionary *)state;
@@ -132,6 +139,8 @@ static NSString *RBRAPublicErrorCode(id value) {
     hub.channels = [NSHashTable weakObjectsHashTable];
     hub.lastState = @{};
     hub.currentSessionId = @"";
+    hub.statusSessionId = @"";
+    hub.statusAnnounced = @"";
   });
   return hub;
 }
@@ -139,7 +148,8 @@ static NSString *RBRAPublicErrorCode(id value) {
 - (NSDictionary *)publicState:(NSDictionary *)configuration {
   NSMutableDictionary *state = [NSMutableDictionary dictionary];
   for (NSString *key in @[@"sessionId", @"engine", @"system", @"core", @"generation",
-                          @"enabled", @"supported", @"hardcore", @"notifications", @"capability"]) {
+                          @"enabled", @"supported", @"hardcore", @"notifications", @"capability",
+                          @"requested"]) {
     if (configuration[key]) state[key] = configuration[key];
   }
   state[@"active"] = @NO;
@@ -269,16 +279,35 @@ static NSString *RBRAPublicErrorCode(id value) {
         if (generation != self.authGeneration) { result(RBRAError(@"RA_CANCELLED")); return; }
         self.authTask = nil;
         NSInteger status = [response isKindOfClass:NSHTTPURLResponse.class] ? ((NSHTTPURLResponse *)response).statusCode : 0;
-        if (error || status == 0 || status >= 500) { result(RBRAError(@"RA_NETWORK_UNAVAILABLE")); return; }
-        if (status == 429) { result(RBRAError(@"RA_RATE_LIMITED")); return; }
+        // Only codes and the HTTP status are logged: never the request,
+        // response body, username, password or token.
+        void (^fail)(NSString *) = ^(NSString *code) {
+          NSLog(@"[RetroAchievements] central sign-in failed: %@ (HTTP %ld)", code, (long)status);
+          result(RBRAError(code));
+        };
+        // No answer at all (offline, DNS, TLS, timeout): a network problem.
+        if (error || status == 0) { fail(@"RA_NETWORK_UNAVAILABLE"); return; }
+        if (status == 429) { fail(@"RA_RATE_LIMITED"); return; }
+        if (status >= 500) { fail(@"RA_SERVER_ERROR"); return; }
         id payload = data.length <= 1024 * 1024 ? [NSJSONSerialization JSONObjectWithData:data ?: NSData.data options:0 error:nil] : nil;
-        if (status != 200 || ![payload isKindOfClass:NSDictionary.class] ||
-            ![payload[@"Success"] isKindOfClass:NSNumber.class] || ![payload[@"Success"] boolValue] ||
-            !RBRAString(payload[@"User"]).length || !RBRAString(payload[@"Token"]).length) {
-          result(RBRAError(@"RA_AUTHENTICATION_FAILED")); return;
+        if (![payload isKindOfClass:NSDictionary.class]) {
+          // An HTML page (captive portal, proxy, maintenance) is not a refusal
+          // of the player's password; only 401/403 without JSON are.
+          fail(status == 401 || status == 403 ? @"RA_AUTHENTICATION_FAILED" : @"RA_SERVER_ERROR");
+          return;
+        }
+        BOOL success = [payload[@"Success"] isKindOfClass:NSNumber.class] && [payload[@"Success"] boolValue];
+        if (!success || status != 200) {
+          // RetroAchievements explicitly refused the sign-in (for example
+          // invalid_credentials or access_denied).
+          fail(@"RA_AUTHENTICATION_FAILED"); return;
+        }
+        if (!RBRAString(payload[@"User"]).length || !RBRAString(payload[@"Token"]).length) {
+          fail(@"RA_SERVER_ERROR"); return;
         }
         NSDictionary *credentials = @{@"username": payload[@"User"], @"token": payload[@"Token"]};
-        if (RBRAWriteCredentials(credentials) != errSecSuccess) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
+        if (RBRAWriteCredentials(credentials) != errSecSuccess) { fail(@"RA_STORAGE_UNAVAILABLE"); return; }
+        NSLog(@"[RetroAchievements] central sign-in succeeded (HTTP %ld)", (long)status);
         result(@{@"authenticated": @YES, @"username": credentials[@"username"]});
       });
     }];
@@ -306,16 +335,32 @@ static NSString *RBRAPublicErrorCode(id value) {
     if (status != errSecSuccess && status != errSecItemNotFound) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
     BOOL supported = RBRABool(args[@"supported"]) && ![@[@"rpcs3", @"melonx"] containsObject:engine];
     BOOL enabled = RBRABool(args[@"enabled"]) && supported && credentials != nil;
+    // The player's own RA choice (even without a usable account) drives the
+    // display-only launch status; it never enables anything by itself.
+    BOOL requested = RBRABool(args[@"requested"]) || enabled;
+    // Localized, non-secret status labels from the app catalogs (bounded).
+    NSMutableDictionary<NSString *, NSString *> *statusText = [NSMutableDictionary dictionary];
+    NSDictionary *texts = [args[@"statusText"] isKindOfClass:NSDictionary.class] ? args[@"statusText"] : @{};
+    for (id key in texts) {
+      if (statusText.count >= 64) break;
+      if ([key isKindOfClass:NSString.class] && [key length] <= 64 &&
+          [texts[key] isKindOfClass:NSString.class] && [texts[key] length] <= 512) {
+        statusText[key] = [texts[key] copy];
+      }
+    }
     NSString *identifier = NSUUID.UUID.UUIDString;
     NSDictionary *snapshot = @{@"sessionId": identifier, @"engine": engine,
       @"system": RBRAString(args[@"system"]), @"core": RBRAString(args[@"core"]),
       @"language": RBRAString(args[@"language"]),
       @"capability": RBRAString(args[@"capability"]),
-      @"enabled": @(enabled), @"supported": @(supported),
+      @"enabled": @(enabled), @"supported": @(supported), @"requested": @(requested),
       @"hardcore": @(enabled && RBRABool(args[@"hardcore"])), @"notifications": @(enabled),
       @"username": enabled ? credentials[@"username"] : @"", @"token": enabled ? credentials[@"token"] : @"",
+      @"statusText": [statusText copy],
       @"generation": [args[@"generation"] isKindOfClass:NSNumber.class] ? args[@"generation"] : @0,
       @"expires": [NSDate dateWithTimeIntervalSinceNow:600]};
+    NSLog(@"[RetroAchievements] launch prepared: engine=%@ supported=%d requested=%d enabled=%d hardcore=%d account=%d",
+          engine, supported, requested, enabled, enabled && RBRABool(args[@"hardcore"]), credentials != nil);
     [self.lock lock];
     for (NSString *key in self.pending.allKeys) {
       if ([self.pending[key][@"expires"] timeIntervalSinceNow] <= 0) [self.pending removeObjectForKey:key];
@@ -340,6 +385,192 @@ static NSString *RBRAPublicErrorCode(id value) {
 }
 @end
 
+#pragma mark - In-game launch status (display only)
+
+static const NSTimeInterval RBRAStatusInitialDelay = 3.0;  // game view visible
+static const NSTimeInterval RBRAStatusTimeout = 40.0;      // still unconfirmed
+static const NSUInteger RBRAStatusMaxNotices = 4;
+
+// Engine error codes that end the launch status; anything else (empty,
+// cleanup_pending, RA_SYNC_PENDING, RA_SERVER_ERROR, hardcore_inactive,
+// state_unavailable) is transient and keeps the status pending.
+static NSString *RBRAStatusKeyForCode(NSString *code) {
+  static NSDictionary<NSString *, NSString *> *keys;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    keys = @{
+      // rcheevos RC_ACCESS_DENIED -33, RC_INVALID_CREDENTIALS -34, RC_EXPIRED_TOKEN -35.
+      @"RA_AUTHENTICATION_FAILED": @"authRejected", @"login_failed_-33": @"authRejected",
+      @"login_failed_-34": @"authRejected", @"login_failed_-35": @"authRejected",
+      // RC_NO_RESPONSE -32 (no answer), RC_INVALID_JSON -26 (not a RA answer).
+      @"RA_NETWORK_UNAVAILABLE": @"network", @"login_failed_-32": @"network",
+      @"login_failed_-26": @"network",
+      @"RA_LOGIN_FAILED": @"loginFailed",
+      @"RA_LOGIN_REQUIRED": @"signIn", @"RA_CREDENTIALS_MISSING": @"signIn",
+      @"RA_GAME_NOT_RECOGNIZED": @"unknownGame",
+      @"RA_NO_ACHIEVEMENTS": @"noAchievements",
+      @"RA_ACHIEVEMENTS_UNSUPPORTED": @"setUnsupported",
+      @"RA_UNSUPPORTED": @"unsupported", @"RA_CORE_UNSUPPORTED": @"unsupported",
+      @"RA_MEMORY_UNAVAILABLE": @"unsupported",
+      @"RA_HARDCORE_OPTIONS": @"hardcoreOptions", @"RA_HARDCORE_RESET_REQUIRED": @"hardcoreOptions",
+      @"RA_GAME_LOAD_FAILED": @"loadFailed",
+      @"configuration_failed": @"unavailable", @"RA_CLIENT_UNAVAILABLE": @"unavailable",
+      @"RA_SESSION_ERROR": @"unavailable", @"RA_UNAVAILABLE": @"unavailable",
+    };
+  });
+  NSString *key = keys[code];
+  if (!key && [code hasPrefix:@"login_failed_"]) key = @"loginFailed";
+  return key;
+}
+
+static NSString *RBRAStatusFallback(NSString *key) {
+  static NSDictionary<NSString *, NSString *> *english;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    english = @{
+      @"active": @"Achievements active",
+      @"progress": @"{unlocked}/{total} unlocked",
+      @"hardcoreOn": @"Hardcore on", @"hardcoreOff": @"Hardcore off",
+      @"hardcoreNotApplied": @"Hardcore not applied",
+      @"signingIn": @"Signing in to RetroAchievements…",
+      @"identifying": @"Signed in · identifying the game…",
+      @"noAchievements": @"Game recognized, but it has no achievements to track.",
+      @"setUnsupported": @"Game recognized, but its achievements are not supported by this emulator.",
+      @"unknownGame": @"Game not recognized by RetroAchievements (unlisted version or dump).",
+      @"unsupported": @"RetroAchievements is not available for this game or emulator core.",
+      @"signIn": @"Sign-in required: open the RetroAchievements tab.",
+      @"authRejected": @"RetroAchievements refused the sign-in. Sign in again from the RetroAchievements tab.",
+      @"network": @"RetroAchievements is unreachable: achievements are not active.",
+      @"loginFailed": @"Could not sign in to RetroAchievements: achievements are not active.",
+      @"hardcoreOptions": @"Achievements off: some emulator options are incompatible with Hardcore mode.",
+      @"loadFailed": @"Could not load this game's achievements from RetroAchievements.",
+      @"unavailable": @"RetroAchievements could not start for this game.",
+      @"unconfirmed": @"Achievement tracking not confirmed: game not recognized or server unreachable.",
+    };
+  });
+  return english[key] ?: @"";
+}
+
+NSString *RBRAPointsText(NSDictionary *configuration, NSUInteger points) {
+  NSDictionary *texts = [configuration isKindOfClass:NSDictionary.class] &&
+      [configuration[@"statusText"] isKindOfClass:NSDictionary.class] ? configuration[@"statusText"] : @{};
+  NSString *unit = RBRAString(texts[@"points"]);
+  return [NSString stringWithFormat:@"%lu %@", (unsigned long)points, unit.length ? unit : @"points"];
+}
+
+NSDictionary<NSString *, id> *RBRAStatusForState(NSDictionary *configuration, NSDictionary *state, BOOL timedOut) {
+  if (![configuration isKindOfClass:NSDictionary.class]) return nil;
+  if (![state isKindOfClass:NSDictionary.class]) state = @{};
+  const BOOL enabled = RBRABool(configuration[@"enabled"]);
+  // Players who switched RA off are never notified in game.
+  if (!enabled && !RBRABool(configuration[@"requested"])) return nil;
+  NSDictionary *texts = [configuration[@"statusText"] isKindOfClass:NSDictionary.class]
+      ? configuration[@"statusText"] : @{};
+  NSString *(^text)(NSString *) = ^NSString *(NSString *key) {
+    NSString *value = RBRAString(texts[key]);
+    return value.length ? value : RBRAStatusFallback(key);
+  };
+  NSDictionary *(^notice)(NSString *, NSString *, BOOL) = ^NSDictionary *(NSString *key, NSString *message, BOOL final) {
+    return @{@"key": key, @"message": message ?: @"", @"final": @(final)};
+  };
+  if (!RBRABool(configuration[@"supported"])) return notice(@"unsupported", text(@"unsupported"), YES);
+  if (!enabled) return notice(@"signIn", text(@"signIn"), YES);
+  if (RBRABool(state[@"active"])) {
+    // "Active" requires the engine's own confirmation: signed in, game
+    // identified and a usable achievement set being evaluated.
+    NSMutableArray<NSString *> *parts = [NSMutableArray arrayWithObject:text(@"active")];
+    NSString *username = RBRAString(configuration[@"username"]);
+    if (username.length) [parts addObject:username];
+    const NSUInteger total = [state[@"totalCount"] isKindOfClass:NSNumber.class]
+        ? [state[@"totalCount"] unsignedIntegerValue] : 0;
+    const NSUInteger unlocked = [state[@"unlockedCount"] isKindOfClass:NSNumber.class]
+        ? [state[@"unlockedCount"] unsignedIntegerValue] : 0;
+    if (total > 0) {
+      NSString *progress = [text(@"progress") stringByReplacingOccurrencesOfString:@"{unlocked}"
+                                                                        withString:@(MIN(unlocked, total)).stringValue];
+      [parts addObject:[progress stringByReplacingOccurrencesOfString:@"{total}" withString:@(total).stringValue]];
+    }
+    // Only the Hardcore state the engine actually applied is displayed.
+    const BOOL hardcoreActive = RBRABool(state[@"hardcoreActive"]);
+    [parts addObject:hardcoreActive ? text(@"hardcoreOn")
+        : RBRABool(configuration[@"hardcore"]) ? text(@"hardcoreNotApplied") : text(@"hardcoreOff")];
+    return notice(hardcoreActive ? @"activeHardcore" : @"active", [parts componentsJoinedByString:@" · "], YES);
+  }
+  NSString *key = RBRAStatusKeyForCode(RBRAString(state[@"errorCode"]));
+  if (key) return notice(key, text(key), YES);
+  if (timedOut) return notice(@"unconfirmed", text(@"unconfirmed"), YES);
+  const BOOL signedIn = RBRABool(state[@"loggedIn"]) || RBRABool(state[@"gameLoaded"]);
+  return notice(@"pending", text(signedIn ? @"identifying" : @"signingIn"), NO);
+}
+
+// Main queue only. Announces the current launch status when it changed: the
+// pending notice once (if nothing is known after the initial delay), then each
+// distinct final status once, at most RBRAStatusMaxNotices per launch.
+static void RBRAEvaluateStatus(NSString *identifier) {
+  RBRASessionHub *hub = RBRASessionHub.shared;
+  [hub.lock lock];
+  RBRAStatusPresenter presenter = hub.statusPresenter;
+  NSDictionary *snapshot = hub.active[identifier];
+  if (!presenter || !hub.statusReady || !snapshot || ![identifier isEqualToString:hub.statusSessionId] ||
+      ![identifier isEqualToString:hub.currentSessionId] || hub.statusCount >= RBRAStatusMaxNotices) {
+    [hub.lock unlock];
+    return;
+  }
+  NSDictionary *status = RBRAStatusForState(snapshot, hub.lastState, hub.statusTimedOut);
+  NSString *key = RBRAString(status[@"key"]);
+  const BOOL final = RBRABool(status[@"final"]);
+  const BOOL announce = key.length > 0 && ![key isEqualToString:hub.statusAnnounced] &&
+      (final || hub.statusAnnounced.length == 0);
+  if (!announce) {
+    [hub.lock unlock];
+    return;
+  }
+  hub.statusAnnounced = key;
+  hub.statusCount += 1;
+  [hub.lock unlock];
+  presenter(key, @"RetroAchievements", RBRAString(status[@"message"]), final ? 5.0 : 3.0);
+}
+
+void RBRASetStatusPresenter(NSDictionary *configuration, RBRAStatusPresenter presenter) {
+  if (![configuration isKindOfClass:NSDictionary.class]) return;
+  NSString *identifier = RBRAString(configuration[@"sessionId"]);
+  RBRASessionHub *hub = RBRASessionHub.shared;
+  [hub.lock lock];
+  // Only the exact snapshot of the current launch may present its status.
+  if (!identifier.length || hub.active[identifier] != configuration ||
+      ![identifier isEqualToString:hub.currentSessionId]) {
+    [hub.lock unlock];
+    return;
+  }
+  hub.statusPresenter = presenter;
+  hub.statusSessionId = presenter ? identifier : @"";
+  hub.statusAnnounced = @"";
+  hub.statusCount = 0;
+  hub.statusReady = NO;
+  hub.statusTimedOut = NO;
+  [hub.lock unlock];
+  if (!presenter) return;
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(RBRAStatusInitialDelay * NSEC_PER_SEC)),
+                 dispatch_get_main_queue(), ^{
+    [hub.lock lock];
+    const BOOL current = [identifier isEqualToString:hub.statusSessionId];
+    if (current) hub.statusReady = YES;
+    [hub.lock unlock];
+    if (current) RBRAEvaluateStatus(identifier);
+  });
+  dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(RBRAStatusTimeout * NSEC_PER_SEC)),
+                 dispatch_get_main_queue(), ^{
+    [hub.lock lock];
+    const BOOL current = [identifier isEqualToString:hub.statusSessionId];
+    if (current) {
+      hub.statusReady = YES;
+      hub.statusTimedOut = YES;
+    }
+    [hub.lock unlock];
+    if (current) RBRAEvaluateStatus(identifier);
+  });
+}
+
 NSDictionary *RBRATakeLaunchConfiguration(NSDictionary *arguments, NSString *engine) {
   if (![arguments isKindOfClass:NSDictionary.class]) return RBRADisabled();
   NSString *identifier = RBRAString(arguments[@"raSessionId"]);
@@ -360,6 +591,11 @@ NSDictionary *RBRATakeLaunchConfiguration(NSDictionary *arguments, NSString *eng
   snapshot = [owned copy];
   hub.active[identifier] = snapshot;
   hub.currentSessionId = identifier;
+  // A previous launch can never present its status over this one.
+  hub.statusPresenter = nil;
+  hub.statusSessionId = @"";
+  hub.statusAnnounced = @"";
+  hub.statusCount = 0;
   NSMutableDictionary *initialState = [[hub publicState:snapshot] mutableCopy];
   initialState[@"stateRevision"] = @(++hub.stateRevision);
   NSDictionary *state = [initialState copy];
@@ -379,7 +615,8 @@ void RBRAPublishSessionState(NSDictionary *configuration, NSDictionary *state) {
     [hub.lock unlock]; return;
   }
   NSMutableDictionary *next = [hub.lastState mutableCopy];
-  for (NSString *key in @[@"active", @"gameLoaded", @"hardcoreActive", @"gameId", @"totalCount", @"unlockedCount"]) {
+  for (NSString *key in @[@"active", @"gameLoaded", @"hardcoreActive", @"gameId", @"totalCount",
+                          @"unlockedCount", @"loggedIn"]) {
     if ([state[key] isKindOfClass:NSNumber.class]) next[key] = state[key];
   }
   if ([state[@"errorCode"] isKindOfClass:NSString.class]) next[@"errorCode"] = RBRAPublicErrorCode(state[@"errorCode"]);
@@ -391,8 +628,10 @@ void RBRAPublishSessionState(NSDictionary *configuration, NSDictionary *state) {
   next[@"stateRevision"] = @(++hub.stateRevision);
   hub.lastState = [next copy];
   NSDictionary *published = hub.lastState;
+  const BOOL announces = [identifier isEqualToString:hub.statusSessionId];
   [hub.lock unlock];
   [hub emit:published];
+  if (announces) dispatch_async(dispatch_get_main_queue(), ^{ RBRAEvaluateStatus(identifier); });
 }
 
 void RBRAEndSession(NSDictionary *configuration) {
@@ -404,6 +643,11 @@ void RBRAEndSession(NSDictionary *configuration) {
   // native session; an already-ended snapshot cannot emit another end event.
   if (hub.active[identifier] != configuration) { [hub.lock unlock]; return; }
   [hub.active removeObjectForKey:identifier];
+  if ([identifier isEqualToString:hub.statusSessionId]) {
+    // No status toast survives its game.
+    hub.statusPresenter = nil;
+    hub.statusSessionId = @"";
+  }
   BOOL current = identifier.length && [identifier isEqualToString:hub.currentSessionId];
   NSDictionary *state = nil;
   if (current) {

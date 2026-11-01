@@ -17,7 +17,8 @@ NS_ASSUME_NONNULL_BEGIN
 + (BOOL)isHardcoreOptionAllowedForLibrary:(NSString *)library consoleId:(unsigned)consoleId
                                      key:(NSString *)key value:(NSString *)value;
 
-@property(nonatomic, copy, nullable) void (^unlocked)(NSUInteger achievementID, NSString *title, NSString *description);
+@property(nonatomic, copy, nullable) void (^unlocked)(NSUInteger achievementID, NSString *title, NSString *description,
+                                                       NSUInteger points);
 @property(nonatomic, readonly) BOOL loggedIn;
 @property(nonatomic, readonly, nullable) NSString *username;
 @property(nonatomic, readonly) BOOL gameLoaded;

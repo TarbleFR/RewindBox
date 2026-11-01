@@ -9,12 +9,25 @@ import '../../services/retro_achievements_session_service.dart';
 import '../../utils/gamepad_nav.dart';
 import '../../utils/login_form_selection.dart';
 
+/// Input errors, authentication refusals and network/server failures keep
+/// separate messages. Raw codes are never shown to the player.
 String raSessionErrorLabel(String? code) {
-  if (code?.startsWith('login_failed_') ?? false) return AppLocale.raSessionLoginError;
+  if (code?.startsWith('login_failed_') ?? false) {
+    // Dolphin forwards the signed rcheevos result of its token login.
+    return switch (code) {
+      'login_failed_-33' || 'login_failed_-34' || 'login_failed_-35' => AppLocale.raSessionTokenRejected,
+      'login_failed_-32' => AppLocale.raSessionNetworkError,
+      'login_failed_-26' => AppLocale.raSessionServerError,
+      _ => AppLocale.raSessionLoginError,
+    };
+  }
   return switch (code) {
+  'RA_INPUT_REQUIRED' => AppLocale.raSessionInputRequired,
   'RA_LOGIN_REQUIRED' || 'RA_CREDENTIALS_MISSING' => AppLocale.raSessionLoginNeeded,
   'RA_AUTHENTICATION_FAILED' || 'RA_LOGIN_FAILED' => AppLocale.raSessionLoginError,
-  'RA_NETWORK_UNAVAILABLE' || 'RA_NETWORK' || 'RA_RATE_LIMITED' => AppLocale.raSessionNetworkError,
+  'RA_TOKEN_REJECTED' => AppLocale.raSessionTokenRejected,
+  'RA_SERVER_ERROR' => AppLocale.raSessionServerError,
+  'RA_NETWORK_UNAVAILABLE' || 'RA_NETWORK' || 'RA_RATE_LIMITED' || 'RA_SYNC_PENDING' => AppLocale.raSessionNetworkError,
   'RA_STORAGE_UNAVAILABLE' || 'RA_MIGRATION_EXPIRED' => AppLocale.raSessionStorageError,
   'RA_HARDCORE_OPTIONS' || 'RA_HARDCORE_RESET_REQUIRED' || 'hardcore_inactive' => AppLocale.raSessionHardcoreError,
   'RA_UNSUPPORTED' => AppLocale.raSessionUnsupported,
@@ -50,10 +63,16 @@ class _RASessionSettingsState extends State<RASessionSettings>
   int get _migrationSlots => !service.authenticated && service.migrationCandidates.isNotEmpty
       ? service.migrationCandidates.length + 1 : 0;
 
+  /// The sign-in form is shown when no account is stored, or when an engine
+  /// reported that RetroAchievements refused the stored token.
+  bool get _showForm => !service.authenticated || service.tokenRejected;
+
   @override
-  List<FocusNode?> get selectionSlots => service.authenticated
+  List<FocusNode?> get selectionSlots => !_showForm
       ? [null, null, null, null]
       : [for (var i = 0; i < _migrationSlots; i++) null, usernameFocus, passwordFocus, null, null];
+
+  int get _closeSlot => _showForm ? _migrationSlots + 3 : 3;
   @override
   List<FocusNode> get ownedFocusNodes => [usernameFocus, passwordFocus];
 
@@ -83,7 +102,7 @@ class _RASessionSettingsState extends State<RASessionSettings>
 
   void _select() {
     if (service.busy || focusSelectedField()) return;
-    if (service.authenticated) {
+    if (!_showForm) {
       switch (selectedSlot) {
         case 0: unawaited(service.setEnabled(!service.preferences.enabled));
         case 1: unawaited(service.setHardcore(!service.preferences.hardcore));
@@ -145,8 +164,25 @@ class _RASessionSettingsState extends State<RASessionSettings>
   Widget build(BuildContext context) {
     String text(String key) => key.getString(context);
     final session = service.session;
+    final theme = Theme.of(context);
+    // On a landscape iPhone the keyboard leaves ~180 pt. Build 608 kept the
+    // default dialog insets, title padding and a bottom action row, so the
+    // scrollable content got a zero-height viewport and the focused fields
+    // disappeared while typing. Compact chrome keeps the field on screen.
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final sessionError = session?.running == true && (session?.errorCode?.isNotEmpty ?? false)
+        ? session!.errorCode : null;
+    final error = service.errorCode ?? (service.tokenRejected ? 'RA_TOKEN_REJECTED' : sessionError);
     return AlertDialog(
-      title: Text(text(AppLocale.raSessionSettings)),
+      insetPadding: EdgeInsets.symmetric(horizontal: 24, vertical: keyboard ? 4 : 24),
+      titlePadding: EdgeInsets.fromLTRB(24, keyboard ? 4 : 16, 12, 0),
+      contentPadding: EdgeInsets.fromLTRB(24, keyboard ? 4 : 12, 24, keyboard ? 8 : 20),
+      title: Row(children: [
+        Expanded(child: Text(text(AppLocale.raSessionSettings),
+          style: keyboard ? theme.textTheme.titleMedium : null)),
+        _highlight(_closeSlot, TextButton(onPressed: () => Navigator.of(context).pop(),
+          child: Text(text(AppLocale.close)))),
+      ]),
       content: SizedBox(width: 560, child: SingleChildScrollView(controller: scroll,
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           if (!service.initialized && service.errorCode == null) const LinearProgressIndicator(),
@@ -169,16 +205,24 @@ class _RASessionSettingsState extends State<RASessionSettings>
               child: Text(text(AppLocale.raSessionMigrationSkip)))),
             const Divider(),
           ],
-          if (!service.authenticated) ...[
+          if (_showForm) ...[
+            // RetroAchievements usernames are ASCII letters/digits: no
+            // autocorrection, smart punctuation or capitalization may alter
+            // them (an accidental "´" or autocorrected name was a refusal).
             _highlight(_migrationSlots, TextField(key: const ValueKey('ra-native-username'), controller: username,
               focusNode: usernameFocus, enabled: !service.busy, autocorrect: false,
+              enableSuggestions: false, textCapitalization: TextCapitalization.none,
+              smartDashesType: SmartDashesType.disabled, smartQuotesType: SmartQuotesType.disabled,
+              keyboardType: TextInputType.visiblePassword,
               decoration: InputDecoration(labelText: text(AppLocale.username)),
               textInputAction: TextInputAction.next, onSubmitted: (_) => passwordFocus.requestFocus())),
             const SizedBox(height: 8),
             _highlight(_migrationSlots + 1, TextField(key: const ValueKey('ra-native-password'), controller: password,
               focusNode: passwordFocus, enabled: !service.busy, obscureText: true,
               enableSuggestions: false, autocorrect: false,
+              smartDashesType: SmartDashesType.disabled, smartQuotesType: SmartQuotesType.disabled,
               decoration: InputDecoration(labelText: text(AppLocale.password)),
+              textInputAction: TextInputAction.done,
               onSubmitted: (_) => _login())),
             const SizedBox(height: 12),
             _highlight(_migrationSlots + 2, FilledButton(onPressed: service.busy ? null : _login,
@@ -187,6 +231,7 @@ class _RASessionSettingsState extends State<RASessionSettings>
             Text(service.username, style: Theme.of(context).textTheme.titleMedium),
             _highlight(0, SwitchListTile.adaptive(key: const ValueKey('ra-central-enabled'),
               contentPadding: EdgeInsets.zero, title: Text(text(AppLocale.raSessionEnable)),
+              subtitle: service.preferences.enabled ? null : Text(text(AppLocale.raSessionEnableHint)),
               value: service.preferences.enabled,
               onChanged: service.busy || !service.initialized ? null : (value) => service.setEnabled(value))),
             _highlight(1, SwitchListTile.adaptive(key: const ValueKey('ra-central-hardcore'),
@@ -207,9 +252,9 @@ class _RASessionSettingsState extends State<RASessionSettings>
             : service.preferences.enabled ? AppLocale.raSessionReady : AppLocale.raSessionNoGame)),
           if (session?.running == true && session!.gameLoaded)
             Text('${text(AppLocale.raSessionHardcore)}: ${text(session.hardcoreActive ? AppLocale.enabled : AppLocale.disabled)}'),
-          if (service.errorCode != null || (session?.running == true && (session?.errorCode?.isNotEmpty ?? false))) ...[
+          if (error != null) ...[
             const SizedBox(height: 8),
-            Text(text(raSessionErrorLabel(service.errorCode ?? session?.errorCode)),
+            Text(text(raSessionErrorLabel(error)),
               style: TextStyle(color: Theme.of(context).colorScheme.error)),
             if (!service.initialized || const {'RA_MIGRATION_EXPIRED', 'RA_STORAGE_UNAVAILABLE'}.contains(service.errorCode)) TextButton(onPressed: service.busy ? null : service.retry,
               child: Text(text(AppLocale.retry))),
@@ -226,8 +271,6 @@ class _RASessionSettingsState extends State<RASessionSettings>
             ]),
           if (service.busy) const LinearProgressIndicator(),
         ]))),
-      actions: [_highlight(_migrationSlots + 3, TextButton(onPressed: () => Navigator.of(context).pop(),
-        child: Text(text(AppLocale.close))))],
     );
   }
 

@@ -130,7 +130,12 @@ class RANativeFixture {
         .setMockMethodCallHandler(channel, (call) async {
       calls.add(call);
       switch (call.method) {
-        case 'account': return account;
+        case 'account':
+          if (accountFailures > 0) {
+            accountFailures--;
+            throw PlatformException(code: 'RA_STORAGE_UNAVAILABLE');
+          }
+          return account;
         case 'login':
           await loginGate?.future;
           if (loginError != null) throw PlatformException(code: loginError!);
@@ -156,6 +161,8 @@ class RANativeFixture {
   static const channel = MethodChannel('test/rewindbox/ra-account-fixture');
   String username;
   String? loginError;
+  /// Transient Keychain/database read failures before `account` succeeds.
+  int accountFailures = 0;
   Completer<void>? loginGate;
   final calls = <MethodCall>[];
   RetroAchievementsPreferences preferences = const RetroAchievementsPreferences(migrationVersion: 1);

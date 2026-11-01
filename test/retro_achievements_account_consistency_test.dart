@@ -52,7 +52,7 @@ void main() {
     expect(provider.user!.user, 'Bob');
   });
 
-  test('Web data cannot authenticate a signed-out native account', () async {
+  test('saved Web data restores the dashboard but never authenticates a signed-out native account', () async {
     final native = RANativeFixture(username: '');
     final source = RADashboardFixture()
       ..savedUsername = 'Alice'
@@ -61,11 +61,17 @@ void main() {
     addTearDown(() { provider.dispose(); native.dispose(); });
     await provider.initialize();
 
-    expect(source.profiles, isEmpty);
-    expect(await provider.connect('Alice', apiKey: 'alice-web-key'), isFalse);
-    expect(provider.accountErrorKey, AppLocale.raSessionLoginNeeded);
+    // Build 608 refused this valid pair locally ("sign in here to enable
+    // in-game achievements"): the dashboard and the in-game session use
+    // different credentials, so a signed-out game session is not a conflict.
+    expect(provider.isConnected, isTrue);
+    expect(provider.accountErrorKey, isNull);
+    expect(source.profiles, [('Alice', 'alice-web-key')]);
+    expect(await provider.connect('Alice', apiKey: 'alice-web-key'), isTrue);
+    // The Web API key still never signs in an emulator nor enables RA.
     expect(native.service.authenticated, isFalse);
-    expect(source.writes, isEmpty);
+    expect(native.service.preferences.enabled, isFalse);
+    expect(native.calls.map((call) => call.method), isNot(contains('login')));
   });
 
   test('desktop Web-only login remains available without the native plugin', () async {
@@ -165,9 +171,11 @@ void main() {
     final current = await provider.getGameInfoAndUserProgress(42);
     expect(current!.title, 'Bob progress');
     expect(source.games.map((request) => request.$2), ['Alice', 'Bob']);
+    // Signing out of the in-game session alone keeps the Web dashboard (its
+    // own Web API key); only a different in-game account invalidates it.
     expect(await native.service.logout(), isTrue);
-    expect(provider.isConnected, isFalse);
-    expect(provider.user, isNull);
+    expect(provider.isConnected, isTrue);
+    expect(provider.user!.user, 'Bob');
   });
 
   test('policy and live-session notifications do not reconnect the same account', () async {

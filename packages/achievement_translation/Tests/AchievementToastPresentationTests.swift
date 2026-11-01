@@ -107,4 +107,40 @@ final class AchievementToastPresentationTests: XCTestCase {
         let dismissed = try await waitFor { owner.view.subviews.allSatisfy { !($0 is UIVisualEffectView) } }
         XCTAssertTrue(dismissed)
     }
+
+    func testLaunchStatusUsesItsLocalizedTextAndQueuesBeforeUnlocks() async throws {
+        let provider = AchievementTextProvider.shared
+        provider.setLanguage("fr")
+        let (window, owner) = makeSurface()
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+            provider.setLanguage("en")
+        }
+        XCTAssertTrue(owner.view.window === window)
+        var active = true
+        let status = "Succès actifs · player · 3/10 débloqués · Hardcore activé"
+        AchievementToastPresenter.present(on: owner, achievementID: 0, title: "RetroAchievements",
+            description: status, suffix: "", duration: 1, kind: 3,
+            surface: { [weak owner] in owner?.view }, valid: { active })
+        AchievementToastPresenter.present(on: owner, achievementID: 900010, title: "After status",
+            description: "Unlock requirements", suffix: "10", duration: 1, kind: 1,
+            surface: { [weak owner] in owner?.view }, valid: { active })
+        let shown = try await waitFor { self.labels(in: owner.view).contains("RetroAchievements") }
+        XCTAssertTrue(shown)
+        XCTAssertTrue(labels(in: owner.view).contains(status))
+        // Already localized by the app: no trophy and no machine-translation note.
+        XCTAssertFalse(labels(in: owner.view).contains("🏆 RetroAchievements"))
+        XCTAssertFalse(labels(in: owner.view).contains { $0.hasPrefix("Texte original") })
+        // The unlock waits behind the status (its title may be translated).
+        XCTAssertFalse(labels(in: owner.view).contains { $0.hasPrefix("🏆") && $0.hasSuffix("After status") })
+        let unlock = try await waitFor {
+            self.labels(in: owner.view).contains { $0.hasPrefix("🏆") && $0.hasSuffix("After status") }
+        }
+        XCTAssertTrue(unlock)
+        XCTAssertFalse(labels(in: owner.view).contains(status))
+        active = false
+        let dismissed = try await waitFor { owner.view.subviews.allSatisfy { !($0 is UIVisualEffectView) } }
+        XCTAssertTrue(dismissed)
+    }
 }

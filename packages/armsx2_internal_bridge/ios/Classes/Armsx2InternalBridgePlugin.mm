@@ -468,13 +468,28 @@ static UIViewController* ARMSX2RootViewController(void) {
   }
   // No guessed ID: a summary/game title or an ambiguous toast stays original.
   NSInteger achievementID = matches.count == 1 ? [matches.firstObject[@"id"] integerValue] : 0;
-  if (matches.count == 0) { [owner showStatus:[NSString stringWithFormat:@"%@\n%@", title, message]]; return; }
+  if (matches.count == 0) {
+    // The pinned core's English launch notices (login score, game summary)
+    // repeat what the localized central status toast already announces.
+    if ([message hasPrefix:@"You have unlocked "] || [message isEqualToString:@"This game has no achievements."] ||
+        ([message hasPrefix:@"Score: "] && [message containsString:@" pts"])) {
+      NSLog(@"[ARMSX2] RetroAchievements launch notice replaced by the central status");
+      return;
+    }
+    [owner showStatus:[NSString stringWithFormat:@"%@\n%@", title, message]];
+    return;
+  }
   NSTimeInterval duration = [toast respondsToSelector:NSSelectorFromString(@"duration")]
       ? [[toast valueForKey:@"duration"] doubleValue] : 4.0;
   __weak Armsx2InternalBridgePlugin* weakSelf = self;
   __weak Armsx2GameViewController* weakOwner = owner;
   NSString* sourceTitle = achievementID > 0 ? matches.firstObject[@"title"] : title;
   NSString* marker = achievementID > 0 && ![sourceTitle isEqual:title] ? @"(Unofficial)" : @"";
+  // Points of the matched achievement, in the app language of this launch.
+  if (achievementID > 0 && [matches.firstObject[@"points"] isKindOfClass:NSNumber.class]) {
+    NSString* points = RBRAPointsText(configuration, [matches.firstObject[@"points"] unsignedIntegerValue]);
+    marker = marker.length ? [NSString stringWithFormat:@"%@ · %@", points, marker] : points;
+  }
   RBAchievementPresent(owner, achievementID, sourceTitle, message, marker, duration, 1, ^UIView* {
         UIViewController* controller = weakOwner;
         NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
@@ -698,6 +713,36 @@ static UIViewController* ARMSX2RootViewController(void) {
   });
 }
 
+// Display-only launch status (account, game recognition, tracking, observed
+// Hardcore) decided by the central hub from the states this host publishes.
+// Main queue. The toast belongs to this controller and launch only.
+- (void)registerAchievementStatusPresenterForController:(Armsx2GameViewController*)controller {
+  NSDictionary* configuration = self.achievementConfiguration;
+  if (!configuration || !controller) return;
+  __weak Armsx2InternalBridgePlugin* weakSelf = self;
+  __weak Armsx2GameViewController* weakOwner = controller;
+  RBRASetStatusPresenter(configuration, ^(NSString* key, NSString* title, NSString* message,
+                                          NSTimeInterval duration) {
+    Armsx2InternalBridgePlugin* bridge = weakSelf;
+    Armsx2GameViewController* owner = weakOwner;
+    if (!bridge || !owner || bridge.gameController != owner || bridge.stopInProgress || owner.closing ||
+        bridge.achievementConfiguration != configuration) return;
+    NSLog(@"[ARMSX2] RetroAchievements status: %@", key);
+    RBAchievementPresent(owner, 0, title, message, @"", duration, 3, ^UIView* {
+        UIViewController* surfaceOwner = weakOwner;
+        NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
+        if (surfaceOwner && display.renderHost.placeholderView == surfaceOwner.view && !display.window.hidden &&
+            display.renderHost.renderView.window == display.window && display.window != nil)
+          return display.window.rootViewController.view;
+        return surfaceOwner.view;
+      }, ^BOOL {
+        Armsx2InternalBridgePlugin* active = weakSelf;
+        return active && weakOwner && active.achievementConfiguration == configuration &&
+            active.gameController == weakOwner && !active.stopInProgress && !weakOwner.closing;
+      });
+  });
+}
+
 - (void)endAchievementSession {
   NSDictionary* configuration = self.achievementConfiguration;
   self.achievementConfiguration = nil;
@@ -767,12 +812,18 @@ static UIViewController* ARMSX2RootViewController(void) {
       }
       if (configuration && state) {
         const BOOL gameLoaded = [state[@"hasActiveGame"] boolValue];
-        const BOOL active = [state[@"active"] boolValue] && [state[@"loggedIn"] boolValue] &&
+        const BOOL loggedIn = [state[@"loggedIn"] boolValue];
+        const BOOL active = [state[@"active"] boolValue] && loggedIn &&
             gameLoaded && [state[@"hasAchievements"] boolValue];
         const BOOL hardcoreActive = [state[@"hardcoreActive"] boolValue];
         NSString* code = [configuration[@"hardcore"] boolValue] && active && gameLoaded && !hardcoreActive
             ? @"hardcore_inactive" : @"";
+        // Signed in and the game identified, but its set has no achievement:
+        // a final launch status, not an initialization still in progress.
+        if (!active && loggedIn && gameLoaded && ![state[@"hasAchievements"] boolValue] &&
+            [configuration[@"enabled"] boolValue]) code = @"RA_NO_ACHIEVEMENTS";
         RBRAPublishSessionState(configuration, @{@"active": @(active), @"gameLoaded": @(gameLoaded),
+            @"loggedIn": @(loggedIn),
             @"hardcoreActive": @(hardcoreActive), @"errorCode": code,
             @"gameId": state[@"gameId"] ?: @0,
             @"totalCount": state[@"totalAchievements"] ?: @0,
@@ -1466,6 +1517,8 @@ static UIViewController* ARMSX2RootViewController(void) {
       // Presented earlier and booted with the surface the Core sized for the
       // iPhone: from here the render view may be shown on the TV.
       [self attachExternalDisplayForController:controller];
+      // The game is running: the hub may now announce its RA status.
+      if (!biosBoot) [self registerAchievementStatusPresenterForController:controller];
       [self readRetroAchievementsForController:controller completion:nil];
       result(@{
         @"success": @YES,

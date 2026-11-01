@@ -878,6 +878,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 @property(atomic, assign) uint64_t achievementPresentationSession;
 @property(atomic, copy, nullable) NSDictionary* achievementConfiguration;
 @property(nonatomic, copy, nullable) NSDictionary* lastAchievementState;
+// Consecutive runtime polls with a recognized game but nothing to process.
+@property(nonatomic, assign) NSUInteger achievementIdlePolls;
 @property(atomic, strong, nullable) DOLDolphinViewController* dolphinController;
 @property(nonatomic, strong, nullable) DOLHelperSession* helperSession;
 @property(nonatomic, strong, nullable) dispatch_source_t runningTimer;
@@ -922,10 +924,20 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   NSDictionary* configuration = self.achievementConfiguration;
   if (!configuration) return;
   NSDictionary* native = DOLReadAchievementState();
-  NSDictionary* state = @{@"active": @([native[@"active"] boolValue]),
-      @"gameLoaded": @([native[@"gameLoaded"] boolValue]),
+  const BOOL gameLoaded = [native[@"gameLoaded"] boolValue];
+  const BOOL active = [native[@"active"] boolValue];
+  NSString* code = native ? ([native[@"errorCode"] isKindOfClass:NSString.class] ? native[@"errorCode"] : @"")
+                          : @"state_unavailable";
+  // The pinned core reports a recognized game (gameLoaded) whose rc_client has
+  // nothing to process (no achievement left, no leaderboard or rich presence)
+  // as loaded but inactive. After two consecutive polls this is the launch's
+  // final status, not an initialization still in progress.
+  self.achievementIdlePolls = (code.length == 0 && gameLoaded && !active) ? self.achievementIdlePolls + 1 : 0;
+  if (self.achievementIdlePolls >= 2 && [configuration[@"enabled"] boolValue]) code = @"RA_NO_ACHIEVEMENTS";
+  NSDictionary* state = @{@"active": @(active),
+      @"gameLoaded": @(gameLoaded),
       @"hardcoreActive": @([native[@"hardcoreActive"] boolValue]),
-      @"errorCode": native ? (native[@"errorCode"] ?: @"") : @"state_unavailable"};
+      @"errorCode": code};
   if ([self.lastAchievementState isEqual:state]) return;
   self.lastAchievementState = state;
   RBRAPublishSessionState(configuration, state);
@@ -935,7 +947,41 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   NSDictionary* configuration = self.achievementConfiguration;
   self.achievementConfiguration = nil;
   self.lastAchievementState = nil;
+  self.achievementIdlePolls = 0;
   if (configuration) RBRAEndSession(configuration);
+}
+
+// Display-only launch status (account, game recognition, tracking, observed
+// Hardcore) decided by the central hub from the states published above. The
+// toast belongs to this controller and launch; the JSON journal records only
+// the status key.
+- (void)registerAchievementStatusPresenterForController:(DOLDolphinViewController*)controller
+                                                logPath:(NSString*)logPath {
+  NSDictionary* configuration = self.achievementConfiguration;
+  if (!configuration || self.systemMenuSession) return;
+  __weak DolphinInternalBridgePlugin* weakSelf = self;
+  __weak DOLDolphinViewController* weakOwner = controller;
+  NSString* journal = [logPath copy] ?: @"";
+  RBRASetStatusPresenter(configuration, ^(NSString* key, NSString* title, NSString* message,
+                                          NSTimeInterval duration) {
+    DolphinInternalBridgePlugin* bridge = weakSelf;
+    DOLDolphinViewController* owner = weakOwner;
+    if (!bridge || !owner || bridge.dolphinController != owner || bridge.stopInProgress ||
+        bridge.achievementConfiguration != configuration) return;
+    DOLAppendJSONLog(journal, @"achievements.status", key, nil);
+    RBAchievementPresent(owner, 0, title, message, @"", duration, 3, ^UIView* {
+        UIViewController* surfaceOwner = weakOwner;
+        NeoExternalDisplayCoordinator* display = NeoExternalDisplayCoordinator.shared;
+        if (surfaceOwner && display.renderHost.placeholderView == surfaceOwner.view && !display.window.hidden &&
+            display.renderHost.renderView.window == display.window && display.window != nil)
+          return display.window.rootViewController.view;
+        return surfaceOwner.view;
+      }, ^BOOL {
+        DolphinInternalBridgePlugin* activeBridge = weakSelf;
+        return activeBridge && weakOwner && activeBridge.dolphinController == weakOwner &&
+            !activeBridge.stopInProgress && activeBridge.achievementConfiguration == configuration;
+      });
+  });
 }
 
 - (void)presentAchievement:(NSNotification*)notification {
@@ -948,7 +994,10 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       self.systemMenuSession) return;
   if ([event[@"kind"] intValue] == 0) { RBAchievementPrefetch(@[event]); return; }
   if (![configuration[@"notifications"] boolValue]) return;
-  NSString* suffix = [event[@"kind"] intValue] == 1 ? [event[@"points"] stringValue] : event[@"progress"];
+  // Unlocks show their points in the app language; progress keeps the core's
+  // measured "x/y" text verbatim.
+  NSString* suffix = [event[@"kind"] intValue] == 1
+      ? RBRAPointsText(configuration, [event[@"points"] unsignedIntegerValue]) : event[@"progress"];
   __weak DolphinInternalBridgePlugin* weakSelf = self;
   __weak DOLDolphinViewController* weakOwner = owner;
   RBAchievementPresent(owner, [event[@"id"] integerValue], event[@"title"], event[@"description"], suffix ?: @"",
@@ -1145,6 +1194,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
   NSDictionary* raConfiguration = [RBRATakeLaunchConfiguration(arguments, @"dolphin") copy];
   self.achievementConfiguration = raConfiguration;
   self.lastAchievementState = nil;
+  self.achievementIdlePolls = 0;
   const BOOL raEnabled = [raConfiguration[@"enabled"] boolValue] &&
       [raConfiguration[@"supported"] boolValue] && !wiiMenu;
   NSString* raUsername = raEnabled && [raConfiguration[@"username"] isKindOfClass:NSString.class]
@@ -1453,6 +1503,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       controller.externalDisplay = external;
       [external start];
     });
+    // The game is running: from now on the hub may announce its RA status.
+    [self registerAchievementStatusPresenterForController:controller logPath:logPath];
     [self startRunningMonitor];
     @synchronized(self) { self.launchInProgress = NO; }
     return state;

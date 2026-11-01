@@ -218,8 +218,11 @@ void main() {
     addTearDown(() { provider.dispose(); native.dispose(); });
     await provider.initialize();
     expect(await provider.connect('Alice', apiKey: 'alice-web-key'), isTrue);
-    // The old dashboard is gone immediately when the central account signs out.
+    // An in-game sign-out alone keeps the Web dashboard (separate Web API key).
     expect(await native.service.logout(), isTrue);
+    expect(provider.user!.user, 'Alice');
+    // Show the sign-in tab while Alice's Web pair stays saved on the device.
+    provider.disconnect(clearSavedUser: false);
     expect(provider.user, isNull);
     await pumpRA(tester, provider, 'fr');
     await tester.tap(find.byKey(const ValueKey('ra-central-settings')));

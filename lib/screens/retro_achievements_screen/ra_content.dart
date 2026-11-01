@@ -58,13 +58,25 @@ class _RAContentState extends State<RAContent>
     _syncAccountFields();
   }
 
+  /// Pre-fills the Web form with the in-game account name, without ever
+  /// discarding what the player typed or pasted. Build 608 rewrote the username
+  /// and cleared the API key on every in-game account notification (for
+  /// example right after signing in from the in-game dialog), so a pasted key
+  /// silently vanished before "Sign in" was pressed.
   void _syncAccountFields() {
     if (!mounted || !_session.available || !_session.initialized) return;
     final account = _session.authenticated ? _session.username : '';
-    if (_displayedAccount == account.toLowerCase()) return;
+    final previous = _displayedAccount;
+    if (previous == account.toLowerCase()) {
+      setState(() {});
+      return;
+    }
     _displayedAccount = account.toLowerCase();
-    _usernameController.text = account;
-    _apiKeyController.clear();
+    final typed = _usernameController.text.trim();
+    if (account.isNotEmpty &&
+        (typed.isEmpty || (previous != null && typed.toLowerCase() == previous))) {
+      _usernameController.text = account;
+    }
     setState(() {});
   }
 
@@ -166,21 +178,13 @@ class _RAContentState extends State<RAContent>
     );
   }
 
+  /// Web dashboard sign-in (username + Web API key). It no longer requires the
+  /// in-game session: Build 608 refused every attempt locally with "Sign in here
+  /// to enable in-game achievements" while the in-game session was signed out.
   Future<void> _connectToRA() async {
     final raProvider = context.read<RetroAchievementsProvider>();
     final session = _session;
     if (raProvider.isLoading) return;
-    if (session.available && !session.authenticated) {
-      AppNotification.showNotification(context,
-        AppLocale.raSessionLoginNeeded.getString(context), type: NotificationType.error);
-      return;
-    }
-    if (session.available && session.authenticated &&
-        _usernameController.text.trim().toLowerCase() != session.username.toLowerCase()) {
-      AppNotification.showNotification(context,
-        AppLocale.raSessionDifferentAccount.getString(context), type: NotificationType.error);
-      return;
-    }
     if (_usernameController.text.trim().isEmpty ||
         _apiKeyController.text.trim().isEmpty) {
       AppNotification.showNotification(
@@ -202,6 +206,11 @@ class _RAContentState extends State<RAContent>
         AppLocale.successConnectedRA.getString(context),
         type: NotificationType.success,
       );
+      if (session.available && session.initialized && !session.authenticated) {
+        // Statistics work; achievements in games still need the password.
+        AppNotification.showNotification(context,
+          AppLocale.raSessionSignInHint.getString(context), type: NotificationType.info);
+      }
     } else if (raProvider.accountErrorKey != null) {
       AppNotification.showNotification(context,
         raProvider.accountErrorKey!.getString(context), type: NotificationType.error);
@@ -342,7 +351,12 @@ class _RAContentState extends State<RAContent>
             Align(alignment: Alignment.centerRight, child: TextButton.icon(
               key: const ValueKey('ra-central-settings'), onPressed: _openSessionSettings,
               icon: const Icon(Symbols.settings_rounded),
-              label: Text(AppLocale.raSessionSettings.getString(context)))),
+              // Both parts may wrap: long translations at large text sizes
+              // must not overflow the header.
+              label: Row(mainAxisSize: MainAxisSize.min, children: [
+                Flexible(flex: 3, child: Text(AppLocale.raSessionSettings.getString(context))),
+                Flexible(flex: 2, child: _buildSessionStatus(context)),
+              ]))),
           if (!raProvider.isConnected)
             Expanded(
               child: LayoutBuilder(
@@ -424,21 +438,60 @@ class _RAContentState extends State<RAContent>
     );
   }
 
+  /// Always-visible state of the in-game session next to its button, so the
+  /// player can see whether games will track achievements (Build 608 gave no
+  /// indication outside the dialog).
+  Widget _buildSessionStatus(BuildContext context) {
+    final session = _session;
+    if (!session.initialized) return const SizedBox.shrink();
+    final theme = Theme.of(context);
+    final (String key, Color color) = session.tokenRejected
+        ? (AppLocale.raSessionStatusRejected, theme.colorScheme.error)
+        : !session.authenticated
+            ? (AppLocale.raSessionStatusSignedOut, theme.colorScheme.error)
+            : session.preferences.enabled
+                ? (AppLocale.raSessionStatusEnabled, Colors.green.shade400)
+                : (AppLocale.raSessionStatusDisabled,
+                    theme.colorScheme.onSurface.withValues(alpha: 0.7));
+    return Padding(
+      padding: EdgeInsets.only(left: 8.r),
+      child: DecoratedBox(
+        key: const ValueKey('ra-central-status'),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(10.r),
+          border: Border.all(color: color.withValues(alpha: 0.55)),
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 8.r, vertical: 2.r),
+          child: Text(key.getString(context),
+            style: theme.textTheme.labelSmall?.copyWith(color: color)),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFieldHighlight({
     required int slot,
     required ThemeData theme,
     required Widget child,
   }) {
-    if (!isSelected(slot)) return child;
-    return Container(
+    // Keep the same widget structure whether or not the slot is highlighted.
+    // Inserting a wrapper only for the selected slot re-created the text
+    // field's state as soon as the selection followed focus (tapping the API
+    // key field), which closed its keyboard connection: the field looked
+    // focused but the keyboard disappeared until it was tapped again.
+    final selected = isSelected(slot);
+    return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(8.r),
         boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.primary.withValues(alpha: 0.35),
-            blurRadius: 6.r,
-            spreadRadius: 1.r,
-          ),
+          if (selected)
+            BoxShadow(
+              color: theme.colorScheme.primary.withValues(alpha: 0.35),
+              blurRadius: 6.r,
+              spreadRadius: 1.r,
+            ),
         ],
       ),
       child: child,
@@ -491,8 +544,17 @@ class _RAContentState extends State<RAContent>
               child: SizedBox(
                 height: 32.r,
                 child: TextFormField(
+                  key: const ValueKey('ra-web-username'),
                   controller: _usernameController,
                   focusNode: _usernameFocus,
+                  // ASCII usernames: iOS must not autocorrect, capitalize or
+                  // turn a typed character into smart punctuation.
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  textCapitalization: TextCapitalization.none,
+                  smartDashesType: SmartDashesType.disabled,
+                  smartQuotesType: SmartQuotesType.disabled,
+                  keyboardType: TextInputType.visiblePassword,
                   scrollPadding: EdgeInsets.only(bottom: keyboardInset + 72.r),
                   decoration: InputDecoration(
                     labelText: AppLocale.username.getString(context),
@@ -552,11 +614,15 @@ class _RAContentState extends State<RAContent>
               child: SizedBox(
                 height: 32.r,
                 child: TextFormField(
+                  key: const ValueKey('ra-web-api-key'),
                   controller: _apiKeyController,
                   focusNode: _apiKeyFocus,
                   obscureText: _obscureApiKey,
                   enableSuggestions: false,
                   autocorrect: false,
+                  smartDashesType: SmartDashesType.disabled,
+                  smartQuotesType: SmartQuotesType.disabled,
+                  keyboardType: TextInputType.visiblePassword,
                   scrollPadding: EdgeInsets.only(bottom: keyboardInset + 96.r),
                   decoration: InputDecoration(
                     labelText: AppLocale.raApiKey.getString(context),

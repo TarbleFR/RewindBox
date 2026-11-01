@@ -4,8 +4,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:retro_achievements_session/retro_achievements_session.dart';
 
+import '../l10n/retro_achievements_status_locale.dart';
 import '../models/retro_achievements_session.dart';
 import '../repositories/retro_achievements_repository.dart';
+import 'logger_service.dart';
+
+/// Session error codes meaning RetroAchievements refused the stored in-game
+/// token (rcheevos RC_INVALID_CREDENTIALS -34 / RC_EXPIRED_TOKEN -35 /
+/// RC_ACCESS_DENIED -33, surfaced by the engines without any response text).
+const raTokenRejectionCodes = {
+  'RA_AUTHENTICATION_FAILED', 'login_failed_-33', 'login_failed_-34', 'login_failed_-35',
+};
 
 /// The main RA tab is the only writer. Every embedded launch asks this service
 /// for an immutable policy; account changes never mutate a running game.
@@ -20,6 +29,7 @@ class RetroAchievementsSessionService extends ChangeNotifier {
   }
 
   static final shared = RetroAchievementsSessionService();
+  static final _log = LoggerService.instance;
   final RetroAchievementsNativeClient _native;
   final Future<RetroAchievementsPreferences> Function() _readPreferences;
   final Future<void> Function(RetroAchievementsPreferences) _writePreferences;
@@ -47,9 +57,17 @@ class RetroAchievementsSessionService extends ChangeNotifier {
   List<RetroAchievementsMigrationCandidate> _migrationCandidates = const [];
   List<RetroAchievementsMigrationCandidate> get migrationCandidates => _migrationCandidates;
   bool get changesPending => _session?.running == true && _session!.generation != _generation;
+  bool _tokenRejected = false;
+  /// An engine reported that RetroAchievements refused the stored in-game
+  /// token (password changed, token reset or account restriction). The account
+  /// stays selected; the main tab asks for the password again.
+  bool get tokenRejected => _authenticated && _tokenRejected;
 
   void _notify() { if (!_disposed) notifyListeners(); }
 
+  /// Shared while running. A failed read is not cached: the next consumer
+  /// (RA tab, toggle or game launch) retries instead of leaving RA off for the
+  /// rest of the run after one transient Keychain/database failure.
   Future<void> initialize() => _initializing ??= _initialize();
 
   Future<void> _initialize() async {
@@ -76,6 +94,13 @@ class RetroAchievementsSessionService extends ChangeNotifier {
       _errorCode = 'RA_UNAVAILABLE';
     } catch (_) {
       _errorCode = 'RA_STORAGE_UNAVAILABLE';
+    }
+    if (_initialized) {
+      _log.i('RetroAchievements in-game session ready: account=${_authenticated ? 'present' : 'absent'} '
+          'enabled=${_preferences.enabled} hardcore=${_preferences.hardcore}');
+    } else {
+      _initializing = null;
+      _log.w('RetroAchievements in-game session unavailable: ${_errorCode ?? 'unknown'} (will retry)');
     }
     _notify();
   }
@@ -184,19 +209,46 @@ class RetroAchievementsSessionService extends ChangeNotifier {
     _preferences = next; _generation++;
   });
 
-  Future<bool> login(String username, String password) => _mutate(() async {
-    final account = await _native.invoke('login', {'username': username.trim(), 'password': password});
-    if (account['authenticated'] != true) throw PlatformException(code: 'RA_AUTHENTICATION_FAILED');
-    _authenticated = true;
-    _username = account['username'] as String? ?? username.trim();
-    _generation++;
-    final next = _preferences.copyWith(migrationVersion: 1);
-    await _writePreferences(next);
-    _preferences = next;
-    _migrationCandidates = const [];
-    await _native.invoke('completeLegacy');
-    _initialized = true;
-  }, allowLegacyRecovery: true);
+  /// Signs the in-game session in. Empty fields are an input error reported
+  /// locally (`RA_INPUT_REQUIRED`) without any network request; the native
+  /// plugin separates a refusal (`RA_AUTHENTICATION_FAILED`) from an
+  /// unreachable server (`RA_NETWORK_UNAVAILABLE`/`RA_SERVER_ERROR`).
+  Future<bool> login(String username, String password) {
+    if (username.trim().isEmpty || password.isEmpty) return _reject('RA_INPUT_REQUIRED');
+    return _mutate(() async {
+      _log.i('RetroAchievements in-game sign-in requested');
+      final Map<String, Object?> account;
+      try {
+        account = await _native.invoke('login', {'username': username.trim(), 'password': password});
+      } on PlatformException catch (error) {
+        _log.w('RetroAchievements in-game sign-in failed: ${error.code}');
+        rethrow;
+      }
+      if (account['authenticated'] != true) throw PlatformException(code: 'RA_AUTHENTICATION_FAILED');
+      _authenticated = true;
+      _tokenRejected = false;
+      _username = account['username'] as String? ?? username.trim();
+      _generation++;
+      final next = _preferences.copyWith(migrationVersion: 1);
+      await _writePreferences(next);
+      _preferences = next;
+      _migrationCandidates = const [];
+      await _native.invoke('completeLegacy');
+      _initialized = true;
+      _log.i('RetroAchievements in-game sign-in succeeded (enabled=${_preferences.enabled})');
+    }, allowLegacyRecovery: true);
+  }
+
+  /// Queue-ordered local refusal: no initialization, no native/network call.
+  Future<bool> _reject(String code) {
+    final completed = Completer<bool>();
+    _writes = _writes.then((_) {
+      _errorCode = code;
+      _notify();
+      completed.complete(false);
+    });
+    return completed.future;
+  }
 
   Future<bool> logout() => _mutate(() async {
     // Persist disabled first: even an interrupted sign-out cannot enable RA at
@@ -206,10 +258,11 @@ class RetroAchievementsSessionService extends ChangeNotifier {
     _preferences = next; _generation++;
     _initialized = true;
     await _native.invoke('logout');
-    _authenticated = false; _username = '';
+    _authenticated = false; _username = ''; _tokenRejected = false;
     _migrationCandidates = const [];
     await _native.invoke('completeLegacy');
     _initialized = true;
+    _log.i('RetroAchievements in-game session signed out');
   }, allowLegacyRecovery: true);
 
   Future<Map<String, Object?>> prepareLaunch({required String engine,
@@ -219,20 +272,32 @@ class RetroAchievementsSessionService extends ChangeNotifier {
     final capability = RetroAchievementsCapabilities.forEngine(engine,
       system: system, core: core, systemMenu: systemMenu);
     if (!available) return const {};
+    final enabled = _initialized && _preferences.enabled && _authenticated;
     try {
       final result = await _native.invoke('prepareSession', {
         'engine': engine, 'system': system, 'core': core ?? '', 'language': language,
         'capability': capability.name,
         'supported': capability == RetroAchievementsCapability.supported,
-        'enabled': _initialized && _preferences.enabled && _authenticated,
+        'enabled': enabled,
+        // The player's own choice, even when no usable account is available:
+        // the engine then shows "sign-in required" instead of staying silent.
+        // Players who switched RA off are never notified in game.
+        'requested': _preferences.enabled,
         'hardcore': _preferences.hardcore, 'generation': _generation,
+        // In-game status labels in the app language (no account data).
+        'statusText': RetroAchievementsStatusLocale.forLanguage(language),
       });
+      _log.i('RetroAchievements launch prepared: engine=$engine system=$system core=${core ?? '-'} '
+          'capability=${capability.name} requested=${_preferences.enabled} '
+          'account=${_authenticated ? 'present' : 'absent'} enabled=${result['enabled'] == true} '
+          'hardcoreRequested=${result['hardcore'] == true} generation=$_generation');
       return result;
     } on PlatformException catch (error) {
       _errorCode = error.code;
     } on MissingPluginException {
       _errorCode = 'RA_UNAVAILABLE';
     }
+    _log.w('RetroAchievements launch preparation failed: $_errorCode (game continues without RA)');
     // RA preparation is independent of game boot. Missing handles are refused
     // by every native adapter; the main tab exposes the actual failure.
     _notify();
@@ -249,7 +314,26 @@ class RetroAchievementsSessionService extends ChangeNotifier {
 
   void _onSessionChanged(Map<String, Object?> state) {
     if (_disposed || state['sessionId'] is! String) return;
-    _session = RetroAchievementsSessionState(Map.unmodifiable(state));
+    final next = RetroAchievementsSessionState(Map.unmodifiable(state));
+    final previous = _session;
+    _session = next;
+    // Journal only transitions and public codes (the hub never forwards the
+    // username/token): enough to follow login -> game -> tracking on device.
+    if (previous == null || previous.id != next.id || previous.active != next.active ||
+        previous.gameLoaded != next.gameLoaded || previous.errorCode != next.errorCode ||
+        previous.hardcoreActive != next.hardcoreActive || previous.running != next.running) {
+      _log.i('RetroAchievements session ${next.engine}: running=${next.running} '
+          'enabled=${next.enabled} supported=${next.supported} gameLoaded=${next.gameLoaded} '
+          'active=${next.active} hardcoreActive=${next.hardcoreActive} '
+          'achievements=${next.unlockedCount}/${next.totalCount} '
+          'error=${(next.errorCode?.isEmpty ?? true) ? '-' : next.errorCode}');
+    }
+    // A refusal is only meaningful for the account this launch used: a later
+    // sign-in (new token) clears it, an unrelated engine error never sets it.
+    if (next.enabled && raTokenRejectionCodes.contains(next.errorCode) &&
+        next.generation == _generation && _authenticated) {
+      _tokenRejected = true;
+    }
     _notify();
   }
 

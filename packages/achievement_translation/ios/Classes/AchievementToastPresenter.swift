@@ -25,6 +25,10 @@ public final class AchievementToastPresenter: NSObject {
         let queue = queues[identity] ?? Queue(owner: owner)
         queues[identity] = queue
         let isProgress = kind == 2
+        // Kind 3: RetroAchievements launch status. Its text is already
+        // localized by the app catalogs; it shares the unlock FIFO so a status
+        // and an unlock never overlap, but has no trophy or translation note.
+        let isStatus = kind == 3
         // Progress is coalesced and never occupies/delays the unlock FIFO.
         if isProgress && queue.count > 0 { return }
         let token = UUID()
@@ -46,7 +50,9 @@ public final class AchievementToastPresenter: NSObject {
             guard let owner, owner.viewIfLoaded?.window != nil, valid(), !Task.isCancelled else { return }
             let source = AchievementSource(id: achievementID, title: title, description: description)
             let text: LocalizedAchievementText
-            if achievementID > 0 {
+            if isStatus {
+                text = LocalizedAchievementText(title: title, description: description, provenance: .original)
+            } else if achievementID > 0 {
                 // Frequent progress replaces its predecessor. Waiting here can
                 // starve every display while Apple downloads a model; present
                 // the current text immediately and let revision refresh it.
@@ -82,14 +88,17 @@ public final class AchievementToastPresenter: NSObject {
                 stack.addArrangedSubview(label)
                 return label
             }
-            let titleLabel = add("🏆 " + text.title, size: 15, lines: 2)
+            let prefix = isStatus ? "" : "🏆 "
+            let titleLabel = add(prefix + text.title, size: 15, lines: 2)
             let descriptionLabel = add(text.description, size: 13, lines: 3)
             _ = add(suffix, size: 12, lines: 1) // Points/progress copied verbatim from the core.
-            let noticeLabel = add(AchievementTranslationNotice.text(for: text, language: AchievementTextProvider.shared.language) ?? "",
-                size: 11, lines: 2)
+            let noticeLabel = add(isStatus ? "" : (AchievementTranslationNotice.text(for: text,
+                language: AchievementTextProvider.shared.language) ?? ""), size: 11, lines: 2)
             let observer = AchievementTextProvider.shared.$revision.dropFirst().sink { _ in
+                // A status line has no machine translation to refresh.
+                guard !isStatus else { return }
                 let updated = achievementID > 0 ? AchievementTextProvider.shared.text(for: source) : text
-                titleLabel.text = "🏆 " + updated.title
+                titleLabel.text = prefix + updated.title
                 titleLabel.accessibilityLabel = updated.title
                 descriptionLabel.text = updated.description
                 descriptionLabel.accessibilityLabel = updated.description

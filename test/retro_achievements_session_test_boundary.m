@@ -30,6 +30,24 @@ void RBRAEndSession(NSDictionary *configuration) {
   RequireDisabled(configuration);
 }
 
+void RBRASetStatusPresenter(NSDictionary *configuration, RBRAStatusPresenter presenter) {
+  (void)presenter;
+  RequireDisabled(configuration);
+}
+
+NSString *RBRAPointsText(NSDictionary *configuration, NSUInteger points) {
+  (void)points;
+  RequireDisabled(configuration);
+  return @"";
+}
+
+NSDictionary<NSString *, id> *RBRAStatusForState(NSDictionary *configuration, NSDictionary *state,
+                                                  BOOL timedOut) {
+  (void)state; (void)timedOut;
+  RequireDisabled(configuration);
+  return nil;
+}
+
 NSString *RBRALocalizedText(NSString *key, NSString *locale) {
   (void)key; (void)locale;
   fputs("Unexpected RA notice in a non-RA fixture\n", stderr);
