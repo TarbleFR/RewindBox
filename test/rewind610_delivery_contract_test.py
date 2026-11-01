@@ -2,7 +2,10 @@
 """Offline contract of the private IPA610 delivery recipe (no network, no build).
 
 Checks that the committed workflow is the exact reviewed transform of the
-delivered609 workflow plus the 608 test jobs, that the Core 610 producer and
+delivered609 workflow, that the fresh610 test evidence it reuses applies to
+this checkout (only the delivery recipe changed after the tested source), that
+the retained MeloNX packaging accepts only the reviewed concurrent inputs, that
+the Core 610 producer and
 Apple host test pins are complete and bound to the same canonical Core delta,
 that the reviewed source scope reproduces its product review (RA credentials
 fix 45d19d76 and the two RPCS3 Dart files only), that the native inventory
@@ -48,11 +51,63 @@ class Workflow(unittest.TestCase):
         self.assertIn(f"RPCS3_CORE_RUN_ID: '{rpc.PIN['run']}'", text)
         self.assertIn('DELIVERY_RECIPIENT: build-utils/delivery-610-recipient.pem', text)
         self.assertIn("'[rewind610-delivery]'", text)
-        for needle in ('rewind610_checks.py flutter', 'rewind610_checks.py native', 'rpcs3core610_delivery.py --embed-source',
-                       'needs.flutter.outputs.artifact-id', 'needs.native.outputs.artifact-digest'):
+        for needle in ('rpcs3core610_delivery.py --embed-source', 'rewind610_delivery.py reuse-check',
+                       'rewind610_delivery.py melonx-materialize', 'rewind610_delivery.py tests'):
             self.assertIn(needle, text)
-        for retired in ('rewind609_delivery.py', 'rpcs3runtime607_core.py --embed-source', 'reuse_0279198'):
+        for retired in ('rewind609_delivery.py', 'rpcs3runtime607_core.py --embed-source', 'reuse_0279198',
+                        'needs.flutter', 'needs.native', 'rewind610_checks.py flutter', 'rewind610_checks.py native'):
             self.assertNotIn(retired, text)
+        # The retained MeloNX Core is materialized only through the reviewed wrapper.
+        calls = [line.strip() for line in text.splitlines() if 'package_runtime.py' in line]
+        self.assertEqual(calls, ['run: python3 build-utils/melonx/package_runtime.py --embed '
+                                 'build/ios/DolphinDerivedData/Build/Products/Release-iphoneos/Runner.app'])
+        # Preflight authenticates the reused evidence before the application job starts.
+        preflight = text[text.index('  preflight:\n'):text.index('  application:\n')]
+        self.assertIn('rewind610_delivery.py reuse-check', preflight)
+        self.assertIn("    needs:\n    - preflight\n", text[text.index('  application:\n'):])
+
+
+class ReusedTests(unittest.TestCase):
+    def test_pins_complete(self):
+        reused = delivery.REUSED_TESTS
+        self.assertEqual(set(reused['jobs']), set(delivery.JOBS))
+        self.assertEqual(set(reused['artifacts']), set(delivery.JOBS))
+        self.assertTrue(all(len(digest) == 64 for _, digest in reused['artifacts'].values()))
+        subprocess.run(['git', 'merge-base', '--is-ancestor', reused['source'], 'HEAD'], cwd=ROOT, check=True, timeout=60)
+
+    def test_only_the_recipe_changed_after_the_tested_source(self):
+        value = delivery.reuse_equivalence()
+        self.assertTrue(value['productDeltaIdentical'])
+        self.assertTrue(set(value['changedRecipePaths']) <= set(delivery.RECIPE_PATHS))
+        self.assertEqual(value['testedScopeSHA256'],
+                         sha(show(delivery.REUSED_TESTS['source'], 'build-utils/rewind610-source-scope.json')))
+
+    def test_a_tested_input_change_refuses_reuse(self):
+        self.assertEqual(delivery.check_recipe_only(list(delivery.RECIPE_PATHS)), sorted(delivery.RECIPE_PATHS))
+        for path in ('lib/services/rpcs3_internal_service.dart', 'packages/neo_swap/ios/Classes/NeoSwapPlugin.mm',
+                     'test/rpcs3_guest_relay_launch_test.dart', '.github/diagnostics/rewind610_checks.py', 'docs/x.md'):
+            with self.assertRaises(ValueError):
+                delivery.check_recipe_only([delivery.RECIPE_PATHS[0], path])
+
+    def test_recipe_paths_are_read_only_by_the_fresh_contract(self):
+        for path in delivery.RECIPE_PATHS:
+            self.assertFalse(tree.is_product(path), path)
+        for group in ('flutter', 'native'):
+            for name, arguments in checks.GROUPS[group]:
+                if name == 'delivery-contract-tests':
+                    self.assertEqual(tuple(arguments), delivery.CONTRACT_TEST)
+                    continue
+                self.assertFalse(any(path in ' '.join(arguments) for path in delivery.RECIPE_PATHS), name)
+
+    def test_retained_melonx_packaging_accepts_only_reviewed_inputs(self):
+        concurrent = tree.concurrent_uncompiled()
+        name = 'native/melonx/EmbeddedPerformanceDiagnostics.cs'
+        self.assertFalse(delivery.reviewed_adaptation(name, 'a' * 64, 'a' * 64, concurrent))
+        self.assertTrue(delivery.reviewed_adaptation(name, concurrent[name], 'b' * 64, concurrent))
+        with self.assertRaises(ValueError):
+            delivery.reviewed_adaptation(name, 'c' * 64, 'b' * 64, concurrent)
+        with self.assertRaises(ValueError):
+            delivery.reviewed_adaptation('native/melonx/Other.cs', 'c' * 64, 'b' * 64, concurrent)
 
 
 class CorePins(unittest.TestCase):

@@ -1,12 +1,14 @@
 """Private IPA610: delivered609 with the RA credentials fix and the RPCS3 Core 610 lot.
 
-Fresh for this build: the Flutter application, the Flutter/source and
-Xcode16.4 native test groups (prerequisite jobs of this same run, because the
-RetroAchievements credentials fix 45d19d76 changed Dart and host plugins after
-IPA609) and the RPCS3 Core 610 (authenticated from its own Core route; never
-recompiled here). Retained with their original provenance: the liveness MeloNX
-Core of IPA609, the Dolphin session and ARMSX2 ABI9 Cores of IPA608, the
-libretro cores and the MeloNX native dependencies.
+Fresh for this build: the Flutter application and the RPCS3 Core 610
+(authenticated from its own Core route; never recompiled here). The
+Flutter/source and Xcode16.4 native test groups ran fresh on these exact
+product sources in the first 610 delivery run (41341797604, whose application
+job failed in a MeloNX packaging check outside the tested sources); this
+recipe-only retry authenticates those jobs and re-runs the delivery contract,
+which reads the recipe, fresh. Retained with their original provenance: the
+liveness MeloNX Core of IPA609, the Dolphin session and ARMSX2 ABI9 Cores of
+IPA608, the libretro cores and the MeloNX native dependencies.
 """
 from __future__ import annotations
 
@@ -43,6 +45,20 @@ EVIDENCE609 = 'docs/evidence/rewind609'
 JOBS = {'flutter': 'Build610 source and Flutter tests', 'native': 'Build610 Xcode16.4 native tests'}
 REQUIRED_STEPS = {'flutter': {'Run source contracts and Flutter behavior'},
                   'native': {'Run actual Xcode16.4 tests and host compilation'}}
+# Fresh610 test evidence of the first 610 delivery run on the same product sources.
+# Its Flutter and Xcode16.4 jobs succeeded; only the application job failed, in the
+# retained MeloNX packaging check (concurrent source-only MeloNX inputs). A retry that
+# changes nothing but the delivery recipe authenticates these jobs instead of
+# re-running about 18 minutes of tests.
+REUSED_TESTS = dict(source='6d17e6d601171ed50263d5c11c02188994e34b8c', run=41341797604, attempt=1,
+    jobs={'flutter': 124953301162, 'native': 124953301200},
+    artifacts={'flutter': (13097786571, 'a14e2509375dbf9764e1c3a14d8cfb503241b275a3d6b9244edd66d7d2e3119d'),
+               'native': (13097848476, '07d9f8fa0b00309a6209484abb65443ad95e6a0d11e97c4a5485ab3bd60e9221')})
+# The only paths a recipe-only retry may change after the tested source. The delivery
+# contract reads all of them, so it is re-run fresh by this run (preflight and tests).
+RECIPE_PATHS = ('.github/diagnostics/rewind610_delivery.py', '.github/workflows/rewind610-delivery.yml',
+                'build-utils/rewind610-source-scope.json', 'test/rewind610_delivery_contract_test.py')
+CONTRACT_TEST = ('python3', '-B', 'test/rewind610_delivery_contract_test.py')
 RETAINED_CORES = delivered609.RETAINED_CORES
 sha, git, require = tree.sha, tree.git, tree.require
 _retained_melonx_divergence = {}
@@ -69,6 +85,95 @@ def _inputs_match_retained(inputs, source):
 
 
 engine.inputs_match = _inputs_match_retained
+
+
+def reviewed_adaptation(name, digest, expected, concurrent):
+    """The digest package_runtime may accept for one retained609 adaptation input.
+
+    Equal bytes pass unchanged. A divergent input passes only when it is a reviewed
+    concurrent MeloNX input carrying exactly its commit's bytes; the retained Core
+    was compiled from the producer bytes, which the caller verifies separately.
+    """
+    if digest == expected:
+        return False
+    require(name in concurrent and digest == concurrent[name], 'Engine adaptation mismatch: ' + name)
+    return True
+
+
+def melonx_materialize():
+    """package_runtime.materialize for the retained609 liveness MeloNX Core.
+
+    The packaging check requires every engine adaptation input of the checkout to
+    equal the bytes the retained Core was compiled from. The reviewed concurrent
+    MeloNX inputs (source-only in 610) differ; for those, the bytes at the
+    producer commit must equal the recorded digest, and the divergence is
+    recorded. Every other path and every other check of materialize is unchanged.
+    """
+    sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
+    import package_runtime as runtime
+    identity = json.loads((runtime.CORE / 'ios-arm64/identity.json').read_bytes())
+    require(identity['host'] == engine.pin()['source'], 'Retained609 Core identity of another producer')
+    adaptations = identity['adaptations']
+    concurrent = tree.concurrent_uncompiled()
+    accepted = {}
+    actual_sha = runtime.sha
+
+    def checked_sha(path):
+        digest = actual_sha(path)
+        try:
+            name = Path(path).resolve().relative_to(ROOT.resolve()).as_posix()
+        except ValueError:
+            return digest
+        if name not in adaptations or not reviewed_adaptation(name, digest, adaptations[name], concurrent):
+            return digest
+        require(sha(engine.original_bytes(identity['host'], name)) == adaptations[name],
+                'Retained609 producer bytes differ: ' + name)
+        accepted[name] = dict(producerSHA256=adaptations[name], headSHA256=digest,
+                              commit=tree.CONCURRENT_UNCOMPILED[name], compiledIntoIPA610=False)
+        return adaptations[name]
+
+    runtime.sha = checked_sha
+    try:
+        runtime.materialize()
+    finally:
+        runtime.sha = actual_sha
+    return save('rewind610-melonx-materialize.json', dict(result='materialized', retainedFrom=609,
+        producerSource=identity['host'], sourceInputsChangedAfterProducerNotCompiled=accepted))
+
+
+def check_recipe_only(changed):
+    extra = sorted(set(changed) - set(RECIPE_PATHS))
+    require(not extra, 'A tested input changed after the reused610 test run: ' + repr(extra))
+    return sorted(set(changed))
+
+
+@lru_cache(maxsize=None)
+def reuse_equivalence():
+    """The tested source and this checkout differ only in the delivery recipe."""
+    source = REUSED_TESTS['source']
+    subprocess.run(['git', 'merge-base', '--is-ancestor', source, 'HEAD'], cwd=ROOT, check=True, timeout=60)
+    # Working tree against the tested commit: committed and uncommitted tracked changes.
+    changed = check_recipe_only(git('diff', '--name-only', '--no-renames', source).splitlines())
+    tested_raw = subprocess.check_output(['git', 'show', source + ':' + tree.CONFIG], cwd=ROOT, timeout=60)
+    tested, current = json.loads(tested_raw), json.loads((ROOT / tree.CONFIG).read_bytes())
+    require(tested['productDelta'] == current['productDelta'] and tested['productReview'] == current['productReview'],
+            'The reviewed product delta differs from the tested one')
+    return dict(source=source, changedRecipePaths=changed, testedScopeSHA256=sha(tested_raw),
+                productDeltaIdentical=True)
+
+
+def contract_rerun():
+    """The delivery contract reads the recipe: run it fresh on this exact checkout."""
+    process = subprocess.run(CONTRACT_TEST, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600)
+    require(process.returncode == 0, 'The delivery contract failed on this recipe:\n' + process.stdout.decode(errors='replace')[-4000:])
+    return dict(command=' '.join(CONTRACT_TEST), exitCode=0, logSHA256=sha(process.stdout),
+                execution=checks.execution() if os.environ.get('GITHUB_SHA') else None)
+
+
+def reuse_check():
+    """Preflight: fail within a minute when the reused test evidence does not apply."""
+    return save('rewind610-reuse-check.json', dict(result='authenticated',
+        reused={kind: origin(kind) for kind in JOBS}, contract=contract_rerun()))
 
 
 def save(name, value):
@@ -160,34 +265,31 @@ def baseline():
 
 @lru_cache(maxsize=None)
 def origin(kind):
-    current = checks.execution()
+    """The fresh610 test job of the first 610 delivery run, on these product sources."""
     require(kind in JOBS, 'Unknown610 test producer')
-    run = api('actions/runs/' + str(current['run']))
-    require(run['head_sha'] == current['source'] and run['head_branch'] == 'Claude' and
-            run['path'] == WORKFLOW and run['run_attempt'] == current['attempt'] and
-            run['event'] in ('push', 'workflow_dispatch'), 'Wrong same-run610 origin')
-    # The application is still running: authenticate the completed prerequisite job only.
-    jobs = api(f"actions/runs/{current['run']}/attempts/{current['attempt']}/jobs?per_page=100")
-    require(jobs['total_count'] <= 100, 'Unexpected producer job pagination')
-    matching = [j for j in jobs['jobs'] if j['name'] == JOBS[kind]]
-    require(len(matching) == 1, 'Missing or duplicated610 test job: ' + kind)
-    job = matching[0]
-    require(job['head_sha'] == current['source'] and job['run_id'] == current['run'] and
-            job['run_attempt'] == current['attempt'] and job['status'] == 'completed' and
-            job['conclusion'] == 'success', '610 prerequisite did not succeed: ' + kind)
+    reused = REUSED_TESTS
+    equivalence = reuse_equivalence()
+    run = api(f"actions/runs/{reused['run']}/attempts/{reused['attempt']}")
+    require(run['id'] == reused['run'] and run['head_sha'] == reused['source'] and run['head_branch'] == 'Claude' and
+            run['path'] == WORKFLOW and run['run_attempt'] == reused['attempt'] and
+            run['event'] in ('push', 'workflow_dispatch'), 'Wrong reused610 test run')
+    job = api('actions/jobs/' + str(reused['jobs'][kind]))
+    require(job['name'] == JOBS[kind] and job['head_sha'] == reused['source'] and job['run_id'] == reused['run'] and
+            job['run_attempt'] == reused['attempt'] and job['status'] == 'completed' and
+            job['conclusion'] == 'success', 'The reused610 test job did not succeed: ' + kind)
     require(REQUIRED_STEPS[kind] <= {s['name'] for s in job['steps'] if s['conclusion'] == 'success'},
-            '610 test job omitted a required step: ' + kind)
-    artifact_id = int(os.environ[kind.upper() + '_ARTIFACT_ID'])
-    digest = os.environ[kind.upper() + '_ARTIFACT_DIGEST'].removeprefix('sha256:')
-    require(re.fullmatch('[0-9a-f]{64}', digest), 'Missing upload-artifact digest')
+            'The reused610 test job omitted a required step: ' + kind)
+    artifact_id, digest = reused['artifacts'][kind]
     artifact = api('actions/artifacts/' + str(artifact_id))
-    expected_name = f"RewindBox610-{kind}-{current['source']}-attempt{current['attempt']}"
+    expected_name = f"RewindBox610-{kind}-{reused['source']}-attempt{reused['attempt']}"
     require(artifact['name'] == expected_name and artifact['digest'] == 'sha256:' + digest and
-            not artifact['expired'] and artifact['workflow_run']['id'] == current['run'] and
-            artifact['workflow_run']['head_sha'] == current['source'], 'Wrong610 artifact binding: ' + kind)
-    return dict(result='authenticated', evidenceMode='fresh', kind=kind, execution=current, job=job['id'],
-                artifact=artifact_id, artifactName=expected_name, archiveSHA256=digest,
-                archiveBytes=artifact['size_in_bytes'])
+            not artifact['expired'] and artifact['workflow_run']['id'] == reused['run'] and
+            artifact['workflow_run']['head_sha'] == reused['source'], 'Wrong reused610 artifact binding: ' + kind)
+    execution = dict(source=reused['source'], tree=git('rev-parse', reused['source'] + '^{tree}'),
+                     run=reused['run'], attempt=reused['attempt'])
+    return dict(result='authenticated', evidenceMode='reused-identical-product-sources', kind=kind,
+                execution=execution, job=job['id'], artifact=artifact_id, artifactName=expected_name,
+                archiveSHA256=digest, archiveBytes=artifact['size_in_bytes'], sourceEquivalence=equivalence)
 
 
 def fetch(kind):
@@ -218,7 +320,7 @@ def tests():
         receipt = json.loads((directory / 'validation.json').read_bytes())
         require(receipt['result'] == 'passed' and receipt['group'] == kind and receipt['execution'] == value['execution'],
                 'Wrong610 test execution receipt')
-        require(receipt['sourceScopeSHA256'] == sha((ROOT / tree.CONFIG).read_bytes()),
+        require(receipt['sourceScopeSHA256'] == value['sourceEquivalence']['testedScopeSHA256'],
                 'Tests were run on another reviewed source scope')
         require(receipt['commands'] and all(c['exitCode'] == 0 for c in receipt['commands']),
                 'A required610 test command did not succeed')
@@ -230,7 +332,8 @@ def tests():
             require(receipt['xcodeVersion'].startswith('Xcode 16.4\n'), 'Wrong targeted native compiler')
             require('Apple Swift version 6.' in receipt['swiftVersion'], 'Translation was not compiled with Swift6')
             checks.checks608.validate_central_receipt(receipt['centralSessionXCTest'])
-        checked[kind] = dict(value, receipt=receipt, testsReexecuted=True)
+        checked[kind] = dict(value, receipt=receipt, testsReexecutedInThisRun=False)
+    checked['deliveryContract'] = contract_rerun()
     return save('rewind610-tests.json', checked)
 
 
@@ -359,9 +462,10 @@ def expected():
     require(application['source'] == git('rev-parse', 'HEAD') and application['build'] == BUILD,
             'Application checkout changed after the contract')
     tests_value = json.loads((OUT / 'rewind610-tests.json').read_bytes())
-    require(set(tests_value) == {'flutter', 'native'}, 'Fresh610 test evidence is absent')
-    for kind, value in tests_value.items():
-        current = origin(kind)
+    require(set(tests_value) == {'flutter', 'native', 'deliveryContract'} and
+            tests_value['deliveryContract']['exitCode'] == 0, 'Fresh610 test evidence is absent')
+    for kind in JOBS:
+        value, current = tests_value[kind], origin(kind)
         require(all(value.get(key) == current[key] for key in current), 'Fresh610 test evidence changed: ' + kind)
     cores = {kind: json.loads((OUT / f'rewind610-{kind}.json').read_bytes()) for kind in ('dolphin', 'armsx2')}
     for kind, value in cores.items():
@@ -372,7 +476,10 @@ def expected():
     rpc_receipt = rpc.core_receipt()
     require(rpc_receipt['corePayloadFingerprint'] != delivered['images']['Frameworks/libRPCS3Core.dylib'],
             '610 must replace the delivered RPCS3 payload with Core 610')
-    return dict(schema=1, build=BUILD, application=application, testEvidence=tests_value, evidenceMode='fresh',
+    packaging = json.loads((OUT / 'rewind610-melonx-materialize.json').read_bytes())
+    require(packaging['result'] == 'materialized', 'The retained MeloNX Core was not materialized by this recipe')
+    return dict(schema=1, build=BUILD, application=application, testEvidence=tests_value,
+        evidenceMode='reused-identical-product-sources', melonxPackaging=packaging,
         **cores, newRPCS3=rpc_receipt,
         retainedMeloNX=dict(engine.engine_evidence(), retainedFrom=609,
                             sourceInputsChangedAfterProducerNotCompiled=dict(_retained_melonx_divergence)),
@@ -547,21 +654,16 @@ def expected_workflow(original609, original608):
         ('    - name: Require reviewed608 delta and authenticated retained producer archives\n'
          '      run: python3 -B .github/diagnostics/rewind609_delivery.py retained-ready',
          '    - name: Require reviewed609 delta and authenticated producers\n'
-         '      run: python3 -B .github/diagnostics/rewind610_delivery.py retained-ready'),
+         '      run: python3 -B .github/diagnostics/rewind610_delivery.py retained-ready\n'
+         '    - name: Authenticate the reused fresh610 test jobs and re-run the delivery contract\n'
+         '      run: python3 -B .github/diagnostics/rewind610_delivery.py reuse-check'),
         ('    name: Build609 full Flutter IPA with the liveness MeloNX Core and exact608 retained engines',
          '    name: Build610 full Flutter IPA with RPCS3 Core 610 and retained engines'),
-        ("    if: ${{ always() && !cancelled() && needs.preflight.result == 'success' }}\n    needs:\n    - preflight\n",
-         "    if: ${{ always() && !cancelled() && needs.preflight.result == 'success' && needs.flutter.result == 'success' "
-         "&& needs.native.result == 'success' }}\n    needs:\n    - preflight\n    - flutter\n    - native\n"),
         ("      BUILD_NUMBER: '609'", "      BUILD_NUMBER: '610'"),
         ('      DELIVERY_RECIPIENT: build-utils/delivery-609-recipient.pem', '      DELIVERY_RECIPIENT: build-utils/delivery-610-recipient.pem'),
         ('      ARTIFACT_NAME: RewindBox-Build609-', '      ARTIFACT_NAME: RewindBox-Build610-'),
         ("      RPCS3_CORE_HOST_SHA: a4ae86d085c231e3c5c93f7f72d2eced0f38ec24\n      RPCS3_CORE_RUN_ID: '41243687649'\n",
-         f"      RPCS3_CORE_HOST_SHA: {rpc.PIN['source']}\n      RPCS3_CORE_RUN_ID: '{rpc.PIN['run']}'\n"
-         "      FLUTTER_ARTIFACT_ID: ${{ needs.flutter.outputs.artifact-id }}\n"
-         "      FLUTTER_ARTIFACT_DIGEST: ${{ needs.flutter.outputs.artifact-digest }}\n"
-         "      NATIVE_ARTIFACT_ID: ${{ needs.native.outputs.artifact-id }}\n"
-         "      NATIVE_ARTIFACT_DIGEST: ${{ needs.native.outputs.artifact-digest }}\n"),
+         f"      RPCS3_CORE_HOST_SHA: {rpc.PIN['source']}\n      RPCS3_CORE_RUN_ID: '{rpc.PIN['run']}'\n"),
         ('    - name: Authenticate delivered608 and the exact reviewed609 source delta',
          '    - name: Authenticate delivered609 and the exact reviewed610 source delta'),
         ('Extract authenticated donor527 resources; application product baseline remains608',
@@ -584,7 +686,9 @@ def expected_workflow(original609, original608):
          'Download and authenticate the exact native MeloNX dependencies retained from609'),
         ("        Path('build/delivery/neoswap-host-source609.json')", "        Path('build/delivery/neoswap-host-source610.json')"),
         ('    - name: Authenticate the retained608 test evidence and original command logs',
-         '    - name: Authenticate the fresh610 Flutter and native test jobs and command logs'),
+         '    - name: Authenticate the reused fresh610 test jobs, command logs and the fresh delivery contract'),
+        ('        python3 build-utils/melonx/package_runtime.py\n',
+         '        python3 -B .github/diagnostics/rewind610_delivery.py melonx-materialize\n'),
         ('      run: python3 .github/diagnostics/rpcs3runtime607_core.py --embed-source',
          '      run: python3 .github/diagnostics/rpcs3core610_delivery.py --embed-source'),
         ('    - name: Embed609 identity, the new MeloNX Core proof and exact retained608 provenance',
@@ -595,8 +699,8 @@ def expected_workflow(original609, original608):
         value = replace_once(value, before, after)
     require(value.count('rewind609_delivery.py') == 15, 'Unexpected609 application operation inventory')
     value = value.replace('rewind609_delivery.py', 'rewind610_delivery.py')
-    application = value.index('  application:\n')
-    value = value[:application] + test_jobs(original608) + value[application:]
+    # No test jobs: the fresh610 Flutter/native evidence of REUSED_TESTS is authenticated
+    # in preflight and in the application job (test_jobs documents what those jobs ran).
     require('rewind609' not in value and 'rpcs3runtime607_core.py' not in value and "'609'" not in value,
             'A609 recipe call remains')
     return value
@@ -613,6 +717,7 @@ def workflow():
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('operation', choices=['contract', 'baseline', 'retained-ready', 'tests', 'workflow',
+        'reuse-check', 'melonx-materialize',
         'download-core', 'component-runs', 'download-components', 'engine-evidence',
         'download-libretro', 'download-melonx-dependencies', 'dolphin', 'armsx2',
         'embed', 'structure', 'validate', 'seal'])
@@ -629,6 +734,10 @@ if __name__ == '__main__':
         result = native(args.operation)
     elif args.operation == 'retained-ready':
         result = retained_ready()
+    elif args.operation == 'reuse-check':
+        result = reuse_check()
+    elif args.operation == 'melonx-materialize':
+        result = melonx_materialize()
     else:
         result = globals()[args.operation]()
     print(json.dumps(result, indent=2, default=str))

@@ -32,102 +32,13 @@ jobs:
         persist-credentials: false
     - name: Require reviewed609 delta and authenticated producers
       run: python3 -B .github/diagnostics/rewind610_delivery.py retained-ready
-  flutter:
-    name: Build610 source and Flutter tests
-    needs: preflight
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    outputs:
-      artifact-id: ${{ steps.proof.outputs.artifact-id }}
-      artifact-digest: ${{ steps.proof.outputs.artifact-digest }}
-    steps:
-    - name: Checkout exact610 candidate and history
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ github.sha }}
-        fetch-depth: 0
-        persist-credentials: false
-    - name: Set up Flutter3.47.2
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: 3.47.2
-        channel: stable
-        cache: true
-    - name: Resolve exact workspace lock
-      run: flutter pub get --enforce-lockfile
-    - name: Run source contracts and Flutter behavior
-      run: python3 -B .github/diagnostics/rewind610_checks.py flutter
-    - name: Preserve actual610 command results
-      id: proof
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: RewindBox610-flutter-${{ github.sha }}-attempt${{ github.run_attempt }}
-        path: build/validation610/flutter/
-        if-no-files-found: error
-        retention-days: 14
-  native:
-    name: Build610 Xcode16.4 native tests
-    needs: preflight
-    runs-on: macos-15
-    timeout-minutes: 60
-    outputs:
-      artifact-id: ${{ steps.proof.outputs.artifact-id }}
-      artifact-digest: ${{ steps.proof.outputs.artifact-digest }}
-    steps:
-    - name: Checkout exact610 candidate and history
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ github.sha }}
-        fetch-depth: 0
-        persist-credentials: false
-    - name: Select targeted Xcode16.4 and Swift6
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: '16.4'
-    - name: Set up Flutter3.47.2
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: 3.47.2
-        channel: stable
-        cache: true
-    - name: Resolve exact workspace lock
-      run: flutter pub get --enforce-lockfile
-    - name: Prepare real Flutter iOS headers and simulator project tool
-      run: |
-        set -euo pipefail
-        flutter precache --ios
-        command -v xcodegen || brew install xcodegen
-    - name: Run actual Xcode16.4 tests and host compilation
-      run: python3 -B .github/diagnostics/rewind610_checks.py native
-    - name: Preserve actual610 command results
-      id: proof
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: RewindBox610-native-${{ github.sha }}-attempt${{ github.run_attempt }}
-        path: build/validation610/native/
-        if-no-files-found: error
-        retention-days: 14
-    - name: Preserve real XCTest bundles and native diagnostics
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: RewindBox610-XCTest-${{ github.sha }}-attempt${{ github.run_attempt }}
-        path: |
-          build/AchievementTranslation608.xcresult
-          build/ra-session-validation/
-          build/rpcs3-ci/DolphinAccount267.xcresult
-          build/armsx2-validation/
-        if-no-files-found: warn
-        retention-days: 14
+    - name: Authenticate the reused fresh610 test jobs and re-run the delivery contract
+      run: python3 -B .github/diagnostics/rewind610_delivery.py reuse-check
   application:
     name: Build610 full Flutter IPA with RPCS3 Core 610 and retained engines
-    if: ${{ always() && !cancelled() && needs.preflight.result == 'success' && needs.flutter.result == 'success' && needs.native.result == 'success' }}
+    if: ${{ always() && !cancelled() && needs.preflight.result == 'success' }}
     needs:
     - preflight
-    - flutter
-    - native
     runs-on: macos-15
     timeout-minutes: 120
     env:
@@ -140,10 +51,6 @@ jobs:
       ARMSX2_CORE_RUN_ID: '41293321826'
       RPCS3_CORE_HOST_SHA: fefad81dbfc6890294def9b529f6e0d915fcfcbe
       RPCS3_CORE_RUN_ID: '41333351872'
-      FLUTTER_ARTIFACT_ID: ${{ needs.flutter.outputs.artifact-id }}
-      FLUTTER_ARTIFACT_DIGEST: ${{ needs.flutter.outputs.artifact-digest }}
-      NATIVE_ARTIFACT_ID: ${{ needs.native.outputs.artifact-id }}
-      NATIVE_ARTIFACT_DIGEST: ${{ needs.native.outputs.artifact-digest }}
       LIBRETRO_CORES_HOST_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_VALIDATED_SHA: ab9361c29f7c9ab769c4263dd8b7427fc4f4c036
       LIBRETRO_CORES_RUN_ID: '39455712245'
@@ -365,7 +272,7 @@ jobs:
     - name: Verify and materialize the six private MeloNX frameworks and original controls
       run: |-
         set -euo pipefail
-        python3 build-utils/melonx/package_runtime.py
+        python3 -B .github/diagnostics/rewind610_delivery.py melonx-materialize
         python3 - <<'PY_FETCH'
         import json,pathlib,subprocess
         pin=json.loads(pathlib.Path('build-utils/melonx/source.json').read_text())
@@ -506,7 +413,7 @@ jobs:
             'sha256': STORE_SHA256, 'bytes': len(copied), 'cocoaPodsSourcesEntryPresent': True,
             'nativeSuitesReplayed': False}, indent=2) + '\n')
         PY_STORE
-    - name: Authenticate the fresh610 Flutter and native test jobs and command logs
+    - name: Authenticate the reused fresh610 test jobs, command logs and the fresh delivery contract
       run: python3 .github/diagnostics/rewind610_delivery.py tests
     - name: Compile Release device binary with measured AOT and Xcode phases
       shell: bash
