@@ -44,12 +44,16 @@ per frame.
 
 `adapt_hogwarts_dma_copies.py`, Hogwarts Legacy only (`GraphicsConfig.HogwartsDmaRegionUpload`):
 such a copy, when its destination surface is a single-level 2D uncompressed colour texture
-of the cache (the lookup of the upstream direct upload of complete copies), is uploaded
-into that region of the host texture (`Texture.SetData(data, 0, 0, region)`) after the
-texture's memory synchronisation, and the texture is marked modified, as the upstream
-direct upload of complete copies does. Guest memory is not written, so no flush. Any other
-copy keeps the guest-memory path. The summary line now also counts region uploads,
-declined ones (no texture, layout, format) and guest-memory reads and writes over 2 ms.
+of the cache (the lookup of the upstream direct upload of complete copies) without overlaps
+of an incompatible layout, is uploaded into that region of the host texture
+(`Texture.SetData(data, 0, 0, region)`) after the texture's memory synchronisation, and
+guest memory is then patched as before but written untracked: the texture and guest memory
+hold the same region, no flush action runs, nothing is uploaded again, and the texture's
+modified state is left as it was. Any other copy keeps the tracked guest-memory path. The
+summary line now also counts region uploads, declined ones (no texture, layout, format,
+incompatible overlap) and guest-memory reads and writes over 2 ms. An independent review of
+the first version (texture marked modified, guest memory left unwritten) found four
+memory-semantics risks; this form removes them.
 
 What the next run reads: `DMA region upload (Hogwarts policy): …` once; in the
 `DMA guest-memory copies:` lines, `regionUploads` against `declined …` and `slowWrites`
