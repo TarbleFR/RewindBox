@@ -752,8 +752,18 @@ class Groups(unittest.TestCase):
             self.assertEqual(flutter[name], ['python3', '-B', script])
         native = dict(sd.expand_commands('native', manifest['tests']['native'], reader.listing))
         self.assertEqual(native['rpcs3-retroachievements-apple-clang'], ['python3', '-B', 'test/rpcs3_retroachievements_test.py'])
-        self.assertEqual(manifest['tests']['flutter']['mode'], 'fresh')
-        self.assertEqual(manifest['tests']['native']['mode'], 'fresh')
+        # 611's inputs changed since 610, so both groups first ran fresh; a recipe-only retry may then reuse
+        # those passed jobs (AGENTS.md), which requires a complete pin to a 611 run on this branch.
+        for group in sd.TEST_GROUPS:
+            mode = manifest['tests'][group]['mode']
+            self.assertIn(mode, ('fresh', 'reuse'))
+            if mode == 'reuse':
+                pin = manifest['tests'][group]['reuse']
+                self.assertEqual(set(pin), {'source', 'manifest', 'run', 'attempt', 'job', 'artifact', 'artifactName',
+                                            'sha256', 'bytes'})
+                self.assertEqual(pin['manifest'], 'build-utils/delivery/611.json')
+                self.assertTrue(pin['artifactName'].startswith('RewindBox-Build611-' + pin['source']))
+                self.assertTrue(pin['artifactName'].endswith('-tests-' + group))
 
     def test_recipe_reads_of_the_groups(self):
         """The reuse guard compares every recipe file a group may read (scripts it runs, diagnostics
