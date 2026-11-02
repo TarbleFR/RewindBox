@@ -30,9 +30,17 @@ The array now updates only the elements whose result can differ:
   resolved texture (format alias included) keeps its InvalidatedSequence; an empty
   element is unchanged only while the pool still marks the id invalid. A sampler
   element is unchanged when the pool's sampler object is the same and alive.
-- Changed elements are resolved exactly as the full rebuild does and sent with
-  SetTextures / SetSamplers / SetImages(start, run) for each contiguous run, an
-  offset form every backend implements; unchanged elements are not re-sent.
+- Changed elements are resolved exactly as the full rebuild does (store signal and
+  scale blacklist before the host texture is read) and sent with
+  SetTextures / SetSamplers / SetImages(start, run), an offset form every backend
+  implements; changes at most 16 elements apart share a run, the unchanged elements
+  between them re-sent with the host values recorded when they were bound.
+- If any element was re-resolved, a final check of every element (pool item and
+  texture sequence) catches a texture that this pass's own lookups removed or
+  replaced; any mismatch, a moved alias generation, another format than the one the
+  state was built for, or a scale blacklist that only the end of the pass would
+  apply, falls back to the full rebuild. A failed update (delta pass or full
+  rebuild) forces the next one to rebuild, even without a pool write.
 - The entry's texture set stays exact (reference counts per bound texture), so
   SynchronizeMemory, SignalModified (image stores) and the scale blacklist reach
   exactly the bound textures, as on the cache-hit path.
@@ -41,9 +49,11 @@ The array now updates only the elements whose result can differ:
 Pool synchronisation, the order of renderer commands and resource lifetimes are
 unchanged; memory is still synchronised for every bound texture on every update.
 
-Bounded counters and scopes attribute the remaining cost on the device: compute
-commits apart from graphics ones, full rebuilds, delta passes (elements scanned and
-changed), buffer-handle array rebuilds and pool creations. Updating counters
+On the device, one gpuWork row and four counters attribute what remains, within the
+collector's 4000-character payload bound: 'arrayDelta' (delta passes: calls, time,
+bytes), and the elements walked by full pool rebuilds (arrFullElems), scanned and
+changed by delta passes (arrDeltaElems, arrDeltaChanged) and rebuilt from constant
+buffer handles (arrBufElems: UpdateFromBuffer arrays, untouched here). Counting
 allocates nothing. Not measured on the iPhone yet; no FPS claim.
 """
 from pathlib import Path
@@ -52,45 +62,61 @@ from adapt_session import once
 
 ARRAY_CACHE = 'src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs'
 TEXTURE_POOL = 'src/Ryujinx.Graphics.Gpu/Image/TexturePool.cs'
-POOL_CACHE = 'src/Ryujinx.Graphics.Gpu/Image/PoolCache.cs'
-TEXTURE_MANAGER = 'src/Ryujinx.Graphics.Gpu/Image/TextureManager.cs'
 DIAGNOSTICS = 'src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'
-NAMES = [ARRAY_CACHE, TEXTURE_POOL, POOL_CACHE, TEXTURE_MANAGER, DIAGNOSTICS]
+NAMES = [ARRAY_CACHE, TEXTURE_POOL, DIAGNOSTICS]
 ALIAS = 'using PD = Ryujinx.Common.EmbeddedPerformanceDiagnostics;\n'
 
 ENTRY_STATE = '''            private int _texturePoolSequence;
             private int _samplerPoolSequence;
 
             /// <summary>
-            /// Per-element state of the last update of a pool array, for delta updates.
-            /// Texture arrays use the item, resolved texture and sequence arrays; sampler arrays the sampler array.
+            /// Per-element state of the last update of a pool array, for delta updates: the pool item, the
+            /// resolved texture, its sequence and the host value bound (texture arrays and image arrays), or the
+            /// pool sampler and its host value (sampler arrays). Valid only while <see cref="DeltaReady"/>.
             /// </summary>
             public Texture[] DeltaItems;
             public Texture[] DeltaTextures;
             public int[] DeltaSequences;
+            public ITexture[] DeltaHosts;
             public Sampler[] DeltaSamplers;
+            public ISampler[] DeltaHostSamplers;
             public int DeltaLength;
             public bool DeltaReady;
+            public FormatInfo DeltaFormatInfo;
+            public int DeltaAliasGeneration;
+            public bool DeltaAllBlacklisted;
+
+            /// <summary>
+            /// Set while a full rebuild runs and when a delta pass fails: after a failed update, the next one
+            /// rebuilds even without a pool write.
+            /// </summary>
+            public bool ForceRebuild;
 
             /// <summary>
             /// How many elements resolve to each bound texture, so that a delta update keeps the
-            /// texture set exact (every bound texture, with its current sequence, and nothing else).
+            /// texture set exact (every bound texture, with its recorded sequence, and nothing else).
             /// </summary>
             private Dictionary<Texture, int> _deltaReferences;
 
             /// <summary>
-            /// Allocates the per-element state once for an array of <paramref name="length"/> elements.
+            /// Allocates the per-element state once for an array of <paramref name="length"/> elements. Until the
+            /// full rebuild that calls it completes, the entry neither hits nor takes the delta path.
             /// </summary>
-            public void PrepareDelta(int length, bool isSampler)
+            public void PrepareDelta(int length, bool isSampler, FormatInfo formatInfo, int aliasGeneration, bool resScaleUnsupported)
             {
                 DeltaReady = false;
+                ForceRebuild = true;
                 DeltaLength = length;
+                DeltaFormatInfo = formatInfo;
+                DeltaAliasGeneration = aliasGeneration;
+                DeltaAllBlacklisted = resScaleUnsupported;
 
                 if (isSampler)
                 {
                     if (DeltaSamplers?.Length != length)
                     {
                         DeltaSamplers = new Sampler[length];
+                        DeltaHostSamplers = new ISampler[length];
                     }
                 }
                 else
@@ -100,6 +126,7 @@ ENTRY_STATE = '''            private int _texturePoolSequence;
                         DeltaItems = new Texture[length];
                         DeltaTextures = new Texture[length];
                         DeltaSequences = new int[length];
+                        DeltaHosts = new ITexture[length];
                     }
 
                     (_deltaReferences ??= new Dictionary<Texture, int>()).Clear();
@@ -107,14 +134,16 @@ ENTRY_STATE = '''            private int _texturePoolSequence;
             }
 
             /// <summary>
-            /// Records the pool objects an element was resolved from. A full rebuild (<paramref name="replacing"/>
-            /// false) fills the texture set itself; a delta update replaces the element's previous texture here.
+            /// Records what an element was resolved from and bound to. A full rebuild (<paramref name="replacing"/>
+            /// false) has filled the texture set itself, and its recorded sequence is the one stored there; a delta
+            /// update replaces the element's previous texture here.
             /// </summary>
-            public void RecordDelta(int index, Texture item, Texture texture, Sampler sampler, bool replacing)
+            public void RecordDelta(int index, Texture item, Texture texture, ITexture host, Sampler sampler, ISampler hostSampler, bool replacing)
             {
                 if (DeltaSamplers != null && DeltaItems == null)
                 {
                     DeltaSamplers[index] = sampler;
+                    DeltaHostSamplers[index] = hostSampler;
                     return;
                 }
 
@@ -128,7 +157,9 @@ ENTRY_STATE = '''            private int _texturePoolSequence;
 
                 DeltaItems[index] = item;
                 DeltaTextures[index] = texture;
-                DeltaSequences[index] = texture?.InvalidatedSequence ?? 0;
+                DeltaHosts[index] = host;
+
+                int sequence = texture?.InvalidatedSequence ?? 0;
 
                 if (texture != null)
                 {
@@ -136,9 +167,46 @@ ENTRY_STATE = '''            private int _texturePoolSequence;
 
                     if (replacing)
                     {
-                        Textures[texture] = texture.InvalidatedSequence;
+                        Textures[texture] = sequence;
+                    }
+                    else if (Textures.TryGetValue(texture, out int stored))
+                    {
+                        // The full rebuild stored the sequence before blacklisting the texture: keep the two equal so
+                        // that a sequence moved by that blacklist re-resolves the element, as a rebuild would.
+                        sequence = stored;
                     }
                 }
+
+                DeltaSequences[index] = sequence;
+            }
+
+            /// <summary>
+            /// Checks that the element still resolves to what was recorded, without resolving it.
+            /// </summary>
+            public bool DeltaUnchanged(int index, TexturePool texturePool, SamplerPool samplerPool, bool isSampler, bool aliasesMoved)
+            {
+                if (isSampler)
+                {
+                    Sampler sampler = samplerPool?.GetCachedItem(index);
+
+                    return sampler != null && sampler == DeltaSamplers[index] && !sampler.IsDisposed;
+                }
+
+                Texture item = texturePool.PeekForBindingDelta(index, out bool knownInvalid);
+                Texture texture = DeltaTextures[index];
+
+                if (item != DeltaItems[index])
+                {
+                    return false;
+                }
+
+                if (item == null)
+                {
+                    return knownInvalid && texture == null;
+                }
+
+                return texture != null && texture.InvalidatedSequence == DeltaSequences[index] &&
+                    (!aliasesMoved || texture == item);
             }'''
 
 RESET = '''            public virtual void Reset()
@@ -150,6 +218,13 @@ RESET_NEW = '''            public virtual void Reset()
                 Textures.Clear();
                 DeltaReady = false;
             }'''
+
+HIT = '''            if (!poolModified && !isNewEntry && entry.ValidateTextures())
+            {
+                entry.SynchronizeMemory(isStore, resScaleUnsupported);'''
+HIT_NEW = '''            if (!poolModified && !isNewEntry && !entry.ForceRebuild && entry.ValidateTextures())
+            {
+                entry.SynchronizeMemory(isStore, resScaleUnsupported);'''
 
 FULL_DISPATCH = '''            if (!isNewEntry)
             {
@@ -169,7 +244,8 @@ FULL_DISPATCH = '''            if (!isNewEntry)
 
                 for (int index = 0; index < length; index++)
                 {'''
-FULL_DISPATCH_NEW = '''            if (!isNewEntry && entry.DeltaReady &&
+FULL_DISPATCH_NEW = '''            if (!isNewEntry && entry.DeltaReady && !entry.ForceRebuild &&
+                entry.DeltaFormatInfo.Format == bindingInfo.FormatInfo.Format &&
                 UpdateFromPoolDelta(entry, texturePool, samplerPool, stage, isImage, isSampler, isStore, resScaleUnsupported, bindingInfo))
             {
                 return;
@@ -180,15 +256,12 @@ FULL_DISPATCH_NEW = '''            if (!isNewEntry && entry.DeltaReady &&
                 entry.Reset();
             }
 
-            using var arrayWork = PD.Track(PD.Work.ArrayFull);
-
             int length = (isSampler ? samplerPool.MaximumId : texturePool.MaximumId) + 1;
             length = Math.Min(length, bindingInfo.ArrayLength);
 
-            PD.Count(PD.Counter.ArrayFullRebuilds);
             PD.Count(PD.Counter.ArrayFullElements, length);
 
-            entry.PrepareDelta(length, isSampler);
+            entry.PrepareDelta(length, isSampler, bindingInfo.FormatInfo, texturePool?.AliasGeneration ?? 0, resScaleUnsupported);
             bool deltaCapable = bindingInfo.Target != Target.TextureBuffer;
 
             ISampler[] samplers = null;
@@ -215,7 +288,9 @@ FULL_RECORD_NEW = '''                    ITexture hostTexture = texture?.GetTarg
                         index,
                         isSampler ? null : texturePool.PeekForBindingDelta(index, out _),
                         texture,
+                        hostTexture,
                         isSampler ? samplerPool?.GetCachedItem(index) : null,
+                        hostSampler,
                         replacing: false);
 
                     if (hostTexture != null && texture.Target == Target.TextureBuffer)
@@ -264,6 +339,7 @@ FULL_END_NEW = '''                if (isImage)
 
                 // Only a complete rebuild makes the recorded state valid for delta updates.
                 entry.DeltaReady = deltaCapable;
+                entry.ForceRebuild = false;
             }
             finally
             {
@@ -275,16 +351,22 @@ FULL_END_NEW = '''                if (isImage)
 
         // One contiguous run of elements to send, at most DeltaRunCapacity long (GPU thread only).
         // Changes separated by at most DeltaGapLimit unchanged elements share one run: the unchanged
-        // elements between them are re-sent with their recorded values, identical to what is bound.
+        // elements between them are re-sent with their recorded bound values.
         private const int DeltaRunCapacity = 4096;
         private const int DeltaGapLimit = 16;
         private readonly ITexture[] _deltaRunTextures = new ITexture[DeltaRunCapacity];
         private readonly ISampler[] _deltaRunSamplers = new ISampler[DeltaRunCapacity];
 
+        // Exact-length run arrays come from their own bounded cache, so runs never evict the full rebuild's lengths.
+        private readonly ITexture[][] _deltaTextureScratch = new ITexture[BindingScratchSlots][];
+        private readonly ISampler[][] _deltaSamplerScratch = new ISampler[BindingScratchSlots][];
+        private int _nextDeltaTextureScratch;
+        private int _nextDeltaSamplerScratch;
+
         /// <summary>
         /// Updates the elements of a pool array whose pool objects changed since its last update.
         /// </summary>
-        /// <returns>False if the array must be rebuilt instead (nothing was left half-recorded)</returns>
+        /// <returns>False if the array must be fully rebuilt instead</returns>
         private bool UpdateFromPoolDelta(
             CacheEntry entry,
             TexturePool texturePool,
@@ -296,9 +378,17 @@ FULL_END_NEW = '''                if (isImage)
             bool resScaleUnsupported,
             in TextureBindingInfo bindingInfo)
         {
+            if (resScaleUnsupported && !entry.DeltaAllBlacklisted)
+            {
+                // The end of the pass would blacklist bound textures and replace their hosts after they were sent.
+                return false;
+            }
+
             using var arrayWork = PD.Track(PD.Work.ArrayDelta);
 
             int length = entry.DeltaLength;
+            int aliasGeneration = texturePool?.AliasGeneration ?? 0;
+            bool aliasesMoved = aliasGeneration != entry.DeltaAliasGeneration;
             int changed = 0;
             int runStart = 0;
             int runCount = 0;
@@ -309,24 +399,7 @@ FULL_END_NEW = '''                if (isImage)
             {
                 for (int index = 0; index < length; index++)
                 {
-                    bool unchanged;
-
-                    if (isSampler)
-                    {
-                        Sampler item = samplerPool?.GetCachedItem(index);
-                        unchanged = item != null && item == entry.DeltaSamplers[index] && !item.IsDisposed;
-                    }
-                    else
-                    {
-                        Texture item = texturePool.PeekForBindingDelta(index, out bool knownInvalid);
-                        Texture previous = entry.DeltaTextures[index];
-
-                        unchanged = item == entry.DeltaItems[index] && (item != null
-                            ? previous != null && previous.InvalidatedSequence == entry.DeltaSequences[index]
-                            : knownInvalid && previous == null);
-                    }
-
-                    if (unchanged)
+                    if (entry.DeltaUnchanged(index, texturePool, samplerPool, isSampler, aliasesMoved))
                     {
                         if (runCount != 0 && ++gap > DeltaGapLimit)
                         {
@@ -348,6 +421,20 @@ FULL_END_NEW = '''                if (isImage)
                     else
                     {
                         texturePool.GetForBinding(index, bindingInfo.FormatInfo, out texture);
+
+                        // As in the full rebuild: signal and blacklist before the host texture is read.
+                        if (texture != null)
+                        {
+                            if (isStore)
+                            {
+                                texture.SignalModified();
+                            }
+
+                            if (resScaleUnsupported && texture.ScaleMode != TextureScaleMode.Blacklisted)
+                            {
+                                texture.BlacklistScale();
+                            }
+                        }
                     }
 
                     ITexture hostTexture = texture?.GetTargetTexture(bindingInfo.Target);
@@ -363,7 +450,9 @@ FULL_END_NEW = '''                if (isImage)
                         index,
                         isSampler ? null : texturePool.PeekForBindingDelta(index, out _),
                         texture,
+                        hostTexture,
                         isSampler ? samplerPool?.GetCachedItem(index) : null,
+                        hostSampler,
                         replacing: true);
 
                     if (runCount != 0 && gap != 0)
@@ -376,8 +465,8 @@ FULL_END_NEW = '''                if (isImage)
                         {
                             for (int skipped = index - gap; skipped < index; skipped++)
                             {
-                                _deltaRunTextures[runCount] = isSampler ? null : entry.DeltaTextures[skipped]?.GetTargetTexture(bindingInfo.Target);
-                                _deltaRunSamplers[runCount] = isSampler ? entry.DeltaSamplers[skipped]?.GetHostSampler(null) : null;
+                                _deltaRunTextures[runCount] = isSampler ? null : entry.DeltaHosts[skipped];
+                                _deltaRunSamplers[runCount] = isSampler ? entry.DeltaHostSamplers[skipped] : null;
                                 runCount++;
                             }
                         }
@@ -403,6 +492,21 @@ FULL_END_NEW = '''                if (isImage)
 
                 FlushDeltaRun(entry, isImage, isSampler, runStart, ref runCount);
 
+                if (changed != 0 || aliasesMoved)
+                {
+                    // A lookup of this pass may have removed or replaced a texture bound at another element,
+                    // or moved the alias lists: every element must still resolve to what is bound.
+                    bool aliasesMovedNow = (texturePool?.AliasGeneration ?? 0) != aliasGeneration;
+
+                    for (int index = 0; index < length; index++)
+                    {
+                        if (aliasesMovedNow || !entry.DeltaUnchanged(index, texturePool, samplerPool, isSampler, aliasesMoved: false))
+                        {
+                            return false;
+                        }
+                    }
+                }
+
                 // The same memory synchronisation, store signal and scale blacklist as the cache-hit path.
                 entry.SynchronizeMemory(isStore, resScaleUnsupported);
 
@@ -415,7 +519,13 @@ FULL_END_NEW = '''                if (isImage)
                     SetTextureArray(stage, bindingInfo, entry.TextureArray);
                 }
 
-                PD.Count(PD.Counter.ArrayDeltaPasses);
+                entry.DeltaAliasGeneration = aliasGeneration;
+
+                if (!resScaleUnsupported && changed != 0)
+                {
+                    entry.DeltaAllBlacklisted = false;
+                }
+
                 PD.Count(PD.Counter.ArrayDeltaElements, length);
                 PD.Count(PD.Counter.ArrayDeltaChanged, changed);
 
@@ -426,8 +536,9 @@ FULL_END_NEW = '''                if (isImage)
             {
                 if (!completed)
                 {
-                    // A partial pass leaves the backend array and the state to the full rebuild.
+                    // The backend array and the state are left to the full rebuild, now or on the next update.
                     entry.DeltaReady = false;
+                    entry.ForceRebuild = true;
                     Array.Clear(_deltaRunTextures, 0, runCount);
                     Array.Clear(_deltaRunSamplers, 0, runCount);
                 }
@@ -435,7 +546,7 @@ FULL_END_NEW = '''                if (isImage)
         }
 
         /// <summary>
-        /// Sends the pending run of changed elements with an exact-length array, then clears the run.
+        /// Sends the pending run with an exact-length array, then clears the run.
         /// Texture arrays hold no samplers and sampler arrays no textures, as in the full rebuild.
         /// </summary>
         private void FlushDeltaRun(CacheEntry entry, bool isImage, bool isSampler, int runStart, ref int runCount)
@@ -451,7 +562,7 @@ FULL_END_NEW = '''                if (isImage)
 
             if (isSampler)
             {
-                ISampler[] samplers = RentBindingScratch(_samplerBindingScratch, count);
+                ISampler[] samplers = RentBindingScratch(_deltaSamplerScratch, count);
 
                 try
                 {
@@ -460,7 +571,7 @@ FULL_END_NEW = '''                if (isImage)
                 }
                 finally
                 {
-                    ReturnBindingScratch(_samplerBindingScratch, samplers, ref _nextSamplerBindingScratch);
+                    ReturnBindingScratch(_deltaSamplerScratch, samplers, ref _nextDeltaSamplerScratch);
                     Array.Clear(_deltaRunSamplers, 0, count);
                     Array.Clear(_deltaRunTextures, 0, count);
                 }
@@ -468,7 +579,7 @@ FULL_END_NEW = '''                if (isImage)
                 return;
             }
 
-            ITexture[] textures = RentBindingScratch(_textureBindingScratch, count);
+            ITexture[] textures = RentBindingScratch(_deltaTextureScratch, count);
 
             try
             {
@@ -485,7 +596,7 @@ FULL_END_NEW = '''                if (isImage)
             }
             finally
             {
-                ReturnBindingScratch(_textureBindingScratch, textures, ref _nextTextureBindingScratch);
+                ReturnBindingScratch(_deltaTextureScratch, textures, ref _nextDeltaTextureScratch);
                 Array.Clear(_deltaRunTextures, 0, count);
                 Array.Clear(_deltaRunSamplers, 0, count);
             }
@@ -505,14 +616,12 @@ BUFFER_REBUILD_NEW = '''            if (!isNewEntry)
                 entry.Reset();
             }
 
-            using var arrayWork = PD.Track(PD.Work.ArrayBuffer);
-            PD.Count(PD.Counter.ArrayBufferRebuilds);
             PD.Count(PD.Counter.ArrayBufferElements, bindingInfo.ArrayLength);
 
             entry.UpdateData(cachedTextureBuffer, cachedSamplerBuffer, separateSamplerBuffer);'''
 
-PEEK_ANCHOR = '''        public int CheckModified()
-        {'''
+PEEK_ANCHOR = '''        /// <summary>
+        /// Checks if the pool was modified, and returns the last sequence number where a modification was detected.'''
 PEEK = '''        /// <summary>
         /// The pool item of <paramref name="id"/> as last synchronised, without loading it, and whether the id is
         /// known to hold no texture until its descriptor is written again. Bindless delta updates only.
@@ -525,41 +634,44 @@ PEEK = '''        /// <summary>
             return texture;
         }
 
+        /// <summary>
+        /// Moves whenever an alias list is destroyed, so that delta updates re-resolve format aliases.
+        /// </summary>
+        internal int AliasGeneration => _aliasGeneration;
+        private int _aliasGeneration;
+
 ''' + PEEK_ANCHOR
 
-CREATE = '''            // If not found, create a new one.
-            pool = CreatePool(_context, channel, address, maximumId);'''
-CREATE_NEW = '''            // If not found, create a new one.
-            PD.Count(PD.Counter.PoolCreates);
-            pool = CreatePool(_context, channel, address, maximumId);'''
-
-COMPUTE = '''        public bool CommitComputeBindings(ShaderSpecializationState specState)
-        {
-            using var gpuWork = PD.Track(PD.Work.Bindings);'''
-COMPUTE_NEW = COMPUTE + '''
-            using var computeWork = PD.Track(PD.Work.ComputeBindings);'''
-
+ALIAS_REMOVE = '''            if (_aliasLists.TryGetValue(texture, out TextureAliasList aliasList))
+            {
+                _aliasLists.Remove(texture);
+                aliasList.Destroy();
+            }'''
+ALIAS_REMOVE_NEW = '''            if (_aliasLists.TryGetValue(texture, out TextureAliasList aliasList))
+            {
+                _aliasLists.Remove(texture);
+                aliasList.Destroy();
+                _aliasGeneration++;
+            }'''
 
 # Rows and counters appended to the prepared collector (its other names and order are unchanged).
+# The collector drops a window payload above 4000 characters (the journal cuts strings at 4096); the
+# delivered payload is 3770 characters at maximum width. One row (68) and four short counters (143) fit.
 DIAGNOSTIC_EDITS = (
     ("""        VirtualDependencySingle, VirtualDependencyMultiple, ReadCopies, ReadCopyBytes, PooledReads, PooledReadBytes, Count }""",
      """        VirtualDependencySingle, VirtualDependencyMultiple, ReadCopies, ReadCopyBytes, PooledReads, PooledReadBytes,
-        ArrayFullRebuilds, ArrayFullElements, ArrayDeltaPasses, ArrayDeltaElements, ArrayDeltaChanged,
-        ArrayBufferRebuilds, ArrayBufferElements, PoolCreates, Count }"""),
+        ArrayFullElements, ArrayDeltaElements, ArrayDeltaChanged, ArrayBufferElements, Count }"""),
     ("""        BufferLoad, BufferFlush, PoolSync, ShaderLookup, Bindings, Count }""",
-     """        BufferLoad, BufferFlush, PoolSync, ShaderLookup, Bindings, ComputeBindings, ArrayFull, ArrayDelta,
-        ArrayBuffer, Count }"""),
+     """        BufferLoad, BufferFlush, PoolSync, ShaderLookup, Bindings, ArrayDelta, Count }"""),
     ("""        "texFlushAction", "bufLoad", "bufFlush", "poolSync", "shader", "bindings" };""",
-     """        "texFlushAction", "bufLoad", "bufFlush", "poolSync", "shader", "bindings", "computeBindings", "arrayFull",
-        "arrayDelta", "arrayBuffer" };"""),
+     """        "texFlushAction", "bufLoad", "bufFlush", "poolSync", "shader", "bindings", "arrayDelta" };"""),
     ("""        "virtualDependencySingle", "virtualDependencyMultiple", "readCopies", "readCopyBytes", "pooledReads", "pooledReadBytes" };""",
      """        "virtualDependencySingle", "virtualDependencyMultiple", "readCopies", "readCopyBytes", "pooledReads", "pooledReadBytes",
-        "arrayFullRebuilds", "arrayFullElements", "arrayDeltaPasses", "arrayDeltaElements", "arrayDeltaChanged",
-        "arrayBufferRebuilds", "arrayBufferElements", "poolCreates" };"""),
+        "arrFullElems", "arrDeltaElems", "arrDeltaChanged", "arrBufElems" };"""),
 )
-WORK_ROWS = ('computeBindings', 'arrayFull', 'arrayDelta', 'arrayBuffer')
-COUNTERS = ('arrayFullRebuilds', 'arrayFullElements', 'arrayDeltaPasses', 'arrayDeltaElements', 'arrayDeltaChanged',
-            'arrayBufferRebuilds', 'arrayBufferElements', 'poolCreates')
+WORK_ROWS = ('arrayDelta',)
+COUNTERS = ('arrFullElems', 'arrDeltaElems', 'arrDeltaChanged', 'arrBufElems')
+MAX_PAYLOAD_GROWTH = 68 + 35 + 36 + 38 + 34
 
 
 def add_alias(path):
@@ -575,6 +687,7 @@ def apply_array_cache(source):
     once(cache, '''            private int _texturePoolSequence;
             private int _samplerPoolSequence;''', ENTRY_STATE)
     once(cache, RESET, RESET_NEW)
+    once(cache, HIT, HIT_NEW)
     once(cache, FULL_DISPATCH, FULL_DISPATCH_NEW)
     once(cache, FULL_RECORD, FULL_RECORD_NEW)
     once(cache, FULL_END, FULL_END_NEW)
@@ -587,9 +700,7 @@ def apply(source):
     source = Path(source)
     apply_array_cache(source)
     once(source / TEXTURE_POOL, PEEK_ANCHOR, PEEK)
-    once(source / POOL_CACHE, CREATE, CREATE_NEW)
-    add_alias(source / POOL_CACHE)
-    once(source / TEXTURE_MANAGER, COMPUTE, COMPUTE_NEW)
+    once(source / TEXTURE_POOL, ALIAS_REMOVE, ALIAS_REMOVE_NEW)
     for old, new in DIAGNOSTIC_EDITS:
         once(source / DIAGNOSTICS, old, new)
     return NAMES

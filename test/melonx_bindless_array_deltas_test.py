@@ -85,13 +85,22 @@ def check(value, message):
 
 
 check(not control['adapted'] and candidate['adapted'], 'variants swapped')
-check(len(control['scenarios']) == len(candidate['scenarios']) == 54, 'scenario inventory')
+check(len(control['scenarios']) == len(candidate['scenarios']) == 72, 'scenario inventory')
 for old, new in zip(control['scenarios'], candidate['scenarios'], strict=True):
     check({k: v for k, v in old.items() if k != 'digest'} == {k: v for k, v in new.items() if k != 'digest'}, 'scenario pairing')
     check(old['digest'] == new['digest'], f'backend state or synchronisation differs: {new}')
+check(len(candidate['shared']) == 4, 'shared-entry inventory')
+for old, new in zip(control['shared'], candidate['shared'], strict=True):
+    check(old == new, f'bindings sharing one entry (formats, store, scaling) differ: {old} {new}')
 for old, new in zip(control['buffers'], candidate['buffers'], strict=True):
     check(old == new and new['lookupsPerUpdate'] == 64, f'TextureBuffer arrays must keep the full rebuild: {old} {new}')
-check(all(f['recovered'] for f in candidate['failures']), 'failure recovery')
+# Delivered defects the candidate must not keep (the delivered rows are recorded, not required).
+check(len(candidate['removals']) == 4 and all(r['correctAtOnce'] for r in candidate['removals']),
+      'a texture removed by a lookup of the same pass is rebound in that update')
+check(len(candidate['failures']) == 4 and all(f['correctWithoutWrite'] for f in candidate['failures']),
+      'after a failed update (delta or full) the next update rebuilds without a pool write')
+check(len(candidate['quiet']) == 4 and all(q['refreshes'] <= 1 for q in candidate['quiet']),
+      'quiet updates come back to cache hits after the blacklisting rebuild')
 rows = []
 for old, new in zip(control['measures'], candidate['measures'], strict=True):
     key = {k: old[k] for k in ('threaded', 'kind', 'length', 'changes', 'scattered')}
@@ -111,6 +120,7 @@ for old, new in zip(control['measures'], candidate['measures'], strict=True):
 inputs = ['build-utils/melonx/adapt_bindless_array_deltas.py', 'test/melonx_bindless_array_deltas_test.py',
           'test/melonx_bindless_array_deltas/Program.cs']
 receipt = dict(result='passed', checks=checks, programChecks=dict(control=control['checks'], candidate=candidate['checks']),
+               deliveredDefects=dict(removals=control['removals'], failures=control['failures']),
                measures=rows, candidateCounters=candidate['counters'], physicalDeviceTested=False,
                poolsTexturesAndTransportDoubled=True, productionCacheAndCommandsCompiled=True,
                inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},

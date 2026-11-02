@@ -1,9 +1,55 @@
 {
   "result": "passed",
-  "checks": 200,
+  "checks": 258,
   "programChecks": {
-    "control": 7127050,
-    "candidate": 7127050
+    "control": 12628151,
+    "candidate": 17713357
+  },
+  "deliveredDefects": {
+    "removals": [
+      {
+        "threaded": true,
+        "format": 0,
+        "correctAtOnce": false
+      },
+      {
+        "threaded": false,
+        "format": 0,
+        "correctAtOnce": false
+      },
+      {
+        "threaded": true,
+        "format": 3,
+        "correctAtOnce": true
+      },
+      {
+        "threaded": false,
+        "format": 3,
+        "correctAtOnce": true
+      }
+    ],
+    "failures": [
+      {
+        "threaded": true,
+        "duringRebuild": false,
+        "correctWithoutWrite": false
+      },
+      {
+        "threaded": false,
+        "duringRebuild": false,
+        "correctWithoutWrite": false
+      },
+      {
+        "threaded": true,
+        "duringRebuild": true,
+        "correctWithoutWrite": false
+      },
+      {
+        "threaded": false,
+        "duringRebuild": true,
+        "correctWithoutWrite": false
+      }
+    ]
   },
   "measures": [
     {
@@ -12,15 +58,15 @@
       "length": 4097,
       "changes": 0,
       "scattered": false,
-      "controlBytes": 131296,
-      "candidateBytes": 96,
+      "controlBytes": 131200,
+      "candidateBytes": 0,
       "controlLookups": 4097,
       "candidateLookups": 0,
       "controlBackendElements": 8194,
       "candidateBackendElements": 0,
       "candidateBackendCalls": 0,
-      "controlMicroseconds": 201.6,
-      "candidateMicroseconds": 37.7
+      "controlMicroseconds": 88.2,
+      "candidateMicroseconds": 11.2
     },
     {
       "threaded": true,
@@ -28,15 +74,15 @@
       "length": 4097,
       "changes": 1,
       "scattered": false,
-      "controlBytes": 131296,
-      "candidateBytes": 97.6,
+      "controlBytes": 131200,
+      "candidateBytes": 1.6,
       "controlLookups": 4097,
       "candidateLookups": 1,
       "controlBackendElements": 8194,
       "candidateBackendElements": 1,
       "candidateBackendCalls": 1,
-      "controlMicroseconds": 205.5,
-      "candidateMicroseconds": 37.3
+      "controlMicroseconds": 86.3,
+      "candidateMicroseconds": 18.4
     },
     {
       "threaded": true,
@@ -44,15 +90,15 @@
       "length": 4097,
       "changes": 64,
       "scattered": true,
-      "controlBytes": 131296,
-      "candidateBytes": 889.2,
+      "controlBytes": 131200,
+      "candidateBytes": 793.2,
       "controlLookups": 4097,
       "candidateLookups": 64,
       "controlBackendElements": 8194,
       "candidateBackendElements": 64,
       "candidateBackendCalls": 64,
-      "controlMicroseconds": 148.3,
-      "candidateMicroseconds": 75.3
+      "controlMicroseconds": 104.5,
+      "candidateMicroseconds": 34.7
     },
     {
       "threaded": true,
@@ -60,15 +106,15 @@
       "length": 4097,
       "changes": 256,
       "scattered": false,
-      "controlBytes": 131296,
-      "candidateBytes": 303.2,
+      "controlBytes": 131200,
+      "candidateBytes": 103.6,
       "controlLookups": 4097,
       "candidateLookups": 256,
       "controlBackendElements": 8194,
       "candidateBackendElements": 256,
       "candidateBackendCalls": 1,
-      "controlMicroseconds": 138.8,
-      "candidateMicroseconds": 83.9
+      "controlMicroseconds": 94.8,
+      "candidateMicroseconds": 35.0
     },
     {
       "threaded": true,
@@ -76,15 +122,31 @@
       "length": 4097,
       "changes": 1,
       "scattered": false,
-      "controlBytes": 131328,
-      "candidateBytes": 129.6,
+      "controlBytes": 131232,
+      "candidateBytes": 33.6,
       "controlLookups": 4097,
       "candidateLookups": 1,
       "controlBackendElements": 8194,
       "candidateBackendElements": 1,
       "candidateBackendCalls": 1,
-      "controlMicroseconds": 106.8,
-      "candidateMicroseconds": 38.5
+      "controlMicroseconds": 79.8,
+      "candidateMicroseconds": 20.7
+    },
+    {
+      "threaded": true,
+      "kind": "Image",
+      "length": 4097,
+      "changes": 1,
+      "scattered": false,
+      "controlBytes": 65600,
+      "candidateBytes": 1.6,
+      "controlLookups": 4097,
+      "candidateLookups": 1,
+      "controlBackendElements": 4097,
+      "candidateBackendElements": 1,
+      "candidateBackendCalls": 1,
+      "controlMicroseconds": 59.8,
+      "candidateMicroseconds": 19.1
     },
     {
       "threaded": false,
@@ -92,15 +154,15 @@
       "length": 4097,
       "changes": 1,
       "scattered": false,
-      "controlBytes": 65696,
-      "candidateBytes": 97.6,
+      "controlBytes": 65600,
+      "candidateBytes": 1.6,
       "controlLookups": 4097,
       "candidateLookups": 1,
       "controlBackendElements": 8194,
       "candidateBackendElements": 1,
       "candidateBackendCalls": 1,
-      "controlMicroseconds": 134.9,
-      "candidateMicroseconds": 36.7
+      "controlMicroseconds": 81.3,
+      "candidateMicroseconds": 18.3
     },
     {
       "threaded": true,
@@ -108,15 +170,15 @@
       "length": 16384,
       "changes": 0,
       "scattered": false,
-      "controlBytes": 524480,
-      "candidateBytes": 96,
+      "controlBytes": 524384,
+      "candidateBytes": 0,
       "controlLookups": 16384,
       "candidateLookups": 0,
       "controlBackendElements": 32768,
       "candidateBackendElements": 0,
       "candidateBackendCalls": 0,
-      "controlMicroseconds": 1565.2,
-      "candidateMicroseconds": 69.9
+      "controlMicroseconds": 1033.9,
+      "candidateMicroseconds": 41.3
     },
     {
       "threaded": true,
@@ -124,15 +186,15 @@
       "length": 16384,
       "changes": 1,
       "scattered": false,
-      "controlBytes": 524480,
-      "candidateBytes": 97.6,
+      "controlBytes": 524384,
+      "candidateBytes": 1.6,
       "controlLookups": 16384,
       "candidateLookups": 1,
       "controlBackendElements": 32768,
       "candidateBackendElements": 1,
       "candidateBackendCalls": 1,
-      "controlMicroseconds": 617.3,
-      "candidateMicroseconds": 72.6
+      "controlMicroseconds": 589.9,
+      "candidateMicroseconds": 82.9
     },
     {
       "threaded": true,
@@ -140,15 +202,15 @@
       "length": 16384,
       "changes": 64,
       "scattered": true,
-      "controlBytes": 524480,
-      "candidateBytes": 905.2,
+      "controlBytes": 524384,
+      "candidateBytes": 809.2,
       "controlLookups": 16384,
       "candidateLookups": 64,
       "controlBackendElements": 32768,
       "candidateBackendElements": 76,
       "candidateBackendCalls": 60,
-      "controlMicroseconds": 681.1,
-      "candidateMicroseconds": 94.6
+      "controlMicroseconds": 569.2,
+      "candidateMicroseconds": 106.3
     },
     {
       "threaded": true,
@@ -156,15 +218,15 @@
       "length": 16384,
       "changes": 256,
       "scattered": false,
-      "controlBytes": 524480,
-      "candidateBytes": 199.6,
+      "controlBytes": 524384,
+      "candidateBytes": 103.6,
       "controlLookups": 16384,
       "candidateLookups": 256,
       "controlBackendElements": 32768,
       "candidateBackendElements": 256,
       "candidateBackendCalls": 1,
-      "controlMicroseconds": 728.2,
-      "candidateMicroseconds": 147.8
+      "controlMicroseconds": 597.8,
+      "candidateMicroseconds": 93.5
     },
     {
       "threaded": true,
@@ -172,15 +234,31 @@
       "length": 16384,
       "changes": 1,
       "scattered": false,
-      "controlBytes": 524512,
-      "candidateBytes": 129.6,
+      "controlBytes": 524416,
+      "candidateBytes": 33.6,
       "controlLookups": 16384,
       "candidateLookups": 1,
       "controlBackendElements": 32768,
       "candidateBackendElements": 1,
       "candidateBackendCalls": 1,
-      "controlMicroseconds": 640.4,
-      "candidateMicroseconds": 86.0
+      "controlMicroseconds": 540.6,
+      "candidateMicroseconds": 72.9
+    },
+    {
+      "threaded": true,
+      "kind": "Image",
+      "length": 16384,
+      "changes": 1,
+      "scattered": false,
+      "controlBytes": 262192,
+      "candidateBytes": 1.6,
+      "controlLookups": 16384,
+      "candidateLookups": 1,
+      "controlBackendElements": 16384,
+      "candidateBackendElements": 1,
+      "candidateBackendCalls": 1,
+      "controlMicroseconds": 384.0,
+      "candidateMicroseconds": 73.9
     },
     {
       "threaded": false,
@@ -188,15 +266,15 @@
       "length": 16384,
       "changes": 1,
       "scattered": false,
-      "controlBytes": 262288,
-      "candidateBytes": 97.6,
+      "controlBytes": 262192,
+      "candidateBytes": 1.6,
       "controlLookups": 16384,
       "candidateLookups": 1,
       "controlBackendElements": 32768,
       "candidateBackendElements": 1,
       "candidateBackendCalls": 1,
-      "controlMicroseconds": 562.0,
-      "candidateMicroseconds": 71.0
+      "controlMicroseconds": 459.6,
+      "candidateMicroseconds": 76.2
     },
     {
       "threaded": true,
@@ -204,15 +282,15 @@
       "length": 65536,
       "changes": 0,
       "scattered": false,
-      "controlBytes": 2097344,
-      "candidateBytes": 96,
+      "controlBytes": 2097248,
+      "candidateBytes": 0,
       "controlLookups": 65536,
       "candidateLookups": 0,
       "controlBackendElements": 131072,
       "candidateBackendElements": 0,
       "candidateBackendCalls": 0,
-      "controlMicroseconds": 3547.4,
-      "candidateMicroseconds": 240.3
+      "controlMicroseconds": 3120.6,
+      "candidateMicroseconds": 173.6
     },
     {
       "threaded": true,
@@ -220,15 +298,15 @@
       "length": 65536,
       "changes": 1,
       "scattered": false,
-      "controlBytes": 2097344,
-      "candidateBytes": 97.6,
+      "controlBytes": 2097248,
+      "candidateBytes": 1.6,
       "controlLookups": 65536,
       "candidateLookups": 1,
       "controlBackendElements": 131072,
       "candidateBackendElements": 1,
       "candidateBackendCalls": 1,
-      "controlMicroseconds": 2694.1,
-      "candidateMicroseconds": 252.1
+      "controlMicroseconds": 2385.0,
+      "candidateMicroseconds": 347.6
     },
     {
       "threaded": true,
@@ -236,15 +314,15 @@
       "length": 65536,
       "changes": 64,
       "scattered": true,
-      "controlBytes": 2097344,
-      "candidateBytes": 889.2,
+      "controlBytes": 2097248,
+      "candidateBytes": 793.2,
       "controlLookups": 65536,
       "candidateLookups": 64,
       "controlBackendElements": 131072,
       "candidateBackendElements": 64,
       "candidateBackendCalls": 64,
-      "controlMicroseconds": 3195.3,
-      "candidateMicroseconds": 252.7
+      "controlMicroseconds": 2098.6,
+      "candidateMicroseconds": 337.5
     },
     {
       "threaded": true,
@@ -252,15 +330,15 @@
       "length": 65536,
       "changes": 256,
       "scattered": false,
-      "controlBytes": 2097344,
-      "candidateBytes": 199.6,
+      "controlBytes": 2097248,
+      "candidateBytes": 103.6,
       "controlLookups": 65536,
       "candidateLookups": 256,
       "controlBackendElements": 131072,
       "candidateBackendElements": 256,
       "candidateBackendCalls": 1,
-      "controlMicroseconds": 2139.6,
-      "candidateMicroseconds": 279.0
+      "controlMicroseconds": 2268.7,
+      "candidateMicroseconds": 329.7
     },
     {
       "threaded": true,
@@ -268,15 +346,31 @@
       "length": 65536,
       "changes": 1,
       "scattered": false,
-      "controlBytes": 2098817.2,
-      "candidateBytes": 129.6,
+      "controlBytes": 2099920.4,
+      "candidateBytes": 33.6,
       "controlLookups": 65536,
       "candidateLookups": 1,
       "controlBackendElements": 131072,
       "candidateBackendElements": 1,
       "candidateBackendCalls": 1,
-      "controlMicroseconds": 2144.4,
-      "candidateMicroseconds": 296.6
+      "controlMicroseconds": 1735.0,
+      "candidateMicroseconds": 360.1
+    },
+    {
+      "threaded": true,
+      "kind": "Image",
+      "length": 65536,
+      "changes": 1,
+      "scattered": false,
+      "controlBytes": 1048624,
+      "candidateBytes": 1.6,
+      "controlLookups": 65536,
+      "candidateLookups": 1,
+      "controlBackendElements": 65536,
+      "candidateBackendElements": 1,
+      "candidateBackendCalls": 1,
+      "controlMicroseconds": 1636.5,
+      "candidateMicroseconds": 335.7
     },
     {
       "threaded": false,
@@ -285,33 +379,29 @@
       "changes": 1,
       "scattered": false,
       "controlBytes": 1048624,
-      "candidateBytes": 97.6,
+      "candidateBytes": 1.6,
       "controlLookups": 65536,
       "candidateLookups": 1,
       "controlBackendElements": 131072,
       "candidateBackendElements": 1,
       "candidateBackendCalls": 1,
-      "controlMicroseconds": 2568.1,
-      "candidateMicroseconds": 249.3
+      "controlMicroseconds": 1938.0,
+      "candidateMicroseconds": 343.5
     }
   ],
   "candidateCounters": {
-    "ArrayFullRebuilds": 88,
-    "ArrayFullElements": 609474,
-    "ArrayDeltaPasses": 1950,
-    "ArrayDeltaElements": 13074400,
-    "ArrayDeltaChanged": 78656,
-    "ArrayBufferRebuilds": 0,
-    "ArrayBufferElements": 0,
-    "PoolCreates": 0
+    "ArrayFullElements": 734839,
+    "ArrayDeltaElements": 15383928,
+    "ArrayDeltaChanged": 346584,
+    "ArrayBufferElements": 0
   },
   "physicalDeviceTested": false,
   "poolsTexturesAndTransportDoubled": true,
   "productionCacheAndCommandsCompiled": true,
   "inputs": {
-    "build-utils/melonx/adapt_bindless_array_deltas.py": "681d65373c543bd14d3ca6279d54aee24fe44370ac5716f8f4f7b5b9b5ee8357",
-    "test/melonx_bindless_array_deltas_test.py": "27de06341aa820209d7cff15c55462c99a38b68f78116503b8df54b49c3bf580",
-    "test/melonx_bindless_array_deltas/Program.cs": "55ba922fdd292769dc6e4b0bf50bd646b81643871c82d2ac6802d227d25dcfc6"
+    "build-utils/melonx/adapt_bindless_array_deltas.py": "8e9ecf174f319ff70b4f146ed2ef83261c9d2bb6fb071bddb2221fd4b4c55d89",
+    "test/melonx_bindless_array_deltas_test.py": "a37fe598f313d9b1146c3b9ab05aa3466d0befa3144d3d2fbabbc8d1e09c1693",
+    "test/melonx_bindless_array_deltas/Program.cs": "9528933c09893dd844a83681d48420865b1381b7fc6243510d2f1e61436a3230"
   },
   "upstreamInputs": {
     "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs": "b7f261ffc5d14725b71fa987372c87eb13e68e9824e01463a8b4e8e47e26aa40",
@@ -335,6 +425,6 @@
     "src/Ryujinx.Graphics.GAL/Multithreading/Commands/ImageArray/ImageArrayDisposeCommand.cs": "f8e139f1db1c81ec0df9ce7205e21ccf9a691bef4ab6aea06644d1b74740c3d4"
   },
   "postimages": {
-    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs": "e9286db421daf2dfd20e4977a1fdc6d358cd7b05770ba3b5cf0e354026d7679e"
+    "src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs": "5a034a358549926dae58417bf26c5d2489f7023008f8a5e32678d6b0a487e4e5"
   }
 }

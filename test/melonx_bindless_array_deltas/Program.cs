@@ -1,10 +1,21 @@
 // Host fixture for adapt_bindless_array_deltas: the production TextureBindingsArrayCache,
 // threaded array producers and commands are compiled unchanged from the prepared tree
 // (control: as delivered in Core b99e754d; candidate: with the adapter). Only the GPU
-// resources, pools, memory and renderer transport are doubled, following the pool rules
-// of the production TexturePool/SamplerPool: Items[id] is replaced only when a written
-// descriptor really differs, an empty id stays known-invalid until its descriptor is
-// written, format aliases are stable per texture, replaced samplers are disposed.
+// resources, pools, memory and renderer transport are doubled, following the production
+// rules of TexturePool, SamplerPool and Texture:
+// - Items[id] is replaced only when a written descriptor really differs; an empty id stays
+//   known-invalid until its descriptor is written; a replaced or removed item loses its
+//   alias list (TexturePool.RemoveAliasList), whose aliases are disposed now or later;
+// - a format alias is a view of its pool texture; replacing a texture's storage
+//   (Texture.ReplaceStorage through SetScale: scaling up, or BlacklistScale of a scaled
+//   texture) releases its host, gives it and its live views new hosts and bumps their
+//   InvalidatedSequence; blacklisting a view blacklists its storage;
+// - a removed texture is disposed (host released, sequence bumped) and its descriptor
+//   resolves to a new texture object; any later call on a disposed texture is a violation;
+// - a lookup may remove another texture as a side effect (overlap removal in FindOrCreateTexture);
+// - SamplerPool.Get creates a sampler for every in-range id; a changed sampler is disposed;
+// - the cache entry key holds neither the format nor the usage flags, so bindings with
+//   different formats, image stores or scale support can share one entry.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -38,7 +49,7 @@ static class Check
 }
 
 sealed class TestFailure : Exception { }
-sealed class HostTexture : ITexture { public readonly int Id; public HostTexture(int id) => Id = id; }
+sealed class HostTexture : ITexture { public readonly int Id; public readonly string Name; public HostTexture(int id, string name) { Id = id; Name = name; } }
 sealed class HostSampler : ISampler { public readonly int Id; public HostSampler(int id) => Id = id; }
 
 sealed class TextureSink : ITextureArray
@@ -47,14 +58,8 @@ sealed class TextureSink : ITextureArray
     public readonly ISampler[] Samplers;
     public long Calls, Elements;
     public TextureSink(int length) { Textures = new ITexture[length]; Samplers = new ISampler[length]; }
-    public void SetTextures(int index, ITexture[] textures)
-    {
-        Array.Copy(textures, 0, Textures, index, textures.Length); Calls++; Elements += textures.Length;
-    }
-    public void SetSamplers(int index, ISampler[] samplers)
-    {
-        Array.Copy(samplers, 0, Samplers, index, samplers.Length); Calls++; Elements += samplers.Length;
-    }
+    public void SetTextures(int index, ITexture[] textures) { Array.Copy(textures, 0, Textures, index, textures.Length); Calls++; Elements += textures.Length; }
+    public void SetSamplers(int index, ISampler[] samplers) { Array.Copy(samplers, 0, Samplers, index, samplers.Length); Calls++; Elements += samplers.Length; }
     public void Dispose() { }
 }
 
@@ -63,10 +68,7 @@ sealed class ImageSink : IImageArray
     public readonly ITexture[] Images;
     public long Calls, Elements;
     public ImageSink(int length) => Images = new ITexture[length];
-    public void SetImages(int index, ITexture[] images)
-    {
-        Array.Copy(images, 0, Images, index, images.Length); Calls++; Elements += images.Length;
-    }
+    public void SetImages(int index, ITexture[] images) { Array.Copy(images, 0, Images, index, images.Length); Calls++; Elements += images.Length; }
     public void Dispose() { }
 }
 
@@ -75,6 +77,7 @@ enum Kind { Texture, Sampler, Image }
 sealed class World
 {
     public readonly Random Random;
+    public readonly bool ThreadedMode;
     public readonly ThreadedRenderer Threaded;
     public readonly DirectRenderer Direct;
     public readonly GpuContext Context;
@@ -82,27 +85,28 @@ sealed class World
     public readonly TextureBindingsArrayCache Cache;
     public readonly TexturePool Textures;
     public readonly SamplerPool Samplers;
-    public readonly Texture[] Library;
+    public readonly Dictionary<int, Texture> Library = new();
+    public readonly List<Texture> All = new();
     public readonly Sampler[] SamplerLibrary;
-    public readonly int Length;
+    public readonly HashSet<HostTexture> Released = new();
+    public readonly int Length, LibrarySize;
+    public int Violations, NextHost = 1;
     public IRenderer Renderer => (IRenderer)Threaded ?? Direct;
 
     public World(int length, bool threaded, int seed, int librarySize = 24)
     {
         Random = new Random(seed);
         Length = length;
+        LibrarySize = librarySize;
+        ThreadedMode = threaded;
         if (threaded) Threaded = new ThreadedRenderer(); else Direct = new DirectRenderer();
         Context = new GpuContext { Renderer = Renderer };
-        Library = new Texture[librarySize + 1];
         SamplerLibrary = new Sampler[librarySize + 1];
         for (int key = 0; key <= librarySize; key++)
         {
-            // SamplerPool.Get creates a sampler for every in-range id, the zero descriptor included.
             ISampler sampler = new HostSampler(key);
             SamplerLibrary[key] = new Sampler(threaded ? new ThreadedSampler { Base = sampler } : sampler, key);
-            if (key == 0) continue;
-            ITexture host = new HostTexture(key);
-            Library[key] = new Texture(threaded ? new ThreadedTexture { Base = host } : host, key, format: 1 + key % 3, world: this);
+            if (key != 0) Library[key] = NewTexture(key, 1 + key % 3);
         }
         Textures = new TexturePool(this, length);
         Samplers = new SamplerPool(this, length);
@@ -114,8 +118,24 @@ sealed class World
         Cache = new TextureBindingsArrayCache(Context, Channel);
     }
 
-    public static TextureBindingInfo Binding(int length, Kind kind, TextureUsageFlags flags = 0, int format = 0,
-                                             Target target = Target.Texture2D)
+    public ITexture NewHost(string name)
+    {
+        ITexture host = new HostTexture(NextHost++, name);
+        return ThreadedMode ? new ThreadedTexture { Base = host } : host;
+    }
+
+    public Texture NewTexture(int key, int format, Texture parent = null)
+    {
+        Texture texture = new(this, NewHost(parent == null ? "t" + key : "a" + key + "." + format), key, format, parent);
+        All.Add(texture);
+        return texture;
+    }
+
+    public static HostTexture Raw(object host) => host switch { ThreadedTexture t => (HostTexture)t.Base, HostTexture h => h, _ => null };
+
+    public void Release(ITexture host) => Released.Add(Raw(host));
+
+    public static TextureBindingInfo Binding(int length, Kind kind, TextureUsageFlags flags = 0, int format = 0, Target target = Target.Texture2D)
         => kind == Kind.Sampler
             ? new(target, 0, 0, length, 0, TextureHandle.PackOffsets(0, 0, TextureHandleType.Direct), flags, true)
             : new(target, new FormatInfo(format), 0, 0, length, 0, TextureHandle.PackOffsets(0, 0, TextureHandleType.Direct), flags);
@@ -123,8 +143,6 @@ sealed class World
     public void Update(in TextureBindingInfo binding, Kind kind)
     {
         Context.SequenceNumber++;
-        Textures.Synchronize();
-        Samplers.Synchronize();
         if (kind == Kind.Image) Cache.UpdateImageArray(Textures, ShaderStage.Compute, 0, 0, binding);
         else Cache.UpdateTextureArray(Textures, Samplers, ShaderStage.Compute, 0, 0, SamplerIndex.ViaHeaderIndex, binding);
         Threaded?.Drain();
@@ -133,62 +151,79 @@ sealed class World
     public TextureSink TextureSink => Threaded?.TextureSinks[0] ?? Direct.TextureSinks[0];
     public ImageSink ImageSink => Threaded?.ImageSinks[0] ?? Direct.ImageSinks[0];
 
-    // Mutations, as the game and the texture cache perform them.
-    public void Mutate(int operations, Kind kind)
+    // Removal by the texture cache: the texture is disposed and its descriptor resolves to a new object.
+    public void Remove(Texture texture)
+    {
+        if (texture.Disposed) return;
+        Textures.ForceRemove(texture);
+        texture.Dispose();
+        if (Library.TryGetValue(texture.Key, out Texture current) && current == texture)
+            Library[texture.Key] = NewTexture(texture.Key, texture.Format);
+    }
+
+    public Texture RandomLibraryTexture() => Library[1 + Random.Next(LibrarySize)];
+
+    // Mutations, as the game and the texture cache perform them between two updates.
+    public void Mutate(int operations)
     {
         for (int i = 0; i < operations; i++)
         {
             int id = Random.Next(Length);
-            switch (Random.Next(9))
+            switch (Random.Next(12))
             {
-                case 0: Textures.Write(id, Random.Next(3) == 0 ? 0 : 1 + Random.Next(Library.Length - 1)); break;
-                case 1: Textures.Write(id, Textures.Keys[id]); break; // rewrite of identical bytes
-                case 2: Samplers.Write(id, Random.Next(4) == 0 ? 0 : 1 + Random.Next(SamplerLibrary.Length - 1)); break;
+                case 0: Textures.Write(id, Random.Next(3) == 0 ? 0 : 1 + Random.Next(LibrarySize)); break;
+                case 1: Textures.Write(id, Textures.Keys[id]); break; // identical bytes rewritten
+                case 2: Samplers.Write(id, Random.Next(4) == 0 ? 0 : 1 + Random.Next(LibrarySize)); break;
                 case 3: Samplers.Write(id, Samplers.Keys[id]); break;
-                case 4: Invalidate(Library[1 + Random.Next(Library.Length - 1)], removeFromPool: true); break;
-                case 5: Invalidate(Library[1 + Random.Next(Library.Length - 1)], removeFromPool: false); break;
-                case 6: Textures.Touch(); break; // pool written, nothing changed
+                case 4: Remove(RandomLibraryTexture()); break;
+                case 5: RandomLibraryTexture().InvalidatedSequence++; break; // remapped in place, same object
+                case 6: Textures.Touch(); break;
                 case 7: Samplers.Touch(); break;
-                default: Textures.Write(id, 1 + Random.Next(Library.Length - 1)); break;
+                case 8: RandomLibraryTexture().ScaleUp(); break; // used as a scaled render target
+                case 9:
+                {
+                    Texture texture = RandomLibraryTexture();
+                    bool disposeNow = Random.Next(2) == 0;
+                    Textures.RemoveAliasList(texture, disposeNow);
+                    break;
+                }
+                case 10: Textures.DisposeOrphanAliases(); break;
+                default: Textures.Write(id, 1 + Random.Next(LibrarySize)); break;
             }
         }
     }
 
-    // A replaced or unmapped texture bumps its sequence; the cache may also drop it from pools.
-    public void Invalidate(Texture texture, bool removeFromPool)
-    {
-        texture.InvalidatedSequence++;
-        texture.DropAliases();
-        if (removeFromPool) Textures.ForceRemove(texture);
-    }
-
-    public string Snapshot(Kind kind, int arrayLength)
+    public string Snapshot(Kind kind)
     {
         StringBuilder text = new();
-        if (kind == Kind.Image)
-        {
-            foreach (ITexture image in ImageSink.Images) text.Append(Id(image)).Append(',');
-        }
+        if (kind == Kind.Image) foreach (ITexture image in ImageSink.Images) text.Append(Describe(image)).Append(',');
         else
         {
-            foreach (ITexture texture in TextureSink.Textures) text.Append(Id(texture)).Append(',');
+            foreach (ITexture texture in TextureSink.Textures) text.Append(Describe(texture)).Append(',');
             text.Append('|');
-            foreach (ISampler sampler in TextureSink.Samplers) text.Append(Id(sampler)).Append(',');
+            foreach (ISampler sampler in TextureSink.Samplers) text.Append(Describe(sampler)).Append(',');
         }
         return text.ToString();
     }
 
-    static string Id(object value) => value switch
+    public static string Describe(object value) => value switch
     {
         null => "-",
-        HostTexture t => "t" + t.Id,
+        HostTexture t => t.Name,
         HostSampler s => "s" + s.Id,
-        AliasHost a => "a" + a.Key + "." + a.Format,
+        ThreadedTexture w => Describe(w.Base),
+        ThreadedSampler w => Describe(w.Base),
         _ => "?",
     };
-}
 
-sealed class AliasHost : ITexture { public readonly int Key, Format; public AliasHost(int key, int format) { Key = key; Format = format; } }
+    // The live texture currently owning each host.
+    public Dictionary<HostTexture, Texture> LiveHosts()
+    {
+        Dictionary<HostTexture, Texture> owners = new();
+        foreach (Texture texture in All) if (!texture.Disposed) owners[Raw(texture.Host)] = texture;
+        return owners;
+    }
+}
 
 static class Program
 {
@@ -198,83 +233,125 @@ static class Program
     const bool Adapted = false;
 #endif
 
-    // Expected backend element, computed from the pools exactly as a full rebuild resolves it.
-    static string Expected(World w, Kind kind, int index, int format)
-    {
-        if (index >= Math.Min(w.Length, w.Length)) return "-";
-        if (kind == Kind.Sampler)
-        {
-            return "s" + w.Samplers.Keys[index];
-        }
-        int textureKey = w.Textures.Keys[index];
-        if (textureKey == 0) return "-";
-        Texture texture = w.Library[textureKey];
-        if (format != 0 && texture.Format != format) return "a" + textureKey + "." + format;
-        return "t" + textureKey;
-    }
-
+    // Every element must hold what a full rebuild resolves from the current pools: no texture for an
+    // empty descriptor, the pool texture's current host, or for another format a live view of that
+    // texture in that format; never a released host.
     static void VerifyAgainstPools(World w, Kind kind, int format, string context)
     {
+        Dictionary<HostTexture, Texture> owners = kind == Kind.Sampler ? null : w.LiveHosts();
         for (int index = 0; index < w.Length; index++)
         {
-            string actual = kind == Kind.Image ? Describe(w.ImageSink.Images[index])
-                : kind == Kind.Sampler ? Describe(w.TextureSink.Samplers[index]) : Describe(w.TextureSink.Textures[index]);
-            string expected = Expected(w, kind, index, format);
-            Check.That(actual == expected, $"{context}: element {index} is {actual}, pools say {expected}");
+            if (kind == Kind.Sampler)
+            {
+                string actual = World.Describe(w.TextureSink.Samplers[index]);
+                Check.That(actual == "s" + w.Samplers.Keys[index], $"{context}: sampler {index} is {actual}, pool says s{w.Samplers.Keys[index]}");
+                Check.That(w.TextureSink.Textures[index] == null, "sampler arrays carry no texture");
+                continue;
+            }
+            HostTexture bound = World.Raw(kind == Kind.Image ? w.ImageSink.Images[index] : w.TextureSink.Textures[index]);
+            int key = w.Textures.Keys[index];
+            string where = $"{context}: element {index} ({World.Describe(bound)}, key {key})";
+            Check.That(bound == null || !w.Released.Contains(bound), $"{where} binds a released host");
+            if (key == 0) { Check.That(bound == null, $"{where} must be empty"); continue; }
+            Texture texture = w.Library[key];
+            if (format == 0 || texture.Format == format)
+            {
+                Check.That(bound == World.Raw(texture.Host), $"{where} is not the pool texture's host {texture.Name}");
+            }
+            else
+            {
+                // A live view of the pool texture in that format. As delivered, a cache hit (pool not written,
+                // bound sequences unchanged) also keeps a view that outlived the removal of its parent
+                // (ForceRemove writes no pool sequence and the view's own sequence is unchanged).
+                Check.That(bound != null && owners.TryGetValue(bound, out Texture view) && view.Format == format &&
+                    view.Key == key && (view.Parent == texture || view.Parent.Disposed),
+                    $"{where} is not a live format {format} view of {texture.Name}");
+            }
             if (kind == Kind.Texture) Check.That(w.TextureSink.Samplers[index] == null, "texture arrays carry no sampler");
-            if (kind == Kind.Sampler) Check.That(w.TextureSink.Textures[index] == null, "sampler arrays carry no texture");
         }
     }
-
-    static string Describe(object value) => value switch
-    {
-        null => "-",
-        HostTexture t => "t" + t.Id,
-        HostSampler s => "s" + s.Id,
-        AliasHost a => "a" + a.Key + "." + a.Format,
-        _ => "?",
-    };
 
     static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)))[..16];
 
-    // Random pool writes, rewrites, invalidations and quiet passes; every update is checked
-    // against the pools and its backend state and synchronisation sets are digested, so the
-    // driver can require identical digests for control and candidate at every step.
-    static object Scenario(bool threaded, Kind kind, bool store, int length, int format, int seed, int steps)
+    static long Total(PD.Counter counter) => PD.Totals[(int)counter];
+
+    // One update checked against the pools. Its backend contents and store set (and, without format
+    // views, its synchronised set) are digested so that control and candidate must agree.
+    static string Step(World w, in TextureBindingInfo binding, Kind kind, string context, bool verify = true)
+    {
+        foreach (Texture t in w.All) t.ResetStep();
+        long full0 = Total(PD.Counter.ArrayFullElements);
+        w.Update(binding, kind);
+        int format = binding.FormatInfo.Format;
+        if (verify) VerifyAgainstPools(w, kind, kind == Kind.Sampler ? 0 : format, context);
+        Check.That(w.Violations == 0, $"{context}: a call reached a disposed texture");
+        if (Adapted && kind != Kind.Sampler && Total(PD.Counter.ArrayFullElements) == full0)
+        {
+            // Without a rebuild (cache hit or delta), every bound texture, format views included, is
+            // synchronised (and blacklisted when scaling is unsupported) as on the cache-hit path.
+            Dictionary<HostTexture, Texture> owners = w.LiveHosts();
+            ITexture[] bound = kind == Kind.Image ? w.ImageSink.Images : w.TextureSink.Textures;
+            bool blacklist = binding.Flags.HasFlag(TextureUsageFlags.ResScaleUnsupported);
+            foreach (ITexture host in bound)
+            {
+                if (host == null) continue;
+                Texture t = owners[World.Raw(host)];
+                Check.That(t.StepSynced, $"{context}: bound {t.Name} synchronised");
+                Check.That(!blacklist || t.ScaleMode == TextureScaleMode.Blacklisted, $"{context}: bound {t.Name} blacklisted");
+            }
+        }
+        string synced = format == 0 ? string.Join(",", w.All.Where(t => t.StepSynced).Select(t => t.Name).OrderBy(n => n, StringComparer.Ordinal)) : "";
+        string signaled = string.Join(",", w.All.Where(t => t.StepSignaled).Select(t => t.SignalName).OrderBy(n => n, StringComparer.Ordinal));
+        return Hash(w.Snapshot(kind) + "#" + synced + "#" + signaled);
+    }
+
+    // Random pool writes, rewrites, removals, remaps, scaling, alias-list destruction and quiet passes.
+    static object Scenario(bool threaded, Kind kind, bool store, bool resScale, int length, int format, int seed, int steps)
     {
         World w = new(length, threaded, seed);
-        TextureUsageFlags flags = store ? TextureUsageFlags.ImageStore : 0;
+        TextureUsageFlags flags = (store ? TextureUsageFlags.ImageStore : 0) | (resScale ? TextureUsageFlags.ResScaleUnsupported : 0);
         TextureBindingInfo binding = World.Binding(length, kind, flags, format);
         List<string> digests = new();
         for (int step = 0; step < steps; step++)
         {
-            if (step != 0) w.Mutate(1 + w.Random.Next(step % 4 == 0 ? 0 : 6), kind);
-            foreach (Texture t in w.Library.Skip(1)) t.ResetStepCounters();
-            w.Update(binding, kind);
-            VerifyAgainstPools(w, kind, format, $"{kind} L={length} step {step}");
-            string synced = string.Join(",", w.Library.Skip(1).Where(t => t.StepSynced).Select(t => t.Key));
-            string signaled = string.Join(",", w.Library.Skip(1).Where(t => t.StepSignaled).Select(t => t.Key));
-            // A rebuild synchronises pool items, the hit path the bound aliases: compare the
-            // synchronised set exactly without aliases, and require every bound alias synced otherwise.
-            if (format != 0)
-            {
-                foreach (ITexture bound in w.TextureSink.Textures)
-                {
-                    if (bound is ThreadedTexture { Base: AliasHost } || bound is AliasHost) { }
-                }
-                synced = "aliases";
-            }
-            digests.Add(Hash(w.Snapshot(kind, length) + "#" + synced + "#" + signaled));
+            if (step != 0) w.Mutate(1 + w.Random.Next(step % 4 == 0 ? 0 : 6));
+            digests.Add(Step(w, binding, kind, $"{kind} L={length} f={format} store={store} resScale={resScale} step {step}"));
         }
         w.Threaded?.Dispose();
-        return new { threaded, kind = kind.ToString(), store, length, format, seed, steps, digest = Hash(string.Join(";", digests)) };
+        return new { threaded, kind = kind.ToString(), store, resScale, length, format, seed, steps, digest = Hash(string.Join(";", digests)) };
+    }
+
+    // Three image bindings share one cache entry (the key holds neither format nor flags): format 1,
+    // format 2 with image store and no scaling, format 1 with no scaling. Scaled textures appear.
+    static object SharedEntry(bool threaded, bool touchEveryStep)
+    {
+        World w = new(64, threaded, touchEveryStep ? 5 : 6);
+        TextureBindingInfo[] bindings =
+        {
+            World.Binding(64, Kind.Image, 0, 1),
+            World.Binding(64, Kind.Image, TextureUsageFlags.ImageStore | TextureUsageFlags.ResScaleUnsupported, 2),
+            World.Binding(64, Kind.Image, TextureUsageFlags.ResScaleUnsupported, 1),
+        };
+        int[] order = { 0, 0, 1, 2, 2, 0, 2, 1, 1, 0, 0, 2 };
+        List<string> digests = new();
+        for (int step = 0; step < 48; step++)
+        {
+            if (step != 0) w.Mutate(2);
+            if (step % 5 == 2) w.RandomLibraryTexture().ScaleUp();
+            // As delivered, an unmodified pool keeps the entry's previous format and flags (cache hit):
+            // touching the pool before every update compares the rebuild rules alone.
+            if (touchEveryStep) w.Textures.Touch();
+            digests.Add(Step(w, bindings[order[step % order.Length]], Kind.Image, $"shared entry touched={touchEveryStep} step {step}", verify: touchEveryStep));
+        }
+        w.Threaded?.Dispose();
+        return new { threaded, touchEveryStep, digest = Hash(string.Join(";", digests)) };
     }
 
     // A buffer-texture array keeps the full rebuild (its storage is rebound on every update).
     static object TextureBufferScenario(bool threaded)
     {
         World w = new(64, threaded, 7);
-        foreach (Texture t in w.Library.Skip(1)) t.Target = Target.TextureBuffer;
+        foreach (Texture t in w.Library.Values) t.Target = Target.TextureBuffer;
         TextureBindingInfo binding = World.Binding(64, Kind.Texture, 0, 0, Target.TextureBuffer);
         long lookups = 0;
         for (int step = 0; step < 6; step++)
@@ -288,12 +365,37 @@ static class Program
         return new { threaded, lookupsPerUpdate = lookups / 6.0, storageBindings = w.Channel.BufferManager.StorageBindings };
     }
 
-    // A lookup that throws mid-pass leaves the array to the next full rebuild, which must be complete.
-    static object FailureScenario(bool threaded)
+    // A changed element's lookup removes a texture bound at earlier elements in the same pass. The
+    // delivered rebuild binds the released host until its next update; the candidate must notice it
+    // in the same update. No call may reach the disposed texture afterwards.
+    static object RemovalDuringPass(bool threaded, int format)
+    {
+        World w = new(256, threaded, 13);
+        TextureBindingInfo binding = World.Binding(256, Kind.Image, 0, format);
+        w.Update(binding, Kind.Image);
+        const int Earlier = 3, Later = 200;
+        Texture victim = w.Textures.Items[Earlier];
+        Check.That(victim != null && w.Textures.Keys[Later] == 0, "fixture: an earlier element is bound, the later one empty");
+        w.Textures.Write(Later, victim.Key % w.LibrarySize + 1);
+        w.Textures.OnResolve = id => { if (id == Later) { w.Textures.OnResolve = null; w.Remove(victim); } };
+        w.Update(binding, Kind.Image);
+        Check.That(w.Textures.OnResolve == null && victim.Disposed, "fixture: the victim was removed during the pass");
+        bool correctAtOnce = true;
+        try { VerifyAgainstPools(w, Kind.Image, format, "removal during pass"); } catch (InvalidOperationException) { correctAtOnce = false; }
+        w.Update(binding, Kind.Image);
+        VerifyAgainstPools(w, Kind.Image, format, "update after removal");
+        Check.That(w.Violations == 0, "a call reached the texture disposed during the pass");
+        if (Adapted) Check.That(correctAtOnce, "the candidate rebinds in the same update");
+        w.Threaded?.Dispose();
+        return new { threaded, format, correctAtOnce };
+    }
+
+    // A lookup that throws mid-pass. The candidate rebuilds on the next update even without a pool write.
+    static object FailureScenario(bool threaded, bool duringRebuild)
     {
         World w = new(300, threaded, 11);
         TextureBindingInfo binding = World.Binding(300, Kind.Texture);
-        w.Update(binding, Kind.Texture);
+        if (!duringRebuild) w.Update(binding, Kind.Texture);
         w.Textures.Write(150, 3);
         w.Textures.Write(20, 4);
         w.Textures.ThrowAt = 150;
@@ -301,13 +403,36 @@ static class Program
         try { w.Update(binding, Kind.Texture); } catch (TestFailure) { threw = true; w.Threaded?.Drain(); }
         Check.That(threw, "the doubled lookup failure propagates");
         w.Textures.ThrowAt = -1;
-        // The failed pass already consumed the pool's modified sequence (as delivered, too): the
-        // next pool write brings the array back, here through the full rebuild.
+        w.Update(binding, Kind.Texture);
+        bool correctWithoutWrite = true;
+        try { VerifyAgainstPools(w, Kind.Texture, 0, "after failure, no pool write"); } catch (InvalidOperationException) { correctWithoutWrite = false; }
+        if (Adapted) Check.That(correctWithoutWrite, "the candidate recovers without waiting for a pool write");
         w.Textures.Touch();
         w.Update(binding, Kind.Texture);
-        VerifyAgainstPools(w, Kind.Texture, 0, "after failure");
+        VerifyAgainstPools(w, Kind.Texture, 0, "after failure and a pool write");
         w.Threaded?.Dispose();
-        return new { threaded, recovered = true };
+        return new { threaded, duringRebuild, correctWithoutWrite };
+    }
+
+    // After the rebuild that blacklists scaled textures (and so replaces their hosts), quiet updates
+    // must come back to cache hits.
+    static object QuietAfterBlacklist(bool threaded, int format)
+    {
+        World w = new(64, threaded, 17);
+        foreach (Texture t in w.Library.Values) t.ScaleUp();
+        TextureBindingInfo binding = World.Binding(64, Kind.Image, TextureUsageFlags.ResScaleUnsupported, format);
+        w.Update(binding, Kind.Image);
+        VerifyAgainstPools(w, Kind.Image, format, "blacklisting rebuild");
+        long passes0 = PD.Calls[(int)PD.Work.ArrayDelta], full0 = Total(PD.Counter.ArrayFullElements);
+        for (int i = 0; i < 10; i++)
+        {
+            w.Update(binding, Kind.Image);
+            VerifyAgainstPools(w, Kind.Image, format, $"quiet update {i}");
+        }
+        long refreshes = PD.Calls[(int)PD.Work.ArrayDelta] - passes0 + (Total(PD.Counter.ArrayFullElements) - full0) / 64;
+        if (Adapted) Check.That(refreshes <= 1, "quiet updates return to cache hits after one refresh");
+        w.Threaded?.Dispose();
+        return new { threaded, format, refreshes };
     }
 
     // Cost with the observed shape: a pool-sized array, the pool written before every
@@ -319,21 +444,20 @@ static class Program
         w.Update(binding, kind);
         w.Update(binding, kind);
         const int Updates = 20;
-        long bytes = 0, lookups = 0, ticks = 0, calls = 0, elements = 0;
-        long sinkCalls0 = kind == Kind.Image ? w.ImageSink.Calls : w.TextureSink.Calls;
-        long sinkElements0 = kind == Kind.Image ? w.ImageSink.Elements : w.TextureSink.Elements;
+        long bytes = 0, lookups = 0, ticks = 0;
+        long calls0 = kind == Kind.Image ? w.ImageSink.Calls : w.TextureSink.Calls;
+        long elements0 = kind == Kind.Image ? w.ImageSink.Elements : w.TextureSink.Elements;
         for (int u = 0; u < Updates; u++)
         {
             for (int c = 0; c < changes; c++)
             {
                 int id = scattered ? (int)((long)(c * 7919 + u * 104729) % length) : (u * 131 + c) % length;
-                if (kind == Kind.Sampler) w.Samplers.Write(id, 1 + (w.Samplers.Keys[id] % (w.SamplerLibrary.Length - 1)));
-                else w.Textures.Write(id, 1 + (w.Textures.Keys[id] % (w.Library.Length - 1)));
+                if (kind == Kind.Sampler) w.Samplers.Write(id, 1 + (w.Samplers.Keys[id] % w.LibrarySize));
+                else w.Textures.Write(id, 1 + (w.Textures.Keys[id] % w.LibrarySize));
             }
             w.Textures.Touch(); w.Samplers.Touch();
             long lookupsBefore = w.Textures.Lookups + w.Samplers.Lookups;
             w.Context.SequenceNumber++;
-            w.Textures.Synchronize(); w.Samplers.Synchronize();
             long before = GC.GetAllocatedBytesForCurrentThread();
             long start = Stopwatch.GetTimestamp();
             if (kind == Kind.Image) w.Cache.UpdateImageArray(w.Textures, ShaderStage.Compute, 0, 0, binding);
@@ -343,8 +467,8 @@ static class Program
             lookups += w.Textures.Lookups + w.Samplers.Lookups - lookupsBefore;
             w.Threaded?.Drain();
         }
-        calls = (kind == Kind.Image ? w.ImageSink.Calls : w.TextureSink.Calls) - sinkCalls0;
-        elements = (kind == Kind.Image ? w.ImageSink.Elements : w.TextureSink.Elements) - sinkElements0;
+        long calls = (kind == Kind.Image ? w.ImageSink.Calls : w.TextureSink.Calls) - calls0;
+        long elements = (kind == Kind.Image ? w.ImageSink.Elements : w.TextureSink.Elements) - elements0;
         VerifyAgainstPools(w, kind, 0, $"measure {kind} L={length} k={changes}");
         w.Threaded?.Dispose();
         return new
@@ -364,14 +488,20 @@ static class Program
         foreach (bool threaded in new[] { true, false })
             foreach (Kind kind in new[] { Kind.Texture, Kind.Sampler, Kind.Image })
                 foreach (int length in new[] { 8, 70, 5000 })
-                    for (int seed = 1; seed <= 3; seed++)
+                    for (int seed = 1; seed <= 4; seed++)
                     {
-                        bool store = kind == Kind.Image && seed != 2;
-                        int format = kind == Kind.Texture && seed == 3 ? 2 : 0;
-                        scenarios.Add(Scenario(threaded, kind, store, length, format, seed * 31 + length, 40));
+                        // Seeds 1-4: plain, format views, no scaling, format views without scaling
+                        // (image stores on seeds 1 and 3).
+                        bool store = kind == Kind.Image && seed % 2 == 1;
+                        bool resScale = kind != Kind.Sampler && seed >= 3;
+                        int format = kind != Kind.Sampler && seed % 2 == 0 ? 2 : 0;
+                        scenarios.Add(Scenario(threaded, kind, store, resScale, length, format, seed * 31 + length, 40));
                     }
+        List<object> shared = new() { SharedEntry(true, true), SharedEntry(false, true), SharedEntry(true, false), SharedEntry(false, false) };
         List<object> buffers = new() { TextureBufferScenario(true), TextureBufferScenario(false) };
-        List<object> failures = new() { FailureScenario(true), FailureScenario(false) };
+        List<object> removals = new() { RemovalDuringPass(true, 0), RemovalDuringPass(false, 0), RemovalDuringPass(true, 3), RemovalDuringPass(false, 3) };
+        List<object> failures = new() { FailureScenario(true, false), FailureScenario(false, false), FailureScenario(true, true), FailureScenario(false, true) };
+        List<object> quiet = new() { QuietAfterBlacklist(true, 0), QuietAfterBlacklist(false, 0), QuietAfterBlacklist(true, 2), QuietAfterBlacklist(false, 2) };
         List<object> measures = new();
         foreach (int length in new[] { 4097, 16384, 65536 })
         {
@@ -380,12 +510,14 @@ static class Program
             measures.Add(Measure(true, Kind.Texture, length, 64, true));
             measures.Add(Measure(true, Kind.Texture, length, 256, false));
             measures.Add(Measure(true, Kind.Sampler, length, 1, false));
+            measures.Add(Measure(true, Kind.Image, length, 1, false));
             measures.Add(Measure(false, Kind.Texture, length, 1, false));
         }
         Console.WriteLine(JsonSerializer.Serialize(new
         {
-            adapted = Adapted, checks = Check.Count, scenarios, buffers, failures, measures,
+            adapted = Adapted, checks = Check.Count, scenarios, shared, buffers, removals, failures, quiet, measures,
             counters = Enum.GetNames<PD.Counter>().Zip(PD.Totals).ToDictionary(p => p.First, p => p.Second),
+            deltaPasses = PD.Calls[(int)PD.Work.ArrayDelta],
         }));
     }
 }
@@ -396,12 +528,12 @@ namespace Ryujinx.Common
     public static class EmbeddedPerformanceDiagnostics
     {
         public enum Work { Draw, Compute, Dma, InlineToMemory, TextureSync, TextureFlush, TextureFlushAction,
-            BufferLoad, BufferFlush, PoolSync, ShaderLookup, Bindings, ComputeBindings, ArrayFull, ArrayDelta, ArrayBuffer, Count }
-        public enum Counter { ArrayFullRebuilds, ArrayFullElements, ArrayDeltaPasses, ArrayDeltaElements, ArrayDeltaChanged,
-            ArrayBufferRebuilds, ArrayBufferElements, PoolCreates, Count }
+            BufferLoad, BufferFlush, PoolSync, ShaderLookup, Bindings, ArrayDelta, Count }
+        public enum Counter { ArrayFullElements, ArrayDeltaElements, ArrayDeltaChanged, ArrayBufferElements, Count }
         public static readonly long[] Totals = new long[(int)Counter.Count];
+        public static readonly long[] Calls = new long[(int)Work.Count];
         public readonly struct WorkScope : IDisposable { public void Dispose() { } }
-        public static WorkScope Track(Work work) => default;
+        public static WorkScope Track(Work work) { Calls[(int)work]++; return default; }
         public static void Count(Counter counter, long amount = 1) => Totals[(int)counter] += amount;
     }
 }
@@ -566,33 +698,68 @@ namespace Ryujinx.Graphics.Gpu.Image
 
     sealed class Texture
     {
-        public readonly ITexture Host;
-        public readonly int Key, Format;
         readonly World _world;
-        readonly Dictionary<int, Texture> _aliases = new();
+        public ITexture Host;
+        public readonly int Key, Format;
+        public readonly Texture Parent;
+        public readonly List<Texture> Views = new();
         public Target Target = Target.Texture2D;
         public TextureScaleMode ScaleMode;
         public int InvalidatedSequence;
         public TestRange Range;
-        public bool StepSynced, StepSignaled;
-        public Texture(ITexture host, int key, int format, World world) { Host = host; Key = key; Format = format; _world = world; }
-        public ITexture GetTargetTexture(Target target) => Host;
-        public void SynchronizeMemory() => StepSynced = true;
-        public void SignalModified() => StepSignaled = true;
-        public void BlacklistScale() => ScaleMode = TextureScaleMode.Blacklisted;
-        public void ResetStepCounters() { StepSynced = false; StepSignaled = false; foreach (Texture a in _aliases.Values) a.ResetStepCounters(); }
-        // A stable view per requested format, dropped (and invalidated) with its parent.
-        public Texture Alias(int format)
+        public bool Scaled, Disposed, StepSynced, StepSignaled;
+        public string Name => World.Describe(Host);
+        public string SignalName => Parent == null ? "t" + Key : "a" + Key + "." + Format;
+        public Texture(World world, ITexture host, int key, int format, Texture parent)
         {
-            if (!_aliases.TryGetValue(format, out Texture alias))
-            {
-                ITexture host = new AliasHost(Key, format);
-                if (Host is ThreadedTexture) host = new ThreadedTexture { Base = host };
-                _aliases[format] = alias = new Texture(host, Key, format, _world);
-            }
-            return alias;
+            _world = world; Host = host; Key = key; Format = format; Parent = parent;
+            if (parent != null) { parent.Views.Add(this); ScaleMode = parent.ScaleMode; }
         }
-        public void DropAliases() { foreach (Texture a in _aliases.Values) a.InvalidatedSequence++; _aliases.Clear(); }
+        void Use() { if (Disposed) _world.Violations++; }
+        public ITexture GetTargetTexture(Target target) { Use(); return Host; }
+        public void SynchronizeMemory() { Use(); StepSynced = true; }
+        public void SignalModified() { Use(); StepSignaled = true; }
+        // ReplaceStorage: the old host is released; views are recreated against the new storage.
+        void ReplaceStorage()
+        {
+            _world.Release(Host);
+            Host = _world.NewHost(Name + "'");
+            InvalidatedSequence++;
+            foreach (Texture view in Views) view.ReplaceStorage();
+        }
+        // SetScale(> 1) of an eligible texture used as a render target.
+        public void ScaleUp()
+        {
+            if (Disposed || Parent != null || ScaleMode != TextureScaleMode.Eligible || Scaled) return;
+            Scaled = true;
+            ReplaceStorage();
+        }
+        // BlacklistScale: SetScale(1f) on the storage, which replaces a scaled storage and its views.
+        public void BlacklistScale()
+        {
+            Use();
+            ScaleMode = TextureScaleMode.Blacklisted;
+            if (Parent != null)
+            {
+                if (!Parent.Disposed) Parent.BlacklistScale();
+                return;
+            }
+            foreach (Texture view in Views) view.ScaleMode = TextureScaleMode.Blacklisted;
+            if (Scaled)
+            {
+                Scaled = false;
+                ReplaceStorage();
+            }
+        }
+        public void Dispose()
+        {
+            if (Disposed) return;
+            Disposed = true;
+            _world.Release(Host);
+            InvalidatedSequence++;
+            Parent?.Views.Remove(this);
+        }
+        public void ResetStep() { StepSynced = false; StepSignaled = false; }
     }
 
     sealed class Sampler
@@ -612,29 +779,51 @@ namespace Ryujinx.Graphics.Gpu.Image
         public readonly int[] Keys;
         readonly bool[] _invalid;
         readonly TextureDescriptor[] _descriptors;
+        readonly Dictionary<Texture, Dictionary<int, Texture>> _aliasLists = new();
+        readonly List<Texture> _orphans = new();
+        int _aliasGeneration;
         public int MaximumId, Sequence = 1, ThrowAt = -1;
         public long Lookups;
+        public Action<int> OnResolve;
         public TexturePool(World world, int length)
         {
             _world = world; Items = new Texture[length]; Keys = new int[length]; _invalid = new bool[length];
             _descriptors = new TextureDescriptor[length]; MaximumId = length - 1;
         }
         public bool WasModified(ref int sequence) { bool changed = Sequence != sequence; sequence = Sequence; return changed; }
-        public void Synchronize() { }
         public void Touch() => Sequence++;
-        // InvalidateRangeImpl: an identical descriptor keeps its item; a different one clears it.
+        // InvalidateRangeImpl: an identical descriptor keeps its item; a different one clears it and its alias list.
         public void Write(int id, int key)
         {
             Sequence++;
             if (Keys[id] == key && Items[id] != null) return;
+            if (Items[id] != null) RemoveAliasList(Items[id], disposeNow: false);
             Keys[id] = key; Items[id] = null; _invalid[id] = false;
         }
+        // TexturePool.ForceRemove: clears the item without touching the modified sequence.
         public void ForceRemove(Texture texture)
         {
-            // TexturePool.ForceRemove clears the item without touching the modified sequence.
             for (int id = 0; id < Items.Length; id++) if (Items[id] == texture) Items[id] = null;
+            RemoveAliasList(texture, disposeNow: false);
         }
-        // GetInternal + the alias rule of GetForBinding(id, formatInfo).
+        // RemoveAliasList: the aliases lose the list's reference, and are deleted now or later.
+        public void RemoveAliasList(Texture texture, bool disposeNow)
+        {
+            if (!_aliasLists.Remove(texture, out Dictionary<int, Texture> list)) return;
+#if ADAPTED
+            _aliasGeneration++;
+#endif
+            foreach (Texture alias in list.Values)
+            {
+                if (disposeNow) alias.Dispose(); else _orphans.Add(alias);
+            }
+        }
+        public void DisposeOrphanAliases()
+        {
+            foreach (Texture alias in _orphans) alias.Dispose();
+            _orphans.Clear();
+        }
+        // GetInternal (synchronises the pool item) + the alias rule of GetForBinding(id, formatInfo).
         public ref readonly TextureDescriptor GetForBinding(int id, FormatInfo formatInfo, out Texture texture)
         {
             Lookups++;
@@ -648,15 +837,28 @@ namespace Ryujinx.Graphics.Gpu.Image
                 Items[id] = texture;
             }
             texture.SynchronizeMemory();
-            if (formatInfo.Format != 0 && texture.Format != formatInfo.Format) texture = texture.Alias(formatInfo.Format);
+            OnResolve?.Invoke(id);
+            if (formatInfo.Format != 0 && texture.Format != formatInfo.Format)
+            {
+                if (!_aliasLists.TryGetValue(texture, out Dictionary<int, Texture> list)) _aliasLists[texture] = list = new();
+                if (!list.TryGetValue(formatInfo.Format, out Texture alias))
+                {
+                    list[formatInfo.Format] = alias = _world.NewTexture(texture.Key, formatInfo.Format, texture);
+                }
+                texture = alias;
+            }
             return ref _descriptors[id];
         }
+#if ADAPTED
+        // The members the adapter adds to the production TexturePool.
         internal Texture PeekForBindingDelta(int id, out bool knownInvalid)
         {
             Texture texture = Items[id];
             knownInvalid = texture == null && _invalid[id];
             return texture;
         }
+        internal int AliasGeneration => _aliasGeneration;
+#endif
         public Texture GetCachedItem(int id) => id >= 0 && id < Items.Length ? Items[id] : null;
         public bool IsValidId(int id) => id >= 0 && id <= MaximumId;
         public ref readonly TextureDescriptor GetDescriptorRef(int id) => ref _descriptors[id];
@@ -676,7 +878,6 @@ namespace Ryujinx.Graphics.Gpu.Image
             _descriptors = new SamplerDescriptor[length]; MaximumId = length - 1;
         }
         public bool WasModified(ref int sequence) { bool changed = Sequence != sequence; sequence = Sequence; return changed; }
-        public void Synchronize() { }
         public void Touch() => Sequence++;
         // A changed sampler descriptor disposes the old sampler object.
         public void Write(int id, int key)
@@ -685,6 +886,7 @@ namespace Ryujinx.Graphics.Gpu.Image
             if (Keys[id] == key && Items[id] != null) return;
             Keys[id] = key; Items[id]?.Dispose(); Items[id] = null;
         }
+        // SamplerPool.Get creates a sampler for every in-range id.
         public Sampler Get(int id)
         {
             Lookups++;
