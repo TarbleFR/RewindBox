@@ -175,3 +175,23 @@ MeloNX nommé par le manifeste (Core arrays) et le travail différé promu (`pro
 `b06888a9`), 5 revus, 50 différences produit, 70 chemins différés hérités, empreinte effective
 `90495b43…`, 6673 fichiers produit ; tests frais dans les deux groupes ; contrôle légal réussi.
 L'image `rpcs3_internal_bridge` a changé sans changement de ses sources (signalée, non bloquante).
+
+## 7. État de la 615 (2 novembre 2026)
+
+Livrée sur la 614 (run `41464449025`, IPA `9afe1120…`, 194138031 octets), sans extension de la
+recette. Gel sur `062b96ef` : base effective 614 `90495b43…`, 2 commits revus (`fe37a2da` RewindBox
+Glacier, `f9408633` correctif RetroAchievements), 180 différences produit, 70 chemins différés
+hérités, empreinte effective `b2d6eb0e…`, 6822 fichiers produit ; contrôle légal réussi.
+- `38c07fd2` modifiait aussi `lib/services/retro_achievements_session_service.dart`, dont les octets
+  livrés (614) excluent encore `b06888a9` : le gel l'a refusé comme commit revu (conflit). Il a été
+  annulé (`1440c666`), les deux classés « source seulement » (effet produit nul), puis réappliqué sans
+  ce fichier (`f9408633`), sans réécrire l'historique.
+- La déclaration de sources Glacier (`docs/evidence/rewindbox-glacier-declarations-2026-11-02.json`)
+  rejoint `EMBEDDED_RECIPE_FILES`.
+- Composants : Cores RPCS3 (613) et MeloNX arrays (614) `unchangedFromBase` ; Dolphin/ARMSX2,
+  libretro et dépendances MeloNX conservés par la republication de la 614. Images changées : App,
+  `retro_achievements_session`, Runner, et `rpcs3_internal_bridge` sans changement de ses sources
+  (signalé, non bloquant, comme en 614). Tests frais dans les deux groupes (~22 min de bout en bout).
+- Hors CI : métadonnées API lues par l'API REST publique, pièces téléchargées par les URL signées du
+  serveur GitHub MCP (octets égaux aux digests de l'API) ; IPA vérifiée hors ligne, clé privée
+  supprimée.

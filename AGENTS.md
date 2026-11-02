@@ -21,17 +21,25 @@ Last reconciled: **2 November 2026**, after private Build **614**.
 
 | Item | Verified reference |
 | --- | --- |
-| Application | **RewindBox 0.0.8 (614)**, private IPA; iOS 18+, SideStore re-signing |
-| Delivery source | `0ec7450d2e0c6ea03189303563cad82b1fb10ca8`, tree `3684fb3892af01fd03717f079da28ad5b068383b`; frozen manifest [`build-utils/delivery/614.json`](build-utils/delivery/614.json) (freeze commit `6c377f97`, effective product digest `90495b43…`, replayed from the delivered 613 effective tree `fd90ad9d…`) |
-| Delivery run / jobs | `41446700372`, attempt 1, standard recipe: preflight `125281484833`, Flutter `125281788911`, native `125281788941`, republish `125281788929`, application `125281788963`, all successful (about 25 min); both test groups ran fresh, with the delivery contract |
-| Downloaded IPA | `RewindBox-614.ipa`, 190298692 bytes; SHA-256 `fbfab991eb858103bca0ce34b6abf09a6890d598ba54b02e9ca501017e6a3dcb` |
-| Product baseline | Delivered 613 plus the reviewed MeloNX arrays commits (`af488390`, `fcc4fe99`, `c9778669`, `70575fcb`, `b181cbe1`) and, **promoted** from the work 613 deferred (new `product.promotedCommits`), `e424bc9f`, `05ab4b1b`, `a5a64217` (MeloNX), `35afb4c9` (RetroAchievements sign-in), `d7f069b8` (scraper/game box) and only the 13 `lib/l10n/app_locale*.dart` files of `b06888a9` (7 unused keys, on which `35afb4c9` was written); the other 70 paths of `b06888a9` stay **deferred** (inherited) |
-| MeloNX Core | **Replaced: bindless array-delta Core** (full-bindless pool arrays updated by changed element; synchronisation never leaves a released host bound); Core run `41442795323`, source `b181cbe1`, artifact `13141611354`, ios-arm64 `7816830c…`, packaged fingerprint `bf7de0dd…`; replaces `b99e754d` (`98ecdb25…`) ([note](docs/melonx-bindless-deltas-2026-11-02.md), [pin](build-utils/melonx/arrays-core-pin.json)) |
+| Application | **RewindBox 0.0.8 (615)**, private IPA; iOS 18+, SideStore re-signing |
+| Delivery source | `eaca0d8afc1eb7948d4e02586b00b037ded39697`, tree `82387290422c31a02cf4cbdb1cb6d9cb1e8ac95e`; frozen manifest [`build-utils/delivery/615.json`](build-utils/delivery/615.json) (freeze commit `062b96ef`, effective product digest `b2d6eb0e…`, replayed from the delivered 614 effective tree `90495b43…`) |
+| Delivery run / jobs | `41464449025`, attempt 1, standard recipe: preflight `125341541849`, Flutter `125342211334`, native `125342211575`, republish `125342211500`, application `125342211782`, all successful (about 22 min); both test groups ran fresh, with the delivery contract |
+| Downloaded IPA | `RewindBox-615.ipa`, 194138031 bytes; SHA-256 `9afe112076bff0a75248c46d8f13e682938b393a7d75c10cfe7e35ff5fdd9cb7` |
+| Product baseline | Delivered 614 plus the reviewed `fe37a2da` (**RewindBox Glacier** main menu, embedded offline System Art pack, one-step preset; [note](docs/rewindbox-glacier-2026-11-02.md)) and `f9408633` (RetroAchievements in-game sign-in kept when iOS loses its Keychain item; [note](docs/ra-credentials-status-2026-11-01.md)); `38c07fd2` and its revert `1440c666` source only (net zero); the other 70 paths of `b06888a9` stay **deferred** (inherited) |
+| MeloNX Core | **Kept from 614** (`unchangedFromBase`): bindless array-delta Core, Core run `41442795323`, source `b181cbe1`, packaged fingerprint `bf7de0dd…` ([pin](build-utils/melonx/arrays-core-pin.json)) |
 | RPCS3 Core | **Kept from 613** (`unchangedFromBase`): Core run `41436855282`, payload `3d40b7de…` ([pin](build-utils/rpcs3/core-pin.json)) |
-| Dolphin Core | Retained from 608 (payload `640e4389…`) through the archive republished by run `41440020469` |
-| ARMSX2 Core | Retained from 608 (payload `fab55193…`, ABI 9) through the archive republished by run `41440020469` |
-| libretro / MeloNX dependencies | Retained through the archives republished by run `41440020469` (kept until 31 January 2027) |
-| Delivery proof | [delivery receipt](docs/evidence/rewind614/delivery.json), [signed payload identity](docs/evidence/rewind614/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind614/download614-verification.json); 613: [receipt](docs/evidence/rewind613/delivery.json) |
+| Dolphin Core | Retained from 608 (payload `640e4389…`) through the archive republished by run `41446700372` |
+| ARMSX2 Core | Retained from 608 (payload `fab55193…`, ABI 9) through the archive republished by run `41446700372` |
+| libretro / MeloNX dependencies | Retained through the archives republished by run `41446700372` (republished again by run `41464449025`, kept until 31 January 2027) |
+| Delivery proof | [delivery receipt](docs/evidence/rewind615/delivery.json), [signed payload identity](docs/evidence/rewind615/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind615/download615-verification.json); 614: [receipt](docs/evidence/rewind614/delivery.json) |
+
+615 is delivered, not a pending candidate. Do not reuse its number. The Glacier
+menu and the RetroAchievements Keychain fix have no iPhone result yet; the
+Glacier composition was checked by real Flutter rendering against the approved
+mock-up ([captures](docs/design/rewindbox-glacier/verification/captures/)).
+`Frameworks/rpcs3_internal_bridge` changed from 614 although its sources did not
+(reported as an undeclared image change, not blocking, as in 614). The private
+615 recipient key was deleted after the verified delivery.
 
 614 is delivered, not a pending candidate. Do not reuse its number. Its MeloNX
 Core has no iPhone result yet ([protocol](docs/melonx-bindless-deltas-2026-11-02.md),
