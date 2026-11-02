@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 616,
- "note": "RPCS3 Core 616: the delivered Core 610 plus the folded record core616_20261102 (the Core 612 and Core 613 records, ZCULL polls that never wait for the GPU with the ZCULLWAIT616 probe, and for Black Ops II the vertex depth fallback on window Z and the SPU object read-ahead), built by the RPCS3 Core route (run 41467174038). Verified offline on the downloaded artifacts with the repository verifier: 92 Mach-O exports equal the identity, ABI 30, codegen PPU/SPU unchanged.",
+ "build": 619,
+ "note": "RPCS3 Core 619: the delivered Core 610 plus the folded record core619_20261102 (the Core 612, 613 and 616 records; for Assassin's Creed the ZCULL reports written when the guest reads them, with the RSX label accesses off the shared 16 KiB page and the ZCULLDEMAND619 probe; for Black Ops II the pinned-draw affine clipping and asynchronous MoltenVK submits in Automatic), built by the RPCS3 Core route (run 41509883194). Verified offline on the downloaded artifacts with the repository verifier: 92 Mach-O exports equal the identity, ABI 30, codegen PPU/SPU unchanged.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
@@ -14,25 +14,25 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 616 source closure and the native dependency",
+    "Authenticate the Core 619 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 616",
-    "Verify the actual binary and write its Core 616 identity",
+    "Compile and link the actual iPhone Core 619",
+    "Verify the actual binary and write its Core 619 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 616 without an application delivery",
+    "Upload the verified Core 619 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "b56a608d6165469c8b6ab70f5f3310101dcd6be3",
-   "run": 41467174038,
+   "source": "3d19075354afcc2ec04ddb1a2917486320028bea",
+   "run": 41509883194,
    "attempt": 1,
-   "job": 125351031232,
-   "artifact": 13155525585,
-   "name": "RPCS3Core-616-b56a608d6165469c8b6ab70f5f3310101dcd6be3",
-   "bytes": 29294409,
-   "sha256": "5f8f7c9e63b223aaff88eee26e58e8c89f8d44b31fb0c76441db1dd3e3c00e18",
-   "expiresAt": "2026-12-02T15:14:43Z"
+   "job": 125498675082,
+   "artifact": 13174470646,
+   "name": "RPCS3Core-619-3d19075354afcc2ec04ddb1a2917486320028bea",
+   "bytes": 29298503,
+   "sha256": "eba9ca4039960d06f5fb239ceda02ca5a132a2188c6ea6119616ee22e5d85273",
+   "expiresAt": "2026-12-02T19:43:36Z"
   },
   "hostTests": {
    "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
@@ -40,9 +40,9 @@
     "Checkout immutable candidate and the delivered Core history",
     "Read the declared Core build",
     "Select the retained Core toolchain",
-    "Materialize the Core 616 sources and the delivered a4ae86d0 sources",
+    "Materialize the Core 619 sources and the delivered a4ae86d0 sources",
     "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 616 harnesses with Apple clang",
+    "Run the affected and new Core 619 harnesses with Apple clang",
     "Preserve the Apple host harness reports"
    ],
    "names": [
@@ -59,19 +59,19 @@
     "spu-object-hit-admission-613",
     "spu-object-hit-admission-613-asan-ubsan",
     "codegen-audit",
-    "core616",
-    "core616-asan-ubsan",
-    "core616-tsan"
+    "core619",
+    "core619-asan-ubsan",
+    "core619-tsan"
    ],
-   "source": "b56a608d6165469c8b6ab70f5f3310101dcd6be3",
-   "run": 41467174038,
+   "source": "86cb5933242bd8e0a3463696225795c3fff9f30c",
+   "run": 41514477410,
    "attempt": 1,
-   "job": 125351030886,
-   "artifact": 13153172372,
-   "name": "RPCS3Core-616-apple-host-tests-b56a608d6165469c8b6ab70f5f3310101dcd6be3",
-   "bytes": 34094,
-   "sha256": "94bb54a3735a81044aefd5ed12a53ecf8ba5345e4ef8becd33cfd0a5f67956ca",
-   "expiresAt": "2026-12-02T15:01:27Z",
+   "job": 125514372674,
+   "artifact": 13174317863,
+   "name": "RPCS3Core-619-apple-host-tests-86cb5933242bd8e0a3463696225795c3fff9f30c",
+   "bytes": 36456,
+   "sha256": "ef64be03b63bf4d651069f4b7110e5079705c10b4d4fe9dd2c4cbe54914d398c",
+   "expiresAt": "2026-12-02T19:57:58Z",
    "reused": {
     "names": [
      "lr-full-queue",
@@ -100,17 +100,17 @@
   }
  },
  "core": {
-  "type": "rpcs3-ios-core616",
-  "dylibBytes": 77479608,
-  "dylibSha256": "6f555efe1a822f7cb6b9a73fab082392e266194fca9eb5c9b7f27c1413990426",
-  "identitySha256": "26598430bec3aa76f282872dafff3bd256293bdb979d2c754f4f227e1b53236d",
+  "type": "rpcs3-ios-core619",
+  "dylibBytes": 77496968,
+  "dylibSha256": "5e81053e3a5c7ace0acd221e373902b0664bdb7a765641a71c71c51cbb0a5ab9",
+  "identitySha256": "1fc50ab8744b781c6c42c0271bb7894946518a4ff3e904318c825fd574ce9d0c",
   "proofMember": "core610-proof.json",
-  "proofSha256": "254f336e83a8df21fee7e29381b582f8ccbb978e65607902dda99c29c1c3b683",
-  "payloadFingerprint": "633d844b7dc39a7d30758e88c8c52302df9c13b5070e9401074c4b5202bff964"
+  "proofSha256": "34fd2160f95915f723baaf4e906612df22260b42b57284872d83ec0081d0b678",
+  "payloadFingerprint": "44fc928ed12424c555c9146301d54ff7783e3fceb91c9370e1194fd0680e3950"
  },
  "canonical": {
-  "patchSha256": "2abb64749d64a9875fb2b3e8034991596906d838e704d29b112ce7ecd9a15628",
-  "postimages": 334,
+  "patchSha256": "2887d3b7dd69210618305b425a4a2038fd4819592b9fd6f80371cf4533b356c3",
+  "postimages": 338,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -238,13 +238,15 @@
   "COREPROF ZCULLSYNC613",
   "COREPROF ZCULLWAIT616",
   "COREPROF SPUPREFETCH616",
-  "Resolved title policy 616"
+  "Resolved title policy 616",
+  "COREPROF ZCULLDEMAND619",
+  "Resolved title policy 619"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "218b63dc332ab394abc4631c567bf618847c12fb",
-  "run": 41436855282,
-  "artifact": 13137258189,
-  "payloadFingerprint": "3d40b7deea0a47591843bab29e85a88ac6dd234336856114bef78054604e6c33"
+  "source": "b56a608d6165469c8b6ab70f5f3310101dcd6be3",
+  "run": 41467174038,
+  "artifact": 13155525585,
+  "payloadFingerprint": "633d844b7dc39a7d30758e88c8c52302df9c13b5070e9401074c4b5202bff964"
  }
 }
