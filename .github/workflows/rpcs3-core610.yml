@@ -15,6 +15,7 @@
 # Core compile request: Core 612 (core-build.json build 612, canonical patch 4e2dd29b), request 1.
 # Core compile request: Core 613 (core-build.json build 613, canonical patch c107718c), request 1.
 # Core compile request: Core 616 (core-build.json build 616, canonical patch 2abb6474), request 1.
+# Core compile request: Core 619 (core-build.json build 619, canonical patch 2887d3b7), request 1.
 # Apple host harness rerun: Core 613 codegen audit reruns for its two exact aliases (request 2).
 name: RPCS3 Core
 # run-name is evaluated before any job and cannot read the spec; the build
