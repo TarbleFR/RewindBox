@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "build": 617,
-  "status": "draft",
+  "status": "frozen",
   "note": "Private IPA 617 on the delivered and verified 616: the MeloNX Core with the Hogwarts Legacy float DMA copies on the GPU (GraphicsConfig.HogwartsFloatDmaGpuCopy, set only for title 0100f7e00c70e000) and bindless delta passes that visit only the texture-pool ids logged since their last pass (Core run 41464702975, replaces the 614 arrays Core); the Glacier menu fixes reported on the 615 iPhone (97d8a38f); the scraper and game box fix 6e636e9d and the MeloNX route commits deferred by 616 for 617, promoted. RPCS3 Core 616 kept unchanged; Dolphin/ARMSX2, libretro and the MeloNX dependencies retained through the 616 republication; the rest of b06888a9 stays deferred (inherited).",
   "base": {
     "build": 616,
@@ -293,11 +293,591 @@
         "commit": "97d8a38f8973305abd2498d61ab7ef36fb9afa5c",
         "note": "RewindBox Glacier fixes reported by the maintainer on the 615 iPhone (one margin on iPhone, no cards over the title, larger tab glyphs and carousel; Dart UI, capture test and renders), deferred by 616 for 617."
       }
-    ]
+    ],
+    "freezeCommit": "4575db36080437d5cb34c63fbb2eb85527e4a123",
+    "freezeTree": "cb2f88b6a960469b5132dceb9b1251e49c8b5469",
+    "baseEffectiveDigest": "f30fee4c4f2b2d3252d761c68e1675c9637bc5f97c7f35b9404e5edfd55e27ab",
+    "inheritedDeferredPaths": [
+      "lib/models/retro_achievements_session.dart",
+      "lib/screens/game_screen/game_details_card/dialogs/game_achievements_dialog.dart",
+      "lib/screens/game_screen/game_details_card/game_details_card_list.dart",
+      "lib/screens/game_screen/game_details_card/tabs/game_details_achievements_tab.dart",
+      "lib/screens/game_screen/game_details_card/tabs/ra_identity_note.dart",
+      "lib/services/libretro_internal_service.dart",
+      "lib/services/retro_achievements_helper.dart",
+      "lib/services/retro_achievements_identity.dart",
+      "lib/services/retro_achievements_resolver.dart",
+      "lib/services/retro_achievements_session_service.dart",
+      "lib/services/retroachievements_hash_service.dart",
+      "lib/services/rpcs3_internal_service.dart",
+      "lib/services/rpcs3_launch_service.dart",
+      "lib/services/stikjit_armsx2_service.dart",
+      "lib/utils/optimized_md5_utils.dart",
+      "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m",
+      "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m",
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.c",
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/LICENSE.txt",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/NEOSTATION_NOTICE.md",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/README.md",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/LICENSE",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/LzmaDec.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/7zTypes.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/LzmaDec.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/LzmaDec.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/real/LzmaDec.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd_errors.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstddeclib.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/dr_libs/dr_flac.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/bitstream.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/cdrom.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chd.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chdconfig.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/coretypes.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/flac.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/huffman.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/macros.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_avhuff.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdfl.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdlz.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzl.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzs.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_flac.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_huff.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_lzma.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zlib.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zstd.h",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_bitstream.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_cdrom.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_chd.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_avhuff.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdfl.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdlz.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzl.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzs.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_flac.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_huff.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_lzma.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zlib.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zstd.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_flac.c",
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_huffman.c",
+      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec",
+      "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Achievements.mm",
+      "test/libretro_ios_syntax_test.py",
+      "test/ra_disc_hash_reader_test.py",
+      "test/retro_achievements_identification_test.dart"
+    ],
+    "recipeDefinitionSHA256": "bb612f4a43186a801232ffa15ad61fcd22e4df60e31a7392b69cd7ab094f2b2a",
+    "recipeDefinition": {
+      "prefixes": [
+        ".github/",
+        "docs/",
+        ".claude/",
+        "build-utils/delivery/"
+      ],
+      "files": [
+        "build-utils/rpcs3/core-pin.json",
+        "build-utils/melonx/reads-core-pin.json",
+        "build-utils/melonx/arrays-core-pin.json",
+        "build-utils/melonx/dma-core-pin.json",
+        "test/standard_delivery_contract_test.py",
+        "build-utils/verify_downloaded_delivery.py"
+      ],
+      "globs": [
+        "build-utils/delivery-*-recipient.pem"
+      ],
+      "rootMarkdown": true
+    },
+    "commits": [
+      {
+        "commit": "58fa9f35521e7a2a19612b4d07486f1bde222864",
+        "subject": "wip(melonx): Hogwarts float DMA copies on the GPU with bounded attribution, and a cheaper bindless delta pass [skip ci]",
+        "role": "promoted",
+        "productPaths": 5,
+        "partial": false
+      },
+      {
+        "commit": "fdbe08330737a7c7f7d3211b271631a168beaacc",
+        "subject": "feat(melonx): bindless delta passes visit only the pool ids logged since their last pass [skip ci]",
+        "role": "promoted",
+        "productPaths": 3,
+        "partial": false
+      },
+      {
+        "commit": "3c17ca8dfd62f2f25ed9dc824980ae2db3d4a810",
+        "subject": "fix(melonx): the Hogwarts float DMA policy sizes its target in bytes, keeps linear destinations and never dereferences a missing target [skip ci]",
+        "role": "promoted",
+        "productPaths": 2,
+        "partial": false
+      },
+      {
+        "commit": "22a99c0ca517787e627c444ed5ff9b9a251dca08",
+        "subject": "build(melonx): prepare the Hogwarts DMA copies last; final-source fixtures compose them [skip ci]",
+        "role": "promoted",
+        "productPaths": 3,
+        "partial": false
+      },
+      {
+        "commit": "88c4cb853b6403443a07180cdc8791619575fde3",
+        "subject": "build(melonx): DMA-copy Core increment route on the delivered 614 array-delta Core [skip ci]",
+        "role": "promoted",
+        "productPaths": 6,
+        "partial": false
+      },
+      {
+        "commit": "6e636e9db20fac8b826dd4064d8d1fd46d611b15",
+        "subject": "fix(scraper): stable batch runs, French covers and manuals, legible zoomed scans [skip ci]",
+        "role": "promoted",
+        "productPaths": 18,
+        "partial": false
+      },
+      {
+        "commit": "97d8a38f8973305abd2498d61ab7ef36fb9afa5c",
+        "subject": "fix(glacier): one margin on iPhone, no cards over the title, larger tab glyphs and carousel [skip ci]",
+        "role": "promoted",
+        "productPaths": 7,
+        "partial": false
+      },
+      {
+        "commit": "2781dc72ac12ef858e71159dcd80d06e02db4295",
+        "subject": "docs(delivery): record verified IPA 616 (RPCS3 Core 616) on delivered 615 [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "dd8ab919fd91fc6bc489dae223e70a680bf894b6",
+        "subject": "chore(actions): clean 273 old skipped runs [actions-cleanup-2026-11-02]",
+        "role": "reviewed",
+        "productPaths": 1
+      },
+      {
+        "commit": "19de5f65881ce25e011c58373884509519d18326",
+        "subject": "build(delivery): verifier for the Hogwarts DMA-copy MeloNX Core as a replaced component [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "98280a548e6f4f12ee4dc8cf35d6c273a8f353a2",
+        "subject": "build(melonx): pin the Hogwarts DMA-copy Core of run 41464702975 (88c4cb85), verified offline [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "61a3bc9336fa474b04aee0c284c36b4a198fbbaa",
+        "subject": "build(delivery): recipient public key of private IPA 617 [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "7be7850faa18bf6e2264d0e878868854980cfa08",
+        "subject": "docs(melonx): the Hogwarts DMA-copy Core is compiled, pinned and goes to IPA 617; what the next iPhone run reads [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "52872eb77e694b68f65d0ca140a58c60a3c815c7",
+        "subject": "build(delivery): draft private IPA 617 (Hogwarts DMA-copy MeloNX Core, Glacier and scraper fixes) on the verified 616 [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "4575db36080437d5cb34c63fbb2eb85527e4a123",
+        "subject": "build(delivery): 617 draft reviews the maintainer's Actions cleanup plan dd8ab919 [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      }
+    ],
+    "deferred": {},
+    "effective": {
+      "build-utils/maintenance/actions-cleanup-2026-11-02.json": {
+        "mode": "100644",
+        "gitBlob": "2e3e09f4610f8fab2dde944838819156835ab5fb",
+        "sha256": "561e785b2014548e446d5cf8c52183414ef0abef8bdb3b4bc776436b861b4c7f"
+      },
+      "build-utils/melonx/adapt_bindless_array_deltas.py": {
+        "mode": "100644",
+        "gitBlob": "318fd3b23787cb20a7c44cecbdf3449617a47d56",
+        "sha256": "eef2da4bdb9dc0d6fc23a32b7c7daf3a4d643dd5cd77f316150e3551f9078c1f"
+      },
+      "build-utils/melonx/adapt_hogwarts_dma_copies.py": {
+        "mode": "100644",
+        "gitBlob": "eb3b8b4e58c8659d12f455d883a40d22c35c4301",
+        "sha256": "70b72d7a9a3d65d571f848a6dc057b068b2575556f5aa01e71c90e09d965b880"
+      },
+      "build-utils/melonx/dma-core-contract.json": {
+        "mode": "100644",
+        "gitBlob": "723700d2530b7aae65a27cb420634d37d468fb86",
+        "sha256": "73a1e8e4075046d196a3893c9dbad483d858450adc55603aeac54653623afd5d"
+      },
+      "build-utils/melonx/dma-core-plan.json": {
+        "mode": "100644",
+        "gitBlob": "aa657ef2469acefa99d9fae18e1885af92b1387e",
+        "sha256": "33c758f95b15d8178e5c4b01d0f2ffad0c2d22bb8625cfc6eaccd9bfd9764e48"
+      },
+      "build-utils/melonx/freeze_dma_core.py": {
+        "mode": "100644",
+        "gitBlob": "f2957738ffa7f0fa23f5a552f36b91b2aaaa4953",
+        "sha256": "72b920544e15b62c77be673935bc5215bf75ae24e07faa8ff0403d883ca6a40b"
+      },
+      "build-utils/melonx/prepare_embedded.py": {
+        "mode": "100644",
+        "gitBlob": "6f383e7e2fd6578a978f6775fd428a98aa245d3f",
+        "sha256": "ecd884e41422fdeb9fa322896518d2e0c7335fb6f8e95b4f41e460f6c2d9a6b2"
+      },
+      "build-utils/melonx/verify_dma_core.py": {
+        "mode": "100644",
+        "gitBlob": "35fb4bd443db88f2208c944a0803c4801fee4eca",
+        "sha256": "692652811710aa4571c1c30bb73038ef74ca5654f72d23ec6de117db019631e5"
+      },
+      "lib/l10n/game_box_locale.dart": {
+        "mode": "100644",
+        "gitBlob": "0f0a195344fc9e2930225d8199a9a400686bcbd7",
+        "sha256": "f099839ec77e156db8f4efb2659f9cb8296314cd3e2172b4228b87e2afb12817"
+      },
+      "lib/screens/game_box/game_box_inspector.dart": {
+        "mode": "100644",
+        "gitBlob": "a637d819ba237725b190a13931b542ddda54a92f",
+        "sha256": "d718312769cee193eaa7ed0fbb815e508b61b7ab422b54f11fe3a5feec137add"
+      },
+      "lib/screens/game_box/game_box_media_sheet.dart": {
+        "mode": "100644",
+        "gitBlob": "81e27a2d63e4a1624b750bf58b72b90020ec73c2",
+        "sha256": "2f21ccd5860c414eedc148f9b0b30843a4ab8413086c26b5d2f2e989e14528a5"
+      },
+      "lib/screens/game_box/game_box_scan_viewer.dart": {
+        "mode": "100644",
+        "gitBlob": "c2d939296552384b9be6a1aad7c1eb8b6d07b305",
+        "sha256": "25be5256220efbc43985c6063143f4b1e20affb4f3816731542057cc7b087091"
+      },
+      "lib/screens/scraper_screen/scraper_contents/scraping_content.dart": {
+        "mode": "100644",
+        "gitBlob": "7442d0c37a15a5660ec000f5154ead6b26489273",
+        "sha256": "482685e689d626d93582ece7d853bc210bde650b8ef2448adf0b80174a21b79e"
+      },
+      "lib/screens/systems_screen/my_systems_section/my_systems_carousel.dart": {
+        "mode": "100644",
+        "gitBlob": "00a9376e2c8db094cbff248a4f3b7ed852a7d4d0",
+        "sha256": "7a05e97bec52670d8855ec0d9a1c326c8c009bbbb1bdabf22a033223675641a2"
+      },
+      "lib/screens/systems_screen/my_systems_section/my_systems_grid.dart": {
+        "mode": "100644",
+        "gitBlob": "03d9dfcecc8456432548d04399bd8fac9787043c",
+        "sha256": "8eb1b8b73865d8658f95802ddb268827f8d8058b5720ba67fb2a2a54a507e1a9"
+      },
+      "lib/services/game_box/game_box_batch.dart": {
+        "mode": "100644",
+        "gitBlob": "bdba435a6d4a8fad7503e1ced584a1b33ad50308",
+        "sha256": "4c2783d65a837cc8db62f45336d4be9297a33357a4fe85ae564f490d7210bd16"
+      },
+      "lib/services/game_box/game_box_media_service.dart": {
+        "mode": "100644",
+        "gitBlob": "1e421cc9cf3b9b125eb10ebc957c598deb5bd8be",
+        "sha256": "9ca9c6f01bd908a7252170ebbb5af894543be9e92d50158940e510fb3eeea5cf"
+      },
+      "lib/services/game_box/game_box_sharp_scan.dart": {
+        "mode": "100644",
+        "gitBlob": "ad8a351534dea0cf603947e09dbb3537fa2a5861",
+        "sha256": "f8e0c21688a8a88f395fe71ad754cd848b76d52d37c12a0e0b170d123e572d08"
+      },
+      "lib/services/game_box/game_box_sources.dart": {
+        "mode": "100644",
+        "gitBlob": "ced08eb739c7368d46b7827180cc2ae02235ecad",
+        "sha256": "41f421f1b40caf87626d20ce5b905aa23add0527f5f0813c65e0b670e018341f"
+      },
+      "lib/services/screenscraper/media_downloader.dart": {
+        "mode": "100644",
+        "gitBlob": "e38f1b83180da094cd94b9037a87e37611c660ef",
+        "sha256": "d1b03af161ea8622031e152cef45f254f662dde60e6fdbe07135eb1efb35fca6"
+      },
+      "lib/services/screenscraper/media_resolver.dart": {
+        "mode": "100644",
+        "gitBlob": "9337e643d2ed4f06f41d020fb5382fd2bf6653ec",
+        "sha256": "d30a536c17ac918a527fed2de3321d9c68a5c531525a68562af66836f5c09147"
+      },
+      "lib/services/screenscraper/screenscraper_client.dart": {
+        "mode": "100644",
+        "gitBlob": "d165b802cf559dc18008fb9dbc3586e83fd28f51",
+        "sha256": "4d2e55f88b373044d8f972c9c3bb6785e1f4b1bc4e92309ab3bd35d56d960db2"
+      },
+      "lib/services/screenscraper_service.dart": {
+        "mode": "100644",
+        "gitBlob": "3fe26acd4b809157bceec628f6a446d1b27429f8",
+        "sha256": "d7246eafdd918372e97724a3db86fcd6f8a97962f58c54d431909bd0821d3622"
+      },
+      "lib/themes/glacier_theme.dart": {
+        "mode": "100644",
+        "gitBlob": "6b62ea5d34ed22f1938a97988c533db995874d7a",
+        "sha256": "e03bfd236975b35c7e5d6d7646b130074fe5a898b8a9bf290025034f46ae27b5"
+      },
+      "lib/widgets/glacier/glacier_widgets.dart": {
+        "mode": "100644",
+        "gitBlob": "aa4cdc9815b4f00d028bb4de2879335725574db6",
+        "sha256": "d03bd6f4d6c5b64a56cb1ba805ec4638bf0def770bb3ac269e98219ddfd77830"
+      },
+      "lib/widgets/header.dart": {
+        "mode": "100644",
+        "gitBlob": "00a53fa8da3b07ee7f5b6bbb147b865cc6f68bb2",
+        "sha256": "a34c330d4c08d2c311784091e8c8a4abf0e36f1725e9c09f6e2f04bf8c556bc1"
+      },
+      "lib/widgets/main_menu_tab_strip.dart": {
+        "mode": "100644",
+        "gitBlob": "4b3b9030e995691ffc417225e50945227cff3984",
+        "sha256": "1db19e75736f0ff971251dcbf642a35eaec54307bff85f6ee4a9cdace56388aa"
+      },
+      "test/game_box_sharp_back_test.dart": {
+        "mode": "100644",
+        "gitBlob": "49894766ebad5c0c984d7a69d51d57218d26ae74",
+        "sha256": "b14c99d0fbf4792386b2425afbbec01f2ea6c061d36cb3002d6a8223959bd7a9"
+      },
+      "test/game_box_sharp_scan_test.dart": {
+        "mode": "100644",
+        "gitBlob": "368c14621c686f481d5fce0ecf86080d83cf8fb6",
+        "sha256": "d6dc9d235151ce5a9189ec52c716499262feabff0c5b5a0ecef56679e4563c91"
+      },
+      "test/game_box_sources_test.dart": {
+        "mode": "100644",
+        "gitBlob": "df427ef3c70a242be72f62e906c637e6ae606fed",
+        "sha256": "9021d28db7440f33f1a5c3de647c9192f1f04da1843a3843677ddb4c77354111"
+      },
+      "test/glacier_menu_capture_test.dart": {
+        "mode": "100644",
+        "gitBlob": "64adafab7e3291fab46a2763d519ffe668c9ac57",
+        "sha256": "ae5c3fa0d0b704ee3cc83167e2a2c5550200d8244b40f405c2ebef1035d6bd71"
+      },
+      "test/melonx_arrays_core_contract_test.py": {
+        "mode": "100644",
+        "gitBlob": "6dfaa304a54b97e24cfcc90db59b3ece5fb1b9f7",
+        "sha256": "a77ce60bb628d4141c61f4bbe2947e2cd4ae4e749fb0e98a31546f782f1c0e0d"
+      },
+      "test/melonx_binding_data_snapshots_test.py": {
+        "mode": "100644",
+        "gitBlob": "3f6a3980caa736ddaa815632b6091a0c9d8087db",
+        "sha256": "fd1948ee41765178ab3c51e1c015ae604a17749633ffab8353940d9db1095f49"
+      },
+      "test/melonx_bindless_array_deltas/Program.cs": {
+        "mode": "100644",
+        "gitBlob": "ffd0bc38f6bb2ecf65b2449298ab0c88952cab24",
+        "sha256": "d6af999bab8fbfee8784936e272c540542563409545e996a0c30a94fef68eff5"
+      },
+      "test/melonx_bindless_array_deltas_test.py": {
+        "mode": "100644",
+        "gitBlob": "2f17b43a52b1fde14676c19858b525f3e9c3bba5",
+        "sha256": "7fc28c73266e814dc6f27fc9e63f83b31b8fb43e953211c7dba7edcaf4790a2e"
+      },
+      "test/melonx_dma_core_contract_test.py": {
+        "mode": "100644",
+        "gitBlob": "99bc67f3eb32bd65f1d9ed2b9aed6aca3e06bb29",
+        "sha256": "f7514e059695ab8aecb3a4c039fe0ea9835f3cf7a0cae63e19c36b600164e817"
+      },
+      "test/melonx_fragmented_reads_test.py": {
+        "mode": "100644",
+        "gitBlob": "18ca60cb0a51a2405a8b4fdbb0153f2f5c410c28",
+        "sha256": "a64b378826f345cf4b203edd862f1dd1d7976ee6a085f19b116e532c7b5b2a79"
+      },
+      "test/melonx_hogwarts_dma_copies_test.py": {
+        "mode": "100644",
+        "gitBlob": "ab3ad609b2cb8e9b1777961a2fa6e330648d48b5",
+        "sha256": "02525c7d22ca2faa39615fb2ce5ec9a9782a583f6f2550e462b795c809967c41"
+      },
+      "test/scraper_batch_flow_test.dart": {
+        "mode": "100644",
+        "gitBlob": "15f3c46cf0a6babd615ed59e6138d6a47f725af3",
+        "sha256": "54f73653d0ccbb3e2750f91d8d227d77b343b9f9615606204687b553818eeb59"
+      },
+      "tools/game_box/strings.json": {
+        "mode": "100644",
+        "gitBlob": "2043c726aebd7241cd0ce9f7f95dba6783252269",
+        "sha256": "b52b1cec57afd9ed806282384d0c43e0a2522c91e171db41d0792de8f57f103f"
+      }
+    },
+    "restore": {
+      "lib/models/retro_achievements_session.dart": {
+        "mode": "100644",
+        "gitBlob": "4269f11a7461d639b925e07b30a8762a6abd3a44",
+        "sha256": "d1bd88333f43aaac85528c6754c47f6355e1aa223c95fac3fe1ee5f7961dbf29"
+      },
+      "lib/screens/game_screen/game_details_card/dialogs/game_achievements_dialog.dart": {
+        "mode": "100644",
+        "gitBlob": "518801de96b6a6980b3746e1b1d3dbf78165618c",
+        "sha256": "74806efe99a906107c401d637e6b4749f7031009611b891a2d2b4e1d0bc410db"
+      },
+      "lib/screens/game_screen/game_details_card/game_details_card_list.dart": {
+        "mode": "100644",
+        "gitBlob": "ab802e4ebeda9f2de2e33a3ffd806d3e7f4dad92",
+        "sha256": "5a1575c2be152382723931124434d798745d2d8ddea713e81ceaa3b96f1f622e"
+      },
+      "lib/screens/game_screen/game_details_card/tabs/game_details_achievements_tab.dart": {
+        "mode": "100644",
+        "gitBlob": "5194d28fc3916f841378d2b5ecb4870045f05d56",
+        "sha256": "9faed5aceffdf27b0a43fd1e8cb922e6cfd1453459086a593b8a90ddef544613"
+      },
+      "lib/screens/game_screen/game_details_card/tabs/ra_identity_note.dart": null,
+      "lib/services/libretro_internal_service.dart": {
+        "mode": "100644",
+        "gitBlob": "4a878aa3bb563eac37b42b7ad0813381ed04de8d",
+        "sha256": "3080bd2a8c91ee6fbd6874b8d829f7e852d68bf4c7bcb156a174736ce084734b"
+      },
+      "lib/services/retro_achievements_helper.dart": {
+        "mode": "100644",
+        "gitBlob": "5b0cf3f335ef80c08b95cfd809958e2023e0d14e",
+        "sha256": "8e99f5d77973dcada8083a33e16ca59c4df68c9d4e58d7de9b21c6233d2d61be"
+      },
+      "lib/services/retro_achievements_identity.dart": null,
+      "lib/services/retro_achievements_resolver.dart": {
+        "mode": "100644",
+        "gitBlob": "d4cdca0d130c7e89cd8cc0e0929a6a95475de254",
+        "sha256": "4291d240b7c8850adcc76f2f671d86aef1102bdfbb01a519545519be7f32033e"
+      },
+      "lib/services/retro_achievements_session_service.dart": {
+        "mode": "100644",
+        "gitBlob": "db22f94ae742da793b7cf55c9d8f2e244f2ab58d",
+        "sha256": "e026ebb8df3847ef38e007eac3a1e1b3eade55fe5c74f279cc3b6f0493495274"
+      },
+      "lib/services/retroachievements_hash_service.dart": {
+        "mode": "100644",
+        "gitBlob": "4592a53d11781c891d2bec1aeca61e86fcda787a",
+        "sha256": "4fe80a501277cca81fe5e290cc4775943b9835d62c6b4bda1b30d15ad82a7f97"
+      },
+      "lib/services/rpcs3_internal_service.dart": {
+        "mode": "100644",
+        "gitBlob": "e3953ac14a871e3582cb380892da7c8565e055dc",
+        "sha256": "59ceaae1dddf160e5d0e833567fd5de1ee094dea2e665ebd0047fd887b4e9a73"
+      },
+      "lib/services/rpcs3_launch_service.dart": {
+        "mode": "100644",
+        "gitBlob": "3af5b85efcbdec7b936e4975959be067f0d23f41",
+        "sha256": "b6fbbea5b094defba390f654a0664a7c121ee0c0d961fda600348a0f36e8d5f3"
+      },
+      "lib/services/stikjit_armsx2_service.dart": {
+        "mode": "100644",
+        "gitBlob": "752eeca7240d16a9931f81fc7709e86cbd3d619c",
+        "sha256": "6cfa1665110fb6476dd6e0f7c5b6e67620322fd70d390a6340bf8c48d76751e9"
+      },
+      "lib/utils/optimized_md5_utils.dart": {
+        "mode": "100644",
+        "gitBlob": "c06f875587f6de81e3e4cdc78b0fe4be45cff371",
+        "sha256": "43b4a5b529110f5329a5eda322b5362aaa6e9d81426f4289141a1a5ca080739d"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroAchievements.m": {
+        "mode": "100644",
+        "gitBlob": "b8307182d8117c9f06b8afb835039cae7399d831",
+        "sha256": "020d56ac77755233604186c1e9f4ea5496702cc2b16645d1e434f8c3f8e9a8b9"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/LibretroInternalBridgePlugin.m": {
+        "mode": "100644",
+        "gitBlob": "274f077aa0cddc73a019e86c7b66fdca80f3817f",
+        "sha256": "d9b01e574caf28cfbad008d2bbd082d1de038c560286e6f24b8a4bbf2def6e94"
+      },
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.c": null,
+      "packages/libretro_internal_bridge/ios/Classes/RBDiscHashReader.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/LICENSE.txt": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/NEOSTATION_NOTICE.md": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/README.md": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/LICENSE": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/LzmaDec.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/7zTypes.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/include/real/LzmaDec.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/LzmaDec.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/lzma-26.02/src/real/LzmaDec.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstd_errors.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/deps/zstd-1.5.7/zstddeclib.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/dr_libs/dr_flac.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/bitstream.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/cdrom.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chd.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/chdconfig.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/coretypes.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/flac.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/huffman.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/include/libchdr/macros.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_avhuff.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdfl.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdlz.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzl.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_cdzs.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_flac.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_huff.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_lzma.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zlib.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/codec_zstd.h": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_bitstream.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_cdrom.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_chd.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_avhuff.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdfl.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdlz.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzl.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_cdzs.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_flac.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_huff.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_lzma.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zlib.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_codec_zstd.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_flac.c": null,
+      "packages/libretro_internal_bridge/ios/ThirdParty/libchdr/src/libchdr_huffman.c": null,
+      "packages/libretro_internal_bridge/ios/libretro_internal_bridge.podspec": {
+        "mode": "100644",
+        "gitBlob": "1c4589fea4ca0e3b002bfec28d65d9cf2f82e157",
+        "sha256": "2da2d0822c0488e5367db85a6eb696df8cd6b27e6cef30fd4ff9a55bea29bdab"
+      },
+      "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3Achievements.mm": {
+        "mode": "100644",
+        "gitBlob": "81b92884544bf6b373ad87455867ebf918a72902",
+        "sha256": "3173b35c2de5176eedf3025a7a9e6518bb83615cc79bb151033fb5a51507e713"
+      },
+      "test/libretro_ios_syntax_test.py": {
+        "mode": "100644",
+        "gitBlob": "d6353e5e3934400e7ce98196c6e0c44cfef2d5c4",
+        "sha256": "b3819844aade9966315ce11cb8f85c7f7f01851aedd9d09736022af1e96b702d"
+      },
+      "test/ra_disc_hash_reader_test.py": null,
+      "test/retro_achievements_identification_test.dart": null
+    },
+    "effectiveDigest": "f27e6e4be75bd8acd1c8eae6dacbd3035cd1d425fb05d5d7fba2cf6647dd9441",
+    "productFiles": 6835,
+    "embeddedRecipeInputs": {
+      "LICENSE.md": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "NOTICE.md": "e94cf87a3c2b71cf01baae68b63017884380f3dc2a1110bc9b46ec00a292a242",
+      "docs/CHEAT_CATALOG_SOURCES.md": "b99792de4c9e917758628869bfc948ca8f653f47cb926378f3d8ad61d9c755f1",
+      "docs/ENGINE_CORRESPONDING_SOURCES.md": "2ff4d3de203d01f0a467023ae04f5de5d9e3686d8538582a2295a2f893f532c3",
+      "docs/HD_TEXTURE_CATALOG_SOURCES.md": "59b84b5f460db12bd43290877345e1e69be24ad4f899d0cfb8de0112857ff3d0",
+      "docs/HD_TEXTURE_SOURCES_AND_CREDITS.md": "a6f34bd3136405a7060afb3ec021e7459e6a3b61e705ff8ef2f2bfb504ff123f",
+      "docs/LEGAL_AND_CREDITS.md": "e10b9336b778e5d2529b8e92fb785acf189313a17eb39c3fe2f7632f5a35746a",
+      "docs/OVERLAY_SOURCES_AND_CREDITS.md": "463aeaf75b5f39f058e7bc1fbb80fefddc9a977cc5ba3a0bdfe70b565d70ef20",
+      "docs/PACKAGE_SOURCES_AND_LICENSES.md": "2fdae2151390207cab5953651448e181912e9270347f7fe5129a211f2056e21c",
+      "docs/PPSSPP_SOURCE_AND_LICENSE_AUDIT.md": "fbeced8b72541b2ba8aac27334f749c6f870aff7506b1efde8de6958ff600e2e",
+      "docs/SOURCE_CODE_ACCESS.md": "6204258509248cd01e7c701ca934ffc4827e77b9768d5423d2991095145e438e",
+      "docs/evidence/achievement-translation-declarations-2026-10-31.json": "c8edd7472b7944348e39499ef1d2a59cd4e8a9e91338c3d7da46c8baf582df6b",
+      "docs/evidence/engine-source-license-audit-2026-10-21.json": "866e0a743ddaa4881fd8428dbce235c252e0773fb58ddefaaf1cef364d7607fd",
+      "docs/evidence/modified-sources-since-0.0.8-2026-10-21.json": "18a2c562d9271554e54644aeea3c66e7b498c8e5761f3532f04e8f5be2d4e9e7",
+      "docs/evidence/package-sources-license-audit-2026-10-21.json": "348c5c7840a9262e095519b46aca8d632341ba82483c386a96653108f4a8b72c",
+      "docs/evidence/ppsspp-source-license-audit-2026-10-21.json": "34d4df4576cac7a5c2a6b1e89bed95e98870165146e11b058fd624cf009946ce",
+      "docs/evidence/retro-achievements-session-declarations-2026-11-01.json": "7d341d4f57dfdfc4abe32a6b8f6845ba4d6236f32615fc0eed848c9b9679ad1e",
+      "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json": "3c391df6cfc68f6ee4aa3691f8c4e8e2fcd37fc9d596060fbb7946ab7810c924",
+      "docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json": "12abf0d5396a77c8457da822d328bcee5d68338058afc848df51fc73ea15b876",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-Credits.txt": "ea9f46181d8a6eed2c318a2795f73ff1dfa2a838f8992d6b07be74ed0d9fb93b",
+      "docs/licenses/cheats/Admentus-Enhancement-Codes-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/cheats/Mupen64Plus-GPL-2.0.txt": "6774e66e59957ebf1da6c9e22be4e7b97fb169a534ab37e085e92831ff414fdd",
+      "docs/licenses/cheats/Mupen64Plus-mupencheat-header.txt": "39023c3dc42e1f1ea6085d79d44bdf9b59adf5846137496f9d73268f6ae7ecd5",
+      "docs/licenses/cheats/README.md": "191a16de4712ffb71f9604f0ed480b5ef1105e6f139575e77cff4b1b4d0dc340",
+      "docs/licenses/cheats/TAbdiukov-PPSSPP-patches-LICENCE.txt": "47a7bfd6b3e12546207665bcd53558b4087ac04fbcfc2592966968a3adab7987",
+      "docs/licenses/cheats/artemis-LICENSE.txt": "6a3e4ba999067b1c412f1740282bc077f8edf5f7178ea085acb5f5cca6fecb46",
+      "docs/licenses/cheats/provenance.json": "6a1ed0158a9f2c2c4f4ebed42b1c5e963baeac0c7c56fddfc4e84bf3c98ee843",
+      "docs/licenses/cheats/szTheory-NDS-Cheat-Databases-LICENSE.txt": "20b067f86de375aae6db0f283ab2e65de24d537733b89bd58432c101259d84cf",
+      "docs/licenses/cheats/tyler-EMERALD-NOTICE.txt": "868b4e7215a9a5835be022dc4d3c469ea18ce71598b20280d02b7b4c83f8621e",
+      "docs/licenses/cheats/tyler-GPL-3.0-LICENSE.txt": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "docs/licenses/rpcs3-wiki-2026-10-28.json": "e844cbcf720d9f8af0f6dc38bb1dd9fed67bd2c83e17299db21cff95e2a54628",
+      "docs/licenses/rpcs3-wiki-2026-10-28.md": "6ae6c89711313c17a0f4585b02760688b75114dd76e6e994a40d9acdaadaf075",
+      "docs/retroarch-rollback-2026-10-08.md": "0d76d77ba6e51bfeda4c84388cf0fa8eb25af3c221943a4d41999a6692eeea0c"
+    }
   },
   "images": {
     "mustChange": [
       "Frameworks/App.framework/App",
+      "Frameworks/MeloNXCore.framework/MeloNXCore",
       "Runner"
     ],
     "added": [],
@@ -329,7 +909,152 @@
       "rpcs3": [
         "Frameworks/libRPCS3Core.dylib"
       ]
-    }
+    },
+    "baseImages": [
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+      "Frameworks/App.framework/App",
+      "Frameworks/DolphinCore.framework/DolphinCore",
+      "Frameworks/Flutter.framework/Flutter",
+      "Frameworks/GTMSessionFetcher.framework/GTMSessionFetcher",
+      "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+      "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
+      "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
+      "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+      "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone",
+      "Frameworks/MeloNXSDL3.framework/MeloNXSDL3",
+      "Frameworks/MoltenVK.framework/MoltenVK",
+      "Frameworks/PDFium.framework/PDFium",
+      "Frameworks/StikJIT.framework/StikJIT",
+      "Frameworks/a5200_libretro.framework/a5200_libretro",
+      "Frameworks/achievement_translation.framework/achievement_translation",
+      "Frameworks/ardens_libretro.framework/ardens_libretro",
+      "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "Frameworks/azahar_libretro.framework/azahar_libretro",
+      "Frameworks/battery_plus.framework/battery_plus",
+      "Frameworks/desmume_libretro.framework/desmume_libretro",
+      "Frameworks/device_info_plus.framework/device_info_plus",
+      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "Frameworks/external_display.framework/external_display",
+      "Frameworks/external_folder_access.framework/external_folder_access",
+      "Frameworks/fbneo_libretro.framework/fbneo_libretro",
+      "Frameworks/file_picker.framework/file_picker",
+      "Frameworks/flutter_7zip.framework/flutter_7zip",
+      "Frameworks/flutter_localization.framework/flutter_localization",
+      "Frameworks/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin",
+      "Frameworks/freechaf_libretro.framework/freechaf_libretro",
+      "Frameworks/freeintv_libretro.framework/freeintv_libretro",
+      "Frameworks/gambatte_libretro.framework/gambatte_libretro",
+      "Frameworks/gamepads_darwin.framework/gamepads_darwin",
+      "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro",
+      "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro",
+      "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro",
+      "Frameworks/gw_libretro.framework/gw_libretro",
+      "Frameworks/handy_libretro.framework/handy_libretro",
+      "Frameworks/libRPCS3Core.dylib",
+      "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro",
+      "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro",
+      "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro",
+      "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro",
+      "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "Frameworks/mesen_libretro.framework/mesen_libretro",
+      "Frameworks/mgba_libretro.framework/mgba_libretro",
+      "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro",
+      "Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "Frameworks/neo_shader_kit.framework/neo_shader_kit",
+      "Frameworks/neo_swap.framework/neo_swap",
+      "Frameworks/neo_texture_catalog.framework/neo_texture_catalog",
+      "Frameworks/neo_touch_layout.framework/neo_touch_layout",
+      "Frameworks/nestopia_libretro.framework/nestopia_libretro",
+      "Frameworks/o2em_libretro.framework/o2em_libretro",
+      "Frameworks/objective_c.framework/objective_c",
+      "Frameworks/package_info_plus.framework/package_info_plus",
+      "Frameworks/pdfium_flutter.framework/pdfium_flutter",
+      "Frameworks/picodrive_libretro.framework/picodrive_libretro",
+      "Frameworks/pokemini_libretro.framework/pokemini_libretro",
+      "Frameworks/potator_libretro.framework/potator_libretro",
+      "Frameworks/ppsspp_libretro.framework/ppsspp_libretro",
+      "Frameworks/prosystem_libretro.framework/prosystem_libretro",
+      "Frameworks/retro_achievements_session.framework/retro_achievements_session",
+      "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "Frameworks/sameduck_libretro.framework/sameduck_libretro",
+      "Frameworks/share_plus.framework/share_plus",
+      "Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation",
+      "Frameworks/snes9x_libretro.framework/snes9x_libretro",
+      "Frameworks/sqlite3.framework/sqlite3",
+      "Frameworks/stella_libretro.framework/stella_libretro",
+      "Frameworks/stikjit_bridge.framework/stikjit_bridge",
+      "Frameworks/url_launcher_ios.framework/url_launcher_ios",
+      "Frameworks/uzem_libretro.framework/uzem_libretro",
+      "Frameworks/video_player_avfoundation.framework/video_player_avfoundation",
+      "Frameworks/wakelock_plus.framework/wakelock_plus",
+      "Frameworks/wasm4_libretro.framework/wasm4_libretro",
+      "PlugIns/ARMSX2JITHelper.appex/ARMSX2JITHelper",
+      "PlugIns/DolphinJITHelper.appex/DolphinJITHelper",
+      "PlugIns/MeloNXJITHelper.appex/MeloNXJITHelper",
+      "PlugIns/MeloNXRamDonor.appex/MeloNXRamDonor",
+      "PlugIns/NeoSwapDonor.appex/NeoSwapDonor",
+      "PlugIns/NeoSwapPageRelay.appex/NeoSwapPageRelay",
+      "PlugIns/RPCS3JITHelper.appex/RPCS3JITHelper",
+      "Runner"
+    ],
+    "retainedFingerprints": {
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
+      "Frameworks/DolphinCore.framework/DolphinCore": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+      "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec": "cad556ba3651eece2068166f1fb61671d33d56ff68444475865a0055d316c01d",
+      "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil": "15acad8827f4dc80c453647c5196c91e393c8eb52e3f6367d1838454f7dee1c9",
+      "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport": "b85104bbc6e7464cd949b1cbf51989b6c3d6af16bddc10c33728cacca043700e",
+      "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK": "ea81c0e4728457b9e2fa6faf6360232467bda505f5f2c3927376fe7535083aac",
+      "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone": "03a50b7516b57540f05d9a0239959537c8676f097e76218732057584a2ca1f3c",
+      "Frameworks/MeloNXSDL3.framework/MeloNXSDL3": "cfd1e95b4fe64309b8f16efd2b2d3134cef3390cd6d5172bb13c4b8520aba942",
+      "Frameworks/MoltenVK.framework/MoltenVK": "7cbd35be66c78e741768528c7b0fbf3cf20f5b468dc5361893033d4924741520",
+      "Frameworks/a5200_libretro.framework/a5200_libretro": "cfa6fedeb2b2ae954565491f0e103c67d62c0168edf3480fc08a301a9ca1a19b",
+      "Frameworks/ardens_libretro.framework/ardens_libretro": "5b1b62c69036580263c57d482cb8be16faa793a42614b556b5a32c7ff08ababc",
+      "Frameworks/azahar_libretro.framework/azahar_libretro": "65545169819d1c1270bf3d54a9f4dbabfb445affb54ccab8b27fbc615c7845fc",
+      "Frameworks/desmume_libretro.framework/desmume_libretro": "bd20ed434cc857b52dfdc9c3a5cdbd001bf15b4854c5ccdc162a653bbef5d12c",
+      "Frameworks/fbneo_libretro.framework/fbneo_libretro": "18102405bbe565cbba25fc822871ba87bee1db7dda5cf1da02302f6904ce5aec",
+      "Frameworks/freechaf_libretro.framework/freechaf_libretro": "fd60db6eac893840535a18cf3e025730a5682814120f4aacf339f437c37aab1c",
+      "Frameworks/freeintv_libretro.framework/freeintv_libretro": "dcccda5d6ca628c30dea61694cbe3115f4d35e04eef1615875b69ed02d15b9c1",
+      "Frameworks/gambatte_libretro.framework/gambatte_libretro": "3e803dca4a105e7d8469c3cd1ec79c41c5fe5d87137ebe3a91afbafc25957e30",
+      "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro": "9f5496ac38b3b464ac3dfe0b2d90c0ac5a1a365fe6c160e07d5f67be0b8a276e",
+      "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro": "e732f8a67cce93ad7bf2a3ad0c27bd8c6444882cb6ab67855b2354f1e838c7c1",
+      "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro": "145e71994f9cf2d7b72bd8e30ba49a348099aebb805450e7736619dee916b904",
+      "Frameworks/gw_libretro.framework/gw_libretro": "1561851ab719f3c1063bce1059d93982bd6fd0ad7ed8fa99144961ccd8fbd7c0",
+      "Frameworks/handy_libretro.framework/handy_libretro": "7a46ec1712e3e0f95db8a2c04c6626cc0882c374d904c4e1673d9e7781fcad31",
+      "Frameworks/libRPCS3Core.dylib": "633d844b7dc39a7d30758e88c8c52302df9c13b5070e9401074c4b5202bff964",
+      "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro": "7a22292d47f0d92c7fcc75c9b4b72b71172edd0f11132d5edc20afc11ae36c3f",
+      "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro": "e9f0abcb0f5b71111a6631e4e29f3ee0387325af3804e20a2a7a2717ec51a354",
+      "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro": "ad5aa730fb7862d5185da7b4c66fea236bbbdeb981d83f1be856800e5d675887",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro": "20febed54a2e7e53db2652fadcdf4fd7294c057f313225f9c89b01a7f1d8f5fb",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro": "21e108a787d92761ea6b49dbed20ae098b0e5dd94692e21377e19d866d3853b3",
+      "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro": "8eb3437fa0c5e247c15c959a18a9d3179f7646d1c616f6d6d6dc07ad59d70d16",
+      "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro": "29cce20057b765de6d99d962ea5e55a1a4a47e86cee83255e6d16b0e1ba0c545",
+      "Frameworks/mesen_libretro.framework/mesen_libretro": "e76d6c1dd46f8eb51a5478a1a21b2808d79bae0c7175199594b0f6781ee38684",
+      "Frameworks/mgba_libretro.framework/mgba_libretro": "a8f8613a1895d58cbac8effd04ccd84bb6dbb4c59a60cbc18efc2bf268a6d181",
+      "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro": "ba845fc8a78edf87639a750203b2d09eb0fd294cd7969473115ad816f9280286",
+      "Frameworks/nestopia_libretro.framework/nestopia_libretro": "847be8672c95558feebe0be55bdf3264e7e241009451b11a023a835b44d3e0ef",
+      "Frameworks/o2em_libretro.framework/o2em_libretro": "535cdf027548eab1117dff0522d9a589ac403d996e8fc569b81996c5bc3f1209",
+      "Frameworks/picodrive_libretro.framework/picodrive_libretro": "65d6dc5a241efda5ea1965443b3c9fe1e763538a36e14ca290d9ec571377d9e1",
+      "Frameworks/pokemini_libretro.framework/pokemini_libretro": "c1c03e755afc328ba64bfce2f8491f8838d224e6f9685a73f2bd060c67b4ff6e",
+      "Frameworks/potator_libretro.framework/potator_libretro": "19a67f1d4f65a819cc87cb1576d7348a8eb1451e1b509aad25d7d73636fea681",
+      "Frameworks/ppsspp_libretro.framework/ppsspp_libretro": "377f669eacb492181ca3681e6ccd017bea78263b45320a575d8172dab2bd88c1",
+      "Frameworks/prosystem_libretro.framework/prosystem_libretro": "82b4af35d8c61093d1e7edb0f6c3eeca361acb4b8c96d3e83ddf3ffbad5150af",
+      "Frameworks/sameduck_libretro.framework/sameduck_libretro": "f648c6efc1455c280441c1f70dd62d3f2451a6e36b57268f3acf7ed6ff2256cb",
+      "Frameworks/snes9x_libretro.framework/snes9x_libretro": "e0326b241edce3f8860b85e3a08684806e611e292a21204534456b3af08ba788",
+      "Frameworks/stella_libretro.framework/stella_libretro": "a44e78a4e58dc481233737681fa3547ecebdfef0178219de8213aa067e8cf368",
+      "Frameworks/uzem_libretro.framework/uzem_libretro": "ae053a29eff0b1490f7cedd6af8a79d0df45950ef71fd604a93703ceaa039d93",
+      "Frameworks/wasm4_libretro.framework/wasm4_libretro": "41dec5ccf2fdb0153db049f027424f42993ae0c83df61e4bd1db24b0cf9a4dde"
+    },
+    "replacedFingerprints": {
+      "Frameworks/MeloNXCore.framework/MeloNXCore": "ace2ef6b77ddd39ff2414cc87b2d3f1fdacf1120b01e90dcf4337cbba88f7856"
+    },
+    "derivedMustChange": [
+      "Frameworks/App.framework/App"
+    ]
   },
   "tests": {
     "flutter": {
@@ -424,7 +1149,242 @@
         "flutterTestGlobs": [
           "test/game_box*_test.dart"
         ]
-      }
+      },
+      "commands": [
+        [
+          "delivery-contract-tests",
+          [
+            "python3",
+            "-B",
+            "test/standard_delivery_contract_test.py"
+          ]
+        ],
+        [
+          "translation-source",
+          [
+            "python3",
+            "-B",
+            "test/achievement_translation_contract_test.py"
+          ]
+        ],
+        [
+          "central-harness-contract",
+          [
+            "python3",
+            "-B",
+            "test/retro_achievements_session_native_test.py",
+            "--check-only"
+          ]
+        ],
+        [
+          "libretro-policy",
+          [
+            "python3",
+            "-B",
+            "test/libretro_ra_policy_test.py"
+          ]
+        ],
+        [
+          "libretro-retired-account",
+          [
+            "python3",
+            "-B",
+            "test/libretro_legacy_ra_contract_test.py"
+          ]
+        ],
+        [
+          "libretro-native-labels",
+          [
+            "python3",
+            "-B",
+            "test/cheat_bootstrap_test.py",
+            "Bootstrap.test_native_label_contract",
+            "Bootstrap.test_twelve_complete_locales"
+          ]
+        ],
+        [
+          "dolphin-policy",
+          [
+            "python3",
+            "-B",
+            "test/dolphin_ra_session_test.py"
+          ]
+        ],
+        [
+          "dolphin-presentation",
+          [
+            "python3",
+            "-B",
+            "test/achievement_translation_native_test.py"
+          ]
+        ],
+        [
+          "dolphin-retired-account",
+          [
+            "python3",
+            "-B",
+            "test/dolphin_account_267_test.py"
+          ]
+        ],
+        [
+          "armsx2-policy",
+          [
+            "python3",
+            "-B",
+            "test/armsx2_ra_launch_settings_test.py"
+          ]
+        ],
+        [
+          "flutter-analysis",
+          [
+            "flutter",
+            "analyze",
+            "packages/achievement_translation/lib",
+            "packages/retro_achievements_session/lib",
+            "lib/models/retro_achievements_session.dart",
+            "lib/services/retro_achievements_session_service.dart",
+            "lib/services/retro_achievements_service.dart",
+            "lib/repositories/retro_achievements_repository.dart",
+            "lib/providers/retro_achievements_dashboard_source.dart",
+            "lib/providers/retro_achievements_provider.dart",
+            "lib/screens/retro_achievements_screen",
+            "lib/widgets/translated_achievement_text.dart",
+            "lib/l10n/achievement_translation_locale.dart",
+            "lib/l10n/app_widget_localizations.dart",
+            "lib/services/dolphin_internal_v2_service.dart",
+            "lib/services/libretro_internal_service.dart",
+            "lib/services/stikjit_armsx2_service.dart",
+            "packages/armsx2_internal_bridge/lib",
+            "lib/services/rpcs3_config_adapter.dart",
+            "lib/services/rpcs3_game_profile_service.dart",
+            "lib/l10n/retro_achievements_status_locale.dart",
+            "lib/services/rpcs3_internal_service.dart",
+            "packages/neo_swap/lib",
+            "lib/widgets/glacier",
+            "lib/services/system_art",
+            "lib/services/glacier_preset.dart",
+            "lib/themes",
+            "lib/widgets/main_menu_tab_strip.dart",
+            "lib/widgets/header.dart",
+            "lib/widgets/header_sort_dropdown.dart",
+            "lib/widgets/glass",
+            "lib/screens/systems_screen/my_systems_section",
+            "lib/screens/settings_screen/new_settings_options/themes_settings_content.dart",
+            "lib/screens/settings_screen/new_settings_options/system_art_settings_content.dart",
+            "lib/screens/settings_screen/interface_style",
+            "lib/providers/neo_assets_provider.dart",
+            "lib/providers/theme_provider.dart",
+            "lib/services/neo_assets_service.dart",
+            "lib/main.dart",
+            "lib/l10n",
+            "lib/services/game_box",
+            "lib/screens/game_box",
+            "lib/services/screenscraper",
+            "lib/services/screenscraper_service.dart",
+            "lib/screens/scraper_screen"
+          ]
+        ],
+        [
+          "flutter-behavior",
+          [
+            "flutter",
+            "test",
+            "--reporter",
+            "expanded",
+            "test/achievement_translation_test.dart",
+            "test/retro_achievements_service_test.dart",
+            "test/retro_achievements_credentials_test.dart",
+            "test/retro_achievements_repository_test.dart",
+            "test/retro_achievements_resolver_test.dart",
+            "test/retro_achievements_layout_test.dart",
+            "test/secondary_achievement_item_test.dart",
+            "test/external_menu_screen_test.dart",
+            "test/retro_achievements_session_test.dart",
+            "test/retro_achievements_migration_test.dart",
+            "test/retro_achievements_account_consistency_test.dart",
+            "test/retro_achievements_session_localization_test.dart",
+            "test/retro_achievements_capabilities_test.dart",
+            "test/armsx2_in_game_localization_test.dart",
+            "test/armsx2_embedded_library_contract_test.dart",
+            "test/retro_achievements_login_regression_test.dart",
+            "test/rpcs3_game_profile_service_test.dart",
+            "test/rpcs3_profile_engine_test.dart",
+            "test/rpcs3_guest_relay_launch_test.dart",
+            "test/rewindbox_glacier_test.dart",
+            "test/glacier_menu_capture_test.dart",
+            "test/main_menu_tab_strip_test.dart",
+            "test/main_menu_tab_strip_styles_test.dart",
+            "test/header_one_line_test.dart",
+            "test/header_battery_test.dart",
+            "test/grid_geometry_test.dart",
+            "test/menu_carousel_correction_test.dart",
+            "test/liquid_glass_theme_test.dart",
+            "test/interface_style_locale_test.dart",
+            "test/interface_style_settings_test.dart",
+            "test/interface_style_screen_test.dart",
+            "test/builtin_theme_catalog_test.dart",
+            "test/nav_tabs_test.dart",
+            "test/system_bubbles_option_test.dart",
+            "test/system_bubble_render_test.dart",
+            "test/ui_correction_visual_test.dart",
+            "test/theme_provider_background_persistence_test.dart",
+            "test/scraper_batch_flow_test.dart",
+            "test/game_box_sharp_scan_test.dart",
+            "test/game_box_sharp_back_test.dart",
+            "test/game_box_sources_test.dart",
+            "test/screenscraper_service_test.dart",
+            "test/screenscraper_manual_media_test.dart",
+            "test/game_box_booklet_test.dart",
+            "test/game_box_compare_preview_test.dart",
+            "test/game_box_geometry_test.dart",
+            "test/game_box_inspector_test.dart",
+            "test/game_box_library_views_test.dart",
+            "test/game_box_locale_test.dart",
+            "test/game_box_manual_inspector_test.dart",
+            "test/game_box_media_sheet_test.dart",
+            "test/game_box_media_test.dart",
+            "test/game_box_physical_test.dart",
+            "test/game_box_refused_face_test.dart",
+            "test/game_box_render_inspector_preview_test.dart",
+            "test/game_box_render_open_preview_test.dart",
+            "test/game_box_render_preview_test.dart",
+            "test/game_box_rotation_test.dart",
+            "test/game_box_text_test.dart"
+          ]
+        ],
+        [
+          "storage-contract",
+          [
+            "python3",
+            "-B",
+            "test/storage_contract_test.py"
+          ]
+        ],
+        [
+          "localization-12-locales",
+          [
+            "python3",
+            "-B",
+            "test/localization_12_locale_coverage_test.py"
+          ]
+        ],
+        [
+          "theme-surfaces-retained",
+          [
+            "python3",
+            "-B",
+            "test/theme_importer_retirement_test.py"
+          ]
+        ],
+        [
+          "game-box-strings",
+          [
+            "python3",
+            "-B",
+            "test/game_box_strings_test.py"
+          ]
+        ]
+      ]
     },
     "native": {
       "mode": "fresh",
@@ -464,7 +1424,102 @@
           ]
         ]
       },
-      "note": "On the macOS runner g++/clang++ resolve to Apple clang of the selected Xcode 16.4."
+      "note": "On the macOS runner g++/clang++ resolve to Apple clang of the selected Xcode 16.4.",
+      "commands": [
+        [
+          "translation-xctest",
+          [
+            "python3",
+            "-B",
+            ".github/diagnostics/rewind610_checks.py",
+            "translation"
+          ]
+        ],
+        [
+          "central-session-xctest",
+          [
+            "python3",
+            "-B",
+            "test/retro_achievements_session_native_test.py",
+            "--output",
+            "build/ra-session-validation"
+          ]
+        ],
+        [
+          "dolphin-menu-xctest",
+          [
+            "python3",
+            "-B",
+            "test/dolphin_account_267_test.py",
+            "--native"
+          ]
+        ],
+        [
+          "armsx2-menu-xctest",
+          [
+            "python3",
+            "-B",
+            "test/armsx2_graphics_ui_test.py"
+          ]
+        ],
+        [
+          "libretro-host-behavior",
+          [
+            "python3",
+            "-B",
+            "test/libretro_host_test.py"
+          ]
+        ],
+        [
+          "libretro-device-compile",
+          [
+            "python3",
+            "-B",
+            "test/libretro_ios_syntax_test.py"
+          ]
+        ],
+        [
+          "actual-flutter-host-compile",
+          [
+            "python3",
+            "-B",
+            ".github/diagnostics/rewind610_checks.py",
+            "hosts"
+          ]
+        ],
+        [
+          "rpcs3-retroachievements-apple-clang",
+          [
+            "python3",
+            "-B",
+            "test/rpcs3_retroachievements_test.py"
+          ]
+        ],
+        [
+          "rpcs3-graphics-tests-612-apple",
+          [
+            "python3",
+            "-B",
+            "test/rpcs3_graphics_tests612_test.py"
+          ]
+        ],
+        [
+          "rpcs3-timeline-613-foundation",
+          [
+            "python3",
+            "-B",
+            "test/rpcs3_diagnostics546_native_test.py"
+          ]
+        ],
+        [
+          "rpcs3-timeline-616-foundation",
+          [
+            "python3",
+            "-B",
+            "test/rpcs3_diagnostics546_native_test.py"
+          ]
+        ]
+      ]
     },
     "awaitMinutes": 75
   },
@@ -480,5 +1535,11 @@
     "armsx2",
     "libretro",
     "melonx-dependencies"
-  ]
+  ],
+  "frozen": {
+    "at": "2026-11-02T16:24:00Z",
+    "commit": "4575db36080437d5cb34c63fbb2eb85527e4a123",
+    "tool": "standard_delivery.py freeze",
+    "inCI": false
+  }
 }
