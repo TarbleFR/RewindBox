@@ -139,3 +139,20 @@ Gel de la 612 sur `83c0d6aa` :
     (run 41380039319) ;
 - tests frais dans les deux groupes ;
 - contrôle légal réussi.
+
+## 6. État de la 613 (2 novembre 2026)
+
+Livrée sur la 612 par la même recette, sans extension.
+- Gel sur `55dd975d` : base effective 612 `a88d478b…`, empreinte effective `fd90ad9d…`.
+- Un premier gel (`a3a95e2f`) a été refait : un commit produit d'une autre session (`d7f069b8`) est
+  arrivé sur la branche avant le déclencheur ; il est classé « source seulement » comme `e424bc9f`,
+  `05ab4b1b`, `a5a64217` et `35afb4c9` (cible 614).
+- Composants : Core RPCS3 613 remplacé ; ses harnais Apple viennent d'un second run
+  (`41438526095`, `[rpcs3-core-build-apple]`) sur le même delta canonique, accepté par
+  `same_core_sources`. MeloNX de la 611 conservé ; Dolphin/ARMSX2, libretro et dépendances MeloNX
+  conservés par la republication de la 612 (run 41386771013).
+- Run de livraison 41440020469 réussi en ~19 min ; IPA vérifiée hors ligne (90 images, 4 changées
+  et déclarées, Core embarqué à l'empreinte du pin) ; reçu `docs/evidence/rewind613/delivery.json`.
+- Hors CI, les métadonnées API et les archives ont été lues par le serveur GitHub MCP et les URL
+  signées des artefacts (octets égaux aux digests de l'API) ; la CI les authentifie elle-même.
+

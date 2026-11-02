@@ -2,7 +2,7 @@
 
 Read this guide before work. It contains current project state and permanent
 rules; detailed investigations and build receipts belong in `docs/`.
-Last reconciled: **2 November 2026**, after private Build **612**.
+Last reconciled: **2 November 2026**, after private Build **613**.
 
 ## Start here
 
@@ -21,17 +21,26 @@ Last reconciled: **2 November 2026**, after private Build **612**.
 
 | Item | Verified reference |
 | --- | --- |
-| Application | **RewindBox 0.0.8 (612)**, private IPA; iOS 18+, SideStore re-signing |
-| Delivery source | `dd5f65c20486806a442d93062f8ea8802f9f9c58`, tree `81c96ac194992e7615e569e1dd8625769fe73398`; frozen manifest [`build-utils/delivery/612.json`](build-utils/delivery/612.json) (effective product digest `a88d478b…`, replayed from the delivered 611 effective tree `62414e99…`) |
-| Delivery run / jobs | `41386771013`, attempt 1, standard recipe: preflight `125089224772`, Flutter `125089394055`, native `125089394046`, republish `125089394015`, application `125089394008`, all successful (about 25 min); both test groups ran fresh, with the delivery contract |
-| Downloaded IPA | `RewindBox-612.ipa`, 190250768 bytes; SHA-256 `f2c6702d419792e8df8ede88a5e94807945692a95420f8b4cde2ac872814ea7b` |
-| Product baseline | Delivered 611 plus the reviewed RPCS3 612 commits (`a2596ecd`, `4a4bd50a`, `74f886ef`, `8b8a7362`, `d9cdb96f`): in-game accuracy test page, Core 612 delta and their tests; the RetroAchievements identification batch `b06888a9` stays **deferred** (inherited from the 611 effective tree, 83 product paths restored) |
+| Application | **RewindBox 0.0.8 (613)**, private IPA; iOS 18+, SideStore re-signing |
+| Delivery source | `427967e966fc7587f81fe1b60dd5731a1293d758`, tree `9b9d42b887860b13265b2f727d0538fb94c8afd9`; frozen manifest [`build-utils/delivery/613.json`](build-utils/delivery/613.json) (freeze commit `55dd975d`, effective product digest `fd90ad9d…`, replayed from the delivered 612 effective tree `a88d478b…`) |
+| Delivery run / jobs | `41440020469`, attempt 1, standard recipe: preflight `125259240423`, Flutter `125259619365`, native `125259619343`, republish `125259619302`, application `125259619462`, all successful (about 19 min); both test groups ran fresh, with the delivery contract |
+| Downloaded IPA | `RewindBox-613.ipa`, 190258907 bytes; SHA-256 `65ff7189049bc8087598a70e82edcc7fc2e9d90fab7b89b25b92d6977291c53b` |
+| Product baseline | Delivered 612 plus the reviewed RPCS3 613 commits (`53999764`, `b6706f78`, `64d56cfe`): Assassin's Creed profile ZCULL accuracy Approximate (BLES00158, BLUS30089), Core 613 delta, timeline histogram/ZCULL/SPU-block families, their tests. Source-only (target 614, other sessions): `e424bc9f`, `05ab4b1b`, `a5a64217` (MeloNX bindless arrays), `35afb4c9` (RetroAchievements sign-in), `d7f069b8` (scraper/game box); `b06888a9` stays **deferred** (inherited) |
 | MeloNX Core | **Kept from 611** (`unchangedFromBase`): fragmented-read Core `b99e754d`, packaged fingerprint `98ecdb25…`, reinstalled from its pin |
-| RPCS3 Core | **Replaced: Core 612** = Core 610 + the RetroAchievements hooks of 611 + census v2 + per-game graphics test levers; run `41384244220`, artifact `13115426805`, dylib `4ad4c97f…`, payload `be2d70a5…`; ABI 30, 92 exports, PPU/SPU cache identities unchanged ([report](docs/rpcs3-core612-2026-11-02.md), [pin](build-utils/rpcs3/core-pin.json)) |
-| Dolphin Core | Retained from 608 (payload `640e4389…`) through the archive republished by run `41380039319` |
-| ARMSX2 Core | Retained from 608 (payload `fab55193…`, ABI 9) through the archive republished by run `41380039319` |
-| libretro / MeloNX dependencies | Retained through the archives republished by run `41380039319` (kept until 31 January 2027) |
-| Delivery proof | [delivery receipt](docs/evidence/rewind612/delivery.json), [signed payload identity](docs/evidence/rewind612/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind612/download612-verification.json); 611: [receipt](docs/evidence/rewind611/delivery.json) |
+| RPCS3 Core | **Replaced: Core 613** = Core 612 + SPU object-cache hits of blocks <= 16 KiB outside the LLVM compile admission (Black Ops II) + measurement-only ZCULL probe `COREPROF ZCULLSYNC613` (Assassin's Creed); Core run `41436855282`, artifact `13137258189`, dylib `d4c05726…`, payload `3d40b7de…`; Apple host harnesses run `41438526095` (same canonical delta `c107718c`); ABI 30, 92 exports, PPU/SPU cache identities unchanged through one exact alias ([report](docs/rpcs3-core613-2026-11-02.md), [pin](build-utils/rpcs3/core-pin.json)) |
+| Dolphin Core | Retained from 608 (payload `640e4389…`) through the archive republished by run `41386771013` |
+| ARMSX2 Core | Retained from 608 (payload `fab55193…`, ABI 9) through the archive republished by run `41386771013` |
+| libretro / MeloNX dependencies | Retained through the archives republished by run `41386771013` (kept until 31 January 2027) |
+| Delivery proof | [delivery receipt](docs/evidence/rewind613/delivery.json), [signed payload identity](docs/evidence/rewind613/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind613/download613-verification.json); 612: [receipt](docs/evidence/rewind612/delivery.json) |
+
+613 is delivered, not a pending candidate. Do not reuse its number; 614 is
+reserved by the MeloNX session (bindless arrays Core). The Assassin's Creed
+ZCULL default comes from the maintainer's iPhone result on BLES00158; the
+Black Ops II SPU change and the ZCULL probe have no iPhone result yet
+([protocol](docs/rpcs3-core613-2026-11-02.md)). The private 613 recipient key
+was deleted after the verified delivery. The RPCS3 Core route depends on the
+MoltenVK dependency run `41239096061`, whose artifacts expire on 14 November
+2026 at 20:30 UTC.
 
 612 is delivered, not a pending candidate. Do not reuse its number. It is the
 first build on a standard-recipe base: the recipe now replays from the base's
