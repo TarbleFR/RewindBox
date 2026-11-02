@@ -2543,6 +2543,8 @@ def record(build, run, verification, api_directory, key_deleted=False, root=None
         delta=dict(freezeCommit=product['freezeCommit'], effectiveDigest=product['effectiveDigest'],
                    reviewedCommits=[c['commit'] for c in product['reviewedCommits']],
                    sourceOnly=[dict(commit=c['commit'], targetBuild=c['targetBuild']) for c in product['sourceOnly']],
+                   promotedCommits=[dict(commit=c['commit'], paths=len(c['paths']) if c.get('paths') else 'all')
+                                    for c in product.get('promotedCommits', [])],
                    restoredPaths=len(product['restore'])),
         components={kind: dict(mode=spec['mode']) for kind, spec in manifest['components'].items()},
         verification=dict(result=report['result'], nativeImageCount=report['binaryValidation']['nativeImageCount'],

@@ -1,7 +1,8 @@
 # MeloNX full-bindless texture arrays — 2 November 2026
 
-Status: **change prepared and host-validated; Core and private IPA 614 in progress (613
-is the RPCS3 delivery of another session); not measured on the iPhone.** No FPS claim.
+Status: **delivered in private IPA 614** (run `41446700372`, `RewindBox-614.ipa`, 190,298,692
+bytes, SHA-256 `fbfab991…`), MeloNX Core run `41442795323` (source `b181cbe1`, ios-arm64
+`7816830c…`, packaged fingerprint `bf7de0dd…`). **Not measured on the iPhone.** No FPS claim.
 
 ## 1. Measured symptom (IPA 612, Hogwarts Legacy 1.0.5, Apple A18 Pro)
 

@@ -166,3 +166,12 @@ Livrée sur la 612 par la même recette, sans extension.
 - Hors CI, les métadonnées API et les archives ont été lues par le serveur GitHub MCP et les URL
   signées des artefacts (octets égaux aux digests de l'API) ; la CI les authentifie elle-même.
 
+
+## 6. État de la 614 (2 novembre 2026)
+
+Livrée sur la 613 (run `41446700372`, IPA `fbfab991…`). Deux extensions (section 2) : le vérificateur
+MeloNX nommé par le manifeste (Core arrays) et le travail différé promu (`promotedCommits`). Gel sur
+`6c377f97` : base effective 613 `fd90ad9d…`, 6 commits promus (dont 13 fichiers seulement de
+`b06888a9`), 5 revus, 50 différences produit, 70 chemins différés hérités, empreinte effective
+`90495b43…`, 6673 fichiers produit ; tests frais dans les deux groupes ; contrôle légal réussi.
+L'image `rpcs3_internal_bridge` a changé sans changement de ses sources (signalée, non bloquante).
