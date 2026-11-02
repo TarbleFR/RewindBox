@@ -257,3 +257,27 @@ hérités, empreinte effective `4fbdfe3e…`, 6840 fichiers produit ; contrôle 
   bloquant). Tests frais dans les deux groupes (~25 min de bout en bout).
 - Hors CI : métadonnées API par le serveur GitHub MCP, pièces par ses URL signées (octets égaux aux
   digests de l'API) ; IPA vérifiée hors ligne, clé privée supprimée.
+
+## 11. État de la 620 (2 novembre 2026)
+
+Livrée sur la 619 (run `41527072487`, IPA `8cf47853…`, 194238627 octets), sans extension de la
+recette. Gel sur `4eedd6fc` : base effective 619 `4fbdfe3e…`, 9 commits revus (copie GPU des sources
+DMA linéaires pour Hogwarts `6d6e7eac` et sa révision après revue `f2478545`, deux regels du contrat du
+Core `cd019876`, `1c836557`, intervalles de présentation du journal `490b19f5` et le correctif de son test
+hôte `56bb0478`, `tools/melonx/frame_report.py` `3facc1fe`, correctif de connexion RA `c00bdca6`,
+correctif PS3 « non reconnu » `8a3dd9cf`), `b06888a9` promu pour le seul `Rpcs3Achievements.mm`,
+69 chemins différés hérités, empreinte effective `bf6ee0b0…`, 6842 fichiers produit ; contrôle légal
+réussi.
+- Premier déclencheur (run `41523517233`) : échec du job natif sur un seuil de CPU du test hôte du
+  journal (fil occupé à 39 % d'un échantillon de 0,25 s pour un plancher de 40 %, charge du runner). Le
+  seuil devient « le fil le plus occupé listé, au moins 10 % » (`56bb0478`), commit revu, regel, nouveau
+  déclencheur. Le changement touche l'arbre effectif : les deux groupes de tests sont rejoués frais.
+- Le brouillon doit déclarer dans `images.mustChange` les images dérivées des chemins revus (App,
+  ponts MeloNX/RA/RPCS3, Runner) : `test_images` refuse sinon le brouillon avant le gel.
+- Composants : MeloNX remplacé (`c5627b99…`, remplace le Core de la 618 `dfe3bb56…`), RPCS3 Core 619
+  `unchangedFromBase` ; Dolphin/ARMSX2, libretro et dépendances MeloNX conservés par la republication de
+  la 619. Images changées : App, MeloNXCore, `melonx_internal_bridge`, `retro_achievements_session`,
+  `rpcs3_internal_bridge`, Runner, et `armsx2_internal_bridge`, `dolphin_internal_bridge` sans changement
+  de leurs sources (signalé, non bloquant). Tests frais dans les deux groupes (~26 min de bout en bout).
+- Hors CI : métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub MCP
+  (octets égaux aux digests de l'API) ; IPA vérifiée hors ligne, clé privée supprimée.

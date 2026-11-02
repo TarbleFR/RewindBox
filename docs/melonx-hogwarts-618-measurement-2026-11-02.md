@@ -43,7 +43,7 @@ against 21,274 `noTarget` declines.
   thread cannot process further commands. The flush time is therefore a lower bound of the
   GPU-thread time lost per frame (2.6–3.9 s of each 5.1 s window), not an addition to it.
 
-## Decision and change (IPA 620, Core run 41519432972, packaged `c5627b99…`)
+## Decision and change (IPA 620, Core run 41519432972, packaged `c5627b99…`; delivered by run 41527072487, IPA `8cf47853…`)
 
 The source of these copies is GPU-written: only a GPU-modified texture over the source makes
 the read run a flush. When that texture can be read on the GPU, the read back is not needed.
@@ -104,6 +104,42 @@ Correctness checks:
   wider destination lookup, for example to mip levels.
 - **Per-frame windows:** `texFlushAction` and `syncInvoke` per window.
 - **Frame times:** `tools/melonx/frame_report.py`, which computes them from the `gaps=` lists.
+
+## Device test of IPA 620 (one run, same iPhone as PID 66181)
+
+Reference: build 618, PID 66181, seconds 59–118. Same iPhone, same save, same route, same
+MeloNX settings; nothing else changed. Battery above 50 %, not charging, thermal state
+`nominal` at the start. The RewindBox pause marks the passes: the journal writes `paused` on
+every per-second line while the game is paused.
+
+1. **First launch after installing 620:** this is the cold pass. Start Hogwarts Legacy and
+   load the save. Wait for controllable play at the starting point of the route.
+2. **Three passes:** pause about 5 s, resume and follow the route for 60 s. Repeat three
+   times, ending with a pause.
+3. **Return to menu:** open the game's menu, go back to play, then close the game normally.
+4. **Warm passes:** relaunch the game at once (warm cache) and repeat steps 1 to 3.
+5. **Checks to note:**
+   - textures, notably the UI, text and minimap;
+   - audio;
+   - game speed;
+   - return to the menu.
+6. **Files to return** (from `Diagnostics/Switch`): `MeloNX-performance.log`,
+   `MeloNX-core.log`, `MeloNX-launch.log` and `MeloNX-stderr.log`.
+
+From these, `tools/melonx/frame_report.py` gives each pass separately (between two `paused`
+stretches):
+- distinct-frame FPS;
+- p50, p95 and p99 frame times;
+- pauses over 50 and 100 ms;
+- the texture flushes and render-thread waits per window;
+- the remaining slow source reads.
+
+The two lines below give the time attributed to the GPU source copy:
+- `DMA GPU source copy (Hogwarts policy)`;
+- `gpuSourceCopies` against the declines.
+
+The startup, menu and cinematic stretches are kept apart by the first Metal presentation and by
+the pauses.
 
 ## Other leads in these logs
 
