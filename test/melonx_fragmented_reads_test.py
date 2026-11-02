@@ -3,10 +3,10 @@
 
 The control is the prepared source before adapt_fragmented_reads (the delivered 609
 Core); the candidate is that source with adapt_fragmented_reads and every later adapter
-that edits a composed file applied in preparation order, and it must equal the final
-prepared source when one is given. A test-only probe is compiled into a disposable copy
-of Ryujinx.Graphics.Gpu for each side and drives MemoryManagerHostTracked, the software MemoryManager, PhysicalMemory,
-Buffer.LoadRegion, the GPU MemoryManager and the command prefetch. Same bytes, tracking
+that edits a composed file applied in preparation order (array deltas, then the Hogwarts
+DMA copies), and it must equal the final prepared source when one is given. A test-only
+probe is compiled into a disposable copy of Ryujinx.Graphics.Gpu for each side and drives
+MemoryManagerHostTracked, the software MemoryManager, PhysicalMemory, Buffer.LoadRegion, the GPU MemoryManager and the command prefetch. Same bytes, tracking
 and zero contract are required; the candidate must stop allocating per fragmented read.
 Host x64 Release execution: it proves bytes and allocations, not Apple timing or FPS.
 """
@@ -27,14 +27,17 @@ sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_fragmented_reads import apply, NAMES  # noqa: E402
 from adapt_gpu_work_diagnostics import apply as apply_work, NAMES as WORK_NAMES  # noqa: E402
 from adapt_bindless_array_deltas import apply as apply_arrays, NAMES as ARRAY_NAMES  # noqa: E402
+from adapt_hogwarts_dma_copies import apply as apply_dma, NAMES as DMA_NAMES, LIBRARY as DMA_LIBRARY  # noqa: E402
 
 DIAGNOSTICS = 'src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'
-COMPOSED = sorted(set(NAMES) | set(WORK_NAMES) | set(ARRAY_NAMES) | {DIAGNOSTICS})
-# Production files the candidate build compiles and this receipt binds (the region type is unchanged).
-COMPILED = sorted(set(COMPOSED) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})
+COMPOSED = sorted(set(NAMES) | set(WORK_NAMES) | set(ARRAY_NAMES) | set(DMA_NAMES) | {DIAGNOSTICS})
+# Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
+# (Ryujinx.Library) is outside the GPU assembly closure: it is composed and bound here, compiled by NativeAOT.
+COMPILED = sorted((set(COMPOSED) - {DMA_LIBRARY}) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})
 INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/FragmentedReadsProbe.cs',
           'build-utils/melonx/adapt_fragmented_reads.py', 'build-utils/melonx/adapt_gpu_work_diagnostics.py',
-          'build-utils/melonx/adapt_bindless_array_deltas.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
+          'build-utils/melonx/adapt_bindless_array_deltas.py', 'build-utils/melonx/adapt_hogwarts_dma_copies.py',
+          'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {
     'src/Ryujinx.Memory/IVirtualMemoryManager.cs': 'ReadOnlySpan<byte> GetSpan(ulong va, int size, bool tracked = false);',
@@ -84,11 +87,19 @@ def project_closure(src, project):
 
 
 def compose(target):
-    """The preparation order: current diagnostics source, fragmented reads, GPU work probes, then array deltas."""
+    """The preparation order: current diagnostics source, fragmented reads, GPU work probes, array deltas, DMA copies."""
     shutil.copyfile(ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs', target / DIAGNOSTICS)
     apply(target)
     apply_work(target)
     apply_arrays(target)
+    apply_dma(target)
+
+
+def compose_staged(target):
+    """A staged GPU closure has no Ryujinx.Library project: the policy file is composed beside it, not compiled."""
+    (target / DMA_LIBRARY).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(SOURCE / DMA_LIBRARY, target / DMA_LIBRARY)
+    compose(target)
 
 
 def stage(tree, work, candidate, transform=None):
@@ -172,7 +183,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-fragmented-reads-') as temporary
     if CANDIDATE:
         check(postimages == {name: sha(CANDIDATE / name) for name in COMPOSED}, 'composition differs from the final prepared source')
     control, projects = stage(SOURCE, work, candidate=False)
-    candidate, _ = stage(CANDIDATE or SOURCE, work, candidate=True, transform=None if CANDIDATE else compose)
+    candidate, _ = stage(CANDIDATE or SOURCE, work, candidate=True, transform=None if CANDIDATE else compose_staged)
     compiled = {'control': {name: sha(control / name) for name in COMPILED},
                 'candidate': {name: sha(candidate / name) for name in COMPILED}}
     if CANDIDATE:

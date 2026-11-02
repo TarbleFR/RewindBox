@@ -101,12 +101,18 @@ for old, new in {
     assert support.count(old) == 1, old
     support = support.replace(old, new)
 if CANDIDATE:
-    # The final cache also reads the pools for its delta updates (not reached by the buffer-handle paths here).
+    # The final cache also reads the pools, their change log and the invalidation epoch for its delta updates
+    # (not reached by the buffer-handle paths here; an unavailable log keeps the full scan).
     for old, new in {
         '        public Texture GetCachedItem(int id) => id >= 0 && id < Items.Length ? Items[id] : null;\n':
             '        public Texture GetCachedItem(int id) => id >= 0 && id < Items.Length ? Items[id] : null;\n'
             '        internal Texture PeekForBindingDelta(int id, out bool knownInvalid) { knownInvalid = false; return Items[id]; }\n'
-            '        internal int AliasGeneration => 0;\n',
+            '        internal int AliasGeneration => 0;\n'
+            '        internal const int DeltaLogCapacity = 4096;\n'
+            '        internal long DeltaLogCount => 0;\n'
+            '        internal bool CopyDeltaLog(long since, long until, int[] destination, out int count) { count = 0; return false; }\n',
+        '        public int InvalidatedSequence;\n':
+            '        public int InvalidatedSequence;\n        internal static int InvalidationEpoch;\n',
         '        public Sampler(ISampler host) => Host = host;\n':
             '        public Sampler(ISampler host) => Host = host;\n        public bool IsDisposed => false;\n',
         '    readonly struct FormatInfo { public static FormatInfo Invalid => default; }\n':

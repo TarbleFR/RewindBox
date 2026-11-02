@@ -97,6 +97,7 @@ from adapt_register_liveness import apply as adapt_register_liveness
 from adapt_fragmented_reads import apply as adapt_fragmented_reads
 from adapt_gpu_work_diagnostics import apply as adapt_gpu_work_diagnostics
 from adapt_bindless_array_deltas import apply as adapt_bindless_array_deltas
+from adapt_hogwarts_dma_copies import apply as adapt_hogwarts_dma_copies, LIBRARY_OLD as HOGWARTS_DMA_LIBRARY_ANCHOR
 
 
 def replace_once(path, old, new):
@@ -236,6 +237,10 @@ def main():
     # adapt_bindless_allocations, adapt_binding_lookup and adapt_binding_data_snapshots
     # (TextureBindingsArrayCache.cs); no adapter, adapt_gpu_work_diagnostics included, edits them later.
     adapted += [source / name for name in adapt_bindless_array_deltas(source)]
+    # Last: DmaClass.cs and GraphicsConfig.cs are not edited by any later step, and its Library.cs anchor is
+    # the query-policy line that adapt_occlusion_reports wrote (still exactly once at this point).
+    assert library.read_text(encoding='utf-8-sig').count(HOGWARTS_DMA_LIBRARY_ANCHOR) == 1, 'Hogwarts DMA policy anchor'
+    adapted += [source / name for name in adapt_hogwarts_dma_copies(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -307,7 +312,7 @@ def main():
                  'adapt_counter_report_compaction.py', 'adapt_single_virtual_dependency.py',
                  'adapt_performance_diagnostics.py', 'adapt_register_liveness.py',
                  'adapt_fragmented_reads.py', 'adapt_gpu_work_diagnostics.py',
-                 'adapt_bindless_array_deltas.py']:
+                 'adapt_bindless_array_deltas.py', 'adapt_hogwarts_dma_copies.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
