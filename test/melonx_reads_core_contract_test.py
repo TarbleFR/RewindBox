@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
-"""Reject stale or mis-scoped fragmented-read Core receipts and source contracts."""
+"""Reject stale or mis-scoped fragmented-read Core receipts and source contracts.
+
+While the Core workflow routes verify_reads_core.py, the contract's inputs must match
+the checkout. Once a successor route replaces it (the bindless array-delta Core,
+verify_arrays_core.py), this contract is historical: those inputs legitimately moved
+on, so the contract is authenticated by its delivered pin digest and every recorded
+input against the producer commit instead; all other checks are unchanged.
+"""
 import argparse
 import copy
+import hashlib
 import io
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 import zipfile
 
@@ -97,6 +106,35 @@ for mutation in ('missingRequired', 'staleGeneration', 'nonfinite', 'missingWork
         else: payload['managed'].pop('lastGcMemoryLoadBytes')
         event['diagnostic'] = json.dumps(payload)
     rejects(lambda: verify.verify_diagnostics_smoke(invalid), 'Invalid actual-runtime diagnostics accepted: ' + mutation)
+# The route decides whether this contract is current or historical; the successor's contract test owns the checkout.
+ROUTED = 'python3 build-utils/melonx/verify_reads_core.py run_gates\n' in (ROOT / '.github/workflows/melonx-core.yml').read_text()
+HISTORICAL_REASON = None if ROUTED else ('Superseded by the bindless array-delta Core route (verify_arrays_core.py), '
+                                         'which uses this delivered Core as its baseline: inputs are checked at the producer commit.')
+
+
+def git(*arguments):
+    return subprocess.run(['git', '-C', str(ROOT), *arguments], capture_output=True, check=True, timeout=120).stdout
+
+
+def historical_contract():
+    """The delivered contract: its pin digest, the checks of verify.contract(), and every input at the producer commit."""
+    pin = json.loads((ROOT / 'build-utils/melonx/reads-core-pin.json').read_bytes())
+    raw = verify.CONTRACT.read_bytes()
+    check(pin['status'] == 'verified' and hashlib.sha256(raw).hexdigest() == pin['contractSha256'], 'Reads contract differs from its delivered pin')
+    check(subprocess.run(['git', '-C', str(ROOT), 'merge-base', '--is-ancestor', pin['source'], 'HEAD'], timeout=120).returncode == 0,
+          'Producer commit is not in this history')
+    value = json.loads(raw)
+    check(value['schemaVersion'] == 1 and value['baseline'] == verify.BASELINE, 'Wrong reads contract baseline')
+    check(value['freshAppleGates'] == len(value['gates']) == 5, 'Wrong fresh gate scope')
+    check(len(value['baselineReceipts']) == value['historicalAppleReceipts'] == 49, 'Wrong historical receipt inventory')
+    for inventory in (value['inputs'], value['preparationInputs']):
+        check(bool(inventory), 'Empty input inventory')
+        for path, expected in inventory.items():
+            check(not Path(path).is_absolute() and '..' not in Path(path).parts, 'Unsafe input path')
+            check(hashlib.sha256(git('show', pin['source'] + ':' + path)).hexdigest() == expected, 'Producer input differs: ' + path)
+    return value
+
+
 if args.archive:
     before, members, gates = verify.authenticate_archive(args.archive)
     check(len(before) == 126 and len(members) == 163, 'Wrong real 609 composition')
@@ -105,7 +143,7 @@ if args.ada_archive:
     _, _, _, ada = verify.liveness.authenticate_archive(args.ada_archive, verify.liveness_contract())
     check(len(ada) == 160, 'Wrong real Ada control composition')
 if not args.helpers_only:
-    frozen = verify.contract()
+    frozen = verify.contract() if ROUTED else historical_contract()
     check(frozen['freshAppleGates'] == 5, 'All five fresh fixtures required')
     covered = set().union(*(set(g['requiredPostimages']) for g in frozen['gates']))
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
@@ -129,5 +167,7 @@ if not args.helpers_only:
     changed['preparationInputs'][name] = '0' * 64
     rejects(lambda: verify.common.inputs_match(changed['preparationInputs']), 'Changed prepared input accepted')
 print(json.dumps(dict(result='passed', checks=checks, helpersOnly=args.helpers_only,
-    currentContractVerified=not args.helpers_only, actualBaselineArchiveVerified=bool(args.archive),
+    currentContractVerified=not args.helpers_only and ROUTED,
+    historicalContractVerified=not args.helpers_only and not ROUTED, historicalReason=HISTORICAL_REASON,
+    actualBaselineArchiveVerified=bool(args.archive),
     actualAdaArchiveVerified=bool(args.ada_archive), historicalSuitesReexecuted=False, physicalDeviceTested=False)))
