@@ -4,8 +4,9 @@ Every private IPA is produced by this script and .github/workflows/standard-deli
 last verified delivered IPA, adding only what the build's manifest build-utils/delivery/<N>.json
 declares:
 
-- replaced components are authenticated from their own producer route (rpcs3_core_component.py,
-  melonx_reads_core_component.py), retained components keep their authenticated identity
+- replaced components are authenticated from their own producer route (rpcs3_core_component.py, and
+  the MeloNX Core verifier the manifest names: melonx_reads_core_component.py or
+  melonx_arrays_core_component.py), retained components keep their authenticated identity
   (retained_components.py), with every pin in the manifest or in the component's pin file;
 - a test group reruns only when the manifest says fresh; otherwise its pinned evidence is
   authenticated and labelled reused; the delivery contract always reruns;
@@ -32,6 +33,7 @@ import ast
 from datetime import datetime, timezone
 import fnmatch
 import hashlib
+import importlib
 import io
 import json
 import os
@@ -80,6 +82,7 @@ RUNNER = 'Runner'
 # Recipe paths: read by the recipe, never compiled into the IPA. Every other path is product.
 RECIPE_PREFIXES = ('.github/', 'docs/', '.claude/', 'build-utils/delivery/')
 RECIPE_FILES = ('build-utils/rpcs3/core-pin.json', 'build-utils/melonx/reads-core-pin.json',
+                'build-utils/melonx/arrays-core-pin.json',
                 'test/standard_delivery_contract_test.py', 'build-utils/verify_downloaded_delivery.py')
 RECIPE_GLOBS = ('build-utils/delivery-*-recipient.pem',)
 RECIPE_DEFINITION = dict(prefixes=list(RECIPE_PREFIXES), files=list(RECIPE_FILES), globs=list(RECIPE_GLOBS),
@@ -112,6 +115,11 @@ PLUGIN_IMAGES = {
 COMPONENT_MODES = {'replace', 'retain', 'retain-archive', 'pinned-source', 'pinned-release'}
 REPUBLISHED_KINDS = ('rpcs3-core', 'rpcs3-host-tests', 'melonx-core', 'dolphin', 'armsx2', 'libretro',
                      'melonx-dependencies')
+# The MeloNX Core verifier a manifest names (components.melonx.verifier); each owns its pin and contract.
+MELONX_VERIFIERS = {
+    '.github/diagnostics/melonx_reads_core_component.py': 'melonx_reads_core_component',
+    '.github/diagnostics/melonx_arrays_core_component.py': 'melonx_arrays_core_component',
+}
 HEX40 = re.compile(r'[0-9a-f]{40}')
 HEX64 = re.compile(r'[0-9a-f]{64}')
 
@@ -410,6 +418,8 @@ def manifest_errors(value):
             check(spec['unchangedFromBase'] is True and key not in value.get('images', {}).get('replaced', {}) and
                   spec.get('image') in value.get('images', {}).get('retained', {}).get(key, []),
                   f'components.{key}.unchangedFromBase needs its image retained under images.retained.{key}, not replaced')
+    check(value['components'].get('melonx', {}).get('verifier') in MELONX_VERIFIERS,
+          'components.melonx.verifier must name a known MeloNX Core verifier')
     for key in ('dolphin', 'armsx2'):
         check(value['components'].get(key, {}).get('mode') == 'retain', f'components.{key} must be retained')
     for key in ('libretro', 'melonx-dependencies'):
@@ -442,6 +452,16 @@ def manifest_errors(value):
         for key in ('rpcs3', 'melonx'):
             check(HEX64.fullmatch(str(value['components'][key].get('pinSha256'))), f'frozen components.{key}.pinSha256')
     return errors
+
+
+def melonx_component(manifest):
+    """The MeloNX Core verifier module the manifest names, bound to the pin it declares."""
+    spec = manifest['components']['melonx']
+    name = MELONX_VERIFIERS.get(spec.get('verifier'))
+    require(name is not None, 'Unknown MeloNX Core verifier: ' + repr(spec.get('verifier')))
+    module = importlib.import_module(name)
+    require(spec.get('pin') == module.PIN, 'The MeloNX Core pin does not belong to its verifier')
+    return module
 
 
 def ci_build():
@@ -1272,7 +1292,7 @@ def worktree_listing(prefix):
 
 def pins_check(manifest):
     import rpcs3_core_component as rpcs3
-    import melonx_reads_core_component as melonx
+    melonx = melonx_component(manifest)
     components = manifest['components']
     rpcs3_pin = rpcs3.load_pin(ROOT / components['rpcs3']['pin'])
     rpcs3.pinned(rpcs3_pin)
@@ -1411,12 +1431,12 @@ def rpcs3_operation(operation, path=None):
 
 def component_runs():
     import rpcs3_core_component as rpcs3
-    import melonx_reads_core_component as melonx
+    melonx = melonx_component(ci_manifest())
     return save('standard-component-runs.json', dict(rpcs3=rpcs3.core_run(rpcs3_pin()), melonx=melonx.producer('core')))
 
 
 def melonx_operation(operation):
-    import melonx_reads_core_component as melonx
+    melonx = melonx_component(ci_manifest())
     if operation == 'download-melonx':
         return save('standard-melonx-download.json', melonx.download('core'))
     return save('standard-melonx-evidence.json', melonx.engine_evidence())
@@ -1554,8 +1574,8 @@ def pinned_payload_rule(manifest, key, pinned, delivered):
 def expected():
     import retained_components as retained
     import rpcs3_core_component as rpcs3
-    import melonx_reads_core_component as melonx
     manifest = ci_manifest()
+    melonx = melonx_component(manifest)
     repo = Repo()
     application = json.loads((OUT / 'standard-host-contract.json').read_bytes())
     require(application['source'] == repo.commit('HEAD') and application['build'] == manifest['build'],
@@ -1657,7 +1677,6 @@ def seal():
 def validate(ipa):
     import retained_components as retained
     import rpcs3_core_component as rpcs3
-    import melonx_reads_core_component as melonx
     import rewind608_producers as producers608
     from rewind606_engine import safe_members
     from rewind607_delivery import zip_payloads
@@ -1666,6 +1685,7 @@ def validate(ipa):
     from validate_shader_compiler_ipa import validate as shaders
     from verify_ipa import macho
     manifest = ci_manifest()
+    melonx = melonx_component(manifest)
     pin = rpcs3_pin(manifest)
     receipt = expected()
     complete = zip_payloads(ipa)
@@ -1754,7 +1774,7 @@ def republication_sources(manifest):
     """{kind: (archive path, original pin)} of every authenticated archive this delivery downloaded."""
     import retained_components as retained
     import rpcs3_core_component as rpcs3
-    import melonx_reads_core_component as melonx
+    melonx = melonx_component(manifest)
     pin = rpcs3_pin(manifest)
     sources = {}
     for kind, (path, value) in rpcs3.archives(pin).items():
@@ -1844,7 +1864,7 @@ def freeze(build, dry_run=False, repo=None, root=None):
         blockers.append('components.rpcs3: ' + '; '.join(pin_report['errors']))
     melonx_raw = (root / draft['components']['melonx']['pin']).read_bytes()
     melonx_pin = json.loads(melonx_raw)
-    contract = read_head('build-utils/melonx/reads-core-contract.json')
+    contract = read_head(melonx_component(draft).CONTRACT)
     if not (melonx_pin.get('status') == 'verified' and contract is not None and
             melonx_pin['contractSha256'] == sha(contract) and melonx_pin['name'] == 'MeloNX-engine-' + melonx_pin['source']):
         blockers.append('components.melonx: the MeloNX Core pin is not verified against its contract')
@@ -2368,7 +2388,7 @@ def api_checks(manifest, strict):
     """API-backed authentication of every pinned producer; locally a failure is reported, not raised."""
     import retained_components as retained
     import rpcs3_core_component as rpcs3
-    import melonx_reads_core_component as melonx
+    melonx = melonx_component(manifest)
     checks = {
         'base': lambda: authenticate_base(manifest),
         'rpcs3': lambda: rpcs3.core_run(rpcs3.pinned(rpcs3.load_pin(ROOT / manifest['components']['rpcs3']['pin']))),

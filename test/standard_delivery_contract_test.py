@@ -278,9 +278,19 @@ class ManifestSchema(unittest.TestCase):
 
 
 class Components(unittest.TestCase):
-    def test_melonx_pin_is_verified_and_bound_to_its_contract(self):
-        import melonx_reads_core_component as melonx
+    def test_melonx_verifier_comes_from_the_manifest(self):
         _, manifest = current_manifest()
+        spec = manifest['components']['melonx']
+        self.assertEqual(sd.melonx_component(manifest).__name__, sd.MELONX_VERIFIERS[spec['verifier']])
+        for verifier, pin in ((spec['verifier'], 'build-utils/melonx/other-pin.json'),
+                              ('.github/diagnostics/unknown_component.py', spec['pin'])):
+            with self.assertRaises(ValueError):
+                sd.melonx_component(dict(manifest, components=dict(manifest['components'],
+                                                                     melonx=dict(spec, verifier=verifier, pin=pin))))
+
+    def test_melonx_pin_is_verified_and_bound_to_its_contract(self):
+        _, manifest = current_manifest()
+        melonx = sd.melonx_component(manifest)
         pin = melonx.pin()
         self.assertEqual(manifest['components']['melonx']['pin'], melonx.PIN)
         self.assertEqual(pin['contractSha256'], sha((ROOT / melonx.CONTRACT).read_bytes()))
@@ -668,6 +678,7 @@ class EffectiveTreeSynthetic(unittest.TestCase):
         for path in ('.github/workflows/x.yml', 'docs/a/b.md', 'AGENTS.md', '.claude/settings.json',
                      'build-utils/delivery/611.json', 'build-utils/delivery-611-recipient.pem',
                      'build-utils/rpcs3/core-pin.json', 'build-utils/melonx/reads-core-pin.json',
+                     'build-utils/melonx/arrays-core-pin.json',
                      'test/standard_delivery_contract_test.py', 'build-utils/verify_downloaded_delivery.py'):
             self.assertTrue(sd.is_recipe(path), path)
         for path in ('lib/a.dart', 'test/x_test.py', 'build-utils/rpcs3/canonical-source.json', 'packages/a/README.md',
