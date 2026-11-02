@@ -44,6 +44,11 @@ check([int(i) for i, _, _ in order] == list(range(9)), order)
 check([kind for _, kind, _ in order].count('Exchange') == 2 and order[3][1] == order[8][1] == 'Exchange', 'maxima reset on read')
 # The smoke app compiles MeloNXRuntimeAPI.swift without the journal or parity file.
 check('MeloNXPerfJournal' not in runtime and 'MeloNXStdioCapture' not in runtime, 'runtime API depends on the host journal')
+# The engine's gen0 GC budget (64 MiB, hex for the NativeAOT runtime) is in the environment before its first load,
+# without overriding an existing value.
+check('static let gen0BudgetVariable = "DOTNET_GCgen0size"' in runtime and 'static let gen0BudgetHex = "4000000"' in runtime and
+      runtime.count('setenv(') == 1 and runtime.index('setenv(Self.gen0BudgetVariable, Self.gen0BudgetHex, 0)') <
+      runtime.index('session = try MeloNXNativeSessionAPI(libraryURL: library)'), 'gen0 budget not set before the engine loads')
 
 # Controller wiring: started with the controls, paused with the game, stopped
 # before the capture ends and on deinit. Writes go through the shared writer.

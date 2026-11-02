@@ -76,8 +76,17 @@ final class MeloNXRuntimeAPI {
     private let diagnosticsFunction: Diagnostic
     private let prepareJitFunction: Version
 
+    // The engine's NativeAOT runtime reads its GC configuration from the environment
+    // when it starts, at the first load of the engine below. A 64 MiB gen0 budget,
+    // instead of the one derived from the CPU cache (about 13 MiB here), cuts the gen0
+    // collections of a game's start: build 620 Hogwarts Legacy allocated 6.2 GB in its
+    // first 5 s, in 610 gen0 collections and 903 ms of pauses. An existing value is kept.
+    static let gen0BudgetVariable = "DOTNET_GCgen0size"
+    static let gen0BudgetHex = "4000000"
+
     init(library: URL, frameworks: URL, root: URL, moltenVk requested: Int32 = 0) throws {
         MeloNXLaunchJournal.record("frameworks", "begin", detail:"Loading the private ARM64 MeloNX engine and resolving its ABI.")
+        setenv(Self.gen0BudgetVariable, Self.gen0BudgetHex, 0)
         session = try MeloNXNativeSessionAPI(libraryURL: library)
         // session already owns a process-lifetime handle, including on error.
         guard let handle = dlopen(library.path, RTLD_NOW | RTLD_LOCAL) else {
