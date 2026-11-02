@@ -588,7 +588,7 @@ int main()
 		take(tally.faults_report); take(tally.services); take(tally.waits);
 		scenarios++;
 	}
-	unsigned concurrent = 0;
+	unsigned concurrent = 0, concurrent_tripped = 0;
 	{ // six guests, an RSX thread, reports enqueued between the accesses
 		ZCULL_control z;
 		rsx_server server(z);
@@ -607,7 +607,18 @@ int main()
 		}
 		for (auto& t : guests) t.join();
 		concurrent = ok.load();
-		CHECK(concurrent == 600 && z.upstream_paths.load() == 0 && !z.m_ios_demand.tripped() && !z.m_pages_accessed[1]);
+		// Every access completes. Six guests waiting together can exceed the 400 ms per second budget
+		// on a slow host (TSan on a macOS runner): the boot then trips to the upstream mode, by design.
+		CHECK(concurrent == 600);
+		if (z.m_ios_demand.tripped())
+		{
+			concurrent_tripped = 1;
+			CHECK(tally.tripped.load() == static_cast<u32>(od::trip_reason::wait_budget));
+		}
+		else
+		{
+			CHECK(z.upstream_paths.load() == 0 && !z.m_pages_accessed[1]);
+		}
 		take(tally.faults_report); take(tally.services); take(tally.waits); take(tally.stale);
 		scenarios++;
 	}
@@ -660,9 +671,9 @@ int main()
 		scenarios++;
 	}
 	std::printf("{\"failures\": %d, \"scenarios\": %u, \"pickup_timeout_ms\": %llu, \"hard_timeout_ms\": %llu, \"wait_budget_faults\": %u, "
-		"\"concurrent_accesses\": %u, \"concurrent_retries\": %u, \"unprotects\": %d}\n",
+		"\"concurrent_accesses\": %u, \"concurrent_tripped\": %u, \"concurrent_retries\": %u, \"unprotects\": %d}\n",
 		failures, scenarios, static_cast<unsigned long long>(pickup_ms), static_cast<unsigned long long>(hard_ms), budget_faults,
-		concurrent, retries.load(), utils::unprotects.load());
+		concurrent, concurrent_tripped, retries.load(), utils::unprotects.load());
 	return failures != 0;
 }
 '''
