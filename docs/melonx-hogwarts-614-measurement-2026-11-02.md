@@ -51,15 +51,34 @@ uploads again. Unreal Engine 4 keeps its HDR scene colour and temporal history i
 logs the attribution of every 2D copy that still goes through guest memory, so the device run
 confirms or refutes it.
 
-## Next Core (in preparation; not measured)
+## Next Core: compiled and verified, delivered in IPA 617 (not measured)
 
-1. `adapt_hogwarts_dma_copies.py`: the GPU-side copy for the two float formats, for Hogwarts
-   Legacy only (`GraphicsConfig.HogwartsFloatDmaGpuCopy`, set from the launched title), and
-   bounded attribution of the remaining guest-memory copies (24 signatures logged once, counts
-   per reason every 1024 copies).
-2. The bindless delta pass skips its verification scan when no texture was invalidated during
-   the pass (a global epoch moved by every `InvalidatedSequence` increment): about half of the
-   1.03–1.12 s per window.
+Core run `41464702975` (source `88c4cb85`, artifact `13152205377`, ios-arm64 `6d9bf835…`, packaged
+fingerprint `ace2ef6b…`), pinned in `build-utils/melonx/dma-core-pin.json` after an offline check of
+the downloaded archive (5 fresh final-source gates, 29 reused and 61 historical receipts, two
+NativeAOT simulator sessions). It replaces the 614 arrays Core (`bf7de0dd…`):
+
+1. `adapt_hogwarts_dma_copies.py`: for Hogwarts Legacy only (`GraphicsConfig.HogwartsFloatDmaGpuCopy`,
+   set from the launched title), a DMA copy of an `R32G32B32A32Float` or `R16G16B16A16Float`
+   texture into a block-linear destination of the same element size runs on the GPU
+   (`HostTexture.CopyTo`, target sized in bytes); linear destinations, other sizes and a missing
+   target keep the guest-memory path. Every remaining guest-memory copy is attributed: each new
+   signature once (at most 8 per reason), then the counts per reason every 1024 copies (at most 32
+   lines), with no allocation per copy.
+2. `adapt_bindless_array_deltas.py`: the texture pool logs the ids it changes (4096 entries, under a
+   lock); a delta pass visits only the ids logged since its last pass when the log has not
+   overflowed and no alias generation moved, otherwise the full scan; the verification scan runs only
+   when a texture was invalidated during the pass (global invalidation epoch). Host fixture: 65,536
+   elements with one change, 2.7 µs per pass instead of 348 µs.
+
+What the next iPhone run reads (in `MeloNX-core.log` and `MeloNX-performance.log`):
+
+- `DMA float GPU copy (Hogwarts policy): …` once: the policy is active for this title.
+- `DMA guest-memory copy #N: reason=… source=… copy=…` and `DMA guest-memory copies: N (…)`: what
+  still reads textures back. If `floatFormat` stays the dominant reason or `texFlushAction` keeps
+  55–69 ms per frame, the hypothesis is refuted for the copies that matter.
+- `dma`, `texFlushAction`, `syncInvoke` and `arrayDelta` against the 614 windows above; FPS.
 
 Expected limits afterwards (to be measured): the render thread (about 50 ms of CPU per frame at
-the 614 frame rate) and the remaining comparison scan. 30 FPS needs both reduced.
+the 614 frame rate) and the buffer read-backs (`bufferReadback` 1.7 s per window). 30 FPS needs the
+render thread reduced as well.
