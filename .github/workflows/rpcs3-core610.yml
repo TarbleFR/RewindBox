@@ -13,6 +13,7 @@
 # Core compile request 3: identity step fixed (a local variable shadowed identity() in main()).
 # Core compile request: Core 611 (core-build.json build 611, canonical patch c96f071b), request 1.
 # Core compile request: Core 612 (core-build.json build 612, canonical patch 4e2dd29b), request 1.
+# Core compile request: Core 613 (core-build.json build 613, canonical patch c107718c), request 1.
 name: RPCS3 Core
 # run-name is evaluated before any job and cannot read the spec; the build
 # number is in the step names, the artifact names and the identity type.
