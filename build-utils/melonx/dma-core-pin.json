@@ -1,0 +1,37 @@
+{
+  "status": "verified",
+  "source": "88c4cb853b6403443a07180cdc8791619575fde3",
+  "run": 41464702975,
+  "job": 125342435665,
+  "attempt": 1,
+  "workflow": ".github/workflows/melonx-core.yml",
+  "artifact": 13152205377,
+  "name": "MeloNX-engine-88c4cb853b6403443a07180cdc8791619575fde3",
+  "bytes": 90029155,
+  "sha256": "020026b9c592e323c44f153f452427544d2b25cfb75dc1cde8f52a0a1f2b548b",
+  "expiresAt": "2026-11-16T14:51:40Z",
+  "binaries": {
+    "ios-arm64": {
+      "sha256": "6d9bf835f9cf29251de0d69cf568efc4f65ab246328ee4f7a230eea6f0bba31e",
+      "bytes": 37782232
+    },
+    "iossimulator-arm64": {
+      "sha256": "3e48705541cf1bb511fdc1bce2500e1e36de7fd1fe3058723080711f8486ef31",
+      "bytes": 38094024
+    }
+  },
+  "identities": {
+    "ios-arm64": "bb11052b1bb902076f026a6bd1a2d778950a946e3ad43162a998d2b9f00a0378",
+    "iossimulator-arm64": "c717d7ab16b15c1d3cfd75a89792cfc9d801f6ca359c1434ed95e5d7b4d09781"
+  },
+  "contractSha256": "73a1e8e4075046d196a3893c9dbad483d858450adc55603aeac54653623afd5d",
+  "resultSha256": "518b6b2f8bb0be8d0489489175d06c109cbd141606796e90a2fb28f8b2899afd",
+  "packagedFingerprint": "ace2ef6b77ddd39ff2414cc87b2d3f1fdacf1120b01e90dcf4337cbba88f7856",
+  "replaces": {
+    "source": "b181cbe19164b5c10da4d0412209d2067f97ea3e",
+    "run": 41442795323,
+    "artifact": 13141611354,
+    "packagedFingerprint": "bf7de0ddaa36aefe29f1ae6cdbc9d2c543c13aedc6ba501a96c54fa53b104e5b",
+    "reason": "Hogwarts Legacy float DMA copies on the GPU and logged bindless delta passes (build 614 per-frame texture flush and delta-scan cost)"
+  }
+}
