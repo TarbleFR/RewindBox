@@ -2,7 +2,7 @@
 
 Read this guide before work. It contains current project state and permanent
 rules; detailed investigations and build receipts belong in `docs/`.
-Last reconciled: **2 November 2026**, after private Build **616**.
+Last reconciled: **2 November 2026**, after private Build **617**.
 
 ## Start here
 
@@ -21,17 +21,25 @@ Last reconciled: **2 November 2026**, after private Build **616**.
 
 | Item | Verified reference |
 | --- | --- |
-| Application | **RewindBox 0.0.8 (616)**, private IPA; iOS 18+, SideStore re-signing |
-| Delivery source | `eccc855001f3a52d6af2ab395c4de5ca5e4f6374`; frozen manifest [`build-utils/delivery/616.json`](build-utils/delivery/616.json) (freeze commit `f2ebd8bb`, effective product digest `f30fee4c…`, replayed from the delivered 615 effective tree `b2d6eb0e…`) |
-| Delivery run / jobs | `41475556176`, attempt 1, standard recipe: preflight `125380055102`, native `125380738702` (fresh), republish `125380739190`, application `125380738858`, all successful (about 24 min); Flutter reused from job `125368759212` of the first 616 run `41472161135` (same effective tree), which stopped in the retained MeloNX Core evidence (recipe fix `a293cfdd`) |
-| Downloaded IPA | `RewindBox-616.ipa`, 194175294 bytes; SHA-256 `b2c6689e3996e0a68645311826a22c00e8daf1ec2203ce1467705ec68ce45875` |
-| Product baseline | Delivered 615 plus the reviewed `6f349b74` (Core 616 delta and the `zcull_wait` / `spu_prefetch` timeline families of the RPCS3 bridge); source only for 617: `58fa9f35`, `fdbe0833`, `3c17ca8d`, `22a99c0c`, `88c4cb85` (MeloNX DMA route), `6e636e9d` (scraper), `97d8a38f` (Glacier); the other 70 paths of `b06888a9` stay **deferred** (inherited) |
-| MeloNX Core | **Kept from 614** (`unchangedFromBase`): bindless array-delta Core, Core run `41442795323`, source `b181cbe1`, packaged fingerprint `bf7de0dd…` ([pin](build-utils/melonx/arrays-core-pin.json)) |
-| RPCS3 Core | **Core 616** ([investigation](docs/rpcs3-core616-2026-11-02.md)): Core run `41467174038` (Apple host harnesses in the same run), artifact `13155525585`, dylib 77479608 bytes, payload `633d844b…` ([pin](build-utils/rpcs3/core-pin.json)); replaces Core 613 (`3d40b7de…`) |
-| Dolphin Core | Retained from 608 (payload `640e4389…`) through the archive republished by run `41464449025` |
-| ARMSX2 Core | Retained from 608 (payload `fab55193…`, ABI 9) through the archive republished by run `41464449025` |
-| libretro / MeloNX dependencies | Retained through the archives republished by run `41464449025` (republished again by run `41475556176`, kept until 31 January 2027) |
-| Delivery proof | [delivery receipt](docs/evidence/rewind616/delivery.json), [signed payload identity](docs/evidence/rewind616/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind616/download616-verification.json); 615: [receipt](docs/evidence/rewind615/delivery.json) |
+| Application | **RewindBox 0.0.8 (617)**, private IPA; iOS 18+, SideStore re-signing |
+| Delivery source | `1a3ad986920e8171e461f7a0d9e8c1cb759fb6ab`; frozen manifest [`build-utils/delivery/617.json`](build-utils/delivery/617.json) (freeze commit `4575db36`, effective product digest `f27e6e4b…`, replayed from the delivered 616 effective tree `f30fee4c…`) |
+| Delivery run / jobs | `41481225616`, attempt 1, standard recipe: preflight `125399754845`, flutter `125400172911` and native `125400173031` (both fresh), republish `125400173550`, application `125400172978`, all successful (about 28 min) |
+| Downloaded IPA | `RewindBox-617.ipa`, 194191724 bytes; SHA-256 `777c2cc19544b4ebdaf49e8892d90b3bd318c701c4211420a14e43d20655ccbb` |
+| Product baseline | Delivered 616 plus the promoted `58fa9f35`, `fdbe0833`, `3c17ca8d`, `22a99c0c`, `88c4cb85` (MeloNX DMA-copy route), `6e636e9d` (scraper and game box), `97d8a38f` (Glacier fixes) and the reviewed `dd8ab919` (Actions cleanup plan); the other 70 paths of `b06888a9` stay **deferred** (inherited) |
+| MeloNX Core | **Hogwarts DMA-copy Core** ([measurement and levers](docs/melonx-hogwarts-614-measurement-2026-11-02.md)): Core run `41464702975`, source `88c4cb85`, artifact `13152205377`, packaged fingerprint `ace2ef6b…` ([pin](build-utils/melonx/dma-core-pin.json)); replaces the 614 arrays Core (`bf7de0dd…`) |
+| RPCS3 Core | **Core 616** kept (`unchangedFromBase`, [investigation](docs/rpcs3-core616-2026-11-02.md)): Core run `41467174038`, payload `633d844b…` ([pin](build-utils/rpcs3/core-pin.json)) |
+| Dolphin Core | Retained from 608 (payload `640e4389…`) through the archive republished by run `41475556176` |
+| ARMSX2 Core | Retained from 608 (payload `fab55193…`, ABI 9) through the archive republished by run `41475556176` |
+| libretro / MeloNX dependencies | Retained through the archives republished by run `41475556176` (republished again by run `41481225616`) |
+| Delivery proof | [delivery receipt](docs/evidence/rewind617/delivery.json), [signed payload identity](docs/evidence/rewind617/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind617/download617-verification.json); 616: [receipt](docs/evidence/rewind616/delivery.json) |
+
+617 is delivered, not a pending candidate. Do not reuse its number. The
+Hogwarts DMA-copy Core (float DMA copies on the GPU for title
+`0100f7e00c70e000` only, logged bindless delta passes) has no iPhone result yet
+([what the next run reads](docs/melonx-hogwarts-614-measurement-2026-11-02.md));
+no FPS claim. `Frameworks/armsx2_internal_bridge` changed from 616 although its
+sources did not (reported as an undeclared image change, not blocking). The
+private 617 recipient key was deleted after the verified delivery.
 
 616 is delivered, not a pending candidate. Do not reuse its number. Its three
 RPCS3 changes (Assassin's Creed ZCULL polls without GPU waits; Black Ops II
@@ -39,8 +47,7 @@ pinned-depth order and SPU object read-ahead) have no iPhone result yet
 ([protocol](docs/rpcs3-core616-2026-11-02.md), section 6); no FPS claim.
 `Frameworks/dolphin_internal_bridge` changed from 615 although its sources did
 not (reported as an undeclared image change, not blocking). The private 616
-recipient key was deleted after the verified delivery. 617 is reserved by the
-MeloNX session (DMA-copy Core on 616).
+recipient key was deleted after the verified delivery.
 
 615 is delivered, not a pending candidate. Do not reuse its number. The Glacier
 menu and the RetroAchievements Keychain fix have no iPhone result yet; the

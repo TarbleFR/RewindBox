@@ -195,3 +195,28 @@ hérités, empreinte effective `b2d6eb0e…`, 6822 fichiers produit ; contrôle 
 - Hors CI : métadonnées API lues par l'API REST publique, pièces téléchargées par les URL signées du
   serveur GitHub MCP (octets égaux aux digests de l'API) ; IPA vérifiée hors ligne, clé privée
   supprimée.
+
+## 8. État de la 617 (2 novembre 2026)
+
+Livrée sur la 616 (run `41481225616`, IPA `777c2cc1…`, 194191724 octets). Une extension de la
+recette : le vérificateur MeloNX `melonx_dma_core_component.py` (Core DMA Hogwarts, pin
+`dma-core-pin.json`) rejoint `MELONX_VERIFIERS`, et son pin `RECIPE_FILES` ; le Core arrays 614 qu'il
+remplace est authentifié par son archive, son contrat et son pin. Gel sur `4575db36` : base effective
+616 `f30fee4c…`, 7 commits promus (que la 616 avait classés « source seulement » pour la 617 : route
+MeloNX DMA `58fa9f35`…`88c4cb85`, scraper `6e636e9d`, Glacier `97d8a38f`), 1 commit revu (`dd8ab919`,
+plan de nettoyage Actions du mainteneur, un chemin produit hors application), 40 différences produit,
+70 chemins différés hérités, empreinte effective `f27e6e4b…`, 6835 fichiers produit ; contrôle légal
+réussi.
+- La première 616 (run `41472161135`) s'était arrêtée sur le Core arrays conservé : la route
+  `melonx-core.yml`, chemin de recette lu au checkout, pointait déjà vers le Core DMA. Correctif de la
+  session RPCS3 (`a293cfdd`) : une fois la route déplacée, ce seul workflow est lu au commit producteur.
+  Leçon : pousser une route Core qui remplace celle d'un Core conservé change la preuve d'une livraison
+  concurrente ; prévenir les autres sessions avant.
+- `api/artifacts.json` de la 616 ne garde que les pièces de l'IPA : les archives republiées
+  (composants conservés) se lisent dans la liste complète des artefacts du run (API publique).
+- Composants : MeloNX remplacé (Core DMA, `ace2ef6b…`), RPCS3 Core 616 `unchangedFromBase` ;
+  Dolphin/ARMSX2, libretro et dépendances MeloNX conservés par la republication de la 616. Images
+  changées : App, MeloNXCore, Runner, et `armsx2_internal_bridge` sans changement de ses sources
+  (signalé, non bloquant). Tests frais dans les deux groupes (~28 min de bout en bout).
+- Hors CI : métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub MCP
+  (octets égaux aux digests de l'API) ; IPA vérifiée hors ligne, clé privée supprimée.
