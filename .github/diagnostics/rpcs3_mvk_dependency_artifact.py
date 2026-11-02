@@ -22,12 +22,15 @@ PRODUCER = "build-utils/rpcs3/build_moltenvk_deferred_cache.py"
 ADAPTER = "build-utils/rpcs3/patch_moltenvk_deferred_cache.py"
 PATCH = "build-utils/rpcs3/patches/moltenvk-1.4.2-deferred-cache.patch"
 HOST = "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm"
-# Reviewed exact host delta (opt-in, Core 611): run 41239096061 recorded the
-# 7aa81cfb bridge; the RetroAchievements host (57eb301e, +157/-0 lines) keeps
-# every region its only bridge reader, the milestones test, compiles, and the
-# host LOAD() Core contract. The consumed libMoltenVK.a never reads the bridge.
+# Reviewed exact host delta (opt-in, Core 611, then Core 612): run 41239096061
+# recorded the 7aa81cfb bridge; the RetroAchievements host (57eb301e, +157/-0
+# lines, Core 611 c0395ba1) and the Core 612 accuracy test page (CONFIG_LAYERS
+# part=rsx capture at the top of RPCS3Log, testSetting/testReset commands and
+# their restart, the menu reader) keep every region its only bridge reader, the
+# milestones test, compiles, and the host LOAD() Core contract. The consumed
+# libMoltenVK.a never reads the bridge.
 HOST_BEFORE = "d6326d968f3552c5539d48a0933b41d3e61a3e61c0302972ec370e8df5bd3d16"
-HOST_AFTER = "c0395ba188740987abd5510a4ff95d33d939e83ef5bab0c20753117fce3b4233"
+HOST_AFTER = "3c70bfff3bd755874aec6e0ee31707fe7fc841e103079b98f5e9b392b2624010"
 MILESTONES_TEST = "test/rpcs3_pipeline_cache_milestones_test.py"
 LOAD_CONTRACT = "build-utils/materialize_rpcs3_core.py"
 LOAD_PATTERN = r'LOAD\("([^"]+)"'
