@@ -1,71 +1,37 @@
 {
  "schema": 1,
- "status": "verified",
+ "status": "pending",
  "component": "rpcs3",
- "build": 612,
- "note": "RPCS3 Core 612: the delivered Core 610 plus the folded record core612_20261102 (RetroAchievements Core hooks of Core 611, census v2, per-game graphics test levers), built by the RPCS3 Core route (run 41384244220). Verified offline on the downloaded artifacts with the repository verifier: 92 Mach-O exports equal the identity, ABI 30, codegen PPU/SPU unchanged.",
+ "build": 613,
+ "note": "RPCS3 Core 613 (pending): the delivered Core 610 plus the folded record core613_20261102 (the Core 612 record unchanged, SPU object-cache hits of small blocks outside the LLVM compile admission, the measurement-only ZCULL report-read probe). Not built yet: the producer values are written from the successful RPCS3 Core route run, verified offline with this verifier.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
-   "jobName": "RPCS3 iPhone Core with authenticated source-built MoltenVK",
-   "steps": [
-    "Bind the request to exact source identities",
-    "Checkout immutable candidate and retained source history",
-    "Read the declared Core build",
-    "Select the retained Core toolchain",
-    "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 612 source closure and the native dependency",
-    "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 612",
-    "Verify the actual binary and write its Core 612 identity",
-    "Preserve an unverified binary and actual inputs after metadata failure",
-    "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 612 without an application delivery",
-    "Preserve compiler objects for the same recipe",
-    "Preserve real diagnostics including partial failures"
-   ],
-   "source": "3c834ad843708739ab5b4564cbc0dc19946f6ef6",
-   "run": 41384244220,
-   "attempt": 1,
-   "job": 125081436476,
-   "artifact": 13115426805,
-   "name": "RPCS3Core-612-3c834ad843708739ab5b4564cbc0dc19946f6ef6",
-   "bytes": 29285552,
-   "sha256": "0def338063505b4cc7d82172d66bf47d669f6b9d32accf10b6f6ab16c110367b",
-   "expiresAt": "2026-12-02T03:59:20Z"
+   "jobName": null,
+   "steps": null,
+   "source": null,
+   "run": null,
+   "attempt": null,
+   "job": null,
+   "artifact": null,
+   "name": null,
+   "bytes": null,
+   "sha256": null,
+   "expiresAt": null
   },
   "hostTests": {
-   "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
-   "steps": [
-    "Checkout immutable candidate and the delivered Core history",
-    "Read the declared Core build",
-    "Select the retained Core toolchain",
-    "Materialize the Core 612 sources and the delivered a4ae86d0 sources",
-    "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 612 harnesses with Apple clang",
-    "Preserve the Apple host harness reports"
-   ],
-   "names": [
-    "ra-core-hooks",
-    "ra-core-hooks-asan-ubsan",
-    "exitspawn-worker-plain",
-    "exitspawn-worker-asan-ubsan",
-    "transition-phases",
-    "feedback-census",
-    "position-invariance-contract",
-    "graphics-tests-612",
-    "graphics-tests-612-asan-ubsan",
-    "reuse-audit"
-   ],
-   "source": "3c834ad843708739ab5b4564cbc0dc19946f6ef6",
-   "run": 41384244220,
-   "attempt": 1,
-   "job": 125081436787,
-   "artifact": 13114264006,
-   "name": "RPCS3Core-612-apple-host-tests-3c834ad843708739ab5b4564cbc0dc19946f6ef6",
-   "bytes": 27774,
-   "sha256": "491b2244e4c0541888e2d61904dc61b396a9879d7875cfe0a998067b6c501bff",
-   "expiresAt": "2026-12-02T03:40:17Z",
+   "jobName": null,
+   "steps": null,
+   "names": null,
+   "source": null,
+   "run": null,
+   "attempt": null,
+   "job": null,
+   "artifact": null,
+   "name": null,
+   "bytes": null,
+   "sha256": null,
+   "expiresAt": null,
    "reused": {
     "names": [
      "codegen-audit",
@@ -89,22 +55,21 @@
      "codegen-audit",
      "reuse-audit",
      "position-invariance-contract"
-    ],
-    "note": "Core 610 Apple results reused because their inputs are unchanged (authenticated by the producer step 'Authenticate the reused Core 610 Apple harness evidence'); with the 10 reruns they cover the 8 Core 610 harnesses."
+    ]
    }
   }
  },
  "core": {
   "type": "rpcs3-ios-core612",
-  "dylibBytes": 77442016,
-  "dylibSha256": "4ad4c97ff30bc7415d7aa2d10d5f2715e390354a434bcb6acf017a9fcb97d4d5",
-  "identitySha256": "22a5f8a9a8db73491b8d0d549e6ebb569117309958f34d862aaa434ac25a190d",
+  "dylibBytes": null,
+  "dylibSha256": null,
+  "identitySha256": null,
   "proofMember": "core610-proof.json",
-  "proofSha256": "fced4efbe0363626d5087dd2dbcc08f2e86de46d909b0fadb40dbf490121f2de",
-  "payloadFingerprint": "be2d70a5d1bb1c49d9f70d6ff2dbaa3461c4b97caaf5a48b0489680533f2dc55"
+  "proofSha256": null,
+  "payloadFingerprint": null
  },
  "canonical": {
-  "patchSha256": "4e2dd29bad7585e86f2a928a2f9bae21ffdd0ce6e491752773f3ae47ebc0fd01",
+  "patchSha256": "c107718c9447bd9dacf8fb2e817911c3594ff94128d16ab6d92c7a163b0be2b0",
   "postimages": 332,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
@@ -225,17 +190,18 @@
   "COREPROF FEEDBACK610",
   "COREPROF EXITSPAWN phase=stop_main",
   "COREPROF RUNPPU phase=running",
+  "COREPROF RENDERCAUSE",
   "position_invariance=%d",
   "MoltenVK asynchronous submits",
-  "COREPROF RENDERCAUSE",
   "CONFIG_LAYERS part=rsx",
-  "Position Invariance"
+  "Position Invariance",
+  "COREPROF ZCULLSYNC613"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "c934705ec17e2861a57fe9dca2141bab7abe9c1a",
-  "run": 41363493412,
-  "artifact": 13106199627,
-  "payloadFingerprint": "affb9d2d3fcdbf52d360c3ec8a2ae4bb770ed73f3aeb39e503fa7b6ef27f03ae"
+  "source": "3c834ad843708739ab5b4564cbc0dc19946f6ef6",
+  "run": 41384244220,
+  "artifact": 13115426805,
+  "payloadFingerprint": "be2d70a5d1bb1c49d9f70d6ff2dbaa3461c4b97caaf5a48b0489680533f2dc55"
  }
 }
