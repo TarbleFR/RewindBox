@@ -697,6 +697,14 @@
               "-B",
               "test/rpcs3_diagnostics546_native_test.py"
             ]
+          ],
+          [
+            "melonx-perf-journal",
+            [
+              "python3",
+              "-B",
+              "test/melonx_perf_journal_test.py"
+            ]
           ]
         ]
       },
