@@ -133,12 +133,12 @@
         "fpsGainProven": false,
         "poolsTexturesAndTransportDoubled": true,
         "productionCacheAndCommandsCompiled": true,
-        "checks": 263,
-        "programChecks.control": 12628151,
-        "programChecks.candidate": 17713357,
-        "candidateCounters.ArrayFullElements": 734839,
-        "candidateCounters.ArrayDeltaElements": 15383928,
-        "candidateCounters.ArrayDeltaChanged": 346584,
+        "checks": 265,
+        "programChecks.control": 12629965,
+        "programChecks.candidate": 17715527,
+        "candidateCounters.ArrayFullElements": 735223,
+        "candidateCounters.ArrayDeltaElements": 15384312,
+        "candidateCounters.ArrayDeltaChanged": 346596,
         "candidateCounters.ArrayBufferElements": 0
       },
       "requiredPostimages": [
