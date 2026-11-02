@@ -257,7 +257,12 @@
     }
   },
   "product": {
-    "reviewedCommits": [],
+    "reviewedCommits": [
+      {
+        "commit": "dd8ab919fd91fc6bc489dae223e70a680bf894b6",
+        "note": "Maintainer commit: one-time GitHub Actions history cleanup plan (build-utils/maintenance/actions-cleanup-2026-11-02.json) and its workflow; CI maintenance data only, not read by the app build."
+      }
+    ],
     "sourceOnly": [],
     "promotedCommits": [
       {
