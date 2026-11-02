@@ -179,6 +179,32 @@ if not args.helpers_only:
               'Empty gate proof: ' + gate['name'])
         for binding in gate.get('compiledBindings', []):
             check(isinstance(binding['reportPath'], list) and binding['productionPath'] in {**frozen['preparedMembers'], **frozen['untouchedFixtureMembers']}, 'Unbound compiled source')
+    # Every file a gate reads from its control is frozen, so a delivery can recheck every receipt completely.
+    unadapted = frozen['controlUnadaptedMembers']
+    check({name: len(paths) for name, paths in unadapted.items()} == {'delivered': 0, 'delivered609': 8, 'ada': 2},
+          'Wrong control-only upstream inventories')
+    check(unadapted['delivered609'] == reads_frozen['baselineUnadaptedMembers'], '609 control upstream files differ from the reads contract')
+    performance = json.loads((ROOT / 'build-utils/melonx/performance-core-contract.json').read_bytes())
+    check(unadapted['ada'] == performance['baselineUnadaptedMembers'], 'Ada control upstream files differ from the performance contract')
+    rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),
+            'Missing control inventory accepted')
+    overlapping = copy.deepcopy(frozen)
+    overlapping['controlUnadaptedMembers']['ada'].update(dict([next(iter(frozen['adaControlMembers'].items()))]))
+    rejects(lambda: verify.check_control_inventories(overlapping), 'Overlay file accepted as control-only upstream')
+    fragmented_gate = next(gate for gate in frozen['gates'] if gate['name'] == 'fragmented-reads')
+    read_upstream = dict(unadapted['delivered609'])
+    verify.require_control_coverage({'preimages': read_upstream, 'upstreamInputs': read_upstream}, fragmented_gate, frozen)
+    checks += 1
+    name = sorted(read_upstream)[0]
+    dropped = copy.deepcopy(frozen)
+    dropped['controlUnadaptedMembers']['delivered609'].pop(name)
+    rejects(lambda: verify.require_control_coverage({'preimages': read_upstream}, fragmented_gate, dropped), 'Uninventoried control file accepted')
+    rejects(lambda: verify.require_control_coverage({'upstreamInputs': {name: '0' * 64}}, fragmented_gate, frozen), 'Wrong control digest accepted')
+    rejects(lambda: verify.require_control_coverage({'preimages': {'src/Unlisted.cs': 'a' * 64}}, fragmented_gate, frozen), 'Unlisted control file accepted')
+    ada_gate = next(gate for gate in frozen['gates'] if gate['control'] == 'ada')
+    foreign = next(path for path in sorted(read_upstream) if path not in verify.control_inventory(frozen, 'ada'))
+    rejects(lambda: verify.require_control_coverage({'preimages': {foreign: read_upstream[foreign]}}, ada_gate, frozen),
+            'Another control tree inventory accepted')
     arrays = next(gate for gate in frozen['gates'] if gate['name'] == 'bindless-array-deltas')
     check(set(arrays['requiredPostimages']) == set(NAMES), 'Array delta gate does not bind every change')
     # A receipt that was a current proof and declares a changed production file is rerun, never reused.

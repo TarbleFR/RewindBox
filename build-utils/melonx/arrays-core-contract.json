@@ -799,7 +799,7 @@
     "native/melonx/EmbeddedUnrealContent.cs": "57444c034af4b530318562179d9f4889ae7e1b8a386fde5f545cdcc76a7fe8e7",
     "native/melonx/EmbeddedUnrealProjectProbe.cs": "acb035903fa7be136e5a4063d40954a258867028d673a5da3bc7d35b3bc3c797",
     "native/melonx/EmbeddedWindowLifetime.cs": "c2a4e8b87af11aadb158d3ef03298306676f62efe804479cde5dc4c18c321650",
-    "build-utils/melonx/prepare_embedded.py": "bdde85dd82c594667df06c54b4e897005ef6304f7db3d0b18e815f01d62f1318",
+    "build-utils/melonx/prepare_embedded.py": "a8ad629b649b5939abf2463e673a3bc780c214d10a3d3c08bd44d1ce5675769d",
     "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
     "build-utils/melonx/adapt_input.py": "3be49cf1b8a657e40d82fc72c069e60643877249edd977a05a053e60caf5c568",
     "build-utils/melonx/adapt_runtime.py": "4ce4c0889498a030c6a767b5a0ca9190e91f6623f4987614ab0c44b8395fed84",
@@ -1099,6 +1099,23 @@
     "src/Ryujinx.Memory/Range/MemoryRange.cs": "f49868746fc1fedea3dbbb18a3e5da10edf7c223a9184191ecd2b7f6fea66da0",
     "src/Ryujinx.Memory/Range/NonOverlappingRangeList.cs": "cecd0546d26c60f64c62ec3438b71bd64bf4981dbd9c92ef6dbae3a9403adf95",
     "src/Ryujinx.Memory/Range/RangeListBase.cs": "32e1108eb72704f942fe62ceb361f60e2df8b6e4450f11dbb6fcb89f04b156e3"
+  },
+  "controlUnadaptedMembers": {
+    "delivered": {},
+    "delivered609": {
+      "src/Ryujinx.Cpu/Jit/MemoryManagerHostTracked.cs": "27b5acce9779afa47787e909b729122009dd1b8db5afe98026a8b12173619700",
+      "src/Ryujinx.Graphics.Gpu/Engine/Compute/ComputeClass.cs": "89a325be83fc87df0e61f52b1c75f2b477bf55b89dacf60cb9455620a925cf0a",
+      "src/Ryujinx.Graphics.Gpu/Engine/InlineToMemory/InlineToMemoryClass.cs": "a80aec8af79578d956972b47b17b032475bc7e9206c929d06f32293ea8b31320",
+      "src/Ryujinx.Graphics.Gpu/Engine/Threed/DrawManager.cs": "28dc569cdf874aae58eeb2a24796d2ed9a6017b9f063448d4b4971c0da8a31e8",
+      "src/Ryujinx.Graphics.Gpu/Image/Pool.cs": "b07c6db82a95d1485ad21bb6a804f94b803efd0f6600a67d613491ec08d326f0",
+      "src/Ryujinx.Graphics.Gpu/Image/TextureManager.cs": "617c5216ffca511f52b28d88e24cea0b2507877f2f9243250f9282a9b2bc4ff5",
+      "src/Ryujinx.Graphics.Gpu/Shader/ShaderCache.cs": "76ed94effa371eed8cffecdfab50aa5b33a7753212dae4de7c8e30e812edec48",
+      "src/Ryujinx.Memory/IVirtualMemoryManager.cs": "b02531f14adc5ef0f43ef9a1eb70f7683808906fdd42693cc3d44389e2b45f03"
+    },
+    "ada": {
+      "src/Ryujinx.Graphics.GAL/Multithreading/Model/CircularSpanPool.cs": "1c579c9dcb357ccb7b9591282c4253086e1bb85baf59e9bd3bd4057e0747c90e",
+      "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs": "08aecc7d52238889a2a7ec242844b2242ff766301a3f15b13b9712b6589e6b40"
+    }
   },
   "changedPreparationInputs": [
     "build-utils/melonx/prepare_embedded.py"
@@ -2030,7 +2047,7 @@
     "build-utils/melonx/build_core.sh": "bf9589ca807104f888db884485d32070b68d86fa6535997a84934e8d698f4547",
     "build-utils/melonx/build_libhac.py": "68519a96e5a2c3e94285bfb65d42ae7c053a3b2a1893fd6509acf1d8080ce9e5",
     "build-utils/melonx/core-baseline.json": "3c9d1b86b88ce5d37a704820bcd9a2fd03c541dc30a3cefc9938db3213ce015d",
-    "build-utils/melonx/freeze_arrays_core.py": "36dd253007367d28bebf9582451cbcabe53bbc2efcbecb1220d9ff87778578d6",
+    "build-utils/melonx/freeze_arrays_core.py": "c999f2d7124d88972a48e4a520337bc7c637b8cde82fa0d9be5411d938bed6f3",
     "build-utils/melonx/freeze_performance_core.py": "0d686230908524abb8f56b086b070b8ac0f3c876cbf2ba99c048828d45d43703",
     "build-utils/melonx/liveness-core-contract.json": "4e899e791d30ebd8e9f6a7183093aa5d51c6a7414f2b53642c5726c47ed55006",
     "build-utils/melonx/reads-core-contract.json": "bd832290fdd44807a8fb85c52e14121657ece789e8f2b7c6d64b9de48f11f6e6",
@@ -2038,7 +2055,7 @@
     "build-utils/melonx/reuse_core_baseline.py": "9638b84da0f4e6ac5514b12d4169820e4d0c10465e4467326caff3d00d1f8a73",
     "build-utils/melonx/source.json": "acd6fad4901b0d620c345325268a3f59febba13ef6faa317fbcb7645594be872",
     "build-utils/melonx/validate_runtime_reuse.py": "a910628dd92e237121e92ff91765e3e69cab84a2806788359c46fb6db969641a",
-    "build-utils/melonx/verify_arrays_core.py": "b5afae41cd82517013a638f0a62fc9a2c1d9c6fa3f986588a7f9b9a44ccb3ebf",
+    "build-utils/melonx/verify_arrays_core.py": "260e2fb76da7803bc64c14ec120324292970eb7681b556ece42e5be202bace4f",
     "build-utils/melonx/verify_core_candidate.py": "ef88b181ad7073e0de8eec59bbb649c22058a7204aa1338c67ab049c00e2b0b9",
     "build-utils/melonx/verify_liveness_core.py": "5ba00fc30bec90b5265e7e3d40d6fe5736da8a1e3d90e05142f45f912eefd83c",
     "build-utils/melonx/verify_reads_core.py": "e65a8e0b210333fc09741b12e538809bcc0f68008a7b46a7706ff505632dc0f4",
@@ -2047,7 +2064,7 @@
     "native/melonx/EmbeddedSession.cs": "5b882aff47f53242bb25c2c8fd1906163db92231a460105e79ffd55a2b93fdba",
     "packages/melonx_internal_bridge/ios/Classes/MeloNXRuntimeAPI.swift": "aab190ff2e39e180be3df4abe02b9332b19e5aee33a0632adb6fec46e65fd1ed",
     "packages/melonx_internal_bridge/ios/Classes/MeloNXSessionHost.swift": "b8f38af3d7c85aee49f49a81c40130004095ad1d8dfe11018c0e88c4b4b63f35",
-    "test/melonx_arrays_core_contract_test.py": "a1d45e7081a21c352122e003d8b3461152a5f0d2ac984cadd5664ae6b34155cd",
+    "test/melonx_arrays_core_contract_test.py": "ccd497f43bb44a265754c6aec26331920312d0aa3190ea57f28d2f18d01a3e1a",
     "test/melonx_binding_data_snapshots/Program.cs": "7ec6ebb823b04bbd965f1a516ef5a0500bb5e7639e347abe14bff1cd7d1aaf44",
     "test/melonx_binding_data_snapshots_test.py": "3b47fc2025e832b5d5284cd9da7258b31c1df1be33362d85abcb03f5e519bdaf",
     "test/melonx_bindless_allocations/Program.cs": "33eb6c5407357d886554b32109b4fc482b3b34d687b6f4073bf510352833816e",

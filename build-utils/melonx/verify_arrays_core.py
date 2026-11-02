@@ -86,9 +86,39 @@ def contract():
     require(value['freshAppleGates'] == len(value['gates']) == FRESH_GATES, 'Wrong fresh gate scope')
     require(len(value['baselineReceipts']) == value['historicalAppleReceipts'] == HISTORICAL_RECEIPTS, 'Wrong historical receipt inventory')
     require(all(gate['control'] in CONTROLS for gate in value['gates']), 'Unknown gate control tree')
+    check_control_inventories(value)
     common.inputs_match(value['inputs'])
     common.inputs_match(value['preparationInputs'])
     return value
+
+
+def control_overlays(frozen):
+    """The prepared overlay of each control tree; the rest of a materialized control is pristine upstream."""
+    return {'delivered': frozen['baselinePreparedMembers'], 'delivered609': frozen['livenessControlMembers'],
+            'ada': frozen['adaControlMembers']}
+
+
+def check_control_inventories(value):
+    """Control-only upstream files: one inventory per control, disjoint from its overlay and the unchanged dependencies."""
+    unadapted = value['controlUnadaptedMembers']
+    require(isinstance(unadapted, dict) and set(unadapted) == set(CONTROLS), 'Wrong control inventory set')
+    for name, overlay in control_overlays(value).items():
+        for path, expected in unadapted[name].items():
+            require(path.startswith('src/') and '..' not in Path(path).parts and not Path(path).is_absolute(), 'Unsafe control path')
+            require(isinstance(expected, str) and len(expected) == 64, 'Invalid control digest: ' + path)
+            require(path not in overlay and path not in value['untouchedFixtureMembers'], 'Duplicate control identity: ' + path)
+
+
+def control_inventory(frozen, control):
+    return {**control_overlays(frozen)[control], **frozen['untouchedFixtureMembers'], **frozen['controlUnadaptedMembers'][control]}
+
+
+def require_control_coverage(data, gate, frozen):
+    """Every control-side digest of a receipt is frozen for its control, so a later delivery can recheck it completely."""
+    inventory = control_inventory(frozen, gate['control'])
+    for key in ('preimages', 'upstreamInputs'):
+        for name, expected in data.get(key, {}).items():
+            require(inventory.get(name) == expected, 'Control file outside the frozen inventory (' + gate['control'] + '): ' + name)
 
 
 def reads_contract():
@@ -236,6 +266,7 @@ def validate_gate(data, gate, frozen):
         expected = frozen['preparedMembers'].get(binding['productionPath'], frozen['untouchedFixtureMembers'].get(binding['productionPath']))
         require(expected is not None and liveness.value_at(data, binding['reportPath']) == expected, 'Wrong compiled production binding')
     require(set(gate['requiredPostimages']) <= set(data.get('postimages', {})), 'Missing final source postimage')
+    require_control_coverage(data, gate, frozen)
 
 
 def copy_member(archive, name, relative):
@@ -271,6 +302,9 @@ def run_gates():
                           ('ada', frozen['adaControlMembers'])):
         for path, expected in members.items():
             require(digest(child(CONTROLS[name], path)) == expected, 'Control source differs (' + name + '): ' + path)
+    for name, members in frozen['controlUnadaptedMembers'].items():
+        for path, expected in members.items():
+            require(digest(child(CONTROLS[name], path)) == expected, 'Control upstream file differs (' + name + '): ' + path)
     subprocess.run([sys.executable, str(ROOT / 'build-utils/melonx/prepare_embedded.py'), str(CANDIDATE)], check=True, timeout=300)
     require(read(OUT / 'embedded-inputs.json') == frozen['preparationInputs'], 'Gate preparation drift')
     with zipfile.ZipFile(OUT / 'embedded-adapted-source.zip') as archive:

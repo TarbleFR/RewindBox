@@ -2,7 +2,10 @@
 """Freeze an explicit source allow-list against the delivered 611 Core bytes.
 
 Run after source integration and one prepare_embedded pass on a copy of pristine
-upstream. CI consumes this reviewable contract; it never regenerates it or
+upstream, with the receipts of one local run of every planned gate against the
+materialized control trees (--receipts) and, ideally, those trees (--control): every
+file a gate reads from its control is then inventoried, the control-only upstream
+files included. CI consumes this reviewable contract; it never regenerates it or
 executes historical suites.
 """
 import argparse
@@ -12,7 +15,7 @@ from pathlib import Path
 import subprocess
 import zipfile
 
-from verify_arrays_core import BASELINE, CONTROLS, HISTORICAL, authenticate_archive, reads_contract
+from verify_arrays_core import BASELINE, CONTROLS, HISTORICAL, authenticate_archive, check_control_inventories, reads_contract
 from verify_liveness_core import inventory
 from freeze_performance_core import changed_dependencies
 
@@ -28,7 +31,12 @@ def main():
     parser.add_argument('baseline_archive', type=Path)
     parser.add_argument('pristine_source', type=Path)
     parser.add_argument('reviewed_plan', type=Path)
+    parser.add_argument('--receipts', type=Path, required=True, help='receipts of a local run of every planned gate')
+    parser.add_argument('--control', action='append', default=[], help='NAME=PATH of a materialized control tree')
     args = parser.parse_args()
+    trees = dict(item.split('=', 1) for item in args.control)
+    assert set(trees) <= set(CONTROLS), 'Unknown control tree'
+
     source = args.pristine_source.resolve()
     assert subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip() == '13700519f3abc4e6d7ed8a065b118b2cc59bcd67'
     assert subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD^{tree}'], text=True).strip() == '82a29e6f593f6244869481e9a489b8d5154175fe'
@@ -60,6 +68,27 @@ def main():
         if path not in members:
             assert path.startswith('src/') and '..' not in Path(path).parts
             untouched[path] = sha((source / path).read_bytes())
+    # Every file a gate reads from its control: its prepared overlay, an unchanged dependency, or pristine
+    # upstream that only the control holds (a materialized control is pristine upstream plus its overlay).
+    overlays = {'delivered': before_members, 'delivered609': liveness_members, 'ada': ada_members}
+    control_unadapted = {name: {} for name in CONTROLS}
+    for gate in plan['gates']:
+        report = json.loads((args.receipts / gate['report']).read_bytes())
+        assert report['result'] == 'passed', 'Local gate receipt did not pass: ' + gate['report']
+        overlay = overlays[gate['control']]
+        for key in ('preimages', 'upstreamInputs'):
+            for path, recorded in report.get(key, {}).items():
+                if path in overlay:
+                    expected = overlay[path]
+                elif path in untouched:
+                    expected = untouched[path]
+                else:
+                    assert path.startswith('src/') and '..' not in Path(path).parts, 'Unsafe control path'
+                    expected = control_unadapted[gate['control']][path] = sha((source / path).read_bytes())
+                assert recorded == expected, 'Receipt control file differs from its control: ' + path
+    for name, tree in trees.items():
+        for path, expected in {**overlays[name], **untouched, **control_unadapted[name]}.items():
+            assert sha((Path(tree) / path).read_bytes()) == expected, 'Materialized control differs (' + name + '): ' + path
     receipts = {**gates['receipts'], **gates['retainedReceipts']}
     dispositions, overlap = {}, {}
     changed_preimages = {**{path: old[path] for path in changes}, **{path: before[path] for path in changed_inputs}}
@@ -109,17 +138,21 @@ def main():
         baselineReceipts=receipts, baselineAuxiliaryReceipts=gates['auxiliaryHistoricalReceipts'],
         baselineRetainedDisposition=gates['retainedDisposition'], preparationInputs=current,
         preparedMembers=members, untouchedFixtureMembers=untouched,
+        controlUnadaptedMembers={name: dict(sorted(paths.items())) for name, paths in control_unadapted.items()},
         changedPreparationInputs=sorted(changed_inputs), addedPreparationInputs=sorted(added_inputs),
         productionChanges=sorted(changes), productionAdditions=sorted(additions), gates=plan['gates'],
         inputs=inputs, freshAppleGates=len(plan['gates']), reusedAppleGates=reuse_count,
         historicalAppleReceipts=len(receipts), retainedDisposition=dispositions,
         retainedChangedDependencies=overlap,
         scope='Fresh exact-source affected fixtures and two actual new NativeAOT simulator sessions; unchanged declared historical evidence is authenticated without replay. No physical gameplay, allocation-on-device or FPS claim.')
+    check_control_inventories(contract)
     path = ROOT / 'build-utils/melonx/arrays-core-contract.json'
     path.write_text(json.dumps(contract, indent=2) + '\n')
     print(json.dumps(dict(result='frozen', preparationInputs=len(current), preparedMembers=len(members),
         productionChanges=len(changes), productionAdditions=len(additions),
-        untouchedFixtureMembers=len(untouched), freshAppleGates=len(plan['gates']),
+        untouchedFixtureMembers=len(untouched),
+        controlUnadaptedMembers={name: len(paths) for name, paths in control_unadapted.items()},
+        controlTreesHashed=sorted(trees), freshAppleGates=len(plan['gates']),
         reusedAppleGates=reuse_count, historicalAppleReceipts=len(receipts), contractSHA256=sha(path.read_bytes()))))
 
 

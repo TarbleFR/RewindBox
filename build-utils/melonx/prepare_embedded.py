@@ -231,8 +231,10 @@ def main():
         shutil.copyfile(path, target)
         copied.append(target)
         inputs[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest()
-    # After the GPU work observers (its compute scope anchors on their final text) and after the
-    # collector copy above: it appends its rows and counters to the prepared collector.
+    # Must follow the collector copy above: it appends its work row and counters to the prepared
+    # collector. Its other files anchor on the text left by adapt_texture_pool (TexturePool.cs) and by
+    # adapt_bindless_allocations, adapt_binding_lookup and adapt_binding_data_snapshots
+    # (TextureBindingsArrayCache.cs); no adapter, adapt_gpu_work_diagnostics included, edits them later.
     adapted += [source / name for name in adapt_bindless_array_deltas(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
