@@ -2,7 +2,7 @@
 
 Read this guide before work. It contains current project state and permanent
 rules; detailed investigations and build receipts belong in `docs/`.
-Last reconciled: **2 November 2026**, after private Build **618**.
+Last reconciled: **2 November 2026**, after private Build **619**.
 
 ## Start here
 
@@ -21,17 +21,28 @@ Last reconciled: **2 November 2026**, after private Build **618**.
 
 | Item | Verified reference |
 | --- | --- |
-| Application | **RewindBox 0.0.8 (618)**, private IPA; iOS 18+, SideStore re-signing |
-| Delivery source | `643bb83030f69c82fba4bcca6930caa3996fc43a`; frozen manifest [`build-utils/delivery/618.json`](build-utils/delivery/618.json) (freeze commit `0fd3ab04`, effective product digest `95f1ecc9…`, replayed from the delivered 617 effective tree `f27e6e4b…`) |
-| Delivery run / jobs | `41504526945`, attempt 1, standard recipe: preflight, flutter and native (both fresh), republish and application, all successful (about 24 min) |
-| Downloaded IPA | `RewindBox-618.ipa`, 194193557 bytes; SHA-256 `47351d9aa6fe7a9ee6baaf03d0d82c4899512592325eb7c8933b63cc52aa852a` |
-| Product baseline | Delivered 617 plus the reviewed `750a4077`, `1e7dc4f2` (Hogwarts DMA region upload and its review fix) and `27fd5064`, `9ce5822c` (Core contract refreezes); the other 70 paths of `b06888a9` stay **deferred** (inherited) |
-| MeloNX Core | **Hogwarts region-upload Core** ([617 measurement and this lever](docs/melonx-hogwarts-617-measurement-2026-11-02.md)): Core run `41501428424`, source `a8f67bfd`, artifact `13168713797`, packaged fingerprint `dfe3bb56…` ([pin](build-utils/melonx/dma-core-pin.json)); replaces the 617 DMA-copy Core (`ace2ef6b…`) |
-| RPCS3 Core | **Core 616** kept (`unchangedFromBase`, [investigation](docs/rpcs3-core616-2026-11-02.md)): Core run `41467174038`, payload `633d844b…` ([pin](build-utils/rpcs3/core-pin.json)) |
-| Dolphin Core | Retained from 608 (payload `640e4389…`) through the archive republished by run `41481225616` |
-| ARMSX2 Core | Retained from 608 (payload `fab55193…`, ABI 9) through the archive republished by run `41481225616` |
-| libretro / MeloNX dependencies | Retained through the archives republished by run `41481225616` (republished again by run `41504526945`) |
-| Delivery proof | [delivery receipt](docs/evidence/rewind618/delivery.json), [signed payload identity](docs/evidence/rewind618/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind618/download618-verification.json); 617: [receipt](docs/evidence/rewind617/delivery.json) |
+| Application | **RewindBox 0.0.8 (619)**, private IPA; iOS 18+, SideStore re-signing |
+| Delivery source | `c5d9c8a985a2632aa1f701ad776894b99315c011`; frozen manifest [`build-utils/delivery/619.json`](build-utils/delivery/619.json) (freeze commit `45943c9b`, effective product digest `4fbdfe3e…`, replayed from the delivered 618 effective tree `95f1ecc9…`) |
+| Delivery run / jobs | `41516165812`, attempt 1, standard recipe: preflight, flutter and native (both fresh), republish and application, all successful (about 25 min) |
+| Downloaded IPA | `RewindBox-619.ipa`, 194221111 bytes; SHA-256 `2e570645c7500deba655ea0d210e4fac025bd16b0c6b45ab127d5d13454816c9` |
+| Product baseline | Delivered 618 plus the reviewed `602f4512`, `43f16353` (RPCS3 Core 619 delta records and its review revision) and `c5c265dc`, `5ecf779e` (host-test timing fixes); the other 70 paths of `b06888a9` stay **deferred** (inherited) |
+| MeloNX Core | **Hogwarts region-upload Core** kept (`unchangedFromBase`): Core run `41501428424`, source `a8f67bfd`, packaged fingerprint `dfe3bb56…` ([pin](build-utils/melonx/dma-core-pin.json)) |
+| RPCS3 Core | **Core 619** ([investigation](docs/rpcs3-core619-2026-11-02.md)): Core run `41509883194` (Apple host run `41514477410`), payload `44fc928e…` ([pin](build-utils/rpcs3/core-pin.json)); replaces Core 616 (`633d844b…`); ABI 30, 92 exports, codegen PPU `a987639e9f838d1c` / SPU `477a3fa442d27917` unchanged |
+| Dolphin Core | Retained from 608 (payload `640e4389…`) through the archive republished by run `41504526945` |
+| ARMSX2 Core | Retained from 608 (payload `fab55193…`, ABI 9) through the archive republished by run `41504526945` |
+| libretro / MeloNX dependencies | Retained through the archives republished by run `41504526945` (republished again by run `41516165812`) |
+| Delivery proof | [delivery receipt](docs/evidence/rewind619/delivery.json), [signed payload identity](docs/evidence/rewind619/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind619/download619-verification.json); 618: [receipt](docs/evidence/rewind618/delivery.json) |
+
+619 is delivered, not a pending candidate. Do not reuse its number. RPCS3 Core 619
+(Assassin's Creed `BLES00158`/`BLUS30089`: ZCULL reports written when the guest reads
+them, RSX label accesses off the 16 KiB page shared with reports 0-703; Black Ops II
+`BLES01717`: pinned-draw affine clipping and asynchronous MoltenVK submits in Automatic)
+has no iPhone result yet ([what the next run reads](docs/rpcs3-core619-2026-11-02.md));
+no FPS claim. `Frameworks/armsx2_internal_bridge`, `dolphin_internal_bridge` and
+`melonx_internal_bridge` changed from 618 although their sources did not (reported as
+undeclared image changes, not blocking). The private 619 recipient key was deleted after
+the verified delivery. 620 is reserved by the MeloNX/Hogwarts session together with the
+RetroAchievements session (MeloNX Core, journal fields and `c00bdca6`, on the delivered 619).
 
 618 is delivered, not a pending candidate. Do not reuse its number. The Hogwarts
 region upload (a partial DMA copy from linear memory into a GPU texture updates that

@@ -238,3 +238,22 @@ DMA pour Hogwarts `750a4077`, son correctif de revue `1e7dc4f2`, deux regels du 
   (signalé, non bloquant). Tests frais dans les deux groupes (~24 min de bout en bout).
 - Hors CI : métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub MCP
   (octets égaux aux digests de l'API) ; IPA vérifiée hors ligne, clé privée supprimée.
+
+## 10. État de la 619 (2 novembre 2026)
+
+Livrée sur la 618 (run `41516165812`, IPA `2e570645…`, 194221111 octets), sans extension de la
+recette. Gel sur `45943c9b` : base effective 618 `95f1ecc9…`, 4 commits revus (delta du Core RPCS3 619
+`602f4512`, sa révision après revue `43f16353`, deux correctifs de minutage des tests hôtes `c5c265dc`,
+`5ecf779e`), 9 différences produit (enregistrements du delta et tests hôtes), 70 chemins différés
+hérités, empreinte effective `4fbdfe3e…`, 6840 fichiers produit ; contrôle légal réussi.
+- Le Core RPCS3 619 vient de deux runs de la route Core : la compilation (run `41509883194`, job Core
+  réussi) et les harnais Apple relancés seuls (`[rpcs3-core-build-apple]`, run `41514477410`) après deux
+  correctifs de minutage d'un scénario de test, comme pour le Core 613. Entre le push des sources 619 et
+  l'épingle, `test_rpcs3_pin` échouait (transitoire, annoncé).
+- Composants : RPCS3 remplacé (Core 619, `44fc928e…`, remplace le Core 616), MeloNX `unchangedFromBase`
+  (Core de la 618, image conservée) ; Dolphin/ARMSX2, libretro et dépendances MeloNX conservés par la
+  republication de la 618. Images changées : libRPCS3Core, Runner, et `armsx2_internal_bridge`,
+  `dolphin_internal_bridge`, `melonx_internal_bridge` sans changement de leurs sources (signalé, non
+  bloquant). Tests frais dans les deux groupes (~25 min de bout en bout).
+- Hors CI : métadonnées API par le serveur GitHub MCP, pièces par ses URL signées (octets égaux aux
+  digests de l'API) ; IPA vérifiée hors ligne, clé privée supprimée.
