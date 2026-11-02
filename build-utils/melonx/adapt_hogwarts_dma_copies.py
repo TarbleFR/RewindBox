@@ -73,6 +73,52 @@ waits for the render thread and the GPU), and the texture is then uploaded again
   guest-memory path that take more than 2 ms (a flush action inside) are counted; all in the
   per-1024-copies summary line (at most 64 lines per session).
 
+Build 620 journal (2 November 2026, PID 66809, Core 1c836557): the GPU source copy never ran
+(22810 copies declined, no linear texture over the source) and the flush per frame is unchanged
+(61-68 texture flushes per 5.1 s window, 2.5-4.0 s). Every slow source read (741 of 741) is one of
+the copies that never reach that lookup: not a linear source into a block-linear destination. The
+flushed texture is a GPU-written texture over the source, so these sources are block-linear surfaces
+(render targets) copied in part.
+
+- For Hogwarts Legacy only, a 2D copy whose source is a block-linear surface is copied on the GPU
+  when a GPU-modified texture of the cache is that surface (FindRegionTarget, the lookup of the
+  region upload), single-level 2D uncompressed colour at scale 1 without incompatible overlaps, the
+  rectangle on whole texels inside it. The destination is the texture of a block-linear
+  destination surface, found or created over that surface (FindOrCreateTexture, its memory
+  uploaded first), or a linear texture found or created over the linear destination rectangle:
+  the delivered GPU copy of complete copies creates its target the same way, for linear
+  destinations too. Both have the same format, unconverted by the host, in other groups. Both are
+  synchronised, the host copies the region (ITexture.CopyTo with extents) and the destination is
+  marked modified; the source is not read back.
+- The formats copied on the GPU are those a same-size, unfiltered host copy keeps exact: UNORM,
+  sRGB UNORM and floating point. MoltenVK turns such a blit into a Metal texture copy; Vulkan
+  converts through float, exact for these formats. This applies to both GPU copies.
+- Under the policy, the guest-memory path signals its source read, and its tracked destination
+  read, precisely (PhysicalMemory.SignalPreciseRead). A texture handle ignores a precise read that
+  does not touch its own bytes: a GPU-modified texture that merely shares a page with the copied
+  bytes is not read back. Only these reads are precise reads; writes and every other access are
+  signalled as before.
+- For every title, on Apple platforms, ThreadedRenderer raises the render thread (the caller of
+  RunLoop) and the GPU command thread it starts to user-interactive QoS. .NET starts them at the
+  default QoS (priority 31), below the guest's and the system's user-interactive work (37-47 in the
+  620 journal). The render thread is the busiest thread (55-65 % CPU), and the A18 Pro has two
+  performance cores of six.
+
+Build 620 journal, Super Smash Bros. Ultimate (PID 67058, 8 minutes, 57.6 FPS mean, p99 17 ms):
+143 pauses over 50 ms and 80 over 100 ms (up to 3.75 s), each in a window of pipeline builds of
+120-320 ms each, while the GPU thread waits for the render thread (up to 2.5 s per window) and
+the guest for the GPU ("ServiceNv Wait"). The main pipeline cache loaded 383.81 MiB of its 384
+MiB budget and "will not be persisted until it fits": nothing a session compiles is kept,
+because a full main cache cannot take the worker caches either (recycled six times in 10 s at
+64 MiB). The same pipelines are converted again in game every session.
+
+- The pipeline cache budget is 1 GiB (main 768 MiB, 128 MiB per worker); everything else in its
+  policy is unchanged. MoltenVK keeps that data LZ4-compressed in memory; Hogwarts Legacy's cache
+  is 104 MiB and does not grow from it.
+- A draw waits for its demanded pipeline compiles (BackgroundCompilationScheduler's demand
+  thread). On Apple platforms that thread runs at user-interactive QoS, so the Metal compilation
+  it requests runs at that QoS too. The background workers keep their QoS.
+
 Not measured on the iPhone; no FPS claim. The GPU copy is the Ryujinx behaviour for these
 formats; whether MoltenVK copies them correctly in Hogwarts is checked on the device (image).
 """
@@ -85,7 +131,11 @@ CONFIG = 'src/Ryujinx.Graphics.Gpu/GraphicsConfig.cs'
 LIBRARY = 'src/Ryujinx.Library/Library.cs'
 TEXTURE_CACHE = 'src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'
 TEXTURE_GROUP = 'src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs'
-NAMES = [DMA, CONFIG, LIBRARY, TEXTURE_CACHE, TEXTURE_GROUP]
+PHYSICAL = 'src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs'
+THREADED = 'src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs'
+PIPELINE_CACHE = 'src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'
+SCHEDULER = 'src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs'
+NAMES = [DMA, CONFIG, LIBRARY, TEXTURE_CACHE, TEXTURE_GROUP, PHYSICAL, THREADED, PIPELINE_CACHE, SCHEDULER]
 
 GROUP_ANCHOR = '''        /// <summary>
         /// Indicates if this texture has any incompatible overlaps alive.
@@ -109,6 +159,119 @@ GROUP_NEW = GROUP_ANCHOR + '''
 
             return false;
         }'''
+
+GROUP_HANDLE_OLD = '''            return _physicalMemory.BeginTracking(address, size, ResourceKind.Texture);'''
+GROUP_HANDLE_NEW = '''            RegionHandle handle = _physicalMemory.BeginTracking(address, size, ResourceKind.Texture);
+
+            // Precise reads come only from the Hogwarts DMA policy (PhysicalMemory.SignalPreciseRead): one that does not touch
+            // this handle's own bytes, only its pages, needs no flush. Writes and every other access are signalled as before.
+            handle.RegisterPreciseAction((accessAddress, accessSize, write) =>
+                !write && (accessAddress >= handle.RealEndAddress || accessAddress + accessSize <= handle.RealAddress));
+
+            return handle;'''
+
+PHYSICAL_ANCHOR = '''        /// <summary>
+        /// Obtains a memory tracking handle for the given virtual region. This should be disposed when finished with.
+        /// </summary>
+        /// <param name="address">CPU virtual address of the region</param>
+        /// <param name="size">Size of the region</param>
+        /// <param name="kind">Kind of the resource being tracked</param>
+        /// <param name="flags">Region flags</param>'''
+PHYSICAL_NEW = '''        /// <summary>
+        /// Signals a read of the given ranges to the memory tracking precisely: only the tracked resources whose own bytes the
+        /// read covers act, so a GPU-modified texture that merely shares a page with them is not read back. The caller then
+        /// reads the memory untracked. Nothing is signalled, and false is returned, when part of the range is unmapped.
+        /// </summary>
+        /// <param name="range">Physical ranges about to be read</param>
+        /// <returns>True if the read was signalled, false otherwise</returns>
+        public bool SignalPreciseRead(MultiRange range)
+        {
+            for (int i = 0; i < range.Count; i++)
+            {
+                if (range.GetSubRange(i).Address == MemoryManager.PteUnmapped)
+                {
+                    return false;
+                }
+            }
+
+            for (int i = 0; i < range.Count; i++)
+            {
+                MemoryRange subRange = range.GetSubRange(i);
+                _cpuMemory.SignalMemoryTracking(subRange.Address, subRange.Size, write: false, precise: true);
+            }
+
+            return true;
+        }
+
+''' + PHYSICAL_ANCHOR
+
+THREADED_NAMESPACE_OLD = '''    /// <summary>
+    /// The ThreadedRenderer is a layer'''
+THREADED_NAMESPACE_NEW = '''    /// <summary>
+    /// Apple platforms: the render thread and the GPU command thread pace every frame, and .NET starts them at the default
+    /// QoS, below the guest's and the system's user-interactive work, so the scheduler may keep them off the performance
+    /// cores. They raise themselves to user-interactive QoS. Elsewhere, or if the call is unavailable, nothing changes.
+    /// </summary>
+    public static partial class HostThreadQos
+    {
+        private const uint UserInteractive = 0x21;
+
+        [LibraryImport("/usr/lib/libSystem.B.dylib", EntryPoint = "pthread_set_qos_class_self_np")]
+        private static partial int SetQosClassSelf(uint qosClass, int relativePriority);
+
+        public static void RaiseCurrentThread()
+        {
+            if (!OperatingSystem.IsIOS() && !OperatingSystem.IsMacOS() && !OperatingSystem.IsMacCatalyst())
+            {
+                return;
+            }
+
+            try
+            {
+                SetQosClassSelf(UserInteractive, 0);
+            }
+            catch (DllNotFoundException)
+            {
+            }
+            catch (EntryPointNotFoundException)
+            {
+            }
+        }
+    }
+
+    /// <summary>
+    /// The ThreadedRenderer is a layer'''
+THREADED_OLD = '''            _backendThread = Thread.CurrentThread;
+
+            _gpuThread = new Thread(() =>
+            {
+                try { gpuLoop(); }'''
+THREADED_NEW = '''            _backendThread = Thread.CurrentThread;
+            HostThreadQos.RaiseCurrentThread();
+
+            _gpuThread = new Thread(() =>
+            {
+                HostThreadQos.RaiseCurrentThread();
+                try { gpuLoop(); }'''
+
+PIPELINE_BUDGET_OLD = '''        private const long TotalCacheBudget = 512L * 1024 * 1024;'''
+PIPELINE_BUDGET_NEW = '''        // Super Smash Bros. Ultimate filled the 384 MiB main budget (383.81 MiB loaded in build 620): nothing a session
+        // compiled was kept any more, and the same pipelines were converted again in game every session.
+        private const long TotalCacheBudget = 1024L * 1024 * 1024;'''
+
+SCHEDULER_OLD = '''            private void WorkerLoop(int workerIndex, bool demandOnly)
+            {
+                while (true)'''
+SCHEDULER_NEW = '''            private void WorkerLoop(int workerIndex, bool demandOnly)
+            {
+                if (demandOnly)
+                {
+                    // A draw waits for every demanded compile: this thread, and the Metal compilation it requests, run at
+                    // user-interactive QoS on Apple platforms. The background workers keep their QoS.
+                    Ryujinx.Graphics.GAL.Multithreading.HostThreadQos.RaiseCurrentThread();
+                }
+
+                while (true)'''
 
 CACHE_ANCHOR = '''        /// <summary>
         /// Tries to find an existing texture matching the given buffer copy destination. If none is found, returns null.
@@ -269,17 +432,23 @@ SLOW_OLD = '''                using ReadOnlyRegion srcRegion = memoryManager.Get
 SLOW_NEW = '''            GuestMemoryCopy:
                 NoteGuestMemoryCopy(slowReason, slowSource, srcLinear, dstLinear, xCount, yCount, srcBpp, srcSize);
 
-                // Hogwarts Legacy policy: a linear source that a GPU texture holds is copied on the GPU into the destination
-                // texture, without reading it back; otherwise the source textures are noted for the read attribution.
-                if (GraphicsConfig.HogwartsDmaRegionUpload && srcLinear && !dstLinear && isIdentityRemap && srcBpp == dstBpp &&
-                    TryCopyGpuSource(memoryManager, srcGpuVa + (ulong)srcBaseOffset, srcSize, srcStride, xCount, yCount, dstBpp,
-                                     dstGpuVa, dst, dstRegionX, dstRegionY))
+                // Hogwarts Legacy policy: a source that a GPU texture holds (a linear one into a block-linear destination,
+                // or a block-linear surface into any destination) is copied on the GPU, without reading it back; otherwise
+                // the source textures are noted for the read attribution, and the read below is signalled precisely.
+                if (GraphicsConfig.HogwartsDmaRegionUpload && isIdentityRemap && srcBpp == dstBpp &&
+                    (srcLinear
+                        ? !dstLinear && TryCopyGpuSource(memoryManager, srcGpuVa + (ulong)srcBaseOffset, srcSize, srcStride, xCount,
+                                                         yCount, dstBpp, dstGpuVa, dst, dstRegionX, dstRegionY)
+                        : TryCopyGpuRegion(memoryManager, srcGpuVa, src, srcRegionX, srcRegionY, dstGpuVa, dst, dstLinear,
+                                           dstBaseOffset, dstStride, dstRegionX, dstRegionY, xCount, yCount, dstBpp)))
                 {
                     return;
                 }
 
                 long readStart = Stopwatch.GetTimestamp();
-                using ReadOnlyRegion srcRegion = memoryManager.GetReadOnlyRegion(srcGpuVa + (ulong)srcBaseOffset, srcSize, true);
+                bool preciseSource = GraphicsConfig.HogwartsDmaRegionUpload &&
+                    SignalPreciseRead(memoryManager, srcGpuVa + (ulong)srcBaseOffset, (ulong)srcSize);
+                using ReadOnlyRegion srcRegion = memoryManager.GetReadOnlyRegion(srcGpuVa + (ulong)srcBaseOffset, srcSize, !preciseSource);
                 NoteGuestMemoryAccess(readStart, write: false);'''
 
 REGION_OLD = '''                // The destination range is read into this engine's buffer, patched there and
@@ -295,7 +464,10 @@ REGION_NEW = '''                // Hogwarts Legacy policy: the region also goes 
 ''' + REGION_OLD
 
 READ_OLD = '''                memoryManager.ReadInto(dstGpuVa + (ulong)dstBaseOffset, dstSpan);'''
-READ_NEW = '''                memoryManager.ReadInto(dstGpuVa + (ulong)dstBaseOffset, dstSpan, GraphicsConfig.HogwartsDmaRegionUpload && !regionUploaded);'''
+READ_NEW = '''                bool trackDestination = GraphicsConfig.HogwartsDmaRegionUpload && !regionUploaded;
+                bool preciseDestination = trackDestination &&
+                    SignalPreciseRead(memoryManager, dstGpuVa + (ulong)dstBaseOffset, (ulong)dstSize);
+                memoryManager.ReadInto(dstGpuVa + (ulong)dstBaseOffset, dstSpan, trackDestination && !preciseDestination);'''
 
 
 WRITE_OLD = '''                memoryManager.Write(dstGpuVa + (ulong)dstBaseOffset, dstSpan);
@@ -373,6 +545,9 @@ METHOD_NEW = '''        /// <summary>
         private readonly HashSet<(SourceClass, int, bool, int, int, int, int, int)> _slowReadSignatures = new();
         private long _gpuSourceCopies;
         private bool _gpuSourceCopyNoted;
+        private readonly long[] _gpuRegionDeclines = new long[(int)GpuSourceDecline.Count];
+        private long _gpuRegionCopies;
+        private bool _gpuRegionCopyNoted;
 
         /// <summary>
         /// Attributes a 2D copy that reads its source through guest memory (which flushes a GPU-written texture):
@@ -405,7 +580,9 @@ METHOD_NEW = '''        /// <summary>
                     $"format {_regionDeclines[2]} overlap {_regionDeclines[3]}; slowReads {_slowSourceReads}, " +
                     $"slowWrites {_slowDestinationWrites}; gpuSourceCopies {_gpuSourceCopies}, declined noTexture " +
                     $"{_gpuSourceDeclines[0]} layout {_gpuSourceDeclines[1]} noTarget {_gpuSourceDeclines[2]} format " +
-                    $"{_gpuSourceDeclines[3]} notModified {_gpuSourceDeclines[4]}; slowReads by source none {_slowReadsBySource[0]} linearHolds " +
+                    $"{_gpuSourceDeclines[3]} notModified {_gpuSourceDeclines[4]}; gpuRegionCopies {_gpuRegionCopies}, declined noTexture " +
+                    $"{_gpuRegionDeclines[0]} layout {_gpuRegionDeclines[1]} noTarget {_gpuRegionDeclines[2]} format " +
+                    $"{_gpuRegionDeclines[3]} notModified {_gpuRegionDeclines[4]}; slowReads by source none {_slowReadsBySource[0]} linearHolds " +
                     $"{_slowReadsBySource[1]} linearOther {_slowReadsBySource[2]} blockLinear {_slowReadsBySource[3]})");
             }
         }
@@ -478,8 +655,8 @@ METHOD_NEW = '''        /// <summary>
         /// the only texture group overlapping it, without incompatible overlaps, and hold GPU-written data guest memory
         /// lacks (only then is the read slow; any other writer of that memory keeps the guest path); the source rectangle
         /// must fall on whole texels inside it and inside the stride. The destination must be the texture of the
-        /// destination surface (FindRegionTarget) with the same UNORM format (a partial region is blitted, exact only for
-        /// those), unconverted by the host, another texture group, without incompatible overlaps, its region on whole
+        /// destination surface (FindRegionTarget) with the same exactly copied format (UNORM, sRGB or float: a partial region
+        /// is blitted at its own size), unconverted by the host, another texture group, without incompatible overlaps, its region on whole
         /// texels inside it. Both are synchronised with their memory; the host copies the region in order after the GPU
         /// writes already queued, and the destination is marked modified, as the upstream GPU copy of block-linear sources
         /// does. Otherwise the overlapping textures are noted for the read attribution.
@@ -487,7 +664,10 @@ METHOD_NEW = '''        /// <summary>
         /// <returns>True if the copy was done on the GPU, false to read the source through guest memory</returns>
         private static bool IsExactBlitFormat(Format format) => format is
             Format.R8Unorm or Format.R8G8Unorm or Format.R8G8B8A8Unorm or Format.B8G8R8A8Unorm or
-            Format.R16Unorm or Format.R16G16Unorm or Format.R16G16B16A16Unorm or Format.R10G10B10A2Unorm;
+            Format.R16Unorm or Format.R16G16Unorm or Format.R16G16B16A16Unorm or Format.R10G10B10A2Unorm or
+            Format.R8G8B8A8Srgb or Format.B8G8R8A8Srgb or
+            Format.R16Float or Format.R16G16Float or Format.R16G16B16A16Float or
+            Format.R32Float or Format.R32G32Float or Format.R32G32B32A32Float or Format.R11G11B10Float;
 
         private bool TryCopyGpuSource(MemoryManager memoryManager, ulong srcVa, int srcSize, int srcStride, int xCount, int yCount,
                                       int bpp, ulong dstGpuVa, DmaTexture dst, int dstRegionX, int dstRegionY)
@@ -599,8 +779,9 @@ METHOD_NEW = '''        /// <summary>
             int width = byteWidth / texelBytes;
             int x = byteX / texelBytes;
 
-            // A partial region is blitted (vkCmdBlitImage, or a float shader without blit support): exact only for UNORM
-            // formats, and the host must keep the format unconverted so that the target can be flushed to guest memory.
+            // A partial region is blitted at its own size, unfiltered (vkCmdBlitImage, a Metal texture copy in MoltenVK):
+            // exact for UNORM, sRGB and float formats, and the host must keep the format unconverted so that the target can
+            // be flushed to guest memory.
             if (!IsExactBlitFormat(format.Format) ||
                 Image.TextureCompatibility.ToHostCompatibleFormat(source.Info, _context.Capabilities).Format != format.Format ||
                 Image.TextureCompatibility.ToHostCompatibleFormat(target.Info, _context.Capabilities).Format != format.Format ||
@@ -671,6 +852,148 @@ METHOD_NEW = '''        /// <summary>
             }
 
             return match;
+        }
+
+        /// <summary>
+        /// Hogwarts Legacy policy: copies a 2D copy whose source is a block-linear surface on the GPU, when a GPU-modified
+        /// texture of the cache is that surface (FindRegionTarget), instead of reading the texture back through guest memory:
+        /// in the build 620 journal every slow source read was such a copy (one per frame, about 50 ms). The source must be
+        /// single-level 2D uncompressed colour at scale 1 without incompatible overlaps, the rectangle on whole texels inside
+        /// it. The destination is the texture of a block-linear destination surface (found, or created over that surface as
+        /// the delivered GPU copy of complete copies creates its target), or a linear texture found or created over the linear
+        /// destination rectangle (the same creation); both of the same exactly copied format, unconverted by the host, in
+        /// other groups, single-level 2D at scale 1, the rectangle inside the target. Both are synchronised with their memory,
+        /// the host copies the region in order after the GPU writes already queued, and the destination is marked modified.
+        /// </summary>
+        /// <returns>True if the copy was done on the GPU, false to copy through guest memory</returns>
+        private bool TryCopyGpuRegion(MemoryManager memoryManager, ulong srcGpuVa, DmaTexture src, int srcRegionX, int srcRegionY,
+                                      ulong dstGpuVa, DmaTexture dst, bool dstLinear, int dstBaseOffset, int dstStride,
+                                      int dstRegionX, int dstRegionY, int xCount, int yCount, int bpp)
+        {
+            if (src.Depth > 1 || src.RegionZ != 0 || xCount <= 0 || yCount <= 0)
+            {
+                _gpuRegionDeclines[(int)GpuSourceDecline.Layout]++;
+                return false;
+            }
+
+            Image.Texture source = FindRegionTarget(memoryManager, srcGpuVa, src, bpp);
+
+            if (source == null)
+            {
+                _gpuRegionDeclines[(int)GpuSourceDecline.NoTexture]++;
+                return false;
+            }
+
+            // Only data the GPU wrote and guest memory lacks makes the read slow; otherwise guest memory is current.
+            if (!source.Group.AnyHandleModified())
+            {
+                _gpuRegionDeclines[(int)GpuSourceDecline.NotModified]++;
+                return false;
+            }
+
+            Image.FormatInfo format = source.Info.FormatInfo;
+            int texelBytes = format.BytesPerPixel;
+            int byteWidth = xCount * bpp;
+            int sourceByteX = srcRegionX * bpp;
+
+            if (source.Info.Target != Target.Texture2D || source.Info.Levels > 1 || source.Info.DepthOrLayers > 1 ||
+                format.IsCompressed || format.Format.IsDepthOrStencil || source.ScaleFactor != 1f ||
+                source.Group.HasIncompatibleOverlaps || sourceByteX % texelBytes != 0 || byteWidth % texelBytes != 0 ||
+                sourceByteX / texelBytes + byteWidth / texelBytes > source.Info.Width || srcRegionY + yCount > source.Info.Height)
+            {
+                _gpuRegionDeclines[(int)GpuSourceDecline.Layout]++;
+                return false;
+            }
+
+            if (!IsExactBlitFormat(format.Format) ||
+                Image.TextureCompatibility.ToHostCompatibleFormat(source.Info, _context.Capabilities).Format != format.Format)
+            {
+                _gpuRegionDeclines[(int)GpuSourceDecline.Format]++;
+                return false;
+            }
+
+            int width = byteWidth / texelBytes;
+            int x = 0;
+            int y = 0;
+            Image.Texture target;
+
+            if (dstLinear)
+            {
+                if (dstStride < byteWidth)
+                {
+                    _gpuRegionDeclines[(int)GpuSourceDecline.Layout]++;
+                    return false;
+                }
+
+                target = memoryManager.Physical.TextureCache.FindOrCreateTexture(
+                    memoryManager, format, dstGpuVa + (ulong)dstBaseOffset, byteWidth, yCount, dstStride, true, 1, 1);
+            }
+            else
+            {
+                int targetByteX = dstRegionX * bpp;
+
+                if (dst.Depth > 1 || dst.RegionZ != 0 || targetByteX % texelBytes != 0)
+                {
+                    _gpuRegionDeclines[(int)GpuSourceDecline.Layout]++;
+                    return false;
+                }
+
+                x = targetByteX / texelBytes;
+                y = dstRegionY;
+                target = FindRegionTarget(memoryManager, dstGpuVa, dst, bpp);
+
+                if (target == null && (dst.Width * bpp) % texelBytes == 0)
+                {
+                    target = memoryManager.Physical.TextureCache.FindOrCreateTexture(
+                        memoryManager, format, dstGpuVa, dst.Width * bpp, dst.Height, 0, false,
+                        dst.MemoryLayout.UnpackGobBlocksInY(), dst.MemoryLayout.UnpackGobBlocksInZ());
+                }
+            }
+
+            if (target == null)
+            {
+                _gpuRegionDeclines[(int)GpuSourceDecline.NoTarget]++;
+                return false;
+            }
+
+            if (target.Info.FormatInfo.Format != format.Format ||
+                Image.TextureCompatibility.ToHostCompatibleFormat(target.Info, _context.Capabilities).Format != format.Format ||
+                target.Group == source.Group || target.Group.HasIncompatibleOverlaps || target.Info.Target != Target.Texture2D ||
+                target.Info.Levels > 1 || target.Info.DepthOrLayers > 1 || target.ScaleFactor != 1f ||
+                x + width > target.Info.Width || y + yCount > target.Info.Height)
+            {
+                _gpuRegionDeclines[(int)GpuSourceDecline.Format]++;
+                return false;
+            }
+
+            int sourceX = sourceByteX / texelBytes;
+            source.SynchronizeMemory();
+            target.SynchronizeMemory();
+            source.HostTexture.CopyTo(target.HostTexture, new Extents2D(sourceX, srcRegionY, sourceX + width, srcRegionY + yCount),
+                new Extents2D(x, y, x + width, y + yCount), false);
+            target.SignalModified();
+            _gpuRegionCopies++;
+
+            if (!_gpuRegionCopyNoted)
+            {
+                _gpuRegionCopyNoted = true;
+                Logger.Warning?.Print(LogClass.Gpu, $"DMA GPU region copy (Hogwarts policy): {format.Format} " +
+                    $"{source.Info.Width}x{source.Info.Height} ({sourceX},{srcRegionY}) to {(dstLinear ? "linear " : "")}" +
+                    $"{target.Info.Width}x{target.Info.Height} ({x},{y}) {width}x{yCount}");
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Signals a read of a GPU virtual range to the memory tracking precisely (PhysicalMemory.SignalPreciseRead): false,
+        /// signalling nothing, when part of it is unmapped; the caller then reads tracked as delivered.
+        /// </summary>
+        private static bool SignalPreciseRead(MemoryManager memoryManager, ulong gpuVa, ulong size)
+        {
+            var range = memoryManager.GetPhysicalRegions(gpuVa, size);
+
+            return memoryManager.Physical.SignalPreciseRead(range);
         }
 
         /// <summary>
@@ -765,6 +1088,12 @@ def apply(source):
     source = Path(source)
     once(source / TEXTURE_CACHE, CACHE_ANCHOR, CACHE_NEW)
     once(source / TEXTURE_GROUP, GROUP_ANCHOR, GROUP_NEW)
+    once(source / TEXTURE_GROUP, GROUP_HANDLE_OLD, GROUP_HANDLE_NEW)
+    once(source / PHYSICAL, PHYSICAL_ANCHOR, PHYSICAL_NEW)
+    once(source / THREADED, THREADED_NAMESPACE_OLD, THREADED_NAMESPACE_NEW)
+    once(source / THREADED, THREADED_OLD, THREADED_NEW)
+    once(source / PIPELINE_CACHE, PIPELINE_BUDGET_OLD, PIPELINE_BUDGET_NEW)
+    once(source / SCHEDULER, SCHEDULER_OLD, SCHEDULER_NEW)
     once(source / CONFIG, CONFIG_ANCHOR, CONFIG_NEW)
     once(source / LIBRARY, LIBRARY_OLD, LIBRARY_NEW)
     dma = source / DMA
