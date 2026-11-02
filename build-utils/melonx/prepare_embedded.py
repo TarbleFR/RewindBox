@@ -96,6 +96,7 @@ from adapt_performance_diagnostics import apply as adapt_performance_diagnostics
 from adapt_register_liveness import apply as adapt_register_liveness
 from adapt_fragmented_reads import apply as adapt_fragmented_reads
 from adapt_gpu_work_diagnostics import apply as adapt_gpu_work_diagnostics
+from adapt_bindless_array_deltas import apply as adapt_bindless_array_deltas
 
 
 def replace_once(path, old, new):
@@ -230,6 +231,9 @@ def main():
         shutil.copyfile(path, target)
         copied.append(target)
         inputs[str(path.relative_to(root))] = hashlib.sha256(path.read_bytes()).hexdigest()
+    # After the GPU work observers (its compute scope anchors on their final text) and after the
+    # collector copy above: it appends its rows and counters to the prepared collector.
+    adapted += [source / name for name in adapt_bindless_array_deltas(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -300,7 +304,8 @@ def main():
                  'adapt_occlusion_completion.py', 'adapt_pipeline_checkpoint_pacing.py',
                  'adapt_counter_report_compaction.py', 'adapt_single_virtual_dependency.py',
                  'adapt_performance_diagnostics.py', 'adapt_register_liveness.py',
-                 'adapt_fragmented_reads.py', 'adapt_gpu_work_diagnostics.py']:
+                 'adapt_fragmented_reads.py', 'adapt_gpu_work_diagnostics.py',
+                 'adapt_bindless_array_deltas.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

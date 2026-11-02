@@ -2,6 +2,7 @@
 """Compile the real bindless array cache before and after adapt_bindless_array_deltas.
 
 Usage: melonx_bindless_array_deltas_test.py <prepared MeloNX tree (as delivered in Core b99e754d)>
+       [--candidate-source <final prepared tree>]
 
 The production TextureBindingsArrayCache, the threaded array producers and their
 commands are compiled unchanged; only pools, textures, memory and the renderer
@@ -10,7 +11,13 @@ invalidations with and without pool removal, sampler replacement and quiet passe
 is checked against the pools, and control and candidate must produce identical
 backend contents and store/synchronisation sets at every step. Then the cost of a
 pool-sized array with the pool written before every dispatch is measured.
+
+The whole adapter is also applied to copies of its delivered files (the delivered
+collector being the current native one, which prepare_embedded copies before this
+adapter runs). With --candidate-source that composition must equal the final
+prepared files, and the candidate build compiles the final cache itself.
 """
+import argparse
 from pathlib import Path
 import hashlib
 import json
@@ -21,10 +28,15 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = Path(sys.argv[1]).resolve()
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('source', type=Path, help='delivered prepared tree (control)')
+parser.add_argument('--candidate-source', type=Path, help='actual final prepared tree')
+args = parser.parse_args()
+SOURCE = args.source.resolve()
+CANDIDATE = args.candidate_source.resolve() if args.candidate_source else None
 DOTNET = os.environ.get('DOTNET', 'dotnet')
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
-from adapt_bindless_array_deltas import apply_array_cache
+from adapt_bindless_array_deltas import apply, apply_array_cache, ARRAY_CACHE, DIAGNOSTICS, NAMES
 
 GAL = 'src/Ryujinx.Graphics.GAL'
 MULTI = GAL + '/Multithreading'
@@ -46,35 +58,6 @@ FILES = [
     MULTI + '/Commands/ImageArray/ImageArrayDisposeCommand.cs',
 ]
 
-reports, postimages = {}, {}
-with tempfile.TemporaryDirectory(prefix='melonx-bindless-array-deltas-') as temporary:
-    temporary = Path(temporary).resolve()
-    for variant in ('control', 'candidate'):
-        work = temporary / variant
-        for relative in FILES:
-            target = work / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(SOURCE / relative, target)
-        if variant == 'candidate':
-            changed = apply_array_cache(work)
-            postimages = {p: hashlib.sha256((work / p).read_bytes()).hexdigest() for p in changed}
-        shutil.copyfile(ROOT / 'test/melonx_bindless_array_deltas/Program.cs', work / 'Program.cs')
-        define = '<DefineConstants>ADAPTED</DefineConstants>' if variant == 'candidate' else ''
-        (work / 'test.csproj').write_text(f'''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
-<OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
-<AllowUnsafeBlocks>true</AllowUnsafeBlocks><Nullable>disable</Nullable><ServerGarbageCollection>false</ServerGarbageCollection>
-<EnableNETAnalyzers>false</EnableNETAnalyzers><NoWarn>0649;0162;0168;0219;8981</NoWarn>{define}
-</PropertyGroup></Project>''')
-        environment = os.environ.copy()
-        environment.update(DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1')
-        result = subprocess.run([DOTNET, 'run', '--project', str(work / 'test.csproj'), '-c', 'Release'],
-                                capture_output=True, text=True, timeout=1200, env=environment)
-        if result.returncode:
-            print(result.stdout[-6000:], result.stderr[-4000:], flush=True)
-        result.check_returncode()
-        reports[variant] = json.loads(next(line for line in result.stdout.splitlines() if line.startswith('{')))
-
-control, candidate = reports['control'], reports['candidate']
 checks = 0
 
 
@@ -83,6 +66,61 @@ def check(value, message):
     assert value, message
     checks += 1
 
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+reports, compiled = {}, {}
+with tempfile.TemporaryDirectory(prefix='melonx-bindless-array-deltas-') as temporary:
+    temporary = Path(temporary).resolve()
+    # The complete adapter in preparation order: after the collector copy, on the delivered files.
+    composed = temporary / 'composed'
+    for relative in NAMES:
+        (composed / relative).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(SOURCE / relative, composed / relative)
+    check((composed / DIAGNOSTICS).read_bytes() == (ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs').read_bytes(),
+          'delivered collector differs from the native collector that prepare_embedded copies')
+    apply(composed)
+    postimages = {p: sha(composed / p) for p in NAMES}
+    check(all(postimages[p] != sha(SOURCE / p) for p in NAMES), 'adapter left a file unchanged')
+    if CANDIDATE:
+        check(postimages == {p: sha(CANDIDATE / p) for p in NAMES}, 'composition differs from the final prepared source')
+    for variant in ('control', 'candidate'):
+        work = temporary / variant
+        origin = CANDIDATE if variant == 'candidate' and CANDIDATE else SOURCE
+        for relative in FILES:
+            target = work / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(origin / relative, target)
+        if variant == 'candidate':
+            if CANDIDATE:
+                check(all(sha(work / p) == sha(SOURCE / p) for p in FILES if p != ARRAY_CACHE),
+                      'final source changed a compiled dependency of the cache')
+            else:
+                apply_array_cache(work)
+            check(sha(work / ARRAY_CACHE) == postimages[ARRAY_CACHE], 'candidate cache is not the composed final cache')
+        compiled[variant] = {p: sha(work / p) for p in FILES}
+        shutil.copyfile(ROOT / 'test/melonx_bindless_array_deltas/Program.cs', work / 'Program.cs')
+        define = '<DefineConstants>ADAPTED</DefineConstants>' if variant == 'candidate' else ''
+        (work / 'test.csproj').write_text(f'''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
+<OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+<AllowUnsafeBlocks>true</AllowUnsafeBlocks><Nullable>disable</Nullable><ServerGarbageCollection>false</ServerGarbageCollection>
+<EnableNETAnalyzers>false</EnableNETAnalyzers><NuGetAudit>false</NuGetAudit><NoWarn>0649;0162;0168;0219;8981</NoWarn>{define}
+</PropertyGroup></Project>''')
+        # The same pinned SDK and no package source as the other final-source fixtures.
+        (work / 'global.json').write_text(json.dumps({'sdk': {'version': '10.0.100', 'rollForward': 'disable'}}))
+        (work / 'NuGet.Config').write_text('<configuration><packageSources><clear /></packageSources></configuration>')
+        environment = os.environ.copy()
+        environment.update(DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1')
+        result = subprocess.run([DOTNET, 'run', '--project', str(work / 'test.csproj'), '-c', 'Release'],
+                                cwd=work, capture_output=True, text=True, timeout=1200, env=environment)
+        if result.returncode:
+            print(result.stdout[-6000:], result.stderr[-4000:], flush=True)
+        result.check_returncode()
+        reports[variant] = json.loads(next(line for line in result.stdout.splitlines() if line.startswith('{')))
+
+control, candidate = reports['control'], reports['candidate']
 
 check(not control['adapted'] and candidate['adapted'], 'variants swapped')
 check(len(control['scenarios']) == len(candidate['scenarios']) == 72, 'scenario inventory')
@@ -118,14 +156,19 @@ for old, new in zip(control['measures'], candidate['measures'], strict=True):
                      candidateMicroseconds=round(new['producerMicrosecondsPerUpdate'], 1)))
 
 inputs = ['build-utils/melonx/adapt_bindless_array_deltas.py', 'test/melonx_bindless_array_deltas_test.py',
-          'test/melonx_bindless_array_deltas/Program.cs']
+          'test/melonx_bindless_array_deltas/Program.cs', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 receipt = dict(result='passed', checks=checks, programChecks=dict(control=control['checks'], candidate=candidate['checks']),
                deliveredDefects=dict(removals=control['removals'], failures=control['failures']),
-               measures=rows, candidateCounters=candidate['counters'], physicalDeviceTested=False,
+               measures=rows, candidateCounters=candidate['counters'], physicalDeviceTested=False, fpsGainProven=False,
                poolsTexturesAndTransportDoubled=True, productionCacheAndCommandsCompiled=True,
-               inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
-               upstreamInputs={p: hashlib.sha256((SOURCE / p).read_bytes()).hexdigest() for p in FILES},
-               postimages=postimages)
+               sourceKind='deliveredPreparedWithFinalCandidate' if CANDIDATE else 'deliveredPreparedComposed',
+               finalPreparedSourceBound=bool(CANDIDATE),
+               inputs={p: sha(ROOT / p) for p in inputs},
+               upstreamInputs={p: sha(SOURCE / p) for p in FILES},
+               preimages={p: sha(SOURCE / p) for p in NAMES}, postimages=postimages, compiledSourceInputs=compiled,
+               compilationScope='TextureBindingsArrayCache with the threaded array producers and commands (pools doubled); '
+                                'the pool and the collector are bound by exact composition (the full GPU assembly compiles '
+                                'in the fragmented-reads gate, the collector runs in the performance-diagnostics gate).')
 out = ROOT / 'dist/melonx/bindless-array-delta-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(json.dumps(receipt, indent=2) + '\n')

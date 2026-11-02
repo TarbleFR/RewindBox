@@ -122,7 +122,9 @@ static class Program
             }
             var first = Poll(); var detail = Details(first);
             var work = detail.GetProperty("gpuWork");
-            Check(work.EnumerateObject().Count() == 12, "gpu work rows missing");
+            Check(work.EnumerateObject().Count() == 13, "gpu work rows missing");
+            Check(new[] { "arrFullElems", "arrDeltaElems", "arrDeltaChanged", "arrBufElems" }.All(name =>
+                  detail.GetProperty("counts").TryGetProperty(name, out JsonElement value) && value.GetInt64() == 0), "array counters missing");
             Check(detail.GetProperty("gpuWorkColumns").GetString() == "completedCalls,wallMs,allocatedKiB", "gpu work columns wrong");
             Check(work.GetProperty("texSync")[0].GetInt64() == 1 && work.GetProperty("texSync")[2].GetInt64() >= 96, "gpu work allocations missing");
             Check(work.GetProperty("shader")[0].GetInt64() == 1 && work.GetProperty("shader")[1].GetDouble() > 0, "gpu work wall time missing");
@@ -294,9 +296,11 @@ static class Program
             Check(maximumJson.Length <= 4000, "metric JSON exceeds redaction bound");
             detail = Details(latest);
             Check(detail.GetProperty("active").EnumerateObject().Count() == 14, "max-width report dropped phases");
-            Check(detail.GetProperty("gpuWork").EnumerateObject().Count() == 12 &&
+            Check(detail.GetProperty("gpuWork").EnumerateObject().Count() == 13 &&
+                  detail.GetProperty("gpuWork").GetProperty("arrayDelta")[2].GetInt64() > 0 &&
                   detail.GetProperty("gpuWork").GetProperty("bindings")[2].GetInt64() > 0, "max-width report dropped gpu work");
-            Check(detail.GetProperty("counts").GetProperty("virtualDependencyMultiple").GetInt64() > 0, "max-width metric lost");
+            Check(detail.GetProperty("counts").GetProperty("virtualDependencyMultiple").GetInt64() > 0 &&
+                  detail.GetProperty("counts").GetProperty("arrBufElems").GetInt64() > 0, "max-width metric lost");
             PD.Stop(g);
             Journal.PerformanceObserver = () => throw new InvalidOperationException("fixture observer");
             Check(Snapshot().GetProperty("stage").ValueKind == JsonValueKind.String, "observer failure propagated");

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Run the real fragmented-read paths in control and candidate builds and compare them.
 
-The control is the delivered prepared source; the candidate is that source with
-adapt_fragmented_reads applied, and it must equal the final prepared source when one is
-given. A test-only probe is compiled into a disposable copy of Ryujinx.Graphics.Gpu for
-each side and drives MemoryManagerHostTracked, the software MemoryManager, PhysicalMemory,
+The control is the prepared source before adapt_fragmented_reads (the delivered 609
+Core); the candidate is that source with adapt_fragmented_reads and every later adapter
+that edits a composed file applied in preparation order, and it must equal the final
+prepared source when one is given. A test-only probe is compiled into a disposable copy
+of Ryujinx.Graphics.Gpu for each side and drives MemoryManagerHostTracked, the software MemoryManager, PhysicalMemory,
 Buffer.LoadRegion, the GPU MemoryManager and the command prefetch. Same bytes, tracking
 and zero contract are required; the candidate must stop allocating per fragmented read.
 Host x64 Release execution: it proves bytes and allocations, not Apple timing or FPS.
@@ -25,14 +26,15 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_fragmented_reads import apply, NAMES  # noqa: E402
 from adapt_gpu_work_diagnostics import apply as apply_work, NAMES as WORK_NAMES  # noqa: E402
+from adapt_bindless_array_deltas import apply as apply_arrays, NAMES as ARRAY_NAMES  # noqa: E402
 
 DIAGNOSTICS = 'src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'
-COMPOSED = sorted(set(NAMES) | set(WORK_NAMES) | {DIAGNOSTICS})
+COMPOSED = sorted(set(NAMES) | set(WORK_NAMES) | set(ARRAY_NAMES) | {DIAGNOSTICS})
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged).
 COMPILED = sorted(set(COMPOSED) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})
 INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/FragmentedReadsProbe.cs',
           'build-utils/melonx/adapt_fragmented_reads.py', 'build-utils/melonx/adapt_gpu_work_diagnostics.py',
-          'native/melonx/EmbeddedPerformanceDiagnostics.cs']
+          'build-utils/melonx/adapt_bindless_array_deltas.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {
     'src/Ryujinx.Memory/IVirtualMemoryManager.cs': 'ReadOnlySpan<byte> GetSpan(ulong va, int size, bool tracked = false);',
@@ -82,10 +84,11 @@ def project_closure(src, project):
 
 
 def compose(target):
-    """The preparation order: current diagnostics source, fragmented reads, then GPU work probes."""
+    """The preparation order: current diagnostics source, fragmented reads, GPU work probes, then array deltas."""
     shutil.copyfile(ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs', target / DIAGNOSTICS)
     apply(target)
     apply_work(target)
+    apply_arrays(target)
 
 
 def stage(tree, work, candidate, transform=None):

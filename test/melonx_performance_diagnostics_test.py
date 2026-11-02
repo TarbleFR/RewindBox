@@ -32,6 +32,7 @@ from adapt_counter_report_compaction import apply as compact
 from adapt_single_virtual_dependency import apply as single, CONSUMERS
 from adapt_fragmented_reads import apply as fragmented, NAMES as FRAGMENTED
 from adapt_gpu_work_diagnostics import apply as gpu_work, NAMES as GPU_WORK
+from adapt_bindless_array_deltas import apply as array_deltas, NAMES as ARRAY_DELTAS
 
 
 def local(relative):
@@ -69,12 +70,14 @@ with tempfile.TemporaryDirectory(prefix='melonx-performance-diagnostics-') as te
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(local(relative), destination)
     # Later adapters, in prepare_embedded order, also edit some observed files.
-    for relative in [*FRAGMENTED, *GPU_WORK]:
+    for relative in [*FRAGMENTED, *GPU_WORK, *ARRAY_DELTAS]:
         target = expected / relative
         if not target.exists():
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(SOURCE / relative, target)
     fragmented(expected); gpu_work(expected)
+    # Runs after the collector copy above: it appends its work rows and counters to the collector.
+    array_deltas(expected)
     paths = list(dict.fromkeys([*existing, *native.values()]))
     for path in paths:
         if CANDIDATE:
@@ -139,6 +142,7 @@ input_paths = [*native, 'build-utils/melonx/adapt_performance_diagnostics.py',
                'build-utils/melonx/adapt_counter_report_compaction.py',
                'build-utils/melonx/adapt_single_virtual_dependency.py',
                'build-utils/melonx/adapt_fragmented_reads.py', 'build-utils/melonx/adapt_gpu_work_diagnostics.py',
+               'build-utils/melonx/adapt_bindless_array_deltas.py',
                'test/melonx_performance_diagnostics_test.py', 'test/melonx_performance_diagnostics/Program.cs']
 inputs = {}
 for path in input_paths:
