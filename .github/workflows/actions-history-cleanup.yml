@@ -1,11 +1,11 @@
 name: Actions history cleanup (old skipped runs only; preserve latest 300)
-run-name: One-time Actions history cleanup — 30 October 2026
+run-name: One-time Actions history cleanup — 2 November 2026
 
 on:
   push:
     branches: [Claude]
     paths:
-      - build-utils/maintenance/actions-cleanup-2026-10-30.json
+      - build-utils/maintenance/actions-cleanup-2026-11-02.json
 
 permissions:
   contents: read
@@ -21,8 +21,8 @@ jobs:
       github.repository == 'TarbleFR/RewindBox' &&
       github.ref == 'refs/heads/Claude' &&
       github.event_name == 'push' &&
-      github.event.before == 'ab3fb5b3f4bc925e261b732fed4a5596dcb9db45' &&
-      contains(github.event.head_commit.message, '[actions-cleanup-2026-10-30]')
+      github.event.before == '2781dc72ac12ef858e71159dcd80d06e02db4295' &&
+      contains(github.event.head_commit.message, '[actions-cleanup-2026-11-02]')
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -42,8 +42,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: >-
           python -u build-utils/maintenance/cleanup_actions.py
-          --plan build-utils/maintenance/actions-cleanup-2026-10-30.json
-          --expected-plan-sha256 e4a476ba20880c8417405d6bfb302a5c66a8c130e1b01bbb21e62a276870a64f
+          --plan build-utils/maintenance/actions-cleanup-2026-11-02.json
+          --expected-plan-sha256 561e785b2014548e446d5cf8c52183414ef0abef8bdb3b4bc776436b861b4c7f
           --execute
       - name: Preserve the cleanup receipt
         if: always()
