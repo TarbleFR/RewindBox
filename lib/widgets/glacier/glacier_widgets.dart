@@ -31,7 +31,7 @@ class GlacierBrand extends StatelessWidget {
             maxLines: 1,
             style: TextStyle(
               color: GlacierColors.text,
-              fontSize: 14.r,
+              fontSize: 13.r,
               fontWeight: FontWeight.w700,
               letterSpacing: .2,
               height: 1.1,
@@ -212,48 +212,81 @@ class GlacierSystemsLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    // [sideInset] is measured from the screen edge. On iPhone the Systems
+    // tab already sits inside the safe area (SystemContent pads it), so only
+    // the part of the inset not consumed by that padding is added here:
+    // cards, title and bar stay aligned with the header brand instead of
+    // doubling the margins.
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    return LayoutBuilder(
       key: const ValueKey('glacier-systems-layout'),
-      padding: EdgeInsets.only(top: 47.5.r, bottom: bottomInset),
-      child: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: sideInset),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: 19.r),
-              child: title,
-            ),
+      builder: (context, constraints) {
+        final consumed = constraints.hasBoundedWidth
+            ? math.max(0.0, (screenWidth - constraints.maxWidth) / 2)
+            : 0.0;
+        final side = math.max(0.0, sideInset - consumed);
+        return Padding(
+          padding: EdgeInsets.only(top: 47.5.r, bottom: bottomInset),
+          child: Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: side),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: 19.r),
+                  child: title,
+                ),
+              ),
+              // The content band is clipped below the title row: scrolling
+              // cards never pass over "Systèmes" or the view-mode button. It
+              // reaches [bleed] past the side margins and pads its content
+              // by [bleed], so the focus halo of an edge card stays visible.
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, band) {
+                    // May be negative on a notched iPhone: the band then
+                    // reaches into the safe-area padding by the halo width
+                    // only; the cards themselves start at [side].
+                    final inner = side - bleed;
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned(
+                          left: inner,
+                          right: inner,
+                          top: 0,
+                          bottom: 0,
+                          child: ClipRect(
+                            clipper: const _VerticalClip(),
+                            child: content,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              SizedBox(height: math.max(0.0, 7.7.r - bleed)),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: side),
+                child: footer,
+              ),
+            ],
           ),
-          // The band starts [gap] below the title; it reaches [bleed] higher
-          // (into the title row's empty bottom) so the halo of a focused
-          // first-row card is not clipped.
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final gap = 3.r;
-                final reach = math.max(0.0, bleed - gap);
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Positioned(
-                      top: -reach,
-                      left: math.max(0.0, sideInset - bleed),
-                      right: math.max(0.0, sideInset - bleed),
-                      height: constraints.maxHeight + reach,
-                      child: content,
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-          SizedBox(height: math.max(0.0, 7.7.r - bleed)),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: sideInset),
-            child: footer,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
+}
+
+/// Clips above and below only: the grid band hides cards that scroll under
+/// the title or the action bar, while a focus halo may still spread sideways.
+class _VerticalClip extends CustomClipper<Rect> {
+  const _VerticalClip();
+
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTRB(-1e4, 0, size.width + 1e4, size.height);
+
+  @override
+  bool shouldReclip(_VerticalClip oldClipper) => false;
 }

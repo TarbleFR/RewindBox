@@ -33,7 +33,7 @@ only: System Art never declares a console.
 Real Flutter rendering of the production widgets (`test/glacier_menu_capture_test.dart`), 1837 x 856
 (918.5 x 428 at 2x), the mock-up's demo data, the pack installed from the app assets, the app font
 (Anta, the pinned Google Fonts file) when `GLACIER_FONT` points to it. Captures:
-`docs/design/rewindbox-glacier/verification/captures/`.
+`docs/design/rewindbox-glacier/verification/renders/`.
 
 Measured against `composition.json` (reference pixels):
 
@@ -66,3 +66,22 @@ geometry, Themes card apply/restore, 12 locales) 21/21; capture suite 8/8; exist
 tabs, palettes, bubbles, startup, RA) pass, after declaring Glacier's wider cells, its product name
 and its palette in the tests that enumerate them. Pre-existing failure unrelated to Glacier (also on
 `HEAD`): `neo_glass_bubble_test.dart` "rapid focus changes retarget the moving lens".
+
+## Device report of 2 November 2026 (IPA 615) and fixes
+
+Screenshots on an iPhone in landscape (notch) showed four defects; all were
+reproduced by adding the iOS safe-area padding of `SystemContent` to the
+capture harness, then fixed:
+
+| Defect | Cause | Fix |
+| --- | --- | --- |
+| Narrow content, margins about twice the header's | `SystemContent` already pads the Systems tab by the horizontal safe area on iOS; the Glacier frame added its own inset (safe area + 6) on top | `GlacierSystemsLayout` adds only the part of the inset not consumed by its parent: title, cards and bar line up with the header brand |
+| Cards scrolling over "Systèmes" and "X · Mode de vue" | The grid band reached into the title row (room for the focus halo) | The band is clipped at the bottom of the title row and above the action bar (vertical clip only: the halo may spread sideways); the halo room is now padding inside the band |
+| Tab glyphs too small, active name squeezed | Square-ish cells and a 13.5r glyph in a crowded one-row header | Glyph 16.5r (+22 %), cell 21r x 38r, the active name in its own band inside the outline; room taken from paddings Glacier does not need (capsule pulse margins, LB/RB margins, wordmark 13r); the header stays at full scale on a 956 pt iPhone with notch |
+| Small carousel artwork | `MySystemsCarousel` kept the classic 51r top padding (clearing the old header) inside the Glacier band | `topPadding: 0` in Glacier: the cover flow gets the whole band (artwork about 1.5x larger) |
+
+New capture test: scrolled cards stay under the title row and above the bar
+(`variant-scrolled-under-title`); the notch variant checks that the first
+card lines up with the brand. The carousel itself is not rendered by the
+harness (it needs the library database); its sizing comes from the band
+height (`NativeCarousel`: min(height x 0.91, width x 0.74)).

@@ -302,15 +302,23 @@ void main() {
                               selectedTabIndex: 0,
                               onTabSelected: (_) {},
                             ),
-                            body: GlacierSystemsFrame(
-                              current: cards[selected],
-                              onEnter: () {},
-                              onSettings: () {},
-                              content: SystemCardGridView(
-                                glacier: true,
-                                crossAxisCount: 6,
-                                systems: cards,
-                                selectedIndex: selected,
+                            // As SystemContent on iOS: the Systems tab sits
+                            // inside the horizontal safe area.
+                            body: Padding(
+                              padding: EdgeInsets.only(
+                                left: safe.left,
+                                right: safe.right,
+                              ),
+                              child: GlacierSystemsFrame(
+                                current: cards[selected],
+                                onEnter: () {},
+                                onSettings: () {},
+                                content: SystemCardGridView(
+                                  glacier: true,
+                                  crossAxisCount: 6,
+                                  systems: cards,
+                                  selectedIndex: selected,
+                                ),
                               ),
                             ),
                           ),
@@ -369,14 +377,6 @@ void main() {
         expect(cards[i].height, closeTo(cards[0].height, .01), reason: ids[i]);
       }
       expect(cards[6].top, greaterThan(cards[0].bottom));
-      // ignore: avoid_print
-      print(
-        'GLACIER rects: strip=${rectOf(tester, 'main-menu-tab-strip')} '
-        'title=${rectOf(tester, 'glacier-section-header')} '
-        'card0=${cards[0]} card6=${cards[6]} '
-        'footer=${rectOf(tester, 'glacier-systems-footer')} '
-        'header=${tester.getRect(find.byType(Header))}',
-      );
 
       // Two full rows between the title and the action bar.
       final title = rectOf(tester, 'glacier-section-header');
@@ -541,11 +541,20 @@ void main() {
       safe: const EdgeInsets.only(left: 62, right: 62, bottom: 21),
       check: () {
         final first = rectOf(tester, 'glacier-card-recent_hogwarts-legacy');
+        final brand = rectOf(tester, 'glacier-brand');
         expect(first.left, greaterThanOrEqualTo(62));
-        expect(rectOf(tester, 'glacier-brand').left, greaterThanOrEqualTo(62));
+        expect(brand.left, greaterThanOrEqualTo(62));
+        // One margin, not the safe area twice (device report of
+        // 2 November 2026): the first card lines up with the brand.
+        expect(first.left, closeTo(brand.left, 1));
+        expect(first.left, lessThan(62 + 12));
         expect(
           rectOf(tester, 'header-status').right,
           lessThanOrEqualTo(956 - 62),
+        );
+        expect(
+          rectOf(tester, 'glacier-systems-footer').right,
+          closeTo(956 - first.left, 1),
         );
       },
     );
@@ -706,6 +715,51 @@ void main() {
     },
     variant: _ios,
   );
+
+  testWidgets('scrolled cards stay under the title row and above the bar', (
+    tester,
+  ) async {
+    final systems = [
+      ...demo(),
+      for (final f in ['gba', 'ds', '3ds', 'psp', 'ps2', 'ps3', 'gc', 'wii', 'dc', 'sat', 'pce', 'ngp'])
+        system(f, title: f.toUpperCase()),
+    ];
+    final key = await pumpMenu(
+      tester,
+      physical: const Size(2868, 1320),
+      dpr: 3,
+      safe: const EdgeInsets.only(left: 62, right: 62, bottom: 21),
+      systems: systems,
+    );
+    final scroll = find.descendant(
+      of: find.byKey(const ValueKey('glacier-systems-layout')),
+      matching: find.byType(SingleChildScrollView),
+    );
+    await tester.drag(scroll, const Offset(0, -260));
+    await tester.pump(const Duration(seconds: 1));
+    final viewport = tester.getRect(scroll);
+    final title = rectOf(tester, 'glacier-section-header');
+    final footer = rectOf(tester, 'glacier-systems-footer');
+    // The grid is clipped to its band: nothing it paints can cover the
+    // title, the view-mode button or the action bar.
+    expect(viewport.top, greaterThanOrEqualTo(title.bottom));
+    expect(viewport.bottom, lessThanOrEqualTo(footer.top));
+    final clip = tester.renderObject<RenderClipRect>(
+      find.ancestor(of: scroll, matching: find.byType(ClipRect)).first,
+    );
+    final clipRect = MatrixUtils.transformRect(
+      clip.getTransformTo(null),
+      Offset.zero & clip.size,
+    );
+    expect(clipRect.top, greaterThanOrEqualTo(title.bottom));
+    expect(clipRect.bottom, lessThanOrEqualTo(footer.top));
+    expect(tester.takeException(), isNull);
+    final image = await grab(tester, key, 3);
+    await save(tester, image, 'variant-scrolled-under-title');
+    image.dispose();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(minutes: 1));
+  }, variant: _ios);
 
   testWidgets('another System Art pack: no Glacier art, logos fall back', (
     tester,

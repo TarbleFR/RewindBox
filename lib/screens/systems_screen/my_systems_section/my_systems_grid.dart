@@ -113,6 +113,7 @@ class MySystems extends StatelessWidget {
                 child: MySystemsCarousel(
                   selectedIndex: selectedIndex,
                   onCardTapped: onCardTapped,
+                  topPadding: 0,
                 ),
               ),
             );
@@ -1266,11 +1267,12 @@ extension _GlacierGrid on _SystemCardGridViewState {
         final frame = selected;
         final rows = grid.length;
         final totalHeight = rows == 0 ? 0.0 : rows * itemH + (rows - 1) * gap;
-        // Clipped to the grid band (the title and the action bar stay
-        // clear while scrolling); [bleed] keeps the focus halo inside it.
+        // GlacierSystemsLayout clips the band above and below (the title and
+        // the action bar stay clear while scrolling); [bleed] keeps the focus
+        // halo of the first and last rows inside it.
         return SingleChildScrollView(
           controller: _scrollController,
-          clipBehavior: Clip.hardEdge,
+          clipBehavior: Clip.none,
           padding: EdgeInsets.all(bleed),
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),

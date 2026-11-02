@@ -71,7 +71,7 @@ abstract final class GlacierLayout {
 
   /// Room kept around the grid for the focus frame's outline and halo, so
   /// a clipped, scrolling grid never cuts them.
-  static double get focusBleed => 7.r;
+  static double get focusBleed => 5.r;
 
   static bool active(BuildContext context) =>
       LiquidGlassTheme.of(context).style == InterfaceStyle.glacier;

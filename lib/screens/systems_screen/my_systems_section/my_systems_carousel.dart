@@ -43,7 +43,13 @@ class MySystemsCarousel extends StatefulWidget {
     super.key,
     this.selectedIndex = 0,
     this.onCardTapped,
+    this.topPadding,
   });
+
+  /// Space above the carousel (51.r by default, clearing the classic
+  /// header). RewindBox Glacier places it under its own title row and
+  /// passes 0, so the artwork gets the whole band.
+  final double? topPadding;
 
   /// The initially selected system index.
   final int selectedIndex;
@@ -1020,7 +1026,7 @@ class _MySystemsCarouselState extends State<MySystemsCarousel> {
           }
 
           return Padding(
-            padding: EdgeInsets.only(top: 51.r),
+            padding: EdgeInsets.only(top: widget.topPadding ?? 51.r),
             child: content,
           );
         },

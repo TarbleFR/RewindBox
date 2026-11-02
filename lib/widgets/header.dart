@@ -373,7 +373,7 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
             child: MainMenuTabStrip(
               tabs: visibleNavTabs(configProvider.config),
               selected: NavTab.values[widget.selectedTabIndex],
-              cellExtent: glacier ? 19.r : 32.r,
+              cellExtent: glacier ? 21.r : 32.r,
               tabBuilder: (tab) => _buildTabButton(context, tab),
               iconBuilder: (tab) => NavTabIcon(
                 tab: tab,
@@ -384,7 +384,7 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
                 navTabLabel(context, tab),
                 maxLines: 1,
                 style: TextStyle(
-                  fontSize: 6.5.r,
+                  fontSize: glacier ? 6.r : 6.5.r,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                   color: Theme.of(context).colorScheme.onSurface.withValues(
                     alpha: selected ? 1 : 0.72,

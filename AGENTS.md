@@ -36,7 +36,7 @@ Last reconciled: **2 November 2026**, after private Build **614**.
 615 is delivered, not a pending candidate. Do not reuse its number. The Glacier
 menu and the RetroAchievements Keychain fix have no iPhone result yet; the
 Glacier composition was checked by real Flutter rendering against the approved
-mock-up ([captures](docs/design/rewindbox-glacier/verification/captures/)).
+mock-up ([captures](docs/design/rewindbox-glacier/verification/renders/)).
 `Frameworks/rpcs3_internal_bridge` changed from 614 although its sources did not
 (reported as an undeclared image change, not blocking, as in 614). The private
 615 recipient key was deleted after the verified delivery.

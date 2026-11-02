@@ -66,10 +66,11 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
   /// NeoStation's solid pill slides in 160 ms without deforming, as upstream.
   static const _solidDuration = Duration(milliseconds: 160);
   // Glacier's outline slides like the solid pill, without lens deformation.
-  bool get _solid => switch (LiquidGlassTheme.of(context).settings.tabIndicator) {
-    TabIndicatorStyle.solid || TabIndicatorStyle.glacier => true,
-    _ => false,
-  };
+  bool get _solid =>
+      switch (LiquidGlassTheme.of(context).settings.tabIndicator) {
+        TabIndicatorStyle.solid || TabIndicatorStyle.glacier => true,
+        _ => false,
+      };
   MauAliSelectionFrame get _frame =>
       MauAliTabMotion.sample(_segment, _motion.value);
   double get _position =>
@@ -171,11 +172,11 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
     // a wider rectangle and the active name a little larger. Every other
     // indicator keeps square cells.
     final glacierIndicator = settings.tabIndicator == TabIndicatorStyle.glacier;
-    final cellW = glacierIndicator ? cell * 1.9 : cell;
+    final cellW = glacierIndicator ? cell * 1.81 : cell;
     final labelBand = showLabels
         ? (glacierIndicator ? 10.r : 9.r) * glass.tabIconScale
         : 0.0;
-    final iconExtent = (glacierIndicator ? 13.5.r : 17.r) * glass.tabIconScale;
+    final iconExtent = (glacierIndicator ? 16.5.r : 17.r) * glass.tabIconScale;
     final cellHeight = cell + labelBand;
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
@@ -193,7 +194,7 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
         child: Padding(
           // Glacier: the name stays inside the outline of the active tab.
           padding: EdgeInsets.symmetric(
-            horizontal: glacierIndicator ? cellW * .1 : 0,
+            horizontal: glacierIndicator ? cellW * .11 : 0,
           ),
           child: FittedBox(
             fit: BoxFit.scaleDown,
@@ -227,7 +228,9 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
     );
     // Glacier names only the active tab: the other glyphs sit in the middle
     // of the capsule instead of above an empty label band.
-    final centerUnlabelled = glacierIndicator && showLabels &&
+    final centerUnlabelled =
+        glacierIndicator &&
+        showLabels &&
         settings.tabLabels == TabLabelMode.selectedOnly;
     Widget icons() => ExcludeSemantics(
       child: Row(
@@ -251,7 +254,7 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
                           width: cellW,
                           // Glacier keeps the active name clear of the
                           // outline's bottom edge.
-                          height: glacierIndicator ? cell - 2.5.r : cell,
+                          height: glacierIndicator ? cell - 4.r : cell,
                           child: Center(
                             child: SizedBox.square(
                               dimension: iconExtent,
@@ -260,7 +263,7 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
                           ),
                         ),
                         if (showLabels) label(tab),
-                        if (glacierIndicator) SizedBox(height: 2.5.r),
+                        if (glacierIndicator) SizedBox(height: 4.r),
                       ],
                     ),
             ),
@@ -320,7 +323,11 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
     // Padding reserves the maximum author capsule pulse and lens deformation.
     final strip = Padding(
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? 5.r : 7.r,
+        horizontal: glacierIndicator
+            ? 2.r
+            : compact
+            ? 5.r
+            : 7.r,
         vertical: compact ? 3.r : 5.r,
       ),
       child: AnimatedBuilder(
@@ -473,7 +480,9 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
                       IgnorePointer(
                         child: ClipPath(
                           clipper: _SelectionClip(
-                            Path()..addRect(Rect.fromLTWH(_position * cellW, 0, cellW, cell)),
+                            Path()..addRect(
+                              Rect.fromLTWH(_position * cellW, 0, cellW, cell),
+                            ),
                           ),
                           child: ColorFiltered(
                             colorFilter: const ColorFilter.mode(
@@ -507,7 +516,7 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
     // part of the switch (no hit region, no semantics).
     Widget bumper(bool left) => ExcludeSemantics(
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: glacierIndicator ? 5.r : 2.r),
+        padding: EdgeInsets.symmetric(horizontal: glacierIndicator ? 3.r : 2.r),
         child: glacierIndicator
             ? GlacierBumper(isLeft: left, height: cell * .82)
             : BumperGlyph(isLeft: left, size: cell * .75),
@@ -537,7 +546,10 @@ class GlacierBumper extends StatelessWidget {
     decoration: BoxDecoration(
       color: GlacierColors.panel.withValues(alpha: .78),
       borderRadius: BorderRadius.circular(height / 2),
-      border: Border.all(color: GlacierColors.silver.withValues(alpha: .26), width: .8),
+      border: Border.all(
+        color: GlacierColors.silver.withValues(alpha: .26),
+        width: .8,
+      ),
     ),
     child: Text(
       isLeft ? 'LB' : 'RB',
@@ -731,15 +743,26 @@ class GlacierSelectionPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final inset = size.shortestSide * .06;
-    final rect = Rect.fromLTWH(inset, inset, size.width - inset * 2, size.height - inset * 2);
-    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(size.width * .24));
+    final rect = Rect.fromLTWH(
+      inset,
+      inset,
+      size.width - inset * 2,
+      size.height - inset * 2,
+    );
+    final rrect = RRect.fromRectAndRadius(
+      rect,
+      Radius.circular(size.width * .24),
+    );
     canvas.drawRRect(
       rrect,
       Paint()
         ..color = color.withValues(alpha: .35)
         ..style = PaintingStyle.stroke
         ..strokeWidth = size.shortestSide * .07
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size.shortestSide * .06),
+        ..maskFilter = MaskFilter.blur(
+          BlurStyle.normal,
+          size.shortestSide * .06,
+        ),
     );
     canvas.drawRRect(rrect, Paint()..color = color.withValues(alpha: .12));
     canvas.drawRRect(
@@ -787,7 +810,12 @@ class SolidSelectionPainter extends CustomPainter {
 /// its RewindBox Glacier glyph (one white PNG per tab, tinted like the other
 /// icons); the tab identity, label and order are unchanged.
 class NavTabIcon extends StatelessWidget {
-  const NavTabIcon({super.key, required this.spec, required this.tint, this.tab});
+  const NavTabIcon({
+    super.key,
+    required this.spec,
+    required this.tint,
+    this.tab,
+  });
 
   final NavTabSpec spec;
   final Color tint;
