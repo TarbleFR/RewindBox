@@ -26,11 +26,11 @@ HOST = "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm"
 # recorded the 7aa81cfb bridge; the RetroAchievements host (57eb301e, +157/-0
 # lines, Core 611 c0395ba1) and the Core 612 accuracy test page (CONFIG_LAYERS
 # part=rsx capture at the top of RPCS3Log, testSetting/testReset commands and
-# their restart, the menu reader) keep every region its only bridge reader, the
-# milestones test, compiles, and the host LOAD() Core contract. The consumed
-# libMoltenVK.a never reads the bridge.
+# their restart, the menu reader, the full-custom-configuration refusal) keep
+# every region that its only bridge reader, the milestones test, compiles, and
+# the host LOAD() Core contract. The consumed libMoltenVK.a never reads the bridge.
 HOST_BEFORE = "d6326d968f3552c5539d48a0933b41d3e61a3e61c0302972ec370e8df5bd3d16"
-HOST_AFTER = "3c70bfff3bd755874aec6e0ee31707fe7fc841e103079b98f5e9b392b2624010"
+HOST_AFTER = "d1ecbdaa6039f798a6572c3c810f8320bad8aa1c912a7cba9b06b11b78b4b503"
 MILESTONES_TEST = "test/rpcs3_pipeline_cache_milestones_test.py"
 LOAD_CONTRACT = "build-utils/materialize_rpcs3_core.py"
 LOAD_PATTERN = r'LOAD\("([^"]+)"'
