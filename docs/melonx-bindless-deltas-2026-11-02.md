@@ -1,7 +1,7 @@
 # MeloNX full-bindless texture arrays — 2 November 2026
 
-Status: **change prepared and host-validated; Core and private IPA 613 in progress; not
-measured on the iPhone.** No FPS claim.
+Status: **change prepared and host-validated; Core and private IPA 614 in progress (613
+is the RPCS3 delivery of another session); not measured on the iPhone.** No FPS claim.
 
 ## 1. Measured symptom (IPA 612, Hogwarts Legacy 1.0.5, Apple A18 Pro)
 
@@ -37,7 +37,8 @@ presentation at 09:47:21 UTC, clean close at 09:49:43 UTC.
   manager. Together they report about 1 MiB in 30.6 s (`readCopyBytes`), against 7.7 GB
   allocated; `spanFallbacks` and `cacheExports` are zero. Borrowed spans allocate nothing.
 - **Pool re-creation** (`PoolCache.FindOrCreate`): capacity 2, eviction only after 20,000
-  unused ticks; structurally not per dispatch. Now counted (`poolCreates`) to confirm.
+  unused ticks; structurally not per dispatch (not counted: the collector payload has no
+  room left, see section 4).
 - GC configuration, resolution, VSync, asynchronous shaders and Unreal settings were not
   touched: nothing in the journal points at them.
 
@@ -71,36 +72,63 @@ candidate Core carries counters that decide it (section 6).
   share a run (the unchanged elements between them are re-sent with their bound values).
 - The bound-texture set stays exact (reference counts), so memory synchronisation,
   image-store signalling and the scale blacklist reach exactly the bound textures.
+- Changed elements are signalled and blacklisted before their host is read, as in the
+  rebuild. A `ResScaleUnsupported` update takes the delta path only if the recorded state
+  was already blacklisted (otherwise the end-of-pass blacklist could replace a host
+  already sent). The cache entry key holds neither format nor flags: the recorded state
+  carries its format, and another format rebuilds.
+- Format views: the pool's alias generation moves when an alias list is destroyed;
+  views are then re-resolved.
+- After any re-resolved element, a verification scan checks that no lookup of this pass
+  removed or replaced a texture bound elsewhere; otherwise the full rebuild runs in the
+  same update.
 - New entries, `TextureBuffer` arrays (storage rebound on every update) and any failure
-  keep the full rebuild, which also records the per-element state.
-- Diagnostics: new `gpuWork` rows `computeBindings`, `arrayFull`, `arrayDelta`,
-  `arrayBuffer` and counters `arrayFullRebuilds`, `arrayFullElements`, `arrayDeltaPasses`,
-  `arrayDeltaElements`, `arrayDeltaChanged`, `arrayBufferRebuilds`, `arrayBufferElements`,
-  `poolCreates`. They allocate nothing.
+  keep the full rebuild, which also records the per-element state. After a failed update
+  (delta or full), the next one rebuilds even without a pool write.
+- Diagnostics, sized for the collector's 4,000-character window payload (the delivered
+  payload is 3,770 at maximum width): one `gpuWork` row `arrayDelta` (delta passes: calls,
+  time, bytes) and four counters: `arrFullElems` (elements walked by full pool rebuilds),
+  `arrDeltaElems` and `arrDeltaChanged` (elements scanned and changed by delta passes),
+  `arrBufElems` (elements of arrays rebuilt from constant-buffer handles, unchanged
+  here). They allocate nothing.
 
 ## 5. Host validation (Linux, .NET 10; `test/melonx_bindless_array_deltas_test.py`)
 
 The production `TextureBindingsArrayCache`, threaded array producers and commands are
 compiled unchanged from the prepared tree (control as delivered in `b99e754d`, candidate
 with the adapter); pools, textures and transport are doubles that follow the production
-rules. Evidence: [host-checks-linux.json](evidence/melonx-bindless-deltas-20261102/host-checks-linux.json).
+rules (descriptor comparison, alias lists and views, storage replacement by scaling and by
+`BlacklistScale`, disposal, sampler creation). Evidence:
+[host-checks-linux.json](evidence/melonx-bindless-deltas-20261102/host-checks-linux.json)
+(258 driver checks; 12.6 M and 17.7 M program checks).
 
-- 54 random scenarios (texture, sampler and image-store arrays of 8, 70 and 5,000
-  elements, threaded and direct renderers; descriptor writes, identical rewrites, texture
-  invalidations with and without pool removal, sampler replacement, quiet passes):
-  identical backend contents and synchronisation/store sets at every step.
-- `TextureBuffer` arrays keep the full rebuild; a failing lookup recovers.
+- 72 random scenarios (texture, sampler and image arrays of 8, 70 and 5,000 elements,
+  threaded and direct renderers, image stores, format views, unsupported scaling;
+  descriptor writes, identical rewrites, removals, in-place remaps, scaling up, alias-list
+  destruction with immediate or later disposal, quiet passes): identical backend contents,
+  store sets and (without views) synchronisation sets at every step; every element
+  matches the pools and no released host is bound.
+- Three bindings sharing one entry (two formats, image store, unsupported scaling):
+  identical digests, with and without a pool write before each update.
+- Defects of the delivered code that the candidate does not keep: a texture removed by a
+  lookup of the same pass stays bound with its released host until the next update; after
+  a lookup failure (delta or full pass) the array stays stale until the pool is written.
+- `TextureBuffer` arrays keep the full rebuild; quiet updates come back to cache hits after
+  the blacklisting rebuild.
 - Pool-sized array, pool written before every update (host CPU, not iPhone):
 
 | Elements | Changed | GPU-thread bytes / update | Lookups | Elements sent | Host µs |
 |---|---|---|---|---|---|
-| 65,536 | 0 | 2,097,344 → 96 | 65,536 → 0 | 131,072 → 0 | 3,547 → 240 |
-| 65,536 | 1 | 2,097,344 → 98 | 65,536 → 1 | 131,072 → 1 | 2,694 → 252 |
-| 65,536 | 64 scattered | 2,097,344 → 889 | 65,536 → 64 | 131,072 → 64 | 3,195 → 253 |
-| 16,384 | 1 | 524,480 → 98 | 16,384 → 1 | 32,768 → 1 | 617 → 73 |
+| 65,536 | 0 | 2,097,248 → 0 | 65,536 → 0 | 131,072 → 0 | 3,121 → 174 |
+| 65,536 | 1 | 2,097,248 → 1.6 | 65,536 → 1 | 131,072 → 1 | 2,385 → 348 |
+| 65,536 | 64 scattered | 2,097,248 → 793 | 65,536 → 64 | 131,072 → 64 | 2,099 → 338 |
+| 65,536 (image) | 1 | 1,048,624 → 1.6 | 65,536 → 1 | 65,536 → 1 | 1,637 → 336 |
+| 16,384 | 1 | 524,384 → 1.6 | 16,384 → 1 | 32,768 → 1 | 590 → 83 |
 
-The remaining candidate cost is the per-element comparison scan (about 4 ns per element
-on the host).
+What remains in the candidate is the per-element comparison scan (about 2.6 ns per element
+on the host) and, when an element changed, the verification scan (the same again). On the
+device that is the `arrayDelta` row; it becomes the next limiting factor if the arrays stay
+pool-sized and dispatches stay frequent.
 
 ## 6. iPhone measurement protocol (612 against the candidate)
 
@@ -112,14 +140,15 @@ For a 60 s sequence of active play, report from `MeloNX-performance.log`:
 - median FPS and the number of frames actually presented (`pres=` count per second);
 - managed allocations per second and GC pauses (`managed.allocatedBytesApprox`,
   `gcPauseMs`, `collections`);
-- time and bytes in the corrected path: `gpuWork.compute`, `computeBindings`,
-  `arrayFull`, `arrayDelta`, `arrayBuffer`;
-- the counters: `arrayFullRebuilds`/`arrayFullElements` against `arrayDeltaPasses`,
-  `arrayDeltaElements`, `arrayDeltaChanged`, and `arrayBufferRebuilds`/`arrayBufferElements`;
+- time and bytes in the corrected path: `gpuWork.compute`, `bindings` and `arrayDelta`;
+- the counters: `arrFullElems` against `arrDeltaElems` and `arrDeltaChanged`, and
+  `arrBufElems`, each against `dispatches`;
 - the p95 of the presentation intervals, only if per-presentation timestamps are
   available (the per-second `pres=` fields are aggregates).
 
-Reading: if `arrayDeltaPasses` is large and `arrayDeltaChanged` small while compute
-bytes fall, the path is confirmed and removed. If `arrayBufferRebuilds` carries the
-elements and `arrayBuffer` the bytes, the hot arrays are buffer-handle arrays: the next
-change applies the same delta rule to `UpdateFromBuffer`.
+Reading: if `arrDeltaElems` is large, `arrDeltaChanged` small and `arrFullElems` small
+while compute bytes fall, the path is confirmed and removed. If `arrBufElems` carries the
+elements while compute bytes stay, the hot arrays are buffer-handle arrays: the next change
+applies the same delta rule to `UpdateFromBuffer`. If `arrayDelta` time per call is what
+remains, the next change is a per-id modification log in the pool, so that a pass only
+visits the ids written since the previous one.
