@@ -2,8 +2,9 @@
 """Authenticate the PPU/SPU codegen identities of Core 619 (unchanged from Core 616).
 
 Core 619 = Core 616 + build-utils/rpcs3/core619-from-616.patch (insertions only,
-11 files: RSX ZCULL, the vertex prologue and its shader properties, the iOS policy,
-title levers and profiler). None of them is a PPU or SPU codegen input, and the
+18 files: RSX ZCULL and the RSX label accesses (NV47 sync, NV406E, NV4097, flip),
+cellGcmSys timestamps, the vertex prologue and its shader properties, the iOS
+policy, title levers and profiler). None of them is a PPU or SPU codegen input, and the
 compatibility table is untouched, so the delivered identities PPU a987639e9f838d1c /
 SPU 477a3fa442d27917 and every cached PPU module and SPU object stay valid.
 

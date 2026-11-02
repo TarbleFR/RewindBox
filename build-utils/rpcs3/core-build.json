@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 619,
  "identity_type": "rpcs3-ios-core619",
- "summary": "RPCS3 Core 619 = the delivered Core 610 plus one folded delta: the Core 612, 613 and 616 records unchanged and three Core 619 changes (insertions only over Core 616, build-utils/rpcs3/core619-from-616.patch): Assassin's Creed only, a guest access to a ZCULL report page that still holds a pending report waits for the RSX thread to write the reports instead of every label waiting for all of them for the rest of the boot (REWINDBOX_ZCULL_ON_DEMAND_619, COREPROF ZCULLDEMAND619, Build 617 logs: 4.15-4.32 s of each 5 s window in ZCULL sync); Black Ops II only, the pinned-depth fallback maps every vertex of a clip range above 1 with one affine map so a triangle crossing the near plane is clipped where the RSX clips it (REWINDBOX_ZCLIP_PINNED_AFFINE_619, Build 617 report of the untextured back of the arm) and asynchronous MoltenVK submits join its Automatic value (REWINDBOX_BO2_MVK_ASYNC_619, 0.80 s per window in vkQueueSubmit); ABI 30, the 92 exports, the PPU/SPU codegen identities (no codegen input changes) and the MoltenVK dependency of Core 610 unchanged. Numbered 619: IPA 618 is another session's MeloNX build with Core 616.",
+ "summary": "RPCS3 Core 619 = the delivered Core 610 plus one folded delta: the Core 612, 613 and 616 records unchanged and three Core 619 changes (insertions only over Core 616, build-utils/rpcs3/core619-from-616.patch): Assassin's Creed only, a guest access to a ZCULL report page that still holds a pending report waits for the RSX thread to write the reports instead of every label waiting for all of them for the rest of the boot, and the RSX thread reaches the GCM label area (which shares a 16 KiB page with reports 0-703) without faulting (REWINDBOX_ZCULL_ON_DEMAND_619, COREPROF ZCULLDEMAND619, Build 617 logs: 4.15-4.32 s of each 5 s window in ZCULL sync); Black Ops II only, the pinned-depth fallback maps every vertex of a clip range above 1 with one affine map so a triangle crossing the near plane is clipped where the RSX clips it (REWINDBOX_ZCLIP_PINNED_AFFINE_619, Build 617 report of the untextured back of the arm) and asynchronous MoltenVK submits join its Automatic value (REWINDBOX_BO2_MVK_ASYNC_619, 0.80 s per window in vkQueueSubmit); ABI 30, the 92 exports, the PPU/SPU codegen identities (no codegen input changes) and the MoltenVK dependency of Core 610 unchanged. Numbered 619: IPA 618 is another session's MeloNX build with Core 616.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "e3579e4778715d1a1d958209264c786beb799edf86c668d24ba8a45834f49f51",
-  "postimages": 336,
+  "patch_sha256": "2887d3b7dd69210618305b425a4a2038fd4819592b9fd6f80371cf4533b356c3",
+  "postimages": 338,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -73,7 +73,7 @@
   "record": "core619_20261102",
   "manifest": "build-utils/rpcs3/core619-delta.json",
   "patch": "build-utils/rpcs3/core619-delta.patch",
-  "patch_sha256": "b43a103071a082dc3db5b25d6b3fcf895ac6145f33ad88f848c1013182668069"
+  "patch_sha256": "d932127450edb38497c0b9fee78df4449469fe2a0397e22f6b550bff3d50f0cb"
  },
  "exports": 92,
  "core_inputs": {
@@ -88,6 +88,7 @@
   ]
  },
  "new_canonical_upstream": [
+  "rpcs3/Emu/Cell/Modules/cellGcmSys.cpp",
   "rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl",
   "rpcs3/Emu/RSX/RSXZCULL.h",
   "rpcs3/Emu/RSX/VK/VKRenderPass.cpp",
@@ -333,7 +334,7 @@
      "--report",
      "{out}/core619.json"
     ],
-    "reason": "new: Core 619 = Core 616 + insertions (reverse patch, 10 pinned Core 616 files, CRLF kept); the ZCULL on-demand gate and the real fault-protocol bodies executed against a ZCULL/RSX mock (11 scenarios); the real vertex fallback executed with the #13227 capture parameters (clip point = RSX clip point); probe line; title levers and policy"
+    "reason": "new: Core 619 = Core 616 + insertions (reverse patch, 16 pinned Core 616 files, line endings kept); the ZCULL on-demand gate and the real fault-protocol, sync()/update() entry and pass bodies executed against a ZCULL/RSX mock (16 scenarios: service, label-page poll, stale, foreign, non-guest thread, pickup and hard timeouts, stop, upstream switch, wait budget, 6 concurrent guests, RSX copy, nested pass, lever off, accurate RSX reservations); RSX label sites; the real vertex fallback executed with the #13227 capture parameters (clip point = RSX clip point); probe line; title levers and policy"
    },
    {
     "name": "core619-asan-ubsan",

@@ -56,7 +56,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 PATCH = ROOT / 'build-utils/rpcs3/core619-from-616.patch'
-NEW_FILE = 'rpcs3/ios/IOSZcullOnDemand.h'
+NEW_FILES = ('rpcs3/ios/IOSZcullOnDemand.h', 'rpcs3/ios/IOSRsxLabelAccess.h')
 # Delivered Core 616 files (payload 633d844b...), LF-or-CRLF bytes as shipped.
 CORE616 = {
     'rpcs3/Emu/RSX/Program/GLSLCommon.cpp': 'c0092ea3aef33832bffd361e98a27f93e223868089338ed19c4998b318a7ec4f',
@@ -69,9 +69,23 @@ CORE616 = {
     'rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp': 'ec49e0f0ca0cb7ccae1996a5bba91bf0b1e6e8799e4002caa7372459114af117',
     'rpcs3/ios/RPCS3IOSExperimentalPolicy.h': '77b81b956b3343d6ec3be00708b7c7f4f53f4c09dc9af0b8f9a44153ce35cffb',
     'rpcs3/ios/RPCS3IOSPerformance.cpp': 'd4fc97c1d431d5405242c5c30cef5a63f24c4a68dda5cf60894394a7acb7bea2',
+    'rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp': '233ff027cc3bb660cd5c5d6e812782b9fab438d844a7606a3f504ede24374576',
+    'rpcs3/Emu/RSX/NV47/HW/nv406e.cpp': '742e1c536d53f7279cd3ca0fff9df729dc2c99e8a33c5721273f52b663f2fef6',
+    'rpcs3/Emu/RSX/NV47/HW/nv4097.cpp': '58d9876bec94ff189d00e47d14ff3b38be73f334c9126bca5730f23f7624955f',
+    'rpcs3/Emu/RSX/rsx_methods.cpp': 'def7214120e679e6fb572916ed6e3ff36ebfa78437011eadde73c4d08df93dc7',
+    'rpcs3/Emu/Cell/Modules/cellGcmSys.cpp': 'da0aa79d3fe3de5075009da5218111f0686c246bc5d307c4671625bab4c5bc2d',
+    'rpcs3/Emu/RSX/RSXThread.h': '9fc293c1510ea204bd35f31789a60f5847910b1345bf35d9146fbf5ad817a9ef',
 }
-CRLF_FILES = ('rpcs3/Emu/RSX/RSXZCULL.cpp', 'rpcs3/Emu/RSX/RSXZCULL.h',
-              'rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl')
+CRLF_FILES = ('rpcs3/Emu/RSX/RSXZCULL.cpp', 'rpcs3/Emu/RSX/RSXZCULL.h', 'rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp',
+              'rpcs3/Emu/RSX/NV47/HW/nv406e.cpp', 'rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl')
+MIXED_FILES = {'rpcs3/Emu/RSX/NV47/HW/nv4097.cpp': 4}  # bare-LF lines of the delivered Core 616 file, kept as they are
+RSX_LABEL_SITES = {  # RSX-thread accesses to the GCM label area: helper under RPCS3_IOS, upstream line kept in #else
+    'rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp': ('if (*rpcs3::ios::zcull_on_demand::rsx_label_ptr<RsxSemaphore>(RSX(ctx), address) == data)\n#else\n\t\t\t\tif (vm::_ref<RsxSemaphore>(address) == data)',
+                                            '*rpcs3::ios::zcull_on_demand::rsx_label_ptr<atomic_t<RsxSemaphore>>(RSX(ctx), address) = data; // REWINDBOX_ZCULL_ON_DEMAND_619\n#else\n\t\t\tvm::write<atomic_t<RsxSemaphore>>(address, data);'),
+    'rpcs3/Emu/RSX/NV47/HW/nv406e.cpp': ('const auto& atomic_sema = *rpcs3::ios::zcull_on_demand::rsx_label_ptr<atomic_t<RsxSemaphore>>(RSX(ctx), addr);\n#else\n\t\t\tconst auto& atomic_sema = vm::_ref<atomic_t<RsxSemaphore>>(addr);',),
+    'rpcs3/Emu/RSX/NV47/HW/nv4097.cpp': ('rpcs3::ios::zcull_on_demand::rsx_label_ptr<atomic_t<RsxNotify>>(RSX(ctx), addr)->store(\n#else\n\t\t\tvm::_ptr<atomic_t<RsxNotify>>(addr)->store(',),
+    'rpcs3/Emu/RSX/rsx_methods.cpp': ('rpcs3::ios::zcull_on_demand::rsx_label_ptr<atomic_t<u128>>(RSX(ctx), RSX(ctx)->label_addr + 0x10)->store(u128{});\n#else\n\t\tvm::_ptr<atomic_t<u128>>(RSX(ctx)->label_addr + 0x10)->store(u128{});',),
+}
 MARKERS = ('REWINDBOX_ZCULL_ON_DEMAND_619', 'REWINDBOX_ZCLIP_PINNED_AFFINE_619', 'REWINDBOX_BO2_MVK_ASYNC_619')
 PROLOGUE = 'rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl'
 ZCULL = 'rpcs3/Emu/RSX/RSXZCULL.cpp'
@@ -119,9 +133,9 @@ def restore(source: Path, work: Path) -> Path:
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source / name, target)
     subprocess.run(['git', 'apply', '-R', '--whitespace=nowarn', str(PATCH)], cwd=tree, check=True, timeout=60)
-    require(not (tree / NEW_FILE).exists(), 'the reverse patch removes the new on-demand header')
+    require(not any((tree / name).exists() for name in NEW_FILES), 'the reverse patch removes the two new headers')
     for name in files:
-        if name == NEW_FILE:
+        if name in NEW_FILES:
             continue
         require(name in CORE616, 'pinned Core 616 digest for ' + name)
         require(sha((tree / name).read_bytes()) == CORE616[name], name + ' differs from Core 616 outside the 619 insertions')
@@ -160,13 +174,15 @@ static int failures = 0;
 int main()
 {
 	{
-		od::counters().tripped.store(true);
+		od::counters().tripped.store(3);
 		od::gate g;
-		CHECK(!od::counters().tripped.load()); // one gate per boot resets the process-wide flag
+		CHECK(od::counters().tripped.load() == 0); // one gate per boot resets the process-wide reason
 		CHECK(g.pending() == 0);
 		const auto t1 = g.request(), t2 = g.request();
-		CHECK(t1 == 1 && t2 == 2 && g.pending() == 2 && !g.is_served(t1));
-		CHECK(!g.serve(g.pending(), 10));
+		CHECK(t1 == 1 && t2 == 2 && g.pending() == 2 && !g.is_served(t1) && !g.is_picked(t1));
+		g.pick(t2);
+		CHECK(g.is_picked(t1) && g.is_picked(t2) && !g.is_served(t1));
+		CHECK(!g.serve(t2, 10));
 		CHECK(g.is_served(t1) && g.is_served(t2) && g.pending() == 0);
 		g.serve(1, 20); // an older ticket never moves the served count back
 		CHECK(g.is_served(2) && g.pending() == 0);
@@ -178,7 +194,8 @@ int main()
 		{
 			if (g.serve(g.request(), 5'000'000 + i * 900)) trip_index = i;
 		}
-		CHECK(trip_index == od::storm_services + 1 && g.tripped() && od::counters().tripped.load());
+		CHECK(trip_index == od::storm_services + 1 && g.tripped() && od::counters().tripped.load() == static_cast<unsigned>(od::trip_reason::storm));
+		CHECK(!g.trip(od::trip_reason::pickup) && od::counters().tripped.load() == static_cast<unsigned>(od::trip_reason::storm)); // the first reason wins
 	}
 	{
 		od::gate g; // 1,500 services over 1.5 s never trip
@@ -186,14 +203,25 @@ int main()
 		CHECK(!g.tripped());
 	}
 	{
+		od::gate g; // guest waits: 390 ms in a window is fine, 401 ms trips; a new window starts over
+		CHECK(!g.record_wait(390'000, 2'000'000));
+		CHECK(!g.record_wait(300'000, 3'100'000) && !g.tripped());
+		CHECK(g.record_wait(101'000, 3'200'000 + 1) && g.tripped() && od::counters().tripped.load() == static_cast<unsigned>(od::trip_reason::wait_budget));
+	}
+	{
 		od::gate g;
 		std::uint64_t clock = 0;
-		const auto now = [&]() { return clock += 1000; };
+		const auto now = [&]() { return clock; };
 		const auto t = g.request();
-		CHECK(od::wait_for(g, t, 1'000'000, [] { return true; }, [] { return false; }, now) == od::wait_result::released);
-		CHECK(od::wait_for(g, t, 1'000'000, [] { return false; }, [] { return true; }, now) == od::wait_result::stopped);
-		clock = 0;
-		CHECK(od::wait_for(g, t, 50'000, [] { return false; }, [] { return false; }, now) == od::wait_result::timed_out);
+		CHECK(od::wait_for(g, t, 0, [] { return true; }, [] { return false; }, now) == od::wait_result::released);
+		CHECK(od::wait_for(g, t, 0, [] { return false; }, [] { return true; }, now) == od::wait_result::stopped);
+		clock = od::pickup_deadline_us; // never picked up: fails at the pickup deadline
+		CHECK(od::wait_for(g, t, 0, [] { return false; }, [] { return false; }, now) == od::wait_result::timed_out);
+		g.pick(t);
+		clock = od::hard_deadline_us - 1; // picked up: a long service is waited for
+		std::uint64_t steps = 0;
+		const auto later = [&]() { return steps++ < 50 ? clock : od::hard_deadline_us; };
+		CHECK(od::wait_for(g, t, 0, [] { return false; }, [] { return false; }, later) == od::wait_result::timed_out && steps > 50);
 		g.serve(t, 0);
 		CHECK(od::wait_for(g, t, 0, [] { return false; }, [] { return true; }, now) == od::wait_result::served);
 	}
@@ -202,7 +230,7 @@ int main()
 		od::gate g;
 		std::atomic<bool> done{false};
 		std::atomic<unsigned> count{0};
-		std::thread server([&]() { std::uint64_t now = 0; while (!done.load()) { if (const auto t = g.pending()) g.serve(t, now += 5'000); else std::this_thread::yield(); } });
+		std::thread server([&]() { std::uint64_t now = 0; while (!done.load()) { if (const auto t = g.pending()) { g.pick(t); g.serve(t, now += 5'000); } else std::this_thread::yield(); } });
 		std::vector<std::thread> guests;
 		for (int i = 0; i < 8; i++)
 		{
@@ -210,7 +238,7 @@ int main()
 				for (int k = 0; k < 200; k++)
 				{
 					const auto t = g.request();
-					if (od::wait_for(g, t, ~0ull, [] { return false; }, [] { return false; }, [] { return std::uint64_t{0}; }) == od::wait_result::served) count++;
+					if (od::wait_for(g, t, 0, [] { return false; }, [] { return false; }, [] { return std::uint64_t{0}; }) == od::wait_result::served) count++;
 				}
 			});
 		}
@@ -228,6 +256,7 @@ int main()
 FAULT_HARNESS = r'''
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <mutex>
@@ -235,6 +264,7 @@ FAULT_HARNESS = r'''
 #include <thread>
 #include <unordered_map>
 #include <vector>
+using u8 = std::uint8_t;
 using u32 = std::uint32_t;
 using u64 = std::uint64_t;
 enum class thread_class : u32 { general = 0, ppu = 1, spu = 2, rsx = 0x55 };
@@ -252,10 +282,25 @@ inline u64 get_system_time()
 	return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 struct emulator { std::atomic<bool> stopped{false}; bool IsStopped() const { return stopped.load(); } } Emu;
+struct cfg_mock { struct { bool rsx_accurate_res_access = false; } core; } g_cfg;
+// sys_rsx.h layout: 1,024 four-byte labels, 64 notifies and 2,048 reports of 16 bytes.
+struct RsxReports
+{
+	u32 semaphore[1024];
+	struct alignas(16) notify_t { u8 bytes[16]; } notify[64];
+	struct alignas(16) report_t { u8 bytes[16]; } report[2048];
+};
+inline u32 offset32(decltype(&RsxReports::report)) { return static_cast<u32>(offsetof(RsxReports, report)); }
 namespace rsx
 {
 	enum : u32 { pipe_flush_interrupt = 0x8 };
-	struct thread { std::atomic<u32> m_eng_interrupt_mask{0}; std::atomic<bool> stopped{false}; bool is_stopped() const { return stopped.load(); } };
+	struct thread
+	{
+		std::atomic<u32> m_eng_interrupt_mask{0};
+		std::atomic<bool> stopped{false};
+		u32 label_addr = 0x40300000;
+		bool is_stopped() const { return stopped.load(); }
+	};
 	inline thread g_thread;
 	inline thread* get_current_renderer() { return &g_thread; }
 	inline u32 classify_location(u32 address) { return address >= 0xC0000000u ? 0 : 1; }
@@ -295,25 +340,42 @@ public:
 	enum class ios_fault { handled, not_ours, upstream };
 	rpcs3::ios::zcull_on_demand::gate m_ios_demand;
 	bool m_ios_force_sync = false;
-	std::atomic<int> forced_passes{0}, upstream_paths{0};
+	bool m_ios_in_pass = false;
+	std::atomic<int> forced_passes{0}, upstream_paths{0}, nested_calls{0};
+	bool nest_once = false;
 	bool ios_on_demand_enabled() const;
-	ios_fault ios_on_demand_fault(u32 page_address, u32 location);
+	ios_fault ios_on_demand_fault(u32 address, u32 page_address, u32 location);
+	bool ios_range_locked(u32 memory_address, u32 memory_range, bool& pending);
 	void ios_retire_claimed(::rsx::thread* ptimer);
 	void ios_release_stale_pages(u32 memory_address, u32 memory_range);
+	bool ios_page_locked(u32 address);
 
-	// RSX thread, pipe_flush_interrupt: the real entry block of sync(), then (mock) a forced
-	// pass writes every claimed report, which releases every page reference.
+	// RSX thread: the real entry block and pass scope of sync(); here no report is critical, so
+	// only a forced pass works (as in the real file), and it writes every claimed report.
 	void sync(::rsx::thread* ptimer)
 	{
 #include "sync_entry.inc"
-		if (m_ios_force_sync)
+		if (!m_ios_force_sync)
+		{
+			return;
+		}
+#include "pass_scope.inc"
+		if (nest_once)
+		{
+			// A local task reached inside the pass (RSX wait in a report write) calls sync() again.
+			nest_once = false;
+			nested_calls++;
+			const int before = forced_passes.load();
+			sync(ptimer);
+			if (forced_passes.load() != before) nested_calls += 100; // the nested call must not work
+		}
 		{
 			std::scoped_lock lock(m_pages_mutex);
 			for (auto& block : m_locked_pages)
 				for (auto& entry : block)
 					entry.second.refs = 0;
-			forced_passes++;
 		}
+		forced_passes++;
 	}
 
 	// RSX thread, read_report(): on_report_enqueued locks the page.
@@ -358,14 +420,25 @@ static int failures = 0;
 struct rsx_server
 {
 	ZCULL_control& z;
+	unsigned delay_ms;
+	bool pick_only;
 	std::atomic<bool> done{false};
 	std::thread worker;
-	explicit rsx_server(ZCULL_control& control) : z(control)
+	explicit rsx_server(ZCULL_control& control, unsigned delay = 0, bool pick = false) : z(control), delay_ms(delay), pick_only(pick)
 	{
 		worker = std::thread([this]() {
 			while (!done.load())
 			{
-				if (rsx::g_thread.m_eng_interrupt_mask.fetch_and(~u32{rsx::pipe_flush_interrupt}) & rsx::pipe_flush_interrupt) z.sync(&rsx::g_thread);
+				if (rsx::g_thread.m_eng_interrupt_mask.fetch_and(~u32{rsx::pipe_flush_interrupt}) & rsx::pipe_flush_interrupt)
+				{
+					if (pick_only)
+					{
+						if (const auto ticket = z.m_ios_demand.pending()) z.m_ios_demand.pick(ticket); // started, never completed
+						continue;
+					}
+					if (delay_ms) std::this_thread::sleep_for(std::chrono::milliseconds(delay_ms));
+					z.sync(&rsx::g_thread);
+				}
 				else std::this_thread::yield();
 			}
 		});
@@ -403,52 +476,71 @@ static bool guest_access_with_retry(ZCULL_control& z, u32 address, thread_class 
 
 int main()
 {
-	auto& tally = rpcs3::ios::zcull_on_demand::counters();
-	const u32 page = 0xC0004000u, address = page + 0x10;
+	namespace od = rpcs3::ios::zcull_on_demand;
+	auto& tally = od::counters();
+	// The GCM report area at 0x40300000: page 0 holds the labels, the notifies and reports 0-703.
+	const u32 label_page = 0x40300000u, report_page = 0x40304000u, address = report_page + 0x10;
 	unsigned scenarios = 0;
 
-	{ // served by the RSX thread, then the page is re-armed by the next report and served again
+	{ // served by the RSX thread, re-armed by the next report and served again; faults classified
 		ZCULL_control z;
 		rsx_server server(z);
 		z.enqueue(address);
 		CHECK(guest_access(z, address, thread_class::ppu));
-		CHECK(!z.m_locked_pages[0].contains(page) && z.forced_passes.load() >= 1 && z.upstream_paths.load() == 0);
-		CHECK(take(tally.faults) == 1 && take(tally.services) >= 1 && take(tally.waits) == 1 && !z.m_pages_accessed[0]);
-		z.enqueue(address + 0x40);
-		CHECK(z.m_locked_pages[0].at(page).prot == utils::protection::no);
-		CHECK(guest_access(z, address + 0x40, thread_class::spu));
-		CHECK(take(tally.faults) == 1 && take(tally.services) >= 1 && take(tally.waits) == 1 && z.upstream_paths.load() == 0);
-		scenarios += 2;
+		CHECK(!z.m_locked_pages[1].contains(report_page) && z.forced_passes.load() >= 1 && z.upstream_paths.load() == 0);
+		CHECK(take(tally.faults_report) == 1 && take(tally.services) >= 1 && take(tally.waits) == 1 && !z.m_pages_accessed[1]);
+		z.enqueue(label_page + 0x2000); // report 192 shares the label page
+		CHECK(z.m_locked_pages[1].at(label_page).prot == utils::protection::no && z.ios_page_locked(label_page + 0x10));
+		CHECK(guest_access(z, label_page + 0x10, thread_class::spu)); // a guest label poll on that page
+		CHECK(take(tally.faults_label) == 1 && take(tally.services) >= 1 && take(tally.waits) == 1 && z.upstream_paths.load() == 0);
+		CHECK(!z.ios_page_locked(label_page + 0x10));
+		z.enqueue(0x50000010u); // main-memory report outside the GCM area
+		CHECK(guest_access(z, 0x50000010u, thread_class::ppu) && take(tally.faults_other) == 1);
+		take(tally.services); take(tally.waits);
+		CHECK(tally.tripped.load() == 0);
+		scenarios += 3;
 	}
 	{ // stale page: unlocked without a request; foreign page: not ours
 		ZCULL_control z;
 		z.enqueue(address);
-		z.m_locked_pages[0].at(page).refs = 0;
-		CHECK(guest_access(z, address, thread_class::ppu) && !z.m_locked_pages[0].contains(page));
-		CHECK(take(tally.stale) == 1 && take(tally.faults) == 0 && z.m_ios_demand.pending() == 0);
+		z.m_locked_pages[1].at(report_page).refs = 0;
+		CHECK(guest_access(z, address, thread_class::ppu) && !z.m_locked_pages[1].contains(report_page));
+		CHECK(take(tally.stale) == 1 && take(tally.faults_report) == 0 && z.m_ios_demand.pending() == 0);
 		CHECK(!guest_access(z, 0x00100000u, thread_class::ppu) && z.upstream_paths.load() == 0);
 		scenarios += 2;
 	}
 	{ // a thread that is neither PPU nor SPU takes the upstream path
 		ZCULL_control z;
 		z.enqueue(address);
-		CHECK(guest_access(z, address, thread_class::general) && z.upstream_paths.load() == 1 && z.m_pages_accessed[0]);
-		CHECK(take(tally.faults) == 0);
+		CHECK(guest_access(z, address, thread_class::general) && z.upstream_paths.load() == 1 && z.m_pages_accessed[1]);
+		CHECK(take(tally.faults_report) == 0);
 		scenarios++;
 	}
-	u64 timeout_ms = 0;
-	{ // no RSX service: 250 ms, then the boot trips to the upstream mode
+	u64 pickup_ms = 0, hard_ms = 0;
+	{ // no RSX service at all: the request is not picked up within 2 s, the boot trips
 		ZCULL_control z;
 		z.enqueue(address);
 		const auto start = get_system_time();
 		CHECK(guest_access(z, address, thread_class::ppu));
-		timeout_ms = (get_system_time() - start) / 1000;
-		CHECK(timeout_ms >= 250 && timeout_ms < 2000);
-		CHECK(take(tally.timeouts) == 1 && z.m_ios_demand.tripped() && z.upstream_paths.load() == 1 && z.m_pages_accessed[0] && rsx_log.errors.load() == 1);
-		z.m_pages_accessed[0] = false;
+		pickup_ms = (get_system_time() - start) / 1000;
+		CHECK(pickup_ms >= 2000 && pickup_ms < 4000);
+		CHECK(take(tally.timeouts) == 1 && tally.tripped.load() == static_cast<u32>(od::trip_reason::pickup) && z.upstream_paths.load() == 1 && z.m_pages_accessed[1]);
+		z.m_pages_accessed[1] = false;
 		z.enqueue(address);
 		CHECK(guest_access(z, address, thread_class::ppu) && z.upstream_paths.load() == 2); // tripped: upstream at once
-		take(tally.faults);
+		take(tally.faults_report);
+		scenarios++;
+	}
+	{ // picked up, never completed: waited for until the 5 s hard deadline, then the boot trips
+		ZCULL_control z;
+		rsx_server server(z, 0, true);
+		z.enqueue(address);
+		const auto start = get_system_time();
+		CHECK(guest_access(z, address, thread_class::ppu));
+		hard_ms = (get_system_time() - start) / 1000;
+		CHECK(hard_ms >= 5000 && hard_ms < 8000);
+		CHECK(take(tally.timeouts) == 1 && tally.tripped.load() == static_cast<u32>(od::trip_reason::hard) && z.upstream_paths.load() == 1);
+		take(tally.faults_report);
 		scenarios++;
 	}
 	{ // stopping emulator
@@ -458,20 +550,36 @@ int main()
 		CHECK(guest_access(z, address, thread_class::ppu) && z.upstream_paths.load() == 1);
 		Emu.stopped = false;
 		CHECK(take(tally.stops) == 1 && !z.m_ios_demand.tripped());
-		take(tally.faults);
+		take(tally.faults_report);
 		scenarios++;
 	}
 	{ // another access switched the location: wait until it unlocks the page, then succeed
 		ZCULL_control z;
 		z.enqueue(address);
-		z.m_pages_accessed[0] = true;
-		std::thread other([&]() { std::this_thread::sleep_for(std::chrono::milliseconds(20)); std::scoped_lock lock(z.m_pages_mutex); z.m_locked_pages[0].clear(); });
+		z.m_pages_accessed[1] = true;
+		std::thread other([&]() { std::this_thread::sleep_for(std::chrono::milliseconds(20)); std::scoped_lock lock(z.m_pages_mutex); z.m_locked_pages[1].clear(); });
 		cpu_mock cpu{thread_class::ppu};
 		t_cpu = &cpu;
-		CHECK(z.ios_on_demand_fault(page, 0) == ZCULL_control::ios_fault::handled);
+		CHECK(z.ios_on_demand_fault(address, report_page, 1) == ZCULL_control::ios_fault::handled);
 		t_cpu = nullptr;
 		other.join();
-		CHECK(z.m_ios_demand.pending() == 0 && take(tally.faults) == 0);
+		CHECK(z.m_ios_demand.pending() == 0 && take(tally.faults_report) == 0);
+		scenarios++;
+	}
+	unsigned budget_faults = 0;
+	{ // guest waits above 400 ms in one second trip the boot to the upstream mode
+		ZCULL_control z;
+		rsx_server server(z, 60);
+		while (!z.m_ios_demand.tripped() && budget_faults < 20)
+		{
+			z.enqueue(address);
+			CHECK(guest_access(z, address, thread_class::ppu));
+			budget_faults++;
+		}
+		CHECK(budget_faults >= 6 && budget_faults <= 8 && tally.tripped.load() == static_cast<u32>(od::trip_reason::wait_budget));
+		z.enqueue(address);
+		CHECK(guest_access(z, address, thread_class::ppu) && z.upstream_paths.load() == 1);
+		take(tally.faults_report); take(tally.services); take(tally.waits);
 		scenarios++;
 	}
 	unsigned concurrent = 0;
@@ -485,7 +593,7 @@ int main()
 			guests.emplace_back([&, g]() {
 				for (int k = 0; k < 100; k++)
 				{
-					const u32 target = 0xC0000000u + static_cast<u32>((k % 3) * 0x4000 + g * 16);
+					const u32 target = report_page + static_cast<u32>((k % 3) * 0x4000 + g * 16);
 					z.enqueue(target);
 					if (guest_access_with_retry(z, target, g % 2 ? thread_class::spu : thread_class::ppu)) ok++;
 				}
@@ -493,26 +601,37 @@ int main()
 		}
 		for (auto& t : guests) t.join();
 		concurrent = ok.load();
-		CHECK(concurrent == 600 && z.upstream_paths.load() == 0 && !z.m_ios_demand.tripped() && !z.m_pages_accessed[0]);
-		take(tally.faults); take(tally.services); take(tally.waits); take(tally.stale);
+		CHECK(concurrent == 600 && z.upstream_paths.load() == 0 && !z.m_ios_demand.tripped() && !z.m_pages_accessed[1]);
+		take(tally.faults_report); take(tally.services); take(tally.waits); take(tally.stale);
 		scenarios++;
 	}
-	{ // RSX copy path: the claimed reports are written, the request is served, stale pages of the range unlocked
+	{ // RSX copy path (read_barrier): locked pages of the range, a pending report written, stale pages unlocked
 		ZCULL_control z;
-		z.enqueue(0xC0000010u);
-		z.enqueue(0xC0004010u);
-		z.enqueue(0xC0010010u); // outside the range below
+		z.enqueue(0x40300010u + 0x2000);
+		z.enqueue(0x40304010u);
+		z.enqueue(0x40310010u); // outside the range below
+		bool pending = false;
+		CHECK(z.ios_range_locked(0x40300020u, 0x8000, pending) && pending);
 		const auto ticket = z.m_ios_demand.request();
 		z.ios_retire_claimed(&rsx::g_thread);
-		CHECK(z.m_ios_demand.is_served(ticket) && z.forced_passes.load() == 1 && take(tally.services) == 1);
-		z.m_locked_pages[0][0xC0008000u] = {1, utils::protection::no}; // still active
-		z.ios_release_stale_pages(0xC0000020u, 0x8000);
-		CHECK(!z.m_locked_pages[0].contains(0xC0000000u) && !z.m_locked_pages[0].contains(0xC0004000u));
-		CHECK(z.m_locked_pages[0].contains(0xC0008000u) && z.m_locked_pages[0].contains(0xC0010000u));
-		z.ios_release_stale_pages(0xC0010000u, 0);
-		CHECK(z.m_locked_pages[0].contains(0xC0010000u));
+		CHECK(z.m_ios_demand.is_served(ticket) && z.forced_passes.load() == 1 && take(tally.services) == 1 && !z.m_ios_force_sync);
+		z.m_locked_pages[1][0x40308000u] = {1, utils::protection::no}; // still active
+		CHECK(z.ios_range_locked(0x40300020u, 0x8000, pending) && pending);
+		z.ios_release_stale_pages(0x40300020u, 0x8000);
+		CHECK(!z.m_locked_pages[1].contains(0x40300000u) && !z.m_locked_pages[1].contains(0x40304000u));
+		CHECK(z.m_locked_pages[1].contains(0x40308000u) && z.m_locked_pages[1].contains(0x40310000u));
+		CHECK(!z.ios_range_locked(0x40320000u, 0x100, pending) && !pending && !z.ios_range_locked(0x40310000u, 0, pending));
+		z.ios_release_stale_pages(0x40310000u, 0);
+		CHECK(z.m_locked_pages[1].contains(0x40310000u));
 		z.ios_retire_claimed(&rsx::g_thread); // nothing requested: a forced pass, no service
 		CHECK(z.forced_passes.load() == 2 && take(tally.services) == 0);
+		scenarios++;
+	}
+	{ // a sync() reached inside a pass returns at once
+		ZCULL_control z;
+		z.nest_once = true;
+		z.ios_retire_claimed(&rsx::g_thread);
+		CHECK(z.nested_calls.load() == 1 && z.forced_passes.load() == 1 && !z.m_ios_in_pass && !z.m_ios_force_sync);
 		scenarios++;
 	}
 	{ // lever off: upstream path, and sync() does not serve
@@ -526,8 +645,18 @@ int main()
 		rpcs3::ios::g_policy.zcull_on_demand = true;
 		scenarios++;
 	}
-	std::printf("{\"failures\": %d, \"scenarios\": %u, \"timeout_ms\": %llu, \"concurrent_accesses\": %u, \"concurrent_retries\": %u, \"unprotects\": %d}\n",
-		failures, scenarios, static_cast<unsigned long long>(timeout_ms), concurrent, retries.load(), utils::unprotects.load());
+	{ // accurate RSX reservation access: the upstream mode
+		g_cfg.core.rsx_accurate_res_access = true;
+		ZCULL_control z;
+		z.enqueue(address);
+		CHECK(!z.ios_on_demand_enabled() && guest_access(z, address, thread_class::ppu) && z.upstream_paths.load() == 1);
+		g_cfg.core.rsx_accurate_res_access = false;
+		scenarios++;
+	}
+	std::printf("{\"failures\": %d, \"scenarios\": %u, \"pickup_timeout_ms\": %llu, \"hard_timeout_ms\": %llu, \"wait_budget_faults\": %u, "
+		"\"concurrent_accesses\": %u, \"concurrent_retries\": %u, \"unprotects\": %d}\n",
+		failures, scenarios, static_cast<unsigned long long>(pickup_ms), static_cast<unsigned long long>(hard_ms), budget_faults,
+		concurrent, retries.load(), utils::unprotects.load());
 	return failures != 0;
 }
 '''
@@ -549,8 +678,9 @@ int main()
 {
 	const unsigned long long profile_session = 1, profile_window = 20;
 	auto& t = rpcs3::ios::zcull_on_demand::counters();
-	t.faults = 31; t.stale = 2; t.services = 30; t.add_wait(2500); t.add_wait(4000); t.timeouts = 0; t.stops = 0; t.rsx_reads = 3;
-	t.upstream_cell = 1; t.upstream_other = 0; t.upstream_rsx_read = 2;
+	t.faults_label = 20; t.faults_report = 10; t.faults_other = 1; t.stale = 2; t.services = 30; t.add_wait(2500); t.add_wait(4000);
+	t.timeouts = 0; t.stops = 0; t.rsx_reads = 3; t.upstream_cell = 1; t.upstream_other = 0; t.upstream_rsx_read = 2;
+	t.tripped = static_cast<std::uint32_t>(rpcs3::ios::zcull_on_demand::trip_reason::wait_budget);
 #include "probe.inc"
 	return 0;
 }
@@ -689,14 +819,25 @@ def main() -> None:
 
     patch_text = PATCH.read_text()
     files = patch_files(patch_text)
-    require(sorted(files) == sorted([*CORE616, NEW_FILE]), 'the incremental patch touches exactly the reviewed files')
+    require(sorted(files) == sorted([*CORE616, *NEW_FILES]), 'the incremental patch touches exactly the reviewed files')
     for name, added, removed in hunks(patch_text):
         require(removed == 0, 'insertions only: ' + name)
-        require(name == NEW_FILE or any(marker in line for line in added for marker in MARKERS),
+        require(name in NEW_FILES or any(marker in line for line in added for marker in MARKERS),
                 'every hunk names its 619 marker: ' + name + ' ' + repr(added[:2]))
     for name in CRLF_FILES:
         raw = (source / name).read_bytes()
         require(raw.count(b'\n') == raw.count(b'\r\n'), name + ' keeps CRLF line endings throughout')
+    for name, bare in MIXED_FILES.items():
+        raw = (source / name).read_bytes()
+        require(raw.count(b'\n') - raw.count(b'\r\n') == bare, name + ' keeps its line endings (new lines CRLF)')
+    for name, sites in RSX_LABEL_SITES.items():
+        text = (source / name).read_text()
+        for site in sites:
+            require(text.count(site) == 1, name + ': RSX label access through the helper, upstream line in #else: ' + site[:60])
+    require('#include "ios/IOSRsxLabelAccess.h" // REWINDBOX_ZCULL_ON_DEMAND_619' in (source / 'rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp').read_text(), 'helper included')
+    gcm = (source / 'rpcs3/Emu/Cell/Modules/cellGcmSys.cpp').read_text()
+    require(gcm.count('if (rpcs3::ios::get_experimental_policy().zcull_on_demand)') == 2 and 'return vm::_ref<u64>(address);' in gcm and
+            'return report->timer;' in gcm, 'the HLE timestamps read through the protected view under the lever')
     require(not (set(files) & codegen_inputs(source)), 'no PPU/SPU codegen input changes: identities and caches stay valid')
 
     flags = ['-std=gnu++20', '-O1', '-g', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function', '-pthread']
@@ -719,13 +860,14 @@ def main() -> None:
         zcull = (source / ZCULL).read_text()
         definitions = extract_between(zcull, '\t\t// REWINDBOX_ZCULL_ON_DEMAND_619 (ios/IOSZcullOnDemand.h)\n', '#endif\n\n\t\t// Conditional rendering helpers')
         sync_entry = extract_between(zcull, 'void ZCULL_control::sync(::rsx::thread* ptimer)\n\t\t{\n#ifdef RPCS3_IOS\n', '#endif\n\t\t\tif (m_pending_writes.empty())')
+        pass_scope = extract_between(zcull, '// REWINDBOX_ZCULL_ON_DEMAND_619: mark the pass (lever only), cleared on every exit.\n', '\n#endif\n\t\t\t// Quick reverse scan')
         fault_entry = extract_between(zcull, '\t\t\t\t// Already faulted, no locks possible\n\t\t\t\treturn false;\n\t\t\t}\n\n#ifdef RPCS3_IOS\n',
                                       '#endif\n\n\t\t\tbool need_disable_optimizations = false;')
         require('ios_retire_claimed(ptimer);\n\t\t\t\treturn;' in sync_entry and 'thread_class::spu' in fault_entry, 'the extracted entry blocks')
         out = compile_and_run(work, 'fault', {'main.cpp': FAULT_HARNESS, 'definitions.inc': definitions, 'sync_entry.inc': sync_entry,
-                                              'fault_entry.inc': fault_entry}, compiler, flags, [source / 'rpcs3'])
+                                              'pass_scope.inc': pass_scope, 'fault_entry.inc': fault_entry}, compiler, flags, [source / 'rpcs3'])
         fault = json.loads(out.strip().splitlines()[-1])
-        require(fault['failures'] == 0 and fault['scenarios'] == 11 and fault['concurrent_accesses'] == 600, 'fault protocol: ' + repr(fault))
+        require(fault['failures'] == 0 and fault['scenarios'] == 16 and fault['concurrent_accesses'] == 600, 'fault protocol: ' + repr(fault))
         report['zcull_on_demand'] = {'gate': gate, 'fault_protocol': fault}
 
         # Where the blocks sit in the real file.
@@ -734,12 +876,19 @@ def main() -> None:
                 'a forced pass skips the "nothing critical" return')
         require(re.search(r'#ifdef RPCS3_IOS\s*if \(!m_ios_force_sync\)[^\n]*\n#endif\s*if \(g_cfg\.video\.relaxed_zcull_sync\)', sync_body) is not None,
                 'a forced pass skips the relaxed shortcut')
+        update_body = extract_between(zcull, 'void ZCULL_control::update(::rsx::thread* ptimer, u32 sync_address, bool hint)\n\t\t{\n', 'if (m_pending_writes.empty())')
+        require('if (m_ios_in_pass)' in update_body and 'const ios_pass{m_ios_in_pass, (m_ios_in_pass = rpcs3::ios::get_experimental_policy().zcull_on_demand)};' in update_body,
+                'update() returns at once inside a pass and marks its own pass')
+        require(sync_body.index('if (m_ios_in_pass)') < sync_body.index('ios_retire_claimed(ptimer);') < sync_body.index('// Quick reverse scan'), 'sync() guard, demand, pass')
+        require('eval_failed = (vm::get_super_ptr<CellGcmReportData>(writer->sink)->value == 0u);' in zcull and
+                'set_eval_result(pthr, vm::get_super_ptr<CellGcmReportData>(eval_address)->value == 0u);' in zcull,
+                'RSX-side report reads go through the unprotected view under the lever')
         barrier = extract_between(zcull, 'flags32_t ZCULL_control::read_barrier(::rsx::thread* ptimer, u32 memory_address, u32 memory_range, flags32_t flags)', 'flags32_t ZCULL_control::read_barrier(class ::rsx::thread* ptimer, u32 memory_address, occlusion_query_info* query)')
-        require(barrier.index('ios_retire_claimed(ptimer);') < barrier.index('// Disable optimizations across the accessed range') and
-                barrier.index('if (!sync_address || !query)') < barrier.index('ios_retire_claimed(ptimer);'),
-                'the RSX copy path writes the reports only when a report with a query is in the range, before any upstream switch')
+        require(barrier.index('ios_range_locked(memory_address, memory_range, pending)') < barrier.index('for (auto It = m_pending_writes.crbegin()') <
+                barrier.index('// Disable optimizations across the accessed range'),
+                'the RSX copy path decides by locked pages, before the upstream search and switch')
         violation = extract_between(zcull, 'bool ZCULL_control::on_access_violation(u32 address)', '// Conditional rendering helpers')
-        require(violation.index('// Already faulted, no locks possible') < violation.index('ios_on_demand_fault(page_address, location)') <
+        require(violation.index('// Already faulted, no locks possible') < violation.index('ios_on_demand_fault(address, page_address, location)') <
                 violation.index('bool need_disable_optimizations = false;') < violation.index('tally.upstream_cell : tally.upstream_other'),
                 'the on-demand path sits after the upstream "already faulted" check and before the upstream switch')
         header = (source / 'rpcs3/Emu/RSX/RSXZCULL.h').read_text()
@@ -751,7 +900,8 @@ def main() -> None:
         out = compile_and_run(work, 'probe', {'main.cpp': PROBE_HARNESS, 'probe.inc': probe}, compiler, flags + ['-Wformat=2'], [source / 'rpcs3'])
         line = out.strip().splitlines()[-1]
         require(line.startswith('COREPROF ZCULLDEMAND619 session=1 window=20 tuple=count:total_ms:max_ms enabled=1 ') and
-                ' faults=31 stale=2 services=30 waits=2:6.500:4.000 timeouts=0 stops=0 rsx_reads=3 upstream_disables=1:0:2 upstream_order=cell:other:rsx_read ' in line,
+                ' tripped=2 faults=20:10:1 faults_order=label:report:other stale=2 services=30 waits=2:6.500:4.000 timeouts=0 stops=0 rsx_reads=3 '
+                'upstream_disables=1:0:2 upstream_order=cell:other:rsx_read ' in line,
                 'ZCULLDEMAND619 line: ' + line)
         report['probe_line'] = line
 
@@ -806,9 +956,9 @@ def main() -> None:
     if args.report:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps(report, indent=2) + '\n')
-    print('PASS: Core 619 = Core 616 + insertions; on-demand gate and %d fault-protocol scenarios (timeout %d ms, %d concurrent accesses)%s; '
-          'pinned clip point = RSX clip point on %d edges; levers and policy%s' % (
-              fault['scenarios'], fault['timeout_ms'], fault['concurrent_accesses'],
+    print('PASS: Core 619 = Core 616 + insertions; on-demand gate and %d fault-protocol scenarios (pickup %d ms, hard %d ms, '
+          'wait budget after %d faults, %d concurrent accesses)%s; pinned clip point = RSX clip point on %d edges; RSX label sites; levers and policy%s' % (
+              fault['scenarios'], fault['pickup_timeout_ms'], fault['hard_timeout_ms'], fault['wait_budget_faults'], fault['concurrent_accesses'],
               ' (TSan)' if args.tsan else ' (ASan/UBSan)' if args.sanitize else '', len(new['edges']),
               '; SPIR-V identity' if args.glslang else ''))
 
