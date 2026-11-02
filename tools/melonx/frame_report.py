@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Frame-time report of one MeloNX session from the RewindBox diagnostics journals.
 
-    python3 tools/melonx/frame_report.py MeloNX-performance.log MeloNX-core.log --pid 66181 [--from 40 --to 100]
+    python3 tools/melonx/frame_report.py MeloNX-performance.log MeloNX-core.log --pid 66181 [--from 40 --to 100] [--passes]
 
 Reads, for that PID only:
 - MeloNX-performance.log per-second lines: engine game FPS (distinct game frames), presented
@@ -14,6 +14,10 @@ Reads, for that PID only:
   pipeline builds. Durations are nested (a flush action runs inside the DMA engine and waits in
   syncInvoke), so they are listed side by side, never summed.
 - MeloNX-core.log: the last DMA summary line and every attribution line of the Hogwarts DMA policy.
+
+With --passes, each stretch of play between two paused stretches is also reported on its own (the
+RewindBox pause writes "paused" on every per-second line). The device-test protocol pauses before
+and after each 60 s pass, so startup, menus and loading before the first pause are left out.
 """
 import argparse
 import json
@@ -29,6 +33,38 @@ def percentile(values, q):
     return ordered[index]
 
 
+def passes(seconds):
+    """The unpaused stretches that have a paused stretch on both sides, in order."""
+    found, current, opened = [], [], False
+    for second in seconds:
+        if second['paused']:
+            if opened and current:
+                found.append(current)
+            current, opened = [], True
+        elif opened:
+            current.append(second)
+    return found
+
+
+def summarize(chosen, indent=''):
+    rates = [s['fps'] for s in chosen if s['fps'] > 0]
+    presented = sum(s['presented'] for s in chosen)
+    print(indent + (f"Game FPS (distinct game frames, per-second engine rate): mean {statistics.mean(rates):.1f}, "
+                    f"median {statistics.median(rates):.1f}, min {min(rates):.1f}" if rates else 'Game FPS: none'))
+    print(indent + f"Presented frames: {presented} in {len(chosen)} s ({presented / max(1, len(chosen)):.1f}/s); "
+          f"thermal states {sorted({s['thermal'] for s in chosen})}")
+    gaps = [g for s in chosen if s['gaps'] for g in s['gaps']]
+    if any(s['gaps'] is not None for s in chosen):
+        over50 = sum(s['over50'] or 0 for s in chosen)
+        over100 = sum(s['over100'] or 0 for s in chosen)
+        print(indent + f"Frame time (presentation gaps, {len(gaps)} frames): p50 {percentile(gaps, 50)} ms, "
+              f"p95 {percentile(gaps, 95)} ms, p99 {percentile(gaps, 99)} ms, max {max(gaps) if gaps else None} ms; "
+              f"pauses over 50 ms {over50}, over 100 ms {over100}; frames at or under 33.4 ms {sum(1 for g in gaps if g <= 33.4)}")
+    else:
+        print(indent + 'Frame time: this build has no presentation gap list (build 620 and later have it); '
+              f"longest gap per second: max {max(s['maxGap'] for s in chosen):.1f} ms")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('performance')
@@ -36,6 +72,7 @@ def main():
     parser.add_argument('--pid', required=True)
     parser.add_argument('--from', dest='start', type=int, default=None, help='first second (t=) included')
     parser.add_argument('--to', dest='end', type=int, default=None, help='last second (t=) included')
+    parser.add_argument('--passes', action='store_true', help='also report each stretch between two paused stretches')
     args = parser.parse_args()
     marker = f'"pid":"{args.pid}"'
     seconds, windows, context = [], [], None
@@ -57,6 +94,7 @@ def main():
                                 over50=int(long_gaps.group(1)) if long_gaps else None,
                                 over100=int(long_gaps.group(2)) if long_gaps else None,
                                 thermal=re.search(r' th=(\w+)', body).group(1) if ' th=' in body else '?',
+                                paused=body.rstrip().endswith(' paused'),
                                 stamp=stamp.get('timestamp', '')))
         elif line.startswith('[MeloNX:core-performance]'):
             value = json.loads(line.split('] ', 1)[1])
@@ -70,22 +108,14 @@ def main():
     chosen = [s for s in seconds if first <= s['t'] <= last]
     print(f"Session PID {args.pid}: build {context.get('build')}, Core {context.get('coreSource', '')[:12]}, "
           f"title {context.get('titleId')}; seconds {first}..{last} ({len(chosen)} lines)")
-    rates = [s['fps'] for s in chosen if s['fps'] > 0]
-    presented = sum(s['presented'] for s in chosen)
-    print(f"Game FPS (distinct game frames, per-second engine rate): mean {statistics.mean(rates):.1f}, "
-          f"median {statistics.median(rates):.1f}, min {min(rates):.1f}" if rates else 'Game FPS: none')
-    print(f"Presented frames: {presented} in {len(chosen)} s ({presented / max(1, len(chosen)):.1f}/s); "
-          f"thermal states {sorted({s['thermal'] for s in chosen})}")
-    gaps = [g for s in chosen if s['gaps'] for g in s['gaps']]
-    if any(s['gaps'] is not None for s in chosen):
-        over50 = sum(s['over50'] or 0 for s in chosen)
-        over100 = sum(s['over100'] or 0 for s in chosen)
-        print(f"Frame time (presentation gaps, {len(gaps)} frames): p50 {percentile(gaps, 50)} ms, p95 {percentile(gaps, 95)} ms, "
-              f"p99 {percentile(gaps, 99)} ms, max {max(gaps) if gaps else None} ms; pauses over 50 ms {over50}, over 100 ms {over100}; "
-              f"frames at or under 33.4 ms {sum(1 for g in gaps if g <= 33.4)}")
-    else:
-        print('Frame time: this build has no presentation gap list (build 620 and later have it); '
-              f"longest gap per second: max {max(s['maxGap'] for s in chosen):.1f} ms")
+    summarize(chosen)
+    if args.passes:
+        found = passes(chosen)
+        print(f'Passes between two paused stretches: {len(found)}')
+        for number, stretch in enumerate(found, 1):
+            print(f"Pass {number}: seconds {stretch[0]['t']}..{stretch[-1]['t']} ({len(stretch)} s), "
+                  f"{stretch[0]['stamp'][11:19]}..{stretch[-1]['stamp'][11:19]} UTC")
+            summarize(stretch, '  ')
     print('Core windows ending inside these seconds (5.1 s; nested durations, never summed):')
     begin, finish = min(s['stamp'] for s in chosen), max(s['stamp'] for s in chosen)
     for stamp, data in windows:
