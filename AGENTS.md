@@ -2,7 +2,7 @@
 
 Read this guide before work. It contains current project state and permanent
 rules; detailed investigations and build receipts belong in `docs/`.
-Last reconciled: **1 November 2026**, after private Build **609**.
+Last reconciled: **2 November 2026**, after private Build **612**.
 
 ## Start here
 
@@ -21,25 +21,32 @@ Last reconciled: **1 November 2026**, after private Build **609**.
 
 | Item | Verified reference |
 | --- | --- |
-| Application | **RewindBox 0.0.8 (611)**, private IPA; iOS 18+, SideStore re-signing |
-| Delivery source | `3952b4abb07d3055e1a9319b80f68023a3da646e`, tree `4eeea305a09a64d8bfcd19213a2b759a7d078e7a`; frozen manifest [`build-utils/delivery/611.json`](build-utils/delivery/611.json) (effective product digest `62414e99…`) |
-| Delivery run / jobs | `41380039319`, attempt 1, **first build of the standard recipe** (`.github/workflows/standard-delivery.yml`): preflight `125068618866`, republish `125068786386`, application `125068785723`, all successful (about 18 min); Flutter `125061363126` and native `125061363640` test jobs **reused** from run `41377459800` on the identical effective tree (only the recipe changed); the delivery contract re-ran |
-| Downloaded IPA | `RewindBox-611.ipa`, 190211165 bytes; SHA-256 `f4836b87a7810071e6d8a2bd48e76db67fb8b224912014931c4b128971d1e4dc` |
-| Product baseline | Delivered 610 plus the reviewed commits listed in the manifest: PS3 RetroAchievements through RPCS3 (`57eb301e`, `06ea96aa`, `6f4244a0`), the game boxes (`cdba0321`), the RPCS3 Core 611 route and its tests; the RetroAchievements identification batch `b06888a9` (612) is on the branch but **not compiled**: its 83 product paths are restored to their reviewed bytes |
-| MeloNX Core | **Replaced**: fragmented-read Core `b99e754d`, run `41347064464`, artifact `13099194047`, packaged fingerprint `98ecdb25…` ([report](docs/melonx-fragmented-reads-2026-11-01.md)) |
-| RPCS3 Core | **Replaced: Core 611** = Core 610 + PS3 RetroAchievements hooks, source `c934705e`, run `41363493412`, artifact `13106199627`, dylib `d30a2ea4…`, payload `affb9d2d…`; ABI 30, 92 exports (88 + 4 `rpcs3_ios_ra_*`), PPU/SPU cache identities unchanged, Homebrew clang 22.1.8 ([pin](build-utils/rpcs3/core-pin.json)) |
-| Dolphin Core | Retained from 608 (payload `640e4389…`); archive republished by run `41380039319` (90 days) |
-| ARMSX2 Core | Retained from 608 (payload `fab55193…`, ABI 9); archive republished by run `41380039319` (90 days) |
-| libretro / MeloNX dependencies | Retained archives `12280822192` / `12458409441`, **republished** by run `41380039319` before their expiry (3 and 5 November) |
-| Delivery proof | [delivery receipt](docs/evidence/rewind611/delivery.json), [signed payload identity](docs/evidence/rewind611/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind611/download611-verification.json); 610: [receipt](docs/evidence/rewind610/delivery.json) |
+| Application | **RewindBox 0.0.8 (612)**, private IPA; iOS 18+, SideStore re-signing |
+| Delivery source | `dd5f65c20486806a442d93062f8ea8802f9f9c58`, tree `81c96ac194992e7615e569e1dd8625769fe73398`; frozen manifest [`build-utils/delivery/612.json`](build-utils/delivery/612.json) (effective product digest `a88d478b…`, replayed from the delivered 611 effective tree `62414e99…`) |
+| Delivery run / jobs | `41386771013`, attempt 1, standard recipe: preflight `125089224772`, Flutter `125089394055`, native `125089394046`, republish `125089394015`, application `125089394008`, all successful (about 25 min); both test groups ran fresh, with the delivery contract |
+| Downloaded IPA | `RewindBox-612.ipa`, 190250768 bytes; SHA-256 `f2c6702d419792e8df8ede88a5e94807945692a95420f8b4cde2ac872814ea7b` |
+| Product baseline | Delivered 611 plus the reviewed RPCS3 612 commits (`a2596ecd`, `4a4bd50a`, `74f886ef`, `8b8a7362`, `d9cdb96f`): in-game accuracy test page, Core 612 delta and their tests; the RetroAchievements identification batch `b06888a9` stays **deferred** (inherited from the 611 effective tree, 83 product paths restored) |
+| MeloNX Core | **Kept from 611** (`unchangedFromBase`): fragmented-read Core `b99e754d`, packaged fingerprint `98ecdb25…`, reinstalled from its pin |
+| RPCS3 Core | **Replaced: Core 612** = Core 610 + the RetroAchievements hooks of 611 + census v2 + per-game graphics test levers; run `41384244220`, artifact `13115426805`, dylib `4ad4c97f…`, payload `be2d70a5…`; ABI 30, 92 exports, PPU/SPU cache identities unchanged ([report](docs/rpcs3-core612-2026-11-02.md), [pin](build-utils/rpcs3/core-pin.json)) |
+| Dolphin Core | Retained from 608 (payload `640e4389…`) through the archive republished by run `41380039319` |
+| ARMSX2 Core | Retained from 608 (payload `fab55193…`, ABI 9) through the archive republished by run `41380039319` |
+| libretro / MeloNX dependencies | Retained through the archives republished by run `41380039319` (kept until 31 January 2027) |
+| Delivery proof | [delivery receipt](docs/evidence/rewind612/delivery.json), [signed payload identity](docs/evidence/rewind612/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind612/download612-verification.json); 611: [receipt](docs/evidence/rewind611/delivery.json) |
+
+612 is delivered, not a pending candidate. Do not reuse its number. It is the
+first build on a standard-recipe base: the recipe now replays from the base's
+delivered effective tree and supports an unchanged pinned Core
+([recipe note](docs/standard-delivery-recipe.md)). Its accuracy test page changes
+no default; no iPhone result yet. The private 612 recipient key was deleted
+after the verified delivery. The RPCS3 Core route depends on the MoltenVK
+dependency run `41239096061`, whose artifacts expire on 14 November 2026 at
+20:30 UTC.
 
 611 is delivered, not a pending candidate. Do not reuse its number. Its earlier
 attempts (runs `41373565877`, `41374661558`, `41377459800`) failed in the recipe
 or in load-sensitive tests and delivered nothing; each retry changed only the
-recipe or a reviewed test. **612 starts from the 611 receipt above** with the
-same standard recipe (`build-utils/delivery/612.json`); retained components are
-taken from the archives republished by run `41380039319`. The private 611
-recipient key was deleted after the verified delivery.
+recipe or a reviewed test. The private 611 recipient key was deleted after the
+verified delivery.
 
 610 is delivered, not a pending candidate. Do not reuse its number. Its first
 delivery run `41341797604` failed in the retained MeloNX packaging check
@@ -51,7 +58,7 @@ recorded in its own report.
 standard recipe: its manifest was reviewed by an independent review agent (the
 RPCS3 session, moved to 612 by the maintainer, did not review it); the earlier
 609-based 611 recipe (`462620d`, `rewind611_*`, run `41340417135` cancelled) is
-superseded. 612 is allocated to the RPCS3 session.
+superseded. 612 (RPCS3 session) is delivered on top of it.
 
 **Delivered 609:** delivered 608 with only the MeloNX Core replaced. The new
 Core corrects LightningJit liveness metadata that lost guest NZCV/vector state
