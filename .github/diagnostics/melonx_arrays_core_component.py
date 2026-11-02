@@ -17,7 +17,7 @@ import zipfile
 
 import rewind596_engine as parsing
 from rewind606_engine import safe_members, value_at
-from melonx_reads_core_component import api, inputs_match, read, require, sha, verify_execution
+from melonx_reads_core_component import api, inputs_match as current_inputs_match, original_bytes, read, require, sha, verify_execution
 
 ROOT = Path(__file__).resolve().parents[2]
 NEW = ROOT / 'dist/melonx'
@@ -27,6 +27,26 @@ CONTRACT = 'build-utils/melonx/arrays-core-contract.json'
 READS_CONTRACT = 'build-utils/melonx/reads-core-contract.json'
 READS_PIN = 'build-utils/melonx/reads-core-pin.json'
 WORKFLOW = '.github/workflows/melonx-core.yml'
+# The producing route is a recipe path and may move on after this Core was built: once
+# melonx-core.yml no longer routes this Core's verifier (88c4cb85 routes the Hogwarts DMA-copy
+# successor), the archived Core keeps its authenticated digests and the route workflow is read
+# at the producer commit, as test/melonx_arrays_core_contract_test.py does. Every other input
+# (product paths, restored to their effective bytes) must still match at the checkout too.
+ROUTED = 'python3 build-utils/melonx/verify_arrays_core.py run_gates\n' in (ROOT / WORKFLOW).read_text()
+
+
+def inputs_match(inputs, source):
+    if ROUTED:
+        current_inputs_match(inputs, source)
+        return
+    require(bool(inputs), 'Empty producer input inventory')
+    others = {path: digest for path, digest in inputs.items() if path != WORKFLOW}
+    if others:
+        current_inputs_match(others, source)
+    if WORKFLOW in inputs:
+        require(sha(original_bytes(source, WORKFLOW)) == inputs[WORKFLOW], 'Producer input changed: ' + WORKFLOW)
+
+
 RUNTIMES = ('ios-arm64', 'iossimulator-arm64')
 HISTORICAL = 'historical-b99e754d/'
 EVIDENCE = 'baseline-b99e754d/'
