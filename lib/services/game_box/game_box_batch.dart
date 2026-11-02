@@ -121,9 +121,10 @@ class GameBoxBatch {
     bool askScreenScraper = false,
     bool extraSources = true,
     GameBoxCancel? cancel,
+    bool upgradeLanguage = false,
   }) async {
     if (kinds.isEmpty) return GameBoxBatchOutcome.none;
-    final needed = await GameBoxMediaService.facesToComplete(ctx, kinds);
+    final needed = await GameBoxMediaService.facesToComplete(ctx, kinds, upgradeLanguage: upgradeLanguage);
     if (needed.isEmpty || (cancel?.cancelled ?? false)) return GameBoxBatchOutcome.none;
     return _serial(() async {
       final adopted = <GameBoxMediaKind, GameBoxProvider>{};
@@ -165,11 +166,17 @@ class GameBoxBatch {
         for (final e in found.statuses.entries) {
           if (providers.contains(e.key)) statuses[e.key] = e.value;
         }
-        final report = await GameBoxMediaService.complete(game, search: found, cancel: cancel, kinds: remaining);
+        final report = await GameBoxMediaService.complete(
+          game,
+          search: found,
+          cancel: cancel,
+          kinds: remaining,
+          upgradeLanguage: upgradeLanguage,
+        );
         adopted.addAll(report.adoptedBy);
         remaining = {
           for (final kind in remaining)
-            if (!adopted.containsKey(kind)) kind,
+            if (!adopted.containsKey(kind) && report.outcomes[kind] != GameBoxFaceOutcome.kept) kind,
         };
       }
 

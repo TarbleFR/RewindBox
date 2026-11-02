@@ -28,9 +28,13 @@ class GameBoxPixels {
 /// that size, without the ringing of Lanczos or Catmull-Rom), so that it is
 /// then drawn pixel for pixel. With `sharpen`, a light unsharp mask is added
 /// on the brightness only: no colour fringes, and differences below a small
-/// threshold (the grain and JPEG noise of the scan) are left alone. Nothing
-/// is added to the scan and it is never enlarged: shown larger than it is,
-/// it is used at its own size.
+/// threshold (the grain and JPEG noise of the scan) are left alone.
+///
+/// Shown larger than it is (a closer look at a small scan), the scan is
+/// enlarged the same way, up to [maxUpscale] times, with a sharpening sized
+/// to the enlargement: smoother and crisper print than the screen's own
+/// bilinear stretch (docs/game-box-3d.md § 19). It is interpolation only:
+/// nothing is invented, a scan too small to be read stays so.
 class GameBoxSharpScan {
   GameBoxSharpScan._();
 
@@ -50,14 +54,34 @@ class GameBoxSharpScan {
   /// Above this many pixels the scan is resampled but not sharpened (memory).
   static const int maxSharpenPixels = 12 * 1024 * 1024;
 
-  /// Width of the render of a scan [scanWidth] px wide that fills
-  /// [displayWidth] physical pixels: rounded up to [widthStep], never more
-  /// than the scan (nor [maxWidth]).
-  static int targetWidth(double scanWidth, double displayWidth) {
+  /// Largest enlargement of a scan: the flat view stops at about two and a
+  /// half screen pixels per pixel of the scan.
+  static const double maxUpscale = 2.5;
+
+  /// Widest render of a scan [scanWidth] px wide.
+  static int maxRenderWidth(double scanWidth) {
     final native = math.min(scanWidth.round(), maxWidth);
     if (native <= 0) return 0;
+    return math.min(maxWidth, (native * maxUpscale).round());
+  }
+
+  /// Width of the render of a scan [scanWidth] px wide that fills
+  /// [displayWidth] physical pixels: rounded up to [widthStep], at most
+  /// [maxUpscale] times the scan (and [maxWidth]).
+  static int targetWidth(double scanWidth, double displayWidth) {
+    final limit = maxRenderWidth(scanWidth);
+    if (limit <= 0) return 0;
     final wanted = ((displayWidth / widthStep).ceil() * widthStep).clamp(widthStep, maxWidth);
-    return math.min(wanted, native);
+    return math.min(wanted, limit);
+  }
+
+  /// Sharpening of a render [factor] times wider than its scan: a larger
+  /// radius as the print's edges spread over more pixels, and a little more
+  /// strength, both bounded.
+  static ({double amount, double sigma}) sharpeningFor(double factor) {
+    if (factor <= 1) return (amount: sharpenAmount, sigma: sharpenSigma);
+    final f = math.min(factor, maxUpscale);
+    return (amount: sharpenAmount + 0.1 * (f - 1), sigma: sharpenSigma * math.min(f, 2.0));
   }
 
   /// Whether a render [current] px wide can stay for a target [wanted] px wide.
@@ -73,7 +97,13 @@ class GameBoxSharpScan {
     final size = GameBoxImageSize.of(path);
     if (size == null || size.width <= 0 || size.height <= 0) return null;
     final native = math.min(size.width.round(), maxWidth);
-    final target = width.clamp(1, native);
+    var target = width.clamp(1, maxRenderWidth(size.width));
+    // An enlarged render stays within the sharpening budget (memory).
+    if (target > native) {
+      final aspect = size.height / size.width;
+      final fit = math.sqrt(maxSharpenPixels / aspect).floor();
+      target = math.max(native, math.min(target, fit));
+    }
     try {
       final processor = debugProcessor;
       if (processor != null) {
@@ -92,18 +122,19 @@ class GameBoxSharpScan {
       final sw = source.width, sh = source.height;
       final th = math.max(1, (sh * target / sw).round());
       final shouldSharpen = sharpen && target * th <= maxSharpenPixels;
-      if (target >= sw && !shouldSharpen) return source;
+      if (target == sw && !shouldSharpen) return source;
       final data = await source.toByteData(format: ui.ImageByteFormat.rawRgba);
       source.dispose();
       if (data == null) return null;
       final input = TransferableTypedData.fromList([data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes)]);
+      final tuning = sharpeningFor(target / sw);
       final output = await Isolate.run(() {
         var px = GameBoxPixels(sw, sh, input.materialize().asUint8List());
-        px = resample(px, math.min(target, sw), th);
-        if (shouldSharpen) px = sharpenLuma(px);
+        px = resample(px, target, th);
+        if (shouldSharpen) px = sharpenLuma(px, amount: tuning.amount, sigma: tuning.sigma);
         return TransferableTypedData.fromList([px.rgba]);
       });
-      return await _toImage(output.materialize().asUint8List(), math.min(target, sw), th);
+      return await _toImage(output.materialize().asUint8List(), target, th);
     } catch (_) {
       return null;
     }

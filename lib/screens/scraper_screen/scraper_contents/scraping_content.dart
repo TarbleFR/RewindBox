@@ -44,7 +44,13 @@ class ScrapingContentState extends State<ScrapingContent> {
 
   static final _log = LoggerService.instance;
 
+  /// Number of the last Start: an older run stopped by a newer one leaves
+  /// the shared progress and notification to it (docs/game-box-3d.md § 19).
+  static int _starts = 0;
+
   Future<void> _startScraping() async {
+    final start = ++_starts;
+    bool superseded() => start != _starts;
     final scrapingProvider = context.read<ScrapingProvider>();
     // The box faces the media choices ask for are completed in the library's
     // media folders (docs/game-box-3d.md § 18).
@@ -98,6 +104,7 @@ class ScrapingContentState extends State<ScrapingContent> {
       _log.i('Step 1: Synchronizing system IDs...');
       final syncSuccess = await ScreenScraperService.syncSystemIds();
 
+      if (superseded()) return;
       if (!syncSuccess) {
         GlobalNotificationService().update(
           id: notificationId,
@@ -124,6 +131,7 @@ class ScrapingContentState extends State<ScrapingContent> {
         fileProvider: fileProvider,
       );
 
+      if (superseded()) return;
       if (scrapingSuccess) {
         if (scrapingProvider.successfulGames > 0) {
           scrapingProvider.markArtworkUpdated();
@@ -157,6 +165,7 @@ class ScrapingContentState extends State<ScrapingContent> {
         );
       }
     } on ScreenscraperQuotaExceededException {
+      if (superseded()) return;
       GlobalNotificationService().update(
         id: notificationId,
         message: localeScrapeQuotaExceeded,
@@ -164,6 +173,7 @@ class ScrapingContentState extends State<ScrapingContent> {
         progress: null,
       );
     } catch (e) {
+      if (superseded()) return;
       GlobalNotificationService().update(
         id: notificationId,
         message: '$localeError: ${e.toString()}',
@@ -174,8 +184,10 @@ class ScrapingContentState extends State<ScrapingContent> {
       if (mounted) {
         setState(() {});
       }
-      scrapingProvider.stopScraping();
-      widget.onScrapingFinished?.call();
+      if (!superseded()) {
+        scrapingProvider.stopScraping();
+        widget.onScrapingFinished?.call();
+      }
     }
   }
 

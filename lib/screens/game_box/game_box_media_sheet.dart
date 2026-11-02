@@ -206,6 +206,9 @@ class GameBoxMediaSheetState extends State<GameBoxMediaSheet> {
             setState(() => _busy = _f(GameBoxLocale.mediaDownloading, {'face': _t(faceKey(kind))}));
           }
         },
+        // A face of another language gives way to the print in the
+        // scraping language (docs/game-box-3d.md § 19).
+        upgradeLanguage: true,
       );
       if (!mounted) return;
       _changed.addAll(report.changedPaths);

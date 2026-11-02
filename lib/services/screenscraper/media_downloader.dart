@@ -295,9 +295,9 @@ class ScreenscraperMediaDownloader {
   /// except an imported console icon, always replaced. [protectedTypes] are
   /// never written: faces chosen by hand or by the box-media sources
   /// (docs/game-box-3d.md § 18). With [replaceOtherVariants] ("New content
-  /// only" after the choices changed), a picture proven to be another
-  /// ScreenScraper variant (same MD5 as one ScreenScraper lists) is replaced
-  /// by the best one for the current regions and language.
+  /// only" after the choices changed), a picture or a manual proven to be
+  /// another ScreenScraper variant (same MD5 as one ScreenScraper lists) is
+  /// replaced by the best one for the current regions and language (§ 19).
   static Future<Map<String, dynamic>> downloadGameMedia(
     String systemFolder,
     String romName,
@@ -362,7 +362,8 @@ class ScreenscraperMediaDownloader {
         'url': bestMedia['url'].toString(),
         'relativePath': '$systemFolder/$folderName/$romBaseName.$fileFormat',
         'mediaType': mediaType,
-        if (replaceOtherVariants && mediaType != 'video' && mediaType != 'manuel')
+        // A manual is replaced too: a new language brings its own print.
+        if (replaceOtherVariants && mediaType != 'video')
           'variants': ScreenscraperMediaVariants.of(
             bestMedia,
             ScreenscraperMediaResolver.candidatesOf(medias, mediaType),

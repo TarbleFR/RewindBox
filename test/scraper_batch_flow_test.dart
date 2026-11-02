@@ -2,6 +2,7 @@
 // a fake ScreenScraper (docs/game-box-3d.md § 18): "New content only" after
 // the choices change, imported console icons, protected faces, and the box
 // faces completed from the other sources on the same Start button.
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -21,6 +22,7 @@ import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/game_box/game_box_media_check.dart';
 import 'package:neostation/services/game_box/game_box_media_service.dart';
 import 'package:neostation/services/game_box/game_box_sources.dart';
+import 'package:neostation/services/screenscraper/media_resolver.dart';
 import 'package:neostation/services/screenscraper/scrape_choices.dart';
 import 'package:neostation/services/screenscraper/screenscraper_client.dart';
 import 'package:neostation/services/screenscraper_service.dart';
@@ -70,6 +72,18 @@ class _FakeScreenScraper {
   final medias = <Map<String, dynamic>>[];
   String name = 'Game';
 
+  /// Game lookups answered "busy" (HTTP 429), then failing with a lost
+  /// connection, before the normal answers.
+  int busyLookups = 0;
+  int failingLookups = 0;
+
+  /// When set, the first game lookup waits for it (a slow answer).
+  Completer<void>? gate;
+  final firstLookup = Completer<void>();
+
+  /// When set, only a lookup by this ROM name finds the game.
+  String? onlyName;
+
   /// Lists [bytes] as the [type] media of [region], with its MD5 and size.
   void serve(String type, List<int> bytes, {String region = 'us', String format = 'png'}) {
     final file = '$type-$region.$format';
@@ -99,6 +113,24 @@ class _FakeScreenScraper {
   http.Client get client => MockClient((request) async {
         requests.add(request.url);
         if (request.url.path.endsWith('jeuInfos.php')) {
+          if (!firstLookup.isCompleted) firstLookup.complete();
+          final wait = gate;
+          if (wait != null) {
+            gate = null;
+            await wait.future;
+          }
+          if (busyLookups > 0) {
+            busyLookups--;
+            return http.Response('Trop de threads', 429);
+          }
+          if (failingLookups > 0) {
+            failingLookups--;
+            throw http.ClientException('Connection reset by peer');
+          }
+          final wanted = onlyName;
+          if (wanted != null && request.url.queryParameters['romnom'] != wanted) {
+            return http.Response(jsonEncode({'header': {'success': 'false', 'error': 'Jeu non trouvée'}}), 200);
+          }
           return http.Response(
             jsonEncode({
               'header': {'success': 'true'},
@@ -208,6 +240,8 @@ void main() {
     );
     ss = _FakeScreenScraper();
     ScreenscraperClient.debugClient = ss.client;
+    ScreenscraperClient.busyDelay = (_) => Duration.zero;
+    ScreenScraperService.retryPause = Duration.zero;
     GameBoxMediaService.debugFetch = null;
   });
 
@@ -233,6 +267,11 @@ void main() {
         ));
     return provider;
   }
+
+  Future<void> language(WidgetTester tester, String code) => tester.runAsync(() async {
+        final db = await SqliteService.getDatabase();
+        await db.rawUpdate('UPDATE user_screenscraper_credentials SET preferred_language = ?', [code]);
+      });
 
   Future<void> choose(WidgetTester tester, List<String> types) =>
       tester.runAsync(() => ScraperRepository.saveEnabledMediaTypes(types)).then((_) {});
@@ -370,6 +409,164 @@ void main() {
     });
   });
 
+  group('stability', () {
+    late File rom;
+    setUp(() async {
+      await addSystem('snes', 4);
+      await (await SqliteService.getDatabase())
+          .execute("INSERT INTO app_system_extensions (system_id, extension) VALUES ('snes', 'sfc')");
+      rom = File(p.join(root.path, 'roms', 'snes', 'Game.sfc'))..createSync(recursive: true);
+      rom.writeAsBytesSync(List.filled(64, 1));
+      await addRom('snes', 'Game.sfc', rom.path);
+      ss.serve('box-2D', _pngHeader(400, 560, tag: 1));
+      await ScraperRepository.saveEnabledMediaTypes(const ['box2D']);
+    });
+
+    testWidgets('ScreenScraper busy (HTTP 429) is waited out instead of failing the game', (tester) async {
+      ss.busyLookups = 2;
+      final run = await scrape(tester);
+      expect(run.successfulGames, 1);
+      expect(run.failedGames, 0);
+      expect(file('snes', 'box2d', 'Game.png').existsSync(), isTrue);
+    });
+
+    testWidgets('a game hit by a lost connection is tried again at the end of the run', (tester) async {
+      // Name lookup and checksum lookup, two tries each: all four fail.
+      ss.failingLookups = 4;
+      final run = await scrape(tester);
+      expect(run.successfulGames, 1, reason: 'found on the second pass');
+      expect(run.failedGames, 0);
+      expect(file('snes', 'box2d', 'Game.png').existsSync(), isTrue);
+      expect(await complete(tester, 'Game.sfc'), 1);
+    });
+
+    testWidgets('a game not found is not tried again', (tester) async {
+      ss.onlyName = 'Something else';
+      final run = await scrape(tester);
+      expect(run.failedGames, 1);
+      expect(ss.lookups, 2, reason: 'by name, then by checksum, once');
+    });
+
+    testWidgets('a new Start stops the run still going, waits for it, then scrapes', (tester) async {
+      late BuildContext context;
+      await tester.pumpWidget(Builder(builder: (c) {
+        context = c;
+        return const SizedBox();
+      }));
+      await tester.pumpWidget(const SizedBox());
+      final first = ScrapingProvider()..startScraping(maxThreads: 2);
+      final second = ScrapingProvider();
+      late bool a, b;
+      await tester.runAsync(() async {
+        // Made on the real clock, like the requests that wait for it.
+        final gate = ss.gate = Completer<void>();
+        final runA = ScreenScraperService.startMetadataScraping(context, first,
+            shouldCancel: () => !first.isScraping);
+        await ss.firstLookup.future;
+        second.startScraping(maxThreads: 2);
+        final runB = ScreenScraperService.startMetadataScraping(context, second,
+            shouldCancel: () => !second.isScraping);
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        gate.complete();
+        a = await runA;
+        b = await runB;
+      });
+      expect(a, isFalse, reason: 'the older run stopped');
+      expect(b, isTrue);
+      expect(second.successfulGames, 1);
+      expect(file('snes', 'box2d', 'Game.png').existsSync(), isTrue);
+    });
+
+    test('a file name is reduced to its bare title for a lookup by name', () {
+      expect(ScreenScraperService.bareTitleOf('Super Mario Odyssey [0100000000010000][v0].nsp'), 'Super Mario Odyssey');
+      expect(ScreenScraperService.bareTitleOf('Zelda (Europe) (En,Fr).rvz'), 'Zelda');
+      expect(ScreenScraperService.bareTitleOf('Plain.iso'), 'Plain');
+    });
+
+    testWidgets('a disc image too large to hash is looked up by its bare title', (tester) async {
+      await addSystem('switch', 225);
+      final big = File(p.join(root.path, 'roms', 'switch', 'Odyssey [0100000000010000][v0].nsp'))
+        ..createSync(recursive: true);
+      // Sparse: no space used, but larger than the hashing limit.
+      final raf = big.openSync(mode: FileMode.write)..truncateSync(ScreenScraperService.batchMd5Limit + 1);
+      raf.closeSync();
+      addTearDown(() => big.deleteSync());
+      await addRom('switch', 'Odyssey [0100000000010000][v0].nsp', big.path);
+      await (await SqliteService.getDatabase()).execute("DELETE FROM user_roms WHERE app_system_id = 'snes'");
+      ss.onlyName = 'Odyssey';
+      final run = await scrape(tester);
+      expect(run.failedGames, 0);
+      expect(run.successfulGames, 1);
+      expect(ss.requests.where((u) => u.queryParameters['md5']?.isNotEmpty ?? false), isEmpty,
+          reason: 'the large file was not hashed');
+      expect(ss.lookups, 2, reason: 'by file name, then by bare title');
+      expect(file('switch', 'box2d', 'Odyssey [0100000000010000][v0].png').existsSync(), isTrue);
+    });
+  });
+
+  test('the best ScreenScraper media in French: covers and manuals, not screenshots', () {
+    final medias = [
+      {'type': 'box-2D', 'region': 'wor', 'url': 'w'},
+      {'type': 'box-2D', 'region': 'us', 'url': 'u'},
+      {'type': 'box-2D', 'region': 'fr', 'url': 'f'},
+      {'type': 'ss', 'region': 'wor', 'url': 'sw'},
+      {'type': 'ss', 'region': 'fr', 'url': 'sf'},
+    ];
+    const priority = {'wor': 100, 'us': 90, 'eu': 80, 'jp': 70, 'sp': 60, 'fr': 50};
+    String? best(String type, String language) => ScreenscraperMediaResolver.selectBestMedia(
+          medias,
+          type,
+          preferredLanguage: language,
+          regionPriority: priority,
+        )?['url'];
+    expect(best('box2D', 'fr'), 'f');
+    expect(best('box2D', 'en'), 'w', reason: 'the region order decides in English');
+    expect(best('ss', 'fr'), 'sw', reason: 'a screenshot has no language');
+  });
+
+  group('French', () {
+    late File rom;
+    setUp(() async {
+      await addSystem('snes', 4);
+      await (await SqliteService.getDatabase())
+          .execute("INSERT INTO app_system_extensions (system_id, extension) VALUES ('snes', 'sfc')");
+      rom = File(p.join(root.path, 'roms', 'snes', 'Game.sfc'))..createSync(recursive: true);
+      rom.writeAsBytesSync(List.filled(64, 1));
+      await addRom('snes', 'Game.sfc', rom.path);
+      ss.serve('box-2D', _pngHeader(400, 560, tag: 1), region: 'us');
+      ss.serve('box-2D', _pngHeader(400, 560, tag: 2), region: 'fr');
+      ss.serve('manuel', [..._pdf, 1], format: 'pdf', region: 'us');
+      ss.serve('manuel', [..._pdf, 2], format: 'pdf', region: 'fr');
+      ss.serve('ss', _pngHeader(640, 480, tag: 3), region: 'wor');
+      await ScraperRepository.saveEnabledMediaTypes(const ['box2D', 'manuel', 'ss']);
+    });
+
+    testWidgets('scraping in French takes the French cover and manual', (tester) async {
+      await language(tester, 'fr');
+      await scrape(tester);
+      expect(file('snes', 'box2d', 'Game.png').readAsBytesSync(), _pngHeader(400, 560, tag: 2));
+      expect(file('snes', 'manuals', 'Game.pdf').readAsBytesSync(), [..._pdf, 2]);
+    });
+
+    testWidgets('switching to French replaces the English cover and manual on the next run', (tester) async {
+      await scrape(tester);
+      expect(file('snes', 'box2d', 'Game.png').readAsBytesSync(), _pngHeader(400, 560, tag: 1));
+      expect(file('snes', 'manuals', 'Game.pdf').readAsBytesSync(), [..._pdf, 1]);
+
+      // What the Language page does.
+      await language(tester, 'fr');
+      await tester.runAsync(() => ScrapeChoices.languageChanged('en', 'fr'));
+      final before = ss.downloads.length;
+      final run = await scrape(tester);
+      expect(run.totalGames, 1);
+      expect(file('snes', 'box2d', 'Game.png').readAsBytesSync(), _pngHeader(400, 560, tag: 2));
+      expect(file('snes', 'manuals', 'Game.pdf').readAsBytesSync(), [..._pdf, 2]);
+      expect(ss.downloads.skip(before), unorderedEquals(['box-2D-fr.png', 'manuel-fr.pdf']),
+          reason: 'the screenshot has no language and stays');
+      expect(run.mediaReplaced, 2);
+    });
+  });
+
   group('box faces on the same Start', () {
     const title = "Super Mario 3D World + Bowser's Fury";
     late File rom;
@@ -391,6 +588,7 @@ void main() {
 <a href="https://art.gametdb.com/switch/backHQ/EN/AUZPA.jpg">b</a>
 <a href="https://art.gametdb.com/switch/coverfullHQ/EN/AUZPA.jpg">f</a>'''));
       GameBoxMediaService.debugFetch = (url) async => served[url] ?? ss.fileOf(url);
+      GameBoxMediaService.clearPageCache();
     });
 
     GameBoxLocalMedia local() => GameBoxMediaStore(files)
@@ -452,6 +650,30 @@ void main() {
 
       final again = await scrape(tester, files: files);
       expect(again.facesBySource, isEmpty, reason: 'only the support is left, and no source has it');
+    });
+
+    testWidgets('switching to French: a back from GameTDB in English gives way to its French print', (tester) async {
+      served['${GameTdb.site}/Switch/AUZPA'] = Uint8List.fromList(utf8.encode('''
+<a href="https://art.gametdb.com/switch/backHQ/EN/AUZPA.jpg">en</a>
+<a href="https://art.gametdb.com/switch/backHQ/FR/AUZPA.jpg">fr</a>'''));
+      final english = await tester.runAsync(() => _picture(1166, 1888, color: const Color(0xFF00A0E0)));
+      final french = await tester.runAsync(() => _picture(1166, 1888, color: const Color(0xFF2050C0)));
+      served['https://art.gametdb.com/switch/backHQ/EN/AUZPA.jpg'] = english!;
+      served['https://art.gametdb.com/switch/backHQ/FR/AUZPA.jpg'] = french!;
+      await choose(tester, const ['boxFaces']);
+      // The player's regions put the British print first.
+      await tester.runAsync(() => ScrapeChoices.saveRegionPriority(const ['uk', 'wor', 'us', 'eu', 'jp', 'fr']));
+
+      await scrape(tester, files: files);
+      expect(local().recordOf(GameBoxMediaKind.back)?.region, 'uk');
+
+      await language(tester, 'fr');
+      await tester.runAsync(() => ScrapeChoices.languageChanged('en', 'fr'));
+      final run = await scrape(tester, files: files);
+      final back = local().recordOf(GameBoxMediaKind.back);
+      expect(back?.region, 'fr', reason: 'the same edition, printed in French');
+      expect(File(local().back!).readAsBytesSync(), french);
+      expect(run.facesBySource, {'gametdb': 1});
     });
 
     testWidgets('all content: a face chosen by hand is never overwritten', (tester) async {

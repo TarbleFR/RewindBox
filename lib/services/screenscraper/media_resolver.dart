@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../config_service.dart';
+import '../game_box/game_box_regions.dart';
 
 /// Media resolution helpers for ScreenScraper downloads.
 ///
@@ -76,6 +77,15 @@ class ScreenscraperMediaResolver {
     ];
   }
 
+  /// Settings whose picture carries text: box faces, title logo, manual.
+  static const textMedia = {'box2D', 'box-2D-back', 'box-2D-side', 'support-2D', 'wheel', 'manuel'};
+
+  /// Whether a [region] print of a [mediaType] is in [language]: a French
+  /// cover or manual is the France edition's (docs/game-box-3d.md § 19).
+  /// English is the default of most scans and gets no preference.
+  static bool printsLanguage(String mediaType, String region, String language) =>
+      language != 'en' && textMedia.contains(mediaType) && GameBoxRegions.languageOfRegion(region) == language;
+
   /// Selects the best media asset from a list based on region and language priority.
   ///
   /// Priority: World > US > EU > Others > Asia.
@@ -106,7 +116,11 @@ class ScreenscraperMediaResolver {
       final mediaLang = media['langue']?.toString() ?? '';
 
       if (preferredLanguage != null && preferredLanguage.isNotEmpty) {
-        if (mediaLang == preferredLanguage) languageBonus = 200;
+        if (mediaLang == preferredLanguage) {
+          languageBonus = 200;
+        } else if (printsLanguage(mediaType, region, preferredLanguage)) {
+          languageBonus = 150;
+        }
       } else {
         final langIndex = defaultLanguageHierarchy.indexOf(mediaLang);
         if (langIndex != -1) {

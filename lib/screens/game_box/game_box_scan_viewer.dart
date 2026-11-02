@@ -17,9 +17,11 @@ import 'package:neostation/utils/gamepad_nav.dart';
 /// The decode already made for the box is shown at once; the full scan (up to
 /// [fullWidth] px wide) replaces it when ready. At each zoom the scan is then
 /// shown as made for that exact size, lightly sharpened unless "Sharp text"
-/// is off (docs/game-box-3d.md § 12). A scan is never enlarged past what it
-/// holds: the zoom stops at about two and a half screen pixels per pixel of
-/// the scan, and a low-resolution scan is said to be one.
+/// is off (docs/game-box-3d.md § 12). The zoom stops at about two and a half
+/// screen pixels per pixel of the scan; up to there a closer look is drawn
+/// from a bicubic enlargement with a matching sharpening instead of the
+/// screen's bilinear stretch (§ 19), and a low-resolution scan is said to be
+/// one.
 class GameBoxScanViewer extends StatefulWidget {
   const GameBoxScanViewer({super.key, required this.path, required this.title, this.preview});
 
@@ -235,10 +237,11 @@ class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
                         builder: (context, m, _) {
                           final sharp = _sharp.providerFor(widget.path, sharpen: _sharpText);
                           if (sharp == null) return const SizedBox.shrink();
-                          // Hidden while it would be enlarged: the full scan
-                          // shows meanwhile, until the closer one is ready.
+                          // Hidden while narrower than the zoom asks: the
+                          // full scan shows meanwhile, until the closer one
+                          // (enlarged up to 2.5 times, § 19) is ready.
                           final shown = math.min(_shownWidthPx * m.getMaxScaleOnAxis(),
-                              math.min(size.width, GameBoxSharpScan.maxWidth.toDouble()));
+                              GameBoxSharpScan.maxRenderWidth(size.width).toDouble());
                           if (sharp.width < shown * 0.85) return const SizedBox.shrink();
                           return Image(
                             key: const ValueKey('game_box_scan_sharp'),

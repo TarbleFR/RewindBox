@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
@@ -54,7 +55,30 @@ class ScreenScraperService {
   }
 
   static Map<String, dynamic>? _cachedCredentials;
-  static bool _isMetadataScrapingRunning = false;
+  /// The batch run in progress (null when none) and the number of the last
+  /// one started: a newer run makes the older one stop at its next step.
+  static Future<void>? _activeRun;
+  static int _runGeneration = 0;
+
+  /// Largest ROM file hashed during a batch run; a larger one is looked up by
+  /// its bare title (docs/game-box-3d.md § 19).
+  static const int batchMd5Limit = 1024 * 1024 * 1024;
+
+  /// A file name without extension nor bracketed tags: `Super Mario Odyssey
+  /// [0100000000010000][v0].nsp` gives `Super Mario Odyssey`.
+  @visibleForTesting
+  static String bareTitleOf(String filename) => FileProvider.stripRomExtension(filename)
+      .replaceAll(RegExp(r'\[[^\]]*\]|\([^)]*\)'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+
+  /// How long a new Start waits for the previous run to stop.
+  @visibleForTesting
+  static Duration previousRunWait = const Duration(seconds: 60);
+
+  /// Pause before the games that met a passing failure are tried again.
+  @visibleForTesting
+  static Duration retryPause = const Duration(seconds: 3);
 
   /// Authenticates user credentials against the ScreenScraper API.
   static Future<Map<String, dynamic>?> verifyCredentials(
@@ -1013,13 +1037,32 @@ class ScreenScraperService {
     bool Function()? shouldCancel,
     FileProvider? fileProvider,
   }) async {
-    try {
-      if (_isMetadataScrapingRunning) return false;
-      _isMetadataScrapingRunning = true;
+    // A new Start stops the run still finishing (after Stop, or blocked on a
+    // slow game) and waits for it instead of failing at once
+    // (docs/game-box-3d.md § 19).
+    final generation = ++_runGeneration;
+    final previous = _activeRun;
+    if (previous != null) {
+      _log.i('Scraper run #$generation: waiting for run #${generation - 1} to stop');
+      try {
+        await previous.timeout(previousRunWait);
+      } catch (_) {
+        _log.w('Scraper run #$generation: the previous run did not stop in time; starting anyway');
+      }
+    }
+    if (generation != _runGeneration) return false;
+    final done = Completer<void>();
+    _activeRun = done.future;
+    bool cancelled() => generation != _runGeneration || (shouldCancel?.call() ?? false);
+    var outcome = 'error';
 
+    try {
       final startTime = DateTime.now();
       final credentials = await getSavedCredentials();
-      if (credentials == null) return false;
+      if (credentials == null) {
+        outcome = 'no ScreenScraper account';
+        return false;
+      }
 
       ScreenscraperClient.initializeDailyCounter(0);
       final maxThreads = int.tryParse(credentials['maxthreads'] ?? '4') ?? 4;
@@ -1035,7 +1078,10 @@ class ScreenScraperService {
       final extraSources = await GameBoxPreferences.scrapeExtraSources();
 
       final systemMappings = await getSystemMappings();
-      if (systemMappings.isEmpty) return false;
+      if (systemMappings.isEmpty) {
+        outcome = 'no system to scrape';
+        return false;
+      }
 
       final systemsWithRoms = <Map<String, dynamic>>[];
       int totalGamesToProcess = 0;
@@ -1052,7 +1098,14 @@ class ScreenScraperService {
         }
       }
 
+      _log.i(
+        'Scraper run #$generation: mode=$scrapeMode language=$preferredLanguage '
+        'threads=$maxThreads media=${enabledTypes.join(',')} games=$totalGamesToProcess '
+        'boxFaces=${boxKinds.map((k) => k.name).join(',')} extraSources=$extraSources',
+      );
+
       if (systemsWithRoms.isEmpty) {
+        outcome = 'nothing to do';
         scrapingProvider.stopScraping();
         return true;
       }
@@ -1086,94 +1139,127 @@ class ScreenScraperService {
       int totalProcessedGames = 0;
       int totalSuccessfulGames = 0;
       int totalFailedGames = 0;
+      var wasCancelled = false;
+      final retry = <Map<String, dynamic>>[];
 
-      final batches = <List<Map<String, dynamic>>>[];
-      for (var i = 0; i < allRomsToProcess.length; i += maxThreads) {
-        batches.add(
-          allRomsToProcess.sublist(
-            i,
-            (i + maxThreads < allRomsToProcess.length)
-                ? i + maxThreads
-                : allRomsToProcess.length,
+      Future<Map<String, dynamic>> processOne(Map<String, dynamic> rom, int threadId) {
+        // The game's passing network failures are collected in its zone.
+        final transient = <Object>[];
+        return runZoned(
+          () => _processRomInThread(
+            rom: rom,
+            threadId: threadId,
+            systemName: rom['system_name'],
+            systemFolder: rom['system_folder'],
+            screenscraperSystemId:
+                int.tryParse(rom['screenscraper_system_id']?.toString() ?? '0') ?? 0,
+            appSystemId: rom['system_id'],
+            maxThreads: maxThreads,
+            maxDailyRequests: 100000,
+            preferredLanguage: preferredLanguage,
+            scrapingProvider: scrapingProvider,
+            shouldCancel: cancelled,
+            scraperConfig: scraperConfig,
+            fileProvider: fileProvider,
+            boxKinds: boxKinds,
+            extraSources: extraSources,
           ),
-        );
+          zoneValues: {ScreenscraperClient.transientErrorsKey: transient},
+        ).then((result) {
+          if (result['success'] != true && result['cancelled'] != true && transient.isNotEmpty) {
+            return {...result, 'transient': transient.first.toString()};
+          }
+          return result;
+        });
       }
 
-      for (final batch in batches) {
-        scrapingProvider.clearCompletedThreads();
-        if (shouldCancel != null && shouldCancel()) {
-          scrapingProvider.stopScraping();
-          return false;
-        }
-
-        final batchFutures = <Future<Map<String, dynamic>>>[];
-        for (var threadIndex = 0; threadIndex < batch.length; threadIndex++) {
-          final threadId = threadIndex + 1;
-          batchFutures.add(
-            _processRomInThread(
-              rom: batch[threadIndex],
-              threadId: threadId,
-              systemName: batch[threadIndex]['system_name'],
-              systemFolder: batch[threadIndex]['system_folder'],
-              screenscraperSystemId:
-                  int.tryParse(
-                    batch[threadIndex]['screenscraper_system_id']?.toString() ??
-                        '0',
-                  ) ??
-                  0,
-              appSystemId: batch[threadIndex]['system_id'],
-              maxThreads: maxThreads,
-              maxDailyRequests: 100000,
-              preferredLanguage: preferredLanguage,
-              scrapingProvider: scrapingProvider,
-              shouldCancel: shouldCancel,
-              scraperConfig: scraperConfig,
-              fileProvider: fileProvider,
-              boxKinds: boxKinds,
-              extraSources: extraSources,
-            ),
-          );
-        }
-
-        final results = await Future.wait(batchFutures);
-        for (var i = 0; i < results.length; i++) {
-          scrapingProvider.addMediaResult(
-            added: results[i]['mediaAdded'] as int? ?? 0,
-            replaced: results[i]['mediaReplaced'] as int? ?? 0,
-          );
-          scrapingProvider.addFaceResult(
-            (results[i]['facesBySource'] as Map<String, int>?) ?? const {},
-            results[i]['facesMissing'] as int? ?? 0,
-          );
-          totalProcessedGames++;
-          if (results[i]['success'] == true) {
+      void count(Map<String, dynamic> result, {bool retried = false}) {
+        scrapingProvider.addMediaResult(
+          added: result['mediaAdded'] as int? ?? 0,
+          replaced: result['mediaReplaced'] as int? ?? 0,
+        );
+        scrapingProvider.addFaceResult(
+          (result['facesBySource'] as Map<String, int>?) ?? const {},
+          result['facesMissing'] as int? ?? 0,
+        );
+        if (retried) {
+          if (result['success'] == true) {
             totalSuccessfulGames++;
-          } else if (results[i]['cancelled'] == true) {
-            return false;
+            totalFailedGames--;
+          }
+        } else {
+          totalProcessedGames++;
+          if (result['success'] == true) {
+            totalSuccessfulGames++;
           } else {
             totalFailedGames++;
           }
-
-          scrapingProvider.markThreadCompleted(i + 1);
-          scrapingProvider.updateProgress(
-            totalGames: totalGamesToProcess,
-            processedGames: totalProcessedGames,
-            successfulGames: totalSuccessfulGames,
-            failedGames: totalFailedGames,
-          );
         }
-        if (batches.length > 1) {
-          await Future.delayed(const Duration(milliseconds: 200));
-        }
+        scrapingProvider.updateProgress(
+          totalGames: totalGamesToProcess,
+          processedGames: totalProcessedGames,
+          successfulGames: totalSuccessfulGames,
+          failedGames: totalFailedGames,
+        );
       }
 
+      // A pool of workers: each takes the next game as soon as it is free,
+      // so one slow game no longer holds the others back.
+      Future<void> runPool(List<Map<String, dynamic>> queue, {required bool retried}) async {
+        var next = 0;
+        Future<void> worker(int threadId) async {
+          while (!wasCancelled) {
+            if (cancelled()) {
+              wasCancelled = true;
+              return;
+            }
+            if (next >= queue.length) return;
+            final rom = queue[next++];
+            final result = await processOne(rom, threadId);
+            if (result['cancelled'] == true) {
+              wasCancelled = true;
+              return;
+            }
+            count(result, retried: retried);
+            final why = result['transient'];
+            if (!retried && why != null) {
+              _log.w('Scraper run #$generation: ${rom['system_folder']}/${rom['filename']}: '
+                  'passing failure ($why), tried again at the end');
+              retry.add(rom);
+            }
+            scrapingProvider.markThreadCompleted(threadId);
+          }
+        }
+
+        await Future.wait([
+          for (var t = 1; t <= math.min(maxThreads, queue.length); t++) worker(t),
+        ]);
+      }
+
+      scrapingProvider.clearCompletedThreads();
+      await runPool(allRomsToProcess, retried: false);
+      if (!wasCancelled && retry.isNotEmpty) {
+        _log.i('Scraper run #$generation: trying ${retry.length} game(s) again after passing failures');
+        await Future.delayed(retryPause);
+        scrapingProvider.clearCompletedThreads();
+        await runPool(retry, retried: true);
+      }
+      if (wasCancelled) {
+        outcome = generation != _runGeneration ? 'stopped by a new run' : 'stopped by the user';
+        scrapingProvider.stopScraping();
+        return false;
+      }
+
+      final elapsed = DateTime.now().difference(startTime);
+      outcome = 'finished: $totalProcessedGames processed, $totalSuccessfulGames found, '
+          '$totalFailedGames failed, ${retry.length} retried, ${elapsed.inSeconds}s';
       if (context.mounted) {
         _showScrapingSummaryDialog(
           context,
           totalGames: totalGamesToProcess,
           successfulGames: totalSuccessfulGames,
           failedGames: totalFailedGames,
-          elapsedTime: '${DateTime.now().difference(startTime).inSeconds}s',
+          elapsedTime: '${elapsed.inSeconds}s',
           totalRequests: 0,
           mediaAdded: scrapingProvider.mediaAdded,
           mediaReplaced: scrapingProvider.mediaReplaced,
@@ -1185,16 +1271,20 @@ class ScreenScraperService {
       scrapingProvider.stopScraping();
       return true;
     } on ScreenscraperQuotaExceededException {
+      outcome = 'daily ScreenScraper quota reached';
       _log.e('Daily scraping quota exceeded; stopping scraping session.');
       scrapingProvider.stopScraping();
       rethrow;
-    } catch (e) {
-      _log.e('Error during scraping process: $e');
+    } catch (e, stack) {
+      outcome = 'error: $e';
+      _log.e('Error during scraping process: $e', error: e, stackTrace: stack);
       scrapingProvider.stopScraping();
       return false;
     } finally {
+      _log.i('Scraper run #$generation ended: $outcome');
       _cachedCredentials = null;
-      _isMetadataScrapingRunning = false;
+      done.complete();
+      if (identical(_activeRun, done.future)) _activeRun = null;
     }
   }
 
@@ -1387,22 +1477,53 @@ class ScreenScraperService {
         progress: 0.33,
       );
 
-      if (gameInfo == null &&
-          systemFolder != 'android' &&
-          File(romPath).existsSync()) {
-        final hash = await ScreenscraperRomHasher.calculateMd5InIsolate(
-          romPath,
-        );
-        final resWithHash = await fetchGameInfo(
-          screenscraperSystemId.toString(),
-          filename,
-          appSystemId: appSystemId,
-          md5: hash,
-          maxDailyRequests: maxDailyRequests,
-        );
-        gameInfo = resWithHash?['gameInfo'];
-        if (gameInfo != null) matchedBy = GameBoxMatch.md5;
-        requestsMade++;
+      if (shouldCancel != null && shouldCancel()) {
+        return {'success': false, 'cancelled': true, 'requests': requestsMade};
+      }
+      final romFile = File(romPath);
+      if (gameInfo == null && systemFolder != 'android' && romFile.existsSync()) {
+        final size = romFile.lengthSync();
+        if (size <= batchMd5Limit) {
+          final hash = await ScreenscraperRomHasher.calculateMd5InIsolate(
+            romPath,
+          );
+          if (shouldCancel != null && shouldCancel()) {
+            return {'success': false, 'cancelled': true, 'requests': requestsMade};
+          }
+          final resWithHash = await fetchGameInfo(
+            screenscraperSystemId.toString(),
+            filename,
+            appSystemId: appSystemId,
+            md5: hash,
+            maxDailyRequests: maxDailyRequests,
+          );
+          gameInfo = resWithHash?['gameInfo'];
+          if (gameInfo != null) matchedBy = GameBoxMatch.md5;
+          requestsMade++;
+        } else {
+          // A disc or cartridge image of several gigabytes takes minutes to
+          // read on the device: the run would seem stopped. Its bare title
+          // (without [0100…][v0] or (Europe) tags) is asked instead
+          // (docs/game-box-3d.md § 19).
+          _log.i('Scraper: $systemFolder/$filename is ${size ~/ (1024 * 1024)} MB: '
+              'no MD5 (limit ${batchMd5Limit ~/ (1024 * 1024)} MB), looked up by name');
+          final bare = bareTitleOf(filename);
+          if (bare.isNotEmpty && bare != FileProvider.stripRomExtension(filename)) {
+            final byTitle = await fetchGameInfo(
+              screenscraperSystemId.toString(),
+              filename,
+              appSystemId: appSystemId,
+              maxDailyRequests: maxDailyRequests,
+              gameName: bare,
+            );
+            gameInfo = byTitle?['gameInfo'];
+            if (gameInfo != null) matchedBy = GameBoxMatch.title;
+            requestsMade++;
+          }
+        }
+      }
+      if (gameInfo == null) {
+        _log.w('Scraper: $systemFolder/$filename: not found on ScreenScraper');
       }
 
       if (gameInfo != null) {
@@ -1441,11 +1562,17 @@ class ScreenScraperService {
             progress: 0.66,
           );
           final sourceMedias = gameInfo['medias'] as List<dynamic>? ?? [];
+          if (shouldCancel != null && shouldCancel()) {
+            return {'success': false, 'cancelled': true, 'requests': requestsMade};
+          }
+          // One media at a time per game: the run's threads already use all
+          // the account's request slots; more would wait for a slot until
+          // the 15 s limit fails them (docs/game-box-3d.md § 19).
           final res = await ScreenscraperMediaDownloader.downloadGameMedia(
             systemFolder,
             filename,
             sourceMedias,
-            maxThreads,
+            1,
             appSystemId: appSystemId,
             preferredLanguage: preferredLanguage,
             shouldCancel: shouldCancel,
@@ -1513,6 +1640,10 @@ class ScreenScraperService {
                 screenScraperListing: listing,
                 extraSources: extraSources,
                 cancel: GameBoxBatchCancel(shouldCancel),
+                // The game is scraped again (new, reopened by a change of
+                // choices, or "All content"): a face of another language
+                // gives way to the print in the scraping language.
+                upgradeLanguage: true,
               ),
             );
           }

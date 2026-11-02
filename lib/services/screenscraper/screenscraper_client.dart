@@ -89,6 +89,25 @@ class ScreenscraperClient {
   @visibleForTesting
   static http.Client? debugClient;
 
+  /// Zone key under which the batch scrape collects the passing failures of
+  /// one game: time-outs, lost connection, no free request slot, server
+  /// errors, ScreenScraper's "too many requests" (docs/game-box-3d.md § 19).
+  /// Such a game is tried again at the end of the run.
+  static const Symbol transientErrorsKey = #rewindboxScrapeTransientErrors;
+
+  static void _noteTransient(Object error) {
+    final sink = Zone.current[transientErrorsKey];
+    if (sink is List<Object>) sink.add(error);
+  }
+
+  /// Waits before another try after ScreenScraper answered "too many
+  /// requests" (HTTP 429: more threads than the account allows).
+  @visibleForTesting
+  static Duration Function(int attempt) busyDelay = (attempt) => Duration(seconds: 2 * (attempt + 1));
+
+  /// Busy answers waited out before the request is given up for this pass.
+  static const int maxBusyRetries = 3;
+
   static Semaphore _requestSemaphore = Semaphore(5);
 
   static int _dailyRequestsCount = 0;
@@ -130,6 +149,8 @@ class ScreenscraperClient {
     }
 
     int attempt = 0;
+    // Busy answers are waited out on their own count: they are not errors.
+    var busyRetries = 0;
     while (attempt < maxRetries) {
       // Tracks whether this iteration actually holds a slot, so the finally
       // block below releases exactly once. The previous code released
@@ -160,6 +181,17 @@ class ScreenscraperClient {
           throw ScreenscraperQuotaExceededException(
             'Daily scraping quota exceeded (HTTP 430)',
           );
+        } else if (response.statusCode == 429) {
+          // Busy: more simultaneous requests than the account allows. The
+          // slot is released before waiting (finally), then tried again.
+          if (busyRetries < maxBusyRetries) {
+            final delay = busyDelay(busyRetries);
+            _log.w('ScreenScraper busy (HTTP 429), retrying in ${delay.inSeconds}s...');
+            busyRetries++;
+            await Future.delayed(delay);
+            continue;
+          }
+          _noteTransient('HTTP 429');
         } else if (response.statusCode >= 500) {
           if (attempt < maxRetries - 1) {
             final delay = Duration(milliseconds: 500 * (attempt + 1));
@@ -170,21 +202,27 @@ class ScreenscraperClient {
             attempt++;
             continue;
           }
+          _noteTransient('HTTP ${response.statusCode}');
         }
 
         return response;
-      } on ScreenscraperSemaphoreTimeoutException {
+      } on ScreenscraperSemaphoreTimeoutException catch (e) {
         // Never retried: if no slot came free in 15s, hammering the same
         // exhausted pool two more times only delays the error the caller
         // needs to see.
+        _noteTransient(e);
         rethrow;
-      } on TimeoutException {
+      } on ScreenscraperQuotaExceededException {
+        // The day's quota: another try costs a request and changes nothing.
+        rethrow;
+      } on TimeoutException catch (e) {
         if (attempt < maxRetries - 1) {
           final delay = Duration(milliseconds: 500 * (attempt + 1));
           await Future.delayed(delay);
           attempt++;
           continue;
         }
+        _noteTransient(e);
         rethrow;
       } catch (e) {
         if (attempt < maxRetries - 1) {
@@ -196,6 +234,7 @@ class ScreenscraperClient {
           attempt++;
           continue;
         }
+        _noteTransient(e);
         rethrow;
       } finally {
         // Runs on every exit path out of the try — return, throw, and the

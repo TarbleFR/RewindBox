@@ -115,6 +115,7 @@ class GameBoxEditionHint {
     this.frontRegion,
     this.productId,
     this.regionPriority = const {},
+    this.language,
   });
 
   /// Regions of the player's copy (ScreenScraper codes), best first.
@@ -128,6 +129,18 @@ class GameBoxEditionHint {
 
   /// The scraper's region priority (higher is preferred).
   final Map<String, int> regionPriority;
+
+  /// The scraping language (`fr`…): within the player's edition, the print
+  /// in that language comes first (docs/game-box-3d.md § 19).
+  final String? language;
+
+  /// Whether [region]'s print is in the scraping language (English, the
+  /// default of most scans, gets no preference).
+  bool prints(String? region) {
+    final l = language;
+    if (l == null || l.isEmpty || l == 'en' || region == null) return false;
+    return GameBoxRegions.languageOfRegion(region) == l;
+  }
 }
 
 /// Orders candidates: the right game and product first, then the edition
@@ -149,6 +162,13 @@ class GameBoxCandidateRanking {
     // 2. Edition and region.
     s += 1000 * regionAffinity(c.region, hint.gameRegions);
     if (hint.frontRegion != null && GameBoxRegionFamily.same(c.region, hint.frontRegion!)) s += 800;
+    // The print in the scraping language, within the edition: a France scan
+    // for a European copy outranks the generic European one, never a scan
+    // of another edition (an American copy keeps its American box).
+    if (hint.prints(c.region) &&
+        (hint.gameRegions.isEmpty || hint.gameRegions.any((g) => GameBoxRegionFamily.same(c.region, g)))) {
+      s += 5000;
+    }
     if (c.edition == null) s += 200; // the standard case before an alternate version
     // 3. Exact nature of the picture.
     s += switch (c.nature) {

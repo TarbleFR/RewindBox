@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:neostation/models/game_model.dart';
 import 'package:neostation/providers/file_provider.dart';
+import 'package:neostation/repositories/scraper_repository.dart';
 import 'package:neostation/services/game_box/game_box_art_fit.dart';
 import 'package:neostation/services/game_box/game_box_fetcher.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
@@ -176,6 +177,10 @@ class GameBoxMediaService {
 
   static final Map<String, String> _pageCache = {};
 
+  /// Forgets the GameTDB pages read in this session (tests).
+  @visibleForTesting
+  static void clearPageCache() => _pageCache.clear();
+
   // Search --------------------------------------------------------------------
 
   /// Lists the candidates of every enabled source for [ctx].
@@ -279,11 +284,16 @@ class GameBoxMediaService {
     try {
       priority = await ScreenscraperRegionConfig.getRegionPriority();
     } catch (_) {}
+    String? language;
+    try {
+      language = await ScraperRepository.getPreferredLanguage();
+    } catch (_) {}
     return GameBoxEditionHint(
       gameRegions: regions,
       frontRegion: listing?.frontRegion ?? frontRecord?.region ?? local.manifest?.frontRegion,
       productId: ctx.productId,
       regionPriority: priority,
+      language: language,
     );
   }
 
@@ -768,20 +778,36 @@ class GameBoxMediaService {
   /// Faces among [kinds] that a completion run would look for: missing,
   /// refused by their check or not a cover (an imported icon). Faces chosen
   /// by hand and good scans are not. Reads local files only, no network.
+  ///
+  /// With [upgradeLanguage], a face taken from a source but printed in
+  /// another language than the scraping language is looked at too: a print
+  /// of the same edition in that language replaces it.
   static Future<Set<GameBoxMediaKind>> facesToComplete(
     GameBoxSearchContext ctx,
-    Set<GameBoxMediaKind> kinds,
-  ) async {
+    Set<GameBoxMediaKind> kinds, {
+    bool upgradeLanguage = false,
+  }) async {
     final local = GameBoxMediaStore(ctx.fileProvider).read(ctx.game, ctx.systemFolder);
+    final hint = upgradeLanguage ? await _hint(ctx, null) : null;
     final out = <GameBoxMediaKind>{};
     for (final kind in _faces) {
       if (!kinds.contains(kind)) continue;
       final current = await _current(ctx, local, kind);
       if (current.record?.manual ?? false) continue;
-      if (current.path != null && current.cover) continue;
+      if (current.path != null && current.cover && !(hint != null && _otherLanguage(current.record, hint))) continue;
       out.add(kind);
     }
     return out;
+  }
+
+  /// A face taken from a source (not chosen by hand) whose print is in
+  /// another language than the scraping one.
+  static bool _otherLanguage(GameBoxFaceRecord? record, GameBoxEditionHint hint) {
+    final region = record?.region;
+    if (record == null || record.manual || region == null) return false;
+    final l = hint.language;
+    if (l == null || l.isEmpty || l == 'en') return false;
+    return !hint.prints(region);
   }
 
   /// "Complete the faces": every face that is missing, refused by its check
@@ -797,6 +823,7 @@ class GameBoxMediaService {
     GameBoxCancel? cancel,
     void Function(GameBoxMediaKind kind)? onFace,
     Set<GameBoxMediaKind>? kinds,
+    bool upgradeLanguage = false,
   }) async {
     final found = search ?? await GameBoxMediaService.search(ctx, cancel: cancel);
     final store = GameBoxMediaStore(ctx.fileProvider);
@@ -826,7 +853,13 @@ class GameBoxMediaService {
         outcomes[kind] = GameBoxFaceOutcome.manualKept;
         continue;
       }
-      if (current.path != null && current.cover) {
+      // A good face in another language than the scraping one gives way
+      // only to a print of the same edition in that language.
+      final upgrade = upgradeLanguage &&
+          current.path != null &&
+          current.cover &&
+          _otherLanguage(current.record, found.hint);
+      if (current.path != null && current.cover && !upgrade) {
         outcomes[kind] = GameBoxFaceOutcome.kept;
         setProduct ??= current.record?.productId;
         continue;
@@ -835,7 +868,12 @@ class GameBoxMediaService {
       final candidates = [
         ...found.of(kind),
         if (kind == GameBoxMediaKind.spine) ...found.of(GameBoxMediaKind.full),
-      ].where((c) => !rejected.contains(c.identity)).toList();
+      ].where((c) {
+        if (rejected.contains(c.identity)) return false;
+        if (!upgrade) return true;
+        final was = current.record?.region;
+        return found.hint.prints(c.region) && (was == null || GameBoxRegionFamily.same(c.region, was));
+      }).toList();
       // Coherence: the same product (edition) as the faces already chosen.
       candidates.sort((a, b) {
         int coherent(GameBoxCandidate c) =>
@@ -861,9 +899,12 @@ class GameBoxMediaService {
         if (adoption.verdict != GameBoxImageVerdict.ok) refusals.add((kind, c.provider, adoption.verdict));
       }
       if (!done) {
-        outcomes[kind] = current.path != null && current.check != null && !current.check!.ok
-            ? GameBoxFaceOutcome.refused
-            : GameBoxFaceOutcome.missing;
+        outcomes[kind] = upgrade
+            ? GameBoxFaceOutcome.kept
+            : current.path != null && current.check != null && !current.check!.ok
+                ? GameBoxFaceOutcome.refused
+                : GameBoxFaceOutcome.missing;
+        if (upgrade) setProduct ??= current.record?.productId;
       }
       local = store.read(ctx.game, ctx.systemFolder);
     }

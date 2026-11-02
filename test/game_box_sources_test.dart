@@ -156,6 +156,37 @@ void main() {
       expect(ranked.map((c) => c.region).toList(), ['fr', 'uk', 'us']);
     });
 
+    test('scraping in French: the French print of the edition first, never another edition', () {
+      // A European copy: the France print outranks the generic European one.
+      const europe = GameBoxEditionHint(gameRegions: ['eu'], language: 'fr');
+      expect(
+        GameBoxCandidateRanking.rank([
+          cand(GameBoxProvider.screenscraper, 'eu', 3, 1166),
+          cand(GameBoxProvider.gametdb, 'uk', 3, 1166),
+          cand(GameBoxProvider.gametdb, 'fr', 2, 800),
+        ], europe).first.region,
+        'fr',
+      );
+      // An American copy keeps its American box.
+      const america = GameBoxEditionHint(gameRegions: ['us'], language: 'fr');
+      expect(
+        GameBoxCandidateRanking.rank([
+          cand(GameBoxProvider.gametdb, 'fr', 3, 1166),
+          cand(GameBoxProvider.screenscraper, 'us', 2, 800),
+        ], america).first.region,
+        'us',
+      );
+      // English, the default of most scans, changes nothing.
+      const english = GameBoxEditionHint(gameRegions: ['eu'], language: 'en');
+      expect(
+        GameBoxCandidateRanking.rank([
+          cand(GameBoxProvider.gametdb, 'fr', 2, 800),
+          cand(GameBoxProvider.screenscraper, 'eu', 3, 1166),
+        ], english).first.region,
+        'eu',
+      );
+    });
+
     test('the player\'s product code wins, then quality within the edition', () {
       const hint = GameBoxEditionHint(gameRegions: ['eu'], productId: 'BCES00510');
       final ranked = GameBoxCandidateRanking.rank([

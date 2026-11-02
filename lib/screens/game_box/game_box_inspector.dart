@@ -21,6 +21,7 @@ import 'package:neostation/services/game_box/game_box_manual.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/game_box/game_box_media_check.dart';
 import 'package:neostation/services/game_box/game_box_media_service.dart';
+import 'package:neostation/services/game_box/game_box_sources.dart';
 import 'package:neostation/services/game_box/game_box_preferences.dart';
 import 'package:neostation/services/game_box/game_box_profile.dart';
 import 'package:neostation/services/game_box/game_box_regions.dart';
@@ -1731,7 +1732,10 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
             {'language': GameBoxLocale.languageName(context, _readingLanguage)}));
       }
       if (region != null) {
-        final isOther = regions.isNotEmpty && !(edition?.regions ?? [region]).any(regions.contains);
+        // Each European country prints its own box of the European
+        // edition: a France scan is the edition of a European copy.
+        final isOther = regions.isNotEmpty &&
+            !(edition?.regions ?? [region]).any((r) => regions.any((g) => GameBoxRegionFamily.same(r, g)));
         out.add(isOther
             ? GameBoxLocale.format(context, GameBoxLocale.otherEdition, {
                 'region': GameBoxLocale.regionName(context, region),

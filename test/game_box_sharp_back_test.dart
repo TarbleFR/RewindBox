@@ -22,7 +22,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// The back shown at the size it covers on the screen (docs/game-box-3d.md
 /// § 12): asked once the box is still and read straight on, used in place of
 /// the larger decode, sharpened unless "Sharp text" is off, wider for a closer
-/// look but never wider than the scan, and released when the viewer closes.
+/// look (at most 2.5 times the scan, § 19), and released when the viewer
+/// closes.
 /// The resampling itself is tested by game_box_sharp_scan_test.dart; here a
 /// plain image stands for it.
 
@@ -211,7 +212,7 @@ void main() {
     expect(calls, hasLength(1));
   });
 
-  testWidgets('a closer look asks for a wider render, never wider than the scan', (tester) async {
+  testWidgets('a closer look asks for a wider render, at most 2.5 times the scan', (tester) async {
     final state = await open(tester);
     await turnToBack(tester);
     final first = calls.single.$2;
@@ -226,7 +227,10 @@ void main() {
     expect(calls.length, greaterThanOrEqualTo(2));
     final closer = calls.last.$2;
     expect(closer, greaterThan(first));
-    expect(closer, lessThanOrEqualTo(_scanWidth), reason: 'the scan is never enlarged');
+    // Enlarged at most 2.5 times since 2 November 2026 (docs/game-box-3d.md
+    // § 19): a bicubic enlargement replaces the screen's bilinear stretch.
+    expect(closer, lessThanOrEqualTo(GameBoxSharpScan.maxRenderWidth(_scanWidth.toDouble())),
+        reason: 'at most 2.5 times the scan (and the widest decode)');
     expect(state.sharpBack?.width, closer);
   });
 
