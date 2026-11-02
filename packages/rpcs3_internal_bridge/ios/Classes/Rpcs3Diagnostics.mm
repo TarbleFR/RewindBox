@@ -90,17 +90,22 @@ static BOOL RPCS3HandleOwnsPath(NSFileHandle* handle, NSString* path) {
       descriptorInfo.st_ino == pathInfo.st_ino;
 }
 
-// Value of a `key=` token of a Core profiler line, at most 96 bytes.
-static NSString* RPCS3TokenValue(const char* line, const char* key) {
+// Value of a `key=` token of a Core profiler line, at most `limit` bytes.
+static NSString* RPCS3TokenValueBounded(const char* line, const char* key, size_t limit) {
   const size_t keyLength = strlen(key);
   for (const char* at = strstr(line, key); at; at = strstr(at + 1, key)) {
     if ((at == line || at[-1] == ' ') && at[keyLength] == '=') {
       const char* value = at + keyLength + 1;
-      const size_t length = std::min<size_t>(strcspn(value, " \n"), 96);
+      const size_t length = std::min<size_t>(strcspn(value, " \n"), limit);
       return [[NSString alloc] initWithBytes:value length:length encoding:NSUTF8StringEncoding];
     }
   }
   return nil;
+}
+
+// Value of a `key=` token of a Core profiler line, at most 96 bytes.
+static NSString* RPCS3TokenValue(const char* line, const char* key) {
+  return RPCS3TokenValueBounded(line, key, 96);
 }
 
 // Plain decimal tokens become exact JSON numbers; tuples such as
@@ -510,10 +515,17 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
     NSMutableDictionary* row = [self timelineRow];
     row[@"session"] = RPCS3TimelineValue(RPCS3TokenValue(line, "session"));
     row[@"window"] = RPCS3TimelineValue(RPCS3TokenValue(line, "window"));
-    row[@"frame_ms"] = RPCS3TimelineFamily(line, @[@"phase", @"intervals", @"median_ms", @"p95_ms", @"p99_ms",
+    NSMutableDictionary* frame = RPCS3TimelineFamily(line, @[@"phase", @"intervals", @"median_ms", @"p95_ms", @"p99_ms",
         @"max_ms", @"over50ms", @"over100ms", @"window_ms", @"total_interval_ms",
         @"window_guest_flips", @"wall_guest_fps", @"completed_interval_fps", @"last_guest_flip_age_ms",
-        @"guest_progress_boundary_approximate", @"histogram_upper_us"]);
+        @"guest_progress_boundary_approximate"]);
+    // Build 613: the per-presentation histogram (upper_us:count pairs, at most
+    // 256 bins, about 3.3 KiB) is copied whole; the 96-byte bound of ordinary
+    // tokens would drop its long-interval bins.
+    if (NSString* histogram = RPCS3TokenValueBounded(line, "histogram_upper_us", 4096)) {
+      frame[@"histogram_upper_us"] = histogram;
+    }
+    row[@"frame_ms"] = frame;
     return;
   }
   if (strstr(line, "CONFIG_LAYERS ") != nullptr) {

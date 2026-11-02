@@ -85,7 +85,8 @@ int main(int argc, const char* argv[]) {
 
     // 3. Compact timeline: one row per Core window from the profiler families.
     NSArray<NSString*>* window = @[
-      @"TID: 7: COREPROF FRAMEPROF527 session=4 window=21 phase=guest_unclassified intervals=87 median_ms=29.410 p95_ms=33.269 p99_ms=2536.533 max_ms=2536.533 over50ms=1 over100ms=1 window_ms=5029.221",
+      @"TID: 7: COREPROF FRAMEPROF527 session=4 window=21 phase=guest_unclassified intervals=87 median_ms=29.410 p95_ms=33.269 p99_ms=2536.533 max_ms=2536.533 over50ms=1 over100ms=1 window_ms=5029.221 histogram_upper_us=15999:2,16999:40,17999:9,29999:3,33999:12,41999:6,49999:5,58999:4,66999:2,83999:1,99999:1,135999:1,2535999:1",
+      @"TID: 7: COREPROF ZCULLSYNC613 session=4 window=21 tuple=count:total_ms:max_ms results=2210:3870.500:9.125 result_flushes=2190 hint_flushes=40 precise=0 relaxed=0 scope=rsx_thread_process_window window_boundary_approximate=1",
       @"TID: 7: COREPROF VDECIO528 session=4 window=21 demand_reads=0 demand_read_max_us=0 prefetch_hits=0",
       @"TID: 7: COREPROF SHADERCFG536 session=4 window=21 configured=0 applied=0 fallback=0",
       @"TID: 7: COREPROF SHADERCOST534 session=4 window=21 tuple=count:total_us:max_us source=13:27959:3486 module=13:236:33 graphics=15:2474657:540573 compute=0:0:0",
@@ -120,6 +121,10 @@ int main(int argc, const char* argv[]) {
     NSDictionary* row = rows[0];
     assert([row[@"complete"] isEqual:@YES] && [row[@"session"] intValue] == 4 && [row[@"window"] intValue] == 21);
     assert(near([row[@"frame_ms"][@"p99_ms"] doubleValue], 2536.533) && [row[@"frame_ms"][@"intervals"] intValue] == 87);
+    // Build 613: the whole per-presentation histogram, longer than an ordinary 96-byte token.
+    assert([row[@"frame_ms"][@"histogram_upper_us"] isEqualToString:@"15999:2,16999:40,17999:9,29999:3,33999:12,41999:6,49999:5,58999:4,66999:2,83999:1,99999:1,135999:1,2535999:1"]);
+    assert([row[@"zcull_sync"][@"results"] isEqualToString:@"2210:3870.500:9.125"]);
+    assert([row[@"zcull_sync"][@"result_flushes"] intValue] == 2190 && [row[@"zcull_sync"][@"relaxed"] intValue] == 0);
     assert([row[@"shader_cost_us"][@"graphics"] isEqualToString:@"15:2474657:540573"]);
     assert([row[@"shader_stall_events"][@"count"] intValue] == 2);
     assert([row[@"shader_stall_events"][@"max_us"] intValue] == 540573);

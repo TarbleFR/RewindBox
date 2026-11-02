@@ -125,10 +125,16 @@ def percentile_upper_ms(hist: dict[int, int], total: int, fraction: float) -> fl
     return 0.0
 
 
+def histogram_complete(row: dict) -> bool:
+    # A histogram whose counts do not add up to the window's intervals was cut
+    # or damaged on the way: it is not used as presentation data.
+    return row['histogram'] is not None and sum(row['histogram'].values()) == row['intervals']
+
+
 def summarize(selected: list[dict]) -> dict:
-    exact = all(row['histogram'] is not None for row in selected)
+    exact = all(histogram_complete(row) for row in selected)
     hist: dict[int, int] = {}
-    for row in selected:
+    for row in selected if exact else []:
         for upper, count in (row['histogram'] or {}).items():
             hist[upper] = hist.get(upper, 0) + count
     intervals = sum(row['intervals'] for row in selected)
@@ -152,7 +158,7 @@ def summarize(selected: list[dict]) -> dict:
         # percentiles are not combinable and are left out.
         result.update({'over_50ms': sum(row['over50'] for row in selected),
                        'over_100ms': sum(row['over100'] for row in selected),
-                       'note': 'no per-presentation histogram in these rows; percentiles omitted'})
+                       'note': 'no complete per-presentation histogram in these rows; percentiles omitted'})
     return result
 
 
