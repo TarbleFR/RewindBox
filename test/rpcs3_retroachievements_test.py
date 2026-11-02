@@ -340,7 +340,9 @@ class HostClient(unittest.TestCase):
         self.assertFalse(any(p.name == 'rc_libretro.c' for p in sources))
         with tempfile.TemporaryDirectory(prefix='rpcs3-rcheevos-') as tmp:
             for source in sources:
-                subprocess.run([compiler, '-std=c99', '-c', '-DRC_CLIENT_SUPPORTS_HASH=1',
+                # gnu99, as Xcode compiles the pod (GNU dialect): strict c99 hides glibc's POSIX
+                # strdup/strncasecmp on Linux runners while Darwin headers expose them either way.
+                subprocess.run([compiler, '-std=gnu99', '-c', '-DRC_CLIENT_SUPPORTS_HASH=1',
                                 '-I', str(RPCS3_RCHEEVOS / 'include'), '-I', str(RPCS3_RCHEEVOS / 'src'),
                                 str(source), '-o', str(Path(tmp) / (source.stem + '.o'))], check=True)
 
