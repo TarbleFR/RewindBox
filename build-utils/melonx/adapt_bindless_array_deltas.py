@@ -100,6 +100,13 @@ ENTRY_STATE = '''            private int _texturePoolSequence;
             public bool DeltaAllBlacklisted;
 
             /// <summary>
+            /// The pool whose change log the state was last brought up to date with, and the log position read before
+            /// that update resolved anything: a later pass only visits the ids logged since, when the log is exact.
+            /// </summary>
+            public TexturePool DeltaLogPool;
+            public long DeltaLogPosition;
+
+            /// <summary>
             /// Set while a full rebuild runs and when a delta pass fails: after a failed update, the next one
             /// rebuilds even without a pool write.
             /// </summary>
@@ -297,6 +304,8 @@ FULL_DISPATCH_NEW = '''            if (!isNewEntry && entry.DeltaReady && !entry
             if (deltaCapable)
             {
                 entry.PrepareDelta(length, isSampler, bindingInfo.FormatInfo, texturePool?.AliasGeneration ?? 0, resScaleUnsupported);
+                entry.DeltaLogPool = texturePool;
+                entry.DeltaLogPosition = texturePool?.DeltaLogCount ?? 0;
             }
             else
             {
@@ -401,6 +410,45 @@ FULL_END_NEW = '''                if (isImage)
         private readonly ITexture[] _deltaRunTextures = new ITexture[DeltaRunCapacity];
         private readonly ISampler[] _deltaRunSamplers = new ISampler[DeltaRunCapacity];
 
+        // The ids a delta pass visits when the pool's change log is exact (texture and image arrays).
+        private readonly int[] _deltaCandidates = new int[TexturePool.DeltaLogCapacity];
+
+        /// <summary>
+        /// Collects, sorted and without duplicates, the ids the pool logged between the entry's last update and
+        /// <paramref name="until"/>. That set is exact only if the log still holds all of them, no alias list was
+        /// destroyed (checked by the caller) and every bound texture keeps its recorded sequence: then a pool item or
+        /// invalid state changed only at a logged id (InvalidateRangeImpl, ForceRemove, QueueUpdateMapping and the
+        /// dereference queue log theirs), and no bound host was replaced.
+        /// </summary>
+        /// <returns>False if the whole array must be scanned</returns>
+        private bool CollectLoggedChanges(CacheEntry entry, TexturePool pool, long until, out int count)
+        {
+            count = 0;
+
+            if (pool == null || entry.DeltaLogPool != pool ||
+                !pool.CopyDeltaLog(entry.DeltaLogPosition, until, _deltaCandidates, out count) ||
+                !entry.ValidateTextures())
+            {
+                count = 0;
+                return false;
+            }
+
+            Array.Sort(_deltaCandidates, 0, count);
+
+            int unique = 0;
+
+            for (int index = 0; index < count; index++)
+            {
+                if (unique == 0 || _deltaCandidates[unique - 1] != _deltaCandidates[index])
+                {
+                    _deltaCandidates[unique++] = _deltaCandidates[index];
+                }
+            }
+
+            count = unique;
+            return true;
+        }
+
         // Exact-length run arrays come from their own bounded cache, so runs never evict the full rebuild's lengths.
         private readonly ITexture[][] _deltaTextureScratch = new ITexture[BindingScratchSlots][];
         private readonly ISampler[][] _deltaSamplerScratch = new ISampler[BindingScratchSlots][];
@@ -434,25 +482,25 @@ FULL_END_NEW = '''                if (isImage)
             int aliasGeneration = texturePool?.AliasGeneration ?? 0;
             int invalidationEpoch = Volatile.Read(ref Texture.InvalidationEpoch);
             bool aliasesMoved = aliasGeneration != entry.DeltaAliasGeneration;
+            // The log position is read before anything is resolved: changes logged during this pass are visited
+            // again by the next one.
+            long logPosition = texturePool?.DeltaLogCount ?? 0;
+            int candidates = 0;
+            bool logged = !isSampler && !aliasesMoved && CollectLoggedChanges(entry, texturePool, logPosition, out candidates);
+            int visits = logged ? candidates : length;
             int changed = 0;
             int runStart = 0;
             int runCount = 0;
-            int gap = 0;
             bool completed = false;
 
             try
             {
-                for (int index = 0; index < length; index++)
+                for (int visit = 0; visit < visits; visit++)
                 {
-                    if (entry.DeltaUnchanged(index, texturePool, samplerPool, isSampler, aliasesMoved))
-                    {
-                        if (runCount != 0 && ++gap > DeltaGapLimit)
-                        {
-                            // Too far from the next change: send the run without its unchanged tail.
-                            FlushDeltaRun(entry, isImage, isSampler, runStart, ref runCount);
-                            gap = 0;
-                        }
+                    int index = logged ? _deltaCandidates[visit] : visit;
 
+                    if (index >= length || entry.DeltaUnchanged(index, texturePool, samplerPool, isSampler, aliasesMoved))
+                    {
                         continue;
                     }
 
@@ -500,33 +548,27 @@ FULL_END_NEW = '''                if (isImage)
                         hostSampler,
                         replacing: true);
 
-                    if (runCount != 0 && gap != 0)
-                    {
-                        if (runCount + gap >= DeltaRunCapacity)
-                        {
-                            FlushDeltaRun(entry, isImage, isSampler, runStart, ref runCount);
-                        }
-                        else
-                        {
-                            for (int skipped = index - gap; skipped < index; skipped++)
-                            {
-                                _deltaRunTextures[runCount] = isSampler ? null : entry.DeltaHosts[skipped];
-                                _deltaRunSamplers[runCount] = isSampler ? entry.DeltaHostSamplers[skipped] : null;
-                                runCount++;
-                            }
-                        }
+                    int runEnd = runStart + runCount;
 
-                        gap = 0;
-                    }
-
-                    if (runCount == DeltaRunCapacity)
+                    if (runCount != 0 && (index - runEnd > DeltaGapLimit || runCount + (index - runEnd) >= DeltaRunCapacity))
                     {
+                        // Too far from the run, or too long: send the run as it is.
                         FlushDeltaRun(entry, isImage, isSampler, runStart, ref runCount);
                     }
 
                     if (runCount == 0)
                     {
                         runStart = index;
+                    }
+                    else
+                    {
+                        // The unchanged elements between the run and this change are re-sent with their bound values.
+                        for (int skipped = runStart + runCount; skipped < index; skipped++)
+                        {
+                            _deltaRunTextures[runCount] = isSampler ? null : entry.DeltaHosts[skipped];
+                            _deltaRunSamplers[runCount] = isSampler ? entry.DeltaHostSamplers[skipped] : null;
+                            runCount++;
+                        }
                     }
 
                     _deltaRunTextures[runCount] = hostTexture;
@@ -576,13 +618,15 @@ FULL_END_NEW = '''                if (isImage)
                 }
 
                 entry.DeltaAliasGeneration = aliasGeneration;
+                entry.DeltaLogPool = texturePool;
+                entry.DeltaLogPosition = logPosition;
 
                 if (!resScaleUnsupported && changed != 0)
                 {
                     entry.DeltaAllBlacklisted = false;
                 }
 
-                PD.Count(PD.Counter.ArrayDeltaElements, length);
+                PD.Count(PD.Counter.ArrayDeltaElements, visits);
                 PD.Count(PD.Counter.ArrayDeltaChanged, changed);
 
                 completed = true;
@@ -696,7 +740,100 @@ PEEK = '''        /// <summary>
         internal int AliasGeneration => _aliasGeneration;
         private int _aliasGeneration;
 
+        /// <summary>
+        /// Bounded log of the ids whose pool item or invalid state changed (descriptor writes, removals, remaps), for
+        /// bindless delta passes. Writers may run on another thread (UpdatePoolMappings), hence the lock.
+        /// </summary>
+        internal const int DeltaLogCapacity = 4096;
+        private readonly int[] _deltaLog = new int[DeltaLogCapacity];
+        private readonly object _deltaLogLock = new();
+        private long _deltaLogCount;
+
+        internal long DeltaLogCount
+        {
+            get
+            {
+                lock (_deltaLogLock)
+                {
+                    return _deltaLogCount;
+                }
+            }
+        }
+
+        private void LogDeltaChange(int id)
+        {
+            lock (_deltaLogLock)
+            {
+                _deltaLog[(int)(_deltaLogCount % DeltaLogCapacity)] = id;
+                _deltaLogCount++;
+            }
+        }
+
+        /// <summary>
+        /// Copies the ids logged in [since, until), if the log still holds all of them.
+        /// </summary>
+        internal bool CopyDeltaLog(long since, long until, int[] destination, out int count)
+        {
+            lock (_deltaLogLock)
+            {
+                count = 0;
+
+                if (since > until || until > _deltaLogCount || _deltaLogCount - since > DeltaLogCapacity)
+                {
+                    return false;
+                }
+
+                for (long position = since; position < until; position++)
+                {
+                    destination[count++] = _deltaLog[(int)(position % DeltaLogCapacity)];
+                }
+
+                return true;
+            }
+        }
+
 ''' + PEEK_ANCHOR
+
+LOG_EDITS = (
+    ('''            Texture previous = Interlocked.Exchange(ref Items[id], null);
+''', '''            Texture previous = Interlocked.Exchange(ref Items[id], null);
+            LogDeltaChange(id);
+'''),
+    ('''            if (Interlocked.Exchange(ref Items[id], null) == texture)
+            {
+''', '''            bool queued = Interlocked.Exchange(ref Items[id], null) == texture;
+            LogDeltaChange(id);
+
+            if (queued)
+            {
+'''),
+    ('''                    Items[request.ID] = texture;
+''', '''                    Items[request.ID] = texture;
+                    LogDeltaChange(request.ID);
+'''),
+    ('''                            if (Interlocked.Exchange(ref Items[request.ID], null) != null)
+                            {
+                                // If this is null, a request was already queued to decrement reference.
+''', '''                            LogDeltaChange(request.ID);
+
+                            if (Interlocked.Exchange(ref Items[request.ID], null) != null)
+                            {
+                                // If this is null, a request was already queued to decrement reference.
+'''),
+    ('''                _invalidMap.Clear(id);
+            }
+        }
+''', '''                if (texture != null || _invalidMap.IsSet(id))
+                {
+                    // The item was removed or the id is no longer known to be invalid: its binding may change.
+                    LogDeltaChange(id);
+                }
+
+                _invalidMap.Clear(id);
+            }
+        }
+'''),
+)
 
 EPOCH_FIELD = '''        /// <summary>
         /// Increments when the host texture is swapped, or when the texture is removed from all pools.
@@ -777,6 +914,8 @@ def apply(source):
     apply_array_cache(source)
     once(source / TEXTURE_POOL, PEEK_ANCHOR, PEEK)
     once(source / TEXTURE_POOL, ALIAS_REMOVE, ALIAS_REMOVE_NEW)
+    for old, new in LOG_EDITS:
+        once(source / TEXTURE_POOL, old, new)
     texture = source / TEXTURE
     once(texture, EPOCH_FIELD, EPOCH_FIELD_NEW)
     text = texture.read_text(encoding='utf-8-sig')

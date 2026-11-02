@@ -141,6 +141,7 @@ check(len(candidate['syncs']) == 4 and all(r['correctAtOnce'] for r in candidate
       'a synchronisation that replaces a bound texture storage never leaves the released host bound')
 check([r['correctAtOnce'] for r in control['syncs']] == [False, False, True, True],
       'delivered: released host bound on the cache hit only')
+check(len(candidate['overflows']) == 2, 'log overflow scenarios ran')
 check(len(candidate['quiet']) == 4 and all(q['refreshes'] <= 1 for q in candidate['quiet']),
       'quiet updates come back to cache hits after the blacklisting rebuild')
 rows = []
@@ -152,6 +153,8 @@ for old, new in zip(control['measures'], candidate['measures'], strict=True):
     if new['kind'] != 'Sampler':
         # No texture is invalidated in these updates: one comparison scan, no verification scan.
         check(new['peeksPerUpdate'] <= new['length'] + new['changes'], f'candidate scans the pool once: {new}')
+        # Descriptor writes only: the pass visits the logged ids, not the array.
+        check(new['peeksPerUpdate'] <= 2 * new['changes'] + 2, f'candidate visits only the logged ids: {new}')
     if old['threaded'] and old['length'] > 4096:
         check(old['producerBytesPerUpdate'] >= 16 * old['length'], f'control allocates per element: {old}')
     check(new['producerBytesPerUpdate'] <= 64 * (new['changes'] + 1) + 4096, f'candidate allocation bounded by changes: {new}')

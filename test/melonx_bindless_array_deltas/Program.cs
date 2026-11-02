@@ -391,6 +391,28 @@ static class Program
         return new { threaded, format, correctAtOnce };
     }
 
+    // More descriptor writes between two updates than the pool log holds: the pass scans the whole array.
+    static object LogOverflow(bool threaded)
+    {
+        World w = new(5000, threaded, 23);
+        TextureBindingInfo binding = World.Binding(5000, Kind.Texture);
+        w.Update(binding, Kind.Texture);
+        w.Update(binding, Kind.Texture);
+        for (int i = 0; i < 4500; i++) w.Textures.Write(i, 1 + (w.Textures.Keys[i] + 5) % w.LibrarySize);
+        long peeks0 = w.Textures.Peeks;
+        w.Update(binding, Kind.Texture);
+        long overflowPeeks = w.Textures.Peeks - peeks0;
+        VerifyAgainstPools(w, Kind.Texture, 0, "after a log overflow");
+        for (int i = 0; i < 10; i++) w.Textures.Write(4900 + i, 1 + (w.Textures.Keys[4900 + i] + 7) % w.LibrarySize);
+        peeks0 = w.Textures.Peeks;
+        w.Update(binding, Kind.Texture);
+        long loggedPeeks = w.Textures.Peeks - peeks0;
+        VerifyAgainstPools(w, Kind.Texture, 0, "logged pass after the overflow");
+        if (Adapted) Check.That(overflowPeeks >= 5000 && loggedPeeks <= 30, $"overflow scans everything ({overflowPeeks}), the next pass the log ({loggedPeeks})");
+        w.Threaded?.Dispose();
+        return new { threaded, overflowPeeks, loggedPeeks };
+    }
+
     // CPU data written to a bound scaled texture: its synchronisation replaces the storage. With a pool write
     // the delivered rebuild synchronises before reading the host; on its cache hit it binds the released host
     // for that draw. The candidate must bind the new host in both cases.
@@ -532,6 +554,7 @@ static class Program
         List<object> buffers = new() { TextureBufferScenario(true), TextureBufferScenario(false) };
         List<object> removals = new() { RemovalDuringPass(true, 0), RemovalDuringPass(false, 0), RemovalDuringPass(true, 3), RemovalDuringPass(false, 3) };
         List<object> failures = new() { FailureScenario(true, false), FailureScenario(false, false), FailureScenario(true, true), FailureScenario(false, true) };
+        List<object> overflows = new() { LogOverflow(true), LogOverflow(false) };
         List<object> syncs = new() { SyncReplacesHost(true, false), SyncReplacesHost(false, false), SyncReplacesHost(true, true), SyncReplacesHost(false, true) };
         List<object> quiet = new() { QuietAfterBlacklist(true, 0), QuietAfterBlacklist(false, 0), QuietAfterBlacklist(true, 2), QuietAfterBlacklist(false, 2) };
         List<object> measures = new();
@@ -547,7 +570,7 @@ static class Program
         }
         Console.WriteLine(JsonSerializer.Serialize(new
         {
-            adapted = Adapted, checks = Check.Count, scenarios, shared, buffers, removals, failures, syncs, quiet, measures,
+            adapted = Adapted, checks = Check.Count, scenarios, shared, buffers, removals, failures, syncs, overflows, quiet, measures,
             counters = Enum.GetNames<PD.Counter>().Zip(PD.Totals).ToDictionary(p => p.First, p => p.Second),
             deltaPasses = PD.Calls[(int)PD.Work.ArrayDelta],
         }));
@@ -844,12 +867,22 @@ namespace Ryujinx.Graphics.Gpu.Image
             Sequence++;
             if (Keys[id] == key && Items[id] != null) return;
             if (Items[id] != null) RemoveAliasList(Items[id], disposeNow: false);
+#if ADAPTED
+            if (Items[id] != null || _invalid[id]) LogDeltaChange(id);
+#endif
             Keys[id] = key; Items[id] = null; _invalid[id] = false;
         }
         // TexturePool.ForceRemove: clears the item without touching the modified sequence.
         public void ForceRemove(Texture texture)
         {
-            for (int id = 0; id < Items.Length; id++) if (Items[id] == texture) Items[id] = null;
+            for (int id = 0; id < Items.Length; id++)
+            {
+                if (Items[id] != texture) continue;
+                Items[id] = null;
+#if ADAPTED
+                LogDeltaChange(id);
+#endif
+            }
             RemoveAliasList(texture, disposeNow: false);
         }
         // RemoveAliasList: the aliases lose the list's reference, and are deleted now or later.
@@ -905,6 +938,19 @@ namespace Ryujinx.Graphics.Gpu.Image
             return texture;
         }
         internal int AliasGeneration => _aliasGeneration;
+        // The change log of the candidate pool (descriptor writes that change an id's state, removals).
+        internal const int DeltaLogCapacity = 4096;
+        readonly int[] _deltaLog = new int[DeltaLogCapacity];
+        long _deltaLogCount;
+        internal long DeltaLogCount => _deltaLogCount;
+        void LogDeltaChange(int id) { _deltaLog[(int)(_deltaLogCount % DeltaLogCapacity)] = id; _deltaLogCount++; }
+        internal bool CopyDeltaLog(long since, long until, int[] destination, out int count)
+        {
+            count = 0;
+            if (since > until || until > _deltaLogCount || _deltaLogCount - since > DeltaLogCapacity) return false;
+            for (long position = since; position < until; position++) destination[count++] = _deltaLog[(int)(position % DeltaLogCapacity)];
+            return true;
+        }
 #endif
         public Texture GetCachedItem(int id) => id >= 0 && id < Items.Length ? Items[id] : null;
         public bool IsValidId(int id) => id >= 0 && id <= MaximumId;
