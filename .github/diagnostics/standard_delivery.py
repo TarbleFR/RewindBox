@@ -167,8 +167,36 @@ def api(endpoint):
 
 
 def api_text(endpoint):
-    return subprocess.check_output(['gh', 'api', f'repos/{REPOSITORY}/' + endpoint], cwd=ROOT, timeout=300).decode(
-        errors='replace')
+    """Raw text of a REST endpoint that redirects to a blob (job logs).
+
+    Recent gh versions refuse to print a response containing terminal escape sequences, which job logs with
+    coloured output always have (run 41377459800). With a token (CI), the redirect is resolved directly and the
+    blob is read as bytes, without forwarding the token to the blob host; locally, gh's own login is used.
+    """
+    import urllib.error
+    import urllib.request
+    token = os.environ.get('GH_TOKEN') or os.environ.get('GITHUB_TOKEN')
+    if not token:
+        return subprocess.check_output(['gh', 'api', f'repos/{REPOSITORY}/' + endpoint], cwd=ROOT,
+                                       timeout=300).decode(errors='replace')
+
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *args, **kwargs):
+            return None
+
+    request = urllib.request.Request(f'https://api.github.com/repos/{REPOSITORY}/' + endpoint, headers={
+        'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28'})
+    try:
+        with urllib.request.build_opener(NoRedirect).open(request, timeout=300) as response:
+            return response.read().decode(errors='replace')
+    except urllib.error.HTTPError as error:
+        location = error.headers.get('Location') if error.code in (301, 302, 303, 307, 308) else None
+        if not location:
+            raise subprocess.CalledProcessError(error.code, ['GET', endpoint]) from error
+    require(location.startswith('https://'), 'Unexpected log redirect for ' + endpoint)
+    with urllib.request.urlopen(location, timeout=300) as response:
+        return response.read().decode(errors='replace')
 
 
 def download_artifact(artifact, path):
