@@ -31,6 +31,31 @@ Engine 4 keeps its HDR scene colour and temporal history in R16G16B16A16Float.
   linear source, component remap, no GPU source texture, height mismatch, float format. Nothing
   is allocated per copy once the signature set is full; the window payload is unchanged.
 
+Build 617 journal (2 November 2026, PID 65478, Core 88c4cb85): no float copy met the policy
+(floatFormat 0, the policy line never logged); about 12-15 FPS in play, and 'texFlushAction'
+is still one flush per frame (71 per 5.1 s window, 2.5 s, 35-41 ms each, syncInvoke 2.9 s).
+The copies that still go through guest memory are partial updates (incomplete, 80 %) and
+complete copies from linear memory into block-linear destinations. A partial copy reads the
+destination range, patches it and writes it back to guest memory; a CPU write to the memory
+of a texture the GPU modified first reads the whole texture back (its flush action, which also
+waits for the render thread and the GPU), and the texture is then uploaded again.
+
+- GraphicsConfig.HogwartsDmaRegionUpload (set with the float policy, Hogwarts Legacy only): a
+  2D copy from linear memory into a block-linear destination, with identity components and the
+  same element size, whose destination surface is one single-level 2D uncompressed colour
+  texture of the cache (the same lookup as the upstream direct upload of complete copies, at
+  each width in bytes that the GOB-aligned surface width holds; more than one texture group:
+  none), at scale 1, without host format conversion, and whose region falls on
+  whole texels inside it, is uploaded into that region of the host texture
+  (Texture.SetData(data, 0, 0, region), rows packed as the host expects them) after the
+  texture's own memory synchronisation, and the texture is marked modified, as the upstream
+  direct upload of complete copies does. Guest memory is not written: a later CPU access
+  flushes the texture with the region in it. Any other copy keeps the guest-memory path.
+- Attribution: uploaded regions and declined ones (no texture, layout, format) are counted,
+  the first upload is logged once, and the source reads and destination writes of the
+  guest-memory path that take more than 2 ms (a flush action inside) are counted; all in the
+  per-1024-copies summary line (at most 64 lines per session).
+
 Not measured on the iPhone; no FPS claim. The GPU copy is the Ryujinx behaviour for these
 formats; whether MoltenVK copies them correctly in Hogwarts is checked on the device (image).
 """
@@ -53,16 +78,27 @@ CONFIG_NEW = CONFIG_ANCHOR + '''
         /// Lets DMA copies of R16G16B16A16Float and R32G32B32A32Float textures use the GPU-side copy.
         /// Set per session from the launched title (Hogwarts Legacy only); other titles keep the exclusion.
         /// </summary>
-        public static bool HogwartsFloatDmaGpuCopy { get; set; }'''
+        public static bool HogwartsFloatDmaGpuCopy { get; set; }
+
+        /// <summary>
+        /// Lets a partial DMA copy from linear memory update the region of the GPU texture that holds its
+        /// destination, instead of writing guest memory (which first reads a GPU-written texture back).
+        /// Set per session from the launched title (Hogwarts Legacy only).
+        /// </summary>
+        public static bool HogwartsDmaRegionUpload { get; set; }'''
 
 LIBRARY_OLD = '''            bool querySync = EmbeddedGraphics.OcclusionQuerySync && EmbeddedIsHogwarts(options.InputPath);'''
 LIBRARY_NEW = '''            bool hogwarts = EmbeddedIsHogwarts(options.InputPath);
             bool querySync = EmbeddedGraphics.OcclusionQuerySync && hogwarts;
             // Hogwarts Legacy copies its R16G16B16A16Float targets with the copy engine every frame: on the GPU.
-            Ryujinx.Graphics.Gpu.GraphicsConfig.HogwartsFloatDmaGpuCopy = hogwarts;'''
+            Ryujinx.Graphics.Gpu.GraphicsConfig.HogwartsFloatDmaGpuCopy = hogwarts;
+            // It also updates small regions of its GPU-written textures with the copy engine every frame.
+            Ryujinx.Graphics.Gpu.GraphicsConfig.HogwartsDmaRegionUpload = hogwarts;'''
 
 USING_OLD = 'using Ryujinx.Common;\nusing Ryujinx.Common.Memory;\n'
 USING_NEW = 'using Ryujinx.Common;\nusing Ryujinx.Common.Logging;\nusing Ryujinx.Common.Memory;\n'
+DIAGNOSTICS_USING_OLD = '\nusing System.Collections.Generic;\n'
+DIAGNOSTICS_USING_NEW = '\nusing System.Collections.Generic;\nusing System.Diagnostics;\n'
 
 FAST_OLD = '''                if (completeSource && completeDest && !srcLinear && isIdentityRemap)
                 {
@@ -159,7 +195,31 @@ SLOW_OLD = '''                using ReadOnlyRegion srcRegion = memoryManager.Get
 SLOW_NEW = '''            GuestMemoryCopy:
                 NoteGuestMemoryCopy(slowReason, slowSource, srcLinear, dstLinear, xCount, yCount, srcBpp, srcSize);
 
-                using ReadOnlyRegion srcRegion = memoryManager.GetReadOnlyRegion(srcGpuVa + (ulong)srcBaseOffset, srcSize, true);'''
+                long readStart = Stopwatch.GetTimestamp();
+                using ReadOnlyRegion srcRegion = memoryManager.GetReadOnlyRegion(srcGpuVa + (ulong)srcBaseOffset, srcSize, true);
+                NoteGuestMemoryAccess(readStart, write: false);'''
+
+REGION_OLD = '''                // The destination range is read into this engine's buffer, patched there and
+                // written back whole, as before; only the array per copy is gone.
+                Span<byte> dstSpan = DestinationScratch(dstSize);'''
+REGION_NEW = '''                if (GraphicsConfig.HogwartsDmaRegionUpload && srcLinear && !dstLinear && isIdentityRemap && srcBpp == dstBpp &&
+                    TryUploadRegion(memoryManager, srcSpan, srcStride, xCount, yCount, dstBpp, dstGpuVa, dst, dstRegionX, dstRegionY))
+                {
+                    return;
+                }
+
+''' + REGION_OLD
+
+WRITE_OLD = '''                memoryManager.Write(dstGpuVa + (ulong)dstBaseOffset, dstSpan);
+            }
+            else
+            {'''
+WRITE_NEW = '''                long writeStart = Stopwatch.GetTimestamp();
+                memoryManager.Write(dstGpuVa + (ulong)dstBaseOffset, dstSpan);
+                NoteGuestMemoryAccess(writeStart, write: true);
+            }
+            else
+            {'''
 
 METHOD_ANCHOR = '''        /// <summary>
         /// Performs a buffer to buffer, or buffer to texture copy.
@@ -172,14 +232,25 @@ METHOD_NEW = '''        /// <summary>
         /// </summary>
         private enum DmaSlowPath { Incomplete, LinearSource, Remap, NoSource, Height, FloatFormat, Count }
 
+        /// <summary>
+        /// Why a partial upload into a GPU texture region was declined (the copy then goes through guest memory).
+        /// </summary>
+        private enum RegionDecline { NoTarget, Layout, Format, Count }
+
         private const int GuestCopySignaturesPerReason = 8;
-        private const int GuestCopySummaryLimit = 32;
+        private const int GuestCopySummaryLimit = 64;
+        private static readonly long SlowGuestAccessTicks = Stopwatch.Frequency / 500;
         private readonly HashSet<(DmaSlowPath, int, bool, bool, int, int, int)> _guestCopySignatures = new();
         private readonly int[] _guestCopySignatureCounts = new int[(int)DmaSlowPath.Count];
         private readonly long[] _guestCopies = new long[(int)DmaSlowPath.Count];
+        private readonly long[] _regionDeclines = new long[(int)RegionDecline.Count];
         private long _guestCopyTotal;
+        private long _regionUploads;
+        private long _slowSourceReads;
+        private long _slowDestinationWrites;
         private int _guestCopySummaries;
         private bool _floatGpuCopyNoted;
+        private bool _regionUploadNoted;
 
         /// <summary>
         /// Attributes a 2D copy that reads its source through guest memory (which flushes a GPU-written texture):
@@ -207,8 +278,147 @@ METHOD_NEW = '''        /// <summary>
                 _guestCopySummaries++;
                 Logger.Warning?.Print(LogClass.Gpu, $"DMA guest-memory copies: {_guestCopyTotal} " +
                     $"(incomplete {_guestCopies[0]}, linearSource {_guestCopies[1]}, remap {_guestCopies[2]}, " +
-                    $"noSource {_guestCopies[3]}, height {_guestCopies[4]}, floatFormat {_guestCopies[5]})");
+                    $"noSource {_guestCopies[3]}, height {_guestCopies[4]}, floatFormat {_guestCopies[5]}; " +
+                    $"regionUploads {_regionUploads}, declined noTarget {_regionDeclines[0]} layout {_regionDeclines[1]} " +
+                    $"format {_regionDeclines[2]}; slowReads {_slowSourceReads}, slowWrites {_slowDestinationWrites})");
             }
+        }
+
+        /// <summary>
+        /// Counts a guest-memory source read or destination write of a 2D copy that took more than 2 ms: such an
+        /// access runs the flush action of a texture the GPU modified.
+        /// </summary>
+        private void NoteGuestMemoryAccess(long start, bool write)
+        {
+            if (Stopwatch.GetTimestamp() - start > SlowGuestAccessTicks)
+            {
+                if (write)
+                {
+                    _slowDestinationWrites++;
+                }
+                else
+                {
+                    _slowSourceReads++;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Finds the texture whose surface is a block-linear DMA destination, with the lookup of the direct upload of complete
+        /// copies (single-level 2D uncompressed, same GOB blocks and height; null when ambiguous). A block-linear surface width
+        /// is the texture width in bytes aligned to a GOB (64 bytes), so when it is a multiple of 64 bytes every width it can
+        /// hold is tried: all lay out their texels at the same addresses. More than one texture group found: null.
+        /// </summary>
+        private static Image.Texture FindRegionTarget(MemoryManager memoryManager, ulong dstGpuVa, DmaTexture dst, int bpp)
+        {
+            int surfaceBytes = dst.Width * bpp;
+            int narrowest = surfaceBytes % 64 == 0 ? Math.Max(surfaceBytes - 63, 1) : surfaceBytes;
+            Image.Texture match = null;
+
+            for (int widthBytes = surfaceBytes; widthBytes >= narrowest; widthBytes--)
+            {
+                Image.Texture texture = memoryManager.Physical.TextureCache.FindTexture(
+                    memoryManager,
+                    dstGpuVa,
+                    1,
+                    0,
+                    dst.Height,
+                    widthBytes,
+                    dst.Height,
+                    false,
+                    dst.MemoryLayout.UnpackGobBlocksInY(),
+                    dst.MemoryLayout.UnpackGobBlocksInZ());
+
+                if (texture != null)
+                {
+                    if (match != null && texture.Group != match.Group)
+                    {
+                        return null;
+                    }
+
+                    match ??= texture;
+                }
+            }
+
+            return match;
+        }
+
+        /// <summary>
+        /// Hogwarts Legacy policy: uploads a 2D copy from linear memory into the region of the GPU texture whose surface is
+        /// the destination, instead of patching guest memory. A CPU write to the memory of a texture the GPU modified first
+        /// reads the whole texture back (its flush action), and the texture is then uploaded again.
+        /// The texture must be the single-level 2D uncompressed colour texture of the destination surface (the lookup of the
+        /// direct upload of complete copies, at the widths the surface holds), at scale 1 and without host format conversion, and the
+        /// region must fall on whole texels inside it. It is synchronised with its memory first and marked modified after,
+        /// as the direct upload of complete copies does; guest memory is not written.
+        /// </summary>
+        /// <returns>True if the region was uploaded, false to copy through guest memory</returns>
+        private bool TryUploadRegion(MemoryManager memoryManager, ReadOnlySpan<byte> srcSpan, int srcStride, int xCount, int yCount,
+                                     int bpp, ulong dstGpuVa, DmaTexture dst, int dstRegionX, int dstRegionY)
+        {
+            if (srcStride <= 0 || dst.Depth > 1 || dst.RegionZ != 0 || xCount <= 0 || yCount <= 0)
+            {
+                _regionDeclines[(int)RegionDecline.Layout]++;
+                return false;
+            }
+
+            Image.Texture target = FindRegionTarget(memoryManager, dstGpuVa, dst, bpp);
+
+            if (target == null)
+            {
+                _regionDeclines[(int)RegionDecline.NoTarget]++;
+                return false;
+            }
+
+            Image.FormatInfo format = target.Info.FormatInfo;
+
+            if (format.Format.IsDepthOrStencil ||
+                Image.TextureCompatibility.ToHostCompatibleFormat(target.Info, _context.Capabilities).Format != format.Format)
+            {
+                _regionDeclines[(int)RegionDecline.Format]++;
+                return false;
+            }
+
+            int texelBytes = format.BytesPerPixel;
+            int byteX = dstRegionX * bpp;
+            int byteWidth = xCount * bpp;
+
+            if (target.Info.Target != Target.Texture2D || target.ScaleFactor != 1f || target.Group.Storage != target ||
+                byteX % texelBytes != 0 || byteWidth % texelBytes != 0 ||
+                byteX / texelBytes + byteWidth / texelBytes > target.Info.Width || dstRegionY + yCount > target.Info.Height ||
+                (long)(yCount - 1) * srcStride + byteWidth > srcSpan.Length)
+            {
+                _regionDeclines[(int)RegionDecline.Layout]++;
+                return false;
+            }
+
+            int x = byteX / texelBytes;
+            int width = byteWidth / texelBytes;
+
+            // The host reads rows of the region packed, a row of fewer than 4 bytes per texel padded to 4 bytes.
+            int rowTexels = texelBytes < 4 ? BitUtils.AlignUp(width, 4 / texelBytes) : width;
+            int rowBytes = rowTexels * texelBytes;
+            MemoryOwner<byte> data = MemoryOwner<byte>.Rent(rowBytes * yCount);
+            Span<byte> rows = data.Span;
+
+            for (int y = 0; y < yCount; y++)
+            {
+                srcSpan.Slice(y * srcStride, byteWidth).CopyTo(rows.Slice(y * rowBytes, byteWidth));
+            }
+
+            target.SynchronizeMemory();
+            target.SetData(data, 0, 0, new Rectangle<int>(x, dstRegionY, width, yCount));
+            target.SignalModified();
+            _regionUploads++;
+
+            if (!_regionUploadNoted)
+            {
+                _regionUploadNoted = true;
+                Logger.Warning?.Print(LogClass.Gpu, $"DMA region upload (Hogwarts policy): {format.Format} " +
+                    $"{target.Info.Width}x{target.Info.Height} region {x},{dstRegionY} {width}x{yCount}");
+            }
+
+            return true;
         }
 
 ''' + METHOD_ANCHOR
@@ -222,6 +432,9 @@ def apply(source):
     once(dma, USING_OLD, USING_NEW)
     once(dma, FAST_OLD, FAST_NEW)
     once(dma, TARGET_OLD, TARGET_NEW)
+    once(dma, DIAGNOSTICS_USING_OLD, DIAGNOSTICS_USING_NEW)
     once(dma, SLOW_OLD, SLOW_NEW)
+    once(dma, REGION_OLD, REGION_NEW)
+    once(dma, WRITE_OLD, WRITE_NEW)
     once(dma, METHOD_ANCHOR, METHOD_NEW)
     return NAMES
