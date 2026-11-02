@@ -1126,6 +1126,8 @@ const Map<String, dynamic> appLocaleId = {
   AppLocale.raStatusNoAchievements: "Game dikenali, tetapi tidak ada pencapaian untuk dilacak.",
   AppLocale.raStatusSetUnsupported: "Game dikenali, tetapi pencapaiannya tidak didukung oleh emulator ini.",
   AppLocale.raStatusUnknownGame: "Game tidak dikenali oleh RetroAchievements (versi atau dump tidak terdaftar).",
+  AppLocale.raStatusUnknownGamePs3: "Game PS3 ini belum terdaftar di RetroAchievements: tidak ada pencapaian untuk dilacak.",
+  AppLocale.raStatusHashFailed: "Game tidak teridentifikasi: berkasnya tidak dapat dibaca untuk RetroAchievements.",
   AppLocale.raStatusUnsupported: "RetroAchievements tidak tersedia untuk game atau core emulator ini.",
   AppLocale.raStatusSignIn: "Perlu masuk: buka tab RetroAchievements, lalu “RetroAchievements dalam game”.",
   AppLocale.raStatusAuthRejected: "RetroAchievements menolak proses masuk. Masuk lagi dari tab RetroAchievements.",

@@ -782,13 +782,25 @@ static RBRATestResponse RBRAProtocolResponse;
   NSDictionary *codes = @{@"login_failed_-34": @"authRejected", @"login_failed_-35": @"authRejected",
     @"RA_AUTHENTICATION_FAILED": @"authRejected", @"login_failed_-32": @"network",
     @"RA_NETWORK_UNAVAILABLE": @"network", @"login_failed_-1": @"loginFailed",
-    @"RA_GAME_NOT_RECOGNIZED": @"unknownGame", @"RA_NO_ACHIEVEMENTS": @"noAchievements",
+    @"RA_GAME_NOT_RECOGNIZED": @"unknownGame", @"RA_GAME_HASH_FAILED": @"hashFailed",
+    @"RA_NO_ACHIEVEMENTS": @"noAchievements",
     @"RA_ACHIEVEMENTS_UNSUPPORTED": @"setUnsupported", @"RA_HARDCORE_OPTIONS": @"hardcoreOptions",
     @"RA_GAME_LOAD_FAILED": @"loadFailed", @"configuration_failed": @"unavailable",
     @"RA_SYNC_PENDING": @"pending", @"cleanup_pending": @"pending", @"": @"pending"};
   for (NSString *code in codes)
     XCTAssertEqualObjects(RBRAStatusForState(base, @{@"errorCode": code}, NO)[@"key"], codes[code], @"%@", code);
   XCTAssertEqualObjects(RBRAStatusForState(base, @{@"errorCode": @"RA_GAME_NOT_RECOGNIZED"}, NO)[@"message"], @"Jeu non reconnu");
+  // PS3 (2 November 2026): RetroAchievements links almost no PS3 disc yet, so
+  // an unknown hash there is not blamed on the player's dump.
+  NSMutableDictionary *ps3 = [base mutableCopy];
+  ps3[@"engine"] = @"rpcs3";
+  NSDictionary *ps3Unknown = RBRAStatusForState(ps3, @{@"errorCode": @"RA_GAME_NOT_RECOGNIZED"}, NO);
+  XCTAssertEqualObjects(ps3Unknown[@"key"], @"unknownGamePs3");
+  XCTAssertEqualObjects(ps3Unknown[@"message"],
+    @"This PS3 game is not (yet) listed by RetroAchievements: no achievements to track.");
+  XCTAssertEqualObjects(RBRAStatusForState(ps3, @{@"errorCode": @"RA_GAME_HASH_FAILED"}, NO)[@"key"], @"hashFailed");
+  ps3[@"engine"] = @"dolphin";
+  XCTAssertEqualObjects(RBRAStatusForState(ps3, @{@"errorCode": @"RA_GAME_NOT_RECOGNIZED"}, NO)[@"key"], @"unknownGame");
   XCTAssertEqualObjects(RBRAStatusForState(base, @{}, YES)[@"key"], @"unconfirmed");
   for (NSDictionary *state in @[@{}, @{@"active": @YES, @"gameLoaded": @YES}, @{@"errorCode": @"RA_LOGIN_FAILED"}])
     [self assertRedacted:RBRAStatusForState(base, state, NO)];

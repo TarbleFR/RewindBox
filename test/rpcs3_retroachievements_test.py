@@ -322,6 +322,25 @@ class HostClient(unittest.TestCase):
             self.assertEqual(start, real)
         self.assertIn('rc_client_set_allow_background_memory_reads(client, 0)', client)
 
+    def test_unknown_hash_and_unreadable_files_are_told_apart(self):
+        # 2 November 2026: Black Ops II, Assassin's Creed and Bladestorm showed
+        # "not recognized (unlisted version or dump)". RetroAchievements lists
+        # two PS3 hashes in all, so the PS3 status no longer blames the dump,
+        # and files that cannot be hashed get their own code.
+        client = read(CLIENT)
+        loaded = client.split('static void Rpcs3RAGameLoaded(', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('result == RC_NO_GAME_LOADED ? @"RA_GAME_NOT_RECOGNIZED"', loaded)
+        self.assertIn('result == RC_INVALID_STATE ? @"RA_GAME_HASH_FAILED"', loaded)
+        self.assertIn('unknown_hash=%s', loaded)
+        self.assertIn('strspn(md5, "0123456789abcdef") == 32', loaded)
+        start = client.split('hash_source=missing', 1)[1].split('const BOOL requested', 1)[0]
+        self.assertEqual(start.count('RA_GAME_HASH_FAILED'), 2)
+        self.assertNotIn('RA_GAME_NOT_RECOGNIZED', start)
+        hub = read(ROOT / 'packages/retro_achievements_session/ios/Classes/RetroAchievementsSessionPlugin.m')
+        self.assertIn('@"RA_GAME_HASH_FAILED": @"hashFailed"', hub)
+        self.assertRegex(hub, r'@"RA_GAME_HASH_FAILED", @"RA_NO_ACHIEVEMENTS"')
+        self.assertIn('[RBRAString(configuration[@"engine"]) isEqualToString:@"rpcs3"]', hub)
+
     def test_client_never_logs_account_data(self):
         client = read(CLIENT)
         self.assertNotIn('NSLog', client)

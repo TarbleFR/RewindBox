@@ -1171,6 +1171,8 @@ mixin AppLocale {
   static const String raStatusNoAchievements = 'ra_status_no_achievements';
   static const String raStatusSetUnsupported = 'ra_status_set_unsupported';
   static const String raStatusUnknownGame = 'ra_status_unknown_game';
+  static const String raStatusUnknownGamePs3 = 'ra_status_unknown_game_ps3';
+  static const String raStatusHashFailed = 'ra_status_hash_failed';
   static const String raStatusUnsupported = 'ra_status_unsupported';
   static const String raStatusSignIn = 'ra_status_sign_in';
   static const String raStatusAuthRejected = 'ra_status_auth_rejected';

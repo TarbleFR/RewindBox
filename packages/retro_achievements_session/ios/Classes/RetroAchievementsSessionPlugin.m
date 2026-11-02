@@ -169,7 +169,7 @@ static NSString *RBRAPublicErrorCode(id value) {
       @"RA_AUTHENTICATION_FAILED", @"RA_RATE_LIMITED", @"RA_STORAGE_UNAVAILABLE",
       @"RA_CREDENTIALS_MISSING", @"RA_CLIENT_UNAVAILABLE", @"RA_CORE_UNSUPPORTED",
       @"RA_MEMORY_UNAVAILABLE", @"RA_GAME_LOAD_FAILED", @"RA_GAME_NOT_RECOGNIZED",
-      @"RA_NO_ACHIEVEMENTS", @"RA_ACHIEVEMENTS_UNSUPPORTED", @"RA_SERVER_ERROR",
+      @"RA_GAME_HASH_FAILED", @"RA_NO_ACHIEVEMENTS", @"RA_ACHIEVEMENTS_UNSUPPORTED", @"RA_SERVER_ERROR",
       @"RA_SYNC_PENDING", @"RA_HARDCORE_OPTIONS", @"RA_HARDCORE_RESET_REQUIRED",
       @"RA_CANCELLED", @"RA_MIGRATION_EXPIRED", @"RA_SESSION_ERROR"]];
   });
@@ -510,6 +510,7 @@ static NSString *RBRAStatusKeyForCode(NSString *code) {
       @"RA_LOGIN_FAILED": @"loginFailed",
       @"RA_LOGIN_REQUIRED": @"signIn", @"RA_CREDENTIALS_MISSING": @"signIn",
       @"RA_GAME_NOT_RECOGNIZED": @"unknownGame",
+      @"RA_GAME_HASH_FAILED": @"hashFailed",
       @"RA_NO_ACHIEVEMENTS": @"noAchievements",
       @"RA_ACHIEVEMENTS_UNSUPPORTED": @"setUnsupported",
       @"RA_UNSUPPORTED": @"unsupported", @"RA_CORE_UNSUPPORTED": @"unsupported",
@@ -539,6 +540,8 @@ static NSString *RBRAStatusFallback(NSString *key) {
       @"noAchievements": @"Game recognized, but it has no achievements to track.",
       @"setUnsupported": @"Game recognized, but its achievements are not supported by this emulator.",
       @"unknownGame": @"Game not recognized by RetroAchievements (unlisted version or dump).",
+      @"unknownGamePs3": @"This PS3 game is not (yet) listed by RetroAchievements: no achievements to track.",
+      @"hashFailed": @"Game not identified: its files could not be read for RetroAchievements.",
       @"unsupported": @"RetroAchievements is not available for this game or emulator core.",
       @"signIn": @"Sign-in required: open the RetroAchievements tab.",
       @"authRejected": @"RetroAchievements refused the sign-in. Sign in again from the RetroAchievements tab.",
@@ -599,6 +602,11 @@ NSDictionary<NSString *, id> *RBRAStatusForState(NSDictionary *configuration, NS
     return notice(hardcoreActive ? @"activeHardcore" : @"active", [parts componentsJoinedByString:@" · "], YES);
   }
   NSString *key = RBRAStatusKeyForCode(RBRAString(state[@"errorCode"]));
+  // RetroAchievements links almost no PS3 disc to a game yet (two hashes on
+  // 2 November 2026, no achievement set): an unknown PS3 hash says nothing
+  // about the player's dump.
+  if ([key isEqualToString:@"unknownGame"] && [RBRAString(configuration[@"engine"]) isEqualToString:@"rpcs3"])
+    key = @"unknownGamePs3";
   if (key) return notice(key, text(key), YES);
   if (timedOut) return notice(@"unconfirmed", text(@"unconfirmed"), YES);
   const BOOL signedIn = RBRABool(state[@"loggedIn"]) || RBRABool(state[@"gameLoaded"]);

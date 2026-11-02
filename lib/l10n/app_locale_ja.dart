@@ -1070,6 +1070,8 @@ const Map<String, dynamic> appLocaleJa = {
   AppLocale.raStatusNoAchievements: "ゲームは認識されましたが、記録できる実績がありません。",
   AppLocale.raStatusSetUnsupported: "ゲームは認識されましたが、このエミュレーターはその実績に対応していません。",
   AppLocale.raStatusUnknownGame: "RetroAchievements はこのゲームを認識できません（未登録のバージョンまたはダンプ）。",
+  AppLocale.raStatusUnknownGamePs3: "この PS3 ゲームは RetroAchievements に（まだ）登録されていません。追跡する実績はありません。",
+  AppLocale.raStatusHashFailed: "ゲームを識別できません：RetroAchievements 用にファイルを読み取れませんでした。",
   AppLocale.raStatusUnsupported: "このゲームまたはエミュレーターコアでは RetroAchievements を利用できません。",
   AppLocale.raStatusSignIn: "ログインが必要です：RetroAchievements タブを開き、「ゲーム内の RetroAchievements」を選んでください。",
   AppLocale.raStatusAuthRejected: "RetroAchievements がログインを拒否しました。RetroAchievements タブから再度ログインしてください。",

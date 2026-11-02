@@ -1126,6 +1126,8 @@ const Map<String, dynamic> appLocaleRu = {
   AppLocale.raStatusNoAchievements: "Игра распознана, но в ней нет достижений для отслеживания.",
   AppLocale.raStatusSetUnsupported: "Игра распознана, но этот эмулятор не поддерживает её достижения.",
   AppLocale.raStatusUnknownGame: "RetroAchievements не распознал игру (версия или дамп не зарегистрированы).",
+  AppLocale.raStatusUnknownGamePs3: "Эта игра для PS3 (пока) не зарегистрирована в RetroAchievements: отслеживать нечего.",
+  AppLocale.raStatusHashFailed: "Игра не опознана: не удалось прочитать её файлы для RetroAchievements.",
   AppLocale.raStatusUnsupported: "RetroAchievements недоступен для этой игры или ядра эмулятора.",
   AppLocale.raStatusSignIn: "Требуется вход: откройте вкладку RetroAchievements, затем «RetroAchievements в играх».",
   AppLocale.raStatusAuthRejected: "RetroAchievements отклонил вход. Войдите снова на вкладке RetroAchievements.",

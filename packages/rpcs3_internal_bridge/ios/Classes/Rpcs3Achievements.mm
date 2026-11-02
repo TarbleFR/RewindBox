@@ -209,10 +209,20 @@ static void Rpcs3RAGameLoaded(int result, const char* message, rc_client_t* clie
       (uint64_t)(uintptr_t)userdata != achievements->_generation.load()) return;
   achievements->_loadStarted = NO;
   if (result != RC_OK) {
-    [achievements note:@"ra.game" detail:[NSString stringWithFormat:@"load_failed result=%d", result]];
-    // RC_NO_GAME_LOADED: unknown hash. RC_INVALID_STATE: the files could not be
-    // hashed as a PS3 title. RC_NO_RESPONSE: no answer from the server.
-    [achievements failWithCode:result == RC_NO_GAME_LOADED || result == RC_INVALID_STATE ? @"RA_GAME_NOT_RECOGNIZED"
+    // RC_NO_GAME_LOADED: PARAM.SFO + EBOOT.BIN were hashed, but RetroAchievements
+    // links no game to that hash (journaled: it is what a set must list; it says
+    // nothing about the player). RC_INVALID_STATE: the files could not be hashed.
+    // RC_NO_RESPONSE: no answer from the server.
+    NSString* detail = [NSString stringWithFormat:@"load_failed result=%d", result];
+    if (result == RC_NO_GAME_LOADED) {
+      const rc_client_game_t* unknown = rc_client_get_game_info(client);
+      const char* md5 = unknown != NULL ? unknown->hash : NULL;
+      if (md5 != NULL && strlen(md5) == 32 && strspn(md5, "0123456789abcdef") == 32)
+        detail = [detail stringByAppendingFormat:@" unknown_hash=%s", md5];
+    }
+    [achievements note:@"ra.game" detail:detail];
+    [achievements failWithCode:result == RC_NO_GAME_LOADED ? @"RA_GAME_NOT_RECOGNIZED"
+                             : result == RC_INVALID_STATE ? @"RA_GAME_HASH_FAILED"
                              : result == RC_NO_RESPONSE ? @"RA_NETWORK_UNAVAILABLE" : @"RA_GAME_LOAD_FAILED"];
     return;
   }
@@ -426,11 +436,11 @@ static void Rpcs3RATokenLogin(int result, const char* message, rc_client_t* clie
   if (hashPath.empty()) {
     // No PARAM.SFO + EBOOT.BIN layout rcheevos can hash: nothing to identify.
     [self note:@"ra.content" detail:[NSString stringWithFormat:@"hash_source=missing title=%s", info.title_id]];
-    [self failWithCode:@"RA_GAME_NOT_RECOGNIZED"];
+    [self failWithCode:@"RA_GAME_HASH_FAILED"];
     return;
   }
   _hashPath = [NSString stringWithUTF8String:hashPath.c_str()];
-  if (_hashPath.length == 0) { [self failWithCode:@"RA_GAME_NOT_RECOGNIZED"]; return; }
+  if (_hashPath.length == 0) { [self failWithCode:@"RA_GAME_HASH_FAILED"]; return; }
 
   const BOOL requested = [_configuration[@"hardcore"] boolValue];
   const rpcs3_ra::hardcore_decision decision =

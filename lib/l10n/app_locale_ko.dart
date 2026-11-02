@@ -1078,6 +1078,8 @@ const Map<String, dynamic> appLocaleKo = {
   AppLocale.raStatusNoAchievements: "게임이 인식되었지만 기록할 도전 과제가 없습니다.",
   AppLocale.raStatusSetUnsupported: "게임이 인식되었지만 이 에뮬레이터는 해당 도전 과제를 지원하지 않습니다.",
   AppLocale.raStatusUnknownGame: "RetroAchievements가 게임을 인식하지 못했습니다(등록되지 않은 버전 또는 덤프).",
+  AppLocale.raStatusUnknownGamePs3: "이 PS3 게임은 RetroAchievements에 (아직) 등록되어 있지 않습니다. 추적할 도전 과제가 없습니다.",
+  AppLocale.raStatusHashFailed: "게임을 식별할 수 없습니다. RetroAchievements용 게임 파일을 읽을 수 없습니다.",
   AppLocale.raStatusUnsupported: "이 게임 또는 에뮬레이터 코어에서는 RetroAchievements를 사용할 수 없습니다.",
   AppLocale.raStatusSignIn: "로그인이 필요합니다: RetroAchievements 탭을 연 다음 “게임 내 RetroAchievements”를 선택하세요.",
   AppLocale.raStatusAuthRejected: "RetroAchievements가 로그인을 거부했습니다. RetroAchievements 탭에서 다시 로그인하세요.",

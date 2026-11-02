@@ -1049,6 +1049,8 @@ const Map<String, dynamic> appLocaleZh = {
   AppLocale.raStatusNoAchievements: "已识别游戏，但没有可追踪的成就。",
   AppLocale.raStatusSetUnsupported: "已识别游戏，但此模拟器不支持其成就。",
   AppLocale.raStatusUnknownGame: "RetroAchievements 无法识别此游戏（版本或镜像未收录）。",
+  AppLocale.raStatusUnknownGamePs3: "RetroAchievements（尚）未收录此 PS3 游戏：没有可追踪的成就。",
+  AppLocale.raStatusHashFailed: "无法识别游戏：无法为 RetroAchievements 读取其文件。",
   AppLocale.raStatusUnsupported: "此游戏或模拟器核心不支持 RetroAchievements。",
   AppLocale.raStatusSignIn: "需要登录：打开 RetroAchievements 标签页，然后进入“游戏中的 RetroAchievements”。",
   AppLocale.raStatusAuthRejected: "RetroAchievements 拒绝了登录。请在 RetroAchievements 标签页中重新登录。",

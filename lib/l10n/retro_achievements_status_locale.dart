@@ -20,6 +20,8 @@ abstract final class RetroAchievementsStatusLocale {
     'noAchievements': AppLocale.raStatusNoAchievements,
     'setUnsupported': AppLocale.raStatusSetUnsupported,
     'unknownGame': AppLocale.raStatusUnknownGame,
+    'unknownGamePs3': AppLocale.raStatusUnknownGamePs3,
+    'hashFailed': AppLocale.raStatusHashFailed,
     'unsupported': AppLocale.raStatusUnsupported,
     'signIn': AppLocale.raStatusSignIn,
     'authRejected': AppLocale.raStatusAuthRejected,

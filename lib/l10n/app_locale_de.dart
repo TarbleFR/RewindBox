@@ -1149,6 +1149,8 @@ const Map<String, dynamic> appLocaleDe = {
   AppLocale.raStatusNoAchievements: "Spiel erkannt, aber es gibt keine Erfolge zu verfolgen.",
   AppLocale.raStatusSetUnsupported: "Spiel erkannt, aber dieser Emulator unterstützt seine Erfolge nicht.",
   AppLocale.raStatusUnknownGame: "Spiel von RetroAchievements nicht erkannt (Version oder Dump nicht gelistet).",
+  AppLocale.raStatusUnknownGamePs3: "Dieses PS3-Spiel ist bei RetroAchievements (noch) nicht gelistet: keine Erfolge zu verfolgen.",
+  AppLocale.raStatusHashFailed: "Spiel nicht identifiziert: Seine Dateien konnten für RetroAchievements nicht gelesen werden.",
   AppLocale.raStatusUnsupported: "RetroAchievements ist für dieses Spiel oder diesen Emulator-Core nicht verfügbar.",
   AppLocale.raStatusSignIn: "Anmeldung erforderlich: Öffne den Tab RetroAchievements und dann „RetroAchievements in Spielen“.",
   AppLocale.raStatusAuthRejected: "RetroAchievements hat die Anmeldung abgelehnt. Melde dich im Tab RetroAchievements erneut an.",

@@ -261,7 +261,7 @@ void main() {
           .readAsStringSync();
       final body = source.split('static NSString *RBRAStatusFallback(').last.split('return english[key]').first;
       final pairs = {
-        for (final match in RegExp(r'@"([A-Za-z]+)": @"((?:[^"\\]|\\.)*)"').allMatches(body))
+        for (final match in RegExp(r'@"([A-Za-z][A-Za-z0-9]*)": @"((?:[^"\\]|\\.)*)"').allMatches(body))
           match.group(1)!: match.group(2)!,
       };
       final english = RetroAchievementsStatusLocale.forLanguage('en')..remove('points');

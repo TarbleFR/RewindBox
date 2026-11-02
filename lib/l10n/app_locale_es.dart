@@ -1135,6 +1135,8 @@ const Map<String, dynamic> appLocaleEs = {
   AppLocale.raStatusNoAchievements: "Juego reconocido, pero no tiene logros que seguir.",
   AppLocale.raStatusSetUnsupported: "Juego reconocido, pero este emulador no admite sus logros.",
   AppLocale.raStatusUnknownGame: "RetroAchievements no reconoce el juego (versión o volcado no registrados).",
+  AppLocale.raStatusUnknownGamePs3: "RetroAchievements aún no registra este juego de PS3: no hay logros que seguir.",
+  AppLocale.raStatusHashFailed: "Juego no identificado: no se pudieron leer sus archivos para RetroAchievements.",
   AppLocale.raStatusUnsupported: "RetroAchievements no está disponible para este juego o núcleo del emulador.",
   AppLocale.raStatusSignIn: "Inicio de sesión necesario: abre la pestaña RetroAchievements y luego «RetroAchievements en el juego».",
   AppLocale.raStatusAuthRejected: "RetroAchievements rechazó el inicio de sesión. Vuelve a iniciar sesión desde la pestaña RetroAchievements.",

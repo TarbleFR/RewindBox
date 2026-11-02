@@ -44,7 +44,7 @@ String raSessionErrorLabel(String? code) {
   'RA_HARDCORE_OPTIONS' || 'RA_HARDCORE_RESET_REQUIRED' || 'hardcore_inactive' => AppLocale.raSessionHardcoreError,
   'RA_UNSUPPORTED' => AppLocale.raSessionUnsupported,
   'RA_CORE_UNSUPPORTED' || 'RA_MEMORY_UNAVAILABLE' || 'RA_ACHIEVEMENTS_UNSUPPORTED' => AppLocale.raSessionUnverified,
-  'RA_NO_ACHIEVEMENTS' || 'RA_GAME_NOT_RECOGNIZED' => AppLocale.noAchievementsFound,
+  'RA_NO_ACHIEVEMENTS' || 'RA_GAME_NOT_RECOGNIZED' || 'RA_GAME_HASH_FAILED' => AppLocale.noAchievementsFound,
   _ => AppLocale.raSessionUnavailable,
 };
 }
