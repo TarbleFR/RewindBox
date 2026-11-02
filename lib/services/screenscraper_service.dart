@@ -17,6 +17,7 @@ import 'game_box/game_box_media_service.dart';
 import 'game_box/game_box_preferences.dart';
 import 'game_box/game_box_sources.dart';
 import 'screenscraper/region_config.dart';
+import 'game_manual_french_sources.dart';
 import 'screenscraper/rom_hasher.dart';
 import 'screenscraper/media_resolver.dart';
 import 'screenscraper/screenscraper_client.dart';
@@ -1646,6 +1647,24 @@ class ScreenScraperService {
                 upgradeLanguage: true,
               ),
             );
+          }
+
+          // A French manual still missing: the edition's own on the Internet
+          // Archive, Nintendo Europe's for a DS game, then by exact title
+          // (docs/game-box-3d.md § 26).
+          if (boxCtx != null &&
+              extraSources &&
+              allowedTypes.contains('manuel') &&
+              '$preferredLanguage'.toLowerCase().startsWith('fr') &&
+              !(shouldCancel?.call() ?? false)) {
+            final clean = await ScreenscraperRomHasher.getCleanRomName(filename, appSystemId);
+            final root = await ScreenscraperMediaResolver.getMediaDirectory();
+            final found = await GameManualFrenchSources.fill(
+              boxCtx.game,
+              appSystemId,
+              path.join(root, systemFolder, 'manuals', '$clean.pdf'),
+            );
+            if (found != null) mediaAdded++;
           }
         }
 

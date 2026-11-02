@@ -51,7 +51,7 @@ class GameBoxRomId {
   static bool isId(String platform, String id) => switch (platform) {
         'wii' => _six.hasMatch(id),
         'wiiu' => _six.hasMatch(id) || _four.hasMatch(id),
-        'ds' || '3ds' => _four.hasMatch(id),
+        'ds' || '3ds' || 'gba' => _four.hasMatch(id),
         _ => false,
       };
 
@@ -97,6 +97,7 @@ class GameBoxRomId {
           id = switch (platform) {
             'wii' => await discId(at),
             'ds' => dsId(await at(0, 0x20)),
+            'gba' => gbaId(await at(0, 0xC0)),
             '3ds' => await ctrId(at),
             'wiiu' => await wiiuDiscId(at),
             _ => null,
@@ -156,6 +157,14 @@ class GameBoxRomId {
       if (c != 0 && (c < 0x20 || c > 0x7E)) return null;
     }
     final id = _ascii(h, 0x0C, 4);
+    return id != null && _four.hasMatch(id) ? id : null;
+  }
+
+  /// Game Boy Advance game code (header 0xAC), checked by the header's
+  /// fixed value 0x96 at 0xB2 (used to find a French manual, § 26).
+  static String? gbaId(Uint8List h) {
+    if (h.length < 0xB3 || h[0xB2] != 0x96) return null;
+    final id = _ascii(h, 0xAC, 4);
     return id != null && _four.hasMatch(id) ? id : null;
   }
 

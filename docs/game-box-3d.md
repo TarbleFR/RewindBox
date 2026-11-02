@@ -576,3 +576,38 @@ Une face choisie à la main ou imprimée dans une autre langue reste affichée, 
 - une DS sans ROM lisible est trouvée par son titre, sans être prise pour le produit ;
 - séparation GameCube/Wii sur un titre commun ;
 - recto de la jaquette montré à l'écran seulement dans la même langue.
+
+## 26. Notices en français : nouvelles sources (2 novembre 2026)
+
+Jusqu'ici, ScreenScraper était la seule source des notices. Quand la langue de scraping est le français et qu'un jeu n'a pas encore de notice, deux sources ouvertes s'y ajoutent (`GameManualFrenchSources`). Toutes deux ont été vérifiées en direct le 2 novembre 2026.
+
+1. **Internet Archive, par le code produit de l'édition.**
+   - Les collections de notices (`consolemanuals`, `gamemanuals`, `manuals`) comptent au moins 326 notices marquées en français. Leurs titres portent souvent le code de l'édition : `IM-DOL-GALP-FRA` pour Super Smash Bros. Melee France, `DOL-GXEP-FRA` pour Sonic Riders, `AGB-AMKP-NEU5` pour Mario Kart: Super Circuit.
+   - Ce code est lu dans la ROM (§ 25), avec en plus le code de jeu d'une cartouche GBA (0xAC), ou vient du numéro de série PS3.
+   - Seul un document marqué en français est pris.
+2. **Nintendo Europe, pour un jeu DS.** Le PDF officiel français porte le titre du jeu (`Manual_NintendoDS_MarioKartDS_FR.pdf`). Le serveur répond à un nom inconnu par une page HTML avec le statut 200 : seul un vrai PDF (`%PDF`) compte.
+3. **Internet Archive, par le titre exact**, en dernier recours. L'élément doit être marqué en français et nommer la même plateforme (« Nintendo GameCube », code `DOL-`, collection GBA…). Il ne doit pas nommer une plateforme voisine : un manuel PlayStation 2 n'est pas pris pour la PlayStation, un manuel Game Boy Advance pas pour la Game Boy.
+
+**Fichier.** C'est l'original quand il fait 60 Mo ou moins. Sinon, c'est la copie compressée que l'archive en fait, avec sa couche de texte : le scan d'origine de Mario Kart: Super Circuit pèse 737 Mo, sa copie 9,8 Mo. Au-delà de 150 Mo, rien n'est pris. La notice est écrite à l'emplacement habituel (`media/<système>/manuals/<jeu>.pdf`), de façon atomique, seulement si c'est un PDF. Une notice déjà présente n'est jamais remplacée.
+
+**Où.**
+- Téléchargement d'une notice (Paramètres du jeu › Notice, boîte 3D), en français :
+  1. la notice de l'édition par son code produit, ou le PDF Nintendo Europe d'un jeu DS ;
+  2. ScreenScraper, comme avant ;
+  3. le titre exact sur Internet Archive, si rien n'a été trouvé.
+- Scraping par lot : une notice encore manquante est cherchée après l'étape des faces, quand les notices sont cochées et les sources supplémentaires activées. Elle est comptée dans le contenu ajouté du résumé.
+
+**Essai en direct** : Super Smash Bros. Melee et Sonic Riders (GameCube, archive), Mario Kart: Super Circuit (GBA, copie compressée), Mario Kart DS (Nintendo Europe). Un jeu inconnu ne donne rien.
+
+**Tests** (`game_manual_french_sources_test`) :
+- notice de l'édition par son code produit lu dans l'ISO, l'élément anglais n'étant pas lu ;
+- copie compressée d'un scan géant ;
+- par titre, seulement en français et sur la même plateforme (PS1 contre PS2) ;
+- PDF Nintendo Europe, et page HTML refusée ;
+- seul un PDF est écrit, jamais par-dessus une notice présente ;
+- codes produits d'un disque, d'une DS, d'une GBA et d'un numéro de série PS3.
+
+**Limites.**
+- La couverture d'Internet Archive en français reste partielle (quelques centaines de notices), surtout GameCube, GBA et Super Nintendo.
+- Le PDF Nintendo Europe n'est trouvé que pour les jeux publiés par Nintendo, et seulement sur DS : les dossiers Wii et 3DS de ce serveur n'ont pas un nom prévisible, et une adresse devinée renvoie une page.
+- Les notices franco-canadiennes de Nintendo of America sont surtout celles des consoles et accessoires, avec des liens anciens morts : elles ne sont pas utilisées.
