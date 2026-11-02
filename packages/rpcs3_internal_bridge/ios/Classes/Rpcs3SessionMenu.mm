@@ -50,6 +50,9 @@ static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
       @{@"key": @"experimental.moltenvk_async_submits", @"title": @"testMvkAsync", @"field": @"mvk_async",
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // REWINDBOX_GPU_TIMING_621: Disabled measures the cost of the GPU timestamp probe.
+      @{@"key": @"experimental.gpu_timing", @"title": @"testGpuTiming", @"field": @"gpu_timing",
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
     ];
   });
   return levers;
@@ -119,6 +122,15 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
              action:@selector(resumePressed)];
 }
 
+- (void)viewDidDisappear:(BOOL)animated {
+  [super viewDidDisappear:animated];
+  // REWINDBOX_INCIDENT_REPORT_621: the whole menu went away, from whichever page
+  // was visible (a pushed or popped page alone does not count). Idempotent.
+  if (self.menuDismissed && (self.isBeingDismissed || self.navigationController.isBeingDismissed)) {
+    self.menuDismissed();
+  }
+}
+
 - (void)viewWillAppear:(BOOL)animated {
   [super viewWillAppear:animated];
   if (self.page == RPCS3MenuCheats) [self reloadCheats];
@@ -140,6 +152,10 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 }
 
 - (NSArray<NSString*>*)rootKeys {
+  // REWINDBOX_INCIDENT_REPORT_621: "Report a problem" before resume and quit.
+  if (self.shareReport)
+    return @[@"graphicsMenu", @"systemMenu", @"controlsMenu", @"touchControls", @"cheatsMenu",
+             @"createState", @"loadState", @"reportProblem", @"resumeGame", @"quitGame"];
   return @[@"graphicsMenu", @"systemMenu", @"controlsMenu", @"touchControls", @"cheatsMenu",
            @"createState", @"loadState", @"resumeGame", @"quitGame"];
 }
@@ -167,6 +183,8 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   child.resumeGame = self.resumeGame;
   child.quitGame = self.quitGame;
   child.readAccuracy = self.readAccuracy;
+  child.shareReport = self.shareReport;
+  child.menuDismissed = self.menuDismissed;
   child.returnPage = self;
   return child;
 }
@@ -373,6 +391,10 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
       cell.detailTextLabel.text = [self touchText:@"touchControlsDetail"];
       cell.accessibilityIdentifier = @"rpcs3.menu.touchControls";
     }
+    if ([key isEqual:@"reportProblem"]) {
+      cell.detailTextLabel.text = [self text:@"reportProblemDetail"];
+      cell.accessibilityIdentifier = @"rpcs3.menu.reportProblem";
+    }
     NSDictionary* symbols = @{
       @"graphicsMenu": @"display",
       @"systemMenu": @"gearshape.2",
@@ -381,6 +403,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
       @"cheatsMenu": @"bolt.shield",
       @"createState": @"square.and.arrow.down",
       @"loadState": @"square.and.arrow.up",
+      @"reportProblem": @"exclamationmark.bubble",
       @"resumeGame": @"play.fill",
       @"quitGame": @"xmark.circle",
     };
@@ -599,6 +622,8 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
     } else if ([key isEqual:@"loadState"]) {
       Rpcs3SessionMenu* child = [self child:RPCS3MenuLoadStates title:[self text:key]];
       [self.navigationController pushViewController:child animated:YES];
+    } else if ([key isEqual:@"reportProblem"]) {
+      if (self.shareReport) self.shareReport(self);
     } else if ([key isEqual:@"resumeGame"]) {
       [self resumePressed];
     } else if ([key isEqual:@"quitGame"]) {

@@ -20830,10 +20830,10 @@ index a710d66..f6c2cbc 100644
  
  	color4f fragment_texture::remapped_border_color(bool apply_colorspace_remapping) const
 diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
-index dff27c6..bbf5a9a 100644
+index dff27c6..ef3c41a 100644
 --- a/rpcs3/Emu/RSX/RSXThread.cpp
 +++ b/rpcs3/Emu/RSX/RSXThread.cpp
-@@ -26,6 +26,17 @@
+@@ -26,6 +26,18 @@
  #include "Overlays/overlay_perf_metrics.h"
  #include "Overlays/overlay_debug_overlay.h"
  #include "Overlays/overlay_manager.h"
@@ -20841,6 +20841,7 @@ index dff27c6..bbf5a9a 100644
 +// NEOSTATION_BUILD487_DIAGNOSTICS_V1: guest flips, native-UI state and the
 +// time-based approximate-load window reported to the Core profiler.
 +#include "ios/RPCS3IOSPerformance.h"
++#include "ios/IOSGpuTiming.h" // REWINDBOX_GPU_TIMING_621
 +#include "ios/RPCS3IOSProfilerHelpers.h"
 +#include "ios/IOSRsxSyncProfile.h"
 +#include "ios/IOSRsxIdlePark.h"
@@ -20851,7 +20852,7 @@ index dff27c6..bbf5a9a 100644
  
  #include "Utilities/date_time.h"
  
-@@ -42,6 +53,8 @@ class GSRender;
+@@ -42,6 +54,8 @@ class GSRender;
  atomic_t<bool> g_user_asked_for_recording = false;
  atomic_t<bool> g_user_asked_for_screenshot = false;
  atomic_t<bool> g_user_asked_for_frame_capture = false;
@@ -20860,7 +20861,7 @@ index dff27c6..bbf5a9a 100644
  atomic_t<bool> g_disable_frame_limit = false;
  rsx::frame_trace_data frame_debug;
  rsx::frame_capture_data frame_capture;
-@@ -478,15 +491,15 @@ namespace rsx
+@@ -478,15 +492,15 @@ namespace rsx
  				}
  				else
  				{
@@ -20881,7 +20882,7 @@ index dff27c6..bbf5a9a 100644
  						// Discard lower frequencies because it has been proven that there are indices higher than them
  						const usz discard_cnt = frequencies + freq_count - std::remove_if(frequencies, frequencies + freq_count, [&max_result_by_division](u32 freq)
  						{
-@@ -523,7 +536,8 @@ namespace rsx
+@@ -523,7 +537,8 @@ namespace rsx
  				break;
  			}
  
@@ -20891,7 +20892,7 @@ index dff27c6..bbf5a9a 100644
  
  			const auto re_evaluate = [&] <typename T> (const std::byte* ptr, T)
  			{
-@@ -586,59 +600,6 @@ namespace rsx
+@@ -586,59 +601,6 @@ namespace rsx
  		return vertex_range;
  	}
  
@@ -20951,7 +20952,7 @@ index dff27c6..bbf5a9a 100644
  	void tiled_region::write(const void *src, u32 width, u32 height, u32 pitch)
  	{
  		if (!tile)
-@@ -752,6 +713,10 @@ namespace rsx
+@@ -752,6 +714,10 @@ namespace rsx
  
  	thread::~thread()
  	{
@@ -20962,7 +20963,7 @@ index dff27c6..bbf5a9a 100644
  		g_access_violation_handler = nullptr;
  	}
  
-@@ -833,6 +798,8 @@ namespace rsx
+@@ -833,6 +799,8 @@ namespace rsx
  		m_graphics_state |= pipeline_state::all_dirty;
  
  		g_user_asked_for_frame_capture = false;
@@ -20971,7 +20972,7 @@ index dff27c6..bbf5a9a 100644
  
  		// TODO: Proper context management in the driver
  		s_ctx.rsxthr = this;
-@@ -933,6 +900,10 @@ namespace rsx
+@@ -933,6 +901,10 @@ namespace rsx
  			else
  			{
  				// NOTE: eval_sources list is reversed with newest query first
@@ -20982,7 +20983,7 @@ index dff27c6..bbf5a9a 100644
  				zcull_ctrl->read_barrier(this, cond_render_ctrl.eval_address, cond_render_ctrl.eval_sources.front());
  				ensure(!cond_render_ctrl.eval_pending());
  			}
-@@ -1051,6 +1022,12 @@ namespace rsx
+@@ -1051,6 +1023,12 @@ namespace rsx
  		{
  			sys_rsx_context_attribute(0x55555555, 0xFED, 1, get_guest_system_time(post_event_time), 0, 0);
  		}
@@ -20995,7 +20996,7 @@ index dff27c6..bbf5a9a 100644
  	}
  
  	namespace nv4097
-@@ -1101,6 +1078,14 @@ namespace rsx
+@@ -1101,6 +1079,14 @@ namespace rsx
  
  		const u64 event_flags = unsent_gcm_events.exchange(0);
  
@@ -21010,7 +21011,7 @@ index dff27c6..bbf5a9a 100644
  		if (Emu.IsStarting())
  		{
  			Emu.CallFromMainThread([]
-@@ -1252,13 +1237,40 @@ namespace rsx
+@@ -1252,13 +1238,40 @@ namespace rsx
  			manager->stop_audio();
  		}
  
@@ -21051,7 +21052,7 @@ index dff27c6..bbf5a9a 100644
  				if (!rsx_thread_running)
  				{
  					return;
-@@ -1278,6 +1290,16 @@ namespace rsx
+@@ -1278,6 +1291,16 @@ namespace rsx
  			// If something is going on in the backend that requires an update, set the interrupt bit explicitly.
  			if ((m_cycles_counter++ & 63) == 0 || m_eng_interrupt_mask)
  			{
@@ -21068,7 +21069,7 @@ index dff27c6..bbf5a9a 100644
  				// Execute backend-local tasks first
  				do_local_task(performance_counters.state);
  
-@@ -2164,9 +2186,29 @@ namespace rsx
+@@ -2164,9 +2187,29 @@ namespace rsx
  
  		const auto [program_offset, program_location] = method_registers.shader_program_address();
  		const auto prev_textures_reference_mask = current_fp_metadata.referenced_textures_mask;
@@ -21098,7 +21099,7 @@ index dff27c6..bbf5a9a 100644
  
  		current_fragment_program.data = (static_cast<u8*>(data_ptr) + current_fp_metadata.program_start_offset);
  		current_fragment_program.offset = program_offset + current_fp_metadata.program_start_offset;
-@@ -2367,6 +2409,11 @@ namespace rsx
+@@ -2367,6 +2410,11 @@ namespace rsx
  			{
  				// Emulation required
  				current_fragment_program.ctrl |= RSX_SHADER_CONTROL_ALPHA_TO_COVERAGE;
@@ -21110,7 +21111,7 @@ index dff27c6..bbf5a9a 100644
  			}
  		}
  
-@@ -2718,6 +2765,37 @@ namespace rsx
+@@ -2718,6 +2766,37 @@ namespace rsx
  			}
  		}
  
@@ -21148,7 +21149,7 @@ index dff27c6..bbf5a9a 100644
  		last_host_flip_timestamp = get_system_time();
  	}
  
-@@ -3351,6 +3429,47 @@ namespace rsx
+@@ -3351,6 +3430,47 @@ namespace rsx
  
  	u32 thread::get_load()
  	{
@@ -21196,7 +21197,7 @@ index dff27c6..bbf5a9a 100644
  		// Average load over around 30 frames
  		if (!performance_counters.last_update_timestamp || performance_counters.sampled_frames > 30)
  		{
-@@ -3367,6 +3486,7 @@ namespace rsx
+@@ -3367,6 +3487,7 @@ namespace rsx
  			performance_counters.sampled_frames = 0;
  			performance_counters.last_update_timestamp = timestamp;
  		}
@@ -21204,7 +21205,7 @@ index dff27c6..bbf5a9a 100644
  
  		return performance_counters.approximate_load;
  	}
-@@ -3378,56 +3498,73 @@ namespace rsx
+@@ -3378,56 +3499,73 @@ namespace rsx
  		// MM sync. This is a pre-emptive operation, so we can use a deferred request.
  		rsx::mm_flush_lazy();
  
@@ -21314,7 +21315,7 @@ index dff27c6..bbf5a9a 100644
  		if (zcull_ctrl->has_pending())
  		{
  			// NOTE: This is a workaround for buggy games.
-@@ -3481,9 +3618,57 @@ namespace rsx
+@@ -3481,9 +3619,60 @@ namespace rsx
  			thread_ctrl::wait_for(30'000);
  		}
  
@@ -21359,6 +21360,9 @@ index dff27c6..bbf5a9a 100644
 +				frame.flip_us = us(m_frame_stats.flip_time);
 +			}
 +			rpcs3::ios::frame_trace::profile.record(frame);
++			// REWINDBOX_GPU_TIMING_621: the submissions since the previous frame
++			// end belong to this frame (the GPU record the report looks up).
++			rpcs3::ios::gpu_timing::instance().on_frame(int_flip_index);
 +		}
 +		static u64 s_ios_frame_ordinal = 0;
 +		const bool ios_sample_frame = (++s_ios_frame_ordinal % rpcs3::ios::rsx_sync::rsx_frame_sample_period) == 0;
@@ -21372,7 +21376,7 @@ index dff27c6..bbf5a9a 100644
  	}
  
  	f64 thread::get_cached_display_refresh_rate()
-@@ -3538,6 +3723,9 @@ namespace rsx
+@@ -3538,6 +3727,9 @@ namespace rsx
  			async_flip_requested |= flip_request::emu_requested;
  
  			m_eng_interrupt_mask |= rsx::display_interrupt;
@@ -22074,14 +22078,15 @@ index fd4e667..7cffebe 100644
  
  	void AsyncTaskScheduler::flush(queue_submit_t& submit_info, VkBool32 force_flush)
 diff --git a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp b/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
-index 4925d88..5de62da 100644
+index 4925d88..e7b92ac 100644
 --- a/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKCommandStream.cpp
-@@ -9,6 +9,11 @@
+@@ -9,6 +9,12 @@
  #include "Emu/RSX/RSXThread.h"
  #include "Emu/system_config.h"
  
 +#ifdef RPCS3_IOS
++#include "ios/IOSGpuTiming.h"
 +#include "ios/IOSRsxSyncProfile.h"
 +#include "util/asm.hpp"
 +#endif
@@ -22089,7 +22094,7 @@ index 4925d88..5de62da 100644
  namespace vk
  {
  	// global submit guard to prevent race condition on queue submit
-@@ -42,7 +47,17 @@ namespace vk
+@@ -42,7 +48,19 @@ namespace vk
  			.pSignalSemaphores = submit_info.signal_semaphores.data()
  		};
  
@@ -22103,11 +22108,13 @@ index 4925d88..5de62da 100644
 +		const u64 ios_submit_ticks = utils::get_tsc() - ios_submit_begin;
 +		rpcs3::ios::rsx_sync::submit_ticks.record(ios_submit_ticks);
 +		rpcs3::ios::frame_trace::waits().submit_ticks += ios_submit_ticks;
++		// REWINDBOX_GPU_TIMING_621: every submission, timed or not.
++		rpcs3::ios::gpu_timing::instance().on_queue_submit();
 +#endif
  		release_global_submit_lock();
  
  		// Signal fence
-@@ -96,10 +111,26 @@ namespace vk
+@@ -96,10 +114,26 @@ namespace vk
  
  	void driver_manager_t::notify_completed(u64 eid)
  	{
@@ -22135,10 +22142,10 @@ index 4925d88..5de62da 100644
  		m_wake_event++;
  		m_wake_event.notify_one();
 diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
-index 77927e2..56d4757 100644
+index 77927e2..4ee5c33 100644
 --- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
-@@ -7,8 +7,14 @@
+@@ -7,8 +7,16 @@
  #include "VKGSRender.h"
  #include "vkutils/buffer_object.h"
  #include "vkutils/chip_class.h"
@@ -22148,12 +22155,14 @@ index 77927e2..56d4757 100644
 +#ifdef RPCS3_IOS
 +#include "ios/IOSFeedbackCensus.h" // REWINDBOX_FEEDBACK_CENSUS_610
 +#include "ios/IOSRendererCausality.h"
++#include "ios/IOSFrameTrace.h" // REWINDBOX_PIPELINE_QUEUE_621
++#include "ios/IOSPipelineQueue.h" // REWINDBOX_PIPELINE_QUEUE_621
 +#endif
 +
  namespace vk
  {
  	VkImageViewType get_view_type(rsx::texture_dimension_extended type)
-@@ -120,13 +126,85 @@ namespace vk
+@@ -120,13 +128,85 @@ namespace vk
  	}
  }
  
@@ -22240,7 +22249,7 @@ index 77927e2..56d4757 100644
  }
  
  void VKGSRender::close_render_pass()
-@@ -172,14 +250,14 @@ void VKGSRender::update_draw_state()
+@@ -172,14 +252,14 @@ void VKGSRender::update_draw_state()
  	{
  		const float actual_line_width =
  			m_device->get_wide_lines_support() ? rsx::method_registers.line_width() * resolution_scaling_config.scale_factor() : 1.f;
@@ -22257,7 +22266,7 @@ index 77927e2..56d4757 100644
  	}
  
  	if (rsx::method_registers.stencil_test_enabled())
-@@ -187,15 +265,15 @@ void VKGSRender::update_draw_state()
+@@ -187,15 +267,15 @@ void VKGSRender::update_draw_state()
  		const bool two_sided_stencil = rsx::method_registers.two_sided_stencil_test_enabled();
  		VkStencilFaceFlags face_flag = (two_sided_stencil) ? VK_STENCIL_FACE_FRONT_BIT : VK_STENCIL_FRONT_AND_BACK;
  
@@ -22279,7 +22288,7 @@ index 77927e2..56d4757 100644
  		}
  	}
  
-@@ -226,12 +304,12 @@ void VKGSRender::update_draw_state()
+@@ -226,12 +306,12 @@ void VKGSRender::update_draw_state()
  			polygon_offset_bias *= 0.5f;
  		}
  
@@ -22294,7 +22303,7 @@ index 77927e2..56d4757 100644
  	}
  
  	if (m_device->get_depth_bounds_support())
-@@ -256,7 +334,7 @@ void VKGSRender::update_draw_state()
+@@ -256,7 +336,7 @@ void VKGSRender::update_draw_state()
  			bounds_max = std::clamp(bounds_max, 0.f, 1.f);
  		}
  
@@ -22303,7 +22312,7 @@ index 77927e2..56d4757 100644
  	}
  
  	bind_viewport();
-@@ -270,9 +348,47 @@ void VKGSRender::load_texture_env()
+@@ -270,9 +350,47 @@ void VKGSRender::load_texture_env()
  {
  	// Load textures
  	bool check_for_cyclic_refs = false;
@@ -22353,7 +22362,7 @@ index 77927e2..56d4757 100644
  		{
  			check_for_cyclic_refs |= descriptor->is_cyclic_reference;
  			return true;
-@@ -290,12 +406,9 @@ void VKGSRender::load_texture_env()
+@@ -290,12 +408,9 @@ void VKGSRender::load_texture_env()
  
  	std::lock_guard lock(m_sampler_mutex);
  
@@ -22368,7 +22377,7 @@ index 77927e2..56d4757 100644
  
  		if (!fs_sampler_state[i])
  		{
-@@ -304,17 +417,24 @@ void VKGSRender::load_texture_env()
+@@ -304,17 +419,24 @@ void VKGSRender::load_texture_env()
  
  		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(fs_sampler_state[i].get());
  		const auto& tex = rsx::method_registers.fragment_textures[i];
@@ -22395,7 +22404,7 @@ index 77927e2..56d4757 100644
  
  		if (!tex.enabled())
  		{
-@@ -322,9 +442,22 @@ void VKGSRender::load_texture_env()
+@@ -322,9 +444,22 @@ void VKGSRender::load_texture_env()
  			continue;
  		}
  
@@ -22418,7 +22427,7 @@ index 77927e2..56d4757 100644
  			continue;
  		}
  
-@@ -333,16 +466,29 @@ void VKGSRender::load_texture_env()
+@@ -333,16 +468,29 @@ void VKGSRender::load_texture_env()
  			check_for_cyclic_refs |= true;
  		}
  
@@ -22450,7 +22459,7 @@ index 77927e2..56d4757 100644
  				// Nothing to change, use cached sampler
  				continue;
  			}
-@@ -383,6 +529,19 @@ void VKGSRender::load_texture_env()
+@@ -383,6 +531,19 @@ void VKGSRender::load_texture_env()
  			}
  		}
  
@@ -22470,7 +22479,7 @@ index 77927e2..56d4757 100644
  		VkFilter mag_filter;
  		vk::minification_filter min_filter;
  		f32 min_lod = 0.f, max_lod = 0.f;
-@@ -523,12 +682,9 @@ void VKGSRender::load_texture_env()
+@@ -523,12 +684,9 @@ void VKGSRender::load_texture_env()
  			border_color, compare_enabled, depth_compare_mode);
  	}
  
@@ -22485,7 +22494,7 @@ index 77927e2..56d4757 100644
  
  		if (!vs_sampler_state[i])
  		{
-@@ -537,17 +693,24 @@ void VKGSRender::load_texture_env()
+@@ -537,17 +695,24 @@ void VKGSRender::load_texture_env()
  
  		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(vs_sampler_state[i].get());
  		const auto& tex = rsx::method_registers.vertex_textures[i];
@@ -22512,7 +22521,7 @@ index 77927e2..56d4757 100644
  
  		if (!rsx::method_registers.vertex_textures[i].enabled())
  		{
-@@ -555,9 +718,23 @@ void VKGSRender::load_texture_env()
+@@ -555,9 +720,23 @@ void VKGSRender::load_texture_env()
  			continue;
  		}
  
@@ -22536,7 +22545,7 @@ index 77927e2..56d4757 100644
  			continue;
  		}
  
-@@ -568,10 +745,13 @@ void VKGSRender::load_texture_env()
+@@ -568,10 +747,13 @@ void VKGSRender::load_texture_env()
  
  		if (!is_sampler_dirty)
  		{
@@ -22551,7 +22560,7 @@ index 77927e2..56d4757 100644
  			}
  
  			if (vs_sampler_handles[i])
-@@ -644,18 +824,75 @@ void VKGSRender::load_texture_env()
+@@ -644,18 +826,75 @@ void VKGSRender::load_texture_env()
  	}
  }
  
@@ -22632,7 +22641,7 @@ index 77927e2..56d4757 100644
  		if (m_fs_binding_table->ftex_location[i] == umax)
  		{
  			// Corrupt shader table
-@@ -682,6 +919,20 @@ bool VKGSRender::bind_texture_env()
+@@ -682,6 +921,20 @@ bool VKGSRender::bind_texture_env()
  			}
  		}
  
@@ -22653,7 +22662,7 @@ index 77927e2..56d4757 100644
  		if (view) [[likely]]
  		{
  			m_program->bind_uniform({ *view, *fs_sampler_handles[i] },
-@@ -727,13 +978,9 @@ bool VKGSRender::bind_texture_env()
+@@ -727,13 +980,9 @@ bool VKGSRender::bind_texture_env()
  		}
  	}
  
@@ -22669,7 +22678,7 @@ index 77927e2..56d4757 100644
  
  		if (m_vs_binding_table->vtex_location[i] == umax)
  		{
-@@ -902,10 +1149,12 @@ bool VKGSRender::bind_interpreter_texture_env()
+@@ -902,10 +1151,12 @@ bool VKGSRender::bind_interpreter_texture_env()
  		return image->get_view(decoded_remap, base->info.subresourceRange.aspectMask);
  	};
  
@@ -22685,7 +22694,7 @@ index 77927e2..56d4757 100644
  
  		vk::image_view* view = nullptr;
  		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(fs_sampler_state[i].get());
-@@ -961,6 +1210,21 @@ bool VKGSRender::bind_interpreter_texture_env()
+@@ -961,6 +1212,21 @@ bool VKGSRender::bind_interpreter_texture_env()
  			validate_image_layout_for_read_access(*m_current_command_buffer, view, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, sampler_state);
  		}
  
@@ -22707,7 +22716,7 @@ index 77927e2..56d4757 100644
  		const int offsets[] = { 0, 16, 48, 32 };
  		auto& sampled_image_info = texture_env[offsets[static_cast<u32>(sampler_state->image_type)] + i];
  		sampled_image_info = { *view, *fs_sampler_handles[i] };
-@@ -1110,6 +1374,13 @@ void VKGSRender::emit_geometry(u32 sub_index)
+@@ -1110,6 +1376,13 @@ void VKGSRender::emit_geometry(u32 sub_index)
  
  	if (current_fragment_program.ctrl & RSX_SHADER_CONTROL_PROGRAMMABLE_BLENDING)
  	{
@@ -22721,7 +22730,19 @@ index 77927e2..56d4757 100644
  		// Subpass inter-draw dependency for input attachment reads. Preserves open renderpasses.
  		for (u32 i = 0; i < current_fragment_program.mrt_buffers_count; ++i)
  		{
-@@ -1404,6 +1675,10 @@ void VKGSRender::end()
+@@ -1297,6 +1570,11 @@ void VKGSRender::end()
+ 
+ 	if (!load_program())
+ 	{
++#ifdef RPCS3_IOS
++		// REWINDBOX_PIPELINE_QUEUE_621: counted per window and per frame.
++		rpcs3::ios::pipeline_queue::on_skipped_draw();
++		rpcs3::ios::frame_trace::waits().skipped_draws++;
++#endif
+ 		// Program is not ready, skip drawing this
+ 		std::this_thread::yield();
+ 		execute_nop_draw();
+@@ -1404,6 +1682,10 @@ void VKGSRender::end()
  	}
  
  	m_rtts.on_write(m_framebuffer_layout.color_write_enabled, m_framebuffer_layout.zeta_write_enabled);
@@ -22763,10 +22784,10 @@ index 572935e..eaff79b 100644
  	};
  
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-index 63cab28..f3fe8d9 100644
+index 63cab28..7dbac64 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-@@ -16,10 +16,21 @@
+@@ -16,10 +16,24 @@
  #include "vkutils/scratch.h"
  
  #include "Emu/RSX/rsx_methods.h"
@@ -22783,12 +22804,15 @@ index 63cab28..f3fe8d9 100644
 +#include "ios/IOSEarlySubmit.h"
 +#include "ios/IOSRsxIdlePark.h"
 +#include "ios/RPCS3IOSExperimentalPolicy.h"
++#include "ios/IOSFrameTrace.h"
++#include "ios/IOSGpuTiming.h"
++#include "util/sysinfo.hpp"
 +#include "util/tsc.hpp"
 +#endif
  
  #include "../Program/SPIRVCommon.h"
  
-@@ -475,6 +486,30 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -475,6 +489,30 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  	vk::set_current_renderer(m_swapchain->get_device());
  	vk::init();
  
@@ -22819,7 +22843,18 @@ index 63cab28..f3fe8d9 100644
  	m_swapchain_dims.width = m_frame->client_width();
  	m_swapchain_dims.height = m_frame->client_height();
  
-@@ -537,7 +572,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -486,6 +524,10 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+ 	// create command buffer...
+ 	m_command_buffer_pool.create((*m_device), m_device->get_graphics_queue_family());
+ 	m_primary_cb_list.create(m_command_buffer_pool, vk::command_buffer::access_type_hint::flush_only);
++#ifdef RPCS3_IOS
++	// REWINDBOX_GPU_TIMING_621: before the first primary chunk begins.
++	ios_gpu_timing_init();
++#endif
+ 	m_current_command_buffer = m_primary_cb_list.get();
+ 	m_current_command_buffer->begin();
+ 
+@@ -537,7 +579,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  	m_flushable_data_heaps = vk::data_heap_manager::to_list().filter(FN(x->has_shadow()));
  
@@ -22828,7 +22863,7 @@ index 63cab28..f3fe8d9 100644
  
  	if (shadermode == shader_mode::async_with_interpreter || shadermode == shader_mode::interpreter_only)
  	{
-@@ -796,6 +831,11 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -796,6 +838,11 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  VKGSRender::~VKGSRender()
  {
@@ -22840,7 +22875,18 @@ index 63cab28..f3fe8d9 100644
  	if (m_device == VK_NULL_HANDLE)
  	{
  		//Initialization failed
-@@ -935,6 +975,9 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+@@ -875,6 +922,10 @@ VKGSRender::~VKGSRender()
+ 	m_stencil_mirror_sampler.reset();
+ 
+ 	// Queries
++#ifdef RPCS3_IOS
++	// REWINDBOX_GPU_TIMING_621: every submission completed (device idle above).
++	ios_gpu_timing_shutdown();
++#endif
+ 	m_occlusion_query_manager.reset();
+ 	m_cond_render_buffer.reset();
+ 
+@@ -935,6 +986,9 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
  			g_fxo->get<rsx::dma_manager>().set_mem_fault_flag();
  			m_queue_status |= flush_queue_state::deadlock;
  			m_eng_interrupt_mask |= rsx::backend_interrupt;
@@ -22850,7 +22896,7 @@ index 63cab28..f3fe8d9 100644
  
  			// Wait for deadlock to clear
  			while (m_queue_status & flush_queue_state::deadlock)
-@@ -959,6 +1002,10 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+@@ -959,6 +1013,10 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
  			m_flush_requests.post(false);
  			m_eng_interrupt_mask |= rsx::backend_interrupt;
  			has_queue_ref = true;
@@ -22861,7 +22907,7 @@ index 63cab28..f3fe8d9 100644
  		}
  		else
  		{
-@@ -983,6 +1030,11 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+@@ -983,6 +1041,11 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
  			};
  		}
  
@@ -22873,7 +22919,7 @@ index 63cab28..f3fe8d9 100644
  		m_texture_cache.flush_all(*m_secondary_cb_list.next(), result, data_transfer_completed_callback);
  
  		if (has_queue_ref)
-@@ -1019,12 +1071,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
+@@ -1019,12 +1082,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
  
  void VKGSRender::on_semaphore_acquire_wait()
  {
@@ -22913,7 +22959,7 @@ index 63cab28..f3fe8d9 100644
  }
  
  bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
-@@ -1048,6 +1127,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1048,6 +1138,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  				for (auto i = 0ull; i < texture_array.size(); ++i)
  				{
  					const auto& tex = texture_array[i];
@@ -22927,7 +22973,7 @@ index 63cab28..f3fe8d9 100644
  					const auto addr = rsx::get_address(tex.offset(), tex.location());
  					exclusion_list.insert(addr);
  				}
-@@ -1096,33 +1182,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1096,33 +1193,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  		return any_cache_relieved;
  	}
  
@@ -22942,15 +22988,7 @@ index 63cab28..f3fe8d9 100644
 -			{
 -				return;
 -			}
-+		// Spilling and resolve-cache eviction destroy image views. Invalidate
-+		// every cached framebuffer descriptor, even when a global refresh is
-+		// already pending: load_texture_env only refreshes the current shader's
-+		// referenced slots before clearing that global flag.
-+		const bool invalidate_fragment_samplers = rsx::invalidate_sampler_context(
-+			fs_sampler_state, m_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
-+		const bool invalidate_vertex_samplers = rsx::invalidate_sampler_context(
-+			vs_sampler_state, m_vertex_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
- 
+-
 -			for (auto i = 0ull; i < texture_array.size(); ++i)
 -			{
 -				if (texture_array[i].enabled() &&
@@ -22962,7 +23000,15 @@ index 63cab28..f3fe8d9 100644
 -				}
 -			}
 -		};
--
++		// Spilling and resolve-cache eviction destroy image views. Invalidate
++		// every cached framebuffer descriptor, even when a global refresh is
++		// already pending: load_texture_env only refreshes the current shader's
++		// referenced slots before clearing that global flag.
++		const bool invalidate_fragment_samplers = rsx::invalidate_sampler_context(
++			fs_sampler_state, m_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
++		const bool invalidate_vertex_samplers = rsx::invalidate_sampler_context(
++			vs_sampler_state, m_vertex_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
+ 
 -		scan_array(rsx::method_registers.fragment_textures, fs_sampler_state);
 -		scan_array(rsx::method_registers.vertex_textures, vs_sampler_state);
 -
@@ -22971,7 +23017,7 @@ index 63cab28..f3fe8d9 100644
  		{
  			m_samplers_dirty.store(true);
  		}
-@@ -1234,8 +1305,13 @@ void VKGSRender::bind_viewport()
+@@ -1234,8 +1316,13 @@ void VKGSRender::bind_viewport()
  		m_graphics_state.clear(rsx::pipeline_state::zclip_config_state_dirty);
  	}
  
@@ -22985,7 +23031,7 @@ index 63cab28..f3fe8d9 100644
  }
  
  void VKGSRender::on_init_thread()
-@@ -1250,8 +1326,8 @@ void VKGSRender::on_init_thread()
+@@ -1250,8 +1337,8 @@ void VKGSRender::on_init_thread()
  	GSRender::on_init_thread();
  	zcull_ctrl.reset(static_cast<::rsx::reports::ZCULL_control*>(this));
  
@@ -22996,7 +23042,7 @@ index 63cab28..f3fe8d9 100644
  	{
  		std::unique_ptr<rsx::shader_loading_dialog> dlg = m_overlay_manager
  			? std::make_unique<rsx::shader_loading_dialog_native>(this)
-@@ -1260,7 +1336,7 @@ void VKGSRender::on_init_thread()
+@@ -1260,7 +1347,7 @@ void VKGSRender::on_init_thread()
  		dlg->close();
  	}
  
@@ -23005,7 +23051,7 @@ index 63cab28..f3fe8d9 100644
  	{
  		if (!m_overlay_manager)
  		{
-@@ -1276,12 +1352,34 @@ void VKGSRender::on_init_thread()
+@@ -1276,12 +1363,34 @@ void VKGSRender::on_init_thread()
  			m_shaders_cache->load(&dlg);
  		}
  	}
@@ -23040,7 +23086,7 @@ index 63cab28..f3fe8d9 100644
  	zcull_ctrl.release();
  }
  
-@@ -1541,6 +1639,9 @@ void VKGSRender::flush_command_queue(bool hard_sync, bool do_not_switch)
+@@ -1541,6 +1650,9 @@ void VKGSRender::flush_command_queue(bool hard_sync, bool do_not_switch)
  
  	if (hard_sync)
  	{
@@ -23050,7 +23096,7 @@ index 63cab28..f3fe8d9 100644
  		// wait for the latest instruction to execute
  		m_current_command_buffer->reset();
  
-@@ -1718,6 +1819,9 @@ void VKGSRender::sync_hint(rsx::FIFO::interrupt_hint hint, rsx::reports::sync_hi
+@@ -1718,6 +1830,9 @@ void VKGSRender::sync_hint(rsx::FIFO::interrupt_hint hint, rsx::reports::sync_hi
  		// This heavyweight hint should be used with caution
  		std::lock_guard lock(m_flush_queue_mutex);
  		flush_command_queue();
@@ -23060,7 +23106,7 @@ index 63cab28..f3fe8d9 100644
  
  		if (m_flush_requests.pending())
  		{
-@@ -1801,12 +1905,15 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
+@@ -1801,12 +1916,15 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
  
  bool VKGSRender::load_program()
  {
@@ -23078,7 +23124,7 @@ index 63cab28..f3fe8d9 100644
  	{
  		get_current_fragment_program(fs_sampler_state);
  		ensure(current_fragment_program.valid);
-@@ -1862,8 +1969,13 @@ bool VKGSRender::load_program()
+@@ -1862,8 +1980,13 @@ bool VKGSRender::load_program()
  		);
  
  		properties.renderpass_key = m_current_renderpass_key;
@@ -23092,7 +23138,7 @@ index 63cab28..f3fe8d9 100644
  			m_pipeline_properties == properties)
  		{
  			// Nothing changed
-@@ -1872,7 +1984,6 @@ bool VKGSRender::load_program()
+@@ -1872,7 +1995,6 @@ bool VKGSRender::load_program()
  
  		// Fallthrough
  		m_pipeline_properties = properties;
@@ -23100,7 +23146,7 @@ index 63cab28..f3fe8d9 100644
  	}
  	else
  	{
-@@ -1912,7 +2023,11 @@ bool VKGSRender::load_program()
+@@ -1912,7 +2034,11 @@ bool VKGSRender::load_program()
  
  		vk::leave_uninterruptible();
  
@@ -23113,7 +23159,18 @@ index 63cab28..f3fe8d9 100644
  		{
  			// Notify the user with HUD notification
  			if (g_cfg.misc.show_shader_compilation_hint)
-@@ -2467,7 +2582,13 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+@@ -2409,6 +2535,10 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+ 
+ 			vk::queue_submit_t submit_info{ m_device->get_graphics_queue(), nullptr };
+ 			secondary_command_buffer->submit(submit_info, force_flush);
++#ifdef RPCS3_IOS
++			// REWINDBOX_GPU_TIMING_621: heap synchronization, no timestamps.
++			rpcs3::ios::gpu_timing::instance().on_untimed_submit();
++#endif
+ 		}
+ 
+ 		vk::clear_status_interrupt(vk::heap_dirty);
+@@ -2467,13 +2597,23 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
  		{
  			const VkSemaphore async_sema = *async_scheduler->get_sema();
  			secondary_submit_info.queue_signal(async_sema);
@@ -23127,7 +23184,17 @@ index 63cab28..f3fe8d9 100644
  
  			// Delay object destruction by one cycle
  			vk::get_resource_manager()->push_down_current_scope();
-@@ -2482,10 +2603,61 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+ 		}
+ 
+ 		async_scheduler->flush(secondary_submit_info, force_flush);
++#ifdef RPCS3_IOS
++		// REWINDBOX_GPU_TIMING_621: asynchronous streaming queue, no timestamps.
++		rpcs3::ios::gpu_timing::instance().on_untimed_submit();
++#endif
+ 	}
+ 
+ 	if (signal_semaphore)
+@@ -2482,10 +2622,277 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
  	}
  
  	m_current_command_buffer->submit(primary_submit_info, force_flush);
@@ -23141,6 +23208,222 @@ index 63cab28..f3fe8d9 100644
  }
  
 +#ifdef RPCS3_IOS
++namespace
++{
++	// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): one timestamp pair per
++	// primary chunk (queries 2 * slot and 2 * slot + 1). RSX thread only.
++	struct ios_gpu_timer_state
++	{
++		VkDevice device = VK_NULL_HANDLE;
++		VkQueryPool pool = VK_NULL_HANDLE;
++		PFN_vkGetCalibratedTimestampsEXT calibrate = nullptr;
++		u64 last_calibration_tsc = 0;
++	};
++
++	ios_gpu_timer_state g_ios_gpu_timer;
++
++	// Both queries of a slot, without VK_QUERY_RESULT_WAIT_BIT: an unwritten
++	// query reports availability 0 and the sample stays unavailable.
++	rpcs3::ios::gpu_timing::sample ios_gpu_read(u32 slot)
++	{
++		rpcs3::ios::gpu_timing::sample result;
++		if (!g_ios_gpu_timer.pool)
++		{
++			return result;
++		}
++
++		u64 values[4] = {};
++		const VkResult status = vkGetQueryPoolResults(g_ios_gpu_timer.device, g_ios_gpu_timer.pool, slot * 2, 2,
++			sizeof(values), values, sizeof(u64) * 2, VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT);
++		result.available = (status == VK_SUCCESS || status == VK_NOT_READY) && values[1] && values[3];
++		result.begin = values[0];
++		result.end = values[2];
++		return result;
++	}
++
++	// A GPU/host timestamp pair at most every calibration_period_us.
++	void ios_gpu_calibrate(bool force)
++	{
++		if (!g_ios_gpu_timer.calibrate)
++		{
++			return;
++		}
++
++		auto& tracker = rpcs3::ios::gpu_timing::instance();
++		const u64 frequency = utils::get_tsc_freq();
++		const u64 now = utils::get_tsc();
++		if (!force && frequency && now - g_ios_gpu_timer.last_calibration_tsc <
++			frequency / 1'000'000 * rpcs3::ios::gpu_timing::calibration_period_us)
++		{
++			return;
++		}
++
++		VkCalibratedTimestampInfoEXT info{};
++		info.sType = VK_STRUCTURE_TYPE_CALIBRATED_TIMESTAMP_INFO_EXT;
++		info.timeDomain = VK_TIME_DOMAIN_DEVICE_EXT;
++		u64 gpu = 0, deviation = 0;
++		const u64 before = utils::get_tsc();
++		const VkResult status = g_ios_gpu_timer.calibrate(g_ios_gpu_timer.device, 1, &info, &gpu, &deviation);
++		const u64 after = utils::get_tsc();
++		if (status == VK_SUCCESS && gpu)
++		{
++			tracker.add_calibration(gpu, before, after);
++		}
++		else
++		{
++			tracker.calibration_failed();
++		}
++		g_ios_gpu_timer.last_calibration_tsc = after;
++		tracker.add_probe_cost(after - now);
++	}
++}
++
++// vk::command_buffer::begin() of a timed primary chunk, whatever reopened it
++// (close_and_submit, flips, texture_cache::cleanup_after_dma_transfers).
++void vk::ios_gpu_timing_on_begin(vk::command_buffer& cmd)
++{
++	auto& tracker = rpcs3::ios::gpu_timing::instance();
++	if (!g_ios_gpu_timer.pool || !tracker.active())
++	{
++		return;
++	}
++
++	const u64 begin = utils::get_tsc();
++	// The previous use of this slot completed (the renderer waited for it):
++	// take its result before the queries are reset.
++	tracker.release_slot(cmd.ios_gpu_slot, ios_gpu_read);
++	vkCmdResetQueryPool(cmd, g_ios_gpu_timer.pool, cmd.ios_gpu_slot * 2, 2);
++	vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, g_ios_gpu_timer.pool, cmd.ios_gpu_slot * 2);
++	tracker.on_begin(cmd.ios_gpu_slot);
++	tracker.add_probe_cost(utils::get_tsc() - begin);
++}
++
++// vk::command_buffer::end(): the end timestamp, if this recording has its begin one.
++bool vk::ios_gpu_timing_on_end(vk::command_buffer& cmd)
++{
++	auto& tracker = rpcs3::ios::gpu_timing::instance();
++	if (!g_ios_gpu_timer.pool || !tracker.active() || !tracker.begun(cmd.ios_gpu_slot))
++	{
++		return false;
++	}
++
++	const u64 begin = utils::get_tsc();
++	vkCmdWriteTimestamp(cmd, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, g_ios_gpu_timer.pool, cmd.ios_gpu_slot * 2 + 1);
++	tracker.add_probe_cost(utils::get_tsc() - begin);
++	return true;
++}
++
++// vk::command_buffer::submit(): a timed submission joins the FIFO; one without its
++// pair (begun before the probe started, or reset) is counted as untimed.
++void vk::ios_gpu_timing_on_submit(vk::command_buffer& cmd, bool timed, u64 submit_tsc)
++{
++	auto& tracker = rpcs3::ios::gpu_timing::instance();
++	if (timed && g_ios_gpu_timer.pool && tracker.active())
++	{
++		tracker.on_submit(cmd.ios_gpu_slot, submit_tsc);
++		return;
++	}
++
++	tracker.clear_begun(cmd.ios_gpu_slot);
++	tracker.on_untimed_submit();
++}
++
++void VKGSRender::ios_gpu_timing_init()
++{
++	namespace gt = rpcs3::ios::gpu_timing;
++	// The primary chunk ring and the tracker's slots are the same 512 entries.
++	static_assert(VK_MAX_ASYNC_CB_COUNT == gt::slot_count);
++	auto& tracker = gt::instance();
++	g_ios_gpu_timer = {};
++
++	// timestampComputeAndGraphics: every graphics and compute queue has valid
++	// timestamp bits (MoltenVK 1.4.2 reports VK_TRUE).
++	const auto& limits = m_device->gpu().get_limits();
++	// Fully qualified: rsx::thread inherits cpu_thread::state, which hides the enum.
++	gt::state probe = gt::state::active;
++	if (!rpcs3::ios::get_experimental_policy().gpu_timing)
++	{
++		probe = gt::state::disabled;
++	}
++	else if (!limits.timestampComputeAndGraphics || !(limits.timestampPeriod > 0.f))
++	{
++		probe = gt::state::no_support;
++	}
++	else
++	{
++		VkQueryPoolCreateInfo info{};
++		info.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
++		info.queryType = VK_QUERY_TYPE_TIMESTAMP;
++		info.queryCount = gt::slot_count * 2;
++		if (vkCreateQueryPool(*m_device, &info, nullptr, &g_ios_gpu_timer.pool) != VK_SUCCESS)
++		{
++			g_ios_gpu_timer.pool = VK_NULL_HANDLE;
++			probe = gt::state::no_pool;
++		}
++	}
++
++	if (probe == gt::state::active)
++	{
++		g_ios_gpu_timer.device = *m_device;
++		for (u32 index = 0; index < VK_MAX_ASYNC_CB_COUNT; ++index)
++		{
++			auto* chunk = m_primary_cb_list.at(index);
++			chunk->ios_gpu_timed = true;
++			chunk->ios_gpu_slot = index;
++		}
++
++		if (m_device->get_calibrated_timestamps_support())
++		{
++			g_ios_gpu_timer.calibrate = reinterpret_cast<PFN_vkGetCalibratedTimestampsEXT>(
++				vkGetDeviceProcAddr(*m_device, "vkGetCalibratedTimestampsEXT"));
++		}
++	}
++
++	tracker.begin_session(rpcs3::ios::frame_trace::active_session.load(std::memory_order_acquire), probe,
++		limits.timestampPeriod, utils::get_tsc_freq());
++	ios_gpu_calibrate(true);
++	rsx_log.notice("COREPROF GPUTIME621_BOOT state=%s session=%llu period_ns=%.3f compute_and_graphics=%u calibrated_timestamps=%u "
++		"slots=%u queries_per_submission=2 mechanism=vulkan_timestamp_pair_metal_stage_boundary "
++		"read=fence_complete_no_wait scope=rsx_primary_command_buffers",
++		gt::state_name(probe), rpcs3::ios::frame_trace::active_session.load(std::memory_order_relaxed),
++		limits.timestampPeriod, limits.timestampComputeAndGraphics ? 1u : 0u, g_ios_gpu_timer.calibrate ? 1u : 0u, gt::slot_count);
++}
++
++void VKGSRender::ios_gpu_timing_shutdown()
++{
++	auto& tracker = rpcs3::ios::gpu_timing::instance();
++	if (g_ios_gpu_timer.pool && tracker.active())
++	{
++		// The device is idle: every remaining submission is read once.
++		tracker.collect([](u32) { return true; }, ios_gpu_read, rpcs3::ios::gpu_timing::slot_count);
++	}
++
++	tracker.end_session();
++	if (g_ios_gpu_timer.pool)
++	{
++		vkDestroyQueryPool(*m_device, g_ios_gpu_timer.pool, nullptr);
++	}
++	g_ios_gpu_timer = {};
++}
++
++// Frame end, RSX thread: results of completed submissions, oldest first.
++void VKGSRender::ios_gpu_timing_collect()
++{
++	auto& tracker = rpcs3::ios::gpu_timing::instance();
++	if (!g_ios_gpu_timer.pool || !tracker.active())
++	{
++		return;
++	}
++
++	const u64 begin = utils::get_tsc();
++	if (tracker.pending())
++	{
++		tracker.collect([this](u32 slot) { return m_primary_cb_list.at(slot)->ios_submission_complete(); }, ios_gpu_read);
++	}
++	tracker.add_probe_cost(utils::get_tsc() - begin);
++	ios_gpu_calibrate(false);
++}
++
 +void VKGSRender::ios_early_submit()
 +{
 +	namespace early = rpcs3::ios::early_submit;
@@ -23189,7 +23472,7 @@ index 63cab28..f3fe8d9 100644
  void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  {
  	const bool clipped_scissor = (context == rsx::framebuffer_creation_context::context_draw);
-@@ -2602,6 +2774,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2602,6 +3009,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		flush_command_queue();
  	}
  
@@ -23210,7 +23493,7 @@ index 63cab28..f3fe8d9 100644
  	if (!m_rtts.superseded_surfaces.empty())
  	{
  		for (auto& surface : m_rtts.superseded_surfaces)
-@@ -2636,6 +2822,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2636,6 +3057,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  			if (!lock) [[likely]]
  			{
  				m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface->get_memory_range());
@@ -23220,7 +23503,7 @@ index 63cab28..f3fe8d9 100644
  				continue;
  			}
  
-@@ -2663,6 +2852,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2663,6 +3087,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		else
  		{
  			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
@@ -23230,7 +23513,7 @@ index 63cab28..f3fe8d9 100644
  		}
  	}
  
-@@ -2679,6 +2871,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2679,6 +3106,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		else
  		{
  			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
@@ -23240,7 +23523,7 @@ index 63cab28..f3fe8d9 100644
  		}
  	}
  
-@@ -2720,7 +2915,7 @@ void VKGSRender::renderctl(u32 request_code, void* args)
+@@ -2720,7 +3150,7 @@ void VKGSRender::renderctl(u32 request_code, void* args)
  	{
  		const auto packet = reinterpret_cast<vk::queue_submit_t*>(args);
  		vk::queue_submit(packet);
@@ -23249,7 +23532,7 @@ index 63cab28..f3fe8d9 100644
  		break;
  	}
  	default:
-@@ -2801,8 +2996,41 @@ bool VKGSRender::check_occlusion_query_status(rsx::reports::occlusion_query_info
+@@ -2801,8 +3231,41 @@ bool VKGSRender::check_occlusion_query_status(rsx::reports::occlusion_query_info
  	if (data.is_current(m_current_command_buffer))
  		return false;
  
@@ -23291,7 +23574,7 @@ index 63cab28..f3fe8d9 100644
  }
  
  void VKGSRender::get_occlusion_query_result(rsx::reports::occlusion_query_info* query)
-@@ -2811,10 +3039,26 @@ void VKGSRender::get_occlusion_query_result(rsx::reports::occlusion_query_info*
+@@ -2811,10 +3274,26 @@ void VKGSRender::get_occlusion_query_result(rsx::reports::occlusion_query_info*
  	if (data.indices.empty())
  		return;
  
@@ -23319,7 +23602,7 @@ index 63cab28..f3fe8d9 100644
  			flush_command_queue();
  
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
-index e3817d8..f70ed70 100644
+index e3817d8..4a5ed64 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.h
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.h
 @@ -104,6 +104,7 @@ private:
@@ -23330,7 +23613,7 @@ index e3817d8..f70ed70 100644
  
  	//Vulkan internals
  	std::unique_ptr<vk::query_pool_manager> m_occlusion_query_manager;
-@@ -190,6 +191,22 @@ private:
+@@ -190,6 +191,27 @@ private:
  	vk::flush_request_task m_flush_requests;
  
  	ullong m_last_cond_render_eval_hint = 0;
@@ -23349,11 +23632,16 @@ index e3817d8..f70ed70 100644
 +	u64 m_ios_last_present_ticket = 0;
 +	void ios_wait_for_queued_present();
 +	void ios_drain_queued_submissions();
++	// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): timestamp query pool of the
++	// primary chunks, created with the renderer and read without waiting.
++	void ios_gpu_timing_init();
++	void ios_gpu_timing_shutdown();
++	void ios_gpu_timing_collect();
 +#endif
  
  	// Offloader thread deadlock recovery
  	rsx::atomic_bitmask_t<flush_queue_state> m_queue_status;
-@@ -230,6 +247,9 @@ private:
+@@ -230,6 +252,9 @@ private:
  		VkPipelineStageFlags pipeline_stage_flags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
  
  	void flush_command_queue(bool hard_sync = false, bool do_not_switch = false);
@@ -23363,7 +23651,7 @@ index e3817d8..f70ed70 100644
  	void queue_swap_request(bool wait_on_acquire = true);
  	void frame_context_cleanup(vk::frame_context_t *ctx);
  	void advance_queued_frames();
-@@ -255,6 +275,7 @@ private:
+@@ -255,6 +280,7 @@ private:
  	void upload_transform_constants(const rsx::io_buffer& buffer);
  
  	void load_texture_env();
@@ -23372,7 +23660,7 @@ index e3817d8..f70ed70 100644
  	bool bind_interpreter_texture_env();
  
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp b/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
-index e6dae0f..4b0175c 100644
+index e6dae0f..878d84c 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRenderTypes.hpp
 @@ -2,6 +2,7 @@
@@ -23418,7 +23706,35 @@ index e6dae0f..4b0175c 100644
  
  			lock.upgrade();
  
-@@ -216,6 +231,11 @@ namespace vk
+@@ -174,6 +189,27 @@ namespace vk
+ 
+ 			m_submit_fence->wait_flush();
+ 		}
++#ifdef RPCS3_IOS
++
++		// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): whether this chunk's last submission completed: a fence status read,
++		// never a wait, and none of poke()'s reclamation side effects.
++		bool ios_submission_complete()
++		{
++			reader_lock lock(guard_mutex);
++
++			if (!is_pending)
++			{
++				return true;
++			}
++
++			if (!m_submit_fence->flushed)
++			{
++				return false;
++			}
++
++			return vkGetFenceStatus(pool->get_owner(), m_submit_fence->handle) == VK_SUCCESS;
++		}
++#endif
+ 	};
+ 
+ 	struct occlusion_data
+@@ -216,6 +252,11 @@ namespace vk
  		data_heap_manager::managed_heap_snapshot_t heap_snapshot;
  		u64 heap_snapshot_id = 0;
  		u64 last_frame_sync_time = 0;
@@ -23430,6 +23746,20 @@ index e6dae0f..4b0175c 100644
  
  		void init(VkDevice dev)
  		{
+@@ -380,5 +421,13 @@ namespace vk
+ 		{
+ 			return &m_cb_list[m_current_index % Count];
+ 		}
++#ifdef RPCS3_IOS
++
++		// REWINDBOX_GPU_TIMING_621: chunk `index` of the chain, in ring order.
++		inline command_buffer_chunk* at(u32 index)
++		{
++			return &m_cb_list[index % Count];
++		}
++#endif
+ 	};
+ }
 diff --git a/rpcs3/Emu/RSX/VK/VKHelpers.cpp b/rpcs3/Emu/RSX/VK/VKHelpers.cpp
 index 9360215..fbdb63f 100644
 --- a/rpcs3/Emu/RSX/VK/VKHelpers.cpp
@@ -23876,7 +24206,7 @@ index 712505e..d67babe 100644
  	}
  }
 diff --git a/rpcs3/Emu/RSX/VK/VKPresent.cpp b/rpcs3/Emu/RSX/VK/VKPresent.cpp
-index a604696..5f5e3ae 100644
+index a604696..6e601f4 100644
 --- a/rpcs3/Emu/RSX/VK/VKPresent.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKPresent.cpp
 @@ -12,6 +12,16 @@
@@ -24068,7 +24398,18 @@ index a604696..5f5e3ae 100644
  		m_texture_cache.invalidate_range(*m_current_command_buffer, range, rsx::invalidation_cause::read);
  		image_to_flip = m_texture_cache.upload_image_simple(*m_current_command_buffer, expected_format, info->address, info->width, info->height, info->pitch);
  	}
-@@ -597,6 +724,14 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -428,6 +555,10 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
+ 
+ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+ {
++#ifdef RPCS3_IOS
++	// REWINDBOX_GPU_TIMING_621: read the completed submissions of earlier frames (no wait).
++	ios_gpu_timing_collect();
++#endif
+ 	// Check swapchain condition/status
+ 	if (!m_swapchain->supports_automatic_wm_reports())
+ 	{
+@@ -597,6 +728,14 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  
  	u64 timeout = m_swapchain->get_swap_image_count() <= 2? 0ull: 100000000ull;
  	u32 out_of_date_rebuilds = 0;
@@ -24083,7 +24424,7 @@ index a604696..5f5e3ae 100644
  	while (VkResult status = m_swapchain->acquire_next_swapchain_image(m_current_frame->acquire_signal_semaphore, timeout, &m_current_frame->present_image))
  	{
  		switch (status)
-@@ -641,6 +776,12 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -641,6 +780,12 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  		}
  	}
  
@@ -24096,7 +24437,7 @@ index a604696..5f5e3ae 100644
  	// Confirm that the driver did not silently fail
  	ensure(m_current_frame->present_image != umax);
  
-@@ -718,7 +859,9 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -718,7 +863,9 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  
  		if (g_cfg.video.record_with_overlays && has_overlay)
  		{
@@ -24107,7 +24448,7 @@ index a604696..5f5e3ae 100644
  			single_target_pass = vk::get_renderpass(*m_device, key);
  			ensure(single_target_pass != VK_NULL_HANDLE);
  
-@@ -880,12 +1023,19 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -880,12 +1027,19 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  			metal_fx_input->change_layout(*m_current_command_buffer, VK_IMAGE_LAYOUT_GENERAL);
  			metal_fx_output->change_layout(*m_current_command_buffer, VK_IMAGE_LAYOUT_GENERAL);
  
@@ -24127,7 +24468,7 @@ index a604696..5f5e3ae 100644
  
  			m_current_command_buffer = m_primary_cb_list.next();
  			m_current_command_buffer->reset();
-@@ -1060,6 +1210,13 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -1060,6 +1214,13 @@ void VKGSRender::flip(const rsx::display_flip_info_t& info)
  	}
  
  	queue_swap_request(!acquire_consumed_before_present);
@@ -26417,15 +26758,16 @@ index 136b693..c2b321a 100644
  
  	struct buffer_view : public unique_resource
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
-index 549d557..5228ae2 100644
+index 549d557..7cfc97f 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
-@@ -3,8 +3,45 @@
+@@ -3,8 +3,46 @@
  #include "shared.h"
  #include "sync.h"
  
 +#ifdef RPCS3_IOS
 +#include "ios/IOSRsxSyncProfile.h"
++#include "util/asm.hpp" // REWINDBOX_GPU_TIMING_621
 +#endif
 +
  namespace vk
@@ -26466,7 +26808,7 @@ index 549d557..5228ae2 100644
  	// This queue flushing method to be implemented by the backend as behavior depends on config
  	void queue_submit(const queue_submit_t& submit_info, VkBool32 flush);
  
-@@ -78,15 +115,26 @@ namespace vk
+@@ -78,15 +116,26 @@ namespace vk
  
  	void command_buffer::clear_state_cache()
  	{
@@ -26493,7 +26835,47 @@ index 549d557..5228ae2 100644
  			wait_for_fence(m_submit_fence);
  			is_pending = false;
  
-@@ -145,7 +193,11 @@ namespace vk
+@@ -109,6 +158,13 @@ namespace vk
+ 		is_open = true;
+ 
+ 		clear_state_cache();
++#ifdef RPCS3_IOS
++		// REWINDBOX_GPU_TIMING_621: after the wait above for this buffer's previous use.
++		if (ios_gpu_timed)
++		{
++			ios_gpu_timing_on_begin(*this);
++		}
++#endif
+ 	}
+ 
+ 	void command_buffer::end()
+@@ -119,6 +175,10 @@ namespace vk
+ 			return;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// REWINDBOX_GPU_TIMING_621: the end timestamp, if the begin one was recorded.
++		ios_gpu_ended = ios_gpu_timed && ios_gpu_timing_on_end(*this);
++#endif
+ 		CHECK_RESULT(vkEndCommandBuffer(commands));
+ 		is_open = false;
+ 	}
+@@ -141,11 +201,26 @@ namespace vk
+ 		}
+ 
+ 		submit_info.commands = this->commands;
++#ifdef RPCS3_IOS
++		const u64 ios_submit_tsc = ios_gpu_timed ? utils::get_tsc() : 0;
++#endif
+ 		queue_submit(submit_info, flush);
++#ifdef RPCS3_IOS
++		// REWINDBOX_GPU_TIMING_621: registered after vkQueueSubmit was requested.
++		if (ios_gpu_timed)
++		{
++			ios_gpu_timing_on_submit(*this, ios_gpu_ended, ios_submit_tsc);
++			ios_gpu_ended = false;
++		}
++#endif
  		clear_flags();
  	}
  
@@ -26505,7 +26887,7 @@ index 549d557..5228ae2 100644
  	{
  		ensure(is_open && bind_point <= VK_PIPELINE_BIND_POINT_COMPUTE);
  		auto& cached = m_bound_pipelines[static_cast<int>(bind_point)];
-@@ -155,9 +207,143 @@ namespace vk
+@@ -155,9 +230,143 @@ namespace vk
  		}
  
  		cached = pipeline;
@@ -26649,7 +27031,7 @@ index 549d557..5228ae2 100644
  	void command_buffer::bind_descriptor_sets(
  		const std::span<VkDescriptorSet>& sets,
  		const std::span<u32>& dynamic_offsets,
-@@ -167,6 +353,12 @@ namespace vk
+@@ -167,6 +376,12 @@ namespace vk
  		const u32 num_sets = ::size32(sets);
  		ensure(num_sets <= 2);
  
@@ -26662,7 +27044,7 @@ index 549d557..5228ae2 100644
  		if (dynamic_offsets.empty() &&
  			!memcmp(sets.data(), m_bound_descriptor_sets.data(), sets.size_bytes()))
  		{
-@@ -174,6 +366,7 @@ namespace vk
+@@ -174,6 +389,7 @@ namespace vk
  		}
  
  		std::memcpy(m_bound_descriptor_sets.data(), sets.data(), sets.size_bytes());
@@ -26670,7 +27052,7 @@ index 549d557..5228ae2 100644
  		vkCmdBindDescriptorSets(commands, bind_point, pipe_layout, 0, num_sets, sets.data(), ::size32(dynamic_offsets), dynamic_offsets.data());
  	}
  
-@@ -185,12 +378,19 @@ namespace vk
+@@ -185,12 +401,19 @@ namespace vk
  		const u32 num_sets = ::size32(sets);
  		ensure(is_open && num_sets <= 2);
  
@@ -26691,7 +27073,7 @@ index 549d557..5228ae2 100644
  	}
  }
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.h b/rpcs3/Emu/RSX/VK/vkutils/commands.h
-index 81f65b3..d1304e8 100644
+index 81f65b3..0af2151 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/commands.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/commands.h
 @@ -3,11 +3,16 @@
@@ -26711,7 +27093,24 @@ index 81f65b3..d1304e8 100644
  	class command_pool
  	{
  		vk::render_device* owner = nullptr;
-@@ -72,8 +77,21 @@ namespace vk
+@@ -61,6 +66,16 @@ namespace vk
+ 		}
+ 	};
+ 
++#ifdef RPCS3_IOS
++	class command_buffer;
++	// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h, VKGSRender.cpp): the GPU timestamp
++	// pair of a timed command buffer, recorded and registered by begin(), end() and
++	// submit() themselves, so every path that reopens or submits it is covered.
++	void ios_gpu_timing_on_begin(command_buffer& cmd);
++	bool ios_gpu_timing_on_end(command_buffer& cmd);
++	void ios_gpu_timing_on_submit(command_buffer& cmd, bool timed, u64 submit_tsc);
++#endif
++
+ 	class command_buffer
+ 	{
+ 	protected:
+@@ -72,8 +87,21 @@ namespace vk
  		VkCommandBuffer commands = nullptr;
  
  		// State cache
@@ -26733,7 +27132,21 @@ index 81f65b3..d1304e8 100644
  
  		void clear_state_cache();
  
-@@ -110,7 +128,20 @@ namespace vk
+@@ -97,6 +125,13 @@ namespace vk
+ 		};
+ 		u32 flags = 0;
+ 
++#ifdef RPCS3_IOS
++		// REWINDBOX_GPU_TIMING_621: set by VKGSRender on its primary chunks.
++		bool ios_gpu_timed = false;
++		bool ios_gpu_ended = false; // the end timestamp of the current recording was written
++		u32 ios_gpu_slot = 0;
++#endif
++
+ 	public:
+ 		command_buffer() = default;
+ 		~command_buffer() = default;
+@@ -110,7 +145,20 @@ namespace vk
  		void submit(queue_submit_t& submit_info, VkBool32 flush = VK_FALSE);
  
  		// Abstractions with caching
@@ -26968,7 +27381,7 @@ index e169caa..11fc668 100644
  		u64 m_update_after_bind_mask = 0;
  		u64 m_push_type_mask = 0;
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.cpp b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
-index 2b2e2c3..60d9ecb 100644
+index 2b2e2c3..da36d2d 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/device.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/device.cpp
 @@ -6,6 +6,8 @@
@@ -27086,17 +27499,21 @@ index 2b2e2c3..60d9ecb 100644
  		vkDestroyPipelineCache(dev, m_pipeline_cache, nullptr);
  		m_pipeline_cache = VK_NULL_HANDLE;
  		m_pipeline_cache_path.clear();
-@@ -381,6 +418,9 @@ namespace vk
+@@ -381,6 +418,13 @@ namespace vk
  #ifdef __APPLE__
  		optional_features_support.portability              = device_extensions.is_supported(VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME);
  		optional_features_support.metal_objects            = device_extensions.is_supported(VK_EXT_METAL_OBJECTS_EXTENSION_NAME);
 +		// Reporting only (MoltenVK 1.4.2 lists it for iOS); no rendering state changes.
 +		optional_features_support.pipeline_creation_feedback = device_extensions.is_supported(VK_EXT_PIPELINE_CREATION_FEEDBACK_EXTENSION_NAME);
 +		optional_features_support.global_priority          = device_extensions.is_supported(VK_EXT_GLOBAL_PRIORITY_EXTENSION_NAME);
++#endif
++#ifdef RPCS3_IOS
++		// REWINDBOX_GPU_TIMING_621: reporting only, no rendering state changes.
++		optional_features_support.calibrated_timestamps    = device_extensions.is_supported(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME);
  #endif
  
  		optional_features_support.debug_utils              = instance_extensions.is_supported(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-@@ -412,6 +452,7 @@ namespace vk
+@@ -412,6 +456,7 @@ namespace vk
  		// Core properties only
  		vkGetPhysicalDeviceMemoryProperties(dev, &memory_properties);
  		vkGetPhysicalDeviceProperties(dev, &props);
@@ -27104,7 +27521,7 @@ index 2b2e2c3..60d9ecb 100644
  
  		if (!allow_extensions)
  		{
-@@ -459,6 +500,15 @@ namespace vk
+@@ -459,6 +504,15 @@ namespace vk
  		vkGetPhysicalDeviceProperties2(dev, &properties2);
  		props = properties2.properties;
  
@@ -27120,7 +27537,7 @@ index 2b2e2c3..60d9ecb 100644
  		if (descriptor_indexing_support)
  		{
  			if (descriptor_indexing_props.maxUpdateAfterBindDescriptorsInAllPools < 800'000)
-@@ -823,6 +873,11 @@ namespace vk
+@@ -823,6 +877,11 @@ namespace vk
  		{
  			requested_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
  		}
@@ -27132,10 +27549,19 @@ index 2b2e2c3..60d9ecb 100644
  		
  #ifdef __APPLE__
  		if (pgpu->optional_features_support.portability)
-@@ -836,6 +891,27 @@ namespace vk
+@@ -836,6 +895,36 @@ namespace vk
  		}
  #endif
  
++#ifdef RPCS3_IOS
++		// REWINDBOX_GPU_TIMING_621: pairs a GPU timestamp with a host time so the
++		// GPU tick rate is measured instead of assumed (ios/IOSGpuTiming.h).
++		if (pgpu->optional_features_support.calibrated_timestamps && rpcs3::ios::get_experimental_policy().gpu_timing)
++		{
++			requested_extensions.push_back(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME);
++		}
++#endif
++
 +#ifdef RPCS3_IOS
 +		// REWINDBOX_MOLTENVK_ASYNC_SUBMITS_V1: with asynchronous submits MoltenVK
 +		// 1.4.2 encodes on a serial GCD queue whose QoS follows the queue's global
@@ -27160,7 +27586,7 @@ index 2b2e2c3..60d9ecb 100644
  		enabled_features.robustBufferAccess = VK_TRUE;
  		enabled_features.fullDrawIndexUint32 = VK_TRUE;
  		enabled_features.independentBlend = VK_TRUE;
-@@ -1081,11 +1157,39 @@ namespace vk
+@@ -1081,11 +1170,39 @@ namespace vk
  			device.pNext = &provoking_vertex_info;
  		}
  
@@ -27201,7 +27627,7 @@ index 2b2e2c3..60d9ecb 100644
  		// Dump some diagnostics to the log
  		rsx_log.notice("%u extensions loaded:", ::size32(requested_extensions));
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/device.h b/rpcs3/Emu/RSX/VK/vkutils/device.h
-index ffafbae..38bd947 100644
+index ffafbae..b330223 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/device.h
 +++ b/rpcs3/Emu/RSX/VK/vkutils/device.h
 @@ -5,6 +5,7 @@
@@ -27220,16 +27646,20 @@ index ffafbae..38bd947 100644
  		descriptor_indexing_features descriptor_indexing_support{};
  
  		custom_border_color_features custom_border_color_support{};
-@@ -105,6 +107,8 @@ namespace vk
+@@ -105,6 +107,12 @@ namespace vk
  			bool texture_compression_bc = false;
  			bool portability = false;
  			bool provoking_vertex_last = false;
 +			bool pipeline_creation_feedback = false;
 +			bool global_priority = false;
++#ifdef RPCS3_IOS
++			// REWINDBOX_GPU_TIMING_621: VK_EXT_calibrated_timestamps (MoltenVK 1.4.2, iOS 14+).
++			bool calibrated_timestamps = false;
++#endif
  		} optional_features_support;
  
  		friend class render_device;
-@@ -132,6 +136,11 @@ namespace vk
+@@ -132,6 +140,11 @@ namespace vk
  		const VkQueueFamilyProperties& get_queue_properties(u32 queue);
  		const VkPhysicalDeviceMemoryProperties& get_memory_properties() const;
  		const VkPhysicalDeviceLimits& get_limits() const;
@@ -27241,7 +27671,7 @@ index ffafbae..38bd947 100644
  
  		operator VkPhysicalDevice() const;
  		operator VkInstance() const;
-@@ -149,6 +158,10 @@ namespace vk
+@@ -149,6 +162,10 @@ namespace vk
  		VkPipelineCache m_pipeline_cache = VK_NULL_HANDLE;
  		// Captured at creation: Emu's active title may change during teardown.
  		std::string m_pipeline_cache_path;
@@ -27252,7 +27682,7 @@ index ffafbae..38bd947 100644
  
  		VkQueue m_graphics_queue = VK_NULL_HANDLE;
  		VkQueue m_present_queue = VK_NULL_HANDLE;
-@@ -162,7 +175,8 @@ namespace vk
+@@ -162,7 +179,8 @@ namespace vk
  			const std::vector<const char*>& requested_extensions,
  			const VkPhysicalDeviceFeatures& requested_features) const;
  		void create_pipeline_cache();
@@ -27262,7 +27692,7 @@ index ffafbae..38bd947 100644
  		void save_and_destroy_pipeline_cache();
  
  	public:
-@@ -171,6 +185,10 @@ namespace vk
+@@ -171,6 +189,10 @@ namespace vk
  
  		void create(vk::physical_device& pdev, u32 graphics_queue_idx, u32 present_queue_idx, u32 transfer_queue_idx);
  		void destroy();
@@ -27273,7 +27703,15 @@ index ffafbae..38bd947 100644
  
  		const VkFormatProperties get_format_properties(VkFormat format) const;
  
-@@ -207,6 +225,17 @@ namespace vk
+@@ -202,11 +224,25 @@ namespace vk
+ 		bool get_debug_utils_support() const { return g_cfg.video.renderdoc_compatiblity && pgpu->optional_features_support.debug_utils; }
+ 		bool get_framebuffer_loops_support() const { return pgpu->optional_features_support.framebuffer_loops; }
+ 		bool get_metal_objects_support() const { return pgpu->optional_features_support.metal_objects; }
++#ifdef RPCS3_IOS
++		bool get_calibrated_timestamps_support() const { return pgpu->optional_features_support.calibrated_timestamps; }
++#endif
+ 		bool get_barycoords_support() const { return pgpu->optional_features_support.barycentric_coords; }
+ 		bool get_synchronization2_support() const { return pgpu->optional_features_support.synchronization_2; }
  		bool get_extended_device_fault_support() const { return pgpu->optional_features_support.extended_device_fault; }
  		bool get_texture_compression_bc_support() const { return pgpu->optional_features_support.texture_compression_bc; }
  		bool get_provoking_vertex_last_support() const { return pgpu->optional_features_support.provoking_vertex_last; }
@@ -28701,7 +29139,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..7559e71 100644
+index 1f53c64..eb52b12 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1,4 +1,7 @@
@@ -29069,7 +29507,7 @@ index 1f53c64..7559e71 100644
  			// Disable incompatible settings
  			fixup_settings(&_psf, inherited_psf_resolution);
  
-@@ -1847,6 +2039,122 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1847,6 +2039,123 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			}
  			g_cfg.misc.use_native_interface.set(true);
  			rpcs3::ios::resolve_experimental_policy();
@@ -29164,6 +29602,7 @@ index 1f53c64..7559e71 100644
 +					ios_rsx.invariance_policy = rpcs3::ios::get_experimental_policy().position_invariance;
 +					ios_rsx.invariance = ios_rsx.invariance_policy && g_cfg.video.shader_precision != gpu_preset_level::low;
 +					ios_rsx.mvk_async = rpcs3::ios::get_experimental_policy().moltenvk_async_submits;
++					ios_rsx.gpu_timing = rpcs3::ios::get_experimental_policy().gpu_timing; // REWINDBOX_GPU_TIMING_621
 +					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
 +					ios_rsx.overrides = ios_override_keys;
 +					sys_log.notice("%s", rpcs3::ios::boot_diagnostics::format_config_rsx_line(ios_rsx));
@@ -29192,7 +29631,7 @@ index 1f53c64..7559e71 100644
  #endif
  
  			// Backup config
-@@ -2504,7 +2812,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2504,7 +2813,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.warning("State Inspection Savestate Mode!");
  
  				vm::init();
@@ -29207,7 +29646,7 @@ index 1f53c64..7559e71 100644
  
  				if (!hdd1.empty())
  				{
-@@ -2513,6 +2828,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2513,6 +2829,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  
  				init_fxo_for_exec(DeserialManager(), true);
@@ -29217,7 +29656,7 @@ index 1f53c64..7559e71 100644
  
  				return game_boot_result::no_errors;
  			}
-@@ -2586,7 +2904,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2586,7 +2905,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  		{
  			if (m_ar)
  			{
@@ -29232,7 +29671,7 @@ index 1f53c64..7559e71 100644
  			}
  
  			// Mount /host_root/ if necessary (special value)
-@@ -2709,7 +3034,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2709,7 +3035,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			const auto _main = ensure(g_fxo->init<main_ppu_module<lv2_obj>>());
  
@@ -29261,7 +29700,7 @@ index 1f53c64..7559e71 100644
  			{
  				if (g_cfg.core.ppu_debug && had_been_decrypted)
  				{
-@@ -2864,6 +3209,11 @@ void Emulator::Run(bool start_playtime)
+@@ -2864,6 +3210,11 @@ void Emulator::Run(bool start_playtime)
  void Emulator::RunPPU()
  {
  	ensure(IsStarting());
@@ -29273,7 +29712,7 @@ index 1f53c64..7559e71 100644
  
  	bool signalled_thread = false;
  
-@@ -2943,6 +3293,10 @@ void Emulator::FixGuestTime()
+@@ -2943,6 +3294,10 @@ void Emulator::FixGuestTime()
  
  void Emulator::FinalizeRunRequest()
  {
@@ -29284,7 +29723,7 @@ index 1f53c64..7559e71 100644
  	const bool autostart = !m_ar || !!g_cfg.misc.autostart;
  
  	bs_t<cpu_flag> add_flags = cpu_flag::dbg_global_pause;
-@@ -2989,7 +3343,25 @@ void Emulator::FinalizeRunRequest()
+@@ -2989,7 +3344,25 @@ void Emulator::FinalizeRunRequest()
  	lv2_obj::make_scheduler_ready();
  
  	m_state.compare_and_swap_test(system_state::starting, system_state::running);
@@ -29310,7 +29749,7 @@ index 1f53c64..7559e71 100644
  	m_ar.reset();
  
  	if (!autostart)
-@@ -3479,6 +3851,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3479,6 +3852,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -29323,7 +29762,7 @@ index 1f53c64..7559e71 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3871,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3872,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -29346,7 +29785,7 @@ index 1f53c64..7559e71 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3927,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3928,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -29354,7 +29793,7 @@ index 1f53c64..7559e71 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3938,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3939,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -29362,7 +29801,7 @@ index 1f53c64..7559e71 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3948,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +3949,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -29370,7 +29809,7 @@ index 1f53c64..7559e71 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +4036,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +4037,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -29381,7 +29820,7 @@ index 1f53c64..7559e71 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +4102,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +4103,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -29390,7 +29829,7 @@ index 1f53c64..7559e71 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +4216,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +4217,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -29405,7 +29844,7 @@ index 1f53c64..7559e71 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +4251,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4252,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -29413,7 +29852,7 @@ index 1f53c64..7559e71 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4369,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4370,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -29427,7 +29866,7 @@ index 1f53c64..7559e71 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4424,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4425,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -29440,7 +29879,7 @@ index 1f53c64..7559e71 100644
  			});
  
  			// Join it
-@@ -4075,10 +4494,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4495,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -29460,7 +29899,7 @@ index 1f53c64..7559e71 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4214,6 +4642,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4214,6 +4643,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  			lv2_obj::cleanup();
  
@@ -29471,7 +29910,7 @@ index 1f53c64..7559e71 100644
  			g_fxo->reset();
  
  			sys_log.notice("Objects cleared...");
-@@ -4308,10 +4740,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4308,10 +4741,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{
@@ -29497,7 +29936,7 @@ index 1f53c64..7559e71 100644
  	Emu.after_kill_callback = [this, reset_path]
  	{
  		// Reset boot path in case of ISO
-@@ -4381,6 +4828,9 @@ bool Emulator::Quit(bool force_quit)
+@@ -4381,6 +4829,9 @@ bool Emulator::Quit(bool force_quit)
  
  void Emulator::CleanUp()
  {
@@ -29672,7 +30111,7 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922..dd0411c 100644
+index 7072922..240a234 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -29729,7 +30168,7 @@ index 7072922..dd0411c 100644
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +165,22 @@ struct cfg_root : cfg::node
+@@ -134,6 +165,25 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -29741,6 +30180,9 @@ index 7072922..dd0411c 100644
 +		// REWINDBOX_POSITION_INVARIANCE_610 (ios/IOSTitleLevers.h); Enabled and
 +		// Disabled let a per-game override test the other value on the device.
 +		cfg::_enum<ios_experimental_mode> position_invariance{ this, "Position Invariance", ios_experimental_mode::automatic };
++		// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): Automatic and Enabled time the
++		// RSX primary command buffers on the GPU; Disabled measures the probe's cost.
++		cfg::_enum<ios_experimental_mode> gpu_timing{ this, "GPU Timing Probe", ios_experimental_mode::automatic };
 +
 +		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L5, L9; L3 is the
 +		// Bounded sleep value of fifo_idle_mode above). Defaults keep the Build
@@ -29927,10 +30369,22 @@ index 52e4951..580947d 100644
  			wait_no_update_count++;
  		}
 diff --git a/rpcs3/Loader/ISO.cpp b/rpcs3/Loader/ISO.cpp
-index 94d5fdc..6201c64 100644
+index 94d5fdc..8edab21 100644
 --- a/rpcs3/Loader/ISO.cpp
 +++ b/rpcs3/Loader/ISO.cpp
-@@ -903,7 +903,10 @@ static std::optional<iso_fs_metadata> iso_read_directory_entry(fs::file& entry,
+@@ -619,6 +619,11 @@ iso_file_encrypted::iso_file_encrypted(const std::string& path, bs_t<fs::open_mo
+ {
+ }
+ 
++iso_file_encrypted::iso_file_encrypted(std::shared_ptr<fs::file> image, const std::string& path, const iso_fs_node& node, std::shared_ptr<iso_file_decryption> dec)
++	: iso_file(std::move(image), path, node), m_dec(dec)
++{
++}
++
+ u64 iso_file_encrypted::read_at(u64 offset, void* buffer, u64 size)
+ {
+ 	// IMPORTANT NOTES:
+@@ -903,7 +908,10 @@ static std::optional<iso_fs_metadata> iso_read_directory_entry(fs::file& entry,
  		file_name.erase(file_name.end() - 2, file_name.end());
  	}
  
@@ -29942,6 +30396,211 @@ index 94d5fdc..6201c64 100644
  	{
  		file_name.pop_back();
  	}
+@@ -1036,7 +1044,36 @@ iso_archive::iso_archive(const std::string& path)
+ 		return;
+ 	}
+ 
+-	fs::file iso_file(std::make_unique<iso_file>(m_path));
++	// REWINDBOX_ISO_IMAGE_LIFETIME_621: open the image once, parse it through that
++	// descriptor and keep it for every later file, so the tree and the bytes come
++	// from the same inode (an optical raw device keeps its aligned per-file reads).
++	if (!fs::is_optical_raw_device(m_path))
++	{
++		auto image = std::make_shared<fs::file>(m_path, fs::read);
++		if (*image)
++		{
++			m_image = std::move(image);
++		}
++		else
++		{
++			iso_log.error("iso_archive: Failed to keep the image open: '%s' (%s)", m_path, fs::g_tls_error);
++		}
++	}
++
++	iso_fs_node whole_image;
++	std::unique_ptr<::iso_file> parser;
++	if (m_image)
++	{
++		whole_image.metadata.name = m_path;
++		whole_image.metadata.extents.push_back({0, m_image->size()});
++		parser = std::make_unique<::iso_file>(m_image, m_path, whole_image);
++	}
++	else
++	{
++		parser = std::make_unique<::iso_file>(m_path);
++	}
++
++	fs::file iso_file(std::move(parser));
+ 
+ 	u8 descriptor_type = -2;
+ 	bool use_ucs2_decoding = false;
+@@ -1176,6 +1213,7 @@ void iso_archive::invalidate()
+ {
+ 	m_root = {};
+ 	m_dec.reset();
++	m_image.reset();
+ }
+ 
+ bool iso_archive::is_valid() const
+@@ -1207,12 +1245,33 @@ std::unique_ptr<fs::file_base> iso_archive::get_iso_file(const std::string& path
+ 		return nullptr;
+ 	}
+ 
++	// REWINDBOX_ISO_IMAGE_LIFETIME_621: the archive's own image is read through the
++	// descriptor kept open since parsing. A file that cannot be opened is refused
++	// here (noent) instead of reaching the guest as an open file whose first read
++	// throws "Null object".
++	std::unique_ptr<iso_file> file;
++	const bool shared = m_image && path == m_path;
+ 	if (m_dec->get_enc_type() == iso_encryption_type::NONE)
+ 	{
+-		return std::make_unique<iso_file>(path, mode, node);
++		file = shared ? std::make_unique<iso_file>(m_image, path, node) : std::make_unique<iso_file>(path, mode, node);
++	}
++	else
++	{
++		file = shared ? std::make_unique<iso_file_encrypted>(m_image, path, node, m_dec)
++			: std::make_unique<iso_file_encrypted>(path, mode, node, m_dec);
+ 	}
+ 
+-	return std::make_unique<iso_file_encrypted>(path, mode, node, m_dec);
++	if (!*file)
++	{
++		// The failed open's own error (access, too many files) is kept.
++		if (fs::g_tls_error == fs::error::ok)
++		{
++			fs::g_tls_error = fs::error::noent;
++		}
++		return nullptr;
++	}
++
++	return file;
+ }
+ 
+ std::unique_ptr<fs::file_base> iso_archive::open(const std::string& path)
+@@ -1234,6 +1293,88 @@ psf::registry iso_archive::open_psf(const std::string& path)
+ 	return psf::load_object(psf_file, path);
+ }
+ 
++namespace
++{
++	// REWINDBOX_ISO_IMAGE_LIFETIME_621: one iso_file's view of the shared image.
++	// Reads are positional (pread through fs::file::read_at), so concurrent files
++	// never share a position; this view keeps its own for read() and seek().
++	class iso_shared_image final : public fs::file_base
++	{
++		std::shared_ptr<fs::file> m_image;
++		u64 m_pos = 0;
++
++	public:
++		explicit iso_shared_image(std::shared_ptr<fs::file> image)
++			: m_image(std::move(image))
++		{
++		}
++
++		fs::stat_t get_stat() override
++		{
++			return m_image->get_stat();
++		}
++
++		bool trunc(u64) override
++		{
++			fs::g_tls_error = fs::error::readonly;
++			return false;
++		}
++
++		u64 read(void* buffer, u64 size) override
++		{
++			const u64 result = m_image->read_at(m_pos, buffer, size);
++			m_pos += result;
++			return result;
++		}
++
++		u64 read_at(u64 offset, void* buffer, u64 size) override
++		{
++			return m_image->read_at(offset, buffer, size);
++		}
++
++		u64 write(const void*, u64) override
++		{
++			fs::g_tls_error = fs::error::readonly;
++			return 0;
++		}
++
++		u64 seek(s64 offset, fs::seek_mode whence) override
++		{
++			const s64 position =
++				whence == fs::seek_set ? offset :
++				whence == fs::seek_cur ? offset + static_cast<s64>(m_pos) :
++				whence == fs::seek_end ? offset + static_cast<s64>(m_image->size()) : -1;
++			if (position < 0)
++			{
++				fs::g_tls_error = fs::error::inval;
++				return umax;
++			}
++
++			m_pos = static_cast<u64>(position);
++			return m_pos;
++		}
++
++		u64 size() override
++		{
++			return m_image->size();
++		}
++	};
++}
++
++iso_file::iso_file(std::shared_ptr<fs::file> image, const std::string& path, const iso_fs_node& node)
++	: m_meta(node.metadata)
++{
++	if (!image || !*image)
++	{
++		iso_log.error("iso_file: Shared image unavailable: '%s'", path);
++		return;
++	}
++
++	m_file = fs::file(std::make_unique<iso_shared_image>(std::move(image)));
++	m_file.seek(::at32(m_meta.extents, 0).start * ISO_SECTOR_SIZE);
++	m_raw_device = false;
++}
++
+ iso_file::iso_file(const std::string& path, bs_t<fs::open_mode> mode)
+ {
+ 	m_file = fs::file(path, mode);
+diff --git a/rpcs3/Loader/ISO.h b/rpcs3/Loader/ISO.h
+index 7d5d2c6..9a43a38 100644
+--- a/rpcs3/Loader/ISO.h
++++ b/rpcs3/Loader/ISO.h
+@@ -120,6 +120,8 @@ protected:
+ public:
+ 	iso_file(const std::string& path, bs_t<fs::open_mode> mode = fs::read);
+ 	iso_file(const std::string& path, bs_t<fs::open_mode> mode, const iso_fs_node& node);
++	// REWINDBOX_ISO_IMAGE_LIFETIME_621: reads through the image opened once by the archive.
++	iso_file(std::shared_ptr<fs::file> image, const std::string& path, const iso_fs_node& node);
+ 
+ 	explicit operator bool() const { return m_file.operator bool(); }
+ 
+@@ -143,6 +145,7 @@ private:
+ 
+ public:
+ 	iso_file_encrypted(const std::string& path, bs_t<fs::open_mode> mode, const iso_fs_node& node, std::shared_ptr<iso_file_decryption> dec);
++	iso_file_encrypted(std::shared_ptr<fs::file> image, const std::string& path, const iso_fs_node& node, std::shared_ptr<iso_file_decryption> dec);
+ 
+ 	u64 read_at(u64 offset, void* buffer, u64 size) override;
+ };
+@@ -171,6 +174,12 @@ private:
+ 	std::string m_path;
+ 	iso_fs_node m_root {};
+ 	std::shared_ptr<iso_file_decryption> m_dec;
++	// REWINDBOX_ISO_IMAGE_LIFETIME_621: the image opened once when the archive is
++	// parsed. Every file opened afterwards reads through this descriptor, so a
++	// rename or replacement of the image path while it is mounted cannot make a
++	// later open fail: the parsed tree and the bytes stay those of the same inode
++	// until the device and its last open file are gone.
++	std::shared_ptr<fs::file> m_image;
+ 
+ public:
+ 	iso_archive(const std::string& path);
 diff --git a/rpcs3/Loader/TAR.cpp b/rpcs3/Loader/TAR.cpp
 index f3ea297..a4a3aa9 100644
 --- a/rpcs3/Loader/TAR.cpp
@@ -30860,10 +31519,10 @@ index 0000000..76f08ec
 +}
 diff --git a/rpcs3/ios/IOSFrameTrace.h b/rpcs3/ios/IOSFrameTrace.h
 new file mode 100644
-index 0000000..2a1e153
+index 0000000..d9d39ca
 --- /dev/null
 +++ b/rpcs3/ios/IOSFrameTrace.h
-@@ -0,0 +1,187 @@
+@@ -0,0 +1,188 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -30886,6 +31545,7 @@ index 0000000..2a1e153
 +{
 +    std::uint64_t fence_ticks = 0, submit_ticks = 0, drawable_ticks = 0, present_ticks = 0;
 +    std::uint64_t semaphore_us = 0, pipeline_us = 0;
++    std::uint64_t skipped_draws = 0; // REWINDBOX_PIPELINE_QUEUE_621: program not ready
 +};
 +inline thread_local Waits thread_waits{};
 +inline thread_local std::uint64_t thread_session = 0;
@@ -31250,6 +31910,873 @@ index 0000000..286359d
 +};
 +inline constinit owned_memory_profile<vma_memory_sample> vma_profile;
 +inline constinit owned_memory_profile<texture_memory_sample> texture_profile;
++}
+diff --git a/rpcs3/ios/IOSGpuTiming.h b/rpcs3/ios/IOSGpuTiming.h
+new file mode 100644
+index 0000000..63be815
+--- /dev/null
++++ b/rpcs3/ios/IOSGpuTiming.h
+@@ -0,0 +1,861 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <algorithm>
++#include <array>
++#include <atomic>
++#include <cstdint>
++#include <cstring>
++#include <limits>
++
++// REWINDBOX_GPU_TIMING_621: GPU execution time of the RSX primary command
++// buffers, read after their submission completed, never waited for.
++//
++// Path (Core 619, MoltenVK 1.4.2 db66022 plus the RewindBox patches):
++// VKGSRender::close_and_submit_command_buffer -> vk::queue_submit ->
++// vkQueueSubmit -> MVKQueueCommandBufferSubmission (one MTLCommandBuffer per
++// submission) -> Metal. What that MoltenVK exposes after completion:
++//  - MTLCommandBuffer GPUStartTime/GPUEndTime: read nowhere by MoltenVK, and
++//    VK_EXT_metal_objects exports devices, queues, buffers, textures, IOSurfaces
++//    and shared events, not command buffers: unreachable without patching it.
++//  - vkGetPerformanceStatisticsMVK: queue.mtlCommandBufferExecution is a CPU
++//    interval from commit to the completion handler, aggregated over the
++//    process: not GPU time, not per submission.
++//  - Vulkan timestamp queries: on Apple GPUs (stage-boundary counter sampling)
++//    MoltenVK defers every vkCmdWriteTimestamp to the end of the current Metal
++//    encoder batch and samples it at the start of a one-byte blit pass that
++//    waits for the previous encoders (MVKCommandEncoder::
++//    encodeTimestampStageCounterSamples). A pair at the start and end of a
++//    command buffer therefore brackets its GPU work. Results come from an
++//    MTLCounterSampleBuffer after the command buffer completed. If MoltenVK
++//    could not create that buffer it falls back to one CPU time at completion:
++//    both values are then equal (counted as zero_duration, never as GPU time).
++//  - VK_EXT_calibrated_timestamps: pairs a GPU timestamp with a host time
++//    (-[MTLDevice sampleTimestamps:gpuTimestamp:]). Two pairs seconds apart
++//    give the GPU tick rate against the host TSC, checked rather than assumed
++//    (MoltenVK reports timestampPeriod 1.0 on Apple GPUs), and place GPU times
++//    on the host clock (queue delay = GPU start - RSX submit).
++// This header holds the bookkeeping only (no Vulkan): one producer, the RSX
++// thread, and one reader, the profiler report. Results are read without the
++// WAIT bit: a submission whose fence has not signalled stays pending.
++namespace rpcs3::ios::gpu_timing
++{
++inline constexpr std::uint32_t slot_count = 512;      // VK_MAX_ASYNC_CB_COUNT primary chunks, two queries each
++inline constexpr std::uint32_t frame_capacity = 512;  // RSX frames kept for the slow-frame lookup
++inline constexpr std::uint32_t sweep_limit = 64;      // results read per frame end at most
++inline constexpr std::uint64_t calibration_period_us = 2'000'000;
++inline constexpr std::uint64_t calibration_min_baseline_us = 500'000;
++inline constexpr std::uint64_t queue_delay_tolerance_us = 500;
++
++enum class state : std::uint32_t
++{
++	off = 0,        // no renderer session
++	active = 1,
++	no_pool = 2,    // the timestamp query pool could not be created
++	no_support = 3, // timestampComputeAndGraphics is false / no valid bits
++	disabled = 4,   // switched off by the experimental setting
++};
++
++inline const char* state_name(state value) noexcept
++{
++	switch (value)
++	{
++	case state::active: return "active";
++	case state::no_pool: return "no_pool";
++	case state::no_support: return "no_support";
++	case state::disabled: return "disabled";
++	default: return "off";
++	}
++}
++
++// What a frame's GPU value is worth.
++enum class frame_status : std::uint32_t
++{
++	not_found = 0, // no record for this session and frame (before the probe, or evicted)
++	none = 1,      // the frame submitted no primary command buffer
++	untimed = 2,   // none of its submissions carried timestamps
++	pending = 3,   // timed submissions still running or not yet read
++	partial = 4,   // every timed submission read, some submissions untimed or unavailable
++	complete = 5,  // every submission of the frame measured
++};
++
++inline const char* frame_status_name(frame_status value) noexcept
++{
++	switch (value)
++	{
++	case frame_status::none: return "no_submit";
++	case frame_status::untimed: return "untimed";
++	case frame_status::pending: return "pending";
++	case frame_status::partial: return "partial";
++	case frame_status::complete: return "complete";
++	default: return "not_found";
++	}
++}
++
++// GPU timestamps of one submission. available: both queries were written.
++struct sample
++{
++	bool available = false;
++	std::uint64_t begin = 0, end = 0;
++};
++
++// Union of GPU busy intervals taken in submission order: a command buffer
++// that starts before the previous one ended only adds what extends past it,
++// so overlapping submissions are never counted twice.
++struct busy_union
++{
++	std::uint64_t merged_end = 0;
++	std::uint64_t last_begin = 0;
++	bool any = false;
++
++	// Returns the ticks this interval adds; out_of_order when it starts before
++	// the previous one (one Metal queue starts command buffers in order).
++	std::uint64_t add(std::uint64_t begin, std::uint64_t end, bool& out_of_order) noexcept
++	{
++		out_of_order = any && begin < last_begin;
++		if (!any || begin > last_begin) last_begin = begin;
++		any = true;
++		if (end <= begin) return 0;
++		if (begin >= merged_end)
++		{
++			merged_end = end;
++			return end - begin;
++		}
++		if (end > merged_end)
++		{
++			const std::uint64_t added = end - merged_end;
++			merged_end = end;
++			return added;
++		}
++		return 0;
++	}
++};
++
++// GPU ticks against host TSC ticks, from calibrated timestamp pairs. The host
++// time of a pair is the middle of the TSC reads around the Vulkan call; half
++// their distance is its uncertainty.
++class calibration
++{
++public:
++	struct point
++	{
++		std::uint64_t gpu = 0, tsc = 0, half_span = 0;
++	};
++
++	void reset() noexcept { *this = {}; }
++
++	void add(std::uint64_t gpu, std::uint64_t tsc_before, std::uint64_t tsc_after) noexcept
++	{
++		if (tsc_after < tsc_before) return;
++		const point value{gpu, tsc_before + (tsc_after - tsc_before) / 2, (tsc_after - tsc_before) / 2};
++		if (!m_count++)
++		{
++			m_first = value;
++		}
++		m_latest = value;
++	}
++
++	std::uint64_t count() const noexcept { return m_count; }
++	const point& latest() const noexcept { return m_latest; }
++
++	// GPU ticks per TSC tick once the two points are min_baseline_tsc apart and
++	// the GPU clock moved forward with the host clock.
++	bool rate(std::uint64_t min_baseline_tsc, double& gpu_per_tsc, double& relative_uncertainty) const noexcept
++	{
++		if (m_count < 2 || m_latest.tsc <= m_first.tsc || m_latest.gpu <= m_first.gpu) return false;
++		const std::uint64_t baseline = m_latest.tsc - m_first.tsc;
++		if (baseline < min_baseline_tsc) return false;
++		gpu_per_tsc = static_cast<double>(m_latest.gpu - m_first.gpu) / static_cast<double>(baseline);
++		relative_uncertainty = static_cast<double>(m_first.half_span + m_latest.half_span) / static_cast<double>(baseline);
++		return true;
++	}
++
++private:
++	std::uint64_t m_count = 0;
++	point m_first{}, m_latest{};
++};
++
++// Per-window counters, read and cleared by the profiler report.
++struct window
++{
++	state probe = state::off;
++	std::uint64_t session = 0;
++	std::uint64_t queue_submits = 0; // every vkQueueSubmit of the process (any queue, any thread)
++	std::uint64_t submits = 0, timed = 0, untimed = 0, resolved = 0, unavailable = 0, not_ready = 0;
++	std::uint64_t late_dropped = 0, stop_dropped = 0, overrun = 0, invalid = 0, zero_duration = 0;
++	std::uint64_t order_violations = 0, frame_evicted = 0, pending = 0;
++	std::uint64_t busy_ticks = 0, sum_ticks = 0, max_ticks = 0;
++	std::uint64_t queue_delay_samples = 0, queue_delay_sum_tsc = 0, queue_delay_max_tsc = 0, domain_violations = 0;
++	std::uint64_t probe_tsc = 0, probe_reads = 0, calibrations = 0, calibration_failures = 0;
++	std::uint64_t frames_gpu_over_33ms = 0, frames_gpu_over_50ms = 0, frames_measured = 0;
++	// Units: calibrated GPU ticks per TSC tick when available, otherwise the
++	// Vulkan timestampPeriod (nanoseconds per GPU tick) as reported.
++	bool calibrated = false;
++	double gpu_per_tsc = 0.0, calibration_uncertainty = 0.0, period_ns = 0.0;
++	std::uint64_t tsc_frequency = 0;
++
++	// Microseconds of a GPU tick count.
++	double ticks_us(std::uint64_t ticks) const noexcept
++	{
++		if (calibrated && gpu_per_tsc > 0.0 && tsc_frequency)
++			return static_cast<double>(ticks) / gpu_per_tsc * 1'000'000.0 / static_cast<double>(tsc_frequency);
++		return static_cast<double>(ticks) * period_ns / 1000.0;
++	}
++
++	double tsc_us(std::uint64_t ticks) const noexcept
++	{
++		return tsc_frequency ? static_cast<double>(ticks) * 1'000'000.0 / static_cast<double>(tsc_frequency) : 0.0;
++	}
++};
++
++// GPU record of one RSX frame (the RSX work between two frame ends).
++struct frame_view
++{
++	frame_status status = frame_status::not_found;
++	std::uint64_t flip = 0;
++	std::uint64_t submits = 0, timed = 0, untimed = 0, resolved = 0, unavailable = 0;
++	double busy_us = -1.0, sum_us = -1.0, span_us = -1.0, max_us = -1.0, queue_delay_max_us = -1.0;
++};
++
++class tracker
++{
++	struct slot
++	{
++		bool begun = false;   // the begin timestamp was recorded in the current use
++		bool pending = false; // submitted, results not processed yet
++		std::uint64_t serial = 0, epoch = 0, session = 0, submit_tsc = 0;
++	};
++
++	// Frame record as published to the reader (seqlock: odd while written).
++	struct published_frame
++	{
++		std::atomic<std::uint64_t> seq{0};
++		std::atomic<std::uint64_t> epoch{0}, flip{0}, session{0};
++		std::atomic<std::uint64_t> submits{0}, timed{0}, untimed{0}, resolved{0}, unavailable{0};
++		std::atomic<std::uint64_t> busy{0}, sum{0}, span_begin{0}, span_end{0}, max{0};
++		std::atomic<std::uint64_t> queue_delay_max{0}, queue_delay_valid{0};
++	};
++
++	struct frame_shadow
++	{
++		std::uint64_t epoch = 0, flip = 0, session = 0;
++		std::uint64_t submits = 0, timed = 0, untimed = 0, resolved = 0, unavailable = 0;
++		std::uint64_t busy = 0, sum = 0, span_begin = 0, span_end = 0, max = 0;
++		std::uint64_t queue_delay_max = 0, queue_delay_valid = 0;
++		bool counted = false; // entered the >33/>50 ms window tallies
++	};
++
++	struct counters
++	{
++		std::atomic<std::uint64_t> queue_submits{0};
++		std::atomic<std::uint64_t> submits{0}, timed{0}, untimed{0}, resolved{0}, unavailable{0}, not_ready{0};
++		std::atomic<std::uint64_t> late_dropped{0}, stop_dropped{0}, overrun{0}, invalid{0}, zero_duration{0};
++		std::atomic<std::uint64_t> order_violations{0}, frame_evicted{0};
++		std::atomic<std::uint64_t> busy{0}, sum{0}, max{0};
++		std::atomic<std::uint64_t> queue_delay_samples{0}, queue_delay_sum{0}, queue_delay_max{0}, domain_violations{0};
++		std::atomic<std::uint64_t> probe_tsc{0}, probe_reads{0}, calibrations{0}, calibration_failures{0};
++		std::atomic<std::uint64_t> frames_over_33{0}, frames_over_50{0}, frames_measured{0};
++	};
++
++public:
++	// Renderer construction, RSX thread, before any submission of the session.
++	void begin_session(std::uint64_t session, state probe, double period_ns, std::uint64_t tsc_frequency) noexcept
++	{
++		for (auto& value : m_slots) value = {};
++		for (auto& value : m_fifo) value = 0;
++		for (auto& value : m_shadow) value = {};
++		m_union = {};
++		m_calibration.reset();
++		m_owner_calibrated = false;
++		m_owner_gpu_per_tsc = 0.0;
++		m_next_serial = 1;
++		m_oldest_serial = 1;
++		m_epoch = 1;
++		m_session = session;
++		m_tsc_frequency = tsc_frequency;
++		open_epoch(m_epoch);
++		m_pending.store(0, std::memory_order_relaxed);
++		m_period_bits.store(bits(period_ns), std::memory_order_relaxed);
++		m_tsc_frequency_published.store(tsc_frequency, std::memory_order_relaxed);
++		m_calibrated.store(0, std::memory_order_relaxed);
++		m_published_session.store(session, std::memory_order_relaxed);
++		m_state.store(static_cast<std::uint32_t>(probe), std::memory_order_release);
++	}
++
++	// Renderer destruction, RSX thread: results never read are dropped and
++	// counted; nothing is attributed to the next session.
++	void end_session() noexcept
++	{
++		std::uint64_t dropped = 0;
++		for (auto& value : m_slots)
++		{
++			dropped += value.pending;
++			value = {};
++		}
++		m_counters.stop_dropped.fetch_add(dropped, std::memory_order_relaxed);
++		m_pending.store(0, std::memory_order_relaxed);
++		m_session = 0;
++		m_state.store(static_cast<std::uint32_t>(state::off), std::memory_order_release);
++	}
++
++	bool active() const noexcept
++	{
++		return m_state.load(std::memory_order_relaxed) == static_cast<std::uint32_t>(state::active);
++	}
++
++	// ---- RSX thread ----------------------------------------------------
++
++	// The previous use of `index` must be processed before its queries are
++	// reset: read(index) returns its sample (the chunk's fence completed, the
++	// renderer waited for it as before). Older pending submissions go first so
++	// results are taken in submission order.
++	template <typename Read>
++	void release_slot(std::uint32_t index, Read&& read)
++	{
++		if (index >= slot_count || !m_slots[index].pending) return;
++		const std::uint64_t target = m_slots[index].serial;
++		while (m_oldest_serial <= target)
++		{
++			const std::uint32_t oldest = m_fifo[m_oldest_serial % slot_count];
++			slot& entry = m_slots[oldest];
++			if (entry.pending && entry.serial == m_oldest_serial)
++			{
++				const sample result = read(oldest);
++				m_counters.probe_reads.fetch_add(1, std::memory_order_relaxed);
++				process(entry, result);
++			}
++			m_oldest_serial++;
++		}
++	}
++
++	// The begin timestamp of `index` was recorded.
++	void on_begin(std::uint32_t index) noexcept
++	{
++		if (index < slot_count) m_slots[index].begun = true;
++	}
++
++	bool begun(std::uint32_t index) const noexcept
++	{
++		return index < slot_count && m_slots[index].begun;
++	}
++
++	// The recording of `index` was submitted without its pair (untimed).
++	void clear_begun(std::uint32_t index) noexcept
++	{
++		if (index < slot_count) m_slots[index].begun = false;
++	}
++
++	// The command buffer of `index`, closed with its end timestamp, was handed
++	// for submission at submit_tsc (RSX thread, before vkQueueSubmit).
++	void on_submit(std::uint32_t index, std::uint64_t submit_tsc) noexcept
++	{
++		if (index >= slot_count) return;
++		slot& entry = m_slots[index];
++		if (entry.pending)
++		{
++			// Never expected (release_slot runs at every begin): count, do not mix.
++			m_counters.overrun.fetch_add(1, std::memory_order_relaxed);
++			abandon(entry);
++		}
++		entry.begun = false;
++		entry.pending = true;
++		entry.serial = m_next_serial++;
++		entry.epoch = m_epoch;
++		entry.session = m_session;
++		entry.submit_tsc = submit_tsc;
++		m_fifo[entry.serial % slot_count] = index;
++		m_pending.fetch_add(1, std::memory_order_relaxed);
++		m_counters.submits.fetch_add(1, std::memory_order_relaxed);
++		m_counters.timed.fetch_add(1, std::memory_order_relaxed);
++		frame_shadow& frame = shadow(m_epoch);
++		frame.submits++;
++		frame.timed++;
++		publish(m_epoch);
++	}
++
++	// A submission without timestamps (heap sync, async streaming, probe off).
++	void on_untimed_submit(std::uint64_t count = 1) noexcept
++	{
++		m_counters.submits.fetch_add(count, std::memory_order_relaxed);
++		m_counters.untimed.fetch_add(count, std::memory_order_relaxed);
++		frame_shadow& frame = shadow(m_epoch);
++		frame.submits += count;
++		frame.untimed += count;
++		publish(m_epoch);
++	}
++
++	// Frame-end sweep, oldest first. complete(index) tells whether the chunk's
++	// fence signalled (no wait); read(index) reads its queries without waiting.
++	// Stops at the first submission still running or not yet readable.
++	template <typename Complete, typename Read>
++	void collect(Complete&& complete, Read&& read, std::uint32_t limit = sweep_limit)
++	{
++		for (std::uint32_t done = 0; done < limit && m_oldest_serial < m_next_serial;)
++		{
++			const std::uint32_t oldest = m_fifo[m_oldest_serial % slot_count];
++			slot& entry = m_slots[oldest];
++			if (!entry.pending || entry.serial != m_oldest_serial)
++			{
++				m_oldest_serial++;
++				continue;
++			}
++			if (!complete(oldest)) return;
++			const sample result = read(oldest);
++			m_counters.probe_reads.fetch_add(1, std::memory_order_relaxed);
++			done++;
++			if (!result.available)
++			{
++				// Fence signalled before MoltenVK marked the queries: retry later.
++				m_counters.not_ready.fetch_add(1, std::memory_order_relaxed);
++				return;
++			}
++			process(entry, result);
++			m_oldest_serial++;
++		}
++	}
++
++	// The RSX frame `flip` ended (rsx::thread::on_frame_end, the frame trace record).
++	// The epoch closes there, before int_flip_index advances and before the next
++	// flip's present: record F holds frame F-1's present and frame F's draws, the
++	// same interval as the frame trace and its waits. Stored as flip + 1 (0 = open).
++	void on_frame(std::uint64_t flip) noexcept
++	{
++		frame_shadow& frame = shadow(m_epoch);
++		frame.flip = flip + 1;
++		count_frame(frame); // every submission may already have been read
++		publish(m_epoch);
++		open_epoch(++m_epoch);
++	}
++
++	void add_calibration(std::uint64_t gpu, std::uint64_t tsc_before, std::uint64_t tsc_after) noexcept
++	{
++		m_counters.calibrations.fetch_add(1, std::memory_order_relaxed);
++		m_calibration.add(gpu, tsc_before, tsc_after);
++		double rate = 0.0, uncertainty = 0.0;
++		const std::uint64_t min_baseline = m_tsc_frequency / 1'000'000 * calibration_min_baseline_us;
++		if (m_calibration.rate(min_baseline, rate, uncertainty))
++		{
++			m_owner_calibrated = true;
++			m_owner_gpu_per_tsc = rate;
++			m_rate_bits.store(bits(rate), std::memory_order_relaxed);
++			m_uncertainty_bits.store(bits(uncertainty), std::memory_order_relaxed);
++			m_calibrated.store(1, std::memory_order_release);
++		}
++	}
++
++	void calibration_failed() noexcept
++	{
++		m_counters.calibration_failures.fetch_add(1, std::memory_order_relaxed);
++	}
++
++	void add_probe_cost(std::uint64_t tsc_ticks) noexcept
++	{
++		m_counters.probe_tsc.fetch_add(tsc_ticks, std::memory_order_relaxed);
++	}
++
++	std::uint64_t pending() const noexcept { return m_pending.load(std::memory_order_relaxed); }
++
++	// Any thread: one vkQueueSubmit (vk::queue_submit_impl), the coverage denominator.
++	void on_queue_submit() noexcept
++	{
++		m_counters.queue_submits.fetch_add(1, std::memory_order_relaxed);
++	}
++
++	// ---- profiler report ------------------------------------------------
++
++	window take_window() noexcept
++	{
++		window result;
++		result.probe = static_cast<state>(m_state.load(std::memory_order_acquire));
++		result.session = m_published_session.load(std::memory_order_relaxed);
++		const auto take = [](std::atomic<std::uint64_t>& value) { return value.exchange(0, std::memory_order_relaxed); };
++		result.queue_submits = take(m_counters.queue_submits);
++		result.submits = take(m_counters.submits);
++		result.timed = take(m_counters.timed);
++		result.untimed = take(m_counters.untimed);
++		result.resolved = take(m_counters.resolved);
++		result.unavailable = take(m_counters.unavailable);
++		result.not_ready = take(m_counters.not_ready);
++		result.late_dropped = take(m_counters.late_dropped);
++		result.stop_dropped = take(m_counters.stop_dropped);
++		result.overrun = take(m_counters.overrun);
++		result.invalid = take(m_counters.invalid);
++		result.zero_duration = take(m_counters.zero_duration);
++		result.order_violations = take(m_counters.order_violations);
++		result.frame_evicted = take(m_counters.frame_evicted);
++		result.busy_ticks = take(m_counters.busy);
++		result.sum_ticks = take(m_counters.sum);
++		result.max_ticks = take(m_counters.max);
++		result.queue_delay_samples = take(m_counters.queue_delay_samples);
++		result.queue_delay_sum_tsc = take(m_counters.queue_delay_sum);
++		result.queue_delay_max_tsc = take(m_counters.queue_delay_max);
++		result.domain_violations = take(m_counters.domain_violations);
++		result.probe_tsc = take(m_counters.probe_tsc);
++		result.probe_reads = take(m_counters.probe_reads);
++		result.calibrations = take(m_counters.calibrations);
++		result.calibration_failures = take(m_counters.calibration_failures);
++		result.frames_gpu_over_33ms = take(m_counters.frames_over_33);
++		result.frames_gpu_over_50ms = take(m_counters.frames_over_50);
++		result.frames_measured = take(m_counters.frames_measured);
++		result.pending = m_pending.load(std::memory_order_relaxed);
++		units(result);
++		return result;
++	}
++
++	// The GPU record of RSX frame `flip` in `session`, converted with the
++	// current units. Never blocks the producer: a record being written is
++	// retried a few times, then reported as not found.
++	frame_view lookup(std::uint64_t session, std::uint64_t flip) const noexcept
++	{
++		frame_view view;
++		view.flip = flip;
++		if (!session) return view;
++		window scale;
++		units(scale);
++		for (const auto& entry : m_frames)
++		{
++			for (int attempt = 0; attempt < 4; ++attempt)
++			{
++				const std::uint64_t before = entry.seq.load(std::memory_order_acquire);
++				if (before & 1) continue;
++				frame_shadow copy;
++				copy.epoch = entry.epoch.load(std::memory_order_relaxed);
++				copy.flip = entry.flip.load(std::memory_order_relaxed);
++				copy.session = entry.session.load(std::memory_order_relaxed);
++				copy.submits = entry.submits.load(std::memory_order_relaxed);
++				copy.timed = entry.timed.load(std::memory_order_relaxed);
++				copy.untimed = entry.untimed.load(std::memory_order_relaxed);
++				copy.resolved = entry.resolved.load(std::memory_order_relaxed);
++				copy.unavailable = entry.unavailable.load(std::memory_order_relaxed);
++				copy.busy = entry.busy.load(std::memory_order_relaxed);
++				copy.sum = entry.sum.load(std::memory_order_relaxed);
++				copy.span_begin = entry.span_begin.load(std::memory_order_relaxed);
++				copy.span_end = entry.span_end.load(std::memory_order_relaxed);
++				copy.max = entry.max.load(std::memory_order_relaxed);
++				copy.queue_delay_max = entry.queue_delay_max.load(std::memory_order_relaxed);
++				copy.queue_delay_valid = entry.queue_delay_valid.load(std::memory_order_relaxed);
++				std::atomic_thread_fence(std::memory_order_acquire);
++				if (entry.seq.load(std::memory_order_relaxed) != before) continue;
++				if (copy.flip != flip + 1 || copy.session != session) break;
++				frame_view found = make_view(copy, scale);
++				found.flip = flip;
++				return found;
++			}
++		}
++		return view;
++	}
++
++	static frame_view make_view(const frame_shadow& copy, const window& scale) noexcept
++	{
++		frame_view view;
++		view.flip = copy.flip;
++		view.submits = copy.submits;
++		view.timed = copy.timed;
++		view.untimed = copy.untimed;
++		view.resolved = copy.resolved;
++		view.unavailable = copy.unavailable;
++		if (!copy.submits) view.status = frame_status::none;
++		else if (!copy.timed) view.status = frame_status::untimed;
++		else if (copy.timed > copy.resolved + copy.unavailable) view.status = frame_status::pending;
++		else if (copy.resolved == copy.submits) view.status = frame_status::complete;
++		else view.status = frame_status::partial;
++		if (copy.resolved)
++		{
++			view.busy_us = scale.ticks_us(copy.busy);
++			view.sum_us = scale.ticks_us(copy.sum);
++			view.max_us = scale.ticks_us(copy.max);
++			view.span_us = copy.span_end > copy.span_begin ? scale.ticks_us(copy.span_end - copy.span_begin) : 0.0;
++			if (copy.queue_delay_valid) view.queue_delay_max_us = scale.tsc_us(copy.queue_delay_max);
++		}
++		return view;
++	}
++
++private:
++	static std::uint64_t bits(double value) noexcept
++	{
++		std::uint64_t result = 0;
++		std::memcpy(&result, &value, sizeof(result));
++		return result;
++	}
++
++	static double real(std::uint64_t value) noexcept
++	{
++		double result = 0.0;
++		std::memcpy(&result, &value, sizeof(result));
++		return result;
++	}
++
++	void units(window& result) const noexcept
++	{
++		result.period_ns = real(m_period_bits.load(std::memory_order_relaxed));
++		result.tsc_frequency = m_tsc_frequency_published.load(std::memory_order_relaxed);
++		result.calibrated = m_calibrated.load(std::memory_order_acquire) != 0;
++		if (result.calibrated)
++		{
++			result.gpu_per_tsc = real(m_rate_bits.load(std::memory_order_relaxed));
++			result.calibration_uncertainty = real(m_uncertainty_bits.load(std::memory_order_relaxed));
++		}
++	}
++
++	frame_shadow& shadow(std::uint64_t epoch) noexcept
++	{
++		return m_shadow[epoch % frame_capacity];
++	}
++
++	void open_epoch(std::uint64_t epoch) noexcept
++	{
++		frame_shadow& frame = shadow(epoch);
++		frame = {};
++		frame.epoch = epoch;
++		frame.session = m_session;
++		publish(epoch);
++	}
++
++	void publish(std::uint64_t epoch) noexcept
++	{
++		const frame_shadow& frame = shadow(epoch);
++		published_frame& entry = m_frames[epoch % frame_capacity];
++		const std::uint64_t seq = entry.seq.load(std::memory_order_relaxed);
++		entry.seq.store(seq + 1, std::memory_order_relaxed);
++		std::atomic_thread_fence(std::memory_order_release);
++		entry.epoch.store(frame.epoch, std::memory_order_relaxed);
++		entry.flip.store(frame.flip, std::memory_order_relaxed);
++		entry.session.store(frame.session, std::memory_order_relaxed);
++		entry.submits.store(frame.submits, std::memory_order_relaxed);
++		entry.timed.store(frame.timed, std::memory_order_relaxed);
++		entry.untimed.store(frame.untimed, std::memory_order_relaxed);
++		entry.resolved.store(frame.resolved, std::memory_order_relaxed);
++		entry.unavailable.store(frame.unavailable, std::memory_order_relaxed);
++		entry.busy.store(frame.busy, std::memory_order_relaxed);
++		entry.sum.store(frame.sum, std::memory_order_relaxed);
++		entry.span_begin.store(frame.span_begin, std::memory_order_relaxed);
++		entry.span_end.store(frame.span_end, std::memory_order_relaxed);
++		entry.max.store(frame.max, std::memory_order_relaxed);
++		entry.queue_delay_max.store(frame.queue_delay_max, std::memory_order_relaxed);
++		entry.queue_delay_valid.store(frame.queue_delay_valid, std::memory_order_relaxed);
++		entry.seq.store(seq + 2, std::memory_order_release);
++	}
++
++	static void raise(std::atomic<std::uint64_t>& value, std::uint64_t candidate) noexcept
++	{
++		std::uint64_t current = value.load(std::memory_order_relaxed);
++		while (candidate > current && !value.compare_exchange_weak(current, candidate, std::memory_order_relaxed)) {}
++	}
++
++	void abandon(slot& entry) noexcept
++	{
++		if (!entry.pending) return;
++		entry.pending = false;
++		m_pending.fetch_sub(1, std::memory_order_relaxed);
++		m_counters.unavailable.fetch_add(1, std::memory_order_relaxed);
++		if (entry.session != m_session) return;
++		if (m_epoch - entry.epoch >= frame_capacity) return;
++		frame_shadow& frame = shadow(entry.epoch);
++		if (frame.epoch != entry.epoch) return;
++		frame.unavailable++;
++		publish(entry.epoch);
++	}
++
++	void process(slot& entry, const sample& result) noexcept
++	{
++		if (!result.available)
++		{
++			abandon(entry);
++			return;
++		}
++
++		entry.pending = false;
++		m_pending.fetch_sub(1, std::memory_order_relaxed);
++
++		// A result of an earlier renderer session is never attributed.
++		if (entry.session != m_session)
++		{
++			m_counters.late_dropped.fetch_add(1, std::memory_order_relaxed);
++			return;
++		}
++
++		if (result.end < result.begin)
++		{
++			m_counters.invalid.fetch_add(1, std::memory_order_relaxed);
++			abandon_frame(entry);
++			return;
++		}
++
++		const std::uint64_t duration = result.end - result.begin;
++		if (!duration) m_counters.zero_duration.fetch_add(1, std::memory_order_relaxed);
++		bool out_of_order = false;
++		const std::uint64_t added = m_union.add(result.begin, result.end, out_of_order);
++		if (out_of_order) m_counters.order_violations.fetch_add(1, std::memory_order_relaxed);
++		m_counters.resolved.fetch_add(1, std::memory_order_relaxed);
++		m_counters.busy.fetch_add(added, std::memory_order_relaxed);
++		m_counters.sum.fetch_add(duration, std::memory_order_relaxed);
++		raise(m_counters.max, duration);
++
++		// Queue delay: GPU start on the host clock minus the RSX submit time.
++		bool delay_valid = false;
++		std::uint64_t delay = 0;
++		if (m_owner_calibrated && m_owner_gpu_per_tsc > 0.0)
++		{
++			const auto& anchor = m_calibration.latest();
++			const double offset = (static_cast<double>(result.begin) - static_cast<double>(anchor.gpu)) / m_owner_gpu_per_tsc;
++			const double start_tsc = static_cast<double>(anchor.tsc) + offset;
++			const double difference = start_tsc - static_cast<double>(entry.submit_tsc);
++			const double tolerance = static_cast<double>(anchor.half_span) +
++				static_cast<double>(m_tsc_frequency) * queue_delay_tolerance_us / 1'000'000.0;
++			if (difference < -tolerance)
++			{
++				m_counters.domain_violations.fetch_add(1, std::memory_order_relaxed);
++			}
++			else
++			{
++				delay_valid = true;
++				delay = difference > 0.0 ? static_cast<std::uint64_t>(difference) : 0;
++				m_counters.queue_delay_samples.fetch_add(1, std::memory_order_relaxed);
++				m_counters.queue_delay_sum.fetch_add(delay, std::memory_order_relaxed);
++				raise(m_counters.queue_delay_max, delay);
++			}
++		}
++
++		if (m_epoch - entry.epoch >= frame_capacity)
++		{
++			m_counters.frame_evicted.fetch_add(1, std::memory_order_relaxed);
++			return;
++		}
++
++		frame_shadow& frame = shadow(entry.epoch);
++		if (frame.epoch != entry.epoch)
++		{
++			m_counters.frame_evicted.fetch_add(1, std::memory_order_relaxed);
++			return;
++		}
++		frame.resolved++;
++		frame.busy += added;
++		frame.sum += duration;
++		frame.max = std::max(frame.max, duration);
++		frame.span_begin = frame.resolved == 1 ? result.begin : std::min(frame.span_begin, result.begin);
++		frame.span_end = std::max(frame.span_end, result.end);
++		if (delay_valid)
++		{
++			frame.queue_delay_max = frame.queue_delay_valid ? std::max(frame.queue_delay_max, delay) : delay;
++			frame.queue_delay_valid = 1;
++		}
++		count_frame(frame);
++		publish(entry.epoch);
++	}
++
++	void abandon_frame(const slot& entry) noexcept
++	{
++		m_counters.unavailable.fetch_add(1, std::memory_order_relaxed);
++		if (m_epoch - entry.epoch >= frame_capacity) return;
++		frame_shadow& frame = shadow(entry.epoch);
++		if (frame.epoch != entry.epoch) return;
++		frame.unavailable++;
++		publish(entry.epoch);
++	}
++
++	// A closed frame whose every submission was measured joins the window's
++	// GPU frame tallies once.
++	void count_frame(frame_shadow& frame) noexcept
++	{
++		if (frame.counted || !frame.flip || !frame.submits || frame.resolved != frame.submits) return;
++		frame.counted = true;
++		m_counters.frames_measured.fetch_add(1, std::memory_order_relaxed);
++		window scale;
++		units(scale);
++		const double busy_us = scale.ticks_us(frame.busy);
++		if (busy_us > 33'333.0) m_counters.frames_over_33.fetch_add(1, std::memory_order_relaxed);
++		if (busy_us > 50'000.0) m_counters.frames_over_50.fetch_add(1, std::memory_order_relaxed);
++	}
++
++	// RSX-thread state.
++	std::array<slot, slot_count> m_slots{};
++	std::array<std::uint32_t, slot_count> m_fifo{};
++	std::array<frame_shadow, frame_capacity> m_shadow{};
++	busy_union m_union{};
++	calibration m_calibration{};
++	bool m_owner_calibrated = false;
++	double m_owner_gpu_per_tsc = 0.0;
++	std::uint64_t m_next_serial = 1, m_oldest_serial = 1, m_epoch = 1, m_session = 0, m_tsc_frequency = 0;
++
++	// Shared with the reader.
++	std::array<published_frame, frame_capacity> m_frames{};
++	counters m_counters{};
++	std::atomic<std::uint64_t> m_pending{0};
++	std::atomic<std::uint32_t> m_state{0};
++	std::atomic<std::uint64_t> m_published_session{0};
++	std::atomic<std::uint64_t> m_period_bits{0}, m_rate_bits{0}, m_uncertainty_bits{0};
++	std::atomic<std::uint64_t> m_tsc_frequency_published{0};
++	std::atomic<std::uint32_t> m_calibrated{0};
++};
++
++// What explains one slow RSX frame (cause_rule=v1, printed with the values it
++// read). The RSX-thread waits are sequential on that thread: CPU wait for a GPU
++// fence, blocking pipeline compile, presentation (drawable acquisition and
++// present), vkQueueSubmit (Metal encoding with synchronous MoltenVK submits) and
++// the guest semaphore the RSX waited for. GPU execution runs beside them.
++//  1. GPU busy measured for every submission of the frame and >= 75 % of the
++//     interval: gpu_execution (measured).
++//  2. Otherwise the largest wait if it is >= 25 % of the interval (measured),
++//     except a fence wait whose GPU side is not fully measured (partial).
++//  3. Otherwise rsx_or_guest_cpu: RSX command processing or a guest that did
++//     not feed the FIFO (inferred: no wait explains it).
++struct frame_explanation
++{
++	const char* cause = "rsx_or_guest_cpu";
++	const char* certainty = "inferred";
++	const char* dominant = "none";
++	double dominant_ms = 0.0;
++	double waits_ms = 0.0;
++	double other_ms = 0.0;
++};
++
++inline frame_explanation explain_frame(double interval_ms, double fence_ms, double pipeline_ms, double presentation_ms,
++	double submit_ms, double semaphore_ms, const frame_view& gpu) noexcept
++{
++	frame_explanation result;
++	const struct
++	{
++		const char* name;
++		double ms;
++	} waits[] = {
++		{"cpu_wait_gpu_fence", fence_ms},
++		{"pipeline_compile", pipeline_ms},
++		{"presentation", presentation_ms},
++		{"submit_encode", submit_ms},
++		{"guest_semaphore", semaphore_ms},
++	};
++	for (const auto& wait : waits)
++	{
++		const double value = wait.ms > 0.0 ? wait.ms : 0.0;
++		result.waits_ms += value;
++		if (value > result.dominant_ms)
++		{
++			result.dominant_ms = value;
++			result.dominant = wait.name;
++		}
++	}
++	result.other_ms = interval_ms > result.waits_ms ? interval_ms - result.waits_ms : 0.0;
++	if (!(interval_ms > 0.0)) return result;
++
++	const bool gpu_complete = gpu.status == frame_status::complete && gpu.busy_us >= 0.0;
++	if (gpu_complete && gpu.busy_us / 1000.0 >= 0.75 * interval_ms)
++	{
++		result.cause = "gpu_execution";
++		result.certainty = "measured";
++		return result;
++	}
++	if (result.dominant_ms >= 0.25 * interval_ms)
++	{
++		result.cause = result.dominant;
++		const bool fence = result.dominant == waits[0].name;
++		result.certainty = fence && !gpu_complete ? "partial" : "measured";
++	}
++	return result;
++}
++
++inline tracker& instance() noexcept
++{
++	static tracker s_tracker;
++	return s_tracker;
++}
 +}
 diff --git a/rpcs3/ios/IOSGraphicsMemorySnapshot.h b/rpcs3/ios/IOSGraphicsMemorySnapshot.h
 new file mode 100644
@@ -32312,6 +33839,89 @@ index 0000000..29ae3d3
 +	}
 +
 +	return true;
++}
++}
+diff --git a/rpcs3/ios/IOSPipelineQueue.h b/rpcs3/ios/IOSPipelineQueue.h
+new file mode 100644
+index 0000000..9772d6e
+--- /dev/null
++++ b/rpcs3/ios/IOSPipelineQueue.h
+@@ -0,0 +1,77 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_PIPELINE_QUEUE_621: the graphics pipeline compile queue per profiler
++// window (COREPROF PIPEQUEUE621): jobs queued and built, the deepest queue,
++// the longest time a job waited before a compiler thread took it, the longest
++// build, and the draws the renderer skipped because their program was not
++// ready (VKDraw.cpp, asynchronous shader modes only: the synchronous modes
++// build inline and never skip). It sits beside the LLVM admission (JITMEM,
++// WAITPROF527 llvm_*) and the SPU busy waits (SPUWAIT551 getllar_poll,
++// PRESSURE547 spu_passive_waits), which have their own lines.
++namespace rpcs3::ios::pipeline_queue
++{
++struct counters
++{
++	std::atomic<std::uint64_t> queued{0}, completed{0}, skipped_draws{0};
++	std::atomic<std::uint64_t> depth_peak{0};
++	std::atomic<std::uint64_t> wait_total_tsc{0}, wait_max_tsc{0}, build_total_tsc{0}, build_max_tsc{0};
++};
++
++inline counters& stats() noexcept
++{
++	static counters s_counters;
++	return s_counters;
++}
++
++inline void raise(std::atomic<std::uint64_t>& value, std::uint64_t candidate) noexcept
++{
++	std::uint64_t current = value.load(std::memory_order_relaxed);
++	while (candidate > current && !value.compare_exchange_weak(current, candidate, std::memory_order_relaxed)) {}
++}
++
++inline void on_queued(std::uint32_t pending) noexcept
++{
++	stats().queued.fetch_add(1, std::memory_order_relaxed);
++	raise(stats().depth_peak, pending);
++}
++
++inline void on_completed(std::uint64_t wait_tsc, std::uint64_t build_tsc) noexcept
++{
++	auto& s = stats();
++	s.completed.fetch_add(1, std::memory_order_relaxed);
++	s.wait_total_tsc.fetch_add(wait_tsc, std::memory_order_relaxed);
++	s.build_total_tsc.fetch_add(build_tsc, std::memory_order_relaxed);
++	raise(s.wait_max_tsc, wait_tsc);
++	raise(s.build_max_tsc, build_tsc);
++}
++
++inline void on_skipped_draw() noexcept
++{
++	stats().skipped_draws.fetch_add(1, std::memory_order_relaxed);
++}
++
++struct window
++{
++	std::uint64_t queued = 0, completed = 0, skipped_draws = 0, depth_peak = 0;
++	std::uint64_t wait_total_tsc = 0, wait_max_tsc = 0, build_total_tsc = 0, build_max_tsc = 0;
++};
++
++inline window take() noexcept
++{
++	auto& s = stats();
++	window w;
++	w.queued = s.queued.exchange(0, std::memory_order_relaxed);
++	w.completed = s.completed.exchange(0, std::memory_order_relaxed);
++	w.skipped_draws = s.skipped_draws.exchange(0, std::memory_order_relaxed);
++	w.depth_peak = s.depth_peak.exchange(0, std::memory_order_relaxed);
++	w.wait_total_tsc = s.wait_total_tsc.exchange(0, std::memory_order_relaxed);
++	w.wait_max_tsc = s.wait_max_tsc.exchange(0, std::memory_order_relaxed);
++	w.build_total_tsc = s.build_total_tsc.exchange(0, std::memory_order_relaxed);
++	w.build_max_tsc = s.build_max_tsc.exchange(0, std::memory_order_relaxed);
++	return w;
 +}
 +}
 diff --git a/rpcs3/ios/IOSReadbackProfile.h b/rpcs3/ios/IOSReadbackProfile.h
@@ -38927,10 +40537,10 @@ index 0000000..6e4c976
 +}
 diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
 new file mode 100644
-index 0000000..eff1215
+index 0000000..2d5bcca
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
-@@ -0,0 +1,591 @@
+@@ -0,0 +1,594 @@
 +#pragma once
 +
 +// NEOSTATION_BUILD487_DIAGNOSTICS_V1: boot observability of the embedded Core
@@ -39325,6 +40935,7 @@ index 0000000..eff1215
 +		"advanced.disable_msl_fast_math", "debug.disable_vertex_cache", "gpu.strict_rendering",
 +		"advanced.read_color_buffers", "advanced.read_depth_buffer", "gpu.msaa", "gpu.vsync",
 +		"experimental.position_invariance", "experimental.moltenvk_async_submits",
++		"experimental.gpu_timing", // REWINDBOX_GPU_TIMING_621
 +	};
 +	inline constexpr std::size_t rsx_overrides_limit = 400;
 +
@@ -39374,6 +40985,7 @@ index 0000000..eff1215
 +		bool invariance = false;        // effective: policy and Shader Precision not Low
 +		bool invariance_policy = false; // the resolved Position Invariance setting
 +		bool mvk_async = false;         // resolved request of this boot
++		bool gpu_timing = false;        // REWINDBOX_GPU_TIMING_621: resolved probe setting
 +		bool legacy_custom = false;     // a full custom config was applied (tests would change it)
 +		std::string_view overrides;     // every applied sparse override key; filtered when formatted
 +	};
@@ -39401,6 +41013,7 @@ index 0000000..eff1215
 +		append_u32(line, "invariance", rsx.invariance ? 1u : 0u);
 +		append_u32(line, "invariance_policy", rsx.invariance_policy ? 1u : 0u);
 +		append_u32(line, "mvk_async", rsx.mvk_async ? 1u : 0u);
++		append_u32(line, "gpu_timing", rsx.gpu_timing ? 1u : 0u);
 +		append_u32(line, "legacy_custom", rsx.legacy_custom ? 1u : 0u);
 +		const std::string reported = filter_rsx_override_keys(rsx.overrides);
 +		append_text(line, "overrides", reported, rsx_overrides_limit);
@@ -39676,7 +41289,7 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..8b1bed1 100644
+index 7c3389b..aec0382 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -1,10 +1,31 @@
@@ -39989,7 +41602,7 @@ index 7c3389b..8b1bed1 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +336,145 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +336,149 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -40017,6 +41630,8 @@ index 7c3389b..8b1bed1 100644
 +	// REWINDBOX_ZCLIP_PINNED_AFFINE_619: the title list, on top of the 616 fallback.
 +	resolved.zclip_pinned_affine = resolved.zclip_fallback_window_z &&
 +		rpcs3::ios::title_levers::requires_zclip_pinned_affine(title_id);
++	// REWINDBOX_GPU_TIMING_621: on unless a per-game test value disables it.
++	resolved.gpu_timing = resolve_mode(g_cfg.ios_experimental.gpu_timing, true);
 +
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
 +	resolve_spu_spin_timing(resolved);
@@ -40077,6 +41692,8 @@ index 7c3389b..8b1bed1 100644
 +	// REWINDBOX_ZCULL_ON_DEMAND_619: its own line; mvk_async= is the policy request (the canary may turn it off).
 +	ios_experimental_log.notice("Resolved title policy 619: zcull_on_demand=%d zclip_pinned_affine=%d mvk_async=%d",
 +		resolved.zcull_on_demand, resolved.zclip_pinned_affine, resolved.moltenvk_async_submits);
++	// REWINDBOX_GPU_TIMING_621: its own line.
++	ios_experimental_log.notice("Resolved title policy 621: gpu_timing=%d", resolved.gpu_timing);
 +}
 +
 +void apply_spu_spin_timing_policy() noexcept
@@ -40146,7 +41763,7 @@ index 7c3389b..8b1bed1 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..6daefbf 100644
+index 8fba197..5354937 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -40186,7 +41803,7 @@ index 8fba197..6daefbf 100644
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,14 +43,80 @@ struct experimental_policy
+@@ -20,14 +43,83 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -40211,6 +41828,9 @@ index 8fba197..6daefbf 100644
 +	// REWINDBOX_ZCLIP_PINNED_AFFINE_619 (ios/IOSTitleLevers.h): with the 616 fallback,
 +	// a clip range wholly above 1 maps every vertex affinely onto [0.99, 1].
 +	bool zclip_pinned_affine = false;
++	// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): GPU timestamp pairs around the RSX
++	// primary command buffers, read after completion. Every title; Disabled turns it off.
++	bool gpu_timing = true;
 +
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers), resolved once per boot
 +	// like the fields above; none of them enters an object-cache key.
@@ -40269,13 +41889,14 @@ index 8fba197..6daefbf 100644
  // choice behind this tiny accessor so a later boot can return to the upstream
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 new file mode 100644
-index 0000000..cc826f8
+index 0000000..f434bed
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
-@@ -0,0 +1,277 @@
+@@ -0,0 +1,313 @@
 +#include "stdafx.h"
 +#include "RPCS3IOSFreezeDump.h"
 +#include "RPCS3IOSProfilerHelpers.h"
++#include "RPCS3IOSFreezeEpisode.h" // REWINDBOX_FREEZE_EPISODE_621
 +
 +#include "Emu/System.h"
 +#include "Emu/IdManager.h"
@@ -40379,28 +42000,36 @@ index 0000000..cc826f8
 +}
 +}
 +
-+void neostation_freeze_dump(const char* reason, double seconds_without_frames, double busiest_group_cores)
++bool neostation_freeze_dump(const char* reason, double seconds_without_frames, double busiest_group_cores,
++	unsigned long long episode)
 +{
++	// REWINDBOX_FREEZE_EPISODE_621: a guest-fault freeze (frozen) is dumped too.
++	const auto dumpable = [] {
++		const auto state = Emu.GetStatus(false);
++		return state == system_state::running || state == system_state::frozen;
++	};
++
 +	std::unique_lock lock(s_dump_mutex, std::try_to_lock);
 +	if (!lock.owns_lock())
 +	{
-+		return;
++		return false;
 +	}
 +
-+	// Only a running emulator is dumped: paused, loading, stopping or stopped
-+	// states present no frames for legitimate reasons.
-+	if (Emu.GetStatus(false) != system_state::running)
++	// Only a running (or guest-fault frozen) emulator is dumped: paused, loading,
++	// stopping or stopped states present no frames for legitimate reasons.
++	if (!dumpable())
 +	{
-+		return;
++		return false;
 +	}
 +
 +	// The 30 s budget is checked here but consumed only once the collection
 +	// below obtained its locks and the emulator was still running after it.
 +	u64 accepted_at = s_last_dump_us;
-+	if (!rpcs3::ios::profiler::accept_freeze_dump(get_system_time(), accepted_at))
++	if (!rpcs3::ios::profiler::accept_freeze_dump(get_system_time(), accepted_at,
++		rpcs3::ios::freeze_episode::min_dump_interval_us))
 +	{
 +		s_suppressed++;
-+		return;
++		return false;
 +	}
 +
 +	// Collect references first, format afterwards. The idm reader lock is only
@@ -40417,7 +42046,7 @@ index 0000000..cc826f8
 +		if (!idm_reader.owns_lock())
 +		{
 +			s_suppressed++;
-+			return;
++			return false;
 +		}
 +
 +		if (g_fxo->is_init<id_manager::id_map<named_thread<ppu_thread>>>())
@@ -40485,11 +42114,11 @@ index 0000000..cc826f8
 +	}
 +
 +	// A stop that began during the collection is not dumped (its threads are
-+	// being torn down); the references are released right away and the 30 s
-+	// budget is not consumed.
-+	if (Emu.GetStatus(false) != system_state::running)
++	// being torn down); the references are released right away and the rate
++	// limit is not consumed.
++	if (!dumpable())
 +	{
-+		return;
++		return false;
 +	}
 +
 +	s_last_dump_us = accepted_at;
@@ -40498,8 +42127,29 @@ index 0000000..cc826f8
 +
 +	const usz spu_count = grouped_spus.size() + raw_spus.size();
 +
-+	// begin + rsx + end are always emitted; the thread lines share the rest.
-+	const auto plan = rpcs3::ios::profiler::plan_freeze_dump(spu_count, ppus.size());
++	// begin + waits + rsx + end are always emitted; the thread lines share the rest.
++	const auto plan = rpcs3::ios::profiler::plan_freeze_dump(spu_count, ppus.size(), 4);
++
++	// REWINDBOX_FREEZE_EPISODE_621: what every thread waits in, all threads
++	// counted (the per-thread lines below may be truncated).
++	std::vector<std::string> ppu_calls, spu_calls, spu_groups;
++	for (const auto& ppu : ppus)
++	{
++		const char* function = ppu->current_function;
++		ppu_calls.emplace_back(sanitize_token(function ? function : "guest_code"));
++	}
++	for (const auto& [group, thread] : grouped_spus)
++	{
++		const char* function = thread->current_func;
++		spu_calls.emplace_back(sanitize_token(function ? function : "guest_code"));
++		spu_groups.emplace_back(sanitize_token(fmt::format("%s", group->run_state.load())));
++	}
++	for (const auto& spu : raw_spus)
++	{
++		const char* function = spu->current_func;
++		spu_calls.emplace_back(sanitize_token(function ? function : "guest_code"));
++		spu_groups.emplace_back("raw");
++	}
 +	std::vector<std::string> lines;
 +	lines.reserve(plan.spu_lines + plan.ppu_lines);
 +
@@ -40531,17 +42181,22 @@ index 0000000..cc826f8
 +		}
 +	}
 +
-+	const u32 total_lines = static_cast<u32>(lines.size() + 3);
++	const u32 total_lines = static_cast<u32>(lines.size() + 4);
 +	std::string header = fmt::format(
 +		"FREEZE_DUMP begin dump=%llu reason=%s no_frames_s=%.3f busiest_cores=%.3f state=%u "
-+		"ppu=%u spu=%u groups=%u raw_spu=%u lines=%u truncated=%u suppressed=%llu busy_groups=%u",
++		"ppu=%u spu=%u groups=%u raw_spu=%u lines=%u truncated=%u suppressed=%llu busy_groups=%u episode=%llu",
 +		index, sanitize_token(reason ? reason : ""), seconds_without_frames, busiest_group_cores,
 +		static_cast<u32>(Emu.GetStatus(false)), static_cast<u32>(ppus.size()), static_cast<u32>(spu_count),
 +		static_cast<u32>(groups.size()), static_cast<u32>(raw_spus.size()), total_lines,
-+		static_cast<u32>(plan.truncated), suppressed, busy_groups);
++		static_cast<u32>(plan.truncated), suppressed, busy_groups, episode);
++	std::string waits = fmt::format(
++		"FREEZE_DUMP waits dump=%llu episode=%llu ppu=%u ppu_calls=%s spu=%u spu_calls=%s spu_groups=%s busy_groups=%u",
++		index, episode, static_cast<u32>(ppus.size()), rpcs3::ios::profiler::format_name_counts(std::move(ppu_calls)),
++		static_cast<u32>(spu_count), rpcs3::ios::profiler::format_name_counts(std::move(spu_calls)),
++		rpcs3::ios::profiler::format_name_counts(std::move(spu_groups)), busy_groups);
 +	// REWINDBOX_FREEZE_SNAPSHOT_V1: one bounded message survives host log
 +	// rotation as one durable milestone, with a single filesystem sync.
-+	std::string snapshot = "FREEZE_DUMP snapshot\n" + bound_line(header) + "\n" + rsx_line();
++	std::string snapshot = "FREEZE_DUMP snapshot\n" + bound_line(header) + "\n" + bound_line(waits) + "\n" + rsx_line();
 +	for (const auto& line : lines)
 +	{
 +		snapshot += "\n";
@@ -40549,13 +42204,14 @@ index 0000000..cc826f8
 +	}
 +	fmt::append(snapshot, "\nFREEZE_DUMP end dump=%llu lines=%u truncated=%u", index, total_lines, static_cast<u32>(plan.truncated));
 +	ios_freeze_dump.notice("%s", snapshot);
++	return true;
 +}
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.h b/rpcs3/ios/RPCS3IOSFreezeDump.h
 new file mode 100644
-index 0000000..214e4fe
+index 0000000..7719240
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.h
-@@ -0,0 +1,18 @@
+@@ -0,0 +1,25 @@
 +#pragma once
 +
 +// NEOSTATION_BUILD487_DIAGNOSTICS_V1: bounded FREEZE_DUMP of the guest threads.
@@ -40573,7 +42229,334 @@ index 0000000..214e4fe
 +// reason names the trigger ("no_frames"), seconds_without_frames the time since
 +// the last presented frame and busiest_group_cores the average cores of the
 +// busiest thread group over the reporter window that triggered the dump.
-+void neostation_freeze_dump(const char* reason, double seconds_without_frames, double busiest_group_cores);
++//
++// REWINDBOX_FREEZE_EPISODE_621 (RPCS3IOSFreezeEpisode.h): called once per freeze
++// episode by the profiler sampler; episode= joins the dump to its FREEZE_EPISODE
++// lines, a waits summary line follows the begin line, a guest-fault freeze
++// (frozen state) is dumped too, and the inside rate limit is 10 s.
++// Returns true when the dump was logged (false: not running, idm lock busy, rate limit).
++bool neostation_freeze_dump(const char* reason, double seconds_without_frames, double busiest_group_cores,
++	unsigned long long episode = 0);
+diff --git a/rpcs3/ios/RPCS3IOSFreezeEpisode.h b/rpcs3/ios/RPCS3IOSFreezeEpisode.h
+new file mode 100644
+index 0000000..655b3e7
+--- /dev/null
++++ b/rpcs3/ios/RPCS3IOSFreezeEpisode.h
+@@ -0,0 +1,314 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <cstdint>
++
++// REWINDBOX_FREEZE_EPISODE_621: a freeze is an episode, not a 5 s window.
++// The profiler sampler (every 500 ms, RPCS3IOSPerformance.cpp) feeds the
++// emulator state and the guest flip count. The no-frame clock only advances
++// while the emulator runs: time paused, loading, stopping and the gaps of an
++// iOS suspension (no sample for more than 2 s) are kept apart, so an episode
++// that began before a pause keeps its evidence across any number of pauses and
++// resumes, and a pause alone never makes one.
++//  - begin: no guest flip for 3 s of running time while a thread group uses at
++//    least half a core (no_frames_busy, the Build 487 trigger), or for 6 s with
++//    less activity (no_frames_idle, a quiet freeze), or the emulator froze on a
++//    guest fault (emulator_frozen). The no-frame triggers are armed by the first
++//    guest flip of the session: a boot that compiles before its first frame is
++//    loading, not a freeze. One FREEZE_DUMP per episode: requested at the begin,
++//    retried on the following samples until the dump reports it was taken
++//    (dump_taken), never more often than every 10 s across episodes.
++//  - update: every 10 s of episode time for the first minute, then every 60 s.
++//  - end: recovered once guest flips come back steadily (10 flips over at
++//    least 1 s of running time), or stopped with the session. A later stall is
++//    a new episode with its own dump.
++// The host (Rpcs3Diagnostics.mm) adds what the Core cannot see: whether its
++// menu was open and whether the app was in the background.
++namespace rpcs3::ios::freeze_episode
++{
++inline constexpr std::uint64_t busy_begin_us = 3'000'000;
++inline constexpr std::uint64_t idle_begin_us = 6'000'000;
++inline constexpr double busy_cores = 0.5;
++inline constexpr std::uint64_t suspend_gap_us = 2'000'000;
++inline constexpr std::uint64_t recover_span_us = 1'000'000;
++inline constexpr std::uint64_t recover_flips = 10;
++inline constexpr std::uint64_t early_update_us = 10'000'000;
++inline constexpr std::uint64_t late_update_us = 60'000'000;
++inline constexpr std::uint64_t early_window_us = 60'000'000;
++inline constexpr std::uint64_t min_dump_interval_us = 10'000'000;
++
++enum class emu : std::uint32_t
++{
++	running = 0,
++	paused = 1,  // Emu.Pause (debugger, frame capture); RewindBox's menu does not pause
++	frozen = 2,  // Emu.Pause(true) after a guest access violation
++	loading = 3, // ready, starting, loading
++	stopped = 4, // stopping, stopped
++};
++
++enum class event : std::uint32_t
++{
++	none = 0,
++	begin = 1,
++	update = 2,
++	end = 3,
++};
++
++inline const char* event_name(event value) noexcept
++{
++	switch (value)
++	{
++	case event::begin: return "begin";
++	case event::update: return "update";
++	case event::end: return "end";
++	default: return "none";
++	}
++}
++
++struct tick
++{
++	std::uint64_t now_us = 0;     // steady clock
++	emu state = emu::running;
++	std::uint64_t guest_flips = 0; // monotonic count of guest flips
++	double busiest_cores = 0.0;    // busiest thread group of this sample
++};
++
++struct report
++{
++	event what = event::none;
++	std::uint64_t episode = 0;
++	const char* reason = "";   // no_frames_busy | no_frames_idle | emulator_frozen
++	const char* outcome = "";  // open | recovered | stopped
++	bool dump = false;         // take the FREEZE_DUMP of this episode now (also on a sample without event)
++	bool dump_suppressed = false; // the 10 s floor delays the dump of this episode
++	double no_frames_s = 0.0;      // running time without a guest flip when the episode began
++	double episode_s = 0.0;        // running time since the episode began
++	double paused_s = 0.0;         // paused or frozen wall time inside the episode
++	double suspended_s = 0.0;      // sampling gaps over 2 s inside the episode (iOS suspension)
++	double loading_s = 0.0;        // loading-state wall time inside the episode
++	std::uint32_t pauses = 0, suspensions = 0;
++	std::uint64_t flips_during = 0; // guest flips seen while the episode was open
++	double busiest_cores = 0.0;     // at begin, then the current sample
++	double begin_busiest_cores = 0.0;
++	double last_flip_age_s = 0.0;   // wall time since the last guest flip
++};
++
++class tracker
++{
++public:
++	void reset() noexcept { *this = {}; }
++
++	report observe(const tick& sample) noexcept
++	{
++		report result;
++		if (!m_started)
++		{
++			m_started = true;
++			m_previous_us = sample.now_us;
++			m_flips = sample.guest_flips;
++			m_last_flip_wall_us = sample.now_us;
++			m_previous_state = sample.state;
++			return result;
++		}
++
++		const std::uint64_t gap = sample.now_us > m_previous_us ? sample.now_us - m_previous_us : 0;
++		m_previous_us = sample.now_us;
++		const bool suspended = gap > suspend_gap_us;
++		const bool running = sample.state == emu::running;
++
++		if (m_open)
++		{
++			if (suspended)
++			{
++				m_suspended_us += gap;
++				m_suspensions++;
++			}
++			else if (sample.state == emu::paused || sample.state == emu::frozen)
++			{
++				m_paused_us += gap;
++			}
++			else if (sample.state == emu::loading)
++			{
++				m_loading_us += gap;
++			}
++			if (sample.state == emu::paused && m_previous_state != emu::paused)
++			{
++				m_pauses++;
++			}
++		}
++		m_previous_state = sample.state;
++
++		if (running && !suspended)
++		{
++			m_active_us += gap;
++		}
++
++		if (sample.guest_flips != m_flips)
++		{
++			const std::uint64_t delta = sample.guest_flips > m_flips ? sample.guest_flips - m_flips : 1;
++			m_flips = sample.guest_flips;
++			m_armed = true;
++			m_last_flip_active_us = m_active_us;
++			m_last_flip_wall_us = sample.now_us;
++			if (m_open)
++			{
++				m_flips_during += delta;
++				if (!m_recovering)
++				{
++					m_recovering = true;
++					m_recover_since_us = m_active_us;
++					m_recover_flips = 0;
++				}
++				m_recover_flips += delta;
++			}
++		}
++		else if (m_open && m_recovering && m_active_us - m_last_flip_active_us >= recover_span_us)
++		{
++			m_recovering = false; // flips stopped again before the recovery held
++		}
++
++		if (sample.state == emu::stopped)
++		{
++			if (m_open) return close("stopped", sample);
++			m_last_flip_active_us = m_active_us;
++			return result;
++		}
++
++		if (m_open)
++		{
++			if (m_recovering && m_recover_flips >= recover_flips && m_active_us - m_recover_since_us >= recover_span_us)
++			{
++				return close("recovered", sample);
++			}
++
++			const std::uint64_t elapsed = episode_us();
++			const std::uint64_t period = elapsed < early_window_us ? early_update_us : late_update_us;
++			if (elapsed >= m_next_update_us)
++			{
++				m_next_update_us = elapsed + period;
++				fill(result, event::update, "open", sample);
++			}
++			request_dump(result, sample.now_us);
++			return result;
++		}
++
++		const std::uint64_t idle = m_active_us - m_last_flip_active_us;
++		const char* reason = nullptr;
++		if (sample.state == emu::frozen)
++			reason = "emulator_frozen";
++		else if (m_armed && running && idle >= busy_begin_us && sample.busiest_cores >= busy_cores)
++			reason = "no_frames_busy";
++		else if (m_armed && running && idle >= idle_begin_us)
++			reason = "no_frames_idle";
++		if (!reason) return result;
++
++		m_open = true;
++		m_episode++;
++		m_reason = reason;
++		m_wall_clock = sample.state == emu::frozen;
++		m_begin_active_us = m_active_us;
++		m_begin_frozen_us = sample.now_us;
++		m_no_frames_us = idle;
++		m_paused_us = m_suspended_us = m_loading_us = 0;
++		m_pauses = m_suspensions = 0;
++		m_flips_during = 0;
++		m_recovering = false;
++		m_begin_cores = sample.busiest_cores;
++		m_next_update_us = early_update_us;
++		m_dump_pending = true;
++		fill(result, event::begin, "open", sample);
++		request_dump(result, sample.now_us);
++		result.dump_suppressed = !result.dump;
++		return result;
++	}
++
++	// The dump of the open episode was taken (neostation_freeze_dump returned true).
++	void dump_taken(std::uint64_t now_us) noexcept
++	{
++		m_dump_pending = false;
++		m_last_dump_us = now_us ? now_us : 1;
++	}
++
++	// The session ended (profiler reset or Core stop) with an episode open.
++	report stop(std::uint64_t now_us) noexcept
++	{
++		report result;
++		if (!m_open) return result;
++		tick sample;
++		sample.now_us = now_us;
++		sample.state = emu::stopped;
++		return close("stopped", sample);
++	}
++
++	bool open() const noexcept { return m_open; }
++	std::uint64_t episodes() const noexcept { return m_episode; }
++
++private:
++	std::uint64_t episode_us() const noexcept
++	{
++		const std::uint64_t running = m_active_us - m_begin_active_us;
++		// A guest-fault freeze keeps the emulator out of the running state: its
++		// episode time is wall time.
++		return m_wall_clock ? m_previous_us - m_begin_frozen_us : running;
++	}
++
++	void fill(report& result, event what, const char* outcome, const tick& sample) const noexcept
++	{
++		result.what = what;
++		result.episode = m_episode;
++		result.reason = m_reason ? m_reason : "";
++		result.outcome = outcome;
++		result.no_frames_s = static_cast<double>(m_no_frames_us) / 1e6;
++		result.episode_s = static_cast<double>(episode_us()) / 1e6;
++		result.paused_s = static_cast<double>(m_paused_us) / 1e6;
++		result.suspended_s = static_cast<double>(m_suspended_us) / 1e6;
++		result.loading_s = static_cast<double>(m_loading_us) / 1e6;
++		result.pauses = m_pauses;
++		result.suspensions = m_suspensions;
++		result.flips_during = m_flips_during;
++		result.busiest_cores = sample.busiest_cores;
++		result.begin_busiest_cores = m_begin_cores;
++		result.last_flip_age_s = sample.now_us > m_last_flip_wall_us
++			? static_cast<double>(sample.now_us - m_last_flip_wall_us) / 1e6 : 0.0;
++	}
++
++	// One dump per episode; a flapping title cannot dump more often than every 10 s.
++	void request_dump(report& result, std::uint64_t now_us) const noexcept
++	{
++		result.dump = m_dump_pending && (!m_last_dump_us || now_us - m_last_dump_us >= min_dump_interval_us);
++		if (result.dump && result.what == event::none)
++		{
++			result.episode = m_episode;
++			result.reason = m_reason ? m_reason : "";
++			result.no_frames_s = static_cast<double>(m_no_frames_us) / 1e6;
++			result.begin_busiest_cores = m_begin_cores;
++		}
++	}
++
++	report close(const char* outcome, const tick& sample) noexcept
++	{
++		report result;
++		fill(result, event::end, outcome, sample);
++		m_dump_pending = false;
++		m_open = false;
++		m_recovering = false;
++		m_reason = nullptr;
++		m_last_flip_active_us = m_active_us;
++		return result;
++	}
++
++	bool m_started = false, m_open = false, m_recovering = false, m_wall_clock = false;
++	bool m_armed = false;        // a guest flip was seen in this session
++	bool m_dump_pending = false; // the open episode's dump is not taken yet
++	emu m_previous_state = emu::running;
++	const char* m_reason = nullptr;
++	std::uint64_t m_previous_us = 0, m_active_us = 0, m_flips = 0;
++	std::uint64_t m_last_flip_active_us = 0, m_last_flip_wall_us = 0;
++	std::uint64_t m_episode = 0, m_begin_active_us = 0, m_begin_frozen_us = 0, m_no_frames_us = 0;
++	std::uint64_t m_paused_us = 0, m_suspended_us = 0, m_loading_us = 0;
++	std::uint32_t m_pauses = 0, m_suspensions = 0;
++	std::uint64_t m_flips_during = 0, m_recover_since_us = 0, m_recover_flips = 0;
++	std::uint64_t m_next_update_us = 0, m_last_dump_us = 0;
++	double m_begin_cores = 0.0;
++};
++}
 diff --git a/rpcs3/ios/RPCS3IOSLeverHelpers.h b/rpcs3/ios/RPCS3IOSLeverHelpers.h
 new file mode 100644
 index 0000000..094a672
@@ -40888,10 +42871,10 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..8e17534 100644
+index d800542..e6ab413 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,194 @@
+@@ -1,26 +1,197 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -40899,6 +42882,7 @@ index d800542..8e17534 100644
 +#include "IOSGPUMemoryProfile.h"
  #include "RPCS3IOSPerformance.h"
 +#include "RPCS3IOSFreezeDump.h"
++#include "RPCS3IOSFreezeEpisode.h" // REWINDBOX_FREEZE_EPISODE_621
 +#include "RPCS3IOSProfilerHelpers.h"
 +#include "Emu/System.h"
 +#include "Emu/Cell/SPUWarmupPolicy.h"
@@ -40919,6 +42903,8 @@ index d800542..8e17534 100644
 +#include "IOSRsxSyncProfile.h"
 +#include "IOSSpuObjectPrefetch.h" // REWINDBOX_SPU_OBJECT_PREFETCH_616
 +#include "IOSZcullOnDemand.h" // REWINDBOX_ZCULL_ON_DEMAND_619
++#include "IOSGpuTiming.h" // REWINDBOX_GPU_TIMING_621
++#include "IOSPipelineQueue.h" // REWINDBOX_PIPELINE_QUEUE_621
 +#include "IOSFrameTrace.h"
 +#include "IOSFeedbackCensus.h"
 +#include "IOSRendererCausality.h"
@@ -41086,7 +43072,7 @@ index d800542..8e17534 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +206,527 @@ u64 process_memory_footprint()
+@@ -38,31 +209,529 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -41391,16 +43377,18 @@ index d800542..8e17534 100644
 +
 +	void record_pipeline_job_queued(u32 pending_jobs) noexcept
 +	{
++		rpcs3::ios::pipeline_queue::on_queued(pending_jobs); // REWINDBOX_PIPELINE_QUEUE_621
 +		m_pipeline_queued.fetch_add(1, std::memory_order_relaxed);
 +		u32 peak = m_pipeline_peak_pending.load(std::memory_order_relaxed);
 +		while (peak < pending_jobs && !m_pipeline_peak_pending.compare_exchange_weak(
 +			peak, pending_jobs, std::memory_order_relaxed))
 +		{
 +		}
-+	}
-+
+ 	}
+ 
 +	void record_pipeline_job_completed(u64 queue_wait_ticks, u64 compile_ticks) noexcept
 +	{
++		rpcs3::ios::pipeline_queue::on_completed(queue_wait_ticks, compile_ticks); // REWINDBOX_PIPELINE_QUEUE_621
 +		m_event_costs[0].record(queue_wait_ticks);
 +		m_event_costs[1].record(compile_ticks);
 +		m_pipeline_completed.fetch_add(1, std::memory_order_relaxed);
@@ -41438,8 +43426,8 @@ index d800542..8e17534 100644
 +	void record_writer_lock(u32 source, u64 acquire_ticks, u64 hold_ticks) noexcept
 +	{
 +		m_writer_counters.record(source, acquire_ticks, hold_ticks);
- 	}
- 
++	}
++
 +	void record_writer_lock_avoided(u32 source) noexcept
 +	{
 +		const usz index = source < writer_lock_source_count ? source : 0;
@@ -41624,7 +43612,7 @@ index d800542..8e17534 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +736,10 @@ public:
+@@ -72,10 +741,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -41637,7 +43625,7 @@ index d800542..8e17534 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +772,975 @@ public:
+@@ -108,12 +777,1123 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -41717,10 +43705,89 @@ index d800542..8e17534 100644
 +				report = now >= m_next_report;
 +			}
 +
++			// REWINDBOX_FREEZE_EPISODE_621: every sample, outside the profile lock.
++			observe_freeze_episode(usage);
++
 +			if (report)
 +			{
 +				report_profile_window();
 +			}
++		}
++	}
++
++	// REWINDBOX_FREEZE_EPISODE_621 (RPCS3IOSFreezeEpisode.h), sampler thread only.
++	static rpcs3::ios::freeze_episode::emu freeze_state(system_state state) noexcept
++	{
++		using rpcs3::ios::freeze_episode::emu;
++		switch (state)
++		{
++		case system_state::running: return emu::running;
++		case system_state::paused: return emu::paused;
++		case system_state::frozen: return emu::frozen;
++		case system_state::stopping:
++		case system_state::stopped: return emu::stopped;
++		default: return emu::loading;
++		}
++	}
++
++	void emit_freeze_episode(const rpcs3::ios::freeze_episode::report& episode, u64 session, const std::string& top)
++	{
++		const auto signal = rpcs3::ios::signal_trace::summary();
++		ios_core_profiler.notice(
++			"FREEZE_EPISODE %s episode=%llu session=%llu reason=%s outcome=%s no_frames_s=%.3f episode_s=%.3f "
++			"last_flip_age_s=%.3f flips_during=%llu paused_s=%.3f pauses=%u suspended_s=%.3f suspensions=%u loading_s=%.3f "
++			"busiest_cores=%.3f begin_busiest_cores=%.3f top=%s rsx_semaphore_wait=%u rsx_semaphore_stalled=%u "
++			"rsx_semaphore_addr=0x%x rsx_semaphore_expected=0x%x rsx_semaphore_observed=0x%x dump=%u dump_suppressed=%u "
++			"state=%u guest_flips=%llu clock=running_time_excludes_pause_loading_suspension host_menu_and_background=host_journal",
++			rpcs3::ios::freeze_episode::event_name(episode.what), episode.episode, session, episode.reason, episode.outcome,
++			episode.no_frames_s, episode.episode_s, episode.last_flip_age_s, episode.flips_during, episode.paused_s,
++			episode.pauses, episode.suspended_s, episode.suspensions, episode.loading_s, episode.busiest_cores,
++			episode.begin_busiest_cores, top.empty() ? "none" : top, signal.watch.active ? 1u : 0u,
++			signal.watch.stalled ? 1u : 0u, signal.watch.address, signal.watch.expected, signal.watch.observed,
++			episode.dump ? 1u : 0u, episode.dump_suppressed ? 1u : 0u, static_cast<u32>(Emu.GetStatus(false)),
++			m_guest_frames.load(std::memory_order_relaxed));
++	}
++
++	void observe_freeze_episode(const thread_usage_sample& usage)
++	{
++		namespace episode = rpcs3::ios::freeze_episode;
++		const u64 session = m_profile_session.load(std::memory_order_relaxed);
++		const u64 now_us = static_cast<u64>(std::chrono::duration_cast<std::chrono::microseconds>(
++			sample_clock::now().time_since_epoch()).count());
++		if (session != m_freeze_session)
++		{
++			// A new boot: an episode of the previous one ends as stopped.
++			const auto stopped = m_freeze_episode.stop(now_us);
++			if (stopped.what != episode::event::none) emit_freeze_episode(stopped, m_freeze_session, {});
++			m_freeze_episode.reset();
++			m_freeze_session = session;
++		}
++
++		episode::tick sample;
++		sample.now_us = now_us;
++		sample.state = freeze_state(Emu.GetStatus(false));
++		sample.guest_flips = m_guest_frames.load(std::memory_order_acquire);
++		for (usz group = 0; group < core_group_count; ++group)
++		{
++			sample.busiest_cores = std::max(sample.busiest_cores, usage.cores[group]);
++		}
++
++		const auto result = m_freeze_episode.observe(sample);
++		if (result.what != episode::event::none)
++		{
++			std::vector<rpcs3::ios::profiler::thread_cores> rows;
++			for (const auto& row : usage.detail)
++			{
++				rpcs3::ios::profiler::accumulate_thread(rows, row.name, row.cores);
++			}
++			const std::string top = rpcs3::ios::profiler::format_top_list(rpcs3::ios::profiler::top_threads(std::move(rows), 1, 3));
++			emit_freeze_episode(result, session, top);
++		}
++		// The episode's dump is retried on later samples until it is taken (a busy
++		// idm lock or a state change makes the dump give up without logging).
++		if (result.dump && neostation_freeze_dump(result.reason, result.no_frames_s, result.begin_busiest_cores, result.episode))
++		{
++			m_freeze_episode.dump_taken(now_us);
 +		}
 +	}
 +
@@ -41747,6 +43814,8 @@ index d800542..8e17534 100644
 +        double seconds_without_frames = 0.0;
 +        rpcs3::ios::diagnostics::GuestFrameWindow::Sample guest_frames;
 +        rpcs3::ios::frame_trace::Profile::Snapshot frame_causes;
++        rpcs3::ios::gpu_timing::window gpu_window; // REWINDBOX_GPU_TIMING_621
++        rpcs3::ios::pipeline_queue::window pipeline_window; // REWINDBOX_PIPELINE_QUEUE_621
 +        rpcs3::ios::renderer_causality::Profile::Snapshot renderer_causes;
 +        rpcs3::ios::signal_trace::summary_result signal_summary;
 +        rpcs3::ios::signal_trace::snapshot_result signal_snapshot;
@@ -41770,6 +43839,8 @@ index d800542..8e17534 100644
 +            profile_window = ++m_report_window;
 +            guest_frames = m_guest_frame_window.take();
 +            frame_causes = rpcs3::ios::frame_trace::profile.take();
++            gpu_window = rpcs3::ios::gpu_timing::instance().take_window();
++            pipeline_window = rpcs3::ios::pipeline_queue::take();
 +            renderer_causes = rpcs3::ios::renderer_causality::profile.take();
 +            signal_report_us = get_system_time();
 +            signal_summary = rpcs3::ios::signal_trace::summary();
@@ -41891,12 +43962,27 @@ index d800542..8e17534 100644
 +                const auto wait_ms = [&](u64 ticks) {
 +                    return rpcs3::ios::frame_trace::microseconds(ticks, frame.frequency) / 1000.0;
 +                };
++                // REWINDBOX_GPU_TIMING_621: the GPU record of this RSX frame, if this session has one.
++                const auto gpu_frame = rpcs3::ios::gpu_timing::instance().lookup(frame.session, frame.frame);
++                const auto gpu_ms = [](double us) { return us >= 0.0 ? us / 1000.0 : -1.0; };
++                const auto explanation = rpcs3::ios::gpu_timing::explain_frame(
++                    frame.interval_available ? frame.interval_us / 1000.0 : 0.0,
++                    wait_ms(frame.waits.fence_ticks), frame.waits.pipeline_us / 1000.0,
++                    wait_ms(frame.waits.drawable_ticks) + wait_ms(frame.waits.present_ticks),
++                    wait_ms(frame.waits.submit_ticks), frame.waits.semaphore_us / 1000.0, gpu_frame);
 +                ios_core_profiler.notice(
 +                    "COREPROF FRAMECAUSE_EVENT session=%llu window=%llu frame=%llu begin_tsc=%llu end_tsc=%llu frequency=%llu "
 +                    "interval_available=%u interval_ms=%.3f stages_sampled=%u forced=%u draws=%llu submits=%llu "
 +                    "vertex_cache=%llu:%llu setup_ms=%.3f vertex_ms=%.3f texture_ms=%.3f exec_ms=%.3f flip_ms=%.3f "
 +                    "rsx_fence_ms=%.3f rsx_submit_ms=%.3f rsx_drawable_ms=%.3f rsx_present_ms=%.3f "
-+                    "guest_semaphore_ms=%.3f blocking_pipeline_ms=%.3f gpu_execution_ms=-1 values_overlap=1",
++                    // REWINDBOX_GPU_TIMING_621: gpu_execution_ms is the GPU busy time (union of
++                    // the frame's command buffers, overlaps counted once) when every submission
++                    // of the frame was measured, otherwise -1; gpu_status says why.
++                    "guest_semaphore_ms=%.3f blocking_pipeline_ms=%.3f gpu_execution_ms=%.3f values_overlap=1 "
++                    "gpu_status=%s gpu_submits=%llu gpu_timed=%llu gpu_resolved=%llu gpu_unavailable=%llu "
++                    "gpu_lower_bound_ms=%.3f gpu_sum_ms=%.3f gpu_span_ms=%.3f gpu_max_cb_ms=%.3f gpu_queue_delay_max_ms=%.3f "
++                    "wait_dominant=%s wait_dominant_ms=%.3f rsx_waits_ms=%.3f rsx_other_ms=%.3f "
++                    "cause=%s certainty=%s cause_rule=v1 skipped_draws=%llu",
 +                    frame.session, profile_window, frame.frame, frame.begin_ticks, frame.end_ticks, frame.frequency,
 +                    frame.interval_available ? 1u : 0u, frame.interval_us / 1000.0,
 +                    frame.stages_sampled ? 1u : 0u, frame.forced ? 1u : 0u, frame.draws, frame.submits,
@@ -41908,9 +43994,60 @@ index d800542..8e17534 100644
 +                    frame.stages_sampled ? frame.flip_us / 1000.0 : -1.0,
 +                    wait_ms(frame.waits.fence_ticks), wait_ms(frame.waits.submit_ticks),
 +                    wait_ms(frame.waits.drawable_ticks), wait_ms(frame.waits.present_ticks),
-+                    frame.waits.semaphore_us / 1000.0, frame.waits.pipeline_us / 1000.0);
++                    frame.waits.semaphore_us / 1000.0, frame.waits.pipeline_us / 1000.0,
++                    gpu_frame.status == rpcs3::ios::gpu_timing::frame_status::complete ? gpu_frame.busy_us / 1000.0 : -1.0,
++                    rpcs3::ios::gpu_timing::frame_status_name(gpu_frame.status),
++                    gpu_frame.submits, gpu_frame.timed, gpu_frame.resolved, gpu_frame.unavailable,
++                    gpu_ms(gpu_frame.busy_us), gpu_ms(gpu_frame.sum_us), gpu_ms(gpu_frame.span_us),
++                    gpu_ms(gpu_frame.max_us), gpu_ms(gpu_frame.queue_delay_max_us),
++                    explanation.dominant, explanation.dominant_ms, explanation.waits_ms, explanation.other_ms,
++                    explanation.cause, explanation.certainty, frame.waits.skipped_draws);
 +            }
 +        }
++        // REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): GPU time of the RSX primary
++        // command buffers whose results were read in this window.
++        {
++            const auto& gpu = gpu_window;
++            const double busy_ms = gpu.ticks_us(gpu.busy_ticks) / 1000.0;
++            const double sum_ms = gpu.ticks_us(gpu.sum_ticks) / 1000.0;
++            const double ns_per_tick = gpu.calibrated && gpu.gpu_per_tsc > 0.0 && gpu.tsc_frequency
++                ? 1'000'000'000.0 / (gpu.gpu_per_tsc * static_cast<double>(gpu.tsc_frequency)) : -1.0;
++            ios_core_profiler.notice(
++                "COREPROF GPUTIME621 session=%llu window=%llu state=%s gpu_session=%llu queue_submits=%llu primary_submits=%llu "
++                "timed=%llu untimed=%llu resolved=%llu pending=%llu unavailable=%llu not_ready=%llu late_dropped=%llu "
++                "stop_dropped=%llu overrun=%llu invalid=%llu zero_duration=%llu order_violations=%llu frame_evicted=%llu "
++                "coverage=%.3f busy_ms=%.3f sum_ms=%.3f overlap_ms=%.3f busy_share=%.3f max_cb_ms=%.3f "
++                "frames_measured=%llu frames_gpu_over33ms=%llu frames_gpu_over50ms=%llu "
++                "queue_delay_avg_ms=%.3f queue_delay_max_ms=%.3f queue_delay_samples=%llu domain_violations=%llu "
++                "units=%s gpu_ns_per_tick=%.4f period_ns=%.4f period_ratio=%.4f calibration_uncertainty=%.6f "
++                "calibrations=%llu calibration_failures=%llu probe_cpu_ms=%.3f probe_reads=%llu probe_blit_passes=%llu "
++                "window_scope=results_read_in_window scope=rsx_primary_command_buffers",
++                profile_session, profile_window, rpcs3::ios::gpu_timing::state_name(gpu.probe), gpu.session,
++                gpu.queue_submits, gpu.submits, gpu.timed, gpu.untimed, gpu.resolved, gpu.pending, gpu.unavailable,
++                gpu.not_ready, gpu.late_dropped, gpu.stop_dropped, gpu.overrun, gpu.invalid, gpu.zero_duration,
++                gpu.order_violations, gpu.frame_evicted,
++                gpu.submits ? static_cast<double>(gpu.timed) / static_cast<double>(gpu.submits) : 0.0,
++                busy_ms, sum_ms, sum_ms > busy_ms ? sum_ms - busy_ms : 0.0, elapsed_ms > 0.0 ? busy_ms / elapsed_ms : 0.0,
++                gpu.ticks_us(gpu.max_ticks) / 1000.0, gpu.frames_measured, gpu.frames_gpu_over_33ms, gpu.frames_gpu_over_50ms,
++                gpu.queue_delay_samples ? gpu.tsc_us(gpu.queue_delay_sum_tsc / gpu.queue_delay_samples) / 1000.0 : -1.0,
++                gpu.queue_delay_samples ? gpu.tsc_us(gpu.queue_delay_max_tsc) / 1000.0 : -1.0,
++                gpu.queue_delay_samples, gpu.domain_violations,
++                gpu.calibrated ? "calibrated" : "timestamp_period", ns_per_tick, gpu.period_ns,
++                ns_per_tick > 0.0 && gpu.period_ns > 0.0 ? ns_per_tick / gpu.period_ns : -1.0, gpu.calibration_uncertainty,
++                gpu.calibrations, gpu.calibration_failures, gpu.tsc_us(gpu.probe_tsc) / 1000.0, gpu.probe_reads,
++                gpu.timed * 2);
++        }
++        // REWINDBOX_PIPELINE_QUEUE_621 (ios/IOSPipelineQueue.h).
++        ios_core_profiler.notice(
++            "COREPROF PIPEQUEUE621 session=%llu window=%llu queued=%llu built=%llu depth_peak=%llu "
++            "queue_wait_avg_ms=%.3f queue_wait_max_ms=%.3f build_avg_ms=%.3f build_max_ms=%.3f skipped_draws=%llu "
++            "shader_mode=%u scope=graphics_pipeline_compile_queue",
++            profile_session, profile_window, pipeline_window.queued, pipeline_window.completed, pipeline_window.depth_peak,
++            pipeline_window.completed ? milliseconds(pipeline_window.wait_total_tsc) / pipeline_window.completed : 0.0,
++            milliseconds(pipeline_window.wait_max_tsc),
++            pipeline_window.completed ? milliseconds(pipeline_window.build_total_tsc) / pipeline_window.completed : 0.0,
++            milliseconds(pipeline_window.build_max_tsc), pipeline_window.skipped_draws,
++            static_cast<u32>(g_cfg.video.shadermode.get()));
 +        report_renderer_causes(renderer_causes, profile_session, profile_window);
 +        report_signal_causes(signal_summary, signal_dump ? &signal_snapshot : nullptr,
 +            profile_session, profile_window, signal_report_us);
@@ -42591,20 +44728,19 @@ index d800542..8e17534 100644
 +			compile_threads, compile_cores, average_threads[static_cast<usz>(core_group::other)],
 +			rsx_fifo_busy, rsx_main_cores, top_list, guest_progress.wall_guest_fps, guest_progress.last_guest_flip_age_ms);
 +
-+		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D6, contract § 3.3): request a bounded
-+		// FREEZE_DUMP when no frame was presented for more than 3 s while one thread
-+		// group still averages more than 0.5 core and the emulator is running (not
-+		// paused, stopping or loading). The dump rate-limits itself (<= 1 / 30 s).
-+		const auto freeze = rpcs3::ios::profiler::evaluate_freeze_trigger(
-+			Emu.GetStatus(false) == system_state::running, seconds_without_frames, average_cores);
-+		if (freeze.dump)
-+		{
-+			neostation_freeze_dump("no_frames", seconds_without_frames, freeze.busiest_cores);
-+		}
++		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D6, contract § 3.3) requested the bounded
++		// FREEZE_DUMP here, from 5 s windows. REWINDBOX_FREEZE_EPISODE_621 moved it to
++		// the sampler (observe_freeze_episode): one dump per episode, a quiet freeze
++		// included, the no-frame clock stopped while paused, loading or suspended.
++		(void)seconds_without_frames;
++		(void)average_cores;
 +	}
 +
 +
 +    u64 m_report_window = 0; // guarded by m_profile_mutex
++    // REWINDBOX_FREEZE_EPISODE_621: sampler thread only.
++    rpcs3::ios::freeze_episode::tracker m_freeze_episode;
++    u64 m_freeze_session = 0;
 +    u64 m_last_signal_dump_us = 0; // guarded by m_profile_mutex
 +    rpcs3::ios::diagnostics::GuestFrameWindow m_guest_frame_window;
 +    rpcs3::ios::diagnostics::ProcessMemoryWindow m_process_memory;
@@ -42615,7 +44751,7 @@ index d800542..8e17534 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1748,93 @@ private:
+@@ -121,6 +1901,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -42709,7 +44845,7 @@ index d800542..8e17534 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1842,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +1995,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -42803,7 +44939,7 @@ index d800542..8e17534 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1939,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2092,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -42932,7 +45068,7 @@ index d800542..8e17534 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2070,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2223,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -43170,10 +45306,10 @@ index 41559b0..4b399d3 100644
  #if !TARGET_OS_VISION
 diff --git a/rpcs3/ios/RPCS3IOSProfilerHelpers.h b/rpcs3/ios/RPCS3IOSProfilerHelpers.h
 new file mode 100644
-index 0000000..b6b0c69
+index 0000000..dcc1fad
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSProfilerHelpers.h
-@@ -0,0 +1,342 @@
+@@ -0,0 +1,364 @@
 +#pragma once
 +
 +// NEOSTATION_BUILD487_DIAGNOSTICS_V1: pure, header-only helpers of the iOS Core
@@ -43423,6 +45559,28 @@ index 0000000..b6b0c69
 +	return decision;
 +}
 +
++// REWINDBOX_FREEZE_EPISODE_621: "name:count,…" of the most frequent names (ties
++// by name), at most `limit` entries; empty names are skipped, "none" when none.
++inline std::string format_name_counts(std::vector<std::string> names, std::size_t limit = 4)
++{
++	std::sort(names.begin(), names.end());
++	std::vector<std::pair<std::string, std::size_t>> counts;
++	for (const auto& name : names)
++	{
++		if (name.empty()) continue;
++		if (!counts.empty() && counts.back().first == name) counts.back().second++;
++		else counts.emplace_back(name, 1);
++	}
++	std::stable_sort(counts.begin(), counts.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
++	std::string result;
++	for (std::size_t i = 0; i < counts.size() && i < limit; ++i)
++	{
++		if (!result.empty()) result += ',';
++		result += counts[i].first + ':' + std::to_string(counts[i].second);
++	}
++	return result.empty() ? "none" : result;
++}
++
 +// Rate limit of the dump: accepts when no dump was taken yet or at least
 +// min_interval_us elapsed since the last accepted one; records the accepted time.
 +inline bool accept_freeze_dump(std::uint64_t now_us, std::uint64_t& last_accepted_us, std::uint64_t min_interval_us = freeze_dump_min_interval_us) noexcept
@@ -43517,7 +45675,7 @@ index 0000000..b6b0c69
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..416fbcf 100644
+index b7b0474..afaa647 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -43545,7 +45703,7 @@ index b7b0474..416fbcf 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +126,45 @@ const std::array catalog{
+@@ -122,21 +126,47 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -43578,6 +45736,8 @@ index b7b0474..416fbcf 100644
 +	// REWINDBOX_GRAPHICS_TESTS_612: per-game levers of the in-game accuracy test page.
 +	GAME_SETTING("experimental.position_invariance", "Experimental", "MoltenVK", "Position invariance", "Asks Metal to compute the vertex position the same way in every shader that writes it, so passes that draw the same geometry again (weapon models, lit walls) get identical depth. Automatic enables it for Call of Duty: Black Ops II and Assassin's Creed; Disabled restores the previous shaders. Metal compiles new shaders on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.position_invariance, 0, 0, 0),
 +	GAME_SETTING("experimental.moltenvk_async_submits", "Experimental", "MoltenVK", "MoltenVK asynchronous submits", "Encodes Metal commands on MoltenVK's queue thread instead of the RSX thread. Automatic enables it for God of War III and Assassin's Creed while their last asynchronous boot finished; Enabled requests it for this game under the same condition; Disabled keeps synchronous submits. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.moltenvk_async_submits, 0, 0, 0),
++	// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): the accuracy test page can switch the probe off to measure its cost.
++	GAME_SETTING("experimental.gpu_timing", "Experimental", "MoltenVK", "GPU timing probe", "Records the GPU execution time of the RSX command buffers with two Vulkan timestamps each, read after they complete, for the performance journal. Automatic and Enabled keep it on; Disabled measures what it costs. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gpu_timing, 0, 0, 0),
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers). Defaults keep the Build 483 behavior except the cache-only retained keys.
 +	// The retained keys apply to each title's own cache directory, so they take a per-title value like any SETTING
 +	// (a complete legacy title snapshot also freezes them); only persistent_spu_object_cache is restored as global-only.
@@ -43593,7 +45753,7 @@ index b7b0474..416fbcf 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +233,89 @@ const std::array catalog{
+@@ -205,6 +235,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -43683,7 +45843,7 @@ index b7b0474..416fbcf 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +684,139 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +686,139 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  

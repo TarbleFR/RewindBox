@@ -31,7 +31,13 @@ assert core_log.index('if (budgetCount >= 128) {') < core_log.index('allowed = N
 assert core_log.index('os_unfair_lock_unlock(&budgetLock);') < core_log.index('if (dropped) RPCS3ReportDroppedLines(dropped);') < core_log.index('if (!allowed) return;')
 assert core_log.index('else budgetCount++;') < core_log.index('os_unfair_lock_unlock(&budgetLock);')
 assert core_log.index('os_unfair_lock_unlock(&budgetLock);') < core_log.index('if (!allowed) return;')
-assert core_log.index('if (!allowed) return;') < core_log.index('RPCS3Diagnostic(@"core_log", text);')
+# REWINDBOX_CORE_LOG_BOUNDED_621: an admitted line then goes to the repeat
+# collapse and the bounded asynchronous writer; a fatal-level or FREEZE_EPISODE
+# line leaves before this budget (never refused), so the budget code below stays
+# the one the MoltenVK dependency run's milestones test compiled.
+assert core_log.index('if (!allowed) return;') < core_log.index('RPCS3AdmitCoreLog(level, message, profiler, text);')
+assert core_log.index('if (level == 1 || strstr(message, "FREEZE_EPISODE ") != nullptr) {') < core_log.index('  const BOOL profiler =')
+assert core_log.count('RPCS3AdmitCoreLog(') == 2 and 'RPCS3Diagnostic(@"core_log", text);' not in core_log
 assert 'RPCS3Milestone(@"core_load_begin"' in host
 assert 'RPCS3Milestone(@"core_initialize_begin"' in host
 assert 'RPCS3Milestone(@"game_boot_begin"' in host

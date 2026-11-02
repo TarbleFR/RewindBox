@@ -1143,6 +1143,186 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
   });
   return values;
 }
+
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translations() {
+  // REWINDBOX_INCIDENT_REPORT_621: "Report a problem", the game-stopped alert,
+  // the previous-session alert and the GPU timing test lever.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"reportProblem": @"Report a problem",
+        @"reportProblemDetail": @"Share a diagnostic report of this session",
+        @"reportFailed": @"The report could not be created.",
+        @"gameStoppedTitle": @"The game stopped with an error",
+        @"gameStoppedMessage": @"The game cannot continue. You can close it and share a diagnostic report.",
+        @"closeAndReport": @"Close and report",
+        @"closeGame": @"Close the game",
+        @"previousEndedTitle": @"The last PS3 session ended unexpectedly",
+        @"previousEndedMessage": @"A diagnostic report was kept. Would you like to share it?",
+        @"shareReport": @"Share the report",
+        @"later": @"Later",
+        @"testGpuTiming": @"GPU timing probe",
+      },
+      @"es": @{
+        @"reportProblem": @"Informar de un problema",
+        @"reportProblemDetail": @"Compartir un informe de diagnóstico de esta sesión",
+        @"reportFailed": @"No se pudo crear el informe.",
+        @"gameStoppedTitle": @"El juego se detuvo por un error",
+        @"gameStoppedMessage": @"El juego no puede continuar. Puedes cerrarlo y compartir un informe de diagnóstico.",
+        @"closeAndReport": @"Cerrar e informar",
+        @"closeGame": @"Cerrar el juego",
+        @"previousEndedTitle": @"La última sesión de PS3 terminó de forma inesperada",
+        @"previousEndedMessage": @"Se guardó un informe de diagnóstico. ¿Quieres compartirlo?",
+        @"shareReport": @"Compartir el informe",
+        @"later": @"Más tarde",
+        @"testGpuTiming": @"Medición de tiempo de GPU",
+      },
+      @"ru": @{
+        @"reportProblem": @"Сообщить о проблеме",
+        @"reportProblemDetail": @"Поделиться диагностическим отчётом этого сеанса",
+        @"reportFailed": @"Не удалось создать отчёт.",
+        @"gameStoppedTitle": @"Игра остановилась из-за ошибки",
+        @"gameStoppedMessage": @"Игра не может продолжиться. Вы можете закрыть её и поделиться диагностическим отчётом.",
+        @"closeAndReport": @"Закрыть и сообщить",
+        @"closeGame": @"Закрыть игру",
+        @"previousEndedTitle": @"Последний сеанс PS3 завершился неожиданно",
+        @"previousEndedMessage": @"Диагностический отчёт сохранён. Хотите поделиться им?",
+        @"shareReport": @"Поделиться отчётом",
+        @"later": @"Позже",
+        @"testGpuTiming": @"Замер времени GPU",
+      },
+      @"zh": @{
+        @"reportProblem": @"报告问题",
+        @"reportProblemDetail": @"分享本次会话的诊断报告",
+        @"reportFailed": @"无法创建报告。",
+        @"gameStoppedTitle": @"游戏因错误而停止",
+        @"gameStoppedMessage": @"游戏无法继续。你可以关闭游戏并分享诊断报告。",
+        @"closeAndReport": @"关闭并报告",
+        @"closeGame": @"关闭游戏",
+        @"previousEndedTitle": @"上次 PS3 会话意外结束",
+        @"previousEndedMessage": @"已保留一份诊断报告。要分享吗？",
+        @"shareReport": @"分享报告",
+        @"later": @"稍后",
+        @"testGpuTiming": @"GPU 计时探针",
+      },
+      @"zh_Hant": @{
+        @"reportProblem": @"回報問題",
+        @"reportProblemDetail": @"分享此工作階段的診斷報告",
+        @"reportFailed": @"無法建立報告。",
+        @"gameStoppedTitle": @"遊戲因錯誤而停止",
+        @"gameStoppedMessage": @"遊戲無法繼續。你可以關閉遊戲並分享診斷報告。",
+        @"closeAndReport": @"關閉並回報",
+        @"closeGame": @"關閉遊戲",
+        @"previousEndedTitle": @"上次 PS3 工作階段意外結束",
+        @"previousEndedMessage": @"已保留一份診斷報告。要分享嗎？",
+        @"shareReport": @"分享報告",
+        @"later": @"稍後",
+        @"testGpuTiming": @"GPU 計時探針",
+      },
+      @"pt": @{
+        @"reportProblem": @"Comunicar um problema",
+        @"reportProblemDetail": @"Partilhar um relatório de diagnóstico desta sessão",
+        @"reportFailed": @"Não foi possível criar o relatório.",
+        @"gameStoppedTitle": @"O jogo parou devido a um erro",
+        @"gameStoppedMessage": @"O jogo não pode continuar. Pode fechá-lo e partilhar um relatório de diagnóstico.",
+        @"closeAndReport": @"Fechar e comunicar",
+        @"closeGame": @"Fechar o jogo",
+        @"previousEndedTitle": @"A última sessão PS3 terminou de forma inesperada",
+        @"previousEndedMessage": @"Foi guardado um relatório de diagnóstico. Quer partilhá-lo?",
+        @"shareReport": @"Partilhar o relatório",
+        @"later": @"Mais tarde",
+        @"testGpuTiming": @"Medição de tempo da GPU",
+      },
+      @"fr": @{
+        @"reportProblem": @"Signaler un problème",
+        @"reportProblemDetail": @"Partager un rapport de diagnostic de cette session",
+        @"reportFailed": @"Le rapport n’a pas pu être créé.",
+        @"gameStoppedTitle": @"Le jeu s’est arrêté sur une erreur",
+        @"gameStoppedMessage": @"Le jeu ne peut pas continuer. Vous pouvez le fermer et partager un rapport de diagnostic.",
+        @"closeAndReport": @"Fermer et signaler",
+        @"closeGame": @"Fermer le jeu",
+        @"previousEndedTitle": @"La dernière session PS3 s’est terminée de façon inattendue",
+        @"previousEndedMessage": @"Un rapport de diagnostic a été conservé. Voulez-vous le partager ?",
+        @"shareReport": @"Partager le rapport",
+        @"later": @"Plus tard",
+        @"testGpuTiming": @"Sonde de temps GPU",
+      },
+      @"de": @{
+        @"reportProblem": @"Problem melden",
+        @"reportProblemDetail": @"Diagnosebericht dieser Sitzung teilen",
+        @"reportFailed": @"Der Bericht konnte nicht erstellt werden.",
+        @"gameStoppedTitle": @"Das Spiel wurde wegen eines Fehlers angehalten",
+        @"gameStoppedMessage": @"Das Spiel kann nicht fortgesetzt werden. Du kannst es schließen und einen Diagnosebericht teilen.",
+        @"closeAndReport": @"Schließen und melden",
+        @"closeGame": @"Spiel schließen",
+        @"previousEndedTitle": @"Die letzte PS3-Sitzung wurde unerwartet beendet",
+        @"previousEndedMessage": @"Ein Diagnosebericht wurde aufbewahrt. Möchtest du ihn teilen?",
+        @"shareReport": @"Bericht teilen",
+        @"later": @"Später",
+        @"testGpuTiming": @"GPU-Zeitmessung",
+      },
+      @"it": @{
+        @"reportProblem": @"Segnala un problema",
+        @"reportProblemDetail": @"Condividi un rapporto diagnostico di questa sessione",
+        @"reportFailed": @"Impossibile creare il rapporto.",
+        @"gameStoppedTitle": @"Il gioco si è interrotto per un errore",
+        @"gameStoppedMessage": @"Il gioco non può continuare. Puoi chiuderlo e condividere un rapporto diagnostico.",
+        @"closeAndReport": @"Chiudi e segnala",
+        @"closeGame": @"Chiudi il gioco",
+        @"previousEndedTitle": @"L’ultima sessione PS3 si è chiusa in modo imprevisto",
+        @"previousEndedMessage": @"È stato conservato un rapporto diagnostico. Vuoi condividerlo?",
+        @"shareReport": @"Condividi il rapporto",
+        @"later": @"Più tardi",
+        @"testGpuTiming": @"Misurazione dei tempi GPU",
+      },
+      @"id": @{
+        @"reportProblem": @"Laporkan masalah",
+        @"reportProblemDetail": @"Bagikan laporan diagnostik sesi ini",
+        @"reportFailed": @"Laporan tidak dapat dibuat.",
+        @"gameStoppedTitle": @"Game berhenti karena kesalahan",
+        @"gameStoppedMessage": @"Game tidak dapat dilanjutkan. Anda dapat menutupnya dan membagikan laporan diagnostik.",
+        @"closeAndReport": @"Tutup dan laporkan",
+        @"closeGame": @"Tutup game",
+        @"previousEndedTitle": @"Sesi PS3 terakhir berakhir secara tidak terduga",
+        @"previousEndedMessage": @"Laporan diagnostik telah disimpan. Ingin membagikannya?",
+        @"shareReport": @"Bagikan laporan",
+        @"later": @"Nanti",
+        @"testGpuTiming": @"Pengukur waktu GPU",
+      },
+      @"ja": @{
+        @"reportProblem": @"問題を報告",
+        @"reportProblemDetail": @"このセッションの診断レポートを共有",
+        @"reportFailed": @"レポートを作成できませんでした。",
+        @"gameStoppedTitle": @"エラーによりゲームが停止しました",
+        @"gameStoppedMessage": @"ゲームを続行できません。ゲームを閉じて診断レポートを共有できます。",
+        @"closeAndReport": @"閉じて報告",
+        @"closeGame": @"ゲームを閉じる",
+        @"previousEndedTitle": @"前回のPS3セッションが予期せず終了しました",
+        @"previousEndedMessage": @"診断レポートが保存されています。共有しますか？",
+        @"shareReport": @"レポートを共有",
+        @"later": @"後で",
+        @"testGpuTiming": @"GPU時間計測",
+      },
+      @"ko": @{
+        @"reportProblem": @"문제 신고",
+        @"reportProblemDetail": @"이 세션의 진단 보고서 공유",
+        @"reportFailed": @"보고서를 만들 수 없습니다.",
+        @"gameStoppedTitle": @"오류로 인해 게임이 중지되었습니다",
+        @"gameStoppedMessage": @"게임을 계속할 수 없습니다. 게임을 닫고 진단 보고서를 공유할 수 있습니다.",
+        @"closeAndReport": @"닫고 신고",
+        @"closeGame": @"게임 닫기",
+        @"previousEndedTitle": @"마지막 PS3 세션이 예기치 않게 종료되었습니다",
+        @"previousEndedMessage": @"진단 보고서가 보관되었습니다. 공유하시겠습니까?",
+        @"shareReport": @"보고서 공유",
+        @"later": @"나중에",
+        @"testGpuTiming": @"GPU 시간 측정",
+      },
+    };
+  });
+  return values;
+}
 }
 
 NSString* RPCS3CanonicalLocale(NSString* identifier) {
@@ -1167,8 +1347,10 @@ NSString* RPCS3LocalizedString(NSString* key, NSString* localeIdentifier) {
   NSDictionary* build256 = Build256Translations();
   NSDictionary* build297 = Build297Translations();
   NSDictionary* build612 = Build612Translations();
+  NSDictionary* build621 = Build621Translations();
   NSString* locale = RPCS3CanonicalLocale(localeIdentifier);
-  return build612[locale][key] ?: build612[@"en"][key] ?:
+  return build621[locale][key] ?: build621[@"en"][key] ?:
+      build612[locale][key] ?: build612[@"en"][key] ?:
       build297[locale][key] ?: build297[@"en"][key] ?:
       build256[locale][key] ?: build256[@"en"][key] ?:
       all[locale][key] ?: all[@"en"][key] ?: key;

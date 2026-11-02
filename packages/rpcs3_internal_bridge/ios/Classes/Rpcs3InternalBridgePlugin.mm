@@ -47,6 +47,9 @@
 
 static NSString* const kRpcs3Channel = @"neostation/rpcs3_internal";
 static const uint32_t kExpectedAbi = 30;
+// REWINDBOX_INCIDENT_REPORT_621: posted from the logging thread when a Core line
+// says the game cannot continue; observed on the main queue by the plugin.
+static NSString* const kRPCS3GameStoppedNotification = @"RPCS3GameStoppedWithError";
 // Preparation runs incrementally on NeoSwap's existing maintenance queue.
 // This boot sample grants nothing: allocation still requires a verified loan.
 static const uint64_t kNeoSwapBootMinimumBytes = 16ULL * 1024 * 1024;
@@ -443,6 +446,13 @@ static UIViewController* RPCS3RootViewController(void) {
 @property(nonatomic, assign) double previousPreferredSampleRate;
 @property(nonatomic, assign) NSTimeInterval previousPreferredIOBufferDuration;
 @property(nonatomic, assign) BOOL audioPolicyCaptured;
+// REWINDBOX_INCIDENT_REPORT_621: main thread only.
+@property(nonatomic, assign) BOOL hostMenuOpen;
+@property(nonatomic, assign) BOOL hostBackground;
+@property(nonatomic, assign) BOOL gameStoppedAlertShown;
+@property(nonatomic, copy) NSString* pendingPreviousIncident;
+@property(nonatomic, copy) NSString* lastUiLocale;
+@property(nonatomic, strong) NSArray* incidentObservers;
 @end
 
 @implementation Rpcs3InternalBridgePlugin {
@@ -478,6 +488,9 @@ static UIViewController* RPCS3RootViewController(void) {
                                                               binaryMessenger:registrar.messenger];
   Rpcs3InternalBridgePlugin* instance = [[Rpcs3InternalBridgePlugin alloc] init];
   instance.channel = channel;
+  // REWINDBOX_INCIDENT_REPORT_621: a previous process that ended during a PS3
+  // session left its record; its incident is offered at the next PS3 launch.
+  instance.pendingPreviousIncident = RPCS3TakePreviousSessionIncident();
   [registrar addMethodCallDelegate:instance channel:channel];
 }
 
@@ -485,6 +498,30 @@ static UIViewController* RPCS3RootViewController(void) {
   self = [super init];
   if (self) {
     _runtimeQueue = dispatch_queue_create("com.neogamelab.neostation.rpcs3.runtime", DISPATCH_QUEUE_SERIAL);
+    // REWINDBOX_INCIDENT_REPORT_621: the host context of freeze incidents and the
+    // game-stopped alert. Blocks run on the main queue.
+    __weak Rpcs3InternalBridgePlugin* weakInstance = self;
+    NSNotificationCenter* center = NSNotificationCenter.defaultCenter;
+    _incidentObservers = @[
+      [center addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil
+                           queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note) {
+        Rpcs3InternalBridgePlugin* bridge = weakInstance;
+        if (!bridge) return;
+        bridge.hostBackground = YES;
+        [bridge publishHostState];
+      }],
+      [center addObserverForName:UIApplicationWillEnterForegroundNotification object:nil
+                           queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note) {
+        Rpcs3InternalBridgePlugin* bridge = weakInstance;
+        if (!bridge) return;
+        bridge.hostBackground = NO;
+        [bridge publishHostState];
+      }],
+      [center addObserverForName:kRPCS3GameStoppedNotification object:nil
+                           queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification* note) {
+        [weakInstance gameStoppedWithError:note.userInfo[@"message"]];
+      }],
+    ];
     memset(&_api, 0, sizeof(_api));
     if (NSString* cpuError = RPCS3CPUCompatibilityError()) {
       RPCS3Milestone(@"early_jit_escrow_skipped", cpuError);
@@ -500,6 +537,125 @@ static UIViewController* RPCS3RootViewController(void) {
 
 - (NSString*)localized:(NSString*)key {
   return RPCS3LocalizedString(key, self.activeUiLocale);
+}
+
+// ---- REWINDBOX_INCIDENT_REPORT_621 ------------------------------------------
+// The incident model (Rpcs3Diagnostics.mm) learns the host context: the
+// RewindBox menu (which does not pause the PS3 emulation) and the background.
+- (void)publishHostState {
+  if (!self.gameController) return;  // no PS3 session: nothing to record
+  RPCS3HostState(self.hostMenuOpen, self.hostBackground);
+}
+
+// Main thread: closes the menu and alerts above the game view, then stops the
+// game; stopAndDismiss alone would only dismiss the topmost of them.
+- (void)closeOverlaysAndStop:(FlutterResult)result {
+  RPCS3GameViewController* owner = self.gameController;
+  if (owner.presentedViewController) {
+    [owner dismissViewControllerAnimated:NO completion:^{ [self stopAndDismiss:result]; }];
+  } else {
+    [self stopAndDismiss:result];
+  }
+}
+
+// The topmost view controller above `controller` (menu, alerts).
+static UIViewController* RPCS3TopmostController(UIViewController* controller) {
+  UIViewController* top = controller;
+  while (top.presentedViewController) top = top.presentedViewController;
+  return top;
+}
+
+// A Core line said the game cannot continue while the app still responds:
+// offer to close it, with or without a report. Once per session.
+- (void)gameStoppedWithError:(NSString*)message {
+  RPCS3GameViewController* controller = self.gameController;
+  if (!controller || self.gameStoppedAlertShown) return;
+  self.gameStoppedAlertShown = YES;
+  RPCS3Diagnostic(@"incident_ui", @"INCIDENT_UI alert=game_stopped");
+  UIAlertController* alert = [UIAlertController alertControllerWithTitle:[self localized:@"gameStoppedTitle"]
+                                                                 message:[self localized:@"gameStoppedMessage"]
+                                                          preferredStyle:UIAlertControllerStyleAlert];
+  __weak Rpcs3InternalBridgePlugin* weakSelf = self;
+  [alert addAction:[UIAlertAction actionWithTitle:[self localized:@"closeAndReport"]
+                                            style:UIAlertActionStyleDefault
+                                          handler:^(UIAlertAction* action) {
+    Rpcs3InternalBridgePlugin* bridge = weakSelf;
+    if (!bridge) return;
+    RPCS3Diagnostic(@"incident_ui", @"INCIDENT_UI action=close_and_report");
+    [bridge closeOverlaysAndStop:^(id result) { [weakSelf presentIncidentReportFrom:nil]; }];
+  }]];
+  [alert addAction:[UIAlertAction actionWithTitle:[self localized:@"closeGame"]
+                                            style:UIAlertActionStyleCancel
+                                          handler:^(UIAlertAction* action) {
+    RPCS3Diagnostic(@"incident_ui", @"INCIDENT_UI action=close");
+    [weakSelf closeOverlaysAndStop:nil];
+  }]];
+  [RPCS3TopmostController(controller) presentViewController:alert animated:YES completion:nil];
+}
+
+// Builds the report off the main thread, then lets the tester choose where to
+// send it (share sheet). Nothing is sent without that choice.
+- (void)presentIncidentReportFrom:(UIViewController*)presenter {
+  __weak Rpcs3InternalBridgePlugin* weakSelf = self;
+  __weak UIViewController* weakPresenter = presenter;
+  RPCS3Diagnostic(@"incident_ui", @"INCIDENT_UI report=requested");
+  RPCS3BuildIncidentReport(^(NSString* path) {
+    Rpcs3InternalBridgePlugin* bridge = weakSelf;
+    UIViewController* host = weakPresenter;
+    host = host.view.window ? RPCS3TopmostController(host) : RPCS3RootViewController();
+    if (!bridge || !host) return;
+    if (!path.length) {
+      // The game may have stopped already: its locale is kept in lastUiLocale.
+      NSString* locale = bridge.activeUiLocale ?: bridge.lastUiLocale;
+      UIAlertController* failure = [UIAlertController alertControllerWithTitle:RPCS3LocalizedString(@"reportFailed", locale)
+                                                                       message:nil
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+      [failure addAction:[UIAlertAction actionWithTitle:RPCS3LocalizedString(@"ok", locale)
+                                                  style:UIAlertActionStyleDefault handler:nil]];
+      [host presentViewController:failure animated:YES completion:nil];
+      return;
+    }
+    UIActivityViewController* share = [[UIActivityViewController alloc]
+        initWithActivityItems:@[[NSURL fileURLWithPath:path]] applicationActivities:nil];
+    share.popoverPresentationController.sourceView = host.view;
+    share.popoverPresentationController.sourceRect =
+        CGRectMake(CGRectGetMidX(host.view.bounds), CGRectGetMidY(host.view.bounds), 1, 1);
+    share.completionWithItemsHandler = ^(UIActivityType activityType, BOOL completed, NSArray* items, NSError* error) {
+      RPCS3Diagnostic(@"incident_ui", [NSString stringWithFormat:@"INCIDENT_UI share=%@ completed=%d",
+          activityType ?: @"none", completed ? 1 : 0]);
+    };
+    [host presentViewController:share animated:YES completion:nil];
+  });
+}
+
+// The previous process ended during a PS3 session: offered once, at the next
+// PS3 launch; the incident file stays in every later report.
+- (void)offerPreviousIncidentIfAny {
+  NSString* pending = self.pendingPreviousIncident;
+  RPCS3GameViewController* controller = self.gameController;
+  if (!pending.length || !controller) return;
+  self.pendingPreviousIncident = nil;
+  RPCS3Diagnostic(@"incident_ui", [NSString stringWithFormat:@"INCIDENT_UI alert=previous_session file=%@",
+      pending.lastPathComponent]);
+  __weak Rpcs3InternalBridgePlugin* weakSelf = self;
+  __weak RPCS3GameViewController* weakController = controller;
+  dispatch_async(dispatch_get_main_queue(), ^{
+    Rpcs3InternalBridgePlugin* bridge = weakSelf;
+    RPCS3GameViewController* owner = weakController;
+    if (!bridge || !owner || owner != bridge.gameController) return;
+    UIAlertController* alert = [UIAlertController alertControllerWithTitle:[bridge localized:@"previousEndedTitle"]
+                                                                   message:[bridge localized:@"previousEndedMessage"]
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:[bridge localized:@"shareReport"]
+                                              style:UIAlertActionStyleDefault
+                                            handler:^(UIAlertAction* action) {
+      [weakSelf presentIncidentReportFrom:weakController];
+    }]];
+    [alert addAction:[UIAlertAction actionWithTitle:[bridge localized:@"later"]
+                                              style:UIAlertActionStyleCancel
+                                            handler:nil]];
+    [RPCS3TopmostController(owner) presentViewController:alert animated:YES completion:nil];
+  });
 }
 
 // NEOSTATION_RPCS3_BUILD256_HOST_V1: do not leak Core-owned English strings into localized alerts.
@@ -579,6 +735,9 @@ static const char* RPCS3Build487MilestoneStage(const char* message) {
   if (strstr(message, "NEOSTATION_RESTART ") != nullptr) return "internal_restart";
   if (strstr(message, "SAVESTATE_BOOT ") != nullptr) return "savestate_boot";
   if (strstr(message, "FREEZE_DUMP begin ") != nullptr) return "freeze_dump";
+  // REWINDBOX_FREEZE_EPISODE_621: one begin and one end per episode.
+  if (strstr(message, "FREEZE_EPISODE begin ") != nullptr) return "freeze_episode_begin";
+  if (strstr(message, "FREEZE_EPISODE end ") != nullptr) return "freeze_episode_end";
   if (strstr(message, "MUTEX_DESTROY_BUSY ") != nullptr) return "mutex_destroy_busy";
   return nullptr;
 }
@@ -608,7 +767,6 @@ static BOOL RPCS3RestoreTraceDetail(const char* message) {
 static void RPCS3ReportDroppedLines(uint32_t dropped) {
   RPCS3Diagnostic(@"core_log", [NSString stringWithFormat:@"LOG_BUDGET dropped=%u limit_per_s=128", dropped]);
 }
-
 // Milestones are bounded files: complete freeze snapshots fit within 66 KiB;
 // legacy begin summaries use 512 bytes and ordinary records use 1 KiB.
 static NSString* RPCS3Build487MilestoneText(const char* message) {
@@ -672,6 +830,7 @@ static NSDictionary<NSString*, NSArray<NSString*>*>* RPCS3TestSettingValues(void
       @"gpu.shader_precision": @[@"Low", @"High", @"Ultra"],
       @"experimental.position_invariance": @[@"Enabled", @"Disabled"],
       @"experimental.moltenvk_async_submits": @[@"Enabled", @"Disabled"],
+      @"experimental.gpu_timing": @[@"Enabled", @"Disabled"],  // REWINDBOX_GPU_TIMING_621
     };
   });
   return values;
@@ -692,6 +851,61 @@ static NSArray<NSArray<NSString*>*>* RPCS3TestSettingChanges(NSString* command, 
   if (![key isKindOfClass:NSString.class] || ![setting isKindOfClass:NSString.class] || !allowed[key]) return nil;
   if (![setting isEqualToString:@"@inherit"] && ![allowed[key] containsObject:setting]) return nil;
   return @[@[key, setting]];
+}
+
+// REWINDBOX_CORE_LOG_BOUNDED_621: carries out an admission decision of RPCS3Log.
+// A fatal-level line is written at once to RPCS3-last-fatal.log, then every
+// admitted line is queued for the journal, LOG_REPEAT / LOG_BUDGET lines first
+// (their bytes add up to what the admission reserved); a fatal line then waits
+// at most 500 ms for the queue to drain, so the lines before an abort reach the
+// kernel; a game-stopped line notifies the plugin (main queue).
+static void RPCS3ForwardCoreLog(const char* message, size_t length, const rpcs3_host::core_log_decision& decision,
+                                NSString* text) {
+  if (decision.fatal) RPCS3RecordFatalLine(message, decision.game_stopped);
+  if (!decision.before.empty()) {
+    size_t at = 0;
+    while (at < decision.before.size()) {
+      const size_t newline = decision.before.find('\n', at);
+      const size_t end = newline == std::string::npos ? decision.before.size() : newline;
+      const std::string piece = decision.before.substr(at, end - at);
+      RPCS3CoreLogLine([NSString stringWithUTF8String:piece.c_str()] ?: @"",
+                       piece.size() + (newline == std::string::npos ? 0 : 1));
+      at = end + 1;
+    }
+  }
+  if (decision.write) {
+    RPCS3CoreLogLine(text ?: ([NSString stringWithUTF8String:message] ?: @""), length);
+  }
+  if (decision.fatal) {
+    // At most one drain per second: a thread that logs fatal lines in a loop
+    // does not wait 500 ms for each of them.
+    static std::atomic<double> lastDrain{0.0};
+    const double now = CACurrentMediaTime();
+    double previous = lastDrain.load(std::memory_order_relaxed);
+    if ((previous == 0.0 || now - previous >= 1.0) &&
+        lastDrain.compare_exchange_strong(previous, now, std::memory_order_relaxed)) {
+      RPCS3DiagnosticsDrain(500);
+    }
+  }
+  if (decision.game_stopped) {
+    // Posted on the main queue: the logging emulator thread never waits for the UI.
+    NSString* stopped = text ?: ([NSString stringWithUTF8String:message] ?: @"");
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [NSNotificationCenter.defaultCenter postNotificationName:kRPCS3GameStoppedNotification
+                                                        object:nil
+                                                      userInfo:@{@"message": stopped}];
+    });
+  }
+}
+
+// REWINDBOX_CORE_LOG_BOUNDED_621: the admission decision for one line of
+// RPCS3Log, then its forwarding. `text` is the line as an NSString when the
+// caller already made it.
+static void RPCS3AdmitCoreLog(int32_t level, const char* message, BOOL profiler, NSString* text) {
+  const size_t length = strlen(message);
+  const rpcs3_host::core_log_decision decision = RPCS3CoreLogAdmissionShared().admit(
+      level, std::string_view(message, length), profiler, CACurrentMediaTime());
+  RPCS3ForwardCoreLog(message, length, decision, text);
 }
 
 static void RPCS3Log(void* context, int32_t level, const char* message) {
@@ -733,6 +947,16 @@ static void RPCS3Log(void* context, int32_t level, const char* message) {
     // D5, D6, D8, D10) survive the 2 MiB diagnostic rotation as milestones.
     if (!RPCS3Build487AdmitBoundedLine(message)) return;
     RPCS3Milestone(@(stage), RPCS3Build487MilestoneText(message));
+  }
+  // REWINDBOX_CORE_LOG_BOUNDED_621: two kinds of line leave before the Build 283
+  // budget below, whose code stays as the dependency run's milestones test
+  // compiled it: a fatal-level line (logs::level::fatal = 1), never refused and
+  // written at once to RPCS3-last-fatal.log (report_fatal_error aborts right
+  // after this callback), and a FREEZE_EPISODE line (REWINDBOX_FREEZE_EPISODE_621),
+  // a bounded profiler line like FREEZE_DUMP.
+  if (level == 1 || strstr(message, "FREEZE_EPISODE ") != nullptr) {
+    RPCS3AdmitCoreLog(level, message, level != 1, nil);
+    return;
   }
   // SPUPROF and RANGELOCKPROF are computed by the Core every report period
   // but were never exported: the 7 October 2026 God of War III analysis needs
@@ -788,7 +1012,11 @@ static void RPCS3Log(void* context, int32_t level, const char* message) {
   }
 
   NSString* text = [NSString stringWithUTF8String:message] ?: @"";
-  RPCS3Diagnostic(@"core_log", text);
+  // REWINDBOX_CORE_LOG_BOUNDED_621: then the repeat collapse and the writer
+  // backlog (Rpcs3CoreLogAdmission.h, its own per-second budget off since the
+  // one above applies), decided on this emulator thread without touching a
+  // file; the journal write is asynchronous.
+  RPCS3AdmitCoreLog(level, message, profiler, text);
 }
 
 static void RPCS3Dispatch(void* context,
@@ -1976,6 +2204,20 @@ static UIView* RPCS3AchievementSurface(UIViewController* owner) {
     }];
   };
 
+  // REWINDBOX_INCIDENT_REPORT_621: menu visibility for incidents, and the
+  // "Report a problem" row (the tester chooses where the report goes).
+  menu.menuDismissed = ^{
+    Rpcs3InternalBridgePlugin* bridge = weakSelf;
+    if (!bridge) return;
+    bridge.hostMenuOpen = NO;
+    [bridge publishHostState];
+  };
+  menu.shareReport = ^(UIViewController* presenter) {
+    [weakSelf presentIncidentReportFrom:presenter];
+  };
+  self.hostMenuOpen = YES;
+  [self publishHostState];
+
   UINavigationController* navigation =
       [[UINavigationController alloc] initWithRootViewController:menu];
   navigation.modalPresentationStyle = UIModalPresentationOverFullScreen;
@@ -2190,6 +2432,12 @@ static UIView* RPCS3AchievementSurface(UIViewController* owner) {
       self.gameController = controller;
       self.activeTitleId = titleId;
       self.activeUiLocale = controller.uiLocale;
+      // REWINDBOX_INCIDENT_REPORT_621: a new session's host context.
+      self.lastUiLocale = controller.uiLocale;
+      self.gameStoppedAlertShown = NO;
+      self.hostMenuOpen = NO;
+      [self publishHostState];
+      [self offerPreviousIncidentIfAny];
     };
     if (NSThread.isMainThread) present();
     else dispatch_sync(dispatch_get_main_queue(), present);
@@ -2364,6 +2612,8 @@ static UIView* RPCS3AchievementSurface(UIViewController* owner) {
       return; // Keep Metal, controls and audio attached while the save owns Emu.
     }
     [self endAchievementSession];
+    // REWINDBOX_INCIDENT_REPORT_621: a clean stop; the record is marked stopped.
+    RPCS3SessionStopped();
     if (self.activeTitleId.length && self.unifiedCheats &&
         ![self.unifiedCheats applyPendingWhileStoppedForTitle:self.activeTitleId])
       RPCS3Diagnostic(@"cheats.pending",@"Catalogue changes remain pending; no personal patch was replaced.");

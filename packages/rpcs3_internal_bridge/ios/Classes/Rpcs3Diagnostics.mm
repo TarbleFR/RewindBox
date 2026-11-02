@@ -1,6 +1,8 @@
 #import "Rpcs3Diagnostics.h"
 
 #import <Foundation/Foundation.h>
+#include "Rpcs3CoreLogAdmission.h"
+#include "Rpcs3IncidentReport.h"
 #include <sys/stat.h>
 #include <unistd.h>
 #include <algorithm>
@@ -25,6 +27,42 @@ static uint64_t RPCS3MonotonicUs() {
   return std::chrono::duration_cast<std::chrono::microseconds>(
       std::chrono::steady_clock::now().time_since_epoch()).count();
 }
+
+// REWINDBOX_CORE_LOG_BOUNDED_621: a record the admission did not count.
+static const uint64_t kRPCS3NotAccounted = UINT64_MAX;
+
+// REWINDBOX_CORE_LOG_BOUNDED_621: one admission per process (Rpcs3Diagnostics.h).
+// RPCS3Log keeps its Build 283 budget of 128 ordinary lines per second (and its
+// LOG_BUDGET line) before this admission, so this one does not budget them
+// again: it collapses repeats and bounds the writer backlog (LOG_BACKLOG).
+rpcs3_host::core_log_admission& RPCS3CoreLogAdmissionShared() {
+  static rpcs3_host::core_log_admission admission([] {
+    rpcs3_host::core_log_limits limits;
+    limits.per_second = 0;
+    return limits;
+  }());
+  return admission;
+}
+
+// REWINDBOX_INCIDENT_REPORT_621: RPCS3-last-fatal.log, written on the logging thread.
+static rpcs3_host::fatal_slot& RPCS3FatalSlotShared() {
+  static rpcs3_host::fatal_slot slot;
+  return slot;
+}
+
+static std::string RPCS3StdString(NSString* text) {
+  const char* raw = text.UTF8String;
+  return raw ? std::string(raw) : std::string();
+}
+
+// File names of incidents: letters, digits, '-' and '_' only.
+static std::string RPCS3IncidentFileName(std::string name) {
+  for (char& c : name) {
+    const bool keep = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_';
+    if (!keep) c = '_';
+  }
+  return name.substr(0, 120);
+}
 // A separate bounded history excludes verbose restore-constructor traces.
 // It shares the existing asynchronous diagnostics worker, not a guest thread.
 static BOOL RPCS3KeepRuntimeHistory(NSString* message) {
@@ -33,7 +71,9 @@ static BOOL RPCS3KeepRuntimeHistory(NSString* message) {
       @"JITPROF_BOOT ", @"CONFIG_LAYERS ", @"JITMEM ", @"NEOSWAP_VDEC ",
       @"FREEZE_DUMP snapshot\n", @"SAVESTATE_RESTORE phase=missing_resource ",
       @"SAVESTATE_RESTORE phase=fxo_resource_abort ",
-      @"SAVESTATE_RESTORE phase=worker_exception", @"LOG_BUDGET "])
+      @"SAVESTATE_RESTORE phase=worker_exception", @"LOG_BUDGET ",
+      // REWINDBOX_INCIDENT_REPORT_621
+      @"FREEZE_EPISODE ", @"HOST_STATE ", @"LOG_REPEAT "])
     if ([message rangeOfString:token].location != NSNotFound) return YES;
   return NO;
 }
@@ -55,7 +95,9 @@ static bool RPCS3KeepCauseHistory(const char* message) noexcept {
       "COREPROF FRAMEPROF527 ", "COREPROF FRAMECAUSE ", "COREPROF FRAMECAUSE_EVENT ",
       "COREPROF RENDERCAUSE ", "COREPROF RENDERCAUSE_EVENT ",
       "COREPROF SIGNALCAUSE ", "COREPROF SIGNALCAUSE_EVENT ", "COREPROF SIGNALCAUSE_PRODUCER ",
-      "RSX_ACQUIRE ", "FREEZE_DUMP snapshot\n", "LOG_BUDGET "}) {
+      "RSX_ACQUIRE ", "FREEZE_DUMP snapshot\n", "LOG_BUDGET ",
+      // REWINDBOX_GPU_TIMING_621 / REWINDBOX_INCIDENT_REPORT_621
+      "COREPROF GPUTIME621 ", "COREPROF GPUTIME621_BOOT ", "FREEZE_EPISODE ", "HOST_STATE ", "LOG_REPEAT "}) {
     if (RPCS3CauseToken(message, token)) return true;
   }
   return false;
@@ -133,9 +175,32 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
   return family;
 }
 
+// LOG_REPEAT / LOG_BUDGET lines of the admission (joined by '\n'), one journal
+// record each; their bytes add up to what the admission reserved.
+static void RPCS3WriteAdmissionLines(const std::string& text) {
+  size_t at = 0;
+  while (at < text.size()) {
+    const size_t newline = text.find('\n', at);
+    const size_t end = newline == std::string::npos ? text.size() : newline;
+    const std::string piece = text.substr(at, end - at);
+    RPCS3CoreLogLine([NSString stringWithUTF8String:piece.c_str()] ?: @"",
+                     piece.size() + (newline == std::string::npos ? 0 : 1));
+    at = end + 1;
+  }
+}
+
 @interface RPCS3DiagnosticsWriter : NSObject
 - (void)writeDiagnosticStage:(nullable NSString*)stage
                       message:(nullable NSString*)message;
+- (void)writeDiagnosticStage:(nullable NSString*)stage
+                      message:(nullable NSString*)message
+                     reserved:(uint64_t)reserved;
+- (void)recordFatal:(NSString*)message gameStopped:(BOOL)gameStopped;
+- (void)hostMenuOpen:(BOOL)menuOpen background:(BOOL)background;
+- (void)sessionStopped;
+- (void)drainWithin:(uint32_t)milliseconds;
+- (nullable NSString*)takePreviousSessionIncident;
+- (void)buildReport:(void (^)(NSString* _Nullable path))completion;
 - (void)writeMilestoneStage:(nullable NSString*)stage
                      message:(nullable NSString*)message;
 - (void)writeRestoreTrace:(nullable NSString*)message;
@@ -177,6 +242,11 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
   NSString* _causeTitle;
   NSString* _causeSession;
   NSString* _causeBootKind;
+  // REWINDBOX_INCIDENT_REPORT_621: owned by the same serial diagnostic queue.
+  rpcs3_host::incident_model _incidents;
+  rpcs3_host::session_record _session;
+  BOOL _sessionActive;
+  NSTimeInterval _sessionWrittenAt;
 #if defined(RPCS3_DIAGNOSTICS_TESTING)
   NSString* _testDirectory;
 #endif
@@ -390,8 +460,9 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
   const char* raw = message.UTF8String;
   const BOOL bootBegin = [stage isEqualToString:@"game_boot_begin"];
   const BOOL bootReturn = [stage isEqualToString:@"game_boot_return"];
-  if (!bootBegin && !bootReturn &&
-      (![stage isEqualToString:@"core_log"] || !RPCS3KeepCauseHistory(raw))) return;
+  // REWINDBOX_INCIDENT_REPORT_621: the host's own HOST_STATE records join the causes.
+  const BOOL coreOrHost = [stage isEqualToString:@"core_log"] || [stage isEqualToString:@"host_state"];
+  if (!bootBegin && !bootReturn && (!coreOrHost || !RPCS3KeepCauseHistory(raw))) return;
   if (bootBegin || RPCS3CauseToken(raw, "CONFIG_LAYERS ")) {
     _causeTitle = bootBegin ? [message componentsSeparatedByString:@" "].firstObject
                            : RPCS3TokenValue(raw, "title");
@@ -589,6 +660,12 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
     // (poll, forced read, conditional render, sync), the gathers per path in
     // that order and the polls left for later instead of waiting.
     family = @"zcull_wait"; keys = @[@"poll", @"forced", @"cond_render", @"sync", @"gathers", @"poll_deferred"];
+  } else if (strstr(line, "COREPROF GPUTIME621 ") != nullptr) {
+    // REWINDBOX_GPU_TIMING_621: GPU execution of the RSX primary command buffers
+    // read in this window (union of overlapping submissions), coverage and probe cost.
+    family = @"gpu_time"; keys = @[@"state", @"coverage", @"busy_ms", @"busy_share", @"sum_ms", @"max_cb_ms",
+        @"frames_gpu_over33ms", @"frames_gpu_over50ms", @"queue_delay_max_ms", @"pending", @"units",
+        @"period_ratio", @"probe_cpu_ms"];
   } else if (strstr(line, "COREPROF SPUPREFETCH616 ") != nullptr) {
     // Build 616: SPU objects read ahead into memory and taken by compile threads.
     family = @"spu_prefetch"; keys = @[@"active", @"done", @"planned", @"read", @"read_ms", @"hits", @"claimed",
@@ -634,6 +711,15 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
 
 - (void)writeDiagnosticStage:(nullable NSString*)stage
                       message:(nullable NSString*)message {
+  [self writeDiagnosticStage:stage message:message reserved:kRPCS3NotAccounted];
+}
+
+// `reserved`: the bytes Rpcs3CoreLogAdmission counted for this core_log line
+// (zero included), released once it is written; kRPCS3NotAccounted for every
+// other record (REWINDBOX_CORE_LOG_BOUNDED_621).
+- (void)writeDiagnosticStage:(nullable NSString*)stage
+                      message:(nullable NSString*)message
+                     reserved:(uint64_t)reserved {
   NSString* stageCopy = [stage copy] ?: @"";
   NSString* messageCopy = [message copy] ?: @"";
   const uint64_t monotonicBegin = RPCS3MonotonicUs();
@@ -649,6 +735,11 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
                  monotonicBegin:monotonicBegin monotonicEnd:monotonicEnd];
         } @catch (__unused NSException* exception) {
           // A best-effort cause append must not suppress the existing journal.
+        }
+        @try {
+          [self observeIncidentStage:stageCopy message:messageCopy timestamp:timestamp];
+        } @catch (__unused NSException* exception) {
+          // The incident files are best effort too.
         }
         NSString* path = [self diagnosticPath];
         if (![self openDiagnosticFileAtPath:path]) return;
@@ -677,21 +768,334 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
       }
     }
   };
-  // REWINDBOX_CORE_LOG_DURABLE_V1: report_fatal_error (rpcs3/ios/RPCS3IOS.cpp)
-  // hands its message to the log callback and calls std::abort() as soon as
-  // the callback returns. Queued on this utility-class queue, the line was
-  // still in memory when the process ended: no RPCS3 fatal error ever reached
-  // this file, and the build 551 boot crashes left none. Core log lines are
-  // bounded by the host (128 ordinary lines per second, plus the profiler's
-  // periodic reports), so they are written before returning; write(2) hands
-  // them to the kernel, which keeps them through an abort (no fsync). Nothing
-  // run by this queue writes a diagnostic, so the wait cannot recurse.
-  // Per-second samples and the other stages stay asynchronous.
-  if ([stageCopy isEqualToString:@"core_log"]) {
-    dispatch_sync(_diagnosticQueue, write);
+  // REWINDBOX_CORE_LOG_DURABLE_V1 wrote core_log lines with dispatch_sync, so
+  // that report_fatal_error's line reached the kernel before its abort(); every
+  // emulator thread that logged then waited for this queue and the disk.
+  // REWINDBOX_CORE_LOG_BOUNDED_621: every line is asynchronous. The admission
+  // (Rpcs3CoreLogAdmission.h) bounds what waits here, and a fatal-level line is
+  // also written at once to RPCS3-last-fatal.log by RPCS3RecordFatalLine (one
+  // write(2) on the logging thread, kept through an abort).
+  dispatch_async(_diagnosticQueue, ^{
+    write();
+    if (reserved != kRPCS3NotAccounted) RPCS3CoreLogAdmissionShared().written(reserved);
+  });
+}
+
+
+// ---- REWINDBOX_INCIDENT_REPORT_621 (Rpcs3IncidentReport.h) -----------------
+// The incident model, the session record and the incident files belong to the
+// serial diagnostic queue. One file per freeze episode (rewritten as it
+// progresses), per fatal stop and per unexpected end found at launch.
+
+- (NSString*)incidentsDirectory {
+  NSString* directory = [self documentsDirectory];
+  if (!directory.length) return @"";
+  NSString* incidents = [directory stringByAppendingPathComponent:@"Incidents"];
+  [NSFileManager.defaultManager createDirectoryAtPath:incidents
+                          withIntermediateDirectories:YES
+                                           attributes:nil
+                                                error:nil];
+  return incidents;
+}
+
+- (NSString*)sessionRecordPath {
+  NSString* directory = [self documentsDirectory];
+  return directory.length ? [directory stringByAppendingPathComponent:@"RPCS3-session.txt"] : @"";
+}
+
+- (NSString*)fatalSlotPath {
+  NSString* directory = [self documentsDirectory];
+  return directory.length ? [directory stringByAppendingPathComponent:@"RPCS3-last-fatal.log"] : @"";
+}
+
+- (void)writeSessionRecordAt:(NSTimeInterval)timestamp force:(BOOL)force {
+  if (!_sessionActive) return;
+  if (!force && timestamp - _sessionWrittenAt < 5.0) return;
+  _sessionWrittenAt = timestamp;
+  _session.updated_s = timestamp;
+  NSString* path = [self sessionRecordPath];
+  if (path.length) rpcs3_host::write_atomically(RPCS3StdString(path), _session.serialize());
+}
+
+- (nullable NSString*)writeIncident:(const rpcs3_host::incident&)value {
+  NSString* directory = [self incidentsDirectory];
+  if (!directory.length) return nil;
+  std::string name = value.kind + "-" + (value.title.empty() ? std::string("unknown") : value.title);
+  if (value.kind == "freeze") {
+    name += "-s" + value.session + "-e" + value.episode;
   } else {
-    dispatch_async(_diagnosticQueue, write);
+    char stamp[32];
+    std::snprintf(stamp, sizeof(stamp), "-%.0f", value.began_s);
+    name += stamp;
   }
+  NSString* file = [NSString stringWithFormat:@"%s.txt", RPCS3IncidentFileName(name).c_str()];
+  NSString* path = [directory stringByAppendingPathComponent:file];
+  return rpcs3_host::write_atomically(RPCS3StdString(path), rpcs3_host::summarize(value)) ? path : nil;
+}
+
+// Keeps the `keep` newest incident files.
+- (void)pruneIncidents:(NSUInteger)keep {
+  NSString* directory = [self incidentsDirectory];
+  if (!directory.length) return;
+  NSFileManager* files = NSFileManager.defaultManager;
+  NSMutableArray<NSString*>* paths = [NSMutableArray array];
+  for (NSString* name in [files contentsOfDirectoryAtPath:directory error:nil] ?: @[]) {
+    if ([name hasSuffix:@".txt"]) [paths addObject:[directory stringByAppendingPathComponent:name]];
+  }
+  if (paths.count <= keep) return;
+  [paths sortUsingComparator:^NSComparisonResult(NSString* a, NSString* b) {
+    NSDate* first = [files attributesOfItemAtPath:a error:nil].fileModificationDate ?: NSDate.distantPast;
+    NSDate* second = [files attributesOfItemAtPath:b error:nil].fileModificationDate ?: NSDate.distantPast;
+    return [second compare:first];
+  }];
+  for (NSUInteger index = keep; index < paths.count; ++index) [files removeItemAtPath:paths[index] error:nil];
+}
+
+- (void)beginIncidentSession:(NSString*)message timestamp:(NSTimeInterval)timestamp {
+  NSString* title = [message componentsSeparatedByString:@" "].firstObject ?: @"";
+  NSString* build = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleVersion"] ?: @"unknown";
+  _incidents.begin_session(RPCS3StdString(title), RPCS3StdString(build), "", timestamp);
+  _session = rpcs3_host::session_record{};
+  _session.state = "running";
+  _session.pid = getpid();
+  _session.build = RPCS3StdString(build);
+  _session.title = RPCS3StdString(title);
+  _session.started_s = timestamp;
+  _sessionActive = YES;
+  [self writeSessionRecordAt:timestamp force:YES];
+}
+
+- (void)observeIncidentStage:(NSString*)stage
+                     message:(NSString*)message
+                   timestamp:(NSTimeInterval)timestamp {
+  if ([stage isEqualToString:@"performance_sample"]) {
+    if (const char* sample = message.UTF8String) _incidents.host_sample(sample);
+    return;
+  }
+  if (![stage isEqualToString:@"core_log"]) return;
+  const char* line = message.UTF8String;
+  if (!line || (!strstr(line, "FREEZE_") && !strstr(line, "COREPROF frames="))) return;
+  if (const rpcs3_host::incident* value = _incidents.core_line(line, timestamp)) {
+    [self writeIncident:*value];
+    _session.last_episode = !value->end_line.empty() ? value->end_line
+        : (!value->last_line.empty() ? value->last_line : value->begin_line);
+    [self writeSessionRecordAt:timestamp force:YES];
+    return;
+  }
+  if (strstr(line, "COREPROF frames=")) {
+    _session.last_window = _incidents.last_window();
+    [self writeSessionRecordAt:timestamp force:NO];
+  }
+}
+
+- (void)recordFatal:(NSString*)message gameStopped:(BOOL)gameStopped {
+  NSString* copy = [message copy] ?: @"";
+  const NSTimeInterval timestamp = NSDate.date.timeIntervalSince1970;
+  dispatch_async(_diagnosticQueue, ^{
+    @autoreleasepool {
+      @try {
+        if (const rpcs3_host::incident* value = self->_incidents.fatal(RPCS3StdString(copy), gameStopped, timestamp))
+          [self writeIncident:*value];
+        self->_session.last_fatal = self->_incidents.last_fatal();
+        [self writeSessionRecordAt:timestamp force:YES];
+      } @catch (__unused NSException* exception) {
+      }
+    }
+  });
+}
+
+- (void)hostMenuOpen:(BOOL)menuOpen background:(BOOL)background {
+  const NSTimeInterval timestamp = NSDate.date.timeIntervalSince1970;
+  dispatch_async(_diagnosticQueue, ^{
+    @autoreleasepool {
+      @try {
+        const rpcs3_host::host_state previous = self->_incidents.current_host();
+        if (previous.menu_open == static_cast<bool>(menuOpen) && previous.background == static_cast<bool>(background)) return;
+        if (previous.background && !background) self->_incidents.background_left(timestamp);
+        rpcs3_host::host_state state;
+        state.menu_open = menuOpen;
+        state.background = background;
+        self->_incidents.host(state, timestamp);
+        NSString* record = [NSString stringWithFormat:
+            @"HOST_STATE menu=%@ app=%@ menu_pauses_emulation=0",
+            menuOpen ? @"open" : @"closed", background ? @"background" : @"foreground"];
+        self->_session.host = RPCS3StdString(record);
+        [self writeSessionRecordAt:timestamp force:YES];
+        for (const auto& entry : self->_incidents.incidents()) {
+          if (entry.second.kind == "freeze" && entry.second.end_line.empty()) [self writeIncident:entry.second];
+        }
+        // The record joins the journal and the cause history like a Core line.
+        [self writeDiagnosticStage:@"host_state" message:record];
+      } @catch (__unused NSException* exception) {
+      }
+    }
+  });
+}
+
+// A fatal line: wait at most `milliseconds` for the lines queued before it.
+// Never called from this queue (the Core logs from its own threads).
+- (void)drainWithin:(uint32_t)milliseconds {
+  dispatch_semaphore_t drained = dispatch_semaphore_create(0);
+  dispatch_async(_diagnosticQueue, ^{
+    dispatch_semaphore_signal(drained);
+  });
+  dispatch_semaphore_wait(drained, dispatch_time(DISPATCH_TIME_NOW, (int64_t)milliseconds * NSEC_PER_MSEC));
+}
+
+- (void)sessionStopped {
+  const NSTimeInterval timestamp = NSDate.date.timeIntervalSince1970;
+  dispatch_async(_diagnosticQueue, ^{
+    @autoreleasepool {
+      @try {
+        // A run of one message still being counted, and refused lines, reach the journal.
+        RPCS3WriteAdmissionLines(RPCS3CoreLogAdmissionShared().flush());
+        if (!self->_sessionActive) return;
+        self->_session.state = "stopped";
+        [self writeSessionRecordAt:timestamp force:YES];
+        self->_sessionActive = NO;
+      } @catch (__unused NSException* exception) {
+      }
+    }
+  });
+}
+
+// At launch: the record of a previous process that never stopped becomes an
+// "unexpected_end" incident (its last fatal line comes from RPCS3-last-fatal.log
+// when the record missed it); the record is then set aside.
+- (nullable NSString*)takePreviousSessionIncident {
+  __block NSString* result = nil;
+  dispatch_sync(_diagnosticQueue, ^{
+    @autoreleasepool {
+      @try {
+        NSString* path = [self sessionRecordPath];
+        std::string text;
+        if (!path.length || !rpcs3_host::read_small_file(RPCS3StdString(path), text)) return;
+        rpcs3_host::incident value;
+        if (rpcs3_host::unexpected_end(text, getpid(), value)) {
+          rpcs3_host::session_record record;
+          rpcs3_host::session_record::parse(text, record);
+          std::string fatal;
+          if (value.fatal_line.empty() && rpcs3_host::read_small_file(RPCS3StdString([self fatalSlotPath]), fatal, 64 * 1024)) {
+            const std::string marker = "pid=" + std::to_string(record.pid) + " ";
+            const std::size_t at = fatal.rfind(marker);
+            if (at != std::string::npos) {
+              const std::size_t begin = fatal.rfind('\n', at);
+              const std::size_t end = fatal.find('\n', at);
+              value.fatal_line = fatal.substr(begin == std::string::npos ? 0 : begin + 1,
+                  end == std::string::npos ? std::string::npos : end - (begin == std::string::npos ? 0 : begin + 1));
+            }
+          }
+          NSString* written = [self writeIncident:value];
+          // iOS may end an app it suspended in the background: kept in the report,
+          // not announced as a crash.
+          if (record.host.find("app=background") == std::string::npos) result = written;
+        }
+        [self pruneIncidents:40];
+        NSString* previous = [[path stringByDeletingPathExtension] stringByAppendingString:@".previous.txt"];
+        [NSFileManager.defaultManager removeItemAtPath:previous error:nil];
+        [NSFileManager.defaultManager moveItemAtPath:path toPath:previous error:nil];
+      } @catch (__unused NSException* exception) {
+      }
+    }
+  });
+  return result;
+}
+
+// The shareable report: the incidents of this session and the newest incident
+// files, then bounded tails of every journal, streamed (Rpcs3IncidentReport.h).
+- (void)buildReport:(void (^)(NSString* _Nullable path))completion {
+  void (^done)(NSString* _Nullable) = [completion copy];
+  dispatch_async(_diagnosticQueue, ^{
+    @autoreleasepool {
+      std::string summary;
+      std::vector<rpcs3_host::export_source> sources;
+      NSString* output = nil;
+      @try {
+        NSString* build = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleVersion"] ?: @"unknown";
+        NSString* version = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"";
+        NSDateFormatter* formatter = [NSDateFormatter new];
+        formatter.locale = [NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"];
+        formatter.dateFormat = @"yyyyMMdd-HHmmss";
+        NSString* stamp = [formatter stringFromDate:NSDate.date];
+        summary = "RewindBox PS3 diagnostic report\nApp: RewindBox " + RPCS3StdString(version) + " (" + RPCS3StdString(build) +
+            ")\nGenerated: " + RPCS3StdString(stamp) + "\nPID: " + std::to_string(getpid()) + "\n\n";
+        const std::string pending = RPCS3CoreLogAdmissionShared().flush();
+        if (!pending.empty()) {
+          summary += pending + "\n\n";
+          RPCS3CoreLogAdmissionShared().written(pending.size(), rpcs3_host::core_log_admission::lines(pending));
+        }
+        const auto counters = RPCS3CoreLogAdmissionShared().counters();
+        summary += "Core log admission: admitted=" + std::to_string(counters.admitted) + " budget_dropped=" +
+            std::to_string(counters.budget_dropped) + " backlog_dropped=" + std::to_string(counters.backlog_dropped) +
+            " repeats=" + std::to_string(counters.repeats) + " fatal=" + std::to_string(counters.fatal) +
+            " backlog_peak_lines=" + std::to_string(counters.backlog_peak_lines) + "\n\n";
+        if (self->_incidents.incidents().empty()) {
+          summary += "No freeze or fatal incident was recorded in this session.\n";
+        }
+        for (const auto& entry : self->_incidents.incidents()) {
+          summary += rpcs3_host::summarize(entry.second);
+          summary += "\n";
+        }
+        NSString* documents = [self documentsDirectory];
+        // Earlier incident files (other sessions, unexpected ends), newest first.
+        NSString* incidents = [self incidentsDirectory];
+        NSMutableArray<NSString*>* files = [NSMutableArray array];
+        for (NSString* name in [NSFileManager.defaultManager contentsOfDirectoryAtPath:incidents error:nil] ?: @[]) {
+          if ([name hasSuffix:@".txt"]) [files addObject:[incidents stringByAppendingPathComponent:name]];
+        }
+        [files sortUsingComparator:^NSComparisonResult(NSString* a, NSString* b) {
+          NSDate* first = [NSFileManager.defaultManager attributesOfItemAtPath:a error:nil].fileModificationDate ?: NSDate.distantPast;
+          NSDate* second = [NSFileManager.defaultManager attributesOfItemAtPath:b error:nil].fileModificationDate ?: NSDate.distantPast;
+          return [second compare:first];
+        }];
+        for (NSUInteger index = 0; index < files.count && index < 8; ++index) {
+          sources.push_back({RPCS3StdString(files[index]), "Incident file", 16 * 1024});
+        }
+        const struct { const char* name; const char* label; uint64_t tail; } journals[] = {
+          {"RPCS3-last-fatal.log", "Last fatal errors", 64 * 1024},
+          {"RPCS3-session.previous.txt", "Previous session record", 16 * 1024},
+          {"RPCS3-milestones.log", "Milestones", 512 * 1024},
+          {"RPCS3-milestones.1.log", "Milestones (previous generation)", 256 * 1024},
+          {"RPCS3-causes.log", "Cause history", 3 * 1024 * 1024},
+          {"RPCS3-causes.1.log", "Cause history (previous generation)", 1024 * 1024},
+          {"RPCS3-timeline.log", "Timeline", 512 * 1024},
+          {"RPCS3-performance.log", "Performance history", 1024 * 1024},
+          {"RPCS3-diagnostic.log", "Diagnostic journal", 2 * 1024 * 1024},
+          {"RPCS3-diagnostic.1.log", "Diagnostic journal (previous generation)", 512 * 1024},
+          {"RPCS3-restore-trace.log", "Savestate restore trace", 128 * 1024},
+        };
+        for (const auto& journal : journals) {
+          sources.push_back({RPCS3StdString([documents stringByAppendingPathComponent:@(journal.name)]), journal.label, journal.tail});
+        }
+        // Earlier reports in the temporary directory are removed first.
+        for (NSString* name in [NSFileManager.defaultManager contentsOfDirectoryAtPath:NSTemporaryDirectory() error:nil] ?: @[]) {
+          if ([name hasPrefix:@"RewindBox-PS3-report-"])
+            [NSFileManager.defaultManager removeItemAtPath:[NSTemporaryDirectory() stringByAppendingPathComponent:name] error:nil];
+        }
+        output = [NSTemporaryDirectory() stringByAppendingPathComponent:
+            [NSString stringWithFormat:@"RewindBox-PS3-report-%@.txt", stamp]];
+      } @catch (__unused NSException* exception) {
+        output = nil;
+      }
+      if (!output.length) {
+        dispatch_async(dispatch_get_main_queue(), ^{ if (done) done(nil); });
+        return;
+      }
+      // The copy runs off the journal queue: core_log lines keep flowing meanwhile.
+      const std::string target = RPCS3StdString(output);
+      dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+        const rpcs3_host::export_result exported = rpcs3_host::export_report(target, summary, sources);
+        RPCS3Diagnostic(@"incident_report", [NSString stringWithFormat:
+            @"INCIDENT_REPORT ok=%d bytes=%llu sources=%llu missing=%llu truncated=%llu error=%s",
+            exported.ok ? 1 : 0, (unsigned long long)exported.bytes, (unsigned long long)exported.sources,
+            (unsigned long long)exported.missing, (unsigned long long)exported.truncated,
+            exported.error.empty() ? "none" : exported.error.c_str()]);
+        dispatch_async(dispatch_get_main_queue(), ^{
+          if (done) done(exported.ok ? output : nil);
+        });
+      });
+    }
+  });
 }
 
 - (void)writeMilestoneStage:(nullable NSString*)stage
@@ -710,6 +1114,12 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
         @try {
           [self writeCauseStage:stageCopy message:messageCopy timestamp:timestamp
                  monotonicBegin:monotonicBegin monotonicEnd:monotonicEnd];
+        } @catch (__unused NSException* exception) {
+        }
+        // REWINDBOX_INCIDENT_REPORT_621: a new session record and incident model.
+        @try {
+          if ([stageCopy isEqualToString:@"game_boot_begin"])
+            [self beginIncidentSession:messageCopy timestamp:timestamp];
         } @catch (__unused NSException* exception) {
         }
       }
@@ -850,6 +1260,7 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
     _testDirectory = directoryCopy;
     _restoreTracePath = nil;
   }
+  RPCS3FatalSlotShared().set_path(RPCS3StdString([self fatalSlotPath]));
 }
 
 - (void)flushForTesting {
@@ -883,6 +1294,43 @@ void RPCS3Milestone(NSString* stage, NSString* message) {
 
 void RPCS3RestoreTrace(NSString* message) {
   [RPCS3SharedDiagnosticsWriter() writeRestoreTrace:message];
+}
+
+// REWINDBOX_CORE_LOG_BOUNDED_621 / REWINDBOX_INCIDENT_REPORT_621 (Rpcs3Diagnostics.h).
+void RPCS3CoreLogLine(NSString* message, uint64_t reservedBytes) {
+  [RPCS3SharedDiagnosticsWriter() writeDiagnosticStage:@"core_log" message:message reserved:reservedBytes];
+}
+
+void RPCS3RecordFatalLine(const char* message, BOOL gameStopped) {
+  if (!message) return;
+  RPCS3DiagnosticsWriter* writer = RPCS3SharedDiagnosticsWriter();
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    RPCS3FatalSlotShared().set_path(RPCS3StdString([writer fatalSlotPath]));
+  });
+  // One write(2) before returning: report_fatal_error aborts right after.
+  RPCS3FatalSlotShared().write(message, NSDate.date.timeIntervalSince1970);
+  [writer recordFatal:[NSString stringWithUTF8String:message] ?: @"" gameStopped:gameStopped];
+}
+
+void RPCS3DiagnosticsDrain(uint32_t timeoutMs) {
+  [RPCS3SharedDiagnosticsWriter() drainWithin:timeoutMs];
+}
+
+void RPCS3HostState(BOOL menuOpen, BOOL background) {
+  [RPCS3SharedDiagnosticsWriter() hostMenuOpen:menuOpen background:background];
+}
+
+void RPCS3SessionStopped(void) {
+  [RPCS3SharedDiagnosticsWriter() sessionStopped];
+}
+
+NSString* _Nullable RPCS3TakePreviousSessionIncident(void) {
+  return [RPCS3SharedDiagnosticsWriter() takePreviousSessionIncident];
+}
+
+void RPCS3BuildIncidentReport(void (^completion)(NSString* _Nullable path)) {
+  [RPCS3SharedDiagnosticsWriter() buildReport:completion];
 }
 
 #if defined(RPCS3_DIAGNOSTICS_TESTING)

@@ -37,6 +37,10 @@ typedef NSDictionary<NSString*, NSString*>* _Nullable (^Rpcs3SessionReadAccuracy
 @property(nonatomic, copy) dispatch_block_t resumeGame;
 @property(nonatomic, copy) dispatch_block_t quitGame;
 @property(nonatomic, copy, nullable) Rpcs3SessionReadAccuracy readAccuracy;
+// REWINDBOX_INCIDENT_REPORT_621: called when the menu itself is dismissed (from
+// the visible page; idempotent), and the "Report a problem" row (shown when set).
+@property(nonatomic, copy, nullable) dispatch_block_t menuDismissed;
+@property(nonatomic, copy, nullable) void (^shareReport)(UIViewController* presenter);
 @end
 
 NS_ASSUME_NONNULL_END

@@ -51,7 +51,9 @@ NATIVE_RSX = ROOT / 'test/native/rpcs3_graphics_tests612_rsx_line_test.cpp'
 LOCALES = ('en', 'fr', 'de', 'es', 'it', 'pt', 'id', 'ru', 'ja', 'ko', 'zh', 'zh_Hant')
 KEYS = ('gpu.zcull_accuracy', 'debug.disable_occlusion', 'debug.emulate_depth_compare',
         'advanced.disable_msl_fast_math', 'debug.disable_vertex_cache', 'gpu.shader_precision',
-        'experimental.position_invariance', 'experimental.moltenvk_async_submits')
+        'experimental.position_invariance', 'experimental.moltenvk_async_submits',
+        # REWINDBOX_GPU_TIMING_621: Disabled measures the cost of the GPU timestamp probe.
+        'experimental.gpu_timing')
 
 
 def require(condition, message):
@@ -96,8 +98,8 @@ def menu_levers(menu: str) -> list[dict]:
     return levers
 
 
-def l10n_tables(text: str) -> dict[str, dict[str, str]]:
-    body = block(text, 'NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translations() {',
+def l10n_tables(text: str, build: str = '612') -> dict[str, dict[str, str]]:
+    body = block(text, f'NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build{build}Translations() {{',
                  '  return values;\n}')
     tables = {}
     for locale, entries in re.findall(r'\n      @"(\w+)": @\{\n(.*?)\n      \},', body, re.S):
@@ -118,7 +120,8 @@ def app_contract() -> dict:
     require(fields == {'gpu.zcull_accuracy': None, 'debug.disable_occlusion': 'zcull_queries_off',
                        'debug.emulate_depth_compare': 'depth_compare', 'advanced.disable_msl_fast_math': 'msl_fast_math_off',
                        'debug.disable_vertex_cache': 'vertex_cache_off', 'gpu.shader_precision': None,
-                       'experimental.position_invariance': 'invariance', 'experimental.moltenvk_async_submits': 'mvk_async'},
+                       'experimental.position_invariance': 'invariance', 'experimental.moltenvk_async_submits': 'mvk_async',
+                       'experimental.gpu_timing': 'gpu_timing'},
             'menu reads other CONFIG_LAYERS part=rsx fields')
 
     # Menu wiring: the page is appended (existing pages keep their values) and reached from Graphics row 3.
@@ -180,7 +183,12 @@ def app_contract() -> dict:
     used |= set(re.findall(r'@"(zcull\w+|precision\w+|testSource\w+)"', page))
     base = {'enabled', 'disabled'}
     require(all(f'@"{key}"' in l10n for key in base), 'enabled/disabled translations missing')
-    missing = sorted(key for key in used - base if key not in tables['en'])
+    # REWINDBOX_GPU_TIMING_621: the GPU timing lever's title is a Build 621 string,
+    # present in the same 12 locales (looked up before the 612 table).
+    tables621 = l10n_tables(l10n, '621')
+    require(tuple(sorted(tables621)) == tuple(sorted(LOCALES)), 'Build621Translations locales: ' + repr(list(tables621)))
+    require(all(tables621[locale].get('testGpuTiming', '').strip() for locale in LOCALES), 'testGpuTiming translations')
+    missing = sorted(key for key in used - base if key not in tables['en'] and key not in tables621['en'])
     require(not missing, 'untranslated page keys: ' + repr(missing))
     return {'whitelist': allowed, 'locales': list(tables), 'keys': len(keys),
             'bridge_sha256': sha(BRIDGE.read_bytes()), 'menu_sha256': sha(MENU.read_bytes()),
@@ -234,7 +242,7 @@ def core_contract(source: Path) -> dict:
             accepted = spellings[kind]
         require(kind in ('RPCS3_IOS_SETTING_BOOLEAN', 'RPCS3_IOS_SETTING_CHOICE'), key + ' cannot take @inherit')
         require(values <= accepted, f'{key}: the Core does not accept {sorted(values - accepted)}')
-    for key in ('experimental.position_invariance', 'experimental.moltenvk_async_submits'):
+    for key in ('experimental.position_invariance', 'experimental.moltenvk_async_submits', 'experimental.gpu_timing'):
         require(entries[key][0] == 'GAME_SETTING' and entries[key][1] == 'RPCS3_IOS_SETTING_CHOICE', key + ' entry kind')
 
     # "@inherit" in the API, before any value parsing, never for text keys or full custom configs.
