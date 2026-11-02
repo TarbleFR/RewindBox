@@ -120,3 +120,22 @@ Bloquants :
   (`collect_build_source_evidence.py`) : il faut un commit produit revu avant le gel ;
 - archives conservées qui expirent : libretro le 3 novembre 2026 à 16:19Z, dépendances MeloNX le
   5 novembre ; Dolphin/ARMSX2 et le Core MeloNX le 15 novembre.
+
+## 5. État de la 612 (2 novembre 2026)
+
+Première build sur une base livrée par la recette standard (611). Deux extensions ont été nécessaires
+(section 2 : « Arbre effectif » et « Composant épinglé inchangé »), ainsi qu'une correction :
+`verify_base()` accepte le reçu d'une base standard, qui liste aussi ses jobs republish et de tests
+(ignorés quand leurs preuves ont été réutilisées).
+
+Gel de la 612 sur `83c0d6aa` :
+- base effective 611 `62414e99…` ;
+- 83 chemins différés hérités (`b06888a9`), 16 différences produit ;
+- empreinte effective `a88d478b…`, 6656 fichiers produit ;
+- composants :
+  - Core RPCS3 612 remplacé (pin vérifié, run 41384244220) ;
+  - Core MeloNX de la 611 conservé (`unchangedFromBase`) ;
+  - Dolphin/ARMSX2, libretro et dépendances MeloNX conservés par la republication de la 611
+    (run 41380039319) ;
+- tests frais dans les deux groupes ;
+- contrôle légal réussi.
