@@ -5,8 +5,8 @@ last verified delivered IPA, adding only what the build's manifest build-utils/d
 declares:
 
 - replaced components are authenticated from their own producer route (rpcs3_core_component.py, and
-  the MeloNX Core verifier the manifest names: melonx_reads_core_component.py or
-  melonx_arrays_core_component.py), retained components keep their authenticated identity
+  the MeloNX Core verifier the manifest names: melonx_reads_core_component.py,
+  melonx_arrays_core_component.py or melonx_dma_core_component.py), retained components keep their authenticated identity
   (retained_components.py), with every pin in the manifest or in the component's pin file;
 - a test group reruns only when the manifest says fresh; otherwise its pinned evidence is
   authenticated and labelled reused; the delivery contract always reruns;
@@ -82,7 +82,7 @@ RUNNER = 'Runner'
 # Recipe paths: read by the recipe, never compiled into the IPA. Every other path is product.
 RECIPE_PREFIXES = ('.github/', 'docs/', '.claude/', 'build-utils/delivery/')
 RECIPE_FILES = ('build-utils/rpcs3/core-pin.json', 'build-utils/melonx/reads-core-pin.json',
-                'build-utils/melonx/arrays-core-pin.json',
+                'build-utils/melonx/arrays-core-pin.json', 'build-utils/melonx/dma-core-pin.json',
                 'test/standard_delivery_contract_test.py', 'build-utils/verify_downloaded_delivery.py')
 RECIPE_GLOBS = ('build-utils/delivery-*-recipient.pem',)
 RECIPE_DEFINITION = dict(prefixes=list(RECIPE_PREFIXES), files=list(RECIPE_FILES), globs=list(RECIPE_GLOBS),
@@ -120,6 +120,7 @@ REPUBLISHED_KINDS = ('rpcs3-core', 'rpcs3-host-tests', 'melonx-core', 'dolphin',
 MELONX_VERIFIERS = {
     '.github/diagnostics/melonx_reads_core_component.py': 'melonx_reads_core_component',
     '.github/diagnostics/melonx_arrays_core_component.py': 'melonx_arrays_core_component',
+    '.github/diagnostics/melonx_dma_core_component.py': 'melonx_dma_core_component',
 }
 HEX40 = re.compile(r'[0-9a-f]{40}')
 HEX64 = re.compile(r'[0-9a-f]{64}')

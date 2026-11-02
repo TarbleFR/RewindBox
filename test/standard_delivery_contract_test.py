@@ -728,7 +728,7 @@ class EffectiveTreeSynthetic(unittest.TestCase):
         for path in ('.github/workflows/x.yml', 'docs/a/b.md', 'AGENTS.md', '.claude/settings.json',
                      'build-utils/delivery/611.json', 'build-utils/delivery-611-recipient.pem',
                      'build-utils/rpcs3/core-pin.json', 'build-utils/melonx/reads-core-pin.json',
-                     'build-utils/melonx/arrays-core-pin.json',
+                     'build-utils/melonx/arrays-core-pin.json', 'build-utils/melonx/dma-core-pin.json',
                      'test/standard_delivery_contract_test.py', 'build-utils/verify_downloaded_delivery.py'):
             self.assertTrue(sd.is_recipe(path), path)
         for path in ('lib/a.dart', 'test/x_test.py', 'build-utils/rpcs3/canonical-source.json', 'packages/a/README.md',
