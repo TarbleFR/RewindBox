@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 614,
  "status": "draft",
- "note": "Private IPA 614 on the delivered 613: the MeloNX bindless array-delta Core replaces the fragmented-read Core of 611-613 (Hogwarts Legacy compute bindings); the RetroAchievements sign-in fix (35afb4c9) and the scraper and box-face fix (d7f069b8) of other sessions, as asked by the maintainer; RPCS3 Core 613 kept unchanged; Dolphin/ARMSX2, libretro and the MeloNX dependencies retained through the 613 republication; b06888a9 stays deferred, inherited.",
+ "note": "Private IPA 614 on the delivered 613: the MeloNX bindless array-delta Core replaces the fragmented-read Core of 611-613 (Hogwarts Legacy compute bindings); the RetroAchievements sign-in fix (35afb4c9, with the 13 translation files of b06888a9 it was written on) and the scraper and box-face fix (d7f069b8) of other sessions, promoted from the work 613 deferred, as asked by the maintainer; RPCS3 Core 613 kept unchanged; Dolphin/ARMSX2, libretro and the MeloNX dependencies retained through the 613 republication; the rest of b06888a9 stays deferred.",
  "base": {
   "build": 613,
   "source": "427967e966fc7587f81fe1b60dd5731a1293d758",
@@ -257,18 +257,6 @@
  "product": {
   "reviewedCommits": [
    {
-    "commit": "e424bc9f2d6b014000bb495f98a3db25a3648d20",
-    "note": "MeloNX bindless array-delta Core: full-bindless texture, sampler and image pool arrays are updated by changed element instead of rebuilt on every written pool (Hogwarts Legacy build 612 attribution), with the review fixes, the attribution counters, the producer route and its frozen contract. (adapter, first version (later commits fix it))"
-   },
-   {
-    "commit": "05ab4b1b77c0bef10f4569610bb743e1781d33cf",
-    "note": "MeloNX bindless array-delta Core: full-bindless texture, sampler and image pool arrays are updated by changed element instead of rebuilt on every written pool (Hogwarts Legacy build 612 attribution), with the review fixes, the attribution counters, the producer route and its frozen contract. (host fixture and evidence)"
-   },
-   {
-    "commit": "a5a64217b6479dfa56a9f4ff7d729a9f871e4af0",
-    "note": "MeloNX bindless array-delta Core: full-bindless texture, sampler and image pool arrays are updated by changed element instead of rebuilt on every written pool (Hogwarts Legacy build 612 attribution), with the review fixes, the attribution counters, the producer route and its frozen contract. (adapter review fixes, extended fixture)"
-   },
-   {
     "commit": "af488390c940c8dfc02a084e9524e50cd14d1ddb",
     "note": "MeloNX bindless array-delta Core: full-bindless texture, sampler and image pool arrays are updated by changed element instead of rebuilt on every written pool (Hogwarts Legacy build 612 attribution), with the review fixes, the attribution counters, the producer route and its frozen contract. (preparation wiring and final-source fixtures)"
    },
@@ -287,17 +275,50 @@
    {
     "commit": "b181cbe19164b5c10da4d0412209d2067f97ea3e",
     "note": "MeloNX bindless array-delta Core: full-bindless texture, sampler and image pool arrays are updated by changed element instead of rebuilt on every written pool (Hogwarts Legacy build 612 attribution), with the review fixes, the attribution counters, the producer route and its frozen contract. (refrozen contract; producer commit of the Core)"
+   }
+  ],
+  "sourceOnly": [],
+  "promotedCommits": [
+   {
+    "commit": "b06888a98dad1e8cb96cb4eaa929250da471cc14",
+    "note": "Translations only (13 lib/l10n/app_locale*.dart files: 7 RetroAchievements keys and their strings, unused while the rest of the feature stays deferred): the RetroAchievements sign-in fix 35afb4c9 was written on these bytes. The other product paths of b06888a9 (native hash readers, libretro bridge, UI) stay deferred.",
+    "paths": [
+     "lib/l10n/app_locale.dart",
+     "lib/l10n/app_locale_de.dart",
+     "lib/l10n/app_locale_en.dart",
+     "lib/l10n/app_locale_es.dart",
+     "lib/l10n/app_locale_fr.dart",
+     "lib/l10n/app_locale_id.dart",
+     "lib/l10n/app_locale_it.dart",
+     "lib/l10n/app_locale_ja.dart",
+     "lib/l10n/app_locale_ko.dart",
+     "lib/l10n/app_locale_pt.dart",
+     "lib/l10n/app_locale_ru.dart",
+     "lib/l10n/app_locale_zh.dart",
+     "lib/l10n/app_locale_zh_hant.dart"
+    ]
+   },
+   {
+    "commit": "e424bc9f2d6b014000bb495f98a3db25a3648d20",
+    "note": "MeloNX bindless array-delta adapter, first version (deferred by 613 for 614)."
+   },
+   {
+    "commit": "05ab4b1b77c0bef10f4569610bb743e1781d33cf",
+    "note": "MeloNX bindless array-delta host fixture and evidence (deferred by 613 for 614)."
    },
    {
     "commit": "35afb4c987f7cd7294ada88270fad142a074f6ca",
-    "note": "RetroAchievements sign-in screen fix of another session (saved sign-in shown instead of a login form; four strings in the 12 locales; widget regression test), included at the maintainer's request."
+    "note": "RetroAchievements sign-in screen fix of another session (saved sign-in shown instead of a login form; four strings in the 12 locales; widget regression test), deferred by 613 for 614, included at the maintainer's request."
+   },
+   {
+    "commit": "a5a64217b6479dfa56a9f4ff7d729a9f871e4af0",
+    "note": "MeloNX bindless array-delta review fixes and extended fixture (deferred by 613 for 614)."
    },
    {
     "commit": "d7f069b87aa5f68c94fda1dbd71a6405ca4f5661",
-    "note": "Scraper and box-face fix of another session (new content applies only changed choices and keeps present media; box faces from GameTDB/MobyGames on Start; 16 strings in 12 languages; batch flow test), included at the maintainer's request."
+    "note": "Scraper and box-face fix of another session (new content applies only changed choices and keeps present media; box faces from GameTDB/MobyGames on Start; 16 strings in 12 languages; batch flow test), deferred by 613 for 614, included at the maintainer's request."
    }
-  ],
-  "sourceOnly": []
+  ]
  },
  "images": {
   "mustChange": [

@@ -56,6 +56,16 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
   étape après le checkout de chaque job : elle vérifie que les commits postérieurs au gel ne touchent
   que des chemins de recette, restaure les chemins (modes, liens, suppressions) depuis les objets git
   et recalcule l'empreinte depuis les fichiers. Aucun checkout ultérieur.
+- **Travail différé promu** (614) : `product.promotedCommits` liste, dans l'ordre de l'historique, des
+  commits antérieurs à la base dont la livraison de base avait différé les chemins produit (ils figurent
+  dans ses enregistrements de restauration). Le gel les applique à l'arbre effectif de la base avant de
+  rejouer `base..HEAD`, avec la règle d'un commit revu (chaque changement part des octets déjà dans
+  l'arbre effectif) ; `paths` limite un commit à certains de ses chemins, les autres restent différés.
+  Exemple 614 : les 13 fichiers de traduction de `b06888a9` (sur lesquels `35afb4c9` a été écrit), puis
+  `35afb4c9`, `d7f069b8` et les commits MeloNX que 613 avait différés.
+- **Vérificateur MeloNX nommé par le manifeste** (614) : `components.melonx.verifier` choisit, dans une
+  liste fermée, `melonx_reads_core_component.py` ou `melonx_arrays_core_component.py`, dont le pin
+  doit être celui du manifeste.
 - **Composant épinglé inchangé** : une build qui garde le Core RPCS3 ou MeloNX de sa base déclare
   `components.<rpcs3|melonx>.unchangedFromBase: true` avec le même pin que la base. Le Core est
   réinstallé depuis son pin. Son image est déclarée sous `images.retained.<clé>` et non sous

@@ -652,6 +652,56 @@ class EffectiveTreeSynthetic(unittest.TestCase):
         with self.assertRaises(ValueError):
             sd.verify_materialized(self.repo, manifest, head)
 
+    def test_promoted_deferred_work_before_the_base(self):
+        g = self.git
+        start = self.base()
+        g.write('lib/a.dart', 'a-deferred')
+        g.write('lib/l10n.dart', 'strings')
+        feature = g.commit('deferred feature with its strings')
+        g.write('lib/l10n.dart', 'strings + fix')
+        g.write('lib/fix.dart', 'f')
+        fix = g.commit('fix written on the deferred strings')
+        g.write('lib/b.dart', 'b-delivered')
+        delivered = g.commit('delivered base')
+        g.write('docs/n.md', 'n')
+        head = g.commit('recipe-only')
+        # The base delivery deferred both commits: its effective tree restored their paths.
+        restored = ['lib/a.dart', 'lib/fix.dart', 'lib/l10n.dart']
+        initial = self.repo.entries(start)
+        base_entries = {p: e for p, e in self.repo.entries(delivered).items() if sd.is_product(p)}
+        for path in restored:
+            if path in initial:
+                base_entries[path] = initial[path]
+            else:
+                base_entries.pop(path)
+        tree = sd.replay(self.repo, delivered, head, [], [], base_entries, [dict(commit=fix)], restored)
+        self.assertEqual([c['path'] for c in tree['conflicts']], ['lib/l10n.dart'],
+                         'A promoted change must start from the effective bytes')
+        promoted = [dict(commit=feature, paths=['lib/l10n.dart']), dict(commit=fix)]
+        tree = sd.effective_tree(self.repo, delivered, head, [], [], base_entries, promoted, restored)
+        heads = self.repo.entries(head)
+        self.assertEqual(tree['conflicts'] + tree['unclassified'], [])
+        self.assertEqual([c['role'] for c in tree['commits']], ['promoted', 'promoted', 'recipe'])
+        self.assertEqual([c['partial'] for c in tree['commits'][:2]], [True, False])
+        self.assertEqual(tree['effective']['lib/l10n.dart'], heads['lib/l10n.dart'])
+        self.assertEqual(tree['effective']['lib/fix.dart'], heads['lib/fix.dart'])
+        self.assertEqual(tree['effective']['lib/a.dart'], initial['lib/a.dart'], 'Paths left out stay deferred')
+        self.assertEqual(sorted(tree['restoreRecords']), ['lib/a.dart'])
+        for bad, deferred_paths in (([dict(commit=fix), dict(commit=feature, paths=['lib/l10n.dart'])], restored),
+                                    ([dict(commit=feature, paths=['lib/keep.dart'])], restored),
+                                    ([dict(commit=feature)], ['lib/fix.dart', 'lib/l10n.dart']),
+                                    ([dict(commit=head)], restored),
+                                    ([dict(commit=delivered)], restored)):
+            with self.assertRaises(ValueError):
+                sd.replay(self.repo, delivered, head, [], [], base_entries, bad, deferred_paths)
+        manifest = dict(status='draft', product=dict(reviewedCommits=[], sourceOnly=[], promotedCommits=[dict(commit='x')]))
+        self.assertTrue([e for e in sd.manifest_errors(dict(self.valid_manifest(), product=manifest['product']))
+                         if 'promotedCommits' in e])
+
+    def valid_manifest(self):
+        _, manifest = current_manifest()
+        return json.loads(json.dumps(manifest))
+
     def test_unclassified_merges_and_late_product_commits(self):
         base = self.base()
         self.git.write('lib/a.dart', 'a1')

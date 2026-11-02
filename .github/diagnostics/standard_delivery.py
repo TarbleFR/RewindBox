@@ -429,6 +429,11 @@ def manifest_errors(value):
           'product.reviewedCommits and product.sourceOnly lists')
     for item in product.get('sourceOnly', []):
         check(isinstance(item.get('targetBuild'), int) and item.get('note'), 'sourceOnly entries need targetBuild and note')
+    for item in product.get('promotedCommits', []):
+        check(HEX40.fullmatch(str(item.get('commit'))) and item.get('note') and
+              (item.get('paths') is None or (isinstance(item['paths'], list) and item['paths'] and
+                                             all(isinstance(path, str) for path in item['paths']))),
+              'promotedCommits entries need a full commit, a note and optionally a non-empty paths list')
     images = value['images']
     for key in ('mustChange', 'added', 'removed', 'retained', 'replaced'):
         check(key in images, 'images.' + key)
@@ -571,11 +576,50 @@ def authenticate_base(value, get=None):
 
 # --- Effective tree ------------------------------------------------------------------------------------
 
-def replay(repo, base, head, reviewed, source_only, base_entries=None):
+def apply_promoted(repo, base, effective, promoted, restored, records, conflicts):
+    """Apply, before the replay, product changes that the base delivery deferred.
+
+    A promoted commit precedes the base; the base delivery restored its product paths (they are in its
+    restore records), so its work is absent from the base effective tree. The listed commits are applied
+    in history order, optionally limited to some of their product paths, with the rule of a reviewed
+    commit: every change must start from the bytes already in the effective tree. Paths left out stay
+    deferred."""
+    previous = None
+    restored = set(restored or ())
+    for item in promoted:
+        commit = repo.commit(item['commit'])
+        require(commit != repo.commit(base) and repo.is_ancestor(commit, base),
+                'A promoted commit must precede the base delivery: ' + commit[:12])
+        require(previous is None or repo.is_ancestor(previous, commit),
+                'Promoted commits must be listed in history order: ' + commit[:12])
+        previous = commit
+        changes = [change for change in repo.changes(commit) if is_product(change[0])]
+        changed = {path for path, _, _ in changes}
+        scope = set(item['paths']) if item.get('paths') is not None else changed
+        require(scope and scope <= changed, 'A promoted path is not a product change of its commit: ' +
+                repr(sorted(scope - changed)[:5]))
+        require(scope <= restored, 'A promoted path was not deferred by the base delivery: ' +
+                repr(sorted(scope - restored)[:5]))
+        for path, old, new in changes:
+            if path not in scope:
+                continue
+            if effective.get(path) != old:
+                conflicts.append(dict(commit=commit, path=path, parent=list(old) if old else None,
+                                      effective=list(effective[path]) if path in effective else None, promoted=True))
+            elif new is None:
+                effective.pop(path, None)
+            else:
+                effective[path] = new
+        records.append(dict(commit=commit, subject=repo.subject(commit), role='promoted', productPaths=len(scope),
+                            partial=item.get('paths') is not None))
+
+
+def replay(repo, base, head, reviewed, source_only, base_entries=None, promoted=(), restored=None):
     """Replay base..head from the base tree, applying only the reviewed commits' product changes.
 
     `base_entries` is the product tree the base delivery compiled (base_effective_entries); the raw
-    base source tree when omitted."""
+    base source tree when omitted. `promoted` (with the base's `restored` paths) applies deferred work
+    that precedes the base first (apply_promoted)."""
     require(not repo.merges(base, head), 'The history between the base and HEAD must be linear (no merge commit)')
     reviewed = {repo.commit(c) for c in reviewed}
     source_only = {repo.commit(c) for c in source_only}
@@ -585,6 +629,7 @@ def replay(repo, base, head, reviewed, source_only, base_entries=None):
     effective = dict(base_entries)
     commits = repo.commits(base, head)
     records, deferred, conflicts, unclassified = [], {}, [], []
+    apply_promoted(repo, base, effective, promoted, restored, records, conflicts)
     for commit in commits:
         changes = [change for change in repo.changes(commit) if is_product(change[0])]
         role = ('reviewed' if commit in reviewed else 'sourceOnly' if commit in source_only else
@@ -692,14 +737,15 @@ def manifest_effective_tree(repo, manifest, head):
     product = manifest['product']
     tree = effective_tree(repo, manifest['base']['source'], head,
                           [item['commit'] for item in product['reviewedCommits']],
-                          [item['commit'] for item in product['sourceOnly']], base['entries'])
+                          [item['commit'] for item in product['sourceOnly']], base['entries'],
+                          product.get('promotedCommits', []), base['restored'])
     tree.update(baseEffectiveDigest=base['digest'], baseRestored=base['restored'])
     return tree
 
 
-def effective_tree(repo, base, head, reviewed, source_only, base_entries=None):
+def effective_tree(repo, base, head, reviewed, source_only, base_entries=None, promoted=(), restored=None):
     """The replay plus everything the manifest records about the effective tree."""
-    result = replay(repo, base, head, reviewed, source_only, base_entries)
+    result = replay(repo, base, head, reviewed, source_only, base_entries, promoted, restored)
     effective = result['effective']
     head_entries = {p: e for p, e in repo.entries(head).items() if is_product(p)}
     changed = delta(result['baseEntries'], effective)
