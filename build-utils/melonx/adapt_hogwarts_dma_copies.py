@@ -18,11 +18,16 @@ Engine 4 keeps its HDR scene colour and temporal history in R16G16B16A16Float.
 
 - GraphicsConfig.HogwartsFloatDmaGpuCopy, set by the Library for every session from the
   actually launched title (the same check as the Hogwarts query policy), lets those copies use
-  the GPU path for Hogwarts Legacy only; every other title keeps MeloNX's exclusion. The first
-  copy that uses it is logged once with its format, size and layouts.
+  the GPU path for Hogwarts Legacy only, into a block-linear destination with the same element
+  size (a linear destination may be read as a GPU buffer, which would miss data held only by the
+  target texture), the target sized in bytes (with a component remap, xCount counts elements:
+  the upstream byte width would make it 8-16 times too narrow). Every other title keeps
+  MeloNX's exclusion. The first copy that uses it is logged once.
+- A destination texture that cannot be created (unmapped) now falls back to the copy through
+  guest memory instead of a null dereference on the GPU thread (all formats).
 - Every 2D copy that still goes through guest memory is attributed: the first occurrence of
-  each signature (reason, source format, layouts, size, bytes per pixel; at most 24) is logged
-  once, and a cumulative count per reason every 1024 such copies. Reasons: incomplete copy,
+  each signature (reason, source format, layouts, size, bytes per pixel; at most 8 per reason) is
+  logged once, and a cumulative count per reason every 1024 such copies (at most 32 times). Reasons: incomplete copy,
   linear source, component remap, no GPU source texture, height mismatch, float format. Nothing
   is allocated per copy once the signature set is full; the window payload is unchanged.
 
@@ -103,38 +108,83 @@ FAST_NEW = '''                DmaSlowPath slowReason = !completeSource || !compl
                         slowReason = source.Height != yCount ? DmaSlowPath.Height : DmaSlowPath.FloatFormat;
                     }
 
-                    if (source != null && source.Height == yCount && (!floatFormat || GraphicsConfig.HogwartsFloatDmaGpuCopy))
+                    // The policy copies a float texture on the GPU only into a block-linear destination (a GPU buffer
+                    // read of a linear one would miss data that only the target texture holds) with the same element
+                    // size, sizing the target in bytes (xCount counts elements when components are remapped).
+                    bool floatPolicy = floatFormat && GraphicsConfig.HogwartsFloatDmaGpuCopy && !dstLinear && srcBpp == dstBpp;
+
+                    if (source != null && source.Height == yCount && (!floatFormat || floatPolicy))
                     {
-                        if (floatFormat && !_floatGpuCopyNoted)
+                        if (floatPolicy && !_floatGpuCopyNoted)
                         {
                             _floatGpuCopyNoted = true;
                             Logger.Warning?.Print(LogClass.Gpu, $"DMA float GPU copy (Hogwarts policy): {source.Info.FormatInfo.Format} " +
-                                $"{source.Info.Width}x{source.Info.Height} copy {xCount}x{yCount} dstLinear={dstLinear}");
+                                $"{source.Info.Width}x{source.Info.Height} copy {xCount}x{yCount} remap={remap} bpp={srcBpp}/{dstBpp}");
                         }
 
                         source.SynchronizeMemory();'''
 
+TARGET_OLD = '''                        Image.Texture target = memoryManager.Physical.TextureCache.FindOrCreateTexture(
+                            memoryManager,
+                            source.Info.FormatInfo,
+                            dstGpuVa,
+                            xCount,
+                            yCount,
+                            dstStride,
+                            dstLinear,
+                            dst.MemoryLayout.UnpackGobBlocksInY(),
+                            dst.MemoryLayout.UnpackGobBlocksInZ());
+
+                        if (source.ScaleFactor != target.ScaleFactor)'''
+TARGET_NEW = '''                        Image.Texture target = memoryManager.Physical.TextureCache.FindOrCreateTexture(
+                            memoryManager,
+                            source.Info.FormatInfo,
+                            dstGpuVa,
+                            floatPolicy ? xCount * srcBpp : xCount,
+                            yCount,
+                            dstStride,
+                            dstLinear,
+                            dst.MemoryLayout.UnpackGobBlocksInY(),
+                            dst.MemoryLayout.UnpackGobBlocksInZ());
+
+                        if (target == null)
+                        {
+                            // The destination could not be created (unmapped): copy through guest memory instead.
+                            goto GuestMemoryCopy;
+                        }
+
+                        if (source.ScaleFactor != target.ScaleFactor)'''
+
 SLOW_OLD = '''                using ReadOnlyRegion srcRegion = memoryManager.GetReadOnlyRegion(srcGpuVa + (ulong)srcBaseOffset, srcSize, true);'''
-SLOW_NEW = '''                NoteGuestMemoryCopy(slowReason, slowSource, srcLinear, dstLinear, xCount, yCount, srcBpp, srcSize);
+SLOW_NEW = '''            GuestMemoryCopy:
+                NoteGuestMemoryCopy(slowReason, slowSource, srcLinear, dstLinear, xCount, yCount, srcBpp, srcSize);
 
                 using ReadOnlyRegion srcRegion = memoryManager.GetReadOnlyRegion(srcGpuVa + (ulong)srcBaseOffset, srcSize, true);'''
 
-METHOD_ANCHOR = '''        private void DmaCopy(int argument)
+METHOD_ANCHOR = '''        /// <summary>
+        /// Performs a buffer to buffer, or buffer to texture copy.
+        /// </summary>
+        /// <param name="argument">The LaunchDma call argument</param>
+        private void DmaCopy(int argument)
         {'''
 METHOD_NEW = '''        /// <summary>
         /// Why a 2D copy goes through guest memory instead of the GPU-side texture copy.
         /// </summary>
         private enum DmaSlowPath { Incomplete, LinearSource, Remap, NoSource, Height, FloatFormat, Count }
 
-        private const int GuestCopySignatureLimit = 24;
+        private const int GuestCopySignaturesPerReason = 8;
+        private const int GuestCopySummaryLimit = 32;
         private readonly HashSet<(DmaSlowPath, int, bool, bool, int, int, int)> _guestCopySignatures = new();
+        private readonly int[] _guestCopySignatureCounts = new int[(int)DmaSlowPath.Count];
         private readonly long[] _guestCopies = new long[(int)DmaSlowPath.Count];
         private long _guestCopyTotal;
+        private int _guestCopySummaries;
         private bool _floatGpuCopyNoted;
 
         /// <summary>
         /// Attributes a 2D copy that reads its source through guest memory (which flushes a GPU-written texture):
-        /// each new signature is logged once (bounded), and the counts per reason every 1024 copies.
+        /// each new signature is logged once (at most 8 per reason), and the counts per reason every 1024 copies (at
+        /// most 32 times per session).
         /// </summary>
         private void NoteGuestMemoryCopy(DmaSlowPath reason, Image.Texture source, bool srcLinear, bool dstLinear,
                                          int xCount, int yCount, int bpp, int bytes)
@@ -142,17 +192,19 @@ METHOD_NEW = '''        /// <summary>
             _guestCopies[(int)reason]++;
             int format = source != null ? (int)source.Info.FormatInfo.Format : -1;
 
-            if (_guestCopySignatures.Count < GuestCopySignatureLimit &&
+            if (_guestCopySignatureCounts[(int)reason] < GuestCopySignaturesPerReason &&
                 _guestCopySignatures.Add((reason, format, srcLinear, dstLinear, xCount, yCount, bpp)))
             {
+                _guestCopySignatureCounts[(int)reason]++;
                 string described = source == null ? "none" :
                     $"{source.Info.FormatInfo.Format} {source.Info.Width}x{source.Info.Height}";
                 Logger.Warning?.Print(LogClass.Gpu, $"DMA guest-memory copy #{_guestCopySignatures.Count}: reason={reason} " +
                     $"source={described} srcLinear={srcLinear} dstLinear={dstLinear} copy={xCount}x{yCount} bpp={bpp} bytes={bytes}");
             }
 
-            if (++_guestCopyTotal % 1024 == 0)
+            if (++_guestCopyTotal % 1024 == 0 && _guestCopySummaries < GuestCopySummaryLimit)
             {
+                _guestCopySummaries++;
                 Logger.Warning?.Print(LogClass.Gpu, $"DMA guest-memory copies: {_guestCopyTotal} " +
                     $"(incomplete {_guestCopies[0]}, linearSource {_guestCopies[1]}, remap {_guestCopies[2]}, " +
                     $"noSource {_guestCopies[3]}, height {_guestCopies[4]}, floatFormat {_guestCopies[5]})");
@@ -169,6 +221,7 @@ def apply(source):
     dma = source / DMA
     once(dma, USING_OLD, USING_NEW)
     once(dma, FAST_OLD, FAST_NEW)
+    once(dma, TARGET_OLD, TARGET_NEW)
     once(dma, SLOW_OLD, SLOW_NEW)
     once(dma, METHOD_ANCHOR, METHOD_NEW)
     return NAMES

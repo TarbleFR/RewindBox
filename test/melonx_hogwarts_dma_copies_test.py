@@ -84,24 +84,31 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
     check(library.replace(adapter.LIBRARY_NEW, adapter.LIBRARY_OLD) == before[adapter.LIBRARY], 'Library: only the policy hunk')
 
     dma = after[adapter.DMA]
-    check('(!floatFormat || GraphicsConfig.HogwartsFloatDmaGpuCopy)' in dma and
+    check('bool floatPolicy = floatFormat && GraphicsConfig.HogwartsFloatDmaGpuCopy && !dstLinear && srcBpp == dstBpp;' in dma and
           'source.Info.FormatInfo.Format is Format.R32G32B32A32Float or Format.R16G16B16A16Float' in dma,
-          'only the two float formats depend on the flag')
-    check('if (source != null && source.Height == yCount && (!floatFormat || GraphicsConfig.HogwartsFloatDmaGpuCopy))' in dma,
+          'only the two float formats depend on the flag, into block-linear destinations of the same element size')
+    check('if (source != null && source.Height == yCount && (!floatFormat || floatPolicy))' in dma,
           'the other GPU-copy conditions are unchanged')
+    check('floatPolicy ? xCount * srcBpp : xCount,' in dma, 'the policy sizes the target in bytes; other formats as delivered')
+    check('if (target == null)' in dma and 'goto GuestMemoryCopy;' in dma and dma.count('GuestMemoryCopy:') == 1,
+          'a missing destination falls back to the guest-memory copy')
     slow = dma.index('NoteGuestMemoryCopy(slowReason, slowSource')
     read = dma.index('using ReadOnlyRegion srcRegion = memoryManager.GetReadOnlyRegion(srcGpuVa + (ulong)srcBaseOffset, srcSize, true);')
     check(0 < read - slow < 200, 'the attribution sits immediately before the read through guest memory')
     restored = dma
     for old, new in ((adapter.METHOD_ANCHOR, adapter.METHOD_NEW), (adapter.SLOW_OLD, adapter.SLOW_NEW),
-                     (adapter.FAST_OLD, adapter.FAST_NEW), (adapter.USING_OLD, adapter.USING_NEW)):
+                     (adapter.TARGET_OLD, adapter.TARGET_NEW), (adapter.FAST_OLD, adapter.FAST_NEW),
+                     (adapter.USING_OLD, adapter.USING_NEW)):
         restored = restored.replace(new, old)
     check(restored == before[adapter.DMA], 'DmaClass: only the adapter hunks')
     check(dma.count('GraphicsConfig.HogwartsFloatDmaGpuCopy') == 1, 'one use of the policy')
+    summary = dma.index('/// Performs a buffer to buffer, or buffer to texture copy.')
+    check(dma.index('private void DmaCopy(int argument)') - summary < 200 and
+          dma.index('private enum DmaSlowPath') < summary, 'DmaCopy keeps its own documentation')
 
     # Drift: altering any anchor stops the adapter.
     for relative, anchor in ((adapter.CONFIG, adapter.CONFIG_ANCHOR), (adapter.LIBRARY, adapter.LIBRARY_OLD),
-                             (adapter.DMA, adapter.FAST_OLD), (adapter.DMA, adapter.SLOW_OLD),
+                             (adapter.DMA, adapter.FAST_OLD), (adapter.DMA, adapter.TARGET_OLD), (adapter.DMA, adapter.SLOW_OLD),
                              (adapter.DMA, adapter.METHOD_ANCHOR)):
         drift = temporary / ('drift-' + hashlib.sha256((relative + anchor).encode()).hexdigest()[:8])
         for name in adapter.NAMES:
@@ -152,16 +159,20 @@ static class Program
         var texture = new Image.Texture();
         texture.Info.FormatInfo.Format = Image.Format.R16G16B16A16Float;
         texture.Info.Width = 1280; texture.Info.Height = 720;
-        for (int i = 0; i < 40; i++) dma.Run(i % 6, i % 2 == 0 ? texture : null, 100 + i);
+        // 10 distinct signatures per reason: 8 per reason are logged.
+        for (int i = 0; i < 60; i++) dma.Run(i % 6, i % 2 == 0 ? texture : null, 100 + i);
         int signatures = sink.Lines.FindAll(l => l.StartsWith("DMA guest-memory copy #")).Count;
-        // 40 + 2009 = 2049 copies: the summaries of 1024 and 2048 are behind; the next one is at 3072.
-        for (int i = 0; i < 2009; i++) dma.Run(5, texture, 100);
+        // 60 + 1989 = 2049 copies: the summaries of 1024 and 2048 are behind; the next one is at 3072.
+        for (int i = 0; i < 1989; i++) dma.Run(5, texture, 100);
         long before = GC.GetAllocatedBytesForCurrentThread();
         for (int i = 0; i < 1000; i++) dma.Run(5, texture, 100);
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         int summaries = sink.Lines.FindAll(l => l.StartsWith("DMA guest-memory copies: ")).Count;
         string last = sink.Lines.FindLast(l => l.StartsWith("DMA guest-memory copies: "));
-        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { signatures, summaries, allocated, last,
+        // Many more copies: the summaries stop at 32 per session.
+        for (int i = 0; i < 40000; i++) dma.Run(1, null, 100);
+        int capped = sink.Lines.FindAll(l => l.StartsWith("DMA guest-memory copies: ")).Count;
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { signatures, summaries, allocated, last, capped,
             first = sink.Lines[0] }));
     }
 }
@@ -182,7 +193,8 @@ static class Program
         print(run.stdout[-4000:], run.stderr[-3000:])
     run.check_returncode()
     result = json.loads(next(line for line in run.stdout.splitlines() if line.startswith('{')))
-    check(result['signatures'] == 24, f'24 signatures logged once each: {result}')
+    check(result['signatures'] == 48, f'8 signatures per reason, each logged once: {result}')
+    check(result['capped'] == 32, f'at most 32 summaries per session: {result}')
     check(result['summaries'] == 2 and ' 2048 (' in result['last'], f'a summary every 1024 copies: {result}')
     check(result['allocated'] == 0, f'no allocation per copy once the signature set is full: {result}')
     check('floatFormat ' in result['last'] and 'reason=Incomplete source=R16G16B16A16Float 1280x720' in result['first'],
