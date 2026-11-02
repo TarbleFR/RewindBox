@@ -17,6 +17,7 @@ import 'package:neostation/services/game_box/game_box_fetcher.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/game_box/game_box_media_check.dart';
 import 'package:neostation/services/game_box/game_box_preferences.dart';
+import 'package:neostation/services/game_box/game_box_rom_id.dart';
 import 'package:neostation/services/game_box/game_box_profile.dart';
 import 'package:neostation/services/game_box/game_box_regions.dart';
 import 'package:neostation/services/game_box/game_box_sources.dart';
@@ -272,9 +273,12 @@ class GameBoxMediaService {
   /// PS3 serial's region, the edition of the front already shown.
   static Future<GameBoxEditionHint> _hint(GameBoxSearchContext ctx, GameBoxScreenScraperListing? listing) async {
     final regions = <String>[...?listing?.gameRegions];
+    final romId = await _romId(ctx);
     if (regions.isEmpty) {
       final product = ctx.productId;
       if (product != null) regions.addAll(GameTdb.regionsOfPs3Serial(product));
+      // The region letter of a Nintendo id read in the ROM (P Europe, F France…).
+      if (romId != null) regions.addAll(GameBoxRomId.regionsOf(romId).where((r) => !regions.contains(r)));
       regions.addAll(GameBoxRegions.fromFileName(ctx.game.romname).where((r) => !regions.contains(r)));
     }
     final store = GameBoxMediaStore(ctx.fileProvider);
@@ -291,7 +295,10 @@ class GameBoxMediaService {
     return GameBoxEditionHint(
       gameRegions: regions,
       frontRegion: listing?.frontRegion ?? frontRecord?.region ?? local.manifest?.frontRegion,
-      productId: ctx.productId,
+      productId: ctx.productId ?? (romId != null && romId.length >= 4 && GameTdb.isListedId(
+              GameTdb.platformOf(ctx.profile.id) ?? '', romId)
+          ? romId
+          : null),
       regionPriority: priority,
       language: language,
     );
@@ -315,8 +322,18 @@ class GameBoxMediaService {
     return (result.listing, status);
   }
 
-  /// GameTDB: the PS3 serial is the GameTDB id; a Switch product code is
-  /// found by exact title in `switchtdb.txt` (several prints can share it).
+  /// The GameTDB id read in the game's own file, for the Nintendo platforms
+  /// whose ROM header carries it (Wii, GameCube, Wii U, DS, 3DS; § 25).
+  static Future<String?> _romId(GameBoxSearchContext ctx) async {
+    final platform = GameTdb.platformOf(ctx.profile.id);
+    if (platform == null || platform == 'ps3' || platform == 'switch') return null;
+    return GameBoxRomId.forGame(ctx.game, platform);
+  }
+
+  /// GameTDB: the PS3 serial is the GameTDB id; the id of a Wii, GameCube,
+  /// Wii U, DS or 3DS game is read in its ROM (§ 25). Otherwise a product
+  /// code is found by exact title in the platform's title list (several
+  /// prints can share it), and is not taken for the player's product.
   static Future<({List<GameBoxCandidate> candidates, GameBoxSourceStatus status, String? caseColor, String? id})>
       _gameTdb(GameBoxSearchContext ctx, GameBoxCancel? cancel) async {
     final platform = GameTdb.platformOf(ctx.profile.id);
@@ -325,15 +342,31 @@ class GameBoxMediaService {
     }
     try {
       final ids = <String>[];
+      // Ids of the player's own product (serial or ROM header).
+      final products = <String>{};
       if (platform == 'ps3') {
         final serial = ctx.productId;
         if (serial != null && GameTdb.ps3Id.hasMatch(serial)) ids.add(serial);
-      } else {
-        final txt = await _switchTitles();
+        products.addAll(ids);
+      } else if (platform != 'switch') {
+        final romId = await _romId(ctx);
+        if (romId != null) {
+          if (GameTdb.isListedId(platform, romId)) {
+            ids.add(romId);
+          } else if (platform == 'wiiu' && romId.length == 4) {
+            // A Wii U disc gives its product code; GameTDB adds the company.
+            final txt = await _titles(platform);
+            if (txt != null) ids.addAll(GameTdb.idsWithPrefix(txt, romId, platform: platform));
+          }
+          products.addAll(ids);
+        }
+      }
+      if (ids.isEmpty && platform != 'ps3') {
+        final txt = await _titles(platform);
         if (txt != null) {
           for (final name in {ctx.title, ctx.game.realname}) {
-            for (final id in GameTdb.idsForTitle(txt, name)) {
-              if (!ids.contains(id)) ids.add(id);
+            for (final id in GameTdb.idsForTitle(txt, name, platform: platform)) {
+              if (!ids.contains(id) && _sameFamily(ctx.profile.id, id)) ids.add(id);
             }
           }
         }
@@ -348,8 +381,8 @@ class GameBoxMediaService {
         final page = await _page('${GameTdb.site}/${GameTdb.pagePlatform(platform)}/$id');
         if (page == null) continue;
         final parsed = GameTdb.parsePage(page, id);
-        // A Switch code found by title alone is not the player's product.
-        final byProduct = platform == 'ps3';
+        // A code found by title alone is not the player's product.
+        final byProduct = products.contains(id);
         out.addAll([
           for (final c in parsed.candidates)
             byProduct
@@ -387,13 +420,21 @@ class GameBoxMediaService {
     }
   }
 
-  /// GameTDB's Switch title list, kept 30 days in the application support
-  /// folder (about 0.8 MB).
-  static Future<String?> _switchTitles() async {
+  /// GameTDB lists GameCube discs (ids starting with G or D) with the Wii's
+  /// (R, S): a title match keeps the family of the player's console.
+  static bool _sameFamily(String systemId, String id) => switch (systemId) {
+        'gc' || 'triforce' => id.startsWith('G') || id.startsWith('D'),
+        'wii' => id.startsWith('R') || id.startsWith('S'),
+        _ => true,
+      };
+
+  /// A GameTDB title list ([platform]: `switch`, `wii`, `wiiu`, `ds`,
+  /// `3ds`), kept 30 days in the application support folder (0.2 to 1 MB).
+  static Future<String?> _titles(String platform) async {
     File? cache;
     try {
       final dir = await getApplicationSupportDirectory();
-      cache = File(p.join(dir.path, 'NeoStation', 'GameBox', 'switchtdb-en.txt'));
+      cache = File(p.join(dir.path, 'NeoStation', 'GameBox', '${platform}tdb-en.txt'));
       if (await cache.exists()) {
         final age = DateTime.now().difference(await cache.lastModified());
         if (age < const Duration(days: 30)) return await cache.readAsString();
@@ -401,7 +442,7 @@ class GameBoxMediaService {
     } catch (_) {
       cache = null;
     }
-    final bytes = await _get('${GameTdb.site}/switchtdb.txt?LANG=EN');
+    final bytes = await _get('${GameTdb.site}/${GameTdb.titlesFile(platform)}?LANG=EN');
     if (bytes == null) {
       try {
         if (cache != null && await cache.exists()) return await cache.readAsString();
@@ -779,10 +820,10 @@ class GameBoxMediaService {
   ) async {
     final path = local.pathOf(kind);
     if (path == null) {
-      // A full cover sheet of a known layout holds the back and the spine:
-      // the box cuts them from it (docs/game-box-3d.md § 14), nothing is
-      // missing and the sheet is not downloaded again.
-      if (kind == GameBoxMediaKind.spine || kind == GameBoxMediaKind.back) {
+      // A full cover sheet of a known layout holds the front, the back and
+      // the spine: the box cuts them from it (docs/game-box-3d.md § 14,
+      // § 25), nothing is missing and the sheet is not downloaded again.
+      if (kind == GameBoxMediaKind.spine || kind == GameBoxMediaKind.back || kind == GameBoxMediaKind.front) {
         final sheet = local.pathOf(GameBoxMediaKind.full);
         final layout = GameBoxWrapLayout.forProfile(ctx.profile);
         final size = sheet == null ? null : GameBoxImageSize.of(sheet);
@@ -903,7 +944,11 @@ class GameBoxMediaService {
       // A spine comes from a full cover sheet when no separate scan exists.
       final candidates = [
         ...found.of(kind),
-        if (kind == GameBoxMediaKind.spine) ...found.of(GameBoxMediaKind.full),
+        // A full sheet holds every face: on a missing front or back it is
+        // weighed with the separate scans (GameTDB's Wii front is a 160 px
+        // thumbnail, its HQ front is in the sheet).
+        if (kind == GameBoxMediaKind.spine || kind == GameBoxMediaKind.front || kind == GameBoxMediaKind.back)
+          ...found.of(GameBoxMediaKind.full),
       ].where((c) {
         if (rejected.contains(c.identity)) return false;
         if (!upgrade) return true;

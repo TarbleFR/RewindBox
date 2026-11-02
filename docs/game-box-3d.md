@@ -530,7 +530,49 @@ Le rendu « entier entre marges » appliqué la veille à toutes les plateformes
 
 **Rendus** (`game_box_relief_preview_test`) : Brawl et Melee en jaquette complète seule, Mario Kart 8, God of War III en jaquette complète seule, God of War: Chains of Olympus (PSP), Gravity Rush (Vita) et Boxyboy (TurboGrafx), chacun à côté de sa référence.
 
-**Prochaine étape proposée.** GameTDB n'est une source des faces que pour la PS3 et la Switch (§ 19). Il publie aussi des scans HQ, souvent en français, pour la Wii, la GameCube, la Wii U, la DS et la 3DS. Les utiliser demande de lire l'identifiant du jeu dans l'en-tête de la ROM :
-- les 6 caractères d'un disque Wii ou GameCube ;
-- le code à 4 caractères d'une cartouche DS ;
-- le code produit d'une 3DS.
+**Prochaine étape.** Réalisée au § 25 : GameTDB devient une source pour la Wii, la GameCube, la Wii U, la DS et la 3DS.
+
+## 25. GameTDB pour la Wii, la GameCube, la Wii U, la DS et la 3DS (2 novembre 2026)
+
+GameTDB publie des scans HQ, souvent en français, pour ces cinq plateformes. GameCube et Wii partagent la même base. Ils servent maintenant de source des faces (feuille « Médias du boîtier » et étape des faces du scraping), comme pour la PS3 et la Switch.
+
+**L'identifiant vient du jeu lui-même** (`GameBoxRomId`), lu dans les premiers octets de la ROM sans la charger :
+
+| Plateforme | Identifiant | Formats lus |
+|---|---|---|
+| Wii, GameCube | 6 caractères (`RSBP01`) | ISO/GCM (0), WBFS (0x200), RVZ et WIA (0x58), CISO (0x8000), TGC (taille de son en-tête) ; le format est vérifié par la signature du disque |
+| Wii U | 6 caractères (`AMKP01`) | `meta/meta.xml` d'un titre extrait (code produit et code éditeur) ; un disque WUD ou WUX donne le code produit, complété par la liste GameTDB |
+| DS | 4 caractères (`AMCP`) | en-tête de cartouche (0x0C), le titre devant être du texte |
+| 3DS | 4 caractères (`AMKP`) | code produit du NCCH (`CTR-P-AMKP`) : .cxi, .3ds/.cci (partition 0), .cia déchiffré (premier contenu) |
+
+À défaut, le jeu est cherché par :
+1. l'identifiant de la bibliothèque, s'il a la bonne forme ;
+2. un identifiant écrit dans le nom du fichier (`[RSBP01]`) ;
+3. son titre exact dans la liste de la plateforme (`wiitdb.txt`, `wiiutdb.txt`, `dstdb.txt`, `3dstdb.txt`, gardée 30 jours).
+
+Un jeu trouvé par son titre n'est jamais pris pour le produit du joueur. Sur un titre commun, une GameCube garde les identifiants G/D et une Wii les identifiants R/S. Les formats compressés dont l'en-tête n'est pas lisible (GCZ, CIA chiffré) passent par le nom puis le titre.
+
+**Édition.** La quatrième lettre de l'identifiant donne la région de la copie : P Europe, F France, D Allemagne, E États-Unis, J Japon… Elle sert, comme le numéro de série PS3, à classer les scans de l'édition du joueur, avec l'impression dans la langue de scraping en tête (§ 19).
+
+**Jaquette complète.** Sur Wii, GameTDB n'a comme recto séparé qu'une vignette de 160 × 224 px ; le recto HQ est dans la jaquette complète de 1024 × 680. Désormais :
+- une jaquette complète au gabarit vérifié compte pour le recto, le verso et la tranche ;
+- quand une face manque, elle est pesée avec les scans séparés, et une vignette de la même édition et de la même langue lui cède la place ;
+- à l'écran, une face gardée qui n'est qu'une vignette de la jaquette (1,5 fois plus étroite ou plus) est montrée depuis la jaquette.
+
+Une face choisie à la main ou imprimée dans une autre langue reste affichée, et aucun fichier n'est remplacé.
+
+**Gabarits mesurés** (téléchargements du 2 novembre 2026) :
+
+| Plateforme | Recto ou verso | Jaquette complète |
+|---|---|---|
+| Wii | 160 × 224 | 1024 × 680 et 512 × 340 |
+| Wii U | 768 × 1080, 350 × 500, 160 × 224 | 1632 × 1080, 752 × 500, 340 × 224 |
+| DS et 3DS | 768 × 680, 400 × 352, 160 × 144 | 1616 × 680, 856 × 352, 340 × 144 |
+
+**Tests** (`game_box_nintendo_sources_test`) :
+- lecture de l'identifiant dans chaque format, sur des en-têtes construits octet par octet ;
+- un fichier sans en-tête de disque ne donne rien ;
+- Brawl depuis son ISO : produit, région Europe, jaquette HQ préférée à la vignette, plus aucune face à compléter ;
+- une DS sans ROM lisible est trouvée par son titre, sans être prise pour le produit ;
+- séparation GameCube/Wii sur un titre commun ;
+- recto de la jaquette montré à l'écran seulement dans la même langue.

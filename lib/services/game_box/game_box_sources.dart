@@ -244,8 +244,13 @@ class GameBoxCandidateRanking {
       final c = list[i];
       if (!isThumbnail(c)) continue;
       final language = hint.prints(c.region);
+      // A readable scan of the same face, or a full sheet that holds it.
       final j = list.indexWhere(
-        (o) => o.kind == c.kind && !isThumbnail(o) && sameEdition(c, o) && (!language || hint.prints(o.region)),
+        (o) =>
+            (o.kind == c.kind || o.kind == GameBoxMediaKind.full) &&
+            !isThumbnail(o) &&
+            sameEdition(c, o) &&
+            (!language || hint.prints(o.region)),
         i + 1,
       );
       if (j > i) list.insert(i, list.removeAt(j));
@@ -284,15 +289,46 @@ class GameTdb {
   static const String site = 'https://www.gametdb.com';
   static const String art = 'https://art.gametdb.com';
 
-  /// GameTDB platform folder of a NeoStation system, when supported.
+  /// GameTDB platform folder of a NeoStation system, when supported. GameTDB
+  /// lists GameCube games with the Wii's (docs/game-box-3d.md § 25).
   static String? platformOf(String? systemId) => switch ((systemId ?? '').toLowerCase()) {
         'ps3' => 'ps3',
         'switch' => 'switch',
+        'wii' || 'gc' || 'triforce' => 'wii',
+        'wiiu' => 'wiiu',
+        'ds' => 'ds',
+        '3ds' => '3ds',
         _ => null,
       };
 
-  /// Page path of a platform (`PS3`, `Switch`).
-  static String pagePlatform(String platform) => platform == 'ps3' ? 'PS3' : 'Switch';
+  /// Page path of a platform (`PS3`, `Switch`, `Wii`, `WiiU`, `DS`, `3DS`).
+  static String pagePlatform(String platform) => switch (platform) {
+        'ps3' => 'PS3',
+        'switch' => 'Switch',
+        'wii' => 'Wii',
+        'wiiu' => 'WiiU',
+        'ds' => 'DS',
+        '3ds' => '3DS',
+        final other => other,
+      };
+
+  /// Name of a platform's title list (`switchtdb.txt`, `wiitdb.txt`…).
+  static String titlesFile(String platform) => '${platform}tdb.txt';
+
+  /// Whether [id] has the form of a GameTDB id listed for [platform].
+  static bool isListedId(String platform, String id) => switch (platform) {
+        'switch' => switchId.hasMatch(id),
+        'wii' || 'wiiu' => nintendoDiscId.hasMatch(id),
+        'ds' || '3ds' => nintendoCardId.hasMatch(id),
+        'ps3' => ps3Id.hasMatch(id),
+        _ => false,
+      };
+
+  /// A Wii, GameCube or Wii U id (`RSBP01`, `AMKP01`).
+  static final RegExp nintendoDiscId = RegExp(r'^[A-Z0-9]{6}$');
+
+  /// A DS or 3DS game code (`AMCP`, `AMKP`).
+  static final RegExp nintendoCardId = RegExp(r'^[A-Z0-9]{4}$');
 
   /// A PS3 serial as RPCS3 reports it (`BLES00510`, `NPUB30899`).
   static final RegExp ps3Id = RegExp(r'^[A-Z]{4}[0-9]{5}$');
@@ -345,7 +381,7 @@ class GameTdb {
   }
 
   static final RegExp _artUrl =
-      RegExp(r'https://art\.gametdb\.com/(ps3|switch)/([A-Za-z]+)/([A-Z]{2,4})/([A-Z0-9]+)\.(jpg|png)');
+      RegExp(r'https://art\.gametdb\.com/(ps3|switch|wii|wiiu|ds|3ds)/([A-Za-z]+)/([A-Z]{2,4})/([A-Z0-9]+)\.(jpg|png)');
   static final RegExp _caseColor =
       RegExp(r">case\s*</td>\s*<td[^>]*>\s*<table[^>]*bgcolor='#([0-9a-fA-F]{6})'", multiLine: true);
 
@@ -439,13 +475,45 @@ class GameTdb {
         _ => (null, null),
       };
     }
+    // Measured on downloads, 2 Nov 2026 (§ 25).
+    if (platform == 'wii') {
+      return switch ((family, quality)) {
+        ('cover', 1) => (160, 224),
+        ('coverfull', 3) => (1024, 680),
+        ('coverfull', 1) => (512, 340),
+        _ => (null, null),
+      };
+    }
+    if (platform == 'wiiu') {
+      return switch ((family, quality)) {
+        ('cover' || 'back', 3) => (768, 1080),
+        ('cover' || 'back', 2) => (350, 500),
+        ('cover' || 'back', 1) => (160, 224),
+        ('coverfull', 3) => (1632, 1080),
+        ('coverfull', 2) => (752, 500),
+        ('coverfull', 1) => (340, 224),
+        _ => (null, null),
+      };
+    }
+    if (platform == 'ds' || platform == '3ds') {
+      return switch ((family, quality)) {
+        ('cover' || 'back', 3) => (768, 680),
+        ('cover' || 'back', 2) => (400, 352),
+        ('cover' || 'back', 1) => (160, 144),
+        ('coverfull', 3) => (1616, 680),
+        ('coverfull', 2) => (856, 352),
+        ('coverfull', 1) => (340, 144),
+        _ => (null, null),
+      };
+    }
     return (null, null);
   }
 
-  /// Product codes listed in GameTDB's `switchtdb.txt` (`ID = Title`) whose
-  /// title is exactly [title] once case, accents, punctuation and trademark
-  /// signs are ignored. Several codes can share a title (regional prints).
-  static List<String> idsForTitle(String titlesTxt, String title) {
+  /// Product codes listed in a GameTDB title list (`ID = Title`) of
+  /// [platform] whose title is exactly [title] once case, accents,
+  /// punctuation and trademark signs are ignored. Several codes can share a
+  /// title (regional prints).
+  static List<String> idsForTitle(String titlesTxt, String title, {String platform = 'switch'}) {
     final wanted = normalizeTitle(title);
     if (wanted.isEmpty) return const [];
     final ids = <String>[];
@@ -453,8 +521,21 @@ class GameTdb {
       final eq = line.indexOf(' = ');
       if (eq <= 0) continue;
       final id = line.substring(0, eq).trim();
-      if (!switchId.hasMatch(id)) continue;
+      if (!isListedId(platform, id)) continue;
       if (normalizeTitle(line.substring(eq + 3)) == wanted) ids.add(id);
+    }
+    return ids;
+  }
+
+  /// Ids of a title list that begin with [prefix] (a Wii U disc gives its
+  /// 4-character product code; GameTDB lists it with its company code).
+  static List<String> idsWithPrefix(String titlesTxt, String prefix, {required String platform}) {
+    final ids = <String>[];
+    for (final line in titlesTxt.split('\n')) {
+      final eq = line.indexOf(' = ');
+      if (eq <= 0) continue;
+      final id = line.substring(0, eq).trim();
+      if (id.startsWith(prefix) && isListedId(platform, id)) ids.add(id);
     }
     return ids;
   }

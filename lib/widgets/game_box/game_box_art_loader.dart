@@ -8,6 +8,7 @@ import 'package:neostation/services/game_box/game_box_art_fit.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/game_box/game_box_media_check.dart';
 import 'package:neostation/services/game_box/game_box_profile.dart';
+import 'package:neostation/services/game_box/game_box_regions.dart';
 import 'package:neostation/services/game_box/game_box_enhance.dart';
 import 'package:neostation/widgets/game_box/game_box_scene.dart';
 import 'package:neostation/widgets/game_box/game_box_surfaces.dart';
@@ -83,6 +84,20 @@ class GameBoxArtSet {
     final p = landscape ? _fileProvider(path, width: size) : _fileProvider(path, height: size);
     if (detailed) _detailed.add(p);
     return p;
+  }
+
+  /// Whether the full sheet ([sheet] pixels, [window] of it) shows [kind]
+  /// at least 1.5 times wider than the separate [face] file, in the same
+  /// language, and the face was not chosen by hand.
+  bool _sheetIsSharper(String face, Size sheet, Rect window, GameBoxMediaKind kind) {
+    final record = media.recordOf(kind);
+    if (record?.manual ?? false) return false;
+    final faceSize = GameBoxImageSize.of(face);
+    if (faceSize == null || faceSize.width <= 0) return false;
+    if (sheet.width * window.width < faceSize.width * 1.5) return false;
+    final a = record?.region, b = media.recordOf(GameBoxMediaKind.full)?.region;
+    if (a == null || b == null || a == b) return true;
+    return GameBoxRegions.languageOfRegion(a) == GameBoxRegions.languageOfRegion(b);
   }
 
   /// A face file is drawn only when its check (when done) found a picture.
@@ -169,6 +184,21 @@ class GameBoxArtSet {
           frontFile = fullPath;
           frontWindow = parts.front;
           frontNature = GameBoxArtNature.scan;
+        } else if (frontWindow == GameBoxArtLayout.full &&
+            _sheetIsSharper(frontFile, size!, parts.front, GameBoxMediaKind.front)) {
+          // The face kept is a thumbnail of the sheet's print (GameTDB's
+          // 160 px Wii front): the sheet's own front is shown, the files
+          // stay as they are (§ 25).
+          frontFile = fullPath;
+          frontWindow = parts.front;
+          frontNature = GameBoxArtNature.scan;
+        }
+        if (backFile != null &&
+            backFile == media.back &&
+            backWindow == GameBoxArtLayout.full &&
+            _sheetIsSharper(backFile, size!, parts.back, GameBoxMediaKind.back)) {
+          backFile = fullPath;
+          backWindow = parts.back;
         }
         if (spinePath == null) {
           spinePath = fullPath;
