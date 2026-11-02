@@ -99,6 +99,15 @@ The following applications/services are **not claimed as RewindBox-owned
 software** merely because RewindBox interoperates with them:
 
 - **ScreenScraper** — https://www.screenscraper.fr/
+- **GameTDB** — https://www.gametdb.com/ — box scans of PS3, Switch, Wii,
+  GameCube, Wii U, DS and 3DS games, looked up by the game's product code
+  (docs/game-box-3d.md § 14, § 25).
+- **MobyGames** — https://www.mobygames.com/ — box scans, only with the
+  player's own API key.
+- **Internet Archive** — https://archive.org/ — French game manuals of its
+  manual collections, when scraping in French (docs/game-box-3d.md § 26).
+- **Nintendo Europe** — https://www.nintendo.com/eu/ — Nintendo's own French
+  PDF manuals of DS games, when scraping in French (§ 26).
 - **RetroAchievements** — https://retroachievements.org/
 - **LocalDevVPN** — user-installed external application when that route is used.
 
