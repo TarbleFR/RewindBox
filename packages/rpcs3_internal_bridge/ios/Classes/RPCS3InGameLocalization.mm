@@ -806,6 +806,8 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
         @"testSourceCustom": @"custom configuration",
         @"accuracyLegacyHelp": @"This game uses a full custom RPCS3 configuration. Accuracy tests are disabled because they would change it permanently; remove this game’s custom configuration to use them. The values shown are those of the last boot.",
         @"accuracyLegacyBlocked": @"Tests are disabled for this game: it uses a full custom RPCS3 configuration.",
+        @"testNo": @"No",
+        @"testYes": @"Yes",
       },
       @"fr": @{
         @"accuracyMenu": @"Tests de précision",
@@ -834,6 +836,8 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
         @"testSourceCustom": @"configuration personnalisée",
         @"accuracyLegacyHelp": @"Ce jeu utilise une configuration RPCS3 personnalisée complète. Les tests de précision sont désactivés, car ils la modifieraient définitivement ; supprimez la configuration personnalisée de ce jeu pour les utiliser. Les valeurs affichées sont celles du dernier démarrage.",
         @"accuracyLegacyBlocked": @"Tests désactivés pour ce jeu : il utilise une configuration RPCS3 personnalisée complète.",
+        @"testNo": @"Non",
+        @"testYes": @"Oui",
       },
       @"de": @{
         @"accuracyMenu": @"Genauigkeitstests",
@@ -862,6 +866,8 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
         @"testSourceCustom": @"eigene Konfiguration",
         @"accuracyLegacyHelp": @"Dieses Spiel verwendet eine vollständige eigene RPCS3-Konfiguration. Die Genauigkeitstests sind deaktiviert, weil sie diese dauerhaft ändern würden; entferne die eigene Konfiguration dieses Spiels, um sie zu nutzen. Angezeigt werden die Werte des letzten Starts.",
         @"accuracyLegacyBlocked": @"Tests sind für dieses Spiel deaktiviert: Es verwendet eine vollständige eigene RPCS3-Konfiguration.",
+        @"testNo": @"Nein",
+        @"testYes": @"Ja",
       },
       @"es": @{
         @"accuracyMenu": @"Pruebas de precisión",
@@ -890,6 +896,8 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
         @"testSourceCustom": @"configuración personalizada",
         @"accuracyLegacyHelp": @"Este juego usa una configuración personalizada completa de RPCS3. Las pruebas de precisión están desactivadas porque la modificarían de forma permanente; elimina la configuración personalizada de este juego para usarlas. Los valores mostrados son los del último arranque.",
         @"accuracyLegacyBlocked": @"Pruebas desactivadas para este juego: usa una configuración personalizada completa de RPCS3.",
+        @"testNo": @"No",
+        @"testYes": @"Sí",
       },
       @"it": @{
         @"accuracyMenu": @"Test di precisione",
@@ -918,6 +926,8 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
         @"testSourceCustom": @"configurazione personalizzata",
         @"accuracyLegacyHelp": @"Questo gioco usa una configurazione RPCS3 personalizzata completa. I test di precisione sono disattivati perché la modificherebbero in modo permanente; rimuovi la configurazione personalizzata di questo gioco per usarli. I valori mostrati sono quelli dell’ultimo avvio.",
         @"accuracyLegacyBlocked": @"Test disattivati per questo gioco: usa una configurazione RPCS3 personalizzata completa.",
+        @"testNo": @"No",
+        @"testYes": @"Sì",
       },
       @"pt": @{
         @"accuracyMenu": @"Testes de precisão",
@@ -946,6 +956,8 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
         @"testSourceCustom": @"configuração personalizada",
         @"accuracyLegacyHelp": @"Este jogo usa uma configuração personalizada completa do RPCS3. Os testes de precisão estão desativados porque a alterariam de forma permanente; remova a configuração personalizada deste jogo para os usar. Os valores mostrados são os do último arranque.",
         @"accuracyLegacyBlocked": @"Testes desativados para este jogo: usa uma configuração personalizada completa do RPCS3.",
+        @"testNo": @"Não",
+        @"testYes": @"Sim",
       },
       @"id": @{
         @"accuracyMenu": @"Uji akurasi",
@@ -974,6 +986,8 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
         @"testSourceCustom": @"konfigurasi kustom",
         @"accuracyLegacyHelp": @"Game ini memakai konfigurasi RPCS3 kustom lengkap. Uji akurasi dinonaktifkan karena akan mengubahnya secara permanen; hapus konfigurasi kustom game ini untuk menggunakannya. Nilai yang ditampilkan berasal dari boot terakhir.",
         @"accuracyLegacyBlocked": @"Uji dinonaktifkan untuk game ini karena memakai konfigurasi RPCS3 kustom lengkap.",
+        @"testNo": @"Tidak",
+        @"testYes": @"Ya",
       },
       @"ru": @{
         @"accuracyMenu": @"Тесты точности",
@@ -1002,6 +1016,8 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
         @"testSourceCustom": @"своя конфигурация",
         @"accuracyLegacyHelp": @"Эта игра использует полную пользовательскую конфигурацию RPCS3. Тесты точности отключены, так как они изменили бы её навсегда; удалите пользовательскую конфигурацию этой игры, чтобы их использовать. Показаны значения последнего запуска.",
         @"accuracyLegacyBlocked": @"Тесты отключены для этой игры: она использует полную пользовательскую конфигурацию RPCS3.",
+        @"testNo": @"Нет",
+        @"testYes": @"Да",
       },
       @"ja": @{
         @"accuracyMenu": @"精度テスト",
@@ -1030,6 +1046,8 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
         @"testSourceCustom": @"カスタム設定",
         @"accuracyLegacyHelp": @"このゲームは完全なカスタム RPCS3 設定を使用しています。精度テストはこの設定を恒久的に変更してしまうため無効です。使用するには、このゲームのカスタム設定を削除してください。表示される値は前回の起動時のものです。",
         @"accuracyLegacyBlocked": @"このゲームではテストを使用できません。完全なカスタム RPCS3 設定を使用しています。",
+        @"testNo": @"オフ",
+        @"testYes": @"オン",
       },
       @"ko": @{
         @"accuracyMenu": @"정확도 테스트",
@@ -1058,6 +1076,8 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
         @"testSourceCustom": @"사용자 지정 구성",
         @"accuracyLegacyHelp": @"이 게임은 전체 사용자 지정 RPCS3 구성을 사용합니다. 정확도 테스트는 이 구성을 영구적으로 바꾸므로 비활성화되어 있습니다. 사용하려면 이 게임의 사용자 지정 구성을 제거하세요. 표시되는 값은 마지막 부팅의 값입니다.",
         @"accuracyLegacyBlocked": @"이 게임에서는 테스트를 사용할 수 없습니다. 전체 사용자 지정 RPCS3 구성을 사용합니다.",
+        @"testNo": @"꺼짐",
+        @"testYes": @"켜짐",
       },
       @"zh": @{
         @"accuracyMenu": @"精度测试",
@@ -1086,6 +1106,8 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
         @"testSourceCustom": @"自定义配置",
         @"accuracyLegacyHelp": @"此游戏使用完整的自定义 RPCS3 配置。精度测试会永久修改该配置，因此已停用；如需使用，请删除此游戏的自定义配置。显示的是上次启动时的值。",
         @"accuracyLegacyBlocked": @"此游戏已停用测试：它使用完整的自定义 RPCS3 配置。",
+        @"testNo": @"否",
+        @"testYes": @"是",
       },
       @"zh_Hant": @{
         @"accuracyMenu": @"精度測試",
@@ -1114,6 +1136,8 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
         @"testSourceCustom": @"自訂設定",
         @"accuracyLegacyHelp": @"此遊戲使用完整的自訂 RPCS3 設定。精度測試會永久修改該設定，因此已停用；如需使用，請刪除此遊戲的自訂設定。顯示的是上次啟動時的值。",
         @"accuracyLegacyBlocked": @"此遊戲已停用測試：它使用完整的自訂 RPCS3 設定。",
+        @"testNo": @"否",
+        @"testYes": @"是",
       },
     };
   });

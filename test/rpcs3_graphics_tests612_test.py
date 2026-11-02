@@ -82,9 +82,9 @@ def bridge_whitelist(bridge: str) -> dict[str, list[str]]:
 
 def menu_levers(menu: str) -> list[dict]:
     body = block(menu, 'static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {', '  return levers;\n}')
-    shared = {'onOff': ['false', 'true'], 'onOffLabels': ['disabled', 'enabled']}
+    shared = {'onOff': ['false', 'true'], 'onOffLabels': ['testNo', 'testYes']}
     require('NSArray* onOff = @[@"false", @"true"];' in body and
-            'NSArray* onOffLabels = @[@"disabled", @"enabled"];' in body, 'menu on/off lists changed')
+            'NSArray* onOffLabels = @[@"testNo", @"testYes"];' in body, 'menu on/off lists changed')
     levers = []
     for item in re.findall(r'@\{(@"key".*?)\}', body, re.S):
         fields = dict(re.findall(r'@"(key|title|field)": @"([^"]+)"', item))
@@ -169,7 +169,7 @@ def app_contract() -> dict:
     tables = l10n_tables(l10n)
     require(tuple(tables) == LOCALES, 'Build612Translations locales: ' + repr(list(tables)))
     keys = list(tables['en'])
-    require(len(keys) == 26 and all(list(tables[locale]) == keys for locale in LOCALES), 'locale key sets differ')
+    require(len(keys) == 28 and all(list(tables[locale]) == keys for locale in LOCALES), 'locale key sets differ')
     require(all(value.strip() for table in tables.values() for value in table.values()), 'empty translation')
     page = block(menu, '- (NSString*)accuracyDetail:(NSDictionary*)lever {', '\n}\n') + block(
         menu, '  if (self.page == RPCS3MenuAccuracy) {\n    NSArray<NSDictionary*>* levers', '\n  }\n')

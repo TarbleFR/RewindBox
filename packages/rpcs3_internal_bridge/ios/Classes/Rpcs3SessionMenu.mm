@@ -29,7 +29,8 @@ static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
   static dispatch_once_t once;
   dispatch_once(&once, ^{
     NSArray* onOff = @[@"false", @"true"];
-    NSArray* onOffLabels = @[@"disabled", @"enabled"];
+    // Yes/No, not Enabled/Disabled: a "Disable …" row would otherwise read as a double negative.
+    NSArray* onOffLabels = @[@"testNo", @"testYes"];
     levers = @[
       @{@"key": @"gpu.zcull_accuracy", @"title": @"testZcull",
         @"values": @[@"Precise", @"Approximate", @"Relaxed"],
@@ -330,7 +331,11 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   } else {
     NSString* value = state[lever[@"field"]];
     if (!value.length) return [self text:@"testUnknown"];
-    label = ([value isEqual:@"true"] || [value isEqual:@"1"]) ? @"enabled" : @"disabled";
+    // The detail uses the labels of the choice page: Yes/No for the "true"/"false" levers,
+    // Enabled/Disabled for the resolved policies reported as "1"/"0".
+    const NSUInteger index = [lever[@"values"] indexOfObject:value];
+    label = index != NSNotFound ? lever[@"labels"][index]
+        : (([value isEqual:@"true"] || [value isEqual:@"1"]) ? @"enabled" : @"disabled");
   }
   NSString* overrideKeys = state[@"overrides"] ?: @"";
   NSArray<NSString*>* overrides = [overrideKeys componentsSeparatedByString:@","];
