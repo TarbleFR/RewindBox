@@ -7,6 +7,7 @@ import 'package:neostation/providers/sqlite_database_provider.dart';
 import 'package:neostation/providers/file_provider.dart';
 import 'package:neostation/providers/theme_provider.dart';
 import 'package:neostation/services/glacier_preset.dart';
+import 'package:retro_achievements_session/retro_achievements_session.dart';
 import 'package:neostation/themes/glacier_theme.dart';
 import 'package:neostation/themes/interface_style.dart';
 import 'package:neostation/providers/scraping_provider.dart';
@@ -495,6 +496,9 @@ void main() async {
     initLanguageCode: initLang.isNotEmpty ? initLang : 'en',
   );
   await AchievementTranslationClient.shared.setLanguage(initLang.isNotEmpty ? initLang : 'en');
+  // Where the saved in-game sign-in was found at each read (Keychain, the
+  // private copy, or none): codes only, into the app log.
+  RetroAchievementsNativeClient.diagnostics = log.i;
   await RetroAchievementsSessionService.shared.initialize();
 
   // Inicializar providers criticos

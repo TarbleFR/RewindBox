@@ -291,3 +291,34 @@ PS3 achievements did not seem to start.
   client. The client only starts when the central session is enabled and
   signed in, so a lost sign-in also leaves PS3 without achievements.
   Confirmation needs the two current logs above.
+
+## Follow-up: the in-game sign-in is lost at every launch (2 November 2026, 14:39 recording)
+
+Recording on delivered IPA 614: the RA tab shows `Mot de passe requis`, the
+password sign-in succeeds (`Activé`), the app is closed from the app switcher
+and reopened: `Mot de passe requis` again, achievements off. The Web
+statistics account (its Web API key is also in the Keychain, through
+flutter_secure_storage) is restored on the same relaunch.
+
+- Nothing in the app deletes the in-game token except an explicit sign-out
+  (re-checked: the only `logout`/`SecItemDelete` callers are the confirmed
+  sign-out, the dialog's "Sign out" and "ignore old accounts"). The state after
+  the relaunch (signed out *and* switched off) means the `account` read found
+  no Keychain item for `<bundle>.retroachievements`.
+- **Fix (plugin `RetroAchievementsSessionPlugin.m`):** the central account
+  (username + Connect token, never the password) is also kept in a private
+  copy, `Application Support/RetroAchievements/central-session.json`: not in
+  Documents (not visible in Files), excluded from backups, file protection
+  "complete until first unlock", permissions 0600. Reads use the Keychain
+  first, then the private copy, which restores the Keychain item. Sign-out
+  deletes both. New Keychain writes use "after first unlock, this device only"
+  (readable when iOS launches the app in the background). RetroArch, Dolphin
+  and PCSX2 keep the same token in their configuration files.
+- **Diagnostics:** `app.log` now says where the sign-in was found at each
+  read: `RetroAchievements central account read: authenticated=true storage=keychain|file|none keychain=<OSStatus>`
+  (written by the plugin's Dart client, `RetroAchievementsNativeClient.diagnostics`).
+  `storage=file` after a relaunch confirms that iOS did not return the
+  Keychain item on that installation.
+- Tests: new native XCTest `testSignInSurvivesALostKeychainItemAndSignOutRemovesBothCopies`
+  (not run here: needs macOS/Xcode; the Linux source contract passes); Dart
+  session suites 28/28. Device validation needed on the next IPA.

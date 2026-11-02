@@ -20,9 +20,20 @@ class RetroAchievementsNativeClient {
     }
   }
 
+  /// Receives one diagnostic line per account read: where the saved sign-in
+  /// was found ("keychain", "file" for the private copy, or "none") and the
+  /// Keychain status code. Codes only, never account data. Set by the app to
+  /// its log.
+  static void Function(String message)? diagnostics;
+
   Future<Map<String, Object?>> invoke(String method, [Map<String, Object?> arguments = const {}]) async {
     if (!available) return const {'available': false};
     final result = await _channel.invokeMapMethod<String, Object?>(method, arguments);
+    if (method == 'account' && result != null && result['storage'] is String) {
+      diagnostics?.call('RetroAchievements central account read: '
+          'authenticated=${result['authenticated'] == true} storage=${result['storage']} '
+          'keychain=${result['keychainStatus'] ?? '-'}');
+    }
     return result ?? const {};
   }
 
