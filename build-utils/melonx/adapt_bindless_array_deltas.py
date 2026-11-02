@@ -44,8 +44,15 @@ The array now updates only the elements whose result can differ:
 - The entry's texture set stays exact (reference counts per bound texture), so
   SynchronizeMemory, SignalModified (image stores) and the scale blacklist reach
   exactly the bound textures, as on the cache-hit path.
-- New entries, TextureBuffer arrays (their storage is rebound on every update) and
-  any failure keep the full rebuild, which also records the per-element state.
+- A synchronisation can replace the storage of a bound texture and release the host
+  texture the array holds (scaled data written by the CPU, a copy dependency, the
+  scale blacklist; Texture.ReplaceStorage bumps the sequence). The delivered cache-hit
+  path then bound the released host for that draw; the full rebuild did not, as
+  GetInternal synchronises before the host is read. Both the hit path and the delta
+  path now check the bound sequences after synchronising and rebind otherwise.
+- New entries, TextureBuffer arrays (their storage is rebound on every update; no
+  per-element state is kept for them) and any failure keep the full rebuild, which
+  records the per-element state.
 Pool synchronisation, the order of renderer commands and resource lifetimes are
 unchanged; memory is still synchronised for every bound texture on every update.
 
@@ -181,6 +188,19 @@ ENTRY_STATE = '''            private int _texturePoolSequence;
             }
 
             /// <summary>
+            /// Synchronizes memory for all textures in the array, then checks that no synchronisation replaced the
+            /// storage (and released the host texture) of a bound texture: scaled data written by the CPU, a copy
+            /// dependency or the scale blacklist replace it and bump its sequence.
+            /// </summary>
+            /// <returns>True if the bound host textures are still current</returns>
+            public bool SynchronizeMemoryAndValidate(bool isStore, bool blacklistScale)
+            {
+                SynchronizeMemory(isStore, blacklistScale);
+
+                return ValidateTextures();
+            }
+
+            /// <summary>
             /// Checks that the element still resolves to what was recorded, without resolving it.
             /// </summary>
             public bool DeltaUnchanged(int index, TexturePool texturePool, SamplerPool samplerPool, bool isSampler, bool aliasesMoved)
@@ -221,10 +241,15 @@ RESET_NEW = '''            public virtual void Reset()
 
 HIT = '''            if (!poolModified && !isNewEntry && entry.ValidateTextures())
             {
-                entry.SynchronizeMemory(isStore, resScaleUnsupported);'''
-HIT_NEW = '''            if (!poolModified && !isNewEntry && !entry.ForceRebuild && entry.ValidateTextures())
+                entry.SynchronizeMemory(isStore, resScaleUnsupported);
+
+                if (isImage)'''
+HIT_NEW = '''            // A synchronisation that replaces a bound texture's storage releases the host texture the array holds:
+            // the array is reused only if every bound texture is still current after it (else it is updated below).
+            if (!poolModified && !isNewEntry && !entry.ForceRebuild && entry.ValidateTextures() &&
+                entry.SynchronizeMemoryAndValidate(isStore, resScaleUnsupported))
             {
-                entry.SynchronizeMemory(isStore, resScaleUnsupported);'''
+                if (isImage)'''
 
 FULL_DISPATCH = '''            if (!isNewEntry)
             {
@@ -261,8 +286,18 @@ FULL_DISPATCH_NEW = '''            if (!isNewEntry && entry.DeltaReady && !entry
 
             PD.Count(PD.Counter.ArrayFullElements, length);
 
-            entry.PrepareDelta(length, isSampler, bindingInfo.FormatInfo, texturePool?.AliasGeneration ?? 0, resScaleUnsupported);
             bool deltaCapable = bindingInfo.Target != Target.TextureBuffer;
+
+            if (deltaCapable)
+            {
+                entry.PrepareDelta(length, isSampler, bindingInfo.FormatInfo, texturePool?.AliasGeneration ?? 0, resScaleUnsupported);
+            }
+            else
+            {
+                // Buffer-texture arrays rebind their storage on every update: no per-element state for them.
+                entry.DeltaReady = false;
+                entry.ForceRebuild = true;
+            }
 
             ISampler[] samplers = null;
             ITexture[] textures = null;
@@ -284,14 +319,17 @@ FULL_RECORD = '''                    ITexture hostTexture = texture?.GetTargetTe
 FULL_RECORD_NEW = '''                    ITexture hostTexture = texture?.GetTargetTexture(bindingInfo.Target);
                     ISampler hostSampler = sampler?.GetHostSampler(texture);
 
-                    entry.RecordDelta(
-                        index,
-                        isSampler ? null : texturePool.PeekForBindingDelta(index, out _),
-                        texture,
-                        hostTexture,
-                        isSampler ? samplerPool?.GetCachedItem(index) : null,
-                        hostSampler,
-                        replacing: false);
+                    if (deltaCapable)
+                    {
+                        entry.RecordDelta(
+                            index,
+                            isSampler ? null : texturePool.PeekForBindingDelta(index, out _),
+                            texture,
+                            hostTexture,
+                            isSampler ? samplerPool?.GetCachedItem(index) : null,
+                            hostSampler,
+                            replacing: false);
+                    }
 
                     if (hostTexture != null && texture.Target == Target.TextureBuffer)
                     {
@@ -507,8 +545,13 @@ FULL_END_NEW = '''                if (isImage)
                     }
                 }
 
-                // The same memory synchronisation, store signal and scale blacklist as the cache-hit path.
-                entry.SynchronizeMemory(isStore, resScaleUnsupported);
+                // The same memory synchronisation, store signal and scale blacklist as the cache-hit path. Unchanged
+                // elements were sent with their recorded hosts: if a synchronisation replaced a bound texture's
+                // storage, the full rebuild binds the new host instead.
+                if (!entry.SynchronizeMemoryAndValidate(isStore, resScaleUnsupported))
+                {
+                    return false;
+                }
 
                 if (isImage)
                 {

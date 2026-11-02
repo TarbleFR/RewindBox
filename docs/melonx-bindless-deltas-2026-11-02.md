@@ -82,6 +82,12 @@ candidate Core carries counters that decide it (section 6).
 - After any re-resolved element, a verification scan checks that no lookup of this pass
   removed or replaced a texture bound elsewhere; otherwise the full rebuild runs in the
   same update.
+- Synchronising a bound texture can replace its storage and release the host the array
+  holds (scaled data written by the CPU, a copy dependency, the scale blacklist). The
+  delivered cache hit then bound the released host for that draw (undefined behaviour on
+  Vulkan/MoltenVK, only at a resolution scale other than 1). The hit path and the delta
+  path now check the bound sequences after synchronising and rebind otherwise (found by
+  an independent review of the final source).
 - New entries, `TextureBuffer` arrays (storage rebound on every update) and any failure
   keep the full rebuild, which also records the per-element state. After a failed update
   (delta or full), the next one rebuilds even without a pool write.
@@ -100,7 +106,7 @@ with the adapter); pools, textures and transport are doubles that follow the pro
 rules (descriptor comparison, alias lists and views, storage replacement by scaling and by
 `BlacklistScale`, disposal, sampler creation). Evidence:
 [host-checks-linux.json](evidence/melonx-bindless-deltas-20261102/host-checks-linux.json)
-(258 driver checks; 12.6 M and 17.7 M program checks).
+(263 driver checks; 12.6 M and 17.7 M program checks).
 
 - 72 random scenarios (texture, sampler and image arrays of 8, 70 and 5,000 elements,
   threaded and direct renderers, image stores, format views, unsupported scaling;
@@ -113,8 +119,15 @@ rules (descriptor comparison, alias lists and views, storage replacement by scal
 - Defects of the delivered code that the candidate does not keep: a texture removed by a
   lookup of the same pass stays bound with its released host until the next update; after
   a lookup failure (delta or full pass) the array stays stale until the pool is written.
-- `TextureBuffer` arrays keep the full rebuild; quiet updates come back to cache hits after
-  the blacklisting rebuild.
+- A synchronisation that replaces a bound texture's storage: the delivered code binds the
+  released host on a cache hit (correct only when the pool was written); the candidate
+  never does.
+- `TextureBuffer` arrays keep the full rebuild without per-element state; quiet updates
+  come back to cache hits after the blacklisting rebuild.
+- Known, bounded, not changed: an image-array element whose format view cannot be created
+  (start address unmapped, transient) makes each delta pass fall back to the full rebuild
+  until it resolves; when most elements change, a delta pass costs up to about twice a
+  full rebuild in CPU but still allocates nothing per element.
 - Pool-sized array, pool written before every update (host CPU, not iPhone):
 
 | Elements | Changed | GPU-thread bytes / update | Lookups | Elements sent | Host µs |

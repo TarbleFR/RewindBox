@@ -137,6 +137,10 @@ check(len(candidate['removals']) == 4 and all(r['correctAtOnce'] for r in candid
       'a texture removed by a lookup of the same pass is rebound in that update')
 check(len(candidate['failures']) == 4 and all(f['correctWithoutWrite'] for f in candidate['failures']),
       'after a failed update (delta or full) the next update rebuilds without a pool write')
+check(len(candidate['syncs']) == 4 and all(r['correctAtOnce'] for r in candidate['syncs']),
+      'a synchronisation that replaces a bound texture storage never leaves the released host bound')
+check([r['correctAtOnce'] for r in control['syncs']] == [False, False, True, True],
+      'delivered: released host bound on the cache hit only')
 check(len(candidate['quiet']) == 4 and all(q['refreshes'] <= 1 for q in candidate['quiet']),
       'quiet updates come back to cache hits after the blacklisting rebuild')
 rows = []
@@ -158,7 +162,7 @@ for old, new in zip(control['measures'], candidate['measures'], strict=True):
 inputs = ['build-utils/melonx/adapt_bindless_array_deltas.py', 'test/melonx_bindless_array_deltas_test.py',
           'test/melonx_bindless_array_deltas/Program.cs', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 receipt = dict(result='passed', checks=checks, programChecks=dict(control=control['checks'], candidate=candidate['checks']),
-               deliveredDefects=dict(removals=control['removals'], failures=control['failures']),
+               deliveredDefects=dict(removals=control['removals'], failures=control['failures'], syncs=control['syncs']),
                measures=rows, candidateCounters=candidate['counters'], physicalDeviceTested=False, fpsGainProven=False,
                poolsTexturesAndTransportDoubled=True, productionCacheAndCommandsCompiled=True,
                sourceKind='deliveredPreparedWithFinalCandidate' if CANDIDATE else 'deliveredPreparedComposed',

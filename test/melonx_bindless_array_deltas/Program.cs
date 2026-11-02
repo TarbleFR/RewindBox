@@ -13,6 +13,7 @@
 // - a removed texture is disposed (host released, sequence bumped) and its descriptor
 //   resolves to a new texture object; any later call on a disposed texture is a violation;
 // - a lookup may remove another texture as a side effect (overlap removal in FindOrCreateTexture);
+// - synchronising a scaled texture that received CPU data blacklists it, replacing its storage;
 // - SamplerPool.Get creates a sampler for every in-range id; a changed sampler is disposed;
 // - the cache entry key holds neither the format nor the usage flags, so bindings with
 //   different formats, image stores or scale support can share one entry.
@@ -390,6 +391,33 @@ static class Program
         return new { threaded, format, correctAtOnce };
     }
 
+    // CPU data written to a bound scaled texture: its synchronisation replaces the storage. With a pool write
+    // the delivered rebuild synchronises before reading the host; on its cache hit it binds the released host
+    // for that draw. The candidate must bind the new host in both cases.
+    static object SyncReplacesHost(bool threaded, bool poolWritten)
+    {
+        World w = new(64, threaded, 19);
+        TextureBindingInfo binding = World.Binding(64, Kind.Texture);
+        w.Update(binding, Kind.Texture);
+        Texture texture = w.Textures.Items[1];
+        Check.That(texture != null && w.Textures.Keys[40] == 0, "fixture: element 1 bound, element 40 empty");
+        texture.ScaleUp();
+        w.Update(binding, Kind.Texture);
+        VerifyAgainstPools(w, Kind.Texture, 0, "scaled texture bound");
+        texture.PendingUpload = true;
+        if (poolWritten) w.Textures.Write(40, 1);
+        w.Update(binding, Kind.Texture);
+        Check.That(!texture.Scaled && texture.ScaleMode == TextureScaleMode.Blacklisted, "fixture: the synchronisation replaced the storage");
+        bool correctAtOnce = true;
+        try { VerifyAgainstPools(w, Kind.Texture, 0, "after the replacing synchronisation"); } catch (InvalidOperationException) { correctAtOnce = false; }
+        w.Update(binding, Kind.Texture);
+        VerifyAgainstPools(w, Kind.Texture, 0, "next update");
+        Check.That(w.Violations == 0, "a call reached a disposed texture");
+        if (Adapted) Check.That(correctAtOnce, "the candidate never binds the released host");
+        w.Threaded?.Dispose();
+        return new { threaded, poolWritten, correctAtOnce };
+    }
+
     // A lookup that throws mid-pass. The candidate rebuilds on the next update even without a pool write.
     static object FailureScenario(bool threaded, bool duringRebuild)
     {
@@ -501,6 +529,7 @@ static class Program
         List<object> buffers = new() { TextureBufferScenario(true), TextureBufferScenario(false) };
         List<object> removals = new() { RemovalDuringPass(true, 0), RemovalDuringPass(false, 0), RemovalDuringPass(true, 3), RemovalDuringPass(false, 3) };
         List<object> failures = new() { FailureScenario(true, false), FailureScenario(false, false), FailureScenario(true, true), FailureScenario(false, true) };
+        List<object> syncs = new() { SyncReplacesHost(true, false), SyncReplacesHost(false, false), SyncReplacesHost(true, true), SyncReplacesHost(false, true) };
         List<object> quiet = new() { QuietAfterBlacklist(true, 0), QuietAfterBlacklist(false, 0), QuietAfterBlacklist(true, 2), QuietAfterBlacklist(false, 2) };
         List<object> measures = new();
         foreach (int length in new[] { 4097, 16384, 65536 })
@@ -515,7 +544,7 @@ static class Program
         }
         Console.WriteLine(JsonSerializer.Serialize(new
         {
-            adapted = Adapted, checks = Check.Count, scenarios, shared, buffers, removals, failures, quiet, measures,
+            adapted = Adapted, checks = Check.Count, scenarios, shared, buffers, removals, failures, syncs, quiet, measures,
             counters = Enum.GetNames<PD.Counter>().Zip(PD.Totals).ToDictionary(p => p.First, p => p.Second),
             deltaPasses = PD.Calls[(int)PD.Work.ArrayDelta],
         }));
@@ -707,7 +736,7 @@ namespace Ryujinx.Graphics.Gpu.Image
         public TextureScaleMode ScaleMode;
         public int InvalidatedSequence;
         public TestRange Range;
-        public bool Scaled, Disposed, StepSynced, StepSignaled;
+        public bool Scaled, Disposed, StepSynced, StepSignaled, PendingUpload;
         public string Name => World.Describe(Host);
         public string SignalName => Parent == null ? "t" + Key : "a" + Key + "." + Format;
         public Texture(World world, ITexture host, int key, int format, Texture parent)
@@ -717,7 +746,18 @@ namespace Ryujinx.Graphics.Gpu.Image
         }
         void Use() { if (Disposed) _world.Violations++; }
         public ITexture GetTargetTexture(Target target) { Use(); return Host; }
-        public void SynchronizeMemory() { Use(); StepSynced = true; }
+        // Scaled data written by the CPU: SynchronizeFull/Partial blacklists the texture (AllowScaledSetData),
+        // which replaces its storage while it may already be bound.
+        public void SynchronizeMemory()
+        {
+            Use();
+            StepSynced = true;
+            if (PendingUpload)
+            {
+                PendingUpload = false;
+                if (Scaled) BlacklistScale();
+            }
+        }
         public void SignalModified() { Use(); StepSignaled = true; }
         // ReplaceStorage: the old host is released; views are recreated against the new storage.
         void ReplaceStorage()
