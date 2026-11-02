@@ -3999,10 +3999,10 @@ index e11a275..353f459 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 0000000..7f0f61d
+index 0000000..d48e4d1
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,85 @@
+@@ -0,0 +1,94 @@
 +# CELL591: the exact reviewed JITLLVM change clears a stack ObjectCache on
 +# recoverable failure; SPULLVM drops finalized IR after obtaining native code.
 +# Neither changes object emission, relocations or the callable ABI.
@@ -4084,6 +4084,15 @@ index 0000000..7f0f61d
 +    elseif(source STREQUAL "Cell/SPULLVMRecompiler.cpp" AND
 +           actual STREQUAL "a1a994dab42a9b24990b3bf2e931c97509b25371cc96681216e644655ddb8ea3")
 +        set(${output} "613a7fa9ff59420720c810b0040e3d3b89cae89ea41e3715e7daf62de20c9be7" PARENT_SCOPE)
++    # REWINDBOX_SPU_OBJECT_HIT_ADMISSION_613: compile() reads and validates a
++    # cached object before the LLVM compile admission and admits only misses,
++    # rejected objects and blocks over 16 KiB. The admission is host scheduling
++    # around the same object key, IR build, link and code generation: emitted
++    # objects, helper symbols and relocations are unchanged. Keep the delivered
++    # Core 612 effective hash for this exact source snapshot only.
++    elseif(source STREQUAL "Cell/SPULLVMRecompiler.cpp" AND
++           actual STREQUAL "46e26928919087f4daf23eb6a62211894deb8599671bc55468fb639cfef935d7")
++        set(${output} "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff" PARENT_SCOPE)
 +    else()
 +        set(${output} "${actual}" PARENT_SCOPE)
 +    endif()
@@ -10381,7 +10390,7 @@ index 0000000..9d19266
 +}
 +}
 diff --git a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
-index 9a1e4c7..5cdf309 100644
+index 9a1e4c7..5808c81 100644
 --- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 +++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
 @@ -1,5 +1,12 @@
@@ -11015,7 +11024,7 @@ index 9a1e4c7..5cdf309 100644
  		{
  			sha1_context ctx;
  			u8 output[20];
-@@ -1751,9 +2216,42 @@ public:
+@@ -1751,9 +2216,61 @@ public:
  		{
  			g_spu_llvm_compile_context->llvm_error.clear();
  		}
@@ -11024,13 +11033,9 @@ index 9a1e4c7..5cdf309 100644
 +		// generate different machine code for the same guest bytes; the object
 +		// name tells the variants apart (ARMSX3 a84572bcb).
 +		m_hash += rpcs3::spu::object_cache::variant_suffix(m_use_tbl2, m_use_fma);
- #endif
- 
--		spu_log.notice("Building function 0x%x... (size %u, %s)", func.entry_point, func.data.size(), m_hash);
-+#ifdef RPCS3_IOS
-+		rpcs3::ios::compile_admission admission(func.data.size() * sizeof(u32), [] { return Emu.IsStopped(); });
-+		if (!admission) return nullptr;
++#endif
 +
++#ifdef RPCS3_IOS
 +		// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: read a previously generated
 +		// object before building the IR. A hit still builds the module (its
 +		// symbol names and patchpoint mappings are needed to link) but skips the
@@ -11051,15 +11056,38 @@ index 9a1e4c7..5cdf309 100644
 +				rpcs3::ios::record_spu_object_cache_event(rpcs3::ios::spu_object_cache_event::invalid);
 +			}
 +		}
-+#endif
 +
++		// REWINDBOX_SPU_OBJECT_HIT_ADMISSION_613: the LLVM compile admission
++		// reserves at least 128 MiB of host budget per job for code generation
++		// (at most 3 jobs, 1 under memory or thermal pressure). Black Ops II,
++		// Build 612 iPhone logs (2 November 2026): every boot rebuilds its SPU
++		// blocks on first use and all of them are object-cache hits (6,376 in
++		// one window, 0 misses), yet they queued behind that budget one at a
++		// time (JITMEM active_peak=1): 10.8 s of llvm_budget_cv waits and 2.8 s
++		// of object reads serialized in a 5 s window, the 2.9-4.6 s frames at
++		// level and match start. A hit of a block of at most 16 KiB reads a
++		// validated object of a few KiB and builds the IR of a short function
++		// without the pass pipeline or code generation, so it no longer waits
++		// for that budget; a miss, a rejected object or a larger block is
++		// admitted as before. The block still compiles on the SPU thread that
++		// needs it, before that thread runs it.
++		constexpr usz unadmitted_hit_max_bytes = 16 * 1024;
++		std::optional<rpcs3::ios::compile_admission> admission;
++		if (!spu_cached_object || func.data.size() * sizeof(u32) > unadmitted_hit_max_bytes)
++		{
++			admission.emplace(func.data.size() * sizeof(u32), [] { return Emu.IsStopped(); });
++			if (!*admission) return nullptr;
++		}
+ #endif
+ 
+-		spu_log.notice("Building function 0x%x... (size %u, %s)", func.entry_point, func.data.size(), m_hash);
 +		// NEOSTATION_BUILD499_SPU_AUDIT_V1: aggregate JITPROF/SPUPROF remain the default diagnostics.
 +		// Per-block messages are opt-in trace; avoid formatting and file writes on every compile.
 +		spu_log.trace("SPUCORE499 Building function 0x%x... (size %u, %s)", func.entry_point, func.data.size(), m_hash);
  
  		m_pos = func.lower_bound;
  		m_base = func.entry_point;
-@@ -1764,33 +2262,48 @@ public:
+@@ -1764,33 +2281,48 @@ public:
  		m_pp_id = 0;
  
  		std::string function_log;
@@ -11119,7 +11147,7 @@ index 9a1e4c7..5cdf309 100644
  			spu_log.notice("Function %s dump:\n%s", m_hash, function_log);
  		}
  
-@@ -1875,6 +2388,7 @@ public:
+@@ -1875,6 +2407,7 @@ public:
  			[[maybe_unused]] u32 elements;
  			[[maybe_unused]] u32 dwords;
  
@@ -11127,7 +11155,7 @@ index 9a1e4c7..5cdf309 100644
  			if (m_use_avx512)
  			{
  				stride = 64;
-@@ -1888,6 +2402,7 @@ public:
+@@ -1888,6 +2421,7 @@ public:
  				dwords = 4;
  			}
  			else
@@ -11135,7 +11163,7 @@ index 9a1e4c7..5cdf309 100644
  			{
  				stride = 16;
  				elements = 4;
-@@ -3853,44 +4368,97 @@ public:
+@@ -3853,44 +4387,97 @@ public:
  			m_function_table->eraseFromParent();
  		}
  
@@ -11240,8 +11268,9 @@ index 9a1e4c7..5cdf309 100644
 +				const auto f = func.second.fn ? func.second.fn : func.second.chunk;
 +				fpm.run(*f, fam);
 +			}
-+		}
-+
+ 		}
+ 
+-		for (const auto& func : m_functions)
 +#ifdef RPCS3_IOS
 +		const u64 codegen_started = utils::get_tsc();
 +		jit_phase::g_counters.add(jit_phase::spu_passes, codegen_started - passes_started, m_size);
@@ -11255,9 +11284,8 @@ index 9a1e4c7..5cdf309 100644
 +		{
 +			m_test_state->eraseFromParent();
 +			m_test_state = nullptr;
- 		}
- 
--		for (const auto& func : m_functions)
++		}
++
 +		if (m_dispatch->use_empty())
  		{
 -			const auto f = func.second.fn ? func.second.fn : func.second.chunk;
@@ -11267,7 +11295,7 @@ index 9a1e4c7..5cdf309 100644
  		}
  
  		// Clear context (TODO)
-@@ -3904,12 +4472,33 @@ public:
+@@ -3904,12 +4491,33 @@ public:
  		std::string& llvm_log = function_log;
  		raw_string_ostream out(llvm_log);
  
@@ -11306,7 +11334,7 @@ index 9a1e4c7..5cdf309 100644
  			out.flush();
  			spu_log.error("LLVM: Verification failed at 0x%x:\n%s", func.entry_point, llvm_log);
  
-@@ -3951,22 +4540,39 @@ public:
+@@ -3951,22 +4559,39 @@ public:
  
  			if (recoverable)
  			{
@@ -11315,6 +11343,11 @@ index 9a1e4c7..5cdf309 100644
 +				bool added = false;
  
 -				if (g_cfg.core.spu_debug)
+-				{
+-					// Testing only
+-					added = m_jit.try_add(std::move(_module), m_spurt->get_cache_path() + "llvm/", llvm_error);
+-				}
+-				else if (!m_spurt->get_obj_cache_path().empty())
 +#ifdef RPCS3_IOS
 +				// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: a hit links the cached
 +				// object; a miss generates code and persists it, but only when the
@@ -11323,11 +11356,6 @@ index 9a1e4c7..5cdf309 100644
 +				// a future translator change can never poison the cache again.
 +				if (use_spu_obj_cache)
  				{
--					// Testing only
--					added = m_jit.try_add(std::move(_module), m_spurt->get_cache_path() + "llvm/", llvm_error);
--				}
--				else if (!m_spurt->get_obj_cache_path().empty())
--				{
 -					// ARM64 objects embed process-specific host addresses as
 -					// immediates without relocations. Compile into the current
 -					// process only until every such address is symbolic.
@@ -11357,7 +11385,7 @@ index 9a1e4c7..5cdf309 100644
  				{
  					added = m_jit.try_add(std::move(_module), llvm_error);
  				}
-@@ -3983,19 +4589,7 @@ public:
+@@ -3983,19 +4608,7 @@ public:
  			}
  			else
  			{
@@ -11378,7 +11406,7 @@ index 9a1e4c7..5cdf309 100644
  
  				m_jit.fin();
  			}
-@@ -4018,11 +4612,76 @@ public:
+@@ -4018,11 +4631,76 @@ public:
  #endif
  		}
  
@@ -11455,7 +11483,7 @@ index 9a1e4c7..5cdf309 100644
  
  		// Rebuild trampoline if necessary
  		if (!m_spurt->rebuild_ubertrampoline(func.data[0]))
-@@ -4069,7 +4728,7 @@ public:
+@@ -4069,7 +4747,7 @@ public:
  				cache.add(func);
  			}
  
@@ -11464,7 +11492,7 @@ index 9a1e4c7..5cdf309 100644
  		}
  
  		return fn;
-@@ -4159,14 +4818,13 @@ public:
+@@ -4159,14 +4837,13 @@ public:
  		// Pinned constant, address of first register
  		m_interp_regs = _ptr(m_thread, get_reg_offset(0));
  
@@ -11483,7 +11511,7 @@ index 9a1e4c7..5cdf309 100644
  
  		// Decode (shift) and load function pointer
  		const auto first = m_ir->CreateLoad(get_type<u8*>(), m_ir->CreateGEP(get_type<u8*>(), m_interp_table, m_ir->CreateLShr(m_interp_op, 32u - m_interp_magn)));
-@@ -4444,17 +5102,34 @@ public:
+@@ -4444,17 +5121,34 @@ public:
  		for (auto& f : *_module)
  		{
  			run_transforms(f);
@@ -11523,7 +11551,7 @@ index 9a1e4c7..5cdf309 100644
  			out.flush();
  			spu_log.error("LLVM: Verification failed:\n%s", llvm_log);
  
-@@ -4466,6 +5141,11 @@ public:
+@@ -4466,6 +5160,11 @@ public:
  			fmt::throw_exception("Compilation failed");
  		}
  
@@ -11535,7 +11563,7 @@ index 9a1e4c7..5cdf309 100644
  		if (g_cfg.core.spu_debug)
  		{
  			// Testing only
-@@ -4479,11 +5159,22 @@ public:
+@@ -4479,11 +5178,22 @@ public:
  		{
  			m_jit.add(std::move(_module));
  		}
@@ -11558,7 +11586,7 @@ index 9a1e4c7..5cdf309 100644
  
  		for (u32 i = 0; i < spu_runtime::g_interpreter_table.size(); i++)
  		{
-@@ -4507,7 +5198,7 @@ public:
+@@ -4507,7 +5217,7 @@ public:
  
  	static bool exec_check_state(spu_thread* _spu)
  	{
@@ -11567,7 +11595,7 @@ index 9a1e4c7..5cdf309 100644
  	}
  
  	template <spu_intrp_func_t F>
-@@ -4747,7 +5438,9 @@ public:
+@@ -4747,7 +5457,9 @@ public:
  #if defined(ARCH_X64) || defined(ARCH_ARM64)
  			if (utils::get_tsc_freq() && !(g_cfg.core.spu_loop_detection) && (g_cfg.core.clocks_scale == 100))
  			{
@@ -11578,7 +11606,7 @@ index 9a1e4c7..5cdf309 100644
  				const auto timestamp = m_ir->CreateLoad(get_type<u64>(), spu_ptr(&spu_thread::ch_dec_start_timestamp));
  				const auto dec_value = m_ir->CreateLoad(get_type<u32>(), spu_ptr(&spu_thread::ch_dec_value));
  				const auto tsc = m_ir->CreateCall(get_intrinsic(llvm::Intrinsic::readcyclecounter));
-@@ -4924,9 +5617,25 @@ public:
+@@ -4924,9 +5636,25 @@ public:
  			{
  				auto wait_inbox = [](spu_thread* _spu, spu_channel_4_t* ch) -> u32
  				{
@@ -11605,7 +11633,7 @@ index 9a1e4c7..5cdf309 100644
  				res.value = call("wait_spu_inbox", +wait_inbox, m_thread, spu_ptr(&spu_thread::ch_in_mbox));
  				break;
  			}
-@@ -5200,7 +5909,7 @@ public:
+@@ -5200,7 +5928,7 @@ public:
  				}
  			}
  
@@ -11614,7 +11642,7 @@ index 9a1e4c7..5cdf309 100644
  			//m_ir->CreateStore(val.value, spu_ptr(&spu_thread::ch_mfc_cmd, &spu_mfc_cmd::eah));
  			return;
  		}
-@@ -5403,6 +6112,16 @@ public:
+@@ -5403,6 +6131,16 @@ public:
  					}
  					}
  
@@ -11631,7 +11659,7 @@ index 9a1e4c7..5cdf309 100644
  					// Check if the LS address is constant and 256 bit aligned
  					u64 clsa = umax;
  
-@@ -5411,20 +6130,19 @@ public:
+@@ -5411,20 +6149,19 @@ public:
  						clsa = ci->getZExtValue();
  					}
  
@@ -11654,7 +11682,7 @@ index 9a1e4c7..5cdf309 100644
  					{
  						// Generate fixed sequence of copy operations
  						for (u32 i = 0; i < csize; i += stride)
-@@ -5483,6 +6201,18 @@ public:
+@@ -5483,6 +6220,18 @@ public:
  
  				// Get MFC slot, redirect to invalid memory address
  				const auto slot = m_ir->CreateLoad(get_type<u32>(), spu_ptr(&spu_thread::mfc_size));
@@ -11673,7 +11701,7 @@ index 9a1e4c7..5cdf309 100644
  				const auto off0 = m_ir->CreateAdd(m_ir->CreateMul(slot, m_ir->getInt32(sizeof(spu_mfc_cmd))), m_ir->getInt32(::offset32(&spu_thread::mfc_queue)));
  				const auto ptr0 = _ptr(m_thread, m_ir->CreateZExt(off0, get_type<u64>()));
  				const auto ptr1 = _ptr(m_memptr, 0xffdeadf0);
-@@ -5540,6 +6270,7 @@ public:
+@@ -5540,6 +6289,7 @@ public:
  				case MFC_EIEIO_CMD:
  				case MFC_SYNC_CMD:
  				{
@@ -11681,7 +11709,7 @@ index 9a1e4c7..5cdf309 100644
  					m_ir->CreateStore(m_ir->getInt32(-1), pb);
  					m_ir->CreateStore(m_ir->CreateOr(m_ir->CreateLoad(get_type<u32>(), pf), mask), pf);
  					break;
-@@ -5558,7 +6289,7 @@ public:
+@@ -5558,7 +6308,7 @@ public:
  			}
  
  			// Fallback to unoptimized WRCH implementation (TODO)
@@ -11690,7 +11718,7 @@ index 9a1e4c7..5cdf309 100644
  			break;
  		}
  		case MFC_WrListStallAck:
-@@ -5580,29 +6311,8 @@ public:
+@@ -5580,29 +6330,8 @@ public:
  			return;
  		}
  		case SPU_WrDec:
@@ -11722,7 +11750,7 @@ index 9a1e4c7..5cdf309 100644
  		case SPU_Set_Bkmk_Tag:
  		case SPU_PM_Start_Ev:
  		case SPU_PM_Stop_Ev:
-@@ -5702,14 +6412,34 @@ public:
+@@ -5702,14 +6431,34 @@ public:
  
  	void ABSDB(spu_opcode_t op)
  	{
@@ -11757,7 +11785,7 @@ index 9a1e4c7..5cdf309 100644
  	}
  
  	void ROTM(spu_opcode_t op)
-@@ -5747,7 +6477,13 @@ public:
+@@ -5747,7 +6496,13 @@ public:
  			return;
  		}
  
@@ -11771,7 +11799,7 @@ index 9a1e4c7..5cdf309 100644
  	}
  
  	void SHL(spu_opcode_t op)
-@@ -5766,7 +6502,13 @@ public:
+@@ -5766,7 +6521,13 @@ public:
  	void ROTH(spu_opcode_t op)
  	{
  		const auto [a, b] = get_vrs<u16[8]>(op.ra, op.rb);
@@ -11785,7 +11813,7 @@ index 9a1e4c7..5cdf309 100644
  	}
  
  	void ROTHM(spu_opcode_t op)
-@@ -5804,7 +6546,13 @@ public:
+@@ -5804,7 +6565,13 @@ public:
  			return;
  		}
  
@@ -11799,7 +11827,7 @@ index 9a1e4c7..5cdf309 100644
  	}
  
  	void SHLH(spu_opcode_t op)
-@@ -6258,13 +7006,12 @@ public:
+@@ -6258,13 +7025,12 @@ public:
  
  	void FSMB(spu_opcode_t op)
  	{
@@ -11817,7 +11845,7 @@ index 9a1e4c7..5cdf309 100644
  		const auto m = bitcast<bool[16]>(trunc<u16>(v));
  		set_vr(op.rt, sext<s8[16]>(m));
  #endif
-@@ -6273,7 +7020,17 @@ public:
+@@ -6273,7 +7039,17 @@ public:
  	template <typename TA>
  	static auto byteswap(TA&& a)
  	{
@@ -11835,7 +11863,7 @@ index 9a1e4c7..5cdf309 100644
  	}
  
  	static auto rotqby_reverse_base()
-@@ -6334,20 +7091,24 @@ public:
+@@ -6334,20 +7110,24 @@ public:
  				const auto sc = rotqby_reverse_base();
  				const auto sh = sc + (splat_scalar(b) >> 3);
  
@@ -11860,7 +11888,7 @@ index 9a1e4c7..5cdf309 100644
  
  			return eval(pshufb_for_x86_and_tbl_for_aarch64(a, (sh & 0xf)));
  		});
-@@ -6504,8 +7265,14 @@ public:
+@@ -6504,8 +7284,14 @@ public:
  			}
  		}
  
@@ -11875,7 +11903,7 @@ index 9a1e4c7..5cdf309 100644
  	}
  
  	void ROTQMBI(spu_opcode_t op)
-@@ -6518,15 +7285,27 @@ public:
+@@ -6518,15 +7304,27 @@ public:
  			minusb = eval(x);
  		}
  
@@ -11903,7 +11931,7 @@ index 9a1e4c7..5cdf309 100644
  	}
  
  #if defined(ARCH_X64)
-@@ -6561,11 +7340,13 @@ public:
+@@ -6561,11 +7359,13 @@ public:
  			const auto sc = rotqby_reverse_base();
  			const auto sh = eval(sc + splat_scalar(b));
  
@@ -11917,7 +11945,7 @@ index 9a1e4c7..5cdf309 100644
  
  			set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(as, (sh & 0xf)));
  			return;
-@@ -6574,11 +7355,13 @@ public:
+@@ -6574,11 +7374,13 @@ public:
  		const auto sc = rotqby_forward_base();
  		const auto sh = eval(sc - splat_scalar(b));
  
@@ -11931,7 +11959,7 @@ index 9a1e4c7..5cdf309 100644
  
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, (sh & 0xf)));
  	}
-@@ -6724,6 +7507,16 @@ public:
+@@ -6724,6 +7526,16 @@ public:
  	void ROTQBYI(spu_opcode_t op)
  	{
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -11948,7 +11976,7 @@ index 9a1e4c7..5cdf309 100644
  		const auto sc = rotqby_forward_base();
  		const auto sh = (sc - get_imm<u8[16]>(op.i7, false)) & 0xf;
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6732,6 +7525,16 @@ public:
+@@ -6732,6 +7544,16 @@ public:
  	void ROTQMBYI(spu_opcode_t op)
  	{
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -11965,7 +11993,7 @@ index 9a1e4c7..5cdf309 100644
  		const auto sc = rotqby_zero_base();
  		const auto sh = sc + (-get_imm<u8[16]>(op.i7, false) & 0x1f);
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6741,6 +7544,16 @@ public:
+@@ -6741,6 +7563,16 @@ public:
  	{
  		if (get_reg_raw(op.ra) && !op.i7) return set_reg_fixed(op.rt, get_reg_raw(op.ra), false); // For expressions matching
  		const auto a = get_vr<u8[16]>(op.ra);
@@ -11982,7 +12010,7 @@ index 9a1e4c7..5cdf309 100644
  		const auto sc = rotqby_forward_base();
  		const auto sh = sc - (get_imm<u8[16]>(op.i7, false) & 0x1f);
  		set_vr(op.rt, pshufb_for_x86_and_tbl_for_aarch64(a, sh));
-@@ -6773,6 +7586,7 @@ public:
+@@ -6773,6 +7605,7 @@ public:
  
  	void SUMB(spu_opcode_t op)
  	{
@@ -11990,7 +12018,7 @@ index 9a1e4c7..5cdf309 100644
  		if (m_use_avx512)
  		{
  			const auto [a, b] = get_vrs<u8[16]>(op.ra, op.rb);
-@@ -6789,6 +7603,7 @@ public:
+@@ -6789,6 +7622,7 @@ public:
  			set_vr(op.rt, shuffle2(ax, bx, 0, 9, 2, 11, 4, 13, 6, 15));
  			return;
  		}
@@ -11998,7 +12026,7 @@ index 9a1e4c7..5cdf309 100644
  
  #ifdef ARCH_ARM64
  		if (m_use_dotprod)
-@@ -6812,6 +7627,17 @@ public:
+@@ -6812,6 +7646,17 @@ public:
  			return;
  		}
  
@@ -12016,7 +12044,7 @@ index 9a1e4c7..5cdf309 100644
  		const auto [a, b] = get_vrs<u16[8]>(op.ra, op.rb);
  		const auto ahs = eval((a >> 8) + (a & 0xff));
  		const auto bhs = eval((b >> 8) + (b & 0xff));
-@@ -6850,11 +7676,31 @@ public:
+@@ -6850,11 +7695,31 @@ public:
  
  	void XSWD(spu_opcode_t op)
  	{
@@ -12048,7 +12076,7 @@ index 9a1e4c7..5cdf309 100644
  		set_vr(op.rt, get_vr<s32[4]>(op.ra) << 16 >> 16);
  	}
  
-@@ -6865,6 +7711,16 @@ public:
+@@ -6865,6 +7730,16 @@ public:
  
  	void XSBH(spu_opcode_t op)
  	{
@@ -12065,7 +12093,7 @@ index 9a1e4c7..5cdf309 100644
  		set_vr(op.rt, get_vr<s16[8]>(op.ra) << 8 >> 8);
  	}
  
-@@ -6925,16 +7781,28 @@ public:
+@@ -6925,16 +7800,28 @@ public:
  	void CGX(spu_opcode_t op)
  	{
  		const auto [a, b] = get_vrs<u32[4]>(op.ra, op.rb);
@@ -12094,7 +12122,7 @@ index 9a1e4c7..5cdf309 100644
  	}
  
  	void MPYHHA(spu_opcode_t op)
-@@ -7417,6 +8285,32 @@ public:
+@@ -7417,6 +8304,32 @@ public:
  			case 2:
  			case 1:
  			{
@@ -12127,7 +12155,7 @@ index 9a1e4c7..5cdf309 100644
  				set_vr(op.rt4, select(bitcast<s8[16]>(c) != 0, get_vr<u8[16]>(op.rb), get_vr<u8[16]>(op.ra)));
  				return;
  			}
-@@ -7451,6 +8345,18 @@ public:
+@@ -7451,6 +8364,18 @@ public:
  			// If the mask comes from a constant generation instruction, replace SHUFB with insert
  			if (auto [ok, i] = match_expr(c, spu_get_insertion_shuffle_mask<VT>(match<u32>())); ok)
  			{
@@ -12146,7 +12174,7 @@ index 9a1e4c7..5cdf309 100644
  				set_vr(op.rt4, insert(get_vr<VT>(op.rb), i, get_scalar(get_vr<VT>(op.ra))));
  				return true;
  			}
-@@ -7461,6 +8367,21 @@ public:
+@@ -7461,6 +8386,21 @@ public:
  			return;
  		}
  
@@ -12168,7 +12196,7 @@ index 9a1e4c7..5cdf309 100644
  		const auto c = get_vr<u8[16]>(op.rc);
  
  		if (auto [ok, mask] = get_const_vector(c.value, m_pos); ok)
-@@ -7507,7 +8428,7 @@ public:
+@@ -7507,7 +8447,7 @@ public:
  					{ 0x1011121314151617, 0x000102031c1d1e1f, &cpu_translator::get_type<u32[4]>, 3, 1 },
  					{ 0x1011121314151617, 0x18191a1b00010203, &cpu_translator::get_type<u32[4]>, 3, 0 },
  					{ 0x0001020304050607, 0x18191a1b1c1d1e1f, &cpu_translator::get_type<u64[2]>, 1, 1 },
@@ -12177,7 +12205,7 @@ index 9a1e4c7..5cdf309 100644
  				};
  
  				// Check important constants from CWD-like constant generation instructions
-@@ -7568,6 +8489,28 @@ public:
+@@ -7568,6 +8508,28 @@ public:
  		[[maybe_unused]] const bool consts_never_msb = known_idx.Zero[5];
  		[[maybe_unused]] const bool consts_never_allones = known_idx.One[5];
  		[[maybe_unused]] const bool idx_selects_single = known_idx.extractBits(1, 4).isConstant();
@@ -12206,7 +12234,7 @@ index 9a1e4c7..5cdf309 100644
  
  		const auto a = get_vr<u8[16]>(op.ra);
  		const auto b = get_vr<u8[16]>(op.rb);
-@@ -7627,12 +8570,12 @@ public:
+@@ -7627,12 +8589,12 @@ public:
  			cv = eval(c ^ 0xf);
  		}
  
@@ -12224,7 +12252,7 @@ index 9a1e4c7..5cdf309 100644
  #else
  		const std::optional<value_t<u8[16]>> single_src = (idx_selects_single || (op.ra == op.rb && !m_interp_magn))
  #endif
-@@ -7675,6 +8618,14 @@ public:
+@@ -7675,6 +8637,14 @@ public:
  				return;
  			}
  
@@ -12239,7 +12267,7 @@ index 9a1e4c7..5cdf309 100644
  			const auto x = tbl(build<u8[16]>(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x80, 0x80), (c >> 4));
  			const auto xv = perm_or_zero_only ? eval(splat<u8[16]>(0)) : x;
  			const auto cm = eval(cv & 0x8f);
-@@ -7694,6 +8645,15 @@ public:
+@@ -7694,6 +8664,15 @@ public:
  			return;
  		}
  
@@ -12255,7 +12283,7 @@ index 9a1e4c7..5cdf309 100644
  		if (perm_only)
  		{
  			const auto cm = eval(cv & 0x1f);
-@@ -7701,6 +8661,14 @@ public:
+@@ -7701,6 +8680,14 @@ public:
  			return;
  		}
  
@@ -12270,7 +12298,7 @@ index 9a1e4c7..5cdf309 100644
  		const auto idx_consts = tbl(build<u8[16]>(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0x80, 0x80), (c >> 4));
  		const auto idx_base = perm_or_zero_only ? eval(splat<u8[16]>(0)) : idx_consts;
  		const auto cm = eval(cv & 0x9f);
-@@ -7953,6 +8921,7 @@ public:
+@@ -7953,6 +8940,7 @@ public:
  	{
  		const auto known = known_opt.value_or(get_known_fp_class<3>(v, llvm::FPClassTest::fcNan | llvm::FPClassTest::fcInf));
  
@@ -12278,7 +12306,7 @@ index 9a1e4c7..5cdf309 100644
  		// Avoid pessimation when full clamping isn't needed
  		if (m_use_avx512 && !(known.isKnownNeverNaN() && (known.isKnownNeverPosInfinity() || known.isKnownNeverNegInfinity())))
  		{
-@@ -7960,6 +8929,7 @@ public:
+@@ -7960,6 +8948,7 @@ public:
  			// Normally doesn't cause issues as SNaN frequently gets quieted beforehand
  			return eval(vrangeps(v, fsplat<f32[4]>(std::bit_cast<f32, u32>(0x7f7fffff)), 0x2, 0xff));
  		}
@@ -12286,7 +12314,7 @@ index 9a1e4c7..5cdf309 100644
  
  		return eval(clamp_positive_smax(clamp_negative_smax(v, known), known));
  	}
-@@ -7993,6 +8963,7 @@ public:
+@@ -7993,6 +8982,7 @@ public:
  			const auto a_sign = (a & splat<u32[4]>(0x80000000));
  			value_t<u32[4]> final_result = eval(splat<u32[4]>(0));
  
@@ -12294,7 +12322,7 @@ index 9a1e4c7..5cdf309 100644
  			if (m_use_avx512)
  			{
  				value_t<u32[16]> lo_lut;
-@@ -8003,6 +8974,7 @@ public:
+@@ -8003,6 +8993,7 @@ public:
  				final_result = vperm2d128From512(lo_lut, a_fraction, hi_lut);
  			}
  			else
@@ -12302,7 +12330,7 @@ index 9a1e4c7..5cdf309 100644
  			{
  				for (u32 i = 0; i < 4; i++)
  				{
-@@ -8058,6 +9030,15 @@ public:
+@@ -8058,6 +9049,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -12318,7 +12346,7 @@ index 9a1e4c7..5cdf309 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(get_vr<f64[4]>(op.ra) > get_vr<f64[4]>(op.rb))));
  			return;
  		}
-@@ -8154,6 +9135,15 @@ public:
+@@ -8154,6 +9154,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -12334,7 +12362,7 @@ index 9a1e4c7..5cdf309 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(fabs(get_vr<f64[4]>(op.ra)) > fabs(get_vr<f64[4]>(op.rb)))));
  			return;
  		}
-@@ -8432,6 +9422,15 @@ public:
+@@ -8432,6 +9441,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -12350,7 +12378,7 @@ index 9a1e4c7..5cdf309 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(get_vr<f64[4]>(op.ra) == get_vr<f64[4]>(op.rb))));
  			return;
  		}
-@@ -8481,6 +9480,15 @@ public:
+@@ -8481,6 +9499,15 @@ public:
  	{
  		if (g_cfg.core.spu_xfloat_accuracy == xfloat_accuracy::accurate)
  		{
@@ -12366,7 +12394,7 @@ index 9a1e4c7..5cdf309 100644
  			set_vr(op.rt, sext<s32[4]>(fcmp_ord(fabs(get_vr<f64[4]>(op.ra)) == fabs(get_vr<f64[4]>(op.rb)))));
  			return;
  		}
-@@ -8669,6 +9677,7 @@ public:
+@@ -8669,6 +9696,7 @@ public:
  					return eval(select(fcmp_uno(b != fsplat<f32[4]>(0.)), normal_fma, c));
  				}
  
@@ -12374,7 +12402,7 @@ index 9a1e4c7..5cdf309 100644
  				// Same number of operations well preventing a serial predicate chain pessimization
  				if (m_use_avx512)
  				{
-@@ -8677,6 +9686,7 @@ public:
+@@ -8677,6 +9705,7 @@ public:
  					const auto cb = vfixupimmps(b, a, splat<u32[4]>(0x00000800u), 0, 0xff);
  					return fma32x4(ca, cb, c, a_known, b_known);
  				}
@@ -12382,7 +12410,7 @@ index 9a1e4c7..5cdf309 100644
  
  				const auto normal_fma = fma32x4(a, b, c, a_known, b_known);
  				const auto a_cmp = fcmp_uno(a != fsplat<f32[4]>(0.));
-@@ -8689,6 +9699,7 @@ public:
+@@ -8689,6 +9718,7 @@ public:
  			}
  		});
  
@@ -12390,7 +12418,7 @@ index 9a1e4c7..5cdf309 100644
  		if (m_use_avx512)
  		{
  			register_intrinsic("spu_re_acc", [&](llvm::CallInst* ci)
-@@ -8702,6 +9713,7 @@ public:
+@@ -8702,6 +9732,7 @@ public:
  			});
  		}
  		else
@@ -12398,7 +12426,7 @@ index 9a1e4c7..5cdf309 100644
  		{
  			register_intrinsic("spu_re_acc", [&](llvm::CallInst* ci)
  			{
-@@ -8910,17 +9922,38 @@ public:
+@@ -8910,17 +9941,38 @@ public:
  
  		if (auto [ok_re, mystery] = match_expr(a, spu_re(MT)); ok_re)
  		{
@@ -12437,7 +12465,7 @@ index 9a1e4c7..5cdf309 100644
  		}
  
  		if (!m_interp_magn && op.ra == op.rb)
-@@ -9046,6 +10079,7 @@ public:
+@@ -9046,6 +10098,7 @@ public:
  				const auto a_sign = (a & splat<u32[4]>(0x80000000));
  				value_t<u32[4]> b = eval(splat<u32[4]>(0));
  
@@ -12445,7 +12473,7 @@ index 9a1e4c7..5cdf309 100644
  				if (m_use_avx512)
  				{
  					value_t<u32[16]> lo_lut;
-@@ -9056,6 +10090,7 @@ public:
+@@ -9056,6 +10109,7 @@ public:
  					b = vperm2d128From512(lo_lut, a_fraction, hi_lut);
  				}
  				else
@@ -12453,7 +12481,7 @@ index 9a1e4c7..5cdf309 100644
  				{
  					for (u32 i = 0; i < 4; i++)
  					{
-@@ -9311,6 +10346,7 @@ public:
+@@ -9311,6 +10365,7 @@ public:
  
  			value_t<s32[4]> r;
  
@@ -12461,7 +12489,7 @@ index 9a1e4c7..5cdf309 100644
  			if (m_use_avx512)
  			{
  				const auto sc = eval(bitcast<f32[4]>(max(bitcast<s32[4]>(a),splat<s32[4]>(0x0))));
-@@ -9318,6 +10354,7 @@ public:
+@@ -9318,6 +10373,7 @@ public:
  				set_vr(op.rt, r);
  				return;
  			}
@@ -12469,7 +12497,7 @@ index 9a1e4c7..5cdf309 100644
  
  			r.value = m_ir->CreateFPToUI(a.value, get_type<s32[4]>());
  			set_vr(op.rt, select(bitcast<s32[4]>(a) > splat<s32[4]>(((32 + 127) << 23) - 1), splat<s32[4]>(-1), r & ~(bitcast<s32[4]>(a) >> 31)));
-@@ -9650,7 +10687,7 @@ public:
+@@ -9650,7 +10706,7 @@ public:
  
  		if (_spu->ch_events.load().count)
  		{
@@ -12478,7 +12506,7 @@ index 9a1e4c7..5cdf309 100644
  			_spu->srr0 = addr;
  
  			// Test for BR/BRA instructions (they are equivalent at zero pc)
-@@ -9667,6 +10704,13 @@ public:
+@@ -9667,6 +10723,13 @@ public:
  		return addr;
  	}
  
@@ -12492,7 +12520,7 @@ index 9a1e4c7..5cdf309 100644
  	llvm::BasicBlock* add_block_indirect(spu_opcode_t op, value_t<u32> addr, bool ret = true)
  	{
  		if (m_interp_magn)
-@@ -9690,7 +10734,7 @@ public:
+@@ -9690,7 +10753,7 @@ public:
  			target->addIncoming(e_addr, e_exec);
  			m_ir->CreateCondBr(get_imm<bool>(op.d).value, d_exec, d_done, m_md_unlikely);
  			m_ir->SetInsertPoint(d_exec);
@@ -12501,7 +12529,7 @@ index 9a1e4c7..5cdf309 100644
  			m_ir->CreateBr(d_done);
  			m_ir->SetInsertPoint(d_done);
  			m_ir->CreateBr(m_interp_bblock);
-@@ -9749,7 +10793,7 @@ public:
+@@ -9749,7 +10812,7 @@ public:
  
  		if (op.d)
  		{
@@ -12510,7 +12538,7 @@ index 9a1e4c7..5cdf309 100644
  		}
  
  		m_ir->CreateStore(addr.value, spu_ptr(&spu_thread::pc));
-@@ -10036,7 +11080,7 @@ public:
+@@ -10036,7 +11099,7 @@ public:
  		if (op.d && tfound != m_targets.end() && tfound->second.size() == 1 && tfound->second[0] == spu_branch_target(m_pos, 1))
  		{
  			// Interrupts-disable pattern
@@ -12519,7 +12547,7 @@ index 9a1e4c7..5cdf309 100644
  			return;
  		}
  
-@@ -10102,7 +11146,7 @@ public:
+@@ -10102,7 +11165,7 @@ public:
  			{
  				// Can't afford external tail call in true functions
  				m_ir->CreateStore(m_ir->getInt32("BIJT"_u32), _ptr(m_memptr, 0xffdead20));
@@ -21979,10 +22007,10 @@ index 572935e..eaff79b 100644
  	};
  
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-index 63cab28..a2a9d5a 100644
+index 63cab28..e40ca31 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-@@ -16,10 +16,20 @@
+@@ -16,10 +16,21 @@
  #include "vkutils/scratch.h"
  
  #include "Emu/RSX/rsx_methods.h"
@@ -21999,11 +22027,12 @@ index 63cab28..a2a9d5a 100644
 +#include "ios/IOSEarlySubmit.h"
 +#include "ios/IOSRsxIdlePark.h"
 +#include "ios/RPCS3IOSExperimentalPolicy.h"
++#include "util/tsc.hpp"
 +#endif
  
  #include "../Program/SPIRVCommon.h"
  
-@@ -475,6 +485,30 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -475,6 +486,30 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  	vk::set_current_renderer(m_swapchain->get_device());
  	vk::init();
  
@@ -22034,7 +22063,7 @@ index 63cab28..a2a9d5a 100644
  	m_swapchain_dims.width = m_frame->client_width();
  	m_swapchain_dims.height = m_frame->client_height();
  
-@@ -537,7 +571,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -537,7 +572,7 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  	m_flushable_data_heaps = vk::data_heap_manager::to_list().filter(FN(x->has_shadow()));
  
@@ -22043,7 +22072,7 @@ index 63cab28..a2a9d5a 100644
  
  	if (shadermode == shader_mode::async_with_interpreter || shadermode == shader_mode::interpreter_only)
  	{
-@@ -796,6 +830,11 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
+@@ -796,6 +831,11 @@ VKGSRender::VKGSRender(utils::serial* ar) noexcept : GSRender(ar)
  
  VKGSRender::~VKGSRender()
  {
@@ -22055,7 +22084,7 @@ index 63cab28..a2a9d5a 100644
  	if (m_device == VK_NULL_HANDLE)
  	{
  		//Initialization failed
-@@ -935,6 +974,9 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+@@ -935,6 +975,9 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
  			g_fxo->get<rsx::dma_manager>().set_mem_fault_flag();
  			m_queue_status |= flush_queue_state::deadlock;
  			m_eng_interrupt_mask |= rsx::backend_interrupt;
@@ -22065,7 +22094,7 @@ index 63cab28..a2a9d5a 100644
  
  			// Wait for deadlock to clear
  			while (m_queue_status & flush_queue_state::deadlock)
-@@ -959,6 +1001,10 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+@@ -959,6 +1002,10 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
  			m_flush_requests.post(false);
  			m_eng_interrupt_mask |= rsx::backend_interrupt;
  			has_queue_ref = true;
@@ -22076,7 +22105,7 @@ index 63cab28..a2a9d5a 100644
  		}
  		else
  		{
-@@ -983,6 +1029,11 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
+@@ -983,6 +1030,11 @@ bool VKGSRender::on_access_violation(u32 address, bool is_writing)
  			};
  		}
  
@@ -22088,7 +22117,7 @@ index 63cab28..a2a9d5a 100644
  		m_texture_cache.flush_all(*m_secondary_cb_list.next(), result, data_transfer_completed_callback);
  
  		if (has_queue_ref)
-@@ -1019,12 +1070,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
+@@ -1019,12 +1071,39 @@ void VKGSRender::on_invalidate_memory_range(const utils::address_range32 &range,
  
  void VKGSRender::on_semaphore_acquire_wait()
  {
@@ -22128,7 +22157,7 @@ index 63cab28..a2a9d5a 100644
  }
  
  bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
-@@ -1048,6 +1126,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1048,6 +1127,13 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  				for (auto i = 0ull; i < texture_array.size(); ++i)
  				{
  					const auto& tex = texture_array[i];
@@ -22142,7 +22171,7 @@ index 63cab28..a2a9d5a 100644
  					const auto addr = rsx::get_address(tex.offset(), tex.location());
  					exclusion_list.insert(addr);
  				}
-@@ -1096,33 +1181,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
+@@ -1096,33 +1182,18 @@ bool VKGSRender::on_vram_exhausted(rsx::problem_severity severity)
  		return any_cache_relieved;
  	}
  
@@ -22157,15 +22186,7 @@ index 63cab28..a2a9d5a 100644
 -			{
 -				return;
 -			}
-+		// Spilling and resolve-cache eviction destroy image views. Invalidate
-+		// every cached framebuffer descriptor, even when a global refresh is
-+		// already pending: load_texture_env only refreshes the current shader's
-+		// referenced slots before clearing that global flag.
-+		const bool invalidate_fragment_samplers = rsx::invalidate_sampler_context(
-+			fs_sampler_state, m_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
-+		const bool invalidate_vertex_samplers = rsx::invalidate_sampler_context(
-+			vs_sampler_state, m_vertex_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
- 
+-
 -			for (auto i = 0ull; i < texture_array.size(); ++i)
 -			{
 -				if (texture_array[i].enabled() &&
@@ -22180,13 +22201,21 @@ index 63cab28..a2a9d5a 100644
 -
 -		scan_array(rsx::method_registers.fragment_textures, fs_sampler_state);
 -		scan_array(rsx::method_registers.vertex_textures, vs_sampler_state);
--
++		// Spilling and resolve-cache eviction destroy image views. Invalidate
++		// every cached framebuffer descriptor, even when a global refresh is
++		// already pending: load_texture_env only refreshes the current shader's
++		// referenced slots before clearing that global flag.
++		const bool invalidate_fragment_samplers = rsx::invalidate_sampler_context(
++			fs_sampler_state, m_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
++		const bool invalidate_vertex_samplers = rsx::invalidate_sampler_context(
++			vs_sampler_state, m_vertex_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
+ 
 -		if (invalidate_samplers)
 +		if (invalidate_fragment_samplers || invalidate_vertex_samplers)
  		{
  			m_samplers_dirty.store(true);
  		}
-@@ -1234,8 +1304,13 @@ void VKGSRender::bind_viewport()
+@@ -1234,8 +1305,13 @@ void VKGSRender::bind_viewport()
  		m_graphics_state.clear(rsx::pipeline_state::zclip_config_state_dirty);
  	}
  
@@ -22200,7 +22229,7 @@ index 63cab28..a2a9d5a 100644
  }
  
  void VKGSRender::on_init_thread()
-@@ -1250,8 +1325,8 @@ void VKGSRender::on_init_thread()
+@@ -1250,8 +1326,8 @@ void VKGSRender::on_init_thread()
  	GSRender::on_init_thread();
  	zcull_ctrl.reset(static_cast<::rsx::reports::ZCULL_control*>(this));
  
@@ -22211,7 +22240,7 @@ index 63cab28..a2a9d5a 100644
  	{
  		std::unique_ptr<rsx::shader_loading_dialog> dlg = m_overlay_manager
  			? std::make_unique<rsx::shader_loading_dialog_native>(this)
-@@ -1260,7 +1335,7 @@ void VKGSRender::on_init_thread()
+@@ -1260,7 +1336,7 @@ void VKGSRender::on_init_thread()
  		dlg->close();
  	}
  
@@ -22220,7 +22249,7 @@ index 63cab28..a2a9d5a 100644
  	{
  		if (!m_overlay_manager)
  		{
-@@ -1276,12 +1351,34 @@ void VKGSRender::on_init_thread()
+@@ -1276,12 +1352,34 @@ void VKGSRender::on_init_thread()
  			m_shaders_cache->load(&dlg);
  		}
  	}
@@ -22255,7 +22284,7 @@ index 63cab28..a2a9d5a 100644
  	zcull_ctrl.release();
  }
  
-@@ -1541,6 +1638,9 @@ void VKGSRender::flush_command_queue(bool hard_sync, bool do_not_switch)
+@@ -1541,6 +1639,9 @@ void VKGSRender::flush_command_queue(bool hard_sync, bool do_not_switch)
  
  	if (hard_sync)
  	{
@@ -22265,7 +22294,17 @@ index 63cab28..a2a9d5a 100644
  		// wait for the latest instruction to execute
  		m_current_command_buffer->reset();
  
-@@ -1801,12 +1901,15 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
+@@ -1718,6 +1819,9 @@ void VKGSRender::sync_hint(rsx::FIFO::interrupt_hint hint, rsx::reports::sync_hi
+ 		// This heavyweight hint should be used with caution
+ 		std::lock_guard lock(m_flush_queue_mutex);
+ 		flush_command_queue();
++#ifdef RPCS3_IOS
++		rpcs3::ios::rsx_sync::zcull_hint_flushes.fetch_add(1, std::memory_order_relaxed);
++#endif
+ 
+ 		if (m_flush_requests.pending())
+ 		{
+@@ -1801,12 +1905,15 @@ void VKGSRender::do_local_task(rsx::FIFO::state state)
  
  bool VKGSRender::load_program()
  {
@@ -22283,7 +22322,7 @@ index 63cab28..a2a9d5a 100644
  	{
  		get_current_fragment_program(fs_sampler_state);
  		ensure(current_fragment_program.valid);
-@@ -1862,8 +1965,13 @@ bool VKGSRender::load_program()
+@@ -1862,8 +1969,13 @@ bool VKGSRender::load_program()
  		);
  
  		properties.renderpass_key = m_current_renderpass_key;
@@ -22297,7 +22336,7 @@ index 63cab28..a2a9d5a 100644
  			m_pipeline_properties == properties)
  		{
  			// Nothing changed
-@@ -1872,7 +1980,6 @@ bool VKGSRender::load_program()
+@@ -1872,7 +1984,6 @@ bool VKGSRender::load_program()
  
  		// Fallthrough
  		m_pipeline_properties = properties;
@@ -22305,7 +22344,7 @@ index 63cab28..a2a9d5a 100644
  	}
  	else
  	{
-@@ -1912,7 +2019,11 @@ bool VKGSRender::load_program()
+@@ -1912,7 +2023,11 @@ bool VKGSRender::load_program()
  
  		vk::leave_uninterruptible();
  
@@ -22318,7 +22357,7 @@ index 63cab28..a2a9d5a 100644
  		{
  			// Notify the user with HUD notification
  			if (g_cfg.misc.show_shader_compilation_hint)
-@@ -2467,7 +2578,13 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+@@ -2467,7 +2582,13 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
  		{
  			const VkSemaphore async_sema = *async_scheduler->get_sema();
  			secondary_submit_info.queue_signal(async_sema);
@@ -22332,7 +22371,7 @@ index 63cab28..a2a9d5a 100644
  
  			// Delay object destruction by one cycle
  			vk::get_resource_manager()->push_down_current_scope();
-@@ -2482,10 +2599,61 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+@@ -2482,10 +2603,61 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
  	}
  
  	m_current_command_buffer->submit(primary_submit_info, force_flush);
@@ -22394,7 +22433,7 @@ index 63cab28..a2a9d5a 100644
  void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  {
  	const bool clipped_scissor = (context == rsx::framebuffer_creation_context::context_draw);
-@@ -2602,6 +2770,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2602,6 +2774,20 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		flush_command_queue();
  	}
  
@@ -22415,7 +22454,7 @@ index 63cab28..a2a9d5a 100644
  	if (!m_rtts.superseded_surfaces.empty())
  	{
  		for (auto& surface : m_rtts.superseded_surfaces)
-@@ -2636,6 +2818,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2636,6 +2822,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  			if (!lock) [[likely]]
  			{
  				m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface->get_memory_range());
@@ -22425,7 +22464,7 @@ index 63cab28..a2a9d5a 100644
  				continue;
  			}
  
-@@ -2663,6 +2848,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2663,6 +2852,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		else
  		{
  			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
@@ -22435,7 +22474,7 @@ index 63cab28..a2a9d5a 100644
  		}
  	}
  
-@@ -2679,6 +2867,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+@@ -2679,6 +2871,9 @@ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
  		else
  		{
  			m_texture_cache.commit_framebuffer_memory_region(*m_current_command_buffer, surface_range);
@@ -22445,7 +22484,7 @@ index 63cab28..a2a9d5a 100644
  		}
  	}
  
-@@ -2720,7 +2911,7 @@ void VKGSRender::renderctl(u32 request_code, void* args)
+@@ -2720,7 +2915,7 @@ void VKGSRender::renderctl(u32 request_code, void* args)
  	{
  		const auto packet = reinterpret_cast<vk::queue_submit_t*>(args);
  		vk::queue_submit(packet);
@@ -22454,6 +22493,29 @@ index 63cab28..a2a9d5a 100644
  		break;
  	}
  	default:
+@@ -2811,10 +3006,22 @@ void VKGSRender::get_occlusion_query_result(rsx::reports::occlusion_query_info*
+ 	if (data.indices.empty())
+ 		return;
+ 
++#ifdef RPCS3_IOS
++	// REWINDBOX_ZCULL_SYNC_PROBE_613: the whole read, flush and GPU wait included.
++	struct ios_zcull_result_cost
++	{
++		const u64 started = utils::get_tsc();
++		~ios_zcull_result_cost() { rpcs3::ios::rsx_sync::zcull_result_ticks.record(utils::get_tsc() - started); }
++	} ios_zcull_result_cost;
++#endif
++
+ 	if (query->num_draws)
+ 	{
+ 		if (data.is_current(m_current_command_buffer))
+ 		{
++#ifdef RPCS3_IOS
++			rpcs3::ios::rsx_sync::zcull_result_flushes.fetch_add(1, std::memory_order_relaxed);
++#endif
+ 			std::lock_guard lock(m_flush_queue_mutex);
+ 			flush_command_queue();
+ 
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
 index e3817d8..f70ed70 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.h
@@ -31930,10 +31992,10 @@ index 0000000..b344283
 +}
 diff --git a/rpcs3/ios/IOSRsxSyncProfile.h b/rpcs3/ios/IOSRsxSyncProfile.h
 new file mode 100644
-index 0000000..cb0aa8a
+index 0000000..b0527fe
 --- /dev/null
 +++ b/rpcs3/ios/IOSRsxSyncProfile.h
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,105 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -32003,6 +32065,19 @@ index 0000000..cb0aa8a
 +// waiting thread's user-interactive class, or at the default priority.
 +inline std::atomic<std::uint64_t> metal_compiles_interactive{0};
 +inline std::atomic<std::uint64_t> metal_compiles_default{0};
++
++// REWINDBOX_ZCULL_SYNC_PROBE_613: Assassin's Creed (BLES00158), Build 612
++// iPhone logs, ZCULL accuracy Approximate: in the heavy scenes the RSX FIFO is
++// busy 99% of each window while the RSX thread uses about a quarter of it on
++// the CPU, the fence, submit and present sites above stay near zero and a frame
++// costs about 2.2 ms per command buffer submitted. A ZCULL report read that
++// needs its occlusion queries submits the open command buffer and sleeps in
++// MoltenVK (vkGetQueryPoolResults with VK_QUERY_RESULT_WAIT_BIT) until the GPU
++// has run it, a wait none of those sites sees. These counters separate that
++// wait from the rest of the RSX thread's time; they change no behaviour.
++inline diagnostics::EventCost zcull_result_ticks{};        // a report read that had queries to gather
++inline std::atomic<std::uint64_t> zcull_result_flushes{0}; // ... whose queries were still in the open command buffer
++inline std::atomic<std::uint64_t> zcull_hint_flushes{0};   // zcull_sync hints that submitted ahead of a read
 +
 +// REWINDBOX_RSX_FRAME_PROFILE_V1: RPCS3's own per-frame RSX statistics
 +// (frame_statistics_t). Counters are taken every frame; the stage timers only
@@ -39243,7 +39318,7 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..33d7673 100644
+index d800542..85a1f50 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,192 @@
@@ -39990,7 +40065,7 @@ index d800542..33d7673 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +770,902 @@ public:
+@@ -108,12 +770,918 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -40431,6 +40506,22 @@ index d800542..33d7673 100644
 +                rpcs3::ios::get_experimental_policy().moltenvk_async_submits ? 1u : 0u,
 +                static_cast<unsigned long long>(sync::metal_compiles_interactive.exchange(0, std::memory_order_relaxed)),
 +                static_cast<unsigned long long>(sync::metal_compiles_default.exchange(0, std::memory_order_relaxed)));
++        }
++        // REWINDBOX_ZCULL_SYNC_PROBE_613: ZCULL report reads on the RSX thread
++        // (whole read: submission of the open command buffer and the MoltenVK
++        // wait for the query results), with the reads that had to submit and
++        // the zcull_sync hints that submitted ahead of a read.
++        {
++            namespace sync = rpcs3::ios::rsx_sync;
++            const auto results = sync::zcull_result_ticks.take();
++            ios_core_profiler.notice(
++                "COREPROF ZCULLSYNC613 session=%llu window=%llu tuple=count:total_ms:max_ms results=%llu:%.3f:%.3f "
++                "result_flushes=%llu hint_flushes=%llu precise=%u relaxed=%u scope=rsx_thread_process_window "
++                "window_boundary_approximate=1",
++                profile_session, profile_window, results.count, milliseconds(results.total), milliseconds(results.maximum),
++                static_cast<unsigned long long>(sync::zcull_result_flushes.exchange(0, std::memory_order_relaxed)),
++                static_cast<unsigned long long>(sync::zcull_hint_flushes.exchange(0, std::memory_order_relaxed)),
++                g_cfg.video.precise_zpass_count ? 1u : 0u, g_cfg.video.relaxed_zcull_sync ? 1u : 0u);
 +        }
 +        // REWINDBOX_RSX_FRAME_PROFILE_V1: RPCS3's own per-frame RSX statistics;
 +        // stage times are averages over the sampled frames of the window.
@@ -40895,7 +40986,7 @@ index d800542..33d7673 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1673,93 @@ private:
+@@ -121,6 +1689,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -40989,7 +41080,7 @@ index d800542..33d7673 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1767,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +1783,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -41083,7 +41174,7 @@ index d800542..33d7673 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1864,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1880,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -41212,7 +41303,7 @@ index d800542..33d7673 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1995,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2011,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  

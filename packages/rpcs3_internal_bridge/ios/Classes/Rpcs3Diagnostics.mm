@@ -513,7 +513,7 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
     row[@"frame_ms"] = RPCS3TimelineFamily(line, @[@"phase", @"intervals", @"median_ms", @"p95_ms", @"p99_ms",
         @"max_ms", @"over50ms", @"over100ms", @"window_ms", @"total_interval_ms",
         @"window_guest_flips", @"wall_guest_fps", @"completed_interval_fps", @"last_guest_flip_age_ms",
-        @"guest_progress_boundary_approximate"]);
+        @"guest_progress_boundary_approximate", @"histogram_upper_us"]);
     return;
   }
   if (strstr(line, "CONFIG_LAYERS ") != nullptr) {
@@ -568,6 +568,10 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
     // synchronous MoltenVK submits), drawable acquisition and present.
     family = @"rsx_sync"; keys = @[@"frame_cleanup", @"cb_reuse", @"hard_sync", @"texture", @"other",
         @"submit", @"acquire", @"present", @"frame_latency", @"mvk_async", @"metal_compiles_interactive", @"metal_compiles_default"];
+  } else if (strstr(line, "COREPROF ZCULLSYNC613 ") != nullptr) {
+    // Build 613: ZCULL report reads on the RSX thread (submission and MoltenVK
+    // wait included), the reads that had to submit, and early zcull_sync submits.
+    family = @"zcull_sync"; keys = @[@"results", @"result_flushes", @"hint_flushes", @"precise", @"relaxed"];
   } else if (strstr(line, "COREPROF RSXFRAME551 ") != nullptr) {
     // CELL551: RPCS3's per-frame RSX statistics; stage times are sampled-frame averages.
     family = @"rsx_frame"; keys = @[@"frames", @"sampled", @"draws_per_frame", @"submits", @"setup_ms", @"vertex_ms",
@@ -582,8 +586,16 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
     family = @"vdec_io_process_lifetime"; keys = @[@"demand_reads", @"demand_read_total_us", @"demand_read_max_us",
         @"prefetch_hits", @"prefetch_failures", @"consumer_prefetch_wait_max_us"];
   } else if (strstr(line, "JITPROF ") != nullptr) {
+    // Build 613: object-cache reads and links of SPU blocks, beside their builds.
     family = @"jit"; keys = @[@"ppu_codegen", @"ppu_cache_write", @"ppu_object_load", @"spu_build",
-        @"spu_codegen", @"spu_cache_write"];
+        @"spu_codegen", @"spu_cache_write", @"spu_cache_read", @"spu_object_load"];
+  } else if (strstr(line, "JITMEM ") != nullptr) {
+    // Build 613: concurrent admitted LLVM jobs (1 = serialized).
+    family = @"jit_mem"; keys = @[@"active", @"active_peak", @"headroom_min_mib"];
+  } else if (strstr(line, "SPUPROF ") != nullptr) {
+    // Build 613: SPU blocks built on first use and their object-cache outcome.
+    family = @"spu_blocks"; keys = @[@"gameplay_attempts", @"gameplay_total_ms", @"gameplay_max_ms",
+        @"obj_hits", @"obj_misses"];
   } else if (strstr(line, "RANGELOCKPROF ") != nullptr) {
     family = @"range_lock"; keys = @[@"episodes", @"total_ms", @"max_ms", @"wl_putllc"];
   } else if (strstr(line, "COREPROF_RESILIENCE ") != nullptr) {

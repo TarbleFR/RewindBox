@@ -22,6 +22,22 @@ class Rpcs3GameProfile {
   ) {
     final result = <List<String>, String>{};
     for (final entry in settings.entries) {
+      // One Core choice ("gpu.zcull_accuracy") is two RPCS3 booleans; the Core
+      // reads them back with the same table (RPCS3IOSZcullAccuracy.h), where
+      // Relaxed ZCULL Sync wins over Accurate ZCULL stats.
+      if (entry.key == 'gpu.zcull_accuracy') {
+        final (precise, relaxed) = switch (entry.value) {
+          'Precise' => ('true', 'false'),
+          'Approximate' => ('false', 'false'),
+          'Relaxed' => ('false', 'true'),
+          _ => throw StateError(
+            'Unsupported ZCULL accuracy for RPCS3: ${entry.value}',
+          ),
+        };
+        result[const <String>['Video', 'Accurate ZCULL stats']] = precise;
+        result[const <String>['Video', 'Relaxed ZCULL Sync']] = relaxed;
+        continue;
+      }
       final yamlPath = switch (entry.key) {
         'cpu.ppu_decoder' => const <String>['Core', 'PPU Decoder'],
         'cpu.spu_decoder' => const <String>['Core', 'SPU Decoder'],
@@ -209,19 +225,29 @@ abstract final class Rpcs3GameProfileService {
     // streaming off, Assassin's Creed runs the combination God of War III
     // runs on the iPhone (one queue, asynchronous encoding), not an untested
     // pairing of both. No visual or frame-rate gain is established yet.
-    'BLES00158': {
-      'advanced.accurate_spu_reservations': 'false',
-      'gpu.async_texture_uploads': 'false',
-    },
-    'BLUS30089': {
-      'advanced.accurate_spu_reservations': 'false',
-      'gpu.async_texture_uploads': 'false',
-    },
+    //
+    // Build 613: ZCULL accuracy Approximate (Accurate ZCULL stats false,
+    // Relaxed ZCULL Sync false) replaces the official entry's relaxed ZCULL.
+    // On the maintainer's iPhone, Build 612, BLES00158 (2 November 2026): the
+    // in-game test page set "ZCULL accuracy -> Approximate" (CONFIG_LAYERS
+    // part=rsx relaxed_zcull=false precise_zpass=false) and the torch and
+    // light flicker stopped; under the profile value (relaxed_zcull=true) it
+    // was present. BLUS30089 is the same game and gets the same value without
+    // its own device run. An explicit per-game choice still replaces it, and
+    // "Profile value" (@inherit) returns to it.
+    'BLES00158': _assassinsCreed,
+    'BLUS30089': _assassinsCreed,
 
     // ARMSX3 issue #77 is guest pacing rather than an Android driver hack.
     // PS3 Native honours the title's alternate-vblank flip cadence.
     'BLUS31213': {'gpu.frame_limit': 'PS3 Native'},
     'BLES01935': {'gpu.frame_limit': 'PS3 Native'},
+  };
+
+  static const Map<String, String> _assassinsCreed = {
+    'advanced.accurate_spu_reservations': 'false',
+    'gpu.async_texture_uploads': 'false',
+    'gpu.zcull_accuracy': 'Approximate',
   };
 
   static const Map<String, String> _godOfWarIII = {

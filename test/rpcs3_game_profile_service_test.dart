@@ -251,11 +251,13 @@ void main() {
         // one million data-changing PUTLLC per window under the writer lock.
         // Build 610: asynchronous texture streaming off again, as for God of
         // War III; the Core decides asynchronous MoltenVK submits.
+        // Build 613: ZCULL accuracy Approximate (device result, BLES00158).
         for (final serial in <String>['BLES00158', 'BLUS30089']) {
           final profile = Rpcs3GameProfileService.profileForSerial(serial)!;
           expect(profile.settings, <String, String>{
             'advanced.accurate_spu_reservations': 'false',
             'gpu.async_texture_uploads': 'false',
+            'gpu.zcull_accuracy': 'Approximate',
           });
           final payload =
               await Rpcs3GameProfileService.databasePayloadForSerials(
@@ -270,8 +272,73 @@ void main() {
           expect(yaml, contains('Multithreaded RSX: true'));
           expect(yaml, contains('Asynchronous Texture Streaming: false'));
           expect(yaml, isNot(contains('Asynchronous Texture Streaming: true')));
-          expect(yaml, contains('Relaxed ZCULL Sync: true'));
+          // The official entry's "Relaxed ZCULL Sync: true" is replaced in
+          // place, so the published entry holds a single value per key.
+          expect(yaml, contains('Relaxed ZCULL Sync: false'));
+          expect(yaml, isNot(contains('Relaxed ZCULL Sync: true')));
+          expect(yaml, contains('Accurate ZCULL stats: false'));
+          expect(yaml, isNot(contains('Accurate ZCULL stats: true')));
+          expect('Relaxed ZCULL Sync:'.allMatches(yaml), hasLength(1));
+          expect('Accurate ZCULL stats:'.allMatches(yaml), hasLength(1));
           expect(yaml, isNot(contains('MoltenVK Asynchronous Submits')));
+        }
+      },
+    );
+
+    test(
+      'ZCULL accuracy expands to the two RPCS3 booleans the Core reads back',
+      () {
+        // Same table as the Core (RPCS3IOSZcullAccuracy.h): Precise =
+        // (precise true, relaxed false), Approximate = (false, false),
+        // Relaxed = (false, true).
+        String yamlFor(String value) => Rpcs3GameProfile(
+          serial: 'BLES00158',
+          settings: <String, String>{'gpu.zcull_accuracy': value},
+        ).toRpcs3Yaml();
+        expect(yamlFor('Precise'), contains('Accurate ZCULL stats: true'));
+        expect(yamlFor('Precise'), contains('Relaxed ZCULL Sync: false'));
+        expect(yamlFor('Approximate'), contains('Accurate ZCULL stats: false'));
+        expect(yamlFor('Approximate'), contains('Relaxed ZCULL Sync: false'));
+        expect(yamlFor('Relaxed'), contains('Accurate ZCULL stats: false'));
+        expect(yamlFor('Relaxed'), contains('Relaxed ZCULL Sync: true'));
+        expect(() => yamlFor('Fast'), throwsStateError);
+        // An install updated from an earlier build still holds the earlier
+        // database entry (relaxed) and a refreshed official entry may bring it
+        // back: the title value is merged over whichever base is present.
+        const relaxedBase =
+            'Video:\n  Accurate ZCULL stats: true\n  Relaxed ZCULL Sync: true\n';
+        final merged = Rpcs3GameProfile(
+          serial: 'BLES00158',
+          settings: <String, String>{'gpu.zcull_accuracy': 'Approximate'},
+        ).toRpcs3Yaml(relaxedBase);
+        expect(merged, contains('Accurate ZCULL stats: false'));
+        expect(merged, contains('Relaxed ZCULL Sync: false'));
+        expect(merged, isNot(contains(': true')));
+      },
+    );
+
+    test(
+      'only Assassin\'s Creed receives the ZCULL value; other titles keep theirs',
+      () async {
+        final payload = await Rpcs3GameProfileService.databasePayloadForSerials(
+          <String>['BLES01717', 'BCES00510', 'BCAS20066', 'BLES01658'],
+        );
+        final games =
+            (jsonDecode(payload) as Map<String, dynamic>)['games']
+                as Map<String, dynamic>;
+        String yaml(String serial) =>
+            (games[serial] as Map<String, dynamic>?)?['config'] as String? ??
+            '';
+        // Official entries stay as they are.
+        expect(yaml('BLES01717'), contains('Relaxed ZCULL Sync: false'));
+        expect(yaml('BCAS20066'), contains('Relaxed ZCULL Sync: true'));
+        expect(yaml('BCES00510'), isNot(contains('ZCULL')));
+        expect(yaml('BLES01658'), isNot(contains('ZCULL')));
+        for (final serial in <String>['BLES01717', 'BCES00510', 'BCAS20066']) {
+          expect(
+            Rpcs3GameProfileService.profileForSerial(serial)!.settings,
+            isNot(contains('gpu.zcull_accuracy')),
+          );
         }
       },
     );

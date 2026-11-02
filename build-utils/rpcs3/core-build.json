@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 612,
- "identity_type": "rpcs3-ios-core612",
- "summary": "RPCS3 Core 612 = the delivered Core 610 plus one folded delta: the RetroAchievements PS3 Core patch of Core 611 (4 rpcs3_ios_ra_* exports), census v2 (render passes actually begun) and the per-game graphics test levers of REWINDBOX_GRAPHICS_TESTS_612 (Experimental Position Invariance, @inherit, CONFIG_LAYERS part=rsx); ABI 30, the 92 exports of Core 611, the PPU/SPU codegen identities and the MoltenVK dependency of Core 610 unchanged.",
+ "build": 613,
+ "identity_type": "rpcs3-ios-core613",
+ "summary": "RPCS3 Core 613 = the delivered Core 610 plus one folded delta: the Core 612 record unchanged (RetroAchievements PS3 Core hooks of Core 611, census v2, per-game graphics test levers) and two Core 613 changes: SPU object-cache hits of blocks of at most 16 KiB no longer wait for the LLVM compile admission (REWINDBOX_SPU_OBJECT_HIT_ADMISSION_613, Black Ops II Build 612 logs) and a measurement-only ZCULL report-read probe (REWINDBOX_ZCULL_SYNC_PROBE_613, COREPROF ZCULLSYNC613, Assassin's Creed Build 612 logs); ABI 30, the 92 exports of Core 612, the PPU/SPU codegen identities (one exact SPULLVMRecompiler.cpp alias) and the MoltenVK dependency of Core 610 unchanged.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,12 +22,13 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "4e2dd29bad7585e86f2a928a2f9bae21ffdd0ce6e491752773f3ae47ebc0fd01",
+  "patch_sha256": "c107718c9447bd9dacf8fb2e817911c3594ff94128d16ab6d92c7a163b0be2b0",
   "postimages": 332,
   "records": [
    "core610_20261101",
    "retroachievements_core",
-   "core612_20261102"
+   "core612_20261102",
+   "core613_20261102"
   ]
  },
  "reference": {
@@ -67,10 +68,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core612_20261102",
-  "manifest": "build-utils/rpcs3/core612-delta.json",
-  "patch": "build-utils/rpcs3/core612-delta.patch",
-  "patch_sha256": "da43e7f192ebdc08808bb5c5ac191625a8c51de4ed73643c9cc2323799461ea7"
+  "record": "core613_20261102",
+  "manifest": "build-utils/rpcs3/core613-delta.json",
+  "patch": "build-utils/rpcs3/core613-delta.patch",
+  "patch_sha256": "abd11d78d5f83d80b447b0020aab2be16f1b9f584b46caf603e149e21fb86a9f"
  },
  "exports": 92,
  "core_inputs": {
@@ -100,7 +101,8 @@
   "position_invariance=%d",
   "MoltenVK asynchronous submits",
   "CONFIG_LAYERS part=rsx",
-  "Position Invariance"
+  "Position Invariance",
+  "COREPROF ZCULLSYNC613"
  ],
  "moltenvk_dependency": {
   "run": 41239096061,
@@ -267,6 +269,64 @@
      "{out}/reuse-audit.json"
     ],
     "reason": "its script now reads this spec; the Core 610 report it replaces is also authenticated as reused"
+   },
+   {
+    "name": "spu-object-hit-admission-613",
+    "argv": [
+     "python3",
+     "test/rpcs3_spu_object_hit_admission613_test.py",
+     "--source",
+     "{source}",
+     "--cxx",
+     "clang++",
+     "--report",
+     "{out}/spu-object-hit-admission-613.json"
+    ],
+    "reason": "new: the extracted SPU object-hit admission block executed (8 cases), the Core 612 file outside it and the codegen identities through the exact alias"
+   },
+   {
+    "name": "spu-object-hit-admission-613-asan-ubsan",
+    "argv": [
+     "python3",
+     "test/rpcs3_spu_object_hit_admission613_test.py",
+     "--source",
+     "{source}",
+     "--cxx",
+     "clang++",
+     "--sanitize",
+     "--report",
+     "{out}/spu-object-hit-admission-613-asan-ubsan.json"
+    ],
+    "reason": "the same executed checks under ASan/UBSan"
+   },
+   {
+    "name": "zcull-sync-probe-613",
+    "argv": [
+     "python3",
+     "test/rpcs3_zcull_sync_probe613_test.py",
+     "--source",
+     "{source}",
+     "--cxx",
+     "clang++",
+     "--report",
+     "{out}/zcull-sync-probe-613.json"
+    ],
+    "reason": "new: the ZCULL probe changes no Core 612 byte outside its insertions; its cost scope executed; its line carries the timeline keys"
+   },
+   {
+    "name": "zcull-sync-probe-613-asan-ubsan",
+    "argv": [
+     "python3",
+     "test/rpcs3_zcull_sync_probe613_test.py",
+     "--source",
+     "{source}",
+     "--cxx",
+     "clang++",
+     "--sanitize",
+     "--report",
+     "{out}/zcull-sync-probe-613-asan-ubsan.json"
+    ],
+    "reason": "the same executed checks under ASan/UBSan"
    }
   ],
   "reused": {
