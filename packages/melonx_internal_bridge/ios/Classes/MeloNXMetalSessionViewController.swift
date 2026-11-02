@@ -11,12 +11,13 @@ private final class MeloNXObservedMetalLayer: CAMetalLayer {
     var firstPresentation: (() -> Void)?
     var frameCount: UInt64 { observationLock.lock(); defer { observationLock.unlock() }; return presentedFrames }
     // Gaps between presentations for the performance journal; the longest gap
-    // resets on each read.
+    // and the list of gaps reset on each read.
     func presentation() -> MeloNXPerfJournal.Presentation {
         observationLock.lock(); defer { observationLock.unlock() }
         var result = pacing
         result.frames = presentedFrames
         pacing.maxGapMs = 0
+        pacing.gapsMs.removeAll(keepingCapacity: true)
         return result
     }
     // A pause is not a held frame: the next presentation starts a new gap.
@@ -33,6 +34,11 @@ private final class MeloNXObservedMetalLayer: CAMetalLayer {
                 self.pacing.maxGapMs = max(self.pacing.maxGapMs, gap)
                 if gap > 20 { self.pacing.over20 += 1 }
                 if gap > 40 { self.pacing.over40 += 1 }
+                if gap > 50 { self.pacing.over50 += 1 }
+                if gap > 100 { self.pacing.over100 += 1 }
+                if self.pacing.gapsMs.count < MeloNXPerfJournal.Presentation.gapLimit {
+                    self.pacing.gapsMs.append(UInt16(min(gap.rounded(), 65535)))
+                }
             }
             self.lastPresented = max(self.lastPresented, value.presentedTime)
             self.observationLock.unlock()

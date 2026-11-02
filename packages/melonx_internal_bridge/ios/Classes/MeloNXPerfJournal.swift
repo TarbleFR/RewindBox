@@ -10,6 +10,9 @@ import Darwin
 //   pres=  frames presented / longest gap between two presentations ms /
 //          gaps over 20 ms / gaps over 40 ms (at 60 fps a gap over 20 ms is a
 //          held frame; at 30 fps every frame exceeds 20 ms, read over 40)
+//   long=  gaps over 50 ms / gaps over 100 ms (pauses at a 30 fps target)
+//   gaps=  every gap between two presentations in the interval, ms rounded
+//          (at most 240), for frame-time percentiles over any stretch of play
 //   dsp=   5 ms audio DSP periods / late episodes (a stall over 2 ms and its
 //          catch-up periods count once) / their lateness ms / the longest ms /
 //          periods skipped
@@ -23,6 +26,8 @@ import Darwin
 final class MeloNXPerfJournal {
     struct Presentation {
         var frames: UInt64 = 0, maxGapMs = 0.0, over20: UInt64 = 0, over40: UInt64 = 0
+        var over50: UInt64 = 0, over100: UInt64 = 0, gapsMs: [UInt16] = []
+        static let gapLimit = 240
     }
     struct ThreadSample { let id: UInt64; let name: String; let cpuNs: UInt64; let priority: Int32 }
     static let topThreads = 6
@@ -52,6 +57,7 @@ final class MeloNXPerfJournal {
     private var previousThreads: [UInt64: UInt64] = [:]
     private var fpsTotal = 0.0, fpsCount = 0
     private var totalFrames: UInt64 = 0, totalOver20: UInt64 = 0, totalOver40: UInt64 = 0
+    private var totalOver50: UInt64 = 0, totalOver100: UInt64 = 0
     private var totalLate: Int64 = 0, totalLateNs: Int64 = 0, totalSkipped: Int64 = 0
     private var totalStarved: Int64 = 0, totalStarvedNs: Int64 = 0
     private var hottest = 0
@@ -89,7 +95,7 @@ final class MeloNXPerfJournal {
             guard let timer else { return }
             timer.cancel(); self.timer = nil
             let average = fpsCount > 0 ? fpsTotal / Double(fpsCount) : 0
-            MeloNXStdioCapture.appendLine(MeloNXStdioCapture.contextualLine("[MeloNX:perf] end: \(samples) s sampled, \(lines) lines; game FPS \(Self.decimal(average)) on average while running; \(totalFrames) frames presented, \(totalOver20) gaps over 20 ms, \(totalOver40) over 40 ms; \(totalLate) late DSP episodes (\(Self.decimal(Double(totalLateNs) / 1e6)) ms), \(totalSkipped) skipped; \(totalStarved) audio starvations (\(Self.decimal(Double(totalStarvedNs) / 1e6)) ms); hottest thermal state \(Self.thermal(hottest))",context:context), to:path, limit:Self.fileLimit)
+            MeloNXStdioCapture.appendLine(MeloNXStdioCapture.contextualLine("[MeloNX:perf] end: \(samples) s sampled, \(lines) lines; game FPS \(Self.decimal(average)) on average while running; \(totalFrames) frames presented, \(totalOver20) gaps over 20 ms, \(totalOver40) over 40 ms, \(totalOver50) over 50 ms, \(totalOver100) over 100 ms; \(totalLate) late DSP episodes (\(Self.decimal(Double(totalLateNs) / 1e6)) ms), \(totalSkipped) skipped; \(totalStarved) audio starvations (\(Self.decimal(Double(totalStarvedNs) / 1e6)) ms); hottest thermal state \(Self.thermal(hottest))",context:context), to:path, limit:Self.fileLimit)
         }
     }
 
@@ -111,9 +117,13 @@ final class MeloNXPerfJournal {
         let shown = presentation()
         let frames = shown.frames &- previousShown.frames
         let over20 = shown.over20 &- previousShown.over20, over40 = shown.over40 &- previousShown.over40
+        let over50 = shown.over50 &- previousShown.over50, over100 = shown.over100 &- previousShown.over100
         previousShown = shown
         totalFrames &+= frames; totalOver20 &+= over20; totalOver40 &+= over40
         fields.append("pres=\(frames)/\(Self.decimal(shown.maxGapMs))/\(over20)/\(over40)")
+        totalOver50 &+= over50; totalOver100 &+= over100
+        fields.append("long=\(over50)/\(over100)")
+        if !shown.gapsMs.isEmpty { fields.append("gaps=" + shown.gapsMs.map { String($0) }.joined(separator:",")) }
 
         if let values = audio(), values.count == 9 {
             let before = previousAudio ?? values

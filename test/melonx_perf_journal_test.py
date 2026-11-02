@@ -56,6 +56,13 @@ pause = controller[controller.index('private func applyPause()'):]
 check(pause.index('perf?.setPaused(!pauseReasons.isEmpty)') < pause.index('host.setPaused('), 'pause flag')
 check('surface.metalLayer.restartPacing()' in pause[:400], 'pause counted as a held frame')
 check(controller[controller.index('deinit {'):].startswith('deinit {\n        perf?.stop()'), 'journal not stopped on deinit')
+# Presentation pacing: gaps over 50 and 100 ms and the bounded list of gaps, reset on each read.
+check('if gap > 50 { self.pacing.over50 += 1 }' in controller and 'if gap > 100 { self.pacing.over100 += 1 }' in controller,
+      'long-gap counters')
+check('self.pacing.gapsMs.count < MeloNXPerfJournal.Presentation.gapLimit' in controller and
+      'pacing.gapsMs.removeAll(keepingCapacity: true)' in controller and 'static let gapLimit = 240' in journal,
+      'bounded gap list reset on read')
+check('fields.append("long=\\(over50)/\\(over100)")' in journal and 'fields.append("gaps=" + ' in journal, 'journal fields')
 check('static func appendLine(_ text: String, to path: String, limit: Int64 = 5 * 1024 * 1024) -> Bool' in parity and 'appendLine(contextualLine("[MeloNX:stderr] " + safe,context:context), to:path)' in parity, 'shared writer')
 check(journal.count('MeloNXStdioCapture.appendLine(') == journal.count(', to:path, limit:Self.fileLimit)') == 4 and 'open(' not in journal, 'journal writes outside the shared writer or under the general cap')
 check('static let fileLimit: Int64 = 8 * 1024 * 1024' in journal and 'if !isPaused && rate > 0 {' in journal, 'journal cap or FPS average')
@@ -93,7 +100,8 @@ let journal = MeloNXPerfJournal(path:path, interval:0.25, lineLimit:6,
     fps:{ ["gameFps":59.5,"gameFrameTimeMs":16.8,"fifoPercent":40.0] },
     presentation:{
         calls += 1
-        return MeloNXPerfJournal.Presentation(frames:UInt64(calls * 60), maxGapMs:34.5, over20:UInt64(calls * 2), over40:0)
+        return MeloNXPerfJournal.Presentation(frames:UInt64(calls * 60), maxGapMs:34.5, over20:UInt64(calls * 2), over40:0,
+                                              over50:UInt64(calls), over100:0, gapsMs:[17, 34])
     },
     audio:{
         audioCalls += 1
@@ -126,6 +134,7 @@ exit(2)
         for line in samples:
             fields = line.split(' ')
             check('fps=59.5/16.8/40' in fields and 'pres=60/34.5/2/0' in fields, line)
+            check('long=1/0' in fields and 'gaps=17,34' in fields, line)
             check('dsp=200/3/7.5/3.1/1' in fields and 'out=200/1/12.0/12.0' in fields, line)
             check(re.search(r' th=(nominal|fair|serious|critical) lp=[01]( paused)?$', line), line)
             worker = re.search(r' Perf_Busy_Worker_1:(\d+)/(\d+)', line)
@@ -135,7 +144,8 @@ exit(2)
         check('paused' not in samples[0] and 'paused' in samples[-1], samples)
         total = int(re.search(r'^end: (\d+) s sampled, 6 lines;', body[-1]).group(1))
         check(total >= 9, body[-1])
-        check(f'{total * 60} frames presented, {total * 2} gaps over 20 ms, 0 over 40 ms' in body[-1], body[-1])
+        check(f'{total * 60} frames presented, {total * 2} gaps over 20 ms, 0 over 40 ms, {total} over 50 ms, 0 over 100 ms'
+              in body[-1], body[-1])
         check(f'{total * 3} late DSP episodes ({total * 7.5:.1f} ms), {total} skipped' in body[-1], body[-1])
         check(f'{total} audio starvations ({total * 12:.1f} ms)' in body[-1] and 'game FPS 59.5 on average' in body[-1], body[-1])
     print('Executed the performance journal on macOS.')
