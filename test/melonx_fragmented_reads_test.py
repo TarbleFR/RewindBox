@@ -28,15 +28,17 @@ from adapt_fragmented_reads import apply, NAMES  # noqa: E402
 from adapt_gpu_work_diagnostics import apply as apply_work, NAMES as WORK_NAMES  # noqa: E402
 from adapt_bindless_array_deltas import apply as apply_arrays, NAMES as ARRAY_NAMES  # noqa: E402
 from adapt_hogwarts_dma_copies import apply as apply_dma, NAMES as DMA_NAMES, LIBRARY as DMA_LIBRARY  # noqa: E402
+from adapt_host_qos_pipeline_budget import apply as apply_host, NAMES as HOST_NAMES  # noqa: E402
 
 DIAGNOSTICS = 'src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'
-COMPOSED = sorted(set(NAMES) | set(WORK_NAMES) | set(ARRAY_NAMES) | set(DMA_NAMES) | {DIAGNOSTICS})
+COMPOSED = sorted(set(NAMES) | set(WORK_NAMES) | set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | {DIAGNOSTICS})
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
 # (Ryujinx.Library) is outside the GPU assembly closure: it is composed and bound here, compiled by NativeAOT.
 COMPILED = sorted((set(COMPOSED) - {DMA_LIBRARY}) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})
 INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/FragmentedReadsProbe.cs',
           'build-utils/melonx/adapt_fragmented_reads.py', 'build-utils/melonx/adapt_gpu_work_diagnostics.py',
           'build-utils/melonx/adapt_bindless_array_deltas.py', 'build-utils/melonx/adapt_hogwarts_dma_copies.py',
+          'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
           'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {
@@ -87,12 +89,14 @@ def project_closure(src, project):
 
 
 def compose(target):
-    """The preparation order: current diagnostics source, fragmented reads, GPU work probes, array deltas, DMA copies."""
+    """The preparation order: current diagnostics source, fragmented reads, GPU work probes, array deltas, DMA copies,
+    then the host threads' QoS and the pipeline cache budget."""
     shutil.copyfile(ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs', target / DIAGNOSTICS)
     apply(target)
     apply_work(target)
     apply_arrays(target)
     apply_dma(target)
+    apply_host(target)
 
 
 def compose_staged(target):
@@ -103,13 +107,15 @@ def compose_staged(target):
 
 
 def stage(tree, work, candidate, transform=None):
-    """Copy the projects the GPU assembly needs, optionally compose, insert the probe."""
+    """Copy the projects the GPU and Vulkan assemblies need, optionally compose, insert the probe."""
     target = work / ('candidate' if candidate else 'control')
     target.mkdir(parents=True)
     for name in ('Directory.Build.props', 'Directory.Packages.props', 'global.json', 'nuget.config'):
         if (tree / name).exists():
             shutil.copy2(tree / name, target / name)
-    projects = project_closure(tree / 'src', 'Ryujinx.Graphics.Gpu')
+    # The Vulkan backend is built too: the host adapter changes two of its files.
+    projects = sorted(set(project_closure(tree / 'src', 'Ryujinx.Graphics.Gpu')) |
+                      set(project_closure(tree / 'src', 'Ryujinx.Graphics.Vulkan')))
     for name in projects:
         shutil.copytree(tree / 'src' / name, target / 'src' / name,
                         ignore=shutil.ignore_patterns('bin', 'obj'))
@@ -128,7 +134,8 @@ def stage(tree, work, candidate, transform=None):
         '<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType>'
         '<TargetFramework>net10.0</TargetFramework><Nullable>disable</Nullable>'
         '<TreatWarningsAsErrors>false</TreatWarningsAsErrors><NuGetAudit>false</NuGetAudit></PropertyGroup>'
-        '<ItemGroup><ProjectReference Include="../src/Ryujinx.Graphics.Gpu/Ryujinx.Graphics.Gpu.csproj" /></ItemGroup></Project>')
+        '<ItemGroup><ProjectReference Include="../src/Ryujinx.Graphics.Gpu/Ryujinx.Graphics.Gpu.csproj" />'
+        '<ProjectReference Include="../src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj" /></ItemGroup></Project>')
     (runner / 'Program.cs').write_text(
         'System.Console.WriteLine(Ryujinx.Graphics.Gpu.Memory.FragmentedReadsProbe.Run(args[0]));\n')
     return target, projects
@@ -236,7 +243,7 @@ if private['supported']:
           'partition-crossing snapshot got more expensive')
 page = os.sysconf('SC_PAGESIZE')
 reproduced = before['privatePartitions'].get('crossingUploadAllocated', 0) >= 0x30000
-limits = ['managed Release build of the GPU assembly closure, not the NativeAOT library; no Apple timing, device memory or FPS claim']
+limits = ['managed Release build of the GPU and Vulkan assembly closures, not the NativeAOT library; no Apple timing, device memory or FPS claim']
 if not reproduced:
     limits.append('the partition-crossing range was borrowed by both builds on this host (no copy in the control)')
 if not host_mapped['supported']:

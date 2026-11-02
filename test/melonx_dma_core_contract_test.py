@@ -16,6 +16,7 @@ import verify_dma_core as verify
 from freeze_performance_core import changed_dependencies
 from adapt_bindless_array_deltas import COUNTERS, DIAGNOSTIC_EDITS, DIAGNOSTICS, NAMES as ARRAY_NAMES, WORK_ROWS
 from adapt_hogwarts_dma_copies import CONFIG, DMA, LIBRARY, LIBRARY_OLD, NAMES as DMA_NAMES
+from adapt_host_qos_pipeline_budget import NAMES as HOST_NAMES
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--helpers-only', action='store_true')
@@ -24,14 +25,13 @@ args = parser.parse_args()
 checks = 0
 ARGS = ['{baseline}', '--candidate-source', '{candidate}']
 CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delivered609', 'performance-diagnostics': 'ada',
-            'binding-data-snapshots': 'delivered611', 'hogwarts-dma-copies': 'delivered'}
+            'binding-data-snapshots': 'delivered611', 'hogwarts-dma-copies': 'delivered', 'pipeline-checkpoint': 'ada'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
-CHANGES = (set(ARRAY_NAMES) - {DIAGNOSTICS}) | set(DMA_NAMES)
+CHANGES = (set(ARRAY_NAMES) - {DIAGNOSTICS}) | set(DMA_NAMES) | set(HOST_NAMES)
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
-         'binding-data-snapshot-checks.json'}
-REUSED_FRESH = {'pipeline-checkpoint-checks.json', 'counter-report-compaction-final-checks.json',
-                'single-virtual-dependency-final-checks.json'}
+         'binding-data-snapshot-checks.json', 'pipeline-checkpoint-checks.json'}
+REUSED_FRESH = {'counter-report-compaction-final-checks.json', 'single-virtual-dependency-final-checks.json'}
 
 
 def check(ok, message):
@@ -136,9 +136,11 @@ for mutation in ('missingRequired', 'staleGeneration', 'nonfinite', 'missingWork
 # The preparation runs the DMA adapter last, after the array deltas, with its Library.cs anchor checked there.
 recipe = (ROOT / 'build-utils/melonx/prepare_embedded.py').read_text()
 check(recipe.count('adapt_hogwarts_dma_copies(source)') == 1 and recipe.count("'adapt_hogwarts_dma_copies.py'") == 1 and
+      recipe.count('adapt_host_qos_pipeline_budget(source)') == 1 and recipe.count("'adapt_host_qos_pipeline_budget.py'") == 1 and
       recipe.index('adapt_bindless_array_deltas(source)') < recipe.index('HOGWARTS_DMA_LIBRARY_ANCHOR) == 1') <
-      recipe.index('adapt_hogwarts_dma_copies(source)') < recipe.index("inputs['build-utils/melonx/prepare_embedded.py']"),
-      'Hogwarts DMA adapter not last in the preparation')
+      recipe.index('adapt_hogwarts_dma_copies(source)') < recipe.index('adapt_host_qos_pipeline_budget(source)') <
+      recipe.index("inputs['build-utils/melonx/prepare_embedded.py']"),
+      'Hogwarts DMA adapter, then the host adapter, not last in the preparation')
 check('bool querySync = EmbeddedGraphics.OcclusionQuerySync && EmbeddedIsHogwarts(options.InputPath);' in LIBRARY_OLD and
       LIBRARY in DMA_NAMES and DMA in DMA_NAMES and CONFIG in DMA_NAMES, 'Hogwarts DMA anchor is not the query-policy line')
 
@@ -193,8 +195,9 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 8 and not frozen["productionAdditions"], "Unexpected production scope")
-    check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py'} and
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 12 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
+                                                     'build-utils/melonx/adapt_host_qos_pipeline_budget.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py'},
           'Unexpected preparation scope')
     check(set(frozen['baselineUnadaptedMembers']) == {CONFIG}, 'Only GraphicsConfig.cs joins the prepared source')
@@ -212,7 +215,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 130 and len(frozen['preparedMembers']) == 172, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 131 and len(frozen['preparedMembers']) == 172, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -221,11 +224,13 @@ if not args.helpers_only:
             check(isinstance(binding['reportPath'], list) and binding['productionPath'] in {**frozen['preparedMembers'], **frozen['untouchedFixtureMembers']}, 'Unbound compiled source')
     gate = {gate['name']: gate for gate in frozen['gates']}
     check(set(gate['bindless-array-deltas']['requiredPostimages']) == set(ARRAY_NAMES) and
-          set(gate['hogwarts-dma-copies']['requiredPostimages']) == set(DMA_NAMES), 'A changed adapter gate does not bind every change')
+          set(gate['hogwarts-dma-copies']['requiredPostimages']) == set(DMA_NAMES) | set(HOST_NAMES),
+          'A changed adapter gate does not bind every change')
     check(CHANGES <= set(gate['fragmented-reads']['requiredPostimages']) and
           CHANGES - {LIBRARY} <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
           'The final GPU assembly build does not bind every changed GPU file')
-    check(all(gate[name]['assertions'].get('sourceKind') in ('deliveredPreparedWithFinalCandidate', 'finalPrepared') for name in gate),
+    check(all(gate[name]['assertions'].get('sourceKind') in ('deliveredPreparedWithFinalCandidate', 'finalPrepared',
+                                                             'baselinePreparedWithFinalInstrumentedCandidate') for name in gate),
           'A gate ran without the final prepared source')
     # Every file a gate reads from its control is frozen, so a delivery can recheck every receipt completely.
     unadapted = frozen['controlUnadaptedMembers']

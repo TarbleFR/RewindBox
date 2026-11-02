@@ -1,14 +1,16 @@
 {
   "schemaVersion": 1,
-  "reviewedScope": "On the delivered 614 bindless array-delta Core: DMA copies of R16G16B16A16Float and R32G32B32A32Float textures use the GPU-side copy for Hogwarts Legacy only (GraphicsConfig.HogwartsFloatDmaGpuCopy, set per session by the Library from the launched title; every other title keeps the MeloNX exclusion), into a block-linear destination with the same element size and a target sized in bytes; a destination texture that cannot be created falls back to the copy through guest memory (all formats). Every 2D copy still read through guest memory is attributed by bounded logging (each signature once, at most 8 per reason; counts per reason every 1024 copies, at most 64 times; no allocation per copy once full). For Hogwarts Legacy only (GraphicsConfig.HogwartsDmaRegionUpload, set with the float policy), a 2D copy from linear memory into a block-linear destination with identity components and one element size, whose destination surface is a single-level 2D uncompressed colour texture of the cache (the lookup of the direct upload of complete copies, at each width the GOB-aligned surface holds; ambiguous: none) at scale 1 without host format conversion, and whose region falls on whole texels inside it, without overlaps of an incompatible layout, is uploaded into that host texture region (rows packed as the host reads them) after the texture's memory synchronisation; guest memory is then patched as before but written untracked, so the texture and guest memory hold the same region, the texture is neither read back nor uploaded again, and its modified state is left as it was. Uploads, declines and guest-memory accesses over 2 ms are counted in the bounded summary (at most 64 lines). For Hogwarts Legacy only (the same policy), a 2D copy from linear memory whose source a GPU-modified linear texture alone holds (TextureGroup.AnyHandleModified; the copy's stride, single-level 2D uncompressed colour at scale 1, the whole source in one physical region, no other texture group over it, no incompatible overlap, the rectangle on whole texels inside the stride) into the texture of the destination surface with the same UNORM format unconverted by the host (another group, no incompatible overlap); under the policy the guest path reads its destination tracked unless the region was uploaded, is copied on the GPU (host region copy queued after the GPU writes, destination marked modified, as the upstream GPU copy of block-linear sources does) instead of reading the source through guest memory, which runs the source texture's flush action; TextureCache.FindOverlapsInRange (under the texture read lock) finds the source. Every slow source read is attributed to the overlapping textures (kind counted; each new signature logged once, at most 8). Bindless delta passes skip the verification scan when no texture was invalidated during the pass (Texture.InvalidationEpoch) and visit only the pool ids logged since their last pass when that set is exact (TexturePool change log); otherwise the full scan or rebuild as before. The array-delta, fragmented-read (complete final GPU assembly), binding-snapshot and collector fixtures and the new DMA fixture rerun on the final source. Payload, SDK, ABI, source pin, smoke and all other lots unchanged; no physical gameplay, device allocation or FPS claim.",
+  "reviewedScope": "On the delivered 614 bindless array-delta Core: DMA copies of R16G16B16A16Float and R32G32B32A32Float textures use the GPU-side copy for Hogwarts Legacy only (GraphicsConfig.HogwartsFloatDmaGpuCopy, set per session by the Library from the launched title; every other title keeps the MeloNX exclusion), into a block-linear destination with the same element size and a target sized in bytes; a destination texture that cannot be created falls back to the copy through guest memory (all formats). Every 2D copy still read through guest memory is attributed by bounded logging (each signature once, at most 8 per reason; counts per reason every 1024 copies, at most 64 times; no allocation per copy once full). For Hogwarts Legacy only (GraphicsConfig.HogwartsDmaRegionUpload, set with the float policy), a 2D copy from linear memory into a block-linear destination with identity components and one element size, whose destination surface is a single-level 2D uncompressed colour texture of the cache (the lookup of the direct upload of complete copies, at each width the GOB-aligned surface holds; ambiguous: none) at scale 1 without host format conversion, and whose region falls on whole texels inside it, without overlaps of an incompatible layout, is uploaded into that host texture region (rows packed as the host reads them) after the texture's memory synchronisation; guest memory is then patched as before but written untracked, so the texture and guest memory hold the same region, the texture is neither read back nor uploaded again, and its modified state is left as it was. Uploads, declines and guest-memory accesses over 2 ms are counted in the bounded summary (at most 64 lines). For Hogwarts Legacy only (the same policy), a 2D copy from linear memory whose source a GPU-modified linear texture alone holds (TextureGroup.AnyHandleModified; the copy's stride, single-level 2D uncompressed colour at scale 1, the whole source in one physical region, no other texture group over it, no incompatible overlap, the rectangle on whole texels inside the stride) into the texture of the destination surface with the same UNORM format unconverted by the host (another group, no incompatible overlap); under the policy the guest path reads its destination tracked unless the region was uploaded, is copied on the GPU (host region copy queued after the GPU writes, destination marked modified, as the upstream GPU copy of block-linear sources does) instead of reading the source through guest memory, which runs the source texture's flush action; TextureCache.FindOverlapsInRange (under the texture read lock) finds the source. Every slow source read is attributed to the overlapping textures (kind counted; each new signature logged once, at most 8). Build 621: for Hogwarts Legacy only, a 2D copy whose source is a block-linear surface that a GPU-modified texture of the cache is (the region-upload lookup; single-level 2D uncompressed colour at scale 1, no incompatible overlap, the rectangle on whole texels) is copied on the GPU (TryCopyGpuRegion) into the texture of a block-linear destination surface, found, or created over that surface as the delivered GPU copy of complete copies creates its target only when no texture of the cache overlaps the surface; same format, unconverted by the host, another group; both synchronised, the region copied by the host, the destination marked modified. A linear destination (a read-back) stays on the guest path, counted as linearDestination. The region lookup takes only a texture that starts at the surface base. Both GPU copies take UNORM, sRGB and float formats (exact at their own size). Under the policy the guest path signals its source read and tracked destination read precisely (PhysicalMemory.SignalPreciseRead), and texture handles ignore a precise read outside their own bytes. For every title on Apple platforms, ThreadedRenderer raises the render and GPU threads, and the demand pipeline compile thread raises itself, to user-interactive QoS (a failed call logged once); the pipeline cache budget is 1 GiB (main 768 MiB, workers 128 MiB). Bindless delta passes skip the verification scan when no texture was invalidated during the pass (Texture.InvalidationEpoch) and visit only the pool ids logged since their last pass when that set is exact (TexturePool change log); otherwise the full scan or rebuild as before. The array-delta, fragmented-read (complete final GPU assembly), binding-snapshot and collector fixtures and the new DMA fixture rerun on the final source. Payload, SDK, ABI, source pin, smoke and all other lots unchanged; no physical gameplay, device allocation or FPS claim.",
   "changedPreparationInputs": [
     "build-utils/melonx/adapt_bindless_array_deltas.py",
     "build-utils/melonx/prepare_embedded.py"
   ],
   "addedPreparationInputs": [
-    "build-utils/melonx/adapt_hogwarts_dma_copies.py"
+    "build-utils/melonx/adapt_hogwarts_dma_copies.py",
+    "build-utils/melonx/adapt_host_qos_pipeline_budget.py"
   ],
   "productionChanges": [
+    "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs",
     "src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs",
     "src/Ryujinx.Graphics.Gpu/GraphicsConfig.cs",
     "src/Ryujinx.Graphics.Gpu/Image/Texture.cs",
@@ -16,6 +18,9 @@
     "src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs",
     "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
     "src/Ryujinx.Graphics.Gpu/Image/TexturePool.cs",
+    "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs",
+    "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
     "src/Ryujinx.Library/Library.cs"
   ],
   "productionAdditions": [],
@@ -26,6 +31,7 @@
     "build-utils/melonx/adapt_fragmented_reads.py",
     "build-utils/melonx/adapt_gpu_work_diagnostics.py",
     "build-utils/melonx/adapt_hogwarts_dma_copies.py",
+    "build-utils/melonx/adapt_host_qos_pipeline_budget.py",
     "build-utils/melonx/adapt_performance_diagnostics.py",
     "build-utils/melonx/adapt_pipeline_checkpoint_pacing.py",
     "build-utils/melonx/adapt_session.py",
@@ -42,7 +48,9 @@
     "test/melonx_fragmented_reads_test.py",
     "test/melonx_hogwarts_dma_copies_test.py",
     "test/melonx_performance_diagnostics/Program.cs",
-    "test/melonx_performance_diagnostics_test.py"
+    "test/melonx_performance_diagnostics_test.py",
+    "test/melonx_pipeline_checkpoint/Boundaries.cs",
+    "test/melonx_pipeline_checkpoint/Program.cs"
   ],
   "fixtureProductionInputs": [
     "src/Ryujinx.Common/EmbeddedLaunchDiagnostics.cs",
@@ -184,6 +192,7 @@
       "requiredPostimages": [
         "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
         "src/Ryujinx.Cpu/Jit/MemoryManagerHostTracked.cs",
+        "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs",
         "src/Ryujinx.Graphics.Gpu/Engine/Compute/ComputeClass.cs",
         "src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs",
         "src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs",
@@ -202,6 +211,8 @@
         "src/Ryujinx.Graphics.Gpu/Memory/MemoryManager.cs",
         "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs",
         "src/Ryujinx.Graphics.Gpu/Shader/ShaderCache.cs",
+        "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs",
+        "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
         "src/Ryujinx.Library/Library.cs",
         "src/Ryujinx.Memory/IVirtualMemoryManager.cs"
       ],
@@ -223,6 +234,15 @@
             "src/Ryujinx.Cpu/Jit/MemoryManagerHostTracked.cs"
           ],
           "productionPath": "src/Ryujinx.Cpu/Jit/MemoryManagerHostTracked.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs"
         },
         {
           "variant": "candidate",
@@ -400,6 +420,24 @@
           "reportPath": [
             "compiledSourceInputs",
             "candidate",
+            "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
             "src/Ryujinx.Memory/IVirtualMemoryManager.cs"
           ],
           "productionPath": "src/Ryujinx.Memory/IVirtualMemoryManager.cs"
@@ -539,11 +577,11 @@
         "finalPreparedSourceBound": true,
         "physicalDeviceTested": false,
         "fpsGainProven": false,
-        "checks": 58,
+        "checks": 77,
         "attribution.signatures": 48,
         "attribution.summaries": 2,
         "attribution.allocated": 0,
-        "attribution.last": "DMA guest-memory copies: 3072 (incomplete 33, linearSource 10, remap 10, noSource 10, height 10, floatFormat 2999; regionUploads 4, declined noTarget 3 layout 10 format 2 overlap 1; slowReads 3, slowWrites 1; gpuSourceCopies 1, declined noTexture 4 layout 3 noTarget 1 format 3 notModified 1; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)",
+        "attribution.last": "DMA guest-memory copies: 3072 (incomplete 33, linearSource 10, remap 10, noSource 10, height 10, floatFormat 2999; regionUploads 4, declined noTarget 3 layout 10 format 2 overlap 1; slowReads 3, slowWrites 1; gpuSourceCopies 2, declined noTexture 4 layout 3 noTarget 1 format 3 notModified 1; gpuRegionCopies 2, declined noTexture 2 layout 2 noTarget 2 format 3 notModified 1 linearDestination 2; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)",
         "attribution.capped": 64,
         "attribution.first": "DMA guest-memory copy #1: reason=Incomplete source=R16G16B16A16Float 1280x720 srcLinear=False dstLinear=True copy=100x16 bpp=8 bytes=12800",
         "attribution.uploaded": true,
@@ -593,25 +631,91 @@
           "sameGroup",
           "notModified",
           "foreignGroup",
-          "float",
+          "snorm",
           "beyondStride"
         ],
-        "attribution.sourceCounts": "1 4,3,1,3,1 | 2,0,0,1",
+        "attribution.sourceCounts": "1 4,3,1,3,1,0 | 2,0,0,1",
         "attribution.gpuLine": "DMA GPU source copy (Hogwarts policy): R8G8B8A8Unorm 64x32 linear (4,3) to 64x64 (2,3) 4x2",
         "attribution.gpuLines": 1,
         "attribution.slowLines": [
           "DMA slow source read #1: T ms, source=None overlaps 0: none; destination texture none",
           "DMA slow source read #2: T ms, source=BlockLinear overlaps 1: R8G8B8A8Unorm Texture2D 64x64x1 levels 1 block-linear gobY 4 size 16384 offset 784; destination texture none"
-        ]
+        ],
+        "attribution.floatCopied": true,
+        "attribution.floatCopy": "(2,3)-(4,5) to (1,3)-(3,5) filter=False same=False | sync,modified",
+        "attribution.regionCopied": true,
+        "attribution.regionCopy": "(4,3)-(8,5) to (2,5)-(6,7) filter=False same=False | sync | sync,modified",
+        "attribution.createdCopied": true,
+        "attribution.createdQuery": "10000 256x64 stride=0 linear=False gob=4/1",
+        "attribution.createdCopy": "(2,3)-(4,5) to (1,5)-(3,7) filter=False same=False | sync,modified | 32x64",
+        "attribution.linearDeclined": true,
+        "attribution.regionLine": "DMA GPU region copy (Hogwarts policy): R8G8B8A8Unorm 128x32 (4,3) to 64x64 (2,5) 4x2",
+        "attribution.regionLines": 1,
+        "attribution.regionDeclined": [
+          "noTexture",
+          "notModified",
+          "misaligned",
+          "volume",
+          "snorm",
+          "noTarget",
+          "sameGroup",
+          "otherFormat",
+          "linearDestination",
+          "occupied",
+          "notAtStart"
+        ],
+        "attribution.regionCounts": "2 2,2,2,3,1,2",
+        "attribution.precise": true
       },
       "requiredPostimages": [
+        "src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs",
         "src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs",
         "src/Ryujinx.Graphics.Gpu/GraphicsConfig.cs",
         "src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs",
         "src/Ryujinx.Graphics.Gpu/Image/TextureGroup.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs",
+        "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs",
+        "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
         "src/Ryujinx.Library/Library.cs"
       ],
       "compiledBindings": []
+    },
+    {
+      "name": "pipeline-checkpoint",
+      "script": "test/melonx_pipeline_checkpoint_test.py",
+      "report": "pipeline-checkpoint-checks.json",
+      "control": "ada",
+      "arguments": [
+        "{baseline}",
+        "--candidate-source",
+        "{candidate}"
+      ],
+      "timeoutSeconds": 900,
+      "assertions": {
+        "result": "passed",
+        "sourceKind": "baselinePreparedWithFinalInstrumentedCandidate",
+        "physicalDeviceTested": false,
+        "fpsGainProven": false,
+        "completeProductionClasses": true,
+        "vulkanBoundaryDoubled": true,
+        "realFileMappingAndSnapshots": true,
+        "adapterIdempotent": true,
+        "sourceDriftControlsPassed": 3
+      },
+      "requiredPostimages": [
+        "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+      ],
+      "compiledBindings": [
+        {
+          "variant": "candidate",
+          "productionPath": "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+          ]
+        }
+      ]
     }
   ]
 }

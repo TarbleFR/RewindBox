@@ -22,9 +22,10 @@ Usage: melonx_hogwarts_dma_copies_test.py <prepared tree without this adapter> [
    leaves the texture untouched; after an upload the guest write-back is untracked, otherwise
    tracked as delivered. The whole GPU assembly compiles in the fragmented-reads gate.
 3. Build 621 hunks: a block-linear source surface that a GPU-modified texture holds is copied on the GPU
-   into a found, created block-linear or created linear destination (TryCopyGpuRegion, run with
-   doubles: region extents, synchronisation, the modified destination, every decline copying
-   nothing); UNORM, sRGB and float formats are copied, SNORM is not; the guest path signals its
+   into a block-linear destination surface, found or created when no texture overlaps that surface
+   (TryCopyGpuRegion, run with doubles: region extents, synchronisation, the modified destination,
+   every decline copying and creating nothing: a linear destination, an occupied surface, a texture
+   that does not start at the surface base); UNORM, sRGB and float formats are copied, SNORM is not; the guest path signals its
    source and tracked destination reads precisely under the policy, and texture handles ignore a
    precise read outside their own bytes; ThreadedRenderer raises the render and GPU threads, and
    the demand compile thread raises itself, to user-interactive QoS on Apple platforms; the
@@ -51,6 +52,9 @@ CANDIDATE = args.candidate_source.resolve() if args.candidate_source else None
 DOTNET = os.environ.get('DOTNET', 'dotnet')
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 import adapt_hogwarts_dma_copies as adapter  # noqa: E402
+import adapt_host_qos_pipeline_budget as host  # noqa: E402
+
+ALL = [*adapter.NAMES, *host.NAMES]
 
 checks = 0
 
@@ -66,21 +70,22 @@ def sha(path):
 
 
 def compose(target):
-    for relative in adapter.NAMES:
+    for relative in ALL:
         (target / relative).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(SOURCE / relative, target / relative)
     adapter.apply(target)
+    host.apply(target)
 
 
 with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
     temporary = Path(temporary)
     work = temporary / 'composed'
     compose(work)
-    before = {p: (SOURCE / p).read_text(encoding='utf-8-sig') for p in adapter.NAMES}
-    after = {p: (work / p).read_text(encoding='utf-8-sig') for p in adapter.NAMES}
-    postimages = {p: sha(work / p) for p in adapter.NAMES}
+    before = {p: (SOURCE / p).read_text(encoding='utf-8-sig') for p in ALL}
+    after = {p: (work / p).read_text(encoding='utf-8-sig') for p in ALL}
+    postimages = {p: sha(work / p) for p in ALL}
     if CANDIDATE:
-        check(postimages == {p: sha(CANDIDATE / p) for p in adapter.NAMES}, 'composition differs from the final prepared source')
+        check(postimages == {p: sha(CANDIDATE / p) for p in ALL}, 'composition differs from the final prepared source')
 
     config = after[adapter.CONFIG]
     check(re.search(r'public static bool HogwartsFloatDmaGpuCopy \{ get; set; \}\n', config) is not None,
@@ -143,9 +148,9 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           physical.index('return false;', physical.index('public bool SignalPreciseRead')) <
           physical.index('_cpuMemory.SignalMemoryTracking(subRange.Address', physical.index('public bool SignalPreciseRead')),
           'PhysicalMemory: only the precise read signal, which signals nothing when part of the range is unmapped')
-    threaded = after[adapter.THREADED]
-    check(threaded.replace(adapter.THREADED_NAMESPACE_NEW, adapter.THREADED_NAMESPACE_OLD).replace(
-              adapter.THREADED_NEW, adapter.THREADED_OLD) == before[adapter.THREADED] and
+    threaded = after[host.THREADED]
+    check(threaded.replace(host.THREADED_NAMESPACE_NEW, host.THREADED_NAMESPACE_OLD).replace(
+              host.THREADED_NEW, host.THREADED_OLD) == before[host.THREADED] and
           threaded.count('HostThreadQos.RaiseCurrentThread();') == 2 and
           '[LibraryImport("/usr/lib/libSystem.B.dylib", EntryPoint = "pthread_set_qos_class_self_np")]' in threaded and
           'private const uint UserInteractive = 0x21;' in threaded and
@@ -154,14 +159,14 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           threaded.index('_gpuThread = new Thread(() =>') < threaded.index('HostThreadQos.RaiseCurrentThread();', threaded.index(
               '_gpuThread = new Thread(() =>')) < threaded.index('try { gpuLoop(); }'),
           'ThreadedRenderer: the render thread and the GPU thread raise themselves to user-interactive QoS on Apple platforms only')
-    pipeline = after[adapter.PIPELINE_CACHE]
-    check(pipeline.replace(adapter.PIPELINE_BUDGET_NEW, adapter.PIPELINE_BUDGET_OLD) == before[adapter.PIPELINE_CACHE] and
+    pipeline = after[host.PIPELINE_CACHE]
+    check(pipeline.replace(host.PIPELINE_BUDGET_NEW, host.PIPELINE_BUDGET_OLD) == before[host.PIPELINE_CACHE] and
           'private const long TotalCacheBudget = 1024L * 1024 * 1024;' in pipeline and
           'private const long MainCacheBudget = TotalCacheBudget * 3 / 4;' in pipeline,
           'PipelineCacheManager: only the 1 GiB budget (main 768 MiB, workers 128 MiB each)')
-    scheduler = after[adapter.SCHEDULER]
+    scheduler = after[host.SCHEDULER]
     loop = scheduler[scheduler.index('private void WorkerLoop(int workerIndex, bool demandOnly)'):]
-    check(scheduler.replace(adapter.SCHEDULER_NEW, adapter.SCHEDULER_OLD) == before[adapter.SCHEDULER] and
+    check(scheduler.replace(host.SCHEDULER_NEW, host.SCHEDULER_OLD) == before[host.SCHEDULER] and
           loop.index('if (demandOnly)') < loop.index('Ryujinx.Graphics.GAL.Multithreading.HostThreadQos.RaiseCurrentThread();') <
           loop.index('while (true)') and scheduler.count('HostThreadQos') == 1,
           'BackgroundCompilationScheduler: only the demand thread raises its QoS, before its loop')
@@ -211,24 +216,24 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           dma.index('private enum DmaSlowPath') < summary, 'DmaCopy keeps its own documentation')
 
     # Drift: altering any anchor stops the adapter.
-    for relative, anchor in ((adapter.CONFIG, adapter.CONFIG_ANCHOR), (adapter.LIBRARY, adapter.LIBRARY_OLD),
+    for owner, relative, anchor in [(adapter, *entry) for entry in ((adapter.CONFIG, adapter.CONFIG_ANCHOR), (adapter.LIBRARY, adapter.LIBRARY_OLD),
                              (adapter.DMA, adapter.FAST_OLD), (adapter.DMA, adapter.TARGET_OLD), (adapter.DMA, adapter.SLOW_OLD),
                              (adapter.DMA, adapter.REGION_OLD), (adapter.DMA, adapter.WRITE_OLD),
                              (adapter.DMA, adapter.DIAGNOSTICS_USING_OLD), (adapter.DMA, adapter.METHOD_ANCHOR),
                              (adapter.TEXTURE_CACHE, adapter.CACHE_ANCHOR), (adapter.TEXTURE_GROUP, adapter.GROUP_ANCHOR),
                              (adapter.DMA, adapter.READ_OLD), (adapter.TEXTURE_GROUP, adapter.GROUP_HANDLE_OLD),
-                             (adapter.PHYSICAL, adapter.PHYSICAL_ANCHOR), (adapter.THREADED, adapter.THREADED_NAMESPACE_OLD),
-                             (adapter.THREADED, adapter.THREADED_OLD), (adapter.PIPELINE_CACHE, adapter.PIPELINE_BUDGET_OLD),
-                             (adapter.SCHEDULER, adapter.SCHEDULER_OLD)):
+                             (adapter.PHYSICAL, adapter.PHYSICAL_ANCHOR))] + [
+            (host, host.THREADED, host.THREADED_NAMESPACE_OLD), (host, host.THREADED, host.THREADED_OLD),
+            (host, host.PIPELINE_CACHE, host.PIPELINE_BUDGET_OLD), (host, host.SCHEDULER, host.SCHEDULER_OLD)]:
         drift = temporary / ('drift-' + hashlib.sha256((relative + anchor).encode()).hexdigest()[:8])
-        for name in adapter.NAMES:
+        for name in owner.NAMES:
             (drift / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(SOURCE / name, drift / name)
         text = (drift / relative).read_text(encoding='utf-8-sig')
         indent = len(anchor) - len(anchor.lstrip())
         (drift / relative).write_text(text.replace(anchor, anchor[:indent] + 'Z' + anchor[indent:], 1), encoding='utf-8')
         try:
-            adapter.apply(drift)
+            owner.apply(drift)
             check(False, 'drifted anchor accepted: ' + relative)
         except AssertionError as error:
             check('drifted anchor accepted' not in str(error), 'drift detection')
@@ -350,6 +355,8 @@ namespace Image
             {
                 if (xCount * bpp == t.Info.Width * t.Info.FormatInfo.BytesPerPixel && height == t.Info.Height)
                 {
+                    // Like the real lookup, a texture that contains the address: one not placed yet starts there.
+                    if (t.Range.Count == 0) t.Range.Spans.Add(new Span(gpuVa, (ulong)(t.Info.Width * t.Info.FormatInfo.BytesPerPixel * t.Info.Height)));
                     if (match == null) match = t; else if (t.Group != match.Group) return null;
                 }
             }
@@ -390,9 +397,9 @@ sealed class Dma
     public bool GpuSource(MemoryManager mm, ulong srcVa, int srcSize, int stride, int xCount, int yCount, DmaTexture dst, int rx, int ry) =>
         TryCopyGpuSource(mm, srcVa, srcSize, stride, xCount, yCount, 1, 0x10000, dst, rx, ry);
     public string SourceCounts => $"{_gpuSourceCopies} {string.Join(",", _gpuSourceDeclines)} | {string.Join(",", _slowReadsBySource)}";
-    public bool GpuRegion(MemoryManager mm, DmaTexture src, int sx, int sy, DmaTexture dst, bool dstLinear, int dstStride, int dx, int dy,
+    public bool GpuRegion(MemoryManager mm, DmaTexture src, int sx, int sy, DmaTexture dst, bool dstLinear, int dx, int dy,
                           int xCount, int yCount) =>
-        TryCopyGpuRegion(mm, 0x30000, src, sx, sy, 0x10000, dst, dstLinear, 0, dstStride, dx, dy, xCount, yCount, 1);
+        TryCopyGpuRegion(mm, 0x30000, src, sx, sy, 0x10000, dst, dstLinear, dx, dy, xCount, yCount, 1);
     public string RegionCounts => $"{_gpuRegionCopies} {string.Join(",", _gpuRegionDeclines)}";
     public bool Precise(MemoryManager mm) => SignalPreciseRead(mm, 0x20000, 64);
     public bool Upload(MemoryManager mm, byte[] src, int stride, int xCount, int yCount, int bpp, DmaTexture dst, int rx, int ry) =>
@@ -561,7 +568,7 @@ static class Program
         var rsource = Make(Format.R8G8B8A8Unorm, 4, 128, 32);
         var rtarget = Make(Format.R8G8B8A8Unorm, 4, 64, 64);
         rm.Physical.TextureCache.Textures = new() { rsource, rtarget };
-        bool regionCopied = dma.GpuRegion(rm, srcSurface, 16, 3, dstSurface, false, 0, 8, 5, 16, 2);
+        bool regionCopied = dma.GpuRegion(rm, srcSurface, 16, 3, dstSurface, false, 8, 5, 16, 2);
         string regionCopy = string.Join(";", rsource.HostTexture.Copies) + " | " + string.Join(",", rsource.Calls) + " | " +
                             string.Join(",", rtarget.Calls);
         // The destination surface is not in the cache: created over the surface.
@@ -572,48 +579,56 @@ static class Program
         };
         var csource = Make(Format.R16G16B16A16Float, 8, 64, 32);
         rm.Physical.TextureCache.Textures = new() { csource };
-        bool createdCopied = dma.GpuRegion(rm, srcSurface, 16, 3, dstSurface, false, 0, 8, 5, 16, 2);
+        bool createdCopied = dma.GpuRegion(rm, srcSurface, 16, 3, dstSurface, false, 8, 5, 16, 2);
         string createdQuery = rm.Physical.TextureCache.LastCreate;
         string createdCopy = string.Join(";", csource.HostTexture.Copies) + " | " + string.Join(",", created[0].Calls) + " | " +
                              $"{created[0].Info.Width}x{created[0].Info.Height}";
-        // A linear destination: a linear texture over the destination rectangle.
+        // A linear destination (a read-back) stays on the guest path: nothing copied, nothing created.
         var lsource = Make(Format.R8G8B8A8Unorm, 4, 128, 32);
         rm.Physical.TextureCache.Textures = new() { lsource };
-        bool linearCopied = dma.GpuRegion(rm, srcSurface, 16, 3, dstSurface, true, 64, 0, 0, 16, 2);
-        string linearQuery = rm.Physical.TextureCache.LastCreate;
-        string linearCopy = string.Join(";", lsource.HostTexture.Copies) + " | " + string.Join(",", created[1].Calls) + " | " +
-                            $"{created[1].Info.Width}x{created[1].Info.Height} linear={created[1].Info.IsLinear}";
+        bool linearDeclined = !dma.GpuRegion(rm, srcSurface, 16, 3, dstSurface, true, 0, 0, 16, 2) &&
+                              lsource.HostTexture.Copies.Count == 0 && created.Count == 1 && lsource.Calls.Count == 0;
         string regionLine = sink.Lines.Find(l => l.StartsWith("DMA GPU region copy"));
         int regionLines = sink.Lines.FindAll(l => l.StartsWith("DMA GPU region copy")).Count;
         var regionDeclined = new List<string>();
-        void RegionDecline(string name, List<Image.Texture> textures, bool createNothing, DmaTexture s, int sx, bool linear, int stride)
+        void RegionDecline(string name, List<Image.Texture> textures, bool createNothing, DmaTexture s, int sx, bool linear,
+                           List<Image.Texture> placed = null)
         {
             rm.Physical.TextureCache.Textures = textures;
+            rm.Physical.TextureCache.Placed = placed ?? new();
             var create = rm.Physical.TextureCache.Create;
             if (createNothing) rm.Physical.TextureCache.Create = null;
             int copies = 0; foreach (var t in textures) copies += t.HostTexture.Copies.Count;
-            bool ok = dma.GpuRegion(rm, s, sx, 3, dstSurface, linear, stride, 8, 5, 16, 2);
+            int made = created.Count;
+            bool ok = dma.GpuRegion(rm, s, sx, 3, dstSurface, linear, 8, 5, 16, 2);
             int after = 0; foreach (var t in textures) after += t.HostTexture.Copies.Count;
             rm.Physical.TextureCache.Create = create;
-            if (!ok && after == copies) regionDeclined.Add(name);
+            rm.Physical.TextureCache.Placed = new();
+            if (!ok && after == copies && created.Count == made) regionDeclined.Add(name);
         }
-        RegionDecline("noTexture", new() { Make(Format.R8G8B8A8Unorm, 4, 64, 64) }, true, srcSurface, 16, false, 0);
+        RegionDecline("noTexture", new() { Make(Format.R8G8B8A8Unorm, 4, 64, 64) }, true, srcSurface, 16, false);
         var cleanSource = Make(Format.R8G8B8A8Unorm, 4, 128, 32); cleanSource.Group.Modified = false;
-        RegionDecline("notModified", new() { cleanSource, Make(Format.R8G8B8A8Unorm, 4, 64, 64) }, true, srcSurface, 16, false, 0);
+        RegionDecline("notModified", new() { cleanSource, Make(Format.R8G8B8A8Unorm, 4, 64, 64) }, true, srcSurface, 16, false);
         RegionDecline("misaligned", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32), Make(Format.R8G8B8A8Unorm, 4, 64, 64) }, true,
-                      srcSurface, 6, false, 0);
+                      srcSurface, 6, false);
         var volume3d = srcSurface; volume3d.Depth = 2;
         RegionDecline("volume", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32), Make(Format.R8G8B8A8Unorm, 4, 64, 64) }, true,
-                      volume3d, 16, false, 0);
+                      volume3d, 16, false);
         RegionDecline("snorm", new() { Make(Format.R8G8B8A8Snorm, 4, 128, 32), Make(Format.R8G8B8A8Snorm, 4, 64, 64) }, true,
-                      srcSurface, 16, false, 0);
-        RegionDecline("noTarget", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32) }, true, srcSurface, 16, false, 0);
+                      srcSurface, 16, false);
+        RegionDecline("noTarget", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32) }, true, srcSurface, 16, false);
         var sharedSource = Make(Format.R8G8B8A8Unorm, 4, 128, 32); var sharedTarget = Make(Format.R8G8B8A8Unorm, 4, 64, 64);
         sharedTarget.Group = sharedSource.Group;
-        RegionDecline("sameGroup", new() { sharedSource, sharedTarget }, true, srcSurface, 16, false, 0);
+        RegionDecline("sameGroup", new() { sharedSource, sharedTarget }, true, srcSurface, 16, false);
         RegionDecline("otherFormat", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32), Make(Format.B8G8R8A8Unorm, 4, 64, 64) }, true,
-                      srcSurface, 16, false, 0);
-        RegionDecline("narrowStride", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32) }, false, srcSurface, 16, true, 8);
+                      srcSurface, 16, false);
+        RegionDecline("linearDestination", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32) }, false, srcSurface, 16, true);
+        // A texture of another size over the destination surface: the creation would drop it, so nothing is created.
+        var occupant = Make(Format.R8G8B8A8Unorm, 4, 64, 32); occupant.Range.Spans.Add(new Image.Span(0x10000 + 4096, 8192));
+        RegionDecline("occupied", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32) }, false, srcSurface, 16, false, new() { occupant });
+        // A texture of the source size that contains the surface base but starts before it is not that surface.
+        var offsetSource = Make(Format.R8G8B8A8Unorm, 4, 128, 32); offsetSource.Range.Spans.Add(new Image.Span(0x30000 - 0x200, 16384));
+        RegionDecline("notAtStart", new() { offsetSource, Make(Format.R8G8B8A8Unorm, 4, 64, 64) }, false, srcSurface, 16, false);
         string regionCounts = dma.RegionCounts;
         bool precise = dma.Precise(rm) && rm.Physical.PreciseReads == 1;
         string gpuLine = sink.Lines.Find(l => l.StartsWith("DMA GPU source copy"));
@@ -631,8 +646,8 @@ static class Program
             first = sink.Lines[0], uploaded, query, calls, region, rows, r8Uploaded, r8Rows, narrowUploaded, narrowCalls,
             narrowRegion = $"{narrow.Region.X},{narrow.Region.Y} {narrow.Region.Width}x{narrow.Region.Height}", exactUploaded, exactCalls,
             declined, counts, uploadLine, uploadLines, gpuCopied, gpuCopy, gpuCalls, gpuDeclined, sourceCounts, gpuLine, gpuLines,
-            floatCopied, floatCopy, regionCopied, regionCopy, createdCopied, createdQuery, createdCopy, linearCopied, linearQuery,
-            linearCopy, regionLine, regionLines, regionDeclined, regionCounts, precise,
+            floatCopied, floatCopy, regionCopied, regionCopy, createdCopied, createdQuery, createdCopy, linearDeclined,
+            regionLine, regionLines, regionDeclined, regionCounts, precise,
             slowLines = slowLines.ConvertAll(l => System.Text.RegularExpressions.Regex.Replace(l, @"\d+\.\d ms", "T ms")) }));
     }
 }
@@ -671,8 +686,8 @@ static class Program
     check(result['declined'] == expected, f'every declined case leaves the texture untouched: {result}')
     check(result['counts'] == '4 3 10 2 1 2 1', f'uploads, declines (no texture, layout, format, overlap) and slow accesses counted: {result}')
     check('regionUploads 4, declined noTarget 3 layout 10 format 2 overlap 1; slowReads 3, slowWrites 1; gpuSourceCopies 2, declined '
-          'noTexture 4 layout 3 noTarget 1 format 3 notModified 1; gpuRegionCopies 3, declined noTexture 1 layout 3 noTarget 1 '
-          'format 3 notModified 1; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)'
+          'noTexture 4 layout 3 noTarget 1 format 3 notModified 1; gpuRegionCopies 2, declined noTexture 2 layout 2 noTarget 2 '
+          'format 3 notModified 1 linearDestination 2; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)'
           in result['last'] and
           'floatFormat ' in result['last'], f'the summary reports them: {result}')
     check(result['capped'] == 64, f'at most 64 summaries per session: {result}')
@@ -689,17 +704,17 @@ static class Program
     check(result['createdCopied'] and result['createdQuery'] == '10000 256x64 stride=0 linear=False gob=4/1' and
           result['createdCopy'] == '(2,3)-(4,5) to (1,5)-(3,7) filter=False same=False | sync,modified | 32x64',
           f'a destination surface missing from the cache is created over the surface, then copied into: {result}')
-    check(result['linearCopied'] and result['linearQuery'] == '10000 16x2 stride=64 linear=True gob=1/1' and
-          result['linearCopy'] == '(4,3)-(8,5) to (0,0)-(4,2) filter=False same=False | sync,modified | 4x2 linear=True',
-          f'a linear destination gets a linear texture over its rectangle: {result}')
+    check(result['linearDeclined'], f'a linear destination (a read-back) stays on the guest path, nothing created: {result}')
     check(result['regionLines'] == 1 and result['regionLine'] ==
           'DMA GPU region copy (Hogwarts policy): R8G8B8A8Unorm 128x32 (4,3) to 64x64 (2,5) 4x2', f'first region copy logged once: {result}')
     check(result['regionDeclined'] == ['noTexture', 'notModified', 'misaligned', 'volume', 'snorm', 'noTarget', 'sameGroup',
-                                       'otherFormat', 'narrowStride'],
-          f'every declined GPU region copy copies nothing: {result}')
-    check(result['regionCounts'] == '3 1,3,1,3,1', f'GPU region copies and declines (no texture, layout, no target, format, not modified): {result}')
+                                       'otherFormat', 'linearDestination', 'occupied', 'notAtStart'],
+          f'every declined GPU region copy copies and creates nothing: {result}')
+    check(result['regionCounts'] == '2 2,2,2,3,1,2',
+          f'GPU region copies and declines (no texture, layout, no target, format, not modified, linear destination): {result}')
     check(result['precise'], f'the precise read goes to the physical memory with the translated range: {result}')
-    check(result['sourceCounts'] == '1 4,3,1,3,1 | 2,0,0,1', f'GPU source copies, declines and slow reads by source kind: {result}')
+    # The two GPU copies share their decline reasons; a source copy never counts a linear destination (the sixth).
+    check(result['sourceCounts'] == '1 4,3,1,3,1,0 | 2,0,0,1', f'GPU source copies, declines and slow reads by source kind: {result}')
     check(result['gpuLines'] == 1 and result['gpuLine'] ==
           'DMA GPU source copy (Hogwarts policy): R8G8B8A8Unorm 64x32 linear (4,3) to 64x64 (2,3) 4x2', f'first copy logged once: {result}')
     check(result['slowLines'] == ['DMA slow source read #1: T ms, source=None overlaps 0: none; destination texture none',
@@ -709,12 +724,13 @@ static class Program
     check(result['uploadLines'] == 1 and result['uploadLine'] == 'DMA region upload (Hogwarts policy): R8G8B8A8Unorm 64x64 region 2,3 4x2',
           f'the first upload is logged once: {result}')
 
-inputs = ['build-utils/melonx/adapt_hogwarts_dma_copies.py', 'test/melonx_hogwarts_dma_copies_test.py']
+inputs = ['build-utils/melonx/adapt_hogwarts_dma_copies.py', 'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
+          'test/melonx_hogwarts_dma_copies_test.py']
 receipt = dict(result='passed', checks=checks, physicalDeviceTested=False, fpsGainProven=False,
                sourceKind='deliveredPreparedWithFinalCandidate' if CANDIDATE else 'deliveredPreparedComposed',
                finalPreparedSourceBound=bool(CANDIDATE), attribution=result,
                inputs={p: sha(ROOT / p) for p in inputs},
-               preimages={p: sha(SOURCE / p) for p in adapter.NAMES}, postimages=postimages)
+               preimages={p: sha(SOURCE / p) for p in ALL}, postimages=postimages)
 out = ROOT / 'dist/melonx/hogwarts-dma-copies-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(json.dumps(receipt, indent=2) + '\n')

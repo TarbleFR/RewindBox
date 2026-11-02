@@ -19,6 +19,7 @@ SOURCE=args.source.resolve()
 CANDIDATE=args.candidate_source.resolve() if args.candidate_source else None
 sys.path.insert(0,str(ROOT/'build-utils/melonx'))
 from adapt_pipeline_checkpoint_pacing import apply, RELATIVE, BEFORE, DIRTY_BEFORE
+from adapt_host_qos_pipeline_budget import PIPELINE_BUDGET_NEW, PIPELINE_BUDGET_OLD
 
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 preimages={RELATIVE:sha(SOURCE/RELATIVE)}
@@ -40,6 +41,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-pipeline-checkpoint-') as tempor
                     ('            using var saveMeasurement = PD.Measure(PD.Phase.CacheSave);\n',''),
                     ('                PD.Count(PD.Counter.CacheExports);\n',''),
                     ('                PD.Count(PD.Counter.CacheExportBytes, written);\n',''),
+                    # Later in the preparation: the 1 GiB budget (adapt_host_qos_pipeline_budget).
+                    (PIPELINE_BUDGET_NEW,PIPELINE_BUDGET_OLD),
                 ]
                 for old,new in hooks:
                     assert plain.count(old)==1,'unreviewed instrumentation: '+old
@@ -71,7 +74,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-pipeline-checkpoint-') as tempor
         except RuntimeError:negatives+=1
         else:raise AssertionError('source drift accepted')
         assert sha(path)==before,'mutation before drift rejection'
-local=['build-utils/melonx/adapt_pipeline_checkpoint_pacing.py','test/melonx_pipeline_checkpoint_test.py','test/melonx_pipeline_checkpoint/Program.cs','test/melonx_pipeline_checkpoint/Boundaries.cs']
+local=['build-utils/melonx/adapt_pipeline_checkpoint_pacing.py','build-utils/melonx/adapt_host_qos_pipeline_budget.py','test/melonx_pipeline_checkpoint_test.py','test/melonx_pipeline_checkpoint/Program.cs','test/melonx_pipeline_checkpoint/Boundaries.cs']
 bindings=[dict(variant='candidate',reportPath=['compiledSourceInputs','candidate',RELATIVE],productionPath=RELATIVE)]
 if CANDIDATE:bindings.append(dict(variant='candidate',reportPath=['compiledSourceInputs','candidate','EmbeddedPerformanceDiagnostics.cs'],productionPath=collector))
 receipt=dict(result='passed',sourceKind='baselinePreparedWithFinalInstrumentedCandidate' if CANDIDATE else 'baselinePrepared',physicalDeviceTested=False,fpsGainProven=False,completeProductionClasses=True,vulkanBoundaryDoubled=True,realFileMappingAndSnapshots=True,adapterIdempotent=True,sourceDriftControlsPassed=negatives,reports=reports,inputs={p:sha(ROOT/p) for p in local},upstreamInputs=preimages,preimages=preimages,postimages=postimages,compiledSourceInputs=compiled,compiledBindings=bindings)
