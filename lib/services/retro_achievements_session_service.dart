@@ -60,6 +60,7 @@ class RetroAchievementsSessionService extends ChangeNotifier {
   bool _initialized = false;
   bool get initialized => _initialized;
   bool _accountLoaded = false;
+  String _accountStorage = '-';
   bool get canRecoverLegacy => !_initialized && _accountLoaded && _preferences.migrationVersion < 1;
   bool _busy = false;
   bool get busy => _busy;
@@ -92,6 +93,11 @@ class RetroAchievementsSessionService extends ChangeNotifier {
       final account = await _native.invoke('account');
       _authenticated = account['authenticated'] == true;
       _username = account['username'] as String? ?? '';
+      // Where the saved sign-in was found: "keychain", "file" (the private
+      // copy, when iOS did not return the Keychain item) or "none". Codes
+      // only, never account data.
+      _accountStorage = '${account['storage'] ?? '-'} '
+          '(keychain ${account['keychainStatus'] ?? '-'})';
       _accountLoaded = true;
       final active = account['session'];
       if (active is Map && active.isNotEmpty) {
@@ -110,6 +116,7 @@ class RetroAchievementsSessionService extends ChangeNotifier {
     }
     if (_initialized) {
       _log.i('RetroAchievements in-game session ready: account=${_authenticated ? 'present' : 'absent'} '
+          'storage=$_accountStorage '
           'enabled=${_preferences.enabled} hardcore=${_preferences.hardcore}');
     } else {
       _initializing = null;
