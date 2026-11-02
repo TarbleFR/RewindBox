@@ -87,6 +87,8 @@ int main(int argc, const char* argv[]) {
     NSArray<NSString*>* window = @[
       @"TID: 7: COREPROF FRAMEPROF527 session=4 window=21 phase=guest_unclassified intervals=87 median_ms=29.410 p95_ms=33.269 p99_ms=2536.533 max_ms=2536.533 over50ms=1 over100ms=1 window_ms=5029.221 histogram_upper_us=15999:2,16999:40,17999:9,29999:3,33999:12,41999:6,49999:5,58999:4,66999:2,83999:1,99999:1,135999:1,2535999:1",
       @"TID: 7: COREPROF ZCULLSYNC613 session=4 window=21 tuple=count:total_ms:max_ms results=2210:3870.500:9.125 result_flushes=2190 hint_flushes=40 precise=0 relaxed=0 scope=rsx_thread_process_window window_boundary_approximate=1",
+      @"TID: 7: COREPROF ZCULLWAIT616 session=4 window=21 tuple=count:total_ms:max_ms poll=0:0.000:0.000 forced=12:30.250:4.500 cond_render=3:9.000:3.125 sync=31:3610.750:31.500 gathers=2140:40:3:27 gathers_order=poll:forced:cond_render:sync poll_deferred=29 scope=rsx_thread_process_window window_boundary_approximate=1",
+      @"TID: 7: COREPROF SPUPREFETCH616 session=4 window=21 active=1 done=1 planned=9120 planned_kib=11520.0 read=9000 read_kib=11360.5 read_ms=4210.250 failures=0 hits=7100 hit_kib=8900.0 claimed=120 dropped=2 pending=0 resident=1900 resident_kib=2460.5 scope=process_window window_boundary_approximate=1",
       @"TID: 7: COREPROF VDECIO528 session=4 window=21 demand_reads=0 demand_read_max_us=0 prefetch_hits=0",
       @"TID: 7: COREPROF SHADERCFG536 session=4 window=21 configured=0 applied=0 fallback=0",
       @"TID: 7: COREPROF SHADERCOST534 session=4 window=21 tuple=count:total_us:max_us source=13:27959:3486 module=13:236:33 graphics=15:2474657:540573 compute=0:0:0",
@@ -125,6 +127,12 @@ int main(int argc, const char* argv[]) {
     assert([row[@"frame_ms"][@"histogram_upper_us"] isEqualToString:@"15999:2,16999:40,17999:9,29999:3,33999:12,41999:6,49999:5,58999:4,66999:2,83999:1,99999:1,135999:1,2535999:1"]);
     assert([row[@"zcull_sync"][@"results"] isEqualToString:@"2210:3870.500:9.125"]);
     assert([row[@"zcull_sync"][@"result_flushes"] intValue] == 2190 && [row[@"zcull_sync"][@"relaxed"] intValue] == 0);
+    // Build 616: the wait by path and the read-ahead of SPU objects.
+    assert([row[@"zcull_wait"][@"sync"] isEqualToString:@"31:3610.750:31.500"] && [row[@"zcull_wait"][@"poll_deferred"] intValue] == 29);
+    assert([row[@"zcull_wait"][@"gathers"] isEqualToString:@"2140:40:3:27"]);
+    assert([row[@"spu_prefetch"][@"hits"] intValue] == 7100 && [row[@"spu_prefetch"][@"claimed"] intValue] == 120);
+    assert([row[@"spu_prefetch"][@"read_ms"] isEqualToNumber:[NSDecimalNumber decimalNumberWithString:@"4210.25"]]);
+    assert([row[@"spu_prefetch"][@"resident_kib"] isEqualToNumber:[NSDecimalNumber decimalNumberWithString:@"2460.5"]]);
     assert([row[@"shader_cost_us"][@"graphics"] isEqualToString:@"15:2474657:540573"]);
     assert([row[@"shader_stall_events"][@"count"] intValue] == 2);
     assert([row[@"shader_stall_events"][@"max_us"] intValue] == 540573);

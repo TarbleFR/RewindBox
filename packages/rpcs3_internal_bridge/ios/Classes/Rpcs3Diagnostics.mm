@@ -584,6 +584,15 @@ static NSMutableDictionary* RPCS3TimelineFamily(const char* line, NSArray<NSStri
     // Build 613: ZCULL report reads on the RSX thread (submission and MoltenVK
     // wait included), the reads that had to submit, and early zcull_sync submits.
     family = @"zcull_sync"; keys = @[@"results", @"result_flushes", @"hint_flushes", @"precise", @"relaxed"];
+  } else if (strstr(line, "COREPROF ZCULLWAIT616 ") != nullptr) {
+    // Build 616: the MoltenVK wait inside those reads by the path that asked
+    // (poll, forced read, conditional render, sync), the gathers per path in
+    // that order and the polls left for later instead of waiting.
+    family = @"zcull_wait"; keys = @[@"poll", @"forced", @"cond_render", @"sync", @"gathers", @"poll_deferred"];
+  } else if (strstr(line, "COREPROF SPUPREFETCH616 ") != nullptr) {
+    // Build 616: SPU objects read ahead into memory and taken by compile threads.
+    family = @"spu_prefetch"; keys = @[@"active", @"done", @"planned", @"read", @"read_ms", @"hits", @"claimed",
+        @"dropped", @"failures", @"resident_kib"];
   } else if (strstr(line, "COREPROF RSXFRAME551 ") != nullptr) {
     // CELL551: RPCS3's per-frame RSX statistics; stage times are sampled-frame averages.
     family = @"rsx_frame"; keys = @[@"frames", @"sampled", @"draws_per_frame", @"submits", @"setup_ms", @"vertex_ms",

@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 613,
- "identity_type": "rpcs3-ios-core613",
- "summary": "RPCS3 Core 613 = the delivered Core 610 plus one folded delta: the Core 612 record unchanged (RetroAchievements PS3 Core hooks of Core 611, census v2, per-game graphics test levers) and two Core 613 changes: SPU object-cache hits of blocks of at most 16 KiB no longer wait for the LLVM compile admission (REWINDBOX_SPU_OBJECT_HIT_ADMISSION_613, Black Ops II Build 612 logs) and a measurement-only ZCULL report-read probe (REWINDBOX_ZCULL_SYNC_PROBE_613, COREPROF ZCULLSYNC613, Assassin's Creed Build 612 logs); ABI 30, the 92 exports of Core 612, the PPU/SPU codegen identities (one exact SPULLVMRecompiler.cpp alias) and the MoltenVK dependency of Core 610 unchanged.",
+ "build": 616,
+ "identity_type": "rpcs3-ios-core616",
+ "summary": "RPCS3 Core 616 = the delivered Core 610 plus one folded delta: the Core 612 and Core 613 records unchanged and three Core 616 changes (insertions only over Core 613, build-utils/rpcs3/core616-from-613.patch): a non-forced ZCULL poll no longer waits for the GPU when the oldest part of a query spanning a command-buffer flush found no hit (REWINDBOX_ZCULL_POLL_NO_WAIT_616, with the measurement-only COREPROF ZCULLWAIT616, Assassin's Creed Build 614 logs); Black Ops II only, the vertex depth fallback compresses window Z above 1 so the draws pinned in front of the scene keep their depth order (REWINDBOX_ZCLIP_WINDOW_Z_616, RPCS3 issue #13227 capture) and the title's SPU object files are read into memory ahead of the compile threads (REWINDBOX_SPU_OBJECT_PREFETCH_616, COREPROF SPUPREFETCH616, Build 614 logs); ABI 30, the 92 exports of Core 613, the PPU/SPU codegen identities (four exact aliases) and the MoltenVK dependency of Core 610 unchanged.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,13 +22,14 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "c107718c9447bd9dacf8fb2e817911c3594ff94128d16ab6d92c7a163b0be2b0",
-  "postimages": 332,
+  "patch_sha256": "2abb64749d64a9875fb2b3e8034991596906d838e704d29b112ce7ecd9a15628",
+  "postimages": 334,
   "records": [
    "core610_20261101",
    "retroachievements_core",
    "core612_20261102",
-   "core613_20261102"
+   "core613_20261102",
+   "core616_20261102"
   ]
  },
  "reference": {
@@ -68,10 +69,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core613_20261102",
-  "manifest": "build-utils/rpcs3/core613-delta.json",
-  "patch": "build-utils/rpcs3/core613-delta.patch",
-  "patch_sha256": "abd11d78d5f83d80b447b0020aab2be16f1b9f584b46caf603e149e21fb86a9f"
+  "record": "core616_20261102",
+  "manifest": "build-utils/rpcs3/core616-delta.json",
+  "patch": "build-utils/rpcs3/core616-delta.patch",
+  "patch_sha256": "d2f439f710c0723101f498f6933719b897317d9408a578281f80f3acf6fe0627"
  },
  "exports": 92,
  "core_inputs": {
@@ -86,6 +87,7 @@
   ]
  },
  "new_canonical_upstream": [
+  "rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl",
   "rpcs3/Emu/RSX/VK/VKRenderPass.cpp",
   "rpcs3/Emu/RSX/VK/VKRenderPass.h"
  ],
@@ -102,7 +104,10 @@
   "MoltenVK asynchronous submits",
   "CONFIG_LAYERS part=rsx",
   "Position Invariance",
-  "COREPROF ZCULLSYNC613"
+  "COREPROF ZCULLSYNC613",
+  "COREPROF ZCULLWAIT616",
+  "COREPROF SPUPREFETCH616",
+  "Resolved title policy 616"
  ],
  "moltenvk_dependency": {
   "run": 41239096061,
@@ -300,46 +305,61 @@
     "reason": "the same executed checks under ASan/UBSan"
    },
    {
-    "name": "zcull-sync-probe-613",
-    "argv": [
-     "python3",
-     "test/rpcs3_zcull_sync_probe613_test.py",
-     "--source",
-     "{source}",
-     "--cxx",
-     "clang++",
-     "--report",
-     "{out}/zcull-sync-probe-613.json"
-    ],
-    "reason": "new: the ZCULL probe changes no Core 612 byte outside its insertions; its cost scope executed; its line carries the timeline keys"
-   },
-   {
-    "name": "zcull-sync-probe-613-asan-ubsan",
-    "argv": [
-     "python3",
-     "test/rpcs3_zcull_sync_probe613_test.py",
-     "--source",
-     "{source}",
-     "--cxx",
-     "clang++",
-     "--sanitize",
-     "--report",
-     "{out}/zcull-sync-probe-613-asan-ubsan.json"
-    ],
-    "reason": "the same executed checks under ASan/UBSan"
-   },
-   {
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core613_codegen_test.py",
+     "test/rpcs3_core616_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "the Core 613 SPULLVMRecompiler.cpp alias joins the Core 610 SPUThread.cpp alias: the static Core 610 audit cannot be re-derived on this tree, so the two-alias audit runs instead"
+    "reason": "Core 616 adds two exact aliases (JITLLVM.cpp, SPUCommonRecompiler.cpp) to the Core 610 and Core 613 ones: the four are authenticated against the delivered a4ae86d0 tree"
+   },
+   {
+    "name": "core616",
+    "argv": [
+     "python3",
+     "test/rpcs3_core616_test.py",
+     "--source",
+     "{source}",
+     "--cxx",
+     "clang++",
+     "--report",
+     "{out}/core616.json"
+    ],
+    "reason": "new: Core 616 = Core 613 + insertions (reverse patch, 17 pinned Core 613 files); the ZCULL poll predicate and gather executed exhaustively; the prefetch store and load_compressed() executed; the real vertex fallback executed with the #13227 capture parameters; title levers"
+   },
+   {
+    "name": "core616-asan-ubsan",
+    "argv": [
+     "python3",
+     "test/rpcs3_core616_test.py",
+     "--source",
+     "{source}",
+     "--cxx",
+     "clang++",
+     "--sanitize",
+     "--report",
+     "{out}/core616-asan-ubsan.json"
+    ],
+    "reason": "the same executed checks under ASan/UBSan"
+   },
+   {
+    "name": "core616-tsan",
+    "argv": [
+     "python3",
+     "test/rpcs3_core616_test.py",
+     "--source",
+     "{source}",
+     "--cxx",
+     "clang++",
+     "--tsan",
+     "--report",
+     "{out}/core616-tsan.json"
+    ],
+    "reason": "the prefetch store, its worker and concurrent takes under ThreadSanitizer"
    }
   ],
   "reused": {

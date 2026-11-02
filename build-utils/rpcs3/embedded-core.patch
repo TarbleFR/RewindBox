@@ -1262,10 +1262,10 @@ index 0d19acc..4717823 100644
  static_assert(arena_prepare_chunk_length(17 * mib, 0) == 16 * mib);
  static_assert(arena_prepare_chunk_length(17 * mib, 1) == 1 * mib);
 diff --git a/Utilities/JITLLVM.cpp b/Utilities/JITLLVM.cpp
-index 863624e..a2502a7 100644
+index 863624e..eadd796 100644
 --- a/Utilities/JITLLVM.cpp
 +++ b/Utilities/JITLLVM.cpp
-@@ -9,10 +9,14 @@
+@@ -9,10 +9,15 @@
  #include "util/vm.hpp"
  #include "util/asm.hpp"
  #include "Crypto/unzip.h"
@@ -1273,6 +1273,7 @@ index 863624e..a2502a7 100644
  
  #ifdef RPCS3_IOS
  #include "JITIOS.h"
++#include "ios/IOSSpuObjectPrefetch.h" // REWINDBOX_SPU_OBJECT_PREFETCH_616
  #include "JITProfile.h"
 +#include "JITPhaseProfile.h"
 +#include "JITPublicationQueue.h"
@@ -1280,7 +1281,7 @@ index 863624e..a2502a7 100644
  #endif
  
  #include <atomic>
-@@ -43,6 +47,8 @@ LOG_CHANNEL(jit_log, "JIT");
+@@ -43,6 +48,8 @@ LOG_CHANNEL(jit_log, "JIT");
  #pragma GCC diagnostic ignored "-Wmissing-noreturn"
  #endif
  #include <llvm/Support/CodeGen.h>
@@ -1289,7 +1290,7 @@ index 863624e..a2502a7 100644
  #include "llvm/Support/TargetSelect.h"
  #include "llvm/TargetParser/Host.h"
  #include "llvm/ExecutionEngine/ExecutionEngine.h"
-@@ -51,6 +57,7 @@ LOG_CHANNEL(jit_log, "JIT");
+@@ -51,6 +58,7 @@ LOG_CHANNEL(jit_log, "JIT");
  #include "llvm/ExecutionEngine/JITEventListener.h"
  #include "llvm/Object/ObjectFile.h"
  #include "llvm/Object/SymbolSize.h"
@@ -1297,7 +1298,7 @@ index 863624e..a2502a7 100644
  #ifdef _MSC_VER
  #pragma warning(pop)
  #else
-@@ -61,6 +68,85 @@ LOG_CHANNEL(jit_log, "JIT");
+@@ -61,6 +69,85 @@ LOG_CHANNEL(jit_log, "JIT");
  #include "Emu/CPU/Backends/AArch64/AArch64Common.h"
  #endif
  
@@ -1383,7 +1384,7 @@ index 863624e..a2502a7 100644
  namespace
  {
  	thread_local std::string* g_llvm_fatal_message = nullptr;
-@@ -71,18 +157,15 @@ namespace
+@@ -71,18 +158,15 @@ namespace
  
  	void maybe_log_ios_jit_arena_pressure(bool executable)
  	{
@@ -1406,7 +1407,7 @@ index 863624e..a2502a7 100644
  			if (next_warning.compare_exchange_strong(threshold, initial_threshold,
  				std::memory_order_relaxed, std::memory_order_relaxed))
  			{
-@@ -105,6 +188,11 @@ namespace
+@@ -105,6 +189,11 @@ namespace
  
  		if (crossed_threshold)
  		{
@@ -1418,7 +1419,7 @@ index 863624e..a2502a7 100644
  			constexpr usz mib = 1024 * 1024;
  			jit_log.warning(
  				"JIT_ARENA_LOW_SPACE: iOS JIT %s arena has live=%u MiB, free=%u MiB (%llu bytes), "
-@@ -117,7 +205,7 @@ namespace
+@@ -117,7 +206,7 @@ namespace
  				static_cast<u64>(largest_free),
  				runtime / mib,
  				peak / mib,
@@ -1427,7 +1428,7 @@ index 863624e..a2502a7 100644
  		}
  	}
  #endif
-@@ -329,7 +417,8 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
+@@ -329,7 +418,8 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
  	};
  
  	std::vector<code_mapping> m_pending_code;
@@ -1437,7 +1438,7 @@ index 863624e..a2502a7 100644
  	std::vector<arena_allocation> m_data;
  #endif
  
-@@ -362,7 +451,7 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
+@@ -362,7 +452,7 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
  		// utils::memory_decommit(m_data_ro_mems, how_much(data_ro_ptr));
  		// utils::memory_decommit(m_data_rw_mems, how_much(data_rw_ptr));
  #ifdef RPCS3_IOS
@@ -1446,7 +1447,7 @@ index 863624e..a2502a7 100644
  		{
  			rpcs3::ios::jit::release_allocation(true, item.target, item.size);
  		}
-@@ -472,7 +561,7 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
+@@ -472,7 +562,7 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
  
  		u8* const local = ensure(static_cast<u8*>(rpcs3::ios::jit::writable(target, size)));
  		m_pending_code.push_back({local, target, size});
@@ -1455,7 +1456,7 @@ index 863624e..a2502a7 100644
  		maybe_log_ios_jit_arena_pressure(true);
  		return local;
  #else
-@@ -484,6 +573,7 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
+@@ -484,6 +574,7 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
  #ifdef RPCS3_IOS
  	void notifyObjectLoaded(llvm::ExecutionEngine* engine, const llvm::object::ObjectFile&) override
  	{
@@ -1463,7 +1464,7 @@ index 863624e..a2502a7 100644
  		for (const code_mapping& item : m_pending_code)
  		{
  			engine->mapSectionAddress(item.local, reinterpret_cast<u64>(item.target));
-@@ -520,10 +610,11 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
+@@ -520,10 +611,11 @@ struct MemoryManager1 : llvm::RTDyldMemoryManager
  	bool finalizeMemory(std::string* = nullptr) override
  	{
  #ifdef RPCS3_IOS
@@ -1479,7 +1480,7 @@ index 863624e..a2502a7 100644
  #endif
  		return false;
  	}
-@@ -553,7 +644,8 @@ struct MemoryManager2 : llvm::RTDyldMemoryManager
+@@ -553,7 +645,8 @@ struct MemoryManager2 : llvm::RTDyldMemoryManager
  	};
  
  	std::vector<code_mapping> m_pending_code;
@@ -1489,7 +1490,7 @@ index 863624e..a2502a7 100644
  #endif
  
  	MemoryManager2(std::function<u64(const std::string&)> symbols_cement = {}) noexcept
-@@ -593,7 +685,7 @@ struct MemoryManager2 : llvm::RTDyldMemoryManager
+@@ -593,7 +686,7 @@ struct MemoryManager2 : llvm::RTDyldMemoryManager
  #ifdef RPCS3_IOS
  		u8* const local = ensure(static_cast<u8*>(rpcs3::ios::jit::writable(target, size)));
  		m_pending_code.push_back({local, target, size});
@@ -1498,7 +1499,7 @@ index 863624e..a2502a7 100644
  		return local;
  #else
  		return target;
-@@ -603,6 +695,7 @@ struct MemoryManager2 : llvm::RTDyldMemoryManager
+@@ -603,6 +696,7 @@ struct MemoryManager2 : llvm::RTDyldMemoryManager
  #ifdef RPCS3_IOS
  	void notifyObjectLoaded(llvm::ExecutionEngine* engine, const llvm::object::ObjectFile&) override
  	{
@@ -1506,7 +1507,7 @@ index 863624e..a2502a7 100644
  		for (const code_mapping& item : m_pending_code)
  		{
  			engine->mapSectionAddress(item.local, reinterpret_cast<u64>(item.target));
-@@ -619,10 +712,11 @@ struct MemoryManager2 : llvm::RTDyldMemoryManager
+@@ -619,10 +713,11 @@ struct MemoryManager2 : llvm::RTDyldMemoryManager
  	bool finalizeMemory(std::string* = nullptr) override
  	{
  #ifdef RPCS3_IOS
@@ -1522,7 +1523,7 @@ index 863624e..a2502a7 100644
  #endif
  		return false;
  	}
-@@ -641,18 +735,81 @@ class ObjectCache final : public llvm::ObjectCache
+@@ -641,18 +736,81 @@ class ObjectCache final : public llvm::ObjectCache
  {
  	const std::string& m_path;
  	const std::add_pointer_t<jit_compiler> m_compiler = nullptr;
@@ -1605,7 +1606,7 @@ index 863624e..a2502a7 100644
  		std::string name = m_path;
  
  		name.append(_module->getName());
-@@ -694,42 +851,106 @@ public:
+@@ -694,42 +852,127 @@ public:
  
  		// Restore space that was overestimated
  		ensure(m_compiler->add_sub_disk_space(max_size - module_file.file.size()));
@@ -1625,15 +1626,36 @@ index 863624e..a2502a7 100644
  	}
  
 -	static std::unique_ptr<llvm::MemoryBuffer> load(const std::string& path)
-+	static std::unique_ptr<llvm::MemoryBuffer> load(const std::string& path, jit_phase::phase read_phase = jit_phase::ppu_cache_read)
++#ifdef RPCS3_IOS
++	// REWINDBOX_SPU_OBJECT_PREFETCH_616: the same gzip member as load() reads
++	// from path + ".gz", already in memory (ios/IOSSpuObjectPrefetch.h).
++	static std::unique_ptr<llvm::MemoryBuffer> load_compressed(const std::vector<unsigned char>& compressed, jit_phase::phase read_phase)
  	{
+-		if (fs::file cached{path + ".gz", fs::read})
 +		jit_phase::scope phase_timer(read_phase, utils::get_tsc);
-+
- 		if (fs::file cached{path + ".gz", fs::read})
++		const auto read_at = [&](std::uint64_t offset, void* data, std::size_t count) -> std::size_t
  		{
 -			const std::vector<u8> cached_data = cached.to_vector<u8>();
--
++			if (offset > compressed.size() || count > compressed.size() - offset) return 0;
++			std::memcpy(data, compressed.data() + offset, count);
++			return count;
++		};
++		const auto output_size = jit_object_buffer::gzip_size(compressed.size(), read_at);
++		if (!output_size) return nullptr;
++		auto buf = llvm::WritableMemoryBuffer::getNewUninitMemBuffer(output_size);
++		if (!buf || !jit_object_buffer::inflate(compressed.size(), read_at, buf->getBufferStart(), output_size)) return nullptr;
++		phase_timer.bytes = output_size;
++		return buf;
++	}
++#endif
+ 
 -			if (cached_data.empty()) [[unlikely]]
++	static std::unique_ptr<llvm::MemoryBuffer> load(const std::string& path, jit_phase::phase read_phase = jit_phase::ppu_cache_read)
++	{
++		jit_phase::scope phase_timer(read_phase, utils::get_tsc);
++
++		if (fs::file cached{path + ".gz", fs::read})
++		{
 +#ifdef RPCS3_IOS
 +			// An open Unix handle can be a directory. Reuse this handle's size
 +			// query to reject it before reading, without a second path lookup.
@@ -1663,7 +1685,8 @@ index 863624e..a2502a7 100644
 -			if (out.empty())
 +#endif
 +			const auto read_at = [&](std::uint64_t offset, void* data, std::size_t count) -> std::size_t
-+			{
+ 			{
+-				jit_log.error("LLVM: Failed to unzip module: '%s'", path);
 +#ifdef RPCS3_IOS
 +				// Runtime cache hits read the footer and compressed bytes from the
 +				// same open object. Positional reads avoid a seek for every chunk.
@@ -1686,8 +1709,7 @@ index 863624e..a2502a7 100644
 +			if (!output_size) return nullptr;
 +			auto buf = llvm::WritableMemoryBuffer::getNewUninitMemBuffer(output_size);
 +			if (!buf || !jit_object_buffer::inflate(compressed_size, read_at, buf->getBufferStart(), output_size))
- 			{
--				jit_log.error("LLVM: Failed to unzip module: '%s'", path);
++			{
 +				jit_log.error("LLVM: Invalid or oversized gzip object: '%s'", path);
  				return nullptr;
  			}
@@ -1728,7 +1750,7 @@ index 863624e..a2502a7 100644
  			return buf;
  		}
  
-@@ -738,11 +959,48 @@ public:
+@@ -738,11 +981,48 @@ public:
  
  	std::unique_ptr<llvm::MemoryBuffer> getObject(const llvm::Module* _module) override
  	{
@@ -1777,7 +1799,7 @@ index 863624e..a2502a7 100644
  			jit_log.notice("LLVM: Loaded module: %s", _module->getName().data());
  			return buf;
  		}
-@@ -751,6 +1009,123 @@ public:
+@@ -751,6 +1031,123 @@ public:
  	}
  };
  
@@ -1901,7 +1923,7 @@ index 863624e..a2502a7 100644
  std::string jit_compiler::cpu(std::string_view _cpu)
  {
  	std::string m_cpu = std::string(_cpu);
-@@ -885,6 +1260,17 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
+@@ -885,6 +1282,17 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
  	: m_context(new llvm::LLVMContext)
  	, m_cpu(cpu(_cpu))
  {
@@ -1919,7 +1941,7 @@ index 863624e..a2502a7 100644
  	[[maybe_unused]] static const bool s_install_llvm_error_handler = []()
  	{
  		llvm::remove_fatal_error_handler();
-@@ -904,6 +1290,26 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
+@@ -904,6 +1312,26 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
  		return true;
  	}();
  
@@ -1946,7 +1968,7 @@ index 863624e..a2502a7 100644
  	std::string result;
  
  	auto null_mod = std::make_unique<llvm::Module> ("null_", *m_context);
-@@ -929,38 +1335,7 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
+@@ -929,38 +1357,7 @@ jit_compiler::jit_compiler(const std::unordered_map<std::string, u64>& _link, st
  		mem = std::make_unique<MemoryManager1>(std::move(symbols_cement));
  	}
  
@@ -1986,7 +2008,7 @@ index 863624e..a2502a7 100644
  
  	{
  		m_engine.reset(llvm::EngineBuilder(std::move(null_mod))
-@@ -1030,7 +1405,10 @@ void jit_compiler::add(std::unique_ptr<llvm::Module> _module, const std::string&
+@@ -1030,7 +1427,10 @@ void jit_compiler::add(std::unique_ptr<llvm::Module> _module, const std::string&
  
  	const auto ptr = _module.get();
  	m_engine->addModule(std::move(_module));
@@ -1998,36 +2020,26 @@ index 863624e..a2502a7 100644
  	m_engine->setObjectCache(nullptr);
  
  	for (auto& func : ptr->functions())
-@@ -1048,11 +1426,88 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
- 	const auto ptr = _module.get();
- 	m_engine->addModule(std::move(_module));
+@@ -1050,9 +1450,15 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
  
-+	if (!run_recoverable_llvm([&]()
-+	{
+ 	if (!run_recoverable_llvm([&]()
+ 	{
 +		const jit_phase::scope phase_timer(jit_phase::ppu_codegen, utils::get_tsc);
-+		m_engine->generateCodeForModule(ptr);
-+	}, error))
-+	{
+ 		m_engine->generateCodeForModule(ptr);
+ 	}, error))
+ 	{
 +#ifdef RPCS3_IOS
 +		// CELL591_OBJECT_CACHE_LIFETIME: cache belongs to this stack frame.
 +		// LLVM recovery must not leave the engine pointing at it after return.
 +		m_engine->setObjectCache(nullptr);
 +#endif
-+		if (m_announcer) m_announcer->finalized(false);
-+		return false;
-+	}
-+
-+	m_engine->setObjectCache(nullptr);
-+
-+	for (auto& func : ptr->functions())
-+	{
-+		// Delete IR to lower memory consumption
-+		func.deleteBody();
-+	}
-+
-+	return true;
-+}
-+
+ 		if (m_announcer) m_announcer->finalized(false);
+ 		return false;
+ 	}
+@@ -1068,6 +1474,99 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
+ 	return true;
+ }
+ 
 +jit_cached_object::jit_cached_object() noexcept = default;
 +jit_cached_object::jit_cached_object(jit_cached_object&&) noexcept = default;
 +jit_cached_object& jit_cached_object::operator=(jit_cached_object&&) noexcept = default;
@@ -2044,7 +2056,21 @@ index 863624e..a2502a7 100644
 +	}
 +#endif
 +
++#ifdef RPCS3_IOS
++	// REWINDBOX_SPU_OBJECT_PREFETCH_616: bytes read ahead from this very file
++	// are taken once; anything else (not read yet, unreadable) reads the file.
++	std::unique_ptr<llvm::MemoryBuffer> buffer;
++	if (auto prefetched = rpcs3::ios::spu_object_prefetch::instance().take(path + ".gz"))
++	{
++		buffer = ObjectCache::load_compressed(*prefetched, jit_phase::spu_cache_read);
++	}
++	if (!buffer)
++	{
++		buffer = ObjectCache::load(path, jit_phase::spu_cache_read);
++	}
++#else
 +	std::unique_ptr<llvm::MemoryBuffer> buffer = ObjectCache::load(path, jit_phase::spu_cache_read);
++#endif
 +
 +#ifdef RPCS3_IOS
 +	// Opening the object already performs the successful lookup. Probe file
@@ -2078,19 +2104,27 @@ index 863624e..a2502a7 100644
 +	const auto ptr = _module.get();
 +	m_engine->addModule(std::move(_module));
 +
- 	if (!run_recoverable_llvm([&]()
- 	{
- 		m_engine->generateCodeForModule(ptr);
- 	}, error))
- 	{
++	if (!run_recoverable_llvm([&]()
++	{
++		m_engine->generateCodeForModule(ptr);
++	}, error))
++	{
 +		m_engine->setObjectCache(nullptr);
- 		if (m_announcer) m_announcer->finalized(false);
- 		return false;
- 	}
-@@ -1068,6 +1523,14 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, const std::str
- 	return true;
- }
- 
++		if (m_announcer) m_announcer->finalized(false);
++		return false;
++	}
++
++	m_engine->setObjectCache(nullptr);
++
++	for (auto& func : ptr->functions())
++	{
++		// Delete IR to lower memory consumption
++		func.deleteBody();
++	}
++
++	return true;
++}
++
 +bool jit_compiler::try_add_minimal_object(jit_cached_object object, const std::string& entry,
 +	const std::unordered_map<std::string, u64>& bindings, std::string& error)
 +{
@@ -2102,7 +2136,7 @@ index 863624e..a2502a7 100644
  void jit_compiler::add(std::unique_ptr<llvm::Module> _module)
  {
  	const auto ptr = _module.get();
-@@ -1106,7 +1569,14 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, std::string& e
+@@ -1106,7 +1605,14 @@ bool jit_compiler::try_add(std::unique_ptr<llvm::Module> _module, std::string& e
  
  bool jit_compiler::add(const std::string& path)
  {
@@ -2117,7 +2151,7 @@ index 863624e..a2502a7 100644
  
  	if (!cache)
  	{
-@@ -1114,6 +1584,8 @@ bool jit_compiler::add(const std::string& path)
+@@ -1114,6 +1620,8 @@ bool jit_compiler::add(const std::string& path)
  		return false;
  	}
  
@@ -2126,7 +2160,7 @@ index 863624e..a2502a7 100644
  	if (auto object_file = llvm::object::ObjectFile::createObjectFile(*cache))
  	{
  		m_engine->addObjectFile(llvm::object::OwningBinary<llvm::object::ObjectFile>(std::move(*object_file), std::move(cache)));
-@@ -1122,26 +1594,43 @@ bool jit_compiler::add(const std::string& path)
+@@ -1122,26 +1630,43 @@ bool jit_compiler::add(const std::string& path)
  	}
  	else
  	{
@@ -3999,10 +4033,10 @@ index e11a275..353f459 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 0000000..d48e4d1
+index 0000000..cab3a39
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,106 @@
 +# CELL591: the exact reviewed JITLLVM change clears a stack ObjectCache on
 +# recoverable failure; SPULLVM drops finalized IR after obtaining native code.
 +# Neither changes object emission, relocations or the callable ABI.
@@ -4093,6 +4127,18 @@ index 0000000..d48e4d1
 +    elseif(source STREQUAL "Cell/SPULLVMRecompiler.cpp" AND
 +           actual STREQUAL "46e26928919087f4daf23eb6a62211894deb8599671bc55468fb639cfef935d7")
 +        set(${output} "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff" PARENT_SCOPE)
++    # REWINDBOX_SPU_OBJECT_PREFETCH_616: JITLLVM's load_cached_object first takes
++    # the compressed bytes that ios/IOSSpuObjectPrefetch.h read ahead from the
++    # same object file and inflates them as the file read would; the SPU runtime
++    # starts that read after the eviction plan. Object keys, inflation, symbol
++    # validation, linking, emission and relocations are unchanged. Keep the
++    # delivered Core 613 effective hashes for these exact source snapshots only.
++    elseif(source STREQUAL "../../Utilities/JITLLVM.cpp" AND
++           actual STREQUAL "ac7fe0f65eb33b7d18fca45d9c7261b8105f3ee0b51e104feedfe372f5eec0fc")
++        set(${output} "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf" PARENT_SCOPE)
++    elseif(source STREQUAL "Cell/SPUCommonRecompiler.cpp" AND
++           actual STREQUAL "b4fab733e3472599d4f0c3f98b78f500f68b2dabfee7a26d69ebc453a05c1197")
++        set(${output} "4699b7d26b6db826dc0c98c49a711d4b00fd3dc70512df3a162801a76f263db0" PARENT_SCOPE)
 +    else()
 +        set(${output} "${actual}" PARENT_SCOPE)
 +    endif()
@@ -7146,7 +7192,7 @@ index 0000000..665988a
 +}
 +}
 diff --git a/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp b/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
-index d451a94..9088421 100644
+index d451a94..6bf94b8 100644
 --- a/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
 +++ b/rpcs3/Emu/Cell/SPUCommonRecompiler.cpp
 @@ -1,5 +1,6 @@
@@ -7156,7 +7202,7 @@ index d451a94..9088421 100644
  
  #include "Emu/System.h"
  #include "Emu/system_config.h"
-@@ -30,7 +31,10 @@
+@@ -30,9 +31,13 @@
  #include "util/sysinfo.hpp"
  
  #ifdef RPCS3_IOS
@@ -7166,8 +7212,11 @@ index d451a94..9088421 100644
 +#include "ios/RPCS3IOSLeverHelpers.h" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L5)
  #include "ios/IOSMemoryPressurePolicy.h"
  #include "ios/RPCS3IOSPerformance.h"
++#include "ios/IOSSpuObjectPrefetch.h" // REWINDBOX_SPU_OBJECT_PREFETCH_616
  #include "rpcs3_version.h"
-@@ -40,6 +44,19 @@ const extern spu_decoder<spu_itype> g_spu_itype;
+ #endif
+ 
+@@ -40,6 +45,19 @@ const extern spu_decoder<spu_itype> g_spu_itype;
  const extern spu_decoder<spu_iname> g_spu_iname;
  const extern spu_decoder<spu_iflag> g_spu_iflag;
  
@@ -7187,7 +7236,7 @@ index d451a94..9088421 100644
  constexpr u32 s_reg_max = spu_recompiler_base::s_reg_max;
  
  template<typename T>
-@@ -279,7 +296,19 @@ static void ghc_cpp_trampoline(u64 fn_target, native_asm& c, auto& args)
+@@ -279,7 +297,19 @@ static void ghc_cpp_trampoline(u64 fn_target, native_asm& c, auto& args)
  }
  #endif
  
@@ -7208,7 +7257,7 @@ index d451a94..9088421 100644
  {
  	jit_write_guard jit_guard;
  #if defined(ARCH_X64)
-@@ -306,8 +335,11 @@ DECLARE(spu_runtime::tr_dispatch) = []
+@@ -306,8 +336,11 @@ DECLARE(spu_runtime::tr_dispatch) = []
  #error "Unimplemented"
  #endif
  }();
@@ -7221,7 +7270,7 @@ index d451a94..9088421 100644
  {
  	jit_write_guard jit_guard;
  #if defined(ARCH_X64)
-@@ -332,8 +364,11 @@ DECLARE(spu_runtime::tr_branch) = []
+@@ -332,8 +365,11 @@ DECLARE(spu_runtime::tr_branch) = []
  #error "Unimplemented"
  #endif
  }();
@@ -7234,7 +7283,7 @@ index d451a94..9088421 100644
  {
  	jit_write_guard jit_guard;
  #if defined(ARCH_X64)
-@@ -354,23 +389,30 @@ DECLARE(spu_runtime::tr_interpreter) = []
+@@ -354,23 +390,30 @@ DECLARE(spu_runtime::tr_interpreter) = []
  	return trptr;
  #endif
  }();
@@ -7269,7 +7318,7 @@ index d451a94..9088421 100644
  {
  	jit_write_guard jit_guard;
  
-@@ -400,11 +442,11 @@ DECLARE(spu_runtime::tr_all) = []
+@@ -400,11 +443,11 @@ DECLARE(spu_runtime::tr_all) = []
  	*raw++ = 0xe8;
  	*raw++ = 0x0c;
  
@@ -7283,7 +7332,7 @@ index d451a94..9088421 100644
  	std::memcpy(raw, &r32, 4);
  	raw += 4;
  
-@@ -427,7 +469,7 @@ DECLARE(spu_runtime::tr_all) = []
+@@ -427,7 +470,7 @@ DECLARE(spu_runtime::tr_all) = []
  
  #elif defined(ARCH_ARM64)
  	auto trptr = build_function_asm<spu_function_t>("tr_all",
@@ -7292,7 +7341,7 @@ index d451a94..9088421 100644
  		{
  			using namespace asmjit;
  
-@@ -449,12 +491,12 @@ DECLARE(spu_runtime::tr_all) = []
+@@ -449,12 +492,12 @@ DECLARE(spu_runtime::tr_all) = []
  			c.ldr(a64::w3, arm::Mem(a64::x7));
  			// shr (32 - 20)
  			c.lsr(a64::w3, a64::w3, Imm(32 - 20));
@@ -7308,7 +7357,7 @@ index d451a94..9088421 100644
  			c.mov(a64::x6, Imm(8));
  			c.mul(a64::x6, a64::x3, a64::x6);
  			c.add(a64::x4, a64::x4, a64::x6);
-@@ -468,8 +510,11 @@ DECLARE(spu_runtime::tr_all) = []
+@@ -468,8 +511,11 @@ DECLARE(spu_runtime::tr_all) = []
  #error "Unimplemented"
  #endif
  }();
@@ -7321,7 +7370,7 @@ index d451a94..9088421 100644
  {
  	// Gateway for SPU dispatcher, converts from native to GHC calling convention, also saves RSP value for spu_escape
  	using namespace asmjit;
-@@ -519,7 +564,7 @@ DECLARE(spu_runtime::g_gateway) = build_function_asm<spu_function_t>("spu_gatewa
+@@ -519,7 +565,7 @@ DECLARE(spu_runtime::g_gateway) = build_function_asm<spu_function_t>("spu_gatewa
  		c.vzeroupper();
  	}
  
@@ -7330,7 +7379,7 @@ index d451a94..9088421 100644
  
  	if (utils::has_avx())
  	{
-@@ -599,7 +644,7 @@ DECLARE(spu_runtime::g_gateway) = build_function_asm<spu_function_t>("spu_gatewa
+@@ -599,7 +645,7 @@ DECLARE(spu_runtime::g_gateway) = build_function_asm<spu_function_t>("spu_gatewa
  	c.sub(a64::sp, a64::sp, Imm(8192));
  #endif
  
@@ -7339,7 +7388,7 @@ index d451a94..9088421 100644
  	c.blr(a64::x0);
  
  	// This is the return point for the far ret. Never jump back into host code without coming through this exit
-@@ -628,8 +673,11 @@ DECLARE(spu_runtime::g_gateway) = build_function_asm<spu_function_t>("spu_gatewa
+@@ -628,8 +674,11 @@ DECLARE(spu_runtime::g_gateway) = build_function_asm<spu_function_t>("spu_gatewa
  #error "Unimplemented"
  #endif
  });
@@ -7352,7 +7401,7 @@ index d451a94..9088421 100644
  {
  	using namespace asmjit;
  
-@@ -652,8 +700,11 @@ DECLARE(spu_runtime::g_escape) = build_function_asm<void(*)(spu_thread*)>("spu_e
+@@ -652,8 +701,11 @@ DECLARE(spu_runtime::g_escape) = build_function_asm<void(*)(spu_thread*)>("spu_e
  #error "Unimplemented"
  #endif
  });
@@ -7365,7 +7414,7 @@ index d451a94..9088421 100644
  {
  	using namespace asmjit;
  
-@@ -730,6 +781,53 @@ DECLARE(spu_runtime::g_tail_escape) = build_function_asm<void(*)(spu_thread*, sp
+@@ -730,6 +782,53 @@ DECLARE(spu_runtime::g_tail_escape) = build_function_asm<void(*)(spu_thread*, sp
  #error "Unimplemented"
  #endif
  });
@@ -7419,7 +7468,7 @@ index d451a94..9088421 100644
  
  DECLARE(spu_runtime::g_interpreter_table) = {};
  
-@@ -845,6 +943,10 @@ static u16 calculate_crc16(const uchar* data, usz length)
+@@ -845,6 +944,10 @@ static u16 calculate_crc16(const uchar* data, usz length)
  
  std::deque<spu_program> spu_cache::get()
  {
@@ -7430,7 +7479,7 @@ index d451a94..9088421 100644
  	std::deque<spu_program> result;
  
  	if (!m_file)
-@@ -852,10 +954,18 @@ std::deque<spu_program> spu_cache::get()
+@@ -852,10 +955,18 @@ std::deque<spu_program> spu_cache::get()
  		return result;
  	}
  
@@ -7452,7 +7501,7 @@ index d451a94..9088421 100644
  	{
  		struct block_info_t
  		{
-@@ -864,37 +974,48 @@ std::deque<spu_program> spu_cache::get()
+@@ -864,37 +975,48 @@ std::deque<spu_program> spu_cache::get()
  			be_t<u32> addr;
  		} block_info{};
  
@@ -7509,7 +7558,7 @@ index d451a94..9088421 100644
  			continue;
  		}
  
-@@ -905,11 +1026,39 @@ std::deque<spu_program> spu_cache::get()
+@@ -905,11 +1027,39 @@ std::deque<spu_program> spu_cache::get()
  		result.emplace_front(std::move(res));
  	}
  
@@ -7549,7 +7598,7 @@ index d451a94..9088421 100644
  	if (!m_file)
  	{
  		return;
-@@ -917,9 +1066,8 @@ void spu_cache::add(const spu_program& func)
+@@ -917,9 +1067,8 @@ void spu_cache::add(const spu_program& func)
  
  	be_t<u32> size = ::size32(func.data);
  	be_t<u32> addr = func.entry_point;
@@ -7561,7 +7610,7 @@ index d451a94..9088421 100644
  
  	const fs::iovec_clone gather[3]
  	{
-@@ -927,10 +1075,281 @@ void spu_cache::add(const spu_program& func)
+@@ -927,11 +1076,282 @@ void spu_cache::add(const spu_program& func)
  		{&addr, sizeof(addr)},
  		{func.data.data(), func.data.size() * 4}
  	};
@@ -7577,7 +7626,9 @@ index d451a94..9088421 100644
 +		}
 +		return;
 +	}
-+
+ 
+-	// Append data
+-	m_file.write_gather(gather, 3);
 +	if (m_file.write_gather(gather, 3) != write_size)
 +	{
 +		// A failed gathered write must not poison the append point for every
@@ -7592,8 +7643,8 @@ index d451a94..9088421 100644
 +		rpcs3::ios::record_spu_metadata_write();
 +	}
 +#endif
-+}
-+
+ }
+ 
 +#ifdef RPCS3_IOS
 +// NEOSTATION_BUILD435_SPU_DEFERRED_COMPILE_V1: worker pool that compiles missed
 +// SPU programs off the SPU threads. Each worker owns one LLVM recompiler and a
@@ -7830,9 +7881,7 @@ index d451a94..9088421 100644
 +
 +	return false;
 +}
- 
--	// Append data
--	m_file.write_gather(gather, 3);
++
 +// Leaving the legacy interpreter: account for the interpreted span.
 +static void spu_deferred_fallback_end(spu_thread& spu, bool handed_off)
 +{
@@ -7840,12 +7889,13 @@ index d451a94..9088421 100644
 +	spu.interp_fallback_item = nullptr;
 +	spu.interp_fallback_branches = 0;
 +	spu.interp_fallback_instructions = 0;
- }
++}
 +#endif
- 
++
  void spu_cache::initialize(bool build_existing_cache)
  {
-@@ -946,6 +1365,16 @@ void spu_cache::initialize(bool build_existing_cache)
+ 	jit_write_guard jit_guard;
+@@ -946,6 +1366,16 @@ void spu_cache::initialize(bool build_existing_cache)
  		}
  	}
  
@@ -7862,7 +7912,7 @@ index d451a94..9088421 100644
  	const std::string ppu_cache = rpcs3::cache::get_ppu_cache();
  
  	if (ppu_cache.empty())
-@@ -974,8 +1403,35 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -974,8 +1404,35 @@ void spu_cache::initialize(bool build_existing_cache)
  		return;
  	}
  
@@ -7900,7 +7950,7 @@ index d451a94..9088421 100644
  	atomic_t<usz> fnext{};
  	atomic_t<u8> fail_flag{0};
  
-@@ -989,12 +1445,23 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -989,12 +1446,23 @@ void spu_cache::initialize(bool build_existing_cache)
  		total_precompile += sec.funcs.size();
  	}
  
@@ -7926,7 +7976,7 @@ index d451a94..9088421 100644
  	}
  	else if (!build_existing_cache)
  	{
-@@ -1046,6 +1513,9 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1046,6 +1514,9 @@ void spu_cache::initialize(bool build_existing_cache)
  		}
  
  		worker_count = std::min<u32>(rpcs3::utils::get_max_threads(), ::narrow<u32>(add_count));
@@ -7936,7 +7986,7 @@ index d451a94..9088421 100644
  	}
  
  	atomic_t<u32> pending_progress = 0;
-@@ -1058,8 +1528,20 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1058,8 +1529,20 @@ void spu_cache::initialize(bool build_existing_cache)
  		progress_dialog.emplace(get_localized_string(localized_string_id::PROGRESS_DIALOG_BUILDING_SPU_CACHE));
  	}
  
@@ -7957,7 +8007,7 @@ index d451a94..9088421 100644
  #ifdef __APPLE__
  		// Apple Silicon W^X: enable JIT write mode for this worker and
  		// pair it with an RAII guard so execute mode is restored on
-@@ -1170,8 +1652,14 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1170,8 +1653,14 @@ void spu_cache::initialize(bool build_existing_cache)
  			// Call analyser
  			spu_program func2 = compiler->analyse(ls.data(), func.entry_point);
  
@@ -7972,7 +8022,7 @@ index d451a94..9088421 100644
  				spu_log.error("[0x%05x] SPU Analyser failed, %u vs %u", func2.entry_point, func2.data.size(), size0);
  
  				if (logged_error < 2)
-@@ -1182,16 +1670,20 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1182,16 +1671,20 @@ void spu_cache::initialize(bool build_existing_cache)
  					logged_error++;
  				}
  			}
@@ -8000,7 +8050,7 @@ index d451a94..9088421 100644
  			result++;
  
  			if (is_first_thread && !showing_progress)
-@@ -1211,6 +1703,7 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1211,6 +1704,7 @@ void spu_cache::initialize(bool build_existing_cache)
  			}
  		}
  
@@ -8008,7 +8058,7 @@ index d451a94..9088421 100644
  		u32 last_sec_idx = umax;
  
  		for (func_i = data_indexer++;; func_i = data_indexer++, (showing_progress ? g_progr_pdone : pending_progress) += build_existing_cache ? 1 : 0)
-@@ -1302,7 +1795,7 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1302,7 +1796,7 @@ void spu_cache::initialize(bool build_existing_cache)
  				{
  					if (ls[start_new / 4] && g_spu_itype.decode(ls[start_new / 4]) != spu_itype::UNK)
  					{
@@ -8017,7 +8067,7 @@ index d451a94..9088421 100644
  						func2 = compiler->analyse(ls.data(), start_new, &targets);
  						block_addr = start_new;
  						continue;
-@@ -1366,7 +1859,7 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1366,7 +1860,7 @@ void spu_cache::initialize(bool build_existing_cache)
  				}
  
  
@@ -8026,7 +8076,7 @@ index d451a94..9088421 100644
  				func2 = compiler->analyse(ls.data(), new_entry, &targets);
  				block_addr = new_entry;
  			}
-@@ -1408,6 +1901,11 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1408,6 +1902,11 @@ void spu_cache::initialize(bool build_existing_cache)
  	}
  
  #ifdef RPCS3_IOS
@@ -8038,7 +8088,7 @@ index d451a94..9088421 100644
  	if (const u64 released = rpcs3::ios::relieve_process_memory_pressure())
  	{
  		spu_log.notice("iOS released %llu MiB of transient SPU compilation memory", released / rpcs3::ios::process_memory_mib);
-@@ -1432,9 +1930,10 @@ void spu_cache::initialize(bool build_existing_cache)
+@@ -1432,9 +1931,10 @@ void spu_cache::initialize(bool build_existing_cache)
  	}
  
  	// Initialize global cache instance
@@ -8050,7 +8100,7 @@ index d451a94..9088421 100644
  	}
  }
  
-@@ -1497,11 +1996,18 @@ spu_runtime::spu_runtime()
+@@ -1497,11 +1997,18 @@ spu_runtime::spu_runtime()
  	}
  
  #ifdef RPCS3_IOS
@@ -8074,7 +8124,7 @@ index d451a94..9088421 100644
  		sha1_context ctx;
  		u8 key[20];
  		sha1_starts(&ctx);
-@@ -1511,7 +2017,16 @@ spu_runtime::spu_runtime()
+@@ -1511,7 +2018,16 @@ spu_runtime::spu_runtime()
  			sha1_update(&ctx, reinterpret_cast<const u8*>(&value), sizeof(value));
  		};
  
@@ -8092,7 +8142,7 @@ index d451a94..9088421 100644
  		const u32 xfloat = static_cast<u32>(g_cfg.core.spu_xfloat_accuracy.get());
  		const u32 block_size = static_cast<u32>(g_cfg.core.spu_block_size.get());
  		const u32 clocks_scale = static_cast<u32>(g_cfg.core.clocks_scale.get());
-@@ -1540,40 +2055,167 @@ spu_runtime::spu_runtime()
+@@ -1540,40 +2056,208 @@ spu_runtime::spu_runtime()
  		fold(hw);
  		fold(tsc_freq);
  
@@ -8162,7 +8212,6 @@ index d451a94..9088421 100644
  		else
  		{
 -			usz file_count = 0;
--			for (auto&& entry : fs::dir(m_obj_cache_path))
 +			// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L5): the marker names this
 +			// build and CPU. It is never counted as an object nor evicted.
 +			// Rewriting an existing file does not touch the directory's
@@ -8176,25 +8225,38 @@ index d451a94..9088421 100644
 +				spu_log.warning("SPU object cache: failed to write %s (%s); a later boot of another key will remove this directory as another build", marker_path, fs::g_tls_error);
 +			}
 +			else if (fs::stat_t marker_stat{}; !fs::get_stat(marker_path, marker_stat) || !fs::utime(m_obj_cache_path, marker_stat.mtime, marker_stat.mtime))
- 			{
--				file_count += !entry.is_directory;
++			{
 +				spu_log.warning("SPU object cache: failed to refresh the time of %s (%s); its retention order follows its last object write", m_obj_cache_path, fs::g_tls_error);
- 			}
- 
--			if (file_count > max_files)
++			}
++
 +			// Bounded storage, applied once here before any compile worker
 +			// writes: the writers share no index and never evict.
 +			std::vector<object_cache::entry> entries;
 +
-+			for (auto&& entry : fs::dir(m_obj_cache_path))
+ 			for (auto&& entry : fs::dir(m_obj_cache_path))
+ 			{
+-				file_count += !entry.is_directory;
++				if (!entry.is_directory && entry.name != levers::build_marker_name)
++				{
++					entries.push_back({entry.name, entry.size, entry.mtime});
++				}
+ 			}
+ 
+-			if (file_count > max_files)
++			// REWINDBOX_SPU_OBJECT_PREFETCH_616: what the eviction keeps, for the title's prefetch.
++			std::vector<rpcs3::ios::spu_object_prefetch::candidate> prefetch_entries;
++
++			if (rpcs3::ios::get_experimental_policy().spu_object_prefetch)
  			{
 -				spu_log.notice("SPU object cache exceeded %u files; rebuilding it.", max_files);
 -				fs::remove_all(m_obj_cache_path, false);
 -				if (!fs::create_path(m_obj_cache_path))
-+				if (!entry.is_directory && entry.name != levers::build_marker_name)
++				prefetch_entries.reserve(entries.size());
++
++				for (const object_cache::entry& entry : entries)
  				{
 -					m_obj_cache_path.clear();
-+					entries.push_back({entry.name, entry.size, entry.mtime});
++					prefetch_entries.push_back({entry.name, entry.bytes, entry.mtime});
  				}
 -				file_count = 0;
  			}
@@ -8205,6 +8267,34 @@ index d451a94..9088421 100644
 +			for (const std::string& name : plan.remove)
 +			{
 +				fs::remove_file(m_obj_cache_path + name);
++			}
++
++			if (rpcs3::ios::get_experimental_policy().spu_object_prefetch)
++			{
++				// REWINDBOX_SPU_OBJECT_PREFETCH_616: same files, same bytes: a compile thread validates what it takes
++				// exactly as after its own read (Utilities/JITLLVM.cpp).
++				const std::unordered_set<std::string> removed(plan.remove.begin(), plan.remove.end());
++				std::erase_if(prefetch_entries, [&removed](const rpcs3::ios::spu_object_prefetch::candidate& entry) { return removed.contains(entry.name); });
++				auto chosen = rpcs3::ios::spu_object_prefetch::plan(std::move(prefetch_entries));
++				spu_log.notice("SPU object cache: prefetching %u objects into memory (budget %u MiB)", chosen.size(), rpcs3::ios::spu_object_prefetch::max_resident_bytes >> 20);
++				rpcs3::ios::spu_object_prefetch::instance().start(m_obj_cache_path, std::move(chosen),
++					[](const std::string& path, u64 expected, std::vector<unsigned char>& out)
++				{
++					fs::file file{path, fs::read};
++					if (!file)
++					{
++						return false;
++					}
++
++					const auto info = file.get_stat();
++					if (info.is_directory || info.size != expected)
++					{
++						return false;
++					}
++
++					out.resize(expected);
++					return file.read(out.data(), out.size()) == out.size();
++				});
 +			}
 +
 +			if (!plan.remove.empty())
@@ -8275,7 +8365,7 @@ index d451a94..9088421 100644
  #endif
  }
  
-@@ -1889,7 +2531,12 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
+@@ -1889,7 +2573,12 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
  			if (w.level >= w.beg->first.size() || w.level >= it->first.size())
  			{
  				// If functions cannot be compared, assume smallest function
@@ -8289,7 +8379,7 @@ index d451a94..9088421 100644
  #if defined(ARCH_X64)
  				make_jump(0xe9, w.beg->second); // jmp rel32
  #elif defined(ARCH_ARM64)
-@@ -1928,7 +2575,7 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
+@@ -1928,7 +2617,7 @@ spu_function_t spu_runtime::rebuild_ubertrampoline(u32 id_inst)
  
  			if (it == m_flat_list.end())
  			{
@@ -8298,7 +8388,7 @@ index d451a94..9088421 100644
  #if defined(ARCH_X64)
  				make_jump(0xe9, w.beg->second); // jmp rel32
  #elif defined(ARCH_ARM64)
-@@ -2414,6 +3061,13 @@ void spu_recompiler_base::dispatch(spu_thread& spu, void*, u8* rip)
+@@ -2414,6 +3103,13 @@ void spu_recompiler_base::dispatch(spu_thread& spu, void*, u8* rip)
  		return;
  	}
  
@@ -8312,7 +8402,7 @@ index d451a94..9088421 100644
  	const auto func = compile_spu_llvm_with_retry(spu.jit, program);
  #else
  	const auto func = spu.jit->compile(std::move(program));
-@@ -2564,6 +3218,7 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
+@@ -2564,6 +3260,7 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
  
  	// LS pointer
  	const auto base = static_cast<const u8*>(ls);
@@ -8320,7 +8410,7 @@ index d451a94..9088421 100644
  
  	while (true)
  	{
-@@ -2577,12 +3232,34 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
+@@ -2577,12 +3274,34 @@ void spu_recompiler_base::old_interpreter(spu_thread& spu, void* ls, u8* /*rip*/
  			(spu.pc < spu.interp_fallback_begin || spu.pc >= spu.interp_fallback_end)) [[unlikely]]
  		{
  			spu.interp_fallback = false;
@@ -8356,7 +8446,7 @@ index d451a94..9088421 100644
  	}
  }
  
-@@ -3174,6 +3851,55 @@ struct block_reg_info
+@@ -3174,6 +3893,55 @@ struct block_reg_info
  	}
  };
  
@@ -8412,7 +8502,7 @@ index d451a94..9088421 100644
  spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, std::map<u32, std::vector<u32>>* out_target_list)
  {
  	// Result: addr + raw instruction data
-@@ -3401,11 +4127,23 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -3401,11 +4169,23 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			{
  				const u32 target = spu_branch_target(av);
  
@@ -8437,7 +8527,7 @@ index d451a94..9088421 100644
  					break;
  				}
  
-@@ -5789,7 +6527,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5789,7 +6569,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				getllar_starts[previous.lsa_pc] = true;
  				g_fxo->get<putllc16_statistics_t>().breaking_reason[cause]++;
  
@@ -8446,7 +8536,7 @@ index d451a94..9088421 100644
  				{
  					return;
  				}
-@@ -5829,7 +6567,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5829,7 +6609,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				}
  
  				fmt::append(tracing, " of %d failures", fail_count);
@@ -8455,7 +8545,7 @@ index d451a94..9088421 100644
  			}
  		};
  
-@@ -5846,7 +6584,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5846,7 +6626,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  				g_fxo->get<rchcnt_statistics_t>().breaking_reason[cause]++;
  
@@ -8464,7 +8554,7 @@ index d451a94..9088421 100644
  				{
  					return;
  				}
-@@ -5886,7 +6624,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5886,7 +6666,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				}
  
  				fmt::append(tracing, " of %d failures", fail_count);
@@ -8473,7 +8563,7 @@ index d451a94..9088421 100644
  			}
  		};
  
-@@ -5896,7 +6634,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5896,7 +6676,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			{
  				g_fxo->get<reduced_statistics_t>().breaking_reason[cause]++;
  
@@ -8482,7 +8572,7 @@ index d451a94..9088421 100644
  				{
  					return;
  				}
-@@ -5941,12 +6679,12 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -5941,12 +6721,12 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  				}
  
  				fmt::append(tracing, " of %d failures", fail_count);
@@ -8497,7 +8587,7 @@ index d451a94..9088421 100644
  			}
  		};
  
-@@ -6157,7 +6895,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -6157,7 +6937,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  						{
  							if (!std::exchange(logged_block[target_pc / 4], true))
  							{
@@ -8506,7 +8596,7 @@ index d451a94..9088421 100644
  							}
  
  							state_it->parent_target_index++;
-@@ -6830,7 +7568,14 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -6830,7 +7610,14 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			{
  				const reg_state_t& rt = vregs[op.rt];
  
@@ -8522,7 +8612,7 @@ index d451a94..9088421 100644
  				{
  					if (rchcnt_loop->conditioned)
  					{
-@@ -6841,7 +7586,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -6841,7 +7628,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  					rchcnt_loop->conditioned = true;
  					rchcnt_loop->branch_pc = pos;
@@ -8535,7 +8625,7 @@ index d451a94..9088421 100644
  				}
  
  				break;
-@@ -7679,7 +8428,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -7679,7 +8470,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  							if (getllar_starts.emplace(atomic16->lsa_pc, false).second)
  							{
  								g_fxo->get<putllc16_statistics_t>().all++;
@@ -8544,7 +8634,7 @@ index d451a94..9088421 100644
  							}
  						}
  
-@@ -8745,7 +9494,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -8745,7 +9536,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  			if (rchcnt_loop->active)
  			{
@@ -8553,7 +8643,7 @@ index d451a94..9088421 100644
  				{
  					if (op.si10 != 0 && op.si10 != 1)
  					{
-@@ -8754,7 +9503,9 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -8754,7 +9545,9 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  					}
  
  					rchcnt_loop->ch_product = vregs[op.rt];
@@ -8564,7 +8654,7 @@ index d451a94..9088421 100644
  				}
  			}
  
-@@ -9007,7 +9758,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -9007,7 +9800,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			add_pattern(inst_attr::putllc16, pattern.put_pc - result.entry_point, value.data);
  		}
  
@@ -8573,7 +8663,7 @@ index d451a94..9088421 100644
  			, pattern.mem_count, pattern.put_pc, value.type == v_relative, value.off18, value.type == v_const, value.type == v_reg2, value.reg, value.runtime16_select, entry_point, func_hash, pattern_hash, +stats.nowrite, ++stats.single, +stats.all);
  	}
  
-@@ -9024,6 +9775,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -9024,6 +9817,11 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  			continue;
  		}
  
@@ -8585,7 +8675,7 @@ index d451a94..9088421 100644
  		if (inst_attr attr = m_inst_attrs[(read_pc - entry_point) / 4]; attr == inst_attr::none)
  		{
  			add_pattern(inst_attr::rchcnt_loop, read_pc - result.entry_point, 0);
-@@ -9113,7 +9869,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
+@@ -9113,7 +9911,7 @@ spu_program spu_recompiler_base::analyse(const be_t<u32>* ls, u32 entry_point, s
  
  	if (likely_putllc_loop && !had_putllc_evaluation)
  	{
@@ -8594,7 +8684,7 @@ index d451a94..9088421 100644
  	}
  
  	if (result.data.empty())
-@@ -9359,7 +10115,7 @@ struct spu_llvm_worker
+@@ -9359,7 +10157,7 @@ struct spu_llvm_worker
  			}
  
  			// Clear fake LS
@@ -19140,10 +19230,23 @@ index 2aba916..5b14587 100644
  
  std::string FragmentProgramDecompiler::GetRawCond()
 diff --git a/rpcs3/Emu/RSX/Program/GLSLCommon.cpp b/rpcs3/Emu/RSX/Program/GLSLCommon.cpp
-index 61e2836..713b270 100644
+index 61e2836..e20bcf6 100644
 --- a/rpcs3/Emu/RSX/Program/GLSLCommon.cpp
 +++ b/rpcs3/Emu/RSX/Program/GLSLCommon.cpp
-@@ -323,6 +323,11 @@ namespace glsl
+@@ -300,6 +300,12 @@ namespace glsl
+ 				else
+ 				{
+ 					enabled_options.push_back("_EMULATE_ZCLIP_XFORM_FALLBACK");
++
++					if (props.emulate_zclip_fallback_window_z)
++					{
++						// REWINDBOX_ZCLIP_WINDOW_Z_616 (ios/IOSTitleLevers.h)
++						enabled_options.push_back("_EMULATE_ZCLIP_XFORM_FALLBACK_WINDOW_Z");
++					}
+ 				}
+ 			}
+ 
+@@ -323,6 +329,11 @@ namespace glsl
  			enabled_options.push_back("_ENABLE_ALPHA_TO_COVERAGE_TEST");
  		}
  
@@ -19192,11 +19295,36 @@ index a46c420..0c03cc2 100644
  // ================= Post-output color stages =================
  #if _MRT_BUFFERS_COUNT >= 1
  
+diff --git a/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl b/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl
+index f43b03e..a1051a1 100644
+--- a/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl
++++ b/rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl
+@@ -44,7 +44,12 @@ vec4 apply_zclip_xform(
+ 	else if (d > 1.f && d <= far_plane)
+ 	{
+ 		// Compress Z and store towards highest end of the range
++#ifdef _EMULATE_ZCLIP_XFORM_FALLBACK_WINDOW_Z
++		// REWINDBOX_ZCLIP_WINDOW_Z_616: window Z (d), not clip-space Z (pos.z)
++		d = min(1., 0.99 + (0.01 * (d - near_plane) / (far_plane - near_plane)));
++#else
+ 		d = min(1., 0.99 + (0.01 * (pos.z - near_plane) / (far_plane - near_plane)));
++#endif
+ 	}
+ 	else // This catch-call also handles w=0 since d=inf
+ 	{
 diff --git a/rpcs3/Emu/RSX/Program/GLSLTypes.h b/rpcs3/Emu/RSX/Program/GLSLTypes.h
-index cade467..b4bbc16 100644
+index cade467..e5e5945 100644
 --- a/rpcs3/Emu/RSX/Program/GLSLTypes.h
 +++ b/rpcs3/Emu/RSX/Program/GLSLTypes.h
-@@ -48,6 +48,7 @@ namespace glsl
+@@ -29,6 +29,7 @@ namespace glsl
+ 		bool require_clip_plane_functions : 1;
+ 		bool emulate_zclip_transform : 1;
+ 		bool emulate_depth_clip_only : 1;
++		bool emulate_zclip_fallback_window_z : 1; // REWINDBOX_ZCLIP_WINDOW_Z_616
+ 
+ 		// Only relevant for fragment programs
+ 		bool fp32_outputs : 1;
+@@ -48,6 +49,7 @@ namespace glsl
  		bool ROP_sRGB_packing : 1;
  		bool ROP_alpha_test : 1;
  		bool ROP_alpha_to_coverage_test : 1;
@@ -20604,7 +20732,7 @@ index a710d66..f6c2cbc 100644
  
  	color4f fragment_texture::remapped_border_color(bool apply_colorspace_remapping) const
 diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
-index dff27c6..f397369 100644
+index dff27c6..bbf5a9a 100644
 --- a/rpcs3/Emu/RSX/RSXThread.cpp
 +++ b/rpcs3/Emu/RSX/RSXThread.cpp
 @@ -26,6 +26,17 @@
@@ -20745,7 +20873,18 @@ index dff27c6..f397369 100644
  
  		// TODO: Proper context management in the driver
  		s_ctx.rsxthr = this;
-@@ -1051,6 +1018,12 @@ namespace rsx
+@@ -933,6 +900,10 @@ namespace rsx
+ 			else
+ 			{
+ 				// NOTE: eval_sources list is reversed with newest query first
++#ifdef RPCS3_IOS
++				// REWINDBOX_ZCULL_WAIT_PROBE_616: forced reads below evaluate a conditional render.
++				const rpcs3::ios::rsx_sync::ZcullPathScope ios_path(rpcs3::ios::rsx_sync::t_zcull_forced_path, rpcs3::ios::rsx_sync::zcull_cond_render);
++#endif
+ 				zcull_ctrl->read_barrier(this, cond_render_ctrl.eval_address, cond_render_ctrl.eval_sources.front());
+ 				ensure(!cond_render_ctrl.eval_pending());
+ 			}
+@@ -1051,6 +1022,12 @@ namespace rsx
  		{
  			sys_rsx_context_attribute(0x55555555, 0xFED, 1, get_guest_system_time(post_event_time), 0, 0);
  		}
@@ -20758,7 +20897,7 @@ index dff27c6..f397369 100644
  	}
  
  	namespace nv4097
-@@ -1101,6 +1074,14 @@ namespace rsx
+@@ -1101,6 +1078,14 @@ namespace rsx
  
  		const u64 event_flags = unsent_gcm_events.exchange(0);
  
@@ -20773,7 +20912,7 @@ index dff27c6..f397369 100644
  		if (Emu.IsStarting())
  		{
  			Emu.CallFromMainThread([]
-@@ -1252,13 +1233,40 @@ namespace rsx
+@@ -1252,13 +1237,40 @@ namespace rsx
  			manager->stop_audio();
  		}
  
@@ -20814,7 +20953,7 @@ index dff27c6..f397369 100644
  				if (!rsx_thread_running)
  				{
  					return;
-@@ -1278,6 +1286,16 @@ namespace rsx
+@@ -1278,6 +1290,16 @@ namespace rsx
  			// If something is going on in the backend that requires an update, set the interrupt bit explicitly.
  			if ((m_cycles_counter++ & 63) == 0 || m_eng_interrupt_mask)
  			{
@@ -20831,7 +20970,7 @@ index dff27c6..f397369 100644
  				// Execute backend-local tasks first
  				do_local_task(performance_counters.state);
  
-@@ -2164,9 +2182,29 @@ namespace rsx
+@@ -2164,9 +2186,29 @@ namespace rsx
  
  		const auto [program_offset, program_location] = method_registers.shader_program_address();
  		const auto prev_textures_reference_mask = current_fp_metadata.referenced_textures_mask;
@@ -20861,7 +21000,7 @@ index dff27c6..f397369 100644
  
  		current_fragment_program.data = (static_cast<u8*>(data_ptr) + current_fp_metadata.program_start_offset);
  		current_fragment_program.offset = program_offset + current_fp_metadata.program_start_offset;
-@@ -2367,6 +2405,11 @@ namespace rsx
+@@ -2367,6 +2409,11 @@ namespace rsx
  			{
  				// Emulation required
  				current_fragment_program.ctrl |= RSX_SHADER_CONTROL_ALPHA_TO_COVERAGE;
@@ -20873,7 +21012,7 @@ index dff27c6..f397369 100644
  			}
  		}
  
-@@ -2718,6 +2761,37 @@ namespace rsx
+@@ -2718,6 +2765,37 @@ namespace rsx
  			}
  		}
  
@@ -20911,7 +21050,7 @@ index dff27c6..f397369 100644
  		last_host_flip_timestamp = get_system_time();
  	}
  
-@@ -3351,6 +3425,47 @@ namespace rsx
+@@ -3351,6 +3429,47 @@ namespace rsx
  
  	u32 thread::get_load()
  	{
@@ -20959,7 +21098,7 @@ index dff27c6..f397369 100644
  		// Average load over around 30 frames
  		if (!performance_counters.last_update_timestamp || performance_counters.sampled_frames > 30)
  		{
-@@ -3367,6 +3482,7 @@ namespace rsx
+@@ -3367,6 +3486,7 @@ namespace rsx
  			performance_counters.sampled_frames = 0;
  			performance_counters.last_update_timestamp = timestamp;
  		}
@@ -20967,7 +21106,7 @@ index dff27c6..f397369 100644
  
  		return performance_counters.approximate_load;
  	}
-@@ -3378,56 +3494,73 @@ namespace rsx
+@@ -3378,56 +3498,73 @@ namespace rsx
  		// MM sync. This is a pre-emptive operation, so we can use a deferred request.
  		rsx::mm_flush_lazy();
  
@@ -21077,7 +21216,7 @@ index dff27c6..f397369 100644
  		if (zcull_ctrl->has_pending())
  		{
  			// NOTE: This is a workaround for buggy games.
-@@ -3481,9 +3614,57 @@ namespace rsx
+@@ -3481,9 +3618,57 @@ namespace rsx
  			thread_ctrl::wait_for(30'000);
  		}
  
@@ -21135,7 +21274,7 @@ index dff27c6..f397369 100644
  	}
  
  	f64 thread::get_cached_display_refresh_rate()
-@@ -3538,6 +3719,9 @@ namespace rsx
+@@ -3538,6 +3723,9 @@ namespace rsx
  			async_flip_requested |= flip_request::emu_requested;
  
  			m_eng_interrupt_mask |= rsx::display_interrupt;
@@ -21230,20 +21369,44 @@ index fefbfb9..041fbbf 100644
  		u64 vblank_at_flip = umax;
  		u64 flip_notification_count = 0;
 diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
-index 4db3766..1bef335 100644
+index 4db3766..e01e8ed 100644
 --- a/rpcs3/Emu/RSX/RSXZCULL.cpp
 +++ b/rpcs3/Emu/RSX/RSXZCULL.cpp
-@@ -3,6 +3,9 @@
+@@ -3,6 +3,10 @@
  #include "Core/RSXReservationLock.hpp"
  #include "Host/MM.h"
  #include "RSXThread.h"
 +#ifdef RPCS3_IOS
 +#include "ios/IOSRsxIdlePark.h"
++#include "ios/IOSRsxSyncProfile.h" // REWINDBOX_ZCULL_WAIT_PROBE_616
 +#endif
  
  namespace rsx
  {
-@@ -956,6 +959,9 @@ namespace rsx
+@@ -471,6 +475,10 @@ namespace rsx
+ 
+ 					if (implemented && !have_result && query->num_draws)
+ 					{
++#ifdef RPCS3_IOS
++						// REWINDBOX_ZCULL_WAIT_PROBE_616: sync() writes every claimed report.
++						const rpcs3::ios::rsx_sync::ZcullPathScope ios_path(rpcs3::ios::rsx_sync::t_zcull_read_path, rpcs3::ios::rsx_sync::zcull_sync_all);
++#endif
+ 						get_occlusion_query_result(query);
+ 						counter.result += query->result;
+ 					}
+@@ -615,6 +623,11 @@ namespace rsx
+ 					}
+ 					else if (force_read || check_occlusion_query_status(query))
+ 					{
++#ifdef RPCS3_IOS
++						// REWINDBOX_ZCULL_WAIT_PROBE_616: a forced read or a non-forced poll.
++						const rpcs3::ios::rsx_sync::ZcullPathScope ios_path(rpcs3::ios::rsx_sync::t_zcull_read_path,
++							force_read ? rpcs3::ios::rsx_sync::t_zcull_forced_path : rpcs3::ios::rsx_sync::zcull_poll);
++#endif
+ 						get_occlusion_query_result(query);
+ 						counter.result += query->result;
+ 					}
+@@ -956,6 +969,9 @@ namespace rsx
  				disable_optimizations(thr, location);
  
  				thr->m_eng_interrupt_mask |= rsx::pipe_flush_interrupt;
@@ -22007,7 +22170,7 @@ index 572935e..eaff79b 100644
  	};
  
 diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
-index 63cab28..e40ca31 100644
+index 63cab28..f3fe8d9 100644
 --- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
 @@ -16,10 +16,21 @@
@@ -22186,7 +22349,15 @@ index 63cab28..e40ca31 100644
 -			{
 -				return;
 -			}
--
++		// Spilling and resolve-cache eviction destroy image views. Invalidate
++		// every cached framebuffer descriptor, even when a global refresh is
++		// already pending: load_texture_env only refreshes the current shader's
++		// referenced slots before clearing that global flag.
++		const bool invalidate_fragment_samplers = rsx::invalidate_sampler_context(
++			fs_sampler_state, m_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
++		const bool invalidate_vertex_samplers = rsx::invalidate_sampler_context(
++			vs_sampler_state, m_vertex_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
+ 
 -			for (auto i = 0ull; i < texture_array.size(); ++i)
 -			{
 -				if (texture_array[i].enabled() &&
@@ -22201,15 +22372,7 @@ index 63cab28..e40ca31 100644
 -
 -		scan_array(rsx::method_registers.fragment_textures, fs_sampler_state);
 -		scan_array(rsx::method_registers.vertex_textures, vs_sampler_state);
-+		// Spilling and resolve-cache eviction destroy image views. Invalidate
-+		// every cached framebuffer descriptor, even when a global refresh is
-+		// already pending: load_texture_env only refreshes the current shader's
-+		// referenced slots before clearing that global flag.
-+		const bool invalidate_fragment_samplers = rsx::invalidate_sampler_context(
-+			fs_sampler_state, m_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
-+		const bool invalidate_vertex_samplers = rsx::invalidate_sampler_context(
-+			vs_sampler_state, m_vertex_textures_dirty, rsx::texture_upload_context::framebuffer_storage);
- 
+-
 -		if (invalidate_samplers)
 +		if (invalidate_fragment_samplers || invalidate_vertex_samplers)
  		{
@@ -22493,7 +22656,49 @@ index 63cab28..e40ca31 100644
  		break;
  	}
  	default:
-@@ -2811,10 +3006,22 @@ void VKGSRender::get_occlusion_query_result(rsx::reports::occlusion_query_info*
+@@ -2801,8 +2996,41 @@ bool VKGSRender::check_occlusion_query_status(rsx::reports::occlusion_query_info
+ 	if (data.is_current(m_current_command_buffer))
+ 		return false;
+ 
++#ifdef RPCS3_IOS
++	// REWINDBOX_ZCULL_POLL_NO_WAIT_616: a query open across a flush owns one
++	// host query per command buffer, and get_occlusion_query_result() gathers
++	// them oldest first until the first hit (all of them in precise mode).
++	// The upstream test only checks the oldest one: when that one is ready
++	// and found no hit, the gather of this non-forced poll waits in MoltenVK
++	// for the newer command buffer, the one a zcull_sync hint has just
++	// submitted. Report ready only when the gather will not wait. The value,
++	// the report order (the poll still stops at the first query that is not
++	// ready) and every forced read (sync, read barriers, conditional render)
++	// are unchanged; the report is retired by a later poll instead of by a
++	// blocked RSX thread.
++	for (const auto occlusion_id : data.indices)
++	{
++		if (!m_occlusion_query_manager->check_query_status(occlusion_id))
++		{
++			if (occlusion_id != data.indices.front())
++			{
++				rpcs3::ios::rsx_sync::zcull_poll_deferred.fetch_add(1, std::memory_order_relaxed);
++			}
++			return false;
++		}
++
++		if (!g_cfg.video.precise_zpass_count && m_occlusion_query_manager->get_query_result(occlusion_id))
++		{
++			// Ready and cached: the gather stops at this hit without waiting.
++			return true;
++		}
++	}
++
++	return true;
++#else
+ 	const u32 oldest = data.indices.front();
+ 	return m_occlusion_query_manager->check_query_status(oldest);
++#endif
+ }
+ 
+ void VKGSRender::get_occlusion_query_result(rsx::reports::occlusion_query_info* query)
+@@ -2811,10 +3039,26 @@ void VKGSRender::get_occlusion_query_result(rsx::reports::occlusion_query_info*
  	if (data.indices.empty())
  		return;
  
@@ -22508,6 +22713,10 @@ index 63cab28..e40ca31 100644
 +
  	if (query->num_draws)
  	{
++#ifdef RPCS3_IOS
++		// REWINDBOX_ZCULL_WAIT_PROBE_616: one gather, counted by the path that asked for it.
++		rpcs3::ios::rsx_sync::count_zcull_gather();
++#endif
  		if (data.is_current(m_current_command_buffer))
  		{
 +#ifdef RPCS3_IOS
@@ -23906,10 +24115,21 @@ index 79b8371..3bcd9f0 100644
  			void bind_uniform_array(const std::span<const VkDescriptorImageInfoEx>& image_descriptors,u32 set_id, u32 binding_point);
  
 diff --git a/rpcs3/Emu/RSX/VK/VKQueryPool.cpp b/rpcs3/Emu/RSX/VK/VKQueryPool.cpp
-index bcd00a9..f47ed3c 100644
+index bcd00a9..cb0c64d 100644
 --- a/rpcs3/Emu/RSX/VK/VKQueryPool.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKQueryPool.cpp
-@@ -57,6 +57,7 @@ namespace vk
+@@ -6,6 +6,10 @@
+ #include "VKResourceManager.h"
+ #include "util/asm.hpp"
+ #include "VKGSRender.h"
++#ifdef RPCS3_IOS
++#include "util/tsc.hpp"
++#include "ios/IOSRsxSyncProfile.h" // REWINDBOX_ZCULL_WAIT_PROBE_616
++#endif
+ 
+ namespace vk
+ {
+@@ -57,6 +61,7 @@ namespace vk
  		owner = &dev;
  		query_type = type;
  		query_slot_status.resize(num_entries, {});
@@ -23917,7 +24137,7 @@ index bcd00a9..f47ed3c 100644
  
  		for (unsigned i = 0; i < num_entries; ++i)
  		{
-@@ -161,7 +162,8 @@ namespace vk
+@@ -161,7 +166,8 @@ namespace vk
  
  	bool query_pool_manager::check_query_status(u32 index)
  	{
@@ -23927,7 +24147,7 @@ index bcd00a9..f47ed3c 100644
  	}
  
  	u32 query_pool_manager::get_query_result(u32 index)
-@@ -173,10 +175,15 @@ namespace vk
+@@ -173,11 +179,27 @@ namespace vk
  		{
  			poke_query(query_info, index, result_flags);
  
@@ -23936,15 +24156,27 @@ index bcd00a9..f47ed3c 100644
 +			// already be usable without waiting for the entire submission.
 +			const auto wait_flags = vk::get_driver_vendor() == vk::driver_vendor::MVK
 +				? result_flags | VK_QUERY_RESULT_WAIT_BIT : result_flags;
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_WAIT_PROBE_616: only the time spent waiting for the
++			// GPU, by the path that asked for the result.
++			const u64 ios_wait_started = query_info.ready ? 0 : utils::get_tsc();
++#endif
  			while (!query_info.ready)
  			{
  				utils::pause();
 -				poke_query(query_info, index, result_flags);
 +				poke_query(query_info, index, wait_flags);
++			}
++#ifdef RPCS3_IOS
++			if (ios_wait_started)
++			{
++				rpcs3::ios::rsx_sync::record_zcull_wait(utils::get_tsc() - ios_wait_started);
  			}
++#endif
  		}
  
-@@ -190,7 +197,7 @@ namespace vk
+ 		return query_info.data;
+@@ -190,7 +212,7 @@ namespace vk
  		vkCmdCopyQueryPoolResults(cmd, *query_slot_status[index].pool, index, count, dst, dst_offset, 4, VK_QUERY_RESULT_WAIT_BIT);
  	}
  
@@ -23953,7 +24185,7 @@ index bcd00a9..f47ed3c 100644
  	{
  		// Release reference and discard
  		auto& query = query_slot_status[index];
-@@ -198,14 +205,18 @@ namespace vk
+@@ -198,14 +220,18 @@ namespace vk
  		ensure(query.active);
  		query.pool->release();
  
@@ -25362,7 +25594,7 @@ index d9e9cee..7074463 100644
  
  		if (!in_cache)
 diff --git a/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp b/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp
-index 23efdce..af736c9 100644
+index 23efdce..89542b7 100644
 --- a/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKVertexProgram.cpp
 @@ -6,6 +6,10 @@
@@ -25376,9 +25608,17 @@ index 23efdce..af736c9 100644
  std::string VKVertexDecompilerThread::getFloatTypeName(usz elementCount)
  {
  	return glsl::getFloatTypeNameImpl(elementCount);
-@@ -343,7 +347,17 @@ void VKVertexDecompilerThread::insertMainStart(std::stringstream& OS)
+@@ -342,8 +346,25 @@ void VKVertexDecompilerThread::insertMainStart(std::stringstream& OS)
+ 	properties2.require_clip_plane_functions = true;
  	properties2.emulate_zclip_transform = true;
  	properties2.emulate_depth_clip_only = vk::g_render_device->get_shader_types_support().allow_float64;
++#ifdef RPCS3_IOS
++	// REWINDBOX_ZCLIP_WINDOW_Z_616 (ios/IOSTitleLevers.h): the fallback transform
++	// (no float64, no unrestricted depth range: MoltenVK) compresses window Z
++	// above 1, not clip-space Z. Title scoped, resolved before the renderer exists.
++	properties2.emulate_zclip_fallback_window_z = !properties2.emulate_depth_clip_only &&
++		rpcs3::ios::get_experimental_policy().zclip_fallback_window_z;
++#endif
  	properties2.low_precision_tests = vk::is_NVIDIA(vk::get_driver_vendor());
 +#ifdef RPCS3_IOS
 +	// REWINDBOX_POSITION_INVARIANCE_610: MoltenVK compiles these shaders with fast math
@@ -27852,7 +28092,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..ff6b8b0 100644
+index 1f53c64..7559e71 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1,4 +1,7 @@
@@ -27872,7 +28112,7 @@ index 1f53c64..ff6b8b0 100644
  #include "Emu/cache_utils.hpp"
  
  #include "Emu/Cell/ErrorCodes.h"
-@@ -35,6 +40,10 @@
+@@ -35,6 +40,11 @@
  
  #ifdef RPCS3_IOS
  #include "ios/RPCS3IOSExperimentalPolicy.h"
@@ -27880,10 +28120,11 @@ index 1f53c64..ff6b8b0 100644
 +#include "ios/RPCS3IOSSettings.h"
 +#include "ios/RPCS3IOSBootDiagnostics.h" // NEOSTATION_BUILD487_DIAGNOSTICS_V1
 +#include "ios/RPCS3IOSConfigInheritance.h" // REWINDBOX_LEGACY_CONFIG_INHERITANCE_V1
++#include "ios/IOSSpuObjectPrefetch.h" // REWINDBOX_SPU_OBJECT_PREFETCH_616
  #endif
  
  #include "Loader/PSF.h"
-@@ -237,6 +246,12 @@ void Emulator::BlockingCallFromMainThread(std::function<void()>&& func, bool tra
+@@ -237,6 +247,12 @@ void Emulator::BlockingCallFromMainThread(std::function<void()>&& func, bool tra
  // This function ensures constant initialization order between different compilers and builds
  void init_fxo_for_exec(utils::serial* ar, bool full = false)
  {
@@ -27896,7 +28137,7 @@ index 1f53c64..ff6b8b0 100644
  	g_fxo->init<main_ppu_module<lv2_obj>>();
  
  	void init_ppu_functions(utils::serial* ar, bool full);
-@@ -252,7 +267,29 @@ void init_fxo_for_exec(utils::serial* ar, bool full = false)
+@@ -252,7 +268,29 @@ void init_fxo_for_exec(utils::serial* ar, bool full = false)
  
  	g_fxo->init(false, ar, [](){ Emu.ExecPostponedInitCode(); });
  
@@ -27926,7 +28167,7 @@ index 1f53c64..ff6b8b0 100644
  	Emu.GetCallbacks().init_kb_handler();
  	Emu.GetCallbacks().init_mouse_handler();
  
-@@ -260,6 +297,9 @@ void init_fxo_for_exec(utils::serial* ar, bool full = false)
+@@ -260,6 +298,9 @@ void init_fxo_for_exec(utils::serial* ar, bool full = false)
  	stx::g_launch_retainer.notify_all();
  
  	Emu.GetCallbacks().init_pad_handler(Emu.GetTitleID());
@@ -27936,7 +28177,7 @@ index 1f53c64..ff6b8b0 100644
  
  	usz pos = 0;
  
-@@ -717,6 +757,8 @@ void Emulator::Init()
+@@ -717,6 +758,8 @@ void Emulator::Init()
  	make_path_verbose(fs::get_cache_dir() + "spu_progs/", false);
  	make_path_verbose(fs::get_cache_dir() + "ppu_progs/", false);
  	make_path_verbose(fs::get_parent_dir(get_savestate_file("NO_ID", "/NO_FILE", -1, -1)), false);
@@ -27945,7 +28186,7 @@ index 1f53c64..ff6b8b0 100644
  	make_path_verbose(fs::get_config_dir() + "captures/", false);
  	make_path_verbose(fs::get_config_dir() + "sounds/", false);
  	make_path_verbose(patch_engine::get_patches_path(), false);
-@@ -1340,6 +1382,22 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1340,6 +1383,22 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			launching_from_disc_archive = is_iso_file(disc_info, nullptr, &launching_from_optical_drive);
  
@@ -27968,7 +28209,7 @@ index 1f53c64..ff6b8b0 100644
  			sys_log.notice("Savestate: is iso archive = %d ('%s')", launching_from_disc_archive, disc_info);
  
  			if (!klic[0])
-@@ -1355,12 +1413,19 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1355,12 +1414,19 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				// Load /dev_bdvd/ from game list if available
  				if (std::string game_path = m_games_config.get_path(m_title_id); !game_path.empty())
  				{
@@ -27990,7 +28231,7 @@ index 1f53c64..ff6b8b0 100644
  					{
  						// Marked as PS3_GAME directory
  						inherited_ps3_game_path = std::move(game_path).substr(0, game_path.size() - 3);
-@@ -1387,6 +1452,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1387,6 +1453,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  					fmt::throw_exception("TAR desrialization failed: Invalid size. TAR size: 0x%x, path='%s', ar: %s", size, path, *m_ar);
  				}
  
@@ -28000,7 +28241,7 @@ index 1f53c64..ff6b8b0 100644
  				fs::remove_all(path, size == 0);
  
  				if (!special_file.empty())
-@@ -1408,6 +1476,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1408,6 +1477,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  					m_ar->m_max_data = umax;
  					m_ar->breathe();
  				}
@@ -28010,7 +28251,7 @@ index 1f53c64..ff6b8b0 100644
  			};
  
  			if (!hdd1.empty())
-@@ -1440,7 +1511,7 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1440,7 +1512,7 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				return game_boot_result::savestate_version_unsupported;
  			}
  
@@ -28019,7 +28260,7 @@ index 1f53c64..ff6b8b0 100644
  			{
  				// Restore SFO directory for PSN games
  
-@@ -1470,6 +1541,11 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1470,6 +1542,11 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.notice("Savestate: Loading iso archive");
  
  				load_iso(disc_info);
@@ -28031,7 +28272,7 @@ index 1f53c64..ff6b8b0 100644
  				m_path = iso_device::virtual_device_name + "/" + argv[0];
  
  				resolve_path_as_vfs_path = false;
-@@ -1671,6 +1747,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1671,6 +1748,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  		{
  			m_dir = "/dev_bdvd/PS3_GAME/";
  			m_cat = "DG"sv;
@@ -28046,7 +28287,7 @@ index 1f53c64..ff6b8b0 100644
  		}
  
  		const std::string elf_dir = fs::get_parent_dir(m_path);
-@@ -1680,6 +1764,17 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1680,6 +1765,17 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  		// Load PARAM.SFO (TODO)
  		{
@@ -28064,7 +28305,7 @@ index 1f53c64..ff6b8b0 100644
  			if (fs::is_dir(m_path))
  			{
  				// Special case (directory scan)
-@@ -1733,6 +1828,24 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1733,6 +1829,24 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			// This one setting is global-only. Custom title files are complete cfg
  			// snapshots, so preserve config.yml's value before applying one.
  			const auto ios_global_persistent_spu_cache = g_cfg.ios_experimental.persistent_spu_object_cache.get();
@@ -28089,7 +28330,7 @@ index 1f53c64..ff6b8b0 100644
  #endif
  
  			if (m_config_mode == cfg_mode::database_config || m_config_mode == cfg_mode::custom)
-@@ -1758,10 +1871,16 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1758,10 +1872,16 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				if (fs::file cfg_file{ m_config_path })
  				{
  					sys_log.notice("Applying %s: %s", m_config_mode, m_config_path);
@@ -28107,7 +28348,7 @@ index 1f53c64..ff6b8b0 100644
  					}
  					else
  					{
-@@ -1790,17 +1909,28 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1790,17 +1910,28 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  					if (fs::file cfg_file{config_path})
  					{
  						sys_log.notice("Applying custom config: %s", config_path);
@@ -28137,7 +28378,7 @@ index 1f53c64..ff6b8b0 100644
  							}
  							break;
  						}
-@@ -1810,6 +1940,38 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1810,6 +1941,38 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  			}
  
@@ -28176,7 +28417,7 @@ index 1f53c64..ff6b8b0 100644
  			if (m_add_database_config && m_db_config && !m_db_config->empty())
  			{
  				// Add database config
-@@ -1818,6 +1980,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1818,6 +1981,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				if (g_cfg.from_string(*m_db_config))
  				{
  					g_cfg.name = "database_config";
@@ -28186,7 +28427,7 @@ index 1f53c64..ff6b8b0 100644
  				}
  				else
  				{
-@@ -1825,6 +1990,32 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1825,6 +1991,32 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  			}
  
@@ -28219,7 +28460,7 @@ index 1f53c64..ff6b8b0 100644
  			// Disable incompatible settings
  			fixup_settings(&_psf, inherited_psf_resolution);
  
-@@ -1847,6 +2038,122 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1847,6 +2039,122 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			}
  			g_cfg.misc.use_native_interface.set(true);
  			rpcs3::ios::resolve_experimental_policy();
@@ -28342,7 +28583,7 @@ index 1f53c64..ff6b8b0 100644
  #endif
  
  			// Backup config
-@@ -2504,7 +2811,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2504,7 +2812,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.warning("State Inspection Savestate Mode!");
  
  				vm::init();
@@ -28357,7 +28598,7 @@ index 1f53c64..ff6b8b0 100644
  
  				if (!hdd1.empty())
  				{
-@@ -2513,6 +2827,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2513,6 +2828,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  
  				init_fxo_for_exec(DeserialManager(), true);
@@ -28367,7 +28608,7 @@ index 1f53c64..ff6b8b0 100644
  
  				return game_boot_result::no_errors;
  			}
-@@ -2586,7 +2903,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2586,7 +2904,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  		{
  			if (m_ar)
  			{
@@ -28382,7 +28623,7 @@ index 1f53c64..ff6b8b0 100644
  			}
  
  			// Mount /host_root/ if necessary (special value)
-@@ -2709,7 +3033,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2709,7 +3034,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			const auto _main = ensure(g_fxo->init<main_ppu_module<lv2_obj>>());
  
@@ -28411,7 +28652,7 @@ index 1f53c64..ff6b8b0 100644
  			{
  				if (g_cfg.core.ppu_debug && had_been_decrypted)
  				{
-@@ -2864,6 +3208,11 @@ void Emulator::Run(bool start_playtime)
+@@ -2864,6 +3209,11 @@ void Emulator::Run(bool start_playtime)
  void Emulator::RunPPU()
  {
  	ensure(IsStarting());
@@ -28423,7 +28664,7 @@ index 1f53c64..ff6b8b0 100644
  
  	bool signalled_thread = false;
  
-@@ -2943,6 +3292,10 @@ void Emulator::FixGuestTime()
+@@ -2943,6 +3293,10 @@ void Emulator::FixGuestTime()
  
  void Emulator::FinalizeRunRequest()
  {
@@ -28434,7 +28675,7 @@ index 1f53c64..ff6b8b0 100644
  	const bool autostart = !m_ar || !!g_cfg.misc.autostart;
  
  	bs_t<cpu_flag> add_flags = cpu_flag::dbg_global_pause;
-@@ -2989,7 +3342,25 @@ void Emulator::FinalizeRunRequest()
+@@ -2989,7 +3343,25 @@ void Emulator::FinalizeRunRequest()
  	lv2_obj::make_scheduler_ready();
  
  	m_state.compare_and_swap_test(system_state::starting, system_state::running);
@@ -28460,7 +28701,7 @@ index 1f53c64..ff6b8b0 100644
  	m_ar.reset();
  
  	if (!autostart)
-@@ -3479,6 +3850,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3479,6 +3851,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -28473,7 +28714,7 @@ index 1f53c64..ff6b8b0 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3870,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3871,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -28496,7 +28737,7 @@ index 1f53c64..ff6b8b0 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3926,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3927,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -28504,7 +28745,7 @@ index 1f53c64..ff6b8b0 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3937,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3938,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -28512,7 +28753,7 @@ index 1f53c64..ff6b8b0 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3947,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +3948,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -28520,7 +28761,7 @@ index 1f53c64..ff6b8b0 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +4035,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +4036,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -28531,7 +28772,7 @@ index 1f53c64..ff6b8b0 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +4101,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +4102,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -28540,7 +28781,7 @@ index 1f53c64..ff6b8b0 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +4215,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +4216,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -28555,7 +28796,7 @@ index 1f53c64..ff6b8b0 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +4250,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4251,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -28563,7 +28804,7 @@ index 1f53c64..ff6b8b0 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4368,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4369,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -28577,7 +28818,7 @@ index 1f53c64..ff6b8b0 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4423,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4424,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -28590,7 +28831,7 @@ index 1f53c64..ff6b8b0 100644
  			});
  
  			// Join it
-@@ -4075,10 +4493,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4494,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -28610,7 +28851,18 @@ index 1f53c64..ff6b8b0 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4308,10 +4735,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4214,6 +4642,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+ 
+ 			lv2_obj::cleanup();
+ 
++#ifdef RPCS3_IOS
++			// REWINDBOX_SPU_OBJECT_PREFETCH_616: every compile thread has stopped; free what was not taken.
++			rpcs3::ios::spu_object_prefetch::instance().stop();
++#endif
+ 			g_fxo->reset();
+ 
+ 			sys_log.notice("Objects cleared...");
+@@ -4308,10 +4740,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{
@@ -28636,6 +28888,16 @@ index 1f53c64..ff6b8b0 100644
  	Emu.after_kill_callback = [this, reset_path]
  	{
  		// Reset boot path in case of ISO
+@@ -4381,6 +4828,9 @@ bool Emulator::Quit(bool force_quit)
+ 
+ void Emulator::CleanUp()
+ {
++#ifdef RPCS3_IOS
++	rpcs3::ios::spu_object_prefetch::instance().stop(); // REWINDBOX_SPU_OBJECT_PREFETCH_616
++#endif
+ 	// Deinitialize object manager to prevent any hanging objects at program exit
+ 	g_fxo->clear();
+ }
 diff --git a/rpcs3/Emu/savestate_utils.cpp b/rpcs3/Emu/savestate_utils.cpp
 index f43643d..b6ca2d7 100644
 --- a/rpcs3/Emu/savestate_utils.cpp
@@ -31992,10 +32254,10 @@ index 0000000..b344283
 +}
 diff --git a/rpcs3/ios/IOSRsxSyncProfile.h b/rpcs3/ios/IOSRsxSyncProfile.h
 new file mode 100644
-index 0000000..b0527fe
+index 0000000..9cb91bd
 --- /dev/null
 +++ b/rpcs3/ios/IOSRsxSyncProfile.h
-@@ -0,0 +1,105 @@
+@@ -0,0 +1,167 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -32078,6 +32340,68 @@ index 0000000..b0527fe
 +inline diagnostics::EventCost zcull_result_ticks{};        // a report read that had queries to gather
 +inline std::atomic<std::uint64_t> zcull_result_flushes{0}; // ... whose queries were still in the open command buffer
 +inline std::atomic<std::uint64_t> zcull_hint_flushes{0};   // zcull_sync hints that submitted ahead of a read
++
++// REWINDBOX_ZCULL_WAIT_PROBE_616: the Build 614 logs of the same title
++// (PID 64664, windows 20-33) keep 4.1-4.4 s per 5 s window inside report
++// reads whatever their number (31,500-48,300), with result_flushes at zero and
++// hint_flushes equal to the submissions: the time is not the reads but about
++// one wait for the GPU per submitted command buffer. These counters split the
++// MoltenVK wait itself (vkGetQueryPoolResults with VK_QUERY_RESULT_WAIT_BIT,
++// VKQueryPool.cpp) from the rest of a read, by the path that asked for it:
++// a non-forced poll of ZCULL_control::update, a forced read (report read
++// barrier), a conditional render evaluation or ZCULL_control::sync (NV406E
++// reference, wait for idle, notify). poll_deferred counts the polls that
++// REWINDBOX_ZCULL_POLL_NO_WAIT_616 left for later instead of waiting.
++enum zcull_read_path : unsigned
++{
++    zcull_poll,
++    zcull_forced,
++    zcull_cond_render,
++    zcull_sync_all,
++    zcull_path_count
++};
++
++inline const char* zcull_read_path_name(unsigned value) noexcept
++{
++    switch (value)
++    {
++    case zcull_poll: return "poll";
++    case zcull_forced: return "forced";
++    case zcull_cond_render: return "cond_render";
++    case zcull_sync_all: return "sync";
++    default: return "other";
++    }
++}
++
++inline thread_local unsigned t_zcull_read_path = zcull_poll;
++// What a forced read is for when update() runs with a sync address: a report
++// read barrier unless a conditional render evaluation says otherwise.
++inline thread_local unsigned t_zcull_forced_path = zcull_forced;
++
++class ZcullPathScope final
++{
++    unsigned& slot_;
++    unsigned previous_;
++public:
++    ZcullPathScope(unsigned& slot, unsigned value) noexcept : slot_(slot), previous_(slot) { slot_ = value; }
++    ~ZcullPathScope() noexcept { slot_ = previous_; }
++    ZcullPathScope(const ZcullPathScope&) = delete;
++    ZcullPathScope& operator=(const ZcullPathScope&) = delete;
++};
++
++inline std::array<diagnostics::EventCost, zcull_path_count> zcull_wait_ticks{};
++inline std::array<std::atomic<std::uint64_t>, zcull_path_count> zcull_gathers{};
++inline std::atomic<std::uint64_t> zcull_poll_deferred{0};
++
++inline void record_zcull_wait(std::uint64_t ticks) noexcept
++{
++    zcull_wait_ticks[t_zcull_read_path < zcull_path_count ? t_zcull_read_path : zcull_poll].record(ticks);
++}
++
++inline void count_zcull_gather() noexcept
++{
++    zcull_gathers[t_zcull_read_path < zcull_path_count ? t_zcull_read_path : zcull_poll].fetch_add(1, std::memory_order_relaxed);
++}
 +
 +// REWINDBOX_RSX_FRAME_PROFILE_V1: RPCS3's own per-frame RSX statistics
 +// (frame_statistics_t). Counters are taken every frame; the stage timers only
@@ -33036,6 +33360,274 @@ index 0000000..ca7a32c
 +}
 +
 +}
+diff --git a/rpcs3/ios/IOSSpuObjectPrefetch.h b/rpcs3/ios/IOSSpuObjectPrefetch.h
+new file mode 100644
+index 0000000..62dc2dd
+--- /dev/null
++++ b/rpcs3/ios/IOSSpuObjectPrefetch.h
+@@ -0,0 +1,262 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <algorithm>
++#include <atomic>
++#include <chrono>
++#include <cstdint>
++#include <functional>
++#include <mutex>
++#include <optional>
++#include <string>
++#include <string_view>
++#include <thread>
++#include <unordered_map>
++#include <unordered_set>
++#include <utility>
++#include <vector>
++#if defined(__APPLE__)
++#include <pthread.h>
++#include <sys/qos.h>
++#endif
++
++// REWINDBOX_SPU_OBJECT_PREFETCH_616: Call of Duty: Black Ops II (BLES01717),
++// Build 614 iPhone logs (PID 64664, multiplayer session 3). At the start of a
++// match one 5 s window opens 7,162 cached SPU objects (JITPROF spu_cache_read
++// 7,162 calls, 4,300.8 ms, 21.2 MB inflated, 0.6 ms per object of about 3 KB):
++// the cost of opening thousands of small files on the compile path, not their
++// size. The 2,038.7 ms frame 2388 of that window has no blocking pipeline and
++// no LLVM budget wait; the 1,121.4 ms frame 3537 (window 17) also falls in a
++// burst of 613 object reads. The objects are already on disk: this module reads
++// the bytes of the title's object directory into memory on one utility-class
++// thread from the runtime's creation (menus, loading), newest objects first and
++// within a byte budget. A compile thread that needs an object takes its bytes
++// once (they leave the store) and inflates and validates them exactly as it
++// would after reading the file; an object not read yet is claimed and read from
++// the disk as before, never awaited. Same bytes, same validation, same link:
++// guest code is unchanged. Title scoped (ios/IOSTitleLevers.h); the store is
++// emptied when emulation stops.
++namespace rpcs3::ios::spu_object_prefetch
++{
++inline constexpr std::uint64_t max_resident_bytes = 48ull << 20;
++inline constexpr std::uint64_t max_file_bytes = 256ull << 10; // larger objects keep the disk path
++inline constexpr std::uint64_t min_file_bytes = 18;           // smallest gzip member
++
++struct candidate
++{
++	std::string name;
++	std::uint64_t bytes = 0;
++	std::int64_t mtime = 0;
++};
++
++// Compressed objects (".gz") within the per-file bounds, newest first (then by
++// name), as long as they fit in the budget.
++inline std::vector<candidate> plan(std::vector<candidate> entries, std::uint64_t budget = max_resident_bytes,
++	std::uint64_t file_limit = max_file_bytes)
++{
++	std::erase_if(entries, [file_limit](const candidate& entry)
++	{
++		const std::string_view name = entry.name;
++		return name.size() <= 3 || name.substr(name.size() - 3) != ".gz" || entry.bytes < min_file_bytes || entry.bytes > file_limit;
++	});
++
++	std::sort(entries.begin(), entries.end(), [](const candidate& a, const candidate& b)
++	{
++		return a.mtime != b.mtime ? a.mtime > b.mtime : a.name < b.name;
++	});
++
++	std::vector<candidate> chosen;
++	std::uint64_t total = 0;
++
++	for (candidate& entry : entries)
++	{
++		if (entry.bytes > budget - total)
++		{
++			continue;
++		}
++
++		total += entry.bytes;
++		chosen.push_back(std::move(entry));
++	}
++
++	return chosen;
++}
++
++// Reads the whole file into `out`; false when it cannot or its size is not `expected`.
++using reader_fn = std::function<bool(const std::string& path, std::uint64_t expected, std::vector<unsigned char>& out)>;
++
++struct window_counters
++{
++	std::uint64_t hits = 0, hit_bytes = 0;   // objects served from memory
++	std::uint64_t claimed = 0;               // planned objects a compile thread read from disk first
++	std::uint64_t dropped = 0;               // read, but claimed meanwhile
++	std::uint64_t read = 0, read_bytes = 0, read_us = 0, failures = 0;
++};
++
++struct gauges
++{
++	bool active = false, done = false;
++	std::uint64_t planned = 0, planned_bytes = 0, pending = 0, resident = 0, resident_bytes = 0;
++};
++
++class store
++{
++	mutable std::mutex m_mutex;
++	std::unordered_map<std::string, std::vector<unsigned char>> m_ready; // full path of the ".gz" object
++	std::unordered_set<std::string> m_pending;                         // planned, neither read nor claimed
++	std::uint64_t m_resident_bytes = 0, m_planned = 0, m_planned_bytes = 0;
++	std::thread m_worker;
++	std::atomic<bool> m_stop{false}, m_active{false}, m_done{false};
++	window_counters m_window{};
++
++public:
++	store() = default;
++	store(const store&) = delete;
++	store& operator=(const store&) = delete;
++	~store() { stop(); }
++
++	void start(std::string directory, std::vector<candidate> chosen, reader_fn reader)
++	{
++		stop();
++
++		{
++			std::lock_guard lock(m_mutex);
++			m_planned = chosen.size();
++			m_planned_bytes = 0;
++
++			for (const candidate& entry : chosen)
++			{
++				m_pending.insert(directory + entry.name);
++				m_planned_bytes += entry.bytes;
++			}
++		}
++
++		m_stop.store(false);
++		m_done.store(chosen.empty());
++		m_active.store(true);
++
++		if (chosen.empty())
++		{
++			return;
++		}
++
++		m_worker = std::thread([this, directory = std::move(directory), chosen = std::move(chosen), reader = std::move(reader)]()
++		{
++#if defined(__APPLE__)
++			pthread_setname_np("SPU object prefetch");
++			pthread_set_qos_class_self_np(QOS_CLASS_UTILITY, 0);
++#endif
++			for (const candidate& entry : chosen)
++			{
++				if (m_stop.load(std::memory_order_relaxed))
++				{
++					break;
++				}
++
++				std::string path = directory + entry.name;
++
++				{
++					std::lock_guard lock(m_mutex);
++					if (!m_pending.contains(path))
++					{
++						continue; // claimed by a compile thread
++					}
++				}
++
++				std::vector<unsigned char> bytes;
++				const auto started = std::chrono::steady_clock::now();
++				const bool ok = reader(path, entry.bytes, bytes) && bytes.size() == entry.bytes;
++				const auto elapsed = static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - started).count());
++
++				std::lock_guard lock(m_mutex);
++				m_window.read_us += elapsed;
++
++				if (!m_pending.erase(path))
++				{
++					m_window.dropped++;
++					continue;
++				}
++
++				if (!ok)
++				{
++					m_window.failures++;
++					continue;
++				}
++
++				m_window.read++;
++				m_window.read_bytes += bytes.size();
++				m_resident_bytes += bytes.size();
++				m_ready.emplace(std::move(path), std::move(bytes));
++			}
++
++			m_done.store(true);
++		});
++	}
++
++	// The prefetched bytes of this ".gz" object, once; nothing when they are
++	// not in memory (the caller reads the file, and the worker will skip it).
++	std::optional<std::vector<unsigned char>> take(const std::string& gz_path)
++	{
++		if (!m_active.load(std::memory_order_relaxed))
++		{
++			return std::nullopt;
++		}
++
++		std::lock_guard lock(m_mutex);
++
++		if (auto found = m_ready.find(gz_path); found != m_ready.end())
++		{
++			std::vector<unsigned char> bytes = std::move(found->second);
++			m_ready.erase(found);
++			m_resident_bytes -= bytes.size();
++			m_window.hits++;
++			m_window.hit_bytes += bytes.size();
++			return bytes;
++		}
++
++		if (m_pending.erase(gz_path))
++		{
++			m_window.claimed++;
++		}
++
++		return std::nullopt;
++	}
++
++	// Joins the worker and frees every byte still held.
++	void stop()
++	{
++		m_stop.store(true);
++
++		if (m_worker.joinable())
++		{
++			m_worker.join();
++		}
++
++		m_active.store(false);
++		std::lock_guard lock(m_mutex);
++		m_ready.clear();
++		m_pending.clear();
++		m_resident_bytes = 0;
++		m_planned = 0;
++		m_planned_bytes = 0;
++	}
++
++	window_counters take_window()
++	{
++		std::lock_guard lock(m_mutex);
++		return std::exchange(m_window, window_counters{});
++	}
++
++	gauges current() const
++	{
++		std::lock_guard lock(m_mutex);
++		return {m_active.load(), m_done.load(), m_planned, m_planned_bytes, m_pending.size(), m_ready.size(), m_resident_bytes};
++	}
++};
++
++inline store& instance()
++{
++	static store s_store;
++	return s_store;
++}
++}
 diff --git a/rpcs3/ios/IOSSpuWaitProfile.h b/rpcs3/ios/IOSSpuWaitProfile.h
 new file mode 100644
 index 0000000..7167ee8
@@ -33835,10 +34427,10 @@ index 0000000..0f2f94b
 +}
 diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
 new file mode 100644
-index 0000000..2fe17df
+index 0000000..419388c
 --- /dev/null
 +++ b/rpcs3/ios/IOSTitleLevers.h
-@@ -0,0 +1,87 @@
+@@ -0,0 +1,117 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -33924,6 +34516,36 @@ index 0000000..2fe17df
 +constexpr bool requires_position_invariance(std::string_view title_id) noexcept
 +{
 +	return is_black_ops_ii_title(title_id) || is_assassins_creed_title(title_id);
++}
++
++// REWINDBOX_ZCLIP_WINDOW_Z_616: Black Ops II draws an object in front of the
++// whole scene with the clip range [1, 1e19] and a viewport Z scale of 1e19
++// over an offset of 1 (window Z = 1 + 1e19 * z_ndc), reversed depth GEQUAL.
++// The RSX capture of BLES01717 attached to RPCS3 issue #13227 (RRC v5,
++// 4,023 draws) holds 26 such draws: a 12-draw depth prepass right after the
++// depth clear, before the 1,544-draw scene prepass, the same 12 draws in the
++// colour pass (GEQUAL against that prepass) and 2 blended draws without
++// depth write. Without float64 nor an unrestricted depth range (MoltenVK),
++// the vertex fallback compresses Z above 1 into [0.99, 1] from clip-space Z
++// (pos.z), not window Z: pos.z - 1 over 1e19 - 1 is the clip-space z_clip,
++// constant (the near distance) for a reversed infinite projection, so every
++// fragment of these draws gets the same depth. The colour pass then keeps the
++// last triangle drawn on a pixel instead of the nearest one: back parts of
++// the forearm and weapon show through the front ones. Compressing the window
++// Z ((d - 1) / (1e19 - 1) = z_ndc) keeps their depth order inside the band.
++// The vertex shader text of this title changes once, so its vertex Metal
++// libraries are compiled again on the next boot.
++constexpr bool requires_zclip_fallback_window_z(std::string_view title_id) noexcept
++{
++	return is_black_ops_ii_title(title_id);
++}
++
++// REWINDBOX_SPU_OBJECT_PREFETCH_616 (ios/IOSSpuObjectPrefetch.h): Black Ops II
++// opens 7,162 cached SPU objects in the first 5 s of a multiplayer match on the
++// Build 614 logs (4.3 s of file reads on the compile threads, a 2.0 s frame).
++constexpr bool requires_spu_object_prefetch(std::string_view title_id) noexcept
++{
++	return is_black_ops_ii_title(title_id);
 +}
 +}
 diff --git a/rpcs3/ios/IOSTransitionPhases.h b/rpcs3/ios/IOSTransitionPhases.h
@@ -38135,7 +38757,7 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..a7a66b8 100644
+index 7c3389b..d5fbbfb 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -1,10 +1,31 @@
@@ -38448,7 +39070,7 @@ index 7c3389b..a7a66b8 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +336,130 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +336,136 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -38466,6 +39088,10 @@ index 7c3389b..a7a66b8 100644
 +	// other value; the vertex shader text changes, so Metal compiles new pipelines.
 +	resolved.position_invariance = resolve_mode(g_cfg.ios_experimental.position_invariance,
 +		rpcs3::ios::title_levers::requires_position_invariance(title_id));
++	// REWINDBOX_ZCLIP_WINDOW_Z_616: the title list, without a setting.
++	resolved.zclip_fallback_window_z = rpcs3::ios::title_levers::requires_zclip_fallback_window_z(title_id);
++	// REWINDBOX_SPU_OBJECT_PREFETCH_616: the title list, without a setting.
++	resolved.spu_object_prefetch = rpcs3::ios::title_levers::requires_spu_object_prefetch(title_id);
 +
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
 +	resolve_spu_spin_timing(resolved);
@@ -38521,6 +39147,8 @@ index 7c3389b..a7a66b8 100644
 +		resolved.spu_spin_cntfrq, resolved.spu_spin_timer_scale,
 +		resolved.spu_spin.getllar_refail_ticks, resolved.spu_spin.getllar_spin_window_ticks, resolved.spu_spin.getllar_forced_sleep_ticks,
 +		resolved.position_invariance, resolved.moltenvk_async_submits);
++	// REWINDBOX_ZCLIP_WINDOW_Z_616: its own line, the boot policy line keeps its fields.
++	ios_experimental_log.notice("Resolved title policy 616: zclip_window_z=%d spu_object_prefetch=%d", resolved.zclip_fallback_window_z, resolved.spu_object_prefetch);
 +}
 +
 +void apply_spu_spin_timing_policy() noexcept
@@ -38590,7 +39218,7 @@ index 7c3389b..a7a66b8 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..c349a27 100644
+index 8fba197..4afac9c 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -38630,7 +39258,7 @@ index 8fba197..c349a27 100644
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,14 +43,66 @@ struct experimental_policy
+@@ -20,14 +43,73 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -38641,6 +39269,13 @@ index 8fba197..c349a27 100644
 +	// declare an invariant position, as upstream does on NVIDIA. Title scoped,
 +	// without a setting; read by the vertex decompiler after boot resolution.
 +	bool position_invariance = false;
++	// REWINDBOX_ZCLIP_WINDOW_Z_616 (ios/IOSTitleLevers.h): the vertex fallback
++	// transform compresses window Z above 1 instead of clip-space Z. Title
++	// scoped, without a setting; read by the vertex decompiler after boot resolution.
++	bool zclip_fallback_window_z = false;
++	// REWINDBOX_SPU_OBJECT_PREFETCH_616 (ios/IOSSpuObjectPrefetch.h): the SPU
++	// object cache of the title is read into memory ahead of the compile threads.
++	bool spu_object_prefetch = false;
 +
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers), resolved once per boot
 +	// like the fields above; none of them enters an object-cache key.
@@ -39318,10 +39953,10 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..85a1f50 100644
+index d800542..655eaa2 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,192 @@
+@@ -1,26 +1,193 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -39347,6 +39982,7 @@ index d800542..85a1f50 100644
 +#include "IOSShaderTiming.h"
 +#include "IOSCompilePressure.h"
 +#include "IOSRsxSyncProfile.h"
++#include "IOSSpuObjectPrefetch.h" // REWINDBOX_SPU_OBJECT_PREFETCH_616
 +#include "IOSFrameTrace.h"
 +#include "IOSFeedbackCensus.h"
 +#include "IOSRendererCausality.h"
@@ -39514,7 +40150,7 @@ index d800542..85a1f50 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +204,527 @@ u64 process_memory_footprint()
+@@ -38,31 +205,527 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -40052,7 +40688,7 @@ index d800542..85a1f50 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +734,10 @@ public:
+@@ -72,10 +735,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -40065,7 +40701,7 @@ index d800542..85a1f50 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +770,918 @@ public:
+@@ -108,12 +771,953 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -40522,6 +41158,41 @@ index d800542..85a1f50 100644
 +                static_cast<unsigned long long>(sync::zcull_result_flushes.exchange(0, std::memory_order_relaxed)),
 +                static_cast<unsigned long long>(sync::zcull_hint_flushes.exchange(0, std::memory_order_relaxed)),
 +                g_cfg.video.precise_zpass_count ? 1u : 0u, g_cfg.video.relaxed_zcull_sync ? 1u : 0u);
++        }
++        // REWINDBOX_ZCULL_WAIT_PROBE_616: the MoltenVK wait inside those reads,
++        // by the path that asked for the result, the gathers per path and the
++        // non-forced polls left for later instead of waiting.
++        {
++            namespace sync = rpcs3::ios::rsx_sync;
++            std::string paths;
++            u64 gathers[sync::zcull_path_count]{};
++            for (unsigned path = 0; path < sync::zcull_path_count; path++)
++            {
++                const auto wait = sync::zcull_wait_ticks[path].take();
++                gathers[path] = sync::zcull_gathers[path].exchange(0, std::memory_order_relaxed);
++                fmt::append(paths, "%s=%llu:%.3f:%.3f ", sync::zcull_read_path_name(path), wait.count, milliseconds(wait.total), milliseconds(wait.maximum));
++            }
++            ios_core_profiler.notice(
++                "COREPROF ZCULLWAIT616 session=%llu window=%llu tuple=count:total_ms:max_ms %sgathers=%llu:%llu:%llu:%llu "
++                "gathers_order=poll:forced:cond_render:sync poll_deferred=%llu scope=rsx_thread_process_window window_boundary_approximate=1",
++                profile_session, profile_window, paths,
++                gathers[sync::zcull_poll], gathers[sync::zcull_forced], gathers[sync::zcull_cond_render], gathers[sync::zcull_sync_all],
++                static_cast<unsigned long long>(sync::zcull_poll_deferred.exchange(0, std::memory_order_relaxed)));
++        }
++        // REWINDBOX_SPU_OBJECT_PREFETCH_616: SPU objects served from memory, the
++        // planned ones a compile thread read from disk first, and the store.
++        {
++            auto& prefetch = rpcs3::ios::spu_object_prefetch::instance();
++            const auto counters = prefetch.take_window();
++            const auto state = prefetch.current();
++            ios_core_profiler.notice(
++                "COREPROF SPUPREFETCH616 session=%llu window=%llu active=%u done=%u planned=%llu planned_kib=%.1f "
++                "read=%llu read_kib=%.1f read_ms=%.3f failures=%llu hits=%llu hit_kib=%.1f claimed=%llu dropped=%llu "
++                "pending=%llu resident=%llu resident_kib=%.1f scope=process_window window_boundary_approximate=1",
++                profile_session, profile_window, state.active ? 1u : 0u, state.done ? 1u : 0u, state.planned, state.planned_bytes / 1024.0,
++                counters.read, counters.read_bytes / 1024.0, counters.read_us / 1000.0, counters.failures,
++                counters.hits, counters.hit_bytes / 1024.0, counters.claimed, counters.dropped,
++                state.pending, state.resident, state.resident_bytes / 1024.0);
 +        }
 +        // REWINDBOX_RSX_FRAME_PROFILE_V1: RPCS3's own per-frame RSX statistics;
 +        // stage times are averages over the sampled frames of the window.
@@ -40986,7 +41657,7 @@ index d800542..85a1f50 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1689,93 @@ private:
+@@ -121,6 +1725,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -41080,7 +41751,7 @@ index d800542..85a1f50 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1783,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +1819,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -41174,7 +41845,7 @@ index d800542..85a1f50 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1880,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1916,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -41303,7 +41974,7 @@ index d800542..85a1f50 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2011,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2047,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
