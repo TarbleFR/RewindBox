@@ -115,6 +115,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           'public int FindOverlapsInRange(MemoryManager memoryManager, ulong gpuVa, ulong size, ref Texture[] overlaps, out bool contiguous)' in cache and
           '_texturesLock.EnterReadLock();\n\n            try\n            {\n                return _textures.FindOverlaps(range, ref overlaps);' in cache,
           'TextureCache: only the overlap query, under the texture read lock')
+    group = after[adapter.TEXTURE_GROUP]
+    check(group.replace(adapter.GROUP_NEW, adapter.GROUP_ANCHOR) == before[adapter.TEXTURE_GROUP] and
+          'public bool AnyHandleModified()' in group, 'TextureGroup: only the read-only modified-handle query')
+    check('memoryManager.ReadInto(dstGpuVa + (ulong)dstBaseOffset, dstSpan, GraphicsConfig.HogwartsDmaRegionUpload && !regionUploaded);' in dma
+          and dma.count('memoryManager.ReadInto(dstGpuVa + (ulong)dstBaseOffset, dstSpan') == 1,
+          'under the policy the guest path reads its destination tracked unless the region was uploaded')
     check(dma.index('long readStart = Stopwatch.GetTimestamp();') < read < dma.index('NoteGuestMemoryAccess(readStart, write: false);'),
           'the timed source read is the read through guest memory')
     region = dma.index('TryUploadRegion(memoryManager, srcSpan, srcStride, xCount, yCount, dstBpp, dstGpuVa, dst, dstRegionX, dstRegionY)')
@@ -139,13 +145,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           dma.count('SignalModified') == before[adapter.DMA].count('SignalModified') + 1,
           'the region upload does not mark the texture modified; the GPU source copy marks its destination, as the delivered GPU copy does')
     restored = dma
-    for old, new in ((adapter.METHOD_ANCHOR, adapter.METHOD_NEW), (adapter.WRITE_OLD, adapter.WRITE_NEW),
+    for old, new in ((adapter.METHOD_ANCHOR, adapter.METHOD_NEW), (adapter.WRITE_OLD, adapter.WRITE_NEW), (adapter.READ_OLD, adapter.READ_NEW),
                      (adapter.REGION_OLD, adapter.REGION_NEW), (adapter.SLOW_OLD, adapter.SLOW_NEW),
                      (adapter.TARGET_OLD, adapter.TARGET_NEW), (adapter.FAST_OLD, adapter.FAST_NEW),
                      (adapter.DIAGNOSTICS_USING_OLD, adapter.DIAGNOSTICS_USING_NEW), (adapter.USING_OLD, adapter.USING_NEW)):
         restored = restored.replace(new, old)
     check(restored == before[adapter.DMA], 'DmaClass: only the adapter hunks')
-    check(dma.count('GraphicsConfig.HogwartsFloatDmaGpuCopy') == 1 and dma.count('GraphicsConfig.HogwartsDmaRegionUpload') == 3,
+    check(dma.count('GraphicsConfig.HogwartsFloatDmaGpuCopy') == 1 and dma.count('GraphicsConfig.HogwartsDmaRegionUpload') == 4,
           'the float policy used once; the region policy gates the GPU source copy, the region upload and the slow-read attribution')
     summary = dma.index('/// Performs a buffer to buffer, or buffer to texture copy.')
     check(dma.index('private void DmaCopy(int argument)') - summary < 200 and
@@ -156,7 +162,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
                              (adapter.DMA, adapter.FAST_OLD), (adapter.DMA, adapter.TARGET_OLD), (adapter.DMA, adapter.SLOW_OLD),
                              (adapter.DMA, adapter.REGION_OLD), (adapter.DMA, adapter.WRITE_OLD),
                              (adapter.DMA, adapter.DIAGNOSTICS_USING_OLD), (adapter.DMA, adapter.METHOD_ANCHOR),
-                             (adapter.TEXTURE_CACHE, adapter.CACHE_ANCHOR)):
+                             (adapter.TEXTURE_CACHE, adapter.CACHE_ANCHOR), (adapter.TEXTURE_GROUP, adapter.GROUP_ANCHOR),
+                             (adapter.DMA, adapter.READ_OLD)):
         drift = temporary / ('drift-' + hashlib.sha256((relative + anchor).encode()).hexdigest()[:8])
         for name in adapter.NAMES:
             (drift / name).parent.mkdir(parents=True, exist_ok=True)
@@ -200,7 +207,8 @@ namespace Ryujinx.Common.Memory
 }
 namespace Ryujinx.Graphics.GAL
 {
-    enum Format { R8Unorm, R8G8B8A8Unorm, R16G16B16A16Float, D32Float }
+    enum Format { R8Unorm, R8G8Unorm, R8G8B8A8Unorm, B8G8R8A8Unorm, R16Unorm, R16G16Unorm, R16G16B16A16Unorm, R10G10B10A2Unorm,
+                  R16G16B16A16Float, D32Float }
     enum Target { Texture2D, Texture2DArray }
     readonly struct Extents2D
     {
@@ -235,7 +243,7 @@ namespace Image
         public void CopyTo(Host destination, Extents2D source, Extents2D target, bool linearFilter) =>
             Copies.Add($"{source} to {target} filter={linearFilter} same={ReferenceEquals(this, destination)}");
     }
-    sealed class Group { public Texture Storage; public bool HasIncompatibleOverlaps; }
+    sealed class Group { public Texture Storage; public bool HasIncompatibleOverlaps; public bool Modified = true; public bool AnyHandleModified() => Modified; }
     sealed class Texture
     {
         public Info Info = new(); public float ScaleFactor = 1f; public Group Group = new();
@@ -451,6 +459,14 @@ static class Program
         GpuDecline("format", new() { Linear(256, 64, 32) }, new() { Make(Format.R8Unorm, 1, 256, 64) }, va);
         var shared = Linear(256, 64, 32); var sameGroup = Make(Format.R8G8B8A8Unorm, 4, 64, 64); sameGroup.Group = shared.Group;
         GpuDecline("sameGroup", new() { shared }, new() { sameGroup }, va);
+        var clean = Linear(256, 64, 32); clean.Group.Modified = false;
+        GpuDecline("notModified", new() { clean }, new() { Make(Format.R8G8B8A8Unorm, 4, 64, 64) }, va);
+        var other = Make(Format.R8G8B8A8Unorm, 4, 64, 64); other.Size = 8192; other.Range.Spans.Add(new Image.Span(0x20000, 8192));
+        GpuDecline("foreignGroup", new() { Linear(256, 64, 32), other }, new() { Make(Format.R8G8B8A8Unorm, 4, 64, 64) }, va);
+        var halfFloat = Linear(256, 32, 32); halfFloat.Info.FormatInfo.Format = Format.R16G16B16A16Float; halfFloat.Info.FormatInfo.BytesPerPixel = 8;
+        var halfTarget = Make(Format.R16G16B16A16Float, 8, 32, 64);
+        GpuDecline("float", new() { halfFloat }, new() { halfTarget }, va);
+        GpuDecline("beyondStride", new() { Linear(256, 80, 32) }, new() { Make(Format.R8G8B8A8Unorm, 4, 64, 64) }, 0x20000 + 3 * 256 + 248);
         gm.Physical.TextureCache.Contiguous = true;
         string sourceCounts = dma.SourceCounts;
         string gpuLine = sink.Lines.Find(l => l.StartsWith("DMA GPU source copy"));
@@ -506,15 +522,17 @@ static class Program
     check(result['declined'] == expected, f'every declined case leaves the texture untouched: {result}')
     check(result['counts'] == '4 3 10 2 1 2 1', f'uploads, declines (no texture, layout, format, overlap) and slow accesses counted: {result}')
     check('regionUploads 4, declined noTarget 3 layout 10 format 2 overlap 1; slowReads 3, slowWrites 1; gpuSourceCopies 1, declined '
-          'noTexture 4 layout 1 noTarget 1 format 2; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)' in result['last'] and
+          'noTexture 4 layout 3 noTarget 1 format 3 notModified 1; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)'
+          in result['last'] and
           'floatFormat ' in result['last'], f'the summary reports them: {result}')
     check(result['capped'] == 64, f'at most 64 summaries per session: {result}')
     check(result['gpuCopied'] and result['gpuCopy'] == '(4,3)-(8,5) to (2,3)-(6,5) filter=False same=False' and
           result['gpuCalls'] == 'sync | sync,modified',
           f'a linear source held by a GPU texture is copied on the GPU, both synchronised, the destination marked: {result}')
     check(result['gpuDeclined'] == ['noTexture', 'blockLinear', 'otherStride', 'notContiguous', 'misaligned', 'noTarget',
-                                    'format', 'sameGroup'], f'every declined GPU source copy copies nothing: {result}')
-    check(result['sourceCounts'] == '1 4,1,1,2 | 2,0,0,1', f'GPU source copies, declines and slow reads by source kind: {result}')
+                                    'format', 'sameGroup', 'notModified', 'foreignGroup', 'float', 'beyondStride'],
+          f'every declined GPU source copy copies nothing: {result}')
+    check(result['sourceCounts'] == '1 4,3,1,3,1 | 2,0,0,1', f'GPU source copies, declines and slow reads by source kind: {result}')
     check(result['gpuLines'] == 1 and result['gpuLine'] ==
           'DMA GPU source copy (Hogwarts policy): R8G8B8A8Unorm 64x32 linear (4,3) to 64x64 (2,3) 4x2', f'first copy logged once: {result}')
     check(result['slowLines'] == ['DMA slow source read #1: T ms, source=None overlaps 0: none; destination texture none',
