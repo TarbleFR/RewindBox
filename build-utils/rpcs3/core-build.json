@@ -327,6 +327,19 @@
      "{out}/zcull-sync-probe-613-asan-ubsan.json"
     ],
     "reason": "the same executed checks under ASan/UBSan"
+   },
+   {
+    "name": "codegen-audit",
+    "argv": [
+     "python3",
+     "test/rpcs3_core613_codegen_test.py",
+     "{source}",
+     "--baseline",
+     "{baseline}",
+     "--report",
+     "{out}/codegen-audit.json"
+    ],
+    "reason": "the Core 613 SPULLVMRecompiler.cpp alias joins the Core 610 SPUThread.cpp alias: the static Core 610 audit cannot be re-derived on this tree, so the two-alias audit runs instead"
    }
   ],
   "reused": {
@@ -360,12 +373,6 @@
       "rpcs3/Emu/Memory/vm.cpp",
       "rpcs3/ios/IOSSignalTrace.h"
      ]
-    },
-    "codegen-audit": {
-     "repo_inputs": [
-      "test/rpcs3_core610_codegen_test.py"
-     ],
-     "static_report": true
     },
     "reuse-audit": {
      "repo_inputs": [],
