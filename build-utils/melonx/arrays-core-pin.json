@@ -1,0 +1,37 @@
+{
+  "status": "verified",
+  "source": "b181cbe19164b5c10da4d0412209d2067f97ea3e",
+  "run": 41442795323,
+  "job": 125268533213,
+  "attempt": 1,
+  "workflow": ".github/workflows/melonx-core.yml",
+  "artifact": 13141611354,
+  "name": "MeloNX-engine-b181cbe19164b5c10da4d0412209d2067f97ea3e",
+  "bytes": 89436359,
+  "sha256": "05009abfcfa45a5e5644491a52da2b08abeef8337451eb688c72a9f346f0abd5",
+  "expiresAt": "2026-11-16T12:27:24Z",
+  "binaries": {
+    "ios-arm64": {
+      "sha256": "7816830c683dc2b8098995f207d4e12f45f6227f74085301352441bf9e6d587c",
+      "bytes": 37765776
+    },
+    "iossimulator-arm64": {
+      "sha256": "40ad46d51dc2b581326fc22f9a50302a300bf6bc9353959609757938d19142ea",
+      "bytes": 38060936
+    }
+  },
+  "identities": {
+    "ios-arm64": "303e867e265ff7f335e6328f9f468efe7a28a3bd4f4cce9c5a6a9001c8fa628c",
+    "iossimulator-arm64": "45a9cd475c96f5184e9b4a19c9165fcf10f429276b8713b3b8bae7c9c0986564"
+  },
+  "contractSha256": "0e3cf4afc9a30f34f37f4c41906f101f5d79db6728e802fe18ccf0ac3d605821",
+  "resultSha256": "79cf1dec36b2e8db83e1a42cbb20f69f7b4ae7cc712438638995bef0e1d00013",
+  "packagedFingerprint": "bf7de0ddaa36aefe29f1ae6cdbc9d2c543c13aedc6ba501a96c54fa53b104e5b",
+  "replaces": {
+    "source": "b99e754de165661437548121918cf75ae24649ae",
+    "run": 41347064464,
+    "artifact": 13099194047,
+    "packagedFingerprint": "98ecdb25671822974488ad5449ef88d4c84d6ae38f763a4a5d523d4d5448f915",
+    "reason": "Bindless array deltas (Hogwarts Legacy build 612 compute-binding cost)"
+  }
+}
