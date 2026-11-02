@@ -257,6 +257,14 @@
       {
         "commit": "5399976492b73e5081007861ca6c2d4fa176e7e9",
         "note": ""
+      },
+      {
+        "commit": "b6706f78d1c03a8309d5540587c31e8ba1bf0f57",
+        "note": ""
+      },
+      {
+        "commit": "64d56cfe6600fcf38463a667c4c9792c9cfed875",
+        "note": ""
       }
     ],
     "sourceOnly": [
@@ -274,6 +282,11 @@
         "commit": "35afb4c987f7cd7294ada88270fad142a074f6ca",
         "targetBuild": 614,
         "note": "RetroAchievements sign-in screen fix from another session (shows the saved sign-in instead of a sign-in form; 12 locales, ra_content.dart, its regression test); not reviewed for 613 and not part of it: its paths stay at their effective bytes."
+      },
+      {
+        "commit": "a5a64217b6479dfa56a9f4ff7d729a9f871e4af0",
+        "targetBuild": 614,
+        "note": "MeloNX work in progress from another session (bindless array delta fixes under build-utils/melonx, its host test and docs/evidence notes); not wired into the MeloNX Core and not part of 613: its paths stay at their effective bytes."
       }
     ]
   },
