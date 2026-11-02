@@ -197,6 +197,25 @@ class ManifestSchema(unittest.TestCase):
         with self.assertRaises(ValueError):
             sd.verify_base(broken)
 
+    def test_standard_base_receipt_lists_its_other_jobs(self):
+        """A standard-recipe base receipt also lists republish and the test jobs (skipped when reused)."""
+        _, manifest = current_manifest()
+        receipt_raw = (ROOT / manifest['base']['receipt']['path']).read_bytes()
+        receipt = json.loads(receipt_raw)
+        names = set(receipt['execution']['jobs'])
+        self.assertTrue({'preflight', 'application'} <= names)
+        failed = copy.deepcopy(receipt)
+        extra = sorted(names - {'preflight', 'application'})
+        if not extra:
+            self.skipTest('the base receipt lists only its preflight and application jobs')
+        failed['execution']['jobs'][extra[0]]['conclusion'] = 'failure'
+        raw = json.dumps(failed).encode()
+        broken = copy.deepcopy(manifest)
+        broken['base']['receipt']['sha256'] = sha(raw)
+        read = lambda path: raw if path == manifest['base']['receipt']['path'] else (ROOT / path).read_bytes()
+        with self.assertRaises(ValueError):
+            sd.verify_base(broken, read)
+
     def test_recipient(self):
         _, manifest = current_manifest()
         recipient = manifest['recipient']
@@ -212,17 +231,28 @@ class ManifestSchema(unittest.TestCase):
             sd.recipient_check(manifest)
 
     def test_images(self):
-        _, manifest = current_manifest()
+        build, manifest = current_manifest()
         base = sd.verify_base(manifest)
         images = manifest['images']
-        for name in ('Frameworks/libRPCS3Core.dylib', 'Frameworks/MeloNXCore.framework/MeloNXCore',
-                     'Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge',
-                     'Frameworks/retro_achievements_session.framework/retro_achievements_session',
-                     'Frameworks/App.framework/App', 'Runner'):
+        expected = {
+            611: ('Frameworks/libRPCS3Core.dylib', 'Frameworks/MeloNXCore.framework/MeloNXCore',
+                  'Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge',
+                  'Frameworks/retro_achievements_session.framework/retro_achievements_session',
+                  'Frameworks/App.framework/App', 'Runner'),
+            # 612 changes the RPCS3 Core and its bridge only; the MeloNX Core of 611 is kept.
+            612: ('Frameworks/libRPCS3Core.dylib', 'Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge',
+                  'Runner'),
+        }
+        for name in expected.get(build, ('Runner',)):
             self.assertIn(name, images['mustChange'])
         retained_names = []
         for patterns in images['retained'].values():
             retained_names += sd.expand_image_patterns(patterns, sorted(base))
+        for key, spec in manifest['components'].items():
+            if spec.get('unchangedFromBase') is True:
+                self.assertNotIn(spec['image'], images['mustChange'], key)
+                self.assertNotIn(key, images['replaced'], key)
+                self.assertIn(spec['image'], sd.expand_image_patterns(images['retained'][key], sorted(base)), key)
         self.assertEqual(len(retained_names), len(set(retained_names)))
         self.assertEqual(sum(n.endswith('_libretro') for n in retained_names), 35)
         self.assertFalse(set(retained_names) & set(images['mustChange']))
@@ -800,6 +830,21 @@ class EffectiveTree611(unittest.TestCase):
         self.assertNotIn('lib/l10n/game_box_locale.dart', restore)
         self.assertEqual(tree['effective']['lib/l10n/game_box_locale.dart'], REPO.entries(GAME_BOX)['lib/l10n/game_box_locale.dart'])
 
+    def test_inherited_deferral_for_612(self):
+        build, manifest = current_manifest()
+        if build != 612:
+            self.skipTest('612-specific expectations')
+        tree = effective_of_head()
+        base = json.loads(REPO.show(manifest['base']['source'], sd.manifest_path(611)))
+        self.assertEqual(tree['baseEffectiveDigest'], base['product']['effectiveDigest'])
+        deferred = set(base['product']['deferred'][B06888A9])
+        restore = tree['restoreRecords']
+        pending = {path for item in tree['unclassified'] for path in item['paths']}
+        self.assertEqual(set(restore) - pending, deferred, '612 restores exactly the deferral inherited from 611')
+        self.assertEqual({p: restore[p] for p in deferred}, {p: base['product']['restore'][p] for p in deferred})
+        self.assertFalse(set(tree['effectiveRecords']) & deferred)
+        self.assertEqual([c['commit'] for c in tree['commits'] if c['commit'] == B06888A9], [])
+
     def test_group_commands_exist_in_the_effective_tree(self):
         _, manifest = current_manifest()
         tree = effective_of_head()
@@ -877,6 +922,17 @@ class Groups(unittest.TestCase):
                 self.assertEqual(pin['manifest'], 'build-utils/delivery/611.json')
                 self.assertTrue(pin['artifactName'].startswith('RewindBox-Build611-' + pin['source']))
                 self.assertTrue(pin['artifactName'].endswith('-tests-' + group))
+
+    def test_612_additions(self):
+        build, manifest = current_manifest()
+        if build != 612:
+            self.skipTest('612-specific expectations')
+        tree = effective_of_head()
+        reader = sd.EffectiveReader(REPO, tree['effective'])
+        for group, name in (('flutter', 'rpcs3-graphics-tests-612'), ('native', 'rpcs3-graphics-tests-612-apple')):
+            commands = dict(sd.expand_commands(group, manifest['tests'][group], reader.listing))
+            self.assertEqual(commands[name], ['python3', '-B', 'test/rpcs3_graphics_tests612_test.py'])
+            self.assertEqual(manifest['tests'][group]['mode'], 'fresh', '612 changes product inputs of both groups')
 
     def test_recipe_reads_of_the_groups(self):
         """The reuse guard compares every recipe file a group may read (scripts it runs, diagnostics

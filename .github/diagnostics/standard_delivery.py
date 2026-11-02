@@ -506,9 +506,13 @@ def verify_base(value, read=None):
     require(receipt['result'] == 'delivered-and-verified' and receipt['build'] == base['build'] and
             run['source'] == base['source'] and run['tree'] == base['tree'] and run['run'] == base['run'] and
             run['attempt'] == base['attempt'] and run['branch'] == BRANCH and run['runConclusion'] == 'success' and
-            set(run['jobs']) == set(jobs) and
+            set(jobs) <= set(run['jobs']) and
             all(run['jobs'][name]['id'] == job and run['jobs'][name]['conclusion'] == 'success'
-                for name, job in jobs.items()), 'The base receipt differs from the pinned delivery run')
+                for name, job in jobs.items()) and
+            # A standard-recipe base also lists its republish and test jobs; a test job is skipped
+            # when its passed evidence was reused (611), never failed.
+            all(value['conclusion'] in ('success', 'skipped') for value in run['jobs'].values()),
+            'The base receipt differs from the pinned delivery run')
     require(all(receipt['ipa'][key] == base['ipa'][key] for key in ('name', 'producerName', 'bytes', 'sha256')),
             'The base receipt names another IPA')
     folder = PurePosixPath(base['receipt']['path']).parent

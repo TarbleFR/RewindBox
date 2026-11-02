@@ -1,0 +1,405 @@
+{
+  "schema": 1,
+  "build": 612,
+  "status": "draft",
+  "note": "Private IPA 612 on the delivered 611: the RPCS3 Core 612 (per-game accuracy tests for the Assassin's Creed torches and the Black Ops II viewmodel, census v2) and its in-game test page; the MeloNX Core of 611 kept unchanged; Dolphin/ARMSX2, libretro and the MeloNX dependencies retained through the 611 republication; b06888a9 (RetroAchievements identification batch) stays deferred, inherited from 611.",
+  "base": {
+    "build": 611,
+    "source": "3952b4abb07d3055e1a9319b80f68023a3da646e",
+    "tree": "4eeea305a09a64d8bfcd19213a2b759a7d078e7a",
+    "run": 41380039319,
+    "attempt": 1,
+    "workflow": ".github/workflows/standard-delivery.yml",
+    "jobs": {
+      "preflight": {
+        "name": "preflight",
+        "id": 125068618866
+      },
+      "application": {
+        "name": "application",
+        "id": 125068785723
+      }
+    },
+    "receipt": {
+      "path": "docs/evidence/rewind611/delivery.json",
+      "sha256": "435c6c45b83b18009edbccde6a4aa38a606d575b331e6b6d28f66f8f2dd98e8b",
+      "proofFiles": 12
+    },
+    "identity": {
+      "path": "docs/evidence/rewind611/signed-payload-identity.json",
+      "sha256": "6d6d5d939d0f53f4fedeb83bf3407be9bf22e67d876df30f97ae949bdfbb0b15",
+      "images": 90
+    },
+    "ipa": {
+      "name": "RewindBox-611.ipa",
+      "producerName": "RewindBox-Build611-3952b4abb07d3055e1a9319b80f68023a3da646e-cold.ipa",
+      "bytes": 190211165,
+      "sha256": "f4836b87a7810071e6d8a2bd48e76db67fb8b224912014931c4b128971d1e4dc"
+    }
+  },
+  "components": {
+    "rpcs3": {
+      "mode": "replace",
+      "verifier": ".github/diagnostics/rpcs3_core_component.py",
+      "pin": "build-utils/rpcs3/core-pin.json",
+      "image": "Frameworks/libRPCS3Core.dylib",
+      "producerRoute": "RPCS3 Core route (.github/workflows/rpcs3-core610.yml driven by build-utils/rpcs3/core-build.json, build 612)",
+      "replaces": {
+        "source": "c934705ec17e2861a57fe9dca2141bab7abe9c1a",
+        "run": 41363493412,
+        "artifact": 13106199627,
+        "payloadFingerprint": "affb9d2d3fcdbf52d360c3ec8a2ae4bb770ed73f3aeb39e503fa7b6ef27f03ae"
+      }
+    },
+    "melonx": {
+      "mode": "replace",
+      "verifier": ".github/diagnostics/melonx_reads_core_component.py",
+      "pin": "build-utils/melonx/reads-core-pin.json",
+      "packaging": "build-utils/melonx/package_runtime.py",
+      "image": "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "producerRoute": ".github/workflows/melonx-core.yml",
+      "unchangedFromBase": true,
+      "keeps": {
+        "build": 611,
+        "source": "b99e754de165661437548121918cf75ae24649ae",
+        "run": 41347064464,
+        "job": 124969067860,
+        "artifact": 13099194047,
+        "packagedFingerprint": "98ecdb25671822974488ad5449ef88d4c84d6ae38f763a4a5d523d4d5448f915"
+      }
+    },
+    "dolphin": {
+      "mode": "retain",
+      "retainedSince": 608,
+      "image": "Frameworks/DolphinCore.framework/DolphinCore",
+      "payloadFingerprint": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+      "upstreamRevision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+      "legalFolder": "Dolphin-session608",
+      "inputs": "rewind608_producers.input_paths",
+      "origin": {
+        "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1,
+        "runConclusion": "failure",
+        "job": 124810929735,
+        "jobName": "Build608 Dolphin arm64",
+        "steps": [
+          "Patch and compile Dolphin Core",
+          "Materialize and validate Dolphin framework",
+          "Bind608 native inputs and compiled payload"
+        ],
+        "artifact": 13078193437,
+        "name": "RewindBox608-dolphin-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+        "bytes": 11191038,
+        "sha256": "9d32c236c79c43cd57053b000dfaba94c4e0d6f627bd04a657f74b36dd58c064",
+        "expiresAt": "2026-11-15T09:41:57Z"
+      },
+      "consumedBy": {
+        "build": 608,
+        "receipt": "docs/evidence/rewind608/delivery.json",
+        "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+      },
+      "republished": {
+        "build": 611,
+        "source": "3952b4abb07d3055e1a9319b80f68023a3da646e",
+        "run": 41380039319,
+        "attempt": 1,
+        "job": 125068786386,
+        "artifact": 13112967314,
+        "name": "RewindBox-Build611-3952b4abb07d3055e1a9319b80f68023a3da646e-attempt1-component-dolphin",
+        "bytes": 11192276,
+        "sha256": "9ec880735df5f46109023399d828be8fa13187087376d26ce639092580f2752e"
+      }
+    },
+    "armsx2": {
+      "mode": "retain",
+      "retainedSince": 608,
+      "image": "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+      "payloadFingerprint": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
+      "upstreamRevision": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
+      "legalFolder": "ARMSX2-session608",
+      "inputs": "rewind608_producers.input_paths",
+      "origin": {
+        "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1,
+        "runConclusion": "failure",
+        "job": 124810929747,
+        "jobName": "Build608 ARMSX2 ABI9 arm64",
+        "steps": [
+          "Compile native core and verify binary ABI",
+          "Bind608 native inputs and compiled payload"
+        ],
+        "artifact": 13078023872,
+        "name": "RewindBox608-armsx2-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+        "bytes": 14042625,
+        "sha256": "e4354b47eee93d5dc8d53be070a88cc83ceb8b31ff4f7ccdca2eb2c2067b8763",
+        "expiresAt": "2026-11-15T09:57:51Z"
+      },
+      "consumedBy": {
+        "build": 608,
+        "receipt": "docs/evidence/rewind608/delivery.json",
+        "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+      },
+      "republished": {
+        "build": 611,
+        "source": "3952b4abb07d3055e1a9319b80f68023a3da646e",
+        "run": 41380039319,
+        "attempt": 1,
+        "job": 125068786386,
+        "artifact": 13112932282,
+        "name": "RewindBox-Build611-3952b4abb07d3055e1a9319b80f68023a3da646e-attempt1-component-armsx2",
+        "bytes": 14043861,
+        "sha256": "d50f69a159510ca6686770d3d517c8e17fa9bbe42867fbb7e5ee677129965cf8"
+      }
+    },
+    "libretro": {
+      "mode": "retain-archive",
+      "destination": "dist/libretro",
+      "inputs": [
+        "build-utils/libretro/"
+      ],
+      "origin": {
+        "workflow": ".github/workflows/build497-checks.yml",
+        "branch": "Claude",
+        "source": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "run": 39455712245,
+        "attempt": 1,
+        "runConclusion": "success",
+        "artifact": 12280822192,
+        "name": "LibretroCores-ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "bytes": 55566830,
+        "sha256": "e06f641dd10409c815787fe1cf4ac6746920360a1023c83b23631b2bd693ba47",
+        "expiresAt": "2026-11-03T16:19:42Z"
+      },
+      "republished": {
+        "build": 611,
+        "source": "3952b4abb07d3055e1a9319b80f68023a3da646e",
+        "run": 41380039319,
+        "attempt": 1,
+        "job": 125068786386,
+        "artifact": 13113560107,
+        "name": "RewindBox-Build611-3952b4abb07d3055e1a9319b80f68023a3da646e-attempt1-component-libretro",
+        "bytes": 55568023,
+        "sha256": "18d0002d92993535071a6fe131331bc4330c4fa8c0bd431f1a5b8a45a9a77d2c"
+      }
+    },
+    "melonx-dependencies": {
+      "mode": "retain-archive",
+      "destination": "dist/melonx-native",
+      "inputs": [
+        "build-utils/melonx/native-dependencies.json"
+      ],
+      "origin": {
+        "workflow": ".github/workflows/melonx-native-dependencies.yml",
+        "branch": "work/melonx-embedded-20261022",
+        "source": "66737aa9c959eb5915264bf178f179bda8643314",
+        "run": 39854858591,
+        "attempt": 1,
+        "runConclusion": "success",
+        "artifact": 12458409441,
+        "name": "MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314",
+        "bytes": 49178074,
+        "sha256": "12a1e4c7bf1c970c218ebddead965a51c3aa57af4d0e1fb5c0523ca8b1340261",
+        "expiresAt": "2026-11-05T21:09:37Z"
+      },
+      "republished": {
+        "build": 611,
+        "source": "3952b4abb07d3055e1a9319b80f68023a3da646e",
+        "run": 41380039319,
+        "attempt": 1,
+        "job": 125068786386,
+        "artifact": 13112837506,
+        "name": "RewindBox-Build611-3952b4abb07d3055e1a9319b80f68023a3da646e-attempt1-component-melonx-dependencies",
+        "bytes": 49179302,
+        "sha256": "06a8588e608bc126ae2d4a33aeb45395d7276c38711e656cf4d81fb8680d47ff"
+      }
+    },
+    "melonx-upstream": {
+      "mode": "pinned-source",
+      "inputs": [
+        "build-utils/melonx/source.json",
+        "build-utils/melonx/package_standalone_moltenvk.py",
+        "build-utils/melonx/vendor_controller.py"
+      ],
+      "tree": "82a29e6f593f6244869481e9a489b8d5154175fe",
+      "controller": "c049ce88a5635bddcd88e1965c42aa8fc92fe961"
+    },
+    "stikjit": {
+      "mode": "pinned-source",
+      "inputs": [
+        "build-utils/stikjit/",
+        "build-utils/patch_stikjit_rpcs3.py",
+        "build-utils/patch_stikjit_compat.py",
+        "build-utils/install_patched_stikjit.py",
+        "build-utils/build_patched_stikjit.py"
+      ],
+      "cacheKeySuffix": "37844950677"
+    },
+    "donor": {
+      "mode": "pinned-release",
+      "build": 527,
+      "release": "0.0.9",
+      "asset": "RewindBox-Build527.ipa",
+      "assetId": 673430199,
+      "url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.9/RewindBox-Build527.ipa",
+      "bytes": 186673707,
+      "sha256": "884a44dea6e627fc9cd774d296dc2abf1ef683ca01572651d5c0e3425bd9756e",
+      "preparer": "build-utils/prepare_release527_native_runtime.py"
+    }
+  },
+  "product": {
+    "reviewedCommits": [
+      {
+        "commit": "a2596ecd63c733a6051d50c6616d9489d88f3e63",
+        "note": ""
+      },
+      {
+        "commit": "4a4bd50a585969f67416c49e67b50f4006de27a3",
+        "note": ""
+      }
+    ],
+    "sourceOnly": []
+  },
+  "images": {
+    "mustChange": [
+      "Frameworks/libRPCS3Core.dylib",
+      "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "Runner"
+    ],
+    "added": [],
+    "removed": [],
+    "replaced": {
+      "rpcs3": "Frameworks/libRPCS3Core.dylib"
+    },
+    "retained": {
+      "dolphin": [
+        "Frameworks/DolphinCore.framework/DolphinCore"
+      ],
+      "armsx2": [
+        "Frameworks/ARMSX2Core.framework/ARMSX2Core"
+      ],
+      "libretro": [
+        "Frameworks/*_libretro.framework/*_libretro",
+        "Frameworks/MoltenVK.framework/MoltenVK"
+      ],
+      "melonx-dependencies": [
+        "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+        "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
+        "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
+        "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+        "Frameworks/MeloNXSDL3.framework/MeloNXSDL3"
+      ],
+      "melonx-upstream": [
+        "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone"
+      ],
+      "melonx": [
+        "Frameworks/MeloNXCore.framework/MeloNXCore"
+      ]
+    }
+  },
+  "tests": {
+    "flutter": {
+      "mode": "fresh",
+      "additions": {
+        "flutterTests": [
+          "test/game_box_compare_preview_test.dart",
+          "test/game_box_media_sheet_test.dart",
+          "test/game_box_physical_test.dart",
+          "test/game_box_refused_face_test.dart",
+          "test/game_box_rotation_test.dart",
+          "test/game_box_sharp_back_test.dart",
+          "test/game_box_sources_test.dart"
+        ],
+        "flutterTestGlobs": [
+          "test/game_box*_test.dart"
+        ],
+        "analyze": [
+          "packages/rpcs3_internal_bridge/lib",
+          "lib/services/game_box",
+          "lib/screens/game_box",
+          "lib/widgets/game_box",
+          "lib/l10n/game_box_locale.dart",
+          "lib/repositories/game_repository.dart",
+          "lib/screens/game_screen/game_settings_dialog/game_settings_scrapping_tab.dart"
+        ],
+        "commands": [
+          [
+            "storage-contract",
+            [
+              "python3",
+              "-B",
+              "test/storage_contract_test.py"
+            ]
+          ],
+          [
+            "localization-12-locales",
+            [
+              "python3",
+              "-B",
+              "test/localization_12_locale_coverage_test.py"
+            ]
+          ],
+          [
+            "rpcs3-retroachievements",
+            [
+              "python3",
+              "-B",
+              "test/rpcs3_retroachievements_test.py"
+            ]
+          ],
+          [
+            "rpcs3-graphics-tests-612",
+            [
+              "python3",
+              "-B",
+              "test/rpcs3_graphics_tests612_test.py"
+            ]
+          ]
+        ]
+      }
+    },
+    "native": {
+      "mode": "fresh",
+      "additions": {
+        "commands": [
+          [
+            "rpcs3-retroachievements-apple-clang",
+            [
+              "python3",
+              "-B",
+              "test/rpcs3_retroachievements_test.py"
+            ]
+          ],
+          [
+            "rpcs3-graphics-tests-612-apple",
+            [
+              "python3",
+              "-B",
+              "test/rpcs3_graphics_tests612_test.py"
+            ]
+          ]
+        ]
+      },
+      "note": "On the macOS runner g++/clang++ resolve to Apple clang of the selected Xcode 16.4."
+    },
+    "awaitMinutes": 75
+  },
+  "recipient": {
+    "path": "build-utils/delivery-612-recipient.pem",
+    "sha256": "8cf6531936747ed241aa74e071ea904239d64ab14836efda9bace770f2e08ee6"
+  },
+  "republish": [
+    "rpcs3-core",
+    "rpcs3-host-tests",
+    "melonx-core",
+    "dolphin",
+    "armsx2",
+    "libretro",
+    "melonx-dependencies"
+  ]
+}
