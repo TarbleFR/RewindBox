@@ -7,6 +7,8 @@ import 'package:neostation/l10n/game_box_locale.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/game_box/game_box_preferences.dart';
 import 'package:neostation/services/game_box/game_box_sharp_scan.dart';
+import 'package:neostation/services/game_box/game_box_enhance.dart';
+import 'package:neostation/widgets/game_box/game_box_defects_text.dart';
 import 'package:neostation/services/game_service.dart' show GamepadNavigationManager;
 import 'package:neostation/utils/gamepad_nav.dart';
 
@@ -43,8 +45,12 @@ class GameBoxScanViewer extends StatefulWidget {
 class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
   final TransformationController _transform = TransformationController();
   late final GamepadNavigation _gamepadNav;
-  late final ImageProvider _full =
-      ResizeImage(FileImage(File(widget.path)), width: GameBoxScanViewer.fullWidth, allowUpscaling: false);
+  /// The scan, or its enlargement once ready (docs/game-box-3d.md § 22).
+  ImageProvider get _full => ResizeImage(
+        FileImage(File(GameBoxEnhance.sourceOf(widget.path))),
+        width: GameBoxScanViewer.fullWidth,
+        allowUpscaling: false,
+      );
   Size _viewport = Size.zero;
   double _maxScale = 4;
   bool _fullReady = false;
@@ -75,6 +81,12 @@ class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
     GameBoxPreferences.sharpText().then((v) {
       if (!mounted || v == _sharpText) return;
       setState(() => _sharpText = v);
+      _requestSharp();
+    });
+    // A degraded scan is enlarged once (cached), then shown from it.
+    GameBoxEnhance.prepare(widget.path).then((enlarged) {
+      if (!mounted || enlarged == null) return;
+      setState(() => _fullReady = false);
       _requestSharp();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -180,6 +192,19 @@ class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
               style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
           ),
+        if (GameBoxEnhance.of(widget.path) case final enlarged?)
+          Padding(
+            key: const ValueKey('game_box_scan_enlarged'),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+            child: Text(
+              GameBoxLocale.format(context, GameBoxLocale.correctedScan, {
+                'defects': gameBoxDefectsText(context, enlarged.defects),
+                'width': enlarged.width.toString(),
+                'height': enlarged.height.toString(),
+              }),
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ),
         Expanded(
           child: LayoutBuilder(builder: (context, c) {
             _viewport = c.biggest;
@@ -241,7 +266,9 @@ class _GameBoxScanViewerState extends State<GameBoxScanViewer> {
                           // full scan shows meanwhile, until the closer one
                           // (enlarged up to 2.5 times, § 19) is ready.
                           final shown = math.min(_shownWidthPx * m.getMaxScaleOnAxis(),
-                              GameBoxSharpScan.maxRenderWidth(size.width).toDouble());
+                              GameBoxSharpScan.maxRenderWidth(
+                                (GameBoxImageSize.of(GameBoxEnhance.sourceOf(widget.path)) ?? size).width,
+                              ).toDouble());
                           if (sharp.width < shown * 0.85) return const SizedBox.shrink();
                           return Image(
                             key: const ValueKey('game_box_scan_sharp'),

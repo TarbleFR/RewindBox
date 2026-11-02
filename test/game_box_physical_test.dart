@@ -142,7 +142,12 @@ void main() {
 
     test('other families keep their scans (3DS control, cardboard, jewel)', () {
       final ds3 = GameBoxProfile.forSystem('3ds');
-      expect(c(ds3, 900, 1000), GameBoxArtNature.scan, reason: 'Mario Kart 7 control');
+      // The control is the real scan of the edition: GameTDB AMKP coverHQ,
+      // 768 × 680 (a 3DS cover is wider than tall, docs/game-box-3d.md § 23;
+      // the 900 × 1000 picture used before assumed a portrait case).
+      expect(c(ds3, 768, 680), GameBoxArtNature.scan, reason: 'Mario Kart 7 control');
+      expect(c(ds3, 1616, 680), GameBoxArtNature.wrap, reason: "a 3DS full sheet (Majora's Mask 3D AJRP)");
+      expect(c(GameBoxProfile.forSystem('ds'), 768, 680), GameBoxArtNature.scan, reason: 'Mario Kart DS AMCP');
       expect(c(ds3, 1000, 1000), GameBoxArtNature.scan, reason: 'a large square 3DS scan is not an icon');
       expect(c(ds3, 48, 48), GameBoxArtNature.promo, reason: 'a 3DS HOME menu icon');
       expect(c(GameBoxProfile.forSystem('gbc'), 600, 600), GameBoxArtNature.scan);

@@ -690,6 +690,9 @@ IMPORT_SITES = {
     # A box face imported by hand (docs/game-box-3d.md § 14).
     'lib/screens/game_box/game_box_media_sheet.dart': (
         'Future<GameBoxAdoption?> _importPicked(',),
+    # The player's own back, from Photos or Files (docs/game-box-3d.md § 21).
+    'lib/screens/game_box/game_box_back_editor.dart': (
+        'Future<Uint8List?> _pickBack(',),
     'lib/widgets/system_emulator_settings_dialog/tabs.dart': (
         'Future<void> _pickAndSaveImage(',
         'Future<void> _pickAndSaveLogoImage(',),

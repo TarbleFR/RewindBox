@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -11,11 +12,15 @@ import 'package:neostation/l10n/game_box_locale.dart';
 import 'package:neostation/models/game_model.dart';
 import 'package:neostation/models/system_model.dart';
 import 'package:neostation/providers/file_provider.dart';
+import 'package:neostation/repositories/game_repository.dart';
 import 'package:neostation/screens/game_box/box_back_reader_screen.dart';
+import 'package:neostation/screens/game_box/game_box_back_editor.dart';
 import 'package:neostation/screens/game_box/game_box_media_sheet.dart';
 import 'package:neostation/screens/game_box/game_box_scan_viewer.dart';
 import 'package:neostation/screens/game_screen/game_manual_reader_screen.dart';
 import 'package:neostation/services/game_box/game_box_art_fit.dart';
+import 'package:neostation/services/game_box/game_box_back_override.dart';
+import 'package:neostation/services/game_box/game_box_enhance.dart';
 import 'package:neostation/services/game_box/game_box_fetcher.dart';
 import 'package:neostation/services/game_box/game_box_manual.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
@@ -29,12 +34,15 @@ import 'package:neostation/services/game_box/game_box_sharp_scan.dart';
 import 'package:neostation/services/game_launch_manager.dart';
 import 'package:neostation/services/game_manual_service.dart';
 import 'package:neostation/services/game_service.dart' show GamepadNavigationManager;
+import 'package:neostation/services/screenscraper/media_placeholder.dart';
 import 'package:neostation/utils/artwork_cache.dart';
 import 'package:neostation/utils/gamepad_nav.dart';
 import 'package:neostation/widgets/game_box/game_box_art_loader.dart';
+import 'package:neostation/widgets/game_box/game_box_defects_text.dart';
 import 'package:neostation/widgets/game_box/game_box_geometry.dart';
 import 'package:neostation/widgets/game_box/game_box_language_picker.dart';
 import 'package:neostation/widgets/game_box/game_box_scene.dart';
+import 'package:neostation/widgets/game_box/game_box_surfaces.dart';
 import 'package:neostation/widgets/library_reduce_motion.dart';
 
 /// Single launch through a box: set while a box opens or hands its game to
@@ -203,6 +211,9 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     if (mounted) setState(() {});
   });
   bool _sharpText = true;
+
+  /// Verified details of the game for a reconstructed back (§ 21).
+  GameBoxBackDetails? _backDetails;
   bool _sharpScheduled = false;
   bool _gesture = false;
 
@@ -249,6 +260,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     _open = AnimationController(vsync: this, duration: const Duration(milliseconds: 1750));
     _loadMedia();
     GameBoxPreferences.sharpText().then((v) {
+      GameBoxEnhance.enabled = v;
       if (mounted && v != _sharpText) setState(() => _sharpText = v);
     });
     _gamepadNav = GamepadNavigation(
@@ -340,7 +352,56 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
       if (current()) setState(() => _backBand = c);
     });
     _checkFaces(generation, media);
+    _correctFaces(generation, media);
+    _loadBackDetails(generation);
     _selectBack();
+  }
+
+  /// Examines every face and corrects the defects found (docs/game-box-3d.md
+  /// § 22); a corrected copy replaces the original on screen only, once
+  /// ready. The files themselves stay as they are.
+  Future<void> _correctFaces(int generation, GameBoxLocalMedia media) async {
+    final paths = {
+      for (final kind in GameBoxMediaKind.values) ?media.pathOf(kind),
+      ?_backPath,
+    };
+    for (final path in paths) {
+      final corrected = await GameBoxEnhance.prepare(path);
+      if (!mounted || generation != _mediaGeneration) return;
+      if (corrected == null) continue;
+      if (path == _backPath) _sharp.clear();
+      setState(() {});
+    }
+  }
+
+  /// The game's verified details, for a reconstructed back: its title,
+  /// year, studio, publisher, genre and players from the library, its
+  /// summary from the scraper, and a screenshot when one was scraped (not a
+  /// console icon standing in for one).
+  Future<void> _loadBackDetails(int generation) async {
+    final game = _game;
+    var summary = '';
+    try {
+      final systemId = game.systemId ?? widget.subject.appSystemId;
+      if (systemId != null) summary = await GameRepository.getLocalizedDescription(game.romname, systemId);
+    } catch (_) {}
+    final folder = widget.subject.systemFolder;
+    final shot = game.getScreenshotPath(folder, widget.subject.fileProvider);
+    final usable = File(shot).existsSync() && !ScrapeMediaPlaceholder.isPlaceholder(folder, 'ss', shot);
+    final shotSize = usable ? GameBoxImageSize.of(shot) : null;
+    if (!mounted || generation != _mediaGeneration) return;
+    setState(() => _backDetails = GameBoxBackDetails(
+          title: game.name,
+          platform: widget.subject.system?.realName ?? game.systemRealName ?? '',
+          year: game.year,
+          developer: game.developer,
+          publisher: game.publisher,
+          genre: game.genre,
+          players: game.players,
+          summary: summary,
+          screenshot: usable ? ResizeImage(FileImage(File(shot)), width: 800, allowUpscaling: false) : null,
+          screenshotAspect: shotSize == null || shotSize.height == 0 ? null : shotSize.width / shotSize.height,
+        ));
   }
 
   /// The case of an identified edition (a coloured case listed by GameTDB
@@ -398,7 +459,8 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   Future<void> _selectBack() async {
     final generation = _mediaGeneration;
     final manifest = _media.manifest;
-    final edition = manifest == null
+    // The player's own back comes first, in every reading language (§ 21).
+    final edition = manifest == null || GameBoxBackOverride.isPlayers(_media)
         ? null
         : GameBoxMediaSelection.backForLanguage(manifest, _readingLanguage, gameRegions: _gameRegions);
     setState(() {
@@ -707,6 +769,33 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     ));
   }
 
+  GameBoxSearchContext? get _searchContext {
+    if (_profile == null) return null;
+    return GameBoxSearchContext(
+      game: _game,
+      systemFolder: widget.subject.systemFolder,
+      fileProvider: widget.subject.fileProvider,
+      profile: GameBoxProfiles.of(widget.subject.systemId ?? _game.systemId),
+      appSystemId: widget.subject.appSystemId,
+    );
+  }
+
+  /// "Edit the back" (docs/game-box-3d.md § 21): the editor saves the
+  /// player's back or restores the automatic one; only the files it changed
+  /// are read again.
+  Future<void> _editBack() async {
+    final search = _searchContext;
+    if (search == null || !_interactive) return;
+    final edit = await GameBoxBackEditor.show(context, search);
+    if (!mounted) return;
+    if (edit.message != null) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(edit.message!)));
+    }
+    if (!edit.changed) return;
+    _reloadMedia(edit.paths);
+    await _selectBack();
+  }
+
   /// The ScreenScraper button: "Box media" — complete the missing faces or
   /// choose better sources (docs/game-box-3d.md § 14). Only the files the
   /// sheet changed are read again; the library's covers are refreshed when
@@ -782,6 +871,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
               onChanged: (v) {
                 setSheet(() => sharp = v);
                 GameBoxPreferences.setSharpText(v);
+                GameBoxEnhance.enabled = v;
                 if (!mounted) return;
                 setState(() {
                   _sharpText = v;
@@ -799,6 +889,15 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
                   _fetchFaces();
                 },
               ),
+            ListTile(
+              key: const ValueKey('game_box_edit_back'),
+              leading: const Icon(Icons.flip_to_back),
+              title: Text(GameBoxLocale.text(ctx, GameBoxLocale.editBack)),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                _editBack();
+              },
+            ),
             // The manual has its own download, the same as Game Settings ›
             // Manual; it is never fetched with the box faces.
             if (_canDownloadManual)
@@ -1353,6 +1452,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
 
   Future<void> _reloadSharpText() async {
     final v = await GameBoxPreferences.sharpText();
+    GameBoxEnhance.enabled = v;
     if (mounted && v != _sharpText) {
       setState(() {
         _sharpText = v;
@@ -1391,6 +1491,8 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
         checks: _checks,
         frontBand: _frontBand,
         backBand: _backBand,
+        composedBack: _backDetails,
+        composedBackLabel: GameBoxLocale.text(context, GameBoxLocale.reconstructedBack),
       );
       // Read straight on, the back is the render made for its size.
       final readingBack =
@@ -1780,7 +1882,11 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     for (final kind in GameBoxMediaKind.values) {
       final record = _media.recordOf(kind);
       if (record == null) continue;
-      sources.add('${GameBoxLocale.text(context, _faceKey(kind))}: ${providerLabel(record)}');
+      final corrected = GameBoxEnhance.enabled ? GameBoxEnhance.of(_media.pathOf(kind)) : null;
+      final note = corrected == null
+          ? ''
+          : ' (${GameBoxLocale.format(context, GameBoxLocale.correctedShort, {'defects': gameBoxDefectsText(context, corrected.defects)})})';
+      sources.add('${GameBoxLocale.text(context, _faceKey(kind))}: ${providerLabel(record)}$note');
     }
     if (sources.isNotEmpty) {
       out.add(GameBoxLocale.format(context, GameBoxLocale.sourcesLine, {'sources': sources.join(' · ')}));

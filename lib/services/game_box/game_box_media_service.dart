@@ -607,6 +607,41 @@ class GameBoxMediaService {
     );
   }
 
+  /// Writes [bytes] as the player's own [kind] (docs/game-box-3d.md § 21):
+  /// a manual record that no search or scrape replaces. The picture must be
+  /// readable (not blank, not tiny); what it shows is the player's choice,
+  /// so it is not classified like a downloaded scan.
+  static Future<GameBoxAdoption> importBytes(
+    GameBoxSearchContext ctx,
+    GameBoxMediaKind kind,
+    Uint8List bytes, {
+    required String type,
+    String? note,
+    List<String> transforms = const [],
+  }) {
+    if (bytes.length > maxBytes) return Future.value(const GameBoxAdoption(verdict: GameBoxImageVerdict.unreadable));
+    return _write(
+      ctx,
+      GameBoxMediaStore(ctx.fileProvider),
+      kind,
+      bytes,
+      record: (size, md5) => GameBoxFaceRecord(
+        provider: GameBoxProvider.manual.id,
+        type: type,
+        width: size?.width.round(),
+        height: size?.height.round(),
+        md5: md5,
+        bytes: bytes.length,
+        manual: true,
+        note: note,
+        transforms: transforms,
+      ),
+      identity: null,
+      expected: GameBoxArtNature.scan,
+      classify: false,
+    );
+  }
+
   static Future<Uint8List?> _screenScraperBytes(GameBoxSearchContext ctx, GameBoxCandidate c, String url) async {
     final staging = Directory(p.join(Directory.systemTemp.path, 'rewindbox-gamebox'));
     await staging.create(recursive: true);
@@ -638,6 +673,7 @@ class GameBoxMediaService {
     required GameBoxFaceRecord Function(ui.Size? size, String md5) record,
     required String? identity,
     required GameBoxArtNature expected,
+    bool classify = true,
   }) async {
     if (!ScreenscraperMediaDownloader.isValidMediaPayload(bytes, mediaType: kind.screenScraperType)) {
       await _reject(ctx, store, identity);
@@ -651,7 +687,7 @@ class GameBoxMediaService {
     final size = GameBoxImageSize.fromBytes(bytes);
     // What arrives must be what was announced: a render or a logo is not a
     // flat face; a cover sheet must have a verified layout.
-    if (kind != GameBoxMediaKind.support) {
+    if (classify && kind != GameBoxMediaKind.support) {
       final nature = GameBoxArtClassifier.classify(
         profile: ctx.profile,
         size: size,
@@ -883,7 +919,7 @@ class GameBoxMediaService {
         return GameBoxCandidateRanking.score(b, found.hint).compareTo(GameBoxCandidateRanking.score(a, found.hint));
       });
       var done = false;
-      for (final c in candidates.take(4)) {
+      for (final c in GameBoxCandidateRanking.preferReadable(candidates, found.hint).take(4)) {
         if (cancel?.cancelled ?? false) break;
         final adoption = await adopt(ctx, c, cancel: cancel, listing: found.listing);
         if (adoption.ok) {

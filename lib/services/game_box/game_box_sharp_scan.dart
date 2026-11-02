@@ -9,6 +9,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter/scheduler.dart';
 
 import 'package:neostation/services/game_box/game_box_media.dart';
+import 'package:neostation/services/game_box/game_box_enhance.dart';
 
 /// Pixels of an image: RGBA, 8 bits per channel, premultiplied alpha.
 class GameBoxPixels {
@@ -93,8 +94,12 @@ class GameBoxSharpScan {
 
   /// Renders the scan at [path] [width] px wide (see [targetWidth]), or null
   /// when it cannot be read.
+  ///
+  /// A degraded scan enlarged by [GameBoxEnhance] is rendered from its
+  /// enlargement (docs/game-box-3d.md § 22).
   static Future<ui.Image?> render(String path, {required int width, required bool sharpen}) async {
-    final size = GameBoxImageSize.of(path);
+    final file = GameBoxEnhance.sourceOf(path);
+    final size = GameBoxImageSize.of(file);
     if (size == null || size.width <= 0 || size.height <= 0) return null;
     final native = math.min(size.width.round(), maxWidth);
     var target = width.clamp(1, maxRenderWidth(size.width));
@@ -110,7 +115,7 @@ class GameBoxSharpScan {
         final px = await processor(path, target, sharpen);
         return await _toImage(px.rgba, px.width, px.height);
       }
-      final bytes = await File(path).readAsBytes();
+      final bytes = await File(file).readAsBytes();
       final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
       final codec = await ui.instantiateImageCodecFromBuffer(
         buffer,
@@ -358,7 +363,7 @@ class GameBoxSharpTexture {
   /// Asks for [path] rendered to fill [displayWidth] physical pixels.
   void request(String path, double displayWidth, {required bool sharpen}) {
     if (_disposed || !displayWidth.isFinite || displayWidth <= 0) return;
-    final size = GameBoxImageSize.of(path);
+    final size = GameBoxImageSize.of(GameBoxEnhance.sourceOf(path));
     if (size == null) return;
     final width = GameBoxSharpScan.targetWidth(size.width, displayWidth);
     if (width <= 0) return;

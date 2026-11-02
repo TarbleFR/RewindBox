@@ -128,6 +128,9 @@ class GameBoxWrapLayout {
   static GameBoxWrapLayout? forProfile(GameBoxProfile profile) => switch (profile.id) {
         'switch' => const GameBoxWrapLayout(panel: 1166, spine: 122, height: 1888),
         'ps3' => const GameBoxWrapLayout(panel: 928, spine: 144, height: 1080),
+        // GameTDB's template for both handhelds (Mario Kart DS, Majora's Mask
+        // 3D): back | spine | front, 768 + 80 + 768 × 680.
+        'ds' || '3ds' => const GameBoxWrapLayout(panel: 768, spine: 80, height: 680),
         _ => null,
       };
 

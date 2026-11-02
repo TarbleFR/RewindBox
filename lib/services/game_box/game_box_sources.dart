@@ -209,6 +209,47 @@ class GameBoxCandidateRanking {
         if (c.nature != GameBoxArtNature.render3d && c.nature != GameBoxArtNature.promo) c,
     ];
     list.sort((a, b) => score(b, hint).compareTo(score(a, hint)));
+    return preferReadable(list, hint);
+  }
+
+  /// Long side under which a scan is a thumbnail: its small print cannot be
+  /// read, whatever the enlargement (docs/game-box-3d.md § 22).
+  static const int thumbnailSide = 420;
+
+  /// Whether [c] is a thumbnail: its stated size is small, or it is one of
+  /// GameTDB's small templates (160 × 184 PS3 back, 340 × 184 sheet).
+  static bool isThumbnail(GameBoxCandidate c) {
+    final w = c.width, h = c.height;
+    if (w != null && h != null) return math.max(w, h) < thumbnailSide;
+    return c.provider == GameBoxProvider.gametdb && c.quality <= 1;
+  }
+
+  /// [b] is a print of the same edition as [a]: the same game found by its
+  /// product code or checksum, in the same region family.
+  static bool sameEdition(GameBoxCandidate a, GameBoxCandidate b) {
+    final product = a.productId != null && a.productId!.toUpperCase() == b.productId?.toUpperCase();
+    return (product || b.byProduct) && GameBoxRegionFamily.same(a.region, b.region);
+  }
+
+  /// [ranked] with every thumbnail placed after the readable scans of the
+  /// same face and edition, when a face is chosen (missing, or picked in the
+  /// list): a readable back of the copy outranks its thumbnail, never a scan
+  /// of another edition, and never when the thumbnail is printed in the
+  /// scraping language and the readable scan is not (a French print stays
+  /// first). A face already on disk is never swapped for this: it is
+  /// corrected instead (docs/game-box-3d.md § 22).
+  static List<GameBoxCandidate> preferReadable(List<GameBoxCandidate> ranked, GameBoxEditionHint hint) {
+    final list = [...ranked];
+    for (var i = 0; i < list.length; i++) {
+      final c = list[i];
+      if (!isThumbnail(c)) continue;
+      final language = hint.prints(c.region);
+      final j = list.indexWhere(
+        (o) => o.kind == c.kind && !isThumbnail(o) && sameEdition(c, o) && (!language || hint.prints(o.region)),
+        i + 1,
+      );
+      if (j > i) list.insert(i, list.removeAt(j));
+    }
     return list;
   }
 }

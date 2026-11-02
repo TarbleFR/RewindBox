@@ -27,6 +27,9 @@ ZH_SHARED = {
     'mediaCancel', 'srcCancelled',
     # "Scraping finished" (抓取完成) and "succeeded" (成功) too.
     'scrapeSummaryTitle', 'scrapeSummarySuccess',
+    # "Corrected" (已校正), "blur" (模糊), "reconstructed back" (重建的封底)
+    # and "edit the back" (更改封底) too.
+    'correctedShort', 'defectBlur', 'reconstructedBack', 'editBack',
 }
 
 PLACEHOLDER = re.compile(r'\{(\w+)\}')

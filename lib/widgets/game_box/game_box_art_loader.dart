@@ -8,7 +8,9 @@ import 'package:neostation/services/game_box/game_box_art_fit.dart';
 import 'package:neostation/services/game_box/game_box_media.dart';
 import 'package:neostation/services/game_box/game_box_media_check.dart';
 import 'package:neostation/services/game_box/game_box_profile.dart';
+import 'package:neostation/services/game_box/game_box_enhance.dart';
 import 'package:neostation/widgets/game_box/game_box_scene.dart';
+import 'package:neostation/widgets/game_box/game_box_surfaces.dart';
 
 /// Image providers of a box, at a browsing size or an inspection size.
 ///
@@ -43,8 +45,10 @@ class GameBoxArtSet {
   /// evicted exactly (see [evictPath]).
   static final Map<String, Set<ImageProvider>> _issued = {};
 
+  /// Providers of a face decode its enlargement when the picture is
+  /// degraded and the enlargement is ready (docs/game-box-3d.md § 22).
   static ImageProvider _fileProvider(String path, {int? width, int? height}) {
-    final provider = ResizeImage.resizeIfNeeded(width, height, FileImage(File(path)));
+    final provider = ResizeImage.resizeIfNeeded(width, height, FileImage(File(GameBoxEnhance.sourceOf(path))));
     (_issued[path] ??= <ImageProvider>{}).add(provider);
     return provider;
   }
@@ -54,7 +58,12 @@ class GameBoxArtSet {
     final size = GameBoxImageSize.of(path);
     if (size == null) return _fileProvider(path, width: side);
     if (size.width >= size.height) return _fileProvider(path, width: side);
-    final provider = ResizeImage(FileImage(File(path)), width: side, height: side, policy: ResizeImagePolicy.fit);
+    final provider = ResizeImage(
+      FileImage(File(GameBoxEnhance.sourceOf(path))),
+      width: side,
+      height: side,
+      policy: ResizeImagePolicy.fit,
+    );
     (_issued[path] ??= <ImageProvider>{}).add(provider);
     return provider;
   }
@@ -106,6 +115,8 @@ class GameBoxArtSet {
     Map<String, GameBoxImageCheck>? checks,
     Color? frontBand,
     Color? backBand,
+    GameBoxBackDetails? composedBack,
+    String composedBackLabel = '',
   }) {
     final compact = compactWidth != null && !detailed;
     final frontPath = _usable(media.front, checks) ? media.front : null;
@@ -148,11 +159,17 @@ class GameBoxArtSet {
         }
       }
     }
-    // A full cover sheet kept beside the faces fills those still missing.
+    // A full cover sheet kept beside the faces fills those still missing,
+    // the front included.
     if (fullPath != null && wrap != null) {
       final size = GameBoxImageSize.of(fullPath);
       final parts = size == null ? null : wrap.split(size);
       if (parts != null) {
+        if (frontFile == null) {
+          frontFile = fullPath;
+          frontWindow = parts.front;
+          frontNature = GameBoxArtNature.scan;
+        }
         if (spinePath == null) {
           spinePath = fullPath;
           spineWindow = parts.spine;
@@ -183,7 +200,11 @@ class GameBoxArtSet {
       }
     }
 
+    final shownFrontSize = frontFile == null ? null : GameBoxImageSize.of(frontFile);
     final spineSize = spinePath == null ? null : GameBoxImageSize.of(spinePath);
+    final spineAspect = spineSize == null || spineWindow == GameBoxArtLayout.full || spineSize.height <= 0
+        ? null
+        : spineSize.width * spineWindow.width / (spineSize.height * spineWindow.height);
     final landscape = spineWindow == GameBoxArtLayout.full && spineSize != null && spineSize.width > spineSize.height;
     final backSize = backFile == null ? null : GameBoxImageSize.of(backFile);
     return GameBoxArt(
@@ -205,7 +226,9 @@ class GameBoxArtSet {
       glossStrength: glossStrength,
       bookletCover: bookletCover,
       compact: compact,
-      frontAspect: frontSize == null || frontSize.height == 0 ? null : frontSize.width / frontSize.height,
+      frontAspect: shownFrontSize == null || shownFrontSize.height == 0
+          ? null
+          : shownFrontSize.width / shownFrontSize.height,
       frontNature: frontNature,
       frontWindow: frontWindow,
       backNature: backNature,
@@ -213,6 +236,9 @@ class GameBoxArtSet {
       spineWindow: spineWindow,
       frontBand: frontBand,
       backBand: backBand,
+      composedBack: composedBack,
+      composedBackLabel: composedBackLabel,
+      spineAspect: spineAspect,
     );
   }
 
@@ -247,6 +273,9 @@ class GameBoxArtSet {
       p.evict();
     }
     FileImage(File(path)).evict();
+    final enlarged = GameBoxEnhance.of(path);
+    if (enlarged != null) FileImage(File(enlarged.path)).evict();
+    GameBoxEnhance.evict(path);
     GameBoxImageSize.evict(path);
     GameBoxMediaChecker.evict(path);
     _edgeCache.remove(path);

@@ -123,8 +123,9 @@ class GameBoxProfile {
     this.material = GameBoxCaseMaterial.opaque,
     this.insertColor,
     this.printInset = 1.4,
+    double? printInsetY,
     this.identifiedCase,
-  });
+  }) : _printInsetY = printInsetY;
 
   final String id;
   final GameBoxCaseKind caseKind;
@@ -160,6 +161,12 @@ class GameBoxProfile {
   /// sleeve.
   final double printInset;
 
+  /// Plastic between the printed cover and the top and bottom edges of the
+  /// case, when it differs from the sides ([printInset]): a DS or 3DS
+  /// cover is wider than tall inside a nearly square case.
+  double get printInsetY => _printInsetY ?? printInset;
+  final double? _printInsetY;
+
   /// Source of a case variant identified for this game's edition (for
   /// example a coloured case listed by GameTDB), null for the standard case.
   final String? identifiedCase;
@@ -184,7 +191,7 @@ class GameBoxProfile {
     switch (caseKind) {
       case GameBoxCaseKind.keepCase:
       case GameBoxCaseKind.clamshell:
-        return (width - 2 * printInset) / (height - 2 * printInset);
+        return (width - 2 * printInset) / (height - 2 * printInsetY);
       case GameBoxCaseKind.jewelCase:
         return (width - jewelHinge - 4) / (height - 5);
       case GameBoxCaseKind.cardboard:
@@ -254,6 +261,7 @@ class GameBoxProfile {
         material: material ?? this.material,
         insertColor: insertColor,
         printInset: printInset,
+        printInsetY: _printInsetY,
         identifiedCase: identifiedCase ?? this.identifiedCase,
       );
 
@@ -430,6 +438,8 @@ class GameBoxProfile {
           double height = 137,
           double depth = 14,
           double radius = 7,
+          double printInset = 1.4,
+          double? printInsetY,
           GameBoxCaseMaterial material = GameBoxCaseMaterial.opaque,
           Color? insertColor,
           Color? interiorColor}) =>
@@ -439,6 +449,7 @@ class GameBoxProfile {
         support: GameBoxSupportKind.card, caseColor: color, cartridge: card,
         interiorColor: interiorColor,
         lidThickness: 1.8, cornerRadius: radius, material: material, insertColor: insertColor,
+        printInset: printInset, printInsetY: printInsetY,
       );
 
   static GameBoxProfile _cardboard(String id, GameBoxCartridgeStyle cart,
@@ -515,8 +526,17 @@ class GameBoxProfile {
     'jagcd': _jewel('jagcd'),
     'naomigd': _jewel('naomigd'),
     // Handheld card cases.
-    'ds': _handheld('ds', const Color(0xFFEEEEEE), _cardDs),
-    '3ds': _handheld('3ds', const Color(0xFFEDEDED), _card3ds, depth: 11),
+    // DS and 3DS cases are wider than tall (docs/game-box-3d.md § 23): the
+    // GameTDB full-cover template of both (back 768 | spine 80 | front 768
+    // × 680 px; Mario Kart DS AMCP, Majora's Mask 3D AJRP) gives, with the
+    // 14 mm spine of a DS case, a 134.4 × 119 mm cover inside a 137 × 125 mm
+    // case. The NINTENDO DS / 3DS band is printed on the cover (left of a DS
+    // front, right of a 3DS front): the case adds none. 3DS cases are
+    // thinner (11 mm, as reported; not measured here).
+    'ds': _handheld('ds', const Color(0xFFEEEEEE), _cardDs,
+        width: 137, height: 125, depth: 14, printInset: 1.3, printInsetY: 3.0),
+    '3ds': _handheld('3ds', const Color(0xFFEDEDED), _card3ds,
+        width: 137, height: 125, depth: 11, printInset: 1.3, printInsetY: 3.0),
     // Nintendo Switch game case: clear plastic, 170 × 104–105 mm, 10–11 mm
     // thick (the GameTDB full-cover template gives an 11 mm spine). The red
     // spine and corner/band are printed on the cover sheet, not the plastic.

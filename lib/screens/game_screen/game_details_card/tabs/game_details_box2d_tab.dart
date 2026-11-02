@@ -6,7 +6,10 @@ import '../../../../l10n/game_box_locale.dart';
 import '../../../../models/system_model.dart';
 import '../../../../models/game_model.dart';
 import '../../../../providers/file_provider.dart';
+import '../../../../screens/game_box/game_box_back_editor.dart';
 import '../../../../services/game_box/game_box_media.dart';
+import '../../../../services/game_box/game_box_media_service.dart';
+import '../../../../services/game_box/game_box_preferences.dart';
 import '../../../../themes/corner_radii.dart';
 import '../../../../widgets/game_box/game_box_card.dart';
 import '../../../../widgets/game_box/game_box_library.dart';
@@ -97,6 +100,26 @@ class _GameDetailsBox2dTabState extends State<GameDetailsBox2dTab> {
     super.dispose();
   }
 
+  /// "Edit the back" from the game's sheet (docs/game-box-3d.md § 21).
+  Future<void> _editBack() async {
+    final systemId = widget.system.id ?? widget.game.systemId;
+    final edit = await GameBoxBackEditor.show(
+      context,
+      GameBoxSearchContext(
+        game: widget.game,
+        systemFolder: widget.system.primaryFolderName,
+        fileProvider: widget.fileProvider,
+        profile: GameBoxProfiles.of(systemId),
+        appSystemId: widget.system.id ?? widget.game.systemId,
+      ),
+    );
+    if (!mounted) return;
+    if (edit.message != null) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(SnackBar(content: Text(edit.message!)));
+    }
+    if (edit.changed) setState(() {});
+  }
+
   /// The game's 3D box, at rest; a tap (or the 360° badge) opens the viewer.
   Widget _box3d(String frontPath) {
     final systemId = widget.system.id ?? widget.game.systemId;
@@ -130,6 +153,26 @@ class _GameDetailsBox2dTabState extends State<GameDetailsBox2dTab> {
                   artworkVersion: widget.imageVersion,
                 ),
                 decodeWidth: 768,
+              ),
+            ),
+            Positioned(
+              left: 8.r,
+              bottom: 8.r,
+              child: Tooltip(
+                message: GameBoxLocale.text(context, GameBoxLocale.editBack),
+                child: Material(
+                  color: Colors.black.withValues(alpha: 0.5),
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    key: const ValueKey('details_edit_back'),
+                    customBorder: const CircleBorder(),
+                    onTap: _editBack,
+                    child: Padding(
+                      padding: EdgeInsets.all(5.r),
+                      child: Icon(Icons.flip_to_back, size: 15.r, color: Colors.white),
+                    ),
+                  ),
+                ),
               ),
             ),
             Positioned(

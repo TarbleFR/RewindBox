@@ -352,3 +352,135 @@ Python : `generate_strings.py --check` (194 textes × 12 langues), `game_box_str
 - Rien n'a été mesuré sur iPhone : ni durée d'un lancement réel, ni mémoire de l'agrandissement.
 - La cause exacte de l'arrêt observé n'est pas prouvée par un journal : un `app.log` pris juste après un arrêt la montrera.
 - Un scan très petit reste peu lisible ; seule une meilleure source y remédie. GameTDB ne sert aujourd'hui que pour la PS3 et la Switch. L'étendre à la Wii, au GameCube, à la DS et à la 3DS (scans HQ et versions françaises, par exemple Brawl et Radiant Dawn des captures) demanderait de lire l'identifiant du jeu dans l'en-tête du disque ou de la cartouche : c'est la prochaine étape proposée.
+
+## 20. Relief des boîtes : tranches, dessus et dessous lisibles pendant la rotation (2 novembre 2026)
+
+**Défaut reproduit.** Le banc `test/game_box_relief_preview_test.dart` rend une boîte par format, avec un recto seul quand il le faut. Il n'est actif qu'avec `GAME_BOX_RELIEF_OUT` et des scans locaux jamais versés. Il couvre :
+- les cartons N64, SNES, NES, GBC, GBA, Neo Geo et FDS ;
+- les boîtiers PS1 (cristal), Mega Drive (clamshell), PS2, PS3, GameCube, Wii et PSP ;
+- les boîtiers Switch, DS, 3DS et Vita.
+
+Vues rendues : face, trois-quarts, profil côté tranche, profil côté ouverture, trois-quarts par le haut et par le bas, trois-quarts arrière, dos, et un tour complet tous les 30°.
+
+Trois causes, toutes dans le composant partagé :
+1. **Éclairage.** Il ne faisait qu'assombrir les faces : jusqu'à 45 % de noir, sans reflet. Un boîtier noir (PS1, PS2, GameCube, Mega Drive, PSP) se fondait dans le fond sombre de profil et vu de dessus ou de dessous. Deux faces voisines de même teinte ne se distinguaient pas.
+2. **Bords d'un carton.** Le dessus, le dessous et le bord d'ouverture étaient des aplats unis, de la couleur moyenne du bord du recto, sans pli ni impression. De profil, la boîte semblait creuse : c'est la capture d'*A Bug's Life*.
+3. **Sans verso.** Une boîte sans verso montrait une dalle vide, de la couleur du boîtier.
+
+**Corrections.**
+- Lumière par matériau (`GameBoxScene.lightOf`, `GameBoxFaceLight`) :
+  - l'ombre de l'orientation est gardée ;
+  - un côté de plastique sombre est moins assombri et reçoit un reflet ;
+  - le brillant croît quand la face s'incline ;
+  - chaque pli ou arête arrondie entre deux côtés reçoit un fin liseré de lumière.
+
+  Les facettes des coins arrondis ne sont pas striées. Une face vue de face garde son impression intacte : aucun voile, aucun liseré sur un boîtier clair.
+- Les côtés d'un carton sont imprimés (`GameBoxCardboardPanel`) : couleur du bord du recto, titre du jeu sur le dessus, le dessous et le bord d'ouverture (lu de haut en bas sur ce dernier), plis aux quatre arêtes. Aucun pixel du recto n'est étiré sur les bords.
+- Une boîte sans verso authentique montre un verso reconstitué (§ 21).
+- **Même axe.** Vue en perspective, une boîte qui tourne n'est pas symétrique. Pendant le passage au dos, sa silhouette dérivait d'environ 17 px de côté et 15 px vers le haut (fenêtre de 400 × 600), et l'axe semblait bouger. La silhouette du boîtier fermé est maintenant centrée à chaque pose (`BoxProjector._centring`) : la boîte tourne autour de la même verticale de l'écran, sur 360°, inclinée ou non, et l'ouverture du boîtier ne la déplace pas. Le dos atteint est droit et non inversé.
+
+**Tests** (`game_box_relief_test`, `game_box_geometry_test`) :
+- une face vue de face reste intacte ;
+- chaque côté à trois-quarts reçoit son liseré ;
+- un côté noir est relevé, pas assombri ;
+- les coins arrondis portent leur propre lumière ;
+- les côtés d'un carton portent le titre, jamais le recto étiré ;
+- le verso reconstitué s'affiche pour chaque format ;
+- la dérive pendant le passage au dos reste sous 0,5 px pour 15 formats, et sous 1 px sur un tour complet à quatre inclinaisons ;
+- le dos est droit et non inversé pour chaque format.
+
+## 21. Verso : « Modifier le verso », « Rétablir le verso automatique », verso reconstitué
+
+**Bladestorm (PS3, BLES00113, Europe).**
+- Image affichée : `back/EN` de GameTDB, une vignette de 160 × 184 px. GameTDB n'a ni `backHQ` ni `coverfullHQ` pour cette édition, dans aucune langue (vérifié : EN, FR, DE, ES, IT, NL, PT, SE, DK, NO, FI). Seule l'édition américaine BLUS30070 en a un, et c'est une autre édition.
+- Ce n'est ni une erreur de découpe ni d'orientation : le cadrage et le sens sont justes, la source est trop petite pour que ses lettres (2 à 3 px) se lisent.
+- La correction du § 22 rend les titres plus nets, pas le corps du texte. Il faut une meilleure image de la même édition, choisie dans « Médias du boîtier » ou importée.
+
+**« Modifier le verso »**, depuis la fiche de n'importe quel jeu (bouton sur la boîte de l'onglet Jaquette) et depuis les options de la visionneuse :
+- import depuis Photos ou depuis Fichiers (`StorageImportActivity`) ;
+- cadre à déplacer et à redimensionner par ses coins ; une jaquette complète est cadrée d'office sur son verso ;
+- aperçu sur la boîte vue de dos avant d'enregistrer ;
+- enregistrement comme face choisie à la main (`manual:back`, source et recadrage notés) ;
+- le verso automatique précédent est mis de côté, intact (`box2dback-auto/`, avec sa fiche) ;
+- une image blanche ou illisible est refusée et rien ne change.
+
+**Le choix reste prioritaire :**
+- après un redémarrage (fichier et manifeste sur le disque) ;
+- après un nouveau scraping : l'étape des faces le garde (`manualKept`), le téléchargement ScreenScraper le protège (`ownedTypes`) ;
+- dans toutes les langues de lecture (les éditions de dos d'autres langues ne le remplacent pas).
+
+Seul le verso de ce jeu change.
+
+**« Rétablir le verso automatique »** remet le verso mis de côté et sa fiche, sans réseau. S'il n'y en avait pas, les sources sont interrogées pour ce seul verso ; sinon, le verso reconstitué s'affiche.
+
+**Verso reconstitué** (`GameBoxComposedBack`) : quand aucun verso authentique n'existe, la boîte montre un verso sobre fait des seules données vérifiées du jeu :
+- le titre ;
+- une capture d'écran scrapée (jamais l'icône de console qui en tient lieu) ;
+- le résumé du scraper ;
+- l'année, le studio, l'éditeur et le genre ;
+- le nombre de joueurs ;
+- la plateforme.
+
+Ses couleurs sont tirées du bord du recto. Il porte l'étiquette « Verso reconstitué » et n'imite aucune impression.
+
+**Tests** (`game_box_back_override_test`) : import, recadrage, redémarrage, nouveau scraping (ScreenScraper et GameTDB proposent un verso lisible ; le choix reste), un autre jeu inchangé, retour au verso automatique identique octet pour octet, image blanche refusée, et l'éditeur (cadrage d'une jaquette complète, poignée, aperçu, enregistrement).
+
+## 22. Correction des images dégradées, sans les remplacer
+
+Chaque face (recto, verso, tranche, jaquette complète, en français ou non) est examinée une fois (`GameBoxEnhance`). Seuls les défauts trouvés sont corrigés, sur une copie en cache (`NeoStation/GameBox/enhanced/`). Le fichier d'origine n'est jamais modifié ni remplacé par un autre scan.
+
+| Défaut détecté | Mesure | Correction |
+|---|---|---|
+| blocs JPEG | saut aux bordures 8 × 8 / saut ailleurs > 1,18 | filtre de dé-blocage des codecs vidéo (fort dans les aplats, faible ailleurs), puis lissage de la chrominance guidé par la luminance |
+| bruit | écart-type d'Immerkær sur la moitié la plus plate > 6 | lissage bilatéral 5 × 5 qui garde les bords |
+| tons délavés | écart 1–99 % de luminance < 150 | étirement partiel (60 %) |
+| flou | mesure de Crété-Roffet > 0,42 | déconvolution de Richardson-Lucy de la luminance, largeur du flou estimée |
+| basse résolution | grand côté < 1 600 px | interpolation directionnelle DCCI ×2 par étape (au plus ×8), puis accentuation légère |
+
+Étalonnage sur le verso français de God of War III :
+
+| Version | Valeur avant | Valeur après | Limite |
+|---|---|---|---|
+| nette | flou 0,20 | — | — |
+| flou gaussien de 1,6 px | flou 0,52 | flou 0,40 | 0,42 |
+| JPEG qualité 12 | blocs 1,53 | blocs 1,00 | 1,18 |
+| bruit σ 9 | bruit 8,8 | bruit 0,5 | 6 |
+
+Une illustration texturée (recto de Bladestorm, bruit 5,1) n'est pas lissée.
+
+Ce n'est que du calcul sur les pixels de l'image : aucun modèle génératif, rien d'inventé.
+
+- À 350 × 408 px (taille « M » de GameTDB), le paragraphe du verso de God of War III redevient lisible.
+- À 160 × 184 px (taille du verso de Bladestorm), les titres deviennent plus nets, mais le corps du texte reste illisible : l'information n'est pas dans le fichier.
+
+« Texte net » coupé, les originaux s'affichent. La copie est refaite si le fichier change ; une image saine est mémorisée comme telle. La visionneuse à plat et la ligne des sources indiquent les défauts corrigés.
+
+Une vignette de la même édition cède sa place à un scan lisible seulement quand une face est choisie (face manquante, liste des candidats), jamais quand une face existe déjà. Une impression dans la langue de scraping (par exemple française) n'est jamais déplacée derrière un scan dans une autre langue.
+
+**Tests** (`game_box_enhance_test`) :
+- chaque défaut est détecté sur sa propre copie dégradée, et seulement lui ;
+- chaque correction repasse sous sa limite ;
+- l'agrandissement garde les pixels connus, et une diagonale reste droite ;
+- l'original reste identique octet pour octet, et le cache est relu après un redémarrage ;
+- une image saine n'est pas copiée ;
+- l'impression française reste en tête.
+
+## 23. DS et 3DS fidèles à leurs jaquettes
+
+Références de la même édition (GameTDB) :
+- Mario Kart DS France, AMCP : recto, verso et jaquette complète ;
+- Mario Kart 7 Europe, AMKP : recto et verso ;
+- The Legend of Zelda: Majora's Mask 3D, AJRP : jaquette complète.
+
+Les deux consoles ont le même gabarit : verso 768 | tranche 80 | recto 768 × 680 px. Le recto est donc **plus large que haut** (1,13). Avec la tranche de 14 mm d'un boîtier DS, la jaquette mesure 134,4 × 119 mm.
+
+RewindBox modélisait ces boîtiers en portrait (125 × 137 mm) : le recto réel y était rétréci, avec des bandes vides en haut et en bas, et le verso était mal cadré.
+
+**Corrigé.**
+- Boîtier DS de 137 × 125 × 14 mm, boîtier 3DS de 137 × 125 × 11 mm. La zone imprimée est à 1,3 mm des côtés et 3 mm du haut et du bas, aux proportions exactes du scan : rien n'est rogné, rien n'est déformé.
+- Le bandeau NINTENDO DS (à gauche du recto) ou NINTENDO 3DS (à droite) est celui du scan : il n'est ni masqué ni ajouté une seconde fois.
+- Une jaquette complète est découpée selon ce gabarit et remplit aussi un recto manquant (pour toutes les plateformes qui ont un gabarit vérifié).
+- La tranche est lue de haut en bas, comme l'original. Sur un boîtier plus fin que la bande imprimée (3DS), la bande est montrée entière, dans ses proportions, entre deux marges.
+- Le témoin 3DS de `game_box_physical_test` supposait un scan portrait de 900 × 1000 px. Il est remplacé par la taille du vrai scan (768 × 680), avec en plus la jaquette complète 3DS et le recto DS.
+
+**À vérifier sur un vrai boîtier.** Aucune photo de boîtier n'a pu être récupérée ici ; la référence de forme est le rendu « box » de GameTDB. L'épaisseur 3DS de 11 mm vient de comptes rendus selon lesquels les boîtiers 3DS sont plus fins que ceux de la DS, pas d'une mesure. GameTDB n'est pas encore une source des faces DS et 3DS dans RewindBox (§ 19).
