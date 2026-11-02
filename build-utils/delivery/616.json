@@ -1357,7 +1357,7 @@
    }
   },
   "native": {
-   "mode": "reuse",
+   "mode": "fresh",
    "additions": {
     "commands": [
      [
@@ -1489,18 +1489,7 @@
       "test/rpcs3_diagnostics546_native_test.py"
      ]
     ]
-   ],
-   "reuse": {
-    "source": "49812b7bab1d5ea4df8a4ff0ad7bcf7d7274c674",
-    "manifest": "build-utils/delivery/616.json",
-    "run": 41472161135,
-    "attempt": 1,
-    "job": 125368759592,
-    "artifact": 13156278404,
-    "artifactName": "RewindBox-Build616-49812b7bab1d5ea4df8a4ff0ad7bcf7d7274c674-attempt1-tests-native",
-    "sha256": "bf22a3f42f296851d28ed5dc59deb65ddf30e72666710f4072e60eda0ff7fd61",
-    "bytes": 79400
-   }
+   ]
   },
   "awaitMinutes": 75
  },
