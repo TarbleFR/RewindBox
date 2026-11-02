@@ -425,9 +425,12 @@ class GameBoxProfile {
         disc: const GameBoxDiscStyle(id: 'cd', diameter: 120), lidThickness: 2.4,
       );
 
+  // UMD case: the fronts measured on 30 scans (Europe, USA, Japan; libretro
+  // thumbnails, 2 Nov 2026) are 0.58 wide for 1 tall, a 103.2 × 177.2 mm
+  // print in a 106 × 180 mm case (docs/game-box-3d.md § 24).
   static GameBoxProfile _umd(String id) => GameBoxProfile(
         id: id, caseKind: GameBoxCaseKind.keepCase,
-        width: 104, height: 180, depth: 13,
+        width: 106, height: 180, depth: 13,
         support: GameBoxSupportKind.umd, caseColor: const Color(0xFF1D1D21),
         disc: const GameBoxDiscStyle(id: 'umd', diameter: 60, hole: 11, shell: true),
         lidThickness: 2, cornerRadius: 6,
@@ -465,12 +468,14 @@ class GameBoxProfile {
 
   static GameBoxProfile _clamshell(String id, Color color, GameBoxCartridgeStyle cart,
           {GameBoxSupportKind support = GameBoxSupportKind.cartridge,
-          double width = 135, double height = 190, double depth = 27}) =>
+          double width = 135, double height = 190, double depth = 27,
+          double printInset = 1.4, double? printInsetY}) =>
       GameBoxProfile(
         id: id, caseKind: GameBoxCaseKind.clamshell,
         width: width, height: height, depth: depth,
         support: support, caseColor: color, cartridge: cart, lidThickness: 2.2,
         cornerRadius: width > 138 ? 0 : 3,
+        printInset: printInset, printInsetY: printInsetY,
       );
 
   static GameBoxProfile _computer(String id, GameBoxSupportKind support) => GameBoxProfile(
@@ -544,8 +549,9 @@ class GameBoxProfile {
         width: 105, height: 170, depth: 11, radius: 4,
         material: GameBoxCaseMaterial.clear, insertColor: const Color(0xFFE60012),
         interiorColor: const Color(0xFFDDE1E4)),
+    // PS Vita: fronts measured 0.78–0.79 (9 scans), a 103.7 × 132.2 mm print.
     'vita': _handheld('vita', const Color(0xFF2A4E9B), _cardVita,
-        width: 105, height: 135, depth: 12, radius: 5),
+        width: 106.5, height: 135, depth: 12, radius: 5),
     // Cartridges in plastic clamshells.
     'md': _clamshell('md', const Color(0xFF111111), _cartMd),
     'genesis': _clamshell('genesis', const Color(0xFF111111), _cartMd),
@@ -553,10 +559,14 @@ class GameBoxProfile {
     'sms': _clamshell('sms', const Color(0xFF111111), _cartSms),
     'mark3': _clamshell('mark3', const Color(0xFF111111), _cartSms),
     'pico': _clamshell('pico', const Color(0xFF111111), _cartMd),
+    // HuCard cases, Japanese PC Engine and American TurboGrafx-16 alike:
+    // CD-case sized, with a square cover (1.00, 20 scans), 120 × 120 mm.
     'pce': _clamshell('pce', const Color(0xFF1A1A1A), _hucard,
-        support: GameBoxSupportKind.hucard, width: 142, height: 125, depth: 10),
+        support: GameBoxSupportKind.hucard, width: 142, height: 125, depth: 10,
+        printInset: 11, printInsetY: 2.5),
     'tg16': _clamshell('tg16', const Color(0xFF1A1A1A), _hucard,
-        support: GameBoxSupportKind.hucard),
+        support: GameBoxSupportKind.hucard, width: 142, height: 125, depth: 10,
+        printInset: 11, printInsetY: 2.5),
     // Cartridges in cardboard boxes.
     'nes': _cardboard('nes', _cartNes, width: 127, height: 178, depth: 30),
     'fc': _cardboard('fc', _cartFc, width: 120, height: 170, depth: 25),

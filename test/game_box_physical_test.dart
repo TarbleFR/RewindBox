@@ -148,11 +148,47 @@ void main() {
       expect(c(ds3, 768, 680), GameBoxArtNature.scan, reason: 'Mario Kart 7 control');
       expect(c(ds3, 1616, 680), GameBoxArtNature.wrap, reason: "a 3DS full sheet (Majora's Mask 3D AJRP)");
       expect(c(GameBoxProfile.forSystem('ds'), 768, 680), GameBoxArtNature.scan, reason: 'Mario Kart DS AMCP');
+      // A HuCard case prints a square cover: a 400 px square scan is it
+      // (Boxyboy, USA), a 48 px square is still an icon.
+      expect(c(GameBoxProfile.forSystem('tg16'), 400, 394), GameBoxArtNature.scan, reason: 'TurboGrafx-16 cover');
+      expect(c(GameBoxProfile.forSystem('pce'), 512, 512), GameBoxArtNature.scan, reason: 'PC Engine cover');
+      expect(c(GameBoxProfile.forSystem('pce'), 48, 48), GameBoxArtNature.promo, reason: 'an icon');
+      expect(c(sw, 256, 256), GameBoxArtNature.promo, reason: 'the Switch title icon stays an icon');
       expect(c(ds3, 1000, 1000), GameBoxArtNature.scan, reason: 'a large square 3DS scan is not an icon');
       expect(c(ds3, 48, 48), GameBoxArtNature.promo, reason: 'a 3DS HOME menu icon');
       expect(c(GameBoxProfile.forSystem('gbc'), 600, 600), GameBoxArtNature.scan);
       expect(c(GameBoxProfile.forSystem('snes'), 1600, 1100), GameBoxArtNature.scan);
       expect(c(GameBoxProfile.forSystem('ps1'), 600, 594), GameBoxArtNature.scan);
+    });
+
+    test('every rigid case prints its cover at the proportions measured on real fronts (§ 24)', () {
+      // Median width / height of real front scans of each format (libretro
+      // thumbnails and GameTDB, Europe, USA and Japan, 2 Nov 2026).
+      const measured = {
+        'ps2': 0.712, 'xbox': 0.714, 'xbox360': 0.708, 'wii': 0.712, 'wiiu': 0.714, 'gc': 0.712,
+        'md': 0.708, 'sms': 0.706, 'psp': 0.581, 'vita': 0.785, 'pce': 1.0, 'tg16': 1.0,
+        'ds': 768 / 680, '3ds': 768 / 680, 'switch': 1166 / 1888,
+      };
+      for (final MapEntry(key: id, value: aspect) in measured.entries) {
+        final printed = GameBoxProfile.forSystem(id).printedAspect;
+        expect((printed / aspect - 1).abs(), lessThan(0.02), reason: '$id: printed $printed, measured $aspect');
+      }
+    });
+
+    test('the sheets of Wii, GameCube and Wii U are cut at their measured spine', () {
+      for (final (id, size, spineLeft, spineWidth) in [
+        ('wii', const Size(1024, 680), 484, 56),
+        ('gc', const Size(1024, 680), 484, 56),
+        ('wiiu', const Size(1632, 1080), 776, 80),
+      ]) {
+        final parts = GameBoxWrapLayout.forProfile(GameBoxProfile.forSystem(id))!.split(size)!;
+        expect(parts.spine.left * size.width, closeTo(spineLeft, 0.5), reason: id);
+        expect(parts.spine.width * size.width, closeTo(spineWidth, 0.5), reason: id);
+        expect(parts.front.right, closeTo(1, 1e-9), reason: id);
+      }
+      expect(GameBoxWrapLayout.forProfile(GameBoxProfile.forSystem('3ds'))!.spineFit, GameBoxSpineFit.whole);
+      expect(GameBoxWrapLayout.forProfile(GameBoxProfile.forSystem('ps3'))!.spineFit, GameBoxSpineFit.stretch);
+      expect(GameBoxWrapLayout.forProfile(GameBoxProfile.forSystem('wii'))!.spineFit, GameBoxSpineFit.trimFold);
     });
 
     test('a full sheet is cut along its verified layout only', () {

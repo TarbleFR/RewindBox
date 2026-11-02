@@ -484,3 +484,53 @@ RewindBox modélisait ces boîtiers en portrait (125 × 137 mm) : le recto réel
 - Le témoin 3DS de `game_box_physical_test` supposait un scan portrait de 900 × 1000 px. Il est remplacé par la taille du vrai scan (768 × 680), avec en plus la jaquette complète 3DS et le recto DS.
 
 **À vérifier sur un vrai boîtier.** Aucune photo de boîtier n'a pu être récupérée ici ; la référence de forme est le rendu « box » de GameTDB. L'épaisseur 3DS de 11 mm vient de comptes rendus selon lesquels les boîtiers 3DS sont plus fins que ceux de la DS, pas d'une mesure. GameTDB n'est pas encore une source des faces DS et 3DS dans RewindBox (§ 19).
+
+## 24. Les autres plateformes, avec la même méthode (2 novembre 2026)
+
+Pour chaque boîtier rigide, les proportions du recto imprimé sont comparées à de vrais scans :
+- jaquettes complètes de GameTDB : Wii (Brawl RSBP01, Mario Kart Wii RMCP01), GameCube (Melee GALP01, Double Dash!! GM4P01), Wii U (Mario Kart 8 AMKP01, New Super Mario Bros. U ARPP01), en anglais et en français ;
+- rectos des vignettes libretro : environ 30 scans par plateforme (Europe, États-Unis, Japon), mesurés en médiane.
+
+| Format | Recto mesuré (l / h) | Zone imprimée avant | Après |
+|---|---|---|---|
+| PS2, Xbox, Xbox 360, Wii, Wii U | 0,705 à 0,715 | 0,706 | inchangée |
+| GameCube | 0,704 à 0,717 | 0,702 | inchangée |
+| Mega Drive, Master System | 0,706 à 0,710 | 0,706 | inchangée |
+| PSP | 0,58 | 0,571 | 0,582 (boîtier de 106 mm) |
+| PS Vita | 0,785 | 0,773 | 0,784 (boîtier de 106,5 mm) |
+| PC Engine (Japon) et TurboGrafx-16 (USA) | 1,00 (carré) | 1,14 et 0,71 | 1,00 (jaquette de 120 × 120 mm dans un boîtier de 142 × 125 mm) |
+| PS1 et cartons | carré (PS1), variable | cristal : livret carré contenu ; carton : suit son scan | inchangés |
+
+**Bandeaux.** Ils font tous partie de la jaquette :
+- en haut : PlayStation 2, PSP, PS Vita, Xbox, Xbox 360, Wii, Wii U, NINTENDO GAMECUBE ;
+- à gauche : Mega Drive/Genesis, Sega Saturn.
+
+Le boîtier n'en ajoute aucun, et les zones imprimées corrigées ne les rognent plus.
+
+**Jaquettes complètes.** Les gabarits mesurés sont :
+- Wii et GameCube : verso 484 | tranche 56 | recto 484, sur 680 px de haut ;
+- Wii U : 776 | 80 | 776, sur 1080 px de haut.
+
+Ils sont reconnus et découpés : une jaquette complète seule donne maintenant le recto, le verso et la tranche (auparavant, une Wii ou une GameCube sans recto restait vide, et une PS3 n'avait que le verso et la tranche).
+
+**Tranches.** Chaque gabarit dit comment poser sa bande de tranche (`GameBoxSpineFit`) :
+- Switch, DS, Wii, GameCube, Wii U : la bande garde ses proportions, et le peu qui dépasse (au plus 6 % de chaque côté) est le pli sur les bords ;
+- 3DS : la bande est entière, entre deux marges ;
+- PS3 : la bande est étirée comme avant. Sa tranche de gabarit (20 mm à l'échelle des panneaux) est bien plus large que la tranche plate du boîtier.
+
+Le rendu « entier entre marges » appliqué la veille à toutes les plateformes réduisait la tranche PS3 : c'est corrigé.
+
+**Icônes carrées.** Une image carrée de 512 px ou moins reste prise pour une icône sur les boîtiers dont la jaquette n'est pas carrée (Switch, PS3, famille DVD). Sur un boîtier HuCard, dont la jaquette est carrée, un scan carré est la jaquette ; seule une image minuscule (128 px ou moins) reste une icône.
+
+**Tests** (`game_box_physical_test`) :
+- chaque zone imprimée correspond au recto mesuré de sa plateforme, à 2 % près, pour 15 formats ;
+- les jaquettes complètes Wii, GameCube et Wii U sont découpées à leurs limites mesurées ;
+- chaque gabarit a son mode de tranche ;
+- un scan carré de PC Engine ou de TurboGrafx est une jaquette, et l'icône de la Switch reste une icône.
+
+**Rendus** (`game_box_relief_preview_test`) : Brawl et Melee en jaquette complète seule, Mario Kart 8, God of War III en jaquette complète seule, God of War: Chains of Olympus (PSP), Gravity Rush (Vita) et Boxyboy (TurboGrafx), chacun à côté de sa référence.
+
+**Prochaine étape proposée.** GameTDB n'est une source des faces que pour la PS3 et la Switch (§ 19). Il publie aussi des scans HQ, souvent en français, pour la Wii, la GameCube, la Wii U, la DS et la 3DS. Les utiliser demande de lire l'identifiant du jeu dans l'en-tête de la ROM :
+- les 6 caractères d'un disque Wii ou GameCube ;
+- le code à 4 caractères d'une cartouche DS ;
+- le code produit d'une 3DS.

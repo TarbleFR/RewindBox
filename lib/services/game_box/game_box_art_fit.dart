@@ -109,28 +109,62 @@ class GameBoxArtFit {
   }
 }
 
+/// How a sheet's spine strip is laid on the case's spine (§ 24).
+enum GameBoxSpineFit {
+  /// Its own proportions, its height on the case's height; the little the
+  /// strip is wider than the spine is the fold of the sheet onto the edges
+  /// and is left out (Switch, DS, Wii, GameCube, Wii U: at most 6 % a side).
+  trimFold,
+
+  /// Whole, with its own proportions, between margins (a template made
+  /// for a thicker case than this one: 3DS).
+  whole,
+
+  /// Stretched over the spine (a template whose spine is much wider than
+  /// the case's flat spine: PS3), as drawn before.
+  stretch,
+}
+
 /// A verified layout of a full cover sheet: back | spine | front, as GameTDB
 /// publishes them (`coverfull`, `coverfullHQ`) and as ScreenScraper's
 /// `box-texture` is accepted only when its proportions match.
 class GameBoxWrapLayout {
-  const GameBoxWrapLayout({required this.panel, required this.spine, required this.height});
+  const GameBoxWrapLayout({
+    required this.panel,
+    required this.spine,
+    required this.height,
+    this.spineFit = GameBoxSpineFit.trimFold,
+  });
 
   /// Template sizes in pixels: one panel, the spine, the sheet height.
   final double panel;
   final double spine;
   final double height;
 
+  /// How the template's spine strip sits on the case's spine (§ 24).
+  final GameBoxSpineFit spineFit;
+
   double get aspect => (2 * panel + spine) / height;
 
-  /// Verified templates (GameTDB HQ full covers, downloaded and measured
-  /// 1 Nov 2026: Switch 2454 × 1888 = 1166 + 122 + 1166; PS3 2000 × 1080 =
-  /// 928 + 144 + 928).
+  /// Verified templates (GameTDB HQ full covers, downloaded and measured):
+  /// - Switch 2454 × 1888 = 1166 + 122 + 1166; PS3 2000 × 1080 = 928 + 144
+  ///   + 928 (1 Nov 2026);
+  /// - DS and 3DS 1616 × 680 = 768 + 80 + 768 (Mario Kart DS AMCP,
+  ///   Majora's Mask 3D AJRP);
+  /// - Wii and GameCube 1024 × 680 = 484 + 56 + 484 (Brawl RSBP01, Mario
+  ///   Kart Wii RMCP01, Melee GALP01, Double Dash!! GM4P01); Wii U 1632 ×
+  ///   1080 = 776 + 80 + 776 (Mario Kart 8 AMKP01, New Super Mario Bros. U
+  ///   ARPP01) (2 Nov 2026).
   static GameBoxWrapLayout? forProfile(GameBoxProfile profile) => switch (profile.id) {
         'switch' => const GameBoxWrapLayout(panel: 1166, spine: 122, height: 1888),
-        'ps3' => const GameBoxWrapLayout(panel: 928, spine: 144, height: 1080),
-        // GameTDB's template for both handhelds (Mario Kart DS, Majora's Mask
-        // 3D): back | spine | front, 768 + 80 + 768 × 680.
-        'ds' || '3ds' => const GameBoxWrapLayout(panel: 768, spine: 80, height: 680),
+        // The PS3 template's spine (20 mm at the panels' scale) is wider than
+        // the case's flat spine: it is drawn on it whole, as before.
+        'ps3' => const GameBoxWrapLayout(panel: 928, spine: 144, height: 1080, spineFit: GameBoxSpineFit.stretch),
+        'ds' => const GameBoxWrapLayout(panel: 768, spine: 80, height: 680),
+        // The 3DS reuses the DS template (a 14 mm spine) on its thinner case.
+        '3ds' => const GameBoxWrapLayout(panel: 768, spine: 80, height: 680, spineFit: GameBoxSpineFit.whole),
+        'wii' || 'gc' || 'triforce' => const GameBoxWrapLayout(panel: 484, spine: 56, height: 680),
+        'wiiu' => const GameBoxWrapLayout(panel: 776, spine: 80, height: 1080),
         _ => null,
       };
 
@@ -212,11 +246,16 @@ class GameBoxArtClassifier {
     if (wrap != null && wrap.matches(size) && size.width >= 600) return GameBoxArtNature.wrap;
     final printed = profile.printedAspect;
     final square = (aspect - 1).abs() < 0.04;
+    final side = math.max(size.width, size.height);
     // A square picture is a store or console icon when it is small (title
     // icons are 256 px, HOME menu icons 48 px), or on a portrait case whose
     // print is never square (Switch, PS3, DVD family). A large square scan
-    // of a near-square case (3DS, DS) stays a scan.
-    if (square && (math.max(size.width, size.height) <= 512 || printed < 0.8)) {
+    // of a near-square case (3DS, DS) stays a scan. On a case whose print
+    // is square (HuCard), a square picture is its cover; only a tiny one is
+    // an icon (§ 24).
+    if ((printed - 1).abs() < 0.04) {
+      if (square && side <= 128) return GameBoxArtNature.promo;
+    } else if (square && (side <= 512 || printed < 0.8)) {
       return GameBoxArtNature.promo;
     }
     // Far from the printed area's proportions (a landscape logo on a portrait

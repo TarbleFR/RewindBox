@@ -239,6 +239,7 @@ class GameBoxArtSet {
       composedBack: composedBack,
       composedBackLabel: composedBackLabel,
       spineAspect: spineAspect,
+      spineFit: wrap?.spineFit ?? GameBoxSpineFit.trimFold,
     );
   }
 

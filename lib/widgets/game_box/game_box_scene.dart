@@ -46,6 +46,7 @@ class GameBoxArt {
     this.composedBack,
     this.composedBackLabel = '',
     this.spineAspect,
+    this.spineFit = GameBoxSpineFit.trimFold,
   });
 
   final String title;
@@ -99,6 +100,9 @@ class GameBoxArt {
   /// Width / height of the spine strip cut from a full cover sheet, when
   /// known: it is drawn with its own proportions (§ 23).
   final double? spineAspect;
+
+  /// How that strip sits on the spine.
+  final GameBoxSpineFit spineFit;
 
   /// Verified details for a reconstructed back, shown when no authentic back
   /// can be drawn (docs/game-box-3d.md § 21); null keeps the neutral back.
@@ -157,6 +161,7 @@ class GameBoxArt {
         composedBack: composedBack,
         composedBackLabel: composedBackLabel,
         spineAspect: spineAspect,
+        spineFit: spineFit,
       );
 
   /// Proportions of the part of the front image that is the front.
@@ -670,17 +675,19 @@ class GameBoxScene extends StatelessWidget {
     final window = art.spineWindow;
     if (window != GameBoxArtLayout.full) {
       // The spine strip of a full cover sheet: standing, top at the top,
-      // whole and with its own proportions. On a case thinner than the
-      // strip (a 3DS) it is a little shorter, between margins of the
-      // spine's colour: never squeezed, never cut (§ 23).
+      // laid as its template asks (§ 24): never squeezed unless the
+      // template's spine is far wider than the case's.
       final aspect = art.spineAspect;
-      if (aspect == null || !aspect.isFinite || aspect <= 0) return _crop(spine, window);
+      if (aspect == null || !aspect.isFinite || aspect <= 0 || art.spineFit == GameBoxSpineFit.stretch) {
+        return _crop(spine, window);
+      }
+      final strip = SizedBox(width: aspect * 1000, height: 1000, child: _crop(spine, window));
+      if (art.spineFit == GameBoxSpineFit.trimFold) {
+        return ClipRect(child: FittedBox(fit: BoxFit.cover, clipBehavior: Clip.hardEdge, child: strip));
+      }
       return ColoredBox(
         color: Color.lerp(_neutralSpine, Colors.white, 0.7)!,
-        child: FittedBox(
-          fit: BoxFit.contain,
-          child: SizedBox(width: aspect * 1000, height: 1000, child: _crop(spine, window)),
-        ),
+        child: FittedBox(fit: BoxFit.contain, child: strip),
       );
     }
     return art.spineLandscape
