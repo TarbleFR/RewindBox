@@ -27790,7 +27790,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..7e6ae19 100644
+index 1f53c64..ff6b8b0 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1,4 +1,7 @@
@@ -28157,7 +28157,7 @@ index 1f53c64..7e6ae19 100644
  			// Disable incompatible settings
  			fixup_settings(&_psf, inherited_psf_resolution);
  
-@@ -1847,6 +2038,118 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1847,6 +2038,122 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			}
  			g_cfg.misc.use_native_interface.set(true);
  			rpcs3::ios::resolve_experimental_policy();
@@ -28247,8 +28247,12 @@ index 1f53c64..7e6ae19 100644
 +					ios_rsx.vsync = rsx_vsync;
 +					ios_rsx.host_labels = rsx_host_labels;
 +					ios_rsx.strict_flush = rsx_strict_flush;
-+					ios_rsx.invariance = rpcs3::ios::get_experimental_policy().position_invariance;
++					// VKVertexProgram.cpp declares the invariant position only when the
++					// policy asks for it and Shader Precision is not Low (Apple GPUs).
++					ios_rsx.invariance_policy = rpcs3::ios::get_experimental_policy().position_invariance;
++					ios_rsx.invariance = ios_rsx.invariance_policy && g_cfg.video.shader_precision != gpu_preset_level::low;
 +					ios_rsx.mvk_async = rpcs3::ios::get_experimental_policy().moltenvk_async_submits;
++					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
 +					ios_rsx.overrides = ios_override_keys;
 +					sys_log.notice("%s", rpcs3::ios::boot_diagnostics::format_config_rsx_line(ios_rsx));
 +				}
@@ -28276,7 +28280,7 @@ index 1f53c64..7e6ae19 100644
  #endif
  
  			// Backup config
-@@ -2504,7 +2807,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2504,7 +2811,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.warning("State Inspection Savestate Mode!");
  
  				vm::init();
@@ -28291,7 +28295,7 @@ index 1f53c64..7e6ae19 100644
  
  				if (!hdd1.empty())
  				{
-@@ -2513,6 +2823,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2513,6 +2827,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  
  				init_fxo_for_exec(DeserialManager(), true);
@@ -28301,7 +28305,7 @@ index 1f53c64..7e6ae19 100644
  
  				return game_boot_result::no_errors;
  			}
-@@ -2586,7 +2899,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2586,7 +2903,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  		{
  			if (m_ar)
  			{
@@ -28316,7 +28320,7 @@ index 1f53c64..7e6ae19 100644
  			}
  
  			// Mount /host_root/ if necessary (special value)
-@@ -2709,7 +3029,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2709,7 +3033,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			const auto _main = ensure(g_fxo->init<main_ppu_module<lv2_obj>>());
  
@@ -28345,7 +28349,7 @@ index 1f53c64..7e6ae19 100644
  			{
  				if (g_cfg.core.ppu_debug && had_been_decrypted)
  				{
-@@ -2864,6 +3204,11 @@ void Emulator::Run(bool start_playtime)
+@@ -2864,6 +3208,11 @@ void Emulator::Run(bool start_playtime)
  void Emulator::RunPPU()
  {
  	ensure(IsStarting());
@@ -28357,7 +28361,7 @@ index 1f53c64..7e6ae19 100644
  
  	bool signalled_thread = false;
  
-@@ -2943,6 +3288,10 @@ void Emulator::FixGuestTime()
+@@ -2943,6 +3292,10 @@ void Emulator::FixGuestTime()
  
  void Emulator::FinalizeRunRequest()
  {
@@ -28368,7 +28372,7 @@ index 1f53c64..7e6ae19 100644
  	const bool autostart = !m_ar || !!g_cfg.misc.autostart;
  
  	bs_t<cpu_flag> add_flags = cpu_flag::dbg_global_pause;
-@@ -2989,7 +3338,25 @@ void Emulator::FinalizeRunRequest()
+@@ -2989,7 +3342,25 @@ void Emulator::FinalizeRunRequest()
  	lv2_obj::make_scheduler_ready();
  
  	m_state.compare_and_swap_test(system_state::starting, system_state::running);
@@ -28394,7 +28398,7 @@ index 1f53c64..7e6ae19 100644
  	m_ar.reset();
  
  	if (!autostart)
-@@ -3479,6 +3846,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3479,6 +3850,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -28407,7 +28411,7 @@ index 1f53c64..7e6ae19 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3866,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3870,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -28430,7 +28434,7 @@ index 1f53c64..7e6ae19 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3922,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3926,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -28438,7 +28442,7 @@ index 1f53c64..7e6ae19 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3933,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3937,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -28446,7 +28450,7 @@ index 1f53c64..7e6ae19 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3943,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +3947,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -28454,7 +28458,7 @@ index 1f53c64..7e6ae19 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +4031,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +4035,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -28465,7 +28469,7 @@ index 1f53c64..7e6ae19 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +4097,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +4101,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -28474,7 +28478,7 @@ index 1f53c64..7e6ae19 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +4211,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +4215,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -28489,7 +28493,7 @@ index 1f53c64..7e6ae19 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +4246,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4250,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -28497,7 +28501,7 @@ index 1f53c64..7e6ae19 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4364,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4368,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -28511,7 +28515,7 @@ index 1f53c64..7e6ae19 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4419,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4423,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -28524,7 +28528,7 @@ index 1f53c64..7e6ae19 100644
  			});
  
  			// Join it
-@@ -4075,10 +4489,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4493,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -28544,7 +28548,7 @@ index 1f53c64..7e6ae19 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4308,10 +4731,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4308,10 +4735,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{
@@ -37307,10 +37311,10 @@ index 0000000..6e4c976
 +}
 diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
 new file mode 100644
-index 0000000..6b96b42
+index 0000000..eff1215
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
-@@ -0,0 +1,549 @@
+@@ -0,0 +1,591 @@
 +#pragma once
 +
 +// NEOSTATION_BUILD487_DIAGNOSTICS_V1: boot observability of the embedded Core
@@ -37694,8 +37698,44 @@ index 0000000..6b96b42
 +	// Black Ops II viewmodel tests change, one line per boot. It is emitted just
 +	// before the main CONFIG_LAYERS line, which stays the last one of the boot
 +	// for the host's timeline configuration and cause-history boundary. Values
-+	// are cfg::to_string() text; invariance and mvk_async are the resolved boot
-+	// policy; overrides lists the sparse user override keys applied on this boot.
++	// are cfg::to_string() text. invariance is what the vertex shaders get
++	// (policy and Shader Precision not Low, as VKVertexProgram.cpp decides on
++	// Apple GPUs); invariance_policy is the resolved setting. mvk_async is the
++	// boot's resolved request (the asynchronous-submit canary already applied).
++	// overrides lists, among the sparse user override keys applied on this boot,
++	// only those of the settings this line reports (rsx_override_keys).
++	inline constexpr std::string_view rsx_override_keys[] = {
++		"gpu.zcull_accuracy", "debug.disable_occlusion", "debug.emulate_depth_compare", "gpu.shader_precision",
++		"advanced.disable_msl_fast_math", "debug.disable_vertex_cache", "gpu.strict_rendering",
++		"advanced.read_color_buffers", "advanced.read_depth_buffer", "gpu.msaa", "gpu.vsync",
++		"experimental.position_invariance", "experimental.moltenvk_async_submits",
++	};
++	inline constexpr std::size_t rsx_overrides_limit = 400;
++
++	// Comma-separated keys -> the reported ones, in input order, without duplicates.
++	inline std::string filter_rsx_override_keys(std::string_view keys)
++	{
++		std::string result;
++		while (!keys.empty())
++		{
++			const std::size_t comma = keys.find(',');
++			const std::string_view key = keys.substr(0, comma);
++			keys = comma == std::string_view::npos ? std::string_view{} : keys.substr(comma + 1);
++			bool reported = false;
++			for (const std::string_view known : rsx_override_keys)
++			{
++				reported = reported || key == known;
++			}
++			const std::string padded = ',' + result + ',';
++			if (reported && padded.find(',' + std::string{key} + ',') == std::string::npos)
++			{
++				result += result.empty() ? "" : ",";
++				result += key;
++			}
++		}
++		return result;
++	}
++
 +	struct config_rsx
 +	{
 +		std::string_view title;
@@ -37715,9 +37755,11 @@ index 0000000..6b96b42
 +		std::string_view vsync;             // VSync Mode
 +		std::string_view host_labels;       // Allow Host GPU Labels
 +		std::string_view strict_flush;      // Strict Texture Flushing
-+		bool invariance = false;
-+		bool mvk_async = false;
-+		std::string_view overrides;
++		bool invariance = false;        // effective: policy and Shader Precision not Low
++		bool invariance_policy = false; // the resolved Position Invariance setting
++		bool mvk_async = false;         // resolved request of this boot
++		bool legacy_custom = false;     // a full custom config was applied (tests would change it)
++		std::string_view overrides;     // every applied sparse override key; filtered when formatted
 +	};
 +
 +	inline std::string format_config_rsx_line(const config_rsx& rsx)
@@ -37741,8 +37783,12 @@ index 0000000..6b96b42
 +		append_text(line, "host_labels", rsx.host_labels, 16);
 +		append_text(line, "strict_flush", rsx.strict_flush, 16);
 +		append_u32(line, "invariance", rsx.invariance ? 1u : 0u);
++		append_u32(line, "invariance_policy", rsx.invariance_policy ? 1u : 0u);
 +		append_u32(line, "mvk_async", rsx.mvk_async ? 1u : 0u);
-+		append_text(line, "overrides", rsx.overrides, 320);
++		append_u32(line, "legacy_custom", rsx.legacy_custom ? 1u : 0u);
++		const std::string reported = filter_rsx_override_keys(rsx.overrides);
++		append_text(line, "overrides", reported, rsx_overrides_limit);
++		append_u32(line, "overrides_truncated", reported.size() > rsx_overrides_limit ? 1u : 0u);
 +		return line;
 +	}
 +
@@ -39197,7 +39243,7 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..230ab9e 100644
+index d800542..33d7673 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,192 @@
@@ -39944,7 +39990,7 @@ index d800542..230ab9e 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +770,901 @@ public:
+@@ -108,12 +770,902 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -40409,8 +40455,9 @@ index d800542..230ab9e 100644
 +                vc_requests, vc_misses, lookups, elided, idles, rpcs3::ios::rsx_sync::rsx_frame_sample_period);
 +        }
 +        // REWINDBOX_FEEDBACK_CENSUS_610: color-feedback work of the window. Per-frame
-+        // values divide by RSXFRAME551 frames= of the same window; render passes
-+        // are VKGSRender::begin_render_pass calls (draw passes, splits included).
++        // values divide by RSXFRAME551 frames= of the same window. census=2 (Core 612):
++        // render passes are the passes VKGSRender::begin_render_pass actually began
++        // (census 1 counted every call, so the two values are not comparable).
 +        {
 +            namespace census = rpcs3::ios::feedback_census;
 +            auto& c = census::counters;
@@ -40848,7 +40895,7 @@ index d800542..230ab9e 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1672,93 @@ private:
+@@ -121,6 +1673,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -40942,7 +40989,7 @@ index d800542..230ab9e 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1766,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +1767,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -41036,7 +41083,7 @@ index d800542..230ab9e 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +1863,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +1864,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -41165,7 +41212,7 @@ index d800542..230ab9e 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +1994,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +1995,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -41750,7 +41797,7 @@ index 0000000..b6b0c69
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..a584425 100644
+index b7b0474..416fbcf 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -41916,7 +41963,7 @@ index b7b0474..a584425 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +684,130 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +684,139 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  
@@ -41930,23 +41977,31 @@ index b7b0474..a584425 100644
 +	return fs::is_file(game_setting_overrides_path(title_id));
 +}
 +
-+std::string game_setting_override_keys(std::string_view title_id)
++std::string game_setting_override_keys(std::string_view title_id) noexcept
 +{
-+	std::vector<std::pair<std::string, std::string>> values;
-+	std::string keys;
-+	if (!read_game_setting_overrides(title_id, values))
++	// Diagnostics only: a file that cannot be read again reports no key.
++	try
 +	{
++		std::vector<std::pair<std::string, std::string>> values;
++		std::string keys;
++		if (!read_game_setting_overrides(title_id, values))
++		{
++			return {};
++		}
++		for (const auto& item : values)
++		{
++			if (!keys.empty())
++			{
++				keys += ',';
++			}
++			keys += item.first;
++		}
 +		return keys;
 +	}
-+	for (const auto& item : values)
++	catch (...)
 +	{
-+		if (!keys.empty())
-+		{
-+			keys += ',';
-+		}
-+		keys += item.first;
++		return {};
 +	}
-+	return keys;
 +}
 +
 +bool apply_game_setting_overrides(std::string_view title_id) noexcept
@@ -42008,12 +42063,13 @@ index b7b0474..a584425 100644
 +
 +bool remove_game_setting_override(
 +	std::string_view title_id,
-+	std::string_view key) noexcept
++	std::string_view key)
 +{
 +	// REWINDBOX_GRAPHICS_TESTS_612: removes one explicit user value, so the next
 +	// boot takes this key from the lower layers again (global config, GameDB and
 +	// RewindBox profile). A missing key is already inherited; an override file
-+	// left without any key is removed like remove_game_setting_overrides().
++	// left without any key is removed like remove_game_setting_overrides(). Not
++	// noexcept: a failed read throws to rpcs3_ios_set_game_setting, which reports it.
 +	std::vector<std::pair<std::string, std::string>> values;
 +	if (!read_game_setting_overrides(title_id, values))
 +	{
@@ -42048,7 +42104,7 @@ index b7b0474..a584425 100644
  {
  	switch (error)
 diff --git a/rpcs3/ios/RPCS3IOSSettings.h b/rpcs3/ios/RPCS3IOSSettings.h
-index 74abaa0..7475cac 100644
+index 74abaa0..340053b 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.h
 +++ b/rpcs3/ios/RPCS3IOSSettings.h
 @@ -75,6 +75,14 @@ bool save_global_settings() noexcept;
@@ -42058,10 +42114,10 @@ index 74abaa0..7475cac 100644
 +bool has_game_setting_overrides(std::string_view title_id) noexcept;
 +bool apply_game_setting_overrides(std::string_view title_id) noexcept;
 +// REWINDBOX_GRAPHICS_TESTS_612: keys of the title's sparse user overrides,
-+// comma separated in file order; empty when there are none or the file is invalid.
-+std::string game_setting_override_keys(std::string_view title_id);
++// comma separated in file order; empty when there are none or the file cannot be read.
++std::string game_setting_override_keys(std::string_view title_id) noexcept;
 +bool save_game_setting_override(std::string_view title_id, std::string_view key, std::string_view value) noexcept;
-+bool remove_game_setting_override(std::string_view title_id, std::string_view key) noexcept;
++bool remove_game_setting_override(std::string_view title_id, std::string_view key);
 +bool remove_game_setting_overrides(std::string_view title_id) noexcept;
  std::string game_settings_preset_directory(std::string_view title_id);
  std::string_view settings_load_error_detail(settings_load_error error) noexcept;

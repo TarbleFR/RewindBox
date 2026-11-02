@@ -92,6 +92,12 @@ def census_v2_contract(source: Path, new: str) -> bool:
         raise AssertionError('census v2 begin_render_pass differs from its reviewed form')
     if 'feedback_census' in body[:body.index(V2_CALL)]:
         raise AssertionError('census v2 still counts before the render pass is begun')
+    # The reviewed increment is the only one: no caller and no other renderer file counts passes.
+    if new.count('counters.draw_renderpasses') != 1 or new.count('counters.draw_renderpasses') != V2_COUNT.count('counters.draw_renderpasses'):
+        raise AssertionError('draw_renderpasses is incremented outside the reviewed census v2 block')
+    for other in (RENDERPASS, 'rpcs3/Emu/RSX/VK/VKGSRender.cpp'):
+        if 'draw_renderpasses' in (source / other).read_text() or 'feedback_census' in (source / other).read_text():
+            raise AssertionError('another renderer file counts render passes: ' + other)
     rp = (source / RENDERPASS).read_text()
     direct = phases.body(rp, 'bool begin_renderpass(const vk::command_buffer& cmd, VkRenderPass pass,')
     cached = phases.body(rp, 'bool begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key,')
@@ -249,6 +255,13 @@ MUTATIONS = {
     'pixels_not_counted': ('census::add(census::counters.snapshot_pixels, u64{image->width()} * image->height());', '(void)0;'),
     'cyclic_flag_ignored': ('\t\t\tif (cyclic_reference)\n', '\t\t\tif (true)\n'),
 }
+# Census v2 source mutations: each must be refused by census_v2_contract (count before the pass begins).
+SOURCE_MUTATIONS = {
+    'count_in_caller': (DRAW, '\tbegin_render_pass();\n',
+                        '#ifdef RPCS3_IOS\n\trpcs3::ios::feedback_census::add(rpcs3::ios::feedback_census::counters.draw_renderpasses);\n'
+                        '#endif\n\tbegin_render_pass();\n'),
+    'count_unconditionally': (DRAW, '\tif (began)\n\t{\n', '\tif (true)\n\t{\n'),
+}
 
 
 def mutations(source: Path, work: Path, compiler: str) -> dict:
@@ -268,6 +281,29 @@ def mutations(source: Path, work: Path, compiler: str) -> dict:
             result[name] = 'rejected'
             continue
         raise AssertionError('mutation survived: ' + name)
+    return result
+
+
+def source_mutations(source: Path, baseline: Path, work: Path) -> dict:
+    """Census v2 mutants of the candidate tree; each must be refused by the source contract."""
+    result = {}
+    if V2_CALL not in (source / DRAW).read_text():
+        return {'skipped': 'census 1 candidate'}
+    for name, (rel, old, new) in SOURCE_MUTATIONS.items():
+        tree = work / ('source-mutant-' + name)
+        for path in (DRAW, HEADER, PERF, RENDERPASS, 'rpcs3/Emu/RSX/VK/VKGSRender.cpp'):
+            (tree / path).parent.mkdir(parents=True, exist_ok=True)
+            (tree / path).write_bytes((source / path).read_bytes())
+        text = (tree / rel).read_text()
+        if old not in text:
+            raise AssertionError('source mutation anchor changed: ' + name)
+        (tree / rel).write_text(text.replace(old, new, 1))
+        try:
+            source_contract(tree, baseline)
+        except AssertionError:
+            result[name] = 'rejected'
+            continue
+        raise AssertionError('source mutation survived: ' + name)
     return result
 
 
@@ -293,6 +329,7 @@ def main() -> int:
         report['execution'] = {'plain': execute(args.source, work, args.compiler, False),
                                'asan_ubsan': execute(args.source, work, args.compiler, True)}
         report['mutations'] = mutations(args.source, work, args.compiler)
+        report['source_mutations'] = source_mutations(args.source, args.baseline, work)
         report['routing'] = routing(work)
     report.update(result='passed', host=platform.platform(), physicalDeviceTested=False, gpuTimeMeasured=False,
                   behaviourChanged=False, codegenInputsChanged=False)

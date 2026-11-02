@@ -5,7 +5,7 @@
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/core612-delta.patch",
-  "patch_sha256": "488153d55dcc3b70b39fc169531343b223dd295f72966a8a8bead29797569c5f",
+  "patch_sha256": "da43e7f192ebdc08808bb5c5ac191625a8c51de4ed73643c9cc2323799461ea7",
   "abi_version": 30,
   "abi_version_changed": false,
   "exports_added": [
@@ -34,18 +34,18 @@
     "rpcs3/Emu/RSX/VK/VKDraw.cpp": "c1b1bc90d76ddab2beec143c6381cf36e69bb1fc63a0a7913cbe853a9b13830a",
     "rpcs3/Emu/RSX/VK/VKRenderPass.cpp": "99c362a414165a4ab7156f1c455e69fed1abe57ec399ea46ab974fa2ec02d5d4",
     "rpcs3/Emu/RSX/VK/VKRenderPass.h": "0787c4799fcc56e50db6a23a4656796b62efb47941b9c10efd01b4513db662ec",
-    "rpcs3/Emu/System.cpp": "ce07645bbf74004fbdba7cb8e756a0371158152089ea89d97e181ed7471114b1",
+    "rpcs3/Emu/System.cpp": "ea22852fd8519f645b1fe894d41aac055e542aacdec7f64b22a68b1a80ff273a",
     "rpcs3/Emu/system_config.h": "b05af0b067f5b2280182ff7bfff6cb156eb3e1a5068e4368db59503f91fb1038",
     "rpcs3/ios/IOSFeedbackCensus.h": "9da0b2b864ec2e0c47b1bb792952eb376d3b4203292f117c183388af07e60dd4",
     "rpcs3/ios/RPCS3IOS.cpp": "2c7a6e02f047bcd9f86d9d1d6b566e153dc8b72fabcb27068fc8b9c08427dde3",
     "rpcs3/ios/RPCS3IOS.exports": "4a7d309cc7a0df18f215f8582897931fc1d14bf0ec399e4c18afe2e87ccbad7d",
     "rpcs3/ios/RPCS3IOS.h": "e12732f8e0914f765e81e9ba2fb8278862369d91c03967c38e021e384e215987",
     "rpcs3/ios/RPCS3IOSAchievements.h": "bf04cc1b6ef98e4ebf777b33ce921803a17409b6cbc52b224e145f67708d9399",
-    "rpcs3/ios/RPCS3IOSBootDiagnostics.h": "2a171fdbaf44aa7e53d36ac633a74576fee656b5a331cef3447afbc1218c9dad",
+    "rpcs3/ios/RPCS3IOSBootDiagnostics.h": "63dc65abc0f288875759a89055e3e5c0067b142da6b13f26f3872f7ba673f24e",
     "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "a4b5cee689c61cd23130ac2d5048745367db96dd4e3944924ef5f1b1a1316b1c",
-    "rpcs3/ios/RPCS3IOSPerformance.cpp": "2bf3eb8da9e3e21afd302fb17741c8c7d6b818691ef529b59559bbfc57385e64",
-    "rpcs3/ios/RPCS3IOSSettings.cpp": "c336e9076530266db90f88328e92d638ea75a6938c8ef2b52810ba4f3a5dcb34",
-    "rpcs3/ios/RPCS3IOSSettings.h": "11c28fa0a142abf55b194f0f8b5c0926273081cbd979897bf1d4bd00362d160b"
+    "rpcs3/ios/RPCS3IOSPerformance.cpp": "184d7e1d7b78fe5475700aa9433c627686eac0a1e6a2d6c7197f46491fb9f728",
+    "rpcs3/ios/RPCS3IOSSettings.cpp": "a07ec7a6d0797409ccc65f37492174f785e4f5020d9b009c4d8872cc28bc2ea6",
+    "rpcs3/ios/RPCS3IOSSettings.h": "0b45e4a93d68697b54639ddb72e72273c324eb7a38c12805f76eb8cc2e7313d4"
   },
   "new_files": [
     "rpcs3/Emu/RSX/VK/VKRenderPass.cpp",
@@ -59,7 +59,7 @@
   "contains": {
     "retroachievements_core": "the folded RetroAchievements PS3 Core patch of Core 611 (retroachievements-core.json), unchanged: its 5 postimages are carried again, RPCS3IOS.cpp and RPCS3IOS.h with the 612 additions below",
     "feedback_census_v2": "vk::begin_renderpass reports whether it began a pass; VKGSRender::begin_render_pass counts draw_renderpasses only then (inside RPCS3_IOS); FEEDBACK610 says census=2. VKRenderPass.cpp/.h become canonical postimages (behaviour unchanged for every caller)",
-    "graphics_tests_612": "Experimental 'Position Invariance' (Automatic = the REWINDBOX_POSITION_INVARIANCE_610 title list), game-only catalogue entries for experimental.position_invariance and experimental.moltenvk_async_submits, rpcs3_ios_set_game_setting value '@inherit' (boolean/choice keys, sparse overrides only) removing one explicit user value, and one 'CONFIG_LAYERS part=rsx' boot line before the main CONFIG_LAYERS line"
+    "graphics_tests_612": "Experimental 'Position Invariance' (Automatic = the REWINDBOX_POSITION_INVARIANCE_610 title list), game-only catalogue entries for experimental.position_invariance and experimental.moltenvk_async_submits, rpcs3_ios_set_game_setting value '@inherit' (boolean/choice keys, sparse overrides only) removing one explicit user value, and one 'CONFIG_LAYERS part=rsx' boot line before the main CONFIG_LAYERS line: effective invariance (policy and Shader Precision not Low) and its policy, legacy_custom, and only the override keys of the settings it reports (review fixes of 2 November 2026)"
   },
   "behaviour": {
     "defaults": "unchanged for every title: Position Invariance Automatic resolves to the Core 610 title list; no user override is written by the Core",

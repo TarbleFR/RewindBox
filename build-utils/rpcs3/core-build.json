@@ -22,7 +22,7 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "0cf253881584c0f56e3061fe6b651ad78aad800c65e354957f74c0453c7baffb",
+  "patch_sha256": "4e2dd29bad7585e86f2a928a2f9bae21ffdd0ce6e491752773f3ae47ebc0fd01",
   "postimages": 332,
   "records": [
    "core610_20261101",
@@ -70,13 +70,13 @@
   "record": "core612_20261102",
   "manifest": "build-utils/rpcs3/core612-delta.json",
   "patch": "build-utils/rpcs3/core612-delta.patch",
-  "patch_sha256": "488153d55dcc3b70b39fc169531343b223dd295f72966a8a8bead29797569c5f"
+  "patch_sha256": "da43e7f192ebdc08808bb5c5ac191625a8c51de4ed73643c9cc2323799461ea7"
  },
  "exports": 92,
  "core_inputs": {
   "count": 92,
   "host": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
-  "host_sha256": "3c70bfff3bd755874aec6e0ee31707fe7fc841e103079b98f5e9b392b2624010",
+  "host_sha256": "d1ecbdaa6039f798a6572c3c810f8320bad8aa1c912a7cba9b06b11b78b4b503",
   "reviewed_drift": [
    "build-utils/rpcs3/canonical-source.json",
    "build-utils/rpcs3/embedded-core.patch",

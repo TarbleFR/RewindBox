@@ -34,6 +34,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import platform
 import re
 import shutil
 import subprocess
@@ -145,6 +146,17 @@ def app_contract() -> dict:
             'a refused change does not reboot the title unconditionally after the stop')
     require(restart.count('RPCS3Diagnostic(@"game_setting"') == 2 and 'test=1' in restart, 'test changes are not logged')
     require('menu.readAccuracy = ^{' in bridge and 'RPCS3RsxConfigSnapshot(accuracyTitle)' in bridge, 'menu reader')
+    # A full custom configuration would keep test values for good: the bridge refuses before stopping the game,
+    # and the page shows the custom source and blocks every lever and the reset row.
+    refusal = restart.index('[RPCS3RsxConfigSnapshot(titleId)[@"legacy_custom"] isEqualToString:@"1"]')
+    require(refusal < restart.index('dispatch_async(_runtimeQueue') and 'accuracyLegacyBlocked' in restart[refusal:refusal + 300],
+            'the bridge does not refuse tests on a title with a full custom configuration')
+    select = block(menu, '  if (self.page == RPCS3MenuAccuracy) {\n    NSArray<NSDictionary*>* levers = RPCS3AccuracyLevers();\n    if ([self accuracyLegacy]) {',
+                   '  if (self.page == RPCS3MenuSystem) {')
+    require(select.index('[self showMessage:[self text:@"accuracyLegacyBlocked"]];') < select.index('@"testReset"'),
+            'the page does not block tests on a title with a full custom configuration')
+    require("return [self.accuracyState[@\"legacy_custom\"] isEqualToString:@\"1\"];" in menu and
+            '@"testSourceCustom"' in menu and '@"accuracyLegacyHelp" : @"accuracyHelp"' in menu, 'custom source and help')
 
     # The capture must stay outside the RPCS3Log regions compiled by other host tests.
     log = bridge.split('static void RPCS3Log(void* context, int32_t level, const char* message) {', 1)[1].split('\n}', 1)[0]
@@ -157,12 +169,13 @@ def app_contract() -> dict:
     tables = l10n_tables(l10n)
     require(tuple(tables) == LOCALES, 'Build612Translations locales: ' + repr(list(tables)))
     keys = list(tables['en'])
-    require(len(keys) == 23 and all(list(tables[locale]) == keys for locale in LOCALES), 'locale key sets differ')
+    require(len(keys) == 26 and all(list(tables[locale]) == keys for locale in LOCALES), 'locale key sets differ')
     require(all(value.strip() for table in tables.values() for value in table.values()), 'empty translation')
     page = block(menu, '- (NSString*)accuracyDetail:(NSDictionary*)lever {', '\n}\n') + block(
         menu, '  if (self.page == RPCS3MenuAccuracy) {\n    NSArray<NSDictionary*>* levers', '\n  }\n')
     used = set(re.findall(r'\[self text:@"(\w+)"\]', page)) | {'accuracyMenu', 'accuracyMenuDetail', 'accuracyHelp',
-                                                               'testProfileDefault'}
+                                                               'testProfileDefault', 'testSourceCustom',
+                                                               'accuracyLegacyHelp', 'accuracyLegacyBlocked'}
     used |= {lever['title'] for lever in levers} | {label for lever in levers for label in lever['labels']}
     used |= set(re.findall(r'@"(zcull\w+|precision\w+|testSource\w+)"', page))
     base = {'enabled', 'disabled'}
@@ -234,8 +247,8 @@ def core_contract(source: Path) -> dict:
                    'if (has_custom_config)', 'rpcs3::ios::remove_game_setting_override(title_id, key)',
                    'return RPCS3_IOS_SETTING_INVALID;', 'return RPCS3_IOS_OK;'):
         require(needle in branch, '@inherit branch lacks ' + needle)
-    require('bool remove_game_setting_override(std::string_view title_id, std::string_view key) noexcept;' in settings_h and
-            'std::string game_setting_override_keys(std::string_view title_id);' in settings_h, 'settings declarations')
+    require('bool remove_game_setting_override(std::string_view title_id, std::string_view key);' in settings_h and
+            'std::string game_setting_override_keys(std::string_view title_id) noexcept;' in settings_h, 'settings declarations')
 
     # Boot line order and the unchanged sparse-override call.
     require('if (!rpcs3::ios::apply_game_setting_overrides(m_title_id))' in system, 'sparse override call changed')
@@ -245,6 +258,13 @@ def core_contract(source: Path) -> dict:
     require(rsx < system.index('format_config_layers_line(ios_layers)') and system.count('format_config_rsx_line(') == 1,
             'the rsx part is not emitted once, before the main line')
     require(system.index('rpcs3::ios::resolve_experimental_policy();') < rsx, 'rsx part before the policy resolution')
+    # The line reports what the vertex shaders get (VKVertexProgram.cpp: policy and precision not Low) and the policy.
+    vertex = read('rpcs3/Emu/RSX/VK/VKVertexProgram.cpp')
+    require('rpcs3::ios::get_experimental_policy().position_invariance) &&\n\t\tg_cfg.video.shader_precision != gpu_preset_level::low;'
+            in vertex, 'VKVertexProgram.cpp invariance condition changed; update the reported effective value')
+    require('ios_rsx.invariance = ios_rsx.invariance_policy && g_cfg.video.shader_precision != gpu_preset_level::low;' in system
+            and 'ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;' in system,
+            'effective invariance or legacy_custom not reported')
     return {'catalogue': {key: list(entries[key]) for key in KEYS},
             'files_sha256': {name: sha((source / name).read_bytes()) for name in (
                 'rpcs3/Emu/system_config.h', 'rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp', 'rpcs3/ios/RPCS3IOSSettings.cpp',
@@ -256,6 +276,7 @@ def core_contract(source: Path) -> dict:
 STUBS = r'''
 #include <cstdio>
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -277,10 +298,12 @@ inline bool remove_file(const std::string& path) {
 }
 static std::map<std::string, std::vector<std::pair<std::string, std::string>>> files;
 static bool read_fails = false;
+static bool read_throws = false;
 static int writes = 0;
 static std::string game_setting_overrides_path(std::string_view title) { return "overrides/" + std::string{title} + ".yml"; }
 static bool read_game_setting_overrides(std::string_view title, std::vector<std::pair<std::string, std::string>>& values) {
 	values.clear();
+	if (read_throws) throw std::runtime_error("read failed after open");
 	if (read_fails || title.empty()) return false;
 	if (const auto found = files.find(std::string{title}); found != files.end()) values = found->second;
 	return true;
@@ -327,6 +350,12 @@ int main() {
 	fs::removable[game_setting_overrides_path("BLUS30089")] = false;
 	check(!remove_game_setting_override("BLUS30089", "gpu.shader_precision"), "a refused removal is reported");
 
+	read_throws = true;
+	check(game_setting_override_keys("BLES00158").empty(), "a throwing read reports no key (diagnostics only)");
+	bool thrown = false;
+	try { remove_game_setting_override("BLES00158", "gpu.zcull_accuracy"); } catch (const std::runtime_error&) { thrown = true; }
+	check(thrown, "a throwing read reaches the API's catch instead of std::terminate");
+	read_throws = false;
 	put("NPEB00001", {{"a", "1"}, {"b", "2"}, {"a", "3"}});
 	check(remove_game_setting_override("NPEB00001", "a") && files["NPEB00001"].size() == 1 &&
 		files["NPEB00001"][0].first == "b", "every copy of a duplicated key is removed");
@@ -344,27 +373,37 @@ def extract_function(text: str, signature: str) -> str:
 
 
 def sanitizer_flags(compiler: str, work: Path) -> list[str]:
+    """ASan/UBSan flags; --sanitize fails instead of silently running plain binaries."""
     probe = work / 'probe.cpp'
     probe.write_text('int main(){return 0;}\n')
-    flags = ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
-    ok = subprocess.run([compiler, *flags, str(probe), '-o', str(work / 'probe')], capture_output=True).returncode == 0
-    return flags if ok else []
+    flags = ['-fsanitize=address,undefined', '-fno-sanitize-recover=all', '-fno-omit-frame-pointer']
+    built = subprocess.run([compiler, *flags, str(probe), '-o', str(work / 'probe')], capture_output=True, text=True)
+    require(built.returncode == 0, '--sanitize: this compiler cannot build ASan/UBSan binaries: ' + built.stderr[-800:])
+    ran = subprocess.run([str(work / 'probe')], capture_output=True, text=True, env=sanitizer_env())
+    require(ran.returncode == 0, '--sanitize: an empty ASan/UBSan program does not run here: ' + ran.stderr[-800:])
+    return flags
+
+
+def sanitizer_env() -> dict:
+    # LeakSanitizer is unsupported or unreliable on Apple Silicon (every other Apple harness of the
+    # Core route sets detect_leaks=0); Linux keeps the leak check.
+    leaks = '0' if platform.system() == 'Darwin' else '1'
+    return dict(os.environ, ASAN_OPTIONS='detect_leaks=' + leaks, UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')
 
 
 def compile_run(compiler, sources, output, includes, flags):
     command = [compiler, '-std=c++20', '-Wall', '-Wextra', '-Werror', *flags, *includes, *map(str, sources), '-o', str(output)]
     built = subprocess.run(command, capture_output=True, text=True)
     require(built.returncode == 0, 'compile failed: ' + built.stdout + built.stderr)
-    env = dict(os.environ, ASAN_OPTIONS='detect_leaks=1', UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')
-    result = subprocess.run([str(output)], capture_output=True, text=True, timeout=120, env=env)
+    result = subprocess.run([str(output)], capture_output=True, text=True, timeout=120, env=sanitizer_env())
     require(result.returncode == 0 and 'runtime error' not in result.stderr, result.stdout + result.stderr)
     return result.stdout.strip().splitlines()[-1]
 
 
 def executed(source: Path, compiler: str, sanitize: bool) -> dict:
     settings = (source / 'rpcs3/ios/RPCS3IOSSettings.cpp').read_text(encoding='utf-8')
-    bodies = [extract_function(settings, 'std::string game_setting_override_keys(std::string_view title_id)\n{'),
-              extract_function(settings, 'bool remove_game_setting_override(\n\tstd::string_view title_id,\n\tstd::string_view key) noexcept\n{')]
+    bodies = [extract_function(settings, 'std::string game_setting_override_keys(std::string_view title_id) noexcept\n{'),
+              extract_function(settings, 'bool remove_game_setting_override(\n\tstd::string_view title_id,\n\tstd::string_view key)\n{')]
     with tempfile.TemporaryDirectory(prefix='graphics612-') as tmp:
         work = Path(tmp)
         flags = sanitizer_flags(compiler, work) if sanitize else []
@@ -374,7 +413,8 @@ def executed(source: Path, compiler: str, sanitize: bool) -> dict:
         includes = ['-I' + str(source), '-I' + str(source / 'rpcs3'), '-I' + str(source / 'rpcs3/ios')]
         rsx = compile_run(compiler, [NATIVE_RSX], work / 'rsx', includes, flags)
     return {'compiler': subprocess.run([compiler, '--version'], capture_output=True, text=True).stdout.splitlines()[0],
-            'sanitizers': bool(flags), 'override_logic': overrides, 'rsx_line': rsx,
+            'sanitizers': bool(flags), 'leak_check': bool(flags) and platform.system() != 'Darwin',
+            'override_logic': overrides, 'rsx_line': rsx,
             'extracted_bodies_sha256': sha('\n'.join(bodies).encode())}
 
 
@@ -395,6 +435,7 @@ def main() -> int:
         report['executed'] = executed(source, args.cxx, args.sanitize)
         print(report['executed']['override_logic'])
         print(report['executed']['rsx_line'])
+        print('sanitizers=' + ('on' if report['executed']['sanitizers'] else 'off'))
     else:
         report['core'] = 'skipped: --source not given'
         print('SKIP: Core contract and executed checks (--source not given)')

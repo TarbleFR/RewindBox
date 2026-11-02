@@ -1566,6 +1566,12 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
 - (void)applyTestSettingChanges:(NSArray<NSArray<NSString*>*>*)changes
                           title:(NSString*)titleId
                      completion:(void (^)(BOOL success, NSString* message))completion {
+  // A full custom configuration (legacy_custom=1 at the last boot) would keep every
+  // test value permanently and cannot be reverted key by key: refuse, keep the game.
+  if ([RPCS3RsxConfigSnapshot(titleId)[@"legacy_custom"] isEqualToString:@"1"]) {
+    if (completion) completion(NO, [self localized:@"accuracyLegacyBlocked"]);
+    return;
+  }
   dispatch_async(_runtimeQueue, ^{
     if (self.operationBusy || !self->_api.stop_emulation ||
         !self->_api.set_game_setting || !self->_api.boot_game) {

@@ -118,11 +118,32 @@ class StagedCorePatch(unittest.TestCase):
             for flag in ('core_build_run', 'ios_build_run', 'iphone_validation_run'):
                 self.assertIs(self.manifest[flag], False, flag)
 
+    @staticmethod
+    def added_runs(entry):
+        """Maximal runs of consecutive '+' lines of each hunk of one file of a parsed patch."""
+        runs = []
+        for hunk in entry['hunks']:
+            run = []
+            for sign, text in hunk:
+                if sign == '+':
+                    run.append(text)
+                elif run:
+                    runs.append(run)
+                    run = []
+            if run:
+                runs.append(run)
+        return runs
+
+    def successor_patch(self, name, record, path):
+        raw = (ROOT / record['patch']).read_bytes()
+        self.assertEqual(hashlib.sha256(raw).hexdigest(), record['patch_sha256'], name)
+        return parse_patch(raw.decode('utf-8')).get(path)
+
     def canonical_postimage(self, path):
         """The canonical postimage of an RA file: its RA postimage, or the postimage of a later
         folded record (Core 612: core612_20261102) that either starts from exactly the RA
-        postimage, or starts from the same delivered base as this patch and still adds every
-        line this patch adds to the file."""
+        postimage and removes none of its added lines, or starts from the same delivered base
+        and still adds every RA block of the file, each one contiguous (nothing inserted inside)."""
         current = self.manifest['files_after_sha256'][path]
         target = self.canonical['files_sha256'].get(path)
         later = {name: r for name, r in self.canonical.items() if name != 'retroachievements_core'
@@ -130,18 +151,25 @@ class StagedCorePatch(unittest.TestCase):
                  and r.get('files_after_sha256', {}).get(path) == target}
         if current == target:
             return current
+        meaningful = lambda line: len(line.strip()) > 3 and line.strip() not in ('{', '}', '};', '#endif', 'else')
         for name, record in later.items():
             if record.get('files_before_sha256', {}).get(path) == current:
+                successor = self.successor_patch(name, record, path) or {'hunks': []}
+                removed = Counter(t for hunk in successor['hunks'] for sign, t in hunk if sign == '-' and meaningful(t))
+                self.assertFalse(removed & Counter(t for t in added(self.files[path]) if meaningful(t)),
+                                 f'{path}: {name} removes lines the RetroAchievements patch added')
                 return target
             same_start = (record.get('base_canonical_patch_sha256') == self.manifest['base_canonical_patch_sha256']
                           and (record.get('files_before_sha256', {}).get(path) == self.manifest['files_before_sha256'].get(path)
                                if path in self.manifest['files_before_sha256'] else path in record.get('new_files', [])))
             if not same_start:
                 continue
-            successor = parse_patch((ROOT / record['patch']).read_text(encoding='utf-8'))
-            self.assertEqual(hashlib.sha256((ROOT / record['patch']).read_bytes()).hexdigest(), record['patch_sha256'], name)
-            ours, theirs = Counter(added(self.files[path])), Counter(added(successor[path]))
-            self.assertFalse(ours - theirs, f'{path}: {name} drops lines the RetroAchievements patch adds')
+            successor = self.successor_patch(name, record, path)
+            self.assertIsNotNone(successor, f'{path}: {name} does not carry the file')
+            theirs = [run for run in self.added_runs(successor)]
+            for run in self.added_runs(self.files[path]):
+                self.assertTrue(any(run == block[i:i + len(run)] for block in theirs for i in range(len(block) - len(run) + 1)),
+                                f'{path}: {name} splits or drops a RetroAchievements block starting {run[0]!r}')
             return target
         self.fail(f'{path}: canonical postimage is neither the RA postimage nor a folded successor of it')
 

@@ -45,7 +45,9 @@ assert "if (status != 0) _performanceSnapshot.end()" in boot
 assert plugin.count("_api.boot_game(") == 1
 # The Build 260 action-sheet menus that also booted titles were never called
 # and were removed; the four remaining boot paths all go through the helper.
-assert plugin.count("bootTitleForCore:titleId.UTF8String savestate:") == 4
+# REWINDBOX_GRAPHICS_TESTS_612 adds the accuracy-test restart (applyTestSettingChanges); every boot
+# path still goes through bootTitleForCore.
+assert plugin.count("bootTitleForCore:titleId.UTF8String savestate:") == 5
 assert "NSEC_PER_SEC, (uint64_t)(0.1 * NSEC_PER_SEC)" in producer
 assert "0.5 * NSEC_PER_SEC" in overlay
 assert "NeoSwapFPSValid(metrics.frames_per_second, metrics.valid_fields)" in producer

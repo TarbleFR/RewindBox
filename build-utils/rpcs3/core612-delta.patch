@@ -108,7 +108,7 @@ index 7b9494c..3a8f7f5 100644
  	bool is_renderpass_open(const vk::command_buffer& cmd);
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 6eab393..7e6ae19 100644
+index 6eab393..ff6b8b0 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1833,6 +1833,8 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
@@ -131,7 +131,7 @@ index 6eab393..7e6ae19 100644
  			}
  #endif
  
-@@ -2081,6 +2087,48 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2081,6 +2087,52 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				ios_layers.mt_rsx = ios_mt_rsx;
  				ios_layers.spu_spin = ios_spu_spin;
  				ios_layers.mlaa_bypass = rpcs3::ios::get_experimental_policy().gow3_mlaa_bypass;
@@ -172,8 +172,12 @@ index 6eab393..7e6ae19 100644
 +					ios_rsx.vsync = rsx_vsync;
 +					ios_rsx.host_labels = rsx_host_labels;
 +					ios_rsx.strict_flush = rsx_strict_flush;
-+					ios_rsx.invariance = rpcs3::ios::get_experimental_policy().position_invariance;
++					// VKVertexProgram.cpp declares the invariant position only when the
++					// policy asks for it and Shader Precision is not Low (Apple GPUs).
++					ios_rsx.invariance_policy = rpcs3::ios::get_experimental_policy().position_invariance;
++					ios_rsx.invariance = ios_rsx.invariance_policy && g_cfg.video.shader_precision != gpu_preset_level::low;
 +					ios_rsx.mvk_async = rpcs3::ios::get_experimental_policy().moltenvk_async_submits;
++					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
 +					ios_rsx.overrides = ios_override_keys;
 +					sys_log.notice("%s", rpcs3::ios::boot_diagnostics::format_config_rsx_line(ios_rsx));
 +				}
@@ -700,10 +704,10 @@ index 0000000..6e4c976
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
-index 74ff550..6b96b42 100644
+index 74ff550..eff1215 100644
 --- a/rpcs3/ios/RPCS3IOSBootDiagnostics.h
 +++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
-@@ -376,6 +376,63 @@ namespace rpcs3::ios::boot_diagnostics
+@@ -376,6 +376,105 @@ namespace rpcs3::ios::boot_diagnostics
  		return line;
  	}
  
@@ -712,8 +716,44 @@ index 74ff550..6b96b42 100644
 +	// Black Ops II viewmodel tests change, one line per boot. It is emitted just
 +	// before the main CONFIG_LAYERS line, which stays the last one of the boot
 +	// for the host's timeline configuration and cause-history boundary. Values
-+	// are cfg::to_string() text; invariance and mvk_async are the resolved boot
-+	// policy; overrides lists the sparse user override keys applied on this boot.
++	// are cfg::to_string() text. invariance is what the vertex shaders get
++	// (policy and Shader Precision not Low, as VKVertexProgram.cpp decides on
++	// Apple GPUs); invariance_policy is the resolved setting. mvk_async is the
++	// boot's resolved request (the asynchronous-submit canary already applied).
++	// overrides lists, among the sparse user override keys applied on this boot,
++	// only those of the settings this line reports (rsx_override_keys).
++	inline constexpr std::string_view rsx_override_keys[] = {
++		"gpu.zcull_accuracy", "debug.disable_occlusion", "debug.emulate_depth_compare", "gpu.shader_precision",
++		"advanced.disable_msl_fast_math", "debug.disable_vertex_cache", "gpu.strict_rendering",
++		"advanced.read_color_buffers", "advanced.read_depth_buffer", "gpu.msaa", "gpu.vsync",
++		"experimental.position_invariance", "experimental.moltenvk_async_submits",
++	};
++	inline constexpr std::size_t rsx_overrides_limit = 400;
++
++	// Comma-separated keys -> the reported ones, in input order, without duplicates.
++	inline std::string filter_rsx_override_keys(std::string_view keys)
++	{
++		std::string result;
++		while (!keys.empty())
++		{
++			const std::size_t comma = keys.find(',');
++			const std::string_view key = keys.substr(0, comma);
++			keys = comma == std::string_view::npos ? std::string_view{} : keys.substr(comma + 1);
++			bool reported = false;
++			for (const std::string_view known : rsx_override_keys)
++			{
++				reported = reported || key == known;
++			}
++			const std::string padded = ',' + result + ',';
++			if (reported && padded.find(',' + std::string{key} + ',') == std::string::npos)
++			{
++				result += result.empty() ? "" : ",";
++				result += key;
++			}
++		}
++		return result;
++	}
++
 +	struct config_rsx
 +	{
 +		std::string_view title;
@@ -733,9 +773,11 @@ index 74ff550..6b96b42 100644
 +		std::string_view vsync;             // VSync Mode
 +		std::string_view host_labels;       // Allow Host GPU Labels
 +		std::string_view strict_flush;      // Strict Texture Flushing
-+		bool invariance = false;
-+		bool mvk_async = false;
-+		std::string_view overrides;
++		bool invariance = false;        // effective: policy and Shader Precision not Low
++		bool invariance_policy = false; // the resolved Position Invariance setting
++		bool mvk_async = false;         // resolved request of this boot
++		bool legacy_custom = false;     // a full custom config was applied (tests would change it)
++		std::string_view overrides;     // every applied sparse override key; filtered when formatted
 +	};
 +
 +	inline std::string format_config_rsx_line(const config_rsx& rsx)
@@ -759,8 +801,12 @@ index 74ff550..6b96b42 100644
 +		append_text(line, "host_labels", rsx.host_labels, 16);
 +		append_text(line, "strict_flush", rsx.strict_flush, 16);
 +		append_u32(line, "invariance", rsx.invariance ? 1u : 0u);
++		append_u32(line, "invariance_policy", rsx.invariance_policy ? 1u : 0u);
 +		append_u32(line, "mvk_async", rsx.mvk_async ? 1u : 0u);
-+		append_text(line, "overrides", rsx.overrides, 320);
++		append_u32(line, "legacy_custom", rsx.legacy_custom ? 1u : 0u);
++		const std::string reported = filter_rsx_override_keys(rsx.overrides);
++		append_text(line, "overrides", reported, rsx_overrides_limit);
++		append_u32(line, "overrides_truncated", reported.size() > rsx_overrides_limit ? 1u : 0u);
 +		return line;
 +	}
 +
@@ -786,10 +832,22 @@ index df33283..a7a66b8 100644
  	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
  	resolve_spu_spin_timing(resolved);
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index 08e293e..230ab9e 100644
+index 08e293e..33d7673 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1242,7 +1242,7 @@ private:
+@@ -1229,8 +1229,9 @@ private:
+                 vc_requests, vc_misses, lookups, elided, idles, rpcs3::ios::rsx_sync::rsx_frame_sample_period);
+         }
+         // REWINDBOX_FEEDBACK_CENSUS_610: color-feedback work of the window. Per-frame
+-        // values divide by RSXFRAME551 frames= of the same window; render passes
+-        // are VKGSRender::begin_render_pass calls (draw passes, splits included).
++        // values divide by RSXFRAME551 frames= of the same window. census=2 (Core 612):
++        // render passes are the passes VKGSRender::begin_render_pass actually began
++        // (census 1 counted every call, so the two values are not comparable).
+         {
+             namespace census = rpcs3::ios::feedback_census;
+             auto& c = census::counters;
+@@ -1242,7 +1243,7 @@ private:
              ios_core_profiler.notice(
                  "COREPROF FEEDBACK610 session=%llu window=%llu draw_renderpasses=%llu snapshot_draws=%llu snapshot_copies=%llu "
                  "duplicate_copies=%llu snapshot_mpix=%.3f pb_draws=%llu msaa_feedback_reads=%llu depth_feedback_reads=%llu "
@@ -799,7 +857,7 @@ index 08e293e..230ab9e 100644
                  static_cast<double>(pixels) / 1000000.0, pb_draws, msaa_reads, depth_reads);
          }
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index 55cd3b3..a584425 100644
+index 55cd3b3..416fbcf 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -150,6 +150,9 @@ const std::array catalog{
@@ -812,44 +870,53 @@ index 55cd3b3..a584425 100644
  	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers). Defaults keep the Build 483 behavior except the cache-only retained keys.
  	// The retained keys apply to each title's own cache directory, so they take a per-title value like any SETTING
  	// (a complete legacy title snapshot also freezes them); only persistent_spu_object_cache is restored as global-only.
-@@ -691,6 +694,25 @@ bool has_game_setting_overrides(std::string_view title_id) noexcept
+@@ -691,6 +694,33 @@ bool has_game_setting_overrides(std::string_view title_id) noexcept
  	return fs::is_file(game_setting_overrides_path(title_id));
  }
  
-+std::string game_setting_override_keys(std::string_view title_id)
++std::string game_setting_override_keys(std::string_view title_id) noexcept
 +{
-+	std::vector<std::pair<std::string, std::string>> values;
-+	std::string keys;
-+	if (!read_game_setting_overrides(title_id, values))
++	// Diagnostics only: a file that cannot be read again reports no key.
++	try
 +	{
++		std::vector<std::pair<std::string, std::string>> values;
++		std::string keys;
++		if (!read_game_setting_overrides(title_id, values))
++		{
++			return {};
++		}
++		for (const auto& item : values)
++		{
++			if (!keys.empty())
++			{
++				keys += ',';
++			}
++			keys += item.first;
++		}
 +		return keys;
 +	}
-+	for (const auto& item : values)
++	catch (...)
 +	{
-+		if (!keys.empty())
-+		{
-+			keys += ',';
-+		}
-+		keys += item.first;
++		return {};
 +	}
-+	return keys;
 +}
 +
  bool apply_game_setting_overrides(std::string_view title_id) noexcept
  {
  	std::vector<std::pair<std::string, std::string>> values;
-@@ -748,6 +770,34 @@ bool save_game_setting_override(
+@@ -748,6 +778,35 @@ bool save_game_setting_override(
  	return write_game_setting_overrides(title_id, values);
  }
  
 +bool remove_game_setting_override(
 +	std::string_view title_id,
-+	std::string_view key) noexcept
++	std::string_view key)
 +{
 +	// REWINDBOX_GRAPHICS_TESTS_612: removes one explicit user value, so the next
 +	// boot takes this key from the lower layers again (global config, GameDB and
 +	// RewindBox profile). A missing key is already inherited; an override file
-+	// left without any key is removed like remove_game_setting_overrides().
++	// left without any key is removed like remove_game_setting_overrides(). Not
++	// noexcept: a failed read throws to rpcs3_ios_set_game_setting, which reports it.
 +	std::vector<std::pair<std::string, std::string>> values;
 +	if (!read_game_setting_overrides(title_id, values))
 +	{
@@ -874,7 +941,7 @@ index 55cd3b3..a584425 100644
  {
  	if (!is_valid_game_title_id(title_id))
 diff --git a/rpcs3/ios/RPCS3IOSSettings.h b/rpcs3/ios/RPCS3IOSSettings.h
-index b00e894..7475cac 100644
+index b00e894..340053b 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.h
 +++ b/rpcs3/ios/RPCS3IOSSettings.h
 @@ -77,7 +77,11 @@ bool save_game_settings(std::string_view title_id) noexcept;
@@ -882,10 +949,10 @@ index b00e894..7475cac 100644
  bool has_game_setting_overrides(std::string_view title_id) noexcept;
  bool apply_game_setting_overrides(std::string_view title_id) noexcept;
 +// REWINDBOX_GRAPHICS_TESTS_612: keys of the title's sparse user overrides,
-+// comma separated in file order; empty when there are none or the file is invalid.
-+std::string game_setting_override_keys(std::string_view title_id);
++// comma separated in file order; empty when there are none or the file cannot be read.
++std::string game_setting_override_keys(std::string_view title_id) noexcept;
  bool save_game_setting_override(std::string_view title_id, std::string_view key, std::string_view value) noexcept;
-+bool remove_game_setting_override(std::string_view title_id, std::string_view key) noexcept;
++bool remove_game_setting_override(std::string_view title_id, std::string_view key);
  bool remove_game_setting_overrides(std::string_view title_id) noexcept;
  std::string game_settings_preset_directory(std::string_view title_id);
  std::string_view settings_load_error_detail(settings_load_error error) noexcept;

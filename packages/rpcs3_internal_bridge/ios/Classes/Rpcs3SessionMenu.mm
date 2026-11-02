@@ -301,7 +301,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 
 - (NSString*)tableView:(UITableView*)tableView titleForFooterInSection:(NSInteger)section {
   if (self.page == RPCS3MenuGraphics) return [self text:@"graphicsHelp"];
-  if (self.page == RPCS3MenuAccuracy) return [self text:@"accuracyHelp"];
+  if (self.page == RPCS3MenuAccuracy) return [self text:[self accuracyLegacy] ? @"accuracyLegacyHelp" : @"accuracyHelp"];
   if (self.page == RPCS3MenuSystem) return [self text:@"systemHelp"];
   if (self.page == RPCS3MenuControls) return [self text:@"controlsHelp"];
   if (self.page == RPCS3MenuTouchControls) return [self touchText:@"hideWithControllerHelp"];
@@ -334,8 +334,14 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   }
   NSString* overrideKeys = state[@"overrides"] ?: @"";
   NSArray<NSString*>* overrides = [overrideKeys componentsSeparatedByString:@","];
-  return [NSString stringWithFormat:@"%@ · %@", [self text:label],
-          [self text:[overrides containsObject:key] ? @"testSourceTest" : @"testSourceProfile"]];
+  NSString* source = [self accuracyLegacy] ? @"testSourceCustom"
+      : ([overrides containsObject:key] ? @"testSourceTest" : @"testSourceProfile");
+  return [NSString stringWithFormat:@"%@ · %@", [self text:label], [self text:source]];
+}
+
+// The last boot applied a full custom configuration: tests would change it for good.
+- (BOOL)accuracyLegacy {
+  return [self.accuracyState[@"legacy_custom"] isEqualToString:@"1"];
 }
 
 - (UITableViewCell*)baseCell {
@@ -631,6 +637,10 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 
   if (self.page == RPCS3MenuAccuracy) {
     NSArray<NSDictionary*>* levers = RPCS3AccuracyLevers();
+    if ([self accuracyLegacy]) {
+      [self showMessage:[self text:@"accuracyLegacyBlocked"]];
+      return;
+    }
     if (row >= (NSInteger)levers.count) {
       [self performCommand:@"testReset" value:nil];
       return;
