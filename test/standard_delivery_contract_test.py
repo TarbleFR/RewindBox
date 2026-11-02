@@ -526,7 +526,7 @@ class Workflow(unittest.TestCase):
         self.assertTrue(set(manifest['republish']) <= set(sd.REPUBLISHED_KINDS))
         stage = order.index('Stage the authenticated component archives for republication')
         for operation in ('download-rpcs3', 'download-melonx', 'download-libretro', 'download-melonx-dependencies',
-                          'dolphin', 'armsx2'):
+                          'authenticate-dolphin', 'authenticate-armsx2'):
             index = next(i for i, s in enumerate(steps('republish'))
                          if s.get('run', '').endswith('standard_delivery.py ' + operation))
             self.assertLess(index, stage)

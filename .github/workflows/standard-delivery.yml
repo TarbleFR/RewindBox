@@ -183,9 +183,9 @@ jobs:
     - name: Download and authenticate the exact retained native MeloNX dependencies
       run: python3 -B .github/diagnostics/standard_delivery.py download-melonx-dependencies
     - name: Authenticate the retained Dolphin session Core
-      run: python3 -B .github/diagnostics/standard_delivery.py dolphin
+      run: python3 -B .github/diagnostics/standard_delivery.py authenticate-dolphin
     - name: Authenticate the retained ARMSX2 ABI9 Core
-      run: python3 -B .github/diagnostics/standard_delivery.py armsx2
+      run: python3 -B .github/diagnostics/standard_delivery.py authenticate-armsx2
     - name: Stage the authenticated component archives for republication
       run: python3 -B .github/diagnostics/standard_delivery.py republish
     - name: Republish the authenticated rpcs3-core archive

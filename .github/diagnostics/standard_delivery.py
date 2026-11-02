@@ -1308,10 +1308,11 @@ def melonx_operation(operation):
     return save('standard-melonx-evidence.json', melonx.engine_evidence())
 
 
-def native_operation(kind):
+def native_operation(kind, install=True):
     import retained_components as retained
     manifest = ci_manifest()
-    return save(f'standard-{kind}.json', retained.install_native(kind, manifest['components'][kind]))
+    suffix = '' if install else '-authenticated'
+    return save(f'standard-{kind}{suffix}.json', retained.install_native(kind, manifest['components'][kind], install))
 
 
 def archive_operation(kind):
@@ -2365,6 +2366,7 @@ def record(build, run, verification, api_directory, key_deleted=False, root=None
 
 CI_OPERATIONS = ('materialize', 'source-contract', 'baseline', 'tests', 'await-tests', 'donor', 'download-rpcs3',
                  'install-rpcs3', 'rpcs3-exports', 'embed-rpcs3-source', 'component-runs', 'dolphin', 'armsx2',
+                 'authenticate-dolphin', 'authenticate-armsx2',
                  'download-libretro', 'libretro', 'download-melonx-dependencies', 'download-melonx', 'melonx-evidence',
                  'neoswap-host', 'embed', 'structure', 'seal', 'validate', 'diff-check', 'republish')
 LOCAL_OPERATIONS = ('freeze', 'trigger-paths', 'record')
@@ -2412,6 +2414,8 @@ def main(argv=None):
         result = component_runs()
     elif operation in ('dolphin', 'armsx2'):
         result = native_operation(operation)
+    elif operation in ('authenticate-dolphin', 'authenticate-armsx2'):
+        result = native_operation(operation.removeprefix('authenticate-'), install=False)
     elif operation in ('download-libretro', 'download-melonx-dependencies'):
         result = archive_operation(operation.removeprefix('download-'))
     elif operation == 'libretro':

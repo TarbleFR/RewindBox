@@ -235,7 +235,7 @@ def fetch_native(kind, spec, api=None, download=None):
     return value, safe_extract(path, CACHE / kind)
 
 
-def install_native(kind, spec):
+def install_native(kind, spec, install=True):
     """Install a retained 608 Dolphin/ARMSX2 Core exactly as IPA609 and IPA610 did (same producer, same checks)."""
     import rewind608_producers as producers608
     import rewind608_reuse as reuse608
@@ -278,11 +278,15 @@ def install_native(kind, spec):
                         (directory / 'Sys', ROOT / 'ios/Runner/Sys'))
         for source, destination in replacements:
             require(source.is_dir(), 'Dolphin runtime resource missing')
+            if not install:
+                continue
             if destination.exists():
                 shutil.rmtree(destination)
             shutil.copytree(source, destination)
-        shutil.copy2(directory / 'cacert.pem', ROOT / 'ios/Runner/cacert.pem')
-        (ROOT / 'packages/dolphin_internal_bridge/ios/Frameworks/DolphinCore.framework/DolphinCore').chmod(0o755)
+        require((directory / 'cacert.pem').is_file(), 'Dolphin runtime resource missing')
+        if install:
+            shutil.copy2(directory / 'cacert.pem', ROOT / 'ios/Runner/cacert.pem')
+            (ROOT / 'packages/dolphin_internal_bridge/ios/Frameworks/DolphinCore.framework/DolphinCore').chmod(0o755)
     else:
         source = json.loads((ROOT / 'build-utils/armsx2/source.json').read_bytes())
         require(identity['revision'] == record['upstreamRevision'] == source['revision'] == spec['upstreamRevision'] and
@@ -294,10 +298,17 @@ def install_native(kind, spec):
         producers608.validate_armsx2_shaders(identity, record['files'],
                                              producers608.member_hashes(directory / 'ARMSX2Core.framework/shaders'))
         destination = ROOT / 'dist/armsx2'
-        if destination.exists():
-            shutil.rmtree(destination)
-        shutil.copytree(directory, destination)
-        (destination / 'ARMSX2Core.framework/ARMSX2Core').chmod(0o755)
+        if install:
+            if destination.exists():
+                shutil.rmtree(destination)
+            shutil.copytree(directory, destination)
+            (destination / 'ARMSX2Core.framework/ARMSX2Core').chmod(0o755)
+    result = dict(value, identity=identity, payloadFingerprint=fingerprint, sourceInputs=record['inputs'],
+                  candidateSourceInputs=current, compiledSourcePostimages=record['compiledSourcePostimages'],
+                  coreRecompiled=False, retainedSince=spec['retainedSince'], physicalDeviceTested=False)
+    if not install:
+        # Every authentication above ran; nothing is installed (the republication job builds nothing).
+        return dict(result, installed=False)
     fast_path = ROOT / 'build/fast-native/identity.json'
     fast = json.loads(fast_path.read_bytes())
     prefix = 'dolphin' if kind == 'dolphin' else 'armsx2'
@@ -306,9 +317,7 @@ def install_native(kind, spec):
     if kind == 'dolphin':
         fast.update(dolphinAchievementPresentationVersion=1, dolphinAchievementSessionPolicyVersion=1)
     producers608.save(fast_path, fast)
-    return dict(value, identity=identity, payloadFingerprint=fingerprint, sourceInputs=record['inputs'],
-                candidateSourceInputs=current, compiledSourcePostimages=record['compiledSourcePostimages'],
-                coreRecompiled=False, retainedSince=spec['retainedSince'], physicalDeviceTested=False)
+    return dict(result, installed=True)
 
 
 def embed_native_notices(kind, spec, app):
