@@ -322,3 +322,34 @@ flutter_secure_storage) is restored on the same relaunch.
 - Tests: new native XCTest `testSignInSurvivesALostKeychainItemAndSignOutRemovesBothCopies`
   (not run here: needs macOS/Xcode; the Linux source contract passes); Dart
   session suites 28/28. Device validation needed on the next IPA.
+
+## Root cause found (2 November 2026, app.log of IPA 617/618)
+
+The current journal (`Documents/Diagnostics/System/Application/app.log`) shows,
+at every launch after a successful sign-in:
+
+```
+RetroAchievements central account read: authenticated=false storage=keychain keychain=0
+RetroAchievements in-game session ready: account=absent enabled=true hardcore=false
+```
+
+The Keychain item **was** found (`storage=keychain`, status 0). The plugin
+answered `account` with `@"authenticated": @(credentials != nil)`: in
+Objective-C a comparison is a C `int`, so the boxed value is
+`[NSNumber numberWithInt:1]`, which the Flutter standard codec sends as the
+integer `1`, not `true`. The Dart session read it with
+`account['authenticated'] == true`, which is false for `1`: every launch looked
+signed out ("Mot de passe requis") and every game launch prepared RA with
+`account=absent enabled=false` (PS3 included: no achievements in game). During
+the session the sign-in itself returned a real `@YES`, hence "Activé" until the
+app was closed. The XCTest did not see it because `@1` is `isEqual:` to `@YES`.
+The Keychain/private-copy change of 615 was therefore not the cause (it stays
+as a second copy).
+
+Fix: the plugin returns real booleans (`credentials ? @YES : @NO`; same for the
+launch snapshot's `hardcore`, built from `&&`), and the plugin's Dart client
+reads the flag fields sent as 1/0 as booleans. Tests: the native suite decodes
+every `account` answer through the real `FlutterStandardMethodCodec` and
+requires a CFBoolean; a Dart test feeds `authenticated: 1` through the method
+channel and requires a signed-in answer. Device confirmation pending on the next
+build.

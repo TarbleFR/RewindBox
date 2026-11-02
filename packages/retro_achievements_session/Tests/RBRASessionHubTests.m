@@ -320,6 +320,17 @@ static RBRATestResponse RBRAProtocolResponse;
     XCTAssertFalse([value containsString:RBRAFixturePassword]);
   }
 }
+/// What Dart receives: the answer through the real Flutter standard codec.
+/// @(a != b) boxes a C int that arrives as 1, which Dart's `== true` reads
+/// as false (every launch looked signed out until 2 November 2026).
+- (void)assertFlagsSurviveTheCodec:(NSDictionary *)answer {
+  FlutterStandardMethodCodec *codec = [FlutterStandardMethodCodec sharedInstance];
+  NSDictionary *decoded = [codec decodeEnvelope:[codec encodeSuccessEnvelope:answer]];
+  for (NSString *key in @[@"available", @"authenticated", @"central"]) {
+    if (!decoded[key]) continue;
+    XCTAssertEqual(CFGetTypeID((__bridge CFTypeRef)decoded[key]), CFBooleanGetTypeID(), @"%@", key);
+  }
+}
 - (void)assertEventsRedacted {
   [self drainMain];
   for (FlutterMethodCall *event in self.messenger.recordedCalls) {
@@ -572,6 +583,7 @@ static RBRATestResponse RBRAProtocolResponse;
   XCTAssertEqualObjects(request[@"fields"][@"u"], username); XCTAssertEqualObjects(request[@"fields"][@"p"], password);
   id account = [self call:@"account" arguments:nil]; [self assertRedacted:account];
   XCTAssertEqualObjects(account[@"authenticated"], @YES); XCTAssertEqualObjects(account[@"username"], username);
+  [self assertFlagsSurviveTheCodec:account];
   NSDictionary *snapshot = [self start:@{}]; XCTAssertEqualObjects(snapshot[@"token"], RBRAFixtureToken);
   [self assertEventsRedacted];
 }
@@ -640,6 +652,7 @@ static RBRATestResponse RBRAProtocolResponse;
   XCTAssertEqual(removed, errSecSuccess);
   id account = [self call:@"account" arguments:nil]; [self assertRedacted:account];
   XCTAssertEqualObjects(account[@"authenticated"], @YES);
+  [self assertFlagsSurviveTheCodec:account];
   XCTAssertEqualObjects(account[@"username"], @"player");
   XCTAssertEqualObjects(account[@"storage"], @"file");
   XCTAssertEqualObjects(account[@"keychainStatus"], @((int)errSecItemNotFound));
@@ -650,6 +663,7 @@ static RBRATestResponse RBRAProtocolResponse;
   XCTAssertFalse([NSFileManager.defaultManager fileExistsAtPath:RBRATestFallbackPath()]);
   id signedOut = [self call:@"account" arguments:nil];
   XCTAssertEqualObjects(signedOut[@"authenticated"], @NO);
+  [self assertFlagsSurviveTheCodec:signedOut];
   XCTAssertEqualObjects(signedOut[@"storage"], @"none");
 }
 - (void)testInvalidKeychainDataFailsClosedWithoutEchoingContents {

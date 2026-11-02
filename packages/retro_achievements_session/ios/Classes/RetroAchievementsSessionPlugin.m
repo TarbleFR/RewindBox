@@ -341,7 +341,11 @@ static NSString *RBRAPublicErrorCode(id value) {
     if (status != errSecSuccess && status != errSecItemNotFound) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
     [self.lock lock]; NSDictionary *state = self.lastState; [self.lock unlock];
     // storage/keychainStatus: diagnostics only (no account data).
-    result(@{@"available": @YES, @"authenticated": @(credentials != nil),
+    // A real boolean: @(credentials != nil) boxes a C int, which the Flutter
+    // codec sends as 1, and Dart's `== true` read it as signed out at every
+    // launch (the 2 November 2026 report: "password required" after each
+    // restart while the Keychain item was found).
+    result(@{@"available": @YES, @"authenticated": credentials ? @YES : @NO,
              @"username": credentials[@"username"] ?: @"", @"session": state,
              @"storage": source, @"keychainStatus": @((int)keychain)});
     return;
@@ -452,7 +456,7 @@ static NSString *RBRAPublicErrorCode(id value) {
       @"language": RBRAString(args[@"language"]),
       @"capability": RBRAString(args[@"capability"]),
       @"enabled": @(enabled), @"supported": @(supported), @"requested": @(requested),
-      @"hardcore": @(enabled && RBRABool(args[@"hardcore"])), @"notifications": @(enabled),
+      @"hardcore": (enabled && RBRABool(args[@"hardcore"])) ? @YES : @NO, @"notifications": @(enabled),
       @"username": enabled ? credentials[@"username"] : @"", @"token": enabled ? credentials[@"token"] : @"",
       @"statusText": [statusText copy],
       @"generation": [args[@"generation"] isKindOfClass:NSNumber.class] ? args[@"generation"] : @0,
