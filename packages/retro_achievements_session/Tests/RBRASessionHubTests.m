@@ -51,13 +51,6 @@ static NSDictionary<NSString *, NSString *> *RBRATestLegacyPaths(void) {
     @"secrets": [documents stringByAppendingPathComponent:@"ARMSX2/inis/secrets.ini"]};
 }
 
-// Private copy of the central account (RBRAFallbackURL), in the test host's
-// own container.
-static NSString *RBRATestFallbackPath(void) {
-  NSString *support = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES).firstObject;
-  return [support stringByAppendingPathComponent:@"RetroAchievements/central-session.json"];
-}
-
 static NSDictionary *RBRATestForm(NSURLRequest *request) {
   NSData *data = request.HTTPBody;
   if (!data && request.HTTPBodyStream) {
@@ -214,7 +207,7 @@ static RBRATestResponse RBRAProtocolResponse;
     XCTAssertTrue(status == errSecSuccess || status == errSecItemNotFound);
   }
   [NSUserDefaults.standardUserDefaults removeObjectForKey:@"libretro.achievements.enabled"];
-  for (NSString *path in [RBRATestLegacyPaths().allValues arrayByAddingObject:RBRATestFallbackPath()])
+  for (NSString *path in RBRATestLegacyPaths().allValues)
     if ([NSFileManager.defaultManager fileExistsAtPath:path])
       XCTAssertTrue([NSFileManager.defaultManager removeItemAtPath:path error:nil]);
   self.plugin = [RetroAchievementsSessionPlugin new];
@@ -232,7 +225,7 @@ static RBRATestResponse RBRAProtocolResponse;
     XCTAssertTrue(status == errSecSuccess || status == errSecItemNotFound);
   }
   [NSUserDefaults.standardUserDefaults removeObjectForKey:@"libretro.achievements.enabled"];
-  for (NSString *path in [RBRATestLegacyPaths().allValues arrayByAddingObject:RBRATestFallbackPath()])
+  for (NSString *path in RBRATestLegacyPaths().allValues)
     if ([NSFileManager.defaultManager fileExistsAtPath:path])
       XCTAssertTrue([NSFileManager.defaultManager removeItemAtPath:path error:nil]);
   [super tearDown];
@@ -624,33 +617,6 @@ static RBRATestResponse RBRAProtocolResponse;
   XCTAssertEqualObjects(second[@"username"], @"second");
   XCTAssertEqualObjects([self call:@"account" arguments:nil][@"username"], @"second");
   [self assertRedacted:first]; [self assertRedacted:second];
-}
-- (void)testSignInSurvivesALostKeychainItemAndSignOutRemovesBothCopies {
-  [RBRATestURLProtocol setResponse:^NSDictionary *(NSURLRequest *request) {
-    return @{@"status": @200, @"json": @{@"Success": @YES, @"User": @"player", @"Token": RBRAFixtureToken}};
-  }];
-  id response = [self call:@"login" arguments:@{@"username": @"player", @"password": RBRAFixturePassword}];
-  XCTAssertEqualObjects(response[@"authenticated"], @YES);
-  XCTAssertTrue([NSFileManager.defaultManager fileExistsAtPath:RBRATestFallbackPath()]);
-  NSNumber *excluded = nil;
-  [[NSURL fileURLWithPath:RBRATestFallbackPath()] getResourceValue:&excluded forKey:NSURLIsExcludedFromBackupKey error:nil];
-  XCTAssertEqualObjects(excluded, @YES);
-  // The 2 November 2026 recording: the Keychain item is gone at the next launch.
-  OSStatus removed = SecItemDelete((__bridge CFDictionaryRef)RBRATestKeychainQuery());
-  XCTAssertEqual(removed, errSecSuccess);
-  id account = [self call:@"account" arguments:nil]; [self assertRedacted:account];
-  XCTAssertEqualObjects(account[@"authenticated"], @YES);
-  XCTAssertEqualObjects(account[@"username"], @"player");
-  XCTAssertEqualObjects(account[@"storage"], @"file");
-  XCTAssertEqualObjects(account[@"keychainStatus"], @((int)errSecItemNotFound));
-  // The Keychain item is restored and the next launch can use the token.
-  XCTAssertEqualObjects([self call:@"account" arguments:nil][@"storage"], @"keychain");
-  NSDictionary *snapshot = [self start:@{}]; XCTAssertEqualObjects(snapshot[@"token"], RBRAFixtureToken);
-  [self call:@"logout" arguments:nil];
-  XCTAssertFalse([NSFileManager.defaultManager fileExistsAtPath:RBRATestFallbackPath()]);
-  id signedOut = [self call:@"account" arguments:nil];
-  XCTAssertEqualObjects(signedOut[@"authenticated"], @NO);
-  XCTAssertEqualObjects(signedOut[@"storage"], @"none");
 }
 - (void)testInvalidKeychainDataFailsClosedWithoutEchoingContents {
   [self writeRawKeychain:[RBRAFixtureToken dataUsingEncoding:NSUTF8StringEncoding]];

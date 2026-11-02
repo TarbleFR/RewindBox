@@ -23,10 +23,19 @@ static NSMutableDictionary *RBRAKeychainQuery(NSString *suffix) {
             (__bridge id)kSecAttrAccount: @"emulator-player"} mutableCopy];
 }
 
-static NSDictionary *RBRADecodeCredentials(NSData *data) {
-  if (![data isKindOfClass:NSData.class]) return nil;
+static NSDictionary *RBRAReadCredentials(NSString *suffix, OSStatus *status) {
+  NSMutableDictionary *query = RBRAKeychainQuery(suffix);
+  query[(__bridge id)kSecReturnData] = @YES;
+  query[(__bridge id)kSecMatchLimit] = (__bridge id)kSecMatchLimitOne;
+  CFTypeRef value = NULL;
+  OSStatus result = SecItemCopyMatching((__bridge CFDictionaryRef)query, &value);
+  if (status) *status = result;
+  if (result != errSecSuccess) return nil;
+  NSData *data = CFBridgingRelease(value);
+  if (![data isKindOfClass:NSData.class]) { if (status) *status = errSecDecode; return nil; }
   id decoded = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
   if (![decoded isKindOfClass:NSDictionary.class] || !RBRAString(decoded[@"username"]).length || !RBRAString(decoded[@"token"]).length) {
+    if (status) *status = errSecDecode;
     return nil;
   }
   NSMutableDictionary *credentials = [@{ @"username": decoded[@"username"], @"token": decoded[@"token"] } mutableCopy];
@@ -37,117 +46,18 @@ static NSDictionary *RBRADecodeCredentials(NSData *data) {
   return [credentials copy];
 }
 
-static NSDictionary *RBRAReadCredentials(NSString *suffix, OSStatus *status) {
-  NSMutableDictionary *query = RBRAKeychainQuery(suffix);
-  query[(__bridge id)kSecReturnData] = @YES;
-  query[(__bridge id)kSecMatchLimit] = (__bridge id)kSecMatchLimitOne;
-  CFTypeRef value = NULL;
-  OSStatus result = SecItemCopyMatching((__bridge CFDictionaryRef)query, &value);
-  if (status) *status = result;
-  if (result != errSecSuccess) return nil;
-  NSDictionary *credentials = RBRADecodeCredentials(CFBridgingRelease(value));
-  if (!credentials && status) *status = errSecDecode;
-  return credentials;
-}
-
-// Second copy of the central account (username + Connect token, never the
-// password) in the application's private Application Support folder: never
-// in Documents (visible in Files), excluded from backups, readable only after
-// the first unlock. Some installations do not get their Keychain item back at
-// the next launch (2 November 2026 recording: signed in, then "password
-// required" after every restart while the Web API key, also in the Keychain,
-// survived). RetroArch, Dolphin and PCSX2 keep the same token in their own
-// configuration files.
-static NSURL *RBRAFallbackURL(void) {
-  NSURL *support = [NSFileManager.defaultManager URLsForDirectory:NSApplicationSupportDirectory
-                                                       inDomains:NSUserDomainMask].firstObject;
-  if (!support) return nil;
-  return [[support URLByAppendingPathComponent:@"RetroAchievements" isDirectory:YES]
-          URLByAppendingPathComponent:@"central-session.json" isDirectory:NO];
-}
-
-static NSDictionary *RBRAReadFallback(void) {
-  NSURL *url = RBRAFallbackURL();
-  if (!url) return nil;
-  NSData *data = [NSData dataWithContentsOfURL:url options:0 error:nil];
-  return data ? RBRADecodeCredentials(data) : nil;
-}
-
-static BOOL RBRAWriteFallback(NSData *data) {
-  NSURL *url = RBRAFallbackURL();
-  if (!url || !data) return NO;
-  NSFileManager *files = NSFileManager.defaultManager;
-  NSURL *folder = url.URLByDeletingLastPathComponent;
-  if (![files createDirectoryAtURL:folder withIntermediateDirectories:YES
-        attributes:@{NSFilePosixPermissions: @0700} error:nil]) return NO;
-  [folder setResourceValue:@YES forKey:NSURLIsExcludedFromBackupKey error:nil];
-  if (![data writeToURL:url options:NSDataWritingAtomic |
-        NSDataWritingFileProtectionCompleteUntilFirstUserAuthentication error:nil]) return NO;
-  [files setAttributes:@{NSFilePosixPermissions: @0600} ofItemAtPath:url.path error:nil];
-  [url setResourceValue:@YES forKey:NSURLIsExcludedFromBackupKey error:nil];
-  return YES;
-}
-
-static void RBRADeleteFallback(void) {
-  NSURL *url = RBRAFallbackURL();
-  if (url) [NSFileManager.defaultManager removeItemAtURL:url error:nil];
-}
-
-static OSStatus RBRAWriteKeychain(NSData *data) {
+static OSStatus RBRAWriteCredentials(NSDictionary *credentials) {
+  NSData *data = [NSJSONSerialization dataWithJSONObject:credentials options:0 error:nil];
+  if (!data) return errSecParam;
   NSMutableDictionary *query = RBRAKeychainQuery(@".retroachievements");
   NSDictionary *update = @{(__bridge id)kSecValueData: data,
-      (__bridge id)kSecAttrAccessible: (__bridge id)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly};
+      (__bridge id)kSecAttrAccessible: (__bridge id)kSecAttrAccessibleWhenUnlockedThisDeviceOnly};
   OSStatus status = SecItemUpdate((__bridge CFDictionaryRef)query, (__bridge CFDictionaryRef)update);
   if (status == errSecItemNotFound) {
     [query addEntriesFromDictionary:update];
     status = SecItemAdd((__bridge CFDictionaryRef)query, NULL);
   }
   return status;
-}
-
-/// Saves the central account in the Keychain and in the private fallback
-/// file. Succeeds when at least one copy was written.
-static OSStatus RBRAWriteCredentials(NSDictionary *credentials) {
-  NSData *data = [NSJSONSerialization dataWithJSONObject:credentials options:0 error:nil];
-  if (!data) return errSecParam;
-  OSStatus keychain = RBRAWriteKeychain(data);
-  BOOL file = RBRAWriteFallback(data);
-  // Codes only: never the username or the token.
-  NSLog(@"[RetroAchievements] central account saved: keychain=%d file=%@", (int)keychain, file ? @"yes" : @"no");
-  return keychain == errSecSuccess || file ? errSecSuccess : keychain;
-}
-
-/// The central account: the Keychain item, else the private fallback copy
-/// (which then restores the Keychain item). [source] is "keychain", "file"
-/// or "none"; [keychainStatus] the Keychain read result, for diagnostics.
-static NSDictionary *RBRALoadCentral(OSStatus *status, NSString **source, OSStatus *keychainStatus) {
-  OSStatus keychain = errSecSuccess;
-  NSDictionary *credentials = RBRAReadCredentials(@".retroachievements", &keychain);
-  if (keychainStatus) *keychainStatus = keychain;
-  if (credentials) {
-    // Accounts saved before the private copy existed get it; a stale copy
-    // (another account) follows the Keychain.
-    if (![RBRAReadFallback() isEqualToDictionary:credentials]) {
-      NSData *data = [NSJSONSerialization dataWithJSONObject:credentials options:0 error:nil];
-      RBRAWriteFallback(data);
-    }
-    if (status) *status = errSecSuccess;
-    if (source) *source = @"keychain";
-    return credentials;
-  }
-  NSDictionary *fallback = RBRAReadFallback();
-  if (fallback) {
-    NSData *data = [NSJSONSerialization dataWithJSONObject:fallback options:0 error:nil];
-    OSStatus restored = data ? RBRAWriteKeychain(data) : errSecParam;
-    NSLog(@"[RetroAchievements] central account read from the private copy (keychain=%d, restored=%d)",
-          (int)keychain, (int)restored);
-    if (status) *status = errSecSuccess;
-    if (source) *source = @"file";
-    return fallback;
-  }
-  if (status) *status = keychain;
-  if (source) *source = @"none";
-  return nil;
 }
 
 static FlutterError *RBRAError(NSString *code) {
@@ -267,7 +177,7 @@ static NSString *RBRAPublicErrorCode(id value) {
   NSDictionary *args = [call.arguments isKindOfClass:NSDictionary.class] ? call.arguments : @{};
   if ([call.method isEqualToString:@"inspectLegacy"]) {
     OSStatus status;
-    NSDictionary *central = RBRALoadCentral(&status, NULL, NULL);
+    NSDictionary *central = RBRAReadCredentials(@".retroachievements", &status);
     if (status != errSecSuccess && status != errSecItemNotFound) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
     if (central) {
       // An interrupted DB write resumes the same import. Never overwrite a
@@ -313,7 +223,7 @@ static NSString *RBRAPublicErrorCode(id value) {
     NSDictionary *candidate = self.legacyCandidates[RBRAString(args[@"id"])];
     if (!candidate) { result(RBRAError(@"RA_MIGRATION_EXPIRED")); return; }
     OSStatus status;
-    NSDictionary *central = RBRALoadCentral(&status, NULL, NULL);
+    NSDictionary *central = RBRAReadCredentials(@".retroachievements", &status);
     if (status != errSecSuccess && status != errSecItemNotFound) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
     if (central && [central[@"username"] caseInsensitiveCompare:candidate[@"username"]] != NSOrderedSame) {
       result(RBRAError(@"RA_MIGRATION_EXPIRED")); return;
@@ -334,16 +244,11 @@ static NSString *RBRAPublicErrorCode(id value) {
   }
   if ([call.method isEqualToString:@"account"]) {
     OSStatus status;
-    NSString *source = @"none";
-    OSStatus keychain = errSecSuccess;
-    NSDictionary *credentials = RBRALoadCentral(&status, &source, &keychain);
-    NSLog(@"[RetroAchievements] central account read: source=%@ keychain=%d", source, (int)keychain);
+    NSDictionary *credentials = RBRAReadCredentials(@".retroachievements", &status);
     if (status != errSecSuccess && status != errSecItemNotFound) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
     [self.lock lock]; NSDictionary *state = self.lastState; [self.lock unlock];
-    // storage/keychainStatus: diagnostics only (no account data).
     result(@{@"available": @YES, @"authenticated": @(credentials != nil),
-             @"username": credentials[@"username"] ?: @"", @"session": state,
-             @"storage": source, @"keychainStatus": @((int)keychain)});
+             @"username": credentials[@"username"] ?: @"", @"session": state});
     return;
   }
   if ([call.method isEqualToString:@"login"]) {
@@ -413,8 +318,6 @@ static NSString *RBRAPublicErrorCode(id value) {
     self.authGeneration++;
     [self.authTask cancel]; self.authTask = nil;
     OSStatus status = SecItemDelete((__bridge CFDictionaryRef)RBRAKeychainQuery(@".retroachievements"));
-    // The private copy goes first: a sign-out never comes back at the next launch.
-    RBRADeleteFallback();
     if (status != errSecSuccess && status != errSecItemNotFound) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
     // Active snapshots retain their own credentials until their game ends.
     self.legacyCandidates = @{};
@@ -428,7 +331,7 @@ static NSString *RBRAPublicErrorCode(id value) {
       result(RBRAError(@"RA_UNSUPPORTED")); return;
     }
     OSStatus status;
-    NSDictionary *credentials = RBRALoadCentral(&status, NULL, NULL);
+    NSDictionary *credentials = RBRAReadCredentials(@".retroachievements", &status);
     if (status != errSecSuccess && status != errSecItemNotFound) { result(RBRAError(@"RA_STORAGE_UNAVAILABLE")); return; }
     // RPCS3 (PS3) has its own rcheevos client; MeloNX has no integration.
     BOOL supported = RBRABool(args[@"supported"]) && ![@[@"melonx"] containsObject:engine];
