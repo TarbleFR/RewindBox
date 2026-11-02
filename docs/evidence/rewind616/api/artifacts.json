@@ -1,0 +1,70 @@
+{
+ "total_count": 5,
+ "artifacts": [
+  {
+   "id": 13158388224,
+   "name": "RewindBox-Build616-eccc855001f3a52d6af2ab395c4de5ca5e4f6374-attempt1-cold-part00",
+   "size_in_bytes": 48738798,
+   "expired": false,
+   "expires_at": "2026-11-16T16:13:49Z",
+   "digest": "sha256:83d37a855d917164b8e0bf4ac9666bc665483d9bdc527d8948b5fdd65e242c27",
+   "workflow_run": {
+    "id": 41475556176,
+    "head_branch": "Claude",
+    "head_sha": "eccc855001f3a52d6af2ab395c4de5ca5e4f6374"
+   }
+  },
+  {
+   "id": 13159305883,
+   "name": "RewindBox-Build616-eccc855001f3a52d6af2ab395c4de5ca5e4f6374-attempt1-cold-part01",
+   "size_in_bytes": 48738798,
+   "expired": false,
+   "expires_at": "2026-11-16T16:13:53Z",
+   "digest": "sha256:656c07dabafef1c3f87ead40793e565b4c7f4d830cc459c3f28cb4b4a69f3deb",
+   "workflow_run": {
+    "id": 41475556176,
+    "head_branch": "Claude",
+    "head_sha": "eccc855001f3a52d6af2ab395c4de5ca5e4f6374"
+   }
+  },
+  {
+   "id": 13159515715,
+   "name": "RewindBox-Build616-eccc855001f3a52d6af2ab395c4de5ca5e4f6374-attempt1-cold-part02",
+   "size_in_bytes": 48738798,
+   "expired": false,
+   "expires_at": "2026-11-16T16:13:54Z",
+   "digest": "sha256:8d65dba5c53f75c15cb00df48a4140f681de017a93b33a61bd73edfe9c212a98",
+   "workflow_run": {
+    "id": 41475556176,
+    "head_branch": "Claude",
+    "head_sha": "eccc855001f3a52d6af2ab395c4de5ca5e4f6374"
+   }
+  },
+  {
+   "id": 13160270234,
+   "name": "RewindBox-Build616-eccc855001f3a52d6af2ab395c4de5ca5e4f6374-attempt1-cold-part03",
+   "size_in_bytes": 48738798,
+   "expired": false,
+   "expires_at": "2026-11-16T16:13:56Z",
+   "digest": "sha256:0236f30328805bd873486537adc642d31928258a9617da7cf849ebc0522343ac",
+   "workflow_run": {
+    "id": 41475556176,
+    "head_branch": "Claude",
+    "head_sha": "eccc855001f3a52d6af2ab395c4de5ca5e4f6374"
+   }
+  },
+  {
+   "id": 13159370835,
+   "name": "RewindBox-Build616-eccc855001f3a52d6af2ab395c4de5ca5e4f6374-attempt1-cold",
+   "size_in_bytes": 194947101,
+   "expired": false,
+   "expires_at": "2026-11-16T16:13:45Z",
+   "digest": "sha256:d669dbcd55b91867a9fa6bba5fc89adbadc6ca407f0c03e576ba7d26fa1625a2",
+   "workflow_run": {
+    "id": 41475556176,
+    "head_branch": "Claude",
+    "head_sha": "eccc855001f3a52d6af2ab395c4de5ca5e4f6374"
+   }
+  }
+ ]
+}
