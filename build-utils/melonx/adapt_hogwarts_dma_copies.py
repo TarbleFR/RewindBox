@@ -70,7 +70,40 @@ from adapt_session import once
 DMA = 'src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs'
 CONFIG = 'src/Ryujinx.Graphics.Gpu/GraphicsConfig.cs'
 LIBRARY = 'src/Ryujinx.Library/Library.cs'
-NAMES = [DMA, CONFIG, LIBRARY]
+TEXTURE_CACHE = 'src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'
+NAMES = [DMA, CONFIG, LIBRARY, TEXTURE_CACHE]
+
+CACHE_ANCHOR = '''        /// <summary>
+        /// Tries to find an existing texture matching the given buffer copy destination. If none is found, returns null.
+        /// </summary>'''
+CACHE_NEW = '''        /// <summary>
+        /// Finds the textures overlapping a GPU virtual range, in any layout (the Hogwarts DMA source lookup and its
+        /// attribution). Unmapped parts of the range are skipped.
+        /// </summary>
+        /// <param name="memoryManager">GPU memory manager where the range is mapped</param>
+        /// <param name="gpuVa">GPU virtual address of the range</param>
+        /// <param name="size">Size of the range in bytes</param>
+        /// <param name="overlaps">Output array, resized to fit the results</param>
+        /// <param name="contiguous">True when the range maps to one physical region</param>
+        /// <returns>The number of overlapping textures</returns>
+        public int FindOverlapsInRange(MemoryManager memoryManager, ulong gpuVa, ulong size, ref Texture[] overlaps, out bool contiguous)
+        {
+            MultiRange range = memoryManager.GetPhysicalRegions(gpuVa, size);
+            contiguous = range.Count == 1 && range.GetSubRange(0).Address != MemoryManager.PteUnmapped;
+
+            _texturesLock.EnterReadLock();
+
+            try
+            {
+                return _textures.FindOverlaps(range, ref overlaps);
+            }
+            finally
+            {
+                _texturesLock.ExitReadLock();
+            }
+        }
+
+''' + CACHE_ANCHOR
 
 CONFIG_ANCHOR = '''        /// <summary>
         /// Enables or disables host memory budget awareness for the GPU resource caches.
@@ -199,6 +232,15 @@ SLOW_OLD = '''                using ReadOnlyRegion srcRegion = memoryManager.Get
 SLOW_NEW = '''            GuestMemoryCopy:
                 NoteGuestMemoryCopy(slowReason, slowSource, srcLinear, dstLinear, xCount, yCount, srcBpp, srcSize);
 
+                // Hogwarts Legacy policy: a linear source that a GPU texture holds is copied on the GPU into the destination
+                // texture, without reading it back; otherwise the source textures are noted for the read attribution.
+                if (GraphicsConfig.HogwartsDmaRegionUpload && srcLinear && !dstLinear && isIdentityRemap && srcBpp == dstBpp &&
+                    TryCopyGpuSource(memoryManager, srcGpuVa + (ulong)srcBaseOffset, srcSize, srcStride, xCount, yCount, dstBpp,
+                                     dstGpuVa, dst, dstRegionX, dstRegionY))
+                {
+                    return;
+                }
+
                 long readStart = Stopwatch.GetTimestamp();
                 using ReadOnlyRegion srcRegion = memoryManager.GetReadOnlyRegion(srcGpuVa + (ulong)srcBaseOffset, srcSize, true);
                 NoteGuestMemoryAccess(readStart, write: false);'''
@@ -252,6 +294,16 @@ METHOD_NEW = '''        /// <summary>
         /// </summary>
         private enum RegionDecline { NoTarget, Layout, Format, Overlap, Count }
 
+        /// <summary>
+        /// The textures that overlap a linear DMA source (whose flush action a tracked read runs), by kind.
+        /// </summary>
+        private enum SourceClass { None, LinearHolds, LinearOther, BlockLinear, Count }
+
+        /// <summary>
+        /// Why a GPU-side copy of a linear source was declined (the copy then reads the source through guest memory).
+        /// </summary>
+        private enum GpuSourceDecline { NoTexture, Layout, NoTarget, Format, Count }
+
         private const int GuestCopySignaturesPerReason = 8;
         private const int GuestCopySummaryLimit = 64;
         private static readonly long SlowGuestAccessTicks = Stopwatch.Frequency / 500;
@@ -266,6 +318,19 @@ METHOD_NEW = '''        /// <summary>
         private int _guestCopySummaries;
         private bool _floatGpuCopyNoted;
         private bool _regionUploadNoted;
+
+        private const int SlowReadSignatureLimit = 8;
+        private Image.Texture[] _sourceOverlaps = new Image.Texture[8];
+        private Image.Texture _sourceTexture;
+        private SourceClass _sourceClass;
+        private int _sourceOverlapCount;
+        private long _sourceOffset;
+        private bool _sourceTargetFound;
+        private readonly long[] _slowReadsBySource = new long[(int)SourceClass.Count];
+        private readonly long[] _gpuSourceDeclines = new long[(int)GpuSourceDecline.Count];
+        private readonly HashSet<(SourceClass, int, bool, int, int, int, int, int)> _slowReadSignatures = new();
+        private long _gpuSourceCopies;
+        private bool _gpuSourceCopyNoted;
 
         /// <summary>
         /// Attributes a 2D copy that reads its source through guest memory (which flushes a GPU-written texture):
@@ -296,7 +361,10 @@ METHOD_NEW = '''        /// <summary>
                     $"noSource {_guestCopies[3]}, height {_guestCopies[4]}, floatFormat {_guestCopies[5]}; " +
                     $"regionUploads {_regionUploads}, declined noTarget {_regionDeclines[0]} layout {_regionDeclines[1]} " +
                     $"format {_regionDeclines[2]} overlap {_regionDeclines[3]}; slowReads {_slowSourceReads}, " +
-                    $"slowWrites {_slowDestinationWrites})");
+                    $"slowWrites {_slowDestinationWrites}; gpuSourceCopies {_gpuSourceCopies}, declined noTexture " +
+                    $"{_gpuSourceDeclines[0]} layout {_gpuSourceDeclines[1]} noTarget {_gpuSourceDeclines[2]} format " +
+                    $"{_gpuSourceDeclines[3]}; slowReads by source none {_slowReadsBySource[0]} linearHolds " +
+                    $"{_slowReadsBySource[1]} linearOther {_slowReadsBySource[2]} blockLinear {_slowReadsBySource[3]})");
             }
         }
 
@@ -306,7 +374,9 @@ METHOD_NEW = '''        /// <summary>
         /// </summary>
         private void NoteGuestMemoryAccess(long start, bool write)
         {
-            if (Stopwatch.GetTimestamp() - start > SlowGuestAccessTicks)
+            long elapsed = Stopwatch.GetTimestamp() - start;
+
+            if (elapsed > SlowGuestAccessTicks)
             {
                 if (write)
                 {
@@ -315,8 +385,176 @@ METHOD_NEW = '''        /// <summary>
                 else
                 {
                     _slowSourceReads++;
+                    NoteSlowSourceRead(elapsed);
                 }
             }
+
+            _sourceTexture = null;
+            _sourceClass = SourceClass.None;
+            _sourceOverlapCount = 0;
+        }
+
+        /// <summary>
+        /// Attributes a slow source read (policy only) to the textures overlapping the source, as noted by TryCopyGpuSource:
+        /// counted by kind, and each new signature (kind, texture format, layout, size, stride, offset, destination found;
+        /// at most 8) logged once with the read time.
+        /// </summary>
+        private void NoteSlowSourceRead(long elapsed)
+        {
+            if (!GraphicsConfig.HogwartsDmaRegionUpload)
+            {
+                return;
+            }
+
+            _slowReadsBySource[(int)_sourceClass]++;
+            Image.Texture texture = _sourceTexture;
+            int format = texture != null ? (int)texture.Info.FormatInfo.Format : -1;
+            int width = texture?.Info.Width ?? 0;
+            int height = texture?.Info.Height ?? 0;
+            int stride = texture?.Info.Stride ?? 0;
+            int layout = texture == null ? 0 : (texture.Info.IsLinear ? 1 : 2) + (texture.Info.Levels > 1 ? 4 : 0) + (texture.Info.DepthOrLayers > 1 ? 8 : 0);
+
+            if (_slowReadSignatures.Count < SlowReadSignatureLimit &&
+                _slowReadSignatures.Add((_sourceClass, format, _sourceTargetFound, width, height, stride, layout, (int)Math.Min(_sourceOffset, int.MaxValue))))
+            {
+                string described = texture == null ? "none" :
+                    $"{texture.Info.FormatInfo.Format} {texture.Info.Target} {width}x{height}x{texture.Info.DepthOrLayers} " +
+                    $"levels {texture.Info.Levels} {(texture.Info.IsLinear ? "linear stride " + stride : "block-linear gobY " + texture.Info.GobBlocksInY)} " +
+                    $"size {texture.Size} offset {_sourceOffset}";
+                Logger.Warning?.Print(LogClass.Gpu, $"DMA slow source read #{_slowReadSignatures.Count}: {elapsed * 1000.0 / Stopwatch.Frequency:F1} ms, " +
+                    $"source={_sourceClass} overlaps {_sourceOverlapCount}: {described}; destination texture {(_sourceTargetFound ? "found" : "none")}");
+            }
+        }
+
+        /// <summary>
+        /// Hogwarts Legacy policy: copies a linear DMA source on the GPU when a GPU texture holds it, instead of reading it
+        /// through guest memory (a tracked read of memory that the GPU wrote runs that texture's flush action: a full read
+        /// back after the render thread and the GPU have finished it). The source texture must be linear with the copy's
+        /// stride, single-level 2D uncompressed colour at scale 1, contain the whole source range (one physical region), and
+        /// the source rectangle must fall on whole texels inside it; the destination must be the texture of the destination
+        /// surface (FindRegionTarget) with the same format, another texture group, without incompatible overlaps, its
+        /// region on whole texels inside it. Both are synchronised with their memory; the host copies the region in order
+        /// after the GPU writes already queued, and the destination is marked modified, as the upstream GPU copy of
+        /// block-linear sources does. Otherwise the overlapping textures are noted for the read attribution.
+        /// </summary>
+        /// <returns>True if the copy was done on the GPU, false to read the source through guest memory</returns>
+        private bool TryCopyGpuSource(MemoryManager memoryManager, ulong srcVa, int srcSize, int srcStride, int xCount, int yCount,
+                                      int bpp, ulong dstGpuVa, DmaTexture dst, int dstRegionX, int dstRegionY)
+        {
+            _sourceTexture = null;
+            _sourceClass = SourceClass.None;
+            _sourceOffset = 0;
+            _sourceTargetFound = false;
+            _sourceOverlapCount = memoryManager.Physical.TextureCache.FindOverlapsInRange(
+                memoryManager, srcVa, (ulong)srcSize, ref _sourceOverlaps, out bool contiguous);
+
+            if (_sourceOverlapCount == 0)
+            {
+                _gpuSourceDeclines[(int)GpuSourceDecline.NoTexture]++;
+                return false;
+            }
+
+            ulong srcAddress = memoryManager.Translate(srcVa);
+            Image.Texture source = null;
+            bool linear = false;
+
+            for (int i = 0; i < _sourceOverlapCount; i++)
+            {
+                Image.Texture texture = _sourceOverlaps[i];
+                linear |= texture.Info.IsLinear;
+
+                if (contiguous && texture.Info.IsLinear && texture.Info.Stride == srcStride && texture.Range.Count == 1)
+                {
+                    var range = texture.Range.GetSubRange(0);
+
+                    if (srcAddress >= range.Address && srcAddress + (ulong)srcSize <= range.EndAddress)
+                    {
+                        if (source != null && source.Group != texture.Group)
+                        {
+                            source = null;
+                            break;
+                        }
+
+                        source ??= texture;
+                    }
+                }
+            }
+
+            _sourceTexture = source ?? _sourceOverlaps[0];
+            _sourceClass = source != null ? SourceClass.LinearHolds : linear ? SourceClass.LinearOther : SourceClass.BlockLinear;
+
+            if (_sourceTexture.Range.Count > 0 && _sourceTexture.Range.GetSubRange(0).Address != MemoryManager.PteUnmapped)
+            {
+                _sourceOffset = (long)srcAddress - (long)_sourceTexture.Range.GetSubRange(0).Address;
+            }
+
+            if (source == null)
+            {
+                _gpuSourceDeclines[(int)GpuSourceDecline.NoTexture]++;
+                return false;
+            }
+
+            if (srcStride <= 0 || _sourceOffset < 0)
+            {
+                _gpuSourceDeclines[(int)GpuSourceDecline.Layout]++;
+                return false;
+            }
+
+            Image.FormatInfo format = source.Info.FormatInfo;
+            int texelBytes = format.BytesPerPixel;
+            int offsetX = (int)(_sourceOffset % srcStride);
+            int offsetY = (int)(_sourceOffset / srcStride);
+            int byteWidth = xCount * bpp;
+            int byteX = dstRegionX * bpp;
+
+            if (source.Info.Target != Target.Texture2D || source.Info.Levels > 1 || source.Info.DepthOrLayers > 1 ||
+                format.IsCompressed || format.Format.IsDepthOrStencil || source.ScaleFactor != 1f || source.Group.Storage != source ||
+                offsetX % texelBytes != 0 || byteWidth % texelBytes != 0 || byteX % texelBytes != 0 ||
+                offsetX + byteWidth > source.Info.Width * texelBytes || offsetY + yCount > source.Info.Height)
+            {
+                _gpuSourceDeclines[(int)GpuSourceDecline.Layout]++;
+                return false;
+            }
+
+            Image.Texture target = FindRegionTarget(memoryManager, dstGpuVa, dst, bpp);
+            _sourceTargetFound = target != null;
+
+            if (target == null || dst.Depth > 1 || dst.RegionZ != 0)
+            {
+                _gpuSourceDeclines[(int)GpuSourceDecline.NoTarget]++;
+                return false;
+            }
+
+            int width = byteWidth / texelBytes;
+            int x = byteX / texelBytes;
+
+            if (target.Info.FormatInfo.Format != format.Format || target.Group == source.Group || target.Group.HasIncompatibleOverlaps ||
+                target.Info.Target != Target.Texture2D || target.ScaleFactor != 1f || target.Group.Storage != target ||
+                x + width > target.Info.Width || dstRegionY + yCount > target.Info.Height)
+            {
+                _gpuSourceDeclines[(int)GpuSourceDecline.Format]++;
+                return false;
+            }
+
+            source.SynchronizeMemory();
+            target.SynchronizeMemory();
+            int sourceX = offsetX / texelBytes;
+            source.HostTexture.CopyTo(target.HostTexture, new Extents2D(sourceX, offsetY, sourceX + width, offsetY + yCount),
+                new Extents2D(x, dstRegionY, x + width, dstRegionY + yCount), false);
+            target.SignalModified();
+            _gpuSourceCopies++;
+
+            if (!_gpuSourceCopyNoted)
+            {
+                _gpuSourceCopyNoted = true;
+                Logger.Warning?.Print(LogClass.Gpu, $"DMA GPU source copy (Hogwarts policy): {format.Format} " +
+                    $"{source.Info.Width}x{source.Info.Height} linear ({sourceX},{offsetY}) to {target.Info.Width}x{target.Info.Height} " +
+                    $"({x},{dstRegionY}) {width}x{yCount}");
+            }
+
+            _sourceTexture = null;
+            _sourceClass = SourceClass.None;
+            return true;
         }
 
         /// <summary>
@@ -449,6 +687,7 @@ METHOD_NEW = '''        /// <summary>
 
 def apply(source):
     source = Path(source)
+    once(source / TEXTURE_CACHE, CACHE_ANCHOR, CACHE_NEW)
     once(source / CONFIG, CONFIG_ANCHOR, CONFIG_NEW)
     once(source / LIBRARY, LIBRARY_OLD, LIBRARY_NEW)
     dma = source / DMA
