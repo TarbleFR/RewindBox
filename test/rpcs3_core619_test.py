@@ -567,16 +567,22 @@ int main()
 		scenarios++;
 	}
 	unsigned budget_faults = 0;
-	{ // guest waits above 400 ms in one second trip the boot to the upstream mode
+	{ // guest waits above 400 ms in one second trip the boot to the upstream mode, exactly at the wait that
+	  // crosses it (measured waits: a 60 ms service lasts longer when the host oversleeps, as on macOS runners)
 		ZCULL_control z;
 		rsx_server server(z, 60);
+		take(tally.wait_us);
+		u64 before_last = 0, total = 0;
 		while (!z.m_ios_demand.tripped() && budget_faults < 20)
 		{
+			before_last = total;
 			z.enqueue(address);
 			CHECK(guest_access(z, address, thread_class::ppu));
+			total += take(tally.wait_us);
 			budget_faults++;
 		}
-		CHECK(budget_faults >= 6 && budget_faults <= 8 && tally.tripped.load() == static_cast<u32>(od::trip_reason::wait_budget));
+		CHECK(budget_faults >= 2 && before_last <= od::wait_budget_us && total > od::wait_budget_us && total < 1'000'000 &&
+			tally.tripped.load() == static_cast<u32>(od::trip_reason::wait_budget));
 		z.enqueue(address);
 		CHECK(guest_access(z, address, thread_class::ppu) && z.upstream_paths.load() == 1);
 		take(tally.faults_report); take(tally.services); take(tally.waits);
