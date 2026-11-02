@@ -95,13 +95,22 @@ class _RAContentState extends State<RAContent>
     return !(session.initialized && session.authenticated && !session.tokenRejected);
   }
 
+  /// Signed in for games (token saved in the Keychain): the tab says so and
+  /// only offers the optional statistics key, never a sign-in form again
+  /// (maintainer report, 2 November 2026: the form looked like a sign-out).
+  bool get _signedInForGames {
+    final session = _session;
+    return session.available && session.initialized && session.authenticated && !session.tokenRejected;
+  }
+
+  int get _usernameSlot => _signedInForGames ? -1 : 0;
   int get _passwordSlot => _needsInGamePassword ? 1 : -1;
-  int get _apiKeySlot => _needsInGamePassword ? 2 : 1;
+  int get _apiKeySlot => (_signedInForGames ? 0 : 1) + (_needsInGamePassword ? 1 : 0);
   int get _getKeySlot => _apiKeySlot + 1;
 
   @override
   List<FocusNode?> get selectionSlots => [
-    _usernameFocus,
+    if (!_signedInForGames) _usernameFocus,
     if (_needsInGamePassword) _passwordFocus,
     _apiKeyFocus,
     null,
@@ -210,13 +219,15 @@ class _RAContentState extends State<RAContent>
     final raProvider = context.read<RetroAchievementsProvider>();
     final session = _session;
     if (raProvider.isLoading || session.busy) return;
-    final username = _usernameController.text.trim();
+    // Signed in for games: the statistics use that same account.
+    final username = _signedInForGames ? _session.username.trim() : _usernameController.text.trim();
     final password = _needsInGamePassword ? _passwordController.text : '';
     final apiKey = _apiKeyController.text.trim();
     void notify(String key, NotificationType type) => AppNotification.showNotification(
         context, key.getString(context), type: type);
     if (username.isEmpty || (password.isEmpty && apiKey.isEmpty)) {
-      notify(_needsInGamePassword ? AppLocale.raSignInSecretRequired : AppLocale.pleaseCompleteAllFields,
+      notify(_signedInForGames ? AppLocale.raEnterApiKey
+          : _needsInGamePassword ? AppLocale.raSignInSecretRequired : AppLocale.pleaseCompleteAllFields,
         NotificationType.error);
       return;
     }
@@ -627,7 +638,8 @@ class _RAContentState extends State<RAContent>
             children: [
               Expanded(
                 child: Text(
-                  AppLocale.raLogin.getString(context),
+                  (_signedInForGames ? AppLocale.raInGameConnected : AppLocale.raLogin).getString(context),
+                  key: const ValueKey('ra-form-title'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.primary,
@@ -637,6 +649,33 @@ class _RAContentState extends State<RAContent>
               ),
             ],
           ),
+          if (_signedInForGames) ...[
+            SizedBox(height: 8.r),
+            Row(
+              key: const ValueKey('ra-in-game-account'),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Symbols.check_circle_rounded, size: 16.r, color: Colors.green.shade400),
+                SizedBox(width: 6.r),
+                Flexible(child: Text(_session.username,
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, fontSize: 12.r))),
+              ],
+            ),
+            SizedBox(height: 4.r),
+            Text(
+              AppLocale.raInGameConnectedHelp.getString(context),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                fontSize: 9.r,
+              ),
+            ),
+            SizedBox(height: 10.r),
+            Text(
+              AppLocale.raStatsOptional.getString(context),
+              style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600, fontSize: 10.r),
+            ),
+          ],
           if (_needsInGamePassword) ...[
             SizedBox(height: 6.r),
             // Two different secrets, each typed once (maintainer request):
@@ -651,11 +690,13 @@ class _RAContentState extends State<RAContent>
               ),
             ),
           ],
-          SizedBox(height: 12.r),
-          Container(
+          SizedBox(height: _signedInForGames ? 6.r : 12.r),
+          // The account is already known once signed in for games.
+          if (!_signedInForGames) Container(
+            key: const ValueKey('ra-web-username-box'),
             constraints: BoxConstraints(maxWidth: 220.r),
             child: _buildFieldHighlight(
-              slot: 0,
+              slot: _usernameSlot,
               theme: theme,
               child: SizedBox(
                 height: 32.r,
@@ -699,10 +740,10 @@ class _RAContentState extends State<RAContent>
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8.r),
                       borderSide: BorderSide(
-                        color: isSelected(0)
+                        color: isSelected(_usernameSlot)
                             ? theme.colorScheme.primary
                             : theme.colorScheme.primary.withValues(alpha: 0.1),
-                        width: isSelected(0) ? 2.r : 1.r,
+                        width: isSelected(_usernameSlot) ? 2.r : 1.r,
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
@@ -1007,7 +1048,7 @@ class _RAContentState extends State<RAContent>
                         ),
                       )
                     : Text(
-                        AppLocale.login.getString(context),
+                        (_signedInForGames ? AppLocale.raAddApiKey : AppLocale.login).getString(context),
                         style: TextStyle(
                           fontSize: 14.r,
                           fontWeight: FontWeight.bold,

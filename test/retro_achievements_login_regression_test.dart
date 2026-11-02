@@ -14,6 +14,7 @@ import 'package:neostation/screens/retro_achievements_screen/ra_content.dart';
 import 'package:neostation/screens/retro_achievements_screen/ra_session_settings.dart';
 import 'package:neostation/services/global_notification_service.dart';
 import 'package:neostation/services/retro_achievements_service.dart';
+import 'package:neostation/services/retro_achievements_session_service.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -442,8 +443,10 @@ void main() {
     expect(find.byKey(const ValueKey('ra-web-password')), findsNothing);
     final key = tester.widget<TextFormField>(find.byKey(const ValueKey('ra-web-api-key')));
     expect(key.controller!.text, 'pasted-web-key');
-    final user = tester.widget<TextFormField>(find.byKey(const ValueKey('ra-web-username')));
-    expect(user.controller!.text, 'Reckkles');
+    // The account is shown instead of a username field (same account).
+    expect(find.byKey(const ValueKey('ra-web-username')), findsNothing);
+    expect(find.descendant(of: find.byKey(const ValueKey('ra-in-game-account')),
+      matching: find.text('Reckkles')), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
   }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
@@ -780,5 +783,68 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
     }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+  });
+  group('the sign-in survives an app restart (maintainer report, 2 November 2026)', () {
+    setUp(() => GlobalNotificationService().notifier.value = const []);
+
+    for (final withKey in [false, true]) {
+      testWidgets('password${withKey ? ' and Web API key' : ' only'}: nothing to enter again after a restart',
+          (tester) async {
+        // One Keychain (native fixture), one database (preferences) and one
+        // secure storage (dashboard source) shared by both "runs".
+        final native = RANativeFixture(username: '');
+        final source = RADashboardFixture();
+        addTearDown(native.dispose);
+        var provider = RetroAchievementsProvider(sessionService: native.service, source: source);
+        await provider.initialize();
+        await pumpTab(tester, provider);
+        await tester.enterText(find.byKey(const ValueKey('ra-web-username')), 'Reckkles');
+        await tester.enterText(find.byKey(const ValueKey('ra-web-password')), 'fixture-password');
+        if (withKey) await tester.enterText(find.byKey(const ValueKey('ra-web-api-key')), 'web-key');
+        await tapTabLogin(tester);
+        expect(native.service.authenticated, isTrue);
+        expect(native.service.preferences.enabled, isTrue);
+        await tester.pumpWidget(const SizedBox.shrink());
+        provider.dispose();
+
+        // Restart: new service and provider reading the same stores.
+        final restarted = RetroAchievementsSessionService(native: native.client,
+          readPreferences: () async => native.preferences,
+          writePreferences: (value) async { native.preferences = value; });
+        addTearDown(restarted.dispose);
+        provider = RetroAchievementsProvider(sessionService: restarted, source: source);
+        addTearDown(provider.dispose);
+        await restarted.initialize();
+        await provider.initialize();
+        expect(restarted.authenticated, isTrue);
+        expect(restarted.username, 'Reckkles');
+        expect(restarted.preferences.enabled, isTrue);
+        expect(provider.isConnected, withKey);
+        await pumpTab(tester, provider, home: const RAContent());
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(find.byKey(const ValueKey('ra-web-password')), findsNothing);
+        expect(tester.widget<Switch>(find.byKey(const ValueKey('ra-tab-enabled'))).value, isTrue);
+        if (!withKey) {
+          // No sign-in form: the tab says who is connected; the statistics
+          // key is only an optional addition for the same account.
+          expect(find.text(fr(AppLocale.raInGameConnected)), findsOneWidget);
+          expect(find.descendant(of: find.byKey(const ValueKey('ra-in-game-account')),
+            matching: find.text('Reckkles')), findsOneWidget);
+          expect(find.text(fr(AppLocale.raInGameConnectedHelp)), findsOneWidget);
+          expect(find.byKey(const ValueKey('ra-web-username')), findsNothing);
+          expect(find.widgetWithText(ElevatedButton, fr(AppLocale.raAddApiKey)), findsOneWidget);
+          // Adding the key later connects the statistics for that account.
+          await tester.enterText(find.byKey(const ValueKey('ra-web-api-key')), 'web-key');
+          final add = find.widgetWithText(ElevatedButton, fr(AppLocale.raAddApiKey));
+          await tester.ensureVisible(add);
+          await tester.tap(add);
+          await tester.pump(const Duration(milliseconds: 400));
+          expect(provider.isConnected, isTrue);
+          expect(source.profiles.last, ('Reckkles', 'web-key'));
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+      }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+    }
   });
 }

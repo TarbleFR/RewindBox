@@ -257,3 +257,37 @@ New strings, 12 locales: `ra_account_password_label`,
 `ra_password_looks_like_api_key`. Validation: `flutter analyze` on the changed
 files clean; RetroAchievements and RPCS3 Dart suites 197/197 (one new widget
 test); 12-locale coverage script pass. Not executed: app build, device.
+
+## Follow-up: "everything resets when I close the app" (2 November 2026)
+
+Maintainer report: after signing in with the password and turning
+achievements on, closing and reopening the app asked for the password again;
+PS3 achievements did not seem to start.
+
+- **The log sent is not the current one.** It is the legacy
+  `Documents/user-data/app.log`, last written on 31 October (before the sign-in
+  and PS3 work, no RetroAchievements session line at all). Current builds
+  write `Documents/Diagnostics/System/Application/app.log`; the PS3 client
+  journals in `Documents/Diagnostics/PS3/RPCS3-diagnostic.log`
+  (`achievements.core`, `ra.content`, `ra.identify`, `ra.game`...).
+- **The app keeps the sign-in.** New widget test (password only, and password
+  + Web API key): sign in, recreate the session service and provider over the
+  same Keychain, database and secure storage (an app restart), reopen the
+  tab: still signed in, achievements still on, no password field. Nothing in
+  the code deletes the token except an explicit sign-out. If the next current
+  log shows `RetroAchievements in-game session ready: account=absent` after a
+  restart, iOS did not return the saved Keychain item on that device.
+- **The tab no longer looks like a sign-in form once signed in for games.**
+  Before, a player signed in with the password only (no Web API key) still saw
+  "RetroAchievements login" with username and key fields, which reads as
+  signed out. Now the card says "Connected to RetroAchievements", shows the
+  account, "your sign-in is saved for achievements in every emulator: no need
+  to enter your password again", and offers the Web API key only as an
+  optional "Statistics" addition for the same account ("Add the key"). Four
+  new strings, 12 locales.
+- **PS3 path re-checked:** IPA 611 and 612 carry the RPCS3 Core with the four
+  RetroAchievements exports; installed discs (`DiscImages/<ID>/disc.iso`) and
+  extracted folders (`PS3_GAME/USRDIR/EBOOT.BIN`) are hashable by the host
+  client. The client only starts when the central session is enabled and
+  signed in, so a lost sign-in also leaves PS3 without achievements.
+  Confirmation needs the two current logs above.

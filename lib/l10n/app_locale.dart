@@ -1151,6 +1151,10 @@ mixin AppLocale {
   static const String raHashCopied = 'ra_hash_copied';
   static const String raTitleOnlyMatch = 'ra_title_only_match';
   static const String raOpenGamePage = 'ra_open_game_page';
+  static const String raInGameConnected = 'ra_in_game_connected';
+  static const String raInGameConnectedHelp = 'ra_in_game_connected_help';
+  static const String raStatsOptional = 'ra_stats_optional';
+  static const String raAddApiKey = 'ra_add_api_key';
   static const String raSessionEnableHint = 'ra_session_enable_hint';
   static const String raSessionStatusSignedOut = 'ra_session_status_signed_out';
   static const String raSessionStatusDisabled = 'ra_session_status_disabled';
