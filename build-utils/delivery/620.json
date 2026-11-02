@@ -304,6 +304,10 @@
   },
   "images": {
     "mustChange": [
+      "Frameworks/App.framework/App",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "Frameworks/retro_achievements_session.framework/retro_achievements_session",
+      "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
       "Runner"
     ],
     "added": [],
