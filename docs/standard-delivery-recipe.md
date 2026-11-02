@@ -42,14 +42,25 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
   et « source seulement »), images (doivent changer, remplacées = empreinte du pin, conservées =
   empreinte de la base, autres écarts signalés), tests (frais ou réutilisés, commandes figées),
   destinataire, archives à republier.
-- **Arbre effectif** : le gel rejoue `base..HEAD` depuis l'arbre de la base et n'applique que les
-  chemins produit des commits revus. Un commit revu doit partir des octets déjà présents dans l'arbre
+- **Arbre effectif** : le gel rejoue `base..HEAD` depuis l'arbre que la base a réellement compilé et
+  n'applique que les chemins produit des commits revus. Pour une base livrée par cette recette, c'est
+  son arbre source auquel on applique les restaurations de son manifeste gelé (lu au commit source de
+  la base). Il est reconstruit depuis les objets git et lié à son `effectiveDigest`. Pour une base
+  livrée par une recette antérieure (610), c'est son arbre source. Ainsi, un travail que la base avait
+  différé reste différé (hérité) tant qu'une build ne le classe pas. Le manifeste gelé enregistre
+  `baseEffectiveDigest` et `inheritedDeferredPaths` ; en CI, les chemins de la base sont recalculés
+  de la même façon. Un commit revu doit partir des octets déjà présents dans l'arbre
   effectif (sinon refus) ; un commit « source seulement » est différé ; un commit non classé qui
   touche le produit est refusé. Le manifeste enregistre les écarts avec la base, la liste à restaurer
   par rapport au HEAD gelé et `effectiveDigest`. En CI, l'opération `materialize` est la première
   étape après le checkout de chaque job : elle vérifie que les commits postérieurs au gel ne touchent
   que des chemins de recette, restaure les chemins (modes, liens, suppressions) depuis les objets git
   et recalcule l'empreinte depuis les fichiers. Aucun checkout ultérieur.
+- **Composant épinglé inchangé** : une build qui garde le Core RPCS3 ou MeloNX de sa base déclare
+  `components.<rpcs3|melonx>.unchangedFromBase: true` avec le même pin que la base. Le Core est
+  réinstallé depuis son pin. Son image est déclarée sous `images.retained.<clé>` et non sous
+  `images.replaced`. Le gel exige que l'empreinte du pin soit celle de l'image de la base et que le
+  fichier pin soit celui du manifeste de base ; `expected()` exige l'égalité au lieu de la différence.
 - **Chemins de recette** (jamais compilés) : `.github/**`, `docs/**`, `*.md` à la racine,
   `.claude/**`, `build-utils/delivery/**`, `build-utils/delivery-*-recipient.pem`, les deux pins de
   Core, le contrat et le vérificateur. Exception liée par le gel : les fichiers de ce type que l'IPA

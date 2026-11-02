@@ -119,9 +119,7 @@ def effective_of_head():
     """The effective tree of the current manifest at its freeze commit (frozen) or at HEAD (draft)."""
     build, manifest = current_manifest()
     head = manifest['product'].get('freezeCommit') or REPO.commit('HEAD')
-    reviewed = [c['commit'] for c in manifest['product']['reviewedCommits']]
-    source_only = [c['commit'] for c in manifest['product']['sourceOnly']]
-    return sd.effective_tree(REPO, manifest['base']['source'], head, reviewed, source_only)
+    return sd.manifest_effective_tree(REPO, manifest, head)
 
 
 class Git:
@@ -163,7 +161,8 @@ class Git:
 
 def frozen_product(repo, base, head, reviewed, source_only):
     tree = sd.effective_tree(repo, base, head, reviewed, source_only)
-    return tree, dict(base=dict(source=base), product=dict(
+    # Build 0 has no standard manifest: the replay starts from the base source tree.
+    return tree, dict(base=dict(build=0, source=base), product=dict(
         freezeCommit=head, effective=tree['effectiveRecords'], restore=tree['restoreRecords'],
         effectiveDigest=tree['effectiveDigest'], productFiles=tree['productFiles']))
 
@@ -645,6 +644,120 @@ class EffectiveTreeSynthetic(unittest.TestCase):
                      'build-utils/x/delivery-1-recipient.pem', 'build-utils/melonx/reads-core-contract.json', 'pubspec.yaml'):
             self.assertFalse(sd.is_recipe(path), path)
         self.assertEqual(sd.recipe_definition_sha(), sd.sha(sd.canonical(sd.RECIPE_DEFINITION)))
+
+
+class BaseEffectiveTree(unittest.TestCase):
+    """A build replays from the tree its base delivery compiled, not from the raw base source tree."""
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory(prefix='standard-base-')
+        self.git = Git(self.directory.name)
+        self.repo = sd.Repo(self.directory.name)
+
+    def tearDown(self):
+        self.directory.cleanup()
+
+    def delivered_base(self):
+        """Build 900 freezes over a deferred commit; its source then carries the frozen manifest."""
+        g = self.git
+        g.write('lib/a.dart', 'a0')
+        g.write('lib/b.dart', 'b0')
+        first = g.commit('build 899 delivered')
+        g.write('lib/a.dart', 'a-deferred')
+        g.write('lib/new_deferred.dart', 'n')
+        deferred = g.commit('deferred work for a later build')
+        g.write('lib/b.dart', 'b1')
+        reviewed = g.commit('reviewed for 900')
+        tree, frozen = frozen_product(self.repo, first, reviewed, [reviewed], [deferred])
+        manifest = dict(build=900, status='frozen', base=dict(build=899, source=first),
+                        product=dict(frozen['product'], reviewedCommits=[dict(commit=reviewed)],
+                                     sourceOnly=[dict(commit=deferred, targetBuild=901, note='later')]))
+        g.write(sd.manifest_path(900), json.dumps(manifest))
+        source = g.commit('[ipa-delivery:900] trigger')
+        return dict(first=first, deferred=deferred, reviewed=reviewed, source=source, manifest=manifest, tree=tree)
+
+    def next_manifest(self, delivered, reviewed=(), source_only=()):
+        return dict(build=901, base=dict(build=900, source=delivered['source']),
+                    product=dict(reviewedCommits=[dict(commit=c) for c in reviewed],
+                                 sourceOnly=[dict(commit=c, targetBuild=902, note='x') for c in source_only]))
+
+    def test_deferred_work_of_the_base_stays_out(self):
+        delivered = self.delivered_base()
+        self.git.write('lib/c.dart', 'c1')
+        head = self.git.commit('reviewed for 901')
+        manifest = self.next_manifest(delivered, [head])
+        tree = sd.manifest_effective_tree(self.repo, manifest, head)
+        self.assertEqual(tree['conflicts'] + tree['unclassified'], [])
+        self.assertEqual(tree['baseEffectiveDigest'], delivered['manifest']['product']['effectiveDigest'])
+        entries = self.repo.entries(delivered['first'])
+        self.assertEqual(tree['effective']['lib/a.dart'], entries['lib/a.dart'], 'The base deferral is inherited')
+        self.assertNotIn('lib/new_deferred.dart', tree['effective'])
+        self.assertEqual(tree['effective']['lib/b.dart'], self.repo.entries(delivered['reviewed'])['lib/b.dart'])
+        self.assertEqual(sorted(tree['restoreRecords']), ['lib/a.dart', 'lib/new_deferred.dart'])
+        self.assertEqual(sorted(tree['effectiveRecords']), ['lib/c.dart'])
+        # The raw source tree would have absorbed the deferred work without review.
+        raw = sd.effective_tree(self.repo, delivered['source'], head, [head], [])
+        self.assertEqual(raw['effective']['lib/a.dart'], self.repo.entries(delivered['deferred'])['lib/a.dart'])
+        frozen = dict(manifest, product=dict(manifest['product'], freezeCommit=head, effective=tree['effectiveRecords'],
+                                             restore=tree['restoreRecords'], effectiveDigest=tree['effectiveDigest'],
+                                             baseEffectiveDigest=tree['baseEffectiveDigest']))
+        result = sd.materialize_tree(self.repo, frozen, head)
+        self.assertEqual(result['effectiveDigest'], tree['effectiveDigest'])
+        self.assertEqual((self.git.root / 'lib/a.dart').read_text(), 'a0')
+        self.assertFalse(os.path.lexists(self.git.root / 'lib/new_deferred.dart'))
+        with self.assertRaises(ValueError):
+            sd.expected_product_paths(self.repo, dict(frozen, product=dict(frozen['product'], baseEffectiveDigest=None)), head)
+
+    def test_a_tampered_base_manifest_is_refused(self):
+        delivered = self.delivered_base()
+        manifest = dict(delivered['manifest'])
+        manifest['product'] = dict(manifest['product'], effectiveDigest='0' * 64)
+        self.git.write(sd.manifest_path(900), json.dumps(manifest))
+        head = self.git.commit('rewrite the base manifest after its delivery')
+        with self.assertRaises(ValueError):
+            sd.manifest_effective_tree(self.repo, self.next_manifest(dict(delivered, source=head)), head)
+
+    def test_a_base_without_a_standard_manifest_compiled_its_source_tree(self):
+        g = self.git
+        g.write('lib/a.dart', 'a0')
+        source = g.commit('delivered by an earlier recipe')
+        g.write('lib/a.dart', 'a1')
+        head = g.commit('reviewed')
+        manifest = dict(build=611, base=dict(build=610, source=source),
+                        product=dict(reviewedCommits=[dict(commit=head)], sourceOnly=[]))
+        tree = sd.manifest_effective_tree(self.repo, manifest, head)
+        self.assertIsNone(tree['baseEffectiveDigest'])
+        self.assertEqual(tree['baseEntries'], {p: e for p, e in self.repo.entries(source).items() if sd.is_product(p)})
+
+
+class UnchangedPinnedComponent(unittest.TestCase):
+    """A build that keeps the base's pinned Core installs it again and keeps its base image."""
+
+    def manifest(self, replaced=None, retained=None, unchanged=True):
+        _, current = current_manifest()
+        value = json.loads(json.dumps(current))
+        value['components']['melonx']['unchangedFromBase'] = unchanged
+        value['images']['replaced'] = replaced if replaced is not None else {'rpcs3': 'Frameworks/libRPCS3Core.dylib'}
+        value['images']['retained'] = dict(value['images']['retained'],
+                                           **({'melonx': retained} if retained is not None else {}))
+        return value
+
+    def test_schema(self):
+        image = 'Frameworks/MeloNXCore.framework/MeloNXCore'
+        errors = sd.manifest_errors(self.manifest(retained=[image]))
+        self.assertFalse([e for e in errors if 'unchangedFromBase' in e], errors)
+        both = self.manifest(replaced={'rpcs3': 'Frameworks/libRPCS3Core.dylib', 'melonx': image}, retained=[image])
+        self.assertTrue([e for e in sd.manifest_errors(both) if 'unchangedFromBase' in e])
+        self.assertTrue([e for e in sd.manifest_errors(self.manifest(retained=[])) if 'unchangedFromBase' in e])
+        self.assertTrue([e for e in sd.manifest_errors(self.manifest(retained=[image], unchanged='yes'))
+                         if 'unchangedFromBase' in e])
+
+    def test_payload_rule(self):
+        replaced, unchanged = self.manifest(unchanged=False), self.manifest(retained=[])
+        self.assertTrue(sd.pinned_payload_rule(replaced, 'melonx', 'a', 'b'))
+        self.assertFalse(sd.pinned_payload_rule(replaced, 'melonx', 'a', 'a'))
+        self.assertTrue(sd.pinned_payload_rule(unchanged, 'melonx', 'a', 'a'))
+        self.assertFalse(sd.pinned_payload_rule(unchanged, 'melonx', 'a', 'b'))
 
 
 class EffectiveTree611(unittest.TestCase):

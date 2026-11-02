@@ -12,8 +12,9 @@ declares:
 - a failed delivery is retried by changing only the recipe and reusing its successful test jobs.
 
 Effective tree. The branch may carry concurrent product work that is not part of the build. The
-local freeze replays base..HEAD commit by commit from the base tree and keeps exactly the product
-changes of the reviewed commits (a reviewed commit must start from the bytes already in the
+local freeze replays base..HEAD commit by commit from the tree the base delivery compiled (its source
+tree with the restore records of its frozen manifest, so work the base deferred stays deferred until
+a later build classifies it) and keeps exactly the product changes of the reviewed commits (a reviewed commit must start from the bytes already in the
 effective tree, so nothing unreviewed is absorbed); source-only commits are deferred. CI restores
 that tree first in every job (operation materialize) and recomputes its digest; nothing may
 check out again afterwards. Recipe paths (RECIPE_* below) are not product: they may change after
@@ -403,6 +404,12 @@ def manifest_errors(value):
     for key in ('rpcs3', 'melonx'):
         check(value['components'].get(key, {}).get('mode') == 'replace' and value['components'][key].get('pin'),
               f'components.{key} must be a replaced component with a pin file')
+        if value['components'].get(key, {}).get('unchangedFromBase', False) is not False:
+            # The build installs the base's pinned Core again: its image is retained, never replaced.
+            spec = value['components'][key]
+            check(spec['unchangedFromBase'] is True and key not in value.get('images', {}).get('replaced', {}) and
+                  spec.get('image') in value.get('images', {}).get('retained', {}).get(key, []),
+                  f'components.{key}.unchangedFromBase needs its image retained under images.retained.{key}, not replaced')
     for key in ('dolphin', 'armsx2'):
         check(value['components'].get(key, {}).get('mode') == 'retain', f'components.{key} must be retained')
     for key in ('libretro', 'melonx-dependencies'):
@@ -540,13 +547,17 @@ def authenticate_base(value, get=None):
 
 # --- Effective tree ------------------------------------------------------------------------------------
 
-def replay(repo, base, head, reviewed, source_only):
-    """Replay base..head from the base tree, applying only the reviewed commits' product changes."""
+def replay(repo, base, head, reviewed, source_only, base_entries=None):
+    """Replay base..head from the base tree, applying only the reviewed commits' product changes.
+
+    `base_entries` is the product tree the base delivery compiled (base_effective_entries); the raw
+    base source tree when omitted."""
     require(not repo.merges(base, head), 'The history between the base and HEAD must be linear (no merge commit)')
     reviewed = {repo.commit(c) for c in reviewed}
     source_only = {repo.commit(c) for c in source_only}
     require(not reviewed & source_only, 'A commit is both reviewed and source-only')
-    base_entries = {p: e for p, e in repo.entries(base).items() if is_product(p)}
+    base_entries = (dict(base_entries) if base_entries is not None else
+                    {p: e for p, e in repo.entries(base).items() if is_product(p)})
     effective = dict(base_entries)
     commits = repo.commits(base, head)
     records, deferred, conflicts, unclassified = [], {}, [], []
@@ -591,9 +602,80 @@ def digest_records(records):
     return digest.hexdigest()
 
 
-def effective_tree(repo, base, head, reviewed, source_only):
+def base_manifest_at(repo, base):
+    """The frozen manifest of the base delivery as committed at its source, or None for a base that an
+    earlier recipe delivered (no standard manifest there, e.g. 610)."""
+    path = manifest_path(base['build'])
+    if repo.run('cat-file', '-e', f"{base['source']}:{path}", check=False).returncode:
+        return None
+    value = json.loads(repo.show(base['source'], path))
+    product = value.get('product', {})
+    require(value.get('build') == base['build'] and value.get('status') == 'frozen' and
+            isinstance(product.get('restore'), dict) and HEX64.fullmatch(str(product.get('effectiveDigest'))),
+            'The base delivery manifest at its source is not the frozen manifest of the base build')
+    return value
+
+
+def base_effective_entries(repo, manifest):
+    """The product tree the base delivery compiled, rebuilt from git objects.
+
+    A base delivered by this recipe compiled its frozen effective tree: its source tree with the restore
+    records of its manifest applied. The raw source tree can carry product work that the base deferred
+    (611 deferred b06888a9 and restored its 83 product paths); replaying from it would absorb that work
+    without review. The rebuilt tree is bound to the base manifest's effectiveDigest."""
+    base = manifest['base']
+    entries = {path: entry for path, entry in repo.entries(base['source']).items() if is_product(path)}
+    frozen = base_manifest_at(repo, base)
+    if frozen is None:
+        return dict(entries=entries, digest=None, restored=[])
+    restore = frozen['product']['restore']
+    for path, record in restore.items():
+        safe_relative(path)
+        require(is_product(path), 'A base restore path is a recipe path: ' + path)
+        if record is None:
+            entries.pop(path, None)
+        else:
+            entries[path] = (record['mode'], record['gitBlob'])
+    digests = repo.blob_digests(obj for _, obj in entries.values())
+    digest = digest_records((path, mode, digests[obj]) for path, (mode, obj) in entries.items())
+    require(digest == frozen['product']['effectiveDigest'],
+            'The delivered base effective tree cannot be rebuilt from its frozen manifest')
+    return dict(entries=entries, digest=digest, restored=sorted(restore))
+
+
+def base_effective_paths(repo, manifest):
+    """Product paths of the delivered base tree (paths only: the freeze bound its digest)."""
+    base = manifest['base']
+    paths = {path for path in repo.entries(base['source']) if is_product(path)}
+    frozen = base_manifest_at(repo, base)
+    recorded = manifest['product'].get('baseEffectiveDigest')
+    if frozen is None:
+        require(recorded is None, 'The manifest names a base effective tree that the base did not freeze')
+        return paths
+    require(recorded == frozen['product']['effectiveDigest'],
+            'The frozen manifest was not replayed from the delivered base effective tree')
+    for path, record in frozen['product']['restore'].items():
+        if record is None:
+            paths.discard(path)
+        else:
+            paths.add(path)
+    return paths
+
+
+def manifest_effective_tree(repo, manifest, head):
+    """effective_tree() of a draft or frozen manifest, replayed from its delivered base tree."""
+    base = base_effective_entries(repo, manifest)
+    product = manifest['product']
+    tree = effective_tree(repo, manifest['base']['source'], head,
+                          [item['commit'] for item in product['reviewedCommits']],
+                          [item['commit'] for item in product['sourceOnly']], base['entries'])
+    tree.update(baseEffectiveDigest=base['digest'], baseRestored=base['restored'])
+    return tree
+
+
+def effective_tree(repo, base, head, reviewed, source_only, base_entries=None):
     """The replay plus everything the manifest records about the effective tree."""
-    result = replay(repo, base, head, reviewed, source_only)
+    result = replay(repo, base, head, reviewed, source_only, base_entries)
     effective = result['effective']
     head_entries = {p: e for p, e in repo.entries(head).items() if is_product(p)}
     changed = delta(result['baseEntries'], effective)
@@ -643,7 +725,7 @@ def restore_paths(manifest):
 def expected_product_paths(repo, manifest, head):
     """Product paths of the effective tree, computed two ways that must agree."""
     product = manifest['product']
-    base_paths = {p for p in repo.entries(manifest['base']['source']) if is_product(p)}
+    base_paths = base_effective_paths(repo, manifest)
     from_base = (base_paths | {p for p, e in product['effective'].items() if e}) - \
         {p for p, e in product['effective'].items() if e is None}
     head_paths = {p for p in repo.entries(head) if is_product(p)}
@@ -1458,6 +1540,13 @@ def validate_inventory(names, manifest):
 
 # --- Identity, embedding, structure, seal and validation -----------------------------------------------
 
+def pinned_payload_rule(manifest, key, pinned, delivered):
+    """A replaced pinned Core differs from the base image; one declared unchangedFromBase equals it."""
+    if manifest['components'][key].get('unchangedFromBase') is True:
+        return pinned == delivered
+    return pinned != delivered
+
+
 def expected():
     import retained_components as retained
     import rpcs3_core_component as rpcs3
@@ -1482,12 +1571,14 @@ def expected():
     pin = rpcs3_pin(manifest)
     base = base_images(manifest)
     rpcs3_receipt = rpcs3.core_receipt(pin)
-    require(rpcs3_receipt['corePayloadFingerprint'] == pin['core']['payloadFingerprint'] != base[rpcs3.CORE_IMAGE],
-            'The RPCS3 Core payload must replace the delivered one')
+    require(rpcs3_receipt['corePayloadFingerprint'] == pin['core']['payloadFingerprint'] and
+            pinned_payload_rule(manifest, 'rpcs3', pin['core']['payloadFingerprint'], base[rpcs3.CORE_IMAGE]),
+            'The RPCS3 Core payload must replace the delivered one (or equal it when declared unchanged)')
     melonx_receipt = melonx.engine_evidence()
     melonx_image = manifest['components']['melonx']['image']
-    require(melonx_receipt['payloadFingerprint'] == melonx.pin()['packagedFingerprint'] != base[melonx_image],
-            'The MeloNX Core payload must replace the delivered one')
+    require(melonx_receipt['payloadFingerprint'] == melonx.pin()['packagedFingerprint'] and
+            pinned_payload_rule(manifest, 'melonx', melonx.pin()['packagedFingerprint'], base[melonx_image]),
+            'The MeloNX Core payload must replace the delivered one (or equal it when declared unchanged)')
     packaging = json.loads((ROOT / 'dist/melonx/packaging-identity.json').read_bytes())
     return dict(schema=1, build=manifest['build'], recipe='standard',
                 manifest=dict(path=manifest_path(manifest['build']), sha256=manifest_sha(manifest['build'])),
@@ -1754,9 +1845,7 @@ def freeze(build, dry_run=False, repo=None, root=None):
             melonx_pin['contractSha256'] == sha(contract) and melonx_pin['name'] == 'MeloNX-engine-' + melonx_pin['source']):
         blockers.append('components.melonx: the MeloNX Core pin is not verified against its contract')
     product = draft['product']
-    reviewed = [item['commit'] for item in product['reviewedCommits']]
-    source_only = [item['commit'] for item in product['sourceOnly']]
-    tree = effective_tree(repo, base['source'], head, reviewed, source_only)
+    tree = manifest_effective_tree(repo, draft, head)
     for conflict in tree['conflicts']:
         blockers.append(f"product: reviewed commit {conflict['commit'][:12]} touches {conflict['path']} from bytes "
                         'that are not in the effective tree (an earlier source-only or unclassified change)')
@@ -1788,6 +1877,17 @@ def freeze(build, dry_run=False, repo=None, root=None):
     tests['awaitMinutes'] = draft['tests'].get('awaitMinutes', 75)
     names = sorted(base_images_value)
     images = dict(draft['images'])
+    base_manifest = base_manifest_at(repo, base)
+    for key, fingerprint in (('rpcs3', pin['core'].get('payloadFingerprint')),
+                             ('melonx', melonx_pin.get('packagedFingerprint'))):
+        spec = draft['components'][key]
+        if spec.get('unchangedFromBase') is not True:
+            continue
+        if fingerprint != base_images_value.get(spec['image']):
+            blockers.append(f'components.{key}: unchangedFromBase, but the pinned payload is not the base image')
+        if base_manifest is None or sha((root / spec['pin']).read_bytes()) != \
+                base_manifest['components'][key].get('pinSha256'):
+            blockers.append(f'components.{key}: unchangedFromBase, but the pin file differs from the base delivery pin')
     reviewed_paths = sorted({path for path, entry in tree['effectiveRecords'].items()})
     derived, unmapped = images_for_paths(reviewed_paths, set(names))
     replaced = {}
@@ -1820,7 +1920,9 @@ def freeze(build, dry_run=False, repo=None, root=None):
         if expires and not draft['components'][kind].get('republished'):
             notes.append(f'components.{kind}: the retained producer artifact expires at {expires}')
     restore = tree['restoreRecords']
+    inherited = sorted(path for path in tree['restoreRecords'] if path in set(tree['baseRestored']))
     frozen_product = dict(product, freezeCommit=head, freezeTree=repo.tree_of(head),
+        baseEffectiveDigest=tree['baseEffectiveDigest'], inheritedDeferredPaths=inherited,
         recipeDefinitionSHA256=recipe_definition_sha(), recipeDefinition=RECIPE_DEFINITION,
         commits=tree['commits'], deferred=tree['deferred'], effective=tree['effectiveRecords'], restore=restore,
         effectiveDigest=tree['effectiveDigest'], productFiles=tree['productFiles'], embeddedRecipeInputs=embedded)
@@ -1839,6 +1941,7 @@ def freeze(build, dry_run=False, repo=None, root=None):
                   restore=dict(count=len(restore), deleted=sorted(p for p, e in restore.items() if e is None),
                                restoredBytes=sorted(p for p, e in restore.items() if e is not None)),
                   effectiveDigest=tree['effectiveDigest'], productFiles=tree['productFiles'],
+                  baseEffectiveDigest=tree['baseEffectiveDigest'], inheritedDeferredPaths=len(inherited),
                   retainedInputsChecked=retained_count, legalCheck=dict(passed=legal_ok, message=legal_message),
                   images=dict(mustChange=must_change, derived=derived,
                                                                      retained=len(retained_images)),
