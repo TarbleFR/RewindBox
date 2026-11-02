@@ -17,6 +17,7 @@
 # Core compile request: Core 616 (core-build.json build 616, canonical patch 2abb6474), request 1.
 # Core compile request: Core 619 (core-build.json build 619, canonical patch 2887d3b7), request 1.
 # Core compile request: Core 621 (core-build.json build 621, canonical patch 63f746af), request 1.
+# Core compile request: Core 621 (core-build.json build 621, canonical patch e8f29811), request 2 (fixes from the Build 620 logs).
 # Apple host harness rerun: Core 613 codegen audit reruns for its two exact aliases (request 2).
 # Apple host harness rerun: Core 619 wait-budget scenario on measured waits (request 2).
 # Apple host harness rerun: Core 619 concurrency scenario accepts the designed wait-budget trip (request 3).
