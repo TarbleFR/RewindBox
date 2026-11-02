@@ -142,8 +142,8 @@ class StagedCorePatch(unittest.TestCase):
     def canonical_postimage(self, path):
         """The canonical postimage of an RA file: its RA postimage, or the postimage of a later
         folded record (Core 612: core612_20261102) that either starts from exactly the RA
-        postimage and removes none of its added lines, or starts from the same delivered base
-        and still adds every RA block of the file, each one contiguous (nothing inserted inside)."""
+        postimage (accepted only with --source, where the RA patch is reverse-applied), or starts
+        from the same delivered base and still adds every RA block of the file, each one contiguous."""
         current = self.manifest['files_after_sha256'][path]
         target = self.canonical['files_sha256'].get(path)
         later = {name: r for name, r in self.canonical.items() if name != 'retroachievements_core'
@@ -151,13 +151,14 @@ class StagedCorePatch(unittest.TestCase):
                  and r.get('files_after_sha256', {}).get(path) == target}
         if current == target:
             return current
-        meaningful = lambda line: len(line.strip()) > 3 and line.strip() not in ('{', '}', '};', '#endif', 'else')
         for name, record in later.items():
             if record.get('files_before_sha256', {}).get(path) == current:
-                successor = self.successor_patch(name, record, path) or {'hunks': []}
-                removed = Counter(t for hunk in successor['hunks'] for sign, t in hunk if sign == '-' and meaningful(t))
-                self.assertFalse(removed & Counter(t for t in added(self.files[path]) if meaningful(t)),
-                                 f'{path}: {name} removes lines the RetroAchievements patch added')
+                # A successor of the RA postimage itself (no record uses one yet): its patch cannot show that
+                # the RA hunks survive (an inserted '#if 0' removes nothing), so only a source tree decides:
+                # test_optional_source_tree reverse-applies the RA patch there.
+                self.successor_patch(name, record, path)
+                if SOURCE_TREE is None:
+                    self.fail(f'{path}: {name} starts from the RetroAchievements postimage; run with --source')
                 return target
             same_start = (record.get('base_canonical_patch_sha256') == self.manifest['base_canonical_patch_sha256']
                           and (record.get('files_before_sha256', {}).get(path) == self.manifest['files_before_sha256'].get(path)
