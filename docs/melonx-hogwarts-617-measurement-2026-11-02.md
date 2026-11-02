@@ -40,7 +40,7 @@ texture therefore reads the whole texture back, waits for the render thread and 
 and uploads the texture again afterwards. About one such copy per frame matches one flush
 per frame.
 
-## Next Core (in preparation; not measured)
+## Next Core: delivered in IPA 618 (Core run 41501428424, packaged `dfe3bb56…`; not measured)
 
 `adapt_hogwarts_dma_copies.py`, Hogwarts Legacy only (`GraphicsConfig.HogwartsDmaRegionUpload`):
 such a copy, when its destination surface is a single-level 2D uncompressed colour texture

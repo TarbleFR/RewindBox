@@ -220,3 +220,21 @@ réussi.
   (signalé, non bloquant). Tests frais dans les deux groupes (~28 min de bout en bout).
 - Hors CI : métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub MCP
   (octets égaux aux digests de l'API) ; IPA vérifiée hors ligne, clé privée supprimée.
+
+## 9. État de la 618 (2 novembre 2026)
+
+Livrée sur la 617 (run `41504526945`, IPA `47351d9a…`, 194193557 octets), sans extension de la
+recette. Gel sur `0fd3ab04` : base effective 617 `f27e6e4b…`, 4 commits revus (mise à jour de région
+DMA pour Hogwarts `750a4077`, son correctif de revue `1e7dc4f2`, deux regels du contrat du Core
+`27fd5064`, `9ce5822c`), 4 différences produit, 70 chemins différés hérités, empreinte effective
+`95f1ecc9…`, 6835 fichiers produit ; contrôle légal réussi.
+- Le Core MeloNX remplacé est un regel de la route DMA (même vérificateur, même base de route : le Core
+  arrays 614) : la référence épinglée `dma-core-pin.json` change, et `components.melonx.replaces` nomme
+  le Core DMA de la 617. Entre le regel du contrat et la nouvelle référence, le contrôle de la référence
+  MeloNX de `standard_delivery_contract_test.py` a échoué (transitoire, annoncé aux autres sessions).
+- Composants : MeloNX remplacé (`dfe3bb56…`), RPCS3 Core 616 `unchangedFromBase` ; Dolphin/ARMSX2,
+  libretro et dépendances MeloNX conservés par la republication de la 617. Images changées : MeloNXCore,
+  Runner, et `armsx2_internal_bridge`, `melonx_internal_bridge` sans changement de leurs sources
+  (signalé, non bloquant). Tests frais dans les deux groupes (~24 min de bout en bout).
+- Hors CI : métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub MCP
+  (octets égaux aux digests de l'API) ; IPA vérifiée hors ligne, clé privée supprimée.
