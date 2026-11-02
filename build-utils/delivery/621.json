@@ -268,7 +268,23 @@
     "note": "Core 621 fixes from the Build 620 logs: ZCULL on-demand guard on sustained guest waits with COREPROF ZCULLTRIP621, Black Ops II on the lever, ZCULL On-Demand Reads setting and accuracy-page lever (12 locales), per-frame ZCULL waits and cause_rule=v2; regenerated canonical patch, refreshed pending pin, reviewed bridge host delta; host tests."
    }
   ],
-  "sourceOnly": [],
+  "sourceOnly": [
+   {
+    "commit": "ef1ddfee6591f7264a9e33ea1c01cd3b0ca2db06",
+    "targetBuild": 622,
+    "note": "Game box (another session): solid box relief, DS/3DS fidelity, editable back and image correction; outside this PS3 request, kept for that session's next build."
+   },
+   {
+    "commit": "816930fe8cc8bbaa0c26fe7bacff9f7db16d47c5",
+    "targetBuild": 622,
+    "note": "MeloNX (another session): GPU region copies of block-linear DMA sources, precise DMA reads, QoS and pipeline cache budget; needs its own MeloNX Core build, kept for that session's next build (621 keeps the MeloNX Core of 620)."
+   },
+   {
+    "commit": "4295b522c78f49766802151263b24a1b49299555",
+    "targetBuild": 622,
+    "note": "MeloNX (another session): 64 MiB gen0 GC budget for the engine; kept with the MeloNX work above for that session's next build."
+   }
+  ],
   "promotedCommits": []
  },
  "images": {
