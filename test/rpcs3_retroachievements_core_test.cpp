@@ -173,14 +173,18 @@ namespace
         g_slow_ms = 0;
 
         CHECK(rpcs3_ios_ra_set_frame_callback(on_frame, &weight) == RPCS3_IOS_OK);
-        g_slow_ms = 80;
+        // The callback in flight holds for 400 ms. Only the skipped notify(11) is timed (not the
+        // scheduling sleep before it): a VBlank that waited for the callback would take about
+        // 390 ms, a skipping one returns at once; 200 ms separates both on a loaded CI runner.
+        g_slow_ms = 400;
         std::thread busy([&hook] { hook.notify(10); });
         while (!g_inside) std::this_thread::yield();
-        const auto skip_start = std::chrono::steady_clock::now();
         std::thread blocked_set([] { rpcs3_ios_ra_set_frame_callback(nullptr, nullptr); });
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        const auto skip_start = std::chrono::steady_clock::now();
         hook.notify(11);  // set() holds the lock or waits for it: this frame is skipped, without blocking
-        CHECK(std::chrono::steady_clock::now() - skip_start < std::chrono::milliseconds(60));
+        CHECK(std::chrono::steady_clock::now() - skip_start < std::chrono::milliseconds(200));
+        CHECK(g_inside);  // the in-flight frame 10 was not awaited
         busy.join();
         blocked_set.join();
         CHECK(g_last_frame == 10);
