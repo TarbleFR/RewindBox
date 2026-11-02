@@ -28,6 +28,7 @@ SOURCE_EVIDENCE = (
     "modified-sources-since-0.0.8-2026-10-21.json",
     "achievement-translation-declarations-2026-10-31.json",
     "retro-achievements-session-declarations-2026-11-01.json",
+    "rpcs3-retroachievements-declarations-2026-11-02.json",
 )
 
 
@@ -111,6 +112,40 @@ def repository_inputs(root: Path) -> dict[str, str]:
         if update.get("after") != sha256(read_input(root, root / name)):
             raise SystemExit(f"Session source/license declaration changed since review: {name}")
         declarations[name] = update["after"]
+    # Build611: PS3 RetroAchievements through RPCS3. The RPCS3 bridge compiles a
+    # vendored rcheevos copy, byte-identical to the declared libretro copy. This
+    # overlay starts at the session review's exact postimage and may change only
+    # the RPCS3 bridge podspec; every vendored file stays bound by digest.
+    rpcs3_path = root / "docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json"
+    rpcs3 = json.loads(read_input(root, rpcs3_path))
+    prior_name = "docs/evidence/retro-achievements-session-declarations-2026-11-01.json"
+    vendored = rpcs3.get("dependency_changes", {}).get("vendored_sources", {})
+    if (rpcs3.get("schema") != 1 or rpcs3.get("baseline_inventory") != prior_name or
+            rpcs3.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or
+            rpcs3.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+            rpcs3.get("complete_corresponding_source_attested") is not False or
+            rpcs3.get("dependency_changes", {}).get("external_packages_added") != []):
+        raise SystemExit("RPCS3 RetroAchievements review has a different baseline or dependency scope")
+    updates = rpcs3.get("declarations", {})
+    if set(updates) != {"packages/rpcs3_internal_bridge/ios/rpcs3_internal_bridge.podspec"}:
+        raise SystemExit("RPCS3 RetroAchievements declaration review scope changed")
+    for name, update in updates.items():
+        if update.get("before") != declarations.get(name):
+            raise SystemExit(f"Wrong previous declaration identity: {name}")
+        if update.get("after") != sha256(read_input(root, root / name)):
+            raise SystemExit(f"RPCS3 source/license declaration changed since review: {name}")
+        declarations[name] = update["after"]
+    vendored_root = vendored.get("path", "")
+    vendored_files = vendored.get("files_sha256", {})
+    actual_files = sorted(str(path.relative_to(root)) for path in (root / vendored_root).rglob("*")
+                          if path.is_file()) if vendored_root else []
+    if (vendored_root != "packages/rpcs3_internal_bridge/ios/ThirdParty/rcheevos" or
+            vendored.get("license") != "MIT" or sorted(vendored_files) != actual_files or
+            vendored.get("files") != len(actual_files)):
+        raise SystemExit("Vendored rcheevos sources differ from the RPCS3 review")
+    for name, expected in vendored_files.items():
+        if sha256(read_input(root, root / name)) != expected:
+            raise SystemExit(f"Vendored rcheevos source changed since review: {name}")
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:
             raise SystemExit(f"Package source/license declaration changed since review: {name}")

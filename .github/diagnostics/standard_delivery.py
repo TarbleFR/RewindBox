@@ -97,6 +97,7 @@ EMBEDDED_RECIPE_FILES = (
     'docs/evidence/modified-sources-since-0.0.8-2026-10-21.json',
     'docs/evidence/achievement-translation-declarations-2026-10-31.json',
     'docs/evidence/retro-achievements-session-declarations-2026-11-01.json',
+    'docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json',
     'docs/retroarch-rollback-2026-10-08.md',
 )
 EMBEDDED_RECIPE_FOLDERS = ('docs/licenses/',)
