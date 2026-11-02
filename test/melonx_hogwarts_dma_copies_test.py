@@ -17,9 +17,10 @@ Usage: melonx_hogwarts_dma_copies_test.py <prepared tree without this adapter> [
    logged once each, the counts per reason (with region uploads, declines and slow accesses) every
    1024 copies, at most 64 times, and with the signature set full a copy allocates nothing. A
    region upload packs the source rows as the host reads them (a row of fewer than 4 bytes per
-   texel padded to 4 bytes), synchronises, uploads and marks the texture in that order, and every
-   declined case (no texture, layout, format) leaves the texture untouched. The whole GPU
-   assembly compiles in the fragmented-reads gate.
+   texel padded to 4 bytes), synchronises then uploads the texture and leaves its modified
+   state alone, and every declined case (no texture, layout, format, incompatible overlap)
+   leaves the texture untouched; after an upload the guest write-back is untracked, otherwise
+   tracked as delivered. The whole GPU assembly compiles in the fragmented-reads gate.
 """
 import argparse
 from pathlib import Path
@@ -111,12 +112,20 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
     direct = dma.index('// Try to set the texture data directly,')
     check(read < direct < region < scratch and scratch - region < 400,
           'the region upload is tried after the direct upload of complete copies, right before the read-modify-write')
-    check('if (GraphicsConfig.HogwartsDmaRegionUpload && srcLinear && !dstLinear && isIdentityRemap && srcBpp == dstBpp &&' in dma,
+    check('bool regionUploaded = GraphicsConfig.HogwartsDmaRegionUpload && srcLinear && !dstLinear && isIdentityRemap &&\n'
+          '                    srcBpp == dstBpp &&\n                    TryUploadRegion(' in dma,
           'the region upload is limited to the policy, linear sources, block-linear destinations, identity components, one element size')
+    check(dma[region:scratch].count('return') == 0, 'an uploaded copy still patches guest memory')
     write = dma.index('memoryManager.Write(dstGpuVa + (ulong)dstBaseOffset, dstSpan);')
-    check(dma.index('long writeStart = Stopwatch.GetTimestamp();') < write < dma.index('NoteGuestMemoryAccess(writeStart, write: true);') and
-          dma.count('memoryManager.Write(dstGpuVa + (ulong)dstBaseOffset, dstSpan);') == 1,
-          'the timed destination write is the write-back of the read-modify-write')
+    untracked = dma.index('memoryManager.WriteUntracked(dstGpuVa + (ulong)dstBaseOffset, dstSpan);')
+    check(dma.index('long writeStart = Stopwatch.GetTimestamp();') < untracked < write < dma.index('NoteGuestMemoryAccess(writeStart, write: true);') and
+          dma.count('memoryManager.Write(dstGpuVa + (ulong)dstBaseOffset, dstSpan);') == 1 and
+          dma.count('memoryManager.WriteUntracked(') == 1 and
+          'if (regionUploaded)\n                {\n                    // The GPU texture already holds the region' in dma,
+          'the timed write-back is untracked after an upload, tracked otherwise')
+    upload = dma[dma.index('private bool TryUploadRegion('):dma.index(adapter.METHOD_ANCHOR)]
+    check('SignalModified' not in upload and dma.count('SignalModified') == before[adapter.DMA].count('SignalModified'),
+          'the region upload does not mark the texture modified (the delivered GPU-copy and complete-copy paths still do)')
     restored = dma
     for old, new in ((adapter.METHOD_ANCHOR, adapter.METHOD_NEW), (adapter.WRITE_OLD, adapter.WRITE_NEW),
                      (adapter.REGION_OLD, adapter.REGION_NEW), (adapter.SLOW_OLD, adapter.SLOW_NEW),
@@ -194,7 +203,7 @@ namespace Image
 {
     sealed class FormatInfo { public Format Format; public int BytesPerPixel; }
     sealed class Info { public FormatInfo FormatInfo = new(); public int Width, Height; public Target Target = Target.Texture2D; }
-    sealed class Group { public Texture Storage; }
+    sealed class Group { public Texture Storage; public bool HasIncompatibleOverlaps; }
     sealed class Texture
     {
         public Info Info = new(); public float ScaleFactor = 1f; public Group Group = new();
@@ -247,7 +256,7 @@ sealed class Dma
     public void Access(long start, bool write) => NoteGuestMemoryAccess(start, write);
     public bool Upload(MemoryManager mm, byte[] src, int stride, int xCount, int yCount, int bpp, DmaTexture dst, int rx, int ry) =>
         TryUploadRegion(mm, src, stride, xCount, yCount, bpp, 0x10000, dst, rx, ry);
-    public string Counts => $"{_regionUploads} {_regionDeclines[0]} {_regionDeclines[1]} {_regionDeclines[2]} {_slowSourceReads} {_slowDestinationWrites}";
+    public string Counts => $"{_regionUploads} {_regionDeclines[0]} {_regionDeclines[1]} {_regionDeclines[2]} {_regionDeclines[3]} {_slowSourceReads} {_slowDestinationWrites}";
 }
 static class Program
 {
@@ -342,6 +351,8 @@ static class Program
         Decline("view", view, 32, 16, 2, 8, 3, dst);
         var volume = dst; volume.Depth = 2;
         Decline("volume", Make(Format.R8G8B8A8Unorm, 4, 64, 64), 32, 16, 2, 8, 3, volume);
+        var aliased = Make(Format.R8G8B8A8Unorm, 4, 64, 64); aliased.Group.HasIncompatibleOverlaps = true;
+        Decline("incompatibleOverlap", aliased, 32, 16, 2, 8, 3, dst);
         dma.Caps.ConvertsR8 = true;
         Decline("hostConversion", Make(Format.R8Unorm, 1, 256, 64), 32, 3, 2, 5, 0, dst);
         string counts = dma.Counts;
@@ -387,13 +398,13 @@ static class Program
     check(result['narrowUploaded'] and result['narrowCalls'] == 64 and result['narrowRegion'] == '2,3 4x2',
           f'a GOB-aligned surface is searched at each width it holds: {result}')
     check(result['exactUploaded'] and result['exactCalls'] == 1, f'an unaligned surface only at its own width: {result}')
-    check(result['calls'] == 'sync,set 0 0,modified', f'synchronised, uploaded, then marked modified: {result}')
+    check(result['calls'] == 'sync,set 0 0', f'synchronised then uploaded, its modified state left alone: {result}')
     check(result['r8Uploaded'] and result['r8Rows'], f'a row of fewer than 4 bytes per texel is padded to 4 bytes: {result}')
     expected = ['noTarget', 'narrowerThanSurface', 'ambiguous', 'misalignedX', 'misalignedWidth', 'outOfBoundsX', 'outOfBoundsY', 'shortSource', 'negativeStride',
-                'depth', 'scaled', 'array', 'view', 'volume', 'hostConversion']
+                'depth', 'scaled', 'array', 'view', 'volume', 'incompatibleOverlap', 'hostConversion']
     check(result['declined'] == expected, f'every declined case leaves the texture untouched: {result}')
-    check(result['counts'] == '4 3 10 2 2 1', f'uploads, declines (no texture, layout, format) and slow accesses counted: {result}')
-    check('regionUploads 4, declined noTarget 3 layout 10 format 2; slowReads 2, slowWrites 1' in result['last'] and
+    check(result['counts'] == '4 3 10 2 1 2 1', f'uploads, declines (no texture, layout, format, overlap) and slow accesses counted: {result}')
+    check('regionUploads 4, declined noTarget 3 layout 10 format 2 overlap 1; slowReads 2, slowWrites 1' in result['last'] and
           'floatFormat ' in result['last'], f'the summary reports them: {result}')
     check(result['capped'] == 64, f'at most 64 summaries per session: {result}')
     check(result['uploadLines'] == 1 and result['uploadLine'] == 'DMA region upload (Hogwarts policy): R8G8B8A8Unorm 64x64 region 2,3 4x2',

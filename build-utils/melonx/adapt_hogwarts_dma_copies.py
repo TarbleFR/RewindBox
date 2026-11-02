@@ -46,12 +46,16 @@ waits for the render thread and the GPU), and the texture is then uploaded again
   texture of the cache (the same lookup as the upstream direct upload of complete copies, at
   each width in bytes that the GOB-aligned surface width holds; more than one texture group:
   none), at scale 1, without host format conversion, and whose region falls on
-  whole texels inside it, is uploaded into that region of the host texture
-  (Texture.SetData(data, 0, 0, region), rows packed as the host expects them) after the
-  texture's own memory synchronisation, and the texture is marked modified, as the upstream
-  direct upload of complete copies does. Guest memory is not written: a later CPU access
-  flushes the texture with the region in it. Any other copy keeps the guest-memory path.
-- Attribution: uploaded regions and declined ones (no texture, layout, format) are counted,
+  whole texels inside it, and that has no overlap of an incompatible layout, is uploaded
+  into that region of the host texture (Texture.SetData(data, 0, 0, region), rows packed as
+  the host expects them) after the texture's own memory synchronisation. Guest memory is then
+  patched as before but written untracked: the texture and guest memory hold the same
+  region, the texture is neither read back nor uploaded again, and its modified state is left
+  as it was (a later CPU access to a GPU-modified texture flushes it with the region in it;
+  an unmodified one stays consistent with guest memory). Any other copy keeps the tracked
+  guest-memory path.
+- Attribution: uploaded regions and declined ones (no texture, layout, format, incompatible
+  overlap) are counted (an uploaded copy also counts as a guest-memory copy),
   the first upload is logged once, and the source reads and destination writes of the
   guest-memory path that take more than 2 ms (a flush action inside) are counted; all in the
   per-1024-copies summary line (at most 64 lines per session).
@@ -82,7 +86,7 @@ CONFIG_NEW = CONFIG_ANCHOR + '''
 
         /// <summary>
         /// Lets a partial DMA copy from linear memory update the region of the GPU texture that holds its
-        /// destination, instead of writing guest memory (which first reads a GPU-written texture back).
+        /// destination, with guest memory written untracked (a tracked write first reads a GPU-written texture back).
         /// Set per session from the launched title (Hogwarts Legacy only).
         /// </summary>
         public static bool HogwartsDmaRegionUpload { get; set; }'''
@@ -202,11 +206,11 @@ SLOW_NEW = '''            GuestMemoryCopy:
 REGION_OLD = '''                // The destination range is read into this engine's buffer, patched there and
                 // written back whole, as before; only the array per copy is gone.
                 Span<byte> dstSpan = DestinationScratch(dstSize);'''
-REGION_NEW = '''                if (GraphicsConfig.HogwartsDmaRegionUpload && srcLinear && !dstLinear && isIdentityRemap && srcBpp == dstBpp &&
-                    TryUploadRegion(memoryManager, srcSpan, srcStride, xCount, yCount, dstBpp, dstGpuVa, dst, dstRegionX, dstRegionY))
-                {
-                    return;
-                }
+REGION_NEW = '''                // Hogwarts Legacy policy: the region also goes into the GPU texture that holds the destination; guest
+                // memory is then patched below without running that texture's flush action.
+                bool regionUploaded = GraphicsConfig.HogwartsDmaRegionUpload && srcLinear && !dstLinear && isIdentityRemap &&
+                    srcBpp == dstBpp &&
+                    TryUploadRegion(memoryManager, srcSpan, srcStride, xCount, yCount, dstBpp, dstGpuVa, dst, dstRegionX, dstRegionY);
 
 ''' + REGION_OLD
 
@@ -215,7 +219,18 @@ WRITE_OLD = '''                memoryManager.Write(dstGpuVa + (ulong)dstBaseOffs
             else
             {'''
 WRITE_NEW = '''                long writeStart = Stopwatch.GetTimestamp();
-                memoryManager.Write(dstGpuVa + (ulong)dstBaseOffset, dstSpan);
+
+                if (regionUploaded)
+                {
+                    // The GPU texture already holds the region, and the write keeps guest memory equal to it: untracked,
+                    // the texture is neither read back nor uploaded again, and its modified state is left as it was.
+                    memoryManager.WriteUntracked(dstGpuVa + (ulong)dstBaseOffset, dstSpan);
+                }
+                else
+                {
+                    memoryManager.Write(dstGpuVa + (ulong)dstBaseOffset, dstSpan);
+                }
+
                 NoteGuestMemoryAccess(writeStart, write: true);
             }
             else
@@ -235,7 +250,7 @@ METHOD_NEW = '''        /// <summary>
         /// <summary>
         /// Why a partial upload into a GPU texture region was declined (the copy then goes through guest memory).
         /// </summary>
-        private enum RegionDecline { NoTarget, Layout, Format, Count }
+        private enum RegionDecline { NoTarget, Layout, Format, Overlap, Count }
 
         private const int GuestCopySignaturesPerReason = 8;
         private const int GuestCopySummaryLimit = 64;
@@ -280,7 +295,8 @@ METHOD_NEW = '''        /// <summary>
                     $"(incomplete {_guestCopies[0]}, linearSource {_guestCopies[1]}, remap {_guestCopies[2]}, " +
                     $"noSource {_guestCopies[3]}, height {_guestCopies[4]}, floatFormat {_guestCopies[5]}; " +
                     $"regionUploads {_regionUploads}, declined noTarget {_regionDeclines[0]} layout {_regionDeclines[1]} " +
-                    $"format {_regionDeclines[2]}; slowReads {_slowSourceReads}, slowWrites {_slowDestinationWrites})");
+                    $"format {_regionDeclines[2]} overlap {_regionDeclines[3]}; slowReads {_slowSourceReads}, " +
+                    $"slowWrites {_slowDestinationWrites})");
             }
         }
 
@@ -345,14 +361,15 @@ METHOD_NEW = '''        /// <summary>
 
         /// <summary>
         /// Hogwarts Legacy policy: uploads a 2D copy from linear memory into the region of the GPU texture whose surface is
-        /// the destination, instead of patching guest memory. A CPU write to the memory of a texture the GPU modified first
-        /// reads the whole texture back (its flush action), and the texture is then uploaded again.
+        /// the destination. A tracked CPU write to the memory of a texture the GPU modified first reads the whole texture
+        /// back (its flush action), and the texture is then uploaded again; after this upload the caller patches guest
+        /// memory untracked instead, so the texture and guest memory hold the same region and the texture keeps its state.
         /// The texture must be the single-level 2D uncompressed colour texture of the destination surface (the lookup of the
-        /// direct upload of complete copies, at the widths the surface holds), at scale 1 and without host format conversion, and the
-        /// region must fall on whole texels inside it. It is synchronised with its memory first and marked modified after,
-        /// as the direct upload of complete copies does; guest memory is not written.
+        /// direct upload of complete copies, at the widths the surface holds), at scale 1, without host format conversion
+        /// and without overlaps of an incompatible layout, and the region must fall on whole texels inside it. The texture
+        /// is synchronised with its memory first.
         /// </summary>
-        /// <returns>True if the region was uploaded, false to copy through guest memory</returns>
+        /// <returns>True if the region was uploaded (the caller then writes guest memory untracked), false otherwise</returns>
         private bool TryUploadRegion(MemoryManager memoryManager, ReadOnlySpan<byte> srcSpan, int srcStride, int xCount, int yCount,
                                      int bpp, ulong dstGpuVa, DmaTexture dst, int dstRegionX, int dstRegionY)
         {
@@ -383,6 +400,13 @@ METHOD_NEW = '''        /// <summary>
             int byteX = dstRegionX * bpp;
             int byteWidth = xCount * bpp;
 
+            if (target.Group.HasIncompatibleOverlaps)
+            {
+                // Another texture of an incompatible layout shares this memory: it would not see the region.
+                _regionDeclines[(int)RegionDecline.Overlap]++;
+                return false;
+            }
+
             if (target.Info.Target != Target.Texture2D || target.ScaleFactor != 1f || target.Group.Storage != target ||
                 byteX % texelBytes != 0 || byteWidth % texelBytes != 0 ||
                 byteX / texelBytes + byteWidth / texelBytes > target.Info.Width || dstRegionY + yCount > target.Info.Height ||
@@ -408,7 +432,6 @@ METHOD_NEW = '''        /// <summary>
 
             target.SynchronizeMemory();
             target.SetData(data, 0, 0, new Rectangle<int>(x, dstRegionY, width, yCount));
-            target.SignalModified();
             _regionUploads++;
 
             if (!_regionUploadNoted)
