@@ -70,11 +70,13 @@ DELTA = ROOT / 'build-utils/rpcs3/core621-from-619.patch'
 RECORD = ROOT / 'build-utils/rpcs3/core621-delta.json'
 CLASSES = ROOT / 'packages/rpcs3_internal_bridge/ios/Classes'
 MARKERS = ('REWINDBOX_GPU_TIMING_621', 'REWINDBOX_FREEZE_EPISODE_621', 'REWINDBOX_ISO_IMAGE_LIFETIME_621',
-           'REWINDBOX_PIPELINE_QUEUE_621')
+           'REWINDBOX_PIPELINE_QUEUE_621',
+           # Build 620 logs: ZCULL waits explained per frame, the on-demand guard, Black Ops II joins the lever.
+           'REWINDBOX_ZCULL_FRAME_621', 'REWINDBOX_ZCULL_DEMAND_GUARD_621', 'REWINDBOX_ZCULL_DEMAND_BO2_621')
 LOCALES = ('en', 'es', 'ru', 'zh', 'zh_Hant', 'pt', 'fr', 'de', 'it', 'id', 'ja', 'ko')
 KEYS_621 = ('reportProblem', 'reportProblemDetail', 'reportFailed', 'gameStoppedTitle',
             'gameStoppedMessage', 'closeAndReport', 'closeGame', 'previousEndedTitle', 'previousEndedMessage',
-            'shareReport', 'later', 'testGpuTiming')
+            'shareReport', 'later', 'testGpuTiming', 'testZcullOnDemand')
 
 
 def require(condition, message):
@@ -179,6 +181,16 @@ def main() -> None:
             build(args.cxx, [HERE / 'gpu_timing_test.cpp'], work / 'gpu_timing_asan', [core_include], asan)
             execute([str(work / 'gpu_timing_asan'), '--quick'], 'gpu timing (ASan/UBSan)')
 
+        print('zcull on demand (Build 620 logs)')
+        sys.path.insert(0, str(ROOT / 'test'))
+        import rpcs3_core621_zcull as zcull621
+        report['zcull_on_demand'] = zcull621.run(
+            source, [args.cxx], {'plain': [], 'tsan': [f for f in tsan if f not in ('-O1', '-g')],
+                                 'asan': ['-fsanitize=address,undefined', '-fno-sanitize-recover=all']},
+            work, sanitize)
+        print('  zcull on demand: guard, real fault protocol' + (' (plain, TSan, ASan/UBSan)' if sanitize else ' (plain)') +
+              ', ZCULLDEMAND619/ZCULLTRIP621 lines, levers, setting, frame wiring: ok')
+
         print('freeze episodes')
         fe = work / 'freeze_episode'
         build(args.cxx, [HERE / 'freeze_episode_test.cpp'], fe, [core_include], plain)
@@ -250,6 +262,9 @@ def main() -> None:
                 log.index('RPCS3AdmitCoreLog(level, message, profiler, text);'), 'RPCS3Log order changed')
         require('limits.per_second = 0;' in diagnostics, 'the shared admission budgets ordinary lines a second time')
         require('@"experimental.gpu_timing": @[@"Enabled", @"Disabled"]' in plugin, 'GPU timing lever not whitelisted')
+        require('@"experimental.zcull_on_demand": @[@"Enabled", @"Disabled"]' in plugin, 'ZCULL on-demand lever not whitelisted')
+        require('@"key": @"experimental.zcull_on_demand", @"title": @"testZcullOnDemand", @"field": @"zcull_demand"' in menu,
+                'ZCULL on-demand lever missing from the accuracy page')
         require('@"key": @"experimental.gpu_timing"' in menu, 'GPU timing lever missing from the accuracy page')
         require('@"reportProblem"' in menu, '"Report a problem" row missing')
         block = localization[localization.index('Build621Translations() {'):]

@@ -426,25 +426,41 @@ void test_explain()
 	gt::frame_view complete;
 	complete.status = gt::frame_status::complete;
 	complete.busy_us = 40'000.0;
-	auto e = gt::explain_frame(50.0, 30.0, 0.0, 1.0, 1.0, 0.0, complete);
+	auto e = gt::explain_frame(50.0, 30.0, 0.0, 1.0, 1.0, 0.0, 0.0, complete);
 	CHECK(std::string(e.cause) == "gpu_execution" && std::string(e.certainty) == "measured");
 	CHECK(std::string(e.dominant) == "cpu_wait_gpu_fence");
 	gt::frame_view pending;
 	pending.status = gt::frame_status::pending;
-	e = gt::explain_frame(50.0, 30.0, 0.0, 1.0, 1.0, 0.0, pending);
+	e = gt::explain_frame(50.0, 30.0, 0.0, 1.0, 1.0, 0.0, 0.0, pending);
 	CHECK(std::string(e.cause) == "cpu_wait_gpu_fence" && std::string(e.certainty) == "partial");
 	complete.busy_us = 5'000.0;
-	e = gt::explain_frame(120.0, 2.0, 90.0, 1.0, 1.0, 0.0, complete);
+	e = gt::explain_frame(120.0, 2.0, 90.0, 1.0, 1.0, 0.0, 0.0, complete);
 	CHECK(std::string(e.cause) == "pipeline_compile" && std::string(e.certainty) == "measured");
 	CHECK_NEAR(e.other_ms, 26.0, 1e-9);
-	e = gt::explain_frame(60.0, 2.0, 1.0, 20.0, 1.0, 0.0, complete);
+	e = gt::explain_frame(60.0, 2.0, 1.0, 20.0, 1.0, 0.0, 0.0, complete);
 	CHECK(std::string(e.cause) == "presentation");
-	e = gt::explain_frame(60.0, 2.0, 1.0, 1.0, 1.0, 40.0, complete);
+	e = gt::explain_frame(60.0, 2.0, 1.0, 1.0, 1.0, 40.0, 0.0, complete);
 	CHECK(std::string(e.cause) == "guest_semaphore");
-	e = gt::explain_frame(60.0, 2.0, 1.0, 1.0, 1.0, 1.0, complete);
+	e = gt::explain_frame(60.0, 2.0, 1.0, 1.0, 1.0, 1.0, 0.0, complete);
 	CHECK(std::string(e.cause) == "rsx_or_guest_cpu" && std::string(e.certainty) == "inferred");
-	e = gt::explain_frame(0.0, 2.0, 1.0, 1.0, 1.0, 1.0, complete);
+	e = gt::explain_frame(0.0, 2.0, 1.0, 1.0, 1.0, 1.0, 0.0, complete);
 	CHECK(std::string(e.cause) == "rsx_or_guest_cpu");
+	// REWINDBOX_ZCULL_FRAME_621 (cause_rule=v2): a Build 620 Assassin's Creed frame of 67.3 ms with
+	// 2.2 ms setup, 1.7 ms vertex, 2.6 ms texture and the rest waiting for occlusion results.
+	gt::frame_view untimed;
+	untimed.status = gt::frame_status::untimed;
+	e = gt::explain_frame(67.3, 0.0, 0.0, 0.01, 0.0, 0.0, 56.0, untimed);
+	CHECK(std::string(e.cause) == "zcull_sync" && std::string(e.certainty) == "measured" && std::string(e.dominant) == "zcull_sync");
+	CHECK_NEAR(e.waits_ms, 56.01, 1e-9);
+	// v1 could only infer it: without the ZCULL wait the same frame is rsx_or_guest_cpu.
+	e = gt::explain_frame(67.3, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, untimed);
+	CHECK(std::string(e.cause) == "rsx_or_guest_cpu" && std::string(e.certainty) == "inferred");
+	// Black Ops II multiplayer frame of 44 ms: 9 ms of ZCULL waits (20 %) is not dominant enough.
+	e = gt::explain_frame(44.0, 0.0, 0.0, 0.1, 0.1, 0.0, 9.0, untimed);
+	CHECK(std::string(e.cause) == "rsx_or_guest_cpu" && std::string(e.dominant) == "zcull_sync");
+	// A 1.4 s pipeline compile beats the ZCULL waits of the same frame.
+	e = gt::explain_frame(1450.0, 0.0, 1400.0, 0.1, 0.1, 0.0, 30.0, untimed);
+	CHECK(std::string(e.cause) == "pipeline_compile");
 }
 
 // Host cost of the bookkeeping per timed submission (record + read + attribute)

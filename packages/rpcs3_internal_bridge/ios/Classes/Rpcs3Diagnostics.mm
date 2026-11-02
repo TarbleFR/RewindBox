@@ -199,6 +199,7 @@ static void RPCS3WriteAdmissionLines(const std::string& text) {
 - (void)hostMenuOpen:(BOOL)menuOpen background:(BOOL)background;
 - (void)sessionStopped;
 - (void)drainWithin:(uint32_t)milliseconds;
+- (NSString*)fatalSlotPath;  // REWINDBOX_INCIDENT_REPORT_621: also read by RPCS3RecordFatalLine
 - (nullable NSString*)takePreviousSessionIncident;
 - (void)buildReport:(void (^)(NSString* _Nullable path))completion;
 - (void)writeMilestoneStage:(nullable NSString*)stage

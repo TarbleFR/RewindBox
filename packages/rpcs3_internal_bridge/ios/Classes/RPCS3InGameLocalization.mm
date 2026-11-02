@@ -1164,6 +1164,7 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translatio
         @"shareReport": @"Share the report",
         @"later": @"Later",
         @"testGpuTiming": @"GPU timing probe",
+        @"testZcullOnDemand": @"ZCULL on-demand reads",
       },
       @"es": @{
         @"reportProblem": @"Informar de un problema",
@@ -1178,6 +1179,7 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translatio
         @"shareReport": @"Compartir el informe",
         @"later": @"Más tarde",
         @"testGpuTiming": @"Medición de tiempo de GPU",
+        @"testZcullOnDemand": @"Lecturas ZCULL bajo demanda",
       },
       @"ru": @{
         @"reportProblem": @"Сообщить о проблеме",
@@ -1192,6 +1194,7 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translatio
         @"shareReport": @"Поделиться отчётом",
         @"later": @"Позже",
         @"testGpuTiming": @"Замер времени GPU",
+        @"testZcullOnDemand": @"Чтение ZCULL по запросу",
       },
       @"zh": @{
         @"reportProblem": @"报告问题",
@@ -1206,6 +1209,7 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translatio
         @"shareReport": @"分享报告",
         @"later": @"稍后",
         @"testGpuTiming": @"GPU 计时探针",
+        @"testZcullOnDemand": @"按需读取 ZCULL",
       },
       @"zh_Hant": @{
         @"reportProblem": @"回報問題",
@@ -1220,6 +1224,7 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translatio
         @"shareReport": @"分享報告",
         @"later": @"稍後",
         @"testGpuTiming": @"GPU 計時探針",
+        @"testZcullOnDemand": @"按需讀取 ZCULL",
       },
       @"pt": @{
         @"reportProblem": @"Comunicar um problema",
@@ -1234,6 +1239,7 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translatio
         @"shareReport": @"Partilhar o relatório",
         @"later": @"Mais tarde",
         @"testGpuTiming": @"Medição de tempo da GPU",
+        @"testZcullOnDemand": @"Leituras ZCULL sob demanda",
       },
       @"fr": @{
         @"reportProblem": @"Signaler un problème",
@@ -1248,6 +1254,7 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translatio
         @"shareReport": @"Partager le rapport",
         @"later": @"Plus tard",
         @"testGpuTiming": @"Sonde de temps GPU",
+        @"testZcullOnDemand": @"Lectures ZCULL à la demande",
       },
       @"de": @{
         @"reportProblem": @"Problem melden",
@@ -1262,6 +1269,7 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translatio
         @"shareReport": @"Bericht teilen",
         @"later": @"Später",
         @"testGpuTiming": @"GPU-Zeitmessung",
+        @"testZcullOnDemand": @"ZCULL-Lesen bei Bedarf",
       },
       @"it": @{
         @"reportProblem": @"Segnala un problema",
@@ -1276,6 +1284,7 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translatio
         @"shareReport": @"Condividi il rapporto",
         @"later": @"Più tardi",
         @"testGpuTiming": @"Misurazione dei tempi GPU",
+        @"testZcullOnDemand": @"Letture ZCULL su richiesta",
       },
       @"id": @{
         @"reportProblem": @"Laporkan masalah",
@@ -1290,6 +1299,7 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translatio
         @"shareReport": @"Bagikan laporan",
         @"later": @"Nanti",
         @"testGpuTiming": @"Pengukur waktu GPU",
+        @"testZcullOnDemand": @"Baca ZCULL sesuai permintaan",
       },
       @"ja": @{
         @"reportProblem": @"問題を報告",
@@ -1304,6 +1314,7 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translatio
         @"shareReport": @"レポートを共有",
         @"later": @"後で",
         @"testGpuTiming": @"GPU時間計測",
+        @"testZcullOnDemand": @"ZCULL オンデマンド読み取り",
       },
       @"ko": @{
         @"reportProblem": @"문제 신고",
@@ -1318,6 +1329,7 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translatio
         @"shareReport": @"보고서 공유",
         @"later": @"나중에",
         @"testGpuTiming": @"GPU 시간 측정",
+        @"testZcullOnDemand": @"ZCULL 필요 시 읽기",
       },
     };
   });

@@ -831,6 +831,7 @@ static NSDictionary<NSString*, NSArray<NSString*>*>* RPCS3TestSettingValues(void
       @"experimental.position_invariance": @[@"Enabled", @"Disabled"],
       @"experimental.moltenvk_async_submits": @[@"Enabled", @"Disabled"],
       @"experimental.gpu_timing": @[@"Enabled", @"Disabled"],  // REWINDBOX_GPU_TIMING_621
+      @"experimental.zcull_on_demand": @[@"Enabled", @"Disabled"],  // REWINDBOX_ZCULL_DEMAND_BO2_621
     };
   });
   return values;

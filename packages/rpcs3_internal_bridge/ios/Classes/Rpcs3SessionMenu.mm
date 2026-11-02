@@ -53,6 +53,10 @@ static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
       // REWINDBOX_GPU_TIMING_621: Disabled measures the cost of the GPU timestamp probe.
       @{@"key": @"experimental.gpu_timing", @"title": @"testGpuTiming", @"field": @"gpu_timing",
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // REWINDBOX_ZCULL_DEMAND_BO2_621: occlusion reports written when the game reads them
+      // (Automatic: Assassin's Creed and Black Ops II) against the upstream GPU waits.
+      @{@"key": @"experimental.zcull_on_demand", @"title": @"testZcullOnDemand", @"field": @"zcull_demand",
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
     ];
   });
   return levers;

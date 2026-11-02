@@ -21487,7 +21487,7 @@ index fefbfb9..b13decc 100644
  
  	inline thread* get_current_renderer()
 diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
-index 4db3766..c1da43d 100644
+index 4db3766..17bda4e 100644
 --- a/rpcs3/Emu/RSX/RSXZCULL.cpp
 +++ b/rpcs3/Emu/RSX/RSXZCULL.cpp
 @@ -3,6 +3,12 @@
@@ -21710,7 +21710,7 @@ index 4db3766..c1da43d 100644
  				return true;
  			}
  
-@@ -963,6 +1089,241 @@ namespace rsx
+@@ -963,6 +1089,269 @@ namespace rsx
  		}
  
  
@@ -21797,6 +21797,7 @@ index 4db3766..c1da43d 100644
 +				{
 +					rsx_log.warning("ZCULL on-demand reads: more than %u requests in one second, upstream mode for the rest of this boot.",
 +						rpcs3::ios::zcull_on_demand::storm_services);
++					ios_log_trip(); // REWINDBOX_ZCULL_DEMAND_GUARD_621
 +				}
 +			}
 +		}
@@ -21834,6 +21835,22 @@ index 4db3766..c1da43d 100644
 +			}
 +		}
 +
++		void ZCULL_control::ios_log_trip() const
++		{
++			// REWINDBOX_ZCULL_DEMAND_GUARD_621: the trip reaches the journal as a profiler
++			// line (the host keeps no RSX warning), with the windows that caused it.
++			namespace od = rpcs3::ios::zcull_on_demand;
++			const auto trip = m_ios_demand.trip_record();
++			rsx_log.notice("COREPROF ZCULLTRIP621 reason=%s scope=%s windows_ms=%.1f:%.1f:%.1f at_us=%llu "
++				"rule=thread%ums_x%u:all%ums_x%u:severe%ums_%uwaits:storm%u:pickup%ums:hard%ums mode_after=upstream_for_boot",
++				od::trip_reason_name(trip.reason), trip.scope == 1 ? "thread" : trip.scope == 2 ? "all_threads" : "none",
++				trip.windows_us[0] / 1000.0, trip.windows_us[1] / 1000.0, trip.windows_us[2] / 1000.0,
++				static_cast<u64>(trip.at_us),
++				static_cast<u32>(od::wait_budget_us / 1000), od::sustained_windows, static_cast<u32>(od::global_budget_us / 1000),
++				od::sustained_windows, static_cast<u32>(od::severe_wait_us / 1000), od::severe_min_waits, od::storm_services,
++				static_cast<u32>(od::pickup_deadline_us / 1000), static_cast<u32>(od::hard_deadline_us / 1000));
++		}
++
 +		ZCULL_control::ios_fault ZCULL_control::ios_on_demand_fault(u32 address, u32 page_address, u32 location)
 +		{
 +			// PPU or SPU thread inside the access violation handler (vm::temporary_unlock done).
@@ -21841,6 +21858,8 @@ index 4db3766..c1da43d 100644
 +			auto& tally = od::counters();
 +			const u64 started = get_system_time();
 +			bool requested = false;
++			u64 requested_at = 0; // REWINDBOX_ZCULL_DEMAND_GUARD_621: the latest request
++			u64 picked_at = 0;    // ... and when the RSX thread was seen to pick it up
 +
 +			const auto page_released = [&]()
 +			{
@@ -21856,10 +21875,16 @@ index 4db3766..c1da43d 100644
 +					const u64 now = get_system_time();
 +					tally.add_wait(now - started);
 +
++					if (picked_at >= requested_at && picked_at && now >= picked_at)
++					{
++						tally.add_halves(picked_at - requested_at, now - picked_at);
++					}
++
 +					if (m_ios_demand.record_wait(now - started, now))
 +					{
-+						rsx_log.warning("ZCULL on-demand reads: guest threads waited more than %u ms in one second, upstream mode for the rest of this boot.",
-+							static_cast<u32>(od::wait_budget_us / 1000));
++						rsx_log.warning("ZCULL on-demand reads: guest waits tripped the lever (%s), upstream mode for the rest of this boot.",
++							od::trip_reason_name(m_ios_demand.trip_record().reason));
++						ios_log_trip();
 +					}
 +				}
 +
@@ -21919,6 +21944,8 @@ index 4db3766..c1da43d 100644
 +				// Ask the RSX thread to write every claimed report (sync() through pipe_flush_interrupt).
 +				const u64 ticket = m_ios_demand.request();
 +				requested = true;
++				requested_at = get_system_time();
++				picked_at = 0;
 +
 +				auto thr = rsx::get_current_renderer();
 +				thr->m_eng_interrupt_mask |= rsx::pipe_flush_interrupt;
@@ -21926,7 +21953,7 @@ index 4db3766..c1da43d 100644
 +
 +				const auto result = od::wait_for(m_ios_demand, ticket, started, page_released,
 +					[&]() { return Emu.IsStopped() || thr->is_stopped(); },
-+					[]() { return get_system_time(); });
++					[]() { return get_system_time(); }, &picked_at);
 +
 +				if (result == od::wait_result::stopped)
 +				{
@@ -21938,9 +21965,10 @@ index 4db3766..c1da43d 100644
 +				{
 +					tally.timeouts.fetch_add(1, std::memory_order_relaxed);
 +					const bool picked = m_ios_demand.is_picked(ticket);
-+					m_ios_demand.trip(picked ? od::trip_reason::hard : od::trip_reason::pickup);
++					const bool tripped_now = m_ios_demand.trip(picked ? od::trip_reason::hard : od::trip_reason::pickup);
 +					rsx_log.error("ZCULL on-demand read of page 0x%x not %s in %u ms, upstream mode for the rest of this boot.",
 +						page_address, picked ? "completed" : "picked up", static_cast<u32>((get_system_time() - started) / 1000));
++					if (tripped_now) ios_log_trip(); // REWINDBOX_ZCULL_DEMAND_GUARD_621
 +					return finish(ios_fault::upstream);
 +				}
 +
@@ -21952,7 +21980,7 @@ index 4db3766..c1da43d 100644
  		// Conditional rendering helpers
  		void conditional_render_eval::reset()
  		{
-@@ -1029,6 +1390,15 @@ namespace rsx
+@@ -1029,6 +1418,15 @@ namespace rsx
  
  		void conditional_render_eval::eval_result(::rsx::thread* pthr)
  		{
@@ -21969,7 +21997,7 @@ index 4db3766..c1da43d 100644
  			const bool failed = (result->value == 0u);
  			set_eval_result(pthr, failed);
 diff --git a/rpcs3/Emu/RSX/RSXZCULL.h b/rpcs3/Emu/RSX/RSXZCULL.h
-index 8823905..08a769a 100644
+index 8823905..19591ed 100644
 --- a/rpcs3/Emu/RSX/RSXZCULL.h
 +++ b/rpcs3/Emu/RSX/RSXZCULL.h
 @@ -7,6 +7,9 @@
@@ -21982,7 +22010,7 @@ index 8823905..08a769a 100644
  
  #include <vector>
  #include <stack>
-@@ -106,6 +109,18 @@ namespace rsx
+@@ -106,6 +109,19 @@ namespace rsx
  			void on_report_enqueued(vm::addr_t address);
  			void on_report_completed(vm::addr_t address);
  			void disable_optimizations(class ::rsx::thread* ptimer, u32 location);
@@ -21997,11 +22025,12 @@ index 8823905..08a769a 100644
 +			bool ios_range_locked(u32 memory_address, u32 memory_range, bool& pending);
 +			void ios_retire_claimed(class ::rsx::thread* ptimer);
 +			void ios_release_stale_pages(u32 memory_address, u32 memory_range);
++			void ios_log_trip() const; // REWINDBOX_ZCULL_DEMAND_GUARD_621: COREPROF ZCULLTRIP621
 +#endif
  
  		protected:
  
-@@ -195,6 +210,11 @@ namespace rsx
+@@ -195,6 +211,11 @@ namespace rsx
  
  			// Check paging issues
  			bool on_access_violation(u32 address);
@@ -25049,21 +25078,22 @@ index 79b8371..3bcd9f0 100644
  			void bind_uniform_array(const std::span<const VkDescriptorImageInfoEx>& image_descriptors,u32 set_id, u32 binding_point);
  
 diff --git a/rpcs3/Emu/RSX/VK/VKQueryPool.cpp b/rpcs3/Emu/RSX/VK/VKQueryPool.cpp
-index bcd00a9..cb0c64d 100644
+index bcd00a9..51b8df3 100644
 --- a/rpcs3/Emu/RSX/VK/VKQueryPool.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKQueryPool.cpp
-@@ -6,6 +6,10 @@
+@@ -6,6 +6,11 @@
  #include "VKResourceManager.h"
  #include "util/asm.hpp"
  #include "VKGSRender.h"
 +#ifdef RPCS3_IOS
 +#include "util/tsc.hpp"
 +#include "ios/IOSRsxSyncProfile.h" // REWINDBOX_ZCULL_WAIT_PROBE_616
++#include "ios/IOSFrameTrace.h" // REWINDBOX_ZCULL_FRAME_621
 +#endif
  
  namespace vk
  {
-@@ -57,6 +61,7 @@ namespace vk
+@@ -57,6 +62,7 @@ namespace vk
  		owner = &dev;
  		query_type = type;
  		query_slot_status.resize(num_entries, {});
@@ -25071,7 +25101,7 @@ index bcd00a9..cb0c64d 100644
  
  		for (unsigned i = 0; i < num_entries; ++i)
  		{
-@@ -161,7 +166,8 @@ namespace vk
+@@ -161,7 +167,8 @@ namespace vk
  
  	bool query_pool_manager::check_query_status(u32 index)
  	{
@@ -25081,7 +25111,7 @@ index bcd00a9..cb0c64d 100644
  	}
  
  	u32 query_pool_manager::get_query_result(u32 index)
-@@ -173,11 +179,27 @@ namespace vk
+@@ -173,11 +180,32 @@ namespace vk
  		{
  			poke_query(query_info, index, result_flags);
  
@@ -25104,13 +25134,18 @@ index bcd00a9..cb0c64d 100644
 +#ifdef RPCS3_IOS
 +			if (ios_wait_started)
 +			{
-+				rpcs3::ios::rsx_sync::record_zcull_wait(utils::get_tsc() - ios_wait_started);
++				const u64 ios_wait_ticks = utils::get_tsc() - ios_wait_started;
++				rpcs3::ios::rsx_sync::record_zcull_wait(ios_wait_ticks);
++				// REWINDBOX_ZCULL_FRAME_621: the same wait, in the frame that waited.
++				auto& ios_frame_waits = rpcs3::ios::frame_trace::waits();
++				ios_frame_waits.zcull_ticks += ios_wait_ticks;
++				ios_frame_waits.zcull_waits++;
  			}
 +#endif
  		}
  
  		return query_info.data;
-@@ -190,7 +212,7 @@ namespace vk
+@@ -190,7 +218,7 @@ namespace vk
  		vkCmdCopyQueryPoolResults(cmd, *query_slot_status[index].pool, index, count, dst, dst_offset, 4, VK_QUERY_RESULT_WAIT_BIT);
  	}
  
@@ -25119,7 +25154,7 @@ index bcd00a9..cb0c64d 100644
  	{
  		// Release reference and discard
  		auto& query = query_slot_status[index];
-@@ -198,14 +220,18 @@ namespace vk
+@@ -198,14 +226,18 @@ namespace vk
  		ensure(query.active);
  		query.pool->release();
  
@@ -29139,7 +29174,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..eb52b12 100644
+index 1f53c64..c7cf8b7 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1,4 +1,7 @@
@@ -29507,7 +29542,7 @@ index 1f53c64..eb52b12 100644
  			// Disable incompatible settings
  			fixup_settings(&_psf, inherited_psf_resolution);
  
-@@ -1847,6 +2039,123 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1847,6 +2039,124 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			}
  			g_cfg.misc.use_native_interface.set(true);
  			rpcs3::ios::resolve_experimental_policy();
@@ -29603,6 +29638,7 @@ index 1f53c64..eb52b12 100644
 +					ios_rsx.invariance = ios_rsx.invariance_policy && g_cfg.video.shader_precision != gpu_preset_level::low;
 +					ios_rsx.mvk_async = rpcs3::ios::get_experimental_policy().moltenvk_async_submits;
 +					ios_rsx.gpu_timing = rpcs3::ios::get_experimental_policy().gpu_timing; // REWINDBOX_GPU_TIMING_621
++					ios_rsx.zcull_demand = rpcs3::ios::get_experimental_policy().zcull_on_demand; // REWINDBOX_ZCULL_DEMAND_BO2_621
 +					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
 +					ios_rsx.overrides = ios_override_keys;
 +					sys_log.notice("%s", rpcs3::ios::boot_diagnostics::format_config_rsx_line(ios_rsx));
@@ -29631,7 +29667,7 @@ index 1f53c64..eb52b12 100644
  #endif
  
  			// Backup config
-@@ -2504,7 +2813,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2504,7 +2814,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.warning("State Inspection Savestate Mode!");
  
  				vm::init();
@@ -29646,7 +29682,7 @@ index 1f53c64..eb52b12 100644
  
  				if (!hdd1.empty())
  				{
-@@ -2513,6 +2829,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2513,6 +2830,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  
  				init_fxo_for_exec(DeserialManager(), true);
@@ -29656,7 +29692,7 @@ index 1f53c64..eb52b12 100644
  
  				return game_boot_result::no_errors;
  			}
-@@ -2586,7 +2905,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2586,7 +2906,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  		{
  			if (m_ar)
  			{
@@ -29671,7 +29707,7 @@ index 1f53c64..eb52b12 100644
  			}
  
  			// Mount /host_root/ if necessary (special value)
-@@ -2709,7 +3035,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2709,7 +3036,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			const auto _main = ensure(g_fxo->init<main_ppu_module<lv2_obj>>());
  
@@ -29700,7 +29736,7 @@ index 1f53c64..eb52b12 100644
  			{
  				if (g_cfg.core.ppu_debug && had_been_decrypted)
  				{
-@@ -2864,6 +3210,11 @@ void Emulator::Run(bool start_playtime)
+@@ -2864,6 +3211,11 @@ void Emulator::Run(bool start_playtime)
  void Emulator::RunPPU()
  {
  	ensure(IsStarting());
@@ -29712,7 +29748,7 @@ index 1f53c64..eb52b12 100644
  
  	bool signalled_thread = false;
  
-@@ -2943,6 +3294,10 @@ void Emulator::FixGuestTime()
+@@ -2943,6 +3295,10 @@ void Emulator::FixGuestTime()
  
  void Emulator::FinalizeRunRequest()
  {
@@ -29723,7 +29759,7 @@ index 1f53c64..eb52b12 100644
  	const bool autostart = !m_ar || !!g_cfg.misc.autostart;
  
  	bs_t<cpu_flag> add_flags = cpu_flag::dbg_global_pause;
-@@ -2989,7 +3344,25 @@ void Emulator::FinalizeRunRequest()
+@@ -2989,7 +3345,25 @@ void Emulator::FinalizeRunRequest()
  	lv2_obj::make_scheduler_ready();
  
  	m_state.compare_and_swap_test(system_state::starting, system_state::running);
@@ -29749,7 +29785,7 @@ index 1f53c64..eb52b12 100644
  	m_ar.reset();
  
  	if (!autostart)
-@@ -3479,6 +3852,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3479,6 +3853,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -29762,7 +29798,7 @@ index 1f53c64..eb52b12 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3872,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3873,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -29785,7 +29821,7 @@ index 1f53c64..eb52b12 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3928,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3929,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -29793,7 +29829,7 @@ index 1f53c64..eb52b12 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3939,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3940,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -29801,7 +29837,7 @@ index 1f53c64..eb52b12 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3949,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +3950,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -29809,7 +29845,7 @@ index 1f53c64..eb52b12 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +4037,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +4038,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -29820,7 +29856,7 @@ index 1f53c64..eb52b12 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +4103,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +4104,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -29829,7 +29865,7 @@ index 1f53c64..eb52b12 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +4217,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +4218,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -29844,7 +29880,7 @@ index 1f53c64..eb52b12 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +4252,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4253,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -29852,7 +29888,7 @@ index 1f53c64..eb52b12 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4370,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4371,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -29866,7 +29902,7 @@ index 1f53c64..eb52b12 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4425,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4426,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -29879,7 +29915,7 @@ index 1f53c64..eb52b12 100644
  			});
  
  			// Join it
-@@ -4075,10 +4495,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4496,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -29899,7 +29935,7 @@ index 1f53c64..eb52b12 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4214,6 +4643,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4214,6 +4644,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  			lv2_obj::cleanup();
  
@@ -29910,7 +29946,7 @@ index 1f53c64..eb52b12 100644
  			g_fxo->reset();
  
  			sys_log.notice("Objects cleared...");
-@@ -4308,10 +4741,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4308,10 +4742,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{
@@ -29936,7 +29972,7 @@ index 1f53c64..eb52b12 100644
  	Emu.after_kill_callback = [this, reset_path]
  	{
  		// Reset boot path in case of ISO
-@@ -4381,6 +4829,9 @@ bool Emulator::Quit(bool force_quit)
+@@ -4381,6 +4830,9 @@ bool Emulator::Quit(bool force_quit)
  
  void Emulator::CleanUp()
  {
@@ -30111,7 +30147,7 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922..240a234 100644
+index 7072922..77ea372 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -30168,7 +30204,7 @@ index 7072922..240a234 100644
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +165,25 @@ struct cfg_root : cfg::node
+@@ -134,6 +165,27 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -30183,6 +30219,8 @@ index 7072922..240a234 100644
 +		// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): Automatic and Enabled time the
 +		// RSX primary command buffers on the GPU; Disabled measures the probe's cost.
 +		cfg::_enum<ios_experimental_mode> gpu_timing{ this, "GPU Timing Probe", ios_experimental_mode::automatic };
++		// REWINDBOX_ZCULL_DEMAND_BO2_621: Automatic is the title list (Assassin's Creed, Black Ops II).
++		cfg::_enum<ios_experimental_mode> zcull_on_demand{ this, "ZCULL On-Demand Reads", ios_experimental_mode::automatic };
 +
 +		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L5, L9; L3 is the
 +		// Bounded sleep value of fifo_idle_mode above). Defaults keep the Build
@@ -31519,10 +31557,10 @@ index 0000000..76f08ec
 +}
 diff --git a/rpcs3/ios/IOSFrameTrace.h b/rpcs3/ios/IOSFrameTrace.h
 new file mode 100644
-index 0000000..d9d39ca
+index 0000000..0621b75
 --- /dev/null
 +++ b/rpcs3/ios/IOSFrameTrace.h
-@@ -0,0 +1,188 @@
+@@ -0,0 +1,191 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -31546,6 +31584,9 @@ index 0000000..d9d39ca
 +    std::uint64_t fence_ticks = 0, submit_ticks = 0, drawable_ticks = 0, present_ticks = 0;
 +    std::uint64_t semaphore_us = 0, pipeline_us = 0;
 +    std::uint64_t skipped_draws = 0; // REWINDBOX_PIPELINE_QUEUE_621: program not ready
++    // REWINDBOX_ZCULL_FRAME_621: waits for occlusion query results on the RSX thread
++    // (vk::query_pool_manager::get_query_result, the ZCULLWAIT616 probe), per frame.
++    std::uint64_t zcull_ticks = 0, zcull_waits = 0;
 +};
 +inline thread_local Waits thread_waits{};
 +inline thread_local std::uint64_t thread_session = 0;
@@ -31913,10 +31954,10 @@ index 0000000..286359d
 +}
 diff --git a/rpcs3/ios/IOSGpuTiming.h b/rpcs3/ios/IOSGpuTiming.h
 new file mode 100644
-index 0000000..63be815
+index 0000000..816e2a2
 --- /dev/null
 +++ b/rpcs3/ios/IOSGpuTiming.h
-@@ -0,0 +1,861 @@
+@@ -0,0 +1,867 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -32707,11 +32748,12 @@ index 0000000..63be815
 +	std::atomic<std::uint32_t> m_calibrated{0};
 +};
 +
-+// What explains one slow RSX frame (cause_rule=v1, printed with the values it
++// What explains one slow RSX frame (cause_rule=v2, printed with the values it
 +// read). The RSX-thread waits are sequential on that thread: CPU wait for a GPU
 +// fence, blocking pipeline compile, presentation (drawable acquisition and
-+// present), vkQueueSubmit (Metal encoding with synchronous MoltenVK submits) and
-+// the guest semaphore the RSX waited for. GPU execution runs beside them.
++// present), vkQueueSubmit (Metal encoding with synchronous MoltenVK submits), the
++// guest semaphore the RSX waited for and (v2) the occlusion query results ZCULL
++// waited for. GPU execution runs beside them.
 +//  1. GPU busy measured for every submission of the frame and >= 75 % of the
 +//     interval: gpu_execution (measured).
 +//  2. Otherwise the largest wait if it is >= 25 % of the interval (measured),
@@ -32729,9 +32771,13 @@ index 0000000..63be815
 +};
 +
 +inline frame_explanation explain_frame(double interval_ms, double fence_ms, double pipeline_ms, double presentation_ms,
-+	double submit_ms, double semaphore_ms, const frame_view& gpu) noexcept
++	double submit_ms, double semaphore_ms, double zcull_ms, const frame_view& gpu) noexcept
 +{
 +	frame_explanation result;
++	// REWINDBOX_ZCULL_FRAME_621 (cause_rule=v2): the RSX thread's waits for occlusion
++	// query results join the candidates. Build 620 logs: Assassin's Creed lost
++	// 4.1-4.3 s of every 5 s window there and Black Ops II 1.1-1.9 s, while v1
++	// could only infer rsx_or_guest_cpu for those frames.
 +	const struct
 +	{
 +		const char* name;
@@ -32742,6 +32788,7 @@ index 0000000..63be815
 +		{"presentation", presentation_ms},
 +		{"submit_encode", submit_ms},
 +		{"guest_semaphore", semaphore_ms},
++		{"zcull_sync", zcull_ms},
 +	};
 +	for (const auto& wait : waits)
 +	{
@@ -36683,10 +36730,10 @@ index 0000000..0f2f94b
 +}
 diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
 new file mode 100644
-index 0000000..1568b03
+index 0000000..58782d1
 --- /dev/null
 +++ b/rpcs3/ios/IOSTitleLevers.h
-@@ -0,0 +1,152 @@
+@@ -0,0 +1,158 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -36807,9 +36854,15 @@ index 0000000..1568b03
 +// REWINDBOX_ZCULL_ON_DEMAND_619 (ios/IOSZcullOnDemand.h): Assassin's Creed waits
 +// 4.1-4.3 s of each 5 s window in ZCULL_control::sync() on the Build 617 logs
 +// (2,200-2,900 waits, ~33 per frame at 14 FPS) once a report page was read.
++// REWINDBOX_ZCULL_DEMAND_BO2_621: Black Ops II takes the same upstream switch at
++// every boot (Build 620 logs, PIDs 66891/66907/66957: COREPROF ZCULLDEMAND619
++// upstream_disables=1:0:0, a PPU/SPU access, in the first window of the single
++// player and of the multiplayer executable), then waits 1.1-1.9 s of each 5 s
++// multiplayer window in ZCULL_control::sync() (200-390 GPU syncs) at 20-35 FPS.
++// The ZCULL On-Demand Reads setting overrides the list per game (A/B test).
 +constexpr bool requires_zcull_on_demand(std::string_view title_id) noexcept
 +{
-+	return is_assassins_creed_title(title_id);
++	return is_assassins_creed_title(title_id) || is_black_ops_ii_title(title_id);
 +}
 +
 +// REWINDBOX_ZCLIP_PINNED_AFFINE_619: refines REWINDBOX_ZCLIP_WINDOW_Z_616. The
@@ -36870,16 +36923,17 @@ index 0000000..ecf9024
 +}
 diff --git a/rpcs3/ios/IOSZcullOnDemand.h b/rpcs3/ios/IOSZcullOnDemand.h
 new file mode 100644
-index 0000000..39d0a5b
+index 0000000..9a88d3d
 --- /dev/null
 +++ b/rpcs3/ios/IOSZcullOnDemand.h
-@@ -0,0 +1,232 @@
+@@ -0,0 +1,425 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
 +#include <atomic>
 +#include <chrono>
 +#include <cstdint>
++#include <mutex>
 +#include <thread>
 +
 +// REWINDBOX_ZCULL_ON_DEMAND_619: Assassin's Creed (BLES00158, BLUS30089), Build
@@ -36898,16 +36952,36 @@ index 0000000..39d0a5b
 +// a page that still holds a pending report asks the RSX thread to write every
 +// claimed report (the writes sync() does), waits for them, then unprotects the
 +// page. The guest reads the same values; the labels no longer wait. A request
-+// not picked up within 2 s, guest waits above 400 ms per second or more than
-+// 1,000 services per second return the boot to the upstream mode. Title scoped
++// not picked up within 2 s, sustained guest waits (below) or more than 1,000
++// services per second return the boot to the upstream mode. Title scoped
 +// (ios/IOSTitleLevers.h).
++//
++// REWINDBOX_ZCULL_DEMAND_GUARD_621: Build 620 logs (PID 66957, Assassin's Creed,
++// session 3): the lever served the menus, then at the first gameplay second it
++// served 54 label reads, 401.5 ms of guest waits against the 619 budget of
++// 400 ms in one second (max 23.9 ms), and tripped. The rest of the boot ran the
++// upstream mode it falls back to: 2,100-2,900 GPU syncs and 3.4-4.3 s of the
++// RSX thread blocked per 5 s window, 14-18 FPS. One busy second is not a reason
++// to take the more expensive path for the whole boot. A guest thread now trips
++// the lever when it waits more than 400 ms in each of 3 consecutive seconds, or
++// more than 900 ms over at least 16 waits in one second (a fault storm, not one
++// long wait behind a pipeline compile on the RSX thread); all guest
++// threads together trip it above 800 ms in each of 3 consecutive seconds (the
++// upstream mode cost the RSX thread 0.68-0.86 s per second in the same session).
++// The trip is recorded with its windows (trip_detail) for the COREPROF
++// ZCULLTRIP621 line; the pickup and service halves of each wait are counted.
 +namespace rpcs3::ios::zcull_on_demand
 +{
 +inline constexpr std::uint64_t pickup_deadline_us = 2'000'000;  // the RSX thread has not started the request
 +inline constexpr std::uint64_t hard_deadline_us = 5'000'000;    // the request never completed
 +inline constexpr std::uint64_t window_us = 1'000'000;
 +inline constexpr std::uint32_t storm_services = 1'000;          // services per window
-+inline constexpr std::uint64_t wait_budget_us = 400'000;        // guest wait per window
++inline constexpr std::uint64_t wait_budget_us = 400'000;        // one guest thread's wait per window (621: sustained)
++inline constexpr std::uint32_t sustained_windows = 3;           // consecutive windows above a budget
++inline constexpr std::uint64_t severe_wait_us = 900'000;        // one guest thread's wait in one window...
++inline constexpr std::uint32_t severe_min_waits = 16;          // ...over at least this many waits (a storm, not one
++                                                                // long wait behind an RSX pipeline compile)
++inline constexpr std::uint64_t global_budget_us = 800'000;      // all guest threads' wait per window (sustained)
 +
 +enum class trip_reason : std::uint32_t
 +{
@@ -36916,6 +36990,31 @@ index 0000000..39d0a5b
 +	wait_budget = 2, // guest threads waited more than wait_budget_us in a window
 +	pickup = 3,      // a request was not picked up in time
 +	hard = 4,        // a request picked up but not completed in time
++	wait_severe = 5, // REWINDBOX_ZCULL_DEMAND_GUARD_621: one guest thread blocked most of a window
++};
++
++inline const char* trip_reason_name(std::uint32_t reason) noexcept
++{
++	switch (static_cast<trip_reason>(reason))
++	{
++	case trip_reason::none: return "none";
++	case trip_reason::storm: return "storm";
++	case trip_reason::wait_budget: return "wait_budget";
++	case trip_reason::pickup: return "pickup";
++	case trip_reason::hard: return "hard";
++	case trip_reason::wait_severe: return "wait_severe";
++	}
++	return "other";
++}
++
++// REWINDBOX_ZCULL_DEMAND_GUARD_621: which windows tripped the lever (scope 1: one
++// guest thread, 2: all guest threads, 0: not a wait trip), in microseconds of wait.
++struct trip_detail
++{
++	std::uint32_t reason = 0;
++	std::uint32_t scope = 0;
++	std::uint64_t at_us = 0;
++	std::uint64_t windows_us[sustained_windows]{}; // oldest first; the last one is the window that tripped
 +};
 +
 +// Process-wide counters of COREPROF ZCULLDEMAND619 (taken per window).
@@ -36936,15 +37035,70 @@ index 0000000..39d0a5b
 +	std::atomic<std::uint64_t> upstream_other{0};   // ... after an access by another thread
 +	std::atomic<std::uint64_t> upstream_rsx_read{0};// ... after an RSX copy out of report memory
 +	std::atomic<std::uint32_t> tripped{0};          // trip_reason of the current boot
++	// REWINDBOX_ZCULL_DEMAND_GUARD_621: the two halves of a served wait.
++	std::atomic<std::uint64_t> pickups{0};           // waits whose request the RSX thread was seen to pick up
++	std::atomic<std::uint64_t> pickup_us{0};         // request -> picked up by the RSX thread
++	std::atomic<std::uint64_t> pickup_max_us{0};
++	std::atomic<std::uint64_t> service_us{0};        // picked up -> reports written
++	std::atomic<std::uint64_t> service_max_us{0};
++
++	static void raise_max(std::atomic<std::uint64_t>& max_value, std::uint64_t value) noexcept
++	{
++		std::uint64_t max = max_value.load(std::memory_order_relaxed);
++		while (value > max && !max_value.compare_exchange_weak(max, value, std::memory_order_relaxed)) {}
++	}
 +
 +	void add_wait(std::uint64_t us) noexcept
 +	{
 +		waits.fetch_add(1, std::memory_order_relaxed);
 +		wait_us.fetch_add(us, std::memory_order_relaxed);
-+		std::uint64_t max = wait_max_us.load(std::memory_order_relaxed);
-+		while (us > max && !wait_max_us.compare_exchange_weak(max, us, std::memory_order_relaxed)) {}
++		raise_max(wait_max_us, us);
++	}
++
++	void add_halves(std::uint64_t pickup, std::uint64_t service) noexcept
++	{
++		pickups.fetch_add(1, std::memory_order_relaxed);
++		pickup_us.fetch_add(pickup, std::memory_order_relaxed);
++		service_us.fetch_add(service, std::memory_order_relaxed);
++		raise_max(pickup_max_us, pickup);
++		raise_max(service_max_us, service);
 +	}
 +};
++
++// REWINDBOX_ZCULL_DEMAND_GUARD_621: one guest thread's wait windows. The gate's
++// generation resets them when a new boot (a new gate) starts.
++struct thread_wait_window
++{
++	std::uint64_t generation = 0;
++	std::uint64_t start_us = 0;      // the current window
++	std::uint64_t waited_us = 0;
++	std::uint32_t waits = 0;         // waits in the current window
++	std::uint64_t last_end_us = 0;   // end of the last closed window
++	std::uint32_t streak = 0;        // consecutive closed windows above the budget
++	std::uint64_t history_us[sustained_windows]{};
++};
++inline thread_local thread_wait_window t_wait_window{};
++inline std::atomic<std::uint64_t> g_gate_generation{0};
++
++// Closes a window that began at `start_us` with `waited_us` of waits; `now_us`
++// is the first wait after it. Returns the new streak of consecutive windows above
++// `budget_us`; a window closed more than one window after its end (an idle window
++// followed) ends the streak: the excess is over, nothing trips late.
++inline std::uint32_t close_wait_window(std::uint64_t start_us, std::uint64_t waited_us, std::uint64_t now_us, std::uint64_t budget_us,
++	std::uint64_t& last_end_us, std::uint32_t streak, std::uint64_t (&history_us)[sustained_windows]) noexcept
++{
++	const std::uint64_t end_us = start_us + window_us;
++	const bool adjacent = streak && start_us <= last_end_us + window_us;
++	streak = waited_us > budget_us ? (adjacent ? streak + 1 : 1) : 0;
++	last_end_us = end_us;
++	for (std::uint32_t i = 0; i + 1 < sustained_windows; i++) history_us[i] = history_us[i + 1];
++	history_us[sustained_windows - 1] = waited_us;
++	if (now_us > end_us + window_us)
++	{
++		streak = 0;
++	}
++	return streak;
++}
 +
 +inline tally& counters() noexcept
 +{
@@ -36963,6 +37117,15 @@ index 0000000..39d0a5b
 +	std::uint32_t m_window_services = 0;             // RSX thread only
 +	std::atomic<std::uint64_t> m_wait_window_start_us{0};
 +	std::atomic<std::uint64_t> m_wait_window_us{0};
++	// REWINDBOX_ZCULL_DEMAND_GUARD_621: the all-threads windows, closed by one thread
++	// at a time (m_global_mutex, at most once per window), and the trip record.
++	std::mutex m_global_mutex;
++	std::uint64_t m_global_last_end_us = 0;
++	std::uint32_t m_global_streak = 0;
++	std::uint64_t m_global_history_us[sustained_windows]{};
++	std::uint64_t m_generation = 0;
++	mutable std::mutex m_trip_mutex;
++	trip_detail m_trip{};
 +
 +	static void raise(std::atomic<std::uint64_t>& value, std::uint64_t ticket) noexcept
 +	{
@@ -36972,6 +37135,7 @@ index 0000000..39d0a5b
 +
 +public:
 +	gate() noexcept
++		: m_generation(g_gate_generation.fetch_add(1, std::memory_order_relaxed) + 1)
 +	{
 +		// One gate per renderer, that is per boot: the process-wide flag follows it.
 +		counters().tripped.store(0, std::memory_order_relaxed);
@@ -37015,16 +37179,76 @@ index 0000000..39d0a5b
 +		return ++m_window_services > storm_services && trip(trip_reason::storm);
 +	}
 +
-+	// Guest thread, after a wait. Returns true when it tripped the wait budget.
++	// Guest thread, after a served wait of `us` ending at `now_us`. Returns true when
++	// this wait tripped the lever (REWINDBOX_ZCULL_DEMAND_GUARD_621, see the top).
 +	bool record_wait(std::uint64_t us, std::uint64_t now_us) noexcept
 +	{
-+		std::uint64_t start = m_wait_window_start_us.load(std::memory_order_relaxed);
-+		if (now_us - start >= window_us && m_wait_window_start_us.compare_exchange_strong(start, now_us, std::memory_order_relaxed))
++		// This guest thread's windows.
++		auto& own = t_wait_window;
++		if (own.generation != m_generation)
 +		{
-+			m_wait_window_us.store(0, std::memory_order_relaxed);
++			own = {};
++			own.generation = m_generation;
++			own.start_us = now_us;
++		}
++		else if (now_us - own.start_us >= window_us)
++		{
++			own.streak = close_wait_window(own.start_us, own.waited_us, now_us, wait_budget_us, own.last_end_us, own.streak, own.history_us);
++			own.start_us = now_us;
++			own.waited_us = 0;
++			own.waits = 0;
++			if (own.streak >= sustained_windows && trip(trip_reason::wait_budget, 1, now_us, own.history_us))
++			{
++				return true;
++			}
 +		}
 +
-+		return m_wait_window_us.fetch_add(us, std::memory_order_relaxed) + us > wait_budget_us && trip(trip_reason::wait_budget);
++		own.waited_us += us;
++		own.waits++;
++		if (own.waited_us > severe_wait_us && own.waits >= severe_min_waits)
++		{
++			std::uint64_t history[sustained_windows]{};
++			history[sustained_windows - 1] = own.waited_us;
++			if (trip(trip_reason::wait_severe, 1, now_us, history))
++			{
++				return true;
++			}
++		}
++
++		// All guest threads' windows (start 0: none yet; a window starting at clock 0 is stored as 1).
++		std::uint64_t start = m_wait_window_start_us.load(std::memory_order_relaxed);
++		if (!start)
++		{
++			m_wait_window_start_us.compare_exchange_strong(start, now_us ? now_us : 1, std::memory_order_relaxed);
++		}
++		else if (now_us - start >= window_us && m_wait_window_start_us.compare_exchange_strong(start, now_us ? now_us : 1, std::memory_order_relaxed))
++		{
++			const std::uint64_t closed = m_wait_window_us.exchange(0, std::memory_order_relaxed);
++			std::uint64_t history[sustained_windows]{};
++			std::uint32_t streak = 0;
++			{
++				std::lock_guard lock(m_global_mutex);
++				m_global_streak = close_wait_window(start, closed, now_us, global_budget_us, m_global_last_end_us, m_global_streak, m_global_history_us);
++				streak = m_global_streak;
++				for (std::uint32_t i = 0; i < sustained_windows; i++) history[i] = m_global_history_us[i];
++			}
++
++			if (streak >= sustained_windows && trip(trip_reason::wait_budget, 2, now_us, history))
++			{
++				m_wait_window_us.fetch_add(us, std::memory_order_relaxed);
++				return true;
++			}
++		}
++
++		m_wait_window_us.fetch_add(us, std::memory_order_relaxed);
++		return false;
++	}
++
++	// The trip record of this boot (reason 0 while the lever works).
++	trip_detail trip_record() const noexcept
++	{
++		std::lock_guard lock(m_trip_mutex);
++		return m_trip;
 +	}
 +
 +	bool is_picked(std::uint64_t ticket) const noexcept
@@ -37040,10 +37264,24 @@ index 0000000..39d0a5b
 +	// The first reason wins; returns true for the call that tripped.
 +	bool trip(trip_reason reason) noexcept
 +	{
++		const std::uint64_t none[sustained_windows]{};
++		return trip(reason, 0, 0, none);
++	}
++
++	bool trip(trip_reason reason, std::uint32_t scope, std::uint64_t now_us, const std::uint64_t (&windows_us)[sustained_windows]) noexcept
++	{
 +		std::uint32_t expected = 0;
 +		if (!m_tripped.compare_exchange_strong(expected, static_cast<std::uint32_t>(reason), std::memory_order_acq_rel))
 +		{
 +			return false;
++		}
++
++		{
++			std::lock_guard lock(m_trip_mutex);
++			m_trip.reason = static_cast<std::uint32_t>(reason);
++			m_trip.scope = scope;
++			m_trip.at_us = now_us;
++			for (std::uint32_t i = 0; i < sustained_windows; i++) m_trip.windows_us[i] = windows_us[i];
 +		}
 +
 +		counters().tripped.store(static_cast<std::uint32_t>(reason), std::memory_order_relaxed);
@@ -37069,11 +37307,19 @@ index 0000000..39d0a5b
 +// has picked up is waited for up to the hard deadline (a long pipeline compile or GPU
 +// backlog is not a failure); one never picked up fails at the pickup deadline.
 +// Spins briefly, then sleeps 50 us steps: the request costs one GPU round trip.
++// REWINDBOX_ZCULL_DEMAND_GUARD_621: `picked_at_us`, when given, receives the clock
++// at which the request was first seen picked up (the service time follows it).
 +template <typename Released, typename Stopped, typename Now>
-+wait_result wait_for(const gate& g, std::uint64_t ticket, std::uint64_t started_us, Released&& released, Stopped&& stopped, Now&& now_us)
++wait_result wait_for(const gate& g, std::uint64_t ticket, std::uint64_t started_us, Released&& released, Stopped&& stopped, Now&& now_us,
++	std::uint64_t* picked_at_us = nullptr)
 +{
 +	for (unsigned step = 0;; step++)
 +	{
++		if (picked_at_us && !*picked_at_us && g.is_picked(ticket))
++		{
++			*picked_at_us = now_us();
++		}
++
 +		if (g.is_served(ticket))
 +		{
 +			return wait_result::served;
@@ -40537,10 +40783,10 @@ index 0000000..6e4c976
 +}
 diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
 new file mode 100644
-index 0000000..2d5bcca
+index 0000000..e3cf8be
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
-@@ -0,0 +1,594 @@
+@@ -0,0 +1,597 @@
 +#pragma once
 +
 +// NEOSTATION_BUILD487_DIAGNOSTICS_V1: boot observability of the embedded Core
@@ -40936,6 +41182,7 @@ index 0000000..2d5bcca
 +		"advanced.read_color_buffers", "advanced.read_depth_buffer", "gpu.msaa", "gpu.vsync",
 +		"experimental.position_invariance", "experimental.moltenvk_async_submits",
 +		"experimental.gpu_timing", // REWINDBOX_GPU_TIMING_621
++		"experimental.zcull_on_demand", // REWINDBOX_ZCULL_DEMAND_BO2_621
 +	};
 +	inline constexpr std::size_t rsx_overrides_limit = 400;
 +
@@ -40986,6 +41233,7 @@ index 0000000..2d5bcca
 +		bool invariance_policy = false; // the resolved Position Invariance setting
 +		bool mvk_async = false;         // resolved request of this boot
 +		bool gpu_timing = false;        // REWINDBOX_GPU_TIMING_621: resolved probe setting
++		bool zcull_demand = false;      // REWINDBOX_ZCULL_DEMAND_BO2_621: resolved ZCULL on-demand reads
 +		bool legacy_custom = false;     // a full custom config was applied (tests would change it)
 +		std::string_view overrides;     // every applied sparse override key; filtered when formatted
 +	};
@@ -41014,6 +41262,7 @@ index 0000000..2d5bcca
 +		append_u32(line, "invariance_policy", rsx.invariance_policy ? 1u : 0u);
 +		append_u32(line, "mvk_async", rsx.mvk_async ? 1u : 0u);
 +		append_u32(line, "gpu_timing", rsx.gpu_timing ? 1u : 0u);
++		append_u32(line, "zcull_demand", rsx.zcull_demand ? 1u : 0u);
 +		append_u32(line, "legacy_custom", rsx.legacy_custom ? 1u : 0u);
 +		const std::string reported = filter_rsx_override_keys(rsx.overrides);
 +		append_text(line, "overrides", reported, rsx_overrides_limit);
@@ -41289,7 +41538,7 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..aec0382 100644
+index 7c3389b..d4378fc 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -1,10 +1,31 @@
@@ -41602,7 +41851,7 @@ index 7c3389b..aec0382 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +336,149 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +336,151 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -41625,8 +41874,10 @@ index 7c3389b..aec0382 100644
 +	resolved.zclip_fallback_window_z = rpcs3::ios::title_levers::requires_zclip_fallback_window_z(title_id);
 +	// REWINDBOX_SPU_OBJECT_PREFETCH_616: the title list, without a setting.
 +	resolved.spu_object_prefetch = rpcs3::ios::title_levers::requires_spu_object_prefetch(title_id);
-+	// REWINDBOX_ZCULL_ON_DEMAND_619: the title list, without a setting.
-+	resolved.zcull_on_demand = rpcs3::ios::title_levers::requires_zcull_on_demand(title_id);
++	// REWINDBOX_ZCULL_ON_DEMAND_619: the title list. REWINDBOX_ZCULL_DEMAND_BO2_621: the
++	// ZCULL On-Demand Reads setting (Automatic = the list) tests the other mode per game.
++	resolved.zcull_on_demand = resolve_mode(g_cfg.ios_experimental.zcull_on_demand,
++		rpcs3::ios::title_levers::requires_zcull_on_demand(title_id));
 +	// REWINDBOX_ZCLIP_PINNED_AFFINE_619: the title list, on top of the 616 fallback.
 +	resolved.zclip_pinned_affine = resolved.zclip_fallback_window_z &&
 +		rpcs3::ios::title_levers::requires_zclip_pinned_affine(title_id);
@@ -41693,7 +41944,7 @@ index 7c3389b..aec0382 100644
 +	ios_experimental_log.notice("Resolved title policy 619: zcull_on_demand=%d zclip_pinned_affine=%d mvk_async=%d",
 +		resolved.zcull_on_demand, resolved.zclip_pinned_affine, resolved.moltenvk_async_submits);
 +	// REWINDBOX_GPU_TIMING_621: its own line.
-+	ios_experimental_log.notice("Resolved title policy 621: gpu_timing=%d", resolved.gpu_timing);
++	ios_experimental_log.notice("Resolved title policy 621: gpu_timing=%d zcull_on_demand=%d", resolved.gpu_timing, resolved.zcull_on_demand);
 +}
 +
 +void apply_spu_spin_timing_policy() noexcept
@@ -42871,7 +43122,7 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..e6ab413 100644
+index d800542..072011d 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,197 @@
@@ -43625,7 +43876,7 @@ index d800542..e6ab413 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +777,1123 @@ public:
+@@ -108,12 +777,1138 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -43969,7 +44220,8 @@ index d800542..e6ab413 100644
 +                    frame.interval_available ? frame.interval_us / 1000.0 : 0.0,
 +                    wait_ms(frame.waits.fence_ticks), frame.waits.pipeline_us / 1000.0,
 +                    wait_ms(frame.waits.drawable_ticks) + wait_ms(frame.waits.present_ticks),
-+                    wait_ms(frame.waits.submit_ticks), frame.waits.semaphore_us / 1000.0, gpu_frame);
++                    wait_ms(frame.waits.submit_ticks), frame.waits.semaphore_us / 1000.0,
++                    wait_ms(frame.waits.zcull_ticks), gpu_frame);
 +                ios_core_profiler.notice(
 +                    "COREPROF FRAMECAUSE_EVENT session=%llu window=%llu frame=%llu begin_tsc=%llu end_tsc=%llu frequency=%llu "
 +                    "interval_available=%u interval_ms=%.3f stages_sampled=%u forced=%u draws=%llu submits=%llu "
@@ -43978,11 +44230,12 @@ index d800542..e6ab413 100644
 +                    // REWINDBOX_GPU_TIMING_621: gpu_execution_ms is the GPU busy time (union of
 +                    // the frame's command buffers, overlaps counted once) when every submission
 +                    // of the frame was measured, otherwise -1; gpu_status says why.
-+                    "guest_semaphore_ms=%.3f blocking_pipeline_ms=%.3f gpu_execution_ms=%.3f values_overlap=1 "
++                    // REWINDBOX_ZCULL_FRAME_621: zcull_wait_ms, the RSX thread's waits for occlusion results.
++                    "guest_semaphore_ms=%.3f blocking_pipeline_ms=%.3f zcull_wait_ms=%.3f zcull_waits=%llu gpu_execution_ms=%.3f values_overlap=1 "
 +                    "gpu_status=%s gpu_submits=%llu gpu_timed=%llu gpu_resolved=%llu gpu_unavailable=%llu "
 +                    "gpu_lower_bound_ms=%.3f gpu_sum_ms=%.3f gpu_span_ms=%.3f gpu_max_cb_ms=%.3f gpu_queue_delay_max_ms=%.3f "
 +                    "wait_dominant=%s wait_dominant_ms=%.3f rsx_waits_ms=%.3f rsx_other_ms=%.3f "
-+                    "cause=%s certainty=%s cause_rule=v1 skipped_draws=%llu",
++                    "cause=%s certainty=%s cause_rule=v2 skipped_draws=%llu",
 +                    frame.session, profile_window, frame.frame, frame.begin_ticks, frame.end_ticks, frame.frequency,
 +                    frame.interval_available ? 1u : 0u, frame.interval_us / 1000.0,
 +                    frame.stages_sampled ? 1u : 0u, frame.forced ? 1u : 0u, frame.draws, frame.submits,
@@ -43995,6 +44248,7 @@ index d800542..e6ab413 100644
 +                    wait_ms(frame.waits.fence_ticks), wait_ms(frame.waits.submit_ticks),
 +                    wait_ms(frame.waits.drawable_ticks), wait_ms(frame.waits.present_ticks),
 +                    frame.waits.semaphore_us / 1000.0, frame.waits.pipeline_us / 1000.0,
++                    wait_ms(frame.waits.zcull_ticks), frame.waits.zcull_waits,
 +                    gpu_frame.status == rpcs3::ios::gpu_timing::frame_status::complete ? gpu_frame.busy_us / 1000.0 : -1.0,
 +                    rpcs3::ios::gpu_timing::frame_status_name(gpu_frame.status),
 +                    gpu_frame.submits, gpu_frame.timed, gpu_frame.resolved, gpu_frame.unavailable,
@@ -44266,13 +44520,25 @@ index d800542..e6ab413 100644
 +            const unsigned long long waits = take(tally.waits), wait_us = take(tally.wait_us), wait_max_us = take(tally.wait_max_us);
 +            const unsigned long long timeouts = take(tally.timeouts), stops = take(tally.stops), rsx_reads = take(tally.rsx_reads);
 +            const unsigned long long cell = take(tally.upstream_cell), other = take(tally.upstream_other), rsx_read = take(tally.upstream_rsx_read);
++            // REWINDBOX_ZCULL_DEMAND_GUARD_621: the served waits split into pickup by the RSX
++            // thread and service (the reports written), and the guard the boot runs under.
++            const unsigned long long pickups = take(tally.pickups), pickup_us = take(tally.pickup_us), pickup_max_us = take(tally.pickup_max_us);
++            const unsigned long long service_us = take(tally.service_us), service_max_us = take(tally.service_max_us);
++            namespace od = rpcs3::ios::zcull_on_demand;
 +            ios_core_profiler.notice(
 +                "COREPROF ZCULLDEMAND619 session=%llu window=%llu tuple=count:total_ms:max_ms enabled=%u tripped=%u faults=%llu:%llu:%llu "
 +                "faults_order=label:report:other stale=%llu services=%llu waits=%llu:%.3f:%.3f timeouts=%llu stops=%llu rsx_reads=%llu "
-+                "upstream_disables=%llu:%llu:%llu upstream_order=cell:other:rsx_read scope=process_window window_boundary_approximate=1",
++                "upstream_disables=%llu:%llu:%llu upstream_order=cell:other:rsx_read scope=process_window window_boundary_approximate=1 "
++                "pickup=%llu:%.3f:%.3f service=%llu:%.3f:%.3f tripped_name=%s "
++                "guard621=thread%llums_x%u:all%llums_x%u:severe%llums_%uwaits",
 +                profile_session, profile_window, rpcs3::ios::get_experimental_policy().zcull_on_demand ? 1u : 0u,
 +                static_cast<unsigned>(tally.tripped.load(std::memory_order_relaxed)), label, report, other_faults, stale, services,
-+                waits, wait_us / 1000.0, wait_max_us / 1000.0, timeouts, stops, rsx_reads, cell, other, rsx_read);
++                waits, wait_us / 1000.0, wait_max_us / 1000.0, timeouts, stops, rsx_reads, cell, other, rsx_read,
++                pickups, pickup_us / 1000.0, pickup_max_us / 1000.0, pickups, service_us / 1000.0, service_max_us / 1000.0,
++                od::trip_reason_name(tally.tripped.load(std::memory_order_relaxed)),
++                static_cast<unsigned long long>(od::wait_budget_us / 1000), od::sustained_windows,
++                static_cast<unsigned long long>(od::global_budget_us / 1000), od::sustained_windows,
++                static_cast<unsigned long long>(od::severe_wait_us / 1000), od::severe_min_waits);
 +        }
 +        // REWINDBOX_SPU_OBJECT_PREFETCH_616: SPU objects served from memory, the
 +        // planned ones a compile thread read from disk first, and the store.
@@ -44751,7 +45017,7 @@ index d800542..e6ab413 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1901,93 @@ private:
+@@ -121,6 +1916,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -44845,7 +45111,7 @@ index d800542..e6ab413 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +1995,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2010,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -44939,7 +45205,7 @@ index d800542..e6ab413 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2092,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2107,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -45068,7 +45334,7 @@ index d800542..e6ab413 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2223,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2238,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -45675,7 +45941,7 @@ index 0000000..dcc1fad
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..afaa647 100644
+index b7b0474..65ab188 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -45703,7 +45969,7 @@ index b7b0474..afaa647 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +126,47 @@ const std::array catalog{
+@@ -122,21 +126,48 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -45738,6 +46004,7 @@ index b7b0474..afaa647 100644
 +	GAME_SETTING("experimental.moltenvk_async_submits", "Experimental", "MoltenVK", "MoltenVK asynchronous submits", "Encodes Metal commands on MoltenVK's queue thread instead of the RSX thread. Automatic enables it for God of War III and Assassin's Creed while their last asynchronous boot finished; Enabled requests it for this game under the same condition; Disabled keeps synchronous submits. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.moltenvk_async_submits, 0, 0, 0),
 +	// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): the accuracy test page can switch the probe off to measure its cost.
 +	GAME_SETTING("experimental.gpu_timing", "Experimental", "MoltenVK", "GPU timing probe", "Records the GPU execution time of the RSX command buffers with two Vulkan timestamps each, read after they complete, for the performance journal. Automatic and Enabled keep it on; Disabled measures what it costs. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gpu_timing, 0, 0, 0),
++	GAME_SETTING("experimental.zcull_on_demand", "Experimental", "ZCULL", "ZCULL on-demand reads", "Once the game touches its ZCULL report memory, writes the occlusion reports only when a game thread reads them, instead of waiting for the GPU at every report label. Automatic follows the title list (Assassin's Creed, Black Ops II); Enabled and Disabled test the other mode. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_on_demand, 0, 0, 0),
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers). Defaults keep the Build 483 behavior except the cache-only retained keys.
 +	// The retained keys apply to each title's own cache directory, so they take a per-title value like any SETTING
 +	// (a complete legacy title snapshot also freezes them); only persistent_spu_object_cache is restored as global-only.
@@ -45753,7 +46020,7 @@ index b7b0474..afaa647 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +235,89 @@ const std::array catalog{
+@@ -205,6 +236,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -45843,7 +46110,7 @@ index b7b0474..afaa647 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +686,139 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +687,139 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  
