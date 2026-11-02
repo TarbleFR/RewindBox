@@ -315,6 +315,7 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
           InterfaceStyle.neoStation => _t(
             InterfaceStyleLocale.styleNeoStationHint,
           ),
+          InterfaceStyle.glacier => _t(InterfaceStyleLocale.styleGlacierHint),
         },
         segments: [
           GlassSegment(
@@ -336,6 +337,11 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
             value: InterfaceStyle.neoStation,
             label: _t(InterfaceStyleLocale.styleNeoStation),
             icon: Symbols.sports_esports_rounded,
+          ),
+          GlassSegment(
+            value: InterfaceStyle.glacier,
+            label: _t(InterfaceStyleLocale.styleGlacier),
+            icon: Symbols.ac_unit_rounded,
           ),
         ],
         value: d.style,
@@ -385,6 +391,10 @@ class _InterfaceStyleScreenState extends State<InterfaceStyleScreen> {
           GlassSegment(
             value: TabIndicatorStyle.solid,
             label: _t(InterfaceStyleLocale.indicatorSolid),
+          ),
+          GlassSegment(
+            value: TabIndicatorStyle.glacier,
+            label: _t(InterfaceStyleLocale.indicatorGlacier),
           ),
         ],
         value: d.tabIndicator,

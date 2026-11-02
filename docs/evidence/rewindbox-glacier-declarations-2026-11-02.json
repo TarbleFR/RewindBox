@@ -1,0 +1,25 @@
+{
+  "schema": 1,
+  "review_date": "2026-11-02",
+  "scope": "RewindBox Glacier menu: pubspec.yaml declares the bundled Glacier background, emblem, navigation glyphs and the offline rewindbox-glacier System Art pack (121 WebP, aliases, credits). No hosted package, dependency, engine, Core or native source change.",
+  "baseline_inventory": "docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json",
+  "baseline_inventory_sha256": "12abf0d5396a77c8457da822d328bcee5d68338058afc848df51fc73ea15b876",
+  "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+  "complete_corresponding_source_attested": false,
+  "dependency_changes": {
+    "external_packages_added": [],
+    "external_packages_removed": []
+  },
+  "declarations": {
+    "pubspec.yaml": {
+      "before": "1ac51ade0fda56cbc87af452d788ea105497caa1b0afe2ffbb513f621a4e7925",
+      "after": "a997fbfa0cc321fd81adfdc14d132ba39a3109326a2734e33ecbc03ba2e58a3e"
+    }
+  },
+  "bundled_assets": {
+    "index": "assets/system_art/rewindbox-glacier/bundle-index.json",
+    "index_sha256": "bd1bc92b1470dabfc106617df15d71da23a2dc963f9cabe27786ae110e45c0c0",
+    "license_notice": "assets/legal/RewindBox-Glacier-ATTRIBUTION.md",
+    "kit_checksums": "docs/design/rewindbox-glacier/KIT-SHA256SUMS.txt"
+  }
+}

@@ -208,6 +208,8 @@ class LiquidGlassTheme extends ThemeExtension<LiquidGlassTheme> {
       InterfaceStyle.minimal => math.max(alpha, 0.94),
       // NeoStation's default tint: the surface at about 83 % opacity.
       InterfaceStyle.neoStation => math.max(alpha, 0.8),
+      // Smoked glass: readable over the Glacier ribbons.
+      InterfaceStyle.glacier => math.max(alpha, 0.78),
     };
     final upper = style == InterfaceStyle.liquidGlass ? max : 0.97;
     alpha = alpha.clamp(min, upper).toDouble();

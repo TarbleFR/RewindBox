@@ -136,6 +136,12 @@ flutter:
     - assets/images/gamepad/
     - assets/images/icons/
     - assets/images/music/
+    # RewindBox Glacier: menu background, emblem and navigation glyphs.
+    - assets/images/glacier/
+    - assets/images/glacier/nav/
+    # Bundled System Art pack, installed offline (see BundledSystemArt).
+    - assets/system_art/rewindbox-glacier/
+    - assets/system_art/rewindbox-glacier/backgrounds/
     - assets/manifest.json
     - assets/data/
     - assets/systems/

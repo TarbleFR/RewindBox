@@ -46,6 +46,19 @@ Dart wrapper's license does not replace the licenses or terms of its native
 dependencies; the package-specific inventory preserves that distinction.
 
 
+## Bundled System Art: RewindBox Glacier
+
+The `rewindbox-glacier` System Art pack (version 1.0.0, 121 portraits) and the
+Glacier menu background and navigation glyphs are embedded in the application
+and installed offline. The portraits are AI-assisted studio illustrations;
+BAXY / baxysquare Systematic views (MIT, https://github.com/baxysquare/baxy-retroarch-themes)
+and the libretro retroarch-assets Systematic renders (CC BY 4.0,
+https://github.com/libretro/retroarch-assets) guided some silhouettes; no
+third-party file is redistributed. See `RewindBox-Glacier-ATTRIBUTION.md` and
+the pack's own `CREDITS.md`, `credits-silhouettes.json`, `BAXY-README.md` and
+`CC-BY-4.0.txt`. Console and product names identify the systems; trademarks
+belong to their owners.
+
 ## Remote System Art
 
 ### NeoAssets public catalogue (current official source)

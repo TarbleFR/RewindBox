@@ -6,6 +6,9 @@ import 'package:neostation/providers/sqlite_config_provider.dart';
 import 'package:neostation/providers/sqlite_database_provider.dart';
 import 'package:neostation/providers/file_provider.dart';
 import 'package:neostation/providers/theme_provider.dart';
+import 'package:neostation/services/glacier_preset.dart';
+import 'package:neostation/themes/glacier_theme.dart';
+import 'package:neostation/themes/interface_style.dart';
 import 'package:neostation/providers/scraping_provider.dart';
 import 'package:neostation/providers/retro_achievements_provider.dart';
 import 'package:neostation/screens/main_screen.dart';
@@ -567,7 +570,13 @@ void main() async {
   // ThemeProvider would paint its platform-brightness fallback until the
   // database read returned — a white flash on any platform that reports a
   // light brightness (the Steam Deck does) for a user on a dark theme.
+  // RewindBox Glacier is the first look of a new installation; an update
+  // keeps every choice already made (Settings › Themes offers Glacier).
+  await GlacierPreset.applyDefaultForNewInstall(sqliteConfigProvider.config);
   final themeProvider = await ThemeProvider.create();
+  if (themeProvider.interfaceStyle.style == InterfaceStyle.glacier) {
+    await warmGlacierBackground();
+  }
 
   _rewindStartup.attach(
     MyApp(

@@ -9,12 +9,14 @@ void main() {
   final placeholders = RegExp(r'\{\w+\}');
   final english = InterfaceStyleLocale.values['en']!;
 
-  // Product names, a bare percentage and a few words shared with English
+  // Product names (Liquid Glass, NeoStation, Glacier), a bare percentage and a few words shared with English
   // (French "Notifications", "Violet", "Cyan", "Halo"; German "Cyan") read the
   // same in several languages.
   const sameAsEnglishAllowed = <String>{
     InterfaceStyleLocale.styleLiquidGlass,
     InterfaceStyleLocale.styleNeoStation,
+    // "RewindBox Glacier": the product name of the look.
+    InterfaceStyleLocale.styleGlacier,
     InterfaceStyleLocale.valuePercent,
     InterfaceStyleLocale.statusNotifications,
     InterfaceStyleLocale.accentViolet,

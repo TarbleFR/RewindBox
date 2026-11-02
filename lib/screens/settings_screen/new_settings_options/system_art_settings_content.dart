@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:neostation/widgets/liquid_progress.dart';
 import 'package:flutter/material.dart';
+import 'package:neostation/l10n/glacier_locale.dart';
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -195,6 +197,9 @@ class SystemArtSettingsContentState extends State<SystemArtSettingsContent> {
           author: t.author,
           previewUrl: t.previewUrl,
           isAi: t.isAi,
+          previewAsset: t.previewAsset,
+          previewFile: t.previewFile,
+          bundled: t.isBundled,
         ),
       ),
     ];
@@ -330,12 +335,22 @@ class _ThemeItem {
   final String previewUrl;
   final bool isAi;
 
+  /// Local previews (embedded pack, installed pack): shown without network.
+  final String? previewAsset;
+  final String? previewFile;
+
+  /// The pack embedded in the app (RewindBox Glacier).
+  final bool bundled;
+
   const _ThemeItem({
     required this.label,
     required this.folder,
     required this.author,
     required this.previewUrl,
     required this.isAi,
+    this.previewAsset,
+    this.previewFile,
+    this.bundled = false,
   });
 }
 
@@ -469,6 +484,38 @@ class _NeoThemeCard extends StatelessWidget {
                         ),
                       ),
 
+                    // Embedded pack: available offline, no download.
+                    if (item.bundled)
+                      Positioned(
+                        right: 8.r,
+                        bottom: 8.r,
+                        child: Tooltip(
+                          message: GlacierLocale.text(
+                            context,
+                            GlacierLocale.bundledPack,
+                          ),
+                          child: Semantics(
+                            label: GlacierLocale.text(
+                              context,
+                              GlacierLocale.bundledPack,
+                            ),
+                            child: Container(
+                              key: const ValueKey('system-art-bundled-badge'),
+                              padding: EdgeInsets.all(3.r),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.62),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Symbols.offline_pin_rounded,
+                                color: Colors.white,
+                                size: 12.r,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
                     // Tap layer
                     Positioned.fill(
                       child: Material(
@@ -502,12 +549,33 @@ class _NeoThemeCard extends StatelessWidget {
               fontSize: 11.r,
             ),
           ),
+
         ],
       ),
     );
   }
 
   Widget _buildPreview(BuildContext context, ThemeData theme) {
+    // Local first: the embedded pack's preview ships with the app and an
+    // installed pack keeps its own, so the picker works offline.
+    final asset = item.previewAsset;
+    if (asset != null && asset.isNotEmpty) {
+      return Image.asset(
+        asset,
+        fit: BoxFit.cover,
+        cacheWidth: 384,
+        errorBuilder: (_, _, _) => _buildPlaceholder(theme),
+      );
+    }
+    final file = item.previewFile;
+    if (file != null && file.isNotEmpty && item.previewUrl.isEmpty) {
+      return Image.file(
+        File(file),
+        fit: BoxFit.cover,
+        cacheWidth: 384,
+        errorBuilder: (_, _, _) => _buildPlaceholder(theme),
+      );
+    }
     final normalizedPreviewUrl = NeoAssetsTheme.normalizePreviewUrl(
       item.previewUrl,
     );

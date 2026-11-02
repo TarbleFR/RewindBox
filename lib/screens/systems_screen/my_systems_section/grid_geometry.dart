@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/models/my_systems.dart';
 
@@ -16,7 +17,14 @@ import 'package:neostation/models/my_systems.dart';
 /// expand to a 3x2 block on wide displays (`cols >= 3`); every other card
 /// occupies a single cell. Cards are placed by a first-fit scan for the first
 /// spatial slot large enough to hold their span.
-List<List<int>> buildVirtualGrid(List<SystemInfo> cards, int cols) {
+///
+/// [uniformSpans] (RewindBox Glacier) keeps every card, the recent game
+/// included, on a single cell: one card template for the whole grid.
+List<List<int>> buildVirtualGrid(
+  List<SystemInfo> cards,
+  int cols, {
+  bool uniformSpans = false,
+}) {
   final List<List<int>> grid = [];
 
   // 'Recent Games' cards expand to 3x2 on high-resolution displays — but
@@ -26,9 +34,9 @@ List<List<int>> buildVirtualGrid(List<SystemInfo> cards, int cols) {
   // reserves 3x2 cells while the card only ever draws at 1x1, leaving a
   // visible gap where the reserved-but-unused columns sit.
   int getSpanW(SystemInfo card) =>
-      (card.isGame && cols >= 3 && !Platform.isIOS) ? 3 : 1;
+      (!uniformSpans && card.isGame && cols >= 3 && !Platform.isIOS) ? 3 : 1;
   int getSpanH(SystemInfo card) =>
-      (card.isGame && cols >= 3 && !Platform.isIOS) ? 2 : 1;
+      (!uniformSpans && card.isGame && cols >= 3 && !Platform.isIOS) ? 2 : 1;
 
   for (int i = 0; i < cards.length; i++) {
     final card = cards[i];
@@ -137,5 +145,39 @@ Map<String, double> calculateGridDimensions({
     'rowHeight': rowHeight,
     'crossAxisSpacing': crossAxisSpacing,
     'mainAxisSpacing': mainAxisSpacing,
+  };
+}
+
+/// RewindBox Glacier grid geometry.
+///
+/// Every card has the same size. The width follows the columns (the user's
+/// card size preference) and the reference 16 px gutter of a 1675 px grid;
+/// the height makes whole rows fill [viewportHeight]: two at the reference
+/// (the approved composition: two full rows at 1837 x 856), more on a taller
+/// screen such as an iPad when the library has them ([rows]), always kept
+/// between 0.78 and 1.12 of the width so cards stay cards; a compact screen
+/// scrolls sooner.
+Map<String, double> calculateGlacierGridDimensions({
+  required double width,
+  required double viewportHeight,
+  required int cols,
+  int? rows,
+}) {
+  final gap = math.max(6.0, width * (16 / 1675));
+  final itemWidth = (width - gap * (cols - 1)) / cols;
+  const reference = 246 / 264;
+  final natural = ((viewportHeight + gap) / (itemWidth * reference + gap))
+      .round();
+  final visibleRows = math.max(2, math.min(natural, rows ?? natural));
+  final fit = (viewportHeight - gap * (visibleRows - 1)) / visibleRows;
+  final itemHeight = fit.isFinite && fit > 0
+      ? fit.clamp(itemWidth * .78, itemWidth * 1.12).toDouble()
+      : itemWidth * reference;
+  return {
+    'itemWidth': itemWidth,
+    'itemHeight': itemHeight,
+    'rowHeight': itemHeight + gap,
+    'crossAxisSpacing': gap,
+    'mainAxisSpacing': gap,
   };
 }

@@ -78,12 +78,22 @@ void main() {
               );
               expect(indicatorRect.left, closeTo(selected.left, 0.01));
               expect(indicatorRect.width, closeTo(selected.width, 0.01));
-              // Labels add a band under the square icon area only when shown.
+              // Labels add a band under the icon area only when shown. The
+              // icon area is square, except for RewindBox Glacier whose
+              // capsule is wider than tall (approved mock-up).
+              final glacier = indicator == TabIndicatorStyle.glacier;
+              if (glacier) {
+                expect(first.width, greaterThan(first.height));
+              }
               if (labelMode == TabLabelMode.hidden) {
-                expect(first.height, closeTo(first.width, 0.01));
+                if (!glacier) {
+                  expect(first.height, closeTo(first.width, 0.01));
+                }
                 expect(find.text('search'), findsNothing);
               } else {
-                expect(first.height, greaterThan(first.width));
+                if (!glacier) {
+                  expect(first.height, greaterThan(first.width));
+                }
                 expect(find.text('search'), findsWidgets);
                 if (labelMode == TabLabelMode.selectedOnly) {
                   expect(find.text('systems'), findsNothing);

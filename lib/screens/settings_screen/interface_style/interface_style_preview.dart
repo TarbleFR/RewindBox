@@ -55,6 +55,7 @@ class _InterfaceStylePreviewState extends State<InterfaceStylePreview> {
     InterfaceStyle.classic: InterfaceStyleLocale.styleClassic,
     InterfaceStyle.minimal: InterfaceStyleLocale.styleMinimal,
     InterfaceStyle.neoStation: InterfaceStyleLocale.styleNeoStation,
+    InterfaceStyle.glacier: InterfaceStyleLocale.styleGlacier,
   };
 
   void _pickStyle(InterfaceStyle style) {
@@ -101,7 +102,8 @@ class _InterfaceStylePreviewState extends State<InterfaceStylePreview> {
             child: const SizedBox.expand(),
           ),
         ),
-        iconBuilder: (tab) => NavTabIcon(spec: navTabSpec(tab), tint: tint),
+        iconBuilder: (tab) =>
+            NavTabIcon(tab: tab, spec: navTabSpec(tab), tint: tint),
         labelBuilder: (tab, selected) => Text(
           navTabLabel(context, tab),
           maxLines: 1,

@@ -29,6 +29,7 @@ SOURCE_EVIDENCE = (
     "achievement-translation-declarations-2026-10-31.json",
     "retro-achievements-session-declarations-2026-11-01.json",
     "rpcs3-retroachievements-declarations-2026-11-02.json",
+    "rewindbox-glacier-declarations-2026-11-02.json",
 )
 
 
@@ -106,10 +107,14 @@ def repository_inputs(root: Path) -> dict[str, str]:
     }
     if set(updates) != expected_updates:
         raise SystemExit("RetroAchievements session declaration review scope changed")
+    # A later review overlay may move pubspec.yaml on (RewindBox Glacier); the
+    # final loop below binds every declaration to the checked-out file.
+    later_pubspec = (root / "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json").is_file()
     for name, update in updates.items():
         if update.get("before") != declarations.get(name):
             raise SystemExit(f"Wrong previous declaration identity: {name}")
-        if update.get("after") != sha256(read_input(root, root / name)):
+        if not (later_pubspec and name == "pubspec.yaml") and \
+                update.get("after") != sha256(read_input(root, root / name)):
             raise SystemExit(f"Session source/license declaration changed since review: {name}")
         declarations[name] = update["after"]
     # Build611: PS3 RetroAchievements through RPCS3. The RPCS3 bridge compiles a
@@ -146,6 +151,33 @@ def repository_inputs(root: Path) -> dict[str, str]:
     for name, expected in vendored_files.items():
         if sha256(read_input(root, root / name)) != expected:
             raise SystemExit(f"Vendored rcheevos source changed since review: {name}")
+    # RewindBox Glacier: pubspec.yaml declares the bundled menu and System Art
+    # assets. No package, dependency, engine or native source changes; the
+    # bundled pack is bound file by file by its bundle-index.json.
+    glacier_path = root / "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json"
+    if glacier_path.is_file():
+        glacier = json.loads(read_input(root, glacier_path))
+        prior_name = "docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json"
+        if (glacier.get("schema") != 1 or glacier.get("baseline_inventory") != prior_name or
+                glacier.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or
+                glacier.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                glacier.get("complete_corresponding_source_attested") is not False or
+                glacier.get("dependency_changes", {}).get("external_packages_added") != []):
+            raise SystemExit("RewindBox Glacier review has a different baseline or dependency scope")
+        updates = glacier.get("declarations", {})
+        if set(updates) != {"pubspec.yaml"}:
+            raise SystemExit("RewindBox Glacier declaration review scope changed")
+        for name, update in updates.items():
+            if update.get("before") != declarations.get(name):
+                raise SystemExit(f"Wrong previous declaration identity: {name}")
+            if update.get("after") != sha256(read_input(root, root / name)):
+                raise SystemExit(f"RewindBox Glacier source/license declaration changed since review: {name}")
+            declarations[name] = update["after"]
+        bundle = glacier.get("bundled_assets", {})
+        index_path = bundle.get("index", "")
+        if (index_path != "assets/system_art/rewindbox-glacier/bundle-index.json" or
+                bundle.get("index_sha256") != sha256(read_input(root, root / index_path))):
+            raise SystemExit("RewindBox Glacier bundled pack index changed since review")
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:
             raise SystemExit(f"Package source/license declaration changed since review: {name}")

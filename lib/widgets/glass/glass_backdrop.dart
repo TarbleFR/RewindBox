@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../themes/glacier_theme.dart';
 import '../../themes/liquid_glass_theme.dart';
 
 /// First level of the glass architecture: the page background behind every
@@ -35,6 +36,23 @@ class GlassBackdrop extends StatelessWidget {
               ),
               base,
             ],
+          ),
+        );
+      // RewindBox Glacier: the approved background image (dark centre,
+      // light ribbons at the edges) covering the screen over the Glacier base
+      // colour. It is decoded once (see [precacheGlacierBackground]) and the
+      // backdrop is never rebuilt on tab changes, so switching tabs cannot
+      // flash it. A personal background still sits above it on Systems.
+      case InterfaceStyle.glacier:
+        // The image is a dark scene: a light colour theme keeps its own
+        // background.
+        if (light) return BoxDecoration(color: base);
+        return const BoxDecoration(
+          color: GlacierColors.base,
+          image: DecorationImage(
+            image: AssetImage(glacierBackgroundAsset),
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.medium,
           ),
         );
       case InterfaceStyle.liquidGlass:

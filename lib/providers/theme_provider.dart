@@ -130,6 +130,7 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
     'aqua': AppThemes.aquaTheme,
     'palenight': AppThemes.palenightTheme,
     'horizon': AppThemes.horizonTheme,
+    'glacier': AppThemes.glacierTheme,
   };
 
   static const Map<String, String> themeDisplayNames = {
@@ -148,6 +149,7 @@ class ThemeProvider extends ChangeNotifier with WidgetsBindingObserver {
     'aqua': 'Aqua',
     'palenight': 'Palenight',
     'horizon': 'Horizon',
+    'glacier': 'Glacier',
   };
 
   ThemeProvider._() {

@@ -17,6 +17,12 @@ enum InterfaceStyle {
   /// The original NeoStation look: matte surface-tinted pills, a solid
   /// accent pill sliding under the selected tab, LB/RB glyphs.
   neoStation,
+
+  /// RewindBox Glacier (approved menu mock-up, 2 November 2026): smoked
+  /// graphite glass, silver rims, the kit's navigation glyphs with the active
+  /// tab named, a glacier-blue outline for the selection and the Glacier
+  /// background; the systems grid shows framed cards on two full rows.
+  glacier,
 }
 
 /// Shape of the main navigation bar.
@@ -24,7 +30,7 @@ enum TabBarStyle { floating, compact, classic }
 
 /// Selection marker of the main navigation bar. [solid] is NeoStation's
 /// accent pill: the icon under it switches to the accent's contrast colour.
-enum TabIndicatorStyle { lens, pill, underline, solid }
+enum TabIndicatorStyle { lens, pill, underline, solid, glacier }
 
 enum TabIconSize { small, medium, large }
 
@@ -189,6 +195,20 @@ class InterfaceStyleSettings {
         contrast: 0.55,
         depth: 0.3,
         motion: MotionLevel.full,
+      ),
+      // RewindBox Glacier (approved menu): active tab named, LB/RB, framed
+      // system cards. Motion and the system card surfaces stay the user's.
+      InterfaceStyle.glacier => base.copyWith(
+        style: style,
+        tabBarStyle: TabBarStyle.floating,
+        tabIndicator: TabIndicatorStyle.glacier,
+        tabLabels: TabLabelMode.selectedOnly,
+        showTabBumpers: true,
+        glassIntensity: 0.35,
+        transparency: 0.35,
+        blur: 0.25,
+        contrast: 0.6,
+        depth: 0.35,
       ),
     };
   }

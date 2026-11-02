@@ -76,6 +76,9 @@ abstract final class InterfaceStyleLocale {
   static const styleNeoStation = 'styleNeoStation';
   static const styleNeoStationHint = 'styleNeoStationHint';
   static const indicatorSolid = 'indicatorSolid';
+  static const styleGlacier = 'styleGlacier';
+  static const styleGlacierHint = 'styleGlacierHint';
+  static const indicatorGlacier = 'indicatorGlacier';
   static const tabBumpers = 'tabBumpers';
   static const tabBumpersHint = 'tabBumpersHint';
   static const sectionStatusBar = 'sectionStatusBar';
@@ -110,6 +113,9 @@ abstract final class InterfaceStyleLocale {
 
   static const Map<String, Map<String, String>> values = {
     'en': {
+      styleGlacier: 'Glacier',
+      styleGlacierHint: 'RewindBox Glacier: smoked graphite glass, the active tab named and glacier-blue focus.',
+      indicatorGlacier: 'Glacier outline',
       title: 'User interface',
       cardSubtitle: 'Liquid Glass, navigation bar, surfaces, animations',
       description:
@@ -223,6 +229,9 @@ abstract final class InterfaceStyleLocale {
       previewMenu: 'More styles',
     },
     'fr': {
+      styleGlacier: 'Glacier',
+      styleGlacierHint: 'RewindBox Glacier : verre graphite fumé, onglet actif nommé et focus bleu glacier.',
+      indicatorGlacier: 'Contour glacier',
       title: 'Interface utilisateur',
       cardSubtitle: 'Liquid Glass, barre d’onglets, surfaces, animations',
       description:
@@ -339,6 +348,9 @@ abstract final class InterfaceStyleLocale {
       previewMenu: 'Autres styles',
     },
     'es': {
+      styleGlacier: 'Glacier',
+      styleGlacierHint: 'RewindBox Glacier: cristal grafito ahumado, pestaña activa con nombre y foco azul glaciar.',
+      indicatorGlacier: 'Contorno glaciar',
       title: 'Interfaz de usuario',
       cardSubtitle: 'Liquid Glass, barra de pestañas, superficies, animaciones',
       description:
@@ -455,6 +467,9 @@ abstract final class InterfaceStyleLocale {
       previewMenu: 'Más estilos',
     },
     'pt': {
+      styleGlacier: 'Glacier',
+      styleGlacierHint: 'RewindBox Glacier: vidro grafite fumê, aba ativa com nome e foco azul glacial.',
+      indicatorGlacier: 'Contorno glacial',
       title: 'Interface do utilizador',
       cardSubtitle:
           'Liquid Glass, barra de separadores, superfícies, animações',
@@ -572,6 +587,9 @@ abstract final class InterfaceStyleLocale {
       previewMenu: 'Mais estilos',
     },
     'ru': {
+      styleGlacier: 'Glacier',
+      styleGlacierHint: 'RewindBox Glacier: дымчатое графитовое стекло, подписанная активная вкладка и ледяной синий фокус.',
+      indicatorGlacier: 'Ледяной контур',
       title: 'Интерфейс пользователя',
       cardSubtitle: 'Liquid Glass, панель вкладок, поверхности, анимации',
       description:
@@ -686,6 +704,9 @@ abstract final class InterfaceStyleLocale {
       previewMenu: 'Другие стили',
     },
     'zh': {
+      styleGlacier: 'Glacier',
+      styleGlacierHint: 'RewindBox Glacier：烟熏石墨玻璃，显示当前标签名称，冰川蓝焦点。',
+      indicatorGlacier: '冰川轮廓',
       title: '用户界面',
       cardSubtitle: 'Liquid Glass、标签栏、表面、动画',
       description:
@@ -792,6 +813,9 @@ abstract final class InterfaceStyleLocale {
       previewMenu: '更多样式',
     },
     'zh_Hant': {
+      styleGlacier: 'Glacier',
+      styleGlacierHint: 'RewindBox Glacier：煙燻石墨玻璃，顯示目前分頁名稱，冰川藍焦點。',
+      indicatorGlacier: '冰川輪廓',
       title: '使用者介面',
       cardSubtitle: 'Liquid Glass、標籤列、表面、動畫',
       description:
@@ -898,6 +922,9 @@ abstract final class InterfaceStyleLocale {
       previewMenu: '更多樣式',
     },
     'de': {
+      styleGlacier: 'Glacier',
+      styleGlacierHint: 'RewindBox Glacier: rauchiges Graphitglas, benannter aktiver Tab und gletscherblauer Fokus.',
+      indicatorGlacier: 'Gletscher-Kontur',
       title: 'Benutzeroberfläche',
       cardSubtitle: 'Liquid Glass, Tableiste, Oberflächen, Animationen',
       description:
@@ -1015,6 +1042,9 @@ abstract final class InterfaceStyleLocale {
       previewMenu: 'Weitere Stile',
     },
     'it': {
+      styleGlacier: 'Glacier',
+      styleGlacierHint: 'RewindBox Glacier: vetro grafite fumé, scheda attiva con nome e focus blu ghiaccio.',
+      indicatorGlacier: 'Contorno ghiaccio',
       title: 'Interfaccia utente',
       cardSubtitle: 'Liquid Glass, barra delle schede, superfici, animazioni',
       description:
@@ -1131,6 +1161,9 @@ abstract final class InterfaceStyleLocale {
       previewMenu: 'Altri stili',
     },
     'id': {
+      styleGlacier: 'Glacier',
+      styleGlacierHint: 'RewindBox Glacier: kaca grafit gelap, tab aktif bernama dan fokus biru gletser.',
+      indicatorGlacier: 'Garis gletser',
       title: 'Antarmuka pengguna',
       cardSubtitle: 'Liquid Glass, bilah tab, permukaan, animasi',
       description:
@@ -1246,6 +1279,9 @@ abstract final class InterfaceStyleLocale {
       previewMenu: 'Gaya lainnya',
     },
     'ja': {
+      styleGlacier: 'Glacier',
+      styleGlacierHint: 'RewindBox Glacier：スモークのグラファイトガラス、選択中のタブ名、氷河ブルーのフォーカス。',
+      indicatorGlacier: '氷河の輪郭',
       title: 'ユーザーインターフェース',
       cardSubtitle: 'Liquid Glass、タブバー、サーフェス、アニメーション',
       description:
@@ -1352,6 +1388,9 @@ abstract final class InterfaceStyleLocale {
       previewMenu: 'ほかのスタイル',
     },
     'ko': {
+      styleGlacier: 'Glacier',
+      styleGlacierHint: 'RewindBox Glacier: 스모크 그래파이트 유리, 활성 탭 이름 표시, 빙하 블루 포커스.',
+      indicatorGlacier: '빙하 윤곽',
       title: '사용자 인터페이스',
       cardSubtitle: 'Liquid Glass, 탭 막대, 표면, 애니메이션',
       description:

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'neo_glass_bubble.dart';
 import 'package:flutter/material.dart';
 import 'package:material_symbols_icons/symbols.dart';
@@ -13,6 +14,8 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 
 import '../themes/corner_radii.dart';
+import '../themes/glacier_theme.dart';
+import 'glacier/glacier_widgets.dart';
 import 'glass/glass_surface.dart';
 
 class HeaderSortDropdown extends StatefulWidget {
@@ -84,6 +87,50 @@ class HeaderSortDropdownState extends State<HeaderSortDropdown> {
 
   @override
   Widget build(BuildContext context) {
+    if (GlacierLayout.active(context)) {
+      // Glacier: "X · View mode" capsule at the right of the section title,
+      // same menu, same X shortcut.
+      final label = AppLocale.viewMode.getString(context);
+      return Semantics(
+        button: true,
+        label: label,
+        excludeSemantics: true,
+        child: GestureDetector(
+          key: _buttonKey,
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            SfxService().playNavSound();
+            _showDropdown(context);
+          },
+          child: GlacierCapsule(
+            height: 19.5.r,
+            padding: EdgeInsets.symmetric(horizontal: 8.r),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(
+                  'assets/images/gamepad/Xbox_X_button.png',
+                  width: 12.5.r,
+                  height: 12.5.r,
+                  color: GlacierColors.text,
+                  colorBlendMode: BlendMode.srcIn,
+                ),
+                SizedBox(width: 6.r),
+                Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: GlacierColors.text,
+                    fontSize: 7.7.r,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Container(
       key: _buttonKey,
       margin: EdgeInsets.symmetric(horizontal: widget.compact ? 0 : 10.r),
@@ -560,13 +607,21 @@ class _SortDropdownOverlayState extends State<SortDropdownOverlay> {
     final config = configProvider.config;
     final screenHeight = MediaQuery.of(context).size.height;
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final maxDropdownHeight = screenHeight - 42.r - bottomPadding - 16.r;
+    // Glacier: the menu opens under its button, at the right of the section
+    // title, kept on screen; elsewhere it stays under the header controls.
+    final glacier = GlacierLayout.active(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final top = glacier ? widget.offset.dy : 42.r;
+    final left = glacier
+        ? (widget.offset.dx).clamp(6.r, math.max(6.r, screenWidth - widget.width - 6.r)).toDouble()
+        : 6.r;
+    final maxDropdownHeight = screenHeight - top - bottomPadding - 16.r;
 
     return Stack(
       children: [
         Positioned(
-          top: 42.r,
-          left: 6.r,
+          top: top,
+          left: left,
           width: widget.width,
           child: Material(
             color: Colors.transparent,

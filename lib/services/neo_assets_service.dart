@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:path/path.dart' as path;
 import 'config_service.dart';
 import 'logger_service.dart';
 import '../utils/bounded_concurrency.dart';
 import 'system_art/canvas_es_de_capsules.dart';
+import 'system_art/bundled_system_art.dart';
+import 'system_art/system_art_alias_table.dart';
 import 'system_art/neoassets_public_catalog.dart';
 
 const _baseRaw =
@@ -90,6 +93,16 @@ class NeoAssetsTheme {
   /// Catalogue provider, distinct from older locally installed packs.
   final String source;
 
+  /// Preview embedded in the application (bundled packs), shown without any
+  /// network request.
+  final String? previewAsset;
+
+  /// Preview file of a pack installed on the device (its `preview.*`).
+  final String? previewFile;
+
+  /// The pack ships inside the application and installs offline.
+  bool get isBundled => source == 'bundled';
+
   const NeoAssetsTheme({
     required this.name,
     required this.folder,
@@ -98,6 +111,8 @@ class NeoAssetsTheme {
     required this.previewSource,
     required this.isAi,
     this.source = '',
+    this.previewAsset,
+    this.previewFile,
   });
 
   factory NeoAssetsTheme.fromJson(Map<String, dynamic> json) {
@@ -121,6 +136,8 @@ class NeoAssetsTheme {
     String? previewSource,
     bool? isAi,
     String? source,
+    String? previewAsset,
+    String? previewFile,
   }) {
     return NeoAssetsTheme(
       name: name ?? this.name,
@@ -130,6 +147,8 @@ class NeoAssetsTheme {
       previewSource: previewSource ?? this.previewSource,
       isAi: isAi ?? this.isAi,
       source: source ?? this.source,
+      previewAsset: previewAsset ?? this.previewAsset,
+      previewFile: previewFile ?? this.previewFile,
     );
   }
 
@@ -312,12 +331,15 @@ class NeoAssetsService {
   /// fact still applied and rendering from cache).
   static Future<List<NeoAssetsTheme>> fetchThemes() async {
     if (_cachedThemes != null) return _cachedThemes!;
+    // The embedded pack is always listed first, online or not.
+    final bundled = await _bundledThemes();
 
     final remote = await _fetchRemoteThemes();
     if (remote != null) {
       _registerNeoAssets(remote);
       final merged = await _mergeWithLocalThemes(
-        _withCuratedExternalThemes(remote),
+        [...bundled, ..._withCuratedExternalThemes(remote)
+            .where((t) => !BundledSystemArt.isBundled(t.folder))],
       );
       _cachedThemes = merged;
       return merged;
@@ -327,7 +349,8 @@ class NeoAssetsService {
     final cached = await _readCachedManifest();
     _registerNeoAssets(cached);
     final fallback = await _mergeWithLocalThemes(
-      _withCuratedExternalThemes(cached),
+      [...bundled, ..._withCuratedExternalThemes(cached)
+          .where((t) => !BundledSystemArt.isBundled(t.folder))],
     );
     if (fallback.isNotEmpty) {
       _log.i('Themes: offline fallback served ${fallback.length} theme(s)');
@@ -335,6 +358,28 @@ class NeoAssetsService {
       return fallback;
     }
     return [];
+  }
+
+  /// The pack embedded in the application (RewindBox Glacier).
+  static Future<List<NeoAssetsTheme>> _bundledThemes() async {
+    try {
+      final meta = await BundledSystemArt.metadata();
+      return [
+        NeoAssetsTheme(
+          name: meta['name']?.toString() ?? 'RewindBox Glacier',
+          folder: BundledSystemArt.folder,
+          author: meta['author']?.toString().trim() ?? '',
+          previewUrl: '',
+          previewSource: '',
+          isAi: NeoAssetsTheme._parseAi(meta['ai']),
+          source: 'bundled',
+          previewAsset: BundledSystemArt.previewAsset,
+        ),
+      ];
+    } catch (e) {
+      _log.w('Bundled System Art metadata unavailable: $e');
+      return const [];
+    }
   }
 
   /// Fetches and enriches the remote theme manifest, persisting it to disk for
@@ -437,6 +482,15 @@ class NeoAssetsService {
           final json = jsonDecode(await metaFile.readAsString());
           if (json is! Map<String, dynamic>) continue;
           final name = json['name']?.toString();
+          // A pack installed on the device previews from its own file.
+          String? previewFile;
+          for (final candidate in const ['preview.webp', 'preview.png', 'preview.jpg']) {
+            final file = File(path.join(entry.path, candidate));
+            if (await file.exists()) {
+              previewFile = file.path;
+              break;
+            }
+          }
           result.add(
             NeoAssetsTheme(
               name: (name == null || name.isEmpty) ? folder : name,
@@ -445,6 +499,7 @@ class NeoAssetsService {
               previewUrl: '',
               previewSource: '',
               isAi: NeoAssetsTheme._parseAi(json['ai']),
+              previewFile: previewFile,
             ),
           );
         } catch (_) {
@@ -538,10 +593,27 @@ class NeoAssetsService {
     return _cachedThemeDir!;
   }
 
+  /// Test hook: points the pack folder (`<user data>/themes`) at [directory].
+  @visibleForTesting
+  static void debugSetThemesDirectory(String? directory) {
+    _cachedThemeDir = directory;
+    _cachedThemes = null;
+  }
+
   /// Ensures the theme cache directory path is calculated and available.
   static Future<void> ensureCacheDirInitialized() async {
     await _cacheDir();
   }
+
+  /// Whether [name] can be used as a file name inside a pack (no separator,
+  /// no traversal, no hidden file).
+  static bool isSafeArtName(String name) =>
+      name.isNotEmpty &&
+      name.length <= 128 &&
+      !name.startsWith('.') &&
+      !name.contains('/') &&
+      !name.contains('\\') &&
+      !name.contains('\u0000');
 
   /// Synchronous variant of background path resolution, requires previous initialization.
   static String? backgroundCachePathSync(
@@ -563,14 +635,28 @@ class NeoAssetsService {
   ) {
     final dir = _cachedThemeDir;
     if (dir == null) return null;
+    final packDirectory = path.join(dir, themeFolder);
 
+    // A name that could leave the pack (separators, "..") is only ever a key
+    // of the pack's alias table, never part of a path.
+    final safeName = isSafeArtName(systemFolderName);
     final webpPath = path.join(
-      dir,
-      themeFolder,
+      packDirectory,
       'backgrounds',
-      '$systemFolderName.webp',
+      '${safeName ? systemFolderName : '_'}.webp',
     );
-    if (File(webpPath).existsSync()) return webpPath;
+    if (safeName && File(webpPath).existsSync()) return webpPath;
+
+    // Compact packs (RewindBox Glacier) ship one image per canonical system and
+    // an alias table: "Super Nintendo", "sfc-hacks"... resolve to it.
+    final owner = SystemArtAliasTable.forPackSync(packDirectory)?.resolve(systemFolderName);
+    if (owner != null) {
+      final aliased = path.join(packDirectory, 'backgrounds', '$owner.webp');
+      if (path.isWithin(packDirectory, aliased) && File(aliased).existsSync()) {
+        return aliased;
+      }
+    }
+    if (!safeName) return null;
 
     final gifPath = path.join(
       dir,

@@ -1,8 +1,10 @@
 import 'dart:ui' as ui;
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/utils/nav_tabs.dart';
 import '../services/frontend_media_gate.dart';
+import '../themes/glacier_theme.dart';
 import '../themes/liquid_glass_theme.dart';
 import 'bumper_glyph.dart';
 import 'neo_glass_bubble.dart';
@@ -63,9 +65,11 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
 
   /// NeoStation's solid pill slides in 160 ms without deforming, as upstream.
   static const _solidDuration = Duration(milliseconds: 160);
-  bool get _solid =>
-      LiquidGlassTheme.of(context).settings.tabIndicator ==
-      TabIndicatorStyle.solid;
+  // Glacier's outline slides like the solid pill, without lens deformation.
+  bool get _solid => switch (LiquidGlassTheme.of(context).settings.tabIndicator) {
+    TabIndicatorStyle.solid || TabIndicatorStyle.glacier => true,
+    _ => false,
+  };
   MauAliSelectionFrame get _frame =>
       MauAliTabMotion.sample(_segment, _motion.value);
   double get _position =>
@@ -163,7 +167,15 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
     final showLabels =
         widget.labelBuilder != null &&
         settings.tabLabels != TabLabelMode.hidden;
-    final labelBand = showLabels ? 9.r * glass.tabIconScale : 0.0;
+    // Glacier's capsule is wider than tall (approved mock-up): each cell is
+    // a wider rectangle and the active name a little larger. Every other
+    // indicator keeps square cells.
+    final glacierIndicator = settings.tabIndicator == TabIndicatorStyle.glacier;
+    final cellW = glacierIndicator ? cell * 1.9 : cell;
+    final labelBand = showLabels
+        ? (glacierIndicator ? 10.r : 9.r) * glass.tabIconScale
+        : 0.0;
+    final iconExtent = (glacierIndicator ? 13.5.r : 17.r) * glass.tabIconScale;
     final cellHeight = cell + labelBand;
     final theme = Theme.of(context);
     final dark = theme.brightness == Brightness.dark;
@@ -178,9 +190,15 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
       }
       return SizedBox(
         height: labelBand,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: widget.labelBuilder!(tab, selected),
+        child: Padding(
+          // Glacier: the name stays inside the outline of the active tab.
+          padding: EdgeInsets.symmetric(
+            horizontal: glacierIndicator ? cellW * .1 : 0,
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: widget.labelBuilder!(tab, selected),
+          ),
         ),
       );
     }
@@ -191,13 +209,13 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
         for (final tab in tabs)
           SizedBox(
             key: ValueKey('main-menu-cell-${tab.name}'),
-            width: cell,
+            width: cellW,
             height: cellHeight,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(
-                  width: cell,
+                  width: cellW,
                   height: cell,
                   child: widget.tabBuilder(tab),
                 ),
@@ -207,30 +225,44 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
           ),
       ],
     );
+    // Glacier names only the active tab: the other glyphs sit in the middle
+    // of the capsule instead of above an empty label band.
+    final centerUnlabelled = glacierIndicator && showLabels &&
+        settings.tabLabels == TabLabelMode.selectedOnly;
     Widget icons() => ExcludeSemantics(
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (final tab in tabs)
             SizedBox(
-              width: cell,
+              width: cellW,
               height: cellHeight,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: cell,
-                    height: cell,
-                    child: Center(
+              child: centerUnlabelled && tab != widget.selected
+                  ? Center(
                       child: SizedBox.square(
-                        dimension: 17.r * glass.tabIconScale,
+                        dimension: iconExtent,
                         child: widget.iconBuilder!(tab),
                       ),
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: cellW,
+                          // Glacier keeps the active name clear of the
+                          // outline's bottom edge.
+                          height: glacierIndicator ? cell - 2.5.r : cell,
+                          child: Center(
+                            child: SizedBox.square(
+                              dimension: iconExtent,
+                              child: widget.iconBuilder!(tab),
+                            ),
+                          ),
+                        ),
+                        if (showLabels) label(tab),
+                        if (glacierIndicator) SizedBox(height: 2.5.r),
+                      ],
                     ),
-                  ),
-                  if (showLabels) label(tab),
-                ],
-              ),
             ),
         ],
       ),
@@ -255,13 +287,18 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
                   (blurSigma > 0 ? 0.80 : 1.0) *
                   (0.85 + 0.3 * settings.tabEffectIntensity))
               .clamp(0.55, 0.96);
-    final capsuleColor = classic
+    // Glacier: smoked graphite glass with a silver rim.
+    final capsuleColor = glacierIndicator
+        ? GlacierColors.panel.withValues(alpha: .72)
+        : classic
         ? glass.surfaceColor(theme).withValues(alpha: fillAlpha)
         : floatingFill.withValues(alpha: fillAlpha);
     final capsuleRadius = BorderRadius.circular(
       classic ? glass.radiusValue(GlassRadius.m) : 999,
     );
-    final rimColor = classic
+    final rimColor = glacierIndicator
+        ? GlacierColors.silver.withValues(alpha: .24)
+        : classic
         ? glass.rim(context, GlassRole.chrome)
         : Colors.white.withValues(alpha: (.23 * effect).clamp(0.0, 0.6));
     final shadows = classic || glass.depthScale <= 0
@@ -317,7 +354,7 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
                 boxShadow: shadows,
               ),
               child: SizedBox(
-                width: tabs.length * cell,
+                width: tabs.length * cellW,
                 height: cellHeight,
                 child: Stack(
                   key: const ValueKey('main-menu-tab-strip'),
@@ -356,10 +393,11 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
                       ),
                     if (widget.iconBuilder != null && !refracting) icons(),
                     Positioned(
-                      left: _position * cell,
+                      left: _position * cellW,
                       top: 0,
-                      width: cell,
-                      height: cell,
+                      width: cellW,
+                      // Glacier frames the glyph and the active tab's name.
+                      height: glacierIndicator ? cellHeight : cell,
                       child: IgnorePointer(
                         child: CustomPaint(
                           key: const ValueKey('main-menu-tab-indicator'),
@@ -392,6 +430,10 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
                             TabIndicatorStyle.solid => SolidSelectionPainter(
                               color: theme.colorScheme.primary,
                             ),
+                            TabIndicatorStyle.glacier =>
+                              const GlacierSelectionPainter(
+                                color: GlacierColors.focus,
+                              ),
                           },
                         ),
                       ),
@@ -425,6 +467,23 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
                           ),
                         ),
                       ),
+                    // Glacier: the active glyph turns glacier blue; its name
+                    // below stays in the text colour.
+                    if (widget.iconBuilder != null && glacierIndicator)
+                      IgnorePointer(
+                        child: ClipPath(
+                          clipper: _SelectionClip(
+                            Path()..addRect(Rect.fromLTWH(_position * cellW, 0, cellW, cell)),
+                          ),
+                          child: ColorFiltered(
+                            colorFilter: const ColorFilter.mode(
+                              GlacierColors.focus,
+                              BlendMode.srcIn,
+                            ),
+                            child: icons(),
+                          ),
+                        ),
+                      ),
                     // Real hit regions and semantics remain stable while the visual
                     // capsule and refracted icons animate above their own track.
                     if (widget.iconBuilder != null)
@@ -448,8 +507,10 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
     // part of the switch (no hit region, no semantics).
     Widget bumper(bool left) => ExcludeSemantics(
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 2.r),
-        child: BumperGlyph(isLeft: left, size: cell * .75),
+        padding: EdgeInsets.symmetric(horizontal: glacierIndicator ? 5.r : 2.r),
+        child: glacierIndicator
+            ? GlacierBumper(isLeft: left, height: cell * .82)
+            : BumperGlyph(isLeft: left, size: cell * .75),
       ),
     );
     return Row(
@@ -458,6 +519,38 @@ class _MainMenuTabStripState extends State<MainMenuTabStrip>
       children: [bumper(true), strip, bumper(false)],
     );
   }
+}
+
+/// Glacier LB/RB hint: the bumper name in a small smoked capsule with a
+/// silver rim (hardware names, identical in every language).
+class GlacierBumper extends StatelessWidget {
+  const GlacierBumper({super.key, required this.isLeft, required this.height});
+  final bool isLeft;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: ValueKey(isLeft ? 'glacier-bumper-lb' : 'glacier-bumper-rb'),
+    height: height,
+    padding: EdgeInsets.symmetric(horizontal: height * .36),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: GlacierColors.panel.withValues(alpha: .78),
+      borderRadius: BorderRadius.circular(height / 2),
+      border: Border.all(color: GlacierColors.silver.withValues(alpha: .26), width: .8),
+    ),
+    child: Text(
+      isLeft ? 'LB' : 'RB',
+      textScaler: TextScaler.noScaling,
+      style: TextStyle(
+        color: GlacierColors.text,
+        fontSize: height * .42,
+        fontWeight: FontWeight.w700,
+        letterSpacing: .4,
+        height: 1,
+      ),
+    ),
+  );
 }
 
 class _SelectionClip extends CustomClipper<Path> {
@@ -628,6 +721,40 @@ class UnderlineSelectionPainter extends CustomPainter {
   bool shouldRepaint(UnderlineSelectionPainter old) => true;
 }
 
+/// RewindBox Glacier's selection: a rounded glacier-blue outline around the
+/// active glyph and its name, a faint blue fill and a soft halo. Its shape
+/// alone shows the selection when motion is reduced.
+class GlacierSelectionPainter extends CustomPainter {
+  const GlacierSelectionPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final inset = size.shortestSide * .06;
+    final rect = Rect.fromLTWH(inset, inset, size.width - inset * 2, size.height - inset * 2);
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(size.width * .24));
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..color = color.withValues(alpha: .35)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = size.shortestSide * .07
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, size.shortestSide * .06),
+    );
+    canvas.drawRRect(rrect, Paint()..color = color.withValues(alpha: .12));
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(1.2, size.shortestSide * .035),
+    );
+  }
+
+  @override
+  bool shouldRepaint(GlacierSelectionPainter old) => old.color != color;
+}
+
 /// NeoStation's selection: a solid accent pill under the selected icon.
 class SolidSelectionPainter extends CustomPainter {
   const SolidSelectionPainter({required this.color});
@@ -655,14 +782,30 @@ class SolidSelectionPainter extends CustomPainter {
 /// webp asset, its Material symbol, or its symbol with a small badge at the
 /// top right (the consoles tab: a controller with a "+"). Every part takes
 /// [tint], so the selected and theme colors are those of the other tabs.
+///
+/// With the Glacier interface style and a known [tab], the tab is drawn with
+/// its RewindBox Glacier glyph (one white PNG per tab, tinted like the other
+/// icons); the tab identity, label and order are unchanged.
 class NavTabIcon extends StatelessWidget {
-  const NavTabIcon({super.key, required this.spec, required this.tint});
+  const NavTabIcon({super.key, required this.spec, required this.tint, this.tab});
 
   final NavTabSpec spec;
   final Color tint;
+  final NavTab? tab;
 
   @override
   Widget build(BuildContext context) {
+    final glacierTab = tab;
+    if (glacierTab != null &&
+        LiquidGlassTheme.of(context).style == InterfaceStyle.glacier) {
+      return Image.asset(
+        glacierNavGlyphAsset(glacierTab.name),
+        key: ValueKey('glacier-nav-glyph-${glacierTab.name}'),
+        color: tint,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.medium,
+      );
+    }
     final iconData = spec.iconData;
     final badge = spec.badgeIconData;
     if (iconData == null) {

@@ -34,7 +34,9 @@ import 'package:neostation/utils/time_format.dart';
 import 'package:neostation/widgets/neo_glass.dart';
 
 import '../themes/corner_radii.dart';
+import '../themes/glacier_theme.dart';
 import '../themes/liquid_glass_theme.dart';
+import 'glacier/glacier_widgets.dart';
 
 class Header extends StatefulWidget {
   final int selectedTabIndex;
@@ -334,12 +336,18 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
     final customColors = AppThemes.getCustomColors(context);
     final status = LiquidGlassTheme.of(context).settings;
     final safe = MediaQuery.viewPaddingOf(context);
-    final padding = EdgeInsets.fromLTRB(
-      safe.left + 6.r,
-      safe.top + 3.r,
-      safe.right + 6.r,
-      3.r,
-    );
+    // RewindBox Glacier: the header shares the content's side margins, the
+    // brand sits on the left and the view mode moves to the section title.
+    final glacier = status.style == InterfaceStyle.glacier;
+    final side = glacier ? GlacierLayout.sideInset(context) : 0.0;
+    final padding = glacier
+        ? EdgeInsets.fromLTRB(side, safe.top + 2.r, side, 3.r)
+        : EdgeInsets.fromLTRB(
+            safe.left + 6.r,
+            safe.top + 3.r,
+            safe.right + 6.r,
+            3.r,
+          );
     return Consumer2<ThemeProvider, SqliteConfigProvider>(
       builder: (context, themeProvider, configProvider, child) => Padding(
         padding: padding,
@@ -350,7 +358,9 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
               widget.onExtentChanged?.call(height + padding.vertical),
           leading: KeyedSubtree(
             key: const ValueKey('header-controls'),
-            child: widget.selectedTabIndex == AppTabs.systems
+            child: glacier
+                ? const FittedBox(fit: BoxFit.scaleDown, child: GlacierBrand())
+                : widget.selectedTabIndex == AppTabs.systems
                 ? FittedBox(
                     fit: BoxFit.scaleDown,
                     child: HeaderSortDropdown(compact: true),
@@ -363,9 +373,10 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
             child: MainMenuTabStrip(
               tabs: visibleNavTabs(configProvider.config),
               selected: NavTab.values[widget.selectedTabIndex],
-              cellExtent: 32.r,
+              cellExtent: glacier ? 19.r : 32.r,
               tabBuilder: (tab) => _buildTabButton(context, tab),
               iconBuilder: (tab) => NavTabIcon(
+                tab: tab,
                 spec: navTabSpec(tab),
                 tint: Theme.of(context).colorScheme.onSurface,
               ),
@@ -385,62 +396,77 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
           status: FittedBox(
             key: const ValueKey('header-status'),
             fit: BoxFit.scaleDown,
-            child: NeoGlass(
-              role: GlassSurfaceRole.chrome,
-              borderRadius:
-                  Theme.of(context).extension<CornerRadii>()?.radiusExternal ??
-                  BorderRadius.circular(14),
-              padding: EdgeInsets.symmetric(horizontal: 6.r, vertical: 4.r),
-              boxShadow: [
-                BoxShadow(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.shadow.withValues(alpha: 0.1),
-                  blurRadius: 4.r,
-                  offset: Offset(2.0.r, 2.0.r),
-                ),
-              ],
-              // Bell, time and batteries, each of which can be hidden in
-              // Settings › Themes › User interface. No clock glyph: it sat
-              // before a label that already reads as a time (as upstream).
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (status.showNotifications) const NotificationBell(),
-                  if (status.showNotifications && status.showClock)
-                    SizedBox(width: 8.r),
-                  if (status.showClock)
-                    Text(
-                      key: const ValueKey('header-clock'),
-                      formatClockTime(
-                        _now,
-                        use12Hour: configProvider.config.use12HourClock,
-                      ),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface,
-                        fontSize: 12.r,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.3.r,
-                      ),
-                    ),
-                  if (!_isTelevision)
-                    ValueListenableBuilder<List<NeoPlayControllerBattery>>(
-                      valueListenable:
-                          ControllerBatteryService.instance.controllers,
-                      builder: (context, controllers, _) => _buildBattery(
-                        context,
-                        customColors,
-                        controllers,
-                        showDevice: status.showDeviceBattery,
-                        showController: status.showControllerBattery,
-                      ),
-                    ),
+            child: _glacierStatusScale(
+              glacier,
+              NeoGlass(
+                role: GlassSurfaceRole.chrome,
+                borderRadius:
+                    Theme.of(
+                      context,
+                    ).extension<CornerRadii>()?.radiusExternal ??
+                    BorderRadius.circular(14),
+                padding: EdgeInsets.symmetric(horizontal: 6.r, vertical: 4.r),
+                boxShadow: [
+                  BoxShadow(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.shadow.withValues(alpha: 0.1),
+                    blurRadius: 4.r,
+                    offset: Offset(2.0.r, 2.0.r),
+                  ),
                 ],
+                // Bell, time and batteries, each of which can be hidden in
+                // Settings › Themes › User interface. No clock glyph: it sat
+                // before a label that already reads as a time (as upstream).
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (status.showNotifications) const NotificationBell(),
+                    if (status.showNotifications && status.showClock)
+                      SizedBox(width: 8.r),
+                    if (status.showClock)
+                      Text(
+                        key: const ValueKey('header-clock'),
+                        formatClockTime(
+                          _now,
+                          use12Hour: configProvider.config.use12HourClock,
+                        ),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontSize: 12.r,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.3.r,
+                        ),
+                      ),
+                    if (!_isTelevision)
+                      ValueListenableBuilder<List<NeoPlayControllerBattery>>(
+                        valueListenable:
+                            ControllerBatteryService.instance.controllers,
+                        builder: (context, controllers, _) => _buildBattery(
+                          context,
+                          customColors,
+                          controllers,
+                          showDevice: status.showDeviceBattery,
+                          showController: status.showControllerBattery,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  /// Glacier draws the status capsule at the height of the approved header
+  /// (bell, time and batteries scaled together, so their proportions stay).
+  Widget _glacierStatusScale(bool glacier, Widget status) {
+    if (!glacier) return status;
+    return SizedBox(
+      height: 20.5.r,
+      child: FittedBox(fit: BoxFit.contain, child: status),
     );
   }
 
@@ -477,7 +503,11 @@ class HeaderState extends State<Header> with WidgetsBindingObserver {
               child: FittedBox(
                 child: SizedBox.square(
                   dimension: 16.r,
-                  child: NavTabIcon(spec: navTabSpec(tab), tint: tint),
+                  child: NavTabIcon(
+                    tab: tab,
+                    spec: navTabSpec(tab),
+                    tint: tint,
+                  ),
                 ),
               ),
             ),
