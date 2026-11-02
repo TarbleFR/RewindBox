@@ -827,9 +827,11 @@ class UnchangedPinnedComponent(unittest.TestCase):
     def manifest(self, replaced=None, retained=None, unchanged=True):
         _, current = current_manifest()
         value = json.loads(json.dumps(current))
+        # The MeloNX rules alone: RPCS3 is a replaced Core here, whatever the current build does with it.
+        value['components']['rpcs3'].pop('unchangedFromBase', None)
         value['components']['melonx']['unchangedFromBase'] = unchanged
         value['images']['replaced'] = replaced if replaced is not None else {'rpcs3': 'Frameworks/libRPCS3Core.dylib'}
-        value['images']['retained'] = dict(value['images']['retained'],
+        value['images']['retained'] = dict({k: v for k, v in value['images']['retained'].items() if k not in ('rpcs3', 'melonx')},
                                            **({'melonx': retained} if retained is not None else {}))
         return value
 

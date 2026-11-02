@@ -322,6 +322,7 @@
  },
  "images": {
   "mustChange": [
+   "Frameworks/App.framework/App",
    "Frameworks/MeloNXCore.framework/MeloNXCore",
    "Runner"
   ],
