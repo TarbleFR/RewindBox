@@ -33,7 +33,7 @@ The array now updates only the elements whose result can differ:
 - Changed elements are resolved exactly as the full rebuild does and sent with
   SetTextures / SetSamplers / SetImages(start, run) for each contiguous run, an
   offset form every backend implements; unchanged elements are not re-sent.
-- The entry's texture set is rebuilt exactly from the elements after a change, so
+- The entry's texture set stays exact (reference counts per bound texture), so
   SynchronizeMemory, SignalModified (image stores) and the scale blacklist reach
   exactly the bound textures, as on the cache-hit path.
 - New entries, TextureBuffer arrays (their storage is rebound on every update) and
@@ -73,6 +73,12 @@ ENTRY_STATE = '''            private int _texturePoolSequence;
             public bool DeltaReady;
 
             /// <summary>
+            /// How many elements resolve to each bound texture, so that a delta update keeps the
+            /// texture set exact (every bound texture, with its current sequence, and nothing else).
+            /// </summary>
+            private Dictionary<Texture, int> _deltaReferences;
+
+            /// <summary>
             /// Allocates the per-element state once for an array of <paramref name="length"/> elements.
             /// </summary>
             public void PrepareDelta(int length, bool isSampler)
@@ -87,18 +93,24 @@ ENTRY_STATE = '''            private int _texturePoolSequence;
                         DeltaSamplers = new Sampler[length];
                     }
                 }
-                else if (DeltaItems?.Length != length)
+                else
                 {
-                    DeltaItems = new Texture[length];
-                    DeltaTextures = new Texture[length];
-                    DeltaSequences = new int[length];
+                    if (DeltaItems?.Length != length)
+                    {
+                        DeltaItems = new Texture[length];
+                        DeltaTextures = new Texture[length];
+                        DeltaSequences = new int[length];
+                    }
+
+                    (_deltaReferences ??= new Dictionary<Texture, int>()).Clear();
                 }
             }
 
             /// <summary>
-            /// Records the pool objects an element was resolved from.
+            /// Records the pool objects an element was resolved from. A full rebuild (<paramref name="replacing"/>
+            /// false) fills the texture set itself; a delta update replaces the element's previous texture here.
             /// </summary>
-            public void RecordDelta(int index, Texture item, Texture texture, Sampler sampler)
+            public void RecordDelta(int index, Texture item, Texture texture, Sampler sampler, bool replacing)
             {
                 if (DeltaSamplers != null && DeltaItems == null)
                 {
@@ -106,30 +118,25 @@ ENTRY_STATE = '''            private int _texturePoolSequence;
                     return;
                 }
 
+                Texture previous = DeltaTextures[index];
+
+                if (replacing && previous != null && --_deltaReferences[previous] == 0)
+                {
+                    _deltaReferences.Remove(previous);
+                    Textures.Remove(previous);
+                }
+
                 DeltaItems[index] = item;
                 DeltaTextures[index] = texture;
                 DeltaSequences[index] = texture?.InvalidatedSequence ?? 0;
-            }
 
-            /// <summary>
-            /// Rebuilds the texture set exactly from the bound elements.
-            /// </summary>
-            public void RebuildTexturesFromDelta()
-            {
-                Textures.Clear();
-
-                if (DeltaTextures == null)
+                if (texture != null)
                 {
-                    return;
-                }
+                    _deltaReferences[texture] = (_deltaReferences.TryGetValue(texture, out int count) ? count : 0) + 1;
 
-                for (int index = 0; index < DeltaLength; index++)
-                {
-                    Texture texture = DeltaTextures[index];
-
-                    if (texture != null)
+                    if (replacing)
                     {
-                        Textures[texture] = DeltaSequences[index];
+                        Textures[texture] = texture.InvalidatedSequence;
                     }
                 }
             }'''
@@ -208,7 +215,8 @@ FULL_RECORD_NEW = '''                    ITexture hostTexture = texture?.GetTarg
                         index,
                         isSampler ? null : texturePool.PeekForBindingDelta(index, out _),
                         texture,
-                        isSampler ? samplerPool?.GetCachedItem(index) : null);
+                        isSampler ? samplerPool?.GetCachedItem(index) : null,
+                        replacing: false);
 
                     if (hostTexture != null && texture.Target == Target.TextureBuffer)
                     {
@@ -265,8 +273,11 @@ FULL_END_NEW = '''                if (isImage)
             }
         }
 
-        // One contiguous run of changed elements, at most DeltaRunCapacity long (GPU thread only).
+        // One contiguous run of elements to send, at most DeltaRunCapacity long (GPU thread only).
+        // Changes separated by at most DeltaGapLimit unchanged elements share one run: the unchanged
+        // elements between them are re-sent with their recorded values, identical to what is bound.
         private const int DeltaRunCapacity = 4096;
+        private const int DeltaGapLimit = 16;
         private readonly ITexture[] _deltaRunTextures = new ITexture[DeltaRunCapacity];
         private readonly ISampler[] _deltaRunSamplers = new ISampler[DeltaRunCapacity];
 
@@ -291,6 +302,7 @@ FULL_END_NEW = '''                if (isImage)
             int changed = 0;
             int runStart = 0;
             int runCount = 0;
+            int gap = 0;
             bool completed = false;
 
             try
@@ -316,7 +328,12 @@ FULL_END_NEW = '''                if (isImage)
 
                     if (unchanged)
                     {
-                        FlushDeltaRun(entry, isImage, isSampler, runStart, ref runCount);
+                        if (runCount != 0 && ++gap > DeltaGapLimit)
+                        {
+                            // Too far from the next change: send the run without its unchanged tail.
+                            FlushDeltaRun(entry, isImage, isSampler, runStart, ref runCount);
+                            gap = 0;
+                        }
 
                         continue;
                     }
@@ -346,7 +363,27 @@ FULL_END_NEW = '''                if (isImage)
                         index,
                         isSampler ? null : texturePool.PeekForBindingDelta(index, out _),
                         texture,
-                        isSampler ? samplerPool?.GetCachedItem(index) : null);
+                        isSampler ? samplerPool?.GetCachedItem(index) : null,
+                        replacing: true);
+
+                    if (runCount != 0 && gap != 0)
+                    {
+                        if (runCount + gap >= DeltaRunCapacity)
+                        {
+                            FlushDeltaRun(entry, isImage, isSampler, runStart, ref runCount);
+                        }
+                        else
+                        {
+                            for (int skipped = index - gap; skipped < index; skipped++)
+                            {
+                                _deltaRunTextures[runCount] = isSampler ? null : entry.DeltaTextures[skipped]?.GetTargetTexture(bindingInfo.Target);
+                                _deltaRunSamplers[runCount] = isSampler ? entry.DeltaSamplers[skipped]?.GetHostSampler(null) : null;
+                                runCount++;
+                            }
+                        }
+
+                        gap = 0;
+                    }
 
                     if (runCount == DeltaRunCapacity)
                     {
@@ -365,11 +402,6 @@ FULL_END_NEW = '''                if (isImage)
                 }
 
                 FlushDeltaRun(entry, isImage, isSampler, runStart, ref runCount);
-
-                if (changed != 0 || !entry.ValidateTextures())
-                {
-                    entry.RebuildTexturesFromDelta();
-                }
 
                 // The same memory synchronisation, store signal and scale blacklist as the cache-hit path.
                 entry.SynchronizeMemory(isStore, resScaleUnsupported);
@@ -536,7 +568,8 @@ def add_alias(path):
         path.write_text(ALIAS + text, encoding='utf-8')
 
 
-def apply(source):
+def apply_array_cache(source):
+    """Only the TextureBindingsArrayCache part (the host fixture compiles that file with doubles)."""
     source = Path(source)
     cache = source / ARRAY_CACHE
     once(cache, '''            private int _texturePoolSequence;
@@ -547,6 +580,12 @@ def apply(source):
     once(cache, FULL_END, FULL_END_NEW)
     once(cache, BUFFER_REBUILD, BUFFER_REBUILD_NEW)
     add_alias(cache)
+    return [ARRAY_CACHE]
+
+
+def apply(source):
+    source = Path(source)
+    apply_array_cache(source)
     once(source / TEXTURE_POOL, PEEK_ANCHOR, PEEK)
     once(source / POOL_CACHE, CREATE, CREATE_NEW)
     add_alias(source / POOL_CACHE)
