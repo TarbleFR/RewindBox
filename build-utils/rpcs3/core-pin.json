@@ -54,7 +54,35 @@
       "name": "RPCS3Core-611-apple-host-tests-c934705ec17e2861a57fe9dca2141bab7abe9c1a",
       "bytes": 20679,
       "sha256": "45d9db2175b4ea3cd119c41a0d0fc5d4cc875e6777ece9641de2657de97bbffd",
-      "expiresAt": "2026-12-01T23:44:21Z"
+      "expiresAt": "2026-12-01T23:44:21Z",
+      "reused": {
+        "names": [
+          "codegen-audit",
+          "feedback-census",
+          "lr-full-queue",
+          "position-invariance-contract",
+          "reuse-audit"
+        ],
+        "reference": {
+          "run": 41333351872,
+          "attempt": 1,
+          "job": 124927901813,
+          "source": "fefad81dbfc6890294def9b529f6e0d915fcfcbe",
+          "artifact": 13094565494,
+          "sha256": "33857562f708eeec933528ecf0dc8ca6a4056ebfbecef22dca0725cb04c4815a"
+        },
+        "requiredCoverage": [
+          "lr-full-queue",
+          "exitspawn-worker-plain",
+          "exitspawn-worker-asan-ubsan",
+          "feedback-census",
+          "transition-phases",
+          "codegen-audit",
+          "reuse-audit",
+          "position-invariance-contract"
+        ],
+        "note": "Core 610 Apple results reused because their inputs are unchanged (authenticated by the producer step 'Authenticate the reused Core 610 Apple harness evidence'); with the 6 reruns they cover the 8 Core 610 harnesses."
+      }
     }
   },
   "core": {

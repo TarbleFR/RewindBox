@@ -153,6 +153,104 @@ jobs:
           build/armsx2-validation/
         if-no-files-found: warn
         retention-days: 14
+  republish:
+    name: republish
+    # Independent of the application build: it authenticates the replaced and retained component
+    # archives and re-uploads them first, so a later failure of the application (or a retry after an
+    # expiry such as libretro 12280822192 on 2026-11-03T16:19:42Z) never loses what the next build
+    # retains. Component archives only; never the IPA.
+    needs: preflight
+    if: ${{ needs.preflight.result == 'success' && needs.preflight.outputs.build != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BUILD_NUMBER: ${{ needs.preflight.outputs.build }}
+    steps:
+    - name: Checkout the exact candidate and its history
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.sha }}
+        fetch-depth: 0
+        persist-credentials: false
+    - name: Materialize the frozen effective product tree
+      run: python3 -B .github/diagnostics/standard_delivery.py materialize
+    - name: Download and authenticate the replaced RPCS3 Core bytes
+      run: python3 -B .github/diagnostics/standard_delivery.py download-rpcs3
+    - name: Download and authenticate the replaced MeloNX Core producer artifact
+      run: python3 -B .github/diagnostics/standard_delivery.py download-melonx
+    - name: Download and authenticate the exact retained libretro runtime
+      run: python3 -B .github/diagnostics/standard_delivery.py download-libretro
+    - name: Download and authenticate the exact retained native MeloNX dependencies
+      run: python3 -B .github/diagnostics/standard_delivery.py download-melonx-dependencies
+    - name: Authenticate the retained Dolphin session Core
+      run: python3 -B .github/diagnostics/standard_delivery.py dolphin
+    - name: Authenticate the retained ARMSX2 ABI9 Core
+      run: python3 -B .github/diagnostics/standard_delivery.py armsx2
+    - name: Stage the authenticated component archives for republication
+      run: python3 -B .github/diagnostics/standard_delivery.py republish
+    - name: Republish the authenticated rpcs3-core archive
+      if: ${{ hashFiles('build/republish/rpcs3-core/republication.json') != '' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-rpcs3-core
+        path: build/republish/rpcs3-core/
+        if-no-files-found: error
+        retention-days: 90
+        compression-level: 0
+    - name: Republish the authenticated rpcs3-host-tests archive
+      if: ${{ hashFiles('build/republish/rpcs3-host-tests/republication.json') != '' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-rpcs3-host-tests
+        path: build/republish/rpcs3-host-tests/
+        if-no-files-found: error
+        retention-days: 90
+        compression-level: 0
+    - name: Republish the authenticated melonx-core archive
+      if: ${{ hashFiles('build/republish/melonx-core/republication.json') != '' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-melonx-core
+        path: build/republish/melonx-core/
+        if-no-files-found: error
+        retention-days: 90
+        compression-level: 0
+    - name: Republish the authenticated dolphin archive
+      if: ${{ hashFiles('build/republish/dolphin/republication.json') != '' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-dolphin
+        path: build/republish/dolphin/
+        if-no-files-found: error
+        retention-days: 90
+        compression-level: 0
+    - name: Republish the authenticated armsx2 archive
+      if: ${{ hashFiles('build/republish/armsx2/republication.json') != '' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-armsx2
+        path: build/republish/armsx2/
+        if-no-files-found: error
+        retention-days: 90
+        compression-level: 0
+    - name: Republish the authenticated libretro archive
+      if: ${{ hashFiles('build/republish/libretro/republication.json') != '' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-libretro
+        path: build/republish/libretro/
+        if-no-files-found: error
+        retention-days: 90
+        compression-level: 0
+    - name: Republish the authenticated melonx-dependencies archive
+      if: ${{ hashFiles('build/republish/melonx-dependencies/republication.json') != '' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-melonx-dependencies
+        path: build/republish/melonx-dependencies/
+        if-no-files-found: error
+        retention-days: 90
+        compression-level: 0
   application:
     name: application
     needs: preflight
@@ -301,73 +399,6 @@ jobs:
         git -C .native-sources/Melo-Controller fetch --depth 1 origin c049ce88a5635bddcd88e1965c42aa8fc92fe961
         git -C .native-sources/Melo-Controller checkout --detach FETCH_HEAD
         python3 build-utils/melonx/vendor_controller.py .native-sources/Melo-Controller .native-sources/MeloNX
-    # Republished right after the last component download, before any compile: a delivery that
-    # fails later still preserves the retained archives that the next build retains.
-    - name: Stage the authenticated component archives for republication
-      run: python3 -B .github/diagnostics/standard_delivery.py republish
-    - name: Republish the authenticated rpcs3-core archive
-      if: ${{ hashFiles('build/republish/rpcs3-core/republication.json') != '' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-rpcs3-core
-        path: build/republish/rpcs3-core/
-        if-no-files-found: error
-        retention-days: 90
-        compression-level: 0
-    - name: Republish the authenticated rpcs3-host-tests archive
-      if: ${{ hashFiles('build/republish/rpcs3-host-tests/republication.json') != '' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-rpcs3-host-tests
-        path: build/republish/rpcs3-host-tests/
-        if-no-files-found: error
-        retention-days: 90
-        compression-level: 0
-    - name: Republish the authenticated melonx-core archive
-      if: ${{ hashFiles('build/republish/melonx-core/republication.json') != '' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-melonx-core
-        path: build/republish/melonx-core/
-        if-no-files-found: error
-        retention-days: 90
-        compression-level: 0
-    - name: Republish the authenticated dolphin archive
-      if: ${{ hashFiles('build/republish/dolphin/republication.json') != '' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-dolphin
-        path: build/republish/dolphin/
-        if-no-files-found: error
-        retention-days: 90
-        compression-level: 0
-    - name: Republish the authenticated armsx2 archive
-      if: ${{ hashFiles('build/republish/armsx2/republication.json') != '' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-armsx2
-        path: build/republish/armsx2/
-        if-no-files-found: error
-        retention-days: 90
-        compression-level: 0
-    - name: Republish the authenticated libretro archive
-      if: ${{ hashFiles('build/republish/libretro/republication.json') != '' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-libretro
-        path: build/republish/libretro/
-        if-no-files-found: error
-        retention-days: 90
-        compression-level: 0
-    - name: Republish the authenticated melonx-dependencies archive
-      if: ${{ hashFiles('build/republish/melonx-dependencies/republication.json') != '' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ needs.preflight.outputs.artifact-prefix }}-attempt${{ github.run_attempt }}-component-melonx-dependencies
-        path: build/republish/melonx-dependencies/
-        if-no-files-found: error
-        retention-days: 90
-        compression-level: 0
     - name: Package the standalone MeloNX app's own MoltenVK (maintainer exception, pinned upstream bytes)
       run: python3 build-utils/melonx/package_standalone_moltenvk.py --source .native-sources/MeloNX
     - name: Prepare emulator build definitions

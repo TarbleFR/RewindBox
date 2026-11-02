@@ -99,6 +99,11 @@ def fetch_artifact(artifact, size, digest, path, download=None):
 ORIGIN_KEYS = ('workflow', 'source', 'run', 'attempt', 'job', 'artifact', 'name', 'bytes', 'sha256')
 
 
+# Job names (GITHUB_JOB) of the standard workflow that upload republished archives; a later build pins
+# the numeric job id and the record names the job.
+REPUBLISHING_JOBS = ('republish',)
+
+
 def original_binding(origin):
     return {key: origin.get(key) for key in ORIGIN_KEYS}
 
@@ -139,9 +144,9 @@ def republished_archive(kind, origin, republished, path, api=None, download=None
     job = api('actions/jobs/' + str(republished['job']))
     step = republish_step(kind)
     require(job['run_id'] == republished['run'] and job['head_sha'] == republished['source'] and
-            job['run_attempt'] == republished['attempt'] and job['name'] == 'application' and
+            job['run_attempt'] == republished['attempt'] and job['name'] in REPUBLISHING_JOBS and
             step in {s['name'] for s in job['steps'] if s['conclusion'] == 'success'},
-            'The republishing application job did not upload ' + kind)
+            'The republishing job did not upload ' + kind)
     artifact = api('actions/artifacts/' + str(republished['artifact']))
     require(artifact['id'] == republished['artifact'] and artifact['name'] == republished['name'] and
             artifact['size_in_bytes'] == republished['bytes'] and
@@ -161,8 +166,9 @@ def republished_archive(kind, origin, republished, path, api=None, download=None
             record.get('contentBytes') == origin['bytes'] and len(content) == origin['bytes'] and
             sha(content) == origin['sha256'], 'Republished content is not the original authenticated archive: ' + kind)
     expected_republisher = {key: republished[key] for key in ('build', 'source', 'run', 'attempt')}
-    require({key: record['republisher'].get(key) for key in expected_republisher} == expected_republisher,
-            'Republication record names another delivery: ' + kind)
+    require({key: record['republisher'].get(key) for key in expected_republisher} == expected_republisher and
+            record['republisher'].get('job') == job['name'],
+            'Republication record names another delivery or job: ' + kind)
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     Path(path).write_bytes(content)
     return dict(republished=dict(republished), record=record)

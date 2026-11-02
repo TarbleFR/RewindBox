@@ -85,7 +85,7 @@
     "packages/rpcs3_internal_bridge/ios/ThirdParty/rcheevos/src/rhash/md5.h": "8341e2a307d7cfaeb816b261d92ce87a07be62e3eb58c98d2c769e75a6e2b959",
     "packages/rpcs3_internal_bridge/ios/ThirdParty/rcheevos/src/rhash/rc_hash_internal.h": "90b930b1ce1f0c160640ed54627cd460a6cb32e73b0d12c464e206c3ed1e6870"
    },
-   "identical_to": "packages/libretro_internal_bridge/ios/ThirdParty/rcheevos (same relative paths and bytes at delivered 610 df337fe7), already declared and shipped",
+   "identical_to": "packages/libretro_internal_bridge/ios/ThirdParty/rcheevos at delivered 610 df337fe7: each of the 59 files has the same relative path and bytes there (that copy has 61 files: it also carries the libretro-only rc_libretro adapter, which the RPCS3 copy omits); already declared and shipped",
    "license_notice": "assets/legal/libretro/rcheevos-LICENSE.txt (byte-identical to the vendored LICENSE)"
   },
   "deployment_target": "17.4 -> 18.0 (the application's floor)"

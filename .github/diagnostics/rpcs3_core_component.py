@@ -302,6 +302,24 @@ def _bundle(pin_text):
     require(host_tests['result'] == 'passed' and host_tests['source'] == tests['source'] and
             host_tests['run'] == tests['run'] and [c['name'] for c in host_tests['commands']] == list(tests['names']) and
             all(c['exit_code'] == 0 for c in host_tests['commands']), 'RPCS3 Core Apple host tests did not all pass')
+    reused_pin = tests.get('reused')
+    require(isinstance(reused_pin, dict) and reused_pin.get('names') and reused_pin.get('reference'),
+            'The RPCS3 Core pin lacks its reused Apple harness evidence')
+    reused = host_tests.get('reused') or {}
+    with zipfile.ZipFile(tests_path) as z:
+        receipt_raw = z.read(reused.get('receipt', 'reused-apple-evidence.json'))
+    reference = reused.get('reference') or {}
+    pinned_reference = reused_pin['reference']
+    require(sha(receipt_raw) == reused.get('receipt_sha256') and
+            all(reference.get(key) == pinned_reference[key] for key in ('run', 'attempt', 'job', 'source')) and
+            (reference.get('artifact') or {}).get('id') == pinned_reference['artifact'] and
+            (reference.get('artifact') or {}).get('sha256') == pinned_reference['sha256'],
+            'Reused RPCS3 Apple harness evidence differs from the pinned Core 610 reference')
+    reused_names = sorted(_reused_names(reused))
+    require(reused_names == sorted(reused_pin['names']), 'Reused RPCS3 Apple harnesses differ from the pin: ' + repr(reused_names))
+    covered = set(tests['names']) | set(reused_names)
+    require(set(reused_pin['requiredCoverage']) <= covered,
+            'RPCS3 Apple harnesses neither rerun nor reused: ' + repr(sorted(set(reused_pin['requiredCoverage']) - covered)))
     return dict(raw=raw, identity=identity, identity_raw=identity_raw, proof=proof, source=source, abi=abi,
                 origin=origin, host_tests=host_tests)
 
@@ -319,6 +337,17 @@ def _compiled_inputs(pin_text):
         require(not Path(name).is_absolute() and '..' not in Path(name).parts, 'Unsafe compiled input path')
         require(sha(git_show(pin['producer']['core']['source'], name)) == digest, 'Compiled Core source input differs: ' + name)
     return inputs
+
+
+def _reused_names(reused):
+    """Names of the reused Apple harness results in the producer receipt's `reused` section."""
+    for key in ('commands', 'results', 'names'):
+        value = reused.get(key)
+        if isinstance(value, dict):
+            return list(value)
+        if isinstance(value, list):
+            return [item['name'] if isinstance(item, dict) else item for item in value]
+    return []
 
 
 def compatibility(pin):
@@ -348,13 +377,39 @@ def validate_rpc_core_identity(pin, identity):
     require(identity == bundle(pin)['identity'], 'RPCS3 Core identity differs')
 
 
+def compare_core_pinned(pin, packaged, raw, signed):
+    """validate_rpcs3_core604_ipa.compare_core with the export set bound to this pin.
+
+    Every compare_core check is kept (install name, platform, file type, identical exports before and after
+    packaging, signature payload, payload fingerprint, runtime markers, signature metadata); only its fixed
+    88-export count becomes this pin's exact export list (Core 611: 88 + the 4 RetroAchievements exports).
+    """
+    import validate_rpcs3_core604_ipa as core604
+    candidate = core604.candidate
+    before, after = candidate.macho(raw), candidate.macho(packaged)
+    require(before['id'] == after['id'] == candidate.CORE_ID == CORE_ID, 'RPCS3 install name changed during packaging')
+    require(after['platform'] == before['platform'] == 2 and after['fileType'] == before['fileType'] == 6 and
+            after['definedSymbols'] == before['definedSymbols'] and
+            len(after['definedSymbols']) == pin['exports']['count'] and
+            sorted(after['definedSymbols']) == expected_exports(pin), 'RPCS3 platform/type/exports changed')
+    if signed:
+        require(after['codeSignature'] is True, 'Packaged Core has no signature payload')
+    fingerprint = candidate.payload_fingerprint(packaged)
+    require(fingerprint == candidate.payload_fingerprint(raw) == pin['core']['payloadFingerprint'],
+            'Signing/packaging changed Core code, data or ABI metadata')
+    metadata = core604.compare_signature_metadata(raw, packaged) if signed or packaged != raw else {}
+    for marker in candidate.CORE_MARKERS:
+        require(marker in packaged, 'Core runtime marker missing: ' + repr(marker))
+    return dict(compiledPayloadFingerprint=fingerprint, installName=after['id'],
+                signed=after['codeSignature'], definedSymbols=len(after['definedSymbols']), metadata=metadata)
+
+
 def core_identity_verifier(pin):
     """validate_rpcs3_ipa.validate_core_identity replacement bound to this pin (same signature)."""
     def validate_core_identity(core_data, identity_path, expected_host_commit):
-        from validate_rpcs3_core604_ipa import compare_core
         require(expected_host_commit == pin['producer']['core']['source'] and
                 Path(identity_path).read_bytes() == bundle(pin)['identity_raw'], 'RPCS3 Core identity bytes or source differ')
-        compare_core(core_data, bundle(pin)['raw'], signed=False)
+        compare_core_pinned(pin, core_data, bundle(pin)['raw'], signed=False)
         return bundle(pin)['identity']
     return validate_core_identity
 

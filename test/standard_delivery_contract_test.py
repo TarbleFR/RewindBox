@@ -512,22 +512,32 @@ class Workflow(unittest.TestCase):
 
     def test_republication_steps(self):
         _, manifest = current_manifest()
-        names = {s['name']: s for s in steps('application')}
+        value = workflow()
+        job = value['jobs']['republish']
+        # An independent job right after preflight: a later application failure (or a retry after an
+        # expiry) never loses the archives the next build retains. Component archives only; never the IPA.
+        self.assertEqual(job['needs'], 'preflight')
+        self.assertEqual(job['if'], "${{ needs.preflight.result == 'success' && needs.preflight.outputs.build != '' }}")
+        self.assertEqual(job['name'], 'republish')
+        self.assertIn('republish', retained.REPUBLISHING_JOBS)
+        names = {s['name']: s for s in steps('republish')}
+        order = [s['name'] for s in steps('republish')]
+        self.assertEqual(order.index('Materialize the frozen effective product tree'), 1)
         self.assertTrue(set(manifest['republish']) <= set(sd.REPUBLISHED_KINDS))
+        stage = order.index('Stage the authenticated component archives for republication')
+        for operation in ('download-rpcs3', 'download-melonx', 'download-libretro', 'download-melonx-dependencies',
+                          'dolphin', 'armsx2'):
+            index = next(i for i, s in enumerate(steps('republish'))
+                         if s.get('run', '').endswith('standard_delivery.py ' + operation))
+            self.assertLess(index, stage)
         for kind in sd.REPUBLISHED_KINDS:
             item = names[retained.republish_step(kind)]
             self.assertEqual(item['with']['path'], f'build/republish/{kind}/')
             self.assertEqual(item['if'], "${{ hashFiles('build/republish/" + kind + "/republication.json') != '' }}")
-        order = [s['name'] for s in steps('application')]
-        stage = order.index('Stage the authenticated component archives for republication')
-        # Republished right after the last component download and before any compile, so a delivery
-        # that fails later still preserves the archives the next build retains; never the IPA.
-        downloads = [i for i, name in enumerate(order) if name.startswith(('Download ', 'Authenticate and install'))]
-        self.assertGreater(stage, max(downloads))
-        self.assertLess(stage, order.index('Compile Release device binary with measured AOT and Xcode phases'))
-        for kind in sd.REPUBLISHED_KINDS:
-            self.assertLess(order.index(retained.republish_step(kind)), order.index('Configure release host'))
-            self.assertNotIn('ipa', names[retained.republish_step(kind)]['with']['path'].lower())
+            self.assertGreater(order.index(retained.republish_step(kind)), stage)
+            self.assertNotIn('ipa', item['with']['path'].lower())
+        self.assertFalse(any(s['name'].startswith('Republish ') for s in steps('application')))
+        self.assertFalse(any('delivery_cipher' in s.get('run', '') or 'IPA' in s['name'] for s in steps('republish')))
 
 
 class EffectiveTreeSynthetic(unittest.TestCase):
@@ -856,7 +866,7 @@ class Republication(unittest.TestCase):
             origin = dict(workflow='.github/workflows/producer.yml', source='1' * 40, run=11, attempt=1, job=12,
                           artifact=13, name='Producer-archive', bytes=original.stat().st_size,
                           sha256=retained.sha_file(original))
-            republisher = dict(build=900, source='2' * 40, run=21, attempt=1, workflow=sd.WORKFLOW, job='application')
+            republisher = dict(build=900, source='2' * 40, run=21, attempt=1, workflow=sd.WORKFLOW, job='republish')
             record = retained.stage_republication('dolphin', origin, original, republisher, root)
             self.assertEqual(record['contentSHA256'], origin['sha256'])
             bundle = root / 'bundle.zip'
@@ -872,7 +882,7 @@ class Republication(unittest.TestCase):
             def api(republished, **changes):
                 responses = {
                     'actions/runs/21': dict(id=21, head_sha='2' * 40, path=sd.WORKFLOW, head_branch='Claude', run_attempt=1),
-                    'actions/jobs/22': dict(run_id=21, head_sha='2' * 40, run_attempt=1, name='application',
+                    'actions/jobs/22': dict(run_id=21, head_sha='2' * 40, run_attempt=1, name='republish',
                                             steps=[dict(name=retained.republish_step('dolphin'), conclusion='success')]),
                     'actions/artifacts/23': dict(id=23, name='Republished', size_in_bytes=republished['bytes'],
                                                  digest='sha256:' + republished['sha256'], expired=False,
@@ -903,6 +913,9 @@ class Republication(unittest.TestCase):
             with self.assertRaises(ValueError):
                 retained.republished_archive('dolphin', origin, republished, target,
                                              api(republished, **{'actions/jobs/22': dict(steps=[])}), download)
+            with self.assertRaises(ValueError):
+                retained.republished_archive('dolphin', origin, republished, target,
+                                             api(republished, **{'actions/jobs/22': dict(name='application')}), download)
             with self.assertRaises(ValueError):
                 retained.stage_republication('dolphin', dict(origin, sha256='0' * 64), original, republisher, root)
 

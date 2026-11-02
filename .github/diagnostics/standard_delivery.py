@@ -67,7 +67,7 @@ TRIGGER_MARKER = '[ipa-delivery:'
 SKIP_TOKENS = ('[skip ci]', '[ci skip]', '[no ci]', '[skip actions]', '[actions skip]', 'skip-checks:true',
                'skip-checks: true')
 TEST_GROUPS = ('flutter', 'native')
-JOB_NAMES = ('preflight', 'flutter', 'native', 'application')
+JOB_NAMES = ('preflight', 'flutter', 'native', 'republish', 'application')
 MATERIALIZE_STEP = 'Materialize the frozen effective product tree'
 REQUIRED_STEPS = {
     'preflight': {MATERIALIZE_STEP, 'Run the delivery contract', 'Preserve the delivery contract log'},
@@ -693,7 +693,17 @@ def materialize_tree(repo, manifest, head=None):
         require(is_product(path), 'A restore path is a recipe path: ' + path)
         if entry is None:
             require(path in head_entries, 'A restore deletion is not tracked at HEAD: ' + path)
+    real_root = os.path.realpath(repo.root)
+
+    def inside(path):
+        # No parent folder of a restored path may be a symlink leading out of (or around) the tree.
+        parent = os.path.realpath((repo.root / path).parent)
+        require(parent == os.path.join(real_root, os.path.dirname(path)).rstrip(os.sep) and
+                os.path.commonpath([real_root, parent]) == real_root, 'A restore path crosses a symlinked folder: ' + path)
+
     for path, entry in sorted(restore.items()):
+        if os.path.lexists((repo.root / path).parent):
+            inside(path)
         if entry is None and os.path.lexists(repo.root / path):
             (repo.root / path).unlink()
     for path, entry in sorted(restore.items()):
@@ -706,6 +716,7 @@ def materialize_tree(repo, manifest, head=None):
             require(not target.is_dir() or target.is_symlink(), 'A restore target is a directory: ' + path)
             target.unlink()
         target.parent.mkdir(parents=True, exist_ok=True)
+        inside(path)
         if entry['mode'] == '120000':
             os.symlink(os.fsdecode(data), target)
         else:
@@ -1526,7 +1537,6 @@ def validate(ipa):
     import rewind608_producers as producers608
     from rewind606_engine import safe_members
     from rewind607_delivery import zip_payloads
-    from validate_rpcs3_core604_ipa import compare_core
     from delivery_benchmark import payload_fingerprint
     from validate_neoplay_ipa import validate as neoplay
     from validate_shader_compiler_ipa import validate as shaders
@@ -1547,7 +1557,7 @@ def validate(ipa):
         info = plistlib.loads(archive.read(root + 'Info.plist'))
         require(str(info['CFBundleVersion']) == str(manifest['build']) and info['MinimumOSVersion'] == '18.0',
                 'Wrong application version/deployment target')
-        rpc_result = compare_core(archive.read(root + rpcs3.CORE_IMAGE), rpcs3.raw_core(pin), signed=True)
+        rpc_result = rpcs3.compare_core_pinned(pin, archive.read(root + rpcs3.CORE_IMAGE), rpcs3.raw_core(pin), signed=True)
         source_record = json.loads(archive.read(root + 'Legal/RPCS3-current-core/actual-compiled-source.json'))
         source_zip = archive.read(root + 'Legal/RPCS3-current-core/compiled-host-inputs.zip')
         require(source_record['compiledInputsZipSHA256'] == sha(source_zip) and
@@ -1642,7 +1652,7 @@ def republish():
     manifest = ci_manifest()
     current = execution()
     republisher = dict(build=manifest['build'], source=current['source'], run=current['run'], attempt=current['attempt'],
-                       workflow=WORKFLOW, job='application')
+                       workflow=WORKFLOW, job=os.environ.get('GITHUB_JOB', 'republish'))
     sources = republication_sources(manifest)
     records = {}
     for kind in manifest['republish']:
