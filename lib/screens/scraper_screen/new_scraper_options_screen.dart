@@ -6,6 +6,8 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:material_symbols_icons/symbols.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:neostation/l10n/app_locale.dart';
+import 'package:neostation/l10n/game_box_locale.dart';
+import 'package:neostation/services/screenscraper/scrape_choices.dart';
 import 'package:neostation/widgets/confirm_action_dialog.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:neostation/services/screenscraper_service.dart';
@@ -365,7 +367,7 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
   int _getContentItemCount() {
     final selectedKey = _menuItems[_selectedMenuIndex].localeKey;
     if (selectedKey == AppLocale.scraping) return 1;
-    if (selectedKey == AppLocale.scrapeMode) return 2;
+    if (selectedKey == AppLocale.scrapeMode) return ScrapeModeContent.itemCount;
     if (selectedKey == AppLocale.media) return MediaContentState.itemCount;
     if (selectedKey == AppLocale.region) {
       return _regionKey.currentState?.getItemCount ?? 0;
@@ -437,9 +439,11 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
       if (success) {
         await _loadCurrentScrapeMode();
         if (!mounted) return;
-        final modeName = newMode == 'new_only'
-            ? AppLocale.newContentOnly.getString(context)
-            : AppLocale.allContent.getString(context);
+        final modeName = switch (newMode) {
+          'new_only' => AppLocale.newContentOnly.getString(context),
+          'faces_only' => GameBoxLocale.text(context, GameBoxLocale.scrapeModeFacesOnly),
+          _ => AppLocale.allContent.getString(context),
+        };
         AppNotification.showNotification(
           context,
           '${AppLocale.scrapeModeUpdated.getString(context)} $modeName',
@@ -457,6 +461,7 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
 
   Future<void> _handleLanguageChange(String newLanguage) async {
     if (_userInfo == null) return;
+    final previousLanguage = _currentLanguage;
 
     final success = await ScreenScraperService.saveCredentials(
       _userInfo!['username']!,
@@ -464,6 +469,10 @@ class _NewScraperOptionsScreenState extends State<NewScraperOptionsScreen> {
       _userInfo,
       newLanguage, // Pasar como cuarto parámetro
     );
+
+    // Texts and pictures follow the language: completed games are looked at
+    // again by "New content only" (docs/game-box-3d.md § 18).
+    if (success) await ScrapeChoices.languageChanged(previousLanguage, newLanguage);
 
     if (mounted) {
       if (success) {

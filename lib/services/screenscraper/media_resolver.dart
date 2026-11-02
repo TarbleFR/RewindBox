@@ -58,6 +58,24 @@ class ScreenscraperMediaResolver {
     }
   }
 
+  /// ScreenScraper types searched for one media setting, the HD variant
+  /// first where ScreenScraper has one.
+  static List<String> typesOf(String mediaType) => switch (mediaType) {
+        'wheel' => const ['wheel-hd', 'wheel'],
+        'ss' => const ['ss-hd', 'ss'],
+        'box2D' => const ['box-2D'],
+        _ => [mediaType],
+      };
+
+  /// Every variant ScreenScraper lists for one media setting (all regions).
+  static List<Map<String, dynamic>> candidatesOf(List<dynamic> medias, String mediaType) {
+    final types = typesOf(mediaType);
+    return [
+      for (final m in medias)
+        if (m is Map && types.contains(m['type'])) Map<String, dynamic>.from(m),
+    ];
+  }
+
   /// Selects the best media asset from a list based on region and language priority.
   ///
   /// Priority: World > US > EU > Others > Asia.
@@ -69,11 +87,7 @@ class ScreenscraperMediaResolver {
   }) {
     if (medias.isEmpty) return null;
 
-    final typesToSearch = mediaType == 'wheel'
-        ? ['wheel-hd', 'wheel']
-        : (mediaType == 'ss'
-              ? ['ss-hd', 'ss']
-              : (mediaType == 'box2D' ? ['box-2D'] : [mediaType]));
+    final typesToSearch = typesOf(mediaType);
 
     const defaultLanguageHierarchy = ['en', 'es', 'fr', 'de', 'it', 'pt', 'jp'];
 

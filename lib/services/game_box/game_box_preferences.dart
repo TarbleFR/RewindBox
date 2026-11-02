@@ -93,6 +93,25 @@ class GameBoxPreferences {
     }
   }
 
+  static const scrapeExtraSourcesKey = 'NeoStation.GameBox.ScrapeExtraSources';
+
+  /// The scraper's Start also looks for box faces still missing on GameTDB,
+  /// and on MobyGames with the player's key (docs/game-box-3d.md § 18).
+  /// On by default.
+  static Future<bool> scrapeExtraSources() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getBool(scrapeExtraSourcesKey) ?? true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  static Future<void> setScrapeExtraSources(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(scrapeExtraSourcesKey, value);
+  }
+
   static Future<double> readerTextScale() async {
     try {
       final prefs = await SharedPreferences.getInstance();

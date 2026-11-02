@@ -7,7 +7,14 @@ import 'package:path/path.dart' as path;
 import 'package:neostation/services/logger_service.dart';
 import 'package:neostation/services/rpcs3_title_catalog_service.dart';
 
+import '../providers/file_provider.dart';
 import '../repositories/scraper_repository.dart';
+import 'game_box/game_box_batch.dart';
+import 'game_box/game_box_fetcher.dart';
+import 'game_box/game_box_media.dart';
+import 'game_box/game_box_media_service.dart';
+import 'game_box/game_box_preferences.dart';
+import 'game_box/game_box_sources.dart';
 import 'screenscraper/region_config.dart';
 import 'screenscraper/rom_hasher.dart';
 import 'screenscraper/media_resolver.dart';
@@ -636,6 +643,7 @@ class ScreenScraperService {
     required Map<String, dynamic> downloadResult,
     required List<dynamic> sourceMedias,
     int? maxDailyRequests,
+    bool keepExisting = false,
   }) async {
     final successfulTypes = <String>{
       ...(downloadResult['downloadedTypes'] as List<dynamic>? ?? const []).map(
@@ -671,6 +679,7 @@ class ScreenScraperService {
               ? 'rpcs3_scraper_media_debug.txt'
               : 'melonx_scraper_media_debug.txt',
           maxDailyRequests: maxDailyRequests,
+          keepExisting: keepExisting,
         );
     return (fallbackResult['successfulTypes'] as List<dynamic>? ?? const [])
         .map((value) => value.toString())
@@ -992,10 +1001,17 @@ class ScreenScraperService {
   ///
   /// Coordinates system synchronization, batch processing, and thread-safe
   /// quota monitoring. Notifies the provided [ScrapingProvider] about progress.
+  ///
+  /// The scrape mode decides what Start does: `new_only` fetches what the
+  /// current choices call for and is not on disk yet, `all` fetches every
+  /// game again, `faces_only` only completes the box faces still missing.
+  /// With [fileProvider], the box faces the media choices ask for are then
+  /// completed from the ranked sources (docs/game-box-3d.md § 18).
   static Future<bool> startMetadataScraping(
     BuildContext context,
     ScrapingProvider scrapingProvider, {
     bool Function()? shouldCancel,
+    FileProvider? fileProvider,
   }) async {
     try {
       if (_isMetadataScrapingRunning) return false;
@@ -1012,6 +1028,11 @@ class ScreenScraperService {
       final preferredLanguage = credentials['preferred_language'] ?? 'en';
       final scraperConfig = await getScraperConfig();
       final scrapeMode = scraperConfig['scrape_mode'].toString();
+      final enabledTypes = await ScraperRepository.getEnabledMediaTypes();
+      final boxKinds = fileProvider == null
+          ? const <GameBoxMediaKind>{}
+          : GameBoxBatch.kindsOf(enabledTypes);
+      final extraSources = await GameBoxPreferences.scrapeExtraSources();
 
       final systemMappings = await getSystemMappings();
       if (systemMappings.isEmpty) return false;
@@ -1107,12 +1128,23 @@ class ScreenScraperService {
               scrapingProvider: scrapingProvider,
               shouldCancel: shouldCancel,
               scraperConfig: scraperConfig,
+              fileProvider: fileProvider,
+              boxKinds: boxKinds,
+              extraSources: extraSources,
             ),
           );
         }
 
         final results = await Future.wait(batchFutures);
         for (var i = 0; i < results.length; i++) {
+          scrapingProvider.addMediaResult(
+            added: results[i]['mediaAdded'] as int? ?? 0,
+            replaced: results[i]['mediaReplaced'] as int? ?? 0,
+          );
+          scrapingProvider.addFaceResult(
+            (results[i]['facesBySource'] as Map<String, int>?) ?? const {},
+            results[i]['facesMissing'] as int? ?? 0,
+          );
           totalProcessedGames++;
           if (results[i]['success'] == true) {
             totalSuccessfulGames++;
@@ -1143,6 +1175,10 @@ class ScreenScraperService {
           failedGames: totalFailedGames,
           elapsedTime: '${DateTime.now().difference(startTime).inSeconds}s',
           totalRequests: 0,
+          mediaAdded: scrapingProvider.mediaAdded,
+          mediaReplaced: scrapingProvider.mediaReplaced,
+          facesBySource: scrapingProvider.facesBySource,
+          facesMissing: scrapingProvider.facesMissing,
         );
       }
 
@@ -1176,8 +1212,12 @@ class ScreenScraperService {
     required ScrapingProvider scrapingProvider,
     required bool Function()? shouldCancel,
     required Map<String, dynamic> scraperConfig,
+    FileProvider? fileProvider,
+    Set<GameBoxMediaKind> boxKinds = const {},
+    bool extraSources = true,
   }) async {
     try {
+      final scrapeMode = scraperConfig['scrape_mode'].toString();
       final filename = rom['filename'].toString();
       final romPath = rom['rom_path'].toString();
       final titleName = rom['title_name']?.toString();
@@ -1213,6 +1253,90 @@ class ScreenScraperService {
         return {'success': false, 'cancelled': true, 'requests': 0};
       }
 
+      // The library game the box faces belong to (null without a file
+      // provider: the box-face steps are then skipped). The system's box
+      // profile is read first: the context keeps the profile it is built with.
+      String? scrapedName;
+      if (fileProvider != null && boxKinds.isNotEmpty) {
+        await GameBoxProfiles.load(appSystemId);
+        scrapedName = (await ScraperRepository.getGameMetadata(appSystemId, filename))?['real_name']?.toString();
+      }
+      GameBoxSearchContext? boxContext(String? name) {
+        if (fileProvider == null || boxKinds.isEmpty) return null;
+        return GameBoxSearchContext(
+          game: GameBoxBatch.gameOf(
+            romName: filename,
+            romPath: romPath,
+            name: name ?? scrapedName ?? effectiveTitleName,
+            titleId: titleId,
+            titleName: titleName,
+            appSystemId: appSystemId,
+            systemFolder: systemFolder,
+          ),
+          systemFolder: systemFolder,
+          fileProvider: fileProvider,
+          profile: GameBoxProfiles.of(appSystemId),
+          appSystemId: appSystemId,
+        );
+      }
+
+      Map<String, dynamic> faceStats(GameBoxBatchOutcome outcome) {
+        final bySource = <String, int>{};
+        for (final provider in outcome.adopted.values) {
+          bySource[provider.id] = (bySource[provider.id] ?? 0) + 1;
+        }
+        return {'facesBySource': bySource, 'facesMissing': outcome.missing.length};
+      }
+
+      // "Box faces only": no ScreenScraper scrape; the faces the media
+      // choices ask for that are missing, refused or an imported icon are
+      // looked for in every source (docs/game-box-3d.md § 18).
+      if (scrapeMode == 'faces_only') {
+        final ctx = boxContext(null);
+        if (ctx == null) {
+          return {'success': true, 'cancelled': false, 'requests': 0};
+        }
+        scrapingProvider.updateThreadProgress(
+          threadId: threadId,
+          gameName: displayName,
+          systemName: systemName,
+          isActive: true,
+          status: ThreadStatus.active,
+          currentStep: ThreadProcessingStep.downloadingImages,
+          progress: 0.5,
+        );
+        final outcome = await GameBoxBatch.complete(
+          ctx,
+          kinds: boxKinds,
+          askScreenScraper: true,
+          extraSources: extraSources,
+          cancel: GameBoxBatchCancel(shouldCancel),
+        );
+        if (shouldCancel != null && shouldCancel()) {
+          return {'success': false, 'cancelled': true, 'requests': 0};
+        }
+        scrapingProvider.updateThreadProgress(
+          threadId: threadId,
+          gameName: displayName,
+          systemName: systemName,
+          isActive: false,
+          status: ThreadStatus.completed,
+          currentStep: ThreadProcessingStep.completed,
+          progress: 1.0,
+        );
+        // A face no source has is not a failed game: the summary counts it
+        // under "box faces still missing".
+        return {
+          'success': true,
+          'cancelled': false,
+          'requests': 0,
+          ...faceStats(outcome),
+        };
+      }
+
+      var matchedBy = isRpcs3Virtual && (titleId?.isNotEmpty ?? false)
+          ? GameBoxMatch.serial
+          : GameBoxMatch.fileName;
       final gameResult = await fetchGameInfo(
         screenscraperSystemId.toString(),
         filename,
@@ -1239,6 +1363,7 @@ class ScreenScraperService {
           serialNumber: null,
         );
         gameInfo = nameResult?['gameInfo'];
+        matchedBy = GameBoxMatch.title;
         requestsMade++;
       }
 
@@ -1276,10 +1401,12 @@ class ScreenScraperService {
           maxDailyRequests: maxDailyRequests,
         );
         gameInfo = resWithHash?['gameInfo'];
+        if (gameInfo != null) matchedBy = GameBoxMatch.md5;
         requestsMade++;
       }
 
       if (gameInfo != null) {
+        String? gameName;
         if (scraperConfig['scrape_metadata'] as bool? ?? true) {
           final metadata = await _mapGameInfoToMetadata(
             filename,
@@ -1287,10 +1414,21 @@ class ScreenScraperService {
             gameInfo,
             preferredLanguage: preferredLanguage,
           );
+          gameName = metadata['real_name']?.toString();
           await _saveGameMetadata(metadata, appSystemId, isFullyScraped: false);
         }
 
         final allowedTypes = await ScraperRepository.getEnabledMediaTypes();
+        final boxCtx = boxContext(gameName);
+        // Faces chosen by hand or by the ranked sources are not written by
+        // the plain download (docs/game-box-3d.md § 18).
+        final ownedTypes = boxCtx == null
+            ? const <String>{}
+            : GameBoxBatch.ownedTypes(
+                GameBoxMediaStore(boxCtx.fileProvider).read(boxCtx.game, systemFolder),
+              );
+        var mediaAdded = 0, mediaReplaced = 0;
+        var faces = <String, dynamic>{};
 
         if (allowedTypes.isNotEmpty) {
           scrapingProvider.updateThreadProgress(
@@ -1313,11 +1451,15 @@ class ScreenScraperService {
             shouldCancel: shouldCancel,
             allowedMediaTypes: allowedTypes,
             maxDailyRequests: maxDailyRequests,
-            forceOverwrite:
-                scraperConfig['scrape_mode'].toString() == 'all' ||
-                isMeloNxVirtual ||
-                isRpcs3Virtual,
+            // Imported console icons are replaced in every mode; what is
+            // already present is replaced by "All content" only.
+            forceOverwrite: scrapeMode == 'all',
+            protectedTypes: ownedTypes,
+            replaceOtherVariants: scrapeMode == 'new_only',
           );
+          final replaced = (res['replacedTypes'] as List<dynamic>? ?? const []).length;
+          mediaReplaced += replaced;
+          mediaAdded += (res['downloadedTypes'] as List<dynamic>? ?? const []).length - replaced;
           if (res['cancelled'] == true) {
             return {
               'success': false,
@@ -1340,6 +1482,7 @@ class ScreenScraperService {
               downloadResult: res,
               sourceMedias: sourceMedias,
               maxDailyRequests: maxDailyRequests,
+              keepExisting: scrapeMode != 'all',
             );
             mediaSucceeded = _hasUsefulVirtualMedia(
               allowedTypes,
@@ -1349,6 +1492,29 @@ class ScreenScraperService {
 
           if (mediaSucceeded) {
             await ScraperRepository.markGameFullyScraped(filename);
+          }
+
+          // The box faces still missing, refused or an imported icon: other
+          // ScreenScraper scans first (no request, the answer is reused),
+          // then GameTDB and MobyGames when enabled.
+          if (boxCtx != null && !(shouldCancel?.call() ?? false)) {
+            final listing = GameBoxMediaFetcher.listingOf(
+              game: boxCtx.game,
+              jeu: gameInfo as Map,
+              screenScraperSystemId: screenscraperSystemId.toString(),
+              matchedBy: matchedBy,
+              systemFolder: systemFolder,
+              fileProvider: boxCtx.fileProvider,
+            );
+            faces = faceStats(
+              await GameBoxBatch.complete(
+                boxCtx,
+                kinds: boxKinds,
+                screenScraperListing: listing,
+                extraSources: extraSources,
+                cancel: GameBoxBatchCancel(shouldCancel),
+              ),
+            );
           }
         }
 
@@ -1361,7 +1527,14 @@ class ScreenScraperService {
           currentStep: ThreadProcessingStep.completed,
           progress: 1.0,
         );
-        return {'success': true, 'cancelled': false, 'requests': requestsMade};
+        return {
+          'success': true,
+          'cancelled': false,
+          'requests': requestsMade,
+          'mediaAdded': mediaAdded,
+          'mediaReplaced': mediaReplaced,
+          ...faces,
+        };
       }
       return {'success': false, 'cancelled': false, 'requests': requestsMade};
     } on ScreenscraperQuotaExceededException {
@@ -1379,6 +1552,10 @@ class ScreenScraperService {
     required int failedGames,
     required String elapsedTime,
     required int totalRequests,
+    int mediaAdded = 0,
+    int mediaReplaced = 0,
+    Map<String, int> facesBySource = const {},
+    int facesMissing = 0,
   }) async {
     await showDialog(
       context: context,
@@ -1388,6 +1565,10 @@ class ScreenScraperService {
         successfulGames: successfulGames,
         failedGames: failedGames,
         elapsedTime: elapsedTime,
+        mediaAdded: mediaAdded,
+        mediaReplaced: mediaReplaced,
+        facesBySource: facesBySource,
+        facesMissing: facesMissing,
       ),
     );
   }

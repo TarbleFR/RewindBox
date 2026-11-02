@@ -50,6 +50,7 @@ class GameBoxScreenScraperListing {
     this.gameRegions = const [],
     this.gameRegionSource,
     this.frontRegion,
+    this.title,
   });
 
   final String systemId;
@@ -62,6 +63,10 @@ class GameBoxScreenScraperListing {
 
   /// Region of the front already in the library, when its MD5 is listed.
   final String? frontRegion;
+
+  /// The game's name as ScreenScraper lists it (world, US, then European
+  /// name): GameTDB matches Switch titles exactly.
+  final String? title;
 }
 
 /// Gets the faces of a game's box from ScreenScraper, through the scraper's
@@ -164,40 +169,15 @@ class GameBoxMediaFetcher {
       }
       final jeu = info?['gameInfo'];
       if (jeu is! Map) return const GameBoxFetchResult(GameBoxFetchStatus.notFound);
-      final gameId = jeu['id']?.toString() ?? '';
-      final rawMedias = jeu['medias'];
-      final medias = rawMedias is List ? rawMedias : const [];
-
-      final entries = <GameBoxMediaEntry>[];
-      final candidates = <GameBoxCandidate>[];
-      final seen = <String>{};
-      final byProduct = matched == GameBoxMatch.md5 || matched == GameBoxMatch.serial;
-      for (final m in medias) {
-        if (m is! Map) continue;
-        final e = GameBoxMediaEntry.fromScreenScraper(m);
-        if (e == null) continue;
-        entries.add(e);
-        final url = m['url']?.toString() ?? '';
-        // One picture listed under several regions is one candidate.
-        if (url.isNotEmpty && seen.add('${e.kind.name}|${e.identity}')) {
-          candidates.add(ScreenScraperBoxSource.candidate(e, url, byProduct: byProduct, gameId: gameId));
-        }
-      }
-
-      final local = GameBoxMediaStore(fileProvider).read(game, systemFolder);
-      final (regions, regionSource) = _gameRegions(jeu, game.romname, trustRom: matched == GameBoxMatch.md5);
-      final front = _frontEdition(local.front, entries);
       return GameBoxFetchResult(
         GameBoxFetchStatus.nothingNew,
-        listing: GameBoxScreenScraperListing(
-          systemId: ssSystem.toString(),
-          gameId: gameId,
+        listing: listingOf(
+          game: game,
+          jeu: jeu,
+          screenScraperSystemId: ssSystem.toString(),
           matchedBy: matched,
-          entries: entries,
-          candidates: candidates,
-          gameRegions: regions,
-          gameRegionSource: regionSource,
-          frontRegion: front?.region,
+          systemFolder: systemFolder,
+          fileProvider: fileProvider,
         ),
       );
     } on ScreenscraperQuotaExceededException {
@@ -206,6 +186,63 @@ class GameBoxMediaFetcher {
       _log.e('[GameBox] faces listing failed: $e');
       return const GameBoxFetchResult(GameBoxFetchStatus.failed);
     }
+  }
+
+  /// The box scans of a game ScreenScraper already answered for ([jeu], the
+  /// `jeuInfos` record): the batch scrape reuses its answer, no request.
+  static GameBoxScreenScraperListing listingOf({
+    required GameModel game,
+    required Map jeu,
+    required String screenScraperSystemId,
+    required GameBoxMatch matchedBy,
+    required String systemFolder,
+    required FileProvider fileProvider,
+  }) {
+    final gameId = jeu['id']?.toString() ?? '';
+    final rawMedias = jeu['medias'];
+    final medias = rawMedias is List ? rawMedias : const [];
+
+    final entries = <GameBoxMediaEntry>[];
+    final candidates = <GameBoxCandidate>[];
+    final seen = <String>{};
+    final byProduct = matchedBy == GameBoxMatch.md5 || matchedBy == GameBoxMatch.serial;
+    for (final m in medias) {
+      if (m is! Map) continue;
+      final e = GameBoxMediaEntry.fromScreenScraper(m);
+      if (e == null) continue;
+      entries.add(e);
+      final url = m['url']?.toString() ?? '';
+      // One picture listed under several regions is one candidate.
+      if (url.isNotEmpty && seen.add('${e.kind.name}|${e.identity}')) {
+        candidates.add(ScreenScraperBoxSource.candidate(e, url, byProduct: byProduct, gameId: gameId));
+      }
+    }
+
+    final local = GameBoxMediaStore(fileProvider).read(game, systemFolder);
+    final (regions, regionSource) = _gameRegions(jeu, game.romname, trustRom: matchedBy == GameBoxMatch.md5);
+    final front = _frontEdition(local.front, entries);
+    String? title;
+    final noms = jeu['noms'];
+    if (noms is List) {
+      final byRegion = <String, String>{
+        for (final n in noms)
+          if (n is Map && (n['text']?.toString().trim().isNotEmpty ?? false))
+            n['region']?.toString() ?? '': n['text'].toString().trim(),
+      };
+      title = byRegion['wor'] ?? byRegion['us'] ?? byRegion['eu'] ?? byRegion['ss'] ??
+          (byRegion.isEmpty ? null : byRegion.values.first);
+    }
+    return GameBoxScreenScraperListing(
+      title: title,
+      systemId: screenScraperSystemId,
+      gameId: gameId,
+      matchedBy: matchedBy,
+      entries: entries,
+      candidates: candidates,
+      gameRegions: regions,
+      gameRegionSource: regionSource,
+      frontRegion: front?.region,
+    );
   }
 
   /// Path of the back scan of [edition], downloading it once if needed.

@@ -5,6 +5,7 @@ import 'package:path/path.dart' as path;
 import '../diagnostics_directory.dart';
 import '../logger_service.dart';
 import 'media_downloader.dart';
+import 'media_placeholder.dart';
 import 'media_resolver.dart';
 import 'rom_hasher.dart';
 import 'screenscraper_client.dart';
@@ -43,6 +44,7 @@ class ScreenscraperGameIdMediaFallback {
     required List<dynamic> sourceMedias,
     required String debugFileName,
     int? maxDailyRequests,
+    bool keepExisting = false,
   }) async {
     final successful = <String>{...alreadyDownloadedTypes};
     final attempted = <String>[];
@@ -95,6 +97,18 @@ class ScreenscraperGameIdMediaFallback {
         mediaKey,
         mediaType,
       );
+      // "New content only": a picture already present stays, unless it is
+      // the imported console icon (docs/game-box-3d.md § 18).
+      if (keepExisting &&
+          validExisting != null &&
+          !ScrapeMediaPlaceholder.isPlaceholder(systemFolder, mediaType, validExisting.path)) {
+        successful.add(mediaType);
+        await _appendDebug(
+          debugFileName,
+          '\nKEEP $mediaType: media already present (${validExisting.path}).\n',
+        );
+        continue;
+      }
       if (successful.contains(mediaType) && validExisting != null) {
         await _appendDebug(
           debugFileName,

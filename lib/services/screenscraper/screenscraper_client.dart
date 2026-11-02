@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -83,6 +84,11 @@ class ScreenscraperClient {
     return IOClient(client);
   }();
 
+  /// Replaces the network in tests (a `MockClient` answering ScreenScraper's
+  /// requests); `null` in the application.
+  @visibleForTesting
+  static http.Client? debugClient;
+
   static Semaphore _requestSemaphore = Semaphore(5);
 
   static int _dailyRequestsCount = 0;
@@ -143,7 +149,7 @@ class ScreenscraperClient {
         }
         acquired = true;
 
-        final response = await _httpClient
+        final response = await (debugClient ?? _httpClient)
             .get(url, headers: headers)
             .timeout(timeout);
 

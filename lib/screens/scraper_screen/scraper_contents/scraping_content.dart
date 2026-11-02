@@ -4,6 +4,7 @@ import 'package:neostation/l10n/app_locale.dart';
 import 'package:flutter_localization/flutter_localization.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:neostation/providers/file_provider.dart';
 import 'package:neostation/providers/scraping_provider.dart';
 import 'package:neostation/services/global_notification_service.dart';
 import 'package:neostation/services/screenscraper_service.dart';
@@ -45,6 +46,12 @@ class ScrapingContentState extends State<ScrapingContent> {
 
   Future<void> _startScraping() async {
     final scrapingProvider = context.read<ScrapingProvider>();
+    // The box faces the media choices ask for are completed in the library's
+    // media folders (docs/game-box-3d.md § 18).
+    FileProvider? fileProvider;
+    try {
+      fileProvider = context.read<FileProvider>();
+    } catch (_) {}
     const notificationId = 'scraping_progress';
 
     // Resolve strings before any async gap so the completion updates below
@@ -114,6 +121,7 @@ class ScrapingContentState extends State<ScrapingContent> {
         context,
         scrapingProvider,
         shouldCancel: () => !scrapingProvider.isScraping,
+        fileProvider: fileProvider,
       );
 
       if (scrapingSuccess) {

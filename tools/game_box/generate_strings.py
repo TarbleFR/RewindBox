@@ -25,6 +25,8 @@ ZH_SHARED = {
     'region.br', 'region.pt', 'region.ca', 'region.se', 'region.wor', 'goBack',
     # "Cancel" and "cancelled" (取消, 已取消) are written alike in both scripts.
     'mediaCancel', 'srcCancelled',
+    # "Scraping finished" (抓取完成) and "succeeded" (成功) too.
+    'scrapeSummaryTitle', 'scrapeSummarySuccess',
 }
 
 PLACEHOLDER = re.compile(r'\{(\w+)\}')

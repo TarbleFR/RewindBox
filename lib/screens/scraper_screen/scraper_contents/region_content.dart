@@ -5,6 +5,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:neostation/l10n/app_locale.dart';
 import 'package:neostation/repositories/scraper_repository.dart';
 import 'package:neostation/services/sfx_service.dart';
+import 'package:neostation/services/screenscraper/scrape_choices.dart';
 import '../../settings_screen/new_settings_options/settings_title.dart';
 import '../../../widgets/glass/glass_surface.dart';
 
@@ -151,7 +152,9 @@ class RegionContentState extends State<RegionContent> {
   }
 
   Future<void> _saveRegionPriority() async {
-    final success = await ScraperRepository.saveRegionPriority(_orderedRegions);
+    // Another order can choose other pictures: completed games are looked
+    // at again by "New content only" (docs/game-box-3d.md § 18).
+    final success = await ScrapeChoices.saveRegionPriority(_orderedRegions);
     if (success && mounted) {
       widget.onRegionPriorityChanged(_orderedRegions);
     }

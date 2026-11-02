@@ -112,9 +112,14 @@ class GameBoxCompletionReport {
     required this.changedPaths,
     this.refusals = const [],
     this.frontChanged = false,
+    this.adoptedBy = const {},
   });
 
   final Map<GameBoxMediaKind, GameBoxFaceOutcome> outcomes;
+
+  /// Source of each face added or improved (a spine cut from a full cover
+  /// sheet comes from the sheet's source).
+  final Map<GameBoxMediaKind, GameBoxProvider> adoptedBy;
   final Map<GameBoxProvider, GameBoxSourceStatus> statuses;
 
   /// Files written or replaced (caches of exactly these are dropped).
@@ -174,6 +179,9 @@ class GameBoxMediaService {
   // Search --------------------------------------------------------------------
 
   /// Lists the candidates of every enabled source for [ctx].
+  ///
+  /// [screenScraperListing] is ScreenScraper's answer the batch scrape
+  /// already has for the game: it is used as is, without a request.
   static Future<GameBoxSearch> search(
     GameBoxSearchContext ctx, {
     Set<GameBoxProvider> providers = const {
@@ -183,13 +191,18 @@ class GameBoxMediaService {
     },
     GameBoxCancel? cancel,
     void Function(GameBoxProvider provider)? onProvider,
+    GameBoxScreenScraperListing? screenScraperListing,
   }) async {
     final statuses = <GameBoxProvider, GameBoxSourceStatus>{};
     final found = <GameBoxCandidate>[];
     GameBoxScreenScraperListing? listing;
     String? caseColor, tdbId;
 
-    if (providers.contains(GameBoxProvider.screenscraper)) {
+    if (screenScraperListing != null) {
+      listing = screenScraperListing;
+      statuses[GameBoxProvider.screenscraper] = GameBoxSourceStatus.ok;
+      found.addAll(screenScraperListing.candidates);
+    } else if (providers.contains(GameBoxProvider.screenscraper)) {
       onProvider?.call(GameBoxProvider.screenscraper);
       if (ctx.appSystemId == null) {
         statuses[GameBoxProvider.screenscraper] = GameBoxSourceStatus.systemNotMapped;
@@ -719,7 +732,23 @@ class GameBoxMediaService {
     GameBoxMediaKind kind,
   ) async {
     final path = local.pathOf(kind);
-    if (path == null) return (path: null, check: null, record: null, cover: false);
+    if (path == null) {
+      // A full cover sheet of a known layout holds the back and the spine:
+      // the box cuts them from it (docs/game-box-3d.md § 14), nothing is
+      // missing and the sheet is not downloaded again.
+      if (kind == GameBoxMediaKind.spine || kind == GameBoxMediaKind.back) {
+        final sheet = local.pathOf(GameBoxMediaKind.full);
+        final layout = GameBoxWrapLayout.forProfile(ctx.profile);
+        final size = sheet == null ? null : GameBoxImageSize.of(sheet);
+        if (sheet != null && layout != null && size != null && layout.matches(size)) {
+          final check = await GameBoxMediaChecker.checkFile(sheet);
+          if (check.ok) {
+            return (path: sheet, check: check, record: local.recordOf(GameBoxMediaKind.full), cover: true);
+          }
+        }
+      }
+      return (path: null, check: null, record: null, cover: false);
+    }
     final check = await GameBoxMediaChecker.checkFile(path);
     final record = local.recordOf(kind);
     var cover = check.ok;
@@ -736,15 +765,38 @@ class GameBoxMediaService {
     return (path: path, check: check, record: record, cover: cover);
   }
 
+  /// Faces among [kinds] that a completion run would look for: missing,
+  /// refused by their check or not a cover (an imported icon). Faces chosen
+  /// by hand and good scans are not. Reads local files only, no network.
+  static Future<Set<GameBoxMediaKind>> facesToComplete(
+    GameBoxSearchContext ctx,
+    Set<GameBoxMediaKind> kinds,
+  ) async {
+    final local = GameBoxMediaStore(ctx.fileProvider).read(ctx.game, ctx.systemFolder);
+    final out = <GameBoxMediaKind>{};
+    for (final kind in _faces) {
+      if (!kinds.contains(kind)) continue;
+      final current = await _current(ctx, local, kind);
+      if (current.record?.manual ?? false) continue;
+      if (current.path != null && current.cover) continue;
+      out.add(kind);
+    }
+    return out;
+  }
+
   /// "Complete the faces": every face that is missing, refused by its check
   /// or not a cover (an icon used as front) gets the best candidate of a
   /// coherent edition; faces already good, and any face chosen by hand, are
   /// kept. Returns what was added, kept, refused and still missing.
+  ///
+  /// [kinds] limits the run to some faces (the batch scrape follows the
+  /// media chosen in the scraper: cover, and/or back, spine and support).
   static Future<GameBoxCompletionReport> complete(
     GameBoxSearchContext ctx, {
     GameBoxSearch? search,
     GameBoxCancel? cancel,
     void Function(GameBoxMediaKind kind)? onFace,
+    Set<GameBoxMediaKind>? kinds,
   }) async {
     final found = search ?? await GameBoxMediaService.search(ctx, cancel: cancel);
     final store = GameBoxMediaStore(ctx.fileProvider);
@@ -752,6 +804,7 @@ class GameBoxMediaService {
     final outcomes = <GameBoxMediaKind, GameBoxFaceOutcome>{};
     final changed = <String>{};
     final refusals = <(GameBoxMediaKind, GameBoxProvider, GameBoxImageVerdict)>[];
+    final adoptedBy = <GameBoxMediaKind, GameBoxProvider>{};
     var frontChanged = false;
 
     // ScreenScraper's listing and the GameTDB case colour go to the manifest
@@ -765,6 +818,7 @@ class GameBoxMediaService {
     GameBoxProvider? setProvider;
 
     for (final kind in _faces) {
+      if (kinds != null && !kinds.contains(kind)) continue;
       if (cancel?.cancelled ?? false) break;
       onFace?.call(kind);
       final current = await _current(ctx, local, kind);
@@ -797,6 +851,7 @@ class GameBoxMediaService {
         if (adoption.ok) {
           changed.add(adoption.path!);
           outcomes[kind] = current.path == null ? GameBoxFaceOutcome.added : GameBoxFaceOutcome.improved;
+          adoptedBy[kind] = c.provider;
           if (kind == GameBoxMediaKind.front) frontChanged = true;
           setProduct ??= c.productId;
           setProvider ??= c.provider;
@@ -812,12 +867,18 @@ class GameBoxMediaService {
       }
       local = store.read(ctx.game, ctx.systemFolder);
     }
+    // A back still missing is there once the spine brought a full sheet.
+    if (outcomes[GameBoxMediaKind.back] == GameBoxFaceOutcome.missing) {
+      final back = await _current(ctx, local, GameBoxMediaKind.back);
+      if (back.path != null && back.cover) outcomes[GameBoxMediaKind.back] = GameBoxFaceOutcome.kept;
+    }
     return GameBoxCompletionReport(
       outcomes: outcomes,
       statuses: found.statuses,
       changedPaths: changed,
       refusals: refusals,
       frontChanged: frontChanged,
+      adoptedBy: adoptedBy,
     );
   }
 
