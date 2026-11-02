@@ -287,6 +287,11 @@
         "commit": "a5a64217b6479dfa56a9f4ff7d729a9f871e4af0",
         "targetBuild": 614,
         "note": "MeloNX work in progress from another session (bindless array delta fixes under build-utils/melonx, its host test and docs/evidence notes); not wired into the MeloNX Core and not part of 613: its paths stay at their effective bytes."
+      },
+      {
+        "commit": "d7f069b87aa5f68c94fda1dbd71a6405ca4f5661",
+        "targetBuild": 614,
+        "note": "Scraper and game box media fix from another session (new-content choices, kept media, box faces from GameTDB/MobyGames); not reviewed for 613 and not part of it: its paths stay at their effective bytes."
       }
     ]
   },
