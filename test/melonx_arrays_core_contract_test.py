@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Reject stale or mis-scoped bindless array-delta Core receipts, source contracts and routes."""
+"""Reject stale or mis-scoped bindless array-delta Core receipts, source contracts and routes.
+
+While the Core workflow routes verify_arrays_core.py, the contract's inputs must match
+the checkout. Once a successor route replaces it (the Hogwarts DMA-copy Core,
+verify_dma_core.py), this contract is historical: those inputs legitimately moved on,
+so the contract is authenticated by its delivered pin digest and every recorded input
+against the producer commit instead, and the files whose checks describe the producing
+route (the workflow, the array-delta adapter, the native collector, the performance
+contract) are read at that commit; all other checks are unchanged.
+"""
 import argparse
 import copy
 import hashlib
@@ -7,14 +16,45 @@ import io
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
+import types
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 import verify_arrays_core as verify
 from freeze_performance_core import changed_dependencies
-from adapt_bindless_array_deltas import COUNTERS, DIAGNOSTIC_EDITS, DIAGNOSTICS, NAMES, WORK_ROWS
+
+# The route decides whether this contract is current or historical; the successor's contract test owns the checkout.
+ROUTED = 'python3 build-utils/melonx/verify_arrays_core.py run_gates\n' in (ROOT / '.github/workflows/melonx-core.yml').read_text()
+HISTORICAL_REASON = None if ROUTED else ('Superseded by the Hogwarts DMA-copy Core route (verify_dma_core.py), '
+                                         'which uses this delivered Core as its baseline: inputs are checked at the producer commit.')
+PIN = json.loads((ROOT / 'build-utils/melonx/arrays-core-pin.json').read_bytes())
+
+
+def git(*arguments):
+    return subprocess.run(['git', '-C', str(ROOT), *arguments], capture_output=True, check=True, timeout=120).stdout
+
+
+def route_bytes(path):
+    """A file of the producing route: the checkout while routed, the producer commit once historical."""
+    return (ROOT / path).read_bytes() if ROUTED else git('show', PIN['source'] + ':' + path)
+
+
+def route_adapter():
+    if ROUTED:
+        import adapt_bindless_array_deltas
+        return adapt_bindless_array_deltas
+    module = types.ModuleType('adapt_bindless_array_deltas_at_producer')
+    path = 'build-utils/melonx/adapt_bindless_array_deltas.py'
+    exec(compile(route_bytes(path), PIN['source'][:8] + ':' + path, 'exec'), module.__dict__)
+    return module
+
+
+ADAPTER = route_adapter()
+COUNTERS, DIAGNOSTIC_EDITS, DIAGNOSTICS, NAMES, WORK_ROWS = (
+    ADAPTER.COUNTERS, ADAPTER.DIAGNOSTIC_EDITS, ADAPTER.DIAGNOSTICS, ADAPTER.NAMES, ADAPTER.WORK_ROWS)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--helpers-only', action='store_true')
@@ -56,7 +96,7 @@ for bad in ('../escape.cs', '/src/root.cs', 'src/../escape.cs', 'native/unexpect
     with zipfile.ZipFile(raw) as z: rejects(lambda: verify.liveness.inventory(z), 'Unsafe prepared path accepted: ' + bad)
 
 # The verifier requires exactly what the prepared collector emits: the native collector plus this adapter's names.
-prepared = (ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs').read_text(encoding='utf-8-sig')
+prepared = route_bytes('native/melonx/EmbeddedPerformanceDiagnostics.cs').decode('utf-8-sig')
 for before, after in DIAGNOSTIC_EDITS:
     check(prepared.count(before) == 1, 'Collector anchor drift')
     prepared = prepared.replace(before, after)
@@ -129,8 +169,11 @@ for mutation in ('missingRequired', 'staleGeneration', 'nonfinite', 'missingWork
         event['diagnostic'] = json.dumps(payload)
     rejects(lambda: verify.verify_diagnostics_smoke(invalid), 'Invalid actual-runtime diagnostics accepted: ' + mutation)
 
-# The Core route runs this increment's verifier only, under its marker, with a build-agnostic artifact name.
-workflow = (ROOT / '.github/workflows/melonx-core.yml').read_text()
+# The Core route runs this increment's verifier only, under its marker, with a build-agnostic artifact name
+# (the producing route; a successor route keeps the marker).
+workflow = route_bytes('.github/workflows/melonx-core.yml').decode()
+check("contains(github.event.head_commit.message, '[melonx-arrays-core]')" in (ROOT / '.github/workflows/melonx-core.yml').read_text(),
+      'Arrays Core marker dropped by the successor route')
 check("contains(github.event.head_commit.message, '[melonx-arrays-core]')" in workflow, 'Missing arrays Core marker')
 for phase in ('prepare_dependencies', 'preflight', 'run_gates', 'compiled', 'finalize'):
     check(workflow.count('python3 build-utils/melonx/verify_arrays_core.py ' + phase + '\n') == 1, 'Arrays Core phase not routed: ' + phase)
@@ -146,6 +189,28 @@ route_inputs = {'build-utils/melonx/verify_arrays_core.py', 'build-utils/melonx/
                 'build-utils/melonx/reads-core-pin.json'}
 check(route_inputs <= paths, 'Arrays Core inputs do not trigger the route: ' + str(sorted(route_inputs - paths)))
 
+
+
+def historical_contract():
+    """The delivered contract: its pin digest, the checks of verify.contract(), and every input at the producer commit."""
+    raw = verify.CONTRACT.read_bytes()
+    check(PIN['status'] == 'verified' and hashlib.sha256(raw).hexdigest() == PIN['contractSha256'], 'Arrays contract differs from its delivered pin')
+    check(subprocess.run(['git', '-C', str(ROOT), 'merge-base', '--is-ancestor', PIN['source'], 'HEAD'], timeout=120).returncode == 0,
+          'Producer commit is not in this history')
+    value = json.loads(raw)
+    check(value['schemaVersion'] == 1 and value['baseline'] == verify.BASELINE, 'Wrong arrays contract baseline')
+    check(value['freshAppleGates'] == len(value['gates']) == verify.FRESH_GATES, 'Wrong fresh gate scope')
+    check(len(value['baselineReceipts']) == value['historicalAppleReceipts'] == verify.HISTORICAL_RECEIPTS, 'Wrong historical receipt inventory')
+    check(all(gate['control'] in verify.CONTROLS for gate in value['gates']), 'Unknown gate control tree')
+    verify.check_control_inventories(value)
+    for inventory in (value['inputs'], value['preparationInputs']):
+        check(bool(inventory), 'Empty input inventory')
+        for path, expected in inventory.items():
+            check(not Path(path).is_absolute() and '..' not in Path(path).parts, 'Unsafe input path')
+            check(hashlib.sha256(git('show', PIN['source'] + ':' + path)).hexdigest() == expected, 'Producer input differs: ' + path)
+    return value
+
+
 if args.archive:
     before, members, gates, liveness_members = verify.authenticate_archive(args.archive)
     check(len(before) == 128 and len(members) == 171 and len(liveness_members) == 163, 'Wrong real 611 composition')
@@ -154,7 +219,7 @@ if args.ada_archive:
     _, _, _, ada = verify.liveness.authenticate_archive(args.ada_archive, verify.reads.liveness_contract())
     check(len(ada) == 160, 'Wrong real Ada control composition')
 if not args.helpers_only:
-    frozen = verify.contract()
+    frozen = verify.contract() if ROUTED else historical_contract()
     reads_frozen, _ = verify.reads_contract()
     check(frozen['freshAppleGates'] == verify.FRESH_GATES and
           {gate['name']: gate['control'] for gate in frozen['gates']} == CONTROLS, 'Wrong fresh gate set or control trees')
@@ -184,7 +249,7 @@ if not args.helpers_only:
     check({name: len(paths) for name, paths in unadapted.items()} == {'delivered': 0, 'delivered609': 8, 'ada': 2},
           'Wrong control-only upstream inventories')
     check(unadapted['delivered609'] == reads_frozen['baselineUnadaptedMembers'], '609 control upstream files differ from the reads contract')
-    performance = json.loads((ROOT / 'build-utils/melonx/performance-core-contract.json').read_bytes())
+    performance = json.loads(route_bytes('build-utils/melonx/performance-core-contract.json'))
     check(unadapted['ada'] == performance['baselineUnadaptedMembers'], 'Ada control upstream files differ from the performance contract')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),
             'Missing control inventory accepted')
@@ -221,5 +286,7 @@ if not args.helpers_only:
     changed['preparationInputs'][name] = '0' * 64
     rejects(lambda: verify.common.inputs_match(changed['preparationInputs']), 'Changed prepared input accepted')
 print(json.dumps(dict(result='passed', checks=checks, helpersOnly=args.helpers_only,
-    currentContractVerified=not args.helpers_only, actualBaselineArchiveVerified=bool(args.archive),
+    currentContractVerified=not args.helpers_only and ROUTED,
+    historicalContractVerified=not args.helpers_only and not ROUTED, historicalReason=HISTORICAL_REASON,
+    actualBaselineArchiveVerified=bool(args.archive),
     actualAdaArchiveVerified=bool(args.ada_archive), historicalSuitesReexecuted=False, physicalDeviceTested=False)))
