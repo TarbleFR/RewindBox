@@ -431,10 +431,17 @@ def artifact_name(build, source, attempt, suffix):
 
 
 def subject_build(subject):
-    """The build requested by `[ipa-delivery:NNN]` in the commit subject line only (None when absent)."""
-    found = set(TRIGGER.findall(subject))
+    """The build requested by `[ipa-delivery:NNN]` at the start of the commit subject (None when absent).
+
+    The workflow gate is startsWith(head_commit.message, '[ipa-delivery:'), so a tag quoted in a body or
+    later in a subject never starts a delivery."""
+    found = TRIGGER.findall(subject)
     require(len(found) <= 1, 'The commit subject requests several builds: ' + subject)
-    return int(found.pop()) if found else None
+    if not found:
+        return None
+    require(subject.startswith('[ipa-delivery:%s]' % found[0]),
+            'The delivery tag must start the commit subject: ' + subject)
+    return int(found[0])
 
 
 def execution():
@@ -2056,7 +2063,7 @@ def trigger_paths(build, paths, message=None, root=None, loader=None):
     if loader is None:
         import yaml
         loader = yaml.safe_load
-    message = message or f'build(delivery): request the private IPA{build} delivery [ipa-delivery:{build}]'
+    message = message or f'[ipa-delivery:{build}] build(delivery): request the private IPA{build} delivery'
     subject = message.splitlines()[0]
     require(subject_build(subject) == build, 'The trigger subject must carry [ipa-delivery:%d]' % build)
     require(not any(token in message.lower() for token in SKIP_TOKENS), 'A trigger commit cannot skip workflows')

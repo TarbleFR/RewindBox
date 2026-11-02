@@ -86,7 +86,7 @@ vérifiée. Elle n'ajoute que ce qui a changé depuis cette base.
 4. **Commit déclencheur** : vérifier ses chemins avec
    `python3 -B .github/diagnostics/standard_delivery.py trigger-paths <N> build-utils/delivery/<N>.json`
    (refuse tout chemin produit et tout autre workflow qui lancerait un job), puis committer le
-   manifeste gelé avec le sujet `… [ipa-delivery:<N>]` (pas de `[skip ci]`). Un sujet sans balise ne
+   manifeste gelé avec le sujet `[ipa-delivery:<N>] …` (la balise ouvre le sujet) (pas de `[skip ci]`). Un sujet sans balise ne
    lance rien.
 5. **Après le run** : télécharger les 4 pièces et les métadonnées API, lancer
    `build-utils/verify_downloaded_delivery.py` (clé privée hors Git), puis

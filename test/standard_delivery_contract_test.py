@@ -385,7 +385,7 @@ class Workflow(unittest.TestCase):
             self.assertEqual(job['name'], name)
         self.assertEqual(value['permissions'], {'contents': 'read', 'actions': 'read'})
         gate = value['jobs']['preflight']['if']
-        self.assertIn("contains(github.event.head_commit.message, '" + sd.TRIGGER_MARKER + "')", gate)
+        self.assertIn("startsWith(github.event.head_commit.message, '" + sd.TRIGGER_MARKER + "')", gate)
         self.assertIn("github.ref == 'refs/heads/Claude'", gate)
         self.assertNotIn('workflow_dispatch', WORKFLOW.read_text())
 
@@ -449,7 +449,7 @@ class Workflow(unittest.TestCase):
         seal = next(i for i, r in enumerate(runs) if 'standard_delivery.py seal' in r)
         encrypted = [i for i, r in enumerate(runs) if 'delivery_cipher.py artifact' in r and 'build/delivery ' not in r]
         uploads = [i for i, s in enumerate(steps('application')) if s.get('uses', '').startswith('actions/upload-artifact')
-                   and s['name'] != 'Upload diagnostics']
+                   and s['name'] != 'Upload diagnostics' and not s['name'].startswith('Republish ')]
         compile_step = names.index('Compile Release device binary with measured AOT and Xcode phases')
         self.assertLess(compile_step, awaited)
         self.assertEqual(embed, awaited + 1)
@@ -519,8 +519,15 @@ class Workflow(unittest.TestCase):
             self.assertEqual(item['with']['path'], f'build/republish/{kind}/')
             self.assertEqual(item['if'], "${{ hashFiles('build/republish/" + kind + "/republication.json') != '' }}")
         order = [s['name'] for s in steps('application')]
-        self.assertLess(order.index('Upload encrypted transport piece 4 of 4'),
-                        order.index('Stage the authenticated component archives for republication'))
+        stage = order.index('Stage the authenticated component archives for republication')
+        # Republished right after the last component download and before any compile, so a delivery
+        # that fails later still preserves the archives the next build retains; never the IPA.
+        downloads = [i for i, name in enumerate(order) if name.startswith(('Download ', 'Authenticate and install'))]
+        self.assertGreater(stage, max(downloads))
+        self.assertLess(stage, order.index('Compile Release device binary with measured AOT and Xcode phases'))
+        for kind in sd.REPUBLISHED_KINDS:
+            self.assertLess(order.index(retained.republish_step(kind)), order.index('Configure release host'))
+            self.assertNotIn('ipa', names[retained.republish_step(kind)]['with']['path'].lower())
 
 
 class EffectiveTreeSynthetic(unittest.TestCase):
@@ -960,7 +967,9 @@ class DownloadedDelivery(unittest.TestCase):
 
 class TriggerCommit(unittest.TestCase):
     def test_subject_parsing(self):
-        self.assertEqual(sd.subject_build('build(delivery): request [ipa-delivery:611]'), 611)
+        self.assertEqual(sd.subject_build('[ipa-delivery:611] build(delivery): request'), 611)
+        with self.assertRaises(ValueError):
+            sd.subject_build('build(delivery): request [ipa-delivery:611]')
         self.assertIsNone(sd.subject_build('docs: mention the tag in the body only'))
         with self.assertRaises(ValueError):
             sd.subject_build('[ipa-delivery:611] [ipa-delivery:612]')
@@ -968,9 +977,10 @@ class TriggerCommit(unittest.TestCase):
     def test_expression_evaluator(self):
         status = dict(success=False, failure=False, cancelled=False, always=True)
         context = dict(github=dict(ref='refs/heads/Claude', event_name='push',
-                                   event=dict(head_commit=dict(message='x [ipa-delivery:611]'))),
+                                   event=dict(head_commit=dict(message='[ipa-delivery:611] x'))),
                        inputs={}, needs={'preflight': dict(result='skipped', outputs={})})
-        cases = (("github.ref == 'refs/heads/Claude' && contains(github.event.head_commit.message, '[ipa-delivery:')", True),
+        cases = (("github.ref == 'refs/heads/Claude' && startsWith(github.event.head_commit.message, '[ipa-delivery:')", True),
+                 ("startsWith(github.event.head_commit.message, '[x]')", False),
                  ("contains(github.event.head_commit.message, '[rewind610-delivery]')", False),
                  ("!(inputs.reuse_0279198 || (github.event_name == 'push' && contains(github.event.head_commit.message, '[x]')))", True),
                  ("always() && !cancelled() && needs.preflight.result == 'success'", False),
@@ -1008,10 +1018,10 @@ class TriggerCommit(unittest.TestCase):
                     sd.trigger_paths(611, ['lib/a.dart'], root=root, loader=sd.load_yaml_subset)
                 with self.assertRaises(ValueError):
                     sd.trigger_paths(611, ['build-utils/delivery/611.json'], root=root, loader=sd.load_yaml_subset,
-                                     message='request [ipa-delivery:611] [skip ci]')
+                                     message='[ipa-delivery:611] request [skip ci]')
                 with self.assertRaises(ValueError):
                     sd.trigger_paths(611, ['build-utils/delivery/611.json'], root=root, loader=sd.load_yaml_subset,
-                                     message='request [ipa-delivery:612]')
+                                     message='[ipa-delivery:612] request')
 
     def test_expected_trigger_commit_of_this_repository(self):
         if yaml is None:
