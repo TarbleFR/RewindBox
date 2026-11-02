@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 621,
  "status": "draft",
- "note": "Private IPA 621 on the delivered and verified 620: the RPCS3 Core 621 (every title: a GPU timestamp pair around each RSX primary command buffer, read without waiting and calibrated against the host clock, so a slow frame reports its real GPU time and its dominant wait with cause= and certainty=; freeze episodes on a running-time clock that stops while paused, loading or suspended, one FREEZE_DUMP per episode with a waits summary; the mounted ISO image kept open for the session; pipeline queue counters) and its host integration (fatal lines kept in RPCS3-last-fatal.log through abort, a bounded asynchronous core_log, one incident file per freeze episode or fatal stop, an unexpected end found at the next launch, \"Report a problem\" / \"Close and report\" with a streamed report shared only by the tester's choice, the GPU timing lever; 12 locales). MeloNX Core 620 kept unchanged; Dolphin/ARMSX2, libretro and the MeloNX dependencies retained through the 620 republication; the rest of b06888a9 stays deferred (inherited).",
+ "note": "Private IPA 621 on the delivered and verified 620: the RPCS3 Core 621 (every title: a GPU timestamp pair around each RSX primary command buffer, read without waiting and calibrated against the host clock, so a slow frame reports its real GPU time and its dominant wait with cause= and certainty=; freeze episodes on a running-time clock that stops while paused, loading or suspended, one FREEZE_DUMP per episode with a waits summary; the mounted ISO image kept open for the session; pipeline queue counters; from the Build 620 logs, the ZCULL on-demand reads kept through a busy second, Black Ops II on that lever and the ZCULL waits of each slow frame) and its host integration (fatal lines kept in RPCS3-last-fatal.log through abort, a bounded asynchronous core_log, one incident file per freeze episode or fatal stop, an unexpected end found at the next launch, \"Report a problem\" / \"Close and report\" with a streamed report shared only by the tester's choice, the GPU timing lever; 12 locales). MeloNX Core 620 kept unchanged; Dolphin/ARMSX2, libretro and the MeloNX dependencies retained through the 620 republication; the rest of b06888a9 stays deferred (inherited).",
  "base": {
   "build": 620,
   "source": "757e3b400b60181e0588ec40f9641d08c2262664",
@@ -262,6 +262,10 @@
    {
     "commit": "5feba2a9904653fb46538384a16cdb8333c3960f",
     "note": "RPCS3 Core 621 delta (canonical patch, folded record, Core spec, host tests; the Core itself is the pinned component) and its host integration: bounded asynchronous core_log with fatal and FREEZE_EPISODE lines before the unchanged Build 283 budget, RPCS3-last-fatal.log, incidents and session record, streamed report export, \"Report a problem\" / \"Close and report\" (12 locales), GPU timing lever; reviewed MoltenVK bridge host delta."
+   },
+   {
+    "commit": "0b7c0e38437ca69213c26ea9c6c743a44c8eccbd",
+    "note": "Core 621 fixes from the Build 620 logs: ZCULL on-demand guard on sustained guest waits with COREPROF ZCULLTRIP621, Black Ops II on the lever, ZCULL On-Demand Reads setting and accuracy-page lever (12 locales), per-frame ZCULL waits and cause_rule=v2; regenerated canonical patch, refreshed pending pin, reviewed bridge host delta; host tests."
    }
   ],
   "sourceOnly": [],
