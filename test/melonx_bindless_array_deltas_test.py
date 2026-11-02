@@ -149,6 +149,9 @@ for old, new in zip(control['measures'], candidate['measures'], strict=True):
     check(key == {k: new[k] for k in key}, 'measure pairing')
     check(old['lookupsPerUpdate'] == old['length'], f'control walks the whole pool on every written pool: {old}')
     check(new['lookupsPerUpdate'] <= max(1, new['changes']), f'candidate resolves only changed elements: {new}')
+    if new['kind'] != 'Sampler':
+        # No texture is invalidated in these updates: one comparison scan, no verification scan.
+        check(new['peeksPerUpdate'] <= new['length'] + new['changes'], f'candidate scans the pool once: {new}')
     if old['threaded'] and old['length'] > 4096:
         check(old['producerBytesPerUpdate'] >= 16 * old['length'], f'control allocates per element: {old}')
     check(new['producerBytesPerUpdate'] <= 64 * (new['changes'] + 1) + 4096, f'candidate allocation bounded by changes: {new}')

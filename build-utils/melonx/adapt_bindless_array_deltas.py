@@ -35,11 +35,16 @@ The array now updates only the elements whose result can differ:
   SetTextures / SetSamplers / SetImages(start, run), an offset form every backend
   implements; changes at most 16 elements apart share a run, the unchanged elements
   between them re-sent with the host values recorded when they were bound.
-- If any element was re-resolved, a final check of every element (pool item and
-  texture sequence) catches a texture that this pass's own lookups removed or
-  replaced; any mismatch, a moved alias generation, another format than the one the
-  state was built for, or a scale blacklist that only the end of the pass would
-  apply, falls back to the full rebuild. A failed update (delta pass or full
+- If a texture was invalidated during the pass (a global epoch that every
+  InvalidatedSequence increment moves), a final check of every element (pool item
+  and texture sequence) catches a texture that this pass's own lookups removed or
+  replaced; without one, pool items changed only for the ids the pass resolved
+  itself (RemoveFromPools and UpdatePoolMappings, the only other writers, move the
+  epoch). Any mismatch, an alias list destroyed during the pass, another format than
+  the one the state was built for, or a scale blacklist that only the end of the
+  pass would apply, falls back to the full rebuild. (Build 614 on the iPhone: about
+  245 passes of 524288 elements per 5.1 s, about 30 changed per pass, each with this
+  check; the check alone was about half of the 1.0-1.1 s per window.) A failed update (delta pass or full
   rebuild) forces the next one to rebuild, even without a pool write.
 - The entry's texture set stays exact (reference counts per bound texture), so
   SynchronizeMemory, SignalModified (image stores) and the scale blacklist reach
@@ -69,8 +74,9 @@ from adapt_session import once
 
 ARRAY_CACHE = 'src/Ryujinx.Graphics.Gpu/Image/TextureBindingsArrayCache.cs'
 TEXTURE_POOL = 'src/Ryujinx.Graphics.Gpu/Image/TexturePool.cs'
+TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 DIAGNOSTICS = 'src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'
-NAMES = [ARRAY_CACHE, TEXTURE_POOL, DIAGNOSTICS]
+NAMES = [ARRAY_CACHE, TEXTURE_POOL, TEXTURE, DIAGNOSTICS]
 ALIAS = 'using PD = Ryujinx.Common.EmbeddedPerformanceDiagnostics;\n'
 
 ENTRY_STATE = '''            private int _texturePoolSequence;
@@ -426,6 +432,7 @@ FULL_END_NEW = '''                if (isImage)
 
             int length = entry.DeltaLength;
             int aliasGeneration = texturePool?.AliasGeneration ?? 0;
+            int invalidationEpoch = Volatile.Read(ref Texture.InvalidationEpoch);
             bool aliasesMoved = aliasGeneration != entry.DeltaAliasGeneration;
             int changed = 0;
             int runStart = 0;
@@ -530,15 +537,21 @@ FULL_END_NEW = '''                if (isImage)
 
                 FlushDeltaRun(entry, isImage, isSampler, runStart, ref runCount);
 
-                if (changed != 0 || aliasesMoved)
+                if ((texturePool?.AliasGeneration ?? 0) != aliasGeneration)
                 {
-                    // A lookup of this pass may have removed or replaced a texture bound at another element,
-                    // or moved the alias lists: every element must still resolve to what is bound.
-                    bool aliasesMovedNow = (texturePool?.AliasGeneration ?? 0) != aliasGeneration;
+                    // A lookup of this pass destroyed an alias list: views bound before it may be stale.
+                    return false;
+                }
 
+                if (Volatile.Read(ref Texture.InvalidationEpoch) != invalidationEpoch)
+                {
+                    // A texture was invalidated during the pass (possibly by one of its own lookups, which can remove
+                    // or replace a texture bound at another element): every element must still resolve to what is
+                    // bound. Without an invalidation, pool items change only for the ids this pass resolved itself
+                    // (RemoveFromPools and UpdatePoolMappings, the only other writers, both move the epoch).
                     for (int index = 0; index < length; index++)
                     {
-                        if (aliasesMovedNow || !entry.DeltaUnchanged(index, texturePool, samplerPool, isSampler, aliasesMoved: false))
+                        if (!entry.DeltaUnchanged(index, texturePool, samplerPool, isSampler, aliasesMoved: false))
                         {
                             return false;
                         }
@@ -685,6 +698,23 @@ PEEK = '''        /// <summary>
 
 ''' + PEEK_ANCHOR
 
+EPOCH_FIELD = '''        /// <summary>
+        /// Increments when the host texture is swapped, or when the texture is removed from all pools.
+        /// </summary>
+        public int InvalidatedSequence { get; private set; }'''
+EPOCH_FIELD_NEW = EPOCH_FIELD + '''
+
+        /// <summary>
+        /// Moves, from any thread, whenever the InvalidatedSequence of any texture moves: a bindless delta pass that
+        /// sees it unchanged knows that none of its lookups removed or replaced a texture bound elsewhere.
+        /// </summary>
+        internal static int InvalidationEpoch;'''
+EPOCH_BUMP = '''            InvalidatedSequence++;
+'''
+EPOCH_BUMP_NEW = '''            InvalidatedSequence++;
+            System.Threading.Interlocked.Increment(ref InvalidationEpoch);
+'''
+
 ALIAS_REMOVE = '''            if (_aliasLists.TryGetValue(texture, out TextureAliasList aliasList))
             {
                 _aliasLists.Remove(texture);
@@ -736,6 +766,9 @@ def apply_array_cache(source):
     once(cache, FULL_END, FULL_END_NEW)
     once(cache, BUFFER_REBUILD, BUFFER_REBUILD_NEW)
     add_alias(cache)
+    text = cache.read_text(encoding='utf-8')
+    if 'using System.Threading;' not in text:
+        once(cache, 'using System;\n', 'using System;\nusing System.Threading;\n')
     return [ARRAY_CACHE]
 
 
@@ -744,6 +777,11 @@ def apply(source):
     apply_array_cache(source)
     once(source / TEXTURE_POOL, PEEK_ANCHOR, PEEK)
     once(source / TEXTURE_POOL, ALIAS_REMOVE, ALIAS_REMOVE_NEW)
+    texture = source / TEXTURE
+    once(texture, EPOCH_FIELD, EPOCH_FIELD_NEW)
+    text = texture.read_text(encoding='utf-8-sig')
+    assert text.count(EPOCH_BUMP) == 3, ('InvalidatedSequence increments', text.count(EPOCH_BUMP))
+    texture.write_text(text.replace(EPOCH_BUMP, EPOCH_BUMP_NEW), encoding='utf-8')
     for old, new in DIAGNOSTIC_EDITS:
         once(source / DIAGNOSTICS, old, new)
     return NAMES

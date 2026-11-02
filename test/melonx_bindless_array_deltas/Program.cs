@@ -177,7 +177,7 @@ sealed class World
                 case 2: Samplers.Write(id, Random.Next(4) == 0 ? 0 : 1 + Random.Next(LibrarySize)); break;
                 case 3: Samplers.Write(id, Samplers.Keys[id]); break;
                 case 4: Remove(RandomLibraryTexture()); break;
-                case 5: RandomLibraryTexture().InvalidatedSequence++; break; // remapped in place, same object
+                case 5: RandomLibraryTexture().Invalidate(); break; // remapped in place, same object
                 case 6: Textures.Touch(); break;
                 case 7: Samplers.Touch(); break;
                 case 8: RandomLibraryTexture().ScaleUp(); break; // used as a scaled render target
@@ -472,7 +472,7 @@ static class Program
         w.Update(binding, kind);
         w.Update(binding, kind);
         const int Updates = 20;
-        long bytes = 0, lookups = 0, ticks = 0;
+        long bytes = 0, lookups = 0, ticks = 0, peeks = 0;
         long calls0 = kind == Kind.Image ? w.ImageSink.Calls : w.TextureSink.Calls;
         long elements0 = kind == Kind.Image ? w.ImageSink.Elements : w.TextureSink.Elements;
         for (int u = 0; u < Updates; u++)
@@ -484,7 +484,7 @@ static class Program
                 else w.Textures.Write(id, 1 + (w.Textures.Keys[id] % w.LibrarySize));
             }
             w.Textures.Touch(); w.Samplers.Touch();
-            long lookupsBefore = w.Textures.Lookups + w.Samplers.Lookups;
+            long lookupsBefore = w.Textures.Lookups + w.Samplers.Lookups, peeksBefore = w.Textures.Peeks;
             w.Context.SequenceNumber++;
             long before = GC.GetAllocatedBytesForCurrentThread();
             long start = Stopwatch.GetTimestamp();
@@ -493,6 +493,7 @@ static class Program
             ticks += Stopwatch.GetTimestamp() - start;
             bytes += GC.GetAllocatedBytesForCurrentThread() - before;
             lookups += w.Textures.Lookups + w.Samplers.Lookups - lookupsBefore;
+            peeks += w.Textures.Peeks - peeksBefore;
             w.Threaded?.Drain();
         }
         long calls = (kind == Kind.Image ? w.ImageSink.Calls : w.TextureSink.Calls) - calls0;
@@ -504,6 +505,8 @@ static class Program
             threaded, kind = kind.ToString(), length, changes, scattered,
             producerBytesPerUpdate = bytes / (double)Updates,
             lookupsPerUpdate = lookups / (double)Updates,
+            // Pool item reads of the comparison scans (candidate): one scan, plus the recording of changed elements.
+            peeksPerUpdate = peeks / (double)Updates,
             backendCallsPerUpdate = calls / (double)Updates,
             backendElementsPerUpdate = elements / (double)Updates,
             producerMicrosecondsPerUpdate = ticks * 1e6 / Stopwatch.Frequency / Updates,
@@ -745,6 +748,9 @@ namespace Ryujinx.Graphics.Gpu.Image
             if (parent != null) { parent.Views.Add(this); ScaleMode = parent.ScaleMode; }
         }
         void Use() { if (Disposed) _world.Violations++; }
+        // Texture.InvalidationEpoch of the candidate: moved by every InvalidatedSequence increment.
+        internal static int InvalidationEpoch;
+        public void Invalidate() { InvalidatedSequence++; System.Threading.Interlocked.Increment(ref InvalidationEpoch); }
         public ITexture GetTargetTexture(Target target) { Use(); return Host; }
         // Scaled data written by the CPU: SynchronizeFull/Partial blacklists the texture (AllowScaledSetData),
         // which replaces its storage while it may already be bound.
@@ -764,7 +770,7 @@ namespace Ryujinx.Graphics.Gpu.Image
         {
             _world.Release(Host);
             Host = _world.NewHost(Name + "'");
-            InvalidatedSequence++;
+            Invalidate();
             foreach (Texture view in Views) view.ReplaceStorage();
         }
         // SetScale(> 1) of an eligible texture used as a render target.
@@ -796,7 +802,7 @@ namespace Ryujinx.Graphics.Gpu.Image
             if (Disposed) return;
             Disposed = true;
             _world.Release(Host);
-            InvalidatedSequence++;
+            Invalidate();
             Parent?.Views.Remove(this);
         }
         public void ResetStep() { StepSynced = false; StepSignaled = false; }
@@ -823,7 +829,7 @@ namespace Ryujinx.Graphics.Gpu.Image
         readonly List<Texture> _orphans = new();
         int _aliasGeneration;
         public int MaximumId, Sequence = 1, ThrowAt = -1;
-        public long Lookups;
+        public long Lookups, Peeks;
         public Action<int> OnResolve;
         public TexturePool(World world, int length)
         {
@@ -893,6 +899,7 @@ namespace Ryujinx.Graphics.Gpu.Image
         // The members the adapter adds to the production TexturePool.
         internal Texture PeekForBindingDelta(int id, out bool knownInvalid)
         {
+            Peeks++;
             Texture texture = Items[id];
             knownInvalid = texture == null && _invalid[id];
             return texture;
