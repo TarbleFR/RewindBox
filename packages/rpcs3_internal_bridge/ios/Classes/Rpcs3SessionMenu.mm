@@ -18,7 +18,41 @@ typedef NS_ENUM(NSInteger, RPCS3MenuPage) {
   RPCS3MenuLoadStates,
   // Build 484: editor and "hide with a controller" (texts: NeoTouchLayoutStrings).
   RPCS3MenuTouchControls,
+  // REWINDBOX_GRAPHICS_TESTS_612: per-game accuracy tests, one restart per choice.
+  RPCS3MenuAccuracy,
 };
+
+// REWINDBOX_GRAPHICS_TESTS_612: the levers of the accuracy test page. Values are
+// the Core's spellings; the bridge accepts only these (RPCS3TestSettingValues).
+static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
+  static NSArray<NSDictionary*>* levers;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    NSArray* onOff = @[@"false", @"true"];
+    NSArray* onOffLabels = @[@"disabled", @"enabled"];
+    levers = @[
+      @{@"key": @"gpu.zcull_accuracy", @"title": @"testZcull",
+        @"values": @[@"Precise", @"Approximate", @"Relaxed"],
+        @"labels": @[@"zcullPrecise", @"zcullApproximate", @"zcullRelaxed"]},
+      @{@"key": @"debug.disable_occlusion", @"title": @"testOcclusionOff", @"field": @"zcull_queries_off",
+        @"values": onOff, @"labels": onOffLabels},
+      @{@"key": @"debug.emulate_depth_compare", @"title": @"testDepthCompare", @"field": @"depth_compare",
+        @"values": onOff, @"labels": onOffLabels},
+      @{@"key": @"advanced.disable_msl_fast_math", @"title": @"testFastMathOff", @"field": @"msl_fast_math_off",
+        @"values": onOff, @"labels": onOffLabels},
+      @{@"key": @"debug.disable_vertex_cache", @"title": @"testVertexCacheOff", @"field": @"vertex_cache_off",
+        @"values": onOff, @"labels": onOffLabels},
+      @{@"key": @"gpu.shader_precision", @"title": @"testShaderPrecision",
+        @"values": @[@"Low", @"High", @"Ultra"],
+        @"labels": @[@"precisionLow", @"precisionHigh", @"precisionUltra"]},
+      @{@"key": @"experimental.position_invariance", @"title": @"testInvariance", @"field": @"invariance",
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.moltenvk_async_submits", @"title": @"testMvkAsync", @"field": @"mvk_async",
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+    ];
+  });
+  return levers;
+}
 
 static void RPCS3MenuOnMain(dispatch_block_t block) {
   if (NSThread.isMainThread) block();
@@ -35,6 +69,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 @property(nonatomic, assign) BOOL suppressNextStateReload;
 @property(nonatomic, weak) Rpcs3SessionMenu* returnPage;
 @property(nonatomic, copy) NSString* statusMessage;
+@property(nonatomic, copy) NSDictionary<NSString*, NSString*>* accuracyState;
 @end
 
 @implementation Rpcs3SessionMenu
@@ -86,6 +121,10 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 - (void)viewWillAppear:(BOOL)animated {
   [super viewWillAppear:animated];
   if (self.page == RPCS3MenuCheats) [self reloadCheats];
+  if (self.page == RPCS3MenuAccuracy) {
+    self.accuracyState = self.readAccuracy ? self.readAccuracy() : nil;
+    [self.tableView reloadData];
+  }
   if (self.page == RPCS3MenuSaveStates || self.page == RPCS3MenuLoadStates) {
     // UIAlertController dismissal can make this page appear again before its
     // action handler runs. A refresh would set `loading` and make the confirmed
@@ -126,6 +165,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   child.performStateOperation = self.performStateOperation;
   child.resumeGame = self.resumeGame;
   child.quitGame = self.quitGame;
+  child.readAccuracy = self.readAccuracy;
   child.returnPage = self;
   return child;
 }
@@ -245,7 +285,8 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 - (NSInteger)tableView:(UITableView*)tableView numberOfRowsInSection:(NSInteger)section {
   switch (self.page) {
     case RPCS3MenuRoot: return self.rootKeys.count;
-    case RPCS3MenuGraphics: return 3;
+    case RPCS3MenuGraphics: return 4;
+    case RPCS3MenuAccuracy: return RPCS3AccuracyLevers().count + 1;
     case RPCS3MenuSystem: return 1;
     case RPCS3MenuControls: return 1;
     case RPCS3MenuTouchControls: return 2;
@@ -260,6 +301,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
 
 - (NSString*)tableView:(UITableView*)tableView titleForFooterInSection:(NSInteger)section {
   if (self.page == RPCS3MenuGraphics) return [self text:@"graphicsHelp"];
+  if (self.page == RPCS3MenuAccuracy) return [self text:@"accuracyHelp"];
   if (self.page == RPCS3MenuSystem) return [self text:@"systemHelp"];
   if (self.page == RPCS3MenuControls) return [self text:@"controlsHelp"];
   if (self.page == RPCS3MenuTouchControls) return [self touchText:@"hideWithControllerHelp"];
@@ -269,6 +311,31 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   if (self.page == RPCS3MenuSaveStates || self.page == RPCS3MenuLoadStates)
     return self.statusMessage;
   return nil;
+}
+
+// REWINDBOX_GRAPHICS_TESTS_612: "<effective value> · <profile|test>" from the
+// last boot's CONFIG_LAYERS part=rsx line.
+- (NSString*)accuracyDetail:(NSDictionary*)lever {
+  NSDictionary<NSString*, NSString*>* state = self.accuracyState;
+  if (!state.count) return [self text:@"testUnknown"];
+  NSString* key = lever[@"key"];
+  NSString* label = nil;
+  if ([key isEqual:@"gpu.zcull_accuracy"]) {
+    label = [state[@"relaxed_zcull"] isEqual:@"true"] ? @"zcullRelaxed"
+        : ([state[@"precise_zpass"] isEqual:@"true"] ? @"zcullPrecise" : @"zcullApproximate");
+  } else if ([key isEqual:@"gpu.shader_precision"]) {
+    NSString* precision = state[@"shader_precision"];
+    label = @{@"Low": @"precisionLow", @"High": @"precisionHigh", @"Ultra": @"precisionUltra"}[precision ?: @""];
+    if (!label) return precision.length ? precision : [self text:@"testUnknown"];
+  } else {
+    NSString* value = state[lever[@"field"]];
+    if (!value.length) return [self text:@"testUnknown"];
+    label = ([value isEqual:@"true"] || [value isEqual:@"1"]) ? @"enabled" : @"disabled";
+  }
+  NSString* overrideKeys = state[@"overrides"] ?: @"";
+  NSArray<NSString*>* overrides = [overrideKeys componentsSeparatedByString:@","];
+  return [NSString stringWithFormat:@"%@ · %@", [self text:label],
+          [self text:[overrides containsObject:key] ? @"testSourceTest" : @"testSourceProfile"]];
 }
 
 - (UITableViewCell*)baseCell {
@@ -323,9 +390,27 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
     } else if (row == 1) {
       cell.textLabel.text = [self text:@"stretchTitle"];
       cell.detailTextLabel.text = [self text:@"perGameRestart"];
-    } else {
+    } else if (row == 2) {
       cell.textLabel.text = [self text:@"performanceOverlay"];
       cell.detailTextLabel.text = [self text:(self.performanceVisible ? @"enabled" : @"disabled")];
+      cell.accessoryType = UITableViewCellAccessoryNone;
+    } else {
+      cell.textLabel.text = [self text:@"accuracyMenu"];
+      cell.detailTextLabel.text = [self text:@"accuracyMenuDetail"];
+      cell.accessibilityIdentifier = @"rpcs3.menu.accuracyTests";
+    }
+    return cell;
+  }
+
+  if (self.page == RPCS3MenuAccuracy) {
+    NSArray<NSDictionary*>* levers = RPCS3AccuracyLevers();
+    if (row < (NSInteger)levers.count) {
+      cell.textLabel.text = [self text:levers[row][@"title"]];
+      cell.detailTextLabel.text = [self accuracyDetail:levers[row]];
+    } else {
+      cell.textLabel.text = [self text:@"testReset"];
+      cell.detailTextLabel.text = [self text:@"testResetDetail"];
+      cell.textLabel.textColor = UIColor.systemOrangeColor;
       cell.accessoryType = UITableViewCellAccessoryNone;
     }
     return cell;
@@ -430,6 +515,8 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
         } else if ([command isEqual:@"touchHideWithController"]) {
           menu.touchHideWithController = [value boolValue];
           menu.returnPage.touchHideWithController = menu.touchHideWithController;
+        } else if ([command isEqual:@"testReset"]) {
+          menu.accuracyState = menu.readAccuracy ? menu.readAccuracy() : nil;
         }
         [menu.tableView reloadData];
         if (menu.page == RPCS3MenuChoices) [menu.navigationController popViewControllerAnimated:YES];
@@ -533,9 +620,31 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
                         command:@"stretch"
                          values:@[@NO, @YES]
                          titles:@[[self text:@"normal"], [self text:@"stretched"]]];
-    } else {
+    } else if (row == 2) {
       [self performCommand:@"performance" value:@(!self.performanceVisible)];
+    } else {
+      [self.navigationController pushViewController:[self child:RPCS3MenuAccuracy title:[self text:@"accuracyMenu"]]
+                                           animated:YES];
     }
+    return;
+  }
+
+  if (self.page == RPCS3MenuAccuracy) {
+    NSArray<NSDictionary*>* levers = RPCS3AccuracyLevers();
+    if (row >= (NSInteger)levers.count) {
+      [self performCommand:@"testReset" value:nil];
+      return;
+    }
+    NSDictionary* lever = levers[row];
+    NSMutableArray* values = [NSMutableArray arrayWithObject:@{@"key": lever[@"key"], @"value": @"@inherit"}];
+    NSMutableArray<NSString*>* titles = [NSMutableArray arrayWithObject:[self text:@"testProfileDefault"]];
+    NSArray<NSString*>* choices = lever[@"values"];
+    NSArray<NSString*>* labels = lever[@"labels"];
+    for (NSUInteger i = 0; i < choices.count && i < labels.count; ++i) {
+      [values addObject:@{@"key": lever[@"key"], @"value": choices[i]}];
+      [titles addObject:[self text:labels[i]]];
+    }
+    [self pushChoiceWithTitle:[self text:lever[@"title"]] command:@"testSetting" values:values titles:titles];
     return;
   }
 

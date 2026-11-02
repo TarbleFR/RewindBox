@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "marker": "REWINDBOX_GRAPHICS_TESTS_612",
+  "status": "folded into the canonical delta for RPCS3 Core 612 (delivered Core 610 canonical patch a63b9643 plus this patch); Core 612 not built yet, no IPA, no iPhone validation",
+  "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
+  "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
+  "patch": "build-utils/rpcs3/core612-delta.patch",
+  "patch_sha256": "488153d55dcc3b70b39fc169531343b223dd295f72966a8a8bead29797569c5f",
+  "abi_version": 30,
+  "abi_version_changed": false,
+  "exports_added": [
+    "rpcs3_ios_ra_api_version",
+    "rpcs3_ios_ra_set_frame_callback",
+    "rpcs3_ios_ra_read_memory",
+    "rpcs3_ios_ra_get_session_info"
+  ],
+  "files_before_sha256": {
+    "rpcs3/Emu/RSX/RSXThread.cpp": "68b8481d7516510606bf33c35bee3b2cc90510dc4536d4f648fe2350202d0dfc",
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp": "c89406101be986fa0018c8ebc311976f62d228983ad04e3b03efaa2bed82efb8",
+    "rpcs3/Emu/System.cpp": "49f0ef26c9d0bf686f628aee0c0b3e4e0b360ef5b2f2e88f621c320d3be09e1a",
+    "rpcs3/Emu/system_config.h": "38ad5d6f52fc0b7cb4e79ef54fef7c5aca1bea0ba8da15ded682cfabdeb623a4",
+    "rpcs3/ios/IOSFeedbackCensus.h": "3c9cedda9ce16a770b888c28fee3c8de5346289a3de439208c850e98da89ac16",
+    "rpcs3/ios/RPCS3IOS.cpp": "53907df407b06f3059b75518017d1ae854b7a2625454759a215c43afcef7c309",
+    "rpcs3/ios/RPCS3IOS.exports": "dda56154fb677379f9abc8638b98be5d7c16bb02011f458cbb57d780aa9004ce",
+    "rpcs3/ios/RPCS3IOS.h": "2315d68838552d9d6bc3bfd94b74513c364431b546c4d4d7f31b3f35cfc8b16d",
+    "rpcs3/ios/RPCS3IOSBootDiagnostics.h": "f0bd30d340be710c1abf5d3db2fa50fd6bf325e7906b73e140527821c7ce7e72",
+    "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "6ab3f2a71783cce85eabd12d2477bf24ed6b2d6b5392149d6065d6e167eedb3d",
+    "rpcs3/ios/RPCS3IOSPerformance.cpp": "1058a69273de3e44608b0dc7281d6e53edbe0085c12fefc6f70648fc0d7cc91e",
+    "rpcs3/ios/RPCS3IOSSettings.cpp": "66d0486830e52b3a162cee774915d453ac68d4f40a9b57d2ab9127fb5f305221",
+    "rpcs3/ios/RPCS3IOSSettings.h": "845b14529f9949aa515a5a914a99dc3415ce51c29c567639cb9012cab4399996"
+  },
+  "files_after_sha256": {
+    "rpcs3/Emu/RSX/RSXThread.cpp": "2b8c3fd1cb2b0431cdd464efa9836133f3cab4ede4b45c0553bd5129a466ace4",
+    "rpcs3/Emu/RSX/VK/VKDraw.cpp": "c1b1bc90d76ddab2beec143c6381cf36e69bb1fc63a0a7913cbe853a9b13830a",
+    "rpcs3/Emu/RSX/VK/VKRenderPass.cpp": "99c362a414165a4ab7156f1c455e69fed1abe57ec399ea46ab974fa2ec02d5d4",
+    "rpcs3/Emu/RSX/VK/VKRenderPass.h": "0787c4799fcc56e50db6a23a4656796b62efb47941b9c10efd01b4513db662ec",
+    "rpcs3/Emu/System.cpp": "ce07645bbf74004fbdba7cb8e756a0371158152089ea89d97e181ed7471114b1",
+    "rpcs3/Emu/system_config.h": "b05af0b067f5b2280182ff7bfff6cb156eb3e1a5068e4368db59503f91fb1038",
+    "rpcs3/ios/IOSFeedbackCensus.h": "9da0b2b864ec2e0c47b1bb792952eb376d3b4203292f117c183388af07e60dd4",
+    "rpcs3/ios/RPCS3IOS.cpp": "2c7a6e02f047bcd9f86d9d1d6b566e153dc8b72fabcb27068fc8b9c08427dde3",
+    "rpcs3/ios/RPCS3IOS.exports": "4a7d309cc7a0df18f215f8582897931fc1d14bf0ec399e4c18afe2e87ccbad7d",
+    "rpcs3/ios/RPCS3IOS.h": "e12732f8e0914f765e81e9ba2fb8278862369d91c03967c38e021e384e215987",
+    "rpcs3/ios/RPCS3IOSAchievements.h": "bf04cc1b6ef98e4ebf777b33ce921803a17409b6cbc52b224e145f67708d9399",
+    "rpcs3/ios/RPCS3IOSBootDiagnostics.h": "2a171fdbaf44aa7e53d36ac633a74576fee656b5a331cef3447afbc1218c9dad",
+    "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "a4b5cee689c61cd23130ac2d5048745367db96dd4e3944924ef5f1b1a1316b1c",
+    "rpcs3/ios/RPCS3IOSPerformance.cpp": "2bf3eb8da9e3e21afd302fb17741c8c7d6b818691ef529b59559bbfc57385e64",
+    "rpcs3/ios/RPCS3IOSSettings.cpp": "c336e9076530266db90f88328e92d638ea75a6938c8ef2b52810ba4f3a5dcb34",
+    "rpcs3/ios/RPCS3IOSSettings.h": "11c28fa0a142abf55b194f0f8b5c0926273081cbd979897bf1d4bd00362d160b"
+  },
+  "new_files": [
+    "rpcs3/Emu/RSX/VK/VKRenderPass.cpp",
+    "rpcs3/Emu/RSX/VK/VKRenderPass.h",
+    "rpcs3/ios/RPCS3IOSAchievements.h"
+  ],
+  "upstream_files_newly_carried": [
+    "rpcs3/Emu/RSX/VK/VKRenderPass.cpp",
+    "rpcs3/Emu/RSX/VK/VKRenderPass.h"
+  ],
+  "contains": {
+    "retroachievements_core": "the folded RetroAchievements PS3 Core patch of Core 611 (retroachievements-core.json), unchanged: its 5 postimages are carried again, RPCS3IOS.cpp and RPCS3IOS.h with the 612 additions below",
+    "feedback_census_v2": "vk::begin_renderpass reports whether it began a pass; VKGSRender::begin_render_pass counts draw_renderpasses only then (inside RPCS3_IOS); FEEDBACK610 says census=2. VKRenderPass.cpp/.h become canonical postimages (behaviour unchanged for every caller)",
+    "graphics_tests_612": "Experimental 'Position Invariance' (Automatic = the REWINDBOX_POSITION_INVARIANCE_610 title list), game-only catalogue entries for experimental.position_invariance and experimental.moltenvk_async_submits, rpcs3_ios_set_game_setting value '@inherit' (boolean/choice keys, sparse overrides only) removing one explicit user value, and one 'CONFIG_LAYERS part=rsx' boot line before the main CONFIG_LAYERS line"
+  },
+  "behaviour": {
+    "defaults": "unchanged for every title: Position Invariance Automatic resolves to the Core 610 title list; no user override is written by the Core",
+    "codegen": "PPU/SPU codegen inputs untouched (identities a987639e9f838d1c / 477a3fa442d27917 expected unchanged)",
+    "abi": "ABI 30 and the 92 exports of Core 611 unchanged; '@inherit' was an invalid value for every boolean/choice key before"
+  },
+  "folded_into_canonical_delta": true,
+  "core_build_run": false,
+  "ios_build_run": false,
+  "iphone_validation_run": false
+}

@@ -77,8 +77,17 @@ def source_contract(source: Path) -> dict:
     header = (source / POLICY_H).read_text()
     require(re.search(r'\n\tbool position_invariance = false;\n', header), 'policy field missing')
     policy = (source / POLICY_CPP).read_text()
-    require('resolved.position_invariance = rpcs3::ios::title_levers::requires_position_invariance(title_id);' in policy,
+    # Core 610/611: the title list is the only input. Core 612 (REWINDBOX_POSITION_INVARIANCE_612):
+    # Automatic is the same title list, and a per-game Enabled/Disabled override tests the other value.
+    resolution_610 = 'resolved.position_invariance = rpcs3::ios::title_levers::requires_position_invariance(title_id);'
+    resolution_612 = ('resolved.position_invariance = resolve_mode(g_cfg.ios_experimental.position_invariance,\n'
+                      '\t\trpcs3::ios::title_levers::requires_position_invariance(title_id));')
+    require((resolution_610 in policy) != (resolution_612 in policy) and policy.count('resolved.position_invariance =') == 1,
             'policy resolution missing')
+    if resolution_612 in policy:
+        require('cfg::_enum<ios_experimental_mode> position_invariance{ this, "Position Invariance", '
+                'ios_experimental_mode::automatic };' in (source / 'rpcs3/Emu/system_config.h').read_text(),
+                'Position Invariance setting missing or not Automatic by default')
     require(policy.count('position_invariance') >= 3 and 'position_invariance=%d mvk_async=%d"' in policy,
             'boot policy log field missing')
     require('is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id)));'

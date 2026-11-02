@@ -622,9 +622,83 @@ static NSString* RPCS3Build487MilestoneText(const char* message) {
   return text ?: @"";
 }
 
+// REWINDBOX_GRAPHICS_TESTS_612: the last "CONFIG_LAYERS part=rsx" line of the
+// Core (one per boot), read by the in-game accuracy test page to show the
+// effective values of the last boot and which of them are test overrides.
+static os_unfair_lock gRPCS3RsxConfigLock = OS_UNFAIR_LOCK_INIT;
+static std::string gRPCS3RsxConfigLine;
+
+static void RPCS3RememberRsxConfig(const char* message) {
+  const char* line = strstr(message, "CONFIG_LAYERS part=rsx");
+  if (!line) return;
+  std::string copy(line, strnlen(line, 1024));
+  os_unfair_lock_lock(&gRPCS3RsxConfigLock);
+  gRPCS3RsxConfigLine.swap(copy);
+  os_unfair_lock_unlock(&gRPCS3RsxConfigLock);
+}
+
+// key=value tokens of the last line (values percent-decoded), or nil when the
+// last boot that reported one was another title.
+static NSDictionary<NSString*, NSString*>* RPCS3RsxConfigSnapshot(NSString* title) {
+  std::string line;
+  os_unfair_lock_lock(&gRPCS3RsxConfigLock);
+  line = gRPCS3RsxConfigLine;
+  os_unfair_lock_unlock(&gRPCS3RsxConfigLock);
+  NSString* text = line.empty() ? nil : [[NSString alloc] initWithBytes:line.data() length:line.size()
+                                                                encoding:NSUTF8StringEncoding];
+  if (!text.length || !title.length) return nil;
+  NSMutableDictionary<NSString*, NSString*>* values = [NSMutableDictionary dictionary];
+  for (NSString* token in [text componentsSeparatedByCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]) {
+    const NSRange equal = [token rangeOfString:@"="];
+    if (equal.location == NSNotFound || equal.location == 0) continue;
+    NSString* value = [token substringFromIndex:equal.location + 1];
+    values[[token substringToIndex:equal.location]] = value.stringByRemovingPercentEncoding ?: value;
+  }
+  return [values[@"title"] isEqualToString:title] ? values : nil;
+}
+
+// REWINDBOX_GRAPHICS_TESTS_612: the only keys and values the accuracy test page
+// may write; "@inherit" (Core 612) removes the key's per-game test value.
+static NSDictionary<NSString*, NSArray<NSString*>*>* RPCS3TestSettingValues(void) {
+  static NSDictionary<NSString*, NSArray<NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"gpu.zcull_accuracy": @[@"Precise", @"Approximate", @"Relaxed"],
+      @"debug.disable_occlusion": @[@"false", @"true"],
+      @"debug.emulate_depth_compare": @[@"false", @"true"],
+      @"advanced.disable_msl_fast_math": @[@"false", @"true"],
+      @"debug.disable_vertex_cache": @[@"false", @"true"],
+      @"gpu.shader_precision": @[@"Low", @"High", @"Ultra"],
+      @"experimental.position_invariance": @[@"Enabled", @"Disabled"],
+      @"experimental.moltenvk_async_submits": @[@"Enabled", @"Disabled"],
+    };
+  });
+  return values;
+}
+
+// The (key, value) pairs of one test command, or nil when it is not allowed.
+static NSArray<NSArray<NSString*>*>* RPCS3TestSettingChanges(NSString* command, id value) {
+  NSDictionary<NSString*, NSArray<NSString*>*>* allowed = RPCS3TestSettingValues();
+  if ([command isEqual:@"testReset"]) {
+    NSMutableArray<NSArray<NSString*>*>* changes = [NSMutableArray array];
+    for (NSString* key in [allowed.allKeys sortedArrayUsingSelector:@selector(compare:)])
+      [changes addObject:@[key, @"@inherit"]];
+    return changes;
+  }
+  if (![command isEqual:@"testSetting"] || ![value isKindOfClass:NSDictionary.class]) return nil;
+  NSString* key = ((NSDictionary*)value)[@"key"];
+  NSString* setting = ((NSDictionary*)value)[@"value"];
+  if (![key isKindOfClass:NSString.class] || ![setting isKindOfClass:NSString.class] || !allowed[key]) return nil;
+  if (![setting isEqualToString:@"@inherit"] && ![allowed[key] containsObject:setting]) return nil;
+  return @[@[key, setting]];
+}
+
 static void RPCS3Log(void* context, int32_t level, const char* message) {
   Rpcs3InternalBridgePlugin* bridge = (__bridge Rpcs3InternalBridgePlugin*)context;
   if (!bridge || !message) return;
+  // REWINDBOX_GRAPHICS_TESTS_612: kept for the accuracy test page (one line per boot).
+  if (strstr(message, "CONFIG_LAYERS part=rsx") != nullptr) RPCS3RememberRsxConfig(message);
   const std::string executable=RPCS3PPUIdentityFromLog(message);
   if(!executable.empty()) { @synchronized(bridge) {
     if(bridge.observePPUIdentity && !bridge.ppuIdentityConflict) {
@@ -1426,6 +1500,17 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
     return;
   }
 
+  // REWINDBOX_GRAPHICS_TESTS_612: accuracy tests (whitelisted keys only).
+  if ([command isEqual:@"testSetting"] || [command isEqual:@"testReset"]) {
+    NSArray<NSArray<NSString*>*>* changes = RPCS3TestSettingChanges(command, value);
+    if (!changes.count) {
+      if (completion) completion(NO, [self localized:@"settingsFailed"]);
+      return;
+    }
+    [self applyTestSettingChanges:changes title:titleId completion:completion];
+    return;
+  }
+
   NSString* setting = nil;
   NSString* settingValue = nil;
   if ([command isEqual:@"resolution"] && [value isKindOfClass:NSString.class]) {
@@ -1471,6 +1556,54 @@ static void RPCS3CollectSavestate(void* context, const rpcs3_ios_savestate_info*
       RPCS3Diagnostic(@"game_setting", [NSString stringWithFormat:@"%@ %@=%@", titleId, setting, settingValue]);
     dispatch_async(dispatch_get_main_queue(), ^{
       if (completion) completion(status == 0, status == 0 ? @"" : (message ?: [self localized:@"settingsFailed"]));
+    });
+  });
+}
+
+// REWINDBOX_GRAPHICS_TESTS_612: stop, write every change, then boot the title
+// again even when a change was refused (the game continues with the values it
+// had); the menu reports the refusal. Each applied change is logged.
+- (void)applyTestSettingChanges:(NSArray<NSArray<NSString*>*>*)changes
+                          title:(NSString*)titleId
+                     completion:(void (^)(BOOL success, NSString* message))completion {
+  dispatch_async(_runtimeQueue, ^{
+    if (self.operationBusy || !self->_api.stop_emulation ||
+        !self->_api.set_game_setting || !self->_api.boot_game) {
+      NSString* message = self.operationBusy ? [self localized:@"stateBusy"] : [self lastError];
+      dispatch_async(dispatch_get_main_queue(), ^{
+        if (completion) completion(NO, message ?: [self localized:@"settingsFailed"]);
+      });
+      return;
+    }
+    self.operationBusy = YES;
+    Rpcs3Achievements* achievements = self.achievements;  // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
+    [achievements suspendForRestart];
+    rpcs3_ios_status status = self->_api.stop_emulation();
+    const BOOL stopped = status == 0;
+    NSString* refusal = nil;
+    if (stopped) {
+      for (NSArray<NSString*>* change in changes) {
+        const rpcs3_ios_status set = self->_api.set_game_setting(
+            titleId.UTF8String, change[0].UTF8String, change[1].UTF8String);
+        if (set != 0) {
+          refusal = [self lastError] ?: [self localized:@"settingsFailed"];
+          RPCS3Diagnostic(@"game_setting", [NSString stringWithFormat:@"%@ %@=%@ test=1 refused=%d",
+                                            titleId, change[0], change[1], (int)set]);
+          break;
+        }
+        RPCS3Diagnostic(@"game_setting", [NSString stringWithFormat:@"%@ %@=%@ test=1",
+                                          titleId, change[0], change[1]]);
+      }
+      status = [self bootTitleForCore:titleId.UTF8String savestate:NULL];
+    }
+    if (!stopped) [achievements resumeWithoutRestart];
+    else [achievements resumeAfterRestart:status == 0 savestateBoot:NO
+                            cheatsEnabled:[self titleHasEnabledCheats:titleId]];
+    NSString* message = status == 0 ? (refusal ?: @"") : ([self lastError] ?: [self localized:@"settingsFailed"]);
+    self.operationBusy = NO;
+    const BOOL success = status == 0 && !refusal;
+    dispatch_async(dispatch_get_main_queue(), ^{
+      if (completion) completion(success, message);
     });
   });
 }
@@ -1762,6 +1895,11 @@ static UIView* RPCS3AchievementSurface(UIViewController* owner) {
   menu.touchControlsVisible = controller.inputController.isTouchControlsEnabled;
   menu.touchHideWithController = NeoTouchHidesControlsWithController(@"ps3");
   menu.languageChoices = [self languageChoices];
+  // REWINDBOX_GRAPHICS_TESTS_612: effective values of the title's last boot.
+  NSString* accuracyTitle = [self.activeTitleId copy] ?: @"";
+  menu.readAccuracy = ^{
+    return RPCS3RsxConfigSnapshot(accuracyTitle);
+  };
 
   __weak Rpcs3InternalBridgePlugin* weakSelf = self;
   __weak RPCS3GameViewController* weakController = controller;

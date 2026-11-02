@@ -43,6 +43,19 @@ MARKER = 'REWINDBOX_FEEDBACK_CENSUS_610'
 FORMAT = ('COREPROF FEEDBACK610 session=%llu window=%llu draw_renderpasses=%llu snapshot_draws=%llu snapshot_copies=%llu '
           '"\n                "duplicate_copies=%llu snapshot_mpix=%.3f pb_draws=%llu msaa_feedback_reads=%llu depth_feedback_reads=%llu '
           '"\n                "scope=process_window_counters gpu_time_available=0 window_boundary_approximate=1')
+# Core 612 (census v2): draw_renderpasses counts only the render passes that
+# VKGSRender::begin_render_pass actually began; the line says so with census=2.
+FORMAT_V2 = FORMAT.replace('scope=process_window_counters gpu_time_available=0',
+                           'scope=process_window_counters census=2 gpu_time_available=0')
+RENDERPASS = 'rpcs3/Emu/RSX/VK/VKRenderPass.cpp'
+DELIVERED_CALL = '\tvk::begin_renderpass(\n'
+V2_CALL = '\t[[maybe_unused]] const bool began = vk::begin_renderpass(\n'
+V2_COUNT = ('#ifdef RPCS3_IOS\n'
+            '\t// Census v2: count only render passes this call actually began. A draw that finds its\n'
+            '\t// pass and framebuffer already open (the common case) is not a pass split.\n'
+            '\tif (began)\n\t{\n'
+            '\t\trpcs3::ios::feedback_census::add(rpcs3::ios::feedback_census::counters.draw_renderpasses);\n'
+            '\t}\n#endif\n}')
 LINE = ('iOS Core Profiler: COREPROF FEEDBACK610 session=4 window=12 draw_renderpasses=4210 snapshot_draws=380 '
         'snapshot_copies=402 duplicate_copies=22 snapshot_mpix=355.123 pb_draws=61 msaa_feedback_reads=0 '
         'depth_feedback_reads=0 scope=process_window_counters gpu_time_available=0 window_boundary_approximate=1')
@@ -69,11 +82,36 @@ def ios_mask(lines: list[str]) -> list[bool]:
     return mask
 
 
+def census_v2_contract(source: Path, new: str) -> bool:
+    """Census v2: the one delivered call that changes is the begin_renderpass call of
+    VKGSRender::begin_render_pass, which now reads whether a pass was begun."""
+    if V2_CALL not in new:
+        return False
+    body = phases.body(new, 'void VKGSRender::begin_render_pass()')
+    if new.count(V2_CALL) != 1 or V2_CALL not in body or not body.rstrip().endswith(V2_COUNT):
+        raise AssertionError('census v2 begin_render_pass differs from its reviewed form')
+    if 'feedback_census' in body[:body.index(V2_CALL)]:
+        raise AssertionError('census v2 still counts before the render pass is begun')
+    rp = (source / RENDERPASS).read_text()
+    direct = phases.body(rp, 'bool begin_renderpass(const vk::command_buffer& cmd, VkRenderPass pass,')
+    cached = phases.body(rp, 'bool begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key,')
+    if (direct.count('return false;') != 1 or direct.count('return true;') != 1
+            or direct.index('vkCmdBeginRenderPass(') > direct.index('return true;')
+            or 'return begin_renderpass(cmd, g_cached_renderpass, target, framebuffer_region);' not in cached
+            or 'void begin_renderpass(' in rp):
+        raise AssertionError('vk::begin_renderpass does not report exactly the passes it begins')
+    return True
+
+
 def source_contract(source: Path, baseline: Path) -> dict:
     old, new = (baseline / DRAW).read_text(), (source / DRAW).read_text()
     helper = 'vk::image_view* VKGSRender::snapshot_color_feedback('
     if phases.body(old, helper) != phases.body(new, helper):
         raise AssertionError('snapshot_color_feedback changed; the delivered harness would no longer apply')
+    census_v2 = census_v2_contract(source, new)
+    if census_v2:
+        # Compare the rest of the file as before: the reviewed call is the only replacement.
+        new = new.replace(V2_CALL, DELIVERED_CALL, 1)
     before, after = old.split('\n'), new.split('\n')
     mask = ios_mask(after)
     added = 0
@@ -93,13 +131,15 @@ def source_contract(source: Path, baseline: Path) -> dict:
         if 'feedback_census' not in phases.body(new, site):
             raise AssertionError('census site missing: ' + site)
     perf, old_perf = (source / PERF).read_text(), (baseline / PERF).read_text()
-    if perf.count(FORMAT) != 1 or 'FEEDBACK610' in old_perf:
-        raise AssertionError('FEEDBACK610 reporter format must be new and unique')
+    if perf.count(FORMAT_V2 if census_v2 else FORMAT) != 1 or 'FEEDBACK610' in old_perf:
+        raise AssertionError('FEEDBACK610 reporter format must be new, unique and name census v2 when it counts begun passes')
     if perf.index('COREPROF RSXFRAME551') > perf.index('COREPROF FEEDBACK610'):
         raise AssertionError('FEEDBACK610 must follow RSXFRAME551 in the same window')
     return {'snapshot_helper_identical_to_delivered': True, 'vkdraw_lines_added_inside_rpcs3_ios': added,
-            'vkdraw_lines_removed_or_replaced': 0,
-            'files_sha256': {rel: sha((source / rel).read_bytes()) for rel in (DRAW, HEADER, PERF)}}
+            'vkdraw_lines_removed_or_replaced': 0, 'census_version': 2 if census_v2 else 1,
+            'vkdraw_reviewed_replacements': [V2_CALL.strip()] if census_v2 else [],
+            'files_sha256': {rel: sha((source / rel).read_bytes()) for rel in (DRAW, HEADER, PERF)
+                             + ((RENDERPASS,) if census_v2 else ())}}
 
 
 PRELUDE = r'''

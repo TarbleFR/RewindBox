@@ -18,6 +18,7 @@ AddressSanitizer and UndefinedBehaviorSanitizer, every report fatal.
 import argparse
 import hashlib
 import json
+from collections import Counter
 import re
 import shutil
 import subprocess
@@ -117,6 +118,33 @@ class StagedCorePatch(unittest.TestCase):
             for flag in ('core_build_run', 'ios_build_run', 'iphone_validation_run'):
                 self.assertIs(self.manifest[flag], False, flag)
 
+    def canonical_postimage(self, path):
+        """The canonical postimage of an RA file: its RA postimage, or the postimage of a later
+        folded record (Core 612: core612_20261102) that either starts from exactly the RA
+        postimage, or starts from the same delivered base as this patch and still adds every
+        line this patch adds to the file."""
+        current = self.manifest['files_after_sha256'][path]
+        target = self.canonical['files_sha256'].get(path)
+        later = {name: r for name, r in self.canonical.items() if name != 'retroachievements_core'
+                 and isinstance(r, dict) and r.get('folded_into_canonical_delta') is True
+                 and r.get('files_after_sha256', {}).get(path) == target}
+        if current == target:
+            return current
+        for name, record in later.items():
+            if record.get('files_before_sha256', {}).get(path) == current:
+                return target
+            same_start = (record.get('base_canonical_patch_sha256') == self.manifest['base_canonical_patch_sha256']
+                          and (record.get('files_before_sha256', {}).get(path) == self.manifest['files_before_sha256'].get(path)
+                               if path in self.manifest['files_before_sha256'] else path in record.get('new_files', [])))
+            if not same_start:
+                continue
+            successor = parse_patch((ROOT / record['patch']).read_text(encoding='utf-8'))
+            self.assertEqual(hashlib.sha256((ROOT / record['patch']).read_bytes()).hexdigest(), record['patch_sha256'], name)
+            ours, theirs = Counter(added(self.files[path])), Counter(added(successor[path]))
+            self.assertFalse(ours - theirs, f'{path}: {name} drops lines the RetroAchievements patch adds')
+            return target
+        self.fail(f'{path}: canonical postimage is neither the RA postimage nor a folded successor of it')
+
     def test_patch_matches_the_canonical_postimages(self):
         folded = self.manifest['folded_into_canonical_delta']
         if not folded:
@@ -129,9 +157,10 @@ class StagedCorePatch(unittest.TestCase):
                 self.assertNotIn(path, self.canonical['files_sha256'])
         else:
             # Folded by fold_retroachievements_core_patch.py: the canonical
-            # delta carries exactly these postimages.
-            for path, after in self.manifest['files_after_sha256'].items():
-                self.assertEqual(self.canonical['files_sha256'].get(path), after, path)
+            # delta carries these postimages, or a later folded record (Core 612:
+            # graphics_tests_612) changed one of them from exactly this postimage.
+            for path in self.manifest['files_after_sha256']:
+                self.assertEqual(self.canonical['files_sha256'].get(path), self.canonical_postimage(path), path)
             self.assertTrue(self.canonical['retroachievements_core']['folded_into_canonical_delta'])
 
     def test_canonical_delta_and_core_identity_follow_the_fold_state(self):
@@ -224,8 +253,10 @@ class StagedCorePatch(unittest.TestCase):
         if state == files and not any((SOURCE_TREE / p).exists() for p in self.manifest['new_files']):
             command = ['git', '-C', str(SOURCE_TREE), 'apply', '--check', str(self.patch_path)]
         else:
-            for path, after in self.manifest['files_after_sha256'].items():
-                self.assertEqual(lf_sha256((SOURCE_TREE / path).read_bytes()), after, path)
+            # Core 611 carries the RA postimages; a later Core carries the canonical
+            # postimages of the same files, and every RA hunk must still be present.
+            for path in self.manifest['files_after_sha256']:
+                self.assertEqual(lf_sha256((SOURCE_TREE / path).read_bytes()), self.canonical_postimage(path), path)
             command = ['git', '-C', str(SOURCE_TREE), 'apply', '--check', '--reverse', str(self.patch_path)]
         subprocess.run(command, check=True)
 

@@ -16,6 +16,10 @@ typedef void (^Rpcs3SessionStateCommand)(
     NSString* _Nullable identifier,
     void (^completion)(BOOL success, NSString* message));
 
+// REWINDBOX_GRAPHICS_TESTS_612: the key=value tokens of the current title's
+// last "CONFIG_LAYERS part=rsx" Core line, or nil before its first boot report.
+typedef NSDictionary<NSString*, NSString*>* _Nullable (^Rpcs3SessionReadAccuracy)(void);
+
 @interface Rpcs3SessionMenu : UITableViewController
 @property(nonatomic, copy) NSString* localeIdentifier;
 @property(nonatomic, copy) NSString* gameTitle;
@@ -32,6 +36,7 @@ typedef void (^Rpcs3SessionStateCommand)(
 @property(nonatomic, copy) Rpcs3SessionStateCommand performStateOperation;
 @property(nonatomic, copy) dispatch_block_t resumeGame;
 @property(nonatomic, copy) dispatch_block_t quitGame;
+@property(nonatomic, copy, nullable) Rpcs3SessionReadAccuracy readAccuracy;
 @end
 
 NS_ASSUME_NONNULL_END

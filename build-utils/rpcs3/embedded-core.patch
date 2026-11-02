@@ -21351,7 +21351,7 @@ index 4925d88..5de62da 100644
  		m_wake_event++;
  		m_wake_event.notify_one();
 diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
-index 77927e2..686f40f 100644
+index 77927e2..56d4757 100644
 --- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
 @@ -7,8 +7,14 @@
@@ -21369,7 +21369,7 @@ index 77927e2..686f40f 100644
  namespace vk
  {
  	VkImageViewType get_view_type(rsx::texture_dimension_extended type)
-@@ -120,8 +126,75 @@ namespace vk
+@@ -120,13 +126,85 @@ namespace vk
  	}
  }
  
@@ -21439,13 +21439,24 @@ index 77927e2..686f40f 100644
 +
  void VKGSRender::begin_render_pass()
  {
-+#ifdef RPCS3_IOS
-+	rpcs3::ios::feedback_census::add(rpcs3::ios::feedback_census::counters.draw_renderpasses);
-+#endif
- 	vk::begin_renderpass(
+-	vk::begin_renderpass(
++	[[maybe_unused]] const bool began = vk::begin_renderpass(
  		*m_current_command_buffer,
  		get_render_pass(),
-@@ -172,14 +245,14 @@ void VKGSRender::update_draw_state()
+ 		m_draw_fbo->value,
+ 		{ positionu{0u, 0u}, sizeu{m_draw_fbo->width(), m_draw_fbo->height()} });
++#ifdef RPCS3_IOS
++	// Census v2: count only render passes this call actually began. A draw that finds its
++	// pass and framebuffer already open (the common case) is not a pass split.
++	if (began)
++	{
++		rpcs3::ios::feedback_census::add(rpcs3::ios::feedback_census::counters.draw_renderpasses);
++	}
++#endif
+ }
+ 
+ void VKGSRender::close_render_pass()
+@@ -172,14 +250,14 @@ void VKGSRender::update_draw_state()
  	{
  		const float actual_line_width =
  			m_device->get_wide_lines_support() ? rsx::method_registers.line_width() * resolution_scaling_config.scale_factor() : 1.f;
@@ -21462,7 +21473,7 @@ index 77927e2..686f40f 100644
  	}
  
  	if (rsx::method_registers.stencil_test_enabled())
-@@ -187,15 +260,15 @@ void VKGSRender::update_draw_state()
+@@ -187,15 +265,15 @@ void VKGSRender::update_draw_state()
  		const bool two_sided_stencil = rsx::method_registers.two_sided_stencil_test_enabled();
  		VkStencilFaceFlags face_flag = (two_sided_stencil) ? VK_STENCIL_FACE_FRONT_BIT : VK_STENCIL_FRONT_AND_BACK;
  
@@ -21484,7 +21495,7 @@ index 77927e2..686f40f 100644
  		}
  	}
  
-@@ -226,12 +299,12 @@ void VKGSRender::update_draw_state()
+@@ -226,12 +304,12 @@ void VKGSRender::update_draw_state()
  			polygon_offset_bias *= 0.5f;
  		}
  
@@ -21499,7 +21510,7 @@ index 77927e2..686f40f 100644
  	}
  
  	if (m_device->get_depth_bounds_support())
-@@ -256,7 +329,7 @@ void VKGSRender::update_draw_state()
+@@ -256,7 +334,7 @@ void VKGSRender::update_draw_state()
  			bounds_max = std::clamp(bounds_max, 0.f, 1.f);
  		}
  
@@ -21508,7 +21519,7 @@ index 77927e2..686f40f 100644
  	}
  
  	bind_viewport();
-@@ -270,9 +343,47 @@ void VKGSRender::load_texture_env()
+@@ -270,9 +348,47 @@ void VKGSRender::load_texture_env()
  {
  	// Load textures
  	bool check_for_cyclic_refs = false;
@@ -21517,7 +21528,8 @@ index 77927e2..686f40f 100644
 +	auto record_sampler_change = [&](const vk::sampler_shader_state& before, const auto& descriptor,
 +		u32 previous_address, u32 slot, bool vertex,
 +		rpcs3::ios::renderer_causality::Kind kind = rpcs3::ios::renderer_causality::Kind::sampler_refresh)
-+	{
+ 	{
+-		if (!m_texture_cache.test_if_descriptor_expired(*m_current_command_buffer, m_rtts, descriptor, tex))
 +		namespace cause = rpcs3::ios::renderer_causality;
 +		const auto after = vertex ? vk::sampler_shader_state::capture_vertex(descriptor)
 +			: vk::sampler_shader_state::capture_fragment(descriptor);
@@ -21537,8 +21549,7 @@ index 77927e2..686f40f 100644
 +	};
 +#endif
 +	auto check_surface_cache_sampler_valid = [&](auto descriptor, const auto& tex, bool fragment_sampler, [[maybe_unused]] u32 slot)
- 	{
--		if (!m_texture_cache.test_if_descriptor_expired(*m_current_command_buffer, m_rtts, descriptor, tex))
++	{
 +		const bool was_cyclic = descriptor->is_cyclic_reference;
 +		const bool expired = m_texture_cache.test_if_descriptor_expired(*m_current_command_buffer, m_rtts, descriptor, tex);
 +		if (fragment_sampler && descriptor->format_class != RSX_FORMAT_CLASS_COLOR &&
@@ -21558,7 +21569,7 @@ index 77927e2..686f40f 100644
  		{
  			check_for_cyclic_refs |= descriptor->is_cyclic_reference;
  			return true;
-@@ -290,12 +401,9 @@ void VKGSRender::load_texture_env()
+@@ -290,12 +406,9 @@ void VKGSRender::load_texture_env()
  
  	std::lock_guard lock(m_sampler_mutex);
  
@@ -21573,7 +21584,7 @@ index 77927e2..686f40f 100644
  
  		if (!fs_sampler_state[i])
  		{
-@@ -304,17 +412,24 @@ void VKGSRender::load_texture_env()
+@@ -304,17 +417,24 @@ void VKGSRender::load_texture_env()
  
  		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(fs_sampler_state[i].get());
  		const auto& tex = rsx::method_registers.fragment_textures[i];
@@ -21600,7 +21611,7 @@ index 77927e2..686f40f 100644
  
  		if (!tex.enabled())
  		{
-@@ -322,9 +437,22 @@ void VKGSRender::load_texture_env()
+@@ -322,9 +442,22 @@ void VKGSRender::load_texture_env()
  			continue;
  		}
  
@@ -21623,7 +21634,7 @@ index 77927e2..686f40f 100644
  			continue;
  		}
  
-@@ -333,16 +461,29 @@ void VKGSRender::load_texture_env()
+@@ -333,16 +466,29 @@ void VKGSRender::load_texture_env()
  			check_for_cyclic_refs |= true;
  		}
  
@@ -21655,7 +21666,7 @@ index 77927e2..686f40f 100644
  				// Nothing to change, use cached sampler
  				continue;
  			}
-@@ -383,6 +524,19 @@ void VKGSRender::load_texture_env()
+@@ -383,6 +529,19 @@ void VKGSRender::load_texture_env()
  			}
  		}
  
@@ -21675,7 +21686,7 @@ index 77927e2..686f40f 100644
  		VkFilter mag_filter;
  		vk::minification_filter min_filter;
  		f32 min_lod = 0.f, max_lod = 0.f;
-@@ -523,12 +677,9 @@ void VKGSRender::load_texture_env()
+@@ -523,12 +682,9 @@ void VKGSRender::load_texture_env()
  			border_color, compare_enabled, depth_compare_mode);
  	}
  
@@ -21690,7 +21701,7 @@ index 77927e2..686f40f 100644
  
  		if (!vs_sampler_state[i])
  		{
-@@ -537,17 +688,24 @@ void VKGSRender::load_texture_env()
+@@ -537,17 +693,24 @@ void VKGSRender::load_texture_env()
  
  		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(vs_sampler_state[i].get());
  		const auto& tex = rsx::method_registers.vertex_textures[i];
@@ -21717,7 +21728,7 @@ index 77927e2..686f40f 100644
  
  		if (!rsx::method_registers.vertex_textures[i].enabled())
  		{
-@@ -555,9 +713,23 @@ void VKGSRender::load_texture_env()
+@@ -555,9 +718,23 @@ void VKGSRender::load_texture_env()
  			continue;
  		}
  
@@ -21741,7 +21752,7 @@ index 77927e2..686f40f 100644
  			continue;
  		}
  
-@@ -568,10 +740,13 @@ void VKGSRender::load_texture_env()
+@@ -568,10 +745,13 @@ void VKGSRender::load_texture_env()
  
  		if (!is_sampler_dirty)
  		{
@@ -21756,7 +21767,7 @@ index 77927e2..686f40f 100644
  			}
  
  			if (vs_sampler_handles[i])
-@@ -644,18 +819,75 @@ void VKGSRender::load_texture_env()
+@@ -644,18 +824,75 @@ void VKGSRender::load_texture_env()
  	}
  }
  
@@ -21837,7 +21848,7 @@ index 77927e2..686f40f 100644
  		if (m_fs_binding_table->ftex_location[i] == umax)
  		{
  			// Corrupt shader table
-@@ -682,6 +914,20 @@ bool VKGSRender::bind_texture_env()
+@@ -682,6 +919,20 @@ bool VKGSRender::bind_texture_env()
  			}
  		}
  
@@ -21858,7 +21869,7 @@ index 77927e2..686f40f 100644
  		if (view) [[likely]]
  		{
  			m_program->bind_uniform({ *view, *fs_sampler_handles[i] },
-@@ -727,13 +973,9 @@ bool VKGSRender::bind_texture_env()
+@@ -727,13 +978,9 @@ bool VKGSRender::bind_texture_env()
  		}
  	}
  
@@ -21874,7 +21885,7 @@ index 77927e2..686f40f 100644
  
  		if (m_vs_binding_table->vtex_location[i] == umax)
  		{
-@@ -902,10 +1144,12 @@ bool VKGSRender::bind_interpreter_texture_env()
+@@ -902,10 +1149,12 @@ bool VKGSRender::bind_interpreter_texture_env()
  		return image->get_view(decoded_remap, base->info.subresourceRange.aspectMask);
  	};
  
@@ -21890,7 +21901,7 @@ index 77927e2..686f40f 100644
  
  		vk::image_view* view = nullptr;
  		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(fs_sampler_state[i].get());
-@@ -961,6 +1205,21 @@ bool VKGSRender::bind_interpreter_texture_env()
+@@ -961,6 +1210,21 @@ bool VKGSRender::bind_interpreter_texture_env()
  			validate_image_layout_for_read_access(*m_current_command_buffer, view, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, sampler_state);
  		}
  
@@ -21912,7 +21923,7 @@ index 77927e2..686f40f 100644
  		const int offsets[] = { 0, 16, 48, 32 };
  		auto& sampled_image_info = texture_env[offsets[static_cast<u32>(sampler_state->image_type)] + i];
  		sampled_image_info = { *view, *fs_sampler_handles[i] };
-@@ -1110,6 +1369,13 @@ void VKGSRender::emit_geometry(u32 sub_index)
+@@ -1110,6 +1374,13 @@ void VKGSRender::emit_geometry(u32 sub_index)
  
  	if (current_fragment_program.ctrl & RSX_SHADER_CONTROL_PROGRAMMABLE_BLENDING)
  	{
@@ -21926,7 +21937,7 @@ index 77927e2..686f40f 100644
  		// Subpass inter-draw dependency for input attachment reads. Preserves open renderpasses.
  		for (u32 i = 0; i < current_fragment_program.mrt_buffers_count; ++i)
  		{
-@@ -1404,6 +1670,10 @@ void VKGSRender::end()
+@@ -1404,6 +1675,10 @@ void VKGSRender::end()
  	}
  
  	m_rtts.on_write(m_framebuffer_layout.color_write_enabled, m_framebuffer_layout.zeta_write_enabled);
@@ -23951,6 +23962,62 @@ index 3427f2c..ee91ba1 100644
  			}
  		}
  	};
+diff --git a/rpcs3/Emu/RSX/VK/VKRenderPass.cpp b/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
+index 5e74d64..81b7fc1 100644
+--- a/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
++++ b/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
+@@ -393,12 +393,12 @@ namespace vk
+ 		g_renderpass_cache.clear();
+ 	}
+ 
+-	void begin_renderpass(const vk::command_buffer& cmd, VkRenderPass pass, VkFramebuffer target, const coordu& framebuffer_region)
++	bool begin_renderpass(const vk::command_buffer& cmd, VkRenderPass pass, VkFramebuffer target, const coordu& framebuffer_region)
+ 	{
+ 		auto& renderpass_info = g_current_renderpass[cmd];
+ 		if (renderpass_info.pass == pass && renderpass_info.fbo == target)
+ 		{
+-			return;
++			return false;
+ 		}
+ 		else if (renderpass_info.pass != VK_NULL_HANDLE)
+ 		{
+@@ -416,9 +416,10 @@ namespace vk
+ 
+ 		vkCmdBeginRenderPass(cmd, &rp_begin, VK_SUBPASS_CONTENTS_INLINE);
+ 		renderpass_info = { pass, target };
++		return true;
+ 	}
+ 
+-	void begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key, VkFramebuffer target, const coordu& framebuffer_region)
++	bool begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key, VkFramebuffer target, const coordu& framebuffer_region)
+ 	{
+ 		if (renderpass_key != g_cached_renderpass_key)
+ 		{
+@@ -426,7 +427,7 @@ namespace vk
+ 			g_cached_renderpass_key = renderpass_key;
+ 		}
+ 
+-		begin_renderpass(cmd, g_cached_renderpass, target, framebuffer_region);
++		return begin_renderpass(cmd, g_cached_renderpass, target, framebuffer_region);
+ 	}
+ 
+ 	void end_renderpass(const vk::command_buffer& cmd)
+diff --git a/rpcs3/Emu/RSX/VK/VKRenderPass.h b/rpcs3/Emu/RSX/VK/VKRenderPass.h
+index 7b9494c..3a8f7f5 100644
+--- a/rpcs3/Emu/RSX/VK/VKRenderPass.h
++++ b/rpcs3/Emu/RSX/VK/VKRenderPass.h
+@@ -20,8 +20,9 @@ namespace vk
+ 
+ 	// Renderpass scope management helpers.
+ 	// NOTE: These are not thread safe by design.
+-	void begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key, VkFramebuffer target, const coordu& framebuffer_region);
+-	void begin_renderpass(const vk::command_buffer& cmd, VkRenderPass pass, VkFramebuffer target, const coordu& framebuffer_region);
++	// Returns true when a render pass was actually begun (false when the same pass and framebuffer were already open).
++	bool begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key, VkFramebuffer target, const coordu& framebuffer_region);
++	bool begin_renderpass(const vk::command_buffer& cmd, VkRenderPass pass, VkFramebuffer target, const coordu& framebuffer_region);
+ 	void end_renderpass(const vk::command_buffer& cmd);
+ 	bool is_renderpass_open(const vk::command_buffer& cmd);
+ 
 diff --git a/rpcs3/Emu/RSX/VK/VKRenderTargets.h b/rpcs3/Emu/RSX/VK/VKRenderTargets.h
 index 3ee5010..2a8b935 100644
 --- a/rpcs3/Emu/RSX/VK/VKRenderTargets.h
@@ -27723,7 +27790,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..6eab393 100644
+index 1f53c64..7e6ae19 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1,4 +1,7 @@
@@ -27935,7 +28002,7 @@ index 1f53c64..6eab393 100644
  			if (fs::is_dir(m_path))
  			{
  				// Special case (directory scan)
-@@ -1733,6 +1828,22 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1733,6 +1828,24 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			// This one setting is global-only. Custom title files are complete cfg
  			// snapshots, so preserve config.yml's value before applying one.
  			const auto ios_global_persistent_spu_cache = g_cfg.ios_experimental.persistent_spu_object_cache.get();
@@ -27944,6 +28011,8 @@ index 1f53c64..6eab393 100644
 +			// applied on this boot, reported by CONFIG_LAYERS below.
 +			bool ios_database_config_applied = false;
 +			bool ios_sparse_overrides_applied = false;
++			// REWINDBOX_GRAPHICS_TESTS_612: keys of the sparse overrides applied on this boot.
++			std::string ios_override_keys;
 +			// A full config file applied through m_config_path by a custom-selection
 +			// or continuous boot (the exitspawn reboot of sys_process re-applies the
 +			// legacy custom config this way). Reporting only: the sparse-override
@@ -27958,7 +28027,7 @@ index 1f53c64..6eab393 100644
  #endif
  
  			if (m_config_mode == cfg_mode::database_config || m_config_mode == cfg_mode::custom)
-@@ -1758,10 +1869,16 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1758,10 +1871,16 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				if (fs::file cfg_file{ m_config_path })
  				{
  					sys_log.notice("Applying %s: %s", m_config_mode, m_config_path);
@@ -27976,7 +28045,7 @@ index 1f53c64..6eab393 100644
  					}
  					else
  					{
-@@ -1790,17 +1907,28 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1790,17 +1909,28 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  					if (fs::file cfg_file{config_path})
  					{
  						sys_log.notice("Applying custom config: %s", config_path);
@@ -28006,7 +28075,7 @@ index 1f53c64..6eab393 100644
  							}
  							break;
  						}
-@@ -1810,6 +1938,38 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1810,6 +1940,38 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  			}
  
@@ -28045,7 +28114,7 @@ index 1f53c64..6eab393 100644
  			if (m_add_database_config && m_db_config && !m_db_config->empty())
  			{
  				// Add database config
-@@ -1818,6 +1978,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1818,6 +1980,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				if (g_cfg.from_string(*m_db_config))
  				{
  					g_cfg.name = "database_config";
@@ -28055,7 +28124,7 @@ index 1f53c64..6eab393 100644
  				}
  				else
  				{
-@@ -1825,6 +1988,28 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1825,6 +1990,32 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  			}
  
@@ -28078,13 +28147,17 @@ index 1f53c64..6eab393 100644
 +				{
 +					ios_sparse_overrides_applied = ios_sparse_overrides_present;
 +				}
++				if (ios_sparse_overrides_applied)
++				{
++					ios_override_keys = rpcs3::ios::game_setting_override_keys(m_title_id);
++				}
 +			}
 +#endif
 +
  			// Disable incompatible settings
  			fixup_settings(&_psf, inherited_psf_resolution);
  
-@@ -1847,6 +2032,76 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1847,6 +2038,118 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			}
  			g_cfg.misc.use_native_interface.set(true);
  			rpcs3::ios::resolve_experimental_policy();
@@ -28137,6 +28210,48 @@ index 1f53c64..6eab393 100644
 +				ios_layers.mt_rsx = ios_mt_rsx;
 +				ios_layers.spu_spin = ios_spu_spin;
 +				ios_layers.mlaa_bypass = rpcs3::ios::get_experimental_policy().gow3_mlaa_bypass;
++				// REWINDBOX_GRAPHICS_TESTS_612: the rsx part comes first; the main line
++				// stays the boot's last CONFIG_LAYERS line.
++				{
++					const std::string rsx_relaxed = g_cfg.video.relaxed_zcull_sync.to_string();
++					const std::string rsx_precise = g_cfg.video.precise_zpass_count.to_string();
++					const std::string rsx_queries_off = g_cfg.video.disable_zcull_queries.to_string();
++					const std::string rsx_depth_compare = g_cfg.video.emulate_depth_compare.to_string();
++					const std::string rsx_precision = g_cfg.video.shader_precision.to_string();
++					const std::string rsx_fast_math_off = g_cfg.video.disable_msl_fast_math.to_string();
++					const std::string rsx_vertex_cache_off = g_cfg.video.disable_vertex_cache.to_string();
++					const std::string rsx_strict = g_cfg.video.strict_rendering_mode.to_string();
++					const std::string rsx_rcb = g_cfg.video.read_color_buffers.to_string();
++					const std::string rsx_rdb = g_cfg.video.read_depth_buffer.to_string();
++					const std::string rsx_msaa = g_cfg.video.antialiasing_level.to_string();
++					const std::string rsx_hp_z = g_cfg.video.force_high_precision_z_buffer.to_string();
++					const std::string rsx_fb_bias = g_cfg.video.fb_aliasing_bias.to_string();
++					const std::string rsx_vsync = g_cfg.video.vsync.to_string();
++					const std::string rsx_host_labels = g_cfg.video.host_label_synchronization.to_string();
++					const std::string rsx_strict_flush = g_cfg.video.strict_texture_flushing.to_string();
++					rpcs3::ios::boot_diagnostics::config_rsx ios_rsx{};
++					ios_rsx.title = m_title_id;
++					ios_rsx.relaxed_zcull = rsx_relaxed;
++					ios_rsx.precise_zpass = rsx_precise;
++					ios_rsx.zcull_queries_off = rsx_queries_off;
++					ios_rsx.depth_compare = rsx_depth_compare;
++					ios_rsx.shader_precision = rsx_precision;
++					ios_rsx.msl_fast_math_off = rsx_fast_math_off;
++					ios_rsx.vertex_cache_off = rsx_vertex_cache_off;
++					ios_rsx.strict = rsx_strict;
++					ios_rsx.rcb = rsx_rcb;
++					ios_rsx.rdb = rsx_rdb;
++					ios_rsx.msaa = rsx_msaa;
++					ios_rsx.hp_z = rsx_hp_z;
++					ios_rsx.fb_bias = rsx_fb_bias;
++					ios_rsx.vsync = rsx_vsync;
++					ios_rsx.host_labels = rsx_host_labels;
++					ios_rsx.strict_flush = rsx_strict_flush;
++					ios_rsx.invariance = rpcs3::ios::get_experimental_policy().position_invariance;
++					ios_rsx.mvk_async = rpcs3::ios::get_experimental_policy().moltenvk_async_submits;
++					ios_rsx.overrides = ios_override_keys;
++					sys_log.notice("%s", rpcs3::ios::boot_diagnostics::format_config_rsx_line(ios_rsx));
++				}
 +				sys_log.notice("%s", rpcs3::ios::boot_diagnostics::format_config_layers_line(ios_layers));
 +			}
 +
@@ -28161,7 +28276,7 @@ index 1f53c64..6eab393 100644
  #endif
  
  			// Backup config
-@@ -2504,7 +2759,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2504,7 +2807,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.warning("State Inspection Savestate Mode!");
  
  				vm::init();
@@ -28176,7 +28291,7 @@ index 1f53c64..6eab393 100644
  
  				if (!hdd1.empty())
  				{
-@@ -2513,6 +2775,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2513,6 +2823,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  
  				init_fxo_for_exec(DeserialManager(), true);
@@ -28186,7 +28301,7 @@ index 1f53c64..6eab393 100644
  
  				return game_boot_result::no_errors;
  			}
-@@ -2586,7 +2851,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2586,7 +2899,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  		{
  			if (m_ar)
  			{
@@ -28201,7 +28316,7 @@ index 1f53c64..6eab393 100644
  			}
  
  			// Mount /host_root/ if necessary (special value)
-@@ -2709,7 +2981,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2709,7 +3029,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			const auto _main = ensure(g_fxo->init<main_ppu_module<lv2_obj>>());
  
@@ -28230,7 +28345,7 @@ index 1f53c64..6eab393 100644
  			{
  				if (g_cfg.core.ppu_debug && had_been_decrypted)
  				{
-@@ -2864,6 +3156,11 @@ void Emulator::Run(bool start_playtime)
+@@ -2864,6 +3204,11 @@ void Emulator::Run(bool start_playtime)
  void Emulator::RunPPU()
  {
  	ensure(IsStarting());
@@ -28242,7 +28357,7 @@ index 1f53c64..6eab393 100644
  
  	bool signalled_thread = false;
  
-@@ -2943,6 +3240,10 @@ void Emulator::FixGuestTime()
+@@ -2943,6 +3288,10 @@ void Emulator::FixGuestTime()
  
  void Emulator::FinalizeRunRequest()
  {
@@ -28253,7 +28368,7 @@ index 1f53c64..6eab393 100644
  	const bool autostart = !m_ar || !!g_cfg.misc.autostart;
  
  	bs_t<cpu_flag> add_flags = cpu_flag::dbg_global_pause;
-@@ -2989,7 +3290,25 @@ void Emulator::FinalizeRunRequest()
+@@ -2989,7 +3338,25 @@ void Emulator::FinalizeRunRequest()
  	lv2_obj::make_scheduler_ready();
  
  	m_state.compare_and_swap_test(system_state::starting, system_state::running);
@@ -28279,7 +28394,7 @@ index 1f53c64..6eab393 100644
  	m_ar.reset();
  
  	if (!autostart)
-@@ -3479,6 +3798,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3479,6 +3846,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -28292,7 +28407,7 @@ index 1f53c64..6eab393 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3818,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3866,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -28315,7 +28430,7 @@ index 1f53c64..6eab393 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3874,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3922,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -28323,7 +28438,7 @@ index 1f53c64..6eab393 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3885,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3933,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -28331,7 +28446,7 @@ index 1f53c64..6eab393 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3895,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +3943,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -28339,7 +28454,7 @@ index 1f53c64..6eab393 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +3983,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +4031,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -28350,7 +28465,7 @@ index 1f53c64..6eab393 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +4049,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +4097,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -28359,7 +28474,7 @@ index 1f53c64..6eab393 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +4163,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +4211,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -28374,7 +28489,7 @@ index 1f53c64..6eab393 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +4198,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4246,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -28382,7 +28497,7 @@ index 1f53c64..6eab393 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4316,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4364,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -28396,7 +28511,7 @@ index 1f53c64..6eab393 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4371,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4419,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -28409,7 +28524,7 @@ index 1f53c64..6eab393 100644
  			});
  
  			// Join it
-@@ -4075,10 +4441,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4489,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -28429,7 +28544,7 @@ index 1f53c64..6eab393 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4308,10 +4683,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4308,10 +4731,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{
@@ -28620,7 +28735,7 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922..6531689 100644
+index 7072922..dd0411c 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -28677,7 +28792,7 @@ index 7072922..6531689 100644
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +165,18 @@ struct cfg_root : cfg::node
+@@ -134,6 +165,22 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -28685,6 +28800,10 @@ index 7072922..6531689 100644
 +		// REWINDBOX_MOLTENVK_ASYNC_SUBMITS_V1: Automatic keeps MoltenVK's synchronous
 +		// submits; Enabled moves Metal command encoding to MoltenVK's queue thread.
 +		cfg::_enum<ios_experimental_mode> moltenvk_async_submits{ this, "MoltenVK Asynchronous Submits", ios_experimental_mode::automatic };
++		// REWINDBOX_POSITION_INVARIANCE_612: Automatic keeps the title list of
++		// REWINDBOX_POSITION_INVARIANCE_610 (ios/IOSTitleLevers.h); Enabled and
++		// Disabled let a per-game override test the other value on the device.
++		cfg::_enum<ios_experimental_mode> position_invariance{ this, "Position Invariance", ios_experimental_mode::automatic };
 +
 +		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L5, L9; L3 is the
 +		// Bounded sleep value of fifo_idle_mode above). Defaults keep the Build
@@ -29759,7 +29878,7 @@ index 0000000..e5df604
 +}
 diff --git a/rpcs3/ios/IOSFeedbackCensus.h b/rpcs3/ios/IOSFeedbackCensus.h
 new file mode 100644
-index 0000000..8365203
+index 0000000..76f08ec
 --- /dev/null
 +++ b/rpcs3/ios/IOSFeedbackCensus.h
 @@ -0,0 +1,39 @@
@@ -29780,7 +29899,7 @@ index 0000000..8365203
 +{
 +struct window_counters
 +{
-+	std::atomic<std::uint64_t> draw_renderpasses{0};    // VKGSRender::begin_render_pass calls
++	std::atomic<std::uint64_t> draw_renderpasses{0};    // render passes VKGSRender::begin_render_pass actually began (census v2)
 +	std::atomic<std::uint64_t> snapshot_draws{0};       // draws that took at least one snapshot
 +	std::atomic<std::uint64_t> snapshot_copies{0};      // snapshot copies (one per sampler slot)
 +	std::atomic<std::uint64_t> duplicate_copies{0};     // same snapshot image copied again in one draw
@@ -35443,7 +35562,7 @@ index 0000000..112f20b
 +}
 +} // namespace vk
 diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
-index 74a6dc7..85d4419 100644
+index 74a6dc7..0ebaf8a 100644
 --- a/rpcs3/ios/RPCS3IOS.cpp
 +++ b/rpcs3/ios/RPCS3IOS.cpp
 @@ -1,6 +1,15 @@
@@ -35692,18 +35811,21 @@ index 74a6dc7..85d4419 100644
 -		return RPCS3_IOS_JIT_UNAVAILABLE;
 +		return fail_initialize(RPCS3_IOS_JIT_UNAVAILABLE, "debugger_readiness",
 +			rpcs3::ios::jit::last_error());
-+	}
-+
-+	emit_jit_arena_statistics("before JIT preparation");
-+	emit_log(2, fmt::format("requested_code_capacity policy=%u", config->expanded_jit_arena));
-+	if (!rpcs3::ios::jit::prepare_arena(config->expanded_jit_arena))
-+	{
-+		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "arena_prepare",
-+			rpcs3::ios::jit::last_error());
  	}
 -	if (!rpcs3::ios::jit::prepare_arena(config->expanded_jit_arena != 0) ||
 -		!rpcs3::ios::jit::seal_arena())
 +
++	emit_jit_arena_statistics("before JIT preparation");
++	emit_log(2, fmt::format("requested_code_capacity policy=%u", config->expanded_jit_arena));
++	if (!rpcs3::ios::jit::prepare_arena(config->expanded_jit_arena))
+ 	{
+-		set_error(rpcs3::ios::jit::last_error());
+-		g_lifecycle.finish_initialize(false);
+-		return RPCS3_IOS_JIT_MAPPING_FAILED;
++		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "arena_prepare",
++			rpcs3::ios::jit::last_error());
+ 	}
+ 
 +	// No process-global runtime has been changed before this point. An early
 +	// reservation failure can be retried by the user after helper completion.
 +	// Once executable runtime construction starts, retain the single-instance
@@ -35726,13 +35848,10 @@ index 74a6dc7..85d4419 100644
 +	}
 +	trampoline_error.clear();
 +	if (!ppu_function_manager::initialize_ghc_trampolines(trampoline_error))
- 	{
--		set_error(rpcs3::ios::jit::last_error());
--		g_lifecycle.finish_initialize(false);
--		return RPCS3_IOS_JIT_MAPPING_FAILED;
++	{
 +		return fail_initialize(RPCS3_IOS_JIT_MAPPING_FAILED, "ppu_hle_trampolines",
 +			trampoline_error + "; " + rpcs3::ios::jit::last_error());
- 	}
++	}
 +	emit_log(2, "ppu_trampoline_init_end");
 +
 +	trampoline_error.clear();
@@ -35751,7 +35870,7 @@ index 74a6dc7..85d4419 100644
 +			rpcs3::ios::jit::last_error());
 +	}
 +	emit_log(2, "jit_initialize_success");
- 
++
  	try
  	{
 -		g_application_support_path = config->application_support_path;
@@ -35820,7 +35939,38 @@ index 74a6dc7..85d4419 100644
  		if (!loaded)
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
-@@ -3233,12 +3365,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+@@ -3219,6 +3351,30 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
+ 			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
+ 		}
+ 		normalize_current_game_resolution(game.resolution);
++		// REWINDBOX_GRAPHICS_TESTS_612: "@inherit" removes one explicit user value.
++		// No boolean or choice option can spell it, so it never shadows a value.
++		if (std::string_view{value} == "@inherit")
++		{
++			const rpcs3::ios::setting_record* setting =
++				rpcs3::ios::find_setting(key, rpcs3::ios::setting_context::game);
++			if (!setting || (setting->kind != RPCS3_IOS_SETTING_BOOLEAN && setting->kind != RPCS3_IOS_SETTING_CHOICE))
++			{
++				set_error(fmt::format("'%s' cannot be restored to the profile value on its own", key));
++				return RPCS3_IOS_SETTING_INVALID;
++			}
++			if (has_custom_config)
++			{
++				set_error(fmt::format("%s uses a full custom configuration; remove it before restoring %s to the profile value", title_id, key));
++				return RPCS3_IOS_SETTING_INVALID;
++			}
++			if (!rpcs3::ios::remove_game_setting_override(title_id, key))
++			{
++				set_error(fmt::format("Unable to remove the user override %s for %s", key, title_id));
++				return RPCS3_IOS_SETTINGS_SAVE_FAILED;
++			}
++			emit_log(4, fmt::format("Removed explicit user override %s for %s; the next boot uses the profile value", key, title_id));
++			return RPCS3_IOS_OK;
++		}
+ 		if (std::string_view{key} == "gpu.resolution")
+ 		{
+ 			const std::vector<std::string> options = supported_game_resolution_options(game.resolution);
+@@ -3233,12 +3389,15 @@ extern "C" rpcs3_ios_status rpcs3_ios_set_game_setting(
  		{
  			return result;
  		}
@@ -35839,7 +35989,7 @@ index 74a6dc7..85d4419 100644
  		return RPCS3_IOS_OK;
  	}
  	catch (const std::exception& error)
-@@ -3310,7 +3445,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_remove_game_settings(const char* title_id)
+@@ -3310,7 +3469,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_remove_game_settings(const char* title_id)
  
  	try
  	{
@@ -35849,7 +35999,7 @@ index 74a6dc7..85d4419 100644
  		{
  			set_error(fmt::format("Unable to remove the custom configuration for %s", title_id));
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
-@@ -3388,10 +3524,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_save_game_settings_preset(
+@@ -3388,10 +3548,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_save_game_settings_preset(
  		{
  			return RPCS3_IOS_SETTINGS_SAVE_FAILED;
  		}
@@ -35860,7 +36010,7 @@ index 74a6dc7..85d4419 100644
  		normalize_current_game_resolution(game.resolution);
  		const auto result = finish_game_settings_preset_result(
  			rpcs3::ios::save_current_game_settings_preset(title_id, name));
-@@ -4353,6 +4485,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_big_picture_mode(void) noexcept
+@@ -4353,6 +4509,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_big_picture_mode(void) noexcept
  		set_error("RPCS3Core must be ready and emulation stopped before booting Big Picture Mode");
  		return result;
  	}
@@ -35868,7 +36018,7 @@ index 74a6dc7..85d4419 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting Big Picture Mode");
-@@ -4396,6 +4529,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_vsh(void) noexcept
+@@ -4396,6 +4553,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_vsh(void) noexcept
  		set_error("RPCS3Core must be ready and emulation stopped before booting XMB");
  		return result;
  	}
@@ -35876,7 +36026,7 @@ index 74a6dc7..85d4419 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting XMB");
-@@ -4444,6 +4578,12 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4444,6 +4602,12 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  	const char* savestate_id) noexcept
  {
  	std::lock_guard lock(g_api_mutex);
@@ -35889,7 +36039,7 @@ index 74a6dc7..85d4419 100644
  	if (!title_id || !title_id[0])
  	{
  		set_error("An installed title ID is required");
-@@ -4471,6 +4611,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4471,6 +4635,8 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  		set_error("RPCS3Core must be ready and emulation stopped before booting a game");
  		return result;
  	}
@@ -35898,7 +36048,7 @@ index 74a6dc7..85d4419 100644
  	if (!g_display_surface.snapshot().valid())
  	{
  		set_error("Attach a valid iOS Metal display surface before booting a game");
-@@ -4486,7 +4628,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4486,7 +4652,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  			return RPCS3_IOS_GAME_NOT_FOUND;
  		}
  
@@ -35937,7 +36087,7 @@ index 74a6dc7..85d4419 100644
  		if (!requested_savestate_id.empty())
  		{
  			const auto savestates = enumerate_title_savestates(game->title_id, game->path);
-@@ -4503,21 +4675,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4503,21 +4699,6 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  				return RPCS3_IOS_BOOT_FAILED;
  			}
  			boot_path = selected->path;
@@ -35959,7 +36109,7 @@ index 74a6dc7..85d4419 100644
  		}
  
  		if (requested_savestate_id.empty())
-@@ -4532,14 +4689,23 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
+@@ -4532,14 +4713,23 @@ extern "C" rpcs3_ios_status rpcs3_ios_boot_game(
  		prepare_rpcn_for_guest_boot();
  		Emu.DeactivateBigPictureMode();
  		Emu.SetForceBoot(true);
@@ -35984,7 +36134,7 @@ index 74a6dc7..85d4419 100644
  		emit_log(4, requested_savestate_id.empty()
  			? fmt::format("Installed game boot request completed: %s", game->title_id)
  			: fmt::format("Save-state boot request completed: %s", game->title_id));
-@@ -4644,7 +4810,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
+@@ -4644,7 +4834,37 @@ extern "C" rpcs3_ios_status rpcs3_ios_get_performance_metrics(
  		if (result != RPCS3_IOS_OK)
  		{
  			set_error("Performance metrics require a compatible output structure");
@@ -36022,7 +36172,7 @@ index 74a6dc7..85d4419 100644
  		return result;
  	}
  	catch (const std::exception& error)
-@@ -4730,15 +4926,210 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
+@@ -4730,15 +4950,210 @@ extern "C" rpcs3_ios_status rpcs3_ios_resume_emulation(void) noexcept
  	return RPCS3_IOS_INTERNAL_ERROR;
  }
  
@@ -36233,7 +36383,7 @@ index 74a6dc7..85d4419 100644
  	try
  	{
  		// An explicit wrapper stop leaves the full-screen session. It must not
-@@ -4783,7 +5174,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
+@@ -4783,7 +5198,15 @@ extern "C" rpcs3_ios_state rpcs3_ios_get_state(void) noexcept
  
  extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  {
@@ -36250,7 +36400,7 @@ index 74a6dc7..85d4419 100644
  	bool should_run = false;
  	if (const auto result = g_lifecycle.begin_shutdown(should_run); result != RPCS3_IOS_OK)
  	{
-@@ -4822,7 +5221,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
+@@ -4822,7 +5245,18 @@ extern "C" rpcs3_ios_status rpcs3_ios_shutdown(void) noexcept
  		g_display_surface.clear();
  		emit_jit_arena_statistics("before core shutdown completion");
  		logs::listener::sync_all();
@@ -36270,7 +36420,7 @@ index 74a6dc7..85d4419 100644
  		emit_log(4, "RPCS3Core shutdown completed");
  		return RPCS3_IOS_OK;
  	}
-@@ -4846,9 +5256,485 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
+@@ -4846,9 +5280,485 @@ extern "C" const char* rpcs3_ios_last_error(void) noexcept
  	return copy.c_str();
  }
  
@@ -36785,7 +36935,7 @@ index d7529ab..2b14c63 100644
 +_rpcs3_ios_ra_read_memory
 +_rpcs3_ios_ra_get_session_info
 diff --git a/rpcs3/ios/RPCS3IOS.h b/rpcs3/ios/RPCS3IOS.h
-index 20526d0..1f6b86c 100644
+index 20526d0..f4216af 100644
 --- a/rpcs3/ios/RPCS3IOS.h
 +++ b/rpcs3/ios/RPCS3IOS.h
 @@ -3,6 +3,8 @@
@@ -36846,7 +36996,18 @@ index 20526d0..1f6b86c 100644
  } rpcs3_ios_performance_metrics;
  
  RPCS3_IOS_EXPORT uint32_t rpcs3_ios_abi_version(void) RPCS3_IOS_NOEXCEPT;
-@@ -792,6 +814,24 @@ RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_get_boot_progress(
+@@ -667,6 +689,10 @@ RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_enumerate_game_settings(
+     uint32_t* has_custom_config) RPCS3_IOS_NOEXCEPT;
+ // The first mutation creates a complete custom configuration from the
+ // title's current effective settings. Changes take effect on the next boot.
++// The reserved value "@inherit" (boolean and choice settings only) removes the
++// title's explicit user value of that one key, so the next boot takes it from
++// the global, GameDB and RewindBox profile layers again; a title with a legacy
++// full custom configuration refuses it with RPCS3_IOS_SETTING_INVALID.
+ RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_set_game_setting(
+     const char* title_id,
+     const char* key,
+@@ -792,6 +818,24 @@ RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_get_boot_progress(
  // lifecycle lock. Fields without a valid_fields bit must not be displayed.
  RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_get_performance_metrics(
      rpcs3_ios_performance_metrics* metrics) RPCS3_IOS_NOEXCEPT;
@@ -36871,7 +37032,7 @@ index 20526d0..1f6b86c 100644
  // Uses the same Emulator::Pause/Resume lifecycle as the desktop frontend.
  // Pause is accepted only from running; resume is accepted only from paused.
  RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_pause_emulation(void) RPCS3_IOS_NOEXCEPT;
-@@ -801,6 +841,51 @@ RPCS3_IOS_EXPORT rpcs3_ios_state rpcs3_ios_get_state(void) RPCS3_IOS_NOEXCEPT;
+@@ -801,6 +845,51 @@ RPCS3_IOS_EXPORT rpcs3_ios_state rpcs3_ios_get_state(void) RPCS3_IOS_NOEXCEPT;
  RPCS3_IOS_EXPORT rpcs3_ios_status rpcs3_ios_shutdown(void) RPCS3_IOS_NOEXCEPT;
  RPCS3_IOS_EXPORT const char* rpcs3_ios_last_error(void) RPCS3_IOS_NOEXCEPT;
  
@@ -37146,10 +37307,10 @@ index 0000000..6e4c976
 +}
 diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
 new file mode 100644
-index 0000000..74ff550
+index 0000000..6b96b42
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
-@@ -0,0 +1,492 @@
+@@ -0,0 +1,549 @@
 +#pragma once
 +
 +// NEOSTATION_BUILD487_DIAGNOSTICS_V1: boot observability of the embedded Core
@@ -37528,6 +37689,63 @@ index 0000000..74ff550
 +		return line;
 +	}
 +
++	// --- CONFIG_LAYERS part=rsx (REWINDBOX_GRAPHICS_TESTS_612) ------------------
++	// The effective values of the settings that the Assassin's Creed torch and
++	// Black Ops II viewmodel tests change, one line per boot. It is emitted just
++	// before the main CONFIG_LAYERS line, which stays the last one of the boot
++	// for the host's timeline configuration and cause-history boundary. Values
++	// are cfg::to_string() text; invariance and mvk_async are the resolved boot
++	// policy; overrides lists the sparse user override keys applied on this boot.
++	struct config_rsx
++	{
++		std::string_view title;
++		std::string_view relaxed_zcull;     // Relaxed ZCULL Sync
++		std::string_view precise_zpass;     // Accurate ZCULL stats
++		std::string_view zcull_queries_off; // Disable ZCull Occlusion Queries
++		std::string_view depth_compare;     // Emulate Special Depth Comparison
++		std::string_view shader_precision;  // Shader Precision
++		std::string_view msl_fast_math_off; // Disable MSL Fast Math
++		std::string_view vertex_cache_off;  // Disable Vertex Cache
++		std::string_view strict;            // Strict Rendering Mode
++		std::string_view rcb;               // Read Color Buffers
++		std::string_view rdb;               // Read Depth Buffer
++		std::string_view msaa;              // MSAA
++		std::string_view hp_z;              // Force High Precision Z buffer
++		std::string_view fb_bias;           // Framebuffer Aliasing Heuristic Bias
++		std::string_view vsync;             // VSync Mode
++		std::string_view host_labels;       // Allow Host GPU Labels
++		std::string_view strict_flush;      // Strict Texture Flushing
++		bool invariance = false;
++		bool mvk_async = false;
++		std::string_view overrides;
++	};
++
++	inline std::string format_config_rsx_line(const config_rsx& rsx)
++	{
++		std::string line = "CONFIG_LAYERS part=rsx";
++		append_text(line, "title", rsx.title, 64);
++		append_text(line, "relaxed_zcull", rsx.relaxed_zcull, 16);
++		append_text(line, "precise_zpass", rsx.precise_zpass, 16);
++		append_text(line, "zcull_queries_off", rsx.zcull_queries_off, 16);
++		append_text(line, "depth_compare", rsx.depth_compare, 16);
++		append_text(line, "shader_precision", rsx.shader_precision, 32);
++		append_text(line, "msl_fast_math_off", rsx.msl_fast_math_off, 16);
++		append_text(line, "vertex_cache_off", rsx.vertex_cache_off, 16);
++		append_text(line, "strict", rsx.strict, 16);
++		append_text(line, "rcb", rsx.rcb, 16);
++		append_text(line, "rdb", rsx.rdb, 16);
++		append_text(line, "msaa", rsx.msaa, 32);
++		append_text(line, "hp_z", rsx.hp_z, 16);
++		append_text(line, "fb_bias", rsx.fb_bias, 32);
++		append_text(line, "vsync", rsx.vsync, 32);
++		append_text(line, "host_labels", rsx.host_labels, 16);
++		append_text(line, "strict_flush", rsx.strict_flush, 16);
++		append_u32(line, "invariance", rsx.invariance ? 1u : 0u);
++		append_u32(line, "mvk_async", rsx.mvk_async ? 1u : 0u);
++		append_text(line, "overrides", rsx.overrides, 320);
++		return line;
++	}
++
 +	// --- JITPROF_BOOT --------------------------------------------------------
 +	struct jit_boot_summary
 +	{
@@ -37796,7 +38014,7 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..df33283 100644
+index 7c3389b..a7a66b8 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -1,10 +1,31 @@
@@ -38109,7 +38327,7 @@ index 7c3389b..df33283 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +336,127 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +336,130 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -38122,8 +38340,11 @@ index 7c3389b..df33283 100644
 +	resolved.moltenvk_async_submits = resolve_mvk_async(title_id,
 +		resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits,
 +			is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id)));
-+	// REWINDBOX_POSITION_INVARIANCE_610: no setting; the title list is the only input.
-+	resolved.position_invariance = rpcs3::ios::title_levers::requires_position_invariance(title_id);
++	// REWINDBOX_POSITION_INVARIANCE_610: Automatic is the title list.
++	// REWINDBOX_POSITION_INVARIANCE_612: Enabled/Disabled (a per-game override) test the
++	// other value; the vertex shader text changes, so Metal compiles new pipelines.
++	resolved.position_invariance = resolve_mode(g_cfg.ios_experimental.position_invariance,
++		rpcs3::ios::title_levers::requires_position_invariance(title_id));
 +
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
 +	resolve_spu_spin_timing(resolved);
@@ -38976,7 +39197,7 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..08e293e 100644
+index d800542..230ab9e 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,192 @@
@@ -40201,7 +40422,7 @@ index d800542..08e293e 100644
 +            ios_core_profiler.notice(
 +                "COREPROF FEEDBACK610 session=%llu window=%llu draw_renderpasses=%llu snapshot_draws=%llu snapshot_copies=%llu "
 +                "duplicate_copies=%llu snapshot_mpix=%.3f pb_draws=%llu msaa_feedback_reads=%llu depth_feedback_reads=%llu "
-+                "scope=process_window_counters gpu_time_available=0 window_boundary_approximate=1",
++                "scope=process_window_counters census=2 gpu_time_available=0 window_boundary_approximate=1",
 +                profile_session, profile_window, renderpasses, snapshot_draws, copies, duplicates,
 +                static_cast<double>(pixels) / 1000000.0, pb_draws, msaa_reads, depth_reads);
 +        }
@@ -41529,7 +41750,7 @@ index 0000000..b6b0c69
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..55cd3b3 100644
+index b7b0474..a584425 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -41557,7 +41778,7 @@ index b7b0474..55cd3b3 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +126,42 @@ const std::array catalog{
+@@ -122,21 +126,45 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -41587,6 +41808,9 @@ index b7b0474..55cd3b3 100644
 -	GLOBAL_SETTING("experimental.persistent_spu_object_cache", "Experimental", "SPU", "Persistent SPU object cache", "Unavailable on ARM64 because cached objects contain process-specific addresses. The setting is retained only for configuration compatibility.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.persistent_spu_object_cache, 0, 0, 0),
 +	GLOBAL_SETTING("experimental.persistent_spu_object_cache", "Experimental", "SPU", "Persistent SPU object cache", "Keeps the compiled ARM64 SPU code of each title between sessions. Objects are keyed by the Core, LLVM, settings and CPU features, bounded to 40,000 files or 512 MiB per title (oldest removed first) and ignored when invalid. Automatic enables it. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.persistent_spu_object_cache, 0, 0, 0),
 +	GAME_SETTING("experimental.gow3_mlaa_bypass", "Experimental", "SPU", "God of War III MLAA bypass", "Applies the exact official PPU/SPU MLAA bypasses for supported God of War III versions, freeing CELL time and allowing resolution scaling. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gow3_mlaa_bypass, 0, 0, 0),
++	// REWINDBOX_GRAPHICS_TESTS_612: per-game levers of the in-game accuracy test page.
++	GAME_SETTING("experimental.position_invariance", "Experimental", "MoltenVK", "Position invariance", "Asks Metal to compute the vertex position the same way in every shader that writes it, so passes that draw the same geometry again (weapon models, lit walls) get identical depth. Automatic enables it for Call of Duty: Black Ops II and Assassin's Creed; Disabled restores the previous shaders. Metal compiles new shaders on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.position_invariance, 0, 0, 0),
++	GAME_SETTING("experimental.moltenvk_async_submits", "Experimental", "MoltenVK", "MoltenVK asynchronous submits", "Encodes Metal commands on MoltenVK's queue thread instead of the RSX thread. Automatic enables it for God of War III and Assassin's Creed while their last asynchronous boot finished; Enabled requests it for this game under the same condition; Disabled keeps synchronous submits. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.moltenvk_async_submits, 0, 0, 0),
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers). Defaults keep the Build 483 behavior except the cache-only retained keys.
 +	// The retained keys apply to each title's own cache directory, so they take a per-title value like any SETTING
 +	// (a complete legacy title snapshot also freezes them); only persistent_spu_object_cache is restored as global-only.
@@ -41602,7 +41826,7 @@ index b7b0474..55cd3b3 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +230,89 @@ const std::array catalog{
+@@ -205,6 +233,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -41692,7 +41916,7 @@ index b7b0474..55cd3b3 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +681,83 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +684,130 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  
@@ -41704,6 +41928,25 @@ index b7b0474..55cd3b3 100644
 +		return false;
 +	}
 +	return fs::is_file(game_setting_overrides_path(title_id));
++}
++
++std::string game_setting_override_keys(std::string_view title_id)
++{
++	std::vector<std::pair<std::string, std::string>> values;
++	std::string keys;
++	if (!read_game_setting_overrides(title_id, values))
++	{
++		return keys;
++	}
++	for (const auto& item : values)
++	{
++		if (!keys.empty())
++		{
++			keys += ',';
++		}
++		keys += item.first;
++	}
++	return keys;
 +}
 +
 +bool apply_game_setting_overrides(std::string_view title_id) noexcept
@@ -41763,6 +42006,34 @@ index b7b0474..55cd3b3 100644
 +	return write_game_setting_overrides(title_id, values);
 +}
 +
++bool remove_game_setting_override(
++	std::string_view title_id,
++	std::string_view key) noexcept
++{
++	// REWINDBOX_GRAPHICS_TESTS_612: removes one explicit user value, so the next
++	// boot takes this key from the lower layers again (global config, GameDB and
++	// RewindBox profile). A missing key is already inherited; an override file
++	// left without any key is removed like remove_game_setting_overrides().
++	std::vector<std::pair<std::string, std::string>> values;
++	if (!read_game_setting_overrides(title_id, values))
++	{
++		return false;
++	}
++	if (std::erase_if(values, [&](const auto& item)
++	{
++		return item.first == key;
++	}) == 0)
++	{
++		return true;
++	}
++	if (values.empty())
++	{
++		return fs::remove_file(game_setting_overrides_path(title_id)) ||
++			fs::g_tls_error == fs::error::noent;
++	}
++	return write_game_setting_overrides(title_id, values);
++}
++
 +bool remove_game_setting_overrides(std::string_view title_id) noexcept
 +{
 +	if (!is_valid_game_title_id(title_id))
@@ -41777,16 +42048,20 @@ index b7b0474..55cd3b3 100644
  {
  	switch (error)
 diff --git a/rpcs3/ios/RPCS3IOSSettings.h b/rpcs3/ios/RPCS3IOSSettings.h
-index 74abaa0..b00e894 100644
+index 74abaa0..7475cac 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.h
 +++ b/rpcs3/ios/RPCS3IOSSettings.h
-@@ -75,6 +75,10 @@ bool save_global_settings() noexcept;
+@@ -75,6 +75,14 @@ bool save_global_settings() noexcept;
  settings_load_error load_effective_settings(std::string_view title_id, bool& has_custom_config) noexcept;
  bool save_game_settings(std::string_view title_id) noexcept;
  bool remove_game_settings(std::string_view title_id) noexcept;
 +bool has_game_setting_overrides(std::string_view title_id) noexcept;
 +bool apply_game_setting_overrides(std::string_view title_id) noexcept;
++// REWINDBOX_GRAPHICS_TESTS_612: keys of the title's sparse user overrides,
++// comma separated in file order; empty when there are none or the file is invalid.
++std::string game_setting_override_keys(std::string_view title_id);
 +bool save_game_setting_override(std::string_view title_id, std::string_view key, std::string_view value) noexcept;
++bool remove_game_setting_override(std::string_view title_id, std::string_view key) noexcept;
 +bool remove_game_setting_overrides(std::string_view title_id) noexcept;
  std::string game_settings_preset_directory(std::string_view title_id);
  std::string_view settings_load_error_detail(settings_load_error error) noexcept;
