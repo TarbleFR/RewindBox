@@ -49,7 +49,8 @@
     "run": 41560325311,
     "artifact": 13197845987,
     "payloadFingerprint": "43c43aa3c2c592372a30563455ba9824006cad5e2270b9ed84bf457b5ff6212d"
-   }
+   },
+   "pinSha256": "4147b1d819815bd1b3ef9ae8116ffed37660adebceb8b24336988df8c82b7b98"
   },
   "melonx": {
    "mode": "replace",

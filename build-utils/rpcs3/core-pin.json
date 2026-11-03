@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 621,
- "note": "RPCS3 Core 621: the delivered Core 610 plus the folded record core621_20261102 (the Core 612, 613, 616 and 619 records; for every title the GPU time of each RSX command buffer read without waiting (COREPROF GPUTIME621), freeze episodes kept through the pause menu with one deeper FREEZE_DUMP each, the mounted ISO kept open, pipeline queue counters, the texture cache per window (COREPROF TEXCACHE621); from the Build 620 logs the ZCULL on-demand reads kept through a busy second and extended to Black Ops II), built by the RPCS3 Core route (run 41560325311). Verified offline on the downloaded artifacts with the repository verifier: 92 Mach-O exports equal the identity, ABI 30, codegen PPU/SPU unchanged.",
+ "build": 624,
+ "note": "RPCS3 Core 624: the delivered Core 610 plus the folded record core624_20261103 (the Core 612, 613, 616, 619 and 621 records; from the Build 622 logs, with the ZCULL on-demand lever, the RSX reports block placed so its report array starts on a host page (GCM label reads no longer fault), conditional renders whose report already shows the object visible drawn without waiting for the GPU, and COREPROF ZCULL624), built by the RPCS3 Core route (run 41572306405). Verified offline on the downloaded artifacts with the repository verifier: 92 Mach-O exports equal the identity, ABI 30, codegen PPU/SPU unchanged.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
@@ -14,25 +14,25 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 621 source closure and the native dependency",
+    "Authenticate the Core 624 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 621",
-    "Verify the actual binary and write its Core 621 identity",
+    "Compile and link the actual iPhone Core 624",
+    "Verify the actual binary and write its Core 624 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 621 without an application delivery",
+    "Upload the verified Core 624 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "23575f105ccd672635f5f843b8a36f8e0ed6317d",
-   "run": 41560325311,
+   "source": "94102e14817697fda38e719285402e981d16b034",
+   "run": 41572306405,
    "attempt": 1,
-   "job": 125669130315,
-   "artifact": 13197845987,
-   "name": "RPCS3Core-621-23575f105ccd672635f5f843b8a36f8e0ed6317d",
-   "bytes": 29328235,
-   "sha256": "2815a5cee4bdb3ff7be8992d517df9e8e40f0bcd81385ab35b22de4478ab388c",
-   "expiresAt": "2026-12-03T01:49:57Z"
+   "job": 125707793478,
+   "artifact": 13202641762,
+   "name": "RPCS3Core-624-94102e14817697fda38e719285402e981d16b034",
+   "bytes": 29328531,
+   "sha256": "ac91ba56dc76b1dc9c864792cad1700dc3ebb8f8b9dcf9833c9696aa8a9b6c81",
+   "expiresAt": "2026-12-03T03:46:00Z"
   },
   "hostTests": {
    "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
@@ -40,9 +40,9 @@
     "Checkout immutable candidate and the delivered Core history",
     "Read the declared Core build",
     "Select the retained Core toolchain",
-    "Materialize the Core 621 sources and the delivered a4ae86d0 sources",
+    "Materialize the Core 624 sources and the delivered a4ae86d0 sources",
     "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 621 harnesses with Apple clang",
+    "Run the affected and new Core 624 harnesses with Apple clang",
     "Preserve the Apple host harness reports"
    ],
    "names": [
@@ -59,17 +59,17 @@
     "spu-object-hit-admission-613",
     "spu-object-hit-admission-613-asan-ubsan",
     "codegen-audit",
-    "core621"
+    "core624"
    ],
-   "source": "23575f105ccd672635f5f843b8a36f8e0ed6317d",
-   "run": 41560325311,
+   "source": "94102e14817697fda38e719285402e981d16b034",
+   "run": 41572306405,
    "attempt": 1,
-   "job": 125669130486,
-   "artifact": 13195604069,
-   "name": "RPCS3Core-621-apple-host-tests-23575f105ccd672635f5f843b8a36f8e0ed6317d",
-   "bytes": 35127,
-   "sha256": "b8e241ebd1218aa0c4f1bb541685d6ae1791b7d6c68e35e53fe1cddddbca421c",
-   "expiresAt": "2026-12-03T01:35:06Z",
+   "job": 125707793813,
+   "artifact": 13201812909,
+   "name": "RPCS3Core-624-apple-host-tests-94102e14817697fda38e719285402e981d16b034",
+   "bytes": 35576,
+   "sha256": "364ff11f8098b08537ce071f8d0ae3370d8ff3438044953f2daf6adb50e16611",
+   "expiresAt": "2026-12-03T03:31:51Z",
    "reused": {
     "names": [
      "lr-full-queue",
@@ -98,17 +98,17 @@
   }
  },
  "core": {
-  "type": "rpcs3-ios-core621",
-  "dylibBytes": 77683184,
-  "dylibSha256": "39e1b1ecf057b7ad1819f96441fc57501ae78f13aa1bb30bf4d08695794d230e",
-  "identitySha256": "a8d47750bbfddc64fb2c9e5e35d0e5ff51db46871d1d407bfb94e8d192f9f154",
+  "type": "rpcs3-ios-core624",
+  "dylibBytes": 77683456,
+  "dylibSha256": "b5d18bc51dfdeae6dcca6a47850401c05da64d9041208809fc9ca3c7e4ef8342",
+  "identitySha256": "0c6886dd019744f81f07e9a633d01e928afca3b2bcb97ea20d778ece12359ca5",
   "proofMember": "core610-proof.json",
-  "proofSha256": "0ddf24b7519e0d577d330f980247872e2704d01af788205fbeba8182a838a4b0",
-  "payloadFingerprint": "43c43aa3c2c592372a30563455ba9824006cad5e2270b9ed84bf457b5ff6212d"
+  "proofSha256": "53598e2e1528d5b65d3e636db7ee6d7c04cd891d148603f6923467a3d1b51fca",
+  "payloadFingerprint": "e906fbd5bbc81e7e99a5fb4cce04993df1b263a7e5a626143327e43e1e9fb453"
  },
  "canonical": {
-  "patchSha256": "1660c7956b32dd7cfd2fa17437a4bdc017674e349b32fe1d0244d6b4a80c7b72",
-  "postimages": 344,
+  "patchSha256": "fd79d496297b3aaa3a2ed5511dfe9307d6ef5327a43ad774220ae111cb8ec815",
+  "postimages": 346,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -248,13 +248,15 @@
   "ZCULL On-Demand Reads",
   "zcull_wait_ms=",
   "COREPROF TEXCACHE621",
-  "FREEZE_DUMP sema"
+  "FREEZE_DUMP sema",
+  "COREPROF ZCULL624",
+  "report array on a host page"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "3d19075354afcc2ec04ddb1a2917486320028bea",
-  "run": 41509883194,
-  "artifact": 13174470646,
-  "payloadFingerprint": "44fc928ed12424c555c9146301d54ff7783e3fceb91c9370e1194fd0680e3950"
+  "source": "23575f105ccd672635f5f843b8a36f8e0ed6317d",
+  "run": 41560325311,
+  "artifact": 13197845987,
+  "payloadFingerprint": "43c43aa3c2c592372a30563455ba9824006cad5e2270b9ed84bf457b5ff6212d"
  }
 }
