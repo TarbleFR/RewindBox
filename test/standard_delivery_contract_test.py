@@ -122,6 +122,17 @@ def effective_of_head():
     return sd.manifest_effective_tree(REPO, manifest, head)
 
 
+def product_reader():
+    """Read a path as CI materializes it, and as the freeze reads it.
+
+    Product paths come from the current manifest's effective tree, where source-only work is restored; recipe paths
+    come from the checkout.
+    """
+    effective = sd.EffectiveReader(REPO, effective_of_head()['effective'])
+    return lambda path: effective.read(path) if sd.is_product(path) else (
+        (ROOT / path).read_bytes() if (ROOT / path).is_file() else None)
+
+
 class Git:
     """A synthetic repository for the replay, restoration and reuse tests."""
 
@@ -302,7 +313,10 @@ class Components(unittest.TestCase):
     def test_rpcs3_pin(self):
         _, manifest = current_manifest()
         pin = rpcs3.load_pin(ROOT / manifest['components']['rpcs3']['pin'])
-        report = rpcs3.pin_errors(pin)
+        # Checked against the product tree CI materializes, as the freeze checks it: source-only work that touches the
+        # pin's inputs (another session's next RPCS3 Core) is restored there.
+        read = product_reader()
+        report = rpcs3.pin_errors(pin, read)
         self.assertEqual(report['errors'], [])
         self.assertEqual(len(rpcs3.expected_exports(pin)), pin['exports']['count'])
         self.assertEqual(rpcs3.added_symbols(pin), sorted('_rpcs3_ios_ra_' + n for n in
@@ -316,14 +330,14 @@ class Components(unittest.TestCase):
             with self.assertRaises(ValueError):
                 rpcs3.core_run(pin)
         else:
-            rpcs3.pinned(pin)
+            rpcs3.pinned(pin, read)
         if manifest['status'] == 'frozen':
             self.assertEqual(manifest['components']['rpcs3']['pinSha256'],
                              sha((ROOT / manifest['components']['rpcs3']['pin']).read_bytes()))
 
     def synthetic_pin(self):
         pin = rpcs3.load_pin()
-        canonical = json.loads((ROOT / rpcs3.CANONICAL).read_bytes())
+        canonical = json.loads(product_reader()(rpcs3.CANONICAL))
         source = 'a' * 40
         pin['status'] = 'verified'
         pin['producer']['workflow'] = '.github/workflows/rpcs3-core611.yml'
@@ -338,9 +352,9 @@ class Components(unittest.TestCase):
         return pin
 
     def test_synthetic_complete_pin(self):
-        pin = self.synthetic_pin()
-        self.assertEqual(rpcs3.pin_errors(pin), dict(status='verified', missing=[], errors=[]))
-        rpcs3.pinned(pin)
+        pin, read = self.synthetic_pin(), product_reader()
+        self.assertEqual(rpcs3.pin_errors(pin, read), dict(status='verified', missing=[], errors=[]))
+        rpcs3.pinned(pin, read)
         mutations = (
             lambda p: p['exports'].update(count=91),
             lambda p: p['exports']['added'].pop(),
@@ -357,7 +371,7 @@ class Components(unittest.TestCase):
             broken = copy.deepcopy(pin)
             mutate(broken)
             with self.assertRaises(ValueError):
-                rpcs3.pinned(broken)
+                rpcs3.pinned(broken, read)
 
     def test_retained_pins_equal_the_delivered_recipes(self):
         import rewind608_producers as producers608

@@ -1904,7 +1904,14 @@ def freeze(build, dry_run=False, repo=None, root=None):
             'The base delivery source is not an ancestor of HEAD')
     pin_path = root / draft['components']['rpcs3']['pin']
     pin = json.loads(pin_path.read_bytes())
-    pin_report = rpcs3.pin_errors(pin, read_head)
+    tree = manifest_effective_tree(repo, draft, head)
+    reader = EffectiveReader(repo, tree['effective'])
+
+    def read_product(name):
+        # CI materializes the effective tree before it checks the pin, so source-only work touching the pin's
+        # inputs is checked with its restored bytes; recipe paths are read at HEAD.
+        return reader.read(name) if is_product(name) else read_head(name)
+    pin_report = rpcs3.pin_errors(pin, read_product)
     if pin['status'] != 'verified' or pin_report['missing']:
         blockers.append('components.rpcs3: the RPCS3 Core pin is pending; unknown values: ' +
                         ', '.join(pin_report['missing']))
@@ -1917,7 +1924,6 @@ def freeze(build, dry_run=False, repo=None, root=None):
             melonx_pin['contractSha256'] == sha(contract) and melonx_pin['name'] == 'MeloNX-engine-' + melonx_pin['source']):
         blockers.append('components.melonx: the MeloNX Core pin is not verified against its contract')
     product = draft['product']
-    tree = manifest_effective_tree(repo, draft, head)
     for conflict in tree['conflicts']:
         blockers.append(f"product: reviewed commit {conflict['commit'][:12]} touches {conflict['path']} from bytes "
                         'that are not in the effective tree (an earlier source-only or unclassified change)')
@@ -1926,7 +1932,6 @@ def freeze(build, dry_run=False, repo=None, root=None):
                         f"{item['productPaths']} product paths; declare it reviewed or source-only")
     for commit in tree['missing']:
         blockers.append(f'product: declared commit {commit[:12]} is not between the base and HEAD')
-    reader = EffectiveReader(repo, tree['effective'])
     try:
         retained_count = retained_inputs_unchanged(draft, repo, reader.listing, reader.read)
     except ValueError as error:

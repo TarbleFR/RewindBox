@@ -167,11 +167,12 @@ def pin_errors(pin, read=None):
     return dict(status=pin.get('status'), missing=missing_values(pin), errors=errors)
 
 
-def pinned(pin):
+def pinned(pin, read=None):
+    """A verified pin consistent with the product tree (`read` as for pin_errors; the checkout by default)."""
     require(pin.get('status') == 'verified', 'The RPCS3 Core producer pin is pending: ' +
             ', '.join(missing_values(pin)))
     require(not missing_values(pin), 'The RPCS3 Core producer pin is incomplete: ' + ', '.join(missing_values(pin)))
-    report = pin_errors(pin)
+    report = pin_errors(pin, read)
     require(not report['errors'], 'The RPCS3 Core pin disagrees with this tree: ' + '; '.join(report['errors']))
     return pin
 
