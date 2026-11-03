@@ -40,8 +40,12 @@ presentation-gap journal (`gaps=`, `long=`) and the attribution of the remaining
 reads have no iPhone result yet ([cause, change and what the next run reads](docs/melonx-hogwarts-618-measurement-2026-11-02.md));
 no FPS claim. `Frameworks/armsx2_internal_bridge` and `dolphin_internal_bridge` changed
 from 619 although their sources did not (reported as undeclared image changes, not
-blocking). The private 620 recipient key was deleted after the verified delivery. 621 is
-reserved by the RPCS3 session (a new RPCS3 Core on the delivered 620).
+blocking). The private 620 recipient key was deleted after the verified delivery.
+
+621 is the MeloNX and game-box build on the delivered 620 (maintainer, 3 November 2026:
+"deviens le build 621 rpcs3 n'est pas pret de finir"). Its draft and recipient key replace
+the RPCS3 session's first 621 draft. The RPCS3 Core 621 work of that session is source-only
+in 621 and moves to 622, on the recorded 621.
 
 619 is delivered, not a pending candidate. Do not reuse its number. RPCS3 Core 619
 (Assassin's Creed `BLES00158`/`BLUS30089`: ZCULL reports written when the guest reads
