@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 627,
  "identity_type": "rpcs3-ios-core627",
- "summary": "RPCS3 Core 627 in progress, the delivered Core 610 plus one folded delta: the Core 612, 613, 616, 619, 621 and 624 records unchanged and ZCULL: the on-demand lever no longer trips on guest waits, a depth-tested conditional render never waits for a query still on the GPU, conservative reports off for every title; SPU: an SPU polling with no-op PUTLLC takes a bounded wait; thread classes: SPU threads below PPU and RSX, one new MoltenVK asynchronous try. Numbered 627: 625 and 626 are another session's MeloNX Cores. No gain measured: not built, no iPhone run.",
+ "summary": "RPCS3 Core 627 in progress, the delivered Core 610 plus one folded delta: the Core 612, 613, 616, 619, 621 and 624 records unchanged and ZCULL: the on-demand lever no longer trips on guest waits, a depth-tested conditional render never waits for a query still on the GPU, conservative reports off for every title; SPU: an SPU polling with no-op PUTLLC takes a bounded wait; thread classes: SPU threads below PPU and RSX, one new MoltenVK asynchronous try; RSX FIFO: a NOP stays in the running state. Numbered 627: 625 and 626 are another session's MeloNX Cores. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,7 +22,7 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "fb946f5a707dcefe2110c37513220e15fb7208974c7de603af531e77baeab629",
+  "patch_sha256": "55baf82675455d0c3592437cd94a440bf102edeed1f9b8b2dfa9e0205f19318d",
   "postimages": 348,
   "records": [
    "core610_20261101",
@@ -76,7 +76,7 @@
   "record": "core627_20261103",
   "manifest": "build-utils/rpcs3/core627-delta.json",
   "patch": "build-utils/rpcs3/core627-delta.patch",
-  "patch_sha256": "b9a12bdc0a9b7ee7fc27babd39ee72b96266436983ea1488c53c5f7770601e11"
+  "patch_sha256": "0c0fabccaf0d604eb46d40b26c2bc77e2645717fe60322321f820022278678d8"
  },
  "exports": 92,
  "core_inputs": {
@@ -137,7 +137,8 @@
   "ZCULL Conditional Draw Without Wait",
   "ZCULL Conservative Reports",
   "SPU No-op Spin Wait",
-  "SPU QoS Below RSX And PPU"
+  "SPU QoS Below RSX And PPU",
+  "RSX FIFO NOP Fast Path"
  ],
  "moltenvk_dependency": {
   "run": 41239096061,

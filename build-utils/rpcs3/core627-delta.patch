@@ -585,6 +585,29 @@ index b4bbc16..eef1ef6 100644
  
  		// Only relevant for fragment programs
  		bool fp32_outputs : 1;
+diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
+index 5c87bc5..ed3ab34 100644
+--- a/rpcs3/Emu/RSX/RSXFIFO.cpp
++++ b/rpcs3/Emu/RSX/RSXFIFO.cpp
+@@ -779,7 +779,18 @@ namespace rsx
+ 			{
+ 			case FIFO::FIFO_NOP:
+ 			{
++#ifdef RPCS3_IOS
++				// REWINDBOX_FIFO_NOP_FAST_627: Build 624 logs: fifo_idle_entries is 2.06-2.07 per
++				// draw on Black Ops II (about 900,000 per 5 s window, 200,000 per second), 0.9 on God
++				// of War III and 0.003 on Assassin's Creed: the guest pads its command stream with
++				// NOP, the FIFO is not empty. Each one entered and left the idle state: two clock
++				// reads, a shared counter and a resume path, on the RSX thread. Upstream keeps the
++				// state only to skip fifo_wake_delay() after it, and a NOP before a jump to self
++				// reaches the same spinning state from running. The NOP stays in the running state.
++				if (performance_counters.state == FIFO::state::running && !rpcs3::ios::get_experimental_policy().fifo_nop_fast_path)
++#else
+ 				if (performance_counters.state == FIFO::state::running)
++#endif
+ 				{
+ 					performance_counters.FIFO_idle_timestamp = get_system_time();
+ 					performance_counters.state = FIFO::state::nop;
 diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
 index b9eb12e..5aa8fdc 100644
 --- a/rpcs3/Emu/RSX/RSXThread.cpp
@@ -2305,10 +2328,10 @@ index 6eab393..c7cf8b7 100644
  	g_fxo->clear();
  }
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 6531689..4308714 100644
+index 6531689..7e6e0f4 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
-@@ -169,6 +169,26 @@ struct cfg_root : cfg::node
+@@ -169,6 +169,28 @@ struct cfg_root : cfg::node
  		// REWINDBOX_MOLTENVK_ASYNC_SUBMITS_V1: Automatic keeps MoltenVK's synchronous
  		// submits; Enabled moves Metal command encoding to MoltenVK's queue thread.
  		cfg::_enum<ios_experimental_mode> moltenvk_async_submits{ this, "MoltenVK Asynchronous Submits", ios_experimental_mode::automatic };
@@ -2332,6 +2355,8 @@ index 6531689..4308714 100644
 +		cfg::_enum<ios_experimental_mode> spu_noop_spin_wait{ this, "SPU No-op Spin Wait", ios_experimental_mode::automatic };
 +		// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): Automatic is God of War III, Assassin's Creed and Black Ops II.
 +		cfg::_enum<ios_experimental_mode> spu_qos_below_rsx{ this, "SPU QoS Below RSX And PPU", ios_experimental_mode::automatic };
++		// REWINDBOX_FIFO_NOP_FAST_627 (RSXFIFO.cpp): Automatic is Black Ops II and God of War III.
++		cfg::_enum<ios_experimental_mode> fifo_nop_fast_path{ this, "RSX FIFO NOP Fast Path", ios_experimental_mode::automatic };
  
  		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L5, L9; L3 is the
  		// Bounded sleep value of fifo_idle_mode above). Defaults keep the Build
@@ -5564,10 +5589,10 @@ index 74ff550..e3cf8be 100644
  	struct jit_boot_summary
  	{
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index df33283..46b9f0d 100644
+index df33283..e5bbbe5 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -344,9 +344,44 @@ void resolve_experimental_policy() noexcept
+@@ -344,9 +344,47 @@ void resolve_experimental_policy() noexcept
  	// REWINDBOX_AC_MVK_ASYNC_610 adds Assassin's Creed: 0.93-1.36 s per window on build 601.
  	resolved.moltenvk_async_submits = resolve_mvk_async(title_id,
  		resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits,
@@ -5606,6 +5631,9 @@ index df33283..46b9f0d 100644
 +	resolved.spu_qos_below_rsx = resolve_mode(g_cfg.ios_experimental.spu_qos_below_rsx,
 +		is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id) ||
 +		rpcs3::ios::title_levers::is_black_ops_ii_title(title_id));
++	// REWINDBOX_FIFO_NOP_FAST_627: Automatic is the titles with NOP in their command stream.
++	resolved.fifo_nop_fast_path = resolve_mode(g_cfg.ios_experimental.fifo_nop_fast_path,
++		is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_black_ops_ii_title(title_id));
 +	// REWINDBOX_ZCLIP_PINNED_AFFINE_619: the title list, on top of the 616 fallback.
 +	resolved.zclip_pinned_affine = resolved.zclip_fallback_window_z &&
 +		rpcs3::ios::title_levers::requires_zclip_pinned_affine(title_id);
@@ -5614,7 +5642,7 @@ index df33283..46b9f0d 100644
  
  	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
  	resolve_spu_spin_timing(resolved);
-@@ -392,6 +427,13 @@ void resolve_experimental_policy() noexcept
+@@ -392,6 +430,13 @@ void resolve_experimental_policy() noexcept
  		resolved.spu_spin_cntfrq, resolved.spu_spin_timer_scale,
  		resolved.spu_spin.getllar_refail_ticks, resolved.spu_spin.getllar_spin_window_ticks, resolved.spu_spin.getllar_forced_sleep_ticks,
  		resolved.position_invariance, resolved.moltenvk_async_submits);
@@ -5629,10 +5657,10 @@ index df33283..46b9f0d 100644
  
  void apply_spu_spin_timing_policy() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index c349a27..c8ca4fd 100644
+index c349a27..ecf91a1 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-@@ -50,6 +50,36 @@ struct experimental_policy
+@@ -50,6 +50,38 @@ struct experimental_policy
  	// declare an invariant position, as upstream does on NVIDIA. Title scoped,
  	// without a setting; read by the vertex decompiler after boot resolution.
  	bool position_invariance = false;
@@ -5660,6 +5688,8 @@ index c349a27..c8ca4fd 100644
 +	bool spu_noop_spin_wait = false;
 +	// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): SPU threads run in the user-initiated class.
 +	bool spu_qos_below_rsx = false;
++	// REWINDBOX_FIFO_NOP_FAST_627 (RSXFIFO.cpp): a NOP in the command stream is not an idle period.
++	bool fifo_nop_fast_path = false;
 +	// REWINDBOX_ZCLIP_PINNED_AFFINE_619 (ios/IOSTitleLevers.h): with the 616 fallback,
 +	// a clip range wholly above 1 maps every vertex affinely onto [0.99, 1].
 +	bool zclip_pinned_affine = false;
