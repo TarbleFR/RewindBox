@@ -104,7 +104,7 @@ BUDGET_621 = r'''	unsigned budget_faults = 0, transient_faults = 0, storm_faults
 		const auto trip = z.m_ios_demand.trip_record();
 		CHECK(z.m_ios_demand.tripped() && trip.reason == static_cast<u32>(od::trip_reason::wait_budget) && trip.scope == 1);
 		CHECK(trip.windows_us[0] > od::wait_budget_us && trip.windows_us[1] > od::wait_budget_us && trip.windows_us[2] > od::wait_budget_us);
-		CHECK(elapsed >= 3'000'000 && elapsed < 8'000'000 && budget_faults >= 6);
+		CHECK(elapsed >= 2'000'000 && elapsed < 8'000'000 && budget_faults >= 6); // the first bucket can be nearly whole
 		CHECK(rsx_log.trip_lines.load() == lines_before + 1 && tally.tripped.load() == static_cast<u32>(od::trip_reason::wait_budget));
 		CHECK(tally.pickups.load() >= 6 && tally.pickup_max_us.load() >= 40'000);
 		guard_trip_lines += rsx_log.trip_lines.load() - lines_before;
@@ -140,8 +140,16 @@ BUDGET_621 = r'''	unsigned budget_faults = 0, transient_faults = 0, storm_faults
 '''
 
 
+# REWINDBOX_ZCULL_FAULT_CENSUS_624: the Core 624 fault path counts into ios/IOSZcullLabelPage.h;
+# run() sets this when the tree under test carries that header.
+WITH_LABEL_PAGE_HEADER = False
+
+
 def fault_harness_621() -> str:
     text = c619.FAULT_HARNESS
+    if WITH_LABEL_PAGE_HEADER:
+        text = replace_once(text, '#include "ios/IOSZcullOnDemand.h"\n',
+                            '#include "ios/IOSZcullOnDemand.h"\n#include "ios/IOSZcullLabelPage.h"\n', 'Core 624 header')
     text = replace_once(text, '#include <cstdio>\n', '#include <cstdio>\n#include <cstring>\n', 'includes')
     text = replace_once(
         text,
@@ -200,6 +208,8 @@ int main() { return 0; }
 
 
 def run(source: Path, compiler: list[str], flag_sets: dict[str, list[str]], work: Path, sanitize: bool) -> dict:
+    global WITH_LABEL_PAGE_HEADER
+    WITH_LABEL_PAGE_HEADER = (source / 'rpcs3/ios/IOSZcullLabelPage.h').exists()
     rpcs3 = source / 'rpcs3'
     report: dict = {}
 
