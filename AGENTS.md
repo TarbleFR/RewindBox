@@ -2,7 +2,7 @@
 
 Read this guide before work. It contains current project state and permanent
 rules; detailed investigations and build receipts belong in `docs/`.
-Last reconciled: **3 November 2026**, after private Build **625**.
+Last reconciled: **3 November 2026**, after private Build **626**.
 
 ## Start here
 
@@ -21,17 +21,28 @@ Last reconciled: **3 November 2026**, after private Build **625**.
 
 | Item | Verified reference |
 | --- | --- |
-| Application | **RewindBox 0.0.8 (625)**, private IPA; iOS 18+, SideStore re-signing |
-| Delivery source | `8bad6a487c594839c992bbcc6af8d9220af6e940`; frozen manifest [`build-utils/delivery/625.json`](build-utils/delivery/625.json) (freeze commit `34fb75f0`, effective product digest `7e921879…`, replayed from the delivered 624 effective tree `9ad87ae1…`) |
-| Delivery run / jobs | `41591090457`, attempt 1, standard recipe: preflight, flutter and native (both fresh), republish and application, all successful (about 21 min) |
-| Downloaded IPA | `RewindBox-625.ipa`, 194552486 bytes; SHA-256 `c149a6bf664885a13f221945abb782d38514082aa4f423bc5821463a7015d1a3` |
-| Product baseline | Delivered 624 plus the MeloNX Core 625 work (reviewed `cba3441b`, `6c15ed68`) and the GameCube/Wii controller skins of another session (`9bb35531` and its test fix `a7e3ef22`, promoted; the podspec keeps its reviewed bytes) |
-| MeloNX Core | **Core 625** (replaced): Core run `41589061374`, source `cba3441b`, packaged fingerprint `dd3fe017…`, iPhone library `6bd070d4…` ([pin](build-utils/melonx/dma-core-pin.json)); replaces Core 623 `27f1afa1…` |
+| Application | **RewindBox 0.0.8 (626)**, private IPA; iOS 18+, SideStore re-signing |
+| Delivery source | `8f01cd40e8d28d293f58b1c7de365e16719e104c`; frozen manifest [`build-utils/delivery/626.json`](build-utils/delivery/626.json) (freeze commit `7d6f6fbb`, effective product digest `b8403d43…`, replayed from the delivered 625 effective tree `7e921879…`) |
+| Delivery run / jobs | `41598013782`, attempt 1, standard recipe: preflight, flutter and native (both fresh), republish and application, all successful (about 25 min) |
+| Downloaded IPA | `RewindBox-626.ipa`, 194553035 bytes; SHA-256 `bf4b324ad3b1b4788c604f86945edbd609f38e44a352d01028139fcbbce219ac` |
+| Product baseline | Delivered 625 plus the MeloNX Core 626 fix (reviewed `17eabf03`, `cabef0aa`) |
+| MeloNX Core | **Core 626** (replaced): Core run `41596390897`, source `17eabf03`, packaged fingerprint `18fbb04c…`, iPhone library `7b4df70d…` ([pin](build-utils/melonx/dma-core-pin.json)); replaces Core 625 `dd3fe017…` |
 | RPCS3 Core | **Core 624** kept (`unchangedFromBase`): Core and Apple host run `41572306405`, source `94102e14`, payload `e906fbd5…` ([pin](build-utils/rpcs3/core-pin.json)) |
 | Dolphin Core | Retained from 608 (payload `640e4389…`) through the archive republished by run `41504526945` |
 | ARMSX2 Core | Retained from 608 (payload `fab55193…`, ABI 9) through the archive republished by run `41504526945` |
-| libretro / MeloNX dependencies | Retained through the archives republished by run `41504526945` (republished again by runs `41516165812`, `41527072487`, `41555079757`, `41562838932`, `41569913763`, `41574628897` and `41591090457`) |
-| Delivery proof | [delivery receipt](docs/evidence/rewind625/delivery.json), [signed payload identity](docs/evidence/rewind625/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind625/download625-verification.json); 624: [receipt](docs/evidence/rewind624/delivery.json) |
+| libretro / MeloNX dependencies | Retained through the archives republished by run `41504526945` (republished again by runs `41516165812`, `41527072487`, `41555079757`, `41562838932`, `41569913763`, `41574628897`, `41591090457` and `41598013782`) |
+| Delivery proof | [delivery receipt](docs/evidence/rewind626/delivery.json), [signed payload identity](docs/evidence/rewind626/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind626/download626-verification.json); 625: [receipt](docs/evidence/rewind625/delivery.json) |
+
+626 is delivered, not a pending candidate. Do not reuse its number. MeloNX Core 626 (Hogwarts
+Legacy: the read-back into a buffer also runs when the only texture over its destination is the
+linear read-back target the first copies created; build 625 never copied into buffers, 286 and
+292 copies declined as occupied) has no iPhone result yet
+([624 and 625 journals, and the 626 change](docs/melonx-624-measurement-2026-11-03.md)); no FPS
+claim. The 625 journals at 1x and 0.5x show the GPU busy for the whole frame at 1x, and at 0.5x a
+GPU four times lighter with frames still at about 50 ms: the CPU-side read-back wait.
+`libretro_internal_bridge` and `rpcs3_internal_bridge` changed from 625 although their effective sources did
+not (reported as undeclared image changes, not blocking).
+The private 626 recipient key was deleted after the verified delivery.
 
 625 is delivered, not a pending candidate. Do not reuse its number. MeloNX Core 625 (Hogwarts
 Legacy: the read-back that build 624 left on the guest path because a buffer holds its

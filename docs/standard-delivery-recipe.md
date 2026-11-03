@@ -409,3 +409,19 @@ produit ; contrôle légal réussi ; aucun conflit, aucun commit non classé.
   compilation, avec le SDK iOS, de l'overlay natif des skins. `rpcs3_internal_bridge` a aussi changé sans changement de ses sources effectives (signalé, non bloquant).
 - **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub
   MCP (octets égaux aux digests de l'API). IPA vérifiée hors ligne, clé privée supprimée.
+
+## 17. État de la 626 (3 novembre 2026)
+
+Livrée sur la 625 (run `41598013782`, IPA `bf4b324a…`, 194553035 octets, ~25 min de bout en bout).
+Gel sur `7d6f6fbb` : base effective 625 `7e921879…`, empreinte effective `b8403d43…`, 6891 fichiers
+produit ; contrôle légal réussi ; aucun conflit, aucun commit non classé.
+- **Commits revus (2).** `17eabf03` (Core MeloNX 626) et `cabef0aa` (son épingle vérifiée).
+- **Composants.**
+  - MeloNX : remplacé par le Core 626 du run `41596390897` (`18fbb04c…`), qui remplace le Core 625
+    `dd3fe017…`.
+  - RPCS3 : Core 624 `unchangedFromBase`.
+  - Les autres composants sont republiés de la 625.
+- **Images changées.** MeloNXCore et Runner. `libretro_internal_bridge` et `rpcs3_internal_bridge` ont aussi
+  changé sans changement de leurs sources effectives (signalé, non bloquant).
+- **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub
+  MCP. IPA vérifiée hors ligne, clé privée supprimée.
