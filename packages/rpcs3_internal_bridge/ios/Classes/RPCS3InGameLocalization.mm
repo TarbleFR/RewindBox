@@ -1154,61 +1154,73 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build634Translatio
         @"testFastJitLoad": @"Fast JIT object loading",
         @"testJitObjectRelease": @"Free JIT objects after linking",
         @"testSpirvDiskCache": @"SPIR-V disk cache",
+        @"testHardwareCrypto": @"Hardware decryption and hashing",
       },
       @"es": @{
         @"testFastJitLoad": @"Carga rápida de objetos JIT",
         @"testJitObjectRelease": @"Liberar objetos JIT tras enlazar",
         @"testSpirvDiskCache": @"Caché de SPIR-V en disco",
+        @"testHardwareCrypto": @"Descifrado y hash por hardware",
       },
       @"ru": @{
         @"testFastJitLoad": @"Быстрая загрузка объектов JIT",
         @"testJitObjectRelease": @"Освобождать объекты JIT после компоновки",
         @"testSpirvDiskCache": @"Дисковый кэш SPIR-V",
+        @"testHardwareCrypto": @"Аппаратная расшифровка и хеширование",
       },
       @"zh": @{
         @"testFastJitLoad": @"快速加载 JIT 对象",
         @"testJitObjectRelease": @"链接后释放 JIT 对象",
         @"testSpirvDiskCache": @"SPIR-V 磁盘缓存",
+        @"testHardwareCrypto": @"硬件解密与哈希",
       },
       @"zh_Hant": @{
         @"testFastJitLoad": @"快速載入 JIT 物件",
         @"testJitObjectRelease": @"連結後釋放 JIT 物件",
         @"testSpirvDiskCache": @"SPIR-V 磁碟快取",
+        @"testHardwareCrypto": @"硬體解密與雜湊",
       },
       @"pt": @{
         @"testFastJitLoad": @"Carregamento rápido de objetos JIT",
         @"testJitObjectRelease": @"Liberar objetos JIT após vincular",
         @"testSpirvDiskCache": @"Cache de SPIR-V em disco",
+        @"testHardwareCrypto": @"Descriptografia e hash por hardware",
       },
       @"fr": @{
         @"testFastJitLoad": @"Chargement rapide des objets JIT",
         @"testJitObjectRelease": @"Libérer les objets JIT après le lien",
         @"testSpirvDiskCache": @"Cache disque SPIR-V",
+        @"testHardwareCrypto": @"Déchiffrement et hachage matériels",
       },
       @"de": @{
         @"testFastJitLoad": @"Schnelles Laden der JIT-Objekte",
         @"testJitObjectRelease": @"JIT-Objekte nach dem Linken freigeben",
         @"testSpirvDiskCache": @"SPIR-V-Datenträgercache",
+        @"testHardwareCrypto": @"Hardware-Entschlüsselung und -Hashing",
       },
       @"it": @{
         @"testFastJitLoad": @"Caricamento rapido degli oggetti JIT",
         @"testJitObjectRelease": @"Libera gli oggetti JIT dopo il collegamento",
         @"testSpirvDiskCache": @"Cache SPIR-V su disco",
+        @"testHardwareCrypto": @"Decrittazione e hash hardware",
       },
       @"id": @{
         @"testFastJitLoad": @"Pemuatan cepat objek JIT",
         @"testJitObjectRelease": @"Bebaskan objek JIT setelah penautan",
         @"testSpirvDiskCache": @"Cache disk SPIR-V",
+        @"testHardwareCrypto": @"Dekripsi dan hash perangkat keras",
       },
       @"ja": @{
         @"testFastJitLoad": @"JIT オブジェクトの高速読み込み",
         @"testJitObjectRelease": @"リンク後に JIT オブジェクトを解放",
         @"testSpirvDiskCache": @"SPIR-V ディスクキャッシュ",
+        @"testHardwareCrypto": @"ハードウェア復号とハッシュ",
       },
       @"ko": @{
         @"testFastJitLoad": @"JIT 오브젝트 빠른 로드",
         @"testJitObjectRelease": @"링크 후 JIT 오브젝트 해제",
         @"testSpirvDiskCache": @"SPIR-V 디스크 캐시",
+        @"testHardwareCrypto": @"하드웨어 복호화 및 해시",
       },
     };
   });

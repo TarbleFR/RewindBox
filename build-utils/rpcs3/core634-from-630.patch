@@ -174,6 +174,146 @@ index eadd796..918cf41 100644
  	return success;
  }
  
+diff --git a/rpcs3/Crypto/aes.cpp b/rpcs3/Crypto/aes.cpp
+index 1f49c9f..9422a1b 100644
+--- a/rpcs3/Crypto/aes.cpp
++++ b/rpcs3/Crypto/aes.cpp
+@@ -31,6 +31,7 @@
+ 
+ #include "aes.h"
+ #include "aesni.h"
++#include "ios/IOSCryptoA64.h"
+ 
+ #include <algorithm>
+ 
+@@ -670,6 +671,14 @@ int aes_crypt_ecb( aes_context *ctx,
+         return( aesni_crypt_ecb( ctx, mode, input, output ) );
+ #endif
+ 
++#ifdef REWINDBOX_CRYPTO_A64
++    if( rpcs3::ios::crypto_a64::aes() )
++    {
++        rpcs3::ios::crypto_a64::ecb( ctx->rk, ctx->nr, mode == AES_DECRYPT, input, output );
++        return( 0 );
++    }
++#endif
++
+     RK = ctx->rk;
+ 
+     GET_UINT32_LE( X0, input,  0 ); X0 ^= *RK++;
+@@ -866,6 +875,24 @@ int aes_crypt_ctr( aes_context *ctx,
+     int c, i;
+     size_t n = *nc_off;
+ 
++#ifdef REWINDBOX_CRYPTO_A64
++    if( length >= 16 && rpcs3::ios::crypto_a64::aes() )
++    {
++        // The rest of a started block, then whole blocks; the loop below takes what remains.
++        for( ; n != 0 && length != 0; length-- )
++        {
++            *output++ = static_cast<unsigned char>( *input++ ^ stream_block[n] );
++            n = (n + 1) & 0x0F;
++        }
++
++        const size_t blocks = length / 16;
++        rpcs3::ios::crypto_a64::ctr_blocks( ctx->rk, ctx->nr, blocks, nonce_counter, input, output );
++        input += blocks * 16;
++        output += blocks * 16;
++        length -= blocks * 16;
++    }
++#endif
++
+     while( length-- )
+     {
+         if( n == 0 ) {
+diff --git a/rpcs3/Crypto/sha1.cpp b/rpcs3/Crypto/sha1.cpp
+index ee982e7..cb2386a 100644
+--- a/rpcs3/Crypto/sha1.cpp
++++ b/rpcs3/Crypto/sha1.cpp
+@@ -29,6 +29,7 @@
+  */
+ 
+ #include "sha1.h"
++#include "ios/IOSCryptoA64.h"
+ #include "utils.h"
+ 
+ /*
+@@ -73,6 +74,14 @@ void sha1_process( sha1_context *ctx, const unsigned char data[64] )
+ {
+     uint32_t temp, W[16], A, B, C, D, E;
+ 
++#ifdef REWINDBOX_CRYPTO_A64
++    if( rpcs3::ios::crypto_a64::sha1() )
++    {
++        rpcs3::ios::crypto_a64::sha1_blocks( ctx->state, data, 1 );
++        return;
++    }
++#endif
++
+     GET_UINT32_BE( W[ 0], data,  0 );
+     GET_UINT32_BE( W[ 1], data,  4 );
+     GET_UINT32_BE( W[ 2], data,  8 );
+@@ -255,6 +264,16 @@ void sha1_update( sha1_context *ctx, const unsigned char *input, size_t ilen )
+         left = 0;
+     }
+ 
++#ifdef REWINDBOX_CRYPTO_A64
++    if( ilen >= 64 && rpcs3::ios::crypto_a64::sha1() )
++    {
++        const size_t blocks = ilen / 64;
++        rpcs3::ios::crypto_a64::sha1_blocks( ctx->state, input, blocks );
++        input += blocks * 64;
++        ilen  -= blocks * 64;
++    }
++#endif
++
+     while( ilen >= 64 )
+     {
+         sha1_process( ctx, input );
+diff --git a/rpcs3/Crypto/sha256.cpp b/rpcs3/Crypto/sha256.cpp
+index 83d1435..353f373 100644
+--- a/rpcs3/Crypto/sha256.cpp
++++ b/rpcs3/Crypto/sha256.cpp
+@@ -28,6 +28,7 @@
+ 
+ #include "sha256.h"
+ #include "utils.h"
++#include "ios/IOSCryptoA64.h"
+ 
+ #include <string.h>
+ 
+@@ -201,6 +202,14 @@ int mbedtls_internal_sha256_process( mbedtls_sha256_context *ctx,
+     SHA256_VALIDATE_RET( ctx != NULL );
+     SHA256_VALIDATE_RET( (const unsigned char *)data != NULL );
+ 
++#ifdef REWINDBOX_CRYPTO_A64
++    if( rpcs3::ios::crypto_a64::sha256() )
++    {
++        rpcs3::ios::crypto_a64::sha256_blocks( ctx->state, data, 1, K );
++        return( 0 );
++    }
++#endif
++
+     for( i = 0; i < 8; i++ )
+         A[i] = ctx->state[i];
+ 
+@@ -299,6 +308,16 @@ int mbedtls_sha256_update_ret( mbedtls_sha256_context *ctx,
+         left = 0;
+     }
+ 
++#ifdef REWINDBOX_CRYPTO_A64
++    if( ilen >= 64 && rpcs3::ios::crypto_a64::sha256() )
++    {
++        const size_t blocks = ilen / 64;
++        rpcs3::ios::crypto_a64::sha256_blocks( ctx->state, input, blocks, K );
++        input += blocks * 64;
++        ilen  -= blocks * 64;
++    }
++#endif
++
+     while( ilen >= 64 )
+     {
+         if( ( ret = mbedtls_internal_sha256_process( ctx, input ) ) != 0 )
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 index 988dc16..a879fba 100644
 --- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
@@ -496,24 +636,25 @@ index 3c7b548..42099d9 100644
  
  	private:
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 30c4b27..9b92ae1 100644
+index 30c4b27..17ddc1a 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
-@@ -2149,6 +2149,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2149,6 +2149,10 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  					ios_add_lever(ios_levers.fifo_nop_fast_path, ios_lever_settings.fifo_nop_fast_path);
  					ios_add_lever(ios_levers.light_measurement, ios_lever_settings.light_measurement);
  					ios_add_lever(ios_levers.zcull_async_reads, ios_lever_settings.zcull_async_reads);
 +					ios_add_lever(ios_levers.fast_jit_load, ios_lever_settings.fast_jit_load);
 +					ios_add_lever(ios_levers.jit_object_release, ios_lever_settings.jit_object_release);
 +					ios_add_lever(ios_levers.spirv_disk_cache, ios_lever_settings.spirv_disk_cache);
++					ios_add_lever(ios_levers.hardware_crypto, ios_lever_settings.hardware_crypto);
  					ios_rsx.levers627 = ios_levers627;
  					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
  					ios_rsx.overrides = ios_override_keys;
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 6479f76..0f2dd76 100644
+index 6479f76..7e81d82 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
-@@ -187,6 +187,11 @@ struct cfg_root : cfg::node
+@@ -187,6 +187,13 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> zcull_conservative_reports{ this, "ZCULL Conservative Reports", ios_experimental_mode::automatic };
  		// REWINDBOX_ZCULL_ASYNC_READS_630: Automatic is the titles of the ZCULL on-demand lever.
  		cfg::_enum<ios_experimental_mode> zcull_async_reads{ this, "ZCULL Asynchronous Reads", ios_experimental_mode::automatic };
@@ -522,9 +663,207 @@ index 6479f76..0f2dd76 100644
 +		cfg::_enum<ios_experimental_mode> jit_object_release{ this, "JIT Object Release", ios_experimental_mode::automatic };
 +		// REWINDBOX_SPIRV_DISK_CACHE_634 (ios/IOSSpirvCache.h): Automatic is every title.
 +		cfg::_enum<ios_experimental_mode> spirv_disk_cache{ this, "SPIR-V Disk Cache", ios_experimental_mode::automatic };
++		// REWINDBOX_CRYPTO_A64_634 (ios/IOSCryptoA64.h): Automatic is every title.
++		cfg::_enum<ios_experimental_mode> hardware_crypto{ this, "Hardware Crypto", ios_experimental_mode::automatic };
  		// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): Automatic is Black Ops II and God of War III.
  		cfg::_enum<ios_experimental_mode> spu_noop_spin_wait{ this, "SPU No-op Spin Wait", ios_experimental_mode::automatic };
  		// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): Automatic is God of War III, Assassin's Creed and Black Ops II.
+diff --git a/rpcs3/ios/IOSCryptoA64.h b/rpcs3/ios/IOSCryptoA64.h
+new file mode 100644
+index 0000000..9ade9bc
+--- /dev/null
++++ b/rpcs3/ios/IOSCryptoA64.h
+@@ -0,0 +1,190 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <cstring>
++
++// REWINDBOX_CRYPTO_A64_634: rpcs3/Crypto is PolarSSL and mbed TLS C code, table lookups on the
++// iPhone (the AES-NI path is x86 only). Each boot of the Build 629 logs decrypts the SELF and its
++// SPRX modules with AES-128 and hashes every code fragment with SHA-1 twice (once to look the
++// object up, once to link it); a boot of Black Ops II multiplayer spends 1.05 s before the renderer
++// exists and 0.6 s before the first link. The Apple CPU has AES, SHA-1 and SHA-256 instructions:
++// the same bytes in, the same bytes out, about ten times faster. Round keys keep their PolarSSL
++// layout: the decryption schedule is already the equivalent inverse cipher's, the one AESD needs.
++#if (defined(RPCS3_IOS) && defined(__aarch64__)) || defined(RPCS3_TEST_CRYPTO_A64)
++#define REWINDBOX_CRYPTO_A64 1
++
++#include <arm_neon.h>
++#if defined(__APPLE__)
++#include <sys/sysctl.h>
++#include <sys/types.h>
++#endif
++
++#ifdef RPCS3_TEST_CRYPTO_A64
++#define REWINDBOX_TARGET_AES
++#define REWINDBOX_TARGET_SHA2
++#else
++#define REWINDBOX_TARGET_AES __attribute__((target("aes")))
++#define REWINDBOX_TARGET_SHA2 __attribute__((target("sha2")))
++#endif
++
++namespace rpcs3::ios::crypto_a64
++{
++// The title policy sets it (experimental.hardware_crypto), before the boot decrypts anything.
++inline std::atomic<bool> enabled{true};
++
++inline bool cpu_has(const char* feature) noexcept
++{
++#if defined(__APPLE__)
++	int value = 0;
++	std::size_t size = sizeof(value);
++	return sysctlbyname(feature, &value, &size, nullptr, 0) == 0 && value == 1;
++#else
++	static_cast<void>(feature);
++	return true;
++#endif
++}
++
++inline bool aes() noexcept
++{
++	static const bool supported = cpu_has("hw.optional.arm.FEAT_AES");
++	return supported && enabled.load(std::memory_order_relaxed);
++}
++
++inline bool sha1() noexcept
++{
++	static const bool supported = cpu_has("hw.optional.arm.FEAT_SHA1");
++	return supported && enabled.load(std::memory_order_relaxed);
++}
++
++inline bool sha256() noexcept
++{
++	static const bool supported = cpu_has("hw.optional.arm.FEAT_SHA256");
++	return supported && enabled.load(std::memory_order_relaxed);
++}
++
++REWINDBOX_TARGET_AES inline uint8x16_t encrypt_block(uint8x16_t block, const std::uint8_t* keys, int rounds) noexcept
++{
++	for (int round = 0; round < rounds - 1; round++)
++	{
++		block = vaesmcq_u8(vaeseq_u8(block, vld1q_u8(keys + round * 16)));
++	}
++
++	block = vaeseq_u8(block, vld1q_u8(keys + (rounds - 1) * 16));
++	return veorq_u8(block, vld1q_u8(keys + rounds * 16));
++}
++
++REWINDBOX_TARGET_AES inline uint8x16_t decrypt_block(uint8x16_t block, const std::uint8_t* keys, int rounds) noexcept
++{
++	for (int round = 0; round < rounds - 1; round++)
++	{
++		block = vaesimcq_u8(vaesdq_u8(block, vld1q_u8(keys + round * 16)));
++	}
++
++	block = vaesdq_u8(block, vld1q_u8(keys + (rounds - 1) * 16));
++	return veorq_u8(block, vld1q_u8(keys + rounds * 16));
++}
++
++// One block: aes_crypt_ecb.
++REWINDBOX_TARGET_AES inline void ecb(const std::uint32_t* round_keys, int rounds, bool decrypt, const unsigned char* input, unsigned char* output) noexcept
++{
++	const auto* keys = reinterpret_cast<const std::uint8_t*>(round_keys);
++	const uint8x16_t block = vld1q_u8(input);
++	vst1q_u8(output, decrypt ? decrypt_block(block, keys, rounds) : encrypt_block(block, keys, rounds));
++}
++
++// Whole blocks of aes_crypt_ctr: a big-endian 128-bit counter, as the byte loop increments it.
++REWINDBOX_TARGET_AES inline void ctr_blocks(const std::uint32_t* round_keys, int rounds, std::size_t blocks, unsigned char* nonce_counter,
++	const unsigned char* input, unsigned char* output) noexcept
++{
++	const auto* keys = reinterpret_cast<const std::uint8_t*>(round_keys);
++
++	for (std::size_t block = 0; block < blocks; block++)
++	{
++		const uint8x16_t stream = encrypt_block(vld1q_u8(nonce_counter), keys, rounds);
++		vst1q_u8(output + block * 16, veorq_u8(vld1q_u8(input + block * 16), stream));
++
++		for (int byte = 16; byte > 0; byte--)
++		{
++			if (++nonce_counter[byte - 1] != 0)
++			{
++				break;
++			}
++		}
++	}
++}
++
++REWINDBOX_TARGET_SHA2 inline uint32x4_t load_big_endian(const unsigned char* data) noexcept
++{
++	return vreinterpretq_u32_u8(vrev32q_u8(vld1q_u8(data)));
++}
++
++REWINDBOX_TARGET_SHA2 inline void sha1_blocks(std::uint32_t* state, const unsigned char* data, std::size_t blocks) noexcept
++{
++	const uint32x4_t round_constants[4] = {vdupq_n_u32(0x5A827999), vdupq_n_u32(0x6ED9EBA1), vdupq_n_u32(0x8F1BBCDC), vdupq_n_u32(0xCA62C1D6)};
++	uint32x4_t abcd = vld1q_u32(state);
++	std::uint32_t e = state[4];
++
++	for (; blocks; blocks--, data += 64)
++	{
++		const uint32x4_t abcd_before = abcd;
++		const std::uint32_t e_before = e;
++		uint32x4_t schedule[4] = {load_big_endian(data), load_big_endian(data + 16), load_big_endian(data + 32), load_big_endian(data + 48)};
++
++		// Twenty groups of four rounds, each with the next four words of the message schedule.
++		for (int group = 0; group < 20; group++)
++		{
++			const uint32x4_t word = vaddq_u32(schedule[group & 3], round_constants[group / 5]);
++			const std::uint32_t next_e = vsha1h_u32(vgetq_lane_u32(abcd, 0));
++
++			switch (group / 5)
++			{
++			case 0: abcd = vsha1cq_u32(abcd, e, word); break;
++			case 2: abcd = vsha1mq_u32(abcd, e, word); break;
++			default: abcd = vsha1pq_u32(abcd, e, word); break;
++			}
++
++			e = next_e;
++			schedule[group & 3] = vsha1su1q_u32(vsha1su0q_u32(schedule[group & 3], schedule[(group + 1) & 3], schedule[(group + 2) & 3]), schedule[(group + 3) & 3]);
++		}
++
++		abcd = vaddq_u32(abcd, abcd_before);
++		e += e_before;
++	}
++
++	vst1q_u32(state, abcd);
++	state[4] = e;
++}
++
++REWINDBOX_TARGET_SHA2 inline void sha256_blocks(std::uint32_t* state, const unsigned char* data, std::size_t blocks, const std::uint32_t* round_constants) noexcept
++{
++	uint32x4_t abcd = vld1q_u32(state);
++	uint32x4_t efgh = vld1q_u32(state + 4);
++
++	for (; blocks; blocks--, data += 64)
++	{
++		const uint32x4_t abcd_before = abcd;
++		const uint32x4_t efgh_before = efgh;
++		uint32x4_t schedule[4] = {load_big_endian(data), load_big_endian(data + 16), load_big_endian(data + 32), load_big_endian(data + 48)};
++
++		// Sixteen groups of four rounds.
++		for (int group = 0; group < 16; group++)
++		{
++			const uint32x4_t word = vaddq_u32(schedule[group & 3], vld1q_u32(round_constants + group * 4));
++			const uint32x4_t abcd_previous = abcd;
++			abcd = vsha256hq_u32(abcd, efgh, word);
++			efgh = vsha256h2q_u32(efgh, abcd_previous, word);
++			schedule[group & 3] = vsha256su1q_u32(vsha256su0q_u32(schedule[group & 3], schedule[(group + 1) & 3]), schedule[(group + 2) & 3], schedule[(group + 3) & 3]);
++		}
++
++		abcd = vaddq_u32(abcd, abcd_before);
++		efgh = vaddq_u32(efgh, efgh_before);
++	}
++
++	vst1q_u32(state, abcd);
++	vst1q_u32(state + 4, efgh);
++}
++}
++#endif
 diff --git a/rpcs3/ios/IOSJitLoad.h b/rpcs3/ios/IOSJitLoad.h
 new file mode 100644
 index 0000000..5d2c333
@@ -947,18 +1286,19 @@ index 0000000..b1e4b09
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 723aefb..fc9e71d 100644
+index 723aefb..dc75beb 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -6,6 +6,7 @@
+@@ -6,6 +6,8 @@
  #include "Emu/system_config.h"
  #include "Emu/System.h"
  #include "IOSMemoryPressurePolicy.h"
++#include "IOSCryptoA64.h"
 +#include "IOSJitLoad.h"
  #include "IOSTextureValidationProfile.h"
  #include "IOSTexturePrehash.h"
  #include "IOSDeferredCommit.h"
-@@ -371,6 +372,12 @@ void resolve_experimental_policy() noexcept
+@@ -371,6 +373,16 @@ void resolve_experimental_policy() noexcept
  	// REWINDBOX_ZCULL_ASYNC_READS_630 (ios/IOSZcullOnDemand.h): needs the lever.
  	resolved.zcull_async_reads = resolved.zcull_on_demand && resolve_mode(g_cfg.ios_experimental.zcull_async_reads,
  		rpcs3::ios::title_levers::requires_zcull_on_demand(title_id));
@@ -968,24 +1308,28 @@ index 723aefb..fc9e71d 100644
 +	resolved.jit_object_release = resolve_mode(g_cfg.ios_experimental.jit_object_release, true);
 +	rpcs3::ios::jit_load::release_bytes.store(resolved.jit_object_release, std::memory_order_relaxed);
 +	resolved.spirv_disk_cache = resolve_mode(g_cfg.ios_experimental.spirv_disk_cache, true);
++	resolved.hardware_crypto = resolve_mode(g_cfg.ios_experimental.hardware_crypto, true);
++#ifdef REWINDBOX_CRYPTO_A64
++	rpcs3::ios::crypto_a64::enabled.store(resolved.hardware_crypto, std::memory_order_relaxed);
++#endif
  	resolved.zcull_conservative_reports = resolve_mode(g_cfg.ios_experimental.zcull_conservative_reports, false) &&
  		!g_cfg.core.rsx_accurate_res_access;
  	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627: Automatic is the title list.
-@@ -445,6 +452,9 @@ void resolve_experimental_policy() noexcept
+@@ -445,6 +457,9 @@ void resolve_experimental_policy() noexcept
  	// Core 627: its own line, the values of the new options of this boot.
  	// Core 630: its own line, the value of the new option of this boot.
  	ios_experimental_log.notice("Resolved title policy 630: zcull_async_reads=%d", resolved.zcull_async_reads);
 +	// Core 634: its own line, the values of the new options of this boot.
-+	ios_experimental_log.notice("Resolved title policy 634: fast_jit_load=%d jit_object_release=%d spirv_disk_cache=%d",
-+		resolved.fast_jit_load, resolved.jit_object_release, resolved.spirv_disk_cache);
++	ios_experimental_log.notice("Resolved title policy 634: fast_jit_load=%d jit_object_release=%d spirv_disk_cache=%d hardware_crypto=%d",
++		resolved.fast_jit_load, resolved.jit_object_release, resolved.spirv_disk_cache, resolved.hardware_crypto);
  	ios_experimental_log.notice("Resolved title policy 627: zcull_wait_guard=%d zcull_cond_no_wait=%d zcull_conservative_reports=%d spu_noop_spin_wait=%d spu_qos_below_rsx=%d fifo_nop_fast_path=%d light_measurement=%d",
  		resolved.zcull_wait_guard, resolved.zcull_cond_no_wait, resolved.zcull_conservative_reports, resolved.spu_noop_spin_wait,
  		resolved.spu_qos_below_rsx, resolved.fifo_nop_fast_path, resolved.light_measurement);
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index c972232..b0d5700 100644
+index c972232..7a13921 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-@@ -72,6 +72,13 @@ struct experimental_policy
+@@ -72,6 +72,15 @@ struct experimental_policy
  	// REWINDBOX_ZCULL_ASYNC_READS_630 (ios/IOSZcullOnDemand.h): a guest read of a report waits for
  	// that report only, and never stops the RSX thread.
  	bool zcull_async_reads = false;
@@ -996,20 +1340,23 @@ index c972232..b0d5700 100644
 +	bool jit_object_release = false;
 +	// REWINDBOX_SPIRV_DISK_CACHE_634 (ios/IOSSpirvCache.h): SPIR-V of a boot serves the next ones.
 +	bool spirv_disk_cache = false;
++	// REWINDBOX_CRYPTO_A64_634 (ios/IOSCryptoA64.h): AES, SHA-1 and SHA-256 instructions of the CPU.
++	bool hardware_crypto = false;
  	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): an SPU polling with no-op
  	// PUTLLC waits for a bounded time inside the PUTLLC.
  	bool spu_noop_spin_wait = false;
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index 3cf86b9..0131d7d 100644
+index 3cf86b9..1a3eb3b 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
-@@ -159,6 +159,9 @@ const std::array catalog{
+@@ -159,6 +159,10 @@ const std::array catalog{
  	GAME_SETTING("experimental.zcull_wait_guard", "Experimental", "ZCULL", "ZCULL on-demand wait guard", "Returns the ZCULL on-demand reads to the upstream mode when game threads wait too long for reports. Automatic keeps it off for the titles of that lever, whose game threads have to wait for the GPU in either mode; Enabled restores it. The deadlines that protect against a request never served always stay on. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_wait_guard, 0, 0, 0),
  	GAME_SETTING("experimental.zcull_cond_no_wait", "Experimental", "ZCULL", "ZCULL conditional draw without waiting", "With ZCULL on-demand reads, draws an object whose occlusion result is still on the GPU instead of waiting for it. An object that turns out to be hidden stays hidden behind what covers it, at the cost of its GPU time. Automatic follows the title list (Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_cond_no_wait, 0, 0, 0),
  	GAME_SETTING("experimental.zcull_async_reads", "Experimental", "ZCULL", "ZCULL asynchronous reads", "With ZCULL on-demand reads, a game read waits for its own report only and the RSX thread keeps working: the read of memory that is already final completes at once. Values stay exact.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_async_reads, 0, 0, 0),
 +	GAME_SETTING("experimental.fast_jit_load", "Experimental", "Loading", "Fast JIT object loading", "Checks and links cached PPU code on several threads, without a debug copy of each object. The code is the same; boots are shorter.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fast_jit_load, 0, 0, 0),
 +	GAME_SETTING("experimental.jit_object_release", "Experimental", "Loading", "Free JIT objects after linking", "Frees the bytes of PPU and SPU objects once they are linked, instead of keeping a copy of all the game's code in memory.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.jit_object_release, 0, 0, 0),
 +	GAME_SETTING("experimental.spirv_disk_cache", "Experimental", "Loading", "SPIR-V disk cache", "Keeps the compiled form of each shader on disk, so that the next boots skip the shader compiler. What the GPU receives does not change.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spirv_disk_cache, 0, 0, 0),
++	GAME_SETTING("experimental.hardware_crypto", "Experimental", "Loading", "Hardware decryption and hashing", "Uses the AES and SHA instructions of the CPU to decrypt and hash the game's code at boot. The results are the same.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.hardware_crypto, 0, 0, 0),
  	GAME_SETTING("experimental.zcull_conservative_reports", "Experimental", "ZCULL", "ZCULL conservative reports", "Occlusion reports read as visible from the moment they are queued until the GPU result replaces them, so neither the RSX thread nor a game thread ever waits for one. A game may then show an occluded effect for a frame or two; check for flicker on the same scene. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_conservative_reports, 0, 0, 0),
  	GAME_SETTING("experimental.fifo_nop_fast_path", "Experimental", "RSX FIFO", "RSX FIFO NOP fast path", "Keeps the RSX thread in its running state across NOP commands of the game's command stream instead of timing each one as an idle period. Automatic follows the title list (God of War III, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fifo_nop_fast_path, 0, 0, 0),
  	GAME_SETTING("experimental.spu_noop_spin_wait", "Experimental", "SPU", "SPU no-op spin wait", "An SPU thread that polls a reservation by writing back unchanged data sleeps for a bounded time before its next read, which leaves its core to the PPU and RSX threads. Automatic follows the title list (God of War III, Black Ops II). No effect on compiled code or caches. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_noop_spin_wait, 0, 0, 0),

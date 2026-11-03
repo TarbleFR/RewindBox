@@ -3123,6 +3123,146 @@ index 4010442..67c3815 100644
      set_source_files_properties(ios/FirmwareInstaller.cpp ios/GameLibrary.cpp ios/GameUpdateManifest.cpp ios/RPCS3IOSConfigDatabase.cpp ios/TrophyLibrary.cpp ios/RPCS3IOS.cpp ios/RPCS3IOSLocalization.cpp ios/RPCS3IOSPerformance.cpp ios/RPCS3IOSRuntimePatches.cpp ios/RPCS3IOSSaveDialog.cpp ios/RPCS3IOSSettings.cpp PROPERTIES COMPILE_OPTIONS -fexceptions)
  
      set_target_properties(RPCS3Core PROPERTIES
+diff --git a/rpcs3/Crypto/aes.cpp b/rpcs3/Crypto/aes.cpp
+index 1f49c9f..9422a1b 100644
+--- a/rpcs3/Crypto/aes.cpp
++++ b/rpcs3/Crypto/aes.cpp
+@@ -31,6 +31,7 @@
+ 
+ #include "aes.h"
+ #include "aesni.h"
++#include "ios/IOSCryptoA64.h"
+ 
+ #include <algorithm>
+ 
+@@ -670,6 +671,14 @@ int aes_crypt_ecb( aes_context *ctx,
+         return( aesni_crypt_ecb( ctx, mode, input, output ) );
+ #endif
+ 
++#ifdef REWINDBOX_CRYPTO_A64
++    if( rpcs3::ios::crypto_a64::aes() )
++    {
++        rpcs3::ios::crypto_a64::ecb( ctx->rk, ctx->nr, mode == AES_DECRYPT, input, output );
++        return( 0 );
++    }
++#endif
++
+     RK = ctx->rk;
+ 
+     GET_UINT32_LE( X0, input,  0 ); X0 ^= *RK++;
+@@ -866,6 +875,24 @@ int aes_crypt_ctr( aes_context *ctx,
+     int c, i;
+     size_t n = *nc_off;
+ 
++#ifdef REWINDBOX_CRYPTO_A64
++    if( length >= 16 && rpcs3::ios::crypto_a64::aes() )
++    {
++        // The rest of a started block, then whole blocks; the loop below takes what remains.
++        for( ; n != 0 && length != 0; length-- )
++        {
++            *output++ = static_cast<unsigned char>( *input++ ^ stream_block[n] );
++            n = (n + 1) & 0x0F;
++        }
++
++        const size_t blocks = length / 16;
++        rpcs3::ios::crypto_a64::ctr_blocks( ctx->rk, ctx->nr, blocks, nonce_counter, input, output );
++        input += blocks * 16;
++        output += blocks * 16;
++        length -= blocks * 16;
++    }
++#endif
++
+     while( length-- )
+     {
+         if( n == 0 ) {
+diff --git a/rpcs3/Crypto/sha1.cpp b/rpcs3/Crypto/sha1.cpp
+index ee982e7..cb2386a 100644
+--- a/rpcs3/Crypto/sha1.cpp
++++ b/rpcs3/Crypto/sha1.cpp
+@@ -29,6 +29,7 @@
+  */
+ 
+ #include "sha1.h"
++#include "ios/IOSCryptoA64.h"
+ #include "utils.h"
+ 
+ /*
+@@ -73,6 +74,14 @@ void sha1_process( sha1_context *ctx, const unsigned char data[64] )
+ {
+     uint32_t temp, W[16], A, B, C, D, E;
+ 
++#ifdef REWINDBOX_CRYPTO_A64
++    if( rpcs3::ios::crypto_a64::sha1() )
++    {
++        rpcs3::ios::crypto_a64::sha1_blocks( ctx->state, data, 1 );
++        return;
++    }
++#endif
++
+     GET_UINT32_BE( W[ 0], data,  0 );
+     GET_UINT32_BE( W[ 1], data,  4 );
+     GET_UINT32_BE( W[ 2], data,  8 );
+@@ -255,6 +264,16 @@ void sha1_update( sha1_context *ctx, const unsigned char *input, size_t ilen )
+         left = 0;
+     }
+ 
++#ifdef REWINDBOX_CRYPTO_A64
++    if( ilen >= 64 && rpcs3::ios::crypto_a64::sha1() )
++    {
++        const size_t blocks = ilen / 64;
++        rpcs3::ios::crypto_a64::sha1_blocks( ctx->state, input, blocks );
++        input += blocks * 64;
++        ilen  -= blocks * 64;
++    }
++#endif
++
+     while( ilen >= 64 )
+     {
+         sha1_process( ctx, input );
+diff --git a/rpcs3/Crypto/sha256.cpp b/rpcs3/Crypto/sha256.cpp
+index 83d1435..353f373 100644
+--- a/rpcs3/Crypto/sha256.cpp
++++ b/rpcs3/Crypto/sha256.cpp
+@@ -28,6 +28,7 @@
+ 
+ #include "sha256.h"
+ #include "utils.h"
++#include "ios/IOSCryptoA64.h"
+ 
+ #include <string.h>
+ 
+@@ -201,6 +202,14 @@ int mbedtls_internal_sha256_process( mbedtls_sha256_context *ctx,
+     SHA256_VALIDATE_RET( ctx != NULL );
+     SHA256_VALIDATE_RET( (const unsigned char *)data != NULL );
+ 
++#ifdef REWINDBOX_CRYPTO_A64
++    if( rpcs3::ios::crypto_a64::sha256() )
++    {
++        rpcs3::ios::crypto_a64::sha256_blocks( ctx->state, data, 1, K );
++        return( 0 );
++    }
++#endif
++
+     for( i = 0; i < 8; i++ )
+         A[i] = ctx->state[i];
+ 
+@@ -299,6 +308,16 @@ int mbedtls_sha256_update_ret( mbedtls_sha256_context *ctx,
+         left = 0;
+     }
+ 
++#ifdef REWINDBOX_CRYPTO_A64
++    if( ilen >= 64 && rpcs3::ios::crypto_a64::sha256() )
++    {
++        const size_t blocks = ilen / 64;
++        rpcs3::ios::crypto_a64::sha256_blocks( ctx->state, input, blocks, K );
++        input += blocks * 64;
++        ilen  -= blocks * 64;
++    }
++#endif
++
+     while( ilen >= 64 )
+     {
+         if( ( ret = mbedtls_internal_sha256_process( ctx, input ) ) != 0 )
 diff --git a/rpcs3/Crypto/unpkg.cpp b/rpcs3/Crypto/unpkg.cpp
 index c9a4934..fc76179 100644
 --- a/rpcs3/Crypto/unpkg.cpp
@@ -30117,7 +30257,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..9b92ae1 100644
+index 1f53c64..17ddc1a 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1,4 +1,7 @@
@@ -30485,7 +30625,7 @@ index 1f53c64..9b92ae1 100644
  			// Disable incompatible settings
  			fixup_settings(&_psf, inherited_psf_resolution);
  
-@@ -1847,6 +2039,145 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1847,6 +2039,146 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			}
  			g_cfg.misc.use_native_interface.set(true);
  			rpcs3::ios::resolve_experimental_policy();
@@ -30602,6 +30742,7 @@ index 1f53c64..9b92ae1 100644
 +					ios_add_lever(ios_levers.fast_jit_load, ios_lever_settings.fast_jit_load);
 +					ios_add_lever(ios_levers.jit_object_release, ios_lever_settings.jit_object_release);
 +					ios_add_lever(ios_levers.spirv_disk_cache, ios_lever_settings.spirv_disk_cache);
++					ios_add_lever(ios_levers.hardware_crypto, ios_lever_settings.hardware_crypto);
 +					ios_rsx.levers627 = ios_levers627;
 +					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
 +					ios_rsx.overrides = ios_override_keys;
@@ -30631,7 +30772,7 @@ index 1f53c64..9b92ae1 100644
  #endif
  
  			// Backup config
-@@ -2504,7 +2835,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2504,7 +2836,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.warning("State Inspection Savestate Mode!");
  
  				vm::init();
@@ -30646,7 +30787,7 @@ index 1f53c64..9b92ae1 100644
  
  				if (!hdd1.empty())
  				{
-@@ -2513,6 +2851,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2513,6 +2852,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  
  				init_fxo_for_exec(DeserialManager(), true);
@@ -30656,7 +30797,7 @@ index 1f53c64..9b92ae1 100644
  
  				return game_boot_result::no_errors;
  			}
-@@ -2586,7 +2927,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2586,7 +2928,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  		{
  			if (m_ar)
  			{
@@ -30671,7 +30812,7 @@ index 1f53c64..9b92ae1 100644
  			}
  
  			// Mount /host_root/ if necessary (special value)
-@@ -2709,7 +3057,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2709,7 +3058,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			const auto _main = ensure(g_fxo->init<main_ppu_module<lv2_obj>>());
  
@@ -30700,7 +30841,7 @@ index 1f53c64..9b92ae1 100644
  			{
  				if (g_cfg.core.ppu_debug && had_been_decrypted)
  				{
-@@ -2864,6 +3232,11 @@ void Emulator::Run(bool start_playtime)
+@@ -2864,6 +3233,11 @@ void Emulator::Run(bool start_playtime)
  void Emulator::RunPPU()
  {
  	ensure(IsStarting());
@@ -30712,7 +30853,7 @@ index 1f53c64..9b92ae1 100644
  
  	bool signalled_thread = false;
  
-@@ -2943,6 +3316,10 @@ void Emulator::FixGuestTime()
+@@ -2943,6 +3317,10 @@ void Emulator::FixGuestTime()
  
  void Emulator::FinalizeRunRequest()
  {
@@ -30723,7 +30864,7 @@ index 1f53c64..9b92ae1 100644
  	const bool autostart = !m_ar || !!g_cfg.misc.autostart;
  
  	bs_t<cpu_flag> add_flags = cpu_flag::dbg_global_pause;
-@@ -2989,7 +3366,25 @@ void Emulator::FinalizeRunRequest()
+@@ -2989,7 +3367,25 @@ void Emulator::FinalizeRunRequest()
  	lv2_obj::make_scheduler_ready();
  
  	m_state.compare_and_swap_test(system_state::starting, system_state::running);
@@ -30749,7 +30890,7 @@ index 1f53c64..9b92ae1 100644
  	m_ar.reset();
  
  	if (!autostart)
-@@ -3479,6 +3874,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3479,6 +3875,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -30762,7 +30903,7 @@ index 1f53c64..9b92ae1 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3894,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3895,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -30785,7 +30926,7 @@ index 1f53c64..9b92ae1 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3950,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3951,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -30793,7 +30934,7 @@ index 1f53c64..9b92ae1 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3961,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3962,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -30801,7 +30942,7 @@ index 1f53c64..9b92ae1 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3971,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +3972,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -30809,7 +30950,7 @@ index 1f53c64..9b92ae1 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +4059,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +4060,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -30820,7 +30961,7 @@ index 1f53c64..9b92ae1 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +4125,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +4126,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -30829,7 +30970,7 @@ index 1f53c64..9b92ae1 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +4239,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +4240,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -30844,7 +30985,7 @@ index 1f53c64..9b92ae1 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +4274,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4275,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -30852,7 +30993,7 @@ index 1f53c64..9b92ae1 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4392,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4393,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -30866,7 +31007,7 @@ index 1f53c64..9b92ae1 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4447,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4448,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -30879,7 +31020,7 @@ index 1f53c64..9b92ae1 100644
  			});
  
  			// Join it
-@@ -4075,10 +4517,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4518,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -30899,7 +31040,7 @@ index 1f53c64..9b92ae1 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4214,6 +4665,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4214,6 +4666,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  			lv2_obj::cleanup();
  
@@ -30910,7 +31051,7 @@ index 1f53c64..9b92ae1 100644
  			g_fxo->reset();
  
  			sys_log.notice("Objects cleared...");
-@@ -4308,10 +4763,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4308,10 +4764,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{
@@ -30936,7 +31077,7 @@ index 1f53c64..9b92ae1 100644
  	Emu.after_kill_callback = [this, reset_path]
  	{
  		// Reset boot path in case of ISO
-@@ -4381,6 +4851,9 @@ bool Emulator::Quit(bool force_quit)
+@@ -4381,6 +4852,9 @@ bool Emulator::Quit(bool force_quit)
  
  void Emulator::CleanUp()
  {
@@ -31111,7 +31252,7 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922..0f2dd76 100644
+index 7072922..7e81d82 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -31168,7 +31309,7 @@ index 7072922..0f2dd76 100644
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +165,49 @@ struct cfg_root : cfg::node
+@@ -134,6 +165,51 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -31199,6 +31340,8 @@ index 7072922..0f2dd76 100644
 +		cfg::_enum<ios_experimental_mode> jit_object_release{ this, "JIT Object Release", ios_experimental_mode::automatic };
 +		// REWINDBOX_SPIRV_DISK_CACHE_634 (ios/IOSSpirvCache.h): Automatic is every title.
 +		cfg::_enum<ios_experimental_mode> spirv_disk_cache{ this, "SPIR-V Disk Cache", ios_experimental_mode::automatic };
++		// REWINDBOX_CRYPTO_A64_634 (ios/IOSCryptoA64.h): Automatic is every title.
++		cfg::_enum<ios_experimental_mode> hardware_crypto{ this, "Hardware Crypto", ios_experimental_mode::automatic };
 +		// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): Automatic is Black Ops II and God of War III.
 +		cfg::_enum<ios_experimental_mode> spu_noop_spin_wait{ this, "SPU No-op Spin Wait", ios_experimental_mode::automatic };
 +		// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): Automatic is God of War III, Assassin's Creed and Black Ops II.
@@ -32387,6 +32530,202 @@ index 0000000..1bec705
 +inline std::atomic<std::uint64_t> spin_completed{0};
 +inline diagnostics::EventCost blocked_us{};
 +}
+diff --git a/rpcs3/ios/IOSCryptoA64.h b/rpcs3/ios/IOSCryptoA64.h
+new file mode 100644
+index 0000000..9ade9bc
+--- /dev/null
++++ b/rpcs3/ios/IOSCryptoA64.h
+@@ -0,0 +1,190 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <cstring>
++
++// REWINDBOX_CRYPTO_A64_634: rpcs3/Crypto is PolarSSL and mbed TLS C code, table lookups on the
++// iPhone (the AES-NI path is x86 only). Each boot of the Build 629 logs decrypts the SELF and its
++// SPRX modules with AES-128 and hashes every code fragment with SHA-1 twice (once to look the
++// object up, once to link it); a boot of Black Ops II multiplayer spends 1.05 s before the renderer
++// exists and 0.6 s before the first link. The Apple CPU has AES, SHA-1 and SHA-256 instructions:
++// the same bytes in, the same bytes out, about ten times faster. Round keys keep their PolarSSL
++// layout: the decryption schedule is already the equivalent inverse cipher's, the one AESD needs.
++#if (defined(RPCS3_IOS) && defined(__aarch64__)) || defined(RPCS3_TEST_CRYPTO_A64)
++#define REWINDBOX_CRYPTO_A64 1
++
++#include <arm_neon.h>
++#if defined(__APPLE__)
++#include <sys/sysctl.h>
++#include <sys/types.h>
++#endif
++
++#ifdef RPCS3_TEST_CRYPTO_A64
++#define REWINDBOX_TARGET_AES
++#define REWINDBOX_TARGET_SHA2
++#else
++#define REWINDBOX_TARGET_AES __attribute__((target("aes")))
++#define REWINDBOX_TARGET_SHA2 __attribute__((target("sha2")))
++#endif
++
++namespace rpcs3::ios::crypto_a64
++{
++// The title policy sets it (experimental.hardware_crypto), before the boot decrypts anything.
++inline std::atomic<bool> enabled{true};
++
++inline bool cpu_has(const char* feature) noexcept
++{
++#if defined(__APPLE__)
++	int value = 0;
++	std::size_t size = sizeof(value);
++	return sysctlbyname(feature, &value, &size, nullptr, 0) == 0 && value == 1;
++#else
++	static_cast<void>(feature);
++	return true;
++#endif
++}
++
++inline bool aes() noexcept
++{
++	static const bool supported = cpu_has("hw.optional.arm.FEAT_AES");
++	return supported && enabled.load(std::memory_order_relaxed);
++}
++
++inline bool sha1() noexcept
++{
++	static const bool supported = cpu_has("hw.optional.arm.FEAT_SHA1");
++	return supported && enabled.load(std::memory_order_relaxed);
++}
++
++inline bool sha256() noexcept
++{
++	static const bool supported = cpu_has("hw.optional.arm.FEAT_SHA256");
++	return supported && enabled.load(std::memory_order_relaxed);
++}
++
++REWINDBOX_TARGET_AES inline uint8x16_t encrypt_block(uint8x16_t block, const std::uint8_t* keys, int rounds) noexcept
++{
++	for (int round = 0; round < rounds - 1; round++)
++	{
++		block = vaesmcq_u8(vaeseq_u8(block, vld1q_u8(keys + round * 16)));
++	}
++
++	block = vaeseq_u8(block, vld1q_u8(keys + (rounds - 1) * 16));
++	return veorq_u8(block, vld1q_u8(keys + rounds * 16));
++}
++
++REWINDBOX_TARGET_AES inline uint8x16_t decrypt_block(uint8x16_t block, const std::uint8_t* keys, int rounds) noexcept
++{
++	for (int round = 0; round < rounds - 1; round++)
++	{
++		block = vaesimcq_u8(vaesdq_u8(block, vld1q_u8(keys + round * 16)));
++	}
++
++	block = vaesdq_u8(block, vld1q_u8(keys + (rounds - 1) * 16));
++	return veorq_u8(block, vld1q_u8(keys + rounds * 16));
++}
++
++// One block: aes_crypt_ecb.
++REWINDBOX_TARGET_AES inline void ecb(const std::uint32_t* round_keys, int rounds, bool decrypt, const unsigned char* input, unsigned char* output) noexcept
++{
++	const auto* keys = reinterpret_cast<const std::uint8_t*>(round_keys);
++	const uint8x16_t block = vld1q_u8(input);
++	vst1q_u8(output, decrypt ? decrypt_block(block, keys, rounds) : encrypt_block(block, keys, rounds));
++}
++
++// Whole blocks of aes_crypt_ctr: a big-endian 128-bit counter, as the byte loop increments it.
++REWINDBOX_TARGET_AES inline void ctr_blocks(const std::uint32_t* round_keys, int rounds, std::size_t blocks, unsigned char* nonce_counter,
++	const unsigned char* input, unsigned char* output) noexcept
++{
++	const auto* keys = reinterpret_cast<const std::uint8_t*>(round_keys);
++
++	for (std::size_t block = 0; block < blocks; block++)
++	{
++		const uint8x16_t stream = encrypt_block(vld1q_u8(nonce_counter), keys, rounds);
++		vst1q_u8(output + block * 16, veorq_u8(vld1q_u8(input + block * 16), stream));
++
++		for (int byte = 16; byte > 0; byte--)
++		{
++			if (++nonce_counter[byte - 1] != 0)
++			{
++				break;
++			}
++		}
++	}
++}
++
++REWINDBOX_TARGET_SHA2 inline uint32x4_t load_big_endian(const unsigned char* data) noexcept
++{
++	return vreinterpretq_u32_u8(vrev32q_u8(vld1q_u8(data)));
++}
++
++REWINDBOX_TARGET_SHA2 inline void sha1_blocks(std::uint32_t* state, const unsigned char* data, std::size_t blocks) noexcept
++{
++	const uint32x4_t round_constants[4] = {vdupq_n_u32(0x5A827999), vdupq_n_u32(0x6ED9EBA1), vdupq_n_u32(0x8F1BBCDC), vdupq_n_u32(0xCA62C1D6)};
++	uint32x4_t abcd = vld1q_u32(state);
++	std::uint32_t e = state[4];
++
++	for (; blocks; blocks--, data += 64)
++	{
++		const uint32x4_t abcd_before = abcd;
++		const std::uint32_t e_before = e;
++		uint32x4_t schedule[4] = {load_big_endian(data), load_big_endian(data + 16), load_big_endian(data + 32), load_big_endian(data + 48)};
++
++		// Twenty groups of four rounds, each with the next four words of the message schedule.
++		for (int group = 0; group < 20; group++)
++		{
++			const uint32x4_t word = vaddq_u32(schedule[group & 3], round_constants[group / 5]);
++			const std::uint32_t next_e = vsha1h_u32(vgetq_lane_u32(abcd, 0));
++
++			switch (group / 5)
++			{
++			case 0: abcd = vsha1cq_u32(abcd, e, word); break;
++			case 2: abcd = vsha1mq_u32(abcd, e, word); break;
++			default: abcd = vsha1pq_u32(abcd, e, word); break;
++			}
++
++			e = next_e;
++			schedule[group & 3] = vsha1su1q_u32(vsha1su0q_u32(schedule[group & 3], schedule[(group + 1) & 3], schedule[(group + 2) & 3]), schedule[(group + 3) & 3]);
++		}
++
++		abcd = vaddq_u32(abcd, abcd_before);
++		e += e_before;
++	}
++
++	vst1q_u32(state, abcd);
++	state[4] = e;
++}
++
++REWINDBOX_TARGET_SHA2 inline void sha256_blocks(std::uint32_t* state, const unsigned char* data, std::size_t blocks, const std::uint32_t* round_constants) noexcept
++{
++	uint32x4_t abcd = vld1q_u32(state);
++	uint32x4_t efgh = vld1q_u32(state + 4);
++
++	for (; blocks; blocks--, data += 64)
++	{
++		const uint32x4_t abcd_before = abcd;
++		const uint32x4_t efgh_before = efgh;
++		uint32x4_t schedule[4] = {load_big_endian(data), load_big_endian(data + 16), load_big_endian(data + 32), load_big_endian(data + 48)};
++
++		// Sixteen groups of four rounds.
++		for (int group = 0; group < 16; group++)
++		{
++			const uint32x4_t word = vaddq_u32(schedule[group & 3], vld1q_u32(round_constants + group * 4));
++			const uint32x4_t abcd_previous = abcd;
++			abcd = vsha256hq_u32(abcd, efgh, word);
++			efgh = vsha256h2q_u32(efgh, abcd_previous, word);
++			schedule[group & 3] = vsha256su1q_u32(vsha256su0q_u32(schedule[group & 3], schedule[(group + 1) & 3]), schedule[(group + 2) & 3], schedule[(group + 3) & 3]);
++		}
++
++		abcd = vaddq_u32(abcd, abcd_before);
++		efgh = vaddq_u32(efgh, efgh_before);
++	}
++
++	vst1q_u32(state, abcd);
++	vst1q_u32(state + 4, efgh);
++}
++}
++#endif
 diff --git a/rpcs3/ios/IOSDMACopy.h b/rpcs3/ios/IOSDMACopy.h
 index b6c26eb..a409cfc 100644
 --- a/rpcs3/ios/IOSDMACopy.h
@@ -43706,10 +44045,10 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..fc9e71d 100644
+index 7c3389b..dc75beb 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,10 +1,32 @@
+@@ -1,10 +1,33 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
@@ -43718,6 +44057,7 @@ index 7c3389b..fc9e71d 100644
  #include "Emu/system_config.h"
 +#include "Emu/System.h"
 +#include "IOSMemoryPressurePolicy.h"
++#include "IOSCryptoA64.h"
 +#include "IOSJitLoad.h"
 +#include "IOSTextureValidationProfile.h"
 +#include "IOSTexturePrehash.h"
@@ -43742,7 +44082,7 @@ index 7c3389b..fc9e71d 100644
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
  
  namespace rpcs3::ios
-@@ -13,6 +35,122 @@ namespace
+@@ -13,6 +36,122 @@ namespace
  {
  experimental_policy s_policy{};
  
@@ -43865,7 +44205,7 @@ index 7c3389b..fc9e71d 100644
  bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  {
  	switch (mode)
-@@ -27,6 +165,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +166,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -43942,7 +44282,7 @@ index 7c3389b..fc9e71d 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +255,77 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +256,77 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -44020,7 +44360,7 @@ index 7c3389b..fc9e71d 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +337,192 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +338,196 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -44065,6 +44405,10 @@ index 7c3389b..fc9e71d 100644
 +	resolved.jit_object_release = resolve_mode(g_cfg.ios_experimental.jit_object_release, true);
 +	rpcs3::ios::jit_load::release_bytes.store(resolved.jit_object_release, std::memory_order_relaxed);
 +	resolved.spirv_disk_cache = resolve_mode(g_cfg.ios_experimental.spirv_disk_cache, true);
++	resolved.hardware_crypto = resolve_mode(g_cfg.ios_experimental.hardware_crypto, true);
++#ifdef REWINDBOX_CRYPTO_A64
++	rpcs3::ios::crypto_a64::enabled.store(resolved.hardware_crypto, std::memory_order_relaxed);
++#endif
 +	resolved.zcull_conservative_reports = resolve_mode(g_cfg.ios_experimental.zcull_conservative_reports, false) &&
 +		!g_cfg.core.rsx_accurate_res_access;
 +	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627: Automatic is the title list.
@@ -44150,8 +44494,8 @@ index 7c3389b..fc9e71d 100644
 +	// Core 630: its own line, the value of the new option of this boot.
 +	ios_experimental_log.notice("Resolved title policy 630: zcull_async_reads=%d", resolved.zcull_async_reads);
 +	// Core 634: its own line, the values of the new options of this boot.
-+	ios_experimental_log.notice("Resolved title policy 634: fast_jit_load=%d jit_object_release=%d spirv_disk_cache=%d",
-+		resolved.fast_jit_load, resolved.jit_object_release, resolved.spirv_disk_cache);
++	ios_experimental_log.notice("Resolved title policy 634: fast_jit_load=%d jit_object_release=%d spirv_disk_cache=%d hardware_crypto=%d",
++		resolved.fast_jit_load, resolved.jit_object_release, resolved.spirv_disk_cache, resolved.hardware_crypto);
 +	ios_experimental_log.notice("Resolved title policy 627: zcull_wait_guard=%d zcull_cond_no_wait=%d zcull_conservative_reports=%d spu_noop_spin_wait=%d spu_qos_below_rsx=%d fifo_nop_fast_path=%d light_measurement=%d",
 +		resolved.zcull_wait_guard, resolved.zcull_cond_no_wait, resolved.zcull_conservative_reports, resolved.spu_noop_spin_wait,
 +		resolved.spu_qos_below_rsx, resolved.fifo_nop_fast_path, resolved.light_measurement);
@@ -44224,7 +44568,7 @@ index 7c3389b..fc9e71d 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..b0d5700 100644
+index 8fba197..7a13921 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -44264,7 +44608,7 @@ index 8fba197..b0d5700 100644
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,14 +43,112 @@ struct experimental_policy
+@@ -20,14 +43,114 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -44304,6 +44648,8 @@ index 8fba197..b0d5700 100644
 +	bool jit_object_release = false;
 +	// REWINDBOX_SPIRV_DISK_CACHE_634 (ios/IOSSpirvCache.h): SPIR-V of a boot serves the next ones.
 +	bool spirv_disk_cache = false;
++	// REWINDBOX_CRYPTO_A64_634 (ios/IOSCryptoA64.h): AES, SHA-1 and SHA-256 instructions of the CPU.
++	bool hardware_crypto = false;
 +	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): an SPU polling with no-op
 +	// PUTLLC waits for a bounded time inside the PUTLLC.
 +	bool spu_noop_spin_wait = false;
@@ -48403,7 +48749,7 @@ index 0000000..dcc1fad
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..0131d7d 100644
+index b7b0474..1a3eb3b 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -48431,7 +48777,7 @@ index b7b0474..0131d7d 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +126,59 @@ const std::array catalog{
+@@ -122,21 +126,60 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -48473,6 +48819,7 @@ index b7b0474..0131d7d 100644
 +	GAME_SETTING("experimental.fast_jit_load", "Experimental", "Loading", "Fast JIT object loading", "Checks and links cached PPU code on several threads, without a debug copy of each object. The code is the same; boots are shorter.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fast_jit_load, 0, 0, 0),
 +	GAME_SETTING("experimental.jit_object_release", "Experimental", "Loading", "Free JIT objects after linking", "Frees the bytes of PPU and SPU objects once they are linked, instead of keeping a copy of all the game's code in memory.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.jit_object_release, 0, 0, 0),
 +	GAME_SETTING("experimental.spirv_disk_cache", "Experimental", "Loading", "SPIR-V disk cache", "Keeps the compiled form of each shader on disk, so that the next boots skip the shader compiler. What the GPU receives does not change.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spirv_disk_cache, 0, 0, 0),
++	GAME_SETTING("experimental.hardware_crypto", "Experimental", "Loading", "Hardware decryption and hashing", "Uses the AES and SHA instructions of the CPU to decrypt and hash the game's code at boot. The results are the same.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.hardware_crypto, 0, 0, 0),
 +	GAME_SETTING("experimental.zcull_conservative_reports", "Experimental", "ZCULL", "ZCULL conservative reports", "Occlusion reports read as visible from the moment they are queued until the GPU result replaces them, so neither the RSX thread nor a game thread ever waits for one. A game may then show an occluded effect for a frame or two; check for flicker on the same scene. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_conservative_reports, 0, 0, 0),
 +	GAME_SETTING("experimental.fifo_nop_fast_path", "Experimental", "RSX FIFO", "RSX FIFO NOP fast path", "Keeps the RSX thread in its running state across NOP commands of the game's command stream instead of timing each one as an idle period. Automatic follows the title list (God of War III, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fifo_nop_fast_path, 0, 0, 0),
 +	GAME_SETTING("experimental.spu_noop_spin_wait", "Experimental", "SPU", "SPU no-op spin wait", "An SPU thread that polls a reservation by writing back unchanged data sleeps for a bounded time before its next read, which leaves its core to the PPU and RSX threads. Automatic follows the title list (God of War III, Black Ops II). No effect on compiled code or caches. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_noop_spin_wait, 0, 0, 0),
@@ -48493,7 +48840,7 @@ index b7b0474..0131d7d 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +247,89 @@ const std::array catalog{
+@@ -205,6 +248,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -48583,7 +48930,7 @@ index b7b0474..0131d7d 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +698,139 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +699,139 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  
