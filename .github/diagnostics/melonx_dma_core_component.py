@@ -38,7 +38,8 @@ CONTROL_PREPARED = {
     'ada': EVIDENCE + 'baseline-ae78b4be/baseline-ada4058/embedded-adapted-source.zip',
 }
 # Six since build 621: pipeline-checkpoint is rerun with the 1 GiB pipeline cache budget (verify_dma_core.FRESH_GATES).
-FRESH_GATES = 6
+# Eleven since Core 631 (run 41720730870): the encoding fixtures and counter-report-compaction rerun on the final source.
+FRESH_GATES = 11
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4
