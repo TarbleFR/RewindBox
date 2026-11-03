@@ -270,6 +270,12 @@ def report_render_detail(lines, chosen):
 MVK_HEADER = re.compile(r'Performance statistics reporting every: (\d+) frames, avg FPS: ([\d.]+), elapsed time: ([\d.]+) seconds')
 MVK_TRACKER = re.compile(r'\[mvk-info\]\s+(?P<name>\S.*?)(?: performance)?\s+avg: (?P<avg>[\d.]+) ?(?P<unit>[A-Za-z]*), '
                          r'latest: .*?count: (?P<count>\d+)')
+# The RewindBox MoltenVK rebuild (build-utils/melonx/moltenvk/): counts since the previous summary, in both walks.
+MVK_WALK = re.compile(r'\[mvk-info\]\s+Argument buffer resource usage \(RewindBox\)\s+(?P<mode>\w+) walk, '
+                      r'encodes: (?P<encodes>\d+), elements: (?P<elements>\d+), dirty: (?P<dirty>\d+), '
+                      r'useResource: (?P<calls>\d+), skipped: (?P<skipped>\d+), tessellation: (?P<tessellation>\d+), '
+                      r'time: (?P<ms>[\d.]+) ms')
+WALK_KEYS = ('encodes', 'elements', 'dirty', 'calls', 'skipped', 'tessellation')
 MVK_NAMES = {'gpu': 'Execute a MTLCommandBuffer on GPU', 'encode': 'Encode VkCommandBuffer to MTLCommandBuffer',
              'submit': 'vkQueueSubmit() encoding to MTLCommandBuffers', 'drawable': 'Retrieve a CAMetalDrawable from CAMetalLayer',
              'present': 'Present swapchains in on GPU', 'retrieve': 'Retrieve a MTLCommandBuffer', 'interval': 'Frame interval'}
@@ -284,6 +290,12 @@ def read_moltenvk(path, pid):
         header = MVK_HEADER.search(line)
         if header:
             summaries.append(dict(frames=int(header.group(1)), elapsed=float(header.group(3)), trackers={}))
+            continue
+        walk = MVK_WALK.search(line)
+        if walk:
+            if summaries:
+                summaries[-1]['walk'] = dict(mode=walk.group('mode'), ms=float(walk.group('ms')),
+                                             **{key: int(walk.group(key)) for key in WALK_KEYS})
             continue
         tracker = MVK_TRACKER.search(line)
         if tracker and tracker.group('unit') in ('ms', ''):
@@ -324,9 +336,25 @@ def report_moltenvk(summaries):
             print(f"  at {summary['elapsed']:.0f} s of MoltenVK time ({frames} frames, mean interval {delta.get('interval', (0.0, 1))[0] / frames:.1f} ms): "
                   f"GPU {gpu[0] / frames:.1f} ms in {gpu[1] / frames:.1f} command buffers, Metal encoding {encode[0] / frames:.1f} ms, "
                   f"vkQueueSubmit {delta.get('submit', (0.0, 0))[0] / frames:.1f} ms, drawable {delta.get('drawable', (0.0, 0))[0] / frames:.1f} ms")
+            walk = summary.get('walk')
+            if walk:
+                for key in ('ms', *WALK_KEYS):
+                    totals['walk_' + key] = totals.get('walk_' + key, 0) + walk[key]
+                totals['walk_frames'] = totals.get('walk_frames', 0) + frames
+                totals.setdefault('walk_modes', set()).add(walk['mode'])
+                print(f"    argument buffer usage ({walk['mode']} walk): {walk['ms'] / frames:.2f} ms per frame in "
+                      f"{walk['encodes'] / frames:.1f} encodes, {walk['elements'] / frames:.0f} elements, "
+                      f"{walk['dirty'] / frames:.0f} dirty, useResource {walk['calls'] / frames:.0f} made and "
+                      f"{walk['skipped'] / frames:.0f} skipped, tessellation {walk['tessellation'] / frames:.1f}")
         previous = trackers
     names = sorted(set().union(*(s['trackers'] for s in summaries)))
     print('  trackers seen: ' + '; '.join(names))
+    if totals.get('walk_frames'):
+        frames = totals['walk_frames']
+        print(f"  argument buffer usage over {frames} frames ({'/'.join(sorted(totals['walk_modes']))} walk): "
+              f"{totals['walk_ms'] / frames:.2f} ms per frame of Metal encoding, {totals['walk_elements'] / frames:.0f} "
+              f"elements and {totals['walk_dirty'] / frames:.0f} dirty, useResource {totals['walk_calls'] / frames:.0f} "
+              f"made and {totals['walk_skipped'] / frames:.0f} skipped per frame")
     return totals
 
 
