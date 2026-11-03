@@ -1,12 +1,13 @@
 """Source checks of adapt_queued_syncpoints (Hogwarts policy: syncpoint increments queued behind occlusion reports).
 
-Run on a prepared tree (`--source`, prepared with or without this adapter): the six files are taken before the adapter
+Run on a prepared tree (`--source`, prepared with or without this adapter): the seven files are taken before the adapter
 (its hunks reversed when it already ran), the adapter is applied to copies, and the result is checked: every hunk once,
 a second application and a drifted anchor refused, the delivered increment path kept whole inside the policy's
 fallback, the queue drained before the GPU thread waits on a syncpoint, the 1 ms FIFO wait only while increments are
 queued, the reports handed over under the cache's lock, readiness without waiting, the Library assigning the flag once
-next to the encoding policy, disposal releasing the queue. The FIFO's runtime behaviour (order, waits, disposal) needs a
-compiled fixture (.NET SDK), not written here.
+next to the encoding policy, disposal releasing the queue, the renderer barrier before a drain waits for a report, an
+increment leaving the FIFO only once published, the 3D engine's increment draining the FIFO first. The FIFO's runtime
+behaviour is the compiled fixture's: test/melonx_queued_syncpoints_fixture_test.py.
 """
 import argparse
 import shutil
@@ -74,6 +75,7 @@ def main():
     fifo_class, device = final[queued.GPFIFO_CLASS], final[queued.GPFIFO_DEVICE]
     context, cache = final[queued.GPU_CONTEXT], final[queued.COUNTER_CACHE]
     report, library = final[queued.DEFERRED_REPORT], final[queued.LIBRARY]
+    threed = final[queued.THREED_CLASS]
     # The delivered increment path is whole, as the fallback of the policy.
     fallback = '''                if (!_context.QueueSyncpointBehindReports(syncpointId))
                 {
@@ -106,7 +108,28 @@ def main():
           library.index('EncodingPolicy.IncrementalArrayDescriptors = hogwarts;') <
           library.index('GpuContext.QueueSyncpointsBehindReports = hogwarts;'), 'Library assignment')
     check('QueueSyncpointsBehindReports = true' not in ''.join(final.values()), 'enabled outside the Library')
-    print(f'PASS {CHECKS} queued syncpoint checks (source only; the FIFO behaviour needs a compiled fixture)')
+    # As the blocking path: the renderer runs the queued submissions before a drain waits for a report.
+    process = context.split('internal void ProcessQueuedSyncpoints()')[1].split('internal void DrainQueuedSyncpoints(')[0]
+    drain = context.split('internal void DrainQueuedSyncpoints(bool byIncrement = false)')[1].split('private void AwaitQueuedSubmissions(')[0]
+    barrier = context.split('private void AwaitQueuedSubmissions(ref bool submitted)')[1].split('private void PublishAndIncrement(')[0]
+    check('Renderer.BackgroundContextAction(static () => { });' in barrier and 'if (submitted) return;' in barrier,
+          'one renderer barrier per drain')
+    for name, body in (('age', process), ('drain', drain)):
+        check(body.index('AwaitQueuedSubmissions(ref submitted)') < body.index('PublishAndIncrement(head') <
+              body.index('_queuedSyncpoints.Dequeue();'), name + ': barrier, publication, then dequeued')
+    check('if (!ready) AwaitQueuedSubmissions(ref submitted);' in process and
+          'if (!Array.TrueForAll(head.Reports, static report => report.IsReady)) AwaitQueuedSubmissions(ref submitted);' in drain,
+          'the barrier only for an incomplete head')
+    check('_queuedSyncpoints.Dequeue()' not in context.split('private void PublishAndIncrement(')[1].split('private void ReleaseQueuedSyncpoints(')[0],
+          'publication does not dequeue')
+    # The 3D engine's increment: the FIFO first, then the delivered blocking path, whole.
+    check(threed.count('_context.DrainQueuedSyncpoints(byIncrement: true);') == 1 and
+          threed.index('_context.AdvanceSequence();') < threed.index('_context.DrainQueuedSyncpoints(byIncrement: true);') <
+          threed.index('if (!_context.SynchronizeOcclusionReports || !_context.FlushCounterReports())'),
+          '3D increment drains the FIFO before its own flush')
+    check(before_adapter(threed, queued.HUNKS[queued.THREED_CLASS]) == originals[queued.THREED_CLASS], '3D path otherwise delivered')
+    check('{_syncpointsByIncrement} by a 3D increment' in context, '3D drains counted apart')
+    print(f'PASS {CHECKS} queued syncpoint checks (source; the FIFO behaviour: test/melonx_queued_syncpoints_fixture_test.py)')
 
 
 if __name__ == '__main__':

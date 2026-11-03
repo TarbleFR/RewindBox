@@ -10,6 +10,15 @@ head of the FIFO once its reports are complete (GPFifoDevice.WaitForCommands, 1 
 empty), drains it with the blocking flush before a GPU-side syncpoint wait or when its head is 50 ms old, and disposal
 increments what is left without publishing. Off, the delivered path runs unchanged. Counted and logged every 4096
 queued increments and at disposal. Applied after adapt_hogwarts_dma_copies (its Library line is the anchor).
+
+After the compiled fixture (test/melonx_queued_syncpoints_fixture_test.py, 3 Nov 2026), as the blocking path does:
+- a drain that waits for a report first lets the renderer run the submissions queued so far (one
+  Renderer.BackgroundContextAction per drain), so the backend's bounded wait never starts before its query is
+  submitted (threaded renderer: the report could time out and its syncpoint be withheld);
+- an increment leaves the FIFO once published, so a report that cannot complete keeps it at the head (withheld, the
+  error raised as by the blocking path) and disposal still releases it;
+- the 3D engine's increment (ThreedClass.IncrementSyncpoint, made blocking by adapt_occlusion_completion) drains the
+  FIFO first, so it never becomes visible before the increments queued ahead of it (counted apart).
 """
 from pathlib import Path
 
@@ -18,6 +27,7 @@ from adapt_hogwarts_dma_copies import LIBRARY
 GPU_CONTEXT = 'src/Ryujinx.Graphics.Gpu/GpuContext.cs'
 GPFIFO_CLASS = 'src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoClass.cs'
 GPFIFO_DEVICE = 'src/Ryujinx.Graphics.Gpu/Engine/GPFifo/GPFifoDevice.cs'
+THREED_CLASS = 'src/Ryujinx.Graphics.Gpu/Engine/Threed/ThreedClass.cs'
 COUNTER_CACHE = 'src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs'
 DEFERRED_REPORT = 'src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs'
 
@@ -27,7 +37,7 @@ QUEUE_MEMBERS = '''
         public static bool QueueSyncpointsBehindReports { get; set; }
         private const double QueuedSyncpointMaxAgeMs = 50;
         private readonly Queue<(uint Syncpoint, DeferredCounterReport[] Reports, long Timestamp)> _queuedSyncpoints = new();
-        private long _syncpointsQueued, _syncpointsReady, _syncpointsByWait, _syncpointsByAge, _deepestSyncpointQueue;
+        private long _syncpointsQueued, _syncpointsReady, _syncpointsByWait, _syncpointsByIncrement, _syncpointsByAge, _deepestSyncpointQueue;
         private double _oldestQueuedSyncpointMs;
 
         internal bool HasQueuedSyncpoints => _queuedSyncpoints.Count != 0;
@@ -52,27 +62,44 @@ QUEUE_MEMBERS = '''
 
         internal void ProcessQueuedSyncpoints()
         {
+            bool submitted = false;
             while (_queuedSyncpoints.Count != 0)
             {
                 var head = _queuedSyncpoints.Peek();
                 double age = System.Diagnostics.Stopwatch.GetElapsedTime(head.Timestamp).TotalMilliseconds;
                 bool ready = Array.TrueForAll(head.Reports, static report => report.IsReady);
                 if (!ready && age < QueuedSyncpointMaxAgeMs) return;
+                if (!ready) AwaitQueuedSubmissions(ref submitted);
+                PublishAndIncrement(head, age);
+                _queuedSyncpoints.Dequeue();
                 if (ready) _syncpointsReady++; else _syncpointsByAge++;
-                PublishAndIncrement(_queuedSyncpoints.Dequeue(), age);
             }
         }
 
-        internal void DrainQueuedSyncpoints()
+        // Before a GPU-side syncpoint wait (GPFifoClass) or a 3D engine increment (ThreedClass, byIncrement).
+        internal void DrainQueuedSyncpoints(bool byIncrement = false)
         {
+            bool submitted = false;
             while (_queuedSyncpoints.Count != 0)
             {
-                var head = _queuedSyncpoints.Dequeue();
-                _syncpointsByWait++;
+                var head = _queuedSyncpoints.Peek();
+                if (!Array.TrueForAll(head.Reports, static report => report.IsReady)) AwaitQueuedSubmissions(ref submitted);
                 PublishAndIncrement(head, System.Diagnostics.Stopwatch.GetElapsedTime(head.Timestamp).TotalMilliseconds);
+                _queuedSyncpoints.Dequeue();
+                if (byIncrement) _syncpointsByIncrement++; else _syncpointsByWait++;
             }
         }
 
+        // As the blocking path, before a report is waited for: the renderer has run every submission queued so far (the
+        // empty synchronous action establishes completion of their CreateSync commands). Once per drain.
+        private void AwaitQueuedSubmissions(ref bool submitted)
+        {
+            if (submitted) return;
+            Renderer.BackgroundContextAction(static () => { });
+            submitted = true;
+        }
+
+        // Leaves the entry at the head: a report that cannot complete throws, as the blocking path, before the increment.
         private void PublishAndIncrement((uint Syncpoint, DeferredCounterReport[] Reports, long Timestamp) entry, double age)
         {
             _oldestQueuedSyncpointMs = Math.Max(_oldestQueuedSyncpointMs, age);
@@ -94,7 +121,8 @@ QUEUE_MEMBERS = '''
 
         private void LogQueuedSyncpoints() => Ryujinx.Common.Logging.Logger.Info?.PrintMsg(Ryujinx.Common.Logging.LogClass.Gpu,
             $"Queued syncpoints (Hogwarts policy): {_syncpointsQueued} queued, {_syncpointsReady} ready, " +
-            $"{_syncpointsByWait} drained by a wait, {_syncpointsByAge} by age; deepest {_deepestSyncpointQueue}, " +
+            $"{_syncpointsByWait} drained by a wait, {_syncpointsByIncrement} by a 3D increment, {_syncpointsByAge} by age; " +
+            $"deepest {_deepestSyncpointQueue}, " +
             $"oldest {_oldestQueuedSyncpointMs:F1} ms");
 '''
 
@@ -115,6 +143,9 @@ INCREMENT_OLD = '''                if (!_context.SynchronizeOcclusionReports || 
 FIFO_OLD = '''            if (!_commandBufferQueue.IsEmpty) return true;
             using var waitMeasurement = PD.Measure(PD.Phase.GpuFifoWait);
             return _event.WaitOne(8) && !_commandBufferQueue.IsEmpty;'''
+# The 3D engine's syncpoint increment as adapt_occlusion_completion writes it (its first two lines).
+THREED_OLD = '''            _context.AdvanceSequence();
+            if (!_context.SynchronizeOcclusionReports || !_context.FlushCounterReports())'''
 PENDING_OLD = '        internal int PendingReportCount { get { lock (_gate) return _pending.Count; } }\n'
 REPORT_OLD = '        public DeferredCounterReport(Action<ulong> publish, Action release) { _publish = publish; _release = release; }\n'
 LIBRARY_ANCHOR = '            Ryujinx.Graphics.Vulkan.EncodingPolicy.IncrementalArrayDescriptors = hogwarts;'
@@ -133,6 +164,9 @@ HUNKS = {
     GPFIFO_DEVICE: [(FIFO_OLD, '            // RewindBox (Hogwarts policy): increments whose reports are complete, or waited too long.\n'
                                '            _context.ProcessQueuedSyncpoints();\n' +
                                FIFO_OLD.replace('_event.WaitOne(8)', '_event.WaitOne(_context.HasQueuedSyncpoints ? 1 : 8)'))],
+    THREED_CLASS: [(THREED_OLD, THREED_OLD.replace('            if (', '            // RewindBox (Hogwarts policy): the increments queued behind reports come first, in command order.\n'
+                                                               '            _context.DrainQueuedSyncpoints(byIncrement: true);\n'
+                                                               '            if (', 1))],
     COUNTER_CACHE: [(PENDING_OLD, PENDING_OLD + '''
         // RewindBox (Hogwarts policy): the pending reports, handed over to a queued syncpoint increment.
         internal DeferredCounterReport[] TakePendingReports()
@@ -154,10 +188,16 @@ HUNKS = {
 NAMES = list(HUNKS)
 
 
-def apply(source):
-    """Applies every hunk exactly once (an anchor that drifted fails); returns the changed files."""
+def apply(source, names=None):
+    """Applies every hunk exactly once (an anchor that drifted fails); returns the changed files.
+
+    names limits it to some of the files, for a fixture that holds only those; prepare_embedded applies them all."""
     source = Path(source)
-    for relative, hunks in HUNKS.items():
+    chosen = [relative for relative in HUNKS if names is None or relative in names]
+    if names is not None and set(names) - set(chosen):
+        raise SystemExit('adapt_queued_syncpoints: unknown file ' + ', '.join(sorted(set(names) - set(chosen))))
+    for relative in chosen:
+        hunks = HUNKS[relative]
         path = source / relative
         raw = path.read_bytes()
         bom = raw.startswith(b'\xef\xbb\xbf')
@@ -167,4 +207,4 @@ def apply(source):
                 raise SystemExit(f'adapt_queued_syncpoints: anchor not found exactly once in {relative}: {old[:70]!r}')
             text = text.replace(old, new)
         path.write_bytes((b'\xef\xbb\xbf' if bom else b'') + text.encode('utf-8'))
-    return list(HUNKS)
+    return chosen

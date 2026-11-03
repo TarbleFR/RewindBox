@@ -28,17 +28,19 @@ from adapt_fragmented_reads import apply, NAMES  # noqa: E402
 from adapt_gpu_work_diagnostics import apply as apply_work, NAMES as WORK_NAMES  # noqa: E402
 from adapt_bindless_array_deltas import apply as apply_arrays, NAMES as ARRAY_NAMES  # noqa: E402
 from adapt_hogwarts_dma_copies import apply as apply_dma, NAMES as DMA_NAMES, LIBRARY as DMA_LIBRARY  # noqa: E402
+from adapt_queued_syncpoints import apply as apply_queued, NAMES as QUEUE_NAMES  # noqa: E402
 from adapt_host_qos_pipeline_budget import apply as apply_host, NAMES as HOST_NAMES  # noqa: E402
 
 DIAGNOSTICS = 'src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'
-COMPOSED = sorted(set(NAMES) | set(WORK_NAMES) | set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | {DIAGNOSTICS})
+COMPOSED = sorted(set(NAMES) | set(WORK_NAMES) | set(ARRAY_NAMES) | set(DMA_NAMES) | set(QUEUE_NAMES) | set(HOST_NAMES) |
+                  {DIAGNOSTICS})
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
 # (Ryujinx.Library) is outside the GPU assembly closure: it is composed and bound here, compiled by NativeAOT.
 COMPILED = sorted((set(COMPOSED) - {DMA_LIBRARY}) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})
 INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/FragmentedReadsProbe.cs',
           'build-utils/melonx/adapt_fragmented_reads.py', 'build-utils/melonx/adapt_gpu_work_diagnostics.py',
           'build-utils/melonx/adapt_bindless_array_deltas.py', 'build-utils/melonx/adapt_hogwarts_dma_copies.py',
-          'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
+          'build-utils/melonx/adapt_queued_syncpoints.py', 'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
           'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {
@@ -90,12 +92,13 @@ def project_closure(src, project):
 
 def compose(target):
     """The preparation order: current diagnostics source, fragmented reads, GPU work probes, array deltas, DMA copies,
-    then the host threads' QoS and the pipeline cache budget."""
+    the syncpoint increments queued behind occlusion reports, then the host threads' QoS and the pipeline cache budget."""
     shutil.copyfile(ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs', target / DIAGNOSTICS)
     apply(target)
     apply_work(target)
     apply_arrays(target)
     apply_dma(target)
+    apply_queued(target)
     apply_host(target)
 
 

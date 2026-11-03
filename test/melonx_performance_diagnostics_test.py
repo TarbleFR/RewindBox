@@ -33,6 +33,7 @@ from adapt_single_virtual_dependency import apply as single, CONSUMERS
 from adapt_fragmented_reads import apply as fragmented, NAMES as FRAGMENTED
 from adapt_gpu_work_diagnostics import apply as gpu_work, NAMES as GPU_WORK
 from adapt_bindless_array_deltas import apply as array_deltas, NAMES as ARRAY_DELTAS
+from adapt_queued_syncpoints import apply as queued, GPFIFO_DEVICE, COUNTER_CACHE
 from adapt_host_qos_pipeline_budget import (apply_threaded, apply_pipeline_budget, apply_hunks, THREADED, PIPELINE_CACHE,
                                             PIPELINE_BASE, PIPELINE_BASE_HUNKS, BUFFER_HOLDER, BUFFER_HOLDER_HUNKS)
 
@@ -80,6 +81,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-performance-diagnostics-') as te
     fragmented(expected); gpu_work(expected)
     # Runs after the collector copy above: it appends its work rows and counters to the collector.
     array_deltas(expected)
+    # Then the syncpoint increments queued behind occlusion reports (Core 631): their hunks in two observed files.
+    queued(expected, names=[GPFIFO_DEVICE, COUNTER_CACHE])
     # Last in prepare_embedded order: the render and GPU threads' QoS, the pipeline cache budget and the Vulkan render
     # stages' timing (PipelineBase and BufferHolder are observed files).
     for relative, host_hunk in ((THREADED, apply_threaded), (PIPELINE_CACHE, apply_pipeline_budget),
@@ -151,7 +154,8 @@ input_paths = [*native, 'build-utils/melonx/adapt_performance_diagnostics.py',
                'build-utils/melonx/adapt_counter_report_compaction.py',
                'build-utils/melonx/adapt_single_virtual_dependency.py',
                'build-utils/melonx/adapt_fragmented_reads.py', 'build-utils/melonx/adapt_gpu_work_diagnostics.py',
-               'build-utils/melonx/adapt_bindless_array_deltas.py', 'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
+               'build-utils/melonx/adapt_bindless_array_deltas.py', 'build-utils/melonx/adapt_queued_syncpoints.py',
+               'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                'test/melonx_performance_diagnostics_test.py', 'test/melonx_performance_diagnostics/Program.cs']
 inputs = {}
 for path in input_paths:
