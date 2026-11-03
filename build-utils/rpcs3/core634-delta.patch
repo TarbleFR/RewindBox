@@ -25,7 +25,7 @@ index b7bfc04..0b6d008 100644
  }
  
 diff --git a/Utilities/JITLLVM.cpp b/Utilities/JITLLVM.cpp
-index a2502a7..faa6bea 100644
+index a2502a7..918cf41 100644
 --- a/Utilities/JITLLVM.cpp
 +++ b/Utilities/JITLLVM.cpp
 @@ -13,6 +13,8 @@
@@ -58,7 +58,45 @@ index a2502a7..faa6bea 100644
  		if (buffer) bytes += buffer->getBufferSize();
  		entries[path] = {std::move(identity), std::move(buffer)};
  	}
-@@ -349,6 +352,15 @@ struct JITAnnouncer : llvm::JITEventListener
+@@ -144,6 +147,37 @@ validated_object_window& validated_objects()
+ 	static validated_object_window window;
+ 	return window;
+ }
++
++// REWINDBOX_JIT_OBJECT_RELEASE_634 (ios/IOSJitLoad.h): object bytes of an engine until it is
++// finalized. JIT.h is a codegen identity input of every title: the state stays in this file.
++struct held_object_bytes
++{
++	std::mutex mutex;
++	std::unordered_map<const jit_compiler*, std::vector<std::unique_ptr<llvm::MemoryBuffer>>> owners;
++
++	void hold(const jit_compiler* owner, std::unique_ptr<llvm::MemoryBuffer> buffer)
++	{
++		std::lock_guard lock(mutex);
++		owners[owner].push_back(std::move(buffer));
++	}
++
++	void release(const jit_compiler* owner)
++	{
++		std::vector<std::unique_ptr<llvm::MemoryBuffer>> released;
++		std::lock_guard lock(mutex);
++		if (const auto found = owners.find(owner); found != owners.end())
++		{
++			released = std::move(found->second);
++			owners.erase(found);
++		}
++	}
++};
++
++held_object_bytes& held_objects()
++{
++	static held_object_bytes objects;
++	return objects;
++}
+ }
+ #endif
+ 
+@@ -349,6 +383,15 @@ struct JITAnnouncer : llvm::JITEventListener
  	{
  		using namespace llvm;
  
@@ -74,7 +112,7 @@ index a2502a7..faa6bea 100644
  		object::OwningBinary<object::ObjectFile> debug_obj_ = info.getObjectForDebug(obj);
  		if (!debug_obj_.getBinary())
  		{
-@@ -865,6 +877,27 @@ public:
+@@ -865,6 +908,27 @@ public:
  		}
  	}
  
@@ -102,7 +140,33 @@ index a2502a7..faa6bea 100644
  	static std::unique_ptr<llvm::MemoryBuffer> load(const std::string& path, jit_phase::phase read_phase = jit_phase::ppu_cache_read)
  	{
  		jit_phase::scope phase_timer(read_phase, utils::get_tsc);
-@@ -1468,7 +1501,21 @@ jit_cached_object jit_compiler::load_cached_object(const std::string& path, cons
+@@ -973,6 +1037,15 @@ public:
+ 			jit_log.trace("LLVM: Loaded module: %s", _module->getName().data());
+ #else
+ 			jit_log.notice("LLVM: Loaded module: %s", _module->getName().data());
++#endif
++#ifdef RPCS3_IOS
++			// REWINDBOX_JIT_OBJECT_RELEASE_634: MCJIT keeps what it gets here for its whole life.
++			if (m_compiler && rpcs3::ios::jit_load::release_bytes.load(std::memory_order_relaxed))
++			{
++				auto view = llvm::MemoryBuffer::getMemBuffer(m_preloaded->getMemBufferRef(), false);
++				held_objects().hold(m_compiler, std::move(m_preloaded));
++				return view;
++			}
+ #endif
+ 			return std::move(m_preloaded);
+ 		}
+@@ -1396,6 +1469,9 @@ jit_compiler& jit_compiler::operator=(thread_state s) noexcept
+ 
+ jit_compiler::~jit_compiler() noexcept
+ {
++#ifdef RPCS3_IOS
++	held_objects().release(this);
++#endif
+ }
+ 
+ void jit_compiler::add(std::unique_ptr<llvm::Module> _module, const std::string& path)
+@@ -1468,7 +1544,21 @@ jit_cached_object jit_compiler::load_cached_object(const std::string& path, cons
  	}
  #endif
  
@@ -124,6 +188,43 @@ index a2502a7..faa6bea 100644
  
  #ifdef RPCS3_IOS
  	// Opening the object already performs the successful lookup. Probe file
+@@ -1588,6 +1678,16 @@ bool jit_compiler::add(const std::string& path)
+ 
+ 	if (auto object_file = llvm::object::ObjectFile::createObjectFile(*cache))
+ 	{
++#ifdef RPCS3_IOS
++		// REWINDBOX_JIT_OBJECT_RELEASE_634: fin() frees the bytes, MCJIT keeps the parsed object only.
++		if (rpcs3::ios::jit_load::release_bytes.load(std::memory_order_relaxed))
++		{
++			m_engine->addObjectFile(std::move(*object_file));
++			held_objects().hold(this, std::move(cache));
++			jit_log.trace("ObjectCache: Successfully added %s", path);
++			return true;
++		}
++#endif
+ 		m_engine->addObjectFile(llvm::object::OwningBinary<llvm::object::ObjectFile>(std::move(*object_file), std::move(cache)));
+ 		jit_log.trace("ObjectCache: Successfully added %s", path);
+ 		return true;
+@@ -1643,6 +1743,9 @@ void jit_compiler::fin()
+ {
+ 	m_engine->finalizeObject();
+ 	if (m_announcer) m_announcer->finalized(true);
++#ifdef RPCS3_IOS
++	held_objects().release(this);
++#endif
+ }
+ 
+ bool jit_compiler::try_fin(std::string& error)
+@@ -1652,6 +1755,9 @@ bool jit_compiler::try_fin(std::string& error)
+ 		m_engine->finalizeObject();
+ 	}, error);
+ 	if (m_announcer) m_announcer->finalized(success);
++#ifdef RPCS3_IOS
++	if (success) held_objects().release(this);
++#endif
+ 	return success;
+ }
+ 
 diff --git a/Utilities/Thread.cpp b/Utilities/Thread.cpp
 index ca6db42..92cc644 100644
 --- a/Utilities/Thread.cpp
@@ -306,7 +407,7 @@ index a446d58..bada453 100644
  
  	switch (get_class())
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-index 7f0f61d..464577f 100644
+index 7f0f61d..a879fba 100644
 --- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 @@ -72,6 +72,15 @@ function(neostation_codegen_compatible_hash source actual output)
@@ -357,10 +458,10 @@ index 7f0f61d..464577f 100644
 +    # are the same files, read the same way. Keep the delivered effective hashes for these exact
 +    # source snapshots only.
 +    elseif(source STREQUAL "../../Utilities/JITLLVM.cpp" AND
-+           actual STREQUAL "b9b3e1a2e749bf428e273117dcb90074b3abd07e8a90f4f2aef2f1023259d3f3")
++           actual STREQUAL "fdf6a20dfb191e8d64fda1f82d3160ef592f9ffbd092f7edc0ae8fdaf81359e2")
 +        set(${output} "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf" PARENT_SCOPE)
 +    elseif(source STREQUAL "Cell/PPUThread.cpp" AND
-+           actual STREQUAL "8820de4164600b699f34b45a35598d9ba4de120f7ffa4fb93d0a3d102946b9c0")
++           actual STREQUAL "d4b1afa542ba23c4c91bd902b630d57c4637243ac24bf81eb0fcc1d8512ab7bd")
 +        set(${output} "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44" PARENT_SCOPE)
      else()
          set(${output} "${actual}" PARENT_SCOPE)
@@ -408,7 +509,7 @@ index 4c219b7..359c856 100644
  }
  
 diff --git a/rpcs3/Emu/Cell/PPUThread.cpp b/rpcs3/Emu/Cell/PPUThread.cpp
-index fcbcf39..4fd3d93 100644
+index fcbcf39..affda3c 100644
 --- a/rpcs3/Emu/Cell/PPUThread.cpp
 +++ b/rpcs3/Emu/Cell/PPUThread.cpp
 @@ -10,6 +10,7 @@
@@ -419,11 +520,20 @@ index fcbcf39..4fd3d93 100644
  #endif
  #include "Utilities/StrUtil.h"
  #include "util/serialization.hpp"
-@@ -205,7 +206,12 @@ public:
- 	ppu_object_window_scope()
+@@ -200,12 +201,20 @@ class ppu_object_window_scope
+ {
+ 	inline static std::mutex s_mutex;
+ 	inline static std::size_t s_owners = 0;
++	inline static bool s_boot = false;
+ 
+ public:
+-	ppu_object_window_scope()
++	explicit ppu_object_window_scope(bool boot = false)
  	{
  		std::lock_guard lock(s_mutex);
 -		++s_owners;
++		s_boot = s_boot || boot;
++
 +		if (++s_owners == 1 && rpcs3::ios::jit_load::fast_load.load(std::memory_order_relaxed))
 +		{
 +			// REWINDBOX_FAST_JIT_LOAD_634: avoid the second inflation when memory allows it.
@@ -433,7 +543,21 @@ index fcbcf39..4fd3d93 100644
  	}
  
  	~ppu_object_window_scope()
-@@ -220,6 +226,28 @@ public:
+@@ -214,12 +223,42 @@ public:
+ 		if (--s_owners == 0)
+ 		{
+ 			jit_compiler::release_cached_object_buffers();
++
++			// REWINDBOX_JIT_OBJECT_RELEASE_634: what the boot's load freed goes back to the system.
++			if (s_boot && rpcs3::ios::jit_load::release_bytes.load(std::memory_order_relaxed))
++			{
++				rpcs3::ios::relieve_process_memory_pressure();
++			}
++
++			s_boot = false;
+ 		}
+ 	}
+ 
  	ppu_object_window_scope(const ppu_object_window_scope&) = delete;
  	ppu_object_window_scope& operator=(const ppu_object_window_scope&) = delete;
  };
@@ -462,7 +586,16 @@ index fcbcf39..4fd3d93 100644
  }
  
  // NEOSTATION_BUILD483_LLVM_PIPELINES_V1: the Build 444 boolean keeps its meaning
-@@ -5574,6 +5602,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -4925,7 +4964,7 @@ extern void ppu_initialize()
+ 	auto& _main = g_fxo->get<main_ppu_module<lv2_obj>>();
+ 
+ #ifdef RPCS3_IOS
+-	ppu_object_window_scope object_window;
++	ppu_object_window_scope object_window{true};
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D8/D10): JITPROF_BOOT at every exit of
+ 	// this function, two lines per boot: boot ordinal, boot kind, module counts,
+@@ -5574,6 +5613,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  		info.attr += ppu_attr::has_mfvscr;
  	}
  
@@ -473,7 +606,7 @@ index fcbcf39..4fd3d93 100644
  	while (!jit_mod.init && fpos < info.get_funcs().size())
  	{
  		// Copy module information
-@@ -5903,6 +5935,15 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5903,6 +5946,15 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  			link_workload.emplace_back(obj_name, false);
  		}
  
@@ -489,7 +622,7 @@ index fcbcf39..4fd3d93 100644
  		// Check object file. PPU objects are relocatable, versioned by
  		// code/settings/CPU and validated by LLVM before they are reused.
  		const bool cache_hit = jit_compiler::check(cache_path + obj_name);
-@@ -5953,7 +5994,21 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5953,7 +6005,21 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  
  	if (check_only)
  	{
@@ -511,7 +644,7 @@ index fcbcf39..4fd3d93 100644
  	}
  
  	if (g_progr_ftotal_bits && file_size)
-@@ -6167,8 +6222,51 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -6167,8 +6233,51 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  #ifdef RPCS3_IOS
  		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D10): link time of this load loop.
  		const u64 ios_link_begin = utils::get_tsc();
@@ -564,7 +697,7 @@ index fcbcf39..4fd3d93 100644
  		for (const auto& [obj_name, is_compiled] : link_workload)
  		{
  			mod_index++;
-@@ -6242,6 +6340,18 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -6242,6 +6351,18 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  
  	if (is_first)
  	{
@@ -2809,7 +2942,7 @@ index ab99381..9aa065a 100644
  
  	void user_command(context* ctx, u32, u32 arg)
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 6eab393..ada76f1 100644
+index 6eab393..4439d50 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -44,6 +44,7 @@
@@ -2840,7 +2973,7 @@ index 6eab393..ada76f1 100644
  			}
  #endif
  
-@@ -2081,6 +2088,73 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2081,6 +2088,74 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				ios_layers.mt_rsx = ios_mt_rsx;
  				ios_layers.spu_spin = ios_spu_spin;
  				ios_layers.mlaa_bypass = rpcs3::ios::get_experimental_policy().gow3_mlaa_bypass;
@@ -2906,6 +3039,7 @@ index 6eab393..ada76f1 100644
 +					ios_add_lever(ios_levers.light_measurement, ios_lever_settings.light_measurement);
 +					ios_add_lever(ios_levers.zcull_async_reads, ios_lever_settings.zcull_async_reads);
 +					ios_add_lever(ios_levers.fast_jit_load, ios_lever_settings.fast_jit_load);
++					ios_add_lever(ios_levers.jit_object_release, ios_lever_settings.jit_object_release);
 +					ios_rsx.levers627 = ios_levers627;
 +					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
 +					ios_rsx.overrides = ios_override_keys;
@@ -2914,7 +3048,7 @@ index 6eab393..ada76f1 100644
  				sys_log.notice("%s", rpcs3::ios::boot_diagnostics::format_config_layers_line(ios_layers));
  			}
  
-@@ -4589,6 +4663,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4589,6 +4664,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  			lv2_obj::cleanup();
  
@@ -2925,7 +3059,7 @@ index 6eab393..ada76f1 100644
  			g_fxo->reset();
  
  			sys_log.notice("Objects cleared...");
-@@ -4771,6 +4849,9 @@ bool Emulator::Quit(bool force_quit)
+@@ -4771,6 +4850,9 @@ bool Emulator::Quit(bool force_quit)
  
  void Emulator::CleanUp()
  {
@@ -2936,10 +3070,10 @@ index 6eab393..ada76f1 100644
  	g_fxo->clear();
  }
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 6531689..135a0f5 100644
+index 6531689..af50986 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
-@@ -169,6 +169,34 @@ struct cfg_root : cfg::node
+@@ -169,6 +169,35 @@ struct cfg_root : cfg::node
  		// REWINDBOX_MOLTENVK_ASYNC_SUBMITS_V1: Automatic keeps MoltenVK's synchronous
  		// submits; Enabled moves Metal command encoding to MoltenVK's queue thread.
  		cfg::_enum<ios_experimental_mode> moltenvk_async_submits{ this, "MoltenVK Asynchronous Submits", ios_experimental_mode::automatic };
@@ -2961,8 +3095,9 @@ index 6531689..135a0f5 100644
 +		cfg::_enum<ios_experimental_mode> zcull_conservative_reports{ this, "ZCULL Conservative Reports", ios_experimental_mode::automatic };
 +		// REWINDBOX_ZCULL_ASYNC_READS_630: Automatic is the titles of the ZCULL on-demand lever.
 +		cfg::_enum<ios_experimental_mode> zcull_async_reads{ this, "ZCULL Asynchronous Reads", ios_experimental_mode::automatic };
-+		// REWINDBOX_FAST_JIT_LOAD_634 (ios/IOSJitLoad.h): Automatic is every title.
++		// REWINDBOX_FAST_JIT_LOAD_634, REWINDBOX_JIT_OBJECT_RELEASE_634 (ios/IOSJitLoad.h): Automatic is every title.
 +		cfg::_enum<ios_experimental_mode> fast_jit_load{ this, "Fast JIT Load", ios_experimental_mode::automatic };
++		cfg::_enum<ios_experimental_mode> jit_object_release{ this, "JIT Object Release", ios_experimental_mode::automatic };
 +		// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): Automatic is Black Ops II and God of War III.
 +		cfg::_enum<ios_experimental_mode> spu_noop_spin_wait{ this, "SPU No-op Spin Wait", ios_experimental_mode::automatic };
 +		// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): Automatic is God of War III, Assassin's Creed and Black Ops II.
@@ -4263,10 +4398,10 @@ index 0000000..ab57170
 +}
 diff --git a/rpcs3/ios/IOSJitLoad.h b/rpcs3/ios/IOSJitLoad.h
 new file mode 100644
-index 0000000..dc0480c
+index 0000000..5d2c333
 --- /dev/null
 +++ b/rpcs3/ios/IOSJitLoad.h
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,46 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -4288,9 +4423,18 @@ index 0000000..dc0480c
 +// and the bytes the check pass inflated reach the link when the memory headroom allows it. Same
 +// objects, same relocations, same code: only the order the engines are filled in changes, and
 +// each engine still links its own objects in the same order.
++//
++// REWINDBOX_JIT_OBJECT_RELEASE_634: MCJIT keeps every object file for its whole life, although
++// the sections are copied to the arena when the object is added and relocations read them there.
++// 212 MB for Assassin's Creed (128 MB for Black Ops II multiplayer) plus every SPU object (87 MB
++// over the three sessions of the logs), never read again: they turn cold and join the 1 GB the
++// system compresses, which still counts in the footprint. The compiler keeps these bytes itself
++// and frees them after finalizeObject. The file object left in MCJIT holds a dangling pointer that
++// MCJIT only uses as a key when it unregisters the object (MCJIT::notifyFreeingObject).
 +namespace rpcs3::ios::jit_load
 +{
 +inline std::atomic<bool> fast_load{false};      // experimental.fast_jit_load
++inline std::atomic<bool> release_bytes{false};  // experimental.jit_object_release
 +
 +inline constexpr std::uint32_t link_workers = 4; // the 2 performance and 2 efficiency cores of the phone: the game is not running yet
 +inline constexpr std::size_t minimum_window_bytes = 32ull << 20;
@@ -6541,7 +6685,7 @@ index 74ff550..724d75e 100644
  	struct jit_boot_summary
  	{
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index df33283..54f270d 100644
+index df33283..8142fc5 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -6,6 +6,7 @@
@@ -6552,7 +6696,7 @@ index df33283..54f270d 100644
  #include "IOSTextureValidationProfile.h"
  #include "IOSTexturePrehash.h"
  #include "IOSDeferredCommit.h"
-@@ -344,9 +345,55 @@ void resolve_experimental_policy() noexcept
+@@ -344,9 +345,57 @@ void resolve_experimental_policy() noexcept
  	// REWINDBOX_AC_MVK_ASYNC_610 adds Assassin's Creed: 0.93-1.36 s per window on build 601.
  	resolved.moltenvk_async_submits = resolve_mvk_async(title_id,
  		resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits,
@@ -6588,6 +6732,8 @@ index df33283..54f270d 100644
 +	// Core 634, every title: the same objects, words and digests as before, sooner, and less kept.
 +	resolved.fast_jit_load = resolve_mode(g_cfg.ios_experimental.fast_jit_load, true);
 +	rpcs3::ios::jit_load::fast_load.store(resolved.fast_jit_load, std::memory_order_relaxed);
++	resolved.jit_object_release = resolve_mode(g_cfg.ios_experimental.jit_object_release, true);
++	rpcs3::ios::jit_load::release_bytes.store(resolved.jit_object_release, std::memory_order_relaxed);
 +	resolved.zcull_conservative_reports = resolve_mode(g_cfg.ios_experimental.zcull_conservative_reports, false) &&
 +		!g_cfg.core.rsx_accurate_res_access;
 +	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627: Automatic is the title list.
@@ -6610,7 +6756,7 @@ index df33283..54f270d 100644
  
  	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
  	resolve_spu_spin_timing(resolved);
-@@ -392,6 +439,22 @@ void resolve_experimental_policy() noexcept
+@@ -392,6 +441,22 @@ void resolve_experimental_policy() noexcept
  		resolved.spu_spin_cntfrq, resolved.spu_spin_timer_scale,
  		resolved.spu_spin.getllar_refail_ticks, resolved.spu_spin.getllar_spin_window_ticks, resolved.spu_spin.getllar_forced_sleep_ticks,
  		resolved.position_invariance, resolved.moltenvk_async_submits);
@@ -6625,8 +6771,8 @@ index df33283..54f270d 100644
 +	// Core 630: its own line, the value of the new option of this boot.
 +	ios_experimental_log.notice("Resolved title policy 630: zcull_async_reads=%d", resolved.zcull_async_reads);
 +	// Core 634: its own line, the values of the new options of this boot.
-+	ios_experimental_log.notice("Resolved title policy 634: fast_jit_load=%d",
-+		resolved.fast_jit_load);
++	ios_experimental_log.notice("Resolved title policy 634: fast_jit_load=%d jit_object_release=%d",
++		resolved.fast_jit_load, resolved.jit_object_release);
 +	ios_experimental_log.notice("Resolved title policy 627: zcull_wait_guard=%d zcull_cond_no_wait=%d zcull_conservative_reports=%d spu_noop_spin_wait=%d spu_qos_below_rsx=%d fifo_nop_fast_path=%d light_measurement=%d",
 +		resolved.zcull_wait_guard, resolved.zcull_cond_no_wait, resolved.zcull_conservative_reports, resolved.spu_noop_spin_wait,
 +		resolved.spu_qos_below_rsx, resolved.fifo_nop_fast_path, resolved.light_measurement);
@@ -6634,10 +6780,10 @@ index df33283..54f270d 100644
  
  void apply_spu_spin_timing_policy() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index c349a27..66f5b29 100644
+index c349a27..796dba5 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-@@ -50,6 +50,48 @@ struct experimental_policy
+@@ -50,6 +50,50 @@ struct experimental_policy
  	// declare an invariant position, as upstream does on NVIDIA. Title scoped,
  	// without a setting; read by the vertex decompiler after boot resolution.
  	bool position_invariance = false;
@@ -6666,6 +6812,8 @@ index c349a27..66f5b29 100644
 +	// REWINDBOX_FAST_JIT_LOAD_634 (ios/IOSJitLoad.h): cached PPU objects are checked and linked on
 +	// several threads, one engine per thread, without a debug copy of each object.
 +	bool fast_jit_load = false;
++	// REWINDBOX_JIT_OBJECT_RELEASE_634 (ios/IOSJitLoad.h): object bytes are freed after finalizeObject.
++	bool jit_object_release = false;
 +	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): an SPU polling with no-op
 +	// PUTLLC waits for a bounded time inside the PUTLLC.
 +	bool spu_noop_spin_wait = false;
@@ -7936,7 +8084,7 @@ index b6b0c69..dcc1fad 100644
  // min_interval_us elapsed since the last accepted one; records the accepted time.
  inline bool accept_freeze_dump(std::uint64_t now_us, std::uint64_t& last_accepted_us, std::uint64_t min_interval_us = freeze_dump_min_interval_us) noexcept
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index 55cd3b3..6cbddf4 100644
+index 55cd3b3..2fcb9a2 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -129,7 +129,7 @@ const std::array catalog{
@@ -7948,7 +8096,7 @@ index 55cd3b3..6cbddf4 100644
  	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for every title; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
  	SETTING("experimental.rsx_thread_priority", "Experimental", "FPS Experiments", "RSX thread priority", "Gives the RSX thread and the audio threads precedence over the PPU and SPU threads when the game asks for more CPU than the performance cores provide, as RPCS3 intends; iOS otherwise treats them alike. Automatic enables it for every title; Disabled gives every emulation thread the same priority as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_thread_priority, 0, 0, 0),
  	SETTING("experimental.passive_lock_fairness", "Experimental", "FPS Experiments", "Passive lock fairness", "When a PPU or SPU thread has waited a long time to resume guest memory access while SPUs keep taking reservation write locks, new write locks briefly let it through first. No lock is skipped. Automatic enables it for every title; Disabled restores the previous lock order. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.passive_lock_fairness, 0, 0, 0),
-@@ -150,6 +150,21 @@ const std::array catalog{
+@@ -150,6 +150,22 @@ const std::array catalog{
  	SETTING("experimental.expanded_spu_scratch", "Experimental", "SPU", "Expanded ARM64 SPU scratch", "Reserves 256 KiB instead of RPCS3's 8 KiB for generated ARM64 SPU spills. Disable to restore the original reservation. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.expanded_spu_scratch, 0, 0, 0),
  	GLOBAL_SETTING("experimental.persistent_spu_object_cache", "Experimental", "SPU", "Persistent SPU object cache", "Keeps the compiled ARM64 SPU code of each title between sessions. Objects are keyed by the Core, LLVM, settings and CPU features, bounded to 40,000 files or 512 MiB per title (oldest removed first) and ignored when invalid. Automatic enables it. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.persistent_spu_object_cache, 0, 0, 0),
  	GAME_SETTING("experimental.gow3_mlaa_bypass", "Experimental", "SPU", "God of War III MLAA bypass", "Applies the exact official PPU/SPU MLAA bypasses for supported God of War III versions, freeing CELL time and allowing resolution scaling. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gow3_mlaa_bypass, 0, 0, 0),
@@ -7962,6 +8110,7 @@ index 55cd3b3..6cbddf4 100644
 +	GAME_SETTING("experimental.zcull_cond_no_wait", "Experimental", "ZCULL", "ZCULL conditional draw without waiting", "With ZCULL on-demand reads, draws an object whose occlusion result is still on the GPU instead of waiting for it. An object that turns out to be hidden stays hidden behind what covers it, at the cost of its GPU time. Automatic follows the title list (Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_cond_no_wait, 0, 0, 0),
 +	GAME_SETTING("experimental.zcull_async_reads", "Experimental", "ZCULL", "ZCULL asynchronous reads", "With ZCULL on-demand reads, a game read waits for its own report only and the RSX thread keeps working: the read of memory that is already final completes at once. Values stay exact.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_async_reads, 0, 0, 0),
 +	GAME_SETTING("experimental.fast_jit_load", "Experimental", "Loading", "Fast JIT object loading", "Checks and links cached PPU code on several threads, without a debug copy of each object. The code is the same; boots are shorter.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fast_jit_load, 0, 0, 0),
++	GAME_SETTING("experimental.jit_object_release", "Experimental", "Loading", "Free JIT objects after linking", "Frees the bytes of PPU and SPU objects once they are linked, instead of keeping a copy of all the game's code in memory.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.jit_object_release, 0, 0, 0),
 +	GAME_SETTING("experimental.zcull_conservative_reports", "Experimental", "ZCULL", "ZCULL conservative reports", "Occlusion reports read as visible from the moment they are queued until the GPU result replaces them, so neither the RSX thread nor a game thread ever waits for one. A game may then show an occluded effect for a frame or two; check for flicker on the same scene. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_conservative_reports, 0, 0, 0),
 +	GAME_SETTING("experimental.fifo_nop_fast_path", "Experimental", "RSX FIFO", "RSX FIFO NOP fast path", "Keeps the RSX thread in its running state across NOP commands of the game's command stream instead of timing each one as an idle period. Automatic follows the title list (God of War III, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fifo_nop_fast_path, 0, 0, 0),
 +	GAME_SETTING("experimental.spu_noop_spin_wait", "Experimental", "SPU", "SPU no-op spin wait", "An SPU thread that polls a reservation by writing back unchanged data sleeps for a bounded time before its next read, which leaves its core to the PPU and RSX threads. Automatic follows the title list (God of War III, Black Ops II). No effect on compiled code or caches. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_noop_spin_wait, 0, 0, 0),
@@ -7970,7 +8119,7 @@ index 55cd3b3..6cbddf4 100644
  	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers). Defaults keep the Build 483 behavior except the cache-only retained keys.
  	// The retained keys apply to each title's own cache directory, so they take a per-title value like any SETTING
  	// (a complete legacy title snapshot also freezes them); only persistent_spu_object_cache is restored as global-only.
-@@ -691,6 +706,33 @@ bool has_game_setting_overrides(std::string_view title_id) noexcept
+@@ -691,6 +707,33 @@ bool has_game_setting_overrides(std::string_view title_id) noexcept
  	return fs::is_file(game_setting_overrides_path(title_id));
  }
  
@@ -8004,7 +8153,7 @@ index 55cd3b3..6cbddf4 100644
  bool apply_game_setting_overrides(std::string_view title_id) noexcept
  {
  	std::vector<std::pair<std::string, std::string>> values;
-@@ -748,6 +790,35 @@ bool save_game_setting_override(
+@@ -748,6 +791,35 @@ bool save_game_setting_override(
  	return write_game_setting_overrides(title_id, values);
  }
  

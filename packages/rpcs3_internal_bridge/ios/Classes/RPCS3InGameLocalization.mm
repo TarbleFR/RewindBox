@@ -1152,39 +1152,51 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build634Translatio
     values = @{
       @"en": @{
         @"testFastJitLoad": @"Fast JIT object loading",
+        @"testJitObjectRelease": @"Free JIT objects after linking",
       },
       @"es": @{
         @"testFastJitLoad": @"Carga rápida de objetos JIT",
+        @"testJitObjectRelease": @"Liberar objetos JIT tras enlazar",
       },
       @"ru": @{
         @"testFastJitLoad": @"Быстрая загрузка объектов JIT",
+        @"testJitObjectRelease": @"Освобождать объекты JIT после компоновки",
       },
       @"zh": @{
         @"testFastJitLoad": @"快速加载 JIT 对象",
+        @"testJitObjectRelease": @"链接后释放 JIT 对象",
       },
       @"zh_Hant": @{
         @"testFastJitLoad": @"快速載入 JIT 物件",
+        @"testJitObjectRelease": @"連結後釋放 JIT 物件",
       },
       @"pt": @{
         @"testFastJitLoad": @"Carregamento rápido de objetos JIT",
+        @"testJitObjectRelease": @"Liberar objetos JIT após vincular",
       },
       @"fr": @{
         @"testFastJitLoad": @"Chargement rapide des objets JIT",
+        @"testJitObjectRelease": @"Libérer les objets JIT après le lien",
       },
       @"de": @{
         @"testFastJitLoad": @"Schnelles Laden der JIT-Objekte",
+        @"testJitObjectRelease": @"JIT-Objekte nach dem Linken freigeben",
       },
       @"it": @{
         @"testFastJitLoad": @"Caricamento rapido degli oggetti JIT",
+        @"testJitObjectRelease": @"Libera gli oggetti JIT dopo il collegamento",
       },
       @"id": @{
         @"testFastJitLoad": @"Pemuatan cepat objek JIT",
+        @"testJitObjectRelease": @"Bebaskan objek JIT setelah penautan",
       },
       @"ja": @{
         @"testFastJitLoad": @"JIT オブジェクトの高速読み込み",
+        @"testJitObjectRelease": @"リンク後に JIT オブジェクトを解放",
       },
       @"ko": @{
         @"testFastJitLoad": @"JIT 오브젝트 빠른 로드",
+        @"testJitObjectRelease": @"링크 후 JIT 오브젝트 해제",
       },
     };
   });

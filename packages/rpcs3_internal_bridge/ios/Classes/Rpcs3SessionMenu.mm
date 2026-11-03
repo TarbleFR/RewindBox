@@ -79,6 +79,8 @@ static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
       // Core 634: digits 9 to 12 of levers627=.
       @{@"key": @"experimental.fast_jit_load", @"title": @"testFastJitLoad", @"field": @"levers627", @"bit": @8,
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.jit_object_release", @"title": @"testJitObjectRelease", @"field": @"levers627", @"bit": @9,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
     ];
   });
   return levers;
