@@ -36,8 +36,9 @@ FOUNDATION_EXPORT NSString* _Nullable DOLSkinConsoleOfGameType(NSString* gameTyp
 @property(nonatomic, readonly) BOOL hasSkin;
 /// The portrait orientation has one: the session may turn upright.
 @property(nonatomic, readonly) BOOL portraitAvailable;
-/// Orientations of the session (DOLPolicyMask): landscape without a portrait
-/// skin, portrait only for a portrait-only skin, else both. Read once the
+/// Orientations of the session (DOLPolicyMask), from the skins chosen for
+/// portrait and landscape that parsed: portrait only, landscape only (also
+/// without any skin) or both. Read once the
 /// overlay exists, before the session is presented.
 @property(nonatomic, readonly) UIInterfaceOrientationMask supportedOrientationMask;
 /// The current bounds' orientation has one.

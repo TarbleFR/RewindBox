@@ -21,6 +21,7 @@
 #import "LibretroMetalPresenter.h"
 #import "LibretroOrientation.h"
 #import "LibretroOrientationPolicy.h"
+#import "LibretroOrientationSelection.h"
 #import "LibretroResolution.h"
 #import "LibretroSessionJournal.h"
 #import "LibretroSessionMenu.h"
@@ -742,46 +743,40 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   });
 }
 
-/// Imported skin the player chose for `orientation` (game, else console);
-/// nil for the default controls, a missing or refused skin. No announcement.
-- (LibretroSkin *)chosenSkinForOrientation:(LibretroSkinOrientation)orientation {
-  NSString *key =
-      orientation == LibretroSkinOrientationPortrait ? LibretroSettingSkinPortrait : LibretroSettingSkinLandscape;
-  NSString *identifier = SettingString([self settingValue:key]);
-  if (identifier == nil || [identifier isEqualToString:LibretroDefaultSkinIdentifier]) return nil;
-  if ([_failedSkins containsObject:identifier]) return nil;
-  return [self importedSkinWithIdentifier:identifier report:NO];
-}
-
 /// Quiet counterpart of the layout pass: does `skin` really give a layout in
 /// `orientation` on this device (layout present, not refused, playable by
 /// touch unless a controller or no touch is in use)?
 - (BOOL)skin:(LibretroSkin *)skin usableInOrientation:(LibretroSkinOrientation)orientation iPad:(BOOL)iPad {
   if (skin == nil) return NO;
-  if (![[skin orientationsForIPad:iPad] containsObject:LibretroSkinOrientationName(orientation)]) return NO;
+  NSString *prefix = [skin.installedIdentifier stringByAppendingString:@"|"];
+  NSString *suffix = [@"|" stringByAppendingString:LibretroSkinOrientationName(orientation)];
   for (NSString *key in _failedSkinRepresentations) {
-    NSString *suffix = [@"|" stringByAppendingString:LibretroSkinOrientationName(orientation)];
-    if ([key hasPrefix:[skin.installedIdentifier stringByAppendingString:@"|"]] && [key hasSuffix:suffix]) return NO;
+    if ([key hasPrefix:prefix] && [key hasSuffix:suffix]) return NO;
   }
-  if (iPad) return YES;
-  NSString *state = _skinReports[skin.installedIdentifier ?: @""].orientations[LibretroSkinOrientationName(orientation)];
-  if ([state isEqualToString:@"incompatible"] && _touchControls && !_input.hasPhysicalController) return NO;
-  return YES;
+  return LibretroSkinGivesLayout(skin, _skinReports[skin.installedIdentifier ?: @""], orientation, iPad,
+                                 _touchControls && !_input.hasPhysicalController);
 }
 
-/// Orientations of the game on screen. Everything the device allows, except
-/// portrait only for a portrait-only skin (LibretroPolicyMask), and
-/// landscape for the legacy Vulkan picture (which wins). Main thread.
+/// Orientations of the game on screen, from the skins the player CHOSE
+/// (LibretroSelectedOrientationMask): only portrait chosen, portrait only; only
+/// landscape chosen, landscape only; both or none, the usual rotation.
+/// An orientation counts as chosen only when its skin is selected (game, else
+/// console), loads, is not refused and gives a layout there. The legacy
+/// Vulkan landscape exception wins. Main thread.
 - (UIInterfaceOrientationMask)gameOrientationMask {
   if (_legacyLandscapeOnly) return UIInterfaceOrientationMaskLandscape;
   BOOL iPad = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
-  LibretroSkin *portraitSkin = [self chosenSkinForOrientation:LibretroSkinOrientationPortrait];
-  LibretroSkin *landscapeSkin = [self chosenSkinForOrientation:LibretroSkinOrientationLandscape];
-  return (UIInterfaceOrientationMask)LibretroPolicyMask(
-      [self skin:portraitSkin usableInOrientation:LibretroSkinOrientationPortrait iPad:iPad],
-      [self skin:portraitSkin usableInOrientation:LibretroSkinOrientationLandscape iPad:iPad],
-      [self skin:landscapeSkin usableInOrientation:LibretroSkinOrientationLandscape iPad:iPad],
-      [self skin:landscapeSkin usableInOrientation:LibretroSkinOrientationPortrait iPad:iPad]);
+  __weak LibretroSession *weakSelf = self;
+  return (UIInterfaceOrientationMask)LibretroSelectedOrientationMask(
+      _store, _console, [self gameScopeKey],
+      ^LibretroSkin *(NSString *identifier) {
+        LibretroSession *session = weakSelf;
+        if (session == nil || [session->_failedSkins containsObject:identifier]) return nil;
+        return [session importedSkinWithIdentifier:identifier report:NO];
+      },
+      ^BOOL(LibretroSkin *skin, LibretroSkinOrientation orientation) {
+        return [weakSelf skin:skin usableInOrientation:orientation iPad:iPad];
+      });
 }
 
 /// Applies the mask after a skin change, a refused skin or a stop of the

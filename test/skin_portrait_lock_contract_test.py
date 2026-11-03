@@ -59,14 +59,17 @@ require('_controller.allowedOrientations = [self gameOrientationMask];' in sessi
 mask = body(session, '- (UIInterfaceOrientationMask)gameOrientationMask')
 require('_legacyLandscapeOnly) return UIInterfaceOrientationMaskLandscape' in mask,
         'the documented legacy Vulkan landscape exception wins')
-require('chosenSkinForOrientation:LibretroSkinOrientationPortrait' in mask
-        and 'chosenSkinForOrientation:LibretroSkinOrientationLandscape' in mask, 'portrait and landscape are resolved separately')
-chosen = body(session, '- (LibretroSkin *)chosenSkinForOrientation:')
-require('[self settingValue:key]' in chosen, 'effective selection uses the game-then-console store lookup')
-require('importedSkinWithIdentifier' in chosen and 'report:NO' in chosen, 'quiet load of the chosen skin')
-require(mask.count('usableInOrientation:LibretroSkinOrientationPortrait') == 2
-        and mask.count('usableInOrientation:LibretroSkinOrientationLandscape') == 2,
-        'both skins are checked in both orientations (portrait AND landscape lock)')
+require('LibretroSelectedOrientationMask(' in mask and '[self gameScopeKey]' in mask,
+        'the mask comes from the portable selection resolver with the game scope')
+require('failedSkins' in mask and 'importedSkinWithIdentifier' in mask and 'report:NO' in mask,
+        'a refused skin does not load and the load is quiet')
+require('usableInOrientation' in mask, 'usability is judged per chosen skin and orientation')
+selection = read(LIB / 'LibretroOrientationSelection.m')
+require('LibretroSettingSkinPortrait' in selection and 'LibretroSettingSkinLandscape' in selection
+        and 'valueForKey:key console:console game:' in selection,
+        'both keys are resolved through the store (game, then console)')
+require('LibretroPolicyMask(portraitChosen, landscapeChosen)' in selection
+        and 'orientationsForIPad' in selection, 'chosen = selected AND a layout there; file capabilities are not an input')
 legacy = body(session, '- (void)keepLandscapeForLegacyPicture')
 require('_legacyLandscapeOnly = YES' in legacy, 'legacy exception recorded')
 for name in ('frontendSettingsDidChange', 'rejectSkin:(LibretroSkin *)skin representation'):
@@ -94,7 +97,14 @@ require(re.search(r'DOLDismissSessionController\(controller, \^\{\s*DOLOrientati
         'released in the dismissal completion (stop AND failed launch share this path)')
 require('finishFailedLaunch' in plugin and 'cleanupSharedResourcesAndUI];' in body(plugin, '- (NSDictionary*)finishFailedLaunch'),
         'a failed launch goes through the same release')
-require('DOLPolicyMask(_portrait != nil, _landscape != nil, _portraitSkinOffersLandscape)' in overlay, 'overlay uses the policy')
+require('DOLPolicyMask(_portrait != nil, _landscape != nil)' in overlay and 'OffersLandscape' not in overlay,
+        'overlay uses the choice-based policy')
+menu = read(DOL / 'DolphinSessionMenu.mm')
+require('DOLOrientationGameMask()' in body(menu, '- (UIInterfaceOrientationMask)supportedInterfaceOrientations'),
+        'the Dolphin session menu follows the session mask (no landscape-only menu under a portrait app mask)')
+require('return UIInterfaceOrientationMaskLandscape; }' not in menu, 'no unconditional landscape-only menu is left')
+ci = read(ROOT / 'packages/dolphin_internal_bridge/ci/test_session_ui.rb')
+require('DOLOrientation.mm' in ci and 'DolphinOrientationTests.mm' in ci, 'the simulator harness builds and runs the orientation tests')
 for path in DOL.iterdir():
     if path.suffix in ('.m', '.mm', '.h'):
         require(not re.search(r'#(import|include)[^\n]*Libretro', read(path)), path.name + ' must not import libretro files')

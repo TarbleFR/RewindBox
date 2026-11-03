@@ -509,7 +509,6 @@ static CGRect DOLSkinAspectFit(CGRect bounds, CGFloat aspect) {
   CGPoint _pointer;
   BOOL _pointerSent;
   UIImpactFeedbackGenerator* _haptics;
-  BOOL _portraitSkinOffersLandscape;
 }
 
 - (instancetype)initWithWii:(BOOL)wii gameKey:(NSString*)gameKey {
@@ -557,10 +556,6 @@ static CGRect DOLSkinAspectFit(CGRect bounds, CGFloat aspect) {
     }
     if ([orientation isEqualToString:@"portrait"]) {
       _portrait = representation;
-      // What this skin itself offers in landscape, assigned or not: a skin
-      // with both layouts keeps the usual behaviour. Not used for drawing.
-      NSDictionary* own = DOLSkinLayoutFor(info, @"landscape");
-      _portraitSkinOffersLandscape = own != nil && DOLSkinParse(own, root, wii, NO) != nil;
     } else {
       _landscape = representation;
     }
@@ -586,7 +581,7 @@ static CGRect DOLSkinAspectFit(CGRect bounds, CGFloat aspect) {
 }
 
 - (UIInterfaceOrientationMask)supportedOrientationMask {
-  return (UIInterfaceOrientationMask)DOLPolicyMask(_portrait != nil, _landscape != nil, _portraitSkinOffersLandscape);
+  return (UIInterfaceOrientationMask)DOLPolicyMask(_portrait != nil, _landscape != nil);
 }
 
 - (BOOL)layoutActive {

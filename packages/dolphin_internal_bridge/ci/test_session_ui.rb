@@ -14,6 +14,7 @@ tests = project.new_target(:unit_test_bundle, 'SessionMenuTests', :ios, '17.4')
 tests.add_dependency(app)
 sources = [File.join(__dir__, 'SessionMenuHarness.mm'), File.join(package, 'ios/Classes/DolphinSessionMenu.mm'), File.join(package, 'ios/Classes/DolphinPerformanceOverlay.mm'), File.join(package, 'ios/Classes/DolphinRecordingController.mm')]
 sources += [File.join(package, 'ios/Classes/DolphinFramePacing.mm'), File.join(package, 'ios/Classes/DolphinExternalDisplay.mm')]
+sources << File.join(package, 'ios/Classes/DOLOrientation.mm')
 sources += Dir[File.join(package, 'ios/Classes/TouchController/*.{swift,mm}')]
 sources.each { |path| app.source_build_phase.add_file_reference(project.main_group.new_file(path)) }
 Dir[File.join(package, 'ios/TouchResources/*')].each do |path|
@@ -23,6 +24,7 @@ tests.source_build_phase.add_file_reference(project.main_group.new_file(File.joi
 tests.source_build_phase.add_file_reference(project.main_group.new_file(File.join(__dir__, 'SessionLifecycleTests.mm')))
 tests.source_build_phase.add_file_reference(project.main_group.new_file(File.join(__dir__, 'PerformanceOverlayTests.mm')))
 tests.source_build_phase.add_file_reference(project.main_group.new_file(File.join(__dir__, 'RecordingControllerTests.mm')))
+tests.source_build_phase.add_file_reference(project.main_group.new_file(File.join(__dir__, 'DolphinOrientationTests.mm')))
 tests.source_build_phase.add_file_reference(project.main_group.new_file(File.join(package, 'ios/Classes/DolphinSessionLifecycle.mm')))
 
 [app, tests].each do |target|

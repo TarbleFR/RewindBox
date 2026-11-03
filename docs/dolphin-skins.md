@@ -147,20 +147,17 @@ and the session is exactly as before.
   screen (`DolphinExternalDisplay`, fixed drawable). While the game is on an
   AirPlay or adapter screen, the skin never moves the Metal view. When the
   game comes back, it returns to the skin's screen.
-- **Orientation.** The Dolphin session stays landscape-only, unless a
-  portrait skin is chosen for the console or the game (game first, then
-  console, per orientation). A portrait-only skin opens and stays in
-  portrait even if the iPhone is held sideways; a skin with portrait AND
-  landscape layouts lets the player turn the phone; two skins assigned on
-  purpose (one per orientation) also allow both, the explicit assignment
-  winning. The default pad in landscape is not a second layout. A
-  landscape-only skin (or no portrait skin) keeps the session in landscape,
-  as before: the mirror lock needs no application mask. The mask
-  (`DOLSkinOverlay.supportedOrientationMask`, `DOLOrientationPolicy.h`) is
-  also given to the application through `DOLOrientation` before the
-  session is presented and released when it is dismissed, after a failed
-  launch too; the selection is read when the session starts. Changing the
-  skin takes effect at the next launch.
+- **Orientation.** The mask follows what the player CHOSE (game first, then
+  console, per orientation), not what the skin file could also do: only a
+  portrait skin chosen: portrait only, even if the sideways phone opens the
+  game; only a landscape skin chosen, or none: landscape (the DolphiniOS pad,
+  as before); both chosen: the player turns the phone. The default pad is
+  never a choice. The mask (`DOLSkinOverlay.supportedOrientationMask`,
+  `DOLOrientationPolicy.h`) is also given to the application through
+  `DOLOrientation` before the session is presented, and the in-game menu
+  (`DolphinSessionMenu`) follows it. It is released when the session is
+  dismissed, after a failed launch too. The selection is read when the session
+  starts: changing the skin takes effect at the next launch.
 
 ## Limits of this version
 

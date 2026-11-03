@@ -11,32 +11,21 @@ enum {
   LibretroPolicyMaskAllButUpsideDown = (1 << 1) | (1 << 3) | (1 << 4),
 };
 
-/// Orientation lock of a game, symmetric for portrait and landscape.
+/// Orientation lock of a game, from what the player CHOSE (not from what the
+/// skin files could do).
 ///
-/// The inputs say whether a layout is USABLE on this device (present for the
-/// device class, loaded, not refused, not announced as unplayable by touch):
-/// - `portraitSkinInPortrait` / `portraitSkinInLandscape`: the skin chosen for
-///   portrait, in each orientation (what the skin itself offers, whether or
-///   not it is assigned there);
-/// - `landscapeSkinInLandscape` / `landscapeSkinInPortrait`: the skin chosen
-///   for landscape, in each orientation.
-///
-/// Portrait only: the portrait skin is playable in portrait, offers no
-/// landscape layout and no other skin is playably assigned to landscape.
-/// Landscape only: the mirror image. NeoStation's default controls (the
-/// implicit fallback of the other orientation) are not a second layout.
-/// Priority decision when two DISTINCT skins are assigned on purpose (for
-/// instance a portrait-only one for portrait and a landscape-only one for
-/// landscape): the explicit assignments win, both orientations stay allowed and
-/// nothing is locked or unassigned. A skin that offers both layouts keeps the
-/// usual behaviour even if only one orientation is assigned to it.
-static inline unsigned LibretroPolicyMask(bool portraitSkinInPortrait, bool portraitSkinInLandscape,
-                                          bool landscapeSkinInLandscape, bool landscapeSkinInPortrait) {
-  if (portraitSkinInPortrait && !portraitSkinInLandscape && !landscapeSkinInLandscape) {
-    return LibretroPolicyMaskPortrait;
-  }
-  if (landscapeSkinInLandscape && !landscapeSkinInPortrait && !portraitSkinInPortrait) {
-    return LibretroPolicyMaskLandscape;
-  }
+/// `portraitChosen`: a skin is selected for portrait (game first, then
+/// console) and it gives a usable layout in portrait on this device.
+/// `landscapeChosen`: the same for landscape. "Usable" = present for the device
+/// class, loaded, not refused, not announced as unplayable by touch. NeoStation's
+/// default controls are never a choice: an orientation left on the default (or
+/// whose chosen skin cannot be used) is not chosen.
+/// - only portrait chosen: portrait only, even for a skin file that also has a
+///   landscape layout (the explicit choice wins over the file's capabilities);
+/// - only landscape chosen: landscape only, likewise;
+/// - both chosen (the same dual skin or two skins) or none: the usual rotation.
+static inline unsigned LibretroPolicyMask(bool portraitChosen, bool landscapeChosen) {
+  if (portraitChosen && !landscapeChosen) return LibretroPolicyMaskPortrait;
+  if (landscapeChosen && !portraitChosen) return LibretroPolicyMaskLandscape;
   return LibretroPolicyMaskAllButUpsideDown;
 }
