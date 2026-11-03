@@ -411,12 +411,13 @@ void main() {
     expect(manager.console, 'gba');
   });
 
-  // GameCube and Wii skins of the embedded Dolphin (docs/dolphin-skins.md):
-  // the same manager, opened from their rows; no other engine has one.
+  // GameCube and Wii skins of the embedded Dolphin and PS2 skins of ARMSX2
+  // (docs/dolphin-skins.md): the same manager, opened from their rows; no
+  // other engine has one.
   testWidgets('Skins of the GameCube and the Wii open the same manager', (tester) async {
     await pumpTab(tester);
     for (final entry in ConsoleCatalog.entries) {
-      final dolphin = entry.id == 'gc' || entry.id == 'wii';
+      final dolphin = entry.id == 'gc' || entry.id == 'wii' || entry.id == 'ps2';
       expect(find.byKey(ValueKey('dolphin-console-skins-${entry.id}')), dolphin ? findsOneWidget : findsNothing,
           reason: entry.id);
     }

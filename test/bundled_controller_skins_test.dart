@@ -147,7 +147,7 @@ void main() {
       await expectLater(_readManifest(manifest), throwsFormatException);
     }
     for (final change in <Map<String, Object?>>[
-      <String, Object?>{'console': 'ps2'},
+      <String, Object?>{'console': 'n64'},
       <String, Object?>{'sha256': 'not-a-digest'},
       <String, Object?>{'size': 0},
       <String, Object?>{'size': LibretroSkinService.maxArchiveBytes + 1},
@@ -206,14 +206,14 @@ void main() {
   );
 
   test(
-    'shipped catalog contains exactly Wii and GameCube with intact archives and PNG previews',
+    'shipped catalog contains exactly Wii, GameCube and PS2 with intact archives and PNG previews',
     () async {
       final entries = await BundledControllerSkin.load(loadAsset: _fileAsset);
       expect(
         entries.map((entry) => entry.console),
-        unorderedEquals(<String>['wii', 'gc']),
+        unorderedEquals(<String>['wii', 'gc', 'ps2']),
       );
-      expect(entries.map((entry) => entry.id).toSet(), hasLength(2));
+      expect(entries.map((entry) => entry.id).toSet(), hasLength(3));
       for (final entry in entries) {
         final archive = await File(entry.archiveAsset).readAsBytes();
         expect(archive.length, entry.size, reason: entry.console);
@@ -249,7 +249,7 @@ void main() {
     () async {
       final service = catalogs();
       final entries = await service.bundledEntries();
-      expect(entries, hasLength(2));
+      expect(entries, hasLength(3));
       expect(entries.every((entry) => entry.bundled != null), isTrue);
       for (final entry in entries) {
         final console = entry.consoles.single;
@@ -285,14 +285,14 @@ void main() {
   );
 
   test(
-    'unified catalog keeps both originals when remote catalogs are offline',
+    'unified catalog keeps all three originals when remote catalogs are offline',
     () async {
       final service = catalogs();
       final entries = await service.load();
       expect(entries, isNotNull);
       expect(
         entries!.map((entry) => entry.consoles.single),
-        unorderedEquals(<String>['wii', 'gc']),
+        unorderedEquals(<String>['wii', 'gc', 'ps2']),
       );
       expect(entries.every((entry) => entry.bundled != null), isTrue);
       expect(requests, isNotEmpty, reason: 'remote failures were exercised');

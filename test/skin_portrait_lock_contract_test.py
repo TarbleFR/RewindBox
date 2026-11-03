@@ -14,6 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LIB = ROOT / 'packages/libretro_internal_bridge/ios/Classes'
 DOL = ROOT / 'packages/dolphin_internal_bridge/ios/Classes'
+A2 = ROOT / 'packages/armsx2_internal_bridge/ios/Classes'
 
 
 def read(path):
@@ -111,6 +112,37 @@ for path in DOL.iterdir():
 for path in LIB.iterdir():
     if path.suffix in ('.m', '.mm', '.h'):
         require(not re.search(r'#(import|include)[^\n]*DOL', read(path)), path.name + ' must not import Dolphin files')
+
+# --- Dolphin and ARMSX2 headers stay pure Objective-C importing UIKit only (pod umbrella) --------
+for header in (DOL / 'DOLSkinOverlay.h', A2 / 'ARMSX2SkinOverlay.h'):
+    imports = re.findall(r'^#(?:import|include)\s+(\S+)', read(header), re.M)
+    require(imports == ['<UIKit/UIKit.h>'], header.name + ' imports only UIKit (module umbrella): %s' % imports)
+
+# --- ARMSX2 (PS2) ------------------------------------------------------------------------------------
+a2_plugin = read(A2 / 'Armsx2InternalBridgePlugin.mm')
+a2_menu = read(A2 / 'Armsx2SessionMenu.mm')
+a2_overlay = read(A2 / 'ARMSX2SkinOverlay.mm')
+require('ARMSX2OrientationInstall();' in body(a2_plugin, '+ (void)registerWithRegistrar:'), 'ARMSX2 coordinator installed')
+set_at = a2_plugin.index('ARMSX2OrientationSetGameMask(controller.skinOverlay.supportedOrientationMask);')
+present_at = a2_plugin.index('[root presentViewController:controller animated:NO completion:nil];')
+require(set_at < present_at and present_at - set_at < 200, 'ARMSX2: app mask set right before the presentation')
+require('if (controller.skinOverlay.hasSkin)' in a2_plugin[set_at - 80:set_at], 'ARMSX2: only a session with a skin changes the mask')
+release = body(a2_plugin, '- (void)dismissGameControllerWithCompletion:')
+require('ARMSX2OrientationSetGameMask(0);' in release[release.index('releaseView'):], 'ARMSX2: released in the dismissal completion')
+require('dismissGameController];' in body(a2_plugin, '- (void)failTransaction:'), 'ARMSX2: a failed launch goes through the same release')
+require('ARMSX2OrientationGameMask()' in body(a2_menu, '- (UIInterfaceOrientationMask)supportedInterfaceOrientations'),
+        'the ARMSX2 session menu follows the session mask')
+require('supportedOrientationMask' in body(a2_plugin, '- (UIInterfaceOrientationMask)supportedInterfaceOrientations'), 'ARMSX2 game controller mask')
+require('ARMSX2PolicyMask(_portrait != nil, _landscape != nil)' in a2_overlay, 'ARMSX2 overlay uses the choice-based policy')
+require('api->set_button' in a2_plugin and 'skin.buttonChanged' in a2_plugin and 'skin.sticksChanged' in a2_plugin,
+        'ARMSX2 skin inputs reach the Core pad')
+require('skin.menuHandler = ^{ [weakSelf menuPressed]; };' in a2_plugin, 'the skin Menu opens the session menu')
+require('[self.skinOverlay releaseAllInputs];' in body(a2_plugin, '- (void)resetInput {'), 'resetInput releases the skin too (menu, stop)')
+require('UIApplicationWillResignActiveNotification' in a2_plugin, 'background releases the inputs')
+require('self.controlsView.hidden = hiddenByPolicy || shown;' in a2_plugin, 'the skin replaces the stock controls while it is drawn')
+for path in A2.iterdir():
+    if path.suffix in ('.m', '.mm', '.h'):
+        require(not re.search(r'#(import|include)[^\n]*(Libretro|DOL[A-Z]|Dolphin)', read(path)), path.name + ' must not import other engines')
 
 # --- unchanged global files ---------------------------------------------------------
 main = read(ROOT / 'lib/main.dart')

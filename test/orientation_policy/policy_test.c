@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include "../../packages/libretro_internal_bridge/ios/Classes/LibretroOrientationPolicy.h"
 #include "../../packages/dolphin_internal_bridge/ios/Classes/DOLOrientationPolicy.h"
+#include "../../packages/armsx2_internal_bridge/ios/Classes/ARMSX2OrientationPolicy.h"
 
 // UIInterfaceOrientationMask values (UIKit): Portrait 1<<1, PortraitUpsideDown 1<<2,
 // LandscapeRight 1<<3, LandscapeLeft 1<<4.
@@ -32,6 +33,9 @@ int main(void) {
   expect("constants: dolphin portrait", DOLPolicyMaskPortrait, UIKIT_PORTRAIT);
   expect("constants: dolphin landscape", DOLPolicyMaskLandscape, UIKIT_LANDSCAPE);
   expect("constants: dolphin all", DOLPolicyMaskAllButUpsideDown, UIKIT_ALL_BUT_UPSIDE_DOWN);
+  expect("constants: armsx2 portrait", ARMSX2PolicyMaskPortrait, UIKIT_PORTRAIT);
+  expect("constants: armsx2 landscape", ARMSX2PolicyMaskLandscape, UIKIT_LANDSCAPE);
+  expect("constants: armsx2 all", ARMSX2PolicyMaskAllButUpsideDown, UIKIT_ALL_BUT_UPSIDE_DOWN);
 
   // (portrait chosen, landscape chosen)
   expect("libretro: portrait only chosen", LibretroPolicyMask(true, false), UIKIT_PORTRAIT);
@@ -43,6 +47,11 @@ int main(void) {
   expect("dolphin: both chosen", DOLPolicyMask(true, true), UIKIT_ALL_BUT_UPSIDE_DOWN);
   expect("dolphin: none chosen (the DolphiniOS pad stays landscape)", DOLPolicyMask(false, false), UIKIT_LANDSCAPE);
 
+  expect("armsx2: portrait only chosen", ARMSX2PolicyMask(true, false), UIKIT_PORTRAIT);
+  expect("armsx2: landscape only chosen", ARMSX2PolicyMask(false, true), UIKIT_LANDSCAPE);
+  expect("armsx2: both chosen", ARMSX2PolicyMask(true, true), UIKIT_ALL_BUT_UPSIDE_DOWN);
+  expect("armsx2: none chosen (the session turns with the phone)", ARMSX2PolicyMask(false, false), UIKIT_ALL_BUT_UPSIDE_DOWN);
+
   // Exhaustive: no lock without a choice, never both locks, the choice is
   // independent of the skin file's capabilities (they are not an input).
   int bad = 0;
@@ -53,8 +62,9 @@ int main(void) {
     if (lib == UIKIT_PORTRAIT && !(p && !l)) bad++;
     if (lib == UIKIT_LANDSCAPE && !(l && !p)) bad++;
     if (dol == UIKIT_PORTRAIT && !(p && !l)) bad++;
-    // The two engines agree whenever a skin is chosen.
+    // The three engines agree whenever a skin is chosen.
     if ((p || l) && lib != dol) bad++;
+    if (ARMSX2PolicyMask(p, l) != lib) bad++;
     // Mirror symmetry of the lock.
     if ((LibretroPolicyMask(p, l) == UIKIT_PORTRAIT) != (LibretroPolicyMask(l, p) == UIKIT_LANDSCAPE)) bad++;
   }

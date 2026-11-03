@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify the two shipped Pocket archives and their iPhone geometry offline.
+"""Verify the three shipped Pocket archives (Wii, GameCube, PS2) and their iPhone geometry offline.
 
 Requires Pillow. This checks packaged files and the native renderer's layout
 selection/aspect fit; it does not run an emulator or claim device play testing.
@@ -26,7 +26,14 @@ ESSENTIALS = {
            "cUp", "cDown", "cLeft", "cRight"},
     "wii": {"a", "b", "c", "z", "one", "two", "plus", "minus", "home", "menu",
             "up", "down", "left", "right", "stickUp", "stickDown", "stickLeft", "stickRight"},
+    # PS2 (ARMSX2): the logical names of ARMSX2SkinOverlay; the right stick is rstick*.
+    "ps2": {"cross", "circle", "square", "triangle", "l1", "l2", "r1", "r2", "select", "start", "l3", "r3", "menu",
+            "up", "down", "left", "right", "stickUp", "stickDown", "stickLeft", "stickRight",
+            "rstickUp", "rstickDown", "rstickLeft", "rstickRight"},
 }
+STICKS = {"gc": 2, "wii": 1, "ps2": 2}
+GAME_TYPES = {"gc": {"ngc", "gc", "gamecube"}, "wii": {"wii"}, "ps2": {"ps2"}}
+RAW_BODY_CONSOLES = {"gc", "wii"}
 
 
 def require(condition, message):
@@ -83,13 +90,17 @@ def canonical(console, raw):
     for prefix in ("rightthumbstick", "rightstick", "rightanalog", "cstick", "c"):
         for direction in ("Up", "Down", "Left", "Right"):
             if key == prefix+direction.lower():
-                return ("c" if console == "gc" else "pointer")+direction
+                return {"gc": "c", "wii": "pointer", "ps2": "rstick"}[console]+direction
     for direction in ("up", "down", "left", "right"):
         if key in (direction, "dpad"+direction):
             return direction
     aliases = {"pause": "menu", "options": "menu", "quicksave": "quickSave", "quickload": "quickLoad"}
-    aliases.update({"r1": "z", "l2": "l", "r2": "r", "lefttrigger": "l", "righttrigger": "r"}
-                   if console == "gc" else {"1": "one", "2": "two", "nunchukc": "c", "nunchukz": "z"})
+    if console == "gc":
+        aliases.update({"r1": "z", "l2": "l", "r2": "r", "lefttrigger": "l", "righttrigger": "r"})
+    elif console == "wii":
+        aliases.update({"1": "one", "2": "two", "nunchukc": "c", "nunchukz": "z"})
+    else:
+        aliases = {"pause": "menu", "options": "menu"}
     result = aliases.get(key, key)
     require(result in ESSENTIALS[console] | {"quickSave", "quickLoad", "pointerUp", "pointerDown", "pointerLeft", "pointerRight"},
             f"unmapped {console} input: {raw}")
@@ -143,12 +154,12 @@ def validate_pack(assets, body_sources, row):
     require("info.json" in files, "missing info.json")
     info = json.loads(files["info.json"])
     require(info.get("author") == "RewindBox" and row.get("author") == "RewindBox", "missing RewindBox author")
-    require(info["gameTypeIdentifier"].split(".")[-1] in ({"ngc", "gc", "gamecube"} if console == "gc" else {"wii"}), "wrong game type")
+    require(info["gameTypeIdentifier"].split(".")[-1] in GAME_TYPES[console], "wrong game type")
     images = {name: bitmap(content, name) for name, content in files.items() if name.endswith(".png")}
     require(images, "no raster artwork")
     source_bodies = json.loads((body_sources/"provenance.json").read_text())["files"]
     source_bindings = {}
-    for name in ("body-portrait.png", "body-landscape.png"):
+    for name in (("body-portrait.png", "body-landscape.png") if console in RAW_BODY_CONSOLES else ()):
         source = (body_sources/name).read_bytes()
         digest = hashlib.sha256(source).hexdigest()
         require(digest == source_bodies[name]["sha256"], f"{name}: source provenance digest mismatch")
@@ -175,7 +186,8 @@ def validate_pack(assets, body_sources, row):
             require(backgrounds, f"{label}: no backgrounds")
             for name in backgrounds.values():
                 resource(name)
-                require(name == f"body-{orientation}.png", f"{label}: changed approved body reference")
+                if console in RAW_BODY_CONSOLES:
+                    require(name == f"body-{orientation}.png", f"{label}: changed approved body reference")
             screens = [rect(screen["outputFrame"]) for screen in layout["screens"]]
             require(len(screens) == 1, f"{label}: expected a single game screen")
             for screen in screens:
@@ -204,7 +216,9 @@ def validate_pack(assets, body_sources, row):
                     require(knob["name"] not in (normal, pressed), f"{label}/{index}: knob baked into base")
                     require(0 < knob["width"] < frame[2] and 0 < knob["height"] < frame[3], f"{label}/{index}: no knob travel")
             require(ESSENTIALS[console] <= provided, f"{label}: missing controls {ESSENTIALS[console]-provided}")
-            require(stick_count == (2 if console == "gc" else 1), f"{label}: wrong movable stick count")
+            require(stick_count == STICKS[console], f"{label}: wrong movable stick count")
+            menus = [item for item in layout["items"] if "menu" in [canonical(console, name) for name in raw_inputs(item)]]
+            require(len(menus) == 1, f"{label}: expected exactly one visible Menu control, found {len(menus)}")
             layout_reports.append({"display": display, "orientation": orientation,
                                    "mappingSize": mapping, "controls": len(hits),
                                    "minimumMappingTargetPoints": min(min(hit[2:]) for hit in hits)})
@@ -253,10 +267,11 @@ def main():
         catalog = json.loads((args.assets_dir/"catalog.json").read_text())
         require(catalog.get("schemaVersion") == 1, "unsupported catalog schema")
         rows = catalog["skins"]
-        require(len(rows) == 2 and {row["console"] for row in rows} == {"gc", "wii"}, "expected exactly Wii and GameCube")
-        require(len({row["id"] for row in rows}) == 2, "duplicate catalog id")
+        require(len(rows) == 3 and {row["console"] for row in rows} == {"gc", "wii", "ps2"},
+                "expected exactly Wii, GameCube and PS2")
+        require(len({row["id"] for row in rows}) == 3, "duplicate catalog id")
         result = {"status": "passed", "checks": ["manifest digests and sizes", "ZIP CRC and confined resources",
-                  "all PNG decodes", "8 iPhone layouts", "4:3 game windows for native background masking", "all essential bindings",
+                  "all PNG decodes", "12 iPhone layouts", "4:3 game windows for native background masking", "all essential bindings", "exactly one Menu control in every layout",
                   "approved raw body byte identity and provenance SHA-256",
                   "distinct normal/pressed artwork", "separate movable stick caps", "no control overlaps",
                   "no control/game overlap", "44pt fitted targets on reference iPhones", "reference safe insets",

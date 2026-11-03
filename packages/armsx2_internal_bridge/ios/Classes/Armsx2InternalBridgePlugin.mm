@@ -11,6 +11,8 @@
 #import "ARMSX2InGameLocalization.h"
 #import "Armsx2TextureBridge.h"
 #import "Armsx2TouchControls.h"
+#import "ARMSX2SkinOverlay.h"
+#import "ARMSX2Orientation.h"
 // Build 447: the Core's render view is a NeoExternalRenderHost of the
 // external_display pod (docs/external-display-universal.md § 5, row ARMSX2).
 #import <external_display/NeoExternalDisplayCoordinator.h>
@@ -95,6 +97,8 @@ static UIViewController* ARMSX2RootViewController(void) {
 @property(nonatomic, copy) dispatch_block_t closeHandler;
 @property(nonatomic, copy) dispatch_block_t menuHandler;
 @property(nonatomic, strong) Armsx2TouchControlsView* controlsView;
+/// Controller skin chosen for PS2 (docs/dolphin-skins.md); nil without one.
+@property(nonatomic, strong, nullable) ARMSX2SkinOverlay* skinOverlay;
 @property(nonatomic, strong) UIButton* menuButton;
 @property(nonatomic, strong) UILabel* statusLabel;
 /// The Touch Controls switch of the in-game Controls page.
@@ -174,6 +178,27 @@ static UIViewController* ARMSX2RootViewController(void) {
     Armsx2GameViewController* strongSelf = weakSelf;
     if (strongSelf.api && strongSelf.api->set_sticks) strongSelf.api->set_sticks(leftX, leftY, rightX, rightY);
   };
+  // A skin chosen for this console or game replaces the stock controls and
+  // shows the game in its screen. Without one nothing below changes.
+  ARMSX2SkinOverlay* skin = [[ARMSX2SkinOverlay alloc] initWithGameKey:self.touchGameKey];
+  if (skin.hasSkin) {
+    skin.frame = root.bounds;
+    skin.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    skin.buttonChanged = ^(uint32_t button, BOOL pressed) {
+      Armsx2GameViewController* strongSelf = weakSelf;
+      if (strongSelf.api && strongSelf.api->set_button && button < 16) strongSelf.api->set_button(button, pressed ? 1 : 0);
+    };
+    skin.sticksChanged = ^(float leftX, float leftY, float rightX, float rightY) {
+      Armsx2GameViewController* strongSelf = weakSelf;
+      if (strongSelf.api && strongSelf.api->set_sticks) strongSelf.api->set_sticks(leftX, leftY, rightX, rightY);
+    };
+    skin.menuHandler = ^{ [weakSelf menuPressed]; };
+    skin.layoutChanged = ^{ [weakSelf syncSkinOverlay]; };
+    [root insertSubview:skin aboveSubview:self.controlsView];
+    self.skinOverlay = skin;
+  }
+  [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(resetInput)
+      name:UIApplicationWillResignActiveNotification object:nil];
   self.controllerMonitor = [[NeoTouchControllerMonitor alloc] initWithChangeHandler:^(__unused BOOL connected) {
     [weakSelf applyTouchVisibility];
   }];
@@ -226,8 +251,46 @@ static UIViewController* ARMSX2RootViewController(void) {
   // subview of this controller and keeps the bounds, scale and transform the
   // coordinator gave it: only the iPhone layout sizes it. The touch controls
   // always follow the iPhone.
-  if (!self.externalRenderHost.attached) self.coreView.frame = self.view.bounds;
   self.controlsView.frame = self.view.bounds;
+  self.skinOverlay.frame = self.view.bounds;
+  [self.skinOverlay layoutIfNeeded];
+  [self placeRenderSurface];
+}
+
+// The game fills the view, or the skin's screen while a skin is drawn. The
+// external-display adapter keeps the view it was given while it is attached.
+- (void)placeRenderSurface {
+  if (self.externalRenderHost.attached) return;
+  ARMSX2SkinOverlay* skin = self.skinOverlay;
+  const BOOL inScreen = skin != nil && !skin.hidden && skin.layoutActive && !CGRectIsNull(skin.screenFrame) &&
+      skin.screenFrame.size.width >= 1 && skin.screenFrame.size.height >= 1;
+  self.coreView.frame = inScreen ? CGRectIntegral([skin convertRect:skin.screenFrame toView:self.view]) : self.view.bounds;
+}
+
+// The skin's art and input follow the same policy as the stock controls (the
+// Touch Controls switch, a connected controller, the layout editor) and stop
+// while a menu covers the session; the hamburger button of the session is not
+// part of the skin and always stays available.
+- (void)syncSkinOverlay {
+  ARMSX2SkinOverlay* skin = self.skinOverlay;
+  if (skin == nil) return;
+  const BOOL hiddenByPolicy = NeoTouchControlsShouldHide(@"ps2", self.controllerMonitor.connected,
+                                                         self.touchControlsVisible, self.closing, self.touchEditing);
+  const BOOL shown = skin.layoutActive && !hiddenByPolicy;
+  const BOOL interactive = shown && self.presentedViewController == nil && !self.closing;
+  if (!interactive) [skin releaseAllInputs];
+  skin.hidden = !shown;
+  skin.userInteractionEnabled = interactive;
+  self.controlsView.hidden = hiddenByPolicy || shown;
+  [self placeRenderSurface];
+}
+
+// Skins: the session follows the orientations the player chose
+// (ARMSX2SkinOverlay.supportedOrientationMask); the application mask is
+// given to ARMSX2Orientation before the presentation.
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+  if (self.skinOverlay.hasSkin) return self.skinOverlay.supportedOrientationMask;
+  return UIInterfaceOrientationMaskAllButUpsideDown;
 }
 
 - (void)setTouchGameKey:(NSString*)touchGameKey {
@@ -255,6 +318,7 @@ static UIViewController* ARMSX2RootViewController(void) {
                                                  self.closing, self.touchEditing);
   if (hidden && !self.controlsView.hidden) [self resetInput];
   self.controlsView.hidden = hidden;
+  [self syncSkinOverlay];
 }
 
 - (void)beginTouchLayoutEditing:(dispatch_block_t)completion {
@@ -286,6 +350,7 @@ static UIViewController* ARMSX2RootViewController(void) {
   // Visuals first (sticks back to the centre, buttons released), then every
   // ARMSX2 button up and both sticks neutral, as before.
   [self.controlsView releaseAllInput];
+  [self.skinOverlay releaseAllInputs];
   if(self.api && self.api->set_button)
     for(uint32_t i=0;i<16;i++) self.api->set_button(i,0);
   if(self.api && self.api->set_sticks) self.api->set_sticks(0,0,0,0);
@@ -361,6 +426,7 @@ static UIViewController* ARMSX2RootViewController(void) {
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   // Build 484: the PS2 controls for the editor opened from the settings.
   Armsx2TouchControlsRegisterPreview();
+  ARMSX2OrientationInstall();
   FlutterMethodChannel* channel = [FlutterMethodChannel
       methodChannelWithName:kARMSX2Channel
             binaryMessenger:registrar.messenger];
@@ -628,6 +694,7 @@ static UIViewController* ARMSX2RootViewController(void) {
 
   __weak Armsx2InternalBridgePlugin* weakSelf = self;
   void (^releaseView)(void) = ^{
+    ARMSX2OrientationSetGameMask(0);
     Armsx2InternalBridgePlugin* strongSelf = weakSelf;
     if (strongSelf.api && strongSelf.api->release_render_view)
       strongSelf.api->release_render_view();
@@ -1424,6 +1491,14 @@ static UIViewController* ARMSX2RootViewController(void) {
       };
       [controller loadViewIfNeeded];
       if (!controller.coreView) { controller = nil; return; }
+      // A skin chosen for the console or game decides the orientations: the
+      // application mask is set BEFORE the presentation, so a phone held
+      // sideways opens upright for a portrait-only skin. Without a skin
+      // nothing changes. Released in dismissGameControllerWithCompletion,
+      // after a stop and after a failed launch alike.
+      if (controller.skinOverlay.hasSkin) {
+        ARMSX2OrientationSetGameMask(controller.skinOverlay.supportedOrientationMask);
+      }
       [root presentViewController:controller animated:NO completion:nil];
       self.gameController = controller;
     });

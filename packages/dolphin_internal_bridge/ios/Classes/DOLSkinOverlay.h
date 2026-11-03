@@ -13,7 +13,6 @@
 // ("default" or nothing stored) it is never created and nothing changes.
 #pragma once
 #import <UIKit/UIKit.h>
-#import "DOLOrientationPolicy.h"
 
 NS_ASSUME_NONNULL_BEGIN
 

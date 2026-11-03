@@ -1,4 +1,4 @@
-# GameCube and Wii controller skins (embedded Dolphin)
+# GameCube, Wii and PS2 controller skins (embedded Dolphin and ARMSX2)
 
 Status: implemented on the `Claude` branch, 3 November 2026. The Dart side
 (reading, import, catalogs, choice) is tested on Linux
@@ -228,3 +228,20 @@ Step 1 was done in IPA 625; the steps from 2 on have not been done:
 
 Third-party skin art is never committed. The tests use a synthetic layout
 modelled on GameCube Pocket, with a 1×1 PNG and empty PDFs.
+
+## PlayStation 2 (ARMSX2)
+
+The PS2 console (id `ps2`, engine ARMSX2) uses the same screens, folders, selection
+files (`Config/Frontend/ps2.json`) and `.manicskin` format; its native overlay is
+`ARMSX2SkinOverlay` in the ARMSX2 pod (it cannot import the Dolphin pod).
+Game type `public.aoshuang.game.ps2`. Logical inputs: `cross circle square
+triangle l1 l2 r1 r2 select start l3 r3`, `up down left right`, left stick
+`stickUp…`, right stick `rstickUp…`, `menu`. L3 and R3 are separate targets (a
+stick finger never presses them); quick save/load are not PS2 skin actions.
+Essentials for a skin to be offered: the four directions, Cross, Circle and Start.
+Orientation follows the same rule as the other engines (only portrait chosen:
+portrait; only landscape chosen: landscape; both or none: turns with the phone;
+`ARMSX2Orientation`, set before the presentation and released at dismissal, the
+in-game menu following it). The bundled **PS2 Pocket — Noir mat** pack is described
+in [pocket-originals-2026-11-03.md](pocket-originals-2026-11-03.md).
+

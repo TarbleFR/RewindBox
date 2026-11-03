@@ -28,6 +28,20 @@
       },
       "author": "RewindBox",
       "license": "Original RewindBox artwork; third-party marks excluded"
+    },
+    {
+      "id": "ps2-pocket",
+      "name": "PS2 Pocket — Noir mat",
+      "console": "ps2",
+      "archiveAsset": "assets/skins/pocket/ps2-pocket.manicskin",
+      "sha256": "2106e5f755dd5128c7ab20f06e503164e9f7fd2cd02d88650ee1fc0aae9a16ad",
+      "size": 6117888,
+      "previewAssets": {
+        "portrait": "assets/skins/pocket/ps2-pocket-portrait.png",
+        "landscape": "assets/skins/pocket/ps2-pocket-landscape.png"
+      },
+      "author": "RewindBox",
+      "license": "Original RewindBox artwork; third-party marks excluded"
     }
   ]
 }
