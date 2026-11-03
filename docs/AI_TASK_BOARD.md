@@ -90,6 +90,11 @@ spawning an agent is optional and must replace useful work, not duplicate it.
   to the coordinator, who records them here once. Use `scripts/ai-output.py`
   for verbose foreground checks. No duplicate handoff or requirements files.
   `maxTurns` bounds a run, not its token spend; do not automatically resume loops.
+- Activation check, 3 Nov 22:05 UTC, Claude session `012mUAShv9k6pSCnpW7oAF63` (Claude Code 2.1.317, synced to
+  `b99d61a1`): one `rb-lookup` call requested with model haiku, effort low returned "Agent type 'rb-lookup' not
+  found"; this running session lists only its built-in agents (claude, claude-code-guide, Explore,
+  general-purpose, Plan, statusline-setup, web-fetch). Observed type, model and effort: none, the call did not run.
+  Routing is not active in this session; the coordinator keeps the work. Recheck in a new session.
   Subagents share the plan quota. Savings are an objective, not a measured claim.
 
 Configuration: four short native definitions under `.claude/agents/` and only
