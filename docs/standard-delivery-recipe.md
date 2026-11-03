@@ -281,3 +281,35 @@ réussi.
   de leurs sources (signalé, non bloquant). Tests frais dans les deux groupes (~26 min de bout en bout).
 - Hors CI : métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub MCP
   (octets égaux aux digests de l'API) ; IPA vérifiée hors ligne, clé privée supprimée.
+
+## 12. État de la 621 (3 novembre 2026)
+
+Livrée sur la 620 (run `41555079757`, IPA `1521e25b…`, 194334617 octets, ~19 min de bout en bout).
+Gel sur `7d88bfe0` : base effective 620 `bf6ee0b0…`, empreinte effective `cdfed832…`, 6855 fichiers
+produit ; contrôle légal réussi.
+- **Numéro de build.** Décision du mainteneur : la 621 est la build MeloNX et jaquettes. Le Core 621 de
+  la session RPCS3 passe à la 622. Ses 16 commits sont « source seulement » (`targetBuild` 622) ; son
+  premier brouillon 621 et sa clé de destinataire sont remplacés.
+- **Commits revus (9).** MeloNX : `403dc3c5`, `816930fe`, `4295b522`, `4ad8814e`. Jaquettes et
+  notices d'une autre session : `ef1ddfee`, `05b5a5df`, `cf87abdc`, `400d1f34`, `09eeb75b`.
+- **Composants.**
+  - MeloNX : remplacé par le Core du run `41552490728` (`07e9d695…`), qui remplace `c5627b99…`.
+  - RPCS3 : Core 619 `unchangedFromBase`.
+  - Dolphin/ARMSX2, libretro et dépendances MeloNX : republiés de la 620.
+- **Extension de la recette (`7d88bfe0`).** Le gel et `test_rpcs3_pin` vérifient maintenant l'épingle
+  RPCS3 contre l'arbre effectif, comme la CI, qui matérialise cet arbre avant de la vérifier.
+  - **Pourquoi.** Des commits « source seulement » touchaient les entrées de l'épingle (source hôte,
+    source canonique, patch). La CI les restaure, mais le gel local lisait le checkout et refusait
+    l'épingle Core 619.
+  - **Lecteur.** `rpcs3_core_component.pinned` prend le même lecteur optionnel, et lit le checkout par
+    défaut.
+  - **Fichier d'épingle.** C'est un chemin de recette, lu à HEAD. La 621 y a remis les octets de
+    l'épingle livrée (`2212d1dc`), à la place de l'épingle 621 en attente de l'autre session.
+- **Vérificateur MeloNX.** `melonx_dma_core_component.FRESH_GATES = 6` (`e7b2cabe`), comme
+  `verify_dma_core`. La vérification hors ligne du Core refusait l'épingle avec 5 ; l'étape MeloNX de
+  la livraison l'aurait refusée aussi.
+- **Images changées.** App, MeloNXCore, `melonx_internal_bridge` et Runner. `armsx2_internal_bridge`,
+  `dolphin_internal_bridge` et `rpcs3_internal_bridge` ont aussi changé sans changement de leurs
+  sources effectives (signalé, non bloquant). Tests frais dans les deux groupes.
+- **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub
+  MCP (octets égaux aux digests de l'API). IPA vérifiée hors ligne, clé privée supprimée.
