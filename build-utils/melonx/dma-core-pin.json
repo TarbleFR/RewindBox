@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "1c83655738268086fd07d535bf4f4d40e6b85bc3",
-  "run": 41519432972,
-  "job": 125531349207,
+  "source": "4ad8814ef8218e15567eb818c54703b7abc28010",
+  "run": 41552490728,
+  "job": 125643271343,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 13177253242,
-  "name": "MeloNX-engine-1c83655738268086fd07d535bf4f4d40e6b85bc3",
-  "bytes": 90065506,
-  "sha256": "51923d392c526f6c89b9f91e46de85dcf677b99556b4444253ac510e8a1a2d68",
-  "expiresAt": "2026-11-16T20:39:38Z",
+  "artifact": 13192893181,
+  "name": "MeloNX-engine-4ad8814ef8218e15567eb818c54703b7abc28010",
+  "bytes": 90078190,
+  "sha256": "c99c6adf3e226a5023b1792aa4831e308c2c825bb180eeb1ebec31c17b82a1ff",
+  "expiresAt": "2026-11-17T00:34:29Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "58330ffd6eddfa741267101de85e88ea6a0eacebcece8f6b6bd3f0dc9f57e5cc",
-      "bytes": 37815096
+      "sha256": "d4f1d239f4752888a38af13bbd67f0c911ad4f85c30700436b18a887db1d24eb",
+      "bytes": 37815112
     },
     "iossimulator-arm64": {
-      "sha256": "ae2817687ada0085cd2832f9c0a1c5360cfef0c95cc80919000e3f8f63ca4480",
-      "bytes": 38127144
+      "sha256": "9ba9b8048b0cbc3af45105f845050f6046e1977dec4ea6545ebdea787f5231e5",
+      "bytes": 38143688
     }
   },
   "identities": {
-    "ios-arm64": "85c5d7ba27051652bf1a1a8678d6b14aeda61aa47840ad5f51cec91f68e5af79",
-    "iossimulator-arm64": "0268acbab11608a3969e419c2fc242e7756e98370698f40d18027518846b58f4"
+    "ios-arm64": "c788b6f54ad24e14a2140c0e2aa19363d88adc5612a18e19d84ea157c118197a",
+    "iossimulator-arm64": "ea5e4fc36257d092eaab1d956c1a200c505cce03a4b630398c495eabe5c634ee"
   },
-  "contractSha256": "481a8efa8255e7c20e3570372631cebdb6917052dd46a90cafd89597afca744d",
-  "resultSha256": "ddbf9452848a2ed439e7eaa15e851ba235d70d1e9bdf3fe8448c04ef05f3f0e8",
-  "packagedFingerprint": "c5627b99d2cb4d108ec8f89893b3f6de3d8b686a8865d90b9c2380a76ec52b7b",
+  "contractSha256": "24b2a3abbae0ce3e1c731e99a8fac769c9970e925fc9b1875dcccb689443b064",
+  "resultSha256": "5e0934242033c45b6b0785d08f39197fb6658539d96de2050e6453a3e8db5bf9",
+  "packagedFingerprint": "07e9d69586adb749ab80228756d903a556f6201b6ef95c6aec61d791d29de516",
   "replaces": {
-    "source": "a8f67bfd21090dfd5bdd3d62bbb782ab60aad60a",
-    "run": 41501428424,
-    "artifact": 13168713797,
-    "packagedFingerprint": "dfe3bb56d8af8acc71289dc552eb064d5d1e69e2140cca7db06b6f9bac8f0883",
-    "reason": "Hogwarts Legacy linear DMA sources held by a GPU-modified texture copied on the GPU (build 618 per-frame source read back)"
+    "source": "1c83655738268086fd07d535bf4f4d40e6b85bc3",
+    "run": 41519432972,
+    "artifact": 13177253242,
+    "packagedFingerprint": "c5627b99d2cb4d108ec8f89893b3f6de3d8b686a8865d90b9c2380a76ec52b7b",
+    "reason": "Hogwarts Legacy DMA copies from a GPU-modified block-linear surface into a block-linear surface copied on the GPU (build 620 per-frame texture read back; linear destinations counted, not copied), precise DMA reads, render/GPU/demand-compile thread QoS and a 1 GiB pipeline cache budget (build 620 SSBU main cache full)"
   }
 }
