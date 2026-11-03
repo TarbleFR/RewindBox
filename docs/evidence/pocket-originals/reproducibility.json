@@ -1,0 +1,104 @@
+{
+  "status": "pass",
+  "method": "Two fresh runs of tools/skins/build_pocket_skins.py, separate output directories, every produced file compared byte-for-byte",
+  "generatedFiles": 16,
+  "files": [
+    {
+      "file": "catalog.json",
+      "bytes": 1148,
+      "sha256": "3233be3f5b1e43fec996bee08c1f32ff90a07502a2db1d32e45148301081cbb3",
+      "identical": true
+    },
+    {
+      "file": "gamecube-pocket-landscape-pressed.png",
+      "bytes": 1463059,
+      "sha256": "144536be6e7e0106bdd6cb1b2b6272afb9807235ad8a53594cac3b8577dfca66",
+      "identical": true
+    },
+    {
+      "file": "gamecube-pocket-landscape.png",
+      "bytes": 1487399,
+      "sha256": "83cf69978be9df24af2146e75f5c86f0f6cd470b28d3254339f2d32575679956",
+      "identical": true
+    },
+    {
+      "file": "gamecube-pocket-portrait-pressed.png",
+      "bytes": 1357731,
+      "sha256": "5c4dcca1fdc542a9179eeed3061cb188320408348337b441d93982b4e4cccca7",
+      "identical": true
+    },
+    {
+      "file": "gamecube-pocket-portrait.png",
+      "bytes": 1381298,
+      "sha256": "72aa3d6c14dc3240107225e84195c493092d645b5f93524be0b6f64d846dc13e",
+      "identical": true
+    },
+    {
+      "file": "gamecube-pocket-standard-landscape.png",
+      "bytes": 1293923,
+      "sha256": "bd1fa43067d7019a72212637c54d30c618d523e092bc6be5e45f21a8a9b3ce93",
+      "identical": true
+    },
+    {
+      "file": "gamecube-pocket-standard-portrait.png",
+      "bytes": 1238690,
+      "sha256": "a9e93f35725d90a84bb8db46df58e15c5549c578f6deace9d6b2bf8f17a24179",
+      "identical": true
+    },
+    {
+      "file": "gamecube-pocket.manicskin",
+      "bytes": 6053003,
+      "sha256": "d37fbd2138c47a271f37e8b352b76b04624abc8b45e8996ea87dd5886316b13b",
+      "identical": true
+    },
+    {
+      "file": "validation.json",
+      "bytes": 12794,
+      "sha256": "99b1a6f79bdba0e12dd662f5a12b7d24003916d8e087dc264c65a30356420dcd",
+      "identical": true
+    },
+    {
+      "file": "wii-pocket-landscape-pressed.png",
+      "bytes": 1392111,
+      "sha256": "ce4f6050eb1e7321e3a30395b374a13965d6dabdbbc2fc2dc317a18ff6500f58",
+      "identical": true
+    },
+    {
+      "file": "wii-pocket-landscape.png",
+      "bytes": 1412878,
+      "sha256": "29001454b0cd88949f5b31b1a518ca14b5ebfd4050aaac8343f3bf62cca296aa",
+      "identical": true
+    },
+    {
+      "file": "wii-pocket-portrait-pressed.png",
+      "bytes": 1273166,
+      "sha256": "1d404f5c18b953a8043da521aad84e3972b1d6ac66c3aa2bcaf49faffc101e20",
+      "identical": true
+    },
+    {
+      "file": "wii-pocket-portrait.png",
+      "bytes": 1293204,
+      "sha256": "2f3b53d483a25aa22abbcba91571964f683060a1544b65ea0ea7962cbcea4f09",
+      "identical": true
+    },
+    {
+      "file": "wii-pocket-standard-landscape.png",
+      "bytes": 1223351,
+      "sha256": "82ef56cfb0bae7dfeb774cfcae671fa8bc24d4d0f73f6908611300c4ea385d6a",
+      "identical": true
+    },
+    {
+      "file": "wii-pocket-standard-portrait.png",
+      "bytes": 1160950,
+      "sha256": "220eea4fa6769b528430019326c14fe6d7c749ca52b76436cf228828ab5ffb89",
+      "identical": true
+    },
+    {
+      "file": "wii-pocket.manicskin",
+      "bytes": 5760549,
+      "sha256": "5a8a4db1d7480269c8011939a3dc6d288bd05687f21f24d8d503972aa9c2b9d5",
+      "identical": true
+    }
+  ],
+  "physicalDeviceTested": false
+}

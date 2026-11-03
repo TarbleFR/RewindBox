@@ -425,24 +425,61 @@ abstract final class DolphinSkins {
     }
   }
 
-  /// The skin's own picture of [orientation] when it is a PNG or JPEG
-  /// (a PDF background is drawn in the game only); null otherwise.
+  /// The skin's own picture of [orientation] when it is a PNG or JPEG.
+  /// A complete `previewImages` picture is preferred to the background;
+  /// an absent or invalid optional preview keeps older skins' fallback.
+  /// PDF backgrounds are drawn in the game only.
   static Future<Uint8List?> previewImage(String directory, String orientation) async {
     try {
       final info = jsonDecode(await File(p.join(directory, 'info.json')).readAsString());
       if (info is! Map) return null;
       final found = layoutFor(Map<String, dynamic>.from(info), orientation);
       if (found == null) return null;
+      final preview = await _previewBitmap(directory, _map(info['previewImages'])?[orientation]);
+      if (preview != null) return preview;
       final assets = _map(found.$1['assets']);
       final art = assets == null
           ? null
           : _text(assets['resizable']) ?? _text(assets['large']) ?? _text(assets['medium']) ?? _text(assets['small']);
-      if (art == null) return null;
-      final lower = art.toLowerCase();
-      if (!lower.endsWith('.png') && !lower.endsWith('.jpg') && !lower.endsWith('.jpeg')) return null;
-      final file = File(p.join(directory, art));
-      if (!p.isWithin(directory, file.path) || !await file.exists()) return null;
-      return await file.readAsBytes();
+      return await _previewBitmap(directory, art);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static const int _maximumPreviewBytes = 16 * 1024 * 1024;
+
+  /// Reads only confined PNG/JPEG files. Both the lexical path and the
+  /// resolved target must stay inside the skin, including through symlinks.
+  static Future<Uint8List?> _previewBitmap(String directory, Object? rawPath) async {
+    try {
+      final name = _text(rawPath);
+      if (name == null || name.contains(r'\') || p.isAbsolute(name) || p.windows.isAbsolute(name) ||
+          name.split('/').contains('..')) {
+        return null;
+      }
+      final extension = p.extension(name).toLowerCase();
+      if (extension != '.png' && extension != '.jpg' && extension != '.jpeg') return null;
+      final root = p.normalize(p.absolute(directory));
+      final path = p.normalize(p.join(root, name));
+      if (!p.isWithin(root, path)) return null;
+      final resolvedRoot = await Directory(root).resolveSymbolicLinks();
+      final resolvedPath = await File(path).resolveSymbolicLinks();
+      if (!p.isWithin(resolvedRoot, resolvedPath)) return null;
+      final file = File(resolvedPath);
+      final stat = await file.stat();
+      if (stat.type != FileSystemEntityType.file || stat.size <= 0 || stat.size > _maximumPreviewBytes) return null;
+      final builder = BytesBuilder(copy: false);
+      await for (final chunk in file.openRead()) {
+        if (builder.length + chunk.length > _maximumPreviewBytes) return null;
+        builder.add(chunk);
+      }
+      final bytes = builder.takeBytes();
+      final png = bytes.length >= 8 && bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4e &&
+          bytes[3] == 0x47 && bytes[4] == 0x0d && bytes[5] == 0x0a && bytes[6] == 0x1a && bytes[7] == 0x0a;
+      final jpeg = bytes.length >= 3 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff;
+      if (extension == '.png' ? !png : !jpeg) return null;
+      return bytes;
     } catch (_) {
       return null;
     }

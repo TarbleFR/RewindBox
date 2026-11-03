@@ -144,6 +144,8 @@ flutter:
     - assets/system_art/rewindbox-glacier/backgrounds/
     - assets/manifest.json
     - assets/data/
+    # Original interactive Wii and GameCube Pocket packs and composed previews.
+    - assets/skins/pocket/
     - assets/systems/
     - assets/sounds/
     - assets/legal/

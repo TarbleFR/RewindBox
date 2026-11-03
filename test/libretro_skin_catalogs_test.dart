@@ -490,6 +490,7 @@ overlay0_desc0 = "a,0.5,0.15,radial,0.1,0.1"
           provenance: LibretroSkinCatalogService(cacheDirectory: skins.cacheDirectory, skins: skins, client: client),
           client: client,
           overlayIndex: () async => overlayIndex,
+          loadBundledSkins: () async => const [],
           clock: clock,
         );
 

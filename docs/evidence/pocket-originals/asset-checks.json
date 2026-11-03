@@ -1,0 +1,436 @@
+{
+  "status": "passed",
+  "checks": [
+    "manifest digests and sizes",
+    "ZIP CRC and confined resources",
+    "all PNG decodes",
+    "8 iPhone layouts",
+    "4:3 game windows for native background masking",
+    "all essential bindings",
+    "approved raw body byte identity and provenance SHA-256",
+    "distinct normal/pressed artwork",
+    "separate movable stick caps",
+    "no control overlaps",
+    "no control/game overlap",
+    "44pt fitted targets on reference iPhones",
+    "reference safe insets",
+    "internal/external complete preview references"
+  ],
+  "physicalDeviceTested": false,
+  "runtimeGameplayTested": false,
+  "targetMetric": "short side of fitted item hit frame; a D-pad or stick is one directional cluster",
+  "packs": [
+    {
+      "console": "wii",
+      "archive": "wii-pocket.manicskin",
+      "size": 5760549,
+      "sha256": "5a8a4db1d7480269c8011939a3dc6d288bd05687f21f24d8d503972aa9c2b9d5",
+      "approvedBodySha256": {
+        "body-portrait.png": "7e74db0dade75f78d61c4d62a8d501cf99e5dc94510bb5c7a0921eb2c56c63f4",
+        "body-landscape.png": "cc3379d4961eb771bca149e1234580657c5d6b6a9a75e0572bd4ee98b3f27020"
+      },
+      "gameWindowMode": "native even-odd background mask; raw body preserved",
+      "pngs": 29,
+      "layouts": [
+        {
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "mappingSize": [
+            393.0,
+            852.0
+          ],
+          "controls": 12,
+          "minimumMappingTargetPoints": 48.0
+        },
+        {
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "mappingSize": [
+            852.0,
+            393.0
+          ],
+          "controls": 12,
+          "minimumMappingTargetPoints": 48.0
+        },
+        {
+          "display": "standard",
+          "orientation": "portrait",
+          "mappingSize": [
+            375.0,
+            667.0
+          ],
+          "controls": 12,
+          "minimumMappingTargetPoints": 44.0
+        },
+        {
+          "display": "standard",
+          "orientation": "landscape",
+          "mappingSize": [
+            667.0,
+            375.0
+          ],
+          "controls": 12,
+          "minimumMappingTargetPoints": 44.0
+        }
+      ],
+      "nativeFitMatrix": [
+        {
+          "devicePoints": [
+            375,
+            667
+          ],
+          "display": "standard",
+          "orientation": "portrait",
+          "minimumTargetPoints": 44.0,
+          "referenceInsets": [
+            20,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            667,
+            375
+          ],
+          "display": "standard",
+          "orientation": "landscape",
+          "minimumTargetPoints": 44.0,
+          "referenceInsets": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            375,
+            812
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 45.746,
+          "referenceInsets": [
+            44,
+            0,
+            34,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            812,
+            375
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 45.746,
+          "referenceInsets": [
+            0,
+            44,
+            21,
+            44
+          ]
+        },
+        {
+          "devicePoints": [
+            390,
+            844
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 47.549,
+          "referenceInsets": [
+            59,
+            0,
+            34,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            844,
+            390
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 47.549,
+          "referenceInsets": [
+            0,
+            59,
+            21,
+            59
+          ]
+        },
+        {
+          "devicePoints": [
+            393,
+            852
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 48.0,
+          "referenceInsets": [
+            59,
+            0,
+            34,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            852,
+            393
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 48.0,
+          "referenceInsets": [
+            0,
+            59,
+            21,
+            59
+          ]
+        },
+        {
+          "devicePoints": [
+            430,
+            932
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 52.507,
+          "referenceInsets": [
+            59,
+            0,
+            34,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            932,
+            430
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 52.507,
+          "referenceInsets": [
+            0,
+            59,
+            21,
+            59
+          ]
+        }
+      ]
+    },
+    {
+      "console": "gc",
+      "archive": "gamecube-pocket.manicskin",
+      "size": 6053003,
+      "sha256": "d37fbd2138c47a271f37e8b352b76b04624abc8b45e8996ea87dd5886316b13b",
+      "approvedBodySha256": {
+        "body-portrait.png": "7e74db0dade75f78d61c4d62a8d501cf99e5dc94510bb5c7a0921eb2c56c63f4",
+        "body-landscape.png": "cc3379d4961eb771bca149e1234580657c5d6b6a9a75e0572bd4ee98b3f27020"
+      },
+      "gameWindowMode": "native even-odd background mask; raw body preserved",
+      "pngs": 30,
+      "layouts": [
+        {
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "mappingSize": [
+            393.0,
+            852.0
+          ],
+          "controls": 12,
+          "minimumMappingTargetPoints": 48.0
+        },
+        {
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "mappingSize": [
+            852.0,
+            393.0
+          ],
+          "controls": 12,
+          "minimumMappingTargetPoints": 48.0
+        },
+        {
+          "display": "standard",
+          "orientation": "portrait",
+          "mappingSize": [
+            375.0,
+            667.0
+          ],
+          "controls": 12,
+          "minimumMappingTargetPoints": 44.0
+        },
+        {
+          "display": "standard",
+          "orientation": "landscape",
+          "mappingSize": [
+            667.0,
+            375.0
+          ],
+          "controls": 12,
+          "minimumMappingTargetPoints": 44.0
+        }
+      ],
+      "nativeFitMatrix": [
+        {
+          "devicePoints": [
+            375,
+            667
+          ],
+          "display": "standard",
+          "orientation": "portrait",
+          "minimumTargetPoints": 44.0,
+          "referenceInsets": [
+            20,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            667,
+            375
+          ],
+          "display": "standard",
+          "orientation": "landscape",
+          "minimumTargetPoints": 44.0,
+          "referenceInsets": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            375,
+            812
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 45.746,
+          "referenceInsets": [
+            44,
+            0,
+            34,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            812,
+            375
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 45.746,
+          "referenceInsets": [
+            0,
+            44,
+            21,
+            44
+          ]
+        },
+        {
+          "devicePoints": [
+            390,
+            844
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 47.549,
+          "referenceInsets": [
+            59,
+            0,
+            34,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            844,
+            390
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 47.549,
+          "referenceInsets": [
+            0,
+            59,
+            21,
+            59
+          ]
+        },
+        {
+          "devicePoints": [
+            393,
+            852
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 48.0,
+          "referenceInsets": [
+            59,
+            0,
+            34,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            852,
+            393
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 48.0,
+          "referenceInsets": [
+            0,
+            59,
+            21,
+            59
+          ]
+        },
+        {
+          "devicePoints": [
+            430,
+            932
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 52.507,
+          "referenceInsets": [
+            59,
+            0,
+            34,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            932,
+            430
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 52.507,
+          "referenceInsets": [
+            0,
+            59,
+            21,
+            59
+          ]
+        }
+      ]
+    }
+  ]
+}

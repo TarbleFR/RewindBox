@@ -12,6 +12,14 @@ It has **not** been run on an iPhone yet; see
 
 ## What the user sees
 
+Two original, offline packs are now included in the catalog under
+**RewindBox Originals**: Wii Pocket and GameCube Pocket – Ivory. They use
+separate normal/pressed controls and moving stick caps in portrait and
+landscape. Complete previews are available in the catalog and skin manager.
+Import retains the player's existing selection; choose the desired
+orientation in the manager. See the [original pack record](pocket-originals-2026-11-03.md)
+for scope, provenance, fresh checks and the remaining iPhone validation.
+
 The embedded Dolphin (DolphiniOS) now takes the same `.deltaskin` and
 `.manicskin` controller skins as the embedded libretro consoles, through the
 same screens:

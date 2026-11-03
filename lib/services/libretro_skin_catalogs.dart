@@ -13,6 +13,7 @@ import 'package:libretro_internal_bridge/libretro_internal_bridge.dart';
 import 'package:path/path.dart' as path;
 
 import '../utils/bounded_concurrency.dart';
+import 'bundled_controller_skins.dart';
 import 'dolphin_skins.dart';
 import 'libretro_overlay_converter.dart';
 import 'libretro_skin_catalog_service.dart';
@@ -23,15 +24,17 @@ import 'logger_service.dart';
 
 /// Where a catalog skin comes from. Product names, never translated.
 abstract final class LibretroSkinSources {
+  static const String rewindboxOriginals = 'rewindbox-originals';
   static const String provenance = 'provenance';
   static const String deltaStyles = 'deltastyles';
   static const String deltaSkins = 'deltaskins';
   static const String pocketArch = 'pocketarch';
   static const String libretroOverlays = 'libretro-overlays';
 
-  static const List<String> all = <String>[provenance, deltaStyles, deltaSkins, pocketArch, libretroOverlays];
+  static const List<String> all = <String>[rewindboxOriginals, provenance, deltaStyles, deltaSkins, pocketArch, libretroOverlays];
 
   static String label(String source) => switch (source) {
+        rewindboxOriginals => 'RewindBox Originals',
         provenance => 'Provenance',
         deltaStyles => 'DeltaStyles',
         deltaSkins => 'Delta Skins',
@@ -60,6 +63,7 @@ class LibretroCatalogSkin {
     this.overlay,
     this.excludedReason,
     this.supports,
+    this.bundled,
     this.catalogSources = const <String>[],
   });
 
@@ -79,6 +83,7 @@ class LibretroCatalogSkin {
         author: author, origin: origin, thumbnailURL: thumbnailURL,
         downloadCount: downloadCount, license: license, archive: archive,
         overlay: overlay, excludedReason: excludedReason, supports: supports,
+        bundled: bundled,
         catalogSources: values.toSet().toList(),
       );
   final String name;
@@ -92,6 +97,9 @@ class LibretroCatalogSkin {
   final String? thumbnailURL;
   final int? downloadCount;
   final String? license;
+
+  /// Original archive and composed previews included in the app bundle.
+  final BundledControllerSkin? bundled;
 
   /// Delta archive entry (download and import).
   final LibretroSkinCatalogEntry? archive;
@@ -165,6 +173,8 @@ class LibretroSkinCatalogs {
     required this.provenance,
     http.Client? client,
     Future<String> Function()? overlayIndex,
+    Future<List<BundledControllerSkin>> Function()? loadBundledSkins,
+    Future<ByteData> Function(String)? loadAsset,
     Future<Map<String, dynamic>> Function(String directory)? inspect,
     DateTime Function()? clock,
     Future<Uint8List?> Function(String directory, String console, String orientation, double width, double height)? renderPreview,
@@ -173,6 +183,8 @@ class LibretroSkinCatalogs {
   })  : _client = client ?? http.Client(),
         _ownsClient = client == null || ownsClient,
         _overlayIndex = overlayIndex ?? (() => rootBundle.loadString(overlayIndexAsset)),
+        _loadAsset = loadAsset ?? rootBundle.load,
+        _loadBundledSkins = loadBundledSkins ?? (() => BundledControllerSkin.load(loadAsset: loadAsset)),
         _inspect = inspect,
         _renderPreview = renderPreview,
         _clock = clock ?? DateTime.now;
@@ -211,6 +223,9 @@ class LibretroSkinCatalogs {
   final http.Client _client;
   final bool _ownsClient;
   final Future<String> Function() _overlayIndex;
+  final Future<ByteData> Function(String) _loadAsset;
+  final Future<List<BundledControllerSkin>> Function() _loadBundledSkins;
+  Future<List<LibretroCatalogSkin>>? _bundledEntries;
   final Future<Map<String, dynamic>> Function(String directory)? _inspect;
   final DateTime Function() _clock;
   final Future<Uint8List?> Function(String, String, String, double, double)? _renderPreview;
@@ -227,6 +242,21 @@ class LibretroSkinCatalogs {
   /// Sources that could not be read on the last [load] (labels shown).
   Set<String> get unavailableSources => Set<String>.unmodifiable(_unavailable);
 
+  /// Available before any external request, including when entirely offline.
+  Future<List<LibretroCatalogSkin>> bundledEntries() => _bundledEntries ??= _readBundledEntries();
+
+  Future<List<LibretroCatalogSkin>> _readBundledEntries() async => List.unmodifiable([
+    for (final bundle in await _loadBundledSkins()) LibretroCatalogSkin(
+      key: 'bundled:${bundle.id}',
+      source: LibretroSkinSources.rewindboxOriginals,
+      name: bundle.name,
+      consoles: [bundle.console],
+      author: bundle.author,
+      license: bundle.license,
+      bundled: bundle,
+    ),
+  ]);
+
   /// Every catalog skin, deduplicated (the first source wins: Provenance,
   /// then the Delta Skins site, then the overlays). Null when no source
   /// could be read.
@@ -235,6 +265,15 @@ class LibretroSkinCatalogs {
     _unavailable.clear();
     final merged = <String, LibretroCatalogSkin>{};
     var any = false;
+
+    try {
+      final originals = await bundledEntries();
+      for (final entry in originals) { _mergeEntry(merged, entry); }
+      any = originals.isNotEmpty;
+    } catch (error) {
+      _log.w('Bundled skin catalog unreadable: $error');
+      _unavailable.add(LibretroSkinSources.rewindboxOriginals);
+    }
 
     final provenanceEntries = await provenance.load(refresh: refresh);
     if (provenanceEntries == null) {
@@ -279,7 +318,10 @@ class LibretroSkinCatalogs {
   /// Entries listed for [console], most downloaded first.
   static List<LibretroCatalogSkin> forConsole(Iterable<LibretroCatalogSkin> entries, String console) =>
       entries.where((entry) => entry.isForConsole(console)).toList()
-        ..sort((a, b) => (b.downloadCount ?? 0).compareTo(a.downloadCount ?? 0));
+        ..sort((a, b) {
+          if ((a.bundled != null) != (b.bundled != null)) return a.bundled != null ? -1 : 1;
+          return (b.downloadCount ?? 0).compareTo(a.downloadCount ?? 0);
+        });
 
   /// Case-insensitive search in names, authors and sources.
   static List<LibretroCatalogSkin> search(Iterable<LibretroCatalogSkin> entries, String query) {
@@ -504,7 +546,8 @@ class LibretroSkinCatalogs {
       if (previous == null) {
         kept[identity] = entry;
       } else {
-        final winner = (entry.downloadCount ?? 0) > (previous.downloadCount ?? 0) ? entry : previous;
+        final winner = previous.bundled != null ? previous : entry.bundled != null ? entry :
+            (entry.downloadCount ?? 0) > (previous.downloadCount ?? 0) ? entry : previous;
         kept[identity] = winner.withCatalogSources(<String>[
           previous.source, ...previous.catalogSources, entry.source, ...entry.catalogSources,
         ]);
@@ -558,7 +601,8 @@ class LibretroSkinCatalogs {
     }
   }
 
-  static String _verdictKey(LibretroCatalogSkin entry, String console) => '${entry.key}|$console';
+  static String _verdictKey(LibretroCatalogSkin entry, String console) =>
+      '${entry.key}|$console${entry.bundled == null ? '' : '|${entry.bundled!.sha256}'}';
 
   /// The verdict known without any network access: a reason from the
   /// catalog data, or a fresh cached analysis; null when [classify] must run.
@@ -577,6 +621,9 @@ class LibretroSkinCatalogs {
   }
 
   static LibretroSkinCompatibility? _staticExclusion(LibretroCatalogSkin entry, String console) {
+    if (entry.bundled != null && entry.bundled!.console != console) {
+      return LibretroSkinCompatibility.excluded(console, LibretroSkinCompatibility.otherConsole);
+    }
     final reason = entry.excludedReason;
     if (reason != null) return LibretroSkinCompatibility.excluded(console, reason);
     if (!DolphinSkins.skinConsoles.containsKey(console)) {
@@ -633,7 +680,9 @@ class LibretroSkinCatalogs {
     LibretroSkinCompatibility verdict;
     final inspection = Directory(path.join(skins.cacheDirectory, inspectionFolderName, _randomName()));
     try {
-      if (entry.overlay != null) {
+      if (entry.bundled != null) {
+        verdict = await _classifyBundled(entry.bundled!, console);
+      } else if (entry.overlay != null) {
         verdict = await _classifyOverlay(entry.overlay!, console, inspection);
       } else {
         verdict = await _classifyArchive(entry, console, inspection);
@@ -646,7 +695,8 @@ class LibretroSkinCatalogs {
       );
     } catch (error) {
       _log.w('Skin ${entry.key} not analysed: $error');
-      verdict = LibretroSkinCompatibility.excluded(console, LibretroSkinCompatibility.unreachable);
+      verdict = LibretroSkinCompatibility.excluded(console,
+        entry.bundled != null ? LibretroSkinCompatibility.invalid : LibretroSkinCompatibility.unreachable);
     } finally {
       try {
         if (await inspection.exists()) await inspection.delete(recursive: true);
@@ -672,6 +722,26 @@ class LibretroSkinCatalogs {
     final archive = await LibretroRemoteSkinInspector(client: _client).read(uri);
     await LibretroRemoteSkinInspector.materialize(archive, inspection);
     return _nativeVerdict(inspection, console);
+  }
+
+  Future<Uint8List> _bundledBytes(BundledControllerSkin bundle) async {
+    final data = await _loadAsset(bundle.archiveAsset);
+    final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
+    if (bytes.length != bundle.size || bytes.length > LibretroSkinService.maxArchiveBytes ||
+        sha256.convert(bytes).toString() != bundle.sha256) {
+      throw const FormatException('Bundled skin size or SHA-256 mismatch');
+    }
+    return bytes;
+  }
+
+  Future<LibretroSkinCompatibility> _classifyBundled(BundledControllerSkin bundle, String console) async {
+    final archive = LibretroRemoteSkinInspector(client: _client).readBytes(await _bundledBytes(bundle));
+    final decoded = jsonDecode(utf8.decode(archive.infoJson));
+    final report = decoded is Map ? DolphinSkins.inspect(Map<String, dynamic>.from(decoded),
+      archive.entries.toSet()) : null;
+    if (report == null) return LibretroSkinCompatibility.excluded(console, LibretroSkinCompatibility.invalid);
+    if (report.console != console) return LibretroSkinCompatibility.excluded(console, LibretroSkinCompatibility.otherConsole);
+    return report.compatibility;
   }
 
   Future<LibretroSkinCompatibility> _classifyOverlay(
@@ -800,6 +870,8 @@ class LibretroSkinCatalogs {
   /// Downloads and installs an entry for [console] through the same import
   /// as Files (limits, native parser, iPhone filter, replacement).
   Future<LibretroSkinImportResult> install(LibretroCatalogSkin entry, String console) async {
+    final bundled = entry.bundled;
+    if (bundled != null) return _installBundled(bundled, console);
     final archive = entry.archive;
     if (archive != null) return provenance.download(archive, targetConsole: console);
     final overlay = entry.overlay;
@@ -860,6 +932,26 @@ class LibretroSkinCatalogs {
       try {
         if (await zip.exists()) await zip.delete();
       } catch (_) {}
+    }
+  }
+
+  Future<LibretroSkinImportResult> _installBundled(BundledControllerSkin bundle, String console) async {
+    if (bundle.console != console) {
+      return LibretroSkinImportFailed(LibretroSkinMessages.notPlayable,
+        compatibility: [LibretroSkinCompatibility.excluded(console, LibretroSkinCompatibility.otherConsole)]);
+    }
+    final directory = Directory(path.join(skins.cacheDirectory, LibretroSkinCatalogService.downloadsFolderName));
+    final file = File(path.join(directory.path, '${_randomName()}.manicskin'));
+    try {
+      final bytes = await _bundledBytes(bundle);
+      await directory.create(recursive: true);
+      await file.writeAsBytes(bytes, flush: true);
+      return await skins.importFromFile(file.path, source: 'RewindBox Originals',
+        author: bundle.author, license: bundle.license, targetConsole: console);
+    } catch (error) {
+      return LibretroSkinImportFailed(LibretroSkinMessages.importFailed, technicalDetails: '$error');
+    } finally {
+      try { if (await file.exists()) await file.delete(); } catch (_) {}
     }
   }
 
