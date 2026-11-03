@@ -28,6 +28,7 @@
 # Apple host harness rerun: Core 613 codegen audit reruns for its two exact aliases (request 2).
 # Apple host harness rerun: Core 619 wait-budget scenario on measured waits (request 2).
 # Apple host harness rerun: Core 619 concurrency scenario accepts the designed wait-budget trip (request 3).
+# Apple host harness rerun: Core 636 slot wake measures both pause forms from the release instant (request 2).
 # Apple host harness rerun: Core 621 ZCULL guard scenarios hold on the runner's longer sleeps (request 4).
 # Apple host harness rerun: Core 621 ZCULL storm with 15 ms reads, read floors that fit macOS ASan (request 5).
 # Apple host harness rerun: Core 621 ISO test counts descriptors with fstat on Darwin (request 6).
