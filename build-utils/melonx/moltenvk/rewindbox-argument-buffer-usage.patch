@@ -1,0 +1,393 @@
+diff --git a/MoltenVK/MoltenVK/Commands/MVKCommandBuffer.mm b/MoltenVK/MoltenVK/Commands/MVKCommandBuffer.mm
+index 60f4635..ef5c3d8 100644
+--- a/MoltenVK/MoltenVK/Commands/MVKCommandBuffer.mm
++++ b/MoltenVK/MoltenVK/Commands/MVKCommandBuffer.mm
+@@ -14,6 +14,9 @@
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
++ *
++ * Modified by RewindBox (2026): the argument buffer resource usage walk on devices without a
++ * residency set (REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE) and its counts; changes are marked RewindBox.
+  */
+ 
+ #include "MVKCommandBuffer.h"
+@@ -464,6 +467,8 @@ void MVKCommandEncoder::encodeCommandsImpl(MVKCommand* command) {
+ void MVKCommandEncoder::endEncoding() {
+ 	endCurrentMetalEncoding();
+ 	finishQueries();
++	_graphicsResourcesState.flushRewindBoxUsageWalk();
++	_computeResourcesState.flushRewindBoxUsageWalk();
+ }
+ 
+ void MVKCommandEncoder::encodeSecondary(MVKCommandBuffer* secondaryCmdBuffer) {
+diff --git a/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.h b/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.h
+index b8abd44..7a557e5 100644
+--- a/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.h
++++ b/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.h
+@@ -14,6 +14,9 @@
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
++ *
++ * Modified by RewindBox (2026): the argument buffer resource usage walk on devices without a
++ * residency set (REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE) and its counts; changes are marked RewindBox.
+  */
+ 
+ #pragma once
+@@ -26,6 +29,7 @@
+ #include "MVKSmallVector.h"
+ #include "MVKBitArray.h"
+ #include <unordered_map>
++#include <vector>
+ 
+ class MVKCommandEncoder;
+ class MVKGraphicsPipeline;
+@@ -385,6 +389,9 @@ public:
+ 
+ 	void markDirty() override;
+ 
++	/** RewindBox: adds this command buffer's argument buffer resource usage counts to the device totals. */
++	void flushRewindBoxUsageWalk();
++
+     MVKResourcesCommandEncoderState(MVKCommandEncoder* cmdEncoder) :
+ 		MVKCommandEncoderState(cmdEncoder), _boundDescriptorSets{} {}
+ 
+@@ -504,6 +511,19 @@ protected:
+ 	MVKDescriptorSet* _boundDescriptorSets[kMVKMaxDescriptorSetCount];
+ 	MVKBitArray _metalUsageDirtyDescriptors[kMVKMaxDescriptorSetCount];
+ 
++	// RewindBox: with the fast walk (MVKDevice::useRewindBoxFastUsageWalk), one useResource per distinct resource,
++	// usage and render stages in a Metal encoder, where Metal's useResource is idempotent. The cache is cleared at
++	// every encoder boundary: markDirty (compute: each encoder ends through it) and endMetalRenderPass (graphics).
++	struct MVKRBUsageEntry { void* resource = nullptr; MTLResourceUsage usage = 0; MTLRenderStages stages = 0; };
++	struct MVKRBUsageCounts { uint64_t encodes = 0, elements = 0, dirty = 0, calls = 0, skipped = 0, tessellation = 0, ticks = 0; };
++	static constexpr size_t kMVKRBUsageCacheSize = 256;
++	bool rbSkipResourceUsage(id<MTLResource> mtlResource, MTLResourceUsage mtlUsage, MTLRenderStages mtlStages);
++	void rbRecordResourceUsage(id<MTLResource> mtlResource, MTLResourceUsage mtlUsage, MTLRenderStages mtlStages);
++	void rbClearResourceUsage();
++	std::vector<MVKRBUsageEntry> _rbUsageCache;
++	bool _rbUsageCacheFilled = false;
++	MVKRBUsageCounts _rbCounts;
++
+ 	MVKSmallVector<uint32_t, 8> _dynamicOffsets;
+ 
+ };
+diff --git a/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.mm b/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.mm
+index ff9b2c0..335ad4f 100644
+--- a/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.mm
++++ b/MoltenVK/MoltenVK/Commands/MVKCommandEncoderState.mm
+@@ -14,6 +14,9 @@
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
++ *
++ * Modified by RewindBox (2026): the argument buffer resource usage walk on devices without a
++ * residency set (REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE) and its counts; changes are marked RewindBox.
+  */
+ 
+ #include "MVKCommandEncoderState.h"
+@@ -22,6 +25,7 @@
+ #include "MVKRenderPass.h"
+ #include "MVKPipeline.h"
+ #include "MVKQueryPool.h"
++#include <algorithm>
+ 
+ using namespace std;
+ 
+@@ -724,6 +728,9 @@ void MVKResourcesCommandEncoderState::encodeMetalArgumentBuffer(MVKShaderStage s
+ 	if ( !_cmdEncoder->isUsingMetalArgumentBuffers() ) { return; }
+ 
+ 	bool isUsingResidencySet = getDevice()->hasResidencySet();
++	bool rbFastWalk = getDevice()->useRewindBoxFastUsageWalk();
++	uint64_t rbStart = getDevice()->timesRewindBoxUsageWalk() ? mvkGetTimestamp() : 0;
++	uint64_t rbElements = 0, rbDirty = 0;
+ 	MVKPipeline* pipeline = getPipeline();
+ 	uint32_t dsCnt = pipeline->getDescriptorSetCount();
+ 	for (uint32_t dsIdx = 0; dsIdx < dsCnt; dsIdx++) {
+@@ -745,12 +752,29 @@ void MVKResourcesCommandEncoderState::encodeMetalArgumentBuffer(MVKShaderStage s
+ 				shouldBindArgBuffToStage = true;
+ 				if (isUsingResidencySet) break;	// Now that we know we need to bind arg buffer, we're done with this desc layout.
+ 				uint32_t elemCnt = dslBind->getDescriptorCount(descSet->getVariableDescriptorCount());
+-				for (uint32_t elemIdx = 0; elemIdx < elemCnt; elemIdx++) {
+-					uint32_t descIdx = dslBind->getDescriptorIndex(elemIdx);
+-					if (resourceUsageDirtyDescs.getBit(descIdx, true)) {
+-						auto* mvkDesc = descSet->getDescriptorAt(descIdx);
++				rbElements += elemCnt;
++				if (rbFastWalk) {
++					// RewindBox: visit only the usage-dirty elements of the binding, in the same order, each bit
++					// cleared as the loop below clears it (whole sections of clear bits are skipped).
++					size_t firstDescIdx = dslBind->getDescriptorIndex(0);
++					size_t endDescIdx = std::min<size_t>(firstDescIdx + elemCnt, resourceUsageDirtyDescs.size());
++					for (size_t descIdx = resourceUsageDirtyDescs.getIndexOfFirstEnabledBit(firstDescIdx);
++						 descIdx < endDescIdx;
++						 descIdx = resourceUsageDirtyDescs.getIndexOfFirstEnabledBit(descIdx + 1)) {
++						resourceUsageDirtyDescs.disableBit(descIdx);
++						rbDirty++;
++						auto* mvkDesc = descSet->getDescriptorAt((uint32_t)descIdx);
+ 						mvkDesc->encodeResourceUsage(this, dslBind, stage);
+ 					}
++				} else {
++					for (uint32_t elemIdx = 0; elemIdx < elemCnt; elemIdx++) {
++						uint32_t descIdx = dslBind->getDescriptorIndex(elemIdx);
++						if (resourceUsageDirtyDescs.getBit(descIdx, true)) {
++							rbDirty++;
++							auto* mvkDesc = descSet->getDescriptorAt(descIdx);
++							mvkDesc->encodeResourceUsage(this, dslBind, stage);
++						}
++					}
+ 				}
+ 			}
+ 		}
+@@ -773,11 +797,20 @@ void MVKResourcesCommandEncoderState::encodeMetalArgumentBuffer(MVKShaderStage s
+ 		// Sigh. A bug report has been filed with Apple.
+ 		if (getDevice()->isCurrentlyAutoGPUCapturing()) { [descSet->getMetalArgumentBuffer().getMetalArgumentBuffer() contents]; }
+ 	}
++
++	// RewindBox: counted when a used binding was walked (with a residency set, nothing is walked).
++	if (rbElements) {
++		_rbCounts.encodes++;
++		_rbCounts.elements += rbElements;
++		_rbCounts.dirty += rbDirty;
++		if (rbStart) { _rbCounts.ticks += mvkGetTimestamp() - rbStart; }
++	}
+ }
+ 
+ // Mark the resource usage as needing an update for each Metal render encoder.
+ void MVKResourcesCommandEncoderState::markDirty() {
+ 	MVKCommandEncoderState::markDirty();
++	rbClearResourceUsage();
+ 	if (_cmdEncoder->isUsingMetalArgumentBuffers()) {
+ 		for (uint32_t dsIdx = 0; dsIdx < kMVKMaxDescriptorSetCount; dsIdx++) {
+ 			_metalUsageDirtyDescriptors[dsIdx].enableAllBits();
+@@ -785,6 +818,48 @@ void MVKResourcesCommandEncoderState::markDirty() {
+ 	}
+ }
+ 
++// RewindBox: the slot of a resource in the usage cache (Fibonacci hashing of the object address).
++static inline size_t mvkRBUsageSlot(void* resource) {
++	return size_t(((uint64_t)(uintptr_t)resource >> 4) * 0x9E3779B97F4A7C15ull >> 56);
++}
++
++// RewindBox: true when this encoder already made useResource with this resource and usage, for these stages.
++bool MVKResourcesCommandEncoderState::rbSkipResourceUsage(id<MTLResource> mtlResource, MTLResourceUsage mtlUsage, MTLRenderStages mtlStages) {
++	static_assert(kMVKRBUsageCacheSize == 256, "mvkRBUsageSlot gives 8 bits");
++	if ( !getDevice()->useRewindBoxFastUsageWalk() || _rbUsageCache.empty() ) { return false; }
++	auto& entry = _rbUsageCache[mvkRBUsageSlot((void*)mtlResource)];
++	if (entry.resource == (void*)mtlResource && entry.usage == mtlUsage && (entry.stages | mtlStages) == entry.stages) {
++		_rbCounts.skipped++;
++		return true;
++	}
++	return false;
++}
++
++// RewindBox: counts a useResource made, and with the fast walk remembers it until the encoder ends.
++void MVKResourcesCommandEncoderState::rbRecordResourceUsage(id<MTLResource> mtlResource, MTLResourceUsage mtlUsage, MTLRenderStages mtlStages) {
++	_rbCounts.calls++;
++	if ( !getDevice()->useRewindBoxFastUsageWalk() ) { return; }
++	if (_rbUsageCache.empty()) { _rbUsageCache.resize(kMVKRBUsageCacheSize); }
++	auto& entry = _rbUsageCache[mvkRBUsageSlot((void*)mtlResource)];
++	entry.resource = (void*)mtlResource;
++	entry.usage = mtlUsage;
++	entry.stages = mtlStages;
++	_rbUsageCacheFilled = true;
++}
++
++void MVKResourcesCommandEncoderState::rbClearResourceUsage() {
++	if ( !_rbUsageCacheFilled ) { return; }
++	std::fill(_rbUsageCache.begin(), _rbUsageCache.end(), MVKRBUsageEntry());
++	_rbUsageCacheFilled = false;
++}
++
++void MVKResourcesCommandEncoderState::flushRewindBoxUsageWalk() {
++	if ( !(_rbCounts.encodes || _rbCounts.calls || _rbCounts.skipped || _rbCounts.tessellation) ) { return; }
++	getDevice()->addRewindBoxUsageWalk(_rbCounts.encodes, _rbCounts.elements, _rbCounts.dirty, _rbCounts.calls,
++									   _rbCounts.skipped, _rbCounts.tessellation, _rbCounts.ticks);
++	_rbCounts = MVKRBUsageCounts();
++}
++
+ // If a swizzle is needed for this stage, iterates all the bindings and logs errors for those that need texture swizzling.
+ void MVKResourcesCommandEncoderState::assertMissingSwizzles(bool needsSwizzle, const char* stageName, MVKArrayRef<const MVKMTLTextureBinding> texBindings) {
+ 	if (needsSwizzle) {
+@@ -953,6 +1028,7 @@ void MVKGraphicsResourcesCommandEncoderState::offsetZeroDivisorVertexBuffers(MVK
+ void MVKGraphicsResourcesCommandEncoderState::endMetalRenderPass() {
+ 	MVKResourcesCommandEncoderState::endMetalRenderPass();
+ 	_renderUsageStages.clear();
++	rbClearResourceUsage();
+ }
+ 
+ // Mark everything as dirty
+@@ -1181,19 +1257,26 @@ void MVKGraphicsResourcesCommandEncoderState::encodeResourceUsage(MVKShaderStage
+ 																  MTLRenderStages mtlStages) {
+ 	if (mtlResource && mtlStages) {
+ 		if (stage == kMVKShaderStageTessCtl) {
++			// RewindBox: a compute encoder of its own; always the original path, counted.
++			_rbCounts.tessellation++;
+ 			auto* mtlCompEnc = _cmdEncoder->getMTLComputeEncoder(kMVKCommandUseTessellationVertexTessCtl);
+ 			[mtlCompEnc useResource: mtlResource usage: mtlUsage];
+ 		} else {
+ 			auto* mtlRendEnc = _cmdEncoder->_mtlRenderEncoder;
++			if ( !mtlRendEnc ) { return; }
+ 			if ([mtlRendEnc respondsToSelector: @selector(useResource:usage:stages:)]) {
++				if (rbSkipResourceUsage(mtlResource, mtlUsage, mtlStages)) { return; }
+ 				// Within a renderpass, a resource may be used by multiple descriptor bindings,
+ 				// each of which may assign a different usage stage. Dynamically accumulate
+ 				// usage stages across all descriptor bindings using the resource.
+ 				auto& accumStages = _renderUsageStages[mtlResource];
+ 				accumStages |= mtlStages;
+ 				[mtlRendEnc useResource: mtlResource usage: mtlUsage stages: accumStages];
++				rbRecordResourceUsage(mtlResource, mtlUsage, accumStages);
+ 			} else {
++				if (rbSkipResourceUsage(mtlResource, mtlUsage, 0)) { return; }
+ 				[mtlRendEnc useResource: mtlResource usage: mtlUsage];
++				rbRecordResourceUsage(mtlResource, mtlUsage, 0);
+ 			}
+ 		}
+ 	}
+@@ -1343,8 +1426,10 @@ void MVKComputeResourcesCommandEncoderState::encodeResourceUsage(MVKShaderStage
+ 																 MTLResourceUsage mtlUsage,
+ 																 MTLRenderStages mtlStages) {
+ 	if (mtlResource) {
++		if (rbSkipResourceUsage(mtlResource, mtlUsage, 0)) { return; }
+ 		auto* mtlCompEnc = _cmdEncoder->getMTLComputeEncoder(kMVKCommandUseDispatch);
+ 		[mtlCompEnc useResource: mtlResource usage: mtlUsage];
++		rbRecordResourceUsage(mtlResource, mtlUsage, 0);
+ 	}
+ }
+ 
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.h b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.h
+index 3811663..95f9518 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.h
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.h
+@@ -14,6 +14,9 @@
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
++ *
++ * Modified by RewindBox (2026): the argument buffer resource usage walk on devices without a
++ * residency set (REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE) and its counts; changes are marked RewindBox.
+  */
+ 
+ #pragma once
+@@ -29,6 +32,7 @@
+ #include "mvk_datatypes.hpp"
+ #include <string>
+ #include <mutex>
++#include <atomic>
+ 
+ #import <Metal/Metal.h>
+ #import <QuartzCore/CAMetalLayer.h>
+@@ -762,6 +766,9 @@ public:
+ 	/** Log all performance statistics. */
+ 	void logPerformanceSummary();
+ 
++	/** RewindBox: logs and resets the argument buffer resource usage counts (with the performance statistics). */
++	void logRewindBoxUsageWalk();
++
+ 
+ #pragma mark Metal
+ 
+@@ -877,6 +884,19 @@ public:
+ #endif
+ 	}
+ 
++	/**
++	 * RewindBox: whether REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE=1 selected, at device creation, the fast walk of the
++	 * argument buffer resource usage (usage-dirty elements only, one useResource per distinct resource in an encoder).
++	 */
++	bool useRewindBoxFastUsageWalk() { return _rbFastUsageWalk; }
++
++	/** RewindBox: whether the time of the argument buffer resource usage is measured (performance tracking). */
++	bool timesRewindBoxUsageWalk() { return _isPerformanceTracking; }
++
++	/** RewindBox: adds the argument buffer resource usage counts of an encoded command buffer to the logged totals. */
++	void addRewindBoxUsageWalk(uint64_t encodes, uint64_t elements, uint64_t dirty, uint64_t calls,
++							   uint64_t skipped, uint64_t tessellation, uint64_t ticks);
++
+ 	bool hasResidencySet() {
+ #if MVK_XCODE_16
+ 		return _residencySet != nil;
+@@ -981,6 +1001,14 @@ protected:
+     uint32_t _globalVisibilityQueryCount = 0;
+ 	int _capturePipeFileDesc = -1;
+ 	bool _isPerformanceTracking = false;
++	bool _rbFastUsageWalk = false;
++	std::atomic<uint64_t> _rbUsageEncodes{0};
++	std::atomic<uint64_t> _rbUsageElements{0};
++	std::atomic<uint64_t> _rbUsageDirty{0};
++	std::atomic<uint64_t> _rbUsageCalls{0};
++	std::atomic<uint64_t> _rbUsageSkipped{0};
++	std::atomic<uint64_t> _rbUsageTessellation{0};
++	std::atomic<uint64_t> _rbUsageTicks{0};
+ 	bool _isCurrentlyAutoGPUCapturing = false;
+ 
+ };
+diff --git a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
+index f87bdb8..6c4181b 100644
+--- a/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
++++ b/MoltenVK/MoltenVK/GPUObjects/MVKDevice.mm
+@@ -14,6 +14,9 @@
+  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
++ *
++ * Modified by RewindBox (2026): the argument buffer resource usage walk on devices without a
++ * residency set (REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE) and its counts; changes are marked RewindBox.
+  */
+ 
+ #include "MVKInstance.h"
+@@ -38,6 +41,7 @@
+ #import "CAMetalLayer+MoltenVK.h"
+ 
+ #include <sys/stat.h>
++#include <stdlib.h>
+ #include <cmath>
+ 
+ using namespace std;
+@@ -5019,6 +5023,7 @@ void MVKDevice::logPerformanceSummary() {
+ 	logDuration(pipelineCache.readPipelineCache);
+ 	logDuration(pipelineCache.writePipelineCache);
+ 	logByteCount(device.gpuMemoryAllocated);
++	logRewindBoxUsageWalk();
+ #undef logDuration
+ #undef logByteCount
+ }
+@@ -5515,6 +5520,38 @@ static MVKPerformanceStatistics _processPerformanceStats = {};
+ void MVKDevice::initPerformanceTracking() {
+ 	_isPerformanceTracking = getMVKConfig().performanceTracking;
+ 	_performanceStats = _processPerformanceStats;
++
++	// RewindBox: REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE=1 selects the fast argument buffer resource usage walk
++	// (MVKResourcesCommandEncoderState::encodeMetalArgumentBuffer); unset or any other value keeps the original one.
++	// getenv reads the live environment, so a value the host sets before the device is created applies.
++	const char* rbValue = getenv("REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE");
++	_rbFastUsageWalk = rbValue && rbValue[0] == '1' && rbValue[1] == 0;
++	MVKLogInfo("RewindBox argument buffer resource usage: %s walk (REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE %s%s).",
++			   _rbFastUsageWalk ? "fast" : "original", rbValue ? "= " : "unset", rbValue ? rbValue : "");
++}
++
++void MVKDevice::addRewindBoxUsageWalk(uint64_t encodes, uint64_t elements, uint64_t dirty, uint64_t calls,
++									  uint64_t skipped, uint64_t tessellation, uint64_t ticks) {
++	_rbUsageEncodes.fetch_add(encodes, std::memory_order_relaxed);
++	_rbUsageElements.fetch_add(elements, std::memory_order_relaxed);
++	_rbUsageDirty.fetch_add(dirty, std::memory_order_relaxed);
++	_rbUsageCalls.fetch_add(calls, std::memory_order_relaxed);
++	_rbUsageSkipped.fetch_add(skipped, std::memory_order_relaxed);
++	_rbUsageTessellation.fetch_add(tessellation, std::memory_order_relaxed);
++	_rbUsageTicks.fetch_add(ticks, std::memory_order_relaxed);
++}
++
++void MVKDevice::logRewindBoxUsageWalk() {
++	uint64_t encodes = _rbUsageEncodes.exchange(0, std::memory_order_relaxed);
++	uint64_t elements = _rbUsageElements.exchange(0, std::memory_order_relaxed);
++	uint64_t dirty = _rbUsageDirty.exchange(0, std::memory_order_relaxed);
++	uint64_t calls = _rbUsageCalls.exchange(0, std::memory_order_relaxed);
++	uint64_t skipped = _rbUsageSkipped.exchange(0, std::memory_order_relaxed);
++	uint64_t tessellation = _rbUsageTessellation.exchange(0, std::memory_order_relaxed);
++	uint64_t ticks = _rbUsageTicks.exchange(0, std::memory_order_relaxed);
++	MVKLogInfo("  %-45s %s walk, encodes: %llu, elements: %llu, dirty: %llu, useResource: %llu, skipped: %llu, tessellation: %llu, time: %.3f ms",
++			   "Argument buffer resource usage (RewindBox)", _rbFastUsageWalk ? "fast" : "original",
++			   encodes, elements, dirty, calls, skipped, tessellation, ticks ? mvkGetElapsedMilliseconds(0, ticks) : 0.0);
+ }
+ 
+ void MVKDevice::initPhysicalDevice(MVKPhysicalDevice* physicalDevice, const VkDeviceCreateInfo* pCreateInfo) {
