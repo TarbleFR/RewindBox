@@ -175,10 +175,12 @@ ASYNC_630 = r'''
 		z.gpu_us = 3'000;
 		query_mock query;
 		z.queue_report(address, &query);
-		rsx_server server(z);
-		CHECK(read_at(z, address + 12, 4, thread_class::ppu));
-		CHECK(ga::t_access.emulate == false || !z.m_locked_pages[1].at(report_page).ios_slots.pending(address, 16));
-		CHECK(z.hints.load() == 1 && z.forced_passes.load() == 0 && z.upstream_paths.load() == 0 && z.polls.load() >= 1);
+		{
+			rsx_server server(z);
+			CHECK(read_at(z, address + 12, 4, thread_class::ppu));
+			CHECK(ga::t_access.emulate == false || !z.m_locked_pages[1].at(report_page).ios_slots.pending(address, 16));
+			CHECK(z.hints.load() == 1 && z.forced_passes.load() == 0 && z.upstream_paths.load() == 0 && z.polls.load() >= 1);
+		} // the RSX thread counts its service after the write that ends the read
 		CHECK(take(tally.services) == 1 && take(tally.waits) == 1 && take(tally.faults_report) == 1);
 		async630++;
 	}
@@ -218,9 +220,11 @@ ASYNC_630 = r'''
 		z.m_sync_tag = 100;
 		query_mock query;
 		z.queue_report(address, &query);
-		rsx_server server(z);
-		CHECK(read_at(z, address, 4, thread_class::ppu));
-		CHECK(z.hints.load() == 1 && z.forced_passes.load() == 0);
+		{
+			rsx_server server(z);
+			CHECK(read_at(z, address, 4, thread_class::ppu));
+			CHECK(z.hints.load() == 1 && z.forced_passes.load() == 0);
+		}
 		CHECK(take(tally.services) == 1);
 		clear_tally();
 		async630++;
