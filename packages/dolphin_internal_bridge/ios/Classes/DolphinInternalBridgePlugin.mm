@@ -21,6 +21,7 @@
 #import "DolphinRecordingController.h"
 #import "DOLTouchLayout.h"
 #import "DOLSkinOverlay.h"
+#import "DOLOrientation.h"
 #import <dolphin_internal_bridge/dolphin_internal_bridge-Swift.h>
 #import <GameController/GameController.h>
 
@@ -604,8 +605,10 @@ static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, cons
 }
 
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations {
-  // A portrait skin (docs/dolphin-skins.md) lets the session turn upright.
-  if (self.skinOverlay.portraitAvailable) return UIInterfaceOrientationMaskAllButUpsideDown;
+  // Portrait skins (docs/dolphin-skins.md): portrait only for a portrait-only
+  // skin, both for a skin with two layouts, landscape without a skin. UIKit
+  // intersects this with the application mask (DOLOrientation).
+  if (self.skinOverlay != nil) return self.skinOverlay.supportedOrientationMask;
   return UIInterfaceOrientationMaskLandscape;
 }
 
@@ -1113,6 +1116,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar>*)registrar {
   // Build 484: Dolphin's controls for the editor opened from the settings.
   DOLTouchLayoutRegisterPreviews();
+  DOLOrientationInstall();
   FlutterMethodChannel* channel = [FlutterMethodChannel methodChannelWithName:kDolphinChannel
                                                               binaryMessenger:registrar.messenger];
   DolphinInternalBridgePlugin* instance = [[DolphinInternalBridgePlugin alloc] init];
@@ -1516,6 +1520,13 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       // still report a 1x layer scale before UIKit attaches it to that screen.
       metalScale = root.view.window.screen.scale;
       if (!metalReady) return;
+      // The application mask follows the session BEFORE it is presented, so a
+      // phone held sideways opens upright for a portrait-only skin. Only a
+      // session with a portrait skin changes anything; it is released in the
+      // dismissal completion (cleanupSharedResourcesAndUI), also after a failure.
+      if (controller.skinOverlay.portraitAvailable) {
+        DOLOrientationSetGameMask(controller.skinOverlay.supportedOrientationMask);
+      }
       [root presentViewController:controller animated:NO completion:nil];
       metalReady = controller.presentingViewController == root && root.presentedViewController == controller;
       } @catch (NSException* exception) {
@@ -2319,6 +2330,7 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       self.previousAudioMode = nil;
     }
     DOLDismissSessionController(controller, ^{
+      DOLOrientationSetGameMask(0);
       DOLAppendJSONLog(self.activeLogPath ?: @"", @"session.ui_dismissed",
                        @"Dolphin game and settings fully dismissed after core shutdown.", nil);
       self.activeLogPath = nil;

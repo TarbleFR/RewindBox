@@ -13,6 +13,7 @@
 // ("default" or nothing stored) it is never created and nothing changes.
 #pragma once
 #import <UIKit/UIKit.h>
+#import "DOLOrientationPolicy.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -35,6 +36,10 @@ FOUNDATION_EXPORT NSString* _Nullable DOLSkinConsoleOfGameType(NSString* gameTyp
 @property(nonatomic, readonly) BOOL hasSkin;
 /// The portrait orientation has one: the session may turn upright.
 @property(nonatomic, readonly) BOOL portraitAvailable;
+/// Orientations of the session (DOLPolicyMask): landscape without a portrait
+/// skin, portrait only for a portrait-only skin, else both. Read once the
+/// overlay exists, before the session is presented.
+@property(nonatomic, readonly) UIInterfaceOrientationMask supportedOrientationMask;
 /// The current bounds' orientation has one.
 @property(nonatomic, readonly) BOOL layoutActive;
 /// Where the game goes, in the overlay's coordinates (CGRectNull when the

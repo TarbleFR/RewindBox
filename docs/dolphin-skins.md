@@ -148,8 +148,17 @@ and the session is exactly as before.
   AirPlay or adapter screen, the skin never moves the Metal view. When the
   game comes back, it returns to the skin's screen.
 - **Orientation.** The Dolphin session stays landscape-only, unless a
-  portrait skin is chosen for the console or the game. Then it can also
-  turn upright (`supportedInterfaceOrientations`).
+  portrait skin is chosen for the console or the game (game first, then
+  console, per orientation). A portrait-only skin opens and stays in
+  portrait even if the iPhone is held sideways; a skin with portrait AND
+  landscape layouts lets the player turn the phone; two skins assigned on
+  purpose (one per orientation) also allow both, the explicit assignment
+  winning. The default pad in landscape is not a second layout. The mask
+  (`DOLSkinOverlay.supportedOrientationMask`, `DOLOrientationPolicy.h`) is
+  also given to the application through `DOLOrientation` before the
+  session is presented and released when it is dismissed, after a failed
+  launch too; the selection is read when the session starts. Changing the
+  skin takes effect at the next launch.
 
 ## Limits of this version
 

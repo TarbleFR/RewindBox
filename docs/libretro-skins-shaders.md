@@ -234,7 +234,15 @@ n'est nécessaire de leur côté.
 
 `LibretroOrientation` ajoute `application:supportedInterfaceOrientationsForWindow:`
 au délégué d'application : identique à l'existant hors jeu libretro, portrait et
-paysage pendant un jeu libretro. `Info.plist`, `lib/main.dart` (verrouillé) et
+paysage pendant un jeu libretro, sauf pour un skin uniquement portrait : le jeu
+s'ouvre alors en portrait même téléphone tenu à l'horizontale et y reste
+(`LibretroOrientationPolicy.h`, `gameOrientationMask`). Un skin à double
+disposition, ou deux skins affectés exprès (un par orientation, l'affectation
+explicite l'emporte), laissent le joueur tourner l'iPhone ; les commandes par
+défaut en paysage ne sont pas une seconde disposition. Le masque est posé avant
+la présentation, recalculé au changement de skin ou au refus d'un skin, et
+libéré à la fermeture, y compris après un échec. L'exception Vulkan héritée
+(paysage) reste prioritaire. `Info.plist`, `lib/main.dart` (verrouillé) et
 les autres moteurs ne changent pas.
 
 ## 8. Accès dans l'application
