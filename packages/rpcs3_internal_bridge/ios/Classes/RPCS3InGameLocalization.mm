@@ -1144,6 +1144,53 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
   return values;
 }
 
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build630Translations() {
+  // Core 630: the asynchronous ZCULL reads of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testZcullAsyncReads": @"ZCULL asynchronous reads",
+      },
+      @"es": @{
+        @"testZcullAsyncReads": @"Lecturas ZCULL asíncronas",
+      },
+      @"ru": @{
+        @"testZcullAsyncReads": @"Асинхронное чтение ZCULL",
+      },
+      @"zh": @{
+        @"testZcullAsyncReads": @"ZCULL 异步读取",
+      },
+      @"zh_Hant": @{
+        @"testZcullAsyncReads": @"ZCULL 非同步讀取",
+      },
+      @"pt": @{
+        @"testZcullAsyncReads": @"Leituras ZCULL assíncronas",
+      },
+      @"fr": @{
+        @"testZcullAsyncReads": @"Lectures ZCULL asynchrones",
+      },
+      @"de": @{
+        @"testZcullAsyncReads": @"Asynchrone ZCULL-Lesezugriffe",
+      },
+      @"it": @{
+        @"testZcullAsyncReads": @"Letture ZCULL asincrone",
+      },
+      @"id": @{
+        @"testZcullAsyncReads": @"Pembacaan ZCULL asinkron",
+      },
+      @"ja": @{
+        @"testZcullAsyncReads": @"ZCULL 非同期読み取り",
+      },
+      @"ko": @{
+        @"testZcullAsyncReads": @"ZCULL 비동기 읽기",
+      },
+    };
+  });
+  return values;
+}
+
 NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build627Translations() {
   // Core 627: the optimization levers of the accuracy test page.
   static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
@@ -1480,8 +1527,10 @@ NSString* RPCS3LocalizedString(NSString* key, NSString* localeIdentifier) {
   NSDictionary* build612 = Build612Translations();
   NSDictionary* build621 = Build621Translations();
   NSDictionary* build627 = Build627Translations();
+  NSDictionary* build630 = Build630Translations();
   NSString* locale = RPCS3CanonicalLocale(localeIdentifier);
-  return build627[locale][key] ?: build627[@"en"][key] ?:
+  return build630[locale][key] ?: build630[@"en"][key] ?:
+      build627[locale][key] ?: build627[@"en"][key] ?:
       build621[locale][key] ?: build621[@"en"][key] ?:
       build612[locale][key] ?: build612[@"en"][key] ?:
       build297[locale][key] ?: build297[@"en"][key] ?:

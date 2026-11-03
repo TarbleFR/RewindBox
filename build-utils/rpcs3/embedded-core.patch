@@ -2742,10 +2742,20 @@ index 0000000..1708e6f
 +};
 +}
 diff --git a/Utilities/Thread.cpp b/Utilities/Thread.cpp
-index 9445110..cd940da 100644
+index 9445110..a7895ae 100644
 --- a/Utilities/Thread.cpp
 +++ b/Utilities/Thread.cpp
-@@ -1297,12 +1297,14 @@ a64_mem_info_t decode_a64_mem_inst(u32 inst)
+@@ -12,6 +12,9 @@
+ 
+ #ifdef ARCH_ARM64
+ #include "Emu/CPU/Backends/AArch64/AArch64Signal.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSGuestAccessEmulation.h" // REWINDBOX_ZCULL_ASYNC_READS_630
++#endif
+ #endif
+ 
+ #ifdef __cpp_lib_stacktrace
+@@ -1297,12 +1300,14 @@ a64_mem_info_t decode_a64_mem_inst(u32 inst)
  		return r;
  	}
  
@@ -2763,7 +2773,122 @@ index 9445110..cd940da 100644
  	{
  		const u32 size = (inst >> 30) & 3;
  		const u32 opc  = (inst >> 22) & 3;
-@@ -2768,6 +2770,8 @@ thread_local DECLARE(thread_ctrl::g_tls_error_callback) = nullptr;
+@@ -1514,6 +1519,91 @@ void put_a64_reg_value(ucontext_t* context, u32 reg_index, u32 reg_size, bool re
+ 	GPR(context, reg_index) = temp_reg_value;
+ }
+ 
++#ifdef RPCS3_IOS
++// REWINDBOX_ZCULL_ASYNC_READS_630 (ios/IOSGuestAccessEmulation.h): before the RSX handler, the size
++// of the faulting access when this handler could complete it.
++static void ios_prepare_guest_access(u32 addr, bool is_writing, ucontext_t* context) noexcept
++{
++	auto& access = rpcs3::ios::guest_access::t_access;
++	access = {};
++
++	const u32 instruction = read_from_ptr_unsafe<u32>(reinterpret_cast<const u8*>(RIP(context)));
++	const a64_mem_info_t single = decode_a64_mem_inst(instruction);
++
++	if (single.op != A64_INVALID)
++	{
++		if ((single.op == A64_STORE) == is_writing && !(addr & (single.mem_size - 1)))
++		{
++			access.size = single.mem_size;
++		}
++
++		return;
++	}
++
++	if (const auto pair = rpcs3::ios::guest_access::decode_pair(instruction); pair.valid && pair.load != is_writing && pair.rn != 31)
++	{
++		// The fault address is the first register's only when that one faulted.
++		const u64 address = static_cast<u64>(GPR(context, pair.rn)) + static_cast<s64>(pair.offset);
++		const u32 size = pair.element * 2;
++
++		if (address == reinterpret_cast<u64>(vm::base(addr)) && !(addr & (pair.element - 1)) && (addr & 0x3fff) + size <= 0x4000)
++		{
++			access.size = size;
++		}
++	}
++}
++
++// After it, when it asked for it: the access, through the unprotected view, and the next instruction.
++static void ios_complete_guest_access(u32 addr, ucontext_t* context) noexcept
++{
++	namespace ga = rpcs3::ios::guest_access;
++	u8* const memory = reinterpret_cast<u8*>(vm::g_sudo_addr + addr);
++	const u32 instruction = read_from_ptr_unsafe<u32>(reinterpret_cast<const u8*>(RIP(context)));
++	const a64_mem_info_t single = decode_a64_mem_inst(instruction);
++
++	if (single.op == A64_LOAD)
++	{
++		const u64 value = ga::read_element(memory, single.mem_size);
++
++		if (single.reg_num != 31)
++		{
++			put_a64_reg_value(context, single.reg_num, single.reg_size, single.reg_signed, single.mem_size, value);
++		}
++	}
++	else if (single.op == A64_STORE)
++	{
++		ga::write_element(memory, single.mem_size, single.reg_num == 31 ? u64{0} : u64{GPR(context, single.reg_num)});
++	}
++	else
++	{
++		const auto pair = ga::decode_pair(instruction);
++
++		if (pair.load)
++		{
++			const u64 first = ga::read_element(memory, pair.element);
++			const u64 second = ga::read_element(memory + pair.element, pair.element);
++
++			if (pair.rt != 31)
++			{
++				put_a64_reg_value(context, pair.rt, pair.sign_extend ? 8 : pair.element, pair.sign_extend, pair.element, first);
++			}
++
++			if (pair.rt2 != 31)
++			{
++				put_a64_reg_value(context, pair.rt2, pair.sign_extend ? 8 : pair.element, pair.sign_extend, pair.element, second);
++			}
++		}
++		else
++		{
++			ga::write_element(memory, pair.element, pair.rt == 31 ? u64{0} : u64{GPR(context, pair.rt)});
++			ga::write_element(memory + pair.element, pair.element, pair.rt2 == 31 ? u64{0} : u64{GPR(context, pair.rt2)});
++		}
++	}
++
++	RIP(context) = reinterpret_cast<std::remove_cvref_t<decltype(RIP(context))>>(reinterpret_cast<const char*>(RIP(context)) + 4);
++}
++#endif
++
+ u64 get_a64_reg_value(ucontext_t* context, u32 reg_index, u32 reg_size)
+ {
+ 	ensure(reg_size == 1 || reg_size == 2 || reg_size == 4 || reg_size == 8);
+@@ -1591,6 +1681,9 @@ bool handle_access_violation(u32 addr, bool is_writing, bool is_exec, ucontext_t
+ 			state_changed = vm::temporary_unlock(*cpu);
+ 		}
+ 
++#if defined(RPCS3_IOS) && defined(ARCH_ARM64)
++		ios_prepare_guest_access(addr, is_writing, context); // REWINDBOX_ZCULL_ASYNC_READS_630
++#endif
+ 		bool handled = rsx::g_access_violation_handler(addr, is_writing);
+ 
+ 		if (state_changed && (cpu->state += cpu_flag::temp, cpu->test_stopped()))
+@@ -1600,6 +1693,12 @@ bool handle_access_violation(u32 addr, bool is_writing, bool is_exec, ucontext_t
+ 
+ 		if (handled)
+ 		{
++#if defined(RPCS3_IOS) && defined(ARCH_ARM64)
++			if (rpcs3::ios::guest_access::t_access.emulate)
++			{
++				ios_complete_guest_access(addr, context); // REWINDBOX_ZCULL_ASYNC_READS_630
++			}
++#endif
+ 			g_tls_fault_rsx++;
+ 			return true;
+ 		}
+@@ -2768,6 +2867,8 @@ thread_local DECLARE(thread_ctrl::g_tls_error_callback) = nullptr;
  DECLARE(thread_ctrl::g_native_core_layout) { native_core_arrangement::undefined };
  
  #ifdef RPCS3_IOS
@@ -2772,7 +2897,7 @@ index 9445110..cd940da 100644
  namespace
  {
  	struct ios_thread_worker_pool;
-@@ -2879,6 +2883,10 @@ void* ios_thread_worker::run(void* opaque) noexcept
+@@ -2879,6 +2980,10 @@ void* ios_thread_worker::run(void* opaque) noexcept
  			worker->job.wait(nullptr);
  		}
  
@@ -2783,7 +2908,7 @@ index 9445110..cd940da 100644
  		job_context context{worker, thread};
  		pthread_cleanup_push(&ios_thread_worker::abandon, &context);
  		thread->entry_point(thread);
-@@ -4067,9 +4075,11 @@ void thread_ctrl::set_native_priority(int priority)
+@@ -4067,9 +4172,11 @@ void thread_ctrl::set_native_priority(int priority)
  	// SCHED_RR policy or query POSIX scheduling state: Metal performs the same
  	// query while compiling shaders, and physical iOS 27 incidents faulted in
  	// that path after RPCS3 created real-time-priority pthreads.
@@ -2797,7 +2922,7 @@ index 9445110..cd940da 100644
  	{
  		sig_log.error("pthread_set_qos_class_self_np() failed: %d", err);
  	}
-@@ -4125,6 +4135,13 @@ void thread_ctrl::set_thread_affinity_mask(u64 mask)
+@@ -4125,6 +4232,13 @@ void thread_ctrl::set_thread_affinity_mask(u64 mask)
  	{
  		sig_log.error("Failed to set thread affinity 0x%x: error: %s", mask, fmt::win_error{GetLastError(), nullptr});
  	}
@@ -21695,10 +21820,10 @@ index fefbfb9..b13decc 100644
  
  	inline thread* get_current_renderer()
 diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
-index 4db3766..a193e31 100644
+index 4db3766..e83a95f 100644
 --- a/rpcs3/Emu/RSX/RSXZCULL.cpp
 +++ b/rpcs3/Emu/RSX/RSXZCULL.cpp
-@@ -3,6 +3,13 @@
+@@ -3,6 +3,14 @@
  #include "Core/RSXReservationLock.hpp"
  #include "Host/MM.h"
  #include "RSXThread.h"
@@ -21707,12 +21832,13 @@ index 4db3766..a193e31 100644
 +#include "ios/IOSRsxSyncProfile.h" // REWINDBOX_ZCULL_WAIT_PROBE_616
 +#include "ios/RPCS3IOSExperimentalPolicy.h" // REWINDBOX_ZCULL_ON_DEMAND_619
 +#include "ios/IOSZcullLabelPage.h" // REWINDBOX_ZCULL_FAULT_CENSUS_624
++#include "ios/IOSGuestAccessEmulation.h" // REWINDBOX_ZCULL_ASYNC_READS_630
 +#include "Emu/System.h"
 +#endif
  
  namespace rsx
  {
-@@ -197,6 +204,15 @@ namespace rsx
+@@ -197,6 +205,15 @@ namespace rsx
  
  			on_report_enqueued(sink);
  
@@ -21728,7 +21854,7 @@ index 4db3766..a193e31 100644
  			ptimer->async_tasks_pending++;
  
  			if (m_statistics_map[m_statistics_tag_id].result != 0)
-@@ -408,6 +424,12 @@ namespace rsx
+@@ -408,6 +425,12 @@ namespace rsx
  					// Eval was inserted while ZCULL was active but not enqueued to write to memory yet
  					// write(addr) -> enable_zpass_stats -> eval_condition -> write(addr)
  					// In this case, use what already exists in memory, not the current counter
@@ -21741,7 +21867,7 @@ index 4db3766..a193e31 100644
  					eval_failed = (vm::_ref<CellGcmReportData>(writer->sink).value == 0u);
  				}
  
-@@ -417,24 +439,56 @@ namespace rsx
+@@ -417,24 +440,65 @@ namespace rsx
  
  		void ZCULL_control::sync(::rsx::thread* ptimer)
  		{
@@ -21756,7 +21882,16 @@ index 4db3766..a193e31 100644
 +			// REWINDBOX_ZCULL_ON_DEMAND_619: a guest thread waits for the reports of a page.
 +			if (!m_ios_force_sync && m_ios_demand.pending() && rpcs3::ios::get_experimental_policy().zcull_on_demand)
 +			{
-+				ios_retire_claimed(ptimer);
++				// REWINDBOX_ZCULL_ASYNC_READS_630: a guest read of one report does not stop this thread.
++				if (rpcs3::ios::get_experimental_policy().zcull_async_reads && !m_ios_demand.full_pending())
++				{
++					ios_service_read(ptimer);
++				}
++				else
++				{
++					ios_retire_claimed(ptimer);
++				}
++
 +				return;
 +			}
 +
@@ -21798,7 +21933,7 @@ index 4db3766..a193e31 100644
  			// Quick reverse scan to push commands ahead of time
  			for (auto It = m_pending_writes.rbegin(); It != m_pending_writes.rend(); ++It)
  			{
-@@ -471,6 +525,10 @@ namespace rsx
+@@ -471,6 +535,10 @@ namespace rsx
  
  					if (implemented && !have_result && query->num_draws)
  					{
@@ -21809,7 +21944,7 @@ index 4db3766..a193e31 100644
  						get_occlusion_query_result(query);
  						counter.result += query->result;
  					}
-@@ -529,6 +587,21 @@ namespace rsx
+@@ -529,6 +597,21 @@ namespace rsx
  
  		void ZCULL_control::update(::rsx::thread* ptimer, u32 sync_address, bool hint)
  		{
@@ -21831,7 +21966,7 @@ index 4db3766..a193e31 100644
  			if (m_pending_writes.empty())
  			{
  				return;
-@@ -615,6 +688,11 @@ namespace rsx
+@@ -615,6 +698,11 @@ namespace rsx
  					}
  					else if (force_read || check_occlusion_query_status(query))
  					{
@@ -21843,7 +21978,7 @@ index 4db3766..a193e31 100644
  						get_occlusion_query_result(query);
  						counter.result += query->result;
  					}
-@@ -666,6 +744,24 @@ namespace rsx
+@@ -666,6 +754,24 @@ namespace rsx
  
  			AUDIT(memory_end >= memory_address);
  
@@ -21868,7 +22003,7 @@ index 4db3766..a193e31 100644
  			u32 sync_address = 0;
  			occlusion_query_info* query = nullptr;
  
-@@ -701,7 +797,21 @@ namespace rsx
+@@ -701,7 +807,21 @@ namespace rsx
  				return result_none;
  			}
  
@@ -21890,7 +22025,7 @@ index 4db3766..a193e31 100644
  			{
  				std::scoped_lock lock(m_pages_mutex);
  
-@@ -828,11 +938,29 @@ namespace rsx
+@@ -828,11 +948,29 @@ namespace rsx
  				}
  			}
  
@@ -21920,7 +22055,27 @@ index 4db3766..a193e31 100644
  			const auto location = rsx::classify_location(address);
  			std::scoped_lock lock(m_pages_mutex);
  
-@@ -917,6 +1045,26 @@ namespace rsx
+@@ -841,6 +979,9 @@ namespace rsx
+ 				const auto page_address = utils::page_start(static_cast<u32>(address));
+ 				auto& page = m_locked_pages[location][page_address];
+ 				page.add_ref();
++#ifdef RPCS3_IOS
++				page.ios_slots.add(static_cast<u32>(address)); // REWINDBOX_ZCULL_ASYNC_READS_630
++#endif
+ 
+ 				if (page.prot == utils::protection::rw)
+ 				{
+@@ -869,6 +1010,9 @@ namespace rsx
+ 
+ 					ensure(page.has_refs());
+ 					page.release();
++#ifdef RPCS3_IOS
++					page.ios_slots.remove(static_cast<u32>(address)); // REWINDBOX_ZCULL_ASYNC_READS_630
++#endif
+ 				}
+ 			}
+ 
+@@ -917,6 +1061,26 @@ namespace rsx
  				return false;
  			}
  
@@ -21947,7 +22102,7 @@ index 4db3766..a193e31 100644
  			bool need_disable_optimizations = false;
  			{
  				reader_lock lock(m_pages_mutex);
-@@ -950,12 +1098,24 @@ namespace rsx
+@@ -950,12 +1114,24 @@ namespace rsx
  			// Deadlock avoidance, do not pause RSX FIFO eng while holding the pages lock
  			if (need_disable_optimizations)
  			{
@@ -21972,7 +22127,7 @@ index 4db3766..a193e31 100644
  				return true;
  			}
  
-@@ -963,6 +1123,302 @@ namespace rsx
+@@ -963,6 +1139,415 @@ namespace rsx
  		}
  
  
@@ -22064,6 +22219,73 @@ index 4db3766..a193e31 100644
 +			}
 +		}
 +
++		void ZCULL_control::ios_service_read(::rsx::thread* ptimer)
++		{
++			// REWINDBOX_ZCULL_ASYNC_READS_630: RSX thread. A guest waits for one report slot. Submit the
++			// command buffer that holds its newest query if it is still open, write what the GPU has
++			// finished, and go back to the FIFO: this thread does not wait for the GPU.
++			const u64 ticket = m_ios_demand.pending();
++
++			if (ticket)
++			{
++				m_ios_demand.pick(ticket);
++			}
++
++			const u32 slot = m_ios_demand.requested_slot();
++			bool pushed = false;
++
++			{
++				struct ios_pass_scope
++				{
++					bool& flag;
++					~ios_pass_scope() { flag = false; }
++				} const ios_pass{m_ios_in_pass};
++
++				m_ios_in_pass = true;
++
++				for (auto It = m_pending_writes.rbegin(); It != m_pending_writes.rend(); ++It)
++				{
++					if (!It->sink || (It->sink & ~(rpcs3::ios::zcull_on_demand::report_slot_bytes - 1)) != slot)
++					{
++						continue;
++					}
++
++					// A report without a query copies the previous result: the nearest older query decides.
++					for (; It != m_pending_writes.rend(); ++It)
++					{
++						if (It->query)
++						{
++							if (It->query->num_draws && It->query->sync_tag > m_sync_tag)
++							{
++								ptimer->sync_hint(FIFO::interrupt_hint::zcull_sync, { .query = It->query });
++								pushed = true;
++							}
++
++							break;
++						}
++					}
++
++					break;
++				}
++			}
++
++			m_next_tsc = 0;
++			update(ptimer);
++
++			if (ticket)
++			{
++				if (pushed)
++				{
++					rpcs3::ios::zcull_on_demand::counters().services.fetch_add(1, std::memory_order_relaxed);
++				}
++
++				if (m_ios_demand.serve(ticket, get_system_time(), pushed))
++				{
++					ios_log_trip();
++				}
++			}
++		}
++
 +		void ZCULL_control::ios_release_stale_pages(u32 memory_address, u32 memory_range)
 +		{
 +			// RSX thread, after ios_retire_claimed(): the copy that follows reads these pages.
@@ -22126,12 +22348,26 @@ index 4db3766..a193e31 100644
 +			// a service and the guest's check takes another request), up to `halves_at`.
 +			u64 pickup_sum = 0, service_sum = 0, halves_at = 0;
 +			bool any_picked = false;
++			// REWINDBOX_ZCULL_ASYNC_READS_630 (ios/IOSZcullOnDemand.h): the access violation handler
++			// decoded the instruction; `slots` while this access only needs its own memory.
++			auto& access = rpcs3::ios::guest_access::t_access;
++			bool slots = rpcs3::ios::get_experimental_policy().zcull_async_reads && access.size != 0 &&
++				static_cast<u64>(utils::get_page_size()) == od::tracked_page_bytes;
++			u64 poll_us = od::async_poll_first_us;
 +
 +			const auto page_released = [&]()
 +			{
 +				reader_lock lock(m_pages_mutex);
 +				const auto found = m_locked_pages[location].find(page_address);
 +				return found == m_locked_pages[location].end() || !found->second.has_refs();
++			};
++
++			const auto slots_released = [&]()
++			{
++				reader_lock lock(m_pages_mutex);
++				const auto found = m_locked_pages[location].find(page_address);
++				return found == m_locked_pages[location].end() || !found->second.has_refs() ||
++					!found->second.ios_slots.pending(address, access.size);
 +			};
 +
 +			const auto finish = [&](ios_fault result)
@@ -22185,6 +22421,25 @@ index 4db3766..a193e31 100644
 +
 +						return finish(ios_fault::handled);
 +					}
++
++					// REWINDBOX_ZCULL_ASYNC_READS_630: this memory is final, the page is held by other
++					// reports. The handler completes the access; `stale` counts these too.
++					if (slots && !m_pages_accessed[location] && !found->second.ios_slots.pending(address, access.size))
++					{
++						if (found->second.ios_slots.take_completion(get_system_time()))
++						{
++							access.emulate = true;
++
++							if (!requested)
++							{
++								tally.stale.fetch_add(1, std::memory_order_relaxed);
++							}
++
++							return finish(ios_fault::handled);
++						}
++
++						slots = false; // a page this busy costs less unlocked
++					}
 +				}
 +
 +				if (m_pages_accessed[location] && get_system_time() - started < od::pickup_deadline_us)
@@ -22220,8 +22475,11 @@ index 4db3766..a193e31 100644
 +					}
 +				}
 +
++				// REWINDBOX_ZCULL_ASYNC_READS_630: ask for this slot, or, as before, for every claimed report.
++				const bool slot_request = slots && get_system_time() - started < od::async_escalate_us;
++
 +				// Ask the RSX thread to write every claimed report (sync() through pipe_flush_interrupt).
-+				const u64 ticket = m_ios_demand.request();
++				const u64 ticket = slot_request ? m_ios_demand.request_slot(address & ~(od::report_slot_bytes - 1)) : m_ios_demand.request_full();
 +				requested = true;
 +				requested_at = get_system_time();
 +				picked_at = 0;
@@ -22230,9 +22488,11 @@ index 4db3766..a193e31 100644
 +				thr->m_eng_interrupt_mask |= rsx::pipe_flush_interrupt;
 +				rpcs3::ios::rsx_idle_park::wake();
 +
-+				const auto result = od::wait_for(m_ios_demand, ticket, started, page_released,
-+					[&]() { return Emu.IsStopped() || thr->is_stopped(); },
-+					[]() { return get_system_time(); }, &picked_at);
++				const auto stopped_now = [&]() { return Emu.IsStopped() || thr->is_stopped(); };
++				const auto clock_now = []() { return get_system_time(); };
++				const auto result = slots
++					? od::wait_for(m_ios_demand, ticket, slot_request ? requested_at : started, slots_released, stopped_now, clock_now, &picked_at)
++					: od::wait_for(m_ios_demand, ticket, started, page_released, stopped_now, clock_now, &picked_at);
 +
 +				if (result == od::wait_result::served || result == od::wait_result::released)
 +				{
@@ -22267,6 +22527,14 @@ index 4db3766..a193e31 100644
 +					return finish(ios_fault::upstream);
 +				}
 +
++				// REWINDBOX_ZCULL_ASYNC_READS_630: the RSX thread took the slot request and went back to
++				// the FIFO; the GPU has the query. A pause before asking again.
++				if (slot_request && result == od::wait_result::served && !slots_released())
++				{
++					std::this_thread::sleep_for(std::chrono::microseconds(poll_us));
++					poll_us = std::min(poll_us * 2, od::async_poll_max_us);
++				}
++
 +				// served or released: check the page again
 +			}
 +		}
@@ -22275,7 +22543,7 @@ index 4db3766..a193e31 100644
  		// Conditional rendering helpers
  		void conditional_render_eval::reset()
  		{
-@@ -1029,6 +1485,15 @@ namespace rsx
+@@ -1029,6 +1614,15 @@ namespace rsx
  
  		void conditional_render_eval::eval_result(::rsx::thread* pthr)
  		{
@@ -22292,7 +22560,7 @@ index 4db3766..a193e31 100644
  			const bool failed = (result->value == 0u);
  			set_eval_result(pthr, failed);
 diff --git a/rpcs3/Emu/RSX/RSXZCULL.h b/rpcs3/Emu/RSX/RSXZCULL.h
-index 8823905..19591ed 100644
+index 8823905..27bd56f 100644
 --- a/rpcs3/Emu/RSX/RSXZCULL.h
 +++ b/rpcs3/Emu/RSX/RSXZCULL.h
 @@ -7,6 +7,9 @@
@@ -22305,7 +22573,17 @@ index 8823905..19591ed 100644
  
  #include <vector>
  #include <stack>
-@@ -106,6 +109,19 @@ namespace rsx
+@@ -77,6 +80,9 @@ namespace rsx
+ 		struct MMIO_page_data_t : public rsx::ref_counted
+ 		{
+ 			utils::protection prot = utils::protection::rw;
++#ifdef RPCS3_IOS
++			rpcs3::ios::zcull_on_demand::page_slots ios_slots; // REWINDBOX_ZCULL_ASYNC_READS_630
++#endif
+ 		};
+ 
+ 		enum sync_control
+@@ -106,6 +112,20 @@ namespace rsx
  			void on_report_enqueued(vm::addr_t address);
  			void on_report_completed(vm::addr_t address);
  			void disable_optimizations(class ::rsx::thread* ptimer, u32 location);
@@ -22319,13 +22597,14 @@ index 8823905..19591ed 100644
 +			ios_fault ios_on_demand_fault(u32 address, u32 page_address, u32 location);
 +			bool ios_range_locked(u32 memory_address, u32 memory_range, bool& pending);
 +			void ios_retire_claimed(class ::rsx::thread* ptimer);
++			void ios_service_read(class ::rsx::thread* ptimer); // REWINDBOX_ZCULL_ASYNC_READS_630
 +			void ios_release_stale_pages(u32 memory_address, u32 memory_range);
 +			void ios_log_trip() const; // REWINDBOX_ZCULL_DEMAND_GUARD_621: COREPROF ZCULLTRIP621
 +#endif
  
  		protected:
  
-@@ -195,6 +211,11 @@ namespace rsx
+@@ -195,6 +215,11 @@ namespace rsx
  
  			// Check paging issues
  			bool on_access_violation(u32 address);
@@ -29527,7 +29806,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..d38cae7 100644
+index 1f53c64..30c4b27 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1,4 +1,7 @@
@@ -29895,7 +30174,7 @@ index 1f53c64..d38cae7 100644
  			// Disable incompatible settings
  			fixup_settings(&_psf, inherited_psf_resolution);
  
-@@ -1847,6 +2039,141 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1847,6 +2039,142 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			}
  			g_cfg.misc.use_native_interface.set(true);
  			rpcs3::ios::resolve_experimental_policy();
@@ -30008,6 +30287,7 @@ index 1f53c64..d38cae7 100644
 +					ios_add_lever(ios_levers.spu_qos_below_rsx, ios_lever_settings.spu_qos_below_rsx);
 +					ios_add_lever(ios_levers.fifo_nop_fast_path, ios_lever_settings.fifo_nop_fast_path);
 +					ios_add_lever(ios_levers.light_measurement, ios_lever_settings.light_measurement);
++					ios_add_lever(ios_levers.zcull_async_reads, ios_lever_settings.zcull_async_reads);
 +					ios_rsx.levers627 = ios_levers627;
 +					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
 +					ios_rsx.overrides = ios_override_keys;
@@ -30037,7 +30317,7 @@ index 1f53c64..d38cae7 100644
  #endif
  
  			// Backup config
-@@ -2504,7 +2831,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2504,7 +2832,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.warning("State Inspection Savestate Mode!");
  
  				vm::init();
@@ -30052,7 +30332,7 @@ index 1f53c64..d38cae7 100644
  
  				if (!hdd1.empty())
  				{
-@@ -2513,6 +2847,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2513,6 +2848,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  
  				init_fxo_for_exec(DeserialManager(), true);
@@ -30062,7 +30342,7 @@ index 1f53c64..d38cae7 100644
  
  				return game_boot_result::no_errors;
  			}
-@@ -2586,7 +2923,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2586,7 +2924,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  		{
  			if (m_ar)
  			{
@@ -30077,7 +30357,7 @@ index 1f53c64..d38cae7 100644
  			}
  
  			// Mount /host_root/ if necessary (special value)
-@@ -2709,7 +3053,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2709,7 +3054,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			const auto _main = ensure(g_fxo->init<main_ppu_module<lv2_obj>>());
  
@@ -30106,7 +30386,7 @@ index 1f53c64..d38cae7 100644
  			{
  				if (g_cfg.core.ppu_debug && had_been_decrypted)
  				{
-@@ -2864,6 +3228,11 @@ void Emulator::Run(bool start_playtime)
+@@ -2864,6 +3229,11 @@ void Emulator::Run(bool start_playtime)
  void Emulator::RunPPU()
  {
  	ensure(IsStarting());
@@ -30118,7 +30398,7 @@ index 1f53c64..d38cae7 100644
  
  	bool signalled_thread = false;
  
-@@ -2943,6 +3312,10 @@ void Emulator::FixGuestTime()
+@@ -2943,6 +3313,10 @@ void Emulator::FixGuestTime()
  
  void Emulator::FinalizeRunRequest()
  {
@@ -30129,7 +30409,7 @@ index 1f53c64..d38cae7 100644
  	const bool autostart = !m_ar || !!g_cfg.misc.autostart;
  
  	bs_t<cpu_flag> add_flags = cpu_flag::dbg_global_pause;
-@@ -2989,7 +3362,25 @@ void Emulator::FinalizeRunRequest()
+@@ -2989,7 +3363,25 @@ void Emulator::FinalizeRunRequest()
  	lv2_obj::make_scheduler_ready();
  
  	m_state.compare_and_swap_test(system_state::starting, system_state::running);
@@ -30155,7 +30435,7 @@ index 1f53c64..d38cae7 100644
  	m_ar.reset();
  
  	if (!autostart)
-@@ -3479,6 +3870,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3479,6 +3871,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -30168,7 +30448,7 @@ index 1f53c64..d38cae7 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3890,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3891,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -30191,7 +30471,7 @@ index 1f53c64..d38cae7 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3946,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3947,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -30199,7 +30479,7 @@ index 1f53c64..d38cae7 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3957,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3958,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -30207,7 +30487,7 @@ index 1f53c64..d38cae7 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3967,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +3968,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -30215,7 +30495,7 @@ index 1f53c64..d38cae7 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +4055,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +4056,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -30226,7 +30506,7 @@ index 1f53c64..d38cae7 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +4121,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +4122,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -30235,7 +30515,7 @@ index 1f53c64..d38cae7 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +4235,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +4236,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -30250,7 +30530,7 @@ index 1f53c64..d38cae7 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +4270,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4271,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -30258,7 +30538,7 @@ index 1f53c64..d38cae7 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4388,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4389,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -30272,7 +30552,7 @@ index 1f53c64..d38cae7 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4443,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4444,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -30285,7 +30565,7 @@ index 1f53c64..d38cae7 100644
  			});
  
  			// Join it
-@@ -4075,10 +4513,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4514,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -30305,7 +30585,7 @@ index 1f53c64..d38cae7 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4214,6 +4661,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4214,6 +4662,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  			lv2_obj::cleanup();
  
@@ -30316,7 +30596,7 @@ index 1f53c64..d38cae7 100644
  			g_fxo->reset();
  
  			sys_log.notice("Objects cleared...");
-@@ -4308,10 +4759,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4308,10 +4760,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{
@@ -30342,7 +30622,7 @@ index 1f53c64..d38cae7 100644
  	Emu.after_kill_callback = [this, reset_path]
  	{
  		// Reset boot path in case of ISO
-@@ -4381,6 +4847,9 @@ bool Emulator::Quit(bool force_quit)
+@@ -4381,6 +4848,9 @@ bool Emulator::Quit(bool force_quit)
  
  void Emulator::CleanUp()
  {
@@ -30517,7 +30797,7 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922..b3c50aa 100644
+index 7072922..6479f76 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -30574,7 +30854,7 @@ index 7072922..b3c50aa 100644
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +165,42 @@ struct cfg_root : cfg::node
+@@ -134,6 +165,44 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -30598,6 +30878,8 @@ index 7072922..b3c50aa 100644
 +		cfg::_enum<ios_experimental_mode> zcull_cond_no_wait{ this, "ZCULL Conditional Draw Without Wait", ios_experimental_mode::automatic };
 +		// REWINDBOX_ZCULL_CONSERVATIVE_627 (ios/IOSZcullLabelPage.h): Automatic is off for every title.
 +		cfg::_enum<ios_experimental_mode> zcull_conservative_reports{ this, "ZCULL Conservative Reports", ios_experimental_mode::automatic };
++		// REWINDBOX_ZCULL_ASYNC_READS_630: Automatic is the titles of the ZCULL on-demand lever.
++		cfg::_enum<ios_experimental_mode> zcull_async_reads{ this, "ZCULL Asynchronous Reads", ios_experimental_mode::automatic };
 +		// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): Automatic is Black Ops II and God of War III.
 +		cfg::_enum<ios_experimental_mode> spu_noop_spin_wait{ this, "SPU No-op Spin Wait", ios_experimental_mode::automatic };
 +		// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): Automatic is God of War III, Assassin's Creed and Black Ops II.
@@ -33242,6 +33524,100 @@ index 0000000..56877cf
 +// Requested bytes classify VMA allocations; they are NOT additional physical
 +// RAM and must not be added to VMA/resident/NeoSwap/alias statistics.
 +graphics_memory_snapshot capture_graphics_memory_snapshot() noexcept;
++}
+diff --git a/rpcs3/ios/IOSGuestAccessEmulation.h b/rpcs3/ios/IOSGuestAccessEmulation.h
+new file mode 100644
+index 0000000..dbceff8
+--- /dev/null
++++ b/rpcs3/ios/IOSGuestAccessEmulation.h
+@@ -0,0 +1,88 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <cstdint>
++
++// REWINDBOX_ZCULL_ASYNC_READS_630 (ios/IOSZcullOnDemand.h): a guest access to a page ZCULL holds
++// locked can be completed by the access violation handler instead of being retried, for the
++// memory that page still has final: the handler reads or writes the unprotected view and steps
++// over the instruction. Utilities/Thread.cpp decodes the instruction before the RSX handler runs
++// (decode_a64_mem_inst, the decoder of the RawSPU MMIO path, plus the integer pairs below, which
++// LLVM forms from two neighbouring guest loads) and completes it afterwards when the RSX handler
++// sets `emulate`. Everything else keeps the retry: atomics and SIMD, writeback forms, an unaligned
++// access, an access that crosses the page.
++namespace rpcs3::ios::guest_access
++{
++struct access
++{
++	std::uint32_t size = 0;  // bytes of the access (both registers of a pair), 0: not completable
++	bool emulate = false;    // set by the RSX handler: complete it, do not retry it
++};
++
++inline thread_local access t_access{};
++
++// LDP, LDPSW and STP of general registers, signed offset, no writeback.
++struct pair_access
++{
++	bool valid = false;
++	bool load = false;
++	bool sign_extend = false; // LDPSW
++	std::uint32_t element = 0; // bytes of one register
++	std::uint32_t rt = 0, rt2 = 0, rn = 0;
++	std::int32_t offset = 0;
++};
++
++constexpr pair_access decode_pair(std::uint32_t inst) noexcept
++{
++	pair_access r{};
++
++	// opc[31:30] 101 V[26]=0 010 L[22] imm7[21:15] Rt2[14:10] Rn[9:5] Rt[4:0]
++	if ((inst & 0x3F800000u) != 0x29000000u)
++	{
++		return r;
++	}
++
++	const std::uint32_t opc = inst >> 30;
++	const bool load = ((inst >> 22) & 1) != 0;
++
++	if (opc == 3 || (opc == 1 && !load))
++	{
++		return r; // reserved, STGP
++	}
++
++	r.load = load;
++	r.sign_extend = opc == 1;
++	r.element = opc == 2 ? 8 : 4;
++	r.rt = inst & 31;
++	r.rn = (inst >> 5) & 31;
++	r.rt2 = (inst >> 10) & 31;
++
++	const std::int32_t imm7 = static_cast<std::int32_t>((inst >> 15) & 127);
++	r.offset = (imm7 >= 64 ? imm7 - 128 : imm7) * static_cast<std::int32_t>(r.element);
++	r.valid = !(load && r.rt == r.rt2); // CONSTRAINED UNPREDICTABLE
++	return r;
++}
++
++// An aligned element of guest memory, one access, as the instruction would have made it.
++inline std::uint64_t read_element(const std::uint8_t* memory, std::uint32_t size) noexcept
++{
++	switch (size)
++	{
++	case 1: return __atomic_load_n(memory, __ATOMIC_RELAXED);
++	case 2: return __atomic_load_n(reinterpret_cast<const std::uint16_t*>(memory), __ATOMIC_RELAXED);
++	case 4: return __atomic_load_n(reinterpret_cast<const std::uint32_t*>(memory), __ATOMIC_RELAXED);
++	default: return __atomic_load_n(reinterpret_cast<const std::uint64_t*>(memory), __ATOMIC_RELAXED);
++	}
++}
++
++inline void write_element(std::uint8_t* memory, std::uint32_t size, std::uint64_t value) noexcept
++{
++	switch (size)
++	{
++	case 1: __atomic_store_n(memory, static_cast<std::uint8_t>(value), __ATOMIC_RELAXED); break;
++	case 2: __atomic_store_n(reinterpret_cast<std::uint16_t*>(memory), static_cast<std::uint16_t>(value), __ATOMIC_RELAXED); break;
++	case 4: __atomic_store_n(reinterpret_cast<std::uint32_t*>(memory), static_cast<std::uint32_t>(value), __ATOMIC_RELAXED); break;
++	default: __atomic_store_n(reinterpret_cast<std::uint64_t*>(memory), value, __ATOMIC_RELAXED); break;
++	}
++}
 +}
 diff --git a/rpcs3/ios/IOSMemoryPressurePolicy.h b/rpcs3/ios/IOSMemoryPressurePolicy.h
 index 6dc9a20..ae705ec 100644
@@ -37745,10 +38121,10 @@ index 0000000..0d8ecea
 +}
 diff --git a/rpcs3/ios/IOSZcullOnDemand.h b/rpcs3/ios/IOSZcullOnDemand.h
 new file mode 100644
-index 0000000..fc8d13e
+index 0000000..8306c05
 --- /dev/null
 +++ b/rpcs3/ios/IOSZcullOnDemand.h
-@@ -0,0 +1,454 @@
+@@ -0,0 +1,588 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -37812,6 +38188,28 @@ index 0000000..fc8d13e
 +// the fallback improves, so for the lever's titles they no longer trip it. The storm rule and
 +// the pickup and hard deadlines stay: they are the protection against a lever that does
 +// not work. The ZCULL On-Demand Wait Guard setting restores the 621 rules (A/B test).
++//
++// REWINDBOX_ZCULL_ASYNC_READS_630: Build 629 logs (PID 3616, Core 627). The lever no longer trips,
++// and it changed nothing in the heavy scenes of Assassin's Creed: 19 FPS, 614-875 guest reads per
++// window, each one blocked 5-7 ms, 4.4 s of TaskThread1 per 5 s. One read cost 3.6 services
++// (2,238-2,640 per window, 1.9 ms each, one Metal command buffer each), because a read waits for
++// its whole page: the RSX thread keeps queueing reports on it, so the page is re-armed between the
++// service and the guest's check and the read asks again. Each service writes every claimed report,
++// the newest included, so the RSX, the CPU and the GPU run in series, and every command buffer
++// splits a render pass: 30 ms of GPU per frame at 24 submits, 12 ms at one submit for as many
++// draws. The GPU is busy 60 % of the time, the CPU cores are almost idle.
++// A guest read needs one report, not the page and not the newest draws:
++// - Per-slot pending counts on each locked page (16-byte report slots) say whether the memory the
++//   guest reads is final. When it is, the fault handler completes the access itself and nothing
++//   waits (ios/IOSGuestAccessEmulation.h): a report already written, or other data on the page.
++// - When it is not, the guest asks for that slot: the RSX thread only submits the command buffer
++//   that holds its query, if it is still open, polls the reports that are ready and goes back to
++//   the FIFO. The guest waits for its slot and asks again every few hundred microseconds, which
++//   also wakes a parked RSX thread.
++// An access the handler cannot complete, a page read more than emulation_budget times per
++// emulation_window_us (a fault costs more than a page unlock then) and a read still pending after
++// async_escalate_us take the 619 path: every claimed report, page by page. Values are exact on
++// every path. ZCULL Asynchronous Reads turns it off.
 +namespace rpcs3::ios::zcull_on_demand
 +{
 +inline constexpr std::uint64_t pickup_deadline_us = 2'000'000;  // the RSX thread has not started the request
@@ -37825,6 +38223,14 @@ index 0000000..fc8d13e
 +                                                                // long wait behind an RSX pipeline compile)
 +inline constexpr std::uint64_t global_budget_us = 800'000;      // all guest threads' wait per window (sustained)
 +inline constexpr std::uint64_t severe_wait_cap_us = 100'000;    // the part of one wait the storm rule counts
++// REWINDBOX_ZCULL_ASYNC_READS_630
++inline constexpr std::uint64_t async_escalate_us = 30'000;      // a slot not final by then asks for every claimed report
++inline constexpr std::uint64_t async_poll_first_us = 50;        // first pause between two asks for a slot
++inline constexpr std::uint64_t async_poll_max_us = 400;
++inline constexpr std::uint32_t emulation_budget = 512;          // accesses completed by the handler, per page...
++inline constexpr std::uint64_t emulation_window_us = 16'000;    // ...and per window
++inline constexpr std::uint32_t report_slot_bytes = 16;
++inline constexpr std::uint32_t tracked_page_bytes = 16384;
 +
 +enum class trip_reason : std::uint32_t
 +{
@@ -37989,6 +38395,73 @@ index 0000000..fc8d13e
 +	return s_tally;
 +}
 +
++// REWINDBOX_ZCULL_ASYNC_READS_630: the pending reports of one locked page, per 16-byte slot, and the
++// accesses the fault handler completed there. Under the pages mutex.
++class page_slots
++{
++	std::uint16_t m_pending[tracked_page_bytes / report_slot_bytes]{};
++	std::uint32_t m_completed = 0;
++	std::uint64_t m_window_start_us = 0;
++
++	static constexpr std::uint32_t slot(std::uint32_t address) noexcept
++	{
++		return (address & (tracked_page_bytes - 1)) / report_slot_bytes;
++	}
++
++	// The slots of [address, address + size), inside the page of `address`.
++	static constexpr std::uint32_t last_slot(std::uint32_t address, std::uint32_t size) noexcept
++	{
++		const std::uint32_t offset = address & (tracked_page_bytes - 1);
++		const std::uint32_t last = offset + size - 1;
++		return (last < tracked_page_bytes ? last : tracked_page_bytes - 1) / report_slot_bytes;
++	}
++
++public:
++	void add(std::uint32_t address) noexcept
++	{
++		for (std::uint32_t i = slot(address); i <= last_slot(address, report_slot_bytes); i++)
++		{
++			m_pending[i]++;
++		}
++	}
++
++	void remove(std::uint32_t address) noexcept
++	{
++		for (std::uint32_t i = slot(address); i <= last_slot(address, report_slot_bytes); i++)
++		{
++			if (m_pending[i])
++			{
++				m_pending[i]--;
++			}
++		}
++	}
++
++	bool pending(std::uint32_t address, std::uint32_t size) const noexcept
++	{
++		for (std::uint32_t i = slot(address); i <= last_slot(address, size); i++)
++		{
++			if (m_pending[i])
++			{
++				return true;
++			}
++		}
++
++		return false;
++	}
++
++	// One more access completed by the handler, false when this page is over its budget.
++	bool take_completion(std::uint64_t now_us) noexcept
++	{
++		if (now_us - m_window_start_us >= emulation_window_us)
++		{
++			m_window_start_us = now_us;
++			m_completed = 0;
++		}
++
++		return ++m_completed <= emulation_budget;
++	}
++};
++
 +// Request/serve handshake between faulting guest threads and the RSX thread.
 +class gate
 +{
@@ -37996,6 +38469,9 @@ index 0000000..fc8d13e
 +	std::atomic<std::uint64_t> m_picked{0};          // newest ticket the RSX thread started
 +	std::atomic<std::uint64_t> m_served{0};          // newest ticket whose reports are written
 +	std::atomic<std::uint32_t> m_tripped{0};
++	// REWINDBOX_ZCULL_ASYNC_READS_630
++	std::atomic<std::uint32_t> m_slot{0};            // the report slot of the newest slot request
++	std::atomic<std::uint64_t> m_full{0};            // newest ticket that needs every claimed report
 +	std::uint64_t m_window_start_us = 0;             // RSX thread only
 +	std::uint32_t m_window_services = 0;             // RSX thread only
 +	// REWINDBOX_ZCULL_DEMAND_GUARD_621: the all-threads buckets (m_global_mutex) and
@@ -38029,6 +38505,33 @@ index 0000000..fc8d13e
 +		return m_requested.fetch_add(1, std::memory_order_acq_rel) + 1;
 +	}
 +
++	// REWINDBOX_ZCULL_ASYNC_READS_630: guest thread, a request for one report slot.
++	std::uint64_t request_slot(std::uint32_t slot_address) noexcept
++	{
++		m_slot.store(slot_address, std::memory_order_release);
++		return request();
++	}
++
++	// Guest thread: a request that needs every claimed report written.
++	std::uint64_t request_full() noexcept
++	{
++		const std::uint64_t ticket = request();
++		raise(m_full, ticket);
++		return ticket;
++	}
++
++	// RSX thread: the slot of the newest slot request.
++	std::uint32_t requested_slot() const noexcept
++	{
++		return m_slot.load(std::memory_order_acquire);
++	}
++
++	// RSX thread: a pending request needs every claimed report.
++	bool full_pending() const noexcept
++	{
++		return m_full.load(std::memory_order_acquire) > m_served.load(std::memory_order_relaxed);
++	}
++
 +	// RSX thread: the newest ticket waiting to be served, 0 when none.
 +	std::uint64_t pending() const noexcept
 +	{
@@ -38044,10 +38547,17 @@ index 0000000..fc8d13e
 +
 +	// RSX thread, after every report claimed when `ticket` was read is written.
 +	// Returns true when this service tripped the storm guard.
-+	bool serve(std::uint64_t ticket, std::uint64_t now_us) noexcept
++	// REWINDBOX_ZCULL_ASYNC_READS_630: a slot request that only polled is not counted (`counted`):
++	// a guest asks again every few hundred microseconds while the GPU works.
++	bool serve(std::uint64_t ticket, std::uint64_t now_us, bool counted = true) noexcept
 +	{
 +		raise(m_picked, ticket);
 +		raise(m_served, ticket);
++
++		if (!counted)
++		{
++			return false;
++		}
 +
 +		if (now_us - m_window_start_us >= window_us)
 +		{
@@ -42391,7 +42901,7 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..1779274 100644
+index 7c3389b..723aefb 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -1,10 +1,31 @@
@@ -42704,7 +43214,7 @@ index 7c3389b..1779274 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +336,178 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +336,183 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -42740,6 +43250,9 @@ index 7c3389b..1779274 100644
 +		rpcs3::ios::title_levers::requires_zcull_on_demand(title_id));
 +	// REWINDBOX_ZCULL_CONSERVATIVE_627: only a per-game choice; the upstream reservation
 +	// path of report writes (Accurate RSX reservation access) keeps exact reports.
++	// REWINDBOX_ZCULL_ASYNC_READS_630 (ios/IOSZcullOnDemand.h): needs the lever.
++	resolved.zcull_async_reads = resolved.zcull_on_demand && resolve_mode(g_cfg.ios_experimental.zcull_async_reads,
++		rpcs3::ios::title_levers::requires_zcull_on_demand(title_id));
 +	resolved.zcull_conservative_reports = resolve_mode(g_cfg.ios_experimental.zcull_conservative_reports, false) &&
 +		!g_cfg.core.rsx_accurate_res_access;
 +	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627: Automatic is the title list.
@@ -42822,6 +43335,8 @@ index 7c3389b..1779274 100644
 +	// REWINDBOX_GPU_TIMING_621: its own line.
 +	ios_experimental_log.notice("Resolved title policy 621: gpu_timing=%d zcull_on_demand=%d", resolved.gpu_timing, resolved.zcull_on_demand);
 +	// Core 627: its own line, the values of the new options of this boot.
++	// Core 630: its own line, the value of the new option of this boot.
++	ios_experimental_log.notice("Resolved title policy 630: zcull_async_reads=%d", resolved.zcull_async_reads);
 +	ios_experimental_log.notice("Resolved title policy 627: zcull_wait_guard=%d zcull_cond_no_wait=%d zcull_conservative_reports=%d spu_noop_spin_wait=%d spu_qos_below_rsx=%d fifo_nop_fast_path=%d light_measurement=%d",
 +		resolved.zcull_wait_guard, resolved.zcull_cond_no_wait, resolved.zcull_conservative_reports, resolved.spu_noop_spin_wait,
 +		resolved.spu_qos_below_rsx, resolved.fifo_nop_fast_path, resolved.light_measurement);
@@ -42894,7 +43409,7 @@ index 7c3389b..1779274 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..8691f4f 100644
+index 8fba197..c972232 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -42934,7 +43449,7 @@ index 8fba197..8691f4f 100644
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,14 +43,102 @@ struct experimental_policy
+@@ -20,14 +43,105 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -42964,6 +43479,9 @@ index 8fba197..8691f4f 100644
 +	// REWINDBOX_ZCULL_CONSERVATIVE_627 (ios/IOSZcullLabelPage.h): reports read "visible" from
 +	// the moment they are queued until the GPU result replaces them; nothing waits.
 +	bool zcull_conservative_reports = false;
++	// REWINDBOX_ZCULL_ASYNC_READS_630 (ios/IOSZcullOnDemand.h): a guest read of a report waits for
++	// that report only, and never stops the RSX thread.
++	bool zcull_async_reads = false;
 +	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): an SPU polling with no-op
 +	// PUTLLC waits for a bounded time inside the PUTLLC.
 +	bool spu_noop_spin_wait = false;
@@ -47063,7 +47581,7 @@ index 0000000..dcc1fad
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..ef23154 100644
+index b7b0474..3cf86b9 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -47091,7 +47609,7 @@ index b7b0474..ef23154 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +126,55 @@ const std::array catalog{
+@@ -122,21 +126,56 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -47129,6 +47647,7 @@ index b7b0474..ef23154 100644
 +	GAME_SETTING("experimental.zcull_on_demand", "Experimental", "ZCULL", "ZCULL on-demand reads", "Once the game touches its ZCULL report memory, writes the occlusion reports only when a game thread reads them, instead of waiting for the GPU at every report label. Automatic follows the title list (Assassin's Creed, Black Ops II); Enabled and Disabled test the other mode. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_on_demand, 0, 0, 0),
 +	GAME_SETTING("experimental.zcull_wait_guard", "Experimental", "ZCULL", "ZCULL on-demand wait guard", "Returns the ZCULL on-demand reads to the upstream mode when game threads wait too long for reports. Automatic keeps it off for the titles of that lever, whose game threads have to wait for the GPU in either mode; Enabled restores it. The deadlines that protect against a request never served always stay on. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_wait_guard, 0, 0, 0),
 +	GAME_SETTING("experimental.zcull_cond_no_wait", "Experimental", "ZCULL", "ZCULL conditional draw without waiting", "With ZCULL on-demand reads, draws an object whose occlusion result is still on the GPU instead of waiting for it. An object that turns out to be hidden stays hidden behind what covers it, at the cost of its GPU time. Automatic follows the title list (Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_cond_no_wait, 0, 0, 0),
++	GAME_SETTING("experimental.zcull_async_reads", "Experimental", "ZCULL", "ZCULL asynchronous reads", "With ZCULL on-demand reads, a game read waits for its own report only and the RSX thread keeps working: the read of memory that is already final completes at once. Values stay exact.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_async_reads, 0, 0, 0),
 +	GAME_SETTING("experimental.zcull_conservative_reports", "Experimental", "ZCULL", "ZCULL conservative reports", "Occlusion reports read as visible from the moment they are queued until the GPU result replaces them, so neither the RSX thread nor a game thread ever waits for one. A game may then show an occluded effect for a frame or two; check for flicker on the same scene. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_conservative_reports, 0, 0, 0),
 +	GAME_SETTING("experimental.fifo_nop_fast_path", "Experimental", "RSX FIFO", "RSX FIFO NOP fast path", "Keeps the RSX thread in its running state across NOP commands of the game's command stream instead of timing each one as an idle period. Automatic follows the title list (God of War III, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fifo_nop_fast_path, 0, 0, 0),
 +	GAME_SETTING("experimental.spu_noop_spin_wait", "Experimental", "SPU", "SPU no-op spin wait", "An SPU thread that polls a reservation by writing back unchanged data sleeps for a bounded time before its next read, which leaves its core to the PPU and RSX threads. Automatic follows the title list (God of War III, Black Ops II). No effect on compiled code or caches. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_noop_spin_wait, 0, 0, 0),
@@ -47149,7 +47668,7 @@ index b7b0474..ef23154 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +243,89 @@ const std::array catalog{
+@@ -205,6 +244,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -47239,7 +47758,7 @@ index b7b0474..ef23154 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +694,139 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +695,139 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  

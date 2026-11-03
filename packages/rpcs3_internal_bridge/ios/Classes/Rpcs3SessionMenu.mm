@@ -73,6 +73,9 @@ static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
       @{@"key": @"experimental.light_measurement", @"title": @"testLightMeasurement", @"field": @"levers627", @"bit": @6,
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // Core 630: the eighth digit of levers627=.
+      @{@"key": @"experimental.zcull_async_reads", @"title": @"testZcullAsyncReads", @"field": @"levers627", @"bit": @7,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
     ];
   });
   return levers;
