@@ -845,6 +845,7 @@ static NSDictionary<NSString*, NSArray<NSString*>*>* RPCS3TestSettingValues(void
       @"experimental.jit_object_release": @[@"Enabled", @"Disabled"],
       @"experimental.spirv_disk_cache": @[@"Enabled", @"Disabled"],
       @"experimental.hardware_crypto": @[@"Enabled", @"Disabled"],
+      @"experimental.spu_object_prefetch": @[@"Enabled", @"Disabled"],
     };
   });
   return values;

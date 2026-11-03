@@ -64,7 +64,7 @@ KEYS = ('gpu.zcull_accuracy', 'debug.disable_occlusion', 'debug.emulate_depth_co
         'experimental.zcull_async_reads',
         # Core 634: boots and memory.
         'experimental.fast_jit_load', 'experimental.jit_object_release', 'experimental.spirv_disk_cache',
-        'experimental.hardware_crypto')
+        'experimental.hardware_crypto', 'experimental.spu_object_prefetch')
 
 
 def require(condition, message):

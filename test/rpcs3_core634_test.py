@@ -7,9 +7,10 @@ REWINDBOX_SPIRV_DISK_CACHE_634: the SPIR-V of each GLSL text, on disk, per title
 5.5 s of CPU and most of a 1.6 s warmup at each boot of Black Ops II multiplayer.
 REWINDBOX_FAST_JIT_LOAD_634: cached PPU objects are checked and linked on several threads, one
 MCJIT engine per thread, without a debug copy of each object; 3.2 to 4.4 s were spent on one thread.
-REWINDBOX_JIT_OBJECT_RELEASE_634: MCJIT no longer keeps every object file: 130 to 300 MB.
+REWINDBOX_JIT_OBJECT_RELEASE_634: MCJIT and its GDB listener each kept every object file for the
+life of the engine: 112 to 212 MB of PPU and 87.5 MB of SPU, twice.
 REWINDBOX_CRYPTO_A64_634: the AES and SHA instructions of the CPU in rpcs3/Crypto.
-REWINDBOX_SPU_PREFETCH_AC_634: Assassin's Creed joins the SPU object prefetch.
+REWINDBOX_SPU_PREFETCH_AC_634: Assassin's Creed joins the SPU object prefetch, which gets a setting.
 
 This test:
 - reverts core634-from-630.patch on a copy of the touched files, authenticated by the Core 630
@@ -20,8 +21,10 @@ This test:
   run the same rounds on test/rpcs3_core634/neon_shim/arm_neon.h;
 - runs the real SPIR-V store on a real file, under TSan and ASan/UBSan: torn tail, damaged entry,
   other revision, size bound, six workers and a flush (test/rpcs3_core634/spirv_cache_test.cpp);
-- runs the real object window, held bytes and link workers, extracted from JITLLVM.cpp and
-  PPUThread.cpp around mock LLVM types (test/rpcs3_core634/jit_load_test.cpp);
+- runs the real object window, held bytes, link workers and the check, link and finalize blocks
+  of ppu_initialize, extracted from JITLLVM.cpp and PPUThread.cpp around mock LLVM types: engines,
+  order, a failed object, a stop, a worker ended by a fatal error, the count the progress dialog
+  waits for (test/rpcs3_core634/jit_load_test.cpp). A real MCJIT is not available on the hosts;
 - checks rule 1 (the one boot line) and the wiring in 12 locales.
 """
 from __future__ import annotations
@@ -46,7 +49,8 @@ LOCALES = ('en', 'es', 'ru', 'zh', 'zh_Hant', 'pt', 'fr', 'de', 'it', 'id', 'ja'
 SETTINGS = (('fast_jit_load', 'Fast JIT Load', 'testFastJitLoad', 8),
             ('jit_object_release', 'JIT Object Release', 'testJitObjectRelease', 9),
             ('spirv_disk_cache', 'SPIR-V Disk Cache', 'testSpirvDiskCache', 10),
-            ('hardware_crypto', 'Hardware Crypto', 'testHardwareCrypto', 11))
+            ('hardware_crypto', 'Hardware Crypto', 'testHardwareCrypto', 11),
+            ('spu_object_prefetch', 'SPU Object Prefetch', 'testSpuObjectPrefetch', 12))
 
 sys.path.insert(0, str(ROOT / 'test'))
 import rpcs3_core621_test as core621  # noqa: E402  (shared helpers: require, run, execute)
@@ -164,6 +168,11 @@ def run_jit_load(source: Path, cxx: str, work: Path, sanitize: bool) -> dict:
                                            'utf-8', 'surrogateescape')
     (folder / 'jit_held.inc').write_text(extract(jit, 'struct held_object_bytes\n', 'held_object_bytes& held_objects()'), 'utf-8', 'surrogateescape')
     (folder / 'ppu_link_jobs.inc').write_text(extract(ppu, 'template <typename Job>\nvoid ios_run_link_jobs(', '\n}\n}\n') + '\n}\n', 'utf-8', 'surrogateescape')
+    end_of_link = 'failed_to_load = ios_failed != 0;\n'
+    (folder / 'ppu_link_block.inc').write_text(extract(ppu, 'atomic_t<u32> ios_failed = 0;', end_of_link) + end_of_link, 'utf-8', 'surrogateescape')
+    (folder / 'ppu_reloc_block.inc').write_text(extract(ppu, 'ios_run_link_jobs("PPUW.Reloc ", jits.size(), [&](usz engine)', '\n\t\t}\n\t\telse\n#endif\n\t\tfor (auto& jit : jits)') + '\n',
+                                                'utf-8', 'surrogateescape')
+    (folder / 'ppu_check_block.inc').write_text(extract(ppu, 'atomic_t<u32> ios_missing = 0;', '#else\n\t\treturn false;'), 'utf-8', 'surrogateescape')
     report = {}
     for label, extra in sanitizer_sets(cxx, sanitize).items():
         output = folder / label
@@ -208,7 +217,11 @@ def check_wiring(source: Path) -> dict:
         require(settings.count(f'GAME_SETTING("experimental.{setting}", "Experimental"') == 1 and
                 f'kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.{setting}, 0, 0, 0)' in settings, 'catalogue ' + setting)
         require(f'bool {setting} = false;' in policy_h, 'policy field ' + setting)
-        require(f'resolved.{setting} = resolve_mode(g_cfg.ios_experimental.{setting}, true);' in policy, 'Automatic is every title: ' + setting)
+        if setting == 'spu_object_prefetch':
+            require('resolved.spu_object_prefetch = resolve_mode(g_cfg.ios_experimental.spu_object_prefetch,\n\t\trpcs3::ios::title_levers::requires_spu_object_prefetch(title_id));' in policy,
+                    'Automatic is the title list: ' + setting)
+        else:
+            require(f'resolved.{setting} = resolve_mode(g_cfg.ios_experimental.{setting}, true);' in policy, 'Automatic is every title: ' + setting)
         require(f'ios_add_lever(ios_levers.{previous}, ios_lever_settings.{previous});\n'
                 f'\t\t\t\t\tios_add_lever(ios_levers.{setting}, ios_lever_settings.{setting});\n' in system, 'digit of the state field: ' + setting)
         previous = setting
@@ -221,6 +234,8 @@ def check_wiring(source: Path) -> dict:
     lookup = l10n[l10n.index('NSString* RPCS3LocalizedString('):]
     require(lookup.index('build634[locale][key]') < lookup.index('build630[locale][key]'), 'the 634 table is read')
     require(policy.count('Resolved title policy 634:') == 1, 'the one boot line')
+    digits = text('rpcs3/ios/RPCS3IOSBootDiagnostics.h')
+    require(f'append_text(line, "levers627", rsx.levers627, {8 + len(SETTINGS)});' in digits, 'every digit of levers627= reaches CONFIG_LAYERS')
     require('rpcs3::ios::jit_load::fast_load.store(resolved.fast_jit_load' in policy and 'rpcs3::ios::jit_load::release_bytes.store(resolved.jit_object_release' in policy and
             'rpcs3::ios::crypto_a64::enabled.store(resolved.hardware_crypto' in policy, 'the flags reach their code')
 
@@ -235,10 +250,18 @@ def check_wiring(source: Path) -> dict:
     require('held_objects().release(this);' in fin and fin.index('m_engine->finalizeObject();') < fin.index('held_objects().release(this);') and
             'if (success) held_objects().release(this);' in try_fin, 'released after finalizeObject, on success')
     require('held_objects().release(this);' in extract(jit, 'jit_compiler::~jit_compiler() noexcept', 'void jit_compiler::add('), 'released with the compiler')
+    engine = extract(jit, 'fmt::throw_exception("LLVM: Failed to create ExecutionEngine: %s", result);', 'fs::device_stat stats{};')
+    require('if (rpcs3::ios::jit_load::release_bytes.load(std::memory_order_relaxed))' in engine and
+            'm_engine->UnregisterJITEventListener(llvm::JITEventListener::createGDBRegistrationListener());' in engine, 'the kept debug copy goes with the listener')
     announcer = extract(jit, 'void notifyObjectLoaded(u64,', 'info.getObjectForDebug(obj);')
     require('jit_load::fast_load' in announcer and '!jit_profile::spu_writer().enabled()' in announcer, 'the debug copy is skipped only when nothing reads it')
 
     ppu = text('rpcs3/Emu/Cell/PPUThread.cpp')
+    names = re.findall(r'ios_run_link_jobs\("([^"]+)"', ppu)
+    require(sorted(names) == ['PPUW.Check ', 'PPUW.Link ', 'PPUW.Reloc '] and 'name.starts_with("PPUW.")' in text('rpcs3/ios/RPCS3IOSProfilerHelpers.h'),
+            'the workers count as compile threads: ' + repr(names))
+    window = extract(ppu, 'explicit ppu_object_window_scope(bool boot = false)', '~ppu_object_window_scope()')
+    require('rpcs3::ios::jit_load::minimum_window_bytes' in window and 'if (++s_owners == 1)\n' in window, 'the setting off gives the 32 MiB window back')
     link = extract(ppu, 'if (rpcs3::ios::jit_load::fast_load.load(std::memory_order_relaxed) && jits.size() > 1)\n\t\t{\n\t\t\tatomic_t<u32> ios_failed', 'for (const auto& [obj_name, is_compiled] : link_workload)')
     require('const usz first = engine * c_modules_per_jit;' in link and 'jits[engine]->add(cache_path + obj_name)' in link, 'each engine gets the objects of its index, in order')
     check = extract(ppu, 'atomic_t<u32> ios_missing = 0;', 'if (g_progr_ftotal_bits && file_size)')

@@ -76,7 +76,7 @@ static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
       // Core 630: the eighth digit of levers627=.
       @{@"key": @"experimental.zcull_async_reads", @"title": @"testZcullAsyncReads", @"field": @"levers627", @"bit": @7,
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
-      // Core 634: digits 9 to 12 of levers627=.
+      // Core 634: digits 9 to 13 of levers627=.
       @{@"key": @"experimental.fast_jit_load", @"title": @"testFastJitLoad", @"field": @"levers627", @"bit": @8,
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
       @{@"key": @"experimental.jit_object_release", @"title": @"testJitObjectRelease", @"field": @"levers627", @"bit": @9,
@@ -84,6 +84,8 @@ static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
       @{@"key": @"experimental.spirv_disk_cache", @"title": @"testSpirvDiskCache", @"field": @"levers627", @"bit": @10,
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
       @{@"key": @"experimental.hardware_crypto", @"title": @"testHardwareCrypto", @"field": @"levers627", @"bit": @11,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.spu_object_prefetch", @"title": @"testSpuObjectPrefetch", @"field": @"levers627", @"bit": @12,
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
     ];
   });
