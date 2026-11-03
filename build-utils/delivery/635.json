@@ -341,6 +341,10 @@
    {
     "commit": "f3c86dc061baed4921e416e02f3f3cdd3d21313b",
     "note": "fix(legal): review the bundled Pocket originals before the next IPA [skip ci]"
+   },
+   {
+    "commit": "ec5e3df9b3633ac77e627652c113c88d0f93d7fe",
+    "note": "fix(melonx): Core 631 queued syncpoints keep the blocking path's guarantees (renderer barrier before a blocking drain, head kept until published, 3D increments drain first); compiled fixture 28/28; gates compose the queue [skip ci]"
    }
   ],
   "sourceOnly": [],

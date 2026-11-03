@@ -77,6 +77,22 @@ source, and a compiled fixture of the FIFO (order of increments, publication bef
 disposal) is to be written with the .NET SDK. `test/melonx_queued_syncpoints_test.py --source <prepared tree>`: 31
 source checks pass on the 631 preparation.
 
+Compiled fixture, 3 Nov 2026 20:15 UTC (session 012mUAShv9k6, .NET SDK 10.0.114 from the Ubuntu archive; 10.0.100,
+upstream and the 614 archive refused there): `test/melonx_queued_syncpoints_fixture_test.py` compiles the adapters' C#
+(queue, deferred reports, cache, `Syncpointb`, `WaitForCommands`, `ThreedClass.IncrementSyncpoint`, Library) with
+doubles for the host sync, a direct or threaded renderer and the backend counters; the upstream method frames around
+the anchors are reconstructed (`--source` takes the prepared files instead). On `71459be5`, 21 of 28 scenarios: order,
+age, disposal, invalidated reports, logging and a concurrent consumer held; three guarantees of the blocking path did
+not. (1) A drain (wait, age) waited for a report before the renderer had run its submission: with the threaded renderer
+the report times out and the syncpoint is withheld; the drain now takes the blocking path's barrier
+(`BackgroundContextAction`) once. (2) An increment whose report cannot complete left the FIFO before publication, so
+disposal never released it; it now leaves once published. (3) The 3D engine's increment, made blocking by
+`adapt_occlusion_completion`, overtook queued increments, against point 1 of the design; it now drains the FIFO first,
+counted apart. Fixed in `ec5e3df9`: 28 of 28, 6530 checks, three reruns
+(`docs/evidence/melonx-631-queued-syncpoints/`). The `fragmented-reads` and `performance-diagnostics` gates now
+compose the queue (they would have refused the final source) and the plan binds its five files and `ThreedClass.cs`.
+Still to run with the network: the gates, the source checks and the fixture (`--source`) on the real preparation.
+
 ## Next safe step
 
 #1 and #9 are written and wait for the network (Core 631 freeze, delivery). Without the iPhone, #2, #4 and #5a are
