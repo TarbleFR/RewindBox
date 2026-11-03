@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 636,
- "identity_type": "rpcs3-ios-core636",
- "summary": "RPCS3 Core 636 = the delivered Core 610 plus one folded delta: the Core 612 to 634 records unchanged and the Core 636 change (build-utils/rpcs3/core636-from-634.patch over Core 634), from the independent audit of Core 634 and the asynchronous ZCULL path: the ZCULL fault handler of Core 630 no longer reads or writes X29/X30 through Darwin's __x[29] (such an access keeps the retry; REWINDBOX_GUEST_ACCESS_FP_LR_636); the SPIR-V pack's 256 MiB bound counts the batch flush() is writing and the header (REWINDBOX_SPIRV_CAP_636); the parallel PPU cache check assigns no check after a missing object or a stop, as the serial walk returns (REWINDBOX_PPU_CHECK_STOP_636, PPUThread.cpp under one exact codegen alias); a guest's pause before asking for its ZCULL report slot again ends when the RSX thread releases a slot (REWINDBOX_ZCULL_SLOT_WAKE_636). Settings and defaults unchanged, values exact. ABI 30, the 92 exports, the PPU/SPU codegen identities and the MoltenVK dependency of Core 610 unchanged. No gain measured: not built, no iPhone run.",
+ "build": 638,
+ "identity_type": "rpcs3-ios-core638",
+ "summary": "RPCS3 Core 638 = the delivered Core 610 plus one folded delta: the Core 612 to 636 records unchanged and the Core 638 change (build-utils/rpcs3/core638-from-636.patch over Core 636): instrumentation only, five counters at the texture cache's existing predictor signals and one COREPROF READPREDICT638 line per window (REWINDBOX_READBACK_PREDICTION_638), so the next God of War III log says whether its per-frame surface reads were copied ahead by the speculative readback, wasted or never predicted. Core 636 (contained): the ZCULL fault handler never reads or writes X29/X30 through Darwin's __x[29]; the SPIR-V pack bound counts the batch being written and the header; the parallel PPU cache check stops at the first missing object or a stop (PPUThread.cpp under one exact codegen alias); a guest's pause before asking for its ZCULL report slot again ends at a slot release. Settings and defaults unchanged, values exact. ABI 30, the 92 exports, the PPU/SPU codegen identities and the MoltenVK dependency of Core 610 unchanged. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "01ba35fc8776b5ab55b9f1709e2dbc2ba47e60aa49adbbc32a4a48743e4e36d5",
-  "postimages": 356,
+  "patch_sha256": "b6d8799545691969acf8462aaea9df7825ee78626d92058181bbb706ea7fdd54",
+  "postimages": 357,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -36,7 +36,8 @@
    "core627_20261103",
    "core630_20261103",
    "core634_20261103",
-   "core636_20261103"
+   "core636_20261103",
+   "core638_20261103"
   ]
  },
  "reference": {
@@ -76,10 +77,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core636_20261103",
-  "manifest": "build-utils/rpcs3/core636-delta.json",
-  "patch": "build-utils/rpcs3/core636-delta.patch",
-  "patch_sha256": "7cc601d273f4c2ab9f78200ce385c113680dd3fb861a8a69f96a9953cb816f9b"
+  "record": "core638_20261103",
+  "manifest": "build-utils/rpcs3/core638-delta.json",
+  "patch": "build-utils/rpcs3/core638-delta.patch",
+  "patch_sha256": "72bcef4c635d7e50d6c5a86ee8598079053a7400120d35b054eaad57a7408807"
  },
  "exports": 92,
  "core_inputs": {
@@ -154,7 +155,8 @@
   "JIT Object Release",
   "SPIR-V Disk Cache",
   "Hardware Crypto",
-  "SPU Object Prefetch"
+  "SPU Object Prefetch",
+  "COREPROF READPREDICT638"
  ],
  "moltenvk_dependency": {
   "run": 41239096061,
@@ -355,28 +357,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core636_codegen_test.py",
+     "test/rpcs3_core638_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 636 changes one codegen input, host code only (PPUThread.cpp check pass), under one exact alias; the Core 634 audit runs on the reverted tree"
+    "reason": "Core 638 touches no codegen input; its reverted tree passes the Core 636 audit (one exact PPUThread.cpp alias)"
    },
    {
-    "name": "core636",
+    "name": "core638",
     "argv": [
      "python3",
-     "test/rpcs3_core636_test.py",
+     "test/rpcs3_core638_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core636.json"
+     "{out}/core638.json"
     ],
-    "reason": "new: Core 636 = Core 634 + core636-from-634.patch (reverse patch to the pinned Core 634 files): the X29/X30 fixture on the real Darwin context, the SPIR-V bound, the PPU check pass and the slot wake, each correction reproduced on Core 634; the Core 634 suite on that tree"
+    "reason": "Core 638 increment (readback prediction counters) and, on its reverted tree, the Core 636 suite (636 corrections and slot wake, then the 634, 630 and 627 suites)"
    },
    {
     "name": "lr-full-queue",

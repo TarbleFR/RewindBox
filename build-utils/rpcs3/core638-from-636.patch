@@ -1,0 +1,125 @@
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+index c5d7088..193d72c 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+@@ -19,6 +19,7 @@
+ #include "ios/IOSTexturePrehash.h"
+ #include "ios/IOSTextureResidency.h"
+ #include "ios/IOSDeferredCommit.h"
++#include "ios/IOSReadbackPrediction.h"
+ #include "util/tsc.hpp"
+ #endif
+ 
+@@ -1652,6 +1653,12 @@ namespace rsx
+ 
+ 		void on_flush()
+ 		{
++#ifdef RPCS3_IOS
++			// REWINDBOX_READBACK_PREDICTION_638
++			namespace prediction = rpcs3::ios::readback::prediction;
++			prediction::count(prediction::flushes);
++			if (speculatively_flushed) prediction::count(prediction::flushes_after_speculation);
++#endif
+ 			speculatively_flushed = false;
+ 
+ 			m_tex_cache->on_flush();
+@@ -1671,6 +1678,9 @@ namespace rsx
+ 
+ 		void on_speculative_flush()
+ 		{
++#ifdef RPCS3_IOS
++			rpcs3::ios::readback::prediction::count(rpcs3::ios::readback::prediction::speculative_copies); // REWINDBOX_READBACK_PREDICTION_638
++#endif
+ 			speculatively_flushed = true;
+ 
+ 			m_tex_cache->on_speculative_flush();
+@@ -1678,6 +1688,9 @@ namespace rsx
+ 
+ 		void on_miss()
+ 		{
++#ifdef RPCS3_IOS
++			rpcs3::ios::readback::prediction::count(rpcs3::ios::readback::prediction::misses); // REWINDBOX_READBACK_PREDICTION_638
++#endif
+ 			// rsx_log.trace("Cache miss at address 0x%X. This is gonna hurt...", get_section_base());
+ 			m_tex_cache->on_miss(*derived());
+ 		}
+@@ -1751,6 +1764,9 @@ namespace rsx
+ 
+ 			if (speculatively_flushed)
+ 			{
++#ifdef RPCS3_IOS
++				rpcs3::ios::readback::prediction::count(rpcs3::ios::readback::prediction::mispredictions); // REWINDBOX_READBACK_PREDICTION_638
++#endif
+ 				m_tex_cache->on_misprediction();
+ 			}
+ 
+diff --git a/rpcs3/ios/IOSReadbackPrediction.h b/rpcs3/ios/IOSReadbackPrediction.h
+new file mode 100644
+index 0000000..0246ac0
+--- /dev/null
++++ b/rpcs3/ios/IOSReadbackPrediction.h
+@@ -0,0 +1,37 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_READBACK_PREDICTION_638: whether a guest read of a written-back surface found its data
++// already copied by the upstream speculative readback (texture_cache_predictor.h) or paid the copy at
++// fault time. Build 622 God of War III: READBACK555 fault_read 132 sections of 3.69 MB per 5 s window,
++// 554 ms. READBACK555 counts only the sections still unsynchronized at the read, so it cannot say
++// whether speculation never fired for them, fired and was wasted, or was capped. Five process-wide
++// counters, read once per window; no behavior, ordering or cache decision changes.
++namespace rpcs3::ios::readback::prediction
++{
++inline std::atomic<std::uint64_t> flushes{0};            // sections written back to guest memory
++inline std::atomic<std::uint64_t> speculative_copies{0}; // copies recorded ahead of a predicted read
++inline std::atomic<std::uint64_t> flushes_after_speculation{0}; // write-backs of a section whose upstream speculation flag is set (it survives a later write)
++inline std::atomic<std::uint64_t> mispredictions{0};     // a speculative copy overwritten before any read
++inline std::atomic<std::uint64_t> misses{0};             // a read that recorded its copy at fault time
++
++struct sample
++{
++	std::uint64_t flushes = 0, speculative_copies = 0, flushes_after_speculation = 0, mispredictions = 0, misses = 0;
++};
++
++inline void count(std::atomic<std::uint64_t>& counter) noexcept
++{
++	counter.fetch_add(1, std::memory_order_relaxed);
++}
++
++inline sample take() noexcept
++{
++	return {flushes.exchange(0, std::memory_order_relaxed), speculative_copies.exchange(0, std::memory_order_relaxed),
++		flushes_after_speculation.exchange(0, std::memory_order_relaxed), mispredictions.exchange(0, std::memory_order_relaxed),
++		misses.exchange(0, std::memory_order_relaxed)};
++}
++}
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index cf69196..f82e18b 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -15,6 +15,7 @@
+ #include "IOSTextureValidationProfile.h"
+ #include "IOSTexturePrehash.h"
+ #include "IOSReadbackProfile.h"
++#include "IOSReadbackPrediction.h"
+ #include "IOSFullOverwrite.h"
+ #include "IOSDeferredCommit.h"
+ #include "IOSEarlySubmit.h"
+@@ -1590,6 +1591,14 @@ private:
+             }
+             ios_core_profiler.notice("%s scope=process_window_all_threads parent_includes_gpu_fence=1 bytes_scope=confirmed_requested_not_dma_payload window_boundary_approximate=1", line);
+         }
++        // REWINDBOX_READBACK_PREDICTION_638: did the speculative readback copy a surface before its guest read?
++        {
++            const auto predicted = rpcs3::ios::readback::prediction::take();
++            ios_core_profiler.notice("COREPROF READPREDICT638 session=%llu window=%llu flushes=%llu speculative_copies=%llu "
++                "flushes_after_speculation=%llu mispredictions=%llu misses=%llu scope=process_window_all_threads window_boundary_approximate=1",
++                profile_session, profile_window, predicted.flushes, predicted.speculative_copies, predicted.flushes_after_speculation,
++                predicted.mispredictions, predicted.misses);
++        }
+         // CELL559_OPT_EXPORT: work the 559 paths avoided in this window, one bounded line.
+         {
+             namespace overwrite = rpcs3::ios::full_overwrite;
