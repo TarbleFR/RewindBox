@@ -83,12 +83,14 @@ GUARD_627 = r'''
 		take(tally.faults_report); take(tally.services); take(tally.waits);
 		guard627++;
 	}
-	{ // Reads back to back for more than a second (the 621 severe rule): the lever stays.
+	{ // Reads back to back for three seconds (the 621 severe rule): the lever stays. The macOS runner
+	  // stretches each 5 ms read to about 70 ms under ASan (test/rpcs3_core621_zcull.py): three seconds
+	  // keep the read floor well within reach.
 		ZCULL_control z;
 		rsx_server server(z, 5);
 		const auto start = get_system_time();
 		unsigned reads = 0;
-		while (get_system_time() - start < 1'500'000)
+		while (get_system_time() - start < 3'000'000)
 		{
 			z.enqueue(address);
 			CHECK(guest_access(z, address, thread_class::ppu));
