@@ -85,6 +85,8 @@ BUDGET_621 = r'''	unsigned budget_faults = 0, transient_faults = 0, storm_faults
 	{ // REWINDBOX_ZCULL_DEMAND_GUARD_621: one guest thread above 400 ms in 3 consecutive seconds (50 ms
 	  // services, 45 ms of work between reads: about 10 reads and 500 ms per second, not a storm) trips at
 	  // the first wait of the 4th second, wait_budget scope thread, with one COREPROF ZCULLTRIP621 line.
+	  // The macOS runner sleeps longer than asked (Core 621 Apple run 41550627637: 21 reads, about 7 per
+	  // second, windows 532/481/467 ms), so the read count only has to show several reads per second.
 		ZCULL_control z;
 		rsx_server server(z, 50);
 		const int lines_before = rsx_log.trip_lines.load();
@@ -101,19 +103,21 @@ BUDGET_621 = r'''	unsigned budget_faults = 0, transient_faults = 0, storm_faults
 		const auto trip = z.m_ios_demand.trip_record();
 		CHECK(z.m_ios_demand.tripped() && trip.reason == static_cast<u32>(od::trip_reason::wait_budget) && trip.scope == 1);
 		CHECK(trip.windows_us[0] > od::wait_budget_us && trip.windows_us[1] > od::wait_budget_us && trip.windows_us[2] > od::wait_budget_us);
-		CHECK(elapsed >= 3'000'000 && elapsed < 8'000'000 && budget_faults >= 25);
+		CHECK(elapsed >= 3'000'000 && elapsed < 8'000'000 && budget_faults >= 12);
 		CHECK(rsx_log.trip_lines.load() == lines_before + 1 && tally.tripped.load() == static_cast<u32>(od::trip_reason::wait_budget));
-		CHECK(tally.pickups.load() >= 25 && tally.pickup_max_us.load() >= 40'000);
+		CHECK(tally.pickups.load() >= 12 && tally.pickup_max_us.load() >= 40'000);
 		guard_trip_lines += rsx_log.trip_lines.load() - lines_before;
 		z.enqueue(address);
 		CHECK(guest_access(z, address, thread_class::ppu) && z.upstream_paths.load() == 1);
 		take(tally.faults_report); take(tally.services); take(tally.waits);
 		scenarios++;
 	}
-	{ // REWINDBOX_ZCULL_DEMAND_GUARD_621: reads back to back, 60 ms each (a storm: the thread is blocked
-	  // almost the whole second): wait_severe within about one second, one ZCULLTRIP621 line.
+	{ // REWINDBOX_ZCULL_DEMAND_GUARD_621: reads back to back, 30 ms each (a storm: the thread is blocked
+	  // almost the whole second): wait_severe within about one second, one ZCULLTRIP621 line. 30 ms keeps
+	  // well over 16 reads in the second where the macOS runner stretches each read (60 ms reads became
+	  // about 70 ms there, 14 per second: never the 16 reads the rule asks for).
 		ZCULL_control z;
-		rsx_server server(z, 60);
+		rsx_server server(z, 30);
 		const int lines_before = rsx_log.trip_lines.load();
 		const auto start = get_system_time();
 		while (!z.m_ios_demand.tripped() && get_system_time() - start < 3'000'000)
@@ -227,7 +231,7 @@ def run(source: Path, compiler: list[str], flag_sets: dict[str, list[str]], work
         protocol, guard621 = json.loads(lines[-2]), json.loads(lines[-1])
         require(protocol['failures'] == 0 and protocol['scenarios'] == 18 and protocol['concurrent_accesses'] == 600,
                 f'zcull fault protocol ({label}): ' + repr(protocol))
-        require(guard621['failures'] == 0 and guard621['trip_lines'] == 2 and guard621['transient_faults'] >= 20 and guard621['budget_faults'] >= 25 and guard621['storm_faults'] >= 16,
+        require(guard621['failures'] == 0 and guard621['trip_lines'] == 2 and guard621['transient_faults'] >= 20 and guard621['budget_faults'] >= 12 and guard621['storm_faults'] >= 16,
                 f'zcull 621 budget scenarios ({label}): ' + repr(guard621))
         trip_line = next((line for line in lines if 'COREPROF ZCULLTRIP621 reason=wait_budget' in line), '')
         require(re.search(r'COREPROF ZCULLTRIP621 reason=wait_budget scope=thread windows_ms=\d+\.\d:\d+\.\d:\d+\.\d at_us=\d+ '
