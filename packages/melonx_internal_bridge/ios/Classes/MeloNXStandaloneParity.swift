@@ -290,38 +290,22 @@ enum MeloNXEmulationPriority {
 
 // Which MoltenVK the engine loads for this process: 1 is the standalone MeloNX
 // app's own libMoltenVK.dylib (MeloNXMoltenVKStandalone.framework, the default
-// for parity), 0 RewindBox's source-built Khronos v1.3.0, 2 Khronos v1.4.0
-// rebuilt by RewindBox with its argument buffer usage patch
-// (MeloNXMoltenVKRebuild.framework, build-utils/melonx/moltenvk/), with the
-// original walk or the fast one (fastWalk). Applies at the next RewindBox
-// start; the engine cannot switch once MoltenVK is loaded.
+// for parity), 0 RewindBox's source-built Khronos v1.3.0. Applies at the next
+// RewindBox start; the engine cannot switch once MoltenVK is loaded.
 enum MeloNXMoltenVKChoice {
     static let key = "RewindBoxMeloNXMoltenVK"
-    static let names: [Int32: String] = [0: "RewindBox 1.3.0", 1: "MeloNX 1.4.0 (standalone)", 2: "RewindBox 1.4.0 (rebuilt)"]
-    // Read by the rebuilt MoltenVK when the device is created; unset, the original walk.
-    static let fastWalkVariable = "REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE"
-    private static let stored: [String: Int32] = ["rewindbox": 0, "standalone": 1, "rebuild": 2, "rebuild-fast": 2]
+    static let names: [Int32: String] = [0: "RewindBox 1.3.0", 1: "MeloNX 1.4.0 (standalone)"]
 
     static var preferred: Int32 {
-        get { stored[UserDefaults.standard.string(forKey:key) ?? ""] ?? 1 }
-        set { UserDefaults.standard.set(newValue == 0 ? "rewindbox" : newValue == 2 ? "rebuild" : "standalone", forKey:key) }
-    }
-
-    // The fast walk of the rebuilt MoltenVK; setting it also chooses variant 2.
-    static var fastWalk: Bool {
-        get { UserDefaults.standard.string(forKey:key) == "rebuild-fast" }
-        set { UserDefaults.standard.set(newValue ? "rebuild-fast" : "rebuild", forKey:key) }
-    }
-
-    // Whether this process runs the fast walk (the environment the engine was given).
-    static var fastWalkApplied: Bool { getenv(fastWalkVariable).map { String(cString:$0) == "1" } ?? false }
-
-    static func frameworkName(_ variant: Int32) -> String {
-        variant == 0 ? "MeloNXMoltenVK" : variant == 2 ? "MeloNXMoltenVKRebuild" : "MeloNXMoltenVKStandalone"
+        get {
+            let stored = UserDefaults.standard.string(forKey:key)
+            return stored == "rewindbox" ? 0 : 1
+        }
+        set { UserDefaults.standard.set(newValue == 0 ? "rewindbox" : "standalone", forKey:key) }
     }
 
     static func available(_ variant: Int32, frameworks: URL) -> Bool {
-        let name = frameworkName(variant)
+        let name = variant == 0 ? "MeloNXMoltenVK" : "MeloNXMoltenVKStandalone"
         return FileManager.default.fileExists(atPath:frameworks.appendingPathComponent("\(name).framework/\(name)").path)
     }
 }

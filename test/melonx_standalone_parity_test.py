@@ -93,7 +93,7 @@ check("NAMES = {'MeloNXMoltenVK','MeloNXSDL3','MeloNXAvUtil','MeloNXAvCodec','Me
 strings = json.loads((ROOT / 'build-utils/melonx/ui-strings.json').read_text())
 controller = (CLASSES / 'MeloNXMetalSessionViewController.swift').read_text()
 for key in ['MoltenVK version', 'In use', 'Restart RewindBox to use this MoltenVK.', 'RewindBox (1.3.0)', 'MeloNX app (1.4.0)',
-            'RewindBox (1.4.0)', 'RewindBox (1.4.0, fast walk)', 'Emulation priority', 'High (RewindBox)', 'Default (MeloNX app)', 'Applies when the next game starts.']:
+            'Emulation priority', 'High (RewindBox)', 'Default (MeloNX app)', 'Applies when the next game starts.']:
     row = strings['rows'][key]
     check(len(row) == 12 and all(value.strip() for value in row), key)
     check(f'"{key}"' in controller, key + ' unused')
@@ -111,19 +111,7 @@ check(runtime.index('"neostation_melonx_select_moltenvk"') < runtime.index('conf
 check('init(library: URL, frameworks: URL, root: URL, moltenVk requested: Int32 = 0)' in runtime, 'smoke default changed')
 plugin = (CLASSES / 'MeloNXInternalBridgePlugin.swift').read_text()
 check('moltenVk:moltenVk' in plugin and 'MeloNXMoltenVKChoice.available(moltenVk' in plugin, 'plugin does not choose MoltenVK')
-check('if moltenVk != 0, case .operation("frameworks", _, _)? = error as? MeloNXHostError {\n                MeloNXMoltenVKChoice.preferred = 0' in plugin, 'no way back from a failing standalone or rebuilt MoltenVK')
-# The rebuilt MoltenVK (variant 2): its walk is given to the engine through the environment before it loads,
-# and the engine's loader knows its framework; an engine without it refuses 2 and the source-built one loads.
-parity = (CLASSES / 'MeloNXStandaloneParity.swift').read_text()
-check('static let fastWalkVariable = "REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE"' in parity and
-      'variant == 2 ? "MeloNXMoltenVKRebuild"' in parity, 'rebuilt MoltenVK choice')
-check(plugin.index('setenv(MeloNXMoltenVKChoice.fastWalkVariable, "1", 1)') < plugin.index('runtime = try MeloNXRuntimeAPI(') and
-      'unsetenv(MeloNXMoltenVKChoice.fastWalkVariable)' in plugin, 'fast walk set before the engine loads')
-loader = (ROOT / 'native/melonx/EmbeddedNativeLibraries.cs').read_text()
-check('{ "MeloNXMoltenVK", "MeloNXMoltenVKStandalone", "MeloNXMoltenVKRebuild" }' in loader and
-      'variant < 0 || variant >= MoltenVkFrameworks.Length' in loader, 'loader variants')
-check('MeloNXMoltenVKChoice.available(2,frameworks:frameworks)' in controller and 'choices += [(2, false), (2, true)]' in controller,
-      'the rebuilt MoltenVK is offered only when the app carries it')
+check('if moltenVk == 1, case .operation("frameworks", _, _)? = error as? MeloNXHostError {\n                MeloNXMoltenVKChoice.preferred = 0' in plugin, 'no way back from a failing standalone MoltenVK')
 check(plugin.index('MeloNXLaunchJournal.configure(path:path)') < plugin.index('MeloNXStdioCapture.configure(path:path)'), 'capture journal')
 start = controller.index('try host.start(')
 check(controller.rindex('MeloNXStdioCapture.begin()', 0, start) > controller.rindex('override func viewDidAppear', 0, start), 'capture not begun')
@@ -151,12 +139,6 @@ UserDefaults.standard.removeObject(forKey:MeloNXMoltenVKChoice.key)
 precondition(MeloNXMoltenVKChoice.preferred == 1)
 MeloNXMoltenVKChoice.preferred = 0
 precondition(MeloNXMoltenVKChoice.preferred == 0)
-MeloNXMoltenVKChoice.preferred = 2
-precondition(MeloNXMoltenVKChoice.preferred == 2 && !MeloNXMoltenVKChoice.fastWalk)
-MeloNXMoltenVKChoice.fastWalk = true
-precondition(MeloNXMoltenVKChoice.preferred == 2 && MeloNXMoltenVKChoice.fastWalk)
-MeloNXMoltenVKChoice.preferred = 1
-precondition(MeloNXMoltenVKChoice.preferred == 1 && !MeloNXMoltenVKChoice.fastWalk)
 UserDefaults.standard.removeObject(forKey:MeloNXMoltenVKChoice.key)
 // Emulation priority on a GCD worker of a user-initiated serial queue, like
 // MeloNXSessionHost's session queue that runs beforeRun and the engine.

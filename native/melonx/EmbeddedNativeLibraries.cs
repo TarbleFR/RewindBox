@@ -20,10 +20,8 @@ public static class EmbeddedNativeLibraries
     private static int JitMode = -1;
     public static bool UniversalJit { get { lock (Gate) return JitMode == 1; } }
     // 0: RewindBox's source-built Khronos MoltenVK; 1: the standalone MeloNX
-    // app's libMoltenVK.dylib; 2: Khronos MoltenVK 1.4.0 rebuilt by RewindBox with
-    // its argument buffer usage patch (build-utils/melonx/moltenvk/). 0 when the
-    // host never selects.
-    private static readonly string[] MoltenVkFrameworks = { "MeloNXMoltenVK", "MeloNXMoltenVKStandalone", "MeloNXMoltenVKRebuild" };
+    // app's libMoltenVK.dylib. 0 when the host never selects.
+    private static readonly string[] MoltenVkFrameworks = { "MeloNXMoltenVK", "MeloNXMoltenVKStandalone" };
     private static int MoltenVkVariant;
     private static string MoltenVkIdentity = "";
     public static string MoltenVk { get { lock (Gate) return MoltenVkFrameworks[MoltenVkVariant] + MoltenVkIdentity; } }
@@ -60,7 +58,7 @@ public static class EmbeddedNativeLibraries
 
     public static void SelectMoltenVk(int variant)
     {
-        if (variant < 0 || variant >= MoltenVkFrameworks.Length) throw new ArgumentOutOfRangeException(nameof(variant));
+        if (variant != 0 && variant != 1) throw new ArgumentOutOfRangeException(nameof(variant));
         lock (Gate)
         {
             if (Root != null && variant != MoltenVkVariant)

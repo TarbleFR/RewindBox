@@ -74,24 +74,20 @@ other workflows its paths trigger skip all their jobs). Only the fetch and patch
 - Read from the job's annotation: the artifact itself was not downloaded (its storage is unreachable from this
   session), so nothing beyond that summary is checked here.
 
-## Host and engine (the third choice, source only)
+## No new option for the player (maintainer, 3 Nov 2026 15:16)
 
-- The in-game "MoltenVK version" menu offers "RewindBox (1.4.0)" (original walk) and "RewindBox (1.4.0, fast walk)"
-  only when the app carries `MeloNXMoltenVKRebuild.framework`; both labels in the 12 languages.
-- The plugin sets `REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE=1` before the engine loads for the fast walk and unsets it
-  otherwise. A failure to load the private frameworks with the standalone or the rebuilt MoltenVK brings the next start
-  back to RewindBox's.
-- The engine's loader (`native/melonx/EmbeddedNativeLibraries.cs`, part of the Core) accepts variant 2. An engine
-  without it (the delivered 628 Core) refuses 2, and the host loads RewindBox's and journals the refusal.
-- `test/melonx_standalone_parity_test.py`: 53 checks pass here (its Swift execution part needs macOS).
+The two menu entries written for the rebuild ("RewindBox (1.4.0)" and its fast walk) were withdrawn the same day,
+before any delivery: the maintainer does not want the player to get lost in core options. The target is one MoltenVK
+for every title, this rebuild, once checked on Hogwarts Legacy and a second game; then the "MoltenVK version" menu
+item and the 1.3.0 build go away (`docs/melonx-optimization-map-2026-11-03.md`). The A/B of the walk goes through a
+developer switch outside the menus or two IPAs.
 
 ## Not done yet
 
-- Packaging: the framework taken from the artifact by its digests, renamed `MeloNXMoltenVKRebuild`, with its Apache-2.0
-  notice and the patch in the app's legal bundle and an identity receipt; its download by the delivery recipe; the
-  631 Core freeze, which carries the loader change.
+- Packaging: the framework taken from the artifact by its digests, in the place of the single MoltenVK, with its
+  Apache-2.0 notice and the patch in the app's legal bundle and an identity receipt; its download by the delivery
+  recipe; the developer switch of the walk.
 
-- No IPA carries the rebuild yet. The third choice of the menu was recommended to the maintainer on 3 Nov and taken as
-  the working assumption after the go-ahead.
+- No IPA carries the rebuild yet.
 - Measurement: none on the iPhone. The change applies to every title that uses argument buffers once the switch is
   set, so a second game is to be checked as well as Hogwarts Legacy.
