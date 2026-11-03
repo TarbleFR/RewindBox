@@ -103,6 +103,7 @@ EMBEDDED_RECIPE_FILES = (
     'docs/evidence/retro-achievements-session-declarations-2026-11-01.json',
     'docs/evidence/rpcs3-retroachievements-declarations-2026-11-02.json',
     'docs/evidence/rewindbox-glacier-declarations-2026-11-02.json',
+    'docs/evidence/pocket-originals-declarations-2026-11-03.json',
     'docs/retroarch-rollback-2026-10-08.md',
 )
 EMBEDDED_RECIPE_FOLDERS = ('docs/licenses/',)

@@ -30,6 +30,7 @@ SOURCE_EVIDENCE = (
     "retro-achievements-session-declarations-2026-11-01.json",
     "rpcs3-retroachievements-declarations-2026-11-02.json",
     "rewindbox-glacier-declarations-2026-11-02.json",
+    "pocket-originals-declarations-2026-11-03.json",
 )
 
 
@@ -167,10 +168,12 @@ def repository_inputs(root: Path) -> dict[str, str]:
         updates = glacier.get("declarations", {})
         if set(updates) != {"pubspec.yaml"}:
             raise SystemExit("RewindBox Glacier declaration review scope changed")
+        # A later review overlay may move pubspec.yaml on (Pocket originals).
+        later_pubspec = (root / "docs/evidence/pocket-originals-declarations-2026-11-03.json").is_file()
         for name, update in updates.items():
             if update.get("before") != declarations.get(name):
                 raise SystemExit(f"Wrong previous declaration identity: {name}")
-            if update.get("after") != sha256(read_input(root, root / name)):
+            if not later_pubspec and update.get("after") != sha256(read_input(root, root / name)):
                 raise SystemExit(f"RewindBox Glacier source/license declaration changed since review: {name}")
             declarations[name] = update["after"]
         bundle = glacier.get("bundled_assets", {})
@@ -178,6 +181,33 @@ def repository_inputs(root: Path) -> dict[str, str]:
         if (index_path != "assets/system_art/rewindbox-glacier/bundle-index.json" or
                 bundle.get("index_sha256") != sha256(read_input(root, root / index_path))):
             raise SystemExit("RewindBox Glacier bundled pack index changed since review")
+    # RewindBox Pocket originals: pubspec.yaml declares the two bundled original
+    # skin packs. No package, dependency, engine or native source changes; the
+    # catalog binds each archive to its size and SHA-256.
+    pocket_path = root / "docs/evidence/pocket-originals-declarations-2026-11-03.json"
+    if pocket_path.is_file():
+        pocket = json.loads(read_input(root, pocket_path))
+        prior_name = "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json"
+        if (pocket.get("schema") != 1 or pocket.get("baseline_inventory") != prior_name or
+                pocket.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or
+                pocket.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                pocket.get("complete_corresponding_source_attested") is not False or
+                pocket.get("dependency_changes", {}).get("external_packages_added") != []):
+            raise SystemExit("Pocket originals review has a different baseline or dependency scope")
+        updates = pocket.get("declarations", {})
+        if set(updates) != {"pubspec.yaml"}:
+            raise SystemExit("Pocket originals declaration review scope changed")
+        for name, update in updates.items():
+            if update.get("before") != declarations.get(name):
+                raise SystemExit(f"Wrong previous declaration identity: {name}")
+            if update.get("after") != sha256(read_input(root, root / name)):
+                raise SystemExit(f"Pocket originals source/license declaration changed since review: {name}")
+            declarations[name] = update["after"]
+        bundle = pocket.get("bundled_assets", {})
+        catalog_path = bundle.get("catalog", "")
+        if (catalog_path != "assets/skins/pocket/catalog.json" or
+                bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path))):
+            raise SystemExit("Pocket originals catalog changed since review")
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:
             raise SystemExit(f"Package source/license declaration changed since review: {name}")
