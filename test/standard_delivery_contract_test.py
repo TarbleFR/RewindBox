@@ -469,9 +469,11 @@ class Workflow(unittest.TestCase):
         text = WORKFLOW.read_text()
         numbers = [int(n) for n in re.findall(r'(?<![\w.\-])(\d{3})(?![\w.\-])', text)]
         self.assertEqual([n for n in numbers if n >= 400], [], 'A build-number literal is in the workflow')
+        # Number literals, not substrings: a build number can occur inside a hash (624 in the MeloNX
+        # upstream tree 82a29e6f593f6244869481e9...).
         for build, manifest in manifests().items():
-            self.assertNotIn(str(build), text)
-            self.assertNotIn(str(manifest['base']['build']), text)
+            self.assertNotIn(int(build), numbers)
+            self.assertNotIn(int(manifest['base']['build']), numbers)
 
     def test_numbers_come_from_preflight_outputs(self):
         value = workflow()
