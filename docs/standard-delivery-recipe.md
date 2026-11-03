@@ -386,3 +386,26 @@ base effective 623 `79ec3b3c…`, empreinte effective `9ad87ae1…` ; aucun conf
   les littéraux de nombre qu'il relève déjà (`2b8cc703`).
 - **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub MCP
   (octets égaux aux digests de l'API). IPA vérifiée hors ligne, clé privée supprimée.
+
+## 16. État de la 625 (3 novembre 2026)
+
+Livrée sur la 624 (run `41591090457`, IPA `c149a6bf…`, 194552486 octets, ~21 min de bout en bout).
+Gel sur `34fb75f0` : base effective 624 `9ad87ae1…`, empreinte effective `7e921879…`, 6891 fichiers
+produit ; contrôle légal réussi ; aucun conflit, aucun commit non classé.
+- **Commits revus (2).** `cba3441b` (Core MeloNX 625) et `6c15ed68` (son épingle vérifiée).
+- **Travail promu.** Les skins GameCube/Wii d'une autre session :
+  - `9bb35531`, différé depuis la 622 ;
+  - `a7e3ef22`, « source seulement » dans la 624 pour cette build.
+- **Promotion partielle (`paths`).** Le podspec du pont Dolphin est laissé hors des deux commits :
+  - `a7e3ef22` le remet aux octets revus, que la base a déjà ;
+  - la base ne l'a donc jamais différé, et le gel refuse un chemin promu non différé (« A promoted path
+    was not deferred by the base delivery »).
+- **Composants.**
+  - MeloNX : remplacé par le Core 625 du run `41589061374` (`dd3fe017…`), qui remplace le Core 623
+    `27f1afa1…`.
+  - RPCS3 : Core 624 `unchangedFromBase`.
+  - Dolphin/ARMSX2, libretro et dépendances MeloNX : republiés de la 624.
+- **Images changées.** App, MeloNXCore, `dolphin_internal_bridge` et Runner. C'est la première
+  compilation, avec le SDK iOS, de l'overlay natif des skins. `rpcs3_internal_bridge` a aussi changé sans changement de ses sources effectives (signalé, non bloquant).
+- **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub
+  MCP (octets égaux aux digests de l'API). IPA vérifiée hors ligne, clé privée supprimée.
