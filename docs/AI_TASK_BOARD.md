@@ -121,6 +121,9 @@ spawning an agent is optional and must replace useful work, not duplicate it.
   (both parameters are exposed by the Agent tool) answered correctly (`docs/AI_TASK_BOARD.md`, CLAUDE.md line 3).
   Observed: type Explore; model self-reported as Haiku 5.5 from its environment, not independently verified;
   effort not observable. `rb-*` stay prepared, not loaded here. Requests can be typed normally.
+  Effort selectors, 22:25 UTC, synced to `15377399`: `Skill rb-effort-high` returned "Unknown skill" (the skills
+  folder arrived after session start; `/reload-skills` is needed). No `${CLAUDE_EFFORT}` expansion observed. Session
+  environment, non-secret: `CLAUDE_EFFORT=high`, `MAX_THINKING_TOKENS=31999`; no project or user setting overrides effort.
   Subagents share the plan quota. Savings are an objective, not a measured claim.
 
 Configuration: four short native definitions under `.claude/agents/` and only
