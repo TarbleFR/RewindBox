@@ -163,3 +163,30 @@ Network at 13:28 UTC: the GitHub API answers (runs, artifact metadata, the 302 t
 (`productionresultssa*.blob.core.windows.net`), the .NET SDK (`builds.dotnet.microsoft.com`, `dotnetcli.azureedge.net`),
 NuGet (`api.nuget.org`, `globalcdn.nuget.org`) and the Ubuntu archive are still refused (proxy 403 to `CONNECT`), and
 PyPI and npm, reached without the proxy, do not answer. The next safe step above is unchanged.
+
+## Core 631 on the real source: gates, review fixes, frozen contract (3 Nov 2026, 20:30-21:05 UTC)
+
+Session 012mUAShv9k6, network open (the refusals above no longer apply in that VM). Inputs: pristine MeloNX `13700519`
+(tree `82a29e6f`), official SDK 10.0.100 (SHA-512 checked), the 614 archive (artifact `13141611354`, `05009abf…`,
+authenticated), a fresh preparation (132 inputs, 176 members), Linux x86_64 cloud VM. Run record and the eleven receipts:
+[`evidence/melonx-631-gates/`](evidence/melonx-631-gates/run.json).
+
+- First pass of the ten planned gates: nine passed; `hogwarts-dma-copies` refused the final source (its composition left
+  out the queued-syncpoint line of `Library.cs`). `fragmented-reads` and `performance-diagnostics` passed with the
+  composition fix of `ec5e3df9`.
+- Review of the 631 DMA region upload: the guest write after an upload is untracked, so a cached buffer holding those
+  bytes would keep stale data. New gate scenario on the unfixed adapter: uploaded, no buffer query. Fixed in `97bfece1`:
+  the upload declines then (`buffer` count in the DMA summary line) and the tracked write reaches the buffer.
+- Freeze on the plan of ten: refused, `counter-report-compaction-final-checks.json` declares `CounterCache.cs` and
+  `DeferredCounterReport.cs`, which the queue changes. The gate also refused the final class (queue hunks undeclared).
+  Declared, it passes with the semantics of every earlier Core (`07ce6ed5…`, 10171 checks, 28 scenarios); it is the
+  eleventh fresh gate (`FRESH_GATES = 11` in `verify_dma_core.py`; the component verifier keeps 6 until the 631 pin).
+- Contract test: the final composition is 132 inputs since `71459be5` (it asserted 131).
+- Frozen in `04727408`: 11 fresh, 23 reused, 61 historical receipts, 30 production changes, contract `7a15f7e5…`;
+  `test/melonx_dma_core_contract_test.py --archive …` 268 checks passed. The queue fixture passes 28/28 on the prepared
+  source with SDK 10.0.100 ([report](evidence/melonx-631-queued-syncpoints/fixture-prepared-source.json)).
+- Upstream: `13700519` is the head of `master`, nothing newer; it contains `f924c98c` (the "UE games" try/catch
+  fallback that 631's binding-sized scratch removes for Hogwarts).
+
+Not done: the Core CI (`[melonx-dma-core]`, Apple ARM64, reruns the gates and compiles NativeAOT), the 631 pin and
+`FRESH_GATES = 11` in `.github/diagnostics/melonx_dma_core_component.py`. Nothing compiled for the iPhone, no device result.

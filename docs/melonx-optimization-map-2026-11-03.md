@@ -91,7 +91,10 @@ disposal never released it; it now leaves once published. (3) The 3D engine's in
 counted apart. Fixed in `ec5e3df9`: 28 of 28, 6530 checks, three reruns
 (`docs/evidence/melonx-631-queued-syncpoints/`). The `fragmented-reads` and `performance-diagnostics` gates now
 compose the queue (they would have refused the final source) and the plan binds its five files and `ThreedClass.cs`.
-Still to run with the network: the gates, the source checks and the fixture (`--source`) on the real preparation.
+On the real 631 preparation with SDK 10.0.100 (20:45 UTC): 41 source checks and the fixture 28/28 pass with `--source`
+once its reconstructed frames follow upstream (`public IncrementSyncpoint`, a texture refresh before an increment);
+the counter-report-compaction fixture, which declares two queue files, is now an eleventh gate
+([record](melonx-629-encoding-2026-11-03.md), contract frozen in `04727408`).
 
 ## Next safe step
 

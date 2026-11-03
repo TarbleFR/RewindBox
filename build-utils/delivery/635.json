@@ -345,6 +345,18 @@
    {
     "commit": "ec5e3df9b3633ac77e627652c113c88d0f93d7fe",
     "note": "fix(melonx): Core 631 queued syncpoints keep the blocking path's guarantees (renderer barrier before a blocking drain, head kept until published, 3D increments drain first); compiled fixture 28/28; gates compose the queue [skip ci]"
+   },
+   {
+    "commit": "c587c7c5716c9bf066d938da0edadaa18ddf2849",
+    "note": "docs(ai): consolidate shared requirements and results in one contract [skip ci] (Codex, maintainer's request). Its two non-recipe paths, .cursor/rules/rewindbox-handoff.mdc and scripts/ai-context.ps1, are agent tooling, not compiled into the IPA."
+   },
+   {
+    "commit": "97bfece1fdc36761169d802886d9f7a60b9e6ff5",
+    "note": "fix(melonx): Core 631 review on the real source: region uploads decline buffers, gates compose the queue, eleventh gate [skip ci]"
+   },
+   {
+    "commit": "0472740860f371a8fa4bcea7abbecc5e950b90ed",
+    "note": "build(melonx): freeze the Core 631 contract on the real preparation (11 fresh gates, 268 contract checks) [skip ci]"
    }
   ],
   "sourceOnly": [],
