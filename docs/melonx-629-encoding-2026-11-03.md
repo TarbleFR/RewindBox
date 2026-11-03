@@ -109,3 +109,57 @@ archive, run the ten gates against them with `--candidate-source` on a fresh pre
 `--receipts` and `--control`, then the two contract tests; then the Core CI (`[melonx-dma-core]`), and with its pin set
 `FRESH_GATES = 10` in `.github/diagnostics/melonx_dma_core_component.py` (kept out of the source commit so that a delivery
 of the pinned 628 Core still verifies).
+
+## After 631: the next limit, and what MoltenVK 1.4.0 does on iOS (3 Nov 2026, 13:30 UTC)
+
+629, slow windows (7 windows below the median game FPS, 472 frames): the render thread is busy 46.4 ms per frame, of which
+`DispatchCompute` 25.6 ms (46 calls), `DrawIndexed` 9.9 ms (998 calls), `CreateSync` 5.8 ms (11 calls), every other command
+under 1 ms. Build 631 targets the descriptor parts of the first two (compute descriptors 30-34 ms per frame in those
+windows; draw descriptors 6.7-17.9 ms with 25 000-50 000 first-chance exceptions per window); how much goes away is for
+the iPhone to say. The other ceilings of the same report: the GPU thread's own work 18.9 ms per frame (slow windows),
+MoltenVK's Metal encoding 13.8 ms per frame over the session and 24.3 ms in its heaviest block (17.9 command buffers per
+frame), the GPU 13.2 ms per frame (26.8 ms in the heaviest window). Once the render thread is relieved, MoltenVK's
+submission thread is the nearest ceiling, and its time is not broken down by the logs.
+
+What MoltenVK 1.4.0 does with Hogwarts' 524 288-element arrays on iOS (source read at tag `v1.4.0`; the iPhone runs the
+"MeloNX 1.4.0 (standalone)" binary, the default variant):
+- `MTLResidencySet` is enabled on macOS only (`MVKDevice.mm:2956`, `#if MVK_XCODE_16 && MVK_MACOS`).
+- Without it, `MVKResourcesCommandEncoderState::encodeMetalArgumentBuffer` (`MVKCommandEncoderState.mm:723`) runs, at each
+  dirty encode of the resources state and for every binding the pipeline uses, a loop over every element of the binding
+  that tests its usage-dirty bit, and calls `encodeResourceUsage` for each dirty element: for compute one
+  `useResource:usage:` per descriptor with no deduplication (`:1341`), for graphics `useResource:usage:stages:` with a
+  per-pass stage map (`:1178`).
+- All the bits are set again when another descriptor set is bound at that index (`bindDescriptorSet`, `:691`), at every
+  new Metal encoder (`endCurrentMetalEncoding` marks the compute resources dirty, `MVKCommandBuffer.mm:1096`; every render
+  pass begun marks the graphics resources dirty, `MVKCommandEncoderState.h:70`), and when MoltenVK runs its own compute
+  work in the command buffer: copies by compute, image clears, `vkCmdFillBuffer` and the occlusion-query accumulation at
+  the end of a render pass with queries (`getMTLComputeEncoder(..., true)`, `MVKCmdTransfer.mm:1044, 1669, 1843`,
+  `MVKCommandEncoderState.mm:1398`).
+
+So each array update (another set: the delivered path takes another set of the manual cache, 631 another of its own idle
+sets, the same count), each new command buffer and each encoder switch can cost a walk of 524 288 descriptors on
+MoltenVK's thread, and every dirty dispatch or draw that uses the array a scan of 524 288 bits. The 17.9 command buffers
+per frame (11 of them from strict `CreateSync` flushes) multiply it. The share of the 13.8-24.3 ms is not measured.
+
+What would remove it. Each means recompiling MoltenVK 1.4.0 or replacing the kept binary
+(`src/MeloNX/MeloNX/Dependencies/libMoltenVK.dylib`, SHA-256 `5735ca4a…`), so none is done without the maintainer's
+agreement, and each build should add a MoltenVK performance tracker around `encodeMetalArgumentBuffer` so that the gain
+is measured on the iPhone:
+1. Residency sets on iOS 18 (Apple6 and later): the loop stops at the first used binding. MoltenVK then also orders work
+   with `MTLFence`s instead of Metal's per-encoder resource tracking (`MVKCommandBuffer.mm:644-692`), a path it only
+   enables on macOS. Largest expected gain, largest risk.
+2. Keep `useResource`, but once per distinct resource and encoder, and iterate the set bits only: the same Metal
+   semantics, a smaller gain (after a set change every element is still resolved).
+No option of `MVKInitialization.cs` reaches this path (heaps, prefill, argument buffers: arrays of this size need
+argument buffers).
+
+C#-side lever considered and not written: syncpoint increments create strict syncs (`HostSyncFlags.StrictSyncpoint`, 11
+flushes per frame in the slow windows), each a new command buffer, hence new MoltenVK encoders and every descriptor set
+bound again by the backend. Non-strict syncs for Hogwarts would cut command buffers, but a guest that polls GPU-written
+memory instead of waiting on a sync would then wait for the next flush. That needs the waits it moves measured on the
+iPhone first, not a change written blind.
+
+Network at 13:28 UTC: the GitHub API answers (runs, artifact metadata, the 302 to an artifact), but the artifact storage
+(`productionresultssa*.blob.core.windows.net`), the .NET SDK (`builds.dotnet.microsoft.com`, `dotnetcli.azureedge.net`),
+NuGet (`api.nuget.org`, `globalcdn.nuget.org`) and the Ubuntu archive are still refused (proxy 403 to `CONNECT`), and
+PyPI and npm, reached without the proxy, do not answer. The next safe step above is unchanged.
