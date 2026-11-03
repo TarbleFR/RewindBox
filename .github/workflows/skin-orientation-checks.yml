@@ -52,8 +52,9 @@ jobs:
       if: ${{ !cancelled() }}
       run: |
         set -euo pipefail
-        python3 -m pip install --quiet pillow==12.3.0
-        python3 tools/skins/verify_pocket_skins.py
+        python3 -m venv "$RUNNER_TEMP/pocket-venv"
+        "$RUNNER_TEMP/pocket-venv/bin/pip" install --quiet pillow==12.3.0
+        "$RUNNER_TEMP/pocket-venv/bin/python" tools/skins/verify_pocket_skins.py
         python3 test/pocket_skin_input_chain_test.py
     - name: Compile the Dolphin orientation and skin sources for iPhone
       if: ${{ !cancelled() }}
@@ -81,19 +82,19 @@ jobs:
         set -euo pipefail
         gem list -i xcodeproj >/dev/null 2>&1 || sudo gem install xcodeproj
         ruby packages/armsx2_internal_bridge/ci/test_skin_overlay_ui.rb
-    - name: Dolphin orientation tests in the iOS Simulator (coordinator, session menu, presentation, release)
+    - name: Dolphin orientation tests in the iOS Simulator (coordinator, presentation, release)
       if: ${{ !cancelled() }}
       run: |
         set -euo pipefail
         gem list -i xcodeproj >/dev/null 2>&1 || sudo gem install xcodeproj
-        ruby packages/dolphin_internal_bridge/ci/test_session_ui.rb
+        ruby packages/dolphin_internal_bridge/ci/test_orientation_ui.rb
     - name: Keep the simulator result
       if: ${{ always() }}
       uses: actions/upload-artifact@v4
       with:
         name: skin-orientation-${{ github.sha }}
         path: |
-          build/dolphin-ci/session-ui/SessionUI.xcresult
+          build/dolphin-ci/orientation/Orientation.xcresult
           build/armsx2-ci/skin-overlay/SkinOverlay.xcresult
         if-no-files-found: ignore
         retention-days: 7

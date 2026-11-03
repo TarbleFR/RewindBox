@@ -166,7 +166,10 @@ static NSString* const kSkinId = @"ps2-pocket";
     for (NSString* e in _events) if ([e hasSuffix:@"+"]) [pressed addObject:@([[e substringWithRange:NSMakeRange(1, e.length - 2)] integerValue])];
     XCTAssertEqualObjects(pressed, [NSSet setWithArray:c.expect]);
     [self end:touch on:overlay];
-    for (NSNumber* b in c.expect) XCTAssertTrue([_events containsObject:[NSString stringWithFormat:@"b%@-", b]]);
+    for (NSNumber* b in c.expect) {
+      NSString* released = [NSString stringWithFormat:@"b%@-", b];
+      XCTAssertTrue([_events containsObject:released], @"%@ released", released);
+    }
   }
   // Menu: opens the session menu once, then nothing stays held.
   [_events removeAllObjects];

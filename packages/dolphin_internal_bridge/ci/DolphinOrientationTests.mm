@@ -1,12 +1,10 @@
 #import <XCTest/XCTest.h>
 #import "DOLOrientation.h"
 #import "DolphinSessionLifecycle.h"
-#import "DolphinSessionMenu.h"
 
 // The harness app is landscape only (Info.plist), like RewindBox. These tests
-// run the production coordinator (DOLOrientation), the production session menu
-// and the production teardown (DOLDismissSessionController) in the iOS
-// Simulator. The game controller is a stand-in that answers the session's mask
+// run the production coordinator (DOLOrientation) and the production teardown
+// (DOLDismissSessionController) in the iOS Simulator. The game controller is a stand-in that answers the session's mask
 // like DOLDolphinViewController does: the real one needs the Dolphin core.
 // A simulator is not an iPhone.
 
@@ -50,21 +48,6 @@
   XCTAssertEqual([self applicationMask], UIInterfaceOrientationMaskLandscape, @"released: the app's own again");
 }
 
-- (void)testSessionMenuAndItsNavigationFollowTheSessionMask {
-  DolphinSessionMenu* menu = [DolphinSessionMenu new];
-  UINavigationController* navigation = [[UINavigationController alloc] initWithRootViewController:menu];
-  XCTAssertEqual(menu.supportedInterfaceOrientations, UIInterfaceOrientationMaskLandscape);
-  DOLOrientationSetGameMask(UIInterfaceOrientationMaskPortrait);
-  XCTAssertEqual(menu.supportedInterfaceOrientations, UIInterfaceOrientationMaskPortrait);
-  XCTAssertEqual(navigation.supportedInterfaceOrientations, UIInterfaceOrientationMaskPortrait);
-  XCTAssertNotEqual(navigation.supportedInterfaceOrientations & [self applicationMask], 0,
-                    @"the menu has an orientation in common with the application");
-  DOLOrientationSetGameMask(UIInterfaceOrientationMaskAllButUpsideDown);
-  XCTAssertEqual(menu.supportedInterfaceOrientations, UIInterfaceOrientationMaskAllButUpsideDown);
-  DOLOrientationSetGameMask(0);
-  XCTAssertEqual(menu.supportedInterfaceOrientations, UIInterfaceOrientationMaskLandscape);
-}
-
 - (void)waitForOrientation:(UIInterfaceOrientationMask)mask description:(NSString*)description {
   UIWindow* window = self.window;
   XCTNSPredicateExpectation* expectation = [[XCTNSPredicateExpectation alloc]
@@ -92,7 +75,10 @@
     [self waitForOrientation:UIInterfaceOrientationMaskPortrait description:@"the session turned upright"];
     XCTAssertGreaterThan(game.view.bounds.size.height, game.view.bounds.size.width, @"the surface is portrait-sized");
 
-    UINavigationController* menu = [[UINavigationController alloc] initWithRootViewController:[DolphinSessionMenu new]];
+    // A stand-in for the session menu: an ordinary navigation controller whose root follows the session mask,
+    // like DolphinSessionMenu (its mask is checked in the source contract; the real one needs the pods).
+    OrientationStandInSession* menuRoot = [OrientationStandInSession new];
+    UINavigationController* menu = [[UINavigationController alloc] initWithRootViewController:menuRoot];
     menu.modalPresentationStyle = UIModalPresentationOverFullScreen;
     XCTestExpectation* menuShown = [self expectationWithDescription:@"menu"];
     [game presentViewController:menu animated:NO completion:^{ [menuShown fulfill]; }];

@@ -104,8 +104,10 @@ menu = read(DOL / 'DolphinSessionMenu.mm')
 require('DOLOrientationGameMask()' in body(menu, '- (UIInterfaceOrientationMask)supportedInterfaceOrientations'),
         'the Dolphin session menu follows the session mask (no landscape-only menu under a portrait app mask)')
 require('return UIInterfaceOrientationMaskLandscape; }' not in menu, 'no unconditional landscape-only menu is left')
-ci = read(ROOT / 'packages/dolphin_internal_bridge/ci/test_session_ui.rb')
-require('DOLOrientation.mm' in ci and 'DolphinOrientationTests.mm' in ci, 'the simulator harness builds and runs the orientation tests')
+ci = read(ROOT / 'packages/dolphin_internal_bridge/ci/test_orientation_ui.rb')
+require('DOLOrientation.mm' in ci and 'DolphinOrientationTests.mm' in ci, 'the Dolphin simulator harness builds and runs the orientation tests')
+ci2 = read(ROOT / 'packages/armsx2_internal_bridge/ci/test_skin_overlay_ui.rb')
+require('ARMSX2SkinOverlay.mm' in ci2 and 'ARMSX2SkinOverlayTests.mm' in ci2, 'the ARMSX2 simulator harness builds and runs the overlay tests')
 for path in DOL.iterdir():
     if path.suffix in ('.m', '.mm', '.h'):
         require(not re.search(r'#(import|include)[^\n]*Libretro', read(path)), path.name + ' must not import libretro files')
