@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 623,
   "status": "draft",
-  "note": "Private IPA 623 on the delivered and verified 622. MeloNX Core of run 41567689813 (source 5c20e0cb), replacing the Core 621: for Hogwarts Legacy, a DMA read-back (a block-linear source region copied into linear memory, about one per frame, which made the GPU thread wait for the render thread and read back the whole frame) is copied on the GPU into a linear texture over the destination and flushed at the first CPU access (whole contiguous rows on 4 bytes, no buffer of the cache over the destination; any other copy keeps the synchronous path). For every title, journals that name the next limit from one device run: render-thread time per command type, the Vulkan draw preparation, render passes, submissions, buffer fence waits and presentation (RenderStageTimer), and MoltenVK's own GPU-execution and Metal-encoding statistics. RPCS3 Core 621 kept unchanged. The GameCube and Wii controller skins and the game-box spines of another session, source-only in 622 for this build, are promoted.",
+  "note": "Private IPA 623 on the delivered and verified 622. MeloNX Core of run 41567689813 (source 5c20e0cb), replacing the Core 621: for Hogwarts Legacy, a DMA read-back (a block-linear source region copied into linear memory, about one per frame, which made the GPU thread wait for the render thread and read back the whole frame) is copied on the GPU into a linear texture over the destination and flushed at the first CPU access (whole contiguous rows on 4 bytes, no buffer of the cache over the destination; any other copy keeps the synchronous path). For every title, journals that name the next limit from one device run: render-thread time per command type, the Vulkan draw preparation, render passes, submissions, buffer fence waits and presentation (RenderStageTimer), and MoltenVK's own GPU-execution and Metal-encoding statistics. RPCS3 Core 621 kept unchanged. The game-box spines of another session, source-only in 622 for this build, are promoted. Its GameCube and Wii controller skins (9bb35531) stay deferred, inherited from the base delivery, for 624: their podspec change needs its own source/license declaration review (the legal check refuses the effective tree without it), and their native overlay has not been compiled with the iOS SDK yet.",
   "base": {
     "build": 622,
     "source": "a2a5efecf62d6bdf34e0799a1ec061c2fa216dfe",
@@ -270,10 +270,6 @@
     "sourceOnly": [],
     "promotedCommits": [
       {
-        "commit": "9bb35531fd0dfbd7153960dc75aaf849cd32f727",
-        "note": "Another session, source-only in 622 for this build: feat(dolphin): GameCube and Wii controller skins, same architecture as the libretro skins [skip ci]"
-      },
-      {
         "commit": "1745b3e6bc391d8ee17bdcf1189de9a7aec68eb5",
         "note": "Another session, source-only in 622 for this build: feat(game-box): spines and sides like the original covers [skip ci]"
       }
@@ -282,7 +278,6 @@
   "images": {
     "mustChange": [
       "Frameworks/App.framework/App",
-      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
       "Runner"
     ],
     "added": [],
@@ -349,9 +344,7 @@
           "test/screenscraper_manual_media_test.dart",
           "test/retro_achievements_native_client_test.dart",
           "test/game_manual_french_sources_test.dart",
-          "test/game_details_tab_persistence_test.dart",
-          "test/dolphin_skins_test.dart",
-          "test/libretro_consoles_tab_test.dart"
+          "test/game_details_tab_persistence_test.dart"
         ],
         "analyze": [
           "lib/widgets/glacier",
@@ -378,13 +371,7 @@
           "lib/screens/scraper_screen",
           "lib/services/game_manual_french_sources.dart",
           "lib/services/game_manual_service.dart",
-          "lib/widgets/game_box",
-          "lib/services/dolphin_skins.dart",
-          "lib/services/libretro_skin_service.dart",
-          "lib/services/libretro_skin_catalogs.dart",
-          "lib/services/libretro_skin_catalog_service.dart",
-          "lib/screens/libretro",
-          "lib/widgets/dolphin_internal_playlist_actions.dart"
+          "lib/widgets/game_box"
         ],
         "commands": [
           [
