@@ -303,7 +303,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
         menu.addAction(UIAlertAction(title:MeloNXText("Memory status"),style:.default) { [weak self] _ in self?.showMemoryStatus() })
         if let runtime, let frameworks = Bundle.main.privateFrameworksURL,
            MeloNXMoltenVKChoice.available(0,frameworks:frameworks), MeloNXMoltenVKChoice.available(1,frameworks:frameworks) {
-            menu.addAction(UIAlertAction(title:MeloNXText("MoltenVK version") + ": " + MeloNXText(Self.moltenVkNames[Int(runtime.moltenVk)]),style:.default) { [weak self] _ in self?.showMoltenVk() })
+            menu.addAction(UIAlertAction(title:MeloNXText("MoltenVK version") + ": " + MeloNXText(Self.moltenVkName(runtime.moltenVk, fast:MeloNXMoltenVKChoice.fastWalkApplied)),style:.default) { [weak self] _ in self?.showMoltenVk() })
         }
         menu.addAction(UIAlertAction(title:MeloNXText("Emulation priority") + ": " + MeloNXText(Self.priorityNames[Int(MeloNXEmulationPriority.applied ?? 0)]),style:.default) { [weak self] _ in self?.showPriority() })
         if ready {
@@ -369,18 +369,30 @@ final class MeloNXMetalSessionViewController: UIViewController {
         alert.addAction(UIAlertAction(title:MeloNXText("Done"),style:.default) { [weak self] _ in self?.setPause("menu",enabled:false) })
         present(alert,animated:true)
     }
-    private static let moltenVkNames = ["RewindBox (1.3.0)","MeloNX app (1.4.0)"] // by variant
+    private static let moltenVkNames = ["RewindBox (1.3.0)","MeloNX app (1.4.0)","RewindBox (1.4.0)"] // by variant
+    private static let moltenVkFastName = "RewindBox (1.4.0, fast walk)" // variant 2 with the fast walk
+    private static func moltenVkName(_ variant: Int32, fast: Bool) -> String {
+        variant == 2 && fast ? moltenVkFastName : moltenVkNames[Int(variant)]
+    }
     // The loaded MoltenVK is fixed for the process; a choice applies at the next start.
     private func showMoltenVk() {
         guard !closing, let runtime else { setPause("menu",enabled:false); return }
-        let preferred = MeloNXMoltenVKChoice.preferred
-        let menu = UIAlertController(title:MeloNXText("MoltenVK version"),message:MeloNXText("In use") + ": " + MeloNXText(Self.moltenVkNames[Int(runtime.moltenVk)]),preferredStyle:.actionSheet)
-        for variant in [Int32(1),0] {
-            menu.addAction(UIAlertAction(title:(variant == preferred ? "✓ " : "") + MeloNXText(Self.moltenVkNames[Int(variant)]),style:.default) { [weak self] _ in
+        let preferred = MeloNXMoltenVKChoice.preferred, preferredFast = MeloNXMoltenVKChoice.fastWalk
+        let inUse = Self.moltenVkName(runtime.moltenVk, fast:MeloNXMoltenVKChoice.fastWalkApplied)
+        let menu = UIAlertController(title:MeloNXText("MoltenVK version"),message:MeloNXText("In use") + ": " + MeloNXText(inUse),preferredStyle:.actionSheet)
+        var choices: [(Int32, Bool)] = [(1, false), (0, false)]
+        if let frameworks = Bundle.main.privateFrameworksURL, MeloNXMoltenVKChoice.available(2,frameworks:frameworks) {
+            choices += [(2, false), (2, true)]
+        }
+        for (variant, fast) in choices {
+            let chosen = variant == preferred && (variant != 2 || fast == preferredFast)
+            let name = Self.moltenVkName(variant, fast:fast)
+            menu.addAction(UIAlertAction(title:(chosen ? "✓ " : "") + MeloNXText(name),style:.default) { [weak self] _ in
                 guard let self else { return }
                 MeloNXMoltenVKChoice.preferred = variant
-                MeloNXLaunchJournal.record("frameworks","moltenVkPreference",code:Int64(variant),detail:"Next start: " + Self.moltenVkNames[Int(variant)])
-                guard variant != runtime.moltenVk else { self.setPause("menu",enabled:false); return }
+                if variant == 2 { MeloNXMoltenVKChoice.fastWalk = fast }
+                MeloNXLaunchJournal.record("frameworks","moltenVkPreference",code:Int64(variant),detail:"Next start: " + name)
+                guard variant != runtime.moltenVk || (variant == 2 && fast != MeloNXMoltenVKChoice.fastWalkApplied) else { self.setPause("menu",enabled:false); return }
                 let alert = UIAlertController(title:MeloNXText("Restart RewindBox to use this MoltenVK."),message:nil,preferredStyle:.alert)
                 alert.addAction(UIAlertAction(title:MeloNXText("Done"),style:.default) { [weak self] _ in self?.setPause("menu",enabled:false) })
                 self.present(alert,animated:true)

@@ -62,10 +62,36 @@ check; the maintainer then gave the explicit go-ahead for the workflow and its r
 `.github/workflows/melonx-moltenvk-rebuild.yml` (checked: on push to `Claude`, only its `moltenvk` job starts; the
 other workflows its paths trigger skip all their jobs). Only the fetch and patch steps of the script ran locally.
 
+## Result of the build (run `41650228282`, 3 Nov 2026, 14:05-14:09 UTC)
+
+- Success in 4 min 12 s, of which 3 min of build. Artifact `13236349230` (`MeloNX-MoltenVK-rebuild-0db88df2…`,
+  12 584 491 bytes, `sha256:dad08fb8a315f85f151d84633758c8c117b513c3c62e15f9bd46c0c11a8acd47`).
+- `ios/MoltenVK.framework/MoltenVK`: SHA-256 `d9bb6cb0fbaac6326c4d7204df31918fbcf79bfd18c87bd39e07b93edf4782fe`,
+  5 181 024 bytes, arm64, iOS minimum 13.0, SDK 26.5 (Xcode 26.6, 17F113), install name
+  `@rpath/MoltenVK.framework/MoltenVK`.
+- The three patch markers are in the binary, the eight entry points MeloNX resolves are exported, and so are all 428
+  Vulkan exports of the kept binary; two are added (`vkGetMemoryMetalHandleEXT`, `vkGetMemoryMetalHandlePropertiesEXT`).
+- Read from the job's annotation: the artifact itself was not downloaded (its storage is unreachable from this
+  session), so nothing beyond that summary is checked here.
+
+## Host and engine (the third choice, source only)
+
+- The in-game "MoltenVK version" menu offers "RewindBox (1.4.0)" (original walk) and "RewindBox (1.4.0, fast walk)"
+  only when the app carries `MeloNXMoltenVKRebuild.framework`; both labels in the 12 languages.
+- The plugin sets `REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE=1` before the engine loads for the fast walk and unsets it
+  otherwise. A failure to load the private frameworks with the standalone or the rebuilt MoltenVK brings the next start
+  back to RewindBox's.
+- The engine's loader (`native/melonx/EmbeddedNativeLibraries.cs`, part of the Core) accepts variant 2. An engine
+  without it (the delivered 628 Core) refuses 2, and the host loads RewindBox's and journals the refusal.
+- `test/melonx_standalone_parity_test.py`: 53 checks pass here (its Swift execution part needs macOS).
+
 ## Not done yet
 
-- Packaging: the rebuild is in no IPA. Working assumption, recommended to the maintainer on 3 Nov: a third choice of
-  the "MoltenVK version" menu next to the two current ones (it needs the Core's loader, so it ships with a new
-  Core); the host must set `REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE` before the engine loads to select the fast walk.
+- Packaging: the framework taken from the artifact by its digests, renamed `MeloNXMoltenVKRebuild`, with its Apache-2.0
+  notice and the patch in the app's legal bundle and an identity receipt; its download by the delivery recipe; the
+  631 Core freeze, which carries the loader change.
+
+- No IPA carries the rebuild yet. The third choice of the menu was recommended to the maintainer on 3 Nov and taken as
+  the working assumption after the go-ahead.
 - Measurement: none on the iPhone. The change applies to every title that uses argument buffers once the switch is
   set, so a second game is to be checked as well as Hogwarts Legacy.
