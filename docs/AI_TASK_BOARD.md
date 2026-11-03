@@ -1,43 +1,201 @@
-# RewindBox iOS — AI task board
+# RewindBox — shared requirements and results
 
-**Owner of substantive coding and integration: Claude Code.** ChatGPT/Codex coordinates/reviews; Cursor helps with low-risk or non-overlapping tasks only. For roles and billing protections, see [AI_ORCHESTRATION.md](AI_ORCHESTRATION.md). The authoritative repository rules remain in `AGENTS.md`.
+The single working contract for Claude Code, Codex and Cursor. Update this file
+in place. Read the shared rules and only the task and evidence rows relevant to
+the current request. Component reports retain detailed evidence, not parallel
+task queues. Current working observations were reconciled on 3 November 2026
+with Claude Code session `012mUAShv9k6pSCnpW7oAF63` and GitHub `de69400c`.
+A later working diff can be ahead of that commit.
 
-This board is *not* an automatic queue. No user feature task has been assigned by creating this file. Only add tasks when asked, and distinguish proposals from approved work.
+## Shared working rules
 
-## Active tasks
+- The maintainer's current request and existing authorization determine scope.
+  Historical build permissions or restrictions apply to their original task.
+  Reconfirm only when a material new action requires permission.
+- Claude Code owns substantive implementation and final integration. Codex
+  coordinates and independently reviews, or makes focused changes delegated by
+  the maintainer. Cursor assists with authorized, non-overlapping tasks.
+- Work on `Claude`. Preserve `main`, `backup`, baseline refs, tags and releases
+  unless specifically authorized. Inspect actual workflow triggers.
+- Before editing, inspect branch, HEAD and working diff. One writer per checkout
+  or explicitly owned section. Preserve concurrent work and local-only changes.
+  Do not force-push, reset, clean or silently resolve another agent's changes.
+- Each agent must update this shared contract after a meaningful result and
+  before ending, compacting or handing off. Update permanent instructions when
+  their meaning changes. Update only owned task rows and affected references.
+  Record the date, input identity, evidence, result and next action. A resumed
+  session verifies what changed instead of restarting the investigation.
+- During handoff, record owner, dirty paths, local and remote commits, test
+  results, unresolved failures and next action here. The next writer verifies
+  Git. A quota limit does not transfer ownership or chat history automatically.
+- Use one coding agent for routine work. Independent reviews must have separate
+  scope. Do not launch paid external agents, poll quotas or switch subscriptions
+  automatically. Claude, ChatGPT and Cursor have separate included allowances.
+  Use their official subscription sign-ins. Keep API credits and auto-top-up
+  off unless expressly authorized. Cursor third-party models can incur charges.
+- Push, CI/IPA builds, tags and releases follow the task's authorization.
+  Claude Code has standing authorization to fast-forward its own commits to
+  `origin/Claude`, with `[skip ci]` unless CI was requested. If the remote
+  advanced, rebase only its own unpushed commits and inspect conflicts. This
+  standing push permission applies to Claude Code only. A permission refusal
+  must be reported, never retried through a route intended to defeat it.
+- This contract is a record of authorized work, not an automatic task scheduler.
+  Changes to the contract do not grant build, payment or publication permission.
 
-| ID | Task | Owner | Status | Exact scope | Latest verified HEAD | Next action |
-| --- | --- | --- | --- | --- | --- | --- |
-| — | No feature task delegated during orchestrator setup | — | Not started | — | Check actual Git HEAD | Await user's next development request |
-| TASK-586 | Private IPA 586: delivered 585 (RPCS3 Core 585) + MeloNX engine `ac16f1c5` + Cheats & Enhancements page and catalogues (maintainer: "tout dedans", 28 Oct 2026) | Claude Code (session 01K9YJtz) | In progress | Recipe `melonxalloc586_*` on top of the `rpcs3cell585_*` recipe; engine files of `6314127f`/`d8cd5f68`/`ac16f1c5`; enhancements files at `c9b42115`. Build number 586 reserved; other agents please do not reuse it. | `2b08899d` | Dispatch after the 585 delivery succeeds |
-| TASK-587 | RPCS3 Core 587: MoltenVK asynchronous submits made safe (encode barrier before each acquisition, MetalFX ordering, boot canary), Automatic for God of War III; profile: God of War III async Automatic, Black Ops II relaxed SPU reservations. Shipped by TASK-586 (maintainer: no separate 587 IPA) | Claude Code (session 01BcZDeV) | Core done | Core run 40718679248 green (a8a7ce10, Core c638d4ce…); profile 147af30e; binding module a695ab43; Mac evidence 7c3c48d2. Build number 587 not used for an IPA | `7c3c48d2` | TASK-586 recipe swaps Core 585 for Core 587 |
-| TASK-589 | RPCS3 Core 589: Assassin's Creed (BLES00158, BLUS30089) joins texture validation per FIFO batch (559) and scoped revalidation (573); profile: Assassin's Creed relaxed SPU reservations. From the build 585 logs of 28 Oct 2026 | Claude Code (session 01BcZDeV) | Core done | Record `cell589` (three iOS files), `test/rpcs3_cell589_test.py`, Core recipe `rpcs3cell589_core.py`; profile in `lib/services/rpcs3_game_profile_service.dart`. Build number 589 reserved for this Core; no IPA yet (maintainer: no IPA for a lever alone). Core run 40778765122 green (Core 49fed8c0…), binding module 700db78 | `700db785` | Swap Core 589 into the next delivery from the 586 baseline |
-| TASK-628-RPCS3 | Put RPCS3 Core 627 into private IPA 628, next to MeloNX Core 628 (maintainer, 3 Nov 2026, 10:52 Paris: "fais rentrer le core dans l'ipa 628") | Claude Code session 01JA5QgK (MeloNX/Hogwarts), integration owner | Done: shipped in private IPA 629 instead (the maintainer chose 629 with both Cores; 628 was not delivered). Both Core 627 artifacts verified offline with rpcs3_core_component.pin_errors and bundle; pinned in `021a15e4`; delivered and recorded (run `41622115556`, IPA `952b2641…`) | Core run `41610162888` attempt 1, source `6891f9a055eff7ee81a491da4aafdb68f1f63ffc`: Core job `125829758140`, artifact `13219702266`, 29336809 bytes, `sha256:3f9459517cd104819d53d25088e22c6009a8e0090457dc7c005423da28a4b912`; Apple host tests job `125829758604`, artifact `13219121710`, 39209 bytes, `sha256:d76cd56132bce75bec9a94fc8c84f7d29b5a009ee2b1cfe821d85dd9841abd27`. Both jobs green. Host sources changed too (`packages/rpcs3_internal_bridge/ios/Classes/`: test page rows). No device result, no FPS claim ([record](rpcs3-core627-2026-11-03.md)) | `021a15e4`, `79d866ef` | None for the pin. The first 629 attempt failed at the RPCS3 install check (canary file renamed by Core 627); recipe fix `79d866ef`. Next: the iPhone canary run of Core 627 (900 frames or a clean stop, OPT587 confirmed=1) |
+## Diagnose, correct and verify
 
-| TASK-631-MELONX | Private IPA 631: Hogwarts Legacy at 1x, draw encoding CPU time 30-40 % lower at equal rendering, from the 629 logs (maintainer, 3 Nov 2026). Build number 631 reserved for this MeloNX Core and its IPA; other agents please do not reuse it (630 is the RPCS3 Core) | Claude Code session 012mUAShcohnGpWDhRJYNT6Q | In progress: sources, tests and plan written (`EncodingPolicy`: template scratch sized by binding, texture arrays written by changed range; four gates rerun on the final source); not frozen, no Core CI, no IPA (.NET SDK, NuGet and artifact storage still refused at 13:28 UTC). Next limit after 631 analysed in `docs/melonx-629-encoding-2026-11-03.md`: MoltenVK 1.4.0 walks the 524 288-element arrays per encoder on iOS. Maintainer's agreement (3 Nov, 14:40): MoltenVK 1.4.0 rebuilt from Khronos source with the RewindBox argument buffer usage patch (`docs/melonx-moltenvk-rebuild-2026-11-03.md`, built by run `41650228282`, binary `d9bb6cb0…`, all 428 exports of the kept binary; 15:23: the latest, Khronos v1.4.2, rebuilt unmodified (residency sets on iOS 18 upstream) as the one MoltenVK of every title; built by run `41653781749`, binary `41cb207d…`, pinned in `moltenvk-rebuild-pin.json` (artifact kept until 3 Dec 2026); the MoltenVK menu removed; packager takes the pinned rebuild); not delivered, not measured. Optimization map from the 629 logs: `docs/melonx-optimization-map-2026-11-03.md`; maintainer's go-ahead (19:38): occlusion syncpoint increments queued behind their reports (`adapt_queued_syncpoints.py`, in the 631 plan); 3 Nov 20:15 UTC, session 012mUAShv9k6: compiled fixture of the queue (SDK 10.0.114, adapter text) found three broken guarantees, fixed in `ec5e3df9` (28/28 scenarios); the fragmented-reads and performance-diagnostics gates now compose the queue; not frozen | `build-utils/melonx/adapt_host_qos_pipeline_budget.py`, `adapt_hogwarts_dma_copies.py`, `dma-core-plan.json`, `verify_dma_core.py`, the DMA, scalar-texture, fallback-scratch, single-resource, bounded-snapshot tests, `test/melonx_array_descriptor_ranges*`, `tools/melonx/frame_report.py` ([record](melonx-629-encoding-2026-11-03.md)) | the commit that adds this row | Blocked here: no NuGet, .NET SDK or Actions artifact access in this session. With access: local gate run, freeze, Core CI, pin (with `FRESH_GATES = 10` in the component verifier), delivery 631 |
-| TASK-630-RPCS3 | Put RPCS3 Core 630 into the next private IPA, with the Core of that IPA (maintainer, 3 Nov 2026, 15:17 Paris: "fini ce que tu n'a pas fais", answering whether to list it for the next IPA) | Open to the session that builds the next IPA; the session that compiled it (012mUASmdXinoGfkB1TXxoNi) cannot download artifacts, the blob host is refused there | Compiled, not pinned, no iPhone run | Core run `41646604720` attempt 1, source `e1cd962128c1e37d2205c21be829d680a21d7861`: Core job `125953475878`, artifact `13236019436`, 29342176 bytes, `sha256:3288efa500e5c4681f398b6d57c7a4f45b8317105f08ebf6e0277d3a5269d16c`; Apple host tests job `125953476180`, artifact `13236226069`, 39788 bytes, `sha256:f64563f93f760826e04790f8b704f60cdcb317bcc27a894a8ca52427a09752e2`. Both jobs green, artifacts kept until 3 Dec 2026. Host sources changed too (`packages/rpcs3_internal_bridge/ios/Classes/`: one test page row, the allow-list, 12 locales). Canary file name unchanged. No device result, no FPS claim ([record](rpcs3-core630-2026-11-03.md)) | `aac3b755` | Core 634 sources now sit on top in the tree, not built: a Core 630 pin needs the draft to restore the Core 630 bytes of its inputs (effective tree, as IPA 621 did), or take Core 634 instead once compiled (see TASK-634-RPCS3). Verify both artifacts offline (`rpcs3_core_component.pin_errors` and bundle), pin, deliver. Then the iPhone canary run, with "Lectures ZCULL asynchrones" off as the fallback |
-| TASK-634-RPCS3 | RPCS3 Core 634: boots and memory from the Build 629 logs (maintainer, 3 Nov 2026, 15:17 Paris). Build number 634 reserved for this Core | Claude Code session 012mUASmdXinoGfkB1TXxoNi; artifacts cannot be downloaded there (storage host refused, 403) | Compiled, not pinned, no iPhone run | Core run `41696834507` attempt 1, source `792d72c916d2983cab01cd17fb70a0510424270f`: Core job `126129479161`, artifact `13261039942`, 29324314 bytes, `sha256:3c82cd8d1e5653acace0c49c77c9aeb21c0f05e14789c9e5d19345f52000db65`; Apple host tests job `126129479275`, artifact `13261452573`, 40957 bytes, `sha256:c13cc47ee9fbc765037b72dcd0b9cbdade135aac31bfc022afcd453b600e0156`. Both jobs green, artifacts kept until 3 Dec 2026. Contains Core 630: SPIR-V pack, parallel PPU object load, object bytes and GDB listener copies released, ARMv8 crypto, SPU prefetch for Assassin's Creed, each with its setting. Host sources changed too (`packages/rpcs3_internal_bridge/ios/Classes/`: five test page rows, the allow-list, 12 locales). No device result, no FPS claim ([record](rpcs3-core634-2026-11-03.md)) | `792d72c9` | Verify both artifacts offline (`rpcs3_core_component.pin_errors` and bundle), pin, deliver in IPA 635 (TASK-635-IPA). Then the iPhone run, with the five options of the test page as fallbacks |
-| TASK-635-IPA | Private IPA 635 (maintainer, 3 Nov 2026, 19:57 Paris: the IPA with the improvements, MeloNX included): RPCS3 Core 634, MeloNX Core 631, rebuilt MoltenVK v1.4.2, Pocket skins, on the delivered 629. Build number 635 reserved for this IPA; Core 631 keeps its number and goes in it | Orchestrated by Claude Code session 012mUASmdXinoGfkB1TXxoNi | Blocked here: Actions artifact storage and NuGet refused (403, 3 Nov 19:00 UTC), no .NET SDK. 19:47 UTC, session 012mUAShv9k6: NuGet API reachable; artifact storage, .NET SDK hosts and starforgejo.dev (MeloNX upstream) still refused, Ubuntu SDK 10.0.114 only; dry run on `ec5e3df9`: only the RPCS3 pin left (plan 4 ter). Draft manifest dry-run: no conflict, no unclassified commit, legal check passed, only the RPCS3 pin left | `build-utils/delivery/635.json`, `docs/ipa-635-plan-2026-11-03.md` ([plan](ipa-635-plan-2026-11-03.md)). Nothing delivered, nothing measured | the commit that adds this row | A session with that access follows the plan: MeloNX gates and contract, Core CI, both pins, recipient key, freeze, trigger, verify, record. No MeloNX commit after the contract is frozen |
+1. Read the active task, then its direct source and evidence references. Use
+   bounded file/symbol searches and batch independent reads. Avoid reading the
+   whole history, loading long journals or recreating an existing report.
+2. Reopen a conclusion only for a relevant changed input, contradictory
+   observation or untested path. A new session alone is not new evidence.
+   Preserve rejected hypotheses and inconclusive results with their conditions.
+3. Give each diagnostic command one question and resulting decision. After two
+   equivalent inconclusive attempts, change the method or name the missing
+   input. A blocked download stops its dependent step, not independent work.
+4. Move from an established cause to the smallest supported correction. Test
+   the affected behavior and required contracts. Reuse success only with the
+   same relevant code, transitive dependencies, tools, configuration and inputs.
+   Label evidence fresh, reused or not run. A change can invalidate earlier tests.
+5. Record a performance hypothesis against its measured bottleneck and
+   comparison conditions. CPU encoding, GPU execution, queue wait, launch time
+   and FPS measure different things. Host tests or compilation do not establish
+   an iPhone gain.
+6. Keep raw evidence in the existing component/evidence location. Summarize its
+   decisive outcome here with a link. Preserve failures and input identities.
+   Keep secrets, recipient keys and private player logs out of instruction files.
+7. When compacting, retain the active request, permissions, branch/HEAD, owned
+   dirty paths, input identities, findings, failed attempts, patch/test state,
+   blocker and next action. Return concise outcomes to the user in French.
 
-## Task entry template
+## Product and delivery requirements
 
-### TASK-XXX — concise feature/bug title
+- Use RewindBox in new product text. Preserve upstream NeoStation credits,
+  licenses, bundle IDs, storage paths, preferences, method channels and ABI.
+  Follow [rebranding](REBRANDING.md) and the relevant [component rules](PROJECT_RULES.md).
+- Retired components are Mario Kart Pad/KartPad, Dusklight, the Ports playlist
+  and MeloNX's external StikDebug/Shortcut launch fallback. Preserve player
+  files and historical evidence while keeping their runtime code retired.
+- Preserve delivered library behavior and reviewed exceptions. Never erase
+  games, saves, firmware, keys, caches, mods or pairing to hide a defect.
+  Preserve backups and approved replacement rules. Avoid speculative migrations,
+  duplicate hiding or parallel libraries.
+- Keep source corrections canonical and reviewable. Preserve generation and
+  ownership checks, cancellation, late callbacks, real errors and safe teardown.
+  Verify first launch, relaunch, recovery and cross-engine transitions when affected.
+  Keep changes scoped to the requested engines, helpers and emulation settings.
+- Preserve all 12 locales for changed labels, help, errors and accessibility
+  strings. Use en, es, ru, zh, zh_Hant, pt, fr, de, it, id, ja and ko. Verify
+  keys, placeholders and Traditional Chinese selection. Raw diagnostics remain
+  separate. English fallback does not replace a missing translation. GitHub release
+  notes are English unless the maintainer asks otherwise.
+- Use existing app journals and executable reproductions. Never request .ips,
+  Jetsam or watchdog reports or block work on them. Separate builds, runs,
+  cold/warm launches, duplicated logs and game modes.
+- Every private IPA uses the [standard delivery recipe](standard-delivery-recipe.md)
+  from the last verified delivered IPA plus reviewed changes. Declare the delta
+  in its manifest. Rebuild changed components and retain authenticated unchanged
+  identities. Rerun affected test groups and always rerun the delivery contract.
+  Do not create per-build recipe copies. Keep source, run, artifact, size and hash
+  bindings, Release, ABI, legal, signing and payload preservation checks.
+- A failed delivery retries only the changed recipe while retaining valid test
+  evidence. Compute shared contracts with `build-utils/delivery_contract_memo.py`.
+  Preserve modes and invalidate changed inputs. Report observed bottlenecks and
+  durations against the under-40-minute end-to-end target.
+- Follow [Core swap rules](core-swap-delivery.md). A changed host/application
+  source requires the full application build. Windows checks do not compile
+  an iPhone IPA. Use authorized Xcode/macOS CI for that step.
+- Verify the actual downloaded IPA before giving its usable private link.
+  Encrypted transport is not the deliverable. Keep recipient keys out of Git
+  and delete private keys after verified delivery. SideStore still supplies
+  Apple signing/provisioning. Separate source, tested, compiled, delivered and
+  observed-on-iPhone states. Do not claim unmeasured FPS gains.
 
-- **User approval and objective:** Exact requested outcome; what is not authorized.
-- **Owner:** Claude Code (main coding) / ChatGPT (research or review) / Cursor Agent (safe auxiliary task).
-- **Complexity / quota routing:** No agent / Lightweight / Claude required; why.
-- **Files and ownership:** Concrete paths; no concurrent editors of same files.
-- **Starting point:** Verified branch `Claude` and exact HEAD, with local/uncommitted status.
-- **Dependencies:** Prior task, permissions or assets.
-- **Definition of done:** Observable behavior and acceptance checks.
-- **Tests:** What was run and what remains; don't rerun unaffected suites.
-- **Progress:** Proposed / Approved / In progress / Blocked / Review / Done.
-- **Handoff:** Link to `docs/AI_HANDOFF.md`, changed paths, commit SHA if actually committed, next safe step.
-- **Build/release:** Explicit user authorization required; never automatic.
+## Active requirements
 
-## Routing examples (illustrative, not assigned tasks)
+| Task and owner | Required outcome and acceptance | Verified state and next action |
+| --- | --- | --- |
+| TASK-631-MELONX — Claude Code, session `012mUAShv9k6pSCnpW7oAF63` | Review and optimize existing MeloNX work, fix demonstrable omissions and regressions. Source `13700519`, tree `82a29e6f`, SDK 10.0.100. Validate the real prepared source, affected gates and artifact identity. The original 30–40% encoding-time reduction target is a target, not a measured result. | Local review in progress, ahead of GitHub. Queue fixture passes 28/28 scenarios and 6530 checks in real-source and adapter modes with exact SDK. Nine of ten gates passed on that preparation, hogwarts-dma-copies failed. Latest stable observation is a region-upload DMA overlapping-buffer tracking gap under investigation. Next, Claude reproduces and corrects that gap, then records the final evidence/commit and invalidated gates. Core 631 remains reserved for IPA 635. |
+| TASK-634-RPCS3 — Claude Code integration | Integrate the verified Core 634 with its host changes and preserve source/artifact bindings. Includes Core 630. | Core and Apple-host jobs of run `41696834507` passed on `792d72c9`. Apple-host artifact `13261452573` downloaded and size/hash verified in the active VM. Core artifact `13261039942` still needs its own verification/pin. No iPhone run. Next, finish the pin checks when MeloNX source is ready. |
+| TASK-635-IPA — Claude Code integration | Previously requested private 635 from delivered 629 with reviewed MeloNX 631, RPCS3 634, MoltenVK v1.4.2 and Pocket skins. Preserve the [manifest](../build-utils/delivery/635.json) and [plan](ipa-635-plan-2026-11-03.md). | Preparation, not delivery. The active request prioritizes MeloNX correction. Former SDK/upstream/artifact network refusals are resolved in the active VM. Contracts, new Core production, pins, freeze and actual IPA verification remain dependent work. Next, reconcile the plan with the final source and existing build authorization after the current correction. |
+| Shared contract — Codex owns this consolidation, then each agent owns its updates | One shared requirements/results file, automatic update obligation for all agents, no duplicated coordination documents. | Consolidation in this change. Next, Claude reconciles only its task/evidence rows against its local corrections at a stable checkpoint. |
 
-- Examine a new HD texture source and attribution: **ChatGPT research** → **Claude Code implementation**.
-- Locate where a Flutter label is translated: **Cursor lightweight research** → **Claude Code or narrowly authorized Cursor change**.
-- Investigate a reproducible RPCS3 crash: **ChatGPT diagnosis from internal logs** → **Claude Code native fix** → **Codex independent review**.
-- Release build: **Claude owns source readiness**, separate user authorization for GitHub Actions; no release unless requested.
+Detailed producer identities and hashes remain in the
+[Core 634 record](rpcs3-core634-2026-11-03.md),
+[MeloNX encoding record](melonx-629-encoding-2026-11-03.md) and pins.
+No new Core or IPA is implied by a local test result.
+
+## Findings to carry forward
+
+| Finding and scope | Result and evidence | Reopen only when |
+| --- | --- | --- |
+| Network prerequisites in the active VM | Resolved after environment access became Full. Official SDK 10.0.100 downloaded and SHA-512 verified, MeloNX `13700519` fetched, LibHac source `23e402eb` exists, archive 614 downloaded/authenticated and required NuGet versions reached. The Ryulynx ryujinx.libhac feed returns 404 but LibHac is built from source. Observed in the session above, awaiting Claude's final file-backed receipt. | A required request actually fails, the environment changes or the source/package requirement changes. Earlier 403 notes describe their recorded sessions. |
+| Queued syncpoint blocking guarantees | Before `ec5e3df9`, 21/28 fixture scenarios passed. Renderer barrier, retained unpublished FIFO head and 3D increment ordering corrected. Reports in [queue evidence](evidence/melonx-631-queued-syncpoints/). Exact-SDK real-source run now passes, observed in the active VM. | Relevant queue/caller/fixture inputs change or contradictory runtime evidence appears. |
+| Real-source fidelity of queue fixtures | Public IncrementSyncpoint and Syncpointb method frames differed from reconstructed doubles. Claude aligned the fixture with upstream. Both fixture modes pass 28/28 with SDK 10.0.100, changes still local when observed. | Upstream method frames or the extracted production regions change. |
+| Current 631 gate result | Nine of ten passed on the tested preparation. hogwarts-dma-copies failed and region-upload tracking is being reviewed. Gate composition/expectation failures must be distinguished from production defects. | The correction changes tested inputs, or a new result contradicts the recorded gate. |
+| Upstream UE workaround | Full history shows `13700519` descends from 2.6 and contains `f924c98c`. The earlier missing-ancestor suspicion came from incomplete history. | The pinned revision changes or a different upstream fix is identified. |
+| Cowork attribution | Repository/session search did not identify attributable Cowork work. Owner redirected Claude to its own MeloNX work. | The owner provides a specific Cowork deliverable or a verifiable reference is discovered. |
+
+## Update a task in place
+
+Keep each entry concise. Retain the objective and authorization, acceptance
+criteria, owner/dirty paths, exact source/build/input identity, finding and
+confidence, correction, command/result and evidence reference, remaining blocker,
+next action and condition for reopening. Record a failed or inconclusive attempt
+as such. Update the existing row instead of appending another task diary.
+Reconcile local findings with the final committed proof before marking complete.
+A conflict between this summary and direct source/receipts must be investigated
+and corrected, not silently resolved by choosing the newest prose.
+
+## Evidence by component
+
+| Scope | Direct references |
+| --- | --- |
+| Architecture and routing | Relevant section of [ARCHITECTURE.md](../ARCHITECTURE.md) |
+| MeloNX measurements and rejected approaches | [optimization map](melonx-optimization-map-2026-11-03.md), [encoding](melonx-629-encoding-2026-11-03.md), [MoltenVK](melonx-moltenvk-rebuild-2026-11-03.md), `build-utils/melonx/dma-core-pin.json`, `build-utils/melonx/moltenvk-rebuild-pin.json` |
+| RPCS3 | [Core 634](rpcs3-core634-2026-11-03.md), [Core 630](rpcs3-core630-2026-11-03.md), `build-utils/rpcs3/core-pin.json` |
+| Delivery | [standard recipe](standard-delivery-recipe.md), [635 plan](ipa-635-plan-2026-11-03.md), [delivery speed](delivery-speed.md) |
+| Library and lifecycle | Relevant section of [PROJECT_RULES.md](PROJECT_RULES.md), [library folders](library-folders-2026-10-10.md) |
+| Flutter UI | [Liquid Glass](liquid-glass-ui.md), `lib/screens/systems_screen/`, affected `test/` files |
+| Wii and GameCube skins | [Dolphin skins](dolphin-skins.md), [Pocket originals](pocket-originals-2026-11-03.md), [input evidence](evidence/pocket-originals/) |
+| RetroAchievements and languages | [608](build608-ra-session-delivery.md), [credentials](ra-credentials-status-2026-11-01.md), [game identity](ra-game-identification-2026-11-01.md), [PS3 hooks](ra-ps3-rpcs3-2026-11-01.md), [translation](achievement-translation.md) |
+| Cheats, patches, HD and rights | Relevant [component rules](PROJECT_RULES.md), [enhancements](ENHANCEMENTS.md), [licenses](LEGAL_AND_CREDITS.md) |
+| Earlier findings | [existing history](history/README.md), [prior delivery notes](history/agents-delivery-notes-2026-11-03.md). Search only the implicated component/build. |
+
+## Delivered baseline
+
+Last verified delivery is private RewindBox 0.0.8 (629), iOS 18+ with SideStore.
+628 was not delivered and 629 must not be reused. Source
+`6aae16b9ca0683eb64aa4881dc6855b05b363763`, freeze `79d866ef`,
+[manifest](../build-utils/delivery/629.json), effective product `140e5707…`.
+Run `41622115556` attempt 1 completed in about 21 minutes.
+RewindBox-629.ipa is 194618465 bytes, SHA-256
+`952b2641a1151746e43dc81b500371911a668e5736131acf8de75542d0f2bfe6`.
+[Delivery receipt](evidence/rewind629/delivery.json),
+[signed identity](evidence/rewind629/signed-payload-identity.json) and
+[download verification](evidence/rewind629/download629-verification.json)
+bind the product. Its private recipient key was deleted.
+
+| Component | Delivered identity |
+| --- | --- |
+| MeloNX | Core 628, run `41614833262`, source `1ce1cd14`, packaged `dfd9061e…`, iPhone library `1699cf38…`. Reviewed deltas `e34dccf9`, `1ce1cd14`, `2620d011`. No iPhone result. [measurement record](melonx-624-measurement-2026-11-03.md) |
+| RPCS3 | Core 627, run `41610162888`, source `6891f9a0`, payload `eccf8535…`, pin `021a15e4`. Reviewed `40c6502a`..`8e68bdee`, `2abb1ac2`. No iPhone result. [Core record](rpcs3-core627-2026-11-03.md) |
+| Dolphin / ARMSX2 | Kept from 608, payloads `640e4389…` / `fab55193…`, ARMSX2 ABI 9, archive republished by run `41504526945` |
+| libretro and dependencies | Retained through the same authenticated archive chain, last republished by `41622115556`. libretro_internal_bridge bytes changed from 626 despite unchanged effective sources, recorded as a nonblocking undeclared image change. |
+
+629 attempt `41618683768` failed at the Core-install canary name check.
+Recipe fix `79d866ef` accepts the Core-specific canary. Do not repeat the
+fixed marker list from Cores 587–624. Earlier delivery details remain in the
+existing receipts and history linked above.
+
+## Prior reservations and results
+
+These identify earlier work, not current instructions to resume it.
+
+| Prior entry | Recorded outcome and retained evidence |
+| --- | --- |
+| TASK-586 / TASK-587 | The old board claimed 586 was pending while later receipts exist. Use [586 delivery](evidence/rewind586-delivery.json) and [587 receipt](evidence/rewind587-delivery.json) when the exact earlier product matters. Core 587 run `40718679248`, source `a8a7ce10`, Mac proof `7c3c48d2`. Do not dispatch the old recipe from that stale row. |
+| TASK-589 | Core 589 run `40778765122`, source `99a57a6`, binding `700db785`. [Core record](rpcs3-cell589.md) retains the exact source, profile and receipts. No active instruction to produce a separate 589 IPA. |
+| TASK-628-RPCS3 | Core 627 was pinned and delivered in 629 instead. References are in the delivered baseline above. Pending device checks remain pending. |
+| TASK-630-RPCS3 | Core 630 compiled in run `41646604720` on `e1cd9621`. [Core 630 record](rpcs3-core630-2026-11-03.md) retains both artifact identities. Core 634 includes this work and is the current integration target. |
+| Former 583 handoff | Its 28 October snapshot is superseded as a handoff. [583 source/results](rpcs3-cell583.md) and [delivery](evidence/rpcs3-cell583-delivery.json) preserve it. Host steady-state comparison was noisy, so no FPS gain was established. The 583 driver repeated OPT583 instead of OPT581, compensated by Mac/IPA evidence at that time. Follow later source/receipts before reopening the old Write Color Buffers or async-submit proposals. |
