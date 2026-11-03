@@ -44,6 +44,68 @@ A later working diff can be ahead of that commit.
   The explicit standing IPA authorization below applies. Other changes to this
   contract do not grant payment or public publication permission.
 
+## Adaptive delegation
+
+Maintainer request, 3 November 2026. Route by the task's uncertainty and risk,
+not by game name alone. For a tiny edit or one exact command, work directly;
+spawning an agent is optional and must replace useful work, not duplicate it.
+
+| Work | Agent | Model / effort | Boundary |
+| --- | --- | --- | --- |
+| Exact file, symbol or recorded-result lookup | `rb-lookup` | Haiku / low | Read-only facts; escalate ambiguity |
+| Bounded source/upstream investigation | `rb-research` | Sonnet / medium | Read-only evidence and applicability |
+| Understood, isolated code correction | `rb-code` | Sonnet / medium | Explicit paths, base SHA and targeted acceptance |
+| Difficult core, JIT, GPU ordering, memory or ABI review | `rb-core-review` | Opus / high | Read-only review of a specified change |
+
+- The main Claude session owns the current request, integration, shared board,
+  pins, CI and IPA delivery. Default to one coding agent total, counting the
+  main session. While `rb-code` writes, the coordinator does not edit its paths.
+  Use at most two independent read-only workers at once. Do not create agent
+  teams, nested delegations or paid external-agent/API workflows for this routing.
+- Delegate one question with the exact source identity, relevant board result,
+  assigned paths/diff, required output and stopping condition. Give read-only
+  reviewers the exact diff text or a readable diff artifact. Reuse a prior
+  finding unless its inputs changed. After two equivalent inconclusive attempts,
+  name the missing evidence or change the method. Escalate a low-effort lookup
+  once to research when ambiguity needs reasoning; do not repeat cheap guesses.
+- Worktrees use `worktree.baseRef: head`, but do not include uncommitted changes.
+  An isolated worker keeps its assigned temporary branch; only the coordinator
+  integrates into `Claude`. It must not check out or move `Claude` or `main`.
+  Keep dirty/core work with its current owner unless an exact reviewed snapshot
+  is explicitly prepared. The coding worker verifies its base before writing.
+  Review the returned diff and checks before integration; never auto-merge.
+- Keep the coordinator's model stable during a task to preserve prompt caching.
+  Sonnet/medium is the starting recommendation for future routine sessions;
+  Opus/high fits difficult core reasoning. Preserve the running core session's
+  chosen model. `xhigh`/`max` require a concrete difficulty and useful result,
+  not routine use. Per-agent frontmatter selects workers; do not model-switch
+  the main conversation via skills on every request.
+- Check the actual loaded agent, model and effort on first use. Organization or
+  environment overrides can win. A missing agent/tool/model or wrong base falls
+  back to the coordinator; report the limitation rather than claim a cheaper
+  delegation happened. Do not restart an active build/session just to reload
+  agents. Ordinary cloud sessions load repo agents; Project threads may not.
+- Each worker returns decisive references, result, validation status and next
+  action, usually within 200–400 words. Read-only workers hand board-ready results
+  to the coordinator, who records them here once. Use `scripts/ai-output.py`
+  for verbose foreground checks. No duplicate handoff or requirements files.
+  `maxTurns` bounds a run, not its token spend; do not automatically resume loops.
+  Subagents share the plan quota. Savings are an objective, not a measured claim.
+
+Configuration: four short native definitions under `.claude/agents/` and only
+the worktree base in `.claude/settings.json`; local settings, hooks, worktrees
+and credentials stay ignored. No permissions or paid features are enabled.
+Runtime preflight in the current Claude session: 2.1.317, both settings files
+absent before this change; UI offers Haiku/Sonnet/Opus 5.5. Static validation
+passes; loading and a bounded runtime lookup must still be verified in Claude.
+These checks establish configuration behavior, not token savings.
+The async-before-IPA priority remains unchanged.
+
+Sources: [subagents](https://code.claude.com/docs/en/sub-agents),
+[cloud compatibility](https://code.claude.com/docs/en/claude-code-on-the-web),
+[worktree base](https://code.claude.com/docs/en/worktrees#choose-the-base-branch),
+[prompt caching](https://code.claude.com/docs/en/prompt-caching#switching-models).
+
 ## Standing IPA compilation authorization
 
 Maintainer decision, 3 November 2026. Claude Code is authorized to launch the

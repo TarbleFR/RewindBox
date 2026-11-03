@@ -284,6 +284,15 @@ ROMs/
 # All AI related files
 .agent
 .claude
+!/.claude/
+/.claude/*
+!/.claude/settings.json
+!/.claude/agents/
+/.claude/agents/*
+!/.claude/agents/*.md
+!/.claude/rules/
+/.claude/rules/*
+!/.claude/rules/*.md
 .idea
 .vscode
 .memory

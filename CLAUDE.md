@@ -2,7 +2,8 @@
 
 Follow [AGENTS.md](AGENTS.md) and the [shared contract](docs/AI_TASK_BOARD.md).
 Read its shared rules, the active task and only the linked source/evidence needed
-for the next action. Claude Code is the implementation and integration owner.
+for the next action. Use its Adaptive delegation routing for research, code and
+review; do tiny tasks directly. Claude Code remains the integration owner.
 
 Inspect actual branch, HEAD and diff. Resume from verified results and rejected
 hypotheses. Reopen a diagnosis for a named changed input, contradiction or untested
