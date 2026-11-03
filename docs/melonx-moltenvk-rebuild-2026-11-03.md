@@ -48,7 +48,7 @@ Not changed: residency sets (still macOS only), descriptor writes, barriers, haz
 
 ## Build
 
-A workflow on a macOS 26 runner (text below, not in `.github/workflows/` yet) runs
+`.github/workflows/melonx-moltenvk-rebuild.yml` (macOS 26 runner) runs
 `build-utils/melonx/build_moltenvk_rebuild.py`:
 fetch and check the pinned commit, check and apply the patch, `fetchDependencies --ios`, `make ios`, then
 `dist/melonx-moltenvk-rebuild/` with `ios/MoltenVK.framework`, `identity.json` (binary digest, Mach-O build version,
@@ -57,54 +57,15 @@ install name, linked libraries, patch markers, entry points MeloNX resolves, kep
 failure are also written as job annotations, readable through the API (the artifact storage is not reachable from
 this session). It packages nothing.
 
-Status: the push that added the workflow and started it (a commit without `[skip ci]`) was refused by the session's
-permission check on 3 Nov; the repository's rules also ask for the maintainer's explicit go-ahead for a new workflow
-and a CI run, which was requested. Until then the workflow stays out of the repository. Only the fetch and patch
-steps of the script ran (locally, on Linux); nothing was compiled. The workflow, to be added as
-`.github/workflows/melonx-moltenvk-rebuild.yml` (checked: on push to `Claude`, only its `moltenvk` job would start;
-the other workflows its paths trigger skip all their jobs):
-
-```yaml
-name: MeloNX MoltenVK 1.4.0 rebuild
-run-name: MoltenVK 1.4.0 rebuild with the RewindBox argument buffer usage patch • ${{ github.sha }}
-# Recompiles Khronos MoltenVK v1.4.0 with build-utils/melonx/moltenvk/ (maintainer's agreement, 3 Nov 2026).
-# It packages nothing: a delivery adopts the artifact by its digests (identity.json).
-'on':
-  push:
-    branches:
-    - Claude
-    paths:
-    - .github/workflows/melonx-moltenvk-rebuild.yml
-    - build-utils/melonx/build_moltenvk_rebuild.py
-    - build-utils/melonx/moltenvk-rebuild.json
-    - build-utils/melonx/moltenvk/**
-permissions:
-  contents: read
-concurrency:
-  group: melonx-moltenvk-rebuild-${{ github.ref }}
-  cancel-in-progress: false
-jobs:
-  moltenvk:
-    runs-on: macos-26
-    timeout-minutes: 100
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        persist-credentials: false
-    - name: Build Khronos MoltenVK v1.4.0 with the RewindBox patch for iOS arm64
-      run: python3 build-utils/melonx/build_moltenvk_rebuild.py
-    - uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: MeloNX-MoltenVK-rebuild-${{ github.sha }}
-        path: dist/melonx-moltenvk-rebuild
-        retention-days: 30
-        if-no-files-found: error
-```
+Status: the first push of the workflow (a commit without `[skip ci]`) was refused by the session's permission
+check; the maintainer then gave the explicit go-ahead for the workflow and its run (3 Nov 2026, 15:04), and it is
+`.github/workflows/melonx-moltenvk-rebuild.yml` (checked: on push to `Claude`, only its `moltenvk` job starts; the
+other workflows its paths trigger skip all their jobs). Only the fetch and patch steps of the script ran locally.
 
 ## Not done yet
 
-- Packaging: the rebuild is in no IPA. Which MoltenVK slot it takes is the maintainer's choice (see the reply of
-  3 Nov), and the host must set `REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE` before the engine loads to select the fast walk.
+- Packaging: the rebuild is in no IPA. Working assumption, recommended to the maintainer on 3 Nov: a third choice of
+  the "MoltenVK version" menu next to the two current ones (it needs the Core's loader, so it ships with a new
+  Core); the host must set `REWINDBOX_MVK_ARGUMENT_BUFFER_USAGE` before the engine loads to select the fast walk.
 - Measurement: none on the iPhone. The change applies to every title that uses argument buffers once the switch is
   set, so a second game is to be checked as well as Hogwarts Legacy.
