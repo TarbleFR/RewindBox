@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 627,
- "note": "RPCS3 Core 627: the delivered Core 624 plus the Core 627 record of session 012mUASm (ZCULL on-demand lever kept off guest waits and conditional renders not waiting, a bounded wait for an SPU polling with no-op PUTLLC, SPU threads below RSX and PPU, a FIFO NOP that keeps RSX running, a light measurement profile and the in-game tests of the seven levers), built by the RPCS3 Core route (run 41610162888). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle): 92 Mach-O exports equal the identity, ABI 30, codegen PPU/SPU unchanged.",
+ "build": 634,
+ "note": "RPCS3 Core 634: Core 627 plus Core 630 (ZCULL reads waiting for their own report, accesses completed in the fault handler) and the Core 634 boot and memory work of session 012mUASm (PPU objects checked/linked/finalized on four threads, object bytes freed once linked, SPIR-V of a boot reused, ARMv8 AES/SHA, Assassin's Creed SPU object prefetch, each with its setting), built by the RPCS3 Core route (run 41696834507). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle) by session 012mUAShv9k6.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
@@ -14,25 +14,25 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 627 source closure and the native dependency",
+    "Authenticate the Core 634 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 627",
-    "Verify the actual binary and write its Core 627 identity",
+    "Compile and link the actual iPhone Core 634",
+    "Verify the actual binary and write its Core 634 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 627 without an application delivery",
+    "Upload the verified Core 634 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "6891f9a055eff7ee81a491da4aafdb68f1f63ffc",
-   "run": 41610162888,
+   "source": "792d72c916d2983cab01cd17fb70a0510424270f",
+   "run": 41696834507,
    "attempt": 1,
-   "job": 125829758140,
-   "artifact": 13219702266,
-   "name": "RPCS3Core-627-6891f9a055eff7ee81a491da4aafdb68f1f63ffc",
-   "bytes": 29336809,
-   "sha256": "3f9459517cd104819d53d25088e22c6009a8e0090457dc7c005423da28a4b912",
-   "expiresAt": "2026-12-03T09:42:01Z"
+   "job": 126129479161,
+   "artifact": 13261039942,
+   "name": "RPCS3Core-634-792d72c916d2983cab01cd17fb70a0510424270f",
+   "bytes": 29324314,
+   "sha256": "3c82cd8d1e5653acace0c49c77c9aeb21c0f05e14789c9e5d19345f52000db65",
+   "expiresAt": "2026-12-03T19:10:10Z"
   },
   "hostTests": {
    "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
@@ -40,9 +40,9 @@
     "Checkout immutable candidate and the delivered Core history",
     "Read the declared Core build",
     "Select the retained Core toolchain",
-    "Materialize the Core 627 sources and the delivered a4ae86d0 sources",
+    "Materialize the Core 634 sources and the delivered a4ae86d0 sources",
     "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 627 harnesses with Apple clang",
+    "Run the affected and new Core 634 harnesses with Apple clang",
     "Preserve the Apple host harness reports"
    ],
    "names": [
@@ -59,18 +59,18 @@
     "spu-object-hit-admission-613",
     "spu-object-hit-admission-613-asan-ubsan",
     "codegen-audit",
-    "core627",
+    "core634",
     "lr-full-queue"
    ],
-   "source": "6891f9a055eff7ee81a491da4aafdb68f1f63ffc",
-   "run": 41610162888,
+   "source": "792d72c916d2983cab01cd17fb70a0510424270f",
+   "run": 41696834507,
    "attempt": 1,
-   "job": 125829758604,
-   "artifact": 13219121710,
-   "name": "RPCS3Core-627-apple-host-tests-6891f9a055eff7ee81a491da4aafdb68f1f63ffc",
-   "bytes": 39209,
-   "sha256": "d76cd56132bce75bec9a94fc8c84f7d29b5a009ee2b1cfe821d85dd9841abd27",
-   "expiresAt": "2026-12-03T09:26:27Z",
+   "job": 126129479275,
+   "artifact": 13261452573,
+   "name": "RPCS3Core-634-apple-host-tests-792d72c916d2983cab01cd17fb70a0510424270f",
+   "bytes": 40957,
+   "sha256": "c13cc47ee9fbc765037b72dcd0b9cbdade135aac31bfc022afcd453b600e0156",
+   "expiresAt": "2026-12-03T18:53:20Z",
    "reused": {
     "names": [
      "reuse-audit"
@@ -98,17 +98,17 @@
   }
  },
  "core": {
-  "type": "rpcs3-ios-core627",
-  "dylibBytes": 77700464,
-  "dylibSha256": "4c63d1057ba051f5f1630a72a8641be064259c4516515549e9dcfd9598309e1a",
-  "identitySha256": "bf29082c188deebb0bf4e48bceca1a7a02527e983f3796e9e1e54a172fd7f6cb",
+  "type": "rpcs3-ios-core634",
+  "dylibBytes": 77738696,
+  "dylibSha256": "514a1c4c465675d524c71e5be2b8f64d286734da163fc800e499c525e14940c8",
+  "identitySha256": "045b734253b31e4d4f0de0b9981792247a0a4f607ced2b45c43c06fc2fe86e31",
   "proofMember": "core610-proof.json",
-  "proofSha256": "ac82fafe0b30392d9ea2e4d4f58de8bc7651e3e0dde38bfec7406342aeab5502",
-  "payloadFingerprint": "eccf8535d7a6e846fdaf26674cbfeef7a6541d2d97af5b23201a144129c041cf"
+  "proofSha256": "02e5b89f27cf174b7c672e83af4ee7ba409e20c7f612a2c482847021cd796d3a",
+  "payloadFingerprint": "193b673df74be2aea790e0c9cad0b826d0edc48c95fa6b95d248f092f310c77a"
  },
  "canonical": {
-  "patchSha256": "d9f63f04b8c0ba1e279f3481a8557561ad81422d872f6c55a7ac086a634ecd86",
-  "postimages": 349,
+  "patchSha256": "e7750b68f5682ed33679972f70700343f06e66f4882b17e2bc5736923ddc0d19",
+  "postimages": 356,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -218,7 +218,7 @@
  },
  "host": {
   "path": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
-  "sha256": "ee8b92523e9d36c9e48566f75b9f55604ee078e17b9618c3a8ce1562c8e2754d"
+  "sha256": "036dafbb44cf34ed51d5928fb50f3dc455bb3932c33544f9bae510b8de9f4a98"
  },
  "hostStore": {
   "path": "native/neoswap-storage/Store.cpp",
@@ -250,13 +250,15 @@
   "COREPROF TEXCACHE621",
   "FREEZE_DUMP sema",
   "COREPROF ZCULL624",
-  "report array on a host page"
+  "report array on a host page",
+  "Resolved title policy 630",
+  "Resolved title policy 634"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "94102e14817697fda38e719285402e981d16b034",
-  "run": 41572306405,
-  "artifact": 13202641762,
-  "payloadFingerprint": "e906fbd5bbc81e7e99a5fb4cce04993df1b263a7e5a626143327e43e1e9fb453"
+  "source": "6891f9a055eff7ee81a491da4aafdb68f1f63ffc",
+  "run": 41610162888,
+  "artifact": 13219702266,
+  "payloadFingerprint": "eccf8535d7a6e846fdaf26674cbfeef7a6541d2d97af5b23201a144129c041cf"
  }
 }
