@@ -106,6 +106,8 @@ require('DOLOrientationGameMask()' in body(menu, '- (UIInterfaceOrientationMask)
 require('return UIInterfaceOrientationMaskLandscape; }' not in menu, 'no unconditional landscape-only menu is left')
 ci = read(ROOT / 'packages/dolphin_internal_bridge/ci/test_orientation_ui.rb')
 require('DOLOrientation.mm' in ci and 'DolphinOrientationTests.mm' in ci, 'the Dolphin simulator harness builds and runs the orientation tests')
+ci3 = read(ROOT / 'packages/dolphin_internal_bridge/ci/test_session_ui.rb')
+require('DolphinMenuOrientationTests.mm' in ci3 and 'DOLOrientation.mm' in ci3, 'the real Dolphin session menu is run under the mask')
 ci2 = read(ROOT / 'packages/armsx2_internal_bridge/ci/test_skin_overlay_ui.rb')
 require('ARMSX2SkinOverlay.mm' in ci2 and 'ARMSX2SkinOverlayTests.mm' in ci2, 'the ARMSX2 simulator harness builds and runs the overlay tests')
 for path in DOL.iterdir():

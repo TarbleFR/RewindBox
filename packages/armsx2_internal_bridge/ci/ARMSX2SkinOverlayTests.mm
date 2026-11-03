@@ -67,14 +67,20 @@ static NSString* const kSkinId = @"ps2-pocket";
 - (ARMSX2SkinOverlay*)overlayPortrait:(BOOL)portrait {
   ARMSX2SkinOverlay* overlay = [[ARMSX2SkinOverlay alloc] initWithGameKey:@"game.iso"];
   XCTAssertTrue(overlay.hasSkin);
+  // The recorders are captured directly (the overlay is local to the test, no cycle).
+  NSMutableArray<NSString*>* events = _events;
+  NSMutableArray<NSArray<NSNumber*>*>* sticks = _sticks;
   __weak ARMSX2SkinOverlayTests* weakSelf = self;
   overlay.buttonChanged = ^(uint32_t button, BOOL pressed) {
-    [weakSelf->_events addObject:[NSString stringWithFormat:@"b%u%@", button, pressed ? @"+" : @"-"]];
+    [events addObject:[NSString stringWithFormat:@"b%u%@", button, pressed ? @"+" : @"-"]];
   };
   overlay.sticksChanged = ^(float lx, float ly, float rx, float ry) {
-    [weakSelf->_sticks addObject:@[ @(lx), @(ly), @(rx), @(ry) ]];
+    [sticks addObject:@[ @(lx), @(ly), @(rx), @(ry) ]];
   };
-  overlay.menuHandler = ^{ weakSelf->_menuCount++; };
+  overlay.menuHandler = ^{
+    ARMSX2SkinOverlayTests* strongSelf = weakSelf;
+    if (strongSelf != nil) strongSelf->_menuCount++;
+  };
   [self layout:overlay portrait:portrait];
   return overlay;
 }

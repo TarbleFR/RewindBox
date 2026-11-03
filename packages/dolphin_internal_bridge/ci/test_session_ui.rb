@@ -15,6 +15,23 @@ tests.add_dependency(app)
 sources = [File.join(__dir__, 'SessionMenuHarness.mm'), File.join(package, 'ios/Classes/DolphinSessionMenu.mm'), File.join(package, 'ios/Classes/DolphinPerformanceOverlay.mm'), File.join(package, 'ios/Classes/DolphinRecordingController.mm')]
 sources += [File.join(package, 'ios/Classes/DolphinFramePacing.mm'), File.join(package, 'ios/Classes/DolphinExternalDisplay.mm')]
 sources += Dir[File.join(package, 'ios/Classes/TouchController/*.{swift,mm}')]
+# The session menu imports two other pods as <pod/Header.h> (neo_cheat_catalog,
+# external_display) and, since the orientation lock, DOLOrientation. Stage those
+# headers under their pod names and compile the pods' non-plugin sources (no Flutter).
+packages = File.expand_path('..', package)
+staged = File.join(output, 'staged-headers')
+FileUtils.rm_rf(staged)
+{ 'neo_cheat_catalog' => Dir[File.join(packages, 'neo_cheat_catalog/ios/Classes/**/*.h')],
+  'external_display' => Dir[File.join(packages, 'external_display/ios/Classes/*.h')] }.each do |pod, headers|
+  FileUtils.mkdir_p(File.join(staged, pod))
+  headers.each { |header| FileUtils.cp(header, File.join(staged, pod, File.basename(header))) }
+end
+sources << File.join(package, 'ios/Classes/DOLOrientation.mm')
+sources << File.join(package, 'ios/Classes/DolphinRetroAchievementsAccount.mm')
+sources += Dir[File.join(packages, 'neo_cheat_catalog/ios/Classes/*.m')].reject { |path| path.end_with?('Plugin.m') }
+sources += Dir[File.join(packages, 'external_display/ios/Classes/*.m')].reject { |path| path.end_with?('Plugin.m') }
+pod_headers = [staged, File.join(packages, 'neo_cheat_catalog/ios/Classes'), File.join(packages, 'neo_cheat_catalog/ios/Classes/Public'),
+               File.join(packages, 'external_display/ios/Classes')]
 sources.each { |path| app.source_build_phase.add_file_reference(project.main_group.new_file(path)) }
 Dir[File.join(package, 'ios/TouchResources/*')].each do |path|
   app.resources_build_phase.add_file_reference(project.main_group.new_file(path))
@@ -23,6 +40,7 @@ tests.source_build_phase.add_file_reference(project.main_group.new_file(File.joi
 tests.source_build_phase.add_file_reference(project.main_group.new_file(File.join(__dir__, 'SessionLifecycleTests.mm')))
 tests.source_build_phase.add_file_reference(project.main_group.new_file(File.join(__dir__, 'PerformanceOverlayTests.mm')))
 tests.source_build_phase.add_file_reference(project.main_group.new_file(File.join(__dir__, 'RecordingControllerTests.mm')))
+tests.source_build_phase.add_file_reference(project.main_group.new_file(File.join(__dir__, 'DolphinMenuOrientationTests.mm')))
 tests.source_build_phase.add_file_reference(project.main_group.new_file(File.join(package, 'ios/Classes/DolphinSessionLifecycle.mm')))
 
 [app, tests].each do |target|
@@ -34,7 +52,7 @@ tests.source_build_phase.add_file_reference(project.main_group.new_file(File.joi
       'CLANG_CXX_LANGUAGE_STANDARD' => 'c++20',
       'CODE_SIGNING_ALLOWED' => 'NO',
       'TARGETED_DEVICE_FAMILY' => '1,2',
-      'HEADER_SEARCH_PATHS' => [File.join(package, 'ios/Classes'), File.join(package, 'ios/Classes/TouchController')],
+      'HEADER_SEARCH_PATHS' => [File.join(package, 'ios/Classes'), File.join(package, 'ios/Classes/TouchController')] + pod_headers,
       'SWIFT_VERSION' => '5.0',
       'OTHER_LDFLAGS' => ['$(inherited)', '-framework', 'UIKit', '-framework', 'CoreGraphics', '-framework', 'AVFoundation', '-framework', 'ReplayKit', '-framework', 'CoreImage', '-framework', 'VideoToolbox', '-framework', 'Metal', '-framework', 'MetalKit', '-framework', 'CoreMedia', '-framework', 'CoreVideo', '-framework', 'AudioToolbox'],
     })
