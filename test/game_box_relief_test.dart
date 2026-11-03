@@ -1,6 +1,6 @@
 // Relief of the box while it turns (docs/game-box-3d.md § 20 and § 21): the
 // sides of every format read as solid panels, dark cases stay visible on a
-// dark background, cardboard sides are printed without stretched pixels, and
+// dark background, cardboard sides show their spine (§ 27), and
 // a box without an authentic back shows a labelled reconstruction.
 import 'dart:math' as math;
 
@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:neostation/services/game_box/game_box_profile.dart';
 import 'package:neostation/widgets/game_box/game_box_geometry.dart';
 import 'package:neostation/widgets/game_box/game_box_scene.dart';
+import 'package:neostation/widgets/game_box/game_box_spine_design.dart';
 import 'package:neostation/widgets/game_box/game_box_surfaces.dart';
 
 const _viewport = Size(400, 600);
@@ -78,8 +79,11 @@ void main() {
     });
   });
 
+  // Replaced on 3 November 2026 (docs/game-box-3d.md § 27): the maintainer
+  // rejected sides printed with the title in plain type; a cardboard box now
+  // shows its spine on both long sides and lying on its title flap.
   group('sides of a cardboard box', () {
-    testWidgets('top, bottom and opening side are printed with the title, never with the cover stretched',
+    testWidgets('without a spine scan: the platform template in the colour of the print, never the cover stretched',
         (tester) async {
       for (final pose in const [BoxPose(yaw: -0.45, pitch: 0.75), BoxPose(yaw: 0.6, pitch: -0.75)]) {
         await tester.pumpWidget(MaterialApp(
@@ -88,14 +92,17 @@ void main() {
             child: _scene('n64', pose: pose, art: const GameBoxArt(title: "A Bug's Life", edgeColor: Color(0xFF2E7D32))),
           ),
         ));
-        final panels = tester.widgetList<GameBoxCardboardPanel>(find.byType(GameBoxCardboardPanel)).toList();
-        expect(panels, isNotEmpty);
-        for (final p in panels) {
-          expect(p.title, "A Bug's Life");
-          expect(p.color, const Color(0xFF2E7D32), reason: 'the colour of the cover border');
+        final spines = tester.widgetList<GameBoxDesignedSpine>(find.byType(GameBoxDesignedSpine)).toList();
+        expect(spines, isNotEmpty);
+        for (final s in spines) {
+          expect(s.title, "A Bug's Life");
+          expect(s.design.background, const Color(0xFF2E7D32), reason: 'the colour of the cover border');
+          expect(s.design.logo, 'n64');
         }
-        expect(panels.any((p) => p.standing), pose.yaw > 0, reason: 'the opening side shows when turned that way');
-        expect(find.byType(GameBoxEdgePainter), findsNothing);
+        final flaps = tester.widgetList<GameBoxCardboardFlap>(find.byType(GameBoxCardboardFlap)).toList();
+        expect(flaps.map((f) => f.top), [pose.pitch > 0], reason: 'the top flap from above, the bottom one from below');
+        expect(find.byWidgetPredicate((w) => w is CustomPaint && w.painter is GameBoxEdgePainter), findsNothing,
+            reason: 'no plastic edge on a cardboard box');
       }
     });
   });

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:neostation/services/game_box/game_box_art_fit.dart';
 import 'package:neostation/services/game_box/game_box_profile.dart';
 import 'package:neostation/widgets/game_box/game_box_geometry.dart';
+import 'package:neostation/widgets/game_box/game_box_spine_design.dart';
 import 'package:neostation/widgets/game_box/game_box_surfaces.dart';
 
 /// Images and texts shown on a box.
@@ -47,9 +48,14 @@ class GameBoxArt {
     this.composedBackLabel = '',
     this.spineAspect,
     this.spineFit = GameBoxSpineFit.trimFold,
+    this.gameLogo,
   });
 
   final String title;
+
+  /// The game's own logo (the scraped "wheel"), printed on a spine drawn
+  /// from its platform's template when that template takes it (§ 27).
+  final ImageProvider? gameLogo;
   final ImageProvider? front;
   final ImageProvider? back;
   final ImageProvider? spine;
@@ -162,6 +168,7 @@ class GameBoxArt {
         composedBackLabel: composedBackLabel,
         spineAspect: spineAspect,
         spineFit: spineFit,
+        gameLogo: gameLogo,
       );
 
   /// Proportions of the part of the front image that is the front.
@@ -340,10 +347,11 @@ class GameBoxScene extends StatelessWidget {
       case BoxSurface.bottom:
       case BoxSurface.edge:
         if (_jewel) return _clearEdgeColor;
+        if (_cardboard) return art.spine == null ? _design.background : null;
         return _clear ? _clearPlastic : _edge;
       case BoxSurface.spine:
         if (_jewel) return _tray;
-        return art.spine == null ? _neutralSpine : null;
+        return art.spine == null ? _design.background : null;
       case BoxSurface.spineRight:
         return _tray;
       default:
@@ -367,6 +375,22 @@ class GameBoxScene extends StatelessWidget {
   /// clear case, the plastic colour otherwise.
   Color get _neutralSpine => _clear ? _profile.resolvedInsertColor : _edge;
 
+  /// The platform's spine, for the sides no scan shows (§ 27). Templates of
+  /// game cases are their own; other boxes take the colour of their print.
+  GameBoxSpineDesign get _design => GameBoxSpineDesign.of(_profile, print: art.edgeColor);
+
+  /// A spine drawn from [_design], [heightMm] long.
+  Widget _designedSpine(double heightMm) => GameBoxDesignedSpine(
+        design: _design,
+        title: art.title,
+        gameLogo: art.compact ? null : art.gameLogo,
+        heightMm: heightMm,
+        compact: art.compact,
+      );
+
+  /// The spine standing (top at the top): its scan, else its template.
+  Widget _standingSpine() => art.spine != null ? _spineImage(art.spine!) : _designedSpine(_profile.height);
+
   /// A missing or rejected back: plain, clearly not a print.
   static const Color _neutralBack = Color(0xFF2B2D33);
 
@@ -387,13 +411,24 @@ class GameBoxScene extends StatelessWidget {
       case BoxSurface.top:
       case BoxSurface.bottom:
         if (_jewel) return _clearEdge(mm);
-        if (_cardboard) return GameBoxCardboardPanel(color: _edge, title: art.compact ? '' : art.title);
+        if (_cardboard) {
+          // The title flap shows the spine lying along it, as on a real box;
+          // the bottom flap keeps the print's colour and the platform mark.
+          return GameBoxCardboardFlap(
+            design: _design,
+            spine: _standingSpine(),
+            spineAspect: _profile.height > 0 ? _profile.depth / _profile.height : 0.15,
+            top: f.face.surface == BoxSurface.top,
+            compact: art.compact,
+          );
+        }
         return _plasticEdge(seam: _plasticCase, mm: mm);
       case BoxSurface.edge:
         if (_jewel) return _clearEdge(mm);
         if (_cardboard && f.face.id.endsWith('.right')) {
-          // The opening side of a cardboard box is printed like its spine.
-          return GameBoxCardboardPanel(color: _edge, title: art.compact ? '' : art.title, standing: true);
+          // A cardboard box prints its spine on both long sides: the spine
+          // scan (or its template) shows here too.
+          return _standingSpine();
         }
         // Grip ridges are moulded in the opaque DVD-family cases only.
         final ridged = _plasticCase && !_clear && f.face.id.endsWith('.right') && f.face.width > 6;
@@ -624,11 +659,9 @@ class GameBoxScene extends StatelessWidget {
         // side unchanged.
         strip = _crop(art.back!, const Rect.fromLTRB(1 - GameBoxArt.jewelSpineFraction, 0, 1, 1));
       }
-      return _jewelSide(mm, strip ?? GameBoxTitleSpine(color: _profile.caseColor, title: art.title), hinge: true);
+      return _jewelSide(mm, strip ?? _designedSpine(_profile.height), hinge: true);
     }
-    final Widget full = spine == null
-        ? GameBoxTitleSpine(color: _neutralSpine, title: art.title)
-        : _spineImage(spine);
+    final Widget full = spine == null ? _designedSpine(_profile.height) : _spineImage(spine);
     final Widget printed;
     if (_clear) {
       // The spine of the cover seen through the clear plastic, with the

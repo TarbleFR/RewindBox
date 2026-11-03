@@ -76,10 +76,51 @@ Future<Uint8List> _drawn(String title, int w, int h, Color a, Color b, {String b
   return data!.buffer.asUint8List();
 }
 
+/// A spine scan drawn like a cartridge box's (§ 27): the print's black,
+/// a coloured band and the title running from top to bottom.
+Future<Uint8List> _drawnSpine(String title, int w, int h) async {
+  final recorder = ui.PictureRecorder();
+  final c = Canvas(recorder);
+  c.drawRect(Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()), Paint()..color = const Color(0xFF111111));
+  c.drawRect(Rect.fromLTWH(0, h * 0.04, w.toDouble(), h * 0.16), Paint()..color = const Color(0xFFD32F2F));
+  final tp = TextPainter(
+    text: TextSpan(text: title.toUpperCase(), style: TextStyle(fontSize: w * 0.5, color: const Color(0xFFFFEB3B), fontWeight: FontWeight.w900, fontFamily: 'Roboto')),
+    textDirection: TextDirection.ltr,
+  )..layout();
+  c.save();
+  c.translate(w / 2 + tp.height / 2, h * 0.26);
+  c.rotate(math.pi / 2);
+  tp.paint(c, Offset.zero);
+  c.restore();
+  final img = await recorder.endRecording().toImage(w, h);
+  final data = await img.toByteData(format: ui.ImageByteFormat.png);
+  img.dispose();
+  return data!.buffer.asUint8List();
+}
+
+/// A game logo drawn like a scraped "wheel": coloured type on transparency.
+Future<Uint8List> _drawnWheel(String title) async {
+  final recorder = ui.PictureRecorder();
+  final c = Canvas(recorder);
+  final tp = TextPainter(
+    text: TextSpan(text: title, style: const TextStyle(fontSize: 120, color: Color(0xFFFFC107), fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, fontFamily: 'Roboto')),
+    textDirection: TextDirection.ltr,
+  )..layout();
+  tp.paint(c, const Offset(20, 10));
+  final img = await recorder.endRecording().toImage(tp.width.ceil() + 40, tp.height.ceil() + 20);
+  final data = await img.toByteData(format: ui.ImageByteFormat.png);
+  img.dispose();
+  return data!.buffer.asUint8List();
+}
+
 class _Case {
-  const _Case(this.id, this.system, this.title, {this.front, this.back, this.full, this.drawn});
+  const _Case(this.id, this.system, this.title,
+      {this.front, this.back, this.full, this.drawn, this.drawnSpine = false, this.wheel = false});
   final String id, system, title;
   final String? front, back, full;
+
+  /// A drawn spine scan, a drawn game logo.
+  final bool drawnSpine, wheel;
 
   /// (width, height, colour a, colour b, band, band on the right).
   final (int, int, Color, Color, String, bool)? drawn;
@@ -89,6 +130,13 @@ const _cases = [
   _Case('n64_bugs', 'n64', "A Bug's Life", drawn: (900, 640, Color(0xFF2E7D32), Color(0xFF81D4FA), 'NINTENDO 64', true)),
   _Case('snes', 'snes', 'Super Quest', drawn: (900, 640, Color(0xFF4527A0), Color(0xFFFF7043), '', false)),
   _Case('nes', 'nes', 'Castle Run', drawn: (640, 900, Color(0xFF212121), Color(0xFFD32F2F), '', false)),
+  // Sides of a cartridge box (§ 27): with the spine scan, without it but
+  // with the game's logo, with neither.
+  _Case('nes_spine', 'nes', '10-Yard Fight', drawn: (640, 900, Color(0xFF212121), Color(0xFF2E7D32), '', false),
+      drawnSpine: true),
+  _Case('nes_wheel', 'nes', '10-Yard Fight', drawn: (640, 900, Color(0xFF212121), Color(0xFF2E7D32), '', false),
+      wheel: true),
+  _Case('wiiu', 'wiiu', 'Kart Party', drawn: (700, 960, Color(0xFF0277BD), Color(0xFFFFCA28), 'Wii U', false)),
   _Case('gbc', 'gbc', 'Pocket Quest', front: 'gbc_front.png', back: 'gbc_back.png'),
   _Case('gba', 'gba', 'Tiny Knights', drawn: (700, 700, Color(0xFF1565C0), Color(0xFFFFCA28), 'GAME BOY ADVANCE', false)),
   _Case('neogeo', 'neogeo', 'Metal Fighters', drawn: (700, 920, Color(0xFF263238), Color(0xFFFF5252), '', false)),
@@ -171,6 +219,8 @@ void main() {
         }
         final d = c.drawn;
         if (d != null) await put(await _drawn(c.title, d.$1, d.$2, d.$3, d.$4, band: d.$5, bandRight: d.$6), 'png', 'box2d');
+        if (c.drawnSpine) await put(await _drawnSpine(c.title, 140, 840), 'png', GameBoxMediaFolders.spine);
+        if (c.wheel) await put(await _drawnWheel(c.title), 'png', 'wheels');
       });
       final profile = await tester.runAsync(() => GameBoxProfiles.load(c.system));
 
@@ -195,6 +245,7 @@ void main() {
               'about, kept whole on the box and faded where the space ends.',
         ),
         composedBackLabel: 'Reconstructed back',
+        gameLogoPath: c.wheel ? store.canonicalPath(game, c.system, 'wheels', 'png') : null,
       );
       final model = GameBoxModel(profile!);
 
@@ -225,7 +276,7 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: RepaintBoundary(key: key, child: const SizedBox.expand())));
       await tester.runAsync(() async {
         final ctx = key.currentContext!;
-        for (final provider in [boxArt.front, boxArt.back, boxArt.spine]) {
+        for (final provider in [boxArt.front, boxArt.back, boxArt.spine, boxArt.gameLogo]) {
           if (provider != null) await precacheImage(provider, ctx);
         }
       });

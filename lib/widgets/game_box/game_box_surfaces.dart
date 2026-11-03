@@ -8,7 +8,7 @@ import 'package:neostation/services/game_box/game_box_profile.dart';
 /// Neutral surfaces of the 3D box: what is drawn when a scan is missing.
 ///
 /// None of them imitates a scan. A missing back is a plain surface with a
-/// discreet notice, a missing spine shows the known title in plain type, a
+/// discreet notice, a missing spine its platform's template (game_box_spine_design.dart), a
 /// missing support label leaves a blank, neutral label (docs/game-box-3d.md
 /// § 5).
 class GameBoxNeutralFace extends StatelessWidget {
@@ -58,47 +58,6 @@ class GameBoxNeutralFace extends StatelessWidget {
                 ),
               );
             }),
-    );
-  }
-}
-
-/// A spine without scan: case colour and the title, reading top to bottom.
-class GameBoxTitleSpine extends StatelessWidget {
-  const GameBoxTitleSpine({super.key, required this.color, required this.title});
-
-  final Color color;
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final onColor = _onColor(color);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color,
-        border: Border.all(color: onColor.withValues(alpha: 0.10), width: 1),
-      ),
-      child: LayoutBuilder(builder: (context, c) {
-        final size = (c.maxWidth * 0.42).clamp(5.0, 18.0);
-        return RotatedBox(
-          quarterTurns: 1,
-          child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: c.maxHeight * 0.06),
-            child: Center(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: size,
-                  color: onColor.withValues(alpha: 0.85),
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.3,
-                ),
-              ),
-            ),
-          ),
-        );
-      }),
     );
   }
 }
@@ -983,57 +942,6 @@ class GameBoxFaceLight extends CustomPainter {
   bool shouldRepaint(GameBoxFaceLight old) =>
       old.darken != darken || old.sheen != sheen || old.rim != rim || old.rimWidth != rimWidth ||
       old.rimVertical != rimVertical || old.rimHorizontal != rimHorizontal || old.radius != radius;
-}
-
-/// Top, bottom or opening side of a cardboard box (docs/game-box-3d.md
-/// § 20). Real boxes print these panels in the colours of the cover, with
-/// the title; without a scan of them they take the average colour of the
-/// cover's border and the known title in plain type, never stretched pixels
-/// of the cover.
-class GameBoxCardboardPanel extends StatelessWidget {
-  const GameBoxCardboardPanel({
-    super.key,
-    required this.color,
-    required this.title,
-    this.standing = false,
-  });
-
-  final Color color;
-  final String title;
-
-  /// A side panel: the title reads from top to bottom, like the spine.
-  final bool standing;
-
-  @override
-  Widget build(BuildContext context) {
-    final onColor = _onColor(color);
-    return ColoredBox(
-      color: color,
-      child: LayoutBuilder(builder: (context, c) {
-        final across = standing ? c.maxWidth : c.maxHeight;
-        final along = standing ? c.maxHeight : c.maxWidth;
-        if (title.isEmpty || across < 4 || along < 16) return const SizedBox.expand();
-        final size = (across * 0.36).clamp(4.0, 15.0).toDouble();
-        final text = Padding(
-          padding: EdgeInsets.symmetric(horizontal: along * 0.08),
-          child: Center(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: size,
-                color: onColor.withValues(alpha: 0.82),
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.4,
-              ),
-            ),
-          ),
-        );
-        return standing ? RotatedBox(quarterTurns: 1, child: text) : text;
-      }),
-    );
-  }
 }
 
 /// Verified details of a game that a reconstructed back may show.

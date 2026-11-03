@@ -184,6 +184,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
   late GameBoxArtSet _artSet;
   GameBoxProfile? _profile;
   Color? _edge;
+  String? _gameLogo;
   Color? _frontBand;
   Color? _backBand;
   bool _detailed = false;
@@ -337,6 +338,10 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
     final store = GameBoxMediaStore(widget.subject.fileProvider);
     _media = store.read(_game, widget.subject.systemFolder);
     _artSet = GameBoxArtSet(media: _media, title: _game.name);
+    // The game's logo (scraped "wheel"), for a spine drawn from its
+    // platform's template (docs/game-box-3d.md § 27).
+    final wheel = _game.getImagePath(widget.subject.systemFolder, 'wheels', widget.subject.fileProvider);
+    _gameLogo = wheel.isNotEmpty && File(wheel).existsSync() ? wheel : null;
     final media = _media;
     bool current() => mounted && generation == _mediaGeneration;
     GameBoxProfiles.load(widget.subject.systemId ?? _game.systemId).then((p) {
@@ -1493,6 +1498,7 @@ class GameBoxInspectorState extends State<GameBoxInspector> with TickerProviderS
         backBand: _backBand,
         composedBack: _backDetails,
         composedBackLabel: GameBoxLocale.text(context, GameBoxLocale.reconstructedBack),
+        gameLogoPath: _gameLogo,
       );
       // Read straight on, the back is the render made for its size.
       final readingBack =

@@ -611,3 +611,47 @@ Jusqu'ici, ScreenScraper était la seule source des notices. Quand la langue de 
 - La couverture d'Internet Archive en français reste partielle (quelques centaines de notices), surtout GameCube, GBA et Super Nintendo.
 - Le PDF Nintendo Europe n'est trouvé que pour les jeux publiés par Nintendo, et seulement sur DS : les dossiers Wii et 3DS de ce serveur n'ont pas un nom prévisible, et une adresse devinée renvoie une page.
 - Les notices franco-canadiennes de Nintendo of America sont surtout celles des consoles et accessoires, avec des liens anciens morts : elles ne sont pas utilisées.
+
+## 27. Tranches et côtés comme sur les jaquettes d'origine (3 novembre 2026)
+
+**Retour du mainteneur.** Sur une boîte NES (10-Yard Fight), le côté d'ouverture et les rabats du dessus et du dessous montraient seulement le titre en texte sur un aplat. Ces côtés étaient dessinés ainsi même quand un vrai scan existait. Il demande un rendu comme sur les jaquettes d'origine, par exemple les tranches Wii, GameCube et Wii U de sa photo de référence.
+
+**Ce qui change** (`lib/widgets/game_box/game_box_spine_design.dart`, `game_box_scene.dart`) :
+
+1. **Tranche.** Le scan de la tranche est utilisé s'il existe. Sinon, c'est la tranche de la feuille complète (GameTDB, `box-texture`). Sinon, c'est le **gabarit de la plateforme** :
+
+   | Plateforme | Tranche d'origine reproduite |
+   |---|---|
+   | Wii | blanche, logo Wii gris en haut, titre foncé |
+   | GameCube | noire, logo NINTENDO GAMECUBE blanc, titre blanc en capitales |
+   | Wii U | bleue, tête blanche avec le logo Wii U, titre blanc |
+   | DS | blanche, logo DS gris |
+   | 3DS, Switch | blanche, tête rouge avec le logo blanc |
+   | PS1, PS2, PSP | noire, logo blanc, logo du jeu |
+   | PS3 | noire, bandeau PS3 |
+   | PS Vita | blanche, tête noire PS Vita |
+   | Xbox, Xbox 360 | tête verte avec le logo |
+   | autres (cartouches, carton, CD) | couleur du bord du recto, logo de la plateforme, logo du jeu |
+
+   Les logos de plateforme sont ceux que l'app affiche déjà (`assets/images/logos`, voir leur `TRADEMARKS.md`). Le « logo du jeu » est le média *wheel* déjà téléchargé par le scraping. Les boîtiers Nintendo et Sony récents impriment le titre en caractères : le logo du jeu n'y est pas utilisé. Un titre long est réduit, jamais coupé.
+2. **Boîte en carton.** Une vraie boîte imprime sa tranche sur ses deux grands côtés :
+   - le **côté d'ouverture** montre donc la même tranche (scan ou gabarit) ;
+   - le **rabat du dessus** montre la tranche couchée en entier, comme le rabat-titre des boîtes réelles ;
+   - le **rabat du dessous** garde la couleur de l'impression et le logo de la plateforme ;
+   - plus aucun côté n'est « titre en texte sur aplat ».
+3. **Boîtiers plastique** (DVD, Blu-ray, cartes). Le dessus, le dessous et l'ouverture restent le plastique du boîtier : blanc pour la Wii, noir pour la GameCube, bleu pour la Wii U. C'est ce que montrent les vrais boîtiers, sans impression.
+
+**Vérification.**
+- `test/game_box_spine_design_test.dart` vérifie :
+  - les logos ;
+  - les gabarits ;
+  - la Wii sans scan ;
+  - la NES avec scan sur la tranche, le côté d'ouverture et le rabat ;
+  - la NES sans scan, avec le logo du jeu ;
+  - les titres longs.
+- `test/game_box_relief_test.dart` : l'ancien test « titre sur les côtés » est remplacé par cette spécification. Son assertion `find.byType(GameBoxEdgePainter)` ne trouvait jamais rien, car un `CustomPainter` n'est pas un widget ; elle cherche maintenant le `CustomPaint`.
+- Rendus manuels : `test/game_box_relief_preview_test.dart`, cas `nes_spine`, `nes_wheel`, `wiiu`, `wii`, `gc`, `ps2`, `n64_bugs` et les feuilles réelles Brawl, Melee et Mario Kart 8. Avec une feuille complète, la tranche est exactement celle de la jaquette.
+
+**Limites.**
+- Un gabarit reproduit la mise en page d'origine, pas le visuel propre à un jeu : bandeaux, personnages et mentions légales ne sont pas inventés. Seul un scan (tranche ou feuille complète) donne la tranche exacte. « Récupérer les faces du boîtier » les cherche (ScreenScraper `box-2D-side` et `box-texture`, GameTDB pour Nintendo).
+- Le rabat du dessous d'une vraie boîte porte des mentions légales : il reste volontairement sobre.

@@ -132,6 +132,7 @@ class GameBoxArtSet {
     Color? backBand,
     GameBoxBackDetails? composedBack,
     String composedBackLabel = '',
+    String? gameLogoPath,
   }) {
     final compact = compactWidth != null && !detailed;
     final frontPath = _usable(media.front, checks) ? media.front : null;
@@ -270,6 +271,8 @@ class GameBoxArtSet {
       composedBackLabel: composedBackLabel,
       spineAspect: spineAspect,
       spineFit: wrap?.spineFit ?? GameBoxSpineFit.trimFold,
+      // The game's logo, for a spine drawn from its template (§ 27).
+      gameLogo: compact || gameLogoPath == null ? null : _fileProvider(gameLogoPath, width: 800),
     );
   }
 
