@@ -298,8 +298,8 @@
     ],
     "sourceOnly": [],
     "promotedCommits": [],
-    "freezeCommit": "894f5697dc7aba3ac06536cc5d66893be2e22598",
-    "freezeTree": "4e598b66bc693f083d5cd5e7e38a17e8bfb32ddd",
+    "freezeCommit": "79d866ef4a4282a1475eb741b52a8e8eecb95ec1",
+    "freezeTree": "29a8551b3487f96bb59d54d62c2308dc86b8274d",
     "baseEffectiveDigest": "b8403d43bdd5d995b88e6927c730b147ae02ebbad41f0f528d4a9fd07d3cbd41",
     "inheritedDeferredPaths": [
       "lib/models/retro_achievements_session.dart",
@@ -493,6 +493,18 @@
       {
         "commit": "894f5697dc7aba3ac06536cc5d66893be2e22598",
         "subject": "build(delivery): draft private IPA 629 (MeloNX Core 628, RPCS3 Core 627) on the recorded 626, recipient public key [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "47032edc2a77efd42c7815be971592e78f15053d",
+        "subject": "[ipa-delivery:629] build(delivery): request private IPA 629 (MeloNX Core 628 and RPCS3 Core 627) on the recorded 626",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "79d866ef4a4282a1475eb741b52a8e8eecb95ec1",
+        "subject": "fix(delivery): the RPCS3 Core install check accepts the MoltenVK canary file named after its Core [skip ci]",
         "role": "recipe",
         "productPaths": 0
       }
@@ -1563,8 +1575,8 @@
     "melonx-dependencies"
   ],
   "frozen": {
-    "at": "2026-11-03T10:21:49Z",
-    "commit": "894f5697dc7aba3ac06536cc5d66893be2e22598",
+    "at": "2026-11-03T10:46:17Z",
+    "commit": "79d866ef4a4282a1475eb741b52a8e8eecb95ec1",
     "tool": "standard_delivery.py freeze",
     "inCI": false
   }
