@@ -171,8 +171,12 @@ def read_moltenvk(path, pid):
             summaries.append(dict(frames=int(header.group(1)), elapsed=float(header.group(3)), trackers={}))
             continue
         tracker = MVK_TRACKER.search(line)
-        if tracker and summaries and tracker.group('unit') in ('ms', ''):
-            summaries[-1]['trackers'][tracker.group('name').strip()] = (float(tracker.group('avg')), int(tracker.group('count')))
+        if tracker and tracker.group('unit') in ('ms', ''):
+            name = tracker.group('name').strip()
+            # A summary whose header is missing or worded otherwise starts where a tracker repeats.
+            if not summaries or name in summaries[-1]['trackers']:
+                summaries.append(dict(frames=0, elapsed=float('nan'), trackers={}))
+            summaries[-1]['trackers'][name] = (float(tracker.group('avg')), int(tracker.group('count')))
     return summaries
 
 
@@ -202,7 +206,7 @@ def report_moltenvk(summaries):
                 totals[key] = (t + total, c + count)
             totals['frames'] = totals.get('frames', 0) + frames
             gpu, encode = delta.get('gpu', (0.0, 0)), delta.get('encode', (0.0, 0))
-            print(f"  at {summary['elapsed']:.0f} s ({frames} frames, mean interval {delta.get('interval', (0.0, 1))[0] / frames:.1f} ms): "
+            print(f"  at {summary['elapsed']:.0f} s of MoltenVK time ({frames} frames, mean interval {delta.get('interval', (0.0, 1))[0] / frames:.1f} ms): "
                   f"GPU {gpu[0] / frames:.1f} ms in {gpu[1] / frames:.1f} command buffers, Metal encoding {encode[0] / frames:.1f} ms, "
                   f"vkQueueSubmit {delta.get('submit', (0.0, 0))[0] / frames:.1f} ms, drawable {delta.get('drawable', (0.0, 0))[0] / frames:.1f} ms")
         previous = trackers
