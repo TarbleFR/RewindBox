@@ -780,7 +780,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   return (UIInterfaceOrientationMask)LibretroPolicyMask(
       [self skin:portraitSkin usableInOrientation:LibretroSkinOrientationPortrait iPad:iPad],
       [self skin:portraitSkin usableInOrientation:LibretroSkinOrientationLandscape iPad:iPad],
-      [self skin:landscapeSkin usableInOrientation:LibretroSkinOrientationLandscape iPad:iPad]);
+      [self skin:landscapeSkin usableInOrientation:LibretroSkinOrientationLandscape iPad:iPad],
+      [self skin:landscapeSkin usableInOrientation:LibretroSkinOrientationPortrait iPad:iPad]);
 }
 
 /// Applies the mask after a skin change, a refused skin or a stop of the

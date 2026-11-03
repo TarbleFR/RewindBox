@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Source wiring of the portrait-only skin lock (libretro and Dolphin bridges).
+"""Source wiring of the portrait-only and landscape-only skin lock (libretro and Dolphin bridges).
 
 This is a TEXT contract of the call order, not a UIKit run: rotation itself
 is only observable on an iPhone or in the simulator. The decision table is
@@ -64,6 +64,9 @@ require('chosenSkinForOrientation:LibretroSkinOrientationPortrait' in mask
 chosen = body(session, '- (LibretroSkin *)chosenSkinForOrientation:')
 require('[self settingValue:key]' in chosen, 'effective selection uses the game-then-console store lookup')
 require('importedSkinWithIdentifier' in chosen and 'report:NO' in chosen, 'quiet load of the chosen skin')
+require(mask.count('usableInOrientation:LibretroSkinOrientationPortrait') == 2
+        and mask.count('usableInOrientation:LibretroSkinOrientationLandscape') == 2,
+        'both skins are checked in both orientations (portrait AND landscape lock)')
 legacy = body(session, '- (void)keepLandscapeForLegacyPicture')
 require('_legacyLandscapeOnly = YES' in legacy, 'legacy exception recorded')
 for name in ('frontendSettingsDidChange', 'rejectSkin:(LibretroSkin *)skin representation'):

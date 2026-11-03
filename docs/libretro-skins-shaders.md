@@ -234,8 +234,9 @@ n'est nécessaire de leur côté.
 
 `LibretroOrientation` ajoute `application:supportedInterfaceOrientationsForWindow:`
 au délégué d'application : identique à l'existant hors jeu libretro, portrait et
-paysage pendant un jeu libretro, sauf pour un skin uniquement portrait : le jeu
-s'ouvre alors en portrait même téléphone tenu à l'horizontale et y reste
+paysage pendant un jeu libretro, sauf pour un skin uniquement portrait (le jeu
+s'ouvre alors en portrait même téléphone tenu à l'horizontale et y reste) ou
+uniquement paysage (même règle en paysage, symétrique)
 (`LibretroOrientationPolicy.h`, `gameOrientationMask`). Un skin à double
 disposition, ou deux skins affectés exprès (un par orientation, l'affectation
 explicite l'emporte), laissent le joueur tourner l'iPhone ; les commandes par

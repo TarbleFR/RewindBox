@@ -11,27 +11,32 @@ enum {
   LibretroPolicyMaskAllButUpsideDown = (1 << 1) | (1 << 3) | (1 << 4),
 };
 
-/// Portrait lock of a game.
+/// Orientation lock of a game, symmetric for portrait and landscape.
 ///
 /// The inputs say whether a layout is USABLE on this device (present for the
 /// device class, loaded, not refused, not announced as unplayable by touch):
-/// - `portraitSkinInPortrait`: the skin chosen for portrait, in portrait;
-/// - `portraitSkinInLandscape`: that same skin, in landscape (what the skin
-///   itself offers, whether or not it is assigned to landscape);
-/// - `landscapeSkinInLandscape`: the skin chosen for landscape, in landscape.
+/// - `portraitSkinInPortrait` / `portraitSkinInLandscape`: the skin chosen for
+///   portrait, in each orientation (what the skin itself offers, whether or
+///   not it is assigned there);
+/// - `landscapeSkinInLandscape` / `landscapeSkinInPortrait`: the skin chosen
+///   for landscape, in each orientation.
 ///
-/// Locked only for a skin that is portrait only on this device while no
-/// other skin is assigned to landscape. NeoStation's default landscape
-/// controls (the implicit fallback) are not a second layout. Priority
-/// decision when two DISTINCT skins are assigned on purpose (a portrait-only
-/// one for portrait, another for landscape): the explicit assignment wins and
-/// both orientations stay allowed; nothing is locked or unassigned.
-/// A skin that offers both layouts keeps the usual behaviour even if only one
-/// orientation is assigned to it.
+/// Portrait only: the portrait skin is playable in portrait, offers no
+/// landscape layout and no other skin is playably assigned to landscape.
+/// Landscape only: the mirror image. NeoStation's default controls (the
+/// implicit fallback of the other orientation) are not a second layout.
+/// Priority decision when two DISTINCT skins are assigned on purpose (for
+/// instance a portrait-only one for portrait and a landscape-only one for
+/// landscape): the explicit assignments win, both orientations stay allowed and
+/// nothing is locked or unassigned. A skin that offers both layouts keeps the
+/// usual behaviour even if only one orientation is assigned to it.
 static inline unsigned LibretroPolicyMask(bool portraitSkinInPortrait, bool portraitSkinInLandscape,
-                                          bool landscapeSkinInLandscape) {
+                                          bool landscapeSkinInLandscape, bool landscapeSkinInPortrait) {
   if (portraitSkinInPortrait && !portraitSkinInLandscape && !landscapeSkinInLandscape) {
     return LibretroPolicyMaskPortrait;
+  }
+  if (landscapeSkinInLandscape && !landscapeSkinInPortrait && !portraitSkinInPortrait) {
+    return LibretroPolicyMaskLandscape;
   }
   return LibretroPolicyMaskAllButUpsideDown;
 }

@@ -153,7 +153,9 @@ and the session is exactly as before.
   portrait even if the iPhone is held sideways; a skin with portrait AND
   landscape layouts lets the player turn the phone; two skins assigned on
   purpose (one per orientation) also allow both, the explicit assignment
-  winning. The default pad in landscape is not a second layout. The mask
+  winning. The default pad in landscape is not a second layout. A
+  landscape-only skin (or no portrait skin) keeps the session in landscape,
+  as before: the mirror lock needs no application mask. The mask
   (`DOLSkinOverlay.supportedOrientationMask`, `DOLOrientationPolicy.h`) is
   also given to the application through `DOLOrientation` before the
   session is presented and released when it is dismissed, after a failed
