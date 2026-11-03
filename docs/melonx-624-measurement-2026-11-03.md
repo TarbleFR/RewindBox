@@ -93,3 +93,40 @@ the game made its buffer.
 
 **Build 626.** When that read-back target alone overlaps the destination, the copy goes into the buffer and into
 that texture, so both hold the latest bytes. Any other texture there still declines the copy.
+
+## Build 626 journals: 0.5x and 1x (3 November 2026)
+
+| Session | Game FPS mean / median | In play | Read-backs into buffers |
+|---|---|---|---|
+| 626 at 0.5x, PID 2862 (112 s, about 30 s of it in a 30 FPS menu) | 22.1 / 22.3 | 13.8 and 15.3 FPS over two passes, 18 FPS in the best windows | 0, with 352 declined as occupied |
+| 626 at 1x, PID 3011 (76 s) | 16.0 / 14.2 | 15-17 FPS (79-85 game frames per 5.1 s window) | 0, with 742 declined as occupied |
+
+**The 626 change never ran either.** The texture over the destination is not the read-back target alone, and the
+journals do not say what it is.
+
+**What the in-play windows show at 0.5x.** The resolution changes little:
+- the GPU thread waits 30-55 ms per frame for the render thread;
+- the render thread's fence waits are 17-27 ms per frame;
+- `Action`, the read-back flush, costs 18.3 ms per frame over the slow windows.
+
+The slowest ceiling over those windows is the GPU thread with its read-back waits: 20.6 FPS at 0.5x, 17.7 FPS at 1x.
+The render thread's own work comes next, at 33.7 and 30.1 FPS. Its compute descriptor updates take about 0.5 ms per
+dispatch: 8.5 ms per frame at 0.5x, 17.6 ms at 1x.
+
+**Build 628 (627 is the RPCS3 Core number of another session).** Textures over the destination no longer decline the
+copy into the buffer. They are treated as a guest write there treats them:
+- `PhysicalMemory.SignalTextureWrite` signals a write of the destination to the memory tracking without writing, and
+  buffers are exempt;
+- a GPU-modified texture there is flushed first;
+- each texture reloads from memory before its next use;
+- the buffer keeps its data, and the GPU copy goes into it.
+
+Two cases are handled apart:
+- a buffer texture (`Target.TextureBuffer`) is a view of the buffer and is left alone;
+- a texture of the source's group over the destination still declines the copy.
+
+**What the journals report.** The first textures over the destination are logged, at most 8 signatures, as "DMA
+read-back into a buffer over a texture". The DMA summary counts:
+- the read-backs into buffers with textures there;
+- the read-back targets and GPU-modified textures signalled;
+- the buffer textures left alone.

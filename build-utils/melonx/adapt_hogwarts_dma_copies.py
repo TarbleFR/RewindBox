@@ -138,6 +138,19 @@ when that read-back target alone overlaps the destination (TextureGroup.ReadBack
 layout and format), the copy goes into the buffer and into that texture, so both hold the latest
 bytes and a CPU read flushes the same bytes from either. Any other texture over the destination still
 declines the copy (occupied).
+
+Build 626 journals (PIDs 2862 at 0.5x and 3011 at 1x, 3 November 2026): again 0 read-backs into
+buffers, with 352 and 742 declined as occupied; the texture over the destination is not that
+read-back target alone. In play at 0.5x the GPU thread still waits 30-55 ms per frame for the
+render thread, about 14-15 FPS, as at 1x. From build 628 the textures over the destination no
+longer decline the copy, and the copy into the buffer treats them as a guest write there would:
+- PhysicalMemory.SignalTextureWrite signals a write of the destination to the memory tracking,
+  buffers exempt, without writing: a GPU-modified texture there is flushed first, and each one
+  reloads from memory before its next use, while the buffer keeps its data for the GPU copy.
+- A buffer texture (Target.TextureBuffer) is a view of the buffer itself and is left alone.
+- A texture of the source's own group over the destination still declines the copy (occupied).
+- The first textures over the destination are logged, at most 8 signatures, and the DMA summary
+  counts the read-backs into buffers with textures there, read-back targets and GPU-modified ones.
 - The float policy keeps to block-linear destinations (complete copies, upstream path).
 - FindRegionTarget (the region upload, both GPU copies) only takes a texture that starts at the
   surface base: the cache lookup returns any texture that contains the base, and the region
@@ -352,6 +365,18 @@ PHYSICAL_NEW = '''        /// <summary>
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Signals a write of the given range to the memory tracking without writing, buffers exempt: the textures over it act
+        /// as for a guest write there (a GPU-modified one is flushed first, then each reloads from memory before its next
+        /// use), while the buffers keep their data. For a GPU write into the buffer that holds the range.
+        /// </summary>
+        /// <param name="address">Physical address of the range</param>
+        /// <param name="size">Size of the range in bytes</param>
+        public void SignalTextureWrite(ulong address, ulong size)
+        {
+            _cpuMemory.SignalMemoryTracking(address, size, write: true, precise: true, exemptId: (int)ResourceKind.Buffer);
         }
 
 ''' + PHYSICAL_ANCHOR
@@ -641,7 +666,12 @@ METHOD_NEW = '''        /// <summary>
         private readonly long[] _readBackDeclines = new long[(int)ReadBackDecline.Count];
         private long _gpuReadBacks;
         private long _bufferReadBacks;
-        private long _ownTargetReadBacks;
+        private long _textureReadBacks;
+        private long _readBackTargetWrites;
+        private long _modifiedTextureWrites;
+        private long _bufferTextureOverlaps;
+        private const int ReadBackOverlapSignatureLimit = 8;
+        private readonly HashSet<(int, int, int, int, int, bool, bool)> _readBackOverlapSignatures = new();
         private long _readBackCandidates;
         private bool _gpuReadBackNoted;
         private bool _bufferReadBackNoted;
@@ -679,7 +709,7 @@ METHOD_NEW = '''        /// <summary>
                     $"{_gpuSourceDeclines[0]} layout {_gpuSourceDeclines[1]} noTarget {_gpuSourceDeclines[2]} format " +
                     $"{_gpuSourceDeclines[3]} notModified {_gpuSourceDeclines[4]}; gpuRegionCopies {_gpuRegionCopies}, declined noTexture " +
                     $"{_gpuRegionDeclines[0]} layout {_gpuRegionDeclines[1]} noTarget {_gpuRegionDeclines[2]} format " +
-                    $"{_gpuRegionDeclines[3]} notModified {_gpuRegionDeclines[4]}; gpuReadBacks {_gpuReadBacks} (into buffers {_bufferReadBacks}, with the read-back target {_ownTargetReadBacks}) of {_readBackCandidates}, " +
+                    $"{_gpuRegionDeclines[3]} notModified {_gpuRegionDeclines[4]}; gpuReadBacks {_gpuReadBacks} (into buffers {_bufferReadBacks}, over textures {_textureReadBacks}: read-back targets {_readBackTargetWrites}, modified {_modifiedTextureWrites}, buffer textures {_bufferTextureOverlaps}) of {_readBackCandidates}, " +
                     $"first-access flushes {System.Threading.Interlocked.Read(ref Image.TextureGroup.ReadBackFlushes)} (" +
                     $"{Milliseconds(System.Threading.Interlocked.Read(ref Image.TextureGroup.ReadBackFlushTicks))} ms, max " +
                     $"{Milliseconds(System.Threading.Interlocked.Read(ref Image.TextureGroup.ReadBackFlushMaxTicks))} ms, GPU thread " +
@@ -1176,10 +1206,13 @@ METHOD_NEW = '''        /// <summary>
 
         /// <summary>
         /// A read-back whose destination a buffer of the cache holds: build 624's 1x1 eye-adaptation copy, about once per
-        /// frame, 747 of 751 read-backs. When it covers the whole source texture and no texture overlaps the destination, the
-        /// level is copied on the GPU into the buffer, and the range is marked GPU-modified as a buffer to buffer copy does
-        /// (BufferCache.TryCopyTextureToBuffer). The forced host sync after it seals the modification, so a guest-memory
-        /// read before the guest's own sync waits for the copy too. Otherwise the copy keeps the guest path.
+        /// frame, 747 of 751 read-backs. When it covers the whole source texture, the level is copied on the GPU into the
+        /// buffer, and the range is marked GPU-modified as a buffer to buffer copy does (BufferCache.TryCopyTextureToBuffer).
+        /// The forced host sync after it seals the modification, so a guest-memory read before the guest's own sync waits for
+        /// the copy too. Build 626 declined every copy as occupied: textures over the destination are treated as a guest write
+        /// there would treat them (PhysicalMemory.SignalTextureWrite, buffers exempt): a GPU-modified one is flushed first, and
+        /// each one reloads from memory before its next use. A buffer texture is a view of the buffer and is left alone; a
+        /// texture of the source's group there declines the copy. Otherwise the copy keeps the guest path.
         /// </summary>
         private bool TryReadBackIntoBuffer(MemoryManager memoryManager, Image.Texture source, Image.FormatInfo format, int sourceX,
                                            int sourceY, int width, int height, ulong dstVa, ulong size, int dstStride)
@@ -1190,28 +1223,52 @@ METHOD_NEW = '''        /// <summary>
                 return false;
             }
 
-            int overlaps = memoryManager.Physical.TextureCache.FindOverlapsInRange(memoryManager, dstVa, size, ref _targetOverlaps, out _);
+            int overlaps = memoryManager.Physical.TextureCache.FindOverlapsInRange(memoryManager, dstVa, size, ref _targetOverlaps, out bool contiguous);
+            ulong address = memoryManager.Translate(dstVa);
+            int textures = 0, readBackTargets = 0, modified = 0, bufferTextures = 0;
+            bool sourceThere = false;
 
-            // Build 625: the only texture there is often the linear read-back target the first copies created before the
-            // game made its buffer. It is kept current with the buffer; any other texture declines the copy.
-            Image.Texture own = overlaps == 1 ? _targetOverlaps[0] : null;
-
-            if (own != null && (!own.Group.ReadBackTarget || !own.Info.IsLinear || own.Info.Stride != dstStride ||
-                own.Info.Width != width || own.Info.Height != height || own.Info.FormatInfo.Format != format.Format ||
-                own.Group == source.Group || own.Group.HasIncompatibleOverlaps || own.Info.Target != Target.Texture2D ||
-                own.Info.Levels > 1 || own.Info.DepthOrLayers > 1 || own.ScaleFactor != 1f ||
-                own.Range.GetSubRange(0).Address != memoryManager.Translate(dstVa)))
+            for (int i = 0; i < overlaps; i++)
             {
-                own = null;
+                Image.Texture texture = _targetOverlaps[i];
+
+                if (texture.Info.Target == Target.TextureBuffer)
+                {
+                    bufferTextures++;
+                    continue;
+                }
+
+                bool readBackTarget = texture.Group.ReadBackTarget;
+                bool textureModified = texture.Group.AnyHandleModified();
+                sourceThere |= texture.Group == source.Group;
+                textures++;
+                readBackTargets += readBackTarget ? 1 : 0;
+                modified += textureModified ? 1 : 0;
+                NoteReadBackOverlap(texture, overlaps, address, size, readBackTarget, textureModified);
             }
 
-            if (overlaps != 0 && own == null)
+            // The overlaps are not kept.
+            Array.Clear(_targetOverlaps, 0, overlaps);
+
+            if (sourceThere)
             {
                 _readBackDeclines[(int)ReadBackDecline.Occupied]++;
                 return false;
             }
 
+            if (!contiguous)
+            {
+                _readBackDeclines[(int)ReadBackDecline.Buffer]++;
+                return false;
+            }
+
             source.SynchronizeMemory();
+
+            if (textures != 0)
+            {
+                // As a guest write of the destination would: buffers exempt, the copy below writes the one there.
+                memoryManager.Physical.SignalTextureWrite(address, size);
+            }
 
             if (!memoryManager.Physical.BufferCache.TryCopyTextureToBuffer(memoryManager, source.HostTexture, dstVa, size, dstStride))
             {
@@ -1219,17 +1276,13 @@ METHOD_NEW = '''        /// <summary>
                 return false;
             }
 
-            if (own != null)
-            {
-                own.SynchronizeMemory();
-                source.HostTexture.CopyTo(own.HostTexture, new Extents2D(0, 0, width, height), new Extents2D(0, 0, width, height), false);
-                own.SignalModified();
-                _ownTargetReadBacks++;
-            }
-
             _context.CreateHostSyncIfNeeded(Ryujinx.Graphics.Gpu.Synchronization.HostSyncFlags.Force);
             _gpuReadBacks++;
             _bufferReadBacks++;
+            _textureReadBacks += textures != 0 ? 1 : 0;
+            _readBackTargetWrites += readBackTargets;
+            _modifiedTextureWrites += modified;
+            _bufferTextureOverlaps += bufferTextures;
 
             if (!_bufferReadBackNoted)
             {
@@ -1239,6 +1292,30 @@ METHOD_NEW = '''        /// <summary>
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Logs a texture over the destination of a read-back into a buffer once per signature (kind, format, layout, size,
+        /// read-back target, source group; at most 8), with the number of textures there and its offset from the destination.
+        /// </summary>
+        private void NoteReadBackOverlap(Image.Texture texture, int overlaps, ulong address, ulong size, bool readBackTarget, bool modified)
+        {
+            int layout = (texture.Info.IsLinear ? 1 : 2) + (texture.Info.Levels > 1 ? 4 : 0) + (texture.Info.DepthOrLayers > 1 ? 8 : 0);
+
+            if (_readBackOverlapSignatures.Count >= ReadBackOverlapSignatureLimit ||
+                !_readBackOverlapSignatures.Add(((int)texture.Info.Target, (int)texture.Info.FormatInfo.Format, layout, texture.Info.Width,
+                                                 texture.Info.Height, readBackTarget, modified)))
+            {
+                return;
+            }
+
+            ulong start = texture.Range.Count != 0 ? texture.Range.GetSubRange(0).Address : 0;
+            string offset = start <= address ? $"+{address - start}" : $"-{start - address}";
+            Logger.Warning?.Print(LogClass.Gpu, $"DMA read-back into a buffer over a texture (Hogwarts policy) #{_readBackOverlapSignatures.Count}: " +
+                $"{overlaps} overlap {size} bytes; {texture.Info.FormatInfo.Format} {texture.Info.Target} {texture.Info.Width}x{texture.Info.Height}x" +
+                $"{texture.Info.DepthOrLayers} levels {texture.Info.Levels} " +
+                $"{(texture.Info.IsLinear ? "linear stride " + texture.Info.Stride : "block-linear gobY " + texture.Info.GobBlocksInY)} " +
+                $"size {texture.Size}, destination at {offset}; read-back target {readBackTarget}, modified {modified}");
         }
 
         /// <summary>

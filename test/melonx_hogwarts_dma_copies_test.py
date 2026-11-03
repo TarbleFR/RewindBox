@@ -156,8 +156,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           'public bool SignalPreciseRead(MultiRange range)' in physical and
           '_cpuMemory.SignalMemoryTracking(subRange.Address, subRange.Size, write: false, precise: true);' in physical and
           physical.index('return false;', physical.index('public bool SignalPreciseRead')) <
-          physical.index('_cpuMemory.SignalMemoryTracking(subRange.Address', physical.index('public bool SignalPreciseRead')),
-          'PhysicalMemory: only the precise read signal, which signals nothing when part of the range is unmapped')
+          physical.index('_cpuMemory.SignalMemoryTracking(subRange.Address', physical.index('public bool SignalPreciseRead')) and
+          'public void SignalTextureWrite(ulong address, ulong size)' in physical and
+          '_cpuMemory.SignalMemoryTracking(address, size, write: true, precise: true, exemptId: (int)ResourceKind.Buffer);' in physical and
+          physical.count('_cpuMemory.SignalMemoryTracking(') == before[adapter.PHYSICAL].count('_cpuMemory.SignalMemoryTracking(') + 2,
+          'PhysicalMemory: the precise read signal, which signals nothing when part of the range is unmapped, and the write '
+          'signal to textures only (buffers exempt), which writes nothing')
     threaded = after[host.THREADED]
     check(threaded.replace(host.THREADED_NAMESPACE_NEW, host.THREADED_NAMESPACE_OLD).replace(
               host.THREADED_NEW, host.THREADED_OLD).replace(host.RENDER_WORK_NEW, host.RENDER_WORK_OLD).replace(
@@ -287,8 +291,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
     region_copy = dma[dma.index('private bool TryCopyGpuRegion('):dma.index('private static bool SignalPreciseRead(')]
     check('SignalModified' not in upload and gpu_copy.count('target.SignalModified();') == 1 and
           region_copy.count('target.SignalModified();') == 2 and
-          dma.count('SignalModified') == before[adapter.DMA].count('SignalModified') + 4 and
-          dma.count('own.SignalModified();') == 1,
+          dma.count('SignalModified') == before[adapter.DMA].count('SignalModified') + 3 and
+          'own.SignalModified();' not in dma,
           'the region upload does not mark the texture modified; the GPU copies and the read-back mark their destination, as the delivered GPU copy does')
     readback = dma[dma.index('private bool TryReadBackGpuRegion('):dma.index('private static bool SignalPreciseRead(')]
     check(readback.index('target.Group.ReadBackTarget = true;') < readback.index('target.SignalModified();') <
@@ -300,12 +304,18 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           'the read-back checks its rows and the buffers first, writes no guest memory and forces a host sync after the copy')
     into_buffer = dma[dma.index('private bool TryReadBackIntoBuffer('):dma.index('private static bool SignalPreciseRead(')]
     check(into_buffer.index('width != source.Info.Width || height != source.Info.Height') <
-          into_buffer.index('FindOverlapsInRange(memoryManager, dstVa, size') < into_buffer.index('source.SynchronizeMemory();') <
+          into_buffer.index('FindOverlapsInRange(memoryManager, dstVa, size') <
+          into_buffer.index('if (texture.Info.Target == Target.TextureBuffer)') <
+          into_buffer.index('sourceThere |= texture.Group == source.Group;') <
+          into_buffer.index('Array.Clear(_targetOverlaps, 0, overlaps);') < into_buffer.index('if (sourceThere)') <
+          into_buffer.index('if (!contiguous)') < into_buffer.index('source.SynchronizeMemory();') <
+          into_buffer.index('memoryManager.Physical.SignalTextureWrite(address, size);') <
           into_buffer.index('BufferCache.TryCopyTextureToBuffer(memoryManager, source.HostTexture, dstVa, size, dstStride)') <
           into_buffer.index('_context.CreateHostSyncIfNeeded(Ryujinx.Graphics.Gpu.Synchronization.HostSyncFlags.Force);') and
           'Strict' not in into_buffer and 'memoryManager.Write' not in into_buffer and 'GetSpan' not in into_buffer and
           readback.index('HasBufferInRange') < readback.index('return TryReadBackIntoBuffer('),
-          'a read-back into a buffer copies the whole source level on the GPU, writes no guest memory, and seals it with a forced sync')
+          'a read-back into a buffer copies the whole source level on the GPU, writes no guest memory, signals a write to the '
+          'textures there (not to buffer textures; the source group declines), and seals it with a forced sync')
     buffers = after[adapter.BUFFER_CACHE]
     check(buffers.replace(adapter.BUFFER_NEW, adapter.BUFFER_ANCHOR) == before[adapter.BUFFER_CACHE] and
           buffers.count('public bool HasBufferInRange(MemoryManager memoryManager, ulong gpuVa, ulong size)') == 1 and
@@ -406,7 +416,7 @@ namespace Ryujinx.Graphics.GAL
     enum Format { R8Unorm, R8G8Unorm, R8G8B8A8Unorm, B8G8R8A8Unorm, R16Unorm, R16G16Unorm, R16G16B16A16Unorm, R10G10B10A2Unorm,
                   R16G16B16A16Float, D32Float, R8G8B8A8Snorm, R8G8B8A8Srgb, B8G8R8A8Srgb, R16Float, R16G16Float, R32Float,
                   R32G32Float, R32G32B32A32Float, R11G11B10Float }
-    enum Target { Texture2D, Texture2DArray }
+    enum Target { Texture2D, Texture2DArray, TextureBuffer }
     readonly struct Extents2D
     {
         public readonly int X1, Y1, X2, Y2;
@@ -544,6 +554,9 @@ sealed class PhysicalMemory
 {
     public Image.TextureCache TextureCache = new(); public BufferCache BufferCache = new(); public int PreciseReads;
     public bool SignalPreciseRead(Image.Ranges range) { PreciseReads++; return true; }
+    // A write signal to the textures over a range (buffers exempt), recorded; nothing is written.
+    public readonly List<string> TextureWrites = new();
+    public void SignalTextureWrite(ulong address, ulong size) => TextureWrites.Add($"{address:x} {size}");
 }
 sealed class MemoryManager
 {
@@ -862,8 +875,8 @@ static class Program
                             $" | host copies {exposure.HostTexture.Copies.Count}";
         string bufferLine = sink.Lines.Find(l => l.StartsWith("DMA GPU read-back into a buffer"));
         // Build 625: the first copies, before the game made its buffer, created a linear read-back target over the
-        // destination; once the buffer exists that target is the only texture there. The copy goes into the buffer and
-        // into the target, so both hold the latest bytes.
+        // destination; once the buffer exists that target is there. Build 626 declined it too (occupied): the copy now goes
+        // into the buffer, after a write signal to the textures there (buffers exempt), as a guest write would do.
         rm.Physical.TextureCache.Textures = new() { exposure };
         rm.Physical.BufferCache.Overlap = false;
         bool ownCreated = dma.GpuRegion(rm, tinySurface, 0, 0, dstSurface, true, 8, 0, 0, 8, 1);
@@ -871,24 +884,48 @@ static class Program
         rm.Physical.TextureCache.Placed = new() { ownTarget };
         rm.Physical.BufferCache.Overlap = true;
         int ownBefore = rm.Physical.BufferCache.Copies.Count, ownHostBefore = exposure.HostTexture.Copies.Count;
+        int ownCalls = ownTarget.Calls.Count;
         bool ownReadBack = dma.GpuRegion(rm, tinySurface, 0, 0, dstSurface, true, 8, 0, 0, 8, 1);
         string ownCopy = $"{ownCreated && ownTarget.Group.ReadBackTarget} | buffer copies {rm.Physical.BufferCache.Copies.Count - ownBefore} | " +
-                         $"{string.Join(";", exposure.HostTexture.Copies.GetRange(ownHostBefore, exposure.HostTexture.Copies.Count - ownHostBefore))} | " +
-                         string.Join(",", ownTarget.Calls);
-        rm.Physical.TextureCache.Placed = new(); rm.Physical.BufferCache.Overlap = false;
-        bool BufferDecline(bool refuses, List<Image.Texture> placed)
+                         $"host copies {exposure.HostTexture.Copies.Count - ownHostBefore} | target calls {ownTarget.Calls.Count - ownCalls} | " +
+                         $"writes {string.Join(";", rm.Physical.TextureWrites)}";
+        // Another texture over the destination (GPU-modified) is treated the same way; a buffer texture, a view of the
+        // buffer, gets no write signal.
+        int Accepted(List<Image.Texture> placed, out bool ok)
         {
             rm.Physical.TextureCache.Textures = new() { exposure };
-            rm.Physical.TextureCache.Placed = placed ?? new();
+            rm.Physical.TextureCache.Placed = placed; rm.Physical.BufferCache.Overlap = true;
+            int writes = rm.Physical.TextureWrites.Count, copies = rm.Physical.BufferCache.Copies.Count;
+            ok = dma.GpuRegion(rm, tinySurface, 0, 0, dstSurface, true, 8, 0, 0, 8, 1) &&
+                 rm.Physical.BufferCache.Copies.Count == copies + 1;
+            rm.Physical.TextureCache.Placed = new(); rm.Physical.BufferCache.Overlap = false;
+            return rm.Physical.TextureWrites.Count - writes;
+        }
+        var foreign = Make(Format.R8G8B8A8Unorm, 4, 2, 1); foreign.Range.Spans.Add(new Image.Span(0x10000, 8)); foreign.Group.Modified = true;
+        var bufferView = Make(Format.R16G16B16A16Float, 8, 64, 1); bufferView.Info.Target = Target.TextureBuffer;
+        bufferView.Range.Spans.Add(new Image.Span(0xff00, 0x200));
+        int foreignWrites = Accepted(new() { foreign, bufferView }, out bool foreignCopied);
+        int viewWrites = Accepted(new() { bufferView }, out bool viewCopied);
+        string overlapLines = string.Join(" / ", sink.Lines.FindAll(l => l.StartsWith("DMA read-back into a buffer over a texture")));
+        string overTextures = $"{foreignCopied} {foreignWrites} | {viewCopied} {viewWrites}";
+        rm.Physical.TextureCache.Placed = new(); rm.Physical.BufferCache.Overlap = false;
+        bool BufferDecline(bool refuses, List<Image.Texture> placed, bool contiguous = true)
+        {
+            rm.Physical.TextureCache.Textures = new() { exposure };
+            rm.Physical.TextureCache.Placed = placed ?? new(); rm.Physical.TextureCache.Contiguous = contiguous;
             rm.Physical.BufferCache.Overlap = true; rm.Physical.BufferCache.Refuses = refuses;
-            int copies = rm.Physical.BufferCache.Copies.Count, syncs = dma.ForcedSyncs;
+            int copies = rm.Physical.BufferCache.Copies.Count, syncs = dma.ForcedSyncs, writes = rm.Physical.TextureWrites.Count;
             bool ok = dma.GpuRegion(rm, tinySurface, 0, 0, dstSurface, true, 8, 0, 0, 8, 1);
             rm.Physical.TextureCache.Placed = new(); rm.Physical.BufferCache.Refuses = false; rm.Physical.BufferCache.Overlap = false;
-            return !ok && rm.Physical.BufferCache.Copies.Count == copies && dma.ForcedSyncs == syncs;
+            rm.Physical.TextureCache.Contiguous = true;
+            return !ok && rm.Physical.BufferCache.Copies.Count == copies && dma.ForcedSyncs == syncs && rm.Physical.TextureWrites.Count == writes;
         }
         if (BufferDecline(true, null)) readBackDeclined.Add("bufferRefused");
-        var overExposure = Make(Format.R8G8B8A8Unorm, 4, 2, 1); overExposure.Range.Spans.Add(new Image.Span(0x10000, 8));
-        if (BufferDecline(false, new() { overExposure })) readBackDeclined.Add("bufferOccupied");
+        // A texture of the source's own group over the destination declines the copy.
+        var sourceView = Make(Format.R16G16B16A16Float, 8, 1, 1); sourceView.Group = exposure.Group;
+        sourceView.Range.Spans.Add(new Image.Span(0x10000, 8));
+        if (BufferDecline(false, new() { foreign, sourceView })) readBackDeclined.Add("bufferSource");
+        if (BufferDecline(false, null, contiguous: false)) readBackDeclined.Add("bufferFragmented");
         string readBackCounts = dma.ReadBackCounts;
         string regionLine = sink.Lines.Find(l => l.StartsWith("DMA GPU region copy"));
         int regionLines = sink.Lines.FindAll(l => l.StartsWith("DMA GPU region copy")).Count;
@@ -1005,7 +1042,7 @@ static class Program
             declined, counts, uploadLine, uploadLines, gpuCopied, gpuCopy, gpuCalls, gpuDeclined, sourceCounts, gpuLine, gpuLines,
             floatCopied, floatCopy, regionCopied, regionCopy, createdCopied, createdQuery, createdCopy, readBackCopied,
             readBackQuery, readBackCopy, readBackReused, readBackLine, readBackLines, readBackDeclined, readBackCounts,
-            bufferReadBack, bufferCopy, bufferLine, ownReadBack, ownCopy,
+            bufferReadBack, bufferCopy, bufferLine, ownReadBack, ownCopy, overTextures, overlapLines,
             regionLine, regionLines, regionDeclined, regionCounts, precise, byteImmediate, byteNextFrame, bytePartial, byteRewrite,
             byteModel, stridedZeroes,
             slowLines = slowLines.ConvertAll(l => System.Text.RegularExpressions.Regex.Replace(l, @"\d+\.\d ms", "T ms")) }));
@@ -1053,9 +1090,9 @@ static class Program
     check(result['counts'] == '4 3 10 2 1 2 1', f'uploads, declines (no texture, layout, format, overlap) and slow accesses counted: {result}')
     check('regionUploads 4, declined noTarget 3 layout 10 format 2 overlap 1; slowReads 3, slowWrites 1; gpuSourceCopies 2, declined '
           'noTexture 4 layout 3 noTarget 1 format 3 notModified 1; gpuRegionCopies 2, declined noTexture 2 layout 2 noTarget 2 '
-          'format 3 notModified 1; gpuReadBacks 5 (into buffers 2, with the read-back target 1) of 12, first-access flushes 0 (0.0 ms, '
-          'max 0.0 ms, GPU thread 0), '
-          'declined rows 2 buffer 1 occupied 2 target 1 partial 1; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)'
+          'format 3 notModified 1; gpuReadBacks 7 (into buffers 4, over textures 2: read-back targets 1, modified 2, buffer textures 2) '
+          'of 15, first-access flushes 0 (0.0 ms, max 0.0 ms, GPU thread 0), '
+          'declined rows 2 buffer 2 occupied 2 target 1 partial 1; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)'
           in result['last'] and
           'floatFormat ' in result['last'], f'the summary reports them: {result}')
     check(result['capped'] == 64, f'at most 64 summaries per session: {result}')
@@ -1082,11 +1119,19 @@ static class Program
           result['bufferLine'] == 'DMA GPU read-back into a buffer (Hogwarts policy): R16G16B16A16Float 1x1 to stride 8, 8 bytes',
           f'a whole texture read back into a buffer is copied on the GPU into it, after a source sync, then a forced sync: {result}')
     check(result['ownReadBack'] and result['ownCopy'] ==
-          'True | buffer copies 1 | (0,0)-(1,1) to (0,0)-(1,1) filter=False same=False | sync,modified,sync,modified',
-          f'the read-back target alone over the destination is kept current with the buffer: {result}')
-    check(result['readBackDeclined'] == ['strided', 'unaligned', 'partial', 'occupied', 'target', 'bufferRefused', 'bufferOccupied'],
+          'True | buffer copies 1 | host copies 0 | target calls 0 | writes 10000 8',
+          f'the read-back target over the destination gets a write signal, and the copy goes into the buffer: {result}')
+    check(result['overTextures'] == 'True 1 | True 0',
+          f'another texture over the destination gets the write signal too; a buffer texture alone gets none: {result}')
+    check(result['overlapLines'] ==
+          'DMA read-back into a buffer over a texture (Hogwarts policy) #1: 1 overlap 8 bytes; R16G16B16A16Float Texture2D 1x1x1 '
+          'levels 1 linear stride 8 size 0, destination at +0; read-back target True, modified True / '
+          'DMA read-back into a buffer over a texture (Hogwarts policy) #2: 2 overlap 8 bytes; R8G8B8A8Unorm Texture2D 2x1x1 '
+          'levels 1 block-linear gobY 4 size 0, destination at +0; read-back target False, modified True',
+          f'each texture signature over the destination is logged once, with its offset: {result}')
+    check(result['readBackDeclined'] == ['strided', 'unaligned', 'partial', 'occupied', 'target', 'bufferRefused', 'bufferSource', 'bufferFragmented'],
           f'every declined read-back copies, creates and syncs nothing: {result}')
-    check(result['readBackCounts'] == '5 2,1,2,1,1', f'read-backs and declines (rows, buffer, occupied, target, partial): {result}')
+    check(result['readBackCounts'] == '7 2,2,2,1,1', f'read-backs and declines (rows, buffer, occupied, target, partial): {result}')
     check(result['byteImmediate'] and result['byteNextFrame'] and result['bytePartial'] and result['byteRewrite'],
           f'immediate, next-frame, partial and rewrite-before-read accesses get the bytes of the reference copy: {result}')
     check(result['byteModel'] == '1 target, 5 flushes, 5 strict syncs',
