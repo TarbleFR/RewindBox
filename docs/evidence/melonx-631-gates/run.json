@@ -1,0 +1,92 @@
+{
+  "schema": 1,
+  "date": "2026-11-03",
+  "session": "012mUAShv9k6pSCnpW7oAF63",
+  "host": "Linux x86_64 (cloud VM, not Apple)",
+  "sdk": {
+    "version": "10.0.100",
+    "source": "builds.dotnet.microsoft.com dotnet-sdk-10.0.100-linux-x64.tar.gz",
+    "sha512Verified": "release-metadata 10.0 releases.json"
+  },
+  "upstream": {
+    "revision": "13700519f3abc4e6d7ed8a065b118b2cc59bcd67",
+    "tree": "82a29e6f593f6244869481e9a489b8d5154175fe",
+    "pristine": true
+  },
+  "baselineArchive": {
+    "artifact": 13141611354,
+    "bytes": 89436359,
+    "sha256": "05009abfcfa45a5e5644491a52da2b08abeef8337451eb688c72a9f346f0abd5",
+    "authenticated": "verify_dma_core.authenticate_archive"
+  },
+  "preparation": {
+    "inputs": 132,
+    "members": 176
+  },
+  "gates": {
+    "bindless-array-deltas": {
+      "result": "passed",
+      "seconds": 15
+    },
+    "fragmented-reads": {
+      "result": "passed",
+      "seconds": 61
+    },
+    "performance-diagnostics": {
+      "result": "passed",
+      "seconds": 4
+    },
+    "binding-data-snapshots": {
+      "result": "passed",
+      "seconds": 8
+    },
+    "hogwarts-dma-copies": {
+      "result": "passed",
+      "seconds": 7
+    },
+    "pipeline-checkpoint": {
+      "result": "passed",
+      "seconds": 6
+    },
+    "scalar-texture-descriptors": {
+      "result": "passed",
+      "seconds": 10
+    },
+    "fallback-descriptor-scratch": {
+      "result": "passed",
+      "seconds": 10
+    },
+    "single-resource-bindings": {
+      "result": "passed",
+      "seconds": 11
+    },
+    "bounded-binding-snapshots": {
+      "result": "passed",
+      "seconds": 10
+    },
+    "counter-report-compaction": {
+      "result": "passed"
+    }
+  },
+  "contract": {
+    "path": "build-utils/melonx/dma-core-contract.json",
+    "sha256": "7a15f7e5d979cfab2f41ce49761f69b29c7c5594f9acd55b14b7989f9a8efd8a",
+    "freshAppleGates": 11,
+    "reusedAppleGates": 23,
+    "historicalAppleReceipts": 61,
+    "productionChanges": 30
+  },
+  "contractTest": {
+    "command": "python3 -B test/melonx_dma_core_contract_test.py --archive .native-sources/melonx-b181cbe1-arrays.zip",
+    "checks": 268,
+    "result": "passed"
+  },
+  "failuresBeforeCorrection": [
+    "hogwarts-dma-copies on the final source: AssertionError composition differs from the final prepared source (Library.cs: queued syncpoint line not composed)",
+    "hogwarts-dma-copies new scenario on the unfixed adapter: a cached buffer over the written bytes, bufferUploaded True, bufferQuery None, texture written (untracked guest write would miss the buffer)",
+    "freeze_dma_core.py: Changed production dependency without a rerun gate: counter-report-compaction-final-checks.json (CounterCache.cs, DeferredCounterReport.cs)",
+    "counter-report-compaction on the final source: final class changes beyond compaction and declared observers (queued syncpoint hunks undeclared)",
+    "test/melonx_dma_core_contract_test.py: final composition count 131 (actual 132 since 71459be5); counter-report-compaction listed as reused"
+  ],
+  "scope": "Local cloud-VM gate receipts that fed the freeze; the Core CI reruns the gates on Apple ARM64. No device, gameplay or FPS claim."
+}
