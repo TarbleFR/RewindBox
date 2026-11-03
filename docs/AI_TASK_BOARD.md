@@ -57,6 +57,28 @@ spawning an agent is optional and must replace useful work, not duplicate it.
 | Understood, isolated code correction | `rb-code` | Sonnet / medium | Explicit paths, base SHA and targeted acceptance |
 | Difficult core, JIT, GPU ordering, memory or ABI review | `rb-core-review` | Opus / high | Read-only review of a specified change |
 
+- Select BOTH model and effort for every delegated task; pass both explicitly
+  to the native Agent tool when supported, including the Explore fallback.
+  Do not inherit an expensive session effort accidentally.
+- Select main-turn effort before substantive work through the native inline
+  `rb-effort-low`, `rb-effort-medium` or `rb-effort-high` skill. These selectors
+  set real `effort` frontmatter and leave the session model unchanged. Use low
+  for factual/status-only turns, medium for understood bounded changes and
+  high for unresolved Core/JIT/GPU/memory/concurrency/ABI work. Classify by the
+  highest-risk substantive work REMAINING in the turn: a status interruption
+  must not lower effort before resuming core implementation. Select again on
+  the next user turn because the skill override lasts only for its current turn.
+  Extra/max are exceptional escalations with a named difficulty, not defaults.
+  The project fallback effort is medium; the running async core task uses high.
+- The three effort selectors can be chosen automatically through Skill; their
+  invocation applies a native setting, while choosing the appropriate selector
+  remains Claude's task classification, not a deterministic external router.
+  After first adding the skills directory, run `/reload-skills` without restarting.
+  Reuse that command after edits if the new directory is not watched. Confirm
+  the loaded names, invoke the high selector for the current core work and read
+  its expanded `${CLAUDE_EFFORT}` value. Environment effort overrides and admin
+  caps can prevail; report a mismatch without claiming automatic effort works.
+
 - The main Claude session owns the current request, integration, shared board,
   pins, CI and IPA delivery. Default to one coding agent total, counting the
   main session. While `rb-code` writes, the coordinator does not edit its paths.
@@ -102,12 +124,16 @@ spawning an agent is optional and must replace useful work, not duplicate it.
   Subagents share the plan quota. Savings are an objective, not a measured claim.
 
 Configuration: four short native definitions under `.claude/agents/` and only
-the worktree base in `.claude/settings.json`; local settings, hooks, worktrees
+the worktree base and fallback effort in `.claude/settings.json`; local settings, hooks, worktrees
 and credentials stay ignored. No permissions or paid features are enabled.
 Runtime preflight in the current Claude session: 2.1.317, both settings files
 absent before this change; UI offers Haiku/Sonnet/Opus 5.5. Static validation
 passes; loading and a bounded runtime lookup must still be verified in Claude.
 These checks establish configuration behavior, not token savings.
+Main-turn effort correction, 3 Nov: three effort-only native selectors added;
+static schema/visibility checks required, runtime loading/invocation pending.
+The current UI effort was explicitly changed from Extra to High for the active
+async core task. No automatic main-turn effort claim until native verification.
 The async-before-IPA priority remains unchanged.
 
 Sources: [subagents](https://code.claude.com/docs/en/sub-agents),

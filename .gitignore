@@ -293,6 +293,13 @@ ROMs/
 !/.claude/rules/
 /.claude/rules/*
 !/.claude/rules/*.md
+!/.claude/skills/
+/.claude/skills/*
+!/.claude/skills/rb-effort-low/
+!/.claude/skills/rb-effort-medium/
+!/.claude/skills/rb-effort-high/
+/.claude/skills/rb-effort-*/*
+!/.claude/skills/rb-effort-*/SKILL.md
 .idea
 .vscode
 .memory
