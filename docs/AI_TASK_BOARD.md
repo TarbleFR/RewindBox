@@ -118,7 +118,7 @@ A later working diff can be ahead of that commit.
 | TASK-631-MELONX — Claude Code, session `012mUAShv9k6pSCnpW7oAF63` | Review and optimize existing MeloNX work, fix demonstrable omissions and regressions. Source `13700519`, tree `82a29e6f`, SDK 10.0.100. Validate the real prepared source, affected gates and artifact identity. The original 30–40% encoding-time reduction target is a target, not a measured result. | Local review in progress, ahead of GitHub. Queue fixture passes 28/28 scenarios and 6530 checks in real-source and adapter modes with exact SDK. Nine of ten gates passed on that preparation, hogwarts-dma-copies failed. Latest stable observation is a region-upload DMA overlapping-buffer tracking gap under investigation. Next, Claude reproduces and corrects that gap, then records the final evidence/commit and invalidated gates. Core 631 remains reserved for IPA 635. |
 | TASK-634-RPCS3 — Claude Code integration | Integrate the verified Core 634 with its host changes and preserve source/artifact bindings. Includes Core 630. | Core and Apple-host jobs of run `41696834507` passed on `792d72c9`. Apple-host artifact `13261452573` downloaded and size/hash verified in the active VM. Core artifact `13261039942` still needs its own verification/pin. No iPhone run. Next, finish the pin checks when MeloNX source is ready. |
 | TASK-635-IPA — Claude Code integration | Previously requested private 635 from delivered 629 with reviewed MeloNX 631, RPCS3 634, MoltenVK v1.4.2 and Pocket skins. Preserve the [manifest](../build-utils/delivery/635.json) and [plan](ipa-635-plan-2026-11-03.md). | Preparation, not delivery. The active request prioritizes MeloNX correction. Former SDK/upstream/artifact network refusals are resolved in the active VM. Contracts, new Core production, pins, freeze and actual IPA verification remain dependent work. Next, reconcile the plan with the final source and existing build authorization after the current correction. |
-| Shared contract — Codex owns this consolidation, then each agent owns its updates | One shared requirements/results file, automatic update obligation for all agents, no duplicated coordination documents. | Consolidation in this change. Next, Claude reconciles only its task/evidence rows against its local corrections at a stable checkpoint. |
+| Shared contract — Codex owns this consolidation, then each agent owns its updates | One shared requirements/results file, automatic update obligation for all agents, no duplicated coordination documents. | Published in `c587c7c5`, five redundant files removed, 49 links verified. All three Claude skills updated to v2 and point here. Next, Claude reconciles only its task/evidence rows against its local corrections at a stable checkpoint. |
 
 Detailed producer identities and hashes remain in the
 [Core 634 record](rpcs3-core634-2026-11-03.md),
@@ -161,6 +161,55 @@ and corrected, not silently resolved by choosing the newest prose.
 | RetroAchievements and languages | [608](build608-ra-session-delivery.md), [credentials](ra-credentials-status-2026-11-01.md), [game identity](ra-game-identification-2026-11-01.md), [PS3 hooks](ra-ps3-rpcs3-2026-11-01.md), [translation](achievement-translation.md) |
 | Cheats, patches, HD and rights | Relevant [component rules](PROJECT_RULES.md), [enhancements](ENHANCEMENTS.md), [licenses](LEGAL_AND_CREDITS.md) |
 | Earlier findings | [existing history](history/README.md), [prior delivery notes](history/agents-delivery-notes-2026-11-03.md). Search only the implicated component/build. |
+
+## MeloNX reuse study — nxnative
+
+Requested by the maintainer, reviewed by Codex on 3 November 2026.
+Static source audit of [seedds/nxnative](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/README.md) at
+`6a60b722e8af8daaf36f9f056485e5d21c15a887`. No port, Metal build or iPhone game test
+was performed. This is a scoped reuse assessment for MeloNX, not a new native
+runtime implementation.
+
+MeloNX currently uses GPU/GAL → Vulkan → MoltenVK → Metal
+(`native/melonx/EmbeddedSession.cs`, Vulkan backend and threaded rendering).
+nxnative intercepts game NVN/Vulkan/EGL/GL imports and replays them on Metal,
+with per-game offline shader preparation and its own Horizon host. Reusing its
+graphics ideas does not by itself replace MeloNX CPU execution or create a
+generic native-game launcher.
+
+| Candidate | Applicability and evidence | Next targeted validation |
+| --- | --- | --- |
+| Dynamic texture offsets and gather | Compare [Instructions.cs](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs). Runtime offsets are built as OpCompositeConstruct rather than invalid constant composites. Vulkan has an extra constraint below. Presence/absence in the exact prepared MeloNX source is not yet established. | Start with a synthetic dynamic gather and a constant-offset control on MeloNX `13700519` plus current adapters. Compare old/new SPIR-V, Vulkan validation, output pixels and unchanged constant cases before a minimal port. |
+| Mixed bindless-handle phis | [TryTableHandle](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/Optimizations/BindlessElimination.cs) selects among C2 candidates when a phi also contains other values. RewindBox already handles nested/loop phis, SHFL and proven local spills in `adapt_bindless.py` and `adapt_bindless_sources.py`. | Reproduce only a remaining mixed case. Prove predication and the assumption that an unmatched candidate's read result is unused. Preserve image-store/atomic restrictions and avoid marking every texture modified. |
+| Dirty memory and resource retirement | [t_dirty_retire_race.c](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/dm/gfx/tests/t_dirty_retire_race.c) reproduces protection vs pool retirement, checking actual writability after retirement. Related upload-slot/budget tests protect memory still used by the GPU. | Transpose the invariant to MeloNX tracking/fences and affected DMA overlap/teardown paths. C/Objective-C structures are not direct C# patches. |
+| Image atomics bounds | Vendored shader emitter and [bounds tests](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/dm/tools/tests/test_image_atomic_bounds.py) provide candidate cases. MetalImageAtomics pairs emitter flags with SPIRV-Cross/MSL support. | Compare the real backend capabilities and exact shader; validate SPIR-V, compiled MSL and GPU behavior. Avoid enabling a Metal-only flag globally in the Vulkan path. |
+| Texture-buffer fallback | nxnative's RecordTexelFetch1D pairs shader coordinates with its host's 16384-wide 2D binding. | Treat the emitter and resource binding as one contract. A shader-only transplant would be incomplete. |
+
+**Vulkan constraint.** Without `maintenance8` enabled, image operand `Offset`
+is legal only for gather instructions under
+[VUID-RuntimeSpirv-Offset-10213](https://docs.vulkan.org/refpages/latest/refpages/source/RuntimeSpirv.html#VUID-RuntimeSpirv-Offset-10213).
+nxnative also uses runtime Offset for sample/fetch operations in its offline
+SPIRV-Cross path. Do not transfer that whole change to MeloNX without actual
+capability support or a legal alternative lowering. Use the matching
+`spirv-val --target-env`, runtime Vulkan checks and rendered-output comparison.
+
+**Boundaries established from code.** [hle_vk.m](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/dm/gfx/vk/hle_vk.m)
+uses one serial queue, ignores semaphores/pipeline barriers, and lacks compute
+pipelines and secondary command buffers. It is unsuitable as a general
+MoltenVK replacement. [hle_gl.m](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/dm/gfx/gl/hle_gl.m) implements a
+single-context subset used by specific games, not a general NVIDIA desktop
+driver. NVN interception is a different integration point from MeloNX's GPU/GAL.
+The source has implementations newer than some README limitations, so inspect
+the exact operation and its test. Metal4-specific algorithms also need OS/GPU
+capability guards to preserve RewindBox's iOS 18 baseline.
+
+The project [license](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/LICENSE) is MIT. Retain copyright/license notices
+and inspect each reused third-party component's own notices.
+
+Next action for the implementation owner is the dynamic-gather comparison
+above after the current DMA correction reaches a stable point. Reopen this
+assessment for a changed pinned revision, demonstrated missing case or new
+backend capability. Record each tested candidate here in place.
 
 ## Delivered baseline
 
