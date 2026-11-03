@@ -69,8 +69,8 @@
   "payloadFingerprint": null
  },
  "canonical": {
-  "patchSha256": "e8f298117857f6d66a13f8c2a8cc90e7c6e3be69db4adc56c82820d1d8117e0e",
-  "postimages": 342,
+  "patchSha256": "6e0f18e92acb10404dc6997d35fbb67a7195149df0ad0aa5309ef7ffe85981d8",
+  "postimages": 344,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -208,7 +208,9 @@
   "GPU Timing Probe",
   "COREPROF ZCULLTRIP621",
   "ZCULL On-Demand Reads",
-  "zcull_wait_ms="
+  "zcull_wait_ms=",
+  "COREPROF TEXCACHE621",
+  "FREEZE_DUMP sema"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {

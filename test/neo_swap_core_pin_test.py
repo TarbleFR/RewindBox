@@ -17,7 +17,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 UPSTREAM = '22f1152783cef1f7e04af7b1c895173e28fd5b03'
-PATCH_SHA256 = 'e8f298117857f6d66a13f8c2a8cc90e7c6e3be69db4adc56c82820d1d8117e0e'
+PATCH_SHA256 = '6e0f18e92acb10404dc6997d35fbb67a7195149df0ad0aa5309ef7ffe85981d8'
 BACKPORTS = (
     '8bd938e9de9ff6455f312cdf8bd64bd37a064c4e',
     '1d13d1e6bbabfbb7a873f2c608c52525ff470e25',

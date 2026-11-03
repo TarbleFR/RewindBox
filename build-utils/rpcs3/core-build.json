@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 621,
  "identity_type": "rpcs3-ios-core621",
- "summary": "RPCS3 Core 621 = the delivered Core 610 plus one folded delta: the Core 612, 613, 616 and 619 records unchanged and the Core 621 changes (build-utils/rpcs3/core621-from-619.patch over Core 619): every title, a GPU timestamp pair around each RSX primary command buffer, read without waiting after its fence signalled, calibrated against the host clock (VK_EXT_calibrated_timestamps) and attributed to the session and the RSX frame, overlaps counted once (REWINDBOX_GPU_TIMING_621, COREPROF GPUTIME621 and gpu_execution_ms/cause= in FRAMECAUSE_EVENT; GPU Timing Probe setting to measure its cost); freezes as episodes on a running-time clock that stops while paused, loading or suspended, a quiet freeze included, one FREEZE_DUMP per episode with a waits summary (REWINDBOX_FREEZE_EPISODE_621, FREEZE_EPISODE begin/update/end); the mounted ISO image opened once and read by pread so renaming it during a session cannot fail a later open (REWINDBOX_ISO_IMAGE_LIFETIME_621, ISO.h newly carried); the graphics pipeline queue and the draws skipped for a program not ready (REWINDBOX_PIPELINE_QUEUE_621, COREPROF PIPEQUEUE621); from the Build 620 iPhone logs, the ZCULL on-demand lever trips on sustained guest waits only (Assassin's Creed tripped the 619 one-second budget at 401.5 ms and lost 3.4-4.3 s per 5 s to GPU syncs afterwards), Black Ops II joins it (1.1-1.9 s per 5 s of syncs), ZCULL On-Demand Reads setting, COREPROF ZCULLTRIP621, per-frame zcull_wait_ms and cause=zcull_sync (REWINDBOX_ZCULL_DEMAND_GUARD_621, REWINDBOX_ZCULL_DEMAND_BO2_621, REWINDBOX_ZCULL_FRAME_621). ABI 30, the 92 exports, the PPU/SPU codegen identities (no codegen input changes) and the MoltenVK dependency of Core 610 unchanged. Numbered 621: IPA 620 is another session's MeloNX/RetroAchievements build with Core 619.",
+ "summary": "RPCS3 Core 621 = the delivered Core 610 plus one folded delta: the Core 612, 613, 616 and 619 records unchanged and the Core 621 changes (build-utils/rpcs3/core621-from-619.patch over Core 619): every title, a GPU timestamp pair around each RSX primary command buffer, read without waiting after its fence signalled, calibrated against the host clock (VK_EXT_calibrated_timestamps) and attributed to the session and the RSX frame, overlaps counted once (REWINDBOX_GPU_TIMING_621, COREPROF GPUTIME621 and gpu_execution_ms/cause= in FRAMECAUSE_EVENT; GPU Timing Probe setting to measure its cost); freezes as episodes on a running-time clock that stops while paused, loading or suspended, a quiet freeze included, one FREEZE_DUMP per episode with a waits summary (REWINDBOX_FREEZE_EPISODE_621, FREEZE_EPISODE begin/update/end); the mounted ISO image opened once and read by pread so renaming it during a session cannot fail a later open (REWINDBOX_ISO_IMAGE_LIFETIME_621, ISO.h newly carried); the graphics pipeline queue and the draws skipped for a program not ready (REWINDBOX_PIPELINE_QUEUE_621, COREPROF PIPEQUEUE621); from the Build 620 iPhone logs, the ZCULL on-demand lever trips on sustained guest waits only (Assassin's Creed tripped the 619 one-second budget at 401.5 ms and lost 3.4-4.3 s per 5 s to GPU syncs afterwards), Black Ops II joins it (1.1-1.9 s per 5 s of syncs), ZCULL On-Demand Reads setting, COREPROF ZCULLTRIP621, per-frame zcull_wait_ms and cause=zcull_sync (REWINDBOX_ZCULL_DEMAND_GUARD_621, REWINDBOX_ZCULL_DEMAND_BO2_621, REWINDBOX_ZCULL_FRAME_621); the texture cache per window (uploads, misses, flushes, temporary copies, memory and its peak) and the render-target feedback barriers (REWINDBOX_TEXCACHE_PROFILE_621, COREPROF TEXCACHE621); a deeper FREEZE_DUMP: PPU argument registers, link and count registers, reservation, sampled code of running PPU threads, contended semaphores with their waiters and the guest lines the SPURS kernels poll (REWINDBOX_FREEZE_DEEP_621). ABI 30, the 92 exports, the PPU/SPU codegen identities (no codegen input changes) and the MoltenVK dependency of Core 610 unchanged. Numbered 621: IPA 620 is another session's MeloNX/RetroAchievements build with Core 619.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "e8f298117857f6d66a13f8c2a8cc90e7c6e3be69db4adc56c82820d1d8117e0e",
-  "postimages": 342,
+  "patch_sha256": "6e0f18e92acb10404dc6997d35fbb67a7195149df0ad0aa5309ef7ffe85981d8",
+  "postimages": 344,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -74,7 +74,7 @@
   "record": "core621_20261102",
   "manifest": "build-utils/rpcs3/core621-delta.json",
   "patch": "build-utils/rpcs3/core621-delta.patch",
-  "patch_sha256": "228cccc0ead78329fdb78c36077f0a233047554c9d912f74edb619a6f22450ad"
+  "patch_sha256": "96714e7a8ed3fd466284557f4239e978ab08d3b122c6c570ede946ae3bef4033"
  },
  "exports": 92,
  "core_inputs": {
@@ -94,6 +94,7 @@
   "rpcs3/Emu/RSX/RSXZCULL.h",
   "rpcs3/Emu/RSX/VK/VKRenderPass.cpp",
   "rpcs3/Emu/RSX/VK/VKRenderPass.h",
+  "rpcs3/Emu/RSX/VK/VKRenderTargets.cpp",
   "rpcs3/Loader/ISO.h"
  ],
  "codegen": {
@@ -122,7 +123,9 @@
   "GPU Timing Probe",
   "COREPROF ZCULLTRIP621",
   "ZCULL On-Demand Reads",
-  "zcull_wait_ms="
+  "zcull_wait_ms=",
+  "COREPROF TEXCACHE621",
+  "FREEZE_DUMP sema"
  ],
  "moltenvk_dependency": {
   "run": 41239096061,
@@ -344,7 +347,7 @@
      "--report",
      "{out}/core621.json"
     ],
-    "reason": "new: Core 621 = Core 619 + core621-from-619.patch (reverse patch, Core 619 files authenticated by the SHA-256 pinned in core621-delta.json increment_from_core619); the GPU timing bookkeeping (union, attribution, pending, session, calibration, ring soak, concurrent reader) plain, TSan and ASan/UBSan; the ZCULL on-demand guard and the real fault protocol of RSXZCULL.cpp with the 621 budget scenarios (Build 620 second kept, sustained waits and a storm trip once with COREPROF ZCULLTRIP621) plain, TSan and ASan/UBSan; the freeze-episode scenarios; the real Loader/ISO.cpp of Core 619 (renamed image: Null object on first read) and Core 621 (read, replaced, 8 concurrent readers, unmount, release, second disc) plain, TSan and ASan/UBSan; the bounded core_log admission, last-fatal file through abort(), incidents and streamed export with its peak memory; host text"
+    "reason": "new: Core 621 = Core 619 + core621-from-619.patch (reverse patch, Core 619 files authenticated by the SHA-256 pinned in core621-delta.json increment_from_core619); the GPU timing bookkeeping (union, attribution, pending, session, calibration, ring soak, concurrent reader) plain, TSan and ASan/UBSan; the ZCULL on-demand guard and the real fault protocol of RSXZCULL.cpp with the 621 budget scenarios (Build 620 second kept, sustained waits and a storm trip once with COREPROF ZCULLTRIP621) plain, TSan and ASan/UBSan; the texture cache window counters plain and TSan with the TEXCACHE621 line arguments and hooks; the freeze-episode scenarios; the real Loader/ISO.cpp of Core 619 (renamed image: Null object on first read) and Core 621 (read, replaced, 8 concurrent readers, unmount, release, second disc) plain, TSan and ASan/UBSan; the bounded core_log admission, last-fatal file through abort(), incidents and streamed export with its peak memory; host text"
    }
   ],
   "reused": {

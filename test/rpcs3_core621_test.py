@@ -72,7 +72,9 @@ CLASSES = ROOT / 'packages/rpcs3_internal_bridge/ios/Classes'
 MARKERS = ('REWINDBOX_GPU_TIMING_621', 'REWINDBOX_FREEZE_EPISODE_621', 'REWINDBOX_ISO_IMAGE_LIFETIME_621',
            'REWINDBOX_PIPELINE_QUEUE_621',
            # Build 620 logs: ZCULL waits explained per frame, the on-demand guard, Black Ops II joins the lever.
-           'REWINDBOX_ZCULL_FRAME_621', 'REWINDBOX_ZCULL_DEMAND_GUARD_621', 'REWINDBOX_ZCULL_DEMAND_BO2_621')
+           'REWINDBOX_ZCULL_FRAME_621', 'REWINDBOX_ZCULL_DEMAND_GUARD_621', 'REWINDBOX_ZCULL_DEMAND_BO2_621',
+           # Single re-read of the Build 620 logs: texture cache and feedback barriers per window, deeper freeze dump.
+           'REWINDBOX_TEXCACHE_PROFILE_621', 'REWINDBOX_FREEZE_DEEP_621')
 LOCALES = ('en', 'es', 'ru', 'zh', 'zh_Hant', 'pt', 'fr', 'de', 'it', 'id', 'ja', 'ko')
 KEYS_621 = ('reportProblem', 'reportProblemDetail', 'reportFailed', 'gameStoppedTitle',
             'gameStoppedMessage', 'closeAndReport', 'closeGame', 'previousEndedTitle', 'previousEndedMessage',
@@ -130,6 +132,28 @@ def check_increment(source: Path, baseline: Path | None, work: Path) -> tuple[di
         require(baseline is not None or pinned, 'neither --baseline619 nor core621-delta.json to authenticate the revert')
     return ({'files': len(files), 'new_files': new_files, 'patch_sha256': hashlib.sha256(raw).hexdigest(),
              'authenticated_by': ('tree ' if baseline is not None else '') + ('pinned_sha256' if pinned else '')}, copy)
+
+
+def notice_arguments(text: str, marker: str) -> tuple[int, int]:
+    """Counts the printf conversions of the notice whose format names `marker`, and its arguments."""
+    start = text.index(marker)
+    call = text.rindex('ios_core_profiler.notice(', 0, start) + len('ios_core_profiler.notice(')
+    depth, index = 1, call
+    while depth:
+        depth += {'(': 1, ')': -1}.get(text[index], 0)
+        index += 1
+    body = text[call:index - 1]
+    literal = ''.join(re.findall(r'"((?:[^"\\]|\\.)*)"', body[:body.rindex('"') + 1]))
+    conversions = len(re.findall(r'%(?!%)[-+ #0-9.]*(?:ll|l|z)?[duxXfsp]', literal))
+    rest, depth, args = body[body.rindex('"') + 1:], 0, 0
+    for char in rest:
+        if char in '([{':
+            depth += 1
+        elif char in ')]}':
+            depth -= 1
+        elif char == ',' and depth == 0:
+            args += 1
+    return conversions, args
 
 
 def build(cxx: str, sources: list[Path], output: Path, includes: list[Path], flags: list[str]) -> None:
@@ -190,6 +214,33 @@ def main() -> None:
             work, sanitize)
         print('  zcull on demand: guard, real fault protocol' + (' (plain, TSan, ASan/UBSan)' if sanitize else ' (plain)') +
               ', ZCULLDEMAND619/ZCULLTRIP621 lines, levers, setting, frame wiring: ok')
+
+        print('texture cache profile (Build 620 logs)')
+        tc = work / 'texcache_profile'
+        build(args.cxx, [HERE / 'texcache_profile_test.cpp'], tc, [core_include], plain)
+        execute([str(tc)], 'texture cache profile (plain)')
+        if sanitize:
+            build(args.cxx, [HERE / 'texcache_profile_test.cpp'], work / 'texcache_tsan', [core_include], tsan)
+            execute([str(work / 'texcache_tsan')], 'texture cache profile (TSan)', env=dict(os.environ, TSAN_OPTIONS='halt_on_error=1'))
+        performance = (core_include / 'ios/RPCS3IOSPerformance.cpp').read_text()
+        conversions, arguments = notice_arguments(performance, 'COREPROF TEXCACHE621 ')
+        require(conversions == arguments == 20, f'TEXCACHE621 line has {conversions} conversions for {arguments} arguments')
+        present = (core_include / 'Emu/RSX/VK/VKPresent.cpp').read_text()
+        require(present.index('rpcs3::ios::texture_cache_profile::on_frame_end({') < present.index('m_texture_cache.on_frame_end();'),
+                'the texture cache statistics are not taken before on_frame_end resets them')
+        targets = (core_include / 'Emu/RSX/VK/VKRenderTargets.cpp').read_text()
+        for counter in ('feedback_skipped', 'feedback_barriers', 'post_skipped', 'post_barriers'):
+            require(f'texture_cache_profile::counters.{counter});' in targets, f'{counter} is not counted')
+        cache = (core_include / 'Emu/RSX/VK/VKTextureCache.cpp').read_text()
+        require('texture_cache_profile::on_temporary_subresource(cached != nullptr);' in cache, 'temporary copies are not counted')
+        settings = (core_include / 'ios/RPCS3IOSSettings.cpp').read_text()
+        require('Black Ops II runs with Accurate SPU Reservations off, so there it changes nothing.' in settings,
+                'the no-op PUTLLC setting still promises an effect on Black Ops II')
+        freeze = (core_include / 'ios/RPCS3IOSFreezeDump.cpp').read_text()
+        for line in ('FREEZE_DUMP line addr=0x%x rtime=0x%llx data=%s', 'FREEZE_DUMP sema id=0x%x name=%s val=%d max=%d waiters=%d ids=%s',
+                     'spurs_addr=0x%x', 'lr=0x%llx'):
+            require(line in freeze, f'freeze dump lacks {line!r}')
+        report['texcache_profile'] = {'conversions': conversions}
 
         print('freeze episodes')
         fe = work / 'freeze_episode'

@@ -515,10 +515,33 @@ index 4b0175c..878d84c 100644
  	};
  }
 diff --git a/rpcs3/Emu/RSX/VK/VKPresent.cpp b/rpcs3/Emu/RSX/VK/VKPresent.cpp
-index 5f5e3ae..6e601f4 100644
+index 5f5e3ae..023c90d 100644
 --- a/rpcs3/Emu/RSX/VK/VKPresent.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKPresent.cpp
-@@ -555,6 +555,10 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
+@@ -17,6 +17,7 @@
+ // CELL555_READBACK_INCLUDE
+ #include "ios/IOSReadbackProfile.h"
+ #include "ios/IOSTextureResidency.h"
++#include "ios/IOSTextureCacheProfile.h" // REWINDBOX_TEXCACHE_PROFILE_621
+ #include "ios/IOSMoltenVKExec.h"
+ #include "ios/RPCS3IOSExperimentalPolicy.h"
+ #include "Emu/RSX/Common/sampler_invalidation.h"
+@@ -303,6 +304,14 @@ void VKGSRender::advance_queued_frames()
+ 	}
+ #endif
+ 
++	// REWINDBOX_TEXCACHE_PROFILE_621: the cache's per-frame statistics, taken before on_frame_end resets them.
++	rpcs3::ios::texture_cache_profile::on_frame_end({
++		m_texture_cache.get_texture_upload_calls_this_frame(), m_texture_cache.get_texture_upload_misses_this_frame(),
++		m_texture_cache.get_num_cache_misses(), m_texture_cache.get_num_flush_requests(),
++		m_texture_cache.get_num_unavoidable_hard_faults(), m_texture_cache.get_texture_copies_ellided_this_frame(),
++		m_texture_cache.get_texture_memory_in_use(), m_texture_cache.get_temporary_memory_in_use(),
++		m_texture_cache.get_unreleased_textures_count()});
++
+ 	// Texture cache is also double buffered to prevent use-after-free
+ 	m_texture_cache.on_frame_end();
+ 	m_samplers_dirty.store(true);
+@@ -555,6 +564,10 @@ vk::viewable_image* VKGSRender::get_present_source(/* inout */ vk::present_surfa
  
  void VKGSRender::flip(const rsx::display_flip_info_t& info)
  {
@@ -555,6 +578,74 @@ index cb0c64d..51b8df3 100644
  			}
  #endif
  		}
+diff --git a/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp b/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp
+index 4762f5e..b31c7b1 100644
+--- a/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp
++++ b/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp
+@@ -6,6 +6,7 @@
+ #include "Emu/RSX/RSXThread.h"
+ 
+ #include "Emu/RSX/Common/tiled_dma_copy.hpp"
++#include "ios/IOSTextureCacheProfile.h" // REWINDBOX_TEXCACHE_PROFILE_621
+ 
+ namespace vk
+ {
+@@ -870,11 +871,13 @@ namespace vk
+ 		{
+ 			// If we have back-to-back depth-read barriers, skip subsequent ones
+ 			// If an actual write is happening, this flag will be automatically reset
++			rpcs3::ios::texture_cache_profile::add(rpcs3::ios::texture_cache_profile::counters.feedback_skipped); // REWINDBOX_TEXCACHE_PROFILE_621
+ 			return;
+ 		}
+ 
+ 		vk::insert_texture_barrier(cmd, this, optimal_layout);
+ 		m_cyclic_ref_tracker.on_insert_texture_barrier();
++		rpcs3::ios::texture_cache_profile::add(rpcs3::ios::texture_cache_profile::counters.feedback_barriers); // REWINDBOX_TEXCACHE_PROFILE_621
+ 
+ 		if (is_framebuffer_read_only)
+ 		{
+@@ -891,6 +894,7 @@ namespace vk
+ 		{
+ 			// Barrier ellided if triggered by a chain of cyclic references with no actual writes
+ 			m_cyclic_ref_tracker.reset();
++			rpcs3::ios::texture_cache_profile::add(rpcs3::ios::texture_cache_profile::counters.post_skipped); // REWINDBOX_TEXCACHE_PROFILE_621
+ 			return;
+ 		}
+ 
+@@ -916,6 +920,7 @@ namespace vk
+ 			src_stage, dst_stage, src_access, dst_access, { aspect(), 0, 1, 0, 1 });
+ 
+ 		m_cyclic_ref_tracker.reset();
++		rpcs3::ios::texture_cache_profile::add(rpcs3::ios::texture_cache_profile::counters.post_barriers); // REWINDBOX_TEXCACHE_PROFILE_621
+ 	}
+ 
+ 	void render_target::reset_surface_counters()
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+index e73807b..7a0b6ac 100644
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+@@ -7,6 +7,7 @@
+ 
+ #ifdef RPCS3_IOS
+ #include "ios/IOSGPUMemoryProfile.h"
++#include "ios/IOSTextureCacheProfile.h" // REWINDBOX_TEXCACHE_PROFILE_621
+ #include "ios/IOSRecyclableImagePool.h"
+ #include "ios/IOSMemoryPressurePolicy.h"
+ #include "ios/RPCS3IOSPerformance.h"
+@@ -840,7 +841,13 @@ namespace vk
+ #ifdef RPCS3_IOS
+ 	vk::image_view* texture_cache::create_temporary_subresource(vk::command_buffer& cmd, deferred_subresource& desc)
+ 	{
++		// REWINDBOX_TEXCACHE_PROFILE_621: count the requests that made a new copy (the cache grew) and the failures.
++		const auto cached_before = m_temporary_subresource_cache.size() + m_uncached_subresources.size();
+ 		auto cached = baseclass::create_temporary_subresource(cmd, desc);
++		if (!cached || m_temporary_subresource_cache.size() + m_uncached_subresources.size() != cached_before)
++		{
++			rpcs3::ios::texture_cache_profile::on_temporary_subresource(cached != nullptr);
++		}
+ 		if (!cached)
+ 		{
+ 			return nullptr;
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp b/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
 index 5228ae2..7cfc97f 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/commands.cpp
@@ -1923,6 +2014,103 @@ index 0000000..9772d6e
 +	return w;
 +}
 +}
+diff --git a/rpcs3/ios/IOSTextureCacheProfile.h b/rpcs3/ios/IOSTextureCacheProfile.h
+new file mode 100644
+index 0000000..bfe711e
+--- /dev/null
++++ b/rpcs3/ios/IOSTextureCacheProfile.h
+@@ -0,0 +1,91 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_TEXCACHE_PROFILE_621: what the Vulkan texture cache did in each
++// performance window. Build 620 Black Ops II multiplayer spent 6-7 ms per frame
++// in the RSX texture stage and its resident texture memory kept growing, but no
++// journal line said whether that came from uploads, cache misses, flushes, surface
++// copies for samplers or memory never released. The RSX thread adds the texture
++// cache's own per-frame statistics just before they are reset at the end of each
++// frame, counts the temporary subresource copies the draw path makes for samplers,
++// and counts the depth/color feedback barriers of render targets (Assassin's Creed
++// torch passages). The performance reporter exchanges the sums once per window
++// into one COREPROF TEXCACHE621 line. Counting changes no texture, copy, barrier,
++// eviction or cache decision.
++namespace rpcs3::ios::texture_cache_profile
++{
++struct window_counters
++{
++	std::atomic<std::uint64_t> frames{0};               // frame ends sampled
++	std::atomic<std::uint64_t> upload_calls{0};         // texture upload calls (cache lookups for sampling)
++	std::atomic<std::uint64_t> upload_misses{0};        // of which needed a new upload
++	std::atomic<std::uint64_t> cache_misses{0};         // flushes that missed (data had to be read back)
++	std::atomic<std::uint64_t> flushes{0};              // flush requests (GPU to guest memory)
++	std::atomic<std::uint64_t> hard_faults{0};          // unavoidable hard faults
++	std::atomic<std::uint64_t> copies_elided{0};        // copies the cache avoided
++	std::atomic<std::uint64_t> temp_subresources{0};    // sampler copies of surface regions made by the draw path
++	std::atomic<std::uint64_t> temp_failures{0};        // of which failed (out of memory)
++	std::atomic<std::uint64_t> feedback_barriers{0};    // render_target::texture_barrier inserted
++	std::atomic<std::uint64_t> feedback_skipped{0};     // back-to-back read-only depth barriers skipped
++	std::atomic<std::uint64_t> post_barriers{0};        // render_target::post_texture_barrier inserted
++	std::atomic<std::uint64_t> post_skipped{0};         // fall-out barriers elided (no write in the chain)
++	// Gauges: the last frame end of the window, and the window peak.
++	std::atomic<std::uint64_t> texture_bytes{0}, texture_bytes_peak{0};
++	std::atomic<std::uint64_t> temp_bytes{0}, temp_bytes_peak{0};
++	std::atomic<std::uint64_t> unreleased{0};
++};
++
++inline window_counters counters{};
++
++inline void add(std::atomic<std::uint64_t>& counter, std::uint64_t value = 1) noexcept
++{
++	counter.fetch_add(value, std::memory_order_relaxed);
++}
++
++inline std::uint64_t take(std::atomic<std::uint64_t>& counter) noexcept
++{
++	return counter.exchange(0, std::memory_order_relaxed);
++}
++
++inline void raise(std::atomic<std::uint64_t>& peak, std::uint64_t value) noexcept
++{
++	auto current = peak.load(std::memory_order_relaxed);
++	while (value > current && !peak.compare_exchange_weak(current, value, std::memory_order_relaxed))
++	{
++	}
++}
++
++struct frame_statistics
++{
++	std::uint64_t upload_calls = 0, upload_misses = 0, cache_misses = 0, flushes = 0, hard_faults = 0, copies_elided = 0;
++	std::uint64_t texture_bytes = 0, temp_bytes = 0, unreleased = 0;
++};
++
++// Called by the RSX thread once per frame, before the cache resets its statistics.
++inline void on_frame_end(const frame_statistics& s) noexcept
++{
++	auto& c = counters;
++	add(c.frames);
++	add(c.upload_calls, s.upload_calls);
++	add(c.upload_misses, s.upload_misses);
++	add(c.cache_misses, s.cache_misses);
++	add(c.flushes, s.flushes);
++	add(c.hard_faults, s.hard_faults);
++	add(c.copies_elided, s.copies_elided);
++	c.texture_bytes.store(s.texture_bytes, std::memory_order_relaxed);
++	c.temp_bytes.store(s.temp_bytes, std::memory_order_relaxed);
++	c.unreleased.store(s.unreleased, std::memory_order_relaxed);
++	raise(c.texture_bytes_peak, s.texture_bytes);
++	raise(c.temp_bytes_peak, s.temp_bytes);
++}
++
++// A temporary subresource the draw path asked the cache for; `ok` is false when it failed.
++inline void on_temporary_subresource(bool ok) noexcept
++{
++	add(counters.temp_subresources);
++	if (!ok) add(counters.temp_failures);
++}
++}
 diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
 index 1568b03..58782d1 100644
 --- a/rpcs3/ios/IOSTitleLevers.h
@@ -2332,10 +2520,10 @@ index 6daefbf..5354937 100644
  	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers), resolved once per boot
  	// like the fields above; none of them enters an object-cache key.
 diff --git a/rpcs3/ios/RPCS3IOSFreezeDump.cpp b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
-index cc826f8..f434bed 100644
+index cc826f8..21676b1 100644
 --- a/rpcs3/ios/RPCS3IOSFreezeDump.cpp
 +++ b/rpcs3/ios/RPCS3IOSFreezeDump.cpp
-@@ -1,6 +1,7 @@
+@@ -1,20 +1,26 @@
  #include "stdafx.h"
  #include "RPCS3IOSFreezeDump.h"
  #include "RPCS3IOSProfilerHelpers.h"
@@ -2343,7 +2531,123 @@ index cc826f8..f434bed 100644
  
  #include "Emu/System.h"
  #include "Emu/IdManager.h"
-@@ -104,28 +105,36 @@ std::string rsx_line()
+ #include "Emu/Cell/PPUThread.h"
+ #include "Emu/Cell/SPUThread.h"
+ #include "Emu/Cell/lv2/sys_spu.h"
++#include "Emu/Cell/lv2/sys_semaphore.h" // REWINDBOX_FREEZE_DEEP_621
++#include "Emu/Memory/vm_reservation.h"
+ #include "Emu/Cell/timers.hpp"
+ #include "Emu/RSX/RSXThread.h"
+ #include "Utilities/Thread.h"
+ #include "util/logs.hpp"
+ 
++#include <algorithm>
++#include <chrono>
+ #include <mutex>
+ #include <shared_mutex>
+ #include <string>
++#include <thread>
+ #include <utility>
+ #include <vector>
+ 
+@@ -56,14 +62,77 @@ std::string ppu_line(const ppu_thread& ppu)
+ 	const char* last = ppu.last_function;
+ 	const u64 wait_start = ppu.start_time;
+ 
++	// REWINDBOX_FREEZE_DEEP_621: r3-r10 (a waiting syscall's arguments: r3 is the
++	// semaphore id of sys_semaphore_wait), lr, ctr and the reservation.
+ 	std::string line = fmt::format(
+-		"FREEZE_DUMP ppu id=0x%x name=%s state=%s pc=0x%x prio=%d func=%s last=%s wait_s=%.3f",
++		"FREEZE_DUMP ppu id=0x%x name=%s state=%s pc=0x%x prio=%d func=%s last=%s wait_s=%.3f "
++		"r3=0x%llx r4=0x%llx r5=0x%llx r6=0x%llx r7=0x%llx r8=0x%llx r9=0x%llx r10=0x%llx lr=0x%llx ctr=0x%llx raddr=0x%x rtime=0x%llx",
+ 		ppu.id, sanitize_token(ppu.get_name()), cpu_state_token(ppu), ppu.cia, ppu.prio.load().prio,
+ 		sanitize_token(function ? function : ""), sanitize_token(last ? last : ""),
+-		wait_start ? (get_guest_system_time() - wait_start) / 1000000. : 0.0);
++		wait_start ? (get_guest_system_time() - wait_start) / 1000000. : 0.0,
++		ppu.gpr[3], ppu.gpr[4], ppu.gpr[5], ppu.gpr[6], ppu.gpr[7], ppu.gpr[8], ppu.gpr[9], ppu.gpr[10],
++		ppu.lr, ppu.ctr, ppu.raddr, ppu.rtime);
+ 	return bound_line(line);
+ }
+ 
++// REWINDBOX_FREEZE_DEEP_621: guest bytes in hex, read through the unprotected view
++// (a ZCULL-locked report page would otherwise fault on the profiler thread) and
++// only where the page is mapped and readable; "-" otherwise.
++std::string guest_hex(u32 addr, u32 size)
++{
++	if (!addr || !vm::check_addr(addr, vm::page_readable, size))
++	{
++		return "-";
++	}
++
++	const u8* bytes = vm::get_super_ptr<u8>(addr);
++	std::string out;
++	out.reserve(size * 2);
++	for (u32 i = 0; i < size; i++)
++	{
++		fmt::append(out, "%02x", bytes[i]);
++	}
++	return out;
++}
++
++// One running PPU thread: 16 samples of its pc about 1 ms apart (does the spin
++// move?), the 32 instruction words around it and the line it holds reserved.
++std::string ppu_code_line(const ppu_thread& ppu)
++{
++	std::string samples;
++	for (int i = 0; i < 16; i++)
++	{
++		fmt::append(samples, "%s%x", i ? ":" : "", ppu.cia);
++		std::this_thread::sleep_for(std::chrono::milliseconds(1));
++	}
++
++	const u32 pc = ppu.cia;
++	const u32 code = pc >= 0x40 ? pc - 0x40 : 0;
++	const u32 reserved = ppu.raddr & -128;
++	std::string line = fmt::format(
++		"FREEZE_DUMP ppu_code id=0x%x pcs=%s code_at=0x%x code=%s raddr=0x%x line=%s",
++		ppu.id, samples, code, guest_hex(code, 128), reserved, reserved ? guest_hex(reserved, 128) : std::string("-"));
++	return bound_line(line);
++}
++
++// One 128-byte guest line the SPUs poll (raddr, last GETLLAR, the SPURS block).
++std::string guest_line(u32 addr)
++{
++	const u64 rtime = vm::check_addr(addr, vm::page_readable, 128) ? +vm::reservation_acquire(addr) : 0;
++	std::string line = fmt::format("FREEZE_DUMP line addr=0x%x rtime=0x%llx data=%s", addr, rtime, guest_hex(addr, 128));
++	return bound_line(line);
++}
++
++struct sema_state
++{
++	u32 id = 0;
++	s32 val = 0;
++	s32 max = 0;
++	u64 name = 0;
++	bool locked = false;
++	std::vector<u32> waiters;
++};
++
+ std::string spu_line(const spu_thread& spu, const lv2_spu_group* group)
+ {
+ 	const spu_mfc_cmd pending = spu.ch_mfc_cmd;
+@@ -76,14 +145,14 @@ std::string spu_line(const spu_thread& spu, const lv2_spu_group* group)
+ 	std::string line = fmt::format(
+ 		"FREEZE_DUMP spu id=0x%x lv2_id=0x%x name=%s group=%s gid=0x%x gstate=%s pc=0x%x state=%s "
+ 		"raddr=0x%x rtime=0x%llx last_getllar=0x%x getllar_addr=0x%x getllar_spins=%u gl_switch=0x%x "
+-		"eventstat_spins=%llu events=0x%llx mask=0x%x mfc_size=%u mfc=%s:%u:0x%x:0x%x:0x%x func=%s wait_s=%.3f",
++		"eventstat_spins=%llu events=0x%llx mask=0x%x mfc_size=%u mfc=%s:%u:0x%x:0x%x:0x%x func=%s wait_s=%.3f spurs_addr=0x%x",
+ 		spu.id, spu.lv2_id, sanitize_token(spu.get_name()), group_name, group ? group->id : 0u,
+ 		sanitize_token(group_state), spu.pc, cpu_state_token(spu),
+ 		spu.raddr, spu.rtime, spu.last_getllar, spu.last_getllar_addr, spu.getllar_spin_count,
+ 		spu.getllar_busy_waiting_switch, spu.eventstat_spin_count, events.all, static_cast<u32>(events.mask),
+ 		spu.mfc_size, pending.cmd, static_cast<u32>(pending.tag), pending.lsa, pending.eal, static_cast<u32>(pending.size),
+ 		sanitize_token(function ? function : ""),
+-		wait_start ? (get_system_time() - wait_start) / 1000000. : 0.0);
++		wait_start ? (get_system_time() - wait_start) / 1000000. : 0.0, spu.spurs_addr);
+ 	return bound_line(line);
+ }
+ 
+@@ -104,28 +173,36 @@ std::string rsx_line()
  }
  }
  
@@ -2388,7 +2692,15 @@ index cc826f8..f434bed 100644
  	}
  
  	// Collect references first, format afterwards. The idm reader lock is only
-@@ -142,7 +151,7 @@ void neostation_freeze_dump(const char* reason, double seconds_without_frames, d
+@@ -135,6 +212,7 @@ void neostation_freeze_dump(const char* reason, double seconds_without_frames, d
+ 	std::vector<stx::shared_ptr<named_thread<ppu_thread>>> ppus;
+ 	std::vector<stx::shared_ptr<lv2_spu_group>> groups;
+ 	std::vector<stx::shared_ptr<named_thread<spu_thread>>> raw_spus;
++	std::vector<sema_state> semaphores; // REWINDBOX_FREEZE_DEEP_621
+ 
+ 	{
+ 		// Same try-locked reader pattern as the exit-request observer in System.cpp.
+@@ -142,7 +220,7 @@ void neostation_freeze_dump(const char* reason, double seconds_without_frames, d
  		if (!idm_reader.owns_lock())
  		{
  			s_suppressed++;
@@ -2397,7 +2709,40 @@ index cc826f8..f434bed 100644
  		}
  
  		if (g_fxo->is_init<id_manager::id_map<named_thread<ppu_thread>>>())
-@@ -210,11 +219,11 @@ void neostation_freeze_dump(const char* reason, double seconds_without_frames, d
+@@ -169,6 +247,32 @@ void neostation_freeze_dump(const char* reason, double seconds_without_frames, d
+ 			}, idm::unlocked);
+ 		}
+ 
++		// REWINDBOX_FREEZE_DEEP_621: semaphores with waiters (a negative count), their
++		// waiters' ids under the semaphore's own mutex, only tried.
++		if (g_fxo->is_init<id_manager::id_map<lv2_obj>>())
++		{
++			idm::select<lv2_obj, lv2_sema>([&](u32 id, lv2_sema& sema)
++			{
++				const s32 val = sema.val;
++				if (val >= 0 || semaphores.size() >= 8)
++				{
++					return;
++				}
++
++				sema_state state{id, val, sema.max, sema.name};
++				if (sema.mutex.try_lock_shared())
++				{
++					state.locked = true;
++					for (auto cpu = +sema.sq; cpu && state.waiters.size() < 6; cpu = cpu->next_cpu)
++					{
++						state.waiters.push_back(cpu->id);
++					}
++					sema.mutex.unlock_shared();
++				}
++				semaphores.push_back(std::move(state));
++			}, idm::unlocked);
++		}
++
+ 		if (g_fxo->is_init<id_manager::id_map<named_thread<spu_thread>>>())
+ 		{
+ 			idm::select<named_thread<spu_thread>>([&](u32 id, named_thread<spu_thread>& spu)
+@@ -210,11 +314,11 @@ void neostation_freeze_dump(const char* reason, double seconds_without_frames, d
  	}
  
  	// A stop that began during the collection is not dumped (its threads are
@@ -2413,14 +2758,72 @@ index cc826f8..f434bed 100644
  	}
  
  	s_last_dump_us = accepted_at;
-@@ -223,8 +232,29 @@ void neostation_freeze_dump(const char* reason, double seconds_without_frames, d
+@@ -223,8 +327,87 @@ void neostation_freeze_dump(const char* reason, double seconds_without_frames, d
  
  	const usz spu_count = grouped_spus.size() + raw_spus.size();
  
 -	// begin + rsx + end are always emitted; the thread lines share the rest.
 -	const auto plan = rpcs3::ios::profiler::plan_freeze_dump(spu_count, ppus.size());
-+	// begin + waits + rsx + end are always emitted; the thread lines share the rest.
-+	const auto plan = rpcs3::ios::profiler::plan_freeze_dump(spu_count, ppus.size(), 4);
++	// REWINDBOX_FREEZE_DEEP_621: what decides a guest hang (BO2 multiplayer, builds 585,
++	// 612 and 620: main_thread in sys_semaphore_wait, one PPU thread spinning, the SPURS
++	// kernels polling): the code and reserved line of up to 2 running PPU threads, the
++	// waited semaphores and up to 6 guest lines the SPU threads poll. Bounded, read once
++	// per dump (at most one per episode), every lock already released.
++	std::vector<std::string> deep;
++	{
++		u32 running = 0;
++		for (const auto& ppu : ppus)
++		{
++			if (running < 2 && !(ppu->state & (cpu_flag::wait + cpu_flag::suspend + cpu_flag::stop)))
++			{
++				deep.push_back(ppu_code_line(*ppu));
++				running++;
++			}
++		}
++
++		for (const auto& sema : semaphores)
++		{
++			std::string ids;
++			for (const u32 waiter : sema.waiters)
++			{
++				fmt::append(ids, "%s0x%x", ids.empty() ? "" : ":", waiter);
++			}
++			std::string line = fmt::format("FREEZE_DUMP sema id=0x%x name=%s val=%d max=%d waiters=%d ids=%s",
++				sema.id, sanitize_token(lv2_obj::name64(sema.name)), sema.val, sema.max, -sema.val,
++				sema.locked ? (ids.empty() ? std::string("-") : ids) : std::string("busy"));
++			deep.push_back(bound_line(line));
++		}
++
++		std::vector<u32> addresses;
++		const auto add_line = [&](u32 addr)
++		{
++			addr &= -128;
++			if (addr && addresses.size() < 6 && std::find(addresses.begin(), addresses.end(), addr) == addresses.end())
++			{
++				addresses.push_back(addr);
++			}
++		};
++		for (const auto& [group, thread] : grouped_spus)
++		{
++			if (thread->spurs_addr)
++			{
++				add_line(thread->spurs_addr);
++				add_line(thread->spurs_addr + 0x80);
++			}
++		}
++		for (const auto& [group, thread] : grouped_spus)
++		{
++			add_line(thread->last_getllar_addr);
++			add_line(thread->raddr);
++		}
++		for (const u32 addr : addresses)
++		{
++			deep.push_back(guest_line(addr));
++		}
++	}
++
++	// begin + waits + rsx + end and the lines above are always emitted; the thread lines share the rest.
++	const auto plan = rpcs3::ios::profiler::plan_freeze_dump(spu_count, ppus.size(), 4 + deep.size());
 +
 +	// REWINDBOX_FREEZE_EPISODE_621: what every thread waits in, all threads
 +	// counted (the per-thread lines below may be truncated).
@@ -2445,12 +2848,12 @@ index cc826f8..f434bed 100644
  	std::vector<std::string> lines;
  	lines.reserve(plan.spu_lines + plan.ppu_lines);
  
-@@ -256,17 +286,22 @@ void neostation_freeze_dump(const char* reason, double seconds_without_frames, d
+@@ -256,22 +439,33 @@ void neostation_freeze_dump(const char* reason, double seconds_without_frames, d
  		}
  	}
  
 -	const u32 total_lines = static_cast<u32>(lines.size() + 3);
-+	const u32 total_lines = static_cast<u32>(lines.size() + 4);
++	const u32 total_lines = static_cast<u32>(lines.size() + deep.size() + 4);
  	std::string header = fmt::format(
  		"FREEZE_DUMP begin dump=%llu reason=%s no_frames_s=%.3f busiest_cores=%.3f state=%u "
 -		"ppu=%u spu=%u groups=%u raw_spu=%u lines=%u truncated=%u suppressed=%llu busy_groups=%u",
@@ -2472,8 +2875,13 @@ index cc826f8..f434bed 100644
  	for (const auto& line : lines)
  	{
  		snapshot += "\n";
-@@ -274,4 +309,5 @@ void neostation_freeze_dump(const char* reason, double seconds_without_frames, d
+ 		snapshot += line;
  	}
++	for (const auto& line : deep)
++	{
++		snapshot += "\n";
++		snapshot += line;
++	}
  	fmt::append(snapshot, "\nFREEZE_DUMP end dump=%llu lines=%u truncated=%u", index, total_lines, static_cast<u32>(plan.truncated));
  	ios_freeze_dump.notice("%s", snapshot);
 +	return true;
@@ -2816,7 +3224,7 @@ index 0000000..655b3e7
 +};
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index 8e17534..072011d 100644
+index 8e17534..45db6df 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -5,6 +5,7 @@
@@ -2827,7 +3235,7 @@ index 8e17534..072011d 100644
  #include "RPCS3IOSProfilerHelpers.h"
  #include "Emu/System.h"
  #include "Emu/Cell/SPUWarmupPolicy.h"
-@@ -25,6 +26,8 @@
+@@ -25,8 +26,11 @@
  #include "IOSRsxSyncProfile.h"
  #include "IOSSpuObjectPrefetch.h" // REWINDBOX_SPU_OBJECT_PREFETCH_616
  #include "IOSZcullOnDemand.h" // REWINDBOX_ZCULL_ON_DEMAND_619
@@ -2835,8 +3243,11 @@ index 8e17534..072011d 100644
 +#include "IOSPipelineQueue.h" // REWINDBOX_PIPELINE_QUEUE_621
  #include "IOSFrameTrace.h"
  #include "IOSFeedbackCensus.h"
++#include "IOSTextureCacheProfile.h" // REWINDBOX_TEXCACHE_PROFILE_621
  #include "IOSRendererCausality.h"
-@@ -498,6 +501,7 @@ public:
+ #include "IOSSignalTrace.h"
+ #include "Emu/Cell/timers.hpp"
+@@ -498,6 +502,7 @@ public:
  
  	void record_pipeline_job_queued(u32 pending_jobs) noexcept
  	{
@@ -2844,7 +3255,7 @@ index 8e17534..072011d 100644
  		m_pipeline_queued.fetch_add(1, std::memory_order_relaxed);
  		u32 peak = m_pipeline_peak_pending.load(std::memory_order_relaxed);
  		while (peak < pending_jobs && !m_pipeline_peak_pending.compare_exchange_weak(
-@@ -508,6 +512,7 @@ public:
+@@ -508,6 +513,7 @@ public:
  
  	void record_pipeline_job_completed(u64 queue_wait_ticks, u64 compile_ticks) noexcept
  	{
@@ -2852,7 +3263,7 @@ index 8e17534..072011d 100644
  		m_event_costs[0].record(queue_wait_ticks);
  		m_event_costs[1].record(compile_ticks);
  		m_pipeline_completed.fetch_add(1, std::memory_order_relaxed);
-@@ -846,6 +851,9 @@ private:
+@@ -846,6 +852,9 @@ private:
  				report = now >= m_next_report;
  			}
  
@@ -2862,7 +3273,7 @@ index 8e17534..072011d 100644
  			if (report)
  			{
  				report_profile_window();
-@@ -853,6 +861,82 @@ private:
+@@ -853,6 +862,82 @@ private:
  		}
  	}
  
@@ -2945,7 +3356,7 @@ index 8e17534..072011d 100644
  	void report_profile_window()
  	{
  		u64 current_frames = 0;
-@@ -876,6 +960,8 @@ private:
+@@ -876,6 +961,8 @@ private:
          double seconds_without_frames = 0.0;
          rpcs3::ios::diagnostics::GuestFrameWindow::Sample guest_frames;
          rpcs3::ios::frame_trace::Profile::Snapshot frame_causes;
@@ -2954,7 +3365,7 @@ index 8e17534..072011d 100644
          rpcs3::ios::renderer_causality::Profile::Snapshot renderer_causes;
          rpcs3::ios::signal_trace::summary_result signal_summary;
          rpcs3::ios::signal_trace::snapshot_result signal_snapshot;
-@@ -899,6 +985,8 @@ private:
+@@ -899,6 +986,8 @@ private:
              profile_window = ++m_report_window;
              guest_frames = m_guest_frame_window.take();
              frame_causes = rpcs3::ios::frame_trace::profile.take();
@@ -2963,7 +3374,7 @@ index 8e17534..072011d 100644
              renderer_causes = rpcs3::ios::renderer_causality::profile.take();
              signal_report_us = get_system_time();
              signal_summary = rpcs3::ios::signal_trace::summary();
-@@ -1020,12 +1108,29 @@ private:
+@@ -1020,12 +1109,29 @@ private:
                  const auto wait_ms = [&](u64 ticks) {
                      return rpcs3::ios::frame_trace::microseconds(ticks, frame.frequency) / 1000.0;
                  };
@@ -2994,7 +3405,7 @@ index 8e17534..072011d 100644
                      frame.session, profile_window, frame.frame, frame.begin_ticks, frame.end_ticks, frame.frequency,
                      frame.interval_available ? 1u : 0u, frame.interval_us / 1000.0,
                      frame.stages_sampled ? 1u : 0u, frame.forced ? 1u : 0u, frame.draws, frame.submits,
-@@ -1037,9 +1142,61 @@ private:
+@@ -1037,9 +1143,61 @@ private:
                      frame.stages_sampled ? frame.flip_us / 1000.0 : -1.0,
                      wait_ms(frame.waits.fence_ticks), wait_ms(frame.waits.submit_ticks),
                      wait_ms(frame.waits.drawable_ticks), wait_ms(frame.waits.present_ticks),
@@ -3057,7 +3468,7 @@ index 8e17534..072011d 100644
          report_renderer_causes(renderer_causes, profile_session, profile_window);
          report_signal_causes(signal_summary, signal_dump ? &signal_snapshot : nullptr,
              profile_session, profile_window, signal_report_us);
-@@ -1258,13 +1415,25 @@ private:
+@@ -1258,13 +1416,25 @@ private:
              const unsigned long long waits = take(tally.waits), wait_us = take(tally.wait_us), wait_max_us = take(tally.wait_max_us);
              const unsigned long long timeouts = take(tally.timeouts), stops = take(tally.stops), rsx_reads = take(tally.rsx_reads);
              const unsigned long long cell = take(tally.upstream_cell), other = take(tally.upstream_other), rsx_read = take(tally.upstream_rsx_read);
@@ -3085,7 +3496,38 @@ index 8e17534..072011d 100644
          }
          // REWINDBOX_SPU_OBJECT_PREFETCH_616: SPU objects served from memory, the
          // planned ones a compile thread read from disk first, and the store.
-@@ -1720,20 +1889,19 @@ private:
+@@ -1322,6 +1492,30 @@ private:
+                 profile_session, profile_window, renderpasses, snapshot_draws, copies, duplicates,
+                 static_cast<double>(pixels) / 1000000.0, pb_draws, msaa_reads, depth_reads);
+         }
++        // REWINDBOX_TEXCACHE_PROFILE_621: what the texture cache did in the window (Build 620:
++        // Black Ops II spent 6-7 ms per frame in the texture stage and its texture memory
++        // kept growing). Sums of the cache's per-frame statistics over frames= frame ends;
++        // memory gauges are the last frame end (and the peak) of the window, in MiB.
++        {
++            namespace tcp = rpcs3::ios::texture_cache_profile;
++            auto& c = tcp::counters;
++            const u64 tc_frames = tcp::take(c.frames), calls = tcp::take(c.upload_calls), misses = tcp::take(c.upload_misses);
++            const u64 cache_misses = tcp::take(c.cache_misses), flushes = tcp::take(c.flushes), hard = tcp::take(c.hard_faults);
++            const u64 tc_elided = tcp::take(c.copies_elided), temps = tcp::take(c.temp_subresources), temp_fail = tcp::take(c.temp_failures);
++            const u64 fb = tcp::take(c.feedback_barriers), fb_skip = tcp::take(c.feedback_skipped);
++            const u64 post = tcp::take(c.post_barriers), post_skip = tcp::take(c.post_skipped);
++            const u64 tex_peak = tcp::take(c.texture_bytes_peak), temp_peak = tcp::take(c.temp_bytes_peak);
++            const auto mib = [](u64 bytes) { return static_cast<double>(bytes) / (1024.0 * 1024.0); };
++            ios_core_profiler.notice(
++                "COREPROF TEXCACHE621 session=%llu window=%llu frames=%llu upload_calls=%llu upload_misses=%llu flushes=%llu "
++                "flush_misses=%llu hard_faults=%llu copies_elided=%llu temp_copies=%llu temp_failures=%llu "
++                "texture_mib=%.1f texture_peak_mib=%.1f temp_mib=%.1f temp_peak_mib=%.1f unreleased=%llu "
++                "feedback_barriers=%llu feedback_skipped=%llu post_barriers=%llu post_skipped=%llu scope=process_window_counters",
++                profile_session, profile_window, tc_frames, calls, misses, flushes, cache_misses, hard, tc_elided, temps, temp_fail,
++                mib(c.texture_bytes.load(std::memory_order_relaxed)), mib(tex_peak),
++                mib(c.temp_bytes.load(std::memory_order_relaxed)), mib(temp_peak),
++                static_cast<u64>(c.unreleased.load(std::memory_order_relaxed)), fb, fb_skip, post, post_skip);
++        }
+         // REWINDBOX_SPU_WAIT_PROFILE_V1: SPU time outside guest code, summed over
+         // the SPU threads (deltas of monotonic per-thread totals).
+         {
+@@ -1720,20 +1914,19 @@ private:
  			compile_threads, compile_cores, average_threads[static_cast<usz>(core_group::other)],
  			rsx_fifo_busy, rsx_main_cores, top_list, guest_progress.wall_guest_fps, guest_progress.last_guest_flip_age_ms);
  
@@ -3149,9 +3591,18 @@ index b6b0c69..dcc1fad 100644
  // min_interval_us elapsed since the last accepted one; records the accepted time.
  inline bool accept_freeze_dump(std::uint64_t now_us, std::uint64_t& last_accepted_us, std::uint64_t min_interval_us = freeze_dump_min_interval_us) noexcept
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index 416fbcf..65ab188 100644
+index 416fbcf..922b9a9 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -129,7 +129,7 @@ const std::array catalog{
+ 	SETTING("experimental.texture_validation_epoch", "Experimental", "FPS Experiments", "Texture validation per FIFO batch", "Keeps a texture whose content was just verified as valid until the next synchronization point (new guest commands, a semaphore, an RSX memory write or the next frame) instead of hashing it again for every draw. A texture the game rewrites without synchronizing may appear one batch late. Automatic enables it for God of War III, Call of Duty: Black Ops II, Bladestorm and Assassin's Creed; Disabled hashes at every draw as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_validation_epoch, 0, 0, 0),
+ 	SETTING("experimental.deferred_fbo_writeback", "Experimental", "FPS Experiments", "Deferred framebuffer write-back", "When a region the GPU wrote is bound again as a framebuffer, copies its content to game memory only when the game actually reads it, instead of waiting for the GPU at every bind. The bytes the game reads are unchanged. Applies with Write Color Buffers off. Automatic enables it for Dragon Ball Z Budokai HD Collection only; Disabled waits at every bind as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.deferred_fbo_writeback, 0, 0, 0),
+ 	SETTING("experimental.early_submit", "Experimental", "FPS Experiments", "Early command buffer submission", "When the GPU has finished everything already sent to it, sends the draws recorded since then at the end of a draw instead of keeping them until the end of the frame, so the GPU renders while the frame is still being recorded. The commands and their order are unchanged. Automatic enables it for Dragon Ball Z Budokai HD Collection and God of War III; Disabled sends at the end of the frame as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.early_submit, 0, 0, 0),
+-	SETTING("experimental.noop_putllc_keeps_reservations", "Experimental", "FPS Experiments", "No-op PUTLLC keeps reservations", "With Accurate SPU Reservations on, an SPU atomic store that writes back unchanged data still succeeds only if the data and its reservation are unchanged, but no longer cancels the reservations other SPUs hold on the same data. SPUs that poll the same data then stop failing each other's atomic updates. Automatic enables it for Dragon Ball Z Budokai HD Collection and Call of Duty: Black Ops II; Disabled cancels them as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.noop_putllc_keeps_reservations, 0, 0, 0),
++	SETTING("experimental.noop_putllc_keeps_reservations", "Experimental", "FPS Experiments", "No-op PUTLLC keeps reservations", "With Accurate SPU Reservations on, an SPU atomic store that writes back unchanged data still succeeds only if the data and its reservation are unchanged, but no longer cancels the reservations other SPUs hold on the same data. SPUs that poll the same data then stop failing each other's atomic updates. Automatic enables it for Dragon Ball Z Budokai HD Collection and Call of Duty: Black Ops II; Black Ops II runs with Accurate SPU Reservations off, so there it changes nothing. Disabled cancels them as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.noop_putllc_keeps_reservations, 0, 0, 0),
+ 	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for every title; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
+ 	SETTING("experimental.rsx_thread_priority", "Experimental", "FPS Experiments", "RSX thread priority", "Gives the RSX thread and the audio threads precedence over the PPU and SPU threads when the game asks for more CPU than the performance cores provide, as RPCS3 intends; iOS otherwise treats them alike. Automatic enables it for every title; Disabled gives every emulation thread the same priority as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_thread_priority, 0, 0, 0),
+ 	SETTING("experimental.passive_lock_fairness", "Experimental", "FPS Experiments", "Passive lock fairness", "When a PPU or SPU thread has waited a long time to resume guest memory access while SPUs keep taking reservation write locks, new write locks briefly let it through first. No lock is skipped. Automatic enables it for every title; Disabled restores the previous lock order. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.passive_lock_fairness, 0, 0, 0),
 @@ -153,6 +153,9 @@ const std::array catalog{
  	// REWINDBOX_GRAPHICS_TESTS_612: per-game levers of the in-game accuracy test page.
  	GAME_SETTING("experimental.position_invariance", "Experimental", "MoltenVK", "Position invariance", "Asks Metal to compute the vertex position the same way in every shader that writes it, so passes that draw the same geometry again (weapon models, lit walls) get identical depth. Automatic enables it for Call of Duty: Black Ops II and Assassin's Creed; Disabled restores the previous shaders. Metal compiles new shaders on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.position_invariance, 0, 0, 0),
