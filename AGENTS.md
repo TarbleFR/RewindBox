@@ -2,7 +2,7 @@
 
 Read this guide before work. It contains current project state and permanent
 rules; detailed investigations and build receipts belong in `docs/`.
-Last reconciled: **3 November 2026**, after private Build **626**.
+Last reconciled: **3 November 2026**, after private Build **629**.
 
 ## Start here
 
@@ -21,17 +21,31 @@ Last reconciled: **3 November 2026**, after private Build **626**.
 
 | Item | Verified reference |
 | --- | --- |
-| Application | **RewindBox 0.0.8 (626)**, private IPA; iOS 18+, SideStore re-signing |
-| Delivery source | `8f01cd40e8d28d293f58b1c7de365e16719e104c`; frozen manifest [`build-utils/delivery/626.json`](build-utils/delivery/626.json) (freeze commit `7d6f6fbb`, effective product digest `b8403d43…`, replayed from the delivered 625 effective tree `7e921879…`) |
-| Delivery run / jobs | `41598013782`, attempt 1, standard recipe: preflight, flutter and native (both fresh), republish and application, all successful (about 25 min) |
-| Downloaded IPA | `RewindBox-626.ipa`, 194553035 bytes; SHA-256 `bf4b324ad3b1b4788c604f86945edbd609f38e44a352d01028139fcbbce219ac` |
-| Product baseline | Delivered 625 plus the MeloNX Core 626 fix (reviewed `17eabf03`, `cabef0aa`) |
-| MeloNX Core | **Core 626** (replaced): Core run `41596390897`, source `17eabf03`, packaged fingerprint `18fbb04c…`, iPhone library `7b4df70d…` ([pin](build-utils/melonx/dma-core-pin.json)); replaces Core 625 `dd3fe017…` |
-| RPCS3 Core | **Core 624** kept (`unchangedFromBase`): Core and Apple host run `41572306405`, source `94102e14`, payload `e906fbd5…` ([pin](build-utils/rpcs3/core-pin.json)) |
+| Application | **RewindBox 0.0.8 (629)**, private IPA; iOS 18+, SideStore re-signing (628 was not delivered) |
+| Delivery source | `6aae16b9ca0683eb64aa4881dc6855b05b363763`; frozen manifest [`build-utils/delivery/629.json`](build-utils/delivery/629.json) (freeze commit `79d866ef`, effective product digest `140e5707…`, replayed from the delivered 626 effective tree `b8403d43…`) |
+| Delivery run / jobs | `41622115556`, attempt 1, standard recipe: preflight, flutter and native (both fresh), republish and application, all successful (about 21 min) |
+| Downloaded IPA | `RewindBox-629.ipa`, 194618465 bytes; SHA-256 `952b2641a1151746e43dc81b500371911a668e5736131acf8de75542d0f2bfe6` |
+| Product baseline | Delivered 626 plus MeloNX Core 628 (reviewed `e34dccf9`, `1ce1cd14`, `2620d011`) and RPCS3 Core 627 of session 012mUASm (reviewed `40c6502a`..`8e68bdee`, `2abb1ac2`, pin `021a15e4`; maintainer request) |
+| MeloNX Core | **Core 628** (replaced): Core run `41614833262`, source `1ce1cd14`, packaged fingerprint `dfd9061e…`, iPhone library `1699cf38…` ([pin](build-utils/melonx/dma-core-pin.json)); replaces Core 626 `18fbb04c…` |
+| RPCS3 Core | **Core 627** (replaced): Core and Apple host run `41610162888`, source `6891f9a0`, payload `eccf8535…` ([pin](build-utils/rpcs3/core-pin.json)); replaces Core 624 `e906fbd5…` |
 | Dolphin Core | Retained from 608 (payload `640e4389…`) through the archive republished by run `41504526945` |
 | ARMSX2 Core | Retained from 608 (payload `fab55193…`, ABI 9) through the archive republished by run `41504526945` |
-| libretro / MeloNX dependencies | Retained through the archives republished by run `41504526945` (republished again by runs `41516165812`, `41527072487`, `41555079757`, `41562838932`, `41569913763`, `41574628897`, `41591090457` and `41598013782`) |
-| Delivery proof | [delivery receipt](docs/evidence/rewind626/delivery.json), [signed payload identity](docs/evidence/rewind626/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind626/download626-verification.json); 625: [receipt](docs/evidence/rewind625/delivery.json) |
+| libretro / MeloNX dependencies | Retained through the archives republished by run `41504526945` (republished again by runs `41516165812`, `41527072487`, `41555079757`, `41562838932`, `41569913763`, `41574628897`, `41591090457`, `41598013782` and `41622115556`) |
+| Delivery proof | [delivery receipt](docs/evidence/rewind629/delivery.json), [signed payload identity](docs/evidence/rewind629/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind629/download629-verification.json); 626: [receipt](docs/evidence/rewind626/delivery.json) |
+
+629 is delivered, not a pending candidate. Do not reuse its number; 628 was not delivered. It carries RPCS3 Core 627
+(the maintainer's request; no iPhone result yet, see [the Core 627 record](docs/rpcs3-core627-2026-11-03.md)).
+MeloNX Core 628 (Hogwarts Legacy: the read-back into a buffer also runs over other textures, which get a write signal without a write, buffers exempt, as a guest write there would
+give them; build 626 never copied into buffers, 352 and 742 copies declined as occupied; on MoltenVK, a texture's
+write-to-read barrier inside a render pass it is not an attachment of is deferred to the next begin of that pass,
+since MoltenVK restarts the Metal render pass for each in-pass image barrier; the GPU's busy time is measured from the
+Metal command buffers, MoltenVK's own figure including the queue wait) has no iPhone result yet
+([624 to 626 journals, and the 628 change](docs/melonx-624-measurement-2026-11-03.md)); no FPS claim.
+`libretro_internal_bridge` changed from 626 although its effective sources did not (reported as an undeclared image
+change, not blocking). Attempt 1 (run `41618683768`) failed at the RPCS3 Core install check: the fixed marker list asked
+for the canary file of Cores 587-624, which Core 627 renames on purpose; the recipe fix `79d866ef` accepts the canary
+named after its Core.
+The private 629 recipient key was deleted after the verified delivery.
 
 626 is delivered, not a pending candidate. Do not reuse its number. MeloNX Core 626 (Hogwarts
 Legacy: the read-back into a buffer also runs when the only texture over its destination is the

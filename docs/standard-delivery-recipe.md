@@ -425,3 +425,24 @@ produit ; contrôle légal réussi ; aucun conflit, aucun commit non classé.
   changé sans changement de leurs sources effectives (signalé, non bloquant).
 - **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub
   MCP. IPA vérifiée hors ligne, clé privée supprimée.
+
+## 18. État de la 629 (3 novembre 2026)
+
+Livrée sur la 626 (run `41622115556`, IPA `952b2641…`, 194618465 octets, ~21 min de bout en bout). Le numéro 627 est
+celui du Core RPCS3 627, livré ici ; la 628 n'a pas été livrée.
+Gel sur `79d866ef` : base effective 626 `b8403d43…`, empreinte effective `140e5707…`, 6897 fichiers produit ;
+contrôle légal réussi ; aucun conflit, aucun commit non classé.
+- **Commits revus (3).** `e34dccf9` et `1ce1cd14` (Core MeloNX 628) et `2620d011` (son épingle vérifiée).
+- **Commits RPCS3 revus (7).** `40c6502a`..`8e68bdee`, `2abb1ac2` (Core RPCS3 627 de la session 012mUASm) et `021a15e4`
+  (son épingle, vérifiée hors ligne avec le vérificateur du dépôt).
+- **Composants.**
+  - MeloNX : remplacé par le Core 628 du run `41614833262` (`dfd9061e…`), qui remplace le Core 626 `18fbb04c…`.
+  - RPCS3 : remplacé par le Core 627 du run `41610162888` (`eccf8535…`), qui remplace le Core 624 `e906fbd5…`.
+  - Les autres composants sont republiés de la 626.
+- **Images changées.** MeloNXCore, libRPCS3Core, rpcs3_internal_bridge et Runner. `libretro_internal_bridge` a
+  aussi changé sans changement de ses sources effectives (signalé, non bloquant).
+- **Première tentative.** Run `41618683768` en échec au contrôle d'installation du Core RPCS3 : la liste figée de
+  marqueurs demandait le canari des Cores 587 à 624, que le Core 627 renomme exprès. Le correctif de recette
+  `79d866ef` accepte le canari nommé d'après son Core ; regel sur la même empreinte produit.
+- **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub
+  MCP. IPA vérifiée hors ligne, clé privée supprimée.
