@@ -22,6 +22,7 @@
 # Core compile request: Core 621 (core-build.json build 621, canonical patch 1660c795), request 4 (ZCULL guard on one-second buckets and the other fixes of the adversarial review).
 # Core compile request: Core 624 (core-build.json build 624, canonical patch fd79d496), request 1 (GCM labels off the ZCULL report pages, conditional render on the previous visible report, from the Build 622 logs).
 # Core compile request: Core 627 (core-build.json build 627, canonical patch d9f63f04), request 1 (optimisation phase from the Build 624 logs: ZCULL waits, bounded SPU no-op wait, SPU QoS, FIFO NOP, light measurement profile).
+# Core compile request: Core 630 (core-build.json build 630, canonical patch cfaba801), request 1 (from the Build 629 logs: ZCULL reads wait for their own report slot, final memory is completed in the access violation handler).
 # Apple host harness rerun: Core 613 codegen audit reruns for its two exact aliases (request 2).
 # Apple host harness rerun: Core 619 wait-budget scenario on measured waits (request 2).
 # Apple host harness rerun: Core 619 concurrency scenario accepts the designed wait-budget trip (request 3).
