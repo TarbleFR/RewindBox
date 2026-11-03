@@ -18,6 +18,15 @@ encoder. The patch is retired (it stays in Git history, commit `475fcc2`); the p
 exported, so MeloNX's `MVKInitialization.cs` applies unchanged. The build checks again that the kept binary's 428
 Vulkan exports are present. What follows describes the 1.4.0 patch and its build of 3 Nov, kept as history.
 
+Build of v1.4.2 (run `41653781749`, 3 Nov 2026, 14:27-14:35 UTC, 6 min 28 s of build): `ios/MoltenVK.framework/MoltenVK`
+SHA-256 `41cb207d5a6fc0a9e66498953832a6de14995de5653ef4273be19a85c403a68d`, 4 822 128 bytes, arm64, iOS minimum 15.0
+(RewindBox requires 18.0), SDK 26.5 (Xcode 26.6, 17F113); none of the 1.4.0 patch's markers; the eight entry points
+MeloNX resolves and all 428 Vulkan exports of the kept binary, three added (`vkGetMemoryMetalHandleEXT`,
+`vkGetMemoryMetalHandlePropertiesEXT`, `vkReleaseSwapchainImagesKHR`). Artifact `13239047652` (13 865 960 bytes,
+`sha256:773dc3ac…`), kept until 3 Dec 2026: `build-utils/melonx/moltenvk-rebuild-pin.json` pins it (run, job, head,
+artifact digest and size, binary digest and size, the job's summary). Read from the job's annotation; the artifact
+itself is checked by the packager when a delivery downloads it.
+
 One MoltenVK in the app (written, not delivered):
 - `build-utils/melonx/package_standalone_moltenvk.py` takes, when `build-utils/melonx/moltenvk-rebuild-pin.json`
   exists, the rebuilt binary from that run's artifact (downloaded by `gh api` with the delivery's token, checked

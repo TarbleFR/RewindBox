@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "tag": "v1.4.2",
+  "revision": "db66022459ffb663aa2b50f6b018bc2e124f5edf",
+  "run": 41653781749,
+  "job": 125978569512,
+  "headSha": "d4086c4fcae9346b1d7f493eca0df65586c1be65",
+  "artifact": 13239047652,
+  "artifactName": "MeloNX-MoltenVK-rebuild-d4086c4fcae9346b1d7f493eca0df65586c1be65",
+  "artifactBytes": 13865960,
+  "artifactDigest": "sha256:773dc3acb26e38091481e220b28729b8d6c5d5f38ff2d00720a9f9e994b58ee4",
+  "artifactExpires": "2026-12-03T14:34:39Z",
+  "binarySha256": "41cb207d5a6fc0a9e66498953832a6de14995de5653ef4273be19a85c403a68d",
+  "binaryBytes": 4822128,
+  "summary": "sha256 41cb207d5a6fc0a9e66498953832a6de14995de5653ef4273be19a85c403a68d, 4822128 bytes, arm64, Load command 10 /       cmd LC_BUILD_VERSION /   cmdsize 32 /  platform IOS /     minos 15.0 /       sdk 26.5 /    ntools 1 /      tool LD /   version 1267.0, install name @rpath/MoltenVK.framework/MoltenVK, slice ios-arm64, markers 3/3, entry points 8/8, kept binary's Vulkan exports 428/428 (missing: none; added: _vkGetMemoryMetalHandleEXT _vkGetMemoryMetalHandlePropertiesEXT _vkReleaseSwapchainImagesKHR), Xcode Xcode 26.6 Build version 17F113"
+}
