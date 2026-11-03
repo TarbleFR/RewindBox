@@ -1,0 +1,237 @@
+diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
+index 460ca61..5aa8fdc 100644
+--- a/rpcs3/Emu/RSX/RSXThread.cpp
++++ b/rpcs3/Emu/RSX/RSXThread.cpp
+@@ -910,7 +910,10 @@ namespace rsx
+ 				namespace cond_previous = rpcs3::ios::zcull_cond_previous;
+ 				const bool ios_ready = zcull_ctrl->check_occlusion_query_status(cond_render_ctrl.eval_sources.front());
+ 				const auto ios_decision = cond_previous::decide(rpcs3::ios::get_experimental_policy().zcull_on_demand, ios_ready,
+-					vm::get_super_ptr<CellGcmReportData>(cond_render_ctrl.eval_address)->value);
++					vm::get_super_ptr<CellGcmReportData>(cond_render_ctrl.eval_address)->value,
++					// REWINDBOX_ZCULL_COND_NO_WAIT_627: only for a draw the depth test can hide.
++					rpcs3::ios::get_experimental_policy().zcull_cond_no_wait && rsx::method_registers.depth_test_enabled() &&
++						rsx::method_registers.depth_func() != rsx::comparison_function::always);
+ 				(ios_decision == cond_previous::decision::previous ? cond_previous::counters().previous
+ 					: ios_ready ? cond_previous::counters().ready : cond_previous::counters().waited).fetch_add(1, std::memory_order_relaxed);
+ 
+diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
+index 97652a2..a193e31 100644
+--- a/rpcs3/Emu/RSX/RSXZCULL.cpp
++++ b/rpcs3/Emu/RSX/RSXZCULL.cpp
+@@ -204,6 +204,15 @@ namespace rsx
+ 
+ 			on_report_enqueued(sink);
+ 
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_CONSERVATIVE_627 (ios/IOSZcullLabelPage.h): the report reads
++			// "visible" from now on; retire() replaces it with the GPU result.
++			if (rpcs3::ios::get_experimental_policy().zcull_conservative_reports)
++			{
++				write(sink, ptimer->timestamp(), type, 1u);
++			}
++
++#endif
+ 			ptimer->async_tasks_pending++;
+ 
+ 			if (m_statistics_map[m_statistics_tag_id].result != 0)
+@@ -797,6 +806,12 @@ namespace rsx
+ 
+ #endif
+ 			// Disable optimizations across the accessed range if reports reside within
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_CONSERVATIVE_627: no critical reports in this mode. A plain RSX copy
++			// still waits below for the real value; a block transfer copies the provisional value
++			// now and its alias takes the real one later (copy_reports_to).
++			if (!rpcs3::ios::get_experimental_policy().zcull_conservative_reports)
++#endif
+ 			{
+ 				std::scoped_lock lock(m_pages_mutex);
+ 
+@@ -923,11 +938,29 @@ namespace rsx
+ 				}
+ 			}
+ 
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_CONSERVATIVE_627: no label waits in this mode, so a deferred copy would
++			// leave the destination stale until the query completes. Nothing is deferred: the
++			// caller's transfer runs now with the provisional values, the aliases take the GPU result.
++			if (rpcs3::ios::get_experimental_policy().zcull_conservative_reports)
++			{
++				return 0;
++			}
++
++#endif
+ 			return bytes_to_write;
+ 		}
+ 
+ 		void ZCULL_control::on_report_enqueued(vm::addr_t address)
+ 		{
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_CONSERVATIVE_627: a report never locks a page.
++			if (rpcs3::ios::get_experimental_policy().zcull_conservative_reports)
++			{
++				return;
++			}
++
++#endif
+ 			const auto location = rsx::classify_location(address);
+ 			std::scoped_lock lock(m_pages_mutex);
+ 
+@@ -1260,7 +1293,8 @@ namespace rsx
+ 						tally.add_halves(pickup_sum, service_sum + (now - halves_at));
+ 					}
+ 
+-					if (m_ios_demand.record_wait(now - started, now))
++					// REWINDBOX_ZCULL_WAIT_GUARD_627: the wait rules only run with the guard on.
++					if (rpcs3::ios::get_experimental_policy().zcull_wait_guard && m_ios_demand.record_wait(now - started, now))
+ 					{
+ 						rsx_log.warning("ZCULL on-demand reads: guest waits tripped the lever (%s), upstream mode for the rest of this boot.",
+ 							od::trip_reason_name(m_ios_demand.trip_record().reason));
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index 77ea372..d82552f 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -178,6 +178,13 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> gpu_timing{ this, "GPU Timing Probe", ios_experimental_mode::automatic };
+ 		// REWINDBOX_ZCULL_DEMAND_BO2_621: Automatic is the title list (Assassin's Creed, Black Ops II).
+ 		cfg::_enum<ios_experimental_mode> zcull_on_demand{ this, "ZCULL On-Demand Reads", ios_experimental_mode::automatic };
++		// REWINDBOX_ZCULL_WAIT_GUARD_627 (ios/IOSZcullOnDemand.h): Automatic takes the guest-wait rules off for the
++		// lever's title list, Enabled restores them, Disabled removes them for any title.
++		cfg::_enum<ios_experimental_mode> zcull_wait_guard{ this, "ZCULL On-Demand Wait Guard", ios_experimental_mode::automatic };
++		// REWINDBOX_ZCULL_COND_NO_WAIT_627 (ios/IOSZcullLabelPage.h): Automatic is the lever's title list.
++		cfg::_enum<ios_experimental_mode> zcull_cond_no_wait{ this, "ZCULL Conditional Draw Without Wait", ios_experimental_mode::automatic };
++		// REWINDBOX_ZCULL_CONSERVATIVE_627 (ios/IOSZcullLabelPage.h): Automatic is off for every title.
++		cfg::_enum<ios_experimental_mode> zcull_conservative_reports{ this, "ZCULL Conservative Reports", ios_experimental_mode::automatic };
+ 
+ 		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L5, L9; L3 is the
+ 		// Bounded sleep value of fifo_idle_mode above). Defaults keep the Build
+diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
+index 58782d1..b25a58d 100644
+--- a/rpcs3/ios/IOSTitleLevers.h
++++ b/rpcs3/ios/IOSTitleLevers.h
+@@ -129,6 +129,10 @@ constexpr bool requires_zcull_on_demand(std::string_view title_id) noexcept
+ 	return is_assassins_creed_title(title_id) || is_black_ops_ii_title(title_id);
+ }
+ 
++// REWINDBOX_ZCULL_WAIT_GUARD_627: the guest-wait rules of the guard do not apply to these
++// titles (ios/IOSZcullOnDemand.h); REWINDBOX_ZCULL_COND_NO_WAIT_627: their conditional renders
++// draw without waiting (ios/IOSZcullLabelPage.h). Build 624 logs (PID 1893).
++
+ // REWINDBOX_ZCLIP_PINNED_AFFINE_619: refines REWINDBOX_ZCLIP_WINDOW_Z_616. The
+ // fallback compresses only window Z in (1, far] and passes every other vertex
+ // through unchanged. The pinned draws of the #13227 capture keep depth clip on
+diff --git a/rpcs3/ios/IOSZcullLabelPage.h b/rpcs3/ios/IOSZcullLabelPage.h
+index 1b956d5..0d8ecea 100644
+--- a/rpcs3/ios/IOSZcullLabelPage.h
++++ b/rpcs3/ios/IOSZcullLabelPage.h
+@@ -49,6 +49,17 @@ constexpr std::uint32_t offset(std::uint32_t report_offset, std::uint32_t page_s
+ // waiting; a report holding 0 still waits, so an object the game would show is never
+ // hidden. An object hidden in this frame but visible in the previous one is drawn one
+ // evaluation longer, behind whatever hides it.
++//
++// REWINDBOX_ZCULL_COND_NO_WAIT_627: Build 624 logs (PID 1893, Black Ops II, session 2):
++// 841-1,002 evaluations per window drew on the previous value, and the 88-120 that found a
++// report holding 0 still took 1.3-2.6 s of the RSX thread per window, 13-26 ms each: the
++// largest ZCULL cost left, at 28 % GPU occupancy. For a depth-tested draw, skipping is only an
++// optimization: a conditional render asks to leave out an object that its query found hidden,
++// and drawing it anyway leaves it hidden behind what hides it, at the price of its GPU time.
++// So with the setting, a query still on the GPU never waits for such a draw (`no_wait`),
++// whatever its report holds. A draw the depth test cannot hide (a flare or corona over the
++// scene) keeps the 624 rule: a report holding 0 waits, or the effect would show through walls.
++// A query already complete is evaluated as before, so an object known to be hidden is skipped.
+ namespace rpcs3::ios::zcull_cond_previous
+ {
+ struct counters_t
+@@ -72,13 +83,24 @@ enum class decision
+ 
+ // The decision for a pending evaluation. `ready`: the newest query of the evaluation
+ // has its result on the host (check_occlusion_query_status); `report_value`: the value
+-// field of the report at the evaluation address (read through the unprotected view).
+-constexpr decision decide(bool lever, bool ready, std::uint32_t report_value) noexcept
++// field of the report at the evaluation address (read through the unprotected view);
++// `no_wait`: REWINDBOX_ZCULL_COND_NO_WAIT_627.
++constexpr decision decide(bool lever, bool ready, std::uint32_t report_value, bool no_wait = false) noexcept
+ {
+-	return (lever && !ready && report_value != 0) ? decision::previous : decision::wait;
++	return (lever && !ready && (report_value != 0 || no_wait)) ? decision::previous : decision::wait;
+ }
+ }
+ 
++// REWINDBOX_ZCULL_CONSERVATIVE_627: the mode where no report ever makes anything wait. A
++// queued report is written at once with a value that reads "visible", no page is locked,
++// no label waits, and the GPU result replaces it when the query completes, in the usual
++// update() pass. A guest that reads the report before that gets "visible" and draws the
++// object; one that reads it later gets the real value. It differs from Relaxed ZCULL
++// Sync, which leaves the previous bytes of the slot in place (Assassin's Creed BLES00158,
++// Build 612: torches and lights flickered). Whether a guest can see the difference between
++// "visible" and the real value is a device question: off for every title by default, and
++// the ZCULL On-Demand Reads lever keeps exact values.
++
+ // REWINDBOX_ZCULL_FAULT_CENSUS_624: who reaches into a page ZCULL holds locked, for the
+ // next reading of the Black Ops II "other" faults (Build 622: 60-120 per window, 885 ms
+ // of guest waits, outside the GCM report block): the thread class of every on-demand
+diff --git a/rpcs3/ios/IOSZcullOnDemand.h b/rpcs3/ios/IOSZcullOnDemand.h
+index b7b4ed0..fc8d13e 100644
+--- a/rpcs3/ios/IOSZcullOnDemand.h
++++ b/rpcs3/ios/IOSZcullOnDemand.h
+@@ -48,6 +48,19 @@
+ // that began in an earlier second adds nothing to the next one. The storm rule
+ // counts at most 100 ms of each wait, so one long wait behind a pipeline
+ // compile followed by ordinary reads is not a storm.
++//
++// REWINDBOX_ZCULL_WAIT_GUARD_627: Build 624 logs (PID 1893). With the labels on their own
++// page (624) the lever served only real report reads: Assassin's Creed window 9, 99 reads,
++// 9.6 ms each (0.02 ms pickup), the RSX thread blocked 0.95 s of 5 s, 57 FPS at 18 draws per frame. TaskThread1 then
++// waited 548/564/610 ms in three seconds and the lever tripped; the rest of the boot ran the
++// upstream mode: 2,000-2,700 syncs and 4.0-4.3 s of the RSX thread per 5 s window, 12-20 FPS in
++// the heavy scenes. The same trip happened in Black Ops II multiplayer (thread Backend,
++// 449/538/638 ms) and on Builds 620 and 622. A guest thread that reads a report has to wait
++// for the GPU in either mode: upstream makes it wait for the label instead, behind an RSX
++// thread blocked at every label. The wait budgets compare a guest thread against nothing that
++// the fallback improves, so for the lever's titles they no longer trip it. The storm rule and
++// the pickup and hard deadlines stay: they are the protection against a lever that does
++// not work. The ZCULL On-Demand Wait Guard setting restores the 621 rules (A/B test).
+ namespace rpcs3::ios::zcull_on_demand
+ {
+ inline constexpr std::uint64_t pickup_deadline_us = 2'000'000;  // the RSX thread has not started the request
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index d4378fc..84d91c0 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -359,6 +359,17 @@ void resolve_experimental_policy() noexcept
+ 	// ZCULL On-Demand Reads setting (Automatic = the list) tests the other mode per game.
+ 	resolved.zcull_on_demand = resolve_mode(g_cfg.ios_experimental.zcull_on_demand,
+ 		rpcs3::ios::title_levers::requires_zcull_on_demand(title_id));
++	// REWINDBOX_ZCULL_WAIT_GUARD_627: the lever's titles run without the guest-wait rules:
++	// every wait trip recorded so far took the boot to a far more expensive upstream mode.
++	resolved.zcull_wait_guard = resolve_mode(g_cfg.ios_experimental.zcull_wait_guard,
++		!rpcs3::ios::title_levers::requires_zcull_on_demand(title_id));
++	// REWINDBOX_ZCULL_COND_NO_WAIT_627: Automatic is the lever's title list.
++	resolved.zcull_cond_no_wait = resolve_mode(g_cfg.ios_experimental.zcull_cond_no_wait,
++		rpcs3::ios::title_levers::requires_zcull_on_demand(title_id));
++	// REWINDBOX_ZCULL_CONSERVATIVE_627: only a per-game choice; the upstream reservation
++	// path of report writes (Accurate RSX reservation access) keeps exact reports.
++	resolved.zcull_conservative_reports = resolve_mode(g_cfg.ios_experimental.zcull_conservative_reports, false) &&
++		!g_cfg.core.rsx_accurate_res_access;
+ 	// REWINDBOX_ZCLIP_PINNED_AFFINE_619: the title list, on top of the 616 fallback.
+ 	resolved.zclip_pinned_affine = resolved.zclip_fallback_window_z &&
+ 		rpcs3::ios::title_levers::requires_zclip_pinned_affine(title_id);
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 5354937..4fd14d6 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -61,6 +61,14 @@ struct experimental_policy
+ 	// report page waits for its reports instead of every label waiting for all of
+ 	// them. Title scoped, without a setting; read by the RSX ZCULL unit.
+ 	bool zcull_on_demand = false;
++	// REWINDBOX_ZCULL_WAIT_GUARD_627 (ios/IOSZcullOnDemand.h): guest waits may trip the lever.
++	bool zcull_wait_guard = true;
++	// REWINDBOX_ZCULL_COND_NO_WAIT_627 (ios/IOSZcullLabelPage.h): with the lever, a conditional
++	// render whose query is still on the GPU draws without waiting, whatever its report holds.
++	bool zcull_cond_no_wait = false;
++	// REWINDBOX_ZCULL_CONSERVATIVE_627 (ios/IOSZcullLabelPage.h): reports read "visible" from
++	// the moment they are queued until the GPU result replaces them; nothing waits.
++	bool zcull_conservative_reports = false;
+ 	// REWINDBOX_ZCLIP_PINNED_AFFINE_619 (ios/IOSTitleLevers.h): with the 616 fallback,
+ 	// a clip range wholly above 1 maps every vertex affinely onto [0.99, 1].
+ 	bool zclip_pinned_affine = false;

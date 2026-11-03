@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 624,
- "identity_type": "rpcs3-ios-core624",
- "summary": "RPCS3 Core 624 = the delivered Core 610 plus one folded delta: the Core 612, 613, 616, 619 and 621 records unchanged and the Core 624 changes (build-utils/rpcs3/core624-from-621.patch over the Core 621 delivered in IPA 622), from the Build 622 iPhone logs: with the ZCULL on-demand lever (Assassin's Creed, Black Ops II) the RSX reports block is placed so that its report array starts on a host page, so GCM label and notify reads never share a page with a report ZCULL holds locked (Assassin's Creed: 411 of 444 faults in a window were label reads, the lever tripped and the upstream mode then blocked the RSX thread 4.1-4.3 s per 5 s; REWINDBOX_ZCULL_LABEL_PAGE_624); a conditional render whose query is still on the GPU and whose report already shows the object visible draws without waiting (Black Ops II multiplayer: 0.9-1.2 s of RSX waits per 5 s; REWINDBOX_ZCULL_COND_PREVIOUS_624); COREPROF ZCULL624 counts both and the thread class of the on-demand faults (REWINDBOX_ZCULL_FAULT_CENSUS_624). ABI 30, the 92 exports, the PPU/SPU codegen identities (no codegen input changes) and the MoltenVK dependency of Core 610 unchanged. Numbered 624: IPA 623 is another session's MeloNX build.",
+ "build": 627,
+ "identity_type": "rpcs3-ios-core627",
+ "summary": "RPCS3 Core 627 in progress, the delivered Core 610 plus one folded delta: the Core 612, 613, 616, 619, 621 and 624 records unchanged and ZCULL: the on-demand lever no longer trips on guest waits, a depth-tested conditional render never waits for a query still on the GPU, conservative reports off for every title. Numbered 627: 625 and 626 are another session's MeloNX Cores. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,7 +22,7 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "fd79d496297b3aaa3a2ed5511dfe9307d6ef5327a43ad774220ae111cb8ec815",
+  "patch_sha256": "86b152114d956a9f4580114469a59968b5d59e0f6c77e7382afb22402562bace",
   "postimages": 346,
   "records": [
    "core610_20261101",
@@ -32,7 +32,8 @@
    "core616_20261102",
    "core619_20261102",
    "core621_20261102",
-   "core624_20261103"
+   "core624_20261103",
+   "core627_20261103"
   ]
  },
  "reference": {
@@ -72,10 +73,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core624_20261103",
-  "manifest": "build-utils/rpcs3/core624-delta.json",
-  "patch": "build-utils/rpcs3/core624-delta.patch",
-  "patch_sha256": "66c43d9e7aa0edaeace9a0249cf6960fe8f2ec27d13c49cf38da02ddbbbbd263"
+  "record": "core627_20261103",
+  "manifest": "build-utils/rpcs3/core627-delta.json",
+  "patch": "build-utils/rpcs3/core627-delta.patch",
+  "patch_sha256": "e84efcadcf91e3723817c383e0908288584a595ead3b12a14a1eb6394973079d"
  },
  "exports": 92,
  "core_inputs": {
@@ -129,7 +130,11 @@
   "COREPROF TEXCACHE621",
   "FREEZE_DUMP sema",
   "COREPROF ZCULL624",
-  "report array on a host page"
+  "report array on a host page",
+  "Resolved title policy 627",
+  "ZCULL On-Demand Wait Guard",
+  "ZCULL Conditional Draw Without Wait",
+  "ZCULL Conservative Reports"
  ],
  "moltenvk_dependency": {
   "run": 41239096061,
@@ -330,28 +335,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core624_codegen_test.py",
+     "test/rpcs3_core627_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 624 changes no codegen input: core624-from-621.patch is reversed and the Core 621 audit (itself the Core 619 audit on its reversed tree) is run on that tree"
+    "reason": "Core 627 changes one codegen input, SPUThread.cpp, in host code only, with an exact alias to the delivered effective hash: core627-from-624.patch is reversed and the Core 624 audit is run on that tree"
    },
    {
-    "name": "core624",
+    "name": "core627",
     "argv": [
      "python3",
-     "test/rpcs3_core624_test.py",
+     "test/rpcs3_core627_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core624.json"
+     "{out}/core627.json"
     ],
-    "reason": "new: Core 624 = Core 621 + core624-from-621.patch (reverse patch, Core 621 files authenticated by the SHA-256 pinned in core624-delta.json increment_from_core621); the whole Core 621 suite on the reversed Core 621 tree; the ZCULL on-demand guard and the real fault protocol of the Core 624 RSXZCULL.cpp (with the fault census) plain, TSan and ASan/UBSan; the reports block placement and the conditional render decision plain, TSan and ASan/UBSan; the wiring of sys_rsx.cpp, RSXThread.cpp and the COREPROF ZCULL624 line"
+    "reason": "new: Core 627 = Core 624 + core627-from-624.patch (reverse patch, Core 624 files authenticated by the SHA-256 pinned in core627-delta.json increment_from_core624); the whole Core 624 suite on the reversed tree; the real ZCULL fault protocol with the guard on and off and the real polling block of do_putllc() plain, TSan and ASan/UBSan; the wiring, the 12 locales of the test page, and no observation added but one line per boot"
    }
   ],
   "reused": {
