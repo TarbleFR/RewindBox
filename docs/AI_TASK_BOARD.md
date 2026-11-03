@@ -33,14 +33,58 @@ A later working diff can be ahead of that commit.
   automatically. Claude, ChatGPT and Cursor have separate included allowances.
   Use their official subscription sign-ins. Keep API credits and auto-top-up
   off unless expressly authorized. Cursor third-party models can incur charges.
-- Push, CI/IPA builds, tags and releases follow the task's authorization.
+- Push, tags and releases follow the task's authorization. IPA compilation
+  follows the standing authorization below.
   Claude Code has standing authorization to fast-forward its own commits to
   `origin/Claude`, with `[skip ci]` unless CI was requested. If the remote
   advanced, rebase only its own unpushed commits and inspect conflicts. This
   standing push permission applies to Claude Code only. A permission refusal
   must be reported, never retried through a route intended to defeat it.
 - This contract is a record of authorized work, not an automatic task scheduler.
-  Changes to the contract do not grant build, payment or publication permission.
+  The explicit standing IPA authorization below applies. Other changes to this
+  contract do not grant payment or public publication permission.
+
+## Standing IPA compilation authorization
+
+Maintainer decision, 3 November 2026. Claude Code is authorized to launch the
+Core producers, GitHub Actions/macOS compilation, packaging and private IPA
+delivery needed for an authorized RewindBox task without asking again. This
+includes recovering failed attempts and rebuilding affected components after a
+correction. Use the standard recipe, reviewed inputs, contracts, pins and signing
+checks. This standing decision supersedes older prompts that ask for fresh
+approval for these compilation steps. The current task determines which changes
+belong in the IPA.
+
+After EVERY IPA compilation attempt, successful, failed or interrupted, give the
+maintainer a concise report with build/version, source and Core identities,
+workflow run/attempt, tests fresh/reused/failed/not run, outcome, blockers and
+next action. On success, verify the actual downloaded IPA and give its usable
+private link, size and SHA-256. Record the result and evidence in this shared
+contract before finishing or handing off. A failed job requires a failure report
+even when no IPA was produced. Keep an in-progress build monitored through its
+terminal state when the active task is to produce that IPA.
+
+This authorizes compilation and private delivery within existing project
+services. Public releases/tags, account/billing changes and new paid API usage
+continue to require their own authorization.
+
+## Command output
+
+For verbose foreground tests or diagnostics, use
+`python3 scripts/ai-output.py run -- <command> <arguments>`.
+For an existing journal use `python3 scripts/ai-output.py file <path>`.
+Each run retains the complete merged binary output, its SHA-256 and a JSON
+receipt in a unique system-temporary directory. `run --log-dir <parent> -- ...`
+selects an existing parent directory. The child exit status is preserved and
+the terminal receives a bounded excerpt. Run mode expects a foreground,
+non-interactive command and does not interpret shell pipelines.
+
+Read the reported exit status first. Keywords or their absence never establish
+test success. If an excerpt is insufficient, open the relevant range of the full
+log. Use the existing MeloNX/RPCS3 analyzers for session semantics. Promote
+decisive receipts into the existing evidence location when needed for lasting
+proof. Record tested source, dependencies and tools in the task entry before
+reusing evidence. This wrapper does not itself establish input equivalence.
 
 ## Diagnose, correct and verify
 
@@ -118,6 +162,7 @@ A later working diff can be ahead of that commit.
 | TASK-631-MELONX — Claude Code, session `012mUAShv9k6pSCnpW7oAF63` | Review and optimize existing MeloNX work, fix demonstrable omissions and regressions. Source `13700519`, tree `82a29e6f`, SDK 10.0.100. Validate the real prepared source, affected gates and artifact identity. The original 30–40% encoding-time reduction target is a target, not a measured result. | Source corrected and contract frozen, not compiled (3 Nov, 21:05 UTC, GitHub `04727408`). On the real preparation (132 inputs): queue fixture 28/28 and 41 source checks; region-upload buffer gap fixed in `97bfece1` (before: uploaded over a cached buffer; after: declined, counted); eleven gates passed locally on Linux, `counter-report-compaction` added because the queue changes its declared files; contract `7a15f7e5…`, contract test 268 checks. [Run record](evidence/melonx-631-gates/run.json), [component record](melonx-629-encoding-2026-11-03.md). No iPhone run. Next: Core 631 CI (`[melonx-dma-core]`, Apple ARM64), then pin with component `FRESH_GATES = 11`. Core 631 remains reserved for IPA 635. |
 | TASK-634-RPCS3 — Claude Code integration | Integrate the verified Core 634 with its host changes and preserve source/artifact bindings. Includes Core 630. | Core and Apple-host jobs of run `41696834507` passed on `792d72c9`. Apple-host artifact `13261452573` downloaded in the VM: 40957 bytes, SHA-256 `c13cc47e…`, report `passed` on `792d72c9` (recorded in the [635 plan](ipa-635-plan-2026-11-03.md) 4 quater). Core artifact `13261039942` not yet verified; no pin. No iPhone run. Next: verify both artifacts with `rpcs3_core_component.pin_errors` and bundle, then write the pin. |
 | TASK-635-IPA — Claude Code integration | Previously requested private 635 from delivered 629 with reviewed MeloNX 631, RPCS3 634, MoltenVK v1.4.2 and Pocket skins. Preserve the [manifest](../build-utils/delivery/635.json) and [plan](ipa-635-plan-2026-11-03.md). | Preparation, not delivery. Plan step 1 done (MeloNX contract frozen, `04727408`); `97bfece1` and `04727408` classified as reviewed in the draft. Remaining in order: Core 631 CI and pin, RPCS3 634 pin, recipient key outside Git, contract and freeze, trigger, download and verify. Next: the Core 631 CI under the existing delivery authorization. |
+| Output evidence and standing IPA rule — Codex | Reduce verbose tool output while preserving complete logs and child status. Authorize Claude's necessary Core/IPA compilation with a report after every attempt. | `scripts/ai-output.py` implemented with run/file modes. Eleven CLI regression tests passed on Linux, including non-UTF-8, long lines, failure amid success noise, literal arguments, missing commands, unique runs, interruption and SIGTERM/SIGKILL status. One initial signal-flush failure and review findings were corrected before validation. Shared authorization is recorded above. Next, Claude reads this rule and uses the wrapper for verbose foreground commands, then reports each IPA attempt. |
 | Shared contract — Codex owns this consolidation, then each agent owns its updates | One shared requirements/results file, automatic update obligation for all agents, no duplicated coordination documents. | Published in `c587c7c5`, five redundant files removed, 49 links verified. All three Claude skills updated to v2 and point here. Next, Claude reconciles only its task/evidence rows against its local corrections at a stable checkpoint. |
 
 Detailed producer identities and hashes remain in the
