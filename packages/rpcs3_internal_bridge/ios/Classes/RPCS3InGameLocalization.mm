@@ -1153,50 +1153,62 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build634Translatio
       @"en": @{
         @"testFastJitLoad": @"Fast JIT object loading",
         @"testJitObjectRelease": @"Free JIT objects after linking",
+        @"testSpirvDiskCache": @"SPIR-V disk cache",
       },
       @"es": @{
         @"testFastJitLoad": @"Carga rápida de objetos JIT",
         @"testJitObjectRelease": @"Liberar objetos JIT tras enlazar",
+        @"testSpirvDiskCache": @"Caché de SPIR-V en disco",
       },
       @"ru": @{
         @"testFastJitLoad": @"Быстрая загрузка объектов JIT",
         @"testJitObjectRelease": @"Освобождать объекты JIT после компоновки",
+        @"testSpirvDiskCache": @"Дисковый кэш SPIR-V",
       },
       @"zh": @{
         @"testFastJitLoad": @"快速加载 JIT 对象",
         @"testJitObjectRelease": @"链接后释放 JIT 对象",
+        @"testSpirvDiskCache": @"SPIR-V 磁盘缓存",
       },
       @"zh_Hant": @{
         @"testFastJitLoad": @"快速載入 JIT 物件",
         @"testJitObjectRelease": @"連結後釋放 JIT 物件",
+        @"testSpirvDiskCache": @"SPIR-V 磁碟快取",
       },
       @"pt": @{
         @"testFastJitLoad": @"Carregamento rápido de objetos JIT",
         @"testJitObjectRelease": @"Liberar objetos JIT após vincular",
+        @"testSpirvDiskCache": @"Cache de SPIR-V em disco",
       },
       @"fr": @{
         @"testFastJitLoad": @"Chargement rapide des objets JIT",
         @"testJitObjectRelease": @"Libérer les objets JIT après le lien",
+        @"testSpirvDiskCache": @"Cache disque SPIR-V",
       },
       @"de": @{
         @"testFastJitLoad": @"Schnelles Laden der JIT-Objekte",
         @"testJitObjectRelease": @"JIT-Objekte nach dem Linken freigeben",
+        @"testSpirvDiskCache": @"SPIR-V-Datenträgercache",
       },
       @"it": @{
         @"testFastJitLoad": @"Caricamento rapido degli oggetti JIT",
         @"testJitObjectRelease": @"Libera gli oggetti JIT dopo il collegamento",
+        @"testSpirvDiskCache": @"Cache SPIR-V su disco",
       },
       @"id": @{
         @"testFastJitLoad": @"Pemuatan cepat objek JIT",
         @"testJitObjectRelease": @"Bebaskan objek JIT setelah penautan",
+        @"testSpirvDiskCache": @"Cache disk SPIR-V",
       },
       @"ja": @{
         @"testFastJitLoad": @"JIT オブジェクトの高速読み込み",
         @"testJitObjectRelease": @"リンク後に JIT オブジェクトを解放",
+        @"testSpirvDiskCache": @"SPIR-V ディスクキャッシュ",
       },
       @"ko": @{
         @"testFastJitLoad": @"JIT 오브젝트 빠른 로드",
         @"testJitObjectRelease": @"링크 후 JIT 오브젝트 해제",
+        @"testSpirvDiskCache": @"SPIR-V 디스크 캐시",
       },
     };
   });

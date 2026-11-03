@@ -405,30 +405,123 @@ index fcbcf39..affda3c 100644
  		for (auto& jit : jits)
  		{
  #ifdef RPCS3_IOS
+diff --git a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
+index a873cc6..2772ff9 100644
+--- a/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
++++ b/rpcs3/Emu/RSX/VK/VKProgramPipeline.cpp
+@@ -9,6 +9,7 @@
+ #include "../Program/SPIRVCommon.h"
+ #ifdef RPCS3_IOS
+ #include "ios/IOSShaderTiming.h"
++#include "ios/IOSSpirvCache.h"
+ #endif
+ 
+ #include <array>
+@@ -99,8 +100,19 @@ namespace vk
+             const auto result = neostation::storage_client::compile(
+                 m_storage_ticket, m_compiled,
+                 [&](std::vector<u32>& binary) {
++                    // REWINDBOX_SPIRV_DISK_CACHE_634: the words a previous boot compiled from this very text.
++                    auto& disk_cache = rpcs3::ios::spirv_cache::instance();
++                    rpcs3::ios::spirv_cache::key disk_key;
++                    const bool cached = disk_cache.active() &&
++                        rpcs3::ios::spirv_cache::make_key(m_source, static_cast<uint32_t>(type), disk_key);
++                    if (cached && disk_cache.find(disk_key, binary))
++                        return true;
+                     rpcs3::ios::shader_timing::Scope timing(rpcs3::ios::shader_timing::Stage::source);
+-                    return spirv::compile_glsl_to_spv(binary, m_source, type, ::glsl::glsl_rules_vulkan);
++                    if (!spirv::compile_glsl_to_spv(binary, m_source, type, ::glsl::glsl_rules_vulkan))
++                        return false;
++                    if (cached)
++                        disk_cache.add(disk_key, binary);
++                    return true;
+                 },
+                 [&](const uint32_t* words, size_t bytes) {
+                     VkShaderModuleCreateInfo info{};
+diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
+index 3c7b548..42099d9 100644
+--- a/rpcs3/Emu/RSX/rsx_cache.h
++++ b/rpcs3/Emu/RSX/rsx_cache.h
+@@ -16,6 +16,8 @@
+ #include <chrono>
+ #ifdef RPCS3_IOS
+ #include "ios/IOSShaderTiming.h"
++#include "ios/IOSSpirvCache.h"
++#include "ios/RPCS3IOSExperimentalPolicy.h"
+ #include <cstring>
+ #endif
+ 
+@@ -271,11 +273,25 @@ namespace rsx
+ 				m_publisher = std::make_unique<deferred_publisher<pending_record>>(maximum_deferred_records,
+ 					[this](pending_record& record) { return write_record(record); },
+ 					[]() { thread_ctrl::set_native_priority(-1); });
++#ifdef RPCS3_IOS
++				// REWINDBOX_SPIRV_DISK_CACHE_634: one file per title, next to the raw programs.
++				if (rpcs3::ios::get_experimental_policy().spirv_disk_cache)
++				{
++					rpcs3::ios::spirv_cache::instance().open(root_path + "spirv.pack");
++				}
++#endif
+ 			}
+ 		}
+ 
+ 		// Destroys the writer first: every accepted record reaches disk.
++#ifdef RPCS3_IOS
++		~shaders_cache()
++		{
++			rpcs3::ios::spirv_cache::instance().close();
++		}
++#else
+ 		~shaders_cache() = default;
++#endif
+ 
+ 		template <typename... Args>
+ 		void load(shader_loading_dialog* dlg, Args&& ...args)
+@@ -379,6 +395,7 @@ namespace rsx
+ 			// boot was cancelled. Do not keep one copy per pipeline during gameplay.
+ 			fragment_program_data.for_each([](std::unique_ptr<u8[]>& bytes) { bytes.reset(); });
+ 			fragment_program_data.pop_end(fragment_program_data.size());
++			rpcs3::ios::spirv_cache::instance().flush(); // REWINDBOX_SPIRV_DISK_CACHE_634: a first boot's whole warmup
+ #endif
+ 
+ 			dlg->refresh();
+@@ -437,6 +454,9 @@ namespace rsx
+ 			{
+ 				m_publisher->drain();
+ 			}
++#ifdef RPCS3_IOS
++			rpcs3::ios::spirv_cache::instance().flush(); // REWINDBOX_SPIRV_DISK_CACHE_634
++#endif
+ 		}
+ 
+ 	private:
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 30c4b27..4439d50 100644
+index 30c4b27..9b92ae1 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
-@@ -2149,6 +2149,8 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2149,6 +2149,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  					ios_add_lever(ios_levers.fifo_nop_fast_path, ios_lever_settings.fifo_nop_fast_path);
  					ios_add_lever(ios_levers.light_measurement, ios_lever_settings.light_measurement);
  					ios_add_lever(ios_levers.zcull_async_reads, ios_lever_settings.zcull_async_reads);
 +					ios_add_lever(ios_levers.fast_jit_load, ios_lever_settings.fast_jit_load);
 +					ios_add_lever(ios_levers.jit_object_release, ios_lever_settings.jit_object_release);
++					ios_add_lever(ios_levers.spirv_disk_cache, ios_lever_settings.spirv_disk_cache);
  					ios_rsx.levers627 = ios_levers627;
  					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
  					ios_rsx.overrides = ios_override_keys;
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 6479f76..af50986 100644
+index 6479f76..0f2dd76 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
-@@ -187,6 +187,9 @@ struct cfg_root : cfg::node
+@@ -187,6 +187,11 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> zcull_conservative_reports{ this, "ZCULL Conservative Reports", ios_experimental_mode::automatic };
  		// REWINDBOX_ZCULL_ASYNC_READS_630: Automatic is the titles of the ZCULL on-demand lever.
  		cfg::_enum<ios_experimental_mode> zcull_async_reads{ this, "ZCULL Asynchronous Reads", ios_experimental_mode::automatic };
 +		// REWINDBOX_FAST_JIT_LOAD_634, REWINDBOX_JIT_OBJECT_RELEASE_634 (ios/IOSJitLoad.h): Automatic is every title.
 +		cfg::_enum<ios_experimental_mode> fast_jit_load{ this, "Fast JIT Load", ios_experimental_mode::automatic };
 +		cfg::_enum<ios_experimental_mode> jit_object_release{ this, "JIT Object Release", ios_experimental_mode::automatic };
++		// REWINDBOX_SPIRV_DISK_CACHE_634 (ios/IOSSpirvCache.h): Automatic is every title.
++		cfg::_enum<ios_experimental_mode> spirv_disk_cache{ this, "SPIR-V Disk Cache", ios_experimental_mode::automatic };
  		// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): Automatic is Black Ops II and God of War III.
  		cfg::_enum<ios_experimental_mode> spu_noop_spin_wait{ this, "SPU No-op Spin Wait", ios_experimental_mode::automatic };
  		// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): Automatic is God of War III, Assassin's Creed and Black Ops II.
@@ -484,8 +577,377 @@ index 0000000..5d2c333
 +	return static_cast<std::size_t>(std::clamp<std::uint64_t>(headroom_bytes / 8, minimum_window_bytes, maximum_window_bytes));
 +}
 +}
+diff --git a/rpcs3/ios/IOSSpirvCache.h b/rpcs3/ios/IOSSpirvCache.h
+new file mode 100644
+index 0000000..b1e4b09
+--- /dev/null
++++ b/rpcs3/ios/IOSSpirvCache.h
+@@ -0,0 +1,363 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include "Crypto/sha256.h"
++
++#include <zlib.h>
++
++#include <array>
++#include <cstddef>
++#include <cstdint>
++#include <cstring>
++#include <mutex>
++#include <shared_mutex>
++#include <string>
++#include <string_view>
++#include <unordered_map>
++#include <unordered_set>
++#include <vector>
++
++#include <fcntl.h>
++#include <sys/mman.h>
++#include <sys/stat.h>
++#include <unistd.h>
++
++// REWINDBOX_SPIRV_DISK_CACHE_634: every boot of the Build 629 logs regenerates the GLSL of the
++// whole shader cache and compiles it with glslang. Black Ops II multiplayer: 1,072 sources, 5.49 s
++// of CPU (5.1 ms each, 53.8 ms at most), 1.47 s of a 1.60 s warmup, on all 6 cores, before the PPU
++// objects start loading; Assassin's Creed: 412 sources, 1.88 s of CPU. Only one of them is new per
++// 5 s window during the game. The Metal library behind each module is cached, the SPIR-V is not.
++//
++// One file per title holds the SPIR-V of each source, under SHA-256(source, stage, compiler
++// environment): the same text through the same glslang options gives the same words, so what
++// the game gets cannot differ from a compilation. The GLSL is still generated (the key), and the
++// module, the MoltenVK pipeline cache and the program caches see the same words as before.
++// Mapped read-only: clean file pages, not in the footprint, the system drops them under pressure.
++// Nothing here is needed: a missing, truncated or damaged file means compiling, as before. Entries
++// are appended; the valid prefix survives a torn tail, and a damaged entry fails its CRC at use.
++// Old Cores ignore the file. A change of glslang or of its options must change environment_revision.
++namespace rpcs3::ios::spirv_cache
++{
++using key = std::array<std::uint8_t, 32>;
++
++inline constexpr char file_magic[8] = {'R', 'B', 'S', 'P', 'I', 'R', 'V', '1'};
++// SPIRVCommon.cpp: glslang as pinned by the Core, Vulkan 1.2 rules, SPIR-V 1.5, optimizer off, optimizeSize.
++inline constexpr std::uint32_t environment_revision = 0x0105'0634;
++inline constexpr std::uint64_t max_file_bytes = 256ull << 20;
++inline constexpr std::uint32_t max_entry_words = (16u << 20) / 4;
++
++struct file_header
++{
++	char magic[8];
++	std::uint32_t revision;
++	std::uint32_t reserved;
++};
++
++struct entry_header
++{
++	std::uint8_t name[32];
++	std::uint32_t words;
++	std::uint32_t crc;
++};
++
++static_assert(sizeof(file_header) == 16 && sizeof(entry_header) == 40);
++
++inline bool make_key(std::string_view source, std::uint32_t stage, key& out) noexcept
++{
++	const std::uint32_t prefix[2] = {stage, environment_revision};
++	mbedtls_sha256_context context;
++	mbedtls_sha256_init(&context);
++	int result = mbedtls_sha256_starts_ret(&context, 0);
++	if (!result) result = mbedtls_sha256_update_ret(&context, reinterpret_cast<const unsigned char*>(prefix), sizeof(prefix));
++	if (!result) result = mbedtls_sha256_update_ret(&context, reinterpret_cast<const unsigned char*>(source.data()), source.size());
++	if (!result) result = mbedtls_sha256_finish_ret(&context, out.data());
++	mbedtls_sha256_free(&context);
++	return result == 0;
++}
++
++class store
++{
++	struct key_hash
++	{
++		std::size_t operator()(const key& name) const noexcept
++		{
++			std::size_t value;
++			std::memcpy(&value, name.data(), sizeof(value));
++			return value;
++		}
++	};
++
++	struct located
++	{
++		std::uint64_t offset;
++		std::uint32_t words;
++		std::uint32_t crc;
++	};
++
++	mutable std::shared_mutex m_mutex;
++	std::mutex m_write_mutex;
++	std::string m_path;
++	const std::uint8_t* m_map = nullptr;
++	std::size_t m_map_bytes = 0;
++	std::uint64_t m_valid_bytes = 0; // the end of the last good entry: a torn tail starts here
++	std::uint64_t m_pending_bytes = 0;
++	std::unordered_map<key, located, key_hash> m_index;
++	std::unordered_map<key, std::vector<std::uint32_t>, key_hash> m_pending;
++	std::unordered_set<key, key_hash> m_written; // this session's entries: not mapped, not added twice
++
++	void unmap() noexcept
++	{
++		if (m_map)
++		{
++			::munmap(const_cast<std::uint8_t*>(m_map), m_map_bytes);
++		}
++
++		m_map = nullptr;
++		m_map_bytes = 0;
++		m_index.clear();
++	}
++
++	void map_file() noexcept
++	{
++		const int file = ::open(m_path.c_str(), O_RDONLY | O_CLOEXEC);
++
++		if (file < 0)
++		{
++			return;
++		}
++
++		struct stat info{};
++
++		if (::fstat(file, &info) == 0 && S_ISREG(info.st_mode) && static_cast<std::uint64_t>(info.st_size) >= sizeof(file_header))
++		{
++			void* const mapped = ::mmap(nullptr, static_cast<std::size_t>(info.st_size), PROT_READ, MAP_PRIVATE, file, 0);
++
++			if (mapped != MAP_FAILED)
++			{
++				m_map = static_cast<const std::uint8_t*>(mapped);
++				m_map_bytes = static_cast<std::size_t>(info.st_size);
++				::madvise(mapped, m_map_bytes, MADV_SEQUENTIAL);
++				index_entries();
++				::madvise(mapped, m_map_bytes, MADV_RANDOM);
++			}
++		}
++
++		::close(file);
++	}
++
++	void index_entries() noexcept
++	{
++		file_header header;
++		std::memcpy(&header, m_map, sizeof(header));
++
++		if (std::memcmp(header.magic, file_magic, sizeof(file_magic)) != 0 || header.revision != environment_revision)
++		{
++			return; // Rewritten from the start at the next flush.
++		}
++
++		std::uint64_t position = sizeof(file_header);
++
++		while (m_map_bytes - position >= sizeof(entry_header))
++		{
++			entry_header entry;
++			std::memcpy(&entry, m_map + position, sizeof(entry));
++			const std::uint64_t bytes = std::uint64_t{entry.words} * sizeof(std::uint32_t);
++
++			if (!entry.words || entry.words > max_entry_words || m_map_bytes - position - sizeof(entry) < bytes)
++			{
++				break;
++			}
++
++			key name;
++			std::memcpy(name.data(), entry.name, name.size());
++			m_index[name] = {position + sizeof(entry), entry.words, entry.crc}; // the last copy wins
++			position += sizeof(entry) + bytes;
++		}
++
++		m_valid_bytes = position;
++	}
++
++	static bool write_all(int file, const void* data, std::size_t size) noexcept
++	{
++		const auto* bytes = static_cast<const std::uint8_t*>(data);
++
++		while (size)
++		{
++			const auto written = ::write(file, bytes, size);
++
++			if (written <= 0)
++			{
++				return false;
++			}
++
++			bytes += written;
++			size -= static_cast<std::size_t>(written);
++		}
++
++		return true;
++	}
++
++public:
++	store() = default;
++	store(const store&) = delete;
++	store& operator=(const store&) = delete;
++
++	~store()
++	{
++		close();
++	}
++
++	void open(std::string path) noexcept
++	{
++		close();
++		std::unique_lock lock(m_mutex);
++		m_path = std::move(path);
++		map_file();
++	}
++
++	bool active() const noexcept
++	{
++		std::shared_lock lock(m_mutex);
++		return !m_path.empty();
++	}
++
++	bool find(const key& name, std::vector<std::uint32_t>& words) const
++	{
++		std::shared_lock lock(m_mutex);
++
++		if (const auto pending = m_pending.find(name); pending != m_pending.end())
++		{
++			words = pending->second;
++			return true;
++		}
++
++		const auto found = m_index.find(name);
++
++		if (found == m_index.end())
++		{
++			return false;
++		}
++
++		const std::uint8_t* const payload = m_map + found->second.offset;
++		const std::size_t bytes = std::size_t{found->second.words} * sizeof(std::uint32_t);
++
++		if (::crc32(0, payload, static_cast<uInt>(bytes)) != found->second.crc)
++		{
++			return false;
++		}
++
++		words.resize(found->second.words);
++		std::memcpy(words.data(), payload, bytes);
++		return true;
++	}
++
++	void add(const key& name, const std::vector<std::uint32_t>& words)
++	{
++		const std::uint64_t bytes = sizeof(entry_header) + std::uint64_t{words.size()} * sizeof(std::uint32_t);
++		std::unique_lock lock(m_mutex);
++
++		if (m_path.empty() || words.empty() || words.size() > max_entry_words || m_valid_bytes + m_pending_bytes + bytes > max_file_bytes ||
++			m_written.contains(name))
++		{
++			return;
++		}
++
++		// A CRC failure in find() brings a damaged entry here: the new copy is the last one.
++		if (m_pending.try_emplace(name, words).second)
++		{
++			m_pending_bytes += bytes;
++		}
++	}
++
++	// Appends what add() kept. A failed write leaves the valid prefix as it was.
++	void flush() noexcept
++	{
++		std::lock_guard writer(m_write_mutex);
++		std::unordered_map<key, std::vector<std::uint32_t>, key_hash> batch;
++		std::uint64_t valid_bytes;
++		std::string path;
++
++		{
++			std::unique_lock lock(m_mutex);
++			batch.swap(m_pending);
++			m_pending_bytes = 0;
++			valid_bytes = m_valid_bytes;
++			path = m_path;
++		}
++
++		if (batch.empty() || path.empty())
++		{
++			return;
++		}
++
++		const int file = ::open(path.c_str(), O_WRONLY | O_CREAT | O_CLOEXEC, 0644);
++
++		if (file < 0)
++		{
++			return;
++		}
++
++		bool good = ::ftruncate(file, static_cast<off_t>(valid_bytes)) == 0 && ::lseek(file, static_cast<off_t>(valid_bytes), SEEK_SET) >= 0;
++
++		if (good && !valid_bytes)
++		{
++			file_header header{};
++			std::memcpy(header.magic, file_magic, sizeof(file_magic));
++			header.revision = environment_revision;
++			good = write_all(file, &header, sizeof(header));
++			valid_bytes = sizeof(header);
++		}
++
++		std::vector<key> written;
++
++		for (const auto& [name, words] : batch)
++		{
++			if (!good)
++			{
++				break;
++			}
++
++			const std::size_t bytes = words.size() * sizeof(std::uint32_t);
++			entry_header entry;
++			std::memcpy(entry.name, name.data(), name.size());
++			entry.words = static_cast<std::uint32_t>(words.size());
++			entry.crc = static_cast<std::uint32_t>(::crc32(0, reinterpret_cast<const Bytef*>(words.data()), static_cast<uInt>(bytes)));
++			good = write_all(file, &entry, sizeof(entry)) && write_all(file, words.data(), bytes);
++
++			if (good)
++			{
++				valid_bytes += sizeof(entry) + bytes;
++				written.push_back(name);
++			}
++		}
++
++		if (!good)
++		{
++			(void)!::ftruncate(file, static_cast<off_t>(valid_bytes));
++		}
++
++		::close(file);
++		std::unique_lock lock(m_mutex);
++		m_valid_bytes = valid_bytes;
++		m_written.insert(written.begin(), written.end());
++	}
++
++	void close() noexcept
++	{
++		flush();
++		std::unique_lock lock(m_mutex);
++		unmap();
++		m_path.clear();
++		m_pending.clear();
++		m_written.clear();
++		m_pending_bytes = 0;
++		m_valid_bytes = 0;
++	}
++};
++
++inline store& instance() noexcept
++{
++	static store global;
++	return global;
++}
++}
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 723aefb..8142fc5 100644
+index 723aefb..fc9e71d 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -6,6 +6,7 @@
@@ -496,7 +958,7 @@ index 723aefb..8142fc5 100644
  #include "IOSTextureValidationProfile.h"
  #include "IOSTexturePrehash.h"
  #include "IOSDeferredCommit.h"
-@@ -371,6 +372,11 @@ void resolve_experimental_policy() noexcept
+@@ -371,6 +372,12 @@ void resolve_experimental_policy() noexcept
  	// REWINDBOX_ZCULL_ASYNC_READS_630 (ios/IOSZcullOnDemand.h): needs the lever.
  	resolved.zcull_async_reads = resolved.zcull_on_demand && resolve_mode(g_cfg.ios_experimental.zcull_async_reads,
  		rpcs3::ios::title_levers::requires_zcull_on_demand(title_id));
@@ -505,24 +967,25 @@ index 723aefb..8142fc5 100644
 +	rpcs3::ios::jit_load::fast_load.store(resolved.fast_jit_load, std::memory_order_relaxed);
 +	resolved.jit_object_release = resolve_mode(g_cfg.ios_experimental.jit_object_release, true);
 +	rpcs3::ios::jit_load::release_bytes.store(resolved.jit_object_release, std::memory_order_relaxed);
++	resolved.spirv_disk_cache = resolve_mode(g_cfg.ios_experimental.spirv_disk_cache, true);
  	resolved.zcull_conservative_reports = resolve_mode(g_cfg.ios_experimental.zcull_conservative_reports, false) &&
  		!g_cfg.core.rsx_accurate_res_access;
  	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627: Automatic is the title list.
-@@ -445,6 +451,9 @@ void resolve_experimental_policy() noexcept
+@@ -445,6 +452,9 @@ void resolve_experimental_policy() noexcept
  	// Core 627: its own line, the values of the new options of this boot.
  	// Core 630: its own line, the value of the new option of this boot.
  	ios_experimental_log.notice("Resolved title policy 630: zcull_async_reads=%d", resolved.zcull_async_reads);
 +	// Core 634: its own line, the values of the new options of this boot.
-+	ios_experimental_log.notice("Resolved title policy 634: fast_jit_load=%d jit_object_release=%d",
-+		resolved.fast_jit_load, resolved.jit_object_release);
++	ios_experimental_log.notice("Resolved title policy 634: fast_jit_load=%d jit_object_release=%d spirv_disk_cache=%d",
++		resolved.fast_jit_load, resolved.jit_object_release, resolved.spirv_disk_cache);
  	ios_experimental_log.notice("Resolved title policy 627: zcull_wait_guard=%d zcull_cond_no_wait=%d zcull_conservative_reports=%d spu_noop_spin_wait=%d spu_qos_below_rsx=%d fifo_nop_fast_path=%d light_measurement=%d",
  		resolved.zcull_wait_guard, resolved.zcull_cond_no_wait, resolved.zcull_conservative_reports, resolved.spu_noop_spin_wait,
  		resolved.spu_qos_below_rsx, resolved.fifo_nop_fast_path, resolved.light_measurement);
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index c972232..796dba5 100644
+index c972232..b0d5700 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-@@ -72,6 +72,11 @@ struct experimental_policy
+@@ -72,6 +72,13 @@ struct experimental_policy
  	// REWINDBOX_ZCULL_ASYNC_READS_630 (ios/IOSZcullOnDemand.h): a guest read of a report waits for
  	// that report only, and never stops the RSX thread.
  	bool zcull_async_reads = false;
@@ -531,19 +994,22 @@ index c972232..796dba5 100644
 +	bool fast_jit_load = false;
 +	// REWINDBOX_JIT_OBJECT_RELEASE_634 (ios/IOSJitLoad.h): object bytes are freed after finalizeObject.
 +	bool jit_object_release = false;
++	// REWINDBOX_SPIRV_DISK_CACHE_634 (ios/IOSSpirvCache.h): SPIR-V of a boot serves the next ones.
++	bool spirv_disk_cache = false;
  	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): an SPU polling with no-op
  	// PUTLLC waits for a bounded time inside the PUTLLC.
  	bool spu_noop_spin_wait = false;
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index 3cf86b9..2fcb9a2 100644
+index 3cf86b9..0131d7d 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
-@@ -159,6 +159,8 @@ const std::array catalog{
+@@ -159,6 +159,9 @@ const std::array catalog{
  	GAME_SETTING("experimental.zcull_wait_guard", "Experimental", "ZCULL", "ZCULL on-demand wait guard", "Returns the ZCULL on-demand reads to the upstream mode when game threads wait too long for reports. Automatic keeps it off for the titles of that lever, whose game threads have to wait for the GPU in either mode; Enabled restores it. The deadlines that protect against a request never served always stay on. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_wait_guard, 0, 0, 0),
  	GAME_SETTING("experimental.zcull_cond_no_wait", "Experimental", "ZCULL", "ZCULL conditional draw without waiting", "With ZCULL on-demand reads, draws an object whose occlusion result is still on the GPU instead of waiting for it. An object that turns out to be hidden stays hidden behind what covers it, at the cost of its GPU time. Automatic follows the title list (Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_cond_no_wait, 0, 0, 0),
  	GAME_SETTING("experimental.zcull_async_reads", "Experimental", "ZCULL", "ZCULL asynchronous reads", "With ZCULL on-demand reads, a game read waits for its own report only and the RSX thread keeps working: the read of memory that is already final completes at once. Values stay exact.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_async_reads, 0, 0, 0),
 +	GAME_SETTING("experimental.fast_jit_load", "Experimental", "Loading", "Fast JIT object loading", "Checks and links cached PPU code on several threads, without a debug copy of each object. The code is the same; boots are shorter.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fast_jit_load, 0, 0, 0),
 +	GAME_SETTING("experimental.jit_object_release", "Experimental", "Loading", "Free JIT objects after linking", "Frees the bytes of PPU and SPU objects once they are linked, instead of keeping a copy of all the game's code in memory.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.jit_object_release, 0, 0, 0),
++	GAME_SETTING("experimental.spirv_disk_cache", "Experimental", "Loading", "SPIR-V disk cache", "Keeps the compiled form of each shader on disk, so that the next boots skip the shader compiler. What the GPU receives does not change.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spirv_disk_cache, 0, 0, 0),
  	GAME_SETTING("experimental.zcull_conservative_reports", "Experimental", "ZCULL", "ZCULL conservative reports", "Occlusion reports read as visible from the moment they are queued until the GPU result replaces them, so neither the RSX thread nor a game thread ever waits for one. A game may then show an occluded effect for a frame or two; check for flicker on the same scene. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_conservative_reports, 0, 0, 0),
  	GAME_SETTING("experimental.fifo_nop_fast_path", "Experimental", "RSX FIFO", "RSX FIFO NOP fast path", "Keeps the RSX thread in its running state across NOP commands of the game's command stream instead of timing each one as an idle period. Automatic follows the title list (God of War III, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fifo_nop_fast_path, 0, 0, 0),
  	GAME_SETTING("experimental.spu_noop_spin_wait", "Experimental", "SPU", "SPU no-op spin wait", "An SPU thread that polls a reservation by writing back unchanged data sleeps for a bounded time before its next read, which leaves its core to the PPU and RSX threads. Automatic follows the title list (God of War III, Black Ops II). No effect on compiled code or caches. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_noop_spin_wait, 0, 0, 0),

@@ -81,6 +81,8 @@ static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
       @{@"key": @"experimental.jit_object_release", @"title": @"testJitObjectRelease", @"field": @"levers627", @"bit": @9,
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.spirv_disk_cache", @"title": @"testSpirvDiskCache", @"field": @"levers627", @"bit": @10,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
     ];
   });
   return levers;

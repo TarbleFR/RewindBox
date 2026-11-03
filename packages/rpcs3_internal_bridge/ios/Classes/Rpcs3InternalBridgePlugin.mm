@@ -843,6 +843,7 @@ static NSDictionary<NSString*, NSArray<NSString*>*>* RPCS3TestSettingValues(void
       @"experimental.zcull_async_reads": @[@"Enabled", @"Disabled"],
       @"experimental.fast_jit_load": @[@"Enabled", @"Disabled"],
       @"experimental.jit_object_release": @[@"Enabled", @"Disabled"],
+      @"experimental.spirv_disk_cache": @[@"Enabled", @"Disabled"],
     };
   });
   return values;

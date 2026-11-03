@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 634,
  "identity_type": "rpcs3-ios-core634",
- "summary": "RPCS3 Core 634 in progress, chantiers so far: fast_jit_load_634, jit_object_release_634. No gain measured: not built, no iPhone run.",
+ "summary": "RPCS3 Core 634 in progress, chantiers so far: fast_jit_load_634, jit_object_release_634, spirv_disk_cache_634. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "4151586313d7c86f5e94f4612aa27ddc0a22a7bac63c22699bf99321bb4af180",
-  "postimages": 351,
+  "patch_sha256": "52e6556c9294153e303ec978bded1d21476f4c6aca9bd7954d55ec751a71c694",
+  "postimages": 352,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -78,13 +78,13 @@
   "record": "core634_20261103",
   "manifest": "build-utils/rpcs3/core634-delta.json",
   "patch": "build-utils/rpcs3/core634-delta.patch",
-  "patch_sha256": "51c0e44d1d48ec868f56644e63f080a4061f58bf781c725c9cbaad8472d4eb50"
+  "patch_sha256": "0dc2e73e48e7c3c58e207c2c1b74f39f6135d4b7845a1a6b317ad9a7accd058a"
  },
  "exports": 92,
  "core_inputs": {
   "count": 92,
   "host": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
-  "host_sha256": "401931705abb8c2beb0f9fb9608acad576b88d2833bb4c082de2dd9e9f724394",
+  "host_sha256": "02e4fa32164ce20ada0c7199b73e1ef9d1dc6b0a33ca6d394b059e334ca4272a",
   "reviewed_drift": [
    "build-utils/rpcs3/canonical-source.json",
    "build-utils/rpcs3/embedded-core.patch",
@@ -147,7 +147,8 @@
   "ZCULL Asynchronous Reads",
   "Resolved title policy 634",
   "Fast JIT Load",
-  "JIT Object Release"
+  "JIT Object Release",
+  "SPIR-V Disk Cache"
  ],
  "moltenvk_dependency": {
   "run": 41239096061,
