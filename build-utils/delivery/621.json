@@ -266,6 +266,10 @@
    {
     "commit": "0b7c0e38437ca69213c26ea9c6c743a44c8eccbd",
     "note": "Core 621 fixes from the Build 620 logs: ZCULL on-demand guard on sustained guest waits with COREPROF ZCULLTRIP621, Black Ops II on the lever, ZCULL On-Demand Reads setting and accuracy-page lever (12 locales), per-frame ZCULL waits and cause_rule=v2; regenerated canonical patch, refreshed pending pin, reviewed bridge host delta; host tests."
+   },
+   {
+    "commit": "89f57fb7a74aa1871fa7b0602ab7e8c9ea03d01c",
+    "note": "Core 621 additions from the single re-read of the Build 620 logs: COREPROF TEXCACHE621 (texture cache per window and render-target feedback barriers), a deeper FREEZE_DUMP (PPU registers and sampled code, contended semaphores, SPURS-polled guest lines), the no-op PUTLLC setting text for Black Ops II; regenerated canonical patch, refreshed pending pin; host tests."
    }
   ],
   "sourceOnly": [
@@ -283,6 +287,26 @@
     "commit": "4295b522c78f49766802151263b24a1b49299555",
     "targetBuild": 622,
     "note": "MeloNX (another session): 64 MiB gen0 GC budget for the engine; kept with the MeloNX work above for that session's next build."
+   },
+   {
+    "commit": "05b5a5df10cb5dd48ea8910efcacd81c1c25fe1a",
+    "targetBuild": 622,
+    "note": "Game box (another session): measured print areas and sheet layouts for the other platforms; outside this PS3 request, kept for that session's next build."
+   },
+   {
+    "commit": "cf87abdc57004882b5fc788ce74c3d73a8949045",
+    "targetBuild": 622,
+    "note": "Game box (another session): GameTDB faces for Wii, GameCube, Wii U, DS and 3DS from the ROM id; outside this PS3 request, kept for that session's next build."
+   },
+   {
+    "commit": "400d1f345847215121e78c0497bae9dfdba28b00",
+    "targetBuild": 622,
+    "note": "Manuals (another session): French manuals from the Internet Archive and Nintendo Europe; outside this PS3 request, kept for that session's next build."
+   },
+   {
+    "commit": "09eeb75b08662bba9543392fc55f35d110cb0198",
+    "targetBuild": 622,
+    "note": "Game box (another session): French manual sources named in the scrape option and the credits; outside this PS3 request, kept for that session's next build."
    }
   ],
   "promotedCommits": []
