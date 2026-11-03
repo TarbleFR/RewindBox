@@ -76,7 +76,8 @@ BASELINE_EVIDENCE = (
 GPU_WORK = arrays.GPU_WORK
 READ_COUNTERS = arrays.READ_COUNTERS
 ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
-FRESH_GATES = 6
+# Ten since build 631: the four fixtures whose receipts declare DescriptorSetUpdater.cs or TextureArray.cs rerun on the final source.
+FRESH_GATES = 10
 HISTORICAL_RECEIPTS = 61
 
 

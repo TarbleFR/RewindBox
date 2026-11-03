@@ -441,7 +441,10 @@ LIBRARY_NEW = '''            bool hogwarts = EmbeddedIsHogwarts(options.InputPat
             Ryujinx.Graphics.Gpu.GraphicsConfig.HogwartsDmaRegionUpload = hogwarts;
             // MoltenVK: in-pass read barriers deferred (no Metal render pass restart), and the GPU's busy time measured.
             Ryujinx.Graphics.Vulkan.MoltenVkPolicy.DeferInPassReadBarriers = hogwarts;
-            Ryujinx.Graphics.Vulkan.MoltenVkPolicy.MeasureGpu = hogwarts;'''
+            Ryujinx.Graphics.Vulkan.MoltenVkPolicy.MeasureGpu = hogwarts;
+            // Descriptor encoding: template scratch sized by binding, texture arrays written by changed range.
+            Ryujinx.Graphics.Vulkan.EncodingPolicy.BindingSizedDescriptorScratch = hogwarts;
+            Ryujinx.Graphics.Vulkan.EncodingPolicy.IncrementalArrayDescriptors = hogwarts;'''
 
 USING_OLD = 'using Ryujinx.Common;\nusing Ryujinx.Common.Memory;\n'
 USING_NEW = 'using Ryujinx.Common;\nusing Ryujinx.Common.Logging;\nusing Ryujinx.Common.Memory;\n'

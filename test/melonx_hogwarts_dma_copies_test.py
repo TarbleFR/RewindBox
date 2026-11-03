@@ -34,6 +34,14 @@ Usage: melonx_hogwarts_dma_copies_test.py <prepared tree without this adapter> [
    precise read outside their own bytes; ThreadedRenderer raises the render and GPU threads, and
    the demand compile thread raises itself, to user-interactive QoS on Apple platforms; the
    pipeline cache budget is 1 GiB. Each file differs from the delivered one by these hunks only.
+4. Build 631, descriptor encoding (EncodingPolicy, off by default, assigned by the Library from the
+   launched title): the template path of DescriptorSetUpdater takes scratch arrays sized by binding,
+   and counts each template fallback by set; a texture array records its changes by range, keeps
+   descriptor sets of its own, writes only an idle one (PipelineLayoutCacheEntry), by changed range,
+   and releases them when disposed (ResourceArray). Each file differs from the delivered one by these
+   hunks only, and every anchor altered makes the adapter fail. The detail line of the real
+   RenderDetail carries the fallbacks and array writes, and they start again after each line. The
+   array's behaviour runs in the single-resource-binding and bounded-binding-snapshot fixtures.
 """
 import argparse
 from pathlib import Path
@@ -307,6 +315,80 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           holder.index('long flushWaitStart') < holder.index('using (PD.Measure(PD.Phase.BufferReadback)) fence.Wait();') <
           holder.index('write: false, flushWaitStart);') and holder.count('RenderStageTimer.') == 6,
           'BufferHolder: only the fence-wait timing, reads apart from writes, the render thread apart from other threads')
+    # Build 631, descriptor encoding (EncodingPolicy, Hogwarts Legacy only): each file differs from the delivered one by its
+    # hunks only, both flags are off by default, and the Library assigns them for every session from the launched title.
+    for relative, hunks in host.ENCODING_HUNKS:
+        check(restored(relative, hunks) == before[relative], 'only the descriptor encoding hunks: ' + relative)
+    policy = base[base.index('    public static class EncodingPolicy'):base.index('    static class RenderDetail')]
+    check('public static bool BindingSizedDescriptorScratch { get; set; }\n' in policy and
+          'public static bool IncrementalArrayDescriptors { get; set; }\n' in policy and policy.count('{ get; set; }') == 2 and
+          not re.search(r'EncodingPolicy\.\w+ (=|\?)', base),
+          'EncodingPolicy: two flags without initializers (off by default), read by the encoding files only')
+    check('Ryujinx.Graphics.Vulkan.EncodingPolicy.BindingSizedDescriptorScratch = hogwarts;' in init and
+          'Ryujinx.Graphics.Vulkan.EncodingPolicy.IncrementalArrayDescriptors = hogwarts;' in init and
+          library.count('EncodingPolicy.') == 2,
+          'the Library assigns both encoding flags once, for every session from the launched title, before the renderer is threaded')
+    updater = after[host.DESCRIPTOR_UPDATER]
+    template = updater[updater.index('private void UpdateAndBind(CommandBufferScoped cbs, ShaderCollection program, int setIndex, '
+                                     'PipelineBindPoint pbp)'):updater.index('private void UpdateAndBindTexturesWithoutTemplate(')]
+    check(template.count('TemplateScratch(') == updater.count('TemplateScratch(') == 4 and
+          'Span<DescriptorImageInfo> textures = TemplateScratch(_textures, Constants.MaxTexturesPerStage);' in template and
+          'Span<BufferView> bufferTextures = TemplateScratch(_bufferTextures, Constants.MaxTexturesPerStage);' in template and
+          'Span<DescriptorImageInfo> images = TemplateScratch(_images, Constants.MaxImagesPerStage);' in template and
+          'Span<BufferView> bufferImages = TemplateScratch(_bufferImages, Constants.MaxImagesPerStage);' in template and
+          'return EncodingPolicy.BindingSizedDescriptorScratch ? scratch : scratch.AsSpan(0, deliveredLength);' in updater and
+          updater.count('EncodingPolicy.BindingSizedDescriptorScratch ?') == 1,
+          'DescriptorSetUpdater: only the template path takes its scratch through the policy, the delivered one-stage lengths when off')
+    check('_textures = new DescriptorImageInfo[Constants.MaxTextureBindings * 2];' in updater and
+          '_images = new DescriptorImageInfo[Constants.MaxImageBindings * 2];' in updater and
+          '_bufferTextures = new BufferView[Constants.MaxTextureBindings * 2];' in updater and
+          '_bufferImages = new BufferView[Constants.MaxImageBindings * 2];' in updater and
+          '_textureRefs = new TextureRef[Constants.MaxTextureBindings * 2];' in updater and
+          '_imageRefs = new ImageRef[Constants.MaxImageBindings * 2];' in updater,
+          'DescriptorSetUpdater: the scratch arrays are sized like the references they are indexed with')
+    sets_update = updater[updater.index('public void UpdateAndBindDescriptorSets('):updater.index('private static bool UpdateBuffer(')]
+    fallback_calls = ('UpdateAndBind(cbs, PipelineBase.UniformSetIndex, pbp);', 'UpdateAndBind(cbs, PipelineBase.StorageSetIndex, pbp);',
+                      'UpdateAndBind(cbs, PipelineBase.TextureSetIndex, pbp);', 'UpdateAndBind(cbs, PipelineBase.ImageSetIndex, pbp);')
+    check(all(sets_update.count(call) == 1 and
+              0 < sets_update.index(call) - sets_update.index('RenderDetail.TemplateFallbacks[%d]++;' % index) < 120
+              for index, call in enumerate(fallback_calls)) and
+          sets_update.count('RenderDetail.TemplateFallbacks[') == updater.count('RenderDetail.') == 4,
+          'DescriptorSetUpdater: each template fallback is counted by set, right before the delivered fallback runs')
+    array = after[host.TEXTURE_ARRAY]
+    infos = array[array.index('public ReadOnlySpan<DescriptorImageInfo> GetImageInfos('):array.index('public ReadOnlySpan<BufferView> GetBufferViews(')]
+    array_sets = array[array.index('public DescriptorSet[] GetDescriptorSets('):array.index('private void RecordChange(')]
+    check('_incremental = EncodingPolicy.IncrementalArrayDescriptors && !isBuffer;' in array and array.count('_incremental = ') == 1 and
+          'private readonly bool _incremental;' in array and
+          infos.index('if (_incremental)') < infos.index('AddReferences(cbs, dummyTexture, dummySampler);') <
+          infos.index('RefreshValues(dummyTexture, dummySampler);') < infos.index('return _textures;') <
+          infos.index('int submissionCount') and
+          array_sets.index('if (_incremental)') <
+          array_sets.index('GetOwnDescriptorSets(device, cbs, program, setIndex, dummyTexture, dummySampler);') <
+          array_sets.index('if (TryGetCachedDescriptorSets(cbs, program, setIndex, out DescriptorSet[] sets))'),
+          'TextureArray: texture arrays only, under the policy: references then values brought up to date instead of the '
+          'delivered walk, and the array\'s own sets tried before the delivered cached set')
+    own = array[array.index('private DescriptorSet[] GetOwnDescriptorSets('):array.index('private unsafe void WriteRuns(')]
+    check('segments.Length != 1 || !segments[0].IsArray || segments[0].Count != _textures.Length' in own and
+          own.index('AddReferences(cbs, dummyTexture, dummySampler);') < own.index('RefreshValues(dummyTexture, dummySampler);') <
+          own.index('candidate.Program.IsManualDescriptorSetCollectionIdle(candidate.SetIndex, candidate.CacheIndex)') <
+          own.index('if (_slots.Count >= MaxSlots)') <
+          own.index('slot.Program.UpdateManualDescriptorSetCollectionOwnership(cbs, slot.SetIndex, slot.CacheIndex);') <
+          own.index('WriteRuns(device, slot);') < own.index('slot.Sequence = _changeSequence;') and
+          own.count('return null;') == 2 and own.count('WriteRuns(') == 1,
+          'TextureArray: only a set bound in no pending command buffer is written; the delivered path when every set is '
+          'pending or the binding is not one array of this length')
+    check(array.count('RecordChange(') == 4 and 'RecordChange(index, samplers.Length);' in array and
+          'RecordChange(index, textures.Length);' in array and 'RecordChange(i, run);' in array,
+          'TextureArray: every element update and every destroyed view or sampler found is recorded as a change')
+    layout = after[host.LAYOUT_ENTRY]
+    idle = layout[layout.index('public bool IsManualDescriptorSetCollectionIdle('):
+                  layout.index('private static Span<DescriptorPoolSize> GetDescriptorPoolSizes(')]
+    check(idle.index('FreeCompletedManualDescriptorSets();') < idle.index('.CbRefMask == 0;') and 'InUse' not in idle,
+          'PipelineLayoutCacheEntry: a manual set is idle when no pending command buffer holds it, the completed ones freed first')
+    resource = after[host.RESOURCE_ARRAY]
+    check(resource.index('ReleaseDescriptorSet();\n            ReleaseOwnDescriptorSets();') <
+          resource.index('protected virtual void ReleaseOwnDescriptorSets()'),
+          'ResourceArray: a disposed array releases the sets it keeps of its own')
     check('bool trackDestination = GraphicsConfig.HogwartsDmaRegionUpload && !regionUploaded;' in dma and
           'memoryManager.ReadInto(dstGpuVa + (ulong)dstBaseOffset, dstSpan, trackDestination && !preciseDestination);' in dma
           and dma.count('memoryManager.ReadInto(dstGpuVa + (ulong)dstBaseOffset, dstSpan') == 1 and
@@ -405,7 +487,9 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
                                                           (host.PIPELINE_FULL, host.PIPELINE_FULL_HUNKS),
                                                           (host.WINDOW, host.WINDOW_HUNKS),
                                                           (host.MVK_INITIALIZATION, host.MVK_HUNKS),
-                                                          (host.BUFFER_HOLDER, host.BUFFER_HOLDER_HUNKS)) for old, _ in hunks]:
+                                                          (host.BUFFER_HOLDER, host.BUFFER_HOLDER_HUNKS),
+                                                          (host.TEXTURE_STORAGE, host.TEXTURE_STORAGE_HUNKS),
+                                                          *host.ENCODING_HUNKS) for old, _ in hunks]:
         drift = temporary / ('drift-' + hashlib.sha256((relative + anchor).encode()).hexdigest()[:8])
         for name in owner.NAMES:
             (drift / name).parent.mkdir(parents=True, exist_ok=True)
@@ -1265,6 +1349,12 @@ namespace Ryujinx.Graphics.Vulkan
             RenderDetail.NoteComputeDescriptors(MakeProgram(64, 100), 3 * ms);
             RenderDetail.NoteComputeDescriptors(MakeProgram(1000, 1000), 40 * ms);
             RenderDetail.NoteComputeDescriptors(MakeProgram(500, 1, 1, 1), 10 * ms);
+            // Build 631: template fallbacks by set and the texture array writes (EncodingPolicy).
+            RenderDetail.TemplateFallbacks[0] += 2; RenderDetail.TemplateFallbacks[2] += 5; RenderDetail.TemplateFallbacks[3] += 1;
+            RenderDetail.ArrayWholeWrites += 1; RenderDetail.ArrayWholeElements += 524288; RenderDetail.ArrayRangeWrites += 3;
+            RenderDetail.ArrayRangeElements += 120; RenderDetail.ArrayElementsKept += 1572744; RenderDetail.ArrayWriteTicks += 4 * ms;
+            RenderDetail.ArrayReferencePasses += 6; RenderDetail.ArrayReferencesAdded += 900; RenderDetail.ArrayReferenceTicks += ms / 2;
+            RenderDetail.ArrayCurrentBinds += 40; RenderDetail.ArraySlotsAdded += 2; RenderDetail.ArrayFallbacks += 1;
         }
 
         static void Main()
@@ -1339,16 +1429,23 @@ namespace Ryujinx.Graphics.Vulkan
     detail_line = re.fullmatch(
         r'Vulkan pass and GPU detail over (?P<window>[\d.]+) ms, 2 frames: same framebuffer again after Command3 5, Command7 2, '
         r'Command9 1; in-pass read barriers deferred 9, kept for attachments 4; compute descriptors by program size: up to 32 1 '
-        r'calls 2\.0 ms, up to 256 1 calls 3\.0 ms, larger 2 calls 50\.0 ms \(largest 2000\); exceptions 0; GPU not measured',
+        r'calls 2\.0 ms, up to 256 1 calls 3\.0 ms, larger 2 calls 50\.0 ms \(largest 2000\); exceptions 0; descriptor template '
+        r'fallbacks 2/0/5/1 \(uniform/storage/texture/image\); texture arrays: whole writes 1 \(524288 elements\), range writes 3 '
+        r'\(120 elements, 1572744 kept\), write time 4\.0 ms, reference passes 6 \(900 references, 0\.5 ms\), current binds 40, '
+        r'sets added 2, delivered path 1; GPU not measured',
         stage_result['detail'])
     check(detail_line is not None and float(detail_line['window']) >= 6990,
           f'the detail line follows the stage line, with the commands that ended the passes begun again, the in-pass read '
-          f'barriers, and the compute descriptor updates by the descriptors of the four main sets: {stage_result}')
+          f'barriers, the compute descriptor updates by the descriptors of the four main sets, the template fallbacks by set '
+          f'and the texture array writes: {stage_result}')
+    zero_encoding = ('; descriptor template fallbacks 0/0/0/0 (uniform/storage/texture/image); texture arrays: whole writes 0 '
+                     '(0 elements), range writes 0 (0 elements, 0 kept), write time 0.0 ms, reference passes 0 (0 references, '
+                     '0.0 ms), current binds 0, sets added 0, delivered path 0; GPU not measured')
     check(stage_result['detailNext'].startswith(
               'Vulkan pass and GPU detail over 5000.0 ms, 3 frames: same framebuffer again after none; in-pass read barriers '
               'deferred 0, kept for attachments 0; compute descriptors by program size: up to 32 0 calls 0.0 ms, up to 256 0 '
               'calls 0.0 ms, larger 0 calls 0.0 ms (largest 0); exceptions 1 (first: InvalidOperationException (probe) ') and
-          stage_result['detailNext'].endswith('); GPU not measured'),
+          stage_result['detailNext'].endswith(')' + zero_encoding),
           f'the detail counters start again, and a first-chance exception after the first line is counted with its kind: {stage_result}')
     result['renderStages'] = dict(stage_result, fields=sorted(values))
 

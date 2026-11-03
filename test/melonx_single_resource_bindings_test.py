@@ -3,7 +3,17 @@
 
 Only renderer transport and host resources are doubled. Both variants retain
 the exact-length deferred snapshot contract. No Vulkan/iPhone result is claimed.
+
+Usage: melonx_single_resource_bindings_test.py <source before the adapter>
+       melonx_single_resource_bindings_test.py <delivered prepared source> --candidate-source <final prepared source>
+
+With --candidate-source (build 631, the Vulkan TextureArray changed): the GAL files and the other
+backends are unchanged byte for byte, so the historical GAL comparison stands for them; the borrowed
+one-element array relies on the backend consuming the caller's array during the call, which is
+reviewed on the final TextureArray and executed with both TextureArrays compiled whole
+(test/melonx_array_descriptor_ranges.py), encoding policy off and on.
 """
+import argparse
 from pathlib import Path
 import hashlib
 import json
@@ -14,8 +24,14 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = Path(sys.argv[1]).resolve()
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('source', type=Path)
+parser.add_argument('--candidate-source', type=Path)
+args = parser.parse_args()
+SOURCE = args.source.resolve()
+CANDIDATE = args.candidate_source.resolve() if args.candidate_source else None
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
+sys.path.insert(0, str(ROOT / 'test'))
 from adapt_single_resource_bindings import apply, BACKEND_INPUTS
 
 GAL = 'src/Ryujinx.Graphics.GAL'
@@ -29,6 +45,16 @@ FILES = [GAL + '/ITextureArray.cs', GAL + '/IImageArray.cs',
          MULTI + '/Commands/TextureArray/TextureArrayDisposeCommand.cs',
          MULTI + '/Commands/ImageArray/ImageArraySetImagesCommand.cs',
          MULTI + '/Commands/ImageArray/ImageArrayDisposeCommand.cs']
+if CANDIDATE:
+    import melonx_array_descriptor_ranges as arrays
+    receipt = arrays.final_receipt(SOURCE, CANDIDATE, FILES, BACKEND_INPUTS,
+                                   ['build-utils/melonx/adapt_single_resource_bindings.py', 'test/melonx_single_resource_bindings_test.py'])
+    out = ROOT / 'dist/melonx/single-resource-binding-checks.json'
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(receipt, indent=2) + '\n')
+    print(json.dumps(dict(result='passed', arrayDescriptorRanges={k: v for k, v in receipt['arrayDescriptorRanges'].items()
+                                                                  if k != 'reports'})))
+    sys.exit(0)
 reports, postimages = {}, {}
 backend_drift_controls = 0
 with tempfile.TemporaryDirectory(prefix='melonx-single-resource-') as temporary:

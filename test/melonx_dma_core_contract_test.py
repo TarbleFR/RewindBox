@@ -16,7 +16,8 @@ import verify_dma_core as verify
 from freeze_performance_core import changed_dependencies
 from adapt_bindless_array_deltas import COUNTERS, DIAGNOSTIC_EDITS, DIAGNOSTICS, NAMES as ARRAY_NAMES, WORK_ROWS
 from adapt_hogwarts_dma_copies import CONFIG, DMA, LIBRARY, LIBRARY_OLD, NAMES as DMA_NAMES
-from adapt_host_qos_pipeline_budget import NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE
+from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
+                                            DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--helpers-only', action='store_true')
@@ -25,12 +26,20 @@ args = parser.parse_args()
 checks = 0
 ARGS = ['{baseline}', '--candidate-source', '{candidate}']
 CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delivered609', 'performance-diagnostics': 'ada',
-            'binding-data-snapshots': 'delivered611', 'hogwarts-dma-copies': 'delivered', 'pipeline-checkpoint': 'ada'}
+            'binding-data-snapshots': 'delivered611', 'hogwarts-dma-copies': 'delivered', 'pipeline-checkpoint': 'ada',
+            # Build 631: the fixtures whose receipts declare DescriptorSetUpdater.cs or TextureArray.cs, on the final source.
+            'scalar-texture-descriptors': 'delivered', 'fallback-descriptor-scratch': 'delivered',
+            'single-resource-bindings': 'delivered', 'bounded-binding-snapshots': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 CHANGES = (set(ARRAY_NAMES) - {DIAGNOSTICS}) | set(DMA_NAMES) | set(HOST_NAMES)
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
+CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
-         'binding-data-snapshot-checks.json', 'pipeline-checkpoint-checks.json'}
+         'binding-data-snapshot-checks.json', 'pipeline-checkpoint-checks.json',
+         *(CORE87 + name for name in ('scalar-texture-descriptor-checks.json', 'fallback-descriptor-scratch-checks.json',
+                                      'single-resource-binding-checks.json', 'bounded-binding-snapshot-checks.json'))}
+# Production files that joined the prepared source with this increment (unadapted in the delivered Core).
+JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY}
 REUSED_FRESH = {'counter-report-compaction-final-checks.json', 'single-virtual-dependency-final-checks.json'}
 
 
@@ -195,13 +204,13 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 19 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 24 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py'},
           'Unexpected preparation scope')
-    check(set(frozen['baselineUnadaptedMembers']) == {CONFIG, WINDOW, TEXTURE_STORAGE},
-          'Only GraphicsConfig.cs, Window.cs and TextureStorage.cs join the prepared source')
+    check(set(frozen['baselineUnadaptedMembers']) == JOINED,
+          'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs and PipelineLayoutCacheEntry.cs join the prepared source')
     # The prepared members that differ from the delivered source are exactly the reviewed changes.
     baseline = {**frozen['baselinePreparedMembers'], **frozen['baselineUnadaptedMembers']}
     check(set(frozen['preparedMembers']) == set(baseline) and
@@ -216,7 +225,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 131 and len(frozen['preparedMembers']) == 174, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 131 and len(frozen['preparedMembers']) == 176, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -235,11 +244,11 @@ if not args.helpers_only:
           'A gate ran without the final prepared source')
     # Every file a gate reads from its control is frozen, so a delivery can recheck every receipt completely.
     unadapted = frozen['controlUnadaptedMembers']
-    graphics = {path: frozen['baselineUnadaptedMembers'][path] for path in (CONFIG, WINDOW, TEXTURE_STORAGE)}
+    graphics = {path: frozen['baselineUnadaptedMembers'][path] for path in JOINED}
     check(unadapted == {'delivered': graphics, 'delivered611': arrays_frozen['controlUnadaptedMembers']['delivered'],
                         'delivered609': {**arrays_frozen['controlUnadaptedMembers']['delivered609'], **graphics},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
-          'Control-only upstream inventories differ from the arrays contract plus GraphicsConfig.cs, Window.cs and TextureStorage.cs')
+          'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),
             'Missing control inventory accepted')
     overlapping = copy.deepcopy(frozen)
@@ -266,11 +275,11 @@ if not args.helpers_only:
             check(not deps, 'Reused receipt declares a changed dependency: ' + name)
         elif disposition == 'historical-only-changed-declared-dependency' and set(deps) & CHANGES:
             check(Path(name).name in reports, 'Changed production dependency without a rerun: ' + name)
-        if set(deps) & {DMA, CONFIG, LIBRARY, TEXTURE}:
-            check(disposition.startswith('historical-only'), 'A receipt on a changed DMA or texture file stays current: ' + name)
+        if set(deps) & {DMA, CONFIG, LIBRARY, TEXTURE, DESCRIPTOR_UPDATER, TEXTURE_ARRAY}:
+            check(disposition.startswith('historical-only'), 'A receipt on a changed DMA, texture or descriptor file stays current: ' + name)
     newly = {name[len(verify.HISTORICAL):] for name, value in frozen['retainedDisposition'].items()
              if value == 'historical-only-changed-declared-dependency'}
-    check(newly == RERUN and RERUN <= reports, 'Wrong newly historical-only receipts')
+    check(newly == RERUN and {Path(name).name for name in RERUN} <= reports, 'Wrong newly historical-only receipts')
     check(all(frozen['retainedDisposition'][verify.HISTORICAL + name] == 'unchanged-scoped-proof-not-reexecuted' for name in REUSED_FRESH),
           'Unchanged collector fixtures are not reused')
     check(len(frozen['retainedDisposition']) == len(frozen['baselineReceipts']) == verify.HISTORICAL_RECEIPTS, 'Wrong historical disposition inventory')

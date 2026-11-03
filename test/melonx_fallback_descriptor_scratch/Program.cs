@@ -301,14 +301,23 @@ static class Program
             resourceGets = ResourceGets() - gets, digest = api.Digest };
     }
 
-    public static void Main()
+    public static void Main(string[] args)
     {
+#if FALLBACK_FINAL
+        // Build 631: the final source runs with the encoding policy off, then on (an argument); the delivered one ignores it.
+        EncodingPolicy.BindingSizedDescriptorScratch = args.Length > 0 && args[0] == "on";
+#endif
         Check(Unsafe.SizeOf<DescriptorImageInfo>() == 24 && Unsafe.SizeOf<BufferView>() == 8, "actual Silk layouts");
         Mixed(false); Mixed(true); Randomized(); InitializationAndOtherSets(); ExceptionsAndNestedCalls();
         var measurements = new List<object>();
         foreach (var kind in new[] { "scalar-image", "scalar-buffer", "array-image", "array-image-missing", "array-buffer", "array-buffer-missing" })
             measurements.Add(Measure(kind));
+#if FALLBACK_FINAL
+        long[] templateFallbacks = RenderDetail.TemplateFallbacks;
+#else
+        long[] templateFallbacks = null;
+#endif
         Console.WriteLine(JsonSerializer.Serialize(new { checks, semanticDigest = digest,
-            resourceTrace = ResourceTrace.Digest, measurements }));
+            resourceTrace = ResourceTrace.Digest, measurements, templateFallbacks }));
     }
 }

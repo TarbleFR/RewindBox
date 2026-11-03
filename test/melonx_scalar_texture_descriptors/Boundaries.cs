@@ -236,8 +236,18 @@ namespace Ryujinx.Graphics.Vulkan
         private ArrayRef<TextureArray>[] _textureArrayExtraRefs = { new(ShaderStage.Fragment, new TextureArray()) };
         private ArrayRef<ImageArray>[] _imageArrayExtraRefs = { new(ShaderStage.Fragment, new ImageArray()) };
         private readonly DescriptorBufferInfo[] _uniformBuffers = new DescriptorBufferInfo[128], _storageBuffers = new DescriptorBufferInfo[128];
+#if SCALAR_FINAL && ENCODING
+        // The template scratch sized as the final constructor sizes it (the test checks that constructor).
+        private readonly DescriptorImageInfo[] _textures = new DescriptorImageInfo[Constants.MaxTextureBindings * 2], _images = new DescriptorImageInfo[Constants.MaxImageBindings * 2];
+        private readonly BufferView[] _bufferTextures = new BufferView[Constants.MaxTextureBindings * 2], _bufferImages = new BufferView[Constants.MaxImageBindings * 2];
+#elif SCALAR_FINAL
+        // The template scratch sized as the delivered constructor sizes it: one stage (the test checks that constructor).
+        private readonly DescriptorImageInfo[] _textures = new DescriptorImageInfo[Constants.MaxTexturesPerStage], _images = new DescriptorImageInfo[Constants.MaxImagesPerStage];
+        private readonly BufferView[] _bufferTextures = new BufferView[Constants.MaxTexturesPerStage], _bufferImages = new BufferView[Constants.MaxImagesPerStage];
+#else
         private readonly DescriptorImageInfo[] _textures = new DescriptorImageInfo[128], _images = new DescriptorImageInfo[128];
         private readonly BufferView[] _bufferTextures = new BufferView[128], _bufferImages = new BufferView[128];
+#endif
         private readonly DescriptorSetTemplateUpdater _templateUpdater = new();
         private BitMapStruct<Array2<long>> _uniformSet, _storageSet, _uniformMirrored, _storageMirrored;
         private readonly int[] _uniformSetPd = new int[128];
@@ -256,7 +266,13 @@ namespace Ryujinx.Graphics.Vulkan
         public void Dispose() => _templateUpdater.Dispose();
         // The legacy exceptional Vulkan fallback and individual texture fallback
         // are outside this buffer-path test. Unexpected use fails the test.
+#if SCALAR_FINAL
+        // A template update that throws (a binding past the scratch) falls back here, counted.
+        public int FallbackCalls;
+        private void UpdateAndBind(CommandBufferScoped cbs, int set, PipelineBindPoint point) => FallbackCalls++;
+#else
         private void UpdateAndBind(CommandBufferScoped cbs, int set, PipelineBindPoint point) => throw new InvalidOperationException("unexpected descriptor fallback");
+#endif
         private void UpdateAndBindTexturesWithoutTemplate(CommandBufferScoped cbs, ShaderCollection shader, PipelineBindPoint point) => throw new InvalidOperationException("unexpected texture fallback");
     }
 }

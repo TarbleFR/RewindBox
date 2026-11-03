@@ -334,8 +334,51 @@ static class Program
             prepares = view.Prepares - prepares, clears = view.Clears - clears, barriers = view.Storage.Barriers - barriers,
             allocatedBytes = bytes, nsPerIteration = elapsed * (1e9 / Stopwatch.Frequency) / iterations };
     }
-    static void Main()
+#if SCALAR_FINAL
+    static int outOfRange;
+
+    // Build 631: a fragment texture at binding 64 and a fragment image at binding 32, past the one-stage template scratch
+    // the delivered constructor allocates (32 textures, 16 images). Without the policy the template update throws and the
+    // caught exception takes the fallback; with it, the template writes them.
+    static object BeyondStage()
     {
+        AppDomain.CurrentDomain.FirstChanceException += (_, args) =>
+        {
+            if (args.Exception is IndexOutOfRangeException) outOfRange++;
+        };
+        using DescriptorSetUpdater textures = new();
+        var textureShader = new ShaderCollection(2);
+        textureShader.BindingSegments[2] = new[] { new ResourceBindingSegment(64, 1, ResourceType.TextureAndSampler, ResourceStages.Fragment, false) };
+        textures.SetProgram(default, textureShader, false);
+        textures.SetTextureAndSampler(default, ShaderStage.Fragment, 64, new TextureView(64), new SamplerHolder(164));
+        textures.Draw();
+        using DescriptorSetUpdater images = new();
+        var imageShader = new ShaderCollection(3);
+        imageShader.BindingSegments[3] = new[] { new ResourceBindingSegment(32, 1, ResourceType.Image, ResourceStages.Fragment, false) };
+        images.SetProgram(default, imageShader, false);
+        images.SetImage(default, ShaderStage.Fragment, 32, new TextureView(32));
+        images.Draw();
+        bool policy = EncodingPolicy.BindingSizedDescriptorScratch;
+        Check(policy
+                ? textures.FallbackCalls == 0 && images.FallbackCalls == 0 && outOfRange == 0 &&
+                  textures.Gd.Api.DescriptorUpdates == 1 && textures.Gd.Api.LastImage == 64 && textures.Gd.Api.LastSampler == 164 &&
+                  images.Gd.Api.DescriptorUpdates == 1 && images.Gd.Api.LastImage == 10032
+                : textures.FallbackCalls == 1 && images.FallbackCalls == 1 && outOfRange == 2 &&
+                  textures.Gd.Api.DescriptorUpdates == 0 && images.Gd.Api.DescriptorUpdates == 0,
+            "a binding past the one-stage scratch: written by the template with the policy, by the fallback without it");
+        return new { policy, textureFallbacks = textures.FallbackCalls, imageFallbacks = images.FallbackCalls, outOfRange,
+            textureUpdates = textures.Gd.Api.DescriptorUpdates, textureImage = textures.Gd.Api.LastImage,
+            textureSampler = textures.Gd.Api.LastSampler, imageUpdates = images.Gd.Api.DescriptorUpdates,
+            imageView = images.Gd.Api.LastImage, templateFallbacks = RenderDetail.TemplateFallbacks };
+    }
+#endif
+
+    static void Main(string[] args)
+    {
+#if SCALAR_FINAL
+        // The final source runs with the encoding policy off, then on (an argument); the delivered one ignores it.
+        EncodingPolicy.BindingSizedDescriptorScratch = args.Length > 0 && args[0] == "on";
+#endif
         foreach (string kind in new[] { "texture", "identity", "image", "direct" })
         {
             Functional(kind); Randomized(kind); LatentBuffer(kind);
@@ -345,6 +388,11 @@ static class Program
         ulong semanticDigest = digest;
         var measurements = new List<object>();
         foreach (string kind in new[] { "texture", "identity", "image", "direct" }) measurements.Add(Measure(kind));
-        Console.WriteLine(JsonSerializer.Serialize(new { adapted = Adapted, checks, semanticDigest, resourceTrace, measurements }));
+#if SCALAR_FINAL
+        object beyondStage = BeyondStage();
+#else
+        object beyondStage = null;
+#endif
+        Console.WriteLine(JsonSerializer.Serialize(new { adapted = Adapted, checks, semanticDigest, resourceTrace, measurements, beyondStage }));
     }
 }

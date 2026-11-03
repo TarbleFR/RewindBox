@@ -5,7 +5,17 @@ The backend and renderer transport are doubled; command payloads, snapshot
 capture, conversion and cache ownership are unmodified production classes.
 Compare exact outputs and allocations against the six-change candidate before
 this adapter. Host timings include slower cases and establish no iPhone gain.
+
+Usage: melonx_bounded_binding_snapshots_test.py <source before the adapter>
+       melonx_bounded_binding_snapshots_test.py <delivered prepared source> --candidate-source <final prepared source>
+
+With --candidate-source (build 631, the Vulkan TextureArray changed): the GAL files (the pool
+included) and the other backends are unchanged byte for byte, so the historical comparison stands
+for them; the pooled caller arrays rely on the backend consuming them during the call, which is
+reviewed on the final TextureArray and executed with both TextureArrays compiled whole
+(test/melonx_array_descriptor_ranges.py), encoding policy off and on.
 """
+import argparse
 from pathlib import Path
 import hashlib
 import json
@@ -17,9 +27,15 @@ import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = Path(sys.argv[1]).resolve()
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('source', type=Path)
+parser.add_argument('--candidate-source', type=Path)
+args = parser.parse_args()
+SOURCE = args.source.resolve()
+CANDIDATE = args.candidate_source.resolve() if args.candidate_source else None
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
+sys.path.insert(0, str(ROOT / 'test'))
 from adapt_bounded_binding_snapshots import apply, BASELINE, BACKEND_INPUTS
 
 GAL = 'src/Ryujinx.Graphics.GAL'
@@ -30,6 +46,16 @@ FILES = [GAL + '/ITextureArray.cs', GAL + '/IImageArray.cs',
          MULTI + '/Commands/TextureArray/TextureArrayDisposeCommand.cs',
          MULTI + '/Commands/ImageArray/ImageArrayDisposeCommand.cs']
 PIN = json.loads((ROOT / 'build-utils/melonx/source.json').read_text())
+if CANDIDATE:
+    import melonx_array_descriptor_ranges as arrays
+    receipt = arrays.final_receipt(SOURCE, CANDIDATE, [*FILES, MULTI + '/Model/ThreadedArrayPool.cs'], BACKEND_INPUTS,
+                                   ['build-utils/melonx/adapt_bounded_binding_snapshots.py', 'build-utils/melonx/adapt_single_resource_bindings.py',
+                                    'test/melonx_bounded_binding_snapshots_test.py'])
+    output = ROOT / 'dist/melonx/bounded-binding-snapshot-checks.json'
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(receipt, indent=2) + '\n')
+    print('Bounded binding snapshots: GAL unchanged, backend contract reviewed and executed on the final source.', flush=True)
+    sys.exit(0)
 reports, postimages = {}, {}
 drift_controls = 0
 with tempfile.TemporaryDirectory(prefix='melonx-bounded-binding-snapshots-') as temporary:

@@ -163,14 +163,25 @@ DETAIL_LINE = re.compile(
     r'(?P<resumes>.*?); in-pass read barriers deferred (?P<deferred>\d+), kept for attachments (?P<kept>\d+); compute '
     r'descriptors by program size: up to 32 (?P<smallCalls>\d+) calls (?P<small>[\d.]+) ms, up to 256 (?P<mediumCalls>\d+) '
     r'calls (?P<medium>[\d.]+) ms, larger (?P<largeCalls>\d+) calls (?P<large>[\d.]+) ms \(largest (?P<largest>\d+)\); '
-    r'exceptions (?P<exceptions>\d+)(?P<kinds> \(first: .*\))?; GPU (?P<gpu>.*)$')
+    r'exceptions (?P<exceptions>\d+)(?P<kinds> \(first: .*?\))?(?:; descriptor template fallbacks (?P<fallbacks>[^;]*))?'
+    r'(?:; texture arrays: (?P<arrays>[^;]*))?; GPU (?P<gpu>.*)$')
 GPU_BUSY = re.compile(r'busy (?P<busy>[\d.]+) ms per frame \((?P<share>\d+) % of (?P<span>\d+) ms\) in (?P<buffers>\d+) '
                       r'command buffers, longest (?P<longest>[\d.]+) ms')
+# Build 631 and later: the template fallbacks by set and the texture array descriptor writes (EncodingPolicy).
+FALLBACKS = re.compile(r'(?P<uniform>\d+)/(?P<storage>\d+)/(?P<texture>\d+)/(?P<image>\d+) \(uniform/storage/texture/image\)')
+ARRAYS = re.compile(
+    r'whole writes (?P<whole>\d+) \((?P<wholeElements>\d+) elements\), range writes (?P<ranges>\d+) \((?P<rangeElements>\d+) '
+    r'elements, (?P<kept>\d+) kept\), write time (?P<writeMs>[\d.]+) ms, reference passes (?P<passes>\d+) \((?P<references>\d+) '
+    r'references, (?P<referenceMs>[\d.]+) ms\), current binds (?P<current>\d+), sets added (?P<added>\d+), delivered path '
+    r'(?P<delivered>\d+)')
+ARRAY_KEYS = ('whole', 'wholeElements', 'ranges', 'rangeElements', 'kept', 'writeMs', 'passes', 'references', 'referenceMs',
+              'current', 'added', 'delivered')
 
 
 def report_render_detail(lines, chosen):
     """Build 628 and later: the commands that ended the passes begun again, the in-pass read barriers, the compute
-    descriptor updates by program size, the exceptions and the GPU's busy time (Metal command buffers, merged)."""
+    descriptor updates by program size, the exceptions and the GPU's busy time (Metal command buffers, merged). Build 631
+    and later: the descriptor template fallbacks and the texture array descriptor writes."""
     begin, finish = min(s['stamp'] for s in chosen)[:19], max(s['stamp'] for s in chosen)[:19]
     parsed = []
     for value in lines:
@@ -179,8 +190,10 @@ def report_render_detail(lines, chosen):
             parsed.append((value['timestamp'][11:19], match))
     if not parsed:
         return None
-    totals = dict(frames=0, deferred=0, kept=0, exceptions=0, gpuFrames=0, gpuBusy=0.0)
+    totals = dict(frames=0, deferred=0, kept=0, exceptions=0, gpuFrames=0, gpuBusy=0.0, encodingFrames=0)
     resumes, compute, kinds, gpu_states = {}, {}, [], set()
+    fallbacks = dict(uniform=0, storage=0, texture=0, image=0)
+    arrays = {key: 0.0 for key in ARRAY_KEYS}
     print('Vulkan pass and GPU detail per presented frame (build 628 and later):')
     for stamp, m in parsed:
         frames = int(m['frames'])
@@ -204,10 +217,26 @@ def report_render_detail(lines, chosen):
             totals['gpuBusy'] += float(busy['busy']) * frames
         else:
             gpu_states.add(m['gpu'])
+        encoding = ''
+        fallback = FALLBACKS.fullmatch(m['fallbacks'] or '')
+        array = ARRAYS.fullmatch(m['arrays'] or '')
+        if fallback and array:
+            # Build 631 and later: template fallbacks, and the texture array descriptor writes (EncodingPolicy).
+            totals['encodingFrames'] += frames
+            for key in fallbacks:
+                fallbacks[key] += int(fallback[key])
+            for key in ARRAY_KEYS:
+                arrays[key] += float(array[key])
+            encoding = (f"; template fallbacks {fallback['uniform']}/{fallback['storage']}/{fallback['texture']}/"
+                        f"{fallback['image']}; arrays: whole writes {int(array['whole']) / frames:.2f} "
+                        f"({int(array['wholeElements']) / frames:.0f} elements), range writes {int(array['ranges']) / frames:.2f} "
+                        f"({int(array['rangeElements']) / frames:.0f} elements), {float(array['writeMs']) / frames:.2f} ms, "
+                        f"reference passes {int(array['passes']) / frames:.1f} ({float(array['referenceMs']) / frames:.2f} ms), "
+                        f"sets added {array['added']}, delivered path {array['delivered']}")
         print(f"  {stamp} ({frames} frames): resumed after {m['resumes']}; in-pass read barriers deferred "
               f"{int(m['deferred']) / frames:.1f}, kept {int(m['kept']) / frames:.1f}; compute descriptors "
               f"{float(m['small']) / frames:.1f} / {float(m['medium']) / frames:.1f} / {float(m['large']) / frames:.1f} ms "
-              f"(up to 32 / 256 / larger, largest {m['largest']}); exceptions {m['exceptions']}; GPU {m['gpu']}")
+              f"(up to 32 / 256 / larger, largest {m['largest']}); exceptions {m['exceptions']}{encoding}; GPU {m['gpu']}")
     frames = totals['frames'] or 1
     ranked = ', '.join(f'{name} {count / frames:.1f}' for name, count in sorted(resumes.items(), key=lambda item: -item[1])[:6])
     print(f"  over these lines ({totals['frames']} frames): passes begun again on the same framebuffer, per frame, after "
@@ -216,6 +245,18 @@ def report_render_detail(lines, chosen):
           ', '.join(f"{label} {compute[size][1] / frames:.1f} ms in {compute[size][0] / frames:.1f} dispatches"
                     for size, label in (('small', 'up to 32'), ('medium', 'up to 256'), ('large', 'larger'))) +
           f"; exceptions {totals['exceptions']}")
+    if totals['encodingFrames']:
+        per = totals['encodingFrames']
+        written = arrays['wholeElements'] + arrays['rangeElements']
+        print(f"  descriptor encoding over {per} frames (build 631 and later): template fallbacks per frame "
+              f"{fallbacks['uniform'] / per:.1f} uniform, {fallbacks['storage'] / per:.1f} storage, {fallbacks['texture'] / per:.1f} "
+              f"texture, {fallbacks['image'] / per:.1f} image; texture array sets written whole {arrays['whole'] / per:.2f} and by "
+              f"range {arrays['ranges'] / per:.2f} per frame, {written / per:.0f} elements written and {arrays['kept'] / per:.0f} "
+              f"kept per frame, {arrays['writeMs'] / per:.2f} ms; reference passes {arrays['passes'] / per:.1f} per frame "
+              f"({arrays['references'] / max(1.0, arrays['passes']):.0f} references each, {arrays['referenceMs'] / per:.2f} ms); "
+              f"current binds {arrays['current'] / per:.1f}; sets added {arrays['added']:.0f}; delivered path "
+              f"{arrays['delivered']:.0f}")
+        totals.update(fallbacks=fallbacks, arrays=arrays)
     for kind in kinds:
         print(f'  exception kinds: {kind}')
     if totals['gpuFrames']:
