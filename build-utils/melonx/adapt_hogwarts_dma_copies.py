@@ -438,7 +438,10 @@ LIBRARY_NEW = '''            bool hogwarts = EmbeddedIsHogwarts(options.InputPat
             // Hogwarts Legacy copies its R16G16B16A16Float targets with the copy engine every frame: on the GPU.
             Ryujinx.Graphics.Gpu.GraphicsConfig.HogwartsFloatDmaGpuCopy = hogwarts;
             // It also updates small regions of its GPU-written textures with the copy engine every frame.
-            Ryujinx.Graphics.Gpu.GraphicsConfig.HogwartsDmaRegionUpload = hogwarts;'''
+            Ryujinx.Graphics.Gpu.GraphicsConfig.HogwartsDmaRegionUpload = hogwarts;
+            // MoltenVK: in-pass read barriers deferred (no Metal render pass restart), and the GPU's busy time measured.
+            Ryujinx.Graphics.Vulkan.MoltenVkPolicy.DeferInPassReadBarriers = hogwarts;
+            Ryujinx.Graphics.Vulkan.MoltenVkPolicy.MeasureGpu = hogwarts;'''
 
 USING_OLD = 'using Ryujinx.Common;\nusing Ryujinx.Common.Memory;\n'
 USING_NEW = 'using Ryujinx.Common;\nusing Ryujinx.Common.Logging;\nusing Ryujinx.Common.Memory;\n'

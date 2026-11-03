@@ -16,7 +16,7 @@ import verify_dma_core as verify
 from freeze_performance_core import changed_dependencies
 from adapt_bindless_array_deltas import COUNTERS, DIAGNOSTIC_EDITS, DIAGNOSTICS, NAMES as ARRAY_NAMES, WORK_ROWS
 from adapt_hogwarts_dma_copies import CONFIG, DMA, LIBRARY, LIBRARY_OLD, NAMES as DMA_NAMES
-from adapt_host_qos_pipeline_budget import NAMES as HOST_NAMES, WINDOW
+from adapt_host_qos_pipeline_budget import NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--helpers-only', action='store_true')
@@ -195,12 +195,13 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 18 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 19 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py'},
           'Unexpected preparation scope')
-    check(set(frozen['baselineUnadaptedMembers']) == {CONFIG, WINDOW}, 'Only GraphicsConfig.cs and Window.cs join the prepared source')
+    check(set(frozen['baselineUnadaptedMembers']) == {CONFIG, WINDOW, TEXTURE_STORAGE},
+          'Only GraphicsConfig.cs, Window.cs and TextureStorage.cs join the prepared source')
     # The prepared members that differ from the delivered source are exactly the reviewed changes.
     baseline = {**frozen['baselinePreparedMembers'], **frozen['baselineUnadaptedMembers']}
     check(set(frozen['preparedMembers']) == set(baseline) and
@@ -215,7 +216,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 131 and len(frozen['preparedMembers']) == 173, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 131 and len(frozen['preparedMembers']) == 174, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -234,11 +235,11 @@ if not args.helpers_only:
           'A gate ran without the final prepared source')
     # Every file a gate reads from its control is frozen, so a delivery can recheck every receipt completely.
     unadapted = frozen['controlUnadaptedMembers']
-    graphics = {path: frozen['baselineUnadaptedMembers'][path] for path in (CONFIG, WINDOW)}
+    graphics = {path: frozen['baselineUnadaptedMembers'][path] for path in (CONFIG, WINDOW, TEXTURE_STORAGE)}
     check(unadapted == {'delivered': graphics, 'delivered611': arrays_frozen['controlUnadaptedMembers']['delivered'],
                         'delivered609': {**arrays_frozen['controlUnadaptedMembers']['delivered609'], **graphics},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
-          'Control-only upstream inventories differ from the arrays contract plus GraphicsConfig.cs')
+          'Control-only upstream inventories differ from the arrays contract plus GraphicsConfig.cs, Window.cs and TextureStorage.cs')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),
             'Missing control inventory accepted')
     overlapping = copy.deepcopy(frozen)

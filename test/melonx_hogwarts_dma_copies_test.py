@@ -253,6 +253,51 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           moltenvk.index('config.PerformanceTracking = true;') < moltenvk.index('config.PerformanceLoggingFrameCount = 300;') <
           moltenvk.index('vkSetMoltenVKConfigurationMVK(nint.Zero, config, configSize);'),
           'MVKInitialization: only MoltenVK performance tracking, logged every 300 presented frames')
+    storage = after[host.TEXTURE_STORAGE]
+    read_barrier = storage[storage.index('public void QueueWriteToReadBarrier('):storage.index('public void AddBinding(TextureView view)')]
+    check(restored(host.TEXTURE_STORAGE, host.TEXTURE_STORAGE_HUNKS) == before[host.TEXTURE_STORAGE] and
+          read_barrier.index('if (_lastModificationAccess != AccessFlags.None)') <
+          read_barrier.index('_gd.PipelineInternal.TryDeferInPassReadBarrier(this, dstStageFlags)') <
+          read_barrier.index('_lastModificationAccess = AccessFlags.None;\n                    return;') <
+          read_barrier.index('_gd.Barriers.QueueBarrier(barrier, this, _lastModificationStage, dstStageFlags);') and
+          read_barrier.index('_lastReadStage |= dstStageFlags;') < read_barrier.index('TryDeferInPassReadBarrier'),
+          'TextureStorage: a write-to-read barrier the pipeline defers is not queued, and the texture keeps its read state')
+    defer = base[base.index('internal bool TryDeferInPassReadBarrier('):base.index('private Auto<DisposableRenderPass> _renderPass;')]
+    check(defer.index('!MoltenVkPolicy.DeferInPassReadBarriers || !RenderPassActive || !Gd.IsMoltenVk || !Gd.IsTBDR') <
+          defer.index('if (_rpHolder.ContainsAttachment(storage))') < defer.index('RenderDetail.FeedbackPassBarriers++;') <
+          defer.index('_rpHolder.AddForcedFence(storage, dstStageFlags);') < defer.index('RenderDetail.DeferredPassBarriers++;') and
+          defer.count('return false;') == 2 and defer.count('return true;') == 1 and
+          base.count('internal bool TryDeferInPassReadBarrier(') == 1 and
+          begin.index('RenderStageTimer.PassResumes++;') < begin.index('RenderDetail.NoteResume(_lastEndCommand);') and
+          end.index('_lastEndedFramebuffer = _framebuffer;') <
+          end.index('_lastEndCommand = Ryujinx.Graphics.GAL.Multithreading.ThreadedRenderer.CurrentRenderCommand;') and
+          compute.index('_descriptorSetUpdater.UpdateAndBindDescriptorSets(Cbs, PipelineBindPoint.Compute);') <
+          compute.index('RenderDetail.NoteComputeDescriptors(_program, computeDescriptorTicks);'),
+          'PipelineBase: only on MoltenVK with a tile-based GPU, inside a render pass, and for a texture that is not one of its '
+          'attachments, is a read barrier deferred to the next begin of that pass (its forced fence); the pass ends and '
+          'compute descriptor updates feed the detail line')
+    check(threaded.index('CurrentRenderCommand = commandType;') < threaded.index('long commandStart = Stopwatch.GetTimestamp();') and
+          'public static string RenderCommandName(byte type) => ((CommandType)type).ToString();' in threaded,
+          'ThreadedRenderer: the type of the command being run is published for the backend')
+    check(present.index('_gd.SwapchainApi.QueuePresent(') < present.index('if (MoltenVkPolicy.MeasureGpu && !MetalGpuTimer.Tried && _gd.IsMoltenVk)') <
+          present.index('MetalGpuTimer.Install(MoltenVK.MoltenVkMetalInterop.GetMetalCommandQueue(_gd.Queue));') <
+          present.index('RenderStageTimer.NotePresent('),
+          'Window: the Metal timer is installed once, at a present, from MoltenVK\'s own queue, when the policy asks for it')
+    metal = base[base.index('    static unsafe partial class MetalGpuTimer'):base.index('    class PipelineBase : IDisposable')]
+    commit = metal[metal.index('private static void Commit('):metal.index('public static void Poll()')]
+    install = metal[metal.index('public static void Install('):metal.index('[System.Runtime.InteropServices.UnmanagedCallersOnly]')]
+    check(install.index('Tried = true;') < install.index('SendPointer(device, Selector("newCommandQueue"))') <
+          install.index('SendPointer(ownQueue, Selector("commandBuffer"))') < install.index('Release(ownQueue);') <
+          install.index('Responds(probe, responds, _gpuStart)') <
+          install.index('nint original = method == 0 ? 0 : GetImplementation(method);') < install.index('_original = original;') <
+          install.index('SetImplementation(method, (nint)(delegate* unmanaged<nint, nint, void>)&Commit);') and
+          commit.index('try') < commit.index('_pending[_pendingCount++] = Retain(self);') < commit.index('catch') <
+          commit.index('((delegate* unmanaged<nint, nint, void>)_original)(self, selector);') and
+          commit.count('_original') == 1 and 'System.Diagnostics.Stopwatch.Frequency' in commit and
+          metal.count('Release(commandBuffer);') == 1,
+          'MetalGpuTimer: the probe command buffer comes from a queue of its own, the original commit is known before the '
+          'replacement is installed, the replacement always calls it '
+          'once after a guarded record, and each recorded command buffer is released once read')
     holder = after[host.BUFFER_HOLDER]
     waits = holder[holder.index('public void WaitForFences()'):holder.index('private bool BoundToRange(')]
     check(restored(host.BUFFER_HOLDER, host.BUFFER_HOLDER_HUNKS) == before[host.BUFFER_HOLDER] and
@@ -1171,11 +1216,29 @@ namespace Ryujinx.Common.Logging
     sealed class Sink { public readonly List<string> Lines = new(); public void Print(LogClass c, string m) => Lines.Add(m); }
     static class Logger { public static Sink Warning; }
 }
+namespace Ryujinx.Graphics.GAL.Multithreading
+{
+    public class ThreadedRenderer
+    {
+        public static byte CurrentRenderCommand;
+        public static string RenderCommandName(byte type) => "Command" + type;
+    }
+}
 namespace Ryujinx.Graphics.Vulkan
 {
 """ + timer_class + r"""
+    readonly struct ResourceBindingSegment { public readonly int Count; public ResourceBindingSegment(int count) { Count = count; } }
+    sealed class ShaderCollection { public ResourceBindingSegment[][] BindingSegments; }
+    static class PipelineBase { public const int DescriptorSetLayouts = 4; }
     static class Program
     {
+        static ShaderCollection MakeProgram(params int[] counts)
+        {
+            var sets = new ResourceBindingSegment[5][];
+            for (int i = 0; i < 5; i++) sets[i] = i < counts.Length ? new[] { new ResourceBindingSegment(counts[i]) } : new ResourceBindingSegment[0];
+            return new ShaderCollection { BindingSegments = sets };
+        }
+
         static void Fill(int scale)
         {
             long ms = Stopwatch.Frequency / 1000;
@@ -1192,6 +1255,16 @@ namespace Ryujinx.Graphics.Vulkan
             RenderStageTimer.ReadWaits += 60; RenderStageTimer.ReadWaitTicks += 1500 * ms;
             // Another thread's wait goes to its own atomic counters.
             RenderStageTimer.NoteFenceWait(false, true, RenderStageTimer.Now() - 4 * ms);
+            // The detail line: passes begun again by the command that ended them, in-pass read barriers, compute
+            // descriptor updates by program size (the extra set, the fifth, is not counted).
+            for (int i = 0; i < 5; i++) RenderDetail.NoteResume(3);
+            for (int i = 0; i < 2; i++) RenderDetail.NoteResume(7);
+            RenderDetail.NoteResume(9);
+            RenderDetail.DeferredPassBarriers += 9; RenderDetail.FeedbackPassBarriers += 4;
+            RenderDetail.NoteComputeDescriptors(MakeProgram(4, 6, 0, 0, 5000), 2 * ms);
+            RenderDetail.NoteComputeDescriptors(MakeProgram(64, 100), 3 * ms);
+            RenderDetail.NoteComputeDescriptors(MakeProgram(1000, 1000), 40 * ms);
+            RenderDetail.NoteComputeDescriptors(MakeProgram(500, 1, 1, 1), 10 * ms);
         }
 
         static void Main()
@@ -1212,15 +1285,19 @@ namespace Ryujinx.Graphics.Vulkan
             now = RenderStageTimer.Now();
             RenderStageTimer.NotePresent(now, now, now, now);
             int afterNext = sink.Lines.Count;
+            // First-chance exceptions are watched from the first detail line: one thrown and caught is counted in the next.
+            try { throw new InvalidOperationException("probe"); } catch (InvalidOperationException) { }
+            RenderDetail.Log("5000.0", 3);
             Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { afterFirst, afterWindow, afterNext, reset,
-                line = sink.Lines.Count > 0 ? sink.Lines[0] : "" }));
+                line = sink.Lines.Count > 0 ? sink.Lines[0] : "", detail = sink.Lines.Count > 1 ? sink.Lines[1] : "",
+                detailNext = sink.Lines.Count > 2 ? sink.Lines[2] : "" }));
         }
     }
 }
 """)
     (stages / 'stages.csproj').write_text('''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
 <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>disable</Nullable>
-<ImplicitUsings>disable</ImplicitUsings><NuGetAudit>false</NuGetAudit>
+<ImplicitUsings>disable</ImplicitUsings><NuGetAudit>false</NuGetAudit><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 </PropertyGroup></Project>''')
     (stages / 'global.json').write_text(json.dumps({'sdk': {'version': '10.0.100', 'rollForward': 'disable'}}))
     (stages / 'NuGet.Config').write_text('<configuration><packageSources><clear /></packageSources></configuration>')
@@ -1243,7 +1320,7 @@ namespace Ryujinx.Graphics.Vulkan
         r'(?P<readWait>[\d.]+) ms; on other threads (?P<otherWaits>\d+) calls (?P<otherWait>[\d.]+) ms; present '
         r'(?P<presents>\d+) calls (?P<present>[\d.]+) ms \(acquire (?P<acquire>[\d.]+) ms, queue present (?P<queuePresent>[\d.]+) ms\)',
         stage_result['line'])
-    check(stage_result['afterFirst'] == 0 and stage_result['afterWindow'] == 1 and stage_result['afterNext'] == 1 and
+    check(stage_result['afterFirst'] == 0 and stage_result['afterWindow'] == 2 and stage_result['afterNext'] == 2 and
           stage_result['reset'] and stage_line is not None, f'one render-stage line per 5 s of presentation, then reset: {stage_result}')
     values = stage_line.groupdict()
     check(values['frames'] == values['presents'] == '2' and float(values['window']) >= 6990 and values['prepares'] == '1000' and
@@ -1259,6 +1336,20 @@ namespace Ryujinx.Graphics.Vulkan
           7009.9 <= float(values['present']) <= 7040.0 and values['acquire'] == '2.5' and
           1.9 <= float(values['queuePresent']) <= 6.0,
           f'the line carries every counter of its window, in milliseconds with an invariant decimal point: {stage_result}')
+    detail_line = re.fullmatch(
+        r'Vulkan pass and GPU detail over (?P<window>[\d.]+) ms, 2 frames: same framebuffer again after Command3 5, Command7 2, '
+        r'Command9 1; in-pass read barriers deferred 9, kept for attachments 4; compute descriptors by program size: up to 32 1 '
+        r'calls 2\.0 ms, up to 256 1 calls 3\.0 ms, larger 2 calls 50\.0 ms \(largest 2000\); exceptions 0; GPU not measured',
+        stage_result['detail'])
+    check(detail_line is not None and float(detail_line['window']) >= 6990,
+          f'the detail line follows the stage line, with the commands that ended the passes begun again, the in-pass read '
+          f'barriers, and the compute descriptor updates by the descriptors of the four main sets: {stage_result}')
+    check(stage_result['detailNext'].startswith(
+              'Vulkan pass and GPU detail over 5000.0 ms, 3 frames: same framebuffer again after none; in-pass read barriers '
+              'deferred 0, kept for attachments 0; compute descriptors by program size: up to 32 0 calls 0.0 ms, up to 256 0 '
+              'calls 0.0 ms, larger 0 calls 0.0 ms (largest 0); exceptions 1 (first: InvalidOperationException (probe) ') and
+          stage_result['detailNext'].endswith('); GPU not measured'),
+          f'the detail counters start again, and a first-chance exception after the first line is counted with its kind: {stage_result}')
     result['renderStages'] = dict(stage_result, fields=sorted(values))
 
 inputs = ['build-utils/melonx/adapt_hogwarts_dma_copies.py', 'build-utils/melonx/adapt_host_qos_pipeline_budget.py',

@@ -130,3 +130,42 @@ read-back into a buffer over a texture". The DMA summary counts:
 - the read-backs into buffers with textures there;
 - the read-back targets and GPU-modified textures signalled;
 - the buffer textures left alone.
+
+## Build 628: the GPU side (3 November 2026)
+
+**A correction to the earlier notes.** MoltenVK's "Execute a MTLCommandBuffer on GPU" does not measure the GPU's busy
+time. MoltenVK 1.4.0 (`MVKQueue.mm`) takes the time from the commit of the command buffer to its completion handler, so
+the queue wait is included. The statement that the GPU was busy for the whole frame at 1x (625 and 626 notes) is
+therefore not established. `frame_report.py` now names that figure as an upper bound.
+
+**What the 626 journals show at 1x, over the heavy windows:**
+- 80-90 render passes are begun per frame, and 21-23 of them begin again on the framebuffer the last one ended on;
+- the compute descriptor updates cost about 0.5 ms per dispatch, 28-30 ms per frame on the render thread.
+
+**The change: Hogwarts Legacy only, MoltenVK on a tile-based GPU (`MoltenVkPolicy`).**
+- **What MoltenVK does.** MoltenVK 1.4.0 restarts the Metal render pass for every image barrier with the GENERAL layout
+  recorded inside a render pass (`MVKCmdPipelineBarrier::encode`). Each restart stores all attachments and loads them
+  again. Ryujinx records every texture's write-to-read barrier as such a barrier when the texture is bound while a pass
+  is active.
+- **Why the barrier is not needed there.** It only follows the texture's use as an attachment. When the texture is not
+  an attachment of the active pass, that use was in a pass that has ended, which is an earlier Metal encoder. Metal's
+  hazard tracking already orders the read after it, because MoltenVK's resources are tracked.
+- **What the change does.** Such a barrier is now deferred to the next begin of that pass, as the forced fence that
+  `BarrierBatch` adds for an in-pass barrier (`PipelineBase.TryDeferInPassReadBarrier`, called from
+  `TextureStorage.QueueWriteToReadBarrier`). An attachment of the active pass (a feedback loop) keeps its barrier.
+
+**New measurements, in a second line after each "Vulkan render stages" line ("Vulkan pass and GPU detail"):**
+- the render command that ended each pass begun again on the same framebuffer;
+- the in-pass read barriers deferred, and those kept for attachments;
+- the compute descriptor updates by program size, counted as the descriptors in its four main sets;
+- the process's first-chance exceptions, with their first four kinds;
+- the GPU's busy time, taken from the Metal command buffers themselves (`MetalGpuTimer`), as described below.
+
+**How `MetalGpuTimer` works.**
+- `-[MTLCommandBuffer commit]` of the class of MoltenVK's command buffers is replaced through the Objective-C runtime.
+  The replacement retains the command buffer and always calls the original.
+- At each present, the render thread reads `GPUStartTime` and `GPUEndTime` of the completed ones and merges the
+  intervals, so overlapping command buffers count once.
+- At most 1024 command buffers are pending. None is recorded when the render thread has not read them for a second.
+
+Not measured on the iPhone; no FPS claim.

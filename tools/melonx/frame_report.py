@@ -158,6 +158,74 @@ def report_render_stages(lines, chosen):
     return totals
 
 
+DETAIL_LINE = re.compile(
+    r'Vulkan pass and GPU detail over (?P<window>[\d.]+) ms, (?P<frames>\d+) frames: same framebuffer again after '
+    r'(?P<resumes>.*?); in-pass read barriers deferred (?P<deferred>\d+), kept for attachments (?P<kept>\d+); compute '
+    r'descriptors by program size: up to 32 (?P<smallCalls>\d+) calls (?P<small>[\d.]+) ms, up to 256 (?P<mediumCalls>\d+) '
+    r'calls (?P<medium>[\d.]+) ms, larger (?P<largeCalls>\d+) calls (?P<large>[\d.]+) ms \(largest (?P<largest>\d+)\); '
+    r'exceptions (?P<exceptions>\d+)(?P<kinds> \(first: .*\))?; GPU (?P<gpu>.*)$')
+GPU_BUSY = re.compile(r'busy (?P<busy>[\d.]+) ms per frame \((?P<share>\d+) % of (?P<span>\d+) ms\) in (?P<buffers>\d+) '
+                      r'command buffers, longest (?P<longest>[\d.]+) ms')
+
+
+def report_render_detail(lines, chosen):
+    """Build 628 and later: the commands that ended the passes begun again, the in-pass read barriers, the compute
+    descriptor updates by program size, the exceptions and the GPU's busy time (Metal command buffers, merged)."""
+    begin, finish = min(s['stamp'] for s in chosen)[:19], max(s['stamp'] for s in chosen)[:19]
+    parsed = []
+    for value in lines:
+        match = DETAIL_LINE.search(value['diagnostic'])
+        if match and begin <= value['timestamp'][:19] <= finish:
+            parsed.append((value['timestamp'][11:19], match))
+    if not parsed:
+        return None
+    totals = dict(frames=0, deferred=0, kept=0, exceptions=0, gpuFrames=0, gpuBusy=0.0)
+    resumes, compute, kinds, gpu_states = {}, {}, [], set()
+    print('Vulkan pass and GPU detail per presented frame (build 628 and later):')
+    for stamp, m in parsed:
+        frames = int(m['frames'])
+        if not frames:
+            continue
+        totals['frames'] += frames
+        for key in ('deferred', 'kept', 'exceptions'):
+            totals[key] += int(m[key])
+        for part in m['resumes'].split(', '):
+            name, _, count = part.rpartition(' ')
+            if name and count.isdigit():
+                resumes[name] = resumes.get(name, 0) + int(count)
+        for size in ('small', 'medium', 'large'):
+            calls, ms = compute.get(size, (0, 0.0))
+            compute[size] = (calls + int(m[size + 'Calls']), ms + float(m[size]))
+        if m['kinds']:
+            kinds.append(m['kinds'][9:-1])
+        busy = GPU_BUSY.fullmatch(m['gpu'])
+        if busy:
+            totals['gpuFrames'] += frames
+            totals['gpuBusy'] += float(busy['busy']) * frames
+        else:
+            gpu_states.add(m['gpu'])
+        print(f"  {stamp} ({frames} frames): resumed after {m['resumes']}; in-pass read barriers deferred "
+              f"{int(m['deferred']) / frames:.1f}, kept {int(m['kept']) / frames:.1f}; compute descriptors "
+              f"{float(m['small']) / frames:.1f} / {float(m['medium']) / frames:.1f} / {float(m['large']) / frames:.1f} ms "
+              f"(up to 32 / 256 / larger, largest {m['largest']}); exceptions {m['exceptions']}; GPU {m['gpu']}")
+    frames = totals['frames'] or 1
+    ranked = ', '.join(f'{name} {count / frames:.1f}' for name, count in sorted(resumes.items(), key=lambda item: -item[1])[:6])
+    print(f"  over these lines ({totals['frames']} frames): passes begun again on the same framebuffer, per frame, after "
+          f"{ranked or 'none'}; in-pass read barriers deferred {totals['deferred'] / frames:.1f} and kept for attachments "
+          f"{totals['kept'] / frames:.1f} per frame; compute descriptors per frame: " +
+          ', '.join(f"{label} {compute[size][1] / frames:.1f} ms in {compute[size][0] / frames:.1f} dispatches"
+                    for size, label in (('small', 'up to 32'), ('medium', 'up to 256'), ('large', 'larger'))) +
+          f"; exceptions {totals['exceptions']}")
+    for kind in kinds:
+        print(f'  exception kinds: {kind}')
+    if totals['gpuFrames']:
+        totals['gpu'] = totals['gpuBusy'] / totals['gpuFrames']
+        print(f"  GPU busy (Metal command buffers, merged): {totals['gpu']:.1f} ms per frame over {totals['gpuFrames']} frames")
+    elif gpu_states:
+        print(f"  GPU busy: {', '.join(sorted(gpu_states))}")
+    return totals
+
+
 MVK_HEADER = re.compile(r'Performance statistics reporting every: (\d+) frames, avg FPS: ([\d.]+), elapsed time: ([\d.]+) seconds')
 MVK_TRACKER = re.compile(r'\[mvk-info\]\s+(?P<name>\S.*?)(?: performance)?\s+avg: (?P<avg>[\d.]+) ?(?P<unit>[A-Za-z]*), '
                          r'latest: .*?count: (?P<count>\d+)')
@@ -221,7 +289,7 @@ def report_moltenvk(summaries):
     return totals
 
 
-def ceilings(windows_per_frame, stages, moltenvk, label='all windows', render_commands=None):
+def ceilings(windows_per_frame, stages, moltenvk, label='all windows', render_commands=None, detail=None):
     """1000 / busy milliseconds per frame of each resource, from what was measured; the lowest is the limit."""
     found = []
     if windows_per_frame:
@@ -245,8 +313,12 @@ def ceilings(windows_per_frame, stages, moltenvk, label='all windows', render_co
         frames = moltenvk['frames']
         if 'encode' in moltenvk:
             found.append(("MoltenVK's Metal encoding (its submission thread)", moltenvk['encode'][0] / frames))
-        if 'gpu' in moltenvk:
-            found.append(('GPU (Metal command buffers executing; overlapping buffers counted apart)', moltenvk['gpu'][0] / frames))
+        if 'gpu' in moltenvk and not (detail and detail.get('gpu')):
+            # MoltenVK counts from the commit to the completion handler: queue wait included, so an upper bound only.
+            found.append(('GPU upper bound (MoltenVK command buffer commit to completion, queue wait included)',
+                          moltenvk['gpu'][0] / frames))
+    if detail and detail.get('gpu'):
+        found.append(('GPU (Metal command buffers busy, overlapping ones merged)', detail['gpu']))
     if not found:
         return
     print(f'Ceilings over {label} (1000 / busy ms per presented frame; the lowest is the limit to remove next):')
@@ -385,7 +457,7 @@ def main():
                   f"{total('syncInvoke') / game:.1f} ms, render-thread work {(total('renderDrain') - total('bufferReadback')) / game:.1f} ms, "
                   f"render-thread fence waits {total('bufferReadback') / game:.1f} ms, GPU-thread dispatch {total('gpuDispatch') / game:.1f} ms, "
                   f"GPU-thread waits for the guest {total('gpuFifoWait') / game:.1f} ms")
-    summary, attributions, render_lines, stage_lines = None, [], [], []
+    summary, attributions, render_lines, stage_lines, detail_lines = None, [], [], [], []
     for line in open(args.core, encoding='utf-8', errors='replace'):
         if f'"pid":{args.pid},' not in line:
             continue
@@ -395,14 +467,17 @@ def main():
             render_lines.append(json.loads(line.split('] ', 1)[1]))
         elif 'Vulkan render stages over ' in line:
             stage_lines.append(json.loads(line.split('] ', 1)[1]))
+        elif 'Vulkan pass and GPU detail over ' in line:
+            detail_lines.append(json.loads(line.split('] ', 1)[1]))
         elif any(key in line for key in ('DMA slow source read #', 'DMA GPU source copy', 'DMA region upload',
                                          'DMA float GPU copy', 'DMA GPU region copy', 'DMA GPU read-back',
                                          'Background pipeline compile missed', 'ServiceNv Wait')):
             attributions.append(line)
     render_commands = report_render_commands(render_lines, chosen)
     stages = report_render_stages(stage_lines, chosen)
+    detail = report_render_detail(detail_lines, chosen)
     moltenvk = report_moltenvk(read_moltenvk(args.stderr, args.pid)) if args.stderr else None
-    ceilings(per_frame, stages, moltenvk, render_commands=render_commands)
+    ceilings(per_frame, stages, moltenvk, render_commands=render_commands, detail=detail)
     if len(per_frame) >= 4:
         median = statistics.median(rates)
         slow = [entry for entry, rate in zip(per_frame, rates) if rate < median]
