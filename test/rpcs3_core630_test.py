@@ -63,7 +63,10 @@ MOCKS = (
      '\t\tvoid sync_hint(FIFO::interrupt_hint hint, sync_hint_payload_t payload) { on_sync_hint_mock(hint, payload); }\n'),
     ('bool zcull_wait_guard = true; };', 'bool zcull_wait_guard = true; bool zcull_async_reads = false; };'),
     ('#include "ios/IOSZcullOnDemand.h"\n', '#include "ios/IOSZcullOnDemand.h"\n#include "ios/IOSGuestAccessEmulation.h"\n'
-     'namespace rpcs3::ios::rsx_sync { inline std::atomic<u64> zcull_hint_flushes{0}; }\n'),
+     'namespace rpcs3::ios::rsx_sync { inline std::atomic<u64> zcull_hint_flushes{0}; }\n'
+     '// The two limits of the path that read the clock (see harness_clocks): set by the scenarios.\n'
+     'static std::uint64_t g_async_escalate_us = rpcs3::ios::zcull_on_demand::async_escalate_us;\n'
+     'static std::uint64_t g_completion_clock_us = 0; // 0: the real clock\n'),
     ('\tutils::protection prot = utils::protection::rw;\n\tbool has_refs() const { return refs > 0; }\n',
      '\tutils::protection prot = utils::protection::rw;\n\trpcs3::ios::zcull_on_demand::page_slots ios_slots;\n'
      '\tbool has_refs() const { return refs > 0; }\n'),
@@ -140,6 +143,7 @@ ASYNC_630 = r'''
 	namespace ga = rpcs3::ios::guest_access;
 	static_assert(od::tracked_page_bytes == 16384 && od::report_slot_bytes == 16);
 	rpcs3::ios::g_policy.zcull_async_reads = true;
+	g_async_escalate_us = 20'000'000; // only the scenario about this limit keeps the real one
 	const auto read_at = [](ZCULL_control& z, u32 at, u32 size, thread_class cls) {
 		g_control = &z;
 		ga::t_access = {};
@@ -215,9 +219,8 @@ ASYNC_630 = r'''
 		query_mock query;
 		z.queue_report(address, &query);
 		rsx_server server(z);
-		const auto before = get_system_time();
 		CHECK(read_at(z, address, 4, thread_class::ppu));
-		CHECK(z.hints.load() == 1 && z.forced_passes.load() == 0 && get_system_time() - before < od::async_escalate_us);
+		CHECK(z.hints.load() == 1 && z.forced_passes.load() == 0);
 		CHECK(take(tally.services) == 1);
 		clear_tally();
 		async630++;
@@ -230,9 +233,8 @@ ASYNC_630 = r'''
 		z.queue_report(address, &older);
 		z.queue_report(address, &empty);
 		rsx_server server(z);
-		const auto before = get_system_time();
 		CHECK(read_at(z, address, 4, thread_class::ppu));
-		CHECK(z.hints.load() == 1 && z.forced_passes.load() == 0 && get_system_time() - before < od::async_escalate_us);
+		CHECK(z.hints.load() == 1 && z.forced_passes.load() == 0);
 		clear_tally();
 		async630++;
 	}
@@ -242,9 +244,8 @@ ASYNC_630 = r'''
 		query_mock query;
 		z.queue_report(address + 16, &query);
 		rsx_server server(z);
-		const auto before = get_system_time();
 		CHECK(read_at(z, address + 8, 16, thread_class::ppu));
-		CHECK(z.hints.load() == 1 && z.forced_passes.load() == 0 && get_system_time() - before < od::async_escalate_us);
+		CHECK(z.hints.load() == 1 && z.forced_passes.load() == 0);
 		clear_tally();
 		async630++;
 	}
@@ -266,6 +267,7 @@ ASYNC_630 = r'''
 		query_mock query;
 		z.queue_report(report_page + 0x100, &query);
 		rsx_server server(z);
+		g_completion_clock_us = get_system_time(); // one window, however slow the machine (page_slots tests the window)
 		unsigned completed = 0;
 		for (u32 i = 0; i < od::emulation_budget; i++)
 		{
@@ -274,6 +276,7 @@ ASYNC_630 = r'''
 		CHECK(completed == od::emulation_budget && z.forced_passes.load() == 0);
 		CHECK(read_at(z, address, 4, thread_class::ppu));
 		CHECK(!ga::t_access.emulate && z.forced_passes.load() >= 1 && !z.m_locked_pages[1].contains(report_page));
+		g_completion_clock_us = 0;
 		clear_tally();
 		async630++;
 	}
@@ -291,6 +294,7 @@ ASYNC_630 = r'''
 	{ // a slot that stays pending: after async_escalate_us every claimed report is written
 		ZCULL_control z;
 		g_control = &z;
+		g_async_escalate_us = od::async_escalate_us;
 		z.gpu_us = 60'000'000;
 		query_mock query;
 		z.queue_report(address, &query);
@@ -300,6 +304,7 @@ ASYNC_630 = r'''
 		const auto waited = get_system_time() - before;
 		CHECK(waited >= od::async_escalate_us && waited < od::pickup_deadline_us && z.forced_passes.load() >= 1 && z.polls.load() >= 1);
 		CHECK(!z.m_ios_demand.tripped());
+		g_async_escalate_us = 20'000'000;
 		clear_tally();
 		async630++;
 	}
@@ -363,6 +368,7 @@ ASYNC_630 = r'''
 		async630++;
 	}
 	rpcs3::ios::g_policy.zcull_async_reads = false;
+	g_async_escalate_us = od::async_escalate_us;
 	{ // the setting off: the size of the access changes nothing
 		ZCULL_control z;
 		g_control = &z;
@@ -430,6 +436,17 @@ def core627_tree(source: Path, work: Path) -> Path:
     return tree
 
 
+def harness_clocks(definitions: str) -> str:
+    # The escalation limit (30 ms) and the budget window (16 ms) read the clock. Scenarios that are
+    # not about them set them, so that a stalled runner cannot decide the result.
+    for real, harness in (('od::async_escalate_us', 'g_async_escalate_us'),
+                          ('ios_slots.take_completion(get_system_time())',
+                           'ios_slots.take_completion(g_completion_clock_us ? g_completion_clock_us : get_system_time())')):
+        require(definitions.count(real) == 1, 'harness clock: ' + real)
+        definitions = definitions.replace(real, harness)
+    return definitions
+
+
 def run_fault_protocol(source: Path, cxx: str, work: Path, sanitize: bool) -> dict:
     zcull = (source / c619.ZCULL).read_bytes().replace(b'\r\n', b'\n').decode('utf-8', 'surrogateescape')
     definitions = c619.extract_between(zcull, '\t\t// REWINDBOX_ZCULL_ON_DEMAND_619 (ios/IOSZcullOnDemand.h)\n', '#endif\n\n\t\t// Conditional rendering helpers')
@@ -445,7 +462,7 @@ def run_fault_protocol(source: Path, cxx: str, work: Path, sanitize: bool) -> di
     report = {}
     for label, extra in sets.items():
         out = c619.compile_and_run(work, 'zcull630_' + label,
-                                   {'main.cpp': fault_harness_630(), 'definitions.inc': definitions, 'sync_entry.inc': sync_entry,
+                                   {'main.cpp': fault_harness_630(), 'definitions.inc': harness_clocks(definitions), 'sync_entry.inc': sync_entry,
                                     'pass_scope.inc': pass_scope, 'fault_entry.inc': fault_entry},
                                    [cxx], flags + extra, [source / 'rpcs3'])
         lines = out.strip().splitlines()
