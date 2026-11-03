@@ -313,3 +313,30 @@ produit ; contrôle légal réussi.
   sources effectives (signalé, non bloquant). Tests frais dans les deux groupes.
 - **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub
   MCP (octets égaux aux digests de l'API). IPA vérifiée hors ligne, clé privée supprimée.
+
+## 13. État de la 622 (3 novembre 2026)
+
+Livrée sur la 621 (run `41562838932`, IPA `48598405…`, 194494511 octets, ~25 min de bout en bout).
+Gel sur `b91cd085` : base effective 621 `cdfed832…`, empreinte effective `43e0b078…` ; contrôle légal
+réussi ; aucun conflit, aucun commit non classé.
+- **Travail promu.** Les commits RPCS3 Core 621 que la 621 avait laissés « source seulement » la
+  précèdent : ils passent par `promotedCommits` (ordre de l'historique) et non par `reviewedCommits`.
+  Seuls ceux qui ont des chemins produit y figurent (`5feba2a9`, `0b7c0e38`, `89f57fb7`, `1b483577`,
+  `34089b8d`, `a701a650`) ; les autres ne touchent que la recette.
+- **Commits revus (2).** `e59ee305` (test) et `04df260a` (correctifs de la revue contradictoire du
+  Core 621). Les jaquettes et skins Dolphin d'une autre session (`9bb35531`, `1745b3e6`) restent
+  « source seulement » (`targetBuild` 623).
+- **Composants.**
+  - RPCS3 : remplacé par le Core 621 du run `41560325311` (`43c43aa3…`), qui remplace le Core 619
+    `44fc928e…`. L'épingle vérifiée est poussée dans le même push que le brouillon 622 :
+    `test_rpcs3_pin` refuse un brouillon courant dont l'épingle à HEAD ne correspond pas à l'arbre
+    effectif.
+  - MeloNX : Core 621 `unchangedFromBase`.
+  - Dolphin/ARMSX2, libretro et dépendances MeloNX : republiés de la 621.
+- **Images changées.** `libRPCS3Core.dylib`, `rpcs3_internal_bridge` et Runner.
+  `armsx2_internal_bridge` a aussi changé sans changement de ses sources effectives (signalé, non
+  bloquant). Tests frais dans les deux groupes.
+- **Preuves.** Le reçu reprend les huit rapports de la livraison déchiffrée (identité signée,
+  signature, validations, tests, environnement, durées) avant `record`, comme la 621 : 12 fichiers.
+- **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub
+  MCP (octets égaux aux digests de l'API). IPA vérifiée hors ligne, clé privée supprimée.

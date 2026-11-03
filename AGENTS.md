@@ -2,7 +2,7 @@
 
 Read this guide before work. It contains current project state and permanent
 rules; detailed investigations and build receipts belong in `docs/`.
-Last reconciled: **3 November 2026**, after private Build **621**.
+Last reconciled: **3 November 2026**, after private Build **622**.
 
 ## Start here
 
@@ -21,17 +21,28 @@ Last reconciled: **3 November 2026**, after private Build **621**.
 
 | Item | Verified reference |
 | --- | --- |
-| Application | **RewindBox 0.0.8 (621)**, private IPA; iOS 18+, SideStore re-signing |
-| Delivery source | `6140e070af75e914b0d3298d838f8a279899c671`; frozen manifest [`build-utils/delivery/621.json`](build-utils/delivery/621.json) (freeze commit `7d88bfe0`, effective product digest `cdfed832…`, replayed from the delivered 620 effective tree `bf6ee0b0…`) |
-| Delivery run / jobs | `41555079757`, attempt 1, standard recipe: preflight, flutter and native (both fresh), republish and application, all successful (about 20 min) |
-| Downloaded IPA | `RewindBox-621.ipa`, 194334617 bytes; SHA-256 `1521e25b5118d60fc5a2509e6a001bd310b6fadc32c4d6af1df7dc1c73ba65b4` |
-| Product baseline | Delivered 620 plus 9 reviewed commits: MeloNX GPU region copies, precise DMA reads, thread QoS and the 1 GiB pipeline cache budget (`816930fe`, refrozen after the independent review in `4ad8814e`), the 64 MiB gen0 GC budget (`4295b522`), `frame_report.py --passes` (`403dc3c5`), and the game box and French manuals of another session (`ef1ddfee`, `05b5a5df`, `cf87abdc`, `400d1f34`, `09eeb75b`). 16 RPCS3 Core 621 commits of another session are **source-only** for 622; the 69 inherited deferred paths of `b06888a9` stay deferred |
-| MeloNX Core | **Core 621** (replaced): Core run `41552490728`, source `4ad8814e`, packaged fingerprint `07e9d695…` ([pin](build-utils/melonx/dma-core-pin.json)); replaces the 620 GPU source-copy Core `c5627b99…` |
-| RPCS3 Core | **Core 619** kept (`unchangedFromBase`, payload `44fc928e…`, the delivered pin bytes restored by `2212d1dc`) |
+| Application | **RewindBox 0.0.8 (622)**, private IPA; iOS 18+, SideStore re-signing |
+| Delivery source | `a2a5efecf62d6bdf34e0799a1ec061c2fa216dfe`; frozen manifest [`build-utils/delivery/622.json`](build-utils/delivery/622.json) (freeze commit `b91cd085`, effective product digest `43e0b078…`, replayed from the delivered 621 effective tree `cdfed832…`) |
+| Delivery run / jobs | `41562838932`, attempt 1, standard recipe: preflight, flutter and native (both fresh), republish and application, all successful (about 25 min) |
+| Downloaded IPA | `RewindBox-622.ipa`, 194494511 bytes; SHA-256 `485984053f7c591371f5dc2e7e5c5db3687ee6d8b6cbb84434afa238672d335f` |
+| Product baseline | Delivered 621 plus the RPCS3 Core 621 work: 6 promoted commits that 621 deferred (`5feba2a9`, `0b7c0e38`, `89f57fb7`, `1b483577`, `34089b8d`, `a701a650`) and 2 reviewed commits (`e59ee305`, `04df260a`, the fixes of the adversarial review). The game-box and Dolphin skin commits of another session (`9bb35531`, `1745b3e6`) are **source-only** for 623; the 69 inherited deferred paths of `b06888a9` stay deferred |
+| MeloNX Core | **Core 621** kept (`unchangedFromBase`): Core run `41552490728`, source `4ad8814e`, packaged fingerprint `07e9d695…` ([pin](build-utils/melonx/dma-core-pin.json)) |
+| RPCS3 Core | **Core 621** (replaced): Core and Apple host run `41560325311`, source `23575f10`, payload `43c43aa3…`, ABI 30, 92 exports, codegen PPU `a987639e9f838d1c` / SPU `477a3fa442d27917` unchanged ([pin](build-utils/rpcs3/core-pin.json)); replaces Core 619 `44fc928e…` |
 | Dolphin Core | Retained from 608 (payload `640e4389…`) through the archive republished by run `41504526945` |
 | ARMSX2 Core | Retained from 608 (payload `fab55193…`, ABI 9) through the archive republished by run `41504526945` |
-| libretro / MeloNX dependencies | Retained through the archives republished by run `41504526945` (republished again by runs `41516165812`, `41527072487` and `41555079757`) |
-| Delivery proof | [delivery receipt](docs/evidence/rewind621/delivery.json), [signed payload identity](docs/evidence/rewind621/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind621/download621-verification.json); 620: [receipt](docs/evidence/rewind620/delivery.json) |
+| libretro / MeloNX dependencies | Retained through the archives republished by run `41504526945` (republished again by runs `41516165812`, `41527072487`, `41555079757` and `41562838932`) |
+| Delivery proof | [delivery receipt](docs/evidence/rewind622/delivery.json), [signed payload identity](docs/evidence/rewind622/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind622/download622-verification.json); 621: [receipt](docs/evidence/rewind621/delivery.json) |
+
+622 is delivered, not a pending candidate. Do not reuse its number. RPCS3 Core 621 (every
+title: GPU time per RSX command buffer, freeze episodes kept through the pause menu with a deeper
+`FREEZE_DUMP`, the mounted ISO kept open, pipeline queue and texture cache counters; Assassin's
+Creed and Black Ops II: ZCULL on-demand reads on a guard of one-second buckets, per-frame ZCULL
+waits) and its host integration (bounded core_log, last-fatal file, incidents and reports,
+GPU timing and ZCULL on-demand levers in 12 languages) have no iPhone result yet
+([what the next run reads](docs/rpcs3-core621-2026-11-02.md)); no FPS claim.
+`Frameworks/armsx2_internal_bridge` changed from 621 although its sources did not (reported as
+an undeclared image change, not blocking). The private 622 recipient key was deleted after the
+verified delivery.
 
 620 is delivered, not a pending candidate. Do not reuse its number. The Hogwarts
 GPU source copy (a DMA copy whose linear source is held by a GPU-modified texture is copied
