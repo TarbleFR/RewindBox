@@ -574,7 +574,8 @@ REGION_NEW = '''                // Hogwarts Legacy policy: the region also goes 
                 // is read tracked under the policy, so that data a GPU copy left in the texture is in the bytes patched.
                 bool regionUploaded = GraphicsConfig.HogwartsDmaRegionUpload && srcLinear && !dstLinear && isIdentityRemap &&
                     srcBpp == dstBpp &&
-                    TryUploadRegion(memoryManager, srcSpan, srcStride, xCount, yCount, dstBpp, dstGpuVa, dst, dstRegionX, dstRegionY);
+                    TryUploadRegion(memoryManager, srcSpan, srcStride, xCount, yCount, dstBpp, dstGpuVa, dst, dstRegionX, dstRegionY,
+                                    dstGpuVa + (ulong)dstBaseOffset, (ulong)dstSize);
 
 ''' + REGION_OLD
 
@@ -621,7 +622,7 @@ METHOD_NEW = '''        /// <summary>
         /// <summary>
         /// Why a partial upload into a GPU texture region was declined (the copy then goes through guest memory).
         /// </summary>
-        private enum RegionDecline { NoTarget, Layout, Format, Overlap, Count }
+        private enum RegionDecline { NoTarget, Layout, Format, Overlap, Buffer, Count }
 
         /// <summary>
         /// The textures that overlap a linear DMA source (whose flush action a tracked read runs), by kind.
@@ -710,7 +711,7 @@ METHOD_NEW = '''        /// <summary>
                     $"(incomplete {_guestCopies[0]}, linearSource {_guestCopies[1]}, remap {_guestCopies[2]}, " +
                     $"noSource {_guestCopies[3]}, height {_guestCopies[4]}, floatFormat {_guestCopies[5]}; " +
                     $"regionUploads {_regionUploads}, declined noTarget {_regionDeclines[0]} layout {_regionDeclines[1]} " +
-                    $"format {_regionDeclines[2]} overlap {_regionDeclines[3]}; slowReads {_slowSourceReads}, " +
+                    $"format {_regionDeclines[2]} overlap {_regionDeclines[3]} buffer {_regionDeclines[4]}; slowReads {_slowSourceReads}, " +
                     $"slowWrites {_slowDestinationWrites}; gpuSourceCopies {_gpuSourceCopies}, declined noTexture " +
                     $"{_gpuSourceDeclines[0]} layout {_gpuSourceDeclines[1]} noTarget {_gpuSourceDeclines[2]} format " +
                     $"{_gpuSourceDeclines[3]} notModified {_gpuSourceDeclines[4]}; gpuRegionCopies {_gpuRegionCopies}, declined noTexture " +
@@ -1342,12 +1343,14 @@ METHOD_NEW = '''        /// <summary>
         /// memory untracked instead, so the texture and guest memory hold the same region and the texture keeps its state.
         /// The texture must be the single-level 2D uncompressed colour texture of the destination surface (the lookup of the
         /// direct upload of complete copies, at the widths the surface holds), at scale 1, without host format conversion
-        /// and without overlaps of an incompatible layout, and the region must fall on whole texels inside it. The texture
-        /// is synchronised with its memory first.
+        /// and without overlaps of an incompatible layout, and the region must fall on whole texels inside it. No buffer of
+        /// the cache may hold the bytes the caller writes (writeVa, writeSize): the untracked write would not reach it. The
+        /// texture is synchronised with its memory first.
         /// </summary>
         /// <returns>True if the region was uploaded (the caller then writes guest memory untracked), false otherwise</returns>
         private bool TryUploadRegion(MemoryManager memoryManager, ReadOnlySpan<byte> srcSpan, int srcStride, int xCount, int yCount,
-                                     int bpp, ulong dstGpuVa, DmaTexture dst, int dstRegionX, int dstRegionY)
+                                     int bpp, ulong dstGpuVa, DmaTexture dst, int dstRegionX, int dstRegionY, ulong writeVa,
+                                     ulong writeSize)
         {
             if (srcStride <= 0 || dst.Depth > 1 || dst.RegionZ != 0 || xCount <= 0 || yCount <= 0)
             {
@@ -1380,6 +1383,13 @@ METHOD_NEW = '''        /// <summary>
             {
                 // Another texture of an incompatible layout shares this memory: it would not see the region.
                 _regionDeclines[(int)RegionDecline.Overlap]++;
+                return false;
+            }
+
+            if (memoryManager.Physical.BufferCache.HasBufferInRange(memoryManager, writeVa, writeSize))
+            {
+                // A buffer of the cache holds written bytes: only the tracked write reaches it (it reloads before its next use).
+                _regionDeclines[(int)RegionDecline.Buffer]++;
                 return false;
             }
 

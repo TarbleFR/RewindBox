@@ -30,18 +30,21 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'binding-data-snapshots': 'delivered611', 'hogwarts-dma-copies': 'delivered', 'pipeline-checkpoint': 'ada',
             # Build 631: the fixtures whose receipts declare DescriptorSetUpdater.cs or TextureArray.cs, on the final source.
             'scalar-texture-descriptors': 'delivered', 'fallback-descriptor-scratch': 'delivered',
-            'single-resource-bindings': 'delivered', 'bounded-binding-snapshots': 'delivered'}
+            'single-resource-bindings': 'delivered', 'bounded-binding-snapshots': 'delivered',
+            'counter-report-compaction': 'ada'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 CHANGES = (set(ARRAY_NAMES) - {DIAGNOSTICS}) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES)
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
          'binding-data-snapshot-checks.json', 'pipeline-checkpoint-checks.json',
+         # The queued syncpoints change CounterCache.cs and DeferredCounterReport.cs, which this receipt declares.
+         'counter-report-compaction-final-checks.json',
          *(CORE87 + name for name in ('scalar-texture-descriptor-checks.json', 'fallback-descriptor-scratch-checks.json',
                                       'single-resource-binding-checks.json', 'bounded-binding-snapshot-checks.json'))}
 # Production files that joined the prepared source with this increment (unadapted in the delivered Core).
 JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY}
-REUSED_FRESH = {'counter-report-compaction-final-checks.json', 'single-virtual-dependency-final-checks.json'}
+REUSED_FRESH = {'single-virtual-dependency-final-checks.json'}
 
 
 def check(ok, message):
@@ -230,7 +233,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 131 and len(frozen['preparedMembers']) == 176, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 132 and len(frozen['preparedMembers']) == 176, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

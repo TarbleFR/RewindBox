@@ -785,11 +785,11 @@
         "finalPreparedSourceBound": true,
         "physicalDeviceTested": false,
         "fpsGainProven": false,
-        "checks": 169,
+        "checks": 172,
         "attribution.signatures": 48,
         "attribution.summaries": 2,
         "attribution.allocated": 0,
-        "attribution.last": "DMA guest-memory copies: 3072 (incomplete 33, linearSource 10, remap 10, noSource 10, height 10, floatFormat 2999; regionUploads 4, declined noTarget 3 layout 10 format 2 overlap 1; slowReads 3, slowWrites 1; gpuSourceCopies 2, declined noTexture 4 layout 3 noTarget 1 format 3 notModified 1; gpuRegionCopies 2, declined noTexture 2 layout 2 noTarget 2 format 3 notModified 1; gpuReadBacks 7 (into buffers 4, over textures 2: read-back targets 1, modified 2, buffer textures 2) of 15, first-access flushes 0 (0.0 ms, max 0.0 ms, GPU thread 0), declined rows 2 buffer 2 occupied 2 target 1 partial 1; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)",
+        "attribution.last": "DMA guest-memory copies: 3072 (incomplete 33, linearSource 10, remap 10, noSource 10, height 10, floatFormat 2999; regionUploads 4, declined noTarget 3 layout 10 format 2 overlap 1 buffer 1; slowReads 3, slowWrites 1; gpuSourceCopies 2, declined noTexture 4 layout 3 noTarget 1 format 3 notModified 1; gpuRegionCopies 2, declined noTexture 2 layout 2 noTarget 2 format 3 notModified 1; gpuReadBacks 7 (into buffers 4, over textures 2: read-back targets 1, modified 2, buffer textures 2) of 15, first-access flushes 0 (0.0 ms, max 0.0 ms, GPU thread 0), declined rows 2 buffer 2 occupied 2 target 1 partial 1; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)",
         "attribution.capped": 64,
         "attribution.first": "DMA guest-memory copy #1: reason=Incomplete source=R16G16B16A16Float 1280x720 srcLinear=False dstLinear=True copy=100x16 bpp=8 bytes=12800",
         "attribution.uploaded": true,
@@ -822,7 +822,7 @@
           "incompatibleOverlap",
           "hostConversion"
         ],
-        "attribution.counts": "4 3 10 2 1 2 1",
+        "attribution.counts": "4 3 10 2 1 0 2 1",
         "attribution.uploadLine": "DMA region upload (Hogwarts policy): R8G8B8A8Unorm 64x64 region 2,3 4x2",
         "attribution.uploadLines": 1,
         "attribution.gpuCopied": true,
@@ -1243,6 +1243,87 @@
             "src/Ryujinx.Graphics.Vulkan/ResourceArray.cs"
           ],
           "productionPath": "src/Ryujinx.Graphics.Vulkan/ResourceArray.cs"
+        }
+      ]
+    },
+    {
+      "name": "counter-report-compaction",
+      "script": "test/melonx_counter_report_compaction_test.py",
+      "report": "counter-report-compaction-final-checks.json",
+      "control": "ada",
+      "arguments": [
+        "{baseline}",
+        "--candidate-source",
+        "{candidate}"
+      ],
+      "timeoutSeconds": 900,
+      "assertions": {
+        "result": "passed",
+        "completeProductionClasses": true,
+        "adapterIdempotent": true,
+        "sourceDriftControlsPassed": 2,
+        "physicalDeviceTested": false,
+        "fpsGainProven": false,
+        "sourceKind": "baselinePreparedWithFinalInstrumentedCandidate",
+        "reports.control.checks": 10171,
+        "reports.control.scenarios": 28,
+        "reports.control.semanticSHA256": "07ce6ed591d59149edf374d21ca4238bac1adf95d7527e21e59c06f1cb8f21da",
+        "reports.candidate.checks": 10171,
+        "reports.candidate.scenarios": 28,
+        "reports.candidate.semanticSHA256": "07ce6ed591d59149edf374d21ca4238bac1adf95d7527e21e59c06f1cb8f21da",
+        "gcReductionClaimed": false
+      },
+      "requiredPostimages": [
+        "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
+        "src/Ryujinx.Graphics.GAL/ICounterEvent.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs",
+        "src/Ryujinx.Graphics.Gpu/Memory/UnmapEventArgs.cs"
+      ],
+      "compiledBindings": [
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/CounterCache.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Gpu/Memory/UnmapEventArgs.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Gpu/Memory/UnmapEventArgs.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.GAL/ICounterEvent.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.GAL/ICounterEvent.cs"
+        },
+        {
+          "productionPath": "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "EmbeddedPerformanceDiagnostics.cs"
+          ]
         }
       ]
     }

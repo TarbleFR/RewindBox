@@ -63,6 +63,9 @@ UPSTREAM_SYNCPOINTB = '''        public void Syncpointb(int argument)
             }
             else if (operation == SyncpointbOperation.Incr)
             {
+                // "Unbind" render targets since a syncpoint increment might indicate future CPU access for the textures.
+                _parent.TextureManager.RefreshModifiedTextures();
+
                 _context.CreateHostSyncIfNeeded(HostSyncFlags.StrictSyncpoint);
                 _context.Synchronization.IncrementSyncpoint(syncpointId);
             }
@@ -72,7 +75,7 @@ UPSTREAM_SYNCPOINTB = '''        public void Syncpointb(int argument)
 '''
 UPSTREAM_WAIT_LINE = '            return !_commandBufferQueue.IsEmpty || (_event.WaitOne(8) && !_commandBufferQueue.IsEmpty);'
 UPSTREAM_WAIT = '        public bool WaitForCommands()\n        {\n' + UPSTREAM_WAIT_LINE + '\n        }\n'
-UPSTREAM_INCREMENT = '''        private void IncrementSyncpoint(int argument)
+UPSTREAM_INCREMENT = '''        public void IncrementSyncpoint(int argument)
         {
             uint syncpointId = (uint)argument & 0xFFFF;
 
@@ -221,7 +224,7 @@ def regions(tree):
                          'namespace Ryujinx.Graphics.Gpu\n{\n    partial class FifoDeviceProbe\n    {\n'
                          + method(read(tree / queued.GPFIFO_DEVICE), 'public bool WaitForCommands(') + '    }\n}\n',
         'Threed.cs': 'using System;\n\nnamespace Ryujinx.Graphics.Gpu\n{\n    partial class ThreedProbe\n    {\n'
-                     + method(read(tree / THREED), 'private void IncrementSyncpoint(') + '    }\n}\n',
+                     + method(read(tree / THREED), 'public void IncrementSyncpoint(') + '    }\n}\n',
         'Library.cs': 'namespace Ryujinx.Graphics.Gpu\n{\n    static class LibraryProbe\n    {\n'
                       '        public static void Assign(bool hogwarts)\n        {\n' + library + '\n        }\n    }\n}\n',
     }

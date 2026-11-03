@@ -193,10 +193,21 @@ namespace Ryujinx.Graphics.Gpu
         public FifoState State = new();
     }
 
-    // GPFifoClass.Syncpointb, compiled from the adapted source, with the state it reads.
+    public sealed class TextureManagerBoundary
+    {
+        public void RefreshModifiedTextures() => FixtureTrace.Add("refresh");
+    }
+
+    public sealed class ChannelBoundary
+    {
+        public readonly TextureManagerBoundary TextureManager = new();
+    }
+
+    // GPFifoClass.Syncpointb, compiled from the adapted source, with the state and channel it reads.
     partial class FifoClassProbe
     {
         private readonly GpuContext _context;
+        private readonly ChannelBoundary _parent = new();
         private readonly FifoStateHolder _state = new();
 
         public FifoClassProbe(GpuContext context) { _context = context; }

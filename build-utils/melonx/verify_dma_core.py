@@ -77,7 +77,8 @@ GPU_WORK = arrays.GPU_WORK
 READ_COUNTERS = arrays.READ_COUNTERS
 ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # Ten since build 631: the four fixtures whose receipts declare DescriptorSetUpdater.cs or TextureArray.cs rerun on the final source.
-FRESH_GATES = 10
+# Eleven with the queued syncpoints: the counter report compaction fixture declares CounterCache.cs and DeferredCounterReport.cs.
+FRESH_GATES = 11
 HISTORICAL_RECEIPTS = 61
 
 

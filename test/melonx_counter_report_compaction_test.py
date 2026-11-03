@@ -19,6 +19,16 @@ SOURCE = args.source.resolve()
 CANDIDATE = args.candidate_source.resolve() if args.candidate_source else None
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_counter_report_compaction import apply, RELATIVE, BEFORE
+import adapt_queued_syncpoints as queued  # noqa: E402
+
+
+def without_queue(text, relative):
+    """The final text without the declared hunks of the queued syncpoint adapter (Core 631: CounterCache.TakePendingReports,
+    DeferredCounterReport.IsReady), whose behaviour test/melonx_queued_syncpoints_fixture_test.py runs."""
+    for old, new in reversed(queued.HUNKS.get(relative, [])):
+        assert text.count(new) == 1, 'queued syncpoint hunk missing: ' + relative
+        text = text.replace(new, old)
+    return text
 
 def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 paths = [RELATIVE, 'src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs',
@@ -40,7 +50,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-report-compaction-') as temporar
             assert sha(work / RELATIVE) == before, 'adapter not idempotent'
             if CANDIDATE:
                 final = (CANDIDATE / RELATIVE).read_text()
-                plain = final
+                plain = without_queue(final, RELATIVE)
                 hooks = [
                     ('using PD = Ryujinx.Common.EmbeddedPerformanceDiagnostics;\n', ''),
                     ('            using var reportMeasurement = PD.Measure(PD.Phase.CounterReports);\n', ''),
@@ -56,7 +66,11 @@ with tempfile.TemporaryDirectory(prefix='melonx-report-compaction-') as temporar
                     plain = plain.replace(old, new)
                 assert plain == optimized, 'final class changes beyond compaction and declared observers'
                 for p in paths:
-                    if p != RELATIVE: assert sha(CANDIDATE / p) == preimages[p], p
+                    if p != RELATIVE:
+                        raw = (CANDIDATE / p).read_bytes()
+                        bom = b'\xef\xbb\xbf' if raw.startswith(b'\xef\xbb\xbf') else b''
+                        unqueued = bom + without_queue(raw.decode('utf-8-sig'), p).encode('utf-8')
+                        assert hashlib.sha256(unqueued).hexdigest() == preimages[p], p
                     shutil.copyfile(CANDIDATE / p, work / p)
                 collector = 'src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs'
                 shutil.copyfile(CANDIDATE / collector, work / 'EmbeddedPerformanceDiagnostics.cs')
@@ -87,7 +101,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-report-compaction-') as temporar
         except RuntimeError: negatives += 1
         else: raise AssertionError('source drift accepted')
         assert sha(path) == before, 'source mutated before rejected drift'
-local = ['build-utils/melonx/adapt_counter_report_compaction.py', 'test/melonx_counter_report_compaction_test.py',
+local = ['build-utils/melonx/adapt_counter_report_compaction.py', 'build-utils/melonx/adapt_queued_syncpoints.py',
+         'test/melonx_counter_report_compaction_test.py',
          'test/melonx_counter_report_compaction/Program.cs', 'test/melonx_counter_report_compaction/JournalBoundary.cs']
 for value in reports.values():
     scenarios = value.pop('scenarios')

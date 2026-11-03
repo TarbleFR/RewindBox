@@ -66,6 +66,7 @@ DOTNET = os.environ.get('DOTNET', 'dotnet')
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 import adapt_hogwarts_dma_copies as adapter  # noqa: E402
 import adapt_host_qos_pipeline_budget as host  # noqa: E402
+import adapt_queued_syncpoints as queued  # noqa: E402
 
 ALL = [*adapter.NAMES, *host.NAMES]
 
@@ -82,11 +83,15 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
-def compose(target):
+def compose(target, final=False):
+    """These two adapters; final adds, in preparation order, the Library line of the queued syncpoint adapter (Core 631),
+    the only other change to these files: the hunk checks read the composition without it, the final source has it."""
     for relative in ALL:
         (target / relative).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(SOURCE / relative, target / relative)
     adapter.apply(target)
+    if final:
+        queued.apply(target, names=[queued.LIBRARY])
     host.apply(target)
 
 
@@ -96,7 +101,13 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
     compose(work)
     before = {p: (SOURCE / p).read_text(encoding='utf-8-sig') for p in ALL}
     after = {p: (work / p).read_text(encoding='utf-8-sig') for p in ALL}
-    postimages = {p: sha(work / p) for p in ALL}
+    composed = temporary / 'final'
+    compose(composed, final=True)
+    check(all(sha(composed / p) == sha(work / p) for p in ALL if p != adapter.LIBRARY) and
+          after[adapter.LIBRARY].replace(queued.LIBRARY_ANCHOR, queued.HUNKS[queued.LIBRARY][0][1]) ==
+          (composed / adapter.LIBRARY).read_text(encoding='utf-8-sig'),
+          'the final composition adds only the queued syncpoint Library line')
+    postimages = {p: sha(composed / p) for p in ALL}
     if CANDIDATE:
         check(postimages == {p: sha(CANDIDATE / p) for p in ALL}, 'composition differs from the final prepared source')
 
@@ -397,7 +408,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           'under the policy the guest path reads its destination tracked (precisely) unless the region was uploaded')
     check(dma.index('long readStart = Stopwatch.GetTimestamp();') < read < dma.index('NoteGuestMemoryAccess(readStart, write: false);'),
           'the timed source read is the read through guest memory')
-    region = dma.index('TryUploadRegion(memoryManager, srcSpan, srcStride, xCount, yCount, dstBpp, dstGpuVa, dst, dstRegionX, dstRegionY)')
+    region = dma.index('TryUploadRegion(memoryManager, srcSpan, srcStride, xCount, yCount, dstBpp, dstGpuVa, dst, dstRegionX, dstRegionY,\n'
+                       '                                    dstGpuVa + (ulong)dstBaseOffset, (ulong)dstSize)')
     scratch = dma.index('Span<byte> dstSpan = DestinationScratch(dstSize);')
     direct = dma.index('// Try to set the texture data directly,')
     check(read < direct < region < scratch and scratch - region < 400,
@@ -416,6 +428,9 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
     upload = dma[dma.index('private bool TryUploadRegion('):dma.index(adapter.METHOD_ANCHOR)]
     gpu_copy = dma[dma.index('private bool TryCopyGpuSource('):dma.index('private static Image.Texture FindRegionTarget(')]
     region_copy = dma[dma.index('private bool TryCopyGpuRegion('):dma.index('private static bool SignalPreciseRead(')]
+    check(upload.count('HasBufferInRange(memoryManager, writeVa, writeSize)') == 1 and
+          upload.index('HasBufferInRange(memoryManager, writeVa, writeSize)') < upload.index('target.SetData('),
+          'the region upload declines a cached buffer over the written bytes before uploading')
     check('SignalModified' not in upload and gpu_copy.count('target.SignalModified();') == 1 and
           region_copy.count('target.SignalModified();') == 2 and
           dma.count('SignalModified') == before[adapter.DMA].count('SignalModified') + 3 and
@@ -724,8 +739,8 @@ sealed class Dma
     public int StrictSyncs => _context.StrictSyncs;
     public bool Precise(MemoryManager mm) => SignalPreciseRead(mm, 0x20000, 64);
     public bool Upload(MemoryManager mm, byte[] src, int stride, int xCount, int yCount, int bpp, DmaTexture dst, int rx, int ry) =>
-        TryUploadRegion(mm, src, stride, xCount, yCount, bpp, 0x10000, dst, rx, ry);
-    public string Counts => $"{_regionUploads} {_regionDeclines[0]} {_regionDeclines[1]} {_regionDeclines[2]} {_regionDeclines[3]} {_slowSourceReads} {_slowDestinationWrites}";
+        TryUploadRegion(mm, src, stride, xCount, yCount, bpp, 0x10000, dst, rx, ry, 0x10300, 544);
+    public string Counts => $"{_regionUploads} {_regionDeclines[0]} {_regionDeclines[1]} {_regionDeclines[2]} {_regionDeclines[3]} {_regionDeclines[4]} {_slowSourceReads} {_slowDestinationWrites}";
 }
 // Guest memory for the byte model: a CPU access first runs the flush action of each GPU-modified texture over the accessed
 // bytes, as the memory tracking does (the write then lands on the flushed bytes and the texture reloads before its next use).
@@ -872,6 +887,16 @@ static class Program
         dma.Caps.ConvertsR8 = true;
         Decline("hostConversion", Make(Format.R8Unorm, 1, 256, 64), 32, 3, 2, 5, 0, dst);
         string counts = dma.Counts;
+        // A cached buffer over the written bytes would miss the untracked guest write that follows the upload: declined,
+        // the tracked write then reaches it (Core 631 review). The query is the written range, not the surface.
+        var buffered = Make(Format.R8G8B8A8Unorm, 4, 64, 64);
+        mm.Physical.TextureCache.Textures = new() { buffered };
+        mm.Physical.BufferCache.Overlap = true; mm.Physical.BufferCache.LastQuery = null;
+        bool bufferUploaded = dma.Upload(mm, src, 32, 16, 2, 1, dst, 8, 3);
+        string bufferQuery = mm.Physical.BufferCache.LastQuery;
+        bool bufferUntouched = buffered.Calls.Count == 0;
+        mm.Physical.BufferCache.Overlap = false;
+        string bufferCounts = dma.Counts;
 
         // GPU source copy: a linear RGBA8 64x32 texture (stride 256) at 0x20000 holds the source rows 3..4, bytes 16..31.
         var gm = new MemoryManager();
@@ -1168,7 +1193,7 @@ static class Program
         Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { signatures, summaries, allocated, last, capped,
             first = sink.Lines[0], uploaded, query, calls, region, rows, r8Uploaded, r8Rows, narrowUploaded, narrowCalls,
             narrowRegion = $"{narrow.Region.X},{narrow.Region.Y} {narrow.Region.Width}x{narrow.Region.Height}", exactUploaded, exactCalls,
-            declined, counts, uploadLine, uploadLines, gpuCopied, gpuCopy, gpuCalls, gpuDeclined, sourceCounts, gpuLine, gpuLines,
+            declined, counts, bufferUploaded, bufferQuery, bufferUntouched, bufferCounts, uploadLine, uploadLines, gpuCopied, gpuCopy, gpuCalls, gpuDeclined, sourceCounts, gpuLine, gpuLines,
             floatCopied, floatCopy, regionCopied, regionCopy, createdCopied, createdQuery, createdCopy, readBackCopied,
             readBackQuery, readBackCopy, readBackReused, readBackLine, readBackLines, readBackDeclined, readBackCounts,
             bufferReadBack, bufferCopy, bufferLine, ownReadBack, ownCopy, overTextures, overlapLines,
@@ -1216,8 +1241,11 @@ static class Program
     expected = ['noTarget', 'narrowerThanSurface', 'ambiguous', 'misalignedX', 'misalignedWidth', 'outOfBoundsX', 'outOfBoundsY', 'shortSource', 'negativeStride',
                 'depth', 'scaled', 'array', 'view', 'volume', 'incompatibleOverlap', 'hostConversion']
     check(result['declined'] == expected, f'every declined case leaves the texture untouched: {result}')
-    check(result['counts'] == '4 3 10 2 1 2 1', f'uploads, declines (no texture, layout, format, overlap) and slow accesses counted: {result}')
-    check('regionUploads 4, declined noTarget 3 layout 10 format 2 overlap 1; slowReads 3, slowWrites 1; gpuSourceCopies 2, declined '
+    check(result['counts'] == '4 3 10 2 1 0 2 1', f'uploads, declines (no texture, layout, format, overlap, buffer) and slow accesses counted: {result}')
+    check(not result['bufferUploaded'] and result['bufferUntouched'] and result['bufferQuery'] == '10300 544' and
+          result['bufferCounts'] == '4 3 10 2 1 1 2 1',
+          f'a cached buffer over the written range declines the upload (tracked write instead), counted: {result}')
+    check('regionUploads 4, declined noTarget 3 layout 10 format 2 overlap 1 buffer 1; slowReads 3, slowWrites 1; gpuSourceCopies 2, declined '
           'noTexture 4 layout 3 noTarget 1 format 3 notModified 1; gpuRegionCopies 2, declined noTexture 2 layout 2 noTarget 2 '
           'format 3 notModified 1; gpuReadBacks 7 (into buffers 4, over textures 2: read-back targets 1, modified 2, buffer textures 2) '
           'of 15, first-access flushes 0 (0.0 ms, max 0.0 ms, GPU thread 0), '
@@ -1450,7 +1478,7 @@ namespace Ryujinx.Graphics.Vulkan
     result['renderStages'] = dict(stage_result, fields=sorted(values))
 
 inputs = ['build-utils/melonx/adapt_hogwarts_dma_copies.py', 'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
-          'test/melonx_hogwarts_dma_copies_test.py']
+          'build-utils/melonx/adapt_queued_syncpoints.py', 'test/melonx_hogwarts_dma_copies_test.py']
 receipt = dict(result='passed', checks=checks, physicalDeviceTested=False, fpsGainProven=False,
                sourceKind='deliveredPreparedWithFinalCandidate' if CANDIDATE else 'deliveredPreparedComposed',
                finalPreparedSourceBound=bool(CANDIDATE), attribution=result,
