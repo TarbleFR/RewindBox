@@ -55,7 +55,11 @@ KEYS = ('gpu.zcull_accuracy', 'debug.disable_occlusion', 'debug.emulate_depth_co
         # REWINDBOX_GPU_TIMING_621: Disabled measures the cost of the GPU timestamp probe.
         'experimental.gpu_timing',
         # REWINDBOX_ZCULL_DEMAND_BO2_621: ZCULL reports written on demand against the upstream waits.
-        'experimental.zcull_on_demand')
+        'experimental.zcull_on_demand',
+        # Core 627: per-game A/B tests of the optimizations.
+        'experimental.zcull_wait_guard', 'experimental.zcull_cond_no_wait', 'experimental.zcull_conservative_reports',
+        'experimental.spu_noop_spin_wait', 'experimental.spu_qos_below_rsx', 'experimental.fifo_nop_fast_path',
+        'experimental.light_measurement')
 
 
 def require(condition, message):
@@ -123,7 +127,8 @@ def app_contract() -> dict:
                        'debug.emulate_depth_compare': 'depth_compare', 'advanced.disable_msl_fast_math': 'msl_fast_math_off',
                        'debug.disable_vertex_cache': 'vertex_cache_off', 'gpu.shader_precision': None,
                        'experimental.position_invariance': 'invariance', 'experimental.moltenvk_async_submits': 'mvk_async',
-                       'experimental.gpu_timing': 'gpu_timing', 'experimental.zcull_on_demand': 'zcull_demand'},
+                       'experimental.gpu_timing': 'gpu_timing', 'experimental.zcull_on_demand': 'zcull_demand',
+                       **{key: 'levers627' for key in KEYS[10:]}},
             'menu reads other CONFIG_LAYERS part=rsx fields')
 
     # Menu wiring: the page is appended (existing pages keep their values) and reached from Graphics row 3.
@@ -191,7 +196,9 @@ def app_contract() -> dict:
     require(tuple(sorted(tables621)) == tuple(sorted(LOCALES)), 'Build621Translations locales: ' + repr(list(tables621)))
     require(all(tables621[locale].get('testGpuTiming', '').strip() for locale in LOCALES), 'testGpuTiming translations')
     require(all(tables621[locale].get('testZcullOnDemand', '').strip() for locale in LOCALES), 'testZcullOnDemand translations')
-    missing = sorted(key for key in used - base if key not in tables['en'] and key not in tables621['en'])
+    tables627 = l10n_tables(l10n, '627')
+    require(tuple(sorted(tables627)) == tuple(sorted(LOCALES)), 'Build627Translations locales: ' + repr(list(tables627)))
+    missing = sorted(key for key in used - base if key not in tables['en'] and key not in tables621['en'] and key not in tables627['en'])
     require(not missing, 'untranslated page keys: ' + repr(missing))
     return {'whitelist': allowed, 'locales': list(tables), 'keys': len(keys),
             'bridge_sha256': sha(BRIDGE.read_bytes()), 'menu_sha256': sha(MENU.read_bytes()),
@@ -246,7 +253,7 @@ def core_contract(source: Path) -> dict:
         require(kind in ('RPCS3_IOS_SETTING_BOOLEAN', 'RPCS3_IOS_SETTING_CHOICE'), key + ' cannot take @inherit')
         require(values <= accepted, f'{key}: the Core does not accept {sorted(values - accepted)}')
     for key in ('experimental.position_invariance', 'experimental.moltenvk_async_submits', 'experimental.gpu_timing',
-                'experimental.zcull_on_demand'):
+                'experimental.zcull_on_demand', *KEYS[10:]):
         require(entries[key][0] == 'GAME_SETTING' and entries[key][1] == 'RPCS3_IOS_SETTING_CHOICE', key + ' entry kind')
 
     # "@inherit" in the API, before any value parsing, never for text keys or full custom configs.

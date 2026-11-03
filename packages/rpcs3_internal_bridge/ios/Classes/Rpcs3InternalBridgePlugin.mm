@@ -832,6 +832,14 @@ static NSDictionary<NSString*, NSArray<NSString*>*>* RPCS3TestSettingValues(void
       @"experimental.moltenvk_async_submits": @[@"Enabled", @"Disabled"],
       @"experimental.gpu_timing": @[@"Enabled", @"Disabled"],  // REWINDBOX_GPU_TIMING_621
       @"experimental.zcull_on_demand": @[@"Enabled", @"Disabled"],  // REWINDBOX_ZCULL_DEMAND_BO2_621
+      // Core 627: per-game A/B tests of the optimizations.
+      @"experimental.zcull_wait_guard": @[@"Enabled", @"Disabled"],
+      @"experimental.zcull_cond_no_wait": @[@"Enabled", @"Disabled"],
+      @"experimental.zcull_conservative_reports": @[@"Enabled", @"Disabled"],
+      @"experimental.spu_noop_spin_wait": @[@"Enabled", @"Disabled"],
+      @"experimental.spu_qos_below_rsx": @[@"Enabled", @"Disabled"],
+      @"experimental.fifo_nop_fast_path": @[@"Enabled", @"Disabled"],
+      @"experimental.light_measurement": @[@"Enabled", @"Disabled"],
     };
   });
   return values;

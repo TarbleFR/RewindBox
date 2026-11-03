@@ -57,6 +57,22 @@ static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
       // (Automatic: Assassin's Creed and Black Ops II) against the upstream GPU waits.
       @{@"key": @"experimental.zcull_on_demand", @"title": @"testZcullOnDemand", @"field": @"zcull_demand",
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // Core 627: per-game A/B tests of the optimizations. CONFIG_LAYERS part=rsx levers627= holds
+      // their resolved state, one digit per lever, in this order (the journal: Resolved title policy 627).
+      @{@"key": @"experimental.zcull_wait_guard", @"title": @"testZcullWaitGuard", @"field": @"levers627", @"bit": @0,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.zcull_cond_no_wait", @"title": @"testZcullCondNoWait", @"field": @"levers627", @"bit": @1,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.zcull_conservative_reports", @"title": @"testZcullConservative", @"field": @"levers627", @"bit": @2,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.spu_noop_spin_wait", @"title": @"testSpuNoopSpinWait", @"field": @"levers627", @"bit": @3,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.spu_qos_below_rsx", @"title": @"testSpuQos", @"field": @"levers627", @"bit": @4,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.fifo_nop_fast_path", @"title": @"testFifoNopFast", @"field": @"levers627", @"bit": @5,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.light_measurement", @"title": @"testLightMeasurement", @"field": @"levers627", @"bit": @6,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
     ];
   });
   return levers;
@@ -343,6 +359,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   if (!state.count) return [self text:@"testUnknown"];
   NSString* key = lever[@"key"];
   NSString* label = nil;
+  BOOL explicitValue = NO;
   if ([key isEqual:@"gpu.zcull_accuracy"]) {
     label = [state[@"relaxed_zcull"] isEqual:@"true"] ? @"zcullRelaxed"
         : ([state[@"precise_zpass"] isEqual:@"true"] ? @"zcullPrecise" : @"zcullApproximate");
@@ -350,6 +367,14 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
     NSString* precision = state[@"shader_precision"];
     label = @{@"Low": @"precisionLow", @"High": @"precisionHigh", @"Ultra": @"precisionUltra"}[precision ?: @""];
     if (!label) return precision.length ? precision : [self text:@"testUnknown"];
+  } else if (lever[@"bit"]) {
+    // Core 627: one digit of levers627= per lever: 1 when it is on, plus 2 for an explicit value.
+    NSString* digits = state[lever[@"field"]];
+    const NSUInteger bit = [lever[@"bit"] unsignedIntegerValue];
+    if (digits.length <= bit) return [self text:@"testUnknown"];
+    const NSInteger digit = [digits characterAtIndex:bit] - '0';
+    label = (digit & 1) ? @"enabled" : @"disabled";
+    explicitValue = (digit & 2) != 0;
   } else {
     NSString* value = state[lever[@"field"]];
     if (!value.length) return [self text:@"testUnknown"];
@@ -362,7 +387,7 @@ static void RPCS3MenuOnMain(dispatch_block_t block) {
   NSString* overrideKeys = state[@"overrides"] ?: @"";
   NSArray<NSString*>* overrides = [overrideKeys componentsSeparatedByString:@","];
   NSString* source = [self accuracyLegacy] ? @"testSourceCustom"
-      : ([overrides containsObject:key] ? @"testSourceTest" : @"testSourceProfile");
+      : ((explicitValue || [overrides containsObject:key]) ? @"testSourceTest" : @"testSourceProfile");
   return [NSString stringWithFormat:@"%@ · %@", [self text:label], [self text:source]];
 }
 

@@ -14487,7 +14487,7 @@ index 19df83c..d76dde4 100644
  
  		if (ppu.state & cpu_flag::signal)
 diff --git a/rpcs3/Emu/Cell/lv2/sys_fs.cpp b/rpcs3/Emu/Cell/lv2/sys_fs.cpp
-index 79c74da..f5d1993 100644
+index 79c74da..16410dd 100644
 --- a/rpcs3/Emu/Cell/lv2/sys_fs.cpp
 +++ b/rpcs3/Emu/Cell/lv2/sys_fs.cpp
 @@ -1,4 +1,7 @@
@@ -14718,6 +14718,20 @@ index 79c74da..f5d1993 100644
  }
  
  void lv2_dir::save(utils::serial& ar)
+@@ -1519,7 +1634,13 @@ error_code sys_fs_opendir(ppu_thread& ppu, vm::cptr<char> path, vm::ptr<u32> fd)
+ 
+ 	if (fs::is_file(local_path))
+ 	{
++#ifdef RPCS3_IOS
++		// REWINDBOX_LIGHT_MEASUREMENT_627: the same answer to the guest, without an error line:
++		// Black Ops II walks its tree with opendir and asks this for every file at boot (315 lines).
++		return not_an_error(CELL_ENOTDIR);
++#else
+ 		return {CELL_ENOTDIR, path};
++#endif
+ 	}
+ 
+ 	std::unique_lock lock(mp->mutex);
 diff --git a/rpcs3/Emu/Cell/lv2/sys_game.cpp b/rpcs3/Emu/Cell/lv2/sys_game.cpp
 index db2bbe4..ad7e57e 100644
 --- a/rpcs3/Emu/Cell/lv2/sys_game.cpp
@@ -19347,6 +19361,24 @@ index 17c0d18..c698e8b 100644
  						});
  						return page_navigation::exit;
  					});
+diff --git a/rpcs3/Emu/RSX/Overlays/overlay_controls.cpp b/rpcs3/Emu/RSX/Overlays/overlay_controls.cpp
+index 84d52dd..f4db396 100644
+--- a/rpcs3/Emu/RSX/Overlays/overlay_controls.cpp
++++ b/rpcs3/Emu/RSX/Overlays/overlay_controls.cpp
+@@ -101,7 +101,13 @@ namespace rsx
+ 
+ 			if (!f)
+ 			{
++#ifdef RPCS3_IOS
++				// REWINDBOX_LIGHT_MEASUREMENT_627: the bundle has no overlay icons, each of the 15 is
++				// tried in three places at every boot.
++				rsx_log.trace("Image resource file `%s' could not be opened (%s)", filename, fs::g_tls_error);
++#else
+ 				rsx_log.error("Image resource file `%s' could not be opened (%s)", filename, fs::g_tls_error);
++#endif
+ 				return;
+ 			}
+ 
 diff --git a/rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp b/rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp
 index 0178ba5..ab8c6b1 100644
 --- a/rpcs3/Emu/RSX/Program/Assembler/FPToCFG.cpp
@@ -20979,7 +21011,7 @@ index a710d66..f6c2cbc 100644
  
  	color4f fragment_texture::remapped_border_color(bool apply_colorspace_remapping) const
 diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
-index dff27c6..5aa8fdc 100644
+index dff27c6..d6f4b9e 100644
 --- a/rpcs3/Emu/RSX/RSXThread.cpp
 +++ b/rpcs3/Emu/RSX/RSXThread.cpp
 @@ -26,6 +26,20 @@
@@ -21490,7 +21522,7 @@ index dff27c6..5aa8fdc 100644
  		if (zcull_ctrl->has_pending())
  		{
  			// NOTE: This is a workaround for buggy games.
-@@ -3481,9 +3643,60 @@ namespace rsx
+@@ -3481,9 +3643,61 @@ namespace rsx
  			thread_ctrl::wait_for(30'000);
  		}
  
@@ -21540,7 +21572,8 @@ index dff27c6..5aa8fdc 100644
 +			rpcs3::ios::gpu_timing::instance().on_frame(int_flip_index);
 +		}
 +		static u64 s_ios_frame_ordinal = 0;
-+		const bool ios_sample_frame = (++s_ios_frame_ordinal % rpcs3::ios::rsx_sync::rsx_frame_sample_period) == 0;
++		const bool ios_sample_frame = (++s_ios_frame_ordinal % rpcs3::ios::rsx_sync::rsx_frame_sample_period) == 0 &&
++			!rpcs3::ios::get_experimental_policy().light_measurement; // REWINDBOX_LIGHT_MEASUREMENT_627
 +#endif
  		// Reset current stats
  		m_frame_stats = {};
@@ -21551,7 +21584,7 @@ index dff27c6..5aa8fdc 100644
  	}
  
  	f64 thread::get_cached_display_refresh_rate()
-@@ -3538,6 +3751,9 @@ namespace rsx
+@@ -3538,6 +3752,9 @@ namespace rsx
  			async_flip_requested |= flip_request::emu_requested;
  
  			m_eng_interrupt_mask |= rsx::display_interrupt;
@@ -29494,7 +29527,7 @@ index 7cfb22d..88a56d2 100644
  		bool test(u32 reg, u32 value) const;
  
 diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
-index 1f53c64..c7cf8b7 100644
+index 1f53c64..d38cae7 100644
 --- a/rpcs3/Emu/System.cpp
 +++ b/rpcs3/Emu/System.cpp
 @@ -1,4 +1,7 @@
@@ -29862,7 +29895,7 @@ index 1f53c64..c7cf8b7 100644
  			// Disable incompatible settings
  			fixup_settings(&_psf, inherited_psf_resolution);
  
-@@ -1847,6 +2039,124 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -1847,6 +2039,141 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  			}
  			g_cfg.misc.use_native_interface.set(true);
  			rpcs3::ios::resolve_experimental_policy();
@@ -29959,6 +29992,23 @@ index 1f53c64..c7cf8b7 100644
 +					ios_rsx.mvk_async = rpcs3::ios::get_experimental_policy().moltenvk_async_submits;
 +					ios_rsx.gpu_timing = rpcs3::ios::get_experimental_policy().gpu_timing; // REWINDBOX_GPU_TIMING_621
 +					ios_rsx.zcull_demand = rpcs3::ios::get_experimental_policy().zcull_on_demand; // REWINDBOX_ZCULL_DEMAND_BO2_621
++					// Core 627: the state the accuracy test page shows, in the order of its rows: one
++					// digit per lever, 1 when it is on, plus 2 when its setting is not Automatic.
++					const auto& ios_levers = rpcs3::ios::get_experimental_policy();
++					const auto& ios_lever_settings = g_cfg.ios_experimental;
++					std::string ios_levers627;
++					const auto ios_add_lever = [&](bool lever, const cfg::_enum<ios_experimental_mode>& setting)
++					{
++						ios_levers627 += static_cast<char>('0' + (lever ? 1 : 0) + (setting.get() != ios_experimental_mode::automatic ? 2 : 0));
++					};
++					ios_add_lever(ios_levers.zcull_wait_guard, ios_lever_settings.zcull_wait_guard);
++					ios_add_lever(ios_levers.zcull_cond_no_wait, ios_lever_settings.zcull_cond_no_wait);
++					ios_add_lever(ios_levers.zcull_conservative_reports, ios_lever_settings.zcull_conservative_reports);
++					ios_add_lever(ios_levers.spu_noop_spin_wait, ios_lever_settings.spu_noop_spin_wait);
++					ios_add_lever(ios_levers.spu_qos_below_rsx, ios_lever_settings.spu_qos_below_rsx);
++					ios_add_lever(ios_levers.fifo_nop_fast_path, ios_lever_settings.fifo_nop_fast_path);
++					ios_add_lever(ios_levers.light_measurement, ios_lever_settings.light_measurement);
++					ios_rsx.levers627 = ios_levers627;
 +					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
 +					ios_rsx.overrides = ios_override_keys;
 +					sys_log.notice("%s", rpcs3::ios::boot_diagnostics::format_config_rsx_line(ios_rsx));
@@ -29987,7 +30037,7 @@ index 1f53c64..c7cf8b7 100644
  #endif
  
  			// Backup config
-@@ -2504,7 +2814,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2504,7 +2831,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				sys_log.warning("State Inspection Savestate Mode!");
  
  				vm::init();
@@ -30002,7 +30052,7 @@ index 1f53c64..c7cf8b7 100644
  
  				if (!hdd1.empty())
  				{
-@@ -2513,6 +2830,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2513,6 +2847,9 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  				}
  
  				init_fxo_for_exec(DeserialManager(), true);
@@ -30012,7 +30062,7 @@ index 1f53c64..c7cf8b7 100644
  
  				return game_boot_result::no_errors;
  			}
-@@ -2586,7 +2906,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2586,7 +2923,14 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  		{
  			if (m_ar)
  			{
@@ -30027,7 +30077,7 @@ index 1f53c64..c7cf8b7 100644
  			}
  
  			// Mount /host_root/ if necessary (special value)
-@@ -2709,7 +3036,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+@@ -2709,7 +3053,27 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
  
  			const auto _main = ensure(g_fxo->init<main_ppu_module<lv2_obj>>());
  
@@ -30056,7 +30106,7 @@ index 1f53c64..c7cf8b7 100644
  			{
  				if (g_cfg.core.ppu_debug && had_been_decrypted)
  				{
-@@ -2864,6 +3211,11 @@ void Emulator::Run(bool start_playtime)
+@@ -2864,6 +3228,11 @@ void Emulator::Run(bool start_playtime)
  void Emulator::RunPPU()
  {
  	ensure(IsStarting());
@@ -30068,7 +30118,7 @@ index 1f53c64..c7cf8b7 100644
  
  	bool signalled_thread = false;
  
-@@ -2943,6 +3295,10 @@ void Emulator::FixGuestTime()
+@@ -2943,6 +3312,10 @@ void Emulator::FixGuestTime()
  
  void Emulator::FinalizeRunRequest()
  {
@@ -30079,7 +30129,7 @@ index 1f53c64..c7cf8b7 100644
  	const bool autostart = !m_ar || !!g_cfg.misc.autostart;
  
  	bs_t<cpu_flag> add_flags = cpu_flag::dbg_global_pause;
-@@ -2989,7 +3345,25 @@ void Emulator::FinalizeRunRequest()
+@@ -2989,7 +3362,25 @@ void Emulator::FinalizeRunRequest()
  	lv2_obj::make_scheduler_ready();
  
  	m_state.compare_and_swap_test(system_state::starting, system_state::running);
@@ -30105,7 +30155,7 @@ index 1f53c64..c7cf8b7 100644
  	m_ar.reset();
  
  	if (!autostart)
-@@ -3479,6 +3853,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3479,6 +3870,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  							// Reset after_kill_callback (which is usually used for Emu.Restart in combination with savestates)
  							Emu.after_kill_callback = nullptr;
@@ -30118,7 +30168,7 @@ index 1f53c64..c7cf8b7 100644
  						}
  					}
  				} success_guard {};
-@@ -3493,9 +3873,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3493,9 +3890,22 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  				std::vector<std::pair<shared_ptr<named_thread<spu_thread>>, u32>> paused_spus;
  
@@ -30141,7 +30191,7 @@ index 1f53c64..c7cf8b7 100644
  
  					if (!g_cfg.savestate.compatible_mode)
  					{
-@@ -3536,6 +3929,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3536,6 +3946,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (vdec_error)
  					{
@@ -30149,7 +30199,7 @@ index 1f53c64..c7cf8b7 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_VDEC);
  
  						sys_log.error("Failed to savestate: HLE VDEC (video decoder) context(s) exist."
-@@ -3546,6 +3940,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3546,6 +3957,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (savedata_error)
  					{
@@ -30157,7 +30207,7 @@ index 1f53c64..c7cf8b7 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  
  						sys_log.error("Failed to savestate: Savedata operation is active."
-@@ -3555,6 +3950,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3555,6 +3967,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  					if (sysutil_error)
  					{
@@ -30165,7 +30215,7 @@ index 1f53c64..c7cf8b7 100644
  						rsx::overlays::queue_message(localized_string_id::SAVESTATE_FAILED_DUE_TO_SAVEDATA);
  						sys_log.error("Failed to savestate: pending sysutil callbacks did not complete before the timeout.");
  					}
-@@ -3642,6 +4038,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3642,6 +4055,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  		// Ensure clean state
  		reset_emu_state();
  		after_kill_callback = nullptr;
@@ -30176,7 +30226,7 @@ index 1f53c64..c7cf8b7 100644
  
  		// Enable logging
  		rpcs3::utils::configure_logs(true);
-@@ -3704,7 +4104,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3704,7 +4121,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		auto verbose_message = std::make_shared<atomic_ptr<std::string>>();
  		auto init_mtx = std::make_shared<stx::init_mutex>();
@@ -30185,7 +30235,7 @@ index 1f53c64..c7cf8b7 100644
  		auto to_ar = std::make_shared<atomic_ptr<utils::serial>>();
  
  		auto stop_watchdog = make_ptr(new named_thread("Stop Watchdog"sv,
-@@ -3818,6 +4218,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3818,6 +4235,14 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  			constexpr std::string_view save = ".SAVESTAT";
  			path.resize(path.rfind(save) + save.size());
  			path += ".zst";
@@ -30200,7 +30250,7 @@ index 1f53c64..c7cf8b7 100644
  
  			if (!fs::create_path(fs::get_parent_dir(path)))
  			{
-@@ -3845,6 +4253,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3845,6 +4270,7 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  		if (savestate)
  		{
@@ -30208,7 +30258,7 @@ index 1f53c64..c7cf8b7 100644
  			// Savestate thread
  			named_thread emu_state_cap_thread("Emu State Capture Thread", [&]()
  			{
-@@ -3962,7 +4371,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -3962,7 +4388,13 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  					const auto iso_dev = dynamic_cast<const iso_device*>(device.get());
  
  					ar(m_path.substr(iso_device::virtual_device_name.size() + 1));
@@ -30222,7 +30272,7 @@ index 1f53c64..c7cf8b7 100644
  				}
  				else if (auto dir = vfs::get("/dev_bdvd/PS3_GAME"); fs::is_dir(dir) && !fs::is_file(fs::get_parent_dir(dir) + "/PS3_DISC.SFB"))
  				{
-@@ -4011,6 +4426,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4011,6 +4443,12 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				// Final file write, the file is ready to be committed
  				ar.seek_end();
  				ar.m_file_handler->finalize(ar);
@@ -30235,7 +30285,7 @@ index 1f53c64..c7cf8b7 100644
  			});
  
  			// Join it
-@@ -4075,10 +4496,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4075,10 +4513,19 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  				const u64 max_files = g_cfg.savestate.max_files;
  				const u64 max_files_size_mb = g_cfg.savestate.max_files_size;
  
@@ -30255,7 +30305,7 @@ index 1f53c64..c7cf8b7 100644
  		// Log additional debug information - do not do it on the main thread due to the concern of halting UI events
  
  		if (g_tty && sys_log.notice)
-@@ -4214,6 +4644,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
+@@ -4214,6 +4661,10 @@ void Emulator::Kill(bool allow_autoexit, bool savestate, savestate_stage* save_s
  
  			lv2_obj::cleanup();
  
@@ -30266,7 +30316,7 @@ index 1f53c64..c7cf8b7 100644
  			g_fxo->reset();
  
  			sys_log.notice("Objects cleared...");
-@@ -4308,10 +4742,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
+@@ -4308,10 +4759,25 @@ game_boot_result Emulator::Restart(bool graceful, bool reset_path)
  {
  	if (m_state == system_state::stopping)
  	{
@@ -30292,7 +30342,7 @@ index 1f53c64..c7cf8b7 100644
  	Emu.after_kill_callback = [this, reset_path]
  	{
  		// Reset boot path in case of ISO
-@@ -4381,6 +4830,9 @@ bool Emulator::Quit(bool force_quit)
+@@ -4381,6 +4847,9 @@ bool Emulator::Quit(bool force_quit)
  
  void Emulator::CleanUp()
  {
@@ -30467,7 +30517,7 @@ index 130f54b..4c096c9 100644
  void clean_savestates(std::string_view title_id, std::string_view boot_path, usz max_files, usz max_files_size);
 +void clean_orphaned_savestate_temps();
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 7072922..7e6e0f4 100644
+index 7072922..b3c50aa 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
 @@ -26,6 +26,9 @@ struct cfg_root : cfg::node
@@ -30524,7 +30574,7 @@ index 7072922..7e6e0f4 100644
  
  		cfg::_enum<ios_experimental_mode> neon_byte_swap{ this, "ARM64 Byte-Swap Uploads", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> neon_primitive_restart{ this, "ARM64 Primitive-Restart Uploads", ios_experimental_mode::automatic };
-@@ -134,6 +165,40 @@ struct cfg_root : cfg::node
+@@ -134,6 +165,42 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> vulkan_command_buffer_reclamation{ this, "Vulkan Command-Buffer Reclamation", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> expanded_spu_scratch{ this, "Expanded ARM64 SPU Scratch", ios_experimental_mode::automatic };
  		cfg::_enum<ios_experimental_mode> persistent_spu_object_cache{ this, "Persistent SPU Object Cache", ios_experimental_mode::automatic };
@@ -30554,6 +30604,8 @@ index 7072922..7e6e0f4 100644
 +		cfg::_enum<ios_experimental_mode> spu_qos_below_rsx{ this, "SPU QoS Below RSX And PPU", ios_experimental_mode::automatic };
 +		// REWINDBOX_FIFO_NOP_FAST_627 (RSXFIFO.cpp): Automatic is Black Ops II and God of War III.
 +		cfg::_enum<ios_experimental_mode> fifo_nop_fast_path{ this, "RSX FIFO NOP Fast Path", ios_experimental_mode::automatic };
++		// REWINDBOX_LIGHT_MEASUREMENT_627: Automatic is off; Enabled leaves only the COREPROF synthesis line.
++		cfg::_enum<ios_experimental_mode> light_measurement{ this, "Light Measurement Profile", ios_experimental_mode::automatic };
 +
 +		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L5, L9; L3 is the
 +		// Bounded sleep value of fifo_idle_mode above). Defaults keep the Build
@@ -41582,10 +41634,10 @@ index 0000000..6e4c976
 +}
 diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
 new file mode 100644
-index 0000000..e3cf8be
+index 0000000..724d75e
 --- /dev/null
 +++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
-@@ -0,0 +1,597 @@
+@@ -0,0 +1,599 @@
 +#pragma once
 +
 +// NEOSTATION_BUILD487_DIAGNOSTICS_V1: boot observability of the embedded Core
@@ -42033,6 +42085,7 @@ index 0000000..e3cf8be
 +		bool mvk_async = false;         // resolved request of this boot
 +		bool gpu_timing = false;        // REWINDBOX_GPU_TIMING_621: resolved probe setting
 +		bool zcull_demand = false;      // REWINDBOX_ZCULL_DEMAND_BO2_621: resolved ZCULL on-demand reads
++		std::string_view levers627;     // Core 627: the test-page levers, one digit each: 1 on, +2 explicit value
 +		bool legacy_custom = false;     // a full custom config was applied (tests would change it)
 +		std::string_view overrides;     // every applied sparse override key; filtered when formatted
 +	};
@@ -42062,6 +42115,7 @@ index 0000000..e3cf8be
 +		append_u32(line, "mvk_async", rsx.mvk_async ? 1u : 0u);
 +		append_u32(line, "gpu_timing", rsx.gpu_timing ? 1u : 0u);
 +		append_u32(line, "zcull_demand", rsx.zcull_demand ? 1u : 0u);
++		append_text(line, "levers627", rsx.levers627, 8);
 +		append_u32(line, "legacy_custom", rsx.legacy_custom ? 1u : 0u);
 +		const std::string reported = filter_rsx_override_keys(rsx.overrides);
 +		append_text(line, "overrides", reported, rsx_overrides_limit);
@@ -42337,7 +42391,7 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..e5bbbe5 100644
+index 7c3389b..1779274 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -1,10 +1,31 @@
@@ -42650,7 +42704,7 @@ index 7c3389b..e5bbbe5 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +336,172 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +336,178 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -42701,8 +42755,10 @@ index 7c3389b..e5bbbe5 100644
 +	// REWINDBOX_ZCLIP_PINNED_AFFINE_619: the title list, on top of the 616 fallback.
 +	resolved.zclip_pinned_affine = resolved.zclip_fallback_window_z &&
 +		rpcs3::ios::title_levers::requires_zclip_pinned_affine(title_id);
++	// REWINDBOX_LIGHT_MEASUREMENT_627: only a per-game choice.
++	resolved.light_measurement = resolve_mode(g_cfg.ios_experimental.light_measurement, false);
 +	// REWINDBOX_GPU_TIMING_621: on unless a per-game test value disables it.
-+	resolved.gpu_timing = resolve_mode(g_cfg.ios_experimental.gpu_timing, true);
++	resolved.gpu_timing = !resolved.light_measurement && resolve_mode(g_cfg.ios_experimental.gpu_timing, true);
 +
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
 +	resolve_spu_spin_timing(resolved);
@@ -42765,6 +42821,10 @@ index 7c3389b..e5bbbe5 100644
 +		resolved.zcull_on_demand, resolved.zclip_pinned_affine, resolved.moltenvk_async_submits);
 +	// REWINDBOX_GPU_TIMING_621: its own line.
 +	ios_experimental_log.notice("Resolved title policy 621: gpu_timing=%d zcull_on_demand=%d", resolved.gpu_timing, resolved.zcull_on_demand);
++	// Core 627: its own line, the values of the new options of this boot.
++	ios_experimental_log.notice("Resolved title policy 627: zcull_wait_guard=%d zcull_cond_no_wait=%d zcull_conservative_reports=%d spu_noop_spin_wait=%d spu_qos_below_rsx=%d fifo_nop_fast_path=%d light_measurement=%d",
++		resolved.zcull_wait_guard, resolved.zcull_cond_no_wait, resolved.zcull_conservative_reports, resolved.spu_noop_spin_wait,
++		resolved.spu_qos_below_rsx, resolved.fifo_nop_fast_path, resolved.light_measurement);
 +}
 +
 +void apply_spu_spin_timing_policy() noexcept
@@ -42834,7 +42894,7 @@ index 7c3389b..e5bbbe5 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..ecf91a1 100644
+index 8fba197..8691f4f 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -42874,7 +42934,7 @@ index 8fba197..ecf91a1 100644
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,14 +43,98 @@ struct experimental_policy
+@@ -20,14 +43,102 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -42911,6 +42971,10 @@ index 8fba197..ecf91a1 100644
 +	bool spu_qos_below_rsx = false;
 +	// REWINDBOX_FIFO_NOP_FAST_627 (RSXFIFO.cpp): a NOP in the command stream is not an idle period.
 +	bool fifo_nop_fast_path = false;
++	// REWINDBOX_LIGHT_MEASUREMENT_627: a run for frame rates: no GPU timing probe, no sampled
++	// frame stages, no signal trace, no FREEZE_DUMP, and of the per-window COREPROF lines only
++	// the synthesis line (COREPROF frames=...). Causes need a run with the normal journals.
++	bool light_measurement = false;
 +	// REWINDBOX_ZCLIP_PINNED_AFFINE_619 (ios/IOSTitleLevers.h): with the 616 fallback,
 +	// a clip range wholly above 1 maps every vertex affinely onto [0.99, 1].
 +	bool zclip_pinned_affine = false;
@@ -44115,7 +44179,7 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..3775840 100644
+index d800542..cf69196 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,199 @@
@@ -44318,7 +44382,7 @@ index d800542..3775840 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +211,533 @@ u64 process_memory_footprint()
+@@ -38,31 +211,534 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -44556,7 +44620,8 @@ index d800542..3775840 100644
 +		m_profile_session.fetch_add(1, std::memory_order_relaxed);
 +		rpcs3::ios::frame_trace::profile.reset(m_profile_session.load(std::memory_order_relaxed));
 +		rpcs3::ios::renderer_causality::profile.reset(m_profile_session.load(std::memory_order_relaxed));
-+		rpcs3::ios::signal_trace::reset(m_profile_session.load(std::memory_order_relaxed), true);
++		// REWINDBOX_LIGHT_MEASUREMENT_627: no signal trace in a light run.
++		rpcs3::ios::signal_trace::reset(m_profile_session.load(std::memory_order_relaxed), !rpcs3::ios::get_experimental_policy().light_measurement);
 +		m_last_signal_dump_us = 0;
 +		m_profile_guest_baseline = 0;
 +		m_last_guest_flip_tsc.store(0, std::memory_order_relaxed);
@@ -44630,8 +44695,8 @@ index d800542..3775840 100644
 +			peak, pending_jobs, std::memory_order_relaxed))
 +		{
 +		}
- 	}
- 
++	}
++
 +	void record_pipeline_job_completed(u64 queue_wait_ticks, u64 compile_ticks) noexcept
 +	{
 +		rpcs3::ios::pipeline_queue::on_completed(queue_wait_ticks, compile_ticks); // REWINDBOX_PIPELINE_QUEUE_621
@@ -44667,8 +44732,8 @@ index d800542..3775840 100644
 +		m_event_costs[3].record(wait_ticks);
 +		m_range_episodes.record(wait_ticks, true);
 +		update_max(m_range_iterations_max, iterations);
-+	}
-+
+ 	}
+ 
 +	void record_writer_lock(u32 source, u64 acquire_ticks, u64 hold_ticks) noexcept
 +	{
 +		m_writer_counters.record(source, acquire_ticks, hold_ticks);
@@ -44862,7 +44927,7 @@ index d800542..3775840 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +747,10 @@ public:
+@@ -72,10 +748,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -44875,7 +44940,7 @@ index d800542..3775840 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +783,1181 @@ public:
+@@ -108,12 +784,1196 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -45035,7 +45100,9 @@ index d800542..3775840 100644
 +		}
 +		// The episode's dump is retried on later samples until it is taken (a busy
 +		// idm lock or a state change makes the dump give up without logging).
-+		if (result.dump && neostation_freeze_dump(result.reason, result.no_frames_s, result.begin_busiest_cores, result.episode))
++		// REWINDBOX_LIGHT_MEASUREMENT_627: no dump in a light run.
++		if (result.dump && !rpcs3::ios::get_experimental_policy().light_measurement &&
++			neostation_freeze_dump(result.reason, result.no_frames_s, result.begin_busiest_cores, result.episode))
 +		{
 +			m_freeze_episode.dump_taken(now_us);
 +		}
@@ -45043,6 +45110,18 @@ index d800542..3775840 100644
 +
 +	void report_profile_window()
 +	{
++		// REWINDBOX_LIGHT_MEASUREMENT_627: a light run lowers this channel for the per-window lines
++		// of this report only (its own filter: they are not even formatted). The boot's level comes
++		// back for the synthesis line and stays between windows: FIRSTFLIP and FREEZE_EPISODE keep
++		// their lines, and Silence all logs keeps the channel silent.
++		const bool ios_light = rpcs3::ios::get_experimental_policy().light_measurement;
++		const logs::level ios_channel_level = ios_core_profiler.enabled.load();
++
++		if (ios_light && ios_channel_level > logs::level::warning)
++		{
++			ios_core_profiler.enabled.release(logs::level::warning);
++		}
++
 +		u64 current_frames = 0;
 +		const u64 frequency = utils::get_tsc_freq();
 +		std::array<double, core_group_count> average_cores{};
@@ -46007,6 +46086,7 @@ index d800542..3775840 100644
 +		const std::string top_list = rpcs3::ios::profiler::format_top_list(
 +			rpcs3::ios::profiler::top_threads(std::move(top_accumulated), usage_samples));
 +
++		ios_core_profiler.enabled.release(ios_channel_level); // REWINDBOX_LIGHT_MEASUREMENT_627
 +		ios_core_profiler.notice(
 +			"COREPROF frames=%llu avg_fps=%.3f low1_fps=%.3f frametime_ms=%.3f p95_ms=%.3f p99_ms=%.3f "
 +			"ppu_ms=%.3f spu_ms=%.3f rsx_ms=%.3f jit_ms=%.3f gpu_time_ms=-1 "
@@ -46059,7 +46139,7 @@ index d800542..3775840 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1965,93 @@ private:
+@@ -121,6 +1981,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -46153,7 +46233,7 @@ index d800542..3775840 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +2059,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2075,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -46247,7 +46327,7 @@ index d800542..3775840 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2156,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2172,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -46376,7 +46456,7 @@ index d800542..3775840 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2287,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2303,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -46983,7 +47063,7 @@ index 0000000..dcc1fad
 +}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
-index b7b0474..922b9a9 100644
+index b7b0474..ef23154 100644
 --- a/rpcs3/ios/RPCS3IOSSettings.cpp
 +++ b/rpcs3/ios/RPCS3IOSSettings.cpp
 @@ -1,5 +1,8 @@
@@ -47011,7 +47091,7 @@ index b7b0474..922b9a9 100644
  	SETTING("advanced.read_color_buffers", "Advanced", "GPU Compatibility", "Read color buffers", "Allows the CPU to read rendered color-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_color_buffers, 0, 1, 1),
  	SETTING("advanced.read_depth_buffer", "Advanced", "GPU Compatibility", "Read depth buffers", "Allows the CPU to read rendered depth-buffer data.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.read_depth_buffer, 0, 1, 1),
  	SETTING("advanced.write_depth_buffer", "Advanced", "GPU Compatibility", "Write depth buffers", "Mirrors depth-buffer data into emulated memory.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.video.write_depth_buffer, 0, 1, 1),
-@@ -122,21 +126,48 @@ const std::array catalog{
+@@ -122,21 +126,55 @@ const std::array catalog{
  	SETTING("experimental.fps_optimization_batch", "Experimental", "FPS Experiments", "FPS optimization batch", "Enables the DMA copy and large-texture hash experiments together on the next boot. Automatic is disabled. Individual overrides take precedence. Gameplay benefit requires device profiling.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fps_optimization_batch, 0, 0, 0),
  	SETTING("experimental.dma_copy_specialization", "Experimental", "FPS Experiments", "Specialize small DMA copies", "Tests fixed-size copies for 64 to 128 bytes while retaining DMA synchronization. Automatic follows FPS optimization batch; Disabled restores the original copy loop. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.dma_copy_specialization, 0, 0, 0),
  	SETTING("experimental.texture_hash_hybrid", "Experimental", "FPS Experiments", "Hybrid large-texture hash", "Tests a different ARM64 implementation of the same hash for ranges of at least 4 KiB. Every byte is still checked. Automatic follows FPS optimization batch; Disabled restores the original hash. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_hash_hybrid, 0, 0, 0),
@@ -47047,6 +47127,13 @@ index b7b0474..922b9a9 100644
 +	// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): the accuracy test page can switch the probe off to measure its cost.
 +	GAME_SETTING("experimental.gpu_timing", "Experimental", "MoltenVK", "GPU timing probe", "Records the GPU execution time of the RSX command buffers with two Vulkan timestamps each, read after they complete, for the performance journal. Automatic and Enabled keep it on; Disabled measures what it costs. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gpu_timing, 0, 0, 0),
 +	GAME_SETTING("experimental.zcull_on_demand", "Experimental", "ZCULL", "ZCULL on-demand reads", "Once the game touches its ZCULL report memory, writes the occlusion reports only when a game thread reads them, instead of waiting for the GPU at every report label. Automatic follows the title list (Assassin's Creed, Black Ops II); Enabled and Disabled test the other mode. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_on_demand, 0, 0, 0),
++	GAME_SETTING("experimental.zcull_wait_guard", "Experimental", "ZCULL", "ZCULL on-demand wait guard", "Returns the ZCULL on-demand reads to the upstream mode when game threads wait too long for reports. Automatic keeps it off for the titles of that lever, whose game threads have to wait for the GPU in either mode; Enabled restores it. The deadlines that protect against a request never served always stay on. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_wait_guard, 0, 0, 0),
++	GAME_SETTING("experimental.zcull_cond_no_wait", "Experimental", "ZCULL", "ZCULL conditional draw without waiting", "With ZCULL on-demand reads, draws an object whose occlusion result is still on the GPU instead of waiting for it. An object that turns out to be hidden stays hidden behind what covers it, at the cost of its GPU time. Automatic follows the title list (Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_cond_no_wait, 0, 0, 0),
++	GAME_SETTING("experimental.zcull_conservative_reports", "Experimental", "ZCULL", "ZCULL conservative reports", "Occlusion reports read as visible from the moment they are queued until the GPU result replaces them, so neither the RSX thread nor a game thread ever waits for one. A game may then show an occluded effect for a frame or two; check for flicker on the same scene. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_conservative_reports, 0, 0, 0),
++	GAME_SETTING("experimental.fifo_nop_fast_path", "Experimental", "RSX FIFO", "RSX FIFO NOP fast path", "Keeps the RSX thread in its running state across NOP commands of the game's command stream instead of timing each one as an idle period. Automatic follows the title list (God of War III, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fifo_nop_fast_path, 0, 0, 0),
++	GAME_SETTING("experimental.spu_noop_spin_wait", "Experimental", "SPU", "SPU no-op spin wait", "An SPU thread that polls a reservation by writing back unchanged data sleeps for a bounded time before its next read, which leaves its core to the PPU and RSX threads. Automatic follows the title list (God of War III, Black Ops II). No effect on compiled code or caches. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_noop_spin_wait, 0, 0, 0),
++	GAME_SETTING("experimental.spu_qos_below_rsx", "Experimental", "SPU", "SPU QoS below RSX and PPU", "Runs SPU threads one iOS quality-of-service class below the PPU and RSX threads, which then keep the performance cores whenever they are runnable. Automatic follows the title list (God of War III, Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_qos_below_rsx, 0, 0, 0),
++	GAME_SETTING("experimental.light_measurement", "Experimental", "MoltenVK", "Light measurement profile", "A run for frame rates: turns off the GPU timing probe, the sampled frame stages, the signal trace and the freeze dumps, and keeps only the summary line of the performance journal. Causes need a run without it. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.light_measurement, 0, 0, 0),
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers). Defaults keep the Build 483 behavior except the cache-only retained keys.
 +	// The retained keys apply to each title's own cache directory, so they take a per-title value like any SETTING
 +	// (a complete legacy title snapshot also freezes them); only persistent_spu_object_cache is restored as global-only.
@@ -47062,7 +47149,7 @@ index b7b0474..922b9a9 100644
  	SETTING("emulator.shader_compiler_threads", "Emulator", "Compilation", "Max Shader Compile Threads", "Limits concurrent shader compiler threads; zero is automatic.", kind::RPCS3_IOS_SETTING_INTEGER, g_cfg.video.shader_compiler_threads_count, 0, 16, 1),
  	// Temporarily hidden until SwiftUI guest-dialog fallbacks are complete.
  	// SETTING("emulator.native_interface", "Emulator", "Behavior", "Use native user interface", "Uses RPCS3's controller-driven in-game overlays instead of desktop dialogs.", kind::RPCS3_IOS_SETTING_BOOLEAN, g_cfg.misc.use_native_interface, 0, 1, 1),
-@@ -205,6 +236,89 @@ const std::array catalog{
+@@ -205,6 +243,89 @@ const std::array catalog{
  #undef GAME_SETTING
  #undef GLOBAL_SETTING
  
@@ -47152,7 +47239,7 @@ index b7b0474..922b9a9 100644
  constexpr std::size_t maximum_preset_name_size = 80;
  constexpr std::size_t maximum_preset_config_size = 1024 * 1024;
  constexpr std::size_t maximum_presets_per_title = 128;
-@@ -573,6 +687,139 @@ bool remove_game_settings(std::string_view title_id) noexcept
+@@ -573,6 +694,139 @@ bool remove_game_settings(std::string_view title_id) noexcept
  	return fs::remove_file(path) || fs::g_tls_error == fs::error::noent;
  }
  

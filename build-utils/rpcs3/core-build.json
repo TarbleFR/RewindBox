@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 627,
  "identity_type": "rpcs3-ios-core627",
- "summary": "RPCS3 Core 627 in progress, the delivered Core 610 plus one folded delta: the Core 612, 613, 616, 619, 621 and 624 records unchanged and ZCULL: the on-demand lever no longer trips on guest waits, a depth-tested conditional render never waits for a query still on the GPU, conservative reports off for every title; SPU: an SPU polling with no-op PUTLLC takes a bounded wait; thread classes: SPU threads below PPU and RSX, one new MoltenVK asynchronous try; RSX FIFO: a NOP stays in the running state. Numbered 627: 625 and 626 are another session's MeloNX Cores. No gain measured: not built, no iPhone run.",
+ "summary": "RPCS3 Core 627 = the delivered Core 610 plus one folded delta: the Core 612, 613, 616, 619, 621 and 624 records unchanged and the Core 627 changes (build-utils/rpcs3/core627-from-624.patch over the Core 624 delivered in IPA 624 and kept by IPA 625), the optimisation phase from the Build 624 iPhone logs, each behind a per-game setting with per-title defaults: the ZCULL on-demand lever no longer trips on guest waits (Assassin's Creed: the upstream mode then blocked the RSX thread 3.0-4.7 s per 5 s; REWINDBOX_ZCULL_WAIT_GUARD_627); a depth-tested conditional render never waits for a query still on the GPU (Black Ops II: 1.4-2.6 s of RSX waits per 5 s; REWINDBOX_ZCULL_COND_NO_WAIT_627); conservative reports, off for every title (REWINDBOX_ZCULL_CONSERVATIVE_627); an SPU polling with no-op PUTLLC takes a bounded wait (Black Ops II: 5.2 SPU cores in the menus, a loop none of the existing spin settings reach; REWINDBOX_SPU_NOOP_SPIN_WAIT_627); SPU threads below PPU and RSX (REWINDBOX_SPU_QOS_627); one new MoltenVK asynchronous try (REWINDBOX_MVK_ASYNC_RETRY_627); a FIFO NOP stays in the running state (REWINDBOX_FIFO_NOP_FAST_627); a Light Measurement Profile (REWINDBOX_LIGHT_MEASUREMENT_627). ABI 30, the 92 exports, the PPU/SPU codegen identities (SPUThread.cpp changes in host bodies only, with an exact alias) and the MoltenVK dependency of Core 610 unchanged. Numbered 627: 625 and 626 are another session's MeloNX Cores. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "55baf82675455d0c3592437cd94a440bf102edeed1f9b8b2dfa9e0205f19318d",
-  "postimages": 348,
+  "patch_sha256": "d9f63f04b8c0ba1e279f3481a8557561ad81422d872f6c55a7ac086a634ecd86",
+  "postimages": 349,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -76,13 +76,13 @@
   "record": "core627_20261103",
   "manifest": "build-utils/rpcs3/core627-delta.json",
   "patch": "build-utils/rpcs3/core627-delta.patch",
-  "patch_sha256": "0c0fabccaf0d604eb46d40b26c2bc77e2645717fe60322321f820022278678d8"
+  "patch_sha256": "dc691b5cae724ec2649c2851dfa3b9fb675846cafb641e3c0861fbdf21b7cf56"
  },
  "exports": 92,
  "core_inputs": {
   "count": 92,
   "host": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
-  "host_sha256": "476856c88f2e84750c8c4192f2431a08a9698f45b88d663bc6ee78e84ed65976",
+  "host_sha256": "ee8b92523e9d36c9e48566f75b9f55604ee078e17b9618c3a8ce1562c8e2754d",
   "reviewed_drift": [
    "build-utils/rpcs3/canonical-source.json",
    "build-utils/rpcs3/embedded-core.patch",
@@ -94,6 +94,7 @@
   "rpcs3/Emu/CPU/CPUThread.cpp",
   "rpcs3/Emu/Cell/Modules/cellGcmSys.cpp",
   "rpcs3/Emu/Cell/lv2/sys_rsx.cpp",
+  "rpcs3/Emu/RSX/Overlays/overlay_controls.cpp",
   "rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl",
   "rpcs3/Emu/RSX/RSXZCULL.h",
   "rpcs3/Emu/RSX/VK/VKRenderPass.cpp",
@@ -138,7 +139,8 @@
   "ZCULL Conservative Reports",
   "SPU No-op Spin Wait",
   "SPU QoS Below RSX And PPU",
-  "RSX FIFO NOP Fast Path"
+  "RSX FIFO NOP Fast Path",
+  "Light Measurement Profile"
  ],
  "moltenvk_dependency": {
   "run": 41239096061,

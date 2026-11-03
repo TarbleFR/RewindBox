@@ -133,6 +133,42 @@ index dead8f4..a12c16b 100644
  		auto& res = vm::reservation_acquire(addr);
  
  		// TODO: Limit scope!!
+diff --git a/rpcs3/Emu/Cell/lv2/sys_fs.cpp b/rpcs3/Emu/Cell/lv2/sys_fs.cpp
+index f5d1993..16410dd 100644
+--- a/rpcs3/Emu/Cell/lv2/sys_fs.cpp
++++ b/rpcs3/Emu/Cell/lv2/sys_fs.cpp
+@@ -1634,7 +1634,13 @@ error_code sys_fs_opendir(ppu_thread& ppu, vm::cptr<char> path, vm::ptr<u32> fd)
+ 
+ 	if (fs::is_file(local_path))
+ 	{
++#ifdef RPCS3_IOS
++		// REWINDBOX_LIGHT_MEASUREMENT_627: the same answer to the guest, without an error line:
++		// Black Ops II walks its tree with opendir and asks this for every file at boot (315 lines).
++		return not_an_error(CELL_ENOTDIR);
++#else
+ 		return {CELL_ENOTDIR, path};
++#endif
+ 	}
+ 
+ 	std::unique_lock lock(mp->mutex);
+diff --git a/rpcs3/Emu/RSX/Overlays/overlay_controls.cpp b/rpcs3/Emu/RSX/Overlays/overlay_controls.cpp
+index 84d52dd..f4db396 100644
+--- a/rpcs3/Emu/RSX/Overlays/overlay_controls.cpp
++++ b/rpcs3/Emu/RSX/Overlays/overlay_controls.cpp
+@@ -101,7 +101,13 @@ namespace rsx
+ 
+ 			if (!f)
+ 			{
++#ifdef RPCS3_IOS
++				// REWINDBOX_LIGHT_MEASUREMENT_627: the bundle has no overlay icons, each of the 15 is
++				// tried in three places at every boot.
++				rsx_log.trace("Image resource file `%s' could not be opened (%s)", filename, fs::g_tls_error);
++#else
+ 				rsx_log.error("Image resource file `%s' could not be opened (%s)", filename, fs::g_tls_error);
++#endif
+ 				return;
+ 			}
+ 
 diff --git a/rpcs3/Emu/RSX/RSXFIFO.cpp b/rpcs3/Emu/RSX/RSXFIFO.cpp
 index 5c87bc5..ed3ab34 100644
 --- a/rpcs3/Emu/RSX/RSXFIFO.cpp
@@ -157,7 +193,7 @@ index 5c87bc5..ed3ab34 100644
  					performance_counters.FIFO_idle_timestamp = get_system_time();
  					performance_counters.state = FIFO::state::nop;
 diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
-index 460ca61..5aa8fdc 100644
+index 460ca61..d6f4b9e 100644
 --- a/rpcs3/Emu/RSX/RSXThread.cpp
 +++ b/rpcs3/Emu/RSX/RSXThread.cpp
 @@ -910,7 +910,10 @@ namespace rsx
@@ -172,6 +208,16 @@ index 460ca61..5aa8fdc 100644
  				(ios_decision == cond_previous::decision::previous ? cond_previous::counters().previous
  					: ios_ready ? cond_previous::counters().ready : cond_previous::counters().waited).fetch_add(1, std::memory_order_relaxed);
  
+@@ -3686,7 +3689,8 @@ namespace rsx
+ 			rpcs3::ios::gpu_timing::instance().on_frame(int_flip_index);
+ 		}
+ 		static u64 s_ios_frame_ordinal = 0;
+-		const bool ios_sample_frame = (++s_ios_frame_ordinal % rpcs3::ios::rsx_sync::rsx_frame_sample_period) == 0;
++		const bool ios_sample_frame = (++s_ios_frame_ordinal % rpcs3::ios::rsx_sync::rsx_frame_sample_period) == 0 &&
++			!rpcs3::ios::get_experimental_policy().light_measurement; // REWINDBOX_LIGHT_MEASUREMENT_627
+ #endif
+ 		// Reset current stats
+ 		m_frame_stats = {};
 diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
 index 97652a2..a193e31 100644
 --- a/rpcs3/Emu/RSX/RSXZCULL.cpp
@@ -245,11 +291,39 @@ index 97652a2..a193e31 100644
  					{
  						rsx_log.warning("ZCULL on-demand reads: guest waits tripped the lever (%s), upstream mode for the rest of this boot.",
  							od::trip_reason_name(m_ios_demand.trip_record().reason));
+diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
+index c7cf8b7..d38cae7 100644
+--- a/rpcs3/Emu/System.cpp
++++ b/rpcs3/Emu/System.cpp
+@@ -2132,6 +2132,23 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 					ios_rsx.mvk_async = rpcs3::ios::get_experimental_policy().moltenvk_async_submits;
+ 					ios_rsx.gpu_timing = rpcs3::ios::get_experimental_policy().gpu_timing; // REWINDBOX_GPU_TIMING_621
+ 					ios_rsx.zcull_demand = rpcs3::ios::get_experimental_policy().zcull_on_demand; // REWINDBOX_ZCULL_DEMAND_BO2_621
++					// Core 627: the state the accuracy test page shows, in the order of its rows: one
++					// digit per lever, 1 when it is on, plus 2 when its setting is not Automatic.
++					const auto& ios_levers = rpcs3::ios::get_experimental_policy();
++					const auto& ios_lever_settings = g_cfg.ios_experimental;
++					std::string ios_levers627;
++					const auto ios_add_lever = [&](bool lever, const cfg::_enum<ios_experimental_mode>& setting)
++					{
++						ios_levers627 += static_cast<char>('0' + (lever ? 1 : 0) + (setting.get() != ios_experimental_mode::automatic ? 2 : 0));
++					};
++					ios_add_lever(ios_levers.zcull_wait_guard, ios_lever_settings.zcull_wait_guard);
++					ios_add_lever(ios_levers.zcull_cond_no_wait, ios_lever_settings.zcull_cond_no_wait);
++					ios_add_lever(ios_levers.zcull_conservative_reports, ios_lever_settings.zcull_conservative_reports);
++					ios_add_lever(ios_levers.spu_noop_spin_wait, ios_lever_settings.spu_noop_spin_wait);
++					ios_add_lever(ios_levers.spu_qos_below_rsx, ios_lever_settings.spu_qos_below_rsx);
++					ios_add_lever(ios_levers.fifo_nop_fast_path, ios_lever_settings.fifo_nop_fast_path);
++					ios_add_lever(ios_levers.light_measurement, ios_lever_settings.light_measurement);
++					ios_rsx.levers627 = ios_levers627;
+ 					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
+ 					ios_rsx.overrides = ios_override_keys;
+ 					sys_log.notice("%s", rpcs3::ios::boot_diagnostics::format_config_rsx_line(ios_rsx));
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 77ea372..7e6e0f4 100644
+index 77ea372..b3c50aa 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
-@@ -178,6 +178,19 @@ struct cfg_root : cfg::node
+@@ -178,6 +178,21 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> gpu_timing{ this, "GPU Timing Probe", ios_experimental_mode::automatic };
  		// REWINDBOX_ZCULL_DEMAND_BO2_621: Automatic is the title list (Assassin's Creed, Black Ops II).
  		cfg::_enum<ios_experimental_mode> zcull_on_demand{ this, "ZCULL On-Demand Reads", ios_experimental_mode::automatic };
@@ -266,6 +340,8 @@ index 77ea372..7e6e0f4 100644
 +		cfg::_enum<ios_experimental_mode> spu_qos_below_rsx{ this, "SPU QoS Below RSX And PPU", ios_experimental_mode::automatic };
 +		// REWINDBOX_FIFO_NOP_FAST_627 (RSXFIFO.cpp): Automatic is Black Ops II and God of War III.
 +		cfg::_enum<ios_experimental_mode> fifo_nop_fast_path{ this, "RSX FIFO NOP Fast Path", ios_experimental_mode::automatic };
++		// REWINDBOX_LIGHT_MEASUREMENT_627: Automatic is off; Enabled leaves only the COREPROF synthesis line.
++		cfg::_enum<ios_experimental_mode> light_measurement{ this, "Light Measurement Profile", ios_experimental_mode::automatic };
  
  		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L5, L9; L3 is the
  		// Bounded sleep value of fifo_idle_mode above). Defaults keep the Build
@@ -593,11 +669,31 @@ index b7b4ed0..fc8d13e 100644
  namespace rpcs3::ios::zcull_on_demand
  {
  inline constexpr std::uint64_t pickup_deadline_us = 2'000'000;  // the RSX thread has not started the request
+diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
+index e3cf8be..724d75e 100644
+--- a/rpcs3/ios/RPCS3IOSBootDiagnostics.h
++++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
+@@ -445,6 +445,7 @@ namespace rpcs3::ios::boot_diagnostics
+ 		bool mvk_async = false;         // resolved request of this boot
+ 		bool gpu_timing = false;        // REWINDBOX_GPU_TIMING_621: resolved probe setting
+ 		bool zcull_demand = false;      // REWINDBOX_ZCULL_DEMAND_BO2_621: resolved ZCULL on-demand reads
++		std::string_view levers627;     // Core 627: the test-page levers, one digit each: 1 on, +2 explicit value
+ 		bool legacy_custom = false;     // a full custom config was applied (tests would change it)
+ 		std::string_view overrides;     // every applied sparse override key; filtered when formatted
+ 	};
+@@ -474,6 +475,7 @@ namespace rpcs3::ios::boot_diagnostics
+ 		append_u32(line, "mvk_async", rsx.mvk_async ? 1u : 0u);
+ 		append_u32(line, "gpu_timing", rsx.gpu_timing ? 1u : 0u);
+ 		append_u32(line, "zcull_demand", rsx.zcull_demand ? 1u : 0u);
++		append_text(line, "levers627", rsx.levers627, 8);
+ 		append_u32(line, "legacy_custom", rsx.legacy_custom ? 1u : 0u);
+ 		const std::string reported = filter_rsx_override_keys(rsx.overrides);
+ 		append_text(line, "overrides", reported, rsx_overrides_limit);
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index d4378fc..e5bbbe5 100644
+index d4378fc..1779274 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -359,6 +359,27 @@ void resolve_experimental_policy() noexcept
+@@ -359,11 +359,34 @@ void resolve_experimental_policy() noexcept
  	// ZCULL On-Demand Reads setting (Automatic = the list) tests the other mode per game.
  	resolved.zcull_on_demand = resolve_mode(g_cfg.ios_experimental.zcull_on_demand,
  		rpcs3::ios::title_levers::requires_zcull_on_demand(title_id));
@@ -625,11 +721,30 @@ index d4378fc..e5bbbe5 100644
  	// REWINDBOX_ZCLIP_PINNED_AFFINE_619: the title list, on top of the 616 fallback.
  	resolved.zclip_pinned_affine = resolved.zclip_fallback_window_z &&
  		rpcs3::ios::title_levers::requires_zclip_pinned_affine(title_id);
++	// REWINDBOX_LIGHT_MEASUREMENT_627: only a per-game choice.
++	resolved.light_measurement = resolve_mode(g_cfg.ios_experimental.light_measurement, false);
+ 	// REWINDBOX_GPU_TIMING_621: on unless a per-game test value disables it.
+-	resolved.gpu_timing = resolve_mode(g_cfg.ios_experimental.gpu_timing, true);
++	resolved.gpu_timing = !resolved.light_measurement && resolve_mode(g_cfg.ios_experimental.gpu_timing, true);
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
+ 	resolve_spu_spin_timing(resolved);
+@@ -416,6 +439,10 @@ void resolve_experimental_policy() noexcept
+ 		resolved.zcull_on_demand, resolved.zclip_pinned_affine, resolved.moltenvk_async_submits);
+ 	// REWINDBOX_GPU_TIMING_621: its own line.
+ 	ios_experimental_log.notice("Resolved title policy 621: gpu_timing=%d zcull_on_demand=%d", resolved.gpu_timing, resolved.zcull_on_demand);
++	// Core 627: its own line, the values of the new options of this boot.
++	ios_experimental_log.notice("Resolved title policy 627: zcull_wait_guard=%d zcull_cond_no_wait=%d zcull_conservative_reports=%d spu_noop_spin_wait=%d spu_qos_below_rsx=%d fifo_nop_fast_path=%d light_measurement=%d",
++		resolved.zcull_wait_guard, resolved.zcull_cond_no_wait, resolved.zcull_conservative_reports, resolved.spu_noop_spin_wait,
++		resolved.spu_qos_below_rsx, resolved.fifo_nop_fast_path, resolved.light_measurement);
+ }
+ 
+ void apply_spu_spin_timing_policy() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 5354937..ecf91a1 100644
+index 5354937..8691f4f 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-@@ -61,6 +61,21 @@ struct experimental_policy
+@@ -61,6 +61,25 @@ struct experimental_policy
  	// report page waits for its reports instead of every label waiting for all of
  	// them. Title scoped, without a setting; read by the RSX ZCULL unit.
  	bool zcull_on_demand = false;
@@ -648,6 +763,80 @@ index 5354937..ecf91a1 100644
 +	bool spu_qos_below_rsx = false;
 +	// REWINDBOX_FIFO_NOP_FAST_627 (RSXFIFO.cpp): a NOP in the command stream is not an idle period.
 +	bool fifo_nop_fast_path = false;
++	// REWINDBOX_LIGHT_MEASUREMENT_627: a run for frame rates: no GPU timing probe, no sampled
++	// frame stages, no signal trace, no FREEZE_DUMP, and of the per-window COREPROF lines only
++	// the synthesis line (COREPROF frames=...). Causes need a run with the normal journals.
++	bool light_measurement = false;
  	// REWINDBOX_ZCLIP_PINNED_AFFINE_619 (ios/IOSTitleLevers.h): with the 616 fallback,
  	// a clip range wholly above 1 maps every vertex affinely onto [0.99, 1].
  	bool zclip_pinned_affine = false;
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 3775840..cf69196 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -437,7 +437,8 @@ public:
+ 		m_profile_session.fetch_add(1, std::memory_order_relaxed);
+ 		rpcs3::ios::frame_trace::profile.reset(m_profile_session.load(std::memory_order_relaxed));
+ 		rpcs3::ios::renderer_causality::profile.reset(m_profile_session.load(std::memory_order_relaxed));
+-		rpcs3::ios::signal_trace::reset(m_profile_session.load(std::memory_order_relaxed), true);
++		// REWINDBOX_LIGHT_MEASUREMENT_627: no signal trace in a light run.
++		rpcs3::ios::signal_trace::reset(m_profile_session.load(std::memory_order_relaxed), !rpcs3::ios::get_experimental_policy().light_measurement);
+ 		m_last_signal_dump_us = 0;
+ 		m_profile_guest_baseline = 0;
+ 		m_last_guest_flip_tsc.store(0, std::memory_order_relaxed);
+@@ -937,7 +938,9 @@ private:
+ 		}
+ 		// The episode's dump is retried on later samples until it is taken (a busy
+ 		// idm lock or a state change makes the dump give up without logging).
+-		if (result.dump && neostation_freeze_dump(result.reason, result.no_frames_s, result.begin_busiest_cores, result.episode))
++		// REWINDBOX_LIGHT_MEASUREMENT_627: no dump in a light run.
++		if (result.dump && !rpcs3::ios::get_experimental_policy().light_measurement &&
++			neostation_freeze_dump(result.reason, result.no_frames_s, result.begin_busiest_cores, result.episode))
+ 		{
+ 			m_freeze_episode.dump_taken(now_us);
+ 		}
+@@ -945,6 +948,18 @@ private:
+ 
+ 	void report_profile_window()
+ 	{
++		// REWINDBOX_LIGHT_MEASUREMENT_627: a light run lowers this channel for the per-window lines
++		// of this report only (its own filter: they are not even formatted). The boot's level comes
++		// back for the synthesis line and stays between windows: FIRSTFLIP and FREEZE_EPISODE keep
++		// their lines, and Silence all logs keeps the channel silent.
++		const bool ios_light = rpcs3::ios::get_experimental_policy().light_measurement;
++		const logs::level ios_channel_level = ios_core_profiler.enabled.load();
++
++		if (ios_light && ios_channel_level > logs::level::warning)
++		{
++			ios_core_profiler.enabled.release(logs::level::warning);
++		}
++
+ 		u64 current_frames = 0;
+ 		const u64 frequency = utils::get_tsc_freq();
+ 		std::array<double, core_group_count> average_cores{};
+@@ -1909,6 +1924,7 @@ private:
+ 		const std::string top_list = rpcs3::ios::profiler::format_top_list(
+ 			rpcs3::ios::profiler::top_threads(std::move(top_accumulated), usage_samples));
+ 
++		ios_core_profiler.enabled.release(ios_channel_level); // REWINDBOX_LIGHT_MEASUREMENT_627
+ 		ios_core_profiler.notice(
+ 			"COREPROF frames=%llu avg_fps=%.3f low1_fps=%.3f frametime_ms=%.3f p95_ms=%.3f p99_ms=%.3f "
+ 			"ppu_ms=%.3f spu_ms=%.3f rsx_ms=%.3f jit_ms=%.3f gpu_time_ms=-1 "
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index 922b9a9..ef23154 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -156,6 +156,13 @@ const std::array catalog{
+ 	// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): the accuracy test page can switch the probe off to measure its cost.
+ 	GAME_SETTING("experimental.gpu_timing", "Experimental", "MoltenVK", "GPU timing probe", "Records the GPU execution time of the RSX command buffers with two Vulkan timestamps each, read after they complete, for the performance journal. Automatic and Enabled keep it on; Disabled measures what it costs. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.gpu_timing, 0, 0, 0),
+ 	GAME_SETTING("experimental.zcull_on_demand", "Experimental", "ZCULL", "ZCULL on-demand reads", "Once the game touches its ZCULL report memory, writes the occlusion reports only when a game thread reads them, instead of waiting for the GPU at every report label. Automatic follows the title list (Assassin's Creed, Black Ops II); Enabled and Disabled test the other mode. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_on_demand, 0, 0, 0),
++	GAME_SETTING("experimental.zcull_wait_guard", "Experimental", "ZCULL", "ZCULL on-demand wait guard", "Returns the ZCULL on-demand reads to the upstream mode when game threads wait too long for reports. Automatic keeps it off for the titles of that lever, whose game threads have to wait for the GPU in either mode; Enabled restores it. The deadlines that protect against a request never served always stay on. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_wait_guard, 0, 0, 0),
++	GAME_SETTING("experimental.zcull_cond_no_wait", "Experimental", "ZCULL", "ZCULL conditional draw without waiting", "With ZCULL on-demand reads, draws an object whose occlusion result is still on the GPU instead of waiting for it. An object that turns out to be hidden stays hidden behind what covers it, at the cost of its GPU time. Automatic follows the title list (Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_cond_no_wait, 0, 0, 0),
++	GAME_SETTING("experimental.zcull_conservative_reports", "Experimental", "ZCULL", "ZCULL conservative reports", "Occlusion reports read as visible from the moment they are queued until the GPU result replaces them, so neither the RSX thread nor a game thread ever waits for one. A game may then show an occluded effect for a frame or two; check for flicker on the same scene. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_conservative_reports, 0, 0, 0),
++	GAME_SETTING("experimental.fifo_nop_fast_path", "Experimental", "RSX FIFO", "RSX FIFO NOP fast path", "Keeps the RSX thread in its running state across NOP commands of the game's command stream instead of timing each one as an idle period. Automatic follows the title list (God of War III, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fifo_nop_fast_path, 0, 0, 0),
++	GAME_SETTING("experimental.spu_noop_spin_wait", "Experimental", "SPU", "SPU no-op spin wait", "An SPU thread that polls a reservation by writing back unchanged data sleeps for a bounded time before its next read, which leaves its core to the PPU and RSX threads. Automatic follows the title list (God of War III, Black Ops II). No effect on compiled code or caches. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_noop_spin_wait, 0, 0, 0),
++	GAME_SETTING("experimental.spu_qos_below_rsx", "Experimental", "SPU", "SPU QoS below RSX and PPU", "Runs SPU threads one iOS quality-of-service class below the PPU and RSX threads, which then keep the performance cores whenever they are runnable. Automatic follows the title list (God of War III, Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_qos_below_rsx, 0, 0, 0),
++	GAME_SETTING("experimental.light_measurement", "Experimental", "MoltenVK", "Light measurement profile", "A run for frame rates: turns off the GPU timing probe, the sampled frame stages, the signal trace and the freeze dumps, and keeps only the summary line of the performance journal. Causes need a run without it. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.light_measurement, 0, 0, 0),
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers). Defaults keep the Build 483 behavior except the cache-only retained keys.
+ 	// The retained keys apply to each title's own cache directory, so they take a per-title value like any SETTING
+ 	// (a complete legacy title snapshot also freezes them); only persistent_spu_object_cache is restored as global-only.

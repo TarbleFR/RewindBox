@@ -1144,6 +1144,125 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
   return values;
 }
 
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build627Translations() {
+  // Core 627: the optimization levers of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testZcullWaitGuard": @"ZCULL wait guard",
+        @"testZcullCondNoWait": @"ZCULL: draw without waiting",
+        @"testZcullConservative": @"ZCULL conservative reports",
+        @"testSpuNoopSpinWait": @"SPU: wait instead of polling",
+        @"testSpuQos": @"SPU priority below RSX and PPU",
+        @"testFifoNopFast": @"RSX FIFO: fast NOP path",
+        @"testLightMeasurement": @"Light measurement profile",
+      },
+      @"es": @{
+        @"testZcullWaitGuard": @"Protección de espera ZCULL",
+        @"testZcullCondNoWait": @"ZCULL: dibujar sin esperar",
+        @"testZcullConservative": @"Informes ZCULL conservadores",
+        @"testSpuNoopSpinWait": @"SPU: esperar en lugar de sondear",
+        @"testSpuQos": @"Prioridad SPU por debajo de RSX y PPU",
+        @"testFifoNopFast": @"FIFO RSX: ruta rápida de NOP",
+        @"testLightMeasurement": @"Perfil de medición ligero",
+      },
+      @"ru": @{
+        @"testZcullWaitGuard": @"Защита ожидания ZCULL",
+        @"testZcullCondNoWait": @"ZCULL: рисовать без ожидания",
+        @"testZcullConservative": @"Консервативные отчёты ZCULL",
+        @"testSpuNoopSpinWait": @"SPU: ждать вместо опроса",
+        @"testSpuQos": @"Приоритет SPU ниже RSX и PPU",
+        @"testFifoNopFast": @"FIFO RSX: быстрый путь NOP",
+        @"testLightMeasurement": @"Облегчённый профиль измерений",
+      },
+      @"zh": @{
+        @"testZcullWaitGuard": @"ZCULL 等待保护",
+        @"testZcullCondNoWait": @"ZCULL:不等待直接绘制",
+        @"testZcullConservative": @"ZCULL 保守报告",
+        @"testSpuNoopSpinWait": @"SPU:等待而非轮询",
+        @"testSpuQos": @"SPU 优先级低于 RSX 和 PPU",
+        @"testFifoNopFast": @"RSX FIFO:NOP 快速路径",
+        @"testLightMeasurement": @"轻量测量配置",
+      },
+      @"zh_Hant": @{
+        @"testZcullWaitGuard": @"ZCULL 等待保護",
+        @"testZcullCondNoWait": @"ZCULL:不等待直接繪製",
+        @"testZcullConservative": @"ZCULL 保守報告",
+        @"testSpuNoopSpinWait": @"SPU:等待而非輪詢",
+        @"testSpuQos": @"SPU 優先順序低於 RSX 和 PPU",
+        @"testFifoNopFast": @"RSX FIFO:NOP 快速路徑",
+        @"testLightMeasurement": @"輕量測量設定檔",
+      },
+      @"pt": @{
+        @"testZcullWaitGuard": @"Proteção de espera ZCULL",
+        @"testZcullCondNoWait": @"ZCULL: desenhar sem esperar",
+        @"testZcullConservative": @"Relatórios ZCULL conservadores",
+        @"testSpuNoopSpinWait": @"SPU: aguardar em vez de sondar",
+        @"testSpuQos": @"Prioridade SPU abaixo de RSX e PPU",
+        @"testFifoNopFast": @"FIFO RSX: caminho rápido de NOP",
+        @"testLightMeasurement": @"Perfil de medição leve",
+      },
+      @"fr": @{
+        @"testZcullWaitGuard": @"Garde d'attente ZCULL",
+        @"testZcullCondNoWait": @"ZCULL : dessiner sans attendre",
+        @"testZcullConservative": @"Rapports ZCULL prudents",
+        @"testSpuNoopSpinWait": @"SPU : attendre au lieu de sonder",
+        @"testSpuQos": @"Priorité SPU sous RSX et PPU",
+        @"testFifoNopFast": @"FIFO RSX : chemin rapide des NOP",
+        @"testLightMeasurement": @"Profil de mesure allégé",
+      },
+      @"de": @{
+        @"testZcullWaitGuard": @"ZCULL-Warteschutz",
+        @"testZcullCondNoWait": @"ZCULL: ohne Warten zeichnen",
+        @"testZcullConservative": @"Konservative ZCULL-Berichte",
+        @"testSpuNoopSpinWait": @"SPU: warten statt abfragen",
+        @"testSpuQos": @"SPU-Priorität unter RSX und PPU",
+        @"testFifoNopFast": @"RSX-FIFO: schneller NOP-Pfad",
+        @"testLightMeasurement": @"Schlankes Messprofil",
+      },
+      @"it": @{
+        @"testZcullWaitGuard": @"Protezione attesa ZCULL",
+        @"testZcullCondNoWait": @"ZCULL: disegna senza attendere",
+        @"testZcullConservative": @"Report ZCULL prudenti",
+        @"testSpuNoopSpinWait": @"SPU: attendi invece di interrogare",
+        @"testSpuQos": @"Priorità SPU sotto RSX e PPU",
+        @"testFifoNopFast": @"FIFO RSX: percorso rapido NOP",
+        @"testLightMeasurement": @"Profilo di misura leggero",
+      },
+      @"id": @{
+        @"testZcullWaitGuard": @"Pelindung tunggu ZCULL",
+        @"testZcullCondNoWait": @"ZCULL: gambar tanpa menunggu",
+        @"testZcullConservative": @"Laporan ZCULL konservatif",
+        @"testSpuNoopSpinWait": @"SPU: tunggu alih-alih polling",
+        @"testSpuQos": @"Prioritas SPU di bawah RSX dan PPU",
+        @"testFifoNopFast": @"FIFO RSX: jalur cepat NOP",
+        @"testLightMeasurement": @"Profil pengukuran ringan",
+      },
+      @"ja": @{
+        @"testZcullWaitGuard": @"ZCULL 待機ガード",
+        @"testZcullCondNoWait": @"ZCULL: 待たずに描画",
+        @"testZcullConservative": @"ZCULL 保守的レポート",
+        @"testSpuNoopSpinWait": @"SPU: ポーリングの代わりに待機",
+        @"testSpuQos": @"SPU 優先度を RSX と PPU より下に",
+        @"testFifoNopFast": @"RSX FIFO: NOP 高速パス",
+        @"testLightMeasurement": @"軽量測定プロファイル",
+      },
+      @"ko": @{
+        @"testZcullWaitGuard": @"ZCULL 대기 보호",
+        @"testZcullCondNoWait": @"ZCULL: 기다리지 않고 그리기",
+        @"testZcullConservative": @"ZCULL 보수적 보고서",
+        @"testSpuNoopSpinWait": @"SPU: 폴링 대신 대기",
+        @"testSpuQos": @"SPU 우선순위를 RSX와 PPU보다 낮게",
+        @"testFifoNopFast": @"RSX FIFO: NOP 빠른 경로",
+        @"testLightMeasurement": @"경량 측정 프로필",
+      },
+    };
+  });
+  return values;
+}
+
 NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build621Translations() {
   // REWINDBOX_INCIDENT_REPORT_621: "Report a problem", the game-stopped alert,
   // the previous-session alert and the GPU timing test lever.
@@ -1360,8 +1479,10 @@ NSString* RPCS3LocalizedString(NSString* key, NSString* localeIdentifier) {
   NSDictionary* build297 = Build297Translations();
   NSDictionary* build612 = Build612Translations();
   NSDictionary* build621 = Build621Translations();
+  NSDictionary* build627 = Build627Translations();
   NSString* locale = RPCS3CanonicalLocale(localeIdentifier);
-  return build621[locale][key] ?: build621[@"en"][key] ?:
+  return build627[locale][key] ?: build627[@"en"][key] ?:
+      build621[locale][key] ?: build621[@"en"][key] ?:
       build612[locale][key] ?: build612[@"en"][key] ?:
       build297[locale][key] ?: build297[@"en"][key] ?:
       build256[locale][key] ?: build256[@"en"][key] ?:
