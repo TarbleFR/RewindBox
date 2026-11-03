@@ -24,6 +24,7 @@
 # Core compile request: Core 627 (core-build.json build 627, canonical patch d9f63f04), request 1 (optimisation phase from the Build 624 logs: ZCULL waits, bounded SPU no-op wait, SPU QoS, FIFO NOP, light measurement profile).
 # Core compile request: Core 630 (core-build.json build 630, canonical patch cfaba801), request 1 (from the Build 629 logs: ZCULL reads wait for their own report slot, final memory is completed in the access violation handler).
 # Core compile request: Core 634 (core-build.json build 634, canonical patch e7750b68), request 1 (from the Build 629 logs: PPU objects loaded on four threads, object bytes and GDB listener copies released, SPIR-V pack, ARMv8 cryptography, SPU prefetch for Assassin's Creed).
+# Core compile request: Core 636 (core-build.json build 636, canonical patch 01ba35fc), request 1 (from the Core 634 audit: Darwin X29/X30 guard in the fault handler, SPIR-V cap counts the batch in flight, PPU check pass stops at the first miss; ZCULL slot release wakes the guest pause).
 # Apple host harness rerun: Core 613 codegen audit reruns for its two exact aliases (request 2).
 # Apple host harness rerun: Core 619 wait-budget scenario on measured waits (request 2).
 # Apple host harness rerun: Core 619 concurrency scenario accepts the designed wait-budget trip (request 3).
