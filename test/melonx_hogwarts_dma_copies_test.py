@@ -211,9 +211,20 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           begin.index('if (!RenderPassActive)') < begin.index('long passStart') < begin.index('RenderStageTimer.PassResumes++;') <
           begin.index('Gd.Api.CmdBeginRenderPass(') < begin.index('RenderStageTimer.PassBegins++;') and
           end.index('Gd.Api.CmdEndRenderPass(CommandBuffer);') < end.index('_lastEndedFramebuffer = _framebuffer;') and
-          base.count('_lastEndedFramebuffer = _framebuffer;') == 1 and base.count('RenderStageTimer.') == 24 and
+          base.count('_lastEndedFramebuffer = _framebuffer;') == 1 and base.count('RenderStageTimer.') == 39 and
           'else if (end - _windowStart >= System.Diagnostics.Stopwatch.Frequency * 5)' in timer and timer.count('Log(end);') == 1,
           'PipelineBase: only the render-stage timing, around the draw preparation and its parts, and the render pass begin')
+    compute = base[base.index('private bool RecreateComputePipelineIfNeeded('):base.index('private bool ChangeFeedbackLoop(')]
+    dispatch = base[base.index('public void DispatchCompute('):base.index('public void Draw(int vertexCount')]
+    check(compute.count('PrepareComputeDispatch(') == 2 and compute.index('long start = RenderStageTimer.Now();') <
+          compute.index('bool ready = PrepareComputeDispatch(allowAsyncSkip);') < compute.index('RenderStageTimer.ComputePrepares++;') and
+          compute.index('long pipelineStart') < compute.index('bool created = CreatePipeline(PipelineBindPoint.Compute, allowAsyncSkip);') <
+          compute.index('RenderStageTimer.ComputePipelines++;') < compute.index('if (!created)') and
+          compute.index('long barrierStart') < compute.index('Gd.Barriers.Flush(') < compute.index('long descriptorStart') <
+          compute.index('_descriptorSetUpdater.UpdateAndBindDescriptorSets(Cbs, PipelineBindPoint.Compute);') <
+          compute.index('RenderStageTimer.ComputeDescriptorTicks +=') and
+          dispatch.count('RenderStageTimer.NoteDispatch(RenderPassActive);\n            EndRenderPass();') == 2,
+          'PipelineBase: the dispatch preparation timed whole and in parts, and each dispatch counted before the pass it ends')
     full = after[host.PIPELINE_FULL]
     submit = full[full.index('public void FlushCommandsImpl()'):full.index('public void RegisterActiveMirror(')]
     check(restored(host.PIPELINE_FULL, host.PIPELINE_FULL_HUNKS) == before[host.PIPELINE_FULL] and
@@ -286,11 +297,28 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           readback.index('dstStride != byteWidth || byteWidth % 4 != 0') < readback.index('HasBufferInRange') <
           readback.index('FindOrCreateTexture'),
           'the read-back checks its rows and the buffers first, writes no guest memory and forces a host sync after the copy')
+    into_buffer = dma[dma.index('private bool TryReadBackIntoBuffer('):dma.index('private static bool SignalPreciseRead(')]
+    check(into_buffer.index('width != source.Info.Width || height != source.Info.Height') <
+          into_buffer.index('FindOverlapsInRange(memoryManager, dstVa, size') < into_buffer.index('source.SynchronizeMemory();') <
+          into_buffer.index('BufferCache.TryCopyTextureToBuffer(memoryManager, source.HostTexture, dstVa, size, dstStride)') <
+          into_buffer.index('_context.CreateHostSyncIfNeeded(Ryujinx.Graphics.Gpu.Synchronization.HostSyncFlags.Force);') and
+          'Strict' not in into_buffer and 'memoryManager.Write' not in into_buffer and 'GetSpan' not in into_buffer and
+          readback.index('HasBufferInRange') < readback.index('return TryReadBackIntoBuffer('),
+          'a read-back into a buffer copies the whole source level on the GPU, writes no guest memory, and seals it with a forced sync')
     buffers = after[adapter.BUFFER_CACHE]
     check(buffers.replace(adapter.BUFFER_NEW, adapter.BUFFER_ANCHOR) == before[adapter.BUFFER_CACHE] and
           buffers.count('public bool HasBufferInRange(MemoryManager memoryManager, ulong gpuVa, ulong size)') == 1 and
-          '!_buffers.FindOverlapsAsSpan(subRange.Address, subRange.Size).IsEmpty' in buffers,
-          'BufferCache: only the read-only overlap query, which creates no buffer')
+          '!_buffers.FindOverlapsAsSpan(subRange.Address, subRange.Size).IsEmpty' in buffers and
+          buffers.index('if (physical.Count != 1 || physical.GetSubRange(0).Address == MemoryManager.PteUnmapped)') <
+          buffers.index('TranslateAndCreateMultiBuffersPhysicalOnly(memoryManager, gpuVa, size, BufferStage.Copy);',
+                        buffers.index('public bool TryCopyTextureToBuffer(')) <
+          buffers.index('texture.CopyTo(new BufferRange(buffer.Handle, offset, (int)subRange.Size, true), 0, 0, stride);') <
+          buffers.index('buffer.SignalModified(subRange.Address, subRange.Size, BufferStage.Copy);',
+                        buffers.index('public bool TryCopyTextureToBuffer(')) <
+          buffers.index('buffer.CopyToDependantVirtualBuffers(subRange.Address, subRange.Size);',
+                        buffers.index('public bool TryCopyTextureToBuffer(')),
+          'BufferCache: the read-only overlap query, and the GPU copy of a texture level into the buffer over one mapped '
+          'range, marked GPU-modified as a buffer to buffer copy does')
     restored = dma
     for old, new in ((adapter.METHOD_ANCHOR, adapter.METHOD_NEW), (adapter.WRITE_OLD, adapter.WRITE_NEW), (adapter.READ_OLD, adapter.READ_NEW),
                      (adapter.REGION_OLD, adapter.REGION_NEW), (adapter.SLOW_OLD, adapter.SLOW_NEW),
@@ -502,6 +530,14 @@ sealed class BufferCache
     // A buffer over the queried range, and the last query (the destination of a read-back).
     public bool Overlap; public string LastQuery;
     public bool HasBufferInRange(MemoryManager memoryManager, ulong gpuVa, ulong size) { LastQuery = $"{gpuVa:x} {size}"; return Overlap; }
+    // The GPU copy of a whole texture level into the buffer over a range: recorded, accepted unless refused.
+    public bool Refuses; public readonly List<string> Copies = new();
+    public bool TryCopyTextureToBuffer(MemoryManager memoryManager, Image.Host texture, ulong gpuVa, ulong size, int stride)
+    {
+        if (Refuses) return false;
+        Copies.Add($"{gpuVa:x} {size} stride={stride}");
+        return true;
+    }
 }
 sealed class PhysicalMemory
 {
@@ -806,11 +842,37 @@ static class Program
         ReadBackDecline("strided", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32) }, null, 64, 16, false);
         // A half-float region 3 texels (6 bytes) wide: whole texels, but rows not on 4 bytes.
         ReadBackDecline("unaligned", new() { Make(Format.R16Float, 2, 256, 32) }, null, 6, 6, false);
-        ReadBackDecline("buffer", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32) }, null, 16, 16, true);
+        // A buffer over the destination of a region of a larger texture: the buffer copy takes whole levels only.
+        ReadBackDecline("partial", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32) }, null, 16, 16, true);
         var resident = Make(Format.R8G8B8A8Unorm, 4, 8, 8); resident.Range.Spans.Add(new Image.Span(0x10000 + 8, 256));
         ReadBackDecline("occupied", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32) }, new() { resident }, 16, 16, false);
         var otherLayout = Make(Format.B8G8R8A8Unorm, 4, 4, 2); otherLayout.Info.IsLinear = true; otherLayout.Info.Stride = 16;
         ReadBackDecline("target", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32), otherLayout }, null, 16, 16, false);
+        // Build 624: a whole 1x1 R16G16B16A16Float texture (8 bytes) copied into a buffer of the cache: copied on the GPU
+        // into the buffer, a non-strict host sync forced after it, no texture created, guest memory not written.
+        var tinySurface = new DmaTexture { Width = 8, Height = 1, Depth = 1, MemoryLayout = new MemoryLayout { GobY = 4, GobZ = 1 } };
+        var exposure = Make(Format.R16G16B16A16Float, 8, 1, 1);
+        rm.Physical.TextureCache.Textures = new() { exposure };
+        rm.Physical.BufferCache.Overlap = true;
+        int bufferMade = created.Count, bufferForced = dma.ForcedSyncs, bufferStrict = dma.StrictSyncs;
+        bool bufferReadBack = dma.GpuRegion(rm, tinySurface, 0, 0, dstSurface, true, 8, 0, 0, 8, 1);
+        string bufferCopy = string.Join(";", rm.Physical.BufferCache.Copies) + " | " + string.Join(",", exposure.Calls) + " | syncs " +
+                            $"{dma.ForcedSyncs - bufferForced} strict {dma.StrictSyncs - bufferStrict} | created {created.Count - bufferMade}" +
+                            $" | host copies {exposure.HostTexture.Copies.Count}";
+        string bufferLine = sink.Lines.Find(l => l.StartsWith("DMA GPU read-back into a buffer"));
+        bool BufferDecline(bool refuses, List<Image.Texture> placed)
+        {
+            rm.Physical.TextureCache.Textures = new() { exposure };
+            rm.Physical.TextureCache.Placed = placed ?? new();
+            rm.Physical.BufferCache.Overlap = true; rm.Physical.BufferCache.Refuses = refuses;
+            int copies = rm.Physical.BufferCache.Copies.Count, syncs = dma.ForcedSyncs;
+            bool ok = dma.GpuRegion(rm, tinySurface, 0, 0, dstSurface, true, 8, 0, 0, 8, 1);
+            rm.Physical.TextureCache.Placed = new(); rm.Physical.BufferCache.Refuses = false; rm.Physical.BufferCache.Overlap = false;
+            return !ok && rm.Physical.BufferCache.Copies.Count == copies && dma.ForcedSyncs == syncs;
+        }
+        if (BufferDecline(true, null)) readBackDeclined.Add("bufferRefused");
+        var overExposure = Make(Format.R8G8B8A8Unorm, 4, 2, 1); overExposure.Range.Spans.Add(new Image.Span(0x10000, 8));
+        if (BufferDecline(false, new() { overExposure })) readBackDeclined.Add("bufferOccupied");
         string readBackCounts = dma.ReadBackCounts;
         string regionLine = sink.Lines.Find(l => l.StartsWith("DMA GPU region copy"));
         int regionLines = sink.Lines.FindAll(l => l.StartsWith("DMA GPU region copy")).Count;
@@ -927,6 +989,7 @@ static class Program
             declined, counts, uploadLine, uploadLines, gpuCopied, gpuCopy, gpuCalls, gpuDeclined, sourceCounts, gpuLine, gpuLines,
             floatCopied, floatCopy, regionCopied, regionCopy, createdCopied, createdQuery, createdCopy, readBackCopied,
             readBackQuery, readBackCopy, readBackReused, readBackLine, readBackLines, readBackDeclined, readBackCounts,
+            bufferReadBack, bufferCopy, bufferLine,
             regionLine, regionLines, regionDeclined, regionCounts, precise, byteImmediate, byteNextFrame, bytePartial, byteRewrite,
             byteModel, stridedZeroes,
             slowLines = slowLines.ConvertAll(l => System.Text.RegularExpressions.Regex.Replace(l, @"\d+\.\d ms", "T ms")) }));
@@ -974,8 +1037,8 @@ static class Program
     check(result['counts'] == '4 3 10 2 1 2 1', f'uploads, declines (no texture, layout, format, overlap) and slow accesses counted: {result}')
     check('regionUploads 4, declined noTarget 3 layout 10 format 2 overlap 1; slowReads 3, slowWrites 1; gpuSourceCopies 2, declined '
           'noTexture 4 layout 3 noTarget 1 format 3 notModified 1; gpuRegionCopies 2, declined noTexture 2 layout 2 noTarget 2 '
-          'format 3 notModified 1; gpuReadBacks 2 of 7, first-access flushes 0 (0.0 ms, max 0.0 ms, GPU thread 0), declined rows 2 '
-          'buffer 1 occupied 1 target 1; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)'
+          'format 3 notModified 1; gpuReadBacks 3 (into buffers 1) of 10, first-access flushes 0 (0.0 ms, max 0.0 ms, GPU thread 0), '
+          'declined rows 2 buffer 1 occupied 2 target 1 partial 1; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)'
           in result['last'] and
           'floatFormat ' in result['last'], f'the summary reports them: {result}')
     check(result['capped'] == 64, f'at most 64 summaries per session: {result}')
@@ -998,9 +1061,12 @@ static class Program
     check(result['readBackReused'], f'the next read-back reuses that texture: {result}')
     check(result['readBackLines'] == 1 and result['readBackLine'] ==
           'DMA GPU read-back (Hogwarts policy): R8G8B8A8Unorm 128x32 (4,3) 4x2 to linear stride 16', f'first read-back logged once: {result}')
-    check(result['readBackDeclined'] == ['strided', 'unaligned', 'buffer', 'occupied', 'target'],
+    check(result['bufferReadBack'] and result['bufferCopy'] == '10000 8 stride=8 | sync | syncs 1 strict 0 | created 0 | host copies 0' and
+          result['bufferLine'] == 'DMA GPU read-back into a buffer (Hogwarts policy): R16G16B16A16Float 1x1 to stride 8, 8 bytes',
+          f'a whole texture read back into a buffer is copied on the GPU into it, after a source sync, then a forced sync: {result}')
+    check(result['readBackDeclined'] == ['strided', 'unaligned', 'partial', 'occupied', 'target', 'bufferRefused', 'bufferOccupied'],
           f'every declined read-back copies, creates and syncs nothing: {result}')
-    check(result['readBackCounts'] == '2 2,1,1,1', f'read-backs and declines (rows, buffer, occupied, target): {result}')
+    check(result['readBackCounts'] == '3 2,1,2,1,1', f'read-backs and declines (rows, buffer, occupied, target, partial): {result}')
     check(result['byteImmediate'] and result['byteNextFrame'] and result['bytePartial'] and result['byteRewrite'],
           f'immediate, next-frame, partial and rewrite-before-read accesses get the bytes of the reference copy: {result}')
     check(result['byteModel'] == '1 target, 5 flushes, 5 strict syncs',
@@ -1053,6 +1119,10 @@ namespace Ryujinx.Graphics.Vulkan
             RenderStageTimer.DescriptorTicks += 400 * ms; RenderStageTimer.AutoFlushes += 3; RenderStageTimer.AutoFlushTicks += 20 * ms;
             RenderStageTimer.PassBegins += 300; RenderStageTimer.PassResumes += 120; RenderStageTimer.PassTicks += 60 * ms;
             RenderStageTimer.Submits += 25; RenderStageTimer.SubmitTicks += 70 * ms; RenderStageTimer.QueueTicks += 55 * ms;
+            RenderStageTimer.ComputePrepares += 200; RenderStageTimer.ComputePrepareTicks += 140 * ms; RenderStageTimer.ComputePipelines += 5;
+            RenderStageTimer.ComputePipelineTicks += 7 * ms; RenderStageTimer.ComputeBarrierTicks += 9 * ms;
+            RenderStageTimer.ComputeDescriptorTicks += 110 * ms;
+            for (int i = 0; i < 200; i++) RenderStageTimer.NoteDispatch(i % 4 == 0);
             RenderStageTimer.WriteWaits += 3000; RenderStageTimer.WriteWaitTicks += 12 * ms;
             RenderStageTimer.ReadWaits += 60; RenderStageTimer.ReadWaitTicks += 1500 * ms;
             // Another thread's wait goes to its own atomic counters.
@@ -1072,7 +1142,8 @@ namespace Ryujinx.Graphics.Vulkan
             RenderStageTimer.NotePresent(now - f / 100, now - f / 200, now - f / 400, now - f / 1000);
             int afterWindow = sink.Lines.Count;
             bool reset = RenderStageTimer.Prepares == 0 && RenderStageTimer.PrepareTicks == 0 && RenderStageTimer.PassResumes == 0 &&
-                         RenderStageTimer.QueueTicks == 0 && RenderStageTimer.WriteWaits == 0 && RenderStageTimer.ReadWaitTicks == 0;
+                         RenderStageTimer.QueueTicks == 0 && RenderStageTimer.WriteWaits == 0 && RenderStageTimer.ReadWaitTicks == 0 &&
+                         RenderStageTimer.ComputePrepareTicks == 0 && RenderStageTimer.Dispatches == 0 && RenderStageTimer.DispatchPassEnds == 0;
             now = RenderStageTimer.Now();
             RenderStageTimer.NotePresent(now, now, now, now);
             int afterNext = sink.Lines.Count;
@@ -1098,7 +1169,10 @@ namespace Ryujinx.Graphics.Vulkan
         r'Vulkan render stages over (?P<window>[\d.]+) ms, (?P<frames>\d+) frames: draw prepare (?P<prepares>\d+) calls '
         r'(?P<prepare>[\d.]+) ms \(not ready (?P<notReady>\d+); pipelines (?P<pipelines>\d+) calls (?P<pipeline>[\d.]+) ms, '
         r'barriers (?P<barriers>[\d.]+) ms, descriptors (?P<descriptors>[\d.]+) ms, auto-flushes (?P<autoFlushes>\d+) calls '
-        r'(?P<autoFlush>[\d.]+) ms\); render passes (?P<passes>\d+) begun (?P<pass>[\d.]+) ms \(same framebuffer again '
+        r'(?P<autoFlush>[\d.]+) ms\); compute prepare (?P<computes>\d+) calls (?P<compute>[\d.]+) ms \(pipelines '
+        r'(?P<computePipelines>\d+) calls (?P<computePipeline>[\d.]+) ms, barriers (?P<computeBarriers>[\d.]+) ms, descriptors '
+        r'(?P<computeDescriptors>[\d.]+) ms; dispatches (?P<dispatches>\d+), render passes ended (?P<dispatchPassEnds>\d+)\); '
+        r'render passes (?P<passes>\d+) begun (?P<pass>[\d.]+) ms \(same framebuffer again '
         r'(?P<resumes>\d+)\); submits (?P<submits>\d+) calls (?P<submit>[\d.]+) ms \(queue (?P<queue>[\d.]+) ms\); fence waits '
         r'on the render thread: buffer writes (?P<writeWaits>\d+) calls (?P<writeWait>[\d.]+) ms, reads (?P<readWaits>\d+) calls '
         r'(?P<readWait>[\d.]+) ms; on other threads (?P<otherWaits>\d+) calls (?P<otherWait>[\d.]+) ms; present '
@@ -1111,6 +1185,9 @@ namespace Ryujinx.Graphics.Vulkan
           values['prepare'] == '900.0' and values['notReady'] == '2' and values['pipelines'] == '40' and values['pipeline'] == '30.0'
           and values['barriers'] == '50.0' and values['descriptors'] == '400.0' and values['autoFlushes'] == '3' and
           values['autoFlush'] == '20.0' and values['passes'] == '300' and values['pass'] == '60.0' and values['resumes'] == '120'
+          and values['computes'] == '200' and values['compute'] == '140.0' and values['computePipelines'] == '5' and
+          values['computePipeline'] == '7.0' and values['computeBarriers'] == '9.0' and values['computeDescriptors'] == '110.0' and
+          values['dispatches'] == '200' and values['dispatchPassEnds'] == '50'
           and values['submits'] == '25' and values['submit'] == '70.0' and values['queue'] == '55.0' and
           values['writeWaits'] == '3000' and values['writeWait'] == '12.0' and values['readWaits'] == '60' and
           values['readWait'] == '1500.0' and values['otherWaits'] == '1' and 3.9 <= float(values['otherWait']) <= 6.0 and

@@ -114,6 +114,22 @@ per 5.1 s window, buffer read-backs 1.7-2.0 s of render-thread fence waits), abo
   the GPU thread (where they still wait for the render thread and the host GPU).
 - The host sync after a read-back is strict: the host submits the copy at once, so a CPU read
   soon after waits for the copy rather than for a later submission.
+
+Build 624 journal (Core 623, PID 1835, 3 November 2026, nominal thermal state): 15.0 FPS mean,
+13.2 median. Only 4 of the 751 read-backs were deferred; 747 were declined because a buffer of
+the cache holds the destination. They are one copy of a whole 1x1 R16G16B16A16Float texture (8
+bytes, the eye-adaptation value) into a buffer, about once per frame. Each still flushed the
+texture: the GPU thread waited about 57 ms per frame for the render thread and the host GPU.
+
+- Such a read-back (TryReadBackIntoBuffer) is copied on the GPU into that buffer when it covers
+  the whole source texture, and no texture overlaps the destination:
+  - BufferCache.TryCopyTextureToBuffer runs ITexture.CopyTo of the level into the buffer range.
+  - It marks the range GPU-modified, as a buffer to buffer copy does: a GPU read uses the buffer,
+    and a CPU read flushes it from the GPU.
+  - A forced host sync follows the copy. It seals the modification, so a guest-memory read before
+    the guest's own sync waits for the copy too.
+  - A partial region keeps the guest path (counted as partial).
+- The DMA summary counts these read-backs into buffers apart.
 - The float policy keeps to block-linear destinations (complete copies, upstream path).
 - FindRegionTarget (the region upload, both GPU copies) only takes a texture that starts at the
   surface base: the cache lookup returns any texture that contains the base, and the region
@@ -175,6 +191,38 @@ BUFFER_NEW = '''        /// <summary>
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Copies a whole texture level on the GPU into the buffer of the cache that holds a GPU virtual range, and marks the
+        /// range as modified by the GPU, as a buffer to buffer copy does: a GPU read uses the buffer, a CPU read flushes it
+        /// (the Hogwarts DMA read-back into a buffer). False, with nothing done, unless the range is one mapped region.
+        /// </summary>
+        /// <param name="memoryManager">GPU memory manager where the range is mapped</param>
+        /// <param name="texture">Host texture whose level 0 is copied whole</param>
+        /// <param name="gpuVa">GPU virtual address of the destination</param>
+        /// <param name="size">Size of the destination in bytes, the level's size</param>
+        /// <param name="stride">Destination row stride in bytes</param>
+        /// <returns>True if the copy was queued</returns>
+        public bool TryCopyTextureToBuffer(MemoryManager memoryManager, ITexture texture, ulong gpuVa, ulong size, int stride)
+        {
+            MultiRange physical = memoryManager.GetPhysicalRegions(gpuVa, size);
+
+            if (physical.Count != 1 || physical.GetSubRange(0).Address == MemoryManager.PteUnmapped)
+            {
+                return false;
+            }
+
+            MultiRange range = TranslateAndCreateMultiBuffersPhysicalOnly(memoryManager, gpuVa, size, BufferStage.Copy);
+            MemoryRange subRange = range.GetSubRange(0);
+            Buffer buffer = GetBuffer(subRange.Address, subRange.Size, BufferStage.Copy);
+            int offset = (int)(subRange.Address - buffer.Address);
+
+            texture.CopyTo(new BufferRange(buffer.Handle, offset, (int)subRange.Size, true), 0, 0, stride);
+            buffer.SignalModified(subRange.Address, subRange.Size, BufferStage.Copy);
+            buffer.CopyToDependantVirtualBuffers(subRange.Address, subRange.Size);
+
+            return true;
         }
 
 ''' + BUFFER_ANCHOR
@@ -547,8 +595,9 @@ METHOD_NEW = '''        /// <summary>
         private enum GpuSourceDecline { NoTexture, Layout, NoTarget, Format, NotModified, Count }
 
         // Why a read-back into linear memory keeps the guest path: rows not contiguous on 4 bytes, a buffer over the
-        // destination, another texture over it, or the texture there of another layout.
-        private enum ReadBackDecline { Rows, Buffer, Occupied, Target, Count }
+        // destination that the GPU copy could not take, another texture over it, the texture there of another layout, or
+        // a region of the source texture into a buffer (the buffer copy takes the whole level).
+        private enum ReadBackDecline { Rows, Buffer, Occupied, Target, Partial, Count }
 
         private const int GuestCopySignaturesPerReason = 8;
         private const int GuestCopySummaryLimit = 64;
@@ -583,8 +632,10 @@ METHOD_NEW = '''        /// <summary>
         private Image.Texture[] _targetOverlaps = new Image.Texture[8];
         private readonly long[] _readBackDeclines = new long[(int)ReadBackDecline.Count];
         private long _gpuReadBacks;
+        private long _bufferReadBacks;
         private long _readBackCandidates;
         private bool _gpuReadBackNoted;
+        private bool _bufferReadBackNoted;
 
         /// <summary>
         /// Attributes a 2D copy that reads its source through guest memory (which flushes a GPU-written texture):
@@ -619,13 +670,13 @@ METHOD_NEW = '''        /// <summary>
                     $"{_gpuSourceDeclines[0]} layout {_gpuSourceDeclines[1]} noTarget {_gpuSourceDeclines[2]} format " +
                     $"{_gpuSourceDeclines[3]} notModified {_gpuSourceDeclines[4]}; gpuRegionCopies {_gpuRegionCopies}, declined noTexture " +
                     $"{_gpuRegionDeclines[0]} layout {_gpuRegionDeclines[1]} noTarget {_gpuRegionDeclines[2]} format " +
-                    $"{_gpuRegionDeclines[3]} notModified {_gpuRegionDeclines[4]}; gpuReadBacks {_gpuReadBacks} of {_readBackCandidates}, " +
+                    $"{_gpuRegionDeclines[3]} notModified {_gpuRegionDeclines[4]}; gpuReadBacks {_gpuReadBacks} (into buffers {_bufferReadBacks}) of {_readBackCandidates}, " +
                     $"first-access flushes {System.Threading.Interlocked.Read(ref Image.TextureGroup.ReadBackFlushes)} (" +
                     $"{Milliseconds(System.Threading.Interlocked.Read(ref Image.TextureGroup.ReadBackFlushTicks))} ms, max " +
                     $"{Milliseconds(System.Threading.Interlocked.Read(ref Image.TextureGroup.ReadBackFlushMaxTicks))} ms, GPU thread " +
                     $"{System.Threading.Interlocked.Read(ref Image.TextureGroup.ReadBackGpuThreadFlushes)}), declined rows " +
                     $"{_readBackDeclines[0]} buffer {_readBackDeclines[1]} occupied {_readBackDeclines[2]} target " +
-                    $"{_readBackDeclines[3]}; slowReads by source none {_slowReadsBySource[0]} linearHolds " +
+                    $"{_readBackDeclines[3]} partial {_readBackDeclines[4]}; slowReads by source none {_slowReadsBySource[0]} linearHolds " +
                     $"{_slowReadsBySource[1]} linearOther {_slowReadsBySource[2]} blockLinear {_slowReadsBySource[3]})");
             }
         }
@@ -1063,8 +1114,7 @@ METHOD_NEW = '''        /// <summary>
 
             if (memoryManager.Physical.BufferCache.HasBufferInRange(memoryManager, dstVa, size))
             {
-                _readBackDeclines[(int)ReadBackDecline.Buffer]++;
-                return false;
+                return TryReadBackIntoBuffer(memoryManager, source, format, sourceX, sourceY, width, height, dstVa, size, dstStride);
             }
 
             Image.Texture target = memoryManager.Physical.TextureCache.FindTexture(
@@ -1110,6 +1160,50 @@ METHOD_NEW = '''        /// <summary>
                 _gpuReadBackNoted = true;
                 Logger.Warning?.Print(LogClass.Gpu, $"DMA GPU read-back (Hogwarts policy): {format.Format} " +
                     $"{source.Info.Width}x{source.Info.Height} ({sourceX},{sourceY}) {width}x{height} to linear stride {dstStride}");
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// A read-back whose destination a buffer of the cache holds: build 624's 1x1 eye-adaptation copy, about once per
+        /// frame, 747 of 751 read-backs. When it covers the whole source texture and no texture overlaps the destination, the
+        /// level is copied on the GPU into the buffer, and the range is marked GPU-modified as a buffer to buffer copy does
+        /// (BufferCache.TryCopyTextureToBuffer). The forced host sync after it seals the modification, so a guest-memory
+        /// read before the guest's own sync waits for the copy too. Otherwise the copy keeps the guest path.
+        /// </summary>
+        private bool TryReadBackIntoBuffer(MemoryManager memoryManager, Image.Texture source, Image.FormatInfo format, int sourceX,
+                                           int sourceY, int width, int height, ulong dstVa, ulong size, int dstStride)
+        {
+            if (sourceX != 0 || sourceY != 0 || width != source.Info.Width || height != source.Info.Height)
+            {
+                _readBackDeclines[(int)ReadBackDecline.Partial]++;
+                return false;
+            }
+
+            if (memoryManager.Physical.TextureCache.FindOverlapsInRange(memoryManager, dstVa, size, ref _targetOverlaps, out _) != 0)
+            {
+                _readBackDeclines[(int)ReadBackDecline.Occupied]++;
+                return false;
+            }
+
+            source.SynchronizeMemory();
+
+            if (!memoryManager.Physical.BufferCache.TryCopyTextureToBuffer(memoryManager, source.HostTexture, dstVa, size, dstStride))
+            {
+                _readBackDeclines[(int)ReadBackDecline.Buffer]++;
+                return false;
+            }
+
+            _context.CreateHostSyncIfNeeded(Ryujinx.Graphics.Gpu.Synchronization.HostSyncFlags.Force);
+            _gpuReadBacks++;
+            _bufferReadBacks++;
+
+            if (!_bufferReadBackNoted)
+            {
+                _bufferReadBackNoted = true;
+                Logger.Warning?.Print(LogClass.Gpu, $"DMA GPU read-back into a buffer (Hogwarts policy): {format.Format} " +
+                    $"{width}x{height} to stride {dstStride}, {size} bytes");
             }
 
             return true;

@@ -32,7 +32,9 @@ Changes, for every title:
   stall it, the render thread's own work is the next limit, and these lines tell which commands that
   work is made of.
 - The Vulkan backend times, on the render thread, what a draw's preparation is made of (pipeline lookups,
-  barriers, descriptor updates, auto-flushes), the render passes it begins (and how many begin again on
+  barriers, descriptor updates, auto-flushes), and from build 625 a compute dispatch's (pipelines, barriers,
+  descriptors; build 624: 21-29 ms of render-thread time per frame for about 40 dispatches, each ending the
+  render pass it interrupts), the render passes it begins (and how many begin again on
   the framebuffer the last one ended on), the command buffer submissions, the buffer fence waits (the
   render thread's own, before a direct buffer write or for a read, and those of other threads, such as a
   guest thread reading a deferred read-back) and the presentation (swapchain image acquisition and queue
@@ -240,10 +242,23 @@ STAGE_CLASS_NEW = '''    /// <summary>
         public static long PassTicks, PassBegins, PassResumes;
         public static long SubmitTicks, Submits, QueueTicks;
         public static long WriteWaitTicks, WriteWaits, ReadWaitTicks, ReadWaits;
+        public static long ComputePrepareTicks, ComputePrepares, ComputePipelineTicks, ComputePipelines;
+        public static long ComputeBarrierTicks, ComputeDescriptorTicks, Dispatches, DispatchPassEnds;
         private static long _otherWaitTicks, _otherWaits;
         private static long _presentTicks, _presents, _acquireTicks, _queuePresentTicks, _windowStart;
 
         public static long Now() => System.Diagnostics.Stopwatch.GetTimestamp();
+
+        // A compute dispatch, and whether it ends a render pass (the next draw on that framebuffer begins it again).
+        public static void NoteDispatch(bool renderPassActive)
+        {
+            Dispatches++;
+
+            if (renderPassActive)
+            {
+                DispatchPassEnds++;
+            }
+        }
 
         // A buffer fence wait: the render thread's own (before a direct buffer write, or for a read), or another thread's
         // (a guest thread reading a flushed texture or buffer), counted apart; other threads add atomically.
@@ -296,7 +311,10 @@ STAGE_CLASS_NEW = '''    /// <summary>
             string text = "Vulkan render stages over " + Ms(end - _windowStart) + " ms, " + _presents + " frames: draw prepare " +
                 Prepares + " calls " + Ms(PrepareTicks) + " ms (not ready " + NotReady + "; pipelines " + Pipelines + " calls " +
                 Ms(PipelineTicks) + " ms, barriers " + Ms(BarrierTicks) + " ms, descriptors " + Ms(DescriptorTicks) +
-                " ms, auto-flushes " + AutoFlushes + " calls " + Ms(AutoFlushTicks) + " ms); render passes " + PassBegins +
+                " ms, auto-flushes " + AutoFlushes + " calls " + Ms(AutoFlushTicks) + " ms); compute prepare " + ComputePrepares +
+                " calls " + Ms(ComputePrepareTicks) + " ms (pipelines " + ComputePipelines + " calls " + Ms(ComputePipelineTicks) +
+                " ms, barriers " + Ms(ComputeBarrierTicks) + " ms, descriptors " + Ms(ComputeDescriptorTicks) + " ms; dispatches " +
+                Dispatches + ", render passes ended " + DispatchPassEnds + "); render passes " + PassBegins +
                 " begun " + Ms(PassTicks) + " ms (same framebuffer again " + PassResumes + "); submits " + Submits + " calls " +
                 Ms(SubmitTicks) + " ms (queue " + Ms(QueueTicks) + " ms); fence waits on the render thread: buffer writes " +
                 WriteWaits + " calls " + Ms(WriteWaitTicks) + " ms, reads " + ReadWaits + " calls " + Ms(ReadWaitTicks) +
@@ -307,6 +325,8 @@ STAGE_CLASS_NEW = '''    /// <summary>
             PrepareTicks = Prepares = NotReady = PipelineTicks = Pipelines = BarrierTicks = DescriptorTicks = 0;
             AutoFlushTicks = AutoFlushes = PassTicks = PassBegins = PassResumes = SubmitTicks = Submits = QueueTicks = 0;
             WriteWaitTicks = WriteWaits = ReadWaitTicks = ReadWaits = 0;
+            ComputePrepareTicks = ComputePrepares = ComputePipelineTicks = ComputePipelines = 0;
+            ComputeBarrierTicks = ComputeDescriptorTicks = Dispatches = DispatchPassEnds = 0;
             _presentTicks = _presents = _acquireTicks = _queuePresentTicks = 0;
             _windowStart = end;
             Ryujinx.Common.Logging.Logger.Warning?.Print(Ryujinx.Common.Logging.LogClass.Gpu, text);
@@ -545,9 +565,71 @@ BUFFER_WAITS_NEW = '''        // The fence waits are timed (RenderStageTimer): t
         }'''
 
 BUFFER_HOLDER_HUNKS = [(BUFFER_FLUSH_WAIT_OLD, BUFFER_FLUSH_WAIT_NEW), (BUFFER_WAITS_OLD, BUFFER_WAITS_NEW)]
+COMPUTE_PREPARE_OLD = '''        private bool RecreateComputePipelineIfNeeded(bool allowAsyncSkip = false)
+        {
+            if (_computeStateDirty || Pbp != PipelineBindPoint.Compute)
+            {
+                if (!CreatePipeline(PipelineBindPoint.Compute, allowAsyncSkip))
+                {
+                    return false;
+                }'''
+COMPUTE_PREPARE_NEW = '''        private bool RecreateComputePipelineIfNeeded(bool allowAsyncSkip = false)
+        {
+            // Every dispatch's preparation is timed whole (RenderStageTimer), with its pipeline, barrier and descriptor parts.
+            long start = RenderStageTimer.Now();
+            bool ready = PrepareComputeDispatch(allowAsyncSkip);
+            RenderStageTimer.ComputePrepareTicks += RenderStageTimer.Now() - start;
+            RenderStageTimer.ComputePrepares++;
+
+            return ready;
+        }
+
+        private bool PrepareComputeDispatch(bool allowAsyncSkip)
+        {
+            if (_computeStateDirty || Pbp != PipelineBindPoint.Compute)
+            {
+                long pipelineStart = RenderStageTimer.Now();
+                bool created = CreatePipeline(PipelineBindPoint.Compute, allowAsyncSkip);
+                RenderStageTimer.ComputePipelineTicks += RenderStageTimer.Now() - pipelineStart;
+                RenderStageTimer.ComputePipelines++;
+
+                if (!created)
+                {
+                    return false;
+                }'''
+
+COMPUTE_STATE_OLD = '''            Gd.Barriers.Flush(Cbs, _program, _feedbackLoop != 0, RenderPassActive, _rpHolder, EndRenderPassDelegate);
+
+            _descriptorSetUpdater.UpdateAndBindDescriptorSets(Cbs, PipelineBindPoint.Compute);'''
+COMPUTE_STATE_NEW = '''            long barrierStart = RenderStageTimer.Now();
+            Gd.Barriers.Flush(Cbs, _program, _feedbackLoop != 0, RenderPassActive, _rpHolder, EndRenderPassDelegate);
+            long descriptorStart = RenderStageTimer.Now();
+
+            _descriptorSetUpdater.UpdateAndBindDescriptorSets(Cbs, PipelineBindPoint.Compute);
+            RenderStageTimer.ComputeBarrierTicks += descriptorStart - barrierStart;
+            RenderStageTimer.ComputeDescriptorTicks += RenderStageTimer.Now() - descriptorStart;'''
+
+DISPATCH_OLD = '''        public void DispatchCompute(int groupsX, int groupsY, int groupsZ)
+        {
+            EndRenderPass();'''
+DISPATCH_NEW = '''        public void DispatchCompute(int groupsX, int groupsY, int groupsZ)
+        {
+            RenderStageTimer.NoteDispatch(RenderPassActive);
+            EndRenderPass();'''
+
+DISPATCH_INDIRECT_OLD = '''        public void DispatchComputeIndirect(Auto<DisposableBuffer> indirectBuffer, int indirectBufferOffset)
+        {
+            EndRenderPass();'''
+DISPATCH_INDIRECT_NEW = '''        public void DispatchComputeIndirect(Auto<DisposableBuffer> indirectBuffer, int indirectBufferOffset)
+        {
+            RenderStageTimer.NoteDispatch(RenderPassActive);
+            EndRenderPass();'''
+
 PIPELINE_BASE_HUNKS = [(STAGE_CLASS_OLD, STAGE_CLASS_NEW), (STAGE_FIELD_OLD, STAGE_FIELD_NEW), (PREPARE_OLD, PREPARE_NEW),
                        (AUTO_FLUSH_OLD, AUTO_FLUSH_NEW), (DRAW_STATE_OLD, DRAW_STATE_NEW), (PASS_BEGIN_OLD, PASS_BEGIN_NEW),
-                       (PASS_BEGUN_OLD, PASS_BEGUN_NEW), (PASS_END_OLD, PASS_END_NEW)]
+                       (PASS_BEGUN_OLD, PASS_BEGUN_NEW), (PASS_END_OLD, PASS_END_NEW), (COMPUTE_PREPARE_OLD, COMPUTE_PREPARE_NEW),
+                       (COMPUTE_STATE_OLD, COMPUTE_STATE_NEW), (DISPATCH_OLD, DISPATCH_NEW),
+                       (DISPATCH_INDIRECT_OLD, DISPATCH_INDIRECT_NEW)]
 PIPELINE_FULL_HUNKS = [(SUBMIT_OLD, SUBMIT_NEW), (QUEUE_OLD, QUEUE_NEW)]
 WINDOW_HUNKS = [(PRESENT_START_OLD, PRESENT_START_NEW), (PRESENT_ACQUIRED_OLD, PRESENT_ACQUIRED_NEW),
                 (PRESENT_END_OLD, PRESENT_END_NEW)]

@@ -109,7 +109,10 @@ STAGE_LINE = re.compile(
     r'Vulkan render stages over (?P<window>[\d.]+) ms, (?P<frames>\d+) frames: draw prepare (?P<prepares>\d+) calls '
     r'(?P<prepare>[\d.]+) ms \(not ready (?P<notReady>\d+); pipelines (?P<pipelines>\d+) calls (?P<pipeline>[\d.]+) ms, '
     r'barriers (?P<barriers>[\d.]+) ms, descriptors (?P<descriptors>[\d.]+) ms, auto-flushes (?P<autoFlushes>\d+) calls '
-    r'(?P<autoFlush>[\d.]+) ms\); render passes (?P<passes>\d+) begun (?P<pass>[\d.]+) ms \(same framebuffer again '
+    r'(?P<autoFlush>[\d.]+) ms\); (?:compute prepare (?P<computes>\d+) calls (?P<compute>[\d.]+) ms \(pipelines '
+    r'(?P<computePipelines>\d+) calls (?P<computePipeline>[\d.]+) ms, barriers (?P<computeBarriers>[\d.]+) ms, descriptors '
+    r'(?P<computeDescriptors>[\d.]+) ms; dispatches (?P<dispatches>\d+), render passes ended (?P<dispatchPassEnds>\d+)\); )?'
+    r'render passes (?P<passes>\d+) begun (?P<pass>[\d.]+) ms \(same framebuffer again '
     r'(?P<resumes>\d+)\); submits (?P<submits>\d+) calls (?P<submit>[\d.]+) ms \(queue (?P<queue>[\d.]+) ms\); fence waits '
     r'on the render thread: buffer writes (?P<writeWaits>\d+) calls (?P<writeWait>[\d.]+) ms, reads (?P<readWaits>\d+) calls '
     r'(?P<readWait>[\d.]+) ms; on other threads (?P<otherWaits>\d+) calls (?P<otherWait>[\d.]+) ms; present '
@@ -123,7 +126,7 @@ def report_render_stages(lines, chosen):
     for value in lines:
         match = STAGE_LINE.search(value['diagnostic'])
         if match and begin <= value['timestamp'][:19] <= finish:
-            numbers = {key: float(v) for key, v in match.groupdict().items()}
+            numbers = {key: float(v) if v is not None else 0.0 for key, v in match.groupdict().items()}
             parsed.append((value['timestamp'][11:19], numbers))
     if not parsed:
         return None
@@ -133,6 +136,9 @@ def report_render_stages(lines, chosen):
         return (f"draw prepare {n['prepare'] / frames:.1f} ms in {n['prepares'] / frames:.0f} draws (pipelines "
                 f"{n['pipeline'] / frames:.2f}, barriers {n['barriers'] / frames:.2f}, descriptors {n['descriptors'] / frames:.2f}, "
                 f"auto-flushes {n['autoFlush'] / frames:.2f}, rest {rest / frames:.2f}; not ready {n['notReady'] / frames:.1f}), "
+                f"compute prepare {n['compute'] / frames:.1f} ms in {n['dispatches'] / frames:.0f} dispatches (pipelines "
+                f"{n['computePipeline'] / frames:.2f}, barriers {n['computeBarriers'] / frames:.2f}, descriptors "
+                f"{n['computeDescriptors'] / frames:.2f}; render passes ended {n['dispatchPassEnds'] / frames:.0f}), "
                 f"render passes {n['passes'] / frames:.0f} begun {n['pass'] / frames:.2f} ms (same framebuffer again "
                 f"{n['resumes'] / frames:.0f}), submits {n['submits'] / frames:.1f} = {n['submit'] / frames:.2f} ms (queue "
                 f"{n['queue'] / frames:.2f}), fence waits on the render thread {n['writeWait'] / frames:.2f} ms for "
