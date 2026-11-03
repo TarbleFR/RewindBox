@@ -98,6 +98,7 @@ from adapt_fragmented_reads import apply as adapt_fragmented_reads
 from adapt_gpu_work_diagnostics import apply as adapt_gpu_work_diagnostics
 from adapt_bindless_array_deltas import apply as adapt_bindless_array_deltas
 from adapt_hogwarts_dma_copies import apply as adapt_hogwarts_dma_copies, LIBRARY_OLD as HOGWARTS_DMA_LIBRARY_ANCHOR
+from adapt_queued_syncpoints import apply as adapt_queued_syncpoints
 from adapt_host_qos_pipeline_budget import apply as adapt_host_qos_pipeline_budget
 
 
@@ -242,6 +243,8 @@ def main():
     # the query-policy line that adapt_occlusion_reports wrote (still exactly once at this point).
     assert library.read_text(encoding='utf-8-sig').count(HOGWARTS_DMA_LIBRARY_ANCHOR) == 1, 'Hogwarts DMA policy anchor'
     adapted += [source / name for name in adapt_hogwarts_dma_copies(source)]
+    # Its Library.cs anchor is the encoding policy line adapt_hogwarts_dma_copies wrote; no later step edits its files.
+    adapted += [source / name for name in adapt_queued_syncpoints(source)]
     # After every step that edits ThreadedRenderer.cs, PipelineCacheManager.cs, BackgroundCompilationScheduler.cs,
     # PipelineBase.cs, PipelineFull.cs and MVKInitialization.cs (Window.cs only this one edits).
     adapted += [source / name for name in adapt_host_qos_pipeline_budget(source)]
@@ -317,7 +320,7 @@ def main():
                  'adapt_performance_diagnostics.py', 'adapt_register_liveness.py',
                  'adapt_fragmented_reads.py', 'adapt_gpu_work_diagnostics.py',
                  'adapt_bindless_array_deltas.py', 'adapt_hogwarts_dma_copies.py',
-                 'adapt_host_qos_pipeline_budget.py']:
+                 'adapt_queued_syncpoints.py', 'adapt_host_qos_pipeline_budget.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

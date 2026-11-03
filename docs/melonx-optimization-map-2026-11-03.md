@@ -23,7 +23,7 @@ are read from these logs; the expected effects are not measured.
 | # | Evidence (629) | Candidate | Status |
 | --- | --- | --- | --- |
 | 1 | Slow windows: render thread 46.4 ms per frame; compute descriptors 30-34 ms, draw descriptors 7-18 ms, 25 000-50 000 first-chance exceptions per 5 s | Core 631 (template scratch sized by binding, arrays written by changed range) | Written, not frozen (network) |
-| 2 | Core-performance windows (90 s): `queryReadback` 4 506 calls 11.8 s, `counterReports` 751 calls 11.9 s on the GPU thread, under the Hogwarts policy `occlusionQuerySync` (results published in order before each syncpoint increment, `docs/melonx-occlusion-2026-10-30.md`) | `CounterCache.FlushPendingReports` flushes the pending reports in order, each `CounterQueue.FlushTo` (about 6 per flush); they are mostly in one command buffer, so a flush costs one round trip to the GPU, about 8 times per second: merging the waits gains nothing. The gain is not to block the syncpoint: publish a report when the guest reads its memory (a read handler on its page, as buffers flush on CPU reads), counted, with the current blocking path as fallback | Design written here; needs the iPhone: the policy fixes Hogwarts rendering |
+| 2 | Core-performance windows (90 s): `queryReadback` 4 506 calls 11.8 s, `counterReports` 751 calls 11.9 s on the GPU thread, under the Hogwarts policy `occlusionQuerySync` (results published in order before each syncpoint increment, `docs/melonx-occlusion-2026-10-30.md`) | `CounterCache.FlushPendingReports` flushes the pending reports in order, each `CounterQueue.FlushTo` (about 6 per flush); they are mostly in one command buffer, so a flush costs one round trip to the GPU, about 8 times per second: merging the waits gains nothing. The gain is not to block the syncpoint: publish a report when the guest reads its memory (a read handler on its page, as buffers flush on CPU reads), counted, with the current blocking path as fallback | Written: `adapt_queued_syncpoints.py` (Core 631), 31 source checks; not compiled, not frozen, not on the iPhone |
 | 3 | `syncInvoke` 1 908 calls 24.0 s: the GPU thread waits for the render thread; 11 strict syncpoint flushes per frame | Falls with #1; then fewer strict flushes (needs the waits measured first) | After 631 |
 | 4 | Allocations: GPU thread 728.5 MiB, render thread 354.6 MiB in 90 s (about 12 MiB/s) with a 64 MiB gen0; .NET background GC up to 41 % of a core | Pooled buffers and spans on the allocating paths of `gpuDispatch` and `renderDrain` (per-phase allocation counters exist; per call site needs one more counter) | To locate |
 | 5 | RAM: footprint 2 473 → 3 838 MiB and 4 182 → 2 817 MiB available, device 27 % → 8 % available in 67 s; managed heap 600 → 687 MiB; GPU caches textures 191/768 MiB, buffers 65/554 MiB; MoltenVK GPU memory 656-902 MB | (a) What holds 600 MiB of managed heap 6 s after start: a heap summary by type in the diagnostics; (b) the MoltenVK pipeline caches (budget 1 GiB: main 768 MiB, two workers 128 MiB), whose libraries can be held two or three times; one shared cache; (c) texture and buffer budgets from the device's available memory | To measure (a), then (b) |
@@ -66,6 +66,16 @@ moment the blocking path made it visible), but the GPU thread meanwhile processe
 waiting about one GPU round trip, about 8 times per second (11.8 s in 90 s). It needs a fixture of the FIFO's order,
 of the waits (no deadlock) and of disposal, compiled with the .NET SDK, before the Core freeze, and Hogwarts on the
 iPhone, since the policy fixes its rendering.
+
+Written on 3 Nov 2026 (19:40-20:30): `build-utils/melonx/adapt_queued_syncpoints.py`, applied by `prepare_embedded.py` right
+after `adapt_hogwarts_dma_copies` (its Library anchor), in the 631 plan (`productionChanges` 29 with `GpuContext.cs`,
+`GPFifoClass.cs`, `GPFifoDevice.cs`, `CounterCache.cs`, `DeferredCounterReport.cs`; `addedPreparationInputs`; scope
+text) and the contract test. The GPU thread never waits on guest semaphores (acquires are not implemented:
+`GPFifoClass` "TODO: Acquire operations"), and `Syncpointb` is its only syncpoint wait, drained first. At the freeze:
+the gates whose receipts declare these files (the fragmented-read gate compiles the GPU assembly) rerun on the final
+source, and a compiled fixture of the FIFO (order of increments, publication before each, waits, age bound,
+disposal) is to be written with the .NET SDK. `test/melonx_queued_syncpoints_test.py --source <prepared tree>`: 31
+source checks pass on the 631 preparation.
 
 ## Next safe step
 

@@ -16,6 +16,7 @@ import verify_dma_core as verify
 from freeze_performance_core import changed_dependencies
 from adapt_bindless_array_deltas import COUNTERS, DIAGNOSTIC_EDITS, DIAGNOSTICS, NAMES as ARRAY_NAMES, WORK_ROWS
 from adapt_hogwarts_dma_copies import CONFIG, DMA, LIBRARY, LIBRARY_OLD, NAMES as DMA_NAMES
+from adapt_queued_syncpoints import NAMES as QUEUE_NAMES
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -31,7 +32,7 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'scalar-texture-descriptors': 'delivered', 'fallback-descriptor-scratch': 'delivered',
             'single-resource-bindings': 'delivered', 'bounded-binding-snapshots': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
-CHANGES = (set(ARRAY_NAMES) - {DIAGNOSTICS}) | set(DMA_NAMES) | set(HOST_NAMES)
+CHANGES = (set(ARRAY_NAMES) - {DIAGNOSTICS}) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES)
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -144,6 +145,9 @@ for mutation in ('missingRequired', 'staleGeneration', 'nonfinite', 'missingWork
 
 # The preparation runs the DMA adapter last, after the array deltas, with its Library.cs anchor checked there.
 recipe = (ROOT / 'build-utils/melonx/prepare_embedded.py').read_text()
+check(recipe.count('adapt_queued_syncpoints(source)') == 1 and recipe.count("'adapt_queued_syncpoints.py'") == 1 and
+      recipe.index('adapt_hogwarts_dma_copies(source)') < recipe.index('adapt_queued_syncpoints(source)') <
+      recipe.index('adapt_host_qos_pipeline_budget(source)'), 'queued syncpoint adapter order')
 check(recipe.count('adapt_hogwarts_dma_copies(source)') == 1 and recipe.count("'adapt_hogwarts_dma_copies.py'") == 1 and
       recipe.count('adapt_host_qos_pipeline_budget(source)') == 1 and recipe.count("'adapt_host_qos_pipeline_budget.py'") == 1 and
       recipe.index('adapt_bindless_array_deltas(source)') < recipe.index('HOGWARTS_DMA_LIBRARY_ANCHOR) == 1') <
@@ -204,9 +208,10 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 24 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 29 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
-                                                     'build-utils/melonx/adapt_host_qos_pipeline_budget.py'} and
+                                                     'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
+                                                     'build-utils/melonx/adapt_queued_syncpoints.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py'},
           'Unexpected preparation scope')
     check(set(frozen['baselineUnadaptedMembers']) == JOINED,
