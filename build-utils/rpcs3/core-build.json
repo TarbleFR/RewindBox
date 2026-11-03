@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 634,
- "identity_type": "rpcs3-ios-core634",
- "summary": "RPCS3 Core 634 = the delivered Core 610 plus one folded delta: the Core 612, 613, 616, 619, 621, 624, 627 and 630 records unchanged and the Core 634 change (build-utils/rpcs3/core634-from-630.patch over Core 630), from the Build 629 iPhone logs. Boots: the SPIR-V of each GLSL text stays in one pack file of the title's cache, so glslang no longer runs again at each boot (5.5 s of CPU at the Black Ops II multiplayer boot; REWINDBOX_SPIRV_DISK_CACHE_634); cached PPU objects are checked, linked and finalized on up to four threads, with a window that follows the memory headroom (2.2 to 4.4 s on one thread; REWINDBOX_FAST_JIT_LOAD_634). Memory: object bytes are released after finalizeObject, and the GDB listener that MCJIT registers on every engine, which keeps a second copy of each object, is unregistered (REWINDBOX_JIT_OBJECT_RELEASE_634). CPU: AES and SHA use the ARMv8 cryptography instructions (REWINDBOX_CRYPTO_A64_634). SPU hitches: Assassin's Creed joins the SPU object prefetch, which gets a setting (REWINDBOX_SPU_PREFETCH_AC_634). ABI 30, the 92 exports, the PPU/SPU codegen identities (two exact aliases, host code only) and the MoltenVK dependency of Core 610 unchanged. No gain measured: not built, no iPhone run.",
+ "build": 636,
+ "identity_type": "rpcs3-ios-core636",
+ "summary": "RPCS3 Core 636 = the delivered Core 610 plus one folded delta: the Core 612 to 634 records unchanged and the Core 636 change (build-utils/rpcs3/core636-from-634.patch over Core 634), from the independent audit of Core 634 and the asynchronous ZCULL path: the ZCULL fault handler of Core 630 no longer reads or writes X29/X30 through Darwin's __x[29] (such an access keeps the retry; REWINDBOX_GUEST_ACCESS_FP_LR_636); the SPIR-V pack's 256 MiB bound counts the batch flush() is writing and the header (REWINDBOX_SPIRV_CAP_636); the parallel PPU cache check assigns no check after a missing object or a stop, as the serial walk returns (REWINDBOX_PPU_CHECK_STOP_636, PPUThread.cpp under one exact codegen alias); a guest's pause before asking for its ZCULL report slot again ends when the RSX thread releases a slot (REWINDBOX_ZCULL_SLOT_WAKE_636). Settings and defaults unchanged, values exact. ABI 30, the 92 exports, the PPU/SPU codegen identities and the MoltenVK dependency of Core 610 unchanged. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,7 +22,7 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "e7750b68f5682ed33679972f70700343f06e66f4882b17e2bc5736923ddc0d19",
+  "patch_sha256": "01ba35fc8776b5ab55b9f1709e2dbc2ba47e60aa49adbbc32a4a48743e4e36d5",
   "postimages": 356,
   "records": [
    "core610_20261101",
@@ -35,7 +35,8 @@
    "core624_20261103",
    "core627_20261103",
    "core630_20261103",
-   "core634_20261103"
+   "core634_20261103",
+   "core636_20261103"
   ]
  },
  "reference": {
@@ -75,10 +76,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core634_20261103",
-  "manifest": "build-utils/rpcs3/core634-delta.json",
-  "patch": "build-utils/rpcs3/core634-delta.patch",
-  "patch_sha256": "578d949cabd1de8699bd8f4e6949f60391e254d4c06fabf136636bf22853ddea"
+  "record": "core636_20261103",
+  "manifest": "build-utils/rpcs3/core636-delta.json",
+  "patch": "build-utils/rpcs3/core636-delta.patch",
+  "patch_sha256": "7cc601d273f4c2ab9f78200ce385c113680dd3fb861a8a69f96a9953cb816f9b"
  },
  "exports": 92,
  "core_inputs": {
@@ -354,28 +355,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core634_codegen_test.py",
+     "test/rpcs3_core636_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 634 changes two codegen inputs, host code only, under exact aliases: core634-from-630.patch is reversed, the Core 630 audit runs on that tree, and the identities are recomputed with and without the aliases"
+    "reason": "Core 636 changes one codegen input, host code only (PPUThread.cpp check pass), under one exact alias; the Core 634 audit runs on the reverted tree"
    },
    {
-    "name": "core634",
+    "name": "core636",
     "argv": [
      "python3",
-     "test/rpcs3_core634_test.py",
+     "test/rpcs3_core636_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core634.json"
+     "{out}/core636.json"
     ],
-    "reason": "new: Core 634 = Core 630 + core634-from-630.patch (reverse patch, Core 630 files authenticated by the SHA-256 pinned in core634-delta.json increment_from_core630); the whole Core 630 suite on the reversed tree; the AES and SHA instructions of the Apple CPU against the C code; the SPIR-V store on a real file; the object release and the link workers"
+    "reason": "new: Core 636 = Core 634 + core636-from-634.patch (reverse patch to the pinned Core 634 files): the X29/X30 fixture on the real Darwin context, the SPIR-V bound, the PPU check pass and the slot wake, each correction reproduced on Core 634; the Core 634 suite on that tree"
    },
    {
     "name": "lr-full-queue",

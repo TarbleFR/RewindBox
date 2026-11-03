@@ -2872,7 +2872,7 @@ index 0000000..1708e6f
 +};
 +}
 diff --git a/Utilities/Thread.cpp b/Utilities/Thread.cpp
-index 9445110..92cc644 100644
+index 9445110..f6fda89 100644
 --- a/Utilities/Thread.cpp
 +++ b/Utilities/Thread.cpp
 @@ -12,6 +12,9 @@
@@ -2903,7 +2903,7 @@ index 9445110..92cc644 100644
  	{
  		const u32 size = (inst >> 30) & 3;
  		const u32 opc  = (inst >> 22) & 3;
-@@ -1514,6 +1519,104 @@ void put_a64_reg_value(ucontext_t* context, u32 reg_index, u32 reg_size, bool re
+@@ -1514,6 +1519,109 @@ void put_a64_reg_value(ucontext_t* context, u32 reg_index, u32 reg_size, bool re
  	GPR(context, reg_index) = temp_reg_value;
  }
  
@@ -2922,7 +2922,10 @@ index 9445110..92cc644 100644
 +	{
 +		const auto operands = rpcs3::ios::guest_access::decode_single_operands(instruction);
 +
-+		if ((single.op == A64_STORE) == is_writing && !(addr & (single.mem_size - 1)) && operands.rn != 31)
++		// REWINDBOX_GUEST_ACCESS_FP_LR_636: base, index and data registers checked before any GPR() read.
++		if ((single.op == A64_STORE) == is_writing && !(addr & (single.mem_size - 1)) && operands.rn != 31 &&
++			rpcs3::ios::guest_access::context_register(operands.rn) && rpcs3::ios::guest_access::context_register(single.reg_num) &&
++			(!operands.indexed || rpcs3::ios::guest_access::context_register(operands.rm)))
 +		{
 +			// The access must start at the fault address: one that starts on the page below ends here.
 +			u64 address = static_cast<u64>(GPR(context, operands.rn)) + static_cast<u64>(operands.offset);
@@ -2941,7 +2944,9 @@ index 9445110..92cc644 100644
 +		return;
 +	}
 +
-+	if (const auto pair = rpcs3::ios::guest_access::decode_pair(instruction); pair.valid && pair.load != is_writing && pair.rn != 31)
++	if (const auto pair = rpcs3::ios::guest_access::decode_pair(instruction); pair.valid && pair.load != is_writing && pair.rn != 31 &&
++		rpcs3::ios::guest_access::context_register(pair.rn) && rpcs3::ios::guest_access::context_register(pair.rt) &&
++		rpcs3::ios::guest_access::context_register(pair.rt2)) // REWINDBOX_GUEST_ACCESS_FP_LR_636
 +	{
 +		// The fault address is the first register's only when that one faulted.
 +		const u64 address = static_cast<u64>(GPR(context, pair.rn)) + static_cast<s64>(pair.offset);
@@ -3008,7 +3013,7 @@ index 9445110..92cc644 100644
  u64 get_a64_reg_value(ucontext_t* context, u32 reg_index, u32 reg_size)
  {
  	ensure(reg_size == 1 || reg_size == 2 || reg_size == 4 || reg_size == 8);
-@@ -1591,6 +1694,9 @@ bool handle_access_violation(u32 addr, bool is_writing, bool is_exec, ucontext_t
+@@ -1591,6 +1699,9 @@ bool handle_access_violation(u32 addr, bool is_writing, bool is_exec, ucontext_t
  			state_changed = vm::temporary_unlock(*cpu);
  		}
  
@@ -3018,7 +3023,7 @@ index 9445110..92cc644 100644
  		bool handled = rsx::g_access_violation_handler(addr, is_writing);
  
  		if (state_changed && (cpu->state += cpu_flag::temp, cpu->test_stopped()))
-@@ -1600,6 +1706,12 @@ bool handle_access_violation(u32 addr, bool is_writing, bool is_exec, ucontext_t
+@@ -1600,6 +1711,12 @@ bool handle_access_violation(u32 addr, bool is_writing, bool is_exec, ucontext_t
  
  		if (handled)
  		{
@@ -3031,7 +3036,7 @@ index 9445110..92cc644 100644
  			g_tls_fault_rsx++;
  			return true;
  		}
-@@ -2768,6 +2880,8 @@ thread_local DECLARE(thread_ctrl::g_tls_error_callback) = nullptr;
+@@ -2768,6 +2885,8 @@ thread_local DECLARE(thread_ctrl::g_tls_error_callback) = nullptr;
  DECLARE(thread_ctrl::g_native_core_layout) { native_core_arrangement::undefined };
  
  #ifdef RPCS3_IOS
@@ -3040,7 +3045,7 @@ index 9445110..92cc644 100644
  namespace
  {
  	struct ios_thread_worker_pool;
-@@ -2879,6 +2993,10 @@ void* ios_thread_worker::run(void* opaque) noexcept
+@@ -2879,6 +2998,10 @@ void* ios_thread_worker::run(void* opaque) noexcept
  			worker->job.wait(nullptr);
  		}
  
@@ -3051,7 +3056,7 @@ index 9445110..92cc644 100644
  		job_context context{worker, thread};
  		pthread_cleanup_push(&ios_thread_worker::abandon, &context);
  		thread->entry_point(thread);
-@@ -4067,9 +4185,11 @@ void thread_ctrl::set_native_priority(int priority)
+@@ -4067,9 +4190,11 @@ void thread_ctrl::set_native_priority(int priority)
  	// SCHED_RR policy or query POSIX scheduling state: Metal performs the same
  	// query while compiling shaders, and physical iOS 27 incidents faulted in
  	// that path after RPCS3 created real-time-priority pthreads.
@@ -3065,7 +3070,7 @@ index 9445110..92cc644 100644
  	{
  		sig_log.error("pthread_set_qos_class_self_np() failed: %d", err);
  	}
-@@ -4125,6 +4245,13 @@ void thread_ctrl::set_thread_affinity_mask(u64 mask)
+@@ -4125,6 +4250,13 @@ void thread_ctrl::set_thread_affinity_mask(u64 mask)
  	{
  		sig_log.error("Failed to set thread affinity 0x%x: error: %s", mask, fmt::win_error{GetLastError(), nullptr});
  	}
@@ -4471,10 +4476,10 @@ index e11a275..353f459 100644
  	{
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 new file mode 100644
-index 0000000..7debb61
+index 0000000..b415890
 --- /dev/null
 +++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
-@@ -0,0 +1,127 @@
+@@ -0,0 +1,134 @@
 +# CELL591: the exact reviewed JITLLVM change clears a stack ObjectCache on
 +# recoverable failure; SPULLVM drops finalized IR after obtaining native code.
 +# Neither changes object emission, relocations or the callable ABI.
@@ -4597,6 +4602,13 @@ index 0000000..7debb61
 +        set(${output} "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf" PARENT_SCOPE)
 +    elseif(source STREQUAL "Cell/PPUThread.cpp" AND
 +           actual STREQUAL "dde2a8619da340925e6a57dc0bdb138b1dc14a40300173ed913fe3fbc44b3823")
++        set(${output} "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44" PARENT_SCOPE)
++    # REWINDBOX_PPU_CHECK_STOP_636: the parallel check pass of ppu_initialize assigns no further object
++    # check after a missing object or a stop, as the serial walk returns. Host code only: no translator,
++    # pass, emission, relocation or symbol changes; the same objects, read the same way. Keep the
++    # delivered effective hash for this exact source snapshot only.
++    elseif(source STREQUAL "Cell/PPUThread.cpp" AND
++           actual STREQUAL "087fc4cf27899261236a42cb06eda74a08ba7f8507c41be8ded2ba5fd7f7b81b")
 +        set(${output} "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44" PARENT_SCOPE)
 +    else()
 +        set(${output} "${actual}" PARENT_SCOPE)
@@ -5694,7 +5706,7 @@ index 0000000..76893b1
 +	}
 +}
 diff --git a/rpcs3/Emu/Cell/PPUThread.cpp b/rpcs3/Emu/Cell/PPUThread.cpp
-index b1f1a74..021c7bf 100644
+index b1f1a74..5d361f4 100644
 --- a/rpcs3/Emu/Cell/PPUThread.cpp
 +++ b/rpcs3/Emu/Cell/PPUThread.cpp
 @@ -1,9 +1,16 @@
@@ -5735,7 +5747,7 @@ index b1f1a74..021c7bf 100644
  #include <charconv>
  
  #include "util/asm.hpp"
-@@ -176,6 +190,104 @@ bool serialize<ppu_thread::cr_bits>(utils::serial& ar, typename ppu_thread::cr_b
+@@ -176,6 +190,111 @@ bool serialize<ppu_thread::cr_bits>(utils::serial& ar, typename ppu_thread::cr_b
  extern void ppu_initialize();
  extern void ppu_finalize(const ppu_module<lv2_obj>& info, bool force_mem_release = false);
  extern bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only = false, u64 file_size = 0);
@@ -5791,12 +5803,13 @@ index b1f1a74..021c7bf 100644
 +// REWINDBOX_FAST_JIT_LOAD_634 (ios/IOSJitLoad.h): job(index) for each index. An LLVM fatal error ends
 +// its thread without unwinding it and with the locks of its engine, so this thread only waits (the
 +// workers use its stack), then ends the same way it would have doing the jobs itself.
-+template <typename Job>
-+void ios_run_link_jobs(std::string_view name, usz count, Job&& job)
++// REWINDBOX_PPU_CHECK_STOP_636: no job starts once stop() holds; the running ones end and are joined.
++template <typename Job, typename Stop>
++void ios_run_link_jobs(std::string_view name, usz count, Job&& job, Stop&& stop)
 +{
 +	if (count <= 1)
 +	{
-+		if (count)
++		if (count && !stop())
 +		{
 +			job(0);
 +		}
@@ -5808,7 +5821,7 @@ index b1f1a74..021c7bf 100644
 +
 +	named_thread_group workers(name, static_cast<u32>(std::min<usz>(count, rpcs3::ios::jit_load::link_workers)), [&]()
 +	{
-+		for (usz index; (index = next++) < count;)
++		for (usz index; !stop() && (index = next++) < count;)
 +		{
 +			job(index);
 +		}
@@ -5818,6 +5831,12 @@ index b1f1a74..021c7bf 100644
 +	{
 +		fmt::throw_exception("%sworker ended by a fatal error", name);
 +	}
++}
++
++template <typename Job>
++void ios_run_link_jobs(std::string_view name, usz count, Job&& job)
++{
++	ios_run_link_jobs(name, count, std::forward<Job>(job), [] { return false; });
 +}
 +}
 +
@@ -5840,7 +5859,7 @@ index b1f1a74..021c7bf 100644
  static void ppu_initialize2(class jit_compiler& jit, const ppu_module<lv2_obj>& module_part, const std::string& cache_path, const std::string& obj_name);
  extern bool ppu_load_exec(const ppu_exec_object&, bool virtual_load, const std::string&, utils::serial* = nullptr);
  extern std::pair<shared_ptr<lv2_overlay>, CellError> ppu_load_overlay(const ppu_exec_object&, bool virtual_load, const std::string& path, s64 file_offset, utils::serial* = nullptr);
-@@ -186,7 +298,17 @@ static void ppu_break(ppu_thread&, ppu_opcode_t, be_t<u32>*, ppu_intrp_func*);
+@@ -186,7 +305,17 @@ static void ppu_break(ppu_thread&, ppu_opcode_t, be_t<u32>*, ppu_intrp_func*);
  
  extern void do_cell_atomic_128_store(u32 addr, const void* to_write);
  
@@ -5859,7 +5878,7 @@ index b1f1a74..021c7bf 100644
  {
  	// Gateway for PPU, converts from native to GHC calling convention, also saves RSP value for escape
  	using namespace asmjit;
-@@ -412,8 +534,11 @@ const auto ppu_gateway = build_function_asm<void(*)(ppu_thread*)>("ppu_gateway",
+@@ -412,8 +541,11 @@ const auto ppu_gateway = build_function_asm<void(*)(ppu_thread*)>("ppu_gateway",
  	c.ret(a64::x30);
  #endif
  });
@@ -5872,7 +5891,7 @@ index b1f1a74..021c7bf 100644
  {
  	using namespace asmjit;
  
-@@ -435,19 +560,26 @@ const extern auto ppu_escape = build_function_asm<void(*)(ppu_thread*)>("ppu_esc
+@@ -435,19 +567,26 @@ const extern auto ppu_escape = build_function_asm<void(*)(ppu_thread*)>("ppu_esc
  	c.ret(a64::x30);
  #endif
  });
@@ -5901,7 +5920,7 @@ index b1f1a74..021c7bf 100644
  {
  	using namespace asmjit;
  
-@@ -468,10 +600,54 @@ const auto ppu_recompiler_fallback_ghc = build_function_asm<void(*)(ppu_thread&
+@@ -468,10 +607,54 @@ const auto ppu_recompiler_fallback_ghc = build_function_asm<void(*)(ppu_thread&
  	c.bind(fallback_fn);
  	c.embedUInt64(reinterpret_cast<u64>(ppu_recompiler_fallback));
  	c.bind(escape_fn);
@@ -5957,7 +5976,7 @@ index b1f1a74..021c7bf 100644
  // Get pointer to executable cache
  static inline u8* ppu_ptr(u32 addr)
  {
-@@ -1054,18 +1230,36 @@ struct ppu_far_jumps_t
+@@ -1054,18 +1237,36 @@ struct ppu_far_jumps_t
  				c.mov(args[2], vm::g_base_addr + pc);
  				c.jmp(ppu_far_jump);
  #else
@@ -5996,7 +6015,7 @@ index b1f1a74..021c7bf 100644
  #endif
  			}, &rt);
  		}
-@@ -3606,6 +3800,13 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
+@@ -3606,6 +3807,13 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
  
  	if ([&]()
  	{
@@ -6010,7 +6029,7 @@ index b1f1a74..021c7bf 100644
  		if (ppu.use_full_rdata) [[unlikely]]
  		{
  			auto [_oldd, _ok] = res.fetch_op([&](u64& r)
-@@ -3631,7 +3832,9 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
+@@ -3631,7 +3839,9 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
  			// Cache line data
  			//auto& cline_data = vm::_ref<spu_rdata_t>(addr);
  
@@ -6020,7 +6039,7 @@ index b1f1a74..021c7bf 100644
  			auto range_lock = vm::alloc_range_lock();
  			bool success = false;
  			{
-@@ -3643,6 +3846,17 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
+@@ -3643,6 +3853,17 @@ static bool ppu_store_reservation(ppu_thread& ppu, u32 addr, u64 reg_value)
  				{
  					// Full lock (heavyweight)
  					// TODO: vm::check_addr
@@ -6038,7 +6057,7 @@ index b1f1a74..021c7bf 100644
  					vm::writer_lock lock(addr, range_lock);
  
  					if (cmp_rdata(ppu.rdata, super_data))
-@@ -4315,9 +4529,19 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4315,9 +4536,19 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  	// The growth in memory requirements of LLVM is not linear with file size of course
  	// But these estimates should hopefully protect RPCS3 in the coming years
  	// Especially when thread count is on the rise with each CPU generation
@@ -6058,7 +6077,7 @@ index b1f1a74..021c7bf 100644
  	const u32 cpu_thread_limit = utils::get_thread_count() > 8u ? std::max<u32>(utils::get_thread_count(), 2) - 1 : utils::get_thread_count(); // One LLVM thread less
  
  	std::vector<u128> decrypt_klics;
-@@ -4373,7 +4597,9 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4373,7 +4604,9 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  		// Set low priority
  		thread_ctrl::scoped_priority low_prio(-1);
  		u32 inc_fdone = 1;
@@ -6068,7 +6087,7 @@ index b1f1a74..021c7bf 100644
  
  		for (usz func_i = fnext++; func_i < file_queue.size(); func_i = fnext++, g_progr_fdone += std::exchange(inc_fdone, 1))
  		{
-@@ -4382,6 +4608,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4382,6 +4615,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  				continue;
  			}
  
@@ -6076,7 +6095,7 @@ index b1f1a74..021c7bf 100644
  			if (restore_mem)
  			{
  				if (!file_size_limit.fetch_add(restore_mem))
-@@ -4392,6 +4619,8 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4392,6 +4626,8 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  				restore_mem = 0;
  			}
  
@@ -6085,7 +6104,7 @@ index b1f1a74..021c7bf 100644
  			auto& [path, offset, file_size] = file_queue[func_i];
  
  			ppu_log.notice("Trying to load: %s", path);
-@@ -4461,6 +4690,9 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4461,6 +4697,9 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  
  			auto wait_for_memory = [&]() -> bool
  			{
@@ -6095,7 +6114,7 @@ index b1f1a74..021c7bf 100644
  				// Try not to process too many files at once because it seems to reduce performance and cause RAM shortages
  				// Concurrently compiling more OVL or huge PRX files does not have much theoretical benefit
  				while (!file_size_limit.fetch_op([&](u32& value)
-@@ -4489,6 +4721,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4489,6 +4728,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  				}
  
  				return true;
@@ -6103,7 +6122,7 @@ index b1f1a74..021c7bf 100644
  			};
  
  			elf_error prx_err{}, ovl_err{};
-@@ -4576,6 +4809,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4576,6 +4816,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  			inc_fdone = 0;
  		}
  
@@ -6111,7 +6130,7 @@ index b1f1a74..021c7bf 100644
  		if (restore_mem)
  		{
  			if (!file_size_limit.fetch_add(restore_mem))
-@@ -4583,6 +4817,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
+@@ -4583,6 +4824,7 @@ extern void ppu_precompile(std::vector<std::string>& dir_queue, std::vector<ppu_
  				file_size_limit.notify_all();
  			}
  		}
@@ -6119,7 +6138,7 @@ index b1f1a74..021c7bf 100644
  	});
  
  	// Join every thread
-@@ -4739,6 +4974,67 @@ extern void ppu_initialize()
+@@ -4739,6 +4981,67 @@ extern void ppu_initialize()
  
  	auto& _main = g_fxo->get<main_ppu_module<lv2_obj>>();
  
@@ -6187,7 +6206,7 @@ index b1f1a74..021c7bf 100644
  	std::optional<scoped_progress_dialog> progress_dialog(std::in_place, get_localized_string(localized_string_id::PROGRESS_DIALOG_ANALYZING_PPU_EXECUTABLE));
  
  	// Analyse executable
-@@ -4757,7 +5053,22 @@ extern void ppu_initialize()
+@@ -4757,7 +5060,22 @@ extern void ppu_initialize()
  	// Check main module cache
  	if (!_main.segs.empty())
  	{
@@ -6210,7 +6229,7 @@ index b1f1a74..021c7bf 100644
  	}
  
  	std::vector<ppu_module<lv2_obj>*> module_list;
-@@ -4868,6 +5179,10 @@ extern void ppu_initialize()
+@@ -4868,6 +5186,10 @@ extern void ppu_initialize()
  
  bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_size)
  {
@@ -6221,7 +6240,7 @@ index b1f1a74..021c7bf 100644
  	ppu_log.notice("Entering ppu_initialize(const ppu_module&..)");
  
  	struct log_guard
-@@ -5309,6 +5624,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5309,6 +5631,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  		info.attr += ppu_attr::has_mfvscr;
  	}
  
@@ -6232,7 +6251,7 @@ index b1f1a74..021c7bf 100644
  	while (!jit_mod.init && fpos < info.get_funcs().size())
  	{
  		// Copy module information
-@@ -5540,6 +5859,13 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5540,6 +5866,13 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  				daz_and_ftz,
  				arm64_codegen_v2,
  				arm64_codegen_v3,
@@ -6246,7 +6265,7 @@ index b1f1a74..021c7bf 100644
  
  				__bitset_enum_max
  			};
-@@ -5547,6 +5873,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5547,6 +5880,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  			be_t<bs_t<ppu_settings>> settings{};
  
  			settings += ppu_settings::_reserved_for_backwards_compatibility;
@@ -6257,7 +6276,7 @@ index b1f1a74..021c7bf 100644
  #if !defined(_WIN32) && !defined(__APPLE__)
  			settings += ppu_settings::platform_bit;
  #endif
-@@ -5573,10 +5903,37 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5573,10 +5910,37 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  #if defined(ARCH_ARM64)
  			settings += ppu_settings::arm64_codegen_v2;
  			settings += ppu_settings::arm64_codegen_v3;
@@ -6295,7 +6314,7 @@ index b1f1a74..021c7bf 100644
  		}
  
  		if (cpu ? cpu->state.all_of(cpu_flag::exit) : Emu.IsStopped())
-@@ -5585,20 +5942,55 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5585,20 +5949,55 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  		}
  
  		module_counter++;
@@ -6353,7 +6372,7 @@ index b1f1a74..021c7bf 100644
  
  			continue;
  		}
-@@ -5616,11 +6008,29 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5616,11 +6015,34 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  
  		// Fill workload list for compilation
  		workload.emplace_back(std::move(obj_name), std::move(part));
@@ -6374,6 +6393,11 @@ index b1f1a74..021c7bf 100644
 +			rpcs3::ios::record_ppu_cache_lookup(cache_hit);
 +			rpcs3::ios::boot_diagnostics::g_counters.note_cache_lookup(cache_hit);
 +			ios_missing += cache_hit ? 0 : 1;
++		}, [&]
++		{
++			// REWINDBOX_PPU_CHECK_STOP_636: one miss answers this pass, as the serial walk returns at its first miss;
++			// it also stops with the emulator, as that walk does.
++			return ios_missing != 0 || (cpu ? cpu->state.all_of(cpu_flag::exit) : Emu.IsStopped());
 +		});
 +
 +		return ios_missing != 0;
@@ -6383,7 +6407,7 @@ index b1f1a74..021c7bf 100644
  	}
  
  	if (g_progr_ftotal_bits && file_size)
-@@ -5640,7 +6050,11 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5640,7 +6062,11 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  
  		*progress_dialog = get_localized_string(localized_string_id::PROGRESS_DIALOG_COMPILING_PPU_MODULES);
  
@@ -6395,7 +6419,7 @@ index b1f1a74..021c7bf 100644
  
  #ifdef RPCS3_IOS
  		ppu_log.notice("iOS LLVM compilation: %u module(s), %u concurrent thread(s)", ::size32(workload), thread_count + 1);
-@@ -5712,11 +6126,24 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5712,11 +6138,24 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  					ppu_log.warning("LLVM: Compiling module %s%s", cache_path, obj_name);
  
  					{
@@ -6421,19 +6445,19 @@ index b1f1a74..021c7bf 100644
  					ppu_log.success("LLVM: Compiled module %s", obj_name);
  				}
  
-@@ -5814,7 +6241,57 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5814,7 +6253,57 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  		usz mod_index = umax;
  
  		ppu_log.notice("Loading %u modules", link_workload.size());
 +#ifdef RPCS3_IOS
 +		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (D10): link time of this load loop.
 +		const u64 ios_link_begin = utils::get_tsc();
- 
++
 +		// REWINDBOX_FAST_JIT_LOAD_634: one engine per thread at a time, each one in the same order.
 +		if (rpcs3::ios::jit_load::fast_load.load(std::memory_order_relaxed) && jits.size() > 1)
 +		{
 +			atomic_t<u32> ios_failed = 0;
-+
+ 
 +			ios_run_link_jobs("PPUW.Link ", jits.size(), [&](usz engine)
 +			{
 +				const usz first = engine * c_modules_per_jit;
@@ -6479,7 +6503,7 @@ index b1f1a74..021c7bf 100644
  		for (const auto& [obj_name, is_compiled] : link_workload)
  		{
  			mod_index++;
-@@ -5824,11 +6301,21 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5824,11 +6313,21 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  				break;
  			}
  
@@ -6501,7 +6525,7 @@ index b1f1a74..021c7bf 100644
  
  			if (mod_index % increment_link_count_at == (link_workload.size() - 1) % increment_link_count_at)
  			{
-@@ -5846,6 +6333,9 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5846,6 +6345,9 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  				ppu_log.success("LLVM: Loaded module #%u %s", mod_index, obj_name);
  			}
  		}
@@ -6511,7 +6535,7 @@ index b1f1a74..021c7bf 100644
  	}
  
  	if (failed_to_load || !is_being_used_in_emulation || (cpu ? cpu->state.all_of(cpu_flag::exit) : Emu.IsStopped()))
-@@ -5875,9 +6365,30 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5875,9 +6377,30 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  
  	if (is_first)
  	{
@@ -6543,7 +6567,7 @@ index b1f1a74..021c7bf 100644
  		}
  	}
  
-@@ -5901,7 +6412,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
+@@ -5901,7 +6424,10 @@ bool ppu_initialize(const ppu_module<lv2_obj>& info, bool check_only, u64 file_s
  					index++;
  
  					ensure(!sim);
@@ -6555,7 +6579,7 @@ index b1f1a74..021c7bf 100644
  
  					ppu_log.notice("Resolved symbol resolver function #%u", index);
  				}
-@@ -6052,6 +6566,24 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6052,6 +6578,24 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  		FunctionPassManager fpm;
  		// Basic optimizations
  		fpm.addPass(EarlyCSEPass());
@@ -6580,7 +6604,7 @@ index b1f1a74..021c7bf 100644
  
  		u32 guest_code_size = 0;
  		u32 min_addr = umax;
-@@ -6081,11 +6613,22 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6081,11 +6625,22 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  				min_addr = std::min<u32>(min_addr, mod_func.addr);
  
  				// Translate
@@ -6604,7 +6628,7 @@ index b1f1a74..021c7bf 100644
  #endif // ARCH_X64
  				}
  				else
-@@ -6104,6 +6647,13 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6104,6 +6659,13 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  #ifdef ARCH_X64 // TODO
  				// Run optimization passes
  				fpm.run(*func, fam);
@@ -6618,7 +6642,7 @@ index b1f1a74..021c7bf 100644
  #endif // ARCH_X64
  			}
  			else
-@@ -6131,7 +6681,11 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
+@@ -6131,7 +6693,11 @@ static void ppu_initialize2(jit_compiler& jit, const ppu_module<lv2_obj>& module
  			result.clear();
  		}
  
@@ -22265,7 +22289,7 @@ index fefbfb9..b13decc 100644
  
  	inline thread* get_current_renderer()
 diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
-index 4db3766..31db7a4 100644
+index 4db3766..4a42723 100644
 --- a/rpcs3/Emu/RSX/RSXZCULL.cpp
 +++ b/rpcs3/Emu/RSX/RSXZCULL.cpp
 @@ -3,6 +3,14 @@
@@ -22511,17 +22535,46 @@ index 4db3766..31db7a4 100644
  
  				if (page.prot == utils::protection::rw)
  				{
-@@ -869,6 +1011,9 @@ namespace rsx
- 
- 					ensure(page.has_refs());
- 					page.release();
+@@ -860,16 +1002,31 @@ namespace rsx
+ 			if (!m_pages_accessed[location])
+ 			{
+ 				const auto page_address = utils::page_start(static_cast<u32>(address));
+-				std::scoped_lock lock(m_pages_mutex);
+-
+-				if (auto found = m_locked_pages[location].find(page_address);
+-					found != m_locked_pages[location].end())
 +#ifdef RPCS3_IOS
-+					page.ios_slots.remove(static_cast<u32>(address)); // REWINDBOX_ZCULL_ASYNC_READS_630
++				bool ios_slot_released = false;
 +#endif
+ 				{
+-					auto& page = found->second;
++					std::scoped_lock lock(m_pages_mutex);
+ 
+-					ensure(page.has_refs());
+-					page.release();
++					if (auto found = m_locked_pages[location].find(page_address);
++						found != m_locked_pages[location].end())
++					{
++						auto& page = found->second;
++
++						ensure(page.has_refs());
++						page.release();
++#ifdef RPCS3_IOS
++						page.ios_slots.remove(static_cast<u32>(address)); // REWINDBOX_ZCULL_ASYNC_READS_630
++						ios_slot_released = true;
++#endif
++					}
  				}
++#ifdef RPCS3_IOS
++				if (ios_slot_released)
++				{
++					rpcs3::ios::zcull_on_demand::slot_releases().released(); // REWINDBOX_ZCULL_SLOT_WAKE_636
++				}
++#endif
  			}
  
-@@ -917,6 +1062,26 @@ namespace rsx
+ 			if (m_pages_accessed[location])
+@@ -917,6 +1074,26 @@ namespace rsx
  				return false;
  			}
  
@@ -22548,7 +22601,7 @@ index 4db3766..31db7a4 100644
  			bool need_disable_optimizations = false;
  			{
  				reader_lock lock(m_pages_mutex);
-@@ -950,12 +1115,24 @@ namespace rsx
+@@ -950,12 +1127,24 @@ namespace rsx
  			// Deadlock avoidance, do not pause RSX FIFO eng while holding the pages lock
  			if (need_disable_optimizations)
  			{
@@ -22573,7 +22626,7 @@ index 4db3766..31db7a4 100644
  				return true;
  			}
  
-@@ -963,6 +1140,418 @@ namespace rsx
+@@ -963,6 +1152,439 @@ namespace rsx
  		}
  
  
@@ -22978,9 +23031,30 @@ index 4db3766..31db7a4 100644
 +
 +				// REWINDBOX_ZCULL_ASYNC_READS_630: the RSX thread took the slot request and went back to
 +				// the FIFO; the GPU has the query. A pause before asking again.
-+				if (slot_request && result == od::wait_result::served && !slots_released())
++				if (slot_request && result == od::wait_result::served)
 +				{
-+					std::this_thread::sleep_for(std::chrono::microseconds(poll_us));
++					// REWINDBOX_ZCULL_SLOT_WAKE_636: the pause ends early when this slot is released meanwhile.
++					const u64 pause_end = get_system_time() + poll_us;
++
++					for (;;)
++					{
++						const u64 seen = od::slot_releases().epoch();
++
++						if (slots_released())
++						{
++							break;
++						}
++
++						const u64 now = get_system_time();
++
++						if (now >= pause_end || stopped_now())
++						{
++							break;
++						}
++
++						od::slot_releases().wait(seen, pause_end - now);
++					}
++
 +					poll_us = std::min(poll_us * 2, od::async_poll_max_us);
 +				}
 +
@@ -22992,7 +23066,7 @@ index 4db3766..31db7a4 100644
  		// Conditional rendering helpers
  		void conditional_render_eval::reset()
  		{
-@@ -1029,6 +1618,15 @@ namespace rsx
+@@ -1029,6 +1651,15 @@ namespace rsx
  
  		void conditional_render_eval::eval_result(::rsx::thread* pthr)
  		{
@@ -34218,10 +34292,10 @@ index 0000000..56877cf
 +}
 diff --git a/rpcs3/ios/IOSGuestAccessEmulation.h b/rpcs3/ios/IOSGuestAccessEmulation.h
 new file mode 100644
-index 0000000..ab57170
+index 0000000..493d4d3
 --- /dev/null
 +++ b/rpcs3/ios/IOSGuestAccessEmulation.h
-@@ -0,0 +1,139 @@
+@@ -0,0 +1,148 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -34244,6 +34318,15 @@ index 0000000..ab57170
 +};
 +
 +inline thread_local access t_access{};
++
++// REWINDBOX_GUEST_ACCESS_FP_LR_636: a register the handler may read or write through the context. Darwin's
++// thread state holds X0-X28 in __x[29]; X29 (FP) and X30 (LR) are separate fields, so GPR(context, 29/30)
++// would index past __x. An access naming either keeps the retry. 31 is XZR (data, index) or SP (base,
++// refused by its callers).
++constexpr bool context_register(std::uint32_t reg) noexcept
++{
++	return reg < 29 || reg == 31;
++}
 +
 +// The operands of a scalar load or store decode_a64_mem_inst() accepted, for the address the
 +// instruction computes: the fault address alone says nothing about an access that starts below it.
@@ -37243,10 +37326,10 @@ index 0000000..ca7a32c
 +}
 diff --git a/rpcs3/ios/IOSSpirvCache.h b/rpcs3/ios/IOSSpirvCache.h
 new file mode 100644
-index 0000000..b1e4b09
+index 0000000..be40617
 --- /dev/null
 +++ b/rpcs3/ios/IOSSpirvCache.h
-@@ -0,0 +1,363 @@
+@@ -0,0 +1,381 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -37350,6 +37433,7 @@ index 0000000..b1e4b09
 +	std::size_t m_map_bytes = 0;
 +	std::uint64_t m_valid_bytes = 0; // the end of the last good entry: a torn tail starts here
 +	std::uint64_t m_pending_bytes = 0;
++	std::uint64_t m_flushing_bytes = 0; // REWINDBOX_SPIRV_CAP_636: the batch flush() is writing, header included
 +	std::unordered_map<key, located, key_hash> m_index;
 +	std::unordered_map<key, std::vector<std::uint32_t>, key_hash> m_pending;
 +	std::unordered_set<key, key_hash> m_written; // this session's entries: not mapped, not added twice
@@ -37504,9 +37588,11 @@ index 0000000..b1e4b09
 +	{
 +		const std::uint64_t bytes = sizeof(entry_header) + std::uint64_t{words.size()} * sizeof(std::uint32_t);
 +		std::unique_lock lock(m_mutex);
++		// REWINDBOX_SPIRV_CAP_636: the batch flush() is writing and, for an empty file, the header count too.
++		const std::uint64_t header = m_valid_bytes == 0 && m_flushing_bytes == 0 ? sizeof(file_header) : 0;
 +
-+		if (m_path.empty() || words.empty() || words.size() > max_entry_words || m_valid_bytes + m_pending_bytes + bytes > max_file_bytes ||
-+			m_written.contains(name))
++		if (m_path.empty() || words.empty() || words.size() > max_entry_words ||
++			m_valid_bytes + m_flushing_bytes + header + m_pending_bytes + bytes > max_file_bytes || m_written.contains(name))
 +		{
 +			return;
 +		}
@@ -37529,13 +37615,17 @@ index 0000000..b1e4b09
 +		{
 +			std::unique_lock lock(m_mutex);
 +			batch.swap(m_pending);
-+			m_pending_bytes = 0;
 +			valid_bytes = m_valid_bytes;
 +			path = m_path;
++			// REWINDBOX_SPIRV_CAP_636: reserved until the write ends, so add() keeps counting these bytes.
++			m_flushing_bytes = batch.empty() ? 0 : m_pending_bytes + (valid_bytes == 0 ? sizeof(file_header) : 0);
++			m_pending_bytes = 0;
 +		}
 +
 +		if (batch.empty() || path.empty())
 +		{
++			std::unique_lock lock(m_mutex);
++			m_flushing_bytes = 0;
 +			return;
 +		}
 +
@@ -37543,6 +37633,8 @@ index 0000000..b1e4b09
 +
 +		if (file < 0)
 +		{
++			std::unique_lock lock(m_mutex);
++			m_flushing_bytes = 0;
 +			return;
 +		}
 +
@@ -37567,6 +37659,13 @@ index 0000000..b1e4b09
 +			}
 +
 +			const std::size_t bytes = words.size() * sizeof(std::uint32_t);
++
++			// REWINDBOX_SPIRV_CAP_636: the bound holds at the write too, whatever the accounting before it.
++			if (valid_bytes + sizeof(entry_header) + bytes > max_file_bytes)
++			{
++				continue;
++			}
++
 +			entry_header entry;
 +			std::memcpy(entry.name, name.data(), name.size());
 +			entry.words = static_cast<std::uint32_t>(words.size());
@@ -37588,6 +37687,7 @@ index 0000000..b1e4b09
 +		::close(file);
 +		std::unique_lock lock(m_mutex);
 +		m_valid_bytes = valid_bytes;
++		m_flushing_bytes = 0;
 +		m_written.insert(written.begin(), written.end());
 +	}
 +
@@ -37600,6 +37700,7 @@ index 0000000..b1e4b09
 +		m_pending.clear();
 +		m_written.clear();
 +		m_pending_bytes = 0;
++		m_flushing_bytes = 0;
 +		m_valid_bytes = 0;
 +	}
 +};
@@ -39291,15 +39392,16 @@ index 0000000..0d8ecea
 +}
 diff --git a/rpcs3/ios/IOSZcullOnDemand.h b/rpcs3/ios/IOSZcullOnDemand.h
 new file mode 100644
-index 0000000..d06d87a
+index 0000000..c5ca3a8
 --- /dev/null
 +++ b/rpcs3/ios/IOSZcullOnDemand.h
-@@ -0,0 +1,602 @@
+@@ -0,0 +1,651 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
 +#include <atomic>
 +#include <chrono>
++#include <condition_variable>
 +#include <cstdint>
 +#include <mutex>
 +#include <thread>
@@ -39558,6 +39660,54 @@ index 0000000..d06d87a
 +};
 +inline thread_local thread_wait_ring t_wait_ring{};
 +inline std::atomic<std::uint64_t> g_gate_generation{0};
++
++// REWINDBOX_ZCULL_SLOT_WAKE_636: the pause of a guest that waits for its report slot (50-400 us between
++// two requests, REWINDBOX_ZCULL_ASYNC_READS_630) ends when the RSX thread releases a slot, instead of
++// running to its end while that slot is already final. The guest checks its own slot again and asks
++// again only as before: on its slot released or on the end of its pause. Same values, same requests.
++class slot_release_signal
++{
++	std::mutex m_mutex;
++	std::condition_variable m_cv;
++	std::atomic<std::uint64_t> m_epoch{0};
++	std::atomic<std::uint32_t> m_waiters{0};
++
++public:
++	std::uint64_t epoch() const noexcept
++	{
++		return m_epoch.load();
++	}
++
++	// RSX thread, after a slot of a locked page lost a pending report (outside the pages mutex).
++	void released() noexcept
++	{
++		m_epoch.fetch_add(1);
++
++		if (m_waiters.load())
++		{
++			std::lock_guard lock(m_mutex);
++			m_cv.notify_all();
++		}
++	}
++
++	// Guest thread: returns once the epoch differs from `seen`, or after `us`. Sequentially consistent
++	// epoch/waiter accesses: a release either sees this waiter or happens before its check.
++	void wait(std::uint64_t seen, std::uint64_t us) noexcept
++	{
++		m_waiters.fetch_add(1);
++		{
++			std::unique_lock lock(m_mutex);
++			m_cv.wait_for(lock, std::chrono::microseconds(us), [&]() { return m_epoch.load() != seen; });
++		}
++		m_waiters.fetch_sub(1);
++	}
++};
++
++inline slot_release_signal& slot_releases() noexcept
++{
++	static slot_release_signal s_signal;
++	return s_signal;
++}
 +
 +inline tally& counters() noexcept
 +{
