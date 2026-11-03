@@ -3,9 +3,12 @@
 Status: implemented on the `Claude` branch, 3 November 2026. The Dart side
 (reading, import, catalogs, choice) is tested on Linux
 (`test/dolphin_skins_test.dart`, `test/libretro_consoles_tab_test.dart`).
-The native overlay (`DOLSkinOverlay`) has passed only a syntax check with
-Clang against minimal UIKit stub headers. It has **not** been compiled with
-the iOS SDK or run on an iPhone yet; see [What remains on the iPhone](#what-remains-on-the-iphone).
+The native overlay (`DOLSkinOverlay.mm`, `DolphinInternalBridgePlugin.mm`,
+`DolphinTouchOverlay.swift`) compiled with the iOS SDK in private IPA 625:
+run 41591090457 succeeded, IPA SHA-256 `c149a6bf…`, with 9bb35531 and
+a7e3ef22 as promoted commits (`docs/evidence/rewind625/delivery.json`).
+It has **not** been run on an iPhone yet; see
+[What remains on the iPhone](#what-remains-on-the-iphone).
 
 ## What the user sees
 
@@ -159,10 +162,10 @@ and the session is exactly as before.
 
 ## What remains on the iPhone
 
-The steps below have not been done:
+Step 1 was done in IPA 625; the steps from 2 on have not been done:
 
-1. Build the IPA (Xcode compiles `DOLSkinOverlay.mm` and the Swift change of
-   `DolphinTouchOverlay.swift`).
+1. ~~Build the IPA~~: done in IPA 625. Xcode compiled `DOLSkinOverlay.mm`
+   and the Swift change of `DolphinTouchOverlay.swift`.
 2. Install GameCube Pocket, then choose it in portrait and landscape. Launch a
    GameCube game upright, then sideways. Check that:
    - the game sits in the screen of the skin;
