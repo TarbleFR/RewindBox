@@ -458,6 +458,12 @@ void test_explain()
 	// Black Ops II multiplayer frame of 44 ms: 9 ms of ZCULL waits (20 %) is not dominant enough.
 	e = gt::explain_frame(44.0, 0.0, 0.0, 0.1, 0.1, 0.0, 9.0, untimed);
 	CHECK(std::string(e.cause) == "rsx_or_guest_cpu" && std::string(e.dominant) == "zcull_sync");
+	// Review of the first v2: a ZCULL request served from inside a guest semaphore acquire (50 ms
+	// acquire, 45 ms of it spinning on occlusion results, 60 ms frame) used to give semaphore 50 and
+	// zcull 45, so guest_semaphore won and the waits exceeded the frame. nv406e now leaves the
+	// nested 45 ms out of the acquire: semaphore 5, zcull 45, cause zcull_sync.
+	e = gt::explain_frame(60.0, 0.0, 0.0, 0.1, 0.1, 5.0, 45.0, untimed);
+	CHECK(std::string(e.cause) == "zcull_sync" && std::string(e.dominant) == "zcull_sync" && e.waits_ms <= 60.0);
 	// A 1.4 s pipeline compile beats the ZCULL waits of the same frame.
 	e = gt::explain_frame(1450.0, 0.0, 1400.0, 0.1, 0.1, 0.0, 30.0, untimed);
 	CHECK(std::string(e.cause) == "pipeline_compile");

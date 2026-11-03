@@ -18822,10 +18822,10 @@ index ab811eb..75a552f 100644
  			}
  			default:
 diff --git a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
-index 3eaebb1..6110c7b 100644
+index 3eaebb1..3138983 100644
 --- a/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
 +++ b/rpcs3/Emu/RSX/NV47/HW/nv406e.cpp
-@@ -4,6 +4,16 @@
+@@ -4,6 +4,17 @@
  
  #include "Emu/RSX/RSXThread.h"
  
@@ -18833,6 +18833,7 @@ index 3eaebb1..6110c7b 100644
 +#include "ios/RPCS3IOSPerformance.h"
 +#include "ios/IOSTextureValidationProfile.h"
 +#include "ios/IOSSignalTrace.h"
++#include "ios/IOSFrameTrace.h" // REWINDBOX_ZCULL_FRAME_621
 +#endif
 +
 +// NEOSTATION_BUILD258_RUNTIME_RESILIENCE_V1
@@ -18842,7 +18843,7 @@ index 3eaebb1..6110c7b 100644
  #include "context_accessors.define.h"
  
  namespace rsx
-@@ -28,11 +38,30 @@ namespace rsx
+@@ -28,11 +39,30 @@ namespace rsx
  			// Syncronization point, may be associated with memory changes without actually changing addresses
  			RSX(ctx)->m_graphics_state |= rsx::pipeline_state::fragment_program_needs_rehash;
  
@@ -18877,7 +18878,7 @@ index 3eaebb1..6110c7b 100644
  				// Flip semaphore doesnt need wake-up delay
  				if (addr != RSX(ctx)->label_addr + 0x10)
  				{
-@@ -42,59 +71,130 @@ namespace rsx
+@@ -42,59 +72,136 @@ namespace rsx
  
  				return;
  			}
@@ -18891,6 +18892,11 @@ index 3eaebb1..6110c7b 100644
 +			RSX(ctx)->flush_fifo();
 +
 +			const u64 wait_started = get_system_time();
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_FRAME_621: GPU waits nested in this acquire, left out of its frame time.
++			// A flip handled inside the acquire resets the frame's counters: then nothing is left out.
++			const u64 nested_before = rpcs3::ios::frame_trace::nested_wait_ticks();
++#endif
 +			u64 progress_started = wait_started;
 +			u64 last_check_val = wait_started;
 +			bool recovery_attempted = false;
@@ -19026,7 +19032,8 @@ index 3eaebb1..6110c7b 100644
 +			if (label_trace)
 +				rpcs3::ios::signal_trace::acquire_state(label_trace, rpcs3::ios::signal_trace::event_kind::resolved,
 +					static_cast<u32>(observed), get_system_time());
-+			rpcs3::ios::record_rsx_semaphore_wait(waited, timed_out);
++			const u64 nested_after = rpcs3::ios::frame_trace::nested_wait_ticks();
++			rpcs3::ios::record_rsx_semaphore_wait(waited, timed_out, nested_after >= nested_before ? nested_after - nested_before : 0);
 +#endif
  			RSX(ctx)->fifo_wake_delay();
 -			RSX(ctx)->performance_counters.idle_time += (get_system_time() - start);
@@ -19034,7 +19041,7 @@ index 3eaebb1..6110c7b 100644
  		}
  
  		void semaphore_release(context* ctx, u32 reg, u32 arg)
-@@ -133,6 +233,11 @@ namespace rsx
+@@ -133,6 +240,11 @@ namespace rsx
  				arg = 1;
  			}
  
@@ -21487,7 +21494,7 @@ index fefbfb9..b13decc 100644
  
  	inline thread* get_current_renderer()
 diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
-index 4db3766..17bda4e 100644
+index 4db3766..11ad816 100644
 --- a/rpcs3/Emu/RSX/RSXZCULL.cpp
 +++ b/rpcs3/Emu/RSX/RSXZCULL.cpp
 @@ -3,6 +3,12 @@
@@ -21710,7 +21717,7 @@ index 4db3766..17bda4e 100644
  				return true;
  			}
  
-@@ -963,6 +1089,269 @@ namespace rsx
+@@ -963,6 +1089,289 @@ namespace rsx
  		}
  
  
@@ -21860,6 +21867,10 @@ index 4db3766..17bda4e 100644
 +			bool requested = false;
 +			u64 requested_at = 0; // REWINDBOX_ZCULL_DEMAND_GUARD_621: the latest request
 +			u64 picked_at = 0;    // ... and when the RSX thread was seen to pick it up
++			// The pickup and service halves of every request of this fault (a page re-armed between
++			// a service and the guest's check takes another request), up to `halves_at`.
++			u64 pickup_sum = 0, service_sum = 0, halves_at = 0;
++			bool any_picked = false;
 +
 +			const auto page_released = [&]()
 +			{
@@ -21875,9 +21886,9 @@ index 4db3766..17bda4e 100644
 +					const u64 now = get_system_time();
 +					tally.add_wait(now - started);
 +
-+					if (picked_at >= requested_at && picked_at && now >= picked_at)
++					if (any_picked && now >= halves_at)
 +					{
-+						tally.add_halves(picked_at - requested_at, now - picked_at);
++						tally.add_halves(pickup_sum, service_sum + (now - halves_at));
 +					}
 +
 +					if (m_ios_demand.record_wait(now - started, now))
@@ -21955,6 +21966,22 @@ index 4db3766..17bda4e 100644
 +					[&]() { return Emu.IsStopped() || thr->is_stopped(); },
 +					[]() { return get_system_time(); }, &picked_at);
 +
++				if (result == od::wait_result::served || result == od::wait_result::released)
++				{
++					const u64 t = get_system_time();
++					if (picked_at && picked_at >= requested_at && t >= picked_at)
++					{
++						pickup_sum += picked_at - requested_at;
++						service_sum += t - picked_at;
++						any_picked = true;
++					}
++					else if (t >= requested_at)
++					{
++						pickup_sum += t - requested_at;
++					}
++					halves_at = t;
++				}
++
 +				if (result == od::wait_result::stopped)
 +				{
 +					tally.stops.fetch_add(1, std::memory_order_relaxed);
@@ -21980,7 +22007,7 @@ index 4db3766..17bda4e 100644
  		// Conditional rendering helpers
  		void conditional_render_eval::reset()
  		{
-@@ -1029,6 +1418,15 @@ namespace rsx
+@@ -1029,6 +1438,15 @@ namespace rsx
  
  		void conditional_render_eval::eval_result(::rsx::thread* pthr)
  		{
@@ -31615,10 +31642,10 @@ index 0000000..76f08ec
 +}
 diff --git a/rpcs3/ios/IOSFrameTrace.h b/rpcs3/ios/IOSFrameTrace.h
 new file mode 100644
-index 0000000..0621b75
+index 0000000..ab8cea6
 --- /dev/null
 +++ b/rpcs3/ios/IOSFrameTrace.h
-@@ -0,0 +1,191 @@
+@@ -0,0 +1,201 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -31658,6 +31685,16 @@ index 0000000..0621b75
 +        thread_waits = {};
 +    }
 +    return thread_waits;
++}
++
++// REWINDBOX_ZCULL_FRAME_621: GPU waits the RSX thread counts in their own fields (ZCULL
++// results, fences, submits). nv406e::semaphore_acquire takes this before and after its
++// loop and leaves the difference out of semaphore_us, so a wait nested in an acquire
++// (a ZCULL request served from inside the acquire) is not counted twice by explain_frame.
++inline std::uint64_t nested_wait_ticks() noexcept
++{
++    const auto& w = waits();
++    return w.zcull_ticks + w.fence_ticks + w.submit_ticks;
 +}
 +
 +inline Waits take_thread_waits() noexcept
@@ -32012,10 +32049,10 @@ index 0000000..286359d
 +}
 diff --git a/rpcs3/ios/IOSGpuTiming.h b/rpcs3/ios/IOSGpuTiming.h
 new file mode 100644
-index 0000000..816e2a2
+index 0000000..b42617f
 --- /dev/null
 +++ b/rpcs3/ios/IOSGpuTiming.h
-@@ -0,0 +1,867 @@
+@@ -0,0 +1,870 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -32811,7 +32848,10 @@ index 0000000..816e2a2
 +// fence, blocking pipeline compile, presentation (drawable acquisition and
 +// present), vkQueueSubmit (Metal encoding with synchronous MoltenVK submits), the
 +// guest semaphore the RSX waited for and (v2) the occlusion query results ZCULL
-+// waited for. GPU execution runs beside them.
++// waited for. The semaphore wait excludes the ZCULL, fence and submit waits the
++// RSX thread made inside the acquire (nv406e, frame_trace::nested_wait_ticks), so
++// a ZCULL request served from inside an acquire is counted once, as zcull_sync.
++// GPU execution runs beside them.
 +//  1. GPU busy measured for every submission of the frame and >= 75 % of the
 +//     interval: gpu_execution (measured).
 +//  2. Otherwise the largest wait if it is >= 25 % of the interval (measured),
@@ -37078,10 +37118,10 @@ index 0000000..ecf9024
 +}
 diff --git a/rpcs3/ios/IOSZcullOnDemand.h b/rpcs3/ios/IOSZcullOnDemand.h
 new file mode 100644
-index 0000000..9a88d3d
+index 0000000..b7b4ed0
 --- /dev/null
 +++ b/rpcs3/ios/IOSZcullOnDemand.h
-@@ -0,0 +1,425 @@
+@@ -0,0 +1,441 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -37125,6 +37165,13 @@ index 0000000..9a88d3d
 +// upstream mode cost the RSX thread 0.68-0.86 s per second in the same session).
 +// The trip is recorded with its windows (trip_detail) for the COREPROF
 +// ZCULLTRIP621 line; the pickup and service halves of each wait are counted.
++// Seconds are fixed one-second buckets of the clock: each wait adds to every
++// bucket it overlaps the part it overlaps, so a thread blocked in waits longer
++// than a second is counted in each second it is blocked (a review of the first
++// 621 rule found that waits more than 2 s apart never tripped), and a wait
++// that began in an earlier second adds nothing to the next one. The storm rule
++// counts at most 100 ms of each wait, so one long wait behind a pipeline
++// compile followed by ordinary reads is not a storm.
 +namespace rpcs3::ios::zcull_on_demand
 +{
 +inline constexpr std::uint64_t pickup_deadline_us = 2'000'000;  // the RSX thread has not started the request
@@ -37137,6 +37184,7 @@ index 0000000..9a88d3d
 +inline constexpr std::uint32_t severe_min_waits = 16;          // ...over at least this many waits (a storm, not one
 +                                                                // long wait behind an RSX pipeline compile)
 +inline constexpr std::uint64_t global_budget_us = 800'000;      // all guest threads' wait per window (sustained)
++inline constexpr std::uint64_t severe_wait_cap_us = 100'000;    // the part of one wait the storm rule counts
 +
 +enum class trip_reason : std::uint32_t
 +{
@@ -37220,40 +37268,80 @@ index 0000000..9a88d3d
 +	}
 +};
 +
-+// REWINDBOX_ZCULL_DEMAND_GUARD_621: one guest thread's wait windows. The gate's
-+// generation resets them when a new boot (a new gate) starts.
-+struct thread_wait_window
++// Wait time per fixed one-second bucket of the clock (index = time / window_us),
++// for the last ring_size buckets. One guest thread's ring is thread_local (its
++// waits are sequential); the all-threads ring is shared under the gate's mutex,
++// where a wait reported late adds to the buckets still in the ring.
++inline constexpr std::uint32_t ring_size = sustained_windows + 1;
++struct wait_bucket
 +{
-+	std::uint64_t generation = 0;
-+	std::uint64_t start_us = 0;      // the current window
-+	std::uint64_t waited_us = 0;
-+	std::uint32_t waits = 0;         // waits in the current window
-+	std::uint64_t last_end_us = 0;   // end of the last closed window
-+	std::uint32_t streak = 0;        // consecutive closed windows above the budget
-+	std::uint64_t history_us[sustained_windows]{};
++	std::uint64_t index = ~std::uint64_t{0};  // the bucket held, none at first
++	std::uint64_t waited_us = 0;              // wait time inside the bucket
++	std::uint64_t severe_us = 0;              // the same, at most severe_wait_cap_us per wait
++	std::uint32_t waits = 0;                  // waits that ended in the bucket
 +};
-+inline thread_local thread_wait_window t_wait_window{};
-+inline std::atomic<std::uint64_t> g_gate_generation{0};
-+
-+// Closes a window that began at `start_us` with `waited_us` of waits; `now_us`
-+// is the first wait after it. Returns the new streak of consecutive windows above
-+// `budget_us`; a window closed more than one window after its end (an idle window
-+// followed) ends the streak: the excess is over, nothing trips late.
-+inline std::uint32_t close_wait_window(std::uint64_t start_us, std::uint64_t waited_us, std::uint64_t now_us, std::uint64_t budget_us,
-+	std::uint64_t& last_end_us, std::uint32_t streak, std::uint64_t (&history_us)[sustained_windows]) noexcept
++struct wait_ring
 +{
-+	const std::uint64_t end_us = start_us + window_us;
-+	const bool adjacent = streak && start_us <= last_end_us + window_us;
-+	streak = waited_us > budget_us ? (adjacent ? streak + 1 : 1) : 0;
-+	last_end_us = end_us;
-+	for (std::uint32_t i = 0; i + 1 < sustained_windows; i++) history_us[i] = history_us[i + 1];
-+	history_us[sustained_windows - 1] = waited_us;
-+	if (now_us > end_us + window_us)
++	wait_bucket buckets[ring_size]{};
++	std::uint64_t newest = 0;                 // newest bucket index + 1, 0 when none
++
++	// Adds the wait [now_us - us, now_us) to the buckets it overlaps; returns the
++	// bucket it ended in.
++	const wait_bucket& add(std::uint64_t us, std::uint64_t now_us) noexcept
 +	{
-+		streak = 0;
++		const std::uint64_t begin = us < now_us ? now_us - us : 0;
++		const std::uint64_t last = now_us / window_us;
++		std::uint64_t first = begin / window_us;
++		if (last - first >= ring_size) first = last - (ring_size - 1);
++		for (std::uint64_t b = first; b <= last; b++)
++		{
++			auto& slot = buckets[b % ring_size];
++			if (slot.index != b)
++			{
++				if (slot.index != ~std::uint64_t{0} && slot.index > b) continue; // already reused by a newer bucket
++				slot = {};
++				slot.index = b;
++			}
++			const std::uint64_t lo = begin > b * window_us ? begin : b * window_us;
++			const std::uint64_t hi = now_us < (b + 1) * window_us ? now_us : (b + 1) * window_us;
++			const std::uint64_t part = hi > lo ? hi - lo : 0;
++			slot.waited_us += part;
++			slot.severe_us += part < severe_wait_cap_us ? part : severe_wait_cap_us;
++			if (b == last) slot.waits++;
++		}
++		if (last + 1 > newest) newest = last + 1;
++		return buckets[last % ring_size];
 +	}
-+	return streak;
-+}
++
++	std::uint64_t waited(std::uint64_t b) const noexcept
++	{
++		const auto& slot = buckets[b % ring_size];
++		return slot.index == b ? slot.waited_us : 0;
++	}
++
++	// True when each of the sustained_windows complete buckets before the newest
++	// one holds more than `budget_us`; `history_us` gets them, oldest first. A
++	// bucket without waits (idle) breaks the run: nothing trips late.
++	bool sustained(std::uint64_t budget_us, std::uint64_t (&history_us)[sustained_windows]) const noexcept
++	{
++		if (newest < sustained_windows + 1) return false;
++		const std::uint64_t current = newest - 1;
++		bool over = true;
++		for (std::uint32_t i = 0; i < sustained_windows; i++)
++		{
++			history_us[i] = waited(current - sustained_windows + i);
++			over = over && history_us[i] > budget_us;
++		}
++		return over;
++	}
++};
++struct thread_wait_ring
++{
++	std::uint64_t generation = 0;            // the gate (boot) the ring belongs to
++	wait_ring ring{};
++};
++inline thread_local thread_wait_ring t_wait_ring{};
++inline std::atomic<std::uint64_t> g_gate_generation{0};
 +
 +inline tally& counters() noexcept
 +{
@@ -37270,14 +37358,10 @@ index 0000000..9a88d3d
 +	std::atomic<std::uint32_t> m_tripped{0};
 +	std::uint64_t m_window_start_us = 0;             // RSX thread only
 +	std::uint32_t m_window_services = 0;             // RSX thread only
-+	std::atomic<std::uint64_t> m_wait_window_start_us{0};
-+	std::atomic<std::uint64_t> m_wait_window_us{0};
-+	// REWINDBOX_ZCULL_DEMAND_GUARD_621: the all-threads windows, closed by one thread
-+	// at a time (m_global_mutex, at most once per window), and the trip record.
++	// REWINDBOX_ZCULL_DEMAND_GUARD_621: the all-threads buckets (m_global_mutex) and
++	// the trip record.
 +	std::mutex m_global_mutex;
-+	std::uint64_t m_global_last_end_us = 0;
-+	std::uint32_t m_global_streak = 0;
-+	std::uint64_t m_global_history_us[sustained_windows]{};
++	wait_ring m_global_ring{};
 +	std::uint64_t m_generation = 0;
 +	mutable std::mutex m_trip_mutex;
 +	trip_detail m_trip{};
@@ -37338,65 +37422,37 @@ index 0000000..9a88d3d
 +	// this wait tripped the lever (REWINDBOX_ZCULL_DEMAND_GUARD_621, see the top).
 +	bool record_wait(std::uint64_t us, std::uint64_t now_us) noexcept
 +	{
-+		// This guest thread's windows.
-+		auto& own = t_wait_window;
++		// This guest thread's buckets.
++		auto& own = t_wait_ring;
 +		if (own.generation != m_generation)
 +		{
 +			own = {};
 +			own.generation = m_generation;
-+			own.start_us = now_us;
 +		}
-+		else if (now_us - own.start_us >= window_us)
++		const wait_bucket& ended = own.ring.add(us, now_us);
++		std::uint64_t history[sustained_windows]{};
++		if (own.ring.sustained(wait_budget_us, history) && trip(trip_reason::wait_budget, 1, now_us, history))
 +		{
-+			own.streak = close_wait_window(own.start_us, own.waited_us, now_us, wait_budget_us, own.last_end_us, own.streak, own.history_us);
-+			own.start_us = now_us;
-+			own.waited_us = 0;
-+			own.waits = 0;
-+			if (own.streak >= sustained_windows && trip(trip_reason::wait_budget, 1, now_us, own.history_us))
++			return true;
++		}
++		if (ended.severe_us > severe_wait_us && ended.waits >= severe_min_waits)
++		{
++			std::uint64_t severe[sustained_windows]{};
++			severe[sustained_windows - 1] = ended.severe_us;
++			if (trip(trip_reason::wait_severe, 1, now_us, severe))
 +			{
 +				return true;
 +			}
 +		}
 +
-+		own.waited_us += us;
-+		own.waits++;
-+		if (own.waited_us > severe_wait_us && own.waits >= severe_min_waits)
++		// All guest threads' buckets.
++		bool sustained = false;
 +		{
-+			std::uint64_t history[sustained_windows]{};
-+			history[sustained_windows - 1] = own.waited_us;
-+			if (trip(trip_reason::wait_severe, 1, now_us, history))
-+			{
-+				return true;
-+			}
++			std::lock_guard lock(m_global_mutex);
++			m_global_ring.add(us, now_us);
++			sustained = m_global_ring.sustained(global_budget_us, history);
 +		}
-+
-+		// All guest threads' windows (start 0: none yet; a window starting at clock 0 is stored as 1).
-+		std::uint64_t start = m_wait_window_start_us.load(std::memory_order_relaxed);
-+		if (!start)
-+		{
-+			m_wait_window_start_us.compare_exchange_strong(start, now_us ? now_us : 1, std::memory_order_relaxed);
-+		}
-+		else if (now_us - start >= window_us && m_wait_window_start_us.compare_exchange_strong(start, now_us ? now_us : 1, std::memory_order_relaxed))
-+		{
-+			const std::uint64_t closed = m_wait_window_us.exchange(0, std::memory_order_relaxed);
-+			std::uint64_t history[sustained_windows]{};
-+			std::uint32_t streak = 0;
-+			{
-+				std::lock_guard lock(m_global_mutex);
-+				m_global_streak = close_wait_window(start, closed, now_us, global_budget_us, m_global_last_end_us, m_global_streak, m_global_history_us);
-+				streak = m_global_streak;
-+				for (std::uint32_t i = 0; i < sustained_windows; i++) history[i] = m_global_history_us[i];
-+			}
-+
-+			if (streak >= sustained_windows && trip(trip_reason::wait_budget, 2, now_us, history))
-+			{
-+				m_wait_window_us.fetch_add(us, std::memory_order_relaxed);
-+				return true;
-+			}
-+		}
-+
-+		m_wait_window_us.fetch_add(us, std::memory_order_relaxed);
-+		return false;
++		return sustained && trip(trip_reason::wait_budget, 2, now_us, history);
 +	}
 +
 +	// The trip record of this boot (reason 0 while the lever works).
@@ -43435,7 +43491,7 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..45db6df 100644
+index d800542..87be23a 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -1,26 +1,198 @@
@@ -43637,7 +43693,7 @@ index d800542..45db6df 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +210,529 @@ u64 process_memory_footprint()
+@@ -38,31 +210,533 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -44065,9 +44121,13 @@ index d800542..45db6df 100644
 +		}
 +	}
 +
-+	void record_rsx_semaphore_wait(u64 wait_microseconds, bool timed_out) noexcept
++	void record_rsx_semaphore_wait(u64 wait_microseconds, bool timed_out, u64 nested_wait_ticks) noexcept
 +	{
-+		rpcs3::ios::frame_trace::waits().semaphore_us += wait_microseconds;
++		// REWINDBOX_ZCULL_FRAME_621: the frame's semaphore time leaves out the GPU waits made
++		// inside the acquire, which the frame already counts in their own fields; the
++		// acquire's own totals and costs keep the whole wait.
++		const u64 nested_us = rpcs3::ios::frame_trace::microseconds(nested_wait_ticks, utils::get_tsc_freq());
++		rpcs3::ios::frame_trace::waits().semaphore_us += wait_microseconds > nested_us ? wait_microseconds - nested_us : 0;
 +		m_event_costs[4].record(wait_microseconds);
 +		m_rsx_semaphore_waits.fetch_add(1, std::memory_order_relaxed);
 +		m_rsx_semaphore_wait_us.fetch_add(wait_microseconds, std::memory_order_relaxed);
@@ -44177,7 +44237,7 @@ index d800542..45db6df 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +742,10 @@ public:
+@@ -72,10 +746,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -44190,7 +44250,7 @@ index d800542..45db6df 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +778,1162 @@ public:
+@@ -108,12 +782,1162 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -45355,7 +45415,7 @@ index d800542..45db6df 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1941,93 @@ private:
+@@ -121,6 +1945,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -45449,7 +45509,7 @@ index d800542..45db6df 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +2035,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2039,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -45543,7 +45603,7 @@ index d800542..45db6df 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2132,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2136,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -45629,9 +45689,9 @@ index d800542..45db6df 100644
 +	g_performance_registry.record_vram_allocation(allocated, bytes);
 +}
 +
-+void record_rsx_semaphore_wait(u64 wait_microseconds, bool timed_out) noexcept
++void record_rsx_semaphore_wait(u64 wait_microseconds, bool timed_out, u64 nested_wait_ticks) noexcept
 +{
-+	g_performance_registry.record_rsx_semaphore_wait(wait_microseconds, timed_out);
++	g_performance_registry.record_rsx_semaphore_wait(wait_microseconds, timed_out, nested_wait_ticks);
 +}
 +
 +void record_ppu_cache_lookup(bool hit) noexcept
@@ -45672,7 +45732,7 @@ index d800542..45db6df 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2263,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2267,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  
@@ -45715,7 +45775,7 @@ index d800542..45db6df 100644
  {
  #ifdef RPCS3_IOS
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.h b/rpcs3/ios/RPCS3IOSPerformance.h
-index 88392e0..d083837 100644
+index 88392e0..cf34b97 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.h
 +++ b/rpcs3/ios/RPCS3IOSPerformance.h
 @@ -15,10 +15,82 @@ void reset_performance_metrics();
@@ -45753,7 +45813,7 @@ index 88392e0..d083837 100644
 +// can attribute stutter without writing one diagnostic line per event.
 +void record_memory_pressure_reclaim(u32 severity, bool attempted, bool relieved) noexcept;
 +void record_vram_allocation(bool allocated, u64 bytes) noexcept;
-+void record_rsx_semaphore_wait(u64 wait_microseconds, bool timed_out) noexcept;
++void record_rsx_semaphore_wait(u64 wait_microseconds, bool timed_out, u64 nested_wait_ticks = 0) noexcept; // REWINDBOX_ZCULL_FRAME_621: nested GPU waits
 +void record_ppu_cache_lookup(bool hit) noexcept;
 +void record_spu_block_compiled(u32 guest_code_bytes, u64 compile_ticks) noexcept;
 +void record_spu_compile_attempt(u64 ticks, bool loading, bool succeeded, bool previously_warmed) noexcept;

@@ -240,6 +240,13 @@ def main() -> None:
         for line in ('FREEZE_DUMP line addr=0x%x rtime=0x%llx data=%s', 'FREEZE_DUMP sema id=0x%x name=%s val=%d max=%d waiters=%d ids=%s',
                      'spurs_addr=0x%x', 'lr=0x%llx'):
             require(line in freeze, f'freeze dump lacks {line!r}')
+        # Review of the first 621 rules: per-request pickup/service halves, the acquire's nested GPU waits.
+        zcull = (core_include / 'Emu/RSX/RSXZCULL.cpp').read_text()
+        require('tally.add_halves(pickup_sum, service_sum + (now - halves_at));' in zcull, 'pickup/service halves cover only the last request')
+        nv406e = (core_include / 'Emu/RSX/NV47/HW/nv406e.cpp').read_text()
+        require('record_rsx_semaphore_wait(waited, timed_out, nested_after >= nested_before ? nested_after - nested_before : 0);' in nv406e,
+                'the semaphore acquire still counts the GPU waits nested in it')
+        require('struct wait_ring' in (core_include / 'ios/IOSZcullOnDemand.h').read_text(), 'the guard does not count one-second buckets')
         report['texcache_profile'] = {'conversions': conversions}
 
         print('freeze episodes')
