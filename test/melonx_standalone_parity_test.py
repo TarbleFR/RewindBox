@@ -86,14 +86,76 @@ with tempfile.TemporaryDirectory() as temporary:
     except AssertionError:
         refused = True
     check(refused, 'a changed framework was embedded')
+# The rebuilt MoltenVK (one MoltenVK for every title, 3 Nov 2026): taken from its pinned artifact by the API digest
+# and the binary digest, the license from its own source archive; a changed artifact is refused.
+import zipfile
+with tempfile.TemporaryDirectory() as temporary:
+    work = Path(temporary)
+    revision, binary = 'c' * 40, b'rebuilt-binary'
+    license_text = b'Apache License\nVersion 2.0, January 2004\n'
+    tar_buffer = io.BytesIO()
+    with tarfile.open(fileobj=tar_buffer, mode='w:gz') as archive:
+        for name, data in [('MoltenVK/LICENSE', license_text), ('MoltenVK/README.md', b'x')]:
+            member = tarfile.TarInfo(name); member.size = len(data)
+            archive.addfile(member, io.BytesIO(data))
+    identity = {'pin': {'revision': revision}, 'binary': {'sha256': hashlib.sha256(binary).hexdigest()},
+                'entryPoints': {'_vkGetInstanceProcAddr': True}, 'keptBinaryVulkanExports': {'missing': []}}
+    artifact = work / 'artifact-source.zip'
+    with zipfile.ZipFile(artifact, 'w') as content:
+        content.writestr('ios/MoltenVK.framework/MoltenVK', binary)
+        content.writestr('identity.json', json.dumps(identity))
+        content.writestr(f'sources/MoltenVK-{revision}.tar.gz', tar_buffer.getvalue())
+    (work / 'build-utils/melonx').mkdir(parents=True)
+    shutil.copy2(ROOT / 'build-utils/melonx/native-dependencies.json', work / 'build-utils/melonx/native-dependencies.json')
+    origin = {'repository': 'https://github.com/KhronosGroup/MoltenVK.git', 'tag': 'v9.9.9', 'revision': revision, 'patch': None}
+    (work / 'build-utils/melonx/moltenvk-rebuild.json').write_text(json.dumps(origin))
+    rebuild_pin = {'tag': 'v9.9.9', 'revision': revision, 'run': 1, 'artifact': 2, 'artifactBytes': artifact.stat().st_size,
+                   'artifactDigest': 'sha256:' + hashlib.sha256(artifact.read_bytes()).hexdigest(),
+                   'binarySha256': hashlib.sha256(binary).hexdigest()}
+    (work / 'build-utils/melonx/moltenvk-rebuild-pin.json').write_text(json.dumps(rebuild_pin))
+    saved = (standalone.ROOT, standalone.FRAMEWORKS, standalone.RECEIPT, standalone.REBUILD_SOURCE, standalone.REBUILD_PIN,
+             standalone.REBUILD_DIR, standalone.download_artifact)
+    standalone.REBUILD_SOURCE = work / 'build-utils/melonx/moltenvk-rebuild.json'
+    standalone.REBUILD_PIN = work / 'build-utils/melonx/moltenvk-rebuild-pin.json'
+    standalone.REBUILD_DIR = work / 'dist/melonx/moltenvk-rebuild'
+    standalone.download_artifact = lambda number, target: shutil.copy2(artifact, target)
+    library, fetched, _ = standalone.fetch_rebuild()
+    check(library.read_bytes() == binary and fetched['run'] == 1, 'the rebuilt binary is not taken from its artifact')
+    framework = work / 'frameworks' / f'{standalone.NAME}.framework'
+    framework.mkdir(parents=True)
+    (framework / standalone.NAME).write_bytes(binary)
+    receipt = work / 'receipt.json'
+    receipt.write_text(json.dumps({'packagedSha256': hashlib.sha256(binary).hexdigest(), 'repository': origin['repository'],
+                                   'revision': revision, 'tag': 'v9.9.9', 'run': 1, 'sourceSha256': rebuild_pin['binarySha256'],
+                                   'sourceBuilt': True}))
+    standalone.ROOT, standalone.FRAMEWORKS, standalone.RECEIPT = work, work / 'frameworks', receipt
+    app = work / 'Runner.app'
+    (app / 'Frameworks').mkdir(parents=True)
+    standalone.embed(app)
+    notice = (app / standalone.LEGAL / 'NOTICE.txt').read_text()
+    check((app / standalone.LEGAL / 'LICENSE.txt').read_bytes() == license_text and 'v9.9.9' in notice and
+          'workflow run 1' in notice and rebuild_pin['binarySha256'] in notice, notice)
+    artifact.write_bytes(artifact.read_bytes() + b'x')
+    (standalone.REBUILD_DIR / 'artifact.zip').unlink()
+    try:
+        standalone.fetch_rebuild()
+        refused = False
+    except AssertionError:
+        refused = True
+    check(refused, 'a changed artifact was accepted')
+    (standalone.ROOT, standalone.FRAMEWORKS, standalone.RECEIPT, standalone.REBUILD_SOURCE, standalone.REBUILD_PIN,
+     standalone.REBUILD_DIR, standalone.download_artifact) = saved
 package = (ROOT / 'build-utils/melonx/package_runtime.py').read_text()
 check("NAMES = {'MeloNXMoltenVK','MeloNXSDL3','MeloNXAvUtil','MeloNXAvCodec','MeloNXJitSupport'}" in package, 'source-built set changed')
 
 # Strings shown by the in-game MoltenVK menu, in all twelve languages.
 strings = json.loads((ROOT / 'build-utils/melonx/ui-strings.json').read_text())
 controller = (CLASSES / 'MeloNXMetalSessionViewController.swift').read_text()
-for key in ['MoltenVK version', 'In use', 'Restart RewindBox to use this MoltenVK.', 'RewindBox (1.3.0)', 'MeloNX app (1.4.0)',
-            'Emulation priority', 'High (RewindBox)', 'Default (MeloNX app)', 'Applies when the next game starts.']:
+# One MoltenVK and no player choice (maintainer, 3 Nov 2026): the MoltenVK menu is gone; its translated rows stay.
+check('showMoltenVk' not in controller and 'MeloNXText("MoltenVK version")' not in controller, 'MoltenVK menu still offered')
+for key in ['MoltenVK version', 'In use', 'Restart RewindBox to use this MoltenVK.', 'RewindBox (1.3.0)', 'MeloNX app (1.4.0)']:
+    check(len(strings['rows'][key]) == 12, key + ' translations removed')
+for key in ['Emulation priority', 'High (RewindBox)', 'Default (MeloNX app)', 'Applies when the next game starts.']:
     row = strings['rows'][key]
     check(len(row) == 12 and all(value.strip() for value in row), key)
     check(f'"{key}"' in controller, key + ' unused')
@@ -110,6 +172,9 @@ check('MeloNXMoltenVKChoice' not in runtime and 'MeloNXStdioCapture' not in runt
 check(runtime.index('"neostation_melonx_select_moltenvk"') < runtime.index('configureNative($0)'), 'MoltenVK selected after loading')
 check('init(library: URL, frameworks: URL, root: URL, moltenVk requested: Int32 = 0)' in runtime, 'smoke default changed')
 plugin = (CLASSES / 'MeloNXInternalBridgePlugin.swift').read_text()
+parity = (CLASSES / 'MeloNXStandaloneParity.swift').read_text()
+check('get { UserDefaults.standard.string(forKey:key) == "fallback " + build ? 0 : 1 }' in parity,
+      'the latest MoltenVK is not the default, or the fallback outlives its build')
 check('moltenVk:moltenVk' in plugin and 'MeloNXMoltenVKChoice.available(moltenVk' in plugin, 'plugin does not choose MoltenVK')
 check('if moltenVk == 1, case .operation("frameworks", _, _)? = error as? MeloNXHostError {\n                MeloNXMoltenVKChoice.preferred = 0' in plugin, 'no way back from a failing standalone MoltenVK')
 check(plugin.index('MeloNXLaunchJournal.configure(path:path)') < plugin.index('MeloNXStdioCapture.configure(path:path)'), 'capture journal')

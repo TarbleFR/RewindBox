@@ -18,6 +18,18 @@ encoder. The patch is retired (it stays in Git history, commit `475fcc2`); the p
 exported, so MeloNX's `MVKInitialization.cs` applies unchanged. The build checks again that the kept binary's 428
 Vulkan exports are present. What follows describes the 1.4.0 patch and its build of 3 Nov, kept as history.
 
+One MoltenVK in the app (written, not delivered):
+- `build-utils/melonx/package_standalone_moltenvk.py` takes, when `build-utils/melonx/moltenvk-rebuild-pin.json`
+  exists, the rebuilt binary from that run's artifact (downloaded by `gh api` with the delivery's token, checked
+  against the API digest of the artifact and the binary's own digest, the identity's entry points and the kept
+  binary's exports), keeps the framework name `MeloNXMoltenVKStandalone` that the engine's loader expects, and embeds
+  the Apache-2.0 license of the rebuild's own source archive with a notice naming the tag, commit and run.
+- The host has no MoltenVK menu any more: every title loads that framework. RewindBox's v1.3.0 build is loaded only
+  after the private frameworks failed to load with it, for the running build only (the next IPA tries the latest
+  again), and the plugin journals it. A choice stored by the former menu no longer applies.
+- `test/melonx_standalone_parity_test.py` (45 checks) covers the artifact path with a fake artifact (digests,
+  license, notice, a changed artifact refused) and the menu's removal; its translated rows stay in `ui-strings.json`.
+
 ## Source
 
 - Khronos MoltenVK tag `v1.4.0`, commit `458870543b9bcf6b0edd6f90aaa776707b310d96` (lightweight tag, checked with

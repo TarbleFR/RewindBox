@@ -288,20 +288,23 @@ enum MeloNXEmulationPriority {
     }
 }
 
-// Which MoltenVK the engine loads for this process: 1 is the standalone MeloNX
-// app's own libMoltenVK.dylib (MeloNXMoltenVKStandalone.framework, the default
-// for parity), 0 RewindBox's source-built Khronos v1.3.0. Applies at the next
-// RewindBox start; the engine cannot switch once MoltenVK is loaded.
+// Which MoltenVK the engine loads for this process. One MoltenVK for every
+// title and no player choice (maintainer, 3 Nov 2026): 1, the latest MoltenVK
+// (MeloNXMoltenVKStandalone.framework, Khronos v1.4.2 rebuilt from source, see
+// build-utils/melonx/moltenvk-rebuild.json). 0, RewindBox's source-built
+// Khronos v1.3.0, is only the fallback after the private frameworks failed to
+// load with 1 (written by the plugin and journaled, for the running build); a
+// choice stored by the former menu ("rewindbox") no longer applies.
 enum MeloNXMoltenVKChoice {
     static let key = "RewindBoxMeloNXMoltenVK"
-    static let names: [Int32: String] = [0: "RewindBox 1.3.0", 1: "MeloNX 1.4.0 (standalone)"]
+    static let names: [Int32: String] = [0: "RewindBox 1.3.0 (fallback)", 1: "MoltenVK 1.4.2"]
+
+    // The fallback holds for this build only: the next IPA tries the latest again.
+    private static var build: String { Bundle.main.object(forInfoDictionaryKey:"CFBundleVersion") as? String ?? "" }
 
     static var preferred: Int32 {
-        get {
-            let stored = UserDefaults.standard.string(forKey:key)
-            return stored == "rewindbox" ? 0 : 1
-        }
-        set { UserDefaults.standard.set(newValue == 0 ? "rewindbox" : "standalone", forKey:key) }
+        get { UserDefaults.standard.string(forKey:key) == "fallback " + build ? 0 : 1 }
+        set { UserDefaults.standard.set(newValue == 0 ? "fallback " + build : "latest", forKey:key) }
     }
 
     static func available(_ variant: Int32, frameworks: URL) -> Bool {
