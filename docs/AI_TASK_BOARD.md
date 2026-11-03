@@ -144,6 +144,36 @@ Sources: [subagents](https://code.claude.com/docs/en/sub-agents),
 [worktree base](https://code.claude.com/docs/en/worktrees#choose-the-base-branch),
 [prompt caching](https://code.claude.com/docs/en/prompt-caching#switching-models).
 
+## Codex model and effort routing
+
+Maintainer request, 3 November 2026: apply the same bounded orchestration to
+Codex, selecting BOTH delegated model and native reasoning effort.
+
+| Work | Native collaboration model | Effort |
+| --- | --- | --- |
+| Tiny direct edit or exact command | Main agent directly; no mandatory worker | App-managed setting |
+| Independent exact lookup or receipt extraction | `gpt-6-luna` | `low` |
+| Bounded source research, understood code or targeted verification | `gpt-6.1-sol` | `medium` |
+| Difficult Core/JIT/GPU ordering, memory, concurrency or ABI review | `gpt-6-astra` | `high` |
+
+These are Work Mode collaboration aliases, not API model IDs. Verify the currently
+advertised models and efforts before spawning. Set both parameters explicitly;
+use `fork_turns: none` with overrides and pass minimum task-local context.
+Escalate once for a named ambiguity or changed evidence; do not use maximum
+effort or multiple reviewers by default. Use the shared ownership, evidence,
+output and stopping rules above. A user-authorized parallel coding task has its
+own branch/checkout and disjoint paths; one writer owns each path.
+
+Codex cannot change this conversation's primary backend model or native effort
+through these tools. The application controls them. Adapt work/explanation depth,
+but do not claim a primary-model switch, a native main-effort change or measured
+token savings. No API billing, outside agent launcher or subscription changes
+are authorized by this routing. If native delegation is unavailable, work directly.
+
+The personal routing instructions are a thin entry point to this shared contract,
+not another requirements/history file. Codex must update its owned result here
+after meaningful work and before handoff, just as Claude updates its own rows.
+
 ## Standing IPA compilation authorization
 
 Maintainer decision, 3 November 2026. Claude Code is authorized to launch the
@@ -263,6 +293,8 @@ reusing evidence. This wrapper does not itself establish input equivalence.
 | TASK-634-RPCS3 — Claude Code integration | Integrate the verified Core 634 with its host changes and preserve source/artifact bindings. Includes Core 630. | Pinned (`ffd5b62d`), not delivered. Run `41696834507` attempt 1 on `792d72c9`: Core artifact `13261039942` (29324314 bytes, `3c82cd8d…`) and Apple-host artifact `13261452573` (40957 bytes, `c13cc47e…`) downloaded by the verifier's route; `pin_errors` no error, `bundle` passed (identity `rpcs3-ios-core634`, ABI 30, 92 exports, codegen unchanged, payload `193b673d…`, 15 host commands passed). Delivery contract: both RPCS3 pin tests pass. No iPhone run. Maintainer decision, 3 Nov: retain 634 as the verified predecessor; the next private IPA must carry the corrected successor and applicable async work described below, rather than ship 634 first. |
 | TASK-635-IPA / next private IPA — Claude Code integration | Maintainer changed priority on 3 Nov: complete the applicable RPCS3/MoltenVK asynchronous adaptation before delivering the next IPA. The former 635 draft ([manifest](../build-utils/delivery/635.json), [plan](ipa-635-plan-2026-11-03.md)) is a preparation reference, superseded where it schedules delivery with 634 before the successor work. Preserve delivered 629 plus reviewed MeloNX 631, MoltenVK and Pocket changes; revise the final manifest, Core binding and IPA number consistently. | Delivery hold pending async work, not a cancellation of useful Core builds. The Claude web session visibly started successor 636 and reproduced/fixed the Darwin X29/X30 case with GCC bounds checks; remaining successor and async work is still in progress, not compiled or delivered. Do not freeze, trigger or hand over the former 635 as the requested final IPA. If packaging already started, retain it only as a provisional artifact. Next: finish successor corrections and the task below, run affected tests and Apple/iPhone compilation, pin the exact Core, then package and verify the next private IPA under standing authorization. |
 | RPCS3/MoltenVK async before next IPA — Claude Code implementation, Codex coordination | Explicit maintainer priority, 3 Nov: start and integrate the relevant async work before the next private IPA. Reuse existing ZCULL/report and asynchronous-submit paths; correct demonstrated artificial waits, missing activation or ordering/lifetime defects per AC/GOW3/BO2. Preserve complete rendering, exact report dependencies and safe resource retirement. Source changes, targeted dependency/fallback tests, successful Apple/iPhone build and exact Core pin are required before delivery. Device FPS/1% low/p99 and visual comparison follow on the produced test IPA; unavailable device results must be labelled, not invented or made a circular pre-delivery requirement. | Priority message is visibly marked read in Claude session `012mUAShv9k6pSCnpW7oAF63`. Continue the three audited successor corrections, then implement supported async omissions rather than adding another general audit or more logs. Record what is already active, what changes and any precise remaining blocker. Reuse existing evidence and caches/prewarm; Async Recompiler draw omission and an unproven extra texture queue do not meet the rendering requirement. Update this row and affected delivery recipe in place. No async gain or new Core/IPA is established by this coordination update. |
+| Skin orientation — Claude Code, separate session `012mUASjgVWk8DKKjVbwTD2n` | Applied portrait-only playable skin locks the game to portrait from launch; a dual-layout skin preserves ordinary iPhone rotation. Release the restriction when returning to dual/default and on stop/failure. Preserve per-game/console inheritance, menu transitions and existing engine exceptions. | New discussion created on `work/skins-portrait-lock-20261103` from `Claude`, initial Sonnet 5.5 / medium. Separate scope: Libretro/Dolphin skins and orientation, directly affected tests. RPCS3/MeloNX Core files, pins, delivery manifests and IPA remain with the original integration session. Prepare reviewed commits/draft PR to `Claude`, no automatic merge or IPA from the skin session. Implementation/device validation not yet established. |
+| Codex orchestration — Codex | Select suitable native worker model and reasoning effort, avoid duplicated diagnostics and preserve one shared contract. | Routing table recorded here. Thin personal entry point created; schema validation passes. Native low-effort forward check and persistent installation verification pending. Primary model/effort remain application-controlled. |
 | Output evidence and standing IPA rule — Codex | Reduce verbose tool output while preserving complete logs and child status. Authorize Claude's necessary Core/IPA compilation with a report after every attempt. | `scripts/ai-output.py` implemented with run/file modes. Eleven CLI regression tests passed on Linux, including non-UTF-8, long lines, failure amid success noise, literal arguments, missing commands, unique runs, interruption and SIGTERM/SIGKILL status. One initial signal-flush failure and review findings were corrected before validation. Shared authorization is recorded above. Next, Claude reads this rule and uses the wrapper for verbose foreground commands, then reports each IPA attempt. |
 | Shared contract — Codex owns this consolidation, then each agent owns its updates | One shared requirements/results file, automatic update obligation for all agents, no duplicated coordination documents. | Published in `c587c7c5`, five redundant files removed, 49 links verified. All three Claude skills updated to v2 and point here. Next, Claude reconciles only its task/evidence rows against its local corrections at a stable checkpoint. |
 
