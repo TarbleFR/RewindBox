@@ -340,3 +340,29 @@ réussi ; aucun conflit, aucun commit non classé.
   signature, validations, tests, environnement, durées) avant `record`, comme la 621 : 12 fichiers.
 - **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub
   MCP (octets égaux aux digests de l'API). IPA vérifiée hors ligne, clé privée supprimée.
+
+## 14. État de la 623 (3 novembre 2026)
+
+Livrée sur la 622 (run `41569913763`, IPA `c80911de…`, 194506776 octets, ~24 min de bout en bout).
+Gel sur `2c8350f8` : base effective 622 `43e0b078…`, empreinte effective `79ec3b3c…`, 6881 fichiers
+produit ; contrôle légal réussi ; aucun conflit, aucun commit non classé.
+- **Commits revus (2).** `5c20e0cb` (Core MeloNX 623) et `824612ab` (son épingle vérifiée).
+- **Travail promu.** `1745b3e6`, les tranches de jaquettes d'une autre session (« source seulement »
+  dans la 622 pour cette build).
+- **Reporté à la 624.** `9bb35531` (skins GameCube/Wii) :
+  - le contrôle légal refuse son podspec (« Session source/license declaration changed since review ») ;
+    il lui faut sa propre revue de déclaration, chaînée sur celle de Glacier ;
+  - son overlay natif n'a pas encore été compilé avec le SDK iOS.
+  - Un commit qui précède la base ne se liste pas en « source seulement » : la relecture le signale
+    `missing`. Il reste différé par héritage de la base (83 chemins hérités).
+- **Composants.**
+  - MeloNX : remplacé par le Core 623 du run `41567689813` (`27f1afa1…`), qui remplace le Core 621
+    `07e9d695…`.
+  - RPCS3 : Core 621 `unchangedFromBase`.
+  - Dolphin/ARMSX2, libretro et dépendances MeloNX : republiés de la 622.
+- **Images changées.** App, MeloNXCore et Runner. `melonx_internal_bridge` a aussi changé sans changement de ses sources effectives (signalé, non bloquant).
+  Tests frais dans les deux groupes.
+- **Preuves.** Le reçu reprend les huit rapports de la livraison déchiffrée avant `record`, comme la
+  622 : 12 fichiers.
+- **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub
+  MCP (octets égaux aux digests de l'API). IPA vérifiée hors ligne, clé privée supprimée.
