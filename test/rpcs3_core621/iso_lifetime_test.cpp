@@ -7,6 +7,7 @@
 #include "stdafx.h"
 #include "Loader/ISO.h"
 
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -63,11 +64,15 @@ int image_descriptors(const std::string& path_now)
 	struct stat target{};
 	if (::stat(path_now.c_str(), &target) != 0) return -1;
 	int count = 0;
-	// /dev/fd lists this process's descriptors on Linux and Darwin.
-	for (const auto& entry : std::filesystem::directory_iterator("/dev/fd"))
+	// fstat of every descriptor number: stat("/dev/fd/N") does not reach the open file on
+	// Darwin (fdesc), where it counted 0 (Apple run 41551960581).
+	struct rlimit limit{};
+	const int last = ::getrlimit(RLIMIT_NOFILE, &limit) == 0 && limit.rlim_cur != RLIM_INFINITY && limit.rlim_cur < 65536
+		? static_cast<int>(limit.rlim_cur) : 65536;
+	for (int fd = 0; fd < last; ++fd)
 	{
 		struct stat info{};
-		if (::stat(entry.path().c_str(), &info) == 0 && info.st_ino == target.st_ino && info.st_dev == target.st_dev) ++count;
+		if (::fstat(fd, &info) == 0 && info.st_ino == target.st_ino && info.st_dev == target.st_dev) ++count;
 	}
 	return count;
 }
