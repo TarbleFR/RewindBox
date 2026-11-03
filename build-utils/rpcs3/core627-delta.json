@@ -1,11 +1,11 @@
 {
   "schema": 1,
   "marker": "REWINDBOX_CORE627",
-  "status": "folded into the canonical delta for RPCS3 Core 627 (delivered Core 610 canonical patch a63b9643 plus this patch: the Core 612, 613, 616, 619, 621 and 624 records unchanged and the Core 627 changes from the Build 624 iPhone logs: ZCULL: the on-demand lever no longer trips on guest waits, a depth-tested conditional render never waits for a query still on the GPU, conservative reports off for every title); numbered 627 because 625 and 626 are MeloNX Cores of another session; Core 627 not built yet, no IPA, no iPhone validation",
+  "status": "folded into the canonical delta for RPCS3 Core 627 (delivered Core 610 canonical patch a63b9643 plus this patch: the Core 612, 613, 616, 619, 621 and 624 records unchanged and the Core 627 changes from the Build 624 iPhone logs: ZCULL: the on-demand lever no longer trips on guest waits, a depth-tested conditional render never waits for a query still on the GPU, conservative reports off for every title; SPU: an SPU polling with no-op PUTLLC takes a bounded wait); numbered 627 because 625 and 626 are MeloNX Cores of another session; Core 627 not built yet, no IPA, no iPhone validation",
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/core627-delta.patch",
-  "patch_sha256": "e84efcadcf91e3723817c383e0908288584a595ead3b12a14a1eb6394973079d",
+  "patch_sha256": "526cfb2ac5540fbaebf581e425df2eacb43610e861c599e3ba66c24ee0928609",
   "abi_version": 30,
   "abi_version_changed": false,
   "exports_added": [
@@ -19,6 +19,7 @@
     "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "aa61e1d64363dc98c19a16150bc12c8add3850862847b21df3c9948f2e31e787",
     "rpcs3/Emu/Cell/SPUCommonRecompiler.cpp": "6fecf56f4e20f36b93413ee702958cbf7faaad95f91e59730b915a761207e1fb",
     "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff",
+    "rpcs3/Emu/Cell/SPUThread.cpp": "97da453d7717a1a63cd44f58d6ae1b6c0053f1f7e3a1c1626e90c83c1cfd518d",
     "rpcs3/Emu/RSX/NV47/HW/nv406e.cpp": "c1a5d71f20f6fa5dfdd9b1277a0b1dec0b7e6018027bd6767386d30c29434824",
     "rpcs3/Emu/RSX/NV47/HW/nv4097.cpp": "fca4cbcbad9cbe2a81888791f3c811b7d79009320d4f1d671ac68cd67a187a8e",
     "rpcs3/Emu/RSX/NV47/HW/nv47_sync.hpp": "c5ca7d51fb7a195796f5a474c4fbec6d513ca475e7c3373433a73444defaf13f",
@@ -64,10 +65,11 @@
   },
   "files_after_sha256": {
     "Utilities/JITLLVM.cpp": "ac7fe0f65eb33b7d18fca45d9c7261b8105f3ee0b51e104feedfe372f5eec0fc",
-    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "7508771a02362f64a724cdcc0211a7463f5eeb6fc21aa712d0f233ab5ed8d34c",
+    "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "9bc5a9eccbb86906728f11ed14d936ccac6242fc3f6e94b784b1a10357a4bdd2",
     "rpcs3/Emu/Cell/Modules/cellGcmSys.cpp": "833c46bdb5ddddf73e983525192234f9c2468d89c8d5be8ed93ead6d583247e5",
     "rpcs3/Emu/Cell/SPUCommonRecompiler.cpp": "b4fab733e3472599d4f0c3f98b78f500f68b2dabfee7a26d69ebc453a05c1197",
     "rpcs3/Emu/Cell/SPULLVMRecompiler.cpp": "46e26928919087f4daf23eb6a62211894deb8599671bc55468fb639cfef935d7",
+    "rpcs3/Emu/Cell/SPUThread.cpp": "d03e51eef50cb89fdb0c5d32484e40e400f7f6baf6d8e2155c7be1b472a309a5",
     "rpcs3/Emu/Cell/lv2/sys_rsx.cpp": "3896b89a764ec0b4bf81563f8640bfea12eb8c443a31e63fb6aa8df9e751df86",
     "rpcs3/Emu/RSX/NV47/HW/nv406e.cpp": "714e1fea8fe9e5ed6b9f3397b8c3413568213b607c413e64baebc39d580f04c5",
     "rpcs3/Emu/RSX/NV47/HW/nv4097.cpp": "e4836a120a4bd2a98b646bf9c8c7ae1c5d13fe397b7f64eea8db52b63789cdad",
@@ -97,7 +99,7 @@
     "rpcs3/Emu/RSX/VK/vkutils/device.h": "628d8e9b36818e6324db2a606654a79dc50d1d982e3e1f1dd396c052dd13891a",
     "rpcs3/Emu/RSX/rsx_methods.cpp": "e0cf4b8ffce643e4444c0da745cdd460de24e0a0a5bf1ed2df9957f14879e8d0",
     "rpcs3/Emu/System.cpp": "134702bb5721ae5139ca35217c48cf60df39929a3a5a233ea1b1afcfffecfe50",
-    "rpcs3/Emu/system_config.h": "735ad49978b6fc72e9614876476e33f35e3c7cf523ed1a5fbd25001de2bb8f0f",
+    "rpcs3/Emu/system_config.h": "a155d7da5d7294d3e3166ac51b15293f1344f0de9858525d6b038fccdba0670c",
     "rpcs3/Loader/ISO.cpp": "46b33e6f57488e7a57302eae871764e46247c18ae1f3d3f7d3863b9115769968",
     "rpcs3/Loader/ISO.h": "71ccf630bfc5466e926278cd384e1c1f026e36396a0a88f8e19c53b20c4dfd07",
     "rpcs3/ios/IOSFeedbackCensus.h": "9da0b2b864ec2e0c47b1bb792952eb376d3b4203292f117c183388af07e60dd4",
@@ -106,9 +108,10 @@
     "rpcs3/ios/IOSPipelineQueue.h": "127da73ba7b21671a14de381106a8d7f7d1efd9a762c55f362dfcbfa3440bfd6",
     "rpcs3/ios/IOSRsxLabelAccess.h": "257dc41df181231f29ea5914ea5a2dbe03e3370e085ec2b7b119e251cb1f64ea",
     "rpcs3/ios/IOSRsxSyncProfile.h": "f1ece0d90f59db238a7df6b00ade749f653faf961aecf25c158215798a572be2",
+    "rpcs3/ios/IOSSpuNoopSpin.h": "f8d90f854eb7d1b09014b0c27ef6e5d3527d4225653aef1a7ccffbba23d2e99d",
     "rpcs3/ios/IOSSpuObjectPrefetch.h": "f31773ae56ee7024f1d9ed39b49cdfa1469a9ebf874d480551baf0c6485eae73",
     "rpcs3/ios/IOSTextureCacheProfile.h": "ad2d2872100f0e87af4b1880e18f8cbdab9ed4f9b4502b37742e68490eb50b1b",
-    "rpcs3/ios/IOSTitleLevers.h": "c4ebc530c45b51f008d5f212d37deb5956d99f29c100817d9a0efa09da117714",
+    "rpcs3/ios/IOSTitleLevers.h": "14ded4845fd019a0de1ab2998580e3246445e2e66654dab685cb9ef12214939c",
     "rpcs3/ios/IOSZcullLabelPage.h": "d5dda8affe89446b8625ddfe0865ad9897feeb92f50d8990cc630402722edaad",
     "rpcs3/ios/IOSZcullOnDemand.h": "39af94b142ca988235fbf0b81def2118fc271c529b1892a57e4153c6002efef1",
     "rpcs3/ios/RPCS3IOS.cpp": "2c7a6e02f047bcd9f86d9d1d6b566e153dc8b72fabcb27068fc8b9c08427dde3",
@@ -116,8 +119,8 @@
     "rpcs3/ios/RPCS3IOS.h": "e12732f8e0914f765e81e9ba2fb8278862369d91c03967c38e021e384e215987",
     "rpcs3/ios/RPCS3IOSAchievements.h": "bf04cc1b6ef98e4ebf777b33ce921803a17409b6cbc52b224e145f67708d9399",
     "rpcs3/ios/RPCS3IOSBootDiagnostics.h": "cffc6f50629a69d0adadd474f7e31f350187dd6b381596014f71ed861473e34d",
-    "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "f7aa81afad4ebbb8b70463a17d8b44668d7f03a3cb8b1ef3c998cbc6b0a253a0",
-    "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "6cd55683301cece0918f2e65723c6a2afa6994f021efca97471df37bdee228b0",
+    "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "70dede9db6cf9d5fd45626c421e0fd11abddf3d491107bf6a9f7f4b2f8a3cd80",
+    "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "ed7083f85de5d1453f665f1e59a837b80fe8ab484d133ccfab539eb6173ad8a8",
     "rpcs3/ios/RPCS3IOSFreezeDump.cpp": "ca584ac6c959f1245972d5082e722511c92d5c48c9bcffffb01191c2adf217cb",
     "rpcs3/ios/RPCS3IOSFreezeDump.h": "752fb17a66dc001219f6ff4b1b9e3b9e66bf32ad6bf60c8f93a50fdd7e4fe6d1",
     "rpcs3/ios/RPCS3IOSFreezeEpisode.h": "990e1dd5e890723b35d9654d6d74de3897b3ef9a2df4534e144ebd3e03b7d4ba",
@@ -139,6 +142,7 @@
     "rpcs3/ios/IOSGpuTiming.h",
     "rpcs3/ios/IOSPipelineQueue.h",
     "rpcs3/ios/IOSRsxLabelAccess.h",
+    "rpcs3/ios/IOSSpuNoopSpin.h",
     "rpcs3/ios/IOSSpuObjectPrefetch.h",
     "rpcs3/ios/IOSTextureCacheProfile.h",
     "rpcs3/ios/IOSZcullLabelPage.h",
@@ -181,11 +185,12 @@
     "zcull_fault_census_624": "REWINDBOX_ZCULL_FAULT_CENSUS_624 (RSXZCULL.cpp, RPCS3IOSPerformance.cpp): COREPROF ZCULL624 per window with the reports block shift, the conditional render evaluations drawn on the previous visible value, ready or waited, the thread class of the on-demand faults and the last address of an \"other\" fault (Black Ops II: 60-120 per window outside the GCM report block, 885 ms of guest waits); counting only",
     "zcull_wait_guard_627": "REWINDBOX_ZCULL_WAIT_GUARD_627 (ios/IOSZcullOnDemand.h, RSXZCULL.cpp): Build 624 logs (PID 1893): with the labels on their own page the lever served only real report reads (Assassin's Creed window 9: 99 reads, 9.6 ms each, 57 FPS in a scene of 18 draws per frame), then TaskThread1 tripped the 621 wait budget (548/564/610 ms) and the upstream mode blocked the RSX thread 4.0-4.3 s per 5 s window for the rest of the boot, 12-20 FPS in the heavy scenes. Black Ops II multiplayer tripped the same way (thread Backend, 449/538/638 ms). The guest-wait rules no longer trip the lever for its title list; storm, pickup and hard deadlines stay. ZCULL On-Demand Wait Guard setting",
     "zcull_cond_no_wait_627": "REWINDBOX_ZCULL_COND_NO_WAIT_627 (ios/IOSZcullLabelPage.h, RSXThread.cpp): with the lever, a depth-tested conditional render whose query is still on the GPU draws without waiting, whatever its report holds (Black Ops II session 2: 88-120 evaluations, 1.3-2.6 s of the RSX thread per window). A draw the depth test cannot hide keeps the 624 rule, and a query already complete is evaluated as before. ZCULL Conditional Draw Without Wait setting",
-    "zcull_conservative_627": "REWINDBOX_ZCULL_CONSERVATIVE_627 (ios/IOSZcullLabelPage.h, RSXZCULL.cpp): a queued report is written at once with a value that reads visible, no page is locked, no label waits, and the GPU result replaces it when the query completes. A block transfer of a report copies the provisional value now and its alias takes the GPU result; a plain RSX copy still waits. Off for every title by default, per-game test (ZCULL Conservative Reports): Relaxed ZCULL Sync flickered on Assassin's Creed and the lever keeps exact values"
+    "zcull_conservative_627": "REWINDBOX_ZCULL_CONSERVATIVE_627 (ios/IOSZcullLabelPage.h, RSXZCULL.cpp): a queued report is written at once with a value that reads visible, no page is locked, no label waits, and the GPU result replaces it when the query completes. A block transfer of a report copies the provisional value now and its alias takes the GPU result; a plain RSX copy still waits. Off for every title by default, per-game test (ZCULL Conservative Reports): Relaxed ZCULL Sync flickered on Assassin's Creed and the lever keeps exact values",
+    "spu_noop_spin_wait_627": "REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h, SPUThread.cpp): with Accurate SPU Reservations off a no-op PUTLLC leaves raddr = 0, so the next GETLLAR skips every spin detection of RPCS3 (Black Ops II: getllar_poll=0, 5-7 million PUTLLC per 5 s window, 3.3-5.3 SPU cores). After 64 no-op PUTLLC in a row, each within 50 us of the previous one, on at most 8 lines whose reservation times did not move, do_putllc() sleeps on the reservation notifier of its line for a bounded time (20 us doubling to 160 us, at least 8 rounds apart; inlined PUTLLC16 and PUTLLUC are seen through the moved times). Automatic is Black Ops II and God of War III. SPU No-op Spin Wait setting; SPUWAIT551 getllar_sleep counts it. Host code only: JITCacheCompatibility.cmake maps the new SPUThread.cpp hash to the delivered effective hash"
   },
   "behaviour": {
-    "defaults": "Assassin's Creed and Black Ops II: the ZCULL on-demand lever no longer trips on guest waits and depth-tested conditional renders never wait for a query still on the GPU; conservative reports stay off for every title",
-    "codegen": "no PPU or SPU codegen input changes (test/rpcs3_core627_codegen_test.py): identities PPU a987639e9f838d1c / SPU 477a3fa442d27917 kept",
+    "defaults": "Assassin's Creed and Black Ops II: the ZCULL on-demand lever no longer trips on guest waits and depth-tested conditional renders never wait for a query still on the GPU; conservative reports stay off for every title; Black Ops II and God of War III: an SPU polling with no-op PUTLLC waits for a bounded time",
+    "codegen": "SPUThread.cpp is a codegen input and changes in host bodies only: its new exact hash is mapped to the delivered effective hash in JITCacheCompatibility.cmake (test/rpcs3_core627_codegen_test.py): identities PPU a987639e9f838d1c / SPU 477a3fa442d27917 kept, cached objects stay valid",
     "abi": "ABI 30 and the 92 exports unchanged"
   },
   "folded_into_canonical_delta": true,
@@ -194,10 +199,12 @@
   "iphone_validation_run": false,
   "increment_from_core624": {
     "patch": "build-utils/rpcs3/core627-from-624.patch",
-    "patch_sha256": "f37fed840d67137529016c0036446b574c51127621d6a2b7c176cea285aaacb7",
+    "patch_sha256": "a0ee46978e2dd15860548183a8d0dff56769ced13b7648653f9e8a6b3c529f3d",
     "insertions_only": false,
-    "files": 8,
+    "files": 11,
     "files_before_sha256": {
+      "rpcs3/Emu/CPU/JITCacheCompatibility.cmake": "7508771a02362f64a724cdcc0211a7463f5eeb6fc21aa712d0f233ab5ed8d34c",
+      "rpcs3/Emu/Cell/SPUThread.cpp": "97da453d7717a1a63cd44f58d6ae1b6c0053f1f7e3a1c1626e90c83c1cfd518d",
       "rpcs3/Emu/RSX/RSXThread.cpp": "412e5ba8f0a358265f9376a6be870d3ed0da0d663b43e7a289df4160f95e86d8",
       "rpcs3/Emu/RSX/RSXZCULL.cpp": "65355eab586f6662079f21b2645847e1834bdbbba40e07dbcd8150a2988efc6c",
       "rpcs3/Emu/system_config.h": "bc46ffa6abe8bed50a053ae27215e5550e605c2aa0775c657cd1e51e3b5c0696",
@@ -207,6 +214,8 @@
       "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "378f1de4a97f106f294f49b619dbd734820423ad73efc3c42791a3cab0e0367b",
       "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "39bea69f79c992d79f755ae4f16c4e6b10a1b2951b91dd1088cd17618efdc0c0"
     },
-    "new_files": []
+    "new_files": [
+      "rpcs3/ios/IOSSpuNoopSpin.h"
+    ]
   }
 }

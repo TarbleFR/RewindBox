@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 627,
  "identity_type": "rpcs3-ios-core627",
- "summary": "RPCS3 Core 627 in progress, the delivered Core 610 plus one folded delta: the Core 612, 613, 616, 619, 621 and 624 records unchanged and ZCULL: the on-demand lever no longer trips on guest waits, a depth-tested conditional render never waits for a query still on the GPU, conservative reports off for every title. Numbered 627: 625 and 626 are another session's MeloNX Cores. No gain measured: not built, no iPhone run.",
+ "summary": "RPCS3 Core 627 in progress, the delivered Core 610 plus one folded delta: the Core 612, 613, 616, 619, 621 and 624 records unchanged and ZCULL: the on-demand lever no longer trips on guest waits, a depth-tested conditional render never waits for a query still on the GPU, conservative reports off for every title; SPU: an SPU polling with no-op PUTLLC takes a bounded wait. Numbered 627: 625 and 626 are another session's MeloNX Cores. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "86b152114d956a9f4580114469a59968b5d59e0f6c77e7382afb22402562bace",
-  "postimages": 346,
+  "patch_sha256": "9851f73942e2c45c61b2e451776f5abf5535d8ee8d20f4de5c749056d1b0c3e8",
+  "postimages": 347,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -76,7 +76,7 @@
   "record": "core627_20261103",
   "manifest": "build-utils/rpcs3/core627-delta.json",
   "patch": "build-utils/rpcs3/core627-delta.patch",
-  "patch_sha256": "e84efcadcf91e3723817c383e0908288584a595ead3b12a14a1eb6394973079d"
+  "patch_sha256": "526cfb2ac5540fbaebf581e425df2eacb43610e861c599e3ba66c24ee0928609"
  },
  "exports": 92,
  "core_inputs": {
@@ -134,7 +134,8 @@
   "Resolved title policy 627",
   "ZCULL On-Demand Wait Guard",
   "ZCULL Conditional Draw Without Wait",
-  "ZCULL Conservative Reports"
+  "ZCULL Conservative Reports",
+  "SPU No-op Spin Wait"
  ],
  "moltenvk_dependency": {
   "run": 41239096061,
@@ -152,7 +153,7 @@
   "reused_count": 8,
   "affected": {
    "exitspawn-worker": "test/rpcs3_exitspawn_worker610_test.py (plain and ASan/UBSan), run again on Apple clang by this build",
-   "mfc-decrementer": "test/rpcs3_spu_mfc_lr_test.py (plain, ASan/UBSan, mutations), Core 610 Apple result reused with unchanged inputs"
+   "mfc-decrementer": "test/rpcs3_spu_mfc_lr_test.py (plain, ASan/UBSan, mutations), run again on Apple clang by this build: SPUThread.cpp changed in do_putllc(), process_mfc_cmd unchanged"
   },
   "reuse_audit": {
    "path": "docs/evidence/rpcs3-core610-20261101/historical-harnesses/reuse-audit.json",
@@ -357,6 +358,22 @@
      "{out}/core627.json"
     ],
     "reason": "new: Core 627 = Core 624 + core627-from-624.patch (reverse patch, Core 624 files authenticated by the SHA-256 pinned in core627-delta.json increment_from_core624); the whole Core 624 suite on the reversed tree; the real ZCULL fault protocol with the guard on and off and the real polling block of do_putllc() plain, TSan and ASan/UBSan; the wiring, the 12 locales of the test page, and no observation added but one line per boot"
+   },
+   {
+    "name": "lr-full-queue",
+    "argv": [
+     "python3",
+     "test/rpcs3_spu_mfc_lr_test.py",
+     "--source",
+     "{source}",
+     "--baseline",
+     "{baseline}",
+     "--cxx",
+     "clang++",
+     "--report",
+     "{out}/lr-full-queue.json"
+    ],
+    "reason": "SPUThread.cpp, a declared input of the reused Core 610 result, changes in do_putllc() (process_mfc_cmd stays byte-identical): the harness runs again, on the exact file with the reviewed 627 increment taken out"
    }
   ],
   "reused": {
@@ -377,20 +394,6 @@
    "compiler": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
    "evidence": "docs/evidence/rpcs3-core610-20261101/apple-host-tests",
    "reused_commands": {
-    "lr-full-queue": {
-     "repo_inputs": [
-      "test/rpcs3_spu_mfc_lr_test.py",
-      "test/rpcs3_device597/cpu/run_late_snr.py",
-      "docs/evidence/rpcs3-device601-20261030/cpu/lr-followup/lr-probe.cpp",
-      "test/native/rpcs3_spu_mfc_lr/tests.inc"
-     ],
-     "tree_inputs": [
-      "rpcs3/Emu/Cell/SPUThread.cpp",
-      "rpcs3/Emu/Memory/vm_reservation.h",
-      "rpcs3/Emu/Memory/vm.cpp",
-      "rpcs3/ios/IOSSignalTrace.h"
-     ]
-    },
     "reuse-audit": {
      "repo_inputs": [],
      "static_report": true,

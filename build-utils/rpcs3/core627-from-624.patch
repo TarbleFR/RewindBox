@@ -1,3 +1,95 @@
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+index cab3a39..988dc16 100644
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -72,6 +72,15 @@ function(neostation_codegen_compatible_hash source actual output)
+     elseif(source STREQUAL "Cell/SPUThread.cpp" AND
+            actual STREQUAL "97da453d7717a1a63cd44f58d6ae1b6c0053f1f7e3a1c1626e90c83c1cfd518d")
+         set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
++    # REWINDBOX_SPU_NOOP_SPIN_WAIT_627: only the host body of do_putllc changes (its no-op path
++    # notes the polling streak and takes a bounded wait on the existing reservation notifier),
++    # with one static thread_local in this file. process_mfc_cmd, the SPU layout (SPUThread.h
++    # unchanged), emitter bodies, external helper signatures and relocation targets are
++    # unchanged: the objects call the same host functions. Preserve the delivered effective
++    # hash for this exact reviewed snapshot only.
++    elseif(source STREQUAL "Cell/SPUThread.cpp" AND
++           actual STREQUAL "d03e51eef50cb89fdb0c5d32484e40e400f7f6baf6d8e2155c7be1b472a309a5")
++        set(${output} "b9bc0cfeaeaac3a913e41e7890c7e14b758bd52efebdf56acdea343d9c12a1f4" PARENT_SCOPE)
+     # CELL559: compile() builds the LLVM analysis managers and the function pass
+     # pipeline only when no cached object is linked. A miss runs the same passes
+     # in the same order on the same IR; a hit generates no code. Generated
+diff --git a/rpcs3/Emu/Cell/SPUThread.cpp b/rpcs3/Emu/Cell/SPUThread.cpp
+index dead8f4..a12c16b 100644
+--- a/rpcs3/Emu/Cell/SPUThread.cpp
++++ b/rpcs3/Emu/Cell/SPUThread.cpp
+@@ -36,6 +36,7 @@
+ #include "ios/IOSCompilePressure.h"
+ #include "ios/IOSSpuWaitProfile.h"
+ #include "ios/IOSSignalTrace.h"
++#include "ios/IOSSpuNoopSpin.h"
+ #ifdef ARCH_ARM64
+ #include "Emu/CPU/Backends/AArch64/SPUReservationScan.h"
+ #include "Emu/CPU/Backends/AArch64/SPUReservationHash.h"
+@@ -600,6 +601,12 @@ void do_cell_atomic_128_store(u32 addr, const void* to_write);
+ 
+ extern thread_local u64 g_tls_fault_spu;
+ 
++#ifdef RPCS3_IOS
++// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): per host thread, not a member of
++// spu_thread, whose layout is a codegen input.
++static thread_local rpcs3::ios::spu_noop_spin::tracker t_ios_noop_spin;
++#endif
++
+ const extern spu_decoder<spu_itype> g_spu_itype;
+ const extern spu_decoder<spu_iflag> g_spu_iflag;
+ 
+@@ -3614,10 +3621,46 @@ bool spu_thread::do_putllc(const spu_mfc_cmd& args)
+ 		const bool unchanged = !accurate && cmp_rdata(to_write, rdata);
+ 		if (unchanged)
+ 		{
++#ifdef RPCS3_IOS
++			// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): the wait of a polling thread, on
++			// the reservation notifier of this line, while the line is as this thread read it.
++			if (rpcs3::ios::get_experimental_policy().spu_noop_spin_wait)
++			{
++				static const u64 s_ios_noop_gap_ticks = utils::get_tsc_freq() * rpcs3::ios::spu_noop_spin::spin_gap_ns / 1'000'000'000;
++				t_ios_noop_spin.on_noop(utils::get_tsc(), s_ios_noop_gap_ticks, addr, rtime);
++
++				if (t_ios_noop_spin.due() && vm::reservation_acquire(addr) == rtime)
++				{
++					const u64 ios_bound_ns = t_ios_noop_spin.next_wait_ns();
++					const u64 ios_sleep_begin = utils::get_tsc();
++					state += cpu_flag::wait;
++					const usz cache_line_waiter_index = register_cache_line_waiter(addr);
++
++					if (auto [wait_var, flag_val] = vm::reservation_notifier_begin_wait(addr, rtime); wait_var)
++					{
++						utils::bless<atomic_t<u32>>(&wait_var->raw().wait_flag)->wait(flag_val, atomic_wait_timeout{ios_bound_ns});
++						vm::reservation_notifier_end_wait(*wait_var);
++					}
++
++					deregister_cache_line_waiter(cache_line_waiter_index);
++
++					// The existing journal of a polling SPU that slept: SPUWAIT551 getllar_sleep.
++					const u64 ios_sleep_ticks = utils::get_tsc() - ios_sleep_begin;
++					rpcs3::ios::spu_wait::add(rpcs3::ios::spu_wait::getllar_sleep_ticks, ios_sleep_ticks);
++					rpcs3::ios::spu_wait::add(rpcs3::ios::spu_wait::getllar_sleeps);
++					t_ios_noop_spin.on_woken(ios_sleep_begin + ios_sleep_ticks, ios_sleep_ticks * 1'000'000'000 / utils::get_tsc_freq(), ios_bound_ns);
++					static_cast<void>(test_stopped());
++				}
++			}
++#endif
+ 			raddr = 0;
+ 			return true;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		t_ios_noop_spin.on_progress(); // REWINDBOX_SPU_NOOP_SPIN_WAIT_627: this PUTLLC changes data
++#endif
++
+ 		auto& res = vm::reservation_acquire(addr);
+ 
+ 		// TODO: Limit scope!!
 diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
 index 460ca61..5aa8fdc 100644
 --- a/rpcs3/Emu/RSX/RSXThread.cpp
@@ -88,10 +180,10 @@ index 97652a2..a193e31 100644
  						rsx_log.warning("ZCULL on-demand reads: guest waits tripped the lever (%s), upstream mode for the rest of this boot.",
  							od::trip_reason_name(m_ios_demand.trip_record().reason));
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 77ea372..d82552f 100644
+index 77ea372..843680a 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
-@@ -178,6 +178,13 @@ struct cfg_root : cfg::node
+@@ -178,6 +178,15 @@ struct cfg_root : cfg::node
  		cfg::_enum<ios_experimental_mode> gpu_timing{ this, "GPU Timing Probe", ios_experimental_mode::automatic };
  		// REWINDBOX_ZCULL_DEMAND_BO2_621: Automatic is the title list (Assassin's Creed, Black Ops II).
  		cfg::_enum<ios_experimental_mode> zcull_on_demand{ this, "ZCULL On-Demand Reads", ios_experimental_mode::automatic };
@@ -102,20 +194,188 @@ index 77ea372..d82552f 100644
 +		cfg::_enum<ios_experimental_mode> zcull_cond_no_wait{ this, "ZCULL Conditional Draw Without Wait", ios_experimental_mode::automatic };
 +		// REWINDBOX_ZCULL_CONSERVATIVE_627 (ios/IOSZcullLabelPage.h): Automatic is off for every title.
 +		cfg::_enum<ios_experimental_mode> zcull_conservative_reports{ this, "ZCULL Conservative Reports", ios_experimental_mode::automatic };
++		// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): Automatic is Black Ops II and God of War III.
++		cfg::_enum<ios_experimental_mode> spu_noop_spin_wait{ this, "SPU No-op Spin Wait", ios_experimental_mode::automatic };
  
  		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L5, L9; L3 is the
  		// Bounded sleep value of fifo_idle_mode above). Defaults keep the Build
+diff --git a/rpcs3/ios/IOSSpuNoopSpin.h b/rpcs3/ios/IOSSpuNoopSpin.h
+new file mode 100644
+index 0000000..4162bfa
+--- /dev/null
++++ b/rpcs3/ios/IOSSpuNoopSpin.h
+@@ -0,0 +1,150 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <array>
++#include <cstddef>
++#include <cstdint>
++
++// REWINDBOX_SPU_NOOP_SPIN_WAIT_627: Build 624 logs (PID 1893, Black Ops II). The six
++// CellSpursKernel threads take 5.0-5.3 cores in the menus and 3.3-4.0 in a match, on a
++// device with two performance cores, while they complete 5-7 million PUTLLC per 5 s
++// window with almost no failure (0-4,900) and SPUWAIT551 getllar_poll=0.
++// With Accurate SPU Reservations off, a PUTLLC that writes back the data it read returns
++// at the top of do_putllc() with raddr = 0, without touching the reservation. The next
++// GETLLAR then finds no reservation and takes the plain read path: everything RPCS3 has
++// against SPU polling (the spin detection, the passive wait on the reservation notifier,
++// SPU GETLLAR Busy Waiting Percentage, SPU Spin Timing) sits in the "raddr == addr"
++// branch and is never reached. The polling loop GETLLAR, no-op PUTLLC, GETLLAR runs at about
++// 4 us per round on every thread, on lines of the title's own job queues (FREEZE_DUMP:
++// 0x2e20880, 0x2e20c00, several lines per thread).
++//
++// A thread is polling once it has completed `streak_threshold` no-op PUTLLC in a row, each
++// within `spin_gap_ns` of the previous one, on lines that keep their reservation time. Real
++// progress does not always reach do_putllc(): with this setting's reservation mode the
++// recognised 16-byte atomics are inlined by the recompiler (putllc16_pattern) and PUTLLUC has
++// its own path. So the tracker keeps the last `polled_lines` lines with their times: a line
++// whose time moved, or one it has not seen, restarts the streak, and a loop over more lines
++// than that never reaches a wait.
++//
++// A polling thread's next no-op PUTLLC sleeps on the reservation notifier of the line before
++// it returns, for a bounded time that doubles from first_wait_ns to max_wait_ns, unless the
++// line already changed. The PUTLLC has stored nothing and its result is decided: the sleep is
++// what a host preemption of the SPU thread at that point would be, and the next GETLLAR reads
++// as usual. A wait that ends early restarts the streak. One that times out leaves
++// `rearm_rounds` rounds before the next one, and that spacing bounds the two costs left:
++// - A wrong guess: work the tracker cannot see, on a line it does not poll, in rounds shorter
++//   than spin_gap_ns. A 40 us round loses at most a third of its time, not five sixths.
++// - The wait is on one line of the loop, and direct reservation stores do not always notify
++//   (docs/PROJECT_RULES.md; the inlined PUTLLC16 notifies another word): the bound, not the
++//   notifier, is what ends it. One pass over the polled lines holds at most one wait, so a new
++//   job waits at most max_wait_ns more, plus the pass.
++// At max_wait_ns and 4.3 us per round a thread makes about 41,000 rounds per second instead of
++// 230,000 and uses about 18 % of a core. Model figures: the device decides.
++// The tracker lives in a thread_local of SPUThread.cpp (spu_thread's layout is a codegen
++// input), and process_mfc_cmd, the input of the reused full-queue harness, does not change.
++namespace rpcs3::ios::spu_noop_spin
++{
++inline constexpr std::uint32_t streak_threshold = 64;      // about 280 us of polling at 4.3 us per round
++inline constexpr std::uint32_t rearm_rounds = 8;           // rounds between two waits, at least polled_lines
++inline constexpr std::size_t polled_lines = 8;             // lines one polling loop can watch
++inline constexpr std::uint64_t spin_gap_ns = 50'000;       // a longer gap means real work ran in between
++inline constexpr std::uint64_t first_wait_ns = 20'000;
++inline constexpr std::uint64_t max_wait_ns = 160'000;
++
++class tracker
++{
++	struct polled_line
++	{
++		std::uint32_t addr = 0;
++		std::uint64_t rtime = 0;
++	};
++
++	std::array<polled_line, polled_lines> m_lines{};
++	std::size_t m_line_count = 0;
++	std::uint64_t m_last_tick = 0;
++	std::uint64_t m_wait_ns = first_wait_ns;
++	std::uint32_t m_streak = 0;
++
++	void restart() noexcept
++	{
++		m_streak = 0;
++		m_wait_ns = first_wait_ns;
++	}
++
++public:
++	// do_putllc(): a PUTLLC on `addr`, whose reservation time the thread read as `rtime`, wrote
++	// nothing back and completed at `now` (ticks).
++	void on_noop(std::uint64_t now, std::uint64_t gap_ticks, std::uint32_t addr, std::uint64_t rtime) noexcept
++	{
++		if (now - m_last_tick > gap_ticks)
++		{
++			restart();
++			m_line_count = 0;
++		}
++
++		m_last_tick = now;
++
++		for (std::size_t i = 0; i < m_line_count; i++)
++		{
++			if (m_lines[i].addr != addr)
++			{
++				continue;
++			}
++
++			if (m_lines[i].rtime != rtime)
++			{
++				m_lines[i].rtime = rtime; // somebody wrote it, possibly this thread with no PUTLLC seen here
++				restart();
++			}
++			else if (m_streak < streak_threshold)
++			{
++				m_streak++;
++			}
++
++			return;
++		}
++
++		// Not the loop of this streak, or not yet.
++		m_line_count = m_line_count < polled_lines ? m_line_count + 1 : 1;
++		m_lines[m_line_count - 1] = {addr, rtime};
++		restart();
++	}
++
++	// do_putllc(): a PUTLLC that changes data; the thread is working.
++	void on_progress() noexcept
++	{
++		restart();
++	}
++
++	// The thread is polling: wait now.
++	bool due() const noexcept
++	{
++		return m_streak >= streak_threshold;
++	}
++
++	// The bound of the wait about to start; the next one doubles it.
++	std::uint64_t next_wait_ns() noexcept
++	{
++		const std::uint64_t value = m_wait_ns;
++		m_wait_ns = value * 2 < max_wait_ns ? value * 2 : max_wait_ns;
++		return value;
++	}
++
++	// After the wait, at `now` (ticks): the sleep is not a gap. A wait that ended before half
++	// of its bound was woken by a write to the line, or never started: the thread polls again
++	// from the start. Otherwise it runs rearm_rounds rounds before the next wait.
++	void on_woken(std::uint64_t now, std::uint64_t waited_ns, std::uint64_t bound_ns) noexcept
++	{
++		m_last_tick = now;
++
++		if (waited_ns < bound_ns / 2)
++		{
++			restart();
++		}
++		else
++		{
++			m_streak = streak_threshold - rearm_rounds;
++		}
++	}
++};
++}
 diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
-index 58782d1..b25a58d 100644
+index 58782d1..b9ccca5 100644
 --- a/rpcs3/ios/IOSTitleLevers.h
 +++ b/rpcs3/ios/IOSTitleLevers.h
-@@ -129,6 +129,10 @@ constexpr bool requires_zcull_on_demand(std::string_view title_id) noexcept
+@@ -129,6 +129,20 @@ constexpr bool requires_zcull_on_demand(std::string_view title_id) noexcept
  	return is_assassins_creed_title(title_id) || is_black_ops_ii_title(title_id);
  }
  
 +// REWINDBOX_ZCULL_WAIT_GUARD_627: the guest-wait rules of the guard do not apply to these
 +// titles (ios/IOSZcullOnDemand.h); REWINDBOX_ZCULL_COND_NO_WAIT_627: their conditional renders
 +// draw without waiting (ios/IOSZcullLabelPage.h). Build 624 logs (PID 1893).
++
++// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): Black Ops II on the Build 624
++// logs (3.3-5.3 SPU cores, 5-7 million PUTLLC per 5 s window, getllar_poll=0). God of War III
++// joins it in the policy (is_god_of_war_iii_title): Build 622 run, 3.0-3.6 SPU cores and 2-3
++// million PUTLLC per window on the same relaxed reservations. A title without such
++// a loop never reaches the wait. Automatic stays off for other titles.
++constexpr bool wants_spu_noop_spin_wait(std::string_view title_id) noexcept
++{
++	return is_black_ops_ii_title(title_id);
++}
 +
  // REWINDBOX_ZCLIP_PINNED_AFFINE_619: refines REWINDBOX_ZCLIP_WINDOW_Z_616. The
  // fallback compresses only window Z in (1, far] and passes every other vertex
@@ -195,10 +455,10 @@ index b7b4ed0..fc8d13e 100644
  {
  inline constexpr std::uint64_t pickup_deadline_us = 2'000'000;  // the RSX thread has not started the request
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index d4378fc..84d91c0 100644
+index d4378fc..2b4dec3 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -359,6 +359,17 @@ void resolve_experimental_policy() noexcept
+@@ -359,6 +359,20 @@ void resolve_experimental_policy() noexcept
  	// ZCULL On-Demand Reads setting (Automatic = the list) tests the other mode per game.
  	resolved.zcull_on_demand = resolve_mode(g_cfg.ios_experimental.zcull_on_demand,
  		rpcs3::ios::title_levers::requires_zcull_on_demand(title_id));
@@ -213,14 +473,17 @@ index d4378fc..84d91c0 100644
 +	// path of report writes (Accurate RSX reservation access) keeps exact reports.
 +	resolved.zcull_conservative_reports = resolve_mode(g_cfg.ios_experimental.zcull_conservative_reports, false) &&
 +		!g_cfg.core.rsx_accurate_res_access;
++	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627: Automatic is the title list.
++	resolved.spu_noop_spin_wait = resolve_mode(g_cfg.ios_experimental.spu_noop_spin_wait,
++		rpcs3::ios::title_levers::wants_spu_noop_spin_wait(title_id) || is_god_of_war_iii_title(title_id));
  	// REWINDBOX_ZCLIP_PINNED_AFFINE_619: the title list, on top of the 616 fallback.
  	resolved.zclip_pinned_affine = resolved.zclip_fallback_window_z &&
  		rpcs3::ios::title_levers::requires_zclip_pinned_affine(title_id);
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 5354937..4fd14d6 100644
+index 5354937..3a92ecd 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-@@ -61,6 +61,14 @@ struct experimental_policy
+@@ -61,6 +61,17 @@ struct experimental_policy
  	// report page waits for its reports instead of every label waiting for all of
  	// them. Title scoped, without a setting; read by the RSX ZCULL unit.
  	bool zcull_on_demand = false;
@@ -232,6 +495,9 @@ index 5354937..4fd14d6 100644
 +	// REWINDBOX_ZCULL_CONSERVATIVE_627 (ios/IOSZcullLabelPage.h): reports read "visible" from
 +	// the moment they are queued until the GPU result replaces them; nothing waits.
 +	bool zcull_conservative_reports = false;
++	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): an SPU polling with no-op
++	// PUTLLC waits for a bounded time inside the PUTLLC.
++	bool spu_noop_spin_wait = false;
  	// REWINDBOX_ZCLIP_PINNED_AFFINE_619 (ios/IOSTitleLevers.h): with the 616 fallback,
  	// a clip range wholly above 1 maps every vertex affinely onto [0.99, 1].
  	bool zclip_pinned_affine = false;
