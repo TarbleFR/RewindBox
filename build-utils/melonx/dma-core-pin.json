@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "17eabf03e7630dfa5a9c3cfe22139617e26d9429",
-  "run": 41596390897,
-  "job": 125784645326,
+  "source": "1ce1cd14a96579b4a3d53ece78362354e09de535",
+  "run": 41614833262,
+  "job": 125845569221,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 13212139794,
-  "name": "MeloNX-engine-17eabf03e7630dfa5a9c3cfe22139617e26d9429",
-  "bytes": 90113326,
-  "sha256": "7cda5a72db4b5cd1eddc2aa104a47c8dfb09258f3f70f9485bf8ffa8ee757a1d",
-  "expiresAt": "2026-11-17T07:39:15Z",
+  "artifact": 13220394932,
+  "name": "MeloNX-engine-1ce1cd14a96579b4a3d53ece78362354e09de535",
+  "bytes": 90157524,
+  "sha256": "9f12f214d951c599d514319c64861fa205368f341cfec7b75ff26a949e3ba821",
+  "expiresAt": "2026-11-17T10:09:09Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "7b4df70d9a9c354446f95f3a52462ebed05ab4b881077d02c84c5caa7221b9dc",
-      "bytes": 37831528
+      "sha256": "1699cf38d609ba73a21466d0100f760da2639f701d68453a59b0a1add381d674",
+      "bytes": 37880904
     },
     "iossimulator-arm64": {
-      "sha256": "504617e8c8b53927a54a809ad5bd5545756a3735fc97b650b40b323de434b03f",
-      "bytes": 38160232
+      "sha256": "5367c527f3669d7ee6ed2213b3f18bb1fdfd0f91bd575a3cc2dfc1e717890544",
+      "bytes": 38193480
     }
   },
   "identities": {
-    "ios-arm64": "0994d01461f81fbb4fe1a9035fe6628d4b7b449fdc3b5ce6aa7048eb54668ad6",
-    "iossimulator-arm64": "844c97ebf6870d4cdca362f861c634cf319689ddedebaa9889b64ecc659c5991"
+    "ios-arm64": "77772c5c3f1cfc20efd4de1b2d25faf7283040519d8d1948d5e48e29fdefc8b9",
+    "iossimulator-arm64": "23107a24f7ee7c7eddb43649dbe23c02480d40c2fb94aaddfd4470d7c6c3a334"
   },
-  "contractSha256": "7f99bdceb2206dbd267eb7a11eae017121f80451a9b84ce66e431f1fc1d05336",
-  "resultSha256": "8068484893c4c668f1c57584837a032bfcc9f8a4422f3287f5ffff9c66116327",
-  "packagedFingerprint": "18fbb04c79e8d7ff489195a82c17b24b7219eac39235b3144e42992943b11ef9",
+  "contractSha256": "66e42ba3a78ccfa9080496e3624b21e74bdee31617125265e6d88f113b829892",
+  "resultSha256": "e17c0160b1f01d3e4b0ddaa46c78eccf2e76cd437290b3e52cb13ce5e6acdd20",
+  "packagedFingerprint": "dfd9061e4151c4848a125f20aed4586d7b4c5468b8060b299c36f239e64ed8a8",
   "replaces": {
-    "source": "cba3441bf4462d05a87b0376d02dd8d77929152c",
-    "run": 41589061374,
-    "artifact": 13209249359,
-    "packagedFingerprint": "dd3fe017b421dc1df417e1f0f6ed267840500d0d8e828aace610007a6e3cf0bc",
-    "reason": "Hogwarts Legacy read-back into a buffer also when the linear read-back target the first copies created is the only texture over the destination (build 625: 0 copies into buffers, 286 and 292 declined as occupied)"
+    "source": "17eabf03e7630dfa5a9c3cfe22139617e26d9429",
+    "run": 41596390897,
+    "artifact": 13212139794,
+    "packagedFingerprint": "18fbb04c79e8d7ff489195a82c17b24b7219eac39235b3144e42992943b11ef9",
+    "reason": "Hogwarts Legacy: read-back into a buffer also over other textures (write signal, buffers exempt; build 626: 0 copies into buffers, 352 and 742 declined as occupied); MoltenVK: in-pass read barriers deferred (no Metal render pass restart); GPU busy time from the Metal command buffers and a detail line"
   }
 }
