@@ -265,7 +265,18 @@
     "note": "fix(rpcs3): Core 621 ZCULL guard on one-second buckets of the clock, per-request pickup/service halves, semaphore time without nested GPU waits (adversarial review) [skip ci]"
    }
   ],
-  "sourceOnly": [],
+  "sourceOnly": [
+   {
+    "commit": "9bb35531fd0dfbd7153960dc75aaf849cd32f727",
+    "targetBuild": 623,
+    "note": "Another session: feat(dolphin): GameCube and Wii controller skins, same architecture as the libretro skins [skip ci]; outside this PS3 request, kept for that session's next build."
+   },
+   {
+    "commit": "1745b3e6bc391d8ee17bdcf1189de9a7aec68eb5",
+    "targetBuild": 623,
+    "note": "Another session: feat(game-box): spines and sides like the original covers [skip ci]; outside this PS3 request, kept for that session's next build."
+   }
+  ],
   "promotedCommits": [
    {
     "commit": "5feba2a9904653fb46538384a16cdb8333c3960f",
