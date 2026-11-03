@@ -2,7 +2,7 @@
 
 Read this guide before work. It contains current project state and permanent
 rules; detailed investigations and build receipts belong in `docs/`.
-Last reconciled: **3 November 2026**, after private Build **623**.
+Last reconciled: **3 November 2026**, after private Build **624**.
 
 ## Start here
 
@@ -21,17 +21,26 @@ Last reconciled: **3 November 2026**, after private Build **623**.
 
 | Item | Verified reference |
 | --- | --- |
-| Application | **RewindBox 0.0.8 (623)**, private IPA; iOS 18+, SideStore re-signing |
-| Delivery source | `ba4522dbb40640ce3c862d0587cd8e97e0fab32c`; frozen manifest [`build-utils/delivery/623.json`](build-utils/delivery/623.json) (freeze commit `2c8350f8`, effective product digest `79ec3b3c…`, replayed from the delivered 622 effective tree `43e0b078…`) |
-| Delivery run / jobs | `41569913763`, attempt 1, standard recipe: preflight, flutter and native (both fresh), republish and application, all successful (about 24 min) |
-| Downloaded IPA | `RewindBox-623.ipa`, 194506776 bytes; SHA-256 `c80911de349306d6d592a6518de293e8e7f3359a618546b6a7d90eeda5ea6528` |
-| Product baseline | Delivered 622 plus the MeloNX Core 623 work (reviewed `5c20e0cb`, `824612ab`) and the game-box spines of another session (`1745b3e6`, promoted). The GameCube/Wii skins (`9bb35531`) stay deferred for 624 (their podspec needs its own source/license declaration review); the 83 inherited deferred paths include them |
-| MeloNX Core | **Core 623** (replaced): Core run `41567689813`, source `5c20e0cb`, packaged fingerprint `27f1afa1…`, iPhone library `b861c461…` ([pin](build-utils/melonx/dma-core-pin.json)); replaces Core 621 `07e9d695…` |
-| RPCS3 Core | **Core 621** kept (`unchangedFromBase`): Core and Apple host run `41560325311`, source `23575f10`, payload `43c43aa3…` ([pin](build-utils/rpcs3/core-pin.json)) |
+| Application | **RewindBox 0.0.8 (624)**, private IPA; iOS 18+, SideStore re-signing |
+| Delivery source | `9108e317aeb2cc076e6c08be93d23f39cecee955`; frozen manifest [`build-utils/delivery/624.json`](build-utils/delivery/624.json) (freeze commit `2b8cc703`, effective product digest `9ad87ae1…`, replayed from the delivered 623 effective tree `79ec3b3c…`) |
+| Delivery run / jobs | `41574628897`, attempt 1, standard recipe: preflight, flutter and native (both fresh), republish and application, all successful |
+| Downloaded IPA | `RewindBox-624.ipa`, 194514240 bytes; SHA-256 `582cedd55958de1bf4c47b87cdb6e7c1d957b537b42834cbfded1319a56d082d` |
+| Product baseline | Delivered 623 plus the RPCS3 Core 624 work (reviewed `f4338fd4`). The Dolphin skin podspec fix of another session (`a7e3ef22`) is **source-only** for 625; the GameCube/Wii skins (`9bb35531`) and the 69 inherited paths of `b06888a9` stay deferred |
+| MeloNX Core | **Core 623** kept (`unchangedFromBase`): Core run `41567689813`, source `5c20e0cb`, packaged fingerprint `27f1afa1…` ([pin](build-utils/melonx/dma-core-pin.json)) |
+| RPCS3 Core | **Core 624** (replaced): Core and Apple host run `41572306405`, source `94102e14`, payload `e906fbd5…`, ABI 30, 92 exports, codegen PPU `a987639e9f838d1c` / SPU `477a3fa442d27917` unchanged ([pin](build-utils/rpcs3/core-pin.json)); replaces Core 621 `43c43aa3…` |
 | Dolphin Core | Retained from 608 (payload `640e4389…`) through the archive republished by run `41504526945` |
 | ARMSX2 Core | Retained from 608 (payload `fab55193…`, ABI 9) through the archive republished by run `41504526945` |
-| libretro / MeloNX dependencies | Retained through the archives republished by run `41504526945` (republished again by runs `41516165812`, `41527072487`, `41555079757`, `41562838932` and `41569913763`) |
-| Delivery proof | [delivery receipt](docs/evidence/rewind623/delivery.json), [signed payload identity](docs/evidence/rewind623/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind623/download623-verification.json); 622: [receipt](docs/evidence/rewind622/delivery.json) |
+| libretro / MeloNX dependencies | Retained through the archives republished by run `41504526945` (republished again by runs `41516165812`, `41527072487`, `41555079757`, `41562838932`, `41569913763` and `41574628897`) |
+| Delivery proof | [delivery receipt](docs/evidence/rewind624/delivery.json), [signed payload identity](docs/evidence/rewind624/signed-payload-identity.json) (90 images), [downloaded-file checks](docs/evidence/rewind624/download624-verification.json); 623: [receipt](docs/evidence/rewind623/delivery.json) |
+
+624 is delivered, not a pending candidate. Do not reuse its number. RPCS3 Core 624, from the
+Build 622 logs (Assassin's Creed and Black Ops II, with the ZCULL on-demand lever: the RSX
+reports block placed so its report array starts on a host page, so GCM label reads no longer
+wait for the ZCULL reports and no longer trip the lever; a conditional render whose report
+already shows the object visible draws without waiting for the GPU; COREPROF ZCULL624) has no
+iPhone result yet ([what the next run reads](docs/rpcs3-core624-2026-11-03.md)); no FPS claim.
+Only `libRPCS3Core.dylib` and Runner changed from 623 (no undeclared image change). The private
+624 recipient key was deleted after the verified delivery.
 
 623 is delivered, not a pending candidate. Do not reuse its number. MeloNX Core 623 (Hogwarts
 Legacy: a DMA read-back is copied on the GPU into a linear texture over the destination and

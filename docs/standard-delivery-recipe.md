@@ -366,3 +366,23 @@ produit ; contrôle légal réussi ; aucun conflit, aucun commit non classé.
   622 : 12 fichiers.
 - **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub
   MCP (octets égaux aux digests de l'API). IPA vérifiée hors ligne, clé privée supprimée.
+
+## 15. État de la 624 (3 novembre 2026)
+
+Livrée sur la 623 (run `41574628897`, IPA `582cedd5…`, 194514240 octets). Gel sur `2b8cc703` :
+base effective 623 `79ec3b3c…`, empreinte effective `9ad87ae1…` ; aucun conflit, aucun commit non classé.
+- **Commit revu.** `f4338fd4` (RPCS3 Core 624, sources de la recette Core et tests). Le correctif de podspec
+  des skins Dolphin d'une autre session (`a7e3ef22`, arrivé après le déclenchement de la 623) reste
+  « source seulement » (`targetBuild` 625) avec les skins (`9bb35531`, report hérité).
+- **Composants.**
+  - RPCS3 : remplacé par le Core 624 du run `41572306405` (`e906fbd5…`), qui remplace le Core 621 `43c43aa3…`
+    que la 623 gardait. L'épingle vérifiée part dans le même push que le brouillon 624.
+  - MeloNX : Core 623 `unchangedFromBase`.
+  - Dolphin/ARMSX2, libretro et dépendances MeloNX : republiés de la 623.
+- **Images changées.** `libRPCS3Core.dylib` et Runner seulement (`mustChange` du brouillon), aucun changement
+  non déclaré.
+- **Test de contrat.** `test_no_build_number_literal` cherchait le numéro de build comme sous-chaîne du workflow :
+  624 apparaît dans l'arbre MeloNX `82a29e6f593f6244869481e9…` que le workflow nomme. Il compare maintenant
+  les littéraux de nombre qu'il relève déjà (`2b8cc703`).
+- **Hors CI.** Métadonnées API par l'API REST publique, pièces par les URL signées du serveur GitHub MCP
+  (octets égaux aux digests de l'API). IPA vérifiée hors ligne, clé privée supprimée.
