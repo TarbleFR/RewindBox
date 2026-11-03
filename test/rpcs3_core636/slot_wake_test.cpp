@@ -1,7 +1,8 @@
 // REWINDBOX_ZCULL_SLOT_WAKE_636: the release signal of ios/IOSZcullOnDemand.h (slot_release_signal), on host
 // threads. Cases: a release after the waiter read the epoch always ends its wait (no lost wakeup, thousands of
-// races); without a release the wait lasts its pause; and a model of the guest's pause before a new request:
-// Core 634 slept the whole pause, Core 636 resumes at the release. Host timings only, not an iPhone measurement.
+// races); without a release the wait lasts its pause; and the guest's pause before a new request, both forms
+// measured from the actual release instant on the same host (the first Apple run compared a measured 636 wait
+// with an ideal, unmeasured 634 sleep). Host timings only, not an iPhone measurement.
 #include "ios/IOSZcullOnDemand.h"
 
 #include <algorithm>
@@ -65,39 +66,60 @@ int main()
 		CHECK(micros_since(start) < 100'000);
 	}
 
-	{ // the guest's pause: the slot is released at a random point of a 400 us pause
+	{ // the guest's pause, both forms measured on this host, interleaved, from the actual release instant:
+	  // Core 634 slept poll_us (50 us doubling to 400 us) between two checks; Core 636 waits for the release
+	  // signal bounded by the same pause. Host timings only, not an iPhone measurement.
 		std::mt19937 random(6360);
-		std::vector<std::uint64_t> slept, woke;
-		for (int i = 0; i < 300; i++)
+		std::vector<std::uint64_t> latency634, latency636;
+		for (int i = 0; i < 600; i++)
 		{
-			const std::uint64_t pause = 400, at = random() % pause;
+			const bool wake = (i & 1) != 0;
+			const std::uint64_t at = random() % 1200;
 			std::atomic<bool> released{false};
+			std::atomic<std::int64_t> released_at{0};
 			const auto start = clock_type::now();
 			std::thread rsx([&] {
 				std::this_thread::sleep_until(start + std::chrono::microseconds(at));
+				released_at = std::chrono::duration_cast<std::chrono::microseconds>(clock_type::now() - start).count();
 				released = true;
 				signal.released();
 			});
-			// Core 636: the loop of RSXZCULL.cpp, epoch read before the slot check.
-			const auto end = start + std::chrono::microseconds(pause);
-			for (;;)
+			std::uint64_t poll = 50;
+			while (!released)
 			{
-				const std::uint64_t seen = signal.epoch();
-				if (released) break;
-				const auto now = clock_type::now();
-				if (now >= end) break;
-				signal.wait(seen, static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(end - now).count()));
+				if (!wake)
+				{
+					std::this_thread::sleep_for(std::chrono::microseconds(poll)); // Core 634
+				}
+				else
+				{
+					// Core 636: the loop of RSXZCULL.cpp, epoch read before the slot check.
+					const auto end = clock_type::now() + std::chrono::microseconds(poll);
+					for (;;)
+					{
+						const std::uint64_t seen = signal.epoch();
+						if (released) break;
+						const auto now = clock_type::now();
+						if (now >= end) break;
+						signal.wait(seen, static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(end - now).count()));
+					}
+				}
+				poll = std::min<std::uint64_t>(poll * 2, 400);
 			}
-			woke.push_back(micros_since(start) - std::min<std::uint64_t>(micros_since(start), at));
+			const std::uint64_t noticed = micros_since(start);
 			rsx.join();
-			slept.push_back(pause - at); // Core 634: the guest notices at the end of its pause
+			const std::uint64_t rel = static_cast<std::uint64_t>(released_at.load());
+			(wake ? latency636 : latency634).push_back(noticed - std::min(noticed, rel));
 		}
-		std::sort(slept.begin(), slept.end());
-		std::sort(woke.begin(), woke.end());
-		const auto median = [](const std::vector<std::uint64_t>& v) { return v[v.size() / 2]; };
-		CHECK(median(woke) < median(slept));
-		std::printf("{\"case\": \"guest_pause_model\", \"pause_us\": 400, \"core634_median_extra_us\": %llu, \"core636_median_extra_us\": %llu, \"host_only\": true}\n",
-		            static_cast<unsigned long long>(median(slept)), static_cast<unsigned long long>(median(woke)));
+		std::sort(latency634.begin(), latency634.end());
+		std::sort(latency636.begin(), latency636.end());
+		const auto at_rank = [](const std::vector<std::uint64_t>& v, unsigned percent) { return v[v.size() * percent / 100]; };
+		// Decision check: on this host the release signal must not notice a release later than the old pause.
+		CHECK(at_rank(latency636, 50) <= at_rank(latency634, 50));
+		std::printf("{\"case\": \"guest_pause_measured\", \"samples_each\": %zu, \"core634_median_us\": %llu, \"core636_median_us\": %llu, "
+		            "\"core634_p90_us\": %llu, \"core636_p90_us\": %llu, \"host_only\": true}\n", latency634.size(),
+		            static_cast<unsigned long long>(at_rank(latency634, 50)), static_cast<unsigned long long>(at_rank(latency636, 50)),
+		            static_cast<unsigned long long>(at_rank(latency634, 90)), static_cast<unsigned long long>(at_rank(latency636, 90)));
 	}
 
 	std::printf("{\"failures\": %d}\n", failures);
