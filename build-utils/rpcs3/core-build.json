@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 630,
- "identity_type": "rpcs3-ios-core630",
- "summary": "RPCS3 Core 630 = the delivered Core 610 plus one folded delta: the Core 612, 613, 616, 619, 621, 624 and 627 records unchanged and the Core 630 change (build-utils/rpcs3/core630-from-627.patch over the Core 627 delivered in IPA 629), from the first iPhone run of Core 627: with the ZCULL on-demand lever, a guest read of a report needs that report, not its page and not every claimed report. Pages hold pending counts per 16-byte slot; an access to final memory completes in the access violation handler, through the unprotected view (decoder of the RawSPU path plus integer pairs); a read of a pending slot makes the RSX thread submit the command buffer of its query if it is open, poll and go back to the FIFO (Assassin's Creed heavy scenes on Core 627: 19 FPS, a guest thread blocked 4.4 s per 5 s, 3.6 services per read, 24 Metal command buffers per frame; REWINDBOX_ZCULL_ASYNC_READS_630, ZCULL Asynchronous Reads, Automatic on the lever's titles). Values stay exact. ABI 30, the 92 exports, the PPU/SPU codegen identities (no codegen input changes) and the MoltenVK dependency of Core 610 unchanged. No gain measured: not built, no iPhone run.",
+ "build": 634,
+ "identity_type": "rpcs3-ios-core634",
+ "summary": "RPCS3 Core 634 in progress, chantiers so far: fast_jit_load_634. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "cfaba8016d6d6b2a3d2e81a3cd4fb370acc9cc0f9d3d800a5220d60ee23d895c",
-  "postimages": 350,
+  "patch_sha256": "1076b6f7076503415c285b141567422f868734b3c4fd51d38455073c6038bd19",
+  "postimages": 351,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -34,7 +34,8 @@
    "core621_20261102",
    "core624_20261103",
    "core627_20261103",
-   "core630_20261103"
+   "core630_20261103",
+   "core634_20261103"
   ]
  },
  "reference": {
@@ -74,16 +75,16 @@
   "exports": 88
  },
  "delta": {
-  "record": "core630_20261103",
-  "manifest": "build-utils/rpcs3/core630-delta.json",
-  "patch": "build-utils/rpcs3/core630-delta.patch",
-  "patch_sha256": "0929faff2759a87cecd57aa9447e24b41287ecb4b89fde8d041ded3fa1de7bfa"
+  "record": "core634_20261103",
+  "manifest": "build-utils/rpcs3/core634-delta.json",
+  "patch": "build-utils/rpcs3/core634-delta.patch",
+  "patch_sha256": "54b19426502afa8ce13775888979dd7f9b1fcf9cf86ada6aab2bbe9daf9d0037"
  },
  "exports": 92,
  "core_inputs": {
   "count": 92,
   "host": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
-  "host_sha256": "420bac9e68abed83ca133584be8ff199e890686cd77ff1e1781b652e1fa54e6e",
+  "host_sha256": "3511afefb7bc6b7cf3fb88dde7624ccbf1daa94860b87396a04fb34dfe57844d",
   "reviewed_drift": [
    "build-utils/rpcs3/canonical-source.json",
    "build-utils/rpcs3/embedded-core.patch",
@@ -143,7 +144,9 @@
   "RSX FIFO NOP Fast Path",
   "Light Measurement Profile",
   "Resolved title policy 630",
-  "ZCULL Asynchronous Reads"
+  "ZCULL Asynchronous Reads",
+  "Resolved title policy 634",
+  "Fast JIT Load"
  ],
  "moltenvk_dependency": {
   "run": 41239096061,
@@ -344,28 +347,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core630_codegen_test.py",
+     "test/rpcs3_core634_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 630 changes no codegen input: core630-from-627.patch is reversed and the Core 627 audit is run on that tree"
+    "reason": "Core 634 changes two codegen inputs, host code only, under exact aliases: core634-from-630.patch is reversed, the Core 630 audit runs on that tree, and the identities are recomputed with and without the aliases"
    },
    {
-    "name": "core630",
+    "name": "core634",
     "argv": [
      "python3",
-     "test/rpcs3_core630_test.py",
+     "test/rpcs3_core634_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core630.json"
+     "{out}/core634.json"
     ],
-    "reason": "new: Core 630 = Core 627 + core630-from-627.patch (reverse patch, Core 627 files authenticated by the SHA-256 pinned in core630-delta.json increment_from_core627); the whole Core 627 suite on the reversed tree; the real instruction handling of Utilities/Thread.cpp on real encodings and, on this runner, in a real signal handler; the real ZCULL fault protocol with the setting off and on, plain, TSan and ASan/UBSan; the wiring, the 12 locales of the test page, and no observation added but one line per boot"
+    "reason": "new: Core 634 = Core 630 + core634-from-630.patch (reverse patch, Core 630 files authenticated by the SHA-256 pinned in core634-delta.json increment_from_core630); the whole Core 630 suite on the reversed tree; the AES and SHA instructions of the Apple CPU against the C code; the SPIR-V store on a real file; the object release and the link workers"
    },
    {
     "name": "lr-full-queue",

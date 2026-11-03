@@ -34,7 +34,7 @@ HOST = "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm"
 # compiles, and the host LOAD() Core contract. The consumed libMoltenVK.a never
 # reads the bridge.
 HOST_BEFORE = "d6326d968f3552c5539d48a0933b41d3e61a3e61c0302972ec370e8df5bd3d16"
-HOST_AFTER = "420bac9e68abed83ca133584be8ff199e890686cd77ff1e1781b652e1fa54e6e"
+HOST_AFTER = "3511afefb7bc6b7cf3fb88dde7624ccbf1daa94860b87396a04fb34dfe57844d"
 MILESTONES_TEST = "test/rpcs3_pipeline_cache_milestones_test.py"
 LOAD_CONTRACT = "build-utils/materialize_rpcs3_core.py"
 LOAD_PATTERN = r'LOAD\("([^"]+)"'

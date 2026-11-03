@@ -841,6 +841,7 @@ static NSDictionary<NSString*, NSArray<NSString*>*>* RPCS3TestSettingValues(void
       @"experimental.fifo_nop_fast_path": @[@"Enabled", @"Disabled"],
       @"experimental.light_measurement": @[@"Enabled", @"Disabled"],
       @"experimental.zcull_async_reads": @[@"Enabled", @"Disabled"],
+      @"experimental.fast_jit_load": @[@"Enabled", @"Disabled"],
     };
   });
   return values;

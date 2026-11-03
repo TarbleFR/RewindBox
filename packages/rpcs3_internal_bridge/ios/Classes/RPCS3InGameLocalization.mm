@@ -1144,6 +1144,53 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
   return values;
 }
 
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build634Translations() {
+  // Core 634: the loading and memory levers of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testFastJitLoad": @"Fast JIT object loading",
+      },
+      @"es": @{
+        @"testFastJitLoad": @"Carga rápida de objetos JIT",
+      },
+      @"ru": @{
+        @"testFastJitLoad": @"Быстрая загрузка объектов JIT",
+      },
+      @"zh": @{
+        @"testFastJitLoad": @"快速加载 JIT 对象",
+      },
+      @"zh_Hant": @{
+        @"testFastJitLoad": @"快速載入 JIT 物件",
+      },
+      @"pt": @{
+        @"testFastJitLoad": @"Carregamento rápido de objetos JIT",
+      },
+      @"fr": @{
+        @"testFastJitLoad": @"Chargement rapide des objets JIT",
+      },
+      @"de": @{
+        @"testFastJitLoad": @"Schnelles Laden der JIT-Objekte",
+      },
+      @"it": @{
+        @"testFastJitLoad": @"Caricamento rapido degli oggetti JIT",
+      },
+      @"id": @{
+        @"testFastJitLoad": @"Pemuatan cepat objek JIT",
+      },
+      @"ja": @{
+        @"testFastJitLoad": @"JIT オブジェクトの高速読み込み",
+      },
+      @"ko": @{
+        @"testFastJitLoad": @"JIT 오브젝트 빠른 로드",
+      },
+    };
+  });
+  return values;
+}
+
 NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build630Translations() {
   // Core 630: the asynchronous ZCULL reads of the accuracy test page.
   static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
@@ -1528,8 +1575,10 @@ NSString* RPCS3LocalizedString(NSString* key, NSString* localeIdentifier) {
   NSDictionary* build621 = Build621Translations();
   NSDictionary* build627 = Build627Translations();
   NSDictionary* build630 = Build630Translations();
+  NSDictionary* build634 = Build634Translations();
   NSString* locale = RPCS3CanonicalLocale(localeIdentifier);
-  return build630[locale][key] ?: build630[@"en"][key] ?:
+  return build634[locale][key] ?: build634[@"en"][key] ?:
+      build630[locale][key] ?: build630[@"en"][key] ?:
       build627[locale][key] ?: build627[@"en"][key] ?:
       build621[locale][key] ?: build621[@"en"][key] ?:
       build612[locale][key] ?: build612[@"en"][key] ?:
