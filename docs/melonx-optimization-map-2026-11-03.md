@@ -11,8 +11,8 @@ are read from these logs; the expected effects are not measured.
 
 ## Simplification
 
-- One MoltenVK for every title: the 1.4.0 rebuilt from Khronos source with RewindBox's patches
-  (`docs/melonx-moltenvk-rebuild-2026-11-03.md`), once it is checked on Hogwarts Legacy and a second game. Then the
+- One MoltenVK for every title: Khronos v1.4.2, the latest, rebuilt from source (maintainer, 15:23;
+  `docs/melonx-moltenvk-rebuild-2026-11-03.md`), to be checked on Hogwarts Legacy and a second game. Then the
   in-game "MoltenVK version" menu item and the 1.3.0 build go away. The two choices offered on 3 Nov for the rebuild
   were withdrawn the same day, before any delivery: the menu keeps its current two entries until then.
 - The A/B of a change is the maintainer's tool, not the player's: it goes through a developer switch outside the
@@ -30,7 +30,7 @@ are read from these logs; the expected effects are not measured.
 | 6 | 641 graphics and 67 compute pipeline builds while playing (3.1 s); "Background pipeline compile missed on draw - incorrect pipeline state?"; MoltenVK "Retrieve shader library from the cache" 1 281 × 1.95 ms | Log which state the background compile got wrong (once per kind) and fix the key; in MoltenVK, a hashed shader library lookup instead of the linear comparison of conversion configurations | To log, then MoltenVK patch |
 | 7 | `cacheSave` 3 calls 834 ms, `cacheSizeProbe` 5 calls 212 ms | Off the hot threads (save at pause or exit, size from the last save) | Thread to confirm |
 | 8 | Loading: JIT arena 1.4 s (1 024 MiB code arena prepared before the game starts), MoltenVK pipeline caches 0.70 s read one after another (main 377 ms, workers 275 and 48 ms), shader cache 1.5 s, first frame at 9 s | Prepare the arena lazily or in parallel; read the pipeline caches in parallel or as one; overlap the shader cache with the guest start | To do |
-| 9 | MoltenVK's submission thread: Metal encoding 13.8 ms per frame (24.3 ms in the heaviest block); the unnamed threads, MoltenVK's among them, take 24.5 % of a core on average | The rebuilt MoltenVK with the argument buffer usage patch | Built (run 41650228282), not packaged |
+| 9 | MoltenVK's submission thread: Metal encoding 13.8 ms per frame (24.3 ms in the heaviest block); the unnamed threads, MoltenVK's among them, take 24.5 % of a core on average | MoltenVK v1.4.2 (residency sets on iOS 18 upstream), the one MoltenVK for every title | Rebuild pinned, packaging to write |
 | 10 | GPU busy 13.2 ms per frame (26.8 ms in the heaviest window); 18 in-pass barriers kept and 13 render passes begun again per frame | After the CPU side (tile loads and stores of the restarted passes) | Later |
 | 11 | Guest main thread 28.7 % of a core on average, 100 % peaks | JIT code quality (ARMeilleure); needs a sample of hot guest functions, which no log has yet | To instrument |
 | 12 | `HLE.TimeManager` up to 13 % of a core; the stderr capture thread 12 % at start (MoltenVK's info logs) | Check the time manager's wait; keep the start logs, cheaper | Small |

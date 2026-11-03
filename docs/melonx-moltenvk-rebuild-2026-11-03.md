@@ -5,6 +5,19 @@ Why: `docs/melonx-629-encoding-2026-11-03.md`, section "After 631". On iOS, Molt
 for Hogwarts' 524 288-element bindless arrays it scans every element at each dirty draw or dispatch and calls
 `useResource` once per descriptor after every set change, new encoder and MoltenVK-internal compute pass.
 
+
+## Decision of 3 Nov 2026, 15:23: the latest MoltenVK, v1.4.2, unmodified
+
+The maintainer asked to keep the latest MoltenVK library, the most recent one. Khronos's newest release is `v1.4.2`
+(commit `db66022459ffb663aa2b50f6b018bc2e124f5edf`, after `v1.4.1`). It enables `MTLResidencySet` on iOS 18
+(`_metalFeatures.residencySets = mvkOSVersionIsAtLeast(15.0, 18.0, 2.0)` for Apple6 GPUs and later) and defers
+`useResource` in deduplicated lists (`mtlShared()._useResource`): the per-descriptor walk measured in 629, which the
+RewindBox patch below targeted on 1.4.0, is removed upstream, and the patch no longer applies to the restructured
+encoder. The patch is retired (it stays in Git history, commit `475fcc2`); the pin builds v1.4.2 unmodified. Its
+`MVKConfiguration` is member for member the one of 1.4.0, and the configuration entry points MeloNX calls are still
+exported, so MeloNX's `MVKInitialization.cs` applies unchanged. The build checks again that the kept binary's 428
+Vulkan exports are present. What follows describes the 1.4.0 patch and its build of 3 Nov, kept as history.
+
 ## Source
 
 - Khronos MoltenVK tag `v1.4.0`, commit `458870543b9bcf6b0edd6f90aaa776707b310d96` (lightweight tag, checked with

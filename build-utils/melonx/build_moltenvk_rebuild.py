@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build Khronos MoltenVK v1.4.0 with RewindBox's argument buffer usage patch, for iOS arm64 (macOS runner).
+"""Build Khronos MoltenVK from source for iOS arm64 (macOS runner): the pinned tag, unmodified or with a pinned patch.
 
 The maintainer agreed on 3 Nov 2026 to recompiling MoltenVK 1.4.0. The kept binary of the default "MeloNX 1.4.0
 (standalone)" variant embeds a MoltenVK revision (85d607a1) that is not in Khronos's history, so this build starts
@@ -85,6 +85,8 @@ def checkout():
     with archive.open('wb') as stream:
         subprocess.run(['git', '-C', str(target), 'archive', '--format=tar.gz', '--prefix', 'MoltenVK/', 'HEAD'],
                        stdout=stream, check=True)
+    if not PIN.get('patch'):
+        return target, ''
     patch = ROOT / PIN['patch']
     assert sha(patch) == PIN['patchSha256'], 'the patch differs from its pin'
     shutil.copy2(patch, OUT / 'sources' / patch.name)
@@ -114,7 +116,8 @@ def build(target):
 
 def inspect(binary, slice_name, changed):
     data = binary.read_bytes()
-    markers = {marker: marker.encode() in data for marker in MARKERS}
+    # The markers of the RewindBox patch, when one is pinned; an unmodified build must not contain them.
+    markers = {marker: (marker.encode() in data) == bool(PIN.get('patch')) for marker in MARKERS}
     exported = set(line.split()[-1] for line in run(['nm', '-gU', binary], capture=True).splitlines() if line.strip())
     entry_points = {name: name in exported for name in ENTRY_POINTS}
     kept = KEPT_EXPORTS.read_text().split()

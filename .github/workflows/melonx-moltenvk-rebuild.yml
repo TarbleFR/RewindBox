@@ -1,6 +1,6 @@
-name: MeloNX MoltenVK 1.4.0 rebuild
-run-name: MoltenVK 1.4.0 rebuild with the RewindBox argument buffer usage patch • ${{ github.sha }}
-# Recompiles Khronos MoltenVK v1.4.0 with build-utils/melonx/moltenvk/ (maintainer's agreement, 3 Nov 2026).
+name: MeloNX MoltenVK rebuild
+run-name: MoltenVK rebuild from Khronos source • ${{ github.sha }}
+# Recompiles Khronos MoltenVK at the tag of build-utils/melonx/moltenvk-rebuild.json (maintainer's agreement, 3 Nov 2026).
 # It packages nothing: a delivery adopts the artifact by its digests (identity.json).
 'on':
   push:
@@ -24,7 +24,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         persist-credentials: false
-    - name: Build Khronos MoltenVK v1.4.0 with the RewindBox patch for iOS arm64
+    - name: Build Khronos MoltenVK from source for iOS arm64
       run: python3 build-utils/melonx/build_moltenvk_rebuild.py
     - uses: actions/upload-artifact@v4
       if: always()
