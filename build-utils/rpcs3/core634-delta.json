@@ -1,11 +1,11 @@
 {
   "schema": 1,
   "marker": "REWINDBOX_CORE634",
-  "status": "folded into the canonical delta for RPCS3 Core 634, chantiers so far: fast_jit_load_634, jit_object_release_634, spirv_disk_cache_634, crypto_a64_634; not built, no IPA, no iPhone validation",
+  "status": "folded into the canonical delta for RPCS3 Core 634 (delivered Core 610 canonical patch a63b9643 plus this patch: the Core 612, 613, 616, 619, 621, 624, 627 and 630 records unchanged and the Core 634 change from the Build 629 iPhone logs: SPIR-V pack, parallel PPU object load, object bytes released after finalizeObject, ARMv8 cryptography, SPU prefetch for Assassin's Creed); Core 634 not built yet, no IPA, no iPhone validation",
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/core634-delta.patch",
-  "patch_sha256": "24f559a006848a534aab013851f3f11fcd72425e449eacdc5b4c870440b689d8",
+  "patch_sha256": "e934a962f161111733c383e0a78a9694e76aaf86293ab5d1f91a917e1b463167",
   "abi_version": 30,
   "abi_version_changed": false,
   "exports_added": [
@@ -138,7 +138,7 @@
     "rpcs3/ios/IOSSpuObjectPrefetch.h": "f31773ae56ee7024f1d9ed39b49cdfa1469a9ebf874d480551baf0c6485eae73",
     "rpcs3/ios/IOSTextureCacheProfile.h": "ad2d2872100f0e87af4b1880e18f8cbdab9ed4f9b4502b37742e68490eb50b1b",
     "rpcs3/ios/IOSThreadQoS.h": "4f8c32f9f120135ea8af54be4edc463fccb4c1f806e3936d17dae0ed574ee658",
-    "rpcs3/ios/IOSTitleLevers.h": "14ded4845fd019a0de1ab2998580e3246445e2e66654dab685cb9ef12214939c",
+    "rpcs3/ios/IOSTitleLevers.h": "333f10ef5b091a230e574a43bc299c744da8c6be187f62bebe02bcaa1441b7b0",
     "rpcs3/ios/IOSZcullLabelPage.h": "d5dda8affe89446b8625ddfe0865ad9897feeb92f50d8990cc630402722edaad",
     "rpcs3/ios/IOSZcullOnDemand.h": "566fb6d58c0f43bfca4f42e4aebae8f9bd2b3c3c4f0f443bb4a398c08c8de17b",
     "rpcs3/ios/RPCS3IOS.cpp": "2c7a6e02f047bcd9f86d9d1d6b566e153dc8b72fabcb27068fc8b9c08427dde3",
@@ -237,10 +237,11 @@
     "fast_jit_load_634": "REWINDBOX_FAST_JIT_LOAD_634 (ios/IOSJitLoad.h, Utilities/JITLLVM.cpp, Utilities/JITIOS.cpp, PPUThread.cpp): Build 629 logs: with every object cached, the PPU part of a boot took 2.2 to 4.4 s on one thread (object load 583 to 1127 ms, finalize 647 to 1420 ms, read 334 to 836 ms) and the window of checked objects kept only 26 to 41 of 72 to 174 modules. With the setting, up to four threads check the cached objects, link them (one MCJIT engine per thread, its own objects in the same order) and finalize them; MCJIT's debug copy of each object, which nothing reads outside the JIT writer profile, is skipped; the window scales with the memory headroom (32 to 256 MiB); the zero fill of the arena leaves its lock. Same objects, same symbols, same addresses resolution. Fast JIT Load setting, Automatic on every title",
     "jit_object_release_634": "REWINDBOX_JIT_OBJECT_RELEASE_634 (Utilities/JITLLVM.cpp, PPUThread.cpp): Build 629 logs: 2.5 to 2.9 GB of headroom at 3.8 to 4.1 GB of footprint, and MCJIT keeps every object file for the life of the engine (112 to 212 MB of PPU, 87.5 MB of SPU). With the setting, the bytes stay with the compiler until finalizeObject, then go; the process memory pressure relief runs at the end of a boot's PPU load. JIT Object Release setting, Automatic on every title",
     "spirv_disk_cache_634": "REWINDBOX_SPIRV_DISK_CACHE_634 (ios/IOSSpirvCache.h, RSX/rsx_cache.h, RSX/VK/VKProgramPipeline.cpp): Build 629 logs: glslang ran again at every boot for every shader of the title's cache (1072 sources and 5.49 s of CPU at the Black Ops II multiplayer boot, 412 and 1.88 s in Assassin's Creed, 319 and 1.42 s in the Black Ops II menu, 5 ms each on the worker threads of the warmup). With the setting, the SPIR-V of each GLSL text goes to one pack file of the title's cache (shaders_cache/spirv.pack), keyed by the SHA-256 of the stage, the compiler environment revision and the text, mapped read-only, each entry checked by CRC; a hit skips glslang. The file is new: nothing of the shader cache changes format, a damaged or foreign file is ignored and rewritten. SPIR-V Disk Cache setting, Automatic on every title",
-    "crypto_a64_634": "REWINDBOX_CRYPTO_A64_634 (ios/IOSCryptoA64.h, Crypto/aes.cpp, sha1.cpp, sha256.cpp): the disc, SELF and SPRX decryption and the digests of the caches ran the C rounds. With the setting, AES (ECB, CTR) and SHA-1/SHA-256 use the ARMv8 cryptography instructions, found by sysctl. Same bytes. Hardware Crypto setting, Automatic on every title"
+    "crypto_a64_634": "REWINDBOX_CRYPTO_A64_634 (ios/IOSCryptoA64.h, Crypto/aes.cpp, sha1.cpp, sha256.cpp): the disc, SELF and SPRX decryption and the digests of the caches ran the C rounds. With the setting, AES (ECB, CTR) and SHA-1/SHA-256 use the ARMv8 cryptography instructions, found by sysctl. Same bytes. Hardware Crypto setting, Automatic on every title",
+    "spu_prefetch_ac_634": "REWINDBOX_SPU_PREFETCH_AC_634 (ios/IOSTitleLevers.h): Build 629 logs: SPU object reads took 0.02 ms in Black Ops II with the prefetch and 0.4 to 0.7 ms in Assassin's Creed without it, 7 ms for the first after idle. Assassin's Creed joins the SPU object prefetch"
   },
   "behaviour": {
-    "defaults": "Every title: cached PPU objects are checked, linked and finalized on up to four threads, one MCJIT engine per thread; Every title: object bytes are freed after finalizeObject; Every title: the SPIR-V of a boot serves the next ones; Every title: AES, SHA-1 and SHA-256 use the instructions of the CPU. Each setting has Enabled and Disabled",
+    "defaults": "Every title: SPIR-V pack, parallel PPU object check, link and finalize, object bytes released, cryptography instructions; Assassin's Creed also gets the SPU object prefetch. Each setting has Enabled and Disabled",
     "codegen": "PPUThread.cpp and JITLLVM.cpp change host code only, under two exact aliases (test/rpcs3_core634_codegen_test.py): identities PPU a987639e9f838d1c / SPU 477a3fa442d27917 kept, every cached object stays valid",
     "abi": "ABI 30 and the 92 exports unchanged"
   },
@@ -250,9 +251,9 @@
   "iphone_validation_run": false,
   "increment_from_core630": {
     "patch": "build-utils/rpcs3/core634-from-630.patch",
-    "patch_sha256": "103d878b4f88edbf3bf85131609d90c449223f1c7eaabcf227d36e2e10d32b17",
+    "patch_sha256": "70b594199553e6f3480ad36a2f127f0dabd4cc34cb5282ce76004686d2fe7ea4",
     "insertions_only": false,
-    "files": 17,
+    "files": 18,
     "files_before_sha256": {
       "Utilities/JITIOS.cpp": "17bd2138b17de431b22713d9693105d50af170f682fbbc6c2727c8e0a8bbddbb",
       "Utilities/JITLLVM.cpp": "ac7fe0f65eb33b7d18fca45d9c7261b8105f3ee0b51e104feedfe372f5eec0fc",
@@ -265,6 +266,7 @@
       "rpcs3/Emu/RSX/rsx_cache.h": "ff634a57663c847d8462fcac25b30b04006262ca1631f061c568b816f68b2ba7",
       "rpcs3/Emu/System.cpp": "edacded3aca0b961f1806e3ecf1e08f428be03f102324a9b24a7366e7036f2eb",
       "rpcs3/Emu/system_config.h": "e351843c8b9238ffaaadc93eb3240691fbc11b1e6a628f14ce51e43d96147869",
+      "rpcs3/ios/IOSTitleLevers.h": "14ded4845fd019a0de1ab2998580e3246445e2e66654dab685cb9ef12214939c",
       "rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp": "9c9db02fc19a18289436e6934a7ca9bc6dad6f08a6289928172f49ba4cb55e62",
       "rpcs3/ios/RPCS3IOSExperimentalPolicy.h": "e4efebcf2dc5b4774f799252fe2abfcbc69ded9462416b58628b7b341a6ee149",
       "rpcs3/ios/RPCS3IOSSettings.cpp": "44d804f97c13619ad495f16f6440fc1f8db494517a809c266384675e9916c815"

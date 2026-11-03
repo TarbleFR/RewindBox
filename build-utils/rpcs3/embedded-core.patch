@@ -38915,10 +38915,10 @@ index 0000000..b1d21f2
 +}
 diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
 new file mode 100644
-index 0000000..b9ccca5
+index 0000000..3d9b8ee
 --- /dev/null
 +++ b/rpcs3/ios/IOSTitleLevers.h
-@@ -0,0 +1,172 @@
+@@ -0,0 +1,175 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -39031,9 +39031,12 @@ index 0000000..b9ccca5
 +// REWINDBOX_SPU_OBJECT_PREFETCH_616 (ios/IOSSpuObjectPrefetch.h): Black Ops II
 +// opens 7,162 cached SPU objects in the first 5 s of a multiplayer match on the
 +// Build 614 logs (4.3 s of file reads on the compile threads, a 2.0 s frame).
++// REWINDBOX_SPU_PREFETCH_AC_634: Assassin's Creed reads 4,000 objects from the disk in its first
++// minute on the Build 629 logs, 0.4 to 0.7 ms each and 7 ms for the first after an idle period;
++// Black Ops II reads the same size of object in 0.02 ms from this prefetch.
 +constexpr bool requires_spu_object_prefetch(std::string_view title_id) noexcept
 +{
-+	return is_black_ops_ii_title(title_id);
++	return is_black_ops_ii_title(title_id) || is_assassins_creed_title(title_id);
 +}
 +
 +// REWINDBOX_ZCULL_ON_DEMAND_619 (ios/IOSZcullOnDemand.h): Assassin's Creed waits
