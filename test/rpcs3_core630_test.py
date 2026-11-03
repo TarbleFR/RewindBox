@@ -55,14 +55,15 @@ MOCKS = (
     # (old text of the Core 627 harness, new text)
     ('#include <atomic>\n#include <chrono>\n#include <cstddef>\n', '#include <algorithm>\n#include <atomic>\n#include <chrono>\n#include <cstddef>\n'),
     ('namespace rsx\n{\n\tenum : u32 { pipe_flush_interrupt = 0x8 };\n\tstruct thread\n\t{\n',
-     'struct query_mock { u32 num_draws = 1; u64 sync_tag = 1; u64 done_at_us = ~u64{0}; };\n'
+     'struct query_mock { u32 num_draws = 1; u64 sync_tag = 1; u64 done_at_us = ~u64{0}; bool open = true; };\n'
      'namespace FIFO { enum class interrupt_hint { zcull_sync }; }\n'
      'struct sync_hint_payload_t { query_mock* query; };\n'
      'void on_sync_hint_mock(FIFO::interrupt_hint, sync_hint_payload_t);\n'
      'namespace rsx\n{\n\tenum : u32 { pipe_flush_interrupt = 0x8 };\n\tstruct thread\n\t{\n'
      '\t\tvoid sync_hint(FIFO::interrupt_hint hint, sync_hint_payload_t payload) { on_sync_hint_mock(hint, payload); }\n'),
     ('bool zcull_wait_guard = true; };', 'bool zcull_wait_guard = true; bool zcull_async_reads = false; };'),
-    ('#include "ios/IOSZcullOnDemand.h"\n', '#include "ios/IOSZcullOnDemand.h"\n#include "ios/IOSGuestAccessEmulation.h"\n'),
+    ('#include "ios/IOSZcullOnDemand.h"\n', '#include "ios/IOSZcullOnDemand.h"\n#include "ios/IOSGuestAccessEmulation.h"\n'
+     'namespace rpcs3::ios::rsx_sync { inline std::atomic<u64> zcull_hint_flushes{0}; }\n'),
     ('\tutils::protection prot = utils::protection::rw;\n\tbool has_refs() const { return refs > 0; }\n',
      '\tutils::protection prot = utils::protection::rw;\n\trpcs3::ios::zcull_on_demand::page_slots ios_slots;\n'
      '\tbool has_refs() const { return refs > 0; }\n'),
@@ -71,6 +72,7 @@ MOCKS = (
      '\tstruct writer_mock { u32 sink = 0; query_mock* query = nullptr; };\n'
      '\tstd::vector<writer_mock> m_pending_writes; // RSX thread, or before it starts\n'
      '\tu64 m_sync_tag = 0, m_next_tsc = 0;\n'
+     '\tstd::atomic<int> m_critical_reports_in_flight{0};\n'
      '\tstd::atomic<int> hints{0}, polls{0};\n'
      '\tu64 gpu_us = 0;              // a hinted query is done this long after its hint\n'
      '\tu32 rearm_address = 0;       // each poll queues one more report here, on the RSX thread\n'
@@ -97,7 +99,8 @@ MOCKS = (
      '\t\t}\n'
      '\t\tconst u64 now = get_system_time();\n'
      '\t\tstd::size_t done = 0;\n'
-     '\t\twhile (done < m_pending_writes.size() && (!m_pending_writes[done].query || m_pending_writes[done].query->done_at_us <= now))\n'
+     '\t\twhile (done < m_pending_writes.size() && (!m_pending_writes[done].query || !m_pending_writes[done].query->num_draws ||\n'
+     '\t\t\tm_pending_writes[done].query->done_at_us <= now))\n'
      '\t\t{\n'
      '\t\t\tconst u32 address = m_pending_writes[done++].sink;\n'
      '\t\t\tconst auto location = rsx::classify_location(address);\n'
@@ -116,9 +119,17 @@ MOCKS = (
      'static ZCULL_control* g_control = nullptr;\n'
      'void on_sync_hint_mock(FIFO::interrupt_hint, sync_hint_payload_t payload)\n'
      '{\n'
-     '\tg_control->hints++;\n'
+     '\t// rsx::thread::sync_hint(), then VKGSRender::sync_hint(): the tag moves in any case, a flush\n'
+     '\t// happens only for a query of the open command buffer, and it submits all of them.\n'
      '\tg_control->m_sync_tag = std::max(g_control->m_sync_tag, payload.query->sync_tag);\n'
-     '\tpayload.query->done_at_us = get_system_time() + g_control->gpu_us; // submitted: the GPU has it\n'
+     '\tif (!payload.query->open || !payload.query->num_draws) return;\n'
+     '\tg_control->hints++;\n'
+     '\trpcs3::ios::rsx_sync::zcull_hint_flushes++;\n'
+     '\tconst u64 done = get_system_time() + g_control->gpu_us;\n'
+     '\tfor (auto& writer : g_control->m_pending_writes)\n'
+     '\t{\n'
+     '\t\tif (writer.query && writer.query->open) { writer.query->open = false; writer.query->done_at_us = done; }\n'
+     '\t}\n'
      '}\n'),
     ('\t\tpage.refs++;\n\t\t\tpage.prot = utils::protection::no;\n\t\t}\n\t}\n\n\tbool on_access_violation',
      '\t\tpage.refs++;\n\t\t\tpage.ios_slots.add(address);\n\t\t\tpage.prot = utils::protection::no;\n\t\t}\n\t}\n\n\tbool on_access_violation'),
@@ -174,6 +185,7 @@ ASYNC_630 = r'''
 		query_mock query;
 		query_mock older;
 		older.done_at_us = 0;
+		older.open = false;
 		z.queue_report(report_page + 0x2000, &older);
 		z.queue_report(address, &query);
 		z.rearm_address = report_page + 0x1000;
@@ -193,6 +205,58 @@ ASYNC_630 = r'''
 		rsx_server server(z);
 		CHECK(read_at(z, address, 4, thread_class::ppu));
 		CHECK(z.hints.load() == 1 && z.forced_passes.load() == 0 && query.done_at_us != ~u64{0});
+		clear_tally();
+		async630++;
+	}
+	{ // m_sync_tag is above the query's tag (a conditional render hint moved it, no flush): the query is still submitted
+		ZCULL_control z;
+		g_control = &z;
+		z.m_sync_tag = 100;
+		query_mock query;
+		z.queue_report(address, &query);
+		rsx_server server(z);
+		const auto before = get_system_time();
+		CHECK(read_at(z, address, 4, thread_class::ppu));
+		CHECK(z.hints.load() == 1 && z.forced_passes.load() == 0 && get_system_time() - before < od::async_escalate_us);
+		CHECK(take(tally.services) == 1);
+		clear_tally();
+		async630++;
+	}
+	{ // the newest query of the slot is empty: the older one with draws is submitted
+		ZCULL_control z;
+		g_control = &z;
+		query_mock older, empty;
+		empty.num_draws = 0;
+		z.queue_report(address, &older);
+		z.queue_report(address, &empty);
+		rsx_server server(z);
+		const auto before = get_system_time();
+		CHECK(read_at(z, address, 4, thread_class::ppu));
+		CHECK(z.hints.load() == 1 && z.forced_passes.load() == 0 && get_system_time() - before < od::async_escalate_us);
+		clear_tally();
+		async630++;
+	}
+	{ // two slots, the second one pending: that one is requested
+		ZCULL_control z;
+		g_control = &z;
+		query_mock query;
+		z.queue_report(address + 16, &query);
+		rsx_server server(z);
+		const auto before = get_system_time();
+		CHECK(read_at(z, address + 8, 16, thread_class::ppu));
+		CHECK(z.hints.load() == 1 && z.forced_passes.load() == 0 && get_system_time() - before < od::async_escalate_us);
+		clear_tally();
+		async630++;
+	}
+	{ // critical reports (a location in the upstream mode): a sync() writes them, whatever the request
+		ZCULL_control z;
+		g_control = &z;
+		z.m_critical_reports_in_flight = 1;
+		query_mock query;
+		z.queue_report(address, &query);
+		rsx_server server(z);
+		CHECK(read_at(z, address, 4, thread_class::ppu));
+		CHECK(z.forced_passes.load() >= 1 && z.hints.load() == 0);
 		clear_tally();
 		async630++;
 	}
@@ -283,7 +347,10 @@ ASYNC_630 = r'''
 		slots.remove(0x4010);
 		CHECK(slots.pending(0x4018, 8));
 		slots.remove(0x4010);
-		CHECK(!slots.pending(0x4010, 16));
+		CHECK(!slots.pending(0x4010, 16) && slots.first_pending(0x4010, 16) == 0);
+		slots.add(0x4020);
+		CHECK(slots.first_pending(0x4018, 16) == 0x4020 && slots.first_pending(0x4020, 4) == 0x4020);
+		slots.remove(0x4020);
 		slots.remove(0x4010); // a page unlocked by the upstream path keeps no debt
 		slots.add(0x7ff8);    // an unaligned report at the end of the page stays inside it
 		CHECK(slots.pending(0x7ff8, 8) && slots.pending(0x7ff0, 4) && !slots.pending(0x7fe0, 16));
@@ -384,7 +451,7 @@ def run_fault_protocol(source: Path, cxx: str, work: Path, sanitize: bool) -> di
         lines = out.strip().splitlines()
         guard627, async630, protocol, guard621 = (json.loads(line) for line in lines[-4:])
         require(guard627['guard627'] == 4 and guard627['guard627_reads'] >= 6, f'627 guard scenarios ({label}): ' + repr(guard627))
-        require(async630['async630'] == 11, f'630 asynchronous scenarios ({label}): ' + repr(async630))
+        require(async630['async630'] == 15, f'630 asynchronous scenarios ({label}): ' + repr(async630))
         require(protocol['failures'] == 0 and protocol['scenarios'] == 18, f'zcull fault protocol ({label}): ' + repr(protocol))
         require(guard621['failures'] == 0 and guard621['trip_lines'] == 2, f'621 rules with the guard on ({label}): ' + repr(guard621))
         report[label] = {'guard627': guard627, 'async630': async630, 'protocol': protocol, 'guard621': guard621}
@@ -410,7 +477,7 @@ def run_guest_access(source: Path, cxx: str, work: Path, sanitize: bool) -> dict
     if sanitize:
         # Apple ARM64: the real faults stay in the plain build (the sanitizers own the signal handlers there).
         core621.build(cxx, [HERE / 'guest_access_test.cpp'], folder / 'asan', include,
-                      ['-O1', '-g', '-DRPCS3_IOS=1', '-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-fno-sanitize-recover=undefined'])
+                      ['-O1', '-g', '-DRPCS3_IOS=1', '-DRPCS3_TEST_NO_REAL_FAULTS=1', '-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-fno-sanitize-recover=undefined'])
         core621.execute([str(folder / 'asan')], 'guest access (ASan/UBSan)')
     return report
 
@@ -473,7 +540,9 @@ def check_wiring(source: Path) -> dict:
     completed = zcull[zcull.index('void ZCULL_control::on_report_completed('):zcull.index('void ZCULL_control::disable_optimizations(')]
     require(enqueued.index('page.add_ref();') < enqueued.index('page.ios_slots.add(') and completed.index('page.release();') < completed.index('page.ios_slots.remove('), 'the slots follow the page references')
     service = zcull[zcull.index('void ZCULL_control::ios_service_read('):zcull.index('void ZCULL_control::ios_release_stale_pages(')]
-    require('get_occlusion_query_result' not in service and 'ios_force_sync' not in service, 'the service never waits for the GPU')
+    require('get_occlusion_query_result' not in service and 'ios_force_sync' not in service and 'sync_tag >' not in service,
+            'the service never waits for the GPU, and the backend decides what is still open')
+    require('zcull_async_reads && !m_ios_demand.full_pending() && !m_critical_reports_in_flight' in entry, 'critical reports keep their sync()')
     return {'setting': SETTING, 'locales': sorted(LOCALES)}
 
 

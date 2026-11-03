@@ -1,5 +1,5 @@
 diff --git a/Utilities/Thread.cpp b/Utilities/Thread.cpp
-index cd940da..a7895ae 100644
+index cd940da..92cc644 100644
 --- a/Utilities/Thread.cpp
 +++ b/Utilities/Thread.cpp
 @@ -12,6 +12,9 @@
@@ -12,7 +12,7 @@ index cd940da..a7895ae 100644
  #endif
  
  #ifdef __cpp_lib_stacktrace
-@@ -1516,6 +1519,91 @@ void put_a64_reg_value(ucontext_t* context, u32 reg_index, u32 reg_size, bool re
+@@ -1516,6 +1519,104 @@ void put_a64_reg_value(ucontext_t* context, u32 reg_index, u32 reg_size, bool re
  	GPR(context, reg_index) = temp_reg_value;
  }
  
@@ -29,9 +29,22 @@ index cd940da..a7895ae 100644
 +
 +	if (single.op != A64_INVALID)
 +	{
-+		if ((single.op == A64_STORE) == is_writing && !(addr & (single.mem_size - 1)))
++		const auto operands = rpcs3::ios::guest_access::decode_single_operands(instruction);
++
++		if ((single.op == A64_STORE) == is_writing && !(addr & (single.mem_size - 1)) && operands.rn != 31)
 +		{
-+			access.size = single.mem_size;
++			// The access must start at the fault address: one that starts on the page below ends here.
++			u64 address = static_cast<u64>(GPR(context, operands.rn)) + static_cast<u64>(operands.offset);
++
++			if (operands.indexed)
++			{
++				address += rpcs3::ios::guest_access::index_value(operands, operands.rm == 31 ? u64{0} : u64{GPR(context, operands.rm)});
++			}
++
++			if (address == reinterpret_cast<u64>(vm::base(addr)))
++			{
++				access.size = single.mem_size;
++			}
 +		}
 +
 +		return;
@@ -104,7 +117,7 @@ index cd940da..a7895ae 100644
  u64 get_a64_reg_value(ucontext_t* context, u32 reg_index, u32 reg_size)
  {
  	ensure(reg_size == 1 || reg_size == 2 || reg_size == 4 || reg_size == 8);
-@@ -1593,6 +1681,9 @@ bool handle_access_violation(u32 addr, bool is_writing, bool is_exec, ucontext_t
+@@ -1593,6 +1694,9 @@ bool handle_access_violation(u32 addr, bool is_writing, bool is_exec, ucontext_t
  			state_changed = vm::temporary_unlock(*cpu);
  		}
  
@@ -114,7 +127,7 @@ index cd940da..a7895ae 100644
  		bool handled = rsx::g_access_violation_handler(addr, is_writing);
  
  		if (state_changed && (cpu->state += cpu_flag::temp, cpu->test_stopped()))
-@@ -1602,6 +1693,12 @@ bool handle_access_violation(u32 addr, bool is_writing, bool is_exec, ucontext_t
+@@ -1602,6 +1706,12 @@ bool handle_access_violation(u32 addr, bool is_writing, bool is_exec, ucontext_t
  
  		if (handled)
  		{
@@ -128,7 +141,7 @@ index cd940da..a7895ae 100644
  			return true;
  		}
 diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
-index a193e31..e83a95f 100644
+index a193e31..31db7a4 100644
 --- a/rpcs3/Emu/RSX/RSXZCULL.cpp
 +++ b/rpcs3/Emu/RSX/RSXZCULL.cpp
 @@ -8,6 +8,7 @@
@@ -139,13 +152,14 @@ index a193e31..e83a95f 100644
  #include "Emu/System.h"
  #endif
  
-@@ -450,7 +451,16 @@ namespace rsx
+@@ -450,7 +451,17 @@ namespace rsx
  			// REWINDBOX_ZCULL_ON_DEMAND_619: a guest thread waits for the reports of a page.
  			if (!m_ios_force_sync && m_ios_demand.pending() && rpcs3::ios::get_experimental_policy().zcull_on_demand)
  			{
 -				ios_retire_claimed(ptimer);
-+				// REWINDBOX_ZCULL_ASYNC_READS_630: a guest read of one report does not stop this thread.
-+				if (rpcs3::ios::get_experimental_policy().zcull_async_reads && !m_ios_demand.full_pending())
++				// REWINDBOX_ZCULL_ASYNC_READS_630: a guest read of one report does not stop this thread,
++				// but a sync() reached with critical reports (the upstream mode of a location) writes them.
++				if (rpcs3::ios::get_experimental_policy().zcull_async_reads && !m_ios_demand.full_pending() && !m_critical_reports_in_flight)
 +				{
 +					ios_service_read(ptimer);
 +				}
@@ -157,7 +171,7 @@ index a193e31..e83a95f 100644
  				return;
  			}
  
-@@ -969,6 +979,9 @@ namespace rsx
+@@ -969,6 +980,9 @@ namespace rsx
  				const auto page_address = utils::page_start(static_cast<u32>(address));
  				auto& page = m_locked_pages[location][page_address];
  				page.add_ref();
@@ -167,7 +181,7 @@ index a193e31..e83a95f 100644
  
  				if (page.prot == utils::protection::rw)
  				{
-@@ -997,6 +1010,9 @@ namespace rsx
+@@ -997,6 +1011,9 @@ namespace rsx
  
  					ensure(page.has_refs());
  					page.release();
@@ -177,7 +191,7 @@ index a193e31..e83a95f 100644
  				}
  			}
  
-@@ -1211,6 +1227,73 @@ namespace rsx
+@@ -1211,6 +1228,71 @@ namespace rsx
  			}
  		}
  
@@ -194,7 +208,7 @@ index a193e31..e83a95f 100644
 +			}
 +
 +			const u32 slot = m_ios_demand.requested_slot();
-+			bool pushed = false;
++			const u64 flushes_before = rpcs3::ios::rsx_sync::zcull_hint_flushes.load(std::memory_order_relaxed);
 +
 +			{
 +				struct ios_pass_scope
@@ -212,17 +226,14 @@ index a193e31..e83a95f 100644
 +						continue;
 +					}
 +
-+					// A report without a query copies the previous result: the nearest older query decides.
++					// A report without a query, or with an empty one, copies the previous result: the nearest
++					// query with draws decides. m_sync_tag does not say that it was submitted (a conditional
++					// render hint raises it without a flush): the backend looks at the open command buffer.
 +					for (; It != m_pending_writes.rend(); ++It)
 +					{
-+						if (It->query)
++						if (It->query && It->query->num_draws)
 +						{
-+							if (It->query->num_draws && It->query->sync_tag > m_sync_tag)
-+							{
-+								ptimer->sync_hint(FIFO::interrupt_hint::zcull_sync, { .query = It->query });
-+								pushed = true;
-+							}
-+
++							ptimer->sync_hint(FIFO::interrupt_hint::zcull_sync, { .query = It->query });
 +							break;
 +						}
 +					}
@@ -231,6 +242,7 @@ index a193e31..e83a95f 100644
 +				}
 +			}
 +
++			const bool pushed = rpcs3::ios::rsx_sync::zcull_hint_flushes.load(std::memory_order_relaxed) != flushes_before;
 +			m_next_tsc = 0;
 +			update(ptimer);
 +
@@ -251,7 +263,7 @@ index a193e31..e83a95f 100644
  		void ZCULL_control::ios_release_stale_pages(u32 memory_address, u32 memory_range)
  		{
  			// RSX thread, after ios_retire_claimed(): the copy that follows reads these pages.
-@@ -1273,6 +1356,12 @@ namespace rsx
+@@ -1273,6 +1355,13 @@ namespace rsx
  			// a service and the guest's check takes another request), up to `halves_at`.
  			u64 pickup_sum = 0, service_sum = 0, halves_at = 0;
  			bool any_picked = false;
@@ -261,6 +273,7 @@ index a193e31..e83a95f 100644
 +			bool slots = rpcs3::ios::get_experimental_policy().zcull_async_reads && access.size != 0 &&
 +				static_cast<u64>(utils::get_page_size()) == od::tracked_page_bytes;
 +			u64 poll_us = od::async_poll_first_us;
++			u32 pending_slot = address & ~(od::report_slot_bytes - 1); // the slot this access waits for
  
  			const auto page_released = [&]()
  			{
@@ -279,7 +292,7 @@ index a193e31..e83a95f 100644
  			const auto finish = [&](ios_fault result)
  			{
  				if (requested && result == ios_fault::handled)
-@@ -1332,6 +1429,25 @@ namespace rsx
+@@ -1332,6 +1429,29 @@ namespace rsx
  
  						return finish(ios_fault::handled);
  					}
@@ -302,10 +315,14 @@ index a193e31..e83a95f 100644
 +
 +						slots = false; // a page this busy costs less unlocked
 +					}
++					else if (slots)
++					{
++						pending_slot = found->second.ios_slots.first_pending(address, access.size);
++					}
  				}
  
  				if (m_pages_accessed[location] && get_system_time() - started < od::pickup_deadline_us)
-@@ -1367,8 +1483,11 @@ namespace rsx
+@@ -1367,8 +1487,11 @@ namespace rsx
  					}
  				}
  
@@ -314,11 +331,11 @@ index a193e31..e83a95f 100644
 +
  				// Ask the RSX thread to write every claimed report (sync() through pipe_flush_interrupt).
 -				const u64 ticket = m_ios_demand.request();
-+				const u64 ticket = slot_request ? m_ios_demand.request_slot(address & ~(od::report_slot_bytes - 1)) : m_ios_demand.request_full();
++				const u64 ticket = slot_request ? m_ios_demand.request_slot(pending_slot) : m_ios_demand.request_full();
  				requested = true;
  				requested_at = get_system_time();
  				picked_at = 0;
-@@ -1377,9 +1496,11 @@ namespace rsx
+@@ -1377,9 +1500,11 @@ namespace rsx
  				thr->m_eng_interrupt_mask |= rsx::pipe_flush_interrupt;
  				rpcs3::ios::rsx_idle_park::wake();
  
@@ -333,7 +350,7 @@ index a193e31..e83a95f 100644
  
  				if (result == od::wait_result::served || result == od::wait_result::released)
  				{
-@@ -1414,6 +1535,14 @@ namespace rsx
+@@ -1414,6 +1539,14 @@ namespace rsx
  					return finish(ios_fault::upstream);
  				}
  
@@ -397,10 +414,10 @@ index b3c50aa..6479f76 100644
  		// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): Automatic is God of War III, Assassin's Creed and Black Ops II.
 diff --git a/rpcs3/ios/IOSGuestAccessEmulation.h b/rpcs3/ios/IOSGuestAccessEmulation.h
 new file mode 100644
-index 0000000..dbceff8
+index 0000000..ab57170
 --- /dev/null
 +++ b/rpcs3/ios/IOSGuestAccessEmulation.h
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,139 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -423,6 +440,57 @@ index 0000000..dbceff8
 +};
 +
 +inline thread_local access t_access{};
++
++// The operands of a scalar load or store decode_a64_mem_inst() accepted, for the address the
++// instruction computes: the fault address alone says nothing about an access that starts below it.
++struct single_operands
++{
++	std::uint32_t rn = 31;
++	bool indexed = false;     // register offset
++	std::uint32_t rm = 31;
++	std::uint32_t option = 3; // 010 UXTW, 011 LSL, 110 SXTW, 111 SXTX
++	std::uint32_t shift = 0;
++	std::int64_t offset = 0;  // immediate forms
++};
++
++constexpr single_operands decode_single_operands(std::uint32_t inst) noexcept
++{
++	single_operands r{};
++	const std::uint32_t size = inst >> 30;
++	r.rn = (inst >> 5) & 31;
++
++	if ((inst & 0x3B000000u) == 0x39000000u)
++	{
++		r.offset = static_cast<std::int64_t>((inst >> 10) & 0xfff) << size; // unsigned immediate, scaled
++	}
++	else if ((inst & 0x3B204C00u) == 0x38204800u)
++	{
++		r.indexed = true;
++		r.rm = (inst >> 16) & 31;
++		r.option = (inst >> 13) & 7;
++		r.shift = ((inst >> 12) & 1) ? size : 0;
++	}
++	else
++	{
++		const std::int32_t imm9 = static_cast<std::int32_t>((inst >> 12) & 511); // unscaled
++		r.offset = imm9 >= 256 ? imm9 - 512 : imm9;
++	}
++
++	return r;
++}
++
++// The index of a register-offset form, from the value of Rm.
++constexpr std::uint64_t index_value(const single_operands& operands, std::uint64_t rm) noexcept
++{
++	switch (operands.option)
++	{
++	case 2: rm &= 0xffffffffu; break;
++	case 6: rm = static_cast<std::uint64_t>(static_cast<std::int64_t>(static_cast<std::int32_t>(rm))); break;
++	default: break;
++	}
++
++	return rm << operands.shift;
++}
 +
 +// LDP, LDPSW and STP of general registers, signed offset, no writeback.
 +struct pair_access
@@ -490,7 +558,7 @@ index 0000000..dbceff8
 +}
 +}
 diff --git a/rpcs3/ios/IOSZcullOnDemand.h b/rpcs3/ios/IOSZcullOnDemand.h
-index fc8d13e..8306c05 100644
+index fc8d13e..d06d87a 100644
 --- a/rpcs3/ios/IOSZcullOnDemand.h
 +++ b/rpcs3/ios/IOSZcullOnDemand.h
 @@ -61,6 +61,28 @@
@@ -537,7 +605,7 @@ index fc8d13e..8306c05 100644
  
  enum class trip_reason : std::uint32_t
  {
-@@ -238,6 +268,73 @@ inline tally& counters() noexcept
+@@ -238,6 +268,87 @@ inline tally& counters() noexcept
  	return s_tally;
  }
  
@@ -595,6 +663,20 @@ index fc8d13e..8306c05 100644
 +		return false;
 +	}
 +
++	// The base of the first pending slot of [address, address + size), 0 when none.
++	std::uint32_t first_pending(std::uint32_t address, std::uint32_t size) const noexcept
++	{
++		for (std::uint32_t i = slot(address); i <= last_slot(address, size); i++)
++		{
++			if (m_pending[i])
++			{
++				return (address & ~(tracked_page_bytes - 1)) + i * report_slot_bytes;
++			}
++		}
++
++		return 0;
++	}
++
 +	// One more access completed by the handler, false when this page is over its budget.
 +	bool take_completion(std::uint64_t now_us) noexcept
 +	{
@@ -611,7 +693,7 @@ index fc8d13e..8306c05 100644
  // Request/serve handshake between faulting guest threads and the RSX thread.
  class gate
  {
-@@ -245,6 +342,9 @@ class gate
+@@ -245,6 +356,9 @@ class gate
  	std::atomic<std::uint64_t> m_picked{0};          // newest ticket the RSX thread started
  	std::atomic<std::uint64_t> m_served{0};          // newest ticket whose reports are written
  	std::atomic<std::uint32_t> m_tripped{0};
@@ -621,7 +703,7 @@ index fc8d13e..8306c05 100644
  	std::uint64_t m_window_start_us = 0;             // RSX thread only
  	std::uint32_t m_window_services = 0;             // RSX thread only
  	// REWINDBOX_ZCULL_DEMAND_GUARD_621: the all-threads buckets (m_global_mutex) and
-@@ -278,6 +378,33 @@ public:
+@@ -278,6 +392,33 @@ public:
  		return m_requested.fetch_add(1, std::memory_order_acq_rel) + 1;
  	}
  
@@ -655,7 +737,7 @@ index fc8d13e..8306c05 100644
  	// RSX thread: the newest ticket waiting to be served, 0 when none.
  	std::uint64_t pending() const noexcept
  	{
-@@ -293,11 +420,18 @@ public:
+@@ -293,11 +434,18 @@ public:
  
  	// RSX thread, after every report claimed when `ticket` was read is written.
  	// Returns true when this service tripped the storm guard.

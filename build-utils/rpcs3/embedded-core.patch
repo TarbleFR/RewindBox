@@ -2742,7 +2742,7 @@ index 0000000..1708e6f
 +};
 +}
 diff --git a/Utilities/Thread.cpp b/Utilities/Thread.cpp
-index 9445110..a7895ae 100644
+index 9445110..92cc644 100644
 --- a/Utilities/Thread.cpp
 +++ b/Utilities/Thread.cpp
 @@ -12,6 +12,9 @@
@@ -2773,7 +2773,7 @@ index 9445110..a7895ae 100644
  	{
  		const u32 size = (inst >> 30) & 3;
  		const u32 opc  = (inst >> 22) & 3;
-@@ -1514,6 +1519,91 @@ void put_a64_reg_value(ucontext_t* context, u32 reg_index, u32 reg_size, bool re
+@@ -1514,6 +1519,104 @@ void put_a64_reg_value(ucontext_t* context, u32 reg_index, u32 reg_size, bool re
  	GPR(context, reg_index) = temp_reg_value;
  }
  
@@ -2790,9 +2790,22 @@ index 9445110..a7895ae 100644
 +
 +	if (single.op != A64_INVALID)
 +	{
-+		if ((single.op == A64_STORE) == is_writing && !(addr & (single.mem_size - 1)))
++		const auto operands = rpcs3::ios::guest_access::decode_single_operands(instruction);
++
++		if ((single.op == A64_STORE) == is_writing && !(addr & (single.mem_size - 1)) && operands.rn != 31)
 +		{
-+			access.size = single.mem_size;
++			// The access must start at the fault address: one that starts on the page below ends here.
++			u64 address = static_cast<u64>(GPR(context, operands.rn)) + static_cast<u64>(operands.offset);
++
++			if (operands.indexed)
++			{
++				address += rpcs3::ios::guest_access::index_value(operands, operands.rm == 31 ? u64{0} : u64{GPR(context, operands.rm)});
++			}
++
++			if (address == reinterpret_cast<u64>(vm::base(addr)))
++			{
++				access.size = single.mem_size;
++			}
 +		}
 +
 +		return;
@@ -2865,7 +2878,7 @@ index 9445110..a7895ae 100644
  u64 get_a64_reg_value(ucontext_t* context, u32 reg_index, u32 reg_size)
  {
  	ensure(reg_size == 1 || reg_size == 2 || reg_size == 4 || reg_size == 8);
-@@ -1591,6 +1681,9 @@ bool handle_access_violation(u32 addr, bool is_writing, bool is_exec, ucontext_t
+@@ -1591,6 +1694,9 @@ bool handle_access_violation(u32 addr, bool is_writing, bool is_exec, ucontext_t
  			state_changed = vm::temporary_unlock(*cpu);
  		}
  
@@ -2875,7 +2888,7 @@ index 9445110..a7895ae 100644
  		bool handled = rsx::g_access_violation_handler(addr, is_writing);
  
  		if (state_changed && (cpu->state += cpu_flag::temp, cpu->test_stopped()))
-@@ -1600,6 +1693,12 @@ bool handle_access_violation(u32 addr, bool is_writing, bool is_exec, ucontext_t
+@@ -1600,6 +1706,12 @@ bool handle_access_violation(u32 addr, bool is_writing, bool is_exec, ucontext_t
  
  		if (handled)
  		{
@@ -2888,7 +2901,7 @@ index 9445110..a7895ae 100644
  			g_tls_fault_rsx++;
  			return true;
  		}
-@@ -2768,6 +2867,8 @@ thread_local DECLARE(thread_ctrl::g_tls_error_callback) = nullptr;
+@@ -2768,6 +2880,8 @@ thread_local DECLARE(thread_ctrl::g_tls_error_callback) = nullptr;
  DECLARE(thread_ctrl::g_native_core_layout) { native_core_arrangement::undefined };
  
  #ifdef RPCS3_IOS
@@ -2897,7 +2910,7 @@ index 9445110..a7895ae 100644
  namespace
  {
  	struct ios_thread_worker_pool;
-@@ -2879,6 +2980,10 @@ void* ios_thread_worker::run(void* opaque) noexcept
+@@ -2879,6 +2993,10 @@ void* ios_thread_worker::run(void* opaque) noexcept
  			worker->job.wait(nullptr);
  		}
  
@@ -2908,7 +2921,7 @@ index 9445110..a7895ae 100644
  		job_context context{worker, thread};
  		pthread_cleanup_push(&ios_thread_worker::abandon, &context);
  		thread->entry_point(thread);
-@@ -4067,9 +4172,11 @@ void thread_ctrl::set_native_priority(int priority)
+@@ -4067,9 +4185,11 @@ void thread_ctrl::set_native_priority(int priority)
  	// SCHED_RR policy or query POSIX scheduling state: Metal performs the same
  	// query while compiling shaders, and physical iOS 27 incidents faulted in
  	// that path after RPCS3 created real-time-priority pthreads.
@@ -2922,7 +2935,7 @@ index 9445110..a7895ae 100644
  	{
  		sig_log.error("pthread_set_qos_class_self_np() failed: %d", err);
  	}
-@@ -4125,6 +4232,13 @@ void thread_ctrl::set_thread_affinity_mask(u64 mask)
+@@ -4125,6 +4245,13 @@ void thread_ctrl::set_thread_affinity_mask(u64 mask)
  	{
  		sig_log.error("Failed to set thread affinity 0x%x: error: %s", mask, fmt::win_error{GetLastError(), nullptr});
  	}
@@ -21820,7 +21833,7 @@ index fefbfb9..b13decc 100644
  
  	inline thread* get_current_renderer()
 diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
-index 4db3766..e83a95f 100644
+index 4db3766..31db7a4 100644
 --- a/rpcs3/Emu/RSX/RSXZCULL.cpp
 +++ b/rpcs3/Emu/RSX/RSXZCULL.cpp
 @@ -3,6 +3,14 @@
@@ -21867,7 +21880,7 @@ index 4db3766..e83a95f 100644
  					eval_failed = (vm::_ref<CellGcmReportData>(writer->sink).value == 0u);
  				}
  
-@@ -417,24 +440,65 @@ namespace rsx
+@@ -417,24 +440,66 @@ namespace rsx
  
  		void ZCULL_control::sync(::rsx::thread* ptimer)
  		{
@@ -21882,8 +21895,9 @@ index 4db3766..e83a95f 100644
 +			// REWINDBOX_ZCULL_ON_DEMAND_619: a guest thread waits for the reports of a page.
 +			if (!m_ios_force_sync && m_ios_demand.pending() && rpcs3::ios::get_experimental_policy().zcull_on_demand)
 +			{
-+				// REWINDBOX_ZCULL_ASYNC_READS_630: a guest read of one report does not stop this thread.
-+				if (rpcs3::ios::get_experimental_policy().zcull_async_reads && !m_ios_demand.full_pending())
++				// REWINDBOX_ZCULL_ASYNC_READS_630: a guest read of one report does not stop this thread,
++				// but a sync() reached with critical reports (the upstream mode of a location) writes them.
++				if (rpcs3::ios::get_experimental_policy().zcull_async_reads && !m_ios_demand.full_pending() && !m_critical_reports_in_flight)
 +				{
 +					ios_service_read(ptimer);
 +				}
@@ -21933,7 +21947,7 @@ index 4db3766..e83a95f 100644
  			// Quick reverse scan to push commands ahead of time
  			for (auto It = m_pending_writes.rbegin(); It != m_pending_writes.rend(); ++It)
  			{
-@@ -471,6 +535,10 @@ namespace rsx
+@@ -471,6 +536,10 @@ namespace rsx
  
  					if (implemented && !have_result && query->num_draws)
  					{
@@ -21944,7 +21958,7 @@ index 4db3766..e83a95f 100644
  						get_occlusion_query_result(query);
  						counter.result += query->result;
  					}
-@@ -529,6 +597,21 @@ namespace rsx
+@@ -529,6 +598,21 @@ namespace rsx
  
  		void ZCULL_control::update(::rsx::thread* ptimer, u32 sync_address, bool hint)
  		{
@@ -21966,7 +21980,7 @@ index 4db3766..e83a95f 100644
  			if (m_pending_writes.empty())
  			{
  				return;
-@@ -615,6 +698,11 @@ namespace rsx
+@@ -615,6 +699,11 @@ namespace rsx
  					}
  					else if (force_read || check_occlusion_query_status(query))
  					{
@@ -21978,7 +21992,7 @@ index 4db3766..e83a95f 100644
  						get_occlusion_query_result(query);
  						counter.result += query->result;
  					}
-@@ -666,6 +754,24 @@ namespace rsx
+@@ -666,6 +755,24 @@ namespace rsx
  
  			AUDIT(memory_end >= memory_address);
  
@@ -22003,7 +22017,7 @@ index 4db3766..e83a95f 100644
  			u32 sync_address = 0;
  			occlusion_query_info* query = nullptr;
  
-@@ -701,7 +807,21 @@ namespace rsx
+@@ -701,7 +808,21 @@ namespace rsx
  				return result_none;
  			}
  
@@ -22025,7 +22039,7 @@ index 4db3766..e83a95f 100644
  			{
  				std::scoped_lock lock(m_pages_mutex);
  
-@@ -828,11 +948,29 @@ namespace rsx
+@@ -828,11 +949,29 @@ namespace rsx
  				}
  			}
  
@@ -22055,7 +22069,7 @@ index 4db3766..e83a95f 100644
  			const auto location = rsx::classify_location(address);
  			std::scoped_lock lock(m_pages_mutex);
  
-@@ -841,6 +979,9 @@ namespace rsx
+@@ -841,6 +980,9 @@ namespace rsx
  				const auto page_address = utils::page_start(static_cast<u32>(address));
  				auto& page = m_locked_pages[location][page_address];
  				page.add_ref();
@@ -22065,7 +22079,7 @@ index 4db3766..e83a95f 100644
  
  				if (page.prot == utils::protection::rw)
  				{
-@@ -869,6 +1010,9 @@ namespace rsx
+@@ -869,6 +1011,9 @@ namespace rsx
  
  					ensure(page.has_refs());
  					page.release();
@@ -22075,7 +22089,7 @@ index 4db3766..e83a95f 100644
  				}
  			}
  
-@@ -917,6 +1061,26 @@ namespace rsx
+@@ -917,6 +1062,26 @@ namespace rsx
  				return false;
  			}
  
@@ -22102,7 +22116,7 @@ index 4db3766..e83a95f 100644
  			bool need_disable_optimizations = false;
  			{
  				reader_lock lock(m_pages_mutex);
-@@ -950,12 +1114,24 @@ namespace rsx
+@@ -950,12 +1115,24 @@ namespace rsx
  			// Deadlock avoidance, do not pause RSX FIFO eng while holding the pages lock
  			if (need_disable_optimizations)
  			{
@@ -22127,7 +22141,7 @@ index 4db3766..e83a95f 100644
  				return true;
  			}
  
-@@ -963,6 +1139,415 @@ namespace rsx
+@@ -963,6 +1140,418 @@ namespace rsx
  		}
  
  
@@ -22232,7 +22246,7 @@ index 4db3766..e83a95f 100644
 +			}
 +
 +			const u32 slot = m_ios_demand.requested_slot();
-+			bool pushed = false;
++			const u64 flushes_before = rpcs3::ios::rsx_sync::zcull_hint_flushes.load(std::memory_order_relaxed);
 +
 +			{
 +				struct ios_pass_scope
@@ -22250,17 +22264,14 @@ index 4db3766..e83a95f 100644
 +						continue;
 +					}
 +
-+					// A report without a query copies the previous result: the nearest older query decides.
++					// A report without a query, or with an empty one, copies the previous result: the nearest
++					// query with draws decides. m_sync_tag does not say that it was submitted (a conditional
++					// render hint raises it without a flush): the backend looks at the open command buffer.
 +					for (; It != m_pending_writes.rend(); ++It)
 +					{
-+						if (It->query)
++						if (It->query && It->query->num_draws)
 +						{
-+							if (It->query->num_draws && It->query->sync_tag > m_sync_tag)
-+							{
-+								ptimer->sync_hint(FIFO::interrupt_hint::zcull_sync, { .query = It->query });
-+								pushed = true;
-+							}
-+
++							ptimer->sync_hint(FIFO::interrupt_hint::zcull_sync, { .query = It->query });
 +							break;
 +						}
 +					}
@@ -22269,6 +22280,7 @@ index 4db3766..e83a95f 100644
 +				}
 +			}
 +
++			const bool pushed = rpcs3::ios::rsx_sync::zcull_hint_flushes.load(std::memory_order_relaxed) != flushes_before;
 +			m_next_tsc = 0;
 +			update(ptimer);
 +
@@ -22354,6 +22366,7 @@ index 4db3766..e83a95f 100644
 +			bool slots = rpcs3::ios::get_experimental_policy().zcull_async_reads && access.size != 0 &&
 +				static_cast<u64>(utils::get_page_size()) == od::tracked_page_bytes;
 +			u64 poll_us = od::async_poll_first_us;
++			u32 pending_slot = address & ~(od::report_slot_bytes - 1); // the slot this access waits for
 +
 +			const auto page_released = [&]()
 +			{
@@ -22440,6 +22453,10 @@ index 4db3766..e83a95f 100644
 +
 +						slots = false; // a page this busy costs less unlocked
 +					}
++					else if (slots)
++					{
++						pending_slot = found->second.ios_slots.first_pending(address, access.size);
++					}
 +				}
 +
 +				if (m_pages_accessed[location] && get_system_time() - started < od::pickup_deadline_us)
@@ -22479,7 +22496,7 @@ index 4db3766..e83a95f 100644
 +				const bool slot_request = slots && get_system_time() - started < od::async_escalate_us;
 +
 +				// Ask the RSX thread to write every claimed report (sync() through pipe_flush_interrupt).
-+				const u64 ticket = slot_request ? m_ios_demand.request_slot(address & ~(od::report_slot_bytes - 1)) : m_ios_demand.request_full();
++				const u64 ticket = slot_request ? m_ios_demand.request_slot(pending_slot) : m_ios_demand.request_full();
 +				requested = true;
 +				requested_at = get_system_time();
 +				picked_at = 0;
@@ -22543,7 +22560,7 @@ index 4db3766..e83a95f 100644
  		// Conditional rendering helpers
  		void conditional_render_eval::reset()
  		{
-@@ -1029,6 +1614,15 @@ namespace rsx
+@@ -1029,6 +1618,15 @@ namespace rsx
  
  		void conditional_render_eval::eval_result(::rsx::thread* pthr)
  		{
@@ -33527,10 +33544,10 @@ index 0000000..56877cf
 +}
 diff --git a/rpcs3/ios/IOSGuestAccessEmulation.h b/rpcs3/ios/IOSGuestAccessEmulation.h
 new file mode 100644
-index 0000000..dbceff8
+index 0000000..ab57170
 --- /dev/null
 +++ b/rpcs3/ios/IOSGuestAccessEmulation.h
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,139 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -33553,6 +33570,57 @@ index 0000000..dbceff8
 +};
 +
 +inline thread_local access t_access{};
++
++// The operands of a scalar load or store decode_a64_mem_inst() accepted, for the address the
++// instruction computes: the fault address alone says nothing about an access that starts below it.
++struct single_operands
++{
++	std::uint32_t rn = 31;
++	bool indexed = false;     // register offset
++	std::uint32_t rm = 31;
++	std::uint32_t option = 3; // 010 UXTW, 011 LSL, 110 SXTW, 111 SXTX
++	std::uint32_t shift = 0;
++	std::int64_t offset = 0;  // immediate forms
++};
++
++constexpr single_operands decode_single_operands(std::uint32_t inst) noexcept
++{
++	single_operands r{};
++	const std::uint32_t size = inst >> 30;
++	r.rn = (inst >> 5) & 31;
++
++	if ((inst & 0x3B000000u) == 0x39000000u)
++	{
++		r.offset = static_cast<std::int64_t>((inst >> 10) & 0xfff) << size; // unsigned immediate, scaled
++	}
++	else if ((inst & 0x3B204C00u) == 0x38204800u)
++	{
++		r.indexed = true;
++		r.rm = (inst >> 16) & 31;
++		r.option = (inst >> 13) & 7;
++		r.shift = ((inst >> 12) & 1) ? size : 0;
++	}
++	else
++	{
++		const std::int32_t imm9 = static_cast<std::int32_t>((inst >> 12) & 511); // unscaled
++		r.offset = imm9 >= 256 ? imm9 - 512 : imm9;
++	}
++
++	return r;
++}
++
++// The index of a register-offset form, from the value of Rm.
++constexpr std::uint64_t index_value(const single_operands& operands, std::uint64_t rm) noexcept
++{
++	switch (operands.option)
++	{
++	case 2: rm &= 0xffffffffu; break;
++	case 6: rm = static_cast<std::uint64_t>(static_cast<std::int64_t>(static_cast<std::int32_t>(rm))); break;
++	default: break;
++	}
++
++	return rm << operands.shift;
++}
 +
 +// LDP, LDPSW and STP of general registers, signed offset, no writeback.
 +struct pair_access
@@ -38121,10 +38189,10 @@ index 0000000..0d8ecea
 +}
 diff --git a/rpcs3/ios/IOSZcullOnDemand.h b/rpcs3/ios/IOSZcullOnDemand.h
 new file mode 100644
-index 0000000..8306c05
+index 0000000..d06d87a
 --- /dev/null
 +++ b/rpcs3/ios/IOSZcullOnDemand.h
-@@ -0,0 +1,588 @@
+@@ -0,0 +1,602 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -38447,6 +38515,20 @@ index 0000000..8306c05
 +		}
 +
 +		return false;
++	}
++
++	// The base of the first pending slot of [address, address + size), 0 when none.
++	std::uint32_t first_pending(std::uint32_t address, std::uint32_t size) const noexcept
++	{
++		for (std::uint32_t i = slot(address); i <= last_slot(address, size); i++)
++		{
++			if (m_pending[i])
++			{
++				return (address & ~(tracked_page_bytes - 1)) + i * report_slot_bytes;
++			}
++		}
++
++		return 0;
 +	}
 +
 +	// One more access completed by the handler, false when this page is over its budget.

@@ -1,8 +1,9 @@
 // REWINDBOX_ZCULL_ASYNC_READS_630: the real instruction handling of Utilities/Thread.cpp
 // (a64_block.inc, extracted by test/rpcs3_core630_test.py: decode_a64_mem_inst, put_a64_reg_value,
-// ios_prepare_guest_access, ios_complete_guest_access) on real AArch64 encodings. Everywhere, on a
-// fake register file. On Apple ARM64, also in a real signal handler: a page without access, a
-// second view of it, loads and stores that fault, the same context fields as on the iPhone.
+// ios_prepare_guest_access, ios_complete_guest_access) on real AArch64 encodings, on a register
+// file. On Apple ARM64 that file is the real context structure, and a plain build also runs in a
+// real signal handler: a page without access, a second view of it, loads and stores that fault,
+// the same context fields as on the iPhone.
 #include "ios/IOSGuestAccessEmulation.h"
 
 #include <cstdint>
@@ -12,13 +13,15 @@
 #include <type_traits>
 
 #if defined(__APPLE__) && defined(__aarch64__)
-#define RPCS3_TEST_REAL_FAULTS 1
+#define RPCS3_TEST_DARWIN 1
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/mman.h>
 #include <sys/ucontext.h>
-#include <ucontext.h>
 #include <unistd.h>
+#ifndef RPCS3_TEST_NO_REAL_FAULTS // the sanitizers own the signal handlers
+#define RPCS3_TEST_REAL_FAULTS 1
+#endif
 #endif
 
 using u8 = std::uint8_t;
@@ -49,7 +52,7 @@ namespace vm
 	static void* base(u32 address) { return g_base_addr + address; }
 }
 
-#ifdef RPCS3_TEST_REAL_FAULTS
+#ifdef RPCS3_TEST_DARWIN
 #define RIP(context) ((context)->uc_mcontext->__ss.__pc)
 #define GPR(context, index) ((context)->uc_mcontext->__ss.__x[(index)])
 #else
@@ -67,6 +70,28 @@ struct fake_context
 
 namespace ga = rpcs3::ios::guest_access;
 
+// A register file: on Apple ARM64 the real context structures, elsewhere a fake one.
+struct test_context
+{
+#ifdef RPCS3_TEST_DARWIN
+	__darwin_mcontext64 machine{};
+	ucontext_t value{};
+	test_context() { value.uc_mcontext = &machine; }
+#else
+	fake_context value{};
+#endif
+	ucontext_t* get() { return &value; }
+};
+
+static void set_stack_pointer(ucontext_t* context, u64 value)
+{
+#ifdef RPCS3_TEST_DARWIN
+	context->uc_mcontext->__ss.__sp = value;
+#else
+	GPR(context, 31) = value;
+#endif
+}
+
 struct refused_case { u32 inst; bool is_writing; const char* text; };
 
 // Encodings from the LLVM assembler (clang --target=aarch64-linux-gnu -march=armv8.2-a+lse).
@@ -82,11 +107,18 @@ static const refused_case refused[] =
 	{0x91000528, false, "add x8, x9, #1"},
 };
 
-struct load_case { u32 inst; u32 size; u32 reg; u64 expected; const char* text; };
-
-static void fake_run()
+struct load_case
 {
-#ifndef RPCS3_TEST_REAL_FAULTS
+	u32 inst;
+	u32 size;
+	u64 expected;
+	s64 x9;       // the base register, relative to the fault address
+	u64 x10;      // the index register
+	const char* text;
+};
+
+static void table_run()
+{
 	alignas(64) static u8 memory[0x8000];
 	vm::g_sudo_addr = memory;
 	vm::g_base_addr = reinterpret_cast<u8*>(std::uintptr_t{0x7000'0000'0000});
@@ -97,171 +129,224 @@ static void fake_run()
 	const auto word = [](u32 offset) { u32 v; std::memcpy(&v, bytes + offset, 4); return v; };
 	const auto dword = [](u32 offset) { u64 v; std::memcpy(&v, bytes + offset, 8); return v; };
 	const auto half = [](u32 offset) { u16 v; std::memcpy(&v, bytes + offset, 2); return v; };
+	const u64 fault = reinterpret_cast<u64>(vm::base(addr));
+	const auto sext32 = [](u32 v) { return static_cast<u64>(static_cast<s64>(static_cast<s32>(v))); };
 
-	// Every form at the fault address: the decoder takes the address from the fault, not from the operands.
 	const load_case loads[] =
 	{
-		{0xb9400128, 4, 8, word(0), "ldr w8, [x9]"},
-		{0xf9400528, 8, 8, dword(0), "ldr x8, [x9, #8]"},
-		{0x39400d28, 1, 8, bytes[0], "ldrb w8, [x9, #3]"},
-		{0x79400528, 2, 8, half(0), "ldrh w8, [x9, #2]"},
-		{0xb9800528, 4, 8, static_cast<u64>(static_cast<s64>(static_cast<s32>(word(0)))), "ldrsw x8, [x9, #4]"},
-		{0x39c00128, 1, 8, static_cast<u32>(static_cast<s32>(static_cast<std::int8_t>(bytes[0]))), "ldrsb w8, [x9]"},
-		{0x39800128, 1, 8, static_cast<u64>(static_cast<s64>(static_cast<std::int8_t>(bytes[0]))), "ldrsb x8, [x9]"},
-		{0x79c00128, 2, 8, static_cast<u32>(static_cast<s32>(static_cast<std::int16_t>(half(0)))), "ldrsh w8, [x9]"},
-		{0x79800128, 2, 8, static_cast<u64>(static_cast<s64>(static_cast<std::int16_t>(half(0)))), "ldrsh x8, [x9]"},
-		{0xb86a6928, 4, 8, word(0), "ldr w8, [x9, x10]"},
-		{0xb86a4928, 4, 8, word(0), "ldr w8, [x9, w10, uxtw]"},
-		{0xf86a7928, 8, 8, dword(0), "ldr x8, [x9, x10, lsl #3]"},
-		{0x386a6928, 1, 8, bytes[0], "ldrb w8, [x9, x10]"},
-		{0xb85fc128, 4, 8, word(0), "ldur w8, [x9, #-4]"},
-		{0xf8401128, 8, 8, dword(0), "ldur x8, [x9, #1]"},
-		{0xb89fc128, 4, 8, static_cast<u64>(static_cast<s64>(static_cast<s32>(word(0)))), "ldursw x8, [x9, #-4]"},
+		{0xb9400128, 4, word(0), 0, 0, "ldr w8, [x9]"},
+		{0xf9400528, 8, dword(0), -8, 0, "ldr x8, [x9, #8]"},
+		{0x39400d28, 1, bytes[0], -3, 0, "ldrb w8, [x9, #3]"},
+		{0x79400528, 2, half(0), -2, 0, "ldrh w8, [x9, #2]"},
+		{0xb9800528, 4, sext32(word(0)), -4, 0, "ldrsw x8, [x9, #4]"},
+		{0x39c00128, 1, static_cast<u32>(static_cast<s32>(static_cast<std::int8_t>(bytes[0]))), 0, 0, "ldrsb w8, [x9]"},
+		{0x39800128, 1, static_cast<u64>(static_cast<s64>(static_cast<std::int8_t>(bytes[0]))), 0, 0, "ldrsb x8, [x9]"},
+		{0x79c00128, 2, static_cast<u32>(static_cast<s32>(static_cast<std::int16_t>(half(0)))), 0, 0, "ldrsh w8, [x9]"},
+		{0x79800128, 2, static_cast<u64>(static_cast<s64>(static_cast<std::int16_t>(half(0)))), 0, 0, "ldrsh x8, [x9]"},
+		{0xb86a6928, 4, word(0), -0x40, 0x40, "ldr w8, [x9, x10]"},
+		{0xb86a4928, 4, word(0), -0x40, 0xffffffff00000040ull, "ldr w8, [x9, w10, uxtw]"},
+		{0xb86ac928, 4, word(0), 0x40, 0xffffffffffffffc0ull, "ldr w8, [x9, w10, sxtw]"},
+		{0xf86ae928, 8, dword(0), 0x40, 0xffffffffffffffc0ull, "ldr x8, [x9, x10, sxtx]"},
+		{0xf86a7928, 8, dword(0), -0x40, 8, "ldr x8, [x9, x10, lsl #3]"},
+		{0xf86a5928, 8, dword(0), -0x40, 0xffffffff00000008ull, "ldr x8, [x9, w10, uxtw #3]"},
+		{0xb86ad928, 4, word(0), 0x40, 0xfffffff0ull, "ldr w8, [x9, w10, sxtw #2]"},
+		{0x786a7928, 2, half(0), -0x40, 0x20, "ldrh w8, [x9, x10, lsl #1]"},
+		{0x386a6928, 1, bytes[0], -0x40, 0x40, "ldrb w8, [x9, x10]"},
+		{0xf87f6928, 8, dword(0), 0, 0x1234, "ldr x8, [x9, xzr]"},
+		{0xb85fc128, 4, word(0), 4, 0, "ldur w8, [x9, #-4]"},
+		{0xf8401128, 8, dword(0), -1, 0, "ldur x8, [x9, #1]"},
+		{0xb89fc128, 4, sext32(word(0)), 4, 0, "ldursw x8, [x9, #-4]"},
 	};
 
 	for (const auto& test : loads)
 	{
 		u32 code[2] = {test.inst, 0};
-		fake_context context{};
-		context.pc = reinterpret_cast<u64>(code);
-		context.x[test.reg] = 0xdeadbeefdeadbeefull;
+		test_context holder;
+		const auto context = holder.get();
+		RIP(context) = reinterpret_cast<u64>(code);
+		GPR(context, 8) = 0xdeadbeefdeadbeefull;
+		GPR(context, 9) = fault + static_cast<u64>(test.x9);
+		GPR(context, 10) = test.x10;
+		set_stack_pointer(context, 0x5555'0000'0000); // register number 31 is the zero register as an index
 		ga::t_access = {};
 		ga::t_access.emulate = true; // prepare starts from a clean record
-		ios_prepare_guest_access(addr, false, &context);
+		ios_prepare_guest_access(addr, false, context);
 		CHECK(ga::t_access.size == test.size && !ga::t_access.emulate);
 		if (ga::t_access.size != test.size) std::printf("  %s\n", test.text);
-		ios_complete_guest_access(addr, &context);
-		CHECK(context.x[test.reg] == test.expected && context.pc == reinterpret_cast<u64>(code + 1));
-		if (context.x[test.reg] != test.expected) std::printf("  %s %llx %llx\n", test.text, (unsigned long long)context.x[test.reg], (unsigned long long)test.expected);
+		ios_complete_guest_access(addr, context);
+		CHECK(GPR(context, 8) == test.expected && RIP(context) == reinterpret_cast<u64>(code + 1));
+		if (GPR(context, 8) != test.expected) std::printf("  %s %llx %llx\n", test.text, (unsigned long long)GPR(context, 8), (unsigned long long)test.expected);
+
+		// One byte of the base off: the instruction does not start at the fault address.
+		GPR(context, 9) = fault + static_cast<u64>(test.x9) + 8;
+		RIP(context) = reinterpret_cast<u64>(code);
+		ios_prepare_guest_access(addr, false, context);
+		CHECK(ga::t_access.size == 0);
 	}
 
 	{ // a load into the zero register reads nothing visible and steps over
 		u32 code[2] = {0xb940013f, 0}; // ldr wzr, [x9]
-		fake_context context{};
-		context.pc = reinterpret_cast<u64>(code);
-		ios_prepare_guest_access(addr, false, &context);
+		test_context holder;
+		const auto context = holder.get();
+		RIP(context) = reinterpret_cast<u64>(code);
+		GPR(context, 9) = fault;
+		ios_prepare_guest_access(addr, false, context);
 		CHECK(ga::t_access.size == 4);
-		ios_complete_guest_access(addr, &context);
-		CHECK(context.pc == reinterpret_cast<u64>(code + 1));
+		ios_complete_guest_access(addr, context);
+		CHECK(RIP(context) == reinterpret_cast<u64>(code + 1));
+	}
+	{ // an access that starts on the page below and ends on the locked one is not complete at the fault address
+		u32 code[2] = {0xf86a6928, 0}; // ldr x8, [x9, x10]
+		test_context holder;
+		const auto context = holder.get();
+		const u32 page = 0x4000;
+		RIP(context) = reinterpret_cast<u64>(code);
+		GPR(context, 9) = reinterpret_cast<u64>(vm::base(page)) - 4;
+		GPR(context, 10) = 0;
+		ios_prepare_guest_access(page, false, context);
+		CHECK(ga::t_access.size == 0);
+		code[0] = 0xb9000128; // str w8, [x9]: two bytes on each side
+		GPR(context, 9) = reinterpret_cast<u64>(vm::base(page)) - 2;
+		ios_prepare_guest_access(page, true, context);
+		CHECK(ga::t_access.size == 0);
+	}
+	{ // the stack is not guest memory, even when the fault address matches
+		u32 code[2] = {0xb9400be8, 0}; // ldr w8, [sp, #8]
+		test_context holder;
+		const auto context = holder.get();
+		RIP(context) = reinterpret_cast<u64>(code);
+		set_stack_pointer(context, fault - 8);
+		ios_prepare_guest_access(addr, false, context);
+		CHECK(ga::t_access.size == 0);
+		code[0] = 0x29412fe8; // ldp w8, w11, [sp, #8]
+		ios_prepare_guest_access(addr, false, context);
+		CHECK(ga::t_access.size == 0);
 	}
 
-	const auto run_store = [&](u32 inst, u32 size, u64 value, u32 reg, u64 expected)
+	const auto run_store = [&](u32 inst, u32 size, u64 value, u32 reg, s64 x9, u64 x10, u64 expected)
 	{
 		std::memset(memory + addr, 0xee, 32);
 		u32 code[2] = {inst, 0};
-		fake_context context{};
-		context.pc = reinterpret_cast<u64>(code);
-		context.x[reg] = value;
-		ios_prepare_guest_access(addr, true, &context);
+		test_context holder;
+		const auto context = holder.get();
+		RIP(context) = reinterpret_cast<u64>(code);
+		if (reg != 31) GPR(context, reg) = value;
+		GPR(context, 9) = fault + static_cast<u64>(x9);
+		GPR(context, 10) = x10;
+		ios_prepare_guest_access(addr, true, context);
 		CHECK(ga::t_access.size == size);
-		ios_complete_guest_access(addr, &context);
+		ios_complete_guest_access(addr, context);
 		u64 stored = 0;
 		std::memcpy(&stored, memory + addr, size);
-		CHECK(stored == expected && memory[addr + size] == 0xee && context.pc == reinterpret_cast<u64>(code + 1));
+		CHECK(stored == expected && memory[addr + size] == 0xee && RIP(context) == reinterpret_cast<u64>(code + 1));
 	};
-	run_store(0xb9000128, 4, 0x1122334455667788ull, 8, 0x55667788u);        // str w8, [x9]
-	run_store(0xf9000528, 8, 0x1122334455667788ull, 8, 0x1122334455667788ull); // str x8, [x9, #8]
-	run_store(0x3900013f, 1, 0, 31, 0);                                      // strb wzr, [x9]
-	run_store(0x79000528, 2, 0xabcd, 8, 0xabcd);                             // strh w8, [x9, #2]
-	run_store(0xb81fc128, 4, 0x01020304, 8, 0x01020304);                     // stur w8, [x9, #-4]
-	run_store(0xb82a693f, 4, 0, 31, 0);                                      // str wzr, [x9, x10]
+	run_store(0xb9000128, 4, 0x1122334455667788ull, 8, 0, 0, 0x55667788u);           // str w8, [x9]
+	run_store(0xf9000528, 8, 0x1122334455667788ull, 8, -8, 0, 0x1122334455667788ull); // str x8, [x9, #8]
+	run_store(0x3900013f, 1, 0, 31, 0, 0, 0);                                         // strb wzr, [x9]
+	run_store(0x79000528, 2, 0xabcd, 8, -2, 0, 0xabcd);                               // strh w8, [x9, #2]
+	run_store(0xb81fc128, 4, 0x01020304, 8, 4, 0, 0x01020304);                        // stur w8, [x9, #-4]
+	run_store(0xb82a693f, 4, 0, 31, -0x40, 0x40, 0);                                  // str wzr, [x9, x10]
 
 	for (u32 i = 0; i < 32; i++) memory[addr + i] = static_cast<u8>(0x81 + i * 3);
 
-	const auto pair = [&](u32 inst, bool is_writing, u32 rn, s64 offset, fake_context& context, u32* code)
+	const auto pair = [&](u32 inst, bool is_writing, u32 rn, s64 offset, ucontext_t* context, u32* code)
 	{
 		code[0] = inst;
-		context.pc = reinterpret_cast<u64>(code);
-		context.x[rn] = reinterpret_cast<u64>(vm::base(addr)) - offset;
-		ios_prepare_guest_access(addr, is_writing, &context);
+		RIP(context) = reinterpret_cast<u64>(code);
+		GPR(context, rn) = fault - static_cast<u64>(offset);
+		ios_prepare_guest_access(addr, is_writing, context);
 	};
 
 	{ // ldp w8, w11, [x10, #8]: two neighbouring guest words
-		u32 code[2]; fake_context context{};
+		u32 code[2]; test_context holder; const auto context = holder.get();
 		pair(0x29412d48, false, 10, 8, context, code);
 		CHECK(ga::t_access.size == 8);
-		ios_complete_guest_access(addr, &context);
-		CHECK(context.x[8] == word(0) && context.x[11] == word(4) && context.pc == reinterpret_cast<u64>(code + 1));
+		ios_complete_guest_access(addr, context);
+		CHECK(GPR(context, 8) == word(0) && GPR(context, 11) == word(4) && RIP(context) == reinterpret_cast<u64>(code + 1));
 	}
 	{ // ldp x8, x11, [x10, #16]
-		u32 code[2]; fake_context context{};
+		u32 code[2]; test_context holder; const auto context = holder.get();
 		pair(0xa9412d48, false, 10, 16, context, code);
 		CHECK(ga::t_access.size == 16);
-		ios_complete_guest_access(addr, &context);
-		CHECK(context.x[8] == dword(0) && context.x[11] == dword(8));
+		ios_complete_guest_access(addr, context);
+		CHECK(GPR(context, 8) == dword(0) && GPR(context, 11) == dword(8));
 	}
 	{ // ldpsw x8, x11, [x10]
-		u32 code[2]; fake_context context{};
+		u32 code[2]; test_context holder; const auto context = holder.get();
 		pair(0x69402d48, false, 10, 0, context, code);
 		CHECK(ga::t_access.size == 8);
-		ios_complete_guest_access(addr, &context);
-		CHECK(context.x[8] == static_cast<u64>(static_cast<s64>(static_cast<s32>(word(0)))) &&
-		      context.x[11] == static_cast<u64>(static_cast<s64>(static_cast<s32>(word(4)))));
+		ios_complete_guest_access(addr, context);
+		CHECK(GPR(context, 8) == sext32(word(0)) && GPR(context, 11) == sext32(word(4)));
 	}
 	{ // ldp w8, wzr, [x10]
-		u32 code[2]; fake_context context{};
+		u32 code[2]; test_context holder; const auto context = holder.get();
 		pair(0x29407d48, false, 10, 0, context, code);
 		CHECK(ga::t_access.size == 8);
-		ios_complete_guest_access(addr, &context);
-		CHECK(context.x[8] == word(0) && context.x[31] == 0);
+		ios_complete_guest_access(addr, context);
+		CHECK(GPR(context, 8) == word(0));
 	}
 	{ // stp w8, w11, [x10, #-8]
-		u32 code[2]; fake_context context{};
-		context.x[8] = 0x11111111; context.x[11] = 0x22222222;
+		u32 code[2]; test_context holder; const auto context = holder.get();
+		GPR(context, 8) = 0x11111111; GPR(context, 11) = 0x22222222;
 		pair(0x293f2d48, true, 10, -8, context, code);
 		CHECK(ga::t_access.size == 8);
-		ios_complete_guest_access(addr, &context);
+		ios_complete_guest_access(addr, context);
 		CHECK(word(0) == 0x11111111 && word(4) == 0x22222222);
 	}
 	{ // stp x8, x11, [x10, #16]
-		u32 code[2]; fake_context context{};
-		context.x[8] = 0x3333333344444444ull; context.x[11] = 0x5555555566666666ull;
+		u32 code[2]; test_context holder; const auto context = holder.get();
+		GPR(context, 8) = 0x3333333344444444ull; GPR(context, 11) = 0x5555555566666666ull;
 		pair(0xa9012d48, true, 10, 16, context, code);
 		CHECK(ga::t_access.size == 16);
-		ios_complete_guest_access(addr, &context);
+		ios_complete_guest_access(addr, context);
 		CHECK(dword(0) == 0x3333333344444444ull && dword(8) == 0x5555555566666666ull);
 	}
 	{ // stp xzr, xzr, [x10]
-		u32 code[2]; fake_context context{};
+		u32 code[2]; test_context holder; const auto context = holder.get();
 		pair(0xa9007d5f, true, 10, 0, context, code);
 		CHECK(ga::t_access.size == 16);
-		ios_complete_guest_access(addr, &context);
+		ios_complete_guest_access(addr, context);
 		CHECK(dword(0) == 0 && dword(8) == 0);
 	}
 	{ // the fault is on the second register of a pair: no address match, it stays a retry
-		u32 code[2]; fake_context context{};
+		u32 code[2]; test_context holder; const auto context = holder.get();
 		pair(0x29412d48, false, 10, 4, context, code); // the pair starts 4 bytes below the fault
 		CHECK(ga::t_access.size == 0);
 	}
 	{ // a pair that would cross the page stays a retry
-		u32 code[2] = {0xa9412d48, 0}; fake_context context{};
+		u32 code[2] = {0xa9412d48, 0}; test_context holder; const auto context = holder.get();
 		const u32 last = 0x7ff8;
-		context.pc = reinterpret_cast<u64>(code);
-		context.x[10] = reinterpret_cast<u64>(vm::base(last)) - 16;
-		ios_prepare_guest_access(last, false, &context);
+		RIP(context) = reinterpret_cast<u64>(code);
+		GPR(context, 10) = reinterpret_cast<u64>(vm::base(last)) - 16;
+		ios_prepare_guest_access(last, false, context);
 		CHECK(ga::t_access.size == 0);
 	}
 	{ // the wrong direction and an unaligned access stay a retry
-		u32 code[2] = {0xb9400128, 0}; fake_context context{};
-		context.pc = reinterpret_cast<u64>(code);
-		ios_prepare_guest_access(addr, true, &context);  // a load reported as a write
+		u32 code[2] = {0xb9400128, 0}; test_context holder; const auto context = holder.get();
+		RIP(context) = reinterpret_cast<u64>(code);
+		GPR(context, 9) = fault;
+		ios_prepare_guest_access(addr, true, context);  // a load reported as a write
 		CHECK(ga::t_access.size == 0);
-		ios_prepare_guest_access(addr + 2, false, &context);
+		GPR(context, 9) = fault + 2;
+		ios_prepare_guest_access(addr + 2, false, context);
 		CHECK(ga::t_access.size == 0);
 		code[0] = 0xb9000128;
-		ios_prepare_guest_access(addr, false, &context); // a store reported as a read
+		GPR(context, 9) = fault;
+		ios_prepare_guest_access(addr, false, context); // a store reported as a read
 		CHECK(ga::t_access.size == 0);
 	}
 	for (const auto& test : refused)
 	{
 		u32 code[2] = {test.inst, 0};
-		fake_context context{};
-		context.pc = reinterpret_cast<u64>(code);
-		ios_prepare_guest_access(addr, test.is_writing, &context);
+		test_context holder;
+		const auto context = holder.get();
+		RIP(context) = reinterpret_cast<u64>(code);
+		GPR(context, 9) = fault;
+		GPR(context, 10) = fault;
+		ios_prepare_guest_access(addr, test.is_writing, context);
 		CHECK(ga::t_access.size == 0);
 		if (ga::t_access.size) std::printf("  accepted: %s\n", test.text);
 	}
-#endif
 }
 
 #ifdef RPCS3_TEST_REAL_FAULTS
@@ -356,7 +441,7 @@ static void real_run()
 
 int main()
 {
-	fake_run();
+	table_run();
 #ifdef RPCS3_TEST_REAL_FAULTS
 	real_run();
 #endif
