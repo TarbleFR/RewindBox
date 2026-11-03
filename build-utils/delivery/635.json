@@ -50,7 +50,7 @@
     "artifact": 13219702266,
     "payloadFingerprint": "eccf8535d7a6e846fdaf26674cbfeef7a6541d2d97af5b23201a144129c041cf"
    },
-   "pinSha256": "d6cdebcb0fba2b431f83ee9df30728167dbb78b6ede6bd22906f7d9ca4e541c7"
+   "pinSha256": "65762979b08841493c413deb688bbecfdec7577e7e91a2d6669c765be8c3bcee"
   },
   "melonx": {
    "mode": "replace",
@@ -357,6 +357,10 @@
    {
     "commit": "0472740860f371a8fa4bcea7abbecc5e950b90ed",
     "note": "build(melonx): freeze the Core 631 contract on the real preparation (11 fresh gates, 268 contract checks) [skip ci]"
+   },
+   {
+    "commit": "523ad922a8f2c85e8d1061bba9644e81b4e4e5d6",
+    "note": "feat(ai): preserve command evidence with bounded output and authorize private IPA builds [skip ci] (maintainer). scripts/ai-output.py and test/ai_output_test.py are agent tooling, not compiled into the IPA."
    }
   ],
   "sourceOnly": [],
@@ -1077,7 +1081,7 @@
  },
  "recipient": {
   "path": "build-utils/delivery-635-recipient.pem",
-  "sha256": null
+  "sha256": "fbab0b30904f310e3b3fb3542a1e04e64454510390d5d30df60d033a427e2a15"
  },
  "republish": [
   "rpcs3-core",
