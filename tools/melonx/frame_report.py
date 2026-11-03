@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Frame-time report of one MeloNX session from the RewindBox diagnostics journals.
 
-    python3 tools/melonx/frame_report.py MeloNX-performance.log MeloNX-core.log --pid 66181 [--from 40 --to 100] [--passes]
+    python3 tools/melonx/frame_report.py MeloNX-performance.log MeloNX-core.log --pid 66181 [--stderr MeloNX-stderr.log]
+        [--from 40 --to 100] [--passes]
 
 Reads, for that PID only:
 - MeloNX-performance.log per-second lines: engine game FPS (distinct game frames), presented
@@ -13,13 +14,35 @@ Reads, for that PID only:
   DMA engine, texture flush actions (count, time), render-thread syncs, buffer read-backs and
   pipeline builds. Durations are nested (a flush action runs inside the DMA engine and waits in
   syncInvoke), so they are listed side by side, never summed.
-- MeloNX-core.log: the last DMA summary line and every attribution line of the Hogwarts DMA policy.
+- MeloNX-core.log: the last DMA summary line (from build 623 it counts the deferred read-backs, their
+  declines and the first-access flushes) and every attribution line of the Hogwarts DMA policy.
+- Per core window and over the chosen seconds, milliseconds per presented frame of each wait and of
+  the render thread's own work: GPU-thread waits for the render thread (syncInvoke, the read-back
+  flushes), queue backpressure, render-thread fence waits (bufferReadback), render-thread work (busy
+  minus fence waits) and pipeline builds. These overlap across threads and are never summed.
+- From build 623, the render thread's 5 s lines in MeloNX-core.log ("Render thread commands over"):
+  the command types ranked by time over all windows and over the slow ones (game FPS below the
+  median), with milliseconds per presented frame.
+- From build 623, the Vulkan backend's 5 s lines in MeloNX-core.log ("Vulkan render stages over"): per
+  presented frame, the draw preparation (pipelines, barriers, descriptor updates, auto-flushes, the
+  rest), render passes begun (and begun again on the same framebuffer), command buffer submissions
+  (and their queue part) and the presentation (image acquisition, queue present).
+- With --stderr, from build 623, MoltenVK's statistics (every 300 presented frames): per frame, GPU
+  execution of the Metal command buffers, Metal encoding on MoltenVK's submission thread, drawable
+  waits, and command buffers per frame. The statistics accumulate over a device's life: the report
+  takes the difference between two consecutive summaries.
+- Per presented frame and per game frame (the per-second engine rates summed over a window), and a
+  ceiling per resource (1000 / its own busy milliseconds per frame): the GPU thread, the render
+  thread, MoltenVK's encoding and the GPU. The lowest ceiling is the limit to remove next.
+- With --passes, a pass of at least 120 s also gets its first and last 60 s reported apart (the
+  start and the end of a route, across the thermal drift).
 
 With --passes, each stretch of play between two paused stretches is also reported on its own (the
 RewindBox pause writes "paused" on every per-second line). The device-test protocol pauses before
 and after each 60 s pass, so startup, menus and loading before the first pause are left out.
 """
 import argparse
+from datetime import datetime, timedelta
 import json
 import re
 import statistics
@@ -65,11 +88,206 @@ def summarize(chosen, indent=''):
               f"longest gap per second: max {max(s['maxGap'] for s in chosen):.1f} ms")
 
 
+def seconds_in(seconds, stamp, window_ms):
+    """The per-second lines inside the window that ends at the stamp."""
+    end = stamp[:19]
+    begin = (datetime.fromisoformat(end) - timedelta(milliseconds=window_ms)).isoformat()[:19]
+    return [s for s in seconds if begin < s['stamp'][:19] <= end]
+
+
+def frames_in(seconds, stamp, window_ms):
+    """Frames presented during the window that ends at the stamp (the per-second lines inside it)."""
+    return sum(s['presented'] for s in seconds_in(seconds, stamp, window_ms))
+
+
+def game_frames_in(seconds, stamp, window_ms):
+    """Distinct game frames during the window: the per-second engine rates summed."""
+    return sum(s['fps'] for s in seconds_in(seconds, stamp, window_ms))
+
+
+STAGE_LINE = re.compile(
+    r'Vulkan render stages over (?P<window>[\d.]+) ms, (?P<frames>\d+) frames: draw prepare (?P<prepares>\d+) calls '
+    r'(?P<prepare>[\d.]+) ms \(not ready (?P<notReady>\d+); pipelines (?P<pipelines>\d+) calls (?P<pipeline>[\d.]+) ms, '
+    r'barriers (?P<barriers>[\d.]+) ms, descriptors (?P<descriptors>[\d.]+) ms, auto-flushes (?P<autoFlushes>\d+) calls '
+    r'(?P<autoFlush>[\d.]+) ms\); render passes (?P<passes>\d+) begun (?P<pass>[\d.]+) ms \(same framebuffer again '
+    r'(?P<resumes>\d+)\); submits (?P<submits>\d+) calls (?P<submit>[\d.]+) ms \(queue (?P<queue>[\d.]+) ms\); fence waits '
+    r'on the render thread: buffer writes (?P<writeWaits>\d+) calls (?P<writeWait>[\d.]+) ms, reads (?P<readWaits>\d+) calls '
+    r'(?P<readWait>[\d.]+) ms; on other threads (?P<otherWaits>\d+) calls (?P<otherWait>[\d.]+) ms; present '
+    r'(?P<presents>\d+) calls (?P<present>[\d.]+) ms \(acquire (?P<acquire>[\d.]+) ms, queue present (?P<queuePresent>[\d.]+) ms\)')
+
+
+def report_render_stages(lines, chosen):
+    """The Vulkan render thread's stages per presented frame, per 5 s line and over all of them; returns the totals."""
+    begin, finish = min(s['stamp'] for s in chosen)[:19], max(s['stamp'] for s in chosen)[:19]
+    parsed = []
+    for value in lines:
+        match = STAGE_LINE.search(value['diagnostic'])
+        if match and begin <= value['timestamp'][:19] <= finish:
+            numbers = {key: float(v) for key, v in match.groupdict().items()}
+            parsed.append((value['timestamp'][11:19], numbers))
+    if not parsed:
+        return None
+
+    def describe(n, frames):
+        rest = n['prepare'] - n['pipeline'] - n['barriers'] - n['descriptors'] - n['autoFlush']
+        return (f"draw prepare {n['prepare'] / frames:.1f} ms in {n['prepares'] / frames:.0f} draws (pipelines "
+                f"{n['pipeline'] / frames:.2f}, barriers {n['barriers'] / frames:.2f}, descriptors {n['descriptors'] / frames:.2f}, "
+                f"auto-flushes {n['autoFlush'] / frames:.2f}, rest {rest / frames:.2f}; not ready {n['notReady'] / frames:.1f}), "
+                f"render passes {n['passes'] / frames:.0f} begun {n['pass'] / frames:.2f} ms (same framebuffer again "
+                f"{n['resumes'] / frames:.0f}), submits {n['submits'] / frames:.1f} = {n['submit'] / frames:.2f} ms (queue "
+                f"{n['queue'] / frames:.2f}), fence waits on the render thread {n['writeWait'] / frames:.2f} ms for "
+                f"{n['writeWaits'] / frames:.0f} buffer writes and {n['readWait'] / frames:.2f} ms for {n['readWaits'] / frames:.1f} reads, "
+                f"on other threads {n['otherWait'] / frames:.2f} ms for {n['otherWaits'] / frames:.1f}, "
+                f"present {n['present'] / frames:.2f} ms (acquire {n['acquire'] / frames:.2f}, "
+                f"queue present {n['queuePresent'] / frames:.2f})")
+
+    print('Vulkan render stages per presented frame (render thread; the draw preparation and submissions run inside the '
+          'command times above):')
+    for stamp, n in parsed:
+        if n['frames']:
+            print(f"  {stamp} ({n['frames']:.0f} frames in {n['window'] / 1000:.1f} s): {describe(n, n['frames'])}")
+    totals = {key: sum(n[key] for _, n in parsed) for key in parsed[0][1]}
+    if totals['frames']:
+        print(f"  over these lines ({totals['frames']:.0f} frames): {describe(totals, totals['frames'])}")
+    return totals
+
+
+MVK_HEADER = re.compile(r'Performance statistics reporting every: (\d+) frames, avg FPS: ([\d.]+), elapsed time: ([\d.]+) seconds')
+MVK_TRACKER = re.compile(r'\[mvk-info\]\s+(?P<name>\S.*?)(?: performance)?\s+avg: (?P<avg>[\d.]+) ?(?P<unit>[A-Za-z]*), '
+                         r'latest: .*?count: (?P<count>\d+)')
+MVK_NAMES = {'gpu': 'Execute a MTLCommandBuffer on GPU', 'encode': 'Encode VkCommandBuffer to MTLCommandBuffer',
+             'submit': 'vkQueueSubmit() encoding to MTLCommandBuffers', 'drawable': 'Retrieve a CAMetalDrawable from CAMetalLayer',
+             'present': 'Present swapchains in on GPU', 'retrieve': 'Retrieve a MTLCommandBuffer', 'interval': 'Frame interval'}
+
+
+def read_moltenvk(path, pid):
+    """MoltenVK's summaries for that PID, in order: each a dict of tracker name to (average, count)."""
+    marker, summaries = f'"pid":"{pid}"', []
+    for line in open(path, encoding='utf-8', errors='replace'):
+        if marker not in line or '[mvk-info]' not in line:
+            continue
+        header = MVK_HEADER.search(line)
+        if header:
+            summaries.append(dict(frames=int(header.group(1)), elapsed=float(header.group(3)), trackers={}))
+            continue
+        tracker = MVK_TRACKER.search(line)
+        if tracker and summaries and tracker.group('unit') in ('ms', ''):
+            summaries[-1]['trackers'][tracker.group('name').strip()] = (float(tracker.group('avg')), int(tracker.group('count')))
+    return summaries
+
+
+def report_moltenvk(summaries):
+    """Per interval between two summaries: GPU execution, Metal encoding and drawable waits per frame; returns the totals."""
+    if not summaries:
+        print('MoltenVK statistics: none for this PID (build 623 and later log them every 300 presented frames to stderr)')
+        return None
+    print('MoltenVK statistics per presented frame (GPU execution of the Metal command buffers, Metal encoding on '
+          "MoltenVK's submission thread):")
+    previous, totals = {}, {}
+    for summary in summaries:
+        trackers = summary['trackers']
+        interval = trackers.get(MVK_NAMES['interval'])
+        if previous and interval and interval[1] < previous.get(MVK_NAMES['interval'], (0, 0))[1]:
+            previous = {}   # a new device: its statistics start again
+        delta = {}
+        for key, name in MVK_NAMES.items():
+            if name in trackers:
+                avg, count = trackers[name]
+                old_avg, old_count = previous.get(name, (0.0, 0))
+                delta[key] = (avg * count - old_avg * old_count, count - old_count)
+        frames = delta.get('interval', (0, summary['frames']))[1] or summary['frames']
+        if frames:
+            for key, (total, count) in delta.items():
+                t, c = totals.get(key, (0.0, 0))
+                totals[key] = (t + total, c + count)
+            totals['frames'] = totals.get('frames', 0) + frames
+            gpu, encode = delta.get('gpu', (0.0, 0)), delta.get('encode', (0.0, 0))
+            print(f"  at {summary['elapsed']:.0f} s ({frames} frames, mean interval {delta.get('interval', (0.0, 1))[0] / frames:.1f} ms): "
+                  f"GPU {gpu[0] / frames:.1f} ms in {gpu[1] / frames:.1f} command buffers, Metal encoding {encode[0] / frames:.1f} ms, "
+                  f"vkQueueSubmit {delta.get('submit', (0.0, 0))[0] / frames:.1f} ms, drawable {delta.get('drawable', (0.0, 0))[0] / frames:.1f} ms")
+        previous = trackers
+    names = sorted(set().union(*(s['trackers'] for s in summaries)))
+    print('  trackers seen: ' + '; '.join(names))
+    return totals
+
+
+def ceilings(windows_per_frame, stages, moltenvk, label='all windows', render_commands=None):
+    """1000 / busy milliseconds per frame of each resource, from what was measured; the lowest is the limit."""
+    found = []
+    if windows_per_frame:
+        frames = sum(f for f, _, _ in windows_per_frame)
+        total = lambda key: sum(p[key][1] for _, p, _ in windows_per_frame)
+        gpu_thread = (total('gpuDispatch') - total('syncInvoke') - total('queueBackpressure')) / frames
+        found.append(('GPU thread (its own work: dispatch minus its waits for the render thread)', gpu_thread))
+        if stages and stages.get('frames') and render_commands and render_commands.get('frames'):
+            # Build 623 and later: the render thread's command time minus its own fence and image waits (bufferReadback
+            # also holds other threads' waits, such as a guest thread reading a deferred read-back).
+            waits = (stages['writeWait'] + stages['readWait'] + stages['acquire']) / stages['frames']
+            render = render_commands['busy'] / render_commands['frames'] - waits
+            found.append(('render thread (its own work: command time minus its fence and image waits)', render))
+        else:
+            render = (total('renderDrain') - total('bufferReadback')) / frames
+            found.append(('render thread (its own work: busy minus fence waits)', render))
+        waits = total('syncInvoke') / frames
+        if waits > 1:
+            found.append(('GPU thread with its render-thread waits (read-back flushes and syncs)', gpu_thread + waits))
+    if moltenvk and moltenvk.get('frames'):
+        frames = moltenvk['frames']
+        if 'encode' in moltenvk:
+            found.append(("MoltenVK's Metal encoding (its submission thread)", moltenvk['encode'][0] / frames))
+        if 'gpu' in moltenvk:
+            found.append(('GPU (Metal command buffers executing; overlapping buffers counted apart)', moltenvk['gpu'][0] / frames))
+    if not found:
+        return
+    print(f'Ceilings over {label} (1000 / busy ms per presented frame; the lowest is the limit to remove next):')
+    for name, ms in sorted(found, key=lambda item: -item[1]):
+        print(f"  {name}: {ms:.1f} ms per frame -> {1000 / ms if ms > 0 else float('inf'):.1f} FPS")
+
+
+RENDER_LINE = re.compile(r'Render thread commands over ([\d.]+) ms: busy ([\d.]+) ms; top \(calls, ms\):(.*)')
+
+
+def report_render_commands(lines, chosen):
+    """Render-thread command types ranked by time, over every 5 s line and over the slow ones."""
+    parsed = []
+    for value in lines:
+        match = RENDER_LINE.search(value['diagnostic'])
+        if not match:
+            continue
+        stamp = value['timestamp'][:19]
+        inside = [s for s in chosen if s['stamp'][:19] <= stamp and s['stamp'][:19] > (
+            datetime.fromisoformat(stamp) - timedelta(milliseconds=float(match.group(1)))).isoformat()[:19]]
+        if not inside:
+            continue
+        top = [entry.split() for entry in match.group(3).split(';') if entry.strip()]
+        parsed.append(dict(frames=sum(s['presented'] for s in inside), busy=float(match.group(2)),
+                           fps=statistics.mean(s['fps'] for s in inside), top={n: (int(c), float(ms)) for n, c, ms in top}))
+    if not parsed:
+        return None
+    median = statistics.median(entry['fps'] for entry in parsed)
+    for label, group in (('all windows', parsed), ('slow windows (game FPS below the median)', [e for e in parsed if e['fps'] < median])):
+        frames = sum(e['frames'] for e in group)
+        if not frames:
+            continue
+        names = {}
+        for entry in group:
+            for name, (calls, ms) in entry['top'].items():
+                c, m = names.get(name, (0, 0.0))
+                names[name] = (c + calls, m + ms)
+        ranked = sorted(names.items(), key=lambda item: -item[1][1])[:10]
+        print(f"Render thread, {label}: {len(group)} lines, {frames} frames, busy "
+              f"{sum(e['busy'] for e in group) / frames:.1f} ms per frame; top commands (ms per frame, calls per frame):")
+        for name, (calls, ms) in ranked:
+            print(f"  {name}: {ms / frames:.2f} ms, {calls / frames:.0f} calls")
+    return dict(busy=sum(e['busy'] for e in parsed), frames=sum(e['frames'] for e in parsed))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('performance')
     parser.add_argument('core')
     parser.add_argument('--pid', required=True)
+    parser.add_argument('--stderr', help="MeloNX-stderr.log, for MoltenVK's statistics (build 623 and later)")
     parser.add_argument('--from', dest='start', type=int, default=None, help='first second (t=) included')
     parser.add_argument('--to', dest='end', type=int, default=None, help='last second (t=) included')
     parser.add_argument('--passes', action='store_true', help='also report each stretch between two paused stretches')
@@ -116,26 +334,70 @@ def main():
             print(f"Pass {number}: seconds {stretch[0]['t']}..{stretch[-1]['t']} ({len(stretch)} s), "
                   f"{stretch[0]['stamp'][11:19]}..{stretch[-1]['stamp'][11:19]} UTC")
             summarize(stretch, '  ')
+            if len(stretch) >= 120:
+                summarize(stretch[:60], '    first 60 s: ')
+                summarize(stretch[-60:], '    last 60 s: ')
     print('Core windows ending inside these seconds (5.1 s; nested durations, never summed):')
+    per_frame, games, rates = [], [], []
     begin, finish = min(s['stamp'] for s in chosen), max(s['stamp'] for s in chosen)
     for stamp, data in windows:
         if not begin <= stamp[:19] + 'Z' <= finish:
             continue
         g, p, c = data['gpuWork'], data['phases'], data['counts']
+        frames = frames_in(seconds, stamp, data.get('windowMs', 5100.0))
+        game = game_frames_in(seconds, stamp, data.get('windowMs', 5100.0))
+        if frames:
+            per_frame.append((frames, p, g))
+            games.append(game)
+            rates.append(game / (data.get('windowMs', 5100.0) / 1000))
+            print(f"  {stamp[11:19]} per presented frame ({frames} presented, {game:.0f} game frames): GPU-thread waits for the render thread "
+                  f"{p['syncInvoke'][1] / frames:.1f} ms, queue backpressure {p['queueBackpressure'][1] / frames:.1f} ms, "
+                  f"render-thread fence waits {p['bufferReadback'][1] / frames:.1f} ms, render-thread work "
+                  f"{(p['renderDrain'][1] - p['bufferReadback'][1]) / frames:.1f} ms, pipeline builds "
+                  f"{p['graphicsPipelineBuild'][1] / frames:.1f} ms, draws {c['draws'] / frames:.0f}")
         print(f"  {stamp[11:19]} GPU thread {p['gpuDispatch'][1]:.0f} ms | dma {g['dma'][1]:.0f} ms, texture flush actions "
               f"{g['texFlushAction'][0]} = {g['texFlushAction'][1]:.0f} ms | render-thread syncs {p['syncInvoke'][1]:.0f} ms | "
               f"buffer read-backs {p['bufferReadback'][0]} = {p['bufferReadback'][1]:.0f} ms | pipeline builds "
               f"{p['graphicsPipelineBuild'][0]} = {p['graphicsPipelineBuild'][1]:.0f} ms | render thread busy "
               f"{p['renderDrain'][1]:.0f} ms, idle {p['renderIdle'][1]:.0f} ms | draws {c['draws']}")
-    summary, attributions = None, []
+    if per_frame:
+        frames = sum(f for f, _, _ in per_frame)
+        total = lambda key: sum(p[key][1] for _, p, _ in per_frame)
+        print(f"Over these windows, per presented frame ({frames} frames): GPU-thread waits for the render thread "
+              f"{total('syncInvoke') / frames:.1f} ms, queue backpressure {total('queueBackpressure') / frames:.1f} ms, "
+              f"render-thread fence waits {total('bufferReadback') / frames:.1f} ms, render-thread work "
+              f"{(total('renderDrain') - total('bufferReadback')) / frames:.1f} ms, pipeline builds "
+              f"{total('graphicsPipelineBuild') / frames:.1f} ms, texture flush actions "
+              f"{sum(g['texFlushAction'][1] for _, _, g in per_frame) / frames:.1f} ms")
+        game = sum(games)
+        if game:
+            print(f"  per game frame ({game:.0f} distinct game frames): GPU-thread waits for the render thread "
+                  f"{total('syncInvoke') / game:.1f} ms, render-thread work {(total('renderDrain') - total('bufferReadback')) / game:.1f} ms, "
+                  f"render-thread fence waits {total('bufferReadback') / game:.1f} ms, GPU-thread dispatch {total('gpuDispatch') / game:.1f} ms, "
+                  f"GPU-thread waits for the guest {total('gpuFifoWait') / game:.1f} ms")
+    summary, attributions, render_lines, stage_lines = None, [], [], []
     for line in open(args.core, encoding='utf-8', errors='replace'):
         if f'"pid":{args.pid},' not in line:
             continue
         if 'DMA guest-memory copies:' in line:
             summary = line
+        elif 'Render thread commands over ' in line:
+            render_lines.append(json.loads(line.split('] ', 1)[1]))
+        elif 'Vulkan render stages over ' in line:
+            stage_lines.append(json.loads(line.split('] ', 1)[1]))
         elif any(key in line for key in ('DMA slow source read #', 'DMA GPU source copy', 'DMA region upload',
-                                         'DMA float GPU copy', 'Background pipeline compile missed', 'ServiceNv Wait')):
+                                         'DMA float GPU copy', 'DMA GPU region copy', 'DMA GPU read-back',
+                                         'Background pipeline compile missed', 'ServiceNv Wait')):
             attributions.append(line)
+    render_commands = report_render_commands(render_lines, chosen)
+    stages = report_render_stages(stage_lines, chosen)
+    moltenvk = report_moltenvk(read_moltenvk(args.stderr, args.pid)) if args.stderr else None
+    ceilings(per_frame, stages, moltenvk, render_commands=render_commands)
+    if len(per_frame) >= 4:
+        median = statistics.median(rates)
+        slow = [entry for entry, rate in zip(per_frame, rates) if rate < median]
+        ceilings(slow, None, None, f'the slow windows ({len(slow)} with game FPS below the median {median:.1f}; '
+                                   'MoltenVK rows are session-wide)')
     if summary:
         print('Last DMA summary:', json.loads(summary.split('] ', 1)[1])['diagnostic'])
     for line in attributions:

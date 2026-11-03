@@ -33,7 +33,8 @@ from adapt_single_virtual_dependency import apply as single, CONSUMERS
 from adapt_fragmented_reads import apply as fragmented, NAMES as FRAGMENTED
 from adapt_gpu_work_diagnostics import apply as gpu_work, NAMES as GPU_WORK
 from adapt_bindless_array_deltas import apply as array_deltas, NAMES as ARRAY_DELTAS
-from adapt_host_qos_pipeline_budget import apply_threaded, apply_pipeline_budget, THREADED, PIPELINE_CACHE
+from adapt_host_qos_pipeline_budget import (apply_threaded, apply_pipeline_budget, apply_hunks, THREADED, PIPELINE_CACHE,
+                                            PIPELINE_BASE, PIPELINE_BASE_HUNKS, BUFFER_HOLDER, BUFFER_HOLDER_HUNKS)
 
 
 def local(relative):
@@ -79,8 +80,11 @@ with tempfile.TemporaryDirectory(prefix='melonx-performance-diagnostics-') as te
     fragmented(expected); gpu_work(expected)
     # Runs after the collector copy above: it appends its work rows and counters to the collector.
     array_deltas(expected)
-    # Last in prepare_embedded order: the render and GPU threads' QoS, and the pipeline cache budget.
-    for relative, host_hunk in ((THREADED, apply_threaded), (PIPELINE_CACHE, apply_pipeline_budget)):
+    # Last in prepare_embedded order: the render and GPU threads' QoS, the pipeline cache budget and the Vulkan render
+    # stages' timing (PipelineBase and BufferHolder are observed files).
+    for relative, host_hunk in ((THREADED, apply_threaded), (PIPELINE_CACHE, apply_pipeline_budget),
+                                (PIPELINE_BASE, lambda path: apply_hunks(path, PIPELINE_BASE_HUNKS)),
+                                (BUFFER_HOLDER, lambda path: apply_hunks(path, BUFFER_HOLDER_HUNKS))):
         if (expected / relative).exists():
             host_hunk(expected / relative)
     paths = list(dict.fromkeys([*existing, *native.values()]))

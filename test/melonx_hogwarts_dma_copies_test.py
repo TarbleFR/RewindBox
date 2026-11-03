@@ -24,8 +24,12 @@ Usage: melonx_hogwarts_dma_copies_test.py <prepared tree without this adapter> [
 3. Build 621 hunks: a block-linear source surface that a GPU-modified texture holds is copied on the GPU
    into a block-linear destination surface, found or created when no texture overlaps that surface
    (TryCopyGpuRegion, run with doubles: region extents, synchronisation, the modified destination,
-   every decline copying and creating nothing: a linear destination, an occupied surface, a texture
-   that does not start at the surface base); UNORM, sRGB and float formats are copied, SNORM is not; the guest path signals its
+   every decline copying and creating nothing: an occupied surface, a texture that does not start at
+   the surface base). Build 622: a read-back into tightly packed linear memory is copied on the GPU
+   into a linear texture over the destination, created or reused, with a forced host sync and no
+   guest write (TryReadBackGpuRegion, with doubles); rows not contiguous on 4 bytes, a buffer over
+   the destination, another texture over it, or a texture there of another format are declined, copying
+   and creating nothing; UNORM, sRGB and float formats are copied, SNORM is not; the guest path signals its
    source and tracked destination reads precisely under the policy, and texture handles ignore a
    precise read outside their own bytes; ThreadedRenderer raises the render and GPU threads, and
    the demand compile thread raises itself, to user-interactive QoS on Apple platforms; the
@@ -48,6 +52,7 @@ parser.add_argument('source', type=Path)
 parser.add_argument('--candidate-source', type=Path)
 args = parser.parse_args()
 SOURCE = args.source.resolve()
+LAYOUT = 'src/Ryujinx.Graphics.Texture/LayoutConverter.cs'
 CANDIDATE = args.candidate_source.resolve() if args.candidate_source else None
 DOTNET = os.environ.get('DOTNET', 'dotnet')
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
@@ -135,12 +140,17 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           '_texturesLock.EnterReadLock();\n\n            try\n            {\n                return _textures.FindOverlaps(range, ref overlaps);' in cache,
           'TextureCache: only the overlap query, under the texture read lock')
     group = after[adapter.TEXTURE_GROUP]
-    check(group.replace(adapter.GROUP_NEW, adapter.GROUP_ANCHOR).replace(adapter.GROUP_HANDLE_NEW, adapter.GROUP_HANDLE_OLD) ==
+    check(group.replace(adapter.GROUP_NEW, adapter.GROUP_ANCHOR).replace(adapter.GROUP_HANDLE_NEW, adapter.GROUP_HANDLE_OLD)
+          .replace(adapter.FLUSH_START_NEW, adapter.FLUSH_START_OLD).replace(adapter.FLUSH_END_NEW, adapter.FLUSH_END_OLD) ==
           before[adapter.TEXTURE_GROUP] and 'public bool AnyHandleModified()' in group and
+          group.index('long readBackStart = ReadBackTarget ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;') <
+          group.index('bool inBuffer = !isGpuThread && handle.Sync(_context);') <
+          group.index('NoteReadBackFlush(readBackStart, isGpuThread);') and
           'handle.RegisterPreciseAction((accessAddress, accessSize, write) =>\n'
           '                !write && (accessAddress >= handle.RealEndAddress || accessAddress + accessSize <= handle.RealAddress));' in group
           and group.count('RegisterPreciseAction') == 1,
-          'TextureGroup: the read-only modified-handle query, and texture handles ignore a precise read outside their own bytes')
+          'TextureGroup: the read-only modified-handle query, texture handles ignore a precise read outside their own bytes, and '
+          'the flushes of read-back textures are timed around the whole flush (sync wait included)')
     physical = after[adapter.PHYSICAL]
     check(physical.replace(adapter.PHYSICAL_NEW, adapter.PHYSICAL_ANCHOR) == before[adapter.PHYSICAL] and
           'public bool SignalPreciseRead(MultiRange range)' in physical and
@@ -150,7 +160,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           'PhysicalMemory: only the precise read signal, which signals nothing when part of the range is unmapped')
     threaded = after[host.THREADED]
     check(threaded.replace(host.THREADED_NAMESPACE_NEW, host.THREADED_NAMESPACE_OLD).replace(
-              host.THREADED_NEW, host.THREADED_OLD) == before[host.THREADED] and
+              host.THREADED_NEW, host.THREADED_OLD).replace(host.RENDER_WORK_NEW, host.RENDER_WORK_OLD).replace(
+              host.RENDER_STATE_NEW, host.RENDER_STATE_OLD) == before[host.THREADED] and
+          threaded.index('long commandStart = Stopwatch.GetTimestamp();') <
+          threaded.index('CommandHelper.RunCommand(command, this, _baseRenderer);') <
+          threaded.index('NoteRenderCommand(commandType, commandStart);') and
+          threaded.count('LogRenderWork(end);') == 1 and 'Stopwatch.Frequency * 5' in threaded and
           threaded.count('HostThreadQos.RaiseCurrentThread();') == 2 and
           '[LibraryImport("/usr/lib/libSystem.B.dylib", EntryPoint = "pthread_set_qos_class_self_np")]' in threaded and
           'private const uint UserInteractive = 0x21;' in threaded and
@@ -170,6 +185,68 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
           loop.index('if (demandOnly)') < loop.index('Ryujinx.Graphics.GAL.Multithreading.HostThreadQos.RaiseCurrentThread();') <
           loop.index('while (true)') and scheduler.count('HostThreadQos') == 1,
           'BackgroundCompilationScheduler: only the demand thread raises its QoS, before its loop')
+
+    def restored(relative, hunks):
+        text = after[relative]
+        for old, new in reversed(hunks):
+            text = text.replace(new, old)
+        return text
+
+    base = after[host.PIPELINE_BASE]
+    timer = base[base.index('    static class RenderStageTimer'):base.index('    class PipelineBase : IDisposable')]
+    prepare = base[base.index('private bool RecreateGraphicsPipelineIfNeeded()'):base.index('private bool CreatePipeline(')]
+    begin = base[base.index('private unsafe void BeginRenderPass()'):base.index('public void EndRenderPass()')]
+    end = base[base.index('public void EndRenderPass()'):]
+    end = end[:end.index('\n        }\n') + 10]
+    check(restored(host.PIPELINE_BASE, host.PIPELINE_BASE_HUNKS) == before[host.PIPELINE_BASE] and
+          prepare.count('PrepareGraphicsDraw()') == 2 and prepare.count('RenderStageTimer.Prepares++;') == 1 and
+          prepare.index('long start = RenderStageTimer.Now();') < prepare.index('bool ready = PrepareGraphicsDraw();') <
+          prepare.index('RenderStageTimer.PrepareTicks += RenderStageTimer.Now() - start;') and
+          prepare.index('long flushStart') < prepare.index('Gd.FlushAllCommands();') < prepare.index('RenderStageTimer.AutoFlushes++;') and
+          prepare.index('long pipelineStart') < prepare.index('bool created = CreatePipeline(') <
+          prepare.index('RenderStageTimer.Pipelines++;') < prepare.index('if (!created)') and
+          prepare.index('long barrierStart') < prepare.index('Gd.Barriers.Flush(Cbs, _program,') < prepare.index('long descriptorStart') <
+          prepare.index('_descriptorSetUpdater.UpdateAndBindDescriptorSets(Cbs, PipelineBindPoint.Graphics);') <
+          prepare.index('RenderStageTimer.DescriptorTicks +=') and
+          begin.index('if (!RenderPassActive)') < begin.index('long passStart') < begin.index('RenderStageTimer.PassResumes++;') <
+          begin.index('Gd.Api.CmdBeginRenderPass(') < begin.index('RenderStageTimer.PassBegins++;') and
+          end.index('Gd.Api.CmdEndRenderPass(CommandBuffer);') < end.index('_lastEndedFramebuffer = _framebuffer;') and
+          base.count('_lastEndedFramebuffer = _framebuffer;') == 1 and base.count('RenderStageTimer.') == 24 and
+          'else if (end - _windowStart >= System.Diagnostics.Stopwatch.Frequency * 5)' in timer and timer.count('Log(end);') == 1,
+          'PipelineBase: only the render-stage timing, around the draw preparation and its parts, and the render pass begin')
+    full = after[host.PIPELINE_FULL]
+    submit = full[full.index('public void FlushCommandsImpl()'):full.index('public void RegisterActiveMirror(')]
+    check(restored(host.PIPELINE_FULL, host.PIPELINE_FULL_HUNKS) == before[host.PIPELINE_FULL] and
+          submit.index('long start = RenderStageTimer.Now();') < submit.index('SubmitCommands();') <
+          submit.index('RenderStageTimer.Submits++;') < submit.index('private void SubmitCommands()') <
+          submit.index('long queueStart') < submit.index('Gd.CommandBufferPool.ReturnAndRent(Cbs)') <
+          submit.index('RenderStageTimer.QueueTicks +=') and full.count('RenderStageTimer.') == 7,
+          'PipelineFull: only the submission timing, its queue part around ReturnAndRent')
+    window = after[host.WINDOW]
+    present = window[window.index('public unsafe override void Present('):window.index('public override void SetAntiAliasing(')]
+    check(restored(host.WINDOW, host.WINDOW_HUNKS) == before[host.WINDOW] and
+          present.index('long presentStart') < present.index('_gd.RegisterPresentationTexture(view);') <
+          present.index('long acquireStart') < present.index('_gd.SwapchainApi.AcquireNextImage(') <
+          present.index('long acquired') < present.index('_gd.FlushAllCommands();') < present.index('long queuePresentStart') <
+          present.index('_gd.SwapchainApi.QueuePresent(') <
+          present.index('RenderStageTimer.NotePresent(presentStart, acquireStart, acquired, queuePresentStart);') and
+          'return' not in present and window.count('RenderStageTimer.') == 5,
+          'Window: only the presentation timing (whole, image acquisition, queue present); Present has no early return')
+    moltenvk = after[host.MVK_INITIALIZATION]
+    check(restored(host.MVK_INITIALIZATION, host.MVK_HUNKS) == before[host.MVK_INITIALIZATION] and
+          moltenvk.index('vkGetMoltenVKConfigurationMVK(nint.Zero, out MVKConfiguration config, configSize);') <
+          moltenvk.index('config.PerformanceTracking = true;') < moltenvk.index('config.PerformanceLoggingFrameCount = 300;') <
+          moltenvk.index('vkSetMoltenVKConfigurationMVK(nint.Zero, config, configSize);'),
+          'MVKInitialization: only MoltenVK performance tracking, logged every 300 presented frames')
+    holder = after[host.BUFFER_HOLDER]
+    waits = holder[holder.index('public void WaitForFences()'):holder.index('private bool BoundToRange(')]
+    check(restored(host.BUFFER_HOLDER, host.BUFFER_HOLDER_HUNKS) == before[host.BUFFER_HOLDER] and
+          holder.count('RenderStageTimer.NoteFenceWait(_gd.CommandBufferPool?.OwnedByCurrentThread == true,') == 3 and
+          waits.index('write: false, start);') < waits.index('public void WaitForFences(int offset, int size)') <
+          waits.index('write: true, start);') and
+          holder.index('long flushWaitStart') < holder.index('using (PD.Measure(PD.Phase.BufferReadback)) fence.Wait();') <
+          holder.index('write: false, flushWaitStart);') and holder.count('RenderStageTimer.') == 6,
+          'BufferHolder: only the fence-wait timing, reads apart from writes, the render thread apart from other threads')
     check('bool trackDestination = GraphicsConfig.HogwartsDmaRegionUpload && !regionUploaded;' in dma and
           'memoryManager.ReadInto(dstGpuVa + (ulong)dstBaseOffset, dstSpan, trackDestination && !preciseDestination);' in dma
           and dma.count('memoryManager.ReadInto(dstGpuVa + (ulong)dstBaseOffset, dstSpan') == 1 and
@@ -198,9 +275,22 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
     gpu_copy = dma[dma.index('private bool TryCopyGpuSource('):dma.index('private static Image.Texture FindRegionTarget(')]
     region_copy = dma[dma.index('private bool TryCopyGpuRegion('):dma.index('private static bool SignalPreciseRead(')]
     check('SignalModified' not in upload and gpu_copy.count('target.SignalModified();') == 1 and
-          region_copy.count('target.SignalModified();') == 1 and
-          dma.count('SignalModified') == before[adapter.DMA].count('SignalModified') + 2,
-          'the region upload does not mark the texture modified; both GPU copies mark their destination, as the delivered GPU copy does')
+          region_copy.count('target.SignalModified();') == 2 and
+          dma.count('SignalModified') == before[adapter.DMA].count('SignalModified') + 3,
+          'the region upload does not mark the texture modified; the GPU copies and the read-back mark their destination, as the delivered GPU copy does')
+    readback = dma[dma.index('private bool TryReadBackGpuRegion('):dma.index('private static bool SignalPreciseRead(')]
+    check(readback.index('target.Group.ReadBackTarget = true;') < readback.index('target.SignalModified();') <
+          readback.index('_context.CreateHostSyncIfNeeded(Ryujinx.Graphics.Gpu.Synchronization.HostSyncFlags.Force |\n'
+                         '                                            Ryujinx.Graphics.Gpu.Synchronization.HostSyncFlags.Strict);') and
+          'memoryManager.Write' not in readback and 'WriteUntracked' not in readback and 'GetSpan' not in readback and
+          readback.index('dstStride != byteWidth || byteWidth % 4 != 0') < readback.index('HasBufferInRange') <
+          readback.index('FindOrCreateTexture'),
+          'the read-back checks its rows and the buffers first, writes no guest memory and forces a host sync after the copy')
+    buffers = after[adapter.BUFFER_CACHE]
+    check(buffers.replace(adapter.BUFFER_NEW, adapter.BUFFER_ANCHOR) == before[adapter.BUFFER_CACHE] and
+          buffers.count('public bool HasBufferInRange(MemoryManager memoryManager, ulong gpuVa, ulong size)') == 1 and
+          '!_buffers.FindOverlapsAsSpan(subRange.Address, subRange.Size).IsEmpty' in buffers,
+          'BufferCache: only the read-only overlap query, which creates no buffer')
     restored = dma
     for old, new in ((adapter.METHOD_ANCHOR, adapter.METHOD_NEW), (adapter.WRITE_OLD, adapter.WRITE_NEW), (adapter.READ_OLD, adapter.READ_NEW),
                      (adapter.REGION_OLD, adapter.REGION_NEW), (adapter.SLOW_OLD, adapter.SLOW_NEW),
@@ -222,9 +312,16 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
                              (adapter.DMA, adapter.DIAGNOSTICS_USING_OLD), (adapter.DMA, adapter.METHOD_ANCHOR),
                              (adapter.TEXTURE_CACHE, adapter.CACHE_ANCHOR), (adapter.TEXTURE_GROUP, adapter.GROUP_ANCHOR),
                              (adapter.DMA, adapter.READ_OLD), (adapter.TEXTURE_GROUP, adapter.GROUP_HANDLE_OLD),
-                             (adapter.PHYSICAL, adapter.PHYSICAL_ANCHOR))] + [
+                             (adapter.PHYSICAL, adapter.PHYSICAL_ANCHOR), (adapter.BUFFER_CACHE, adapter.BUFFER_ANCHOR),
+                             (adapter.TEXTURE_GROUP, adapter.FLUSH_START_OLD), (adapter.TEXTURE_GROUP, adapter.FLUSH_END_OLD))] + [
             (host, host.THREADED, host.THREADED_NAMESPACE_OLD), (host, host.THREADED, host.THREADED_OLD),
-            (host, host.PIPELINE_CACHE, host.PIPELINE_BUDGET_OLD), (host, host.SCHEDULER, host.SCHEDULER_OLD)]:
+            (host, host.THREADED, host.RENDER_WORK_OLD), (host, host.THREADED, host.RENDER_STATE_OLD),
+            (host, host.PIPELINE_CACHE, host.PIPELINE_BUDGET_OLD), (host, host.SCHEDULER, host.SCHEDULER_OLD)] + [
+            (host, relative, old) for relative, hunks in ((host.PIPELINE_BASE, host.PIPELINE_BASE_HUNKS),
+                                                          (host.PIPELINE_FULL, host.PIPELINE_FULL_HUNKS),
+                                                          (host.WINDOW, host.WINDOW_HUNKS),
+                                                          (host.MVK_INITIALIZATION, host.MVK_HUNKS),
+                                                          (host.BUFFER_HOLDER, host.BUFFER_HOLDER_HUNKS)) for old, _ in hunks]:
         drift = temporary / ('drift-' + hashlib.sha256((relative + anchor).encode()).hexdigest()[:8])
         for name in owner.NAMES:
             (drift / name).parent.mkdir(parents=True, exist_ok=True)
@@ -261,11 +358,19 @@ namespace Ryujinx.Common.Logging
 }
 namespace Ryujinx.Common
 {
-    static class BitUtils { public static int AlignUp(int value, int size) => (value + size - 1) / size * size; }
+    static class BitUtils
+    {
+        public static int AlignUp(int value, int size) => (value + size - 1) / size * size;
+        public static int DivRoundUp(int value, int dividend) => (value + dividend - 1) / dividend;
+    }
 }
 namespace Ryujinx.Common.Memory
 {
     sealed class MemoryOwner<T> { public T[] Array; public Span<T> Span => Array; public static MemoryOwner<T> Rent(int length) => new() { Array = new T[length] }; }
+}
+namespace Ryujinx.Graphics.Gpu.Synchronization
+{
+    enum HostSyncFlags { None = 0, Syncpoint = 1, Strict = 2, Force = 4 }
 }
 namespace Ryujinx.Graphics.GAL
 {
@@ -303,10 +408,23 @@ namespace Image
     sealed class Host
     {
         public readonly List<string> Copies = new();
-        public void CopyTo(Host destination, Extents2D source, Extents2D target, bool linearFilter) =>
+        // Texels in host layout (rows on 4 bytes), for the byte model only.
+        public byte[] Data; public int Width, Height, Bpp;
+        public void Allocate(int width, int height, int bpp) { Width = width; Height = height; Bpp = bpp; Data = new byte[Ryujinx.Common.BitUtils.AlignUp(width * bpp, 4) * height]; }
+        public void CopyTo(Host destination, Extents2D source, Extents2D target, bool linearFilter)
+        {
             Copies.Add($"{source} to {target} filter={linearFilter} same={ReferenceEquals(this, destination)}");
+            if (Data != null && destination.Data != null)
+            {
+                int inStride = Ryujinx.Common.BitUtils.AlignUp(Width * Bpp, 4), outStride = Ryujinx.Common.BitUtils.AlignUp(destination.Width * destination.Bpp, 4);
+                int rowBytes = (source.X2 - source.X1) * Bpp;
+                for (int y = 0; y < source.Y2 - source.Y1; y++)
+                    Data.AsSpan((source.Y1 + y) * inStride + source.X1 * Bpp, rowBytes).CopyTo(destination.Data.AsSpan((target.Y1 + y) * outStride + target.X1 * destination.Bpp));
+            }
+        }
     }
-    sealed class Group { public Texture Storage; public bool HasIncompatibleOverlaps; public bool Modified = true; public bool AnyHandleModified() => Modified; }
+    sealed class Group { public Texture Storage; public bool HasIncompatibleOverlaps; public bool Modified = true; public bool ReadBackTarget; public bool AnyHandleModified() => Modified; }
+    static class TextureGroup { public static long ReadBackFlushes, ReadBackFlushTicks, ReadBackFlushMaxTicks, ReadBackGpuThreadFlushes; }
     sealed class Texture
     {
         public Info Info = new(); public float ScaleFactor = 1f; public Group Group = new();
@@ -314,10 +432,12 @@ namespace Image
         public readonly List<string> Calls = new();
         public byte[] Data; public Rectangle<int> Region;
         public Texture() { Group.Storage = this; }
-        public void SynchronizeMemory() => Calls.Add("sync");
+        // GPU-written data guest memory lacks, and guest memory written since the texture's last load (the byte model).
+        public bool Modified, Dirty;
+        public void SynchronizeMemory() { Calls.Add("sync"); if (Dirty) global::Guest.Current?.Reload(this); }
         public void SetData(MemoryOwner<byte> data, int layer, int level, Rectangle<int> region)
         { Calls.Add($"set {layer} {level}"); Data = data.Array; Region = region; }
-        public void SignalModified() => Calls.Add("modified");
+        public void SignalModified() { Calls.Add("modified"); Modified = true; global::Guest.Current?.Track(this); }
     }
     static class TextureCompatibility
     {
@@ -353,7 +473,9 @@ namespace Image
             Texture match = null;
             foreach (Texture t in Textures)
             {
-                if (xCount * bpp == t.Info.Width * t.Info.FormatInfo.BytesPerPixel && height == t.Info.Height)
+                // The real lookup: a linear texture by stride and height, a block-linear one by size in bytes.
+                if (linear ? t.Info.IsLinear && t.Info.Stride == stride && yCount == t.Info.Height
+                           : !t.Info.IsLinear && xCount * bpp == t.Info.Width * t.Info.FormatInfo.BytesPerPixel && height == t.Info.Height)
                 {
                     // Like the real lookup, a texture that contains the address: one not placed yet starts there.
                     if (t.Range.Count == 0) t.Range.Spans.Add(new Span(gpuVa, (ulong)(t.Info.Width * t.Info.FormatInfo.BytesPerPixel * t.Info.Height)));
@@ -368,13 +490,22 @@ namespace Image
                                            int stride, bool isLinear, int gobBlocksInY, int gobBlocksInZ)
         {
             LastCreate = $"{gpuAddress:x} {xCount}x{yCount} stride={stride} linear={isLinear} gob={gobBlocksInY}/{gobBlocksInZ}";
-            return Create?.Invoke(formatInfo, xCount, yCount, stride, isLinear);
+            Texture created = Create?.Invoke(formatInfo, xCount, yCount, stride, isLinear);
+            // A created texture starts at its address.
+            if (created != null && created.Range.Count == 0) created.Range.Spans.Add(new Span(gpuAddress, (ulong)(xCount * yCount)));
+            return created;
         }
     }
 }
+sealed class BufferCache
+{
+    // A buffer over the queried range, and the last query (the destination of a read-back).
+    public bool Overlap; public string LastQuery;
+    public bool HasBufferInRange(MemoryManager memoryManager, ulong gpuVa, ulong size) { LastQuery = $"{gpuVa:x} {size}"; return Overlap; }
+}
 sealed class PhysicalMemory
 {
-    public Image.TextureCache TextureCache = new(); public int PreciseReads;
+    public Image.TextureCache TextureCache = new(); public BufferCache BufferCache = new(); public int PreciseReads;
     public bool SignalPreciseRead(Image.Ranges range) { PreciseReads++; return true; }
 }
 sealed class MemoryManager
@@ -385,7 +516,15 @@ sealed class MemoryManager
 static class GraphicsConfig { public static bool HogwartsDmaRegionUpload = true; }
 struct MemoryLayout { public int GobY, GobZ; public int UnpackGobBlocksInY() => GobY; public int UnpackGobBlocksInZ() => GobZ; }
 struct DmaTexture { public MemoryLayout MemoryLayout; public int Width; public int Height; public int Depth; public int RegionZ; public ushort RegionX; public ushort RegionY; }
-sealed class Context { public Capabilities Capabilities = new(); }
+sealed class Context
+{
+    public Capabilities Capabilities = new(); public int ForcedSyncs, StrictSyncs;
+    public void CreateHostSyncIfNeeded(Ryujinx.Graphics.Gpu.Synchronization.HostSyncFlags flags)
+    {
+        if ((flags & Ryujinx.Graphics.Gpu.Synchronization.HostSyncFlags.Force) != 0) ForcedSyncs++;
+        if ((flags & Ryujinx.Graphics.Gpu.Synchronization.HostSyncFlags.Strict) != 0) StrictSyncs++;
+    }
+}
 sealed class Dma
 {
     private readonly Context _context = new();
@@ -397,14 +536,64 @@ sealed class Dma
     public bool GpuSource(MemoryManager mm, ulong srcVa, int srcSize, int stride, int xCount, int yCount, DmaTexture dst, int rx, int ry) =>
         TryCopyGpuSource(mm, srcVa, srcSize, stride, xCount, yCount, 1, 0x10000, dst, rx, ry);
     public string SourceCounts => $"{_gpuSourceCopies} {string.Join(",", _gpuSourceDeclines)} | {string.Join(",", _slowReadsBySource)}";
-    public bool GpuRegion(MemoryManager mm, DmaTexture src, int sx, int sy, DmaTexture dst, bool dstLinear, int dx, int dy,
+    public bool GpuRegion(MemoryManager mm, DmaTexture src, int sx, int sy, DmaTexture dst, bool dstLinear, int dstStride, int dx, int dy,
                           int xCount, int yCount) =>
-        TryCopyGpuRegion(mm, 0x30000, src, sx, sy, 0x10000, dst, dstLinear, dx, dy, xCount, yCount, 1);
+        TryCopyGpuRegion(mm, 0x30000, src, sx, sy, 0x10000, dst, dstLinear, 0, dstStride, dx, dy, xCount, yCount, 1);
     public string RegionCounts => $"{_gpuRegionCopies} {string.Join(",", _gpuRegionDeclines)}";
+    public string ReadBackCounts => $"{_gpuReadBacks} {string.Join(",", _readBackDeclines)}";
+    public int ForcedSyncs => _context.ForcedSyncs;
+    public int StrictSyncs => _context.StrictSyncs;
     public bool Precise(MemoryManager mm) => SignalPreciseRead(mm, 0x20000, 64);
     public bool Upload(MemoryManager mm, byte[] src, int stride, int xCount, int yCount, int bpp, DmaTexture dst, int rx, int ry) =>
         TryUploadRegion(mm, src, stride, xCount, yCount, bpp, 0x10000, dst, rx, ry);
     public string Counts => $"{_regionUploads} {_regionDeclines[0]} {_regionDeclines[1]} {_regionDeclines[2]} {_regionDeclines[3]} {_slowSourceReads} {_slowDestinationWrites}";
+}
+// Guest memory for the byte model: a CPU access first runs the flush action of each GPU-modified texture over the accessed
+// bytes, as the memory tracking does (the write then lands on the flushed bytes and the texture reloads before its next use).
+sealed class Guest
+{
+    public static Guest Current;
+    public readonly byte[] Memory = new byte[0x40000];
+    private readonly List<Image.Texture> _tracked = new();
+    public int Flushes;
+    public void Track(Image.Texture texture) { if (!_tracked.Contains(texture)) _tracked.Add(texture); }
+    private void Access(ulong address, int length, bool write)
+    {
+        foreach (Image.Texture texture in _tracked)
+        {
+            Image.Span range = texture.Range.GetSubRange(0);
+            if (range.Address < address + (ulong)length && address < range.EndAddress)
+            {
+                if (texture.Modified) { Flush(texture); texture.Modified = false; }
+                if (write) texture.Dirty = true;
+            }
+        }
+    }
+    public byte[] Read(ulong address, int length) { Access(address, length, false); return Memory.AsSpan((int)address, length).ToArray(); }
+    public void Write(ulong address, byte[] data) { Access(address, data.Length, true); data.CopyTo(Memory, (int)address); }
+    // A linear texture's flush: the real ConvertLinearToLinearStrided of the host rows, written at the texture's address.
+    private void Flush(Image.Texture texture)
+    {
+        Flushes++;
+        Image.Info info = texture.Info;
+        ReadOnlySpan<byte> data = LayoutConverter.ConvertLinearToLinearStrided(Span<byte>.Empty, info.Width, info.Height, 1, 1, info.Stride,
+                                                                              info.FormatInfo.BytesPerPixel, texture.HostTexture.Data);
+        data.CopyTo(Memory.AsSpan((int)texture.Range.GetSubRange(0).Address));
+    }
+    // A dirty linear texture reloads its rows from guest memory before its next use.
+    public void Reload(Image.Texture texture)
+    {
+        Image.Info info = texture.Info;
+        int row = info.Width * info.FormatInfo.BytesPerPixel, hostStride = Ryujinx.Common.BitUtils.AlignUp(row, 4);
+        int start = (int)texture.Range.GetSubRange(0).Address;
+        for (int y = 0; y < info.Height; y++) Memory.AsSpan(start + y * info.Stride, row).CopyTo(texture.HostTexture.Data.AsSpan(y * hostStride));
+        texture.Dirty = false;
+    }
+}
+static class LayoutConverter
+{
+    public const int HostStrideAlignment = 4;
+__LAYOUT_CONVERTER__
 }
 static class Program
 {
@@ -568,7 +757,7 @@ static class Program
         var rsource = Make(Format.R8G8B8A8Unorm, 4, 128, 32);
         var rtarget = Make(Format.R8G8B8A8Unorm, 4, 64, 64);
         rm.Physical.TextureCache.Textures = new() { rsource, rtarget };
-        bool regionCopied = dma.GpuRegion(rm, srcSurface, 16, 3, dstSurface, false, 8, 5, 16, 2);
+        bool regionCopied = dma.GpuRegion(rm, srcSurface, 16, 3, dstSurface, false, 0, 8, 5, 16, 2);
         string regionCopy = string.Join(";", rsource.HostTexture.Copies) + " | " + string.Join(",", rsource.Calls) + " | " +
                             string.Join(",", rtarget.Calls);
         // The destination surface is not in the cache: created over the surface.
@@ -579,15 +768,50 @@ static class Program
         };
         var csource = Make(Format.R16G16B16A16Float, 8, 64, 32);
         rm.Physical.TextureCache.Textures = new() { csource };
-        bool createdCopied = dma.GpuRegion(rm, srcSurface, 16, 3, dstSurface, false, 8, 5, 16, 2);
+        bool createdCopied = dma.GpuRegion(rm, srcSurface, 16, 3, dstSurface, false, 0, 8, 5, 16, 2);
         string createdQuery = rm.Physical.TextureCache.LastCreate;
         string createdCopy = string.Join(";", csource.HostTexture.Copies) + " | " + string.Join(",", created[0].Calls) + " | " +
                              $"{created[0].Info.Width}x{created[0].Info.Height}";
-        // A linear destination (a read-back) stays on the guest path: nothing copied, nothing created.
-        var lsource = Make(Format.R8G8B8A8Unorm, 4, 128, 32);
-        rm.Physical.TextureCache.Textures = new() { lsource };
-        bool linearDeclined = !dma.GpuRegion(rm, srcSurface, 16, 3, dstSurface, true, 0, 0, 16, 2) &&
-                              lsource.HostTexture.Copies.Count == 0 && created.Count == 1 && lsource.Calls.Count == 0;
+        // A read-back into tightly packed linear memory (16 bytes per row, stride 16): copied on the GPU into a linear
+        // texture created over the destination, a host sync forced after the copy; the next read-back reuses the texture.
+        var bsource = Make(Format.R8G8B8A8Unorm, 4, 128, 32);
+        rm.Physical.TextureCache.Textures = new() { bsource };
+        int syncsBefore = dma.ForcedSyncs;
+        bool readBackCopied = dma.GpuRegion(rm, srcSurface, 16, 3, dstSurface, true, 16, 0, 0, 16, 2);
+        string readBackQuery = rm.Physical.TextureCache.LastCreate + " | buffers " + rm.Physical.BufferCache.LastQuery;
+        var readTarget = created[created.Count - 1];
+        string readBackCopy = string.Join(";", bsource.HostTexture.Copies) + " | " + string.Join(",", readTarget.Calls) + " | " +
+                              $"{readTarget.Info.Width}x{readTarget.Info.Height} linear={readTarget.Info.IsLinear} stride={readTarget.Info.Stride}" +
+                              $" | syncs {dma.ForcedSyncs - syncsBefore}";
+        rm.Physical.TextureCache.Textures = new() { bsource, readTarget };
+        int madeBefore = created.Count;
+        bool readBackReused = dma.GpuRegion(rm, srcSurface, 16, 3, dstSurface, true, 16, 0, 0, 16, 2) && created.Count == madeBefore &&
+                              bsource.HostTexture.Copies.Count == 2 && dma.ForcedSyncs - syncsBefore == 2;
+        string readBackLine = sink.Lines.Find(l => l.StartsWith("DMA GPU read-back"));
+        int readBackLines = sink.Lines.FindAll(l => l.StartsWith("DMA GPU read-back")).Count;
+        var readBackDeclined = new List<string>();
+        void ReadBackDecline(string name, List<Image.Texture> textures, List<Image.Texture> placed, int stride, int xCount, bool buffer)
+        {
+            rm.Physical.TextureCache.Textures = textures;
+            rm.Physical.TextureCache.Placed = placed ?? new();
+            rm.Physical.BufferCache.Overlap = buffer;
+            int copies = 0; foreach (var t in textures) copies += t.HostTexture.Copies.Count;
+            int made = created.Count, syncs = dma.ForcedSyncs;
+            bool ok = dma.GpuRegion(rm, srcSurface, 16, 3, dstSurface, true, stride, 0, 0, xCount, 2);
+            int after = 0; foreach (var t in textures) after += t.HostTexture.Copies.Count;
+            rm.Physical.TextureCache.Placed = new();
+            rm.Physical.BufferCache.Overlap = false;
+            if (!ok && after == copies && created.Count == made && dma.ForcedSyncs == syncs) readBackDeclined.Add(name);
+        }
+        ReadBackDecline("strided", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32) }, null, 64, 16, false);
+        // A half-float region 3 texels (6 bytes) wide: whole texels, but rows not on 4 bytes.
+        ReadBackDecline("unaligned", new() { Make(Format.R16Float, 2, 256, 32) }, null, 6, 6, false);
+        ReadBackDecline("buffer", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32) }, null, 16, 16, true);
+        var resident = Make(Format.R8G8B8A8Unorm, 4, 8, 8); resident.Range.Spans.Add(new Image.Span(0x10000 + 8, 256));
+        ReadBackDecline("occupied", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32) }, new() { resident }, 16, 16, false);
+        var otherLayout = Make(Format.B8G8R8A8Unorm, 4, 4, 2); otherLayout.Info.IsLinear = true; otherLayout.Info.Stride = 16;
+        ReadBackDecline("target", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32), otherLayout }, null, 16, 16, false);
+        string readBackCounts = dma.ReadBackCounts;
         string regionLine = sink.Lines.Find(l => l.StartsWith("DMA GPU region copy"));
         int regionLines = sink.Lines.FindAll(l => l.StartsWith("DMA GPU region copy")).Count;
         var regionDeclined = new List<string>();
@@ -600,7 +824,7 @@ static class Program
             if (createNothing) rm.Physical.TextureCache.Create = null;
             int copies = 0; foreach (var t in textures) copies += t.HostTexture.Copies.Count;
             int made = created.Count;
-            bool ok = dma.GpuRegion(rm, s, sx, 3, dstSurface, linear, 8, 5, 16, 2);
+            bool ok = dma.GpuRegion(rm, s, sx, 3, dstSurface, linear, 0, 8, 5, 16, 2);
             int after = 0; foreach (var t in textures) after += t.HostTexture.Copies.Count;
             rm.Physical.TextureCache.Create = create;
             rm.Physical.TextureCache.Placed = new();
@@ -622,7 +846,6 @@ static class Program
         RegionDecline("sameGroup", new() { sharedSource, sharedTarget }, true, srcSurface, 16, false);
         RegionDecline("otherFormat", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32), Make(Format.B8G8R8A8Unorm, 4, 64, 64) }, true,
                       srcSurface, 16, false);
-        RegionDecline("linearDestination", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32) }, false, srcSurface, 16, true);
         // A texture of another size over the destination surface: the creation would drop it, so nothing is created.
         var occupant = Make(Format.R8G8B8A8Unorm, 4, 64, 32); occupant.Range.Spans.Add(new Image.Span(0x10000 + 4096, 8192));
         RegionDecline("occupied", new() { Make(Format.R8G8B8A8Unorm, 4, 128, 32) }, false, srcSurface, 16, false, new() { occupant });
@@ -642,16 +865,80 @@ static class Program
         int capped = sink.Lines.FindAll(l => l.StartsWith("DMA guest-memory copies: ")).Count;
         string uploadLine = sink.Lines.Find(l => l.StartsWith("DMA region upload"));
         int uploadLines = sink.Lines.FindAll(l => l.StartsWith("DMA region upload")).Count;
+
+        // Byte model: the deferred read-back against the reference copy through guest memory, which writes the rows of the
+        // source region at the destination stride. Guard bytes surround the 32-byte destination (2 rows of 16 bytes).
+        var guest = new Guest(); Guest.Current = guest;
+        var xm = new MemoryManager();
+        var xcreated = new List<Image.Texture>();
+        xm.Physical.TextureCache.Create = (f, x, y, stride, linear) =>
+        {
+            var t = Make(f.Format, f.BytesPerPixel, x / f.BytesPerPixel, y); t.Info.IsLinear = linear; t.Info.Stride = stride;
+            t.HostTexture.Allocate(t.Info.Width, y, f.BytesPerPixel); xcreated.Add(t); return t;
+        };
+        var xsource = Make(Format.R8G8B8A8Unorm, 4, 128, 32);
+        xsource.HostTexture.Allocate(128, 32, 4);
+        const ulong Dst = 0x10000; const int Bytes = 32;
+        void Render(int seed) { byte[] d = xsource.HostTexture.Data; for (int i = 0; i < d.Length; i++) d[i] = (byte)(seed * 37 + i * 11 + (i >> 9)); }
+        byte[] Reference() { var e = new byte[Bytes]; for (int y = 0; y < 2; y++) Array.Copy(xsource.HostTexture.Data, (3 + y) * 512 + 16, e, y * 16, 16); return e; }
+        bool Guards()
+        {
+            for (ulong a = Dst - 16; a < Dst; a++) if (guest.Memory[a] != 0xEE) return false;
+            for (ulong a = Dst + Bytes; a < Dst + Bytes + 16; a++) if (guest.Memory[a] != 0xEE) return false;
+            return true;
+        }
+        bool ReadBack()
+        {
+            bool ok = dma.GpuRegion(xm, srcSurface, 16, 3, dstSurface, true, 16, 0, 0, 16, 2);
+            xm.Physical.TextureCache.Textures = xcreated.Count > 0 ? new() { xsource, xcreated[0] } : new() { xsource };
+            return ok;
+        }
+        guest.Memory.AsSpan((int)(Dst - 16), Bytes + 32).Fill(0xEE);
+        xm.Physical.TextureCache.Textures = new() { xsource };
+        int strictBefore = dma.StrictSyncs;
+        // 1. A read right after the copy.
+        Render(1); bool r1 = ReadBack(); byte[] ref1 = Reference(); int f1 = guest.Flushes;
+        bool byteImmediate = r1 && guest.Read(Dst, Bytes).AsSpan().SequenceEqual(ref1) && guest.Flushes == f1 + 1 && Guards();
+        // 2. A read one frame later: the source is rendered again after the copy; the bytes are those of the copy's time.
+        Render(2); bool r2 = ReadBack(); byte[] ref2 = Reference(); Render(3);
+        bool byteNextFrame = r2 && guest.Read(Dst, Bytes).AsSpan().SequenceEqual(ref2) && !ref2.AsSpan().SequenceEqual(Reference()) && Guards();
+        // 3. A partial read: those bytes match; the one flush writes the whole destination and nothing outside it.
+        Render(4); bool r3 = ReadBack(); byte[] ref3 = Reference(); int f3 = guest.Flushes;
+        bool bytePartial = r3 && guest.Read(Dst + 20, 4).AsSpan().SequenceEqual(ref3.AsSpan(20, 4)) &&
+                           guest.Read(Dst, Bytes).AsSpan().SequenceEqual(ref3) && guest.Flushes == f3 + 1 && Guards();
+        // 4. A rewrite before any read: the write first flushes the copy, then lands on it; the next read-back reloads the
+        // rewritten texture and replaces every byte.
+        Render(5); bool r4 = ReadBack(); byte[] ref4 = Reference(); int f4 = guest.Flushes;
+        guest.Write(Dst + 4, new byte[] { 1, 2, 3, 4 });
+        byte[] expected4 = (byte[])ref4.Clone(); expected4[4] = 1; expected4[5] = 2; expected4[6] = 3; expected4[7] = 4;
+        bool rewriteKept = guest.Read(Dst, Bytes).AsSpan().SequenceEqual(expected4) && guest.Flushes == f4 + 1;
+        Render(6); bool r5 = ReadBack(); byte[] ref5 = Reference();
+        bool byteRewrite = r4 && rewriteKept && r5 && guest.Read(Dst, Bytes).AsSpan().SequenceEqual(ref5) && Guards();
+        string byteModel = $"{xcreated.Count} target, {guest.Flushes} flushes, {dma.StrictSyncs - strictBefore} strict syncs";
+        Guest.Current = null;
+        // Why strided rows are declined: the real conversion of a strided linear flush writes zeros between the rows.
+        byte[] rowData = new byte[32]; Array.Fill(rowData, (byte)0xAB);
+        ReadOnlySpan<byte> strided = LayoutConverter.ConvertLinearToLinearStrided(Span<byte>.Empty, 4, 2, 1, 1, 64, 4, rowData);
+        bool stridedZeroes = strided.Length == 128 && strided[15] == 0xAB && strided[16] == 0 && strided[63] == 0 && strided[64] == 0xAB;
+
         Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { signatures, summaries, allocated, last, capped,
             first = sink.Lines[0], uploaded, query, calls, region, rows, r8Uploaded, r8Rows, narrowUploaded, narrowCalls,
             narrowRegion = $"{narrow.Region.X},{narrow.Region.Y} {narrow.Region.Width}x{narrow.Region.Height}", exactUploaded, exactCalls,
             declined, counts, uploadLine, uploadLines, gpuCopied, gpuCopy, gpuCalls, gpuDeclined, sourceCounts, gpuLine, gpuLines,
-            floatCopied, floatCopy, regionCopied, regionCopy, createdCopied, createdQuery, createdCopy, linearDeclined,
-            regionLine, regionLines, regionDeclined, regionCounts, precise,
+            floatCopied, floatCopy, regionCopied, regionCopy, createdCopied, createdQuery, createdCopy, readBackCopied,
+            readBackQuery, readBackCopy, readBackReused, readBackLine, readBackLines, readBackDeclined, readBackCounts,
+            regionLine, regionLines, regionDeclined, regionCounts, precise, byteImmediate, byteNextFrame, bytePartial, byteRewrite,
+            byteModel, stridedZeroes,
             slowLines = slowLines.ConvertAll(l => System.Text.RegularExpressions.Regex.Replace(l, @"\d+\.\d ms", "T ms")) }));
     }
 }
 """
+    layout_source = ((CANDIDATE or SOURCE) / LAYOUT).read_text(encoding='utf-8-sig')
+    layout_method = layout_source[layout_source.index('        public static ReadOnlySpan<byte> ConvertLinearToLinearStrided('):
+                                  layout_source.index('        private static int GetTextureSize(')]
+    check('if (inStride == stride)' in layout_method and 'output = new byte[h * stride];' in layout_method,
+          'the byte model runs the real strided linear conversion')
+    program = program.replace('__LAYOUT_CONVERTER__', layout_method)
     harness = temporary / 'harness'
     harness.mkdir()
     (harness / 'Program.cs').write_text(program)
@@ -687,7 +974,8 @@ static class Program
     check(result['counts'] == '4 3 10 2 1 2 1', f'uploads, declines (no texture, layout, format, overlap) and slow accesses counted: {result}')
     check('regionUploads 4, declined noTarget 3 layout 10 format 2 overlap 1; slowReads 3, slowWrites 1; gpuSourceCopies 2, declined '
           'noTexture 4 layout 3 noTarget 1 format 3 notModified 1; gpuRegionCopies 2, declined noTexture 2 layout 2 noTarget 2 '
-          'format 3 notModified 1 linearDestination 2; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)'
+          'format 3 notModified 1; gpuReadBacks 2 of 7, first-access flushes 0 (0.0 ms, max 0.0 ms, GPU thread 0), declined rows 2 '
+          'buffer 1 occupied 1 target 1; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)'
           in result['last'] and
           'floatFormat ' in result['last'], f'the summary reports them: {result}')
     check(result['capped'] == 64, f'at most 64 summaries per session: {result}')
@@ -704,17 +992,29 @@ static class Program
     check(result['createdCopied'] and result['createdQuery'] == '10000 256x64 stride=0 linear=False gob=4/1' and
           result['createdCopy'] == '(2,3)-(4,5) to (1,5)-(3,7) filter=False same=False | sync,modified | 32x64',
           f'a destination surface missing from the cache is created over the surface, then copied into: {result}')
-    check(result['linearDeclined'], f'a linear destination (a read-back) stays on the guest path, nothing created: {result}')
+    check(result['readBackCopied'] and result['readBackQuery'] == '10000 16x2 stride=16 linear=True gob=1/1 | buffers 10000 32' and
+          result['readBackCopy'] == '(4,3)-(8,5) to (0,0)-(4,2) filter=False same=False | sync,modified | 4x2 linear=True stride=16 | syncs 1',
+          f'a read-back is copied on the GPU into a linear texture created over the destination, with a forced host sync: {result}')
+    check(result['readBackReused'], f'the next read-back reuses that texture: {result}')
+    check(result['readBackLines'] == 1 and result['readBackLine'] ==
+          'DMA GPU read-back (Hogwarts policy): R8G8B8A8Unorm 128x32 (4,3) 4x2 to linear stride 16', f'first read-back logged once: {result}')
+    check(result['readBackDeclined'] == ['strided', 'unaligned', 'buffer', 'occupied', 'target'],
+          f'every declined read-back copies, creates and syncs nothing: {result}')
+    check(result['readBackCounts'] == '2 2,1,1,1', f'read-backs and declines (rows, buffer, occupied, target): {result}')
+    check(result['byteImmediate'] and result['byteNextFrame'] and result['bytePartial'] and result['byteRewrite'],
+          f'immediate, next-frame, partial and rewrite-before-read accesses get the bytes of the reference copy: {result}')
+    check(result['byteModel'] == '1 target, 5 flushes, 5 strict syncs',
+          f'one reused target, one flush per first access, a strict host sync per read-back: {result}')
+    check(result['stridedZeroes'], f'a strided linear flush zeroes the bytes between rows (why only contiguous rows qualify): {result}')
     check(result['regionLines'] == 1 and result['regionLine'] ==
           'DMA GPU region copy (Hogwarts policy): R8G8B8A8Unorm 128x32 (4,3) to 64x64 (2,5) 4x2', f'first region copy logged once: {result}')
     check(result['regionDeclined'] == ['noTexture', 'notModified', 'misaligned', 'volume', 'snorm', 'noTarget', 'sameGroup',
-                                       'otherFormat', 'linearDestination', 'occupied', 'notAtStart'],
+                                       'otherFormat', 'occupied', 'notAtStart'],
           f'every declined GPU region copy copies and creates nothing: {result}')
-    check(result['regionCounts'] == '2 2,2,2,3,1,2',
-          f'GPU region copies and declines (no texture, layout, no target, format, not modified, linear destination): {result}')
+    check(result['regionCounts'] == '2 2,2,2,3,1',
+          f'GPU region copies and declines (no texture, layout, no target, format, not modified): {result}')
     check(result['precise'], f'the precise read goes to the physical memory with the translated range: {result}')
-    # The two GPU copies share their decline reasons; a source copy never counts a linear destination (the sixth).
-    check(result['sourceCounts'] == '1 4,3,1,3,1,0 | 2,0,0,1', f'GPU source copies, declines and slow reads by source kind: {result}')
+    check(result['sourceCounts'] == '1 4,3,1,3,1 | 2,0,0,1', f'GPU source copies, declines and slow reads by source kind: {result}')
     check(result['gpuLines'] == 1 and result['gpuLine'] ==
           'DMA GPU source copy (Hogwarts policy): R8G8B8A8Unorm 64x32 linear (4,3) to 64x64 (2,3) 4x2', f'first copy logged once: {result}')
     check(result['slowLines'] == ['DMA slow source read #1: T ms, source=None overlaps 0: none; destination texture none',
@@ -724,13 +1024,109 @@ static class Program
     check(result['uploadLines'] == 1 and result['uploadLine'] == 'DMA region upload (Hogwarts policy): R8G8B8A8Unorm 64x64 region 2,3 4x2',
           f'the first upload is logged once: {result}')
 
+    # The real RenderStageTimer, extracted from the composed PipelineBase, runs with a logger double: the first
+    # presentation opens the window, the first one 5 s later logs one line, and every counter starts again.
+    timer_source = after[host.PIPELINE_BASE]
+    timer_class = timer_source[timer_source.index('    /// <summary>\n    /// What the render thread'):
+                               timer_source.index('    class PipelineBase : IDisposable')]
+    stages = temporary / 'stages'
+    stages.mkdir()
+    (stages / 'Program.cs').write_text(r"""using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+namespace Ryujinx.Common.Logging
+{
+    enum LogClass { Gpu }
+    sealed class Sink { public readonly List<string> Lines = new(); public void Print(LogClass c, string m) => Lines.Add(m); }
+    static class Logger { public static Sink Warning; }
+}
+namespace Ryujinx.Graphics.Vulkan
+{
+""" + timer_class + r"""
+    static class Program
+    {
+        static void Fill(int scale)
+        {
+            long ms = Stopwatch.Frequency / 1000;
+            RenderStageTimer.Prepares += 1000 * scale; RenderStageTimer.PrepareTicks += 900 * ms * scale; RenderStageTimer.NotReady += 2;
+            RenderStageTimer.Pipelines += 40; RenderStageTimer.PipelineTicks += 30 * ms; RenderStageTimer.BarrierTicks += 50 * ms;
+            RenderStageTimer.DescriptorTicks += 400 * ms; RenderStageTimer.AutoFlushes += 3; RenderStageTimer.AutoFlushTicks += 20 * ms;
+            RenderStageTimer.PassBegins += 300; RenderStageTimer.PassResumes += 120; RenderStageTimer.PassTicks += 60 * ms;
+            RenderStageTimer.Submits += 25; RenderStageTimer.SubmitTicks += 70 * ms; RenderStageTimer.QueueTicks += 55 * ms;
+            RenderStageTimer.WriteWaits += 3000; RenderStageTimer.WriteWaitTicks += 12 * ms;
+            RenderStageTimer.ReadWaits += 60; RenderStageTimer.ReadWaitTicks += 1500 * ms;
+            // Another thread's wait goes to its own atomic counters.
+            RenderStageTimer.NoteFenceWait(false, true, RenderStageTimer.Now() - 4 * ms);
+        }
+
+        static void Main()
+        {
+            var sink = new Ryujinx.Common.Logging.Sink();
+            Ryujinx.Common.Logging.Logger.Warning = sink;
+            long f = Stopwatch.Frequency;
+            long now = RenderStageTimer.Now();
+            RenderStageTimer.NotePresent(now - 7 * f, now - f / 1000, now - f / 1000, now - f / 1000);
+            int afterFirst = sink.Lines.Count;
+            Fill(1);
+            now = RenderStageTimer.Now();
+            RenderStageTimer.NotePresent(now - f / 100, now - f / 200, now - f / 400, now - f / 1000);
+            int afterWindow = sink.Lines.Count;
+            bool reset = RenderStageTimer.Prepares == 0 && RenderStageTimer.PrepareTicks == 0 && RenderStageTimer.PassResumes == 0 &&
+                         RenderStageTimer.QueueTicks == 0 && RenderStageTimer.WriteWaits == 0 && RenderStageTimer.ReadWaitTicks == 0;
+            now = RenderStageTimer.Now();
+            RenderStageTimer.NotePresent(now, now, now, now);
+            int afterNext = sink.Lines.Count;
+            Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(new { afterFirst, afterWindow, afterNext, reset,
+                line = sink.Lines.Count > 0 ? sink.Lines[0] : "" }));
+        }
+    }
+}
+""")
+    (stages / 'stages.csproj').write_text('''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup>
+<OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><Nullable>disable</Nullable>
+<ImplicitUsings>disable</ImplicitUsings><NuGetAudit>false</NuGetAudit>
+</PropertyGroup></Project>''')
+    (stages / 'global.json').write_text(json.dumps({'sdk': {'version': '10.0.100', 'rollForward': 'disable'}}))
+    (stages / 'NuGet.Config').write_text('<configuration><packageSources><clear /></packageSources></configuration>')
+    run = subprocess.run([DOTNET, 'run', '--project', str(stages / 'stages.csproj'), '-c', 'Release'], cwd=stages,
+                         capture_output=True, text=True, timeout=900, env=environment)
+    if run.returncode:
+        print(run.stdout[-4000:], run.stderr[-3000:])
+    run.check_returncode()
+    stage_result = json.loads(next(line for line in run.stdout.splitlines() if line.startswith('{')))
+    stage_line = re.fullmatch(
+        r'Vulkan render stages over (?P<window>[\d.]+) ms, (?P<frames>\d+) frames: draw prepare (?P<prepares>\d+) calls '
+        r'(?P<prepare>[\d.]+) ms \(not ready (?P<notReady>\d+); pipelines (?P<pipelines>\d+) calls (?P<pipeline>[\d.]+) ms, '
+        r'barriers (?P<barriers>[\d.]+) ms, descriptors (?P<descriptors>[\d.]+) ms, auto-flushes (?P<autoFlushes>\d+) calls '
+        r'(?P<autoFlush>[\d.]+) ms\); render passes (?P<passes>\d+) begun (?P<pass>[\d.]+) ms \(same framebuffer again '
+        r'(?P<resumes>\d+)\); submits (?P<submits>\d+) calls (?P<submit>[\d.]+) ms \(queue (?P<queue>[\d.]+) ms\); fence waits '
+        r'on the render thread: buffer writes (?P<writeWaits>\d+) calls (?P<writeWait>[\d.]+) ms, reads (?P<readWaits>\d+) calls '
+        r'(?P<readWait>[\d.]+) ms; on other threads (?P<otherWaits>\d+) calls (?P<otherWait>[\d.]+) ms; present '
+        r'(?P<presents>\d+) calls (?P<present>[\d.]+) ms \(acquire (?P<acquire>[\d.]+) ms, queue present (?P<queuePresent>[\d.]+) ms\)',
+        stage_result['line'])
+    check(stage_result['afterFirst'] == 0 and stage_result['afterWindow'] == 1 and stage_result['afterNext'] == 1 and
+          stage_result['reset'] and stage_line is not None, f'one render-stage line per 5 s of presentation, then reset: {stage_result}')
+    values = stage_line.groupdict()
+    check(values['frames'] == values['presents'] == '2' and float(values['window']) >= 6990 and values['prepares'] == '1000' and
+          values['prepare'] == '900.0' and values['notReady'] == '2' and values['pipelines'] == '40' and values['pipeline'] == '30.0'
+          and values['barriers'] == '50.0' and values['descriptors'] == '400.0' and values['autoFlushes'] == '3' and
+          values['autoFlush'] == '20.0' and values['passes'] == '300' and values['pass'] == '60.0' and values['resumes'] == '120'
+          and values['submits'] == '25' and values['submit'] == '70.0' and values['queue'] == '55.0' and
+          values['writeWaits'] == '3000' and values['writeWait'] == '12.0' and values['readWaits'] == '60' and
+          values['readWait'] == '1500.0' and values['otherWaits'] == '1' and 3.9 <= float(values['otherWait']) <= 6.0 and
+          7009.9 <= float(values['present']) <= 7040.0 and values['acquire'] == '2.5' and
+          1.9 <= float(values['queuePresent']) <= 6.0,
+          f'the line carries every counter of its window, in milliseconds with an invariant decimal point: {stage_result}')
+    result['renderStages'] = dict(stage_result, fields=sorted(values))
+
 inputs = ['build-utils/melonx/adapt_hogwarts_dma_copies.py', 'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
           'test/melonx_hogwarts_dma_copies_test.py']
 receipt = dict(result='passed', checks=checks, physicalDeviceTested=False, fpsGainProven=False,
                sourceKind='deliveredPreparedWithFinalCandidate' if CANDIDATE else 'deliveredPreparedComposed',
                finalPreparedSourceBound=bool(CANDIDATE), attribution=result,
                inputs={p: sha(ROOT / p) for p in inputs},
-               preimages={p: sha(SOURCE / p) for p in ALL}, postimages=postimages)
+               preimages={p: sha(SOURCE / p) for p in ALL}, postimages=postimages,
+               modelInputs={LAYOUT: sha((CANDIDATE or SOURCE) / LAYOUT)})
 out = ROOT / 'dist/melonx/hogwarts-dma-copies-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(json.dumps(receipt, indent=2) + '\n')

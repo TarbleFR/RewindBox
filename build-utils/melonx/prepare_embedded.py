@@ -242,7 +242,8 @@ def main():
     # the query-policy line that adapt_occlusion_reports wrote (still exactly once at this point).
     assert library.read_text(encoding='utf-8-sig').count(HOGWARTS_DMA_LIBRARY_ANCHOR) == 1, 'Hogwarts DMA policy anchor'
     adapted += [source / name for name in adapt_hogwarts_dma_copies(source)]
-    # After every step that edits ThreadedRenderer.cs, PipelineCacheManager.cs and BackgroundCompilationScheduler.cs.
+    # After every step that edits ThreadedRenderer.cs, PipelineCacheManager.cs, BackgroundCompilationScheduler.cs,
+    # PipelineBase.cs, PipelineFull.cs and MVKInitialization.cs (Window.cs only this one edits).
     adapted += [source / name for name in adapt_host_qos_pipeline_budget(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
