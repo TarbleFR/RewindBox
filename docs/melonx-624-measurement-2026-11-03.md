@@ -72,3 +72,24 @@ and descriptor updates, and the render passes that dispatches end.
 - **Next limits:** the render thread (25-37 FPS ceilings), MoltenVK's encoding thread (23-31 ms) and the GPU, whose
   real busy time the next run will bound better.
 - **No 30 FPS claim.** If the GPU becomes the limit, the image and swapchain waits will rise in the Vulkan lines.
+
+## Build 625 journals: 1x and 0.5x (3 November 2026)
+
+| Session | Game FPS mean / median | Heavy windows | MoltenVK GPU per frame / frame interval, in play |
+|---|---|---|---|
+| 625 at 1x, PID 2327 (197 s) | 16.7 / 14.0 | 13-14 FPS | 74-83 ms / 72-77 ms |
+| 625 at 0.5x, PID 2470 (55 s) | 18.5 / 16.9 | 16-18 FPS | about 20 ms / about 50 ms |
+
+**The read-back into a buffer never ran.** The DMA summaries give `into buffers 0`, with 286 and 292 copies declined
+as occupied. The texture over the destination is the linear read-back target that the first copies created before
+the game made its buffer.
+
+**What the two resolutions show.**
+- **At 1x:** the GPU is busy for the whole frame in play.
+- **At 0.5x:** the GPU time falls about fourfold, but the frames stay at about 50 ms. The GPU thread still waits for
+  the read-back of each frame (36-52 ms per frame), and the render thread spends 14-26 ms per frame on compute
+  descriptor updates.
+- **So 30 FPS needs both:** less GPU work than at 1x, and an end to the CPU-side read-back wait.
+
+**Build 626.** When that read-back target alone overlaps the destination, the copy goes into the buffer and into
+that texture, so both hold the latest bytes. Any other texture there still declines the copy.

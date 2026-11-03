@@ -130,6 +130,14 @@ texture: the GPU thread waited about 57 ms per frame for the render thread and t
     the guest's own sync waits for the copy too.
   - A partial region keeps the guest path (counted as partial).
 - The DMA summary counts these read-backs into buffers apart.
+
+Build 625 journals (PIDs 2327 at 1x and 2470 at 0.5x, 3 November 2026): 0 read-backs into buffers;
+286 and 292 declined as occupied. The texture over the destination is the linear read-back target
+that the first copies created before the game made its buffer (TryReadBackGpuRegion). From build 626,
+when that read-back target alone overlaps the destination (TextureGroup.ReadBackTarget, the same
+layout and format), the copy goes into the buffer and into that texture, so both hold the latest
+bytes and a CPU read flushes the same bytes from either. Any other texture over the destination still
+declines the copy (occupied).
 - The float policy keeps to block-linear destinations (complete copies, upstream path).
 - FindRegionTarget (the region upload, both GPU copies) only takes a texture that starts at the
   surface base: the cache lookup returns any texture that contains the base, and the region
@@ -633,6 +641,7 @@ METHOD_NEW = '''        /// <summary>
         private readonly long[] _readBackDeclines = new long[(int)ReadBackDecline.Count];
         private long _gpuReadBacks;
         private long _bufferReadBacks;
+        private long _ownTargetReadBacks;
         private long _readBackCandidates;
         private bool _gpuReadBackNoted;
         private bool _bufferReadBackNoted;
@@ -670,7 +679,7 @@ METHOD_NEW = '''        /// <summary>
                     $"{_gpuSourceDeclines[0]} layout {_gpuSourceDeclines[1]} noTarget {_gpuSourceDeclines[2]} format " +
                     $"{_gpuSourceDeclines[3]} notModified {_gpuSourceDeclines[4]}; gpuRegionCopies {_gpuRegionCopies}, declined noTexture " +
                     $"{_gpuRegionDeclines[0]} layout {_gpuRegionDeclines[1]} noTarget {_gpuRegionDeclines[2]} format " +
-                    $"{_gpuRegionDeclines[3]} notModified {_gpuRegionDeclines[4]}; gpuReadBacks {_gpuReadBacks} (into buffers {_bufferReadBacks}) of {_readBackCandidates}, " +
+                    $"{_gpuRegionDeclines[3]} notModified {_gpuRegionDeclines[4]}; gpuReadBacks {_gpuReadBacks} (into buffers {_bufferReadBacks}, with the read-back target {_ownTargetReadBacks}) of {_readBackCandidates}, " +
                     $"first-access flushes {System.Threading.Interlocked.Read(ref Image.TextureGroup.ReadBackFlushes)} (" +
                     $"{Milliseconds(System.Threading.Interlocked.Read(ref Image.TextureGroup.ReadBackFlushTicks))} ms, max " +
                     $"{Milliseconds(System.Threading.Interlocked.Read(ref Image.TextureGroup.ReadBackFlushMaxTicks))} ms, GPU thread " +
@@ -1181,7 +1190,22 @@ METHOD_NEW = '''        /// <summary>
                 return false;
             }
 
-            if (memoryManager.Physical.TextureCache.FindOverlapsInRange(memoryManager, dstVa, size, ref _targetOverlaps, out _) != 0)
+            int overlaps = memoryManager.Physical.TextureCache.FindOverlapsInRange(memoryManager, dstVa, size, ref _targetOverlaps, out _);
+
+            // Build 625: the only texture there is often the linear read-back target the first copies created before the
+            // game made its buffer. It is kept current with the buffer; any other texture declines the copy.
+            Image.Texture own = overlaps == 1 ? _targetOverlaps[0] : null;
+
+            if (own != null && (!own.Group.ReadBackTarget || !own.Info.IsLinear || own.Info.Stride != dstStride ||
+                own.Info.Width != width || own.Info.Height != height || own.Info.FormatInfo.Format != format.Format ||
+                own.Group == source.Group || own.Group.HasIncompatibleOverlaps || own.Info.Target != Target.Texture2D ||
+                own.Info.Levels > 1 || own.Info.DepthOrLayers > 1 || own.ScaleFactor != 1f ||
+                own.Range.GetSubRange(0).Address != memoryManager.Translate(dstVa)))
+            {
+                own = null;
+            }
+
+            if (overlaps != 0 && own == null)
             {
                 _readBackDeclines[(int)ReadBackDecline.Occupied]++;
                 return false;
@@ -1193,6 +1217,14 @@ METHOD_NEW = '''        /// <summary>
             {
                 _readBackDeclines[(int)ReadBackDecline.Buffer]++;
                 return false;
+            }
+
+            if (own != null)
+            {
+                own.SynchronizeMemory();
+                source.HostTexture.CopyTo(own.HostTexture, new Extents2D(0, 0, width, height), new Extents2D(0, 0, width, height), false);
+                own.SignalModified();
+                _ownTargetReadBacks++;
             }
 
             _context.CreateHostSyncIfNeeded(Ryujinx.Graphics.Gpu.Synchronization.HostSyncFlags.Force);

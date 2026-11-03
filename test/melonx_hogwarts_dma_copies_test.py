@@ -287,7 +287,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
     region_copy = dma[dma.index('private bool TryCopyGpuRegion('):dma.index('private static bool SignalPreciseRead(')]
     check('SignalModified' not in upload and gpu_copy.count('target.SignalModified();') == 1 and
           region_copy.count('target.SignalModified();') == 2 and
-          dma.count('SignalModified') == before[adapter.DMA].count('SignalModified') + 3,
+          dma.count('SignalModified') == before[adapter.DMA].count('SignalModified') + 4 and
+          dma.count('own.SignalModified();') == 1,
           'the region upload does not mark the texture modified; the GPU copies and the read-back mark their destination, as the delivered GPU copy does')
     readback = dma[dma.index('private bool TryReadBackGpuRegion('):dma.index('private static bool SignalPreciseRead(')]
     check(readback.index('target.Group.ReadBackTarget = true;') < readback.index('target.SignalModified();') <
@@ -860,6 +861,21 @@ static class Program
                             $"{dma.ForcedSyncs - bufferForced} strict {dma.StrictSyncs - bufferStrict} | created {created.Count - bufferMade}" +
                             $" | host copies {exposure.HostTexture.Copies.Count}";
         string bufferLine = sink.Lines.Find(l => l.StartsWith("DMA GPU read-back into a buffer"));
+        // Build 625: the first copies, before the game made its buffer, created a linear read-back target over the
+        // destination; once the buffer exists that target is the only texture there. The copy goes into the buffer and
+        // into the target, so both hold the latest bytes.
+        rm.Physical.TextureCache.Textures = new() { exposure };
+        rm.Physical.BufferCache.Overlap = false;
+        bool ownCreated = dma.GpuRegion(rm, tinySurface, 0, 0, dstSurface, true, 8, 0, 0, 8, 1);
+        var ownTarget = created[created.Count - 1];
+        rm.Physical.TextureCache.Placed = new() { ownTarget };
+        rm.Physical.BufferCache.Overlap = true;
+        int ownBefore = rm.Physical.BufferCache.Copies.Count, ownHostBefore = exposure.HostTexture.Copies.Count;
+        bool ownReadBack = dma.GpuRegion(rm, tinySurface, 0, 0, dstSurface, true, 8, 0, 0, 8, 1);
+        string ownCopy = $"{ownCreated && ownTarget.Group.ReadBackTarget} | buffer copies {rm.Physical.BufferCache.Copies.Count - ownBefore} | " +
+                         $"{string.Join(";", exposure.HostTexture.Copies.GetRange(ownHostBefore, exposure.HostTexture.Copies.Count - ownHostBefore))} | " +
+                         string.Join(",", ownTarget.Calls);
+        rm.Physical.TextureCache.Placed = new(); rm.Physical.BufferCache.Overlap = false;
         bool BufferDecline(bool refuses, List<Image.Texture> placed)
         {
             rm.Physical.TextureCache.Textures = new() { exposure };
@@ -989,7 +1005,7 @@ static class Program
             declined, counts, uploadLine, uploadLines, gpuCopied, gpuCopy, gpuCalls, gpuDeclined, sourceCounts, gpuLine, gpuLines,
             floatCopied, floatCopy, regionCopied, regionCopy, createdCopied, createdQuery, createdCopy, readBackCopied,
             readBackQuery, readBackCopy, readBackReused, readBackLine, readBackLines, readBackDeclined, readBackCounts,
-            bufferReadBack, bufferCopy, bufferLine,
+            bufferReadBack, bufferCopy, bufferLine, ownReadBack, ownCopy,
             regionLine, regionLines, regionDeclined, regionCounts, precise, byteImmediate, byteNextFrame, bytePartial, byteRewrite,
             byteModel, stridedZeroes,
             slowLines = slowLines.ConvertAll(l => System.Text.RegularExpressions.Regex.Replace(l, @"\d+\.\d ms", "T ms")) }));
@@ -1037,7 +1053,8 @@ static class Program
     check(result['counts'] == '4 3 10 2 1 2 1', f'uploads, declines (no texture, layout, format, overlap) and slow accesses counted: {result}')
     check('regionUploads 4, declined noTarget 3 layout 10 format 2 overlap 1; slowReads 3, slowWrites 1; gpuSourceCopies 2, declined '
           'noTexture 4 layout 3 noTarget 1 format 3 notModified 1; gpuRegionCopies 2, declined noTexture 2 layout 2 noTarget 2 '
-          'format 3 notModified 1; gpuReadBacks 3 (into buffers 1) of 10, first-access flushes 0 (0.0 ms, max 0.0 ms, GPU thread 0), '
+          'format 3 notModified 1; gpuReadBacks 5 (into buffers 2, with the read-back target 1) of 12, first-access flushes 0 (0.0 ms, '
+          'max 0.0 ms, GPU thread 0), '
           'declined rows 2 buffer 1 occupied 2 target 1 partial 1; slowReads by source none 2 linearHolds 0 linearOther 0 blockLinear 1)'
           in result['last'] and
           'floatFormat ' in result['last'], f'the summary reports them: {result}')
@@ -1064,9 +1081,12 @@ static class Program
     check(result['bufferReadBack'] and result['bufferCopy'] == '10000 8 stride=8 | sync | syncs 1 strict 0 | created 0 | host copies 0' and
           result['bufferLine'] == 'DMA GPU read-back into a buffer (Hogwarts policy): R16G16B16A16Float 1x1 to stride 8, 8 bytes',
           f'a whole texture read back into a buffer is copied on the GPU into it, after a source sync, then a forced sync: {result}')
+    check(result['ownReadBack'] and result['ownCopy'] ==
+          'True | buffer copies 1 | (0,0)-(1,1) to (0,0)-(1,1) filter=False same=False | sync,modified,sync,modified',
+          f'the read-back target alone over the destination is kept current with the buffer: {result}')
     check(result['readBackDeclined'] == ['strided', 'unaligned', 'partial', 'occupied', 'target', 'bufferRefused', 'bufferOccupied'],
           f'every declined read-back copies, creates and syncs nothing: {result}')
-    check(result['readBackCounts'] == '3 2,1,2,1,1', f'read-backs and declines (rows, buffer, occupied, target, partial): {result}')
+    check(result['readBackCounts'] == '5 2,1,2,1,1', f'read-backs and declines (rows, buffer, occupied, target, partial): {result}')
     check(result['byteImmediate'] and result['byteNextFrame'] and result['bytePartial'] and result['byteRewrite'],
           f'immediate, next-frame, partial and rewrite-before-read accesses get the bytes of the reference copy: {result}')
     check(result['byteModel'] == '1 target, 5 flushes, 5 strict syncs',
