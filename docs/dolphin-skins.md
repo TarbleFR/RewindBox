@@ -199,8 +199,13 @@ The steps below have not been done:
   creation, visibility, render placement and surface lock.
 - `packages/dolphin_internal_bridge/ios/Classes/TouchController/DolphinTouchOverlay.swift`:
   `padHiddenBySkin`, `stateHandler`.
-- `packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec`:
-  `DOLSkinOverlay.h` is a private header.
+- `packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec` is
+  **not** changed. It is bound by its SHA-256 to a reviewed source and licence
+  declaration (`build-utils/collect_build_source_evidence.py`). Making
+  `DOLSkinOverlay.h` private there made the IPA 623 freeze refuse it, so the
+  first version of this work was deferred. The header is therefore public in
+  the pod's umbrella. It is pure Objective-C and imports only UIKit, a rule
+  that `test/dolphin_skins_test.dart` keeps.
 
 Third-party skin art is never committed. The tests use a synthetic layout
 modelled on GameCube Pocket, with a 1×1 PNG and empty PDFs.

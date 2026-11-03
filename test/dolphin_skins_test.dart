@@ -408,6 +408,21 @@ void main() {
         .readAsStringSync(), contains('view.port = wii ? 4 : 0'));
   });
 
+  test('the overlay header is safe in the pod umbrella; the reviewed podspec is untouched', () {
+    // The podspec is bound by its SHA-256 to a reviewed declaration
+    // (build-utils/collect_build_source_evidence.py): the header is not made
+    // private there, so it joins the module umbrella, which Swift compiles
+    // as Objective-C. It must stay pure Objective-C importing UIKit only.
+    final header = File('packages/dolphin_internal_bridge/ios/Classes/DOLSkinOverlay.h').readAsStringSync();
+    expect(RegExp(r'^#(?:import|include)\s+(\S+)', multiLine: true).allMatches(header).map((m) => m.group(1)),
+        ['<UIKit/UIKit.h>']);
+    for (final cpp in const ['std::', 'namespace', 'template', 'extern "C"', 'class ']) {
+      expect(header.contains(cpp), isFalse, reason: cpp);
+    }
+    final podspec = File('packages/dolphin_internal_bridge/ios/dolphin_internal_bridge.podspec').readAsStringSync();
+    expect(podspec.contains('DOLSkinOverlay'), isFalse);
+  });
+
   test('the session reads the files the skin screens write', () {
     final source = File(_overlay).readAsStringSync();
     expect(source, contains('[libretro stringByAppendingPathComponent:@"Config/Frontend"]'));

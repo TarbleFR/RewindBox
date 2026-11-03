@@ -12,7 +12,7 @@ legacy gate. It does not replace or modify other emulator integrations.
   s.author           = { 'RewindBox' => 'TarbleFR' }
   s.source           = { :path => '.' }
   s.source_files     = 'Classes/**/*'
-  s.private_header_files = 'Classes/DolphinRecordingTimeline.h', 'Classes/NeoCheat*.h', 'Classes/NeoUnified*.h', 'Classes/*ManualCheatEditor.h', 'Classes/DOLCheatCatalogue.h', 'Classes/DolphinDisplayTrial.h', 'Classes/DolphinPacingLabels.h', 'Classes/DolphinPhoneShakeLabels.h', 'Classes/DolphinPhoneShakePreferences.h', 'Classes/DolphinExternalDisplayLayout.h', 'Classes/DolphinExternalDisplay.h', 'Classes/DOLTexture*.h', 'Classes/DOLShader*.h', 'Classes/TouchController/DolphinPhoneShakeBinding.h', 'Classes/TouchController/DolphinPhoneShakeRouting.h', 'Classes/TouchController/DolphinShakeAssignment.h', 'Classes/DOLTouchLayout.h', 'Classes/DOLSkinOverlay.h'
+  s.private_header_files = 'Classes/DolphinRecordingTimeline.h', 'Classes/NeoCheat*.h', 'Classes/NeoUnified*.h', 'Classes/*ManualCheatEditor.h', 'Classes/DOLCheatCatalogue.h', 'Classes/DolphinDisplayTrial.h', 'Classes/DolphinPacingLabels.h', 'Classes/DolphinPhoneShakeLabels.h', 'Classes/DolphinPhoneShakePreferences.h', 'Classes/DolphinExternalDisplayLayout.h', 'Classes/DolphinExternalDisplay.h', 'Classes/DOLTexture*.h', 'Classes/DOLShader*.h', 'Classes/TouchController/DolphinPhoneShakeBinding.h', 'Classes/TouchController/DolphinPhoneShakeRouting.h', 'Classes/TouchController/DolphinShakeAssignment.h', 'Classes/DOLTouchLayout.h'
   s.resources        = 'TouchResources/*'
   s.vendored_frameworks = 'Frameworks/DolphinCore.framework'
   s.dependency 'Flutter'
