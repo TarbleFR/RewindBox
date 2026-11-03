@@ -27,7 +27,7 @@ are read from these logs; the expected effects are not measured.
 | 3 | `syncInvoke` 1 908 calls 24.0 s: the GPU thread waits for the render thread; 11 strict syncpoint flushes per frame | Falls with #1; then fewer strict flushes (needs the waits measured first) | After 631 |
 | 4 | Allocations: GPU thread 728.5 MiB, render thread 354.6 MiB in 90 s (about 12 MiB/s) with a 64 MiB gen0; .NET background GC up to 41 % of a core | Pooled buffers and spans on the allocating paths of `gpuDispatch` and `renderDrain` (per-phase allocation counters exist; per call site needs one more counter) | To locate |
 | 5 | RAM: footprint 2 473 → 3 838 MiB and 4 182 → 2 817 MiB available, device 27 % → 8 % available in 67 s; managed heap 600 → 687 MiB; GPU caches textures 191/768 MiB, buffers 65/554 MiB; MoltenVK GPU memory 656-902 MB | (a) What holds 600 MiB of managed heap 6 s after start: a heap summary by type in the diagnostics; (b) the MoltenVK pipeline caches (budget 1 GiB: main 768 MiB, two workers 128 MiB), whose libraries can be held two or three times; one shared cache; (c) texture and buffer budgets from the device's available memory | To measure (a), then (b) |
-| 6 | 641 graphics and 67 compute pipeline builds while playing (3.1 s); "Background pipeline compile missed on draw - incorrect pipeline state?"; MoltenVK "Retrieve shader library from the cache" 1 281 × 1.95 ms | Log which state the background compile got wrong (once per kind) and fix the key; in MoltenVK, a hashed shader library lookup instead of the linear comparison of conversion configurations | To log, then MoltenVK patch |
+| 6 | 641 graphics and 67 compute pipeline builds while playing (3.1 s); "Background pipeline compile missed on draw - incorrect pipeline state?"; MoltenVK "Retrieve shader library from the cache" 1 281 × 1.95 ms | Log which state the background compile got wrong (once per kind) and fix the key; in MoltenVK, a hashed shader library lookup instead of the linear comparison of conversion configurations | Alpha-to-coverage/alpha-to-one key fixed and the miss warning names the differing fields (`adapt_pipeline_warmup_parity.py`, section below), host-verified, not yet in a Core; MoltenVK lookup: hypothesis to settle from the min/max already in the 629 stderr |
 | 7 | `cacheSave` 3 calls 834 ms, `cacheSizeProbe` 5 calls 212 ms | Checked in `PipelineCacheManager`: the main cache is saved when the renderer closes, the workers' on their compile threads, so no hot thread waits for them | Minor |
 | 8 | Loading: JIT arena 1.4 s (1 024 MiB code arena prepared before the game starts), MoltenVK pipeline caches 0.70 s read one after another (main 377 ms, workers 275 and 48 ms), shader cache 1.5 s, first frame at 9 s | Prepare the arena lazily or in parallel; read the pipeline caches in parallel or as one; overlap the shader cache with the guest start | To do |
 | 9 | MoltenVK's submission thread: Metal encoding 13.8 ms per frame (24.3 ms in the heaviest block); the unnamed threads, MoltenVK's among them, take 24.5 % of a core on average | MoltenVK v1.4.2 (residency sets on iOS 18 upstream), the one MoltenVK for every title | Built by run 41653781749, pinned; packaged at the next delivery |
@@ -101,3 +101,63 @@ the counter-report-compaction fixture, which declares two queue files, is now an
 #1 and #9 are written and wait for the network (Core 631 freeze, delivery). Without the iPhone, #2, #4 and #5a are
 the next to write: #4 and #5a start with counters (call sites, heap summary) in the 5 s lines, and #2 with a design
 that keeps the ordering of `occlusionQuerySync`. Each new path is reversible and counts its uses and fallbacks.
+
+## After 631: one classification of the 629 findings, then the first lot (3 Nov 2026, session 012mUASkkFGHaPcEUx9dsp8q)
+
+Branch `work/melonx-fps-stability-20261103` (from `c45965ed`, fast-forwarded to `Claude` `138ede92`). Inputs: pristine
+MeloNX `13700519` (tree `82a29e6f`) prepared by `prepare_embedded.py` of this commit (the Core 631 preparation: its
+three Vulkan files equal the frozen `dma-core-contract.json` members), official SDK 10.0.100. The 629 player logs are
+not in the repository; the figures are the ones recorded above and in [encoding](melonx-629-encoding-2026-11-03.md).
+
+| 629 finding | Class | Reference / next decision |
+| --- | --- | --- |
+| Compute descriptors 30.7 ms, draw descriptors 7.6 ms per frame, 493 first-chance exceptions per frame | Corrected in 631, iPhone validation remaining | `EncodingPolicy` (binding-sized scratch, incremental array sets); compare 629 and 631 on the device |
+| Report waits: `queryReadback` 11.8 s, `counterReports` 11.9 s in 90 s | Corrected in 631, iPhone validation remaining | Queued syncpoints (28/28 fixture); no further change without a remaining defect |
+| `syncInvoke` 24.0 s (GPU thread waits for the render thread) | Hypothesis | Expected to fall with the two lines above; the 631 log decides |
+| 12 MiB/s allocated on the GPU and render threads, background GC up to 41 % of a core | Established magnitude, site not established | The 5 s lines already split allocated bytes by GPU work (`draw`, `compute`, `dma`, `texSync`, `bufLoad`, `bindings`…); read them in the 631 log before writing a pool. No call site is changed blind |
+| Footprint 2.47 → 3.84 GiB in 67 s | Hypothesis (cache growth vs retention) | Texture 191/768 MiB and buffer 65/554 MiB caches stay inside their budgets, managed heap +87 MiB, MoltenVK GPU memory 656-902 MB: growth within budgets, no leak demonstrated. 631 raised the pipeline cache budget to 1 GiB; compare the logged cache sizes before any budget change |
+| 641 + 67 pipelines built in play (3.1 s), "Background pipeline compile missed on draw" | Defect established (one cause) and corrected below; other causes unknown | First lot |
+| MoltenVK "Retrieve shader library from the cache" 1 281 × 1.95 ms (about 2.5 s of the 3.1 s) | Hypothesis | MoltenVK v1.4.2 source: the interval (`MVKShaderModule::getMTLFunction`) starts before `MVKPipelineCache::_shaderCacheLock` and covers the linear `matches()` search. With asyncShaders off, MeloNX warms pipelines up on the scheduler thread with the main cache, so a SPIR-V→MSL conversion there can hold the lock the render thread's lookup waits for. The min/max of that line, already in the 629 stderr, decide: a small minimum and large maximum mean lock waits (separate the warm-up's cache), a minimum near 2 ms means the comparison (hashed lookup) |
+| `cacheSave`, `cacheSizeProbe` | Constraint justified | Off the hot threads (#7) |
+| MoltenVK submission thread 13.8 ms per frame | Corrected upstream, validation remaining | v1.4.2 pinned, packaged at the next delivery |
+
+### First lot: pipeline warm-up parity (`build-utils/melonx/adapt_pipeline_warmup_parity.py`)
+
+Finding. `PipelineBase.SetMultisampleState` puts `AlphaToCoverageEnable` and `AlphaToOneEnable` in the draw's
+`PipelineUid` (Id8). `ProgramPipelineState`, from which `PipelineConverter` builds a program's warm-up, has no such
+fields, so the warm-up key has both false. With asyncShaders off (embedded default) a program compiled in play makes
+the render thread wait for that warm-up (`ProgramQueue`, `CheckProgramLink(true)`), then its first draw with alpha to
+coverage misses it and compiles a second pipeline under the pipeline creation lock. Same for the detached warm-ups of
+cached programs (a silent miss). The share of such programs in Hogwarts Legacy is not in any log.
+
+Correction. `ProgramPipelineState` gains both fields after every persisted field; `StateUpdater.UpdateMultisampleState`
+(which runs before `UpdateShaderState`) records them; `PipelineConverter` copies them. The shader disk cache keeps its
+format: `ShaderSpecializationState` writes the persisted prefix (`ProgramPipelineState.PersistedSize`, 1 456 bytes, the
+size every build wrote), and a program read from the cache takes alpha to coverage from its persisted specialization
+state, as `DepthMode` already is; alpha to one stays false there (as before). The once-per-program warning now names
+the differing key fields (warm-up and draw values, at most 12), computed only on that miss and only when warnings are
+logged, so the next device log identifies any other cause without a new measurement series.
+
+Proof (fresh, Linux x86_64, SDK 10.0.100, receipt [checks.json](evidence/melonx-pipeline-warmup-parity/checks.json)):
+`python3 test/melonx_pipeline_warmup_parity_test.py <prepared tree>` builds control (631) and candidate (631 + adapter)
+copies of the production Vulkan backend and GPU assembly as executables.
+- Vulkan, real `PipelineConverter`, `PipelineBase.SetMultisampleState` and `HashTableSlim`: control warm-up hit with
+  the plain state, misses with alpha to coverage, alpha to one and both; candidate hits all four. Candidate names
+  each of the 49 key properties (reflection proves the list complete), vertex attribute, binding, blend, attachment
+  format and logic-op differences, bounds the list to 12; the control's miss reads
+  "Differs from warm-up: AlphaToCoverageEnable warm-up=False draw=True".
+- GPU, real `ShaderSpecializationState` and `BinarySerializer`: four cache entries (off, alpha to coverage, alpha to
+  one, both) are byte for byte the control's (same SHA-256), persisted fields round-trip, a rewrite of a read entry is
+  identical, alpha to coverage comes back from the specialization state; struct 1 460 bytes, persisted 1 456.
+- Static: multisample state recorded before the host call and before the shader state; description inside the
+  conditional `Logger.Warning?.Print` argument; pipeline state written at its persisted size.
+
+Not done here, for the integrator: the adapter is not wired into `prepare_embedded.py` (that would change the frozen 631
+composition, 132 inputs). In the next Core: call `adapt_pipeline_warmup_parity(source)` after
+`adapt_host_qos_pipeline_budget`, declare it in `inputs`, add the seven files to the plan (four upstream members join
+the prepared source: `ProgramPipelineState.cs`, `BinarySerializer.cs`, `ShaderSpecializationState.cs`,
+`StateUpdater.cs`), rerun this test on the final preparation and the fresh gates whose receipts declare
+`ShaderCollection.cs` or `PipelineState.cs` (`fragmented-reads`, `hogwarts-dma-copies`, `performance-diagnostics`),
+plus what the freeze computes from retained receipts. No iPhone result; no FPS claim. On the device: the count of
+"Background pipeline compile missed" lines and the fields they name, graphics pipeline builds per minute and
+pauses over 100 ms during new-area loading, Hogwarts 1x, same save and scene, cold and warm passes apart.
