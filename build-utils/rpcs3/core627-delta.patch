@@ -60,6 +60,49 @@ index a2502a7..eadd796 100644
  
  #ifdef RPCS3_IOS
  	// Opening the object already performs the successful lookup. Probe file
+diff --git a/Utilities/Thread.cpp b/Utilities/Thread.cpp
+index ca6db42..cd940da 100644
+--- a/Utilities/Thread.cpp
++++ b/Utilities/Thread.cpp
+@@ -4077,7 +4077,7 @@ void thread_ctrl::set_native_priority(int priority)
+ 	// that path after RPCS3 created real-time-priority pthreads.
+ 	// CELL567_THREAD_QOS: +1 stays above the threads that request nothing (ios/IOSThreadQoS.h).
+ 	const auto level = rpcs3::ios::thread_qos::for_priority(priority);
+-	const qos_class_t qos = level.utility ? QOS_CLASS_UTILITY : QOS_CLASS_USER_INTERACTIVE;
++	const qos_class_t qos = level.utility ? QOS_CLASS_UTILITY : level.user_initiated ? QOS_CLASS_USER_INITIATED : QOS_CLASS_USER_INTERACTIVE;
+ 
+ 	if (const int err = pthread_set_qos_class_self_np(qos, level.relative_priority))
+ 	{
+diff --git a/rpcs3/Emu/CPU/CPUThread.cpp b/rpcs3/Emu/CPU/CPUThread.cpp
+index a446d58..bada453 100644
+--- a/rpcs3/Emu/CPU/CPUThread.cpp
++++ b/rpcs3/Emu/CPU/CPUThread.cpp
+@@ -13,6 +13,10 @@
+ #include "Emu/Cell/SPUThread.h"
+ #include "Emu/RSX/RSXThread.h"
+ #include "Emu/perf_meter.hpp"
++#ifdef RPCS3_IOS
++#include "ios/IOSThreadQoS.h" // REWINDBOX_SPU_QOS_627
++#include "ios/RPCS3IOSExperimentalPolicy.h"
++#endif
+ 
+ #include "util/asm.hpp"
+ #include <thread>
+@@ -660,6 +664,14 @@ void cpu_thread::operator()()
+ 		thread_ctrl::set_thread_affinity_mask(thread_ctrl::get_affinity_mask(get_class()));
+ 	}
+ 
++#ifdef RPCS3_IOS
++	// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): the next pooled job starts at the default level again.
++	if (get_class() == thread_class::spu && rpcs3::ios::get_experimental_policy().spu_qos_below_rsx)
++	{
++		thread_ctrl::set_native_priority(rpcs3::ios::thread_qos::spu_native_priority);
++	}
++#endif
++
+ 	ensure(g_fxo->is_init<cpu_profiler>());
+ 
+ 	switch (get_class())
 diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
 index 7f0f61d..988dc16 100644
 --- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
@@ -2262,10 +2305,10 @@ index 6eab393..c7cf8b7 100644
  	g_fxo->clear();
  }
 diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
-index 6531689..843680a 100644
+index 6531689..4308714 100644
 --- a/rpcs3/Emu/system_config.h
 +++ b/rpcs3/Emu/system_config.h
-@@ -169,6 +169,24 @@ struct cfg_root : cfg::node
+@@ -169,6 +169,26 @@ struct cfg_root : cfg::node
  		// REWINDBOX_MOLTENVK_ASYNC_SUBMITS_V1: Automatic keeps MoltenVK's synchronous
  		// submits; Enabled moves Metal command encoding to MoltenVK's queue thread.
  		cfg::_enum<ios_experimental_mode> moltenvk_async_submits{ this, "MoltenVK Asynchronous Submits", ios_experimental_mode::automatic };
@@ -2287,6 +2330,8 @@ index 6531689..843680a 100644
 +		cfg::_enum<ios_experimental_mode> zcull_conservative_reports{ this, "ZCULL Conservative Reports", ios_experimental_mode::automatic };
 +		// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): Automatic is Black Ops II and God of War III.
 +		cfg::_enum<ios_experimental_mode> spu_noop_spin_wait{ this, "SPU No-op Spin Wait", ios_experimental_mode::automatic };
++		// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): Automatic is God of War III, Assassin's Creed and Black Ops II.
++		cfg::_enum<ios_experimental_mode> spu_qos_below_rsx{ this, "SPU QoS Below RSX And PPU", ios_experimental_mode::automatic };
  
  		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L5, L9; L3 is the
  		// Bounded sleep value of fifo_idle_mode above). Defaults keep the Build
@@ -3432,6 +3477,28 @@ index 0000000..b42617f
 +	return s_tracker;
 +}
 +}
+diff --git a/rpcs3/ios/IOSMoltenVKAsyncCanary.h b/rpcs3/ios/IOSMoltenVKAsyncCanary.h
+index 3acfa46..f1008e5 100644
+--- a/rpcs3/ios/IOSMoltenVKAsyncCanary.h
++++ b/rpcs3/ios/IOSMoltenVKAsyncCanary.h
+@@ -14,9 +14,16 @@
+ // crash, or the process being killed): the title is marked failed and keeps
+ // synchronous submits from then on. The record file carries the Core cell in
+ // its name, so a later Core tries again once.
++//
++// REWINDBOX_MVK_ASYNC_RETRY_627: God of War III has been on synchronous submits since a
++// boot of an earlier build ended without either: Build 622 logs (PID 1598), OPT587
++// mvk_async=0 canary=failed_before, RSXSYNC551 submit 684-762 ms per 5 s window on the RSX
++// thread, about 5 ms of each 37 ms frame. With asynchronous submits Assassin's Creed
++// spends 15 ms per window on the same call (Build 624). This Core takes the second try
++// that rule gives: a title whose boot fails again goes back to synchronous submits.
+ namespace rpcs3::ios::mvk_async_canary
+ {
+-inline constexpr std::string_view file_name = "rewindbox-mvk-async-587.txt";
++inline constexpr std::string_view file_name = "rewindbox-mvk-async-627.txt";
+ inline constexpr std::uint32_t confirm_presents = 900;
+ 
+ enum class state : std::uint8_t
 diff --git a/rpcs3/ios/IOSPipelineQueue.h b/rpcs3/ios/IOSPipelineQueue.h
 new file mode 100644
 index 0000000..9772d6e
@@ -4159,6 +4226,53 @@ index 0000000..bfe711e
 +	if (!ok) add(counters.temp_failures);
 +}
 +}
+diff --git a/rpcs3/ios/IOSThreadQoS.h b/rpcs3/ios/IOSThreadQoS.h
+index 0f2f94b..b1d21f2 100644
+--- a/rpcs3/ios/IOSThreadQoS.h
++++ b/rpcs3/ios/IOSThreadQoS.h
+@@ -17,21 +17,42 @@
+ // lowered itself (shader cache writer: set_native_priority(-1), never restored)
+ // kept the utility class for the next thread it ran, an SPU or PPU thread for
+ // instance. Each job now starts at the default level.
++//
++// REWINDBOX_SPU_QOS_627: relative priorities order threads inside one class, and the
++// iPhone has two performance cores for all of them. Build 622 and 624 logs: God of War III's
++// RSX thread is CPU bound (0.65-0.83 core, FIFO busy 78-96 %, GPU 30-40 % busy) beside 3.0-3.6
++// SPU cores; Black Ops II's six SPU threads take 3.3-5.3 cores of six. With this setting
++// SPU threads run in the user-initiated class, one class below the PPU, RSX and MoltenVK
++// threads: those keep the performance cores whenever they are runnable, and SPU threads
++// take what is left, the four efficiency cores and any idle performance core. A
++// user-initiated thread still runs at once on an idle core, so the guest's SPU work
++// does not wait for a free slot; it runs slower while the others need the fast cores.
++// The compile threads (utility class) and the idle worker pool stay as they are: their
++// load in game is compile_cores=0.000.
+ namespace rpcs3::ios::thread_qos
+ {
+ // Relative priority of threads that request no priority while the ordering is on.
+ constexpr int lowered_relative_priority = -2;
+ inline std::atomic<int> default_relative_priority{0};
+ 
++// REWINDBOX_SPU_QOS_627: the thread_ctrl::set_native_priority() value of an SPU thread.
++constexpr int spu_native_priority = -2;
++
+ struct level
+ {
+ 	bool utility;           // QOS_CLASS_UTILITY instead of QOS_CLASS_USER_INTERACTIVE
+ 	int relative_priority;  // pthread_set_qos_class_self_np's relative priority
++	bool user_initiated = false; // REWINDBOX_SPU_QOS_627: QOS_CLASS_USER_INITIATED
+ };
+ 
+ // thread_ctrl::set_native_priority(priority); 0 is also every pooled job's start.
+ inline level for_priority(int priority) noexcept
+ {
++	if (priority == spu_native_priority)
++	{
++		return {false, 0, true};
++	}
++
+ 	if (priority < 0)
+ 	{
+ 		return {true, 0};
 diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
 index 2fe17df..b9ccca5 100644
 --- a/rpcs3/ios/IOSTitleLevers.h
@@ -5450,10 +5564,10 @@ index 74ff550..e3cf8be 100644
  	struct jit_boot_summary
  	{
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index df33283..2b4dec3 100644
+index df33283..46b9f0d 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -344,9 +344,40 @@ void resolve_experimental_policy() noexcept
+@@ -344,9 +344,44 @@ void resolve_experimental_policy() noexcept
  	// REWINDBOX_AC_MVK_ASYNC_610 adds Assassin's Creed: 0.93-1.36 s per window on build 601.
  	resolved.moltenvk_async_submits = resolve_mvk_async(title_id,
  		resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits,
@@ -5488,6 +5602,10 @@ index df33283..2b4dec3 100644
 +	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627: Automatic is the title list.
 +	resolved.spu_noop_spin_wait = resolve_mode(g_cfg.ios_experimental.spu_noop_spin_wait,
 +		rpcs3::ios::title_levers::wants_spu_noop_spin_wait(title_id) || is_god_of_war_iii_title(title_id));
++	// REWINDBOX_SPU_QOS_627: Automatic is the three reference titles.
++	resolved.spu_qos_below_rsx = resolve_mode(g_cfg.ios_experimental.spu_qos_below_rsx,
++		is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id) ||
++		rpcs3::ios::title_levers::is_black_ops_ii_title(title_id));
 +	// REWINDBOX_ZCLIP_PINNED_AFFINE_619: the title list, on top of the 616 fallback.
 +	resolved.zclip_pinned_affine = resolved.zclip_fallback_window_z &&
 +		rpcs3::ios::title_levers::requires_zclip_pinned_affine(title_id);
@@ -5496,7 +5614,7 @@ index df33283..2b4dec3 100644
  
  	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
  	resolve_spu_spin_timing(resolved);
-@@ -392,6 +423,13 @@ void resolve_experimental_policy() noexcept
+@@ -392,6 +427,13 @@ void resolve_experimental_policy() noexcept
  		resolved.spu_spin_cntfrq, resolved.spu_spin_timer_scale,
  		resolved.spu_spin.getllar_refail_ticks, resolved.spu_spin.getllar_spin_window_ticks, resolved.spu_spin.getllar_forced_sleep_ticks,
  		resolved.position_invariance, resolved.moltenvk_async_submits);
@@ -5511,10 +5629,10 @@ index df33283..2b4dec3 100644
  
  void apply_spu_spin_timing_policy() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index c349a27..3a92ecd 100644
+index c349a27..c8ca4fd 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-@@ -50,6 +50,34 @@ struct experimental_policy
+@@ -50,6 +50,36 @@ struct experimental_policy
  	// declare an invariant position, as upstream does on NVIDIA. Title scoped,
  	// without a setting; read by the vertex decompiler after boot resolution.
  	bool position_invariance = false;
@@ -5540,6 +5658,8 @@ index c349a27..3a92ecd 100644
 +	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): an SPU polling with no-op
 +	// PUTLLC waits for a bounded time inside the PUTLLC.
 +	bool spu_noop_spin_wait = false;
++	// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): SPU threads run in the user-initiated class.
++	bool spu_qos_below_rsx = false;
 +	// REWINDBOX_ZCLIP_PINNED_AFFINE_619 (ios/IOSTitleLevers.h): with the 616 fallback,
 +	// a clip range wholly above 1 maps every vertex affinely onto [0.99, 1].
 +	bool zclip_pinned_affine = false;
