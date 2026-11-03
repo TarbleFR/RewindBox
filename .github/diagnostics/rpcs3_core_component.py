@@ -61,6 +61,7 @@ CORE_FIELDS = ('type', 'dylibBytes', 'dylibSha256', 'identitySha256', 'proofMemb
                'payloadFingerprint')
 HEX64 = re.compile(r'[0-9a-f]{64}')
 HEX40 = re.compile(r'[0-9a-f]{40}')
+CANARY_MARKER = re.compile(rb'rewindbox-mvk-async-[0-9]+\.txt')
 
 
 def require(value, message):
@@ -400,7 +401,12 @@ def compare_core_pinned(pin, packaged, raw, signed):
             'Signing/packaging changed Core code, data or ABI metadata')
     metadata = core604.compare_signature_metadata(raw, packaged) if signed or packaged != raw else {}
     for marker in candidate.CORE_MARKERS:
-        require(marker in packaged, 'Core runtime marker missing: ' + repr(marker))
+        if CANARY_MARKER.fullmatch(marker):
+            # The MoltenVK asynchronous-submit canary file is named after the Core that sets it (Cores 587-624:
+            # rewindbox-mvk-async-587.txt; Core 627: rewindbox-mvk-async-627.txt), so a new Core starts a fresh canary.
+            require(CANARY_MARKER.search(packaged), 'Core runtime marker missing: the MoltenVK async canary file name')
+        else:
+            require(marker in packaged, 'Core runtime marker missing: ' + repr(marker))
     return dict(compiledPayloadFingerprint=fingerprint, installName=after['id'],
                 signed=after['codeSignature'], definedSymbols=len(after['definedSymbols']), metadata=metadata)
 
