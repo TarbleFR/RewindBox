@@ -95,6 +95,10 @@ spawning an agent is optional and must replace useful work, not duplicate it.
   found"; this running session lists only its built-in agents (claude, claude-code-guide, Explore,
   general-purpose, Plan, statusline-setup, web-fetch). Observed type, model and effort: none, the call did not run.
   Routing is not active in this session; the coordinator keeps the work. Recheck in a new session.
+  Native fallback, same session, 22:00 UTC: one read-only `Explore` call requested with model haiku, effort low
+  (both parameters are exposed by the Agent tool) answered correctly (`docs/AI_TASK_BOARD.md`, CLAUDE.md line 3).
+  Observed: type Explore; model self-reported as Haiku 5.5 from its environment, not independently verified;
+  effort not observable. `rb-*` stay prepared, not loaded here. Requests can be typed normally.
   Subagents share the plan quota. Savings are an objective, not a measured claim.
 
 Configuration: four short native definitions under `.claude/agents/` and only
