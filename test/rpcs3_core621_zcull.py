@@ -112,12 +112,13 @@ BUDGET_621 = r'''	unsigned budget_faults = 0, transient_faults = 0, storm_faults
 		take(tally.faults_report); take(tally.services); take(tally.waits);
 		scenarios++;
 	}
-	{ // REWINDBOX_ZCULL_DEMAND_GUARD_621: reads back to back, 30 ms each (a storm: the thread is blocked
-	  // almost the whole second): wait_severe within about one second, one ZCULLTRIP621 line. 30 ms keeps
-	  // well over 16 reads in the second where the macOS runner stretches each read (60 ms reads became
-	  // about 70 ms there, 14 per second: never the 16 reads the rule asks for).
+	{ // REWINDBOX_ZCULL_DEMAND_GUARD_621: reads back to back, 15 ms each (a storm: the thread is blocked
+	  // almost the whole second): wait_severe within about one second, one ZCULLTRIP621 line. 15 ms keeps
+	  // well over 16 reads in the second where the macOS runner stretches each read (Apple runs 41550627637
+	  // and 41551302366: 60 ms reads became about 70 ms, 14 per second, never the 16 reads the rule asks
+	  // for; 30 ms reads about 57 ms under ASan, exactly 16).
 		ZCULL_control z;
-		rsx_server server(z, 30);
+		rsx_server server(z, 15);
 		const int lines_before = rsx_log.trip_lines.load();
 		const auto start = get_system_time();
 		while (!z.m_ios_demand.tripped() && get_system_time() - start < 3'000'000)
@@ -231,7 +232,7 @@ def run(source: Path, compiler: list[str], flag_sets: dict[str, list[str]], work
         protocol, guard621 = json.loads(lines[-2]), json.loads(lines[-1])
         require(protocol['failures'] == 0 and protocol['scenarios'] == 18 and protocol['concurrent_accesses'] == 600,
                 f'zcull fault protocol ({label}): ' + repr(protocol))
-        require(guard621['failures'] == 0 and guard621['trip_lines'] == 2 and guard621['transient_faults'] >= 20 and guard621['budget_faults'] >= 12 and guard621['storm_faults'] >= 16,
+        require(guard621['failures'] == 0 and guard621['trip_lines'] == 2 and guard621['transient_faults'] >= 10 and guard621['budget_faults'] >= 12 and guard621['storm_faults'] >= 16,
                 f'zcull 621 budget scenarios ({label}): ' + repr(guard621))
         trip_line = next((line for line in lines if 'COREPROF ZCULLTRIP621 reason=wait_budget' in line), '')
         require(re.search(r'COREPROF ZCULLTRIP621 reason=wait_budget scope=thread windows_ms=\d+\.\d:\d+\.\d:\d+\.\d at_us=\d+ '
