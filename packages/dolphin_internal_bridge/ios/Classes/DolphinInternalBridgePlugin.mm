@@ -20,6 +20,7 @@
 #import "DolphinExternalDisplay.h"
 #import "DolphinRecordingController.h"
 #import "DOLTouchLayout.h"
+#import "DOLSkinOverlay.h"
 #import <dolphin_internal_bridge/dolphin_internal_bridge-Swift.h>
 #import <GameController/GameController.h>
 
@@ -251,6 +252,14 @@ static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, cons
 // game image on the iPhone while the controls stay here.
 @property(nonatomic, strong, nullable) DolphinExternalDisplay* externalDisplay;
 @property(nonatomic, strong) UILabel* externalHint;
+// Controller skins (docs/dolphin-skins.md): only when the console (or the
+// game) has a GameCube or Wii skin chosen in Consoles › Skins.
+@property(nonatomic, strong, nullable) DOLSkinOverlay* skinOverlay;
+@property(nonatomic, assign) BOOL renderSurfaceLocked;
+@property(nonatomic, assign) CGSize lockedRenderSize;
+- (void)lockRenderSurface;
+- (void)placeRenderSurface;
+- (void)syncSkinOverlay;
 - (void)refreshTouchVisibility;
 - (void)applyTouchVisibility;
 - (void)beginTouchLayoutEditing:(dispatch_block_t)completion;
@@ -322,6 +331,21 @@ static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, cons
   }];
   [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(touchPreferenceChanged:)
       name:NeoTouchControllerPreferenceDidChangeNotification object:nil];
+  // Controller skins (docs/dolphin-skins.md): a skin chosen for this console
+  // or game replaces the DolphiniOS pad and shows the game in its screen.
+  // Without one there is no overlay and nothing below changes.
+  DOLSkinOverlay* skin = [[DOLSkinOverlay alloc] initWithWii:self.wii gameKey:self.touchGameKey];
+  if (skin.hasSkin) {
+    skin.frame = container.bounds;
+    skin.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    skin.menuHandler = ^{ [weakController menuPressed:nil]; };
+    skin.layoutChanged = ^{ [weakController syncSkinOverlay]; };
+    [container addSubview:skin];
+    self.skinOverlay = skin;
+    self.touchOverlay.stateHandler = ^{ [weakController syncSkinOverlay]; };
+    // The skin places the Metal view; the container's turns no longer resize it.
+    _metalView.autoresizingMask = UIViewAutoresizingNone;
+  }
   self.acceptsTouchInput = YES;
   self.controllerGeneration = 1;
   for (NSString* name in @[GCKeyboardDidConnectNotification,GCKeyboardDidDisconnectNotification])
@@ -389,7 +413,75 @@ static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, cons
 }
 
 - (void)releaseTouchInput {
-  if (self.acceptsTouchInput) neostation_dolphin_release_touches();
+  if (!self.acceptsTouchInput) return;
+  [self.skinOverlay releaseAllInputs];
+  neostation_dolphin_release_touches();
+}
+
+#pragma mark Controller skins (docs/dolphin-skins.md)
+
+- (void)viewDidLayoutSubviews {
+  [super viewDidLayoutSubviews];
+  if (self.skinOverlay == nil) return;
+  [self.skinOverlay layoutIfNeeded];
+  [self syncSkinOverlay];
+}
+
+// The skin's art stays under a menu (only its input stops); a connected
+// controller (the console's preference) and the layout editor hide it, and
+// the DolphiniOS pad is hidden while it shows.
+- (void)syncSkinOverlay {
+  DOLSkinOverlay* skin = self.skinOverlay;
+  if (skin == nil) return;
+  const BOOL shown = skin.layoutActive && !self.touchEditing &&
+      !NeoTouchControlsShouldHide([self touchConsole], self.controllerMonitor.connected, YES, NO, NO);
+  const BOOL interactive = shown && self.acceptsTouchInput && !self.touchOverlay.hidden &&
+      self.touchOverlay.userInteractionEnabled && self.presentedViewController == nil;
+  if (!interactive) [skin releaseAllInputs];
+  skin.hidden = !shown;
+  skin.userInteractionEnabled = interactive;
+  self.touchOverlay.padHiddenBySkin = shown;
+  [self placeRenderSurface];
+}
+
+// Dolphin reads its render surface once, when the core starts. Until then
+// the Metal view takes the shape of the skin's screen; afterwards it keeps
+// that size and only a transform moves it (as on the external screen).
+- (void)placeRenderSurface {
+  DOLSkinOverlay* skin = self.skinOverlay;
+  MTKView* render = _metalView;
+  if (skin == nil || render == nil || self.externalDisplay.active || render.superview != self.view) return;
+  const CGRect bounds = self.view.bounds;
+  if (bounds.size.width < 1 || bounds.size.height < 1) return;
+  const BOOL inScreen = !skin.hidden && skin.layoutActive && !CGRectIsNull(skin.screenFrame) &&
+      skin.screenFrame.size.width >= 1 && skin.screenFrame.size.height >= 1;
+  const CGRect target = inScreen ? [skin convertRect:skin.screenFrame toView:self.view] : bounds;
+  if (!self.renderSurfaceLocked) {
+    render.transform = CGAffineTransformIdentity;
+    render.frame = CGRectIntegral(target);
+    return;
+  }
+  const CGSize size = self.lockedRenderSize;
+  if (size.width < 1 || size.height < 1) return;
+  const CGFloat scale = MIN(target.size.width / size.width, target.size.height / size.height);
+  render.transform = CGAffineTransformIdentity;
+  render.bounds = CGRectMake(0, 0, size.width, size.height);
+  render.center = CGPointMake(CGRectGetMidX(target), CGRectGetMidY(target));
+  render.transform = CGAffineTransformMakeScale(scale, scale);
+}
+
+- (void)lockRenderSurface {
+  if (self.renderSurfaceLocked) return;
+  if (self.skinOverlay != nil) {
+    [self.view layoutIfNeeded];
+    [self.skinOverlay layoutIfNeeded];
+    [self syncSkinOverlay];
+    [_metalView layoutIfNeeded];
+    // The drawable keeps the size Dolphin reads now, whatever moves the view.
+    _metalView.autoResizeDrawable = NO;
+  }
+  self.lockedRenderSize = _metalView.bounds.size;
+  self.renderSurfaceLocked = YES;
 }
 
 - (void)suspendTouchInput {
@@ -512,6 +604,8 @@ static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, cons
 }
 
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+  // A portrait skin (docs/dolphin-skins.md) lets the session turn upright.
+  if (self.skinOverlay.portraitAvailable) return UIInterfaceOrientationMaskAllButUpsideDown;
   return UIInterfaceOrientationMaskLandscape;
 }
 
@@ -1454,6 +1548,9 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
       }
     });
 
+    // Controller skins (docs/dolphin-skins.md): the core reads the render
+    // surface now; from here on a skin moves it by a transform only.
+    dispatch_sync(dispatch_get_main_queue(), ^{ [controller lockRenderSurface]; });
     int32_t launchFlags = wiiMenu
         ? neostation_dolphin_launch_wii_menu((__bridge void*)layer, metalScale, logPath.fileSystemRepresentation)
         : neostation_dolphin_launch(gamePath.fileSystemRepresentation, system.UTF8String,
@@ -1496,6 +1593,8 @@ static BOOL DOLLaunchHelper(DOLHelperSession* session,
         DOLDolphinViewController* strong = weakController;
         strong.externalHint.hidden = !active;
         strong.framePacing.externalDisplayActive = active;
+        // Back on the iPhone: the skin's screen takes the game again.
+        if (!active) [strong placeRenderSurface];
         DOLAppendJSONLog(logPath, active ? @"display.external_started" : @"display.external_stopped",
                          active ? @"Game drawn on the external screen; controls stay on the iPhone."
                                 : @"Game drawn on the iPhone again.", nil);

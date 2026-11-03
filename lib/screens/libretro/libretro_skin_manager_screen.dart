@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/libretro_locale.dart';
 import '../../l10n/skin_browser_locale.dart';
 import '../../services/gamepad/gamepad_navigation_manager.dart';
+import '../../services/dolphin_skins.dart';
 import '../../services/libretro_core_catalog.dart';
 import '../../services/libretro_skin_compatibility.dart';
 import '../../services/libretro_skin_service.dart';
@@ -255,7 +256,7 @@ Future<LibretroInstalledSkin?> showLibretroSkinImportResult(
 
 /// Product names of embedded consoles (ids without a known name are kept).
 String libretroConsoleNames(Iterable<String> consoles) => consoles
-    .map((id) => LibretroCoreCatalog.consoles[id]?.name ?? id)
+    .map((id) => DolphinSkins.skinConsoles[id]?.name ?? id)
     .join(', ');
 
 Locale _localeOf(BuildContext context) =>
@@ -537,7 +538,7 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
       LibretroLocale.formatContext(context, key, values);
 
   String get _consoleName =>
-      LibretroCoreCatalog.consoles[widget.console]?.name ?? widget.console;
+      DolphinSkins.skinConsoles[widget.console]?.name ?? widget.console;
 
   @override
   void initState() {

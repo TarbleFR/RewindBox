@@ -411,6 +411,26 @@ void main() {
     expect(manager.console, 'gba');
   });
 
+  // GameCube and Wii skins of the embedded Dolphin (docs/dolphin-skins.md):
+  // the same manager, opened from their rows; no other engine has one.
+  testWidgets('Skins of the GameCube and the Wii open the same manager', (tester) async {
+    await pumpTab(tester);
+    for (final entry in ConsoleCatalog.entries) {
+      final dolphin = entry.id == 'gc' || entry.id == 'wii';
+      expect(find.byKey(ValueKey('dolphin-console-skins-${entry.id}')), dolphin ? findsOneWidget : findsNothing,
+          reason: entry.id);
+    }
+    await tester.ensureVisible(find.byKey(const ValueKey('dolphin-console-skins-wii')));
+    await tester.tap(find.byKey(const ValueKey('dolphin-console-skins-wii')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final manager = tester.widget<LibretroSkinManagerScreen>(find.byType(LibretroSkinManagerScreen));
+    expect(manager.console, 'wii');
+    expect(find.text('Nintendo Wii'), findsWidgets, reason: 'the manager names the console');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('the filters keep the shown or the hidden consoles', (tester) async {
     await SystemRepository.addDetectedSystem('nes', 'nes');
     await SystemRepository.addDetectedSystem('gc', 'gc');

@@ -6,7 +6,7 @@ import 'dart:math';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 
-import 'libretro_core_catalog.dart';
+import 'dolphin_skins.dart';
 import 'libretro_internal_service.dart';
 import 'libretro_skin_service.dart';
 import 'logger_service.dart';
@@ -68,12 +68,12 @@ class LibretroSkinCatalogEntry {
 
   /// NeoStation consoles this entry is listed for.
   List<String> get consoles => <String>[
-        for (final console in LibretroCoreCatalog.consoles.values)
+        for (final console in DolphinSkins.skinConsoles.values)
           if (isForConsole(console.id)) console.id,
       ];
 
   bool isForConsole(String console) {
-    final platform = LibretroCoreCatalog.consoles[console];
+    final platform = DolphinSkins.skinConsoles[console];
     if (platform == null) return false;
     // Use the platform registry for both visible and default-hidden consoles.
     // Metadata only supplies candidates; the native report still decides playability.

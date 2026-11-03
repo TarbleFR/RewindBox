@@ -13,7 +13,7 @@ import 'package:libretro_internal_bridge/libretro_internal_bridge.dart';
 import 'package:path/path.dart' as path;
 
 import '../utils/bounded_concurrency.dart';
-import 'libretro_core_catalog.dart';
+import 'dolphin_skins.dart';
 import 'libretro_overlay_converter.dart';
 import 'libretro_skin_catalog_service.dart';
 import 'libretro_skin_compatibility.dart';
@@ -579,8 +579,13 @@ class LibretroSkinCatalogs {
   static LibretroSkinCompatibility? _staticExclusion(LibretroCatalogSkin entry, String console) {
     final reason = entry.excludedReason;
     if (reason != null) return LibretroSkinCompatibility.excluded(console, reason);
-    if (!LibretroCoreCatalog.consoles.containsKey(console)) {
+    if (!DolphinSkins.skinConsoles.containsKey(console)) {
       return LibretroSkinCompatibility.excluded(console, LibretroSkinCompatibility.system);
+    }
+    // RetroArch overlays drive the libretro renderer only; Dolphin reads
+    // Delta and Manic skins (docs/dolphin-skins.md).
+    if (entry.overlay != null && DolphinSkins.isDolphinConsole(console)) {
+      return LibretroSkinCompatibility.excluded(console, LibretroSkinCompatibility.overlayUnsupported);
     }
     return null;
   }
@@ -716,6 +721,15 @@ class LibretroSkinCatalogs {
   }
 
   Future<LibretroSkinCompatibility> _nativeVerdict(Directory inspection, String console) async {
+    // GameCube and Wii skins are read by the Dart reader (docs/dolphin-skins.md).
+    if (DolphinSkins.isDolphinConsole(console) && _inspect == null) {
+      final report = await DolphinSkins.inspectDirectory(inspection.path);
+      if (report == null) return LibretroSkinCompatibility.excluded(console, LibretroSkinCompatibility.invalid);
+      if (report.console != console) {
+        return LibretroSkinCompatibility.excluded(console, LibretroSkinCompatibility.otherConsole);
+      }
+      return report.compatibility;
+    }
     final inspect = _inspect ??
         (String directory) => LibretroInternalBridge.inspectSkin(directory: directory, consoleGeometry: skins.consoleGeometry);
     final inspected = await inspect(inspection.path);

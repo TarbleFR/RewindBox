@@ -6,8 +6,10 @@ import 'package:provider/provider.dart';
 
 import '../l10n/console_manager_locale.dart';
 import '../l10n/dolphin_import_locale.dart';
+import '../l10n/libretro_locale.dart';
 import '../l10n/texture_catalog_locale.dart';
 import '../providers/sqlite_config_provider.dart';
+import '../screens/libretro/libretro_skin_manager_screen.dart';
 import '../services/dolphin_internal_v2_service.dart';
 import '../services/dolphin_smart_import_service.dart';
 import '../services/dolphin_system_files.dart';
@@ -141,10 +143,29 @@ class _DolphinInternalPlaylistActionsState
     }
   }
 
+  /// GameCube or Wii skins (docs/dolphin-skins.md): the same manager as the
+  /// embedded libretro consoles.
+  Future<void> _openSkins() async {
+    _interaction(true);
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => LibretroSkinManagerScreen(console: _isGameCube ? 'gc' : 'wii'),
+        ),
+      );
+    } finally {
+      if (mounted) _interaction(false);
+    }
+  }
+
   Future<void> _selected(String action) async {
     if (_busy) return;
     if (action == 'textures') {
       await _openTextures();
+      return;
+    }
+    if (action == 'skins') {
+      await _openSkins();
       return;
     }
     setState(() => _busy = true);
@@ -305,6 +326,11 @@ class _DolphinInternalPlaylistActionsState
           ],
           const PopupMenuDivider(),
           PopupMenuItem(value: 'shared', child: Text(_text('shared'))),
+          PopupMenuItem(
+            key: const ValueKey('dolphin-skins'),
+            value: 'skins',
+            child: Text(LibretroLocale.text(context, 'skins')),
+          ),
           if (TextureCatalogService.supports(widget.systemFolder))
             PopupMenuItem(
               value: 'textures',

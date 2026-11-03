@@ -10,6 +10,7 @@ import '../../models/system_model.dart';
 import '../../providers/sqlite_config_provider.dart';
 import '../../repositories/system_repository.dart';
 import '../../services/console_catalog.dart';
+import '../../services/dolphin_skins.dart';
 import '../../services/embedded_engine_policy.dart';
 import '../../services/libretro_core_catalog.dart';
 import '../../services/libretro_internal_service.dart';
@@ -587,10 +588,10 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
     }
   }
 
-  Future<void> _openSkins(LibretroConsole console) async {
+  Future<void> _openSkins(String console) async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => LibretroSkinManagerScreen(console: console.id),
+        builder: (_) => LibretroSkinManagerScreen(console: console),
       ),
     );
   }
@@ -998,6 +999,17 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
         ),
     ];
     final actions = <Widget>[
+      // GameCube and Wii skins for the embedded Dolphin (docs/dolphin-skins.md).
+      if (entry.engine == ConsoleEngine.dolphin &&
+          DolphinSkins.isDolphinConsole(entry.id))
+        LibretroFocusRing(
+          child: OutlinedButton.icon(
+            key: ValueKey('dolphin-console-skins-${entry.id}'),
+            onPressed: () => _openSkins(entry.id),
+            icon: const Icon(Icons.palette_outlined),
+            label: Text(_t('skins')),
+          ),
+        ),
       if (console != null) ...[
         LibretroFocusRing(
           child: FilledButton.tonalIcon(
@@ -1010,7 +1022,7 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
         LibretroFocusRing(
           child: OutlinedButton.icon(
             key: ValueKey('libretro-console-skins-${console.id}'),
-            onPressed: () => _openSkins(console),
+            onPressed: () => _openSkins(console.id),
             icon: const Icon(Icons.palette_outlined),
             label: Text(_t('skins')),
           ),
