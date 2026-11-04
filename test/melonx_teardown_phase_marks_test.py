@@ -68,10 +68,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-teardown-marks-') as temporary:
                 finally''', '''                try { Device.DisposeGpu(); }
                 finally''')
     check(normal == control[WINDOW], 'WindowBase unchanged but its marks')
-    check(strip_marks(renderer) == control[RENDERER], 'VulkanRenderer unchanged but its marks')
+    point = 'long programsWaited = System.Diagnostics.Stopwatch.GetTimestamp();\n'
+    check(strip_marks(renderer).replace(point + '\n\n', point + '\n') == control[RENDERER],
+          'VulkanRenderer unchanged but its marks (and the blank line after the device-wait mark)')
     marks = re.findall(r'EmbeddedLaunchDiagnostics\.Record\("(?:teardown|gpuTeardown)", "(\w+)"', window + renderer)
-    check(sorted(marks) == sorted(['guestStop', 'guestStopped', 'gpuRelease', 'gpuReleased', 'deviceIdleWait', 'swapchainReleased']),
-          'six marks: ' + str(marks))
+    check(sorted(marks) == sorted(['guestStop', 'guestStopped', 'gpuRelease', 'gpuReleased', 'deviceIdleWait', 'compiles', 'swapchainReleased']),
+          'six marks added beside the existing compiles line: ' + str(marks))
     check(all(m != 'begin' for m in marks), 'no begin status')
     i = window.index
     check(i('"guestStop"') < i('Library.WithdrawEmbeddedControls();') < i('Device.System.Dispose();') < i('"guestStopped"') <
