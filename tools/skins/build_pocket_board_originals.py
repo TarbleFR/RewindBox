@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""Build "GameCube Pocket — Original" and "Wii Pocket — Original" from the APPROVED boards.
+"""Build "GameCube Pocket — Original", "Wii Pocket — Original" and "PS2 Pocket — Original"
+from the APPROVED boards.
 
-The maintainer approved two iPhone boards (docs/design/pocket/approved-gamecube.png and
-approved-wii.png). These packs reproduce them by using the boards' own pixels:
+The maintainer approved three iPhone boards (docs/design/pocket/approved-gamecube.png,
+approved-wii.png and approved-ps2.png). These packs reproduce them by using the boards' own
+pixels:
 
 * the skin background is the board's phone SCREEN (portrait and landscape), without the
   phone frame, titles, presentation background, Dynamic Island, home indicator or the
@@ -19,8 +21,12 @@ approved-wii.png). These packs reproduce them by using the boards' own pixels:
   a 375 pt-wide edge-to-edge iPhone), never over another control or the game screen; a few
   hit rectangles are trimmed where the board's shapes overlap (the drawing is unchanged).
 
-The two earlier packs (wii-pocket, gamecube-pocket) are not touched: this script adds
-only its two archives, their previews and their catalog entries. Requires the pinned
+The earlier packs (wii-pocket, gamecube-pocket, ps2-pocket) are not touched: this script
+adds only its own archives, their previews and their catalog entries. PS2 specifics: the
+L3/R3 targets are the board's labels under the sticks (a touch area below the cap, the
+label alone changes when pressed); the landscape board has no Menu, so the portrait
+board's own Menu button is placed in the landscape body (bottom left, where the GameCube
+and Wii boards have theirs) as the one documented addition. Requires the pinned
 Pillow/numpy (requirements.txt). Run after build_pocket_skins.py / build_ps2_pocket.py.
 """
 from __future__ import annotations
@@ -113,10 +119,54 @@ PACKS = {
             ],
         },
     },
+    'ps2': {
+        'id': 'ps2-pocket-original', 'name': 'PS2 Pocket — Original',
+        'board': 'approved-ps2.png', 'gameType': 'public.aoshuang.game.ps2',
+        # item kinds also: 'label' = an L3/R3 label under a stick, (glyph box) + the stick item
+        'portrait': {
+            'crop': (160, 112, 506, 862), 'black_above': 205, 'spill': True, 'seam': True, 'window': (167, 213, 504, 454),
+            'items': [
+                ('l2', 'button', (171, 471, 58, 34)), ('l1', 'button', (238, 471, 58, 34)),
+                ('r1', 'button', (377, 471, 59, 34)), ('r2', 'button', (444, 471, 57, 34)),
+                ('dpad', 'dpad', (189, 535, 114, 111)),
+                ('triangle', 'button', (400, 528, 50, 46)), ('square', 'button', (356, 566, 50, 46)),
+                ('circle', 'button', (443, 566, 51, 46)), ('cross', 'button', (400, 607, 50, 47)),
+                ('select', 'button', (260, 671, 59, 25)), ('start', 'button', (350, 671, 60, 25)),
+                ('l3', 'label', (211, 796, 21, 14), 'lstick'),
+                ('lstick', 'stick:left', (167, 691, 118, 118), (224, 749, 36)),
+                ('r3', 'label', (442, 796, 22, 14), 'rstick'),
+                ('rstick', 'stick:right', (389, 690, 118, 118), (448, 748, 36)),
+                ('menu', 'button', (313, 777, 45, 44)),
+            ],
+        },
+        'landscape': {
+            'crop': (582, 339, 1394, 700), 'spill': True, 'seam': True, 'window': (785, 356, 1181, 642),
+            'erase_fill': [(587, 463, 629, 588)], 'erase_rows': [(886, 682, 1086, 694)],
+            # The portrait board's Menu button (centre, radius with its halo), at the landscape scale.
+            'paste': [{'from': (335, 798, 27), 'to': (622, 660)}],
+            'items': [
+                ('l1', 'button', (619, 354, 70, 31)), ('l2', 'button', (700, 354, 67, 31)),
+                ('r1', 'button', (1206, 354, 74, 31)), ('r2', 'button', (1291, 354, 75, 31)),
+                ('dpad', 'dpad', (642, 415, 111, 111)),
+                ('l3', 'label', (689, 633, 21, 14), 'lstick'),
+                ('lstick', 'stick:left', (640, 530, 114, 114), (697, 587, 36)),
+                ('select', 'button', (656, 656, 81, 31)),
+                ('menu', 'button', (600, 638, 44, 44)),
+                ('triangle', 'button', (1262, 405, 50, 44)), ('square', 'button', (1212, 446, 50, 44)),
+                ('circle', 'button', (1312, 446, 50, 44)), ('cross', 'button', (1262, 486, 50, 46)),
+                ('r3', 'label', (1264, 633, 22, 14), 'rstick'),
+                ('rstick', 'stick:right', (1218, 530, 114, 114), (1275, 587, 37)),
+                ('start', 'button', (1230, 656, 80, 31)),
+            ],
+        },
+    },
 }
 INPUTS = {'gc': {'l', 'r', 'z', 'y', 'x', 'a', 'b', 'start', 'menu'},
-          'wii': {'c', 'z', 'a', 'b', 'one', 'two', 'minus', 'home', 'plus', 'menu'}}
+          'wii': {'c', 'z', 'a', 'b', 'one', 'two', 'minus', 'home', 'plus', 'menu'},
+          'ps2': {'cross', 'circle', 'square', 'triangle', 'l1', 'l2', 'r1', 'r2', 'select', 'start',
+                  'l3', 'r3', 'menu'}}
 MAPPING_WIDTH = {'portrait': 393.0, 'landscape': 852.0}
+PACKS_CROP_WIDTH = {'portrait': 346, 'landscape': 812}  # crop widths shared by every board (same phone template)
 
 
 def board_screen(board: Image.Image, spec: dict) -> Image.Image:
@@ -137,7 +187,31 @@ def board_screen(board: Image.Image, spec: dict) -> Image.Image:
         for row in range(cy0, cy1):
             t = (row - cy0 + 1) / (cy1 - cy0 + 1)
             a[row, cx0:cx1] = top * (1 - t) + bottom * t
+    # A tall island on a curved grip (PS2 landscape): a smooth (harmonic) fill from the
+    # body all around it, so neither a row nor a column streak crosses the grip's curves.
+    for ex0, ey0, ex1, ey1 in spec.get('erase_fill', []):
+        cx0, cy0, cx1, cy1 = ex0 - x0, ey0 - y0, ex1 - x0, ey1 - y0
+        patch = a[cy0 - 1:cy1 + 1, cx0 - 1:cx1 + 1].copy()
+        inner = patch[1:-1, 1:-1]
+        inner[:] = patch[[0, -1]].mean(axis=(0, 1))
+        for _ in range(4000):
+            inner[:] = (patch[:-2, 1:-1] + patch[2:, 1:-1] + patch[1:-1, :-2] + patch[1:-1, 2:]) / 4
+        a[cy0:cy1, cx0:cx1] = inner
     im = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), 'RGB')
+    for paste in spec.get('paste', []):
+        # A control the board draws in the other orientation only (PS2 landscape Menu): its
+        # own pixels, at this orientation's scale, blended into the body by a soft disc.
+        sx, sy, sr = paste['from']
+        tx, ty = paste['to']
+        scale = (MAPPING_WIDTH['portrait'] / (PACKS_CROP_WIDTH['portrait'])) / (
+            MAPPING_WIDTH['landscape'] / (x1 - x0))
+        source = board.crop((sx - sr, sy - sr, sx + sr, sy + sr)).convert('RGB')
+        size = round(2 * sr * scale)
+        source = source.resize((size, size), Image.Resampling.LANCZOS)
+        disc = Image.new('L', (size * 4, size * 4), 0)
+        ImageDraw.Draw(disc).ellipse((0, 0, size * 4 - 1, size * 4 - 1), fill=255)
+        disc = disc.resize((size, size), Image.Resampling.LANCZOS).filter(ImageFilter.GaussianBlur(size * 0.06))
+        im.paste(source, (round(tx - x0 - size / 2), round(ty - y0 - size / 2)), disc)
     wx0, wy0, wx1, wy1 = spec['window']
     # The window becomes plain navy ("Zone de jeu" removed); its rounded corners are kept.
     a = np.asarray(im).astype(np.int16)
@@ -183,7 +257,10 @@ def _segment(screen: Image.Image, box, pad: int, close: int):
     a = np.asarray(screen.crop((x0, y0, x1, y1)).convert('RGB')).astype(np.int16)
     lum, sat = a.mean(axis=2), a.max(axis=2) - a.min(axis=2)
     edge = np.concatenate([lum[0], lum[-1], lum[:, 0], lum[:, -1]])
-    stroke = (lum < np.median(edge) - 22) | (sat > 60)
+    body = np.median(edge)
+    # The control's stroke: darker than the body around it (22 levels on the white boards;
+    # 40 % of the body's level on a dark one, whose outlines are near black) or coloured.
+    stroke = (lum < body - min(22, 0.4 * body)) | (sat > 60)
     barrier = _grow(stroke, close)
     outside = _flood_from(~barrier, _border(lum.shape))
     inside = ~outside
@@ -229,7 +306,7 @@ def layout_masks(screen: Image.Image, spec: dict, x0: int, y0: int, margin: int 
     boxes, masks = {}, {}
     for entry in spec['items']:
         label, kind, (bx, by, bw, bh) = entry[:3]
-        if kind.startswith('stick'): continue
+        if kind.startswith('stick') or kind == 'label': continue
         box = (bx - x0, by - y0, bw, bh)
         mx, my, m = shape_mask(screen, box, reach=10)
         full = np.zeros((screen.height, screen.width), bool)
@@ -248,6 +325,15 @@ def layout_masks(screen: Image.Image, spec: dict, x0: int, y0: int, margin: int 
             to_a = np.hypot(xx - ca[0], yy - ca[1]) <= np.hypot(xx - cb[0], yy - cb[1])
             masks[b] &= ~(both & to_a)
             masks[a] &= ~(both & ~to_a)
+    # Neighbours that still touch (PS2 face buttons, rims nearly meeting; spec 'seam'): a
+    # one-pixel seam between them, taken from both, so no sampling of the sprites can make
+    # two drawn shapes meet. (GameCube/Wii keep their reviewed outlines unchanged.)
+    for i, a in enumerate(labels if spec.get('seam') else []):
+        for b in labels[:i]:
+            seam = (_grow(masks[a], 1) & masks[b]) | (_grow(masks[b], 1) & masks[a])
+            if not seam.any(): continue
+            masks[a] &= ~seam
+            masks[b] &= ~seam
     out = {}
     for label, full in masks.items():
         ys, xs = np.nonzero(full)
@@ -352,6 +438,7 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
     sx, sy = wx0 + (ww - sw) / 2, wy0 + (wh - sh) / 2
     screen_rect = bp.rect(round((sx - x0) * k, 3), round((sy - y0) * k, 3), round(sw * k, 3), round(sh * k, 3))
     masks = layout_masks(screen, spec, x0, y0)
+    pills = label_targets(spec, masks, x0, y0, k, H, orientation)
     items, shapes = [], []
     for entry in spec['items']:
         label, kind, (bx, by, bw, bh) = entry[:3]
@@ -374,6 +461,14 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
             disk = Image.new('L', (base.width * 4, base.height * 4), 0)
             ImageDraw.Draw(disk).ellipse((2, 2, disk.width - 3, disk.height - 3), fill=255)
             disk = disk.resize(base.size, Image.Resampling.LANCZOS)
+            for target, (px0, py0, px1, py1, stick) in pills.items():
+                if stick != label: continue
+                # The label's touch area below the cap belongs to the label (its own sprite):
+                # the socket leaves it out, so the drawn shapes never overlap.
+                cut = Image.new('L', base.size, 0)
+                ImageDraw.Draw(cut).rectangle(tuple(round(v * UPSCALE) - o for v, o in zip(
+                    (px0, py0, px1, py1), (box[0], box[1], box[0], box[1]))), fill=255)
+                disk = ImageChops.subtract(disk, cut)
             files[f'controls/{key}-base.png'] = bp.png(with_alpha(base, disk))
             # Held: the socket only darkens a little under the moving cap (no other change).
             held = Image.fromarray(np.clip(np.asarray(base).astype(np.float32) * 0.9, 0, 255).astype(np.uint8), 'RGB')
@@ -386,6 +481,31 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
                     'asset': {'normal': f'controls/{key}-base.png', 'pressed': f'controls/{key}-base-pressed.png'},
                     'thumbstick': {'name': f'controls/{key}-knob.png', 'width': round(2 * r * k, 3), 'height': round(2 * r * k, 3)}}
             alpha = disk
+        elif kind == 'label':
+            # PS2 L3/R3: the board's label under a stick. Its touch area is a rounded band
+            # just below the cap at rest; the sprite is the board itself (invisible at rest)
+            # and a press dims the label's letters only.
+            px0, py0, px1, py1, _ = pills[label]
+            box = tuple(round(v * UPSCALE) for v in (px0, py0, px1, py1))
+            normal = up.crop(box)
+            band = Image.new('L', (normal.width * 4, normal.height * 4), 0)
+            radius = min(band.width, band.height) // 2
+            ImageDraw.Draw(band).rounded_rectangle((0, 0, band.width - 1, band.height - 1), radius=radius, fill=255)
+            alpha = band.resize(normal.size, Image.Resampling.LANCZOS)
+            files[f'controls/{key}.png'] = bp.png(with_alpha(normal, alpha))
+            a = np.asarray(normal).astype(np.float32)
+            gx0, gy0 = round((bx - x0) * UPSCALE) - box[0], round((by - y0) * UPSCALE) - box[1]
+            glyph = np.zeros(a.shape[:2], bool)
+            glyph[max(0, gy0):gy0 + bh * UPSCALE, max(0, gx0):gx0 + bw * UPSCALE] = True
+            glyph &= a.mean(axis=2) > 110
+            soft = np.asarray(Image.fromarray(glyph.astype(np.uint8) * 255, 'L').filter(
+                ImageFilter.GaussianBlur(0.6 * UPSCALE))).astype(np.float32)[..., None] / 255
+            dim = a * (1 - 0.6 * np.clip(soft * 1.4, 0, 1))
+            pressed = np.dstack([np.clip(dim, 0, 255).astype(np.uint8), np.asarray(alpha)])
+            files[f'controls/{key}-pressed.png'] = bp.png(Image.fromarray(pressed, 'RGBA'))
+            frame = bp.rect(round(px0 * k, 3), round(py0 * k, 3), round((px1 - px0) * k, 3), round((py1 - py0) * k, 3))
+            item = {'frame': frame, 'inputs': [label],
+                    'asset': {'normal': f'controls/{key}.png', 'pressed': f'controls/{key}-pressed.png'}}
         else:
             # The control's real outline: frame = its bounding box (never trimmed), sprites
             # transparent outside it, so the rest state is the board and a press changes
@@ -410,9 +530,37 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
         shapes.append(np.asarray(alpha) >= 128)
     # No invisible extension into the home-indicator band of the smallest edge-to-edge
     # iPhone (34 pt portrait = 36 mapping pt; 21 pt landscape, 7 pt of it letterbox).
-    extend_targets(items, shapes, W, H, screen_rect, bottom_limit=H - (36 if orientation == 'portrait' else 15))
+    extend_targets(items, shapes, W, H, screen_rect, bottom_limit=H - (36 if orientation == 'portrait' else 15),
+                   spill=spec.get('spill', False))
     return {'assets': {'small': name, 'medium': name, 'large': name}, 'mappingSize': {'width': W, 'height': H},
             'screens': [{'outputFrame': screen_rect}], 'items': items, 'translucent': False}
+
+
+def label_targets(spec, masks, x0, y0, k, H, orientation):
+    """PS2 L3/R3 touch areas (screen board pixels): a band centred on the label, from just
+    below its stick's cap at rest (the cap is the stick's) down to the first control under it
+    or the home-indicator band, 46.4 mapping pt wide and tall at most. Returns
+    {label: (x0, y0, x1, y1, stick)}."""
+    sticks = {e[0]: (e[3][0] - x0, e[3][1] - y0, cap_radius(e[3][2])) for e in spec['items'] if e[1].startswith('stick')}
+    want = 46.4 / k
+    limit = (H - (36 if orientation == 'portrait' else 15)) / k
+    pills = {}
+    for entry in spec['items']:
+        label, kind, (bx, by, bw, bh) = entry[:3]
+        if kind != 'label': continue
+        scx, scy, rc = sticks[entry[3]]
+        cx = bx - x0 + bw / 2
+        width = max(want, bw + 8)
+        left, right = cx - width / 2, cx + width / 2
+        top = scy + rc + 0.1
+        bottom = min(top + want, limit)
+        for name, (mx, my, m) in masks.items():
+            ys, xs = np.nonzero(m)
+            ox0, ox1, oy0 = mx + xs.min(), mx + xs.max() + 1, my + ys.min()
+            if ox1 > left and ox0 < right and oy0 > top:
+                bottom = min(bottom, oy0 - 1)
+        pills[label] = (left, top, right, bottom, entry[3])
+    return pills
 
 
 def hit(item):
@@ -446,11 +594,13 @@ def _shape_raster(item, shape, W, H):
     return g
 
 
-def extend_targets(items, shapes, W, H, screen, target=46.4, bottom_limit=None):
+def extend_targets(items, shapes, W, H, screen, target=46.4, bottom_limit=None, spill=False):
     """Invisible extended edges until each touch area reaches `target` mapping pt (44 pt fitted
     on the smallest edge-to-edge iPhone, 375 x 812). An extension never covers another
     control's frame or touch area (frames may overlap where the board's shapes interlock;
-    DOLSkinOverlay resolves those by the drawn shape), the game screen or the outside."""
+    DOLSkinOverlay resolves those by the drawn shape), the game screen or the outside.
+    `spill` (PS2): what a blocked side cannot take goes to the opposite side (SELECT/START
+    between the D-pad and the sticks); without it the two sides grow alike only."""
     scr = (screen['x'], screen['y'], screen['x'] + screen['width'], screen['y'] + screen['height'])
     rasters = [None] * len(items)
 
@@ -476,6 +626,23 @@ def extend_targets(items, shapes, W, H, screen, target=46.4, bottom_limit=None):
                     if (h[0] < 0 or h[1] < 0 or h[2] > W or h[3] > floor or overlaps(h, scr) or
                             (extension & blocked).any()):
                         item['extendedEdges'][side] = round(item['extendedEdges'][side] - step, 3)
+            if not spill: continue
+            for _ in range(40):
+                h = hit(item)
+                if (h[2] - h[0] if axis == 'x' else h[3] - h[1]) >= target - 0.01: break
+                grown = False
+                for side in (lo, hi):
+                    item['extendedEdges'][side] = round(item['extendedEdges'][side] + step, 3)
+                    h = hit(item)
+                    floor = H if bottom_limit is None else max(bottom_limit, f['y'] + f['height'])
+                    extension = _raster(h, W, H) & ~frame
+                    if (h[0] < 0 or h[1] < 0 or h[2] > W or h[3] > floor or overlaps(h, scr) or
+                            (extension & blocked).any()):
+                        item['extendedEdges'][side] = round(item['extendedEdges'][side] - step, 3)
+                    else:
+                        grown = True
+                        break
+                if not grown: break
 
 
 def compose(L, files, pressed=False, scale=bp.SCALE):

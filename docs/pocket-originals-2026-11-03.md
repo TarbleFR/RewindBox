@@ -187,3 +187,30 @@ DOLSkinOverlay, not iPhone screenshots). Simulator tests with the real overlay a
 TCManagerInterface calls: `packages/dolphin_internal_bridge/ci/DolphinSkinOverlayTests.mm`.
 The ids, names and previews of both Originals are unchanged, so existing selections keep
 working; the earlier Pocket packs are byte-identical.
+
+## PS2 Pocket — Original (4 November 2026)
+
+A distinct pack, `ps2-pocket-original` ("PS2 Pocket — Original", archive
+`07f4b6fb…6355`, 7 283 088 B), reproduces the approved maquette
+(`docs/design/pocket/approved-ps2.png`, byte copy of `PS2-Pocket-MAQUETTE-ORIGINALE.png`
+`e37c95a5…95da` from `rewindbox-ps2-reference-feedback-20261104.zip` `13e739fe…eac`) with
+the GameCube/Wii Originals' method; builder details and deviations are in
+[tools/skins/README.md](../tools/skins/README.md). It is a new choice beside
+`ps2-pocket` ("PS2 Pocket — Noir mat"), whose archive `2106e5f7…16ad`, id, previews and
+saved selections are unchanged; nothing is selected or migrated automatically. Compared
+with the current skin (the two device captures of the archive), it has the maquette's
+textured black caps with dark crowns, its D-pad, face buttons, SELECT/START, symbols,
+volumes and proportions, because every control is the maquette's own pixels.
+
+Evidence ([ps2-original/](evidence/pocket-originals/ps2-original/), host renders of the
+archive composed like ARMSX2SkinOverlay, not iPhone screenshots): maquette useful zone
+beside the archive at rest and pressed, touch zones, rest/pressed/released per control and
+stick positions, [fidelity.json](evidence/pocket-originals/ps2-original/fidelity.json).
+ARMSX2 now resolves touches by the drawn shape (`ARMSX2SkinHitTest.h`) and hides its
+floating menu over a skin that has its own Menu (it covered L1 in landscape on both PS2
+packs). Simulator tests on both shipped PS2 archives:
+`packages/armsx2_internal_bridge/ci/ARMSX2SkinOverlayTests.mm`. Not observed: iPhone touch
+feel, both physical landscape sides, game response. Board-bound landscape limits (L3/R3
+about 26 pt tall, SELECT/START about 40 pt, the opposite-rotation housing over Circle) are
+listed for the maintainer.
+

@@ -9,8 +9,11 @@ import check_board_inputs as ci
 # optional: the folder of the maintainer's original PNGs (compare against them directly)
 TARGETS = sys.argv[1] if len(sys.argv) > 1 else None
 out = {'target': 'maintainer original PNGs' if TARGETS else 'repository boards'}
-for console, pid, board in (('gc', 'gamecube-pocket-original', 'approved-gamecube.png'), ('wii', 'wii-pocket-original', 'approved-wii.png')):
-    B = ci.target_board(console, TARGETS) if TARGETS else Image.open('docs/design/pocket/' + board).convert('RGB')
+# PS2: docs/design/pocket/approved-ps2.png is the approved maquette itself (byte copy,
+# SHA-256 e37c95a5...), so it is always the target.
+for console, pid, board in (('gc', 'gamecube-pocket-original', 'approved-gamecube.png'), ('wii', 'wii-pocket-original', 'approved-wii.png'),
+                            ('ps2', 'ps2-pocket-original', 'approved-ps2.png')):
+    B = ci.target_board(console, TARGETS) if TARGETS and console != 'ps2' else Image.open('docs/design/pocket/' + board).convert('RGB')
     for o in ('portrait', 'landscape'):
         spec = b.PACKS[console][o]; c = spec['crop']; t = B.crop(c)
         p = Image.open(f'assets/skins/pocket/{pid}-{o}.png').convert('RGB').resize(t.size, Image.Resampling.LANCZOS)
@@ -18,7 +21,10 @@ for console, pid, board in (('gc', 'gamecube-pocket-original', 'approved-gamecub
         def cut(r):
             x0, y0, x1, y1 = r; mask[max(0, y0-c[1]-3):y1-c[1]+3, max(0, x0-c[0]-3):x1-c[0]+3] = False
         cut(spec['window'])
-        for r in (spec.get('erase') or []) + (spec.get('erase_rows') or []): cut(r)
+        for r in (spec.get('erase') or []) + (spec.get('erase_rows') or []) + (spec.get('erase_fill') or []): cut(r)
+        for paste in spec.get('paste') or []:  # a control added on purpose (PS2 landscape Menu)
+            (tx, ty), r = paste['to'], paste['from'][2] * 1.2
+            cut((round(tx - r), round(ty - r), round(tx + r), round(ty + r)))
         if spec.get('black_above'): mask[:spec['black_above']-c[1]+3, :] = False
         mse = ((A-P)[mask]**2).mean()
         g = lambda X: np.hypot(*np.gradient(np.asarray(Image.fromarray(X.astype('uint8')).convert('L'), float)))[mask].mean()

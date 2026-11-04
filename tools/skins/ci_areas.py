@@ -19,14 +19,18 @@ AREAS = {
     # test/libretro_frontend_test.py and test/libretro_ios_syntax_test.py
     'libretro': r'^packages/libretro_internal_bridge/|^test/libretro_',
     # verify_pocket_skins.py, pocket_skin_input_chain_test.py (reads the DOLSkinOverlay and
-    # ARMSX2SkinOverlay tables, compiles DOLSkinHitTest.h), dolphin_session_chrome_test.py
+    # ARMSX2SkinOverlay tables, compiles DOLSkinHitTest.h and ARMSX2SkinHitTest.h),
+    # dolphin_session_chrome_test.py, armsx2_skin_menu_button_test.py (the ARMSX2 session's
+    # floating menu over a skin with its own Menu)
     'pocket': r'^assets/skins/pocket/|^tools/skins/|^docs/design/pocket/|^test/pocket_skin_input_chain_test\.py$'
               r'|^test/dolphin_session_chrome_test\.py$|^test/orientation_policy/'
               r'|^' + DOLPHIN + r'ios/Classes/(DOLSkinHitTest\.h|DOLSessionChromePolicy\.h|DOLSkinOverlay\.mm'
               r'|DolphinInternalBridgePlugin\.mm)$'
-              r'|^packages/armsx2_internal_bridge/ios/Classes/ARMSX2SkinOverlay\.mm$'
+              r'|^packages/armsx2_internal_bridge/ios/Classes/(ARMSX2SkinOverlay\.(mm|h)|ARMSX2SkinHitTest\.h'
+              r'|Armsx2InternalBridgePlugin\.mm)$|^test/armsx2_skin_menu_button_test\.py$'
               r'|^\.github/workflows/skin-orientation-checks\.yml$|^tools/skins/ci_areas\.py$',
     'dolphin_compile': r'^' + DOLPHIN + r'ios/Classes/(DOL|TouchController/TCManagerInterface\.h)',
+    # ARMSX2 iPhone compile and ci/test_skin_overlay_ui.rb (both shipped PS2 archives)
     'armsx2': r'^packages/armsx2_internal_bridge/(ios/Classes/ARMSX2|ci/)|^assets/skins/pocket/ps2-',
     # ci/test_skin_overlay_ui.rb: DOLSkinOverlay.mm, the recorder, the two Original archives
     'dolphin_skin_sim': r'^' + DOLPHIN + r'ios/Classes/(DOLSkin|DOLOrientationPolicy\.h|TouchController/TCManagerInterface\.h)'

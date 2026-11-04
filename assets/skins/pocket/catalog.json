@@ -70,6 +70,20 @@
       },
       "author": "RewindBox",
       "license": "RewindBox approved board; console names and marks belong to their owners"
+    },
+    {
+      "id": "ps2-pocket-original",
+      "name": "PS2 Pocket — Original",
+      "console": "ps2",
+      "archiveAsset": "assets/skins/pocket/ps2-pocket-original.manicskin",
+      "sha256": "07f4b6fb09fcf61f3ae3081313fd9f551b5abb377774f9249b62e40cef2c6355",
+      "size": 7283088,
+      "previewAssets": {
+        "portrait": "assets/skins/pocket/ps2-pocket-original-portrait.png",
+        "landscape": "assets/skins/pocket/ps2-pocket-original-landscape.png"
+      },
+      "author": "RewindBox",
+      "license": "RewindBox approved board; console names and marks belong to their owners"
     }
   ]
 }

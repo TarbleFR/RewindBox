@@ -117,7 +117,7 @@ MockClient archiveClient(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  // Every shipped Pocket pack, the two approved-board Originals included:
+  // Every shipped Pocket pack, the three approved-board Originals included:
   // (catalog id, console, archive, environment override).
   const packs = <(String, String, String, String)>[
     ('wii-pocket', 'wii', 'wii-pocket.manicskin', 'POCKET_WII_ARCHIVE'),
@@ -134,6 +134,12 @@ void main() {
       'wii',
       'wii-pocket-original.manicskin',
       'POCKET_WII_ORIGINAL_ARCHIVE',
+    ),
+    (
+      'ps2-pocket-original',
+      'ps2',
+      'ps2-pocket-original.manicskin',
+      'POCKET_PS2_ORIGINAL_ARCHIVE',
     ),
   ];
   for (final (pack, console, archiveName, variable) in packs) {
