@@ -405,8 +405,8 @@
     ],
     "sourceOnly": [],
     "promotedCommits": [],
-    "freezeCommit": "013c505df086044bf709a5ebe034b2e675a13c44",
-    "freezeTree": "cd79368eedc7a8a732016ea4cfd173caf06af0da",
+    "freezeCommit": "cc6330df84d59bb0daf01c8c4da4cf4df53f891c",
+    "freezeTree": "3b4b04bc5a354d50764c0f2b8e6180516946b3a4",
     "baseEffectiveDigest": "140e570761b6864ce3d6bd62be0d9bdcadb798ce17735409599f73daa0e894af",
     "inheritedDeferredPaths": [
       "lib/models/retro_achievements_session.dart",
@@ -1101,6 +1101,36 @@
       {
         "commit": "013c505df086044bf709a5ebe034b2e675a13c44",
         "subject": "build(delivery): IPA 640 draft: the ARMSX2, Dolphin and Libretro bridge images change with the skins lot [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "7fab8ecbc4542b389dce030853543d9ab240b0f7",
+        "subject": "docs: record authorized branch cleanup and protected Actions deletion plan [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "ba77e40ab4c334bf8cff93e207e7fa199b4e3b42",
+        "subject": "[ipa-delivery:640] build(delivery): request the combined private IPA 640 (RPCS3 Core 638, MeloNX Core 639, skins and PS2 Pocket)",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "254c0cd21af1fdbc2e63ce9c2dbbcfe355089acc",
+        "subject": "docs(ai): Claude delivery row: IPA 640 frozen and triggered, run 41754863542 in progress [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "cb1c9d50b441ae79f7271c8f3204ca48fc5184b7",
+        "subject": "docs(ai): Claude delivery row: runs to preserve during the GitHub cleanup [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "cc6330df84d59bb0daf01c8c4da4cf4df53f891c",
+        "subject": "fix(delivery): a retained archive whose expired original GitHub purged is authenticated through its pinned republication [skip ci]",
         "role": "recipe",
         "productPaths": 0
       }
@@ -2885,8 +2915,8 @@
     "melonx-dependencies"
   ],
   "frozen": {
-    "at": "2026-11-04T01:32:45Z",
-    "commit": "013c505df086044bf709a5ebe034b2e675a13c44",
+    "at": "2026-11-04T01:38:57Z",
+    "commit": "cc6330df84d59bb0daf01c8c4da4cf4df53f891c",
     "tool": "standard_delivery.py freeze",
     "inCI": false
   }
