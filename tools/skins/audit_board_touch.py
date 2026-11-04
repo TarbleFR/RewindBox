@@ -44,6 +44,7 @@ def name_of(item):
 def audit(before_dir, after_dir):
     report = {}
     for console, pack in b.PACKS.items():
+        if console not in ('gc', 'wii'): continue  # the GameCube/Wii Originals (main / cstick)
         pid = pack['id']
         old_info, old_png = load(Path(before_dir) / f'{pid}.manicskin')
         new_info, new_png = load(Path(after_dir) / f'{pid}.manicskin')
@@ -94,7 +95,10 @@ def audit(before_dir, after_dir):
                     outside = ~truth
                     row[f'pressedChangesOutsideOutlinePercent_{tag}'] = round(100 * float((d[outside] > 24).mean()), 2) if outside.any() else 0.0
                     if 'thumbstick' in item:
-                        cx, cy, _ = hand[{'leftThumbstickUp': 'main', 'rightThumbstickUp': 'cstick'}[item['inputs']['up']]][3]
+                        # The moving part's centre on the board: the top face when the pack
+                        # declares one (GameCube/Wii caps drawn in 3D), else the cap.
+                        spec_entry = hand[{'leftThumbstickUp': 'main', 'rightThumbstickUp': 'cstick'}[item['inputs']['up']]]
+                        cx, cy = (spec_entry[4] if len(spec_entry) > 4 else spec_entry[3])[:2]
                         bx, by = (cx - x0) * k, (cy - y0) * k
                         tx, ty = fr['x'] + fr['width'] / 2, fr['y'] + fr['height'] / 2
                         row[f'capOffsetFromBoardPoints_{tag}'] = round(float(np.hypot(tx - bx, ty - by)), 2)

@@ -1,0 +1,48 @@
+{
+ "input": {
+  "name": "ScreenRecording_11-04-2026_21-31-53_1.mov",
+  "bytes": 11796828,
+  "sha256": "0555383b90ad40104b231759943e0dd832ed82121cda2b46ffcdb9bc25edf5d5",
+  "video": "HEVC 1320x2868 rotated (956x440 pt landscape at 3x), 60 fps, 866 frames, 14.5 s",
+  "privacy": "recording kept private; only crops of the two sticks are stored"
+ },
+ "maintainer": "Voici les nouvelles imprécisions, elle ne concerne que les deux stick ! Ils sont trop large et bouge avec une texture de la manette. Le stick jaune devrais avoir que le haut de l’analogue et non la base jaune.",
+ "installed": "rest frame 230 against both archives composed at 956x440: PR157 ec382133 stick regions 7.84 / 6.47, pre-PR157 f61e10dd 12.39 / 15.32: the corrected copy is installed now (reinstalled), the press halos are gone",
+ "timeline": "main stick 4.2-6.6 s, C-stick 6.8-9.0 s, then A, B, Y, R, Z, L, C-stick",
+ "observed": "device-main-stick.png / device-c-stick.png: the moving sprite is the whole cap at 1.12 x its measured radius, centred on the cap: the light top plus the grey skirt and part of the socket (main stick), the yellow top plus its yellow base (C-stick); the area it uncovers shows radial streaks (per-angle socket fill)",
+ "cause": "the GameCube/Wii boards draw each cap in 3D, a top face above a skirt; the top face is 4-8 board px above the cap centre and smaller (31-42 px against 41-46 px). A centred 1.12 r disk takes the skirt and socket texture with it and is off the top face.",
+ "fix": "each GameCube/Wii stick declares its top face measured on the board (board-top-faces-*.png: luminance boundary, least-squares circle, 90 % residual 1.2-2.3 px); the knob is that face only (+0.6 px edge), the frame is centred on it, the skirt stays in the socket sprite and the area under the top is the skirt colour, one smooth gradient (no angular bins). PS2 Original (a dome seen from above) unchanged, byte-identical.",
+ "measuredTopFaces": {
+  "gamecube portrait main": [
+   241.4,
+   579.3,
+   37.1
+  ],
+  "gamecube portrait cstick": [
+   428.0,
+   720.7,
+   31.0
+  ],
+  "gamecube landscape main": [
+   697.7,
+   468.6,
+   35.9
+  ],
+  "gamecube landscape cstick": [
+   1322.4,
+   598.3,
+   31.2
+  ],
+  "wii portrait main": [
+   253.9,
+   572.7,
+   42.1
+  ],
+  "wii landscape main": [
+   701.3,
+   473.7,
+   41.2
+  ]
+ },
+ "audit": "audit-before-after.json: cap offset from the moving top face 4.89-8.09 pt before, 0 after; misrouted 0 %; travel 7.3-11.0 pt; full deflection radius 40.7-59.2 pt"
+}
