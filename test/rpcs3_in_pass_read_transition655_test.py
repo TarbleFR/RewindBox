@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import platform
 import re
 import shutil
 import subprocess
@@ -235,9 +236,14 @@ def build_and_run(tree: Path, code: str, defines: dict, work: Path, name: str, c
     cpp = work / (name + '.cpp')
     cpp.write_text(source)
     binary = work / name
+    # Without the hook the weak reference has no definition. GNU ld resolves it to null; Apple ld64 refuses an
+    # undefined symbol even when weak, so the variant allows exactly this one (dynamic lookup, null at run time:
+    # the run below checks hook == 0). The real Core links the MoltenVK that defines it.
+    unresolved = (['-Wl,-U,_rbx_mvk_in_pass_read_barrier_waits']
+                  if platform.system() == 'Darwin' and defines.get('WITH_HOOK') == 0 else [])
     built = subprocess.run([cxx, '-std=c++20', '-O1', '-Wall', '-Wno-unused-function', '-Wno-unused-variable',
                             '-fsanitize=address,undefined', '-fno-sanitize-recover=all',
-                            '-I', str(tree / 'rpcs3'), '-I', str(VULKAN_INCLUDE), str(cpp), '-o', str(binary)],
+                            '-I', str(tree / 'rpcs3'), '-I', str(VULKAN_INCLUDE), str(cpp), '-o', str(binary)] + unresolved,
                            capture_output=True, text=True)
     require(built.returncode == 0, name + ' does not compile:\n' + built.stderr[-5000:])
     run = subprocess.run([str(binary)], capture_output=True, text=True, timeout=120)
