@@ -240,40 +240,37 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Goal:** one reviewed common private IPA with RPCS3, MeloNX, skins and all approved
   content; no omitted lot or concurrent delivery. Device gameplay tests follow
   packaging, not a circular pre-delivery requirement.
-- **State:** 650 = RPCS3 645, MeloNX 649 (pin `c5f1461e…`, 23 gates), PR157 skins +
-  legal declaration, on verified 643. First trigger run `41861290919` failed: flutter
-  only (`test/pocket_skin_input_chain_test.py`, no Pillow on ubuntu; 17/18 passed) and an
-  application job no macOS runner acquired (capacity). Recipe fix `5671b1b1` (pinned
-  Pillow venv; contract guard fails on the old workflow), refrozen `d1ffd0a1` on the same
-  effective tree `b46f7f65…` (651 source `3da5e3d0` deferred), native reused from passed
-  job `126684326200`; second trigger `2bfa7f7f`, run `41868095254`: not terminal here.
-- **Misaddressed MeloNX logs:** skins export ready (ZIP 900515 B, SHA-256 `12b5f019…2f04`,
-  skins attachment `d585ba9d…`). Main has no native cross-session transfer:
-  `send_message.attachments` is project channel→thread only and no tool reads another
-  session's upload. Next: authorized Codex browser re-attachment to MeloNX, then main
-  verifies MeloNX-side size/SHA-256; no second export request.
-- **Next:** follow `41868095254`, verify/deliver. Next manifest: Core 651 and the
-  additive PS2 Original handoff after review. Last verified delivery: 643.
+- **Delivered/verified:** 650 (run `41873041655`, trigger `3f596ba1`): IPA 237194301 B,
+  SHA-256 `9784c831…10229`; RPCS3 645, MeloNX 649, PR157 skins; [receipt](evidence/rewind650/delivery.json),
+  key deleted, file sent. Failed attempts fixed: `41861290919` (flutter without Pillow:
+  recipe `5671b1b1` + contract guard; macOS runner not acquired), `41868095254` (draft
+  declared App must-change; no Dart input changed). Native/flutter evidence reused.
+- **Next manifest:** 653 draft on 650 (`build-utils/delivery/653.json`): RPCS3 Core 652,
+  MeloNX 649 kept, PR158 PS2 Pocket Original (`70b9c36e`, legal `850611ff`); dry run:
+  legal passed on the effective tree, 41 differences; blocked only by the 652 pin.
+  PR158 landscape sizes (L3/R3 ~26 pt, SELECT/START ~40 pt, home-band overlap, sensor
+  housing over Circle) await the maintainer.
+- **Misaddressed MeloNX logs:** skins export ready (ZIP 900515 B, `12b5f019…2f04`, skins
+  attachment `d585ba9d…`). Main has no native transfer (`send_message.attachments`:
+  project channel→thread only; no tool reads another session's upload); MeloNX idle,
+  no receipt yet. Next: authorized Codex browser re-attachment, then main verifies.
 
 ### RPCS3 FPS, stability and audio — main Claude Code
 
-- **Verified source/build:** 645 timeout-mix fix compiled/pinned
-  (`eeb36c27`, run `41839324272`, fingerprint `a2d42107…`, pin `fc1b8807…`);
-  [record](rpcs3-core645-2026-11-04.md). Eight IPA643/PID6665 inputs verified,
-  raw files private; [identities/trade-offs](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#rpcs3-fps-stability-and-audio--main-claude-code).
-- **Current:** 651 low-ring mix (`3da5e3d0`, request `c37b71df`, run `41865042684`):
-  iPhone Core job passed; host-harness job failed once on `zcull630_asan` (Core 630
-  ZCULL suite on the reverted tree: the simulated 50 ms RSX server did not pick up
-  in 2000 ms under ASan on a capacity-constrained runner; 651 does not touch ZCULL,
-  the same suite passed for 645). Classified infrastructure; one failed-job rerun
-  (attempt 2) running. Host model: filler/refill/recoveries→0, more lost late-port
-  blocks/discontinuities. No iPhone audio gain established.
-- **Open/next:** pin 651 after a green rerun (a second identical failure changes method
-  on that harness's timing). AC pass-site census and justified pass/clear/restart
-  optimization (depth feedback removal rejected as unsafe). BO2 new-pipeline
-  anticipation/module warm-up open; residual new compiles 234–1008 ms. Device AC
-  audio/buffer/lip-sync and BO2 second-session/SPU-warmup A/B still required.
-  Do not close at “GPU-bound”.
+- **Packaged:** 645 timeout mix in IPA 650; [record](rpcs3-core645-2026-11-04.md).
+  Eight IPA643/PID6665 inputs verified, raw files private; [identities/trade-offs](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#rpcs3-fps-stability-and-audio--main-claude-code).
+- **Pinned:** 651 low-ring mix ([record](rpcs3-core651-2026-11-04.md)): run `41865042684`,
+  host job attempt 1 failed only in `zcull630_asan` (infrastructure), rerun green; pin
+  `bdfe9b7d…`, fingerprint `69fd4ff3…`. No iPhone audio gain established.
+- **Current:** 652 ([record](rpcs3-core652-2026-11-04.md)), compile run `41874738530`
+  (Apple host harnesses green): AC 51 passes/frame, 1104 cyclic depth barriers per 127
+  frames, each ending the pass. Fixes in the real code: test-off draws without stencil
+  writes are read-only; a skipped read counts, so read-only chains keep one barrier.
+  Host model on real code: no RAW/WAR hazard; 6 reads 8→3 passes; random 106854→99643
+  passes, 94138→75615 barriers; writing loops identical. RPASS652 census of pass ends.
+- **Open/next:** pin 652, IPA 653; then the RPASS652 dominant restart site. BO2 new
+  pipelines (234–1008 ms, first-ever keys; old ones persist): anticipation design still
+  open. Device AC/BO2 measurements required. Do not close at “GPU-bound”.
 
 ### MeloNX FPS, memory, black launch and artifacts — existing owner
 
