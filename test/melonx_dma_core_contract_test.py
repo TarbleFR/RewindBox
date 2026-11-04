@@ -28,6 +28,8 @@ from adapt_present_source_attribution import BASELINE as PRESENT_BASELINE
 from adapt_teardown_compile_cancel import BASELINE as TEARDOWN_BASELINE
 from adapt_pause_guest_threads import BASELINE as PAUSE_BASELINE
 from adapt_teardown_phase_marks import BASELINE as MARKS_BASELINE
+from adapt_binder_teardown import BASELINE as BINDER_BASELINE
+from adapt_artifact_counters import BASELINE as COUNTERS_BASELINE
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -55,12 +57,17 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             # Core 647 (PR #156 follow-up).
             'teardown-compile-cancel': 'delivered', 'pause-guest-threads': 'delivered',
             # Core 649 (teardown phase marks).
-            'teardown-phase-marks': 'delivered'}
+            'teardown-phase-marks': 'delivered',
+            # Core 654 (PR #156 new lot): the binder release, the collector's gcEvent lines, the artifact-path counters.
+            'binder-teardown': 'delivered', 'gc-events': 'delivered', 'artifact-counters': 'delivered',
+            # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
+            'single-virtual-dependency': 'ada'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
-CHANGES = ((set(ARRAY_NAMES) - {DIAGNOSTICS}) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
+# Core 654: the collector (DIAGNOSTICS) is a reviewed change again, its gcEvent lines bound by the gc-events gate.
+CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
            set(WARMUP_BASELINE) | set(TRIM_BASELINE) | set(BARRIER_BASELINE) | set(SCRATCH_BASELINE) |
            set(OCCUPIED_BASELINE) | set(MISS_BASELINE) | set(RECEIVERS_BASELINE) | set(PRESENT_BASELINE) |
-           set(TEARDOWN_BASELINE) | set(PAUSE_BASELINE) | set(MARKS_BASELINE))
+           set(TEARDOWN_BASELINE) | set(PAUSE_BASELINE) | set(MARKS_BASELINE) | set(BINDER_BASELINE) | set(COUNTERS_BASELINE))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -69,6 +76,8 @@ RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'pe
          'counter-report-compaction-final-checks.json',
          # Core 642: the barrier ordering adapter changes BarrierBatch.cs, which this core87 receipt declares.
          CORE87 + 'barrier-compaction-checks.json',
+         # Core 654: the collector changes (gcEvent lines), which this receipt declares as a postimage.
+         'single-virtual-dependency-final-checks.json',
          *(CORE87 + name for name in ('scalar-texture-descriptor-checks.json', 'fallback-descriptor-scratch-checks.json',
                                       'single-resource-binding-checks.json', 'bounded-binding-snapshot-checks.json'))}
 # Production files that joined the prepared source with this increment (unadapted in the delivered Core).
@@ -79,8 +88,12 @@ JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
           # Core 644 (adapt_present_source_attribution): the GPU Window joins the prepared source.
           'src/Ryujinx.Graphics.Gpu/Window.cs',
           # Core 647 (adapt_pause_guest_threads): KProcess joins (Horizon.cs was already a prepared member).
-          'src/Ryujinx.HLE/HOS/Kernel/Process/KProcess.cs'}
-REUSED_FRESH = {'single-virtual-dependency-final-checks.json'}
+          'src/Ryujinx.HLE/HOS/Kernel/Process/KProcess.cs',
+          # Core 654 (adapt_binder_teardown): the two SurfaceFlinger files join (Library.cs was already a prepared member).
+          'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/SurfaceFlinger.cs',
+          'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/HOSBinderDriverServer.cs'}
+# Core 654: no fresh fixture of the delivered Core is reused any more (the single-virtual-dependency receipt declares the collector).
+REUSED_FRESH = set()
 
 
 def check(ok, message):
@@ -117,6 +130,8 @@ check(verify.CONTROL_MEMBERS == {'delivered': 'embedded-adapted-source.zip',
 
 # The payload is unchanged: the prepared collector is the native collector with the array-delta edits, the same
 # 13 work rows and the same read and array counters as the delivered Core (the max-width payload bound holds).
+# Core 654: the native collector also writes the gcEvent journal lines (not in the payload), so the prepared collector
+# differs from the delivered Core's; the gc-events gate binds that difference to inserted lines only.
 prepared = (ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs').read_text(encoding='utf-8-sig')
 for before, after in DIAGNOSTIC_EDITS:
     check(prepared.count(before) == 1, 'Collector anchor drift')
@@ -247,7 +262,7 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 43 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 46 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -261,26 +276,30 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_present_source_attribution.py',
                                                      'build-utils/melonx/adapt_teardown_compile_cancel.py',
                                                      'build-utils/melonx/adapt_pause_guest_threads.py',
-                                                     'build-utils/melonx/adapt_teardown_phase_marks.py'} and
-          set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py'},
+                                                     'build-utils/melonx/adapt_teardown_phase_marks.py',
+                                                     'build-utils/melonx/adapt_binder_teardown.py',
+                                                     'build-utils/melonx/adapt_artifact_counters.py'} and
+          set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
+                                                       # Core 654: the collector's gcEvent lines.
+                                                       'native/melonx/EmbeddedPerformanceDiagnostics.cs'},
           'Unexpected preparation scope')
     check(set(frozen['baselineUnadaptedMembers']) == JOINED,
-          'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs, PipelineLayoutCacheEntry.cs the four warm-up parity members, the GPU Window and KProcess join the prepared source')
+          'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs, PipelineLayoutCacheEntry.cs the four warm-up parity members, the GPU Window, KProcess and the two SurfaceFlinger files join the prepared source')
     # The prepared members that differ from the delivered source are exactly the reviewed changes.
     baseline = {**frozen['baselinePreparedMembers'], **frozen['baselineUnadaptedMembers']}
     check(set(frozen['preparedMembers']) == set(baseline) and
           {path for path, value in frozen['preparedMembers'].items() if baseline[path] != value} == CHANGES,
           'Prepared source differs from the delivered one outside the reviewed changes')
     collector = hashlib.sha256(prepared.encode('utf-8')).hexdigest()
-    check(collector == frozen['preparedMembers'][DIAGNOSTICS] == arrays_frozen['preparedMembers'][DIAGNOSTICS],
-          'The collector (payload) changed')
+    check(collector == frozen['preparedMembers'][DIAGNOSTICS] and collector != arrays_frozen['preparedMembers'][DIAGNOSTICS],
+          'The prepared collector is not the checked-in native collector (gcEvent lines) plus the array-delta edits')
     check(frozen['baselinePreparationInputs'] == arrays_frozen['preparationInputs'] and
           frozen['baselinePreparedMembers'] == arrays_frozen['preparedMembers'] and
           frozen['readsControlMembers'] == arrays_frozen['baselinePreparedMembers'] and
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 143 and len(frozen['preparedMembers']) == 182, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 145 and len(frozen['preparedMembers']) == 184, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -291,18 +310,28 @@ if not args.helpers_only:
     check(set(gate['bindless-array-deltas']['requiredPostimages']) == set(ARRAY_NAMES) and
           set(gate['hogwarts-dma-copies']['requiredPostimages']) == set(DMA_NAMES) | set(HOST_NAMES),
           'A changed adapter gate does not bind every change')
-    # Library-assembly files (Library.cs, WindowBase.cs) and the HLE files are outside the GPU/Vulkan closure.
-    OUTSIDE_GPU = set(PAUSE_BASELINE) | {'src/Ryujinx.Library/Window/WindowBase.cs'}
+    # Library-assembly files (Library.cs, WindowBase.cs) and the HLE files (KProcess, Horizon, the two SurfaceFlinger
+    # files of Core 654) are outside the GPU/Vulkan closure.
+    OUTSIDE_GPU = set(PAUSE_BASELINE) | {'src/Ryujinx.Library/Window/WindowBase.cs'} | set(BINDER_BASELINE)
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
           'The final GPU assembly build does not bind every changed GPU file')
     check(set(PAUSE_BASELINE) <= set(gate['pause-guest-threads']['requiredPostimages']) and
-          set(MARKS_BASELINE) <= set(gate['teardown-phase-marks']['requiredPostimages']), 'The HLE and Library changes are bound by their own gates')
+          set(MARKS_BASELINE) <= set(gate['teardown-phase-marks']['requiredPostimages']) and
+          set(BINDER_BASELINE) <= set(gate['binder-teardown']['requiredPostimages']), 'The HLE and Library changes are bound by their own gates')
+    # Core 654: the counters' three Vulkan files and the collector are bound by their own gates besides the GPU assembly build.
+    check(set(COUNTERS_BASELINE) <= set(gate['artifact-counters']['requiredPostimages']) and
+          gate['gc-events']['requiredPostimages'] == [DIAGNOSTICS] and
+          {b['productionPath'] for b in gate['gc-events']['compiledBindings']} == {DIAGNOSTICS} and
+          gate['gc-events']['assertions'].get('backgroundGcObserved') is True and gate['gc-events']['assertions'].get('serverGc') is False,
+          'The Core 654 counters and collector are bound by their own gates')
     check(all(gate[name]['assertions'].get('sourceKind') in ('deliveredPreparedWithFinalCandidate', 'finalPrepared',
                                                              'baselinePreparedWithFinalInstrumentedCandidate',
                                                              # Core 639 and 642: the final preparation, its exact pinned control rebuilt
-                                                             'finalPreparationWithReversedControl') for name in gate),
+                                                             'finalPreparationWithReversedControl',
+                                                             # Core 654 gc-events: the final preparation's collector against the Core 649 one
+                                                             'finalPreparation') for name in gate),
           'A gate ran without the final prepared source')
     # Every file a gate reads from its control is frozen, so a delivery can recheck every receipt completely.
     unadapted = frozen['controlUnadaptedMembers']
@@ -313,9 +342,11 @@ if not args.helpers_only:
     warmup_members = set(JOINED) - {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY}
     delivered_graphics = {path: digest for path, digest in graphics.items() if path not in warmup_members}
     check(unadapted == {'delivered': delivered_graphics, 'delivered611': arrays_frozen['controlUnadaptedMembers']['delivered'],
-                        # KProcess (Core 647) is read from no control: only its own gate reads it, from the final preparation.
+                        # KProcess (Core 647) and the two SurfaceFlinger files (Core 654) are read from no control: only their own
+                        # gates read them, from the final preparation.
                         'delivered609': {**arrays_frozen['controlUnadaptedMembers']['delivered609'],
-                                         **{path: digest for path, digest in graphics.items() if path not in PAUSE_BASELINE}},
+                                         **{path: digest for path, digest in graphics.items()
+                                            if path not in PAUSE_BASELINE and path not in BINDER_BASELINE}},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
           'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),

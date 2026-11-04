@@ -22,7 +22,7 @@ BOM = b'\xef\xbb\xbf'
 ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_moltenvk_barrier_ordering',
          'adapt_descriptor_scratch_all_titles', 'adapt_readback_occupied_attribution', 'adapt_pipeline_miss_context',
          'adapt_readback_receivers', 'adapt_present_source_attribution', 'adapt_teardown_compile_cancel',
-         'adapt_pause_guest_threads', 'adapt_teardown_phase_marks')
+         'adapt_pause_guest_threads', 'adapt_teardown_phase_marks', 'adapt_binder_teardown', 'adapt_artifact_counters')
 
 
 def sha(path: Path) -> str:
@@ -124,6 +124,30 @@ def apply_present(target: Path, module_name: str, only=None) -> list:
 
     baseline = module.BASELINE
     module.once, module.BASELINE = once_present, _NoDigests(baseline)
+    try:
+        module.apply(target)
+    finally:
+        module.once, module.BASELINE = original, baseline
+    return present
+
+
+def reverse_present(target: Path, module_name: str, only=None) -> list:
+    """Undo the adapter's `once` replacements in those of its files a composition holds: the inverse of apply_present,
+    without digest checks (the caller compares the result with its control). Files the composition lacks are skipped."""
+    module = importlib.import_module(module_name)
+    present = [name for name in module.BASELINE if (target / name).exists() and (only is None or name in only)]
+    if not present:
+        return []
+    original = module.once
+
+    def undo_present(path, old, new):
+        if path.exists() and (only is None or path.relative_to(target).as_posix() in only):
+            text = path.read_text(encoding='utf-8-sig')
+            assert text.count(new) == 1, (str(path), new[:90], text.count(new))
+            path.write_text(text.replace(new, old), encoding='utf-8')
+
+    baseline = module.BASELINE
+    module.once, module.BASELINE = undo_present, _NoDigests(baseline)
     try:
         module.apply(target)
     finally:

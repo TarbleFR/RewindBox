@@ -37,10 +37,13 @@ namespace Ryujinx.Graphics.Vulkan
         public bool MoltenVkTracksArgumentBufferHazards;
         public bool SupportsRenderPassBarrier(PipelineStageFlags flags) => (flags & PipelineStageFlags.ComputeShaderBit) == 0;
     }
-    // The production counter BarrierBatch increments (PipelineBase.cs, RenderDetail); only this field is read here.
+    // The production counters BarrierBatch increments (PipelineBase.cs, RenderDetail): EndedPassImageBarriers is the only
+    // field read here; InPassAttachmentBarriersKept (adapt_artifact_counters, Core 654) is declared so the final
+    // BarrierBatch compiles and is not compared (it changes no barrier, pass end or fence).
     static class RenderDetail
     {
         public static long EndedPassImageBarriers;
+        public static long InPassAttachmentBarriersKept;
     }
     sealed class FakeApi
     {

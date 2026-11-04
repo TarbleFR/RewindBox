@@ -86,6 +86,9 @@ LOT_FILES = {
     'adapt_teardown_compile_cancel': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs', 'src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs'],
     'adapt_pause_guest_threads': [],
     'adapt_teardown_phase_marks': [],
+    # PR #156 new lot (Core 654): the binder release's Library hunks; the artifact-path counters on PipelineBase and TextureArray.
+    'adapt_binder_teardown': ['src/Ryujinx.Library/Library.cs'],
+    'adapt_artifact_counters': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
 }
 
 checks = 0
@@ -135,7 +138,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
     print(json.dumps({'lotFiles': lots}), flush=True)
     check(lots == LOT_FILES and
           all((composed / p).read_bytes() == (expected_final / p).read_bytes() for p in ALL),
-          'the final composition adds only the queued syncpoint Library line and the PR #153, #154 and #156 hunks (and its follow-up)')
+          'the final composition adds only the queued syncpoint Library line and the PR #153, #154 and #156 hunks (its follow-up and new lot included)')
     postimages = {p: sha(composed / p) for p in ALL}
     if CANDIDATE:
         check(postimages == {p: sha(CANDIDATE / p) for p in ALL}, 'composition differs from the final prepared source')
