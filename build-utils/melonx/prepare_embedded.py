@@ -106,6 +106,8 @@ from adapt_moltenvk_barrier_ordering import apply as adapt_moltenvk_barrier_orde
 from adapt_descriptor_scratch_all_titles import apply as adapt_descriptor_scratch_all_titles
 from adapt_readback_occupied_attribution import apply as adapt_readback_occupied_attribution
 from adapt_pipeline_miss_context import apply as adapt_pipeline_miss_context
+from adapt_readback_receivers import apply as adapt_readback_receivers
+from adapt_present_source_attribution import apply as adapt_present_source_attribution
 
 
 def replace_once(path, old, new):
@@ -268,6 +270,10 @@ def main():
     adapted += [source / name for name in adapt_descriptor_scratch_all_titles(source)]
     adapted += [source / name for name in adapt_readback_occupied_attribution(source)]
     adapted += [source / name for name in adapt_pipeline_miss_context(source)]
+    # PR #156 (each pins the Core 642 preparation's bytes of its file): DMA read-back receivers (DmaClass, after
+    # adapt_readback_occupied_attribution) and present source attribution (Gpu Window, diagnostics only).
+    adapted += [source / name for name in adapt_readback_receivers(source)]
+    adapted += [source / name for name in adapt_present_source_attribution(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -343,7 +349,8 @@ def main():
                  'adapt_queued_syncpoints.py', 'adapt_host_qos_pipeline_budget.py',
                  'adapt_pipeline_warmup_parity.py', 'adapt_device_short_trim.py',
                  'adapt_moltenvk_barrier_ordering.py', 'adapt_descriptor_scratch_all_titles.py',
-                 'adapt_readback_occupied_attribution.py', 'adapt_pipeline_miss_context.py']:
+                 'adapt_readback_occupied_attribution.py', 'adapt_pipeline_miss_context.py',
+                 'adapt_readback_receivers.py', 'adapt_present_source_attribution.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

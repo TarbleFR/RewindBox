@@ -79,6 +79,9 @@ LOT_FILES = {
     'adapt_descriptor_scratch_all_titles': ['src/Ryujinx.Library/Library.cs'],
     'adapt_readback_occupied_attribution': ['src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs'],
     'adapt_pipeline_miss_context': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
+    # PR #156 lot (Core 644).
+    'adapt_readback_receivers': ['src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs'],
+    'adapt_present_source_attribution': [],
 }
 
 checks = 0
@@ -128,7 +131,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
     print(json.dumps({'lotFiles': lots}), flush=True)
     check(lots == LOT_FILES and
           all((composed / p).read_bytes() == (expected_final / p).read_bytes() for p in ALL),
-          'the final composition adds only the queued syncpoint Library line and the PR #153 and #154 hunks')
+          'the final composition adds only the queued syncpoint Library line and the PR #153, #154 and #156 hunks')
     postimages = {p: sha(composed / p) for p in ALL}
     if CANDIDATE:
         check(postimages == {p: sha(CANDIDATE / p) for p in ALL}, 'composition differs from the final prepared source')
@@ -1504,6 +1507,7 @@ inputs = ['build-utils/melonx/adapt_hogwarts_dma_copies.py', 'build-utils/melonx
           'build-utils/melonx/adapt_pipeline_warmup_parity.py', 'build-utils/melonx/adapt_device_short_trim.py',
           'build-utils/melonx/adapt_moltenvk_barrier_ordering.py', 'build-utils/melonx/adapt_descriptor_scratch_all_titles.py',
           'build-utils/melonx/adapt_readback_occupied_attribution.py', 'build-utils/melonx/adapt_pipeline_miss_context.py',
+          'build-utils/melonx/adapt_readback_receivers.py', 'build-utils/melonx/adapt_present_source_attribution.py',
           'test/melonx_adapter_control.py']
 receipt = dict(result='passed', checks=checks, physicalDeviceTested=False, fpsGainProven=False,
                sourceKind='deliveredPreparedWithFinalCandidate' if CANDIDATE else 'deliveredPreparedComposed',

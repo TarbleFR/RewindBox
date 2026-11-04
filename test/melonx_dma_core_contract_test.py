@@ -23,6 +23,8 @@ from adapt_moltenvk_barrier_ordering import BASELINE as BARRIER_BASELINE
 from adapt_descriptor_scratch_all_titles import BASELINE as SCRATCH_BASELINE
 from adapt_readback_occupied_attribution import BASELINE as OCCUPIED_BASELINE
 from adapt_pipeline_miss_context import BASELINE as MISS_BASELINE
+from adapt_readback_receivers import BASELINE as RECEIVERS_BASELINE
+from adapt_present_source_attribution import BASELINE as PRESENT_BASELINE
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -44,11 +46,13 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'moltenvk-barrier-ordering': 'delivered', 'descriptor-scratch-all-titles': 'delivered',
             'readback-occupied-attribution': 'delivered', 'pipeline-miss-context': 'delivered',
             # The build 87 barrier compaction proof declares BarrierBatch.cs (changed by the barrier ordering adapter).
-            'barrier-compaction': 'delivered'}
+            'barrier-compaction': 'delivered',
+            # Core 644 (PR #156 lot).
+            'readback-receivers': 'delivered', 'present-source-attribution': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 CHANGES = ((set(ARRAY_NAMES) - {DIAGNOSTICS}) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
            set(WARMUP_BASELINE) | set(TRIM_BASELINE) | set(BARRIER_BASELINE) | set(SCRATCH_BASELINE) |
-           set(OCCUPIED_BASELINE) | set(MISS_BASELINE))
+           set(OCCUPIED_BASELINE) | set(MISS_BASELINE) | set(RECEIVERS_BASELINE) | set(PRESENT_BASELINE))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -63,7 +67,9 @@ RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'pe
 JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
           # Core 639 (adapt_pipeline_warmup_parity): pinned upstream members that join the prepared source.
           'src/Ryujinx.Graphics.GAL/ProgramPipelineState.cs', 'src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs',
-          'src/Ryujinx.Graphics.Gpu/Shader/ShaderSpecializationState.cs', 'src/Ryujinx.Graphics.Gpu/Engine/Threed/StateUpdater.cs'}
+          'src/Ryujinx.Graphics.Gpu/Shader/ShaderSpecializationState.cs', 'src/Ryujinx.Graphics.Gpu/Engine/Threed/StateUpdater.cs',
+          # Core 644 (adapt_present_source_attribution): the GPU Window joins the prepared source.
+          'src/Ryujinx.Graphics.Gpu/Window.cs'}
 REUSED_FRESH = {'single-virtual-dependency-final-checks.json'}
 
 
@@ -231,7 +237,7 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 39 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 40 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -240,11 +246,13 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_moltenvk_barrier_ordering.py',
                                                      'build-utils/melonx/adapt_descriptor_scratch_all_titles.py',
                                                      'build-utils/melonx/adapt_readback_occupied_attribution.py',
-                                                     'build-utils/melonx/adapt_pipeline_miss_context.py'} and
+                                                     'build-utils/melonx/adapt_pipeline_miss_context.py',
+                                                     'build-utils/melonx/adapt_readback_receivers.py',
+                                                     'build-utils/melonx/adapt_present_source_attribution.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py'},
           'Unexpected preparation scope')
     check(set(frozen['baselineUnadaptedMembers']) == JOINED,
-          'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs, PipelineLayoutCacheEntry.cs and the four warm-up parity members join the prepared source')
+          'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs, PipelineLayoutCacheEntry.cs the four warm-up parity members and the GPU Window join the prepared source')
     # The prepared members that differ from the delivered source are exactly the reviewed changes.
     baseline = {**frozen['baselinePreparedMembers'], **frozen['baselineUnadaptedMembers']}
     check(set(frozen['preparedMembers']) == set(baseline) and
@@ -259,7 +267,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 138 and len(frozen['preparedMembers']) == 180, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 140 and len(frozen['preparedMembers']) == 181, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -283,6 +291,7 @@ if not args.helpers_only:
     graphics = {path: frozen['baselineUnadaptedMembers'][path] for path in JOINED}
     # The four warm-up parity members are read from a control only by fragmented-reads (delivered609); no gate on the
     # delivered 614 control reads them (the PR #153 fixtures rebuild their own Core 631 control).
+    # The GPU Window (Core 644) is likewise read from a control only by fragmented-reads.
     warmup_members = set(JOINED) - {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY}
     delivered_graphics = {path: digest for path, digest in graphics.items() if path not in warmup_members}
     check(unadapted == {'delivered': delivered_graphics, 'delivered611': arrays_frozen['controlUnadaptedMembers']['delivered'],
