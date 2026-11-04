@@ -15,6 +15,8 @@ import plistlib
 import re
 
 REPOSITORY_URL = "https://github.com/TarbleFR/RewindBox"
+PS2_POCKET_REVIEW = "docs/evidence/ps2-pocket-skins-declarations-2026-11-04.json"
+ARMSX2_PODSPEC = "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec"
 SOURCE_DOCUMENTS = (
     "SOURCE_CODE_ACCESS.md",
     "PACKAGE_SOURCES_AND_LICENSES.md",
@@ -111,10 +113,12 @@ def repository_inputs(root: Path) -> dict[str, str]:
     # A later review overlay may move pubspec.yaml on (RewindBox Glacier); the
     # final loop below binds every declaration to the checked-out file.
     later_pubspec = (root / "docs/evidence/rewindbox-glacier-declarations-2026-11-02.json").is_file()
+    # The PS2 Pocket skins review overlay may move the ARMSX2 bridge podspec on (system frameworks).
+    later_armsx2 = (root / PS2_POCKET_REVIEW).is_file()
     for name, update in updates.items():
         if update.get("before") != declarations.get(name):
             raise SystemExit(f"Wrong previous declaration identity: {name}")
-        if not (later_pubspec and name == "pubspec.yaml") and \
+        if not (later_pubspec and name == "pubspec.yaml") and not (later_armsx2 and name == ARMSX2_PODSPEC) and \
                 update.get("after") != sha256(read_input(root, root / name)):
             raise SystemExit(f"Session source/license declaration changed since review: {name}")
         declarations[name] = update["after"]
@@ -205,9 +209,42 @@ def repository_inputs(root: Path) -> dict[str, str]:
             declarations[name] = update["after"]
         bundle = pocket.get("bundled_assets", {})
         catalog_path = bundle.get("catalog", "")
+        # A later review overlay may move the catalog on (PS2 Pocket); it binds the previous digest.
+        later_catalog = (root / PS2_POCKET_REVIEW).is_file()
         if (catalog_path != "assets/skins/pocket/catalog.json" or
-                bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path))):
+                (not later_catalog and bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path)))):
             raise SystemExit("Pocket originals catalog changed since review")
+    # RewindBox skins orientation and PS2 Pocket (PR #152): the ARMSX2 bridge podspec adds Apple system frameworks
+    # (QuartzCore, CoreGraphics) and the Pocket catalog gains the original PS2 pack. No package, dependency, engine
+    # or native source change; the catalog binds each archive to its size and SHA-256.
+    ps2_path = root / PS2_POCKET_REVIEW
+    if ps2_path.is_file():
+        ps2 = json.loads(read_input(root, ps2_path))
+        prior_name = "docs/evidence/pocket-originals-declarations-2026-11-03.json"
+        prior_pocket = json.loads(read_input(root, root / prior_name))
+        changes = ps2.get("dependency_changes", {})
+        if (ps2.get("schema") != 1 or ps2.get("baseline_inventory") != prior_name or
+                ps2.get("baseline_inventory_sha256") != sha256(read_input(root, root / prior_name)) or
+                ps2.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                ps2.get("complete_corresponding_source_attested") is not False or
+                changes.get("external_packages_added") != [] or changes.get("external_packages_removed") != [] or
+                changes.get("system_frameworks_added") != {ARMSX2_PODSPEC: ["QuartzCore", "CoreGraphics"]}):
+            raise SystemExit("PS2 Pocket skins review has a different baseline or dependency scope")
+        updates = ps2.get("declarations", {})
+        if set(updates) != {ARMSX2_PODSPEC}:
+            raise SystemExit("PS2 Pocket skins declaration review scope changed")
+        for name, update in updates.items():
+            if update.get("before") != declarations.get(name):
+                raise SystemExit(f"Wrong previous declaration identity: {name}")
+            if update.get("after") != sha256(read_input(root, root / name)):
+                raise SystemExit(f"PS2 Pocket skins source/license declaration changed since review: {name}")
+            declarations[name] = update["after"]
+        bundle = ps2.get("bundled_assets", {})
+        catalog_path = bundle.get("catalog", "")
+        if (catalog_path != "assets/skins/pocket/catalog.json" or
+                bundle.get("previous_catalog_sha256") != prior_pocket.get("bundled_assets", {}).get("catalog_sha256") or
+                bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path))):
+            raise SystemExit("PS2 Pocket catalog changed since review")
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:
             raise SystemExit(f"Package source/license declaration changed since review: {name}")
