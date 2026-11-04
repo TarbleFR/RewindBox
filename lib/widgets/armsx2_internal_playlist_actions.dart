@@ -1,15 +1,16 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../l10n/armsx2_ui_locale.dart';
 import '../l10n/console_manager_locale.dart';
+import '../l10n/libretro_locale.dart';
 import '../l10n/texture_catalog_locale.dart';
 import '../services/armsx2_internal_service.dart';
 import '../services/embedded_engine_policy.dart';
 import '../services/home_music_service.dart';
 import '../services/texture_catalog_service.dart';
+import '../screens/libretro/libretro_skin_manager_screen.dart';
 import 'armsx2_bios_picker.dart';
 import '../services/stikjit_armsx2_service.dart';
 
@@ -56,10 +57,28 @@ class _Armsx2InternalPlaylistActionsState
     }
   }
 
+  /// PS2 controller skins (docs/dolphin-skins.md): the same manager as the
+  /// GameCube, Wii and libretro consoles. Its choices go to
+  /// `Config/Frontend/ps2.json`, read by ARMSX2SkinOverlay at the next launch.
+  Future<void> _openSkins() async {
+    _interaction(true);
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const LibretroSkinManagerScreen(console: 'ps2')),
+      );
+    } finally {
+      if (mounted) _interaction(false);
+    }
+  }
+
   Future<void> _selected(String action) async {
     if (_busy) return;
     if (action == 'textures') {
       await _openTextures();
+      return;
+    }
+    if (action == 'skins') {
+      await _openSkins();
       return;
     }
     setState(() => _busy = true);
@@ -133,7 +152,9 @@ class _Armsx2InternalPlaylistActionsState
 
   @override
   Widget build(BuildContext context) {
-    if (!Platform.isIOS) return const SizedBox.shrink();
+    // iOS only, like the other embedded engines (defaultTargetPlatform: the
+    // same answer on the device, testable in widget tests).
+    if (defaultTargetPlatform != TargetPlatform.iOS) return const SizedBox.shrink();
     final scheme = Theme.of(context).colorScheme;
     final button = SizedBox(
       width: 36.r,
@@ -173,6 +194,11 @@ class _Armsx2InternalPlaylistActionsState
           PopupMenuItem(
             value: 'boot_bios',
             child: Text(_t('bootBios')),
+          ),
+          PopupMenuItem(
+            key: const ValueKey('armsx2-skins'),
+            value: 'skins',
+            child: Text(LibretroLocale.text(context, 'skins')),
           ),
           if (TextureCatalogService.supports('ps2'))
             PopupMenuItem(
