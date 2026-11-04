@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 637,
  "status": "draft",
- "note": "Private IPA 637 on the delivered and verified 629 (630, 634 and 636 are RPCS3 Core numbers, 631 the MeloNX Core; 632, 633 and 635 were not delivered: 635 was held by the maintainer for the async work). RPCS3 Core 638 (it contains Cores 636, 634 and 630) replaces Core 627; MeloNX Core 631 replaces Core 628; the rebuilt Khronos MoltenVK v1.4.2 replaces the former MeloNXMoltenVKStandalone. Draft held for the combined delivery: the MeloNX post-631 lot (PR 153) and the skins/PS2 lot (PR 152) are not integrated yet; renumber above every Core identity before freezing.",
+ "note": "Private IPA 637 on the delivered and verified 629 (630, 634 and 636 are RPCS3 Core numbers, 631 the MeloNX Core; 632, 633 and 635 were not delivered: 635 was held by the maintainer for the async work). RPCS3 Core 638 (it contains Cores 636, 634 and 630) replaces Core 627; MeloNX Core 639 (Core 631 plus the PR 153 lot) replaces Core 628; the rebuilt Khronos MoltenVK v1.4.2 replaces the former MeloNXMoltenVKStandalone. Draft held for the combined delivery: the MeloNX post-631 lot (PR 153) is integrated in Core 639; the skins/PS2 lot (PR 152) is not integrated yet; renumber above every Core identity before freezing.",
  "base": {
   "build": 629,
   "source": "6aae16b9ca0683eb64aa4881dc6855b05b363763",
@@ -67,7 +67,7 @@
     "artifact": 13220394932,
     "packagedFingerprint": "dfd9061e4151c4848a125f20aed4586d7b4c5468b8060b299c36f239e64ed8a8"
    },
-   "pinSha256": "7f0a782f30c6e6ae8828b775e23cbe68a8bab321c4b330f28d674ad74cd96cc3"
+   "pinSha256": "4cbf0ea88facf6fa04f7e5285b1a30bedd7ebf95e7eb733684a5a028702cc38e"
   },
   "dolphin": {
    "mode": "retain",
