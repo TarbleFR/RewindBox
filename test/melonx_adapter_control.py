@@ -74,3 +74,27 @@ def control_source(source: Path, module_name: str, holder: list) -> tuple[Path, 
     for name in module.BASELINE:
         assert (forward / name).read_bytes() == (source / name).read_bytes(), 'the final preparation differs from the adapter: ' + name
     return control, True
+
+
+def apply_present(target: Path, module_name: str) -> list:
+    """Apply the adapter to those of its files a composition holds, in preparation order (it runs after every Core 631
+    step). Each such file must be exactly its Core 631 preparation bytes first; files the composition lacks are skipped."""
+    module = importlib.import_module(module_name)
+    present = [name for name in module.BASELINE if (target / name).exists()]
+    for name in present:
+        assert sha(target / name) == module.BASELINE[name], 'composition is not the Core 631 preparation: ' + name
+    if not present:
+        return []
+    original = module.once
+
+    def once_present(path, old, new):
+        if path.exists():
+            original(path, old, new)
+
+    baseline = module.BASELINE
+    module.once, module.BASELINE = once_present, _NoDigests(baseline)
+    try:
+        module.apply(target)
+    finally:
+        module.once, module.BASELINE = original, baseline
+    return present

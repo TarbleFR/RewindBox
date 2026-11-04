@@ -34,6 +34,8 @@ from adapt_fragmented_reads import apply as fragmented, NAMES as FRAGMENTED
 from adapt_gpu_work_diagnostics import apply as gpu_work, NAMES as GPU_WORK
 from adapt_bindless_array_deltas import apply as array_deltas, NAMES as ARRAY_DELTAS
 from adapt_queued_syncpoints import apply as queued, GPFIFO_DEVICE, COUNTER_CACHE
+sys.path.insert(0, str(ROOT / 'test'))
+from melonx_adapter_control import apply_present  # noqa: E402
 from adapt_host_qos_pipeline_budget import (apply_threaded, apply_pipeline_budget, apply_hunks, THREADED, PIPELINE_CACHE,
                                             PIPELINE_BASE, PIPELINE_BASE_HUNKS, BUFFER_HOLDER, BUFFER_HOLDER_HUNKS)
 
@@ -90,6 +92,9 @@ with tempfile.TemporaryDirectory(prefix='melonx-performance-diagnostics-') as te
                                 (BUFFER_HOLDER, lambda path: apply_hunks(path, BUFFER_HOLDER_HUNKS))):
         if (expected / relative).exists():
             host_hunk(expected / relative)
+    # Then the PR #153 lot (Core 639) on the observed files it edits (PipelineState.cs).
+    apply_present(expected, 'adapt_pipeline_warmup_parity')
+    apply_present(expected, 'adapt_device_short_trim')
     paths = list(dict.fromkeys([*existing, *native.values()]))
     for path in paths:
         if CANDIDATE:
@@ -156,6 +161,8 @@ input_paths = [*native, 'build-utils/melonx/adapt_performance_diagnostics.py',
                'build-utils/melonx/adapt_fragmented_reads.py', 'build-utils/melonx/adapt_gpu_work_diagnostics.py',
                'build-utils/melonx/adapt_bindless_array_deltas.py', 'build-utils/melonx/adapt_queued_syncpoints.py',
                'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
+               'build-utils/melonx/adapt_pipeline_warmup_parity.py', 'build-utils/melonx/adapt_device_short_trim.py',
+               'test/melonx_adapter_control.py',
                'test/melonx_performance_diagnostics_test.py', 'test/melonx_performance_diagnostics/Program.cs']
 inputs = {}
 for path in input_paths:

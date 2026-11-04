@@ -20,7 +20,9 @@ from pathlib import Path
 import hashlib, json, os, shutil, subprocess, sys, tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = Path(sys.argv[1]).resolve()
+# Core gate form: <control> --candidate-source <final preparation>; the control tree is not read (the exact Core 631
+# control is rebuilt from the final preparation). Standalone form: <prepared tree>.
+SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
 from melonx_adapter_control import control_source  # noqa: E402
