@@ -110,6 +110,7 @@ from adapt_readback_receivers import apply as adapt_readback_receivers
 from adapt_present_source_attribution import apply as adapt_present_source_attribution
 from adapt_teardown_compile_cancel import apply as adapt_teardown_compile_cancel
 from adapt_pause_guest_threads import apply as adapt_pause_guest_threads
+from adapt_teardown_phase_marks import apply as adapt_teardown_phase_marks
 
 
 def replace_once(path, old, new):
@@ -280,6 +281,8 @@ def main():
     # ShaderCollection, BackgroundCompilationScheduler) and the guest-thread record at a host pause (Horizon, KProcess).
     adapted += [source / name for name in adapt_teardown_compile_cancel(source)]
     adapted += [source / name for name in adapt_pause_guest_threads(source)]
+    # Teardown phase marks (journal only; VulkanRenderer after adapt_teardown_compile_cancel, WindowBase).
+    adapted += [source / name for name in adapt_teardown_phase_marks(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -357,7 +360,7 @@ def main():
                  'adapt_moltenvk_barrier_ordering.py', 'adapt_descriptor_scratch_all_titles.py',
                  'adapt_readback_occupied_attribution.py', 'adapt_pipeline_miss_context.py',
                  'adapt_readback_receivers.py', 'adapt_present_source_attribution.py',
-                 'adapt_teardown_compile_cancel.py', 'adapt_pause_guest_threads.py']:
+                 'adapt_teardown_compile_cancel.py', 'adapt_pause_guest_threads.py', 'adapt_teardown_phase_marks.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

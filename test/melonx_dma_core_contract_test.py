@@ -27,6 +27,7 @@ from adapt_readback_receivers import BASELINE as RECEIVERS_BASELINE
 from adapt_present_source_attribution import BASELINE as PRESENT_BASELINE
 from adapt_teardown_compile_cancel import BASELINE as TEARDOWN_BASELINE
 from adapt_pause_guest_threads import BASELINE as PAUSE_BASELINE
+from adapt_teardown_phase_marks import BASELINE as MARKS_BASELINE
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -52,12 +53,14 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             # Core 644 (PR #156 lot).
             'readback-receivers': 'delivered', 'present-source-attribution': 'delivered',
             # Core 647 (PR #156 follow-up).
-            'teardown-compile-cancel': 'delivered', 'pause-guest-threads': 'delivered'}
+            'teardown-compile-cancel': 'delivered', 'pause-guest-threads': 'delivered',
+            # Core 649 (teardown phase marks).
+            'teardown-phase-marks': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 CHANGES = ((set(ARRAY_NAMES) - {DIAGNOSTICS}) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
            set(WARMUP_BASELINE) | set(TRIM_BASELINE) | set(BARRIER_BASELINE) | set(SCRATCH_BASELINE) |
            set(OCCUPIED_BASELINE) | set(MISS_BASELINE) | set(RECEIVERS_BASELINE) | set(PRESENT_BASELINE) |
-           set(TEARDOWN_BASELINE) | set(PAUSE_BASELINE))
+           set(TEARDOWN_BASELINE) | set(PAUSE_BASELINE) | set(MARKS_BASELINE))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -244,7 +247,7 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 42 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 43 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -257,7 +260,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_readback_receivers.py',
                                                      'build-utils/melonx/adapt_present_source_attribution.py',
                                                      'build-utils/melonx/adapt_teardown_compile_cancel.py',
-                                                     'build-utils/melonx/adapt_pause_guest_threads.py'} and
+                                                     'build-utils/melonx/adapt_pause_guest_threads.py',
+                                                     'build-utils/melonx/adapt_teardown_phase_marks.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py'},
           'Unexpected preparation scope')
     check(set(frozen['baselineUnadaptedMembers']) == JOINED,
@@ -276,7 +280,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 142 and len(frozen['preparedMembers']) == 182, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 143 and len(frozen['preparedMembers']) == 182, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -287,11 +291,14 @@ if not args.helpers_only:
     check(set(gate['bindless-array-deltas']['requiredPostimages']) == set(ARRAY_NAMES) and
           set(gate['hogwarts-dma-copies']['requiredPostimages']) == set(DMA_NAMES) | set(HOST_NAMES),
           'A changed adapter gate does not bind every change')
-    check(CHANGES - set(PAUSE_BASELINE) <= set(gate['fragmented-reads']['requiredPostimages']) and
+    # Library-assembly files (Library.cs, WindowBase.cs) and the HLE files are outside the GPU/Vulkan closure.
+    OUTSIDE_GPU = set(PAUSE_BASELINE) | {'src/Ryujinx.Library/Window/WindowBase.cs'}
+    check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
-          CHANGES - {LIBRARY} - set(PAUSE_BASELINE) <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
+          CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
           'The final GPU assembly build does not bind every changed GPU file')
-    check(set(PAUSE_BASELINE) <= set(gate['pause-guest-threads']['requiredPostimages']), 'The HLE changes are bound by their own gate')
+    check(set(PAUSE_BASELINE) <= set(gate['pause-guest-threads']['requiredPostimages']) and
+          set(MARKS_BASELINE) <= set(gate['teardown-phase-marks']['requiredPostimages']), 'The HLE and Library changes are bound by their own gates')
     check(all(gate[name]['assertions'].get('sourceKind') in ('deliveredPreparedWithFinalCandidate', 'finalPrepared',
                                                              'baselinePreparedWithFinalInstrumentedCandidate',
                                                              # Core 639 and 642: the final preparation, its exact pinned control rebuilt
