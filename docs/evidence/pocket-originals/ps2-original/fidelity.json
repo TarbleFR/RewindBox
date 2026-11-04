@@ -1,0 +1,15 @@
+{
+ "target": "repository boards",
+ "ps2-pocket-original/portrait": {
+  "comparedPixels": 141810,
+  "meanAbsDiff": 1.3,
+  "psnrDb": 37.9,
+  "gradientRatioPackOverBoard": 1.13
+ },
+ "ps2-pocket-original/landscape": {
+  "comparedPixels": 160852,
+  "meanAbsDiff": 1.45,
+  "psnrDb": 37.5,
+  "gradientRatioPackOverBoard": 1.135
+ }
+}
