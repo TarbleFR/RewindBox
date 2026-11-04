@@ -1,5 +1,6 @@
 #import <neo_cheat_catalog/NeoUnifiedCheatList.h>
 #import "Armsx2SessionMenu.h"
+#import "ARMSX2Orientation.h"
 #include "ARMSX2ManualCheatEditor.h"
 #include "NeoUnifiedNativeImport.h"
 #import <neo_cheat_catalog/NeoUnifiedCheatBrowser.h>
@@ -1127,8 +1128,12 @@ static UINavigationBarAppearance* ARMSX2MenuNavigationAppearance(void) {
   }
 }
 
+// Follows the session: a skin that locks the game to portrait gives the
+// application a portrait mask (ARMSX2Orientation), where a landscape-only menu
+// would have no orientation in common with it. Landscape when no skin set one.
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations {
-  return UIInterfaceOrientationMaskLandscape;
+  const UIInterfaceOrientationMask session = ARMSX2OrientationGameMask();
+  return session != 0 ? session : UIInterfaceOrientationMaskLandscape;
 }
 
 - (NSDictionary*)removableCheatAt:(NSIndexPath*)path {

@@ -11,6 +11,7 @@
 // other is fitted in the bounds. Inputs go through TCManagerInterface, the
 // way of the DolphiniOS pad, on the pad's port (GameCube 0, Wii 4).
 #import "DOLSkinOverlay.h"
+#import "DOLOrientationPolicy.h"
 #import "TouchController/TCManagerInterface.h"
 #import <CoreGraphics/CoreGraphics.h>
 #include <cmath>
@@ -578,6 +579,10 @@ static CGRect DOLSkinAspectFit(CGRect bounds, CGFloat aspect) {
 
 - (BOOL)portraitAvailable {
   return _portrait != nil;
+}
+
+- (UIInterfaceOrientationMask)supportedOrientationMask {
+  return (UIInterfaceOrientationMask)DOLPolicyMask(_portrait != nil, _landscape != nil);
 }
 
 - (BOOL)layoutActive {

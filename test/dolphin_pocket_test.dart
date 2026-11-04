@@ -117,25 +117,29 @@ MockClient archiveClient(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  for (final console in ['wii', 'gc']) {
+  for (final console in ['wii', 'gc', 'ps2']) {
     group('Pocket $console production behavior', () {
       late Directory root;
       late LibretroSkinService service;
       late LibretroInstalledSkin installed;
       late Uint8List zipBytes;
       setUpAll(() async {
-        final variable = console == 'wii'
-            ? 'POCKET_WII_ARCHIVE'
-            : 'POCKET_GC_ARCHIVE';
+        final variable = switch (console) {
+          'wii' => 'POCKET_WII_ARCHIVE',
+          'ps2' => 'POCKET_PS2_ARCHIVE',
+          _ => 'POCKET_GC_ARCHIVE',
+        };
         final supplied =
             Platform.environment[variable] ??
             path.join(
               'assets',
               'skins',
               'pocket',
-              console == 'wii'
-                  ? 'wii-pocket.manicskin'
-                  : 'gamecube-pocket.manicskin',
+              switch (console) {
+                'wii' => 'wii-pocket.manicskin',
+                'ps2' => 'ps2-pocket.manicskin',
+                _ => 'gamecube-pocket.manicskin',
+              },
             );
         if (!File(supplied).existsSync()) {
           throw StateError(
@@ -415,7 +419,9 @@ void main() {
           try {
             final fixture = await copyFixture(installed.directory, temporary);
             final info = readInfo(fixture.path);
-            removeInput(info['representations'], console, 'a');
+            // A control every console needs: the A button, or Cross on a PS2.
+            final essential = console == 'ps2' ? 'cross' : 'a';
+            removeInput(info['representations'], console, essential);
             await saveInfo(fixture.path, info);
             final parsed = await DolphinSkins.inspectDirectory(fixture.path);
             expect(parsed, isNotNull);
@@ -423,7 +429,7 @@ void main() {
               parsed!.compatibility.verdict,
               LibretroSkinVerdict.incompatible,
             );
-            expect(parsed.compatibility.missingControls, contains('a'));
+            expect(parsed.compatibility.missingControls, contains(essential));
             expect(parsed.orientations, isEmpty);
             expect(parsed.compatibility.orientations, {
               'portrait': 'incompatible',
@@ -518,6 +524,27 @@ void main() {
           'start': 'plus',
           'select': 'minus',
         },
+        'ps2': {
+          'cross': 'cross',
+          'circle': 'circle',
+          'square': 'square',
+          'triangle': 'triangle',
+          'l1': 'l1',
+          'l2': 'l2',
+          'r1': 'r1',
+          'r2': 'r2',
+          'select': 'select',
+          'start': 'start',
+          'l3': 'l3',
+          'r3': 'r3',
+          'up': 'up',
+          'dpadLeft': 'left',
+          'leftThumbstickUp': 'stickUp',
+          'rightThumbstickDown': 'rstickDown',
+          'rightStickRight': 'rstickRight',
+          'menu': 'menu',
+          'pause': 'menu',
+        },
       };
       for (final console in cases.entries) {
         for (final mapping in console.value.entries) {
@@ -530,6 +557,14 @@ void main() {
       }
       expect(DolphinSkins.canonicalInput('wii', 'shake'), isNull);
       expect(DolphinSkins.canonicalInput('gc', 'triangle'), isNull);
+      // PlayStation names only: nothing Nintendo is guessed on a PS2 skin.
+      for (final raw in ['a', 'b', 'x', 'y', 'z', 'home', 'plus', 'c', 'l', 'quickSave']) {
+        expect(DolphinSkins.canonicalInput('ps2', raw), isNull, reason: raw);
+      }
+      for (final alias in ['ps2', 'playstation2', 'armsx2', 'pcsx2']) {
+        expect(DolphinSkins.consoleOfGameType('public.test.game.$alias'), 'ps2');
+      }
+      expect(DolphinSkins.consoleOfGameType('public.aoshuang.game.ps1'), isNull);
       for (final alias in ['ngc', 'gc', 'gamecube', 'dol', 'dolphin']) {
         expect(DolphinSkins.consoleOfGameType('public.test.game.$alias'), 'gc');
       }

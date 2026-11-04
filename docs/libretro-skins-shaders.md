@@ -233,9 +233,25 @@ n'est nécessaire de leur côté.
 ## 7. Orientation
 
 `LibretroOrientation` ajoute `application:supportedInterfaceOrientationsForWindow:`
-au délégué d'application : identique à l'existant hors jeu libretro, portrait et
-paysage pendant un jeu libretro. `Info.plist`, `lib/main.dart` (verrouillé) et
-les autres moteurs ne changent pas.
+au délégué d'application : identique à l'existant hors jeu libretro, et pendant
+un jeu libretro le masque suit le CHOIX du joueur (`LibretroOrientationSelection`,
+`LibretroOrientationPolicy.h`), pas les capacités du fichier de skin :
+
+- seul le portrait est choisi : portrait seul, le jeu s'ouvre en portrait même
+  téléphone tenu à l'horizontale et y reste ;
+- seul le paysage est choisi : paysage seul (même règle), même si le fichier du
+  skin possède aussi une disposition portrait ;
+- les deux sont choisis (même skin double ou deux skins) ou aucun : rotation
+  habituelle.
+
+Une orientation compte comme choisie si `skin.portrait` / `skin.landscape`
+(jeu d'abord, puis console, par clé) désigne un skin installé, non refusé, qui
+a une disposition jouable à cet endroit. Les commandes par défaut, explicites ou
+non, ne sont jamais un choix. Aucune affectation n'est effacée. Le masque est
+posé avant la présentation, recalculé au changement de réglages ou au refus d'un
+skin, et libéré à la fermeture, y compris après un échec. L'exception Vulkan
+héritée (paysage) reste prioritaire. `Info.plist`, `lib/main.dart` (verrouillé)
+et les autres moteurs ne changent pas.
 
 ## 8. Accès dans l'application
 

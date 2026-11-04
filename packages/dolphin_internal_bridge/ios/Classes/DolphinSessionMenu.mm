@@ -1,5 +1,6 @@
 #import <neo_cheat_catalog/NeoUnifiedCheatList.h>
 #import "DolphinSessionMenu.h"
+#import "DOLOrientation.h"
 #import "DolphinRetroAchievementsAccount.h"
 #include "DOLManualCheatEditor.h"
 #include "NeoUnifiedNativeImport.h"
@@ -1105,7 +1106,13 @@ static void DOLMenuOnMain(dispatch_block_t block) {
   [self presentViewController:alert animated:YES completion:nil];
 }
 
-- (UIInterfaceOrientationMask)supportedInterfaceOrientations { return UIInterfaceOrientationMaskLandscape; }
+// Follows the session: a portrait-only skin gives the application a portrait
+// mask (DOLOrientation), where a landscape-only menu would have no
+// orientation in common with it. Landscape when no skin changed the mask.
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+  const UIInterfaceOrientationMask session = DOLOrientationGameMask();
+  return session != 0 ? session : UIInterfaceOrientationMaskLandscape;
+}
 - (NSDictionary*)removableCheatAt:(NSIndexPath*)path {
   if(self.loading)return nil;
   if(self.page!=DOLMenuCheats || path.row<5)return nil;

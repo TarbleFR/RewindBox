@@ -32,3 +32,19 @@ and bundled DejaVu fonts (see `fonts/DejaVu-notices.txt`).
 Only original RewindBox artwork is bundled. Console names and marks remain the
 property of their owners; no third-party rights or public-domain waiver is given.
 Generation and geometry checks do not establish physical iPhone gameplay.
+
+## PS2 Pocket - Noir mat
+
+`build_ps2_pocket.py` (with `ps2_art.py`) adds `ps2-pocket.manicskin`, its previews
+and only its catalog entry to the output folder, after `build_pocket_skins.py` has
+written the two others (their archives and hashes are not touched):
+
+```sh
+python3 tools/skins/build_pocket_skins.py --output build/pocket-review
+python3 tools/skins/build_ps2_pocket.py --output build/pocket-review
+python3 tools/skins/verify_pocket_skins.py --assets-dir build/pocket-review
+```
+
+It is fully procedural original artwork (no body photograph). The verifier checks
+the three archives, 12 layouts and exactly one Menu control in every layout.
+

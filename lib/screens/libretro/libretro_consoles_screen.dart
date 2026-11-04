@@ -999,8 +999,10 @@ class _LibretroConsolesScreenState extends State<LibretroConsolesScreen>
         ),
     ];
     final actions = <Widget>[
-      // GameCube and Wii skins for the embedded Dolphin (docs/dolphin-skins.md).
-      if (entry.engine == ConsoleEngine.dolphin &&
+      // GameCube and Wii skins for the embedded Dolphin, PS2 skins for ARMSX2
+      // (docs/dolphin-skins.md).
+      if ((entry.engine == ConsoleEngine.dolphin ||
+              entry.engine == ConsoleEngine.armsx2) &&
           DolphinSkins.isDolphinConsole(entry.id))
         LibretroFocusRing(
           child: OutlinedButton.icon(

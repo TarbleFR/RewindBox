@@ -20,6 +20,8 @@
 #import "LibretroJit.h"
 #import "LibretroMetalPresenter.h"
 #import "LibretroOrientation.h"
+#import "LibretroOrientationPolicy.h"
+#import "LibretroOrientationSelection.h"
 #import "LibretroResolution.h"
 #import "LibretroSessionJournal.h"
 #import "LibretroSessionMenu.h"
@@ -218,6 +220,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   NSUInteger _frameSizeNotes;
   BOOL _launchAccepted; // Main thread: a session object is single-use.
   BOOL _closing;        // Main thread: reject deferred layout/activation.
+  BOOL _legacyLandscapeOnly; // Main thread: legacy Vulkan picture keeps the game in landscape.
   NSUInteger _videoDiagnosticFrames; // Emulation thread only.
 }
 
@@ -335,7 +338,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _controller.uiLocale = [self uiLocale];
   _controller.touchControlsEnabled = _touchControls;
   _controller.touchDiagnosticsEnabled = _touchDiagnostics;
-  _controller.allowedOrientations = UIInterfaceOrientationMaskAllButUpsideDown;
+  _controller.allowedOrientations = [self gameOrientationMask];
   _controller.layoutSource = self;
   __weak LibretroSession *weakSelf = self;
   _controller.menuHandler = ^{
@@ -369,9 +372,11 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   _controller.overlay.actionHandler = actions;
   _input.actionHandler = actions;
   [_controller setLoading:YES];
-  // Portrait and landscape while the game is shown; restored to the app's
-  // orientations only in the dismissal completion.
-  LibretroOrientationSetGameMask(UIInterfaceOrientationMaskAllButUpsideDown);
+  // The mask follows the skins chosen for this game (portrait only when the
+  // chosen skin has no playable landscape layout) and is set BEFORE the
+  // presentation, so a phone held sideways opens upright. Restored to the
+  // app's orientations only in the dismissal completion.
+  LibretroOrientationSetGameMask([self gameOrientationMask]);
   [presenter presentViewController:_controller
                           animated:NO
                         completion:^{
@@ -738,6 +743,55 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   });
 }
 
+/// Quiet counterpart of the layout pass: does `skin` really give a layout in
+/// `orientation` on this device (layout present, not refused, playable by
+/// touch unless a controller or no touch is in use)?
+- (BOOL)skin:(LibretroSkin *)skin usableInOrientation:(LibretroSkinOrientation)orientation iPad:(BOOL)iPad {
+  if (skin == nil) return NO;
+  NSString *prefix = [skin.installedIdentifier stringByAppendingString:@"|"];
+  NSString *suffix = [@"|" stringByAppendingString:LibretroSkinOrientationName(orientation)];
+  for (NSString *key in _failedSkinRepresentations) {
+    if ([key hasPrefix:prefix] && [key hasSuffix:suffix]) return NO;
+  }
+  return LibretroSkinGivesLayout(skin, _skinReports[skin.installedIdentifier ?: @""], orientation, iPad,
+                                 _touchControls && !_input.hasPhysicalController);
+}
+
+/// Orientations of the game on screen, from the skins the player CHOSE
+/// (LibretroSelectedOrientationMask): only portrait chosen, portrait only; only
+/// landscape chosen, landscape only; both or none, the usual rotation.
+/// An orientation counts as chosen only when its skin is selected (game, else
+/// console), loads, is not refused and gives a layout there. The legacy
+/// Vulkan landscape exception wins. Main thread.
+- (UIInterfaceOrientationMask)gameOrientationMask {
+  if (_legacyLandscapeOnly) return UIInterfaceOrientationMaskLandscape;
+  BOOL iPad = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
+  __weak LibretroSession *weakSelf = self;
+  return (UIInterfaceOrientationMask)LibretroSelectedOrientationMask(
+      _store, _console, [self gameScopeKey],
+      ^LibretroSkin *(NSString *identifier) {
+        LibretroSession *session = weakSelf;
+        if (session == nil || [session->_failedSkins containsObject:identifier]) return nil;
+        return [session importedSkinWithIdentifier:identifier report:NO];
+      },
+      ^BOOL(LibretroSkin *skin, LibretroSkinOrientation orientation) {
+        return [weakSelf skin:skin usableInOrientation:orientation iPad:iPad];
+      });
+}
+
+/// Applies the mask after a skin change, a refused skin or a stop of the
+/// legacy picture, with the game on screen. Main thread.
+- (void)refreshOrientationLock {
+  LibretroGameViewController *controller = _controller;
+  if (controller == nil || _closing) return;
+  UIInterfaceOrientationMask mask = [self gameOrientationMask];
+  if (controller.allowedOrientations == mask && LibretroOrientationGameMask() == mask) return;
+  LibretroOrientationSetGameMask(mask);
+  controller.allowedOrientations = mask;
+  UIViewController *root = controller.view.window.rootViewController;
+  if (root != nil && root != controller) [root setNeedsUpdateOfSupportedInterfaceOrientations];
+}
+
 /// Main thread. The legacy Vulkan picture is aspect-fitted over the whole
 /// view whatever the skin says: in portrait the default skin's opaque panel
 /// would hide most of it, so the game stays in landscape, where the
@@ -746,6 +800,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
   LibretroGameViewController *controller = _controller;
   if (controller == nil) return;
   UIInterfaceOrientationMask landscape = UIInterfaceOrientationMaskLandscape;
+  _legacyLandscapeOnly = YES;
   // The app's own mask is landscape: the two always have orientations in common.
   LibretroOrientationSetGameMask(landscape);
   controller.allowedOrientations = landscape;
@@ -1626,6 +1681,8 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     [self showStatus:[self text:@"skinLoadFailed"]];
     _skinFailureShown = YES;
   }
+  // A refused portrait-only skin leaves the default controls: no more lock.
+  [self refreshOrientationLock];
   [_controller setNeedsSkinLayout];
 }
 
@@ -2009,6 +2066,7 @@ static void LibretroRestoreAppOrientations(UIViewController *presenter) {
     }
   }
   _availableSkins = nil;
+  [self refreshOrientationLock];
   [_input setInputMap:_inputMap gamepadRemap:[self gamepadRemap]];
   // Layout, screens, format, touch remaps and opacity are resolved again by
   // the layout pass, which ends with a coalesced redraw.

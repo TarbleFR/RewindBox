@@ -35,7 +35,9 @@ void main() {
         expect(entry(code.toUpperCase()).consoles, contains(platform.id), reason: code);
       }
     }
-    expect(entry('PS2').consoles, isEmpty);
+    // PlayStation 2 is a skin console of ARMSX2 (DolphinSkins 'ps2'), never a libretro one.
+    expect(entry('PS2').consoles, ['ps2']);
+    expect(entry('playstation2').consoles, ['ps2']);
     expect(entry('dreamcast').consoles, isEmpty);
     const metadataOnly = LibretroSkinCatalogEntry(id: 'meta', name: 'PS1',
       gameTypeIdentifier: 'public.aoshuang.game.ps1', downloadURL: 'https://example.com/skin.zip');

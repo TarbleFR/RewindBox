@@ -1,7 +1,8 @@
 # RewindBox Pocket originals — 3 November 2026
 
-Only the two approved designs are included: **Wii Pocket** and **GameCube
-Pocket – Ivory**. They are original RewindBox artwork, inspired by the
+The first two approved designs are **Wii Pocket** and **GameCube
+Pocket – Ivory**; a third original, **PS2 Pocket — Noir mat** (3 November,
+skins session), follows the [PS2 section](#ps2-pocket--noir-mat). They are original RewindBox artwork, inspired by the
 maintainer's approved iPhone boards in [design/pocket](design/pocket/).
 The third-party GameCube Pocket archive and artwork are not redistributed.
 The wider proposed console lineup is not bundled.
@@ -94,3 +95,42 @@ services and widget rendering, rather than a reimplementation of them.
 Apple compilation and physical iPhone play of these two original packs
 remain pending. Source/host success does not establish on-device gameplay,
 latency, haptic feel or comfort. No CI, IPA or release is produced here.
+
+## PS2 Pocket — Noir mat
+
+Original matte black pack for the PlayStation 2 (ARMSX2), portrait and
+landscape, edge-to-edge and standard iPhone layouts (4 layouts). The maintainer's
+reference picture was a visual brief only; the artwork is rendered procedurally
+by `tools/skins/ps2_art.py` and `tools/skins/build_ps2_pocket.py` (no photograph,
+no third-party asset). The housing carries no control: only wells, vents, the PS2
+wordmark and a non-interactive ANALOG lamp. Every control is its own sprite with a
+distinct pressed state; both sticks have a socket base and a separate knob.
+
+Controls: D-pad (8 sectors, diagonals), Triangle, Circle, Cross, Square, L1, L2,
+R1, R2, Select, Start, left and right sticks, **L3 and R3 as targets of their own**
+(a stick finger only moves the stick), and **Menu in every layout** (portrait:
+bottom centre; landscape: top centre above the 4:3 window, clear of the home
+indicator). Menu opens the session menu with resume and return to the library.
+`cross circle square triangle l1 l2 r1 r2 select start l3 r3`, `up down left
+right`, `stick*` (left), `rstick*` (right) and `menu` are the logical inputs;
+only PlayStation names are read (no Nintendo name is guessed).
+
+ARMSX2 had no skin support: `ARMSX2SkinOverlay` (ARMSX2 pod) reads the same
+`.manicskin` folders and `Config/Frontend/ps2.json` selection as the libretro and
+Dolphin skins, draws the skin over the session, sends buttons through the Core's
+existing `set_button` (ARMSX2PadButton 0...15, L3 = 14, R3 = 15, checked against
+ARMSX2Bridge.h of the pinned upstream `9d989ca9`) and both sticks through
+`set_sticks`. No Core, ABI, pin or manifest change. The skin replaces the stock
+controls while drawn; the session's hamburger button always stays available, also
+for a skin without Menu. Inputs are released when the menu opens, when the
+surface turns, on cancel, on background and on stop.
+
+Verification (host): `python3 tools/skins/verify_pocket_skins.py` (three archives,
+12 layouts, exactly one Menu per layout, 44 pt fitted targets, safe insets) and
+`python3 test/pocket_skin_input_chain_test.py` (sprite -> target -> canonical ->
+engine for every item of the three shipped archives, read from the native tables).
+Not observed: UIKit/simulator run (see the board row) and any iPhone play.
+
+| Pack | Bytes | SHA-256 |
+| --- | ---: | --- |
+| PS2 Pocket — Noir mat | 6117888 | `2106e5f755dd5128c7ab20f06e503164e9f7fd2cd02d88650ee1fc0aae9a16ad` |

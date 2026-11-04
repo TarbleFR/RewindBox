@@ -28,7 +28,9 @@ attached to the NeoStation PID. No standalone ARMSX2 application is embedded.
   s.dependency 'neo_touch_layout'
   s.platform = :ios, '18.0'
   s.ios.deployment_target = '18.0'
-  s.frameworks = 'UniformTypeIdentifiers', 'UIKit', 'Foundation', 'Security', 'GameController', 'Metal'
+  # QuartzCore and CoreGraphics: the controller skin overlay (ARMSX2SkinOverlay.mm)
+  # masks the game window (CAShapeLayer) and draws PDF skin art (CGPDF).
+  s.frameworks = 'UniformTypeIdentifiers', 'UIKit', 'Foundation', 'Security', 'GameController', 'Metal', 'QuartzCore', 'CoreGraphics'
   # Build 485: zlib inflates ZIP texture packs (ARMSX2TexturePackCore.h).
   s.libraries = 'c++', 'z'
   s.preserve_paths = 'Frameworks/ARMSX2Core.framework'

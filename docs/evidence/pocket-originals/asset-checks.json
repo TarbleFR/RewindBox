@@ -4,9 +4,10 @@
     "manifest digests and sizes",
     "ZIP CRC and confined resources",
     "all PNG decodes",
-    "8 iPhone layouts",
+    "12 iPhone layouts",
     "4:3 game windows for native background masking",
     "all essential bindings",
+    "exactly one Menu control in every layout",
     "approved raw body byte identity and provenance SHA-256",
     "distinct normal/pressed artwork",
     "separate movable stick caps",
@@ -276,6 +277,209 @@
             375.0
           ],
           "controls": 12,
+          "minimumMappingTargetPoints": 44.0
+        }
+      ],
+      "nativeFitMatrix": [
+        {
+          "devicePoints": [
+            375,
+            667
+          ],
+          "display": "standard",
+          "orientation": "portrait",
+          "minimumTargetPoints": 44.0,
+          "referenceInsets": [
+            20,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            667,
+            375
+          ],
+          "display": "standard",
+          "orientation": "landscape",
+          "minimumTargetPoints": 44.0,
+          "referenceInsets": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            375,
+            812
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 45.746,
+          "referenceInsets": [
+            44,
+            0,
+            34,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            812,
+            375
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 45.746,
+          "referenceInsets": [
+            0,
+            44,
+            21,
+            44
+          ]
+        },
+        {
+          "devicePoints": [
+            390,
+            844
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 47.549,
+          "referenceInsets": [
+            59,
+            0,
+            34,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            844,
+            390
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 47.549,
+          "referenceInsets": [
+            0,
+            59,
+            21,
+            59
+          ]
+        },
+        {
+          "devicePoints": [
+            393,
+            852
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 48.0,
+          "referenceInsets": [
+            59,
+            0,
+            34,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            852,
+            393
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 48.0,
+          "referenceInsets": [
+            0,
+            59,
+            21,
+            59
+          ]
+        },
+        {
+          "devicePoints": [
+            430,
+            932
+          ],
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "minimumTargetPoints": 52.507,
+          "referenceInsets": [
+            59,
+            0,
+            34,
+            0
+          ]
+        },
+        {
+          "devicePoints": [
+            932,
+            430
+          ],
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "minimumTargetPoints": 52.507,
+          "referenceInsets": [
+            0,
+            59,
+            21,
+            59
+          ]
+        }
+      ]
+    },
+    {
+      "console": "ps2",
+      "archive": "ps2-pocket.manicskin",
+      "size": 6117888,
+      "sha256": "2106e5f755dd5128c7ab20f06e503164e9f7fd2cd02d88650ee1fc0aae9a16ad",
+      "approvedBodySha256": {},
+      "gameWindowMode": "native even-odd background mask; raw body preserved",
+      "pngs": 39,
+      "layouts": [
+        {
+          "display": "edgeToEdge",
+          "orientation": "portrait",
+          "mappingSize": [
+            393.0,
+            852.0
+          ],
+          "controls": 16,
+          "minimumMappingTargetPoints": 48.0
+        },
+        {
+          "display": "edgeToEdge",
+          "orientation": "landscape",
+          "mappingSize": [
+            852.0,
+            393.0
+          ],
+          "controls": 16,
+          "minimumMappingTargetPoints": 48.0
+        },
+        {
+          "display": "standard",
+          "orientation": "portrait",
+          "mappingSize": [
+            375.0,
+            667.0
+          ],
+          "controls": 16,
+          "minimumMappingTargetPoints": 44.0
+        },
+        {
+          "display": "standard",
+          "orientation": "landscape",
+          "mappingSize": [
+            667.0,
+            375.0
+          ],
+          "controls": 16,
           "minimumMappingTargetPoints": 44.0
         }
       ],

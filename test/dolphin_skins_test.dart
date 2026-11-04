@@ -159,10 +159,13 @@ void main() {
     expect(DolphinSkins.consoleOfGameType('public.aoshuang.game.wii'), 'wii');
     expect(DolphinSkins.consoleOfGameType('com.example.game.rvl'), 'wii');
     expect(DolphinSkins.consoleOfGameType('com.rileytestut.delta.game.gba'), isNull);
-    expect(DolphinSkins.consoleOfGameType('public.aoshuang.game.ps2'), isNull);
+    // PlayStation 2 is ARMSX2's (ARMSX2SkinOverlay); PlayStation 1 is neither.
+    expect(DolphinSkins.consoleOfGameType('public.aoshuang.game.ps2'), 'ps2');
+    expect(DolphinSkins.consoleOfGameType('public.aoshuang.game.ps1'), isNull);
     expect(DolphinSkins.isDolphinConsole('gc') && DolphinSkins.isDolphinConsole('wii'), isTrue);
+    expect(DolphinSkins.isDolphinConsole('ps2'), isTrue);
     expect(DolphinSkins.isDolphinConsole('gba'), isFalse);
-    expect(DolphinSkins.skinConsoles.keys, containsAll(['gc', 'wii', 'gba', 'snes']));
+    expect(DolphinSkins.skinConsoles.keys, containsAll(['gc', 'wii', 'ps2', 'gba', 'snes']));
   });
 
   test('input names: the GameCube conventions of Manic, Wii adaptations reported', () {
