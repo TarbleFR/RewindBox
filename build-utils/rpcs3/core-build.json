@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 638,
- "identity_type": "rpcs3-ios-core638",
- "summary": "RPCS3 Core 638 = the delivered Core 610 plus one folded delta: the Core 612 to 636 records unchanged and the Core 638 change (build-utils/rpcs3/core638-from-636.patch over Core 636): instrumentation only, five counters at the texture cache's existing predictor signals and one COREPROF READPREDICT638 line per window (REWINDBOX_READBACK_PREDICTION_638), so the next God of War III log says whether its per-frame surface reads were copied ahead by the speculative readback, wasted or never predicted. Core 636 (contained): the ZCULL fault handler never reads or writes X29/X30 through Darwin's __x[29]; the SPIR-V pack bound counts the batch being written and the header; the parallel PPU cache check stops at the first missing object or a stop (PPUThread.cpp under one exact codegen alias); a guest's pause before asking for its ZCULL report slot again ends at a slot release. Settings and defaults unchanged, values exact. ABI 30, the 92 exports, the PPU/SPU codegen identities and the MoltenVK dependency of Core 610 unchanged. No gain measured: not built, no iPhone run.",
+ "build": 641,
+ "identity_type": "rpcs3-ios-core641",
+ "summary": "RPCS3 Core 641 = the delivered Core 610 plus one folded delta: the Core 612 to 638 records unchanged and the Core 641 change (build-utils/rpcs3/core641-from-638.patch over Core 638): log text only, the three cumulative audio diagnostic lines (cellAudio queue and producer, RemoteIO render callback) get the COREPROF AUDIO641 prefix so the host writes them to the device logs (REWINDBOX_AUDIO_DIAGNOSTICS_EXPORT_641). Core 638 contained: Core 636 (audit fixes, ZCULL slot wake) and the God of War III readback prediction counters. Settings, defaults, values, audio path and cadence unchanged. ABI 30, the 92 exports, the PPU/SPU codegen identities and the MoltenVK dependency of Core 610 unchanged. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,7 +22,7 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "b6d8799545691969acf8462aaea9df7825ee78626d92058181bbb706ea7fdd54",
+  "patch_sha256": "0b6a14a08467ce5be5168d9272a1603b8ef128348040488dff6e08b1fd588229",
   "postimages": 357,
   "records": [
    "core610_20261101",
@@ -37,7 +37,8 @@
    "core630_20261103",
    "core634_20261103",
    "core636_20261103",
-   "core638_20261103"
+   "core638_20261103",
+   "core641_20261104"
   ]
  },
  "reference": {
@@ -77,10 +78,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core638_20261103",
-  "manifest": "build-utils/rpcs3/core638-delta.json",
-  "patch": "build-utils/rpcs3/core638-delta.patch",
-  "patch_sha256": "72bcef4c635d7e50d6c5a86ee8598079053a7400120d35b054eaad57a7408807"
+  "record": "core641_20261104",
+  "manifest": "build-utils/rpcs3/core641-delta.json",
+  "patch": "build-utils/rpcs3/core641-delta.patch",
+  "patch_sha256": "6be8aea08d3e466451b60d8c68a2d9fb900ac7c3c80c13eb146feadf3cf19069"
  },
  "exports": 92,
  "core_inputs": {
@@ -156,7 +157,8 @@
   "SPIR-V Disk Cache",
   "Hardware Crypto",
   "SPU Object Prefetch",
-  "COREPROF READPREDICT638"
+  "COREPROF READPREDICT638",
+  "COREPROF AUDIO641"
  ],
  "moltenvk_dependency": {
   "run": 41239096061,
@@ -357,28 +359,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core638_codegen_test.py",
+     "test/rpcs3_core641_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 638 touches no codegen input; its reverted tree passes the Core 636 audit (one exact PPUThread.cpp alias)"
+    "reason": "Core 641 touches no codegen input; its reverted tree passes the Core 638 audit"
    },
    {
-    "name": "core638",
+    "name": "core641",
     "argv": [
      "python3",
-     "test/rpcs3_core638_test.py",
+     "test/rpcs3_core641_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core638.json"
+     "{out}/core641.json"
     ],
-    "reason": "Core 638 increment (readback prediction counters) and, on its reverted tree, the Core 636 suite (636 corrections and slot wake, then the 634, 630 and 627 suites)"
+    "reason": "Core 641 increment (audio diagnostic prefixes, host admission) and, on its reverted tree, the Core 638 suite (then 636, 634, 630, 627)"
    },
    {
     "name": "lr-full-queue",

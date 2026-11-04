@@ -3926,7 +3926,7 @@ index 6485e4d..bc6f871 100644
  	std::string_view buffer_view{static_cast<const char*>(src), size};
  
 diff --git a/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp b/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp
-index 322dcff..12aa8d6 100644
+index 322dcff..a27d772 100644
 --- a/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp
 +++ b/rpcs3/Emu/Audio/IOS/IOSAudioBackend.cpp
 @@ -1,6 +1,7 @@
@@ -4006,12 +4006,13 @@ index 322dcff..12aa8d6 100644
  	}
  
  	if (!stopped)
-@@ -271,6 +277,22 @@ void IOSAudioBackend::Pause()
+@@ -271,6 +277,23 @@ void IOSAudioBackend::Pause()
  	}
  }
  
 +void IOSAudioBackend::log_diagnostics(bool force)
 +{
++	// REWINDBOX_AUDIO_DIAGNOSTICS_EXPORT_641: COREPROF prefix (see cellAudio.cpp), values and cadence unchanged.
 +	// Operational() is polled by cellAudio, never by the render callback.
 +	std::unique_lock lock{m_diagnostics_log_mutex, std::try_to_lock};
 +	if (!lock) return;
@@ -4021,7 +4022,7 @@ index 322dcff..12aa8d6 100644
 +	const auto d = m_diagnostics.snapshot();
 +	if (d.callbacks == m_reported_callbacks) return;
 +	m_reported_callbacks = d.callbacks;
-+	IOSAudio.notice("RemoteIO diagnostics: cumulative callbacks=%llu requested_frames=%llu delivered_frames=%llu filler_frames=%llu short_reads=%llu zero_reads=%llu inactive=%llu lock_misses=%llu callback_frames=%llu..%llu max_gap_us=%llu late_callbacks=%llu",
++	IOSAudio.notice("COREPROF AUDIO641 part=remoteio cumulative callbacks=%llu requested_frames=%llu delivered_frames=%llu filler_frames=%llu short_reads=%llu zero_reads=%llu inactive=%llu lock_misses=%llu callback_frames=%llu..%llu max_gap_us=%llu late_callbacks=%llu",
 +		d.callbacks, d.requested, d.delivered, d.filler, d.short_reads, d.zero_reads, d.inactive, d.lock_misses,
 +		d.min_frames, d.max_frames, d.max_gap_us, d.late_callbacks);
 +}
@@ -4029,7 +4030,7 @@ index 322dcff..12aa8d6 100644
  void IOSAudioBackend::notify_error()
  {
  	std::lock_guard state_lock{m_state_cb_mutex};
-@@ -325,29 +347,40 @@ OSStatus IOSAudioBackend::render_callback(
+@@ -325,29 +348,40 @@ OSStatus IOSAudioBackend::render_callback(
  	}
  
  	auto* output = static_cast<u8*>(buffer.mData);
@@ -4615,7 +4616,7 @@ index 0000000..b415890
 +    endif()
 +endfunction()
 diff --git a/rpcs3/Emu/Cell/Modules/cellAudio.cpp b/rpcs3/Emu/Cell/Modules/cellAudio.cpp
-index 557c7ef..4ff7c51 100644
+index 557c7ef..9495fdf 100644
 --- a/rpcs3/Emu/Cell/Modules/cellAudio.cpp
 +++ b/rpcs3/Emu/Cell/Modules/cellAudio.cpp
 @@ -168,6 +168,14 @@ audio_ringbuffer::audio_ringbuffer(cell_audio_config& _cfg)
@@ -4679,7 +4680,7 @@ index 557c7ef..4ff7c51 100644
  		resampler.put_samples(buf, AUDIO_BUFFER_SAMPLES);
  	}
  	else
-@@ -312,9 +345,55 @@ void audio_ringbuffer::commit_data(f32* buf, u32 sample_cnt)
+@@ -312,9 +345,57 @@ void audio_ringbuffer::commit_data(f32* buf, u32 sample_cnt)
  		AudioBackend::convert_to_s16(sample_cnt_out, buf, buf);
  	}
  
@@ -4716,16 +4717,18 @@ index 557c7ef..4ff7c51 100644
 +
 +void audio_ringbuffer::log_diagnostics(u64 timestamp, bool force)
 +{
++	// REWINDBOX_AUDIO_DIAGNOSTICS_EXPORT_641: COREPROF prefix, so the host log callback writes these cumulative
++	// counters (notice level, at most every 2 s) to the device logs; values and cadence unchanged.
 +	if (!force && timestamp < m_next_diagnostics_us) return;
 +	m_next_diagnostics_us = timestamp + 2'000'000;
 +	const auto d = diagnostics.snapshot();
 +	const u64 fill = cb_ringbuf.get_used_size() / (cfg.backend_ch_cnt * cfg.audio_sample_size);
-+	cellAudio.notice("cellAudio queue diagnostics: cumulative requested_frames=%llu delivered_frames=%llu starved_frames=%llu refill_silence_frames=%llu fill_frames=%llu min_fill=%llu max_fill=%llu recoveries=%llu resumes=%llu recovery_timeouts=%llu mixed_blocks=%llu silence_blocks=%llu prefill_blocks=%llu not_ready_blocks=%llu rejected_blocks=%llu rejected_frames=%llu untouched_waits=%llu in_progress_waits=%llu advances_without_mix=%llu incomplete_mixes=%llu",
++	cellAudio.notice("COREPROF AUDIO641 part=queue cumulative requested_frames=%llu delivered_frames=%llu starved_frames=%llu refill_silence_frames=%llu fill_frames=%llu min_fill=%llu max_fill=%llu recoveries=%llu resumes=%llu recovery_timeouts=%llu mixed_blocks=%llu silence_blocks=%llu prefill_blocks=%llu not_ready_blocks=%llu rejected_blocks=%llu rejected_frames=%llu untouched_waits=%llu in_progress_waits=%llu advances_without_mix=%llu incomplete_mixes=%llu",
 +		d.requested, d.delivered, d.starved_frames, d.refill_frames, fill, d.min_fill, d.max_fill, d.recoveries, d.resumes, d.timeouts,
 +		diagnostics.mix_blocks, diagnostics.silence_blocks, diagnostics.prefill_blocks, diagnostics.not_ready_blocks,
 +		diagnostics.rejected_blocks, diagnostics.rejected_frames, diagnostics.untouched_waits, diagnostics.in_progress_waits,
 +		diagnostics.timeout_advances, diagnostics.incomplete_mixes);
-+	cellAudio.notice("cellAudio producer diagnostics: cumulative no_port_silence=%llu untouched_silence=%llu active_ports=%u untouched_ports=%u target_us=%llu period_us=%llu tempo_ppm=%llu missing_blocks=%llu tempo_updates=%llu input_rate_ppm=%llu",
++	cellAudio.notice("COREPROF AUDIO641 part=producer cumulative no_port_silence=%llu untouched_silence=%llu active_ports=%u untouched_ports=%u target_us=%llu period_us=%llu tempo_ppm=%llu missing_blocks=%llu tempo_updates=%llu input_rate_ppm=%llu",
 +		diagnostics.no_port_silence, diagnostics.untouched_silence,
 +		diagnostics.active_ports, diagnostics.untouched_ports, diagnostics.target_us, diagnostics.period_us,
 +		diagnostics.tempo_ppm, diagnostics.missing_blocks, diagnostics.tempo_updates, diagnostics.input_rate_ppm);
@@ -4735,7 +4738,7 @@ index 557c7ef..4ff7c51 100644
  void audio_ringbuffer::play()
  {
  	if (playing)
-@@ -330,6 +409,12 @@ void audio_ringbuffer::play()
+@@ -330,6 +411,12 @@ void audio_ringbuffer::play()
  void audio_ringbuffer::flush()
  {
  	backend->Pause();
@@ -4748,7 +4751,7 @@ index 557c7ef..4ff7c51 100644
  	cb_ringbuf.writer_flush();
  	resampler.flush();
  	backend_active = false;
-@@ -732,6 +817,9 @@ void cell_audio_thread::operator()()
+@@ -732,6 +819,9 @@ void cell_audio_thread::operator()()
  
  		const bool emu_paused = Emu.IsPaused();
  		const u64 timestamp = ringbuffer->update(emu_paused || m_backend_failed);
@@ -4758,7 +4761,7 @@ index 557c7ef..4ff7c51 100644
  
  		if (emu_paused)
  		{
-@@ -821,7 +909,9 @@ void cell_audio_thread::operator()()
+@@ -821,7 +911,9 @@ void cell_audio_thread::operator()()
  		else
  		{
  			const u64 enqueued_samples = ringbuffer->get_enqueued_samples();
@@ -4768,7 +4771,7 @@ index 557c7ef..4ff7c51 100644
  			const u64 enqueued_playtime = ringbuffer->get_enqueued_playtime();
  			const u64 enqueued_buffers = enqueued_samples / AUDIO_BUFFER_SAMPLES;
  
-@@ -843,6 +933,9 @@ void cell_audio_thread::operator()()
+@@ -843,6 +935,9 @@ void cell_audio_thread::operator()()
  
  			if (cfg.time_stretching_enabled)
  			{
@@ -4778,7 +4781,7 @@ index 557c7ef..4ff7c51 100644
  				//  1.0 means exactly as desired
  				// <1.0 means not as full as desired
  				// >1.0 means more full than desired
-@@ -864,6 +957,7 @@ void cell_audio_thread::operator()()
+@@ -864,6 +959,7 @@ void cell_audio_thread::operator()()
  				{
  					ringbuffer->set_frequency_ratio(RESAMPLER_MAX_FREQ_VAL);
  				}
@@ -4786,7 +4789,7 @@ index 557c7ef..4ff7c51 100644
  			}
  
  			//  1.0 means exactly as desired
-@@ -884,6 +978,20 @@ void cell_audio_thread::operator()()
+@@ -884,6 +980,20 @@ void cell_audio_thread::operator()()
  				m_dynamic_period = cfg.minimum_block_period + static_cast<u64>((cfg.audio_block_period - cfg.minimum_block_period) * multiplier);
  			}
  
@@ -4807,7 +4810,7 @@ index 557c7ef..4ff7c51 100644
  			const s64 time_left = m_dynamic_period - time_since_last_period;
  			if (time_left > cfg.period_comparison_margin)
  			{
-@@ -896,6 +1004,9 @@ void cell_audio_thread::operator()()
+@@ -896,6 +1006,9 @@ void cell_audio_thread::operator()()
  			{
  				// no need to mix, just enqueue silence and advance time
  				cellAudio.trace("enqueuing silence: no active ports, enqueued_buffers=%llu", enqueued_buffers);
@@ -4817,7 +4820,7 @@ index 557c7ef..4ff7c51 100644
  				ringbuffer->enqueue_silence();
  				untouched_expected = 0;
  				advance(timestamp);
-@@ -915,12 +1026,18 @@ void cell_audio_thread::operator()()
+@@ -915,12 +1028,18 @@ void cell_audio_thread::operator()()
  				{
  					// There's no audio in the buffers, simply advance time and hope the game recovers
  					cellAudio.trace("advancing time: untouched=%u/%u (expected=%u), enqueued_buffers=%llu", untouched, active_ports, untouched_expected, enqueued_buffers);
@@ -4836,7 +4839,7 @@ index 557c7ef..4ff7c51 100644
  				thread_ctrl::wait_for(1000);
  				continue;
  			}
-@@ -928,8 +1045,23 @@ void cell_audio_thread::operator()()
+@@ -928,8 +1047,23 @@ void cell_audio_thread::operator()()
  			// Fast-path for when there is no audio in the buffers
  			if (untouched == active_ports)
  			{
@@ -4860,7 +4863,7 @@ index 557c7ef..4ff7c51 100644
  				ringbuffer->enqueue_silence();
  				untouched_expected = untouched;
  				advance(timestamp);
-@@ -940,6 +1072,9 @@ void cell_audio_thread::operator()()
+@@ -940,6 +1074,9 @@ void cell_audio_thread::operator()()
  			if (in_progress > 0)
  			{
  				cellAudio.trace("waiting: in_progress=%u/%u, enqueued_buffers=%u", in_progress, active_ports, enqueued_buffers);
@@ -4870,7 +4873,7 @@ index 557c7ef..4ff7c51 100644
  				thread_ctrl::wait_for(500);
  				continue;
  			}
-@@ -952,6 +1087,9 @@ void cell_audio_thread::operator()()
+@@ -952,6 +1089,9 @@ void cell_audio_thread::operator()()
  			// Log if we enqueued untouched/incomplete buffers
  			if (untouched > 0 || incomplete > 0)
  			{
