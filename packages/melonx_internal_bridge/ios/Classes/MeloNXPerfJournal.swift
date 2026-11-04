@@ -13,6 +13,15 @@ import Darwin
 //   long=  gaps over 50 ms / gaps over 100 ms (pauses at a 30 fps target)
 //   gaps=  every gap between two presentations in the interval, ms rounded
 //          (at most 240), for frame-time percentiles over any stretch of play
+//   acq=   every interval between two drawable requests in the interval
+//          (host time when the engine asked CAMetalLayer.nextDrawable for a
+//          drawable; requests that got none are skipped), ms rounded (at most
+//          240): the engine's own frame cadence, to tell a gap the game
+//          produced from one the display added after it
+//   acqw=  the longest wait inside nextDrawable in the interval, ms (every
+//          drawable still held by the display or compositor); a request that
+//          waited delays the engine's next one, so the acq= interval after
+//          it includes that wait
 //   dsp=   5 ms audio DSP periods / late episodes (a stall over 2 ms and its
 //          catch-up periods count once) / their lateness ms / the longest ms /
 //          periods skipped
@@ -27,6 +36,8 @@ final class MeloNXPerfJournal {
     struct Presentation {
         var frames: UInt64 = 0, maxGapMs = 0.0, over20: UInt64 = 0, over40: UInt64 = 0
         var over50: UInt64 = 0, over100: UInt64 = 0, gapsMs: [UInt16] = []
+        var acquireGapsMs: [UInt16] = []
+        var maxAcquireWaitMs = 0.0
         static let gapLimit = 240
     }
     struct ThreadSample { let id: UInt64; let name: String; let cpuNs: UInt64; let priority: Int32 }
@@ -124,6 +135,8 @@ final class MeloNXPerfJournal {
         totalOver50 &+= over50; totalOver100 &+= over100
         fields.append("long=\(over50)/\(over100)")
         if !shown.gapsMs.isEmpty { fields.append("gaps=" + shown.gapsMs.map { String($0) }.joined(separator:",")) }
+        if !shown.acquireGapsMs.isEmpty { fields.append("acq=" + shown.acquireGapsMs.map { String($0) }.joined(separator:",")) }
+        if !shown.acquireGapsMs.isEmpty { fields.append("acqw=" + Self.decimal(shown.maxAcquireWaitMs)) }
 
         if let values = audio(), values.count == 9 {
             let before = previousAudio ?? values

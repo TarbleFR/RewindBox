@@ -278,23 +278,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### MeloNX FPS, memory, black launch and artifacts — existing owner
 
-- **Evidence:** [optimization map](melonx-optimization-map-2026-11-03.md),
-  [three private 621 logs/dispositions](melonx-621-measurement-2026-11-03.md).
-  Core 649 is selected for 650; prior 639/642/647 checks in component receipts.
-  Main owns compilation/pins/integration.
-- **Fixed vs open:** source readback-receiver/signalling defect and teardown compile
-  cancellation are corrected; neither proves black launch/artifacts/recording-close
-  cured. Early color-mask pass splitting remains a candidate (IPA643 Hogwarts
-  PID6451/7170/7613). Presented frames do not prove visible image. SSBU flicker
-  need not share Hogwarts's cause.
-- **Maintainer correction:** endless close occurs while recording, which spans
-  relaunch; “30.5s without recording” was not established. DeviceWaitIdle/present
-  stall, occupied-readback branches and miss context remain to decide, not completed
-  improvements. Preserve corrected cache/trim/readback dispositions.
-- **Next:** finish supported corrections and hand off exact source/tests once.
-  Use cold launch without menu, launch/cutscene video, Present-source/DMA/occupied/
-  miss lines and SSBU close while recording on the produced IPA to decide remaining
-  hypotheses. No controlled FPS/visual gain claim.
+- **Evidence:** [optimization map](melonx-optimization-map-2026-11-03.md) (sections "IPA 643", "IPA 643 follow-up",
+  "IPA 650"), [three private 621 logs/dispositions](melonx-621-measurement-2026-11-03.md). Main owns
+  compilation/pins/integration.
+- **IPA 650 (Core 649) device logs, 4 Nov** (Hogwarts, pid 8767, two sessions in one process; private bundle,
+  identities in the map): closes 2 s (teardown marks: guest 78/91 ms, cache save 1.5–1.7 s, nothing to cancel);
+  stutter is not re-presented frames (900/900 distinct); one 756 ms blocking gen2 GC in S2 (trigger undecided);
+  black launch not reproduced (2/2, not decisive); colour-mask pass restart retracted as a discriminator (also in
+  normal sessions); artifacts and recording undecidable from logs.
+- **Defect established and corrected (handoff pending):** each closed session's managed heap survives teardown
+  (342/690 MB live) through the static HOSBinderDriverServer registry (producer → KEvent → KernelContext → Switch);
+  `adapt_binder_teardown.py` unregisters the layers' binders in SurfaceFlinger.Dispose (+ durable `sessionRetention`
+  probe), 38 checks. Instrumentation: `gcEvent` lines (native EmbeddedPerformanceDiagnostics, 46),
+  `adapt_artifact_counters.py` (three suspected artifact paths, 118), Swift capture/interruption/`acq=` journal (63,
+  static). Composition on Core 649 builds Ryujinx.Library; the real preparation of `13700519` reproduces Core 649 but
+  the changed native file.
+- **Next:** main wires `adapt_binder_teardown` and `adapt_artifact_counters` after `adapt_teardown_phase_marks`, pins
+  the native file and builds the IPA (Swift compiled there). Device: recording started before launch without opening
+  Control Center; artifact screenshots; fresh launch vs second launch in one process (`sessionRetention`, `gcEvent`,
+  artifact counters). No controlled FPS/visual gain claim.
 
 ### Skins/orientation and additive PS2 Original — existing owner
 

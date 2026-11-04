@@ -394,6 +394,23 @@ cores and time since it last ran, and one durable Core line `guestThreads` names
 ran for 500 ms or more and the longest waits. Read under the kernel monitor without entering the critical section: no
 thread selection, no state change. Proof, `test/melonx_pause_guest_threads_test.py`.
 
+Maintainer, 4 Nov: launching a game while a screen recording is already running gives neither the black screen nor
+the close problem. Both symptoms therefore depend on how the session starts (timing or load at launch, the display's
+composition while recording) or on a pause and resume during the session, not on the capture itself. Checked and
+excluded on that path: a close while paused is handled (Horizon.Dispose resumes the guest before stopping audio).
+A timing-dependent guest wait at launch fits the black screen (released by a pause, avoided by the recording's load);
+the device logs with the marks below and `guestThreads` decide it.
+
+Cross-check by the skins session (new private bundle, read only, 4 Nov): Hogwarts 7613 (14:53 UTC, no black screen)
+goes through the same draw phases (≈0.4, 7, ≈340, ≈22, then 400–1 800 per frame) and the same 1x1 read-back; the
+≈22-draw phase is therefore part of a normal launch too. In 6451 that phase costs 7.6–7.8 ms of GPU per frame (about 11
+render passes, 6 clears, 1 dispatch): a light screen with full-screen passes, such as the title screen, not an idle loop.
+Two readings stay open: (i) a guest wait released by the pause; (ii) the title screen rendered black (for instance with a
+stale 1x1 exposure-like value, the defect Core 644 corrects), the game advancing when it receives an input (the touch of
+the Control Center swipe, or a controller press around the menu). The only early discriminator found there: one
+SetRenderTargetColorMasks pass restart in the window ending at +20 s in the black sessions, none in 7613. Decisive device
+check: during the black screen, press A or touch the screen without opening the menu.
+
 Close-phase marks, `build-utils/melonx/adapt_teardown_phase_marks.py` (WindowBase.cs, VulkanRenderer.cs of Core 647),
 journal only: durable Core lines `teardown guestStop` / `guestStopped` (ms) / `gpuRelease` / `gpuReleased` (ms) and
 `gpuTeardown deviceIdleWait` (before vkDeviceWaitIdle, with the compile counts) / `compiles` / `swapchainReleased`. The
@@ -404,3 +421,53 @@ both files equal the preparation without the marks, each mark sits around its ph
 Needed from the device (a build with these adapters): Hogwarts cold launch, wait in the black screen, open the MeloNX
 menu, return; then close SSBU while a screen recording runs (and once without). Send `MeloNX-core.log` (`guestThreads`,
 `teardown`, `gpuTeardown`) and `MeloNX-stderr.log`.
+
+## IPA 650 on the device: stutter, black launch, black artifacts, recording (4 November 2026)
+
+Input (private, not in the repository): maintainer's bundle `MeloNX-stderr.log` (fd7c6867…), `.previous` (587cca0f…),
+`MeloNX-core.log` (a5410649…), `MeloNX-performance.log` (666ebc5a…), `MeloNX-launch.log` (6d28e323…), `app.log`
+(9aeb614e…). IPA 650 = MeloNX Core 649 (source `44e82f53`, library `65dec37a…`): Core 642 plus the read-back receivers,
+present attribution, teardown compile cancellation, pause guest-thread record and close-phase marks. Two Hogwarts
+sessions in one process (pid 8767): S1 17:42:33–17:43:34 UTC, S2 17:43:44–17:45:15 (six Control Center cycles while
+trying to record, memoryWarning 17:44:50). Maintainer: "lots of stutter on the same image; the image came back;
+impossible to record; some black artifacts remain". Analysis by a 32-agent workflow (5 analysts, 2 adversarial
+verifiers per finding, synthesis); values below re-derived from the raw logs.
+
+| Symptom | Finding | Classification |
+|---|---|---|
+| Stutter "on the same image" | Not re-presented frames: 900/900 distinct presents (`same address as previous 0`), host presents track guest fps. S1 gameplay clean (508/615 gaps at 33 ms). S2: 245 gaps > 50 ms, 39 > 100 ms, 156 audio starvations (1.46 s). One blocking compacting gen2 GC of 756 ms in S2 gameplay (817 ms freeze, guest DSP 760 ms late); trigger undecided (pre-GC fragmentation 0.6 %, below the ConserveMemory rule). Arrival freezes 1583/617/517 ms with "GPU processing thread is too slow" (serialisation, not saturation; MSL cache warm, 0 SPIR-V→MSL conversions). Micro-judder 17/50 ms pairs at a steady 30 fps (source undecided). | GC event: established, cause undecided; arrival freeze and judder: hypotheses |
+| Memory across sessions | **Defect established.** Each closed session's managed heap survives the forced full GC at teardown: S1 342 MB, S2 690 MB live (same doubling in older builds, pids 2327, 5576, 7170). S2 starts at 980 MiB heap against 599 MiB for S1; footprint 4.3 GiB. Code root: static `HOSBinderDriverServer._registeredBinderObjects` keeps every layer's producer → BufferQueueCore → KEvent → KernelContext → the whole `Switch`; `SurfaceFlinger.Dispose` never unregisters them. | Defect, corrected below (C1); share of the stutter: hypothesis |
+| Black launch | Not reproduced in 2/2 launches; the read-back receivers ran (288 and 649 copies, 0 unreceivable). Not decisive: 3 of 4 IPA 643 launches were normal without a pause. Retracted: "the black launch ended only after a host pause" (confounded) and the colour-mask pass restart as discriminator (also in normal sessions 7170, S1, S2). | Undecidable; two readings open |
+| Black artifacts | Excluded: whole-frame stale/black presents, DMA read-back, skipped draws, descriptor fallbacks, errors, texture cache pressure, colour-mask splits (Load/Store). Suspected paths (all present in 643 too): texture-array elements left on the dummy view, MoltenVK feedback-loop barriers kept inside the Metal pass, attachments removed by the tile write-mask filter. | Undecidable; counters below (I5) |
+| Recording impossible | The app neither reads nor blocks capture; recordings saved on 640 and 643 with the same code. Seven short Control Center cycles (1.6–4 s) fit aborted attempts. Opening Control Center pauses the session. | Undecidable; journal below (I6) |
+
+Corrections and instrumentation (implemented by a 19-agent workflow: implementer, two independent reviewers, fixer,
+independent re-test per item; all on the Core 649 preparation, verified 182/182):
+
+- **C1, correction, `build-utils/melonx/adapt_binder_teardown.py`** (SurfaceFlinger.cs, HOSBinderDriverServer.cs,
+  Library.cs): `SurfaceFlinger.Dispose` unregisters each remaining layer's producer binder after `PrepareForExit`
+  (binder ids never reused, guest-destroyed layers already absent, Remove of an absent id is a no-op). Probe (journal
+  only): weak references to each closed session's `Switch` and `GpuContext`, and after the final collection of `Load` a
+  durable `sessionRetention` line (released/retained, still-reachable counts, binder registry entries, managed heap).
+  Proof `test/melonx_binder_teardown_test.py`, 38 checks ([receipt](evidence/melonx-binder-teardown/checks.json)):
+  production Ryujinx.Library for control and candidate; the real registry and SurfaceFlinger members with doubles
+  keeping the chain registry → producer → queue → KEvent → KernelContext → Switch: the control keeps the closed Switch
+  and GpuContext alive, the candidate releases them and keeps the live session's binder.
+- **I1, `native/melonx/EmbeddedPerformanceDiagnostics.cs`**: one durable `gcEvent` line per new blocking or background
+  gen2 collection seen by a sample (index, generation, concurrent, compacted, pauses, promoted, gen2/LOH size and
+  fragmentation before/after, memory load and threshold, committed; at most 16 per kind per session, suppressed counted).
+  Proof `test/melonx_gc_events_test.py`, 46 checks ([receipt](evidence/melonx-gc-events/checks.json)).
+- **I5, `build-utils/melonx/adapt_artifact_counters.py`** (PipelineBase.cs, BarrierBatch.cs, TextureArray.cs):
+  "artifact paths" segment of the per-window pass line: texture-array elements given the dummy view, MoltenVK in-pass
+  barriers of attachments only kept inside the pass, colour attachments removed by the write-mask filter; no decision
+  changed. Proof `test/melonx_artifact_counters_test.py`, 118 checks ([receipt](evidence/melonx-artifact-counters/checks.json)).
+- **I6 + I3, Swift** (MeloNXMetalSessionViewController.swift, MeloNXPerfJournal.swift, MeloNXInternalBridgePlugin.swift):
+  lifecycle `captured`/`notCaptured` lines (UIScreen.capturedDidChangeNotification of the game window's screen and one at
+  start), audio `interruptionBegan`/`interruptionEndReceived`, and `acq=`/`acqw=` in the per-second perf line (intervals
+  between drawable requests and the longest wait in nextDrawable). No Swift compiler here: static proof
+  `test/melonx_capture_journal_test.py`, 63 checks ([receipt](evidence/melonx-capture-journal/checks.json)); the IPA build
+  compiles it.
+
+Not changed (undecided): the GC configuration, present pacing, the arrival freeze, any artifact path, recording.
+Device checks asked: start a recording before launching and play without opening Control Center; screenshots of the
+artifacts; a fresh-process launch compared with a second launch in the same process.
