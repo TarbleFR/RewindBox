@@ -327,6 +327,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     6/22 windows).
   - Expected in the next log: RPASS655 kept_* > 0, fewer same-target restarts from
     `image_helpers.cpp`, GPU ms/frame at equal draws vs 653. No FPS claim before then.
+- **Setting applied (Core 655 turn):** session model `claude-opus-5-5`, effort `xhigh`
+  (get_session: session_context.model and last_served_model `claude-opus-5-5`).
 - **Pre-existing failures noted (not from this work):** `test/build_source_evidence_test.py`
   and `test/legal_bundle_preflight_test.py` fixtures lack the 1 Nov RetroAchievements review
   (3 failures + 6 errors / 3 failures, same on the 653 tree); the raw tree fails
