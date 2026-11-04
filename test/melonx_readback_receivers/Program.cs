@@ -25,7 +25,8 @@ namespace Ryujinx.Graphics.Gpu.Synchronization
 }
 namespace Ryujinx.Graphics.GAL
 {
-    enum Format { R16G16B16A16Float, R32G32B32A32Float }
+    enum Format { R16G16B16A16Float, R32G32B32A32Float, R8G8B8A8Unorm }
+    sealed class Capabilities { public bool ConvertsRgba32F; }
     enum Target { Texture2D, Texture2DArray, TextureBuffer }
 }
 namespace Image
@@ -48,7 +49,13 @@ namespace Image
             Data.AsSpan(0, Math.Min(Data.Length, destination.Data.Length)).CopyTo(destination.Data);
         }
     }
-    sealed class Group { public bool ReadBackTarget; public Texture Owner; public bool AnyHandleModified() => Owner.Modified; }
+    sealed class Group { public bool ReadBackTarget, HasIncompatibleOverlaps; public Texture Owner; public bool AnyHandleModified() => Owner.Modified; }
+    static class TextureCompatibility
+    {
+        // A host without the format converts it (the doubles' capability).
+        public static FormatInfo ToHostCompatibleFormat(TextureInfo info, Capabilities caps) =>
+            caps.ConvertsRgba32F && info.FormatInfo.Format == Format.R32G32B32A32Float ? new FormatInfo { Format = Format.R8G8B8A8Unorm, BytesPerPixel = 4 } : info.FormatInfo;
+    }
     sealed class Texture
     {
         public TextureInfo Info = new(); public float ScaleFactor = 1f; public Group Group = new();
@@ -126,6 +133,7 @@ namespace Ryujinx.Graphics.Gpu.Memory
 }
 sealed class Context
 {
+    public Capabilities Capabilities = new();
     public int ForcedSyncs;
     public void CreateHostSyncIfNeeded(Ryujinx.Graphics.Gpu.Synchronization.HostSyncFlags flags)
     {
@@ -189,6 +197,7 @@ sealed class Dma
 {
     private readonly Context _context = new();
     public int ForcedSyncs => _context.ForcedSyncs;
+    public Capabilities Caps => _context.Capabilities;
 //__EXTRACTED__
     public bool ReadBack(MemoryManager mm, Image.Texture source, ulong dstVa, ulong size, int dstStride) =>
         TryReadBackIntoBuffer(mm, source, source.Info.FormatInfo, 0, 0, source.Info.Width, source.Info.Height, dstVa, size, dstStride);
@@ -282,6 +291,8 @@ static class Program
             ["offset"] = s => Make(Format.R32G32B32A32Float, 16, 1, 1, Destination - 16),
             ["blockLinearWide"] = s => Make(Format.R32G32B32A32Float, 16, 2, 1, Destination),
             ["linearStride"] = s => Make(Format.R32G32B32A32Float, 16, 1, 1, Destination, linear: true, stride: 32),
+            ["incompatibleOverlaps"] = s => { var t = Make(Format.R32G32B32A32Float, 16, 1, 1, Destination); t.Group.HasIncompatibleOverlaps = true; return t; },
+            ["hostConverted"] = s => Make(Format.R32G32B32A32Float, 16, 1, 1, Destination),
             ["linearSameStride"] = s => Make(Format.R32G32B32A32Float, 16, 1, 1, Destination, linear: true, stride: 16),
             ["blockLinearPrefix"] = s => Make(Format.R32G32B32A32Float, 16, 1, 1, Destination),
         };
@@ -293,6 +304,7 @@ static class Program
             var source = wide ? Make(name == "format" ? Format.R32G32B32A32Float : Format.R32G32B32A32Float, 16, 2, 1, 0x8000)
                               : Make(Format.R32G32B32A32Float, 16, 1, 1, 0x8000);
             var texture = make(source);
+            dma.Caps.ConvertsRgba32F = name == "hostConverted";
             mm.Physical.TextureCache.Placed.Add(texture);
             Value(7).CopyTo(source.HostTexture.Data, 0);
             ulong size = (ulong)(source.Info.Width * 16);

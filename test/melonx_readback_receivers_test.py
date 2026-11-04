@@ -57,8 +57,8 @@ def extract(text):
     fields = text[text.index('        private Image.Texture[] _targetOverlaps'):text.index('        private bool _bufferReadBackNoted;\n')]
     fields += '        private bool _bufferReadBackNoted;\n'
     methods = [member(text, 'private bool TryReadBackIntoBuffer('), member(text, 'private void NoteReadBackOverlap(')]
-    if 'private static bool IsReadBackReceiver(' in text:
-        methods.append(member(text, 'private static bool IsReadBackReceiver('))
+    if 'private bool IsReadBackReceiver(' in text:
+        methods.append(member(text, 'private bool IsReadBackReceiver('))
     return enum + fields + '\n'.join(methods) + '\n'
 
 
@@ -135,7 +135,8 @@ check(c['bufferCopies'] == k['bufferCopies'] == 5 and c['forcedSyncs'] == k['for
 check(c['declines'] == k['declines'] == '0,0,0,0,0' and c['overlapLines'] == 1 and k['overlapLines'] == 2, 'same declines; overlap lines')
 check(k['receiversCleared'], 'receivers released')
 # B. Unreceivable overlaps decline (guest path) in the candidate; the control signalled and reloaded stale memory.
-for name in ('format', 'size', 'view', 'scale', 'layers', 'offset', 'blockLinearWide', 'linearStride'):
+for name in ('format', 'size', 'view', 'scale', 'layers', 'offset', 'blockLinearWide', 'linearStride', 'incompatibleOverlaps',
+             'hostConverted'):
     kc, cc = k['cases'][name], c['cases'][name]
     check(cc['gpu'] and cc['writeSignals'] == 1 and cc['holds'] == 0, 'control: GPU read-back, signal, stale texture: ' + name)
     check(not kc['gpu'] and kc['bufferCopies'] == 0 and kc['writeSignals'] == 0 and kc['receiverCopies'] == 0 and

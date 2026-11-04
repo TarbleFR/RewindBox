@@ -13,13 +13,14 @@ write signal, buffers exempt), "as a guest write of the destination would". A gu
 memory; this copy does not: they stay in the host buffer until something reads that memory through tracking. The
 texture, now dirty, reloads on its next use from guest memory without tracking (Texture.SynchronizeFull and
 TextureGroup.SynchronizePartial read through GetReadOnlyRegion, tracked: false), so it gets the bytes that were there
-before: zeros or an older value, never the value just read back. A 1x1 RGBA32F value read back by the game every frame
+before: zeros or an older value, and the value just read back only if a tracked guest access flushed the buffer first. A 1x1 RGBA32F value read back by the game every frame
 and sampled as a 1x1 texture is the shape of an auto-exposure or luminance value; a zero or stale one darkens the whole
 image. Whether this is the cause of the black launch is a hypothesis that only a device run can confirm.
 
 Change: in TryReadBackIntoBuffer, every texture over the destination (buffer textures apart, as before) must be a
-receiver: not a view, Texture2D, one level, one layer, the source's format and scale, the source's width and height,
-its storage one range starting at the destination, and the destination's bytes at the same places in it (linear with
+receiver: not a view, Texture2D, one level, one layer, the source's format and scale (and that format host-compatible
+as is), no incompatible overlaps in its group (as the other GPU copies of this file require), the source's width and
+height, its storage one range starting at the destination, and the destination's bytes at the same places in it (linear with
 the destination's stride, or block-linear with one row of 16 bytes or less, which is the start of a GOB's first row).
 If one is not, the read-back declines as occupied ("unreceivable" in the occupied split) and the delivered guest path
 copies through guest memory, which invalidates the texture with the right bytes. Otherwise the write signal is no
@@ -29,7 +30,11 @@ buffer too, and a later guest access of that memory flushes the same bytes from 
 texel positions only). Not sending the signal also avoids flushing a receiver modified by the previous read-back before
 each read-back (the signal is a write, which runs the flush of a GPU-modified texture). Texture pools over the
 destination were already not signalled when no texture is there; that case is unchanged. The summary counts the
-receivers copied ("copied into receivers N") and the unreceivable declines. Not measured on an iPhone.
+receivers copied ("copied into receivers N") and the unreceivable declines. Open risk (independent review, unproven):
+a receiver stays GPU-modified with the last value read back; if the game later writes the destination through the
+buffer on the GPU (no read-back) and the guest CPU then reads it, the texture's flush may land after the buffer's and
+put the older value in guest memory. The delivered code already left such a texture stale for the GPU in that case.
+Not measured on an iPhone.
 Fail closed on drift: DmaClass.cs must be the Core 642 preparation's.
 """
 import hashlib
@@ -162,17 +167,20 @@ def apply(source):
 ''', '''        /// <summary>
         /// RewindBox (adapt_readback_receivers): whether a texture over the destination of a read-back into a buffer holds the
         /// destination's bytes at the same places as the source's texels, so a GPU copy of the whole source gives it exactly
-        /// what the read-back writes: not a view, 2D, one level and layer, the source's format, scale and size, one range
+        /// what the read-back writes: not a view, 2D, one level and layer, the source's format (host-compatible as is), scale
+        /// and size, no incompatible overlaps in its group, one range
         /// starting at the destination, linear with the destination's stride or block-linear with a single row of at most
         /// %d bytes (offsets 0 to 15 of a GOB's first row are linear).
         /// </summary>
-        private static bool IsReadBackReceiver(Image.Texture texture, Image.Texture source, ulong address, int width, int height,
-                                               ulong size, int dstStride)
+        private bool IsReadBackReceiver(Image.Texture texture, Image.Texture source, ulong address, int width, int height,
+                                        ulong size, int dstStride)
         {
             Image.TextureInfo info = texture.Info;
 
             if (texture.IsView || texture.HostTexture == null || info.Target != Target.Texture2D || info.Levels != 1 ||
                 info.DepthOrLayers != 1 || info.FormatInfo.Format != source.Info.FormatInfo.Format ||
+                Image.TextureCompatibility.ToHostCompatibleFormat(info, _context.Capabilities).Format != info.FormatInfo.Format ||
+                texture.Group == null || texture.Group.HasIncompatibleOverlaps ||
                 texture.ScaleFactor != source.ScaleFactor || info.Width != width || info.Height != height ||
                 texture.Range.Count != 1 || texture.Range.GetSubRange(0).Address != address)
             {
