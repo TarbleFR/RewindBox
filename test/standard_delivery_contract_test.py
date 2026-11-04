@@ -734,11 +734,26 @@ class EffectiveTreeSynthetic(unittest.TestCase):
             sd.materialize_tree(self.repo, manifest, late)
         self.git.run('checkout', '-q', '-b', 'side', base)
         self.git.write('lib/side.dart', 's')
-        self.git.commit('side')
+        side = self.git.commit('side')
         self.git.run('checkout', '-q', 'Claude')
         self.git.run('merge', '-q', '--no-edit', '--no-ff', 'side')
+        merge = self.git.run('rev-parse', 'HEAD')
+        # Maintainer decision, 4 November 2026: a merge on the first-parent line is one change to classify.
+        tree = sd.replay(self.repo, base, merge, [unclassified, late], [])
+        self.assertEqual([c['commit'] for c in tree['unclassified']], [merge], 'an unreviewed merge stays unclassified')
+        self.assertTrue([c for c in tree['commits'] if c['commit'] == merge][0].get('merge'))
+        self.assertNotIn(side, [c['commit'] for c in tree['commits']], 'side-branch commits are not replayed one by one')
+        tree = sd.replay(self.repo, base, merge, [unclassified, late, merge], [])
+        self.assertFalse(tree['unclassified'] or tree['conflicts'] or tree['missing'])
+        self.assertIn('lib/side.dart', tree['effective'], 'a reviewed merge brings its side branch')
+        tree = sd.replay(self.repo, base, merge, [unclassified, late, side], [])
+        self.assertEqual(tree['missing'], [side], 'a side-branch commit cannot be classified separately')
+        # Still refused: merges after the freeze, and a base off the first-parent line.
+        tree, manifest = frozen_product(self.repo, base, late, [unclassified, late], [])
         with self.assertRaises(ValueError):
-            sd.replay(self.repo, base, self.git.run('rev-parse', 'HEAD'), [], [])
+            sd.materialize_tree(self.repo, manifest, merge)
+        with self.assertRaises(ValueError):
+            sd.replay(self.repo, side, merge, [], [])
 
     def test_recipe_patterns(self):
         for path in ('.github/workflows/x.yml', 'docs/a/b.md', 'AGENTS.md', '.claude/settings.json',

@@ -249,6 +249,18 @@ class Repo:
     def commits(self, base, head):
         return self.text('rev-list', '--reverse', '--topo-order', f'{base}..{head}').split()
 
+    def first_parent_commits(self, base, head):
+        """base..head along the first-parent line of head (the delivery branch's own history). A merge of a
+        reviewed side branch is one commit there; its change is its diff against its first parent."""
+        return self.text('rev-list', '--reverse', '--first-parent', f'{base}..{head}').split()
+
+    def on_first_parent_line(self, ancestor, head):
+        """The commit is head or one of head's first-parent ancestors."""
+        return ancestor in self.text('rev-list', '--first-parent', head).split()
+
+    def is_merge(self, commit):
+        return len(self.text('rev-list', '--parents', '-n', '1', commit).split()) > 2
+
     def subject(self, ref):
         return self.text('show', '-s', '--format=%s', ref).strip()
 
@@ -265,9 +277,9 @@ class Repo:
         return result
 
     def changes(self, commit):
-        """[(path, old, new)] of a non-merge commit, old/new = (mode, blob) or None."""
+        """[(path, old, new)] of a commit against its first parent, old/new = (mode, blob) or None. For a merge on the
+        delivery line this is everything the merged side brings, the change its review classifies."""
         parents = self.text('rev-list', '--parents', '-n', '1', commit).split()[1:]
-        require(len(parents) <= 1, 'Merge commit in the delivery history: ' + commit)
         arguments = ['diff-tree', '-r', '-z', '--no-renames', '--no-commit-id', '--no-abbrev']
         arguments += [parents[0], commit] if parents else ['--root', commit]
         tokens = self.run(*arguments).stdout.split(b'\0')
@@ -623,14 +635,18 @@ def replay(repo, base, head, reviewed, source_only, base_entries=None, promoted=
     `base_entries` is the product tree the base delivery compiled (base_effective_entries); the raw
     base source tree when omitted. `promoted` (with the base's `restored` paths) applies deferred work
     that precedes the base first (apply_promoted)."""
-    require(not repo.merges(base, head), 'The history between the base and HEAD must be linear (no merge commit)')
+    # Maintainer decision, 4 November 2026: merges already integrated on the delivery branch are accepted after
+    # review. The delivery history is the first-parent line of HEAD; each commit on it, a merge included, is
+    # classified on its own (a merge as the one change its side branch brings; side-branch commits cannot be
+    # classified separately) and a reviewed change must still start from the effective bytes.
+    require(repo.on_first_parent_line(repo.commit(base), head), 'The base is not on the first-parent line of HEAD')
     reviewed = {repo.commit(c) for c in reviewed}
     source_only = {repo.commit(c) for c in source_only}
     require(not reviewed & source_only, 'A commit is both reviewed and source-only')
     base_entries = (dict(base_entries) if base_entries is not None else
                     {p: e for p, e in repo.entries(base).items() if is_product(p)})
     effective = dict(base_entries)
-    commits = repo.commits(base, head)
+    commits = repo.first_parent_commits(base, head)
     records, deferred, conflicts, unclassified = [], {}, [], []
     apply_promoted(repo, base, effective, promoted, restored, records, conflicts)
     for commit in commits:
@@ -638,6 +654,8 @@ def replay(repo, base, head, reviewed, source_only, base_entries=None, promoted=
         role = ('reviewed' if commit in reviewed else 'sourceOnly' if commit in source_only else
                 'recipe' if not changes else 'unclassified')
         records.append(dict(commit=commit, subject=repo.subject(commit), role=role, productPaths=len(changes)))
+        if repo.is_merge(commit):
+            records[-1]['merge'] = True
         if role == 'reviewed':
             for path, old, new in changes:
                 if effective.get(path) != old:
@@ -1363,7 +1381,8 @@ def source_contract():
     require(repo.text('write-tree').strip() == repo.tree_of('HEAD'), 'The index changed after checkout')
     base = manifest['base']
     require(repo.tree_of(base['source']) == base['tree'] and repo.is_ancestor(base['source'], head) and
-            not repo.merges(base['source'], head), 'The base delivery source is not the linear ancestor of this run')
+            repo.on_first_parent_line(repo.commit(base['source']), head),
+            'The base delivery source is not on the first-parent line of this run')
     require(manifest['product']['recipeDefinitionSHA256'] == recipe_definition_sha(),
             'The recipe path definition changed after the freeze')
     effective = verify_materialized(repo, manifest, head)
