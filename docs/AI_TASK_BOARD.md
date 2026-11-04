@@ -395,8 +395,13 @@ Source skins receipt lists core1282233B/`10f45789…32ef4`, launch141798B/
 stderr.previous5242502B/`587cca0f…a712a`, stderr2973737B/
 `cf5e647f…d4ed4a`; full original identities stay with source attachments.
 The earlier session-message relay alone did not transfer these bytes.
-Next: retrieve that exact batch and attach originals to MeloNX, verify destination
-receipt, then inform main once. No completed file transfer claimed yet.
+Source attachments were located in skins message10; their UI tiles expose no
+retrieval control in the observed interface. One private ZIP-export request is
+queued in skins; one consolidated instruction is present in main and marked read
+by Claude (routing plus the board-format change). No owner export or destination
+byte receipt yet. Next: source exposes the five originals with full hashes through
+native file delivery; main or the authorized browser coordinator attaches them to
+MeloNX and verifies receipt. Do not resend either request or claim transfer done.
 **This consolidation:** entry files already short (AGENTS708 chars, CLAUDE912);
 board had 149278 characters with 27k-character task rows, duplicate chronology and obsolete
 current-state claims. Current rules/statuses are consolidated; full prior content
