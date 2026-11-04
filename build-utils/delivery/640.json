@@ -403,7 +403,7 @@
     "note": "fix(legal): review overlay for the ARMSX2 podspec system frameworks and the original PS2 Pocket pack"
    },
    {
-    "commit": "d76a9f2e5a9d95e4245f6f8f5ecc71fb6606a349",
+    "commit": "903a138c36765a650fa155aac8d61c1603e34301",
     "note": "fix(test): DolphinAccount267 and ARMSX2Graphics26 harnesses compile the orientation sources their session menus now call (IPA 640 attempt 2 native link failure)"
    }
   ],
