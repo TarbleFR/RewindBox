@@ -105,3 +105,25 @@ Deviations, all imposed by the device and measured by the verifier:
   to the maintainer (moving them would change the approved board);
 - the boards show console wordmarks (e.g. "Wii"), so these packs are labelled
   "console names and marks belong to their owners", not "third-party marks excluded".
+
+### Touch and press fix of the Originals (4 November, device recording)
+
+The maintainer's recording of IPA 643 (GameCube Original, Fire Emblem) showed a box
+flashing around every pressed control, touches near interlocking shapes reaching the
+wrong control and a landscape stick whose cap sat off its touch centre. Measured on the
+shipped archives (`audit_board_touch.py`, `docs/evidence/pocket-originals/touch-fix/`):
+every sprite was an opaque rectangle; a press darkened and shifted that whole rectangle
+(up to 90–100 % of the pixels around the outline changed); up to 29 % of Y's drawn points
+went to another control; the GameCube landscape main stick's touch and cap centre was
+4.98 pt from the board's cap (C-stick 3.32 pt).
+
+Now each control is the board's own outline (`shape_mask` / `layout_masks`: the pixels
+enclosed by its drawn stroke or coloured face, checked against its measured box, made
+disjoint): the normal sprite is transparent outside it (the rest state is the board),
+the pressed sprite has the same alpha and only darkens inside it (`pressed_face`), and
+the frame is the outline's bounding box. A stick's frame is centred on the board's cap,
+as wide as its socket (at least 22 % of the cap of travel), the cap sprite takes the cap
+with its lip (`cap_radius`) and its socket is filled beneath it, so the cap drawn at rest
+is the board and nothing of it stays behind when it moves. Interlocking frames may
+overlap; `DOLSkinOverlay` answers a touch by the drawn shape first (`DOLSkinHitTest.h`),
+which leaves every layout without overlapping frames (all earlier packs) unchanged.

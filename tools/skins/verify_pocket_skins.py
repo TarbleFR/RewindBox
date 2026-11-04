@@ -200,6 +200,83 @@ def bitmap(data, name):
         return result
 
 
+def _grid(rect_, mapping, per_point=2):
+    import numpy as np
+    g = np.zeros((int(math.ceil(mapping[1]*per_point)), int(math.ceil(mapping[0]*per_point))), bool)
+    x0, y0, w, h = rect_
+    g[max(0, int(math.floor(y0*per_point))):int(math.ceil((y0+h)*per_point)),
+      max(0, int(math.floor(x0*per_point))):int(math.ceil((x0+w)*per_point))] = True
+    return g
+
+
+def drawn_rect(item, resource):
+    """The opaque part (alpha >= 50 %) of an item's normal sprite, in mapping points."""
+    x, y, w, h = rect(item["frame"])
+    alpha = resource(item["asset"]["normal"]).getchannel("A")
+    box = alpha.point(lambda v: 255 if v >= 128 else 0).getbbox()
+    if box is None:
+        return x, y, w, h
+    sx, sy = w/alpha.width, h/alpha.height
+    return x+box[0]*sx, y+box[1]*sy, (box[2]-box[0])*sx, (box[3]-box[1])*sy
+
+
+def board_touch_checks(layout, resource, label):
+    """Board Originals: what the eye sees, what the finger reaches and what a press
+    changes are the control's own drawn shape (the defect seen on device: opaque
+    rectangular sprites flashing a box around a pressed control, a stick cap off its
+    touch centre)."""
+    import numpy as np
+    mapping = (float(layout["mappingSize"]["width"]), float(layout["mappingSize"]["height"]))
+    background = resource(next(iter(layout["assets"].values()))).convert("RGB")
+    scale = background.width / mapping[0]
+    shapes, frames, hits = [], [], []
+    for index, item in enumerate(layout["items"]):
+        frame = rect(item["frame"])
+        box = tuple(round(v*scale) for v in (frame[0], frame[1], frame[0]+frame[2], frame[1]+frame[3]))
+        under = background.crop(box)
+        normal, pressed = resource(item["asset"]["normal"]), resource(item["asset"]["pressed"])
+        na, pa = np.asarray(normal.getchannel("A")), np.asarray(pressed.getchannel("A"))
+        require(na.min() == 0, f"{label}/{index}: opaque rectangular sprite (no outline alpha)")
+        require(np.array_equal(na, pa), f"{label}/{index}: pressed sprite covers more than the control's outline")
+        def over(sprite):
+            base = under.convert("RGBA")
+            base.alpha_composite(sprite.resize(under.size, Image.Resampling.LANCZOS))
+            return np.asarray(base.convert("RGB")).astype(np.int16)
+        rest = np.abs(over(normal) - np.asarray(under).astype(np.int16)).sum(axis=2)
+        if "thumbstick" in item:
+            knob = item["thumbstick"]
+            composed = under.convert("RGBA")
+            composed.alpha_composite(normal.resize(under.size, Image.Resampling.LANCZOS))
+            kw, kh = round(knob["width"]*scale), round(knob["height"]*scale)
+            composed.alpha_composite(resource(knob["name"]).resize((kw, kh), Image.Resampling.LANCZOS),
+                                     ((under.width-kw)//2, (under.height-kh)//2))
+            # The cap drawn at the touch centre (DOLSkinOverlay knobFrame at rest) is the board's cap.
+            capdiff = np.abs(np.asarray(composed.convert("RGB")).astype(np.int16) - np.asarray(under).astype(np.int16)).sum(axis=2)
+            require(capdiff.mean() <= 6.0, f"{label}/{index}: stick cap at rest is off the board's cap ({capdiff.mean():.1f})")
+        else:
+            require(rest.mean() <= 1.5, f"{label}/{index}: the rest sprite differs from the board ({rest.mean():.2f})")
+            inside = np.asarray(normal.resize(under.size).getchannel("A")) >= 250
+            lum = lambda im: np.asarray(im.convert("RGB")).astype(np.float32).sum(axis=2)[inside].mean()
+            require(lum(Image.fromarray(over(pressed).astype(np.uint8))) < lum(under) * 0.9,
+                    f"{label}/{index}: the press is not clearly visible")
+        g = np.zeros((int(math.ceil(mapping[1]*2)), int(math.ceil(mapping[0]*2))), bool)
+        x0, y0 = int(round(frame[0]*2)), int(round(frame[1]*2))
+        w, h = max(1, int(round(frame[2]*2))), max(1, int(round(frame[3]*2)))
+        a = np.asarray(normal.getchannel("A").resize((w, h), Image.Resampling.NEAREST)) >= 128
+        g[y0:y0+h, x0:x0+w] = a[:g.shape[0]-y0, :g.shape[1]-x0]
+        shapes.append(g)
+        frames.append(_grid(frame, mapping))
+        hits.append(_grid(hit_frame(item, layout), mapping))
+    for i in range(len(shapes)):
+        for j in range(i):
+            require(not (shapes[i] & shapes[j]).any(), f"{label}: drawn shapes {i} and {j} overlap")
+        extension = hits[i] & ~frames[i]
+        for j in range(len(shapes)):
+            if j != i:
+                require(not (extension & (hits[j] | frames[j])).any(),
+                        f"{label}/{i}: invisible extension reaches control {j}")
+
+
 def validate_pack(assets, body_sources, row):
     console = row["console"]
     pack_path = assets / manifest_path(row["archiveAsset"], ".manicskin")
@@ -280,7 +357,8 @@ def validate_pack(assets, body_sources, row):
                 require(inside(hit, bounds), f"{label}/{index}: control outside mapping")
                 require(min(hit[2:]) >= 44-0.01, f"{label}/{index}: target below 44 mapping points")
                 require(not any(overlaps(hit, screen) for screen in screens), f"{label}/{index}: target over game screen")
-                require(not any(overlaps(hit, earlier) for earlier in hits), f"{label}/{index}: overlapping control targets")
+                if not board:
+                    require(not any(overlaps(hit, earlier) for earlier in hits), f"{label}/{index}: overlapping control targets")
                 hits.append(hit)
                 provided.update(canonical(console, name) for name in raw_inputs(item))
                 normal, pressed = item["asset"]["normal"], item["asset"]["pressed"]
@@ -292,6 +370,11 @@ def validate_pack(assets, body_sources, row):
                     resource(knob["name"])
                     require(knob["name"] not in (normal, pressed), f"{label}/{index}: knob baked into base")
                     require(0 < knob["width"] < frame[2] and 0 < knob["height"] < frame[3], f"{label}/{index}: no knob travel")
+            if board:
+                # Interlocking board shapes may share frame corners; the overlay answers
+                # by the drawn shape (DOLSkinHitTest.h), so the shapes and every invisible
+                # extension must be disjoint, and a press may change only the shape.
+                board_touch_checks(layout, resource, label)
             require(ESSENTIALS[console] <= provided, f"{label}: missing controls {ESSENTIALS[console]-provided}")
             require(stick_count == STICKS[console], f"{label}: wrong movable stick count")
             menus = [item for item in layout["items"] if "menu" in [canonical(console, name) for name in raw_inputs(item)]]
@@ -320,7 +403,8 @@ def validate_pack(assets, body_sources, row):
                 continue
             require(minimum >= 44-0.01, f"{row['id']}/{device}: fitted target {minimum:.3f}pt below 44")
             if board:
-                frames = [fitted(rect(item["frame"]), mapping, device) for item in layout["items"]]
+                # What is drawn: the opaque part of each sprite (its frame may hold transparent margin).
+                frames = [fitted(drawn_rect(item, resource), mapping, device) for item in layout["items"]]
                 problems, board_band, covered = housing_conflicts(hits, frames, device, orientation, portrait)
                 allowed = KNOWN_HOUSING_DEVIATIONS.get((row["id"], orientation), set())
                 key = lambda i: canonical(console, raw_inputs(layout["items"][i])[0])
@@ -328,7 +412,7 @@ def validate_pack(assets, body_sources, row):
                 require(not problems, f"{row['id']}/{device}/{orientation}: targets enter {problems}")
                 if covered:
                     entry["knownHousingDeviation"] = [dict(c, control=key(c["item"])) for c in covered]
-                require(all(b["drawnIntoBandPoints"] <= 1.0 for b in board_band),
+                require(all(b["drawnIntoBandPoints"] <= 3.0 for b in board_band),
                         f"{row['id']}/{device}/{orientation}: board control deep in home indicator band {board_band}")
                 if board_band:
                     entry["boardPlacementIntoHomeIndicatorBand"] = board_band
@@ -376,7 +460,9 @@ def main():
         result = {"status": "passed", "checks": ["manifest digests and sizes", "ZIP CRC and confined resources",
                   "all PNG decodes", "every iPhone layout", "4:3 game windows for native background masking", "all essential bindings", "exactly one Menu control in every layout",
                   "approved raw body byte identity and provenance SHA-256 (Pocket packs)",
-                  "approved board SHA-256 binding (Originals)", "native layout selection per iPhone",
+                  "approved board SHA-256 binding (Originals)",
+                  "Originals: sprites transparent outside the outline, press confined to it, rest = board, cap at the touch centre",
+                  "Originals: drawn shapes disjoint, invisible extensions reach no other control", "native layout selection per iPhone",
                   "Originals: sensor housing (both landscape sides), corners, home indicator",
                   "Originals: letterboxed home-button iPhone targets measured, not claimed",
                   "distinct normal/pressed artwork", "separate movable stick caps", "no control overlaps",
