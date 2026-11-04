@@ -1487,6 +1487,7 @@
       ],
       "timeoutSeconds": 900,
       "assertions": {
+        "result": "passed",
         "completeProductionClasses": true,
         "adapterIdempotent": true,
         "sourceDriftControlsPassed": 3,
