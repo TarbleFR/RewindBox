@@ -30,6 +30,8 @@ from adapt_pause_guest_threads import BASELINE as PAUSE_BASELINE
 from adapt_teardown_phase_marks import BASELINE as MARKS_BASELINE
 from adapt_binder_teardown import BASELINE as BINDER_BASELINE
 from adapt_artifact_counters import BASELINE as COUNTERS_BASELINE
+from adapt_array_rebuild_allocations import BASELINE as ARRAY_REBUILD_BASELINE
+from adapt_present_pacing import BASELINE as PACING_BASELINE
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -60,6 +62,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'teardown-phase-marks': 'delivered',
             # Core 654 (PR #156 new lot): the binder release, the collector's gcEvent lines, the artifact-path counters.
             'binder-teardown': 'delivered', 'gc-events': 'delivered', 'artifact-counters': 'delivered',
+            # Core 656 (MeloNX levers from the IPA 650 logs): bounded rebuild arrays, 30 fps present pacing.
+            'array-rebuild-allocations': 'delivered', 'present-pacing': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
             'single-virtual-dependency': 'ada'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
@@ -67,7 +71,8 @@ TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
            set(WARMUP_BASELINE) | set(TRIM_BASELINE) | set(BARRIER_BASELINE) | set(SCRATCH_BASELINE) |
            set(OCCUPIED_BASELINE) | set(MISS_BASELINE) | set(RECEIVERS_BASELINE) | set(PRESENT_BASELINE) |
-           set(TEARDOWN_BASELINE) | set(PAUSE_BASELINE) | set(MARKS_BASELINE) | set(BINDER_BASELINE) | set(COUNTERS_BASELINE))
+           set(TEARDOWN_BASELINE) | set(PAUSE_BASELINE) | set(MARKS_BASELINE) | set(BINDER_BASELINE) | set(COUNTERS_BASELINE) |
+           set(ARRAY_REBUILD_BASELINE) | set(PACING_BASELINE))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -262,7 +267,7 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 46 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 48 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -278,7 +283,9 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_pause_guest_threads.py',
                                                      'build-utils/melonx/adapt_teardown_phase_marks.py',
                                                      'build-utils/melonx/adapt_binder_teardown.py',
-                                                     'build-utils/melonx/adapt_artifact_counters.py'} and
+                                                     'build-utils/melonx/adapt_artifact_counters.py',
+                                                     'build-utils/melonx/adapt_array_rebuild_allocations.py',
+                                                     'build-utils/melonx/adapt_present_pacing.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs'},
@@ -299,7 +306,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 145 and len(frozen['preparedMembers']) == 184, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 147 and len(frozen['preparedMembers']) == 184, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

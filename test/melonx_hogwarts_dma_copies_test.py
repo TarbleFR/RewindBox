@@ -89,6 +89,9 @@ LOT_FILES = {
     # PR #156 new lot (Core 654): the binder release's Library hunks; the artifact-path counters on PipelineBase and TextureArray.
     'adapt_binder_teardown': ['src/Ryujinx.Library/Library.cs'],
     'adapt_artifact_counters': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
+    # MeloNX levers (Core 656): the array rebuild slots edit none of these files; the present pacing edits Window and Library.
+    'adapt_array_rebuild_allocations': [],
+    'adapt_present_pacing': ['src/Ryujinx.Graphics.Vulkan/Window.cs', 'src/Ryujinx.Library/Library.cs'],
 }
 
 checks = 0

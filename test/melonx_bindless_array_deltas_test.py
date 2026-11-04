@@ -37,6 +37,9 @@ CANDIDATE = args.candidate_source.resolve() if args.candidate_source else None
 DOTNET = os.environ.get('DOTNET', 'dotnet')
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 from adapt_bindless_array_deltas import apply, apply_array_cache, ARRAY_CACHE, DIAGNOSTICS, NAMES
+import importlib  # noqa: E402
+sys.path.insert(0, str(ROOT / 'test'))
+from melonx_adapter_control import ORDER, apply_present  # noqa: E402
 
 GAL = 'src/Ryujinx.Graphics.GAL'
 MULTI = GAL + '/Multithreading'
@@ -90,8 +93,22 @@ with tempfile.TemporaryDirectory(prefix='melonx-bindless-array-deltas-') as temp
           'delivered collector differs from the native collector of Cores 614 to 649 that prepare_embedded copied')
     shutil.copyfile(ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs', composed / DIAGNOSTICS)
     apply(composed)
+    adapted = {p: sha(composed / p) for p in NAMES}
+    check(all(adapted[p] != sha(SOURCE / p) for p in NAMES), 'adapter left a file unchanged')
+    # Core 656: later preparation steps edit some of these files (adapt_array_rebuild_allocations: the cache's whole
+    # rebuilds and ThreadedArrayPool). They are applied to the composition in preparation order, so it still equals the
+    # final source exactly, and the fixture below compiles that final source.
+    later = [name for name in ORDER if set(importlib.import_module(name).BASELINE) & (set(NAMES) | set(FILES))] if CANDIDATE else []
+    for name in later:
+        apply_present(composed, name, only=set(NAMES))
+    # The compiled dependencies of the cache: the delivered files plus exactly those later steps' edits.
+    dependencies = temporary / 'dependencies'
+    for relative in FILES:
+        (dependencies / relative).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(SOURCE / relative, dependencies / relative)
+    for name in later:
+        apply_present(dependencies, name, only=set(FILES) - {ARRAY_CACHE})
     postimages = {p: sha(composed / p) for p in NAMES}
-    check(all(postimages[p] != sha(SOURCE / p) for p in NAMES), 'adapter left a file unchanged')
     if CANDIDATE:
         check(postimages == {p: sha(CANDIDATE / p) for p in NAMES}, 'composition differs from the final prepared source')
     for variant in ('control', 'candidate'):
@@ -103,11 +120,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-bindless-array-deltas-') as temp
             shutil.copyfile(origin / relative, target)
         if variant == 'candidate':
             if CANDIDATE:
-                check(all(sha(work / p) == sha(SOURCE / p) for p in FILES if p != ARRAY_CACHE),
-                      'final source changed a compiled dependency of the cache')
+                check(all(sha(work / p) == sha(dependencies / p) for p in FILES if p != ARRAY_CACHE),
+                      'final source changed a compiled dependency of the cache beyond the later reviewed steps')
             else:
                 apply_array_cache(work)
-            check(sha(work / ARRAY_CACHE) == postimages[ARRAY_CACHE], 'candidate cache is not the composed final cache')
+            check(sha(work / ARRAY_CACHE) == postimages[ARRAY_CACHE] if CANDIDATE else adapted[ARRAY_CACHE],
+                  'candidate cache is not the composed final cache')
         compiled[variant] = {p: sha(work / p) for p in FILES}
         shutil.copyfile(ROOT / 'test/melonx_bindless_array_deltas/Program.cs', work / 'Program.cs')
         define = '<DefineConstants>ADAPTED</DefineConstants>' if variant == 'candidate' else ''

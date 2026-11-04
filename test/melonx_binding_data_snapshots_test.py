@@ -80,15 +80,25 @@ def sha(path):
 validate_inputs(SOURCE)
 final_cache = None
 if CANDIDATE:
-    # The final cache is exactly the delivered one plus the array-delta cache edits; nothing else it compiles changed.
+    # The final cache is exactly the delivered one plus the array-delta cache edits and the later reviewed preparation
+    # steps that edit it (Core 656: adapt_array_rebuild_allocations, the cache's whole rebuilds); nothing else it compiles
+    # changed beyond those steps' edits (ThreadedArrayPool's bounded slots). The fixture compiles that final source.
+    import importlib
+    from melonx_adapter_control import ORDER, apply_present
+    later = [name for name in ORDER if set(importlib.import_module(name).BASELINE) & set(FILES)]
     with tempfile.TemporaryDirectory(prefix='melonx-binding-data-final-') as temporary:
         composed = Path(temporary)
-        (composed / RELATIVE).parent.mkdir(parents=True)
-        shutil.copyfile(SOURCE / RELATIVE, composed / RELATIVE)
+        for relative in FILES:
+            (composed / relative).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(SOURCE / relative, composed / relative)
         apply_array_cache(composed)
+        for name in later:
+            apply_present(composed, name, only=set(FILES))
         final_cache = sha(composed / RELATIVE)
-    assert sha(CANDIDATE / RELATIVE) == final_cache, 'final cache is not the delivered cache with the array-delta edits'
-    assert all(sha(CANDIDATE / p) == DELIVERED[p] for p in FILES if p != RELATIVE), 'final source changed a cache dependency'
+        final_dependencies = {p: sha(composed / p) for p in FILES}
+    assert sha(CANDIDATE / RELATIVE) == final_cache, 'final cache is not the delivered cache with the array-delta edits and the later steps'
+    assert all(sha(CANDIDATE / p) == final_dependencies[p] for p in FILES if p != RELATIVE), \
+        'final source changed a cache dependency beyond the later reviewed steps'
 
 support = (ROOT / 'test/melonx_bindless_allocations/Program.cs').read_text()
 for old, new in {
