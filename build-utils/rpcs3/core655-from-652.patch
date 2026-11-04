@@ -1,0 +1,368 @@
+diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+index 4ee5c33..de00d56 100644
+--- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
++++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+@@ -206,6 +206,21 @@ void VKGSRender::begin_render_pass()
+ 	{
+ 		rpcs3::ios::feedback_census::add(rpcs3::ios::feedback_census::counters.draw_renderpasses);
+ 	}
++	{
++		// REWINDBOX_IN_PASS_READ_TRANSITION_655: the attachments of the pass now open on m_draw_fbo (images of its views).
++		std::array<VkImage, 8> images{};
++		u32 count = 0;
++		for (const auto& view : m_draw_fbo->attachments)
++		{
++			if (count == images.size())
++			{
++				count = 0; // more than the registry holds: unknown, the pass ends as before
++				break;
++			}
++			images[count++] = view->image()->value;
++		}
++		vk::note_renderpass_attachments(*m_current_command_buffer, m_draw_fbo->value, images.data(), count);
++	}
+ #endif
+ }
+ 
+diff --git a/rpcs3/Emu/RSX/VK/VKRenderPass.cpp b/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
+index 281ddda..936b456 100644
+--- a/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
++++ b/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
+@@ -1,5 +1,8 @@
+ #include "stdafx.h"
+ 
++#include <algorithm>
++#include <array>
++
+ #include "Utilities/mutex.h"
+ #include "VKRenderPass.h"
+ #include "VKHelpers.h"
+@@ -23,6 +26,14 @@ namespace vk
+ 	rsx::unordered_map<VkCommandBuffer, active_renderpass_info_t>  g_current_renderpass;
+ #ifdef RPCS3_IOS
+ 	rsx::unordered_map<VkCommandBuffer, rpcs3::ios::renderpass_census::last_end> g_rewindbox_last_end; // REWINDBOX_RENDERPASS_CENSUS_652
++	// REWINDBOX_IN_PASS_READ_TRANSITION_655: the attachments of the open pass, when the draw path that began it noted them.
++	struct rewindbox_open_attachments
++	{
++		VkFramebuffer fbo = VK_NULL_HANDLE;
++		std::array<VkImage, 8> images{};
++		u32 count = 0;
++	};
++	rsx::unordered_map<VkCommandBuffer, rewindbox_open_attachments> g_rewindbox_open_attachments;
+ #endif
+ 
+ 	shared_mutex g_renderpass_cache_mutex;
+@@ -391,6 +402,7 @@ namespace vk
+ 		g_current_renderpass.clear();
+ #ifdef RPCS3_IOS
+ 		g_rewindbox_last_end.clear(); // REWINDBOX_RENDERPASS_CENSUS_652
++		g_rewindbox_open_attachments.clear(); // REWINDBOX_IN_PASS_READ_TRANSITION_655
+ #endif
+ 
+ 		// Destroy cache
+@@ -427,6 +439,7 @@ namespace vk
+ 		renderpass_info = { pass, target };
+ #ifdef RPCS3_IOS
+ 		rpcs3::ios::renderpass_census::on_begin(g_rewindbox_last_end[cmd], target); // REWINDBOX_RENDERPASS_CENSUS_652
++		g_rewindbox_open_attachments[cmd] = {}; // REWINDBOX_IN_PASS_READ_TRANSITION_655: unknown until the draw path notes them
+ #endif
+ 		return true;
+ 	}
+@@ -452,6 +465,7 @@ namespace vk
+ #ifdef RPCS3_IOS
+ 		// REWINDBOX_RENDERPASS_CENSUS_652: the site that ended this pass, and the framebuffer it was on.
+ 		rpcs3::ios::renderpass_census::on_end(g_rewindbox_last_end[cmd], g_current_renderpass[cmd].fbo, where.file_name(), where.line());
++		g_rewindbox_open_attachments[cmd] = {}; // REWINDBOX_IN_PASS_READ_TRANSITION_655
+ #endif
+ 		g_current_renderpass[cmd] = {};
+ 	}
+@@ -461,6 +475,43 @@ namespace vk
+ 		return g_current_renderpass[cmd].pass != VK_NULL_HANDLE;
+ 	}
+ 
++#ifdef RPCS3_IOS
++	// REWINDBOX_IN_PASS_READ_TRANSITION_655
++	void note_renderpass_attachments(const vk::command_buffer& cmd, VkFramebuffer target, const VkImage* images, u32 count)
++	{
++		const auto& active = g_current_renderpass[cmd];
++		auto& known = g_rewindbox_open_attachments[cmd];
++		if (active.pass == VK_NULL_HANDLE || active.fbo != target || count == 0 || count > known.images.size())
++		{
++			known = {};
++			return;
++		}
++		if (known.fbo == target && known.count == count && std::equal(images, images + count, known.images.begin()))
++		{
++			return;
++		}
++		known.fbo = target;
++		known.count = count;
++		std::copy_n(images, count, known.images.begin());
++	}
++
++	open_pass_image classify_open_pass_image(const vk::command_buffer& cmd, VkImage image)
++	{
++		const auto& active = g_current_renderpass[cmd];
++		if (active.pass == VK_NULL_HANDLE)
++		{
++			return open_pass_image::no_pass;
++		}
++		const auto& known = g_rewindbox_open_attachments[cmd];
++		if (known.fbo == VK_NULL_HANDLE || known.fbo != active.fbo || known.count == 0)
++		{
++			return open_pass_image::unknown;
++		}
++		const auto end = known.images.begin() + known.count;
++		return std::find(known.images.begin(), end, image) != end ? open_pass_image::attachment : open_pass_image::not_attachment;
++	}
++#endif
++
+ 	void renderpass_op(const vk::command_buffer& cmd, const renderpass_op_callback_t& op)
+ 	{
+ 		const auto& active = g_current_renderpass[cmd];
+diff --git a/rpcs3/Emu/RSX/VK/VKRenderPass.h b/rpcs3/Emu/RSX/VK/VKRenderPass.h
+index f25809d..1f25e54 100644
+--- a/rpcs3/Emu/RSX/VK/VKRenderPass.h
++++ b/rpcs3/Emu/RSX/VK/VKRenderPass.h
+@@ -33,6 +33,13 @@ namespace vk
+ 	void end_renderpass(const vk::command_buffer& cmd);
+ #endif
+ 	bool is_renderpass_open(const vk::command_buffer& cmd);
++#ifdef RPCS3_IOS
++	// REWINDBOX_IN_PASS_READ_TRANSITION_655: the attachments of the pass open on this command buffer, as the draw path
++	// that began it knows them (count 0 or above capacity: unknown). Not thread safe, like the helpers above.
++	void note_renderpass_attachments(const vk::command_buffer& cmd, VkFramebuffer target, const VkImage* images, u32 count);
++	enum class open_pass_image { no_pass, unknown, attachment, not_attachment };
++	open_pass_image classify_open_pass_image(const vk::command_buffer& cmd, VkImage image);
++#endif
+ 
+ 	using renderpass_op_callback_t = std::function<void(const vk::command_buffer&, VkRenderPass, VkFramebuffer)>;
+ 	void renderpass_op(const vk::command_buffer& cmd, const renderpass_op_callback_t& op);
+diff --git a/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp b/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
+index 6d625d0..f26a26b 100644
+--- a/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
++++ b/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
+@@ -3,6 +3,9 @@
+ #include "image.h"
+ #include "../VKRenderPass.h"
+ #include "../../Utils/color_utils.hpp"
++#ifdef RPCS3_IOS
++#include "ios/IOSInPassReadTransition.h" // REWINDBOX_IN_PASS_READ_TRANSITION_655
++#endif
+ 
+ namespace vk
+ {
+@@ -35,11 +38,61 @@ namespace vk
+ 		return { final_mapping[1], final_mapping[2], final_mapping[3], final_mapping[0] };
+ 	}
+ 
++#ifdef RPCS3_IOS
++	// REWINDBOX_IN_PASS_READ_TRANSITION_655 (ios/IOSInPassReadTransition.h): whether this transition may be recorded
++	// inside the open render pass. Only a transition to SHADER_READ_ONLY_OPTIMAL from an attachment or transfer layout,
++	// with the standard full access masks and no queue family transfer, of an image known not to be an attachment of
++	// the open pass, while the lever is on (the patched MoltenVK then makes the open encoder wait for the writer).
++	static bool rewindbox_keep_pass_for_read_transition(const vk::command_buffer& cmd, VkImage image, VkImageLayout current_layout,
++		VkImageLayout new_layout, u32 src_queue_family, u32 dst_queue_family, u32 src_access_mask_bits, u32 dst_access_mask_bits)
++	{
++		namespace in_pass = rpcs3::ios::in_pass_read;
++		auto& c = in_pass::counters;
++		if (new_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
++		{
++			in_pass::add(c.ended_other);
++			return false;
++		}
++		if (!in_pass::enabled.load(std::memory_order_relaxed))
++		{
++			in_pass::add(c.ended_disabled);
++			return false;
++		}
++		const bool from_attachment = current_layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL ||
++			current_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
++		const bool from_transfer = current_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL ||
++			current_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
++		if ((!from_attachment && !from_transfer) || src_queue_family != dst_queue_family ||
++			src_access_mask_bits != ~0u || dst_access_mask_bits != ~0u)
++		{
++			in_pass::add(c.ended_layout);
++			return false;
++		}
++		switch (vk::classify_open_pass_image(cmd, image))
++		{
++		case vk::open_pass_image::not_attachment:
++			in_pass::add(current_layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL ? c.kept_color :
++				current_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ? c.kept_depth : c.kept_transfer);
++			return true;
++		case vk::open_pass_image::attachment:
++			in_pass::add(c.ended_attachment);
++			return false;
++		default:
++			in_pass::add(c.ended_unknown);
++			return false;
++		}
++	}
++#endif
++
+ 	void change_image_layout(const vk::command_buffer& cmd, VkImage image, VkImageLayout current_layout, VkImageLayout new_layout, const VkImageSubresourceRange& range,
+ 		u32 src_queue_family, u32 dst_queue_family, u32 src_access_mask_bits, u32 dst_access_mask_bits)
+ 	{
+ 		if (vk::is_renderpass_open(cmd))
+ 		{
++#ifdef RPCS3_IOS
++			if (!rewindbox_keep_pass_for_read_transition(cmd, image, current_layout, new_layout, src_queue_family, dst_queue_family,
++				src_access_mask_bits, dst_access_mask_bits))
++#endif
+ 			vk::end_renderpass(cmd);
+ 		}
+ 
+diff --git a/rpcs3/ios/IOSInPassReadTransition.h b/rpcs3/ios/IOSInPassReadTransition.h
+new file mode 100644
+index 0000000..4ac76a8
+--- /dev/null
++++ b/rpcs3/ios/IOSInPassReadTransition.h
+@@ -0,0 +1,60 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_IN_PASS_READ_TRANSITION_655: Assassin's Creed, IPA 653 (Core 652) device log, gameplay at 24-29 FPS with
++// the GPU 70-78 % busy: 44-53 render passes begin per frame, 13-19 of them on the framebuffer the previous pass ended
++// on (COREPROF RPASS652). vk::change_image_layout ends 28-36 passes per frame, 4-11 of which the next draw begins
++// again on the same framebuffer: an image the next draw samples (a render target rendered earlier, a texture uploaded
++// earlier) changes to SHADER_READ_ONLY_OPTIMAL while the pass is open, and the transition ended the pass. On the Apple
++// GPU every restart stores every attachment of the pass to memory and loads it back.
++//
++// A transition to SHADER_READ_ONLY_OPTIMAL of an image that is not an attachment of the open pass is now recorded
++// inside the pass. Its writer (an earlier pass or copy) is in an earlier Metal encoder: the patched MoltenVK makes
++// the open render encoder wait for the barrier's stage fences, as the next encoder would have after a restart
++// (MVKCmdPipelineBarrier, build-utils/rpcs3/patches/moltenvk-1.4.2-deferred-cache.patch; without a residency set
++// Metal tracks the hazard itself). Kept only when:
++// - the title policy enables it (Automatic: Assassin's Creed) and the linked MoltenVK defines
++//   rbx_mvk_in_pass_read_barrier_waits() (weak reference, checked once per boot);
++// - the transition goes to SHADER_READ_ONLY_OPTIMAL from a color or depth attachment layout or a transfer layout,
++//   with the full access masks of the standard transition and no queue family transfer;
++// - the open pass was begun by the draw path, whose framebuffer attachments are known, and the image is none of them.
++// Anything else ends the pass exactly as before. Counted per window (COREPROF RPASS655).
++extern "C" __attribute__((weak)) int rbx_mvk_in_pass_read_barrier_waits(void);
++
++namespace rpcs3::ios::in_pass_read
++{
++// Resolved once per boot (title policy and the MoltenVK hook); read by the RSX thread.
++inline std::atomic<bool> enabled{false};
++
++inline bool moltenvk_waits_in_pass() noexcept
++{
++	return rbx_mvk_in_pass_read_barrier_waits != nullptr && rbx_mvk_in_pass_read_barrier_waits() >= 1;
++}
++
++struct window_counters
++{
++	std::atomic<std::uint64_t> kept_color{0};       // kept open: COLOR_ATTACHMENT_OPTIMAL -> SHADER_READ_ONLY_OPTIMAL
++	std::atomic<std::uint64_t> kept_depth{0};       // kept open: DEPTH_STENCIL_ATTACHMENT_OPTIMAL -> SHADER_READ_ONLY_OPTIMAL
++	std::atomic<std::uint64_t> kept_transfer{0};    // kept open: TRANSFER_DST/SRC_OPTIMAL -> SHADER_READ_ONLY_OPTIMAL
++	std::atomic<std::uint64_t> ended_attachment{0}; // read transition of an attachment of the open pass: ended
++	std::atomic<std::uint64_t> ended_unknown{0};    // read transition while the open pass's attachments are unknown: ended
++	std::atomic<std::uint64_t> ended_layout{0};     // read transition from another layout or with other masks/queues: ended
++	std::atomic<std::uint64_t> ended_disabled{0};   // read transition while the lever is off: ended
++	std::atomic<std::uint64_t> ended_other{0};      // transition to another layout with the pass open: ended
++};
++
++inline window_counters counters{};
++
++inline void add(std::atomic<std::uint64_t>& counter) noexcept
++{
++	counter.fetch_add(1, std::memory_order_relaxed);
++}
++
++inline std::uint64_t take(std::atomic<std::uint64_t>& counter) noexcept
++{
++	return counter.exchange(0, std::memory_order_relaxed);
++}
++}
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index f6b45b7..1f0c5f7 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -19,6 +19,7 @@
+ #include "IOSTitleLevers.h"
+ #include "IOSThreadQoS.h"
+ #include "IOSMoltenVKAsyncCanary.h"
++#include "IOSInPassReadTransition.h"
+ #include "Utilities/File.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
+@@ -390,6 +391,12 @@ void resolve_experimental_policy() noexcept
+ 	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627: Automatic is the title list.
+ 	resolved.spu_noop_spin_wait = resolve_mode(g_cfg.ios_experimental.spu_noop_spin_wait,
+ 		rpcs3::ios::title_levers::wants_spu_noop_spin_wait(title_id) || is_god_of_war_iii_title(title_id));
++	// REWINDBOX_IN_PASS_READ_TRANSITION_655: Assassin's Creed (IPA 653: 4-11 restarts of the same framebuffer per frame
++	// after a read transition), and only with the MoltenVK that waits for the barrier inside the pass.
++	resolved.moltenvk_in_pass_waits = rpcs3::ios::in_pass_read::moltenvk_waits_in_pass();
++	resolved.in_pass_read_transitions = resolved.moltenvk_in_pass_waits &&
++		rpcs3::ios::title_levers::is_assassins_creed_title(title_id);
++	rpcs3::ios::in_pass_read::enabled.store(resolved.in_pass_read_transitions, std::memory_order_relaxed);
+ 	// REWINDBOX_SPU_QOS_627: Automatic is the three reference titles.
+ 	resolved.spu_qos_below_rsx = resolve_mode(g_cfg.ios_experimental.spu_qos_below_rsx,
+ 		is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id) ||
+@@ -465,6 +472,8 @@ void resolve_experimental_policy() noexcept
+ 	ios_experimental_log.notice("Resolved title policy 627: zcull_wait_guard=%d zcull_cond_no_wait=%d zcull_conservative_reports=%d spu_noop_spin_wait=%d spu_qos_below_rsx=%d fifo_nop_fast_path=%d light_measurement=%d",
+ 		resolved.zcull_wait_guard, resolved.zcull_cond_no_wait, resolved.zcull_conservative_reports, resolved.spu_noop_spin_wait,
+ 		resolved.spu_qos_below_rsx, resolved.fifo_nop_fast_path, resolved.light_measurement);
++	ios_experimental_log.notice("Resolved title policy 655: in_pass_read_transitions=%d mvk_in_pass_waits=%d",
++		resolved.in_pass_read_transitions, resolved.moltenvk_in_pass_waits);
+ }
+ 
+ void apply_spu_spin_timing_policy() noexcept
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 7a13921..a8df167 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -98,6 +98,11 @@ struct experimental_policy
+ 	// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): GPU timestamp pairs around the RSX
+ 	// primary command buffers, read after completion. Every title; Disabled turns it off.
+ 	bool gpu_timing = true;
++	// REWINDBOX_IN_PASS_READ_TRANSITION_655 (ios/IOSInPassReadTransition.h): a read transition of an image that is not
++	// an attachment of the open render pass is recorded inside it. Title scoped (Assassin's Creed), without a setting,
++	// and only when the linked MoltenVK waits for such barriers inside a pass.
++	bool in_pass_read_transitions = false;
++	bool moltenvk_in_pass_waits = false;
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers), resolved once per boot
+ 	// like the fields above; none of them enters an object-cache key.
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index c1d559f..b31f42f 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -33,6 +33,7 @@
+ #include "IOSFeedbackCensus.h"
+ #include "IOSTextureCacheProfile.h" // REWINDBOX_TEXCACHE_PROFILE_621
+ #include "IOSRenderPassCensus.h" // REWINDBOX_RENDERPASS_CENSUS_652
++#include "IOSInPassReadTransition.h" // REWINDBOX_IN_PASS_READ_TRANSITION_655
+ #include "IOSZcullLabelPage.h" // REWINDBOX_ZCULL_LABEL_PAGE_624
+ #include "IOSRendererCausality.h"
+ #include "IOSSignalTrace.h"
+@@ -1607,6 +1608,23 @@ private:
+                 "sites=%s scope=process_window_counters",
+                 profile_session, profile_window, rp_begins, rp_fresh, rp_same, rp_other, rp_overflow, rp_sites.c_str());
+         }
++        // REWINDBOX_IN_PASS_READ_TRANSITION_655: transitions to SHADER_READ_ONLY_OPTIMAL recorded inside the open render
++        // pass (kept_color/kept_depth/kept_transfer: from an attachment or transfer layout), and those that still ended it
++        // (attachment of the open pass, attachments unknown, another source layout or mask, lever off), plus transitions
++        // to other layouts that ended a pass (other). enabled= the boot's resolution.
++        {
++            namespace in_pass = rpcs3::ios::in_pass_read;
++            auto& c = in_pass::counters;
++            const u64 kept_color = in_pass::take(c.kept_color), kept_depth = in_pass::take(c.kept_depth),
++                kept_transfer = in_pass::take(c.kept_transfer), ended_attachment = in_pass::take(c.ended_attachment),
++                ended_unknown = in_pass::take(c.ended_unknown), ended_layout = in_pass::take(c.ended_layout),
++                ended_disabled = in_pass::take(c.ended_disabled), ended_other = in_pass::take(c.ended_other);
++            ios_core_profiler.notice(
++                "COREPROF RPASS655 session=%llu window=%llu enabled=%d kept_color=%llu kept_depth=%llu kept_transfer=%llu "
++                "ended_attachment=%llu ended_unknown=%llu ended_layout=%llu ended_disabled=%llu ended_other=%llu scope=process_window_counters",
++                profile_session, profile_window, in_pass::enabled.load(std::memory_order_relaxed) ? 1 : 0, kept_color, kept_depth,
++                kept_transfer, ended_attachment, ended_unknown, ended_layout, ended_disabled, ended_other);
++        }
+         // REWINDBOX_SPU_WAIT_PROFILE_V1: SPU time outside guest code, summed over
+         // the SPU threads (deltas of monotonic per-thread totals).
+         {

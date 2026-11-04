@@ -80,8 +80,10 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # Eleven with the queued syncpoints: the counter report compaction fixture declares CounterCache.cs and DeferredCounterReport.cs.
 # Thirteen with Core 639 (PR #153 lot), eighteen with Core 642 (PR #154 lot: four adapter gates and the barrier compaction rerun on the final preparation).
 # Twenty with Core 644 (PR #156 lot: read-back receivers and present source attribution); twenty-two with Core 647
-# (its follow-up: teardown compile cancel and the pause guest-thread record); twenty-three with Core 649 (teardown phase marks).
-FRESH_GATES = 23
+# (its follow-up: teardown compile cancel and the pause guest-thread record); twenty-three with Core 649 (teardown phase marks);
+# twenty-seven with Core 654 (PR #156 new lot: binder teardown, gcEvent lines of the collector, artifact-path counters, and the
+# single-virtual-dependency fixture rerun because its receipt declares the collector).
+FRESH_GATES = 27
 HISTORICAL_RECEIPTS = 61
 
 

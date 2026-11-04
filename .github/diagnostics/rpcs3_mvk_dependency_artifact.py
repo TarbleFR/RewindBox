@@ -43,6 +43,7 @@ CURRENT_REQUIRED = (
     PRODUCER, ADAPTER, PATCH, HOST,
     "test/rpcs3_moltenvk_metal_probe.py", "test/native/rpcs3_moltenvk_metal_probe.mm",
     "test/rpcs3_moltenvk_source_producer_test.py", "test/rpcs3_pipeline_cache_milestones_test.py",
+    "test/rpcs3_moltenvk_in_pass_read_wait_test.py",
 )
 # The source-extracted C++ runner's report-only metadata may differ. Its tested
 # source commit and exact historical input remain bound by verify_host below.
@@ -72,6 +73,11 @@ def load_module(name, path):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def current_bytes(name):
+    """The bytes of a repository file as the current checkout holds them (a test seam for the reviewed host pair)."""
+    return (ROOT / name).read_bytes()
 
 
 def capture(*argv):
@@ -164,7 +170,7 @@ def load_symbols(bridge_text):
 
 def reviewed_host_delta_equivalence(source_commit):
     """Executable proof that the reviewed bridge delta is invisible to everything the run read."""
-    return host_delta_equivalence(capture("git", "show", source_commit + ":" + HOST), (ROOT / HOST).read_bytes())
+    return host_delta_equivalence(capture("git", "show", source_commit + ":" + HOST), current_bytes(HOST))
 
 
 def host_delta_equivalence(before, after):
@@ -204,7 +210,7 @@ def verify_host(path, phase, run_id, source, run_attempt, *, reviewed_host_delta
     for name in CURRENT_REQUIRED:
         if reviewed_host_delta and name == HOST:
             # Only the exact reviewed pair, and only with its executable equivalence.
-            require(host["input_sha256"][name] == HOST_BEFORE and digest(ROOT / name) == HOST_AFTER,
+            require(host["input_sha256"][name] == HOST_BEFORE and hashlib.sha256(current_bytes(name)).hexdigest() == HOST_AFTER,
                     "Unreviewed host delta: " + name)
             reviewed_host_delta_equivalence(source)
             continue
@@ -288,6 +294,10 @@ def verify_package(package, source_commit):
     symbols = set(re.findall(r"(?m)^\s*(?:U\s+)?(_[A-Za-z0-9_]+)\s*$", undefined))
     require(producer.HOOKS <= symbols and receipt["required_core_queue_hooks"] == sorted(producer.HOOKS),
             "Source-built archive lost the real Core queue hooks")
+    defined = capture("xcrun", "nm", "-g", "--defined-only", library).decode()
+    defined_symbols = set(re.findall(r"(?m)^[0-9a-fA-F]*\s+[TtDdSs]\s+(_[A-Za-z0-9_]+)\s*$", defined))
+    require(producer.DEFINED_HOOKS <= defined_symbols and receipt["defined_core_hooks"] == sorted(producer.DEFINED_HOOKS),
+            "Source-built archive does not define the in-pass read barrier hook")
     return {"package_root": str(package.resolve()), "library": str(library.resolve()),
             "library_sha256": digest(library), "receipt_path": str((package / "receipt.json").resolve()),
             "receipt_sha256": digest(package / "receipt.json"), "source": source_commit,
@@ -308,12 +318,20 @@ def verify_preflight(root, adapter):
             report["patch_contract_cases"] == 4, "Affected Apple adapter tests did not pass")
     require(report["apple_objcxx_build"] == report["real_metal_execution"] == report["iphone_bo2_multiplayer"] == "not_run" and
             report["fps_gain_claimed"] is False, "Adapter report exceeds its scope")
+    in_pass = json.loads((root / "arm64-in-pass-read-wait.json").read_bytes())
+    require(in_pass["result"] == "passed" and in_pass["patch_sha256"] == digest(ROOT / PATCH) and
+            in_pass["harness"]["result"] == "passed" and in_pass["harness"]["scenarios"] == 4 and
+            in_pass["harness"]["negativeControls"] == 4 and in_pass["harness"]["randomReads"] > 1000 and
+            in_pass["sanitizers"] == ["address", "undefined"] and in_pass["iphone_tested"] is False and
+            in_pass["fps_gain_claimed"] is False, "In-pass read barrier waits were not verified on this patch")
     milestone = (root / "arm64-host-milestones.log").read_text()
     require("PASS: 14 native cache boundaries, independent 16/s cap, notice routing, raw128 budget and 32 concurrent writers" in milestone,
             "Affected host boundary cases did not pass")
     return {"report_sha256": digest(root / "arm64-source-extracted.json"),
             "host_milestones_log_sha256": digest(root / "arm64-host-milestones.log"),
             "behavioral_cases": 12, "patch_contract_cases": 4,
+            "in_pass_read_wait_sha256": digest(root / "arm64-in-pass-read-wait.json"),
+            "in_pass_read_wait_checks": in_pass["harness"]["checks"],
             "native_tests_executed_now": 0, "reused_dependency_validation": True,
             "real_metal_execution_verified_by_this_artifact": False}
 

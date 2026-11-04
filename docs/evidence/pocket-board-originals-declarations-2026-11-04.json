@@ -19,13 +19,13 @@
   "catalog_skins": 5,
   "added_skins": {
    "gamecube-pocket-original": {
-    "size": 6452061,
-    "sha256": "ec38213381a8e1929b08ad9fe181b4e2af2dec64c78691733f472b8e62b186b1",
+    "size": 5995074,
+    "sha256": "9988f5d7ec07cb5a3e45a49871ba59792e414a00d70433f9d8908a28692d71ea",
     "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin"
    },
    "wii-pocket-original": {
-    "size": 5257748,
-    "sha256": "6be2863c7ff9e23fd0fabc3481fc2ed3dd2d9745cefc78c5777fe7d9dd96f75a",
+    "size": 5105387,
+    "sha256": "645bd5ab1310466d9e95661a55705bf4e50696cbc6513bd195aa971be6e47d39",
     "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin"
    }
   },
@@ -47,6 +47,24 @@
      "wii-pocket-original": {
       "size": 4874505,
       "sha256": "e451f327cbfa62c93bcf61395f9000f9220d1088b4a435492273f4b2c453916a",
+      "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin"
+     }
+    }
+   }
+  },
+  {
+   "date": "2026-11-04",
+   "change": "PR #160 stick fix: the two Original archives regenerated from the same approved boards (only each analog stick's measured top face moves; the skirt and the yellow C base stay; the area under the top is the skirt colour); same ids, names and previews; same art sources, no new third-party material. The catalog moved on through the later PS2 Pocket - Original overlay, which binds the current catalog",
+   "previous": {
+    "added_skins": {
+     "gamecube-pocket-original": {
+      "size": 6452061,
+      "sha256": "ec38213381a8e1929b08ad9fe181b4e2af2dec64c78691733f472b8e62b186b1",
+      "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin"
+     },
+     "wii-pocket-original": {
+      "size": 5257748,
+      "sha256": "6be2863c7ff9e23fd0fabc3481fc2ed3dd2d9745cefc78c5777fe7d9dd96f75a",
       "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin"
      }
     }

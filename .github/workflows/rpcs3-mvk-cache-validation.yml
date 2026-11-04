@@ -1,6 +1,9 @@
 # Explicit candidate validation only. Source pushes use [skip ci]; a separate
 # marker commit touching only this workflow avoids historical broad Core routes.
 # Validation request: BO2 cache candidate, 31 October 2026; no IPA or release.
+# Validation request: RPCS3 Core 655 in-pass read transitions (MVKCmdPipelineBarrier fence waits
+# inside a render encoder, rbx_mvk_in_pass_read_barrier_waits), 4 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 655 (in-pass read transitions), 4 November 2026.
 name: RPCS3 MoltenVK cache candidate validation
 run-name: "RPCS3 MoltenVK cache candidate • ${{ github.sha }}"
 'on':
@@ -70,6 +73,9 @@ jobs:
             2>&1 | tee build/rpcs3-mvk-cache-validation/arm64-source-extracted.log
           python3 test/rpcs3_pipeline_cache_milestones_test.py \
             2>&1 | tee build/rpcs3-mvk-cache-validation/arm64-host-milestones.log
+          python3 test/rpcs3_moltenvk_in_pass_read_wait_test.py "$RUNNER_TEMP/rpcs3-mvk-preflight/MoltenVK" --cxx clang++ \
+            --report build/rpcs3-mvk-cache-validation/arm64-in-pass-read-wait.json \
+            2>&1 | tee build/rpcs3-mvk-cache-validation/arm64-in-pass-read-wait.log
       - name: Preserve preflight receipts and failures
         if: always()
         uses: actions/upload-artifact@v4

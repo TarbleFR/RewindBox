@@ -111,6 +111,8 @@ from adapt_present_source_attribution import apply as adapt_present_source_attri
 from adapt_teardown_compile_cancel import apply as adapt_teardown_compile_cancel
 from adapt_pause_guest_threads import apply as adapt_pause_guest_threads
 from adapt_teardown_phase_marks import apply as adapt_teardown_phase_marks
+from adapt_binder_teardown import apply as adapt_binder_teardown
+from adapt_artifact_counters import apply as adapt_artifact_counters
 
 
 def replace_once(path, old, new):
@@ -283,6 +285,12 @@ def main():
     adapted += [source / name for name in adapt_pause_guest_threads(source)]
     # Teardown phase marks (journal only; VulkanRenderer after adapt_teardown_compile_cancel, WindowBase).
     adapted += [source / name for name in adapt_teardown_phase_marks(source)]
+    # PR #156 new lot, IPA 650 logs (each pins the Core 649 preparation's bytes of its files): closed sessions' layer
+    # binders released in SurfaceFlinger.Dispose with the sessionRetention probe (SurfaceFlinger, HOSBinderDriverServer,
+    # Library), then the artifact-path counters (PipelineBase and BarrierBatch after adapt_moltenvk_barrier_ordering,
+    # TextureArray); journal and counters apart from the binder release.
+    adapted += [source / name for name in adapt_binder_teardown(source)]
+    adapted += [source / name for name in adapt_artifact_counters(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -360,7 +368,8 @@ def main():
                  'adapt_moltenvk_barrier_ordering.py', 'adapt_descriptor_scratch_all_titles.py',
                  'adapt_readback_occupied_attribution.py', 'adapt_pipeline_miss_context.py',
                  'adapt_readback_receivers.py', 'adapt_present_source_attribution.py',
-                 'adapt_teardown_compile_cancel.py', 'adapt_pause_guest_threads.py', 'adapt_teardown_phase_marks.py']:
+                 'adapt_teardown_compile_cancel.py', 'adapt_pause_guest_threads.py', 'adapt_teardown_phase_marks.py',
+                 'adapt_binder_teardown.py', 'adapt_artifact_counters.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

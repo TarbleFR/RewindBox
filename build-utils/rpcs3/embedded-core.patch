@@ -23342,7 +23342,7 @@ index 4925d88..e7b92ac 100644
  		m_wake_event++;
  		m_wake_event.notify_one();
 diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
-index 77927e2..4ee5c33 100644
+index 77927e2..de00d56 100644
 --- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
 @@ -7,8 +7,16 @@
@@ -23362,7 +23362,7 @@ index 77927e2..4ee5c33 100644
  namespace vk
  {
  	VkImageViewType get_view_type(rsx::texture_dimension_extended type)
-@@ -120,13 +128,85 @@ namespace vk
+@@ -120,13 +128,100 @@ namespace vk
  	}
  }
  
@@ -23445,11 +23445,26 @@ index 77927e2..4ee5c33 100644
 +	{
 +		rpcs3::ios::feedback_census::add(rpcs3::ios::feedback_census::counters.draw_renderpasses);
 +	}
++	{
++		// REWINDBOX_IN_PASS_READ_TRANSITION_655: the attachments of the pass now open on m_draw_fbo (images of its views).
++		std::array<VkImage, 8> images{};
++		u32 count = 0;
++		for (const auto& view : m_draw_fbo->attachments)
++		{
++			if (count == images.size())
++			{
++				count = 0; // more than the registry holds: unknown, the pass ends as before
++				break;
++			}
++			images[count++] = view->image()->value;
++		}
++		vk::note_renderpass_attachments(*m_current_command_buffer, m_draw_fbo->value, images.data(), count);
++	}
 +#endif
  }
  
  void VKGSRender::close_render_pass()
-@@ -172,14 +252,14 @@ void VKGSRender::update_draw_state()
+@@ -172,14 +267,14 @@ void VKGSRender::update_draw_state()
  	{
  		const float actual_line_width =
  			m_device->get_wide_lines_support() ? rsx::method_registers.line_width() * resolution_scaling_config.scale_factor() : 1.f;
@@ -23466,7 +23481,7 @@ index 77927e2..4ee5c33 100644
  	}
  
  	if (rsx::method_registers.stencil_test_enabled())
-@@ -187,15 +267,15 @@ void VKGSRender::update_draw_state()
+@@ -187,15 +282,15 @@ void VKGSRender::update_draw_state()
  		const bool two_sided_stencil = rsx::method_registers.two_sided_stencil_test_enabled();
  		VkStencilFaceFlags face_flag = (two_sided_stencil) ? VK_STENCIL_FACE_FRONT_BIT : VK_STENCIL_FRONT_AND_BACK;
  
@@ -23488,7 +23503,7 @@ index 77927e2..4ee5c33 100644
  		}
  	}
  
-@@ -226,12 +306,12 @@ void VKGSRender::update_draw_state()
+@@ -226,12 +321,12 @@ void VKGSRender::update_draw_state()
  			polygon_offset_bias *= 0.5f;
  		}
  
@@ -23503,7 +23518,7 @@ index 77927e2..4ee5c33 100644
  	}
  
  	if (m_device->get_depth_bounds_support())
-@@ -256,7 +336,7 @@ void VKGSRender::update_draw_state()
+@@ -256,7 +351,7 @@ void VKGSRender::update_draw_state()
  			bounds_max = std::clamp(bounds_max, 0.f, 1.f);
  		}
  
@@ -23512,7 +23527,7 @@ index 77927e2..4ee5c33 100644
  	}
  
  	bind_viewport();
-@@ -270,9 +350,47 @@ void VKGSRender::load_texture_env()
+@@ -270,9 +365,47 @@ void VKGSRender::load_texture_env()
  {
  	// Load textures
  	bool check_for_cyclic_refs = false;
@@ -23521,8 +23536,7 @@ index 77927e2..4ee5c33 100644
 +	auto record_sampler_change = [&](const vk::sampler_shader_state& before, const auto& descriptor,
 +		u32 previous_address, u32 slot, bool vertex,
 +		rpcs3::ios::renderer_causality::Kind kind = rpcs3::ios::renderer_causality::Kind::sampler_refresh)
- 	{
--		if (!m_texture_cache.test_if_descriptor_expired(*m_current_command_buffer, m_rtts, descriptor, tex))
++	{
 +		namespace cause = rpcs3::ios::renderer_causality;
 +		const auto after = vertex ? vk::sampler_shader_state::capture_vertex(descriptor)
 +			: vk::sampler_shader_state::capture_fragment(descriptor);
@@ -23542,7 +23556,8 @@ index 77927e2..4ee5c33 100644
 +	};
 +#endif
 +	auto check_surface_cache_sampler_valid = [&](auto descriptor, const auto& tex, bool fragment_sampler, [[maybe_unused]] u32 slot)
-+	{
+ 	{
+-		if (!m_texture_cache.test_if_descriptor_expired(*m_current_command_buffer, m_rtts, descriptor, tex))
 +		const bool was_cyclic = descriptor->is_cyclic_reference;
 +		const bool expired = m_texture_cache.test_if_descriptor_expired(*m_current_command_buffer, m_rtts, descriptor, tex);
 +		if (fragment_sampler && descriptor->format_class != RSX_FORMAT_CLASS_COLOR &&
@@ -23562,7 +23577,7 @@ index 77927e2..4ee5c33 100644
  		{
  			check_for_cyclic_refs |= descriptor->is_cyclic_reference;
  			return true;
-@@ -290,12 +408,9 @@ void VKGSRender::load_texture_env()
+@@ -290,12 +423,9 @@ void VKGSRender::load_texture_env()
  
  	std::lock_guard lock(m_sampler_mutex);
  
@@ -23577,7 +23592,7 @@ index 77927e2..4ee5c33 100644
  
  		if (!fs_sampler_state[i])
  		{
-@@ -304,17 +419,24 @@ void VKGSRender::load_texture_env()
+@@ -304,17 +434,24 @@ void VKGSRender::load_texture_env()
  
  		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(fs_sampler_state[i].get());
  		const auto& tex = rsx::method_registers.fragment_textures[i];
@@ -23604,7 +23619,7 @@ index 77927e2..4ee5c33 100644
  
  		if (!tex.enabled())
  		{
-@@ -322,9 +444,22 @@ void VKGSRender::load_texture_env()
+@@ -322,9 +459,22 @@ void VKGSRender::load_texture_env()
  			continue;
  		}
  
@@ -23627,7 +23642,7 @@ index 77927e2..4ee5c33 100644
  			continue;
  		}
  
-@@ -333,16 +468,29 @@ void VKGSRender::load_texture_env()
+@@ -333,16 +483,29 @@ void VKGSRender::load_texture_env()
  			check_for_cyclic_refs |= true;
  		}
  
@@ -23659,7 +23674,7 @@ index 77927e2..4ee5c33 100644
  				// Nothing to change, use cached sampler
  				continue;
  			}
-@@ -383,6 +531,19 @@ void VKGSRender::load_texture_env()
+@@ -383,6 +546,19 @@ void VKGSRender::load_texture_env()
  			}
  		}
  
@@ -23679,7 +23694,7 @@ index 77927e2..4ee5c33 100644
  		VkFilter mag_filter;
  		vk::minification_filter min_filter;
  		f32 min_lod = 0.f, max_lod = 0.f;
-@@ -523,12 +684,9 @@ void VKGSRender::load_texture_env()
+@@ -523,12 +699,9 @@ void VKGSRender::load_texture_env()
  			border_color, compare_enabled, depth_compare_mode);
  	}
  
@@ -23694,7 +23709,7 @@ index 77927e2..4ee5c33 100644
  
  		if (!vs_sampler_state[i])
  		{
-@@ -537,17 +695,24 @@ void VKGSRender::load_texture_env()
+@@ -537,17 +710,24 @@ void VKGSRender::load_texture_env()
  
  		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(vs_sampler_state[i].get());
  		const auto& tex = rsx::method_registers.vertex_textures[i];
@@ -23721,7 +23736,7 @@ index 77927e2..4ee5c33 100644
  
  		if (!rsx::method_registers.vertex_textures[i].enabled())
  		{
-@@ -555,9 +720,23 @@ void VKGSRender::load_texture_env()
+@@ -555,9 +735,23 @@ void VKGSRender::load_texture_env()
  			continue;
  		}
  
@@ -23745,7 +23760,7 @@ index 77927e2..4ee5c33 100644
  			continue;
  		}
  
-@@ -568,10 +747,13 @@ void VKGSRender::load_texture_env()
+@@ -568,10 +762,13 @@ void VKGSRender::load_texture_env()
  
  		if (!is_sampler_dirty)
  		{
@@ -23760,7 +23775,7 @@ index 77927e2..4ee5c33 100644
  			}
  
  			if (vs_sampler_handles[i])
-@@ -644,18 +826,75 @@ void VKGSRender::load_texture_env()
+@@ -644,18 +841,75 @@ void VKGSRender::load_texture_env()
  	}
  }
  
@@ -23841,7 +23856,7 @@ index 77927e2..4ee5c33 100644
  		if (m_fs_binding_table->ftex_location[i] == umax)
  		{
  			// Corrupt shader table
-@@ -682,6 +921,20 @@ bool VKGSRender::bind_texture_env()
+@@ -682,6 +936,20 @@ bool VKGSRender::bind_texture_env()
  			}
  		}
  
@@ -23862,7 +23877,7 @@ index 77927e2..4ee5c33 100644
  		if (view) [[likely]]
  		{
  			m_program->bind_uniform({ *view, *fs_sampler_handles[i] },
-@@ -727,13 +980,9 @@ bool VKGSRender::bind_texture_env()
+@@ -727,13 +995,9 @@ bool VKGSRender::bind_texture_env()
  		}
  	}
  
@@ -23878,7 +23893,7 @@ index 77927e2..4ee5c33 100644
  
  		if (m_vs_binding_table->vtex_location[i] == umax)
  		{
-@@ -902,10 +1151,12 @@ bool VKGSRender::bind_interpreter_texture_env()
+@@ -902,10 +1166,12 @@ bool VKGSRender::bind_interpreter_texture_env()
  		return image->get_view(decoded_remap, base->info.subresourceRange.aspectMask);
  	};
  
@@ -23894,7 +23909,7 @@ index 77927e2..4ee5c33 100644
  
  		vk::image_view* view = nullptr;
  		auto sampler_state = static_cast<vk::texture_cache::sampled_image_descriptor*>(fs_sampler_state[i].get());
-@@ -961,6 +1212,21 @@ bool VKGSRender::bind_interpreter_texture_env()
+@@ -961,6 +1227,21 @@ bool VKGSRender::bind_interpreter_texture_env()
  			validate_image_layout_for_read_access(*m_current_command_buffer, view, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, sampler_state);
  		}
  
@@ -23916,7 +23931,7 @@ index 77927e2..4ee5c33 100644
  		const int offsets[] = { 0, 16, 48, 32 };
  		auto& sampled_image_info = texture_env[offsets[static_cast<u32>(sampler_state->image_type)] + i];
  		sampled_image_info = { *view, *fs_sampler_handles[i] };
-@@ -1110,6 +1376,13 @@ void VKGSRender::emit_geometry(u32 sub_index)
+@@ -1110,6 +1391,13 @@ void VKGSRender::emit_geometry(u32 sub_index)
  
  	if (current_fragment_program.ctrl & RSX_SHADER_CONTROL_PROGRAMMABLE_BLENDING)
  	{
@@ -23930,7 +23945,7 @@ index 77927e2..4ee5c33 100644
  		// Subpass inter-draw dependency for input attachment reads. Preserves open renderpasses.
  		for (u32 i = 0; i < current_fragment_program.mrt_buffers_count; ++i)
  		{
-@@ -1297,6 +1570,11 @@ void VKGSRender::end()
+@@ -1297,6 +1585,11 @@ void VKGSRender::end()
  
  	if (!load_program())
  	{
@@ -23942,7 +23957,7 @@ index 77927e2..4ee5c33 100644
  		// Program is not ready, skip drawing this
  		std::this_thread::yield();
  		execute_nop_draw();
-@@ -1404,6 +1682,10 @@ void VKGSRender::end()
+@@ -1404,6 +1697,10 @@ void VKGSRender::end()
  	}
  
  	m_rtts.on_write(m_framebuffer_layout.color_write_enabled, m_framebuffer_layout.zeta_write_enabled);
@@ -26418,10 +26433,18 @@ index 3427f2c..ee91ba1 100644
  		}
  	};
 diff --git a/rpcs3/Emu/RSX/VK/VKRenderPass.cpp b/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
-index 5e74d64..281ddda 100644
+index 5e74d64..936b456 100644
 --- a/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
-@@ -6,6 +6,9 @@
+@@ -1,11 +1,17 @@
+ #include "stdafx.h"
+ 
++#include <algorithm>
++#include <array>
++
+ #include "Utilities/mutex.h"
+ #include "VKRenderPass.h"
+ #include "VKHelpers.h"
  #include "vkutils/image.h"
  
  #include "Emu/RSX/Common/unordered_map.hpp"
@@ -26431,27 +26454,36 @@ index 5e74d64..281ddda 100644
  
  namespace vk
  {
-@@ -18,6 +21,9 @@ namespace vk
+@@ -18,6 +24,17 @@ namespace vk
  	atomic_t<u64> g_cached_renderpass_key = 0;
  	VkRenderPass  g_cached_renderpass = VK_NULL_HANDLE;
  	rsx::unordered_map<VkCommandBuffer, active_renderpass_info_t>  g_current_renderpass;
 +#ifdef RPCS3_IOS
 +	rsx::unordered_map<VkCommandBuffer, rpcs3::ios::renderpass_census::last_end> g_rewindbox_last_end; // REWINDBOX_RENDERPASS_CENSUS_652
++	// REWINDBOX_IN_PASS_READ_TRANSITION_655: the attachments of the open pass, when the draw path that began it noted them.
++	struct rewindbox_open_attachments
++	{
++		VkFramebuffer fbo = VK_NULL_HANDLE;
++		std::array<VkImage, 8> images{};
++		u32 count = 0;
++	};
++	rsx::unordered_map<VkCommandBuffer, rewindbox_open_attachments> g_rewindbox_open_attachments;
 +#endif
  
  	shared_mutex g_renderpass_cache_mutex;
  	rsx::unordered_map<u64, VkRenderPass> g_renderpass_cache;
-@@ -383,6 +389,9 @@ namespace vk
+@@ -383,6 +400,10 @@ namespace vk
  		g_cached_renderpass_key = 0;
  		g_cached_renderpass = VK_NULL_HANDLE;
  		g_current_renderpass.clear();
 +#ifdef RPCS3_IOS
 +		g_rewindbox_last_end.clear(); // REWINDBOX_RENDERPASS_CENSUS_652
++		g_rewindbox_open_attachments.clear(); // REWINDBOX_IN_PASS_READ_TRANSITION_655
 +#endif
  
  		// Destroy cache
  		for (const auto &renderpass : g_renderpass_cache)
-@@ -393,12 +402,12 @@ namespace vk
+@@ -393,12 +414,12 @@ namespace vk
  		g_renderpass_cache.clear();
  	}
  
@@ -26466,12 +26498,13 @@ index 5e74d64..281ddda 100644
  		}
  		else if (renderpass_info.pass != VK_NULL_HANDLE)
  		{
-@@ -416,9 +425,13 @@ namespace vk
+@@ -416,9 +437,14 @@ namespace vk
  
  		vkCmdBeginRenderPass(cmd, &rp_begin, VK_SUBPASS_CONTENTS_INLINE);
  		renderpass_info = { pass, target };
 +#ifdef RPCS3_IOS
 +		rpcs3::ios::renderpass_census::on_begin(g_rewindbox_last_end[cmd], target); // REWINDBOX_RENDERPASS_CENSUS_652
++		g_rewindbox_open_attachments[cmd] = {}; // REWINDBOX_IN_PASS_READ_TRANSITION_655: unknown until the draw path notes them
 +#endif
 +		return true;
  	}
@@ -26481,7 +26514,7 @@ index 5e74d64..281ddda 100644
  	{
  		if (renderpass_key != g_cached_renderpass_key)
  		{
-@@ -426,12 +439,20 @@ namespace vk
+@@ -426,12 +452,21 @@ namespace vk
  			g_cached_renderpass_key = renderpass_key;
  		}
  
@@ -26499,12 +26532,57 @@ index 5e74d64..281ddda 100644
 +#ifdef RPCS3_IOS
 +		// REWINDBOX_RENDERPASS_CENSUS_652: the site that ended this pass, and the framebuffer it was on.
 +		rpcs3::ios::renderpass_census::on_end(g_rewindbox_last_end[cmd], g_current_renderpass[cmd].fbo, where.file_name(), where.line());
++		g_rewindbox_open_attachments[cmd] = {}; // REWINDBOX_IN_PASS_READ_TRANSITION_655
 +#endif
  		g_current_renderpass[cmd] = {};
  	}
  
+@@ -440,6 +475,43 @@ namespace vk
+ 		return g_current_renderpass[cmd].pass != VK_NULL_HANDLE;
+ 	}
+ 
++#ifdef RPCS3_IOS
++	// REWINDBOX_IN_PASS_READ_TRANSITION_655
++	void note_renderpass_attachments(const vk::command_buffer& cmd, VkFramebuffer target, const VkImage* images, u32 count)
++	{
++		const auto& active = g_current_renderpass[cmd];
++		auto& known = g_rewindbox_open_attachments[cmd];
++		if (active.pass == VK_NULL_HANDLE || active.fbo != target || count == 0 || count > known.images.size())
++		{
++			known = {};
++			return;
++		}
++		if (known.fbo == target && known.count == count && std::equal(images, images + count, known.images.begin()))
++		{
++			return;
++		}
++		known.fbo = target;
++		known.count = count;
++		std::copy_n(images, count, known.images.begin());
++	}
++
++	open_pass_image classify_open_pass_image(const vk::command_buffer& cmd, VkImage image)
++	{
++		const auto& active = g_current_renderpass[cmd];
++		if (active.pass == VK_NULL_HANDLE)
++		{
++			return open_pass_image::no_pass;
++		}
++		const auto& known = g_rewindbox_open_attachments[cmd];
++		if (known.fbo == VK_NULL_HANDLE || known.fbo != active.fbo || known.count == 0)
++		{
++			return open_pass_image::unknown;
++		}
++		const auto end = known.images.begin() + known.count;
++		return std::find(known.images.begin(), end, image) != end ? open_pass_image::attachment : open_pass_image::not_attachment;
++	}
++#endif
++
+ 	void renderpass_op(const vk::command_buffer& cmd, const renderpass_op_callback_t& op)
+ 	{
+ 		const auto& active = g_current_renderpass[cmd];
 diff --git a/rpcs3/Emu/RSX/VK/VKRenderPass.h b/rpcs3/Emu/RSX/VK/VKRenderPass.h
-index 7b9494c..f25809d 100644
+index 7b9494c..1f25e54 100644
 --- a/rpcs3/Emu/RSX/VK/VKRenderPass.h
 +++ b/rpcs3/Emu/RSX/VK/VKRenderPass.h
 @@ -2,6 +2,9 @@
@@ -26517,7 +26595,7 @@ index 7b9494c..f25809d 100644
  
  namespace vk
  {
-@@ -20,9 +23,15 @@ namespace vk
+@@ -20,10 +23,23 @@ namespace vk
  
  	// Renderpass scope management helpers.
  	// NOTE: These are not thread safe by design.
@@ -26533,8 +26611,16 @@ index 7b9494c..f25809d 100644
  	void end_renderpass(const vk::command_buffer& cmd);
 +#endif
  	bool is_renderpass_open(const vk::command_buffer& cmd);
++#ifdef RPCS3_IOS
++	// REWINDBOX_IN_PASS_READ_TRANSITION_655: the attachments of the pass open on this command buffer, as the draw path
++	// that began it knows them (count 0 or above capacity: unknown). Not thread safe, like the helpers above.
++	void note_renderpass_attachments(const vk::command_buffer& cmd, VkFramebuffer target, const VkImage* images, u32 count);
++	enum class open_pass_image { no_pass, unknown, attachment, not_attachment };
++	open_pass_image classify_open_pass_image(const vk::command_buffer& cmd, VkImage image);
++#endif
  
  	using renderpass_op_callback_t = std::function<void(const vk::command_buffer&, VkRenderPass, VkFramebuffer)>;
+ 	void renderpass_op(const vk::command_buffer& cmd, const renderpass_op_callback_t& op);
 diff --git a/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp b/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp
 index 4762f5e..458403e 100644
 --- a/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp
@@ -29272,10 +29358,82 @@ index a301db6..a5fa747 100644
  		using image::image;
  
 diff --git a/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp b/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
-index 5b96c13..6d625d0 100644
+index 5b96c13..f26a26b 100644
 --- a/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
 +++ b/rpcs3/Emu/RSX/VK/vkutils/image_helpers.cpp
-@@ -79,7 +79,8 @@ namespace vk
+@@ -3,6 +3,9 @@
+ #include "image.h"
+ #include "../VKRenderPass.h"
+ #include "../../Utils/color_utils.hpp"
++#ifdef RPCS3_IOS
++#include "ios/IOSInPassReadTransition.h" // REWINDBOX_IN_PASS_READ_TRANSITION_655
++#endif
+ 
+ namespace vk
+ {
+@@ -35,11 +38,61 @@ namespace vk
+ 		return { final_mapping[1], final_mapping[2], final_mapping[3], final_mapping[0] };
+ 	}
+ 
++#ifdef RPCS3_IOS
++	// REWINDBOX_IN_PASS_READ_TRANSITION_655 (ios/IOSInPassReadTransition.h): whether this transition may be recorded
++	// inside the open render pass. Only a transition to SHADER_READ_ONLY_OPTIMAL from an attachment or transfer layout,
++	// with the standard full access masks and no queue family transfer, of an image known not to be an attachment of
++	// the open pass, while the lever is on (the patched MoltenVK then makes the open encoder wait for the writer).
++	static bool rewindbox_keep_pass_for_read_transition(const vk::command_buffer& cmd, VkImage image, VkImageLayout current_layout,
++		VkImageLayout new_layout, u32 src_queue_family, u32 dst_queue_family, u32 src_access_mask_bits, u32 dst_access_mask_bits)
++	{
++		namespace in_pass = rpcs3::ios::in_pass_read;
++		auto& c = in_pass::counters;
++		if (new_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
++		{
++			in_pass::add(c.ended_other);
++			return false;
++		}
++		if (!in_pass::enabled.load(std::memory_order_relaxed))
++		{
++			in_pass::add(c.ended_disabled);
++			return false;
++		}
++		const bool from_attachment = current_layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL ||
++			current_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
++		const bool from_transfer = current_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL ||
++			current_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
++		if ((!from_attachment && !from_transfer) || src_queue_family != dst_queue_family ||
++			src_access_mask_bits != ~0u || dst_access_mask_bits != ~0u)
++		{
++			in_pass::add(c.ended_layout);
++			return false;
++		}
++		switch (vk::classify_open_pass_image(cmd, image))
++		{
++		case vk::open_pass_image::not_attachment:
++			in_pass::add(current_layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL ? c.kept_color :
++				current_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL ? c.kept_depth : c.kept_transfer);
++			return true;
++		case vk::open_pass_image::attachment:
++			in_pass::add(c.ended_attachment);
++			return false;
++		default:
++			in_pass::add(c.ended_unknown);
++			return false;
++		}
++	}
++#endif
++
+ 	void change_image_layout(const vk::command_buffer& cmd, VkImage image, VkImageLayout current_layout, VkImageLayout new_layout, const VkImageSubresourceRange& range,
+ 		u32 src_queue_family, u32 dst_queue_family, u32 src_access_mask_bits, u32 dst_access_mask_bits)
+ 	{
+ 		if (vk::is_renderpass_open(cmd))
+ 		{
++#ifdef RPCS3_IOS
++			if (!rewindbox_keep_pass_for_read_transition(cmd, image, current_layout, new_layout, src_queue_family, dst_queue_family,
++				src_access_mask_bits, dst_access_mask_bits))
++#endif
+ 			vk::end_renderpass(cmd);
+ 		}
+ 
+@@ -79,7 +132,8 @@ namespace vk
  				VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
  				VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT |
  				VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
@@ -29285,7 +29443,7 @@ index 5b96c13..6d625d0 100644
  			};
  			break;
  		case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-@@ -146,7 +147,7 @@ namespace vk
+@@ -146,7 +200,7 @@ namespace vk
  			{
  				// Finish reading before writing
  				barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT | VK_ACCESS_SHADER_READ_BIT;
@@ -29294,7 +29452,7 @@ index 5b96c13..6d625d0 100644
  			}
  			else
  			{
-@@ -164,7 +165,8 @@ namespace vk
+@@ -164,7 +218,8 @@ namespace vk
  					VK_PIPELINE_STAGE_TRANSFER_BIT |
  					VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
  					VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT |
@@ -29304,7 +29462,7 @@ index 5b96c13..6d625d0 100644
  				};
  			}
  			break;
-@@ -191,7 +193,7 @@ namespace vk
+@@ -191,7 +246,7 @@ namespace vk
  			break;
  		case VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT:
  			barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
@@ -34666,6 +34824,72 @@ index 0000000..493d4d3
 +	case 4: __atomic_store_n(reinterpret_cast<std::uint32_t*>(memory), static_cast<std::uint32_t>(value), __ATOMIC_RELAXED); break;
 +	default: __atomic_store_n(reinterpret_cast<std::uint64_t*>(memory), value, __ATOMIC_RELAXED); break;
 +	}
++}
++}
+diff --git a/rpcs3/ios/IOSInPassReadTransition.h b/rpcs3/ios/IOSInPassReadTransition.h
+new file mode 100644
+index 0000000..4ac76a8
+--- /dev/null
++++ b/rpcs3/ios/IOSInPassReadTransition.h
+@@ -0,0 +1,60 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_IN_PASS_READ_TRANSITION_655: Assassin's Creed, IPA 653 (Core 652) device log, gameplay at 24-29 FPS with
++// the GPU 70-78 % busy: 44-53 render passes begin per frame, 13-19 of them on the framebuffer the previous pass ended
++// on (COREPROF RPASS652). vk::change_image_layout ends 28-36 passes per frame, 4-11 of which the next draw begins
++// again on the same framebuffer: an image the next draw samples (a render target rendered earlier, a texture uploaded
++// earlier) changes to SHADER_READ_ONLY_OPTIMAL while the pass is open, and the transition ended the pass. On the Apple
++// GPU every restart stores every attachment of the pass to memory and loads it back.
++//
++// A transition to SHADER_READ_ONLY_OPTIMAL of an image that is not an attachment of the open pass is now recorded
++// inside the pass. Its writer (an earlier pass or copy) is in an earlier Metal encoder: the patched MoltenVK makes
++// the open render encoder wait for the barrier's stage fences, as the next encoder would have after a restart
++// (MVKCmdPipelineBarrier, build-utils/rpcs3/patches/moltenvk-1.4.2-deferred-cache.patch; without a residency set
++// Metal tracks the hazard itself). Kept only when:
++// - the title policy enables it (Automatic: Assassin's Creed) and the linked MoltenVK defines
++//   rbx_mvk_in_pass_read_barrier_waits() (weak reference, checked once per boot);
++// - the transition goes to SHADER_READ_ONLY_OPTIMAL from a color or depth attachment layout or a transfer layout,
++//   with the full access masks of the standard transition and no queue family transfer;
++// - the open pass was begun by the draw path, whose framebuffer attachments are known, and the image is none of them.
++// Anything else ends the pass exactly as before. Counted per window (COREPROF RPASS655).
++extern "C" __attribute__((weak)) int rbx_mvk_in_pass_read_barrier_waits(void);
++
++namespace rpcs3::ios::in_pass_read
++{
++// Resolved once per boot (title policy and the MoltenVK hook); read by the RSX thread.
++inline std::atomic<bool> enabled{false};
++
++inline bool moltenvk_waits_in_pass() noexcept
++{
++	return rbx_mvk_in_pass_read_barrier_waits != nullptr && rbx_mvk_in_pass_read_barrier_waits() >= 1;
++}
++
++struct window_counters
++{
++	std::atomic<std::uint64_t> kept_color{0};       // kept open: COLOR_ATTACHMENT_OPTIMAL -> SHADER_READ_ONLY_OPTIMAL
++	std::atomic<std::uint64_t> kept_depth{0};       // kept open: DEPTH_STENCIL_ATTACHMENT_OPTIMAL -> SHADER_READ_ONLY_OPTIMAL
++	std::atomic<std::uint64_t> kept_transfer{0};    // kept open: TRANSFER_DST/SRC_OPTIMAL -> SHADER_READ_ONLY_OPTIMAL
++	std::atomic<std::uint64_t> ended_attachment{0}; // read transition of an attachment of the open pass: ended
++	std::atomic<std::uint64_t> ended_unknown{0};    // read transition while the open pass's attachments are unknown: ended
++	std::atomic<std::uint64_t> ended_layout{0};     // read transition from another layout or with other masks/queues: ended
++	std::atomic<std::uint64_t> ended_disabled{0};   // read transition while the lever is off: ended
++	std::atomic<std::uint64_t> ended_other{0};      // transition to another layout with the pass open: ended
++};
++
++inline window_counters counters{};
++
++inline void add(std::atomic<std::uint64_t>& counter) noexcept
++{
++	counter.fetch_add(1, std::memory_order_relaxed);
++}
++
++inline std::uint64_t take(std::atomic<std::uint64_t>& counter) noexcept
++{
++	return counter.exchange(0, std::memory_order_relaxed);
 +}
 +}
 diff --git a/rpcs3/ios/IOSJitLoad.h b/rpcs3/ios/IOSJitLoad.h
@@ -44619,10 +44843,10 @@ index b4602fe..37a708a 100644
  
  	rpcs3_ios_status begin_content_install() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index 7c3389b..f6b45b7 100644
+index 7c3389b..1f0c5f7 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-@@ -1,10 +1,33 @@
+@@ -1,10 +1,34 @@
  #include "stdafx.h"
  #include "RPCS3IOSExperimentalPolicy.h"
  
@@ -44644,6 +44868,7 @@ index 7c3389b..f6b45b7 100644
 +#include "IOSTitleLevers.h"
 +#include "IOSThreadQoS.h"
 +#include "IOSMoltenVKAsyncCanary.h"
++#include "IOSInPassReadTransition.h"
 +#include "Utilities/File.h"
 +#include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
  #include "util/logs.hpp"
@@ -44656,7 +44881,7 @@ index 7c3389b..f6b45b7 100644
  LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
  
  namespace rpcs3::ios
-@@ -13,6 +36,122 @@ namespace
+@@ -13,6 +37,122 @@ namespace
  {
  experimental_policy s_policy{};
  
@@ -44779,7 +45004,7 @@ index 7c3389b..f6b45b7 100644
  bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  {
  	switch (mode)
-@@ -27,6 +166,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
+@@ -27,6 +167,76 @@ bool resolve_mode(ios_experimental_mode mode, bool automatic_value) noexcept
  
  	return automatic_value;
  }
@@ -44856,7 +45081,7 @@ index 7c3389b..f6b45b7 100644
  }
  
  const experimental_policy& get_experimental_policy() noexcept
-@@ -47,6 +256,77 @@ void resolve_experimental_policy() noexcept
+@@ -47,6 +257,77 @@ void resolve_experimental_policy() noexcept
  	const bool fps_batch = resolve_mode(g_cfg.ios_experimental.fps_optimization_batch, false);
  	resolved.dma_copy_specialization = arm64_default && resolve_mode(g_cfg.ios_experimental.dma_copy_specialization, fps_batch);
  	resolved.texture_hash_hybrid = arm64_default && resolve_mode(g_cfg.ios_experimental.texture_hash_hybrid, fps_batch);
@@ -44934,7 +45159,7 @@ index 7c3389b..f6b45b7 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -58,27 +338,198 @@ void resolve_experimental_policy() noexcept
+@@ -58,27 +339,206 @@ void resolve_experimental_policy() noexcept
  	resolved.rsx_dma_wait_parking = resolve_mode(g_cfg.ios_experimental.rsx_dma_wait_parking, arm64_default);
  	resolved.vulkan_command_buffer_reclamation = resolve_mode(g_cfg.ios_experimental.vulkan_command_buffer_reclamation, arm64_default);
  	resolved.expanded_spu_scratch = resolve_mode(g_cfg.ios_experimental.expanded_spu_scratch, arm64_default);
@@ -44990,6 +45215,12 @@ index 7c3389b..f6b45b7 100644
 +	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627: Automatic is the title list.
 +	resolved.spu_noop_spin_wait = resolve_mode(g_cfg.ios_experimental.spu_noop_spin_wait,
 +		rpcs3::ios::title_levers::wants_spu_noop_spin_wait(title_id) || is_god_of_war_iii_title(title_id));
++	// REWINDBOX_IN_PASS_READ_TRANSITION_655: Assassin's Creed (IPA 653: 4-11 restarts of the same framebuffer per frame
++	// after a read transition), and only with the MoltenVK that waits for the barrier inside the pass.
++	resolved.moltenvk_in_pass_waits = rpcs3::ios::in_pass_read::moltenvk_waits_in_pass();
++	resolved.in_pass_read_transitions = resolved.moltenvk_in_pass_waits &&
++		rpcs3::ios::title_levers::is_assassins_creed_title(title_id);
++	rpcs3::ios::in_pass_read::enabled.store(resolved.in_pass_read_transitions, std::memory_order_relaxed);
 +	// REWINDBOX_SPU_QOS_627: Automatic is the three reference titles.
 +	resolved.spu_qos_below_rsx = resolve_mode(g_cfg.ios_experimental.spu_qos_below_rsx,
 +		is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id) ||
@@ -45075,6 +45306,8 @@ index 7c3389b..f6b45b7 100644
 +	ios_experimental_log.notice("Resolved title policy 627: zcull_wait_guard=%d zcull_cond_no_wait=%d zcull_conservative_reports=%d spu_noop_spin_wait=%d spu_qos_below_rsx=%d fifo_nop_fast_path=%d light_measurement=%d",
 +		resolved.zcull_wait_guard, resolved.zcull_cond_no_wait, resolved.zcull_conservative_reports, resolved.spu_noop_spin_wait,
 +		resolved.spu_qos_below_rsx, resolved.fifo_nop_fast_path, resolved.light_measurement);
++	ios_experimental_log.notice("Resolved title policy 655: in_pass_read_transitions=%d mvk_in_pass_waits=%d",
++		resolved.in_pass_read_transitions, resolved.moltenvk_in_pass_waits);
 +}
 +
 +void apply_spu_spin_timing_policy() noexcept
@@ -45144,7 +45377,7 @@ index 7c3389b..f6b45b7 100644
  
  u32 get_spu_gateway_scratch_size() noexcept
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
-index 8fba197..7a13921 100644
+index 8fba197..a8df167 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
 @@ -1,6 +1,7 @@
@@ -45184,7 +45417,7 @@ index 8fba197..7a13921 100644
  	u32 fifo_cache_bytes = 1024;
  	bool fifo_idle_wfe = false;
  	bool deferred_get_publishing = false;
-@@ -20,14 +43,114 @@ struct experimental_policy
+@@ -20,14 +43,119 @@ struct experimental_policy
  	bool vulkan_command_buffer_reclamation = false;
  	bool expanded_spu_scratch = false;
  	bool persistent_spu_object_cache = false;
@@ -45243,6 +45476,11 @@ index 8fba197..7a13921 100644
 +	// REWINDBOX_GPU_TIMING_621 (ios/IOSGpuTiming.h): GPU timestamp pairs around the RSX
 +	// primary command buffers, read after completion. Every title; Disabled turns it off.
 +	bool gpu_timing = true;
++	// REWINDBOX_IN_PASS_READ_TRANSITION_655 (ios/IOSInPassReadTransition.h): a read transition of an image that is not
++	// an attachment of the open render pass is recorded inside it. Title scoped (Assassin's Creed), without a setting,
++	// and only when the linked MoltenVK waits for such barriers inside a pass.
++	bool in_pass_read_transitions = false;
++	bool moltenvk_in_pass_waits = false;
 +
 +	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers), resolved once per boot
 +	// like the fields above; none of them enters an object-cache key.
@@ -46441,10 +46679,10 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..c1d559f 100644
+index d800542..b31f42f 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,201 @@
+@@ -1,26 +1,202 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -46480,6 +46718,7 @@ index d800542..c1d559f 100644
 +#include "IOSFeedbackCensus.h"
 +#include "IOSTextureCacheProfile.h" // REWINDBOX_TEXCACHE_PROFILE_621
 +#include "IOSRenderPassCensus.h" // REWINDBOX_RENDERPASS_CENSUS_652
++#include "IOSInPassReadTransition.h" // REWINDBOX_IN_PASS_READ_TRANSITION_655
 +#include "IOSZcullLabelPage.h" // REWINDBOX_ZCULL_LABEL_PAGE_624
 +#include "IOSRendererCausality.h"
 +#include "IOSSignalTrace.h"
@@ -46646,7 +46885,7 @@ index d800542..c1d559f 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +213,534 @@ u64 process_memory_footprint()
+@@ -38,31 +214,534 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -47191,7 +47430,7 @@ index d800542..c1d559f 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +750,10 @@ public:
+@@ -72,10 +751,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -47204,7 +47443,7 @@ index d800542..c1d559f 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +786,1254 @@ public:
+@@ -108,12 +787,1271 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -48031,6 +48270,23 @@ index d800542..c1d559f 100644
 +                "sites=%s scope=process_window_counters",
 +                profile_session, profile_window, rp_begins, rp_fresh, rp_same, rp_other, rp_overflow, rp_sites.c_str());
 +        }
++        // REWINDBOX_IN_PASS_READ_TRANSITION_655: transitions to SHADER_READ_ONLY_OPTIMAL recorded inside the open render
++        // pass (kept_color/kept_depth/kept_transfer: from an attachment or transfer layout), and those that still ended it
++        // (attachment of the open pass, attachments unknown, another source layout or mask, lever off), plus transitions
++        // to other layouts that ended a pass (other). enabled= the boot's resolution.
++        {
++            namespace in_pass = rpcs3::ios::in_pass_read;
++            auto& c = in_pass::counters;
++            const u64 kept_color = in_pass::take(c.kept_color), kept_depth = in_pass::take(c.kept_depth),
++                kept_transfer = in_pass::take(c.kept_transfer), ended_attachment = in_pass::take(c.ended_attachment),
++                ended_unknown = in_pass::take(c.ended_unknown), ended_layout = in_pass::take(c.ended_layout),
++                ended_disabled = in_pass::take(c.ended_disabled), ended_other = in_pass::take(c.ended_other);
++            ios_core_profiler.notice(
++                "COREPROF RPASS655 session=%llu window=%llu enabled=%d kept_color=%llu kept_depth=%llu kept_transfer=%llu "
++                "ended_attachment=%llu ended_unknown=%llu ended_layout=%llu ended_disabled=%llu ended_other=%llu scope=process_window_counters",
++                profile_session, profile_window, in_pass::enabled.load(std::memory_order_relaxed) ? 1 : 0, kept_color, kept_depth,
++                kept_transfer, ended_attachment, ended_unknown, ended_layout, ended_disabled, ended_other);
++        }
 +        // REWINDBOX_SPU_WAIT_PROFILE_V1: SPU time outside guest code, summed over
 +        // the SPU threads (deltas of monotonic per-thread totals).
 +        {
@@ -48461,7 +48717,7 @@ index d800542..c1d559f 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +2041,93 @@ private:
+@@ -121,6 +2059,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -48555,7 +48811,7 @@ index d800542..c1d559f 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +2135,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2153,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -48649,7 +48905,7 @@ index d800542..c1d559f 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2232,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2250,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -48778,7 +49034,7 @@ index d800542..c1d559f 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2363,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2381,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  

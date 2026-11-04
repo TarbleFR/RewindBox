@@ -36,6 +36,9 @@ DEPENDENCIES = {
     "Volk": "Volk",
 }
 HOOKS = {"_rbx_mvk_compile_qos_queue", "_rbx_mvk_exec_q_create"}
+# Defined by the patched MVKCmdPipeline.mm (Core 655): the Core checks it at boot before keeping a render pass open
+# for a read transition.
+DEFINED_HOOKS = {"_rbx_mvk_in_pass_read_barrier_waits"}
 
 
 def sha256(path):
@@ -287,6 +290,11 @@ def produce(args):
         if not HOOKS <= undefined_symbols:
             raise ValueError("source-built MoltenVK does not reference both existing Core queue hooks")
         receipt["required_core_queue_hooks"] = sorted(HOOKS)
+        defined = run.run(["xcrun", "nm", "-g", "--defined-only", library])
+        defined_symbols = set(re.findall(r"(?m)^[0-9a-fA-F]*\s+[TtDdSs]\s+(_[A-Za-z0-9_]+)\s*$", defined))
+        if not DEFINED_HOOKS <= defined_symbols:
+            raise ValueError("source-built MoltenVK does not define the in-pass read barrier hook")
+        receipt["defined_core_hooks"] = sorted(DEFINED_HOOKS)
         destination = output / "MoltenVK"
         include = source / "MoltenVK/include"
         if not (include / "vulkan/vulkan.h").is_file():

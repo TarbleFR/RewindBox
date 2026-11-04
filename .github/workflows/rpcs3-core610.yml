@@ -30,6 +30,7 @@
 # Core compile request: Core 645 (core-build.json build 645, canonical patch 2777b017), request 1 (IPA 643 logs: a timed-out cellAudio period is output instead of dropped, REWINDBOX_AUDIO_TIMEOUT_MIX_645 on Core 641).
 # Core compile request: Core 651 (core-build.json build 651, canonical patch 226dcd21), request 1 (the cellAudio wait for a late port ends when the output ring runs low, REWINDBOX_AUDIO_LOW_RING_MIX_651 on Core 645).
 # Core compile request: Core 652 (core-build.json build 652, canonical patch 6d0e63d2), request 1 (read-only cyclic depth chains keep one barrier, depth-test-off draws included, and the render pass end census, REWINDBOX_DEPTH_TEST_OFF_READ_ONLY_652 / DEPTH_READ_CHAIN_652 / RENDERPASS_CENSUS_652 on Core 651).
+# Core compile request: Core 655 (core-build.json build 655, canonical patch e006ca0c), request 1 (a read transition of an image that is not an attachment of the open render pass stays inside the pass, REWINDBOX_IN_PASS_READ_TRANSITION_655 on Core 652, linking the MoltenVK dependency of run 41912442196).
 # Apple host harness rerun: Core 613 codegen audit reruns for its two exact aliases (request 2).
 # Apple host harness rerun: Core 619 wait-budget scenario on measured waits (request 2).
 # Apple host harness rerun: Core 619 concurrency scenario accepts the designed wait-budget trip (request 3).
@@ -38,6 +39,7 @@
 # Apple host harness rerun: Core 621 ZCULL storm with 15 ms reads, read floors that fit macOS ASan (request 5).
 # Apple host harness rerun: Core 621 ISO test counts descriptors with fstat on Darwin (request 6).
 # Apple host harness rerun: Core 621 ZCULL storm with 5 ms reads, bounded by the 3-second rule (request 7).
+# Apple host harness rerun: Core 655 hook-less variant links on Apple ld64, census accepts the exact 655 block (request 2).
 name: RPCS3 Core
 # run-name is evaluated before any job and cannot read the spec; the build
 # number is in the step names, the artifact names and the identity type.

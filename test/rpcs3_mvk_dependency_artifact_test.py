@@ -19,6 +19,8 @@ SPEC = importlib.util.spec_from_file_location("dependency_gate", ROOT / ".github
 GATE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(GATE)
 SOURCE = "7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed"
+# The last commit whose bridge is HOST_AFTER (the next one, e9298892, adds the host memory milestone).
+REVIEWED_BRIDGE_COMMIT = "e9298892^"
 RUN = 41239096061
 
 
@@ -146,8 +148,19 @@ class ArtifactTests(unittest.TestCase):
         """The bridge bytes run 41239096061 recorded, read from its source commit."""
         raw = subprocess.check_output(["git", "show", SOURCE + ":" + GATE.HOST], cwd=ROOT)
         self.assertEqual(hashlib.sha256(raw).hexdigest(), GATE.HOST_BEFORE)
-        self.assertEqual(GATE.digest(ROOT / GATE.HOST), GATE.HOST_AFTER)
         return raw
+
+    def reviewed_bridge(self):
+        """HOST_AFTER, the reviewed bridge of the Core 621 to 653 deliveries, read from history: the bridge has since
+        changed again (e9298892, host memory milestone), which the dependency of Core 655 records itself."""
+        raw = subprocess.check_output(["git", "show", REVIEWED_BRIDGE_COMMIT + ":" + GATE.HOST], cwd=ROOT)
+        self.assertEqual(hashlib.sha256(raw).hexdigest(), GATE.HOST_AFTER)
+        return raw
+
+    def current_is_reviewed(self):
+        reviewed = self.reviewed_bridge()
+        real = GATE.current_bytes
+        return patch.object(GATE, "current_bytes", side_effect=lambda name: reviewed if name == GATE.HOST else real(name))
 
     def test_reviewed_host_delta_accepts_only_the_pinned_bridge_pair(self):
         names = GATE.load_module("host_inputs_delta", ROOT / ".github/diagnostics/rpcs3_mvk_cache_host.py").INPUTS
@@ -170,7 +183,7 @@ class ArtifactTests(unittest.TestCase):
 
         write()
         real_digest = GATE.digest
-        with patch.object(GATE, "capture", side_effect=historical):
+        with patch.object(GATE, "capture", side_effect=historical), self.current_is_reviewed():
             # The strict default still refuses the bridge change.
             with self.assertRaisesRegex(ValueError, "Current compiled/host input differs: " + re.escape(GATE.HOST)):
                 GATE.verify_host(path, "ios", RUN, SOURCE, 1)
@@ -188,7 +201,7 @@ class ArtifactTests(unittest.TestCase):
             host["input_sha256"][GATE.HOST] = GATE.HOST_BEFORE
             write()
             # A later bridge edit (current bytes other than HOST_AFTER) is refused.
-            with patch.object(GATE, "digest", side_effect=lambda p: "1" * 64 if str(p).endswith(GATE.HOST) else real_digest(p)):
+            with patch.object(GATE, "current_bytes", side_effect=lambda name: b"a later bridge edit" if name == GATE.HOST else (ROOT / name).read_bytes()):
                 with self.assertRaisesRegex(ValueError, "Unreviewed host delta"):
                     GATE.verify_host(path, "ios", RUN, SOURCE, 1, reviewed_host_delta=True)
             # Every other current input stays strict with the opt-in.
@@ -206,7 +219,7 @@ class ArtifactTests(unittest.TestCase):
             GATE.verify_host(path, "ios", RUN, SOURCE, 1, reviewed_host_delta=True)
 
     def test_reviewed_host_delta_needs_the_same_milestones_unit_and_load_set(self):
-        before, after = self.recorded_bridge(), (ROOT / GATE.HOST).read_bytes()
+        before, after = self.recorded_bridge(), self.reviewed_bridge()
         result = GATE.host_delta_equivalence(before, after)
         self.assertEqual(result["milestones_translation_unit_sha256"],
                          "6b4efab6ea212ca50083c5159d7ff382bfb9ec2bfbd6071a966f2c2f9f179cb9")

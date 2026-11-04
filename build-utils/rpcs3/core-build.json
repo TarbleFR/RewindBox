@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 652,
- "identity_type": "rpcs3-ios-core652",
- "summary": "RPCS3 Core 652 = the delivered Core 610 plus one folded delta: the Core 612 to 651 records unchanged and the Core 652 change (build-utils/rpcs3/core652-from-651.patch over Core 651, iOS Vulkan): a cyclic depth read of a draw that writes neither depth (depth test off) nor stencil skips its texture barrier like a masked one (REWINDBOX_DEPTH_TEST_OFF_READ_ONLY_652), a skipped read counts in the cyclic-reference tracker so a read-only chain keeps one barrier instead of one every other draw (REWINDBOX_DEPTH_READ_CHAIN_652; each barrier ends the render pass), and a census attributes every begun render pass to the site that ended the previous one (REWINDBOX_RENDERPASS_CENSUS_652, COREPROF RPASS652; two skip counters on TEXCACHE621). Core 651 contained: Core 645 and the low-ring cellAudio mix. ABI 30, the 92 exports, the PPU/SPU codegen identities and the MoltenVK dependency of Core 610 unchanged. No gain measured: not built, no iPhone run.",
+ "build": 655,
+ "identity_type": "rpcs3-ios-core655",
+ "summary": "RPCS3 Core 655 = the delivered Core 610 plus one folded delta: the Core 612 to 652 records unchanged and the Core 655 change (build-utils/rpcs3/core655-from-652.patch over Core 652, iOS Vulkan, insertions only): vk::change_image_layout keeps the open render pass for a transition to SHADER_READ_ONLY_OPTIMAL of an image that is not an attachment of it (attachments noted by the draw path; COLOR/DEPTH attachment or TRANSFER source layouts, default masks, no queue family transfer), recording the same barrier inside the pass (REWINDBOX_IN_PASS_READ_TRANSITION_655, COREPROF RPASS655); title policy 655: Assassin's Creed, and only with a MoltenVK that defines rbx_mvk_in_pass_read_barrier_waits. The MoltenVK dependency is replaced by the reviewed build of the same db660224 source with the RewindBox patch extended (MVKCmdPipelineBarrier waits for the stage fences of such a barrier inside a render encoder). Core 652 contained: Core 651, the read-only cyclic depth chains and the render pass census. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "6d0e63d28c18d20207a107dc79e16a4f9115d81b49fc192eec8f1ab8ada776e9",
-  "postimages": 358,
+  "patch_sha256": "e006ca0c7b624c34148966be8de447d63ed0f2b67293c03f6432fb1c71ae0158",
+  "postimages": 359,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -41,7 +41,8 @@
    "core641_20261104",
    "core645_20261104",
    "core651_20261104",
-   "core652_20261104"
+   "core652_20261104",
+   "core655_20261104"
   ]
  },
  "reference": {
@@ -81,16 +82,16 @@
   "exports": 88
  },
  "delta": {
-  "record": "core652_20261104",
-  "manifest": "build-utils/rpcs3/core652-delta.json",
-  "patch": "build-utils/rpcs3/core652-delta.patch",
-  "patch_sha256": "b550051dd02978db9c4b5be24debbc0b3951efc4af9bfcffd671bb548a328ec2"
+  "record": "core655_20261104",
+  "manifest": "build-utils/rpcs3/core655-delta.json",
+  "patch": "build-utils/rpcs3/core655-delta.patch",
+  "patch_sha256": "bce54260876468039cc35e78f223e2045bb765c19e0bd727ddebe3fc7fe0363c"
  },
  "exports": 92,
  "core_inputs": {
   "count": 92,
   "host": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
-  "host_sha256": "036dafbb44cf34ed51d5928fb50f3dc455bb3932c33544f9bae510b8de9f4a98",
+  "host_sha256": "997b431060cdfc6dc879881a741466cdcfe9627b36c3719ce3236838bc67ad0f",
   "reviewed_drift": [
    "build-utils/rpcs3/canonical-source.json",
    "build-utils/rpcs3/embedded-core.patch",
@@ -162,13 +163,20 @@
   "SPU Object Prefetch",
   "COREPROF READPREDICT638",
   "COREPROF AUDIO641",
-  "COREPROF RPASS652"
+  "COREPROF RPASS652",
+  "COREPROF RPASS655"
  ],
  "moltenvk_dependency": {
-  "run": 41239096061,
-  "source": "7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed",
-  "library_sha256": "0d711e4ad3610bb176e3c91e727940f7c448a25571158cc1919d633f1d622b1f",
-  "reviewed_host_delta": true
+  "run": 41912442196,
+  "source": "4b4b13aab6236975a1e53aa632016fb71fad8a21",
+  "library_sha256": "d19d3a424df950e0f339e9ef4704f634849e8a545339bac1faafdee0ebc3805e",
+  "reviewed_host_delta": false,
+  "replaces": {
+   "run": 41239096061,
+   "source": "7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed",
+   "library_sha256": "0d711e4ad3610bb176e3c91e727940f7c448a25571158cc1919d633f1d622b1f",
+   "reason": "Core 655 in-pass read transitions: the same db660224 MoltenVK source with the RewindBox patch extended (MVKCmdPipelineBarrier waits for the stage fences of a barrier made only of read transitions inside a render encoder; rbx_mvk_in_pass_read_barrier_waits); its run also records the current host bridge, so the reviewed bridge pair of the replaced run no longer applies"
+  }
  },
  "native_modes": {
   "reused": [
@@ -363,28 +371,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core652_codegen_test.py",
+     "test/rpcs3_core655_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 652 touches no codegen input; its reverted tree passes the Core 651 audit"
+    "reason": "Core 655 touches no codegen input; its reverted tree passes the Core 652 audit"
    },
    {
-    "name": "core652",
+    "name": "core655",
     "argv": [
      "python3",
-     "test/rpcs3_core652_test.py",
+     "test/rpcs3_core655_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core652.json"
+     "{out}/core655.json"
     ],
-    "reason": "Core 652 increment (cyclic depth barriers on the real code with a hazard checker, render pass census on the real begin/end functions) and, on its reverted tree, the Core 651 suite (then 645, 641, 638, 636, 634, 630, 627)"
+    "reason": "Core 655 increment (in-pass read transitions on the real render pass and layout code, ASan/UBSan) and, on its reverted tree, the Core 652 suite (then 651, 645, 641, 638, 636, 634, 630, 627)"
    },
    {
     "name": "lr-full-queue",

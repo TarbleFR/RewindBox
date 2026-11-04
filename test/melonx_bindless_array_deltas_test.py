@@ -71,6 +71,10 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+# native/melonx/EmbeddedPerformanceDiagnostics.cs as delivered in Cores 614 to 649 (the Core 611 control holds it unedited).
+DELIVERED_NATIVE_COLLECTOR = '95732befcbfe919f6f5a16c40621dfd7ee9b94c47d510806aebf020ef761ca39'
+
+
 reports, compiled = {}, {}
 with tempfile.TemporaryDirectory(prefix='melonx-bindless-array-deltas-') as temporary:
     temporary = Path(temporary).resolve()
@@ -79,8 +83,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-bindless-array-deltas-') as temp
     for relative in NAMES:
         (composed / relative).parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(SOURCE / relative, composed / relative)
-    check((composed / DIAGNOSTICS).read_bytes() == (ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs').read_bytes(),
-          'delivered collector differs from the native collector that prepare_embedded copies')
+    # The delivered (Core 611) collector is the native collector of Cores 614 to 649, pinned by digest; since Core 654 the
+    # checked-in native collector also writes the gcEvent lines (the gc-events gate binds that difference to inserted
+    # lines only), so the composition starts, as prepare_embedded does, from the checked-in native collector.
+    check(sha(SOURCE / DIAGNOSTICS) == DELIVERED_NATIVE_COLLECTOR,
+          'delivered collector differs from the native collector of Cores 614 to 649 that prepare_embedded copied')
+    shutil.copyfile(ROOT / 'native/melonx/EmbeddedPerformanceDiagnostics.cs', composed / DIAGNOSTICS)
     apply(composed)
     postimages = {p: sha(composed / p) for p in NAMES}
     check(all(postimages[p] != sha(SOURCE / p) for p in NAMES), 'adapter left a file unchanged')
