@@ -83,9 +83,7 @@
     "closed": 152
   },
   "actions": {
-    "out_of_plan_deletions": [
-      null
-    ],
+    "out_of_plan_deletions": [],
     "deleted_ids": [
       41737262387,
       41737262232,
@@ -1161,21 +1159,15 @@
     "planned_deletions": 1069,
     "verified_removed": 1069,
     "unique_receipts": 1069,
-    "planned_ids_still_present": [
-      null
-    ],
+    "planned_ids_still_present": [],
     "before": 1827,
     "remaining": 768,
-    "protected_ids_missing": [
-      null
-    ],
+    "protected_ids_missing": [],
     "deletion_receipts": 1069
   },
   "artifacts": {
     "before": 2135,
-    "original_ids_missing": [
-      null
-    ],
+    "original_ids_missing": [],
     "deleted": 0,
     "after": 2144
   },
@@ -1186,5 +1178,6 @@
     "latest_workflow_results": true,
     "active_changed_and_recent_runs": true,
     "current_and_base_manifests_pins_receipts": 14
-  }
+  },
+  "verification": "passed"
 }
