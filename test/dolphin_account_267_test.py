@@ -219,7 +219,9 @@ def native():
             'targets': {
                 'DolphinAccountHost': {'type': 'application', 'platform': 'iOS',
                     'sources': [str(directory / 'main.m'), str(CLASSES / 'DolphinSessionMenu.mm'),
-                                str(CLASSES / 'DolphinRetroAchievementsAccount.mm'), str(CLASSES / 'DolphinFramePacing.mm'), str(CLASSES / 'DolphinExternalDisplay.mm')]
+                                str(CLASSES / 'DolphinRetroAchievementsAccount.mm'), str(CLASSES / 'DolphinFramePacing.mm'), str(CLASSES / 'DolphinExternalDisplay.mm'),
+                                # Skins orientation (705e90c7): the session menu reads the session mask (DOLOrientation).
+                                str(CLASSES / 'DOLOrientation.mm')]
                                + [str(source) for source in EXTERNAL_SOURCES]
                                + [str(source) for source in CATALOGUE_SOURCES],
                     'dependencies': sdk_dependencies,

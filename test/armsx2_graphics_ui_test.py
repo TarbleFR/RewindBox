@@ -473,7 +473,9 @@ def native():
                                 str(RA_STRINGS), str(CLASSES / 'ARMSX2InGameLocalization.mm'),
                                 # Build 485: the Graphics menu's HD textures page.
                                 str(CLASSES / 'ARMSX2TexturePage.mm'), str(CLASSES / 'ARMSX2TextureStrings.m'),
-                                str(CLASSES / 'ARMSX2TexturePackStore.mm')]
+                                str(CLASSES / 'ARMSX2TexturePackStore.mm'),
+                                # Skins orientation (705e90c7): the session menu reads the session mask (ARMSX2Orientation).
+                                str(CLASSES / 'ARMSX2Orientation.mm')]
                                + [str(source) for source in catalogue]
                                + [str(TOUCH_STRINGS)],
                     'dependencies': sdk_dependencies,
