@@ -161,3 +161,61 @@ the prepared source: `ProgramPipelineState.cs`, `BinarySerializer.cs`, `ShaderSp
 plus what the freeze computes from retained receipts. No iPhone result; no FPS claim. On the device: the count of
 "Background pipeline compile missed" lines and the fields they name, graphics pipeline builds per minute and
 pauses over 100 ms during new-area loading, Hogwarts 1x, same save and scene, cold and warm passes apart.
+
+## IPA 640 on the device: the gain, the stale frames and their correction (4 November 2026, session 012mUASkkFGHaPcEUx9dsp8q)
+
+Inputs (private, not in the repository): `MeloNX-performance.log` (3 679 280 bytes, `7bab4116…`), `MeloNX-stderr.log`
+(3 370 962, `7d23eb42…`), `MeloNX-stderr.log.previous` (5 242 872, `7eae0e39…`), `MeloNX-launch.log` (104 473, `8cfe507c…`), a
+screen recording of 80 s (24 699 874 bytes, `5779409a…`, 1564x720, 1 925 frames). The logs hold this device's history
+606-640. Build 640, MeloNX Core 639 (`cbb7beb9`, engine `b75212a4…` = Core 631 plus the PR #153 lot), MoltenVK 1.4.2,
+PID 5576, Hogwarts Legacy sessions `6B8A9001` (loading) and `53DAD35F` (play, 154 s). Reference: 629, PID 3558, same
+device, MoltenVK 1.4.0.
+
+| Same device | 629 (PID 3558) | 640 (`53DAD35F`) |
+| --- | --- | --- |
+| Game FPS median | 14.2 | 29.9 |
+| Frame time p50 / p95 / p99 | 50 / 100 / 150 ms | 33 / 50 / 67 ms |
+| Pauses over 100 ms | 87 in 76 s | 17 in 154 s |
+| Render thread's own work per presented frame | 28.0 ms | 7.7 ms |
+| MoltenVK Metal encoding per presented frame | 8.0-24.3 ms | 0.3-3.6 ms |
+
+The scenes are not the same save position, so this is not a controlled comparison. It is the first device result of
+631 and 1.4.2. No device-short trim ran in 640, and the trim lot is not exercised.
+
+**Stale frames (the "flickering").** In the recording, the presented image goes back to the previous shot for one frame
+at a camera cut, at 32.4 s and at 59.1 s (sequence A A B A B A B B B). The RewindBox overlay stays steady meanwhile. An
+older frame between newer ones means a texture was read before the pass writing it had finished. Cause, from the
+source:
+- MoltenVK 1.4.2 on iOS 18 (Apple6 and later, argument buffers) makes resources resident through a `MTLResidencySet` and
+  stops calling `useResource` (`MVKDevice.mm` `residencySets`). Metal then no longer tracks argument-buffer hazards; only
+  Vulkan barriers order those reads (`MVKCommandBuffer.mm` `barrierWait`/`barrierUpdate`).
+- The Hogwarts policy of build 628 (`MoltenVkPolicy.DeferInPassReadBarriers`, `PipelineBase.TryDeferInPassReadBarrier`)
+  drops the write-to-read barrier of a texture read inside a render pass it is not an attachment of. It defers that
+  barrier to the next begin of the pass, on the premise that "Metal's hazard tracking already orders this read". With
+  1.4.2 that premise no longer holds, so the current pass reads with no barrier at all.
+- 640 deferred 3-14 such barriers per 5 s window during the recording. The exact frame-to-window alignment is uncertain by
+  1-3 s (the recording's start time); the mechanism is established in the source.
+
+Correction (`build-utils/melonx/adapt_moltenvk_barrier_ordering.py`, `VulkanRenderer.cs`, `PipelineBase.cs`): the
+deferral applies only when MoltenVK is 1.4.0 or earlier (`driverVersion` = MVK_VERSION ≤ 10400), and one log line states
+the decision. Otherwise the barrier is recorded inside the pass, as the delivered Ryujinx path does. Expected cost: about
+0.1 barrier per frame. Proof, fresh (SDK 10.0.100, Core 639 preparation rebuilt, equal to the frozen contract: 180 of
+180 members): `test/melonx_moltenvk_barrier_ordering_test.py`, production Vulkan assembly, real
+`TryDeferInPassReadBarrier`. In the 640 configuration the control defers and the candidate records the barrier. The
+1.4.0, feedback-loop, other-title and non-TBDR cases are unchanged
+([receipt](evidence/melonx-moltenvk-barrier-ordering/checks.json)). Not yet seen on the device.
+
+**Stutter ("saccades").** Pass 5 (77 s) has 415 frames over 50 ms. These are 50 ms frames at a 30 FPS target.
+- A new area caused one burst of 170 pipeline builds (1.3 s).
+- Per 5 s window the GPU thread is busy 1.9-4.9 s, of which 0.4-1.0 s are texture flush actions (42-97 per window).
+- The DMA summary gives 1 313 read-backs of 1 969 on the GPU, 1 310 of them into buffers. **655 were declined as
+  "occupied"** and took the guest path (656 slow reads, about 4 per second). Five first-access flushes took 311 ms in
+  all, the longest 235 ms.
+- "Occupied" covers two branches that this summary does not separate: in `TryReadBackGpuRegion`, other textures over a
+  destination with no buffer; in `TryReadBackIntoBuffer`, a texture of the source's own group over the destination.
+  Missing datum, named: that split and the first occupant of each. It decides the next correction, so `DmaClass` is not
+  changed blind.
+- The stale frames above also read as jerks.
+- Two pipeline misses were named by the PR #153 diagnostic (`PrimitiveRestartEnable` False/True, `Topology`
+  TriangleList/TriangleStrip): state changed at draw time after the program's creation. Only 2 in 154 s, so it is the
+  next parity candidate, not fixed here.
