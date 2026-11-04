@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Every visible control of the three shipped Pocket skins reaches its engine.
+"""Every visible control of the shipped Pocket skins (Wii, GameCube, PS2 and the two
+approved-board Originals) reaches its engine.
 
 Runs on the REAL archives (assets/skins/pocket/*.manicskin, bound by the catalog
-SHA-256) and traces, for every layout (iPhone edgeToEdge and standard, portrait
-and landscape) and every item: sprite -> touch target -> canonical command ->
+SHA-256) and traces, for every layout (each iPhone representation the archive ships,
+portrait and landscape) and every item: sprite -> touch target -> canonical command ->
 engine command. The canonical table and the engine tables are read from the
 native sources themselves (DOLSkinOverlay.mm for Dolphin, ARMSX2SkinOverlay.mm
 for ARMSX2), so a drift between a skin, its table and its sender fails here.
@@ -108,6 +109,8 @@ ENGINE_PS2 = set(re.findall(r'@"(\w+)"\s*:\s*@\d+', re.search(r'A2SkinButtonIds\
 PS2_IDS = {name: int(number) for name, number in re.findall(
     r'@"(\w+)"\s*:\s*@(\d+)', re.search(r'A2SkinButtonIds\(void\) \{(.*?)\n\}', A2, re.S).group(1))}
 # ARMSX2Bridge.h (upstream 9d989ca9, platforms/ios/app/src/main/cpp/ARMSX2Bridge.h) order of ARMSX2PadButton.
+EXPECTED = {'wii-pocket': 'wii', 'gamecube-pocket': 'gc', 'ps2-pocket': 'ps2',
+            'gamecube-pocket-original': 'gc', 'wii-pocket-original': 'wii'}
 UPSTREAM_PS2 = ['up', 'down', 'left', 'right', 'cross', 'circle', 'square', 'triangle', 'l1', 'r1', 'l2', 'r2', 'start',
                 'select', 'l3', 'r3']
 
@@ -153,11 +156,21 @@ def inputs_of(item):
     return list(value.values()) if isinstance(value, dict) else list(value)
 
 
+def hit_rect(item, layout=None):
+    """frame grown by extendedEdges (DOLSkinOverlay hitFrame; a missing side comes
+    from the layout's extendedEdges)."""
+    fallback = (layout or {}).get('extendedEdges', {})
+    edges = item.get('extendedEdges', {})
+    left, top, right, bottom = (float(edges.get(side, fallback.get(side, 0))) for side in ('left', 'top', 'right', 'bottom'))
+    x0, y0, x1, y1 = rect(item['frame'])
+    return (x0 - left, y0 - top, x1 + right, y1 + bottom)
+
+
 def item_at(items, x, y):
     """DOLSkinOverlay itemAtPoint: last drawn first, drawn frame, then hit frame."""
     for use_hit in (False, True):
         for index in range(len(items) - 1, -1, -1):
-            f = rect(items[index]['frame'])
+            f = hit_rect(items[index]) if use_hit else rect(items[index]['frame'])
             if f[0] <= x < f[2] and f[1] <= y < f[3]:
                 return index
     return -1
@@ -178,20 +191,24 @@ def press(items, console, x, y):
 
 def main():
     catalog = json.loads((ASSETS / 'catalog.json').read_text())
-    rows = {row['console']: row for row in catalog['skins']}
-    require(set(rows) == {'gc', 'wii', 'ps2'}, 'the catalog must carry exactly Wii, GameCube and PS2')
+    rows = {row['id']: row for row in catalog['skins']}
+    require({i: r['console'] for i, r in rows.items()} == EXPECTED, 'the catalog must carry exactly %s' % EXPECTED)
     require(UPSTREAM_PS2 == [n for n, _ in sorted(PS2_IDS.items(), key=lambda kv: kv[1])],
             'ARMSX2 pad indices differ from ARMSX2Bridge.h: %s' % PS2_IDS)
     report = []
-    for console, row in sorted(rows.items()):
+    for pack_id, row in sorted(rows.items()):
+        console = row['console']
         info, names = load_pack(row)
         require(info['gameTypeIdentifier'].split('.')[-1] in {'gc': {'ngc'}, 'wii': {'wii'}, 'ps2': {'ps2'}}[console],
                 console + ': game type')
         reps = info['representations']['iphone']
-        for display in ('edgeToEdge', 'standard'):
+        # Board Originals ship edge-to-edge only (the native layout lookup falls back to it).
+        displays = ('edgeToEdge',) if pack_id.endswith('-original') else ('edgeToEdge', 'standard')
+        require(set(reps) == set(displays), pack_id + ': iPhone representations')
+        for display in displays:
             for orientation in ('portrait', 'landscape'):
                 layout = reps[display][orientation]
-                tag = '%s/%s/%s' % (console, display, orientation)
+                tag = '%s/%s/%s' % (pack_id, display, orientation)
                 items = layout['items']
                 menu_items = []
                 seen = set()
@@ -200,9 +217,15 @@ def main():
                     for state in ('normal', 'pressed'):
                         require(item['asset'][state] in names, tag + ': missing sprite ' + item['asset'][state])
                     require(item['asset']['normal'] != item['asset']['pressed'], tag + ': same sprite for both states')
-                    # touch target
+                    # touch target: what itemAtPoint accepts, the drawn frame grown by extendedEdges
                     f = item['frame']
-                    require(min(f['width'], f['height']) >= 44, tag + ': target under 44 points')
+                    h = hit_rect(item, layout)
+                    require(min(h[2] - h[0], h[3] - h[1]) >= 44, tag + ': target under 44 points')
+                    # every point of the invisible extension reaches this control and no other
+                    for px in (h[0] + 0.01, (h[0] + h[2]) / 2, h[2] - 0.01):
+                        for py in (h[1] + 0.01, (h[1] + h[3]) / 2, h[3] - 0.01):
+                            require(item_at(items, px, py) == index,
+                                    '%s: point (%.1f, %.1f) of item %d reaches item %d' % (tag, px, py, index, item_at(items, px, py)))
                     # canonical + engine
                     for raw in inputs_of(item):
                         name = canonical(console, raw)
@@ -247,12 +270,35 @@ def main():
                     fingers = [centre('cross'), centre('l1'), centre('leftThumbstickUp')]
                     sets = [press(items, console, *p)[1] for p in fingers]
                     require(len(set(sets)) == 3 and -1 not in sets, tag + ': simultaneous fingers collide')
+                else:
+                    # Dolphin: a stick finger stays on its stick only (DOLSkinOverlay touchesMoved),
+                    # and stick + face button + shoulder are three distinct, simultaneous controls.
+                    def centre_of(raw):
+                        for it in items:
+                            if raw in inputs_of(it):
+                                f = it['frame']; return f['x'] + f['width'] / 2, f['y'] + f['height'] / 2
+                        fail('%s: no control for %s' % (tag, raw))
+                    shoulder = 'l' if console == 'gc' else 'c'
+                    fingers = [centre_of('leftThumbstickUp'), centre_of('a'), centre_of(shoulder)]
+                    sets = [press(items, console, *p)[1] for p in fingers]
+                    require(len(set(sets)) == 3 and -1 not in sets, tag + ': simultaneous fingers collide')
+                    for item in items:
+                        if 'thumbstick' in item:
+                            f = item['frame']
+                            for dx in (0.1, 0.5, 0.9):
+                                for dy in (0.1, 0.5, 0.9):
+                                    p = press(items, console, f['x'] + dx * f['width'], f['y'] + dy * f['height'])[0]
+                                    require(all(c[0] == 'stick' for c in p), tag + ': a stick finger pressed ' + str(p))
+                    # release / cancel: a point on no control and outside the screen presses nothing
+                    W, H = layout['mappingSize']['width'], layout['mappingSize']['height']
+                    corners = [(0.5, 0.5), (W - 0.5, 0.5), (0.5, H - 0.5), (W - 0.5, H - 0.5)]
+                    require(any(item_at(items, *c) < 0 for c in corners), tag + ': no neutral point')
                 report.append(tag)
     # menu path on the sender side: press opens the menu through the session, once.
     require(re.search(r'if \(!pressed\) return;\s*if \(\[canonical isEqualToString:@"menu"\]', DOL), 'Dolphin menu sender')
     require('if (pressed && [canonical isEqualToString:@"menu"])' in A2, 'ARMSX2 menu sender')
     require(A2.count('dispatch_async(dispatch_get_main_queue()') >= 1, 'menu after the touch event')
-    print('pocket skin input chain: ok (%d layouts, 3 packs)' % len(report))
+    print('pocket skin input chain: ok (%d layouts, %d packs)' % (len(report), len(rows)))
 
 
 if __name__ == '__main__':

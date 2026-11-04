@@ -45,6 +45,14 @@ Map<String, Object?> _manifest(List<Object?> entries) => <String, Object?>{
   'skins': entries,
 };
 
+const _shippedPacks = <String, String>{
+  'wii-pocket': 'wii',
+  'gamecube-pocket': 'gc',
+  'ps2-pocket': 'ps2',
+  'gamecube-pocket-original': 'gc',
+  'wii-pocket-original': 'wii',
+};
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   final messenger =
@@ -206,14 +214,26 @@ void main() {
   );
 
   test(
-    'shipped catalog contains exactly Wii, GameCube and PS2 with intact archives and PNG previews',
+    'shipped catalog contains the Wii, GameCube, PS2 Pocket packs and the two board Originals with intact archives and PNG previews',
     () async {
       final entries = await BundledControllerSkin.load(loadAsset: _fileAsset);
+      expect({
+        for (final entry in entries) entry.id: entry.console,
+      }, _shippedPacks);
       expect(
-        entries.map((entry) => entry.console),
-        unorderedEquals(<String>['wii', 'gc', 'ps2']),
+        {for (final entry in entries) entry.id: entry.name},
+        containsPair('gamecube-pocket-original', 'GameCube Pocket — Original'),
       );
-      expect(entries.map((entry) => entry.id).toSet(), hasLength(3));
+      expect({
+        for (final entry in entries) entry.id: entry.name,
+      }, containsPair('wii-pocket-original', 'Wii Pocket — Original'));
+      // New archives and previews of their own: nothing of an earlier pack is reused.
+      expect(entries.map((entry) => entry.archiveAsset).toSet(), hasLength(5));
+      expect(entries.map((entry) => entry.sha256).toSet(), hasLength(5));
+      expect(
+        entries.expand((entry) => entry.previewAssets.values).toSet(),
+        hasLength(10),
+      );
       for (final entry in entries) {
         final archive = await File(entry.archiveAsset).readAsBytes();
         expect(archive.length, entry.size, reason: entry.console);
@@ -249,8 +269,9 @@ void main() {
     () async {
       final service = catalogs();
       final entries = await service.bundledEntries();
-      expect(entries, hasLength(3));
+      expect(entries, hasLength(_shippedPacks.length));
       expect(entries.every((entry) => entry.bundled != null), isTrue);
+      final installedPerConsole = <String, int>{};
       for (final entry in entries) {
         final console = entry.consoles.single;
         final selection = await skins.selectedSkins(console);
@@ -270,8 +291,14 @@ void main() {
         expect(installed.supports('landscape'), isTrue);
         expect(installed.sha256, entry.bundled!.sha256);
         expect(await skins.selectedSkins(console), selection);
-        expect(await skins.installedSkins(console: console), hasLength(1));
+        installedPerConsole[console] = (installedPerConsole[console] ?? 0) + 1;
+        // An Original installs beside the earlier pack of its console, never over it.
+        expect(
+          await skins.installedSkins(console: console),
+          hasLength(installedPerConsole[console]),
+        );
       }
+      expect(installedPerConsole, <String, int>{'wii': 2, 'gc': 2, 'ps2': 1});
       expect(
         requests,
         isEmpty,
@@ -285,14 +312,14 @@ void main() {
   );
 
   test(
-    'unified catalog keeps all three originals when remote catalogs are offline',
+    'unified catalog keeps every shipped pack when remote catalogs are offline',
     () async {
       final service = catalogs();
       final entries = await service.load();
       expect(entries, isNotNull);
       expect(
         entries!.map((entry) => entry.consoles.single),
-        unorderedEquals(<String>['wii', 'gc', 'ps2']),
+        unorderedEquals(<String>['wii', 'gc', 'ps2', 'gc', 'wii']),
       );
       expect(entries.every((entry) => entry.bundled != null), isTrue);
       expect(requests, isNotEmpty, reason: 'remote failures were exercised');
@@ -312,16 +339,22 @@ void main() {
     'a bundled archive cannot be classified or installed for another console',
     () async {
       final service = catalogs();
-      final entry = (await service.bundledEntries()).singleWhere(
-        (entry) => entry.consoles.single == 'wii',
-      );
-      final verdict = await service.classify(entry, 'gc');
-      expect(verdict.offered, isFalse);
-      expect(verdict.reasons, contains(LibretroSkinCompatibility.otherConsole));
-      expect(
-        await service.install(entry, 'gc'),
-        isA<LibretroSkinImportFailed>(),
-      );
+      final wii = (await service.bundledEntries())
+          .where((entry) => entry.consoles.single == 'wii')
+          .toList();
+      expect(wii, hasLength(2), reason: 'Wii Pocket and its board Original');
+      for (final entry in wii) {
+        final verdict = await service.classify(entry, 'gc');
+        expect(verdict.offered, isFalse);
+        expect(
+          verdict.reasons,
+          contains(LibretroSkinCompatibility.otherConsole),
+        );
+        expect(
+          await service.install(entry, 'gc'),
+          isA<LibretroSkinImportFailed>(),
+        );
+      }
       expect(await skins.installedSkins(), isEmpty);
       expect(requests, isEmpty);
     },
@@ -365,4 +398,141 @@ void main() {
       },
     );
   }
+
+  test(
+    'Originals coexist with the earlier packs: selection, persistence and read-back by id, old choices kept',
+    () async {
+      // Frontend settings stored like the native bridge: console scope, then games.
+      final stored = <String, Map<String, Object?>>{};
+      messenger.setMockMethodCallHandler(_channel, (call) async {
+        nativeCalls.add(call);
+        final args = Map<String, Object?>.from(
+          (call.arguments as Map?) ?? const {},
+        );
+        final console = args['console'] as String;
+        final scopes = stored.putIfAbsent(
+          console,
+          () => <String, Object?>{
+            'console': <String, Object?>{},
+            'games': <String, Object?>{},
+          },
+        );
+        if (call.method == 'frontendSettings') return scopes;
+        if (call.method == 'setFrontendSetting') {
+          final game = args['game'] as String?;
+          final scope = game == null
+              ? scopes['console'] as Map<String, Object?>
+              : ((scopes['games'] as Map<String, Object?>).putIfAbsent(
+                      game,
+                      () => <String, Object?>{},
+                    )
+                    as Map<String, Object?>);
+          final value = args['value'];
+          if (value == null) {
+            scope.remove(args['key']);
+          } else {
+            scope[args['key'] as String] = value;
+          }
+          return true;
+        }
+        fail('Unexpected native operation ${call.method}');
+      });
+      final service = catalogs();
+      final installed = <String, LibretroInstalledSkin>{};
+      for (final entry in await service.bundledEntries()) {
+        final result = await service.install(entry, entry.consoles.single);
+        expect(result, isA<LibretroSkinImported>());
+        installed[entry.bundled!.id] = (result as LibretroSkinImported).skin;
+      }
+      expect(installed.keys.toSet(), _shippedPacks.keys.toSet());
+      expect(
+        installed.values.map((skin) => skin.id).toSet(),
+        hasLength(5),
+        reason: 'distinct installed ids',
+      );
+      expect(
+        installed['gamecube-pocket-original']!.identifier,
+        'org.rewindbox.gamecube-pocket-original',
+      );
+      expect(
+        installed['wii-pocket-original']!.identifier,
+        'org.rewindbox.wii-pocket-original',
+      );
+      expect(
+        installed['gamecube-pocket']!.identifier,
+        isNot(installed['gamecube-pocket-original']!.identifier),
+      );
+      // Nothing was selected by installing: the defaults are untouched.
+      for (final console in ['gc', 'wii', 'ps2']) {
+        expect(await skins.selectedSkins(console), <String, String?>{
+          'portrait': null,
+          'landscape': null,
+        });
+      }
+      // A user who chose the earlier Wii pack keeps it.
+      final oldWii = installed['wii-pocket']!.id;
+      for (final orientation in ['portrait', 'landscape']) {
+        await skins.select(
+          console: 'wii',
+          orientation: orientation,
+          skinId: oldWii,
+        );
+      }
+      // GameCube: the Original in portrait, the earlier pack in landscape, and a
+      // game choosing the Original in both.
+      final gcOriginal = installed['gamecube-pocket-original']!.id;
+      final gcOld = installed['gamecube-pocket']!.id;
+      await skins.select(
+        console: 'gc',
+        orientation: 'portrait',
+        skinId: gcOriginal,
+      );
+      await skins.select(
+        console: 'gc',
+        orientation: 'landscape',
+        skinId: gcOld,
+      );
+      for (final orientation in ['portrait', 'landscape']) {
+        await skins.select(
+          console: 'gc',
+          orientation: orientation,
+          skinId: gcOriginal,
+          game: 'GALE01',
+        );
+      }
+      expect(await skins.selectedSkins('gc'), <String, String?>{
+        'portrait': gcOriginal,
+        'landscape': gcOld,
+      });
+      expect(await skins.selectedSkins('gc', game: 'GALE01'), <String, String?>{
+        'portrait': gcOriginal,
+        'landscape': gcOriginal,
+      });
+      expect(await skins.selectedSkins('wii'), <String, String?>{
+        'portrait': oldWii,
+        'landscape': oldWii,
+      });
+      // The stored values are the installed ids, read back from disk.
+      final read = await skins.installedSkin(gcOriginal);
+      expect(read, isNotNull);
+      expect(read!.identifier, 'org.rewindbox.gamecube-pocket-original');
+      expect(read.supports('portrait') && read.supports('landscape'), isTrue);
+      // Wii Original selectable too; the earlier pack still installed and readable.
+      final wiiOriginal = installed['wii-pocket-original']!.id;
+      await skins.select(
+        console: 'wii',
+        orientation: 'landscape',
+        skinId: wiiOriginal,
+      );
+      expect(await skins.selectedSkins('wii'), <String, String?>{
+        'portrait': oldWii,
+        'landscape': wiiOriginal,
+      });
+      expect(await skins.installedSkin(oldWii), isNotNull);
+      expect(await skins.installedSkin(gcOld), isNotNull);
+      expect(await skins.installedSkins(console: 'gc'), hasLength(2));
+      expect(await skins.installedSkins(console: 'wii'), hasLength(2));
+      expect(requests, isEmpty);
+    },
+  );
 }

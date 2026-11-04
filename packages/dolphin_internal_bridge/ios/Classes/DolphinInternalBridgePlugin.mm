@@ -21,6 +21,7 @@
 #import "DolphinRecordingController.h"
 #import "DOLTouchLayout.h"
 #import "DOLSkinOverlay.h"
+#import "DOLSessionChromePolicy.h"
 #import "DOLOrientation.h"
 #import <dolphin_internal_bridge/dolphin_internal_bridge-Swift.h>
 #import <GameController/GameController.h>
@@ -258,6 +259,14 @@ static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, cons
 @property(nonatomic, strong, nullable) DOLSkinOverlay* skinOverlay;
 @property(nonatomic, assign) BOOL renderSurfaceLocked;
 @property(nonatomic, assign) CGSize lockedRenderSize;
+// The floating menu and performance buttons, and their two placements: beside
+// each other at the safe area's corner, or the performance toggle inside the
+// skin's game screen (DOLSessionChromePolicy.h).
+@property(nonatomic, strong) UIButton* floatingMenuButton;
+@property(nonatomic, copy) NSArray<NSLayoutConstraint*>* chromeFloating;
+@property(nonatomic, copy) NSArray<NSLayoutConstraint*>* chromeInScreen;
+@property(nonatomic, strong) NSLayoutConstraint* performanceScreenLeading;
+@property(nonatomic, strong) NSLayoutConstraint* performanceScreenTop;
 - (void)lockRenderSurface;
 - (void)placeRenderSurface;
 - (void)syncSkinOverlay;
@@ -391,15 +400,26 @@ static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, cons
   self.performanceOverlay.translatesAutoresizingMaskIntoConstraints = NO;
   self.performanceOverlay.hidden = YES;
   [self.view addSubview:self.performanceOverlay];
-  [NSLayoutConstraint activateConstraints:@[
+  self.floatingMenuButton = close;
+  self.chromeFloating = @[
     [performance.leadingAnchor constraintEqualToAnchor:close.trailingAnchor constant:8.0],
     [performance.centerYAnchor constraintEqualToAnchor:close.centerYAnchor],
+    [self.performanceOverlay.leadingAnchor constraintEqualToAnchor:close.leadingAnchor],
+    [self.performanceOverlay.topAnchor constraintEqualToAnchor:close.bottomAnchor constant:8.0],
+  ];
+  self.performanceScreenLeading = [performance.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor];
+  self.performanceScreenTop = [performance.topAnchor constraintEqualToAnchor:self.view.topAnchor];
+  self.chromeInScreen = @[
+    self.performanceScreenLeading, self.performanceScreenTop,
+    [self.performanceOverlay.leadingAnchor constraintEqualToAnchor:performance.leadingAnchor],
+    [self.performanceOverlay.topAnchor constraintEqualToAnchor:performance.bottomAnchor constant:8.0],
+  ];
+  [NSLayoutConstraint activateConstraints:self.chromeFloating];
+  [NSLayoutConstraint activateConstraints:@[
     [performance.widthAnchor constraintEqualToConstant:44.0],
     [performance.heightAnchor constraintEqualToConstant:44.0],
     [self.recordingIndicator.leadingAnchor constraintEqualToAnchor:performance.trailingAnchor constant:8.0],
     [self.recordingIndicator.centerYAnchor constraintEqualToAnchor:performance.centerYAnchor],
-    [self.performanceOverlay.leadingAnchor constraintEqualToAnchor:close.leadingAnchor],
-    [self.performanceOverlay.topAnchor constraintEqualToAnchor:close.bottomAnchor constant:8.0],
     [self.performanceOverlay.widthAnchor constraintEqualToConstant:300.0],
     [self.performanceOverlay.heightAnchor constraintEqualToConstant:188.0],
     [close.leadingAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leadingAnchor constant:12.0],
@@ -443,6 +463,37 @@ static void DOLReceiveAchievement(uint64_t session, uint32_t achievementID, cons
   skin.userInteractionEnabled = interactive;
   self.touchOverlay.padHiddenBySkin = shown;
   [self placeRenderSurface];
+  [self placeSessionChrome];
+}
+
+// The session's floating buttons never cover the skin's controls
+// (DOLSessionChromePolicy.h): its own Menu replaces the floating one, and the
+// performance toggle moves into the corner of the skin's game screen.
+- (void)placeSessionChrome {
+  DOLSkinOverlay* skin = self.skinOverlay;
+  UIButton* menu = self.floatingMenuButton;
+  if (skin == nil || menu == nil || self.performanceButton == nil) return;
+  const BOOL shown = !skin.hidden && skin.layoutActive && !CGRectIsNull(skin.screenFrame);
+  const CGRect screen = shown ? [skin convertRect:skin.screenFrame toView:self.view] : CGRectZero;
+  const DOLChromePlacement placement = DOLSessionChromePlace(
+      shown, skin.hasMenuControl,
+      (DOLChromeRect){screen.origin.x, screen.origin.y, screen.size.width, screen.size.height}, 44.0, 8.0);
+  // Only real changes: this runs from viewDidLayoutSubviews.
+  if (menu.hidden != !placement.showMenuButton) menu.hidden = !placement.showMenuButton;
+  const BOOL inScreen = self.chromeInScreen.firstObject.active;
+  if (placement.performanceInScreen) {
+    if (self.performanceScreenLeading.constant != placement.performanceX)
+      self.performanceScreenLeading.constant = placement.performanceX;
+    if (self.performanceScreenTop.constant != placement.performanceY)
+      self.performanceScreenTop.constant = placement.performanceY;
+    if (inScreen) return;
+    [NSLayoutConstraint deactivateConstraints:self.chromeFloating];
+    [NSLayoutConstraint activateConstraints:self.chromeInScreen];
+  } else {
+    if (!inScreen) return;
+    [NSLayoutConstraint deactivateConstraints:self.chromeInScreen];
+    [NSLayoutConstraint activateConstraints:self.chromeFloating];
+  }
 }
 
 // Dolphin reads its render surface once, when the core starts. Until then

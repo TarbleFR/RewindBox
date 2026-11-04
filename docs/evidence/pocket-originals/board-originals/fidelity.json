@@ -1,0 +1,26 @@
+{
+ "gamecube-pocket-original/portrait": {
+  "comparedPixels": 142494,
+  "meanAbsDiff": 1.94,
+  "psnrDb": 32.6,
+  "gradientRatioPackOverBoard": 1.09
+ },
+ "gamecube-pocket-original/landscape": {
+  "comparedPixels": 161845,
+  "meanAbsDiff": 2.39,
+  "psnrDb": 29.3,
+  "gradientRatioPackOverBoard": 1.099
+ },
+ "wii-pocket-original/portrait": {
+  "comparedPixels": 141810,
+  "meanAbsDiff": 1.69,
+  "psnrDb": 33.7,
+  "gradientRatioPackOverBoard": 1.108
+ },
+ "wii-pocket-original/landscape": {
+  "comparedPixels": 157712,
+  "meanAbsDiff": 1.55,
+  "psnrDb": 34.2,
+  "gradientRatioPackOverBoard": 1.097
+ }
+}
