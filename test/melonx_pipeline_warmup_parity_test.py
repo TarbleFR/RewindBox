@@ -24,6 +24,12 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
+sys.path.insert(0, str(ROOT / 'test'))
+from melonx_adapter_control import control_source  # noqa: E402
+_HOLD = []
+# The 631 preparation, or the final preparation (prepare_embedded.py runs this adapter): its exact control.
+FINAL_SOURCE = SOURCE
+SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_pipeline_warmup_parity', _HOLD)
 from adapt_pipeline_warmup_parity import apply, BASELINE, KEY_PROPERTIES
 
 for name, expected in BASELINE.items():
@@ -103,9 +109,9 @@ check(candidate['persistedSize'] == control['structSize'] and candidate['structS
       'persisted prefix is not the struct every earlier build wrote')
 inputs = ['build-utils/melonx/adapt_pipeline_warmup_parity.py', 'test/melonx_pipeline_warmup_parity_test.py',
           'test/melonx_pipeline_warmup_parity/vulkan/Program.cs', 'test/melonx_pipeline_warmup_parity/gpu/Program.cs',
-          'build-utils/melonx/adapt_session.py']
+          'build-utils/melonx/adapt_session.py', 'test/melonx_adapter_control.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
-receipt = dict(result='passed', checks=checks, reports=reports, sdk=sdk, physicalDeviceTested=False, nativeCallsUsed=False,
+receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION, sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core631Preparation', postimages={p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest() for p in BASELINE} if FINAL_PREPARATION else {}, reports=reports, sdk=sdk, physicalDeviceTested=False, nativeCallsUsed=False,
                sourceBaseline=BASELINE,
                inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
                limitation='Host fixture of the key, cache bytes and description; the frequency of alpha-to-coverage '

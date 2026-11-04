@@ -22,6 +22,12 @@ import hashlib, json, os, shutil, subprocess, sys, tempfile
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
+sys.path.insert(0, str(ROOT / 'test'))
+from melonx_adapter_control import control_source  # noqa: E402
+_HOLD = []
+# The 631 preparation, or the final preparation (prepare_embedded.py runs this adapter): its exact control.
+FINAL_SOURCE = SOURCE
+SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_device_short_trim', _HOLD)
 from adapt_device_short_trim import apply, BASELINE
 
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
@@ -111,9 +117,9 @@ control, candidate = reports['control']['reports'], reports['candidate']['report
 check(control['deliveredWarning'] == candidate['deliveredWarning'] and
       control['deliveredCritical'] == candidate['deliveredCritical'], 'delivered trim changed')
 inputs = ['build-utils/melonx/adapt_device_short_trim.py', 'build-utils/melonx/adapt_session.py',
-          'test/melonx_device_short_trim_test.py', 'test/melonx_device_short_trim/Program.cs']
+          'test/melonx_device_short_trim_test.py', 'test/melonx_device_short_trim/Program.cs', 'test/melonx_adapter_control.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
-receipt = dict(result='passed', checks=checks, fixtureChecks={k: v['checks'] for k, v in reports.items()}, reports=reports,
+receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION, sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core631Preparation', postimages={p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest() for p in BASELINE} if FINAL_PREPARATION else {}, fixtureChecks={k: v['checks'] for k, v in reports.items()}, reports=reports,
                sdk=sdk, physicalDeviceTested=False, gpuStorageDoubled=True,
                sourceBaseline={**BASELINE, TEXTURE: TEXTURE_SHA},
                inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
