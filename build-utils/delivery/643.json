@@ -273,6 +273,10 @@
       {
         "commit": "5ab7273dce43ba02ce04476e7e827f9be794ee80",
         "note": "feat(skins): integrate PR #155: GameCube/Wii Pocket Original skins from the approved boards; Dolphin session buttons off skin controls [skip ci]"
+      },
+      {
+        "commit": "33bb2a22fb8775cd7cc74665a0d059ebe7e50845",
+        "note": "fix(legal): reviewed declaration overlay for the GameCube/Wii Pocket Originals (PR #155): the Pocket catalog gains two packs [skip ci]"
       }
     ],
     "sourceOnly": [],
