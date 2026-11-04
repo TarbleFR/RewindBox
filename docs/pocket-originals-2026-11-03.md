@@ -214,3 +214,40 @@ feel, both physical landscape sides, game response. Board-bound landscape limits
 about 26 pt tall, SELECT/START about 40 pt, the opposite-rotation housing over Circle) are
 listed for the maintainer.
 
+
+## Installed bundled packs follow the shipped archive (4 November 2026)
+
+Input: maintainer recording `ScreenRecording_11-04-2026_19-03-01_1.mp4` (11 094 898 B,
+SHA-256 `7ea18bee…d2ca`, 15.46 s, 956×440 pt landscape at 60 fps), GameCube Pocket —
+Original in Fire Emblem. Every press draws a darker rectangle around the control, the
+main-stick cap sits right of its socket at rest, and the C knob carries part of its
+base. That is the archive from **before** the touch fix. Composed at the device size,
+the pre-PR157 archive `f61e10dd` matches the recording's stick regions (7.9 / 6.8)
+far better than the shipped `ec382133` (11.4 / 14.1)
+([analysis.json](evidence/pocket-originals/installed-copy-refresh/analysis.json),
+[control crops](evidence/pocket-originals/installed-copy-refresh/device-press-crops.png)).
+
+Cause: a bundled pack is imported once into `Documents/Libretro/Skins/<id>`. An app
+update never refreshed that copy, the catalog did not show that a newer archive shipped,
+and reinstalling asked for a replace confirmation. A GameCube Original installed under
+IPA 643 therefore kept its old opaque sprites and caps after IPA 650 shipped the fix.
+The recording does not show which IPA was installed. Under 643 these frames are
+expected; under 650 only the stale copy explains them.
+
+Fix: `LibretroSkinCatalogs.refreshInstalledBundledSkins` runs at app start (iOS, after
+the first frame) and when the skin page opens. An installed skin whose identifier is a
+bundled RewindBox pack's (`org.rewindbox.*`, read from the shipped archive), and whose
+SHA-256 is not the shipped one, is replaced through the existing
+`LibretroSkinService.replace`:
+- the shipped copy is installed first;
+- every console and game selection naming the old copy moves to it;
+- the old copy is deleted;
+- on failure the old copy keeps its files and selections.
+
+Nothing is installed that was not installed before, and a skin with any other
+identifier is never touched. When nothing is stale, only the recorded SHA-256 values
+are compared with the catalog. Test:
+`test/bundled_controller_skins_test.dart` ("a RewindBox pack installed by an earlier
+build…"). With the refresh disabled the same test fails. Not observed: the refresh on
+an iPhone. A game started within the first seconds of the first launch after an
+update may still draw the old copy for that session.

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -581,6 +582,206 @@ void main() {
       );
       expect(await skins.installedSkin(ps2Old), isNotNull);
       expect(await skins.installedSkins(console: 'ps2'), hasLength(2));
+      expect(requests, isEmpty);
+    },
+  );
+
+  test(
+    'a RewindBox pack installed by an earlier build follows the shipped archive, selections kept, nothing else touched',
+    () async {
+      // Frontend settings stored like the native bridge; forgetSkin also clears
+      // what still names the deleted skin, as LibretroFrontendStore does.
+      final stored = <String, Map<String, Object?>>{};
+      Map<String, Object?> scopes(String console) => stored.putIfAbsent(
+        console,
+        () => <String, Object?>{
+          'console': <String, Object?>{},
+          'games': <String, Object?>{},
+        },
+      );
+      final forgotten = <String>[];
+      messenger.setMockMethodCallHandler(_channel, (call) async {
+        nativeCalls.add(call);
+        final args = Map<String, Object?>.from(
+          (call.arguments as Map?) ?? const {},
+        );
+        if (call.method == 'forgetSkin') {
+          final id = args['skinId'] as String;
+          forgotten.add(id);
+          for (final console in stored.values) {
+            (console['console'] as Map<String, Object?>).removeWhere(
+              (_, value) => value == id,
+            );
+            for (final game
+                in (console['games'] as Map<String, Object?>).values) {
+              (game as Map<String, Object?>).removeWhere(
+                (_, value) => value == id,
+              );
+            }
+          }
+          return true;
+        }
+        final console = args['console'] as String;
+        if (call.method == 'frontendSettings') return scopes(console);
+        if (call.method == 'setFrontendSetting') {
+          final game = args['game'] as String?;
+          final scope = game == null
+              ? scopes(console)['console'] as Map<String, Object?>
+              : ((scopes(console)['games'] as Map<String, Object?>).putIfAbsent(
+                      game,
+                      () => <String, Object?>{},
+                    )
+                    as Map<String, Object?>);
+          scope[args['key'] as String] = args['value'];
+          return true;
+        }
+        fail('Unexpected native operation ${call.method}');
+      });
+      // The device state of the maintainer's recording: GameCube Pocket —
+      // Original installed by an earlier build (same identifier, other archive
+      // bytes), chosen for the console and for one game.
+      Future<String> rewrite(
+        String asset,
+        String name, {
+        String? identifier,
+      }) async {
+        final source = ZipDecoder().decodeBytes(
+          await File(asset).readAsBytes(),
+        );
+        final out = Archive();
+        for (final file in source.files) {
+          var bytes = file.readBytes()!;
+          if (file.name == 'LICENSE.txt') {
+            bytes = Uint8List.fromList([
+              ...bytes,
+              ...utf8.encode('\nearlier build\n'),
+            ]);
+          }
+          if (identifier != null && file.name == 'info.json') {
+            final info = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
+            info['identifier'] = identifier;
+            info['name'] = 'My own GameCube skin';
+            bytes = Uint8List.fromList(utf8.encode(jsonEncode(info)));
+          }
+          out.addFile(ArchiveFile(file.name, bytes.length, bytes));
+        }
+        final target = File(path.join(root.path, name));
+        await target.writeAsBytes(ZipEncoder().encode(out), flush: true);
+        return target.path;
+      }
+
+      final shipped = {
+        for (final bundle in await BundledControllerSkin.load(
+          loadAsset: _fileAsset,
+        ))
+          bundle.id: bundle,
+      };
+      final stale = await skins.importFromFile(
+        await rewrite(
+          'assets/skins/pocket/gamecube-pocket-original.manicskin',
+          'earlier.manicskin',
+        ),
+        source: 'RewindBox Originals',
+        targetConsole: 'gc',
+      );
+      expect(stale, isA<LibretroSkinImported>());
+      final old = (stale as LibretroSkinImported).skin;
+      expect(old.identifier, 'org.rewindbox.gamecube-pocket-original');
+      expect(old.sha256, isNot(shipped['gamecube-pocket-original']!.sha256));
+      // Beside it: a current bundled pack and a skin of the user's own.
+      final service = catalogs();
+      final wii = (await service.bundledEntries()).singleWhere(
+        (entry) => entry.bundled!.id == 'wii-pocket',
+      );
+      final current =
+          (await service.install(wii, 'wii') as LibretroSkinImported).skin;
+      final own =
+          (await skins.importFromFile(
+                    await rewrite(
+                      'assets/skins/pocket/gamecube-pocket.manicskin',
+                      'own.manicskin',
+                      identifier: 'com.example.my-gamecube',
+                    ),
+                    targetConsole: 'gc',
+                  )
+                  as LibretroSkinImported)
+              .skin;
+      for (final orientation in ['portrait', 'landscape']) {
+        await skins.select(
+          console: 'gc',
+          orientation: orientation,
+          skinId: old.id,
+        );
+        await skins.select(
+          console: 'wii',
+          orientation: orientation,
+          skinId: current.id,
+        );
+      }
+      await skins.select(
+        console: 'gc',
+        orientation: 'landscape',
+        skinId: old.id,
+        game: 'GFEP01',
+      );
+      await skins.select(
+        console: 'gc',
+        orientation: 'portrait',
+        skinId: own.id,
+        game: 'GALE01',
+      );
+
+      final refreshed = await service.refreshInstalledBundledSkins();
+
+      expect(refreshed, hasLength(1));
+      final fresh = refreshed.single;
+      final bundle = shipped['gamecube-pocket-original']!;
+      expect(fresh.identifier, old.identifier);
+      expect(
+        fresh.sha256,
+        bundle.sha256,
+        reason: 'the archive this build ships',
+      );
+      expect(fresh.id, bundle.sha256.substring(0, 16));
+      expect(
+        await skins.installedSkin(old.id),
+        isNull,
+        reason: 'old copy deleted',
+      );
+      expect(forgotten, <String>[old.id]);
+      expect(await skins.selectedSkins('gc'), <String, String?>{
+        'portrait': fresh.id,
+        'landscape': fresh.id,
+      });
+      expect(await skins.selectedSkins('gc', game: 'GFEP01'), <String, String?>{
+        'portrait': null,
+        'landscape': fresh.id,
+      }, reason: 'the game choice moved to the shipped copy');
+      expect(
+        (await skins.selectedSkins('gc', game: 'GALE01'))['portrait'],
+        own.id,
+        reason: 'the user skin and its choice are untouched',
+      );
+      expect(await skins.selectedSkins('wii'), <String, String?>{
+        'portrait': current.id,
+        'landscape': current.id,
+      });
+      expect(
+        (await skins.installedSkins()).map((skin) => skin.id).toSet(),
+        <String>{fresh.id, current.id, own.id},
+        reason: 'no pack installed that was not installed before',
+      );
+      // The refreshed skin is the shipped one, read back from disk.
+      final read = await skins.installedSkin(fresh.id);
+      expect(read!.supports('portrait') && read.supports('landscape'), isTrue);
+      expect(read.source, 'RewindBox Originals');
+      // Up to date: nothing more to do, no archive replaced.
+      nativeCalls.clear();
+      expect(await service.refreshInstalledBundledSkins(), isEmpty);
+      expect(
+        nativeCalls.where((call) => call.method != 'frontendSettings'),
+        isEmpty,
+      );
       expect(requests, isEmpty);
     },
   );

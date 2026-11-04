@@ -299,49 +299,35 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 ### Skins/orientation and additive PS2 Original — existing owner
 
 - **History:** PR152 `705e90c7`; PS2 playlist entry `b8794226`; PR155 Originals in 643;
-  PR157 contour/press/stick fix in frozen 650.
-  [Touch proofs](evidence/pocket-originals/touch-fix/), [pack record](pocket-originals-2026-11-03.md).
-- **PS2 Pocket — Original, ready for review:** branch `work/skins-ps2-original-20261104`
-  (base `c37b71d`), commits `628a730` (product and tests) and `084928e` (test tolerance,
-  real-overlay evidence), draft [PR158](https://github.com/TarbleFR/RewindBox/pull/158).
-  - Input zip `13e739fe…eac` re-hashed. The target `e37c95a5…95da` is a byte copy at
-    `docs/design/pocket/approved-ps2.png`; IMG_0399/0400 are not targets and stay private.
-  - New id `ps2-pocket-original`, archive `07f4b6fb09fcf61f3ae3081313fd9f551b5abb377774f9249b62e40cef2c6355`,
-    7283088 B, reproducible. Catalog goes from 5 to 6 entries (`16a25a9d…42ac`).
-    `ps2-pocket` `2106e5f7` and the GC/Wii Originals are byte-identical; nothing is selected or
-    migrated.
-  - Native: `ARMSX2SkinOverlay` resolves touches by the drawn shape
-    (`ARMSX2SkinHitTest.h` = `DOLSkinHitTest.h` code). The ARMSX2 floating menu hides over a skin
-    with its own Menu (it covered L1 in landscape on both PS2 packs).
-- **Proof:**
-  - Simulator run [41870604467](https://github.com/TarbleFR/RewindBox/actions/runs/41870604467)
-    green: ARMSX2 28/28 (Original 19/19, PS2 Pocket 9/9), host verifier on 6 archives, iPhone
-    compile `-Werror`.
-  - The earlier run 41865972707 had 27/28: an over-strict centre-vector test on letterboxed
-    views, corrected in `084928e`.
-  - Host: input chain 18 layouts; earlier packs equal the old rectangle test (874602 points).
-  - Flutter 3.47.2 249/249.
-  - Fidelity: mean abs diff 1.3–1.45, PSNR 37.5–37.9 dB. Real overlay vs host: mean abs
-    0.7/1.54; released equals rest.
-  - [Evidence](evidence/pocket-originals/ps2-original/).
-- **Limits (maintainer decision):**
-  - landscape L3/R3 about 26 pt tall and SELECT/START about 40 pt (the maquette leaves no room);
-  - SELECT/START 4.3–5.0 pt into the home band;
-  - opposite-rotation housing over Circle.
-
-  Portrait ≥44 pt. iPhone feel and game response are unobserved.
-- **Main:** a reviewed legal overlay for the 6th pack (the source-evidence check binds 5), then
-  integration into the next common IPA. No merge, IPA, pin or Core change from this branch.
-- **Effort observed:** `/reload-skills` returned 37 skills. Native `rb-effort-high` returned
-  "Effective effort reported by Claude Code: high" for the hit-test/geometry phase.
-  `rb-effort-medium` for the handoff returned "loaded earlier… NEW invocation" with no
-  substituted value. `CLAUDE_EFFORT=high` during the native phase; no override.
-- **MeloNX export:** the 5 originals of PID7613/E3542E16 were re-hashed (sizes and SHA-256 match).
-  - Private ZIP 900515 B, `12b5f01926d2bf5f6c34a6f6ebb5165e0aa38309c5c4f6dc823661cb82562f04`,
-    with INPUTS.json and SHA256SUMS. Attached for download in the skins conversation (file
-    `d585ba9d-2e26-4982-9155-b1471f1850d2`); not in Git.
-  - The native attach to MeloNX was refused: "attachments is only valid from a project's
-    channel session to one of its thread sessions". Codex re-attaches.
+  PR157 contour/press/stick fix in 650; PR158 PS2 Pocket — Original in 653 (simulator ARMSX2
+  28/28, run `41870604467`; landscape L3/R3 ~26 pt, SELECT/START ~40 pt and the housing over
+  Circle await the maintainer).
+  [Touch proofs](evidence/pocket-originals/touch-fix/), [PS2 Original](evidence/pocket-originals/ps2-original/),
+  [pack record](pocket-originals-2026-11-03.md).
+- **Current: stale installed GameCube Original (4 Nov, high selector for diagnosis).**
+  - Input: `ScreenRecording_11-04-2026_19-03-01_1.mp4`, 11094898 B, `7ea18bee…d2ca`, 956×440 pt
+    landscape, 60 fps; private.
+  - Finding: every press draws a rectangle, the main cap is off-centre and the C knob carries
+    its base. That is the pre-PR157 archive: at the device size `f61e10dd` matches the stick
+    regions at 7.9/6.8, the shipped `ec382133` at 11.4/14.1.
+  - Cause: a bundled pack is imported once into `Skins/<id>` and an app update never
+    refreshed it. Which IPA was installed is not visible in the recording; under 650 only
+    the stale copy explains the frames.
+  - Fix: branch `work/skins-bundled-refresh-20261104` from `46ed379`, commit `d0348a4`, draft
+    [PR159](https://github.com/TarbleFR/RewindBox/pull/159). `refreshInstalledBundledSkins`
+    runs at iOS start and on the skin page: a stale `org.rewindbox.*` copy is replaced
+    through the existing `replace` (selections moved, rollback on failure); nothing else
+    is touched. Dart only, no asset, native or CI change.
+  - Tests: Flutter 3.47.2 250/250; the new test fails with the refresh disabled; analyze clean.
+    [Analysis](evidence/pocket-originals/installed-copy-refresh/analysis.json).
+  - Not observed: the refresh on an iPhone. A game started in the first seconds after an
+    update may still use the old copy for that session.
+  - Main: review and next common IPA. No merge, IPA, pin or Core change from here.
+- **Effort observed:** `rb-effort-high` returned "Effective effort reported by Claude Code:
+  high" at this defect's start. `rb-effort-medium` for this handoff returned "loaded earlier…
+  NEW invocation" with no substituted value.
+- **MeloNX export:** private ZIP 900515 B `12b5f019…2f04` (skins attachment `d585ba9d…`).
+  Native attach refused (project channel→thread only); Codex re-attaches.
 
 ### Codex orchestration — Codex
 
