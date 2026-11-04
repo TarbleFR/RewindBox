@@ -126,24 +126,42 @@ spawning an agent is optional and must replace useful work, not duplicate it.
 - Select BOTH model and effort for every delegated task; pass both explicitly
   to the native Agent tool when supported, including the Explore fallback.
   Do not inherit an expensive session effort accidentally.
-- Select main-turn effort before substantive work through the native inline
-  `rb-effort-low`, `rb-effort-medium` or `rb-effort-high` skill. These selectors
-  set real `effort` frontmatter and leave the session model unchanged. Use low
-  for factual/status-only turns, medium for understood bounded changes and
-  high for unresolved Core/JIT/GPU/memory/concurrency/ABI work. Classify by the
-  highest-risk substantive work REMAINING in the turn: a status interruption
-  must not lower effort before resuming core implementation. Select again on
-  the next user turn because the skill override lasts only for its current turn.
-  Extra/max are exceptional escalations with a named difficulty, not defaults.
-  The project fallback effort is medium; the running async core task uses high.
-- The three effort selectors can be chosen automatically through Skill; their
-  invocation applies a native setting, while choosing the appropriate selector
-  remains Claude's task classification, not a deterministic external router.
-  After first adding the skills directory, run `/reload-skills` without restarting.
-  Reuse that command after edits if the new directory is not watched. Confirm
-  the loaded names, invoke the high selector for the current core work and read
-  its expanded `${CLAUDE_EFFORT}` value. Environment effort overrides and admin
-  caps can prevail; report a mismatch without claiming automatic effort works.
+- Select the real main-turn effort before substantive work through the native
+  inline `rb-effort-low`, `rb-effort-medium` or `rb-effort-high` Skill call,
+  not a prose statement about reasoning. These selectors leave the session model
+  unchanged. Use low for facts/status ONLY, medium for understood bounded work,
+  and high for unresolved Core/JIT/GPU/memory/concurrency/ABI, UIKit lifecycle,
+  skin hit-testing/stick geometry/orientation and difficult regression review.
+  Classify by the highest-risk substantive work REMAINING: a short status check
+  does not justify lowering effort before returning to unresolved native code.
+  Reassess at each new user turn and at a genuine phase boundary. Once the hard
+  implementation/review is resolved and only routine records/handoff remain,
+  select medium (or low for a purely factual reply) instead of carrying high/max
+  indefinitely. Do not oscillate on each shell command.
+- Adaptive effort activation, corrected at the maintainer's request on 4 Nov:
+  a manually selected Max is a session setting, NOT an automatic task router;
+  project `effortLevel: medium` does not clear that session choice. The native
+  effort-only skill can override the session for its turn, but must actually be
+  loaded and invoked in EACH existing session. The main session's successful
+  3 Nov high-selector check proves nothing about skins/MeloNX activation.
+  At the next safe checkpoint, sync only the relevant config without overwriting
+  product work; reload skills in that session if required, verify loaded names,
+  invoke the appropriate selector and record its expanded `${CLAUDE_EFFORT}`
+  value. Compare requested, skill-returned and displayed session levels; the UI
+  picker alone is not proof of the level of an already-running request.
+  Read only effort-related non-secret overrides when needed:
+  `CLAUDE_CODE_EFFORT_LEVEL` takes precedence over skill effort; an organization
+  cap can also prevail. Do not add a fixed effort environment override or change
+  permissions to solve routing. A mismatch is an activation issue to resolve,
+  not evidence that automatic switching works.
+  Max/Extra remain targeted exceptions for a named unresolved hard problem;
+  record the cause and leave them at the next appropriate phase. If a required
+  level has no loaded selector/native self-control, state that exact limitation
+  and request the existing coordinator's authorized UI adjustment, without a new
+  worker or broad maintainer approval. Keep the principal model stable while a
+  task runs; model switching is a separate native operation requiring evidence.
+  Do not mistake the permission-mode Auto button for effort automation. Do not
+  claim adaptive routing or savings until native execution was observed.
 
 - The main Claude session owns the current request, integration, shared board,
   pins, CI and IPA delivery. Default to one coding agent total, counting the
