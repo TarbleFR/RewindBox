@@ -250,10 +250,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   kept, PR158 PS2 Pocket Original (`70b9c36e`, legal `850611ff`); [receipt](evidence/rewind653/delivery.json),
   key deleted, file sent. PR158 landscape sizes (L3/R3 ~26 pt, SELECT/START ~40 pt,
   home-band overlap, sensor housing over Circle) await the maintainer.
-- **IPA 650 device logs (18:00 UTC, private, hashed):** AC gameplay 25–28 FPS = 643; one AC
-  process lost the GPU (VK_ERROR_DEVICE_LOST, poke_query) after 6.5 min in the UI left
-  4.7 GB footprint / 2.5 GB compressed (jetsam limit 6655 MiB; Core reclaim never armed);
-  BO2 hitches coincide with compression growth. Analysis workflow running; levers next.
+- **MeloNX Core 654 (PR #156 new lot, handoff `42a104cc`):** integrated byte-identically
+  `4700d445`, wired `9b41bc66` (binder release + artifact counters last in ORDER), frozen
+  `d8ed0119` (contract `e1f181e5…`, 145 inputs, 184 members, 46 changes, 27 gates in one
+  local pass with SDK 10.0.100, contract test 331 checks, receipts validated), evidence
+  `f1d395ba` → Core CI run `41907506289` in progress. Next: pin, then IPA 655 (653 + PR159
+  + host memory milestone + Core 654; RPCS3 Core per the 653-log levers).
+- **Device logs 650/653 (private, hashed in scratchpad):** 650: AC 25–28 FPS = 643, GPU
+  loss after compression growth (4.7 GB footprint); verified at 0 % deviation: no
+  steady-state regression; "compression is the precursor" and "2.5 GB before gameplay"
+  refuted as causal/like-for-like (ordering right, same steps in healthy play; one menu
+  window). 653 (Core 652, thermal 0): see RPCS3 section; the barrier change of 652 could
+  not show on screen.
 - **Misaddressed MeloNX logs:** skins export ready (ZIP 900515 B, `12b5f019…2f04`, skins
   attachment `d585ba9d…`). Main has no native transfer (`send_message.attachments`:
   project channel→thread only; no tool reads another session's upload); MeloNX idle,
@@ -272,9 +280,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   writes are read-only; a skipped read counts, so read-only chains keep one barrier.
   Host model on real code: no RAW/WAR hazard; 6 reads 8→3 passes; random 106854→99643
   passes, 94138→75615 barriers; writing loops identical. RPASS652 census of pass ends.
-- **Open/next:** pin 652, IPA 653; then the RPASS652 dominant restart site. BO2 new
-  pipelines (234–1008 ms, first-ever keys; old ones persist): anticipation design still
-  open. Device AC/BO2 measurements required. Do not close at “GPU-bound”.
+- **IPA 653 logs (pid 9605, Core 652, 19:24–19:39 UTC, thermal 0):** AC 24–29 FPS at the
+  30 cap, GPU 70–78 % = 27–30 ms/frame, RSX stages 5–8 ms: GPU-bound; 44–53 pass begins
+  per frame, 13–19 re-open the same target (change_image_layout 4–11, insert_texture_barrier
+  5–10 all same-target; 652's depth barrier ≈1). BO2 15–22 FPS, GPU 20–27 % (11–14 ms),
+  RSX stages 10–16 ms of 45–60 ms frames (texture 6–10 ms), 13 000 command-buffer submits
+  per 5 s in menus (close_and_submit via the flush path), SPU getllar_sleep 0.2–4 s per
+  window, max_spurs 6 on 2P+4E: guest-CPU-bound. BLES01882: no frame in 38 s (PPU
+  interpreter by database). Workflow `wf_82d6d6d1` (3 analysts, verify, 2 designers,
+  judge) running on the real MoltenVK 1.4.2 source (db660224): in a render encoder a
+  layout barrier does nothing unless GENERAL; outside it ends the encoding and sets stage
+  fences (argument buffers + residency set), so an in-pass non-attachment layout needs a
+  fence wait on the current encoder (MoltenVK patch) to be safe.
+- **Open/next:** Core after the judge: AC = keep the pass open on non-attachment layout
+  transitions (iOS + MoltenVK fence), counted; BO2 = SPU/PPU scheduling (preferred SPU
+  threads, QoS) and RSX texture time, not passes. No FPS claim before an iPhone log.
 
 ### MeloNX FPS, memory, black launch and artifacts — existing owner
 
@@ -303,31 +323,52 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **History:** PR152 `705e90c7`; PS2 playlist entry `b8794226`; PR155 Originals in 643;
   PR157 contour/press/stick fix in 650; PR158 PS2 Pocket — Original in 653 (simulator ARMSX2
   28/28, run `41870604467`; landscape L3/R3 ~26 pt, SELECT/START ~40 pt and the housing over
-  Circle await the maintainer).
+  Circle await the maintainer); PR159 installed-copy refresh integrated `ae36a67` (after 653).
   [Touch proofs](evidence/pocket-originals/touch-fix/), [PS2 Original](evidence/pocket-originals/ps2-original/),
+  [refresh](evidence/pocket-originals/installed-copy-refresh/analysis.json),
   [pack record](pocket-originals-2026-11-03.md).
-- **Current: stale installed GameCube Original (4 Nov, high selector for diagnosis).**
-  - Input: `ScreenRecording_11-04-2026_19-03-01_1.mp4`, 11094898 B, `7ea18bee…d2ca`, 956×440 pt
-    landscape, 60 fps; private.
-  - Finding: every press draws a rectangle, the main cap is off-centre and the C knob carries
-    its base. That is the pre-PR157 archive: at the device size `f61e10dd` matches the stick
-    regions at 7.9/6.8, the shipped `ec382133` at 11.4/14.1.
-  - Cause: a bundled pack is imported once into `Skins/<id>` and an app update never
-    refreshed it. Which IPA was installed is not visible in the recording; under 650 only
-    the stale copy explains the frames.
-  - Fix: branch `work/skins-bundled-refresh-20261104` from `46ed379`, commit `d0348a4`, draft
-    [PR159](https://github.com/TarbleFR/RewindBox/pull/159). `refreshInstalledBundledSkins`
-    runs at iOS start and on the skin page: a stale `org.rewindbox.*` copy is replaced
-    through the existing `replace` (selections moved, rollback on failure); nothing else
-    is touched. Dart only, no asset, native or CI change.
-  - Tests: Flutter 3.47.2 250/250; the new test fails with the refresh disabled; analyze clean.
-    [Analysis](evidence/pocket-originals/installed-copy-refresh/analysis.json).
-  - Not observed: the refresh on an iPhone. A game started in the first seconds after an
-    update may still use the old copy for that session.
-  - Main: review and next common IPA. No merge, IPA, pin or Core change from here.
+- **Device check on 653 (21:02 recording `33dc53cc…25df`, private):** the GameCube Original
+  still drew the 643 copy (stick regions `f61e10dd` 7.9/6.8 against `ec382133` 11.4/14.2;
+  rectangle on A and the D-pad), while the same iPhone had the 653-only PS2 Original
+  (`07f4b6fb`, 1.05/255 at rest). So the stale copy was confirmed and PR159 is needed on
+  device; record on `work/skins-device-653-check-20261104` `4eb0ab3` (docs only).
+- **Sticks: only the top face moves (high selector).**
+  - Input: `ScreenRecording_11-04-2026_21-31-53_1.mov`, 11796828 B, `0555383b…f5d5`, private.
+    The corrected `ec382133` is installed (stick regions 7.8/6.5 against 12.4/15.3), so the
+    halos are gone. Complaint: "sticks too wide, moving with controller texture; the yellow
+    stick should move only its top".
+  - Cause: the boards draw the caps in 3D (a top face 4–8 board px above the cap centre,
+    over a skirt), while the knob was a centred disk of 1.12 r taking the skirt and socket
+    with it.
+  - Fix: branch `work/skins-stick-top-20261104` from `9b41bc6`, commit `90aabdb`, draft
+    [PR160](https://github.com/TarbleFR/RewindBox/pull/160). Each GameCube/Wii stick declares
+    its measured top face: knob = that face, frame centred on it, skirt kept, smooth skirt fill
+    (no angular streaks).
+    - GameCube `9988f5d7ec07cb5a3e45a49871ba59792e414a00d70433f9d8908a28692d71ea` (5995074 B);
+    - Wii `645bd5ab1310466d9e95661a55705bf4e50696cbc6513bd195aa971be6e47d39` (5105387 B);
+    - PS2 Original byte-identical; reproducible.
+  - Proof:
+    - CI run [41910671261](https://github.com/TarbleFR/RewindBox/actions/runs/41910671261)
+      green: Dolphin skin simulator 9/9 on the new archives and the pocket host step;
+    - host: verifier 6 packs, input chain 18 layouts, Flutter skin/pocket 240/240;
+    - audit: moving-part centre 4.9–8.1 pt from the top face before, 0 after; travel 7.3–11.0 pt.
+    - [Evidence](evidence/pocket-originals/stick-top/).
+  - Main: the legal declaration must follow the two new archives (as after PR157), then the
+    next common IPA. Not observed on an iPhone.
+- **Switch Pocket (new request, in progress).**
+  - Maquette needed as an original file: the chat image is not saved as a file, and I do not
+    build from a recompressed copy.
+  - Path found: MeloNX has no skin overlay, and the Dart skin consoles are gc/wii/ps2 only.
+    Needed: a `switch` console, a MeloNX playlist Skins entry, and a native MeloNX skin
+    overlay (drawn-shape hit test, router input, Menu, 16:9 game in the skin screen,
+    Melo-Controller hidden).
+  - Core ABI verified: 17 buttons, `EmbeddedInput.cs:42`; order checked by
+    `test/melonx_input_test.py:69-73`: A B X Y − Guide + L3 R3 L R up down left right ZL ZR;
+    sticks 1/2.
+  - Capture: no index. Home: only `Guide` (5), with no evidence the guest reacts, so both are
+    Core needs for main, not silent buttons.
 - **Effort observed:** `rb-effort-high` returned "Effective effort reported by Claude Code:
-  high" at this defect's start. `rb-effort-medium` for this handoff returned "loaded earlier…
-  NEW invocation" with no substituted value.
+  high" at each native phase. `rb-effort-low` returned "low" for the IPA status question.
 - **MeloNX export:** private ZIP 900515 B `12b5f019…2f04` (skins attachment `d585ba9d…`).
   Native attach refused (project channel→thread only); Codex re-attaches.
 
