@@ -9,6 +9,7 @@ import '../../l10n/skin_browser_locale.dart';
 import '../../services/gamepad/gamepad_navigation_manager.dart';
 import '../../services/dolphin_skins.dart';
 import '../../services/libretro_core_catalog.dart';
+import '../../services/libretro_skin_catalogs.dart';
 import '../../services/libretro_skin_compatibility.dart';
 import '../../services/libretro_skin_service.dart';
 import '../../services/logger_service.dart';
@@ -552,6 +553,10 @@ class _LibretroSkinManagerScreenState extends State<LibretroSkinManagerScreen>
     } catch (error) {
       _log.w('Libretro skin manager unavailable: $error');
     }
+    // A RewindBox pack installed by an earlier build follows the archive this
+    // build ships (selections kept) before the list is shown.
+    final skins = _skins;
+    if (skins != null) await LibretroSkinCatalogs.refreshBundledSkins(skins);
     await _reload();
   }
 
