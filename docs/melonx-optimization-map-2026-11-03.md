@@ -295,3 +295,21 @@ device check:
 - a recording of the same SSBU scene;
 - the template fallbacks at 0;
 - the SSBU pipeline cache main size at its next launch.
+
+### Remaining 640 points closed without waiting (4 November 2026, maintainer's rule of `280000c1`)
+
+| Point | Result | Disposition |
+|---|---|---|
+| Pipeline bursts (Hogwarts pass 5: 170 builds, 1.3 s; SSBU p99 83 ms) | Constraint demonstrated | The Vulkan pipeline cache file is keyed by `driverVersion`, which went from 10400 to 10402 with MoltenVK 1.4.2. Hogwarts' first 640 session loaded 0 KiB of cache and the next 76.6 MiB (569 MiB under 1.4.0); SSBU loaded 0 KiB (714 MiB under 1.4.0). Each title rebuilds its cache once after the update, as Vulkan requires, and the old files stay. The cost shrinks with each session that saves the cache (the main cache is written when the renderer closes). No code change: keeping the 1.4.0 cache would hand MoltenVK 1.4.2 another driver's data |
+| 655 read-backs declined as "occupied" (Hogwarts) | Datum missing, smallest instrumentation added | Core log of 640: an `R32G32B32A32Float` 1x1 read-back into a buffer succeeds every frame (1 310 times). An `R16G16B16A16Float` 1x1 read-back to a linear destination of stride 8 (`TryReadBackGpuRegion`) succeeded only at the start of each session, and the 655 declines are most likely its later frames. "Occupied" covers three cases: other textures over the destination, a fragmented destination, or (buffer branch) a texture of the source group. Source reading cannot tell why `FindTexture` misses the target it created. `adapt_readback_occupied_attribution.py` splits the counter in the summary ("occupied N (other textures, fragmented, source group)") and logs the first 8 occupants once each: format, size, layout and stride, read-back target, GPU-modified, offset, in the auto-delete list, linear lookup match. Diagnostics only; the decisions are unchanged. Proof: `test/melonx_readback_occupied_attribution_test.py` builds both GPU assemblies, and the decline and return skeletons are identical ([receipt](evidence/melonx-readback-occupied-attribution/checks.json)). The synchronisation change waits for that line |
+| Pipeline misses `Topology`/`PrimitiveRestartEnable` (2 in 154 s) | Datum missing, smallest instrumentation added | `DrawManager` and `StateUpdater` set the warm-up and host topology and restart in the same calls, deferred instanced draws included; no deterministic mismatch was found. `TryGetGraphicsPipeline` returns before the warning while the program's table is empty, without consuming the once-per-program flag. So the warning can compare the warm-up with a later draw in a second, legitimate state. `adapt_pipeline_miss_context.py` adds "pipelines already built for this program: N": 1 means the first draw missed (parity to fix), more means other states came first (no defect). Proof: `test/melonx_pipeline_miss_context_test.py` builds the Vulkan assembly; only the warning line changes, and the count is taken under the lock on that miss ([receipt](evidence/melonx-pipeline-miss-context/checks.json)) |
+| SSBU flicker | Corrected as far as the logs prove | The in-pass barrier ordering defect (every title, MoltenVK 1.4.2) and the descriptor fallbacks are corrected above. The Hogwarts deferral is inactive for SSBU, and #154 is not generalised to it |
+
+All six new production files (VulkanRenderer, PipelineBase, BarrierBatch, Library, DmaClass, ShaderCollection) are
+disjoint. The four adapters apply together on one Core 639 preparation, so their order is free. Composite build, fresh (Linux x86_64): LibHac rebuilt from its pinned source `23e402eb` (`build_libhac.py`, .NET 8 runtime for its generators), then `Ryujinx.Library` (with the GPU, Vulkan and HLE assemblies) built with all four adapters applied: build succeeded.
+
+Physical data still needed, and nothing else: one 640+ device run with these adapters, Hogwarts and SSBU, giving
+- the DMA summary split and the occupant lines;
+- the miss lines with their pipeline count;
+- the per-window "in-pass image barriers ending the pass";
+- recordings of the same scenes.
