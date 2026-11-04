@@ -401,6 +401,16 @@ excluded on that path: a close while paused is handled (Horizon.Dispose resumes 
 A timing-dependent guest wait at launch fits the black screen (released by a pause, avoided by the recording's load);
 the device logs with the marks below and `guestThreads` decide it.
 
+Cross-check by the skins session (new private bundle, read only, 4 Nov): Hogwarts 7613 (14:53 UTC, no black screen)
+goes through the same draw phases (≈0.4, 7, ≈340, ≈22, then 400–1 800 per frame) and the same 1x1 read-back; the
+≈22-draw phase is therefore part of a normal launch too. In 6451 that phase costs 7.6–7.8 ms of GPU per frame (about 11
+render passes, 6 clears, 1 dispatch): a light screen with full-screen passes, such as the title screen, not an idle loop.
+Two readings stay open: (i) a guest wait released by the pause; (ii) the title screen rendered black (for instance with a
+stale 1x1 exposure-like value, the defect Core 644 corrects), the game advancing when it receives an input (the touch of
+the Control Center swipe, or a controller press around the menu). The only early discriminator found there: one
+SetRenderTargetColorMasks pass restart in the window ending at +20 s in the black sessions, none in 7613. Decisive device
+check: during the black screen, press A or touch the screen without opening the menu.
+
 Close-phase marks, `build-utils/melonx/adapt_teardown_phase_marks.py` (WindowBase.cs, VulkanRenderer.cs of Core 647),
 journal only: durable Core lines `teardown guestStop` / `guestStopped` (ms) / `gpuRelease` / `gpuReleased` (ms) and
 `gpuTeardown deviceIdleWait` (before vkDeviceWaitIdle, with the compile counts) / `compiles` / `swapchainReleased`. The
