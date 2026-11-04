@@ -50,12 +50,33 @@ def member(text, signature):
 
 for name, expected in BASELINE.items():
     check(hashlib.sha256((SOURCE / name).read_bytes()).hexdigest() == expected, 'not the Core 642 preparation: ' + name)
+
+
+def use_authenticated_libhac_feed(tree):
+    """The HLE closure needs Ryujinx.LibHac. A tree still declaring the unreachable upstream feed (a prepared source that
+    build_libhac.py did not configure) uses the authenticated local package instead: dist/melonx/libhac-feed holding the
+    pinned package whose SHA-256 is the build_libhac identity receipt's (build_libhac.configure_feed). Otherwise unchanged."""
+    import json
+    lock = json.loads((ROOT / 'build-utils/melonx/source.json').read_text())['libHac']
+    feed = ROOT / 'dist/melonx/libhac-feed'
+    package = feed / (lock['package'] + '.' + lock['version'] + '.nupkg')
+    receipt = ROOT / 'dist/melonx/libhac-identity.json'
+    config = (tree / 'nuget.config').read_text(encoding='utf-8-sig')
+    if 'https://starforgejo.dev/api/packages/Ryulynx/nuget/index.json' not in config or not package.is_file() or not receipt.is_file():
+        return
+    identity = json.loads(receipt.read_text())
+    check(identity['source'] == lock and hashlib.sha256(package.read_bytes()).hexdigest() == identity['packageSha256'],
+          'the local LibHac package is the authenticated one')
+    sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
+    from build_libhac import configure_feed
+    configure_feed(tree, feed, lock['package'])
 environment = dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1')
 texts = {}
 with tempfile.TemporaryDirectory(prefix='melonx-pause-threads-') as temporary:
     for variant in ('control', 'candidate'):
         work = Path(temporary).resolve() / variant
         shutil.copytree(SOURCE, work, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
+        use_authenticated_libhac_feed(work)
         if variant == 'candidate':
             changed = apply(work)
             check(sorted(str(p.relative_to(work)) for p in changed) == sorted(BASELINE), 'adapter changed other files')

@@ -165,6 +165,7 @@ input_paths = [*native, 'build-utils/melonx/adapt_performance_diagnostics.py',
                'build-utils/melonx/adapt_moltenvk_barrier_ordering.py', 'build-utils/melonx/adapt_descriptor_scratch_all_titles.py',
                'build-utils/melonx/adapt_readback_occupied_attribution.py', 'build-utils/melonx/adapt_pipeline_miss_context.py',
                'build-utils/melonx/adapt_readback_receivers.py', 'build-utils/melonx/adapt_present_source_attribution.py',
+               'build-utils/melonx/adapt_teardown_compile_cancel.py', 'build-utils/melonx/adapt_pause_guest_threads.py',
                'test/melonx_adapter_control.py',
                'test/melonx_performance_diagnostics_test.py', 'test/melonx_performance_diagnostics/Program.cs']
 inputs = {}

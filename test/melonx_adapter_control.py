@@ -21,7 +21,8 @@ BOM = b'\xef\xbb\xbf'
 # melonx_adapter_control_order_test.py). A later adapter that edits a file of an earlier one is reversed first.
 ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_moltenvk_barrier_ordering',
          'adapt_descriptor_scratch_all_titles', 'adapt_readback_occupied_attribution', 'adapt_pipeline_miss_context',
-         'adapt_readback_receivers', 'adapt_present_source_attribution')
+         'adapt_readback_receivers', 'adapt_present_source_attribution', 'adapt_teardown_compile_cancel',
+         'adapt_pause_guest_threads')
 
 
 def sha(path: Path) -> str:
