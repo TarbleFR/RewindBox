@@ -351,6 +351,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `adapt_artifact_counters.py` (three suspected artifact paths, 118), Swift capture/interruption/`acq=` journal (63,
   static). Composition on Core 649 builds Ryujinx.Library; the real preparation of `13700519` reproduces Core 649 but
   the changed native file.
+- **Levers (4 Nov, measured on host, handoff pending):** `adapt_array_rebuild_allocations.py` removes the
+  pool-sized bindless array allocations (2 MB → 0 per 65 536-element rebuild; 200-rebuild burst 400 MiB → 0.1, gen2
+  66 → 0, GC pause 75 → 0 ms; 321 checks) and `adapt_present_pacing.py` paces 30 fps presents on a 33.3 ms lattice
+  with VK_GOOGLE_display_timing (simulated 17/50 pairs 2.37 → 0.02/s, +15 ms mean latency; 782 checks). Rejected
+  with receipts: texture-sync pooling (small gain, steady regression), GC gen0/latency (no effect: gen0 already 64 MiB).
 - **Next:** main wires `adapt_binder_teardown` and `adapt_artifact_counters` after `adapt_teardown_phase_marks`, pins
   the native file and builds the IPA (Swift compiled there). Device: recording started before launch without opening
   Control Center; artifact screenshots; fresh launch vs second launch in one process (`sessionRetention`, `gcEvent`,
