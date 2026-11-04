@@ -19,6 +19,10 @@ from adapt_hogwarts_dma_copies import CONFIG, DMA, LIBRARY, LIBRARY_OLD, NAMES a
 from adapt_queued_syncpoints import NAMES as QUEUE_NAMES
 from adapt_pipeline_warmup_parity import BASELINE as WARMUP_BASELINE
 from adapt_device_short_trim import BASELINE as TRIM_BASELINE
+from adapt_moltenvk_barrier_ordering import BASELINE as BARRIER_BASELINE
+from adapt_descriptor_scratch_all_titles import BASELINE as SCRATCH_BASELINE
+from adapt_readback_occupied_attribution import BASELINE as OCCUPIED_BASELINE
+from adapt_pipeline_miss_context import BASELINE as MISS_BASELINE
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -35,16 +39,24 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'single-resource-bindings': 'delivered', 'bounded-binding-snapshots': 'delivered',
             'counter-report-compaction': 'ada',
             # Core 639 (PR #153 lot): their fixtures rebuild their own exact Core 631 control from the final source.
-            'pipeline-warmup-parity': 'delivered', 'device-short-trim': 'delivered'}
+            'pipeline-warmup-parity': 'delivered', 'device-short-trim': 'delivered',
+            # Core 642 (PR #154 lot): the same form, against the Core 639 preparation each adapter pins.
+            'moltenvk-barrier-ordering': 'delivered', 'descriptor-scratch-all-titles': 'delivered',
+            'readback-occupied-attribution': 'delivered', 'pipeline-miss-context': 'delivered',
+            # The build 87 barrier compaction proof declares BarrierBatch.cs (changed by the barrier ordering adapter).
+            'barrier-compaction': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
 CHANGES = ((set(ARRAY_NAMES) - {DIAGNOSTICS}) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
-           set(WARMUP_BASELINE) | set(TRIM_BASELINE))
+           set(WARMUP_BASELINE) | set(TRIM_BASELINE) | set(BARRIER_BASELINE) | set(SCRATCH_BASELINE) |
+           set(OCCUPIED_BASELINE) | set(MISS_BASELINE))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
          'binding-data-snapshot-checks.json', 'pipeline-checkpoint-checks.json',
          # The queued syncpoints change CounterCache.cs and DeferredCounterReport.cs, which this receipt declares.
          'counter-report-compaction-final-checks.json',
+         # Core 642: the barrier ordering adapter changes BarrierBatch.cs, which this core87 receipt declares.
+         CORE87 + 'barrier-compaction-checks.json',
          *(CORE87 + name for name in ('scalar-texture-descriptor-checks.json', 'fallback-descriptor-scratch-checks.json',
                                       'single-resource-binding-checks.json', 'bounded-binding-snapshot-checks.json'))}
 # Production files that joined the prepared source with this increment (unadapted in the delivered Core).
@@ -219,12 +231,16 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 37 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 39 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
                                                      'build-utils/melonx/adapt_pipeline_warmup_parity.py',
-                                                     'build-utils/melonx/adapt_device_short_trim.py'} and
+                                                     'build-utils/melonx/adapt_device_short_trim.py',
+                                                     'build-utils/melonx/adapt_moltenvk_barrier_ordering.py',
+                                                     'build-utils/melonx/adapt_descriptor_scratch_all_titles.py',
+                                                     'build-utils/melonx/adapt_readback_occupied_attribution.py',
+                                                     'build-utils/melonx/adapt_pipeline_miss_context.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py'},
           'Unexpected preparation scope')
     check(set(frozen['baselineUnadaptedMembers']) == JOINED,
@@ -243,7 +259,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 134 and len(frozen['preparedMembers']) == 180, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 138 and len(frozen['preparedMembers']) == 180, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -259,7 +275,7 @@ if not args.helpers_only:
           'The final GPU assembly build does not bind every changed GPU file')
     check(all(gate[name]['assertions'].get('sourceKind') in ('deliveredPreparedWithFinalCandidate', 'finalPrepared',
                                                              'baselinePreparedWithFinalInstrumentedCandidate',
-                                                             # Core 639: the final preparation, its exact 631 control rebuilt
+                                                             # Core 639 and 642: the final preparation, its exact pinned control rebuilt
                                                              'finalPreparationWithReversedControl') for name in gate),
           'A gate ran without the final prepared source')
     # Every file a gate reads from its control is frozen, so a delivery can recheck every receipt completely.

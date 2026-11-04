@@ -68,9 +68,18 @@ import adapt_hogwarts_dma_copies as adapter  # noqa: E402
 import adapt_host_qos_pipeline_budget as host  # noqa: E402
 import adapt_queued_syncpoints as queued  # noqa: E402
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import apply_present  # noqa: E402
+from melonx_adapter_control import ORDER, apply_present  # noqa: E402
 
 ALL = [*adapter.NAMES, *host.NAMES]
+# Files of this composition each post-631 adapter edits, in preparation order (PR #153 lot, then PR #154 lot).
+LOT_FILES = {
+    'adapt_pipeline_warmup_parity': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
+    'adapt_device_short_trim': ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs'],
+    'adapt_moltenvk_barrier_ordering': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    'adapt_descriptor_scratch_all_titles': ['src/Ryujinx.Library/Library.cs'],
+    'adapt_readback_occupied_attribution': ['src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs'],
+    'adapt_pipeline_miss_context': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'],
+}
 
 checks = 0
 
@@ -96,9 +105,9 @@ def compose(target, final=False):
         queued.apply(target, names=[queued.LIBRARY])
     host.apply(target)
     if final:
-        # PR #153 lot (Core 639), last in preparation order: its TextureCache.cs and ShaderCollection.cs hunks.
-        apply_present(target, 'adapt_pipeline_warmup_parity')
-        apply_present(target, 'adapt_device_short_trim')
+        # PR #153 lot (Core 639) then PR #154 lot (Core 642), last in preparation order, on the files held here.
+        for name in ORDER:
+            apply_present(target, name)
 
 
 with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
@@ -109,16 +118,17 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
     after = {p: (work / p).read_text(encoding='utf-8-sig') for p in ALL}
     composed = temporary / 'final'
     compose(composed, final=True)
-    # Expected final: this composition plus the queued syncpoint Library line, then the PR #153 lot (Core 639) on
-    # the files it edits here (TextureCache.cs, ShaderCollection.cs), nothing else.
+    # Expected final: this composition plus the queued syncpoint Library line, then the PR #153 lot (Core 639) and the
+    # PR #154 lot (Core 642) on the files they edit here (LOT_FILES), nothing else.
     expected_final = temporary / 'expected-final'
     shutil.copytree(work, expected_final)
     (expected_final / adapter.LIBRARY).write_text(
         after[adapter.LIBRARY].replace(queued.LIBRARY_ANCHOR, queued.HUNKS[queued.LIBRARY][0][1]), encoding='utf-8')
-    lot153 = apply_present(expected_final, 'adapt_pipeline_warmup_parity') + apply_present(expected_final, 'adapt_device_short_trim')
-    check(sorted(lot153) == ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'] and
+    lots = {name: apply_present(expected_final, name) for name in ORDER}
+    print(json.dumps({'lotFiles': lots}), flush=True)
+    check(lots == LOT_FILES and
           all((composed / p).read_bytes() == (expected_final / p).read_bytes() for p in ALL),
-          'the final composition adds only the queued syncpoint Library line and the PR #153 hunks')
+          'the final composition adds only the queued syncpoint Library line and the PR #153 and #154 hunks')
     postimages = {p: sha(composed / p) for p in ALL}
     if CANDIDATE:
         check(postimages == {p: sha(CANDIDATE / p) for p in ALL}, 'composition differs from the final prepared source')
@@ -1492,6 +1502,8 @@ namespace Ryujinx.Graphics.Vulkan
 inputs = ['build-utils/melonx/adapt_hogwarts_dma_copies.py', 'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
           'build-utils/melonx/adapt_queued_syncpoints.py', 'test/melonx_hogwarts_dma_copies_test.py',
           'build-utils/melonx/adapt_pipeline_warmup_parity.py', 'build-utils/melonx/adapt_device_short_trim.py',
+          'build-utils/melonx/adapt_moltenvk_barrier_ordering.py', 'build-utils/melonx/adapt_descriptor_scratch_all_titles.py',
+          'build-utils/melonx/adapt_readback_occupied_attribution.py', 'build-utils/melonx/adapt_pipeline_miss_context.py',
           'test/melonx_adapter_control.py']
 receipt = dict(result='passed', checks=checks, physicalDeviceTested=False, fpsGainProven=False,
                sourceKind='deliveredPreparedWithFinalCandidate' if CANDIDATE else 'deliveredPreparedComposed',

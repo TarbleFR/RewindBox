@@ -39,7 +39,8 @@ CONTROL_PREPARED = {
 }
 # Six since build 621: pipeline-checkpoint is rerun with the 1 GiB pipeline cache budget (verify_dma_core.FRESH_GATES).
 # Eleven since Core 631 (run 41720730870): the encoding fixtures and counter-report-compaction rerun on the final source.
-FRESH_GATES = 13
+# Thirteen with Core 639 (PR #153 lot), eighteen with Core 642 (PR #154 lot: four adapter gates and the barrier compaction rerun on the final preparation).
+FRESH_GATES = 18
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4

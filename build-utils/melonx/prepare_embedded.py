@@ -102,6 +102,10 @@ from adapt_queued_syncpoints import apply as adapt_queued_syncpoints
 from adapt_host_qos_pipeline_budget import apply as adapt_host_qos_pipeline_budget
 from adapt_pipeline_warmup_parity import apply as adapt_pipeline_warmup_parity
 from adapt_device_short_trim import apply as adapt_device_short_trim
+from adapt_moltenvk_barrier_ordering import apply as adapt_moltenvk_barrier_ordering
+from adapt_descriptor_scratch_all_titles import apply as adapt_descriptor_scratch_all_titles
+from adapt_readback_occupied_attribution import apply as adapt_readback_occupied_attribution
+from adapt_pipeline_miss_context import apply as adapt_pipeline_miss_context
 
 
 def replace_once(path, old, new):
@@ -256,6 +260,14 @@ def main():
     # device-short texture trim evicts only textures it frees without a flush (GpuContext, AutoDeleteCache, TextureCache).
     adapted += [source / name for name in adapt_pipeline_warmup_parity(source)]
     adapted += [source / name for name in adapt_device_short_trim(source)]
+    # After every Core 639 step: each pins the Core 639 preparation's bytes of its files (none edits another's).
+    # PR #154: barrier ordering on MoltenVK 1.4.2 (VulkanRenderer, PipelineBase, BarrierBatch), the binding-sized
+    # descriptor scratch for every title (Library), occupied-readback attribution (DmaClass), miss context
+    # (ShaderCollection).
+    adapted += [source / name for name in adapt_moltenvk_barrier_ordering(source)]
+    adapted += [source / name for name in adapt_descriptor_scratch_all_titles(source)]
+    adapted += [source / name for name in adapt_readback_occupied_attribution(source)]
+    adapted += [source / name for name in adapt_pipeline_miss_context(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -329,7 +341,9 @@ def main():
                  'adapt_fragmented_reads.py', 'adapt_gpu_work_diagnostics.py',
                  'adapt_bindless_array_deltas.py', 'adapt_hogwarts_dma_copies.py',
                  'adapt_queued_syncpoints.py', 'adapt_host_qos_pipeline_budget.py',
-                 'adapt_pipeline_warmup_parity.py', 'adapt_device_short_trim.py']:
+                 'adapt_pipeline_warmup_parity.py', 'adapt_device_short_trim.py',
+                 'adapt_moltenvk_barrier_ordering.py', 'adapt_descriptor_scratch_all_titles.py',
+                 'adapt_readback_occupied_attribution.py', 'adapt_pipeline_miss_context.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

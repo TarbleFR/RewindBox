@@ -13,8 +13,16 @@ from pathlib import Path
 import difflib, hashlib, json, shutil, sys, tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = Path(sys.argv[1]).resolve()
+# Core gate form: <control> --candidate-source <final preparation>; the control tree is not read (the exact Core 639
+# control is rebuilt from the final preparation). Standalone form: <Core 639 prepared tree>.
+SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
+sys.path.insert(0, str(ROOT / 'test'))
+from melonx_adapter_control import control_source  # noqa: E402
+_HOLD = []
+# The Core 639 preparation, or the final preparation (prepare_embedded.py runs this adapter): its exact control.
+FINAL_SOURCE = SOURCE
+SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_descriptor_scratch_all_titles', _HOLD)
 from adapt_descriptor_scratch_all_titles import apply, BASELINE
 
 checks = 0
@@ -56,7 +64,7 @@ check(reports['candidateOn']['semanticDigest'] == reports['candidateOff']['seman
       reports['candidateOn']['resourceTrace'] == reports['candidateOff']['resourceTrace'], 'policy on and off are semantically equal')
 inputs = ['build-utils/melonx/adapt_descriptor_scratch_all_titles.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_descriptor_scratch_all_titles_test.py', 'docs/evidence/melonx-631-gates/fallback-descriptor-scratch-checks.json']
-receipt = dict(result='passed', checks=checks, physicalDeviceTested=False, sourceBaseline=BASELINE,
+receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION, sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core639Preparation', postimages={p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest() for p in BASELINE} if FINAL_PREPARATION else {}, physicalDeviceTested=False, sourceBaseline=BASELINE,
                inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
                limitation='Scope change bound to the Core 631 on/off equivalence proof; SSBU frame time not measured.')
 out = ROOT / 'dist/melonx/descriptor-scratch-all-titles-checks.json'

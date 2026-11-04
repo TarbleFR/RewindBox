@@ -78,7 +78,8 @@ READ_COUNTERS = arrays.READ_COUNTERS
 ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # Ten since build 631: the four fixtures whose receipts declare DescriptorSetUpdater.cs or TextureArray.cs rerun on the final source.
 # Eleven with the queued syncpoints: the counter report compaction fixture declares CounterCache.cs and DeferredCounterReport.cs.
-FRESH_GATES = 13
+# Thirteen with Core 639 (PR #153 lot), eighteen with Core 642 (PR #154 lot: four adapter gates and the barrier compaction rerun on the final preparation).
+FRESH_GATES = 18
 HISTORICAL_RECEIPTS = 61
 
 

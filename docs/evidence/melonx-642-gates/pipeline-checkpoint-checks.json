@@ -1,0 +1,91 @@
+{
+  "result": "passed",
+  "sourceKind": "baselinePreparedWithFinalInstrumentedCandidate",
+  "physicalDeviceTested": false,
+  "fpsGainProven": false,
+  "completeProductionClasses": true,
+  "vulkanBoundaryDoubled": true,
+  "realFileMappingAndSnapshots": true,
+  "adapterIdempotent": true,
+  "sourceDriftControlsPassed": 3,
+  "reports": {
+    "control": {
+      "variant": "control",
+      "assertions": 646,
+      "scenarios": 13,
+      "results": [
+        {
+          "scenario": "nearBudget193Creates",
+          "creationProbes": 193,
+          "exportsBeforeFinal": 193,
+          "exportsIncludingFinal": 193,
+          "bytesIncludingFinal": 11857920
+        }
+      ]
+    },
+    "candidate": {
+      "variant": "candidate",
+      "assertions": 646,
+      "scenarios": 13,
+      "results": [
+        {
+          "scenario": "nearBudget193Creates",
+          "creationProbes": 193,
+          "exportsBeforeFinal": 1,
+          "exportsIncludingFinal": 2,
+          "bytesIncludingFinal": 122880
+        }
+      ]
+    }
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_pipeline_checkpoint_pacing.py": "f49a83af2a580bac0f9a5965e24d538717c056e893b3a47ff4e81d093030c33d",
+    "build-utils/melonx/adapt_host_qos_pipeline_budget.py": "c0d0e998934ea53fe30edc5df8992af09c94b1f4fea317db36d1c3d055e15def",
+    "test/melonx_pipeline_checkpoint_test.py": "15ca67760b9e29ebd37fab05587cc55d3a4c17e84c46f1f70a872aff57a6b6eb",
+    "test/melonx_pipeline_checkpoint/Program.cs": "a8fe24c69375d5d997cd78e3f1ea3a2fabac3aef01d067f6472ec17de2338071",
+    "test/melonx_pipeline_checkpoint/Boundaries.cs": "1506ed199c62abd053255e03befd3a546bad735a7da484a8e8f3580d742afc6a"
+  },
+  "upstreamInputs": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "b2046145e15b441309ea4229b1a638a8c9fa1817e7de451ca0d8ec2a59efc403"
+  },
+  "preimages": {
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "b2046145e15b441309ea4229b1a638a8c9fa1817e7de451ca0d8ec2a59efc403"
+  },
+  "postimages": {
+    "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs": "7de6a7a29cc02ebf7878bebf5bb557886f2efb517fece493214de72ca4434a81",
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "16a541596e1f4fcef44ab7cb331766377f013dc1bb2711db9c9b8b620f52b0a7"
+  },
+  "compiledSourceInputs": {
+    "control": {
+      "Boundaries.cs": "1506ed199c62abd053255e03befd3a546bad735a7da484a8e8f3580d742afc6a",
+      "Program.cs": "a8fe24c69375d5d997cd78e3f1ea3a2fabac3aef01d067f6472ec17de2338071",
+      "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "b2046145e15b441309ea4229b1a638a8c9fa1817e7de451ca0d8ec2a59efc403"
+    },
+    "candidate": {
+      "Boundaries.cs": "1506ed199c62abd053255e03befd3a546bad735a7da484a8e8f3580d742afc6a",
+      "Program.cs": "a8fe24c69375d5d997cd78e3f1ea3a2fabac3aef01d067f6472ec17de2338071",
+      "EmbeddedPerformanceDiagnostics.cs": "7de6a7a29cc02ebf7878bebf5bb557886f2efb517fece493214de72ca4434a81",
+      "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs": "16a541596e1f4fcef44ab7cb331766377f013dc1bb2711db9c9b8b620f52b0a7"
+    }
+  },
+  "compiledBindings": [
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+      ],
+      "productionPath": "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs"
+    },
+    {
+      "variant": "candidate",
+      "reportPath": [
+        "compiledSourceInputs",
+        "candidate",
+        "EmbeddedPerformanceDiagnostics.cs"
+      ],
+      "productionPath": "src/Ryujinx.Common/EmbeddedPerformanceDiagnostics.cs"
+    }
+  ]
+}

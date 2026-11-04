@@ -13,8 +13,16 @@ from pathlib import Path
 import hashlib, json, os, re, shutil, subprocess, sys, tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = Path(sys.argv[1]).resolve()
+# Core gate form: <control> --candidate-source <final preparation>; the control tree is not read (the exact Core 639
+# control is rebuilt from the final preparation). Standalone form: <Core 639 prepared tree>.
+SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
+sys.path.insert(0, str(ROOT / 'test'))
+from melonx_adapter_control import control_source  # noqa: E402
+_HOLD = []
+# The Core 639 preparation, or the final preparation (prepare_embedded.py runs this adapter): its exact control.
+FINAL_SOURCE = SOURCE
+SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_readback_occupied_attribution', _HOLD)
 from adapt_readback_occupied_attribution import apply, BASELINE
 
 DMA = 'src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs'
@@ -82,7 +90,7 @@ check(re.search(r'occupied \{_readBackDeclines\[2\]\} \(other textures \{_readBa
 inputs = ['build-utils/melonx/adapt_readback_occupied_attribution.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_readback_occupied_attribution_test.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
-receipt = dict(result='passed', checks=checks, sdk=sdk, physicalDeviceTested=False, sourceBaseline=BASELINE,
+receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION, sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core639Preparation', postimages={p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest() for p in BASELINE} if FINAL_PREPARATION else {}, sdk=sdk, physicalDeviceTested=False, sourceBaseline=BASELINE,
                productionGpuAssemblyBuilt=True,
                inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
                limitation='Diagnostics only; the occupant and branch are known only after a device run.')
