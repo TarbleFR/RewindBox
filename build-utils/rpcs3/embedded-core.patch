@@ -4616,7 +4616,7 @@ index 0000000..b415890
 +    endif()
 +endfunction()
 diff --git a/rpcs3/Emu/Cell/Modules/cellAudio.cpp b/rpcs3/Emu/Cell/Modules/cellAudio.cpp
-index 557c7ef..9495fdf 100644
+index 557c7ef..e81e86a 100644
 --- a/rpcs3/Emu/Cell/Modules/cellAudio.cpp
 +++ b/rpcs3/Emu/Cell/Modules/cellAudio.cpp
 @@ -168,6 +168,14 @@ audio_ringbuffer::audio_ringbuffer(cell_audio_config& _cfg)
@@ -4690,8 +4690,8 @@ index 557c7ef..9495fdf 100644
 +#else
  	cb_ringbuf.push(buf, sample_cnt_out * cfg.audio_sample_size);
 +#endif
- }
- 
++}
++
 +#ifdef RPCS3_IOS
 +void audio_ringbuffer::update_tempo(u64 timestamp, u64 queued_us, bool active_ports)
 +{
@@ -4713,8 +4713,8 @@ index 557c7ef..9495fdf 100644
 +		set_frequency_ratio(requested);
 +		++diagnostics.tempo_updates;
 +	}
-+}
-+
+ }
+ 
 +void audio_ringbuffer::log_diagnostics(u64 timestamp, bool force)
 +{
 +	// REWINDBOX_AUDIO_DIAGNOSTICS_EXPORT_641: COREPROF prefix, so the host log callback writes these cumulative
@@ -4820,7 +4820,7 @@ index 557c7ef..9495fdf 100644
  				ringbuffer->enqueue_silence();
  				untouched_expected = 0;
  				advance(timestamp);
-@@ -915,12 +1028,18 @@ void cell_audio_thread::operator()()
+@@ -915,12 +1028,29 @@ void cell_audio_thread::operator()()
  				{
  					// There's no audio in the buffers, simply advance time and hope the game recovers
  					cellAudio.trace("advancing time: untouched=%u/%u (expected=%u), enqueued_buffers=%llu", untouched, active_ports, untouched_expected, enqueued_buffers);
@@ -4828,6 +4828,17 @@ index 557c7ef..9495fdf 100644
 +					++ringbuffer->diagnostics.timeout_advances;
 +#endif
  					untouched_expected = untouched;
++#ifdef RPCS3_IOS
++					// REWINDBOX_AUDIO_TIMEOUT_MIX_645: the period is no longer advanced without output. advance()
++					// zeroes and re-tags each port's current block, so an untouched port mixes as silence. Loop once
++					// more with the untouched ports expected: the paths below then mix the touched ports' PCM, enqueue
++					// silence when no port was touched, or (time stretching) record a missing block, and advance as
++					// before. Guest periods and MIX events are unchanged; only the dropped 5.3 ms block is now output.
++					if (!g_cfg.audio.disable_sampling_skip)
++					{
++						continue;
++					}
++#endif
  					advance(timestamp);
  					continue;
  				}
@@ -4839,7 +4850,7 @@ index 557c7ef..9495fdf 100644
  				thread_ctrl::wait_for(1000);
  				continue;
  			}
-@@ -928,8 +1047,23 @@ void cell_audio_thread::operator()()
+@@ -928,8 +1058,23 @@ void cell_audio_thread::operator()()
  			// Fast-path for when there is no audio in the buffers
  			if (untouched == active_ports)
  			{
@@ -4863,7 +4874,7 @@ index 557c7ef..9495fdf 100644
  				ringbuffer->enqueue_silence();
  				untouched_expected = untouched;
  				advance(timestamp);
-@@ -940,6 +1074,9 @@ void cell_audio_thread::operator()()
+@@ -940,6 +1085,9 @@ void cell_audio_thread::operator()()
  			if (in_progress > 0)
  			{
  				cellAudio.trace("waiting: in_progress=%u/%u, enqueued_buffers=%u", in_progress, active_ports, enqueued_buffers);
@@ -4873,7 +4884,7 @@ index 557c7ef..9495fdf 100644
  				thread_ctrl::wait_for(500);
  				continue;
  			}
-@@ -952,6 +1089,9 @@ void cell_audio_thread::operator()()
+@@ -952,6 +1100,9 @@ void cell_audio_thread::operator()()
  			// Log if we enqueued untouched/incomplete buffers
  			if (untouched > 0 || incomplete > 0)
  			{

@@ -27,6 +27,7 @@
 # Core compile request: Core 636 (core-build.json build 636, canonical patch 01ba35fc), request 1 (from the Core 634 audit: Darwin X29/X30 guard in the fault handler, SPIR-V cap counts the batch in flight, PPU check pass stops at the first miss; ZCULL slot release wakes the guest pause).
 # Core compile request: Core 638 (core-build.json build 638, canonical patch b6d87995), request 1 (God of War III speculative readback counters, instrumentation only, on Core 636).
 # Core compile request: Core 641 (core-build.json build 641, canonical patch 0b6a14a0), request 1 (IPA 640 logs: the Core's audio diagnostics reach the device logs, COREPROF AUDIO641 on Core 638).
+# Core compile request: Core 645 (core-build.json build 645, canonical patch 2777b017), request 1 (IPA 643 logs: a timed-out cellAudio period is output instead of dropped, REWINDBOX_AUDIO_TIMEOUT_MIX_645 on Core 641).
 # Apple host harness rerun: Core 613 codegen audit reruns for its two exact aliases (request 2).
 # Apple host harness rerun: Core 619 wait-budget scenario on measured waits (request 2).
 # Apple host harness rerun: Core 619 concurrency scenario accepts the designed wait-budget trip (request 3).

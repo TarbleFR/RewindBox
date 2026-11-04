@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 641,
- "note": "RPCS3 Core 641: Core 638 (Core 636 plus the God of War III readback prediction counters, COREPROF READPREDICT638) plus the audio diagnostics export (REWINDBOX_AUDIO_DIAGNOSTICS_EXPORT_641: the three existing cumulative cellAudio queue, cellAudio producer and RemoteIO lines get the COREPROF AUDIO641 prefix the host log filter admits; log text only, values and cadence unchanged), built by the RPCS3 Core route (run 41766094450, attempt 1, source 5568d3ce). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no audio fix claimed.",
+ "build": 645,
+ "note": "RPCS3 Core 645: Core 641 (Core 638 plus the COREPROF AUDIO641 diagnostics) plus REWINDBOX_AUDIO_TIMEOUT_MIX_645 (iOS cellAudio: a period whose wait for an unwritten port timed out is output, touched ports mixed and untouched ports silent, instead of advanced without output; guest periods, buffer, tempo and refill controller unchanged), built by the RPCS3 Core route (run 41839324272, attempt 1, source 60b388d9). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no audio gain claimed.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
@@ -14,25 +14,25 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 641 source closure and the native dependency",
+    "Authenticate the Core 645 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 641",
-    "Verify the actual binary and write its Core 641 identity",
+    "Compile and link the actual iPhone Core 645",
+    "Verify the actual binary and write its Core 645 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 641 without an application delivery",
+    "Upload the verified Core 645 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "5568d3ce278ac9dc2e7e076201a7409556499634",
-   "run": 41766094450,
+   "source": "60b388d9fd03617d2e4e4ae3227717e1196d2b19",
+   "run": 41839324272,
    "attempt": 1,
-   "job": 126364702807,
-   "artifact": 13293626354,
-   "name": "RPCS3Core-641-5568d3ce278ac9dc2e7e076201a7409556499634",
-   "bytes": 29325560,
-   "sha256": "280c724584f52c3a929a9b0801ffc7d2627e49a45d5ac09b8fb91cfb70fca480",
-   "expiresAt": "2026-12-04T03:35:03Z"
+   "job": 126606390283,
+   "artifact": 13329351874,
+   "name": "RPCS3Core-645-60b388d9fd03617d2e4e4ae3227717e1196d2b19",
+   "bytes": 29325523,
+   "sha256": "005b0a22d6ec309145cf29faef572e2daf0afd7316fb9eb857163d30cb975fa7",
+   "expiresAt": "2026-12-04T13:51:16Z"
   },
   "hostTests": {
    "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
@@ -40,9 +40,9 @@
     "Checkout immutable candidate and the delivered Core history",
     "Read the declared Core build",
     "Select the retained Core toolchain",
-    "Materialize the Core 641 sources and the delivered a4ae86d0 sources",
+    "Materialize the Core 645 sources and the delivered a4ae86d0 sources",
     "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 641 harnesses with Apple clang",
+    "Run the affected and new Core 645 harnesses with Apple clang",
     "Preserve the Apple host harness reports"
    ],
    "names": [
@@ -59,18 +59,18 @@
     "spu-object-hit-admission-613",
     "spu-object-hit-admission-613-asan-ubsan",
     "codegen-audit",
-    "core641",
+    "core645",
     "lr-full-queue"
    ],
-   "source": "5568d3ce278ac9dc2e7e076201a7409556499634",
-   "run": 41766094450,
+   "source": "60b388d9fd03617d2e4e4ae3227717e1196d2b19",
+   "run": 41839324272,
    "attempt": 1,
-   "job": 126364702578,
-   "artifact": 13292519049,
-   "name": "RPCS3Core-641-apple-host-tests-5568d3ce278ac9dc2e7e076201a7409556499634",
-   "bytes": 42429,
-   "sha256": "16854f7dfaf3540e7bb25b4d21710eb71de6d776e8e273ea87eb03ed1630da5a",
-   "expiresAt": "2026-12-04T03:24:15Z",
+   "job": 126606391057,
+   "artifact": 13327504694,
+   "name": "RPCS3Core-645-apple-host-tests-60b388d9fd03617d2e4e4ae3227717e1196d2b19",
+   "bytes": 43097,
+   "sha256": "2af668e64fb0c77217d6cc53e88eb79bf6e632af9f0d6d2f805edf4935367297",
+   "expiresAt": "2026-12-04T13:43:14Z",
    "reused": {
     "names": [
      "reuse-audit"
@@ -98,16 +98,16 @@
   }
  },
  "core": {
-  "type": "rpcs3-ios-core641",
+  "type": "rpcs3-ios-core645",
   "dylibBytes": 77739520,
-  "dylibSha256": "ef64f70a2dfe3b3ae57e1b2cde00130adebd7722657f1d9e2fa64dccf9e48181",
-  "identitySha256": "060246fc1ff424ccbf28a2a9d87088953a826a35ec10ed64f37ac9762d936f72",
+  "dylibSha256": "bf2141f91d0e91fe51edcc0170dca5d6ba3b5520393cdf5939ec0d3d6cbaef9e",
+  "identitySha256": "4400acd669c07b0a2552e63e7a5ae2673f10da0bdf38c930b4514472bc1cd454",
   "proofMember": "core610-proof.json",
-  "proofSha256": "ed992907950bcc01c6213f16fdb4a9c45b7e466b643644a66270e63f7ea66f27",
-  "payloadFingerprint": "eb0d00516d87790f504ff76538e9819660cd77a9942b6971465784bd6bbafe6c"
+  "proofSha256": "809f7ab253da04b76cd3fb42f135e562cf166e2fb4f61f89328a90c748f1cb91",
+  "payloadFingerprint": "a2d421071535f9914c6ab30b6b05912c538a4c1cbbfe9e065b06254e72ad12d1"
  },
  "canonical": {
-  "patchSha256": "0b6a14a08467ce5be5168d9272a1603b8ef128348040488dff6e08b1fd588229",
+  "patchSha256": "2777b01763f6ddb4bfe7e0da9052c7223200af438ab72f38bf6dd3bd5d203127",
   "postimages": 357,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
@@ -258,9 +258,9 @@
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "5a6d2485d970e8d4a0a7b8e356f65b2122aa3999",
-  "run": 41737262282,
-  "artifact": 13279848360,
-  "payloadFingerprint": "c35b792ec83139b43099291ed5d9b935748b6495001d7dd7ae313fbc79f72da6"
+  "source": "5568d3ce278ac9dc2e7e076201a7409556499634",
+  "run": 41766094450,
+  "artifact": 13293626354,
+  "payloadFingerprint": "eb0d00516d87790f504ff76538e9819660cd77a9942b6971465784bd6bbafe6c"
  }
 }
