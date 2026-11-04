@@ -361,6 +361,42 @@
    {
     "commit": "523ad922a8f2c85e8d1061bba9644e81b4e4e5d6",
     "note": "feat(ai): preserve command evidence with bounded output and authorize private IPA builds [skip ci] (maintainer). scripts/ai-output.py and test/ai_output_test.py are agent tooling, not compiled into the IPA."
+   },
+   {
+    "commit": "b99d61a1cdc6b58cd4c5ded7b36d90b56648a27a",
+    "note": "chore(ai): Claude agent routing; product path .gitignore only (local agent files ignored), reviewed"
+   },
+   {
+    "commit": "15377399d46381f7c7fd1237b8e468041079b323",
+    "note": "chore(ai): effort selectors; product path .gitignore only, reviewed"
+   },
+   {
+    "commit": "964795d7f51f32433c1207e09bd39a549e8ec303",
+    "note": "feat(rpcs3): Core 636 sources and host tests (audit fixes, ZCULL slot wake), folded in the canonical delta; built in run 41730169021, contained in the pinned Core 638"
+   },
+   {
+    "commit": "31a7651c6a7c9911878b54e5a679bc900316ac8d",
+    "note": "test(rpcs3): Core 636 slot wake measured from the release instant on the same host (Apple rerun 41733834801 attempt 2 passed)"
+   },
+   {
+    "commit": "58564ab4b3da5dfb5bde877baf33ce7c64e7657b",
+    "note": "feat(rpcs3): Core 638 sources (GOW3 readback prediction counters, instrumentation only); pinned Core 638 of run 41737262282"
+   },
+   {
+    "commit": "4218687e2cd861ec69e1b3fae9452ac770e0fc9d",
+    "note": "merge of the MeloNX FPS/stability lot, PR #153 (a6f4eac9, session 012mUASkkFGHaPcEUx9dsp8q), reviewed by the integration session: two fail-closed adapters and their fixtures"
+   },
+   {
+    "commit": "6e93f652ca30b964cc83eba8cbec560bb0064ab8",
+    "note": "build(melonx): the PR #153 adapters wired into prepare_embedded.py and the Core plan"
+   },
+   {
+    "commit": "6590da482482cdf7b14b24d05eed08395658a87b",
+    "note": "build(melonx): Core 639 contract 7a0c5911 frozen; 13 fresh gates (receipts docs/evidence/melonx-639-gates); built in run 41749490658 and pinned"
+   },
+   {
+    "commit": "705e90c727d84ff531ede30912de8ede049e6264",
+    "note": "feat(skins): PR #152 squashed (02af2822, tested 5f7361eb, session 012mUASjgVWk8DKKjVbwTD2n), reviewed: orientation lock, PS2 Pocket skin, Dolphin menu orientation"
    }
   ],
   "sourceOnly": [],
