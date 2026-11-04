@@ -12,6 +12,28 @@ A later working diff can be ahead of that commit.
 - The maintainer's current request and existing authorization determine scope.
   Historical build permissions or restrictions apply to their original task.
   Reconfirm only when a material new action requires permission.
+- Completion and autonomy, explicitly confirmed by the maintainer on 4 Nov
+  after IPA 640: finish every evidenced correction in the currently authorized
+  RPCS3, MeloNX (Hogwarts/SSBU) and PS2 skins work, with its required tests and
+  handoff. Do not stop at a diagnosis, draft PR or a list of "next candidates"
+  while an actionable in-scope check or correction remains, and do not wait for
+  another approval of already-authorized work. A missing technical datum is not
+  an approval blocker: first use the existing source/logs and a bounded executable
+  reproduction; when necessary, implement and test the smallest discriminating
+  diagnostic and continue independent corrections. Specifically resolve the
+  two `occupied` branches and their owners before changing DMA synchronization,
+  and investigate the named `PrimitiveRestartEnable`/`Topology` misses and SSBU
+  flicker without assuming the Hogwarts barrier fix applies. Preserve rendering,
+  caches, data and synchronization; no speculative patch or invented device result.
+  If only a physical-device observation or unavailable external access can decide
+  a remaining hypothesis, state the exact dependency, work completed and next
+  action; do not repeatedly ask broad permission or leave other work idle.
+  Component owners finish and hand off exact reviewed deltas; the main session
+  continues review/integration, affected Core builds, pins and the single private
+  IPA with standard source/package/signature/download verification, under existing
+  authorization. No concurrent delivery or automatic scope expansion. Ask the
+  maintainer only for a genuinely necessary decision, access or device observation
+  that cannot be obtained within the authorized environment.
 - Claude Code owns substantive implementation and final integration. Codex
   coordinates and independently reviews, or makes focused changes delegated by
   the maintainer. Cursor assists with authorized, non-overlapping tasks.
