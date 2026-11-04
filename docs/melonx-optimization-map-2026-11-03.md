@@ -421,3 +421,22 @@ both files equal the preparation without the marks, each mark sits around its ph
 Needed from the device (a build with these adapters): Hogwarts cold launch, wait in the black screen, open the MeloNX
 menu, return; then close SSBU while a screen recording runs (and once without). Send `MeloNX-core.log` (`guestThreads`,
 `teardown`, `gpuTeardown`) and `MeloNX-stderr.log`.
+
+## IPA 650 on the device: stutter, black launch, black artifacts, recording (4 November 2026)
+
+Input (private, not in the repository): maintainer's bundle `MeloNX-stderr.log` (fd7c6867…), `.previous` (587cca0f…),
+`MeloNX-core.log` (a5410649…), `MeloNX-performance.log` (666ebc5a…), `MeloNX-launch.log` (6d28e323…), `app.log`
+(9aeb614e…). IPA 650 = MeloNX Core 649 (source `44e82f53`, library `65dec37a…`): Core 642 plus the read-back receivers,
+present attribution, teardown compile cancellation, pause guest-thread record and close-phase marks. Two Hogwarts
+sessions in one process (pid 8767): S1 17:42:33–17:43:34 UTC, S2 17:43:44–17:45:15 (six Control Center cycles while
+trying to record, memoryWarning 17:44:50). Maintainer: "lots of stutter on the same image; the image came back;
+impossible to record; some black artifacts remain". Analysis by a 32-agent workflow (5 analysts, 2 adversarial
+verifiers per finding, synthesis); values below re-derived from the raw logs.
+
+| Symptom | Finding | Classification |
+|---|---|---|
+| Stutter "on the same image" | Not re-presented frames: 900/900 distinct presents (`same address as previous 0`), host presents track guest fps. S1 gameplay clean (508/615 gaps at 33 ms). S2: 245 gaps > 50 ms, 39 > 100 ms, 156 audio starvations (1.46 s). One blocking compacting gen2 GC of 756 ms in S2 gameplay (817 ms freeze, guest DSP 760 ms late); trigger undecided (pre-GC fragmentation 0.6 %, below the ConserveMemory rule). Arrival freezes 1583/617/517 ms with "GPU processing thread is too slow" (serialisation, not saturation; MSL cache warm, 0 SPIR-V→MSL conversions). Micro-judder 17/50 ms pairs at a steady 30 fps (source undecided). | GC event: established, cause undecided; arrival freeze and judder: hypotheses |
+| Memory across sessions | **Defect established.** Each closed session's managed heap survives the forced full GC at teardown: S1 342 MB, S2 690 MB live (same doubling in older builds, pids 2327, 5576, 7170). S2 starts at 980 MiB heap against 599 MiB for S1; footprint 4.3 GiB. Code root: static `HOSBinderDriverServer._registeredBinderObjects` keeps every layer's producer → BufferQueueCore → KEvent → KernelContext → the whole `Switch`; `SurfaceFlinger.Dispose` never unregisters them. | Defect, corrected below (C1); share of the stutter: hypothesis |
+| Black launch | Not reproduced in 2/2 launches; the read-back receivers ran (288 and 649 copies, 0 unreceivable). Not decisive: 3 of 4 IPA 643 launches were normal without a pause. Retracted: "the black launch ended only after a host pause" (confounded) and the colour-mask pass restart as discriminator (also in normal sessions 7170, S1, S2). | Undecidable; two readings open |
+| Black artifacts | Excluded: whole-frame stale/black presents, DMA read-back, skipped draws, descriptor fallbacks, errors, texture cache pressure, colour-mask splits (Load/Store). Suspected paths (all present in 643 too): texture-array elements left on the dummy view, MoltenVK feedback-loop barriers kept inside the Metal pass, attachments removed by the tile write-mask filter. | Undecidable; counters below (I5) |
+| Recording impossible | The app neither reads nor blocks capture; recordings saved on 640 and 643 with the same code. Seven short Control Center cycles (1.6–4 s) fit aborted attempts. Opening Control Center pauses the session. | Undecidable; journal below (I6) |
