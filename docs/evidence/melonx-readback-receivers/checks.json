@@ -1,10 +1,10 @@
 {
   "result": "passed",
-  "checks": 48,
+  "checks": 52,
   "finalPreparationBound": false,
   "sourceKind": "core642Preparation",
   "postimages": {},
-  "candidateDmaClass": "331fbf70bb13e5a4252638e3fdd1138f7cdc5a5a62e52c34a5febc8c6fe5dcba",
+  "candidateDmaClass": "5876158a34125cdd1b09528d4b96296fb4a6e457f61296ef6f85e6668037edf5",
   "reports": {
     "control": {
       "variant": "control",
@@ -111,6 +111,28 @@
           "receiversCleared": true
         },
         "linearStride": {
+          "gpu": true,
+          "bufferCopies": 1,
+          "writeSignals": 1,
+          "receiverCopies": 0,
+          "holds": 0,
+          "modified": false,
+          "declines": "0,0,0,0,0",
+          "unreceivable": null,
+          "receiversCleared": true
+        },
+        "incompatibleOverlaps": {
+          "gpu": true,
+          "bufferCopies": 1,
+          "writeSignals": 1,
+          "receiverCopies": 0,
+          "holds": 0,
+          "modified": false,
+          "declines": "0,0,0,0,0",
+          "unreceivable": null,
+          "receiversCleared": true
+        },
+        "hostConverted": {
           "gpu": true,
           "bufferCopies": 1,
           "writeSignals": 1,
@@ -295,6 +317,28 @@
           "unreceivable": "1",
           "receiversCleared": true
         },
+        "incompatibleOverlaps": {
+          "gpu": false,
+          "bufferCopies": 0,
+          "writeSignals": 0,
+          "receiverCopies": 0,
+          "holds": 0,
+          "modified": false,
+          "declines": "0,0,1,0,0",
+          "unreceivable": "1",
+          "receiversCleared": true
+        },
+        "hostConverted": {
+          "gpu": false,
+          "bufferCopies": 0,
+          "writeSignals": 0,
+          "receiverCopies": 0,
+          "holds": 0,
+          "modified": false,
+          "declines": "0,0,1,0,0",
+          "unreceivable": "1",
+          "receiversCleared": true
+        },
         "linearSameStride": {
           "gpu": true,
           "bufferCopies": 1,
@@ -362,10 +406,10 @@
     "src/Ryujinx.Graphics.Gpu/Engine/Dma/DmaClass.cs": "39a59d894b0c2c6385dab0bb7f3c266aa400d475b63d7b59c49c65d3dc9bd702"
   },
   "inputs": {
-    "build-utils/melonx/adapt_readback_receivers.py": "02a7a98ae23856a81f37584049bf2615edc4abc2dfff3e0a753bdc8894ab3594",
+    "build-utils/melonx/adapt_readback_receivers.py": "8e5f05d27d60ad9ca4cb30ee6de9fbdd6e1cb173e80a688df345dc29e9c09b9a",
     "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
-    "test/melonx_readback_receivers_test.py": "bb81a775240b4df700c206b988f1203b246188cd6bfc2ca8ed58983c5ba5f116",
-    "test/melonx_readback_receivers/Program.cs": "a06c4e598d6b2dd77dd308d6781f6a6c29bd7c1142dcc1b05fbef8f9d7b4cfaf"
+    "test/melonx_readback_receivers_test.py": "c3851415accc53e50945e47f9fbccf1d2fc1f5de13ac121db10a39031bf48cce",
+    "test/melonx_readback_receivers/Program.cs": "d1de794a4a1effece70adcfebfd236733b26956c7c4baf509ed0d799826105d9"
   },
   "limitation": "Byte model with doubles around the real methods; whether the 1x1 texture drives the black launch and the dark frames of IPA 643 is known only after a device run."
 }
