@@ -398,8 +398,8 @@ Close-phase marks, `build-utils/melonx/adapt_teardown_phase_marks.py` (WindowBas
 journal only: durable Core lines `teardown guestStop` / `guestStopped` (ms) / `gpuRelease` / `gpuReleased` (ms) and
 `gpuTeardown deviceIdleWait` (before vkDeviceWaitIdle, with the compile counts) / `compiles` / `swapchainReleased`. The
 last line of a close that never ends names its phase: guest, render-loop drain, compiles, device wait (presentations)
-or swapchain. Proof, `test/melonx_teardown_phase_marks_test.py`: both files equal the preparation without the marks, each
-mark sits around its phase, production Ryujinx.Library builds.
+or swapchain. Proof, `test/melonx_teardown_phase_marks_test.py`, 10 checks ([receipt](evidence/melonx-teardown-phase-marks/checks.json)):
+both files equal the preparation without the marks, each mark sits around its phase, production Ryujinx.Library builds.
 
 Needed from the device (a build with these adapters): Hogwarts cold launch, wait in the black screen, open the MeloNX
 menu, return; then close SSBU while a screen recording runs (and once without). Send `MeloNX-core.log` (`guestThreads`,
