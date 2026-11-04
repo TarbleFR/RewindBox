@@ -161,3 +161,155 @@ the prepared source: `ProgramPipelineState.cs`, `BinarySerializer.cs`, `ShaderSp
 plus what the freeze computes from retained receipts. No iPhone result; no FPS claim. On the device: the count of
 "Background pipeline compile missed" lines and the fields they name, graphics pipeline builds per minute and
 pauses over 100 ms during new-area loading, Hogwarts 1x, same save and scene, cold and warm passes apart.
+
+## IPA 640 on the device: the gain, the stale frames and their correction (4 November 2026, session 012mUASkkFGHaPcEUx9dsp8q)
+
+Inputs (private, not in the repository): `MeloNX-performance.log` (3 679 280 bytes, `7bab4116…`), `MeloNX-stderr.log`
+(3 370 962, `7d23eb42…`), `MeloNX-stderr.log.previous` (5 242 872, `7eae0e39…`), `MeloNX-launch.log` (104 473, `8cfe507c…`), a
+screen recording of 80 s (24 699 874 bytes, `5779409a…`, 1564x720, 1 925 frames). The logs hold this device's history
+606-640. Build 640, MeloNX Core 639 (`cbb7beb9`, engine `b75212a4…` = Core 631 plus the PR #153 lot), MoltenVK 1.4.2,
+PID 5576, Hogwarts Legacy sessions `6B8A9001` (loading) and `53DAD35F` (play, 154 s). Reference: 629, PID 3558, same
+device, MoltenVK 1.4.0.
+
+| Same device | 629 (PID 3558) | 640 (`53DAD35F`) |
+| --- | --- | --- |
+| Game FPS median | 14.2 | 29.9 |
+| Frame time p50 / p95 / p99 | 50 / 100 / 150 ms | 33 / 50 / 67 ms |
+| Pauses over 100 ms | 87 in 76 s | 17 in 154 s |
+| Render thread's own work per presented frame | 28.0 ms | 7.7 ms |
+| MoltenVK Metal encoding per presented frame | 8.0-24.3 ms | 0.3-3.6 ms |
+
+The scenes are not the same save position, so this is not a controlled comparison. It is the first device result of
+631 and 1.4.2. No device-short trim ran in 640, and the trim lot is not exercised.
+
+**Stale frames (the "flickering").** In the recording, the presented image goes back to the previous shot for one frame
+at a camera cut, at 32.4 s and at 59.1 s (sequence A A B A B A B B B). The RewindBox overlay stays steady meanwhile. An
+older frame between newer ones means a texture was read before the pass writing it had finished. Cause, from the
+source:
+- MoltenVK 1.4.2 on iOS 18 (Apple6 and later, argument buffers) makes resources resident through a `MTLResidencySet` and
+  stops calling `useResource` (`MVKDevice.mm` `residencySets`). Metal then no longer tracks argument-buffer hazards; only
+  Vulkan barriers order those reads (`MVKCommandBuffer.mm` `barrierWait`/`barrierUpdate`).
+- The Hogwarts policy of build 628 (`MoltenVkPolicy.DeferInPassReadBarriers`, `PipelineBase.TryDeferInPassReadBarrier`)
+  drops the write-to-read barrier of a texture read inside a render pass it is not an attachment of. It defers that
+  barrier to the next begin of the pass, on the premise that "Metal's hazard tracking already orders this read". With
+  1.4.2 that premise no longer holds, so the current pass reads with no barrier at all.
+- 640 deferred 3-14 such barriers per 5 s window during the recording. The exact frame-to-window alignment is uncertain by
+  1-3 s (the recording's start time); the mechanism is established in the source.
+
+Correction (`build-utils/melonx/adapt_moltenvk_barrier_ordering.py`, `VulkanRenderer.cs`, `PipelineBase.cs`): the
+deferral applies only when MoltenVK is 1.4.0 or earlier (`driverVersion` = MVK_VERSION ≤ 10400), and one log line states
+the decision. Otherwise the barrier is recorded inside the pass, as the delivered Ryujinx path does. Expected cost: about
+0.1 barrier per frame. Proof, fresh (SDK 10.0.100, Core 639 preparation rebuilt, equal to the frozen contract: 180 of
+180 members): `test/melonx_moltenvk_barrier_ordering_test.py`, production Vulkan assembly, real
+`TryDeferInPassReadBarrier`. In the 640 configuration the control defers and the candidate records the barrier. The
+1.4.0, feedback-loop, other-title and non-TBDR cases are unchanged
+([receipt](evidence/melonx-moltenvk-barrier-ordering/checks.json)). Not yet seen on the device.
+
+**Stutter ("saccades").** Pass 5 (77 s) has 415 frames over 50 ms. These are 50 ms frames at a 30 FPS target.
+- A new area caused one burst of 170 pipeline builds (1.3 s).
+- Per 5 s window the GPU thread is busy 1.9-4.9 s, of which 0.4-1.0 s are texture flush actions (42-97 per window).
+- The DMA summary gives 1 313 read-backs of 1 969 on the GPU, 1 310 of them into buffers. **655 were declined as
+  "occupied"** and took the guest path (656 slow reads, about 4 per second). Five first-access flushes took 311 ms in
+  all, the longest 235 ms.
+- "Occupied" covers two branches that this summary does not separate: in `TryReadBackGpuRegion`, other textures over a
+  destination with no buffer; in `TryReadBackIntoBuffer`, a texture of the source's own group over the destination.
+  Missing datum, named: that split and the first occupant of each. It decides the next correction, so `DmaClass` is not
+  changed blind.
+- The stale frames above also read as jerks.
+- Two pipeline misses were named by the PR #153 diagnostic (`PrimitiveRestartEnable` False/True, `Topology`
+  TriangleList/TriangleStrip): state changed at draw time after the program's creation. Only 2 in 154 s, so it is the
+  next parity candidate, not fixed here.
+
+### Super Smash Bros. Ultimate on IPA 640: the maintainer's similar flicker (4 November 2026)
+
+Inputs (private, not in the repository):
+
+| File | Bytes | SHA-256 |
+|---|---|---|
+| `MeloNX-core(6).log` | 986 612 | `cdb8a128…` |
+| `MeloNX-performance(2).log` | 3 779 199 | `013d25ae…` |
+| `MeloNX-stderr(2).log` | 4 218 214 | `2544286e…` |
+| `MeloNX-launch(5).log` | 109 694 | `73008e68…` |
+| `MeloNX-stderr.log.previous` | 5 242 872 | `7eae0e39…` |
+
+`MeloNX-stderr.log.previous` is the same file as in the Hogwarts batch above (historical builds 606-624), so it is not
+SSBU evidence. The Hogwarts 640 sessions (PID 5576) are the ones already analysed; this batch only adds their core log.
+- New session: SSBU v13.0.4 (`01006a800016e000`), build 640, Core 639 (`cbb7beb9`, `b75212a4…`), PID 5869, session
+  `316CF3D2`, 02:59:10-03:00:30 UTC, ending in the background.
+- Same-device reference: SSBU on 629, PID 5402, MoltenVK 1.4.0.
+- No SSBU recording is attached, so the flicker itself is not observed here.
+
+| Finding | Class | Disposition |
+|---|---|---|
+| The Hogwarts deferral corrected first in PR #154 | Not the cause here | Launch log `titleMatched=false`; `Library.cs` sets `DeferInPassReadBarriers` for Hogwarts only; 13 of 13 detail windows: "in-pass read barriers deferred 0" |
+| In-pass image barriers under MoltenVK 1.4.2, every title | Defect established in the source; its share of the SSBU flicker is not measured | See below. The detail line now counts these barriers for every title |
+| Texture descriptor template fallbacks: 3 317-12 060 per 5 s window, as many `IndexOutOfRangeException` (629: 30 467 in a window) | Defect confirmed, corrected | Core 631's binding-sized scratch was enabled for Hogwarts only; `adapt_descriptor_scratch_all_titles.py` enables it for every title |
+| Pipeline cache: 629 loaded 714 MiB main data, 640 loaded 0 KiB (0/2 worker snapshots); p99 33 → 83 ms, pauses over 100 ms 10 → 28 in a similar length | Constraint justified | The cache file is keyed by `driverVersion` (10400 → 10402), so every title rebuilds its cache once after the MoltenVK update, as Vulkan requires; old files stay. The main cache is written when the renderer closes, and this session ended in the background. Decisive check: the next SSBU launch's "pipeline cache initialized" main size |
+| Syncpoint waits over 1 s (2), "GPU processing thread is too slow" (8), 03:00:05-03:00:07 | Hypothesis | In the same seconds as cache-less pipeline builds; no separate cause shown |
+
+**In-pass image barriers under MoltenVK 1.4.2.** On MoltenVK, Ryujinx's `BarrierBatch` records an image barrier queued
+inside a render pass inside that pass ("Metal already has hazard tracking"). Other tile-based GPUs end the pass first.
+In 1.4.2 with residency sets (iOS 18, Apple6 and later, argument buffers), the behaviour is:
+- `vkCmdPipelineBarrier` links encoders through MTLFences only when no Metal render encoder is active
+  (`MVKCmdPipeline.mm`: `setBarrier` under `!_mtlRenderEncoder && hasResidencySet()`).
+- Inside a pass it only restarts the Metal pass for a GENERAL-layout image barrier, and the new encoder still waits on
+  the old fence slots.
+- `applyImageMemoryBarrier` only syncs host memory and layouts.
+- `useResource` is no longer issued.
+
+So a texture written by an earlier pass and sampled in the active one is ordered by nothing, whatever the title. The
+first #154 change alone was therefore not enough: under 1.4.2 a barrier recorded inside the pass orders nothing either.
+
+Correction (same adapter, `adapt_moltenvk_barrier_ordering.py`, `BarrierBatch.cs`): when such a barrier is for a texture
+that is not an attachment of the pass and MoltenVK no longer tracks argument-buffer hazards, the pass ends before the
+barrier is recorded, as the delivered path already does on other tile-based GPUs. The draw begins the pass again after
+the flush. The following keep the delivered path: feedback loops, MoltenVK 1.4.0, other drivers. The detail line gives
+"in-pass image barriers ending the pass" for every title. MoltenVK already restarted the Metal pass for each such
+barrier, so the expected cost is the Vulkan pass re-begin.
+
+The version gate is the device's own value: `driverVersion` 10400 on 629 (Driver v0.2.2208) and 10402 on 640 (v0.2.2210).
+MoltenVK 1.4.0 creates residency sets on macOS only (`#if MVK_XCODE_16 && MVK_MACOS`, `MVKDevice.mm:2956` at `45887054`),
+so 629 on iOS still had Metal's tracking.
+
+Proof (fresh, SDK 10.0.100, Core 639 preparation equal to the frozen contract,
+[receipt](evidence/melonx-moltenvk-barrier-ordering/checks.json)): `test/melonx_moltenvk_barrier_ordering_test.py`
+builds the production Vulkan assembly for control and candidate. The real `BarrierBatch.EndsPassForInPassImageBarriers`
+answers as follows:
+- MoltenVK 1.4.2 with a non-attachment: ends the pass;
+- attachments only: does not;
+- MoltenVK 1.4.0: does not;
+- another driver: does not.
+
+The static checks bind the pass ending to before the barrier is recorded. An independent review (`rb-core-review`,
+Opus/high) found no defect:
+- it confirmed the MoltenVK mechanism;
+- every in-pass caller of `Flush` begins the pass again or never enters the branch;
+- the version gate is conservative.
+
+`test/melonx_descriptor_scratch_all_titles_test.py` binds the descriptor scope change to the Core 631 gate's on/off
+equivalence ([receipt](evidence/melonx-descriptor-scratch-all-titles/checks.json)).
+
+Not shown: that these corrections remove the flicker the maintainer saw in SSBU (no recording, no counter yet). Next
+device check:
+- the per-window "in-pass image barriers ending the pass" in SSBU and Hogwarts;
+- a recording of the same SSBU scene;
+- the template fallbacks at 0;
+- the SSBU pipeline cache main size at its next launch.
+
+### Remaining 640 points closed without waiting (4 November 2026, maintainer's rule of `280000c1`)
+
+| Point | Result | Disposition |
+|---|---|---|
+| Pipeline bursts (Hogwarts pass 5: 170 builds, 1.3 s; SSBU p99 83 ms) | Constraint demonstrated | The Vulkan pipeline cache file is keyed by `driverVersion`, which went from 10400 to 10402 with MoltenVK 1.4.2. Hogwarts' first 640 session loaded 0 KiB of cache and the next 76.6 MiB (569 MiB under 1.4.0); SSBU loaded 0 KiB (714 MiB under 1.4.0). Each title rebuilds its cache once after the update, as Vulkan requires, and the old files stay. The cost shrinks with each session that saves the cache (the main cache is written when the renderer closes). No code change: keeping the 1.4.0 cache would hand MoltenVK 1.4.2 another driver's data |
+| 655 read-backs declined as "occupied" (Hogwarts) | Datum missing, smallest instrumentation added | Core log of 640: an `R32G32B32A32Float` 1x1 read-back into a buffer succeeds every frame (1 310 times). An `R16G16B16A16Float` 1x1 read-back to a linear destination of stride 8 (`TryReadBackGpuRegion`) succeeded only at the start of each session, and the 655 declines are most likely its later frames. "Occupied" covers three cases: other textures over the destination, a fragmented destination, or (buffer branch) a texture of the source group. Source reading cannot tell why `FindTexture` misses the target it created. `adapt_readback_occupied_attribution.py` splits the counter in the summary ("occupied N (other textures, fragmented, source group)") and logs the first 8 occupants once each: format, size, layout and stride, read-back target, GPU-modified, offset, in the auto-delete list, linear lookup match. Diagnostics only; the decisions are unchanged. Proof: `test/melonx_readback_occupied_attribution_test.py` builds both GPU assemblies, and the decline and return skeletons are identical ([receipt](evidence/melonx-readback-occupied-attribution/checks.json)). The synchronisation change waits for that line |
+| Pipeline misses `Topology`/`PrimitiveRestartEnable` (2 in 154 s) | Datum missing, smallest instrumentation added | `DrawManager` and `StateUpdater` set the warm-up and host topology and restart in the same calls, deferred instanced draws included; no deterministic mismatch was found. `TryGetGraphicsPipeline` returns before the warning while the program's table is empty, without consuming the once-per-program flag. So the warning can compare the warm-up with a later draw in a second, legitimate state. `adapt_pipeline_miss_context.py` adds "pipelines already built for this program: N": 1 means the first draw missed (parity to fix), more means other states came first (no defect). Proof: `test/melonx_pipeline_miss_context_test.py` builds the Vulkan assembly; only the warning line changes, and the count is taken under the lock on that miss ([receipt](evidence/melonx-pipeline-miss-context/checks.json)) |
+| SSBU flicker | Corrected as far as the logs prove | The in-pass barrier ordering defect (every title, MoltenVK 1.4.2) and the descriptor fallbacks are corrected above. The Hogwarts deferral is inactive for SSBU, and #154 is not generalised to it |
+
+All six new production files (VulkanRenderer, PipelineBase, BarrierBatch, Library, DmaClass, ShaderCollection) are
+disjoint. The four adapters apply together on one Core 639 preparation, so their order is free. Composite build, fresh (Linux x86_64): LibHac rebuilt from its pinned source `23e402eb` (`build_libhac.py`, .NET 8 runtime for its generators), then `Ryujinx.Library` (with the GPU, Vulkan and HLE assemblies) built with all four adapters applied: build succeeded.
+
+Physical data still needed, and nothing else: one 640+ device run with these adapters, Hogwarts and SSBU, giving
+- the DMA summary split and the occupant lines;
+- the miss lines with their pipeline count;
+- the per-window "in-pass image barriers ending the pass";
+- recordings of the same scenes.

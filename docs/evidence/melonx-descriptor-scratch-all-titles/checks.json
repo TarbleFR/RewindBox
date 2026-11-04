@@ -1,0 +1,15 @@
+{
+  "result": "passed",
+  "checks": 9,
+  "physicalDeviceTested": false,
+  "sourceBaseline": {
+    "src/Ryujinx.Library/Library.cs": "db8e5c87d2f0e3f32ede4459aa7e843fe96434e475c57e5fa836eaf6becde106"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_descriptor_scratch_all_titles.py": "8d2811be06266cdca0ebbdcb9816c1d81797d907b26d36f614431c5b60d74730",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_descriptor_scratch_all_titles_test.py": "4b010d9bede9e243c66c62948834e71b55968e44375c77825c398b1726b688c7",
+    "docs/evidence/melonx-631-gates/fallback-descriptor-scratch-checks.json": "7f34cecbbc086c86698bf277aa9da7283f67e9586673eefa80c1e18f272d4fff"
+  },
+  "limitation": "Scope change bound to the Core 631 on/off equivalence proof; SSBU frame time not measured."
+}
