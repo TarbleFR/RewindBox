@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "build": 648,
+  "build": 650,
   "status": "draft",
-  "note": "Private IPA 648 on the delivered and verified 643: the next common delivery. RPCS3 Core 645 (Core 641 plus the cellAudio timeout mix: a timed-out audio period is output instead of dropped) replaces Core 641; MeloNX Core 644 (Core 642 plus the PR 156 lot: DMA read-back receivers for the Hogwarts black launch, present source attribution) replaces Core 642; MeloNX Core 647 adds the PR 156 follow-up (teardown compile cancel for the endless SSBU close, pause guest-thread record) and is the one packaged. 644, 645 and 647 are Core numbers; 646 was this draft's number before Core 647.",
+  "note": "Private IPA 650 on the delivered and verified 643: the next common delivery. RPCS3 Core 645 (Core 641 plus the cellAudio timeout mix: a timed-out audio period is output instead of dropped) replaces Core 641; MeloNX Core 649 (Core 642 plus the PR 156 lot and its follow-ups: DMA read-back receivers for the Hogwarts black launch, present source attribution, teardown compile cancel for the endless SSBU close, pause guest-thread record, teardown phase marks) replaces Core 642; the GameCube/Wii Pocket Original touch, pressed-state and stick geometry fix (PR 157). 644, 645, 647 and 649 are Core numbers; 646 and 648 were this draft's numbers before Cores 647 and 649.",
   "base": {
     "build": 643,
     "source": "f19ed8cd26caa3b346108d3107e06bcf219a1de7",
@@ -67,7 +67,7 @@
         "artifact": 13294034769,
         "packagedFingerprint": "281aa3a4d5fb96fdfee452544e29745cab2bfff1ab4819722aab504fd2535e11"
       },
-      "pinSha256": "fe73c43a2bba2061ae25595e729c2d7fb29dc5a74348b25c64a1160022d81612"
+      "pinSha256": null
     },
     "dolphin": {
       "mode": "retain",
@@ -273,6 +273,22 @@
       {
         "commit": "88effdfdfa9b2cb8c95700c4a27d41fdbd638333",
         "note": "feat(melonx): integrate the PR #156 follow-up (teardown compile cancel for the endless SSBU close, pause guest-thread record for the black launch), not yet wired [skip ci]"
+      },
+      {
+        "commit": "b068b3ef6f217e37c62cb1a21cde3e8cb234ed1b",
+        "note": "feat(melonx): integrate the teardown phase marks (journal only, PR #156 follow-up 2), not yet wired [skip ci]"
+      },
+      {
+        "commit": "a1f6320c8ee7dcc9bbaea6d461cc8de5476fd18e",
+        "note": "[melonx-dma-core] build(melonx): wire and freeze MeloNX Core 649 (Core 647 + teardown phase marks; 23 fresh gates, 303 contract checks)"
+      },
+      {
+        "commit": "39ab1b621a7b39a6c823bdea07db1a86e8c1da8f",
+        "note": "feat(skins): integrate PR #157: GameCube/Wii Pocket Original touch, pressed state and stick geometry; incremental skin CI [skip ci]"
+      },
+      {
+        "commit": "82f0b57c9acc6eb3053972fbdc0dbb4edade5454",
+        "note": "fix(legal): Pocket board Originals declaration follows the PR #157 archives (same art sources, regenerated packs) [skip ci]"
       }
     ],
     "sourceOnly": [],
@@ -281,6 +297,7 @@
   "images": {
     "mustChange": [
       "Frameworks/App.framework/App",
+      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
       "Runner"
     ],
     "added": [],
@@ -1030,7 +1047,7 @@
     "awaitMinutes": 75
   },
   "recipient": {
-    "path": "build-utils/delivery-648-recipient.pem",
+    "path": "build-utils/delivery-650-recipient.pem",
     "sha256": "5ea35cff87ab02f160bda81de403efa88d2d80122ca50a12eee4dfd21ef40ae7"
   },
   "republish": [
