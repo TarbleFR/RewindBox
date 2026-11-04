@@ -117,30 +117,35 @@ MockClient archiveClient(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  for (final console in ['wii', 'gc', 'ps2']) {
-    group('Pocket $console production behavior', () {
+  // Every shipped Pocket pack, the two approved-board Originals included:
+  // (catalog id, console, archive, environment override).
+  const packs = <(String, String, String, String)>[
+    ('wii-pocket', 'wii', 'wii-pocket.manicskin', 'POCKET_WII_ARCHIVE'),
+    ('gamecube-pocket', 'gc', 'gamecube-pocket.manicskin', 'POCKET_GC_ARCHIVE'),
+    ('ps2-pocket', 'ps2', 'ps2-pocket.manicskin', 'POCKET_PS2_ARCHIVE'),
+    (
+      'gamecube-pocket-original',
+      'gc',
+      'gamecube-pocket-original.manicskin',
+      'POCKET_GC_ORIGINAL_ARCHIVE',
+    ),
+    (
+      'wii-pocket-original',
+      'wii',
+      'wii-pocket-original.manicskin',
+      'POCKET_WII_ORIGINAL_ARCHIVE',
+    ),
+  ];
+  for (final (pack, console, archiveName, variable) in packs) {
+    group('Pocket $pack production behavior', () {
       late Directory root;
       late LibretroSkinService service;
       late LibretroInstalledSkin installed;
       late Uint8List zipBytes;
       setUpAll(() async {
-        final variable = switch (console) {
-          'wii' => 'POCKET_WII_ARCHIVE',
-          'ps2' => 'POCKET_PS2_ARCHIVE',
-          _ => 'POCKET_GC_ARCHIVE',
-        };
         final supplied =
             Platform.environment[variable] ??
-            path.join(
-              'assets',
-              'skins',
-              'pocket',
-              switch (console) {
-                'wii' => 'wii-pocket.manicskin',
-                'ps2' => 'ps2-pocket.manicskin',
-                _ => 'gamecube-pocket.manicskin',
-              },
-            );
+            path.join('assets', 'skins', 'pocket', archiveName);
         if (!File(supplied).existsSync()) {
           throw StateError(
             'Pocket archive missing at $supplied (override with $variable).',
@@ -148,7 +153,7 @@ void main() {
         }
         zipBytes = await File(supplied).readAsBytes();
         root = await Directory.systemTemp.createTemp(
-          'rewindbox-pocket-real-$console-',
+          'rewindbox-pocket-real-$pack-',
         );
         service = serviceAt(root);
         final result = await service.importFromFile(
@@ -558,13 +563,30 @@ void main() {
       expect(DolphinSkins.canonicalInput('wii', 'shake'), isNull);
       expect(DolphinSkins.canonicalInput('gc', 'triangle'), isNull);
       // PlayStation names only: nothing Nintendo is guessed on a PS2 skin.
-      for (final raw in ['a', 'b', 'x', 'y', 'z', 'home', 'plus', 'c', 'l', 'quickSave']) {
+      for (final raw in [
+        'a',
+        'b',
+        'x',
+        'y',
+        'z',
+        'home',
+        'plus',
+        'c',
+        'l',
+        'quickSave',
+      ]) {
         expect(DolphinSkins.canonicalInput('ps2', raw), isNull, reason: raw);
       }
       for (final alias in ['ps2', 'playstation2', 'armsx2', 'pcsx2']) {
-        expect(DolphinSkins.consoleOfGameType('public.test.game.$alias'), 'ps2');
+        expect(
+          DolphinSkins.consoleOfGameType('public.test.game.$alias'),
+          'ps2',
+        );
       }
-      expect(DolphinSkins.consoleOfGameType('public.aoshuang.game.ps1'), isNull);
+      expect(
+        DolphinSkins.consoleOfGameType('public.aoshuang.game.ps1'),
+        isNull,
+      );
       for (final alias in ['ngc', 'gc', 'gamecube', 'dol', 'dolphin']) {
         expect(DolphinSkins.consoleOfGameType('public.test.game.$alias'), 'gc');
       }

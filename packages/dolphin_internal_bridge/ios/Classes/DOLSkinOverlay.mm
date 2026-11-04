@@ -589,6 +589,13 @@ static CGRect DOLSkinAspectFit(CGRect bounds, CGFloat aspect) {
   return _current != nil;
 }
 
+- (BOOL)hasMenuControl {
+  for (DOLSkinItem* item in _current.items) {
+    if ([item.inputs containsObject:@"menu"]) return YES;
+  }
+  return NO;
+}
+
 #pragma mark Layout
 
 - (void)rebuildViews {

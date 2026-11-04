@@ -42,6 +42,34 @@
       },
       "author": "RewindBox",
       "license": "Original RewindBox artwork; third-party marks excluded"
+    },
+    {
+      "id": "gamecube-pocket-original",
+      "name": "GameCube Pocket — Original",
+      "console": "gc",
+      "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin",
+      "sha256": "f61e10dd45d134149d8623096ab74516e94f37831a2dacb3e240a2060e8ab709",
+      "size": 5965941,
+      "previewAssets": {
+        "portrait": "assets/skins/pocket/gamecube-pocket-original-portrait.png",
+        "landscape": "assets/skins/pocket/gamecube-pocket-original-landscape.png"
+      },
+      "author": "RewindBox",
+      "license": "RewindBox approved board; console names and marks belong to their owners"
+    },
+    {
+      "id": "wii-pocket-original",
+      "name": "Wii Pocket — Original",
+      "console": "wii",
+      "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin",
+      "sha256": "e451f327cbfa62c93bcf61395f9000f9220d1088b4a435492273f4b2c453916a",
+      "size": 4874505,
+      "previewAssets": {
+        "portrait": "assets/skins/pocket/wii-pocket-original-portrait.png",
+        "landscape": "assets/skins/pocket/wii-pocket-original-landscape.png"
+      },
+      "author": "RewindBox",
+      "license": "RewindBox approved board; console names and marks belong to their owners"
     }
   ]
 }

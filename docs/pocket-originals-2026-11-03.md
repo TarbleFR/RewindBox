@@ -134,3 +134,34 @@ Not observed: UIKit/simulator run (see the board row) and any iPhone play.
 | Pack | Bytes | SHA-256 |
 | --- | ---: | --- |
 | PS2 Pocket — Noir mat | 6117888 | `2106e5f755dd5128c7ab20f06e503164e9f7fd2cd02d88650ee1fc0aae9a16ad` |
+
+## GameCube Pocket — Original and Wii Pocket — Original (4 November 2026)
+
+Two additional packs, `gamecube-pocket-original` and `wii-pocket-original`, reproduce
+the maintainer-approved boards (`docs/design/pocket/approved-gamecube.png`
+`ecead3bd…f0f7`, `approved-wii.png` `fae06ef4…dc90f`) from their own pixels; builder,
+method and every deviation are in [tools/skins/README.md](../tools/skins/README.md).
+They are new choices beside the existing packs: the earlier `wii-pocket`,
+`gamecube-pocket` and `ps2-pocket` archives, ids, previews and saved selections are
+unchanged (byte-identical archives), and nothing is selected or migrated automatically.
+
+Side-by-side comparisons (board target, the real pack on a 393 x 852 pt iPhone with the
+previous floating buttons, and with the corrected placement):
+[GameCube portrait](evidence/pocket-originals/board-originals/gamecube-portrait-comparison.png),
+[GameCube landscape](evidence/pocket-originals/board-originals/gamecube-landscape-comparison.png),
+[Wii portrait](evidence/pocket-originals/board-originals/wii-portrait-comparison.png),
+[Wii landscape](evidence/pocket-originals/board-originals/wii-landscape-comparison.png).
+They are host renders of the archives' own previews, not iPhone screenshots. The
+targets in them are the maintainer's original PNGs (archive `938904a7…517b`), bound
+pixel for pixel to the boards ([input-binding.json](evidence/pocket-originals/board-originals/input-binding.json));
+[sharpness detail](evidence/pocket-originals/board-originals/sharpness-detail.png) and
+[fidelity.json](evidence/pocket-originals/board-originals/fidelity.json) measure the one
+difference the screen imposes: same rendering, bounded by the board's resolution.
+
+Session buttons: the Dolphin session's floating menu and performance buttons sat at the
+safe area's top leading corner and covered a control in landscape on all four GC/Wii
+packs (L or C). With a visible skin that has its own Menu, the floating menu now hides
+and the performance toggle moves into the top leading corner of the skin's game screen
+(`DOLSessionChromePolicy.h`, `test/dolphin_session_chrome_test.py`). Without a skin,
+or with a skin lacking a Menu, nothing moves. The analogous ARMSX2 floating menu over a
+PS2 landscape L1 is reported only; the PS2 fix `b8794226` is not reopened.
