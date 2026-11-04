@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 650,
   "status": "frozen",
-  "note": "Private IPA 650 on the delivered and verified 643: the next common delivery. RPCS3 Core 645 (Core 641 plus the cellAudio timeout mix: a timed-out audio period is output instead of dropped) replaces Core 641; MeloNX Core 649 (Core 642 plus the PR 156 lot and its follow-ups: DMA read-back receivers for the Hogwarts black launch, present source attribution, teardown compile cancel for the endless SSBU close, pause guest-thread record, teardown phase marks) replaces Core 642; the GameCube/Wii Pocket Original touch, pressed-state and stick geometry fix (PR 157). 644, 645, 647 and 649 are Core numbers; 646 and 648 were this draft's numbers before Cores 647 and 649.",
+  "note": "Private IPA 650 on the delivered and verified 643: the next common delivery. RPCS3 Core 645 (Core 641 plus the cellAudio timeout mix: a timed-out audio period is output instead of dropped) replaces Core 641; MeloNX Core 649 (Core 642 plus the PR 156 lot and its follow-ups: DMA read-back receivers for the Hogwarts black launch, present source attribution, teardown compile cancel for the endless SSBU close, pause guest-thread record, teardown phase marks) replaces Core 642; the GameCube/Wii Pocket Original touch, pressed-state and stick geometry fix (PR 157). 644, 645, 647 and 649 are Core numbers; 646 and 648 were this draft's numbers before Cores 647 and 649. Second trigger after the recipe fix 5671b1b1: the first (run 41861290919) failed on the flutter group only (no Pillow for the skin input-chain test) and on an unacquired macOS runner; native evidence reused.",
   "base": {
     "build": 643,
     "source": "f19ed8cd26caa3b346108d3107e06bcf219a1de7",
@@ -291,7 +291,13 @@
         "note": "fix(legal): Pocket board Originals declaration follows the PR #157 archives (same art sources, regenerated packs) [skip ci]"
       }
     ],
-    "sourceOnly": [],
+    "sourceOnly": [
+      {
+        "commit": "3da5e3d0e4a4e0084d57e03b6f7f0e4997d1f29a",
+        "targetBuild": 652,
+        "note": "RPCS3 Core 651 source (the cellAudio wait for a late port ends when the output ring runs low): build-utils/rpcs3 canonical source, embedded patch, core-build, core651 delta/patches and its tests. Committed after the 650 freeze, compiled by its own Core run; not in 650, which keeps the pinned Core 645: its product paths stay at their effective bytes. Target: the next common IPA, numbered above every Core."
+      }
+    ],
     "promotedCommits": [],
     "freezeCommit": "f8d58ca2841af3c5ff318e7e96551a053abf7b52",
     "freezeTree": "0db910ca9ba07a75e4053410528d4046d0b9463a",
@@ -1658,7 +1664,7 @@
       ]
     },
     "native": {
-      "mode": "fresh",
+      "mode": "reuse",
       "additions": {
         "commands": [
           [
@@ -1735,7 +1741,7 @@
           ]
         ]
       },
-      "note": "On the macOS runner g++/clang++ resolve to Apple clang of the selected Xcode 16.4.",
+      "note": "On the macOS runner g++/clang++ resolve to Apple clang of the selected Xcode 16.4. Reused from the first 650 trigger (run 41861290919 attempt 1, job passed, 16 commands, same effective tree and commands, 121 recipe reads unchanged): that run failed only on the flutter group (Pillow absent on the ubuntu runner, recipe fix 5671b1b1) and on an application job no macOS runner acquired.",
       "commands": [
         [
           "translation-xctest",
@@ -1870,7 +1876,18 @@
             "test/rpcs3_pipeline_cache_milestones_test.py"
           ]
         ]
-      ]
+      ],
+      "reuse": {
+        "source": "38b166be6262a199d00dcd5fba3246aaddd7edfb",
+        "run": 41861290919,
+        "attempt": 1,
+        "job": 126684326200,
+        "artifact": 13341267578,
+        "artifactName": "RewindBox-Build650-38b166be6262a199d00dcd5fba3246aaddd7edfb-attempt1-tests-native",
+        "sha256": "67551e12c1a86dbc3c8bc8b58c882c15d826285634a8f3a49e40cbebd52437e3",
+        "bytes": 81370,
+        "manifest": "build-utils/delivery/650.json"
+      }
     },
     "awaitMinutes": 75
   },
