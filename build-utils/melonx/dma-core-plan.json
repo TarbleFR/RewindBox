@@ -342,7 +342,9 @@
         "src/Ryujinx.Memory/IVirtualMemoryManager.cs",
         "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs",
         "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs",
-        "src/Ryujinx.Graphics.Gpu/Window.cs"
+        "src/Ryujinx.Graphics.Gpu/Window.cs",
+        "src/Ryujinx.Graphics.GAL/Multithreading/Model/ThreadedArrayPool.cs",
+        "src/Ryujinx.Graphics.Vulkan/VulkanInitialization.cs"
       ],
       "compiledBindings": [
         {
@@ -803,6 +805,24 @@
             "src/Ryujinx.Graphics.Gpu/Window.cs"
           ],
           "productionPath": "src/Ryujinx.Graphics.Gpu/Window.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.GAL/Multithreading/Model/ThreadedArrayPool.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.GAL/Multithreading/Model/ThreadedArrayPool.cs"
+        },
+        {
+          "variant": "candidate",
+          "reportPath": [
+            "compiledSourceInputs",
+            "candidate",
+            "src/Ryujinx.Graphics.Vulkan/VulkanInitialization.cs"
+          ],
+          "productionPath": "src/Ryujinx.Graphics.Vulkan/VulkanInitialization.cs"
         }
       ]
     },
