@@ -33,6 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ASSETS = ROOT / 'assets/skins/pocket'
 DOL = (ROOT / 'packages/dolphin_internal_bridge/ios/Classes/DOLSkinOverlay.mm').read_text(encoding='utf-8')
 A2 = (ROOT / 'packages/armsx2_internal_bridge/ios/Classes/ARMSX2SkinOverlay.mm').read_text(encoding='utf-8')
+MLX = (ROOT / 'packages/melonx_internal_bridge/ios/Classes/MeloNXSkinOverlay.mm').read_text(encoding='utf-8')
 DIRECTIONS = ('Up', 'Down', 'Left', 'Right')
 _spec = importlib.util.spec_from_file_location('verify_pocket_skins', ROOT / 'tools/skins/verify_pocket_skins.py')
 VERIFY = importlib.util.module_from_spec(_spec)
@@ -82,7 +83,17 @@ def common_canonical(raw, family_c):
 GC_NAMES, WII_NAMES = table(DOL, 'gc'), table(DOL, 'wii')
 
 
+SWITCH_ALIASES = {'select': 'minus', 'back': 'minus', 'start': 'plus', 'leftstickclick': 'l3', 'lsclick': 'l3',
+                  'ls': 'l3', 'rightstickclick': 'r3', 'rsclick': 'r3', 'rs': 'r3', 'screenshot': 'capture'}
+
+
 def canonical(console, raw):
+    if console == 'switch':
+        found = common_canonical(raw, 'rstick')
+        if found:
+            return found
+        k = SWITCH_ALIASES.get(key(raw), key(raw))
+        return k if k in ENGINE_SWITCH or k in ('home', 'capture') else None
     if console == 'ps2':
         found = common_canonical(raw, 'rstick')
         if found:
@@ -120,6 +131,16 @@ def engine_dolphin(console):
 ENGINE_PS2 = set(re.findall(r'@"(\w+)"\s*:\s*@\d+', re.search(r'A2SkinButtonIds\(void\) \{(.*?)\n\}', A2, re.S).group(1)))
 PS2_IDS = {name: int(number) for name, number in re.findall(
     r'@"(\w+)"\s*:\s*@(\d+)', re.search(r'A2SkinButtonIds\(void\) \{(.*?)\n\}', A2, re.S).group(1))}
+# MeloNXSkinOverlay: the embedded Core's button indices (native/melonx/EmbeddedInput.cs).
+SWITCH_IDS = {name: int(number) for name, number in re.findall(
+    r'@"(\w+)"\s*:\s*@(\d+)', re.search(r'MLXSkinButtonIds\(void\) \{(.*?)\n\}', MLX, re.S).group(1))}
+ENGINE_SWITCH = set(SWITCH_IDS)
+# test/melonx_input_test.py: the index order checked on the real NativeGamepadDriver.
+CORE_ORDER = re.findall(r'GamepadButtonInputId\.(\w+)', (ROOT / 'test/melonx_input_test.py').read_text()
+                        .split('var mapping = new[] {')[1].split('};')[0])
+SWITCH_CORE = {'a': 'A', 'b': 'B', 'x': 'X', 'y': 'Y', 'minus': 'Back', 'plus': 'Start', 'l3': 'LeftStick',
+               'r3': 'RightStick', 'l': 'LeftShoulder', 'r': 'RightShoulder', 'up': 'DpadUp', 'down': 'DpadDown',
+               'left': 'DpadLeft', 'right': 'DpadRight', 'zl': 'LeftTrigger', 'zr': 'RightTrigger'}
 # ARMSX2Bridge.h (upstream 9d989ca9, platforms/ios/app/src/main/cpp/ARMSX2Bridge.h) order of ARMSX2PadButton.
 EXPECTED = {'wii-pocket': 'wii', 'gamecube-pocket': 'gc', 'ps2-pocket': 'ps2',
             'gamecube-pocket-original': 'gc', 'wii-pocket-original': 'wii', 'ps2-pocket-original': 'ps2'}
@@ -130,8 +151,17 @@ UPSTREAM_PS2 = ['up', 'down', 'left', 'right', 'cross', 'circle', 'square', 'tri
 def engine_command(console, name):
     """('button'|'trigger'|'stick'|'action', detail) or None."""
     if name == 'menu':
-        require('menuHandler' in (DOL if console != 'ps2' else A2), 'menu handler')
+        require('menuHandler' in {'ps2': A2, 'switch': MLX}.get(console, DOL), 'menu handler')
         return ('action', 'menu')
+    if console == 'switch':
+        if name in SWITCH_IDS:
+            return ('button', SWITCH_IDS[name])
+        if name in ('home', 'capture'):
+            # No index in the embedded Core: the session says so (MeloNXSkinSession), nothing is sent.
+            require('strongSelf.systemButtonHandler(canonical)' in MLX, 'system button notice')
+            return ('notice', name)
+        m = re.fullmatch(r'(stick|rstick)(Up|Down|Left|Right)', name)
+        return ('stick', m.group(1)) if m else None
     if console == 'ps2':
         if name in PS2_IDS:
             return ('button', PS2_IDS[name])
@@ -191,7 +221,7 @@ def _probe(engine=None):
     engine = engine or CURRENT.get('engine', 'dolphin')
     if engine not in _PROBE:
         out = Path(tempfile.mkdtemp()) / f'skin_hit_probe_{engine}'
-        flags = ['-DARMSX2_HIT'] if engine == 'armsx2' else []
+        flags = {'armsx2': ['-DARMSX2_HIT'], 'melonx': ['-DMELONX_HIT']}.get(engine, [])
         subprocess.run(['cc', '-std=c11', '-Wall', '-Werror', *flags, '-o', str(out),
                         str(ROOT / 'test/orientation_policy/skin_hit_probe.c')], check=True)
         _PROBE[engine] = out
@@ -209,6 +239,16 @@ def check_hit_headers():
     require(dol == a2, 'ARMSX2SkinHitTest.h differs from DOLSkinHitTest.h beyond its prefix and comments')
     require('#import "ARMSX2SkinHitTest.h"' in A2 and 'A2SkinHitIndex(hits.data()' in A2 and 'A2SkinAlphaMap(item.assetPath' in A2,
             'ARMSX2SkinOverlay itemAtPoint does not run ARMSX2SkinHitTest.h on the sprite alpha')
+    mlx = code('packages/melonx_internal_bridge/ios/Classes/MeloNXSkinHitTest.h', 'MLXSkinHit')
+    require(dol == mlx, 'MeloNXSkinHitTest.h differs from DOLSkinHitTest.h beyond its prefix and comments')
+    require('#import "MeloNXSkinHitTest.h"' in MLX and 'MLXSkinHitIndex(hits.data()' in MLX and 'MLXSkinAlphaMap(item.assetPath' in MLX,
+            'MeloNXSkinOverlay itemAtPoint does not run MeloNXSkinHitTest.h on the sprite alpha')
+    # The Switch table sends the Core's own indices (test/melonx_input_test.py's order on the real driver).
+    require(len(CORE_ORDER) == 17 and set(SWITCH_IDS) == set(SWITCH_CORE), 'Switch table: %s' % SWITCH_IDS)
+    for name, core in SWITCH_CORE.items():
+        require(CORE_ORDER[SWITCH_IDS[name]] == core, 'Switch %s is index %d (%s), not %s' % (
+            name, SWITCH_IDS[name], CORE_ORDER[SWITCH_IDS[name]], core))
+    require(CORE_ORDER.index('Guide') not in SWITCH_IDS.values(), 'Guide is not a skin input')
 
 
 def alpha_map(png):
@@ -345,7 +385,7 @@ def main():
     report = []
     for pack_id, row in sorted(rows.items()):
         console = row['console']
-        CURRENT['engine'] = 'armsx2' if console == 'ps2' else 'dolphin'
+        CURRENT['engine'] = {'ps2': 'armsx2', 'switch': 'melonx'}.get(console, 'dolphin')
         info, names = load_pack(row)
         require(info['gameTypeIdentifier'].split('.')[-1] in {'gc': {'ngc'}, 'wii': {'wii'}, 'ps2': {'ps2'}}[console],
                 console + ': game type')

@@ -5,7 +5,12 @@
 // stdout: one item index per point (-1: none).
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef ARMSX2_HIT
+#ifdef MELONX_HIT
+// The MeloNX pod's own copy (MeloNXSkinOverlay itemAtPoint).
+#include "../../packages/melonx_internal_bridge/ios/Classes/MeloNXSkinHitTest.h"
+#define DOLSkinHitItem MLXSkinHitItem
+#define DOLSkinHitIndex MLXSkinHitIndex
+#elif defined(ARMSX2_HIT)
 // The ARMSX2 pod's own copy (ARMSX2SkinOverlay itemAtPoint).
 #include "../../packages/armsx2_internal_bridge/ios/Classes/ARMSX2SkinHitTest.h"
 #define DOLSkinHitItem A2SkinHitItem

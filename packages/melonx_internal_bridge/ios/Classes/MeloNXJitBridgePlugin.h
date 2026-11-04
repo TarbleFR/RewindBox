@@ -8,6 +8,8 @@
 #else
 #import "../Memory/MLXRamDonor.h"
 #endif
+// The Switch controller skin overlay (MeloNXSkinSession, docs/dolphin-skins.md).
+#import "MeloNXSkinOverlay.h"
 
 @interface MeloNXJitBridgePlugin : NSObject <FlutterPlugin>
 @end

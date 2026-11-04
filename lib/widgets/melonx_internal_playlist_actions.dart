@@ -12,8 +12,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 
+import '../l10n/libretro_locale.dart';
 import '../l10n/melonx_library_locale.dart';
 import '../providers/sqlite_config_provider.dart';
+import '../screens/libretro/libretro_skin_manager_screen.dart';
 import '../services/frontend_media_gate.dart';
 import '../services/logger_service.dart';
 import '../services/melonx_internal_service.dart';
@@ -134,8 +136,26 @@ class _MelonxInternalPlaylistActionsState
           .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// Nintendo Switch controller skins (docs/dolphin-skins.md): the same manager
+  /// as the GameCube, Wii, PS2 and libretro consoles. Its choices go to
+  /// `Config/Frontend/switch.json`, read by MeloNXSkinOverlay at the next launch.
+  Future<void> _openSkins() async {
+    _interaction(true);
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const LibretroSkinManagerScreen(console: 'switch')),
+      );
+    } finally {
+      if (mounted) _interaction(false);
+    }
+  }
+
   Future<void> _selected(String action) async {
     if (_busy) return;
+    if (action == 'skins') {
+      await _openSkins();
+      return;
+    }
     setState(() => _busy = true);
     try {
       // Recovery is short and owned by this menu. Do not race its launch gate.
@@ -416,6 +436,11 @@ class _MelonxInternalPlaylistActionsState
         if (widget.gamePath != null)
           PopupMenuItem(value: 'graphics', child: Text(_text('Game graphics'))),
         const PopupMenuDivider(),
+        PopupMenuItem(
+          key: const ValueKey('melonx-skins'),
+          value: 'skins',
+          child: Text(LibretroLocale.text(context, 'skins')),
+        ),
         PopupMenuItem(value: 'status', child: Text(_text('Engine status'))),
       ],
     );

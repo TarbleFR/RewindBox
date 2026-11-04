@@ -120,6 +120,9 @@ final class MeloNXMetalSessionViewController: UIViewController {
     private let menuButton = UIButton(type:.system)
     private var router: MeloNXInputRouter?
     private var controls: UIHostingController<AnyView>?
+    // The player's Switch controller skin, when one is chosen (MeloNXSkinSession).
+    private var skinSession: MeloNXSkinSession?
+    private var surfaceFill: [NSLayoutConstraint] = []
     private var perf: MeloNXPerfJournal?
     private let diagnosticContext = MeloNXStdioCapture.sessionContext
     var presentedFrameCount: UInt64 { surface.metalLayer.frameCount }
@@ -154,7 +157,8 @@ final class MeloNXMetalSessionViewController: UIViewController {
         }
         surface.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(surface)
-        NSLayoutConstraint.activate([surface.leadingAnchor.constraint(equalTo:view.leadingAnchor),surface.trailingAnchor.constraint(equalTo:view.trailingAnchor),surface.topAnchor.constraint(equalTo:view.topAnchor),surface.bottomAnchor.constraint(equalTo:view.bottomAnchor)])
+        surfaceFill = [surface.leadingAnchor.constraint(equalTo:view.leadingAnchor),surface.trailingAnchor.constraint(equalTo:view.trailingAnchor),surface.topAnchor.constraint(equalTo:view.topAnchor),surface.bottomAnchor.constraint(equalTo:view.bottomAnchor)]
+        NSLayoutConstraint.activate(surfaceFill)
         spinner.color = .white; spinner.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(spinner)
         NSLayoutConstraint.activate([spinner.centerXAnchor.constraint(equalTo:view.centerXAnchor),spinner.centerYAnchor.constraint(equalTo:view.centerYAnchor)])
@@ -227,6 +231,11 @@ final class MeloNXMetalSessionViewController: UIViewController {
         self.router = router
         router.onMenu = { [weak self] in self?.showMenu() }
         refreshControls()
+        if let skin = MeloNXSkinSession(game:game,router:router,host:view,surface:surface,surfaceFill:surfaceFill,menuButton:menuButton,menu:{ [weak self] in self?.showMenu() }) {
+            skin.controlsView = { [weak self] in self?.controls?.view }
+            skin.interactive = { [weak self] in guard let self else { return false }; return self.presentedViewController == nil && !self.closing && self.pauseReasons.isEmpty }
+            skinSession = skin; skin.sync()
+        }
         if UIApplication.shared.applicationState != .active { pauseReasons.insert("application") }
         applyPause()
     }
@@ -266,6 +275,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
         addChild(child); view.insertSubview(child.view,belowSubview:menuButton)
         NSLayoutConstraint.activate([child.view.leadingAnchor.constraint(equalTo:view.safeAreaLayoutGuide.leadingAnchor),child.view.trailingAnchor.constraint(equalTo:view.safeAreaLayoutGuide.trailingAnchor),child.view.topAnchor.constraint(equalTo:view.safeAreaLayoutGuide.topAnchor),child.view.bottomAnchor.constraint(equalTo:view.safeAreaLayoutGuide.bottomAnchor)])
         child.didMove(toParent:self); controls = child
+        skinSession?.sync()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -290,6 +300,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
                 prepared:{ [weak self] id in self?.installControls(generation:id) },beforeRun:beforeRun) { [weak self, finished] result in
                     self?.perf?.stop(); self?.perf = nil
                     MeloNXStdioCapture.end(); UIApplication.shared.isIdleTimerDisabled = false
+                    self?.skinSession?.close(); self?.skinSession = nil
                     self?.router?.close(); MeloNXTextInput.shared.detach(self); self?.closing = true; self?.updateMemoryGraph()
                     if let self, self.presentingViewController != nil {
                         self.dismiss(animated:true) { finished(result) }
@@ -304,6 +315,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        skinSession?.layout()
         applyPresentTarget()
     }
     // Standalone MeloNX sends its screen's maximum rate on every layout.
@@ -320,6 +332,7 @@ final class MeloNXMetalSessionViewController: UIViewController {
         perf?.setPaused(!pauseReasons.isEmpty)
         surface.metalLayer.restartPacing()
         router?.suspend(!pauseReasons.isEmpty)
+        skinSession?.sync()
         host.setPaused(!pauseReasons.isEmpty)
     }
     @objc private func showMenu() {

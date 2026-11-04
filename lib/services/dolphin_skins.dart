@@ -58,10 +58,11 @@ class DolphinSkinReport {
 /// is the RetroPad's): their skins are read here, and drawn in a game by the
 /// Dolphin bridge (`DOLSkinOverlay`), which follows the same input table.
 abstract final class DolphinSkins {
-  /// GameCube, Wii and PlayStation 2 as skin consoles. Never Libretro
-  /// consoles: they are not added to [LibretroCoreCatalog.consoles]. Their
-  /// skins are drawn by their own native overlay: `DOLSkinOverlay` (Dolphin:
-  /// GameCube, Wii) and `ARMSX2SkinOverlay` (ARMSX2: PS2).
+  /// GameCube, Wii, PlayStation 2 and Nintendo Switch as skin consoles. Never
+  /// Libretro consoles: they are not added to [LibretroCoreCatalog.consoles].
+  /// Their skins are drawn by their own native overlay: `DOLSkinOverlay`
+  /// (Dolphin: GameCube, Wii), `ARMSX2SkinOverlay` (ARMSX2: PS2) and
+  /// `MeloNXSkinOverlay` (MeloNX: Switch).
   static const Map<String, LibretroConsole> consoles = <String, LibretroConsole>{
     'gc': LibretroConsole(
       id: 'gc',
@@ -86,6 +87,14 @@ abstract final class DolphinSkins {
       height: 480,
       importSystem: 'ps2',
       catalogSystems: <String>['ps2', 'playstation2', 'sonyplaystation2'],
+    ),
+    'switch': LibretroConsole(
+      id: 'switch',
+      name: 'Nintendo Switch',
+      width: 1280,
+      height: 720,
+      importSystem: 'switch',
+      catalogSystems: <String>['switch', 'nintendoswitch', 'nx'],
     ),
   };
 
@@ -113,6 +122,7 @@ abstract final class DolphinSkins {
         'ngc' || 'gc' || 'gamecube' || 'dol' || 'dolphin' => 'gc',
         'wii' || 'rvl' || 'revolution' => 'wii',
         'ps2' || 'playstation2' || 'sonyplaystation2' || 'armsx2' || 'pcsx2' => 'ps2',
+        'switch' || 'nintendoswitch' || 'nx' || 'melonx' => 'switch',
         _ => null,
       };
 
@@ -126,7 +136,12 @@ abstract final class DolphinSkins {
   /// PlayStation 2 (ARMSX2): `cross circle square triangle l1 l2 r1 r2
   /// select start l3 r3`, the D-pad, the left stick `stickUp…` and the right
   /// stick `rstickUp…`. L3 and R3 are separate targets, never a stick click.
-  /// GameCube and Wii: the actions `menu`, `quickSave`, `quickLoad`; PS2: `menu`.
+  /// Nintendo Switch (MeloNX): `a b x y l r zl zr minus plus l3 r3`, the
+  /// D-pad, the left stick `stickUp…`, the right stick `rstickUp…`, and `home`
+  /// and `capture` (console buttons the embedded Core cannot receive: the session
+  /// says so when one is pressed). L3 and R3 are separate targets.
+  /// GameCube and Wii: the actions `menu`, `quickSave`, `quickLoad`; PS2 and
+  /// Switch: `menu`.
   static const Map<String, List<String>> inputs = <String, List<String>>{
     'gc': <String>[
       'a', 'b', 'x', 'y', 'z', 'l', 'r', 'start', 'up', 'down', 'left', 'right',
@@ -140,6 +155,11 @@ abstract final class DolphinSkins {
     ],
     'ps2': <String>[
       'cross', 'circle', 'square', 'triangle', 'l1', 'l2', 'r1', 'r2', 'select', 'start', 'l3', 'r3',
+      'up', 'down', 'left', 'right', 'stickUp', 'stickDown', 'stickLeft', 'stickRight',
+      'rstickUp', 'rstickDown', 'rstickLeft', 'rstickRight', 'menu',
+    ],
+    'switch': <String>[
+      'a', 'b', 'x', 'y', 'l', 'r', 'zl', 'zr', 'minus', 'plus', 'l3', 'r3', 'home', 'capture',
       'up', 'down', 'left', 'right', 'stickUp', 'stickDown', 'stickLeft', 'stickRight',
       'rstickUp', 'rstickDown', 'rstickLeft', 'rstickRight', 'menu',
     ],
@@ -173,7 +193,7 @@ abstract final class DolphinSkins {
         // The right stick is the GameCube's C-stick and the PS2's right
         // stick; on a Wii it moves the pointer (an adaptation).
         if (console == 'wii') mark();
-        return switch (console) { 'gc' => 'c$d', 'ps2' => 'rstick$d', _ => 'pointer$d' };
+        return switch (console) { 'gc' => 'c$d', 'ps2' || 'switch' => 'rstick$d', _ => 'pointer$d' };
       }
     }
     for (final d in _directions) {
@@ -184,10 +204,34 @@ abstract final class DolphinSkins {
         return 'menu';
       // The quick save and load actions open the Dolphin session menu's
       // state page; the PS2 session has no such skin action.
-      case 'quicksave' when console != 'ps2':
+      case 'quicksave' when console != 'ps2' && console != 'switch':
         return 'quickSave';
-      case 'quickload' when console != 'ps2':
+      case 'quickload' when console != 'ps2' && console != 'switch':
         return 'quickLoad';
+    }
+    if (console == 'switch') {
+      // Only the Nintendo Switch names (MeloNXSkinOverlay's table).
+      switch (key) {
+        case 'a' || 'b' || 'x' || 'y' || 'l' || 'r' || 'zl' || 'zr' || 'minus' || 'plus' || 'l3' || 'r3' ||
+              'home' || 'capture':
+          return key;
+        case 'leftstickclick' || 'lsclick' || 'ls':
+          mark();
+          return 'l3';
+        case 'rightstickclick' || 'rsclick' || 'rs':
+          mark();
+          return 'r3';
+        case 'select' || 'back':
+          mark();
+          return 'minus';
+        case 'start':
+          mark();
+          return 'plus';
+        case 'screenshot':
+          mark();
+          return 'capture';
+      }
+      return null;
     }
     if (console == 'ps2') {
       // Only the PlayStation names: nothing is guessed from Nintendo names.
@@ -275,6 +319,12 @@ abstract final class DolphinSkins {
       'circle': <String>['circle'],
       'start': <String>['start'],
     },
+    'switch': <String, List<String>>{
+      'leftStick': <String>['stickUp', 'stickDown', 'stickLeft', 'stickRight'],
+      'a': <String>['a'],
+      'b': <String>['b'],
+      'plus': <String>['plus'],
+    },
   };
 
   /// Controls a game may need, reported when missing.
@@ -282,6 +332,7 @@ abstract final class DolphinSkins {
     'gc': <String>['x', 'y', 'z', 'l', 'r', 'rightStick'],
     'wii': <String>['one', 'two', 'plus', 'minus', 'leftStick'],
     'ps2': <String>['square', 'triangle', 'l1', 'l2', 'r1', 'r2', 'select', 'l3', 'r3', 'leftStick', 'rightStick'],
+    'switch': <String>['x', 'y', 'l', 'r', 'zl', 'zr', 'minus', 'l3', 'r3', 'directions', 'rightStick'],
   };
 
   static Map<String, dynamic>? _map(Object? o) => o is Map ? Map<String, dynamic>.from(o) : null;
@@ -385,8 +436,9 @@ abstract final class DolphinSkins {
       }
       for (final optional in optionals[console]!) {
         final have = switch (optional) {
-          'rightStick' => provided.contains(console == 'ps2' ? 'rstickUp' : 'cUp'),
+          'rightStick' => provided.contains(console == 'ps2' || console == 'switch' ? 'rstickUp' : 'cUp'),
           'leftStick' => provided.contains('stickUp'),
+          'directions' => const ['up', 'down', 'left', 'right'].every(provided.contains),
           _ => provided.contains(optional),
         };
         if (!have) missingOptional.add(optional);
