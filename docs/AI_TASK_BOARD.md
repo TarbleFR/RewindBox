@@ -250,10 +250,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   kept, PR158 PS2 Pocket Original (`70b9c36e`, legal `850611ff`); [receipt](evidence/rewind653/delivery.json),
   key deleted, file sent. PR158 landscape sizes (L3/R3 ~26 pt, SELECT/START ~40 pt,
   home-band overlap, sensor housing over Circle) await the maintainer.
-- **IPA 650 device logs (18:00 UTC, private, hashed):** AC gameplay 25–28 FPS = 643; one AC
-  process lost the GPU (VK_ERROR_DEVICE_LOST, poke_query) after 6.5 min in the UI left
-  4.7 GB footprint / 2.5 GB compressed (jetsam limit 6655 MiB; Core reclaim never armed);
-  BO2 hitches coincide with compression growth. Analysis workflow running; levers next.
+- **MeloNX Core 654 (PR #156 new lot, handoff `42a104cc`):** integrated byte-identically
+  `4700d445`, wired `9b41bc66` (binder release + artifact counters last in ORDER), frozen
+  `d8ed0119` (contract `e1f181e5…`, 145 inputs, 184 members, 46 changes, 27 gates in one
+  local pass with SDK 10.0.100, contract test 331 checks, receipts validated), evidence
+  `f1d395ba` → Core CI run `41907506289` in progress. Next: pin, then IPA 655 (653 + PR159
+  + host memory milestone + Core 654; RPCS3 Core per the 653-log levers).
+- **Device logs 650/653 (private, hashed in scratchpad):** 650: AC 25–28 FPS = 643, GPU
+  loss after compression growth (4.7 GB footprint); verified at 0 % deviation: no
+  steady-state regression; "compression is the precursor" and "2.5 GB before gameplay"
+  refuted as causal/like-for-like (ordering right, same steps in healthy play; one menu
+  window). 653 (Core 652, thermal 0): see RPCS3 section; the barrier change of 652 could
+  not show on screen.
 - **Misaddressed MeloNX logs:** skins export ready (ZIP 900515 B, `12b5f019…2f04`, skins
   attachment `d585ba9d…`). Main has no native transfer (`send_message.attachments`:
   project channel→thread only; no tool reads another session's upload); MeloNX idle,
@@ -272,9 +280,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   writes are read-only; a skipped read counts, so read-only chains keep one barrier.
   Host model on real code: no RAW/WAR hazard; 6 reads 8→3 passes; random 106854→99643
   passes, 94138→75615 barriers; writing loops identical. RPASS652 census of pass ends.
-- **Open/next:** pin 652, IPA 653; then the RPASS652 dominant restart site. BO2 new
-  pipelines (234–1008 ms, first-ever keys; old ones persist): anticipation design still
-  open. Device AC/BO2 measurements required. Do not close at “GPU-bound”.
+- **IPA 653 logs (pid 9605, Core 652, 19:24–19:39 UTC, thermal 0):** AC 24–29 FPS at the
+  30 cap, GPU 70–78 % = 27–30 ms/frame, RSX stages 5–8 ms: GPU-bound; 44–53 pass begins
+  per frame, 13–19 re-open the same target (change_image_layout 4–11, insert_texture_barrier
+  5–10 all same-target; 652's depth barrier ≈1). BO2 15–22 FPS, GPU 20–27 % (11–14 ms),
+  RSX stages 10–16 ms of 45–60 ms frames (texture 6–10 ms), 13 000 command-buffer submits
+  per 5 s in menus (close_and_submit via the flush path), SPU getllar_sleep 0.2–4 s per
+  window, max_spurs 6 on 2P+4E: guest-CPU-bound. BLES01882: no frame in 38 s (PPU
+  interpreter by database). Workflow `wf_82d6d6d1` (3 analysts, verify, 2 designers,
+  judge) running on the real MoltenVK 1.4.2 source (db660224): in a render encoder a
+  layout barrier does nothing unless GENERAL; outside it ends the encoding and sets stage
+  fences (argument buffers + residency set), so an in-pass non-attachment layout needs a
+  fence wait on the current encoder (MoltenVK patch) to be safe.
+- **Open/next:** Core after the judge: AC = keep the pass open on non-attachment layout
+  transitions (iOS + MoltenVK fence), counted; BO2 = SPU/PPU scheduling (preferred SPU
+  threads, QoS) and RSX texture time, not passes. No FPS claim before an iPhone log.
 
 ### MeloNX FPS, memory, black launch and artifacts — existing owner
 
