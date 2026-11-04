@@ -58,10 +58,11 @@ jobs:
       run: |
         set -euo pipefail
         python3 -m venv "$RUNNER_TEMP/pocket-venv"
-        "$RUNNER_TEMP/pocket-venv/bin/pip" install --quiet pillow==12.3.0
+        # Verification only: the pinned Pillow, any numpy with wheels for the runner's Python.
+        "$RUNNER_TEMP/pocket-venv/bin/pip" install --quiet pillow==12.3.0 "numpy>=2.3.5"
         "$RUNNER_TEMP/pocket-venv/bin/python" tools/skins/verify_pocket_skins.py
-        python3 test/pocket_skin_input_chain_test.py
-        python3 test/dolphin_session_chrome_test.py
+        "$RUNNER_TEMP/pocket-venv/bin/python" test/pocket_skin_input_chain_test.py
+        "$RUNNER_TEMP/pocket-venv/bin/python" test/dolphin_session_chrome_test.py
     - name: Compile the Dolphin orientation and skin sources for iPhone
       if: ${{ !cancelled() }}
       run: |
