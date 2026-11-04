@@ -207,6 +207,8 @@ checks. This standing decision supersedes older prompts that ask for fresh
 approval for these compilation steps. The current task determines which changes
 belong in the IPA.
 
+Maintainer clarification and explicit approval, 4 November 2026: "Oui mais ne me demande plus d'autorisation ! C'est la règle !" This approves the proposed targeted recipe change to accept the already-integrated merges after explicit review/classification, keeping source/Core/package/signature identity checks and the prohibition on merges after freeze. Preserve shared history; no force-push is requested. The linear-history decision blocker is resolved by this approval. For authorized RewindBox corrections, integration, CI/Core recovery, packaging and private delivery, continue autonomously without repeated permission questions; make routine necessary implementation choices and keep the maintainer informed of meaningful outcomes. This does not authorize bypassing platform/tool refusals, public publication, paid services or unrelated destructive operations. Resume the existing bounded watch; main remains sole delivery owner.
+
 After EVERY IPA compilation attempt, successful, failed or interrupted, give the
 maintainer a concise report with build/version, source and Core identities,
 workflow run/attempt, tests fresh/reused/failed/not run, outcome, blockers and
