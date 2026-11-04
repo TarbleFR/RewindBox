@@ -219,3 +219,79 @@ the decision. Otherwise the barrier is recorded inside the pass, as the delivere
 - Two pipeline misses were named by the PR #153 diagnostic (`PrimitiveRestartEnable` False/True, `Topology`
   TriangleList/TriangleStrip): state changed at draw time after the program's creation. Only 2 in 154 s, so it is the
   next parity candidate, not fixed here.
+
+### Super Smash Bros. Ultimate on IPA 640: the maintainer's similar flicker (4 November 2026)
+
+Inputs (private, not in the repository):
+
+| File | Bytes | SHA-256 |
+|---|---|---|
+| `MeloNX-core(6).log` | 986 612 | `cdb8a128…` |
+| `MeloNX-performance(2).log` | 3 779 199 | `013d25ae…` |
+| `MeloNX-stderr(2).log` | 4 218 214 | `2544286e…` |
+| `MeloNX-launch(5).log` | 109 694 | `73008e68…` |
+| `MeloNX-stderr.log.previous` | 5 242 872 | `7eae0e39…` |
+
+`MeloNX-stderr.log.previous` is the same file as in the Hogwarts batch above (historical builds 606-624), so it is not
+SSBU evidence. The Hogwarts 640 sessions (PID 5576) are the ones already analysed; this batch only adds their core log.
+- New session: SSBU v13.0.4 (`01006a800016e000`), build 640, Core 639 (`cbb7beb9`, `b75212a4…`), PID 5869, session
+  `316CF3D2`, 02:59:10-03:00:30 UTC, ending in the background.
+- Same-device reference: SSBU on 629, PID 5402, MoltenVK 1.4.0.
+- No SSBU recording is attached, so the flicker itself is not observed here.
+
+| Finding | Class | Disposition |
+|---|---|---|
+| The Hogwarts deferral corrected first in PR #154 | Not the cause here | Launch log `titleMatched=false`; `Library.cs` sets `DeferInPassReadBarriers` for Hogwarts only; 13 of 13 detail windows: "in-pass read barriers deferred 0" |
+| In-pass image barriers under MoltenVK 1.4.2, every title | Defect established in the source; its share of the SSBU flicker is not measured | See below. The detail line now counts these barriers for every title |
+| Texture descriptor template fallbacks: 3 317-12 060 per 5 s window, as many `IndexOutOfRangeException` (629: 30 467 in a window) | Defect confirmed, corrected | Core 631's binding-sized scratch was enabled for Hogwarts only; `adapt_descriptor_scratch_all_titles.py` enables it for every title |
+| Pipeline cache: 629 loaded 714 MiB main data, 640 loaded 0 KiB (0/2 worker snapshots); p99 33 → 83 ms, pauses over 100 ms 10 → 28 in a similar length | Constraint justified | The cache file is keyed by `driverVersion` (10400 → 10402), so every title rebuilds its cache once after the MoltenVK update, as Vulkan requires; old files stay. The main cache is written when the renderer closes, and this session ended in the background. Decisive check: the next SSBU launch's "pipeline cache initialized" main size |
+| Syncpoint waits over 1 s (2), "GPU processing thread is too slow" (8), 03:00:05-03:00:07 | Hypothesis | In the same seconds as cache-less pipeline builds; no separate cause shown |
+
+**In-pass image barriers under MoltenVK 1.4.2.** On MoltenVK, Ryujinx's `BarrierBatch` records an image barrier queued
+inside a render pass inside that pass ("Metal already has hazard tracking"). Other tile-based GPUs end the pass first.
+In 1.4.2 with residency sets (iOS 18, Apple6 and later, argument buffers), the behaviour is:
+- `vkCmdPipelineBarrier` links encoders through MTLFences only when no Metal render encoder is active
+  (`MVKCmdPipeline.mm`: `setBarrier` under `!_mtlRenderEncoder && hasResidencySet()`).
+- Inside a pass it only restarts the Metal pass for a GENERAL-layout image barrier, and the new encoder still waits on
+  the old fence slots.
+- `applyImageMemoryBarrier` only syncs host memory and layouts.
+- `useResource` is no longer issued.
+
+So a texture written by an earlier pass and sampled in the active one is ordered by nothing, whatever the title. The
+first #154 change alone was therefore not enough: under 1.4.2 a barrier recorded inside the pass orders nothing either.
+
+Correction (same adapter, `adapt_moltenvk_barrier_ordering.py`, `BarrierBatch.cs`): when such a barrier is for a texture
+that is not an attachment of the pass and MoltenVK no longer tracks argument-buffer hazards, the pass ends before the
+barrier is recorded, as the delivered path already does on other tile-based GPUs. The draw begins the pass again after
+the flush. The following keep the delivered path: feedback loops, MoltenVK 1.4.0, other drivers. The detail line gives
+"in-pass image barriers ending the pass" for every title. MoltenVK already restarted the Metal pass for each such
+barrier, so the expected cost is the Vulkan pass re-begin.
+
+The version gate is the device's own value: `driverVersion` 10400 on 629 (Driver v0.2.2208) and 10402 on 640 (v0.2.2210).
+MoltenVK 1.4.0 creates residency sets on macOS only (`#if MVK_XCODE_16 && MVK_MACOS`, `MVKDevice.mm:2956` at `45887054`),
+so 629 on iOS still had Metal's tracking.
+
+Proof (fresh, SDK 10.0.100, Core 639 preparation equal to the frozen contract,
+[receipt](evidence/melonx-moltenvk-barrier-ordering/checks.json)): `test/melonx_moltenvk_barrier_ordering_test.py`
+builds the production Vulkan assembly for control and candidate. The real `BarrierBatch.EndsPassForInPassImageBarriers`
+answers as follows:
+- MoltenVK 1.4.2 with a non-attachment: ends the pass;
+- attachments only: does not;
+- MoltenVK 1.4.0: does not;
+- another driver: does not.
+
+The static checks bind the pass ending to before the barrier is recorded. An independent review (`rb-core-review`,
+Opus/high) found no defect:
+- it confirmed the MoltenVK mechanism;
+- every in-pass caller of `Flush` begins the pass again or never enters the branch;
+- the version gate is conservative.
+
+`test/melonx_descriptor_scratch_all_titles_test.py` binds the descriptor scope change to the Core 631 gate's on/off
+equivalence ([receipt](evidence/melonx-descriptor-scratch-all-titles/checks.json)).
+
+Not shown: that these corrections remove the flicker the maintainer saw in SSBU (no recording, no counter yet). Next
+device check:
+- the per-window "in-pass image barriers ending the pass" in SSBU and Hogwarts;
+- a recording of the same SSBU scene;
+- the template fallbacks at 0;
+- the SSBU pipeline cache main size at its next launch.
