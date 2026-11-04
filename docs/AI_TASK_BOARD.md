@@ -12,6 +12,30 @@ A later working diff can be ahead of that commit.
 - The maintainer's current request and existing authorization determine scope.
   Historical build permissions or restrictions apply to their original task.
   Reconfirm only when a material new action requires permission.
+- PRIORITY / STRICT constraint-to-improvement rule, explicitly required by the
+  maintainer on 4 Nov 2026: this is a priority execution and completion rule for
+  the authorized project work, taking precedence over a prior task disposition
+  that would stop at naming a constraint. In that scope, every identified performance, stability, rendering, audio or
+  input constraint in the authorized work must lead to concrete modification
+  and improvement work, carried through implementation, before/after checks
+  and review/delivery when applicable. A label such as "GPU-bound", "first-use
+  compilation", "real constraint" or "nothing modified" is never a completion
+  criterion or a reason to stop investigating an applicable lever.
+  For each constraint, record the measured symptom, source path, selected
+  lever, exact change, executed verification and observed outcome. If a change
+  fails its hypothesis, correct it or try a materially different evidenced
+  approach; do not count repeated unchanged diagnosis as progress.
+  Missing evidence requires the smallest discriminating reproduction or
+  diagnostic modification, followed by the next corrective step: instrumentation
+  and an unexecuted test are intermediate work, not the finished improvement.
+  Keep the item open while an actionable correction or check remains. A truly
+  unavailable device observation/access or demonstrated irreducible limit must
+  have an exact dependency, evidence and next action; do not declare it improved,
+  fabricate a patch/gain or weaken rendering/data/synchronization/tests to satisfy
+  the rule. Continue independent improvements meanwhile. Use the already-granted
+  authorization and the native model/effort escalation rules for a named hard
+  problem; no repeated general approval request, duplicate workflow, paid service
+  or automatic expansion beyond the requested chantier.
 - Completion and autonomy, explicitly confirmed by the maintainer on 4 Nov
   after IPA 640: finish every evidenced correction in the currently authorized
   RPCS3, MeloNX (Hogwarts/SSBU) and PS2 skins work, with its required tests and
@@ -34,28 +58,6 @@ A later working diff can be ahead of that commit.
   authorization. No concurrent delivery or automatic scope expansion. Ask the
   maintainer only for a genuinely necessary decision, access or device observation
   that cannot be obtained within the authorized environment.
-- STRICT constraint-to-improvement rule, explicitly required by the maintainer
-  on 4 Nov 2026: every identified performance, stability, rendering, audio or
-  input constraint in the authorized work must lead to concrete modification
-  and improvement work, carried through implementation, before/after checks
-  and review/delivery when applicable. A label such as "GPU-bound", "first-use
-  compilation", "real constraint" or "nothing modified" is never a completion
-  criterion or a reason to stop investigating an applicable lever.
-  For each constraint, record the measured symptom, source path, selected
-  lever, exact change, executed verification and observed outcome. If a change
-  fails its hypothesis, correct it or try a materially different evidenced
-  approach; do not count repeated unchanged diagnosis as progress.
-  Missing evidence requires the smallest discriminating reproduction or
-  diagnostic modification, followed by the next corrective step: instrumentation
-  and an unexecuted test are intermediate work, not the finished improvement.
-  Keep the item open while an actionable correction or check remains. A truly
-  unavailable device observation/access or demonstrated irreducible limit must
-  have an exact dependency, evidence and next action; do not declare it improved,
-  fabricate a patch/gain or weaken rendering/data/synchronization/tests to satisfy
-  the rule. Continue independent improvements meanwhile. Use the already-granted
-  authorization and the native model/effort escalation rules for a named hard
-  problem; no repeated general approval request, duplicate workflow, paid service
-  or automatic expansion beyond the requested chantier.
 - Claude Code owns substantive implementation and final integration. Codex
   coordinates and independently reviews, or makes focused changes delegated by
   the maintainer. Cursor assists with authorized, non-overlapping tasks.
