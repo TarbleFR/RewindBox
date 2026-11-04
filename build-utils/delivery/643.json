@@ -517,6 +517,22 @@
               "-B",
               "test/game_box_strings_test.py"
             ]
+          ],
+          [
+            "pocket-skin-input-chain",
+            [
+              "python3",
+              "-B",
+              "test/pocket_skin_input_chain_test.py"
+            ]
+          ],
+          [
+            "dolphin-session-chrome",
+            [
+              "python3",
+              "-B",
+              "test/dolphin_session_chrome_test.py"
+            ]
           ]
         ],
         "flutterTestGlobs": [
