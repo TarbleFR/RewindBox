@@ -3,6 +3,7 @@
 # Validation request: BO2 cache candidate, 31 October 2026; no IPA or release.
 # Validation request: RPCS3 Core 655 in-pass read transitions (MVKCmdPipelineBarrier fence waits
 # inside a render encoder, rbx_mvk_in_pass_read_barrier_waits), 4 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 655 (in-pass read transitions), 4 November 2026.
 name: RPCS3 MoltenVK cache candidate validation
 run-name: "RPCS3 MoltenVK cache candidate • ${{ github.sha }}"
 'on':
