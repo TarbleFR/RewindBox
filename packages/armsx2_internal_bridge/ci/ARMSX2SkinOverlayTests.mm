@@ -535,7 +535,11 @@ static NSDictionary<NSString*, NSNumber*>* A2TestPad(void) {
     [[self sticks] removeAllObjects];
     FakeTouch* touch = [self touchAt:c];
     [self begin:touch on:overlay];
-    XCTAssertEqual([self sticks].count, 0u, @"the scaled centre is neutral");
+    // The scaled centre is neutral: nothing sent, or (scaled frames are not exact in
+    // floating point) a vector of a few millionths at most.
+    for (NSNumber* axis in [self sticks].lastObject ?: @[]) {
+      XCTAssertEqualWithAccuracy(axis.floatValue, 0, 0.002, @"the scaled centre is neutral, %@", NSStringFromCGSize(size));
+    }
     [self move:touch to:CGPointMake(c.x, c.y + f.size.height / 2 * scale) on:overlay];
     XCTAssertEqualWithAccuracy([self sticks].lastObject[1].floatValue, 1, 0.002, @"down at the rim, %@", NSStringFromCGSize(size));
     [self end:touch on:overlay];
