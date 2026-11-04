@@ -1192,6 +1192,25 @@ class Republication(unittest.TestCase):
             with self.assertRaises(ValueError):
                 retained.stage_republication('dolphin', dict(origin, sha256='0' * 64), original, republisher, root)
 
+    def test_purged_original_archive_needs_its_republication(self):
+        """GitHub purges an expired artifact (Not Found); a pinned republication then stands for it."""
+        origin = dict(workflow='.github/workflows/producer.yml', branch='Claude', source='1' * 40, run=11, attempt=1,
+                      runConclusion='success', artifact=13, name='LibretroCores-' + '1' * 40, bytes=10, sha256='a' * 64,
+                      expiresAt='2026-11-03T16:19:42Z')
+
+        def api(endpoint):
+            if endpoint == 'actions/runs/11':
+                return dict(id=11, head_sha='1' * 40, path=origin['workflow'], head_branch='Claude', status='completed',
+                            conclusion='success')
+            raise subprocess.CalledProcessError(1, ['gh', 'api', endpoint])
+
+        spec = dict(mode='retain-archive', destination='build/libretro', inputs=[], origin=origin)
+        with self.assertRaises(ValueError):
+            retained.archive_origin('libretro', spec, api)
+        value = retained.archive_origin('libretro', dict(spec, republished=dict(run=21)), api)
+        self.assertTrue(value['originPurged'])
+        self.assertEqual((value['sha256'], value['bytes']), (origin['sha256'], origin['bytes']))
+
 
 class DownloadedDelivery(unittest.TestCase):
     """The offline verifier's transport, recipient and decryption checks on a synthetic delivery produced by

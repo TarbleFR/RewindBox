@@ -339,8 +339,18 @@ def archive_origin(kind, spec, api=None):
     require(run['id'] == origin['run'] and run['head_sha'] == origin['source'] and run['path'] == origin['workflow'] and
             run['head_branch'] == origin['branch'] and run['status'] == 'completed' and
             run['conclusion'] == origin['runConclusion'], 'The retained archive producer run changed: ' + kind)
-    artifact = api('actions/artifacts/' + str(origin['artifact']))
     republished = spec.get('republished')
+    try:
+        artifact = api('actions/artifacts/' + str(origin['artifact']))
+    except subprocess.CalledProcessError:
+        # GitHub purges an artifact some time after it expires (Not Found). A pinned republication then stands for
+        # it: republished_archive() requires its record to bind exactly this original (id, name, bytes, sha256) and
+        # its content to have that digest. Without a republication a purged original is refused.
+        require(republished is not None, 'Retained runtime archive purged without a republication: ' + kind)
+        return dict(result='authenticated', kind=kind, artifact=origin['artifact'], run=origin['run'],
+                    source=origin['source'], name=origin['name'], bytes=origin['bytes'], sha256=origin['sha256'],
+                    destination=spec['destination'], workflow=origin['workflow'], expiresAt=origin.get('expiresAt'),
+                    republished=republished, originPurged=True)
     require(artifact['id'] == origin['artifact'] and artifact['name'] == origin['name'] and
             artifact['size_in_bytes'] == origin['bytes'] and artifact['digest'] == 'sha256:' + origin['sha256'] and
             artifact['workflow_run']['id'] == origin['run'] and artifact['workflow_run']['head_sha'] == origin['source'] and
