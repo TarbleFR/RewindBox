@@ -1,6 +1,6 @@
 ---
 name: rb-effort-high
-description: Use for unresolved RewindBox Core, JIT, GPU synchronization, shader, memory, ABI or architecture work, including a brief interruption before resuming that work.
+description: Use for unresolved RewindBox Core, JIT, GPU synchronization, shader, memory, ABI, architecture, UIKit lifecycle, skin hit-testing, analog geometry or orientation defects, including their regression review and a brief interruption before resuming that work.
 effort: high
 ---
 
