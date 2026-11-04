@@ -410,6 +410,9 @@
   "mustChange": [
    "Frameworks/App.framework/App",
    "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone",
+   "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+   "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+   "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
    "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
    "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
    "Runner"
