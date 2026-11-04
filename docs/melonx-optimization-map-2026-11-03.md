@@ -313,3 +313,54 @@ Physical data still needed, and nothing else: one 640+ device run with these ada
 - the miss lines with their pipeline count;
 - the per-window "in-pass image barriers ending the pass";
 - recordings of the same scenes.
+
+## IPA 643: black screen at launch and black artifacts (4 November 2026, session 012mUASkkFGHaPcEUx9dsp8q)
+
+Input: IPA 643, MeloNX Core 642 (source `8cd2e93c`, library SHA-256 `220910c8…`), Hogwarts Legacy v1.0.5
+`0100f7e00c70e000`, PID 6451, session `CBDD62E9`, 12:14:26–12:16:26 UTC; stderr, core, launch and performance logs and
+the screen recording `ScreenRecording_11-04-2026_13-15-07_1.mov` (starts 12:15:07 UTC, after the menu). Private, not in
+the repository. The two symptoms are treated separately; a common cause is a hypothesis below, not a result.
+
+### Symptom 1: black at launch until the MeloNX menu is opened and closed
+
+| Step | Result |
+|---|---|
+| Presents during the black screen | The performance log shows the first presents at t = 22 s (9, then 27 per second), so frames reach the host while the screen is black. The menu gesture is at 12:14:59; the resign/active pair at 12:15:03–07 is the recording starting. |
+| Initial start against menu → resume, in the code | `MeloNXMetalSessionViewController.showMenu` → `setPause("menu")` → `perf.setPaused`, `metalLayer.restartPacing`, `router.suspend`, `host.setPaused` → `neostation_melonx_pause` → `EmbeddedWindowLifetime.SetPaused` → the render loop waits in `WaitUntilResumed`; Resume reverses it. This path rebuilds no swapchain, drawable (2868×1320 before and after), effect, MetalFX or render pass, and `set_present_target_fps` acts only at swap interval 0. The pause does not repair presentation state; it changes timing and what the guest does meanwhile. No delay and no automatic menu cycle were added. |
+| Earlier builds | IPA 640 session `53DAD35F` shows the same pattern (pause at t = 48 s after about 20 s of presents), so the symptom predates Core 642. |
+| Attachments on pass interruptions | `RenderPassHolder` and `PipelineConverter` use `AttachmentLoadOp.Load` / `StoreOp.Store` for every colour and depth attachment, so a pass ended and begun again (including the endings PR #154 adds) keeps its contents; no Clear or DontCare on re-begin. Not a loss of attachments. |
+| **Defect established in the source** | Core log: the first GPU read-back into a buffer (R32G32B32A32Float 1x1 to 16 bytes at stride 16) is at 12:14:49.253 UTC, in the second the first frames are presented, and all 973 such read-backs are "over textures"; the one texture there is logged as R32G32B32A32Float Texture2D 1x1, block-linear, 512 bytes, destination at +0, never GPU-modified. Build 628's `TryReadBackIntoBuffer` copies the value into the host buffer on the GPU and sends the texture a guest write signal without data: the texture becomes dirty and reloads from guest memory without tracking (`Texture.SynchronizeFull`, `TextureGroup.SynchronizePartial` through `GetReadOnlyRegion`, tracked false), which never holds the value (zeros at launch, an older value after a guest access flushed the buffer). A 1x1 RGBA32F value read back each frame and sampled as a 1x1 texture has the shape of an auto-exposure or luminance value: zero darkens the whole image. That this is the cause of the black launch is a hypothesis for the device run. |
+| Correction | `build-utils/melonx/adapt_readback_receivers.py` (DmaClass.cs of Core 642): each texture over the destination must be a receiver (not a view; 2D, one level and layer; source format, host-compatible as is; no incompatible overlaps in its group; source scale, width and height; one range starting at the destination; linear with the destination's stride, or block-linear with one row of at most 16 bytes). Then no write signal: after the buffer copy each receiver gets the source on the GPU (`SynchronizeMemory`, `HostTexture.CopyTo`, `SignalModified`, as the GPU texture copy of this class does). Any other texture there declines as occupied ("unreceivable") and keeps the guest path, which writes guest memory and invalidates it correctly. Removing the signal also avoids a flush (GPU wait) of the receiver before each read-back. Summary counts: "copied into receivers N", "unreceivable N". |
+| Independent review (`rb-core-review`, sources only) | No proven defect: texel placement (block-linear flush writes texel positions only, bytes 16–511 untouched), `CopyTo`, `SignalModified`, arrays and threads checked. Applied: the docstring now says the reload gets the value only if a tracked access flushed the buffer first; the receiver test adds the host-compatible format and no incompatible overlaps, as the other GPU copies of `DmaClass` require. Open, unproven: a GPU write to the destination through the buffer followed by a guest read could flush the receiver's older value after the buffer's; the delivered code already left that texture stale for the GPU in that case. Possible extra texture flush on a guest access of that memory, not measured. |
+| Proof (host, before/after) | `test/melonx_readback_receivers_test.py` on the Core 642 preparation, 52 checks ([receipt](evidence/melonx-readback-receivers/checks.json)): both production GPU assemblies build; the real methods run with a byte model. The 643 case samples `0, 0, 0, 3, 3` in the control (stale zeros, then an older value after a guest read flushed the buffer) and `1, 2, 3, 4, 5` in the candidate, with 0 write signals and 0 flushes per read-back; 10 unreceivable cases (format, size, view, scale, layers, offset, wide block-linear, other stride, incompatible overlaps, host-converted format) decline in the candidate; source group, fragmented, buffer refused and no-texture paths unchanged; 9 receivers grow the arrays; receivers released on every path. |
+
+### Symptom 2: black artifacts
+
+The recording (frame analysis with `-fps_mode passthrough`) has 2 black or dim single frames (306 and 484) and 25
+isolated whole frames that differ from both neighbours while the neighbours match (older frames, e.g. 294 shows the main
+menu during loading). The barrier corrections of PR #154 are in Core 642, so they did not remove these.
+
+- Black or dim single frames: a frame lit with a zero or older exposure value is consistent with the defect above, and
+  is corrected with it; not proven to be the cause.
+- Stale whole frames: mechanism not determined from the logs. The presented texture can hold the GPU's rendering, or
+  bytes reloaded from guest memory (a texture re-created at a swap buffer's address, or dirty and not GPU-modified),
+  which show black or an older frame; a GPU ordering race would show neither. `adapt_present_source_attribution.py`
+  (Gpu `Window.cs`, diagnostics only) records before each present's synchronisation whether the texture is GPU-modified,
+  will be reloaded from guest memory, is a new object at an address presented before, or repeats the previous address:
+  first 8 such presents logged, a summary every 300 presents (at most 64). Proof: `test/melonx_present_source_attribution_test.py`,
+  19 checks ([receipt](evidence/melonx-present-source-attribution/checks.json)): Present unchanged but one call before
+  the synchronisation, reads only (`CheckDirty(texture, false)`), no texture reference kept, bounded; the production GPU
+  assembly builds.
+
+### Other log lines
+
+| Line (stderr) | Classification | Disposition |
+|---|---|---|
+| 8368, MoltenVK `VK_ERROR_FEATURE_NOT_PRESENT: Metal does not support disabling primitive restart` | Constraint | Logged since build 606: Metal always restarts strips, and MoltenVK warns when a pipeline asks to disable it. No change. |
+| 8470 / 8548, pipeline misses `PrimitiveRestartEnable` / `Topology` with "pipelines already built: 1" | Parity gap, low cost | The miss context added in PR #154 now answers: the program already had one pipeline, built by the warm-up with `TriangleList` and restart off, while the draw uses restart on (and `TriangleStrip` in 8548); 2 compiles in the session (21.0 s and 52.1 s). Left for a later parity lot. |
+| 8467, DMA read-back into a buffer over a texture | Defect | Corrected above (`adapt_readback_receivers.py`). |
+
+Not shown, needs the device: that the black launch and the dark single frames disappear, and where the stale frames
+come from. One run of a build containing both adapters, Hogwarts from a cold launch without opening the menu, with a
+recording of the launch and of cutscenes, plus the "Present source" lines and the DMA summary ("copied into receivers",
+"unreceivable").
