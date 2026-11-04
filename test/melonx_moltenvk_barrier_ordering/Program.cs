@@ -100,7 +100,31 @@ static class Program
             "behaviour outside MoltenVK 1.4.2 changed: " + JsonSerializer.Serialize(results));
         // The defect: under MoltenVK 1.4.2 the control defers (no barrier in the pass), the candidate records it.
         Check(results["moltenvk142-hogwarts"] == !candidate, "MoltenVK 1.4.2 deferral: " + JsonSerializer.Serialize(results));
-        Console.WriteLine(JsonSerializer.Serialize(new { variant = args[0], checks = _checks, deferred = results,
+        // BarrierBatch: image barriers queued inside a render pass end it only with a non-attachment under MoltenVK 1.4.2.
+        var endsPass = new System.Collections.Generic.Dictionary<string, bool>();
+        MethodInfo ends = typeof(VulkanRenderer).Assembly.GetType("Ryujinx.Graphics.Vulkan.BarrierBatch")
+            .GetMethod("EndsPassForInPassImageBarriers", Any);
+        Check((ends != null) == candidate, "wrong source variant (BarrierBatch)");
+        if (candidate)
+        {
+            foreach ((string name, bool moltenVk, bool tracks, bool nonAttachment, bool expected) in new[]
+            {
+                ("moltenvk142-non-attachment", true, false, true, true),
+                ("moltenvk142-attachments-only", true, false, false, false),
+                ("moltenvk140-non-attachment", true, true, true, false),
+                ("other-driver", false, false, true, false),
+            })
+            {
+                VulkanRenderer renderer = (VulkanRenderer)RuntimeHelpers.GetUninitializedObject(typeof(VulkanRenderer));
+                Set(renderer, "IsMoltenVk", moltenVk);
+                Set(renderer, "MoltenVkTracksArgumentBufferHazards", tracks);
+                object batch = RuntimeHelpers.GetUninitializedObject(ends.DeclaringType);
+                Set(batch, "_gd", renderer);
+                endsPass[name] = (bool)ends.Invoke(batch, new object[] { nonAttachment });
+                Check(endsPass[name] == expected, "BarrierBatch decision " + name);
+            }
+        }
+        Console.WriteLine(JsonSerializer.Serialize(new { variant = args[0], checks = _checks, deferred = results, endsPass,
             completeVulkanProductionSources = true, nativeCallsUsed = false }));
     }
 }

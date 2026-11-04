@@ -49,6 +49,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-barrier-ordering-') as temporary
         if variant == 'candidate':
             changed = apply(work)
             check(sorted(str(p.relative_to(work)) for p in changed) == sorted(BASELINE), 'adapter changed other files')
+            check(len(BASELINE) == 3, 'three production files')
             renderer = (work / 'src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs').read_text()
             rule = f'MoltenVkTracksArgumentBufferHazards = IsMoltenVk && properties.DriverVersion <= {LAST_TRACKING_MOLTENVK};'
             check(renderer.count(rule) == 1 and LAST_TRACKING_MOLTENVK == 10400, 'driver-version rule (MVK 1.4.0 = 10400)')
@@ -56,6 +57,17 @@ with tempfile.TemporaryDirectory(prefix='melonx-barrier-ordering-') as temporary
             check(renderer.count('in-pass read barriers are recorded') == 1, 'one log line for the decision')
             pipeline = (work / 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs').read_text()
             check(pipeline.count('!Gd.MoltenVkTracksArgumentBufferHazards)') == 1, 'deferral gate')
+            batch = (work / 'src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs').read_text()
+            tbdr = batch[batch.index('if (_gd.IsTBDR)'):batch.index('// Generic pipeline memory barriers will work for desktop GPUs.')]
+            check(tbdr.index('if (EndsPassForInPassImageBarriers(anyIsNonAttachment))') < tbdr.index('RenderDetail.EndedPassImageBarriers++;') <
+                  tbdr.index('endRenderPass();') < tbdr.index('else if (!_gd.IsMoltenVk)'),
+                  'MoltenVK 1.4.2 branch must end the pass before the delivered non-MoltenVK branch')
+            check(tbdr.count('endRenderPass();') == 2 and tbdr.count('inRenderPass = false;') == 2 and
+                  'remove the barriers entirely' in tbdr, 'delivered tile-based branch unchanged')
+            check(batch.index('if (inRenderPass && _imageBarriers.Count > 0)') < batch.index('if (EndsPassForInPassImageBarriers') <
+                  batch.index('_gd.Api.CmdPipelineBarrier('), 'the pass ends before the barrier is recorded')
+            check(pipeline.count('.Append(System.Threading.Interlocked.Exchange(ref EndedPassImageBarriers, 0))') == 1 and
+                  pipeline.count('public static long EndedPassImageBarriers;') == 1, 'counter logged and reset every window')
             storage = (work / 'src/Ryujinx.Graphics.Vulkan/TextureStorage.cs').read_text()
             check(storage.count('TryDeferInPassReadBarrier(this, dstStageFlags)') == 1 and
                   storage.index('TryDeferInPassReadBarrier(this, dstStageFlags)') < storage.index('_gd.Barriers.QueueBarrier(barrier, this, _lastModificationStage, dstStageFlags)'),
@@ -81,6 +93,8 @@ check(reports['control']['deferred']['moltenvk142-hogwarts'] is True and
       reports['candidate']['deferred']['moltenvk142-hogwarts'] is False, 'MoltenVK 1.4.2 deferral not corrected')
 others = [k for k in reports['control']['deferred'] if k != 'moltenvk142-hogwarts']
 check(all(reports['control']['deferred'][k] == reports['candidate']['deferred'][k] for k in others), 'other cases changed')
+check(reports['candidate']['endsPass'] == {'moltenvk142-non-attachment': True, 'moltenvk142-attachments-only': False,
+      'moltenvk140-non-attachment': False, 'other-driver': False}, 'BarrierBatch decision')
 inputs = ['build-utils/melonx/adapt_moltenvk_barrier_ordering.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_moltenvk_barrier_ordering_test.py', 'test/melonx_moltenvk_barrier_ordering/Program.cs']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
