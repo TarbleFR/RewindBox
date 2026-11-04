@@ -5,11 +5,15 @@ name: Skin orientation checks
 # portable libretro frontend tests (real store files, real skins), the Dolphin
 # and ARMSX2 tests in the iOS Simulator (real touches on the shipped archive)
 # and the host verifiers of the shipped skins. A simulator is not an iPhone.
+# Incremental: a push runs only the steps whose files changed since the last
+# completed run of the branch (tools/skins/ci_areas.py); "Run workflow" with
+# "all" checks everything.
 'on':
   push:
     branches:
     - work/skins-portrait-lock-20261103
     - work/skins-board-originals-20261104
+    - work/skins-original-touch-20261104
     paths:
     - .github/workflows/skin-orientation-checks.yml
     - packages/armsx2_internal_bridge/ios/Classes/ARMSX2*
@@ -25,8 +29,14 @@ name: Skin orientation checks
     - test/dolphin_session_chrome_test.py
     - test/orientation_policy/**
   workflow_dispatch:
+    inputs:
+      all:
+        description: Run every step, not only those whose files changed
+        type: boolean
+        default: true
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: skin-orientation-${{ github.ref }}
   cancel-in-progress: true
@@ -43,26 +53,49 @@ jobs:
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: '26.3'
+    - name: Steps this push needs (files changed since the last completed run of the branch)
+      id: areas
+      env:
+        GH_TOKEN: ${{ github.token }}
+        EVENT: ${{ github.event_name }}
+        RUN_ALL: ${{ inputs.all }}
+      run: |
+        set -euo pipefail
+        base=all
+        if [ "$EVENT" = push ] && [ "$RUN_ALL" != true ]; then
+          # Last commit of this branch a completed run checked (success or failure:
+          # this job also reports known baseline failures), else the branch point on Claude.
+          for sha in $(gh run list --repo "$GITHUB_REPOSITORY" --workflow skin-orientation-checks.yml \
+                         --branch "$GITHUB_REF_NAME" --status completed --limit 30 --json headSha,conclusion \
+                         --jq '.[] | select(.conclusion == "success" or .conclusion == "failure") | .headSha' || true); do
+            if git merge-base --is-ancestor "$sha" HEAD 2>/dev/null; then base=$sha; break; fi
+          done
+          if [ "$base" = all ] && git rev-parse -q --verify origin/Claude >/dev/null; then
+            base=$(git merge-base HEAD origin/Claude)
+          fi
+        fi
+        python3 tools/skins/ci_areas.py "$base" HEAD >> "$GITHUB_OUTPUT"
     - name: Decision table and source order of calls
       run: |
         python3 -I test/skin_portrait_lock_contract_test.py
     - name: Libretro frontend modules, including the orientation selection on real store files and skins
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && steps.areas.outputs.libretro == 'true' }}
       run: python3 test/libretro_frontend_test.py
     - name: Compile every libretro bridge source for iPhone
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && steps.areas.outputs.libretro == 'true' }}
       run: python3 test/libretro_ios_syntax_test.py
     - name: Pocket skins - host verifier of the five shipped archives, the input chain and the session buttons
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && steps.areas.outputs.pocket == 'true' }}
       run: |
         set -euo pipefail
         python3 -m venv "$RUNNER_TEMP/pocket-venv"
-        "$RUNNER_TEMP/pocket-venv/bin/pip" install --quiet pillow==12.3.0
+        # Verification only: the pinned Pillow, any numpy with wheels for the runner's Python.
+        "$RUNNER_TEMP/pocket-venv/bin/pip" install --quiet pillow==12.3.0 "numpy>=2.3.5"
         "$RUNNER_TEMP/pocket-venv/bin/python" tools/skins/verify_pocket_skins.py
-        python3 test/pocket_skin_input_chain_test.py
-        python3 test/dolphin_session_chrome_test.py
+        "$RUNNER_TEMP/pocket-venv/bin/python" test/pocket_skin_input_chain_test.py
+        "$RUNNER_TEMP/pocket-venv/bin/python" test/dolphin_session_chrome_test.py
     - name: Compile the Dolphin orientation and skin sources for iPhone
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && steps.areas.outputs.dolphin_compile == 'true' }}
       run: |
         set -euo pipefail
         SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
@@ -72,7 +105,7 @@ jobs:
             -target arm64-apple-ios18.0 -isysroot "$SDK" -I "$CLASSES" -I "$CLASSES/TouchController" "$CLASSES/$source"
         done
     - name: Compile the ARMSX2 orientation and skin overlay sources for iPhone
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && steps.areas.outputs.armsx2 == 'true' }}
       run: |
         set -euo pipefail
         SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
@@ -82,19 +115,25 @@ jobs:
             -target arm64-apple-ios18.0 -isysroot "$SDK" -I "$CLASSES" "$CLASSES/$source"
         done
     - name: ARMSX2 skin overlay on the shipped PS2 archive in the iOS Simulator (real touches)
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && steps.areas.outputs.armsx2 == 'true' }}
       run: |
         set -euo pipefail
         gem list -i xcodeproj >/dev/null 2>&1 || sudo gem install xcodeproj
         ruby packages/armsx2_internal_bridge/ci/test_skin_overlay_ui.rb
+    - name: Dolphin skin overlay on the shipped GameCube/Wii Originals in the iOS Simulator (real touches, TCManagerInterface calls)
+      if: ${{ !cancelled() && steps.areas.outputs.dolphin_skin_sim == 'true' }}
+      run: |
+        set -euo pipefail
+        gem list -i xcodeproj >/dev/null 2>&1 || sudo gem install xcodeproj
+        ruby packages/dolphin_internal_bridge/ci/test_skin_overlay_ui.rb
     - name: Dolphin orientation tests in the iOS Simulator (coordinator, presentation, release)
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && steps.areas.outputs.dolphin_orientation_sim == 'true' }}
       run: |
         set -euo pipefail
         gem list -i xcodeproj >/dev/null 2>&1 || sudo gem install xcodeproj
         ruby packages/dolphin_internal_bridge/ci/test_orientation_ui.rb
     - name: Dolphin session harness in the iOS Simulator, including the real session menu under a portrait-only mask
-      if: ${{ !cancelled() }}
+      if: ${{ !cancelled() && steps.areas.outputs.dolphin_session_sim == 'true' }}
       run: |
         set -euo pipefail
         gem list -i xcodeproj >/dev/null 2>&1 || sudo gem install xcodeproj
@@ -108,5 +147,6 @@ jobs:
           build/dolphin-ci/orientation/Orientation.xcresult
           build/dolphin-ci/session-ui/SessionUI.xcresult
           build/armsx2-ci/skin-overlay/SkinOverlay.xcresult
+          build/dolphin-ci/skin-overlay/SkinOverlay.xcresult
         if-no-files-found: ignore
         retention-days: 7

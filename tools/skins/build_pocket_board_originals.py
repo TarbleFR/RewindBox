@@ -59,7 +59,7 @@ PACKS = {
                 ('l', 'button', (187, 467, 95, 38)), ('r', 'button', (389, 467, 95, 38)),
                 ('z', 'button', (420, 514, 69, 33)),
                 ('main', 'stick:left', (189, 530, 106, 106), (242, 584, 41)),
-                ('y', 'button', (326, 538, 43, 50)),  # trimmed at A's left edge (bean overlaps A's box)
+                ('y', 'button', (325, 537, 63, 58)),  # the whole bean (its box overlaps A's; the shapes do not)
                 ('a', 'button', (369, 574, 78, 77)), ('x', 'button', (450, 566, 50, 60)),
                 ('b', 'button', (319, 622, 50, 50)),
                 ('dpad', 'dpad', (200, 672, 91, 89)),
@@ -76,7 +76,7 @@ PACKS = {
                 ('main', 'stick:left', (648, 424, 103, 103), (695, 474, 38)),
                 ('dpad', 'dpad', (658, 553, 89, 86)), ('menu', 'button', (608, 621, 50, 50)),
                 ('r', 'button', (1189, 357, 86, 37)), ('z', 'button', (1302, 360, 71, 32)),
-                ('y', 'button', (1195, 415, 45, 51)),  # trimmed at A's left edge
+                ('y', 'button', (1194, 413, 67, 59)),  # the whole bean
                 ('a', 'button', (1240, 450, 83, 81)), ('x', 'button', (1326, 436, 53, 60)),
                 ('b', 'button', (1187, 502, 52, 52)),
                 ('cstick', 'stick:right', (1268, 554, 102, 102), (1322, 606, 39)),
@@ -152,43 +152,150 @@ def board_screen(board: Image.Image, spec: dict) -> Image.Image:
     return Image.fromarray(a.astype(np.uint8), 'RGB')
 
 
-def control_mask(crop: Image.Image) -> Image.Image:
-    """The control inside its rectangle: everything not connected to the rectangle's border
-    through body-coloured pixels (the outline encloses the face)."""
-    a = np.asarray(crop.convert('RGB')).astype(np.int16)
-    border = np.concatenate([a[0], a[-1], a[:, 0], a[:, -1]])
-    body = np.median(border, axis=0)
-    diff = np.abs(a - body).sum(axis=2)
-    sat = a.max(axis=2) - a.min(axis=2)
-    like = ((diff < 26) & (sat < 22)).astype(np.uint8) * 255
-    seed = Image.fromarray(like, 'L')
-    marker = Image.new('L', seed.size, 0)
-    # Flood the body-like region from every border pixel.
-    flood = seed.copy()
-    w, h = flood.size
-    for x in range(w):
-        for y in (0, h - 1):
-            if flood.getpixel((x, y)) == 255: ImageDraw.floodfill(flood, (x, y), 128)
-    for y in range(h):
-        for x in (0, w - 1):
-            if flood.getpixel((x, y)) == 255: ImageDraw.floodfill(flood, (x, y), 128)
-    background = np.asarray(flood) == 128
-    mask = Image.fromarray(((~background) * 255).astype(np.uint8), 'L')
-    mask = mask.filter(ImageFilter.MaxFilter(3)).filter(ImageFilter.GaussianBlur(1.2))
-    return mask
+def _flood_from(free: np.ndarray, seeds) -> np.ndarray:
+    """Pixels of `free` connected to any of `seeds` (4-connectivity, PIL flood fill)."""
+    img = Image.fromarray(free.astype(np.uint8) * 255, 'L').copy()  # own buffer: fromarray may share a read-only one
+    for x, y in seeds:
+        if img.getpixel((x, y)) == 255:
+            ImageDraw.floodfill(img, (x, y), 128)
+    return np.asarray(img) == 128
 
 
-def pressed_sprite(normal: Image.Image, mask: Image.Image, scale: int) -> Image.Image:
-    """Pressed in: the control darkens and sinks a little inside its own outline."""
-    shift = max(1, round(1.4 * scale))
-    sunk = Image.new('RGB', normal.size)
-    sunk.paste(normal, (0, shift))
-    sunk.paste(normal.crop((0, 0, normal.width, shift)), (0, 0))
-    dark = Image.eval(sunk, lambda v: int(v * 0.82))
-    inner = mask.filter(ImageFilter.GaussianBlur(2.5 * scale))
-    shade = Image.composite(dark, sunk, ImageChops.multiply(mask, ImageChops.invert(inner)).point(lambda v: min(255, v * 3)))
-    shade = Image.blend(shade, dark, 0.55)
-    return Image.composite(shade, normal, mask)
+def _border(shape):
+    h, w = shape
+    return [(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for y in range(h) for x in (0, w - 1)]
+
+
+def _grow(mask: np.ndarray, n: int) -> np.ndarray:
+    if n <= 0: return mask
+    return np.asarray(Image.fromarray(mask.astype(np.uint8) * 255, 'L').filter(ImageFilter.MaxFilter(2 * n + 1))) > 127
+
+
+def _shrink(mask: np.ndarray, n: int) -> np.ndarray:
+    if n <= 0: return mask
+    return np.asarray(Image.fromarray(mask.astype(np.uint8) * 255, 'L').filter(ImageFilter.MinFilter(2 * n + 1))) > 127
+
+
+def _segment(screen: Image.Image, box, pad: int, close: int):
+    bx, by, bw, bh = box
+    x0, y0 = max(0, bx - pad), max(0, by - pad)
+    x1, y1 = min(screen.width, bx + bw + pad), min(screen.height, by + bh + pad)
+    a = np.asarray(screen.crop((x0, y0, x1, y1)).convert('RGB')).astype(np.int16)
+    lum, sat = a.mean(axis=2), a.max(axis=2) - a.min(axis=2)
+    edge = np.concatenate([lum[0], lum[-1], lum[:, 0], lum[:, -1]])
+    stroke = (lum < np.median(edge) - 22) | (sat > 60)
+    barrier = _grow(stroke, close)
+    outside = _flood_from(~barrier, _border(lum.shape))
+    inside = ~outside
+    holes = ~_flood_from(~inside, _border(lum.shape)) & ~inside
+    filled = inside | holes
+    mask = _shrink(filled, close) | (stroke & filled)
+    mask = _flood_from(mask, [(bx + bw // 2 - x0, by + bh // 2 - y0)])
+    return x0, y0, mask
+
+
+def shape_mask(screen: Image.Image, box, reach: int = 10):
+    """The control's real outline in the board screen (board pixels): everything enclosed
+    by its drawn stroke (or its coloured face), reached from the centre of `box` (the
+    box measured by hand on the board). Several margins and gap closings are tried; the
+    accepted outline covers at least 45 % of the box and leaves it by `reach` pixels at
+    most (a leak into the body or a neighbour is refused). Returns (x0, y0, mask)."""
+    bx, by, bw, bh = box
+    best = None
+    for pad in (8, 12, 22):
+        for close in (1, 2, 3):
+            x0, y0, mask = _segment(screen, box, pad, close)
+            ys, xs = np.nonzero(mask)
+            if xs.size == 0: continue
+            left, top, right, bottom = x0 + xs.min(), y0 + ys.min(), x0 + xs.max() + 1, y0 + ys.max() + 1
+            out = max(bx - left, by - top, right - (bx + bw), bottom - (by + bh), 0)
+            cover = mask[max(0, by - y0):by - y0 + bh, max(0, bx - x0):bx - x0 + bw].mean()
+            if cover < 0.45 or out > reach: continue
+            score = (out, -cover)
+            if best is None or score < best[0]:
+                best = (score, x0, y0, mask)
+    if best is None:
+        raise ValueError(f'no control outline found in {box}')
+    _, x0, y0, mask = best
+    # One board pixel inside the outer edge: the soft drop shadow below a control is
+    # body, not control, and must not darken when it is pressed.
+    return x0, y0, _shrink(mask, 1)
+
+
+def layout_masks(screen: Image.Image, spec: dict, x0: int, y0: int, margin: int = 4) -> dict:
+    """Every button's outline in one layout, made disjoint: each one stays within its
+    measured box (plus `margin`), and a pixel claimed by two controls (a shared drop
+    shadow) goes to the one whose box centre is nearer."""
+    boxes, masks = {}, {}
+    for entry in spec['items']:
+        label, kind, (bx, by, bw, bh) = entry[:3]
+        if kind.startswith('stick'): continue
+        box = (bx - x0, by - y0, bw, bh)
+        mx, my, m = shape_mask(screen, box, reach=10)
+        full = np.zeros((screen.height, screen.width), bool)
+        full[my:my + m.shape[0], mx:mx + m.shape[1]] = m
+        clip = np.zeros_like(full)
+        clip[max(0, box[1] - margin):box[1] + bh + margin, max(0, box[0] - margin):box[0] + bw + margin] = True
+        masks[label], boxes[label] = full & clip, box
+    yy, xx = np.mgrid[:screen.height, :screen.width]
+    labels = list(masks)
+    for i, a in enumerate(labels):
+        for b in labels[:i]:
+            both = masks[a] & masks[b]
+            if not both.any(): continue
+            ca = (boxes[a][0] + boxes[a][2] / 2, boxes[a][1] + boxes[a][3] / 2)
+            cb = (boxes[b][0] + boxes[b][2] / 2, boxes[b][1] + boxes[b][3] / 2)
+            to_a = np.hypot(xx - ca[0], yy - ca[1]) <= np.hypot(xx - cb[0], yy - cb[1])
+            masks[b] &= ~(both & to_a)
+            masks[a] &= ~(both & ~to_a)
+    out = {}
+    for label, full in masks.items():
+        ys, xs = np.nonzero(full)
+        ox, oy = xs.min(), ys.min()
+        out[label] = (ox, oy, full[oy:ys.max() + 1, ox:xs.max() + 1])
+    return out
+
+
+def socket_radius(screen: Image.Image, cx: float, cy: float, r: float) -> float:
+    """Outer radius of a stick's socket (its dark rim), in board pixels."""
+    lum = np.asarray(screen.convert('L')).astype(np.float32)
+    yy, xx = np.mgrid[:lum.shape[0], :lum.shape[1]]
+    d = np.hypot(xx - cx, yy - cy)
+    prof = [float(lum[(d >= k) & (d < k + 1)].mean()) for k in range(int(r * 2))]
+    body = float(np.median(prof[int(r * 1.7):]))
+    darkest = int(r) + int(np.argmin(prof[int(r):int(r * 1.7)]))
+    outer = next(k for k in range(darkest, len(prof)) if prof[k] > body - 20)
+    return float(outer)
+
+
+def cap_radius(r: float) -> float:
+    """The moving cap: the circle measured on the board fits its face; 12 % more takes
+    its bevel and lower lip, so nothing of the cap stays behind when it moves (and at
+    rest the cap sprite over its socket is the board itself)."""
+    return r * 1.12
+
+
+def pressed_face(normal: Image.Image, alpha: Image.Image, scale: int) -> Image.Image:
+    """Pressed in, inside the control's own outline only: darker face, a shade along the
+    upper edge (the lip it sinks under) and softened highlights. Same alpha as the normal
+    sprite, so nothing outside the outline ever changes."""
+    a = np.asarray(normal.convert('RGB')).astype(np.float32)
+    m = np.asarray(alpha).astype(np.float32) / 255
+    outside = Image.fromarray(((1 - m) * 255).astype(np.uint8), 'L')
+    lip = np.asarray(ImageChops.offset(outside, 0, round(1.6 * scale)).filter(
+        ImageFilter.GaussianBlur(1.6 * scale))).astype(np.float32) / 255
+    factor = 0.80 - 0.30 * np.clip(lip * 1.6, 0, 1)
+    out = a * factor[..., None]
+    lum = out.mean(axis=2, keepdims=True)
+    out = np.where(lum > 175, 175 + (out - 175) * 0.55, out)  # highlights flatten when pressed
+    rgba = np.dstack([np.clip(out, 0, 255).astype(np.uint8), np.asarray(alpha)])
+    return Image.fromarray(rgba, 'RGBA')
+
+
+def with_alpha(image: Image.Image, alpha: Image.Image) -> Image.Image:
+    rgba = image.convert('RGB').copy()
+    rgba.putalpha(alpha)
+    return rgba
 
 
 def socket_fill(base: Image.Image, cx: float, cy: float, r: float) -> Image.Image:
@@ -199,15 +306,20 @@ def socket_fill(base: Image.Image, cx: float, cy: float, r: float) -> Image.Imag
     yy, xx = np.mgrid[:h, :w]
     dist = np.hypot(xx - cx, yy - cy)
     angle = np.arctan2(yy - cy, xx - cx)
-    ring = (dist > r * 1.06) & (dist < r * 1.18)
+    # The socket floor just outside the cap and its lower lip, sampled per angle.
+    ring = (dist > r * 1.01) & (dist < r * 1.09)
     bins = 72
     idx = ((angle + math.pi) / (2 * math.pi) * bins).astype(int) % bins
     colours = np.zeros((bins, 3), np.float32)
     for b in range(bins):
         sel = ring & (idx == b)
-        colours[b] = a[sel].mean(axis=0) if sel.any() else a[ring].mean(axis=0)
-    inside = dist <= r * 1.08
-    t = np.clip(dist / (r * 1.08), 0, 1)[..., None]
+        px = a[sel] if sel.any() else a[ring]
+        # The socket's floor, not its light bevel: the darker quarter of the band, so the
+        # fill seen beside the moving cap never reads as a second cap edge.
+        lum = px.mean(axis=1)
+        colours[b] = px[lum <= np.percentile(lum, 25)].mean(axis=0)
+    inside = dist <= r  # the whole cap (cap_radius), lip included
+    t = np.clip(dist / r, 0, 1)[..., None]
     fill = colours[idx] * (0.55 + 0.45 * t)
     a[inside] = fill[inside]
     return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), 'RGB')
@@ -239,39 +351,66 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
         sw, sh = ww, ww * 3 / 4
     sx, sy = wx0 + (ww - sw) / 2, wy0 + (wh - sh) / 2
     screen_rect = bp.rect(round((sx - x0) * k, 3), round((sy - y0) * k, 3), round(sw * k, 3), round(sh * k, 3))
-    items = []
+    masks = layout_masks(screen, spec, x0, y0)
+    items, shapes = [], []
     for entry in spec['items']:
         label, kind, (bx, by, bw, bh) = entry[:3]
-        frame = bp.rect(round((bx - x0) * k, 3), round((by - y0) * k, 3), round(bw * k, 3), round(bh * k, 3))
-        box = tuple(v * UPSCALE for v in (bx - x0, by - y0, bx - x0 + bw, by - y0 + bh))
-        normal = up.crop(box)
         key = f'{orientation}-{label}'
         if kind.startswith('stick'):
-            cx, cy, r = entry[3]
-            lcx, lcy, lr = (cx - bx) * UPSCALE, (cy - by) * UPSCALE, r * UPSCALE
-            base = socket_fill(normal, lcx, lcy, lr)
-            files[f'controls/{key}-base.png'] = bp.png(base)
-            ring = Image.new('L', base.size, 0)
-            ImageDraw.Draw(ring).ellipse((2, 2, base.width - 3, base.height - 3), fill=255)
-            files[f'controls/{key}-base-pressed.png'] = bp.png(pressed_sprite(base, ring.filter(ImageFilter.GaussianBlur(2)), UPSCALE))
+            # The cap's centre on the board is the stick's centre for drawing, touch and
+            # vector alike: a square frame centred on it, as wide as the socket (inside its
+            # outer rim), so the cap travels inside its socket and saturates at the rim.
+            cx, cy, hand_r = entry[3]
+            r = cap_radius(hand_r)
+            outer = socket_radius(screen, cx - x0, cy - y0, hand_r)
+            # Travel = half - cap radius: up to the socket's rim, and never less than 22 %
+            # of the cap (a tight octagonal C-stick socket would otherwise hold it still;
+            # at full deflection it then rides on its rim, as a real cap does).
+            half = max(outer - 2, r * 1.22)
+            fx0, fy0, fw, fh = cx - x0 - half, cy - y0 - half, 2 * half, 2 * half
+            box = tuple(round(v * UPSCALE) for v in (fx0, fy0, fx0 + fw, fy0 + fh))
+            lcx, lcy, lr = (cx - x0) * UPSCALE - box[0], (cy - y0) * UPSCALE - box[1], r * UPSCALE
+            base = socket_fill(up.crop(box), lcx, lcy, lr)
+            disk = Image.new('L', (base.width * 4, base.height * 4), 0)
+            ImageDraw.Draw(disk).ellipse((2, 2, disk.width - 3, disk.height - 3), fill=255)
+            disk = disk.resize(base.size, Image.Resampling.LANCZOS)
+            files[f'controls/{key}-base.png'] = bp.png(with_alpha(base, disk))
+            # Held: the socket only darkens a little under the moving cap (no other change).
+            held = Image.fromarray(np.clip(np.asarray(base).astype(np.float32) * 0.9, 0, 255).astype(np.uint8), 'RGB')
+            files[f'controls/{key}-base-pressed.png'] = bp.png(with_alpha(held, disk))
             files[f'controls/{key}-knob.png'] = bp.png(cap_sprite(up, (cx - x0) * UPSCALE, (cy - y0) * UPSCALE, lr))
             side = kind.split(':')[1]
+            frame = bp.rect(round(fx0 * k, 3), round(fy0 * k, 3), round(fw * k, 3), round(fh * k, 3))
             item = {'frame': frame,
                     'inputs': {d: f'{side}Thumbstick{d.title()}' for d in ('up', 'down', 'left', 'right')},
                     'asset': {'normal': f'controls/{key}-base.png', 'pressed': f'controls/{key}-base-pressed.png'},
                     'thumbstick': {'name': f'controls/{key}-knob.png', 'width': round(2 * r * k, 3), 'height': round(2 * r * k, 3)}}
+            alpha = disk
         else:
-            mask = control_mask(normal)
-            files[f'controls/{key}.png'] = bp.png(normal)
-            files[f'controls/{key}-pressed.png'] = bp.png(pressed_sprite(normal, mask, UPSCALE))
+            # The control's real outline: frame = its bounding box (never trimmed), sprites
+            # transparent outside it, so the rest state is the board and a press changes
+            # only the control itself.
+            mx, my, m = masks[label]
+            ys, xs = np.nonzero(m)
+            fx0, fy0, fx1, fy1 = mx + xs.min(), my + ys.min(), mx + xs.max() + 1, my + ys.max() + 1
+            full = np.zeros((fy1 - fy0, fx1 - fx0), bool)
+            full[ys + my - fy0, xs + mx - fx0] = True
+            box = tuple(v * UPSCALE for v in (fx0, fy0, fx1, fy1))
+            normal = up.crop(box)
+            alpha = Image.fromarray(full.astype(np.uint8) * 255, 'L').resize(normal.size, Image.Resampling.BILINEAR)
+            alpha = alpha.filter(ImageFilter.GaussianBlur(0.35 * UPSCALE))
+            files[f'controls/{key}.png'] = bp.png(with_alpha(normal, alpha))
+            files[f'controls/{key}-pressed.png'] = bp.png(pressed_face(normal, alpha, UPSCALE))
             inputs = {d: d for d in ('up', 'down', 'left', 'right')} if kind == 'dpad' else [label]
+            frame = bp.rect(round(fx0 * k, 3), round(fy0 * k, 3), round((fx1 - fx0) * k, 3), round((fy1 - fy0) * k, 3))
             item = {'frame': frame, 'inputs': inputs,
                     'asset': {'normal': f'controls/{key}.png', 'pressed': f'controls/{key}-pressed.png'}}
         item['extendedEdges'] = dict(top=0, bottom=0, left=0, right=0)
         items.append(item)
+        shapes.append(np.asarray(alpha) >= 128)
     # No invisible extension into the home-indicator band of the smallest edge-to-edge
     # iPhone (34 pt portrait = 36 mapping pt; 21 pt landscape, 7 pt of it letterbox).
-    extend_targets(items, W, H, screen_rect, bottom_limit=H - (36 if orientation == 'portrait' else 15))
+    extend_targets(items, shapes, W, H, screen_rect, bottom_limit=H - (36 if orientation == 'portrait' else 15))
     return {'assets': {'small': name, 'medium': name, 'large': name}, 'mappingSize': {'width': W, 'height': H},
             'screens': [{'outputFrame': screen_rect}], 'items': items, 'translucent': False}
 
@@ -285,24 +424,57 @@ def overlaps(a, b):
     return min(a[2], b[2]) - max(a[0], b[0]) > 0.01 and min(a[3], b[3]) - max(a[1], b[1]) > 0.01
 
 
-def extend_targets(items, W, H, screen, target=46.4, bottom_limit=None):
+GRID = 4  # samples per mapping point for the shape-aware target checks
+
+
+def _raster(rect, W, H):
+    g = np.zeros((int(math.ceil(H * GRID)), int(math.ceil(W * GRID))), bool)
+    x0, y0, x1, y1 = (max(0, int(math.floor(v * GRID))) for v in rect)
+    g[y0:int(math.ceil(rect[3] * GRID)), x0:int(math.ceil(rect[2] * GRID))] = True
+    return g
+
+
+def _shape_raster(item, shape, W, H):
+    """An item's drawn shape (sprite alpha) on the mapping grid."""
+    f = item['frame']
+    g = np.zeros((int(math.ceil(H * GRID)), int(math.ceil(W * GRID))), bool)
+    x0, y0 = int(round(f['x'] * GRID)), int(round(f['y'] * GRID))
+    w, h = max(1, int(round(f['width'] * GRID))), max(1, int(round(f['height'] * GRID)))
+    s = np.asarray(Image.fromarray(shape.astype(np.uint8) * 255, 'L').resize((w, h), Image.Resampling.NEAREST)) > 127
+    y1, x1 = min(g.shape[0], y0 + h), min(g.shape[1], x0 + w)
+    g[y0:y1, x0:x1] = s[:y1 - y0, :x1 - x0]
+    return g
+
+
+def extend_targets(items, shapes, W, H, screen, target=46.4, bottom_limit=None):
     """Invisible extended edges until each touch area reaches `target` mapping pt (44 pt fitted
-    on the smallest edge-to-edge iPhone, 375 x 812), never over another
-    control, the game screen or outside the mapping."""
+    on the smallest edge-to-edge iPhone, 375 x 812). An extension never covers another
+    control's frame or touch area (frames may overlap where the board's shapes interlock;
+    DOLSkinOverlay resolves those by the drawn shape), the game screen or the outside."""
     scr = (screen['x'], screen['y'], screen['x'] + screen['width'], screen['y'] + screen['height'])
-    for item in items:
+    rasters = [None] * len(items)
+
+    def others(i):
+        g = np.zeros((int(math.ceil(H * GRID)), int(math.ceil(W * GRID))), bool)
+        for j, o in enumerate(items):
+            if j != i: g |= _raster(hit(o), W, H)
+        return g
+    for i, item in enumerate(items):
         f = item['frame']
+        frame = _raster((f['x'], f['y'], f['x'] + f['width'], f['y'] + f['height']), W, H)
         for axis, (lo, hi), size in (('x', ('left', 'right'), f['width']), ('y', ('top', 'bottom'), f['height'])):
             need = max(0.0, target - size) / 2
             if need <= 0: continue
             step = need / 20
+            blocked = others(i)
             for _ in range(20):
                 for side in (lo, hi):
                     item['extendedEdges'][side] = round(item['extendedEdges'][side] + step, 3)
                     h = hit(item)
                     floor = H if bottom_limit is None else max(bottom_limit, f['y'] + f['height'])
+                    extension = _raster(h, W, H) & ~frame
                     if (h[0] < 0 or h[1] < 0 or h[2] > W or h[3] > floor or overlaps(h, scr) or
-                            any(overlaps(h, hit(o)) for o in items if o is not item)):
+                            (extension & blocked).any()):
                         item['extendedEdges'][side] = round(item['extendedEdges'][side] - step, 3)
 
 

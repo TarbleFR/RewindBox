@@ -165,3 +165,25 @@ and the performance toggle moves into the top leading corner of the skin's game 
 (`DOLSessionChromePolicy.h`, `test/dolphin_session_chrome_test.py`). Without a skin,
 or with a skin lacking a Menu, nothing moves. The analogous ARMSX2 floating menu over a
 PS2 landscape L1 is reported only; the PS2 fix `b8794226` is not reopened.
+
+## Touch and press fix of the Originals (4 November 2026)
+
+Input: maintainer recording `ScreenRecording_11-04-2026 14-01-31_1.mp4` (9 241 004 B,
+SHA-256 `548b2826…bf7e`, 26.29 s, 1112×512, 30 fps; archive
+`rewindbox-skin-touch-feedback-20261104.zip` `fb79e2d3…c56d`), GameCube Original on
+IPA 643. Frames 72 (L), 109 (A), 125 (X), 166 (R), 180 (B), 194 (C-stick), 207 (START)
+and 232 (Menu) show the pressed sprite as a shifted, darker rectangle around the control;
+frames 0–54 and 100/150 show the landscape main-stick cap off-centre in its socket. The
+finger positions are not in the recording and are not inferred.
+
+Cause, measured on the shipped archives and fixed in the generator and the overlay (see
+[tools/skins/README.md](../tools/skins/README.md)): opaque rectangular sprites and a
+pressed effect over the whole rectangle; hand-measured boxes trimmed where shapes
+interlock (Y) with rectangle-only hit testing; stick frames not centred on the board's
+cap. Before/after: [audit-before-after.json](evidence/pocket-originals/touch-fix/audit-before-after.json),
+touch-zone maps, rest/pressed/released magnifications and stick positions in
+[touch-fix/](evidence/pocket-originals/touch-fix/) (host renders composed like
+DOLSkinOverlay, not iPhone screenshots). Simulator tests with the real overlay and the
+TCManagerInterface calls: `packages/dolphin_internal_bridge/ci/DolphinSkinOverlayTests.mm`.
+The ids, names and previews of both Originals are unchanged, so existing selections keep
+working; the earlier Pocket packs are byte-identical.
