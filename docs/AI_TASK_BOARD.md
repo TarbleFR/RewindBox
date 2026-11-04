@@ -325,6 +325,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Not observed: the refresh on an iPhone. A game started in the first seconds after an
     update may still use the old copy for that session.
   - Main: review and next common IPA. No merge, IPA, pin or Core change from here.
+  - **Device check on 653 (21:02 recording):** GameCube Original still draws the 643 copy
+    (stick regions f61e10dd 7.9/6.8 vs ec382133 11.4/14.2, rectangle on A and the D-pad), while
+    the same iPhone has the 653-only PS2 Pocket — Original matching 07f4b6fb at 1.05/255 at rest.
+    So it runs 653 and the stale copy is confirmed; PR159 (`ae36a67`) must be in the next IPA.
+    [device-653-check.json](evidence/pocket-originals/installed-copy-refresh/device-653-check.json).
 - **Effort observed:** `rb-effort-high` returned "Effective effort reported by Claude Code:
   high" at this defect's start. `rb-effort-medium` for this handoff returned "loaded earlier…
   NEW invocation" with no substituted value.
