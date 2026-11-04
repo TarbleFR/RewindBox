@@ -38,7 +38,7 @@ tests.source_build_phase.add_file_reference(project.main_group.new_file(File.joi
       'CODE_SIGNING_ALLOWED' => 'NO',
       'TARGETED_DEVICE_FAMILY' => '1',
       'HEADER_SEARCH_PATHS' => [classes],
-      'OTHER_LDFLAGS' => ['$(inherited)', '-framework', 'UIKit', '-framework', 'CoreGraphics'],
+      'OTHER_LDFLAGS' => ['$(inherited)', '-framework', 'UIKit', '-framework', 'CoreGraphics', '-framework', 'QuartzCore'],
     })
   end
 end

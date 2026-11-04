@@ -194,7 +194,7 @@ static UIViewController* ARMSX2RootViewController(void) {
     };
     skin.menuHandler = ^{ [weakSelf menuPressed]; };
     skin.layoutChanged = ^{ [weakSelf syncSkinOverlay]; };
-    [root insertSubview:skin aboveSubview:self.controlsView];
+    [root addSubview:skin];  // above the stock controls, below the menu button added next
     self.skinOverlay = skin;
   }
   [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(resetInput)

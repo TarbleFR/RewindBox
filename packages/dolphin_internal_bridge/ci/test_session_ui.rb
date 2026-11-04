@@ -29,7 +29,8 @@ end
 sources << File.join(package, 'ios/Classes/DOLOrientation.mm')
 sources << File.join(package, 'ios/Classes/DolphinRetroAchievementsAccount.mm')
 sources += Dir[File.join(packages, 'neo_cheat_catalog/ios/Classes/*.m')].reject { |path| path.end_with?('Plugin.m') }
-sources += Dir[File.join(packages, 'external_display/ios/Classes/*.m')].reject { |path| path.end_with?('Plugin.m') }
+# The menu engine and the plugin are Flutter-bound (they import Flutter.h): not compiled here.
+sources += Dir[File.join(packages, 'external_display/ios/Classes/*.m')].reject { |path| path.end_with?('Plugin.m') || path.end_with?('MenuEngine.m') }
 pod_headers = [staged, File.join(packages, 'neo_cheat_catalog/ios/Classes'), File.join(packages, 'neo_cheat_catalog/ios/Classes/Public'),
                File.join(packages, 'external_display/ios/Classes')]
 sources.each { |path| app.source_build_phase.add_file_reference(project.main_group.new_file(path)) }
@@ -54,7 +55,7 @@ tests.source_build_phase.add_file_reference(project.main_group.new_file(File.joi
       'TARGETED_DEVICE_FAMILY' => '1,2',
       'HEADER_SEARCH_PATHS' => [File.join(package, 'ios/Classes'), File.join(package, 'ios/Classes/TouchController')] + pod_headers,
       'SWIFT_VERSION' => '5.0',
-      'OTHER_LDFLAGS' => ['$(inherited)', '-framework', 'UIKit', '-framework', 'CoreGraphics', '-framework', 'AVFoundation', '-framework', 'ReplayKit', '-framework', 'CoreImage', '-framework', 'VideoToolbox', '-framework', 'Metal', '-framework', 'MetalKit', '-framework', 'CoreMedia', '-framework', 'CoreVideo', '-framework', 'AudioToolbox'],
+      'OTHER_LDFLAGS' => ['$(inherited)', '-framework', 'UIKit', '-framework', 'CoreGraphics', '-framework', 'AVFoundation', '-framework', 'ReplayKit', '-framework', 'CoreImage', '-framework', 'VideoToolbox', '-framework', 'Metal', '-framework', 'MetalKit', '-framework', 'CoreMedia', '-framework', 'CoreVideo', '-framework', 'AudioToolbox', '-framework', 'QuartzCore', '-framework', 'UniformTypeIdentifiers', '-lz'],
     })
     if configuration.name == 'Debug'
       configuration.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = ['$(inherited)', 'DEBUG=1']
