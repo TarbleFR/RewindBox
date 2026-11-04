@@ -1,0 +1,41 @@
+{
+  "result": "passed",
+  "checks": 19,
+  "finalPreparationBound": false,
+  "sourceKind": "core642Preparation",
+  "postimages": {},
+  "candidateWindow": "a80510e7b2f6a806ff67402243c524947fffc836c2684b323947393ad9bbb484",
+  "report": {
+    "details": [
+      "Present source #1: present 7 at 0x10000000, R8G8B8A8Unorm 1920x1080 scale 1; GPU-modified False, reloaded from guest memory True, re-created texture True, same address as previous False",
+      "Present source #2: present 8 at 0x20000000, R8G8B8A8Unorm 1920x1080 scale 1; GPU-modified False, reloaded from guest memory True, re-created texture False, same address as previous False",
+      "Present source #3: present 9 at 0x20000000, R8G8B8A8Unorm 1920x1080 scale 1; GPU-modified False, reloaded from guest memory True, re-created texture False, same address as previous True",
+      "Present source #4: present 301 at 0x40000000, R8G8B8A8Unorm 1920x1080 scale 1; GPU-modified False, reloaded from guest memory True, re-created texture False, same address as previous False",
+      "Present source #5: present 302 at 0x41000000, R8G8B8A8Unorm 1920x1080 scale 1; GPU-modified False, reloaded from guest memory True, re-created texture False, same address as previous False",
+      "Present source #6: present 303 at 0x42000000, R8G8B8A8Unorm 1920x1080 scale 1; GPU-modified False, reloaded from guest memory True, re-created texture False, same address as previous False",
+      "Present source #7: present 304 at 0x43000000, R8G8B8A8Unorm 1920x1080 scale 1; GPU-modified False, reloaded from guest memory True, re-created texture False, same address as previous False",
+      "Present source #8: present 305 at 0x44000000, R8G8B8A8Unorm 1920x1080 scale 1; GPU-modified False, reloaded from guest memory True, re-created texture False, same address as previous False"
+    ],
+    "summaries": 64,
+    "firstSummary": "Present sources: 300 presents, from guest memory 3, not GPU-modified 4, re-created textures 1, same address as previous 1, first at an address 3",
+    "linesAt300": 4,
+    "mapCount": 8,
+    "calls": [
+      "dirty False",
+      "modified"
+    ]
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "productionGpuAssemblyBuilt": true,
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Gpu/Window.cs": "794edf455bb2945a77c23e971757f552fbe81fe26293dc3ea053360dde17cd39"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_present_source_attribution.py": "68842d890b968a4b8bbbc6a7087401a75cf9b866a21b1797f035072e221c2947",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_present_source_attribution_test.py": "443fd85d396bf7d4b89dfb67aac07cbcf76b52037f3791bbcc5e7a848a2ce547",
+    "test/melonx_present_source_attribution/Program.cs": "b2ad544eca2157147c185e85606eaa4d43135eb47dd902c5135f050967e391cc"
+  },
+  "limitation": "Diagnostics only; where the black launch and the stale frames come from is known only after a device run."
+}
