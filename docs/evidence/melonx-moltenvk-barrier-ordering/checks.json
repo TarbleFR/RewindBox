@@ -1,0 +1,47 @@
+{
+  "result": "passed",
+  "checks": 8,
+  "reports": {
+    "control": {
+      "variant": "control",
+      "checks": 8,
+      "deferred": {
+        "moltenvk142-hogwarts": true,
+        "moltenvk140-hogwarts": true,
+        "feedback-loop": false,
+        "other-title": false,
+        "not-tbdr": false
+      },
+      "completeVulkanProductionSources": true,
+      "nativeCallsUsed": false
+    },
+    "candidate": {
+      "variant": "candidate",
+      "checks": 8,
+      "deferred": {
+        "moltenvk142-hogwarts": false,
+        "moltenvk140-hogwarts": true,
+        "feedback-loop": false,
+        "other-title": false,
+        "not-tbdr": false
+      },
+      "completeVulkanProductionSources": true,
+      "nativeCallsUsed": false
+    }
+  },
+  "sdk": "10.0.100",
+  "physicalDeviceTested": false,
+  "nativeCallsUsed": false,
+  "fullProductionVulkanAssembly": true,
+  "sourceBaseline": {
+    "src/Ryujinx.Graphics.Vulkan/VulkanRenderer.cs": "52d86f7c12b4e779ff038b5788a28dc66bd268261c667a79eab567ad7ffadd4e",
+    "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs": "04ce0581b9b04cd04510d6d253f710a1f944303411849cf22ede1305534214c0"
+  },
+  "inputs": {
+    "build-utils/melonx/adapt_moltenvk_barrier_ordering.py": "fd93fa8ef4837a62e67d04029f6adef4da7f2be65d5d556eaf33a84f43f9f260",
+    "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
+    "test/melonx_moltenvk_barrier_ordering_test.py": "457eec73dc85c0e08866f329a9dc8cec2fdcd9c4eaed4e92c179633bfab734e3",
+    "test/melonx_moltenvk_barrier_ordering/Program.cs": "4c9106c24e0593204e156f383d9032caefb17b16704f7de12e70dbeb04ace90b"
+  },
+  "limitation": "Host fixture of the deferral decision; the MoltenVK 1.4.2 GPU ordering and the stale frames are not reproduced off device."
+}
