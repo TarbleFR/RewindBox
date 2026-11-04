@@ -1,0 +1,31 @@
+{
+ "inputs": [
+  {
+   "name": "ScreenRecording_11-04-2026_21-02-21_1.mov",
+   "bytes": 15076984,
+   "sha256": "33dc53cce15bea18c61eb9dbe278c981f333b1ae449e737348f2b3418c4625df",
+   "video": "HEVC 1320x2868 rotated 90 (2868x1320 = 956x440 pt at 3x), 60 fps, 1036 frames, 18.07 s",
+   "content": "GameCube Pocket - Original, landscape: GameCube boot, 50/60 Hz prompt, health screen"
+  },
+  {
+   "name": "screenshot (image.png, said by the maintainer to be the wrong screen)",
+   "bytes": 2767932,
+   "sha256": "b41b55fd954362e2362dbbcb6ee4569f65fa67012486a14eeb6ab208b8e1f4ff",
+   "content": "PS2 Pocket - Original at rest, landscape, The Hobbit memory-card save; same 956x440 pt iPhone"
+  },
+  {
+   "name": "app.log",
+   "bytes": 1874680,
+   "sha256": "9bc342f82978947bda038bad17519f7531eadabd4a4685bb0f2fb003050400a7",
+   "content": "Flutter log only (ARMSX2 sessions Dynasty Warriors 5, The Hobbit at 19:54/19:55 UTC); nothing from the native skin overlays, no skin ids"
+  }
+ ],
+ "privacy": "device files kept private; no frame stored",
+ "findings": {
+  "gamecube": "rest frame 140 composed like DOLSkinOverlay (scale 3.3662, y offset 22.5 px): pre-PR157 f61e10dd stick regions 7.93 / 6.76, shipped ec382133 11.37 / 14.16; A and D-pad presses draw the rectangle: the installed copy is still the 643 one",
+  "ps2": "the PS2 screenshot at rest matches the shipped 07f4b6fb at 1.05/255 outside the game screen, every control and both caps at 0 px offset",
+  "installedIpa": "PS2 Pocket - Original exists only from IPA 653 on and is installed on this iPhone, so the GameCube recording runs on 653, which ships ec382133: only the stale installed copy explains it",
+  "timeline": "main stick 0-1.9 s and 9.75-11.2 s; A 2.6 / 4.6 / 11.7 s; X 3.6 s; B 5.45 s; Y 6.2 s; L 7.1 s; R 8.0 s; Z 8.9 s; D-pad 12.3-13.4 s (4 presses); START 14.1 s; C-stick 15.25 s"
+ },
+ "consequence": "PR159 (integrated ae36a67, after IPA 653) is required on device; until an IPA carries it, reinstalling GameCube Pocket - Original from the skin catalog and confirming the replacement installs the shipped archive (same replace path, selections moved)."
+}
