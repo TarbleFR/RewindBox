@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "56cba94d706b47224a567a1e0c95f2ed79edc87b",
-  "run": 41835730374,
-  "job": 126596968961,
-  "attempt": 2,
+  "source": "07486873b10d986d7942cd6e7fca0a480690cd67",
+  "run": 41845070203,
+  "job": 126626325931,
+  "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 13327497581,
-  "name": "MeloNX-engine-56cba94d706b47224a567a1e0c95f2ed79edc87b",
-  "bytes": 90324705,
-  "sha256": "c8552e2438d9443b7cdf43b8eda54d336eeb0a66735ff572a03850e0ab6781a3",
-  "expiresAt": "2026-11-18T13:28:57Z",
+  "artifact": 13332131609,
+  "name": "MeloNX-engine-07486873b10d986d7942cd6e7fca0a480690cd67",
+  "bytes": 90385468,
+  "sha256": "150b300d89550a89b2b039a78d1e94f724c4d7064d875447dcaa003070418154",
+  "expiresAt": "2026-11-18T14:28:32Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "e721da8b5793ee1d34e63a7bf684167267f54c05ed79d4392253e70d61f796ec",
-      "bytes": 37995864
+      "sha256": "e236ad9f1d5c3cc28551bff4f896e331cbcdcb7d7768dfe9b17e6e75ae6ecbed",
+      "bytes": 38028840
     },
     "iossimulator-arm64": {
-      "sha256": "8a045803064a4751a0201713534b72e0751169781d263929604accc928157d1e",
-      "bytes": 38292808
+      "sha256": "813232775db86ab429a382a3f04a76b79bb76e614656b5ff1f7f9e9b69bfa1dc",
+      "bytes": 38342568
     }
   },
   "identities": {
-    "ios-arm64": "19d2cde62d3c2997d82ba6334830237a9aed69aca75a04b6a834f2673f573557",
-    "iossimulator-arm64": "2691ef1bb6072ce2769023ac16b916fece33eb36eaaf6d39256b7e7d68d4c38f"
+    "ios-arm64": "85cfd02cf4857d4a14339b20c3ee4101a57444b3b01f538ba0a01d79c91ac2b4",
+    "iossimulator-arm64": "08ba32c9ba0d80ad5d088120caf8a60e873db20b43a69feabeeed7d63bc82480"
   },
-  "contractSha256": "90e11def33d92663ed2605e9ec83c125198216e5f39d7c8b520a2b87630ab685",
-  "resultSha256": "d2b63b23dadb77628472119a31a873b300629faf0f47c357b0d74ff5a21cf704",
-  "packagedFingerprint": "465d89f5f5ead17e200be01bc146cae24613471594ffa637db2dbe0dd27a9bd1",
+  "contractSha256": "ba039ceb6bedb100634511358efd17954f97e0cf0221764d72a7f088f99dc8cc",
+  "resultSha256": "8af5a78ca7e2b246b60f20ff9aca7704830063bd47eaa30101352f169cbf8acb",
+  "packagedFingerprint": "975a414820cf42382f8760c039faf2fdaec51cbc2ce6ca24cc5a8a2aae494bcc",
   "replaces": {
-    "source": "8cd2e93ce9e95418b7d62993535d13c2d1d484f1",
-    "run": 41770120368,
-    "artifact": 13294034769,
-    "packagedFingerprint": "281aa3a4d5fb96fdfee452544e29745cab2bfff1ab4819722aab504fd2535e11",
-    "reason": "Hogwarts Legacy: descriptor encoding (template scratch sized by binding, texture arrays written by changed range), DMA region uploads declining a cached buffer, syncpoint increments queued behind their occlusion reports (renderer barrier, head kept until published, 3D increments drain first); eleven fresh gates; Core 639 adds the MeloNX FPS/stability lot of PR #153 (pipeline warm-up key with the draw's alpha-to-coverage/alpha-to-one state, device-short texture trim without flushes); thirteen fresh gates; Core 642 adds the MeloNX lot of PR #154 (in-pass image barriers of non-attachments end the pass and the Hogwarts in-pass read barrier is recorded under MoltenVK 1.4.1 or later, binding-sized descriptor scratch for every title, occupied read-back and pipeline miss attribution); eighteen fresh gates; Core 644 adds the MeloNX lot of PR #156 (DMA read-back receivers for the Hogwarts black launch, present source attribution); twenty fresh gates"
+    "source": "56cba94d706b47224a567a1e0c95f2ed79edc87b",
+    "run": 41835730374,
+    "artifact": 13327497581,
+    "packagedFingerprint": "465d89f5f5ead17e200be01bc146cae24613471594ffa637db2dbe0dd27a9bd1",
+    "reason": "Hogwarts Legacy: descriptor encoding (template scratch sized by binding, texture arrays written by changed range), DMA region uploads declining a cached buffer, syncpoint increments queued behind their occlusion reports (renderer barrier, head kept until published, 3D increments drain first); eleven fresh gates; Core 639 adds the MeloNX FPS/stability lot of PR #153 (pipeline warm-up key with the draw's alpha-to-coverage/alpha-to-one state, device-short texture trim without flushes); thirteen fresh gates; Core 642 adds the MeloNX lot of PR #154 (in-pass image barriers of non-attachments end the pass and the Hogwarts in-pass read barrier is recorded under MoltenVK 1.4.1 or later, binding-sized descriptor scratch for every title, occupied read-back and pipeline miss attribution); eighteen fresh gates; Core 644 adds the MeloNX lot of PR #156 (DMA read-back receivers for the Hogwarts black launch, present source attribution); twenty fresh gates; Core 647 adds the PR #156 follow-up (teardown compile cancel for the endless SSBU close, pause guest-thread record); twenty-two fresh gates"
   }
 }

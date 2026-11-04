@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "build": 646,
+  "build": 648,
   "status": "draft",
-  "note": "Private IPA 646 on the delivered and verified 643: the next common delivery. RPCS3 Core 645 (Core 641 plus the cellAudio timeout mix: a timed-out audio period is output instead of dropped) replaces Core 641; MeloNX Core 644 (Core 642 plus the PR 156 lot: DMA read-back receivers for the Hogwarts black launch, present source attribution) replaces Core 642. 644 and 645 are Core numbers.",
+  "note": "Private IPA 648 on the delivered and verified 643: the next common delivery. RPCS3 Core 645 (Core 641 plus the cellAudio timeout mix: a timed-out audio period is output instead of dropped) replaces Core 641; MeloNX Core 644 (Core 642 plus the PR 156 lot: DMA read-back receivers for the Hogwarts black launch, present source attribution) replaces Core 642; MeloNX Core 647 adds the PR 156 follow-up (teardown compile cancel for the endless SSBU close, pause guest-thread record) and is the one packaged. 644, 645 and 647 are Core numbers; 646 was this draft's number before Core 647.",
   "base": {
     "build": 643,
     "source": "f19ed8cd26caa3b346108d3107e06bcf219a1de7",
@@ -67,7 +67,7 @@
         "artifact": 13294034769,
         "packagedFingerprint": "281aa3a4d5fb96fdfee452544e29745cab2bfff1ab4819722aab504fd2535e11"
       },
-      "pinSha256": "0193c2aeeb7d252b1b10e10c180788ffb6253bc77dfef08630f8997607512bb2"
+      "pinSha256": "fe73c43a2bba2061ae25595e729c2d7fb29dc5a74348b25c64a1160022d81612"
     },
     "dolphin": {
       "mode": "retain",
@@ -265,6 +265,14 @@
       {
         "commit": "eeb36c27b223e621980b158831ce5bffb71b13b6",
         "note": "fix(rpcs3): Core 645 source: a timed-out cellAudio period is output instead of dropped (Assassin's Creed audio stutters, IPA 643 logs) [skip ci]"
+      },
+      {
+        "commit": "07486873b10d986d7942cd6e7fca0a480690cd67",
+        "note": "[melonx-dma-core] build(melonx): wire and freeze MeloNX Core 647 (Core 644 + PR #156 follow-up; 22 fresh gates, 301 contract checks)"
+      },
+      {
+        "commit": "88effdfdfa9b2cb8c95700c4a27d41fdbd638333",
+        "note": "feat(melonx): integrate the PR #156 follow-up (teardown compile cancel for the endless SSBU close, pause guest-thread record for the black launch), not yet wired [skip ci]"
       }
     ],
     "sourceOnly": [],
@@ -1022,7 +1030,7 @@
     "awaitMinutes": 75
   },
   "recipient": {
-    "path": "build-utils/delivery-646-recipient.pem",
+    "path": "build-utils/delivery-648-recipient.pem",
     "sha256": "5ea35cff87ab02f160bda81de403efa88d2d80122ca50a12eee4dfd21ef40ae7"
   },
   "republish": [
