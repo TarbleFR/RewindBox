@@ -299,8 +299,8 @@
       }
     ],
     "promotedCommits": [],
-    "freezeCommit": "f8d58ca2841af3c5ff318e7e96551a053abf7b52",
-    "freezeTree": "0db910ca9ba07a75e4053410528d4046d0b9463a",
+    "freezeCommit": "d1ffd0a17e264c6c4e4313c787d4da085e5c2099",
+    "freezeTree": "4d1c122f0a5e68c3a0197e0ff327b1f0642345dd",
     "baseEffectiveDigest": "e8bad15008ec92b000a63149a07dda713de30111c2ec3a905747547531d2e2c5",
     "inheritedDeferredPaths": [
       "lib/models/retro_achievements_session.dart",
@@ -610,9 +610,76 @@
         "subject": "build(melonx): pin the MeloNX Core 649 of run 41856742638 (44e82f53), verified offline; carried into the 650 draft [skip ci]",
         "role": "recipe",
         "productPaths": 0
+      },
+      {
+        "commit": "38b166be6262a199d00dcd5fba3246aaddd7edfb",
+        "subject": "[ipa-delivery:650] build(delivery): request the common private IPA 650 (RPCS3 Core 645, MeloNX Core 649, GameCube/Wii Pocket Original touch fix)",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "17b2978093d386465def7e87d640cf4e4cb0efc9",
+        "subject": "docs(ai): Claude rows: strict rule applied (Core 651 audio low-ring mix, AC pass-churn and BO2 first-use dispositions with evidence), IPA 650 requested [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "7558f3b0de35b36ab2852753d2b005c92c0fec23",
+        "subject": "docs(ai): consolidate current instructions and task state; retain full immutable evidence history [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "8d05234f211c03bbc94cf5faac2dd48e419d294b",
+        "subject": "docs: keep concise status of private log export and main routing handoff [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "3da5e3d0e4a4e0084d57e03b6f7f0e4997d1f29a",
+        "subject": "fix(rpcs3): Core 651 source: the cellAudio wait for a late port ends when the output ring runs low (AC audio, after Core 645) [skip ci]",
+        "role": "sourceOnly",
+        "productPaths": 10
+      },
+      {
+        "commit": "c37b71df985f5de758ec24cf9f838ab6d9d265b7",
+        "subject": "[rpcs3-core-build] build(rpcs3): request the Core 651 compile (Core 645 plus the low-ring cellAudio mix)",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "ea7defcdb478783d456109c84c57351b2abae600",
+        "subject": "docs(ai): streamline rules, add navigation and concise task templates [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "5671b1b1a22b4f62f0faa92aa76831519ee68aa0",
+        "subject": "fix(delivery): the flutter job provides the pinned Pillow its skin input-chain test imports (650 run 41861290919) [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "d1ffd0a17e264c6c4e4313c787d4da085e5c2099",
+        "subject": "build(delivery): 650 draft for its second trigger: Core 651 source deferred, native evidence reused from run 41861290919 [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
       }
     ],
-    "deferred": {},
+    "deferred": {
+      "3da5e3d0e4a4e0084d57e03b6f7f0e4997d1f29a": [
+        "build-utils/rpcs3/canonical-source.json",
+        "build-utils/rpcs3/core-build.json",
+        "build-utils/rpcs3/core651-delta.json",
+        "build-utils/rpcs3/core651-delta.patch",
+        "build-utils/rpcs3/core651-from-645.patch",
+        "build-utils/rpcs3/embedded-core.patch",
+        "test/neo_swap_core_pin_test.py",
+        "test/rpcs3_audio_low_ring_mix651_test.py",
+        "test/rpcs3_core651_codegen_test.py",
+        "test/rpcs3_core651_test.py"
+      ]
+    },
     "effective": {
       "assets/skins/pocket/catalog.json": {
         "mode": "100644",
@@ -896,6 +963,24 @@
       }
     },
     "restore": {
+      "build-utils/rpcs3/canonical-source.json": {
+        "mode": "100644",
+        "gitBlob": "75ed1c390e54de12515a4a6442c3f95a8dab04e6",
+        "sha256": "95f07ad9209243da8ebce9eafc203f1e924e91c0972e7bc55592a1de26e8c581"
+      },
+      "build-utils/rpcs3/core-build.json": {
+        "mode": "100644",
+        "gitBlob": "45bacabe0b56e302c734a7d25cf459d2c3e0295d",
+        "sha256": "9da0d9f5688dd794b247a592dd0ab54c1b7dc3c702308646b4e23d6032673511"
+      },
+      "build-utils/rpcs3/core651-delta.json": null,
+      "build-utils/rpcs3/core651-delta.patch": null,
+      "build-utils/rpcs3/core651-from-645.patch": null,
+      "build-utils/rpcs3/embedded-core.patch": {
+        "mode": "100644",
+        "gitBlob": "7edd93258ae18e896e2a115187f16235c8c05321",
+        "sha256": "2777b01763f6ddb4bfe7e0da9052c7223200af438ab72f38bf6dd3bd5d203127"
+      },
       "lib/models/retro_achievements_session.dart": {
         "mode": "100644",
         "gitBlob": "4269f11a7461d639b925e07b30a8762a6abd3a44",
@@ -1031,8 +1116,16 @@
         "gitBlob": "d6353e5e3934400e7ce98196c6e0c44cfef2d5c4",
         "sha256": "b3819844aade9966315ce11cb8f85c7f7f01851aedd9d09736022af1e96b702d"
       },
+      "test/neo_swap_core_pin_test.py": {
+        "mode": "100644",
+        "gitBlob": "051265b977d7a35e52d130502024589bfda0a711",
+        "sha256": "5fe355d608fd7222d246cd1a82f8f937a814be61ecdceb65e36129fdc0833477"
+      },
       "test/ra_disc_hash_reader_test.py": null,
-      "test/retro_achievements_identification_test.dart": null
+      "test/retro_achievements_identification_test.dart": null,
+      "test/rpcs3_audio_low_ring_mix651_test.py": null,
+      "test/rpcs3_core651_codegen_test.py": null,
+      "test/rpcs3_core651_test.py": null
     },
     "effectiveDigest": "b46f7f652f39a47411c49f8583175323c7897b295b4806c8e1f0ef3f06eccd14",
     "productFiles": 7066,
@@ -1905,8 +1998,8 @@
     "melonx-dependencies"
   ],
   "frozen": {
-    "at": "2026-11-04T15:46:33Z",
-    "commit": "f8d58ca2841af3c5ff318e7e96551a053abf7b52",
+    "at": "2026-11-04T16:30:32Z",
+    "commit": "d1ffd0a17e264c6c4e4313c787d4da085e5c2099",
     "tool": "standard_delivery.py freeze",
     "inCI": false
   }
