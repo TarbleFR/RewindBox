@@ -1,4 +1,5 @@
 {
+ "target": "maintainer original PNGs",
  "gamecube-pocket-original/portrait": {
   "comparedPixels": 142494,
   "meanAbsDiff": 1.94,

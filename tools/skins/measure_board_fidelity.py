@@ -5,9 +5,12 @@ import sys, json; sys.path.insert(0, str(__import__('pathlib').Path(__file__).re
 from PIL import Image
 import numpy as np
 import build_pocket_board_originals as b
-out = {}
+import check_board_inputs as ci
+# optional: the folder of the maintainer's original PNGs (compare against them directly)
+TARGETS = sys.argv[1] if len(sys.argv) > 1 else None
+out = {'target': 'maintainer original PNGs' if TARGETS else 'repository boards'}
 for console, pid, board in (('gc', 'gamecube-pocket-original', 'approved-gamecube.png'), ('wii', 'wii-pocket-original', 'approved-wii.png')):
-    B = Image.open('docs/design/pocket/' + board).convert('RGB')
+    B = ci.target_board(console, TARGETS) if TARGETS else Image.open('docs/design/pocket/' + board).convert('RGB')
     for o in ('portrait', 'landscape'):
         spec = b.PACKS[console][o]; c = spec['crop']; t = B.crop(c)
         p = Image.open(f'assets/skins/pocket/{pid}-{o}.png').convert('RGB').resize(t.size, Image.Resampling.LANCZOS)

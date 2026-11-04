@@ -151,7 +151,12 @@ previous floating buttons, and with the corrected placement):
 [GameCube landscape](evidence/pocket-originals/board-originals/gamecube-landscape-comparison.png),
 [Wii portrait](evidence/pocket-originals/board-originals/wii-portrait-comparison.png),
 [Wii landscape](evidence/pocket-originals/board-originals/wii-landscape-comparison.png).
-They are host renders of the archives' own previews, not iPhone screenshots.
+They are host renders of the archives' own previews, not iPhone screenshots. The
+targets in them are the maintainer's original PNGs (archive `938904a7…517b`), bound
+pixel for pixel to the boards ([input-binding.json](evidence/pocket-originals/board-originals/input-binding.json));
+[sharpness detail](evidence/pocket-originals/board-originals/sharpness-detail.png) and
+[fidelity.json](evidence/pocket-originals/board-originals/fidelity.json) measure the one
+difference the screen imposes: same rendering, bounded by the board's resolution.
 
 Session buttons: the Dolphin session's floating menu and performance buttons sat at the
 safe area's top leading corner and covered a control in landscape on all four GC/Wii

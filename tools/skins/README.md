@@ -73,15 +73,23 @@ the board's own navy; the game is cut out at 4:3, never stretched or cropped).
 
 Input identity: the maintainer's PNGs (`docs/evidence/pocket-originals/board-originals/inputs.json`)
 are pixel-identical crops of these two boards, so the packs use exactly the approved pixels.
-`measure_board_fidelity.py` compares each pack preview, brought back to the board's scale,
+`check_board_inputs.py DIR` (DIR = the extracted maintainer archive) re-checks their
+SHA-256, locates each one in its board and requires every RGBA pixel to match and to
+cover all regions the builder reads (`input-binding.json`: GameCube at offset (2, 1),
+Wii at (0, 0), all pixels identical). `measure_board_fidelity.py [DIR]` compares each pack preview, brought back to the board's scale,
 with the board outside the removed areas (`fidelity.json`: mean difference about 2/255,
 PSNR 29–34 dB, no loss of detail). `render_board_comparisons.py` draws the side-by-side
-sheets (target, real pack with the previous and the corrected session buttons).
+sheets (target, real pack with the previous and the corrected session buttons) and
+`render_board_detail.py OUT DIR` a same-magnification detail of the original pixels,
+the same resampled to 3x and the shipped art (`sharpness-detail.png`); given DIR, the
+target is the maintainer's original PNG itself.
 
 Deviations, all imposed by the device and measured by the verifier:
 - sharpness is bounded by the source: the board holds about 0.9 px per point and an
   iPhone shows 3 px per point, so the art is upscaled (Lanczos and a light unsharp mask)
-  and is softer than a native 3x render. No higher-resolution master of the boards
+  and is softer than a native 3x render. The shipped art holds 2.64 px/pt (portrait)
+  and 2.86 px/pt (landscape): shapes, volumes, shading, highlights and colours are the
+  original pixels, but no detail beyond the board's can appear. No higher-resolution master of the boards
   exists in the repository or the inputs; an identical finish at device resolution
   needs one from the boards' author;
 - landscape letterboxed by about 7 pt top and bottom (board ratio 2.25, iPhone 2.17);

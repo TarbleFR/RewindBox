@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-# Usage (repository root): python3 tools/skins/render_board_comparisons.py docs/evidence/pocket-originals/board-originals
+# Usage (repository root): python3 tools/skins/render_board_comparisons.py OUT_DIR [MAINTAINER_PNG_DIR]
 """Target board | pack on a 393 x 852 pt iPhone with the PREVIOUS floating buttons |
 with the NEW placement (DOLSessionChromePolicy). Pack art = the archive's own preview."""
 import json, sys, zipfile
 from PIL import Image, ImageDraw
 out = sys.argv[1]; K = 2  # pixels per point
+TARGETS = sys.argv[2] if len(sys.argv) > 2 else None  # folder of the maintainer's original PNGs
+sys.path.insert(0, __import__('os').path.dirname(__import__('os').path.abspath(__file__)))
+import check_board_inputs as ci
 CROPS = {'portrait': (160, 112, 506, 862), 'landscape': (582, 339, 1394, 700)}
 def device(pid, o, mode):
     info = json.loads(zipfile.ZipFile(f'assets/skins/pocket/{pid}.manicskin').read('info.json'))
@@ -31,11 +34,13 @@ def device(pid, o, mode):
         button(dx+sc['x']*s+8, dy+sc['y']*s+8, 'perf')
     c.alpha_composite(ov); return c.convert('RGB')
 def sheet(board, pid, o, name):
-    t = Image.open(f'docs/design/pocket/{board}').convert('RGB').crop(CROPS[o])
+    console = 'gc' if pid.startswith('gamecube') else 'wii'
+    source = ci.target_board(console, TARGETS) if TARGETS else Image.open(f'docs/design/pocket/{board}').convert('RGB')
+    t = source.crop(CROPS[o])
     b, a = device(pid, o, 'before'), device(pid, o, 'after')
     t = t.resize((round(t.width*b.height/t.height), b.height), Image.Resampling.LANCZOS) if o == 'portrait' else \
         t.resize((b.width, round(t.height*b.width/t.width)), Image.Resampling.LANCZOS)
-    cols = [('Cible : planche approuvee', t), ('Pack reel, anciens boutons flottants', b), ('Pack reel, placement corrige', a)]
+    cols = [('Cible : PNG original du mainteneur' if TARGETS else 'Cible : planche approuvee', t), ('Pack reel, anciens boutons flottants', b), ('Pack reel, placement corrige', a)]
     if o == 'portrait':
         Wt = sum(im.width for _, im in cols)+40; Ht = max(im.height for _, im in cols)+40
         c = Image.new('RGB', (Wt, Ht), (205, 210, 220)); d = ImageDraw.Draw(c); x = 0
