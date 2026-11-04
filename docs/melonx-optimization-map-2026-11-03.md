@@ -471,3 +471,20 @@ independent re-test per item; all on the Core 649 preparation, verified 182/182)
 Not changed (undecided): the GC configuration, present pacing, the arrival freeze, any artifact path, recording.
 Device checks asked: start a recording before launching and play without opening Control Center; screenshots of the
 artifacts; a fresh-process launch compared with a second launch in the same process.
+
+### Levers from the IPA 650 logs: measured before/after (4 November 2026)
+
+Base: the Core 654 preparation (Core 649 + binder teardown + artifact counters + gcEvent), verified 184/184 against the
+frozen contract. Four levers were implemented by a 20-agent workflow (implementer, two reviewers, fixer, independent
+re-test); each runs the production code of control and candidate on identical inputs.
+
+| Lever | Device evidence | Measured before → after | Decision |
+|---|---|---|---|
+| Bindless array whole rebuilds, `adapt_array_rebuild_allocations.py` (TextureBindingsArrayCache.cs, GAL ThreadedArrayPool.cs) | Scene transitions allocate 600–1100 MiB per 5 s with 200–700 ms GC pauses; "bindings" alone 229–287 MiB (443 KiB per call), 1–2.6 M array elements rewritten per window | Cause: both scratch caches keep only arrays ≤ 4096 elements, so pool-sized arrays (65 536–524 288) were allocated four times per threaded rebuild, on the large object heap. Per 65 536-element rebuild: 2 097 248 → 0 B (threaded texture), 2 099 142 → 32 B (sampler), 1 048 624 → 0 B (image); 200-rebuild burst: 400 MiB → 0.1 MiB, 66 → 0 gen2 collections, GC pause 75 → 0 ms, wall 1157 → 909 ms. Identical bound arrays and recorded delta state (3 848 program checks per variant). Bounded reuse (≤ 2^20 elements per type, 8 MiB), arrays above that unchanged. Test 321 checks ([receipt](evidence/melonx-array-rebuild-allocations/checks.json)). | **Adopted** |
+| Present pacing at 30 fps, `adapt_present_pacing.py` (Vulkan Window.cs, VulkanInitialization.cs, VulkanRenderer.cs, Library.cs) | S1 gameplay: 47 gaps of 17 ms and 45 of 50 ms in 615 (≈ 2.4–5 adjacent 17/50 pairs/s) | VK_GOOGLE_display_timing (MoltenVK 1.4.2 exposes it on iOS): desiredPresentTime on a 33.3 ms lattice anchored on MoltenVK's actual present times, re-anchored, stands down when targets are not honoured, only in Switch VSync mode. Simulation calibrated to the device histogram: 17/50 pairs 2.37 → 0.02 per s, gaps at 33 ms 83.6 → 99.8 %, mean +15 ms on glass (max 16.7). 4 320-run sweep: 166 505 → 80 616 pairs. Decision allocates 0 B. Test 782 checks ([receipt](evidence/melonx-present-pacing/checks.json)); the Present wiring is checked statically (no device here); a per-window "Present pacing over" line reports the real on-glass result. | **Adopted** (device line confirms) |
+| Texture synchronisation allocations | "texSync" 118–146 MiB per 5 s at transitions | −10 % per sync on the BC path the device uses, −18 % in a cold window, and +4–5 MiB per window in steady play | **Rejected** (gain small, steady-state regression) ([receipt](evidence/melonx-rejected-levers-650/texture-sync-allocations-checks.json)) |
+| GC latency / gen0 budget | 756 ms blocking gen2 in S2 | The app already sets DOTNET_GCgen0size 64 MiB (since IPA 621), so a Gen0MaxBudget of 64 MiB changes nothing; SustainedLowLatency within noise (no blocking gen2 in either) | **Rejected** ([receipt](evidence/melonx-rejected-levers-650/gc-latency-checks.json)) |
+
+Expected on the device: shorter freezes at scene transitions (the bindless share of the allocation burst gone) and
+33 ms steady pacing at 30 fps. Not measured on an iPhone; the next IPA's core-performance windows (bindings
+allocatedKiB, gcPauseMs) and "Present pacing over" lines measure it.

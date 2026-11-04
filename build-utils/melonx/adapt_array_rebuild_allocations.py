@@ -9,13 +9,15 @@ rebuilt whole (arrFullElems).
 Mechanism (measured on the real code, test/melonx_array_rebuild_allocations_test.py): a whole rebuild in
 TextureBindingsArrayCache (UpdateFromPool and UpdateFromBuffer) rents an ITexture[] and, for texture and sampler arrays,
 an ISampler[] of bindingInfo.ArrayLength elements from a scratch cache that keeps only lengths up to 4096. Pool-sized
-bindless arrays are 65536 to 524288 elements long, so both arrays are allocated anew on every rebuild (large object
-heap). With the threaded renderer, ThreadedTextureArray.SetSamplers/SetTextures and ThreadedImageArray.SetImages then
-copy each one into a private snapshot from ThreadedArrayPool, which also keeps only lengths up to 4096: two more
-allocations of the same size. A threaded rebuild of a 65536-element texture or sampler array allocates 2,097,248 bytes
-on the GPU thread (32 bytes per element; an image array 16), all in those four arrays; the per-element loop allocates
-nothing. Large-object-heap allocations count against the gen2 budget (with System.GC.ConserveMemory=5): 200 such
-rebuilds cause 65 gen2 collections in the host measurement.
+bindless arrays (ArrayLength is the pool's MaximumId + 1) are longer, so both arrays are allocated anew on every
+rebuild (large object heap). With the threaded renderer, ThreadedTextureArray.SetSamplers/SetTextures and
+ThreadedImageArray.SetImages then copy each one into a private snapshot from ThreadedArrayPool, which also keeps only
+lengths up to 4096: two more allocations of the same size. A threaded rebuild of a texture or sampler array allocates
+32 bytes per element on the GPU thread (an image array 16, direct rebuilds half that), all in those four arrays; the
+per-element loop allocates nothing. Large-object-heap allocations count against the gen2 budget (with
+System.GC.ConserveMemory=5): 200 such rebuilds cause 26-66 gen2 collections in the host measurement. The device logs
+do not give the array lengths: about 6.2 MiB per compute dispatch matches one threaded texture array of about 200000
+elements or three of 65536 (both measured).
 
 Change:
 - TextureBindingsArrayCache: the whole rebuilds rent and return their arrays through RentRebuildScratch and
@@ -24,26 +26,46 @@ Change:
   elements in all per type (8 MiB of reference slots), the most recently returned kept first; longer arrays are not
   kept. Every returned array is cleared first, as before, so a kept array never roots a texture or sampler. The delta
   runs (at most 4096 elements) keep their own cache unchanged.
-- ThreadedArrayPool: the same two bounded slots per element type (process-wide, under the pool's existing lock) for
-  snapshots longer than 4096: Copy takes a kept array of the exact length if one is free, Return clears it and keeps it
-  within the budget. Lengths up to 4096 are unchanged.
+- ThreadedArrayPool: eight bounded slots per element type (process-wide, under the pool's existing lock) for snapshots
+  longer than 4096, within the same 1,048,576-element budget: Copy takes a kept array of the exact length if one is
+  free, Return clears it and keeps it within the budget. Eight slots let a render thread lag up to eight rebuilds
+  behind the GPU thread and still find a kept snapshot. Lengths up to 4096 are unchanged.
 Nothing else changes: the arrays passed to every backend call have the same length and the same contents (a kept
-array is all null when lent, as a new one), the calls, their order, the recorded delta state, the texture sets and
-reference counts are those of the control (asserted on the real code with doubles).
+array is all null when lent, as a new one), the calls, their order, the recorded delta state, the buffer entries'
+texture and sampler ids, the texture sets and reference counts are those of the control (asserted on the real code
+with doubles).
 
 Measured effect (host, .NET 10 SDK 10.0.100, real cache/producers/commands/pool with doubles for pools, textures and
-backend, ConserveMemory=5; receipt dist/melonx/array-rebuild-allocations-checks.json), per whole rebuild of a
-65536-element array on the GPU thread: threaded texture 2,097,854 -> 0 bytes, threaded sampler 2,098,562 -> 32 (a
-sampler the pool double creates), threaded image 1,048,624 -> 0, direct texture 1,048,624 -> 0, direct image 524,900
--> 0 (byte counts stable across runs). 200 threaded texture rebuilds in a row: 400.1 MiB -> 0.1 MiB allocated, 63-66 ->
-0 gen2 collections, 57-132 -> 0 ms of GC pause (three runs; wall time, noisy on the host, falls by 15-45 %).
-Backend contents, call stream and recorded state identical in 48 scenarios, one mixed-length cache and the measures.
+backend, ConserveMemory=5; receipt dist/melonx/array-rebuild-allocations-checks.json), bytes allocated on the GPU
+thread per whole rebuild of a 65536-element array, control -> candidate: threaded texture 2,097,248 -> 0; threaded
+sampler about 2,097,300-2,099,200 -> 32 (a Sampler the pool double creates for the written element); threaded image
+about 1,048,600-1,049,200 -> 0; direct texture 1,048,624 -> 0; direct sampler about 1,048,700-1,050,000 -> 32; direct
+image 524,312 -> 0. In the control the whole-length arrays are exactly 32, 16 or 8 bytes per element (plus array
+headers) in every run; small allocations of up to about 2 KiB around them vary between runs. The candidate rows did
+not vary over four runs.
+Longer arrays (threaded texture): 200000 elements 6,400,096 -> 0, 524288 elements 16,777,312 -> 0, 1100000 elements
+about 35.2 MB -> about 35.2 MB (over the budget: no gain, as designed). One dispatch of three threaded texture arrays:
+3 x 65536 about 6,291,800 -> 0, 3 x 200000 19,200,288 -> 0. Buffer-handle rebuilds (UpdateFromBuffer) of 8000
+elements: threaded texture 256,096 -> 0, direct image 64,024 -> 0.
+Bursts of 200 threaded 65536-element texture rebuilds with the consumer draining every N rebuilds (one warm-up round
+at the same lag first), control -> candidate: N = 1, 2, 4, 8: about 400 MiB -> 0.1 MiB allocated, about 48-66 -> 0
+gen2 collections, about 40-130 -> 0 ms of GC pause; N = 16: about 400 -> 96 MiB, gen2 about 33-40 -> 7; N = 37: about
+400 -> 152 MiB, gen2 about 20-27 -> 7-8 (the GC pause also falls there, by a noisy amount; the host's gen2 counts and
+pauses vary between runs, the allocated MiB do not). Beyond eight snapshots in
+flight per element type only the cache-scratch half (16 of 32 bytes per element) and the snapshots that fit the slots
+are removed. Wall time is noisy on the host and is not claimed (per-rebuild and burst times move in both directions
+between runs).
+Backend contents, call stream and recorded state identical in 48 pool-path scenarios, 36 buffer-handle scenarios
+(failing lookups in the middle of a rebuild included), one mixed-length cache, every measure and every burst.
 The 4096-element limit on the existing caches was the cause: the device's pool-sized arrays never fit it.
 
 Limits: textures created by the pool lookups (FindOrCreateTexture), a new entry's per-element delta state and
-dictionaries, and the Vulkan backend's own work are not changed. Up to 8 MiB per element type stays allocated per
-TextureBindingsArrayCache (one per GPU channel) and in the threaded pool once a large array has been rebuilt; a
-threaded snapshot still in flight when the next rebuild starts is allocated as before. Not measured on an iPhone.
+dictionaries, and the Vulkan backend's own work are not changed. Arrays longer than 1,048,576 elements, or arrays of
+one element type whose lengths in flight together exceed that budget, are allocated as before. Up to 8 MiB per element
+type stays allocated per TextureBindingsArrayCache (one per GPU channel, freed with it) and in the process-wide
+threaded pool (ITexture and ISampler, not released by the Library teardown) once a large array has been rebuilt. A
+render thread lagging more than eight rebuilds behind still allocates the snapshots beyond eight. The device array
+lengths and render-thread lag are assumptions. Not measured on an iPhone.
 Fail closed on drift: each file must be the base preparation's.
 """
 import hashlib
@@ -85,7 +107,7 @@ SCRATCH_END = '''                cache[next] = scratch;
 '''
 
 CACHE_MEMBERS = '''
-        // RewindBox (adapt_array_rebuild_allocations): whole rebuilds of pool-sized arrays (65536 to 524288 elements)
+        // RewindBox (adapt_array_rebuild_allocations): whole rebuilds of pool-sized arrays (longer than 4096 elements)
         // allocated both arrays on every rebuild. Keep at most two longer arrays per element type, 1048576 elements in
         // all (8 MiB of reference slots), cleared like the others; longer arrays are not kept.
         private const int LargeBindingScratchSlots = 2;
@@ -157,10 +179,11 @@ CACHE_MEMBERS = '''
 '''
 
 POOL_MEMBERS = '''
-        // RewindBox (adapt_array_rebuild_allocations): snapshots of pool-sized arrays (65536 to 524288 elements) were
-        // allocated on every whole rebuild. Keep at most two longer ones per element type, 1048576 elements in all
-        // (8 MiB of reference slots), cleared like the others; longer ones are not kept.
-        private const int LargeSlots = 2;
+        // RewindBox (adapt_array_rebuild_allocations): snapshots of pool-sized arrays (longer than 4096 elements) were
+        // allocated on every whole rebuild. Keep at most eight longer ones per element type (a render thread lagging up
+        // to eight rebuilds behind still finds one), 1048576 elements in all (8 MiB of reference slots), cleared like the
+        // others; longer ones are not kept.
+        private const int LargeSlots = 8;
         private const int LargeBudget = 1 << 20;
         private static readonly T[][] LargeCache = new T[LargeSlots][];
 

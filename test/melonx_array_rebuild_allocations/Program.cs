@@ -10,11 +10,16 @@
 //   texture, sampler and image arrays, threaded and direct, at lengths below and above the 4096-element scratch limit;
 //   after every update the backend contents, the backend call stream, the store/synchronisation sets and the cache's
 //   recorded state (per-element delta state, texture set, reference counts) are digested;
+// - buffer-handle scenarios: the same, for arrays whose handles are read from a constant buffer (UpdateFromBuffer,
+//   combined and separate sampler handles, lengths 300 to 8000), with buffer-word rewrites and failing lookups;
 // - one cache with arrays of several large lengths (one over the retention budget) rebuilt in turn;
-// - the measurement: whole rebuilds of 65536-element arrays (pool of 65536, 4096 distinct textures), with
-//   GC.GetAllocatedBytesForCurrentThread read at the boundaries the doubles see (first and last pool lookup, each
-//   threaded command reservation or direct backend call, the pipeline binding, the return), and a burst of rebuilds
-//   with the GC collection counts and pause time.
+// - the measurement: whole rebuilds of 65536-element arrays (pool of 65536, 4096 distinct textures) of every kind,
+//   threaded and direct, then threaded texture arrays of 200000, 524288 and 1100000 elements (the last one over the
+//   retention budget), dispatches rebuilding three arrays of one element type, and buffer-handle rebuilds of 8000
+//   elements, with GC.GetAllocatedBytesForCurrentThread read at the boundaries the doubles see (first and last pool
+//   lookup, each threaded command reservation or direct backend call, the pipeline binding, the return);
+// - bursts of 200 threaded rebuilds with the render-thread consumer lagging behind by 1, 2, 4, 8, 16 and 37 rebuilds
+//   (the queue is drained only every N rebuilds), with the GC collection counts and pause time.
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -229,6 +234,37 @@ sealed class World
             ? new(target, 0, 0, length, 0, TextureHandle.PackOffsets(0, 0, TextureHandleType.Direct), flags, true)
             : new(target, new FormatInfo(format), 0, 0, length, 0, TextureHandle.PackOffsets(0, 0, TextureHandleType.Direct), flags);
 
+    // A handle array read from constant buffer 0 (handles at words 0, 2, 4, ...). Combined: the sampler id is in the
+    // high bits of each handle (SamplerIndex.Independently). Separate: one sampler handle at word 100 of buffer 1.
+    public static TextureBindingInfo BufferBinding(int length, Kind kind, bool separate, Target target = Target.Texture2D)
+    {
+        int handle = separate ? TextureHandle.PackOffsets(0, 100, TextureHandleType.SeparateSamplerHandle)
+                              : TextureHandle.PackOffsets(0, 0, TextureHandleType.CombinedSampler);
+        int slots = separate ? TextureHandle.PackSlots(0, 1) : 0;
+        return kind == Kind.Sampler
+            ? new(target, 0, 0, length, slots, handle, 0, true)
+            : new(target, new FormatInfo(0), 0, 0, length, slots, handle, 0);
+    }
+
+    public int[] Buffer(int slot) => Channel.MemoryManager.Physical.Buffers[slot];
+
+    public int RandomHandle() => Random.Next(Length) | (Random.Next(Math.Min(Length, 4096)) << 20);
+
+    public void FillHandles(int length, bool separate)
+    {
+        int[] words = Buffer(0);
+        for (int i = 0; i < length; i++) words[2 * i] = Random.Next(9) == 0 ? 0 : RandomHandle();
+        if (separate) Buffer(1)[100] = (1 + Random.Next(Math.Min(Length, 4096) - 1)) << 20;
+    }
+
+    public void UpdateBuffer(in TextureBindingInfo binding, Kind kind, bool drain = true)
+    {
+        Context.SequenceNumber++;
+        if (kind == Kind.Image) Cache.UpdateImageArray(Textures, ShaderStage.Compute, 0, 0, binding);
+        else Cache.UpdateTextureArray(Textures, Samplers, ShaderStage.Compute, 0, 0, SamplerIndex.Independently, binding);
+        if (drain) Threaded?.Drain();
+    }
+
     public void UpdateOnly(in TextureBindingInfo binding, Kind kind)
     {
         Context.SequenceNumber++;
@@ -244,12 +280,13 @@ sealed class World
 
     // A delta pass that fails on the lookup of a written element: the next update of the entry is a whole rebuild
     // (the entry is marked ForceRebuild), as after any failed update in production.
-    public void ForceRebuild(in TextureBindingInfo binding, Kind kind, int id)
+    public void ForceRebuild(in TextureBindingInfo binding, Kind kind, int id, bool drain = true)
     {
         if (kind == Kind.Sampler) { Samplers.Write(id, 1 + (Samplers.Keys[id] % LibrarySize)); Samplers.ThrowAt = id; }
         else { Textures.Write(id, 1 + (Textures.Keys[id] % LibrarySize)); Textures.ThrowAt = id; }
         bool threw = false;
-        try { Update(binding, kind); } catch (TestFailure) { threw = true; Threaded?.Drain(); }
+        try { if (drain) Update(binding, kind); else UpdateOnly(binding, kind); }
+        catch (TestFailure) { threw = true; if (drain) Threaded?.Drain(); }
         Textures.ThrowAt = Samplers.ThrowAt = -1;
         Check.That(threw, "the forcing delta pass reached the failing lookup");
         Textures.Touch(); Samplers.Touch();
@@ -352,6 +389,22 @@ sealed class World
                 foreach (KeyValuePair<Texture, int> item in references) text.Append(Describe(item.Key)).Append(':').Append(item.Value).Append(',');
             text.Append("}\n");
         }
+        object buffer = typeof(TextureBindingsArrayCache).GetField("_cacheFromBuffer", Any).GetValue(Cache);
+        foreach (object pair in (IEnumerable)buffer)
+        {
+            object entry = pair.GetType().GetProperty("Value").GetValue(pair);
+            Type type = entry.GetType();
+            text.Append("buffer{");
+            foreach (KeyValuePair<int, (Texture, TextureDescriptor)> item in (Dictionary<int, (Texture, TextureDescriptor)>)type.GetField("TextureIds", Any).GetValue(entry))
+                text.Append(item.Key).Append(':').Append(Describe(item.Value.Item1)).Append(':').Append(item.Value.Item2.Value).Append(',');
+            text.Append("}samplers{");
+            foreach (KeyValuePair<int, (Sampler, SamplerDescriptor)> item in (Dictionary<int, (Sampler, SamplerDescriptor)>)type.GetField("SamplerIds", Any).GetValue(entry))
+                text.Append(item.Key).Append(':').Append(Describe(item.Value.Item1)).Append(':').Append(item.Value.Item2.Value).Append(',');
+            text.Append("}Textures{");
+            foreach (KeyValuePair<Texture, int> item in (Dictionary<Texture, int>)type.GetField("Textures", Any).GetValue(entry))
+                text.Append(Describe(item.Key)).Append(':').Append(item.Value).Append(',');
+            text.Append("}\n");
+        }
         return text.ToString();
     }
 }
@@ -368,10 +421,10 @@ static class Program
 
     static long Total(PD.Counter counter) => PD.Totals[(int)counter];
 
-    static string Step(World w, in TextureBindingInfo binding, Kind kind)
+    static string Step(World w, in TextureBindingInfo binding, Kind kind, bool buffer = false)
     {
         foreach (Texture t in w.All) t.ResetStep();
-        w.Update(binding, kind);
+        if (buffer) w.UpdateBuffer(binding, kind); else w.Update(binding, kind);
         Check.That(w.Violations == 0, "a call reached a disposed texture");
         string synced = string.Join(",", w.All.Where(t => t.StepSynced).Select(t => t.SignalName).OrderBy(n => n, StringComparer.Ordinal));
         string signaled = string.Join(",", w.All.Where(t => t.StepSignaled).Select(t => t.SignalName).OrderBy(n => n, StringComparer.Ordinal));
@@ -425,6 +478,48 @@ static class Program
         return new { threaded, updates = order.Length, digest = Hash(string.Join(";", digests)), retention };
     }
 
+    // Handle arrays read from a constant buffer (UpdateFromBuffer): buffer words rewritten, pool mutations, a lookup
+    // that fails half-way through a rebuild (the arrays are returned by the finally block), quiet passes.
+    static object BufferScenario(bool threaded, Kind kind, bool separate, int length, int seed, int steps)
+    {
+        World w = new(8192, threaded, seed);
+        CallStream.Hash = 14695981039346656037UL; CallStream.Calls = 0;
+        TextureBindingInfo binding = World.BufferBinding(length, kind, separate);
+        w.FillHandles(length, separate);
+        List<string> digests = new();
+        long buffer0 = Total(PD.Counter.ArrayBufferElements);
+        int failures = 0;
+        for (int step = 0; step < steps; step++)
+        {
+            if (step != 0)
+            {
+                w.Mutate(w.Random.Next(4));
+                for (int i = w.Random.Next(step % 3 == 0 ? 0 : 5); i > 0; i--) w.Buffer(0)[2 * w.Random.Next(length)] = w.RandomHandle();
+                if (separate && step % 5 == 2) w.Buffer(1)[100] = (1 + w.Random.Next(4095)) << 20;
+            }
+            if (step % 6 == 4)
+            {
+                // A failing lookup during a rebuild: the next pass rebuilds again from the rewritten word.
+                int index = w.Random.Next(length);
+                int word = w.RandomHandle();
+                w.Buffer(0)[2 * index] = word;
+                w.Textures.ThrowAt = word & 0xfffff;
+                bool threw = false;
+                try { w.UpdateBuffer(binding, kind); } catch (TestFailure) { threw = true; w.Threaded?.Drain(); }
+                w.Textures.ThrowAt = -1;
+                Check.That(threw, "the failing buffer rebuild reached the failing lookup");
+                failures++;
+                w.Buffer(0)[2 * index] = w.RandomHandle();
+            }
+            digests.Add(Step(w, binding, kind, buffer: true));
+        }
+        w.Threaded?.Dispose();
+        long elements = Total(PD.Counter.ArrayBufferElements) - buffer0;
+        Check.That(elements >= (long)length * (steps / 2), "buffer scenarios rebuild");
+        return new { threaded, kind = kind.ToString(), separate, length, seed, steps, failures, bufferElements = elements,
+                     digest = Hash(string.Join(";", digests)) };
+    }
+
     // What the cache and the threaded pools retain between updates (the candidate's bounded large slots).
     static object Retention(TextureBindingsArrayCache cache)
     {
@@ -450,31 +545,50 @@ static class Program
         return slots;
     }
 
-    // Whole rebuilds of an existing entry with the observed shape: a pool-sized array (65536), 4096 distinct textures.
-    static object Measure(bool threaded, Kind kind, int length)
+    // Whole rebuilds of existing entries: "arrays" arrays of one element type rebuilt in one dispatch (distinct targets,
+    // so distinct entries), then the threaded queue drained, as when the render thread keeps up with the dispatch.
+    // Pool path: pool-sized arrays, 4096 distinct textures, each entry forced to a whole rebuild beforehand. Buffer path
+    // (UpdateFromBuffer): one handle word rewritten before each dispatch, which makes the next pass a whole rebuild.
+    static readonly Target[] DispatchTargets = { Target.Texture2D, Target.Texture2DArray, Target.Cubemap };
+
+    static object Measure(bool threaded, Kind kind, int length, int arrays = 1, bool buffer = false)
     {
-        World w = new(length, threaded, 3, librarySize: 4096);
-        TextureBindingInfo binding = World.Binding(length, kind);
-        w.Update(binding, kind);
+        World w = new(buffer ? 8192 : length, threaded, 3, librarySize: 4096);
+        CallStream.Hash = 14695981039346656037UL; CallStream.Calls = 0;
+        TextureBindingInfo[] bindings = new TextureBindingInfo[arrays];
+        for (int a = 0; a < arrays; a++)
+            bindings[a] = buffer ? World.BufferBinding(length, kind, false, DispatchTargets[a]) : World.Binding(length, kind, 0, 0, DispatchTargets[a]);
+        if (buffer) w.FillHandles(length, false);
+        for (int a = 0; a < arrays; a++)
+        {
+            if (buffer) w.UpdateBuffer(bindings[a], kind); else w.Update(bindings[a], kind);
+        }
         const int Warmup = 3, Updates = 12;
+        PD.Counter counter = buffer ? PD.Counter.ArrayBufferElements : PD.Counter.ArrayFullElements;
         Dictionary<string, long> segments = new();
         List<string> order = new();
         long bytes = 0, consumer = 0, ticks = 0, lookups = 0;
+        int[] toggle = { w.RandomHandle(), w.RandomHandle() };
         for (int u = 0; u < Warmup + Updates; u++)
         {
-            w.ForceRebuild(binding, kind, (u * 7919) % length);
-            long full0 = Total(PD.Counter.ArrayFullElements);
+            if (buffer) w.Buffer(0)[2 * ((u * 7919) % length)] = toggle[u & 1];
+            else for (int a = 0; a < arrays; a++) w.ForceRebuild(bindings[a], kind, (u * 7919 + a * 104729) % length);
+            long full0 = Total(counter);
             w.Context.SequenceNumber++;
             Probe.Begin();
             long start = Stopwatch.GetTimestamp();
-            if (kind == Kind.Image) w.Cache.UpdateImageArray(w.Textures, ShaderStage.Compute, 0, 0, binding);
-            else w.Cache.UpdateTextureArray(w.Textures, w.Samplers, ShaderStage.Compute, 0, 0, SamplerIndex.ViaHeaderIndex, binding);
+            for (int a = 0; a < arrays; a++)
+            {
+                if (kind == Kind.Image) w.Cache.UpdateImageArray(w.Textures, ShaderStage.Compute, 0, 0, bindings[a]);
+                else w.Cache.UpdateTextureArray(w.Textures, w.Samplers, ShaderStage.Compute, 0, 0,
+                                                buffer ? SamplerIndex.Independently : SamplerIndex.ViaHeaderIndex, bindings[a]);
+            }
             long elapsed = Stopwatch.GetTimestamp() - start;
             Probe.End();
             long drain0 = GC.GetAllocatedBytesForCurrentThread();
             w.Threaded?.Drain();
             long drained = GC.GetAllocatedBytesForCurrentThread() - drain0;
-            Check.That(Total(PD.Counter.ArrayFullElements) - full0 == length, "the measured update is a whole rebuild");
+            Check.That(Total(counter) - full0 == (long)length * arrays, "every measured update is a whole rebuild");
             if (u < Warmup) continue;
             ticks += elapsed; consumer += drained; lookups += Probe.Lookups;
             bytes += Probe.Bytes[Probe.Count - 1] - Probe.Bytes[0];
@@ -485,14 +599,15 @@ static class Program
                 segments[name] += Probe.Bytes[i] - Probe.Bytes[i - 1];
             }
         }
-        string digest = Hash(w.Contents() + "#" + w.CacheState());
+        // The backend contents, the recorded state and the backend call stream of every measured rebuild.
+        string digest = Hash(w.Contents() + "#" + w.CacheState() + "#" + CallStream.Hash + "/" + CallStream.Calls);
         object retention = Retention(w.Cache);
         w.Threaded?.Dispose();
         return new
         {
-            threaded, kind = kind.ToString(), length,
+            threaded, kind = kind.ToString(), length, arrays, path = buffer ? "buffer" : "pool",
             bytesPerRebuild = bytes / Updates,
-            bytesPerElement = Math.Round(bytes / (double)Updates / length, 2),
+            bytesPerElement = Math.Round(bytes / (double)Updates / length / arrays, 2),
             consumerBytesPerRebuild = consumer / Updates,
             lookupsPerRebuild = lookups / Updates,
             microsecondsPerRebuild = Math.Round(ticks * 1e6 / Stopwatch.Frequency / Updates, 1),
@@ -501,29 +616,46 @@ static class Program
         };
     }
 
-    // A burst of whole rebuilds (threaded texture arrays of 65536), as in a scene transition: GC count and pause.
-    static object Burst(int rebuilds)
+    // A burst of whole rebuilds (threaded texture arrays of 65536), as in a scene transition: GC count and pause. The
+    // render-thread double consumes the queue only every "drainEvery" rebuilds, so up to that many snapshots per element
+    // type are in flight at once (the device's render thread runs asynchronously and can lag behind a burst).
+    static object Burst(int rebuilds, int drainEvery)
     {
         World w = new(65536, true, 5, librarySize: 4096);
+        CallStream.Hash = 14695981039346656037UL; CallStream.Calls = 0;
         TextureBindingInfo binding = World.Binding(65536, Kind.Texture);
         w.Update(binding, Kind.Texture);
+        // One warm-up round at the same lag: the kept slots fill once (the first lagging round allocates), as they do
+        // on the device after the first burst; the measured burst is the steady state.
+        for (int i = 0; i < drainEvery; i++)
+        {
+            w.ForceRebuild(binding, Kind.Texture, (i * 7919) % 65536, drain: false);
+            w.UpdateOnly(binding, Kind.Texture);
+        }
+        w.Threaded.Drain();
         GC.Collect(); GC.WaitForPendingFinalizers(); GC.Collect();
         int g0 = GC.CollectionCount(0), g1 = GC.CollectionCount(1), g2 = GC.CollectionCount(2);
         TimeSpan pause0 = GC.GetTotalPauseDuration();
         long allocated0 = GC.GetTotalAllocatedBytes(true);
         long start = Stopwatch.GetTimestamp();
+        long full0 = Total(PD.Counter.ArrayFullElements);
         for (int i = 0; i < rebuilds; i++)
         {
-            w.ForceRebuild(binding, Kind.Texture, (i * 104729) % 65536);
-            w.Update(binding, Kind.Texture);
+            w.ForceRebuild(binding, Kind.Texture, (i * 104729) % 65536, drain: false);
+            w.UpdateOnly(binding, Kind.Texture);
+            if ((i + 1) % drainEvery == 0) w.Threaded.Drain();
         }
+        w.Threaded.Drain();
         double seconds = (Stopwatch.GetTimestamp() - start) / (double)Stopwatch.Frequency;
+        Check.That(Total(PD.Counter.ArrayFullElements) - full0 == (long)rebuilds * 65536, "every burst update rebuilds");
+        double allocatedMiB = Math.Round((GC.GetTotalAllocatedBytes(true) - allocated0) / 1048576.0, 1);
+        int gen0 = GC.CollectionCount(0) - g0, gen1 = GC.CollectionCount(1) - g1, gen2 = GC.CollectionCount(2) - g2;
+        double pauseMs = Math.Round((GC.GetTotalPauseDuration() - pause0).TotalMilliseconds, 1);
+        // Read after the counters: the digest itself allocates.
+        string digest = Hash(w.Contents() + "#" + w.CacheState() + "#" + CallStream.Hash + "/" + CallStream.Calls);
         object result = new
         {
-            rebuilds,
-            allocatedMiB = Math.Round((GC.GetTotalAllocatedBytes(true) - allocated0) / 1048576.0, 1),
-            gen0 = GC.CollectionCount(0) - g0, gen1 = GC.CollectionCount(1) - g1, gen2 = GC.CollectionCount(2) - g2,
-            pauseMs = Math.Round((GC.GetTotalPauseDuration() - pause0).TotalMilliseconds, 1),
+            rebuilds, drainEvery, digest, allocatedMiB, gen0, gen1, gen2, pauseMs,
             wallMs = Math.Round(seconds * 1000, 1),
         };
         w.Threaded?.Dispose();
@@ -543,15 +675,32 @@ static class Program
                         int format = kind != Kind.Sampler && seed == 2 ? 2 : 0;
                         scenarios.Add(Scenario(threaded, kind, store, resScale, length, format, seed * 31 + length, length > 5000 ? 10 : 30));
                     }
+        List<object> bufferScenarios = new();
+        foreach (bool threaded in new[] { true, false })
+            foreach (Kind kind in new[] { Kind.Texture, Kind.Sampler, Kind.Image })
+                foreach (int length in new[] { 300, 5000, 8000 })
+                    foreach (bool separate in new[] { false, true })
+                        bufferScenarios.Add(BufferScenario(threaded, kind, separate, length, 7 * length + (separate ? 1 : 0), 14));
         List<object> mixed = new() { MixedLengths(true), MixedLengths(false) };
         List<object> measures = new();
         foreach (bool threaded in new[] { true, false })
             foreach (Kind kind in new[] { Kind.Texture, Kind.Sampler, Kind.Image })
                 measures.Add(Measure(threaded, kind, 65536));
-        object burst = Burst(200);
+        // Array lengths are an assumption (the device logs give elements per window, not per array): pool-sized arrays of
+        // about 200000 (6.2 MiB per compute dispatch as one threaded texture array), 524288 and one over the budget.
+        foreach (int length in new[] { 200000, 524288, 1100000 })
+            measures.Add(Measure(true, Kind.Texture, length));
+        // A dispatch rebuilding three arrays of one element type (three 65536 arrays also make about 6 MiB).
+        measures.Add(Measure(true, Kind.Texture, 65536, arrays: 3));
+        measures.Add(Measure(true, Kind.Texture, 200000, arrays: 3));
+        // Handle arrays read from a constant buffer (UpdateFromBuffer).
+        measures.Add(Measure(true, Kind.Texture, 8000, buffer: true));
+        measures.Add(Measure(false, Kind.Image, 8000, buffer: true));
+        List<object> bursts = new();
+        foreach (int drainEvery in new[] { 1, 2, 4, 8, 16, 37 }) bursts.Add(Burst(200, drainEvery));
         Console.WriteLine(JsonSerializer.Serialize(new
         {
-            adapted = Adapted, checks = Check.Count, scenarios, mixed, measures, burst,
+            adapted = Adapted, checks = Check.Count, scenarios, bufferScenarios, mixed, measures, bursts,
             gcSettings = new { conserveMemory = AppContext.GetData("System.GC.ConserveMemory")?.ToString(), server = System.Runtime.GCSettings.IsServerGC },
         }));
     }
@@ -723,16 +872,25 @@ namespace Ryujinx.Graphics.Gpu
 namespace Ryujinx.Graphics.Gpu.Memory
 {
     readonly record struct TestRange(int Slot);
-    struct BufferBounds { public TestRange Range; }
+    // Equatable, as the production BufferBounds: the buffer-entry key compares and hashes it without boxing.
+    readonly struct BufferBounds : IEquatable<BufferBounds>
+    {
+        public BufferBounds(TestRange range) => Range = range;
+        public TestRange Range { get; }
+        public bool Equals(BufferBounds other) => Range == other.Range;
+        public override bool Equals(object obj) => obj is BufferBounds other && Equals(other);
+        public override int GetHashCode() => Range.GetHashCode();
+    }
     sealed class TestMemoryManager { public readonly TestPhysicalMemory Physical = new(); }
     sealed class TestPhysicalMemory
     {
-        public readonly int[][] Buffers = { new int[1024], new int[1024] };
+        // 16384 words: a handle array of up to 8191 elements fits in one buffer.
+        public readonly int[][] Buffers = { new int[16384], new int[16384] };
         public ReadOnlySpan<byte> GetSpan(TestRange range) => MemoryMarshal.AsBytes(Buffers[range.Slot].AsSpan());
     }
     sealed class TestBufferManager
     {
-        readonly BufferBounds[] _bounds = { new() { Range = new(0) }, new() { Range = new(1) } };
+        readonly BufferBounds[] _bounds = { new(new TestRange(0)), new(new TestRange(1)) };
         public int StorageBindings;
         public ref BufferBounds GetUniformBufferBounds(bool compute, int stage, int index) => ref _bounds[index];
         public void SetBufferTextureStorage(ShaderStage stage, ITextureArray array, ITexture texture, TestRange range, TextureBindingInfo binding, int index) => StorageBindings++;

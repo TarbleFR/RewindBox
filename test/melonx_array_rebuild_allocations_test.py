@@ -8,15 +8,21 @@ Applies the adapter to a copy of the base preparation and builds the production 
 Ryujinx.Graphics.GAL) for the control and the candidate. Static checks bind that the candidate is the control plus
 exactly the adapter's edits (reversed through melonx_adapter_control), that only the two whole rebuilds use the new
 helpers (the delta runs keep their cache), that lengths up to 4096 still go to the unchanged scratch cache and pool,
-that every kept array is cleared and that the large slots are bounded (2 slots, 1048576 elements per element type).
+that every kept array is cleared and that the large slots are bounded (cache: 2 slots, pool: 8 slots, 1048576 elements
+per element type).
 Behaviour and measurement (test/melonx_array_rebuild_allocations/Program.cs): the REAL TextureBindingsArrayCache,
 threaded producers, commands and ThreadedArrayPool of each variant run with doubles for pools, textures and backend.
-48 random scenarios (texture, sampler and image arrays, threaded and direct, 70 to 65536 elements, forced rebuilds
-included) and one cache rebuilding arrays of 4096 to 2,000,000 elements in turn must give identical digests of the
-backend contents, the backend call stream, the store/synchronisation sets and the cache's recorded state (per-element
-delta state, texture set and sequences, reference counts) for both variants. Then the allocated bytes of whole rebuilds
-of 65536-element arrays are read with GC.GetAllocatedBytesForCurrentThread at the boundaries the doubles see, and a
-burst of 200 threaded rebuilds is timed with its GC collections (System.GC.ConserveMemory=5 as published). No device.
+48 random pool-path scenarios (texture, sampler and image arrays, threaded and direct, 70 to 65536 elements, forced
+rebuilds included), 36 buffer-handle scenarios (UpdateFromBuffer: combined and separate sampler handles, 300 to 8000
+elements, buffer rewrites and lookups failing in the middle of a rebuild) and one cache rebuilding arrays of 4096 to
+2,000,000 elements in turn must give identical digests of the backend contents, the backend call stream, the
+store/synchronisation sets and the cache's recorded state (per-element delta state, texture set and sequences, reference
+counts, buffer-entry texture and sampler ids) for both variants. Then the allocated bytes of whole rebuilds are read
+with GC.GetAllocatedBytesForCurrentThread at the boundaries the doubles see: every kind at 65536 elements, threaded
+texture arrays of 200000, 524288 and 1100000 elements (the last over the budget: no gain expected), dispatches of three
+arrays of one element type, and buffer-handle rebuilds; the measured digests include the backend call stream. Bursts of
+200 threaded rebuilds run with the consumer draining the queue every 1, 2, 4, 8, 16 and 37 rebuilds and are timed with
+their GC collections (System.GC.ConserveMemory=5 as published). No device; the device array lengths are an assumption.
 Writes dist/melonx/array-rebuild-allocations-checks.json.
 """
 from pathlib import Path
@@ -168,7 +174,7 @@ check('else if (length > MaximumLength && length <= LargeBudget)' in copy and co
       'LargeCache[i] = null;' in copy and 'new ReadOnlySpan<T>(source).CopyTo(snapshot);' in copy, 'large snapshots taken under the lock')
 check(back.index('snapshot.Length > LargeBudget') < back.index('Array.Clear(snapshot);') < back.index('lock (Cache)') <
       back.index('KeepLarge(snapshot);'), 'large snapshots cleared before they are kept')
-check('private const int LargeSlots = 2;' in pool and 'private const int LargeBudget = 1 << 20;' in pool and
+check('private const int LargeSlots = 8;' in pool and 'private const int LargeBudget = 1 << 20;' in pool and
       'private const int MaximumLength = 4096;' in pool and 'private const int CacheSlots = 8;' in pool, 'pool bounds')
 
 # Behaviour: identical digests.
@@ -180,11 +186,22 @@ for old, new in zip(control['scenarios'], candidate['scenarios'], strict=True):
     check({k: v for k, v in old.items() if k != 'digest'} == {k: v for k, v in new.items() if k != 'digest'}, 'scenario pairing')
     check(old['digest'] == new['digest'], 'backend contents, calls, synchronisation or recorded state differ: ' + json.dumps(new))
 check(sum(s['fullElements'] for s in candidate['scenarios']) > 0, 'scenarios include whole rebuilds')
+check(len(control['bufferScenarios']) == len(candidate['bufferScenarios']) == 36, 'buffer scenario inventory')
+for old, new in zip(control['bufferScenarios'], candidate['bufferScenarios'], strict=True):
+    check({k: v for k, v in old.items() if k != 'digest'} == {k: v for k, v in new.items() if k != 'digest'}, 'buffer scenario pairing')
+    check(old['digest'] == new['digest'], 'buffer path: backend contents, calls or recorded state differ: ' + json.dumps(new))
+check(sum(s['failures'] for s in candidate['bufferScenarios']) > 0 and
+      any(s['length'] > 4096 for s in candidate['bufferScenarios']), 'buffer scenarios cover large arrays and failing rebuilds')
 for old, new in zip(control['mixed'], candidate['mixed'], strict=True):
     check(old['digest'] == new['digest'] and old['updates'] == new['updates'] == 24, 'mixed lengths identical: ' + json.dumps(new)[:400])
 for old, new in zip(control['measures'], candidate['measures'], strict=True):
-    check(old['digest'] == new['digest'] and old['lookupsPerRebuild'] == new['lookupsPerRebuild'] == 65536,
-          'measured rebuilds identical: ' + new['kind'])
+    check({k: old[k] for k in ('threaded', 'kind', 'length', 'arrays', 'path')} ==
+          {k: new[k] for k in ('threaded', 'kind', 'length', 'arrays', 'path')}, 'measure pairing')
+    check(old['digest'] == new['digest'] and old['lookupsPerRebuild'] == new['lookupsPerRebuild'] >= old['length'] * old['arrays'],
+          'measured rebuilds identical (contents, recorded state, call stream): ' + json.dumps({k: new[k] for k in ('kind', 'length', 'arrays', 'path')}))
+check(sorted({(m['length'], m['arrays'], m['path']) for m in candidate['measures']}) ==
+      [(8000, 1, 'buffer'), (65536, 1, 'pool'), (65536, 3, 'pool'), (200000, 1, 'pool'), (200000, 3, 'pool'),
+       (524288, 1, 'pool'), (1100000, 1, 'pool')], 'measured shapes')
 
 # Retention: control has no large slot; the candidate's are bounded and never hold a resource.
 for report in control['mixed'] + control['measures']:
@@ -192,30 +209,50 @@ for report in control['mixed'] + control['measures']:
           'control has no large slots')
 for report in candidate['mixed'] + candidate['measures']:
     large = [s for s in report['retention'] if s['field'] in ('LargeCache', '_largeTextureBindingScratch', '_largeSamplerBindingScratch')]
-    check(len(large) == 4 and all(s['slots'] == 2 and s['retained'] <= 2 and s['elements'] <= 1 << 20 for s in large),
-          'large slots bounded: ' + json.dumps(large))
+    check(len(large) == 4 and all(s['slots'] == (8 if s['field'] == 'LargeCache' else 2) and s['retained'] <= s['slots'] and
+                                  s['elements'] <= 1 << 20 for s in large), 'large slots bounded: ' + json.dumps(large))
     check(all(s['live'] == 0 for s in report['retention']), 'kept arrays hold no texture or sampler')
 
 # Measurement.
 rows = []
 for old, new in zip(control['measures'], candidate['measures'], strict=True):
     per_element = 32 if old['kind'] != 'Image' and old['threaded'] else 16 if old['kind'] != 'Image' or old['threaded'] else 8
-    check(old['bytesPerRebuild'] >= per_element * 65536, 'control allocates the whole-length arrays: ' + json.dumps(old)[:300])
-    check(new['bytesPerRebuild'] <= 256, 'candidate allocates nothing per element: ' + json.dumps(new)[:300])
-    rows.append(dict(threaded=old['threaded'], kind=old['kind'], length=old['length'],
+    elements = old['length'] * old['arrays']
+    check(old['bytesPerRebuild'] >= per_element * elements, 'control allocates the whole-length arrays: ' + json.dumps(old)[:300])
+    if old['length'] > 1 << 20:
+        # Over the retention budget: nothing is kept, as stated.
+        check(new['bytesPerRebuild'] >= per_element * elements, 'over-budget arrays are not kept: ' + json.dumps(new)[:300])
+    else:
+        check(new['bytesPerRebuild'] <= 256, 'candidate allocates nothing per element: ' + json.dumps(new)[:300])
+    rows.append(dict(threaded=old['threaded'], kind=old['kind'], length=old['length'], arrays=old['arrays'], path=old['path'],
                      controlBytesPerRebuild=old['bytesPerRebuild'], candidateBytesPerRebuild=new['bytesPerRebuild'],
                      controlBytesPerElement=old['bytesPerElement'], candidateBytesPerElement=new['bytesPerElement'],
                      controlMicroseconds=old['microsecondsPerRebuild'], candidateMicroseconds=new['microsecondsPerRebuild'],
                      controlAllocatingSegments={s['segment']: s['bytesPerRebuild'] for s in old['segments'] if s['bytesPerRebuild']},
                      candidateAllocatingSegments={s['segment']: s['bytesPerRebuild'] for s in new['segments'] if s['bytesPerRebuild']}))
-check(control['burst']['gen2'] > 0 and candidate['burst']['gen2'] == 0 and
-      candidate['burst']['allocatedMiB'] * 100 < control['burst']['allocatedMiB'], 'burst: no gen2 collection, allocations cut by 100x')
+# Render-thread lag: the consumer drains every N rebuilds. Up to 8 snapshots per element type in flight are served from
+# the kept slots; beyond that the cache-scratch half (16 of 32 bytes per element) is still removed.
+bursts = []
+check([b['drainEvery'] for b in control['bursts']] == [b['drainEvery'] for b in candidate['bursts']] == [1, 2, 4, 8, 16, 37],
+      'burst cadences')
+for old, new in zip(control['bursts'], candidate['bursts'], strict=True):
+    check(old['digest'] == new['digest'], 'burst results identical at drainEvery=' + str(old['drainEvery']))
+    check(old['gen2'] > 0, 'control burst collects gen2 at drainEvery=' + str(old['drainEvery']))
+    check(new['allocatedMiB'] <= old['allocatedMiB'] * 0.5 + 1, 'scratch half removed at any lag: ' + json.dumps(new))
+    if old['drainEvery'] <= 8:
+        check(new['allocatedMiB'] * 100 < old['allocatedMiB'] and new['gen2'] == 0,
+              'lag up to 8: allocations cut by 100x, no gen2: ' + json.dumps(new))
+    bursts.append(dict(drainEvery=old['drainEvery'], control={k: v for k, v in old.items() if k != 'digest'},
+                       candidate={k: v for k, v in new.items() if k != 'digest'},
+                       allocatedCut=round(1 - new['allocatedMiB'] / old['allocatedMiB'], 3)))
 
 inputs = ['build-utils/melonx/adapt_array_rebuild_allocations.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_array_rebuild_allocations_test.py', 'test/melonx_array_rebuild_allocations/Program.cs',
           'test/melonx_adapter_control.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
-measurements = dict(rebuilds=rows, burst=dict(control=control['burst'], candidate=candidate['burst']))
+measurements = dict(rebuilds=rows, bursts=bursts,
+                    assumption='Device array lengths are not in the logs (they give elements per 5 s window); 65536, '
+                               '200000, 524288 and 1100000 elements and three arrays per dispatch are assumed shapes.')
 receipt = dict(result='passed', checks=checks, programChecks=dict(control=control['checks'], candidate=candidate['checks']),
                measurements=measurements, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'basePreparation',
@@ -225,17 +262,19 @@ receipt = dict(result='passed', checks=checks, programChecks=dict(control=contro
                inputs={p: sha(ROOT / p) for p in inputs},
                limitation='Removes the per-rebuild allocation of the whole-length arrays of large bindless rebuilds on the GPU '
                           'thread (cache scratch and threaded snapshots); measured on the host with doubles for pools, textures '
-                          'and backend. Texture creation by pool lookups, a new entry\'s delta state, the Vulkan backend and a '
-                          'threaded snapshot still in flight beyond two are unchanged. The share of the device\'s scene-transition '
+                          'and backend. Texture creation by pool lookups, a new entry\'s delta state, the Vulkan backend, arrays '
+                          'longer than 1048576 elements and threaded snapshots in flight beyond eight per element type are '
+                          'unchanged. Device array lengths and render-thread lag are assumptions. The share of the device\'s scene-transition '
                           'allocations and GC pauses this removes is known only from a device run (bindings allocatedKiB, gcPause).')
 out = ROOT / 'dist/melonx/array-rebuild-allocations-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(json.dumps(receipt, indent=2) + '\n')
 for row in rows:
-    print(f"{'threaded' if row['threaded'] else 'direct  '} {row['kind']:<7} {row['length']}: "
+    print(f"{'threaded' if row['threaded'] else 'direct  '} {row['kind']:<7} {row['path']} {row['arrays']}x{row['length']}: "
           f"{row['controlBytesPerRebuild']} -> {row['candidateBytesPerRebuild']} bytes per rebuild "
           f"({row['controlBytesPerElement']} -> {row['candidateBytesPerElement']} per element), "
           f"{row['controlMicroseconds']} -> {row['candidateMicroseconds']} us")
-print('burst of 200 threaded 65536-element texture rebuilds: control ' + json.dumps(control['burst']) +
-      '; candidate ' + json.dumps(candidate['burst']))
+for burst in bursts:
+    print(f"burst of 200 threaded 65536 texture rebuilds, drained every {burst['drainEvery']}: control "
+          + json.dumps(burst['control']) + '; candidate ' + json.dumps(burst['candidate']))
 print(json.dumps(dict(result='passed', checks=checks, sdk=sdk)))
