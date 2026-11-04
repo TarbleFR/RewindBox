@@ -364,3 +364,35 @@ Not shown, needs the device: that the black launch and the dark single frames di
 come from. One run of a build containing both adapters, Hogwarts from a cold launch without opening the menu, with a
 recording of the launch and of cutscenes, plus the "Present source" lines and the DMA summary ("copied into receivers",
 "unreceivable").
+
+### IPA 643 follow-up: screen recording, the black launch and the endless close (4 November 2026)
+
+Input: the maintainer's `app.log` of IPA 643 (sessions 13:20–13:25 UTC: Hogwarts pid 7170, SSBU pids 7170, 7187, 7197,
+7211; no native MeloNX log for them), the 640 and 643 native logs above, and the maintainer's observations ("starting
+a screen recording ends the black screen", "closing with the recording running loads forever", "the 3D scene starts
+only after the pause and the return to the game"). Private, not in the repository.
+
+| Question | Finding | Disposition |
+|---|---|---|
+| What does a screen recording change? | Nothing in RewindBox reads the capture state (no `isCaptured`, no ReplayKit). Starting a recording goes through Control Center: `willResignActive` → `MeloNXMetalSessionViewController.setPause("application")` → `host.setPaused` → `Horizon.TogglePauseEmulation` (application threads, guest tick source and audio renderer suspended, render loop parked) → `didBecomeActive` → resume. That is the same pause as the MeloNX menu. | RewindBox behaviour, correct: it unblocks the black launch, it does not cause it. |
+| Black launch: display or game? | Game. 640 `53DAD35F` t = 29–47 s and 643 `CBDD62E9` t = 26–35 s: 30 presents/s of a near-empty frame (≈ 22 draws, 6 clears, 1 dispatch, no `TextureSetData`, no NVDEC/VIC thread), Wwise `AK::EventManager` busy (sound plays), `<MainThread>` steady at 16–17 %, `AK::BankManager` idle. After a pause of 2 s (640) or 4 s (643) and the return, `AK::BankManager` runs within 0–4 s and the 3D scene renders (≈ 480 draws/frame). A 1 s menu pause in 643 did not end it. The "sound ahead of the picture" is the game playing its loading audio while it waits. | Not a presentation, NVDEC, DMA read-back or audio-pacing defect (all checked); a guest wait released by the pause. Which thread waits on what is unknown: smallest instrumentation below. |
+| Close that never ends | Not caused by the recording: Hogwarts closed in 3 s while recording (12:16:23 UTC); SSBU closed in 30.5 s on 2 Nov without one, 8.4 s and 4 s on 4 Nov, and twice hung > 15 s and > 27 s until killed. Early SSBU closes are the slow ones, while its single background pipeline worker is busy (empty pipeline cache after MoltenVK 1.4.2). `VulkanRenderer.Dispose` waits for every program's queued pipeline compiles before `BackgroundCompilationScheduler.Dispose` cancels the rest (only cache warm-ups were cancelled, build 572). | Defect established, corrected. |
+
+Correction, `build-utils/melonx/adapt_teardown_compile_cancel.py` (VulkanRenderer.cs, ShaderCollection.cs,
+BackgroundCompilationScheduler.cs of Core 642): after the warm-up cancellation, the renderer cancels every compile no
+worker has taken (both queues, demanded included: the render loop has drained) and joins the running ones, then waits
+for each program; cancellations are not logged as failures; one durable Core line `gpuTeardown` gives the cancelled
+compiles and the time of each teardown phase. Proof, `test/melonx_teardown_compile_cancel_test.py` (production Vulkan
+assembly for control and candidate; real scheduler, teardown prefix and ShaderCollection methods with a 20 ms compile
+double): the 643 SSBU case closes in 4.3 s compiling all 200 queued pipelines in the control, and in 0.21 s (the
+0.2 s the running compile was held) compiling none in the candidate; nothing is released while a worker runs; demanded work and queued shader
+modules are cancelled; work scheduled after close is refused.
+
+Instrumentation, `build-utils/melonx/adapt_pause_guest_threads.py` (Horizon.cs, KProcess.cs): before the first 3 host
+pauses of a session suspend the game, every application thread (≤ 64) is logged with its scheduling state, wait kind,
+cores and time since it last ran, and one durable Core line `guestThreads` names the threads able to run that no core
+ran for 500 ms or more and the longest waits. Read under the kernel monitor without entering the critical section: no
+thread selection, no state change. Proof, `test/melonx_pause_guest_threads_test.py`.
+
+Needed from the device (a build with both adapters): Hogwarts cold launch, wait in the black screen, open the MeloNX
+menu, return; then close SSBU early. Send `MeloNX-core.log` (`guestThreads`, `gpuTeardown`) and `MeloNX-stderr.log`.
