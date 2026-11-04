@@ -106,6 +106,25 @@ Deviations, all imposed by the device and measured by the verifier:
 - the boards show console wordmarks (e.g. "Wii"), so these packs are labelled
   "console names and marks belong to their owners", not "third-party marks excluded".
 
+### Sticks: only the top face moves (GameCube/Wii Originals, 4 November)
+
+On the maintainer's iPhone (recording of 21:31, the corrected PR157 archive installed), the
+moving cap was the whole cap: a centred disk of 1.12 × its measured radius took the skirt
+and part of the socket with it ("too wide, moves with a texture of the controller"), and the
+yellow C-stick moved with its yellow base. The boards draw these caps in 3D: a top face
+above a skirt, the top face 4–8 board px above the cap centre and smaller. Each
+GameCube/Wii stick now declares its top face, measured on the board as a luminance boundary
+with a least-squares circle (90 % residual 1.2–2.3 px;
+`docs/evidence/pocket-originals/stick-top/board-top-faces-*.png`).
+- The knob is that face only (+0.6 px edge), and the stick's frame (touch, vector and cap
+  travel) is centred on it.
+- The skirt stays in the socket sprite. Under the moving top, `top_fill` paints the skirt's
+  own colour as one smooth gradient, with no per-angle bins and so no streaks.
+
+The PS2 Original's caps are domes seen from above and keep the whole-cap knob (their archive
+is byte-identical). Audit (`audit_board_touch.py`, `stick-top/audit-before-after.json`): the
+moving part's centre was 4.9–8.1 pt from the top face before, 0 after; travel is 7.3–11.0 pt.
+
 ## PS2 Pocket — Original (approved maquette, 4 November)
 
 The same builder adds `ps2-pocket-original.manicskin` (id `ps2-pocket-original`, name

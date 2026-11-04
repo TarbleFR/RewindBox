@@ -251,3 +251,25 @@ are compared with the catalog. Test:
 build…"). With the refresh disabled the same test fails. Not observed: the refresh on
 an iPhone. A game started within the first seconds of the first launch after an
 update may still draw the old copy for that session.
+
+## Sticks: only the top face moves (4 November 2026)
+
+Input: maintainer recording `ScreenRecording_11-04-2026_21-31-53_1.mov` (11 796 828 B,
+SHA-256 `0555383b…f5d5`, 956×440 pt landscape). This time the corrected archive is installed
+(at rest it matches `ec382133`), and the press boxes are gone. The two sticks remain: "too
+wide, they move with a texture of the controller; the yellow stick should only have the top of
+the analog and not the yellow base". The moving sprite was the whole cap with its skirt and
+part of the socket ([device crops](evidence/pocket-originals/stick-top/device-main-stick.png),
+[C-stick](evidence/pocket-originals/stick-top/device-c-stick.png)).
+
+Fix in the generator ([details](../tools/skins/README.md)):
+- only each stick's top face moves, centred on its own centre;
+- the skirt and the C-stick's yellow base stay;
+- the uncovered area is one smooth skirt colour.
+
+Applied to the GameCube Original (both sticks) and the Wii Original (same cap design). New
+archives `9988f5d7…71ea` (GameCube) and `645bd5ab…7d39` (Wii), same ids, names and previews.
+An installed copy is replaced automatically by PR159's refresh, keeping its selections. PS2
+Original unchanged. Before/after stick positions are in [stick-top/](evidence/pocket-originals/stick-top/),
+as host renders composed like DOLSkinOverlay. Not observed on an iPhone.
+
