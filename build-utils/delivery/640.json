@@ -397,6 +397,10 @@
    {
     "commit": "705e90c727d84ff531ede30912de8ede049e6264",
     "note": "feat(skins): PR #152 squashed (02af2822, tested 5f7361eb, session 012mUASjgVWk8DKKjVbwTD2n), reviewed: orientation lock, PS2 Pocket skin, Dolphin menu orientation"
+   },
+   {
+    "commit": "536379d482385e71a94630c65666b30b87cbbc35",
+    "note": "fix(legal): review overlay for the ARMSX2 podspec system frameworks and the original PS2 Pocket pack"
    }
   ],
   "sourceOnly": [],
