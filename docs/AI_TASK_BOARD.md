@@ -245,11 +245,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   key deleted, file sent. Failed attempts fixed: `41861290919` (flutter without Pillow:
   recipe `5671b1b1` + contract guard; macOS runner not acquired), `41868095254` (draft
   declared App must-change; no Dart input changed). Native/flutter evidence reused.
-- **Next manifest:** 653 draft on 650 (`build-utils/delivery/653.json`): RPCS3 Core 652,
-  MeloNX 649 kept, PR158 PS2 Pocket Original (`70b9c36e`, legal `850611ff`); dry run:
-  legal passed on the effective tree, 41 differences; blocked only by the 652 pin.
-  PR158 landscape sizes (L3/R3 ~26 pt, SELECT/START ~40 pt, home-band overlap, sensor
-  housing over Circle) await the maintainer.
+- **Delivered/verified:** 653 (run `41880845494`, trigger `46ed3793`, all jobs green first
+  try): IPA 247337849 B, SHA-256 `63542cc6…78f0`; RPCS3 652 (pin `e56ec20a…`), MeloNX 649
+  kept, PR158 PS2 Pocket Original (`70b9c36e`, legal `850611ff`); [receipt](evidence/rewind653/delivery.json),
+  key deleted, file sent. PR158 landscape sizes (L3/R3 ~26 pt, SELECT/START ~40 pt,
+  home-band overlap, sensor housing over Circle) await the maintainer.
+- **IPA 650 device logs (18:00 UTC, private, hashed):** AC gameplay 25–28 FPS = 643; one AC
+  process lost the GPU (VK_ERROR_DEVICE_LOST, poke_query) after 6.5 min in the UI left
+  4.7 GB footprint / 2.5 GB compressed (jetsam limit 6655 MiB; Core reclaim never armed);
+  BO2 hitches coincide with compression growth. Analysis workflow running; levers next.
 - **Misaddressed MeloNX logs:** skins export ready (ZIP 900515 B, `12b5f019…2f04`, skins
   attachment `d585ba9d…`). Main has no native transfer (`send_message.attachments`:
   project channel→thread only; no tool reads another session's upload); MeloNX idle,
