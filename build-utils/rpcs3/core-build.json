@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 651,
- "identity_type": "rpcs3-ios-core651",
- "summary": "RPCS3 Core 651 = the delivered Core 610 plus one folded delta: the Core 612 to 645 records unchanged and the Core 651 change (build-utils/rpcs3/core651-from-645.patch over Core 645, REWINDBOX_AUDIO_LOW_RING_MIX_651, iOS): the cellAudio wait for a port the game has not written also ends when the output ring holds under two blocks after the period is due, and the period is output as on a Core 645 timeout; a low_ring_mixes field on the AUDIO641 queue line. Core 645 contained: Core 641 and the timeout mix. ABI 30, the 92 exports, the PPU/SPU codegen identities and the MoltenVK dependency of Core 610 unchanged. No gain measured: not built, no iPhone run.",
+ "build": 652,
+ "identity_type": "rpcs3-ios-core652",
+ "summary": "RPCS3 Core 652 = the delivered Core 610 plus one folded delta: the Core 612 to 651 records unchanged and the Core 652 change (build-utils/rpcs3/core652-from-651.patch over Core 651, iOS Vulkan): a cyclic depth read of a draw that writes neither depth (depth test off) nor stencil skips its texture barrier like a masked one (REWINDBOX_DEPTH_TEST_OFF_READ_ONLY_652), a skipped read counts in the cyclic-reference tracker so a read-only chain keeps one barrier instead of one every other draw (REWINDBOX_DEPTH_READ_CHAIN_652; each barrier ends the render pass), and a census attributes every begun render pass to the site that ended the previous one (REWINDBOX_RENDERPASS_CENSUS_652, COREPROF RPASS652; two skip counters on TEXCACHE621). Core 651 contained: Core 645 and the low-ring cellAudio mix. ABI 30, the 92 exports, the PPU/SPU codegen identities and the MoltenVK dependency of Core 610 unchanged. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "226dcd21a019a840f14809ab99ec9df9e76c0c4d435a5e80a5cd28e8e0e1c718",
-  "postimages": 357,
+  "patch_sha256": "6d0e63d28c18d20207a107dc79e16a4f9115d81b49fc192eec8f1ab8ada776e9",
+  "postimages": 358,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -40,7 +40,8 @@
    "core638_20261103",
    "core641_20261104",
    "core645_20261104",
-   "core651_20261104"
+   "core651_20261104",
+   "core652_20261104"
   ]
  },
  "reference": {
@@ -80,10 +81,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core651_20261104",
-  "manifest": "build-utils/rpcs3/core651-delta.json",
-  "patch": "build-utils/rpcs3/core651-delta.patch",
-  "patch_sha256": "1019b02c9942daeff1c3237ccaffa3148697000ee3c8bf85d74ce371e38db58a"
+  "record": "core652_20261104",
+  "manifest": "build-utils/rpcs3/core652-delta.json",
+  "patch": "build-utils/rpcs3/core652-delta.patch",
+  "patch_sha256": "b550051dd02978db9c4b5be24debbc0b3951efc4af9bfcffd671bb548a328ec2"
  },
  "exports": 92,
  "core_inputs": {
@@ -160,7 +161,8 @@
   "Hardware Crypto",
   "SPU Object Prefetch",
   "COREPROF READPREDICT638",
-  "COREPROF AUDIO641"
+  "COREPROF AUDIO641",
+  "COREPROF RPASS652"
  ],
  "moltenvk_dependency": {
   "run": 41239096061,
@@ -361,28 +363,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core651_codegen_test.py",
+     "test/rpcs3_core652_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 651 touches no codegen input; its reverted tree passes the Core 645 audit"
+    "reason": "Core 652 touches no codegen input; its reverted tree passes the Core 651 audit"
    },
    {
-    "name": "core651",
+    "name": "core652",
     "argv": [
      "python3",
-     "test/rpcs3_core651_test.py",
+     "test/rpcs3_core652_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core651.json"
+     "{out}/core652.json"
     ],
-    "reason": "Core 651 increment (low-ring cellAudio mix, real decision block and refill controller) and, on its reverted tree, the Core 645 suite (then 641, 638, 636, 634, 630, 627)"
+    "reason": "Core 652 increment (cyclic depth barriers on the real code with a hazard checker, render pass census on the real begin/end functions) and, on its reverted tree, the Core 651 suite (then 645, 641, 638, 636, 634, 630, 627)"
    },
    {
     "name": "lr-full-queue",
