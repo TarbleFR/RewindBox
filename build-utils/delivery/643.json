@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 643,
   "status": "draft",
-  "note": "Private IPA 643 on the delivered and verified 640: the next common delivery. RPCS3 Core 641 (Core 638 plus the exported audio diagnostics, COREPROF AUDIO641: log text only) replaces Core 638; MeloNX Core 642 (Core 639 plus the PR 154 lot: in-pass barrier ordering under MoltenVK 1.4.1 or later, binding-sized descriptor scratch for every title, occupied read-back and pipeline miss attribution) replaces Core 639; the PS2 playlist Skins entry (b8794226). 641 and 642 are Core numbers.",
+  "note": "Private IPA 643 on the delivered and verified 640: the next common delivery. RPCS3 Core 641 (Core 638 plus the exported audio diagnostics, COREPROF AUDIO641: log text only) replaces Core 638; MeloNX Core 642 (Core 639 plus the PR 154 lot: in-pass barrier ordering under MoltenVK 1.4.1 or later, binding-sized descriptor scratch for every title, occupied read-back and pipeline miss attribution) replaces Core 639; the PS2 playlist Skins entry (b8794226); the GameCube/Wii Pocket Original skins and the Dolphin session buttons kept off skin controls (PR 155). 641 and 642 are Core numbers.",
   "base": {
     "build": 640,
     "source": "38c465b21105d404b9916926999f4b2aa6e76903",
@@ -269,6 +269,10 @@
       {
         "commit": "8cd2e93ce9e95418b7d62993535d13c2d1d484f1",
         "note": "[melonx-dma-core] build(melonx): wire and freeze MeloNX Core 642 (Core 639 + PR #154 lot; 18 fresh gates, 291 contract checks)"
+      },
+      {
+        "commit": "5ab7273dce43ba02ce04476e7e827f9be794ee80",
+        "note": "feat(skins): integrate PR #155: GameCube/Wii Pocket Original skins from the approved boards; Dolphin session buttons off skin controls [skip ci]"
       }
     ],
     "sourceOnly": [],
@@ -277,6 +281,7 @@
   "images": {
     "mustChange": [
       "Frameworks/App.framework/App",
+      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
       "Runner"
     ],
     "added": [],
