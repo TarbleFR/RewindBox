@@ -2270,8 +2270,7 @@
         "physicalDeviceTested": false,
         "productionVulkanAssemblyExecuted": true,
         "candidateLibraryBuilt": true,
-        "presentWiringExecuted": false,
-        "moltenVkSourceChecked": true
+        "presentWiringExecuted": false
       },
       "requiredPostimages": [
         "src/Ryujinx.Graphics.Vulkan/Window.cs",

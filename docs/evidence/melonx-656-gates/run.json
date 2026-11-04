@@ -199,7 +199,7 @@
   },
   "contract": {
     "path": "build-utils/melonx/dma-core-contract.json",
-    "sha256": "607faa924189716a77f8aba2e91d1a70cdc9e2074055854bc3ced0e8aabf0df9",
+    "sha256": "c540d7d5ae3a321fed5e694da1232eb5ef02ec7b38e3c9daf37bec1e525b6d02",
     "freshAppleGates": 29,
     "reusedAppleGates": 21,
     "historicalAppleReceipts": 61
@@ -242,7 +242,11 @@
       "failure": "The final GPU assembly build does not bind every changed GPU file (fragmented-reads did not compose ThreadedArrayPool.cs and VulkanInitialization.cs)",
       "fix": "61d6b517: the composition holds the two levers' files; the gate requires and binds both compiled postimages"
     },
-    "recordedPass": "gates656f: one uninterrupted pass of the 29 gates on a fresh preparation after every fix, all passed"
+    "recordedPass": "gates656f: one uninterrupted pass of the 29 gates on a fresh preparation after every fix, all passed",
+    "coreCiRun41932688337": {
+      "failure": "Affected fixture assertion failed: moltenVkSourceChecked (the Apple runner has no MoltenVK source checkout; present-pacing itself passed there, 779 checks, the three MoltenVK source checks absent; the 28 earlier gates validated)",
+      "fix": "the plan no longer asserts moltenVkSourceChecked (added by main in this cycle, not by the handoff); the local receipt keeps moltenVkSourceChecked true with the source digests; contract refrozen, 337 checks"
+    }
   },
   "moltenVkSource": {
     "path": "/home/user/xitrix/MoltenVK-db660224/MoltenVK",
