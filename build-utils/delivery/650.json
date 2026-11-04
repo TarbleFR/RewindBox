@@ -299,8 +299,8 @@
       }
     ],
     "promotedCommits": [],
-    "freezeCommit": "d1ffd0a17e264c6c4e4313c787d4da085e5c2099",
-    "freezeTree": "4d1c122f0a5e68c3a0197e0ff327b1f0642345dd",
+    "freezeCommit": "ec11bd8115901e244287267ce6d74d85c27399d3",
+    "freezeTree": "5d44a248d956084675687557ac890c563be255ea",
     "baseEffectiveDigest": "e8bad15008ec92b000a63149a07dda713de30111c2ec3a905747547531d2e2c5",
     "inheritedDeferredPaths": [
       "lib/models/retro_achievements_session.dart",
@@ -662,6 +662,36 @@
       {
         "commit": "d1ffd0a17e264c6c4e4313c787d4da085e5c2099",
         "subject": "build(delivery): 650 draft for its second trigger: Core 651 source deferred, native evidence reused from run 41861290919 [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "2bfa7f7f8fcd8507fbe624d4640d2aa06e9811ef",
+        "subject": "[ipa-delivery:650] build(delivery): request the common private IPA 650 again after the flutter recipe fix (RPCS3 Core 645, MeloNX Core 649, PR #157 skins)",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "41270fe3435566dc06204bc63ad781b0993e2190",
+        "subject": "docs(ai): main rows: 650 first-trigger failure, recipe fix, refreeze and second trigger; 651 host-harness infrastructure failure and rerun; MeloNX log export ready, transfer capability absent in main [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "2e2e86d82de53ff6fca645515abe2658f8e9f1a0",
+        "subject": "build(rpcs3): pin the verified RPCS3 Core 651 (run 41865042684 on c37b71df: Core attempt 1, Apple host tests attempt 2) [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "2de7c43afa974f80c5c6c1d71f38f68f0b5bb9ef",
+        "subject": "build(delivery): 650 draft for its third trigger: App.framework/App is not a must-change image (no Dart input differs from 643); flutter evidence reused from run 41868095254 [skip ci]",
+        "role": "recipe",
+        "productPaths": 0
+      },
+      {
+        "commit": "ec11bd8115901e244287267ce6d74d85c27399d3",
+        "subject": "build(rpcs3): the Core 645 pin again for the frozen 650 delivery (the verified Core 651 pin of 7d0c... returns after its run) [skip ci]",
         "role": "recipe",
         "productPaths": 0
       }
@@ -2008,8 +2038,8 @@
     "melonx-dependencies"
   ],
   "frozen": {
-    "at": "2026-11-04T16:30:32Z",
-    "commit": "d1ffd0a17e264c6c4e4313c787d4da085e5c2099",
+    "at": "2026-11-04T16:58:47Z",
+    "commit": "ec11bd8115901e244287267ce6d74d85c27399d3",
     "tool": "standard_delivery.py freeze",
     "inCI": false
   }
