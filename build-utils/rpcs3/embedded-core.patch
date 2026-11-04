@@ -4616,7 +4616,7 @@ index 0000000..b415890
 +    endif()
 +endfunction()
 diff --git a/rpcs3/Emu/Cell/Modules/cellAudio.cpp b/rpcs3/Emu/Cell/Modules/cellAudio.cpp
-index 557c7ef..e81e86a 100644
+index 557c7ef..820b917 100644
 --- a/rpcs3/Emu/Cell/Modules/cellAudio.cpp
 +++ b/rpcs3/Emu/Cell/Modules/cellAudio.cpp
 @@ -168,6 +168,14 @@ audio_ringbuffer::audio_ringbuffer(cell_audio_config& _cfg)
@@ -4723,11 +4723,11 @@ index 557c7ef..e81e86a 100644
 +	m_next_diagnostics_us = timestamp + 2'000'000;
 +	const auto d = diagnostics.snapshot();
 +	const u64 fill = cb_ringbuf.get_used_size() / (cfg.backend_ch_cnt * cfg.audio_sample_size);
-+	cellAudio.notice("COREPROF AUDIO641 part=queue cumulative requested_frames=%llu delivered_frames=%llu starved_frames=%llu refill_silence_frames=%llu fill_frames=%llu min_fill=%llu max_fill=%llu recoveries=%llu resumes=%llu recovery_timeouts=%llu mixed_blocks=%llu silence_blocks=%llu prefill_blocks=%llu not_ready_blocks=%llu rejected_blocks=%llu rejected_frames=%llu untouched_waits=%llu in_progress_waits=%llu advances_without_mix=%llu incomplete_mixes=%llu",
++	cellAudio.notice("COREPROF AUDIO641 part=queue cumulative requested_frames=%llu delivered_frames=%llu starved_frames=%llu refill_silence_frames=%llu fill_frames=%llu min_fill=%llu max_fill=%llu recoveries=%llu resumes=%llu recovery_timeouts=%llu mixed_blocks=%llu silence_blocks=%llu prefill_blocks=%llu not_ready_blocks=%llu rejected_blocks=%llu rejected_frames=%llu untouched_waits=%llu in_progress_waits=%llu advances_without_mix=%llu incomplete_mixes=%llu low_ring_mixes=%llu",
 +		d.requested, d.delivered, d.starved_frames, d.refill_frames, fill, d.min_fill, d.max_fill, d.recoveries, d.resumes, d.timeouts,
 +		diagnostics.mix_blocks, diagnostics.silence_blocks, diagnostics.prefill_blocks, diagnostics.not_ready_blocks,
 +		diagnostics.rejected_blocks, diagnostics.rejected_frames, diagnostics.untouched_waits, diagnostics.in_progress_waits,
-+		diagnostics.timeout_advances, diagnostics.incomplete_mixes);
++		diagnostics.timeout_advances, diagnostics.incomplete_mixes, diagnostics.low_ring_mixes);
 +	cellAudio.notice("COREPROF AUDIO641 part=producer cumulative no_port_silence=%llu untouched_silence=%llu active_ports=%u untouched_ports=%u target_us=%llu period_us=%llu tempo_ppm=%llu missing_blocks=%llu tempo_updates=%llu input_rate_ppm=%llu",
 +		diagnostics.no_port_silence, diagnostics.untouched_silence,
 +		diagnostics.active_ports, diagnostics.untouched_ports, diagnostics.target_us, diagnostics.period_us,
@@ -4820,7 +4820,26 @@ index 557c7ef..e81e86a 100644
  				ringbuffer->enqueue_silence();
  				untouched_expected = 0;
  				advance(timestamp);
-@@ -915,12 +1028,29 @@ void cell_audio_thread::operator()()
+@@ -908,19 +1021,47 @@ void cell_audio_thread::operator()()
+ 			{
+ 				// Games may sometimes "skip" audio periods entirely if they're falling behind (a sort of "frameskip" for audio)
+ 				// As such, if the game doesn't touch buffers for too long we advance time hoping the game recovers
++				// REWINDBOX_AUDIO_LOW_RING_MIX_651 (iOS): stop waiting for an unwritten port once the output ring holds less
++				// than two blocks (one RemoteIO callback): waiting longer cannot deliver it before the output runs dry, which
++				// plays silence for every port and arms the refill hold. The period is then output as on a timeout (Core 645:
++				// touched ports mixed, untouched ports silent). Guest periods and MIX events are unchanged.
++				bool rewindbox_low_ring = false;
++#ifdef RPCS3_IOS
++				rewindbox_low_ring = time_since_last_period > static_cast<u64>(cfg.audio_block_period) &&
++					enqueued_playtime < static_cast<u64>(cfg.audio_block_period) * 2;
++				if (rewindbox_low_ring) ++ringbuffer->diagnostics.low_ring_mixes;
++#endif
+ 				if (
+ 					(untouched == active_ports && time_since_last_period > cfg.fully_untouched_timeout) ||
+-					(time_since_last_period > cfg.partially_untouched_timeout) || g_cfg.audio.disable_sampling_skip
++					(time_since_last_period > cfg.partially_untouched_timeout) || g_cfg.audio.disable_sampling_skip ||
++					rewindbox_low_ring
+ 				   )
  				{
  					// There's no audio in the buffers, simply advance time and hope the game recovers
  					cellAudio.trace("advancing time: untouched=%u/%u (expected=%u), enqueued_buffers=%llu", untouched, active_ports, untouched_expected, enqueued_buffers);
@@ -4850,7 +4869,7 @@ index 557c7ef..e81e86a 100644
  				thread_ctrl::wait_for(1000);
  				continue;
  			}
-@@ -928,8 +1058,23 @@ void cell_audio_thread::operator()()
+@@ -928,8 +1069,23 @@ void cell_audio_thread::operator()()
  			// Fast-path for when there is no audio in the buffers
  			if (untouched == active_ports)
  			{
@@ -4874,7 +4893,7 @@ index 557c7ef..e81e86a 100644
  				ringbuffer->enqueue_silence();
  				untouched_expected = untouched;
  				advance(timestamp);
-@@ -940,6 +1085,9 @@ void cell_audio_thread::operator()()
+@@ -940,6 +1096,9 @@ void cell_audio_thread::operator()()
  			if (in_progress > 0)
  			{
  				cellAudio.trace("waiting: in_progress=%u/%u, enqueued_buffers=%u", in_progress, active_ports, enqueued_buffers);
@@ -4884,7 +4903,7 @@ index 557c7ef..e81e86a 100644
  				thread_ctrl::wait_for(500);
  				continue;
  			}
-@@ -952,6 +1100,9 @@ void cell_audio_thread::operator()()
+@@ -952,6 +1111,9 @@ void cell_audio_thread::operator()()
  			// Log if we enqueued untouched/incomplete buffers
  			if (untouched > 0 || incomplete > 0)
  			{
@@ -26399,10 +26418,40 @@ index 3427f2c..ee91ba1 100644
  		}
  	};
 diff --git a/rpcs3/Emu/RSX/VK/VKRenderPass.cpp b/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
-index 5e74d64..81b7fc1 100644
+index 5e74d64..281ddda 100644
 --- a/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKRenderPass.cpp
-@@ -393,12 +393,12 @@ namespace vk
+@@ -6,6 +6,9 @@
+ #include "vkutils/image.h"
+ 
+ #include "Emu/RSX/Common/unordered_map.hpp"
++#ifdef RPCS3_IOS
++#include "ios/IOSRenderPassCensus.h" // REWINDBOX_RENDERPASS_CENSUS_652
++#endif
+ 
+ namespace vk
+ {
+@@ -18,6 +21,9 @@ namespace vk
+ 	atomic_t<u64> g_cached_renderpass_key = 0;
+ 	VkRenderPass  g_cached_renderpass = VK_NULL_HANDLE;
+ 	rsx::unordered_map<VkCommandBuffer, active_renderpass_info_t>  g_current_renderpass;
++#ifdef RPCS3_IOS
++	rsx::unordered_map<VkCommandBuffer, rpcs3::ios::renderpass_census::last_end> g_rewindbox_last_end; // REWINDBOX_RENDERPASS_CENSUS_652
++#endif
+ 
+ 	shared_mutex g_renderpass_cache_mutex;
+ 	rsx::unordered_map<u64, VkRenderPass> g_renderpass_cache;
+@@ -383,6 +389,9 @@ namespace vk
+ 		g_cached_renderpass_key = 0;
+ 		g_cached_renderpass = VK_NULL_HANDLE;
+ 		g_current_renderpass.clear();
++#ifdef RPCS3_IOS
++		g_rewindbox_last_end.clear(); // REWINDBOX_RENDERPASS_CENSUS_652
++#endif
+ 
+ 		// Destroy cache
+ 		for (const auto &renderpass : g_renderpass_cache)
+@@ -393,12 +402,12 @@ namespace vk
  		g_renderpass_cache.clear();
  	}
  
@@ -26417,10 +26466,13 @@ index 5e74d64..81b7fc1 100644
  		}
  		else if (renderpass_info.pass != VK_NULL_HANDLE)
  		{
-@@ -416,9 +416,10 @@ namespace vk
+@@ -416,9 +425,13 @@ namespace vk
  
  		vkCmdBeginRenderPass(cmd, &rp_begin, VK_SUBPASS_CONTENTS_INLINE);
  		renderpass_info = { pass, target };
++#ifdef RPCS3_IOS
++		rpcs3::ios::renderpass_census::on_begin(g_rewindbox_last_end[cmd], target); // REWINDBOX_RENDERPASS_CENSUS_652
++#endif
 +		return true;
  	}
  
@@ -26429,7 +26481,7 @@ index 5e74d64..81b7fc1 100644
  	{
  		if (renderpass_key != g_cached_renderpass_key)
  		{
-@@ -426,7 +427,7 @@ namespace vk
+@@ -426,12 +439,20 @@ namespace vk
  			g_cached_renderpass_key = renderpass_key;
  		}
  
@@ -26437,12 +26489,35 @@ index 5e74d64..81b7fc1 100644
 +		return begin_renderpass(cmd, g_cached_renderpass, target, framebuffer_region);
  	}
  
++#ifdef RPCS3_IOS
++	void end_renderpass(const vk::command_buffer& cmd, std::source_location where)
++#else
  	void end_renderpass(const vk::command_buffer& cmd)
++#endif
+ 	{
+ 		vkCmdEndRenderPass(cmd);
++#ifdef RPCS3_IOS
++		// REWINDBOX_RENDERPASS_CENSUS_652: the site that ended this pass, and the framebuffer it was on.
++		rpcs3::ios::renderpass_census::on_end(g_rewindbox_last_end[cmd], g_current_renderpass[cmd].fbo, where.file_name(), where.line());
++#endif
+ 		g_current_renderpass[cmd] = {};
+ 	}
+ 
 diff --git a/rpcs3/Emu/RSX/VK/VKRenderPass.h b/rpcs3/Emu/RSX/VK/VKRenderPass.h
-index 7b9494c..3a8f7f5 100644
+index 7b9494c..f25809d 100644
 --- a/rpcs3/Emu/RSX/VK/VKRenderPass.h
 +++ b/rpcs3/Emu/RSX/VK/VKRenderPass.h
-@@ -20,8 +20,9 @@ namespace vk
+@@ -2,6 +2,9 @@
+ 
+ #include "VulkanAPI.h"
+ #include "Utilities/geometry.h"
++#ifdef RPCS3_IOS
++#include <source_location> // REWINDBOX_RENDERPASS_CENSUS_652
++#endif
+ 
+ namespace vk
+ {
+@@ -20,9 +23,15 @@ namespace vk
  
  	// Renderpass scope management helpers.
  	// NOTE: These are not thread safe by design.
@@ -26451,11 +26526,17 @@ index 7b9494c..3a8f7f5 100644
 +	// Returns true when a render pass was actually begun (false when the same pass and framebuffer were already open).
 +	bool begin_renderpass(VkDevice dev, const vk::command_buffer& cmd, u64 renderpass_key, VkFramebuffer target, const coordu& framebuffer_region);
 +	bool begin_renderpass(const vk::command_buffer& cmd, VkRenderPass pass, VkFramebuffer target, const coordu& framebuffer_region);
++#ifdef RPCS3_IOS
++	// REWINDBOX_RENDERPASS_CENSUS_652: each caller's file and line, for the census of render pass ends.
++	void end_renderpass(const vk::command_buffer& cmd, std::source_location where = std::source_location::current());
++#else
  	void end_renderpass(const vk::command_buffer& cmd);
++#endif
  	bool is_renderpass_open(const vk::command_buffer& cmd);
  
+ 	using renderpass_op_callback_t = std::function<void(const vk::command_buffer&, VkRenderPass, VkFramebuffer)>;
 diff --git a/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp b/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp
-index 4762f5e..b31c7b1 100644
+index 4762f5e..458403e 100644
 --- a/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp
 +++ b/rpcs3/Emu/RSX/VK/VKRenderTargets.cpp
 @@ -6,6 +6,7 @@
@@ -26466,11 +26547,80 @@ index 4762f5e..b31c7b1 100644
  
  namespace vk
  {
-@@ -870,11 +871,13 @@ namespace vk
+@@ -859,9 +860,54 @@ namespace vk
+ 		return (scaled_w == width()) && (scaled_h == height());
+ 	}
+ 
++#ifdef RPCS3_IOS
++	// REWINDBOX_DEPTH_TEST_OFF_READ_ONLY_652: a draw with the depth test off writes no depth. RSX sets
++	// zeta_write_enabled only for depth test && depth mask, or for a stencil write (get_framebuffer_layout), and
++	// VKGSRender::get_pipeline_state sets depthWriteEnable only under the depth test. The cyclic-reference barriers
++	// below judged such a draw by the depth mask alone, so with the mask left on each depth read of the bound
++	// surface inserted a texture barrier, which ends the render pass (Assassin's Creed IPA 643: 1104 such barriers
++	// against 635 skipped in 127 frames, 51 render passes per frame). True only when the draw can write neither
++	// depth nor stencil: the stencil rule is RSX's (test on, a write mask and a non-keep op, front or two-sided back).
++	static bool rewindbox_depth_test_off_zeta_unwritten()
++	{
++		const auto& regs = rsx::method_registers;
++		if (regs.depth_test_enabled())
++		{
++			return false;
++		}
++
++		if (!regs.stencil_test_enabled())
++		{
++			return true;
++		}
++
++		auto mask = regs.stencil_mask();
++		bool active_write_op = (regs.stencil_op_zpass() != rsx::stencil_op::keep ||
++			regs.stencil_op_fail() != rsx::stencil_op::keep ||
++			regs.stencil_op_zfail() != rsx::stencil_op::keep);
++
++		if ((!mask || !active_write_op) && regs.two_sided_stencil_test_enabled())
++		{
++			mask |= regs.back_stencil_mask();
++			active_write_op |= (regs.back_stencil_op_zpass() != rsx::stencil_op::keep ||
++				regs.back_stencil_op_fail() != rsx::stencil_op::keep ||
++				regs.back_stencil_op_zfail() != rsx::stencil_op::keep);
++		}
++
++		return !(mask && active_write_op);
++	}
++#endif
++
+ 	void render_target::texture_barrier(vk::command_buffer& cmd)
+ 	{
+-		const auto is_framebuffer_read_only = is_depth_surface() && !rsx::method_registers.depth_write_enabled();
++#ifdef RPCS3_IOS
++		// REWINDBOX_DEPTH_TEST_OFF_READ_ONLY_652: the depth mask is on but the draw writes nothing (depth test off, no stencil write).
++		const bool rewindbox_test_off_read_only = is_depth_surface() && rsx::method_registers.depth_write_enabled() &&
++			rewindbox_depth_test_off_zeta_unwritten();
++#else
++		constexpr bool rewindbox_test_off_read_only = false;
++#endif
++		const auto is_framebuffer_read_only = (is_depth_surface() && !rsx::method_registers.depth_write_enabled()) || rewindbox_test_off_read_only;
+ 		const auto supports_fbo_loops = cmd.get_command_pool().get_owner().get_framebuffer_loops_support();
+ 		const auto optimal_layout = supports_fbo_loops ? VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT
+ 			: VK_IMAGE_LAYOUT_GENERAL;
+@@ -870,11 +916,26 @@ namespace vk
  		{
  			// If we have back-to-back depth-read barriers, skip subsequent ones
  			// If an actual write is happening, this flag will be automatically reset
 +			rpcs3::ios::texture_cache_profile::add(rpcs3::ios::texture_cache_profile::counters.feedback_skipped); // REWINDBOX_TEXCACHE_PROFILE_621
++			if (rewindbox_test_off_read_only)
++			{
++				rpcs3::ios::texture_cache_profile::add(rpcs3::ios::texture_cache_profile::counters.feedback_skipped_test_off); // REWINDBOX_DEPTH_TEST_OFF_READ_ONLY_652
++			}
++#ifdef RPCS3_IOS
++			// REWINDBOX_DEPTH_READ_CHAIN_652: the skipped read is still a cyclic read of this draw. Count it as the barrier
++			// count does, so this draw's write barrier does not take it for the fall-out of the loop: upstream then elided
++			// the post-loop barrier but reset the tracker, and the next read of the chain re-inserted a barrier, ending the
++			// render pass every other draw. A draw that stops reading still finds more draws than reads and gets the
++			// post-loop barrier as before; a writing draw never skips.
++			m_cyclic_ref_tracker.on_insert_texture_barrier();
++			m_cyclic_ref_tracker.allow_skip();
++#endif
  			return;
  		}
  
@@ -26480,15 +26630,32 @@ index 4762f5e..b31c7b1 100644
  
  		if (is_framebuffer_read_only)
  		{
-@@ -891,6 +894,7 @@ namespace vk
+@@ -886,11 +947,23 @@ namespace vk
+ 	{
+ 		// This is a fall-out barrier after a cyclic ref when the same surface is still bound.
+ 		// In this case, we're just checking that the previous read completes before the next write.
+-		const bool is_framebuffer_read_only = is_depth_surface() && !rsx::method_registers.depth_write_enabled();
++#ifdef RPCS3_IOS
++		// REWINDBOX_DEPTH_TEST_OFF_READ_ONLY_652: same rule as texture_barrier for the draw that follows the chain.
++		const bool rewindbox_test_off_read_only = is_depth_surface() && rsx::method_registers.depth_write_enabled() &&
++			rewindbox_depth_test_off_zeta_unwritten();
++#else
++		constexpr bool rewindbox_test_off_read_only = false;
++#endif
++		const bool is_framebuffer_read_only = (is_depth_surface() && !rsx::method_registers.depth_write_enabled()) || rewindbox_test_off_read_only;
+ 		if (m_cyclic_ref_tracker.can_skip() && is_framebuffer_read_only)
  		{
  			// Barrier ellided if triggered by a chain of cyclic references with no actual writes
  			m_cyclic_ref_tracker.reset();
 +			rpcs3::ios::texture_cache_profile::add(rpcs3::ios::texture_cache_profile::counters.post_skipped); // REWINDBOX_TEXCACHE_PROFILE_621
++			if (rewindbox_test_off_read_only)
++			{
++				rpcs3::ios::texture_cache_profile::add(rpcs3::ios::texture_cache_profile::counters.post_skipped_test_off); // REWINDBOX_DEPTH_TEST_OFF_READ_ONLY_652
++			}
  			return;
  		}
  
-@@ -916,6 +920,7 @@ namespace vk
+@@ -916,6 +989,7 @@ namespace vk
  			src_stage, dst_stage, src_access, dst_access, { aspect(), 0, 1, 0, 1 });
  
  		m_cyclic_ref_tracker.reset();
@@ -32185,10 +32352,10 @@ index de1b709..fd07001 100644
  std::vector<installed_game_patch> installed_game_patches(std::string_view title_id);
 diff --git a/rpcs3/ios/IOSAudioDiagnostics.h b/rpcs3/ios/IOSAudioDiagnostics.h
 new file mode 100644
-index 0000000..6cf0035
+index 0000000..a706988
 --- /dev/null
 +++ b/rpcs3/ios/IOSAudioDiagnostics.h
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,127 @@
 +#pragma once
 +
 +#include "IOSAudioRecovery.h"
@@ -32281,6 +32448,8 @@ index 0000000..6cf0035
 +	std::uint64_t mix_blocks = 0, silence_blocks = 0, prefill_blocks = 0, not_ready_blocks = 0;
 +	std::uint64_t rejected_blocks = 0, rejected_frames = 0;
 +	std::uint64_t untouched_waits = 0, in_progress_waits = 0, timeout_advances = 0, incomplete_mixes = 0;
++	// REWINDBOX_AUDIO_LOW_RING_MIX_651: waits cut short because the output ring held under two blocks.
++	std::uint64_t low_ring_mixes = 0;
 +	std::uint64_t no_port_silence = 0, untouched_silence = 0;
 +	std::uint64_t missing_blocks = 0, tempo_updates = 0, input_rate_ppm = 1'000'000;
 +	std::uint64_t target_us = 0, period_us = 0, tempo_ppm = 1'000'000;
@@ -35887,6 +36056,120 @@ index 0000000..65d78d3
 +    }
 +}
 +}
+diff --git a/rpcs3/ios/IOSRenderPassCensus.h b/rpcs3/ios/IOSRenderPassCensus.h
+new file mode 100644
+index 0000000..fd49ada
+--- /dev/null
++++ b/rpcs3/ios/IOSRenderPassCensus.h
+@@ -0,0 +1,108 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <array>
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++
++// REWINDBOX_RENDERPASS_CENSUS_652: why render passes end. IPA 643 Assassin's Creed (window 18): 51 render passes per
++// frame for 1401 draws. FEEDBACK610 counts the passes the draw path began and TEXCACHE621 the depth feedback barriers
++// (8.7 per frame), but no journal line said which code ended the other passes, nor whether the next pass resumed the
++// same framebuffer (a restart that a barrier or a copy forced) or bound another one (a target switch).
++// vk::end_renderpass records its caller's file and line (a std::source_location default argument: no call site
++// changes); vk::begin_renderpass, when it really begins a pass on a command buffer whose previous pass was ended,
++// attributes that begin to the site of the end, on the same framebuffer or another. The performance reporter prints
++// the totals and the busiest sites once per window (COREPROF RPASS652). The render pass helpers are not thread safe
++// by design (RSX thread); the counters are relaxed atomics only because the reporter thread exchanges them.
++// Counting changes no render pass, barrier, copy or command.
++namespace rpcs3::ios::renderpass_census
++{
++constexpr std::size_t site_capacity = 48;
++
++struct site
++{
++	std::atomic<const char*> file{nullptr};
++	std::atomic<std::uint32_t> line{0};
++	std::atomic<std::uint64_t> ends{0};         // passes this site ended
++	std::atomic<std::uint64_t> same_target{0};  // begins that followed an end here on the same framebuffer
++	std::atomic<std::uint64_t> other_target{0}; // begins that followed an end here on another framebuffer
++};
++
++struct window_counters
++{
++	std::atomic<std::uint64_t> begins{0};       // passes vk::begin_renderpass really began
++	std::atomic<std::uint64_t> fresh{0};        // of which nothing had ended before on that command buffer
++	std::atomic<std::uint64_t> same_target{0};  // of which the previous pass ended on the same framebuffer
++	std::atomic<std::uint64_t> other_target{0}; // of which the previous pass ended on another framebuffer
++	std::atomic<std::uint64_t> overflow{0};     // ends of a site that found no free slot
++	std::array<site, site_capacity> sites{};
++};
++
++inline window_counters counters{};
++
++inline void add(std::atomic<std::uint64_t>& counter, std::uint64_t value = 1) noexcept
++{
++	counter.fetch_add(value, std::memory_order_relaxed);
++}
++
++inline std::uint64_t take(std::atomic<std::uint64_t>& counter) noexcept
++{
++	return counter.exchange(0, std::memory_order_relaxed);
++}
++
++// Slot of a call site (single writer). A std::source_location file name is a string literal of its translation unit,
++// stable for the life of the program. -1 when the table is full.
++inline int slot(const char* file, std::uint32_t line) noexcept
++{
++	for (std::size_t index = 0; index < site_capacity; index++)
++	{
++		auto& entry = counters.sites[index];
++		const char* known = entry.file.load(std::memory_order_acquire);
++		if (known == nullptr)
++		{
++			entry.line.store(line, std::memory_order_relaxed);
++			entry.file.store(file, std::memory_order_release);
++			return static_cast<int>(index);
++		}
++		if (known == file && entry.line.load(std::memory_order_relaxed) == line)
++		{
++			return static_cast<int>(index);
++		}
++	}
++	return -1;
++}
++
++// The previous end on one command buffer: its framebuffer and site.
++struct last_end
++{
++	const void* framebuffer = nullptr;
++	int site = -1;
++	bool valid = false;
++};
++
++inline void on_end(last_end& previous, const void* framebuffer, const char* file, std::uint32_t line) noexcept
++{
++	const int index = slot(file, line);
++	add(index >= 0 ? counters.sites[index].ends : counters.overflow);
++	previous = { framebuffer, index, true };
++}
++
++inline void on_begin(last_end& previous, const void* framebuffer) noexcept
++{
++	add(counters.begins);
++	if (!previous.valid)
++	{
++		add(counters.fresh);
++		return;
++	}
++
++	const bool same = previous.framebuffer == framebuffer;
++	add(same ? counters.same_target : counters.other_target);
++	if (previous.site >= 0)
++	{
++		add(same ? counters.sites[previous.site].same_target : counters.sites[previous.site].other_target);
++	}
++	previous.valid = false;
++}
++}
 diff --git a/rpcs3/ios/IOSRendererCausality.h b/rpcs3/ios/IOSRendererCausality.h
 new file mode 100644
 index 0000000..0ec4dd8
@@ -38371,10 +38654,10 @@ index 0000000..7167ee8
 +}
 diff --git a/rpcs3/ios/IOSTextureCacheProfile.h b/rpcs3/ios/IOSTextureCacheProfile.h
 new file mode 100644
-index 0000000..bfe711e
+index 0000000..b0964fd
 --- /dev/null
 +++ b/rpcs3/ios/IOSTextureCacheProfile.h
-@@ -0,0 +1,91 @@
+@@ -0,0 +1,94 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -38409,6 +38692,9 @@ index 0000000..bfe711e
 +	std::atomic<std::uint64_t> feedback_skipped{0};     // back-to-back read-only depth barriers skipped
 +	std::atomic<std::uint64_t> post_barriers{0};        // render_target::post_texture_barrier inserted
 +	std::atomic<std::uint64_t> post_skipped{0};         // fall-out barriers elided (no write in the chain)
++	// REWINDBOX_DEPTH_TEST_OFF_READ_ONLY_652: of the skips above, those only the depth-test-off rule allowed.
++	std::atomic<std::uint64_t> feedback_skipped_test_off{0};
++	std::atomic<std::uint64_t> post_skipped_test_off{0};
 +	// Gauges: the last frame end of the window, and the window peak.
 +	std::atomic<std::uint64_t> texture_bytes{0}, texture_bytes_peak{0};
 +	std::atomic<std::uint64_t> temp_bytes{0}, temp_bytes_peak{0};
@@ -46155,10 +46441,10 @@ index 0000000..094a672
 +	}
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index d800542..f82e18b 100644
+index d800542..c1d559f 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
-@@ -1,26 +1,200 @@
+@@ -1,26 +1,201 @@
  #include "stdafx.h"
 +#include "ios/NeoSwapStorage/FrameClient.h"
 +#include "RPCS3IOSWriterCounters.h"
@@ -46193,6 +46479,7 @@ index d800542..f82e18b 100644
 +#include "IOSFrameTrace.h"
 +#include "IOSFeedbackCensus.h"
 +#include "IOSTextureCacheProfile.h" // REWINDBOX_TEXCACHE_PROFILE_621
++#include "IOSRenderPassCensus.h" // REWINDBOX_RENDERPASS_CENSUS_652
 +#include "IOSZcullLabelPage.h" // REWINDBOX_ZCULL_LABEL_PAGE_624
 +#include "IOSRendererCausality.h"
 +#include "IOSSignalTrace.h"
@@ -46359,7 +46646,7 @@ index d800542..f82e18b 100644
  
  u64 process_memory_footprint()
  {
-@@ -38,31 +212,534 @@ u64 process_memory_footprint()
+@@ -38,31 +213,534 @@ u64 process_memory_footprint()
  #endif
  }
  
@@ -46904,7 +47191,7 @@ index d800542..f82e18b 100644
  		{
  			return RPCS3_IOS_INVALID_ARGUMENT;
  		}
-@@ -72,10 +749,10 @@ public:
+@@ -72,10 +750,10 @@ public:
  
  		std::lock_guard lock(m_sample_mutex);
  		const auto now = sample_clock::now();
@@ -46917,7 +47204,7 @@ index d800542..f82e18b 100644
  		result.cpu_usage_percent = std::clamp(m_cpu_stats.get_usage(), 0.0, 100.0);
  		result.valid_fields |= RPCS3_IOS_PERFORMANCE_CPU_VALID;
  
-@@ -108,12 +785,1204 @@ public:
+@@ -108,12 +786,1254 @@ public:
  			result.valid_fields |= RPCS3_IOS_PERFORMANCE_MEMORY_VALID;
  		}
  
@@ -47682,17 +47969,67 @@ index d800542..f82e18b 100644
 +            const u64 tc_elided = tcp::take(c.copies_elided), temps = tcp::take(c.temp_subresources), temp_fail = tcp::take(c.temp_failures);
 +            const u64 fb = tcp::take(c.feedback_barriers), fb_skip = tcp::take(c.feedback_skipped);
 +            const u64 post = tcp::take(c.post_barriers), post_skip = tcp::take(c.post_skipped);
++            const u64 fb_skip_off = tcp::take(c.feedback_skipped_test_off), post_skip_off = tcp::take(c.post_skipped_test_off); // REWINDBOX_DEPTH_TEST_OFF_READ_ONLY_652
 +            const u64 tex_peak = tcp::take(c.texture_bytes_peak), temp_peak = tcp::take(c.temp_bytes_peak);
 +            const auto mib = [](u64 bytes) { return static_cast<double>(bytes) / (1024.0 * 1024.0); };
 +            ios_core_profiler.notice(
 +                "COREPROF TEXCACHE621 session=%llu window=%llu frames=%llu upload_calls=%llu upload_misses=%llu flushes=%llu "
 +                "flush_misses=%llu hard_faults=%llu copies_elided=%llu temp_copies=%llu temp_failures=%llu "
 +                "texture_mib=%.1f texture_peak_mib=%.1f temp_mib=%.1f temp_peak_mib=%.1f unreleased=%llu "
-+                "feedback_barriers=%llu feedback_skipped=%llu post_barriers=%llu post_skipped=%llu scope=process_window_counters",
++                "feedback_barriers=%llu feedback_skipped=%llu post_barriers=%llu post_skipped=%llu "
++                "feedback_skipped_test_off=%llu post_skipped_test_off=%llu scope=process_window_counters",
 +                profile_session, profile_window, tc_frames, calls, misses, flushes, cache_misses, hard, tc_elided, temps, temp_fail,
 +                mib(c.texture_bytes.load(std::memory_order_relaxed)), mib(tex_peak),
 +                mib(c.temp_bytes.load(std::memory_order_relaxed)), mib(temp_peak),
-+                static_cast<u64>(c.unreleased.load(std::memory_order_relaxed)), fb, fb_skip, post, post_skip);
++                static_cast<u64>(c.unreleased.load(std::memory_order_relaxed)), fb, fb_skip, post, post_skip,
++                fb_skip_off, post_skip_off);
++        }
++        // REWINDBOX_RENDERPASS_CENSUS_652: why render passes ended in the window. begins= passes really begun;
++        // fresh= the first on their command buffer; same_target/other_target= begun after an end on the same or another
++        // framebuffer. sites= the eight sites with the most restarts, file:line:ends:same_target:other_target.
++        {
++            namespace census = rpcs3::ios::renderpass_census;
++            auto& c = census::counters;
++            const u64 rp_begins = census::take(c.begins), rp_fresh = census::take(c.fresh);
++            const u64 rp_same = census::take(c.same_target), rp_other = census::take(c.other_target), rp_overflow = census::take(c.overflow);
++            struct census_row { const char* file; u32 line; u64 ends, same, other; };
++            std::array<census_row, census::site_capacity> rows{};
++            usz row_count = 0;
++            for (auto& site : c.sites)
++            {
++                const char* file = site.file.load(std::memory_order_acquire);
++                if (!file)
++                {
++                    break;
++                }
++                rows[row_count++] = { file, site.line.load(std::memory_order_relaxed), census::take(site.ends),
++                    census::take(site.same_target), census::take(site.other_target) };
++            }
++            std::stable_sort(rows.begin(), rows.begin() + row_count, [](const census_row& a, const census_row& b)
++            {
++                return a.same + a.other != b.same + b.other ? a.same + a.other > b.same + b.other : a.ends > b.ends;
++            });
++            std::string rp_sites;
++            for (usz index = 0, shown = 0; index < row_count && shown < 8; index++)
++            {
++                const auto& row = rows[index];
++                if (!row.ends && !row.same && !row.other)
++                {
++                    continue;
++                }
++                const char* name = std::strrchr(row.file, '/');
++                fmt::append(rp_sites, "%s%s:%u:%llu:%llu:%llu", rp_sites.empty() ? "" : ",", name ? name + 1 : row.file, row.line,
++                    row.ends, row.same, row.other);
++                shown++;
++            }
++            if (rp_sites.empty())
++            {
++                rp_sites = "none";
++            }
++            ios_core_profiler.notice(
++                "COREPROF RPASS652 session=%llu window=%llu begins=%llu fresh=%llu same_target=%llu other_target=%llu overflow=%llu "
++                "sites=%s scope=process_window_counters",
++                profile_session, profile_window, rp_begins, rp_fresh, rp_same, rp_other, rp_overflow, rp_sites.c_str());
 +        }
 +        // REWINDBOX_SPU_WAIT_PROFILE_V1: SPU time outside guest code, summed over
 +        // the SPU threads (deltas of monotonic per-thread totals).
@@ -48124,7 +48461,7 @@ index d800542..f82e18b 100644
  	std::atomic<u32> m_rsx_load{0};
  	std::atomic_bool m_has_rsx_load{false};
  	std::mutex m_sample_mutex;
-@@ -121,6 +1990,93 @@ private:
+@@ -121,6 +2041,93 @@ private:
  	bool m_has_fps_baseline = false;
  	u64 m_last_frame_count = 0;
  	sample_clock::time_point m_last_sample_time{};
@@ -48218,7 +48555,7 @@ index d800542..f82e18b 100644
  };
  
  performance_registry g_performance_registry;
-@@ -128,6 +2084,93 @@ performance_registry g_performance_registry;
+@@ -128,6 +2135,93 @@ performance_registry g_performance_registry;
  
  namespace rpcs3::ios
  {
@@ -48312,7 +48649,7 @@ index d800542..f82e18b 100644
  void reset_performance_metrics()
  {
  	g_performance_registry.reset();
-@@ -138,6 +2181,128 @@ void record_presented_frame(u32 rsx_load) noexcept
+@@ -138,6 +2232,128 @@ void record_presented_frame(u32 rsx_load) noexcept
  	g_performance_registry.record_presented_frame(rsx_load);
  }
  
@@ -48441,7 +48778,7 @@ index d800542..f82e18b 100644
  u64 available_process_memory_headroom() noexcept
  {
  #ifdef RPCS3_IOS
-@@ -147,6 +2312,41 @@ u64 available_process_memory_headroom() noexcept
+@@ -147,6 +2363,41 @@ u64 available_process_memory_headroom() noexcept
  #endif
  }
  

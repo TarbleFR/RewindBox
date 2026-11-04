@@ -1,5 +1,6 @@
 #!/usr/bin/env ruby
-# Run the production ARMSX2SkinOverlay on the shipped PS2 Pocket archive in the iOS Simulator.
+# Run the production ARMSX2SkinOverlay on the shipped PS2 archives in the iOS Simulator
+# (PS2 Pocket and PS2 Pocket - Original).
 require 'xcodeproj'
 require 'json'
 require 'fileutils'
@@ -11,12 +12,14 @@ output = File.join(root, 'build/armsx2-ci/skin-overlay')
 FileUtils.rm_rf(output)
 FileUtils.mkdir_p(output)
 
-# The shipped archive, unpacked as the installed skin folder (id ps2-pocket).
+# The shipped archives, unpacked as installed skin folders (named by their catalog ids).
 fixture = File.join(output, 'fixture')
-FileUtils.mkdir_p(File.join(fixture, 'ps2-pocket'))
-archive = File.join(root, 'assets/skins/pocket/ps2-pocket.manicskin')
-abort "missing #{archive}" unless File.file?(archive)
-system('unzip', '-q', '-o', archive, '-d', File.join(fixture, 'ps2-pocket')) or abort 'unzip failed'
+%w[ps2-pocket ps2-pocket-original].each do |id|
+  FileUtils.mkdir_p(File.join(fixture, id))
+  archive = File.join(root, "assets/skins/pocket/#{id}.manicskin")
+  abort "missing #{archive}" unless File.file?(archive)
+  system('unzip', '-q', '-o', archive, '-d', File.join(fixture, id)) or abort 'unzip failed'
+end
 
 project_path = File.join(output, 'SkinHarness.xcodeproj')
 project = Xcodeproj::Project.new(project_path)
@@ -62,7 +65,11 @@ scheme.save_as(project_path, 'SkinHarness', true)
 devices = JSON.parse(`xcrun simctl list devices available --json`).fetch('devices').values.flatten
 device = devices.find { |item| item['name'].start_with?('iPhone') && item['isAvailable'] }
 abort 'No iPhone simulator available' unless device
-env = { 'TEST_RUNNER_ARMSX2_SKIN_FIXTURE' => fixture }
+# Real overlay renders of PS2 Pocket - Original (rest / pressed / sticks / released),
+# kept by the workflow next to the result bundle.
+renders = File.join(output, 'renders')
+FileUtils.mkdir_p(renders)
+env = { 'TEST_RUNNER_ARMSX2_SKIN_FIXTURE' => fixture, 'TEST_RUNNER_ARMSX2_RENDER_DIR' => renders }
 command = ['xcodebuild', 'test', '-project', project_path, '-scheme', 'SkinHarness',
            '-destination', "platform=iOS Simulator,id=#{device['udid']}",
            '-derivedDataPath', File.join(output, 'DerivedData'),

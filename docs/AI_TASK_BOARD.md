@@ -1,529 +1,405 @@
 # RewindBox — shared requirements and results
 
-The single working contract for Claude Code, Codex and Cursor. Update this file
-in place. Read the shared rules and only the task and evidence rows relevant to
-the current request. Component reports retain detailed evidence, not parallel
-task queues. Current working observations were reconciled on 3 November 2026
-with Claude Code session `012mUAShv9k6pSCnpW7oAF63` and GitHub `de69400c`.
-A later working diff can be ahead of that commit.
+**Single contract · 4 November 2026.** Current maintainer instructions override
+older records. Read the rules, your routing and **one relevant task**; open only
+its needed evidence. A recorded status is not a live CI result.
+
+[Rules](#shared-working-rules) · [Claude routing](#adaptive-delegation) ·
+[Codex routing](#codex-model-and-effort-routing) · [IPA authorization](#standing-ipa-compilation-authorization) ·
+[Tasks](#active-requirements) · [Delivered baseline](#delivered-baseline) ·
+[Evidence](#evidence-by-component)
+
+Detailed inputs, hashes, attempts and rejected hypotheses are preserved in
+[the immutable prior record](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md) and linked component evidence.
+They are evidence to consult selectively, not old instructions to resume.
 
 ## Shared working rules
 
-- The maintainer's current request and existing authorization determine scope.
-  Historical build permissions or restrictions apply to their original task.
-  Reconfirm only when a material new action requires permission.
-- Completion and autonomy, explicitly confirmed by the maintainer on 4 Nov
-  after IPA 640: finish every evidenced correction in the currently authorized
-  RPCS3, MeloNX (Hogwarts/SSBU) and PS2 skins work, with its required tests and
-  handoff. Do not stop at a diagnosis, draft PR or a list of "next candidates"
-  while an actionable in-scope check or correction remains, and do not wait for
-  another approval of already-authorized work. A missing technical datum is not
-  an approval blocker: first use the existing source/logs and a bounded executable
-  reproduction; when necessary, implement and test the smallest discriminating
-  diagnostic and continue independent corrections. Specifically resolve the
-  two `occupied` branches and their owners before changing DMA synchronization,
-  and investigate the named `PrimitiveRestartEnable`/`Topology` misses and SSBU
-  flicker without assuming the Hogwarts barrier fix applies. Preserve rendering,
-  caches, data and synchronization; no speculative patch or invented device result.
-  If only a physical-device observation or unavailable external access can decide
-  a remaining hypothesis, state the exact dependency, work completed and next
-  action; do not repeatedly ask broad permission or leave other work idle.
-  Component owners finish and hand off exact reviewed deltas; the main session
-  continues review/integration, affected Core builds, pins and the single private
-  IPA with standard source/package/signature/download verification, under existing
-  authorization. No concurrent delivery or automatic scope expansion. Ask the
-  maintainer only for a genuinely necessary decision, access or device observation
-  that cannot be obtained within the authorized environment.
-- Claude Code owns substantive implementation and final integration. Codex
-  coordinates and independently reviews, or makes focused changes delegated by
-  the maintainer. Cursor assists with authorized, non-overlapping tasks.
-- Work on `Claude`. Preserve `main`, `backup`, baseline refs, tags and releases
-  unless specifically authorized. Inspect actual workflow triggers.
-- Before editing, inspect branch, HEAD and working diff. One writer per checkout
-  or explicitly owned section. Preserve concurrent work and local-only changes.
-  Do not force-push, reset, clean or silently resolve another agent's changes.
-- Branch handoff hygiene, clarified by the maintainer on 4 Nov after the skins
-  `Git Destructive` refusal: normal commits and fast-forward pushes of the
-  authorized component session's own task branch do not need a new permission.
-  Before pushing, fetch and compare the exact remote head, ancestry and intended
-  diff. If the current task branch was squashed/integrated or its PR closed, start
-  the next correction on a fresh, distinctly named branch from current `Claude`
-  in the same session, preserving all dirty/unpushed work and replaying only the
-  intended owned delta. Open a new PR for that new delta; do not reuse the old
-  closed PR as its delivery record. The main session alone integrates to `Claude`.
-  Never reset/rebase a published task branch and then request a force-push
-  (`--force` or `--force-with-lease`) merely to reuse its name. Do not manufacture
-  an `ours` merge solely to turn a refused rewrite into a nominal fast-forward.
-  Reuse an active task branch only if the remote head is an ancestor of the new
-  head and the reviewed diff is correct. Separate local documentation/commit
-  steps from remote push commands so a refusal does not also discard their
-  execution; report each actual result. A genuine external authorization refusal
-  must still be reported and respected, not bypassed by changing tool or route.
-  At integration, carry over the owner's task/evidence row as well as the product
-  delta, reconciling it against the latest shared board rather than replacing
-  the board with a stale branch copy.
-- Each agent must update this shared contract after a meaningful result and
-  before ending, compacting or handing off. Update permanent instructions when
-  their meaning changes. Update only owned task rows and affected references.
-  Record the date, input identity, evidence, result and next action. A resumed
-  session verifies what changed instead of restarting the investigation.
-- During handoff, record owner, dirty paths, local and remote commits, test
-  results, unresolved failures and next action here. The next writer verifies
-  Git. A quota limit does not transfer ownership or chat history automatically.
-- Use one coding agent for routine work. Independent reviews must have separate
-  scope. Do not launch paid external agents, poll quotas or switch subscriptions
-  automatically. Claude, ChatGPT and Cursor have separate included allowances.
-  Use their official subscription sign-ins. Keep API credits and auto-top-up
-  off unless expressly authorized. Cursor third-party models can incur charges.
-- Push, tags and releases follow the task's authorization. IPA compilation
-  follows the standing authorization below.
-  Claude Code has standing authorization to fast-forward its own commits to
-  `origin/Claude`, with `[skip ci]` unless CI was requested. If the remote
-  advanced, rebase only its own unpushed commits and inspect conflicts. This
-  standing push permission applies to Claude Code only. A permission refusal
-  must be reported, never retried through a route intended to defeat it.
-- This contract is a record of authorized work, not an automatic task scheduler.
-  The explicit standing IPA authorization below applies. Other changes to this
-  contract do not grant payment or public publication permission.
+1. **PRIORITY / STRICT — turn constraints into improvements.** Every in-scope
+   performance/stability/rendering/audio/input constraint requires concrete
+   modification work, executed before/after verification and reviewed handoff.
+   “GPU-bound”, “first-use compilation” or “real constraint” alone never closes it.
+   Record symptom → source/lever → change → executed check → outcome.
+   Diagnostics and unexecuted tests are intermediate. If a hypothesis fails,
+   change the approach; keep actionable work open. A demonstrated irreducible
+   limit or unavailable device/access needs evidence and an exact next action.
+   Continue independent improvements. Never fabricate a patch/gain or weaken
+   rendering, synchronization, data or tests.
+2. **Finish approved work without repeated approval.** Continue through correction,
+   verification, integration and authorized private delivery. Resolve missing
+   technical evidence with existing logs/source and a bounded executable check.
+   Ask only for a necessary new decision, access or physical observation unavailable
+   in the environment. Respect actual tool/platform refusals; never bypass them.
+3. **Preserve ownership and work.** Main Claude owns integration, Cores, pins, CI,
+   freeze and delivery; existing component sessions own their changes. Codex
+   coordinates/reviews or makes delegated edits. Inspect branch, HEAD, remote and
+   dirty paths first. One writer per path; preserve concurrent/local-only work,
+   `main`, `backup`, tags, baselines and history. No force-push/reset/clean,
+   silent conflict resolution, duplicate diagnosis/build or unrelated feature.
+4. **Use safe branches.** Component follow-ups after squash/integration/closed PR
+   start a fresh named branch from current `Claude`, preserve local work, replay
+   only the intended delta and open a new PR. Reuse an active branch only if its
+   remote head is an ancestor and the reviewed diff is correct. No forced reuse
+   or synthetic `ours` merge around a refusal. Separate commit from push.
+   Main integrates both product delta and reconciled current evidence.
+5. **Keep this contract current and small.** After meaningful results and before
+   ending/compaction/handoff, replace only your task's current state; correct
+   permanent instructions in place. Fetch latest first: never overwrite the board
+   from a stale branch. Link detailed evidence; do not append a chronological diary.
+   Distinguish dirty/local/published/tested/compiled/delivered/device-observed.
+6. **Use included services.** Official subscription sign-ins only; no paid API,
+   outside agent launcher, quota polling, billing/subscription changes or auto-top-up.
+   No new worker merely for another badge; delegation limits below still apply.
+   Quota loss transfers neither ownership nor history. Public posting and unrelated
+   destructive actions require separate authorization. This file is not a scheduler.
+7. **Communicate meaningful outcomes in French.** Report required attempt outcomes,
+   significant results and real blockers; avoid repetitive updates, identical
+   relaunches and requests for already-published logs. “Done” without checks is not proof.
+
+**Misaddressed files:** main routes the exact batch from source session to owner
+using real native file sharing, or authorized Codex download/re-attachment.
+Text/session metadata access is not file access. Verify sizes/SHA-256 and destination
+receipt; distinguish queued/sent/received. No substitution with older namesakes,
+raw private logs in Git, public links or extra worker. State the exact access
+limitation if originals cannot be retrieved; continue independent work.
 
 ## Adaptive delegation
 
-Maintainer request, 3 November 2026. Route by the task's uncertainty and risk,
-not by game name alone. For a tiny edit or one exact command, work directly;
-spawning an agent is optional and must replace useful work, not duplicate it.
+Prefer direct work for tiny tasks and **one coding agent total**. Authorized
+parallel coding uses separate branches/checkouts and disjoint paths; at most two
+useful independent read-only reviewers, no nested teams or duplicate reviews.
 
-| Work | Agent | Model / effort | Boundary |
-| --- | --- | --- | --- |
-| Exact file, symbol or recorded-result lookup | `rb-lookup` | Haiku / low | Read-only facts; escalate ambiguity |
-| Bounded source/upstream investigation | `rb-research` | Sonnet / medium | Read-only evidence and applicability |
-| Understood, isolated code correction | `rb-code` | Sonnet / medium | Explicit paths, base SHA and targeted acceptance |
-| Difficult core, JIT, GPU ordering, memory or ABI review | `rb-core-review` | Opus / high | Read-only review of a specified change |
+| Work | Native agent | Model / effort |
+| --- | --- | --- |
+| Exact file/symbol/result lookup | `rb-lookup` | Haiku / low |
+| Bounded source/upstream investigation | `rb-research` | Sonnet / medium |
+| Understood isolated correction | `rb-code` | Sonnet / medium |
+| Difficult Core/JIT/GPU/memory/ABI/native lifecycle review | `rb-core-review` | Opus / high |
 
-- Select BOTH model and effort for every delegated task; pass both explicitly
-  to the native Agent tool when supported, including the Explore fallback.
-  Do not inherit an expensive session effort accidentally.
-- Select main-turn effort before substantive work through the native inline
-  `rb-effort-low`, `rb-effort-medium` or `rb-effort-high` skill. These selectors
-  set real `effort` frontmatter and leave the session model unchanged. Use low
-  for factual/status-only turns, medium for understood bounded changes and
-  high for unresolved Core/JIT/GPU/memory/concurrency/ABI work. Classify by the
-  highest-risk substantive work REMAINING in the turn: a status interruption
-  must not lower effort before resuming core implementation. Select again on
-  the next user turn because the skill override lasts only for its current turn.
-  Extra/max are exceptional escalations with a named difficulty, not defaults.
-  The project fallback effort is medium; the running async core task uses high.
-- The three effort selectors can be chosen automatically through Skill; their
-  invocation applies a native setting, while choosing the appropriate selector
-  remains Claude's task classification, not a deterministic external router.
-  After first adding the skills directory, run `/reload-skills` without restarting.
-  Reuse that command after edits if the new directory is not watched. Confirm
-  the loaded names, invoke the high selector for the current core work and read
-  its expanded `${CLAUDE_EFFORT}` value. Environment effort overrides and admin
-  caps can prevail; report a mismatch without claiming automatic effort works.
+Pass BOTH model and effort when supported, exact base/diff/owned paths, prior
+findings, one question, acceptance and stopping condition. Return decisive evidence
+and next action (normally 200–400 words). `worktree.baseRef: head` omits dirty work;
+only main integrates. If unavailable, owner continues and reports the limitation.
 
-- The main Claude session owns the current request, integration, shared board,
-  pins, CI and IPA delivery. Default to one coding agent total, counting the
-  main session. While `rb-code` writes, the coordinator does not edit its paths.
-  Use at most two independent read-only workers at once. Do not create agent
-  teams, nested delegations or paid external-agent/API workflows for this routing.
-- Delegate one question with the exact source identity, relevant board result,
-  assigned paths/diff, required output and stopping condition. Give read-only
-  reviewers the exact diff text or a readable diff artifact. Reuse a prior
-  finding unless its inputs changed. After two equivalent inconclusive attempts,
-  name the missing evidence or change the method. Escalate a low-effort lookup
-  once to research when ambiguity needs reasoning; do not repeat cheap guesses.
-- Worktrees use `worktree.baseRef: head`, but do not include uncommitted changes.
-  An isolated worker keeps its assigned temporary branch; only the coordinator
-  integrates into `Claude`. It must not check out or move `Claude` or `main`.
-  Keep dirty/core work with its current owner unless an exact reviewed snapshot
-  is explicitly prepared. The coding worker verifies its base before writing.
-  Review the returned diff and checks before integration; never auto-merge.
-- Failure escalation (maintainer, 4 Nov 2026): classify each failing check from
-  its exact run/job/log before retrying: changed production code, changed test
-  harness, existing baseline failure, or infrastructure/dependency. A red check
-  alone does not justify a stronger model. Fix a demonstrated simple defect
-  directly; preserve tests and never weaken acceptance to make CI green.
-  After two targeted attempts at the same unresolved code/harness cause, or
-  immediately for a demonstrated complex UIKit/orientation/input-lifecycle
-  ambiguity, stop equivalent retries, change the method and escalate once to
-  Opus / high. Use one scoped native read-only review with explicit model AND
-  effort if useful; keep one writer. Pass exact diff, run/job, failed assertions,
-  attempted fixes and required tests, then verify the correction. A network,
-  missing artifact or pre-existing failure needs its own remedy/attribution,
-  not blind model escalation or full-workflow relaunch.
-  A targeted principal-model change for this failure review is authorized at a
-  stable checkpoint; do not oscillate models on each command. A skill or text
-  instruction is not a principal-model switch. If the session lacks a native
-  self-switch, use the scoped native reviewer and report that limitation; never
-  claim the principal changed without an observed control/runtime result.
-  Record chosen/observed model and effort, cause, result and next action here.
-- Keep the coordinator's model stable during a task to preserve prompt caching.
-  Sonnet/medium is the starting recommendation for future routine sessions;
-  Opus/high fits difficult core reasoning. Preserve the running core session's
-  chosen model. `xhigh`/`max` require a concrete difficulty and useful result,
-  not routine use. Per-agent frontmatter selects workers; do not model-switch
-  the main conversation via skills on every request.
-- Check the actual loaded agent, model and effort on first use. Organization or
-  environment overrides can win. A missing agent/tool/model or wrong base falls
-  back to the coordinator; report the limitation rather than claim a cheaper
-  delegation happened. Do not restart an active build/session just to reload
-  agents. Ordinary cloud sessions load repo agents; Project threads may not.
-- Each worker returns decisive references, result, validation status and next
-  action, usually within 200–400 words. Read-only workers hand board-ready results
-  to the coordinator, who records them here once. Use `scripts/ai-output.py`
-  for verbose foreground checks. No duplicate handoff or requirements files.
-  `maxTurns` bounds a run, not its token spend; do not automatically resume loops.
-- Activation check, 3 Nov 22:05 UTC, Claude session `012mUAShv9k6pSCnpW7oAF63` (Claude Code 2.1.317, synced to
-  `b99d61a1`): one `rb-lookup` call requested with model haiku, effort low returned "Agent type 'rb-lookup' not
-  found"; this running session lists only its built-in agents (claude, claude-code-guide, Explore,
-  general-purpose, Plan, statusline-setup, web-fetch). Observed type, model and effort: none, the call did not run.
-  Routing is not active in this session; the coordinator keeps the work. Recheck in a new session.
-  Native fallback, same session, 22:00 UTC: one read-only `Explore` call requested with model haiku, effort low
-  (both parameters are exposed by the Agent tool) answered correctly (`docs/AI_TASK_BOARD.md`, CLAUDE.md line 3).
-  Observed: type Explore; model self-reported as Haiku 5.5 from its environment, not independently verified;
-  effort not observable. `rb-*` stay prepared, not loaded here. Requests can be typed normally.
-  Effort selectors, 22:25 UTC, synced to `15377399`: `Skill rb-effort-high` returned "Unknown skill" (the skills
-  folder arrived after session start; `/reload-skills` is needed). No `${CLAUDE_EFFORT}` expansion observed. Session
-  environment, non-secret: `CLAUDE_EFFORT=high`, `MAX_THINKING_TOKENS=31999`; no project or user setting overrides effort.
-  Subagents share the plan quota. Savings are an objective, not a measured claim.
+**Main-turn effort:** invoke native Skill `rb-effort-low`, `rb-effort-medium` or
+`rb-effort-high`; a prose claim does not change it.
 
-Configuration: four short native definitions under `.claude/agents/` and only
-the worktree base and fallback effort in `.claude/settings.json`; local settings, hooks, worktrees
-and credentials stay ignored. No permissions or paid features are enabled.
-Runtime preflight in the current Claude session: 2.1.317, both settings files
-absent before this change; UI offers Haiku/Sonnet/Opus 5.5. Static validation
-passes; loading and a bounded runtime lookup must still be verified in Claude.
-These checks establish configuration behavior, not token savings.
-Main-turn effort correction, 3 Nov: three effort-only native selectors added;
-static schema/visibility checks passed. Codex executed /reload-skills in the
-existing Claude UI: 37 available, 3 added. Claude then selected rb-effort-high
-for the remaining async core work; the native Skill call succeeded and expanded
-${CLAUDE_EFFORT} to high. The UI is High (previously Extra), model Opus unchanged.
-Low/medium selectors are schema-validated, not separately run during core work.
-Selection is task-based model judgment; no deterministic-router or savings claim.
-The async-before-IPA priority remains unchanged.
+| Remaining work | Effort |
+| --- | --- |
+| Facts/status only | low |
+| Understood bounded correction or routine handoff | medium |
+| Unresolved Core/GPU/JIT/memory/concurrency/ABI, UIKit, skin hit/stick/orientation or risky review | high |
+| Named exceptional hard ambiguity | Extra/Max, then exit after resolution |
 
-Sources: [subagents](https://code.claude.com/docs/en/sub-agents),
-[cloud compatibility](https://code.claude.com/docs/en/claude-code-on-the-web),
-[worktree base](https://code.claude.com/docs/en/worktrees#choose-the-base-branch),
-[prompt caching](https://code.claude.com/docs/en/prompt-caching#switching-models).
+Reassess each user turn and genuine phase boundary, not each command. A status
+interruption does not lower effort before resuming risky code. Keep the principal
+model stable within a task; model changes are separate native operations. If an
+exceptional level lacks a selector/self-control, report the exact limitation for
+the coordinator's already-authorized UI adjustment, without a new worker/approval.
+
+**Verify per session:** sync only relevant config, preserve dirty work and
+`/reload-skills` when needed; record actual Skill return/expanded
+`${CLAUDE_EFFORT}`, requested level and displayed session setting separately.
+Manual Max persists; project medium does not clear it. A loaded skill overrides
+session effort for its turn, requiring invocation next turn.
+`CLAUDE_CODE_EFFORT_LEVEL` or an organization cap can prevail: inspect only relevant
+non-secret effort settings on mismatch. UI alone does not prove an in-flight
+request's effort; permissions Auto is not effort automation. No unverified routing
+or savings claim. Config: `.claude/agents/`, `.claude/skills/rb-effort-*/SKILL.md`,
+`.claude/settings.json`; activation evidence stays in the task, not permanent rules.
+
+**Failure escalation:** classify exact run/job/assertion as product, harness,
+baseline or infrastructure. Fix simple causes directly; after two equivalent
+inconclusive checks change method. Escalate once for a named complex ambiguity,
+with exact attempts and required tests. Do not model-switch or rerun full workflows
+to solve a missing artifact, network error or attributed baseline failure.
+[Native behavior reference](https://code.claude.com/docs/en/model-config).
 
 ## Codex model and effort routing
 
-Maintainer request, 3 November 2026: apply the same bounded orchestration to
-Codex, selecting BOTH delegated model and native reasoning effort.
+Delegate only when useful/authorized; verify exposed native availability, set BOTH
+parameters with `fork_turns: none`, provide minimum context and keep one writer.
 
-| Work | Native collaboration model | Effort |
+| Independent work | Model alias | Effort |
 | --- | --- | --- |
-| Tiny direct edit or exact command | Main agent directly; no mandatory worker | App-managed setting |
-| Independent exact lookup or receipt extraction | `gpt-6-luna` | `low` |
-| Bounded source research, understood code or targeted verification | `gpt-6.1-sol` | `medium` |
-| Difficult Core/JIT/GPU ordering, memory, concurrency or ABI review | `gpt-6-astra` | `high` |
+| Exact lookup/receipt | `gpt-6-luna` | low |
+| Bounded research, understood change/check | `gpt-6.1-sol` | medium |
+| Difficult Core/GPU/JIT/memory/concurrency/ABI review | `gpt-6-astra` | high |
 
-These are Work Mode collaboration aliases, not API model IDs. Verify the currently
-advertised models and efforts before spawning. Set both parameters explicitly;
-use `fork_turns: none` with overrides and pass minimum task-local context.
-Escalate once for a named ambiguity or changed evidence; do not use maximum
-effort or multiple reviewers by default. Use the shared ownership, evidence,
-output and stopping rules above. A user-authorized parallel coding task has its
-own branch/checkout and disjoint paths; one writer owns each path.
-
-Codex cannot change this conversation's primary backend model or native effort
-through these tools. The application controls them. Adapt work/explanation depth,
-but do not claim a primary-model switch, a native main-effort change or measured
-token savings. No API billing, outside agent launcher or subscription changes
-are authorized by this routing. If native delegation is unavailable, work directly.
-
-The personal routing instructions are a thin entry point to this shared contract,
-not another requirements/history file. Codex must update its owned result here
-after meaningful work and before handoff, just as Claude updates its own rows.
+These are Work Mode aliases, not API IDs. Escalate once for a named ambiguity.
+The app controls Codex's primary model/effort; never claim to switch them through
+project text. No paid service permission is implied. Personal routing points here.
 
 ## Standing IPA compilation authorization
 
-Maintainer decision, 3 November 2026. Claude Code is authorized to launch the
-Core producers, GitHub Actions/macOS compilation, packaging and private IPA
-delivery needed for an authorized RewindBox task without asking again. This
-includes recovering failed attempts and rebuilding affected components after a
-correction. Use the standard recipe, reviewed inputs, contracts, pins and signing
-checks. This standing decision supersedes older prompts that ask for fresh
-approval for these compilation steps. The current task determines which changes
-belong in the IPA.
+**Already approved:** main may review/integrate approved changes, run/recover
+Core/macOS CI, package, verify and privately deliver the common IPA without asking
+again (3 Nov; reconfirmed 4 Nov). Its ordinary fast-forward commits to
+`origin/Claude` are authorized, with `[skip ci]` unless CI is intended. Reconcile
+only owned unpushed commits after inspecting remote advances/conflicts.
 
-Maintainer clarification and explicit approval, 4 November 2026: "Oui mais ne me demande plus d'autorisation ! C'est la règle !" This approves the proposed targeted recipe change to accept the already-integrated merges after explicit review/classification, keeping source/Core/package/signature identity checks and the prohibition on merges after freeze. Preserve shared history; no force-push is requested. The linear-history decision blocker is resolved by this approval. For authorized RewindBox corrections, integration, CI/Core recovery, packaging and private delivery, continue autonomously without repeated permission questions; make routine necessary implementation choices and keep the maintainer informed of meaningful outcomes. This does not authorize bypassing platform/tool refusals, public publication, paid services or unrelated destructive operations. Resume the existing bounded watch; main remains sole delivery owner.
+**Recipe approval `49e4f2e` remains valid:** explicitly reviewed/classified merges
+already integrated are accepted; preserve shared history, source/component/package/
+signature checks and the ban on post-freeze merges. Do not reopen that approval.
+Product changes after freeze belong to the next manifest.
 
-After EVERY IPA compilation attempt, successful, failed or interrupted, give the
-maintainer a concise report with build/version, source and Core identities,
-workflow run/attempt, tests fresh/reused/failed/not run, outcome, blockers and
-next action. On success, verify the actual downloaded IPA and give its usable
-private link, size and SHA-256. Record the result and evidence in this shared
-contract before finishing or handing off. A failed job requires a failure report
-even when no IPA was produced. Keep an in-progress build monitored through its
-terminal state when the active task is to produce that IPA.
+Use [the standard recipe](standard-delivery-recipe.md), last verified IPA and
+declared reviewed delta. Rebuild changed components; authenticate retained ones.
+Rerun affected tests and always delivery contracts; reuse only equivalent relevant
+source, transitive dependencies, tools/config/inputs. Keep Release/ABI/legal/signing/
+payload and source/run/artifact/size/hash bindings. Follow [Core swaps](core-swap-delivery.md),
+[delivery speed](delivery-speed.md) and `build-utils/delivery_contract_memo.py`.
+A changed host needs a full app build on Xcode/macOS; Windows is not iPhone CI.
+The under-40-minute target never removes checks.
 
-This authorizes compilation and private delivery within existing project
-services. Public releases/tags, account/billing changes and new paid API usage
-continue to require their own authorization.
-
-## Command output
-
-For verbose foreground tests or diagnostics, use
-`python3 scripts/ai-output.py run -- <command> <arguments>`.
-For an existing journal use `python3 scripts/ai-output.py file <path>`.
-Each run retains the complete merged binary output, its SHA-256 and a JSON
-receipt in a unique system-temporary directory. `run --log-dir <parent> -- ...`
-selects an existing parent directory. The child exit status is preserved and
-the terminal receives a bounded excerpt. Run mode expects a foreground,
-non-interactive command and does not interpret shell pipelines.
-
-Read the reported exit status first. Keywords or their absence never establish
-test success. If an excerpt is insufficient, open the relevant range of the full
-log. Use the existing MeloNX/RPCS3 analyzers for session semantics. Promote
-decisive receipts into the existing evidence location when needed for lasting
-proof. Record tested source, dependencies and tools in the task entry before
-reusing evidence. This wrapper does not itself establish input equivalence.
+After **every** success/failure/interruption, retain/report build/version, source/
+Core identities, run/attempt, tests fresh/reused/failed/not-run, result, cause and
+next action. Follow the real active run to terminal state; no duplicate dispatch.
+Before giving the usable private link, verify the downloaded plaintext IPA against
+manifest, component/signing identities and receipt; provide bytes and SHA-256.
+Encrypted transport alone is insufficient. Keep recipient keys out of Git and delete
+private keys after verified delivery. SideStore supplies Apple provisioning.
+State unavailable file/device verification explicitly. No public release/tag/post
+or paid-service authorization is implied.
 
 ## Diagnose, correct and verify
 
-1. Read the active task, then its direct source and evidence references. Use
-   bounded file/symbol searches and batch independent reads. Avoid reading the
-   whole history, loading long journals or recreating an existing report.
-2. Reopen a conclusion only for a relevant changed input, contradictory
-   observation or untested path. A new session alone is not new evidence.
-   Preserve rejected hypotheses and inconclusive results with their conditions.
-3. Give each diagnostic command one question and resulting decision. After two
-   equivalent inconclusive attempts, change the method or name the missing
-   input. A blocked download stops its dependent step, not independent work.
-4. Move from an established cause to the smallest supported correction. Test
-   the affected behavior and required contracts. Reuse success only with the
-   same relevant code, transitive dependencies, tools, configuration and inputs.
-   Label evidence fresh, reused or not run. A change can invalidate earlier tests.
-   For every actionable log finding, record a disposition: a confirmed defect
-   gets a scoped correction and verification; an already-fixed case names its
-   change/build; an unproven hypothesis gets one decision-making check; a real
-   constraint or missing input is explained. Do not repeat an unresolved finding
-   without a next action or invent a patch unsupported by evidence.
-5. Record a performance hypothesis against its measured bottleneck and
-   comparison conditions. CPU encoding, GPU execution, queue wait, launch time
-   and FPS measure different things. Host tests or compilation do not establish
-   an iPhone gain.
-6. Keep raw evidence in the existing component/evidence location. Summarize its
-   decisive outcome here with a link. Preserve failures and input identities.
-   Keep secrets, recipient keys and private player logs out of instruction files.
-7. When compacting, retain the active request, permissions, branch/HEAD, owned
-   dirty paths, input identities, findings, failed attempts, patch/test state,
-   blocker and next action. Return concise outcomes to the user in French.
+- Resume existing evidence; reopen only for changed input, contradiction or untested
+  path, not a new session. Give each bounded check one question/decision; change
+  method after two equivalent inconclusive attempts. Keep independent work moving.
+- Apply the priority rule: confirmed defect → fix + executed test; already fixed →
+  exact change/build; hypothesis → deciding check; unavailable observation/limit →
+  evidence + next action. Diagnostics remain intermediate work.
+- Verify real controls/candidates and full dependencies; classify baseline failures.
+  Never weaken assertions, skip required tests or call an unexecuted test passed.
+- Separate CPU encoding/GPU execution/waits/launch/FPS and source/host/simulator/
+  compile/package/device evidence. No unmeasured iPhone FPS/audio/visual gain.
+- Use app logs, never request .ips/Jetsam/watchdog reports or block on them.
+  Separate build/PID/session/game/mode, cold/warm and duplicate rotations.
+  No raw private logs, secrets or recipient keys in instructions/Git.
+- Handoff/compaction keeps request/authorization, branch/HEAD/dirty ownership,
+  input identities, findings/rejected paths, exact change/tests, blocker and next.
+
+### Command output
+
+For verbose foreground checks use `python3 scripts/ai-output.py run -- <command> <args>`;
+for journals use `file <path>`. `run --log-dir <parent> -- ...` selects its parent.
+It preserves full binary output/SHA-256/receipt and child exit status, not pipelines
+or interactive commands. Exit status first; keywords never prove success. Inspect
+the needed full-log range and existing analyzers, retain decisive evidence in its
+component location. Wrapper success is not input equivalence.
 
 ## Product and delivery requirements
 
-- Use RewindBox in new product text. Preserve upstream NeoStation credits,
-  licenses, bundle IDs, storage paths, preferences, method channels and ABI.
-  Follow [rebranding](REBRANDING.md) and the relevant [component rules](PROJECT_RULES.md).
-- Retired components are Mario Kart Pad/KartPad, Dusklight, the Ports playlist
-  and MeloNX's external StikDebug/Shortcut launch fallback. Preserve player
-  files and historical evidence while keeping their runtime code retired.
-- Preserve delivered library behavior and reviewed exceptions. Never erase
-  games, saves, firmware, keys, caches, mods or pairing to hide a defect.
-  Preserve backups and approved replacement rules. Avoid speculative migrations,
-  duplicate hiding or parallel libraries.
-- Keep source corrections canonical and reviewable. Preserve generation and
-  ownership checks, cancellation, late callbacks, real errors and safe teardown.
-  Verify first launch, relaunch, recovery and cross-engine transitions when affected.
-  Keep changes scoped to the requested engines, helpers and emulation settings.
-- Preserve all 12 locales for changed labels, help, errors and accessibility
-  strings. Use en, es, ru, zh, zh_Hant, pt, fr, de, it, id, ja and ko. Verify
-  keys, placeholders and Traditional Chinese selection. Raw diagnostics remain
-  separate. English fallback does not replace a missing translation. GitHub release
-  notes are English unless the maintainer asks otherwise.
-- Use existing app journals and executable reproductions. Never request .ips,
-  Jetsam or watchdog reports or block work on them. Separate builds, runs,
-  cold/warm launches, duplicated logs and game modes.
-- Every private IPA uses the [standard delivery recipe](standard-delivery-recipe.md)
-  from the last verified delivered IPA plus reviewed changes. Declare the delta
-  in its manifest. Rebuild changed components and retain authenticated unchanged
-  identities. Rerun affected test groups and always rerun the delivery contract.
-  Do not create per-build recipe copies. Keep source, run, artifact, size and hash
-  bindings, Release, ABI, legal, signing and payload preservation checks.
-- A failed delivery retries only the changed recipe while retaining valid test
-  evidence. Compute shared contracts with `build-utils/delivery_contract_memo.py`.
-  Preserve modes and invalidate changed inputs. Report observed bottlenecks and
-  durations against the under-40-minute end-to-end target.
-- Follow [Core swap rules](core-swap-delivery.md). A changed host/application
-  source requires the full application build. Windows checks do not compile
-  an iPhone IPA. Use authorized Xcode/macOS CI for that step.
-- Verify the actual downloaded IPA before giving its usable private link.
-  Encrypted transport is not the deliverable. Keep recipient keys out of Git
-  and delete private keys after verified delivery. SideStore still supplies
-  Apple signing/provisioning. Separate source, tested, compiled, delivered and
-  observed-on-iPhone states. Do not claim unmeasured FPS gains.
+- New product text: RewindBox; preserve NeoStation credits/licenses, IDs, storage/
+  preferences, channels and ABI. Follow [rebranding](REBRANDING.md) and relevant
+  [component rules](PROJECT_RULES.md).
+- Keep KartPad/Mario Kart Pad, Dusklight, Ports playlist and MeloNX external
+  StikDebug/Shortcut fallback retired; preserve player files and evidence.
+- Preserve reviewed library behavior/exceptions, backups, games/saves/firmware/keys/
+  caches/mods/pairing and approved replacement rules. No destructive concealment,
+  speculative migration, duplicate hiding or parallel library.
+- Preserve canonical sources, generation/ownership, cancellation, late callbacks,
+  errors and teardown; check affected first/relaunch/recovery/cross-engine paths.
+  Hogwarts remains 1x with equivalent full rendering: no hidden quality/resolution
+  reduction, unsafe synchronization or unverified global workaround. Shader
+  interpreter remains off unless separately approved.
+- Preserve all 12 locales (en/es/ru/zh/zh_Hant/pt/fr/de/it/id/ja/ko) for changed text,
+  help/errors/accessibility; verify keys/placeholders/Traditional Chinese.
+  English fallback is not a translation; diagnostics stay separate.
+- Skins: old packs/IDs/previews/imports/selections remain. Add approved variants
+  faithfully in both orientations, verify actual overlay/contours/press/release/
+  sticks/Menu/rotation/persistence; preserve portrait-only lock, dual-layout
+  rotation and restoration. Document necessary adaptations and unobserved feel.
 
 ## Release notes and publication checklist
 
-Maintainer requirement, 4 November 2026: after every release, establish a fresh
-list of fixes and new features so nothing is forgotten for the next publication.
-
-- The main integration/release owner maintains [the next-release checklist](releases/NEXT.md).
-  Component owners supply a concise user-facing description and exact evidence
-  with each handoff. This is the release communication record, not a second task
-  queue; implementation ownership and acceptance remain in this board.
-- Update the checklist as reviewed changes arrive and after every verified private
-  IPA delivery. Record new features, fixes, performance/stability work,
-  compatibility changes and known limitations, with source/PR, verification state,
-  packaged build and publication status. Distinguish planned, implemented, tested,
-  privately delivered and publicly released. Never call an unexecuted test or an
-  unresolved hypothesis fixed; no unmeasured FPS claim.
-- Before a public release, reconcile the entire relevant change range from the
-  last actual public tag/release against the final manifest and delivery receipts,
-  not just the latest three tasks. Deduplicate items already announced and retain
-  every approved unannounced change, including changes tested in earlier private IPAs.
-  Do not silently drop an item; record a deferral or exclusion with its reason.
-- After an authorized public release, archive its final notes under
-  `docs/releases/<actual-tag>.md` with the exact tag/build/source and publication URL.
-  Start a fresh `NEXT.md` based on that release and carry forward all unshipped or
-  unannounced items. A private IPA alone does not reset the public baseline or
-  remove changes waiting to be announced. Preserve prior release records.
-- Provide the maintainer with a ready-to-post English changelog at release handoff
-  and maintain an explicitly labelled preview while work is in progress. The
-  published version must list only the delivered contents and their real limits.
-  Writing these notes is authorized; public posting/tags/releases retain their
-  existing separate authorization requirements.
+Main maintains [releases/NEXT.md](releases/NEXT.md), with exact source/evidence and
+English user-facing notes from owners. Update after reviewed changes and verified
+private IPA: features/fixes/stability/compatibility/limits, with truthful state.
+Before public release reconcile ALL approved unannounced content since the actual
+public tag against final manifest/receipts; record deferral/exclusion.
+After an authorized PUBLIC release archive `releases/<actual-tag>.md` with exact
+tag/build/source/URL; start fresh NEXT and carry unshipped/unannounced items.
+Private delivery does not reset the public baseline. Supply ready-to-post English
+notes, label previews; writing is authorized, public posting separate. NEXT is
+communication evidence, not another implementation queue.
 
 ## Active requirements
 
-| Task and owner | Required outcome and acceptance | Verified state and next action |
-| --- | --- | --- |
-| TASK-631-MELONX — Claude Code, session `012mUAShv9k6pSCnpW7oAF63` | Review and optimize existing MeloNX work, fix demonstrable omissions and regressions. Source `13700519`, tree `82a29e6f`, SDK 10.0.100. Validate the real prepared source, affected gates and artifact identity. Player-facing goal: higher game FPS and fewer long frames on iPhone. The 30–40% draw-encoding target is a separate CPU metric. Compare 629 and the build carrying 631 on the same Hogwarts save, device, 1x settings and comparable thermal state. Separate cold and repeated warm passes. Record median game FPS, p95/p99 frame time, stalls over 100 ms per minute, crashes and rendering regressions. Correlate remaining stalls with allocation rate/GC pauses, memory footprint/available memory, pipeline builds and warm-up misses. Label improvements only after device evidence. | Superseded as delivery Core by **MeloNX Core 639** = Core 631 + the reviewed PR #153 lot (merged `4218687e`; session `012mUASkkFGHaPcEUx9dsp8q`): pipeline warm-up key with the draw's alpha-to-coverage/alpha-to-one state (disk cache format unchanged), device-short texture trim evicting only textures it frees without a flush. Wired after every 631 step (`6e93f652`); contract `7a0c5911` frozen (`6590da48`): 134 inputs, 180 prepared members, 37 production changes, 13 fresh gates (two new), 23 reused, 61 historical; contract test 279 checks on the real 614 archive. Before correction, fragmented-reads, performance-diagnostics and hogwarts-dma-copies failed on their own compositions (stopped at the 631 adapters); fixed by composing the lot last ([run record](evidence/melonx-639-gates/run.json)). CI run `41749490658` attempt 1 on `cbb7beb9`, job `126310750224`, artifact `13285659309`; iPhone engine `b75212a4…` (37963016 bytes), fingerprint `5b319b42…`; `engine_evidence` passed; pin `12c3765d` (digest `4cbf0ea8…`). Core 631 (run `41720730870`) stays the verified predecessor. No iPhone run, no FPS claim. **MeloNX Core 642 = Core 639 + PR #154 lot, 4 Nov:** integrated linearly `f5a95ef4`; wired and frozen `8cd2e93c` (contract `542652e1`: 138 inputs, 180 prepared members, 39 production changes, 18 fresh gates, 22 reused, 61 historical; contract test 291 checks on the real 614 archive; [run record](evidence/melonx-642-gates/run.json)). Gate findings corrected before the freeze: pipeline-warmup-parity's control rebuild met miss-context's ShaderCollection hunks (control_source now reverses later file-sharing adapters, order checked against prepare_embedded.py); performance-diagnostics held a partial DmaClass.cs (apply_present binds only compared files); the freeze refused the core87 barrier-compaction proof (declares BarrierBatch.cs): new gate `barrier-compaction` reruns it on the final class: MoltenVK 1.4.0/other drivers, all 624 traces equal; MoltenVK 1.4.1+, pass endings exactly at the predicted flushes (200 ending, 34 kept). CI run `41770120368` in progress. No device run, no FPS or visual claim. **Core 642 pinned** (`6f26b877`): CI run `41770120368` attempt 1 on `8cd2e93c`, job `126377584899`, artifact `13294034769` (90307192 B, `e71f0d5f…`), result `1fd41955…`; iPhone engine `220910c8…` (37979472 B), simulator `6fdd0ec9…`; packaged fingerprint `281aa3a4…`; `engine_evidence` passed (18 fresh gates rerun on Apple ARM64, 22 reused, 61 historical, two simulator sessions); pin digest `3f48070a…`. Replaces Core 639. No iPhone run, no FPS or visual claim. **MeloNX Core 644 = Core 642 + PR #156 lot, 4 Nov:** integrated `b15bc9d1` (byte-identical to a3e1efd1), wired and frozen `56cba94d` (contract `90e11def`: 140 inputs, 181 prepared members (the GPU Window joins), 40 production changes, 20 fresh gates, 22 reused, 61 historical; contract test 296 checks). CI run `41835730374`: attempt 1 failed in hogwarts-dma-copies on a timing counter only (slowWrites 2 vs 1, the harness runs the composition without the 644 lot, identical to the passing 642 code), failed job rerun unchanged; attempt 2 passed (job `126596968961`). Pin `51942721`: artifact `13327497581`, iPhone engine `e721da8b…`, fingerprint `465d89f5…`, engine_evidence passed (20 fresh gates on Apple). No device run; the black-launch link stays a hypothesis for the device pass named by the owner. **MeloNX Core 647 = Core 644 + PR #156 follow-up (handoff `dc96efa4`), 4 Nov:** teardown compile cancel (SSBU endless close) and pause guest-thread record (diagnostics); integrated byte-identical, frozen (contract `ba039ceb`, 142 inputs, 182 prepared members with KProcess, 42 production changes, 22 fresh gates, contract test 301 checks; [run record](evidence/melonx-647-gates/run.json)). pause-guest-threads now uses the authenticated local LibHac package when the copied tree declares the unreachable upstream feed. CI run `41845070203` attempt 1 passed (HLE gate included); pinned: engine `e236ad9f…`, fingerprint `975a4148…`, engine_evidence passed, pin digest `fe73c43a…`. No device run. |
-| TASK-634-RPCS3 — Claude Code integration | Integrate the verified Core 634 with its host changes and preserve source/artifact bindings. Includes Core 630. | Pinned (`ffd5b62d`), superseded as delivery target by Core 636 (below). Run `41696834507` on `792d72c9`: Core artifact `13261039942` (29324314 bytes, `3c82cd8d…`), Apple-host `13261452573` (40957 bytes, `c13cc47e…`); `pin_errors` none, `bundle` passed (ABI 30, 92 exports, codegen unchanged, 15 host commands). Audit (`e69ac22a`) defects reproduced on 634 by `test/rpcs3_core636_test.py` negative witnesses. No iPhone run. |
-| TASK-635-IPA / next private IPA — Claude Code integration | Latest maintainer direction, 3 Nov: let ALL current coordinated work finish, then integrate the reviewed RPCS3 FPS/stability changes, MeloNX post-631 FPS/memory work, skin/orientation corrections (now including the explicitly approved PS2 Pocket black-matte skin and GC/Wii/PS2 control/Menu verification) and already-approved delivery contents into ONE new private IPA. Main session `012mUAShv9k6pSCnpW7oAF63` owns final review/integration, affected Core producers/pins, final manifest and private delivery; authorization includes this integration and compilation without asking again. Wait for the MeloNX and skin handoffs before freezing/packaging the final IPA. Preserve already-running builds; reuse their artifacts only if their effective inputs still match. Source completion and required build/test gates precede delivery; iPhone FPS/visual measurements follow the produced test IPA and are not a circular pre-delivery requirement. | All-work delivery hold recorded by Codex and sent to all three existing sessions. Main Claude explicitly acknowledged: finish RPCS3, do not freeze 637, wait for the MeloNX and skin handoffs, review/integrate them and compile one private IPA containing all. A bounded hourly condition watch is enabled to follow readiness/delivery without repeated diagnostics or duplicate builds and stops after verified delivery or a decision-blocking interruption. RPCS3 source/Apple-harness work is active; MeloNX session `012mUASkkFGHaPcEUx9dsp8q` is active on `work/melonx-fps-stability-20261103`; skins session `012mUASjgVWk8DKKjVbwTD2n` has draft PR #152. No new combined IPA has been compiled. The former 635 and current 637 manifests are drafts: choose a final number above all actual Core/build identities once sources settle. Next: workers finish their bounded tasks, report exact commits/PR/tests/limitations in this shared contract, then main reviews and integrates them, fixes demonstrated integration failures, builds affected Cores, verifies pins/contracts and compiles the combined IPA. Report every IPA attempt; on success verify the downloaded IPA and provide private link, size, SHA-256, included changes and unmeasured items. Do not silently omit a requested chantier or substitute an earlier Core after failure. Codex watch completion, 4 Nov 2026: independently checked all five successful jobs of IPA 640 run `41757407492` (source `38c465b2`, freeze `6d88f9cb`, effective `ea1af9fa…`), final manifest and committed `docs/evidence/rewind640/delivery.json` + `download640-verification.json` from main's delivery commit `f2c241f3`. Download receipt binds all four API-authenticated parts, SHA256SUMS/signing receipt, 90 native images, 43 retained fingerprints, zero undeclared image changes and six validators exit 0; exact RPCS3 fingerprint `c35b792e…` and MeloNX `5b319b42…` match the pinned 638/639 producers. All three lots are included, including PR #153 private-621-log fixes and skins squash `705e90c7`; no new workflow/worker/pin edit or relay. IPA is 221255575 bytes, SHA-256 `c0f1d04214d5c6283b1a0e11e3503f156d49826aeab56d91fcf612198955229d`, version 0.0.8 (640), iOS18+ for SideStore re-signing. Main attached the verified plaintext IPA privately in session `012mUAShv9k6pSCnpW7oAF63`; Codex successfully exercised its authenticated download link. Browser-to-Codex file synchronization failed, so no local attachment or independent local byte hash is claimed; delivery verification is based on the committed receipt and main's actual download verification. Offline cryptographic Apple trust/provisioning and physical iPhone/gameplay/FPS are unverified; old independent Dolphin harness/diagnostic limits remain recorded. Final verified delivery reached; disable this bounded watch. No maintainer decision remains. **4 Nov 01:20 UTC, Claude integration status:** RPCS3 Core 638 pinned (`01562c63`), MeloNX Core 639 = 631 + PR #153 lot pinned (`12c3765d`); held draft renumbered **640**. Skins PR #152 not delivered (latest `checks` red on Dolphin `SessionMenuTests`; `diagnostic_routing_test.m` already fails on `Claude`, run `41734053855`). **Blocker:** `standard_delivery.py freeze 640 --dry-run` refuses: base `6aae16b9`..HEAD contains merge commits (`dc70da8f`, `4218687e`, `cbb7beb9`, `7dbc787a`, from integrating PR #153 by merge and merging the remote), while the recipe requires a linear history (`replay`, `source_contract`, test `test_unclassified_merges_and_late_product_commits`). A first-parent relaxation of the recipe was refused by the session's safety classifier and is not applied; rewriting `Claude` needs the maintainer's explicit decision. Next: maintainer chooses (a) linearize `Claude` (force-push of an equivalent linear history) or (b) the first-parent recipe change; the skins lot will be integrated linearly. **4 Nov 01:40 UTC, all three lots integrated:** skins PR #152 squashed linearly as `705e90c7` (handoff `02af2822`, tested `5f7361eb`, run `41750105132`: PS2 overlay 8/8, Dolphin orientation 3/3, menu orientation 4/4, lifecycle 5/5, overlay 2/2, recording 4/4; Linux host contracts rerun). Kept as limits, no test removed: 7 Dolphin `SessionMenuTests` still red with stale row expectations (Codex read-only review: production rootKeys 9/7 + recording, console index 4 vs controls index 3; identical to `56789c4`, a static attribution, not a baseline execution) and the skins workflow lacks the authenticated TouchResources donor preparation (`test/touch_layout_ui_test.py:49-93`, `prepare_fast_native_runtime.py:153-167`) that should then require TCGameCubePad/TCWiiPad and images; `diagnostic_routing_test.m` red on `Claude` too. Full Dolphin/ARMSX2 plugin compiles happen only in the IPA. **Separate linear delivery branch — verdict: impossible under the current recipe** (read-only check): `standard-delivery.yml` runs only on push to `Claude`; `freeze()` blocks unless the checkout branch is `Claude` and HEAD contains `origin/Claude` (`standard_delivery.py:58,1888,1896`); `source_contract()` requires `GITHUB_REF_NAME == 'Claude'` and no merge base..HEAD (`:1360,1366`). A branch from 629 can satisfy none of these without moving `Claude` or changing a guard; Core pins themselves would stay valid (producer runs on `Claude`, content-addressed). No guard, workflow, test or shared ref was changed. Open decision for the maintainer: a linear history on `Claude` itself, or an explicitly authorized recipe change. **4 Nov, IPA 640 attempt 1 in progress:** recipe accepts reviewed merges on the first-parent line (`fix(delivery)` commit; merges after the freeze still refused; contract suite 54 tests OK); legal overlay for the ARMSX2 podspec system frameworks and the original PS2 Pocket pack; three bridge images declared changed; dry freeze clean; manifest frozen at `013c505d` (16 Flutter + 16 native test groups, 43 retained images); trigger `ba77e40a` `[ipa-delivery:640]`, trigger paths accepted (only the standard delivery). Standard delivery run `41754863542` in progress. **Runs to keep during the cleanup that no contract/pin/manifest declares** (Claude, 4 Nov): `41754863542` (IPA 640 delivery, active); `41730169021` and `41733834801` (Core 636 build and Apple rerun, the verified fallback predecessor of 638); `41720730870` (MeloNX Core 631, verified predecessor of 639); `41750105132` (skins handoff evidence, PR #152 tested code `5f7361eb`) and `41734053855` (`diagnostic_routing_test.m` already red on `Claude`). Declared and also required: pins `41737262282` (RPCS3 638) and `41749490658` (MeloNX 639), MeloNX 614 archive artifact `13141611354`, 629 delivery `41622115556`, and every run named by `build-utils/delivery/640.json`, the Core build files and the retained-component origins. **IPA 640 attempt 1 failed** (run `41754863542`, trigger `ba77e40a`): preflight API check, retained Libretro original artifact `12280822192` (expired 3 Nov 16:19) purged by GitHub (Not Found) while `archive_origin` still required its metadata despite the pinned 629 republication `13222884728`; no test or IPA ran. Recipe fix: a purged original is accepted only with a pinned republication, whose record must bind the exact original and whose content must match (`e06f641d` verified); contract suite 55 tests OK. Refrozen on `cc6330df` (effective digest unchanged `1cdd55fc`); **attempt 2** triggered by `be0510c6`. **DELIVERED: IPA 640 attempt 3 succeeded** (run `41757407492`, trigger `38c465b2`): attempt 2 (`41755520488`) failed in the native group (DolphinAccount267 / ARMSX2Graphics26 did not compile the new orientation sources; fixed `903a138c`, no assertion changed) after the Release device binary had compiled. Attempt 3: all five jobs passed; IPA 221255575 bytes, SHA-256 `c0f1d042…5229d`, verified offline and sent privately; receipt `docs/evidence/rewind640/`; private key deleted. Handoff branches hold no unintegrated work (MeloNX branch contained in `Claude`; skins branch at the squashed head `02af2822`): removable. Next: iPhone comparisons (AC `ZCULLDEMAND619`/`ZCULLWAIT616`, GOW3 `READBACK555`/`READPREDICT638`, BO2 `SHADERPIPE543` over two sessions, Hogwarts warm-up misses and trims). **Next common IPA, 4 Nov 04:00 UTC:** inputs ready or in progress: RPCS3 Core 641 pinned (`ff91455f`), MeloNX Core 642 frozen and building (run `41770120368`), PS2 playlist Skins fix `b8794226`. The skins session's additive GC/Wii original skins task (Codex relay above) is the remaining handoff to review before freezing; the number will be chosen above every Core (643 or higher). Delivery-contract test `test_rpcs3_pin`/`test_melonx_pin…` fail on purpose against the frozen 640 manifest until the new draft carries the new pins. **IPA 643 draft ready, freeze held for PR #155 (4 Nov 04:20 UTC):** `build-utils/delivery/643.json` on the delivered 640 (receipt completed with its 12 proof files `04a4db80`, signed identity 90 images), RPCS3 Core 641 pin `d8c53719…`, MeloNX Core 642 pin `3f48070a…`, four reviewed commits (`556648e7`, `b8794226`, `f5a95ef4`, `8cd2e93c`), recipient `delivery-643-recipient.pem` (`fd8ae55b`, private key outside Git). `freeze 643 --dry-run`: would succeed, no blocker; 34 effective differences, digest `1759d871…`, legal check passed, 44 retained images, mustChange App/MeloNXCore/libRPCS3Core/Runner. Held because the skins session's additive GC/Wii Original lot (draft [PR #155](https://github.com/TarbleFR/RewindBox/pull/155), head `4803ecbc`, Apple run `41770141383` in progress) is addressed to this common IPA; main reviews and integrates it linearly at handoff, then freezes (same number if no new Core). PR #155 lists measured limits it calls maintainer decisions (sharpness bounded by the board source, a closed list of housing overlaps in the opposite landscape rotation); they will be carried as known limits, not silently waived. **DELIVERED: IPA 643, attempt 1** (run `41772933869`, trigger `f19ed8cd`, freeze `2740e79c`, effective `e8bad150…`): PR #155 handoff reviewed and integrated linearly `5ab7273d` (Apple run `41770141383`: red steps only on the attributed baseline, diagnostic_routing_test.m and the 7 SessionMenuTests); the legal check refused the new Pocket catalog, fixed by the strict reviewed overlay `33bb2a22`; the delivery's Flutter group also runs the input-chain and session-chrome host tests. All five jobs passed; IPA 236198342 B, SHA-256 `eb6f88ea…2f0a`, verified offline and sent privately; receipt `docs/evidence/rewind643/` (`082fd983`); private key deleted. Device checks carried: AC session with the `AUDIO641` lines and stutter times; BO2 second session (fingerprints) and SPU warmup-scope A/B; Hogwarts and SSBU recordings with the pass-ending, fallback and occupied/miss lines; the GameCube/Wii Original skins and session buttons on iPhone. **Next common IPA (646 or higher), 4 Nov 14:00 UTC:** inputs: RPCS3 Core 645 (compile running), MeloNX Core 644 pinned (`51942721`); pending handoff: the skins session's Original-skin touch/pressed-state/landscape-stick correction (Codex relay above), to review before the freeze. **IPA 646 draft** (`build-utils/delivery/646.json`, on the delivered 643; RPCS3 Core 645 + MeloNX Core 644; three reviewed commits; recipient `delivery-646-recipient.pem`, private key outside Git): `freeze 646 --dry-run` would succeed (25 effective differences, digest `3d40b5af…`, legal check passed). Freeze held for two announced handoffs to the same common IPA: the MeloNX owner's PR #156 follow-up (`8eec0dd9`/`a780c8f3`: teardown compile cancel, pause guest-thread record; its receipts announced for the next commit) and the skins owner's Original touch/pressed-state/landscape-stick correction. Main reviews and integrates both at handoff (new MeloNX Core if the adapters are accepted, renumbered above 645), then freezes and delivers. **IPA 648 (renumbered from the 646 draft above MeloNX Core 647), 4 Nov 14:40 UTC:** RPCS3 Core 645 + MeloNX Core 647 on the delivered 643; five reviewed commits; `freeze 648 --dry-run` would succeed (32 effective differences, digest `97d3e130…`, legal check passed). Freeze held only for the skins owner's PR [#157](https://github.com/TarbleFR/RewindBox/pull/157) (Original skins touch, pressed sprites, stick geometry; Apple run `41848783911` in progress, previous `41844722361` red); main reviews and integrates it at handoff, then freezes and delivers. |
-| RPCS3/MoltenVK async before next IPA — Claude Code implementation, Codex coordination | Explicit maintainer priority, 3 Nov: start and integrate the relevant async work before the next private IPA. Reuse existing ZCULL/report and asynchronous-submit paths; correct demonstrated artificial waits, missing activation or ordering/lifetime defects per AC/GOW3/BO2. Preserve complete rendering, exact report dependencies and safe resource retirement. Source changes, targeted dependency/fallback tests, successful Apple/iPhone build and exact Core pin are required before delivery. Device FPS/1% low/p99 and visual comparison follow on the produced test IPA; unavailable device results must be labelled, not invented or made a circular pre-delivery requirement. | Core 636 compiled (3 Nov): run `41730169021` Core job `126245102526` passed, artifact `13278257973` (29323965 bytes, `77d76bc7…`), dylib 77739176 bytes `a2f8b2cc…`, identity `rpcs3-ios-core636`, ABI 30, 92 exports, PPU `a987639e9f838d1c` / SPU `477a3fa442d27917`, fingerprint `66bd9877…`. Apple host job of that run failed on one decision check: the slot-wake model compared a measured 636 wait (807 µs) with an ideal, unmeasured 634 sleep (209 µs). Fixed in `31a7651c` (both forms measured from the release instant; Linux 634 159-166 µs → 636 42-46 µs median, host only); full local suite passes. Apple rerun `41733834801` (`2a62ce08`) attempt 1: slot wake passed; the historical Core 630 wait-budget scenario (ASan, reverted tree, code unchanged by 636; passed in `41730169021`) failed on timing (`test/rpcs3_core621_zcull.py:107`), attempt 2 job `126260668235` passed (artifact `13279365164`, 41750 bytes, `92ef9af2…`): Core 636 compiled and host-verified, not pinned because Core 638 supersedes it (artifacts kept to 3 Dec as fallback). [Record](rpcs3-core636-2026-11-03.md). **Log dispositions (actionable-finding rule).** AC 4.4 s/5 s guest waits, 3.6 services per read (Build 629, Core 627): already corrected by Core 630 per-slot reads, contained in 634/636; iPhone validation pending (`ZCULLDEMAND619` stale/waits/services, `ZCULLWAIT616 sync`). AC pause after slot release: corrected by Core 636 slot wake, Apple confirmation pending. AC ~25 submissions/frame: each remaining pending-slot read submits only the command buffer holding its deciding query; required for exact results, no compatible reduction demonstrated, read `services` on 636. BO2 22 blocking pipeline builds (8.4 s): insufficient data; pipeline key normalized, no volatile field found, VkPipelineCache wired; missing Build 629 session 1 `SHADERPIPE543` new_fragment/new_vertex/state_only/repeated_builds and `PRESSURE547`, plus a second session on the same install. BO2 per-frame newest-report read (11-13 ms): real dependency; only conservative reports avoid it and they change values: limit. GOW3 `READBACK555 fault_read` 132 × 3.69 MB, 554 ms/window, 16-30 submits/frame: WCB required (not disabled); these sections were not pre-copied by the upstream speculative readback (only unsynchronized sections are counted); missing: speculative copies/mispredictions per window and the GPU-wait vs copy split of `fault_read`. GOW3 GPU 34-37 %: source line not traced in the docs. Async Recompiler and an unproven second texture queue stay excluded. Pre-existing failure, not caused here: `test/neo_swap_core_pin_test.py` on clean `HEAD`. **Core 638 pinned** (`01562c63`, pin digest `725ef06e…`): run `41737262282` attempt 1 on `5a6d2485`, Core job `126269535708`, artifact `13279848360` (29325101 bytes, `1bbdcbd3…`), Apple host job `126269535214` (15 commands, artifact `13279912187`); `pin_errors` none, `bundle` passed: `rpcs3-ios-core638`, ABI 30, 92 exports, PPU `a987639e9f838d1c` / SPU `477a3fa442d27917`, canonical `b6d87995`, fingerprint `c35b792e…`, marker `COREPROF READPREDICT638`. Core 638 = Core 636 + GOW3 decision instrumentation only ([record](rpcs3-core638-2026-11-03.md)). RPCS3 is ready for the combined IPA; no iPhone result. **IPA 640 iPhone logs (4 Nov, PID 5676, six inputs verified by size/SHA-256, kept outside Git), dispositions:** **BO2 pipeline stalls** (session 2 windows 15-17, 657/525/1546 ms blocking builds): first encounters, not rebuilds: `SHADERPIPE543` new_fragment 1/1/2 and state_only 0/2/0, `repeated_builds=0`, cache_additions 1/1/3, after a boot preload of 1508 entries (`SHADERWARMUP`); real constraint (Metal compile of a new pipeline 0.5-1 s); decisive check: a second BO2 session on the same map must not compile fingerprints `d5bf4f1ac22861db`, `d5bea73026af5fef`, `d5bea7c2a0164153` again. **BO2 window 13 (712 ms frame, compile/fence/ZCULL zero)**: not a pipeline stall; the window holds an SPU lazy-link burst (887 SPU functions, 843 object-cache hits loaded in play, 44 compiled, 843.6 ms, `SPUPROF`/`JITPROF`), as do the other spike windows 7 (6479, 1.82 s, 1168 ms max) and 9; the 17277 objects were resident after the prefetch (`SPUPREFETCH616`), boot linked none (`loading_attempts=0`, SPU warmup scope = God of War III only). Per-frame attribution not measured: hypothesis. Decisive check without a build: BO2 with "SPU warmup scope" = All titles with metadata (existing setting, LLVM precompilation on by default), same map, compare `SPUPROF gameplay_attempts`, max frame and boot time. **BO2 ZCULL**: 105 waits 1520 ms cumulative, max 24 ms per wait: cannot explain the 712 ms frame. **AC ZCULL**: 630/636 path active: `stale` (completed in the fault handler) 33k-87k per window, waits about 270-310 and services 260-300 per window (Build 629: 614-875 reads, 2238-2640 services); a remaining wait averages ~13 ms of which pickup ~1.4 ms and service ~0.9 ms, the rest is the GPU (busy 72 %, 35 ms per frame in window 32): a real GPU dependency, no artificial wait found. No FPS gain claimed (no paired comparison). **AC audio stutters**: demonstrated logging defect: the Core's cumulative audio counters (cellAudio queue/producer, RemoteIO callback: starved/filler frames, short/zero reads, late callbacks, max gap) exist every 2 s but at notice level, which the host drops; fixed in **Core 641** (`556648e7`, prefix COREPROF AUDIO641, values unchanged; host bridge untouched because its bytes bind the MoltenVK dependency evidence; test fails on 638, passes on 641). The audio cause itself needs the next device log. Session snapshot `core=` empty and windows 38-40 (AC in background) are not gameplay. PS2 Skins menu fix integrated `b8794226`. Next: Core 641 compile and pin, then one common IPA when the MeloNX session's current lot is delivered. **Core 641 pinned, 4 Nov 04:00 UTC** (`ff91455f`): run `41766094450` attempt 1 on `5568d3ce`, Core job `126364702807` (artifact `13293626354`, 29325560 B, `280c7245…`), Apple host job `126364702578` (15 commands incl. `core641`, artifact `13292519049`); `pin_errors` none, `bundle` passed: `rpcs3-ios-core641`, ABI 30, 92 exports, codegen unchanged (PPU `a987639e9f838d1c` / SPU `477a3fa442d27917`), canonical `0b6a14a0` (357 postimages), marker `COREPROF AUDIO641` in the Mach-O, dylib `ef64f70a…`, fingerprint `eb0d0051…`; replaces the Core 638 delivered in 640 ([record](rpcs3-core641-2026-11-04.md)). Log text only; no audio fix claimed. Device check carried: one AC session where the stutter is heard, with the three `AUDIO641` parts and the stutter times; BO2 second session and SPU warmup-scope A/B as above. Next: common IPA. **IPA 643 RPCS3 logs, 4 Nov (archive `40b950da…`, 1782552 B, eight originals verified by SHA-256 against INPUTS.json, kept outside Git; PID 6665):** **AC audio, defect corrected (Core 645):** AUDIO641 deltas over 97 windows from 12:51:36: starved 20224, refill silence 8704, 7 recoveries, RemoteIO late 0/lock misses 0. All 28 starved windows have more than 5 advances without mix (mean 15.3 vs 2.4 clean), periods nominal (~374/2 s) but 597 periods enqueued nothing; none at 60 FPS, growing below 33 FPS with frame time (windows 30-39: 24-28 FPS, p95 42-51 ms). Source: on a wait timeout cell_audio_thread advanced the period without mixing (touched ports' PCM lost, ring lost a block, refill controller adds 21-100 ms of silence); advance() zeroes each port block, so untouched ports mix as silence. Core 645 (`eeb36c27`, REWINDBOX_AUDIO_TIMEOUT_MIX_645): the timeout loops once with untouched ports expected so the existing mix/silence/missing-block paths output the period; guest periods, MIX events, buffer, tempo, refill unchanged. Tests: real decision block of both trees + real refill controller: burst model dropped 803->0, discontinuities 1621->839, filler 384256->198144, refill silence 170496->73216, recoveries 100->51, ring latency bounded (mean 23.1/24.0 ms, max 42.7 ms), clean identical; Core 645 suite (641..627 chain) PASS, codegen unchanged, closure passed. Compile run `41839324272` (request `60b388d9`). Residual (hypothesis): the game writes audio in bursts tied to 40-50 ms frames, longer than the 34 ms buffer; decisive iPhone A/B without a build: same AC scene, existing setting Audio buffer duration 34 vs 64 ms, AUDIO641 deltas (starved, advances, filler) and lip-sync. **AC perf windows 18/30 (constraint):** GPU-bound: window 18 GPU busy 74.5 %, 30-40 ms GPU per frame at ~1400 draws, 51 render passes per frame; ZCULL waits 246/3961 ms (overlapping, PPU threads) of which pickup 313 ms and service 122 ms, the rest waits for those GPU results; no artificial wait or redundant submission shown; lever = GPU work per pass, needs per-pass GPU timing (hypothesis, not changed). **BO2:** the three 640 fingerprints did not rebuild in 643 (cache persists, repeated_builds=0); session 2 still has 10 blocking first-encounter builds (8 new fragment programs, 4489 ms, max 1008 ms): real constraint; no setting changed. NeoSwap process_lifetime refusals not attributed to a window: not used as a cause. **Core 645 pinned** (run `41839324272` attempt 1 on `60b388d9`; Core job `126606390283`, artifact `13329351874`; Apple host job `126606391057`, 15 commands incl. `core645`; `pin_errors` none, `bundle` passed; dylib `bf2141f9…`, fingerprint `a2d42107…`, codegen unchanged; pin digest `fc1b8807…`). Not yet packaged; no audio gain claimed before device logs. |
-| Skin orientation — Claude Code, separate session `012mUASjgVWk8DKKjVbwTD2n`, branch `work/skins-portrait-lock-20261103`, draft PR [#152](https://github.com/TarbleFR/RewindBox/pull/152) to `Claude` (integrated/closed); board Originals: branch `work/skins-board-originals-20261104`, draft PR [#155](https://github.com/TarbleFR/RewindBox/pull/155) to `Claude` |Applied portrait-only playable skin locks the game to portrait from launch; a dual-layout skin preserves ordinary iPhone rotation. Release the restriction when returning to dual/default and on stop/failure. Preserve per-game/console inheritance, menu transitions and existing engine exceptions. **Maintainer extension (3 Nov):** add the approved PS2 Pocket black-matte reference as a real portrait/landscape ARMSX2 skin; all visible controls must be bound and pressable, including both sticks and L3/R3, and a visible RewindBox Menu in both orientations. Audit the effective GC/Wii Pocket controls and menu too, including release/cancel/multitouch, safe hit targets and menu/resume/return-to-library. Preserve orientation selection rules and existing player data. **Maintainer extension, 4 Nov after IPA640:** add separate new GameCube Pocket and Wii Pocket choices that reproduce the approved mockups identically, including the same visual finish (geometry, positions/proportions, shapes, volumes, textures, shadows, highlights, colors and sharpness) in portrait and landscape. Preserve all old skin packs/IDs/previews and saved/imported selections; no replacement or automatic migration. Compare actual new-pack/overlay renders against the target images, verify input/menu/orientation and old/new selection persistence; document any necessary screen adaptation. Original PNG inputs and the relay are recorded in the Codex row. Use a fresh branch/new PR and hand off to main for the next common IPA; do not reopen the already-integrated PS2 menu fix. | **Board Originals, 4 Nov 04:00 UTC (Claude Code, medium selector):** source commit `f64a5cf` on `work/skins-board-originals-20261104` from `Claude` `a59518b`, draft PR [#155](https://github.com/TarbleFR/RewindBox/pull/155). **Inputs:** maintainer archive `rewindbox-skins-original-png-20261104.zip` 6396023 B `938904a7…517b` received in this session; `01-target-gamecube-pocket.png` 2244426 B `78890512…697f9d` and `03-target-wii-pocket.png` 2041331 B `bfb4da27…05e0b6` are pixel-identical crops (mean |diff| 0.00) of `docs/design/pocket/approved-gamecube.png` `ecead3bd…f0f7` / `approved-wii.png` `fae06ef4…dc90f`; `02-current-gamecube-fire-emblem.png` 2113786 B `565dbc87…4f887` is the non-conforming capture (old `gamecube-pocket` + floating buttons), not a target ([inputs.json](evidence/pocket-originals/board-originals/inputs.json)). **Code:** `tools/skins/build_pocket_board_originals.py` (reproducible, two builds byte-identical) adds `gamecube-pocket-original.manicskin` and `wii-pocket-original.manicskin` (catalog rows, ids `org.rewindbox.*-original`, own previews) from the boards' own pixels: board phone screen without frame/island/home bar/"Zone de jeu", sprites cut in place, derived pressed states, separate caps, edge-to-edge portrait+landscape; old `wii-pocket` `5a8a4db1…` / `gamecube-pocket` `d37fbd21…` / `ps2-pocket` `2106e5f7…` byte-identical, nothing selected/migrated. Dolphin `DOLSessionChromePolicy.h` + `placeSessionChrome` + `DOLSkinOverlay.hasMenuControl`: a visible skin with Menu hides the floating menu and moves the performance toggle into its screen corner; previous placement covered L/C in landscape on all 4 GC/Wii packs (16 of 32 layouts). **Comparison:** [GC portrait](evidence/pocket-originals/board-originals/gamecube-portrait-comparison.png), [GC landscape](evidence/pocket-originals/board-originals/gamecube-landscape-comparison.png), [Wii portrait](evidence/pocket-originals/board-originals/wii-portrait-comparison.png), [Wii landscape](evidence/pocket-originals/board-originals/wii-landscape-comparison.png) (target / real pack on 393×852 with old buttons / corrected); [fidelity.json](evidence/pocket-originals/board-originals/fidelity.json) at board scale: PSNR 29.3–34.2 dB, mean |diff| 1.55–2.39, gradient ratio 1.09–1.11. Host renders of archive previews, not iPhone screenshots. **Recheck on the original PNGs (maintainer precision, Codex relay `c04071f1`):** zip and SHA256SUMS verified again; `tools/skins/check_board_inputs.py`: every RGBA pixel of both targets identical to the boards (GC offset (2,1), Wii (0,0)) and covering all 26 builder regions each ([input-binding.json](evidence/pocket-originals/board-originals/input-binding.json)); comparisons and fidelity re-rendered against the original PNGs themselves (same figures); [sharpness detail](evidence/pocket-originals/board-originals/sharpness-detail.png): shipped art 2.64 px/pt portrait / 2.86 landscape, modelling/contours/shadows/highlights/colours are the original pixels, no flattening or redraw; device-resolution sharpness cannot exceed the source. Not declared "identical" at 3x. **Host tests (fresh):** `verify_pocket_skins.py` 5 packs ([asset-checks.json](evidence/pocket-originals/asset-checks.json)); `pocket_skin_input_chain_test.py` 16 layouts (test bug fixed: hit frames with extended edges were never exercised; 44 pt now on the real hit frame); `dolphin_session_chrome_test.py` (real C policy on real archives, 32 layouts); `policy_test.c`; Flutter 3.47.2 12 skin/pocket suites 223/223 incl. old/new coexistence, distinct ids, console/game selection, persistence/read-back, old choices kept; analyze clean; existing contracts pass. **Apple:** run [41770141383](https://github.com/TarbleFR/RewindBox/actions/runs/41770141383) on `f64a5cf`: terminal, job 126377652459: passed — decision table, libretro iPhone compile, host verifier of the 5 archives + input chain + `dolphin_session_chrome_test.py` on macOS, iPhone syntax compile of `DOLOrientation.mm`/`DOLSkinOverlay.mm` (incl. `hasMenuControl`) and ARMSX2 sources, `ARMSX2SkinOverlayTests` 8/8, `DolphinOrientationTests` 3/3, `DolphinMenuOrientationTests` 4/4, `SessionLifecycleTests` 5/5, `PerformanceOverlayTests` 2/2, `RecordingControllerTests` 4/4. Red only on known baselines, unchanged: step 5 "1 of 22 frontend test(s) failed: diagnostic_routing_test.m" (also on `Claude` run 41734053855) and step 12 the same 7 old `SessionMenuTests` (21 failures; rows/indices, console language, TouchController NIB) attributed earlier; none from this change. `DolphinInternalBridgePlugin.mm` is compiled only by the combined IPA. **Measured limits / maintainer decisions:** (1) sharpness bounded by source (~0.9 board px/pt vs 3 px/pt), no higher-resolution master exists; (2) opposite landscape rotation: sensor housing covers part of GC X (free strip ~23–25 pt on 393/430 pt phones) and top of C-stick, plus Menu on notched 375×812 — closed list `KNOWN_HOUSING_DEVIATIONS`, Wii none; (3) home-button iPhones letterboxed, targets 36.3 pt; (4) landscape letterbox ~7 pt, GC Menu drawn 0.44 pt into the 375×812 home-indicator band; (5) Wii wordmark kept as approved, label "console names and marks belong to their owners". ARMSX2 floating menu over PS2 landscape L1 reported only (`b8794226` not reopened). **Not observed:** iPhone, real game input. **Release note (EN):** "Controller skins: two new bundled choices, GameCube Pocket — Original and Wii Pocket — Original, reproduce the approved Pocket designs in portrait and landscape alongside the existing packs; the Dolphin session's floating menu and performance buttons no longer cover skin controls." **Next:** main reviews/integrates PR #155 (head `4803ecb` + this record) into the next common IPA; one handoff sent to `012mUAShv9k6pSCnpW7oAF63`; no merge/IPA from this branch. **State 4 Nov 00:30 UTC (Claude Code, Opus 5.5 / high observed via get_session; Sonnet 5.5 / medium before):** Branch head after this update is reported in PR [#152](https://github.com/TarbleFR/RewindBox/pull/152); key commits `2816d7d` (choice rule, Dolphin menu mask), `563215a` (PS2 Pocket, ARMSX2 skin support), `d786288` (ARMSX2 contract/podspec fixes), harness fixes `b349d64` `858de3b` and the Dolphin core stubs commit. **Code:** choice rule portrait only → portrait, landscape only → landscape (also for a dual file), both/none → rotation; Libretro `LibretroOrientationSelection`; Dolphin `DOLOrientation` + `DolphinSessionMenu` follows the mask; ARMSX2 `ARMSX2SkinOverlay` + `ARMSX2Orientation` (set_button/set_sticks, L3=14/R3=15 per upstream ARMSX2Bridge.h `9d989ca9`, Menu → session menu, release on menu/rotation/cancel/background/stop, mask before presentation, released at dismissal); PS2 Pocket — Noir mat `ps2-pocket.manicskin` 6117888 B `2106e5f7…16ad`, GC/Wii archives byte-identical. **Compiled (Apple, CI run [41744583675](https://github.com/TarbleFR/RewindBox/actions/runs/41744583675) on `d786288`):** iPhone syntax/compile of every Libretro bridge source, `DOLOrientation.mm`, `DOLSkinOverlay.mm`, `ARMSX2Orientation.mm`, `ARMSX2SkinOverlay.mm`; simulator builds of both harness apps. Not compiled by any job: the full ARMSX2/Dolphin plugin `.mm` files (they need Flutter/Core) — the combined IPA build compiles them. **Simulator, terminal result of run [41750105132](https://github.com/TarbleFR/RewindBox/actions/runs/41750105132) on `5f7361e` (fresh):** `ARMSX2SkinOverlayTests` 8/8 passed (shipped PS2 archive, real touch objects: every button press/release portrait+landscape, D-pad + diagonal, both sticks to the edge and back to neutral without L3/R3, Menu once with nothing sent to the pad, 3 fingers, slide, cancel, releaseAll, rotation release, chosen-orientation masks incl. game-over-console and explicit default, app mask set/restored). `DolphinOrientationTests` 3/3. Real `DolphinSessionMenu` (fully linked; closure audited in one pass: only 3 Core externs, stubbed with real signatures) `DolphinMenuOrientationTests` 4/4: menu mask equals the session mask; effective mask of the production container (plain UINavigationController, OverFullScreen, modalInPresentation — it answers its own 30, UIKit applies container ∩ app mask) equals the session mask for none/portrait/landscape/both; real menu over a portrait-only, a landscape-only and a both session with push/pop, resume, dismissal and landscape restoration. Earlier line-43 failure (run 41746963325) was a wrong harness hypothesis (nav forwarding), not production. Other harness results, same run: `SessionLifecycleTests` 5/5, `PerformanceOverlayTests` 2/2, `RecordingControllerTests` 4/4 (its writer test failed once in run 41746963325, passed here: timing-sensitive, code untouched). **Not mine, attributed by diff:** 7 `SessionMenuTests` fail (row counts/indices, console language, TCGameCubePad/TCWiiPad NIB, recording row) — since `56789c4` my only change in `DolphinSessionMenu.mm` is the orientation method + import; TouchController, resources and those tests unchanged; not provable by a base run (that harness did not compile at the base). Baseline: `diagnostic_routing_test.m` (also on `Claude` run 41734053855). So the workflow is red only on those baseline/old-harness failures. **Effort decision:** kept Opus 5.5 / high (observed via get_session); the successive failures were validation/method (no Apple toolchain here, an old harness, an untested UIKit assumption), not reasoning depth; no higher effort needed. **Host (fresh):** Flutter 3.47.2 skin/ARMSX2/Dolphin Dart suites passed (81 + 116 + 60), analyze clean; verify_pocket_skins (3 archives, 12 layouts, one Menu each); pocket input chain; policy table; contracts incl. `test/armsx2_external_display_test.py` (now passes; updated to the new invariant, see below). **For the integrator:** (a) `armsx2_internal_bridge.podspec` now declares QuartzCore and CoreGraphics (overlay uses CAShapeLayer/CGPDF; the simulator link proved the dependency); (b) `test/armsx2_external_display_test.py` contract changed: exactly one guarded `coreView.frame` assignment (placeRenderSurface returns while the external display is attached), value bounds or the skin's 4:3 window — upstream `ARMSX2GameView layoutSubviews` resizes its drawable on every layout; no transform/bounds/center; (c) baseline failures identical on `Claude` `e967dfa` run 41734053855: `diagnostic_routing_test.m` ("1 of 21 frontend test(s) failed"), codec link `rb_hash_*`, `storage_log_rotation_test.dart` ×2, skin-press cores download; 9 other ARMSX2/Dolphin python suites fail identically at the pre-task base `56789c4` (macOS tools/args). **Not observed:** iPhone rotation, Metal drawable size on a sideways launch, haptics/feel, real game input through the Cores. Limits: Dolphin/ARMSX2 skin change applies at next launch; three engine copies of the orientation coordinator (follow-up: shared pod). No merge, no IPA from this branch.  **Coordination notes kept (Codex/main, verbatim from `Claude`):** Codex pre-handoff verification, 3 Nov, main `138ede92`, skin PR #152 `11ef6572`: PS2 reference omits landscape Menu; older Wii concept does too; GC concept shows it. Actual GC/Wii generator already includes Menu in all eight layouts (including both landscape variants); [asset receipt](evidence/pocket-originals/asset-checks.json) passes with exact catalog archive digests, but device/gameplay flags are false. The native Dolphin path canonicalizes Menu and calls `menuHandler`; no live touch verified. [Pack record](pocket-originals-2026-11-03.md), `tools/skins/build_pocket_skins.py` and `verify_pocket_skins.py` are the direct evidence. New PS2 reference image attached and concrete task sent to existing skin session `012mUASjgVWk8DKKjVbwTD2n`, now named `02 — RewindBox — Skins : portrait, paysage et rotation`; it has resumed. PS2 catalog art alone is insufficient: verify/implement the actual ARMSX2 host skin/input route, or name the exact integration blocker, without touching Cores or pins. Orientation code/tests/handoff remain in PR #152; Apple Dolphin compilation/presentation still needs the required checks. Next: skin owner updates its existing task/PR with PS2 and controls/menu results and exact tests; main owner reviews/integrates this expanded handoff before the one combined IPA. No autonomous merge/build from Codex or skin delivery. **Failure-escalation coordination, 4 Nov (Codex):** existing skin session changed from Sonnet 5.5/medium to Opus 5.5/high; native high selector and session_context confirmed, no claim of automatic principal self-switch. Follow-up independent read-only review at PR #152 `be5ea220`: run `41744583675`, job `126294262646`, passed ARMSX2 touch tests 8/8 and DolphinOrientation 3/3 plus the declared iPhone source compilations. Remaining real-menu harness link failure was `_neostation_dolphin_menu_apply`/`_snapshot` from shake-routing objects selected by the TouchController glob; current source has Core-boundary stubs. Earlier harness failures discovered different dependencies, not the same repeated functional regression. Successor `41746963325`/`126302292006` remains in progress at check; no concurrent rerun. Review relayed directly: audit the complete target closure (explicit sources, headers, frameworks and all external Core signatures), require full build-for-testing linkage and the actual DolphinSessionMenu orientation tests; preserve baseline failures and do not weaken acceptance. Claude acknowledged and started the local dependency-closure audit while preserving the run. Full plugin/IPA compilation and iPhone behavior remain unverified. No extra model escalation, Core/pin edits or integration transfer. On the maintainer's explicit effort question, the skin owner confirmed native Opus 5.5/high and attributed avoidable failures to submitting uncompiled Objective-C tests, reusing an unverified stale harness, and not running affected existing contracts before pushing, plus pip setup. It retains high because no unresolved native design ambiguity is currently established; the real-menu stage progressed past linkage in `41746963325`. Terminal result independently read by Codex (job `126302292006`): ARMSX2 8/8 and DolphinOrientation 3/3 pass again; actual menu portrait presentation/resume passes, but `testRealMenuMaskFollowsTheSession` line 43 fails because the plain navigation container returns 30 rather than 2/24/26. Other stale session-menu/recording/NIB and frontend fixture failures remain separately attributable, not silently waived. A bounded read-only source review finds the menu itself returns the session mask; the assertion assumes raw UINavigationController forwarding, while production also applies OverFullScreen/modalInPresentation and the app mask. Hypothesis: test must check the effective masks and match production presentation, retaining exact menu and restoration assertions; owner must verify before changing the contract. Owner had been waiting for its next scheduled result check, with no abandonment evidenced. Terminal evidence and review sent directly to the existing session, which resumed; no duplicate CI or code writer. Await scoped correction/test and exact handoff to main. **Post-640 PS2 playlist correction, reconciled by Codex 4 Nov:** maintainer reports no Skins option in the PS2 playlist. Owner source `cb3b096b` / documentation `7dbb704e`; main reviewed and integrated the two product files linearly as `b8794226ad5604423477d85072a8de1bef8ad463`, excluding the branch's synthetic ancestry merge. `armsx2_internal_playlist_actions.dart` adds `armsx2-skins` → `LibretroSkinManagerScreen(console: 'ps2')` with the existing 12-language label; `defaultTargetPlatform` keeps iOS behavior while enabling the real widget test. Owner fresh Flutter3.47.2 proof: `armsx2_playlist_skins_test.dart`4/4 (real menu/manager, shipped Pocket archive import, portrait/landscape selection, ps2 persistence/readback and overlay paths); same test fails on delivered640 widget. Existing35 Dart tests and routing contract pass, analyze clean. Native overlay8/8 reused only because inputs unchanged. `build486_targeted_test.py` not run successfully (historical artifact dependency, same at base); physical iPhone playlist→selection→launch still unobserved. No new app.log analyzed; controller semantics unchanged. Main did not rerun Flutter locally (SDK unavailable), final delivery gates pending. Original permission refusal was automatic `[Git Destructive]` for `git push --force-with-lease=work/skins-portrait-lock-20261103:02af282`, bundled with the board edit/commit. No reason to repeat that operation: future follow-ups use a fresh branch and ordinary push per shared rule. No Core/pin/native change in this PS2 fix. |
-| MeloNX FPS/stability after 631 — Claude Code, separate session `012mUASkkFGHaPcEUx9dsp8q`; Codex coordination | Maintainer explicitly requested a parallel MeloNX discussion, 3 Nov. Turn actionable log findings into scoped corrections with evidence; prioritize remaining allocation/GC/RAM, pipeline misses and proven artificial waits. Preserve Hogwarts 1x, complete rendering and resource ordering. Reuse 631 results; no unsupported phone FPS claim. | Native `rb-effort-high` invoked (expanded effort `high`) for both turns. Branch `work/melonx-fps-stability-20261103`, [PR #153](https://github.com/TarbleFR/RewindBox/pull/153) merged and shipped as MeloNX Core 639 in IPA 640; follow-up restarted on the same branch from `Claude` `7ef996f` (fast-forward), new draft PR. Inputs: MeloNX `13700519` prepared by this branch's `prepare_embedded.py` (Core 631 preparation; touched members equal the frozen `dma-core-contract.json`), SDK 10.0.100, Linux x86_64. **Lot 1, pipeline warm-up parity** (`77dd706`, `92da0eb`): the warm-up key lacked alpha to coverage/alpha to one, so such programs miss their warm-up and compile again on the render thread. `adapt_pipeline_warmup_parity.py` (7 files) fixes it with the disk cache bytes unchanged and names the differing fields on the once-per-program miss. Proof `test/melonx_pipeline_warmup_parity_test.py`, control 631 vs candidate, production Vulkan and GPU assemblies ([receipt](evidence/melonx-pipeline-warmup-parity/checks.json)); 629 findings classified in the [map](melonx-optimization-map-2026-11-03.md). **Lot 2, the second player's 621 logs** (input identities verified at reception: stderr 584009 / `61cbc6f2…`, core 189386 / `f3c9f52c…`, performance 1049984 / `d9644d20…`; sessions A `12AAAE01` PID 57222, B `2F562F0F` PID 63461, C PID 67481 firmware stage only; raw logs not in Git). Dispositions in [621 record](melonx-621-measurement-2026-11-03.md): read-back flushes, already corrected in 623/625/628; device-short trims, a defect, corrected; late-B GC pauses of 8.7-25.2 s per window with CPU 29-75 % and the device at 4-7 %, a symptom whose cause needs a named missing datum (per-GC suspension vs work, process compressed/page-in memory); about 4 GiB of footprint unattributed (MoltenVK pipeline caches 569-768 MiB main are the largest identified, not changed blind); pipeline builds are startup warm-up and new states, with no miss lines; one-time shader-cache reload errors; syncpoint waits over 1 s inside the stall. Correction `adapt_device_short_trim.py` (3 files): while only the device is short and the process keeps at least 768 MiB of headroom, the texture trim evicts only textures the cache alone holds without GPU-written data (no flush, real release), and reports kept bytes. As the delivered eviction, it synchronises the dependents of an evicted texture first (an independent `rb-core-review` Opus/high found the first version skipped it, leaving a deferred copy reading a released texture; fixed and tested before commit). Own-process pressure, targets, floor, intervals and buffers are unchanged. 621 B: 68 trims and 2008 MiB "released" in 13 min, texture flushes up to 120-301 ms per trim window, no relief. Proof `test/melonx_device_short_trim_test.py` (production `AutoDeleteCache` + `Texture` reference members, doubles for storage; delivered trim identical in control and candidate; [receipt](evidence/melonx-device-short-trim/checks.json)); candidate GPU assembly compiles. No iPhone result, no FPS claim. Next (integrator, main session): review PR #153; in the next Core plan wire both adapters after `adapt_host_qos_pipeline_budget`, rerun both tests and the gates declaring the touched files, Core CI on Apple ARM64; device: miss lines and named fields, trim lines with kept bytes, texture flush time, pauses over 100 ms and GC pause per window. **IPA 640 device logs and recording, 4 Nov** (inputs and identities in the [map](melonx-optimization-map-2026-11-03.md), "IPA 640"; PR #153 merged, its lot shipped as Core 639): same device as 629, median game FPS 14.2 → 29.9, p99 150 → 67 ms, render-thread work 28.0 → 7.7 ms per frame, MoltenVK encoding 8-24 → 0.3-3.6 ms; not a controlled comparison. **Stale frames (flicker), a defect, corrected:** MoltenVK 1.4.2 (residency sets, iOS 18) stops Metal hazard tracking of argument-buffer reads, while the build-628 Hogwarts deferral of in-pass read barriers relied on it, so the current pass read with no barrier. `adapt_moltenvk_barrier_ordering.py` (VulkanRenderer, PipelineBase) defers only for MoltenVK ≤ 1.4.0 (`driverVersion` ≤ 10400). Proof `test/melonx_moltenvk_barrier_ordering_test.py`, production Vulkan assembly, Core 639 preparation equal to the frozen contract (180/180): the control defers in the 640 configuration and the candidate records the barrier; other cases unchanged ([receipt](evidence/melonx-moltenvk-barrier-ordering/checks.json)). **Stutter:** a pipeline burst at a new area, plus the GPU thread at 40-98 % with 0.4-1.0 s of texture flush actions per 5 s; 655 read-backs were declined as "occupied". Missing datum, named: the split of that decline (two branches) and its first occupant. Two named pipeline misses (`PrimitiveRestartEnable`, `Topology`) are the next parity candidate. No trim ran. Next: integrator wires the adapter after the PR #153 adapters in the next Core plan; the device checks the MoltenVK decision log line, the absence of stale frames at camera cuts, and pauses over 50 ms. **SSBU 640 logs, 4 Nov** (five private files verified at reception; `stderr.log.previous` is the earlier historical file; SSBU PID 5869 session `316CF3D2`; Hogwarts 5576 deduplicated; no SSBU recording): the Hogwarts deferral is not the cause (policy off, 0 deferrals in 13 windows). Defect established in the source for every title: under MoltenVK 1.4.2 with residency sets, an image barrier recorded inside a render pass creates no MTLFence link (`MVKCmdPipeline.mm` `setBarrier` only without a render encoder), while Ryujinx keeps such barriers inside the pass on MoltenVK. PR #154 now ends the pass first for a non-attachment when `driverVersion` > 10400 (device values: 10400 on 629, 10402 on 640; 1.4.0 has residency sets on macOS only) and counts it every window. Proof: `test/melonx_moltenvk_barrier_ordering_test.py` (production Vulkan assembly, real `BarrierBatch` decision); `rb-core-review` Opus/high found no defect. Confirmed SSBU defect, corrected: 3.3-12k texture template fallbacks (`IndexOutOfRangeException`) per window; `adapt_descriptor_scratch_all_titles.py` enables Core 631's binding-sized scratch for every title; the other Hogwarts policies keep their scope; bound to the 631 on/off gate equivalence. Constraint: the SSBU pipeline cache was empty on 640 (714 MiB on 629) because the cache key includes `driverVersion`, so each title rebuilds once after the MoltenVK update. Not shown: that these corrections remove the SSBU flicker. Next: integrator wires the barrier and descriptor adapters into the next Core; device: SSBU recording, the "in-pass image barriers ending the pass" counter, fallbacks at 0, cache main size at the next launch. **Remaining 640 points closed, 4 Nov (rule `280000c1`)**, all in [map](melonx-optimization-map-2026-11-03.md) "Remaining 640 points": pipeline bursts are a demonstrated constraint (cache keyed by `driverVersion` 10400 → 10402: Hogwarts 0 KiB then 76.6 MiB, SSBU 0 KiB, against 569/714 MiB under 1.4.0; one rebuild per title). "Occupied" read-backs and the `Topology`/`PrimitiveRestartEnable` misses: source inspection did not settle them, so the smallest tested instrumentation was added. `adapt_readback_occupied_attribution.py` (DmaClass: branch split plus first 8 occupants with the lookup match; decisions unchanged, both GPU assemblies build) and `adapt_pipeline_miss_context.py` (ShaderCollection: pipelines already built per program on the miss; Vulkan assembly builds). The barrier and descriptor corrections stand as above. The four adapters touch six disjoint files and apply together on the Core 639 preparation. Only blocker: physical data from one device run with them (DMA occupant lines, miss context, per-window pass endings, Hogwarts and SSBU recordings). Handoff: PR #154 for the main session. **IPA 643, 4 Nov** (Core 642 `8cd2e93c`/`220910c8…`, Hogwarts v1.0.5, PID 6451, session `CBDD62E9`, private logs and recording `ScreenRecording_11-04-2026_13-15-07_1.mov`, not in Git; branch `work/melonx-blackscreen-artifacts-20261104` from Claude `f6e9b8c`), symptoms kept separate, details in [map](melonx-optimization-map-2026-11-03.md) "IPA 643". Black launch: frames are presented from t = 22 s while black; menu → resume only pauses the render loop (no swapchain, drawable 2868×1320, effect or render-pass change); same pattern on 640 (`53DAD35F`); attachments are Load/Store on every pass re-begin. **Defect established:** build 628's `TryReadBackIntoBuffer` sends the 1x1 R32G32B32A32Float texture over its destination (973/973 read-backs, first at 12:14:49.253 UTC, with the first presents) a write signal without data, so it reloads zeros or an older value from untracked guest memory; its link to the black image (exposure-like value) is a hypothesis. Corrected by `adapt_readback_receivers.py` (receivers get the source on the GPU, other overlaps keep the guest path); proof `test/melonx_readback_receivers_test.py`, 52 checks (after the independent review: no proven defect), control samples `0,0,0,3,3`, candidate `1..5`, 0 signals/flushes, both production GPU assemblies build ([receipt](evidence/melonx-readback-receivers/checks.json)). Artifacts: 2 black/dim single frames (consistent with the same defect) and 25 stale whole frames (mechanism undetermined); smallest instrumentation `adapt_present_source_attribution.py` (Gpu Window.Present: GPU-modified, reloaded from guest memory, re-created texture, repeated address; bounded; 19 checks, [receipt](evidence/melonx-present-source-attribution/checks.json)). Classified: 8368 MoltenVK primitive-restart warning = constraint; 8470/8548 misses = first-draw parity gap (1 pipeline built, 2 compiles), deferred; 8467 = the corrected defect. Not shown without the device. Next: integrator wires both adapters after `adapt_pipeline_miss_context` (and adds them to `melonx_adapter_control.ORDER`; DmaClass.cs is shared with `adapt_readback_occupied_attribution`) in the next Core; device: cold launch without the menu, recording of launch and cutscenes, "Present source" lines, DMA "copied into receivers"/"unreceivable". **IPA 643 follow-up, 4 Nov** (maintainer's app.log 13:20–13:25 UTC, private; observations: a screen recording ends the black screen, closing while recording loads forever, the 3D scene starts only after the pause and the return): a recording starts through Control Center, i.e. RewindBox's lifecycle pause (`setPause("application")` → `TogglePauseEmulation`), the same pause as the MeloNX menu; nothing reads the capture state. Black launch = game wait, not display: 640 `53DAD35F` and 643 `CBDD62E9` present 30/s of a ≈22-draw frame (no texture upload, no NVDEC), Wwise plays, `AK::BankManager` idle until a 2–4 s pause and the return (1 s did not suffice); presentation, NVDEC, DMA read-back and audio pacing checked. Smallest instrumentation `adapt_pause_guest_threads.py` (Horizon + KProcess; per-thread state, wait kind, time since last run at the first 3 pauses; durable `guestThreads` line; no critical-section entry). Endless close = SSBU early close, not the recording (Hogwarts closed in 3 s while recording; SSBU 30.5 s on 2 Nov without one): `VulkanRenderer.Dispose` compiled every queued pipeline on the single background worker before cancelling. Corrected by `adapt_teardown_compile_cancel.py` (cancel untaken compiles, join running ones, then wait; durable `gpuTeardown` line); proof `test/melonx_teardown_compile_cancel_test.py` (control 4.3 s and 200 compiles, candidate 0.21 s and none). Next: integrator wires both after `adapt_readback_receivers`; device: black launch then menu, early SSBU close, send MeloNX-core.log and stderr. **Correction, 4 Nov (maintainer):** the endless close happens only while recording, normal otherwise; a recording spans the app's relaunch, so both hung SSBU closes ran while recording and "30.5 s without one" is not decidable. Remaining unproven cause: SSBU at 60/s keeps every swapchain image in flight, Metal may never complete the last presentations (MoltenVK forces them only when the swapchain is destroyed) and `VulkanRenderer.Dispose` waits for the device first. Smallest instrumentation `adapt_teardown_phase_marks.py` (WindowBase + VulkanRenderer of Core 647, journal only; durable marks per close phase, including before vkDeviceWaitIdle); proof `test/melonx_teardown_phase_marks_test.py`. Device: close SSBU while recording, send MeloNX-core.log. Maintainer, 4 Nov: launching a game while a recording already runs gives neither the black screen nor the close problem: both depend on how the session starts or on a pause/resume during it, not on the capture (close while paused checked: Horizon.Dispose resumes first). **IPA 650 logs, 4 Nov** (Core 649 `44e82f53`/`65dec37a…`, Hogwarts, pid 8767, S1/S2 in one process; private bundle): stutter is not re-presented frames (900/900 distinct); one 756 ms blocking gen2 GC in S2 (trigger undecided); **defect established**: each closed session's heap survives teardown (342/690 MB live), root = static HOSBinderDriverServer registry → producer → KEvent → KernelContext → Switch; black launch not reproduced (2/2, not decisive), colour-mask discriminator retracted; artifacts and recording undecidable. Corrected by `adapt_binder_teardown.py` (+ sessionRetention probe; 38 checks); instrumentation `gcEvent` (native, 46), `adapt_artifact_counters.py` (118), Swift capture/interruption/acq journal (63, static). Map "IPA 650". Next: integrator wires binder_teardown and artifact_counters after adapt_teardown_phase_marks (ORDER), pins the native file and builds the IPA; device: recording started before launch, artifact screenshots, fresh vs second launch. |
-| GitHub housekeeping — Codex, 4 Nov 2026 | Keep only useful project branches, clean useless Actions runs and close useless PRs. Preserve active work, useful open dependency changes, delivery provenance and available artifacts. | **Completed and independently audited.** Branches 14→5: nine obsolete refs removed after exact-head checks; retained main, Claude, Dependabot PR #151 and both current handoff branches through verified IPA delivery. PR #152 closed after exact comparison of its 56 paths: 55 code/test/resource blobs already match Claude; only the shared board differs; squash `705e90c7` remains. PR #151 retained (13 dependency updates not integrated). **1069 runs deleted**, 1069 unique successful receipts, no out-of-plan deletion; inventory1827→768 includes10 new runs created during cleanup. All initial758 retained runs remain. All2135 initial artifacts remain (2144 at final check), zero artifact deletion. Protected live-artifact producers, board refs, latest workflow outcomes, active/changed/recent runs, plus264 identities from14 current/base manifests, pins, contracts and receipts; legacy37844950677 excluded before deletion, no dependency lost. [Full verification receipt](evidence/github-cleanup-2026-11-04.json), completed01:51:36UTC. Native Luna/low read-only audit also found zero plan overlap with artifact producers or board refs. No Codex workflow dispatch, pin or product edit. Current IPA640 remains owned by main; attempt1 `41754863542` failed on pre-existing purged libretro artifact12280822192; main fixed the authenticated republication path. Attempt2 `41755520488` completed failure: preflight/republish/Flutter succeeded; native job `126330896448` failed linkage on `_DOLOrientationGameMask` and `_ARMSX2OrientationGameMask` in the two legacy harnesses. App job `126330896480` completed its device build, then `await_tests()` refused publication because native failed. Main is adding the two real orientation sources to the affected harness lists; no duplicate rerun or Codex code edit. No verified IPA delivered yet; watcher remains enabled. Merge-aware recipe delta atba77e40a independently reviewed Sol/medium: no actionable omission in complete first-parent merge diffs, classification or post-freeze guards; tests not independently rerun. |
-| Codex orchestration — Codex | Select suitable native worker model and reasoning effort, avoid duplicated diagnostics and preserve one shared contract. | Routing table recorded here. Thin personal entry point installed and its persisted active path verified. Schema validation passed. A native gpt-6-luna / low forward check read the real contract and correctly selected lookup low, bounded research/code medium and difficult GPU review high; no code or CI was launched. Primary model/effort remain application-controlled. No measured token-saving claim. **Post-640 handoff, 4 Nov 2026 (Codex):** maintainer requests further RPCS3 AC audio/BO2 frametime corrections and clarifies the skin defect is **missing Skins entry in the PS2 playlist**; GC/Wii report withdrawn, controller-toggle wording does not establish a separate defect. One read-only native `gpt-6-astra`/`high` analysis of six new private inputs (five logs + session snapshot), decisive events reread by coordinator: filter build640/PID5676, deduplicate rotations retaining older624/629; BO2 `BLES01717` session2 has measured blocking pipeline stalls544.538/1001.226ms at window17 (`RPCS3-performance.1(2).log`:2290,2293), separate window13 712.052ms CPU/RSX cause only inferred; AC `BLES00158` session3/window32 GPU35.406ms of44.532ms, report wait counters overlap, runtime audio underrun/callback telemetry absent. Exclude BO2 host-menu windows18–20 and isolate AC late windows38–40 (final background snapshot, transition unknown). No comparative FPS claim. Five raw logs privately attached to existing main session `012mUAShv9k6pSCnpW7oAF63`, exact 329-byte `RPCS3-session.txt` included in the same prompt because UI allows five attachments. Input bytes/SHA256 prefixes: causes(3)2080751/6fae995a, diagnostic.1(3)2096629/fc35b553, performance(3)864116/249a78c0, diagnostic(3)1275625/ba1565e2, performance.1(2)2096845/9acc9d6b, session329/ec1f69ac; full hashes and file:line evidence supplied privately. Main acknowledged receipt and verified all six exact sizes/SHA256 (session text reconstructed); initial window17 classification is two first-time fragment-program compilations, persistence/whole-session check still active, no proven avoidable rebuild yet; existing skins session `012mUASjgVWk8DKKjVbwTD2n` received/running on PS2 playlist→selector→persistence→ARMSX2 launch tests from delivered640 (squash705e90c7). Skin owner confirmed in source that `Armsx2InternalPlaylistActions` lacks a Skins entry and began the scoped correction. Current app.log was not attached; discovered October30/November1 files were not substituted. Both prompts retain ownership and require evidence/test dispositions in this board; no Codex product/pin/CI changes, no new Claude session or automation. Next: owners diagnose/fix bounded defects and hand off verified changes; missing current app.log remains explicit. **SSBU supplement, 4 Nov (Codex relay):** maintainer supplied five further private MeloNX files and reports similar flicker in Super Smash Bros. Ultimate. All five attached once to existing session `012mUASkkFGHaPcEUx9dsp8q`; owner explicitly confirmed five intact files, identified stderr.log.previous as identical to the previous lot, deduplicated already-studied Hogwarts sessions (new core-log complement), and began the SSBU640 barrier/policy applicability check against SSBU629. No correction/visual validation conclusion yet. Factual input check only, no new diagnosis/worker/CI: `MeloNX-stderr(2).log`:6715 identifies SSBU v13.0.4, IPA640, title `01006a800016e000`, PID5869, session `316CF3D2-736D-476F-938C-71DFE41CCDA4`, runtime source `cbb7beb9…`/SHA `b75212a4…`, UTC02:59:10–03:00:30 including background at end. Also includes prior Hogwarts640 sessions6B8A9001/53DAD35F and historical606/624/629 data; owner told to separate and deduplicate. Inputs bytes/SHA256: core(6)986612/`cdb8a1282e8aa8ddbd20da195f6e03eab5e84dc7c9c99cbecf90436ee7cf65e2`; stderr.log.previous5242872/`7eae0e3917c2667214ab8c308ec9a7e2310d15a763cf95f3601c23dd76c2f492`; launch(5)109694/`73008e68f76f0eb1d21197ea59eb02d5b0cdcdb13f111e7be97629fd0adbba43`; performance(2)3779199/`013d25ae2d5ea23f491c759e899f188c8d22bcd66b3ae5a630546d90fccaa50d`; stderr(2)4218214/`2544286e19a8ac93f56738d7e2dec984d128a1efa503df1aecb81eb95bbd16c2`. Raw logs stay private. Existing PR#154/`660e5bf` concerns Hogwarts in-pass barrier deferral under MoltenVK1.4.2; similar SSBU symptoms alone do not prove that path or fix applies. Next: MeloNX owner verifies receipt/identity and SSBU applicability, records evidence and scoped correction or deciding check, then hands off to main for review/integration. No fix or iPhone validation claimed by this relay. **Autonomy clarification, 4 Nov (maintainer/Codex):** permanent completion rule recorded in `280000c1`: finish every evidenced in-scope correction and required verification/handoff, do not stop at a diagnosis/draft PR or wait for repeated approval; resolve missing technical evidence by bounded checks and continue independent work. One instruction visibly queued in each existing MeloNX and main session while both were running; neither was interrupted and no worker/build was started by Codex. Queue acceptance is verified, not a claim that the owners already read the new instruction. MeloNX continues SSBU; main continues its audio diagnostics correction. Next: owners apply the clarification after their current work, complete the authorized fixes/reviews and common verified private delivery; only genuinely unavailable device evidence/access or a necessary new decision may require the maintainer. **Release/branch workflow, 4 Nov (Codex):** maintainer's per-release English changelog and fresh next-list rule committed `1442cb20`; initial [NEXT](releases/NEXT.md) created `524861ed`, public baseline0.0.10/Build559, private640 kept separate. One native Sol/medium read-only bounded inventory checked additional approved user-facing contents (Glacier, cases/artwork/manuals, enhancements, RA account/translation/identification) without product/CI changes. Permission incident independently read in existing skins UI: automatic `[Git Destructive]` refused the force-with-lease command; main already integrated exact PS2 product delta at `b8794226`. Preventive branch workflow added, omitted PS2 evidence reconciled above. No permission setting, protected ref, history or security policy changed. Both workflow instructions were sent once to existing main and skins sessions. Main's message is visible in its conversation; skins explicitly acknowledged fresh-branch/ordinary-push/new-PR handling, separate commands and no synthetic ours merge to bypass refusal, and supplied the PS2 user-facing release note. No extra source work was requested from the finished skins session. **Additive original GC/Wii references, 4 Nov (maintainer/Codex):** Maintainer explicitly requests TWO additional GameCube/Wii skins matching the approved portrait/landscape mockups, preserving all shipped packs/IDs/previews and stored/imported selections; no replacement or forced migration. Three images attached once to existing skins session `012mUASjgVWk8DKKjVbwTD2n`, with detailed task and exact input identities: `image(20261104-032006).png` target GC, 2244426 B, SHA256 `78890512441cb3accfd80a295001923481de1e6a59f07202263bd5d746697f9d`; `image(20261104-032030).png` current GC/Fire Emblem screenshot, 2113786 B, `565dbc876e56ee018a8007be2ec7d4af127c4b88a16efa7b58531ebcabe4f887`; `image(20261104-032221).png` target Wii, 2041331 B, `bfb4da275b897abc3637f0dd0f3aecc412c1fbf1133c8ef63ffa62c7cd05e0b6`. UI confirms one submitted message with all three attachments and session running. GC image comparison shows different ABXY grouping, Menu/START positions and proportions; Wii has a target only, no new device screenshot. Acceptance: faithful useful-area artwork/geometry in both orientations, separate new IDs/catalog entries, actual input/Menu and selection-persistence checks, old-pack regression, side-by-side true-overlay captures and explicit iPhone limits. No source correction or visual acceptance claimed by this relay. Owner instructed to use a fresh branch/new PR under the existing branch rule, update own evidence row, supply English release note and notify main once for review/inclusion in the next common IPA without interrupting the active Core run; main retains Core/pin/CI/delivery ownership. No new session, worker or build from Codex. **Receipt/quality clarification:** skins owner explicitly confirmed all three image roles, but Claude converted the direct attachments to WebP (2/3/4.webp), so input PNG hashes were not claimed as verified on its side. Owner started checking approved source art and observed existing raw backgrounds differ from the target. To preserve exact input bytes, Codex attached `rewindbox-skins-original-png-20261104.zip` (6396023 B, SHA256 `938904a7f46a09af7b1c0461119c751bd19786987d514c14a99fdfbf548b517b`, original PNGs + SHA256SUMS + role README) with the maintainer's subsequent identical-quality requirement. One queued complement is visibly accepted while the owner works; ZIP consumption/hash verification is not yet claimed. The original three-image request is received and active; no interruption or duplicate diagnosis. **IPA643 black-screen/black-artifact prompt, 4 Nov (Codex, new private inputs):** maintainer reports black game at launch until opening/closing MeloNX menu, plus many black artifacts; bounded read-only triage and a prompt prepared for existing MeloNX owner, not a fix or a relay claim. New identifiable session: Hogwarts v1.0.5 `0100f7e00c70e000`, IPA643/Core642, PID6451, `CBDD62E9-251C-4552-9724-B8744B010B71`, 12:14:26–12:16:26 UTC, engine source `8cd2e93ce9e95418b7d62993535d13c2d1d484f1`, SHA256 `220910c82f2383237f80610fcfb3801e290d0a54bc83bc6905bedb1deb6e1260`. Do not mix old606–640/SSBU entries or duplicate `stderr.previous` (same historical hash). Decisive input references: launch(6):609/624–628 (first drawable presented at12:14:35; application inactive/active12:15:03/07, not a timestamped menu event); stderr(3):8362–8368 (warm105.65MiB cache, driver10402/barrier policy active, swapchain2868×1320, primitive-restart feature warning),8467 (DMA16-byte overlap over 1×1 R32G32B32A32Float texture),8470/8548 (PrimitiveRestartEnable/Topology warm-up misses, one pipeline already built). Twenty pass-detail windows total25 pass endings, zero deferred barriers/fallbacks in those windows; neither proves visual correctness. Current launch/view/menu source inspected read-only at delivered `f19ed8cd`: distinguish presentedTime from visible image, trace layout/layer/firstFrame/pause/resume, and investigate preservation of color/depth/resolve attachments across new pass endings plus descriptor/DMA coherence. No visual recording or exact menu timestamp provided; no established cause, FPS gain, reproduced regression or code/CI change. Original private-file byte identities: core(7)1076375/`d0f9b55677c94177759d8cecc5d18b3e7aff83776e187f10eb9a824085d78e5e`; launch(6)114739/`fec409ffa8bcf654edd797b586c5bad4444ed5b7131f769d10ef27cf6c0267bc`; stderr.previous5242872/`7eae0e3917c2667214ab8c308ec9a7e2310d15a763cf95f3601c23dd76c2f492`; performance(3)3923140/`af1ad4d62ddba4d469da273a06751156b60185c6a7fc4f0db050bb4342c0d6d8`; stderr(3)4600368/`2e4d91d76c977d5372658b7cdcd37403dee48e86a517465107d3fc698f0fa23a`. Raw logs stay private. Next: owner classifies both symptoms with executable before/after checks on the actual prepared source, fixes confirmed in-scope defects and hands off to main; device visual acceptance remains distinct from host/CI success. **New RPCS3 IPA643 private logs, 4 Nov (Codex, explicit maintainer relay request):** eight original inputs hashed and bundled privately with INPUTS.json/SHA256SUMS and a targeted prompt. PID6665, BO2 sessions1/2 and AC BLES00158 session3 (epoch1793796691.858); core= remains empty in the snapshot, AUDIO641 parts observed. AC performance(4):2350–2352 at12:54:43 UTC, BEFORE menu-open2404 at12:54:44.677: queue starved19200, refill_silence8704, recoveries7, incomplete_mixes5141, advances_without_mix542; RemoteIO filler27904/short_reads81/zero_reads28, late_callbacks0/lock_misses0, max_gap11158us. These are session cumulative values (reset at AC start), not additive events or established root cause; upstream production/mixing/cadence needs discriminating source tests. Session3 windows18/30 have blocking graphics builds0 but ZCULL demand3961/3630ms with overlapping pickup/service, so do not sum as frame costs or promise another shader-only fix. Timeline.1 covers AC windows1–9 only; mixed historical logs and menu/stop windows isolated. Prompt requires proven audio/performance/stability corrections, real source tests, intact rendering/cache/sync and common private delivery under main ownership; no new worker/CI/product change by Codex. Archive `rewindbox-rpcs3-643-20261104.zip`:1782552B, SHA256 `40b950da8d29a60a047bbdb1dee3591c011fda2965891dbdf12d91316204bac4`, eight unchanged originals plus prompt/identities; raw bytes remain private. **Relay SENT after reconnection, 4 Nov (Codex):** existing main session `012mUAShv9k6pSCnpW7oAF63` is visibly authenticated again. One message with the private archive above is present in its conversation (eight unchanged originals, INPUTS.json/SHA256SUMS and complete PROMPT.txt); UI shows Claude responding. Main is already running the Core644 MeloNX gate suite; the prompt explicitly preserves that work and requires RPCS3 correction/verification at the next safe point, no concurrent workflow. Owner-side extraction/eight-hash verification and diagnosis are not yet claimed. No message was sent during the earlier logout/CAPTCHA blocker, and no duplicate relay was made. Next: main acknowledges/verifies the inputs, investigates/fixes supported audio/performance defects and records the tests/delivery; no duplicate diagnosis/build. **Post-643 tactile skins feedback, 4 Nov (Codex relay):** maintainer confirms the Original skin addition/design is taken into account, but reports visual/input misalignment, inaccurate touch edges, no convincing pressed state and luminous squares; explicit later clarification: analog stick is also wrong in landscape. Original `ScreenRecording_11-04-2026 14-01-31_1.mp4`:9241004B, SHA256 `548b2826113809db4d75cb54424d2442c5c432769b49e0bd4607474bcc91bf7e`,26.290s,H2641112×512/30fps,AAC. Codex sampled the actual video (GC Original/Fire Emblem, landscape0–7s, menu~8s, rotation~10–13s, menu~17s); fixed recording canvas after rotation and absent finger markers must not be misclassified as proof of a native orientation/input defect. Squares/missed touch mechanism not independently established by sampled stills. Bounded source reading found candidate checks in build_pocket_board_originals.py control_mask/pressed_sprite/RGB crops and DOLSkinOverlay highlightedImage/alpha/knobFrame/itemAtPoint frame/hitFrame; no root cause or code fix claimed. One message plus private archive submitted to existing skins session `012mUASjgVWk8DKKjVbwTD2n`; UI confirms conversation attachment and owner working. Archive `rewindbox-skin-touch-feedback-20261104.zip`:9213533B,SHA256 `fb79e2d3338f93d6d1f2fb5c0890172ee33c742315d7f102ab23c6026bd3c56d`,unchanged MP4+INPUTS.json+full PROMPT.txt. Owner-side byte verification not yet claimed. Acceptance specifically requires landscape analog centre/travel/deadzone/axis/diagonals/neutral and rotation, precise non-conflicting button areas, contour-limited quality pressed states with no rectangular patches, actual pack/native input tests and normal/pressed/released captures; preserve validated art, old packs/imports/selections, fix Original identities in place. Fresh follow-up branch/new PR from currentClaude, no force-push or new worker; owner notifies main once and hands off reviewed correction/tests for common IPA, main retains integration/Core/pin/CI/delivery. No current app.log or new Wii/PS2 device video supplied; distinguish tests from observations. No Codex product/pin/CI change. |
-| Output evidence and standing IPA rule — Codex | Reduce verbose tool output while preserving complete logs and child status. Authorize Claude's necessary Core/IPA compilation with a report after every attempt. | `scripts/ai-output.py` implemented with run/file modes. Eleven CLI regression tests passed on Linux, including non-UTF-8, long lines, failure amid success noise, literal arguments, missing commands, unique runs, interruption and SIGTERM/SIGKILL status. One initial signal-flush failure and review findings were corrected before validation. Shared authorization is recorded above. Next, Claude reads this rule and uses the wrapper for verbose foreground commands, then reports each IPA attempt. |
-| Shared contract — Codex owns this consolidation, then each agent owns its updates | One shared requirements/results file, automatic update obligation for all agents, no duplicated coordination documents. | Published in `c587c7c5`, five redundant files removed, 49 links verified. All three Claude skills updated to v2 and point here. Next, Claude reconciles only its task/evidence rows against its local corrections at a stable checkpoint. |
+Main `012mUAShv9k6pSCnpW7oAF63` ·
+MeloNX `012mUASkkFGHaPcEUx9dsp8q` ·
+Skins `012mUASjgVWk8DKKjVbwTD2n`.
 
-Detailed producer identities and hashes remain in the
-[Core 634 record](rpcs3-core634-2026-11-03.md),
-[MeloNX encoding record](melonx-629-encoding-2026-11-03.md) and pins.
-No new Core or IPA is implied by a local test result.
+Current records below are snapshots. Consult exact pins/manifests/receipts before
+acting. [Detailed current handoff evidence](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#active-requirements)
+retains all omitted hashes, measurements, hypotheses and previous attempts.
 
-## Findings to carry forward
+### Common IPA — main Claude Code
 
-| Finding and scope | Result and evidence | Reopen only when |
-| --- | --- | --- |
-| Skin orientation review — Codex, 4 Nov, tested source `5f7361eb`, handoff `02af2822` | Selection portrait-only / landscape-only / both must decide the lock; preserve real GC/Wii/PS2 controls, Menu, release and restoration. Review exact failures, not aggregate badges. | Independently read terminal run `41750105132`, job `126312788977`: declared iPhone source compilations pass; PS2 touch 8/8, Dolphin coordinator 3/3, real menu orientation 4/4, lifecycle 5/5, performance 2/2 and recording 4/4 pass. Previous menu line-43 test assumption is corrected, not an unresolved production failure. Job remains red on `diagnostic_routing_test.m` (baseline run `41734053855`) and 7 old `SessionMenuTests` (21 assertions/exceptions). Native Sol/medium read-only review at `5f7361eb`: test blob and production rootKeys match pre-task `56789c4`; root expectations/indices omit existing rows, language test opens Controls (3) instead of Console (4), and TouchResources glob lacks the donor preparation used by `test/touch_layout_ui_test.py` / `prepare_fast_native_runtime.py`. Static attribution is supported; no successful base-harness execution claimed. Exact remediation evidence relayed once to main, not a request to suppress tests. Skin owner has handed off `02af2822`; main observed reviewing/squash-integrating, no Codex CI/merge/pin edits. Full Flutter/plugin compilation and iPhone gameplay still unverified. Separate delivery blocker: existing merges fail the unchanged linear-history guard; first-parent relaxation was refused by main's safety classifier, not applied. Main completed the read-only isolated-branch feasibility check (`fcc79f9f`): workflow only pushes `Claude`, freeze checks local branch and ancestry of origin/Claude, CI checks GITHUB_REF_NAME and merge-free range; an isolated 629 replay cannot pass unchanged rules. Main integrated skins as reviewed squash `705e90c7`; no IPA attempted. Further delivery requires maintainer decision on shared-history rewrite or a scoped reviewed recipe change. Hourly watch `6aea64a639208191bca8d28ab778d36e` paused per its decision-blocker stop condition; no autonomous retry or guard change. |
-| RPCS3 asynchronous adaptation — Codex, 3 Nov | Feasible through existing per-title paths. `core630-from-627.patch` (included in 634) services pending ZCULL reports by their 16-byte slot while the RSX continues. The 629 AC reference shows 4.4 s/5 s of guest waits, so reducing artificial whole-page/serial waits is well targeted. BO2 may still need its most recent GPU result (11–13 ms), an actual dependency. MoltenVK asynchronous submits already exist with ordering and boot-canary guards. In `rpcs3_game_profile_service.dart`, texture streaming is disabled for AC/GOW3 because it introduces a second transfer/compute queue with separate lifetime/synchronization concerns. Async Recompiler omits draws until ready and conflicts with the preserved full-rendering requirement. | First fix the audited Darwin X29/X30 fault-access case on the successor source. Then compare existing async on/off on matched, warmed heavy gameplay with current metrics: effective policy/canary, game FPS, 1% low/p99, report wait/service time, submissions and visual correctness. Reuse current caches/prewarm. Expand the async implementation only for a reproduced independent wait or safe ownership/synchronization contract; preserve required report and resource ordering. |
-| RPCS3 634 independent audit, 3 Nov — Codex | **Stability, inherited from 630.** In [the fault handler](../build-utils/rpcs3/core630-from-627.patch), a legal ARM64 load with X29 as its base reaches `GPR(context,29)`. Darwin's `__x[29]` contains X0–X28. X29 and X30 are separate FP/LR fields. A host bounds-sanitized reproduction with Darwin field layout fails on `LDR X8,[X29]` (0xf94003a8). The [non-Darwin fixture](../test/rpcs3_core630/guest_access_test.cpp) uses 32 slots. No observed device crash attributed to this case. | Fix/test before accepting this path on iPhone. Guard scalar/pair base, index and data operands before access, using platform-correct accessors or the existing fallback. Recheck with a Darwin-shaped fixture and Apple ARM64. |
-| RPCS3 634 SPIR-V disk cap | The [writer](../build-utils/rpcs3/core634-from-630.patch) removes pending bytes from its accounting before writing completes. Deterministic Linux repro on production header blob `b1e4b09e964f85b0bdceef1d64714bba888c95bb`: start 1024 bytes below the 256 MiB cap, accept 840 bytes, pause flush at write, accept 840 more and reopen after both flushes. Both entries readable, file 268436112 bytes, cap 268435456. | Reserve the in-flight batch and header, or recheck the physical limit before writing. Combine concurrent add/flush with near-capacity input in the existing store test. This reproduces disk growth, not a frame-rate regression. |
-| RPCS3 634 PPU cache probe | The serial check could stop at the first missing module. The parallel probe now issues the remaining checks despite a known miss and lacks a stop check during that batch. The [current fixture](../test/rpcs3_core634/jit_load_test.cpp) expects all 100 calls again even when one object is absent. | Test fully warm, partial/missing and cancelled checks. Stop assigning further checks on miss/cancel and join in-flight workers. Effect on cold boot or stop latency is not measured. |
-| RPCS3 performance and diagnostic scope | The Core 627 iPhone records show a real SPU load reduction in Black Ops II menus, modest heavy-scene AC FPS and poor BO2 multiplayer 1% lows. [Core 630](rpcs3-core630-2026-11-03.md) targets guest report waits. [634](rpcs3-core634-2026-11-03.md) chiefly targets boot and memory. Its verified pin is `ffd5b62d`; no 634 gameplay result yet. Suites 634→630→627 re-execute historical checks on reverted trees. | Compare matched heavy gameplay, cold/warm boots and Light-vs-normal measurement using existing logs. Reuse historical receipts only on matching code, tests, tools, flags and environment; keep fresh checks of changed behavior on the effective Core. |
-| Independent review of Core 631 — Codex, 3 Nov 2026 | Read-only review of `97bfece1` / `04727408` / `ba02135`. No additional production omission established in the reviewed descriptor, DMA overlap and queued-syncpoint paths. The changes target measured 629 costs (compute descriptors 30.7 ms/frame, draw descriptors 7.6 ms/frame, query waits 11.8 s/90 s). The 30–40% target concerns 9.5 ms of draw encoding, not global FPS. Allocations, RAM pressure, pipeline misses and launch costs are already recorded as pending. Existing host tests establish scoped behavior, not iPhone frametime stability. No unchanged suites rerun and no additional corrective instruction sent to Claude. | A relevant source/input change, contradictory device measurement or a reproducible untested path. Continue the existing delivery/device comparison plan before claiming a gain. |
-| Network prerequisites in the active VM | Resolved after environment access became Full (3 Nov, 20:30 UTC). Official SDK 10.0.100 SHA-512 verified, MeloNX `13700519`/`82a29e6f` fetched pristine, LibHac source `23e402eb` exists, archive 614 downloaded and authenticated, the 53 + 1 declared NuGet versions and the iOS NativeAOT packs return 200. The Ryulynx feed has no ryujinx.libhac (404); LibHac is built from source. File-backed in [the run record](evidence/melonx-631-gates/run.json). | A required request actually fails, the environment changes or the source/package requirement changes. Earlier 403 notes describe their recorded sessions. |
-| Queued syncpoint blocking guarantees | Before `ec5e3df9`, 21/28 fixture scenarios passed. Renderer barrier, retained unpublished FIFO head and 3D increment ordering corrected. After: 28/28, 6530 checks, adapter text and real prepared source, SDK 10.0.100. Reports in [queue evidence](evidence/melonx-631-queued-syncpoints/). | Relevant queue/caller/fixture inputs change or contradictory runtime evidence appears. |
-| Real-source fidelity of queue fixtures | Public IncrementSyncpoint and the texture refresh in Syncpointb differed from the reconstructed frames. Aligned in `97bfece1`; extracted regions now equal the prepared source except diagnostic `PD` lines, covered by a double. | Upstream method frames or the extracted production regions change. |
-| Current 631 gate result | First pass 9/10: `hogwarts-dma-copies` failed on its own composition (queue Library line), not on production code. Freeze then showed `counter-report-compaction` had to rerun. After `97bfece1`: 11/11 on a fresh preparation, receipts valid for the frozen contract. Local Linux receipts; the Core CI reruns them on Apple ARM64. | Any adapter, gate script, plan or prepared input changes (refreeze), or the CI rerun disagrees. |
-| Upstream UE workaround | Full history shows `13700519` descends from 2.6 and contains `f924c98c`. The earlier missing-ancestor suspicion came from incomplete history. | The pinned revision changes or a different upstream fix is identified. |
-| Cowork attribution | Repository/session search did not identify attributable Cowork work. Owner redirected Claude to its own MeloNX work. | The owner provides a specific Cowork deliverable or a verifiable reference is discovered. |
+- **Goal:** one reviewed common private IPA with RPCS3, MeloNX, skins and all approved
+  content; no omitted lot or concurrent delivery. Device gameplay tests follow
+  packaging, not a circular pre-delivery requirement.
+- **Delivered/verified:** 650 (run `41873041655`, trigger `3f596ba1`): IPA 237194301 B,
+  SHA-256 `9784c831…10229`; RPCS3 645, MeloNX 649, PR157 skins; [receipt](evidence/rewind650/delivery.json),
+  key deleted, file sent. Failed attempts fixed: `41861290919` (flutter without Pillow:
+  recipe `5671b1b1` + contract guard; macOS runner not acquired), `41868095254` (draft
+  declared App must-change; no Dart input changed). Native/flutter evidence reused.
+- **Delivered/verified:** 653 (run `41880845494`, trigger `46ed3793`, all jobs green first
+  try): IPA 247337849 B, SHA-256 `63542cc6…78f0`; RPCS3 652 (pin `e56ec20a…`), MeloNX 649
+  kept, PR158 PS2 Pocket Original (`70b9c36e`, legal `850611ff`); [receipt](evidence/rewind653/delivery.json),
+  key deleted, file sent. PR158 landscape sizes (L3/R3 ~26 pt, SELECT/START ~40 pt,
+  home-band overlap, sensor housing over Circle) await the maintainer.
+- **IPA 650 device logs (18:00 UTC, private, hashed):** AC gameplay 25–28 FPS = 643; one AC
+  process lost the GPU (VK_ERROR_DEVICE_LOST, poke_query) after 6.5 min in the UI left
+  4.7 GB footprint / 2.5 GB compressed (jetsam limit 6655 MiB; Core reclaim never armed);
+  BO2 hitches coincide with compression growth. Analysis workflow running; levers next.
+- **Misaddressed MeloNX logs:** skins export ready (ZIP 900515 B, `12b5f019…2f04`, skins
+  attachment `d585ba9d…`). Main has no native transfer (`send_message.attachments`:
+  project channel→thread only; no tool reads another session's upload); MeloNX idle,
+  no receipt yet. Next: authorized Codex browser re-attachment, then main verifies.
 
-## Update a task in place
+### RPCS3 FPS, stability and audio — main Claude Code
 
-Keep each entry concise. Retain the objective and authorization, acceptance
-criteria, owner/dirty paths, exact source/build/input identity, finding and
-confidence, correction, command/result and evidence reference, remaining blocker,
-next action and condition for reopening. Record a failed or inconclusive attempt
-as such. Update the existing row instead of appending another task diary.
-Reconcile local findings with the final committed proof before marking complete.
-A conflict between this summary and direct source/receipts must be investigated
-and corrected, not silently resolved by choosing the newest prose.
+- **Packaged:** 645 timeout mix in IPA 650; [record](rpcs3-core645-2026-11-04.md).
+  Eight IPA643/PID6665 inputs verified, raw files private; [identities/trade-offs](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#rpcs3-fps-stability-and-audio--main-claude-code).
+- **Pinned:** 651 low-ring mix ([record](rpcs3-core651-2026-11-04.md)): run `41865042684`,
+  host job attempt 1 failed only in `zcull630_asan` (infrastructure), rerun green; pin
+  `bdfe9b7d…`, fingerprint `69fd4ff3…`. No iPhone audio gain established.
+- **Current:** 652 ([record](rpcs3-core652-2026-11-04.md)), compile run `41874738530`
+  (Apple host harnesses green): AC 51 passes/frame, 1104 cyclic depth barriers per 127
+  frames, each ending the pass. Fixes in the real code: test-off draws without stencil
+  writes are read-only; a skipped read counts, so read-only chains keep one barrier.
+  Host model on real code: no RAW/WAR hazard; 6 reads 8→3 passes; random 106854→99643
+  passes, 94138→75615 barriers; writing loops identical. RPASS652 census of pass ends.
+- **Open/next:** pin 652, IPA 653; then the RPASS652 dominant restart site. BO2 new
+  pipelines (234–1008 ms, first-ever keys; old ones persist): anticipation design still
+  open. Device AC/BO2 measurements required. Do not close at “GPU-bound”.
 
-## Evidence by component
+### MeloNX FPS, memory, black launch and artifacts — existing owner
 
-| Scope | Direct references |
-| --- | --- |
-| Architecture and routing | Relevant section of [ARCHITECTURE.md](../ARCHITECTURE.md) |
-| MeloNX measurements and rejected approaches | [optimization map](melonx-optimization-map-2026-11-03.md), [encoding](melonx-629-encoding-2026-11-03.md), [MoltenVK](melonx-moltenvk-rebuild-2026-11-03.md), `build-utils/melonx/dma-core-pin.json`, `build-utils/melonx/moltenvk-rebuild-pin.json` |
-| RPCS3 | [Core 634](rpcs3-core634-2026-11-03.md), [Core 630](rpcs3-core630-2026-11-03.md), `build-utils/rpcs3/core-pin.json` |
-| Delivery | [standard recipe](standard-delivery-recipe.md), [635 plan](ipa-635-plan-2026-11-03.md), [delivery speed](delivery-speed.md) |
-| Library and lifecycle | Relevant section of [PROJECT_RULES.md](PROJECT_RULES.md), [library folders](library-folders-2026-10-10.md) |
-| Flutter UI | [Liquid Glass](liquid-glass-ui.md), `lib/screens/systems_screen/`, affected `test/` files |
-| Wii and GameCube skins | [Dolphin skins](dolphin-skins.md), [Pocket originals](pocket-originals-2026-11-03.md), [input evidence](evidence/pocket-originals/) |
-| RetroAchievements and languages | [608](build608-ra-session-delivery.md), [credentials](ra-credentials-status-2026-11-01.md), [game identity](ra-game-identification-2026-11-01.md), [PS3 hooks](ra-ps3-rpcs3-2026-11-01.md), [translation](achievement-translation.md) |
-| Cheats, patches, HD and rights | Relevant [component rules](PROJECT_RULES.md), [enhancements](ENHANCEMENTS.md), [licenses](LEGAL_AND_CREDITS.md) |
-| Earlier findings | [existing history](history/README.md), [prior delivery notes](history/agents-delivery-notes-2026-11-03.md). Search only the implicated component/build. |
+- **Evidence:** [optimization map](melonx-optimization-map-2026-11-03.md) (sections "IPA 643", "IPA 643 follow-up",
+  "IPA 650"), [three private 621 logs/dispositions](melonx-621-measurement-2026-11-03.md). Main owns
+  compilation/pins/integration.
+- **IPA 650 (Core 649) device logs, 4 Nov** (Hogwarts, pid 8767, two sessions in one process; private bundle,
+  identities in the map): closes 2 s (teardown marks: guest 78/91 ms, cache save 1.5–1.7 s, nothing to cancel);
+  stutter is not re-presented frames (900/900 distinct); one 756 ms blocking gen2 GC in S2 (trigger undecided);
+  black launch not reproduced (2/2, not decisive); colour-mask pass restart retracted as a discriminator (also in
+  normal sessions); artifacts and recording undecidable from logs.
+- **Defect established and corrected (handoff pending):** each closed session's managed heap survives teardown
+  (342/690 MB live) through the static HOSBinderDriverServer registry (producer → KEvent → KernelContext → Switch);
+  `adapt_binder_teardown.py` unregisters the layers' binders in SurfaceFlinger.Dispose (+ durable `sessionRetention`
+  probe), 38 checks. Instrumentation: `gcEvent` lines (native EmbeddedPerformanceDiagnostics, 46),
+  `adapt_artifact_counters.py` (three suspected artifact paths, 118), Swift capture/interruption/`acq=` journal (63,
+  static). Composition on Core 649 builds Ryujinx.Library; the real preparation of `13700519` reproduces Core 649 but
+  the changed native file.
+- **Next:** main wires `adapt_binder_teardown` and `adapt_artifact_counters` after `adapt_teardown_phase_marks`, pins
+  the native file and builds the IPA (Swift compiled there). Device: recording started before launch without opening
+  Control Center; artifact screenshots; fresh launch vs second launch in one process (`sessionRetention`, `gcEvent`,
+  artifact counters). No controlled FPS/visual gain claim.
 
-## MeloNX reuse study — nxnative
+### Skins/orientation and additive PS2 Original — existing owner
 
-Requested by the maintainer, reviewed by Codex on 3 November 2026.
-Static source audit of [seedds/nxnative](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/README.md) at
-`6a60b722e8af8daaf36f9f056485e5d21c15a887`. No port, Metal build or iPhone game test
-was performed. This is a scoped reuse assessment for MeloNX, not a new native
-runtime implementation.
+- **History:** PR152 `705e90c7`; PS2 playlist entry `b8794226`; PR155 Originals in 643;
+  PR157 contour/press/stick fix in 650; PR158 PS2 Pocket — Original in 653 (simulator ARMSX2
+  28/28, run `41870604467`; landscape L3/R3 ~26 pt, SELECT/START ~40 pt and the housing over
+  Circle await the maintainer).
+  [Touch proofs](evidence/pocket-originals/touch-fix/), [PS2 Original](evidence/pocket-originals/ps2-original/),
+  [pack record](pocket-originals-2026-11-03.md).
+- **Current: stale installed GameCube Original (4 Nov, high selector for diagnosis).**
+  - Input: `ScreenRecording_11-04-2026_19-03-01_1.mp4`, 11094898 B, `7ea18bee…d2ca`, 956×440 pt
+    landscape, 60 fps; private.
+  - Finding: every press draws a rectangle, the main cap is off-centre and the C knob carries
+    its base. That is the pre-PR157 archive: at the device size `f61e10dd` matches the stick
+    regions at 7.9/6.8, the shipped `ec382133` at 11.4/14.1.
+  - Cause: a bundled pack is imported once into `Skins/<id>` and an app update never
+    refreshed it. Which IPA was installed is not visible in the recording; under 650 only
+    the stale copy explains the frames.
+  - Fix: branch `work/skins-bundled-refresh-20261104` from `46ed379`, commit `d0348a4`, draft
+    [PR159](https://github.com/TarbleFR/RewindBox/pull/159). `refreshInstalledBundledSkins`
+    runs at iOS start and on the skin page: a stale `org.rewindbox.*` copy is replaced
+    through the existing `replace` (selections moved, rollback on failure); nothing else
+    is touched. Dart only, no asset, native or CI change.
+  - Tests: Flutter 3.47.2 250/250; the new test fails with the refresh disabled; analyze clean.
+    [Analysis](evidence/pocket-originals/installed-copy-refresh/analysis.json).
+  - Not observed: the refresh on an iPhone. A game started in the first seconds after an
+    update may still use the old copy for that session.
+  - Main: review and next common IPA. No merge, IPA, pin or Core change from here.
+- **Effort observed:** `rb-effort-high` returned "Effective effort reported by Claude Code:
+  high" at this defect's start. `rb-effort-medium` for this handoff returned "loaded earlier…
+  NEW invocation" with no substituted value.
+- **MeloNX export:** private ZIP 900515 B `12b5f019…2f04` (skins attachment `d585ba9d…`).
+  Native attach refused (project channel→thread only); Codex re-attaches.
 
-MeloNX currently uses GPU/GAL → Vulkan → MoltenVK → Metal
-(`native/melonx/EmbeddedSession.cs`, Vulkan backend and threaded rendering).
-nxnative intercepts game NVN/Vulkan/EGL/GL imports and replays them on Metal,
-with per-game offline shader preparation and its own Horizon host. Reusing its
-graphics ideas does not by itself replace MeloNX CPU execution or create a
-generic native-game launcher.
+### Codex orchestration — Codex
 
-| Candidate | Applicability and evidence | Next targeted validation |
-| --- | --- | --- |
-| Dynamic texture offsets and gather | Compare [Instructions.cs](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs). Runtime offsets are built as OpCompositeConstruct rather than invalid constant composites. Vulkan has an extra constraint below. **Claude, 3 Nov, static on the prepared `13700519`:** already handled differently. The Vulkan backend declares `supportsNonConstantTextureOffset: false` (`VulkanRenderer.cs:912`), so `TexturePass.InsertConstOffsets` rewrites every non-constant offset before code generation: coordinates shifted by offset/size for one offset, four gathers for `Offsets`. Only constant `ConstOffset`/`ConstOffsets` reach SPIR-V, legal under VUID-10213 and for MoltenVK. No port: no missing case, and no measured GPU bottleneck (629: the render thread, not the GPU, limits). | Reopen with a shader that reaches SPIR-V with a non-constant offset, a translation/validation error, or a measured gather-bound GPU window. |
-| Mixed bindless-handle phis | [TryTableHandle](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/dm/third_party/ryujinx/src/Ryujinx.Graphics.Shader/Translation/Optimizations/BindlessElimination.cs) selects among C2 candidates when a phi also contains other values. RewindBox already handles nested/loop phis, SHFL and proven local spills in `adapt_bindless.py` and `adapt_bindless_sources.py`; phis mixing a handle with 0 or other loads take the full-pool path (case 6), never for image stores/atomics. **Claude, 3 Nov:** no recorded unbound mixed case in the MeloNX records; not ported. | Reproduce only a remaining mixed case (journal naming an unbound phi). Prove predication and the assumption that an unmatched candidate's read result is unused. Preserve image-store/atomic restrictions and avoid marking every texture modified. |
-| Dirty memory and resource retirement | [t_dirty_retire_race.c](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/dm/gfx/tests/t_dirty_retire_race.c) reproduces protection vs pool retirement, checking actual writability after retirement. Related upload-slot/budget tests protect memory still used by the GPU. | Transpose the invariant to MeloNX tracking/fences and affected DMA overlap/teardown paths. C/Objective-C structures are not direct C# patches. |
-| Image atomics bounds | Vendored shader emitter and [bounds tests](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/dm/tools/tests/test_image_atomic_bounds.py) provide candidate cases. MetalImageAtomics pairs emitter flags with SPIRV-Cross/MSL support. | Compare the real backend capabilities and exact shader; validate SPIR-V, compiled MSL and GPU behavior. Avoid enabling a Metal-only flag globally in the Vulkan path. |
-| Texture-buffer fallback | nxnative's RecordTexelFetch1D pairs shader coordinates with its host's 16384-wide 2D binding. | Treat the emitter and resource binding as one contract. A shader-only transplant would be incomplete. |
+- **Effort follow-up:** high selector expanded `b8e12584`, routing `20c14011`;
+  skins UI Max→High, Opus5.5 retained. Reload/native Skill-return and automatic
+  transition were pending at last check; do not claim validation or repeat prompts.
+- **Misaddressed files:** five MeloNX logs in skins message10, Hogwarts IPA643
+  PID7613/capture`E3542E16`,14:53–14:55UTC (not older PID6451).
+  [Sizes/hash prefixes/relay](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#codex-orchestration--codex).
+  Source tiles expose no download control in observed UI. One private ZIP-export
+  request queued in skins; one routing/format instruction in main marked read.
+  **No export/destination byte receipt yet.** Main/coordinator must reattach exact
+  originals to MeloNX, verify receipt; no duplicate request.
+- **Docs:** successive consolidations preserve immutable evidence and current
+  requirements without product/pin/CI/permission changes. Keep only current state
+  here. Verified 640 watch is complete; do not recreate it from an old status.
 
-**Vulkan constraint.** Without `maintenance8` enabled, image operand `Offset`
-is legal only for gather instructions under
-[VUID-RuntimeSpirv-Offset-10213](https://docs.vulkan.org/refpages/latest/refpages/source/RuntimeSpirv.html#VUID-RuntimeSpirv-Offset-10213).
-nxnative also uses runtime Offset for sample/fetch operations in its offline
-SPIRV-Cross path. Do not transfer that whole change to MeloNX without actual
-capability support or a legal alternative lowering. Use the matching
-`spirv-val --target-env`, runtime Vulkan checks and rendered-output comparison.
+### Completed housekeeping — no new cleanup requested
 
-**Boundaries established from code.** [hle_vk.m](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/dm/gfx/vk/hle_vk.m)
-uses one serial queue, ignores semaphores/pipeline barriers, and lacks compute
-pipelines and secondary command buffers. It is unsuitable as a general
-MoltenVK replacement. [hle_gl.m](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/dm/gfx/gl/hle_gl.m) implements a
-single-context subset used by specific games, not a general NVIDIA desktop
-driver. NVN interception is a different integration point from MeloNX's GPU/GAL.
-The source has implementations newer than some README limitations, so inspect
-the exact operation and its test. Metal4-specific algorithms also need OS/GPU
-capability guards to preserve RewindBox's iOS 18 baseline.
-
-The project [license](https://github.com/seedds/nxnative/blob/6a60b722e8af8daaf36f9f056485e5d21c15a887/LICENSE) is MIT. Retain copyright/license notices
-and inspect each reused third-party component's own notices.
-
-Next action for the implementation owner is the dynamic-gather comparison
-above after the current DMA correction reaches a stable point. Reopen this
-assessment for a changed pinned revision, demonstrated missing case or new
-backend capability. Record each tested candidate here in place.
+Historical cleanup: 9 obsolete refs, PR152 closed after squash comparison, 1069 runs;
+all initial artifacts/retained producers preserved, Dependabot151 retained.
+[Audited receipt](evidence/github-cleanup-2026-11-04.json). Not current inventory
+or permission for more deletion.
 
 ## Delivered baseline
 
-Last verified delivery is private RewindBox 0.0.8 (**643**), iOS 18+ with SideStore, delivered 4 November 2026 on the delivered 640: RPCS3 Core 641 (audio diagnostics exported, log text only), MeloNX Core 642 (PR #154 lot), PS2 playlist Skins entry, GameCube/Wii Pocket Originals and Dolphin session buttons off skin controls (PR #155). Trigger `f19ed8cd`, freeze `2740e79c`, [manifest](../build-utils/delivery/643.json), effective product `e8bad150…`. Run `41772933869` attempt 1: preflight, republish, flutter, native and application passed. RewindBox-643.ipa is 236198342 bytes, SHA-256 `eb6f88ea41889fea072672ae82cd6b11d2a97336aa0bed4974ba3e9c78872f0a`, sent privately to the maintainer in the Claude session (file `a048d6dc-8b1f-4e62-93d2-a2c24809d0f6`). [Delivery receipt](evidence/rewind643/delivery.json) and [download verification](evidence/rewind643/download643-verification.json) bind it (four parts against the API metadata, SHA256SUMS and signer receipt, 90 images, pins `eb0d0051…`/`281aa3a4…`, 44 retained, six validators). libretro_internal_bridge changed without an effective source change (undeclared, nonblocking, as in 629). Private recipient key deleted. Not tested on an iPhone; no FPS, audio or visual claim. Previous: 640 (source `38c465b2`, 221255575 bytes, `c0f1d042…`), [receipt](evidence/rewind640/delivery.json), completed with its 12 proof files in `04a4db80`.
+**Last verified: private RewindBox 0.0.8 (643), iOS 18+/SideStore.** Run`41772933869`
+attempt1, trigger `f19ed8cd`, freeze `2740e79c`, effective `e8bad150…`; all five jobs
+passed. RPCS3 641, MeloNX 642, PS2 playlist Skins entry, GC/Wii Originals and
+Dolphin session-chrome correction. [Manifest](../build-utils/delivery/643.json),
+[delivery](evidence/rewind643/delivery.json),
+[download verification](evidence/rewind643/download643-verification.json).
 
-| Component | Delivered identity |
+IPA: 236198342 bytes; SHA-256
+`eb6f88ea41889fea072672ae82cd6b11d2a97336aa0bed4974ba3e9c78872f0a`.
+Receipt binds 90 images / 44 retained, pins/signing/six validators. Private key deleted.
+Unchanged-source libretro bridge byte change recorded as nonblocking undeclared.
+Device gameplay/FPS/audio/visual verification remains separate.
+Previous 640 [receipt](evidence/rewind640/delivery.json).
+Older 627/628 component table belonged to 629, not 643; never use it as current pins.
+
+## Findings to carry forward
+
+Open [prior findings](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#findings-to-carry-forward)
+only for relevant changed inputs/contradictions. Preserve rejected hypotheses and
+baseline attribution. Core 634 defects are superseded by later fixes.
+nxnative was a static reuse study, not a port or MoltenVK replacement: offsets
+already lower legally, no demonstrated mixed-phi omission; other ideas need matched
+host/shader contracts, legal SPIR-V, iOS18 capability checks and license notices.
+No new task follows from that old study.
+
+## Update a task in place
+
+Use **Goal / State / Evidence / Open or limit / Next**; preserve exact owner/branch
+and source identity. Aim for ≤200words per task, excluding direct references.
+Keep stable headings so links survive. Replace stale state; do not append previous
+turns, whole test lists, repeated “next” entries or another session's diary.
+Put detail in existing component evidence, retain failure/input identities and
+link it here. Refresh before writing; reconcile concurrent changes.
+
+## Evidence by component
+
+| Scope | Read only when relevant |
 | --- | --- |
-| MeloNX | Core 628, run `41614833262`, source `1ce1cd14`, packaged `dfd9061e…`, iPhone library `1699cf38…`. Reviewed deltas `e34dccf9`, `1ce1cd14`, `2620d011`. No iPhone result. [measurement record](melonx-624-measurement-2026-11-03.md) |
-| RPCS3 | Core 627, run `41610162888`, source `6891f9a0`, payload `eccf8535…`, pin `021a15e4`. Reviewed `40c6502a`..`8e68bdee`, `2abb1ac2`. No iPhone result. [Core record](rpcs3-core627-2026-11-03.md) |
-| Dolphin / ARMSX2 | Kept from 608, payloads `640e4389…` / `fab55193…`, ARMSX2 ABI 9, archive republished by run `41504526945` |
-| libretro and dependencies | Retained through the same authenticated archive chain, last republished by `41622115556`. libretro_internal_bridge bytes changed from 626 despite unchanged effective sources, recorded as a nonblocking undeclared image change. |
-
-629 attempt `41618683768` failed at the Core-install canary name check.
-Recipe fix `79d866ef` accepts the Core-specific canary. Do not repeat the
-fixed marker list from Cores 587–624. Earlier delivery details remain in the
-existing receipts and history linked above.
-
-## Prior reservations and results
-
-These identify earlier work, not current instructions to resume it.
-
-| Prior entry | Recorded outcome and retained evidence |
-| --- | --- |
-| TASK-586 / TASK-587 | The old board claimed 586 was pending while later receipts exist. Use [586 delivery](evidence/rewind586-delivery.json) and [587 receipt](evidence/rewind587-delivery.json) when the exact earlier product matters. Core 587 run `40718679248`, source `a8a7ce10`, Mac proof `7c3c48d2`. Do not dispatch the old recipe from that stale row. |
-| TASK-589 | Core 589 run `40778765122`, source `99a57a6`, binding `700db785`. [Core record](rpcs3-cell589.md) retains the exact source, profile and receipts. No active instruction to produce a separate 589 IPA. |
-| TASK-628-RPCS3 | Core 627 was pinned and delivered in 629 instead. References are in the delivered baseline above. Pending device checks remain pending. |
-| TASK-630-RPCS3 | Core 630 compiled in run `41646604720` on `e1cd9621`. [Core 630 record](rpcs3-core630-2026-11-03.md) retains both artifact identities. Core 634 includes this work and is the current integration target. |
-| Former 583 handoff | Its 28 October snapshot is superseded as a handoff. [583 source/results](rpcs3-cell583.md) and [delivery](evidence/rpcs3-cell583-delivery.json) preserve it. Host steady-state comparison was noisy, so no FPS gain was established. The 583 driver repeated OPT583 instead of OPT581, compensated by Mac/IPA evidence at that time. Follow later source/receipts before reopening the old Write Color Buffers or async-submit proposals. |
+| Architecture | [ARCHITECTURE](../ARCHITECTURE.md) |
+| MeloNX | [optimization map](melonx-optimization-map-2026-11-03.md), [621 logs](melonx-621-measurement-2026-11-03.md), [encoding](melonx-629-encoding-2026-11-03.md), [MoltenVK](melonx-moltenvk-rebuild-2026-11-03.md); `build-utils/melonx/dma-core-pin.json`, `moltenvk-rebuild-pin.json` |
+| RPCS3 | [645](rpcs3-core645-2026-11-04.md), [641](rpcs3-core641-2026-11-04.md), [638](rpcs3-core638-2026-11-03.md); `build-utils/rpcs3/core-pin.json` |
+| Delivery | [standard recipe](standard-delivery-recipe.md), [Core swaps](core-swap-delivery.md), [speed](delivery-speed.md), manifest/receipt for the actual build |
+| Skins | [Dolphin](dolphin-skins.md), [Pocket](pocket-originals-2026-11-03.md), [board evidence](evidence/pocket-originals/board-originals/), [touch evidence](evidence/pocket-originals/touch-fix/) |
+| Library/UI | [PROJECT_RULES](PROJECT_RULES.md), [folders](library-folders-2026-10-10.md), [Liquid Glass](liquid-glass-ui.md); `lib/screens/systems_screen/`, affected tests |
+| RetroAchievements/locales | [608](build608-ra-session-delivery.md), [credentials](ra-credentials-status-2026-11-01.md), [identity](ra-game-identification-2026-11-01.md), [PS3](ra-ps3-rpcs3-2026-11-01.md), [translation](achievement-translation.md) |
+| Enhancements/rights | [PROJECT_RULES](PROJECT_RULES.md), [ENHANCEMENTS](ENHANCEMENTS.md), [LEGAL](LEGAL_AND_CREDITS.md) |
+| Earlier evidence | [immutable record](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md), [history index](history/README.md), [delivery history](history/agents-delivery-notes-2026-11-03.md) |

@@ -48,8 +48,8 @@
       "name": "GameCube Pocket — Original",
       "console": "gc",
       "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin",
-      "sha256": "f61e10dd45d134149d8623096ab74516e94f37831a2dacb3e240a2060e8ab709",
-      "size": 5965941,
+      "sha256": "ec38213381a8e1929b08ad9fe181b4e2af2dec64c78691733f472b8e62b186b1",
+      "size": 6452061,
       "previewAssets": {
         "portrait": "assets/skins/pocket/gamecube-pocket-original-portrait.png",
         "landscape": "assets/skins/pocket/gamecube-pocket-original-landscape.png"
@@ -62,11 +62,25 @@
       "name": "Wii Pocket — Original",
       "console": "wii",
       "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin",
-      "sha256": "e451f327cbfa62c93bcf61395f9000f9220d1088b4a435492273f4b2c453916a",
-      "size": 4874505,
+      "sha256": "6be2863c7ff9e23fd0fabc3481fc2ed3dd2d9745cefc78c5777fe7d9dd96f75a",
+      "size": 5257748,
       "previewAssets": {
         "portrait": "assets/skins/pocket/wii-pocket-original-portrait.png",
         "landscape": "assets/skins/pocket/wii-pocket-original-landscape.png"
+      },
+      "author": "RewindBox",
+      "license": "RewindBox approved board; console names and marks belong to their owners"
+    },
+    {
+      "id": "ps2-pocket-original",
+      "name": "PS2 Pocket — Original",
+      "console": "ps2",
+      "archiveAsset": "assets/skins/pocket/ps2-pocket-original.manicskin",
+      "sha256": "07f4b6fb09fcf61f3ae3081313fd9f551b5abb377774f9249b62e40cef2c6355",
+      "size": 7283088,
+      "previewAssets": {
+        "portrait": "assets/skins/pocket/ps2-pocket-original-portrait.png",
+        "landscape": "assets/skins/pocket/ps2-pocket-original-landscape.png"
       },
       "author": "RewindBox",
       "license": "RewindBox approved board; console names and marks belong to their owners"

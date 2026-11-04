@@ -40,6 +40,7 @@
 #import <UIKit/UIKit.h>
 #import <dlfcn.h>
 #import <mach/mach.h>
+#import <malloc/malloc.h>
 #import <os/lock.h>
 #import <os/proc.h>
 #import <sys/sysctl.h>
@@ -1120,6 +1121,33 @@ static void RPCS3Progress(void* context,
       return NO;
     }
     RPCS3Milestone(@"core_handoff_end", @"verified; entering dlopen");
+  }
+
+  // REWINDBOX_HOST_MEMORY_BEFORE_CORE_650: IPA 650 logs (4 Nov 2026): the AC
+  // process that lost its GPU (VK_ERROR_DEVICE_LOST) already had 2.5 GB of
+  // compressed pages at its first in-game memory sample, after 6.5 minutes in the
+  // RewindBox UI (0 compressed for the process relaunched 15 s after its start;
+  // 4.7 GB footprint against the 6655 MiB process limit). No line measured the
+  // process right before the Core loaded. This one does, returns the malloc
+  // zones' free pages to the kernel (malloc_zone_pressure_relief, free memory
+  // only: nothing live is released) and measures again, so the next device log
+  // attributes the pre-game footprint, resident, compressed and jetsam headroom.
+  {
+    task_vm_info_data_t before = {};
+    const BOOL measuredBefore = RPCS3TaskVMInfo(&before);
+    const uint64_t availableBefore = os_proc_available_memory();
+    const size_t relieved = malloc_zone_pressure_relief(NULL, 0);
+    task_vm_info_data_t after = {};
+    const BOOL measuredAfter = RPCS3TaskVMInfo(&after);
+    RPCS3Milestone(@"host_memory_before_core_load", [NSString stringWithFormat:
+        @"valid=%d footprint=%llu resident=%llu compressed=%llu available=%llu thermal=%ld "
+        @"malloc_relief=%zu valid_after=%d footprint_after=%llu compressed_after=%llu available_after=%llu physical=%llu",
+        measuredBefore ? 1 : 0, (unsigned long long)before.phys_footprint, (unsigned long long)before.resident_size,
+        (unsigned long long)before.compressed, (unsigned long long)availableBefore,
+        (long)NSProcessInfo.processInfo.thermalState, relieved, measuredAfter ? 1 : 0,
+        (unsigned long long)after.phys_footprint, (unsigned long long)after.compressed,
+        (unsigned long long)os_proc_available_memory(),
+        (unsigned long long)NSProcessInfo.processInfo.physicalMemory]);
   }
 
   RPCS3Milestone(@"core_load_begin",

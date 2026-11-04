@@ -14,22 +14,43 @@
  "declarations": {},
  "bundled_assets": {
   "catalog": "assets/skins/pocket/catalog.json",
-  "catalog_sha256": "db67091ebedf08aea1261d3ee9330e22c5a90bd8e416af94b08d8944b6e743a9",
+  "catalog_sha256": "e3e0b2f8da88bf27cc3785eb4d04e0fe39061d644e1d5a9103a2af4e7af3f957",
   "previous_catalog_sha256": "5adc4e79d31ee4d433d194c48b2bad1f26ad3243239a8a19dff5cbafece52ab9",
   "catalog_skins": 5,
   "added_skins": {
    "gamecube-pocket-original": {
-    "size": 5965941,
-    "sha256": "f61e10dd45d134149d8623096ab74516e94f37831a2dacb3e240a2060e8ab709",
+    "size": 6452061,
+    "sha256": "ec38213381a8e1929b08ad9fe181b4e2af2dec64c78691733f472b8e62b186b1",
     "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin"
    },
    "wii-pocket-original": {
-    "size": 4874505,
-    "sha256": "e451f327cbfa62c93bcf61395f9000f9220d1088b4a435492273f4b2c453916a",
+    "size": 5257748,
+    "sha256": "6be2863c7ff9e23fd0fabc3481fc2ed3dd2d9745cefc78c5777fe7d9dd96f75a",
     "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin"
    }
   },
   "review": "docs/pocket-originals-2026-11-03.md",
   "evidence": "docs/evidence/pocket-originals/board-originals/"
- }
+ },
+ "revisions": [
+  {
+   "date": "2026-11-04",
+   "change": "PR #157 touch fix: the two Original archives regenerated from the same approved boards (outlines, transparent sprites, contour-limited pressed state, stick frames on the drawn cap); same ids, names and previews; same art sources, no new third-party material",
+   "previous": {
+    "catalog_sha256": "db67091ebedf08aea1261d3ee9330e22c5a90bd8e416af94b08d8944b6e743a9",
+    "added_skins": {
+     "gamecube-pocket-original": {
+      "size": 5965941,
+      "sha256": "f61e10dd45d134149d8623096ab74516e94f37831a2dacb3e240a2060e8ab709",
+      "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin"
+     },
+     "wii-pocket-original": {
+      "size": 4874505,
+      "sha256": "e451f327cbfa62c93bcf61395f9000f9220d1088b4a435492273f4b2c453916a",
+      "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin"
+     }
+    }
+   }
+  }
+ ]
 }

@@ -165,3 +165,89 @@ and the performance toggle moves into the top leading corner of the skin's game 
 (`DOLSessionChromePolicy.h`, `test/dolphin_session_chrome_test.py`). Without a skin,
 or with a skin lacking a Menu, nothing moves. The analogous ARMSX2 floating menu over a
 PS2 landscape L1 is reported only; the PS2 fix `b8794226` is not reopened.
+
+## Touch and press fix of the Originals (4 November 2026)
+
+Input: maintainer recording `ScreenRecording_11-04-2026 14-01-31_1.mp4` (9 241 004 B,
+SHA-256 `548b2826…bf7e`, 26.29 s, 1112×512, 30 fps; archive
+`rewindbox-skin-touch-feedback-20261104.zip` `fb79e2d3…c56d`), GameCube Original on
+IPA 643. Frames 72 (L), 109 (A), 125 (X), 166 (R), 180 (B), 194 (C-stick), 207 (START)
+and 232 (Menu) show the pressed sprite as a shifted, darker rectangle around the control;
+frames 0–54 and 100/150 show the landscape main-stick cap off-centre in its socket. The
+finger positions are not in the recording and are not inferred.
+
+Cause, measured on the shipped archives and fixed in the generator and the overlay (see
+[tools/skins/README.md](../tools/skins/README.md)): opaque rectangular sprites and a
+pressed effect over the whole rectangle; hand-measured boxes trimmed where shapes
+interlock (Y) with rectangle-only hit testing; stick frames not centred on the board's
+cap. Before/after: [audit-before-after.json](evidence/pocket-originals/touch-fix/audit-before-after.json),
+touch-zone maps, rest/pressed/released magnifications and stick positions in
+[touch-fix/](evidence/pocket-originals/touch-fix/) (host renders composed like
+DOLSkinOverlay, not iPhone screenshots). Simulator tests with the real overlay and the
+TCManagerInterface calls: `packages/dolphin_internal_bridge/ci/DolphinSkinOverlayTests.mm`.
+The ids, names and previews of both Originals are unchanged, so existing selections keep
+working; the earlier Pocket packs are byte-identical.
+
+## PS2 Pocket — Original (4 November 2026)
+
+A distinct pack, `ps2-pocket-original` ("PS2 Pocket — Original", archive
+`07f4b6fb…6355`, 7 283 088 B), reproduces the approved maquette
+(`docs/design/pocket/approved-ps2.png`, byte copy of `PS2-Pocket-MAQUETTE-ORIGINALE.png`
+`e37c95a5…95da` from `rewindbox-ps2-reference-feedback-20261104.zip` `13e739fe…eac`) with
+the GameCube/Wii Originals' method; builder details and deviations are in
+[tools/skins/README.md](../tools/skins/README.md). It is a new choice beside
+`ps2-pocket` ("PS2 Pocket — Noir mat"), whose archive `2106e5f7…16ad`, id, previews and
+saved selections are unchanged; nothing is selected or migrated automatically. Compared
+with the current skin (the two device captures of the archive), it has the maquette's
+textured black caps with dark crowns, its D-pad, face buttons, SELECT/START, symbols,
+volumes and proportions, because every control is the maquette's own pixels.
+
+Evidence ([ps2-original/](evidence/pocket-originals/ps2-original/), host renders of the
+archive composed like ARMSX2SkinOverlay, not iPhone screenshots): maquette useful zone
+beside the archive at rest and pressed, touch zones, rest/pressed/released per control and
+stick positions, [fidelity.json](evidence/pocket-originals/ps2-original/fidelity.json).
+ARMSX2 now resolves touches by the drawn shape (`ARMSX2SkinHitTest.h`) and hides its
+floating menu over a skin that has its own Menu (it covered L1 in landscape on both PS2
+packs). Simulator tests on both shipped PS2 archives:
+`packages/armsx2_internal_bridge/ci/ARMSX2SkinOverlayTests.mm`. Not observed: iPhone touch
+feel, both physical landscape sides, game response. Board-bound landscape limits (L3/R3
+about 26 pt tall, SELECT/START about 40 pt, the opposite-rotation housing over Circle) are
+listed for the maintainer.
+
+
+## Installed bundled packs follow the shipped archive (4 November 2026)
+
+Input: maintainer recording `ScreenRecording_11-04-2026_19-03-01_1.mp4` (11 094 898 B,
+SHA-256 `7ea18bee…d2ca`, 15.46 s, 956×440 pt landscape at 60 fps), GameCube Pocket —
+Original in Fire Emblem. Every press draws a darker rectangle around the control, the
+main-stick cap sits right of its socket at rest, and the C knob carries part of its
+base. That is the archive from **before** the touch fix. Composed at the device size,
+the pre-PR157 archive `f61e10dd` matches the recording's stick regions (7.9 / 6.8)
+far better than the shipped `ec382133` (11.4 / 14.1)
+([analysis.json](evidence/pocket-originals/installed-copy-refresh/analysis.json),
+[control crops](evidence/pocket-originals/installed-copy-refresh/device-press-crops.png)).
+
+Cause: a bundled pack is imported once into `Documents/Libretro/Skins/<id>`. An app
+update never refreshed that copy, the catalog did not show that a newer archive shipped,
+and reinstalling asked for a replace confirmation. A GameCube Original installed under
+IPA 643 therefore kept its old opaque sprites and caps after IPA 650 shipped the fix.
+The recording does not show which IPA was installed. Under 643 these frames are
+expected; under 650 only the stale copy explains them.
+
+Fix: `LibretroSkinCatalogs.refreshInstalledBundledSkins` runs at app start (iOS, after
+the first frame) and when the skin page opens. An installed skin whose identifier is a
+bundled RewindBox pack's (`org.rewindbox.*`, read from the shipped archive), and whose
+SHA-256 is not the shipped one, is replaced through the existing
+`LibretroSkinService.replace`:
+- the shipped copy is installed first;
+- every console and game selection naming the old copy moves to it;
+- the old copy is deleted;
+- on failure the old copy keeps its files and selections.
+
+Nothing is installed that was not installed before, and a skin with any other
+identifier is never touched. When nothing is stale, only the recorded SHA-256 values
+are compared with the catalog. Test:
+`test/bundled_controller_skins_test.dart` ("a RewindBox pack installed by an earlier
+build…"). With the refresh disabled the same test fails. Not observed: the refresh on
+an iPhone. A game started within the first seconds of the first launch after an
+update may still draw the old copy for that session.

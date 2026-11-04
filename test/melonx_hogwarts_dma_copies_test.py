@@ -85,6 +85,7 @@ LOT_FILES = {
     # PR #156 follow-up (Core 647).
     'adapt_teardown_compile_cancel': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs', 'src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs'],
     'adapt_pause_guest_threads': [],
+    'adapt_teardown_phase_marks': [],
 }
 
 checks = 0
@@ -1512,6 +1513,7 @@ inputs = ['build-utils/melonx/adapt_hogwarts_dma_copies.py', 'build-utils/melonx
           'build-utils/melonx/adapt_readback_occupied_attribution.py', 'build-utils/melonx/adapt_pipeline_miss_context.py',
           'build-utils/melonx/adapt_readback_receivers.py', 'build-utils/melonx/adapt_present_source_attribution.py',
           'build-utils/melonx/adapt_teardown_compile_cancel.py', 'build-utils/melonx/adapt_pause_guest_threads.py',
+          'build-utils/melonx/adapt_teardown_phase_marks.py',
           'test/melonx_adapter_control.py']
 receipt = dict(result='passed', checks=checks, physicalDeviceTested=False, fpsGainProven=False,
                sourceKind='deliveredPreparedWithFinalCandidate' if CANDIDATE else 'deliveredPreparedComposed',

@@ -178,6 +178,56 @@ void main() {
     expect(selected, {'portrait': installed.id, 'landscape': installed.id});
   }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 
+  testWidgets('PS2 Pocket — Original installs beside the earlier PS2 Pocket, keeps its choice and is chosen on its own',
+      (tester) async {
+    phone(tester);
+    final skins = LibretroSkinService(
+      skinsDirectory: path.join(root.path, 'Libretro', 'Skins'),
+      frontendDirectory: path.join(root.path, 'Libretro', 'Config', 'Frontend'),
+      cacheDirectory: path.join(root.path, 'Cache'),
+    );
+    Future<LibretroInstalledSkin> import(String archive) async {
+      final imported = await tester.runAsync(() => skins.importFromFile(
+            archive,
+            targetConsole: 'ps2',
+            source: 'pocket-test-original-archive',
+          ));
+      expect(imported, isA<LibretroSkinImported>(),
+          reason: imported is LibretroSkinImportFailed ? '${imported.messageKey}: ${imported.technicalDetails}' : '$imported');
+      return (imported as LibretroSkinImported).skin;
+    }
+
+    // A player already on the earlier pack, in both orientations.
+    final old = await import('assets/skins/pocket/ps2-pocket.manicskin');
+    for (final orientation in ['portrait', 'landscape']) {
+      await tester.runAsync(() => skins.select(console: 'ps2', orientation: orientation, skinId: old.id));
+    }
+    final original = await import('assets/skins/pocket/ps2-pocket-original.manicskin');
+    expect(original.id, isNot(old.id));
+    expect(original.identifier, 'org.rewindbox.ps2-pocket-original');
+    expect(original.consoles, ['ps2']);
+    expect(await tester.runAsync(() => skins.selectedSkins('ps2')), {'portrait': old.id, 'landscape': old.id},
+        reason: 'installing the Original changes no choice');
+
+    await tester.pumpWidget(app(LibretroSkinManagerScreen(console: 'ps2', service: skins)));
+    await settle(tester, find.text(english['skinsLicenseNotice']!));
+    expect(find.text('PS2 Pocket — Noir mat'), findsOneWidget);
+    expect(find.text('PS2 Pocket — Original'), findsOneWidget);
+    final card = find.ancestor(of: find.text('PS2 Pocket — Original'), matching: find.byType(Card)).first;
+    final use = find.descendant(of: card, matching: find.text(english['skinsUseForLandscape']!));
+    await tester.ensureVisible(use);
+    await tester.tap(use);
+    await settle(tester, find.text(LibretroLocale.format(const Locale('en'), 'skinsSelectedLandscape',
+        {'name': 'PS2 Pocket — Original'})));
+    final stored = store.calls.where((call) => call.method == 'setFrontendSetting').last.arguments as Map;
+    expect(stored['console'], 'ps2');
+    expect(stored['key'], 'skin.landscape');
+    expect(stored['value'], original.id);
+    // Read back: the Original in landscape, the earlier pack kept in portrait.
+    expect(await tester.runAsync(() => skins.selectedSkins('ps2')), {'portrait': old.id, 'landscape': original.id});
+    expect(await tester.runAsync(() => skins.installedSkin(old.id)), isNotNull);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
   test('the stored choice reaches the file and folders ARMSX2SkinOverlay reads at launch', () async {
     // Dart side: Documents/Libretro/Config/Frontend and Documents/Libretro/Skins.
     final frontend = await LibretroInternalService.frontendDirectory();

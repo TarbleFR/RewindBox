@@ -22,7 +22,7 @@ BOM = b'\xef\xbb\xbf'
 ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_moltenvk_barrier_ordering',
          'adapt_descriptor_scratch_all_titles', 'adapt_readback_occupied_attribution', 'adapt_pipeline_miss_context',
          'adapt_readback_receivers', 'adapt_present_source_attribution', 'adapt_teardown_compile_cancel',
-         'adapt_pause_guest_threads')
+         'adapt_pause_guest_threads', 'adapt_teardown_phase_marks')
 
 
 def sha(path: Path) -> str:
@@ -129,3 +129,36 @@ def apply_present(target: Path, module_name: str, only=None) -> list:
     finally:
         module.once, module.BASELINE = original, baseline
     return present
+
+
+def use_authenticated_libhac_feed(tree: Path, root: Path) -> bool:
+    """A copied MeloNX tree that still declares the unreachable upstream LibHac feed (a prepared source build_libhac.py did
+    not configure) uses the authenticated local package instead: dist/melonx/libhac-feed holding the pinned package whose
+    SHA-256 is the build_libhac identity receipt's (build_libhac.configure_feed). Otherwise the tree is left unchanged.
+    Returns whether the feed was switched; a present package with a wrong digest is refused."""
+    import json
+    import sys
+    lock = json.loads((root / 'build-utils/melonx/source.json').read_text())['libHac']
+    feed = root / 'dist/melonx/libhac-feed'
+    package = feed / (lock['package'] + '.' + lock['version'] + '.nupkg')
+    receipt = root / 'dist/melonx/libhac-identity.json'
+    config = (tree / 'nuget.config').read_text(encoding='utf-8-sig')
+    if 'https://starforgejo.dev/api/packages/Ryulynx/nuget/index.json' not in config or not package.is_file() or not receipt.is_file():
+        return False
+    identity = json.loads(receipt.read_text())
+    assert identity['source'] == lock and sha(package) == identity['packageSha256'], 'the local LibHac package is not the authenticated one'
+    if str(root / 'build-utils/melonx') not in sys.path:
+        sys.path.insert(0, str(root / 'build-utils/melonx'))
+    from build_libhac import configure_feed
+    configure_feed(tree, feed, lock['package'])
+    return True
+
+
+
+def files_edited_later(module_name: str) -> set:
+    """This adapter's files that a later adapter also edits. For those, a candidate (control plus this adapter) is not the
+    final preparation's bytes; control_source() already proved, in its forward check, that control plus this adapter
+    plus the later ones reproduces the final preparation exactly."""
+    files = set(importlib.import_module(module_name).BASELINE)
+    later = set().union(*(set(importlib.import_module(name).BASELINE) for name in later_sharing(module_name)))
+    return files & later

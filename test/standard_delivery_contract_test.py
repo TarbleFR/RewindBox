@@ -76,6 +76,7 @@ UNCHANGED_TEST_STEPS = ('Set up Flutter3.47.2', 'Resolve exact workspace lock', 
                         'Prepare real Flutter iOS headers and simulator project tool')
 RUN_STEPS = {'flutter': 'Run source contracts and Flutter behavior',
              'native': 'Run actual Xcode16.4 tests and host compilation'}
+PIL_IMPORT = re.compile(r'^\s*(?:from PIL\b|import PIL\b)', re.M)
 
 
 def sha(data: bytes) -> str:
@@ -526,6 +527,29 @@ class Workflow(unittest.TestCase):
                              f'python3 -B .github/diagnostics/standard_delivery.py tests {group}')
             self.assertIn(RUN_STEPS[group], before, 'The group step keeps its delivered 610 name')
         self.assertEqual(step('native', 'Select targeted Xcode16.4 and Swift6')['with'], {'xcode-version': '16.4'})
+
+    def test_the_flutter_job_provides_the_pillow_its_python_tests_import(self):
+        """650 run 41861290919: test/pocket_skin_input_chain_test.py failed on "No module named 'PIL'" (the
+        ubuntu runner's python3 has no Pillow). A frozen flutter command whose Python source imports PIL runs
+        with the pinned Pillow of the skin checks, from a venv put first on PATH before the group step."""
+        importing = sorted({argument for manifest in manifests().values()
+                            if manifest['tests'].get('flutter', {}).get('mode') == 'fresh'
+                            for _, arguments in manifest['tests']['flutter'].get('commands', [])
+                            for argument in arguments
+                            if argument.endswith('.py') and (ROOT / argument).is_file() and
+                            PIL_IMPORT.search((ROOT / argument).read_text(encoding='utf-8'))})
+        self.assertIn('test/pocket_skin_input_chain_test.py', importing)
+        pins = set(re.findall(r'pillow==([0-9.]+)', (ROOT / '.github/workflows/skin-orientation-checks.yml').read_text()))
+        self.assertEqual(len(pins), 1, pins)
+        name = 'Provide the pinned Pillow of the skin verifiers'
+        names = [s['name'] for s in steps('flutter')]
+        self.assertIn(name, names, 'flutter commands import PIL: ' + repr(importing))
+        self.assertLess(names.index('Resolve exact workspace lock'), names.index(name))
+        self.assertLess(names.index(name), names.index(RUN_STEPS['flutter']))
+        provide = step('flutter', name)['run']
+        self.assertIn('python3 -m venv --system-site-packages "$RUNNER_TEMP/delivery-python"', provide)
+        self.assertIn('pip install --quiet --disable-pip-version-check pillow==' + next(iter(pins)), provide)
+        self.assertTrue(provide.rstrip().endswith('echo "$RUNNER_TEMP/delivery-python/bin" >> "$GITHUB_PATH"'))
 
     def test_required_steps_exist(self):
         for job, names in sd.REQUIRED_STEPS.items():
