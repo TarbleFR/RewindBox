@@ -39,6 +39,7 @@
 # Apple host harness rerun: Core 621 ZCULL storm with 15 ms reads, read floors that fit macOS ASan (request 5).
 # Apple host harness rerun: Core 621 ISO test counts descriptors with fstat on Darwin (request 6).
 # Apple host harness rerun: Core 621 ZCULL storm with 5 ms reads, bounded by the 3-second rule (request 7).
+# Apple host harness rerun: Core 655 hook-less variant links on Apple ld64, census accepts the exact 655 block (request 2).
 name: RPCS3 Core
 # run-name is evaluated before any job and cannot read the spec; the build
 # number is in the step names, the artifact names and the identity type.
