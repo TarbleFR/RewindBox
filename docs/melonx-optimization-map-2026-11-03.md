@@ -394,6 +394,13 @@ cores and time since it last ran, and one durable Core line `guestThreads` names
 ran for 500 ms or more and the longest waits. Read under the kernel monitor without entering the critical section: no
 thread selection, no state change. Proof, `test/melonx_pause_guest_threads_test.py`.
 
+Maintainer, 4 Nov: launching a game while a screen recording is already running gives neither the black screen nor
+the close problem. Both symptoms therefore depend on how the session starts (timing or load at launch, the display's
+composition while recording) or on a pause and resume during the session, not on the capture itself. Checked and
+excluded on that path: a close while paused is handled (Horizon.Dispose resumes the guest before stopping audio).
+A timing-dependent guest wait at launch fits the black screen (released by a pause, avoided by the recording's load);
+the device logs with the marks below and `guestThreads` decide it.
+
 Close-phase marks, `build-utils/melonx/adapt_teardown_phase_marks.py` (WindowBase.cs, VulkanRenderer.cs of Core 647),
 journal only: durable Core lines `teardown guestStop` / `guestStopped` (ms) / `gpuRelease` / `gpuReleased` (ms) and
 `gpuTeardown deviceIdleWait` (before vkDeviceWaitIdle, with the compile counts) / `compiles` / `swapchainReleased`. The
