@@ -17,6 +17,8 @@ from freeze_performance_core import changed_dependencies
 from adapt_bindless_array_deltas import COUNTERS, DIAGNOSTIC_EDITS, DIAGNOSTICS, NAMES as ARRAY_NAMES, WORK_ROWS
 from adapt_hogwarts_dma_copies import CONFIG, DMA, LIBRARY, LIBRARY_OLD, NAMES as DMA_NAMES
 from adapt_queued_syncpoints import NAMES as QUEUE_NAMES
+from adapt_pipeline_warmup_parity import BASELINE as WARMUP_BASELINE
+from adapt_device_short_trim import BASELINE as TRIM_BASELINE
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -31,9 +33,12 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             # Build 631: the fixtures whose receipts declare DescriptorSetUpdater.cs or TextureArray.cs, on the final source.
             'scalar-texture-descriptors': 'delivered', 'fallback-descriptor-scratch': 'delivered',
             'single-resource-bindings': 'delivered', 'bounded-binding-snapshots': 'delivered',
-            'counter-report-compaction': 'ada'}
+            'counter-report-compaction': 'ada',
+            # Core 639 (PR #153 lot): their fixtures rebuild their own exact Core 631 control from the final source.
+            'pipeline-warmup-parity': 'delivered', 'device-short-trim': 'delivered'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
-CHANGES = (set(ARRAY_NAMES) - {DIAGNOSTICS}) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES)
+CHANGES = ((set(ARRAY_NAMES) - {DIAGNOSTICS}) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES) |
+           set(WARMUP_BASELINE) | set(TRIM_BASELINE))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -43,7 +48,10 @@ RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'pe
          *(CORE87 + name for name in ('scalar-texture-descriptor-checks.json', 'fallback-descriptor-scratch-checks.json',
                                       'single-resource-binding-checks.json', 'bounded-binding-snapshot-checks.json'))}
 # Production files that joined the prepared source with this increment (unadapted in the delivered Core).
-JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY}
+JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
+          # Core 639 (adapt_pipeline_warmup_parity): pinned upstream members that join the prepared source.
+          'src/Ryujinx.Graphics.GAL/ProgramPipelineState.cs', 'src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs',
+          'src/Ryujinx.Graphics.Gpu/Shader/ShaderSpecializationState.cs', 'src/Ryujinx.Graphics.Gpu/Engine/Threed/StateUpdater.cs'}
 REUSED_FRESH = {'single-virtual-dependency-final-checks.json'}
 
 
@@ -211,14 +219,16 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 30 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 37 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
-                                                     'build-utils/melonx/adapt_queued_syncpoints.py'} and
+                                                     'build-utils/melonx/adapt_queued_syncpoints.py',
+                                                     'build-utils/melonx/adapt_pipeline_warmup_parity.py',
+                                                     'build-utils/melonx/adapt_device_short_trim.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py'},
           'Unexpected preparation scope')
     check(set(frozen['baselineUnadaptedMembers']) == JOINED,
-          'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs and PipelineLayoutCacheEntry.cs join the prepared source')
+          'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs, PipelineLayoutCacheEntry.cs and the four warm-up parity members join the prepared source')
     # The prepared members that differ from the delivered source are exactly the reviewed changes.
     baseline = {**frozen['baselinePreparedMembers'], **frozen['baselineUnadaptedMembers']}
     check(set(frozen['preparedMembers']) == set(baseline) and
@@ -233,7 +243,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 132 and len(frozen['preparedMembers']) == 176, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 134 and len(frozen['preparedMembers']) == 180, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -248,12 +258,18 @@ if not args.helpers_only:
           CHANGES - {LIBRARY} <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
           'The final GPU assembly build does not bind every changed GPU file')
     check(all(gate[name]['assertions'].get('sourceKind') in ('deliveredPreparedWithFinalCandidate', 'finalPrepared',
-                                                             'baselinePreparedWithFinalInstrumentedCandidate') for name in gate),
+                                                             'baselinePreparedWithFinalInstrumentedCandidate',
+                                                             # Core 639: the final preparation, its exact 631 control rebuilt
+                                                             'finalPreparationWithReversedControl') for name in gate),
           'A gate ran without the final prepared source')
     # Every file a gate reads from its control is frozen, so a delivery can recheck every receipt completely.
     unadapted = frozen['controlUnadaptedMembers']
     graphics = {path: frozen['baselineUnadaptedMembers'][path] for path in JOINED}
-    check(unadapted == {'delivered': graphics, 'delivered611': arrays_frozen['controlUnadaptedMembers']['delivered'],
+    # The four warm-up parity members are read from a control only by fragmented-reads (delivered609); no gate on the
+    # delivered 614 control reads them (the PR #153 fixtures rebuild their own Core 631 control).
+    warmup_members = set(JOINED) - {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY}
+    delivered_graphics = {path: digest for path, digest in graphics.items() if path not in warmup_members}
+    check(unadapted == {'delivered': delivered_graphics, 'delivered611': arrays_frozen['controlUnadaptedMembers']['delivered'],
                         'delivered609': {**arrays_frozen['controlUnadaptedMembers']['delivered609'], **graphics},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
           'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')

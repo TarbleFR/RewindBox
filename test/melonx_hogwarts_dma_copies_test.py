@@ -67,6 +67,8 @@ sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 import adapt_hogwarts_dma_copies as adapter  # noqa: E402
 import adapt_host_qos_pipeline_budget as host  # noqa: E402
 import adapt_queued_syncpoints as queued  # noqa: E402
+sys.path.insert(0, str(ROOT / 'test'))
+from melonx_adapter_control import apply_present  # noqa: E402
 
 ALL = [*adapter.NAMES, *host.NAMES]
 
@@ -93,6 +95,10 @@ def compose(target, final=False):
     if final:
         queued.apply(target, names=[queued.LIBRARY])
     host.apply(target)
+    if final:
+        # PR #153 lot (Core 639), last in preparation order: its TextureCache.cs and ShaderCollection.cs hunks.
+        apply_present(target, 'adapt_pipeline_warmup_parity')
+        apply_present(target, 'adapt_device_short_trim')
 
 
 with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
@@ -103,10 +109,16 @@ with tempfile.TemporaryDirectory(prefix='melonx-hogwarts-dma-') as temporary:
     after = {p: (work / p).read_text(encoding='utf-8-sig') for p in ALL}
     composed = temporary / 'final'
     compose(composed, final=True)
-    check(all(sha(composed / p) == sha(work / p) for p in ALL if p != adapter.LIBRARY) and
-          after[adapter.LIBRARY].replace(queued.LIBRARY_ANCHOR, queued.HUNKS[queued.LIBRARY][0][1]) ==
-          (composed / adapter.LIBRARY).read_text(encoding='utf-8-sig'),
-          'the final composition adds only the queued syncpoint Library line')
+    # Expected final: this composition plus the queued syncpoint Library line, then the PR #153 lot (Core 639) on
+    # the files it edits here (TextureCache.cs, ShaderCollection.cs), nothing else.
+    expected_final = temporary / 'expected-final'
+    shutil.copytree(work, expected_final)
+    (expected_final / adapter.LIBRARY).write_text(
+        after[adapter.LIBRARY].replace(queued.LIBRARY_ANCHOR, queued.HUNKS[queued.LIBRARY][0][1]), encoding='utf-8')
+    lot153 = apply_present(expected_final, 'adapt_pipeline_warmup_parity') + apply_present(expected_final, 'adapt_device_short_trim')
+    check(sorted(lot153) == ['src/Ryujinx.Graphics.Gpu/Image/TextureCache.cs', 'src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs'] and
+          all((composed / p).read_bytes() == (expected_final / p).read_bytes() for p in ALL),
+          'the final composition adds only the queued syncpoint Library line and the PR #153 hunks')
     postimages = {p: sha(composed / p) for p in ALL}
     if CANDIDATE:
         check(postimages == {p: sha(CANDIDATE / p) for p in ALL}, 'composition differs from the final prepared source')
@@ -1478,7 +1490,9 @@ namespace Ryujinx.Graphics.Vulkan
     result['renderStages'] = dict(stage_result, fields=sorted(values))
 
 inputs = ['build-utils/melonx/adapt_hogwarts_dma_copies.py', 'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
-          'build-utils/melonx/adapt_queued_syncpoints.py', 'test/melonx_hogwarts_dma_copies_test.py']
+          'build-utils/melonx/adapt_queued_syncpoints.py', 'test/melonx_hogwarts_dma_copies_test.py',
+          'build-utils/melonx/adapt_pipeline_warmup_parity.py', 'build-utils/melonx/adapt_device_short_trim.py',
+          'test/melonx_adapter_control.py']
 receipt = dict(result='passed', checks=checks, physicalDeviceTested=False, fpsGainProven=False,
                sourceKind='deliveredPreparedWithFinalCandidate' if CANDIDATE else 'deliveredPreparedComposed',
                finalPreparedSourceBound=bool(CANDIDATE), attribution=result,

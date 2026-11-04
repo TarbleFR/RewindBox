@@ -100,6 +100,8 @@ from adapt_bindless_array_deltas import apply as adapt_bindless_array_deltas
 from adapt_hogwarts_dma_copies import apply as adapt_hogwarts_dma_copies, LIBRARY_OLD as HOGWARTS_DMA_LIBRARY_ANCHOR
 from adapt_queued_syncpoints import apply as adapt_queued_syncpoints
 from adapt_host_qos_pipeline_budget import apply as adapt_host_qos_pipeline_budget
+from adapt_pipeline_warmup_parity import apply as adapt_pipeline_warmup_parity
+from adapt_device_short_trim import apply as adapt_device_short_trim
 
 
 def replace_once(path, old, new):
@@ -248,6 +250,12 @@ def main():
     # After every step that edits ThreadedRenderer.cs, PipelineCacheManager.cs, BackgroundCompilationScheduler.cs,
     # PipelineBase.cs, PipelineFull.cs and MVKInitialization.cs (Window.cs only this one edits).
     adapted += [source / name for name in adapt_host_qos_pipeline_budget(source)]
+    # After every Core 631 step: each pins the Core 631 preparation's bytes of its files (no later step edits them).
+    # PR #153: the warm-up key gets the draw's multisample state (ProgramPipelineState, BinarySerializer,
+    # ShaderSpecializationState, StateUpdater, PipelineConverter, PipelineState, ShaderCollection) and a
+    # device-short texture trim evicts only textures it frees without a flush (GpuContext, AutoDeleteCache, TextureCache).
+    adapted += [source / name for name in adapt_pipeline_warmup_parity(source)]
+    adapted += [source / name for name in adapt_device_short_trim(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -320,7 +328,8 @@ def main():
                  'adapt_performance_diagnostics.py', 'adapt_register_liveness.py',
                  'adapt_fragmented_reads.py', 'adapt_gpu_work_diagnostics.py',
                  'adapt_bindless_array_deltas.py', 'adapt_hogwarts_dma_copies.py',
-                 'adapt_queued_syncpoints.py', 'adapt_host_qos_pipeline_budget.py']:
+                 'adapt_queued_syncpoints.py', 'adapt_host_qos_pipeline_budget.py',
+                 'adapt_pipeline_warmup_parity.py', 'adapt_device_short_trim.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

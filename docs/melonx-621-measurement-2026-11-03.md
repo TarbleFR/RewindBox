@@ -121,3 +121,60 @@ and no Vulkan driver. One 623 run gives the ranking and the stage split that cho
 - **Estimate:** 18-25 FPS, with the render thread's own work as the next limit.
 - **No 30 FPS claim.** In heavy scenes, 30 FPS needs the render thread's own work to fall from 44.6 ms to under
   33 ms per frame, unless most of it was the read-back flushes.
+
+## Second player, two more 621 sessions (received 3 November 2026, session 012mUASkkFGHaPcEUx9dsp8q)
+
+Inputs: `MeloNX-stderr(1).log` (584 009 bytes, `61cbc6f2…`), `MeloNX-core(5).log` (189 386 bytes, `f3c9f52c…`),
+`MeloNX-performance(1).log` (1 049 984 bytes, `d9644d20…`): build 621, Core `4ad8814e`, Hogwarts Legacy
+`0100f7e00c70e000`. The logs are private and are not in the repository; the figures below are derived from them. The
+GC reports 8 016 MiB of total memory and the process limit is about 6 143 MiB (footprint plus headroom): an 8 GiB
+iPhone, model not established. Sessions are kept apart by PID, session and timestamp:
+
+| Session | PID | Span | Note |
+|---|---|---|---|
+| A, `12AAAE01` | 57222 | 01:51:55-01:57:02, about 5 min, `close: passed` | mostly paused (menus); four short passes |
+| B, `2F562F0F` | 63461 | 23:27:44-23:41:32, about 14 min, no close line | continuous play, then thermal `serious` in the last minute |
+| C | 67481 | 23:46:33, stops at the firmware stage | not a game session |
+
+Frame report (`tools/melonx/frame_report.py --passes`; pass = stretch between paused lines): A median game FPS 11.5,
+p50/p95/p99 50/150/267 ms, 206 pauses over 100 ms in 233 s; B median 8.8, p50/p95/p99 100/233/483 ms, 3 465 pauses
+over 100 ms in 551 s.
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | Read-back flushes dominate both sessions: GPU thread waits for the render thread 37-110 ms per presented frame, texture flush actions 2.3-4.3 s per 5 s window, `gpuRegionCopies 0`, `linearDestination 238` | Already corrected: same signature as PID 990 above; 623 deferred read-back, 625 copy into the buffer, 628 occupied destinations (629 shows 299 of 305 read-backs into buffers). Not reopened |
+| 2 | Device-short trims: B 68 trims "releasing" 2 008 MiB in 13 min (A 5, 193 MiB) at 880-1 570 MiB of process headroom; device share stays 4-7 %, footprint 4.8 → 5.3 GiB; the texture cache sits at its 96 MiB floor and loses 15-45 MiB every 10 s; windows with a trim: texture flushes median 52 ms (A, max 301 ms) and up to 120 ms (B) against 0-6.5 ms without, texture synchronisation +6 ms, buffer loads +26-29 ms | Defect established, corrected: `adapt_device_short_trim.py` (below) |
+| 3 | Late B (23:35-23:41): the 5 s core windows stretch to 24-72 s with 8.7, 25.2, 12.2, 13.6 and 13.8 s of GC pause; one non-concurrent gen0 compaction takes 1.8-3.6 s; display-link callbacks late by up to 16 s and the per-second journal itself skips 10-30 s; total CPU 29-75 %; device 4-10 %, GC memory load 91-92 % | Established symptom, cause to settle: waits, not work (CPU low), under device-wide pressure. `adapt_gc` (575) already sets the GC mode for high device load; not reopened. Missing datum, named: per collection the suspension time apart from the GC work, and this process's compressed and paged-in memory (`TASK_VM_INFO` compressed, `proc_pid_rusage` page-ins) in the per-second line. With it: page-ins mean memory to give back first (footprint), suspension means the threads that do not reach a safe point |
+| 4 | Footprint: B 1.97 → 5.25 GiB; managed heap 760-845 MiB (fragmented up to 304 MiB); GPU caches about 95 MiB of textures and 70-190 MiB of buffers; MoltenVK pipeline caches loaded at 569 MiB main plus two worker snapshots, main reaching its 768 MiB budget in A | Hypothesis: about 4 GiB is not attributed by these logs. The pipeline caches are the largest identified host consumer (budget 1 GiB, persistent across launches); lowering it trades memory for recompilation, so not changed blind. Same missing datum as #3, plus MoltenVK's GPU memory statistics (623 and later) |
+| 5 | Pipelines: B 937 graphics pipeline builds (about 9 s) in the first 20 s after loading 2 189 cached shaders; A 626 builds (5.1 s) entering a new area; no "Background pipeline compile missed" line | Expected startup warm-up (`adapt_cached_shader_startup`) and new states in play; no miss to attribute (PR #153 targets misses, none here) |
+| 6 | A only: 15 shaders not loaded from the disk cache, 8 of them "Texture array length missing from the cache file" | One-time after a translator change; B, later, loads 2 189 shaders with no error. Constraint, no change |
+| 7 | Syncpoint waits over 1 s: A 1, B 3 (23:35:53-23:36:38) | Inside the stall of #3 and with the read-backs of #1; 631 queues report increments. No separate cause shown |
+| 8 | Thermal: B `fair` from 23:33, `serious` only in the last minute | FPS falls earlier with #1 and #3; not the main cause here |
+
+### Correction: device-short trims without flushes or pretend releases (`build-utils/melonx/adapt_device_short_trim.py`)
+
+`adapt_device_memory` (586) made `GpuContext.TrimCaches` act whenever the device share is 7 % or less, whatever this
+process's headroom, and every 10 s while it lasts. `AutoDeleteCache.Trim` then evicts in LRU order whatever the
+texture is. A texture a pool still references only leaves the cache (its bytes are counted as released, nothing is
+freed). One with GPU-written data is flushed to guest memory first, which costs a render-thread round trip. Now, only
+when the device is short while the process keeps 768 MiB or more of headroom, the texture cache evicts only textures
+it alone holds (`HasOneReference`) whose group has no GPU-written handle (`AnyHandleModified`). Each eviction then
+destroys its texture without a flush. As the delivered eviction does, it first synchronises the dependents of a texture whose memory the CPU has not
+dirtied (`SynchronizeDependents`). An independent review (`rb-core-review`, Opus/high) found that the first version
+skipped this. A copy another handle deferred from the evicted texture would then have read its released host texture.
+Fixed before commit; the fixture now fails if dependents are synchronised after the release. The bytes kept are added to the trim line. The following are unchanged: targets,
+the floor, intervals, the buffer cache, every trim under this process's own pressure (under 768 MiB, under 256 MiB,
+or headroom unknown), and the ordinary capacity eviction.
+
+Proof (fresh, Linux x86_64, SDK 10.0.100, [receipt](evidence/melonx-device-short-trim/checks.json)):
+`python3 test/melonx_device_short_trim_test.py <prepared tree>` compiles the complete production `AutoDeleteCache.cs`
+with the production `Texture` reference and view members, control (631) and candidate. Storage and group handles are
+doubles. Results:
+- The delivered trim is identical in both variants and reproduces the 621 behaviour: 80 MiB "released", 48 MiB
+  destroyed, 2 flushes, 2 pool-referenced textures dropped.
+- The device-short trim destroys every byte it evicts, flushes nothing, keeps pool-referenced and GPU-written textures
+  in LRU order, frees a view and then its storage, respects the floor and reports what it kept.
+- The whole candidate GPU assembly compiles.
+
+Not measured on the iPhone. Its effect on stalls and memory is not claimed. Expected: no trim flushes, and trims that
+actually free what they report.
