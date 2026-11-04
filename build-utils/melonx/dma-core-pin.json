@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "cbb7beb92e7cec2b32dd10f911668f72d1cb8b91",
-  "run": 41749490658,
-  "job": 126310750224,
+  "source": "8cd2e93ce9e95418b7d62993535d13c2d1d484f1",
+  "run": 41770120368,
+  "job": 126377584899,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 13285659309,
-  "name": "MeloNX-engine-cbb7beb92e7cec2b32dd10f911668f72d1cb8b91",
-  "bytes": 90281923,
-  "sha256": "142e51953998d3edb78d21dd5c4a57487b5274d38fce18752cf7a1bc68402032",
-  "expiresAt": "2026-11-18T01:03:17Z",
+  "artifact": 13294034769,
+  "name": "MeloNX-engine-8cd2e93ce9e95418b7d62993535d13c2d1d484f1",
+  "bytes": 90307192,
+  "sha256": "e71f0d5f22d7296f032acfa71f7fb15c8234dd9d7421f70b73b285f665ee6ea3",
+  "expiresAt": "2026-11-18T04:09:41Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "b75212a4aaaddf4efebd2a1c181da64d7010609f576ecfcf7bcfacd3588f7bf1",
-      "bytes": 37963016
+      "sha256": "220910c82f2383237f80610fcfb3801e290d0a54bc83bc6905bedb1deb6e1260",
+      "bytes": 37979472
     },
     "iossimulator-arm64": {
-      "sha256": "18a4b2b5092385fb57f8301c9a5e8933c22cb6e3582fa138e8689803b029d666",
-      "bytes": 38259704
+      "sha256": "6fdd0ec9e5357450faf9977ba8642c3ed8614eaed9bc79fda3ea62d4aa99c6d2",
+      "bytes": 38276296
     }
   },
   "identities": {
-    "ios-arm64": "51172c204df0f8b667e17e48d9edd4eee1b7329597d27f792e0918edfaf01615",
-    "iossimulator-arm64": "f74ff2181154791bfcb1e2c0c5bfe0ac4470b2089babf7becaa96d71b7154aa3"
+    "ios-arm64": "db0bf3982ab461eb013722374fb8e338cf62b27286cd482a479e443e44c5cbd9",
+    "iossimulator-arm64": "6f624b15573062c5c9efd1d2e71029bd3be62e20a9b7bae9107d8f63b470ff37"
   },
-  "contractSha256": "7a0c591183894bed661af5afe888ce49ffdbcbeffaacd89aa6dbcb226d0dee57",
-  "resultSha256": "db4cb0d4092c2148c3a49e9bb0d9538a20bf126dac33f4957401d406d2a8aa12",
-  "packagedFingerprint": "5b319b425447653cc06021ff1e5661ad9a9b2e68d9349aa1344968bd8fa02e8a",
+  "contractSha256": "542652e12fc446feb4a1829df395e7c6eca8c5b0c91a6f28ad789effebbf5de8",
+  "resultSha256": "1fd4195562838f8f5037b35efb4d30510ed3dcdf55446aa1a47bf62dac91c71a",
+  "packagedFingerprint": "281aa3a4d5fb96fdfee452544e29745cab2bfff1ab4819722aab504fd2535e11",
   "replaces": {
-    "source": "1ce1cd14a96579b4a3d53ece78362354e09de535",
-    "run": 41614833262,
-    "artifact": 13220394932,
-    "packagedFingerprint": "dfd9061e4151c4848a125f20aed4586d7b4c5468b8060b299c36f239e64ed8a8",
-    "reason": "Hogwarts Legacy: descriptor encoding (template scratch sized by binding, texture arrays written by changed range), DMA region uploads declining a cached buffer, syncpoint increments queued behind their occlusion reports (renderer barrier, head kept until published, 3D increments drain first); eleven fresh gates; Core 639 adds the MeloNX FPS/stability lot of PR #153 (pipeline warm-up key with the draw's alpha-to-coverage/alpha-to-one state, device-short texture trim without flushes); thirteen fresh gates"
+    "source": "cbb7beb92e7cec2b32dd10f911668f72d1cb8b91",
+    "run": 41749490658,
+    "artifact": 13285659309,
+    "packagedFingerprint": "5b319b425447653cc06021ff1e5661ad9a9b2e68d9349aa1344968bd8fa02e8a",
+    "reason": "Hogwarts Legacy: descriptor encoding (template scratch sized by binding, texture arrays written by changed range), DMA region uploads declining a cached buffer, syncpoint increments queued behind their occlusion reports (renderer barrier, head kept until published, 3D increments drain first); eleven fresh gates; Core 639 adds the MeloNX FPS/stability lot of PR #153 (pipeline warm-up key with the draw's alpha-to-coverage/alpha-to-one state, device-short texture trim without flushes); thirteen fresh gates; Core 642 adds the MeloNX lot of PR #154 (in-pass image barriers of non-attachments end the pass and the Hogwarts in-pass read barrier is recorded under MoltenVK 1.4.1 or later, binding-sized descriptor scratch for every title, occupied read-back and pipeline miss attribution); eighteen fresh gates"
   }
 }
