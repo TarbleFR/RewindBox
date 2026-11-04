@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 651,
- "note": "RPCS3 Core 651: Core 645 (Core 641 plus the cellAudio timeout mix) plus REWINDBOX_AUDIO_LOW_RING_MIX_651 (iOS cellAudio: the wait for a port the game has not written also ends once the output ring holds under two blocks after the period is due, and the period is output as on a Core 645 timeout; a low_ring_mixes field on the AUDIO641 queue line), built by the RPCS3 Core route (run 41865042684 on c37b71df: Core job attempt 1; the Apple host-test job failed once on the zcull630_asan timing harness of the reverted Core 630 tree, infrastructure, and passed on the failed-job rerun, attempt 2). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no audio gain claimed.",
+ "build": 652,
+ "note": "RPCS3 Core 652: Core 651 (Core 645 plus the low-ring cellAudio mix) plus REWINDBOX_DEPTH_TEST_OFF_READ_ONLY_652 and REWINDBOX_DEPTH_READ_CHAIN_652 (iOS Vulkan: read-only cyclic depth chains keep one barrier, depth-test-off draws without a stencil write included) and REWINDBOX_RENDERPASS_CENSUS_652 (COREPROF RPASS652, counting only), built by the RPCS3 Core route (run 41874738530, attempt 1, source 433ed626). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no FPS or GPU-time gain claimed.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
@@ -14,25 +14,25 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 651 source closure and the native dependency",
+    "Authenticate the Core 652 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 651",
-    "Verify the actual binary and write its Core 651 identity",
+    "Compile and link the actual iPhone Core 652",
+    "Verify the actual binary and write its Core 652 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 651 without an application delivery",
+    "Upload the verified Core 652 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "c37b71df985f5de758ec24cf9f838ab6d9d265b7",
-   "run": 41865042684,
+   "source": "433ed626cd42cd8158c7c03decc7a985d3f68ec7",
+   "run": 41874738530,
    "attempt": 1,
-   "job": 126697021952,
-   "artifact": 13343385997,
-   "name": "RPCS3Core-651-c37b71df985f5de758ec24cf9f838ab6d9d265b7",
-   "bytes": 29326931,
-   "sha256": "1461f41e7336b2fa6ad222f65a88fa9ead8d48e2627bf701ee4875691f2a0c7e",
-   "expiresAt": "2026-12-04T16:30:22Z"
+   "job": 126730960126,
+   "artifact": 13346219420,
+   "name": "RPCS3Core-652-433ed626cd42cd8158c7c03decc7a985d3f68ec7",
+   "bytes": 29332379,
+   "sha256": "c1084a8107e869a84fe9746ccdb37186770af59dcbe67ed8be84f4a4ae34b92b",
+   "expiresAt": "2026-12-04T17:28:25Z"
   },
   "hostTests": {
    "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
@@ -40,9 +40,9 @@
     "Checkout immutable candidate and the delivered Core history",
     "Read the declared Core build",
     "Select the retained Core toolchain",
-    "Materialize the Core 651 sources and the delivered a4ae86d0 sources",
+    "Materialize the Core 652 sources and the delivered a4ae86d0 sources",
     "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 651 harnesses with Apple clang",
+    "Run the affected and new Core 652 harnesses with Apple clang",
     "Preserve the Apple host harness reports"
    ],
    "names": [
@@ -59,18 +59,18 @@
     "spu-object-hit-admission-613",
     "spu-object-hit-admission-613-asan-ubsan",
     "codegen-audit",
-    "core651",
+    "core652",
     "lr-full-queue"
    ],
-   "source": "c37b71df985f5de758ec24cf9f838ab6d9d265b7",
-   "run": 41865042684,
-   "attempt": 2,
-   "job": 126708506300,
-   "artifact": 13344262118,
-   "name": "RPCS3Core-651-apple-host-tests-c37b71df985f5de758ec24cf9f838ab6d9d265b7",
-   "bytes": 43722,
-   "sha256": "466a602832f3810eeee0addbed3d9943bc1bde1d97a0a401283332ac58bc512d",
-   "expiresAt": "2026-12-04T16:43:27Z",
+   "source": "433ed626cd42cd8158c7c03decc7a985d3f68ec7",
+   "run": 41874738530,
+   "attempt": 1,
+   "job": 126730959756,
+   "artifact": 13347116728,
+   "name": "RPCS3Core-652-apple-host-tests-433ed626cd42cd8158c7c03decc7a985d3f68ec7",
+   "bytes": 44053,
+   "sha256": "a1879bcf49d8b27a62364f82b3de73d1846788300604fbc6810b29f613a6d2f7",
+   "expiresAt": "2026-12-04T17:18:06Z",
    "reused": {
     "names": [
      "reuse-audit"
@@ -98,17 +98,17 @@
   }
  },
  "core": {
-  "type": "rpcs3-ios-core651",
-  "dylibBytes": 77739520,
-  "dylibSha256": "ad58c911b130d427d159e7686efe0b1bea60fa718cd85e258638a10e21f470d4",
-  "identitySha256": "142a887863fc937d889b72825fe6d4e70ba35c444c6b07c6977640799ddb0505",
+  "type": "rpcs3-ios-core652",
+  "dylibBytes": 77742536,
+  "dylibSha256": "46312d76a76dde9f7299d287edbfbe0e2dbe3c1352b650b7242a88af6b4c16b6",
+  "identitySha256": "542e5c121fe151f1b36aa472355bb4d8fca69ef0149cd5230191291843095fa6",
   "proofMember": "core610-proof.json",
-  "proofSha256": "f6307fb35bd3b6ba5087ced86264eb88eddf10004ddf3f57c416a360058d6a95",
-  "payloadFingerprint": "69fd4ff3cc490e09753bc4bad7a805a80d3514d60a038aaa61c4eec512d09278"
+  "proofSha256": "c307e7818ed227478028a4713208e406e2b370fc55e0ef04c33c18bb51f2e064",
+  "payloadFingerprint": "65b6ffc5d3695e143c73fa97e99b508f1cbddc98e4a93b47fb17185425444fce"
  },
  "canonical": {
-  "patchSha256": "226dcd21a019a840f14809ab99ec9df9e76c0c4d435a5e80a5cd28e8e0e1c718",
-  "postimages": 357,
+  "patchSha256": "6d0e63d28c18d20207a107dc79e16a4f9115d81b49fc192eec8f1ab8ada776e9",
+  "postimages": 358,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -254,13 +254,14 @@
   "Resolved title policy 630",
   "Resolved title policy 634",
   "COREPROF READPREDICT638",
-  "COREPROF AUDIO641"
+  "COREPROF AUDIO641",
+  "COREPROF RPASS652"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "60b388d9fd03617d2e4e4ae3227717e1196d2b19",
-  "run": 41839324272,
-  "artifact": 13329351874,
-  "payloadFingerprint": "a2d421071535f9914c6ab30b6b05912c538a4c1cbbfe9e065b06254e72ad12d1"
+  "source": "c37b71df985f5de758ec24cf9f838ab6d9d265b7",
+  "run": 41865042684,
+  "artifact": 13343385997,
+  "payloadFingerprint": "69fd4ff3cc490e09753bc4bad7a805a80d3514d60a038aaa61c4eec512d09278"
  }
 }
