@@ -2,7 +2,7 @@
   "schema": 1,
   "build": 650,
   "status": "frozen",
-  "note": "Private IPA 650 on the delivered and verified 643: the next common delivery. RPCS3 Core 645 (Core 641 plus the cellAudio timeout mix: a timed-out audio period is output instead of dropped) replaces Core 641; MeloNX Core 649 (Core 642 plus the PR 156 lot and its follow-ups: DMA read-back receivers for the Hogwarts black launch, present source attribution, teardown compile cancel for the endless SSBU close, pause guest-thread record, teardown phase marks) replaces Core 642; the GameCube/Wii Pocket Original touch, pressed-state and stick geometry fix (PR 157). 644, 645, 647 and 649 are Core numbers; 646 and 648 were this draft's numbers before Cores 647 and 649. Second trigger after the recipe fix 5671b1b1: the first (run 41861290919) failed on the flutter group only (no Pillow for the skin input-chain test) and on an unacquired macOS runner; native evidence reused.",
+  "note": "Private IPA 650 on the delivered and verified 643: the next common delivery. RPCS3 Core 645 (Core 641 plus the cellAudio timeout mix: a timed-out audio period is output instead of dropped) replaces Core 641; MeloNX Core 649 (Core 642 plus the PR 156 lot and its follow-ups: DMA read-back receivers for the Hogwarts black launch, present source attribution, teardown compile cancel for the endless SSBU close, pause guest-thread record, teardown phase marks) replaces Core 642; the GameCube/Wii Pocket Original touch, pressed-state and stick geometry fix (PR 157). 644, 645, 647 and 649 are Core numbers; 646 and 648 were this draft's numbers before Cores 647 and 649. Second trigger after the recipe fix 5671b1b1: the first (run 41861290919) failed on the flutter group only (no Pillow for the skin input-chain test) and on an unacquired macOS runner; native evidence reused. Third trigger: the second (run 41868095254) passed preflight, republish and flutter (reused here) and failed only in the application image check on the draft's own declaration of App.framework/App as must-change: no Dart input differs from 643, so the AOT App is byte-identical; every other image check of that build held.",
   "base": {
     "build": 643,
     "source": "f19ed8cd26caa3b346108d3107e06bcf219a1de7",
@@ -1168,7 +1168,6 @@
   },
   "images": {
     "mustChange": [
-      "Frameworks/App.framework/App",
       "Frameworks/MeloNXCore.framework/MeloNXCore",
       "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
       "Frameworks/libRPCS3Core.dylib",
@@ -1350,7 +1349,7 @@
   },
   "tests": {
     "flutter": {
-      "mode": "fresh",
+      "mode": "reuse",
       "additions": {
         "flutterTests": [
           "test/rewindbox_glacier_test.dart",
@@ -1754,7 +1753,18 @@
             "test/dolphin_session_chrome_test.py"
           ]
         ]
-      ]
+      ],
+      "reuse": {
+        "source": "2bfa7f7f8fcd8507fbe624d4640d2aa06e9811ef",
+        "run": 41868095254,
+        "attempt": 1,
+        "job": 126708111462,
+        "artifact": 13344335545,
+        "artifactName": "RewindBox-Build650-2bfa7f7f8fcd8507fbe624d4640d2aa06e9811ef-attempt1-tests-flutter",
+        "sha256": "1d915944681d923f15f3e06448a7e9ae84e82a7479c151318b3a36aec5b06800",
+        "bytes": 39308,
+        "manifest": "build-utils/delivery/650.json"
+      }
     },
     "native": {
       "mode": "reuse",
