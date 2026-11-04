@@ -240,12 +240,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Goal:** one reviewed common private IPA with RPCS3, MeloNX, skins and all approved
   content; no omitted lot or concurrent delivery. Device gameplay tests follow
   packaging, not a circular pre-delivery requirement.
-- **Recorded state:** 650 frozen `f8d58ca2`, effective `b46f7f65…`, requested run
-  `41861290919`: RPCS3 645, MeloNX 649 (pin `c5f1461e…`, fingerprint `a137ac95…`,
-  23 engine gates), PR157 skins + legal declaration, nine reviewed commits.
-  This is not terminal success. Drafts646/648 superseded; Core 651 belongs next.
-- **Next:** check actual650 run; report/verify delivery. Review subsequent651 and
-  additive PS2 handoffs for the next manifest. Last verified delivery:643.
+- **State:** 650 = RPCS3 645, MeloNX 649 (pin `c5f1461e…`, 23 gates), PR157 skins +
+  legal declaration, on verified 643. First trigger run `41861290919` failed: flutter
+  only (`test/pocket_skin_input_chain_test.py`, no Pillow on ubuntu; 17/18 passed) and an
+  application job no macOS runner acquired (capacity). Recipe fix `5671b1b1` (pinned
+  Pillow venv; contract guard fails on the old workflow), refrozen `d1ffd0a1` on the same
+  effective tree `b46f7f65…` (651 source `3da5e3d0` deferred), native reused from passed
+  job `126684326200`; second trigger `2bfa7f7f`, run `41868095254`: not terminal here.
+- **Misaddressed MeloNX logs:** skins export ready (ZIP 900515 B, SHA-256 `12b5f019…2f04`,
+  skins attachment `d585ba9d…`). Main has no native cross-session transfer:
+  `send_message.attachments` is project channel→thread only and no tool reads another
+  session's upload. Next: authorized Codex browser re-attachment to MeloNX, then main
+  verifies MeloNX-side size/SHA-256; no second export request.
+- **Next:** follow `41868095254`, verify/deliver. Next manifest: Core 651 and the
+  additive PS2 Original handoff after review. Last verified delivery: 643.
 
 ### RPCS3 FPS, stability and audio — main Claude Code
 
@@ -253,15 +261,19 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   (`eeb36c27`, run `41839324272`, fingerprint `a2d42107…`, pin `fc1b8807…`);
   [record](rpcs3-core645-2026-11-04.md). Eight IPA643/PID6665 inputs verified,
   raw files private; [identities/trade-offs](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#rpcs3-fps-stability-and-audio--main-claude-code).
-- **Current:** 651 low-ring mix: host model filler/refill/recoveries→0, at the cost
-  of more lost late-port blocks/discontinuities. Clean cases, closure/codegen and
-  AUDIO641 admission passed; full suite/compile not yet terminal in this record.
-  No iPhone audio gain established.
-- **Open/next:** finish/review/test/build 651. AC pass-site census and justified
-  pass/clear/restart optimization (depth feedback removal rejected as unsafe).
-  BO2 new-pipeline anticipation/module warm-up remains open; old fingerprints
-  persist, residual new compiles are234–1008ms. Device AC audio/buffer/lip-sync,
-  BO2 second-session/SPU-warmup A/B still required. Do not close at “GPU-bound”.
+- **Current:** 651 low-ring mix (`3da5e3d0`, request `c37b71df`, run `41865042684`):
+  iPhone Core job passed; host-harness job failed once on `zcull630_asan` (Core 630
+  ZCULL suite on the reverted tree: the simulated 50 ms RSX server did not pick up
+  in 2000 ms under ASan on a capacity-constrained runner; 651 does not touch ZCULL,
+  the same suite passed for 645). Classified infrastructure; one failed-job rerun
+  (attempt 2) running. Host model: filler/refill/recoveries→0, more lost late-port
+  blocks/discontinuities. No iPhone audio gain established.
+- **Open/next:** pin 651 after a green rerun (a second identical failure changes method
+  on that harness's timing). AC pass-site census and justified pass/clear/restart
+  optimization (depth feedback removal rejected as unsafe). BO2 new-pipeline
+  anticipation/module warm-up open; residual new compiles 234–1008 ms. Device AC
+  audio/buffer/lip-sync and BO2 second-session/SPU-warmup A/B still required.
+  Do not close at “GPU-bound”.
 
 ### MeloNX FPS, memory, black launch and artifacts — existing owner
 
