@@ -440,3 +440,34 @@ verifiers per finding, synthesis); values below re-derived from the raw logs.
 | Black launch | Not reproduced in 2/2 launches; the read-back receivers ran (288 and 649 copies, 0 unreceivable). Not decisive: 3 of 4 IPA 643 launches were normal without a pause. Retracted: "the black launch ended only after a host pause" (confounded) and the colour-mask pass restart as discriminator (also in normal sessions 7170, S1, S2). | Undecidable; two readings open |
 | Black artifacts | Excluded: whole-frame stale/black presents, DMA read-back, skipped draws, descriptor fallbacks, errors, texture cache pressure, colour-mask splits (Load/Store). Suspected paths (all present in 643 too): texture-array elements left on the dummy view, MoltenVK feedback-loop barriers kept inside the Metal pass, attachments removed by the tile write-mask filter. | Undecidable; counters below (I5) |
 | Recording impossible | The app neither reads nor blocks capture; recordings saved on 640 and 643 with the same code. Seven short Control Center cycles (1.6–4 s) fit aborted attempts. Opening Control Center pauses the session. | Undecidable; journal below (I6) |
+
+Corrections and instrumentation (implemented by a 19-agent workflow: implementer, two independent reviewers, fixer,
+independent re-test per item; all on the Core 649 preparation, verified 182/182):
+
+- **C1, correction, `build-utils/melonx/adapt_binder_teardown.py`** (SurfaceFlinger.cs, HOSBinderDriverServer.cs,
+  Library.cs): `SurfaceFlinger.Dispose` unregisters each remaining layer's producer binder after `PrepareForExit`
+  (binder ids never reused, guest-destroyed layers already absent, Remove of an absent id is a no-op). Probe (journal
+  only): weak references to each closed session's `Switch` and `GpuContext`, and after the final collection of `Load` a
+  durable `sessionRetention` line (released/retained, still-reachable counts, binder registry entries, managed heap).
+  Proof `test/melonx_binder_teardown_test.py`, 38 checks ([receipt](evidence/melonx-binder-teardown/checks.json)):
+  production Ryujinx.Library for control and candidate; the real registry and SurfaceFlinger members with doubles
+  keeping the chain registry → producer → queue → KEvent → KernelContext → Switch: the control keeps the closed Switch
+  and GpuContext alive, the candidate releases them and keeps the live session's binder.
+- **I1, `native/melonx/EmbeddedPerformanceDiagnostics.cs`**: one durable `gcEvent` line per new blocking or background
+  gen2 collection seen by a sample (index, generation, concurrent, compacted, pauses, promoted, gen2/LOH size and
+  fragmentation before/after, memory load and threshold, committed; at most 16 per kind per session, suppressed counted).
+  Proof `test/melonx_gc_events_test.py`, 46 checks ([receipt](evidence/melonx-gc-events/checks.json)).
+- **I5, `build-utils/melonx/adapt_artifact_counters.py`** (PipelineBase.cs, BarrierBatch.cs, TextureArray.cs):
+  "artifact paths" segment of the per-window pass line: texture-array elements given the dummy view, MoltenVK in-pass
+  barriers of attachments only kept inside the pass, colour attachments removed by the write-mask filter; no decision
+  changed. Proof `test/melonx_artifact_counters_test.py`, 118 checks ([receipt](evidence/melonx-artifact-counters/checks.json)).
+- **I6 + I3, Swift** (MeloNXMetalSessionViewController.swift, MeloNXPerfJournal.swift, MeloNXInternalBridgePlugin.swift):
+  lifecycle `captured`/`notCaptured` lines (UIScreen.capturedDidChangeNotification of the game window's screen and one at
+  start), audio `interruptionBegan`/`interruptionEndReceived`, and `acq=`/`acqw=` in the per-second perf line (intervals
+  between drawable requests and the longest wait in nextDrawable). No Swift compiler here: static proof
+  `test/melonx_capture_journal_test.py`, 63 checks ([receipt](evidence/melonx-capture-journal/checks.json)); the IPA build
+  compiles it.
+
+Not changed (undecided): the GC configuration, present pacing, the arrival freeze, any artifact path, recording.
+Device checks asked: start a recording before launching and play without opening Control Center; screenshots of the
+artifacts; a fresh-process launch compared with a second launch in the same process.
