@@ -1,0 +1,22 @@
+diff --git a/rpcs3/Emu/Cell/Modules/cellAudio.cpp b/rpcs3/Emu/Cell/Modules/cellAudio.cpp
+index 9495fdf..e81e86a 100644
+--- a/rpcs3/Emu/Cell/Modules/cellAudio.cpp
++++ b/rpcs3/Emu/Cell/Modules/cellAudio.cpp
+@@ -1032,6 +1032,17 @@ void cell_audio_thread::operator()()
+ 					++ringbuffer->diagnostics.timeout_advances;
+ #endif
+ 					untouched_expected = untouched;
++#ifdef RPCS3_IOS
++					// REWINDBOX_AUDIO_TIMEOUT_MIX_645: the period is no longer advanced without output. advance()
++					// zeroes and re-tags each port's current block, so an untouched port mixes as silence. Loop once
++					// more with the untouched ports expected: the paths below then mix the touched ports' PCM, enqueue
++					// silence when no port was touched, or (time stretching) record a missing block, and advance as
++					// before. Guest periods and MIX events are unchanged; only the dropped 5.3 ms block is now output.
++					if (!g_cfg.audio.disable_sampling_skip)
++					{
++						continue;
++					}
++#endif
+ 					advance(timestamp);
+ 					continue;
+ 				}
