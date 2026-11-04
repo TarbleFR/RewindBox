@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 637,
  "status": "draft",
- "note": "Private IPA 637 on the delivered and verified 629 (630, 634 and 636 are RPCS3 Core numbers, 631 the MeloNX Core; 632, 633 and 635 were not delivered: 635 was held by the maintainer for the async work). RPCS3 Core 636 (it contains Cores 634 and 630) replaces Core 627; MeloNX Core 631 replaces Core 628; the rebuilt Khronos MoltenVK v1.4.2 replaces the former MeloNXMoltenVKStandalone. Draft: the RPCS3 pin digest is pending until the Core 636 run is verified.",
+ "note": "Private IPA 637 on the delivered and verified 629 (630, 634 and 636 are RPCS3 Core numbers, 631 the MeloNX Core; 632, 633 and 635 were not delivered: 635 was held by the maintainer for the async work). RPCS3 Core 638 (it contains Cores 636, 634 and 630) replaces Core 627; MeloNX Core 631 replaces Core 628; the rebuilt Khronos MoltenVK v1.4.2 replaces the former MeloNXMoltenVKStandalone. Draft held for the combined delivery: the MeloNX post-631 lot (PR 153) and the skins/PS2 lot (PR 152) are not integrated yet; renumber above every Core identity before freezing.",
  "base": {
   "build": 629,
   "source": "6aae16b9ca0683eb64aa4881dc6855b05b363763",
@@ -43,14 +43,14 @@
    "verifier": ".github/diagnostics/rpcs3_core_component.py",
    "pin": "build-utils/rpcs3/core-pin.json",
    "image": "Frameworks/libRPCS3Core.dylib",
-   "producerRoute": "RPCS3 Core route (.github/workflows/rpcs3-core610.yml driven by build-utils/rpcs3/core-build.json, build 636)",
+   "producerRoute": "RPCS3 Core route (.github/workflows/rpcs3-core610.yml driven by build-utils/rpcs3/core-build.json, build 638)",
    "replaces": {
     "source": "6891f9a055eff7ee81a491da4aafdb68f1f63ffc",
     "run": 41610162888,
     "artifact": 13219702266,
     "payloadFingerprint": "eccf8535d7a6e846fdaf26674cbfeef7a6541d2d97af5b23201a144129c041cf"
    },
-   "pinSha256": "65762979b08841493c413deb688bbecfdec7577e7e91a2d6669c765be8c3bcee"
+   "pinSha256": "725ef06e4a28c6a552d009a3b92a20803580b55bec8f38d48e1a3b8bbdfd4afb"
   },
   "melonx": {
    "mode": "replace",

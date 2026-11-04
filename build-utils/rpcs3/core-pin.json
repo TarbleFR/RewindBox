@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 634,
- "note": "RPCS3 Core 634: Core 627 plus Core 630 (ZCULL reads waiting for their own report, accesses completed in the fault handler) and the Core 634 boot and memory work of session 012mUASm (PPU objects checked/linked/finalized on four threads, object bytes freed once linked, SPIR-V of a boot reused, ARMv8 AES/SHA, Assassin's Creed SPU object prefetch, each with its setting), built by the RPCS3 Core route (run 41696834507). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle) by session 012mUAShv9k6.",
+ "build": 638,
+ "note": "RPCS3 Core 638: Core 636 (Core 634, which contains Core 630, plus the three corrections of the Core 634 audit: X29/X30 never read through Darwin's __x[29] in the ZCULL fault handler, the SPIR-V pack bound counts the batch being written, the parallel PPU check stops at the first miss or a stop; and the ZCULL slot release ending a guest's pause) plus the God of War III readback prediction counters (COREPROF READPREDICT638, instrumentation only), built by the RPCS3 Core route (run 41737262282, attempt 1, source 5a6d2485). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
@@ -14,25 +14,25 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 634 source closure and the native dependency",
+    "Authenticate the Core 638 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 634",
-    "Verify the actual binary and write its Core 634 identity",
+    "Compile and link the actual iPhone Core 638",
+    "Verify the actual binary and write its Core 638 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 634 without an application delivery",
+    "Upload the verified Core 638 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "792d72c916d2983cab01cd17fb70a0510424270f",
-   "run": 41696834507,
+   "source": "5a6d2485d970e8d4a0a7b8e356f65b2122aa3999",
+   "run": 41737262282,
    "attempt": 1,
-   "job": 126129479161,
-   "artifact": 13261039942,
-   "name": "RPCS3Core-634-792d72c916d2983cab01cd17fb70a0510424270f",
-   "bytes": 29324314,
-   "sha256": "3c82cd8d1e5653acace0c49c77c9aeb21c0f05e14789c9e5d19345f52000db65",
-   "expiresAt": "2026-12-03T19:10:10Z"
+   "job": 126269535708,
+   "artifact": 13279848360,
+   "name": "RPCS3Core-638-5a6d2485d970e8d4a0a7b8e356f65b2122aa3999",
+   "bytes": 29325101,
+   "sha256": "1bbdcbd3ad1d904d782d11b7fe6119d36bdee7aa78e975865ae25e7321bcf5f3",
+   "expiresAt": "2026-12-03T23:28:46Z"
   },
   "hostTests": {
    "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
@@ -40,9 +40,9 @@
     "Checkout immutable candidate and the delivered Core history",
     "Read the declared Core build",
     "Select the retained Core toolchain",
-    "Materialize the Core 634 sources and the delivered a4ae86d0 sources",
+    "Materialize the Core 638 sources and the delivered a4ae86d0 sources",
     "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 634 harnesses with Apple clang",
+    "Run the affected and new Core 638 harnesses with Apple clang",
     "Preserve the Apple host harness reports"
    ],
    "names": [
@@ -59,18 +59,18 @@
     "spu-object-hit-admission-613",
     "spu-object-hit-admission-613-asan-ubsan",
     "codegen-audit",
-    "core634",
+    "core638",
     "lr-full-queue"
    ],
-   "source": "792d72c916d2983cab01cd17fb70a0510424270f",
-   "run": 41696834507,
+   "source": "5a6d2485d970e8d4a0a7b8e356f65b2122aa3999",
+   "run": 41737262282,
    "attempt": 1,
-   "job": 126129479275,
-   "artifact": 13261452573,
-   "name": "RPCS3Core-634-apple-host-tests-792d72c916d2983cab01cd17fb70a0510424270f",
-   "bytes": 40957,
-   "sha256": "c13cc47ee9fbc765037b72dcd0b9cbdade135aac31bfc022afcd453b600e0156",
-   "expiresAt": "2026-12-03T18:53:20Z",
+   "job": 126269535214,
+   "artifact": 13279912187,
+   "name": "RPCS3Core-638-apple-host-tests-5a6d2485d970e8d4a0a7b8e356f65b2122aa3999",
+   "bytes": 42111,
+   "sha256": "43b18e52fc629726abf1644a615425bcb6d3482f3ce0e549e2f5f12578e10c71",
+   "expiresAt": "2026-12-03T23:21:09Z",
    "reused": {
     "names": [
      "reuse-audit"
@@ -98,17 +98,17 @@
   }
  },
  "core": {
-  "type": "rpcs3-ios-core634",
-  "dylibBytes": 77738696,
-  "dylibSha256": "514a1c4c465675d524c71e5be2b8f64d286734da163fc800e499c525e14940c8",
-  "identitySha256": "045b734253b31e4d4f0de0b9981792247a0a4f607ced2b45c43c06fc2fe86e31",
+  "type": "rpcs3-ios-core638",
+  "dylibBytes": 77739520,
+  "dylibSha256": "4686eb28bf4f448e8d569fc9bc2cefb2aec5bedd9876c8ced64d50dd5095c400",
+  "identitySha256": "58fd3aff6c26be33aa7f2351735820087d78a4a4bb7497d50ceea6de2fbbe2a6",
   "proofMember": "core610-proof.json",
-  "proofSha256": "02e5b89f27cf174b7c672e83af4ee7ba409e20c7f612a2c482847021cd796d3a",
-  "payloadFingerprint": "193b673df74be2aea790e0c9cad0b826d0edc48c95fa6b95d248f092f310c77a"
+  "proofSha256": "82544136d9f5e4a24884f8be9d0e356494c4270ce069afeb18c80b354fb8dd23",
+  "payloadFingerprint": "c35b792ec83139b43099291ed5d9b935748b6495001d7dd7ae313fbc79f72da6"
  },
  "canonical": {
-  "patchSha256": "e7750b68f5682ed33679972f70700343f06e66f4882b17e2bc5736923ddc0d19",
-  "postimages": 356,
+  "patchSha256": "b6d8799545691969acf8462aaea9df7825ee78626d92058181bbb706ea7fdd54",
+  "postimages": 357,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -252,7 +252,8 @@
   "COREPROF ZCULL624",
   "report array on a host page",
   "Resolved title policy 630",
-  "Resolved title policy 634"
+  "Resolved title policy 634",
+  "COREPROF READPREDICT638"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
