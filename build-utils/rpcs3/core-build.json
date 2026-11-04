@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 645,
- "identity_type": "rpcs3-ios-core645",
- "summary": "RPCS3 Core 645 = the delivered Core 610 plus one folded delta: the Core 612 to 641 records unchanged and the Core 645 change (build-utils/rpcs3/core645-from-641.patch over Core 641, REWINDBOX_AUDIO_TIMEOUT_MIX_645, iOS): a cellAudio period whose wait for a port the game had not written timed out is output (touched ports mixed, untouched ports silent; silence when none; a missing block with time stretching) instead of being advanced without output. Guest periods, MIX events, timeouts, buffer, tempo and the refill controller unchanged. Core 641 contained: Core 638 and the COREPROF AUDIO641 diagnostics. ABI 30, the 92 exports, the PPU/SPU codegen identities and the MoltenVK dependency of Core 610 unchanged. No gain measured: not built, no iPhone run.",
+ "build": 651,
+ "identity_type": "rpcs3-ios-core651",
+ "summary": "RPCS3 Core 651 = the delivered Core 610 plus one folded delta: the Core 612 to 645 records unchanged and the Core 651 change (build-utils/rpcs3/core651-from-645.patch over Core 645, REWINDBOX_AUDIO_LOW_RING_MIX_651, iOS): the cellAudio wait for a port the game has not written also ends when the output ring holds under two blocks after the period is due, and the period is output as on a Core 645 timeout; a low_ring_mixes field on the AUDIO641 queue line. Core 645 contained: Core 641 and the timeout mix. ABI 30, the 92 exports, the PPU/SPU codegen identities and the MoltenVK dependency of Core 610 unchanged. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,7 +22,7 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "2777b01763f6ddb4bfe7e0da9052c7223200af438ab72f38bf6dd3bd5d203127",
+  "patch_sha256": "226dcd21a019a840f14809ab99ec9df9e76c0c4d435a5e80a5cd28e8e0e1c718",
   "postimages": 357,
   "records": [
    "core610_20261101",
@@ -39,7 +39,8 @@
    "core636_20261103",
    "core638_20261103",
    "core641_20261104",
-   "core645_20261104"
+   "core645_20261104",
+   "core651_20261104"
   ]
  },
  "reference": {
@@ -79,10 +80,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core645_20261104",
-  "manifest": "build-utils/rpcs3/core645-delta.json",
-  "patch": "build-utils/rpcs3/core645-delta.patch",
-  "patch_sha256": "dd5b2c4934d7f9a5468e8e7176368576e018cb6b3fa1b0fdd79de4c51f364260"
+  "record": "core651_20261104",
+  "manifest": "build-utils/rpcs3/core651-delta.json",
+  "patch": "build-utils/rpcs3/core651-delta.patch",
+  "patch_sha256": "1019b02c9942daeff1c3237ccaffa3148697000ee3c8bf85d74ce371e38db58a"
  },
  "exports": 92,
  "core_inputs": {
@@ -360,28 +361,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core645_codegen_test.py",
+     "test/rpcs3_core651_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 645 touches no codegen input; its reverted tree passes the Core 641 audit"
+    "reason": "Core 651 touches no codegen input; its reverted tree passes the Core 645 audit"
    },
    {
-    "name": "core645",
+    "name": "core651",
     "argv": [
      "python3",
-     "test/rpcs3_core645_test.py",
+     "test/rpcs3_core651_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core645.json"
+     "{out}/core651.json"
     ],
-    "reason": "Core 645 increment (timed-out cellAudio period output, real decision block and refill controller) and, on its reverted tree, the Core 641 suite (then 638, 636, 634, 630, 627)"
+    "reason": "Core 651 increment (low-ring cellAudio mix, real decision block and refill controller) and, on its reverted tree, the Core 645 suite (then 641, 638, 636, 634, 630, 627)"
    },
    {
     "name": "lr-full-queue",
