@@ -261,7 +261,7 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   silently dropped. Integrated so far on `Claude`: PR159 `ae36a672`, host memory milestone
   `e9298892`, MeloNX Core 654 (pin `ec6c47aa`), PR160 sticks `57e21ae2` (byte-identical to
   `90aabdb5`, legal `873b0ad2`), skins 653 device check `4eb0ab39` (docs). Waiting for:
-  - RPCS3 Core 655 (main): Core run `41915370416`, then pin;
+  - RPCS3 Core 655 (main): built and pinned (see the RPCS3 section); ready;
   - MeloNX levers (array rebuild, texture sync allocations, GC latency): `ee3abf3c` is marked
     "NOT FOR INTEGRATION, no handoff yet"; before/after measurements in progress;
   - skins Switch Pocket: path `7c75bd2b` (MeloNX overlay, console, tests) in progress; the art
@@ -315,7 +315,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Host: real-code test (ASan/UBSan) passed, full 655→645 suite passed locally (g++),
     codegen identities unchanged, source closure and canonical delta (`e006ca0c…`) on a
     pristine clone. `neo_swap_core_pin_test.py --source-only` passes once its stale guard
-    string is updated (`9dac4ede`). Core run `41915370416` (marker `b578f4fa`) in progress.
+    string is updated (`9dac4ede`).
+  - Built: run `41915370416` (`b578f4fa`), Core job green; the hook is defined in the Core's
+    `__TEXT,__text`; markers present; codegen/ABI/exports unchanged. Apple harnesses: 502 API
+    error, then two test fixes `d4d3689c` (ld64 weak symbol, census 655 block), then
+    `41919474901` (`80c85ffc`): `zcull630_asan` timing flake on the reverted 630 tree (as for
+    651), green on attempt 2 (15 commands). Pinned (`9beafb86…`), verified offline.
   - BO2: no change. SPU QoS 627 already active, no saturated thread (~3.5/6 cores, max 0.56),
     RSX ~40 % busy, texture cache under its cap: no SPU count, QoS or texture lever rests on
     the 653 evidence. Measured cost left: blocking pipeline compiles (0.5–1.8 s per 5 s in
