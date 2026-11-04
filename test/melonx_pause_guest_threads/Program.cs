@@ -9,6 +9,7 @@ using System.Threading;
 using Ryujinx.Common.Logging;
 using Ryujinx.HLE.HOS.Kernel.Threading;
 using Ryujinx.HLE.HOS.Kernel.Process;
+using Ryujinx.HLE.HOS.Kernel.Common;
 
 namespace Ryujinx.Common.Logging
 {
@@ -26,12 +27,15 @@ namespace Ryujinx.Common
             => Records.Add($"{stage} {status} {code} {detail}");
     }
 }
-namespace Ryujinx.HLE.HOS.Kernel.Threading
+namespace Ryujinx.HLE.HOS.Kernel.Common
 {
-    [Flags] enum ThreadSchedState : ushort { LowMask = 0xf, ForcePauseMask = 0x1f0, ProcessPauseFlag = 1 << 4, None = 0, Paused = 1, Running = 2, TerminationPending = 3 }
     class KSynchronizationObject { }
     class KEvent : KSynchronizationObject { }
-    class KServerSession : KSynchronizationObject { }
+}
+namespace Ryujinx.HLE.HOS.Kernel.Threading
+{
+    using Ryujinx.HLE.HOS.Kernel.Common;
+    [Flags] enum ThreadSchedState : ushort { LowMask = 0xf, ForcePauseMask = 0x1f0, ProcessPauseFlag = 1 << 4, None = 0, Paused = 1, Running = 2, TerminationPending = 3 }
     sealed class KCriticalSection
     {
         public object Lock { get; } = new();

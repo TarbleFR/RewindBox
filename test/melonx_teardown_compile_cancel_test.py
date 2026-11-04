@@ -132,19 +132,20 @@ check(body.index('shader.CancelPendingWarmUp();') < body.index('BackgroundCompil
 check(body.count('BackgroundCompilationScheduler.Dispose();') == 1, 'scheduler disposed once')
 after = lambda text: text[text.index('CommandBufferPool.Dispose();'):]
 check(after(member(control_renderer, 'public unsafe void Dispose()')) == after(body), 'release order unchanged after the cache save')
-check(texts['control'][2].replace('''        public void Dispose()
-        {
-            _shaderQueue.Dispose();
-            _pipelineQueue.Dispose();
-        }
-''', '') == re.sub(r'\n        // RewindBox \(adapt_teardown_compile_cancel\)[^\n]*\n        public int CancelledShaderCompiles[^\n]*\n        public int CancelledPipelineCompiles[^\n]*\n', '\n',
-                   texts['candidate'][2].replace('''        public void Dispose()
-        {
-            _shaderQueue.Dispose();
-            _pipelineQueue.Dispose();
-        }
-''', '')).replace('\n            public int Cancelled { get; private set; }\n', '').replace('                Cancelled = pending.Count;\n\n', ''),
-      'scheduler unchanged but its cancellation count')
+added = ["""
+        // RewindBox (adapt_teardown_compile_cancel): compiles that no worker had taken when the queues were disposed.
+        public int CancelledShaderCompiles => _shaderQueue.Cancelled;
+        public int CancelledPipelineCompiles => _pipelineQueue.Cancelled;
+""", """
+            public int Cancelled { get; private set; }
+""", """                Cancelled = pending.Count;
+
+"""]
+stripped = texts['candidate'][2]
+for block in added:
+    check(stripped.count(block) == 1, 'scheduler addition present once')
+    stripped = stripped.replace(block, '', 1)
+check(stripped.replace('\n\n\n', '\n\n') == texts['control'][2].replace('\n\n\n', '\n\n'), 'scheduler unchanged but its cancellation count')
 
 inputs = ['build-utils/melonx/adapt_teardown_compile_cancel.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_teardown_compile_cancel_test.py', 'test/melonx_teardown_compile_cancel/Double.cs',

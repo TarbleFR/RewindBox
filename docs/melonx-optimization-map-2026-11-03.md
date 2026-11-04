@@ -384,8 +384,8 @@ worker has taken (both queues, demanded included: the render loop has drained) a
 for each program; cancellations are not logged as failures; one durable Core line `gpuTeardown` gives the cancelled
 compiles and the time of each teardown phase. Proof, `test/melonx_teardown_compile_cancel_test.py` (production Vulkan
 assembly for control and candidate; real scheduler, teardown prefix and ShaderCollection methods with a 20 ms compile
-double): the 643 SSBU case closes in 4.3 s compiling all 200 queued pipelines in the control, and once the running
-compile ends compiling none in the candidate; nothing is released while a worker runs; demanded work and queued shader
+double): the 643 SSBU case closes in 4.3 s compiling all 200 queued pipelines in the control, and in 0.21 s (the
+0.2 s the running compile was held) compiling none in the candidate; nothing is released while a worker runs; demanded work and queued shader
 modules are cancelled; work scheduled after close is refused.
 
 Instrumentation, `build-utils/melonx/adapt_pause_guest_threads.py` (Horizon.cs, KProcess.cs): before the first 3 host

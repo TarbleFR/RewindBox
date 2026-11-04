@@ -138,7 +138,7 @@ def apply(source):
                         {
                             List<string> kinds = [];
 
-                            foreach (KSynchronizationObject syncObject in thread.WaitSyncObjects)
+                            foreach (Ryujinx.HLE.HOS.Kernel.Common.KSynchronizationObject syncObject in thread.WaitSyncObjects)
                             {
                                 if (syncObject != null && kinds.Count < 4)
                                 {
@@ -197,7 +197,7 @@ def apply(source):
 
             foreach (string line in lines)
             {
-                Logger.Warning?.Print(LogClass.Kernel, line);
+                Ryujinx.Common.Logging.Logger.Warning?.Print(Ryujinx.Common.Logging.LogClass.Kernel, line);
             }
 
             waits.Sort((a, b) => b.Ms.CompareTo(a.Ms));
