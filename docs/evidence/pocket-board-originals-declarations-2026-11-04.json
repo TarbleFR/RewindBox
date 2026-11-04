@@ -1,0 +1,35 @@
+{
+ "schema": 1,
+ "review_date": "2026-11-04",
+ "scope": "RewindBox GameCube/Wii Pocket Originals (PR #155, integrated linearly by the integration session): assets/skins/pocket gains two packs built by tools/skins/build_pocket_board_originals.py from the pixels of the maintainer-approved RewindBox boards docs/design/pocket/approved-gamecube.png and approved-wii.png (the maintainer's three input PNGs are pixel-identical crops of them, docs/evidence/pocket-originals/board-originals/inputs.json). The boards' console wordmarks are kept as approved and labelled: console names and marks belong to their owners. No third-party artwork or font bundled. The existing wii-pocket, gamecube-pocket and ps2-pocket archives are byte-identical. No hosted package, dependency, framework, engine, Core or vendored native source change.",
+ "baseline_inventory": "docs/evidence/ps2-pocket-skins-declarations-2026-11-04.json",
+ "baseline_inventory_sha256": "0c364155330bd000be0bbf24b2d4739ea4d9af056361406e5f4415e0d0d918fd",
+ "pubspec_lock_sha256": "6ceb0c3787c1c35c844950338e99e408ff548dbc4aacfff0270c5b1ddd285a8e",
+ "complete_corresponding_source_attested": false,
+ "dependency_changes": {
+  "external_packages_added": [],
+  "external_packages_removed": [],
+  "system_frameworks_added": {}
+ },
+ "declarations": {},
+ "bundled_assets": {
+  "catalog": "assets/skins/pocket/catalog.json",
+  "catalog_sha256": "db67091ebedf08aea1261d3ee9330e22c5a90bd8e416af94b08d8944b6e743a9",
+  "previous_catalog_sha256": "5adc4e79d31ee4d433d194c48b2bad1f26ad3243239a8a19dff5cbafece52ab9",
+  "catalog_skins": 5,
+  "added_skins": {
+   "gamecube-pocket-original": {
+    "size": 5965941,
+    "sha256": "f61e10dd45d134149d8623096ab74516e94f37831a2dacb3e240a2060e8ab709",
+    "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin"
+   },
+   "wii-pocket-original": {
+    "size": 4874505,
+    "sha256": "e451f327cbfa62c93bcf61395f9000f9220d1088b4a435492273f4b2c453916a",
+    "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin"
+   }
+  },
+  "review": "docs/pocket-originals-2026-11-03.md",
+  "evidence": "docs/evidence/pocket-originals/board-originals/"
+ }
+}

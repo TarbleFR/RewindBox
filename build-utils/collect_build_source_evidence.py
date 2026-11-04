@@ -16,6 +16,7 @@ import re
 
 REPOSITORY_URL = "https://github.com/TarbleFR/RewindBox"
 PS2_POCKET_REVIEW = "docs/evidence/ps2-pocket-skins-declarations-2026-11-04.json"
+BOARD_ORIGINALS_REVIEW = "docs/evidence/pocket-board-originals-declarations-2026-11-04.json"
 ARMSX2_PODSPEC = "packages/armsx2_internal_bridge/ios/armsx2_internal_bridge.podspec"
 SOURCE_DOCUMENTS = (
     "SOURCE_CODE_ACCESS.md",
@@ -241,10 +242,43 @@ def repository_inputs(root: Path) -> dict[str, str]:
             declarations[name] = update["after"]
         bundle = ps2.get("bundled_assets", {})
         catalog_path = bundle.get("catalog", "")
+        # A later review overlay may move the catalog on (GameCube/Wii board Originals); it binds this digest.
+        later_ps2_catalog = (root / BOARD_ORIGINALS_REVIEW).is_file()
         if (catalog_path != "assets/skins/pocket/catalog.json" or
                 bundle.get("previous_catalog_sha256") != prior_pocket.get("bundled_assets", {}).get("catalog_sha256") or
-                bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path))):
+                (not later_ps2_catalog and bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path)))):
             raise SystemExit("PS2 Pocket catalog changed since review")
+    # RewindBox GameCube/Wii Pocket Originals from the approved boards (PR #155): the Pocket catalog gains two packs,
+    # nothing else. No package, dependency, framework, engine or native source declaration changes; the review binds
+    # the previous (PS2 Pocket) catalog, the new catalog and the exact id, size and SHA-256 of each added pack.
+    board_path = root / BOARD_ORIGINALS_REVIEW
+    if board_path.is_file():
+        board = json.loads(read_input(root, board_path))
+        prior_ps2 = json.loads(read_input(root, root / PS2_POCKET_REVIEW))
+        changes = board.get("dependency_changes", {})
+        if (board.get("schema") != 1 or board.get("baseline_inventory") != PS2_POCKET_REVIEW or
+                board.get("baseline_inventory_sha256") != sha256(read_input(root, root / PS2_POCKET_REVIEW)) or
+                board.get("pubspec_lock_sha256") != package_audit["pubspec_lock_sha256"] or
+                board.get("complete_corresponding_source_attested") is not False or
+                changes != {"external_packages_added": [], "external_packages_removed": [], "system_frameworks_added": {}}):
+            raise SystemExit("Pocket board Originals review has a different baseline or dependency scope")
+        if board.get("declarations") != {}:
+            raise SystemExit("Pocket board Originals declaration review scope changed")
+        bundle = board.get("bundled_assets", {})
+        catalog_path = bundle.get("catalog", "")
+        if (catalog_path != "assets/skins/pocket/catalog.json" or
+                bundle.get("previous_catalog_sha256") != prior_ps2.get("bundled_assets", {}).get("catalog_sha256") or
+                bundle.get("catalog_sha256") != sha256(read_input(root, root / catalog_path))):
+            raise SystemExit("Pocket board Originals catalog changed since review")
+        catalog = json.loads(read_input(root, root / catalog_path))
+        added = {skin["id"]: {"size": skin["size"], "sha256": skin["sha256"], "archiveAsset": skin["archiveAsset"]}
+                 for skin in catalog.get("skins", []) if skin["id"] in bundle.get("added_skins", {})}
+        if added != bundle.get("added_skins") or len(catalog.get("skins", [])) != bundle.get("catalog_skins"):
+            raise SystemExit("Pocket board Originals added packs differ from the review")
+        for skin in added.values():
+            raw = read_input(root, root / skin["archiveAsset"])
+            if len(raw) != skin["size"] or sha256(raw) != skin["sha256"]:
+                raise SystemExit("Pocket board Originals archive differs from the catalog: " + skin["archiveAsset"])
     for name, expected in declarations.items():
         if sha256(read_input(root, root / name)) != expected:
             raise SystemExit(f"Package source/license declaration changed since review: {name}")
