@@ -1,0 +1,24 @@
+{
+ "source": "ARMSX2SkinOverlay (production source) in the iOS Simulator, CI run 41865972707, commit 628a730, artifact 13344085138 (zip sha256 1fe0e14a13972bfef1b2899ebb2c9eb537d260584b4346879280710c7a9415dc), renders/ 3x",
+ "renders": {
+  "ps2-pocket-original-landscape-buttons-pressed.png": "d5fcf03f7dc16072b62fc1dc43f75e72810e162a1cc0f3e5fd541df2c96d47c7",
+  "ps2-pocket-original-landscape-released.png": "8f5eb263ed9f2231986bee7a89df8501fd9a6a7ab9ede816f44f1c92858356ce",
+  "ps2-pocket-original-landscape-rest.png": "8f5eb263ed9f2231986bee7a89df8501fd9a6a7ab9ede816f44f1c92858356ce",
+  "ps2-pocket-original-landscape-sticks-pushed.png": "515f69985f4d00802a9f26b20e8d02b8a2104ebc31e6e73381ff53a44e8a521b",
+  "ps2-pocket-original-portrait-buttons-pressed.png": "f42238b3e50469c050023a24ac027a669eb59a63f188db0548b54aa6e49d642c",
+  "ps2-pocket-original-portrait-released.png": "0f7253235761b50342f7bc56f8e039a9da6f728e9660c492d093b5f1ce8c1d19",
+  "ps2-pocket-original-portrait-rest.png": "0f7253235761b50342f7bc56f8e039a9da6f728e9660c492d093b5f1ce8c1d19",
+  "ps2-pocket-original-portrait-sticks-pushed.png": "1e3485604b4db7930e4179ebc057a23467d9d28b2f3c65b8c102a2e723f3e80a"
+ },
+ "measured": [
+  "portrait real (1179, 2556) host (1179, 2556)",
+  "  real rest vs host compose: mean abs 0.7 p99 10.0",
+  "  released == rest: True",
+  "  real rest vs maquette useful zone (incl. removed island/home bar/status): 12.65",
+  "landscape real (2556, 1137) host (2556, 1136)",
+  "  real rest vs host compose: mean abs 1.54 p99 24.0",
+  "  released == rest: True",
+  "  real rest vs maquette useful zone (incl. removed island/home bar/status): 4.06"
+ ],
+ "note": "real rest vs host compose excludes the game window (black in the simulator, board navy in the host compose); maquette difference includes the areas removed on purpose (status band, island, home bar); the masked fidelity is fidelity.json. Simulator, not an iPhone."
+}

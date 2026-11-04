@@ -51,6 +51,7 @@ const _shippedPacks = <String, String>{
   'ps2-pocket': 'ps2',
   'gamecube-pocket-original': 'gc',
   'wii-pocket-original': 'wii',
+  'ps2-pocket-original': 'ps2',
 };
 
 void main() {
@@ -214,7 +215,7 @@ void main() {
   );
 
   test(
-    'shipped catalog contains the Wii, GameCube, PS2 Pocket packs and the two board Originals with intact archives and PNG previews',
+    'shipped catalog contains the Wii, GameCube, PS2 Pocket packs and the three board Originals with intact archives and PNG previews',
     () async {
       final entries = await BundledControllerSkin.load(loadAsset: _fileAsset);
       expect({
@@ -227,12 +228,22 @@ void main() {
       expect({
         for (final entry in entries) entry.id: entry.name,
       }, containsPair('wii-pocket-original', 'Wii Pocket — Original'));
+      expect({
+        for (final entry in entries) entry.id: entry.name,
+      }, containsPair('ps2-pocket-original', 'PS2 Pocket — Original'));
       // New archives and previews of their own: nothing of an earlier pack is reused.
-      expect(entries.map((entry) => entry.archiveAsset).toSet(), hasLength(5));
-      expect(entries.map((entry) => entry.sha256).toSet(), hasLength(5));
+      expect(entries.map((entry) => entry.archiveAsset).toSet(), hasLength(6));
+      expect(entries.map((entry) => entry.sha256).toSet(), hasLength(6));
       expect(
         entries.expand((entry) => entry.previewAssets.values).toSet(),
-        hasLength(10),
+        hasLength(12),
+      );
+      // The earlier PS2 Pocket keeps its id, archive and previews unchanged.
+      final ps2 = entries.singleWhere((entry) => entry.id == 'ps2-pocket');
+      expect(ps2.archiveAsset, 'assets/skins/pocket/ps2-pocket.manicskin');
+      expect(
+        ps2.sha256,
+        '2106e5f755dd5128c7ab20f06e503164e9f7fd2cd02d88650ee1fc0aae9a16ad',
       );
       for (final entry in entries) {
         final archive = await File(entry.archiveAsset).readAsBytes();
@@ -298,7 +309,7 @@ void main() {
           hasLength(installedPerConsole[console]),
         );
       }
-      expect(installedPerConsole, <String, int>{'wii': 2, 'gc': 2, 'ps2': 1});
+      expect(installedPerConsole, <String, int>{'wii': 2, 'gc': 2, 'ps2': 2});
       expect(
         requests,
         isEmpty,
@@ -319,7 +330,7 @@ void main() {
       expect(entries, isNotNull);
       expect(
         entries!.map((entry) => entry.consoles.single),
-        unorderedEquals(<String>['wii', 'gc', 'ps2', 'gc', 'wii']),
+        unorderedEquals(<String>['wii', 'gc', 'ps2', 'gc', 'wii', 'ps2']),
       );
       expect(entries.every((entry) => entry.bundled != null), isTrue);
       expect(requests, isNotEmpty, reason: 'remote failures were exercised');
@@ -447,7 +458,7 @@ void main() {
       expect(installed.keys.toSet(), _shippedPacks.keys.toSet());
       expect(
         installed.values.map((skin) => skin.id).toSet(),
-        hasLength(5),
+        hasLength(6),
         reason: 'distinct installed ids',
       );
       expect(
@@ -532,6 +543,44 @@ void main() {
       expect(await skins.installedSkin(gcOld), isNotNull);
       expect(await skins.installedSkins(console: 'gc'), hasLength(2));
       expect(await skins.installedSkins(console: 'wii'), hasLength(2));
+      // PS2: a player who chose the earlier PS2 Pocket keeps it; the Original is a
+      // distinct installed skin, selectable for the console or one game.
+      final ps2Old = installed['ps2-pocket']!.id;
+      final ps2Original = installed['ps2-pocket-original']!.id;
+      expect(
+        installed['ps2-pocket-original']!.identifier,
+        'org.rewindbox.ps2-pocket-original',
+      );
+      expect(ps2Original, isNot(ps2Old));
+      for (final orientation in ['portrait', 'landscape']) {
+        await skins.select(
+          console: 'ps2',
+          orientation: orientation,
+          skinId: ps2Old,
+        );
+        await skins.select(
+          console: 'ps2',
+          orientation: orientation,
+          skinId: ps2Original,
+          game: 'SLUS-20062',
+        );
+      }
+      expect(await skins.selectedSkins('ps2'), <String, String?>{
+        'portrait': ps2Old,
+        'landscape': ps2Old,
+      });
+      expect(
+        await skins.selectedSkins('ps2', game: 'SLUS-20062'),
+        <String, String?>{'portrait': ps2Original, 'landscape': ps2Original},
+      );
+      final readPs2 = await skins.installedSkin(ps2Original);
+      expect(readPs2!.identifier, 'org.rewindbox.ps2-pocket-original');
+      expect(
+        readPs2.supports('portrait') && readPs2.supports('landscape'),
+        isTrue,
+      );
+      expect(await skins.installedSkin(ps2Old), isNotNull);
+      expect(await skins.installedSkins(console: 'ps2'), hasLength(2));
       expect(requests, isEmpty);
     },
   );

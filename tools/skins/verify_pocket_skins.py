@@ -46,9 +46,19 @@ HOUSINGS = {(375, 812): ((209, 30, 0), 39), (390, 844): ((162, 33, 0), 47),
 # (the boards draw the housing on the left; iOS also offers the opposite rotation).
 # Closed list, keyed by (pack, orientation, first canonical input): any other intrusion
 # fails. Each one is measured in the report and handed to the maintainer as a decision.
-KNOWN_HOUSING_DEVIATIONS = {("gamecube-pocket-original", "landscape"): {"x", "cUp", "menu"}}
+KNOWN_HOUSING_DEVIATIONS = {("gamecube-pocket-original", "landscape"): {"x", "cUp", "menu"},
+                            ("ps2-pocket-original", "landscape"): {"circle"}}
+# Board-faithful targets the approved board leaves no room to grow to 44 pt (PS2
+# Original landscape: L3/R3 labels stacked between the cap and SELECT/START, above the
+# home-indicator band). Closed list keyed like the housing deviations, each with the
+# smallest mapping size allowed; measured in the report, never presented as 44 pt.
+KNOWN_SMALL_TARGETS = {("ps2-pocket-original", "landscape"): {"l3": 25.0, "r3": 25.0, "select": 38.0, "start": 38.0}}
+# Board placements drawn deeper than 3 pt into the home-indicator band (the PS2 board
+# puts SELECT/START level with its own home bar, in the bottom corners, away from the
+# centred indicator): closed list with the depth allowed, measured in the report.
+KNOWN_BAND_DEPTHS = {("ps2-pocket-original", "landscape"): {"select": 5.5, "start": 5.5}}
 EXPECTED_PACKS = {"wii-pocket": "wii", "gamecube-pocket": "gc", "ps2-pocket": "ps2",
-                  "gamecube-pocket-original": "gc", "wii-pocket-original": "wii"}
+                  "gamecube-pocket-original": "gc", "wii-pocket-original": "wii", "ps2-pocket-original": "ps2"}
 
 
 def native_layout(representations, tall):
@@ -355,7 +365,12 @@ def validate_pack(assets, body_sources, row):
                 frame = rect(item["frame"])
                 hit = hit_frame(item, layout)
                 require(inside(hit, bounds), f"{label}/{index}: control outside mapping")
-                require(min(hit[2:]) >= 44-0.01, f"{label}/{index}: target below 44 mapping points")
+                small = KNOWN_SMALL_TARGETS.get((row["id"], orientation), {})
+                first = canonical(console, raw_inputs(item)[0]) if raw_inputs(item) else None
+                if first in small:
+                    require(min(hit[2:]) >= small[first], f"{label}/{index}: known small target {first} below {small[first]}")
+                else:
+                    require(min(hit[2:]) >= 44-0.01, f"{label}/{index}: target below 44 mapping points")
                 require(not any(overlaps(hit, screen) for screen in screens), f"{label}/{index}: target over game screen")
                 if not board:
                     require(not any(overlaps(hit, earlier) for earlier in hits), f"{label}/{index}: overlapping control targets")
@@ -391,9 +406,14 @@ def validate_pack(assets, body_sources, row):
             layout = chosen[orientation]
             mapping = (layout["mappingSize"]["width"], layout["mappingSize"]["height"])
             hits = [fitted(hit_frame(item, layout), mapping, device) for item in layout["items"]]
-            minimum = min(min(hit[2:]) for hit in hits)
+            small = KNOWN_SMALL_TARGETS.get((row["id"], orientation), {})
+            is_small = [bool(raw_inputs(item)) and canonical(console, raw_inputs(item)[0]) in small for item in layout["items"]]
+            minimum = min(min(hit[2:]) for hit, s in zip(hits, is_small) if not s)
             entry = {"devicePoints": device, "display": display, "orientation": orientation,
                      "minimumTargetPoints": round(minimum, 3)}
+            if any(is_small):
+                entry["knownSmallTargets"] = {canonical(console, raw_inputs(item)[0]): [round(v, 2) for v in hit[2:]]
+                                              for item, hit, s in zip(layout["items"], hits, is_small) if s}
             if board and not tall:
                 # Documented deviation: a home-button iPhone letterboxes the edge-to-edge
                 # board layout. Measured and reported, never presented as meeting 44 pt.
@@ -412,7 +432,8 @@ def validate_pack(assets, body_sources, row):
                 require(not problems, f"{row['id']}/{device}/{orientation}: targets enter {problems}")
                 if covered:
                     entry["knownHousingDeviation"] = [dict(c, control=key(c["item"])) for c in covered]
-                require(all(b["drawnIntoBandPoints"] <= 3.0 for b in board_band),
+                depths = KNOWN_BAND_DEPTHS.get((row["id"], orientation), {})
+                require(all(b["drawnIntoBandPoints"] <= depths.get(key(b["item"]), 3.0) for b in board_band),
                         f"{row['id']}/{device}/{orientation}: board control deep in home indicator band {board_band}")
                 if board_band:
                     entry["boardPlacementIntoHomeIndicatorBand"] = board_band
@@ -456,7 +477,7 @@ def main():
         require(catalog.get("schemaVersion") == 1, "unsupported catalog schema")
         rows = catalog["skins"]
         require(len(rows) == len(EXPECTED_PACKS) and {row["id"]: row["console"] for row in rows} == EXPECTED_PACKS,
-                "expected exactly the Wii, GameCube, PS2 Pocket packs and the two board Originals")
+                "expected exactly the Wii, GameCube, PS2 Pocket packs and the three board Originals")
         result = {"status": "passed", "checks": ["manifest digests and sizes", "ZIP CRC and confined resources",
                   "all PNG decodes", "every iPhone layout", "4:3 game windows for native background masking", "all essential bindings", "exactly one Menu control in every layout",
                   "approved raw body byte identity and provenance SHA-256 (Pocket packs)",
@@ -465,6 +486,7 @@ def main():
                   "Originals: drawn shapes disjoint, invisible extensions reach no other control", "native layout selection per iPhone",
                   "Originals: sensor housing (both landscape sides), corners, home indicator",
                   "Originals: letterboxed home-button iPhone targets measured, not claimed",
+                  "PS2 Original landscape: L3/R3/SELECT/START below 44 pt (board-bound), measured, not claimed",
                   "distinct normal/pressed artwork", "separate movable stick caps", "no control overlaps",
                   "no control/game overlap", "44pt fitted targets on reference iPhones", "reference safe insets",
                   "internal/external complete preview references"],

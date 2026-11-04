@@ -269,8 +269,10 @@ static UIViewController* ARMSX2RootViewController(void) {
 
 // The skin's art and input follow the same policy as the stock controls (the
 // Touch Controls switch, a connected controller, the layout editor) and stop
-// while a menu covers the session; the hamburger button of the session is not
-// part of the skin and always stays available.
+// while a menu covers the session. The session's floating hamburger is not part
+// of the skin: it stays available, except over a visible skin that draws its own
+// Menu control (which opens the same session menu), where it would cover the
+// skin's controls (L1 of PS2 Pocket - Original in landscape), as in Dolphin.
 - (void)syncSkinOverlay {
   ARMSX2SkinOverlay* skin = self.skinOverlay;
   if (skin == nil) return;
@@ -281,6 +283,7 @@ static UIViewController* ARMSX2RootViewController(void) {
   if (!interactive) [skin releaseAllInputs];
   skin.hidden = !shown;
   skin.userInteractionEnabled = interactive;
+  self.menuButton.hidden = shown && skin.hasMenuControl;
   self.controlsView.hidden = hiddenByPolicy || shown;
   [self placeRenderSurface];
 }

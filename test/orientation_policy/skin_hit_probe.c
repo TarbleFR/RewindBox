@@ -1,10 +1,18 @@
-// Runs DOLSkinHitIndex (DOLSkinHitTest.h) for test/pocket_skin_input_chain_test.py.
+// Runs DOLSkinHitIndex (DOLSkinHitTest.h), or with -DARMSX2_HIT A2SkinHitIndex
+// (ARMSX2SkinHitTest.h), for test/pocket_skin_input_chain_test.py.
 // stdin: N, then N items "x y w h hx hy hw hh active aw ah" each followed by aw*ah
 // alpha bytes as integers (aw = ah = 0: no alpha map), then M, then M points "x y".
 // stdout: one item index per point (-1: none).
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef ARMSX2_HIT
+// The ARMSX2 pod's own copy (ARMSX2SkinOverlay itemAtPoint).
+#include "../../packages/armsx2_internal_bridge/ios/Classes/ARMSX2SkinHitTest.h"
+#define DOLSkinHitItem A2SkinHitItem
+#define DOLSkinHitIndex A2SkinHitIndex
+#else
 #include "../../packages/dolphin_internal_bridge/ios/Classes/DOLSkinHitTest.h"
+#endif
 
 int main(void) {
   long n;

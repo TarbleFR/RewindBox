@@ -297,22 +297,50 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### Skins/orientation and additive PS2 Original — existing owner
 
-- **Branch:** `work/skins-ps2-original-20261104` last observed.
-  PR152 orientation integrated `705e90c7`; PS2 playlist entry `b8794226`;
-  PR155 Originals delivered 643. PR157 contour/press/stick fix included in frozen 650:
-  host audit misroute/outline-change/cap-offset 0, Flutter 223/223, simulator9/9
-  (`41844722361`), incremental host run `41851984733` green.
+- **History:** PR152 `705e90c7`; PS2 playlist entry `b8794226`; PR155 Originals in 643;
+  PR157 contour/press/stick fix in frozen 650.
   [Touch proofs](evidence/pocket-originals/touch-fix/), [pack record](pocket-originals-2026-11-03.md).
-- **Current request:** ADD a distinct PS2 Pocket Original faithful to approved
-  matte-black textured/relief mockup, portrait+landscape; keep current PS2 unchanged.
-  Approved PNG is the target, IMG_0399/0400 are mismatch evidence.
-  [Exact inputs/private archive hashes](https://github.com/TarbleFR/RewindBox/blob/8d05234f211c03bbc94cf5faac2dd48e419d294b/docs/AI_TASK_BOARD.md#skinsorientation-and-additive-ps2-original--existing-owner).
-- **Acceptance/next:** real ARMSX2 rendered comparisons; accurate button contours/
-  press states/sticks/axes/deadzone/neutral, L3/R3 and Menu in both orientations,
-  release/cancel/multitouch/rotation/safe areas, import/selection/persistence and
-  old-pack regression. Document necessary adaptations and sharpness/housing limits.
-  Preserve baseline-failure attribution and exact test reuse; iPhone feel/game
-  response unobserved. Finish fresh PR with English note and one handoff to main.
+- **PS2 Pocket — Original, ready for review:** branch `work/skins-ps2-original-20261104`
+  (base `c37b71d`), commits `628a730` (product and tests) and `084928e` (test tolerance,
+  real-overlay evidence), draft [PR158](https://github.com/TarbleFR/RewindBox/pull/158).
+  - Input zip `13e739fe…eac` re-hashed. The target `e37c95a5…95da` is a byte copy at
+    `docs/design/pocket/approved-ps2.png`; IMG_0399/0400 are not targets and stay private.
+  - New id `ps2-pocket-original`, archive `07f4b6fb09fcf61f3ae3081313fd9f551b5abb377774f9249b62e40cef2c6355`,
+    7283088 B, reproducible. Catalog goes from 5 to 6 entries (`16a25a9d…42ac`).
+    `ps2-pocket` `2106e5f7` and the GC/Wii Originals are byte-identical; nothing is selected or
+    migrated.
+  - Native: `ARMSX2SkinOverlay` resolves touches by the drawn shape
+    (`ARMSX2SkinHitTest.h` = `DOLSkinHitTest.h` code). The ARMSX2 floating menu hides over a skin
+    with its own Menu (it covered L1 in landscape on both PS2 packs).
+- **Proof:**
+  - Simulator run [41870604467](https://github.com/TarbleFR/RewindBox/actions/runs/41870604467)
+    green: ARMSX2 28/28 (Original 19/19, PS2 Pocket 9/9), host verifier on 6 archives, iPhone
+    compile `-Werror`.
+  - The earlier run 41865972707 had 27/28: an over-strict centre-vector test on letterboxed
+    views, corrected in `084928e`.
+  - Host: input chain 18 layouts; earlier packs equal the old rectangle test (874602 points).
+  - Flutter 3.47.2 249/249.
+  - Fidelity: mean abs diff 1.3–1.45, PSNR 37.5–37.9 dB. Real overlay vs host: mean abs
+    0.7/1.54; released equals rest.
+  - [Evidence](evidence/pocket-originals/ps2-original/).
+- **Limits (maintainer decision):**
+  - landscape L3/R3 about 26 pt tall and SELECT/START about 40 pt (the maquette leaves no room);
+  - SELECT/START 4.3–5.0 pt into the home band;
+  - opposite-rotation housing over Circle.
+
+  Portrait ≥44 pt. iPhone feel and game response are unobserved.
+- **Main:** a reviewed legal overlay for the 6th pack (the source-evidence check binds 5), then
+  integration into the next common IPA. No merge, IPA, pin or Core change from this branch.
+- **Effort observed:** `/reload-skills` returned 37 skills. Native `rb-effort-high` returned
+  "Effective effort reported by Claude Code: high" for the hit-test/geometry phase.
+  `rb-effort-medium` for the handoff returned "loaded earlier… NEW invocation" with no
+  substituted value. `CLAUDE_EFFORT=high` during the native phase; no override.
+- **MeloNX export:** the 5 originals of PID7613/E3542E16 were re-hashed (sizes and SHA-256 match).
+  - Private ZIP 900515 B, `12b5f01926d2bf5f6c34a6f6ebb5165e0aa38309c5c4f6dc823661cb82562f04`,
+    with INPUTS.json and SHA256SUMS. Attached for download in the skins conversation (file
+    `d585ba9d-2e26-4982-9155-b1471f1850d2`); not in Git.
+  - The native attach to MeloNX was refused: "attachments is only valid from a project's
+    channel session to one of its thread sessions". Codex re-attaches.
 
 ### Codex orchestration — Codex
 
