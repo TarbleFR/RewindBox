@@ -21,6 +21,7 @@ INPUTS = [
     "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
     "test/rpcs3_moltenvk_metal_probe.py",
     "test/native/rpcs3_moltenvk_metal_probe.mm",
+    "test/rpcs3_moltenvk_in_pass_read_wait_test.py",
 ]
 
 
