@@ -9,17 +9,21 @@ name: Skin orientation checks
   push:
     branches:
     - work/skins-portrait-lock-20261103
+    - work/skins-board-originals-20261104
     paths:
     - .github/workflows/skin-orientation-checks.yml
     - packages/armsx2_internal_bridge/ios/Classes/ARMSX2*
     - packages/armsx2_internal_bridge/ci/**
     - packages/dolphin_internal_bridge/ios/Classes/DOL*
+    - packages/dolphin_internal_bridge/ios/Classes/DolphinInternalBridgePlugin.mm
     - packages/dolphin_internal_bridge/ci/**
     - packages/libretro_internal_bridge/ios/Classes/LibretroOrientation*
     - assets/skins/pocket/**
     - tools/skins/**
     - test/pocket_skin_input_chain_test.py
     - test/skin_portrait_lock_contract_test.py
+    - test/dolphin_session_chrome_test.py
+    - test/orientation_policy/**
   workflow_dispatch:
 permissions:
   contents: read
@@ -48,7 +52,7 @@ jobs:
     - name: Compile every libretro bridge source for iPhone
       if: ${{ !cancelled() }}
       run: python3 test/libretro_ios_syntax_test.py
-    - name: Pocket skins - host verifier of the three shipped archives and the input chain
+    - name: Pocket skins - host verifier of the five shipped archives, the input chain and the session buttons
       if: ${{ !cancelled() }}
       run: |
         set -euo pipefail
@@ -56,6 +60,7 @@ jobs:
         "$RUNNER_TEMP/pocket-venv/bin/pip" install --quiet pillow==12.3.0
         "$RUNNER_TEMP/pocket-venv/bin/python" tools/skins/verify_pocket_skins.py
         python3 test/pocket_skin_input_chain_test.py
+        python3 test/dolphin_session_chrome_test.py
     - name: Compile the Dolphin orientation and skin sources for iPhone
       if: ${{ !cancelled() }}
       run: |
