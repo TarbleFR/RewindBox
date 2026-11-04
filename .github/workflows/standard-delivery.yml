@@ -86,6 +86,13 @@ jobs:
         cache: true
     - name: Resolve exact workspace lock
       run: flutter pub get --enforce-lockfile
+    - name: Provide the pinned Pillow of the skin verifiers
+      run: |
+        set -euo pipefail
+        python3 -m venv --system-site-packages "$RUNNER_TEMP/delivery-python"
+        "$RUNNER_TEMP/delivery-python/bin/python" -m pip install --quiet --disable-pip-version-check pillow==12.3.0
+        "$RUNNER_TEMP/delivery-python/bin/python" -c 'import PIL; print("Pillow " + PIL.__version__)'
+        echo "$RUNNER_TEMP/delivery-python/bin" >> "$GITHUB_PATH"
     - name: Run source contracts and Flutter behavior
       run: python3 -B .github/diagnostics/standard_delivery.py tests flutter
     - name: Preserve actual command results
