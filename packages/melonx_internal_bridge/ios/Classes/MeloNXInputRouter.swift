@@ -61,6 +61,20 @@ final class MeloNXInputRouter: ObservableObject, Controller {
         setStick(pad: 1, source: "touch", stick: right ? 2 : 1, x: Float(position.x), y: Float(-position.y))
     }
 
+    // A controller skin (MeloNXSkinOverlay through MeloNXSkinSession) reports the
+    // embedded Core's button index itself and both stick vectors with UIKit's
+    // downward-positive Y. It replaces the Melo-Controller while it is shown, so it
+    // shares its "touch" source: the same release on controller connect, suspend
+    // and close, and a physical controller still wins on a stick.
+    func skinButton(_ index: Int32, pressed: Bool) {
+        guard (0...16).contains(index), index != Int32(VirtualControllerButton.guide.rawValue) else { return }
+        setButton(pad: 1, source: "touch", index: index, pressed: pressed)
+    }
+    func skinSticks(leftX: Float, leftY: Float, rightX: Float, rightY: Float) {
+        setStick(pad: 1, source: "touch", stick: 1, x: leftX, y: -leftY)
+        setStick(pad: 1, source: "touch", stick: 2, x: rightX, y: -rightY)
+    }
+
     private func setButton(pad: Int32, source: String, index: Int32, pressed: Bool) {
         guard !closed, !suspended else { return }
         let before = buttons[pad]?.values.contains(where: { $0.contains(index) }) ?? false

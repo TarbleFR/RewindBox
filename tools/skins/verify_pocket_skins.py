@@ -31,9 +31,14 @@ ESSENTIALS = {
     "ps2": {"cross", "circle", "square", "triangle", "l1", "l2", "r1", "r2", "select", "start", "l3", "r3", "menu",
             "up", "down", "left", "right", "stickUp", "stickDown", "stickLeft", "stickRight",
             "rstickUp", "rstickDown", "rstickLeft", "rstickRight"},
+    # Switch (MeloNX): MeloNXSkinOverlay's names; home / capture are drawn and said
+    # (the embedded Core has no index for them), menu is the RewindBox session menu.
+    "switch": {"a", "b", "x", "y", "l", "r", "zl", "zr", "minus", "plus", "l3", "r3", "home", "capture", "menu",
+               "up", "down", "left", "right", "stickUp", "stickDown", "stickLeft", "stickRight",
+               "rstickUp", "rstickDown", "rstickLeft", "rstickRight"},
 }
-STICKS = {"gc": 2, "wii": 1, "ps2": 2}
-GAME_TYPES = {"gc": {"ngc", "gc", "gamecube"}, "wii": {"wii"}, "ps2": {"ps2"}}
+STICKS = {"gc": 2, "wii": 1, "ps2": 2, "switch": 2}
+GAME_TYPES = {"gc": {"ngc", "gc", "gamecube"}, "wii": {"wii"}, "ps2": {"ps2"}, "switch": {"switch"}}
 RAW_BODY_CONSOLES = {"gc", "wii"}
 BOARD_DIR = Path(__file__).resolve().parents[2]/"docs/design/pocket"
 # Physical model for packs drawn from an approved board (device points, portrait
@@ -163,7 +168,7 @@ def canonical(console, raw):
     for prefix in ("rightthumbstick", "rightstick", "rightanalog", "cstick", "c"):
         for direction in ("Up", "Down", "Left", "Right"):
             if key == prefix+direction.lower():
-                return {"gc": "c", "wii": "pointer", "ps2": "rstick"}[console]+direction
+                return {"gc": "c", "wii": "pointer", "ps2": "rstick", "switch": "rstick"}[console]+direction
     for direction in ("up", "down", "left", "right"):
         if key in (direction, "dpad"+direction):
             return direction
@@ -172,6 +177,10 @@ def canonical(console, raw):
         aliases.update({"r1": "z", "l2": "l", "r2": "r", "lefttrigger": "l", "righttrigger": "r"})
     elif console == "wii":
         aliases.update({"1": "one", "2": "two", "nunchukc": "c", "nunchukz": "z"})
+    elif console == "switch":
+        aliases = {"pause": "menu", "options": "menu", "select": "minus", "back": "minus", "start": "plus",
+                   "leftstickclick": "l3", "lsclick": "l3", "ls": "l3", "rightstickclick": "r3", "rsclick": "r3",
+                   "rs": "r3", "screenshot": "capture"}
     else:
         aliases = {"pause": "menu", "options": "menu"}
     result = aliases.get(key, key)
