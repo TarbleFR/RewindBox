@@ -67,7 +67,7 @@
         "artifact": 13294034769,
         "packagedFingerprint": "281aa3a4d5fb96fdfee452544e29745cab2bfff1ab4819722aab504fd2535e11"
       },
-      "pinSha256": null
+      "pinSha256": "fe73c43a2bba2061ae25595e729c2d7fb29dc5a74348b25c64a1160022d81612"
     },
     "dolphin": {
       "mode": "retain",
