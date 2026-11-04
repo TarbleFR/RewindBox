@@ -338,42 +338,64 @@ exact commits/tests once; main verifies integration. On a produced IPA, cold lau
 without menu, launch/cutscene recording, Present-source/DMA lines and SSBU close
 while recording decide remaining hypotheses. No controlled FPS/visual gain established.
 ### Skins/orientation and additive PS2 Original — existing owner
-Owner `012mUASjgVWk8DKKjVbwTD2n`; latest follow-up observed on
-`work/skins-ps2-original-20261104`. PR152 integrated `705e90c7`; missing PS2 playlist
-Skins entry fixed `b8794226` (real widget 4/4, same test fails on640); PR155 GC/Wii
-Originals integrated `5ab7273d` and delivered643. PR157 touch/pressed-state/stick
-correction is included in frozen650 per main; do not reuse the integrated branch for
-a new forced push.
-**PR157 evidence:** opaque rectangular sprites, overlapping hit regions and landscape
-cap offsets demonstrated; transparent contour sprites, native shape-aware hit test and
-cap geometry corrected. Host grid misroute/outside-contour-change/cap-offset all0;
-Flutter223/223, Dolphin overlay simulator9/9 in `41844722361`, incremental host
-run `41851984733` green. Other tests can be reused only with identical relevant
-inputs; known historical `diagnostic_routing_test.m`/7 SessionMenuTests and
-timing-sensitive recording test are separately classified, not waived.
-[Touch audit and rendered evidence](evidence/pocket-originals/touch-fix/),
-[original board evidence](evidence/pocket-originals/board-originals/),
-[pack record](pocket-originals-2026-11-03.md).
-**Current request:** keep existing PS2 skin unchanged and ADD a distinct faithful
-PS2 Pocket Original in portrait/landscape, with same matte-black textured/relief
-finish as approved mockup; no replacement, migration or approximate recolor.
-Menu must work in both orientations despite absent landscape Menu in the concept.
-Verify real ARMSX2 overlay/rendering/hit regions, sticks/axes/deadzone/neutral,
-all PS2 buttons/Menu, press/release/slide/cancel/multitouch, orientation/safe areas,
-import/selection/persistence and unchanged old packs. Source sharpness, sensor-housing
-or necessary ergonomic deviations must be explicit; no fabricated iPhone acceptance.
-**Inputs/relay:** private `rewindbox-ps2-reference-feedback-20261104.zip`1728531B,
-SHA256 `13e739fea6f032f7149c72f8e6c350251417db95ab9d1bc29841e527cbe23eac`:
-approved PNG1677624B `e37c95a5e42fcba842617c911f91f3ab97565c9bef618bf2c08a101639be95da`,
-current landscape IMG_0399.jpeg and portrait IMG_0400.jpeg + INPUTS.json.
-Exact capture identities and earlier private video/GC/Wii relays in
-[the retained
-record](https://github.com/TarbleFR/RewindBox/blob/17b2978093d386465def7e87d640cf4e4cb0efc9/docs/AI_TASK_BOARD.md#active-requirements).
-The PNG is the target; current
-device captures are evidence of mismatch, never target art.
-**Next:** finish the additive pack, actual tests/comparisons and fresh PR; hand off
-once with English note to main, no Core/pin/common-delivery ownership transfer.
-iPhone feel/game response remain unobserved.
+Owner `012mUASjgVWk8DKKjVbwTD2n`.
+- **Integrated history:** PR152 `705e90c7`; PS2 playlist Skins `b8794226`; PR155 GC/Wii
+  Originals `5ab7273d` (in 643); PR157 touch/pressed/stick fix in frozen 650 per main.
+  Integrated branches are never reused or force-pushed.
+- **Evidence:** [touch audit](evidence/pocket-originals/touch-fix/),
+  [boards](evidence/pocket-originals/board-originals/),
+  [pack record](pocket-originals-2026-11-03.md).
+
+**PS2 Pocket — Original (current):** branch `work/skins-ps2-original-20261104` from
+`c37b71d`, source `628a730`, draft [PR158](https://github.com/TarbleFR/RewindBox/pull/158).
+- **Input:** zip `13e739fe…eac`, 1728531 B, re-hashed here. The target PNG `e37c95a5…95da`
+  is copied byte for byte to `docs/design/pocket/approved-ps2.png`. IMG_0399/0400 are captures
+  of the current skin, not targets, kept private.
+- **Pack:** new id `ps2-pocket-original`, archive `07f4b6fb09fcf61f…6355`, 7283088 B, rebuilt
+  identical. Catalog goes from 5 to 6 entries (`16a25a9d…42ac`). Built from the maquette's
+  pixels with the GC/Wii method:
+  - L3/R3 are bands under the caps; their press dims the letters;
+  - the portrait Menu is added in landscape;
+  - the landscape island gets a harmonic fill.
+
+  GC/Wii archives and `ps2-pocket` `2106e5f7` (id, previews, selections) are unchanged.
+- **Native:** `ARMSX2SkinOverlay` resolves touches by the drawn shape (`ARMSX2SkinHitTest.h`,
+  the same code as `DOLSkinHitTest.h`). The ARMSX2 floating menu hides over a skin with its own
+  Menu (it covered L1 in landscape on both PS2 packs).
+- **Fresh host tests:**
+  - verifier 6 packs; input chain 18 layouts: both headers compiled, 4352846 drawn points
+    reach their own control, earlier packs equal the old rectangle test (874602 points);
+  - menu-button and session-chrome tests and contracts pass;
+  - Flutter 3.47.2 skin/pocket/ARMSX2 249/249 (catalog, separate install, selection,
+    persistence); analyze clean;
+  - fidelity: mean abs diff 1.3–1.45, PSNR 37.5–37.9 dB.
+- **Simulator** (ARMSX2 suite on both PS2 archives, run `41865972707`): pending at this record,
+  not claimed.
+- **Evidence:** [ps2-original/](evidence/pocket-originals/ps2-original/).
+- **Board-bound limits (maintainer decision):**
+  - landscape L3/R3 about 26 pt tall and SELECT/START about 40 pt;
+  - SELECT/START 4.3–5.0 pt into the home band;
+  - opposite-rotation sensor housing over Circle.
+
+  Portrait is ≥44 pt fitted everywhere. iPhone feel and game response are unobserved.
+- **For main:** a reviewed legal overlay for the 6th pack (the source-evidence check binds 5)
+  and integration into the next common IPA. No merge, IPA, pin or Core change from here.
+- **Effort routing (observed):** `/reload-skills` returned 37 skills, none added or removed;
+  the branch contains `b8e12584` and `20c14011`. The native `Skill rb-effort-high` return at
+  the hit-test/geometry review checkpoint was "Effective effort reported by Claude Code: high".
+  A second call returned "already loaded… instructions unchanged", with no new substitution.
+  Environment `CLAUDE_EFFORT=high`; no `CLAUDE_CODE_EFFORT_LEVEL` override. No mismatch.
+  Next level: high until the simulator result is read, then medium for the handoff and docs.
+- **MeloNX log export (maintainer relay):** the 5 originals of PID7613/E3542E16 were
+  re-hashed. Their sizes and SHA-256 match the relay, and the PID6451 lot was not used.
+  - Private ZIP `rewindbox-melonx-logs-pid7613-20261104.zip`, 900515 B, SHA256
+    `12b5f01926d2bf5f6c34a6f6ebb5165e0aa38309c5c4f6dc823661cb82562f04`: unchanged originals
+    plus INPUTS.json and SHA256SUMS, not in Git.
+  - Exposed as this conversation's downloadable attachment (file
+    `d585ba9d-2e26-4982-9155-b1471f1850d2`).
+  - A single native attach to `012mUASkkFGHaPcEUx9dsp8q` via `send_message.attachments` was
+    refused: "attachments is only valid from a project's channel session to one of its thread
+    sessions". Nothing was transferred; Codex re-attaches.
 ### Codex orchestration — Codex
 Coordinate existing owners, independent evidence and concise current records; no
 new worker/diagnosis/workflow while equivalent authorized work proceeds.
