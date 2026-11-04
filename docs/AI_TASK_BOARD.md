@@ -336,6 +336,37 @@ reusing evidence. This wrapper does not itself establish input equivalence.
   Apple signing/provisioning. Separate source, tested, compiled, delivered and
   observed-on-iPhone states. Do not claim unmeasured FPS gains.
 
+## Release notes and publication checklist
+
+Maintainer requirement, 4 November 2026: after every release, establish a fresh
+list of fixes and new features so nothing is forgotten for the next publication.
+
+- The main integration/release owner maintains [the next-release checklist](releases/NEXT.md).
+  Component owners supply a concise user-facing description and exact evidence
+  with each handoff. This is the release communication record, not a second task
+  queue; implementation ownership and acceptance remain in this board.
+- Update the checklist as reviewed changes arrive and after every verified private
+  IPA delivery. Record new features, fixes, performance/stability work,
+  compatibility changes and known limitations, with source/PR, verification state,
+  packaged build and publication status. Distinguish planned, implemented, tested,
+  privately delivered and publicly released. Never call an unexecuted test or an
+  unresolved hypothesis fixed; no unmeasured FPS claim.
+- Before a public release, reconcile the entire relevant change range from the
+  last actual public tag/release against the final manifest and delivery receipts,
+  not just the latest three tasks. Deduplicate items already announced and retain
+  every approved unannounced change, including changes tested in earlier private IPAs.
+  Do not silently drop an item; record a deferral or exclusion with its reason.
+- After an authorized public release, archive its final notes under
+  `docs/releases/<actual-tag>.md` with the exact tag/build/source and publication URL.
+  Start a fresh `NEXT.md` based on that release and carry forward all unshipped or
+  unannounced items. A private IPA alone does not reset the public baseline or
+  remove changes waiting to be announced. Preserve prior release records.
+- Provide the maintainer with a ready-to-post English changelog at release handoff
+  and maintain an explicitly labelled preview while work is in progress. The
+  published version must list only the delivered contents and their real limits.
+  Writing these notes is authorized; public posting/tags/releases retain their
+  existing separate authorization requirements.
+
 ## Active requirements
 
 | Task and owner | Required outcome and acceptance | Verified state and next action |
