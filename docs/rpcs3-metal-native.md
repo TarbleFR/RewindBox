@@ -141,12 +141,51 @@ sur **Metal 4** (iOS 26 au minimum, GPU Apple7 ou plus récent ; l'iPhone du mai
 | --- | --- | --- |
 | M0 | Inventaire du backend Vulkan et de l'intégration hôte, plan | Inventaire consigné (section 6) |
 | **M1 (Core 901, cette livraison)** | Renderer Metal 4 sélectionnable par jeu (« Moteur Metal 4 natif », page de test, chiffre 18 de `levers627`) : périphérique, file, allocateurs, résidence, compilateur, présentation sur le `CAMetalLayer` du tampon d'écran lu en mémoire (conversion identique à Vulkan, rapport largeur/hauteur gardé) ; dessins, effacements et requêtes comptés, non exécutés | Compilation iOS 26 et test hôte en CI (run `42121690064`, réussis) ; exécution Metal 4 réelle : sur iPhone seulement |
-| M2 (en cours) | M2.1, écrite : SPIRV-Cross dans le Core, décompilateurs Metal, traduction en MSL et contrat des emplacements. M2.2 : pipelines (clé, mélange, profondeur, gabarit), anneaux de sommets persistants et volatils, paramètres de dessin, contextes, constantes, index, tous les types de dessin | M2.1 : banc hôte (Linux, réussi) et compilation iOS du MSL en CI ; M2.2 : scènes synthétiques comparées |
+| M2 (en cours) | M2.1, écrite : SPIRV-Cross dans le Core, décompilateurs Metal, traduction en MSL et contrat des emplacements. M2.2, en cours : anneaux, clés de pipeline et de profondeur/gabarit, cache de programmes, contexte de commandes, surfaces, puis dessin et présentation (voir ci-dessous) | M2.1 : banc hôte (Linux, réussi) et compilation iOS du MSL en CI (run `42127316385`) ; M2.2 : CI iOS à chaque étape, puis IPA de test « première image » |
 | M3 | Cibles de rendu et cache de textures (traits Metal), envois, formats, copies, relectures, cohérence (barrières, labels, sémaphores) | Scènes texturées comparées, relectures exactes |
 | M4 | ZCULL et requêtes exactes, rendu conditionnel, MSAA et résolution, calculs de conversion, incrustations natives | Comptes de visibilité comparés, interface native |
 | M5 | Parité sur jeux (BO2, Assassin's Creed, God of War III), cache de pipelines Metal 4, retrait de Vulkan et de MoltenVK du Core | Mesures iPhone, comparaison au Core Vulkan |
 
 Numérotation : les Cores de cette branche sont 901, 902… ; ceux de la ligne `Claude` gardent la série 6xx.
+
+### M2.2 : état et objectif « première image »
+
+Toutes ces pièces sont dans `metal-wip-from-901.patch`. Chacune compile pour iOS 26 en CI.
+
+Pièces écrites :
+- `MTLDataHeap.h` : anneaux `rsx::data_heap` sur un `MTLBuffer` partagé (mémoire unifiée). Un anneau plein demande au
+  renderer de soumettre et d'attendre ; il n'écrase jamais une mémoire encore lue par le GPU.
+- `MTLPipelineState` : décodage des registres comme `decode_rsx_state` et `update_draw_state` de Vulkan, puis conversion
+  comme MoltenVK. Le sens d'enroulement est le même grâce à l'inversion de Y ; « éliminer les deux faces » ne rastérise
+  aucun triangle. Les clés n'ont aucun octet de remplissage : le cache les hache brutes.
+- `MTLProgramBuffer` : traits du `program_state_cache` commun.
+  - Les traductions MSL et les bibliothèques MTL4 sont gardées par programme et par variante, sous verrou.
+  - Un échec est conservé avec son erreur, et ses dessins sont sautés et comptés, comme dans Vulkan quand un programme
+    n'est pas prêt.
+- `MTLCommandContext` : un tampon de commandes à la fois sur l'allocateur du frame et un encodeur ouvert.
+  - Barrière de file après toutes les étapes à chaque nouvel encodeur.
+  - Résidence et libération différée (Metal 4 ne retient rien).
+  - Attentes jamais abandonnées.
+- `MTLFormats` : formats de surface (table MoltenVK des choix Vulkan).
+- `MTLRenderTargets` : traits du `surface_store` commun.
+  - Initialisation identique à Vulkan sans lecture mémoire : couleur (0, 0, 0, 1), profondeur 1.0, stencil 255.
+  - Héritage copié par le GPU quand le format et l'échelle sont identiques.
+
+Reste à écrire pour la première image, c'est-à-dire les dessins d'un jeu exécutés par Metal 4 et présentés :
+- branchement dans `MTLGSRender` : préparation des cibles, passes de rendu (effacements par actions de chargement),
+  envoi des sommets et des index, environnements et constantes, liaisons par tables d'arguments, dessins ;
+- présentation de la surface qui tient l'adresse du tampon d'écran ;
+- remplacement des tables d'arguments et de la résidence de M1.
+
+Limites assumées et comptées de cette étape. Aucune n'est simulée : chacune a un compteur `COREPROF`.
+- Textures : pas encore de cache de textures, une texture neutre est liée par unité ; c'est l'étape M3.
+- Recopie des surfaces vers la mémoire invitée et chargement depuis elle : M3.
+- Héritage sans type ou mis à l'échelle : M3.
+- MSAA : textures à un échantillon, comme le réglage « MSAA : désactivé » ; les métriques d'échantillons RSX sont
+  gardées pour la disposition mémoire. C'est l'étape M4.
+
+Le jeu verra donc sa géométrie, ses couleurs, sa profondeur et son mélange, mais pas encore ses textures. Vulkan reste
+le moteur par défaut, et Metal se choisit par jeu.
 
 ## 6. Inventaire (M0, 5 novembre)
 
