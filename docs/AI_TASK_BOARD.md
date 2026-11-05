@@ -404,14 +404,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - Wii `337584a89caea8c1b6bebcc62df2d20528915389ced088d3217fa2f1a6d16790` (5095619 B);
     - PS2 Original byte-identical; reproducible (3 archives + 6 previews).
   - Proof:
-    - CI run [41950787918](https://github.com/TarbleFR/RewindBox/actions/runs/41950787918): running;
+    - CI run [41950787918](https://github.com/TarbleFR/RewindBox/actions/runs/41950787918) green:
+      Dolphin skin simulator 9/9 on the new archives, pocket host step (native steps skipped:
+      no native change);
     - host: verifier passed, input chain 18 layouts, menu button, portrait lock, session
       chrome 32 layouts; Flutter skin/pocket 240/240;
     - before → after: cap left behind 5.7–33.7 % → 0 %; socket texture in the knob ≤ 8.1 % →
       ≤ 0.2 %; yellow under the C 100 % → 0 %; misrouted 0 %; travel 9.1–11.4 pt.
     - [Evidence](evidence/pocket-originals/stick-circle/) (zones, before/after, measurement).
-  - Main: integrate PR162 (not PR161), update the legal declaration for the two new archives,
-    next common IPA. Not observed on an iPhone.
+  - Handed off once to main (PR162 `592c4d1` + docs). Main: integrate PR162 (not PR161),
+    update the legal declaration for the two new archives, next common IPA. Not observed on
+    an iPhone.
 - **Switch Pocket (new request, in progress).**
   - Maquette needed as an original file: the chat image is not saved as a file, and I do not
     build from a recompressed copy.
