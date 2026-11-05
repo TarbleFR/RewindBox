@@ -19,7 +19,7 @@
  },
  "contract": {
   "path": "build-utils/melonx/dma-core-contract.json",
-  "sha256": "159c03fc87a20a468ef0737a358bc532dfe270b27fbd8cdaa3f8e0bf71564036",
+  "sha256": "766fa10f162290b6ebe642c87dc15756c3ee7c6c6f2fc9689d5818a6df7aa1f4",
   "freshAppleGates": 47,
   "preparationInputs": 165,
   "preparedMembers": 199,
@@ -50,6 +50,7 @@
  "physicalDeviceTested": false,
  "ciRuns": {
   "42110141980 attempt 1 (b3b7161f)": "failed in forced-syncpoint-wait (unchanged gate): termination-to-return 168 ms against its 150 ms bound on the macOS runner (the production wait polls termination every 50 ms); attempt 2 passed that gate.",
-  "42110141980 attempt 2 (b3b7161f)": "failed in core667-fixes: the probe restore kept the upstream nuget.config naming the starforgejo.dev LibHac feed (HTTP 403 since 2026-11-05), so Ryujinx.Memory was not restored and the GPU project could not see its types (190 CS0246). Fixed: the gate copies trees as the other gates (no src/MeloNX), switches to the authenticated LibHac feed (use_authenticated_libhac_feed) and restores with RestoreIgnoreFailedSources."
+  "42110141980 attempt 2 (b3b7161f)": "failed in core667-fixes: the probe restore kept the upstream nuget.config naming the starforgejo.dev LibHac feed (HTTP 403 since 2026-11-05), so Ryujinx.Memory was not restored and the GPU project could not see its types (190 CS0246). Fixed: the gate copies trees as the other gates (no src/MeloNX), switches to the authenticated LibHac feed (use_authenticated_libhac_feed) and restores with RestoreIgnoreFailedSources.",
+  "42117936769 (cdd3d2e4)": "failed in core667-fixes: on macOS the probe built projects under /var/folders while their sources resolved to /private/var/folders (a link), so MSBuild lost the project and package references (CS0234/CS0246 for Ryujinx.Graphics.Shader, Gommon, Ryujinx.Memory types). Fixed: the work directory is resolved, as in every other gate."
  }
 }

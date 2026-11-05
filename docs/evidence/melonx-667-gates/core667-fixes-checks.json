@@ -80,9 +80,9 @@
         "written": 64,
         "failed": 1,
         "queuedCounter": 0,
-        "longestHeadWaitMs": 41
+        "longestHeadWaitMs": 40
       },
-      "journal": "{\"stage\":\"nativeAot\",\"errorCode\":\"\",\"diagnostic\":\"\",\"journalError\":\"\",\"events\":[{\"sequence\":1,\"stage\":\"configuration\",\"status\":\"mathMode\",\"nativeStatus\":0,\"diagnostic\":\"MoltenVK math mode fast\"},{\"sequence\":2,\"stage\":\"configuration\",\"status\":\"mathMode\",\"nativeStatus\":0,\"diagnostic\":\"MoltenVK math mode precise (Inf and NaN kept)\"},{\"sequence\":3,\"stage\":\"configuration\",\"status\":\"mathMode\",\"nativeStatus\":0,\"diagnostic\":\"MoltenVK math mode fast\"},{\"sequence\":4,\"stage\":\"shaderCache\",\"status\":\"saves\",\"nativeStatus\":0,\"diagnostic\":\"written: programs made in play queued 0, written 64, dropped after a failed link 1, still queued 0; longest wait at the head 41 ms\"},{\"sequence\":5,\"stage\":\"shaderCache\",\"status\":\"saves\",\"nativeStatus\":0,\"diagnostic\":\"disposed: programs made in play queued 0, written 64, dropped after a failed link 1, still queued 0; longest wait at the head 41 ms\"}]}"
+      "journal": "{\"stage\":\"nativeAot\",\"errorCode\":\"\",\"diagnostic\":\"\",\"journalError\":\"\",\"events\":[{\"sequence\":1,\"stage\":\"configuration\",\"status\":\"mathMode\",\"nativeStatus\":0,\"diagnostic\":\"MoltenVK math mode fast\"},{\"sequence\":2,\"stage\":\"configuration\",\"status\":\"mathMode\",\"nativeStatus\":0,\"diagnostic\":\"MoltenVK math mode precise (Inf and NaN kept)\"},{\"sequence\":3,\"stage\":\"configuration\",\"status\":\"mathMode\",\"nativeStatus\":0,\"diagnostic\":\"MoltenVK math mode fast\"},{\"sequence\":4,\"stage\":\"shaderCache\",\"status\":\"saves\",\"nativeStatus\":0,\"diagnostic\":\"written: programs made in play queued 0, written 64, dropped after a failed link 1, still queued 0; longest wait at the head 40 ms\"},{\"sequence\":5,\"stage\":\"shaderCache\",\"status\":\"saves\",\"nativeStatus\":0,\"diagnostic\":\"disposed: programs made in play queued 0, written 64, dropped after a failed link 1, still queued 0; longest wait at the head 40 ms\"}]}"
     }
   },
   "sdk": "10.0.100",
@@ -105,7 +105,7 @@
     "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
     "native/melonx/EmbeddedRuntime.cs": "84a9186536d310f31beadf30b98dac303aeac199e2b7a795bd4d57dae073fbcb",
     "native/melonx/EmbeddedLaunchPreflight.cs": "ddbbfb8cef308483caa67678ad8a9d380f0e8f64addd814338f0bed09b9fbb7c",
-    "test/melonx_core667_fixes_test.py": "39b5b041359448d6a10a1305a9dac73fa650578ff78f00695d6e3d45ac5679b4",
+    "test/melonx_core667_fixes_test.py": "9119f7a78cf967c3cde1bf79937e5af9539f5d25154296099fe6899dd48871fa",
     "test/melonx_core667_fixes/Program.cs": "91709183c4415b9a7db4cd130a0eb19c45bd57cb5ad198b5ee307266f69219fc",
     "test/melonx_core667_fixes/StubMoltenVK.c": "04c41a85eeaffd6d668faa44a1089d336484536a402f17c97b2b72819b30c42c",
     "test/melonx_adapter_control.py": "22829618b7b8802d66fc8b80bf8d456d250a92e0a7c2a24cde38de4abb1c9f19"

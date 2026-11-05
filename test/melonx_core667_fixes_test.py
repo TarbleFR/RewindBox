@@ -83,7 +83,8 @@ def git_show(path):
 holder = []
 temporary = tempfile.TemporaryDirectory(prefix='melonx-core667-')
 holder.append(temporary)
-WORK = Path(temporary.name)
+# Resolved, as every gate: on macOS /var is a link to /private/var, and MSBuild must see each project under one path.
+WORK = Path(temporary.name).resolve()
 CONTROL = WORK / 'control'
 shutil.copytree(FINAL_SOURCE, CONTROL, ignore=ignore_tree(FINAL_SOURCE), symlinks=True)
 
