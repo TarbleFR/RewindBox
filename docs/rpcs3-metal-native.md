@@ -61,15 +61,37 @@ sur **Metal 4** (iOS 26 au minimum, GPU Apple7 ou plus récent ; l'iPhone du mai
     journalisée ;
   - résidence explicite : un ensemble pour le renderer, celui du `CAMetalLayer` pour les drawables ;
   - liaisons par tables d'arguments (adresses GPU, identifiants de ressources), capturées à chaque dessin ;
-  - compilateur `MTL4Compiler` (sans mathématiques rapides : NaN, infinis et zéro signé comptent pour le RSX) ;
+  - compilateur `MTL4Compiler`. La passe de présentation est compilée en mode sûr. Les shaders RSX suivent le réglage
+    existant « Disable MSL Fast Math » (désactivé par défaut) exactement comme MoltenVK aujourd'hui. Les SPIR-V de glslang
+    n'ont pas de contrôle flottant, donc MoltenVK les compile en mode rapide (`MTLMathModeFast`). Le rendu ne change donc
+    pas en silence, et le réglage reste au joueur. La position invariante active `preserveInvariance` ;
   - présentation `waitForDrawable` / `signalDrawable` sur la file ;
   - barrières explicites (Metal 4 ne suit pas les dépendances) ;
   - copies et remplissages dans l'encodeur de calcul.
 - **La logique RSX commune.** Le backend se branchera sur `rsx::surface_store` et `rsx::texture_cache` par des traits
   Metal, comme Vulkan et OpenGL, pour garder toute la cohérence mémoire qui fait tourner les jeux aujourd'hui.
-- **Shaders, étape 1.** Les décompilateurs RSX existants produisent le GLSL, compilé en SPIR-V par glslang, puis traduit
-  en MSL par SPIRV-Cross autonome (bibliothèque Khronos, pas MoltenVK). Le Core n'a pas encore SPIRV-Cross en propre :
-  il existe dans MoltenVK et dans le pod hôte `neo_shader_kit` (vulkan-sdk-1.4.350.1), à intégrer au Core en M2.
+- **Shaders, étape 1 (M2.1, écrite).** La chaîne compte trois maillons.
+  - `MTLVertexProgram.cpp` et `MTLFragmentProgram.cpp` produisent, ligne pour ligne, le GLSL des décompilateurs Vulkan.
+    Les faits du GPU viennent d'un relevé Metal (`mtl::shader_device_caps`). Ces faits sont ceux que MoltenVK fournit
+    aujourd'hui : pas de double précision, D24S8 émulé, rendu conditionnel résolu sur le CPU. Aucun en-tête Vulkan n'est
+    nécessaire.
+  - glslang compile ce GLSL en SPIR-V.
+  - SPIRV-Cross autonome traduit le SPIR-V en MSL (`MTLShaderTranslator.cpp`). C'est la version vulkan-sdk-1.4.350.1,
+    copie identique à celle de `neo_shader_kit`, placée dans les espaces de noms `rbx_spirv_cross` et `rbx_spv` pour ne
+    jamais entrer en collision avec celle de MoltenVK.
+
+  Les options de traduction sont celles de MoltenVK : iOS, MSL 3.2, tampons de texels natifs, sorties complétées,
+  inversion de Y, correctif AGX des cubes, taille de point seulement pour les points, lecture du tampon d'image pour le
+  mélange programmable.
+
+  Contrat des emplacements, par étage :
+  - un tampon prend l'emplacement de sa liaison GLSL, une texture aussi ;
+  - un échantillonneur prend l'unité RSX ;
+  - les constantes poussées vont dans le tampon 30, avec les mêmes octets pour les deux étages ;
+  - les miroirs stencil et l'entrée de comparaison de profondeur ont des échantillonneurs inscrits dans le shader, avec
+    les mêmes états que Vulkan.
+
+  Une ressource du SPIR-V que le décompilateur n'a pas listée fait refuser la traduction : aucun emplacement automatique.
 - **Shaders, étape 2.** Un émetteur RSX → MSL direct, pour le temps de compilation ; mise en cache par les jeux de
   données de pipelines de Metal 4 (`MTL4PipelineDataSetSerializer`, archives) contre les saccades.
 - **Exactitude.** Les règles du mainteneur s'appliquent : aucune suppression d'image, aucune baisse cachée de qualité ou
@@ -99,7 +121,14 @@ sur **Metal 4** (iOS 26 au minimum, GPU Apple7 ou plus récent ; l'iPhone du mai
   - sonde Metal 4 compilée, liée et lancée.
   - **Limite constatée (run `42121690064`)** : le GPU des machines macOS de GitHub est un « Apple Paravirtual device »
     sans Metal 4 (Apple7=0, Metal4=0). La sonde s'y arrête donc sans pouvoir relire l'image.
-  - En M2, la CI compilera hors ligne, sans GPU, les shaders MSL produits par la traduction (`xcrun -sdk iphoneos metal`).
+  - Depuis M2.1, le banc `test/native/build_rpcs3_metal_shader_stack.sh` fait passer de vrais programmes RSX par toute
+    la chaîne. Il s'exécute sous Linux et dans la CI macOS. Les programmes sont encodés au format microcode RSX :
+    transformation par 4 constantes, couleur, coordonnée de texture, texture 2D et constante littérale. Le banc vérifie le
+    GLSL, le SPIR-V et chaque emplacement, puis écrit le MSL. La CI compile ensuite ce MSL pour iOS avec le compilateur
+    Metal hors ligne d'Apple (`-std=metal3.2 -target air64-apple-ios26.0 -Werror`).
+  - Le travail en cours d'une étape est appliqué par la CI au-dessus du Core canonique, au moyen de
+    `build-utils/rpcs3/metal-wip-from-901.patch` et de la copie de SPIRV-Cross de `neo_shader_kit`. Ce n'est pas un
+    Core : le Core suivant (902) l'intégrera au delta canonique, avec ses registres, avant toute IPA.
 - **iPhone** :
   - seul endroit où le comportement de Metal 4 s'exécute vraiment ;
   - IPA de test de cette branche, avec Metal choisi par jeu et Vulkan gardé pour la comparaison tant que la parité n'est
@@ -112,7 +141,7 @@ sur **Metal 4** (iOS 26 au minimum, GPU Apple7 ou plus récent ; l'iPhone du mai
 | --- | --- | --- |
 | M0 | Inventaire du backend Vulkan et de l'intégration hôte, plan | Inventaire consigné (section 6) |
 | **M1 (Core 901, cette livraison)** | Renderer Metal 4 sélectionnable par jeu (« Moteur Metal 4 natif », page de test, chiffre 18 de `levers627`) : périphérique, file, allocateurs, résidence, compilateur, présentation sur le `CAMetalLayer` du tampon d'écran lu en mémoire (conversion identique à Vulkan, rapport largeur/hauteur gardé) ; dessins, effacements et requêtes comptés, non exécutés | Compilation iOS 26 et test hôte en CI (run `42121690064`, réussis) ; exécution Metal 4 réelle : sur iPhone seulement |
-| M2 | SPIRV-Cross dans le Core, shaders et pipelines, sommets persistants et volatils, index, tous les types de dessin, états de profondeur, gabarit et mélange | Shaders RSX compilés par Metal en CI, scènes synthétiques comparées |
+| M2 (en cours) | M2.1, écrite : SPIRV-Cross dans le Core, décompilateurs Metal, traduction en MSL et contrat des emplacements. M2.2 : pipelines (clé, mélange, profondeur, gabarit), anneaux de sommets persistants et volatils, paramètres de dessin, contextes, constantes, index, tous les types de dessin | M2.1 : banc hôte (Linux, réussi) et compilation iOS du MSL en CI ; M2.2 : scènes synthétiques comparées |
 | M3 | Cibles de rendu et cache de textures (traits Metal), envois, formats, copies, relectures, cohérence (barrières, labels, sémaphores) | Scènes texturées comparées, relectures exactes |
 | M4 | ZCULL et requêtes exactes, rendu conditionnel, MSAA et résolution, calculs de conversion, incrustations natives | Comptes de visibilité comparés, interface native |
 | M5 | Parité sur jeux (BO2, Assassin's Creed, God of War III), cache de pipelines Metal 4, retrait de Vulkan et de MoltenVK du Core | Mesures iPhone, comparaison au Core Vulkan |

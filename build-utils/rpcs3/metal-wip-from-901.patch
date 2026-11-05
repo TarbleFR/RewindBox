@@ -1,0 +1,2087 @@
+diff --git a/3rdparty/CMakeLists.txt b/3rdparty/CMakeLists.txt
+index 220c538..f834188 100644
+--- a/3rdparty/CMakeLists.txt
++++ b/3rdparty/CMakeLists.txt
+@@ -106,6 +106,11 @@ endif()
+ # glslang
+ add_subdirectory(glslang EXCLUDE_FROM_ALL)
+ 
++# REWINDBOX_METAL_NATIVE (M2): SPIRV-Cross (SPIR-V -> MSL) for the native Metal 4 renderer, iOS only
++if(RPCS3_IOS_FRONTEND)
++	add_subdirectory(rewindbox-spirv-cross EXCLUDE_FROM_ALL)
++endif()
++
+ # yaml-cpp
+ add_subdirectory(yaml-cpp)
+ 
+@@ -478,6 +483,9 @@ add_library(3rdparty::7zip ALIAS 3rdparty_7zip)
+ add_library(3rdparty::protobuf ALIAS 3rdparty_protobuf)
+ add_library(3rdparty::pugixml ALIAS pugixml)
+ add_library(3rdparty::glslang ALIAS 3rdparty_glslang)
++if(RPCS3_IOS_FRONTEND)
++	add_library(3rdparty::rewindbox_spirv_cross ALIAS rewindbox_spirv_cross)
++endif()
+ add_library(3rdparty::yaml-cpp ALIAS yaml-cpp)
+ add_library(3rdparty::hidapi ALIAS 3rdparty_hidapi)
+ add_library(3rdparty::libpng ALIAS ${LIBPNG_TARGET})
+diff --git a/3rdparty/rewindbox-spirv-cross/CMakeLists.txt b/3rdparty/rewindbox-spirv-cross/CMakeLists.txt
+new file mode 100644
+index 0000000..53c34d1
+--- /dev/null
++++ b/3rdparty/rewindbox-spirv-cross/CMakeLists.txt
+@@ -0,0 +1,25 @@
++# REWINDBOX_METAL_NATIVE (M2): SPIRV-Cross (SPIR-V -> Metal Shading Language) for the native Metal 4 renderer.
++# SPIRV-Cross vulkan-sdk-1.4.350.1 (commit 1a6169566c73d3da552748fc372fe2bbb856e46e, Apache-2.0), files unchanged
++# (SOURCE.txt lists their SHA-256). Namespaced as rbx_spirv_cross / rbx_spv so it never collides with the copy
++# MoltenVK carries. SPIRV-Cross reports errors with exceptions: this library and its one caller
++# (rpcs3/Emu/RSX/Metal/MTLShaderTranslator.cpp) are the only Metal sources built with -fexceptions.
++
++add_library(rewindbox_spirv_cross STATIC
++	spirv_cfg.cpp
++	spirv_cross.cpp
++	spirv_cross_parsed_ir.cpp
++	spirv_glsl.cpp
++	spirv_msl.cpp
++	spirv_parser.cpp
++)
++
++target_include_directories(rewindbox_spirv_cross SYSTEM PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
++target_compile_definitions(rewindbox_spirv_cross PUBLIC
++	SPIRV_CROSS_NAMESPACE_OVERRIDE=rbx_spirv_cross
++	SPIRV_CROSS_SPV_HEADER_NAMESPACE_OVERRIDE=rbx_spv
++)
++target_compile_options(rewindbox_spirv_cross PRIVATE -fexceptions -w)
++set_target_properties(rewindbox_spirv_cross PROPERTIES
++	CXX_STANDARD 20
++	CXX_STANDARD_REQUIRED ON
++)
+diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
+index f907ea4..c49d9bf 100644
+--- a/rpcs3/Emu/CMakeLists.txt
++++ b/rpcs3/Emu/CMakeLists.txt
+@@ -879,20 +879,35 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
+     )
+ 
+     # REWINDBOX_METAL_NATIVE: the native Metal 4 renderer. Its Metal calls live in MTLAPIApple.mm (ARC).
++    # M2: RSX programs -> Vulkan-flavoured GLSL (MTL*Program.cpp) -> SPIR-V (glslang) -> MSL (SPIRV-Cross).
+     target_sources(rpcs3_emu PRIVATE
+         RSX/Metal/MTLAPI.h
+         RSX/Metal/MTLAPIApple.mm
++        RSX/Metal/MTLCommonDecompiler.cpp
++        RSX/Metal/MTLCommonDecompiler.h
++        RSX/Metal/MTLFragmentProgram.cpp
++        RSX/Metal/MTLFragmentProgram.h
+         RSX/Metal/MTLGSRender.cpp
+         RSX/Metal/MTLGSRender.h
++        RSX/Metal/MTLShaderTranslator.cpp
++        RSX/Metal/MTLShaderTranslator.h
++        RSX/Metal/MTLVertexProgram.cpp
++        RSX/Metal/MTLVertexProgram.h
+     )
+     set_source_files_properties(RSX/Metal/MTLAPIApple.mm PROPERTIES
+         COMPILE_OPTIONS -fobjc-arc
+         SKIP_PRECOMPILE_HEADERS ON
+     )
++    # SPIRV-Cross throws on malformed input; the translator catches everything it throws.
++    set_source_files_properties(RSX/Metal/MTLShaderTranslator.cpp PROPERTIES
++        COMPILE_OPTIONS -fexceptions
++        SKIP_PRECOMPILE_HEADERS ON
++    )
+     target_link_libraries(rpcs3_emu PUBLIC
+         "-framework Metal"
+         "-framework QuartzCore"
+     )
++    target_link_libraries(rpcs3_emu PRIVATE 3rdparty::rewindbox_spirv_cross)
+ endif()
+ 
+ if(APPLE)
+diff --git a/rpcs3/Emu/RSX/Metal/MTLCommonDecompiler.cpp b/rpcs3/Emu/RSX/Metal/MTLCommonDecompiler.cpp
+new file mode 100644
+index 0000000..4d918d2
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLCommonDecompiler.cpp
+@@ -0,0 +1,74 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#include "stdafx.h"
++#include "MTLCommonDecompiler.h"
++
++#include <array>
++#include <cctype>
++#include <cstdlib>
++#include <utility>
++
++namespace mtl
++{
++	// The same varying locations as the Vulkan decompilers (VKCommonDecompiler.cpp), so vertex and fragment
++	// programs translated separately still link by location.
++	static constexpr std::array<std::pair<std::string_view, int>, 17> varying_registers =
++	{ {
++		{ "tc0", 0 },
++		{ "tc1", 1 },
++		{ "tc2", 2 },
++		{ "tc3", 3 },
++		{ "tc4", 4 },
++		{ "tc5", 5 },
++		{ "tc6", 6 },
++		{ "tc7", 7 },
++		{ "tc8", 8 },
++		{ "tc9", 9 },
++		{ "diff_color", 10 },
++		{ "diff_color1", 11 },
++		{ "spec_color", 12 },
++		{ "spec_color1", 13 },
++		{ "fog_c", 14 },
++		{ "fogc", 14 },
++		{ "usr", 15 },
++	} };
++
++	int get_varying_register_location(std::string_view varying_register_name)
++	{
++		for (const auto& varying_register : varying_registers)
++		{
++			if (varying_register.first == varying_register_name)
++			{
++				return varying_register.second;
++			}
++		}
++
++		fmt::throw_exception("Unknown register name: %s", varying_register_name);
++	}
++
++	int get_texture_index(std::string_view name)
++	{
++		if (name.length() < 2)
++		{
++			fmt::throw_exception("Invalid texture name: '%s'", name);
++		}
++
++		constexpr int max_index_length = 2;
++		const int name_length = static_cast<int>(name.length());
++		std::string index;
++
++		for (int char_idx = name_length - max_index_length; char_idx < name_length; ++char_idx)
++		{
++			if (std::isdigit(static_cast<unsigned char>(name[char_idx])))
++			{
++				index += name[char_idx];
++			}
++		}
++
++		if (index.empty())
++		{
++			fmt::throw_exception("Invalid texture name: '%s'", name);
++		}
++
++		return std::atoi(index.c_str());
++	}
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLCommonDecompiler.h b/rpcs3/Emu/RSX/Metal/MTLCommonDecompiler.h
+new file mode 100644
+index 0000000..96aa7e8
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLCommonDecompiler.h
+@@ -0,0 +1,78 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE (M2): what the Metal decompilers declare for each translated RSX program.
++//
++// The Metal renderer reuses RPCS3's Vulkan-flavoured GLSL generation (the same text MoltenVK translates for
++// the Vulkan renderer today), compiles it to SPIR-V with glslang and translates the SPIR-V to MSL with
++// SPIRV-Cross. Nothing here depends on a Vulkan device or on Vulkan headers: the device facts the Vulkan
++// decompilers query are a capability record filled from the Metal device.
++
++#include "Emu/RSX/Program/GLSLTypes.h"
++#include "util/types.hpp"
++
++#include <string>
++#include <string_view>
++#include <vector>
++
++namespace mtl
++{
++	namespace glsl
++	{
++		enum program_input_type : u32
++		{
++			input_type_uniform_buffer = 0,
++			input_type_texel_buffer,
++			input_type_texture,
++			input_type_storage_buffer,
++			input_type_push_constant,
++			input_type_attachment,
++
++			input_type_undefined = 0xffff'ffff
++		};
++
++		// Descriptor set numbers written in the generated GLSL ("set=0" vertex, "set=1" fragment).
++		enum binding_set_index : u32
++		{
++			binding_set_index_vertex = 0,
++			binding_set_index_fragment = 1,
++		};
++
++		struct program_input
++		{
++			::glsl::program_domain domain = ::glsl::glsl_invalid_program;
++			program_input_type type = input_type_undefined;
++			u32 set = 0;
++			u32 location = umax;
++			std::string name = "undefined";
++
++			// input_type_push_constant only: the byte range of the push constant block this stage declares.
++			u32 push_constant_offset = 0;
++			u32 push_constant_size = 0;
++
++			static program_input make(::glsl::program_domain domain, std::string name, program_input_type type, u32 set, u32 location)
++			{
++				program_input result{};
++				result.domain = domain;
++				result.type = type;
++				result.set = set;
++				result.location = location;
++				result.name = std::move(name);
++				return result;
++			}
++		};
++	}
++
++	// The device facts the RSX decompilers depend on, for the Metal device in use.
++	struct shader_device_caps
++	{
++		bool has_native_half_support = false;       // float16 arithmetic (Apple GPUs: yes; used only at low shader precision, as on Vulkan)
++		bool emulate_depth_compare = true;          // no D24S8: depth surfaces are D32F(+S8), shadow compares emulated as on MoltenVK
++		bool emulate_conditional_rendering = false; // conditional rendering resolved on the CPU, as on MoltenVK
++		bool allow_float64 = false;                 // Metal shading language has no double precision
++		bool low_precision_rounding = false;        // NVIDIA-only workaround
++	};
++
++	int get_varying_register_location(std::string_view varying_register_name);
++	int get_texture_index(std::string_view name);
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp b/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp
+new file mode 100644
+index 0000000..97bd271
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp
+@@ -0,0 +1,654 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M2): RSX fragment program decompiler for the native Metal 4 renderer.
++// The generated GLSL follows VKFragmentProgram.cpp line for line; only the device queries differ.
++
++#include "stdafx.h"
++#include "MTLFragmentProgram.h"
++
++#include "Emu/RSX/Program/GLSLCommon.h"
++#include "Emu/RSX/Program/SPIRVCommon.h"
++#include "Emu/system_config.h"
++
++std::string MTLFragmentDecompilerThread::getFloatTypeName(usz elementCount)
++{
++	return glsl::getFloatTypeNameImpl(elementCount);
++}
++
++std::string MTLFragmentDecompilerThread::getHalfTypeName(usz elementCount)
++{
++	return glsl::getHalfTypeNameImpl(elementCount);
++}
++
++std::string MTLFragmentDecompilerThread::getFunction(FUNCTION f)
++{
++	return glsl::getFunctionImpl(f);
++}
++
++std::string MTLFragmentDecompilerThread::compareFunction(COMPARE f, std::string_view Op0, std::string_view Op1)
++{
++	return glsl::compareFunctionImpl(f, Op0, Op1);
++}
++
++void MTLFragmentDecompilerThread::prepareBindingTable()
++{
++	// First check if we have constants and textures as those need extra work
++	bool has_textures = false;
++	for (const ParamType& PT : m_parr.params[PF_PARAM_UNIFORM])
++	{
++		if (PT.type.starts_with("sampler"))
++		{
++			has_textures = true;
++			break;
++		}
++	}
++
++	unsigned location = 0; // All bindings must be set from this var
++	mtl_prog->binding_table.context_buffer_location = location++;
++	if (!properties.constant_offsets.empty())
++	{
++		mtl_prog->binding_table.cbuf_location = location++;
++	}
++
++	mtl_prog->binding_table.tex_param_location = location++;
++	mtl_prog->binding_table.polygon_stipple_params_location = location++;
++
++	std::memset(mtl_prog->binding_table.ftex_location, 0xff, sizeof(mtl_prog->binding_table.ftex_location));
++	std::memset(mtl_prog->binding_table.ftex_stencil_location, 0xff, sizeof(mtl_prog->binding_table.ftex_stencil_location));
++
++	if (has_textures) [[ likely ]]
++	{
++		for (const ParamType& PT : m_parr.params[PF_PARAM_UNIFORM])
++		{
++			if (!PT.type.starts_with("sampler"))
++			{
++				continue;
++			}
++
++			for (const ParamItem& PI : PT.items)
++			{
++				const auto texture_id = mtl::get_texture_index(PI.name);
++				const auto mask = 1u << texture_id;
++
++				// Allocate real binding
++				mtl_prog->binding_table.ftex_location[texture_id] = location++;
++
++				// Tag the stencil mirror if required
++				if (properties.redirected_sampler_mask & mask) [[ unlikely ]]
++				{
++					mtl_prog->binding_table.ftex_stencil_location[texture_id] = 0;
++				}
++			}
++
++			// Normalize stencil offsets
++			if (properties.redirected_sampler_mask != 0) [[ unlikely ]]
++			{
++				for (auto& stencil_location : mtl_prog->binding_table.ftex_stencil_location)
++				{
++					if (stencil_location != 0)
++					{
++						continue;
++					}
++
++					stencil_location = location++;
++				}
++			}
++		}
++	}
++
++	if (m_prog.ctrl & RSX_SHADER_CONTROL_EMULATE_DEPTH_COMPARE)
++	{
++		mtl_prog->binding_table.frag_depth_input_location = location++;
++	}
++
++	std::memset(mtl_prog->binding_table.frag_src_location, 0xff, sizeof(mtl_prog->binding_table.frag_src_location));
++	if (m_prog.ctrl & RSX_SHADER_CONTROL_PROGRAMMABLE_BLENDING)
++	{
++		for (u32 i = 0; i < m_prog.mrt_buffers_count; ++i)
++		{
++			mtl_prog->binding_table.frag_src_location[i] = location++;
++		}
++	}
++}
++
++void MTLFragmentDecompilerThread::insertHeader(std::stringstream & OS)
++{
++	prepareBindingTable();
++
++	std::vector<const char*> required_extensions =
++	{
++		"GL_EXT_scalar_block_layout",
++		"GL_EXT_uniform_buffer_unsized_array"
++	};
++
++	if (device_props.has_native_half_support)
++	{
++		required_extensions.emplace_back("GL_EXT_shader_explicit_arithmetic_types_float16");
++	}
++
++	if (properties.multisampled_sampler_mask)
++	{
++		required_extensions.emplace_back("GL_ARB_shader_texture_image_samples");
++	}
++
++	if (m_prog.ctrl & RSX_SHADER_CONTROL_ATTRIBUTE_INTERPOLATION)
++	{
++		required_extensions.emplace_back("GL_EXT_fragment_shader_barycentric");
++	}
++
++	OS << "#version 450\n";
++	for (const auto ext : required_extensions)
++	{
++		OS << "#extension " << ext << ": require\n";
++	}
++
++	OS << "#extension GL_ARB_separate_shader_objects: enable\n\n";
++
++	glsl::insert_subheader_block(OS);
++}
++
++void MTLFragmentDecompilerThread::insertInputs(std::stringstream & OS)
++{
++	glsl::insert_fragment_shader_inputs_block(
++		OS,
++		glsl::extension_flavour::EXT,
++		m_prog,
++		m_parr.params[PF_PARAM_IN],
++		{
++			.two_sided_color = !!(properties.in_register_mask & in_diff_color),
++			.two_sided_specular = !!(properties.in_register_mask & in_spec_color)
++		},
++		mtl::get_varying_register_location
++	);
++}
++
++void MTLFragmentDecompilerThread::insertOutputs(std::stringstream & OS)
++{
++	const std::pair<std::string, std::string> table[] =
++	{
++		{ "ocol0", m_prog.ctrl & CELL_GCM_SHADER_CONTROL_32_BITS_EXPORTS ? "r0" : "h0" },
++		{ "ocol1", m_prog.ctrl & CELL_GCM_SHADER_CONTROL_32_BITS_EXPORTS ? "r2" : "h4" },
++		{ "ocol2", m_prog.ctrl & CELL_GCM_SHADER_CONTROL_32_BITS_EXPORTS ? "r3" : "h6" },
++		{ "ocol3", m_prog.ctrl & CELL_GCM_SHADER_CONTROL_32_BITS_EXPORTS ? "r4" : "h8" },
++	};
++
++	// NOTE: We do not skip outputs, the only possible combinations are a(0), b(0), ab(0,1), abc(0,1,2), abcd(0,1,2,3)
++	u8 output_index = 0;
++	const bool float_type = (m_prog.ctrl & CELL_GCM_SHADER_CONTROL_32_BITS_EXPORTS) || !device_props.has_native_half_support;
++	const auto reg_type = float_type ? "vec4" : getHalfTypeName(4);
++	for (uint i = 0; i < std::size(table); ++i)
++	{
++		if (!m_parr.HasParam(PF_PARAM_NONE, reg_type, table[i].second))
++		{
++			continue;
++		}
++
++		if (i >= m_prog.mrt_buffers_count)
++		{
++			// Dead writes. Declare as temp variables for DCE to clean up.
++			OS << "vec4 " << table[i].first << "; // Unused\n";
++			mtl_prog->output_color_masks[i] = 0;
++			continue;
++		}
++
++		OS << "layout(location=" << std::to_string(output_index++) << ") " << "out vec4 " << table[i].first << ";\n";
++		mtl_prog->output_color_masks[i] = -1;
++	}
++}
++
++void MTLFragmentDecompilerThread::insertConstants(std::stringstream & OS)
++{
++	// Fixed inputs from shader decompilation process
++	for (const ParamType& PT : m_parr.params[PF_PARAM_UNIFORM])
++	{
++		if (!PT.type.starts_with("sampler"))
++		{
++			continue;
++		}
++
++		for (const ParamItem& PI : PT.items)
++		{
++			std::string samplerType = PT.type;
++
++			const int index = mtl::get_texture_index(PI.name);
++			const auto mask = (1 << index);
++
++			if (properties.multisampled_sampler_mask & mask)
++			{
++				if (samplerType != "sampler1D" && samplerType != "sampler2D")
++				{
++					rsx_log.error("Unexpected multisampled image type '%s'", samplerType);
++				}
++
++				samplerType = "sampler2DMS";
++			}
++			else if (properties.shadow_sampler_mask & mask)
++			{
++				if (properties.common_access_sampler_mask & mask)
++				{
++					rsx_log.error("Texture unit %d is sampled as both a shadow texture and a depth texture", index);
++				}
++				else
++				{
++					samplerType += "Shadow";
++				}
++			}
++
++			const int id = mtl::get_texture_index(PI.name);
++			auto in = mtl::glsl::program_input::make(
++				glsl::glsl_fragment_program,
++				PI.name,
++				mtl::glsl::input_type_texture,
++				mtl::glsl::binding_set_index_fragment,
++				mtl_prog->binding_table.ftex_location[id]
++			);
++			inputs.push_back(in);
++
++			OS << "layout(set=1, binding=" << in.location << ") uniform " << samplerType << " " << PI.name << ";\n";
++
++			if (properties.redirected_sampler_mask & mask)
++			{
++				// Insert stencil mirror declaration
++				in.name += "_stencil";
++				in.location = mtl_prog->binding_table.ftex_stencil_location[id];
++				inputs.push_back(in);
++
++				OS << "layout(set=1, binding=" << in.location << ") uniform u" << samplerType << " " << in.name << ";\n";
++			}
++		}
++	}
++
++	if (m_prog.ctrl & RSX_SHADER_CONTROL_EMULATE_DEPTH_COMPARE)
++	{
++		const auto frag_depth_type = (m_prog.ctrl & RSX_SHADER_CONTROL_ROP_MULTISAMPLED)
++			? "sampler2DMS"
++			: "sampler2D";
++
++		OS << "layout(set=" << mtl::glsl::binding_set_index_fragment << ", binding=" << mtl_prog->binding_table.frag_depth_input_location << ") uniform " << frag_depth_type << " frag_depth;\n";
++
++		inputs.push_back(mtl::glsl::program_input::make(
++			glsl::glsl_fragment_program,
++			"frag_depth",
++			mtl::glsl::input_type_texture,
++			mtl::glsl::binding_set_index_fragment,
++			mtl_prog->binding_table.frag_depth_input_location
++		));
++	}
++
++	if (m_prog.ctrl & RSX_SHADER_CONTROL_PROGRAMMABLE_BLENDING)
++	{
++		const std::string_view att_type = (m_prog.ctrl & RSX_SHADER_CONTROL_ROP_MULTISAMPLED)
++			? "subpassInputMS"sv
++			: "subpassInput"sv;
++
++		for (u32 i = 0; i < m_prog.mrt_buffers_count; ++i)
++		{
++			OS << "layout(input_attachment_index= " << i << ", set=" << mtl::glsl::binding_set_index_fragment << ", binding=" << mtl_prog->binding_table.frag_src_location[i] << ") uniform " << att_type << " frag_src_" << i << ";\n";
++
++			inputs.push_back(mtl::glsl::program_input::make(
++				glsl::glsl_fragment_program,
++				fmt::format("frag_src_%u", i),
++				mtl::glsl::input_type_attachment,
++				mtl::glsl::binding_set_index_fragment,
++				mtl_prog->binding_table.frag_src_location[i]
++			));
++		}
++	}
++
++	// Draw params are always provided by vertex program. Instead of pointer chasing, they're provided as varyings.
++	if (!(m_prog.ctrl & RSX_SHADER_CONTROL_INTERPRETER_MODEL))
++	{
++		OS <<
++			"layout(location=" << mtl::get_varying_register_location("usr") << ") in flat uvec4 draw_params_payload;\n\n";
++	}
++
++	OS <<
++		"#define _fs_constants_offset draw_params_payload.x\n"
++		"#define _fs_context_offset draw_params_payload.y\n"
++		"#define _fs_texture_base_index draw_params_payload.z\n"
++		"#define _fs_stipple_pattern_array_offset draw_params_payload.w\n\n";
++
++	if (!properties.constant_offsets.empty())
++	{
++		OS << "layout(std430, set=1, binding=" << mtl_prog->binding_table.cbuf_location << ") uniform FragmentConstantsBuffer\n";
++		OS << "{\n";
++		OS << "	vec4 fc[];\n";
++		OS << "};\n";
++		OS << "#define _fetch_constant(x) fc[x + _fs_constants_offset]\n\n";
++	}
++
++	OS <<
++		"layout(std430, set=1, binding=" << mtl_prog->binding_table.context_buffer_location << ") uniform FragmentStateBuffer\n"
++		"{\n"
++		"	fragment_context_t fs_contexts[];\n"
++		"};\n\n";
++
++	OS << "layout(std430, set=1, binding=" << mtl_prog->binding_table.tex_param_location << ") uniform TextureParametersBuffer\n";
++	OS << "{\n";
++	OS << "	sampler_info texture_parameters[];\n";
++	OS << "};\n\n";
++
++	OS << "layout(std430, set=1, binding=" << mtl_prog->binding_table.polygon_stipple_params_location << ") readonly buffer RasterizerHeap\n";
++	OS << "{\n";
++	OS << "	uvec4 stipple_pattern[];\n";
++	OS << "};\n\n";
++
++	if (m_prog.ctrl & RSX_SHADER_CONTROL_PROGRAMMABLE_BLENDING)
++	{
++		OS <<
++			"layout(push_constant) uniform push_constants_block\n"
++			"{\n"
++			"	layout(offset = 4) uint blend_eqn;\n"
++			"	uint blend_sfactors;\n"
++			"	uint blend_dfactors;\n"
++			"	vec4 blend_constants;\n"
++			"};\n\n";
++
++		auto push_constants = mtl::glsl::program_input::make(glsl::glsl_fragment_program, "push_constants_block",
++			mtl::glsl::input_type_push_constant, mtl::glsl::binding_set_index_fragment, umax);
++		push_constants.push_constant_offset = 4;
++		push_constants.push_constant_size = 28;
++		inputs.push_back(std::move(push_constants));
++	}
++
++	if (!properties.constant_offsets.empty())
++	{
++		inputs.push_back(mtl::glsl::program_input::make(glsl::glsl_fragment_program, "FragmentConstantsBuffer",
++			mtl::glsl::input_type_uniform_buffer, mtl::glsl::binding_set_index_fragment, mtl_prog->binding_table.cbuf_location));
++	}
++
++	inputs.push_back(mtl::glsl::program_input::make(glsl::glsl_fragment_program, "FragmentStateBuffer",
++		mtl::glsl::input_type_uniform_buffer, mtl::glsl::binding_set_index_fragment, mtl_prog->binding_table.context_buffer_location));
++
++	inputs.push_back(mtl::glsl::program_input::make(glsl::glsl_fragment_program, "TextureParametersBuffer",
++		mtl::glsl::input_type_uniform_buffer, mtl::glsl::binding_set_index_fragment, mtl_prog->binding_table.tex_param_location));
++
++	inputs.push_back(mtl::glsl::program_input::make(glsl::glsl_fragment_program, "RasterizerHeap",
++		mtl::glsl::input_type_storage_buffer, mtl::glsl::binding_set_index_fragment, mtl_prog->binding_table.polygon_stipple_params_location));
++}
++
++void MTLFragmentDecompilerThread::insertGlobalFunctions(std::stringstream &OS)
++{
++	m_shader_props.domain = glsl::glsl_fragment_program;
++	m_shader_props.require_lit_emulation = properties.has_lit_op;
++	m_shader_props.fp32_outputs = !!(m_prog.ctrl & CELL_GCM_SHADER_CONTROL_32_BITS_EXPORTS);
++	m_shader_props.require_depth_conversion = properties.redirected_sampler_mask != 0;
++	m_shader_props.require_wpos = !!(properties.in_register_mask & in_wpos);
++	m_shader_props.require_texture_ops = properties.has_tex_op;
++	m_shader_props.require_tex_shadow_ops = properties.shadow_sampler_mask != 0;
++	m_shader_props.require_msaa_ops = m_prog.texture_state.multisampled_textures != 0;
++	m_shader_props.require_texture_expand = properties.has_exp_tex_op;
++	m_shader_props.require_srgb_to_linear = properties.has_upg;
++	m_shader_props.require_linear_to_srgb = properties.has_pkg;
++	m_shader_props.require_fog_read = properties.in_register_mask & in_fogc;
++	m_shader_props.emulate_shadow_compare = device_props.emulate_depth_compare;
++
++	m_shader_props.low_precision_tests = device_props.has_low_precision_rounding && !(m_prog.ctrl & RSX_SHADER_CONTROL_ATTRIBUTE_INTERPOLATION);
++	// Vulkan: !vk::is_NVIDIA(vendor). Apple GPUs are not NVIDIA.
++	m_shader_props.disable_early_discard = !m_caps.low_precision_rounding;
++	m_shader_props.supports_native_fp16 = device_props.has_native_half_support;
++
++	m_shader_props.ROP_output_rounding = (g_cfg.video.shader_precision != gpu_preset_level::low) && !!(m_prog.ctrl & RSX_SHADER_CONTROL_8BIT_FRAMEBUFFER);
++	m_shader_props.ROP_sRGB_packing = !!(m_prog.ctrl & RSX_SHADER_CONTROL_SRGB_FRAMEBUFFER);
++	m_shader_props.ROP_alpha_test = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ALPHA_TEST);
++	m_shader_props.ROP_alpha_to_coverage_test = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ALPHA_TO_COVERAGE);
++	m_shader_props.ROP_alpha_to_one = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ALPHA_TO_ONE);
++	m_shader_props.ROP_polygon_stipple_test = !!(m_prog.ctrl & RSX_SHADER_CONTROL_POLYGON_STIPPLE);
++	m_shader_props.ROP_discard = !!(m_prog.ctrl & RSX_SHADER_CONTROL_USES_KIL);
++	m_shader_props.ROP_channel_remap = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ROP_OUTPUT_REMAP);
++	m_shader_props.ROP_programmable_blend = !!(m_prog.ctrl & RSX_SHADER_CONTROL_PROGRAMMABLE_BLENDING);
++
++	m_shader_props.require_tex1D_ops = properties.has_tex1D;
++	m_shader_props.require_tex2D_ops = properties.has_tex2D;
++	m_shader_props.require_tex3D_ops = properties.has_tex3D;
++	m_shader_props.require_shadowProj_ops = properties.shadow_sampler_mask != 0 && properties.has_texShadowProj;
++	m_shader_props.require_alpha_kill = !!(m_prog.ctrl & RSX_SHADER_CONTROL_TEXTURE_ALPHA_KILL);
++	m_shader_props.require_color_format_convert = !!(m_prog.ctrl & RSX_SHADER_CONTROL_TEXTURE_FORMAT_CONVERT);
++	m_shader_props.emulate_depth_compare = !!(m_prog.ctrl & RSX_SHADER_CONTROL_EMULATE_DEPTH_COMPARE);
++	m_shader_props.ROP_output_multisampled = !!(m_prog.ctrl & RSX_SHADER_CONTROL_ROP_MULTISAMPLED);
++
++	// Declare global constants
++	if (m_shader_props.require_fog_read)
++	{
++		OS <<
++			"#define fog_param0 fs_contexts[_fs_context_offset].fog_param0\n"
++			"#define fog_param1 fs_contexts[_fs_context_offset].fog_param1\n"
++			"#define fog_mode fs_contexts[_fs_context_offset].fog_mode\n\n";
++	}
++
++	if (m_shader_props.require_wpos)
++	{
++		OS <<
++			"#define wpos_scale fs_contexts[_fs_context_offset].wpos_scale\n"
++			"#define wpos_bias fs_contexts[_fs_context_offset].wpos_bias\n\n";
++	}
++
++	OS <<
++		"#define texture_base_index _fs_texture_base_index\n"
++		"#define TEX_PARAM(index) texture_parameters_##index\n\n";
++
++	glsl::insert_glsl_legacy_function(OS, m_shader_props);
++}
++
++void MTLFragmentDecompilerThread::insertMainStart(std::stringstream & OS)
++{
++	std::set<std::string> output_registers;
++	if (m_prog.ctrl & CELL_GCM_SHADER_CONTROL_32_BITS_EXPORTS)
++	{
++		output_registers = { "r0", "r2", "r3", "r4" };
++	}
++	else
++	{
++		output_registers = { "h0", "h4", "h6", "h8" };
++	}
++
++	if (m_prog.ctrl & CELL_GCM_SHADER_CONTROL_DEPTH_EXPORT)
++	{
++		output_registers.insert("r1");
++	}
++
++	std::string registers;
++	std::string reg_type;
++	const auto half4 = getHalfTypeName(4);
++	for (auto &reg_name : output_registers)
++	{
++		const auto type = (reg_name[0] == 'r' || !device_props.has_native_half_support)? "vec4" : half4;
++		if (reg_type == type) [[likely]]
++		{
++			registers += ", " + reg_name + " = " + type + "(0.)";
++		}
++		else
++		{
++			if (!registers.empty())
++				registers += ";\n";
++
++			registers += type + " " + reg_name + " = " + type + "(0.)";
++		}
++
++		reg_type = type;
++	}
++
++	if (!registers.empty())
++	{
++		OS << registers << ";\n";
++	}
++
++	OS << "void fs_main()\n";
++	OS << "{\n";
++
++	for (const ParamType& PT : m_parr.params[PF_PARAM_NONE])
++	{
++		for (const ParamItem& PI : PT.items)
++		{
++			if (output_registers.find(PI.name) != output_registers.end())
++				continue;
++
++			OS << "	" << PT.type << " " << PI.name;
++			if (!PI.value.empty())
++				OS << " = " << PI.value;
++
++			OS << ";\n";
++		}
++	}
++
++	if (properties.has_w_access)
++		OS << "	float in_w = (1. / gl_FragCoord.w);\n";
++
++	if (properties.in_register_mask & in_ssa)
++		OS << "	vec4 ssa = gl_FrontFacing ? vec4(1.) : vec4(-1.);\n";
++
++	if (properties.in_register_mask & in_wpos)
++		OS << "	vec4 wpos = get_wpos();\n";
++
++	if (properties.in_register_mask & in_fogc)
++		OS << "	vec4 fogc = fetch_fog_value(fog_mode);\n";
++
++	if (m_prog.two_sided_lighting)
++	{
++		if (properties.in_register_mask & in_diff_color)
++			OS << "	vec4 diff_color = gl_FrontFacing ? diff_color0 : diff_color1;\n";
++
++		if (properties.in_register_mask & in_spec_color)
++			OS << "	vec4 spec_color = gl_FrontFacing ? spec_color0 : spec_color1;\n";
++	}
++
++	for (u16 i = 0, mask = (properties.common_access_sampler_mask | properties.shadow_sampler_mask); mask != 0; ++i, mask >>= 1)
++	{
++		if (!(mask & 1))
++		{
++			continue;
++		}
++
++		OS << "	const sampler_info texture_parameters_" << i << " = texture_parameters[texture_base_index + " << i << "];\n";
++	}
++}
++
++void MTLFragmentDecompilerThread::insertMainEnd(std::stringstream & OS)
++{
++	OS << "}\n\n";
++
++	OS << "void main()\n";
++	OS << "{\n";
++
++	constexpr u32 ROP_control_access_options =
++		RSX_SHADER_CONTROL_ALPHA_TEST |
++		RSX_SHADER_CONTROL_EMULATE_DEPTH_COMPARE |
++		RSX_SHADER_CONTROL_ROP_OUTPUT_REMAP |
++		RSX_SHADER_CONTROL_PROGRAMMABLE_BLENDING;
++
++	if (m_prog.ctrl & ROP_control_access_options)
++	{
++		OS << "	const uint rop_control = fs_contexts[_fs_context_offset].rop_control;\n";
++
++		if (m_prog.ctrl & RSX_SHADER_CONTROL_ALPHA_TEST)
++		{
++			OS << "	const float alpha_ref = fs_contexts[_fs_context_offset].alpha_ref;\n";
++		}
++
++		OS << "\n";
++	}
++
++	::glsl::insert_rop_init(OS, m_prog.mrt_buffers_count);
++
++	OS << "\n" << "	fs_main();\n\n";
++
++	if (m_prog.ctrl & RSX_SHADER_CONTROL_DISABLE_EARLY_Z)
++	{
++		// This is effectively unreachable code, but good enough to trick the GPU to skip early Z
++		// For vulkan, depth export has stronger semantics than discard.
++		OS <<
++			"	// Insert pseudo-barrier sequence to disable early-Z\n"
++			"	gl_FragDepth = gl_FragCoord.z;\n\n";
++	}
++
++	glsl::insert_rop(OS, m_shader_props);
++
++	if (m_prog.ctrl & CELL_GCM_SHADER_CONTROL_DEPTH_EXPORT)
++	{
++		if (m_parr.HasParam(PF_PARAM_NONE, "vec4", "r1"))
++		{
++			// NOTE: Depth writes are always from a fp32 register. See issues section on nvidia's NV_fragment_program spec
++			// https://www.khronos.org/registry/OpenGL/extensions/NV/NV_fragment_program.txt
++
++			// NOTE: Depth writes in OpenGL (and by extension RSX) are clamped to 0,1 range.
++			// Indeed, hardware tests on realhw prove that even in depth float mode, values outside this range are clamped.
++			OS << "	gl_FragDepth = _saturate(r1.z);\n";
++		}
++		else
++		{
++			//Input not declared. Leave commented to assist in debugging the shader
++			OS << "	//gl_FragDepth = r1.z;\n";
++		}
++	}
++
++	OS << "}\n";
++}
++
++void MTLFragmentDecompilerThread::Task()
++{
++	m_shader = Decompile();
++	mtl_prog->inputs = std::move(inputs);
++}
++
++namespace mtl
++{
++	void fragment_program::Decompile(const RSXFragmentProgram& prog, const shader_device_caps& caps)
++	{
++		u32 size;
++		std::string source;
++		MTLFragmentDecompilerThread decompiler(source, prog, size, *this, caps);
++
++		// The same choices as VKFragmentProgram::Decompile for this device.
++		if (g_cfg.video.shader_precision == gpu_preset_level::low)
++		{
++			decompiler.device_props.has_native_half_support = caps.has_native_half_support;
++		}
++
++		decompiler.device_props.emulate_depth_compare = caps.emulate_depth_compare;
++		decompiler.device_props.has_low_precision_rounding = caps.low_precision_rounding;
++		decompiler.Task();
++
++		constant_offsets = std::move(decompiler.properties.constant_offsets);
++		glsl_source = std::move(source);
++		spirv.clear();
++		msl.clear();
++	}
++
++	bool fragment_program::Compile()
++	{
++		if (g_cfg.video.log_programs)
++		{
++			fs::write_file(fs::get_cache_dir() + "shaderlog/MetalFragmentProgram" + std::to_string(id) + ".glsl", fs::rewrite, glsl_source);
++		}
++
++		spirv.clear();
++		std::string source = glsl_source;
++		if (!spirv::compile_glsl_to_spv(spirv, source, ::glsl::program_domain::glsl_fragment_program, ::glsl::glsl_rules_vulkan))
++		{
++			compile_error = "glslang refused the fragment program";
++			spirv.clear();
++			return false;
++		}
++
++		compile_error.clear();
++		return true;
++	}
++
++	const translation_result& fragment_program::get_msl(const fragment_variant_key& key)
++	{
++		auto [it, inserted] = msl.try_emplace(key);
++		if (inserted)
++		{
++			translation_options options{};
++			options.depth_attachment = key.depth_attachment;
++			options.stencil_attachment = key.stencil_attachment;
++			options.color_output_mask = key.color_output_mask;
++			it->second = translate_spirv_to_msl(spirv, shader_stage::fragment, inputs, options);
++			if (!it->second.ok)
++			{
++				rsx_log.error("Metal: fragment program %u was not translated to MSL: %s", id, it->second.error);
++			}
++		}
++
++		return it->second;
++	}
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.h b/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.h
+new file mode 100644
+index 0000000..6488231
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.h
+@@ -0,0 +1,107 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE (M2): RSX fragment programs for the native Metal 4 renderer.
++// The decompiler emits the same Vulkan-flavoured GLSL as VKFragmentProgram.cpp, with the device facts taken
++// from mtl::shader_device_caps. Programmable blending inputs become framebuffer fetches in MSL.
++
++#include "Emu/RSX/Program/FragmentProgramDecompiler.h"
++#include "Emu/RSX/Program/GLSLTypes.h"
++#include "MTLCommonDecompiler.h"
++#include "MTLShaderTranslator.h"
++
++#include <array>
++#include <map>
++#include <string>
++#include <vector>
++
++namespace mtl
++{
++	class fragment_program;
++}
++
++class MTLFragmentDecompilerThread : public FragmentProgramDecompiler
++{
++	std::string& m_shader;
++	std::vector<mtl::glsl::program_input> inputs;
++	mtl::fragment_program* mtl_prog;
++	glsl::shader_properties m_shader_props{};
++	const mtl::shader_device_caps& m_caps;
++
++	void prepareBindingTable();
++
++public:
++	MTLFragmentDecompilerThread(std::string& shader, const RSXFragmentProgram& prog, u32& size, mtl::fragment_program& dst,
++		const mtl::shader_device_caps& caps)
++		: FragmentProgramDecompiler(prog, size)
++		, m_shader(shader)
++		, mtl_prog(&dst)
++		, m_caps(caps)
++	{
++	}
++
++	// FragmentProgramDecompiler::device_props is filled from the capability record before this runs.
++	void Task();
++
++protected:
++	std::string getFloatTypeName(usz elementCount) override;
++	std::string getHalfTypeName(usz elementCount) override;
++	std::string getFunction(FUNCTION f) override;
++	std::string compareFunction(COMPARE f, std::string_view Op0, std::string_view Op1) override;
++
++	void insertHeader(std::stringstream& OS) override;
++	void insertInputs(std::stringstream& OS) override;
++	void insertOutputs(std::stringstream& OS) override;
++	void insertConstants(std::stringstream& OS) override;
++	void insertGlobalFunctions(std::stringstream& OS) override;
++	void insertMainStart(std::stringstream& OS) override;
++	void insertMainEnd(std::stringstream& OS) override;
++};
++
++namespace mtl
++{
++	// Fragment translations depend on the render pass the pipeline draws into.
++	struct fragment_variant_key
++	{
++		bool depth_attachment = true;
++		bool stencil_attachment = false;
++		u32 color_output_mask = 0xffffffffu;
++
++		auto operator<=>(const fragment_variant_key&) const = default;
++	};
++
++	class fragment_program
++	{
++	public:
++		ParamArray parr;
++		u32 id = 0;
++		std::vector<glsl::program_input> inputs;
++		std::vector<u32> constant_offsets;
++		std::array<u32, 4> output_color_masks{ {} };
++
++		std::string glsl_source;
++		std::vector<u32> spirv;
++		std::string compile_error;
++
++		std::map<fragment_variant_key, translation_result> msl;
++
++		struct
++		{
++			u32 context_buffer_location = umax;           // Rasterizer context
++			u32 cbuf_location = umax;                     // Constants register file
++			u32 tex_param_location = umax;                // Texture configuration data
++			u32 polygon_stipple_params_location = umax;   // Polygon stipple settings
++			u32 ftex_location[16];                        // Texture locations array
++			u32 ftex_stencil_location[16];                // Texture stencil mirror array
++			u32 frag_depth_input_location = umax;         // Fragment depth compare
++			u32 frag_src_location[4];                     // Fragment input attachment locations
++		} binding_table;
++
++		void Decompile(const RSXFragmentProgram& prog, const shader_device_caps& caps);
++
++		// GLSL -> SPIR-V (glslang). False with compile_error set when glslang refuses the source.
++		bool Compile();
++
++		const translation_result& get_msl(const fragment_variant_key& key);
++	};
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLShaderTranslator.cpp b/rpcs3/Emu/RSX/Metal/MTLShaderTranslator.cpp
+new file mode 100644
+index 0000000..9c6968d
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLShaderTranslator.cpp
+@@ -0,0 +1,337 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M2): SPIR-V -> MSL translation for the native Metal 4 renderer.
++// Built with exceptions enabled (SPIRV-Cross reports errors by throwing); no exception crosses this file.
++
++#include "MTLShaderTranslator.h"
++
++#include "Utilities/StrFmt.h"
++
++#include "spirv_msl.hpp"
++
++#include <algorithm>
++#include <exception>
++#include <string_view>
++
++namespace mtl
++{
++	namespace
++	{
++		namespace spvc = SPIRV_CROSS_NAMESPACE;
++		namespace spvh = SPIRV_CROSS_SPV_HEADER_NAMESPACE;
++
++		bool ends_with(std::string_view value, std::string_view suffix)
++		{
++			return value.size() >= suffix.size() && value.substr(value.size() - suffix.size()) == suffix;
++		}
++
++		// The stencil view of a redirected depth-stencil texture: the Vulkan renderer samples it with a nearest,
++		// clamp-to-border (integer opaque black) sampler of its own (VKDraw.cpp, m_stencil_mirror_sampler).
++		spvc::MSLConstexprSampler stencil_mirror_sampler()
++		{
++			spvc::MSLConstexprSampler sampler{};
++			sampler.coord = spvc::MSL_SAMPLER_COORD_NORMALIZED;
++			sampler.min_filter = spvc::MSL_SAMPLER_FILTER_NEAREST;
++			sampler.mag_filter = spvc::MSL_SAMPLER_FILTER_NEAREST;
++			sampler.mip_filter = spvc::MSL_SAMPLER_MIP_FILTER_NEAREST;
++			sampler.s_address = spvc::MSL_SAMPLER_ADDRESS_CLAMP_TO_BORDER;
++			sampler.t_address = spvc::MSL_SAMPLER_ADDRESS_CLAMP_TO_BORDER;
++			sampler.r_address = spvc::MSL_SAMPLER_ADDRESS_CLAMP_TO_BORDER;
++			sampler.border_color = spvc::MSL_SAMPLER_BORDER_COLOR_OPAQUE_BLACK;
++			sampler.lod_clamp_min = 0.f;
++			sampler.lod_clamp_max = 1.f;
++			sampler.lod_clamp_enable = true;
++			return sampler;
++		}
++
++		// The depth-compare input (frag_depth): the Vulkan renderer binds it with vk::null_sampler() (nearest, repeat).
++		spvc::MSLConstexprSampler depth_input_sampler()
++		{
++			spvc::MSLConstexprSampler sampler{};
++			sampler.coord = spvc::MSL_SAMPLER_COORD_NORMALIZED;
++			sampler.min_filter = spvc::MSL_SAMPLER_FILTER_NEAREST;
++			sampler.mag_filter = spvc::MSL_SAMPLER_FILTER_NEAREST;
++			sampler.mip_filter = spvc::MSL_SAMPLER_MIP_FILTER_NEAREST;
++			sampler.s_address = spvc::MSL_SAMPLER_ADDRESS_REPEAT;
++			sampler.t_address = spvc::MSL_SAMPLER_ADDRESS_REPEAT;
++			sampler.r_address = spvc::MSL_SAMPLER_ADDRESS_REPEAT;
++			return sampler;
++		}
++
++		bool is_stencil_mirror(const resource_slot& slot)
++		{
++			return slot.type == glsl::input_type_texture && ends_with(slot.name, "_stencil");
++		}
++
++		bool is_depth_input(const resource_slot& slot)
++		{
++			return slot.type == glsl::input_type_texture && slot.name == "frag_depth";
++		}
++
++		spvh::ExecutionModel model_of(shader_stage stage)
++		{
++			return stage == shader_stage::vertex ? spvh::ExecutionModelVertex : spvh::ExecutionModelFragment;
++		}
++
++		u32 set_of(shader_stage stage)
++		{
++			return stage == shader_stage::vertex ? glsl::binding_set_index_vertex : glsl::binding_set_index_fragment;
++		}
++
++		std::string describe(const resource_slot& slot)
++		{
++			return fmt::format("'%s' (set %u, binding %u)", slot.name, slot.set, slot.location);
++		}
++	}
++
++	std::vector<resource_slot> assign_slots(shader_stage stage, const std::vector<glsl::program_input>& inputs, std::string& error)
++	{
++		std::vector<resource_slot> slots;
++		slots.reserve(inputs.size());
++
++		const u32 stage_set = set_of(stage);
++		bool push_constants_seen = false;
++
++		for (const auto& input : inputs)
++		{
++			resource_slot slot{};
++			slot.set = input.set;
++			slot.location = input.location;
++			slot.type = input.type;
++			slot.name = input.name;
++
++			if (input.set != stage_set)
++			{
++				error = fmt::format("input %s is not in this stage's set %u", describe(slot), stage_set);
++				return {};
++			}
++
++			switch (input.type)
++			{
++			case glsl::input_type_push_constant:
++				if (push_constants_seen)
++				{
++					error = "more than one push constant block in one stage";
++					return {};
++				}
++				push_constants_seen = true;
++				slot.buffer = push_constant_buffer_slot;
++				break;
++			case glsl::input_type_uniform_buffer:
++			case glsl::input_type_storage_buffer:
++				if (input.location >= push_constant_buffer_slot)
++				{
++					error = fmt::format("buffer %s exceeds the %u buffer slots below the push constants", describe(slot), push_constant_buffer_slot);
++					return {};
++				}
++				slot.buffer = input.location;
++				break;
++			case glsl::input_type_texel_buffer:
++				slot.texture = input.location;
++				break;
++			case glsl::input_type_texture:
++				slot.texture = input.location;
++				if (!is_stencil_mirror(slot) && !is_depth_input(slot))
++				{
++					const int unit = get_texture_index(input.name);
++					if (unit < 0 || static_cast<u32>(unit) >= max_sampler_slots)
++					{
++						error = fmt::format("texture %s has no sampler slot (unit %d)", describe(slot), unit);
++						return {};
++					}
++					slot.sampler = static_cast<u32>(unit);
++				}
++				break;
++			case glsl::input_type_attachment:
++				// Programmable blending: framebuffer fetch of the colour attachment, nothing to bind.
++				break;
++			default:
++				error = fmt::format("input %s has no Metal mapping (type %u)", describe(slot), static_cast<u32>(input.type));
++				return {};
++			}
++
++			if (slot.texture != umax && slot.texture >= max_texture_slots)
++			{
++				error = fmt::format("texture %s exceeds %u texture slots", describe(slot), max_texture_slots);
++				return {};
++			}
++
++			for (const auto& other : slots)
++			{
++				const bool same_buffer = slot.buffer != umax && slot.buffer == other.buffer;
++				const bool same_texture = slot.texture != umax && slot.texture == other.texture;
++				if (same_buffer || same_texture)
++				{
++					error = fmt::format("inputs %s and %s share a Metal slot", describe(other), describe(slot));
++					return {};
++				}
++			}
++
++			slots.push_back(std::move(slot));
++		}
++
++		return slots;
++	}
++
++	translation_result translate_spirv_to_msl(std::span<const u32> spirv, shader_stage stage,
++		const std::vector<glsl::program_input>& inputs, const translation_options& options)
++	{
++		translation_result result{};
++		result.slots = assign_slots(stage, inputs, result.error);
++		if (!result.error.empty())
++		{
++			return result;
++		}
++
++		if (spirv.empty())
++		{
++			result.error = "empty SPIR-V";
++			return result;
++		}
++
++		const spvh::ExecutionModel model = model_of(stage);
++
++		try
++		{
++			spvc::CompilerMSL compiler(spirv.data(), spirv.size());
++
++			// The options MoltenVK uses for these shaders (MVKPipeline.mm, SPIRVToMSLConverter.cpp), Apple GPU, iOS.
++			auto msl_options = compiler.get_msl_options();
++			msl_options.platform = spvc::CompilerMSL::Options::iOS;
++			msl_options.set_msl_version(options.msl_major, options.msl_minor);
++			msl_options.pad_fragment_output_components = true;
++			msl_options.texture_buffer_native = true;
++			msl_options.swizzle_texture_samples = false;     // swizzles are texture views (native swizzle)
++			msl_options.argument_buffers = false;            // discrete slots: Metal 4 argument tables
++			msl_options.agx_manual_cube_grad_fixup = true;   // Apple GPUs
++			msl_options.ios_support_base_vertex_instance = true;
++			msl_options.texture_1D_as_2D = true;
++			msl_options.enable_point_size_builtin = options.point_primitives;
++			msl_options.enable_point_size_default = options.point_primitives;
++			msl_options.default_point_size = 1.0f;
++			msl_options.enable_frag_depth_builtin = options.depth_attachment;
++			msl_options.enable_frag_stencil_ref_builtin = options.stencil_attachment;
++			msl_options.enable_frag_output_mask = options.color_output_mask;
++			msl_options.use_framebuffer_fetch_subpasses = true;
++			msl_options.replace_recursive_inputs = true;
++			msl_options.ios_use_simdgroup_functions = true;
++			msl_options.emulate_subgroups = false;
++			compiler.set_msl_options(msl_options);
++
++			auto common_options = compiler.get_common_options();
++			common_options.vertex.flip_vert_y = (stage == shader_stage::vertex) && options.flip_vertex_y;
++			common_options.vertex.fixup_clipspace = false;
++			compiler.set_common_options(common_options);
++
++			for (const auto& slot : result.slots)
++			{
++				if (slot.type == glsl::input_type_attachment)
++				{
++					continue;
++				}
++
++				spvc::MSLResourceBinding binding{};
++				binding.stage = model;
++				binding.count = 1;
++
++				if (slot.type == glsl::input_type_push_constant)
++				{
++					binding.desc_set = spvc::kPushConstDescSet;
++					binding.binding = spvc::kPushConstBinding;
++					result.uses_push_constants = true;
++				}
++				else
++				{
++					binding.desc_set = slot.set;
++					binding.binding = slot.location;
++				}
++
++				binding.msl_buffer = slot.buffer != umax ? slot.buffer : 0;
++				binding.msl_texture = slot.texture != umax ? slot.texture : 0;
++				binding.msl_sampler = slot.sampler != umax ? slot.sampler : 0;
++				compiler.add_msl_resource_binding(binding);
++
++				if (is_stencil_mirror(slot))
++				{
++					compiler.remap_constexpr_sampler_by_binding(slot.set, slot.location, stencil_mirror_sampler());
++				}
++				else if (is_depth_input(slot))
++				{
++					compiler.remap_constexpr_sampler_by_binding(slot.set, slot.location, depth_input_sampler());
++				}
++			}
++
++			// Every resource of the SPIR-V must have been listed by the decompiler.
++			const spvc::ShaderResources resources = compiler.get_shader_resources();
++			auto require_listed = [&](const spvc::SmallVector<spvc::Resource>& list, const char* kind)
++			{
++				for (const auto& resource : list)
++				{
++					const u32 set = compiler.get_decoration(resource.id, spvh::DecorationDescriptorSet);
++					const u32 location = compiler.get_decoration(resource.id, spvh::DecorationBinding);
++					const bool listed = std::any_of(result.slots.begin(), result.slots.end(), [&](const resource_slot& slot)
++					{
++						return slot.type != glsl::input_type_push_constant && slot.set == set && slot.location == location;
++					});
++
++					if (!listed)
++					{
++						result.error = fmt::format("%s '%s' (set %u, binding %u) was not listed by the decompiler", kind, resource.name, set, location);
++						return false;
++					}
++				}
++				return true;
++			};
++
++			if (!require_listed(resources.uniform_buffers, "uniform buffer") ||
++				!require_listed(resources.storage_buffers, "storage buffer") ||
++				!require_listed(resources.sampled_images, "sampled image") ||
++				!require_listed(resources.separate_images, "image") ||
++				!require_listed(resources.separate_samplers, "sampler") ||
++				!require_listed(resources.storage_images, "storage image") ||
++				!require_listed(resources.subpass_inputs, "subpass input"))
++			{
++				return result;
++			}
++
++			if (!resources.push_constant_buffers.empty() && !result.uses_push_constants)
++			{
++				result.error = "the shader declares push constants the decompiler did not list";
++				return result;
++			}
++
++			result.msl = compiler.compile();
++			result.entry_point = compiler.get_cleansed_entry_point_name("main", model);
++			result.position_invariant = compiler.is_position_invariant();
++
++			for (auto& slot : result.slots)
++			{
++				if (slot.type == glsl::input_type_attachment)
++				{
++					slot.used = true;
++					continue;
++				}
++
++				const u32 set = slot.type == glsl::input_type_push_constant ? spvc::kPushConstDescSet : slot.set;
++				const u32 location = slot.type == glsl::input_type_push_constant ? spvc::kPushConstBinding : slot.location;
++				slot.used = compiler.is_msl_resource_binding_used(model, set, location);
++			}
++
++			result.ok = true;
++		}
++		catch (const spvc::CompilerError& e)
++		{
++			result.error = fmt::format("SPIRV-Cross: %s", e.what());
++		}
++		catch (const std::exception& e)
++		{
++			result.error = fmt::format("SPIR-V to MSL: %s", e.what());
++		}
++
++		if (!result.ok)
++		{
++			result.msl.clear();
++		}
++
++		return result;
++	}
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLShaderTranslator.h b/rpcs3/Emu/RSX/Metal/MTLShaderTranslator.h
+new file mode 100644
+index 0000000..29a5898
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLShaderTranslator.h
+@@ -0,0 +1,78 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE (M2): SPIR-V -> Metal Shading Language for the native Metal 4 renderer.
++//
++// The SPIR-V comes from RPCS3's Vulkan-flavoured GLSL (Metal decompilers, glslang). SPIRV-Cross (vendored as
++// rbx_spirv_cross, so it never collides with the copy inside MoltenVK) translates it with the options MoltenVK
++// uses for the same shaders today, and every resource the shader declares gets an explicit slot in the Metal 4
++// argument table of its stage. A shader that declares a resource the decompiler did not list is refused rather
++// than given an automatic slot.
++//
++// Slot assignment (documented contract with the draw code):
++//   buffers  (uniform, storage)        -> buffer slot  = GLSL binding location
++//   textures (sampled, texel buffers)  -> texture slot = GLSL binding location
++//   texture samplers                   -> sampler slot = RSX texture unit (tex0..15, vtex0..3)
++//   stencil mirrors, depth-compare input -> samplers baked into the shader (same states as the Vulkan renderer)
++//   push constants (one block per stage) -> buffer slot push_constant_buffer_slot, same bytes for both stages
++//   programmable-blend inputs          -> framebuffer fetch of the colour attachment (no slot)
++
++#include "MTLCommonDecompiler.h"
++
++#include <span>
++#include <string>
++#include <vector>
++
++namespace mtl
++{
++	enum class shader_stage : u8
++	{
++		vertex,
++		fragment,
++	};
++
++	constexpr u32 push_constant_buffer_slot = 30;
++	constexpr u32 max_buffer_slots = 31;
++	constexpr u32 max_texture_slots = 64;
++	constexpr u32 max_sampler_slots = 16;
++
++	struct resource_slot
++	{
++		u32 set = 0;
++		u32 location = umax;
++		glsl::program_input_type type = glsl::input_type_undefined;
++		std::string name;
++		u32 buffer = umax;
++		u32 texture = umax;
++		u32 sampler = umax;   // umax: no runtime sampler (none needed, or baked into the shader)
++		bool used = false;    // the translated shader reads it
++	};
++
++	struct translation_options
++	{
++		bool flip_vertex_y = true;          // Vulkan clip space (y down) -> Metal (y up), as MoltenVK does by default
++		bool point_primitives = false;      // vertex: the pipeline draws points, so [[point_size]] is written
++		bool depth_attachment = true;       // fragment: a depth attachment exists, so [[depth]] may be written
++		bool stencil_attachment = false;    // fragment: a stencil attachment exists
++		u32 color_output_mask = 0xffffffffu;
++		u32 msl_major = 3;
++		u32 msl_minor = 2;
++	};
++
++	struct translation_result
++	{
++		bool ok = false;
++		std::string msl;
++		std::string error;
++		std::string entry_point;
++		bool position_invariant = false;    // compile with preserveInvariance
++		bool uses_push_constants = false;
++		std::vector<resource_slot> slots;
++	};
++
++	// Slots for every input of one stage, before translation (pure; also used by the draw code to bind).
++	std::vector<resource_slot> assign_slots(shader_stage stage, const std::vector<glsl::program_input>& inputs, std::string& error);
++
++	translation_result translate_spirv_to_msl(std::span<const u32> spirv, shader_stage stage,
++		const std::vector<glsl::program_input>& inputs, const translation_options& options);
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLVertexProgram.cpp b/rpcs3/Emu/RSX/Metal/MTLVertexProgram.cpp
+new file mode 100644
+index 0000000..8ef7021
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLVertexProgram.cpp
+@@ -0,0 +1,520 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M2): RSX vertex program decompiler for the native Metal 4 renderer.
++// The generated GLSL follows VKVertexProgram.cpp line for line; only the device queries differ.
++
++#include "stdafx.h"
++#include "MTLVertexProgram.h"
++
++#include "Emu/RSX/Program/GLSLCommon.h"
++#include "Emu/RSX/Program/SPIRVCommon.h"
++#include "Emu/system_config.h"
++
++#ifdef RPCS3_IOS
++#include "ios/RPCS3IOSExperimentalPolicy.h"
++#endif
++
++std::string MTLVertexDecompilerThread::getFloatTypeName(usz elementCount)
++{
++	return glsl::getFloatTypeNameImpl(elementCount);
++}
++
++std::string MTLVertexDecompilerThread::getIntTypeName(usz /*elementCount*/)
++{
++	return "ivec4";
++}
++
++std::string MTLVertexDecompilerThread::getFunction(FUNCTION f)
++{
++	return glsl::getFunctionImpl(f);
++}
++
++std::string MTLVertexDecompilerThread::compareFunction(COMPARE f, std::string_view Op0, std::string_view Op1, bool scalar)
++{
++	return glsl::compareFunctionImpl(f, Op0, Op1, scalar);
++}
++
++void MTLVertexDecompilerThread::prepareBindingTable()
++{
++	u32 location = 0;
++	mtl_prog->binding_table.vertex_buffers_location = location;
++	location += 3; // Persistent verts, volatile and layout data
++
++	mtl_prog->binding_table.context_buffer_location = location++;
++	if (m_caps.emulate_conditional_rendering)
++	{
++		mtl_prog->binding_table.cr_pred_buffer_location = location++;
++	}
++
++	std::memset(mtl_prog->binding_table.vtex_location, 0xff, sizeof(mtl_prog->binding_table.vtex_location));
++
++	for (const ParamType& PT : m_parr.params[PF_PARAM_UNIFORM])
++	{
++		const bool is_texture_type = PT.type.starts_with("sampler");
++
++		for (const ParamItem& PI : PT.items)
++		{
++			if (is_texture_type)
++			{
++				const int id = mtl::get_texture_index(PI.name);
++				mtl_prog->binding_table.vtex_location[id] = location++;
++				continue;
++			}
++
++			if (PI.name.starts_with("vc["))
++			{
++				if (!(m_prog.ctrl & RSX_SHADER_CONTROL_INSTANCED_CONSTANTS))
++				{
++					mtl_prog->binding_table.cbuf_location = location++;
++					continue;
++				}
++
++				mtl_prog->binding_table.instanced_lut_buffer_location = location++;
++				mtl_prog->binding_table.instanced_cbuf_location = location++;
++				continue;
++			}
++		}
++	}
++}
++
++void MTLVertexDecompilerThread::insertHeader(std::stringstream& OS)
++{
++	prepareBindingTable();
++
++	OS <<
++		"#version 450\n\n"
++		"#extension GL_EXT_scalar_block_layout : require\n"
++		"#extension GL_EXT_uniform_buffer_unsized_array : require\n"
++		"#extension GL_ARB_separate_shader_objects : enable\n\n";
++
++	glsl::insert_subheader_block(OS);
++
++	OS <<
++		// Variable redirection
++		"#define get_draw_params() draw_parameters[draw_parameters_offset]\n"
++		"#define vs_context_offset get_draw_params().vs_context_offset\n\n"
++		// Helpers
++		"#define get_vertex_context() vertex_contexts[vs_context_offset]\n"
++		"#define get_user_clip_config() get_vertex_context().user_clip_configuration_bits\n\n";
++
++	OS <<
++		"layout(std430, set=0, binding=" << mtl_prog->binding_table.context_buffer_location << ") uniform VertexContextBuffer\n"
++		"{\n"
++		"	vertex_context_t vertex_contexts[];\n"
++		"};\n\n";
++
++	inputs.push_back(mtl::glsl::program_input::make(::glsl::glsl_vertex_program, "VertexContextBuffer",
++		mtl::glsl::input_type_uniform_buffer, mtl::glsl::binding_set_index_vertex, mtl_prog->binding_table.context_buffer_location));
++
++	if (m_caps.emulate_conditional_rendering)
++	{
++		OS <<
++			"layout(std430, set=0, binding=" << mtl_prog->binding_table.cr_pred_buffer_location << ") readonly restrict buffer EXT_Conditional_Rendering\n"
++			"{\n"
++			"	uint cr_predicate_value;\n"
++			"};\n\n";
++
++		inputs.push_back(mtl::glsl::program_input::make(::glsl::glsl_vertex_program, "EXT_Conditional_Rendering",
++			mtl::glsl::input_type_storage_buffer, mtl::glsl::binding_set_index_vertex, mtl_prog->binding_table.cr_pred_buffer_location));
++	}
++
++	OS <<
++		"layout(std430, set=0, binding=" << mtl_prog->binding_table.vertex_buffers_location + 2 << ") readonly restrict buffer DrawParametersBuffer\n"
++		"{\n"
++		"	draw_parameters_t draw_parameters[];\n"
++		"};\n\n";
++
++	inputs.push_back(mtl::glsl::program_input::make(::glsl::glsl_vertex_program, "DrawParametersBuffer",
++		mtl::glsl::input_type_storage_buffer, mtl::glsl::binding_set_index_vertex, mtl_prog->binding_table.vertex_buffers_location + 2));
++
++	OS <<
++		"layout(push_constant) uniform push_constants_block\n"
++		"{\n"
++		"	uint draw_parameters_offset;\n"
++		"};\n\n";
++
++	auto push_constants = mtl::glsl::program_input::make(::glsl::glsl_vertex_program, "push_constants_block",
++		mtl::glsl::input_type_push_constant, mtl::glsl::binding_set_index_vertex, umax);
++	push_constants.push_constant_offset = 0;
++	push_constants.push_constant_size = 4;
++	inputs.push_back(std::move(push_constants));
++}
++
++void MTLVertexDecompilerThread::insertInputs(std::stringstream& OS, const std::vector<ParamType>& /*inputs*/)
++{
++	static const char* input_streams[] =
++	{
++		"persistent_input_stream",    // Data stream with persistent vertex data (cacheable)
++		"volatile_input_stream"      // Data stream with per-draw data (registers and immediate draw data)
++	};
++
++	u32 location = mtl_prog->binding_table.vertex_buffers_location;
++	for (const auto& stream : input_streams)
++	{
++		OS << "layout(set=0, binding=" << location << ") uniform usamplerBuffer " << stream << ";\n";
++
++		this->inputs.push_back(mtl::glsl::program_input::make(::glsl::glsl_vertex_program, stream,
++			mtl::glsl::input_type_texel_buffer, mtl::glsl::binding_set_index_vertex, location++));
++	}
++}
++
++void MTLVertexDecompilerThread::insertConstants(std::stringstream& OS, const std::vector<ParamType>& constants)
++{
++	for (const ParamType& PT : constants)
++	{
++		for (const ParamItem& PI : PT.items)
++		{
++			if (PI.name.starts_with("vc["))
++			{
++				if (!(m_prog.ctrl & RSX_SHADER_CONTROL_INSTANCED_CONSTANTS))
++				{
++					OS << "layout(std430, set=0, binding=" << mtl_prog->binding_table.cbuf_location << ") uniform VertexConstantsBuffer\n";
++					OS << "{\n";
++					OS << "	vec4 vc[];\n";
++					OS << "};\n\n";
++
++					inputs.push_back(mtl::glsl::program_input::make(::glsl::glsl_vertex_program, "VertexConstantsBuffer",
++						mtl::glsl::input_type_uniform_buffer, mtl::glsl::binding_set_index_vertex, mtl_prog->binding_table.cbuf_location));
++					continue;
++				}
++				else
++				{
++					// 1. Bind indirection lookup buffer
++					OS << "layout(std430, set=0, binding=" << mtl_prog->binding_table.instanced_lut_buffer_location << ") readonly restrict buffer InstancingData\n";
++					OS << "{\n";
++					OS << "	int constants_addressing_lookup[];\n";
++					OS << "};\n\n";
++
++					inputs.push_back(mtl::glsl::program_input::make(::glsl::glsl_vertex_program, "InstancingData",
++						mtl::glsl::input_type_storage_buffer, mtl::glsl::binding_set_index_vertex, mtl_prog->binding_table.instanced_lut_buffer_location));
++
++					// 2. Bind actual constants buffer
++					OS << "layout(std430, set=0, binding=" << mtl_prog->binding_table.instanced_cbuf_location << ") readonly restrict buffer VertexConstantsBuffer\n";
++					OS << "{\n";
++					OS << "	vec4 instanced_constants_array[];\n";
++					OS << "};\n\n";
++
++					OS << "#define CONSTANTS_ARRAY_LENGTH " << (properties.has_indexed_constants ? 468 : ::size32(m_constant_ids)) << "\n\n";
++
++					inputs.push_back(mtl::glsl::program_input::make(::glsl::glsl_vertex_program, "VertexConstantsBuffer",
++						mtl::glsl::input_type_storage_buffer, mtl::glsl::binding_set_index_vertex, mtl_prog->binding_table.instanced_cbuf_location));
++					continue;
++				}
++			}
++
++			if (PT.type.starts_with("sampler"))
++			{
++				const int id = mtl::get_texture_index(PI.name);
++				const u32 location = mtl_prog->binding_table.vtex_location[id];
++
++				inputs.push_back(mtl::glsl::program_input::make(::glsl::glsl_vertex_program, PI.name,
++					mtl::glsl::input_type_texture, mtl::glsl::binding_set_index_vertex, location));
++
++				auto samplerType = PT.type;
++
++				if (m_prog.texture_state.multisampled_textures) [[ unlikely ]]
++				{
++					ensure(PI.name.length() > 3);
++					int index = atoi(&PI.name[3]);
++
++					if (m_prog.texture_state.multisampled_textures & (1 << index))
++					{
++						if (samplerType != "sampler1D" && samplerType != "sampler2D")
++						{
++							rsx_log.error("Unexpected multisampled sampler type '%s'", samplerType);
++						}
++
++						samplerType = "sampler2DMS";
++					}
++				}
++
++				OS << "layout(set=0, binding=" << location << ") uniform " << samplerType << " " << PI.name << ";\n";
++			}
++		}
++	}
++}
++
++static const vertex_reg_info reg_table[] =
++{
++	{ "gl_Position", false, "dst_reg0", "", false },
++	//Technically these two are for both back and front
++	{ "diff_color", true, "dst_reg1", "", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_FRONTDIFFUSE | CELL_GCM_ATTRIB_OUTPUT_MASK_BACKDIFFUSE },
++	{ "spec_color", true, "dst_reg2", "", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_FRONTSPECULAR | CELL_GCM_ATTRIB_OUTPUT_MASK_BACKSPECULAR },
++	{ "diff_color1", true, "dst_reg3", "", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_FRONTDIFFUSE | CELL_GCM_ATTRIB_OUTPUT_MASK_BACKDIFFUSE },
++	{ "spec_color1", true, "dst_reg4", "", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_FRONTSPECULAR | CELL_GCM_ATTRIB_OUTPUT_MASK_BACKSPECULAR },
++	{ "fog_c", true, "dst_reg5", ".xxxx", true, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_FOG },
++	//Warning: With spir-v if you declare clip distance var, you must assign a value even when its disabled! Runtime does not assign a default value
++	{ "gl_ClipDistance[0]", false, "dst_reg5", ".y * user_clip_factor(0)", false, "is_user_clip_enabled(0)", "0.5", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_UC0 },
++	{ "gl_ClipDistance[1]", false, "dst_reg5", ".z * user_clip_factor(1)", false, "is_user_clip_enabled(1)", "0.5", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_UC1 },
++	{ "gl_ClipDistance[2]", false, "dst_reg5", ".w * user_clip_factor(2)", false, "is_user_clip_enabled(2)", "0.5", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_UC2 },
++	{ "gl_PointSize", false, "dst_reg6", ".x", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_POINTSIZE },
++	{ "gl_ClipDistance[3]", false, "dst_reg6", ".y * user_clip_factor(3)", false, "is_user_clip_enabled(3)", "0.5", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_UC3 },
++	{ "gl_ClipDistance[4]", false, "dst_reg6", ".z * user_clip_factor(4)", false, "is_user_clip_enabled(4)", "0.5", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_UC4 },
++	{ "gl_ClipDistance[5]", false, "dst_reg6", ".w * user_clip_factor(5)", false, "is_user_clip_enabled(5)", "0.5", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_UC5 },
++	{ "tc0", true, "dst_reg7", "", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_TEX0 },
++	{ "tc1", true, "dst_reg8", "", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_TEX1 },
++	{ "tc2", true, "dst_reg9", "", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_TEX2 },
++	{ "tc3", true, "dst_reg10", "", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_TEX3 },
++	{ "tc4", true, "dst_reg11", "", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_TEX4 },
++	{ "tc5", true, "dst_reg12", "", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_TEX5 },
++	{ "tc6", true, "dst_reg13", "", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_TEX6 },
++	{ "tc7", true, "dst_reg14", "", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_TEX7 },
++	{ "tc8", true, "dst_reg15", "", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_TEX8 },
++	{ "tc9", true, "dst_reg6", "", false, "", "", "", true, CELL_GCM_ATTRIB_OUTPUT_MASK_TEX9 }  // In this line, dst_reg6 is correct since dst_reg goes from 0 to 15.
++};
++
++void MTLVertexDecompilerThread::insertOutputs(std::stringstream& OS, const std::vector<ParamType>& /*outputs*/)
++{
++	for (auto &i : reg_table)
++	{
++		if (i.need_declare)
++		{
++			// All outputs must be declared always to allow setting default values.
++			// NV4097_SET_SHADE_MODE applies to the front/back diffuse and specular colors.
++			const bool flat_color = (m_prog.ctrl & RSX_SHADER_CONTROL_FLAT_SHADING) &&
++				(i.name.starts_with("diff_color"sv) || i.name.starts_with("spec_color"sv));
++			OS << "layout(location=" << mtl::get_varying_register_location(i.name) << ") out "
++				<< (flat_color ? "flat " : "") << "vec4 " << i.name << ";\n";
++		}
++	}
++
++	if (!(m_prog.ctrl & RSX_SHADER_CONTROL_INTERPRETER_MODEL))
++	{
++		OS << "layout(location=" << mtl::get_varying_register_location("usr") << ") out flat uvec4 draw_params_payload;\n";
++	}
++}
++
++void MTLVertexDecompilerThread::insertFSExport(std::stringstream& OS)
++{
++	OS <<
++		"void write_fs_payload()\n"
++		"{\n"
++		"	draw_params_payload.x = get_draw_params().fs_constants_offset;\n"
++		"	draw_params_payload.y = get_draw_params().fs_context_offset;\n"
++		"	draw_params_payload.z = get_draw_params().fs_texture_base_index;\n"
++		"	draw_params_payload.w = get_draw_params().fs_stipple_pattern_offset;\n"
++		"}\n\n";
++}
++
++void MTLVertexDecompilerThread::insertMainStart(std::stringstream& OS)
++{
++	glsl::shader_properties properties2{};
++	properties2.domain = glsl::glsl_vertex_program;
++	properties2.require_lit_emulation = properties.has_lit_op;
++	properties2.require_clip_plane_functions = true;
++	properties2.emulate_zclip_transform = true;
++	properties2.emulate_depth_clip_only = m_caps.allow_float64;
++#ifdef RPCS3_IOS
++	// REWINDBOX_ZCLIP_WINDOW_Z_616 and REWINDBOX_ZCLIP_PINNED_AFFINE_619: the same title-scoped transforms as the
++	// Vulkan renderer (no float64 on Apple GPUs), resolved before the renderer exists, never during a frame.
++	properties2.emulate_zclip_fallback_window_z = !properties2.emulate_depth_clip_only &&
++		rpcs3::ios::get_experimental_policy().zclip_fallback_window_z;
++	properties2.emulate_zclip_fallback_pinned_affine = properties2.emulate_zclip_fallback_window_z &&
++		rpcs3::ios::get_experimental_policy().zclip_pinned_affine;
++#endif
++	properties2.low_precision_tests = m_caps.low_precision_rounding;
++#ifdef RPCS3_IOS
++	// REWINDBOX_POSITION_INVARIANCE_610: the scoped titles declare an invariant position, as on Vulkan; the Metal
++	// library is then compiled with preserveInvariance (translation_result::position_invariant).
++	properties2.require_explicit_invariance = (m_caps.low_precision_rounding ||
++		rpcs3::ios::get_experimental_policy().position_invariance) &&
++		g_cfg.video.shader_precision != gpu_preset_level::low;
++#else
++	properties2.require_explicit_invariance = m_caps.low_precision_rounding && g_cfg.video.shader_precision != gpu_preset_level::low;
++#endif
++	properties2.require_instanced_render = !!(m_prog.ctrl & RSX_SHADER_CONTROL_INSTANCED_CONSTANTS);
++
++	glsl::insert_glsl_legacy_function(OS, properties2);
++	glsl::insert_vertex_input_fetch(OS, glsl::glsl_rules_vulkan);
++
++	insertFSExport(OS);
++
++	// Declare global registers with optional initialization
++	std::string registers;
++	if (ParamType *vec4Types = m_parr.SearchParam(PF_PARAM_OUT, "vec4"))
++	{
++		for (auto &PI : vec4Types->items)
++		{
++			if (registers.length())
++				registers += ", ";
++			else
++				registers = "vec4 ";
++
++			registers += PI.name;
++
++			if (!PI.value.empty())
++			{
++				// Simplify default initialization
++				if (PI.value == "vec4(0.0, 0.0, 0.0, 0.0)")
++					registers += " = vec4(0.)";
++				else
++					registers += " = " + PI.value;
++			}
++		}
++	}
++
++	if (!registers.empty())
++	{
++		OS << registers << ";\n";
++	}
++
++	// Expand indexed uniform structs here. We don't need to commit registers - these are very rarely consumed anyway.
++	OS <<
++		"#define scale_offset_mat get_vertex_context().scale_offset_mat\n"
++		"#define transform_branch_bits get_vertex_context().transform_branch_bits\n"
++		"#define point_size get_vertex_context().point_size\n"
++		"#define z_near get_vertex_context().z_near\n"
++		"#define z_far get_vertex_context().z_far\n\n";
++
++	OS << "void vs_main()\n";
++	OS << "{\n";
++
++	//Declare temporary registers, ignoring those mapped to outputs
++	for (const ParamType& PT : m_parr.params[PF_PARAM_NONE])
++	{
++		for (const ParamItem& PI : PT.items)
++		{
++			if (PI.name.starts_with("dst_reg"))
++				continue;
++
++			OS << "	" << PT.type << " " << PI.name;
++			if (!PI.value.empty())
++				OS << " = " << PI.value;
++
++			OS << ";\n";
++		}
++	}
++
++	for (const ParamType& PT : m_parr.params[PF_PARAM_IN])
++	{
++		for (const ParamItem& PI : PT.items)
++		{
++			OS << "	vec4 " << PI.name << "= read_location(" << std::to_string(PI.location) << ");\n";
++		}
++	}
++
++	OS << "\nuint xform_constants_offset = get_draw_params().xform_constants_offset;\n\n";
++}
++
++void MTLVertexDecompilerThread::insertMainEnd(std::stringstream& OS)
++{
++	OS << "}\n\n";
++
++	OS << "void main ()\n";
++	OS << "{\n\n";
++
++	if (m_caps.emulate_conditional_rendering)
++	{
++		OS << "	if (cr_predicate_value == 0)\n";
++		OS << "	{\n";
++		OS << "		gl_Position = vec4(0., 0., 0., -1.);\n";
++		OS << "		return;\n";
++		OS << "}\n\n";
++	}
++
++	OS << "	vs_main();\n\n";
++
++	// FS payload
++	OS << "write_fs_payload();\n\n";
++
++	for (auto &i : reg_table)
++	{
++		if (!i.check_mask || i.test(rsx_vertex_program.output_mask))
++		{
++			if (m_parr.HasParam(PF_PARAM_OUT, "vec4", i.src_reg))
++			{
++				std::string condition = (!i.cond.empty()) ? "(" + i.cond + ") " : "";
++
++				if (condition.empty() || i.default_val.empty())
++				{
++					if (!condition.empty()) condition = "if " + condition;
++					OS << "	" << condition << i.name << " = " << i.src_reg << i.src_reg_mask << ";\n";
++				}
++				else
++				{
++					//Insert if-else condition
++					OS << "	" << i.name << " = " << condition << "? " << i.src_reg << i.src_reg_mask << ": " << i.default_val << ";\n";
++				}
++
++				// Register was marked for output and a properly initialized source register exists
++				// Nothing more to do
++				continue;
++			}
++		}
++
++		if (i.need_declare)
++		{
++			OS << "	" << i.name << " = vec4(0., 0., 0., 1.);\n";
++		}
++		else if (i.check_mask_value == CELL_GCM_ATTRIB_OUTPUT_MASK_POINTSIZE)
++		{
++			// Default point size if none was generated by the program
++			OS << "	gl_PointSize = point_size;\n";
++		}
++	}
++
++	OS << "	gl_Position = gl_Position * scale_offset_mat;\n";
++	OS << "	gl_Position = apply_zclip_xform(gl_Position, z_near, z_far);\n";
++	OS << "}\n";
++}
++
++void MTLVertexDecompilerThread::Task()
++{
++	m_shader = Decompile();
++	mtl_prog->inputs = std::move(inputs);
++}
++
++namespace mtl
++{
++	void vertex_program::Decompile(const RSXVertexProgram& prog, const shader_device_caps& caps)
++	{
++		use_last_provoking_vertex = !!(prog.ctrl & RSX_SHADER_CONTROL_FLAT_SHADING);
++
++		std::string source;
++		MTLVertexDecompilerThread decompiler(prog, source, *this, caps);
++		decompiler.Task();
++
++		has_indexed_constants = decompiler.properties.has_indexed_constants;
++		constant_ids = std::vector<u16>(decompiler.m_constant_ids.begin(), decompiler.m_constant_ids.end());
++		glsl_source = std::move(source);
++		spirv.clear();
++		msl[0] = {};
++		msl[1] = {};
++	}
++
++	bool vertex_program::Compile()
++	{
++		if (g_cfg.video.log_programs)
++		{
++			fs::write_file(fs::get_cache_dir() + "shaderlog/MetalVertexProgram" + std::to_string(id) + ".glsl", fs::rewrite, glsl_source);
++		}
++
++		spirv.clear();
++		std::string source = glsl_source;
++		if (!spirv::compile_glsl_to_spv(spirv, source, ::glsl::program_domain::glsl_vertex_program, ::glsl::glsl_rules_vulkan))
++		{
++			compile_error = "glslang refused the vertex program";
++			spirv.clear();
++			return false;
++		}
++
++		compile_error.clear();
++		return true;
++	}
++
++	const translation_result& vertex_program::get_msl(bool point_primitives)
++	{
++		translation_result& result = msl[point_primitives ? 1 : 0];
++		if (!result.ok && result.error.empty())
++		{
++			translation_options options{};
++			options.point_primitives = point_primitives;
++			result = translate_spirv_to_msl(spirv, shader_stage::vertex, inputs, options);
++			if (!result.ok)
++			{
++				rsx_log.error("Metal: vertex program %u was not translated to MSL: %s", id, result.error);
++			}
++		}
++
++		return result;
++	}
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLVertexProgram.h b/rpcs3/Emu/RSX/Metal/MTLVertexProgram.h
+new file mode 100644
+index 0000000..d12633f
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLVertexProgram.h
+@@ -0,0 +1,94 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE (M2): RSX vertex programs for the native Metal 4 renderer.
++// The decompiler emits the same Vulkan-flavoured GLSL as VKVertexProgram.cpp (bindings, vertex fetch from
++// texel buffers, draw parameters, z-clip transform), with the device facts taken from mtl::shader_device_caps.
++
++#include "Emu/RSX/Program/VertexProgramDecompiler.h"
++#include "Emu/RSX/Program/program_util.h"
++#include "MTLCommonDecompiler.h"
++#include "MTLShaderTranslator.h"
++
++#include <string>
++#include <vector>
++
++namespace mtl
++{
++	class vertex_program;
++}
++
++struct MTLVertexDecompilerThread : public VertexProgramDecompiler
++{
++	std::string& m_shader;
++	std::vector<mtl::glsl::program_input> inputs;
++	mtl::vertex_program* mtl_prog;
++	const mtl::shader_device_caps& m_caps;
++
++protected:
++	std::string getFloatTypeName(usz elementCount) override;
++	std::string getIntTypeName(usz elementCount) override;
++	std::string getFunction(FUNCTION f) override;
++	std::string compareFunction(COMPARE f, std::string_view Op0, std::string_view Op1, bool scalar) override;
++
++	void insertHeader(std::stringstream& OS) override;
++	void insertInputs(std::stringstream& OS, const std::vector<ParamType>& inputs) override;
++	void insertConstants(std::stringstream& OS, const std::vector<ParamType>& constants) override;
++	void insertOutputs(std::stringstream& OS, const std::vector<ParamType>& outputs) override;
++	void insertMainStart(std::stringstream& OS) override;
++	void insertMainEnd(std::stringstream& OS) override;
++
++	void prepareBindingTable();
++	void insertFSExport(std::stringstream& OS);
++
++	const RSXVertexProgram& rsx_vertex_program;
++
++public:
++	MTLVertexDecompilerThread(const RSXVertexProgram& prog, std::string& shader, mtl::vertex_program& dst, const mtl::shader_device_caps& caps)
++		: VertexProgramDecompiler(prog)
++		, m_shader(shader)
++		, mtl_prog(&dst)
++		, m_caps(caps)
++		, rsx_vertex_program(prog)
++	{
++	}
++
++	void Task();
++};
++
++namespace mtl
++{
++	class vertex_program : public rsx::VertexProgramBase
++	{
++	public:
++		ParamArray parr;
++		std::vector<glsl::program_input> inputs;
++		bool use_last_provoking_vertex = false;
++
++		std::string glsl_source;
++		std::vector<u32> spirv;
++		std::string compile_error;
++
++		// Translations by primitive class: [0] everything but points, [1] points ([[point_size]] written).
++		translation_result msl[2];
++
++		struct
++		{
++			u32 context_buffer_location = umax;        // Vertex program context
++			u32 cr_pred_buffer_location = umax;        // Conditional rendering predicate
++			u32 vertex_buffers_location = umax;        // Vertex input streams (3)
++			u32 cbuf_location = umax;                  // Vertex program constants register file
++			u32 instanced_lut_buffer_location = umax;  // Instancing redirection table
++			u32 instanced_cbuf_location = umax;        // Instancing constants register file
++			u32 vtex_location[4];                      // Vertex textures
++		} binding_table;
++
++		void Decompile(const RSXVertexProgram& prog, const shader_device_caps& caps);
++
++		// GLSL -> SPIR-V (glslang). False with compile_error set when glslang refuses the source.
++		bool Compile();
++
++		// SPIR-V -> MSL for one primitive class, translated once and kept.
++		const translation_result& get_msl(bool point_primitives);
++	};
++}

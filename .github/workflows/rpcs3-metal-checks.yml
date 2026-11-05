@@ -1,5 +1,7 @@
 # REWINDBOX_METAL_NATIVE: fast checks of the native Metal 4 renderer on the Metal branch (no IPA, no Core artifact).
-# The renderer sources come from the canonical Core delta of this branch, materialized on the pinned upstream commit.
+# The renderer sources come from the canonical Core delta of this branch, materialized on the pinned upstream commit,
+# plus the work in progress of the next stage (build-utils/rpcs3/metal-wip-from-901.patch, not a Core: the next Core
+# folds it with its records), whose SPIRV-Cross files are the copy tracked in packages/neo_shader_kit.
 name: RPCS3 Metal renderer checks
 run-name: "RPCS3 Metal renderer checks • ${{ github.sha }}"
 'on':
@@ -8,7 +10,9 @@ run-name: "RPCS3 Metal renderer checks • ${{ github.sha }}"
     paths:
       - 'build-utils/rpcs3/embedded-core.patch'
       - 'build-utils/rpcs3/canonical-source.json'
+      - 'build-utils/rpcs3/metal-wip-from-901.patch'
       - 'test/native/rpcs3_metal_*'
+      - 'test/native/build_rpcs3_metal_shader_stack.sh'
       - '.github/workflows/rpcs3-metal-checks.yml'
   workflow_dispatch:
 permissions:
@@ -18,9 +22,9 @@ concurrency:
   cancel-in-progress: false
 jobs:
   metal:
-    name: Native Metal 4 renderer (iOS 26 SDK compile, host unit, Metal 4 probe)
+    name: Native Metal 4 renderer (shader stack, offline MSL for iOS, iOS 26 SDK compile, host unit, Metal 4 probe)
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -42,14 +46,54 @@ jobs:
           git -C "$SOURCE" checkout -q --detach FETCH_HEAD
           python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
           echo "RPCS3_SOURCE=$SOURCE" >> "$GITHUB_ENV"
+      - name: Apply the next stage's work in progress (M2 shader stack)
+        shell: bash
+        run: |
+          set -euo pipefail
+          S="$RPCS3_SOURCE"
+          mkdir -p "$S/3rdparty/rewindbox-spirv-cross"
+          # The SPIRV-Cross files the Core vendors are the ones tracked here (SOURCE.txt lists their SHA-256).
+          (cd packages/neo_shader_kit/ios/ThirdParty/SPIRV-Cross && shasum -a 256 -c <(sed -n 's/^\([0-9a-f]\{64\}\)  \(.*\)$/\1  \2/p' SOURCE.txt))
+          cp packages/neo_shader_kit/ios/ThirdParty/SPIRV-Cross/* "$S/3rdparty/rewindbox-spirv-cross/"
+          git -C "$S" apply --check "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-901.patch"
+          git -C "$S" apply "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-901.patch"
+          git -C "$S" status --short | head -40
       - name: Toolchain
         shell: bash
         run: |
           xcodebuild -version
           echo "iOS SDK $(xcrun --sdk iphoneos --show-sdk-version), macOS SDK $(xcrun --sdk macosx --show-sdk-version)"
           sw_vers
+      - name: Shader stack (RSX programs -> GLSL -> SPIR-V -> MSL) on the host
+        timeout-minutes: 20
+        shell: bash
+        run: |
+          set -euo pipefail
+          JOBS=$(sysctl -n hw.ncpu) CXX=$(xcrun --sdk macosx --find clang++) CC=$(xcrun --sdk macosx --find clang) \
+            SDKROOT=$(xcrun --sdk macosx --show-sdk-path) \
+            bash test/native/build_rpcs3_metal_shader_stack.sh "$RPCS3_SOURCE" "$RUNNER_TEMP/shader-stack" "$RUNNER_TEMP/msl"
+          ls -la "$RUNNER_TEMP/msl"
+          echo "SHADER_STACK_WORK=$RUNNER_TEMP/shader-stack" >> "$GITHUB_ENV"
+      - name: Compile the translated MSL for iOS with Apple's offline Metal compiler
+        timeout-minutes: 15
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! xcrun --sdk iphoneos --find metal > /dev/null 2>&1 || ! xcrun --sdk iphoneos metal -v > /dev/null 2>&1; then
+            echo "The Metal toolchain is not installed with this Xcode: downloading the component"
+            xcodebuild -downloadComponent MetalToolchain
+          fi
+          xcrun --sdk iphoneos metal -v 2>&1 | head -3
+          count=0
+          for f in "$RUNNER_TEMP"/msl/*.metal; do
+            xcrun --sdk iphoneos metal -std=metal3.2 -target air64-apple-ios26.0 -Werror -c "$f" -o "${f%.metal}.air"
+            echo "compiled $(basename "$f") ($(wc -c < "${f%.metal}.air") bytes of AIR)"
+            count=$((count + 1))
+          done
+          [ "$count" -ge 5 ] || { echo "expected at least 5 translated programs, got $count"; exit 1; }
+          echo "PASS: $count translated programs compile for iOS (MSL 3.2, Werror)"
       - name: Compile the Metal 4 renderer for iOS (arm64, deployment 16.3)
-        timeout-minutes: 10
+        timeout-minutes: 15
         shell: bash
         run: |
           set -euo pipefail
@@ -59,9 +103,18 @@ jobs:
           FLAGS=(-target arm64-apple-ios16.3 -isysroot "$SDK" -std=gnu++20 -fsyntax-only -Wall -Wno-unused-parameter
                  -Werror=unguarded-availability-new -Werror=objc-method-access -DRPCS3_IOS
                  -I "$S/rpcs3" -I "$S" -I "$S/rpcs3/Emu" -I "$S/3rdparty")
+          FLAGS+=(-I "$SHADER_STACK_WORK/asmjit/src" -I "$S/3rdparty/rewindbox-spirv-cross"
+                  -DSPIRV_CROSS_NAMESPACE_OVERRIDE=rbx_spirv_cross -DSPIRV_CROSS_SPV_HEADER_NAMESPACE_OVERRIDE=rbx_spv)
           "$CXX" "${FLAGS[@]}" -x objective-c++ -fobjc-arc "$S/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm"
-          "$CXX" "${FLAGS[@]}" -include "$S/rpcs3/stdafx.h" "$S/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp"
-          echo "PASS: iOS compile of MTLAPIApple.mm (ARC) and MTLGSRender.cpp"
+          for unit in MTLGSRender.cpp MTLCommonDecompiler.cpp MTLVertexProgram.cpp MTLFragmentProgram.cpp; do
+            "$CXX" "${FLAGS[@]}" -fno-exceptions -include "$S/rpcs3/stdafx.h" "$S/rpcs3/Emu/RSX/Metal/$unit"
+          done
+          # The translator and SPIRV-Cross are the Metal sources built with exceptions (rpcs3/Emu/CMakeLists.txt).
+          "$CXX" "${FLAGS[@]}" -fexceptions "$S/rpcs3/Emu/RSX/Metal/MTLShaderTranslator.cpp"
+          for unit in spirv_cfg.cpp spirv_cross.cpp spirv_cross_parsed_ir.cpp spirv_glsl.cpp spirv_msl.cpp spirv_parser.cpp; do
+            "$CXX" "${FLAGS[@]}" -fexceptions -w "$S/3rdparty/rewindbox-spirv-cross/$unit"
+          done
+          echo "PASS: iOS compile of MTLAPIApple.mm (ARC), the renderer, the decompilers, the translator and SPIRV-Cross"
       - name: Host unit test (display buffer conversion and fit)
         timeout-minutes: 5
         shell: bash
