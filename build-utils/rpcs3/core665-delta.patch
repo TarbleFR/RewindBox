@@ -633,7 +633,7 @@ index 12aa8d6..a27d772 100644
  		d.min_frames, d.max_frames, d.max_gap_us, d.late_callbacks);
  }
 diff --git a/rpcs3/Emu/CPU/CPUThread.cpp b/rpcs3/Emu/CPU/CPUThread.cpp
-index a446d58..a5c8d83 100644
+index a446d58..84fbd97 100644
 --- a/rpcs3/Emu/CPU/CPUThread.cpp
 +++ b/rpcs3/Emu/CPU/CPUThread.cpp
 @@ -13,6 +13,11 @@
@@ -648,7 +648,7 @@ index a446d58..a5c8d83 100644
  
  #include "util/asm.hpp"
  #include <thread>
-@@ -660,6 +665,24 @@ void cpu_thread::operator()()
+@@ -660,6 +665,28 @@ void cpu_thread::operator()()
  		thread_ctrl::set_thread_affinity_mask(thread_ctrl::get_affinity_mask(get_class()));
  	}
  
@@ -667,13 +667,17 @@ index a446d58..a5c8d83 100644
 +		const auto cls = rpcs3::ios::orchestrator::class_from_thread_class(static_cast<unsigned>(get_class()));
 +		rpcs3::ios::orchestrator::apply_to_current_thread(rpcs3::ios::orchestrator::qos_for(cls,
 +			{true, rpcs3::ios::thread_qos::default_relative_priority.load(std::memory_order_relaxed)}));
++		if (cls == rpcs3::ios::orchestrator::cls::spu)
++		{
++			rpcs3::ios::orchestrator::spu_start(); // the adaptive SPU level, after the Core 627 code
++		}
 +	}
 +#endif
 +
  	ensure(g_fxo->is_init<cpu_profiler>());
  
  	switch (get_class())
-@@ -834,6 +857,11 @@ static atomic_t<u32> s_dummy_atomic = 0;
+@@ -834,6 +861,11 @@ static atomic_t<u32> s_dummy_atomic = 0;
  
  bool cpu_thread::check_state() noexcept
  {
@@ -10007,10 +10011,10 @@ index 0000000..20660f4
 +}
 diff --git a/rpcs3/ios/IOSThreadOrchestrator.h b/rpcs3/ios/IOSThreadOrchestrator.h
 new file mode 100644
-index 0000000..d62694e
+index 0000000..409c2b4
 --- /dev/null
 +++ b/rpcs3/ios/IOSThreadOrchestrator.h
-@@ -0,0 +1,318 @@
+@@ -0,0 +1,598 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -10018,6 +10022,7 @@ index 0000000..d62694e
 +#include <cstddef>
 +#include <cstdint>
 +#include <ctime>
++#include <algorithm>
 +
 +#if defined(__APPLE__)
 +#include <mach/mach_time.h>
@@ -10049,6 +10054,8 @@ index 0000000..d62694e
 +// step above that default (relative -1 against -2), still below the RSX and audio threads
 +// (relative 0), which keep their precedence. SPU threads keep the Core 627 behaviour. With
 +// the default at 0 (lever off) the PPU stays at 0. Disabled is exactly Core 664.
++#include "IOSThreadQoS.h"
++
 +namespace rpcs3::ios::orchestrator
 +{
 +enum class cls : unsigned
@@ -10263,6 +10270,74 @@ index 0000000..d62694e
 +#endif
 +}
 +
++// ---- Adaptive SPU placement (the controller below decides, SPU threads apply) ----
++// Level 0 is today's SPU QoS (the Core 627 USER_INITIATED when the lever is on, else the pool's
++// USER_INTERACTIVE default); level 1 is QOS_CLASS_UTILITY, relative 0: the efficiency cores.
++constexpr unsigned spu_level_default = 0;
++constexpr unsigned spu_level_low = 1;
++inline std::atomic<unsigned> spu_level{spu_level_default};
++inline std::atomic<unsigned> spu_level_gen{0};
++// Set by the policy: the Core 627 SPU lever is on, so level 0 is thread_qos::spu_native_priority.
++inline std::atomic<bool> spu_default_below_rsx{false};
++// Applications per level, by SPU threads on themselves.
++inline std::atomic<std::uint64_t> spu_applied[2]{};
++// The generation this thread has applied (a pooled thread starts a job at the default QoS: see spu_start).
++inline thread_local unsigned spu_applied_gen = 0;
++
++inline void apply_spu_level(unsigned level) noexcept
++{
++	spu_applied[level == spu_level_low ? 1 : 0].fetch_add(1, std::memory_order_relaxed);
++	unsigned qos = qos_utility;
++	int relative = 0;
++	if (level != spu_level_low)
++	{
++		const auto lv = rpcs3::ios::thread_qos::for_priority(
++			spu_default_below_rsx.load(std::memory_order_relaxed) ? rpcs3::ios::thread_qos::spu_native_priority : 0);
++		qos = lv.utility ? qos_utility : lv.user_initiated ? qos_user_initiated : qos_user_interactive;
++		relative = lv.relative_priority;
++	}
++#if defined(__APPLE__)
++	pthread_set_qos_class_self_np(static_cast<qos_class_t>(qos), relative);
++#else
++	static_cast<void>(qos);
++	static_cast<void>(relative);
++#endif
++}
++
++// A cheap pass point of an SPU thread: one acquire load and a compare with the thread's generation.
++inline void spu_pass() noexcept
++{
++	const unsigned gen = spu_level_gen.load(std::memory_order_acquire);
++	if (gen == spu_applied_gen)
++	{
++		return;
++	}
++	spu_applied_gen = gen;
++	apply_spu_level(spu_level.load(std::memory_order_relaxed));
++}
++
++// cpu_thread::operator() start of an SPU thread, after the Core 627 code: the job began at the default.
++inline void spu_start() noexcept
++{
++	spu_applied_gen = spu_level_gen.load(std::memory_order_acquire);
++	if (spu_level.load(std::memory_order_relaxed) == spu_level_low)
++	{
++		apply_spu_level(spu_level_low);
++	}
++}
++
++// Publishes a level only on a change; returns true when it did.
++inline bool publish_level(unsigned level) noexcept
++{
++	if (spu_level.load(std::memory_order_relaxed) == level)
++	{
++		return false;
++	}
++	spu_level.store(level, std::memory_order_relaxed);
++	spu_level_gen.fetch_add(1, std::memory_order_release);
++	return true;
++}
++
 +// Hot path: one relaxed load while off; while on, a clock read and a compare, and once per
 +// millisecond per thread two cheap reads and three relaxed increments.
 +inline void sample(cls c) noexcept
@@ -10270,6 +10345,11 @@ index 0000000..d62694e
 +	if (!enabled.load(std::memory_order_relaxed))
 +	{
 +		return;
++	}
++
++	if (c == cls::spu)
++	{
++		spu_pass();
 +	}
 +
 +	if (!due(now_ticks(), sample_interval_ticks()))
@@ -10327,6 +10407,210 @@ index 0000000..d62694e
 +#else
 +	return false;
 +#endif
++}
++
++// ---- The controller: a pure state machine, ticked about every 100 ms ----
++struct controller_totals
++{
++	std::uint64_t time_ms[2]{};
++	std::uint64_t explorations = 0;
++	std::uint64_t decisions_low = 0;
++	std::uint64_t decisions_default = 0;
++	std::uint64_t aborted = 0;
++	double fps_default = 0.0; // the last completed test's means
++	double fps_low = 0.0;
++};
++
++class controller
++{
++public:
++	static constexpr std::uint64_t phase_ms = 500;
++	static constexpr unsigned phases = 4; // default, low, default, low
++	static constexpr std::uint64_t hold_ms = 30'000;
++	static constexpr std::uint64_t reject_ms = 120'000;
++	static constexpr std::uint64_t rate_window_ms = 1000;
++	static constexpr double min_fps = 5.0;
++	static constexpr double abort_ratio = 0.85;
++	static constexpr double accept_ratio = 0.99;
++
++	controller_totals totals;
++	controller_totals published; // what tick() has already added to the shared counters
++
++	unsigned level() const noexcept { return m_level; }
++
++	// Returns the level to run. Not eligible, or frames not advancing (under 5 fps, or the rate not yet
++	// known), gives the default level and resets the exploration; a rejection stays.
++	unsigned step(std::uint64_t now_ms, std::uint64_t frames_total, bool eligible) noexcept
++	{
++		if (m_have_last && now_ms >= m_last_ms)
++		{
++			totals.time_ms[m_level == spu_level_low ? 1 : 0] += now_ms - m_last_ms;
++		}
++		m_have_last = true;
++		m_last_ms = now_ms;
++
++		const bool rebased = update_rate(now_ms, frames_total);
++		if (!eligible || rebased || !m_rate_known || m_fps < min_fps)
++		{
++			reset();
++			return m_level;
++		}
++
++		if (m_state == state::idle)
++		{
++			if (now_ms < m_reject_until)
++			{
++				m_state = state::hold;
++				m_hold_until = m_reject_until;
++			}
++			else
++			{
++				start_exploring(now_ms, frames_total);
++			}
++		}
++		else if (m_state == state::hold && now_ms >= m_hold_until)
++		{
++			start_exploring(now_ms, frames_total);
++		}
++
++		if (m_state == state::explore && now_ms >= m_phase_start + phase_ms)
++		{
++			const double dt = static_cast<double>(now_ms - m_phase_start);
++			const double rate = static_cast<double>(frames_total - m_phase_frames) * 1000.0 / dt;
++			m_rates[m_phase] = rate;
++			if ((m_phase & 1) && rate < abort_ratio * m_rates[m_phase - 1])
++			{
++				totals.aborted++;
++				m_level = spu_level_default;
++				m_state = state::hold;
++				m_hold_until = m_reject_until = now_ms + reject_ms;
++			}
++			else if (m_phase + 1 == phases)
++			{
++				const double mean_default = (m_rates[0] + m_rates[2]) / 2.0;
++				const double mean_low = (m_rates[1] + m_rates[3]) / 2.0;
++				totals.fps_default = mean_default;
++				totals.fps_low = mean_low;
++				const bool low = mean_low >= accept_ratio * mean_default;
++				(low ? totals.decisions_low : totals.decisions_default)++;
++				m_level = low ? spu_level_low : spu_level_default;
++				m_state = state::hold;
++				m_hold_until = now_ms + hold_ms;
++			}
++			else
++			{
++				m_phase++;
++				m_level = m_phase & 1 ? spu_level_low : spu_level_default;
++				m_phase_start = now_ms;
++				m_phase_frames = frames_total;
++			}
++		}
++
++		return m_level;
++	}
++
++private:
++	enum class state { idle, explore, hold };
++
++	void reset() noexcept
++	{
++		m_state = state::idle;
++		m_level = spu_level_default;
++		m_phase = 0;
++	}
++
++	void start_exploring(std::uint64_t now_ms, std::uint64_t frames_total) noexcept
++	{
++		m_state = state::explore;
++		m_phase = 0;
++		m_level = spu_level_default;
++		m_phase_start = now_ms;
++		m_phase_frames = frames_total;
++		totals.explorations++;
++	}
++
++	// The frame rate over completed windows of a second; true when the counter went backwards.
++	bool update_rate(std::uint64_t now_ms, std::uint64_t frames_total) noexcept
++	{
++		if (!m_win_valid || frames_total < m_win_frames)
++		{
++			const bool rebased = m_win_valid;
++			m_win_valid = true;
++			m_win_ms = now_ms;
++			m_win_frames = frames_total;
++			m_rate_known = false;
++			return rebased;
++		}
++		if (now_ms >= m_win_ms + rate_window_ms)
++		{
++			m_fps = static_cast<double>(frames_total - m_win_frames) * 1000.0 / static_cast<double>(now_ms - m_win_ms);
++			m_rate_known = true;
++			m_win_ms = now_ms;
++			m_win_frames = frames_total;
++		}
++		return false;
++	}
++
++	state m_state = state::idle;
++	unsigned m_level = spu_level_default;
++	unsigned m_phase = 0;
++	double m_rates[phases]{};
++	std::uint64_t m_phase_start = 0, m_phase_frames = 0;
++	std::uint64_t m_hold_until = 0, m_reject_until = 0;
++	std::uint64_t m_last_ms = 0;
++	bool m_have_last = false;
++	bool m_win_valid = false, m_rate_known = false;
++	std::uint64_t m_win_ms = 0, m_win_frames = 0;
++	double m_fps = 0.0;
++};
++
++// Shared with the performance window (exchange-and-reset except the last test's fps).
++struct controller_snapshot
++{
++	std::uint64_t time_ms[2]{};
++	std::uint64_t explorations = 0, decisions_low = 0, decisions_default = 0, aborted = 0;
++	double fps_default = 0.0, fps_low = 0.0;
++	std::uint64_t applied[2]{};
++};
++
++inline std::atomic<std::uint64_t> ctl_time_ms[2]{};
++inline std::atomic<std::uint64_t> ctl_explorations{0}, ctl_decisions_low{0}, ctl_decisions_default{0}, ctl_aborted{0};
++inline std::atomic<double> ctl_fps_default{0.0}, ctl_fps_low{0.0};
++
++// One driver tick: step the controller, publish the level only on a change, add the new totals.
++inline unsigned tick(controller& c, std::uint64_t now_ms, std::uint64_t frames_total, bool eligible) noexcept
++{
++	const unsigned level = c.step(now_ms, frames_total, eligible);
++	publish_level(level);
++	for (int i = 0; i < 2; i++)
++	{
++		ctl_time_ms[i].fetch_add(c.totals.time_ms[i] - c.published.time_ms[i], std::memory_order_relaxed);
++	}
++	ctl_explorations.fetch_add(c.totals.explorations - c.published.explorations, std::memory_order_relaxed);
++	ctl_decisions_low.fetch_add(c.totals.decisions_low - c.published.decisions_low, std::memory_order_relaxed);
++	ctl_decisions_default.fetch_add(c.totals.decisions_default - c.published.decisions_default, std::memory_order_relaxed);
++	ctl_aborted.fetch_add(c.totals.aborted - c.published.aborted, std::memory_order_relaxed);
++	ctl_fps_default.store(c.totals.fps_default, std::memory_order_relaxed);
++	ctl_fps_low.store(c.totals.fps_low, std::memory_order_relaxed);
++	c.published = c.totals;
++	return level;
++}
++
++inline controller_snapshot take_controller() noexcept
++{
++	controller_snapshot s;
++	for (int i = 0; i < 2; i++)
++	{
++		s.time_ms[i] = ctl_time_ms[i].exchange(0, std::memory_order_relaxed);
++		s.applied[i] = spu_applied[i].exchange(0, std::memory_order_relaxed);
++	}
++	s.explorations = ctl_explorations.exchange(0, std::memory_order_relaxed);
++	s.decisions_low = ctl_decisions_low.exchange(0, std::memory_order_relaxed);
++	s.decisions_default = ctl_decisions_default.exchange(0, std::memory_order_relaxed);
++	s.aborted = ctl_aborted.exchange(0, std::memory_order_relaxed);
++	s.fps_default = ctl_fps_default.load(std::memory_order_relaxed);
++	s.fps_low = ctl_fps_low.load(std::memory_order_relaxed);
++	return s;
 +}
 +}
 diff --git a/rpcs3/ios/IOSThreadQoS.h b/rpcs3/ios/IOSThreadQoS.h
@@ -12410,7 +12694,7 @@ index 74ff550..ba348ae 100644
  	struct jit_boot_summary
  	{
 diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
-index df33283..54d8175 100644
+index df33283..6dc7e51 100644
 --- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 +++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
 @@ -6,6 +6,8 @@
@@ -12510,7 +12794,7 @@ index df33283..54d8175 100644
  	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
  	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
  	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
-@@ -344,9 +393,84 @@ void resolve_experimental_policy() noexcept
+@@ -344,9 +393,86 @@ void resolve_experimental_policy() noexcept
  	// REWINDBOX_AC_MVK_ASYNC_610 adds Assassin's Creed: 0.93-1.36 s per window on build 601.
  	resolved.moltenvk_async_submits = resolve_mvk_async(title_id,
  		resolve_mode(g_cfg.ios_experimental.moltenvk_async_submits,
@@ -12584,6 +12868,8 @@ index df33283..54d8175 100644
 +	resolved.spu_qos_below_rsx = resolve_mode(g_cfg.ios_experimental.spu_qos_below_rsx,
 +		is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_assassins_creed_title(title_id) ||
 +		rpcs3::ios::title_levers::is_black_ops_ii_title(title_id));
++	// REWINDBOX_THREAD_ORCHESTRATOR_665: the adaptive SPU level's default is this lever's QoS.
++	rpcs3::ios::orchestrator::spu_default_below_rsx.store(resolved.spu_qos_below_rsx, std::memory_order_relaxed);
 +	// REWINDBOX_FIFO_NOP_FAST_627: Automatic is the titles with NOP in their command stream.
 +	resolved.fifo_nop_fast_path = resolve_mode(g_cfg.ios_experimental.fifo_nop_fast_path,
 +		is_god_of_war_iii_title(title_id) || rpcs3::ios::title_levers::is_black_ops_ii_title(title_id));
@@ -12597,7 +12883,7 @@ index df33283..54d8175 100644
  
  	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L3, L5, L9).
  	resolve_spu_spin_timing(resolved);
-@@ -392,6 +516,67 @@ void resolve_experimental_policy() noexcept
+@@ -392,6 +518,67 @@ void resolve_experimental_policy() noexcept
  		resolved.spu_spin_cntfrq, resolved.spu_spin_timer_scale,
  		resolved.spu_spin.getllar_refail_ticks, resolved.spu_spin.getllar_spin_window_ticks, resolved.spu_spin.getllar_forced_sleep_ticks,
  		resolved.position_invariance, resolved.moltenvk_async_submits);
@@ -13461,7 +13747,7 @@ index 0000000..655b3e7
 +};
 +}
 diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
-index 08e293e..4e59b25 100644
+index 08e293e..bd941e3 100644
 --- a/rpcs3/ios/RPCS3IOSPerformance.cpp
 +++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
 @@ -5,6 +5,7 @@
@@ -13509,7 +13795,18 @@ index 08e293e..4e59b25 100644
  #include <malloc/malloc.h>
  #include <os/proc.h>
  #include <sys/sysctl.h>
-@@ -430,7 +445,8 @@ public:
+@@ -363,6 +378,10 @@ public:
+ 		{
+ 			m_profile_thread.join();
+ 		}
++		if (m_orch_thread.joinable())
++		{
++			m_orch_thread.join();
++		}
+ 	}
+ 
+ 	void reset()
+@@ -430,7 +449,8 @@ public:
  		m_profile_session.fetch_add(1, std::memory_order_relaxed);
  		rpcs3::ios::frame_trace::profile.reset(m_profile_session.load(std::memory_order_relaxed));
  		rpcs3::ios::renderer_causality::profile.reset(m_profile_session.load(std::memory_order_relaxed));
@@ -13519,7 +13816,19 @@ index 08e293e..4e59b25 100644
  		m_last_signal_dump_us = 0;
  		m_profile_guest_baseline = 0;
  		m_last_guest_flip_tsc.store(0, std::memory_order_relaxed);
-@@ -496,6 +512,7 @@ public:
+@@ -477,6 +497,11 @@ public:
+ 		{
+ 			m_profile_thread = std::thread([this] { sampler_main(); });
+ 		}
++		// REWINDBOX_THREAD_ORCHESTRATOR_665: the adaptive SPU placement controller, started only when enabled.
++		if (rpcs3::ios::orchestrator::enabled.load(std::memory_order_relaxed) && !m_orch_thread.joinable())
++		{
++			m_orch_thread = std::thread([this] { orchestrator_main(); });
++		}
+ 	}
+ 
+ 	void record_presented_frame(u32 rsx_load) noexcept
+@@ -496,6 +521,7 @@ public:
  
  	void record_pipeline_job_queued(u32 pending_jobs) noexcept
  	{
@@ -13527,7 +13836,7 @@ index 08e293e..4e59b25 100644
  		m_pipeline_queued.fetch_add(1, std::memory_order_relaxed);
  		u32 peak = m_pipeline_peak_pending.load(std::memory_order_relaxed);
  		while (peak < pending_jobs && !m_pipeline_peak_pending.compare_exchange_weak(
-@@ -506,6 +523,7 @@ public:
+@@ -506,6 +532,7 @@ public:
  
  	void record_pipeline_job_completed(u64 queue_wait_ticks, u64 compile_ticks) noexcept
  	{
@@ -13535,7 +13844,7 @@ index 08e293e..4e59b25 100644
  		m_event_costs[0].record(queue_wait_ticks);
  		m_event_costs[1].record(compile_ticks);
  		m_pipeline_completed.fetch_add(1, std::memory_order_relaxed);
-@@ -617,9 +635,13 @@ public:
+@@ -617,9 +644,13 @@ public:
  		}
  	}
  
@@ -13551,7 +13860,39 @@ index 08e293e..4e59b25 100644
  		m_event_costs[4].record(wait_microseconds);
  		m_rsx_semaphore_waits.fetch_add(1, std::memory_order_relaxed);
  		m_rsx_semaphore_wait_us.fetch_add(wait_microseconds, std::memory_order_relaxed);
-@@ -844,6 +866,9 @@ private:
+@@ -795,6 +826,31 @@ private:
+ 		while (maximum < value && !target.compare_exchange_weak(maximum, value, std::memory_order_relaxed)) {}
+ 	}
+ 
++	// REWINDBOX_THREAD_ORCHESTRATOR_665: ticks the SPU placement controller every 100 ms (the profiler
++	// sampler waits 500 ms) at QOS_CLASS_UTILITY, from the guest flip counter m_guest_frames, read lock-free.
++	// The GameDB family "spu-heavy" is not resolved in the Core, so eligibility is the orchestrator being
++	// enabled and the frame rate (inside the controller) only.
++	void orchestrator_main()
++	{
++		namespace orch = rpcs3::ios::orchestrator;
++		orch::apply_to_current_thread({orch::qos_utility, 0});
++		orch::controller controller;
++		const auto begin = std::chrono::steady_clock::now();
++		for (;;)
++		{
++			{
++				std::unique_lock lock(m_profile_mutex);
++				if (m_profile_cv.wait_for(lock, std::chrono::milliseconds(100), [this] { return m_stop_sampler; }))
++				{
++					break;
++				}
++			}
++			const auto now_ms = static_cast<u64>(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - begin).count());
++			orch::tick(controller, now_ms, m_guest_frames.load(std::memory_order_relaxed), orch::enabled.load(std::memory_order_relaxed));
++		}
++		orch::publish_level(orch::spu_level_default);
++	}
++
+ 	void sampler_main()
+ 	{
+ 		auto last_thread_sample = sample_clock::now();
+@@ -844,6 +900,9 @@ private:
  				report = now >= m_next_report;
  			}
  
@@ -13561,7 +13902,7 @@ index 08e293e..4e59b25 100644
  			if (report)
  			{
  				report_profile_window();
-@@ -851,8 +876,98 @@ private:
+@@ -851,8 +910,98 @@ private:
  		}
  	}
  
@@ -13660,7 +14001,7 @@ index 08e293e..4e59b25 100644
  		u64 current_frames = 0;
  		const u64 frequency = utils::get_tsc_freq();
  		std::array<double, core_group_count> average_cores{};
-@@ -874,6 +989,8 @@ private:
+@@ -874,6 +1023,8 @@ private:
          double seconds_without_frames = 0.0;
          rpcs3::ios::diagnostics::GuestFrameWindow::Sample guest_frames;
          rpcs3::ios::frame_trace::Profile::Snapshot frame_causes;
@@ -13669,7 +14010,7 @@ index 08e293e..4e59b25 100644
          rpcs3::ios::renderer_causality::Profile::Snapshot renderer_causes;
          rpcs3::ios::signal_trace::summary_result signal_summary;
          rpcs3::ios::signal_trace::snapshot_result signal_snapshot;
-@@ -897,6 +1014,8 @@ private:
+@@ -897,6 +1048,8 @@ private:
              profile_window = ++m_report_window;
              guest_frames = m_guest_frame_window.take();
              frame_causes = rpcs3::ios::frame_trace::profile.take();
@@ -13678,7 +14019,7 @@ index 08e293e..4e59b25 100644
              renderer_causes = rpcs3::ios::renderer_causality::profile.take();
              signal_report_us = get_system_time();
              signal_summary = rpcs3::ios::signal_trace::summary();
-@@ -1018,12 +1137,29 @@ private:
+@@ -1018,12 +1171,29 @@ private:
                  const auto wait_ms = [&](u64 ticks) {
                      return rpcs3::ios::frame_trace::microseconds(ticks, frame.frequency) / 1000.0;
                  };
@@ -13709,7 +14050,7 @@ index 08e293e..4e59b25 100644
                      frame.session, profile_window, frame.frame, frame.begin_ticks, frame.end_ticks, frame.frequency,
                      frame.interval_available ? 1u : 0u, frame.interval_us / 1000.0,
                      frame.stages_sampled ? 1u : 0u, frame.forced ? 1u : 0u, frame.draws, frame.submits,
-@@ -1035,9 +1171,61 @@ private:
+@@ -1035,9 +1205,61 @@ private:
                      frame.stages_sampled ? frame.flip_us / 1000.0 : -1.0,
                      wait_ms(frame.waits.fence_ticks), wait_ms(frame.waits.submit_ticks),
                      wait_ms(frame.waits.drawable_ticks), wait_ms(frame.waits.present_ticks),
@@ -13772,7 +14113,7 @@ index 08e293e..4e59b25 100644
          report_renderer_causes(renderer_causes, profile_session, profile_window);
          report_signal_causes(signal_summary, signal_dump ? &signal_snapshot : nullptr,
              profile_session, profile_window, signal_report_us);
-@@ -1161,6 +1349,57 @@ private:
+@@ -1161,6 +1383,71 @@ private:
              costs[4].count, costs[4].total / 1000.0, costs[4].maximum / 1000.0,
              costs[5].count, milliseconds(costs[5].total), milliseconds(costs[5].maximum),
              costs[6].count, milliseconds(costs[6].total), milliseconds(costs[6].maximum));
@@ -13796,6 +14137,20 @@ index 08e293e..4e59b25 100644
 +        // the PPU waits longer than 50 us.
 +        {
 +            namespace orch = rpcs3::ios::orchestrator;
++            if (orch::enabled.load(std::memory_order_relaxed))
++            {
++                const auto ctl = orch::take_controller();
++                const double total_ms = static_cast<double>(ctl.time_ms[0] + ctl.time_ms[1]);
++                ios_core_profiler.notice(
++                    "COREPROF ORCH665 session=%llu window=%llu enabled=1 level=%u share_default=%.3f share_low=%.3f "
++                    "explorations=%llu decisions_low=%llu decisions_default=%llu aborted=%llu fps_default=%.3f fps_low=%.3f "
++                    "spu_applied_default=%llu spu_applied_low=%llu scope=process_window",
++                    profile_session, profile_window, orch::spu_level.load(std::memory_order_relaxed),
++                    total_ms > 0.0 ? static_cast<double>(ctl.time_ms[0]) / total_ms : 0.0,
++                    total_ms > 0.0 ? static_cast<double>(ctl.time_ms[1]) / total_ms : 0.0,
++                    static_cast<u64>(ctl.explorations), static_cast<u64>(ctl.decisions_low), static_cast<u64>(ctl.decisions_default),
++                    static_cast<u64>(ctl.aborted), ctl.fps_default, ctl.fps_low, static_cast<u64>(ctl.applied[0]), static_cast<u64>(ctl.applied[1]));
++            }
 +            const auto writer = orch::take_writer();
 +            for (unsigned index = 0; index < orch::class_count; index++)
 +            {
@@ -13830,7 +14185,7 @@ index 08e293e..4e59b25 100644
          // REWINDBOX_COMPILE_PRESSURE_V1 / REWINDBOX_FENCE_WAIT_V1: draw-blocking
          // pipeline builds, SPU polls that waited passively meanwhile, and GPU
          // fence waits finished within the bounded spin or blocked in MoltenVK.
-@@ -1206,6 +1445,185 @@ private:
+@@ -1206,6 +1493,185 @@ private:
                  static_cast<unsigned long long>(sync::metal_compiles_interactive.exchange(0, std::memory_order_relaxed)),
                  static_cast<unsigned long long>(sync::metal_compiles_default.exchange(0, std::memory_order_relaxed)));
          }
@@ -14016,7 +14371,7 @@ index 08e293e..4e59b25 100644
          // REWINDBOX_RSX_FRAME_PROFILE_V1: RPCS3's own per-frame RSX statistics;
          // stage times are averages over the sampled frames of the window.
          {
-@@ -1229,8 +1647,9 @@ private:
+@@ -1229,8 +1695,9 @@ private:
                  vc_requests, vc_misses, lookups, elided, idles, rpcs3::ios::rsx_sync::rsx_frame_sample_period);
          }
          // REWINDBOX_FEEDBACK_CENSUS_610: color-feedback work of the window. Per-frame
@@ -14028,7 +14383,7 @@ index 08e293e..4e59b25 100644
          {
              namespace census = rpcs3::ios::feedback_census;
              auto& c = census::counters;
-@@ -1242,10 +1661,151 @@ private:
+@@ -1242,10 +1709,151 @@ private:
              ios_core_profiler.notice(
                  "COREPROF FEEDBACK610 session=%llu window=%llu draw_renderpasses=%llu snapshot_draws=%llu snapshot_copies=%llu "
                  "duplicate_copies=%llu snapshot_mpix=%.3f pb_draws=%llu msaa_feedback_reads=%llu depth_feedback_reads=%llu "
@@ -14181,7 +14536,7 @@ index 08e293e..4e59b25 100644
          // REWINDBOX_SPU_WAIT_PROFILE_V1: SPU time outside guest code, summed over
          // the SPU threads (deltas of monotonic per-thread totals).
          {
-@@ -1281,6 +1841,14 @@ private:
+@@ -1281,6 +1889,14 @@ private:
              }
              ios_core_profiler.notice("%s scope=process_window_all_threads parent_includes_gpu_fence=1 bytes_scope=confirmed_requested_not_dma_payload window_boundary_approximate=1", line);
          }
@@ -14196,7 +14551,7 @@ index 08e293e..4e59b25 100644
          // CELL559_OPT_EXPORT: work the 559 paths avoided in this window, one bounded line.
          {
              namespace overwrite = rpcs3::ios::full_overwrite;
-@@ -1339,13 +1907,21 @@ private:
+@@ -1339,13 +1955,21 @@ private:
          // frame had used its budget, one bounded line.
          {
              namespace early = rpcs3::ios::early_submit;
@@ -14219,7 +14574,7 @@ index 08e293e..4e59b25 100644
          }
          // CELL587_MVK_ENCODE_BARRIER / CELL587_MVK_ASYNC_CANARY: asynchronous MoltenVK submits
          // of this boot (canary verdict, confirmation), the encoding queues recorded for the
-@@ -1615,6 +2191,7 @@ private:
+@@ -1615,6 +2239,7 @@ private:
  		const std::string top_list = rpcs3::ios::profiler::format_top_list(
  			rpcs3::ios::profiler::top_threads(std::move(top_accumulated), usage_samples));
  
@@ -14227,7 +14582,7 @@ index 08e293e..4e59b25 100644
  		ios_core_profiler.notice(
  			"COREPROF frames=%llu avg_fps=%.3f low1_fps=%.3f frametime_ms=%.3f p95_ms=%.3f p99_ms=%.3f "
  			"ppu_ms=%.3f spu_ms=%.3f rsx_ms=%.3f jit_ms=%.3f gpu_time_ms=-1 "
-@@ -1644,20 +2221,19 @@ private:
+@@ -1644,20 +2269,19 @@ private:
  			compile_threads, compile_cores, average_threads[static_cast<usz>(core_group::other)],
  			rsx_fifo_busy, rsx_main_cores, top_list, guest_progress.wall_guest_fps, guest_progress.last_guest_flip_age_ms);
  
@@ -14257,7 +14612,15 @@ index 08e293e..4e59b25 100644
      u64 m_last_signal_dump_us = 0; // guarded by m_profile_mutex
      rpcs3::ios::diagnostics::GuestFrameWindow m_guest_frame_window;
      rpcs3::ios::diagnostics::ProcessMemoryWindow m_process_memory;
-@@ -1945,9 +2521,9 @@ void record_vram_allocation(bool allocated, u64 bytes) noexcept
+@@ -1676,6 +2300,7 @@ private:
+ 	std::mutex m_profile_mutex;
+ 	std::condition_variable m_profile_cv;
+ 	std::thread m_profile_thread;
++	std::thread m_orch_thread; // REWINDBOX_THREAD_ORCHESTRATOR_665
+ 	bool m_stop_sampler = false;
+ 	u64 m_profile_frame_baseline = 0;
+ 	u64 m_usage_samples = 0;
+@@ -1945,9 +2570,9 @@ void record_vram_allocation(bool allocated, u64 bytes) noexcept
  	g_performance_registry.record_vram_allocation(allocated, bytes);
  }
  

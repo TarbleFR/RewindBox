@@ -540,6 +540,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   slow parks > 50 us), PPU at UI relative priority 0 at the cpu_thread choke point (setting
   `experimental.thread_orchestrator`, levers627 digit 18, test page row); no codegen input
   (SPUThread.cpp/PPUThread.cpp untouched). Implementation delegated (rb-code), then review, pin.
+  - Maintainer 5 Nov: "Il ne doit pas servir comme nouveau diagnostic": v1 now acts. Adaptive SPU
+    placement controller (pure state machine, 100 ms UTILITY driver thread on guest flips): phases
+    default/low/default/low of 500 ms, low (QOS_CLASS_UTILITY) kept when mean(low) >= 0.99 x
+    mean(default), abort under 85 % (reject 120 s), hold 30 s, default under 5 fps; SPUs apply the
+    level by generation at their pass points; COREPROF ORCH665. Coordinator fixes: PPU at
+    min(0, default + 1) (audio keeps precedence); review (rb-core-review): no defect, the park metric
+    split into suspend phase and PPU wait. No GameDB family in the Core: spu-heavy exclusion not
+    applied. Packaged: increment 11 files, canonical `d81e7fd2` (364 files), host `7282878a`;
+    closure, codegen audit (identities unchanged), route/MoltenVK/pin tests passed; core665 driver
+    running locally.
   - Then performance: PPU parking cost in BO2 normal play (252 ms/s), BO2 blocking pipeline builds.
 - **Setting applied (Core 664 turn):** same principal model as the Core 659 turn (get_session:
   session_context.model = last_served_model, unchanged); effort `max` (session_context.effort_level,

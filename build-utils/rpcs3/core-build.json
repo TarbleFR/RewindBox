@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 664,
- "identity_type": "rpcs3-ios-core664",
- "summary": "RPCS3 Core 664 = the delivered Core 610 plus one folded delta: the Core 612 to 660 records unchanged and the Core 664 change (build-utils/rpcs3/core664-from-660.patch over Core 660, iOS): when a passive-lock waiter marked starving by the CELL571 gate leaves vm::passive_lock, it opens a 100 us window and vm::writer_lock keeps deferring while it lasts, within the same 500 us bound per writer lock, so the PPU thread runs before the next heavy PUTLLC parks it again (IPA 624, 657 and 662: Black Ops II stalls of 9-40 s); a thread's own window does not hold its own writer locks and the writers' wake-up is passed on when they leave (REWINDBOX_PPU_GRACE_664, setting experimental.ppu_grace, Automatic for every title with Passive Lock Fairness, boot line Resolved title policy 664, COREPROF PPUGRACE664); one test page lever (levers627 digit 17). Every writer lock is still taken in full and parks every PPU thread. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. No gain measured: not built, no iPhone run.",
+ "build": 665,
+ "identity_type": "rpcs3-ios-core665",
+ "summary": "RPCS3 Core 665 = the delivered Core 610 plus one folded delta: the Core 612 to 664 records unchanged and the Core 665 change (build-utils/rpcs3/core665-from-664.patch over Core 664, iOS): the thread orchestrator v1 (REWINDBOX_THREAD_ORCHESTRATOR_665, setting experimental.thread_orchestrator, Automatic for every title): rate-limited self-samples of the CPU and QoS class each thread class runs on, the vm::writer_lock suspend phases with their PPU-wait part and the PPU waits over 50 us (COREPROF PLACEMENT665), and the PPU threads one relative priority step above the default USER_INTERACTIVE threads, below the RSX and audio threads (boot line Resolved title policy 665); one test page lever (levers627 digit 18). Core 664 contained the PPU grace after starvation (kept). ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "252b9dd11f867052e1dd97486bcd4cf6af405867617001a04298901729a18e88",
-  "postimages": 363,
+  "patch_sha256": "d81e7fd247cbb553b357795f18bfbb94f15eaa55d83a6497f7c35179ff6db05f",
+  "postimages": 364,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -45,7 +45,8 @@
    "core655_20261104",
    "core659_20261105",
    "core660_20261105",
-   "core664_20261105"
+   "core664_20261105",
+   "core665_20261105"
   ]
  },
  "reference": {
@@ -85,16 +86,16 @@
   "exports": 88
  },
  "delta": {
-  "record": "core664_20261105",
-  "manifest": "build-utils/rpcs3/core664-delta.json",
-  "patch": "build-utils/rpcs3/core664-delta.patch",
-  "patch_sha256": "310e8b8b29ddd9020e7730d46ccd61d29576548ffee505b4a6ff94c1afc969dc"
+  "record": "core665_20261105",
+  "manifest": "build-utils/rpcs3/core665-delta.json",
+  "patch": "build-utils/rpcs3/core665-delta.patch",
+  "patch_sha256": "798c725e653dc367b4be7d3d15fcb77b90eda7ca88202ee78e467e24fdb3c9ec"
  },
  "exports": 92,
  "core_inputs": {
   "count": 92,
   "host": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
-  "host_sha256": "dd4c525a78d4b8bcc173685422489ee14ca5842a4571d9b2a884ccb970a801af",
+  "host_sha256": "7282878a11161d01225e6c7c1e7968d3579fce3b14aec2d43c2062485d048a3c",
   "reviewed_drift": [
    "build-utils/rpcs3/canonical-source.json",
    "build-utils/rpcs3/embedded-core.patch",
@@ -182,7 +183,10 @@
   "ZCULL Queue-Depth Guard",
   "Resolved title policy 664",
   "COREPROF PPUGRACE664",
-  "PPU Grace After Starvation"
+  "PPU Grace After Starvation",
+  "Resolved title policy 665",
+  "COREPROF PLACEMENT665",
+  "Thread Orchestrator"
  ],
  "moltenvk_dependency": {
   "run": 42051417882,
@@ -325,7 +329,7 @@
      "--report",
      "{out}/graphics-tests-612.json"
     ],
-    "reason": "the GPU timing lever joins the catalogue, the whitelist, the accuracy page and CONFIG_LAYERS part=rsx (gpu_timing=); Core 660: three rows (SPU direct object hits, texture lookup memo, ZCULL queue-depth guard), levers627 digits 14 to 16; Core 664: one row (PPU grace after starvation), levers627 digit 17"
+    "reason": "the GPU timing lever joins the catalogue, the whitelist, the accuracy page and CONFIG_LAYERS part=rsx (gpu_timing=); Core 660: three rows (SPU direct object hits, texture lookup memo, ZCULL queue-depth guard), levers627 digits 14 to 16; Core 664: one row (PPU grace after starvation), levers627 digit 17; Core 665: one row (thread orchestrator), levers627 digit 18"
    },
    {
     "name": "graphics-tests-612-asan-ubsan",
@@ -340,7 +344,7 @@
      "--report",
      "{out}/graphics-tests-612-asan-ubsan.json"
     ],
-    "reason": "the GPU timing lever joins the catalogue, the whitelist, the accuracy page and CONFIG_LAYERS part=rsx (gpu_timing=), under ASan/UBSan; Core 660: three rows (SPU direct object hits, texture lookup memo, ZCULL queue-depth guard), levers627 digits 14 to 16; Core 664: one row (PPU grace after starvation), levers627 digit 17"
+    "reason": "the GPU timing lever joins the catalogue, the whitelist, the accuracy page and CONFIG_LAYERS part=rsx (gpu_timing=), under ASan/UBSan; Core 660: three rows (SPU direct object hits, texture lookup memo, ZCULL queue-depth guard), levers627 digits 14 to 16; Core 664: one row (PPU grace after starvation), levers627 digit 17; Core 665: one row (thread orchestrator), levers627 digit 18"
    },
    {
     "name": "reuse-audit",
@@ -389,28 +393,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core664_codegen_test.py",
+     "test/rpcs3_core665_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 664 touches no codegen input; its reverted tree passes the Core 660 audit"
+    "reason": "Core 665 touches no codegen input; its reverted tree passes the Core 664 audit (then 660 and earlier)"
    },
    {
-    "name": "core664",
+    "name": "core665",
     "argv": [
      "python3",
-     "test/rpcs3_core664_test.py",
+     "test/rpcs3_core665_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core664.json"
+     "{out}/core665.json"
     ],
-    "reason": "Core 664 increment reverted to the pinned Core 660 files and applied again; the PPU grace wiring and its host model on the source gate header (plain and ASan/UBSan), the test page row, then the Core 660 suite on the reverted tree (then 659 to 627)"
+    "reason": "Core 665 increment reverted to the pinned Core 664 files (new header gone) and applied again; the thread orchestrator wiring and its host unit (plain and ASan/UBSan), the test page row, then the Core 664 suite on the reverted tree (then 660 to 627)"
    },
    {
     "name": "lr-full-queue",

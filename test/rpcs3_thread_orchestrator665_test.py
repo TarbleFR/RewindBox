@@ -83,6 +83,28 @@ def source_checks(source: Path) -> dict:
     require('COREPROF PPUGRACE664' in perf and perf.index('COREPROF PPUGRACE664') < perf.index('COREPROF PLACEMENT665'), 'report follows PPUGRACE664')
     require('"COREPROF PLACEMENT665 session=%llu window=%llu enabled=%d class=%s samples=%llu cpu=%s qos=%s "' in perf and
             '"wl_suspends=%llu wl_suspend_ms=%.3f wl_ppu_wait_ms=%.3f wl_slow_ppu_waits=%llu wl_slow_ppu_wait_ms=%.3f "' in perf and 'orch::take_writer()' in perf, 'report line')
+    # Adaptive SPU placement controller.
+    require('inline std::atomic<unsigned> spu_level{spu_level_default};' in hdr and 'inline std::atomic<unsigned> spu_level_gen{0};' in hdr and
+            'qos_utility;\n\tint relative = 0;' in hdr, 'spu_level and spu_level_gen, low is UTILITY relative 0')
+    require('thread_qos::for_priority(' in hdr and 'thread_qos::spu_native_priority' in hdr, 'default level rebuilt from IOSThreadQoS.h')
+    require('if (c == cls::spu)\n\t{\n\t\tspu_pass();' in hdr and hdr.index('if (c == cls::spu)') < hdr.index('if (!due(now_ticks()'), 'SPU pass point inside sample()')
+    require('unsigned step(std::uint64_t now_ms, std::uint64_t frames_total, bool eligible) noexcept' in hdr and
+            'phase_ms = 500' in hdr and 'hold_ms = 30\'000' in hdr and 'reject_ms = 120\'000' in hdr and 'abort_ratio = 0.85' in hdr and
+            'accept_ratio = 0.99' in hdr and 'min_fps = 5.0' in hdr, 'controller constants')
+    require('if (spu_level.load(std::memory_order_relaxed) == level)\n\t{\n\t\treturn false;' in hdr, 'publication only on a change')
+    cpu = read(source, 'rpcs3/Emu/CPU/CPUThread.cpp')
+    require('orchestrator::spu_start();' in cpu and cpu.index('spu_native_priority);') < cpu.index('orchestrator::spu_start();'), 'SPU start after the 627 code')
+    require(cpu.count('orchestrator::sample(') == 1 and read(source, 'rpcs3/Emu/Memory/vm.cpp').count('orchestrator::sample(') == 2, 'SPU pass points: check_state, passive_lock, writer_lock')
+    require('orch::tick(controller, now_ms, m_guest_frames.load(std::memory_order_relaxed)' in perf and
+            'std::chrono::milliseconds(100)' in perf[perf.index('void orchestrator_main()'):perf.index('void sampler_main()')] and
+            'orch::apply_to_current_thread({orch::qos_utility, 0});' in perf and
+            'if (rpcs3::ios::orchestrator::enabled.load(std::memory_order_relaxed) && !m_orch_thread.joinable())' in perf and
+            'm_orch_thread.join();' in perf, 'driver thread: 100 ms, UTILITY, guest flip counter, only when enabled, joined')
+    require('"COREPROF ORCH665 session=%llu window=%llu enabled=1 level=%u share_default=%.3f share_low=%.3f "' in perf and
+            'orch::take_controller()' in perf, 'ORCH665 report line')
+    require('orchestrator::spu_default_below_rsx.store(resolved.spu_qos_below_rsx' in policy, 'default level follows the 627 lever')
+    for rel in ('rpcs3/Emu/Cell/SPUThread.cpp', 'rpcs3/Emu/Cell/PPUThread.cpp'):
+        require('orchestrator' not in read(source, rel), rel + ' is a codegen input and stays untouched')
     return {'levers627_digits': 18, 'sample_interval_ms': 1, 'slow_park_us': 50}
 
 
