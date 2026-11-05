@@ -488,6 +488,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       reservations again) does not prevent it. Also BO2 spends 23-34 s per ~3-4 min in vm::range_lock
       episodes (max 30.6 ms). Next: diagnose the livelock (reservation owner and PUTLLC failure cause
       on that line) before any BO2 change.
+    - Maintainer, 5 Nov: "Profil de mesure allege" (light measurement) on BO2 gave no notable gain, so the
+      instrumentation is not the limit. Decision (maintainer): simplify the engine and adapt it to iOS; a
+      thread orchestrator for RPCS3 only, all titles, using the RPCS3 config DB (already the GameDB layer:
+      2,187 entries, families compatibility 1414 / balanced 527 / spu-heavy 153 / gpu-bound 89 /
+      shader-heavy 4; the family is logged but drives nothing yet). Chantier opened (task: orchestrator v1):
+      thread map and QoS choke point (research running), then class->QoS for every title, SPU waiting
+      without spinning on fast cores, background work off the performance cores during play, the DB
+      family as input, measured per window (CPU time and placement per thread class).
   - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
     without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
     report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).
