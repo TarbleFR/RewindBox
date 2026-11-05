@@ -21,7 +21,7 @@
  "lot": "Hogwarts 658 logs (two players) and the maintainer request of 5 Nov: compile stalls, syncpoint false completions, pacing, close hangs, session retention, diagnostics, in-play RAM (safe-point LOH compaction, host warning trim, cold textures, bindless retention), GC pauses (NativeAOT workstation GC rebuilt with dotnet/runtime#119383, run 41988362179), sky artifacts (MoltenVK 1.4.2 stage ordering), left stick (host Swift)",
  "contract": {
   "path": "build-utils/melonx/dma-core-contract.json",
-  "sha256": "1ae4c65b094fe099416333d46f91b53d6cdf4eec1892dc311965fe89b67e9a2f",
+  "sha256": "e187562cbce321771d2fd675cef390bd7eea9a1d982703259b908c61b82345d4",
   "freshAppleGates": 47,
   "reusedAppleGates": 20,
   "historicalAppleReceipts": 61
@@ -37,7 +37,8 @@
   "ciPortability": "Freeze 48c837d4 (contract 3c383d88) kept a Linux-only safe-point-compaction fixture: DOTNET_GCName=libclrgc.so and VmRSS from /proc/self/status, which the macos-26 Core runner does not have (the osx-arm64 10.0.0 runtime pack ships libclrgc.dylib). Found by review before the CI reached that gate; run 41998621333 cancelled; fixture made portable, contract refrozen. Test-side, not product.",
   "ciTimerLeeway": "Core run 41999859590 (e1ab9b52): setprogram-warmup failed on macos-26 from host timer leeway on below-normal threads stretching the fixture's modeled 400 ms compiles; fixture-side, not product; the 33 gates before it passed on Apple ARM64.",
   "ciTimerGranularity": "Core run 42003056073 (d0da535e): shader-save-poll failed on macos-26, host sleep granularity (2 ms rests lasting 10-20 ms) bounding a pass count; it had passed there in run 41999859590 with 57. Fixture-side, not product.",
-  "ciTimerAccumulation": "Core run 42006447546 (c83014fe): forced-syncpoint-wait failed on macos-26 from per-wait timer overshoot (+65-120 ms on each wait) accumulated over the fixture's 25-32 steps; setprogram-warmup (103) and teardown-cache (56) passed there first. Fixture-side, not product."
+  "ciTimerAccumulation": "Core run 42006447546 (c83014fe): forced-syncpoint-wait failed on macos-26 from per-wait timer overshoot (+65-120 ms on each wait) accumulated over the fixture's 25-32 steps; setprogram-warmup (103) and teardown-cache (56) passed there first. Fixture-side, not product.",
+  "ciTimerLeewaySecond": "Core run 42009977335 (7f0d7b50): setprogram-warmup burstMatch bound missed by 14.6 ms from the fixture's own sequencing sleeps overshooting on macos-26; fixture-side, not product."
  },
  "gates": {
   "bindless-array-deltas": {
@@ -208,9 +209,9 @@
   },
   "setprogram-warmup": {
    "report": "setprogram-warmup-checks.json",
-   "sha256": "a63f13360e7dbf38d1ad8863d386092591c438a723f98226b22480d69d4587db",
+   "sha256": "dd80ceb32d0e83f62cf82c624f5591316d4986124cc5a1c3c112e29d3b0bd3fb",
    "seconds": 135,
-   "portableRerun": "Rerun after the double modeled compile and checkpoint durations as a deadline (short sleeps re-checked) instead of one long Thread.Sleep: Core run 41999859590 on macos-26 failed \"the draw waiting for a warm-up does not wait for the worker cache checkpoint\" (515.9 ms vs control 404.7 + 100) because 400 ms sleeps on the below-normal compile workers lasted 470-520 ms there (control too), while the draw came 0.1 ms after its compile. Same assertions; 103 checks, compiles exactly 400 ms."
+   "portableRerun": "Rerun after the double modeled compile and checkpoint durations as a deadline (short sleeps re-checked) instead of one long Thread.Sleep: Core run 41999859590 on macos-26 failed \"the draw waiting for a warm-up does not wait for the worker cache checkpoint\" (515.9 ms vs control 404.7 + 100) because 400 ms sleeps on the below-normal compile workers lasted 470-520 ms there (control too), while the draw came 0.1 ms after its compile. Same assertions; 103 checks, compiles exactly 400 ms. Second rerun after Core run 42009977335 failed \"burstMatch: time to the first draw 1631.8 / 574.6\" (bound 560): the fixture's 30 ms sequencing delay took 136 ms there and a deadline's last 5 ms slice up to 45 ms. Native.Work now sleeps 1 ms slices while more than 30 ms remain, then yields, and the fixture's four sequencing delays use it. Same assertions; 103 checks; every compile 400 ms; candidate burstMatch 431.9 ms."
   },
   "teardown-cache": {
    "report": "teardown-cache-checks.json",

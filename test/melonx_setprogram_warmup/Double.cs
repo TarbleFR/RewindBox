@@ -117,17 +117,18 @@ namespace Ryujinx.Graphics.Vulkan
         private static long _handles = 100;
         public static double Now => Clock.Elapsed.TotalMilliseconds;
 
-        // The modeled work lasts its duration on every host: a deadline re-checked after short sleeps. One long sleep is
-        // stretched on macOS for a below-normal thread (the scheduler's compile workers; Core CI run 41999859590: 400 ms
-        // compiles took 470-520 ms on worker caches, 400 ms elsewhere), which is host timer leeway, not the code tested.
+        // The modeled work and the fixture's sequencing delays last their duration on every host: a deadline, 1 ms sleeps
+        // while more than 30 ms remain, then yields. On the macOS Core runner a single sleep overshoots by 10-100 ms
+        // (run 41999859590: 400 ms compiles took 470-520 ms on the below-normal workers; run 42009977335: a 30 ms delay
+        // took 136 ms and the last 5 ms slice of a deadline up to 45 ms), which is host timer leeway, not the code tested.
         public static void Work(int ms)
         {
             if (ms <= 0) return;
             double end = Now + ms;
             for (double left; (left = end - Now) > 0;)
             {
-                if (left >= 2) Thread.Sleep((int)Math.Min(left - 1, 5));
-                else Thread.SpinWait(64);
+                if (left > 30) Thread.Sleep(1);
+                else Thread.Yield();
             }
         }
 

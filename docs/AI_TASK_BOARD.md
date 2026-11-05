@@ -517,6 +517,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Core run `42006447546` (c83014fe): setprogram-warmup and teardown-cache passed on macOS; forced-syncpoint-wait failed
     (true value 25/25 at 4813 ms, window 2300-3200: each 100 ms GPU-double step lasted 165-190 ms there). The double's
     steps follow an absolute schedule (same assertions, 83 checks, 2513 ms); contract `1ae4c65b`, 380 checks.
+  - Core run `42009977335` (7f0d7b50): setprogram-warmup burstMatch 574.6 ms (bound 560): the fixture's 30 ms
+    sequencing delay took 136 ms there. Native.Work is exact (1 ms slices, then yields) and the fixture's delays use it
+    (same assertions, 103 checks, burstMatch 431.9 ms); contract `e187562c`, 380 checks.
 - **Next:** Core run green -> pin `dma-core-pin.json`, hand off to main (IPA 662 = RPCS3 660 + MeloNX 661; MeloNX
   runs no delivery); then the maintainer's iPhone test and like-for-like logs (resolution criteria in the map).
 - **Baselines for like-for-like checks** (`tools/melonx/memory_report.py`, windows from the first game second): player 1

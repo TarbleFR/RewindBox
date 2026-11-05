@@ -50,7 +50,7 @@ void Settle(params Session[] sessions)
     foreach (Session s in sessions)
         foreach (ShaderCollection program in s.Gd.Shaders.ToArray())
             program.WaitForBackgroundCompilation();
-    Thread.Sleep(20);
+    Native.Work(20);
 }
 
 object Describe(Compile c, double origin) => new { key = c.Key, cache = c.Cache == 0 ? "main" : "worker" + (c.Cache - 1),
@@ -155,7 +155,7 @@ Dictionary<string, object> Burst(bool policy, bool match)
     s.Create(Graphics(), GraphicsInfo(10, false));
     s.Create(Graphics(), GraphicsInfo(11, false));
     s.Create(Graphics(), GraphicsInfo(12, false));
-    Thread.Sleep(30);
+    Native.Work(30);
     ThreadedProgram bound = s.Create(Graphics(), GraphicsInfo(13, false));
     double setStart = Native.Now;
     s.SetProgram(bound);
@@ -217,7 +217,7 @@ Dictionary<string, object> SavePoll(bool policy)
     Native.Reset();
     var s = new Session(policy);
     ThreadedProgram program = s.Create(Graphics(), GraphicsInfo(List, false));
-    Thread.Sleep(Math.Min(60, P / 4));
+    Native.Work(Math.Min(60, P / 4));
     ProgramLinkStatus during = program.Base.CheckProgramLink(false);
     Settle(s);
     return new() { ["duringWarmUp"] = during.ToString(), ["after"] = program.Base.CheckProgramLink(false).ToString() };
@@ -235,7 +235,7 @@ Dictionary<string, object> Cancel(bool policy)
         s.Gd.BackgroundCompilationScheduler.SchedulePipelineCompile(_ => { entered.Signal(); release.Wait(); });
     entered.Wait(5000);
     ThreadedProgram program = s.Create(Graphics(), GraphicsInfo(List, false));
-    Thread.Sleep(30);
+    Native.Work(30);
     var shader = (ShaderCollection)program.Base;
     shader.CancelPendingWarmUp();
     release.Set();
