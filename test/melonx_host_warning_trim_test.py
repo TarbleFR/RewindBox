@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, use_authenticated_libhac_feed  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, use_authenticated_libhac_feed  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_host_warning_trim', _HOLD)
@@ -88,8 +88,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-host-warning-trim-') as temporar
         adapt_host_warning_trim.once = original_once
     check(sorted(str(p.relative_to(work)) for p in changed) == sorted(BASELINE), 'adapter changed other files')
     if FINAL_PREPARATION:
+        # Files a later Core 661 adapter also edits are proven by control_source's forward check; the others must
+        # be the final preparation's bytes here.
+        later = files_edited_later('adapt_host_warning_trim')
         for name in BASELINE:
-            check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+            if name not in later:
+                check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
     control = (SOURCE / CONTEXT).read_text(encoding='utf-8-sig')
     candidate = (work / CONTEXT).read_text(encoding='utf-8-sig')
     undone = candidate

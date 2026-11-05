@@ -94,6 +94,9 @@ namespace Ryujinx.Graphics.GAL.Multithreading.Resources
         public bool CanBindWhileIncomplete => Base?.CanBindWhileIncomplete ?? false;
         public ProgramLinkStatus CheckProgramLink(bool blocking) => throw new NotSupportedException("the GPU thread's path; Base is polled directly");
         public byte[] GetBinary() => null;
+        // Core 661 (adapt_shader_save_poll): the composed ProgramQueue publishes the link status it observes for the GPU
+        // thread's save poll; nothing on the SetProgram path reads it.
+        internal void PublishLinkStatus(ProgramLinkStatus status, bool queuedCheck) { }
     }
 }
 

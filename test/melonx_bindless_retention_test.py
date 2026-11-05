@@ -37,7 +37,7 @@ if '--work' in ARGS:
 SOURCE = Path(ARGS[ARGS.index('--candidate-source') + 1] if '--candidate-source' in ARGS else ARGS[0]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source, use_authenticated_libhac_feed  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later, use_authenticated_libhac_feed  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_bindless_retention', _HOLD)
@@ -236,8 +236,12 @@ try:
         adapt_bindless_retention.once = original_once
     check(sorted(p.relative_to(work).as_posix() for p in changed) == sorted(BASELINE), 'adapter changed other files')
     if FINAL_PREPARATION:
+        # Files a later Core 661 adapter also edits are proven by control_source's forward check; the others must
+        # be the final preparation's bytes here.
+        later = files_edited_later('adapt_bindless_retention')
         for name in BASELINE:
-            check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+            if name not in later:
+                check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
     for name in BASELINE:
         undone = read(work, name)
         for old, new in reversed(replacements[name]):

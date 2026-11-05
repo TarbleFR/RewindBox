@@ -1456,7 +1456,7 @@
     "finalPreparedSourceBound": true,
     "physicalDeviceTested": false,
     "fpsGainProven": false,
-    "galSourcesUnchanged": true,
+    "galSourcesUnchanged": false,
     "otherBackendsUnchanged": true,
     "backendContractReviewed": true,
     "backendContractExecuted": true,
@@ -1465,7 +1465,12 @@
     "arrayDescriptorRanges.policyOffEqualsDelivered": true,
     "arrayDescriptorRanges.callerArraysReusedAtOnce": true,
     "arrayDescriptorRanges.reports.control.staleAfterDestroy": true,
-    "arrayDescriptorRanges.reports.candidateOn.staleAfterDestroy": false
+    "arrayDescriptorRanges.reports.candidateOn.staleAfterDestroy": false,
+    "galFilesChangedByLaterSteps": {
+     "src/Ryujinx.Graphics.GAL/ITextureArray.cs": [
+      "adapt_bindless_retention"
+     ]
+    }
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/TextureArray.cs",
@@ -1513,6 +1518,9 @@
     "fpsGainProven": false,
     "galSourcesUnchanged": false,
     "galFilesChangedByLaterSteps": {
+     "src/Ryujinx.Graphics.GAL/ITextureArray.cs": [
+      "adapt_bindless_retention"
+     ],
      "src/Ryujinx.Graphics.GAL/Multithreading/Model/ThreadedArrayPool.cs": [
       "adapt_array_rebuild_allocations"
      ]
