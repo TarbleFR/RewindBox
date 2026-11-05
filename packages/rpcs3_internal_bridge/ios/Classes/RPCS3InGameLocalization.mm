@@ -1144,53 +1144,6 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
   return values;
 }
 
-NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build665Translations() {
-  // Core 665: the thread orchestrator of the accuracy test page.
-  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
-  static dispatch_once_t once;
-  dispatch_once(&once, ^{
-    values = @{
-      @"en": @{
-        @"testThreadOrchestrator": @"Thread orchestrator",
-      },
-      @"es": @{
-        @"testThreadOrchestrator": @"Orquestador de hilos",
-      },
-      @"ru": @{
-        @"testThreadOrchestrator": @"Оркестратор потоков",
-      },
-      @"zh": @{
-        @"testThreadOrchestrator": @"线程调度器",
-      },
-      @"zh_Hant": @{
-        @"testThreadOrchestrator": @"執行緒調度器",
-      },
-      @"pt": @{
-        @"testThreadOrchestrator": @"Orquestrador de threads",
-      },
-      @"fr": @{
-        @"testThreadOrchestrator": @"Orchestrateur de threads",
-      },
-      @"de": @{
-        @"testThreadOrchestrator": @"Thread-Orchestrator",
-      },
-      @"it": @{
-        @"testThreadOrchestrator": @"Orchestratore dei thread",
-      },
-      @"id": @{
-        @"testThreadOrchestrator": @"Orkestrator thread",
-      },
-      @"ja": @{
-        @"testThreadOrchestrator": @"スレッド オーケストレーター",
-      },
-      @"ko": @{
-        @"testThreadOrchestrator": @"스레드 오케스트레이터",
-      },
-    };
-  });
-  return values;
-}
-
 NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build664Translations() {
   // Core 664: the PPU grace after starvation of the accuracy test page.
   static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
@@ -1791,10 +1744,8 @@ NSString* RPCS3LocalizedString(NSString* key, NSString* localeIdentifier) {
   NSDictionary* build634 = Build634Translations();
   NSDictionary* build660 = Build660Translations();
   NSDictionary* build664 = Build664Translations();
-  NSDictionary* build665 = Build665Translations();
   NSString* locale = RPCS3CanonicalLocale(localeIdentifier);
-  return build665[locale][key] ?: build665[@"en"][key] ?:
-      build664[locale][key] ?: build664[@"en"][key] ?:
+  return build664[locale][key] ?: build664[@"en"][key] ?:
       build660[locale][key] ?: build660[@"en"][key] ?:
       build634[locale][key] ?: build634[@"en"][key] ?:
       build630[locale][key] ?: build630[@"en"][key] ?:

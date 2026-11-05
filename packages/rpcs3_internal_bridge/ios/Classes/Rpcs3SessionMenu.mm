@@ -97,9 +97,6 @@ static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
       // Core 664: digit 17 of levers627=.
       @{@"key": @"experimental.ppu_grace", @"title": @"testPpuGrace", @"field": @"levers627", @"bit": @16,
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
-      // Core 665: digit 18 of levers627=.
-      @{@"key": @"experimental.thread_orchestrator", @"title": @"testThreadOrchestrator", @"field": @"levers627", @"bit": @17,
-        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
     ];
   });
   return levers;
