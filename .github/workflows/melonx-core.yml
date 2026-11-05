@@ -358,12 +358,22 @@ jobs:
       run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX .native-sources/LibHac
     - name: Bind both new libraries to reviewed sources and gate receipts
       run: python3 build-utils/melonx/verify_dma_core.py compiled
-    - uses: actions/download-artifact@v4
-      with:
-        name: MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314
-        run-id: 39854858591
-        github-token: ${{ github.token }}
-        path: dist/melonx-native
+    - name: Fetch the unchanged native frameworks through their pinned republication
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        python3 - <<'PY_NATIVE'
+        # The original artifact (run 39854858591, 14-day retention) expired; the standard delivery authenticates its
+        # producer and republishes the exact archive. Same spec and same function as delivery 666 (build-utils/delivery
+        # /666.json); the next step still authenticates every byte against the engine82 baseline.
+        import json,pathlib,sys
+        sys.path.insert(0,'.github/diagnostics')
+        import retained_components
+        spec=json.loads(pathlib.Path('build-utils/delivery/666.json').read_text())['components']['melonx-dependencies']
+        assert spec['destination']=='dist/melonx-native' and spec['origin']['run']==39854858591
+        assert spec['origin']['sha256']=='12a1e4c7bf1c970c218ebddead965a51c3aa57af4d0e1fb5c0523ca8b1340261'
+        print(json.dumps(retained_components.download_archive('melonx-dependencies',spec)))
+        PY_NATIVE
     - name: Authenticate unchanged native frameworks
       run: python3 build-utils/melonx/reuse_core_baseline.py dependencies
     - name: Exercise this exact rebuilt engine in an ARM64 iOS app
