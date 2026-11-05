@@ -385,28 +385,32 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   rectangle on A and the D-pad), while the same iPhone had the 653-only PS2 Original
   (`07f4b6fb`, 1.05/255 at rest). So the stale copy was confirmed and PR159 is needed on
   device; record on `work/skins-device-653-check-20261104` `4eb0ab3` (docs only).
-- **Sticks: only the top face moves (high selector).**
-  - Input: `ScreenRecording_11-04-2026_21-31-53_1.mov`, 11796828 B, `0555383b…f5d5`, private.
-    The corrected `ec382133` is installed (stick regions 7.8/6.5 against 12.4/15.3), so the
-    halos are gone. Complaint: "sticks too wide, moving with controller texture; the yellow
-    stick should move only its top".
-  - Cause: the boards draw the caps in 3D (a top face 4–8 board px above the cap centre,
-    over a skirt), while the knob was a centred disk of 1.12 r taking the skirt and socket
-    with it.
-  - Fix: branch `work/skins-stick-top-20261104` from `9b41bc6`, commit `90aabdb`, draft
-    [PR160](https://github.com/TarbleFR/RewindBox/pull/160). Each GameCube/Wii stick declares
-    its measured top face: knob = that face, frame centred on it, skirt kept, smooth skirt fill
-    (no angular streaks).
-    - GameCube `9988f5d7ec07cb5a3e45a49871ba59792e414a00d70433f9d8908a28692d71ea` (5995074 B);
-    - Wii `645bd5ab1310466d9e95661a55705bf4e50696cbc6513bd195aa971be6e47d39` (5105387 B);
-    - PS2 Original byte-identical; reproducible.
+- **PR160 (in IPA 657):** stick top face only, `90aabdb`, run `41910671261`, integrated
+  `57e21ae2` + legal `873b0ad2`; [evidence](evidence/pocket-originals/stick-top/). Replaced below.
+- **Sticks: the whole circle moves (high selector).**
+  - Input: `ScreenRecording_11-05-2026_01-55-08_1.mp4`, 11060839 B, `9903bbbd…b359`, private,
+    IPA 657: "Tu as rogner sur les deux analogue…"; then, on the zones of PR161: "je veux le
+    cercle entier de chaque analogue … homogène, comme … la PS2 ou la Wii. Reprends de Zéro".
+  - Rejected: PR157 1.12 r disc (drags socket); PR160 face circle (bevel, wall and C yellow
+    ring left behind: 5.7–33.7 % of the cap); PR161 stadium (`7b53931`, closed, not
+    integrated: top measured 7–9 px into the socket, not a circle).
+  - Finding: `tools/skins/measure_stick_caps.py` (180 rays, outermost cap/socket edge):
+    every GameCube/Wii cap, side wall and yellow ring included, is a circle (semi-axes within
+    1 %, p90 ≤ 0.23 px).
+  - Fix: branch `work/skins-stick-circle-20261105` from Claude `3d1639b`, commit `592c4d1`,
+    [PR162](https://github.com/TarbleFR/RewindBox/pull/162). Knob = the whole measured circle
+    (pixel-snapped, one centre with its frame); harmonic socket fill, homogeneous; PS2 as is.
+    - GameCube `995038e88b4597fce27cb32100e9feb14ff0d22dc352117b8846070a093af2ff` (6166556 B);
+    - Wii `337584a89caea8c1b6bebcc62df2d20528915389ced088d3217fa2f1a6d16790` (5095619 B);
+    - PS2 Original byte-identical; reproducible (3 archives + 6 previews).
   - Proof:
-    - CI run [41910671261](https://github.com/TarbleFR/RewindBox/actions/runs/41910671261)
-      green: Dolphin skin simulator 9/9 on the new archives and the pocket host step;
-    - host: verifier 6 packs, input chain 18 layouts, Flutter skin/pocket 240/240;
-    - audit: moving-part centre 4.9–8.1 pt from the top face before, 0 after; travel 7.3–11.0 pt.
-    - [Evidence](evidence/pocket-originals/stick-top/).
-  - Main: the legal declaration must follow the two new archives (as after PR157), then the
+    - CI run [41950787918](https://github.com/TarbleFR/RewindBox/actions/runs/41950787918): running;
+    - host: verifier passed, input chain 18 layouts, menu button, portrait lock, session
+      chrome 32 layouts; Flutter skin/pocket 240/240;
+    - before → after: cap left behind 5.7–33.7 % → 0 %; socket texture in the knob ≤ 8.1 % →
+      ≤ 0.2 %; yellow under the C 100 % → 0 %; misrouted 0 %; travel 9.1–11.4 pt.
+    - [Evidence](evidence/pocket-originals/stick-circle/) (zones, before/after, measurement).
+  - Main: integrate PR162 (not PR161), update the legal declaration for the two new archives,
     next common IPA. Not observed on an iPhone.
 - **Switch Pocket (new request, in progress).**
   - Maquette needed as an original file: the chat image is not saved as a file, and I do not
