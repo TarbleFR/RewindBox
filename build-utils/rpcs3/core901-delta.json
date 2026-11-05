@@ -5,7 +5,7 @@
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/core901-delta.patch",
-  "patch_sha256": "2cc4a7337fb562fbacd3160b12fdc504632658f3f5097566cf954e5b6402e8bb",
+  "patch_sha256": "0fcffdc08671f3e3cb35d1ef9b894d1fc2a1d3dc3809ba3cbe87b146517495cc",
   "abi_version": 30,
   "abi_version_changed": false,
   "exports_added": [
@@ -107,7 +107,7 @@
     "rpcs3/Emu/RSX/Common/texture_cache.h": "2e24560dba706ba4cdeb56968d9a25b93bf5be8d64d7f7b104337760cc6e7123",
     "rpcs3/Emu/RSX/Common/texture_cache_utils.h": "a8067c0c9941c8322fdc8a50ba02a74e55cb1758056ba3abdfc0f750d91da17c",
     "rpcs3/Emu/RSX/Metal/MTLAPI.h": "149f7084f946cc45ee56672042c841175e46d6a42f550c815f0787791f860b17",
-    "rpcs3/Emu/RSX/Metal/MTLAPIApple.mm": "e3869ec0bd7f8316d3f75fd8f6e4ed7b5b5eb971c50135b11e153824aefa621f",
+    "rpcs3/Emu/RSX/Metal/MTLAPIApple.mm": "357c43a49405fd5620b24a5031e90f1b398ee65608ed6d62277b11122904cfea",
     "rpcs3/Emu/RSX/Metal/MTLGSRender.cpp": "e61d32b2f931104c7591308054aa653faa27ff85a6a30e7762c21d8b79ee2eeb",
     "rpcs3/Emu/RSX/Metal/MTLGSRender.h": "90c1b4a83202897aebad50b78f8f4853f0f1a06a3ea9a27f91303558479c928c",
     "rpcs3/Emu/RSX/Metal/MTLPresent.h": "cadc7dd767ac768a06c92fdc4757e385132231121e94c3e6db57e051351545c2",
@@ -352,7 +352,7 @@
   "iphone_validation_run": false,
   "increment_from_core668": {
     "patch": "build-utils/rpcs3/core901-from-668.patch",
-    "patch_sha256": "8e2330c24e0760ee1b9f0d6c55920db2ed0ef8a839412fb6c41e2dfe48ff7516",
+    "patch_sha256": "0a9f65aa7ad7aa86d2fddf3a97367e602c9c8072b247f2e116aa8aeb7b314b12",
     "insertions_only": false,
     "removed_lines": 2,
     "files": 16,
@@ -372,7 +372,7 @@
     "files_after_sha256": {
       "rpcs3/Emu/CMakeLists.txt": "7148372d4c8b3a3d3fa3a4414543cb2a6053372620372c52e73a96d2d6bd48af",
       "rpcs3/Emu/RSX/Metal/MTLAPI.h": "149f7084f946cc45ee56672042c841175e46d6a42f550c815f0787791f860b17",
-      "rpcs3/Emu/RSX/Metal/MTLAPIApple.mm": "e3869ec0bd7f8316d3f75fd8f6e4ed7b5b5eb971c50135b11e153824aefa621f",
+      "rpcs3/Emu/RSX/Metal/MTLAPIApple.mm": "357c43a49405fd5620b24a5031e90f1b398ee65608ed6d62277b11122904cfea",
       "rpcs3/Emu/RSX/Metal/MTLGSRender.cpp": "e61d32b2f931104c7591308054aa653faa27ff85a6a30e7762c21d8b79ee2eeb",
       "rpcs3/Emu/RSX/Metal/MTLGSRender.h": "90c1b4a83202897aebad50b78f8f4853f0f1a06a3ea9a27f91303558479c928c",
       "rpcs3/Emu/RSX/Metal/MTLPresent.h": "cadc7dd767ac768a06c92fdc4757e385132231121e94c3e6db57e051351545c2",

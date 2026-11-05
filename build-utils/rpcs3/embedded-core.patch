@@ -21301,10 +21301,10 @@ index 0000000..ddeaa25
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm b/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm
 new file mode 100644
-index 0000000..d8dbe2b
+index 0000000..b9a366a
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm
-@@ -0,0 +1,921 @@
+@@ -0,0 +1,949 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE: MTLAPI.h on the Metal 4 and QuartzCore frameworks (iOS 26). Compiled with ARC.
 +//
@@ -21370,16 +21370,9 @@ index 0000000..d8dbe2b
 +	static_assert(static_cast<u32>(pixel_format::rgba16_float) == MTLPixelFormatRGBA16Float);
 +	static_assert(static_cast<u32>(pixel_format::rgba32_uint) == MTLPixelFormatRGBA32Uint);
 +	static_assert(static_cast<u32>(pixel_format::rgba32_float) == MTLPixelFormatRGBA32Float);
-+	static_assert(static_cast<u32>(pixel_format::bc1_rgba) == MTLPixelFormatBC1_RGBA);
-+	static_assert(static_cast<u32>(pixel_format::bc1_rgba_srgb) == MTLPixelFormatBC1_RGBA_sRGB);
-+	static_assert(static_cast<u32>(pixel_format::bc2_rgba) == MTLPixelFormatBC2_RGBA);
-+	static_assert(static_cast<u32>(pixel_format::bc2_rgba_srgb) == MTLPixelFormatBC2_RGBA_sRGB);
-+	static_assert(static_cast<u32>(pixel_format::bc3_rgba) == MTLPixelFormatBC3_RGBA);
-+	static_assert(static_cast<u32>(pixel_format::bc3_rgba_srgb) == MTLPixelFormatBC3_RGBA_sRGB);
 +	static_assert(static_cast<u32>(pixel_format::depth16_unorm) == MTLPixelFormatDepth16Unorm);
 +	static_assert(static_cast<u32>(pixel_format::depth32_float) == MTLPixelFormatDepth32Float);
 +	static_assert(static_cast<u32>(pixel_format::stencil8) == MTLPixelFormatStencil8);
-+	static_assert(static_cast<u32>(pixel_format::depth24_unorm_stencil8) == MTLPixelFormatDepth24Unorm_Stencil8);
 +	static_assert(static_cast<u32>(pixel_format::depth32_float_stencil8) == MTLPixelFormatDepth32Float_Stencil8);
 +	static_assert(static_cast<u32>(pixel_format::x32_stencil8) == MTLPixelFormatX32_Stencil8);
 +
@@ -21392,8 +21385,10 @@ index 0000000..d8dbe2b
 +	static_assert(static_cast<u32>(texture_type::type_cube_array) == MTLTextureTypeCubeArray);
 +	static_assert(static_cast<u32>(texture_type::type_3d) == MTLTextureType3D);
 +
-+	static_assert(usage_shader_read == MTLTextureUsageShaderRead && usage_shader_write == MTLTextureUsageShaderWrite &&
-+		usage_render_target == MTLTextureUsageRenderTarget && usage_pixel_format_view == MTLTextureUsagePixelFormatView);
++	static_assert(static_cast<u64>(usage_shader_read) == static_cast<u64>(MTLTextureUsageShaderRead) &&
++		static_cast<u64>(usage_shader_write) == static_cast<u64>(MTLTextureUsageShaderWrite) &&
++		static_cast<u64>(usage_render_target) == static_cast<u64>(MTLTextureUsageRenderTarget) &&
++		static_cast<u64>(usage_pixel_format_view) == static_cast<u64>(MTLTextureUsagePixelFormatView));
 +	static_assert(static_cast<u32>(storage_mode::shared) == MTLStorageModeShared &&
 +		static_cast<u32>(storage_mode::private_) == MTLStorageModePrivate && static_cast<u32>(storage_mode::memoryless) == MTLStorageModeMemoryless);
 +	static_assert(static_cast<u32>(load_action::dont_care) == MTLLoadActionDontCare && static_cast<u32>(load_action::load) == MTLLoadActionLoad &&
@@ -21433,8 +21428,12 @@ index 0000000..d8dbe2b
 +	static_assert(static_cast<u32>(blend_operation::add) == MTLBlendOperationAdd && static_cast<u32>(blend_operation::subtract) == MTLBlendOperationSubtract &&
 +		static_cast<u32>(blend_operation::reverse_subtract) == MTLBlendOperationReverseSubtract &&
 +		static_cast<u32>(blend_operation::min) == MTLBlendOperationMin && static_cast<u32>(blend_operation::max) == MTLBlendOperationMax);
-+	static_assert(write_none == MTLColorWriteMaskNone && write_alpha == MTLColorWriteMaskAlpha && write_blue == MTLColorWriteMaskBlue &&
-+		write_green == MTLColorWriteMaskGreen && write_red == MTLColorWriteMaskRed && write_all == MTLColorWriteMaskAll);
++	static_assert(static_cast<u64>(write_none) == static_cast<u64>(MTLColorWriteMaskNone) &&
++		static_cast<u64>(write_alpha) == static_cast<u64>(MTLColorWriteMaskAlpha) &&
++		static_cast<u64>(write_blue) == static_cast<u64>(MTLColorWriteMaskBlue) &&
++		static_cast<u64>(write_green) == static_cast<u64>(MTLColorWriteMaskGreen) &&
++		static_cast<u64>(write_red) == static_cast<u64>(MTLColorWriteMaskRed) &&
++		static_cast<u64>(write_all) == static_cast<u64>(MTLColorWriteMaskAll));
 +	static_assert(static_cast<u32>(cull_mode::none) == MTLCullModeNone && static_cast<u32>(cull_mode::front) == MTLCullModeFront &&
 +		static_cast<u32>(cull_mode::back) == MTLCullModeBack);
 +	static_assert(static_cast<u32>(winding::clockwise) == MTLWindingClockwise && static_cast<u32>(winding::counter_clockwise) == MTLWindingCounterClockwise);
@@ -21457,12 +21456,41 @@ index 0000000..d8dbe2b
 +		static_cast<u32>(visibility_result_mode::boolean) == MTLVisibilityResultModeBoolean &&
 +		static_cast<u32>(visibility_result_mode::counting) == MTLVisibilityResultModeCounting);
 +	static_assert(static_cast<u32>(gpu_family::apple7) == MTLGPUFamilyApple7 && static_cast<u32>(gpu_family::apple8) == MTLGPUFamilyApple8 &&
-+		static_cast<u32>(gpu_family::apple9) == MTLGPUFamilyApple9 && static_cast<u32>(gpu_family::metal4) == MTLGPUFamilyMetal4);
-+	static_assert(stage_vertex == MTLRenderStageVertex && stage_fragment == MTLRenderStageFragment);
-+	static_assert(barrier_vertex == MTLStageVertex && barrier_fragment == MTLStageFragment && barrier_tile == MTLStageTile &&
-+		barrier_object == MTLStageObject && barrier_mesh == MTLStageMesh && barrier_resource_state == MTLStageResourceState &&
-+		barrier_dispatch == MTLStageDispatch && barrier_blit == MTLStageBlit && barrier_acceleration_structure == MTLStageAccelerationStructure &&
-+		barrier_machine_learning == MTLStageMachineLearning && barrier_all == static_cast<u64>(MTLStageAll));
++		static_cast<u32>(gpu_family::apple9) == MTLGPUFamilyApple9);
++	static_assert(static_cast<u64>(stage_vertex) == static_cast<u64>(MTLRenderStageVertex) &&
++		static_cast<u64>(stage_fragment) == static_cast<u64>(MTLRenderStageFragment));
++
++	// Constants introduced after the deployment target (iOS 16.3) are checked where they are available;
++	// Depth24Unorm_Stencil8 does not exist on iOS at all.
++	[[maybe_unused]] API_AVAILABLE(ios(16.4), macos(11.0)) static void check_bc_constants()
++	{
++		static_assert(static_cast<u32>(pixel_format::bc1_rgba) == MTLPixelFormatBC1_RGBA);
++		static_assert(static_cast<u32>(pixel_format::bc1_rgba_srgb) == MTLPixelFormatBC1_RGBA_sRGB);
++		static_assert(static_cast<u32>(pixel_format::bc2_rgba) == MTLPixelFormatBC2_RGBA);
++		static_assert(static_cast<u32>(pixel_format::bc2_rgba_srgb) == MTLPixelFormatBC2_RGBA_sRGB);
++		static_assert(static_cast<u32>(pixel_format::bc3_rgba) == MTLPixelFormatBC3_RGBA);
++		static_assert(static_cast<u32>(pixel_format::bc3_rgba_srgb) == MTLPixelFormatBC3_RGBA_sRGB);
++	}
++
++	[[maybe_unused]] RBX_METAL4 static void check_metal4_constants()
++	{
++		static_assert(static_cast<u32>(gpu_family::metal4) == MTLGPUFamilyMetal4);
++		static_assert(static_cast<u64>(barrier_vertex) == static_cast<u64>(MTLStageVertex) &&
++			static_cast<u64>(barrier_fragment) == static_cast<u64>(MTLStageFragment) &&
++			static_cast<u64>(barrier_tile) == static_cast<u64>(MTLStageTile) &&
++			static_cast<u64>(barrier_object) == static_cast<u64>(MTLStageObject) &&
++			static_cast<u64>(barrier_mesh) == static_cast<u64>(MTLStageMesh) &&
++			static_cast<u64>(barrier_resource_state) == static_cast<u64>(MTLStageResourceState) &&
++			static_cast<u64>(barrier_dispatch) == static_cast<u64>(MTLStageDispatch) &&
++			static_cast<u64>(barrier_blit) == static_cast<u64>(MTLStageBlit) &&
++			static_cast<u64>(barrier_acceleration_structure) == static_cast<u64>(MTLStageAccelerationStructure) &&
++			static_cast<u64>(barrier_machine_learning) == static_cast<u64>(MTLStageMachineLearning) &&
++			static_cast<u64>(barrier_all) == static_cast<u64>(MTLStageAll));
++	}
++
++#if TARGET_OS_OSX
++	static_assert(static_cast<u32>(pixel_format::depth24_unorm_stencil8) == MTLPixelFormatDepth24Unorm_Stencil8);
++#endif
 +
 +	namespace
 +	{
