@@ -68,7 +68,9 @@ KEYS = ('gpu.zcull_accuracy', 'debug.disable_occlusion', 'debug.emulate_depth_co
         # Core 660: SPU direct object hits, the texture lookup memo and the ZCULL queue-depth guard.
         'experimental.spu_direct_object_hits', 'experimental.texture_lookup_memo', 'experimental.zcull_depth_guard',
         # Core 664: the PPU grace after starvation.
-        'experimental.ppu_grace')
+        'experimental.ppu_grace',
+        # Core 665: the thread orchestrator.
+        'experimental.thread_orchestrator')
 
 
 def require(condition, message):
@@ -217,9 +219,14 @@ def app_contract() -> dict:
     tables664 = l10n_tables(l10n, '664')
     require(tuple(sorted(tables664)) == tuple(sorted(LOCALES)), 'Build664Translations locales: ' + repr(list(tables664)))
     require(all(tables664[locale].get('testPpuGrace', '').strip() for locale in LOCALES), 'testPpuGrace translations')
+    # Core 665: the thread orchestrator.
+    tables665 = l10n_tables(l10n, '665')
+    require(tuple(sorted(tables665)) == tuple(sorted(LOCALES)), 'Build665Translations locales: ' + repr(list(tables665)))
+    require(all(tables665[locale].get('testThreadOrchestrator', '').strip() for locale in LOCALES), 'testThreadOrchestrator translations')
+    require(tables665['fr']['testThreadOrchestrator'] == 'Orchestrateur de threads', 'French title')
     missing = sorted(key for key in used - base if key not in tables['en'] and key not in tables621['en'] and key not in tables627['en'] and
                      key not in tables630['en'] and key not in tables634['en'] and key not in tables660['en'] and
-                     key not in tables664['en'])
+                     key not in tables664['en'] and key not in tables665['en'])
     require(not missing, 'untranslated page keys: ' + repr(missing))
     return {'whitelist': allowed, 'locales': list(tables), 'keys': len(keys),
             'bridge_sha256': sha(BRIDGE.read_bytes()), 'menu_sha256': sha(MENU.read_bytes()),

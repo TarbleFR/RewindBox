@@ -851,6 +851,7 @@ static NSDictionary<NSString*, NSArray<NSString*>*>* RPCS3TestSettingValues(void
       @"experimental.texture_lookup_memo": @[@"Enabled", @"Disabled"],
       @"experimental.zcull_depth_guard": @[@"Enabled", @"Disabled"],
       @"experimental.ppu_grace": @[@"Enabled", @"Disabled"],
+      @"experimental.thread_orchestrator": @[@"Enabled", @"Disabled"],
     };
   });
   return values;
