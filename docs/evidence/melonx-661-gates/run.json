@@ -21,7 +21,7 @@
  "lot": "Hogwarts 658 logs (two players) and the maintainer request of 5 Nov: compile stalls, syncpoint false completions, pacing, close hangs, session retention, diagnostics, in-play RAM (safe-point LOH compaction, host warning trim, cold textures, bindless retention), GC pauses (NativeAOT workstation GC rebuilt with dotnet/runtime#119383, run 41988362179), sky artifacts (MoltenVK 1.4.2 stage ordering), left stick (host Swift)",
  "contract": {
   "path": "build-utils/melonx/dma-core-contract.json",
-  "sha256": "8428b87c852c58a6f766828dbc3cb3bf01976f90bcb0517c2f99a274dbf90607",
+  "sha256": "1ae4c65b094fe099416333d46f91b53d6cdf4eec1892dc311965fe89b67e9a2f",
   "freshAppleGates": 47,
   "reusedAppleGates": 20,
   "historicalAppleReceipts": 61
@@ -36,7 +36,8 @@
   "product": false,
   "ciPortability": "Freeze 48c837d4 (contract 3c383d88) kept a Linux-only safe-point-compaction fixture: DOTNET_GCName=libclrgc.so and VmRSS from /proc/self/status, which the macos-26 Core runner does not have (the osx-arm64 10.0.0 runtime pack ships libclrgc.dylib). Found by review before the CI reached that gate; run 41998621333 cancelled; fixture made portable, contract refrozen. Test-side, not product.",
   "ciTimerLeeway": "Core run 41999859590 (e1ab9b52): setprogram-warmup failed on macos-26 from host timer leeway on below-normal threads stretching the fixture's modeled 400 ms compiles; fixture-side, not product; the 33 gates before it passed on Apple ARM64.",
-  "ciTimerGranularity": "Core run 42003056073 (d0da535e): shader-save-poll failed on macos-26, host sleep granularity (2 ms rests lasting 10-20 ms) bounding a pass count; it had passed there in run 41999859590 with 57. Fixture-side, not product."
+  "ciTimerGranularity": "Core run 42003056073 (d0da535e): shader-save-poll failed on macos-26, host sleep granularity (2 ms rests lasting 10-20 ms) bounding a pass count; it had passed there in run 41999859590 with 57. Fixture-side, not product.",
+  "ciTimerAccumulation": "Core run 42006447546 (c83014fe): forced-syncpoint-wait failed on macos-26 from per-wait timer overshoot (+65-120 ms on each wait) accumulated over the fixture's 25-32 steps; setprogram-warmup (103) and teardown-cache (56) passed there first. Fixture-side, not product."
  },
  "gates": {
   "bindless-array-deltas": {
@@ -218,8 +219,9 @@
   },
   "forced-syncpoint-wait": {
    "report": "forced-syncpoint-wait-checks.json",
-   "sha256": "c6af612b20012a28363d754fb06e96bf1d26c39f8a9f181715128ab09fc070dc",
-   "seconds": 229
+   "sha256": "ec6dcd21aaa13199a57b072ba2ec6644c32e12b781d6adbd1ceeb2f143196724",
+   "seconds": 229,
+   "portableRerun": "Rerun after the GPU double's steps followed an absolute schedule waited in short re-checked slices: Core run 42006447546 on macos-26 failed \"candidate: released when the fence is reached\" with the true value 25/25 reached at 4813 ms (window 2300-3200) because each 100 ms step lasted 165-190 ms there (25 steps 4.8 s). Same assertions; 83 checks; progressing 2513 ms, gpuWorkThenFence 3202 ms as before."
   },
   "session-retention": {
    "report": "session-retention-checks.json",

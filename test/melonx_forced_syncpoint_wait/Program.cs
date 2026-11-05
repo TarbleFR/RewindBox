@@ -136,7 +136,7 @@ static class Program
         {
             terminator = new(() =>
             {
-                Thread.Sleep(300);
+                After(300);
                 Interlocked.Exchange(ref terminated, Stopwatch.GetTimestamp());
                 // Production KThread.PrepareForTermination sets this flag first (Horizon.Dispose terminating the HLE services).
                 SetField(kthread, "_shallBeTerminated", 1);
@@ -151,7 +151,25 @@ static class Program
         return outcome;
     }
 
-    static void Sleep(CancellationToken token, int ms) => token.WaitHandle.WaitOne(ms);
+    // The GPU double's steps follow an absolute schedule (n x ms from its first step), waited in short slices re-checked
+    // against it: on the macOS Core runner one 100 ms wait lasted 165-190 ms (run 42006447546: 25 x 100 ms took 4.8 s),
+    // which the schedule absorbs instead of adding up. The modeled GPU then advances as described on every host.
+    [ThreadStatic] static long _schedule;
+
+    static void Sleep(CancellationToken token, int ms)
+    {
+        if (_schedule == 0) _schedule = Stopwatch.GetTimestamp();
+        _schedule += ms * Stopwatch.Frequency / 1000;
+        WaitUntil(token, _schedule);
+    }
+
+    static void WaitUntil(CancellationToken token, long deadline)
+    {
+        for (long left; !token.IsCancellationRequested && (left = deadline - Stopwatch.GetTimestamp()) > 0;)
+            token.WaitHandle.WaitOne(TimeSpan.FromMilliseconds(Math.Clamp(left * 1000.0 / Stopwatch.Frequency, 0.1, 10)));
+    }
+
+    static void After(int ms) => WaitUntil(CancellationToken.None, Stopwatch.GetTimestamp() + ms * Stopwatch.Frequency / 1000);
 
     static int Main(string[] args)
     {
@@ -309,7 +327,7 @@ static class Program
                 uint target = valueGpu.Value + 3;
                 object syncpoints = typeof(SynchronizationManager).GetField("_syncpoints", Any).GetValue(valueGpu.Context.Synchronization);
                 object syncpoint = ((Array)syncpoints).GetValue((int)SyncpointId);
-                Thread setter = new(() => { Thread.Sleep(150); syncpoint.GetType().GetField("_storedValue", Any).SetValue(syncpoint, (int)target + 2); }) { IsBackground = true };
+                Thread setter = new(() => { After(150); syncpoint.GetType().GetField("_storedValue", Any).SetValue(syncpoint, (int)target + 2); }) { IsBackground = true };
                 setter.Start();
                 long valueStart = Stopwatch.GetTimestamp();
                 var valueOutcome = valueGpu.Context.Synchronization.WaitOnSyncpointWhileProgressing(SyncpointId, target,

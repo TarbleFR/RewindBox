@@ -514,6 +514,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Core run `42003056073` (d0da535e): shader-save-poll failed on macOS (2 ms rests lasting 10-20 ms: 50 passes in the
     1000 ms block, 50 required; it had passed with 57 the run before). The GPU pass rest is now a deadline with yields
     (same assertions, 78 checks, 492 passes); contract `8428b87c`, 380 checks.
+  - Core run `42006447546` (c83014fe): setprogram-warmup and teardown-cache passed on macOS; forced-syncpoint-wait failed
+    (true value 25/25 at 4813 ms, window 2300-3200: each 100 ms GPU-double step lasted 165-190 ms there). The double's
+    steps follow an absolute schedule (same assertions, 83 checks, 2513 ms); contract `1ae4c65b`, 380 checks.
 - **Next:** Core run green -> pin `dma-core-pin.json`, hand off to main (IPA 662 = RPCS3 660 + MeloNX 661; MeloNX
   runs no delivery); then the maintainer's iPhone test and like-for-like logs (resolution criteria in the map).
 - **Baselines for like-for-like checks** (`tools/melonx/memory_report.py`, windows from the first game second): player 1
