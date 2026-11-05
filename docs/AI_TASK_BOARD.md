@@ -465,6 +465,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       above 1; passage not confirmed identical. Finding: no measurable gain from the memo on AC (the game
       sits at its 30 fps cap; CPU 30-33 %, RSX 20-23 %); its correctness held (0 mismatches). Kept at the
       profile default; a same-thermal rerun with the memo on is needed before any keep/remove decision.
+    - A/B 2, SPU direct object hits (maintainer, pid 13540, 13:28-13:31 UTC, memo back on the profile, digit
+      14 = 2, ~167 s of play; thermal comparable: state 2 in 98/167 vs 95/173 samples). Against 13335 (on):
+      SPU program loads in play 4317 vs 4413, total 456 ms vs 1205 ms (2.6x), worst load 14.5 ms vs 35.8 ms;
+      IR builds on cache hits 16 vs 4413 (679 ms, max 35.0 ms); object load 197 ms vs 346 ms; 0 fallbacks.
+      Frame level unchanged within noise: guest fps 38.50 vs 38.63, frames > 50 ms 2.3 % both, > 100 ms 1 vs 2,
+      worst frame 283 vs 350 ms. Finding: the lever removes the IR build of every cache hit as designed;
+      SPU-thread time saved ~4.5 ms/s, no visible fps change on this passage. Kept on (profile).
+      Lead (unproven): ~25 SPU cache loads per second in steady play suggests the same programs are loaded
+      again and again; distinct-hash count per window needed before any change.
   - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
     without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
     report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).
