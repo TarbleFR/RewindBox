@@ -419,20 +419,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Device result (maintainer, 5 Nov, IPA 658):** "tu as corrigé le défaut": the black launch / frozen image is
   gone on the iPhone (iOS 27 beta 1). Logs announced, not received yet: the `Present path:` line, Hogwarts and
   another title's pacing, SSBU close and any regression remain to be read from them.
-- **New chantier (5 Nov, maintainer): Hogwarts black flashes, spell stutters, 30 fps stability, RAM** on IPA 658
-  logs (private uploads, not in Git): build 658, pid 11152, session E45F7615-A95C-47AB-9B03-E637061B664F, Core
-  2cfc28e5 / 756911f0; the two uploaded stderr files are byte-identical. Session 03:10:01-03:21:03 UTC, close 2 s,
-  `Present path` fix active. Read so far (core log pid 11152, 822 lines): 14 `WaitOnSyncpoint: Wait on syncpoint 1
-  ... took more than 1000ms, resuming execution` (03:13:01-03:13:47 x8, 03:14:37-57 x3, 03:19:11-03:20:00 x3): the
-  guest stalls 1 s, then runs on without the GPU's syncpoint, a candidate for both stutters and transient wrong
-  frames; to correlate with the render-stage windows (pipelines 7.9 s / 10 s, SetProgram 4.9 s), the queued
-  syncpoint FIFO of Core 631 (`adapt_queued_syncpoints`, Hogwarts policy) and the GPU thread's blocking work.
-  Also: 3 gcEvent fullBlocking (102 and 332 ms in play, `compacted` 1 on the second), only 2 pipeline misses on
-  draw in stderr, MoltenVK warnings (primitive restart, blending on R16_UINT), footprint 2.6 -> 4.5 GiB with a
-  memoryWarning and device 7 % available. No fix written yet.
-- **Next:** finish the correlation (syncpoint timeouts vs GPU-thread stalls and FIFO head), then fix the cause; GC
-  pauses, R16_UINT blending, warm-up topology/primitive-restart key and RAM levers follow. Core 658 is kept by main
-  for the next common IPA (659+).
+- **Hogwarts 658 chantier (5 Nov; private logs: player 1 pid 11152, player 2 pids 79315/79477/79931/80176 + 621
+  history):** two read-only investigation waves (7 + 4 agents; results in session scratch `wave1.json`/`wave2.json`).
+  Confirmed in code and logs: first-encounter shader bursts compile Metal pipelines on the render thread (36.8 s of
+  MSL compiles in one minute); SetProgram waits for warm-up pipelines of programs compiled during play; the GPU
+  thread drains the render queue in `ShaderCache.ProcessShaderCacheQueue` -> `ThreadedProgram.CheckProgramLink(false)`,
+  so syncpoint 1 stalls; the `{Nv}` forced wait gives up after 1 s and answers Success (14 timeouts, 64-127 forced
+  waits): plausible transient wrong frames (unproven); geometry-as-compute programs always miss their warm-up
+  (Topology/PrimitiveRestart); pacer stand-down bug and latency constants; close hangs in player 2's 658 sessions
+  (ProgramDispose compiles the queued backlog), so its main pipeline cache is never saved; two 658 crashes =
+  guest unmapped-page faults after 8-26 s GPU freezes (engine hang detector likely); retention roots after close:
+  PerformanceStatistics timer, TimeManager singleton; in-play full blocking GCs are background GCs that fell back
+  (runtime race, likely). Ruled out: R16_UINT blending (already handled), occlusion read-backs, GC/trim as syncpoint
+  cause, memory kill in 658, a left-stick code defect (no input change 621->658; layout/mapping journal needed).
+- **In progress:** implementation workflow, 8 lots on branches `lot/<key>` with tests and 2 reviewers each:
+  gpu-thread-poll, setprogram-warmup, warmup-key-parity, teardown-cache, pacer-fixes, syncpoint-wait,
+  session-retention, diagnostics. Then integration as MeloNX Core 659+ (number from main) and an IPA.
+- **Next:** integrate the approved lots (chain BASELINEs for shared files), gates, Core build, IPA.
 
 ### Skins/orientation and additive PS2 Original — existing owner
 
