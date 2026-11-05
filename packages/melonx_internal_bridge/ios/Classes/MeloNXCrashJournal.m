@@ -1,11 +1,12 @@
 // Fatal-signal and exit journal of the in-process MeloNX engine (see MeloNXCrashJournal.h).
 //
 // IPA 662 (MeloNX Core 661) sessions ended with no line in any journal: the Core's journal is written by managed code,
-// the stderr capture is drained by a thread of the dying process, and this device writes no crash report. This journal
-// is armed before the engine loads (MeloNXRuntimeAPI.init), so it is the last handler of each fatal signal: the
-// NativeAOT runtime and Ryujinx's memory-tracking handler are installed after it and pass on only the faults they do not
-// handle. The handler uses write(2), read(2), fcntl(2) and sigaction(2), plus dladdr(3) and the thread name, which are
-// not async-signal-safe but run once, when the process is already ending.
+// the stderr capture is drained by a thread of the dying process, and this device writes no crash report. The handlers
+// are installed when this framework loads (a constructor), before any engine, so the journal is the last handler of
+// each fatal signal: the NativeAOT runtime and Ryujinx's memory-tracking handler are installed after it and pass on
+// only the faults they do not handle. Until the journal file is opened (MeloNXCrashJournalInstall), a fatal signal
+// writes nothing and takes its usual course. The handler uses write(2), read(2), fcntl(2) and sigaction(2), plus
+// dladdr(3) and the thread name, which are not async-signal-safe but run once, when the process is already ending.
 #import "MeloNXCrashJournal.h"
 
 #include <dlfcn.h>
@@ -26,8 +27,12 @@
 #include <ptrauth.h>
 #endif
 
+// Swift reaches these functions through dlsym (MeloNXCrashJournalLink): kept and exported from the pod's framework.
+#define MELONX_CRASH_JOURNAL_EXPORT __attribute__((visibility("default"), used))
+
 static int g_fd = -1;
 static atomic_int g_installed = 0;
+static atomic_int g_handlersInstalled = 0;
 static atomic_int g_inHandler = 0;
 static atomic_int g_stderrSource = -1;
 static const int kSignals[] = { SIGSEGV, SIGBUS, SIGILL, SIGTRAP, SIGABRT, SIGFPE, SIGSYS };
@@ -185,7 +190,7 @@ static void drain_stderr(void) {
 
 static void on_fatal_signal(int signal_number, siginfo_t *info, void *context) {
     (void)context;
-    if (atomic_exchange(&g_inHandler, 1) == 0) {
+    if (g_fd >= 0 && atomic_exchange(&g_inHandler, 1) == 0) {
         put_header("fatal signal");
         put(" signal ");
         put_decimal(signal_number);
@@ -240,7 +245,7 @@ static void on_fatal_signal(int signal_number, siginfo_t *info, void *context) {
 }
 
 static void on_exit_call(void) {
-    if (atomic_exchange(&g_inHandler, 1) != 0) return;
+    if (g_fd < 0 || atomic_exchange(&g_inHandler, 1) != 0) return;
     put_header("exit() called");
     put("\n");
     put_frames(0, (uintptr_t)__builtin_frame_address(0));
@@ -248,19 +253,10 @@ static void on_exit_call(void) {
     atomic_store(&g_inHandler, 0);
 }
 
-void MeloNXCrashJournalInstall(const char *path) {
-    if (path == NULL || atomic_exchange(&g_installed, 1) != 0) return;
-    int descriptor = open(path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
-    if (descriptor < 0) {
-        atomic_store(&g_installed, 0);
-        return;
-    }
-    struct stat status;
-    if (fstat(descriptor, &status) == 0 && status.st_size > kMaximumBytes) ftruncate(descriptor, 0);
-    g_fd = descriptor;
-    put_header("journal armed");
-    put("\n");
-
+// Installed when the framework loads, before any engine and its own handlers; the previous actions are restored on
+// the fatal path.
+__attribute__((constructor)) static void install_handlers(void) {
+    if (atomic_exchange(&g_handlersInstalled, 1) != 0) return;
     struct sigaction action;
     memset(&action, 0, sizeof action);
     action.sa_sigaction = on_fatal_signal;
@@ -272,11 +268,25 @@ void MeloNXCrashJournalInstall(const char *path) {
     atexit(on_exit_call);
 }
 
-void MeloNXCrashJournalSetStderrSource(int fd) {
+MELONX_CRASH_JOURNAL_EXPORT void MeloNXCrashJournalInstall(const char *path) {
+    if (path == NULL || atomic_exchange(&g_installed, 1) != 0) return;
+    int descriptor = open(path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
+    if (descriptor < 0) {
+        atomic_store(&g_installed, 0);
+        return;
+    }
+    struct stat status;
+    if (fstat(descriptor, &status) == 0 && status.st_size > kMaximumBytes) ftruncate(descriptor, 0);
+    g_fd = descriptor;
+    put_header("journal armed");
+    put(atomic_load(&g_handlersInstalled) ? " handlers since load\n" : " handlers missing\n");
+}
+
+MELONX_CRASH_JOURNAL_EXPORT void MeloNXCrashJournalSetStderrSource(int fd) {
     atomic_store(&g_stderrSource, fd);
 }
 
-void MeloNXCrashJournalNote(const char *text) {
+MELONX_CRASH_JOURNAL_EXPORT void MeloNXCrashJournalNote(const char *text) {
     if (text == NULL || g_fd < 0) return;
     put_header("note");
     put(" ");

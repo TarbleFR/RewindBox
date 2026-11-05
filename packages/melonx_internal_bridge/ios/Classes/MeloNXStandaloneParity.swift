@@ -36,6 +36,7 @@ enum MeloNXStdioCapture {
     static func configureDiagnostics(directory: URL) throws {
         try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
         routeLock.lock(); diagnosticsDirectory = directory; routeLock.unlock()
+        armCrashJournal()
     }
     private static func diagnosticPath(_ name: String) -> String? {
         routeLock.lock(); defer { routeLock.unlock() }
@@ -63,11 +64,16 @@ enum MeloNXStdioCapture {
         routeLock.lock(); pendingContext = context; routeLock.unlock()
         noteCrashJournal(context)
     }
+    // The journal's fatal-signal handlers are installed when this framework loads, before any engine; its file opens
+    // here, once the diagnostics directory is known (once per process; a no-op in a build without the journal).
+    static func armCrashJournal() {
+        if let path = crashJournalPath { MeloNXCrashJournalLink.install(path) }
+    }
     // The session a later MeloNX-crash.log record belongs to (no-op until the journal is armed).
     static func noteCrashJournal(_ context: [String:String]) {
         let note = "session \(context["session"] ?? "-") title \(context["titleId"] ?? "-") build \(context["build"] ?? "-")" +
             " core \(String((context["coreSHA256"] ?? "-").prefix(12)))"
-        note.withCString { MeloNXCrashJournalNote($0) }
+        MeloNXCrashJournalLink.note(note)
     }
     static var sessionContext: [String:String] {
         routeLock.lock(); defer { routeLock.unlock() }; return pendingContext
@@ -116,7 +122,7 @@ enum MeloNXStdioCapture {
         savedStderr = saved
         let source = fds[0]
         // A fatal signal drains what is still in the pipe into MeloNX-crash.log.
-        MeloNXCrashJournalSetStderrSource(source)
+        MeloNXCrashJournalLink.setStderrSource(source)
         var context = sessionContext
         if diagnosticPath("MeloNX-stderr.log") != nil {
             context["capture"] = UUID().uuidString
@@ -135,7 +141,7 @@ enum MeloNXStdioCapture {
     static func end() {
         lock.lock(); defer { lock.unlock() }
         guard savedStderr >= 0 else { return }
-        MeloNXCrashJournalSetStderrSource(-1)
+        MeloNXCrashJournalLink.setStderrSource(-1)
         fflush(stderr)
         dup2(savedStderr, STDERR_FILENO)
         close(savedStderr)
@@ -336,4 +342,18 @@ enum MeloNXMoltenVKChoice {
         let name = variant == 0 ? "MeloNXMoltenVK" : "MeloNXMoltenVKStandalone"
         return FileManager.default.fileExists(atPath:frameworks.appendingPathComponent("\(name).framework/\(name)").path)
     }
+}
+
+// MeloNXCrashJournal (C, same pod) resolved at run time: this file is also compiled alone by host tests, where the
+// journal is absent and every call is a no-op. The pod exports the three functions (MeloNXCrashJournal.m).
+enum MeloNXCrashJournalLink {
+    private typealias Install = @convention(c) (UnsafePointer<CChar>?) -> Void
+    private typealias Source = @convention(c) (Int32) -> Void
+    private static func symbol(_ name: String) -> UnsafeMutableRawPointer? { dlsym(UnsafeMutableRawPointer(bitPattern: -2), name) }
+    private static let installFunction = symbol("MeloNXCrashJournalInstall").map { unsafeBitCast($0, to: Install.self) }
+    private static let sourceFunction = symbol("MeloNXCrashJournalSetStderrSource").map { unsafeBitCast($0, to: Source.self) }
+    private static let noteFunction = symbol("MeloNXCrashJournalNote").map { unsafeBitCast($0, to: Install.self) }
+    static func install(_ path: String) { path.withCString { installFunction?($0) } }
+    static func setStderrSource(_ fd: Int32) { sourceFunction?(fd) }
+    static func note(_ text: String) { text.withCString { noteFunction?($0) } }
 }
