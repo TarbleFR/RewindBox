@@ -23,6 +23,7 @@ FINAL_SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--can
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
 import melonx_adapter_control as control_tools  # noqa: E402
+from melonx_adapter_control import use_authenticated_libhac_feed  # noqa: E402
 import core667_native  # noqa: E402
 import adapt_buffer_array_barriers, adapt_hogwarts_precise_math, adapt_shader_save_journal  # noqa: E402,E401
 
@@ -64,6 +65,16 @@ def member(text, signature):
     raise AssertionError(signature)
 
 
+def ignore_tree(base):
+    # As the other Core gates copy a MeloNX tree: no build outputs, and not the iOS app sources (src/MeloNX).
+    def ignore(directory, names):
+        skipped = {'.git', 'bin', 'obj'} & set(names)
+        if Path(directory).resolve() == (Path(base) / 'src').resolve() and 'MeloNX' in names:
+            skipped.add('MeloNX')
+        return skipped
+    return ignore
+
+
 def git_show(path):
     return subprocess.run(['git', '-C', str(ROOT), 'show', core667_native.CORE663_SOURCE + ':' + path],
                           capture_output=True, text=True, check=True).stdout
@@ -74,7 +85,7 @@ temporary = tempfile.TemporaryDirectory(prefix='melonx-core667-')
 holder.append(temporary)
 WORK = Path(temporary.name)
 CONTROL = WORK / 'control'
-shutil.copytree(FINAL_SOURCE, CONTROL, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
+shutil.copytree(FINAL_SOURCE, CONTROL, ignore=ignore_tree(FINAL_SOURCE), symlinks=True)
 
 # --- Control: the adapters reversed (latest first), the native files reversed; both must be the Core 663 bytes ---
 for name in reversed(NAMES):
@@ -147,11 +158,14 @@ check(save.count('_cacheWriter.AddShader(') == 1 and save.count('_programsToSave
 # --- Executed: control and candidate probes ---
 stub = WORK / ('libstubmvk.dylib' if platform.system() == 'Darwin' else 'libstubmvk.so')
 subprocess.run(['cc', '-shared', '-fPIC', '-O2', '-o', str(stub), str(HARNESS / 'StubMoltenVK.c')], check=True, timeout=300)
-environment = dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1')
-reports = {}
+environment = dict(os.environ, DOTNET_CLI_TELEMETRY_OPTOUT='1', DOTNET_NOLOGO='1', DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1')
+reports, feeds = {}, {}
 for variant in ('control', 'candidate'):
     tree = WORK / ('tree-' + variant)
-    shutil.copytree(CONTROL if variant == 'control' else FINAL_SOURCE, tree, ignore=shutil.ignore_patterns('.git', 'bin', 'obj'), symlinks=True)
+    origin = CONTROL if variant == 'control' else FINAL_SOURCE
+    shutil.copytree(origin, tree, ignore=ignore_tree(origin), symlinks=True)
+    # The upstream nuget.config still names the LibHac feed (unreachable): the authenticated local package, as every gate.
+    feeds[variant] = use_authenticated_libhac_feed(tree, ROOT)
     for project in ('src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj', 'src/Ryujinx.Graphics.Gpu/Ryujinx.Graphics.Gpu.csproj'):
         text = (tree / project).read_text(encoding='utf-8-sig')
         check(text.count('</Project>') == 1, 'project ' + project)
@@ -181,10 +195,14 @@ for variant in ('control', 'candidate'):
     for name in ('global.json', 'nuget.config'):
         if (tree / name).exists():
             shutil.copyfile(tree / name, out / name)
-    build = subprocess.run([DOTNET, 'build', str(out / 'MeloNXCore667Probe.csproj'), '-c', 'Release', '-nologo', '-m:1', '-p:NuGetAudit=false'],
+    # A configured package source that is down (starforgejo.dev answered 403 on 2026-11-05) must not fail the restore of
+    # packages the local cache or the authenticated feed already holds.
+    build = subprocess.run([DOTNET, 'build', str(out / 'MeloNXCore667Probe.csproj'), '-c', 'Release', '-nologo', '-m:1', '-p:NuGetAudit=false',
+                            '-p:RestoreIgnoreFailedSources=true'],
                            capture_output=True, text=True, timeout=3000, env=environment, cwd=out)
     if build.returncode:
-        print(build.stdout[-6000:], build.stderr[-2000:], flush=True)
+        errors = [line for line in build.stdout.splitlines() if ': error ' in line]
+        print('\n'.join(dict.fromkeys(errors[:40])), build.stdout[-4000:], build.stderr[-2000:], sep='\n', flush=True)
     check(build.returncode == 0, variant + ' probe builds against the production Vulkan and GPU projects')
     run = subprocess.run([DOTNET, str(out / 'bin/Release/net10.0/MeloNXCore667Probe.dll'), str(stub)],
                          capture_output=True, text=True, timeout=600, env=environment, cwd=out)
@@ -239,6 +257,7 @@ inputs = ['build-utils/melonx/adapt_buffer_array_barriers.py', 'build-utils/melo
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourceKind='finalPreparationWithReversedControl',
                postimages={p: sha(FINAL_SOURCE / p) for p in POSTIMAGES}, reports=reports, sdk=sdk, host=platform.system(),
+               libHacFeedSwitched=feeds,
                physicalDeviceTested=False, gameTested=False, productionAssembliesBuilt=['Ryujinx.Graphics.Vulkan', 'Ryujinx.Graphics.Gpu'],
                inputs={p: sha(ROOT / p) for p in inputs},
                limitation='Host probe: the production array barrier calls, MoltenVK configuration write (test double of '

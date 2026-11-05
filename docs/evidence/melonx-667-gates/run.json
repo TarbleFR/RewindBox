@@ -19,7 +19,7 @@
  },
  "contract": {
   "path": "build-utils/melonx/dma-core-contract.json",
-  "sha256": "cd4c9fc7734ec7f59bdf3e6c0cf65238dd5b135742dccfe04e5760eb3578ed1e",
+  "sha256": "159c03fc87a20a468ef0737a358bc532dfe270b27fbd8cdaa3f8e0bf71564036",
   "freshAppleGates": 47,
   "preparationInputs": 165,
   "preparedMembers": 199,
@@ -47,5 +47,9 @@
   "warmup-key-parity"
  ],
  "fixtureBookkeeping": "single-resource-bindings and bounded-binding-snapshots: a backend file changed by a later reviewed adapter is allowed exactly as GAL files were (the delivered file plus exactly that adapter gives the final file), reported as otherBackendsUnchanged false with backendFilesChangedByLaterSteps (plan assertions updated accordingly); guest-fault-context and fragmented-reads compose or reverse the Core 667 edits exactly (core667_native, Core 667 adapters); hogwarts-dma-copies lists the Core 667 adapters' files.",
- "physicalDeviceTested": false
+ "physicalDeviceTested": false,
+ "ciRuns": {
+  "42110141980 attempt 1 (b3b7161f)": "failed in forced-syncpoint-wait (unchanged gate): termination-to-return 168 ms against its 150 ms bound on the macOS runner (the production wait polls termination every 50 ms); attempt 2 passed that gate.",
+  "42110141980 attempt 2 (b3b7161f)": "failed in core667-fixes: the probe restore kept the upstream nuget.config naming the starforgejo.dev LibHac feed (HTTP 403 since 2026-11-05), so Ryujinx.Memory was not restored and the GPU project could not see its types (190 CS0246). Fixed: the gate copies trees as the other gates (no src/MeloNX), switches to the authenticated LibHac feed (use_authenticated_libhac_feed) and restores with RestoreIgnoreFailedSources."
+ }
 }
