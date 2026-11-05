@@ -603,6 +603,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   MoltenVK at the end; PPU/SPU recompilation stays on the CPU. Dedicated branch
   `work/rpcs3-metal-native-20261105` (from Claude); the Claude line keeps minor user updates and
   their IPAs. Plan and progress: `docs/rpcs3-metal-native.md` on that branch.
+  - Maintainer choice: Metal 4 (iOS 26, Apple7+; the maintainer's A18 Pro runs iOS 27.0). Metal branch Cores are
+    numbered 901+ (the Claude line keeps 6xx).
+  - Core 901 source = M1, `6f075255` on the Metal branch, on top of Core 668:
+    - `rpcs3/Emu/RSX/Metal`: MTLAPI.h, the renderer's only view of Metal; MTLAPIApple.mm, Metal 4 with ARC and every
+      enumerator checked against Metal; MTLGSRender; MTLPresent.h.
+    - It presents the display buffer read from memory, converted as Vulkan converts it. Draws, clears and occlusion
+      queries are counted and not executed.
+    - Setting `experimental.metal_renderer` (Automatic keeps Vulkan), levers627 digit 18, test page row in 12 locales.
+    - Canonical delta: 370 postimages, verified on a pristine clone. Locally: the Linux clang syntax check is clean, the
+      conversion/fit unit passes under ASan/UBSan, and the test page contract passes.
+    - Fast checks `rpcs3-metal-checks.yml` (Xcode 26.3: iOS 26 SDK compile, unit test, Metal 4 probe read back on the
+      runner GPU): run `42120238823`.
+    - Not built as a Core; no iPhone run. A full Core build there also needs a MoltenVK dependency run, because the
+      bridge changed.
+  - Core 668 (Claude line, orchestrator removed) is parked on `work/rpcs3-core668-no-orchestrator-20261105` (`0197102e`).
+    Its driver passed the increment, absence and absence-control checks; the Core 664 suite was stopped by the
+    maintainer's "drop everything". IPA 669 (with MeloNX Core 667) is on hold until the maintainer says go.
 - **Setting applied (Core 664 turn):** same principal model as the Core 659 turn (get_session:
   session_context.model = last_served_model, unchanged); effort `max` (session_context.effort_level,
   flag_settings effortLevel max, ultracode off). Delegation: one rb-core-review agent.
