@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 660,
- "note": "RPCS3 Core 660: Core 659 plus five reviewed steps (build-utils/rpcs3/core660-lots/): REWINDBOX_SPU_TIMEBASE_MAPPING_660 (SPU decrementer reads use g_timebase_offs again), REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (SPU object-cache hits with only known symbols linked without IR, COREPROF SPUDIRECT660), REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (Assassin's Creed texture lookup memo with exact invalidation and self-verification, COREPROF TEXMEMO660), REWINDBOX_ZCULL_WATCHED_FLUSH_660 (Assassin's Creed) and REWINDBOX_ZCULL_DEPTH_GUARD_660 (Assassin's Creed, Black Ops II; COREPROF ZCULLWATCH660, ZCULLDEPTH660), three test page levers; two exact codegen aliases, identities unchanged; MoltenVK dependency of run 41993591512 (library d19d3a42, the same bytes as Core 655/659). Built by the RPCS3 Core route (run 41995875495, attempt 1, source 4439519c; Apple host harnesses run 41995875495 on 4439519c). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no FPS or GPU-time gain claimed.",
+ "build": 665,
+ "note": "RPCS3 Core 665: Core 664 (REWINDBOX_PPU_GRACE_664, the PPU grace after starvation for the Black Ops II stalls) plus REWINDBOX_THREAD_ORCHESTRATOR_665, the thread orchestrator v1 for every title (setting experimental.thread_orchestrator): an adaptive SPU placement controller that tries the SPU threads at QOS_CLASS_UTILITY in 500 ms phases and keeps it only when the guest frame rate is at least 99 % of the default placement (abort under 85 %, reject 120 s, hold 30 s), the PPU threads one relative priority step above the background USER_INTERACTIVE threads and below RSX/audio, COREPROF ORCH665 and PLACEMENT665, levers627 digits 17-18; no codegen input changed, identities unchanged; MoltenVK dependency of the declared run (library d19d3a42, the same bytes as Core 655-664). Built by the RPCS3 Core route (run 42067129517, attempt 1, source b69bf370; Apple host harnesses run 42067129517 on b69bf370). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no FPS or stall gain claimed.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
@@ -14,25 +14,25 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 660 source closure and the native dependency",
+    "Authenticate the Core 665 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 660",
-    "Verify the actual binary and write its Core 660 identity",
+    "Compile and link the actual iPhone Core 665",
+    "Verify the actual binary and write its Core 665 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 660 without an application delivery",
+    "Upload the verified Core 665 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "4439519c460e88f52089ac57634ef2de496e3c25",
-   "run": 41995875495,
+   "source": "b69bf3700e273d9965c8b732424674cd5ad25fcd",
+   "run": 42067129517,
    "attempt": 1,
-   "job": 127138770755,
-   "artifact": 13401208480,
-   "name": "RPCS3Core-660-4439519c460e88f52089ac57634ef2de496e3c25",
-   "bytes": 29369639,
-   "sha256": "e633fd84cfd84a51fc8831d8b8ee80db7651bc5bd11fe1a071fc4b837d87ae4e",
-   "expiresAt": "2026-12-05T09:00:36Z"
+   "job": 127384236478,
+   "artifact": 13436955658,
+   "name": "RPCS3Core-665-b69bf3700e273d9965c8b732424674cd5ad25fcd",
+   "bytes": 29368906,
+   "sha256": "edabb69a0af8acf08f8e055d5e24c67691561048a0ac5a1b9295b7051a93b8d5",
+   "expiresAt": "2026-12-05T17:01:51Z"
   },
   "hostTests": {
    "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
@@ -40,9 +40,9 @@
     "Checkout immutable candidate and the delivered Core history",
     "Read the declared Core build",
     "Select the retained Core toolchain",
-    "Materialize the Core 660 sources and the delivered a4ae86d0 sources",
+    "Materialize the Core 665 sources and the delivered a4ae86d0 sources",
     "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 660 harnesses with Apple clang",
+    "Run the affected and new Core 665 harnesses with Apple clang",
     "Preserve the Apple host harness reports"
    ],
    "names": [
@@ -59,18 +59,18 @@
     "spu-object-hit-admission-613",
     "spu-object-hit-admission-613-asan-ubsan",
     "codegen-audit",
-    "core660",
+    "core665",
     "lr-full-queue"
    ],
-   "source": "4439519c460e88f52089ac57634ef2de496e3c25",
-   "run": 41995875495,
-   "attempt": 1,
-   "job": 127138771261,
-   "artifact": 13401027264,
-   "name": "RPCS3Core-660-apple-host-tests-4439519c460e88f52089ac57634ef2de496e3c25",
-   "bytes": 57803,
-   "sha256": "270758da080b80dec4beb5f0df2a2ed60b052c82a3ca28101d4a6e472aac61bc",
-   "expiresAt": "2026-12-05T08:52:31Z",
+   "source": "b69bf3700e273d9965c8b732424674cd5ad25fcd",
+   "run": 42067129517,
+   "attempt": 3,
+   "job": 127407565906,
+   "artifact": 13438960716,
+   "name": "RPCS3Core-665-apple-host-tests-b69bf3700e273d9965c8b732424674cd5ad25fcd",
+   "bytes": 58880,
+   "sha256": "530839897d400a79941b520b94599b046f903e1233e6fcf9716d9a57d4828fdc",
+   "expiresAt": "2026-12-05T17:34:42Z",
    "reused": {
     "names": [
      "reuse-audit"
@@ -98,17 +98,17 @@
   }
  },
  "core": {
-  "type": "rpcs3-ios-core660",
-  "dylibBytes": 77815520,
-  "dylibSha256": "1416a156b3d4bfaaa93b798f17d1638d26bb0f100623344c27e0583b17242c76",
-  "identitySha256": "e9497b41a0a21ea6dbe09ee5bea256fae2dc4a32909eff60a3a4537777034b77",
+  "type": "rpcs3-ios-core665",
+  "dylibBytes": 77834504,
+  "dylibSha256": "955cc6100eca6b37db5e40492c4273c3fbae6fbc3124573a2830ed3db68f9f8e",
+  "identitySha256": "22192dfd805e29d5b53844389b15818326b48e53ed9de21af68d4238e16d1062",
   "proofMember": "core610-proof.json",
-  "proofSha256": "1bd0639e91f92a96ad94d3c1589147db0bc2260b66f13b43632fcf0911d806b7",
-  "payloadFingerprint": "367a24cc43a78978094412a306ada74a7cd1fd69381a5bebacee5e1983122e41"
+  "proofSha256": "31f5be33e0cdfff39fd0960e2ae487d22719cc3f8b86d8a35d51c6da23a6a7c7",
+  "payloadFingerprint": "08753ed1e2232e9f62c15f180c86f38118056003d729a479eff43141ee804857"
  },
  "canonical": {
-  "patchSha256": "3a1ad201ff9ba1bd9374e4591e6d1df8189b355828c49d05c6381256e5eef1b6",
-  "postimages": 363,
+  "patchSha256": "614ba1b85903aa60e78fcf4012455f3b1a0a6716125a42c54a2f59a0432e9e7c",
+  "postimages": 364,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -218,7 +218,7 @@
  },
  "host": {
   "path": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
-  "sha256": "1aa2eceda59c81add0867b37b477a12fbb7027d95c7045b41ce961db83d5440a"
+  "sha256": "7282878a11161d01225e6c7c1e7968d3579fce3b14aec2d43c2062485d048a3c"
  },
  "hostStore": {
   "path": "native/neoswap-storage/Store.cpp",
@@ -265,13 +265,18 @@
   "COREPROF SPUDIRECT660",
   "COREPROF TEXMEMO660",
   "COREPROF ZCULLWATCH660",
-  "COREPROF ZCULLDEPTH660"
+  "COREPROF ZCULLDEPTH660",
+  "Resolved title policy 664",
+  "COREPROF PPUGRACE664",
+  "Resolved title policy 665",
+  "COREPROF PLACEMENT665",
+  "COREPROF ORCH665"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "971c862148ef520be13a2c51498354ac8e73425a",
-  "run": 41958979698,
-  "artifact": 13385745893,
-  "payloadFingerprint": "f692cb696dc77fd0141064ef5c933a71339633d8daacfa5d1701eb7eb9b557a2"
+  "source": "4439519c460e88f52089ac57634ef2de496e3c25",
+  "run": 41995875495,
+  "artifact": 13401208480,
+  "payloadFingerprint": "367a24cc43a78978094412a306ada74a7cd1fd69381a5bebacee5e1983122e41"
  }
 }
