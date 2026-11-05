@@ -626,6 +626,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Core 668 (Claude line, orchestrator removed) is parked on `work/rpcs3-core668-no-orchestrator-20261105` (`0197102e`).
     Its driver passed the increment, absence and absence-control checks; the Core 664 suite was stopped by the
     maintainer's "drop everything". IPA 669 (with MeloNX Core 667) is on hold until the maintainer says go.
+- **Setting applied (Metal M1 turn, 5 Nov):** the same principal model as the Core 664 turn (get_session); effort `max`.
+  Delegation: one Explore inventory agent and one rb-research agent, both read-only.
 - **Setting applied (Core 664 turn):** same principal model as the Core 659 turn (get_session:
   session_context.model = last_served_model, unchanged); effort `max` (session_context.effort_level,
   flag_settings effortLevel max, ultracode off). Delegation: one rb-core-review agent.
