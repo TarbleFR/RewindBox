@@ -1,37 +1,37 @@
 {
   "status": "verified",
-  "source": "a36243d54848ea4fb85a480c8200b437db431dee",
-  "run": 42013433386,
-  "job": 127197895052,
+  "source": "9022c1a18b14247c704191b29d38398fa8f0fa09",
+  "run": 42053144885,
+  "job": 127334287708,
   "attempt": 1,
   "workflow": ".github/workflows/melonx-core.yml",
-  "artifact": 13410286295,
-  "name": "MeloNX-engine-a36243d54848ea4fb85a480c8200b437db431dee",
-  "bytes": 102052729,
-  "sha256": "e20259eb970b66cabcdc2e63e841694ccfa3348bc9029201466417c21f74b3e7",
-  "expiresAt": "2026-11-19T11:16:17Z",
+  "artifact": 13431555310,
+  "name": "MeloNX-engine-9022c1a18b14247c704191b29d38398fa8f0fa09",
+  "bytes": 90632133,
+  "sha256": "ded2abe142d19bde402115dcf7e1641f457317cc69c4c89085dfefc237e921e4",
+  "expiresAt": "2026-11-19T15:51:52Z",
   "binaries": {
     "ios-arm64": {
-      "sha256": "482047ece9713da8ed9622c160625caf17f8a34152c20131f903c46886488036",
-      "bytes": 38127448
+      "sha256": "6566777b9f6ad001e741a8ebaf911627406e5d34c6acd5482c7e1ac0aec9bad7",
+      "bytes": 38127456
     },
     "iossimulator-arm64": {
-      "sha256": "e2f9f2404114fb717616dafcff1d6ee08338197f4ba8cc485ada6b3c46b780db",
+      "sha256": "c2b8dc785a13491a3ecd1aa4273ad5f2bae71b4a56a1926a1c791546fd7d0f42",
       "bytes": 38458456
     }
   },
   "identities": {
-    "ios-arm64": "34c59e12231a7e19188204b2255619032a63564d10e524d48216c90956f3420c",
-    "iossimulator-arm64": "31bd69797f6c150a1cedb97aa24ba211bfb3bac75de2de2f82ab3a74f2d83cb6"
+    "ios-arm64": "afd74d0c4ae0b9f440c127cb22c69b1668fddd7bad9574e3365a46de68d2bc42",
+    "iossimulator-arm64": "8b8887767f3c527f5ef7caa7a6be52c69720df7b9b6ac141e658a97a08a1d99d"
   },
-  "contractSha256": "e187562cbce321771d2fd675cef390bd7eea9a1d982703259b908c61b82345d4",
-  "resultSha256": "815c6093d49a99aa51398331a8695785614e23a7c116911d6e523ce21f4c1de2",
-  "packagedFingerprint": "0e6d5eb879a4cd9ff0fced3d891366f6f546414242d08250504bef2d48e7099f",
+  "contractSha256": "1cc9441f475a561aa0cf5d3e024e7b52741b73cf68601a79fb50f1842f73ab15",
+  "resultSha256": "470954cbca58bc27c4944c7fe3a90df7aa448a888710135a1997dd3cdd34dcd5",
+  "packagedFingerprint": "22fd9912397b62f49c1b2238f053c859c6261caa490d8751e9de3ea29284ceb2",
   "replaces": {
-    "source": "2cfc28e5b592d29fdaece26b0544f6fe0575b237",
-    "run": 41951818625,
-    "artifact": 13381338790,
-    "packagedFingerprint": "9bb5dc46cc6a988b0a040d3784003eb7b6303c2d0431435d771c0dc324fed1b0",
-    "reason": "Hogwarts Legacy: descriptor encoding (template scratch sized by binding, texture arrays written by changed range), DMA region uploads declining a cached buffer, syncpoint increments queued behind their occlusion reports (renderer barrier, head kept until published, 3D increments drain first); eleven fresh gates; Core 639 adds the MeloNX FPS/stability lot of PR #153 (pipeline warm-up key with the draw's alpha-to-coverage/alpha-to-one state, device-short texture trim without flushes); thirteen fresh gates; Core 642 adds the MeloNX lot of PR #154 (in-pass image barriers of non-attachments end the pass and the Hogwarts in-pass read barrier is recorded under MoltenVK 1.4.1 or later, binding-sized descriptor scratch for every title, occupied read-back and pipeline miss attribution); eighteen fresh gates; Core 644 adds the MeloNX lot of PR #156 (DMA read-back receivers for the Hogwarts black launch, present source attribution); twenty fresh gates; Core 647 adds the PR #156 follow-up (teardown compile cancel for the endless SSBU close, pause guest-thread record); twenty-two fresh gates; Core 649 adds the teardown phase marks (journal only); twenty-three fresh gates; Core 654 adds the PR #156 new lot (closed sessions' layer binders released in SurfaceFlinger.Dispose with the sessionRetention probe, gcEvent lines of the collector, artifact-path counters); twenty-seven fresh gates; Core 656 adds the MeloNX levers of the IPA 650 logs (bounded reuse of the whole-rebuild arrays of pool-sized bindless arrays; 30 fps present pacing on VK_GOOGLE_display_timing); twenty-nine fresh gates Core 658 (IPA 657 fix, isolated IPA 658): the game image is written into the iOS drawable by a render pass instead of the PresentCopy compute storage-image descriptor that MoltenVK 1.4.2 leaves non-resident on iOS 18 and later (black launch, frozen or older frames); thirty fresh gates. Core 661 (Hogwarts 658 logs, IPA 662): fifteen adapters on Core 658 - in-play RAM (LOH compaction at the first frame and in held pauses, host-warning trim, cold pool-only texture release, bindless retention, closed-session roots, memory inventory), the rebuilt NativeAOT workstation GC with the upstream background-GC start check (no blocking fallback), sky artifacts (every reader stage ordered after a write under MoltenVK 1.4.2 residency mode), shader save poll off the render queue, warm-up key parity, SetProgram warm-up, teardown cache, forced syncpoint wait, present pacer fixes, guest fault context; forty-seven fresh gates."
+    "source": "a36243d54848ea4fb85a480c8200b437db431dee",
+    "run": 42013433386,
+    "artifact": 13410286295,
+    "packagedFingerprint": "0e6d5eb879a4cd9ff0fced3d891366f6f546414242d08250504bef2d48e7099f",
+    "reason": "Hogwarts Legacy: descriptor encoding (template scratch sized by binding, texture arrays written by changed range), DMA region uploads declining a cached buffer, syncpoint increments queued behind their occlusion reports (renderer barrier, head kept until published, 3D increments drain first); eleven fresh gates; Core 639 adds the MeloNX FPS/stability lot of PR #153 (pipeline warm-up key with the draw's alpha-to-coverage/alpha-to-one state, device-short texture trim without flushes); thirteen fresh gates; Core 642 adds the MeloNX lot of PR #154 (in-pass image barriers of non-attachments end the pass and the Hogwarts in-pass read barrier is recorded under MoltenVK 1.4.1 or later, binding-sized descriptor scratch for every title, occupied read-back and pipeline miss attribution); eighteen fresh gates; Core 644 adds the MeloNX lot of PR #156 (DMA read-back receivers for the Hogwarts black launch, present source attribution); twenty fresh gates; Core 647 adds the PR #156 follow-up (teardown compile cancel for the endless SSBU close, pause guest-thread record); twenty-two fresh gates; Core 649 adds the teardown phase marks (journal only); twenty-three fresh gates; Core 654 adds the PR #156 new lot (closed sessions' layer binders released in SurfaceFlinger.Dispose with the sessionRetention probe, gcEvent lines of the collector, artifact-path counters); twenty-seven fresh gates; Core 656 adds the MeloNX levers of the IPA 650 logs (bounded reuse of the whole-rebuild arrays of pool-sized bindless arrays; 30 fps present pacing on VK_GOOGLE_display_timing); twenty-nine fresh gates Core 658 (IPA 657 fix, isolated IPA 658): the game image is written into the iOS drawable by a render pass instead of the PresentCopy compute storage-image descriptor that MoltenVK 1.4.2 leaves non-resident on iOS 18 and later (black launch, frozen or older frames); thirty fresh gates. Core 661 (Hogwarts 658 logs, IPA 662): fifteen adapters on Core 658 - in-play RAM (LOH compaction at the first frame and in held pauses, host-warning trim, cold pool-only texture release, bindless retention, closed-session roots, memory inventory), the rebuilt NativeAOT workstation GC with the upstream background-GC start check (no blocking fallback), sky artifacts (every reader stage ordered after a write under MoltenVK 1.4.2 residency mode), shader save poll off the render queue, warm-up key parity, SetProgram warm-up, teardown cache, forced syncpoint wait, present pacer fixes, guest fault context; forty-seven fresh gates. Core 663 (IPA 662 regression: every heavy title died silently on Core 661): Core 661 without adapt_nativeaot_gc_runtime, so the engine links the official .NET 10.0.0 workstation GC again (the rebuilt GC was the only replaced native runtime component); every other Core 661 adapter unchanged; forty-six fresh gates. Ships with the host crash journal (MeloNX-crash.log, bridge 9022c1a1)."
   }
 }

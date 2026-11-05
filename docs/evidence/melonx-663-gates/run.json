@@ -28,5 +28,26 @@
  "physicalDeviceTested": false,
  "hostCrashJournal": "packages/melonx_internal_bridge MeloNXCrashJournal.h/.m (MeloNX-crash.log). Its fatal-signal handlers are installed by a constructor when the bridge framework loads, before any engine, so the NativeAOT runtime and Ryujinx's tracking handler, installed later, keep precedence; the file opens when MeloNXStdioCapture.configureDiagnostics runs (Diagnostics/Switch), and nothing is written before. Swift reaches the C functions through dlsym (MeloNXCrashJournalLink), so the files that host tests compile alone still compile. MeloNXRuntimeAPI.swift and the plugin are unchanged from Core 661 (contract digest 14bd4556 again). Reviewed (rb-core-review) before the move; its two defects fixed. Linux harness of the C file: without an open file, SIGSEGV/abort/exit/later-handler end with 139/134/3/42 as without the journal; with it, the same statuses plus a record, and no record when a later handler handles the fault.",
  "firstCiRun": "42046881464 on cf63c24e failed in prepare_dependencies: \"Changed input: MeloNXRuntimeAPI.swift\" (contract frozen with the uncommitted journal hook).",
- "secondCiRun": "42047699635 on 2bd6b9c1 failed in test/melonx_runtime_smoke.py --require-performance-diagnostics: its swiftc set (MeloNXSessionHost.swift, MeloNXRuntimeAPI.swift, App.swift) did not contain the journal symbols that MeloNXRuntimeAPI.swift then called. Fixed by restoring MeloNXRuntimeAPI.swift; arming inside the plugin was rejected because test/melonx_capture_journal_test.py binds plugin additions to the audio interruption observer."
+ "secondCiRun": "42047699635 on 2bd6b9c1 failed in test/melonx_runtime_smoke.py --require-performance-diagnostics: its swiftc set (MeloNXSessionHost.swift, MeloNXRuntimeAPI.swift, App.swift) did not contain the journal symbols that MeloNXRuntimeAPI.swift then called. Fixed by restoring MeloNXRuntimeAPI.swift; arming inside the plugin was rejected because test/melonx_capture_journal_test.py binds plugin additions to the audio interruption observer.",
+ "pin": {
+  "commitNote": "build-utils/melonx/dma-core-pin.json",
+  "run": 42053144885,
+  "job": 127334287708,
+  "source": "9022c1a18b14247c704191b29d38398fa8f0fa09",
+  "artifact": 13431555310,
+  "artifactBytes": 90632133,
+  "artifactSha256": "ded2abe142d19bde402115dcf7e1641f457317cc69c4c89085dfefc237e921e4",
+  "iphoneBinarySha256": "6566777b9f6ad001e741a8ebaf911627406e5d34c6acd5482c7e1ac0aec9bad7",
+  "iphoneBinaryBytes": 38127456,
+  "packagedFingerprint": "22fd9912397b62f49c1b2238f053c859c6261caa490d8751e9de3ea29284ceb2",
+  "resultSha256": "470954cbca58bc27c4944c7fe3a90df7aa448a888710135a1997dd3cdd34dcd5",
+  "contractSha256": "1cc9441f475a561aa0cf5d3e024e7b52741b73cf68601a79fb50f1842f73ab15",
+  "nativeAotGcPatchMarkerInIphoneBinary": 0,
+  "engineEvidence": "passed offline (producer metadata from the GitHub API: run, job, artifact)",
+  "replaces": "Core 661 (a36243d5, run 42013433386, fingerprint 0e6d5eb8)"
+ },
+ "hostRuns": {
+  "42053144428 (9022c1a1)": "failed before any scenario: starforgejo.dev HTTP 403 on the pinned source fetch",
+  "42057788072 (5153740f, workflow_dispatch)": "verified-mirror fetch; result in the handoff"
+ }
 }
