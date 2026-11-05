@@ -267,6 +267,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Device checks wanted: AC `RPASS655 kept_*`, same-target restarts and GPU ms/frame vs 653;
     MeloNX bindings `allocatedKiB`/`gcPauseMs` at transitions and "Present pacing over" lines;
     GameCube/Wii stick tops. No iPhone measurement yet; no FPS claim.
+- **Delivered/verified by MeloNX: isolated IPA 658 (on 657, MeloNX Core 658 only):** trigger
+  `9730acd5`, run `41955134733` (five jobs green first try): IPA 246765263 B, SHA-256 `89607f58…f479`;
+  [receipt](evidence/rewind658/delivery.json) (`b317e1da`), packaged MeloNX = pin `aa81c2e8`, key
+  deleted, file sent by that session. RPCS3 Core 655 kept; `9403a7bf` source-only, target 659.
+- **Next common IPA (659+):** wait for every handoff. Planned: RPCS3 Core 659 once pinned,
+  `9403a7bf` promoted (sourceOnly in 658), skins PR162 (`dd973d0b` + legal `2f52d25e`, pushed),
+  MeloNX Core 658 pin `aa81c2e8`; Switch Pocket blocked on the maintainer's original maquette file.
 - **Device logs 650/653 (private, hashed in scratchpad):** 650: AC 25–28 FPS = 643, GPU
   loss after compression growth (4.7 GB footprint); verified at 0 % deviation: no
   steady-state regression; "compression is the precursor" and "2.5 GB before gameplay"
@@ -336,9 +343,29 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     (feedback 5.4, image_helpers 3.5). ZCULL waits ≈ 14.6 ms each, bound by GPU latency. No new
     safe lever; next is a design change (feedback without barrier). No FPS claim.
   - Next: BO2 device run against the record's criteria; if it freezes again, extend
-    FREEZE_DUMP (code at each sampled PC, GPR-pointed lines) in a Core 659.
-- **Setting applied (Core 655 turn):** session model `claude-opus-5-5`, effort `xhigh`
-  (get_session: session_context.model and last_served_model `claude-opus-5-5`).
+    FREEZE_DUMP (code at each sampled PC, GPR-pointed lines).
+- **Core 659 ([record](rpcs3-core659-2026-11-05.md), source + build request 5 Nov):**
+  - AC mechanism (IPA 657, measured/derived): every non-flip CB is a ZCULL hint flush; the
+    game waits for the whole CB of each report (MoltenVK publishes queries at CB completion),
+    then records the rest of the frame with the GPU empty: GPU idle 8.7-13.0 ms/frame =
+    sampled recording + one 2.1-3.6 ms hand-off (±0.7 ms in 4/6 windows). 561 was off (OPT561 0).
+  - Change: `REWINDBOX_EARLY_SUBMIT_BOUNDARY_659` (561 Automatic for AC + BO2, armed at draw end,
+    taken at a draw start or after its textures with no pass open, fallback after 32 draws; not
+    after textures with a device-mode async scheduler); `REWINDBOX_ZCULL_READ_LEAD_659`
+    (ZCULLLEAD659) and `REWINDBOX_ZCULL_HINT_SITES_659` (ZCULLHINT659): counters only.
+  - Host: real-code 659/655 test (ASan/UBSan) passed (boundary off = 655 stream; 0 boundary splits;
+    restarts after a submission 109 -> 76), codegen identities unchanged, canonical delta
+    reproduces the tree on pristine upstream, closure/route/protocol/pin tests passed, core659
+    suite running locally; independent review: no defect (async-compute hypothesis guarded).
+  - Model only: 48.3 -> 44.7 ms/frame. Not built at this line; no FPS claim.
+  - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
+    without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
+    report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).
+- **Setting applied (Core 659 turn):** model `claude-opus-5-5` (get_session session_context.model
+  and last_served_model); effort `max` (session_context.effort_level, flag_settings), ultracode on;
+  rb-effort-high returned "high" when invoked. Delegation: workflow wf_cab1f681-d72 (2/8 typed
+  investigations returned: rb-research maxTurns 14), then two general-purpose research agents
+  (Sonnet/medium) and one rb-core-review (Opus/high).
 - **Pre-existing failures noted (not from this work):** `test/build_source_evidence_test.py`
   and `test/legal_bundle_preflight_test.py` fixtures lack the 1 Nov RetroAchievements review
   (3 failures + 6 errors / 3 failures, same on the 653 tree); the raw tree fails
@@ -374,8 +401,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   (trigger `9730acd5`, five jobs green first try): IPA 246765263 B, SHA-256 `89607f58…f479`;
   [receipt](evidence/rewind658/delivery.json), offline checks passed, packaged MeloNX = pin, key deleted, file
   sent. = 657 + MeloNX Core 658 only (RPCS3 655 kept; main's `9403a7bf` deferred as source-only to 659).
-- **Next:** maintainer's device check: Hogwarts without recording, image live at launch and in menus, `Present
-  path:` line in stderr; then SSBU and a 60 fps title for regressions. No device proof yet.
+- **Device result (maintainer, 5 Nov, IPA 658):** "tu as corrigé le défaut": the black launch / frozen image is
+  gone on the iPhone (iOS 27 beta 1). Logs announced, not received yet: the `Present path:` line, Hogwarts and
+  another title's pacing, SSBU close and any regression remain to be read from them.
+- **Next:** read the 658 logs when they arrive; Core 658 is kept by main for the next common IPA (659+).
 
 ### Skins/orientation and additive PS2 Original — existing owner
 

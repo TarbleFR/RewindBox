@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 655,
- "identity_type": "rpcs3-ios-core655",
- "summary": "RPCS3 Core 655 = the delivered Core 610 plus one folded delta: the Core 612 to 652 records unchanged and the Core 655 change (build-utils/rpcs3/core655-from-652.patch over Core 652, iOS Vulkan, insertions only): vk::change_image_layout keeps the open render pass for a transition to SHADER_READ_ONLY_OPTIMAL of an image that is not an attachment of it (attachments noted by the draw path; COLOR/DEPTH attachment or TRANSFER source layouts, default masks, no queue family transfer), recording the same barrier inside the pass (REWINDBOX_IN_PASS_READ_TRANSITION_655, COREPROF RPASS655); title policy 655: Assassin's Creed, and only with a MoltenVK that defines rbx_mvk_in_pass_read_barrier_waits. The MoltenVK dependency is replaced by the reviewed build of the same db660224 source with the RewindBox patch extended (MVKCmdPipelineBarrier waits for the stage fences of such a barrier inside a render encoder). Core 652 contained: Core 651, the read-only cyclic depth chains and the render pass census. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. No gain measured: not built, no iPhone run.",
+ "build": 659,
+ "identity_type": "rpcs3-ios-core659",
+ "summary": "RPCS3 Core 659 = the delivered Core 610 plus one folded delta: the Core 612 to 655 records unchanged and the Core 659 change (build-utils/rpcs3/core659-from-655.patch over Core 655, iOS): the early command buffer submission of 561 becomes Automatic for Assassin's Creed and Black Ops II in a boundary mode, where a submission decided at the end of a draw once the GPU has drained is taken at the start of a later draw or after its textures when no render pass is open, or at the end of a draw after 32 more draws (REWINDBOX_EARLY_SUBMIT_BOUNDARY_659, COREPROF OPT561 boundary counters, boot line Resolved title policy 659); Dragon Ball Z and God of War III keep the end-of-draw submission; two ZCULL counter lines (REWINDBOX_ZCULL_READ_LEAD_659, COREPROF ZCULLLEAD659; REWINDBOX_ZCULL_HINT_SITES_659, COREPROF ZCULLHINT659). Core 655 contained: Core 652 and the in-pass read transitions of non-attachments with the MoltenVK dependency that waits for them (kept). ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,7 +22,7 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "e006ca0c7b624c34148966be8de447d63ed0f2b67293c03f6432fb1c71ae0158",
+  "patch_sha256": "c695ddaa32a00211677b2a9b5f728248ba5cb643db67d9cf775d262e42306421",
   "postimages": 359,
   "records": [
    "core610_20261101",
@@ -42,7 +42,8 @@
    "core645_20261104",
    "core651_20261104",
    "core652_20261104",
-   "core655_20261104"
+   "core655_20261104",
+   "core659_20261105"
   ]
  },
  "reference": {
@@ -82,10 +83,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core655_20261104",
-  "manifest": "build-utils/rpcs3/core655-delta.json",
-  "patch": "build-utils/rpcs3/core655-delta.patch",
-  "patch_sha256": "bce54260876468039cc35e78f223e2045bb765c19e0bd727ddebe3fc7fe0363c"
+  "record": "core659_20261105",
+  "manifest": "build-utils/rpcs3/core659-delta.json",
+  "patch": "build-utils/rpcs3/core659-delta.patch",
+  "patch_sha256": "1bae502beaad205345ee3c97cf761474eeecbb399c664a32c7e5def2c24a7e46"
  },
  "exports": 92,
  "core_inputs": {
@@ -164,7 +165,10 @@
   "COREPROF READPREDICT638",
   "COREPROF AUDIO641",
   "COREPROF RPASS652",
-  "COREPROF RPASS655"
+  "COREPROF RPASS655",
+  "Resolved title policy 659",
+  "COREPROF ZCULLLEAD659",
+  "COREPROF ZCULLHINT659"
  ],
  "moltenvk_dependency": {
   "run": 41912442196,
@@ -371,28 +375,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core655_codegen_test.py",
+     "test/rpcs3_core659_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 655 touches no codegen input; its reverted tree passes the Core 652 audit"
+    "reason": "Core 659 touches no codegen input; its reverted tree passes the Core 655 audit"
    },
    {
-    "name": "core655",
+    "name": "core659",
     "argv": [
      "python3",
-     "test/rpcs3_core655_test.py",
+     "test/rpcs3_core659_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core655.json"
+     "{out}/core659.json"
     ],
-    "reason": "Core 655 increment (in-pass read transitions on the real render pass and layout code, ASan/UBSan) and, on its reverted tree, the Core 652 suite (then 651, 645, 641, 638, 636, 634, 630, 627)"
+    "reason": "Core 659 increment (early submission at render pass boundaries on the real VKGSRender code of 659 and 655, the changed iOS headers, ASan/UBSan) and, on its reverted tree, the Core 655 suite (then 652, 651, 645, 641, 638, 636, 634, 630, 627)"
    },
    {
     "name": "lr-full-queue",
