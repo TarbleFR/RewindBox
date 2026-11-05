@@ -559,3 +559,27 @@ no `fellBackFromBackground` 1 and max in-play GC pause < 100 ms; footprint in th
 658's, `memory heapCompacted firstFrame` present, memoryWarnings followed by a trim; no white or black sky in the
 "Suivre le professeur Fig" area with `later reader in a new stage` > 0; FPS and GPU busy not below 658's (22-31 fps,
 15.7-20.7 ms); left stick moves with `tL`/`oL` in `in=`; close completes and relaunch works.
+
+### Core 661 freeze, Core build and pin (5 November 2026)
+
+- Freeze `48c837d4` (contract `3c383d88`): 163 preparation inputs, 199 prepared members, 69 reviewed production changes,
+  47 fresh Apple gates, 20 reused, 61 historical; contract test with the authenticated 614 archive 380 checks. Local
+  pass of the 47 gates on the real final preparation (Linux, SDK 10.0.100); ten failures before correction, all
+  fixture or plan side ([run](evidence/melonx-661-gates/run.json)).
+- The Apple Core runner (macos-26) runs every fresh gate again. Five fixture assumptions about host timing failed
+  there, one per round, none in the product; each was corrected with every assertion unchanged:
+  safe-point compaction Linux-only (`libclrgc.so`, `/proc/self/status`; run `41998621333` cancelled before it),
+  SetProgram warm-up modeled compiles stretched on the below-normal workers (run `41999859590`), shader save poll
+  2 ms rests lasting 10-20 ms (run `42003056073`), forced syncpoint wait 25 x 100 ms steps adding +65-120 ms each
+  (run `42006447546`), SetProgram warm-up sequencing delays (run `42009977335`). Modeled durations are now deadlines
+  (exact on every host).
+- Core run `42013433386` (`a36243d5`, job `127197895052`, attempt 1, 30 min): 47 fresh gates on Apple ARM64, NativeAOT compile linking the rebuilt workstation GC
+  (patch marker required), both libraries bound to the reviewed sources and receipts, two simulator sessions.
+  Pin `build-utils/melonx/dma-core-pin.json`: artifact `13410286295` (102052729 B, `e20259eb…`, equal to the API digest), iPhone `Ryujinx.Library` `482047ec…` (38127448 B, carries the GC patch marker),
+  packaged fingerprint `0e6d5eb8…`, contract `e187562c`, result `815c6093…`; engine_evidence of `melonx_dma_core_component` passed offline. Replaces Core 658
+  (`aa81c2e8`). Not measured on an iPhone; no FPS, memory or visual claim before the maintainer's run.
+
+Short iPhone test of IPA 662 (MeloNX part): launch Hogwarts Legacy from a cold start; play the "Suivre le professeur
+Fig" area and cast a few spells (sky, black blobs, cyan block); 10 minutes of play with the left stick on touch and,
+if available, a controller; one pause of a minute in the menu; close the game, relaunch it; send the
+`MeloNX-performance.log`, `MeloNX-core.log`, `MeloNX-launch.log` of that session. Resolution criteria: the table above.

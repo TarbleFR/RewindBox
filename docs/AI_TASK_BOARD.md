@@ -520,8 +520,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Core run `42009977335` (7f0d7b50): setprogram-warmup burstMatch 574.6 ms (bound 560): the fixture's 30 ms
     sequencing delay took 136 ms there. Native.Work is exact (1 ms slices, then yields) and the fixture's delays use it
     (same assertions, 103 checks, burstMatch 431.9 ms); contract `e187562c`, 380 checks.
-- **Next:** Core run green -> pin `dma-core-pin.json`, hand off to main (IPA 662 = RPCS3 660 + MeloNX 661; MeloNX
-  runs no delivery); then the maintainer's iPhone test and like-for-like logs (resolution criteria in the map).
+- **Core 661 pinned (11:25 UTC):** run `42013433386` on `a36243d5` green first try after the fixture timing fixes (47
+  fresh gates on Apple ARM64, NativeAOT compile with the rebuilt GC, two simulator sessions); artifact `13410286295`
+  (102052729 B, `e20259eb…`), iPhone binary `482047ec…` (38127448 B, GC patch marker present), packaged fingerprint
+  `0e6d5eb8…`, contract `e187562c`; engine_evidence passed offline. Replaces Core 658 (`aa81c2e8`).
+- **Next:** main delivers IPA 662 (RPCS3 660 + MeloNX 661; first compile of the stick Swift); then the maintainer's
+  short iPhone test and like-for-like logs (protocol and resolution criteria in the map). MeloNX runs no delivery.
 - **Baselines for like-for-like checks** (`tools/melonx/memory_report.py`, windows from the first game second): player 1
   (11152) peak 4566 MiB, 1 memoryWarning, fallbacks 102/332 ms, LOH occupied <= 342 MiB; player 2 (four 658 sessions,
   89-209 s) peak 4830-5356 MiB, headroom down to 787 MiB, 1-9 memoryWarnings, LOH occupied 479-603 MiB, one 952 ms
