@@ -130,6 +130,9 @@ from adapt_safe_point_compaction import apply as adapt_safe_point_compaction
 from adapt_cold_texture_release import apply as adapt_cold_texture_release
 from adapt_bindless_retention import apply as adapt_bindless_retention
 from adapt_moltenvk_stage_ordering import apply as adapt_moltenvk_stage_ordering
+from adapt_buffer_array_barriers import apply as adapt_buffer_array_barriers
+from adapt_hogwarts_precise_math import apply as adapt_hogwarts_precise_math
+from adapt_shader_save_journal import apply as adapt_shader_save_journal
 
 
 def replace_once(path, old, new):
@@ -348,6 +351,12 @@ def main():
     # MoltenVK 1.4.2 orders argument-buffer reads only by barriers: each new reader stage of a written texture gets its
     # own barrier (every title), and unordered render/compute switches get one for Hogwarts.
     adapted += [source / name for name in adapt_moltenvk_stage_ordering(source)]
+    # Core 667: buffer texture/image arrays queue no image barrier (the render worker's NullReferenceException of IPA 666).
+    adapted += [source / name for name in adapt_buffer_array_barriers(source)]
+    # Core 667: Hogwarts Legacy's shaders compiled by Metal without fast math (Inf and NaN kept).
+    adapted += [source / name for name in adapt_hogwarts_precise_math(source)]
+    # Core 667: durable counters of the shader disk-cache saves.
+    adapted += [source / name for name in adapt_shader_save_journal(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -441,7 +450,10 @@ def main():
                  'adapt_safe_point_compaction.py',
                  'adapt_cold_texture_release.py',
                  'adapt_bindless_retention.py',
-                 'adapt_moltenvk_stage_ordering.py']:
+                 'adapt_moltenvk_stage_ordering.py',
+                 'adapt_buffer_array_barriers.py',
+                 'adapt_hogwarts_precise_math.py',
+                 'adapt_shader_save_journal.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

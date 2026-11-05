@@ -66,6 +66,32 @@ partial class Library
         catch { return 0; }
     }
 
+    // The helper maps the code arena once per process, at the size the first launch asks for. Hogwarts Legacy with its
+    // update, launched after another game, filled that game's 512 MiB arena 16 s after its start and the process
+    // aborted ("JIT Cache exhausted", IPA 666; also builds 658 and 662 in that order, never with Hogwarts first). The
+    // first launch therefore maps the largest arena a title needs wherever the process may use 6 GiB or more (the
+    // helper writes every arena page: 512 MiB more footprint there). Once an arena is mapped its size is final: a title
+    // that needs more is refused before it starts (false), never left to exhaust the arena in play.
+    internal const ulong EmbeddedLargestJitArena = 1UL << 30;
+    internal const ulong EmbeddedLargeArenaProcessBytes = 6UL << 30;
+
+    internal static bool EmbeddedJitArenaRequest(ulong titleHint, ulong mappedBytes, ulong processBytes, out ulong request)
+    {
+        request = titleHint;
+        if (mappedBytes != 0) return titleHint <= mappedBytes;
+        if (titleHint < EmbeddedLargestJitArena && processBytes >= EmbeddedLargeArenaProcessBytes) request = EmbeddedLargestJitArena;
+        return true;
+    }
+
+    // Hogwarts Legacy's shaders are compiled by Metal without fast math (adapt_hogwarts_precise_math): its sky showed
+    // black blocks with blue edges, the look of NaN or Inf values that fast math lets Metal assume away. Every other
+    // title keeps MeloNX's fast math; the preflight resets the choice for each launch.
+    private static void EmbeddedNoteLaunchTitle(ulong titleId)
+    {
+        if (OperatingSystem.IsIOS() || OperatingSystem.IsMacOS())
+            Ryujinx.Graphics.Vulkan.MoltenVK.MVKInitialization.PreciseMath = titleId == 0x0100F7E00C70E000UL;
+    }
+
     [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_prepare_jit")]
     public static int EmbeddedPrepareJit()
     {
@@ -74,9 +100,18 @@ partial class Library
             if (!EmbeddedBootstrap.Ready || EmbeddedSessions.State != 0) return 2;
             if (EmbeddedJitQuarantined) return 3;
             EmbeddedLaunchDiagnostics.Record("jitArena", "begin");
+            ulong mappedArena = Ryujinx.Cpu.LightningJit.DualMappedMemory.ArenaSize;
+            if (!EmbeddedJitArenaRequest(EmbeddedJitArenaHint, mappedArena, Ryujinx.Memory.HostMemoryBudget.TotalBytes, out ulong arenaRequest))
+            {
+                // Not quarantined: the mapped arena still serves every title that fits in it.
+                EmbeddedLaunchDiagnostics.Fail("jitArena", "jitRestartRequired", new InvalidOperationException(
+                    "This game needs a " + (EmbeddedJitArenaHint >> 20) + " MiB code arena; RewindBox mapped " + (mappedArena >> 20) +
+                    " MiB for an earlier game in this process. Close and reopen RewindBox, then start this game first."));
+                return 1;
+            }
             try
             {
-                Ryujinx.Cpu.LightningJit.DualMappedMemory.RequestedArenaSize = EmbeddedJitArenaHint;
+                Ryujinx.Cpu.LightningJit.DualMappedMemory.RequestedArenaSize = arenaRequest;
                 Ryujinx.Cpu.LightningJit.DualMappedMemory.PrepareEmbeddedMapping();
                 EmbeddedLaunchDiagnostics.Record("jitArena", "passed", detail: "Real MeloNX code arena (" +
                     (Ryujinx.Cpu.LightningJit.DualMappedMemory.ArenaSize >> 20) + " MiB) and signal mapping prepared; ARM64 probe executed through the arena's RX/RW aliases.");

@@ -128,7 +128,7 @@ def final_receipt(control_root, candidate_root, gal_files, backend_inputs, input
     """
     control_root, candidate_root = Path(control_root), Path(candidate_root)
     unchanged = [*gal_files, *(path for path in backend_inputs if path != TEXTURE_ARRAY)]
-    later_gal = {}
+    later_gal, later_backend = {}, {}
     for relative in unchanged:
         if sha(control_root / relative) == sha(candidate_root / relative):
             continue
@@ -136,7 +136,10 @@ def final_receipt(control_root, candidate_root, gal_files, backend_inputs, input
         # ThreadedArrayPool's bounded slots for arrays longer than 4096, executed by its own gate on the final source).
         # Then the delivered file plus exactly those steps' edits must be the final file, and the receipt says the
         # historical GAL comparison no longer covers it (galSourcesUnchanged false). The other backends stay unchanged.
-        names = [name for name in ORDER if relative in importlib.import_module(name).BASELINE] if relative in gal_files else []
+        # Core 667: likewise another backend file may differ only by later reviewed steps (adapt_buffer_array_barriers:
+        # ImageArray's buffer arrays queue no image barrier), executed by their own gate on the final source; the receipt
+        # then says the other backends changed (otherBackendsUnchanged false) and by which steps.
+        names = [name for name in ORDER if relative in importlib.import_module(name).BASELINE]
         assert names, 'changed by this lot: ' + relative
         with tempfile.TemporaryDirectory(prefix='melonx-gal-later-steps-') as temporary:
             copy = Path(temporary) / relative
@@ -145,7 +148,7 @@ def final_receipt(control_root, candidate_root, gal_files, backend_inputs, input
             for name in names:
                 assert apply_present(Path(temporary), name, only=[relative]) == [relative], name
             assert copy.read_bytes() == (candidate_root / relative).read_bytes(), 'changed beyond the later steps: ' + relative
-        later_gal[relative] = names
+        (later_gal if relative in gal_files else later_backend)[relative] = names
     assert sha(control_root / TEXTURE_ARRAY) == backend_inputs[TEXTURE_ARRAY], 'the delivered TextureArray is not the reviewed postimage'
     final = (candidate_root / TEXTURE_ARRAY).read_text(encoding='utf-8-sig')
     # The adapters that run after the host adapter and edit TextureArray.cs (Core 654: the artifact-path counters of
@@ -177,7 +180,8 @@ def final_receipt(control_root, candidate_root, gal_files, backend_inputs, input
     return dict(result='passed', physicalDeviceTested=False, fpsGainProven=False,
                 sourceKind='deliveredPreparedWithFinalCandidate', finalPreparedSourceBound=True,
                 galSourcesUnchanged=not later_gal, galFilesChangedByLaterSteps=later_gal,
-                otherBackendsUnchanged=True, historicalGalComparisonReexecuted=False,
+                otherBackendsUnchanged=not later_backend, backendFilesChangedByLaterSteps=later_backend,
+                historicalGalComparisonReexecuted=False,
                 backendContractReviewed=True, backendContractExecuted=True, settersReadCallerArraysOnly=True,
                 arrayDescriptorRanges=section,
                 inputs={p: sha(ROOT / p) for p in [*inputs, *INPUTS, 'build-utils/melonx/adapt_host_qos_pipeline_budget.py']},

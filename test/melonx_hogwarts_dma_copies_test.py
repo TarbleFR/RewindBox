@@ -109,6 +109,10 @@ LOT_FILES = {
     'adapt_cold_texture_release': [],
     'adapt_bindless_retention': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
     'adapt_moltenvk_stage_ordering': ['src/Ryujinx.Graphics.Vulkan/TextureStorage.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Library/Library.cs'],
+    # Core 667 (IPA 666 logs: render worker NullReferenceException, sky blocks, shader-cache saves), in preparation order.
+    'adapt_buffer_array_barriers': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
+    'adapt_hogwarts_precise_math': ['src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs'],
+    'adapt_shader_save_journal': [],
 }
 
 checks = 0

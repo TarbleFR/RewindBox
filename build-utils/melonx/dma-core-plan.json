@@ -4,6 +4,7 @@
  "changedPreparationInputs": [
   "build-utils/melonx/adapt_bindless_array_deltas.py",
   "build-utils/melonx/prepare_embedded.py",
+  "native/melonx/EmbeddedLaunchPreflight.cs",
   "native/melonx/EmbeddedPerformanceDiagnostics.cs",
   "native/melonx/EmbeddedRuntime.cs"
  ],
@@ -12,12 +13,14 @@
   "build-utils/melonx/adapt_artifact_counters.py",
   "build-utils/melonx/adapt_binder_teardown.py",
   "build-utils/melonx/adapt_bindless_retention.py",
+  "build-utils/melonx/adapt_buffer_array_barriers.py",
   "build-utils/melonx/adapt_cold_texture_release.py",
   "build-utils/melonx/adapt_descriptor_scratch_all_titles.py",
   "build-utils/melonx/adapt_device_short_trim.py",
   "build-utils/melonx/adapt_forced_syncpoint_wait.py",
   "build-utils/melonx/adapt_guest_fault_context.py",
   "build-utils/melonx/adapt_hogwarts_dma_copies.py",
+  "build-utils/melonx/adapt_hogwarts_precise_math.py",
   "build-utils/melonx/adapt_host_qos_pipeline_budget.py",
   "build-utils/melonx/adapt_host_warning_trim.py",
   "build-utils/melonx/adapt_memory_inventory.py",
@@ -36,6 +39,7 @@
   "build-utils/melonx/adapt_safe_point_compaction.py",
   "build-utils/melonx/adapt_session_retention.py",
   "build-utils/melonx/adapt_setprogram_warmup.py",
+  "build-utils/melonx/adapt_shader_save_journal.py",
   "build-utils/melonx/adapt_shader_save_poll.py",
   "build-utils/melonx/adapt_teardown_cache.py",
   "build-utils/melonx/adapt_teardown_compile_cancel.py",
@@ -79,6 +83,7 @@
   "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs",
   "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
   "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs",
+  "src/Ryujinx.Graphics.Vulkan/ImageArray.cs",
   "src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs",
   "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
   "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
@@ -107,6 +112,7 @@
   "src/Ryujinx.HLE/HOS/Services/Time/TimeSharedMemory.cs",
   "src/Ryujinx.HLE/PerformanceStatistics.cs",
   "src/Ryujinx.HLE/Switch.cs",
+  "src/Ryujinx.Library/EmbeddedLaunchPreflight.cs",
   "src/Ryujinx.Library/EmbeddedMemory.cs",
   "src/Ryujinx.Library/EmbeddedRuntime.cs",
   "src/Ryujinx.Library/Library.cs",
@@ -393,6 +399,7 @@
     "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs",
     "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
     "src/Ryujinx.Graphics.Vulkan/DescriptorSetUpdater.cs",
+    "src/Ryujinx.Graphics.Vulkan/ImageArray.cs",
     "src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs",
     "src/Ryujinx.Graphics.Vulkan/PipelineBase.cs",
     "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
@@ -950,6 +957,15 @@
       "src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Vulkan/ImageArray.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Vulkan/ImageArray.cs"
     }
    ]
   },
@@ -1455,7 +1471,7 @@
     "physicalDeviceTested": false,
     "fpsGainProven": false,
     "galSourcesUnchanged": false,
-    "otherBackendsUnchanged": true,
+    "otherBackendsUnchanged": false,
     "backendContractReviewed": true,
     "backendContractExecuted": true,
     "settersReadCallerArraysOnly": true,
@@ -1467,6 +1483,11 @@
     "galFilesChangedByLaterSteps": {
      "src/Ryujinx.Graphics.GAL/ITextureArray.cs": [
       "adapt_bindless_retention"
+     ]
+    },
+    "backendFilesChangedByLaterSteps": {
+     "src/Ryujinx.Graphics.Vulkan/ImageArray.cs": [
+      "adapt_buffer_array_barriers"
      ]
     }
    },
@@ -1523,7 +1544,7 @@
       "adapt_array_rebuild_allocations"
      ]
     },
-    "otherBackendsUnchanged": true,
+    "otherBackendsUnchanged": false,
     "backendContractReviewed": true,
     "backendContractExecuted": true,
     "settersReadCallerArraysOnly": true,
@@ -1531,7 +1552,12 @@
     "arrayDescriptorRanges.policyOffEqualsDelivered": true,
     "arrayDescriptorRanges.callerArraysReusedAtOnce": true,
     "arrayDescriptorRanges.reports.control.staleAfterDestroy": true,
-    "arrayDescriptorRanges.reports.candidateOn.staleAfterDestroy": false
+    "arrayDescriptorRanges.reports.candidateOn.staleAfterDestroy": false,
+    "backendFilesChangedByLaterSteps": {
+     "src/Ryujinx.Graphics.Vulkan/ImageArray.cs": [
+      "adapt_buffer_array_barriers"
+     ]
+    }
    },
    "requiredPostimages": [
     "src/Ryujinx.Graphics.Vulkan/TextureArray.cs",
@@ -2810,6 +2836,32 @@
    },
    "requiredPostimages": [
     "src/Ryujinx.Library/EmbeddedMemory.cs"
+   ]
+  },
+  {
+   "name": "core667-fixes",
+   "script": "test/melonx_core667_fixes_test.py",
+   "report": "core667-fixes-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Gpu/Shader/ShaderCache.cs",
+    "src/Ryujinx.Graphics.Vulkan/ImageArray.cs",
+    "src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs",
+    "src/Ryujinx.Graphics.Vulkan/TextureArray.cs",
+    "src/Ryujinx.Library/EmbeddedLaunchPreflight.cs",
+    "src/Ryujinx.Library/EmbeddedRuntime.cs"
    ]
   }
  ]
