@@ -1144,6 +1144,65 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
   return values;
 }
 
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build660Translations() {
+  // Core 660: the SPU direct object hits and the texture lookup memo of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testSpuDirectObjectHits": @"SPU direct object hits",
+        @"testTextureLookupMemo": @"Texture lookup memo",
+      },
+      @"es": @{
+        @"testSpuDirectObjectHits": @"Enlace directo de objetos SPU",
+        @"testTextureLookupMemo": @"Memorización de búsquedas de texturas",
+      },
+      @"ru": @{
+        @"testSpuDirectObjectHits": @"Прямая компоновка объектов SPU",
+        @"testTextureLookupMemo": @"Запоминание поиска текстур",
+      },
+      @"zh": @{
+        @"testSpuDirectObjectHits": @"SPU 对象直接链接",
+        @"testTextureLookupMemo": @"纹理查找记忆化",
+      },
+      @"zh_Hant": @{
+        @"testSpuDirectObjectHits": @"SPU 物件直接連結",
+        @"testTextureLookupMemo": @"材質查詢記憶化",
+      },
+      @"pt": @{
+        @"testSpuDirectObjectHits": @"Vinculação direta de objetos SPU",
+        @"testTextureLookupMemo": @"Memorização de buscas de texturas",
+      },
+      @"fr": @{
+        @"testSpuDirectObjectHits": @"Liens directs des objets SPU",
+        @"testTextureLookupMemo": @"Mémo des recherches de textures",
+      },
+      @"de": @{
+        @"testSpuDirectObjectHits": @"Direktes Linken der SPU-Objekte",
+        @"testTextureLookupMemo": @"Memo der Textursuchen",
+      },
+      @"it": @{
+        @"testSpuDirectObjectHits": @"Collegamento diretto degli oggetti SPU",
+        @"testTextureLookupMemo": @"Memorizzazione delle ricerche di texture",
+      },
+      @"id": @{
+        @"testSpuDirectObjectHits": @"Penautan langsung objek SPU",
+        @"testTextureLookupMemo": @"Memo pencarian tekstur",
+      },
+      @"ja": @{
+        @"testSpuDirectObjectHits": @"SPU オブジェクトの直接リンク",
+        @"testTextureLookupMemo": @"テクスチャ検索のメモ化",
+      },
+      @"ko": @{
+        @"testSpuDirectObjectHits": @"SPU 오브젝트 직접 링크",
+        @"testTextureLookupMemo": @"텍스처 조회 메모",
+      },
+    };
+  });
+  return values;
+}
+
 NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build634Translations() {
   // Core 634: the loading and memory levers of the accuracy test page.
   static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
@@ -1624,8 +1683,10 @@ NSString* RPCS3LocalizedString(NSString* key, NSString* localeIdentifier) {
   NSDictionary* build627 = Build627Translations();
   NSDictionary* build630 = Build630Translations();
   NSDictionary* build634 = Build634Translations();
+  NSDictionary* build660 = Build660Translations();
   NSString* locale = RPCS3CanonicalLocale(localeIdentifier);
-  return build634[locale][key] ?: build634[@"en"][key] ?:
+  return build660[locale][key] ?: build660[@"en"][key] ?:
+      build634[locale][key] ?: build634[@"en"][key] ?:
       build630[locale][key] ?: build630[@"en"][key] ?:
       build627[locale][key] ?: build627[@"en"][key] ?:
       build621[locale][key] ?: build621[@"en"][key] ?:

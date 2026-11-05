@@ -87,6 +87,11 @@ static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
       @{@"key": @"experimental.spu_object_prefetch", @"title": @"testSpuObjectPrefetch", @"field": @"levers627", @"bit": @12,
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // Core 660: digits 14 and 15 of levers627=.
+      @{@"key": @"experimental.spu_direct_object_hits", @"title": @"testSpuDirectObjectHits", @"field": @"levers627", @"bit": @13,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      @{@"key": @"experimental.texture_lookup_memo", @"title": @"testTextureLookupMemo", @"field": @"levers627", @"bit": @14,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
     ];
   });
   return levers;

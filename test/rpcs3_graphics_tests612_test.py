@@ -64,7 +64,9 @@ KEYS = ('gpu.zcull_accuracy', 'debug.disable_occlusion', 'debug.emulate_depth_co
         'experimental.zcull_async_reads',
         # Core 634: boots and memory.
         'experimental.fast_jit_load', 'experimental.jit_object_release', 'experimental.spirv_disk_cache',
-        'experimental.hardware_crypto', 'experimental.spu_object_prefetch')
+        'experimental.hardware_crypto', 'experimental.spu_object_prefetch',
+        # Core 660: SPU direct object hits and the texture lookup memo.
+        'experimental.spu_direct_object_hits', 'experimental.texture_lookup_memo')
 
 
 def require(condition, message):
@@ -207,8 +209,10 @@ def app_contract() -> dict:
     require(tuple(sorted(tables630)) == tuple(sorted(LOCALES)), 'Build630Translations locales: ' + repr(list(tables630)))
     tables634 = l10n_tables(l10n, '634')
     require(tuple(sorted(tables634)) == tuple(sorted(LOCALES)), 'Build634Translations locales: ' + repr(list(tables634)))
+    tables660 = l10n_tables(l10n, '660')
+    require(tuple(sorted(tables660)) == tuple(sorted(LOCALES)), 'Build660Translations locales: ' + repr(list(tables660)))
     missing = sorted(key for key in used - base if key not in tables['en'] and key not in tables621['en'] and key not in tables627['en'] and
-                     key not in tables630['en'] and key not in tables634['en'])
+                     key not in tables630['en'] and key not in tables634['en'] and key not in tables660['en'])
     require(not missing, 'untranslated page keys: ' + repr(missing))
     return {'whitelist': allowed, 'locales': list(tables), 'keys': len(keys),
             'bridge_sha256': sha(BRIDGE.read_bytes()), 'menu_sha256': sha(MENU.read_bytes()),
