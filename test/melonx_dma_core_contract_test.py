@@ -99,6 +99,8 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'bindless-retention': 'delivered',
             'moltenvk-stage-ordering': 'delivered',
             'nativeaot-gc-runtime': 'delivered',
+            # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
+            'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
             'single-virtual-dependency': 'ada'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
@@ -122,7 +124,9 @@ RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'pe
          # Core 654: the collector changes (gcEvent lines), which this receipt declares as a postimage.
          'single-virtual-dependency-final-checks.json',
          *(CORE87 + name for name in ('scalar-texture-descriptor-checks.json', 'fallback-descriptor-scratch-checks.json',
-                                      'single-resource-binding-checks.json', 'bounded-binding-snapshot-checks.json'))}
+                                      'single-resource-binding-checks.json', 'bounded-binding-snapshot-checks.json')),
+         # Core 661: adapt_safe_point_compaction changes EmbeddedMemory.cs, which the native display fixture declares.
+         CORE87[:-len('historical-core87/')] + 'display-checks.json'}
 # Production files that joined the prepared source with this increment (unadapted in the delivered Core).
 JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
           # Core 639 (adapt_pipeline_warmup_parity): pinned upstream members that join the prepared source.
@@ -134,24 +138,25 @@ JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
           'src/Ryujinx.HLE/HOS/Kernel/Process/KProcess.cs',
           # Core 654 (adapt_binder_teardown): the two SurfaceFlinger files join (Library.cs was already a prepared member).
           'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/SurfaceFlinger.cs',
-          'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/HOSBinderDriverServer.cs',
-          # Core 661: upstream members its adapters edit for the first time join the prepared source.
-          'src/Ryujinx.Graphics.GAL/IProgram.cs',
-          'src/Ryujinx.Graphics.GAL/ITextureArray.cs',
-          'src/Ryujinx.Graphics.GAL/Multithreading/Commands/Program/ProgramCheckLinkCommand.cs',
-          'src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedProgram.cs',
-          'src/Ryujinx.Graphics.Gpu/Engine/Threed/ComputeDraw/VtgAsComputeState.cs',
-          'src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs',
-          'src/Ryujinx.HLE/HOS/Kernel/KernelStatic.cs',
-          'src/Ryujinx.HLE/HOS/Kernel/Threading/KWritableEvent.cs',
-          'src/Ryujinx.HLE/HOS/Services/Bluetooth/BluetoothDriver/BluetoothEventManager.cs',
-          'src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostCtrl/Types/NvHostEvent.cs',
-          'src/Ryujinx.HLE/HOS/Services/Time/Clock/StandardUserSystemClockCore.cs',
-          'src/Ryujinx.HLE/HOS/Services/Time/Clock/SystemClockContextUpdateCallback.cs',
-          'src/Ryujinx.HLE/HOS/Services/Time/TimeManager.cs',
-          'src/Ryujinx.HLE/HOS/Services/Time/TimeSharedMemory.cs',
-          'src/Ryujinx.HLE/PerformanceStatistics.cs'}
+          'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/HOSBinderDriverServer.cs'}
 # Core 654: no fresh fixture of the delivered Core is reused any more (the single-virtual-dependency receipt declares the collector).
+# Core 661: upstream members its adapters edit for the first time join the prepared source.
+C661_JOINED = {'src/Ryujinx.Graphics.GAL/IProgram.cs',
+               'src/Ryujinx.Graphics.GAL/ITextureArray.cs',
+               'src/Ryujinx.Graphics.GAL/Multithreading/Commands/Program/ProgramCheckLinkCommand.cs',
+               'src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedProgram.cs',
+               'src/Ryujinx.Graphics.Gpu/Engine/Threed/ComputeDraw/VtgAsComputeState.cs',
+               'src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs',
+               'src/Ryujinx.HLE/HOS/Kernel/KernelStatic.cs',
+               'src/Ryujinx.HLE/HOS/Kernel/Threading/KWritableEvent.cs',
+               'src/Ryujinx.HLE/HOS/Services/Bluetooth/BluetoothDriver/BluetoothEventManager.cs',
+               'src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostCtrl/Types/NvHostEvent.cs',
+               'src/Ryujinx.HLE/HOS/Services/Time/Clock/StandardUserSystemClockCore.cs',
+               'src/Ryujinx.HLE/HOS/Services/Time/Clock/SystemClockContextUpdateCallback.cs',
+               'src/Ryujinx.HLE/HOS/Services/Time/TimeManager.cs',
+               'src/Ryujinx.HLE/HOS/Services/Time/TimeSharedMemory.cs',
+               'src/Ryujinx.HLE/PerformanceStatistics.cs'}
+JOINED = JOINED | C661_JOINED
 REUSED_FRESH = set()
 
 
@@ -420,14 +425,21 @@ if not args.helpers_only:
     # The four warm-up parity members are read from a control only by fragmented-reads (delivered609); no gate on the
     # delivered 614 control reads them (the PR #153 fixtures rebuild their own Core 631 control).
     # The GPU Window (Core 644) is likewise read from a control only by fragmented-reads.
-    warmup_members = set(JOINED) - {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY}
-    delivered_graphics = {path: digest for path, digest in graphics.items() if path not in warmup_members}
-    check(unadapted == {'delivered': delivered_graphics, 'delivered611': arrays_frozen['controlUnadaptedMembers']['delivered'],
+    warmup_members = set(JOINED) - {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY} - C661_JOINED
+    # Core 661: GAL ITextureArray.cs (adapt_bindless_retention) is read from the delivered and delivered611 controls by the
+    # array-descriptor and bindless-array gates; its other GPU joiners only by fragmented-reads (delivered609); its HLE
+    # joiners from no control (their own gates read the final preparation).
+    TEXTURE_ARRAY_GAL = 'src/Ryujinx.Graphics.GAL/ITextureArray.cs'
+    c661_hle = {path for path in C661_JOINED if not path.startswith('src/Ryujinx.Graphics.')}
+    delivered_graphics = {path: digest for path, digest in graphics.items() if path not in warmup_members and path not in C661_JOINED}
+    delivered_graphics[TEXTURE_ARRAY_GAL] = graphics[TEXTURE_ARRAY_GAL]
+    check(unadapted == {'delivered': delivered_graphics,
+                        'delivered611': {**arrays_frozen['controlUnadaptedMembers']['delivered'], TEXTURE_ARRAY_GAL: graphics[TEXTURE_ARRAY_GAL]},
                         # KProcess (Core 647) and the two SurfaceFlinger files (Core 654) are read from no control: only their own
                         # gates read them, from the final preparation.
                         'delivered609': {**arrays_frozen['controlUnadaptedMembers']['delivered609'],
                                          **{path: digest for path, digest in graphics.items()
-                                            if path not in PAUSE_BASELINE and path not in BINDER_BASELINE}},
+                                            if path not in PAUSE_BASELINE and path not in BINDER_BASELINE and path not in c661_hle}},
                         'ada': arrays_frozen['controlUnadaptedMembers']['ada']},
           'Control-only upstream inventories differ from the arrays contract plus the files joining the prepared source')
     rejects(lambda: verify.check_control_inventories({**frozen, 'controlUnadaptedMembers': {k: v for k, v in unadapted.items() if k != 'ada'}}),

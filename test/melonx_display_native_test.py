@@ -5,15 +5,29 @@ from pathlib import Path
 import hashlib,json,re,shutil,subprocess,sys,tempfile
 ROOT=Path(__file__).resolve().parents[1]
 source=Path(sys.argv[1])
+# Core gate form (Core 661): <control> --candidate-source <final preparation>. The final EmbeddedMemory.cs (the native
+# file plus adapt_safe_point_compaction's EmbeddedHeapCompaction class) is compiled instead of the native copy, and its
+# digest is bound; the class's two dependencies are stubbed (HostMemoryBudget, EmbeddedLaunchDiagnostics.Record).
+CANDIDATE=Path(sys.argv[sys.argv.index('--candidate-source')+1]) if '--candidate-source' in sys.argv else None
+FINAL_MEMORY='src/Ryujinx.Library/EmbeddedMemory.cs'
+if CANDIDATE:
+ sys.path.insert(0,str(ROOT/'build-utils/melonx'))
+ from adapt_safe_point_compaction import COMPACTION_CLASS
+ final=(CANDIDATE/FINAL_MEMORY).read_text(encoding='utf-8-sig');native=(ROOT/'native/melonx/EmbeddedMemory.cs').read_text(encoding='utf-8-sig')
+ assert final.count(COMPACTION_CLASS)==1 and final.replace(COMPACTION_CLASS,'',1).rstrip()==native.rstrip(),'final EmbeddedMemory is the native file plus the compaction class only'
 with tempfile.TemporaryDirectory(prefix='melonx-display-') as d:
  w=Path(d)
  paths=['native/melonx/EmbeddedGraphicsSettings.cs','native/melonx/EmbeddedSessionCoordinator.cs','native/melonx/EmbeddedMemory.cs','native/melonx/EmbeddedPerformance.cs','native/melonx/EmbeddedNativeLibraries.cs']
- for p in paths:shutil.copyfile(ROOT/p,w/Path(p).name)
+ for p in paths:shutil.copyfile(CANDIDATE/FINAL_MEMORY if CANDIDATE and p=='native/melonx/EmbeddedMemory.cs' else ROOT/p,w/Path(p).name)
  sys.path.insert(0,str(ROOT/'build-utils/melonx'))
  from adapt_memory import apply
  allocator=w/'source/src/Ryujinx.Memory/DonatedMemory.cs';allocator.parent.mkdir(parents=True)
- shutil.copyfile(source/'src/Ryujinx.Memory/DonatedMemory.cs',allocator)
- apply(w/'source');shutil.move(allocator,w/'DonatedMemory.cs')
+ if CANDIDATE:
+  # The final preparation already holds the adapted allocator (adapt_memory); it is compiled as prepared.
+  shutil.copyfile(CANDIDATE/'src/Ryujinx.Memory/DonatedMemory.cs',w/'DonatedMemory.cs');source=CANDIDATE
+ else:
+  shutil.copyfile(source/'src/Ryujinx.Memory/DonatedMemory.cs',allocator)
+  apply(w/'source');shutil.move(allocator,w/'DonatedMemory.cs')
  enums=[]
  for name in ['AspectRatioExtensions','ScalingFilter','BackendThreading']:
   text=(source/'src/Ryujinx.Common/Configuration'/f'{name}.cs').read_text()
@@ -28,10 +42,10 @@ with tempfile.TemporaryDirectory(prefix='melonx-display-') as d:
   fields.append('public '+m[1]+' '+name+' {get;set;}')
  (w/'test.csproj').write_text('<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><AllowUnsafeBlocks>true</AllowUnsafeBlocks></PropertyGroup></Project>')
  (w/'Stubs.cs').write_text('''using System;using Ryujinx.Common.Configuration;
-namespace Ryujinx.Memory {static class MemoryBlock {public static ulong GetPageSize()=>16384;}}
+namespace Ryujinx.Memory {static class MemoryBlock {public static ulong GetPageSize()=>16384;}'''+('''static class HostMemoryBudget {public static bool IsConstrained=>false;public static ulong FootprintBytes=>0;public static int DeviceAvailablePercent=>100;}''' if CANDIDATE else '')+'''}
 namespace Ryujinx.Common.Logging {enum LogClass {Cpu} class Log {public void Print(LogClass c,string s){}} static class Logger {public static Log Warning=new();}}
 namespace Ryujinx.Common.Configuration {'''+''.join(enums)+'''}
-namespace Ryujinx.Common {static class EmbeddedLaunchDiagnostics {public static void Fail(string a,string b,Exception e){}}}
+namespace Ryujinx.Common {static class EmbeddedLaunchDiagnostics {public static void Fail(string a,string b,Exception e){}'''+('''public static void Record(string stage,string status,int code=0,string detail="",long performanceGeneration=0){}''' if CANDIDATE else '')+'''}}
 namespace Ryujinx.Library {
 public class Options {'''+''.join(fields)+'''}
 class Configuration {public AspectRatio AspectRatio {get;set;}}
@@ -179,4 +193,4 @@ Console.WriteLine($"PASS {checks} graphics, FPS snapshot, generation and real do
  result=subprocess.check_output(['dotnet','run','--project',str(w/'test.csproj'),'-c','Release'],text=True,stderr=subprocess.STDOUT,timeout=120)
  print(result)
  out=ROOT/'dist/melonx/display-checks.json';out.parent.mkdir(parents=True,exist_ok=True)
- out.write_text(json.dumps(dict(result='passed',summary=result,inputs={p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in paths+['build-utils/melonx/adapt_memory.py',str(Path(__file__).relative_to(ROOT))]},gameplayTested=False),indent=2)+'\n')
+ out.write_text(json.dumps(dict(result='passed',summary=result,inputs={p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in paths+['build-utils/melonx/adapt_memory.py',str(Path(__file__).relative_to(ROOT))]},gameplayTested=False,physicalDeviceTested=False,finalPreparationBound=CANDIDATE is not None,sourceKind='finalPreparation' if CANDIDATE else 'nativeSources',postimages={FINAL_MEMORY:hashlib.sha256((CANDIDATE/FINAL_MEMORY).read_bytes()).hexdigest()} if CANDIDATE else {}),indent=2)+'\n')

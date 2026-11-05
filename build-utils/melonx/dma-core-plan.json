@@ -2813,6 +2813,27 @@
    "requiredPostimages": [
     "src/Ryujinx.Library/Ryujinx.Library.csproj"
    ]
+  },
+  {
+   "name": "display-native",
+   "script": "test/melonx_display_native_test.py",
+   "report": "display-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 1800,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparation",
+    "physicalDeviceTested": false
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Library/EmbeddedMemory.cs"
+   ]
   }
  ]
 }
