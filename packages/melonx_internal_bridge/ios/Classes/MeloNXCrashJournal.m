@@ -78,7 +78,8 @@ static uintptr_t strip_pointer(uintptr_t value) {
 #if __has_feature(ptrauth_calls)
     return (uintptr_t)ptrauth_strip((void *)value, ptrauth_key_return_address);
 #else
-    return value;
+    // An arm64 process still runs arm64e system code: drop pointer-authentication bits above the 47-bit address space.
+    return value & 0x00007fffffffffffULL;
 #endif
 }
 
@@ -128,28 +129,41 @@ static void put_header(const char *what) {
     put_decimal((long long)(now.tv_usec / 1000));
 }
 
-// Frame-pointer walk of the current thread's stack, from a frame pointer inside it.
+// Frame-pointer walk of the current thread's stack: the raw return addresses are written first (no lock taken), then
+// each one is symbolised (dladdr takes dyld's lock, which a fault during a dlopen could hold).
+static uintptr_t g_frames[96];
+
 static void put_frames(int first, uintptr_t frame) {
     pthread_t self = pthread_self();
     uintptr_t high = (uintptr_t)pthread_get_stackaddr_np(self);
     uintptr_t low = high - (uintptr_t)pthread_get_stacksize_np(self);
-    for (int index = first; index < 96; index++) {
+    int count = 0;
+    while (count < (int)(sizeof g_frames / sizeof g_frames[0])) {
         if (frame < low || frame + 2 * sizeof(uintptr_t) > high || (frame & (sizeof(uintptr_t) - 1)) != 0) break;
         const uintptr_t *record = (const uintptr_t *)frame;
         uintptr_t next = record[0];
         uintptr_t ret = strip_pointer(record[1]);
         if (ret == 0) break;
-        put_frame(index, ret);
+        g_frames[count++] = ret;
         if (next <= frame) break;
         frame = next;
     }
+    put("[MeloNX:crash] frames");
+    for (int i = 0; i < count; i++) {
+        put(" ");
+        put_hex(g_frames[i]);
+    }
+    put("\n");
+    for (int i = 0; i < count; i++) put_frame(first + i, g_frames[i]);
 }
 
 static void drain_stderr(void) {
     int source = atomic_load(&g_stderrSource);
     if (source < 0) return;
     int flags = fcntl(source, F_GETFL);
-    if (flags >= 0) fcntl(source, F_SETFL, flags | O_NONBLOCK);
+    if (flags < 0) return;
+    // Non-blocking while the dying process copies what is left (the capture thread may read concurrently).
+    fcntl(source, F_SETFL, flags | O_NONBLOCK);
     char buffer[4096];
     size_t total = 0;
     int announced = 0;
@@ -166,6 +180,7 @@ static void drain_stderr(void) {
         if (total >= kMaximumStderrBytes) break;
     }
     if (announced) put("\n[MeloNX:crash] end of stderr\n");
+    fcntl(source, F_SETFL, flags);
 }
 
 static void on_fatal_signal(int signal_number, siginfo_t *info, void *context) {
@@ -202,9 +217,10 @@ static void on_fatal_signal(int signal_number, siginfo_t *info, void *context) {
             put(" sp ");
             put_hex(sp);
             put("\n");
+            // Raw return addresses first, then symbols (pc and lr last: dladdr may wait on dyld's lock).
+            put_frames(2, fp);
             put_frame(0, pc);
             put_frame(1, lr);
-            put_frames(2, fp);
         }
 #endif
         // The stderr capture thread keeps running: give it time to write what it already read (the runtime's fatal
@@ -217,7 +233,10 @@ static void on_fatal_signal(int signal_number, siginfo_t *info, void *context) {
     // The previous action (normally the default) takes over: a fault re-executes and ends the process as before; a
     // signal raised on purpose is raised again.
     if (signal_number > 0 && signal_number < NSIG) sigaction(signal_number, &g_previous[signal_number], NULL);
-    if (info == NULL || info->si_code == SI_USER || info->si_code == SI_QUEUE) raise(signal_number);
+    int hardware = (signal_number == SIGSEGV || signal_number == SIGBUS || signal_number == SIGILL ||
+                    signal_number == SIGFPE || signal_number == SIGTRAP) &&
+                   info != NULL && info->si_code > 0 && info->si_code != SI_USER && info->si_code != SI_QUEUE;
+    if (!hardware) raise(signal_number);
 }
 
 static void on_exit_call(void) {
@@ -225,7 +244,6 @@ static void on_exit_call(void) {
     put_header("exit() called");
     put("\n");
     put_frames(0, (uintptr_t)__builtin_frame_address(0));
-    drain_stderr();
     put("[MeloNX:crash] end\n");
     atomic_store(&g_inHandler, 0);
 }
