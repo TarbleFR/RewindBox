@@ -113,6 +113,8 @@ from adapt_pause_guest_threads import apply as adapt_pause_guest_threads
 from adapt_teardown_phase_marks import apply as adapt_teardown_phase_marks
 from adapt_binder_teardown import apply as adapt_binder_teardown
 from adapt_artifact_counters import apply as adapt_artifact_counters
+from adapt_array_rebuild_allocations import apply as adapt_array_rebuild_allocations
+from adapt_present_pacing import apply as adapt_present_pacing
 
 
 def replace_once(path, old, new):
@@ -291,6 +293,12 @@ def main():
     # TextureArray); journal and counters apart from the binder release.
     adapted += [source / name for name in adapt_binder_teardown(source)]
     adapted += [source / name for name in adapt_artifact_counters(source)]
+    # MeloNX levers from the IPA 650 logs (each pins the Core 654 preparation's bytes of its files): the whole rebuilds of
+    # pool-sized bindless arrays reuse bounded slots (TextureBindingsArrayCache, GAL ThreadedArrayPool), then the 30 fps
+    # present pacing on VK_GOOGLE_display_timing (Window, VulkanInitialization, VulkanRenderer after
+    # adapt_teardown_compile_cancel and adapt_teardown_phase_marks, Library after adapt_binder_teardown).
+    adapted += [source / name for name in adapt_array_rebuild_allocations(source)]
+    adapted += [source / name for name in adapt_present_pacing(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -369,7 +377,8 @@ def main():
                  'adapt_readback_occupied_attribution.py', 'adapt_pipeline_miss_context.py',
                  'adapt_readback_receivers.py', 'adapt_present_source_attribution.py',
                  'adapt_teardown_compile_cancel.py', 'adapt_pause_guest_threads.py', 'adapt_teardown_phase_marks.py',
-                 'adapt_binder_teardown.py', 'adapt_artifact_counters.py']:
+                 'adapt_binder_teardown.py', 'adapt_artifact_counters.py', 'adapt_array_rebuild_allocations.py',
+                 'adapt_present_pacing.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'

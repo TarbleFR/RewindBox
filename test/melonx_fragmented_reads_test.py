@@ -43,12 +43,16 @@ from adapt_pipeline_miss_context import BASELINE as MISS_BASELINE  # noqa: E402
 from adapt_readback_receivers import BASELINE as RECEIVERS_BASELINE  # noqa: E402
 from adapt_present_source_attribution import BASELINE as PRESENT_BASELINE  # noqa: E402
 from adapt_teardown_compile_cancel import BASELINE as TEARDOWN_BASELINE  # noqa: E402
+from adapt_array_rebuild_allocations import BASELINE as ARRAY_REBUILD_BASELINE  # noqa: E402
+from adapt_present_pacing import BASELINE as PACING_BASELINE  # noqa: E402
 # Core 639, 642 and 644: the PR #153, #154 and #156 lots' files join the composition, so the final GPU and Vulkan build binds
 # every changed file.
 COMPOSED = sorted(set(NAMES) | set(WORK_NAMES) | set(ARRAY_NAMES) | set(DMA_NAMES) | set(QUEUE_NAMES) | set(HOST_NAMES) |
                   set(WARMUP_BASELINE) | set(TRIM_BASELINE) | set(BARRIER_BASELINE) | set(SCRATCH_BASELINE) |
                   set(OCCUPIED_BASELINE) | set(MISS_BASELINE) | set(RECEIVERS_BASELINE) |
-                  set(PRESENT_BASELINE) | set(TEARDOWN_BASELINE) | {DIAGNOSTICS})
+                  set(PRESENT_BASELINE) | set(TEARDOWN_BASELINE) | {DIAGNOSTICS} |
+                  # Core 656: the MeloNX levers' GAL pool and Vulkan initialization join the composed GPU/Vulkan closure.
+                  set(ARRAY_REBUILD_BASELINE) | set(PACING_BASELINE))
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
 # (Ryujinx.Library) is outside the GPU assembly closure: it is composed and bound here, compiled by NativeAOT.
 COMPILED = sorted((set(COMPOSED) - {DMA_LIBRARY}) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})
@@ -62,6 +66,7 @@ INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/
           'build-utils/melonx/adapt_readback_receivers.py', 'build-utils/melonx/adapt_present_source_attribution.py',
           'build-utils/melonx/adapt_teardown_compile_cancel.py', 'build-utils/melonx/adapt_pause_guest_threads.py',
           'build-utils/melonx/adapt_teardown_phase_marks.py',
+          'build-utils/melonx/adapt_array_rebuild_allocations.py', 'build-utils/melonx/adapt_present_pacing.py',
           'test/melonx_adapter_control.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {
