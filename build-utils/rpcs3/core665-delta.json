@@ -5,7 +5,7 @@
   "upstream_commit": "22f1152783cef1f7e04af7b1c895173e28fd5b03",
   "base_canonical_patch_sha256": "a63b964354acb157f99fa9ba4787e18e19faf2473eb90b5710134bf9a88cdaaf",
   "patch": "build-utils/rpcs3/core665-delta.patch",
-  "patch_sha256": "798c725e653dc367b4be7d3d15fcb77b90eda7ca88202ee78e467e24fdb3c9ec",
+  "patch_sha256": "67bfb2a72885cfe15ccac8cce843074bc29b9a18c5d955a1c06fd0797f32c1f6",
   "abi_version": 30,
   "abi_version_changed": false,
   "exports_added": [
@@ -114,7 +114,7 @@
     "rpcs3/Emu/RSX/RSXFIFO.cpp": "c7696f9c8c6f44286c09ffc68749f8989d011bac48a2ba2353ada28f8423de6d",
     "rpcs3/Emu/RSX/RSXTexture.cpp": "ab24a331ad3786a5602f1e6806106c9a4955c23b788ab4e4c87f71a4889d3c2d",
     "rpcs3/Emu/RSX/RSXTexture.h": "1e3e658306eea0773568327ddb9e9e7e046324e54a16d2f22faf4565a169d9c6",
-    "rpcs3/Emu/RSX/RSXThread.cpp": "ec0bf303216038f8deff0046271b7efada839157d206ba4d9c3b4215c01f3d74",
+    "rpcs3/Emu/RSX/RSXThread.cpp": "bfd6501c3554aa3e20682b5596a3ac2599ecfa121ab729acaf04db05de6b84fb",
     "rpcs3/Emu/RSX/RSXThread.h": "4e96dfb6c74e7d85c08cb7d5223c13ef7239a72235fb4a8a0400aaa611f0276d",
     "rpcs3/Emu/RSX/RSXZCULL.cpp": "59645d7a90c770aa542d0912469ca5eacdca769bbe82e91083eeb8abee7b3024",
     "rpcs3/Emu/RSX/RSXZCULL.h": "3caf764a8023a492d784ee22ea9b34461e4edc4d2155796f5446cffaae49ed7e",
@@ -334,7 +334,7 @@
   "iphone_validation_run": false,
   "increment_from_core664": {
     "patch": "build-utils/rpcs3/core665-from-664.patch",
-    "patch_sha256": "6f3ee7e1c9a8aa784ed26d6dd78f2db4a06ecce13da088ad01a7ce5f4c945d74",
+    "patch_sha256": "a91976c5be2444f4be8e490b1f2a557ff002f34a867200fe176ababe4da2f937",
     "insertions_only": false,
     "removed_lines": 1,
     "files": 11,
@@ -353,7 +353,7 @@
     "files_after_sha256": {
       "rpcs3/Emu/CPU/CPUThread.cpp": "c57555e76044ea5e1b0871e47805b6928158821a6c6a9bc3577f8ea542becbda",
       "rpcs3/Emu/Memory/vm.cpp": "3a0e785f7246b5540e79735e11cfc2ce9a1ee2ae820a393d73b798fd0eff96d8",
-      "rpcs3/Emu/RSX/RSXThread.cpp": "ec0bf303216038f8deff0046271b7efada839157d206ba4d9c3b4215c01f3d74",
+      "rpcs3/Emu/RSX/RSXThread.cpp": "bfd6501c3554aa3e20682b5596a3ac2599ecfa121ab729acaf04db05de6b84fb",
       "rpcs3/Emu/System.cpp": "c24de0537cb0d47bfe48faf434e64bf0f7e575e7f317be0502877429d7baedfb",
       "rpcs3/Emu/system_config.h": "ab0fb58263c7aa81330a4e80e198c2a34c44f2d5ecd9316303e2e89a854c861b",
       "rpcs3/ios/IOSThreadOrchestrator.h": "62b022572910b6cc9f92176ab9e1ecf208dfedafa79f880670cd5b95c3783ffe",

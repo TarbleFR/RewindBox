@@ -119,18 +119,20 @@ index 80ecf35..ee9122a 100644
  #ifdef RPCS3_IOS
  		acquired_tsc = utils::get_tsc();
 diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
-index d6f4b9e..28fd8d8 100644
+index d6f4b9e..6034ef8 100644
 --- a/rpcs3/Emu/RSX/RSXThread.cpp
 +++ b/rpcs3/Emu/RSX/RSXThread.cpp
-@@ -36,6 +36,7 @@
- #include "ios/RPCS3IOSProfilerHelpers.h"
- #include "ios/IOSRsxSyncProfile.h"
- #include "ios/IOSRsxIdlePark.h"
+@@ -30,6 +30,9 @@
+ // NEOSTATION_BUILD487_DIAGNOSTICS_V1: guest flips, native-UI state and the
+ // time-based approximate-load window reported to the Core profiler.
+ #include "ios/RPCS3IOSPerformance.h"
++// REWINDBOX_THREAD_ORCHESTRATOR_665: placement samples of the RSX thread (kept outside the
++// RetroAchievements include context, build-utils/rpcs3/retroachievements-core.patch).
 +#include "ios/IOSThreadOrchestrator.h" // REWINDBOX_THREAD_ORCHESTRATOR_665
- #include "ios/IOSTransitionPhases.h" // REWINDBOX_TRANSITION_PHASES_610
- #include "ios/RPCS3IOSAchievements.h" // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
- #include "Overlays/overlay_cursor.h"
-@@ -1337,6 +1338,11 @@ namespace rsx
+ #include "ios/IOSGpuTiming.h" // REWINDBOX_GPU_TIMING_621
+ #include "ios/IOSZcullLabelPage.h" // REWINDBOX_ZCULL_COND_PREVIOUS_624
+ #include "ios/RPCS3IOSExperimentalPolicy.h"
+@@ -1337,6 +1340,11 @@ namespace rsx
  				}
  			}
  

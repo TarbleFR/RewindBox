@@ -22994,10 +22994,10 @@ index 0de96bb..0388725 100644
  
  	template<typename T>
 diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
-index dff27c6..28fd8d8 100644
+index dff27c6..6034ef8 100644
 --- a/rpcs3/Emu/RSX/RSXThread.cpp
 +++ b/rpcs3/Emu/RSX/RSXThread.cpp
-@@ -26,6 +26,21 @@
+@@ -26,6 +26,23 @@
  #include "Overlays/overlay_perf_metrics.h"
  #include "Overlays/overlay_debug_overlay.h"
  #include "Overlays/overlay_manager.h"
@@ -23005,13 +23005,15 @@ index dff27c6..28fd8d8 100644
 +// NEOSTATION_BUILD487_DIAGNOSTICS_V1: guest flips, native-UI state and the
 +// time-based approximate-load window reported to the Core profiler.
 +#include "ios/RPCS3IOSPerformance.h"
++// REWINDBOX_THREAD_ORCHESTRATOR_665: placement samples of the RSX thread (kept outside the
++// RetroAchievements include context, build-utils/rpcs3/retroachievements-core.patch).
++#include "ios/IOSThreadOrchestrator.h" // REWINDBOX_THREAD_ORCHESTRATOR_665
 +#include "ios/IOSGpuTiming.h" // REWINDBOX_GPU_TIMING_621
 +#include "ios/IOSZcullLabelPage.h" // REWINDBOX_ZCULL_COND_PREVIOUS_624
 +#include "ios/RPCS3IOSExperimentalPolicy.h"
 +#include "ios/RPCS3IOSProfilerHelpers.h"
 +#include "ios/IOSRsxSyncProfile.h"
 +#include "ios/IOSRsxIdlePark.h"
-+#include "ios/IOSThreadOrchestrator.h" // REWINDBOX_THREAD_ORCHESTRATOR_665
 +#include "ios/IOSTransitionPhases.h" // REWINDBOX_TRANSITION_PHASES_610
 +#include "ios/RPCS3IOSAchievements.h" // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
 +#include "Overlays/overlay_cursor.h"
@@ -23019,7 +23021,7 @@ index dff27c6..28fd8d8 100644
  
  #include "Utilities/date_time.h"
  
-@@ -42,6 +57,8 @@ class GSRender;
+@@ -42,6 +59,8 @@ class GSRender;
  atomic_t<bool> g_user_asked_for_recording = false;
  atomic_t<bool> g_user_asked_for_screenshot = false;
  atomic_t<bool> g_user_asked_for_frame_capture = false;
@@ -23028,7 +23030,7 @@ index dff27c6..28fd8d8 100644
  atomic_t<bool> g_disable_frame_limit = false;
  rsx::frame_trace_data frame_debug;
  rsx::frame_capture_data frame_capture;
-@@ -478,15 +495,15 @@ namespace rsx
+@@ -478,15 +497,15 @@ namespace rsx
  				}
  				else
  				{
@@ -23049,7 +23051,7 @@ index dff27c6..28fd8d8 100644
  						// Discard lower frequencies because it has been proven that there are indices higher than them
  						const usz discard_cnt = frequencies + freq_count - std::remove_if(frequencies, frequencies + freq_count, [&max_result_by_division](u32 freq)
  						{
-@@ -523,7 +540,8 @@ namespace rsx
+@@ -523,7 +542,8 @@ namespace rsx
  				break;
  			}
  
@@ -23059,7 +23061,7 @@ index dff27c6..28fd8d8 100644
  
  			const auto re_evaluate = [&] <typename T> (const std::byte* ptr, T)
  			{
-@@ -586,59 +604,6 @@ namespace rsx
+@@ -586,59 +606,6 @@ namespace rsx
  		return vertex_range;
  	}
  
@@ -23119,7 +23121,7 @@ index dff27c6..28fd8d8 100644
  	void tiled_region::write(const void *src, u32 width, u32 height, u32 pitch)
  	{
  		if (!tile)
-@@ -752,6 +717,10 @@ namespace rsx
+@@ -752,6 +719,10 @@ namespace rsx
  
  	thread::~thread()
  	{
@@ -23130,7 +23132,7 @@ index dff27c6..28fd8d8 100644
  		g_access_violation_handler = nullptr;
  	}
  
-@@ -833,6 +802,8 @@ namespace rsx
+@@ -833,6 +804,8 @@ namespace rsx
  		m_graphics_state |= pipeline_state::all_dirty;
  
  		g_user_asked_for_frame_capture = false;
@@ -23139,7 +23141,7 @@ index dff27c6..28fd8d8 100644
  
  		// TODO: Proper context management in the driver
  		s_ctx.rsxthr = this;
-@@ -933,7 +904,33 @@ namespace rsx
+@@ -933,7 +906,33 @@ namespace rsx
  			else
  			{
  				// NOTE: eval_sources list is reversed with newest query first
@@ -23173,7 +23175,7 @@ index dff27c6..28fd8d8 100644
  				ensure(!cond_render_ctrl.eval_pending());
  			}
  		}
-@@ -1051,6 +1048,12 @@ namespace rsx
+@@ -1051,6 +1050,12 @@ namespace rsx
  		{
  			sys_rsx_context_attribute(0x55555555, 0xFED, 1, get_guest_system_time(post_event_time), 0, 0);
  		}
@@ -23186,7 +23188,7 @@ index dff27c6..28fd8d8 100644
  	}
  
  	namespace nv4097
-@@ -1101,6 +1104,14 @@ namespace rsx
+@@ -1101,6 +1106,14 @@ namespace rsx
  
  		const u64 event_flags = unsent_gcm_events.exchange(0);
  
@@ -23201,7 +23203,7 @@ index dff27c6..28fd8d8 100644
  		if (Emu.IsStarting())
  		{
  			Emu.CallFromMainThread([]
-@@ -1252,13 +1263,40 @@ namespace rsx
+@@ -1252,13 +1265,40 @@ namespace rsx
  			manager->stop_audio();
  		}
  
@@ -23242,7 +23244,7 @@ index dff27c6..28fd8d8 100644
  				if (!rsx_thread_running)
  				{
  					return;
-@@ -1278,6 +1316,16 @@ namespace rsx
+@@ -1278,6 +1318,16 @@ namespace rsx
  			// If something is going on in the backend that requires an update, set the interrupt bit explicitly.
  			if ((m_cycles_counter++ & 63) == 0 || m_eng_interrupt_mask)
  			{
@@ -23259,7 +23261,7 @@ index dff27c6..28fd8d8 100644
  				// Execute backend-local tasks first
  				do_local_task(performance_counters.state);
  
-@@ -1290,6 +1338,11 @@ namespace rsx
+@@ -1290,6 +1340,11 @@ namespace rsx
  				}
  			}
  
@@ -23271,7 +23273,7 @@ index dff27c6..28fd8d8 100644
  			// Execute FIFO queue
  			run_FIFO();
  		}
-@@ -2164,9 +2217,29 @@ namespace rsx
+@@ -2164,9 +2219,29 @@ namespace rsx
  
  		const auto [program_offset, program_location] = method_registers.shader_program_address();
  		const auto prev_textures_reference_mask = current_fp_metadata.referenced_textures_mask;
@@ -23301,7 +23303,7 @@ index dff27c6..28fd8d8 100644
  
  		current_fragment_program.data = (static_cast<u8*>(data_ptr) + current_fp_metadata.program_start_offset);
  		current_fragment_program.offset = program_offset + current_fp_metadata.program_start_offset;
-@@ -2367,6 +2440,11 @@ namespace rsx
+@@ -2367,6 +2442,11 @@ namespace rsx
  			{
  				// Emulation required
  				current_fragment_program.ctrl |= RSX_SHADER_CONTROL_ALPHA_TO_COVERAGE;
@@ -23313,7 +23315,7 @@ index dff27c6..28fd8d8 100644
  			}
  		}
  
-@@ -2718,6 +2796,37 @@ namespace rsx
+@@ -2718,6 +2798,37 @@ namespace rsx
  			}
  		}
  
@@ -23351,7 +23353,7 @@ index dff27c6..28fd8d8 100644
  		last_host_flip_timestamp = get_system_time();
  	}
  
-@@ -3351,6 +3460,47 @@ namespace rsx
+@@ -3351,6 +3462,47 @@ namespace rsx
  
  	u32 thread::get_load()
  	{
@@ -23399,7 +23401,7 @@ index dff27c6..28fd8d8 100644
  		// Average load over around 30 frames
  		if (!performance_counters.last_update_timestamp || performance_counters.sampled_frames > 30)
  		{
-@@ -3367,6 +3517,7 @@ namespace rsx
+@@ -3367,6 +3519,7 @@ namespace rsx
  			performance_counters.sampled_frames = 0;
  			performance_counters.last_update_timestamp = timestamp;
  		}
@@ -23407,7 +23409,7 @@ index dff27c6..28fd8d8 100644
  
  		return performance_counters.approximate_load;
  	}
-@@ -3378,56 +3529,73 @@ namespace rsx
+@@ -3378,56 +3531,73 @@ namespace rsx
  		// MM sync. This is a pre-emptive operation, so we can use a deferred request.
  		rsx::mm_flush_lazy();
  
@@ -23518,7 +23520,7 @@ index dff27c6..28fd8d8 100644
  		if (zcull_ctrl->has_pending())
  		{
  			// NOTE: This is a workaround for buggy games.
-@@ -3481,9 +3649,61 @@ namespace rsx
+@@ -3481,9 +3651,61 @@ namespace rsx
  			thread_ctrl::wait_for(30'000);
  		}
  
@@ -23580,7 +23582,7 @@ index dff27c6..28fd8d8 100644
  	}
  
  	f64 thread::get_cached_display_refresh_rate()
-@@ -3538,6 +3758,9 @@ namespace rsx
+@@ -3538,6 +3760,9 @@ namespace rsx
  			async_flip_requested |= flip_request::emu_requested;
  
  			m_eng_interrupt_mask |= rsx::display_interrupt;

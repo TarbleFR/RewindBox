@@ -2943,26 +2943,28 @@ index 0de96bb..0388725 100644
  
  	template<typename T>
 diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
-index b9eb12e..28fd8d8 100644
+index b9eb12e..6034ef8 100644
 --- a/rpcs3/Emu/RSX/RSXThread.cpp
 +++ b/rpcs3/Emu/RSX/RSXThread.cpp
-@@ -30,10 +30,15 @@
+@@ -30,10 +30,17 @@
  // NEOSTATION_BUILD487_DIAGNOSTICS_V1: guest flips, native-UI state and the
  // time-based approximate-load window reported to the Core profiler.
  #include "ios/RPCS3IOSPerformance.h"
++// REWINDBOX_THREAD_ORCHESTRATOR_665: placement samples of the RSX thread (kept outside the
++// RetroAchievements include context, build-utils/rpcs3/retroachievements-core.patch).
++#include "ios/IOSThreadOrchestrator.h" // REWINDBOX_THREAD_ORCHESTRATOR_665
 +#include "ios/IOSGpuTiming.h" // REWINDBOX_GPU_TIMING_621
 +#include "ios/IOSZcullLabelPage.h" // REWINDBOX_ZCULL_COND_PREVIOUS_624
 +#include "ios/RPCS3IOSExperimentalPolicy.h"
  #include "ios/RPCS3IOSProfilerHelpers.h"
  #include "ios/IOSRsxSyncProfile.h"
  #include "ios/IOSRsxIdlePark.h"
-+#include "ios/IOSThreadOrchestrator.h" // REWINDBOX_THREAD_ORCHESTRATOR_665
  #include "ios/IOSTransitionPhases.h" // REWINDBOX_TRANSITION_PHASES_610
 +#include "ios/RPCS3IOSAchievements.h" // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
  #include "Overlays/overlay_cursor.h"
  #endif
  
-@@ -899,7 +904,33 @@ namespace rsx
+@@ -899,7 +906,33 @@ namespace rsx
  			else
  			{
  				// NOTE: eval_sources list is reversed with newest query first
@@ -2996,7 +2998,7 @@ index b9eb12e..28fd8d8 100644
  				ensure(!cond_render_ctrl.eval_pending());
  			}
  		}
-@@ -1017,6 +1048,12 @@ namespace rsx
+@@ -1017,6 +1050,12 @@ namespace rsx
  		{
  			sys_rsx_context_attribute(0x55555555, 0xFED, 1, get_guest_system_time(post_event_time), 0, 0);
  		}
@@ -3009,7 +3011,7 @@ index b9eb12e..28fd8d8 100644
  	}
  
  	namespace nv4097
-@@ -1301,6 +1338,11 @@ namespace rsx
+@@ -1301,6 +1340,11 @@ namespace rsx
  				}
  			}
  
@@ -3021,7 +3023,7 @@ index b9eb12e..28fd8d8 100644
  			// Execute FIFO queue
  			run_FIFO();
  		}
-@@ -3648,9 +3690,13 @@ namespace rsx
+@@ -3648,9 +3692,13 @@ namespace rsx
  				frame.flip_us = us(m_frame_stats.flip_time);
  			}
  			rpcs3::ios::frame_trace::profile.record(frame);
