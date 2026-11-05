@@ -49,6 +49,7 @@ jobs:
           echo "iOS SDK $(xcrun --sdk iphoneos --show-sdk-version), macOS SDK $(xcrun --sdk macosx --show-sdk-version)"
           sw_vers
       - name: Compile the Metal 4 renderer for iOS (arm64, deployment 16.3)
+        timeout-minutes: 10
         shell: bash
         run: |
           set -euo pipefail
@@ -62,13 +63,18 @@ jobs:
           "$CXX" "${FLAGS[@]}" -include "$S/rpcs3/stdafx.h" "$S/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp"
           echo "PASS: iOS compile of MTLAPIApple.mm (ARC) and MTLGSRender.cpp"
       - name: Host unit test (display buffer conversion and fit)
+        timeout-minutes: 5
         shell: bash
         run: |
           set -euo pipefail
-          clang++ -std=gnu++20 -O1 -Wall -I "$RPCS3_SOURCE/rpcs3" -fsanitize=address,undefined \
+          # UBSan only here: the ASan/UBSan run of this unit is part of the Linux checks; ASan stalled on this runner (run 42120780912).
+          SDK=$(xcrun --sdk macosx --show-sdk-path)
+          CXX=$(xcrun --sdk macosx --find clang++)
+          "$CXX" -isysroot "$SDK" -std=gnu++20 -O1 -Wall -I "$RPCS3_SOURCE/rpcs3" -fsanitize=undefined -fno-sanitize-recover=undefined \
             -o "$RUNNER_TEMP/metal_present_unit" test/native/rpcs3_metal_present_unit.cpp
           "$RUNNER_TEMP/metal_present_unit"
       - name: Metal 4 probe on this runner's GPU
+        timeout-minutes: 10
         shell: bash
         run: |
           set -euo pipefail
