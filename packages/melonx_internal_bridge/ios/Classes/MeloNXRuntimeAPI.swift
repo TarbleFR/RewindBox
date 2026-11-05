@@ -86,6 +86,10 @@ final class MeloNXRuntimeAPI {
 
     init(library: URL, frameworks: URL, root: URL, moltenVk requested: Int32 = 0) throws {
         MeloNXLaunchJournal.record("frameworks", "begin", detail:"Loading the private ARM64 MeloNX engine and resolving its ABI.")
+        // Armed before the engine (and its NativeAOT runtime) loads: the last handler of each fatal signal, it records a
+        // death that no managed journal can (MeloNX-crash.log next to the other MeloNX journals).
+        if let crashJournal = MeloNXStdioCapture.crashJournalPath { crashJournal.withCString { MeloNXCrashJournalInstall($0) } }
+        MeloNXStdioCapture.noteCrashJournal(MeloNXStdioCapture.sessionContext)
         setenv(Self.gen0BudgetVariable, Self.gen0BudgetHex, 0)
         session = try MeloNXNativeSessionAPI(libraryURL: library)
         // session already owns a process-lifetime handle, including on error.

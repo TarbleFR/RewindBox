@@ -41,6 +41,12 @@ enum MeloNXStdioCapture {
         routeLock.lock(); defer { routeLock.unlock() }
         return diagnosticsDirectory?.appendingPathComponent(name).path
     }
+    // MeloNX-crash.log (MeloNXCrashJournal): fatal signals and exit() of the process, next to the other journals.
+    static var crashJournalPath: String? {
+        if let path = diagnosticPath("MeloNX-crash.log") { return path }
+        lock.lock(); defer { lock.unlock() }
+        return journal.map { URL(fileURLWithPath:$0).deletingLastPathComponent().appendingPathComponent("MeloNX-crash.log").path }
+    }
     static var coreJournalPath: String? {
         if let path = diagnosticPath("MeloNX-core.log") { return path }
         lock.lock(); defer { lock.unlock() }; return journal
@@ -55,6 +61,13 @@ enum MeloNXStdioCapture {
             "coreSource":core["host"] as? String ?? "unavailable",
             "coreSHA256":core["sha256"] as? String ?? "unavailable"]
         routeLock.lock(); pendingContext = context; routeLock.unlock()
+        noteCrashJournal(context)
+    }
+    // The session a later MeloNX-crash.log record belongs to (no-op until the journal is armed).
+    static func noteCrashJournal(_ context: [String:String]) {
+        let note = "session \(context["session"] ?? "-") title \(context["titleId"] ?? "-") build \(context["build"] ?? "-")" +
+            " core \(String((context["coreSHA256"] ?? "-").prefix(12)))"
+        note.withCString { MeloNXCrashJournalNote($0) }
     }
     static var sessionContext: [String:String] {
         routeLock.lock(); defer { routeLock.unlock() }; return pendingContext
@@ -102,6 +115,8 @@ enum MeloNXStdioCapture {
         close(fds[1])
         savedStderr = saved
         let source = fds[0]
+        // A fatal signal drains what is still in the pipe into MeloNX-crash.log.
+        MeloNXCrashJournalSetStderrSource(source)
         var context = sessionContext
         if diagnosticPath("MeloNX-stderr.log") != nil {
             context["capture"] = UUID().uuidString
@@ -120,6 +135,7 @@ enum MeloNXStdioCapture {
     static func end() {
         lock.lock(); defer { lock.unlock() }
         guard savedStderr >= 0 else { return }
+        MeloNXCrashJournalSetStderrSource(-1)
         fflush(stderr)
         dup2(savedStderr, STDERR_FILENO)
         close(savedStderr)
