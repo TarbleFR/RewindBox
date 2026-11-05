@@ -474,6 +474,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       SPU-thread time saved ~4.5 ms/s, no visible fps change on this passage. Kept on (profile).
       Lead (unproven): ~25 SPU cache loads per second in steady play suggests the same programs are loaded
       again and again; distinct-hash count per window needed before any change.
+    - A/B 3, ZCULL queue-depth guard, Black Ops II (BLES01717). On (pid 13540, 13:35-13:39 UTC, profile): 690
+      checks, 688 hints skipped (front query on the GPU), 2 sent at the open-CB bound, peak 2,047 pending;
+      hint flushes 1,188. Off (pid 13941, 14:02-14:05 UTC, digit 16 = 2). Over equal 177 s: fps mean 31.95
+      -> 32.61, samples >= 29.5 fps 35 % -> 55 %, but thermal 2 for the whole on run against state 1 for the
+      off run, and the off run's timeline.1 was not sent. Finding: no attributable effect; guard kept on the
+      profile. AC: the guard never triggered (0 checks in 13335, 13426, 13540).
+    - BO2 freeze at 14:05 UTC (13941, guard off): no_frames_busy; PPU main and 13 others in sys_semaphore_wait;
+      the six SPURS kernels in GETLLAR/PUTLLC on one line (0x2dfc600), putllc_fail ~3-4.5 M and putllc_heavy
+      ~8-9 M per 5 s window, RSX idle; the exit request was ignored (forced stop). Same signature, with the
+      guard ON, in 13140 today (12:09-12:14 UTC, two episodes) and in 624 (1893) and 657 (10471): a
+      pre-existing BO2 SPURS reservation livelock, not caused by the guard or by Core 660. 9403a7bf (accurate
+      reservations again) does not prevent it. Also BO2 spends 23-34 s per ~3-4 min in vm::range_lock
+      episodes (max 30.6 ms). Next: diagnose the livelock (reservation owner and PUTLLC failure cause
+      on that line) before any BO2 change.
   - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
     without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
     report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).
