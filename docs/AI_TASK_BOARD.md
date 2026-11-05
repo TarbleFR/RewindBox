@@ -668,11 +668,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     text 40, hogwarts graphics).
   - Linux harness of the C file: exit statuses unchanged with or without the journal; a later handler keeps
     precedence.
-  - Core CI `42053144885` running (15:15 UTC).
-- **Next:** when green, pin plus engine_evidence, and confirm the GC patch marker is absent. Then hand off to main for
-  IPA 665 with host commit `9022c1a1` (main was told not to ship Core 661 again). On the device:
-  - if MeloNX-crash.log has a fatal record, read its frame;
-  - if games survive, the rebuilt GC was the cause and the GC pause fix returns through another route.
+  - **Core 663 pinned (16:00 UTC):** run `42053144885` on `9022c1a1`, green on the first try: 46 fresh gates on Apple
+    ARM64, NativeAOT compile, two simulator sessions.
+    - Artifact `13431555310` (90632133 B, `ded2abe1…`), downloaded and checked.
+    - iPhone binary `6566777b…` (38127456 B); the "RewindBox NativeAOT GC patch 1" marker is absent (official GC).
+    - Fingerprint `22fd9912…`, contract `1cc9441f`; engine_evidence passed offline.
+    - Pin `89e1c361`. Replaces Core 661 (`a36243d5`).
+  - Host CI:
+    - `42053144428` (`9022c1a1`) and `42047699704` (`2bd6b9c1`) stopped before any scenario: starforgejo.dev answered
+      HTTP 403 on the pinned source fetch (external).
+    - `5153740f` adds the Core's verified mirror plus the HEAD/tree check to melonx-host.yml.
+    - Dispatch `42057788072`: the fetch passed, and so did the host compile, ABI, audio, UIKit presentation (plugin +
+      parity Swift with the dlsym link), the performance journal and the stderr capture in Swift. The last three steps
+      (keyboard, donor, RAM) were still running.
+  - Handed off to main for common IPA 666 (RPCS3 Core 665 + MeloNX Core 663) with host commit `9022c1a1`.
+- **Next:** the maintainer runs IPA 666 with Hogwarts, SSBU and SM3DW:
+  - if they survive, the rebuilt GC was the cause; the GC pause fix returns through another route (not a rebuilt GC);
+  - if they die, read the frame in Documents/Diagnostics/Switch/MeloNX-crash.log.
   - Separate, pre-existing issue: "JIT Cache exhausted" when a second game starts in the same process; close the app
     between games.
 - **Baselines for like-for-like checks** (`tools/melonx/memory_report.py`, windows from the first game second): player 1
