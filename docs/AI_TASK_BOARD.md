@@ -743,6 +743,35 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - if they die, read the frame in Documents/Diagnostics/Switch/MeloNX-crash.log.
   - Separate, pre-existing issue: "JIT Cache exhausted" when a second game starts in the same process; close the app
     between games.
+- **IPA 666 on the device (maintainer, 5 Nov ~20:20 UTC; private journals, pids 15155/15186):** the silent deaths
+  of 662 are gone (SSBU played 4 min and closed cleanly; Hogwarts played 21 min). Remaining defects, each traced:
+  - Hogwarts after SSBU in one process: "JIT Cache exhausted" abort 16 s after launch. The code arena is mapped once
+    per process at the first title's size (512 MiB); Hogwarts with its update needs 1 GiB. History: Hogwarts first
+    6/6 fine, another title first 3/3 died (658, 662, 666).
+  - The 21-min session ended: the render worker threw NullReferenceException in TextureArray.QueueWriteToReadBarriers.
+    A buffer array (whole-pool TextureBuffer, adapt_bindless_sources) has no views; a latent upstream path.
+  - Black sky blocks with blue edges persist with the Core 661 barrier lever active: the barrier reading is refuted.
+    New hypothesis: NaN/Inf under MoltenVK fast math always (MTLMathModeFast).
+  - Stutter: 199 s of 1259 s on the render thread creating pipelines (40 windows over 2 s). The Hogwarts shader cache
+    stayed at 759 programs (1238 at the end of a session); every Hogwarts session that day died early.
+- **Core 667 requested (21:10 UTC, `b3b7161f`):**
+  - Core 667 contents:
+    - JIT arena: 1 GiB at the first launch where the process may use 6 GiB or more (maintainer's choice). A larger
+      need on a smaller mapped arena is refused before the launch.
+    - adapt_buffer_array_barriers fixes the render worker crash.
+    - adapt_hogwarts_precise_math: Metal safe math for Hogwarts only.
+    - adapt_shader_save_journal: save counters only.
+  - Proof:
+    - New gate core667-fixes: 55 checks; the control reproduces the NullReferenceException.
+    - 9 affected gates rerun and green.
+    - Contract `cd4c9fc7`; contract test 381/381.
+    - [evidence](evidence/melonx-667-gates/run.json).
+  - Core CI running; pin and handoff to main next.
+- **Next device checks (IPA with Core 667):**
+  - SSBU then Hogwarts without restarting.
+  - A long Hogwarts session past 20 min.
+  - The "Professeur Fig" sky: black blocks gone or not, with "MoltenVK math mode precise" in the journal.
+  - The next launch's "Loading N shaders" above 759, and "shaderCache saves" lines.
 - **Baselines for like-for-like checks** (`tools/melonx/memory_report.py`, windows from the first game second): player 1
   (11152) peak 4566 MiB, 1 memoryWarning, fallbacks 102/332 ms, LOH occupied <= 342 MiB; player 2 (four 658 sessions,
   89-209 s) peak 4830-5356 MiB, headroom down to 787 MiB, 1-9 memoryWarnings, LOH occupied 479-603 MiB, one 952 ms
