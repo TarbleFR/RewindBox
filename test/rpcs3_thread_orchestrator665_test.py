@@ -70,9 +70,11 @@ def source_checks(source: Path) -> dict:
     require('rpcs3::ios::orchestrator::sample(' in chk[:600], 'check_state sample')
     vm = read(source, 'rpcs3/Emu/Memory/vm.cpp')
     require(vm.count('rpcs3::ios::orchestrator::sample(') == 2, 'passive_lock and writer_lock samples')
-    require('record_writer_park(' in vm and 'const u64 park_begin = rpcs3::ios::orchestrator::enabled.load' in vm, 'writer-lock park timing')
-    require(vm.index('const u64 park_begin') < vm.index('record_writer_park(') and
-            vm.index('for (u64 wait_iteration = 0; !(ptr->state & cpu_flag::wait); wait_iteration++)') < vm.index('record_writer_park('),
+    require('record_writer_suspend(' in vm and 'const u64 suspend_begin = rpcs3::ios::orchestrator::enabled.load' in vm and
+            'const u64 ppu_wait_begin = suspend_begin ? utils::get_tsc() : 0;' in vm, 'writer-lock suspend timing')
+    require(vm.index('const u64 suspend_begin') < vm.index('reservation_lock_wait(wait_iteration);') <
+            vm.index('const u64 ppu_wait_begin') <
+            vm.index('for (u64 wait_iteration = 0; !(ptr->state & cpu_flag::wait); wait_iteration++)') < vm.index('record_writer_suspend('),
             'park timing spans the wait for every PPU thread')
     rsx = read(source, 'rpcs3/Emu/RSX/RSXThread.cpp')
     require('orchestrator::sample(rpcs3::ios::orchestrator::cls::rsx);' in rsx and '#include "ios/IOSThreadOrchestrator.h"' in rsx, 'RSX FIFO loop sample')
@@ -80,7 +82,7 @@ def source_checks(source: Path) -> dict:
     perf = read(source, 'rpcs3/ios/RPCS3IOSPerformance.cpp')
     require('COREPROF PPUGRACE664' in perf and perf.index('COREPROF PPUGRACE664') < perf.index('COREPROF PLACEMENT665'), 'report follows PPUGRACE664')
     require('"COREPROF PLACEMENT665 session=%llu window=%llu enabled=%d class=%s samples=%llu cpu=%s qos=%s "' in perf and
-            '"wl_park_ms=%.3f wl_slow_parks=%llu wl_slow_park_ms=%.3f scope=process_window"' in perf and 'orch::take_writer()' in perf, 'report line')
+            '"wl_suspends=%llu wl_suspend_ms=%.3f wl_ppu_wait_ms=%.3f wl_slow_ppu_waits=%llu wl_slow_ppu_wait_ms=%.3f "' in perf and 'orch::take_writer()' in perf, 'report line')
     return {'levers627_digits': 18, 'sample_interval_ms': 1, 'slow_park_us': 50}
 
 

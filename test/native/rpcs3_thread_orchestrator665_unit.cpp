@@ -49,16 +49,17 @@ int main()
 	auto s = orch::take(orch::cls::spu);
 	CHECK(s.samples == 1 && s.cpu[0] == 1 && s.qos[5] == 1);
 
-	// Writer-lock park counters: slow above the threshold only, reset by take_writer.
+	// Writer-lock suspend counters: the whole phase and its PPU-wait part; slow PPU waits above the
+	// threshold only (a long range-lock drain with a short PPU wait is not slow); reset by take_writer.
 	orch::slow_park_ticks.store(50, std::memory_order_relaxed);
-	orch::record_writer_park(10);
-	orch::record_writer_park(50);
-	orch::record_writer_park(51);
-	orch::record_writer_park(100);
+	orch::record_writer_suspend(10, 5);
+	orch::record_writer_suspend(400, 50);
+	orch::record_writer_suspend(60, 51);
+	orch::record_writer_suspend(120, 100);
 	auto w = orch::take_writer();
-	CHECK(w.parks == 4 && w.park_ticks == 211 && w.slow_parks == 2 && w.slow_park_ticks == 151);
+	CHECK(w.suspends == 4 && w.suspend_ticks == 590 && w.ppu_wait_ticks == 206 && w.slow_ppu_waits == 2 && w.slow_ppu_wait_ticks == 151);
 	w = orch::take_writer();
-	CHECK(w.parks == 0 && w.park_ticks == 0 && w.slow_parks == 0 && w.slow_park_ticks == 0);
+	CHECK(w.suspends == 0 && w.suspend_ticks == 0 && w.ppu_wait_ticks == 0 && w.slow_ppu_waits == 0 && w.slow_ppu_wait_ticks == 0);
 
 	// The disabled path: sample() counts nothing and leaves the limiter alone.
 	orch::enabled.store(false, std::memory_order_relaxed);

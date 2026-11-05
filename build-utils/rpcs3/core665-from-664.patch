@@ -1,0 +1,653 @@
+diff --git a/rpcs3/Emu/CPU/CPUThread.cpp b/rpcs3/Emu/CPU/CPUThread.cpp
+index bada453..a5c8d83 100644
+--- a/rpcs3/Emu/CPU/CPUThread.cpp
++++ b/rpcs3/Emu/CPU/CPUThread.cpp
+@@ -15,6 +15,7 @@
+ #include "Emu/perf_meter.hpp"
+ #ifdef RPCS3_IOS
+ #include "ios/IOSThreadQoS.h" // REWINDBOX_SPU_QOS_627
++#include "ios/IOSThreadOrchestrator.h" // REWINDBOX_THREAD_ORCHESTRATOR_665
+ #include "ios/RPCS3IOSExperimentalPolicy.h"
+ #endif
+ 
+@@ -670,6 +671,16 @@ void cpu_thread::operator()()
+ 	{
+ 		thread_ctrl::set_native_priority(rpcs3::ios::thread_qos::spu_native_priority);
+ 	}
++
++	// REWINDBOX_THREAD_ORCHESTRATOR_665 (ios/IOSThreadOrchestrator.h): PPU threads start one relative
++	// step above the default USER_INTERACTIVE priority, below RSX and audio. Disabled applies nothing
++	// (the Core 664 path).
++	if (rpcs3::ios::get_experimental_policy().thread_orchestrator)
++	{
++		const auto cls = rpcs3::ios::orchestrator::class_from_thread_class(static_cast<unsigned>(get_class()));
++		rpcs3::ios::orchestrator::apply_to_current_thread(rpcs3::ios::orchestrator::qos_for(cls,
++			{true, rpcs3::ios::thread_qos::default_relative_priority.load(std::memory_order_relaxed)}));
++	}
+ #endif
+ 
+ 	ensure(g_fxo->is_init<cpu_profiler>());
+@@ -846,6 +857,11 @@ static atomic_t<u32> s_dummy_atomic = 0;
+ 
+ bool cpu_thread::check_state() noexcept
+ {
++#ifdef RPCS3_IOS
++	// REWINDBOX_THREAD_ORCHESTRATOR_665: rate-limited placement sample (at most one per ms per thread).
++	rpcs3::ios::orchestrator::sample(rpcs3::ios::orchestrator::class_from_thread_class(static_cast<unsigned>(get_class())));
++#endif
++
+ 	bool cpu_sleep_called = false;
+ 	bool cpu_memory_checked = false;
+ 	bool cpu_can_stop = true;
+diff --git a/rpcs3/Emu/Memory/vm.cpp b/rpcs3/Emu/Memory/vm.cpp
+index 80ecf35..ee9122a 100644
+--- a/rpcs3/Emu/Memory/vm.cpp
++++ b/rpcs3/Emu/Memory/vm.cpp
+@@ -13,6 +13,7 @@
+ #include "Emu/perf_meter.hpp"
+ #ifdef RPCS3_IOS
+ #include "ios/IOSPassiveLockGate.h"
++#include "ios/IOSThreadOrchestrator.h" // REWINDBOX_THREAD_ORCHESTRATOR_665
+ #include "ios/IOSReservationLockPolicy.h"
+ #include "ios/RPCS3IOSPerformance.h"
+ // NEOSTATION_BUILD258_CORE_ARCHITECTURE_V1
+@@ -419,6 +420,11 @@ namespace vm
+ 	{
+ 		ensure(cpu.state & cpu_flag::wait);
+ 
++#ifdef RPCS3_IOS
++		// REWINDBOX_THREAD_ORCHESTRATOR_665: rate-limited placement sample of the calling thread.
++		rpcs3::ios::orchestrator::sample(rpcs3::ios::orchestrator::class_from_thread_class(static_cast<unsigned>(cpu.get_class())));
++#endif
++
+ 		bool ok = true;
+ 
+ 		if (!g_tls_locked || *g_tls_locked != &cpu) [[unlikely]]
+@@ -561,6 +567,11 @@ namespace vm
+ 		// for every PPU thread to park) and hold time, attributed by the caller's tag.
+ 		const u64 acquire_begin = utils::get_tsc();
+ 		source = static_cast<u8>(g_tls_writer_lock_source);
++		// REWINDBOX_THREAD_ORCHESTRATOR_665: rate-limited placement sample of the writer's thread.
++		{
++			const cpu_thread* writer_cpu = cpu_thread::get_current();
++			rpcs3::ios::orchestrator::sample(writer_cpu ? rpcs3::ios::orchestrator::class_from_thread_class(static_cast<unsigned>(writer_cpu->get_class())) : rpcs3::ios::orchestrator::cls::other);
++		}
+ #endif
+ 		if (cpu_thread* cpu = cpu_thread::get_current(); cpu && cpu->get_class() == thread_class::ppu)
+ 		{
+@@ -633,6 +644,10 @@ namespace vm
+ 		if (range_lock)
+ 		{
+ 			perf_meter<"SUSPEND"_u64> perf0{nullptr};
++#ifdef RPCS3_IOS
++			// REWINDBOX_THREAD_ORCHESTRATOR_665: the suspend phase (memory flags, range-lock drain, PPU wait), timed.
++			const u64 suspend_begin = rpcs3::ios::orchestrator::enabled.load(std::memory_order_relaxed) ? utils::get_tsc() : 0;
++#endif
+ 
+ 			for (auto lock = g_locks.cbegin(), end = lock + g_cfg.core.ppu_threads; lock != end; lock++)
+ 			{
+@@ -683,6 +698,11 @@ namespace vm
+ 				reservation_lock_wait(wait_iteration);
+ 			}
+ 
++#ifdef RPCS3_IOS
++			// REWINDBOX_THREAD_ORCHESTRATOR_665: the PPU-wait part of the suspend phase starts here.
++			const u64 ppu_wait_begin = suspend_begin ? utils::get_tsc() : 0;
++#endif
++
+ 			for (auto lock = g_locks.cbegin(), end = lock + g_cfg.core.ppu_threads; lock != end; lock++)
+ 			{
+ 				if (auto ptr = +*lock)
+@@ -693,6 +713,15 @@ namespace vm
+ 					}
+ 				}
+ 			}
++
++#ifdef RPCS3_IOS
++			if (suspend_begin)
++			{
++				const u64 suspend_end = utils::get_tsc();
++				rpcs3::ios::orchestrator::record_writer_suspend(suspend_end >= suspend_begin ? suspend_end - suspend_begin : 0,
++					suspend_end >= ppu_wait_begin ? suspend_end - ppu_wait_begin : 0);
++			}
++#endif
+ 		}
+ #ifdef RPCS3_IOS
+ 		acquired_tsc = utils::get_tsc();
+diff --git a/rpcs3/Emu/RSX/RSXThread.cpp b/rpcs3/Emu/RSX/RSXThread.cpp
+index d6f4b9e..28fd8d8 100644
+--- a/rpcs3/Emu/RSX/RSXThread.cpp
++++ b/rpcs3/Emu/RSX/RSXThread.cpp
+@@ -36,6 +36,7 @@
+ #include "ios/RPCS3IOSProfilerHelpers.h"
+ #include "ios/IOSRsxSyncProfile.h"
+ #include "ios/IOSRsxIdlePark.h"
++#include "ios/IOSThreadOrchestrator.h" // REWINDBOX_THREAD_ORCHESTRATOR_665
+ #include "ios/IOSTransitionPhases.h" // REWINDBOX_TRANSITION_PHASES_610
+ #include "ios/RPCS3IOSAchievements.h" // NEOSTATION_RPCS3_RETROACHIEVEMENTS_V1
+ #include "Overlays/overlay_cursor.h"
+@@ -1337,6 +1338,11 @@ namespace rsx
+ 				}
+ 			}
+ 
++#ifdef RPCS3_IOS
++			// REWINDBOX_THREAD_ORCHESTRATOR_665: rate-limited placement sample, once per iteration.
++			rpcs3::ios::orchestrator::sample(rpcs3::ios::orchestrator::cls::rsx);
++#endif
++
+ 			// Execute FIFO queue
+ 			run_FIFO();
+ 		}
+diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
+index a0cf14d..f15b0ba 100644
+--- a/rpcs3/Emu/System.cpp
++++ b/rpcs3/Emu/System.cpp
+@@ -2160,6 +2160,8 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 					ios_add_lever(ios_levers.zcull_depth_guard, ios_lever_settings.zcull_depth_guard);
+ 					// Core 664: digit 17 of levers627=.
+ 					ios_add_lever(ios_levers.ppu_grace, ios_lever_settings.ppu_grace);
++					// Core 665: digit 18 of levers627=.
++					ios_add_lever(ios_levers.thread_orchestrator, ios_lever_settings.thread_orchestrator);
+ 					ios_rsx.levers627 = ios_levers627;
+ 					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
+ 					ios_rsx.overrides = ios_override_keys;
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index f578400..ff68ddc 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -147,6 +147,8 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> passive_lock_fairness{ this, "Passive Lock Fairness", ios_experimental_mode::automatic };
+ 		// REWINDBOX_PPU_GRACE_664: Automatic enables it for every title; it needs Passive Lock Fairness.
+ 		cfg::_enum<ios_experimental_mode> ppu_grace{ this, "PPU Grace After Starvation", ios_experimental_mode::automatic };
++		// REWINDBOX_THREAD_ORCHESTRATOR_665: Automatic enables it for every title.
++		cfg::_enum<ios_experimental_mode> thread_orchestrator{ this, "Thread Orchestrator", ios_experimental_mode::automatic };
+ 		// CELL573_TEXTURE_RESIDENCY / CELL573_SCOPED_RSX_WRITES: Automatic enables them for God of War III.
+ 		cfg::_enum<ios_experimental_mode> texture_residency{ this, "Texture Residency Cap", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> scoped_texture_revalidation{ this, "Scoped Texture Revalidation", ios_experimental_mode::automatic };
+diff --git a/rpcs3/ios/IOSThreadOrchestrator.h b/rpcs3/ios/IOSThreadOrchestrator.h
+new file mode 100644
+index 0000000..d62694e
+--- /dev/null
++++ b/rpcs3/ios/IOSThreadOrchestrator.h
+@@ -0,0 +1,318 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <ctime>
++
++#if defined(__APPLE__)
++#include <mach/mach_time.h>
++#include <pthread.h>
++#include <pthread/qos.h>
++#include <sys/qos.h>
++#elif defined(__linux__)
++#include <sched.h>
++#endif
++
++// REWINDBOX_THREAD_ORCHESTRATOR_665: scheduling and measurement only. Nothing here changes
++// what a guest thread computes, when a lock is taken or what a writer waits for.
++//
++// Measurement: where emulator threads actually run. Every class has a histogram of the
++// CPU a sampling thread was on and of its QoS class, filled by rate-limited samples (at
++// most one per millisecond per thread, a thread_local next-due tick), plus, for each
++// vm::writer_lock with a range lock, the time of its whole suspend phase (cpu_flag::memory
++// publication, the drain of overlapping range locks, then the PPU wait) and of its last
++// step alone, the wait for every PPU thread to carry cpu_flag::wait, with how often that
++// PPU wait exceeded 50 us (a PPU thread that did not reach a check point: probably not
++// running).
++//
++// Assignment: every emulator thread already runs USER_INTERACTIVE; the RSX-over-PPU lever
++// (CELL567) lowers the default relative priority of threads that ask for nothing to -2, so
++// the PPU threads share it with every background USER_INTERACTIVE thread (texture worker,
++// pipeline workers, publishers). Black Ops II is PPU bound and every vm::writer_lock waits for
++// every running PPU thread to reach a check point, so a preempted PPU thread delays every
++// writer and every SPU waiting behind it. With the orchestrator the PPU threads start one
++// step above that default (relative -1 against -2), still below the RSX and audio threads
++// (relative 0), which keep their precedence. SPU threads keep the Core 627 behaviour. With
++// the default at 0 (lever off) the PPU stays at 0. Disabled is exactly Core 664.
++namespace rpcs3::ios::orchestrator
++{
++enum class cls : unsigned
++{
++	ppu,
++	spu,
++	rsx,
++	audio,
++	compile,
++	other,
++};
++
++constexpr std::size_t class_count = 6;
++constexpr std::size_t cpu_buckets = 9; // cpu0..cpu7 and one overflow bucket
++constexpr std::size_t qos_buckets = 6; // ui, in, df, ut, bg, other
++
++constexpr const char* class_name(cls c) noexcept
++{
++	switch (c)
++	{
++	case cls::ppu: return "ppu";
++	case cls::spu: return "spu";
++	case cls::rsx: return "rsx";
++	case cls::audio: return "audio";
++	case cls::compile: return "compile";
++	default: return "other";
++	}
++}
++
++// The values of <sys/qos.h> (qos_class_t); 0 means "leave the thread as it is".
++constexpr unsigned qos_unspecified = 0x00;
++constexpr unsigned qos_user_interactive = 0x21;
++constexpr unsigned qos_user_initiated = 0x19;
++constexpr unsigned qos_default = 0x15;
++constexpr unsigned qos_utility = 0x11;
++constexpr unsigned qos_background = 0x09;
++
++#if defined(__APPLE__)
++static_assert(qos_user_interactive == QOS_CLASS_USER_INTERACTIVE && qos_user_initiated == QOS_CLASS_USER_INITIATED &&
++	qos_default == QOS_CLASS_DEFAULT && qos_utility == QOS_CLASS_UTILITY && qos_background == QOS_CLASS_BACKGROUND);
++#endif
++
++// Set by the policy: sampling, the assignment and the writer-lock timing are on.
++inline std::atomic<bool> enabled{false};
++// Set by the policy: 50 us in utils::get_tsc() ticks (0 while the orchestrator is off).
++inline std::atomic<std::uint64_t> slow_park_ticks{0};
++
++struct class_counters
++{
++	std::atomic<std::uint64_t> samples{0};
++	std::atomic<std::uint64_t> cpu[cpu_buckets]{};
++	std::atomic<std::uint64_t> qos[qos_buckets]{};
++};
++
++inline class_counters counters[class_count];
++
++// vm::writer_lock with a range lock: suspend phases, their time, the PPU-wait part of it,
++// and the PPU waits longer than slow_park_ticks.
++inline std::atomic<std::uint64_t> wl_suspends{0};
++inline std::atomic<std::uint64_t> wl_suspend_ticks{0};
++inline std::atomic<std::uint64_t> wl_ppu_wait_ticks{0};
++inline std::atomic<std::uint64_t> wl_slow_ppu_waits{0};
++inline std::atomic<std::uint64_t> wl_slow_ppu_wait_ticks{0};
++
++struct snapshot
++{
++	std::uint64_t samples = 0;
++	std::uint64_t cpu[cpu_buckets]{};
++	std::uint64_t qos[qos_buckets]{};
++};
++
++struct writer_snapshot
++{
++	std::uint64_t suspends = 0;
++	std::uint64_t suspend_ticks = 0;
++	std::uint64_t ppu_wait_ticks = 0;
++	std::uint64_t slow_ppu_waits = 0;
++	std::uint64_t slow_ppu_wait_ticks = 0;
++};
++
++constexpr std::size_t cpu_bucket(long cpu) noexcept
++{
++	return cpu >= 0 && cpu < static_cast<long>(cpu_buckets - 1) ? static_cast<std::size_t>(cpu) : cpu_buckets - 1;
++}
++
++constexpr std::size_t qos_bucket(unsigned raw) noexcept
++{
++	switch (raw)
++	{
++	case qos_user_interactive: return 0;
++	case qos_user_initiated: return 1;
++	case qos_default: return 2;
++	case qos_utility: return 3;
++	case qos_background: return 4;
++	default: return 5;
++	}
++}
++
++inline void record(cls c, long cpu, unsigned qos_raw) noexcept
++{
++	class_counters& k = counters[static_cast<std::size_t>(c) < class_count ? static_cast<std::size_t>(c) : class_count - 1];
++	k.samples.fetch_add(1, std::memory_order_relaxed);
++	k.cpu[cpu_bucket(cpu)].fetch_add(1, std::memory_order_relaxed);
++	k.qos[qos_bucket(qos_raw)].fetch_add(1, std::memory_order_relaxed);
++}
++
++// Exchange-and-reset for the performance window.
++inline snapshot take(cls c) noexcept
++{
++	class_counters& k = counters[static_cast<std::size_t>(c) < class_count ? static_cast<std::size_t>(c) : class_count - 1];
++	snapshot s;
++	s.samples = k.samples.exchange(0, std::memory_order_relaxed);
++	for (std::size_t i = 0; i < cpu_buckets; i++)
++	{
++		s.cpu[i] = k.cpu[i].exchange(0, std::memory_order_relaxed);
++	}
++	for (std::size_t i = 0; i < qos_buckets; i++)
++	{
++		s.qos[i] = k.qos[i].exchange(0, std::memory_order_relaxed);
++	}
++	return s;
++}
++
++inline writer_snapshot take_writer() noexcept
++{
++	writer_snapshot s;
++	s.suspends = wl_suspends.exchange(0, std::memory_order_relaxed);
++	s.suspend_ticks = wl_suspend_ticks.exchange(0, std::memory_order_relaxed);
++	s.ppu_wait_ticks = wl_ppu_wait_ticks.exchange(0, std::memory_order_relaxed);
++	s.slow_ppu_waits = wl_slow_ppu_waits.exchange(0, std::memory_order_relaxed);
++	s.slow_ppu_wait_ticks = wl_slow_ppu_wait_ticks.exchange(0, std::memory_order_relaxed);
++	return s;
++}
++
++// One writer lock's suspend phase and its PPU-wait part; the slow threshold comes from the policy.
++inline void record_writer_suspend(std::uint64_t suspend_ticks, std::uint64_t ppu_wait_ticks) noexcept
++{
++	wl_suspends.fetch_add(1, std::memory_order_relaxed);
++	wl_suspend_ticks.fetch_add(suspend_ticks, std::memory_order_relaxed);
++	wl_ppu_wait_ticks.fetch_add(ppu_wait_ticks, std::memory_order_relaxed);
++	if (ppu_wait_ticks > slow_park_ticks.load(std::memory_order_relaxed))
++	{
++		wl_slow_ppu_waits.fetch_add(1, std::memory_order_relaxed);
++		wl_slow_ppu_wait_ticks.fetch_add(ppu_wait_ticks, std::memory_order_relaxed);
++	}
++}
++
++// Sampling clock: nanoseconds from a monotonic clock on Linux, mach_absolute_time ticks on Apple.
++inline std::uint64_t now_ticks() noexcept
++{
++#if defined(__APPLE__)
++	return mach_absolute_time();
++#else
++	timespec ts{};
++	clock_gettime(CLOCK_MONOTONIC, &ts);
++	return static_cast<std::uint64_t>(ts.tv_sec) * 1'000'000'000ull + static_cast<std::uint64_t>(ts.tv_nsec);
++#endif
++}
++
++// One millisecond in now_ticks() units.
++inline std::uint64_t sample_interval_ticks() noexcept
++{
++#if defined(__APPLE__)
++	static const std::uint64_t interval = []
++	{
++		mach_timebase_info_data_t info{};
++		mach_timebase_info(&info);
++		return info.numer ? 1'000'000ull * info.denom / info.numer : 1'000'000ull;
++	}();
++	return interval;
++#else
++	return 1'000'000ull;
++#endif
++}
++
++// The thread's next-due tick; a sample is taken at most once per interval per thread.
++inline thread_local std::uint64_t next_due = 0;
++
++inline bool due(std::uint64_t now, std::uint64_t interval) noexcept
++{
++	if (now < next_due)
++	{
++		return false;
++	}
++	next_due = now + interval;
++	return true;
++}
++
++inline long current_cpu() noexcept
++{
++#if defined(__APPLE__)
++	// pthread_cpu_number_np returns the CPU through its argument.
++	std::size_t cpu = 0;
++	if (pthread_cpu_number_np(&cpu) != 0)
++	{
++		return -1;
++	}
++	return static_cast<long>(cpu);
++#elif defined(__linux__)
++	return sched_getcpu();
++#else
++	return -1;
++#endif
++}
++
++inline unsigned current_qos() noexcept
++{
++#if defined(__APPLE__)
++	return static_cast<unsigned>(qos_class_self());
++#else
++	return 0; // "other"
++#endif
++}
++
++// Hot path: one relaxed load while off; while on, a clock read and a compare, and once per
++// millisecond per thread two cheap reads and three relaxed increments.
++inline void sample(cls c) noexcept
++{
++	if (!enabled.load(std::memory_order_relaxed))
++	{
++		return;
++	}
++
++	if (!due(now_ticks(), sample_interval_ticks()))
++	{
++		return;
++	}
++
++	record(c, current_cpu(), current_qos());
++}
++
++// thread_class (Utilities/Thread.h) values: general 0, ppu 1, spu 2, rsx 0x55.
++constexpr cls class_from_thread_class(unsigned v) noexcept
++{
++	return v == 1 ? cls::ppu : v == 2 ? cls::spu : v == 0x55 ? cls::rsx : cls::other;
++}
++
++struct policy
++{
++	bool enabled = false;
++	// ios/IOSThreadQoS.h default_relative_priority (0, or -2 with the RSX thread priority lever).
++	int default_relative_priority = 0;
++};
++
++struct assignment
++{
++	unsigned qos_class = qos_unspecified; // qos_unspecified: leave the thread as it is
++	int relative_priority = 0;
++
++	constexpr bool operator==(const assignment&) const = default;
++};
++
++// The orchestrator's QoS for a thread class at its start. PPU: USER_INTERACTIVE one relative
++// step above the default, at most 0 (see the top of this file). RSX (its own +1, relative 0),
++// SPU (the Core 627 lever) and the rest are not touched.
++constexpr assignment qos_for(cls c, const policy& p) noexcept
++{
++	if (!p.enabled || c != cls::ppu)
++	{
++		return {};
++	}
++
++	const int above_default = p.default_relative_priority + 1;
++	return {qos_user_interactive, above_default < 0 ? above_default : 0};
++}
++
++// Applies an assignment to the calling thread; false when nothing was applied.
++inline bool apply_to_current_thread(const assignment& a) noexcept
++{
++	if (a.qos_class == qos_unspecified)
++	{
++		return false;
++	}
++#if defined(__APPLE__)
++	return pthread_set_qos_class_self_np(static_cast<qos_class_t>(a.qos_class), a.relative_priority) == 0;
++#else
++	return false;
++#endif
++}
++}
+diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
+index 6aff963..ba348ae 100644
+--- a/rpcs3/ios/RPCS3IOSBootDiagnostics.h
++++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
+@@ -475,7 +475,7 @@ namespace rpcs3::ios::boot_diagnostics
+ 		append_u32(line, "mvk_async", rsx.mvk_async ? 1u : 0u);
+ 		append_u32(line, "gpu_timing", rsx.gpu_timing ? 1u : 0u);
+ 		append_u32(line, "zcull_demand", rsx.zcull_demand ? 1u : 0u);
+-		append_text(line, "levers627", rsx.levers627, 17);
++		append_text(line, "levers627", rsx.levers627, 18);
+ 		append_u32(line, "legacy_custom", rsx.legacy_custom ? 1u : 0u);
+ 		const std::string reported = filter_rsx_override_keys(rsx.overrides);
+ 		append_text(line, "overrides", reported, rsx_overrides_limit);
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index 6cf94a4..54d8175 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -18,6 +18,7 @@
+ #include "IOSTextureResidency.h"
+ #include "IOSTitleLevers.h"
+ #include "IOSThreadQoS.h"
++#include "IOSThreadOrchestrator.h" // REWINDBOX_THREAD_ORCHESTRATOR_665
+ #include "IOSMoltenVKAsyncCanary.h"
+ #include "IOSInPassReadTransition.h"
+ #include "IOSSpuObjectBindings.h" // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
+@@ -26,11 +27,15 @@
+ #include "Utilities/File.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
++#include "util/sysinfo.hpp" // REWINDBOX_THREAD_ORCHESTRATOR_665: utils::get_tsc_freq
+ 
+ #include <cerrno>
+ #include <fcntl.h>
+ #include <mutex>
+ #include <unistd.h>
++#ifdef __APPLE__
++#include <sys/sysctl.h>
++#endif
+ 
+ LOG_CHANNEL(ios_experimental_log, "iOS Experimental");
+ 
+@@ -322,6 +327,11 @@ void resolve_experimental_policy() noexcept
+ 	resolved.ppu_grace = resolved.passive_lock_fairness && resolve_mode(g_cfg.ios_experimental.ppu_grace, true);
+ 	rpcs3::ios::passive_gate::grace_until.store(0, std::memory_order_relaxed);
+ 	rpcs3::ios::passive_gate::grace_enabled.store(resolved.ppu_grace, std::memory_order_relaxed);
++	// REWINDBOX_THREAD_ORCHESTRATOR_665: Automatic is every title. Resolved before the emulation threads start;
++	// Disabled is Core 664: no QoS change and no sampling.
++	resolved.thread_orchestrator = resolve_mode(g_cfg.ios_experimental.thread_orchestrator, true);
++	rpcs3::ios::orchestrator::slow_park_ticks.store(resolved.thread_orchestrator ? static_cast<u64>(utils::get_tsc_freq()) / 20000 : 0, std::memory_order_relaxed);
++	rpcs3::ios::orchestrator::enabled.store(resolved.thread_orchestrator, std::memory_order_relaxed);
+ 	// CELL579_WRITER_YIELD: Automatic is every title. Resolved before the emulation threads start.
+ 	resolved.writer_yield_no_depress = resolve_mode(g_cfg.ios_experimental.writer_yield_no_depress, true);
+ 	rpcs3::ios::reservation_yield_no_depress.store(resolved.writer_yield_no_depress, std::memory_order_relaxed);
+@@ -544,6 +554,29 @@ void resolve_experimental_policy() noexcept
+ 	ios_experimental_log.notice("Resolved title policy 664: ppu_grace=%d passive_lock_fairness=%d grace_window_us=%u writer_deferral_us=%u starving_after=%u",
+ 		resolved.ppu_grace, resolved.passive_lock_fairness, static_cast<u32>(rpcs3::ios::passive_gate::grace_window.count()),
+ 		static_cast<u32>(rpcs3::ios::passive_gate::writer_deferral.count()), static_cast<u32>(rpcs3::ios::passive_gate::starving_after));
++	// REWINDBOX_THREAD_ORCHESTRATOR_665: its own line; the CPU counts are read once (0 when unavailable).
++	u32 perflevel0_cpus = 0;
++	u32 perflevel1_cpus = 0;
++#ifdef __APPLE__
++	{
++		int value = 0;
++		size_t size = sizeof(value);
++		if (sysctlbyname("hw.perflevel0.logicalcpu", &value, &size, nullptr, 0) == 0 && value > 0)
++		{
++			perflevel0_cpus = static_cast<u32>(value);
++		}
++		value = 0;
++		size = sizeof(value);
++		if (sysctlbyname("hw.perflevel1.logicalcpu", &value, &size, nullptr, 0) == 0 && value > 0)
++		{
++			perflevel1_cpus = static_cast<u32>(value);
++		}
++	}
++#endif
++	const auto ppu_assignment = rpcs3::ios::orchestrator::qos_for(rpcs3::ios::orchestrator::cls::ppu,
++		{resolved.thread_orchestrator, rpcs3::ios::thread_qos::default_relative_priority.load(std::memory_order_relaxed)});
++	ios_experimental_log.notice("Resolved title policy 665: thread_orchestrator=%d ppu_qos=%d ppu_rel=%d perflevel0_cpus=%u perflevel1_cpus=%u",
++		resolved.thread_orchestrator, static_cast<int>(ppu_assignment.qos_class), ppu_assignment.relative_priority, perflevel0_cpus, perflevel1_cpus);
+ }
+ 
+ void apply_spu_spin_timing_policy() noexcept
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 9def59d..ceaf377 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -29,6 +29,8 @@ struct experimental_policy
+ 	bool passive_lock_fairness = false;
+ 	// REWINDBOX_PPU_GRACE_664: a starving waiter that leaves keeps new writer locks deferred a little longer.
+ 	bool ppu_grace = false;
++	// REWINDBOX_THREAD_ORCHESTRATOR_665: PPU threads start level with RSX; where threads run is sampled.
++	bool thread_orchestrator = false;
+ 	// CELL573_TEXTURE_RESIDENCY: idle textures above a soft cap are released.
+ 	bool texture_residency = false;
+ 	// CELL573_SCOPED_RSX_WRITES: RSX writes revalidate only the textures they overlap.
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index bcbd24b..4e59b25 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -81,6 +81,7 @@
+ #ifdef RPCS3_IOS
+ #include "ios/IOSMemoryPressurePolicy.h"
+ #include "ios/IOSPassiveLockGate.h"
++#include "ios/IOSThreadOrchestrator.h" // REWINDBOX_THREAD_ORCHESTRATOR_665
+ #include <malloc/malloc.h>
+ #include <os/proc.h>
+ #include <sys/sysctl.h>
+@@ -1363,6 +1364,42 @@ private:
+                 static_cast<double>(grace_deferred_ns) / 1'000'000.0, static_cast<u32>(gate::grace_window.count()),
+                 static_cast<u32>(gate::writer_deferral.count()));
+         }
++        // REWINDBOX_THREAD_ORCHESTRATOR_665: where the PPU, SPU and RSX threads ran (CPU number and QoS class
++        // of rate-limited samples), and on the ppu line the writer locks' suspend phases, their PPU-wait part and
++        // the PPU waits longer than 50 us.
++        {
++            namespace orch = rpcs3::ios::orchestrator;
++            const auto writer = orch::take_writer();
++            for (unsigned index = 0; index < orch::class_count; index++)
++            {
++                const auto cls = static_cast<orch::cls>(index);
++                const auto placed = orch::take(cls);
++                if (!placed.samples)
++                {
++                    continue;
++                }
++                std::string cpus;
++                for (usz cpu = 0; cpu < orch::cpu_buckets; cpu++)
++                {
++                    fmt::append(cpus, "%s%llu", cpu ? ":" : "", static_cast<u64>(placed.cpu[cpu]));
++                }
++                std::string qos;
++                for (usz level = 0; level < orch::qos_buckets; level++)
++                {
++                    fmt::append(qos, "%s%llu", level ? ":" : "", static_cast<u64>(placed.qos[level]));
++                }
++                const bool ppu_line = cls == orch::cls::ppu;
++                ios_core_profiler.notice(
++                    "COREPROF PLACEMENT665 session=%llu window=%llu enabled=%d class=%s samples=%llu cpu=%s qos=%s "
++                    "wl_suspends=%llu wl_suspend_ms=%.3f wl_ppu_wait_ms=%.3f wl_slow_ppu_waits=%llu wl_slow_ppu_wait_ms=%.3f "
++                    "scope=process_window",
++                    profile_session, profile_window, orch::enabled.load(std::memory_order_relaxed) ? 1 : 0, orch::class_name(cls),
++                    static_cast<u64>(placed.samples), cpus, qos,
++                    ppu_line ? static_cast<u64>(writer.suspends) : u64{0}, ppu_line ? milliseconds(writer.suspend_ticks) : 0.0,
++                    ppu_line ? milliseconds(writer.ppu_wait_ticks) : 0.0, ppu_line ? static_cast<u64>(writer.slow_ppu_waits) : u64{0},
++                    ppu_line ? milliseconds(writer.slow_ppu_wait_ticks) : 0.0);
++            }
++        }
+         // REWINDBOX_COMPILE_PRESSURE_V1 / REWINDBOX_FENCE_WAIT_V1: draw-blocking
+         // pipeline builds, SPU polls that waited passively meanwhile, and GPU
+         // fence waits finished within the bounded spin or blocked in MoltenVK.
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index 70da0f7..74db6e2 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -134,6 +134,7 @@ const std::array catalog{
+ 	SETTING("experimental.rsx_thread_priority", "Experimental", "FPS Experiments", "RSX thread priority", "Gives the RSX thread and the audio threads precedence over the PPU and SPU threads when the game asks for more CPU than the performance cores provide, as RPCS3 intends; iOS otherwise treats them alike. Automatic enables it for every title; Disabled gives every emulation thread the same priority as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_thread_priority, 0, 0, 0),
+ 	SETTING("experimental.passive_lock_fairness", "Experimental", "FPS Experiments", "Passive lock fairness", "When a PPU or SPU thread has waited a long time to resume guest memory access while SPUs keep taking reservation write locks, new write locks briefly let it through first. No lock is skipped. Automatic enables it for every title; Disabled restores the previous lock order. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.passive_lock_fairness, 0, 0, 0),
+ 	GAME_SETTING("experimental.ppu_grace", "Experimental", "FPS Experiments", "PPU grace after starvation", "When a PPU or SPU thread finally resumes guest memory access after starving behind SPU reservation write locks, new write locks wait about 100 us more before stopping the PPU threads again, so the thread runs before the next one. Every write lock is still taken and parks every PPU thread; it is only taken later, within the same bound. Automatic enables it for every title, with Passive lock fairness. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_grace, 0, 0, 0),
++	GAME_SETTING("experimental.thread_orchestrator", "Experimental", "FPS Experiments", "Thread orchestrator", "Starts the PPU threads at the same iOS priority as the RSX thread, so a PPU thread that holds up every reservation write lock is not preempted by it, and records on which CPU and in which quality-of-service class the PPU, SPU and RSX threads run, and how long write locks wait for the PPU threads to park. Nothing the guest computes changes. Automatic enables it for every title; Disabled restores the previous thread priorities and records nothing. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.thread_orchestrator, 0, 0, 0),
+ 	SETTING("experimental.writer_yield_no_depress", "Experimental", "FPS Experiments", "Writer lock yield without depression", "When an SPU or PPU atomic write that holds the reservation write lock waits for other threads, it yields its CPU core without iOS lowering its priority for a whole scheduling quantum (about 10 ms), so the PPU threads it keeps waiting resume sooner. No lock is skipped. Automatic enables it for every title; Disabled yields as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.writer_yield_no_depress, 0, 0, 0),
+ 	SETTING("experimental.texture_prehash", "Experimental", "FPS Experiments", "Texture pre-validation", "With Texture Validation Per FIFO Batch, a texture used again after new guest commands is hashed again to check that the game did not change it. A worker thread now hashes, as soon as new commands arrive, the textures the previous frame checked next, so the RSX thread finds the result ready. Every byte is still checked and a result is used only for the commands it was taken for. Needs Texture Validation Per FIFO Batch. Automatic enables it for God of War III; Disabled hashes on the RSX thread as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_prehash, 0, 0, 0),
+ 	SETTING("experimental.texture_residency", "Experimental", "FPS Experiments", "Texture residency cap", "When cached textures use more than 768 MB, the textures no draw has used for 64 frames are released, at most 128 MB every 16 frames: first those whose memory the game has since filled with another texture, then the oldest. Textures in use are kept; a released texture the game samples again is uploaded again from its memory. Limits the memory held by textures whose memory the game has reused for other data. Automatic enables it for God of War III; Disabled keeps every texture until it is found stale. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_residency, 0, 0, 0),

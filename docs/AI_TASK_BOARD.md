@@ -520,7 +520,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     then the core664 driver after a fix of its own reference lookup: passed (Core 660 suite to 627).
   - MoltenVK dependency run `42051417882` (`a1da4245`): libMoltenVK.a `d19d3a42` byte-identical,
     current host bridge `dd4c525a` recorded; declared `a6798af1`. Compile request `d82c4284`
-    (run `42054351852`).
+    (run `42054351852`): Core job green first try; Apple host job attempt 1 failed only in the
+    nested Core 630 `zcull630_tsan` timing check on the reverted 630 tree (same flake as 651/655),
+    rerun green (attempt 2, job `127350881301`). Verified offline (artifacts `13428593965` and
+    `13432046142`): type rpcs3-ios-core664, dylib `2322ec92…`, fingerprint `d0650d91…`, codegen
+    PPU `a987639e…`/SPU `477a3fa4…`, every marker present. Not pinned: the branch host bridge
+    already carries the Core 665 row (pin_errors: pinned host source differs), so Core 664 stays
+    the verified fallback and Core 665 is the next pin.
 - **Orchestrator v1 = Core 665 (maintainer 5 Nov: in the next IPA; numbers: common IPA 666 =
   RPCS3 Core 665 + MeloNX Core 663; MeloNX told):** research (rb-research) on mat664: every
   emulator thread already runs USER_INTERACTIVE (pool attr + set_native_priority(0)); the RSX
