@@ -535,8 +535,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   fresh gates on Apple ARM64, NativeAOT compile with the rebuilt GC, two simulator sessions); artifact `13410286295`
   (102052729 B, `e20259eb…`), iPhone binary `482047ec…` (38127448 B, GC patch marker present), packaged fingerprint
   `0e6d5eb8…`, contract `e187562c`; engine_evidence passed offline. Replaces Core 658 (`aa81c2e8`).
-- **Next:** main delivers IPA 662 (RPCS3 660 + MeloNX 661; first compile of the stick Swift); then the maintainer's
-  short iPhone test and like-for-like logs (protocol and resolution criteria in the map). MeloNX runs no delivery.
+- **IPA 662 delivered by main (12:02 UTC):** run `42020264926` (five jobs first try), IPA `d857e567…` (247122020 B),
+  MeloNX validator 0, the stick Swift compiled and `test/melonx_input_stick_test.py` passed with swiftc;
+  [receipt](evidence/rewind662/delivery.json) (`2be04a4e`).
+- **Next:** the maintainer's short iPhone test of 662 and its three logs (protocol and resolution criteria in the map,
+  section Core 661); then compare with 658 (`tools/melonx/memory_report.py --compare`) and close or reopen each point.
 - **Baselines for like-for-like checks** (`tools/melonx/memory_report.py`, windows from the first game second): player 1
   (11152) peak 4566 MiB, 1 memoryWarning, fallbacks 102/332 ms, LOH occupied <= 342 MiB; player 2 (four 658 sessions,
   89-209 s) peak 4830-5356 MiB, headroom down to 787 MiB, 1-9 memoryWarnings, LOH occupied 479-603 MiB, one 952 ms
