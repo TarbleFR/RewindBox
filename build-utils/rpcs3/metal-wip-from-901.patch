@@ -56,10 +56,10 @@ index 0000000..53c34d1
 +	CXX_STANDARD_REQUIRED ON
 +)
 diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
-index f907ea4..3c3b7bc 100644
+index f907ea4..4ec11ab 100644
 --- a/rpcs3/Emu/CMakeLists.txt
 +++ b/rpcs3/Emu/CMakeLists.txt
-@@ -879,20 +879,42 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
+@@ -879,20 +879,46 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
      )
  
      # REWINDBOX_METAL_NATIVE: the native Metal 4 renderer. Its Metal calls live in MTLAPIApple.mm (ARC).
@@ -67,6 +67,8 @@ index f907ea4..3c3b7bc 100644
      target_sources(rpcs3_emu PRIVATE
          RSX/Metal/MTLAPI.h
          RSX/Metal/MTLAPIApple.mm
++        RSX/Metal/MTLCommandContext.cpp
++        RSX/Metal/MTLCommandContext.h
 +        RSX/Metal/MTLCommonDecompiler.cpp
 +        RSX/Metal/MTLCommonDecompiler.h
 +        RSX/Metal/MTLDataHeap.h
@@ -80,6 +82,8 @@ index f907ea4..3c3b7bc 100644
 +        RSX/Metal/MTLPipelineState.h
 +        RSX/Metal/MTLProgramBuffer.cpp
 +        RSX/Metal/MTLProgramBuffer.h
++        RSX/Metal/MTLRenderTargets.cpp
++        RSX/Metal/MTLRenderTargets.h
 +        RSX/Metal/MTLShaderTranslator.cpp
 +        RSX/Metal/MTLShaderTranslator.h
 +        RSX/Metal/MTLVertexProgram.cpp
@@ -273,6 +277,301 @@ index b9a366a..18351f5 100644
  			if (!descriptor.label.empty())
  			{
  				desc.label = string(descriptor.label);
+diff --git a/rpcs3/Emu/RSX/Metal/MTLCommandContext.cpp b/rpcs3/Emu/RSX/Metal/MTLCommandContext.cpp
+new file mode 100644
+index 0000000..22ef098
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLCommandContext.cpp
+@@ -0,0 +1,185 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M2.2): command recording, submission, residency and deferred release.
++
++#include "stdafx.h"
++#include "MTLCommandContext.h"
++
++namespace mtl
++{
++	void command_context::create(const object& device, const object& queue, const object& event, const object& residency)
++	{
++		m_device = device;
++		m_queue = queue;
++		m_event = event;
++		m_residency = residency;
++	}
++
++	void command_context::destroy()
++	{
++		if (recording())
++		{
++			submit(false);
++		}
++
++		wait_idle();
++		collect();
++		m_releases.clear();
++		m_encoder.reset();
++		m_command_buffer.reset();
++		m_residency.reset();
++		m_event.reset();
++		m_queue.reset();
++		m_device.reset();
++	}
++
++	void command_context::begin(const object& allocator, std::string_view label)
++	{
++		ensure(!recording());
++		m_command_buffer = new_command_buffer(m_device);
++		ensure(m_command_buffer, "Metal: command buffer creation failed");
++		begin_command_buffer(m_command_buffer, allocator, label);
++	}
++
++	const object& command_context::begin_render(const render_pass_descriptor& pass, u64 pass_id, std::string_view label)
++	{
++		ensure(recording());
++		end_encoder();
++
++		m_encoder = begin_render_pass(m_command_buffer, pass, label);
++		ensure(m_encoder, "Metal: render encoder creation failed");
++		barrier_after_queue_stages(m_encoder, barrier_all, barrier_all);
++		m_kind = encoder_kind::render;
++		m_render_pass_id = pass_id;
++		m_counters.encoders_render++;
++		return m_encoder;
++	}
++
++	const object& command_context::compute(std::string_view label)
++	{
++		ensure(recording());
++		if (m_kind == encoder_kind::compute)
++		{
++			return m_encoder;
++		}
++
++		end_encoder();
++		m_encoder = begin_compute(m_command_buffer, label);
++		ensure(m_encoder, "Metal: compute encoder creation failed");
++		barrier_after_queue_stages(m_encoder, barrier_all, barrier_all);
++		m_kind = encoder_kind::compute;
++		m_counters.encoders_compute++;
++		return m_encoder;
++	}
++
++	void command_context::end_encoder()
++	{
++		if (m_encoder)
++		{
++			end_encoding(m_encoder);
++			m_encoder.reset();
++		}
++
++		m_kind = encoder_kind::none;
++		m_render_pass_id = 0;
++	}
++
++	u64 command_context::submit(bool early)
++	{
++		if (!recording())
++		{
++			return m_last_submitted;
++		}
++
++		end_encoder();
++		commit_residency();
++		end_command_buffer(m_command_buffer);
++		commit(m_queue, m_command_buffer);
++		signal_event(m_queue, m_event, ++m_last_submitted);
++		m_command_buffer.reset();
++
++		m_counters.submissions++;
++		if (early)
++		{
++			m_counters.early_submissions++;
++		}
++
++		return m_last_submitted;
++	}
++
++	u64 command_context::completed() const
++	{
++		return m_event ? signaled_value(m_event) : m_last_submitted;
++	}
++
++	void command_context::wait(u64 value)
++	{
++		if (!m_event || completed() >= value)
++		{
++			return;
++		}
++
++		m_counters.waits++;
++		u32 slow = 0;
++		while (!wait_signaled_value(m_event, value, 5000))
++		{
++			// Never abandoned: the frame's results are needed. Counted and logged so a GPU hang is visible.
++			m_counters.slow_waits++;
++			rsx_log.error("Metal: GPU work %llu not complete after %u s (completed %llu)", value, ++slow * 5, completed());
++		}
++	}
++
++	void command_context::wait_idle()
++	{
++		wait(m_last_submitted);
++	}
++
++	void command_context::make_resident(const object& allocation)
++	{
++		if (allocation && m_residency)
++		{
++			residency_add(m_residency, allocation);
++			m_residency_dirty = true;
++		}
++	}
++
++	void command_context::commit_residency()
++	{
++		if (m_residency_dirty && m_residency)
++		{
++			residency_commit(m_residency);
++			m_residency_dirty = false;
++		}
++	}
++
++	void command_context::dispose(object resource, bool resident)
++	{
++		if (!resource)
++		{
++			return;
++		}
++
++		// The work being recorded will be submitted as m_last_submitted + 1.
++		const u64 safe_after = m_last_submitted + (recording() ? 1 : 0);
++		m_releases.push_back({ std::move(resource), safe_after, resident });
++	}
++
++	void command_context::collect()
++	{
++		if (m_releases.empty())
++		{
++			return;
++		}
++
++		const u64 done = completed();
++		while (!m_releases.empty() && m_releases.front().safe_after <= done)
++		{
++			auto& entry = m_releases.front();
++			if (entry.resident && m_residency)
++			{
++				residency_remove(m_residency, entry.resource);
++				m_residency_dirty = true;
++			}
++			m_releases.pop_front();
++		}
++	}
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLCommandContext.h b/rpcs3/Emu/RSX/Metal/MTLCommandContext.h
+new file mode 100644
+index 0000000..c503b35
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLCommandContext.h
+@@ -0,0 +1,98 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE (M2.2): what the native Metal 4 renderer is recording into.
++//
++// One MTL4 command buffer is open at a time, on the current frame's allocator (a frame may submit several: an early
++// submission for a readback or a full ring starts the next one on the same allocator). At most one encoder is open.
++// Metal 4 does not track hazards: every new encoder starts with a queue barrier after all stages of earlier work
++// (conservative and correct; narrower barriers are an optimisation for later, measured on the iPhone).
++// Metal 4 command buffers do not retain resources either: anything released while the GPU may still read it goes
++// through dispose(), which keeps it (and its residency) until the submission that could use it has completed.
++
++#include "MTLAPI.h"
++
++#include <deque>
++#include <string>
++#include <string_view>
++
++namespace mtl
++{
++	class command_context
++	{
++	public:
++		enum class encoder_kind : u8
++		{
++			none,
++			render,
++			compute,
++		};
++
++		struct counters_t
++		{
++			u64 submissions = 0;
++			u64 early_submissions = 0;
++			u64 waits = 0;
++			u64 slow_waits = 0;
++			u64 encoders_render = 0;
++			u64 encoders_compute = 0;
++		};
++
++		void create(const object& device, const object& queue, const object& event, const object& residency);
++		void destroy();
++
++		const object& device() const { return m_device; }
++
++		// Recording
++		bool recording() const { return !!m_command_buffer; }
++		void begin(const object& allocator, std::string_view label);
++		const object& command_buffer() const { return m_command_buffer; }
++
++		// Encoders
++		encoder_kind kind() const { return m_kind; }
++		const object& encoder() const { return m_encoder; }
++		u64 render_pass_id() const { return m_render_pass_id; }
++		const object& begin_render(const render_pass_descriptor& pass, u64 pass_id, std::string_view label);
++		const object& compute(std::string_view label);
++		void end_encoder();
++
++		// Submission: ends the open encoder and the command buffer, commits it and signals the next event value.
++		u64 submit(bool early);
++		u64 last_submitted() const { return m_last_submitted; }
++		u64 completed() const;
++		// Waits for a submitted value. The wait is never abandoned: waits longer than 5 s are counted and logged.
++		void wait(u64 value);
++		void wait_idle();
++
++		// Residency of the renderer's allocations (rings, surfaces, textures).
++		void make_resident(const object& allocation);
++		void commit_residency();
++
++		// Deferred release: kept until the work recorded so far has completed.
++		void dispose(object resource, bool resident);
++		void collect();
++
++		const counters_t& counters() const { return m_counters; }
++
++	private:
++		struct pending_release
++		{
++			object resource;
++			u64 safe_after = 0;
++			bool resident = false;
++		};
++
++		object m_device;
++		object m_queue;
++		object m_event;
++		object m_residency;
++		object m_command_buffer;
++		object m_encoder;
++		encoder_kind m_kind = encoder_kind::none;
++		u64 m_render_pass_id = 0;
++		u64 m_last_submitted = 0;
++		bool m_residency_dirty = false;
++		std::deque<pending_release> m_releases;
++		counters_t m_counters{};
++	};
++}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLCommonDecompiler.cpp b/rpcs3/Emu/RSX/Metal/MTLCommonDecompiler.cpp
 new file mode 100644
 index 0000000..4d918d2
@@ -2366,6 +2665,767 @@ index 0000000..449947b
 +		{
 +			return m_cache_miss_flag;
 +		}
++	};
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp
+new file mode 100644
+index 0000000..6012d47
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp
+@@ -0,0 +1,462 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M2.2): render targets of the native Metal 4 renderer (VKRenderTargets.cpp counterpart).
++
++#include "stdafx.h"
++#include "MTLRenderTargets.h"
++
++#include "Emu/RSX/Common/TextureUtils.h"
++#include "Emu/system_config.h"
++
++namespace mtl
++{
++	namespace
++	{
++		surface_counters g_surface_counters{};
++		command_context* g_command_context = nullptr;
++
++		// Stage M2.2 renders single-sampled textures, as the Vulkan renderer with the "MSAA: Disabled" setting
++		// (until M4). As there, the descriptor's sample metrics keep the RSX AA mode: they define the guest-memory
++		// layout of the surface (pitch, extent), not the host texture.
++		constexpr u8 surface_samples = 1;
++		constexpr auto surface_sample_layout = rsx::surface_sample_layout::null;
++	}
++
++	surface_counters& get_surface_counters()
++	{
++		return g_surface_counters;
++	}
++
++	void set_command_context(command_context* ctx)
++	{
++		g_command_context = ctx;
++	}
++
++	command_context* get_command_context()
++	{
++		return g_command_context;
++	}
++
++	render_target::~render_target()
++	{
++		if (texture && g_command_context)
++		{
++			// The GPU may still read it: released once the work recorded so far has completed.
++			g_command_context->dispose(std::move(texture), true);
++		}
++	}
++
++	render_target* render_target::get_surface(rsx::surface_access /*access_type*/)
++	{
++		last_rw_access_tag = rsx::get_shared_tag();
++		return this;
++	}
++
++	bool render_target::is_depth_surface() const
++	{
++		return is_depth_format(native_format);
++	}
++
++	bool render_target::matches_dimensions(u16 surface_width_, u16 surface_height_) const
++	{
++		// Use forward scaling to account for rounding and clamping errors (as the Vulkan renderer does)
++		const auto [scaled_w, scaled_h] = rsx::apply_resolution_scale<true>(resolution_scaling_config, surface_width_, surface_height_);
++		return (scaled_w == texture_width) && (scaled_h == texture_height);
++	}
++
++	void render_target::reset_surface_counters()
++	{
++		frame_tag = 0;
++	}
++
++	bool render_target::allocate(command_context& ctx, pixel_format format, u32 texture_width, u32 texture_height, bool depth)
++	{
++		texture_descriptor desc{};
++		desc.type = texture_type::type_2d;
++		desc.format = format;
++		desc.width = std::max(texture_width, 1u);
++		desc.height = std::max(texture_height, 1u);
++		desc.usage = usage_render_target | usage_shader_read | (depth ? 0 : usage_pixel_format_view);
++		desc.storage = storage_mode::private_;
++
++		texture = new_texture(ctx.device(), desc);
++		if (!texture)
++		{
++			rsx_log.error("Metal: surface texture allocation failed (%ux%u, format %u)", desc.width, desc.height, static_cast<u32>(format));
++			return false;
++		}
++
++		native_format = format;
++		texture_width = desc.width;
++		texture_height = desc.height;
++		sample_count = surface_samples;
++		ctx.make_resident(texture);
++		g_surface_counters.created++;
++		return true;
++	}
++
++	void render_target::clear_memory(command_context& ctx)
++	{
++		// VKRenderTargets.cpp clear_memory: colour (0, 0, 0, 1), depth 1.0, stencil 255.
++		render_pass_descriptor pass{};
++		pass.render_target_width = texture_width;
++		pass.render_target_height = texture_height;
++
++		if (is_depth_surface())
++		{
++			pass.depth.texture = texture;
++			pass.depth.load = load_action::clear;
++			pass.depth.store = store_action::store;
++			pass.depth.clear_depth = 1.0;
++
++			if (has_stencil(native_format))
++			{
++				pass.stencil.texture = texture;
++				pass.stencil.load = load_action::clear;
++				pass.stencil.store = store_action::store;
++				pass.stencil.clear_stencil = 255;
++			}
++		}
++		else
++		{
++			pass.color[0].texture = texture;
++			pass.color[0].load = load_action::clear;
++			pass.color[0].store = store_action::store;
++			pass.color[0].clear = { 0., 0., 0., 1. };
++		}
++
++		ctx.begin_render(pass, 0, "surface clear");
++		ctx.end_encoder();
++
++		state_flags &= ~rsx::surface_state_flags::erase_bkgnd;
++		g_surface_counters.cleared++;
++	}
++
++	void render_target::initialize_memory(command_context& ctx, rsx::surface_access /*access*/)
++	{
++		const bool read_buffers_config = is_depth_surface() ?
++			!!g_cfg.video.read_depth_buffer :
++			!!g_cfg.video.read_color_buffers;
++
++		const bool should_read_buffers = (state_flags & rsx::surface_state_flags::force_data_load) || read_buffers_config;
++		if (should_read_buffers)
++		{
++			// The Vulkan renderer loads the surface from guest memory here (load_memory, through its texture
++			// upload path). Stage M2.2 has no texture upload path yet: counted, and initialised as without loads.
++			g_surface_counters.memory_loads_not_implemented++;
++		}
++
++		clear_memory(ctx);
++		msaa_flags = rsx::surface_state_flags::ready;
++	}
++
++	void render_target::memory_barrier(command_context& ctx, rsx::surface_access access)
++	{
++		if (access == rsx::surface_access::gpu_reference)
++		{
++			// Only requires the object to exist for GPU usage (no spilling in this renderer).
++			return;
++		}
++
++		const bool is_depth = is_depth_surface();
++		const bool read_buffers_config = is_depth ? !!g_cfg.video.read_depth_buffer : !!g_cfg.video.read_color_buffers;
++		const bool should_read_buffers = (state_flags & rsx::surface_state_flags::force_data_load) || read_buffers_config;
++
++		if (should_read_buffers)
++		{
++			if (last_use_tag && state_flags == rsx::surface_state_flags::ready && !test())
++			{
++				state_flags |= rsx::surface_state_flags::erase_bkgnd;
++			}
++		}
++
++		if (old_contents.empty()) [[likely]]
++		{
++			if (state_flags & rsx::surface_state_flags::erase_bkgnd)
++			{
++				initialize_memory(ctx, access);
++
++				ensure(state_flags == rsx::surface_state_flags::ready);
++				on_write(rsx::get_shared_tag(), static_cast<rsx::surface_state_flags>(msaa_flags));
++			}
++
++			return;
++		}
++
++		// Memory transfers from the surfaces this one replaced or overlaps.
++		const unsigned first = prepare_rw_barrier_for_transfer(this);
++		const bool accept_all = (last_use_tag && test());
++		bool optimize_copy = true;
++		u64 newest_tag = 0;
++
++		for (auto i = first; i < old_contents.size(); ++i)
++		{
++			auto& section = old_contents[i];
++			auto src_texture = static_cast<render_target*>(section.source);
++			src_texture->memory_barrier(ctx, rsx::surface_access::transfer_read);
++
++			if (!accept_all && !src_texture->test()) [[likely]]
++			{
++				// If this surface is intact, accept all incoming data as it is guaranteed to be safe
++				// If this surface has not been initialized or is dirty, do not add more dirty data to it
++				continue;
++			}
++
++			section.init_transfer(this);
++			const auto src_area = section.src_rect();
++			const auto dst_area = section.dst_rect();
++
++			bool memory_load = true;
++			if (dst_area.x1 == 0 && dst_area.y1 == 0 &&
++				static_cast<u32>(dst_area.x2) == texture_width && static_cast<u32>(dst_area.y2) == texture_height)
++			{
++				// The whole surface is replaced
++				state_flags &= ~(rsx::surface_state_flags::erase_bkgnd);
++				msaa_flags = rsx::surface_state_flags::ready;
++
++				memory_load = false;
++				stencil_init_flags = src_texture->stencil_init_flags;
++			}
++			else if (state_flags & rsx::surface_state_flags::erase_bkgnd)
++			{
++				initialize_memory(ctx, rsx::surface_access::memory_write);
++				ensure(state_flags == rsx::surface_state_flags::ready);
++			}
++
++			const s32 copy_width = src_area.x2 - src_area.x1;
++			const s32 copy_height = src_area.y2 - src_area.y1;
++			const bool same_scale = copy_width == (dst_area.x2 - dst_area.x1) && copy_height == (dst_area.y2 - dst_area.y1);
++			const bool in_bounds = copy_width > 0 && copy_height > 0 &&
++				static_cast<u32>(src_area.x2) <= src_texture->texture_width && static_cast<u32>(src_area.y2) <= src_texture->texture_height &&
++				static_cast<u32>(dst_area.x2) <= texture_width && static_cast<u32>(dst_area.y2) <= texture_height;
++
++			if (src_texture->native_format == native_format && same_scale && in_bounds && src_texture->texture && texture)
++			{
++				region source_region{};
++				source_region.at = { static_cast<u32>(src_area.x1), static_cast<u32>(src_area.y1), 0 };
++				source_region.size = { static_cast<u32>(copy_width), static_cast<u32>(copy_height), 1 };
++				copy_texture(ctx.compute("surface inheritance"), src_texture->texture, 0, 0, source_region,
++					texture, 0, 0, { static_cast<u32>(dst_area.x1), static_cast<u32>(dst_area.y1), 0 });
++				g_surface_counters.inherited_copies++;
++			}
++			else
++			{
++				// Typeless or scaled transfer (the Vulkan renderer's blitter): not written yet. Counted; the region
++				// keeps the initialisation the Vulkan renderer would have used without loads.
++				g_surface_counters.transfers_not_implemented++;
++				if (!memory_load)
++				{
++					state_flags |= rsx::surface_state_flags::erase_bkgnd;
++					initialize_memory(ctx, rsx::surface_access::memory_write);
++				}
++			}
++
++			optimize_copy = optimize_copy && !memory_load;
++			newest_tag = src_texture->last_use_tag;
++		}
++
++		if (!newest_tag) [[unlikely]]
++		{
++			// Underlying memory has been modified and we could not find valid data to fill it
++			clear_rw_barrier();
++
++			state_flags |= rsx::surface_state_flags::erase_bkgnd;
++			initialize_memory(ctx, access);
++			ensure(state_flags == rsx::surface_state_flags::ready);
++		}
++
++		on_write_copy(newest_tag, optimize_copy);
++	}
++
++	std::unique_ptr<render_target> surface_cache_traits::create_new_surface(
++		command_context& ctx,
++		u32 address,
++		rsx::surface_color_format format,
++		usz width, usz height, usz pitch,
++		rsx::surface_antialiasing antialias,
++		const rsx::surface_scaling_config_t& resolution_scaling_config)
++	{
++		const auto fmt = get_compatible_surface_format(format);
++		const auto [width_, height_] = rsx::apply_resolution_scale<true>(resolution_scaling_config, static_cast<u16>(width), static_cast<u16>(height));
++
++		auto rtt = std::make_unique<render_target>();
++		if (!rtt->allocate(ctx, fmt.format, width_, height_, false))
++		{
++			return {};
++		}
++
++		rtt->surface_format_class = rsx::RSX_FORMAT_CLASS_COLOR;
++		rtt->set_format(format);
++		rtt->set_aa_mode(antialias);
++		rtt->set_resolution_scaling_config(resolution_scaling_config);
++		rtt->sample_layout = surface_sample_layout;
++		rtt->memory_usage_flags = rsx::surface_usage_flags::attachment;
++		rtt->state_flags = rsx::surface_state_flags::erase_bkgnd;
++		rtt->native_component_map = fmt.mapping;
++		rtt->rsx_pitch = static_cast<u32>(pitch);
++		rtt->native_pitch = static_cast<u32>(width) * get_format_block_size_in_bytes(format) * rtt->samples_x;
++		rtt->surface_width = static_cast<u16>(width);
++		rtt->surface_height = static_cast<u16>(height);
++		rtt->queue_tag(address);
++
++		rtt->add_ref();
++		return rtt;
++	}
++
++	std::unique_ptr<render_target> surface_cache_traits::create_new_surface(
++		command_context& ctx,
++		u32 address,
++		rsx::surface_depth_format2 format,
++		usz width, usz height, usz pitch,
++		rsx::surface_antialiasing antialias,
++		const rsx::surface_scaling_config_t& resolution_scaling_config)
++	{
++		const auto requested_format = get_compatible_depth_surface_format(format);
++		const auto [width_, height_] = rsx::apply_resolution_scale<true>(resolution_scaling_config, static_cast<u16>(width), static_cast<u16>(height));
++
++		auto ds = std::make_unique<render_target>();
++		if (!ds->allocate(ctx, requested_format, width_, height_, true))
++		{
++			return {};
++		}
++
++		ds->surface_format_class = rsx::classify_format(format);
++		ds->set_format(format);
++		ds->set_aa_mode(antialias);
++		ds->set_resolution_scaling_config(resolution_scaling_config);
++		ds->sample_layout = surface_sample_layout;
++		ds->memory_usage_flags = rsx::surface_usage_flags::attachment;
++		ds->state_flags = rsx::surface_state_flags::erase_bkgnd;
++		ds->native_component_map = { swizzle::red, swizzle::red, swizzle::red, swizzle::red };
++		ds->native_pitch = static_cast<u32>(width) * get_format_block_size_in_bytes(format) * ds->samples_x;
++		ds->rsx_pitch = static_cast<u32>(pitch);
++		ds->surface_width = static_cast<u16>(width);
++		ds->surface_height = static_cast<u16>(height);
++		ds->queue_tag(address);
++
++		ds->add_ref();
++		return ds;
++	}
++
++	void surface_cache_traits::clone_surface(
++		command_context& ctx,
++		std::unique_ptr<render_target>& sink, render_target* ref,
++		u32 address, barrier_descriptor_t& prev,
++		const rsx::surface_scaling_config_t& scaling_config)
++	{
++		const bool initialize = !sink || !sink->has_refs();
++		if (sink && initialize)
++		{
++			prepare_for_reuse(ctx, sink.get());
++		}
++
++		if (!sink)
++		{
++			const auto [new_w, new_h] = rsx::apply_resolution_scale<true>(
++				scaling_config,
++				prev.width, prev.height,
++				ref->get_surface_width<rsx::surface_metrics::pixels>(), ref->get_surface_height<rsx::surface_metrics::pixels>());
++
++			sink = std::make_unique<render_target>();
++			if (!sink->allocate(ctx, ref->native_format, new_w, new_h, ref->is_depth_surface()))
++			{
++				sink.reset();
++				return;
++			}
++
++			sink->surface_format_class = ref->format_class();
++		}
++
++		if (initialize)
++		{
++			sink->reset();
++			sink->msaa_flags = rsx::surface_state_flags::ready;
++			sink->add_ref();
++
++			sink->sample_layout = ref->sample_layout;
++			sink->resolution_scaling_config = scaling_config;
++
++			sink->set_aa_mode(ref->get_aa_mode());
++			sink->format_info = ref->format_info;
++			sink->memory_usage_flags = rsx::surface_usage_flags::storage;
++			sink->state_flags = rsx::surface_state_flags::erase_bkgnd;
++			sink->native_component_map = ref->native_component_map;
++			sink->stencil_init_flags = ref->stencil_init_flags;
++			sink->native_pitch = static_cast<u32>(prev.width) * ref->get_bpp() * ref->samples_x;
++			sink->rsx_pitch = ref->get_rsx_pitch();
++			sink->surface_width = prev.width;
++			sink->surface_height = prev.height;
++			sink->queue_tag(address);
++		}
++
++		sink->on_clone_from(ref);
++
++		if (!sink->old_contents.empty())
++		{
++			// Deal with this, likely only needs to clear
++			if (sink->surface_width > prev.width || sink->surface_height > prev.height)
++			{
++				sink->write_barrier(ctx);
++			}
++			else
++			{
++				sink->clear_rw_barrier();
++			}
++		}
++
++		prev.target = sink.get();
++		sink->set_old_contents_region(prev, false);
++	}
++
++	void surface_cache_traits::notify_surface_invalidated(const std::unique_ptr<render_target>& surface)
++	{
++		surface->frame_tag = 1;
++
++		if (!surface->old_contents.empty())
++		{
++			// TODO (as in the Vulkan renderer): retire the deferred writes
++			surface->clear_rw_barrier();
++		}
++
++		surface->release();
++	}
++
++	bool surface_cache_traits::int_surface_matches_properties(
++		const std::unique_ptr<render_target>& surface,
++		pixel_format format,
++		usz width, usz height,
++		rsx::surface_antialiasing antialias,
++		const rsx::surface_scaling_config_t& scaling_config,
++		bool check_refs)
++	{
++		if (check_refs && surface->has_refs())
++		{
++			// Surface may still have read refs from data 'copy'
++			return false;
++		}
++
++		return surface->native_format == format &&
++			surface->get_spp() == get_format_sample_count(antialias) &&
++			surface->matches_dimensions(static_cast<u16>(width), static_cast<u16>(height)) &&
++			surface->resolution_scaling_config == scaling_config;
++	}
++
++	void surface_cache_traits::write_render_target_to_memory(
++		command_context&,
++		buffer_object*,
++		render_target*,
++		u64, u64, u64)
++	{
++		// Reached only through rsx::surface_store::write_to_dma_buffers, which nothing calls in this RPCS3.
++		g_surface_counters.memory_writes_not_implemented++;
++	}
++
++	const object& surface_cache_traits::ctx_device(command_context& ctx)
++	{
++		return ctx.device();
++	}
++
++	void surface_cache::destroy()
++	{
++		invalidate_all();
++	}
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLRenderTargets.h b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.h
+new file mode 100644
+index 0000000..03937d1
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.h
+@@ -0,0 +1,287 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE (M2.2): render targets of the native Metal 4 renderer on RPCS3's shared surface store.
++//
++// rsx::surface_store keeps all the RSX memory logic (address overlap, inheritance of old contents, invalidation, the
++// same rules the Vulkan renderer runs on); these traits only create and update Metal textures, as VKRenderTargets.h
++// does for Vulkan images:
++//   - new surfaces are initialised exactly as the Vulkan renderer initialises them when guest-memory loads are off
++//     (the default): colour (0, 0, 0, 1), depth 1.0, stencil 255;
++//   - inherited contents are copied on the GPU when source and target have the same format and scale;
++// Stage M2.2 does not have the texture cache yet, so these remain to be written and are counted, never faked:
++// typeless or scaled inheritance (the region is initialised as above instead), guest-memory loads of a surface, and
++// writes of a surface back to guest memory. MSAA surfaces are single-sampled, as with the "MSAA: Disabled" setting,
++// until stage M4.
++
++#include "Emu/RSX/Common/surface_store.h"
++#include "MTLCommandContext.h"
++#include "MTLFormats.h"
++
++#include <atomic>
++#include <memory>
++#include <vector>
++
++namespace mtl
++{
++	struct surface_counters
++	{
++		std::atomic<u64> created{0};
++		std::atomic<u64> cleared{0};
++		std::atomic<u64> inherited_copies{0};
++		std::atomic<u64> transfers_not_implemented{0};
++		std::atomic<u64> memory_loads_not_implemented{0};
++		std::atomic<u64> memory_writes_not_implemented{0};
++	};
++
++	surface_counters& get_surface_counters();
++
++	// The renderer's command context, for destructors and traits that have none at hand.
++	void set_command_context(command_context* ctx);
++	command_context* get_command_context();
++
++	class render_target : public rsx::render_target_descriptor<render_target*>
++	{
++	public:
++		object texture;
++		pixel_format native_format = pixel_format::invalid;
++		u32 texture_width = 0;    // texture size (resolution scale applied)
++		u32 texture_height = 0;
++		u8 sample_count = 1;
++		rsx::format_class surface_format_class = rsx::RSX_FORMAT_CLASS_COLOR;
++		component_map native_component_map = default_component_map;
++
++		u64 frame_tag = 0;            // frame id when invalidated, 0 if not invalid
++		u64 last_rw_access_tag = 0;   // timestamp when this object was last used
++		bool is_bound = false;        // bound for rendering
++
++		render_target() = default;
++		~render_target() override;
++
++		render_target* get_surface(rsx::surface_access access_type) override;
++		bool is_depth_surface() const override;
++		bool matches_dimensions(u16 surface_width, u16 surface_height) const;
++		void reset_surface_counters();
++		rsx::format_class format_class() const { return surface_format_class; }
++		u32 width() const { return texture_width; }
++		u32 height() const { return texture_height; }
++		u8 samples() const { return sample_count; }
++
++		// Allocates the texture (private storage, render target and shader read) and makes it resident.
++		bool allocate(command_context& ctx, pixel_format format, u32 texture_width, u32 texture_height, bool depth);
++
++		// Synchronization (the command context inserts the hazard barriers between encoders)
++		void memory_barrier(command_context& ctx, rsx::surface_access access);
++		void read_barrier(command_context& ctx) { memory_barrier(ctx, rsx::surface_access::shader_read); }
++		void write_barrier(command_context& ctx) { memory_barrier(ctx, rsx::surface_access::shader_write); }
++
++	private:
++		void clear_memory(command_context& ctx);
++		void initialize_memory(command_context& ctx, rsx::surface_access access);
++	};
++
++	// A shared-storage buffer for the surface store's DMA blocks.
++	struct buffer_object
++	{
++		object buffer;
++		u64 length = 0;
++
++		u64 size() const { return length; }
++	};
++
++	struct surface_cache_traits
++	{
++		using surface_storage_type = std::unique_ptr<render_target>;
++		using surface_type = render_target*;
++		using buffer_object_storage_type = std::unique_ptr<buffer_object>;
++		using buffer_object_type = buffer_object*;
++		using command_list_type = command_context&;
++		using download_buffer_object = void*;
++		using barrier_descriptor_t = rsx::deferred_clipped_region<render_target*>;
++
++		static std::unique_ptr<render_target> create_new_surface(
++			command_context& ctx,
++			u32 address,
++			rsx::surface_color_format format,
++			usz width, usz height, usz pitch,
++			rsx::surface_antialiasing antialias,
++			const rsx::surface_scaling_config_t& resolution_scaling_config);
++
++		static std::unique_ptr<render_target> create_new_surface(
++			command_context& ctx,
++			u32 address,
++			rsx::surface_depth_format2 format,
++			usz width, usz height, usz pitch,
++			rsx::surface_antialiasing antialias,
++			const rsx::surface_scaling_config_t& resolution_scaling_config);
++
++		static bool is_reusable_surface(const render_target* surface, const render_target* ref)
++		{
++			return surface->texture && surface->native_format == ref->native_format && surface->is_depth_surface() == ref->is_depth_surface();
++		}
++
++		static void prepare_for_reuse(command_context&, render_target* surface)
++		{
++			surface->reset_surface_counters();
++			surface->last_rw_access_tag = 0;
++		}
++
++		static void clone_surface(
++			command_context& ctx,
++			std::unique_ptr<render_target>& sink, render_target* ref,
++			u32 address, barrier_descriptor_t& prev,
++			const rsx::surface_scaling_config_t& scaling_config);
++
++		static std::unique_ptr<render_target> convert_pitch(command_context&, std::unique_ptr<render_target>& src, usz)
++		{
++			// Same as the Vulkan renderer (TODO there too): the surface is re-initialised.
++			src->state_flags = rsx::surface_state_flags::erase_bkgnd;
++			return {};
++		}
++
++		static bool is_compatible_surface(const render_target* surface, const render_target* ref, u16 width, u16 height, u8 sample_count)
++		{
++			return (surface->native_format == ref->native_format &&
++				surface->get_spp() == sample_count &&
++				surface->get_surface_width() == width &&
++				surface->get_surface_height() == height);
++		}
++
++		static void prepare_surface_for_drawing(command_context& ctx, render_target* surface)
++		{
++			surface->memory_barrier(ctx, rsx::surface_access::gpu_reference);
++			surface->reset_surface_counters();
++			surface->memory_usage_flags |= rsx::surface_usage_flags::attachment;
++			surface->is_bound = true;
++		}
++
++		static void prepare_surface_for_sampling(command_context&, render_target* surface)
++		{
++			surface->is_bound = false;
++		}
++
++		static bool surface_is_pitch_compatible(const std::unique_ptr<render_target>& surface, usz pitch)
++		{
++			return surface->rsx_pitch == pitch;
++		}
++
++		static void int_invalidate_surface_contents(command_context&, render_target* surface, u32 address, usz pitch)
++		{
++			surface->rsx_pitch = static_cast<u32>(pitch);
++			surface->queue_tag(address);
++			surface->last_use_tag = 0;
++			surface->stencil_init_flags = 0;
++			surface->memory_usage_flags = rsx::surface_usage_flags::unknown;
++			surface->raster_type = rsx::surface_raster_type::linear;
++		}
++
++		static void invalidate_surface_contents(command_context& ctx, render_target* surface, rsx::surface_color_format format, u32 address, usz pitch)
++		{
++			surface->set_format(format);
++			surface->native_component_map = get_compatible_surface_format(format).mapping;
++			int_invalidate_surface_contents(ctx, surface, address, pitch);
++		}
++
++		static void invalidate_surface_contents(command_context& ctx, render_target* surface, rsx::surface_depth_format2 format, u32 address, usz pitch)
++		{
++			surface->set_format(format);
++			int_invalidate_surface_contents(ctx, surface, address, pitch);
++		}
++
++		static void notify_surface_invalidated(const std::unique_ptr<render_target>& surface);
++
++		static void notify_surface_persist(const std::unique_ptr<render_target>&)
++		{
++		}
++
++		static void notify_surface_reused(const std::unique_ptr<render_target>& surface)
++		{
++			surface->state_flags |= rsx::surface_state_flags::erase_bkgnd;
++			surface->add_ref();
++		}
++
++		static bool int_surface_matches_properties(
++			const std::unique_ptr<render_target>& surface,
++			pixel_format format,
++			usz width, usz height,
++			rsx::surface_antialiasing antialias,
++			const rsx::surface_scaling_config_t& scaling_config,
++			bool check_refs);
++
++		static bool surface_matches_properties(
++			const std::unique_ptr<render_target>& surface,
++			rsx::surface_color_format format,
++			usz width, usz height,
++			rsx::surface_antialiasing antialias,
++			const rsx::surface_scaling_config_t& scaling_config,
++			bool check_refs = false)
++		{
++			return int_surface_matches_properties(surface, get_compatible_surface_format(format).format, width, height, antialias, scaling_config, check_refs);
++		}
++
++		static bool surface_matches_properties(
++			const std::unique_ptr<render_target>& surface,
++			rsx::surface_depth_format2 format,
++			usz width, usz height,
++			rsx::surface_antialiasing antialias,
++			const rsx::surface_scaling_config_t& scaling_config,
++			bool check_refs = false)
++		{
++			return int_surface_matches_properties(surface, get_compatible_depth_surface_format(format), width, height, antialias, scaling_config, check_refs);
++		}
++
++		static void spill_buffer(std::unique_ptr<buffer_object>&)
++		{
++		}
++
++		static void unspill_buffer(std::unique_ptr<buffer_object>&)
++		{
++		}
++
++		static void write_render_target_to_memory(
++			command_context& ctx,
++			buffer_object* bo,
++			render_target* surface,
++			u64 dst_offset_in_buffer,
++			u64 src_offset_in_buffer,
++			u64 max_copy_length);
++
++		template <int BlockSize>
++		static buffer_object* merge_bo_list(command_context& ctx, std::vector<buffer_object*>& list)
++		{
++			// rsx::surface_store::write_to_dma_buffers is not called anywhere in this RPCS3, so this is never
++			// instantiated. Should it become reachable, the merged block must be filled by GPU copies (the source
++			// blocks may still be pending GPU writes); until then it is counted as a memory write not implemented.
++			u64 size = 0;
++			for (auto& bo : list)
++			{
++				size += bo ? bo->size() : BlockSize;
++				if (bo)
++				{
++					ctx.dispose(std::move(bo->buffer), false);
++					delete bo;
++				}
++			}
++
++			get_surface_counters().memory_writes_not_implemented++;
++			auto merged = new buffer_object();
++			merged->buffer = new_buffer(ctx_device(ctx), size, storage_mode::shared);
++			merged->length = size;
++			return merged;
++		}
++
++		static const object& ctx_device(command_context& ctx);
++
++		template <typename T>
++		static T* get(const std::unique_ptr<T>& obj)
++		{
++			return obj.get();
++		}
++	};
++
++	class surface_cache : public rsx::surface_store<surface_cache_traits>
++	{
++	public:
++		void destroy();
 +	};
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLShaderTranslator.cpp b/rpcs3/Emu/RSX/Metal/MTLShaderTranslator.cpp

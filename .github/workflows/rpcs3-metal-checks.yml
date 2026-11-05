@@ -117,7 +117,7 @@ jobs:
           FLAGS+=(-I "$SHADER_STACK_WORK/asmjit/src" -I "$S/3rdparty/rewindbox-spirv-cross"
                   -DSPIRV_CROSS_NAMESPACE_OVERRIDE=rbx_spirv_cross -DSPIRV_CROSS_SPV_HEADER_NAMESPACE_OVERRIDE=rbx_spv)
           "$CXX" "${FLAGS[@]}" -x objective-c++ -fobjc-arc "$S/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm"
-          for unit in MTLGSRender.cpp MTLCommonDecompiler.cpp MTLVertexProgram.cpp MTLFragmentProgram.cpp MTLPipelineState.cpp MTLProgramBuffer.cpp MTLFormats.cpp; do
+          for unit in MTLGSRender.cpp MTLCommonDecompiler.cpp MTLVertexProgram.cpp MTLFragmentProgram.cpp MTLPipelineState.cpp MTLProgramBuffer.cpp MTLFormats.cpp MTLCommandContext.cpp MTLRenderTargets.cpp; do
             "$CXX" "${FLAGS[@]}" -fno-exceptions -include "$S/rpcs3/stdafx.h" "$S/rpcs3/Emu/RSX/Metal/$unit"
           done
           # The translator and SPIRV-Cross are the Metal sources built with exceptions (rpcs3/Emu/CMakeLists.txt).
