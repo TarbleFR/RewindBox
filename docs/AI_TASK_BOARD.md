@@ -436,6 +436,11 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     private key deleted. No iPhone measurement; no FPS claim. Next: the maintainer's iPhone test
     and like-for-like logs (RPCS3: test page A/B rows for the three 660 levers; MeloNX: the
     handoff's Hogwarts protocol).
+  - 12:20 UTC, MeloNX report: on IPA 662, Hogwarts Legacy dies natively ~24 s after launch (8-15 s
+    after the first frame, before the menus; pids 13088, 13123; no managed exception, no Metal or
+    memory warning, footprint as 658). Suspects (MeloNX): adapt_bindless_retention or the rebuilt
+    NativeAOT GC. Maintainer told: MeloNX stays on IPA 658, RPCS3 tests go on 662. MeloNX fix as
+    Core 663 (crash reports requested); the next common IPA waits for that handoff.
   - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
     without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
     report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).

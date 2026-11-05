@@ -10,6 +10,9 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
   published 26 October 2026. It already announced embedded MeloNX, PS3 ISO launch,
   Liquid Glass and the asynchronous-submit option; do not present them as new.
 - Latest verified private delivery: IPA 662 (run `42020264926`), RPCS3 Core 660 / MeloNX Core 661, on 658.
+  Known defect (MeloNX session, 5 Nov 12:20 UTC): Hogwarts Legacy crashes natively about 24 s after launch, before
+  the menus, with MeloNX Core 661 (pids 13088, 13123); MeloNX stays on IPA 658 until the Core 663 fix. RPCS3 is not
+  concerned.
   See [delivery receipt](../evidence/rewind662/delivery.json) (657: [receipt](../evidence/rewind657/delivery.json),
   653: [receipt](../evidence/rewind653/delivery.json),
   650: [receipt](../evidence/rewind650/delivery.json)). IPA 658, the MeloNX session's isolated build on 657 (MeloNX
