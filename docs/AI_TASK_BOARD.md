@@ -350,6 +350,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   `test/melonx_present_drawable_residency_test.py`: 26 checks on Core 656, 27 bound to the real preparation
   (Window.cs `ba3a2c85…`, rest identical to Core 656), Vulkan assembly builds;
   [receipts](evidence/melonx-present-drawable-residency/).
+  Independent rb-core-review: no defect (orientation = PresentCopy's, identity copy after filters, RGBA8
+  STORAGE usage, deferred disposal, layouts); BlitColor clears the drawable first, so letterbox bars are black.
 - **Next:** main builds an **isolated IPA** = Core 656 + this adapter only (maintainer's request). Device check:
   launch Hogwarts without recording, image live at launch and in menus, `Present path:` line in stderr.
   No device proof yet.
