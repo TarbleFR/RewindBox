@@ -373,6 +373,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   memo (exact invalidation + sampled self-verification, auto-disable), ZCULL watched-slot flush
   via the 659 boundary arming + queue-depth guard. Then integrate, codegen/driver tests, record,
   build, pin, and the common IPA (9403a7bf promoted, PR162, MeloNX 658, RPCS3 660).
+  - 06:20 UTC: the three lots implemented and host-tested in their copies; merged on the timebase
+    tree (append-only conflicts in IOSTitleLevers.h and the policy files, resolved as unions; the
+    generic merge script reproduces the hand resolution). Each lot test passes on the merged tree
+    against a control holding the two other lots (spu exit 0; texmemo PASS, 468 served hits /
+    607 lookups; zcull PASS, report values identical to the oracle). Reviews: spu-noir 1 refuted
+    (gate test count, dead null guard via getPointerToNamedFunction, test realism), 1 not refuted;
+    fixes in progress (getFunctionAddress, table once per process, no stub before the copy,
+    logged fallbacks, RuntimeDyld precedence comments, translator guard, llc/real-table/flow tests,
+    one recoverable call per hit). Timebase gate updated for the direct block (passes on 660).
+    Rerun list on the merged tree (g++): feedback-census fails (memo replaces delivered VKDraw lines:
+    to be restructured insertion-only) and 613 admission fails until the 660 record exists (test
+    now authenticates a later reviewed file through its increment); the other 11 pass.
+  - Host test page: rows for spu_direct_object_hits and texture_lookup_memo (levers627 digits 14-15)
+    in progress. Core 660 = five chained steps (timebase, spu-direct, texture-memo, zcull, test-page);
+    driver test/rpcs3_core660_test.py written.
+  - Numbers: MeloNX Core 661 reserved for the Hogwarts lots, common IPA 662 (waits for both
+    handoffs). MeloNX (06:12): Core 661 pinned about 09:00-09:30 UTC; no delivery by MeloNX.
   - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
     without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
     report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).
