@@ -56,9 +56,13 @@ jobs:
 
         git -C .native-sources/MeloNX remote add origin https://starforgejo.dev/projects/MeloNX.git
 
-        git -C .native-sources/MeloNX fetch --depth 1 origin 13700519f3abc4e6d7ed8a065b118b2cc59bcd67
+        git -C .native-sources/MeloNX fetch --depth 1 origin 13700519f3abc4e6d7ed8a065b118b2cc59bcd67 || git -C .native-sources/MeloNX fetch --depth 1 https://github.com/AzureDominus/melonx.git 13700519f3abc4e6d7ed8a065b118b2cc59bcd67
 
         git -C .native-sources/MeloNX checkout --detach FETCH_HEAD
+
+        test "$(git -C .native-sources/MeloNX rev-parse HEAD)" = 13700519f3abc4e6d7ed8a065b118b2cc59bcd67
+
+        test "$(git -C .native-sources/MeloNX rev-parse HEAD^{tree})" = 82a29e6f593f6244869481e9a489b8d5154175fe
 
         git init .native-sources/Melo-Controller
 
