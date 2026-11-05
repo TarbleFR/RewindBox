@@ -1,0 +1,16 @@
+{
+  "checks": 69,
+  "result": "passed",
+  "refusals": {
+    "no pin digest": "/tmp/melonx-nativeaot-gc-koivnw_g/nopin.proj(42,5): error : RewindBox NativeAOT GC: RewindBoxNativeAotGcSha256 is not set (build-utils/melonx/nativeaot-gc-rebuild-pin.json must pin the patched library).",
+    "other patched bytes": "/tmp/melonx-nativeaot-gc-koivnw_g/otherpatched.proj(52,5): error : RewindBox NativeAOT GC: the patched library is D1F843303A80B4E0E7E83B98E7F91F62924BB350B16CE2713300893700D1FC73, not the pinned c04489a18f03781ea3975eeff8ee2ccf71ea4f6a91818",
+    "missing patched library": "/tmp/melonx-nativeaot-gc-koivnw_g/missing.proj(44,5): error : RewindBox NativeAOT GC: the patched library is missing: /tmp/melonx-nativeaot-gc-koivnw_g/patched/ios-arm64/libRuntime.WorkstationGC.a",
+    "other runtime pack": "/tmp/melonx-nativeaot-gc-koivnw_g/otherpack.proj(51,5): error : RewindBox NativeAOT GC: the runtime pack's library is 8F2ACE3352DA930DC02027DF17D292E1673A9E7A8CF781E13F1CAB7C68D64CFE, not the reviewed 10.0.0 library 44b780ba8bcaa1261cca8f7a",
+    "simulator pack for device": "/tmp/melonx-nativeaot-gc-koivnw_g/swapped.proj(51,5): error : RewindBox NativeAOT GC: the runtime pack's library is 39FEA820EC5CF2CD9CDB8E20A42C5CA5F1EB91084A8EC131C2B6E384A0D68EC5, not the reviewed 10.0.0 library 44b780ba8bcaa1261cca8f7a28",
+    "server GC": "/tmp/melonx-nativeaot-gc-koivnw_g/server.proj(41,5): error : RewindBox NativeAOT GC: 'libRuntime.ServerGC' is selected; only the workstation GC is rebuilt.",
+    "unknown runtime identifier": "/tmp/melonx-nativeaot-gc-koivnw_g/maccatalyst.proj(40,5): error : RewindBox NativeAOT GC: no reviewed runtime pack for RuntimeIdentifier 'maccatalyst-arm64'.",
+    "duplicated input": "/tmp/melonx-nativeaot-gc-koivnw_g/duplicate.proj(63,5): error : RewindBox NativeAOT GC: expected the runtime pack's library exactly once among the linker inputs, found '/tmp/melonx-nativeaot-gc-koivnw_g/pack/libRuntime.WorkstationGC.a;/tmp/"
+  },
+  "csprojBaseline": "90efb63fec94331a7c78936a765d227967a08b870b58eb65c2d3743a6b954199",
+  "patchSha256": "018214fb546d305f729f60d6895f94b0d3c6fe76af14f1d5fb2b061f52ba3824"
+}
