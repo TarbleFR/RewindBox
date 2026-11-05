@@ -550,6 +550,19 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     applied. Packaged: increment 11 files, canonical `d81e7fd2` (364 files), host `7282878a`;
     closure, codegen audit (identities unchanged), route/MoltenVK/pin tests passed; core665 driver
     running locally.
+  - Built and pinned: compile request 1 (run `42063732317`) failed twice: Core job HTTP 503
+    (external) on the dependency download, Apple ra-core-hooks (real: the orchestrator include sat in
+    the RetroAchievements patch context; moved, `fefba375`). Request 2 (run `42067129517`): Core job
+    green; Apple host attempts 1-2 failed only in the nested ZCULL 621 wait-budget scenario (Core
+    627/624 trees: the trip came after the 8 s bound on a loaded runner; bound 20 s in `8e69dcec`,
+    checks unchanged), attempt 3 green. Pin `8f70502f` (pin sha `bea89643…`): dylib `955cc610…`,
+    fingerprint `08753ed1…`, codegen unchanged, every marker present, pin_errors empty. The pin
+    commit message cites the bound change as "0f…": the commit is `8e69dcec`.
+  - Local fix of my own test: the 664 grace model's three-writers wait could exceed the 500 us
+    deferral bound under ASan; each writer checked on its own (`99df35de`), no check removed.
+- **IPA 666 (common):** draft `54f11bdf`, frozen without blocker, offline contract and its 56
+  tests passed, trigger-paths accepted (only preflight/republish/application). Trigger `acba895a`,
+  run `42076808470`. RPCS3 Core 665 + MeloNX Core 663 (pin `89e1c361`, crash journal `9022c1a1`).
   - Then performance: PPU parking cost in BO2 normal play (252 ms/s), BO2 blocking pipeline builds.
 - **Setting applied (Core 664 turn):** same principal model as the Core 659 turn (get_session:
   session_context.model = last_served_model, unchanged); effort `max` (session_context.effort_level,
