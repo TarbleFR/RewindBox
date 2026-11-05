@@ -185,15 +185,15 @@
   "PPU Grace After Starvation"
  ],
  "moltenvk_dependency": {
-  "run": 41993591512,
-  "source": "5a514568dd08f4a1029930d280f3d3d109ad282e",
+  "run": 42051417882,
+  "source": "a1da424590c308272f97bf679f3b3f6ea225ce8f",
   "library_sha256": "d19d3a424df950e0f339e9ef4704f634849e8a545339bac1faafdee0ebc3805e",
   "reviewed_host_delta": false,
   "replaces": {
    "run": 41239096061,
    "source": "7aa81cfb0ab749ebfd6c147929ca94751ea3a3ed",
    "library_sha256": "0d711e4ad3610bb176e3c91e727940f7c448a25571158cc1919d633f1d622b1f",
-   "reason": "Core 655 in-pass read transitions: the same db660224 MoltenVK source with the RewindBox patch extended (MVKCmdPipelineBarrier waits for the stage fences of a barrier made only of read transitions inside a render encoder; rbx_mvk_in_pass_read_barrier_waits), built by run 41912442196; Core 660 links run 41993591512, the same source and patch, whose recorded inputs include the current host bridge (the three Core 660 test page keys), so the reviewed bridge pair of the replaced run no longer applies"
+   "reason": "Core 655 in-pass read transitions: the same db660224 MoltenVK source with the RewindBox patch extended (MVKCmdPipelineBarrier waits for the stage fences of a barrier made only of read transitions inside a render encoder; rbx_mvk_in_pass_read_barrier_waits), built by run 41912442196, then by run 41993591512 for Core 660; Core 664 links run 42051417882, the same source and patch, whose recorded inputs include the current host bridge (the Core 664 test page key experimental.ppu_grace), so the reviewed bridge pair of the replaced run no longer applies"
   }
  },
  "native_modes": {
