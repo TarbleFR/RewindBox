@@ -15,59 +15,59 @@
   "productionVulkanAssemblyBuilt": true,
   "productionLibraryAssemblyBuilt": true,
   "productionVulkanAssemblies": {
-    "control": "c979c2b5725de9e6e04f748a71380b846ff65f630f877210f907618c87cbbbe8",
-    "candidate": "6abc62fd7a8d0e43cbe4368a0df4f4b8bf65d63986c6d1b0c872c75886595b67"
+    "control": "f027624f2571051d0921630542d0b39b0f3a6f3dfc2bc7c16071a41a2dd36c62",
+    "candidate": "08c0479ed284947aad7373978ec0c27bd999cc1eaf45b78602634ae14fa5baf4"
   },
   "pipelineCompileDoubleMs": 400,
   "timings": {
     "control": {
       "mismatch": {
-        "bindMs": 420,
-        "setProgramMs": 2.4,
-        "toFirstDrawMs": 822.1
+        "bindMs": 416.2,
+        "setProgramMs": 2.7,
+        "toFirstDrawMs": 819.4
       },
       "match": {
-        "bindMs": 408.2,
-        "setProgramMs": 407,
-        "toFirstDrawMs": 408.2
+        "bindMs": 403.2,
+        "setProgramMs": 401.1,
+        "toFirstDrawMs": 403.2
       },
       "burstMatch": {
         "setProgramMs": 1572.1,
-        "toFirstDrawMs": 1603
+        "toFirstDrawMs": 1602.4
       },
       "burstMismatch": {
-        "setProgramMs": 1572.2,
-        "toFirstDrawMs": 2002.8
+        "setProgramMs": 1571.5,
+        "toFirstDrawMs": 2002
       },
       "compute": {
-        "bindMs": 403.7,
-        "setProgramMs": 403.3,
-        "toFirstDispatchMs": 404.1
+        "bindMs": 403.8,
+        "setProgramMs": 403.5,
+        "toFirstDispatchMs": 404.4
       }
     },
     "candidate": {
       "mismatch": {
-        "bindMs": 13,
-        "setProgramMs": 4.2,
-        "toFirstDrawMs": 416
+        "bindMs": 13.5,
+        "setProgramMs": 2.8,
+        "toFirstDrawMs": 415.5
       },
       "match": {
-        "bindMs": 1.5,
-        "setProgramMs": 1.3,
-        "toFirstDrawMs": 405.3
+        "bindMs": 1.9,
+        "setProgramMs": 1.8,
+        "toFirstDrawMs": 402.7
       },
       "burstMatch": {
-        "setProgramMs": 1.2,
-        "toFirstDrawMs": 432.5
-      },
-      "burstMismatch": {
-        "setProgramMs": 1.3,
+        "setProgramMs": 1.1,
         "toFirstDrawMs": 432
       },
+      "burstMismatch": {
+        "setProgramMs": 1.1,
+        "toFirstDrawMs": 431.5
+      },
       "compute": {
-        "bindMs": 1.7,
-        "setProgramMs": 0.4,
-        "toFirstDispatchMs": 404.6
+        "bindMs": 1.4,
+        "setProgramMs": 0.1,
+        "toFirstDispatchMs": 404.1
       }
     }
   },
@@ -81,10 +81,10 @@
       "mismatch": {
         "compilesInBackground": false,
         "canBindWhileIncomplete": false,
-        "setProgramMs": 2.4,
-        "bindMs": 420,
-        "drawMs": 402,
-        "toFirstDrawMs": 822.1,
+        "setProgramMs": 2.7,
+        "bindMs": 416.2,
+        "drawMs": 403.2,
+        "toFirstDrawMs": 819.4,
         "setProgramReturnedBeforeWarmUpEnd": false,
         "drawBuildStartedBeforeWarmUpEnd": false,
         "drawn": true,
@@ -97,16 +97,16 @@
           "key": "graphics topology 0",
           "cache": "main",
           "thread": "render",
-          "start": 15.4,
-          "end": 415.6,
+          "start": 7.3,
+          "end": 408,
           "failed": false
         },
         "drawBuild": {
           "key": "graphics topology 1 restart",
           "cache": "main",
           "thread": "render",
-          "start": 421.6,
-          "end": 821.7,
+          "start": 418.6,
+          "end": 818.7,
           "failed": false
         },
         "missLines": [
@@ -116,10 +116,35 @@
       "match": {
         "compilesInBackground": false,
         "canBindWhileIncomplete": false,
-        "setProgramMs": 407,
-        "bindMs": 408.2,
+        "setProgramMs": 401.1,
+        "bindMs": 403.2,
         "drawMs": 0,
-        "toFirstDrawMs": 408.2,
+        "toFirstDrawMs": 403.2,
+        "setProgramReturnedBeforeWarmUpEnd": false,
+        "drawEndedAfterWarmUpEnd": true,
+        "drawAfterWarmUpEndMs": 0.4,
+        "drawn": true,
+        "boundWarmUp": true,
+        "skipped": false,
+        "compiles": 1,
+        "renderThreadWarmUps": 0,
+        "warmUp": {
+          "key": "graphics topology 0",
+          "cache": "main",
+          "thread": ".NET TP Worker",
+          "start": 2.9,
+          "end": 402.9,
+          "failed": false
+        },
+        "missLines": 0
+      },
+      "matchCheckpoint": {
+        "compilesInBackground": false,
+        "canBindWhileIncomplete": false,
+        "setProgramMs": 401.6,
+        "bindMs": 401.7,
+        "drawMs": 0,
+        "toFirstDrawMs": 401.7,
         "setProgramReturnedBeforeWarmUpEnd": false,
         "drawEndedAfterWarmUpEnd": true,
         "drawAfterWarmUpEndMs": 0.3,
@@ -132,32 +157,7 @@
           "key": "graphics topology 0",
           "cache": "main",
           "thread": ".NET TP Worker",
-          "start": 7.8,
-          "end": 407.9,
-          "failed": false
-        },
-        "missLines": 0
-      },
-      "matchCheckpoint": {
-        "compilesInBackground": false,
-        "canBindWhileIncomplete": false,
-        "setProgramMs": 401.5,
-        "bindMs": 401.6,
-        "drawMs": 0,
-        "toFirstDrawMs": 401.6,
-        "setProgramReturnedBeforeWarmUpEnd": false,
-        "drawEndedAfterWarmUpEnd": true,
-        "drawAfterWarmUpEndMs": 0.2,
-        "drawn": true,
-        "boundWarmUp": true,
-        "skipped": false,
-        "compiles": 1,
-        "renderThreadWarmUps": 0,
-        "warmUp": {
-          "key": "graphics topology 0",
-          "cache": "main",
-          "thread": ".NET TP Worker",
-          "start": 1.3,
+          "start": 1.4,
           "end": 401.4,
           "failed": false
         },
@@ -167,7 +167,7 @@
       },
       "burstMatch": {
         "setProgramMs": 1572.1,
-        "toFirstDrawMs": 1603,
+        "toFirstDrawMs": 1602.4,
         "drawn": true,
         "boundNeeded": true,
         "neededServedBeforeQueuedWarmUps": 3,
@@ -179,7 +179,7 @@
             "key": "graphics topology 10",
             "cache": "main",
             "thread": ".NET TP Worker",
-            "start": 1.5,
+            "start": 1.7,
             "end": 401.7,
             "failed": false
           },
@@ -187,7 +187,7 @@
             "key": "graphics topology 11",
             "cache": "main",
             "thread": ".NET TP Worker",
-            "start": 401.8,
+            "start": 401.9,
             "end": 801.9,
             "failed": false
           },
@@ -195,7 +195,7 @@
             "key": "graphics topology 12",
             "cache": "main",
             "thread": ".NET TP Worker",
-            "start": 802,
+            "start": 802.1,
             "end": 1202.1,
             "failed": false
           },
@@ -204,14 +204,14 @@
             "cache": "main",
             "thread": ".NET TP Worker",
             "start": 1202.2,
-            "end": 1602.3,
+            "end": 1602.2,
             "failed": false
           }
         ]
       },
       "burstMismatch": {
-        "setProgramMs": 1572.2,
-        "toFirstDrawMs": 2002.8,
+        "setProgramMs": 1571.5,
+        "toFirstDrawMs": 2002,
         "drawn": true,
         "boundNeeded": true,
         "neededServedBeforeQueuedWarmUps": 3,
@@ -224,7 +224,7 @@
             "cache": "main",
             "thread": ".NET TP Worker",
             "start": 1.2,
-            "end": 401.4,
+            "end": 401.2,
             "failed": false
           },
           {
@@ -232,40 +232,40 @@
             "cache": "main",
             "thread": ".NET TP Worker",
             "start": 401.4,
-            "end": 801.9,
+            "end": 801.4,
             "failed": false
           },
           {
             "key": "graphics topology 12",
             "cache": "main",
             "thread": ".NET TP Worker",
-            "start": 802,
-            "end": 1202.2,
+            "start": 801.5,
+            "end": 1201.5,
             "failed": false
           },
           {
             "key": "graphics topology 13",
             "cache": "main",
             "thread": ".NET TP Worker",
-            "start": 1202.3,
-            "end": 1602.4,
+            "start": 1201.6,
+            "end": 1601.6,
             "failed": false
           },
           {
             "key": "graphics topology 14 restart",
             "cache": "main",
             "thread": "render",
-            "start": 1602.7,
-            "end": 2002.8,
+            "start": 1602,
+            "end": 2002,
             "failed": false
           }
         ]
       },
       "compute": {
         "compilesInBackground": false,
-        "setProgramMs": 403.3,
-        "bindMs": 403.7,
-        "toFirstDispatchMs": 404.1,
+        "setProgramMs": 403.5,
+        "bindMs": 403.8,
+        "toFirstDispatchMs": 404.4,
         "setProgramReturnedBeforeWarmUpEnd": false,
         "dispatched": true,
         "boundCompiled": true,
@@ -276,8 +276,8 @@
             "key": "compute spec 0",
             "cache": "main",
             "thread": ".NET TP Worker",
-            "start": 2.2,
-            "end": 402.3,
+            "start": 2.1,
+            "end": 402.1,
             "failed": false
           }
         ]
@@ -301,10 +301,10 @@
       "mismatchPolicyOff": {
         "compilesInBackground": false,
         "canBindWhileIncomplete": false,
-        "setProgramMs": 401.4,
-        "bindMs": 401.5,
-        "drawMs": 400.2,
-        "toFirstDrawMs": 801.7,
+        "setProgramMs": 401.3,
+        "bindMs": 401.3,
+        "drawMs": 400,
+        "toFirstDrawMs": 801.4,
         "setProgramReturnedBeforeWarmUpEnd": false,
         "drawBuildStartedBeforeWarmUpEnd": false,
         "drawn": true,
@@ -317,16 +317,16 @@
           "key": "graphics topology 0",
           "cache": "main",
           "thread": ".NET TP Worker",
-          "start": 1.3,
-          "end": 401.4,
+          "start": 1.2,
+          "end": 401.2,
           "failed": false
         },
         "drawBuild": {
           "key": "graphics topology 1 restart",
           "cache": "main",
           "thread": "render",
-          "start": 401.5,
-          "end": 801.7,
+          "start": 401.4,
+          "end": 801.4,
           "failed": false
         },
         "missLines": [
@@ -335,9 +335,9 @@
       },
       "computePolicyOff": {
         "compilesInBackground": false,
-        "setProgramMs": 401.5,
-        "bindMs": 401.6,
-        "toFirstDispatchMs": 401.6,
+        "setProgramMs": 401.3,
+        "bindMs": 401.4,
+        "toFirstDispatchMs": 401.4,
         "setProgramReturnedBeforeWarmUpEnd": false,
         "dispatched": true,
         "boundCompiled": true,
@@ -348,8 +348,8 @@
             "key": "compute spec 0",
             "cache": "main",
             "thread": ".NET TP Worker",
-            "start": 1.3,
-            "end": 401.4,
+            "start": 1.2,
+            "end": 401.2,
             "failed": false
           }
         ]
@@ -357,10 +357,10 @@
       "cachedMatch": {
         "compilesInBackground": true,
         "canBindWhileIncomplete": false,
-        "setProgramMs": 2.9,
-        "bindMs": 5.7,
-        "drawMs": 402,
-        "toFirstDrawMs": 407.7,
+        "setProgramMs": 0.3,
+        "bindMs": 3.7,
+        "drawMs": 401.6,
+        "toFirstDrawMs": 405.3,
         "setProgramReturnedBeforeWarmUpEnd": true,
         "drawEndedAfterWarmUpEnd": true,
         "drawAfterWarmUpEndMs": 1.3,
@@ -373,17 +373,17 @@
           "key": "graphics topology 0",
           "cache": "worker0",
           "thread": "Vulkan Pipeline Compile 0",
-          "start": 6.2,
-          "end": 406.4,
+          "start": 4,
+          "end": 404.1,
           "failed": false
         },
         "missLines": 0
       },
       "cachedCompute": {
         "compilesInBackground": true,
-        "setProgramMs": 1,
+        "setProgramMs": 0.9,
         "bindMs": 1.3,
-        "toFirstDispatchMs": 401.5,
+        "toFirstDispatchMs": 401.4,
         "setProgramReturnedBeforeWarmUpEnd": true,
         "dispatched": true,
         "boundCompiled": true,
@@ -395,15 +395,15 @@
             "cache": "main",
             "thread": "render",
             "start": 1.3,
-            "end": 401.5,
+            "end": 401.4,
             "failed": false
           },
           {
             "key": "compute spec 0",
             "cache": "worker0",
             "thread": "Vulkan Pipeline Compile 0",
-            "start": 1.7,
-            "end": 401.9,
+            "start": 1.6,
+            "end": 401.6,
             "failed": false
           }
         ]
@@ -411,13 +411,13 @@
       "asyncMatch": {
         "compilesInBackground": true,
         "canBindWhileIncomplete": false,
-        "setProgramMs": 402.9,
-        "bindMs": 403.2,
+        "setProgramMs": 402.7,
+        "bindMs": 402.9,
         "drawMs": 0,
-        "toFirstDrawMs": 403.2,
+        "toFirstDrawMs": 402.9,
         "setProgramReturnedBeforeWarmUpEnd": false,
         "drawEndedAfterWarmUpEnd": true,
-        "drawAfterWarmUpEndMs": 0.2,
+        "drawAfterWarmUpEndMs": 0.4,
         "drawn": true,
         "boundWarmUp": true,
         "skipped": false,
@@ -427,8 +427,8 @@
           "key": "graphics topology 0",
           "cache": "worker0",
           "thread": "Vulkan Pipeline Compile 0",
-          "start": 2.8,
-          "end": 403,
+          "start": 2.4,
+          "end": 402.5,
           "failed": false
         },
         "missLines": 0
@@ -443,10 +443,10 @@
       "mismatch": {
         "compilesInBackground": true,
         "canBindWhileIncomplete": false,
-        "setProgramMs": 4.2,
-        "bindMs": 13,
-        "drawMs": 403,
-        "toFirstDrawMs": 416,
+        "setProgramMs": 2.8,
+        "bindMs": 13.5,
+        "drawMs": 402,
+        "toFirstDrawMs": 415.5,
         "setProgramReturnedBeforeWarmUpEnd": true,
         "drawBuildStartedBeforeWarmUpEnd": true,
         "drawn": true,
@@ -459,16 +459,16 @@
           "key": "graphics topology 0",
           "cache": "worker0",
           "thread": "Vulkan Pipeline Compile 0",
-          "start": 16.1,
-          "end": 416.3,
+          "start": 13.4,
+          "end": 413.8,
           "failed": false
         },
         "drawBuild": {
           "key": "graphics topology 1 restart",
           "cache": "main",
           "thread": "render",
-          "start": 15,
-          "end": 415.2,
+          "start": 14.9,
+          "end": 414.9,
           "failed": false
         },
         "missLines": [
@@ -478,13 +478,13 @@
       "match": {
         "compilesInBackground": true,
         "canBindWhileIncomplete": false,
-        "setProgramMs": 1.3,
-        "bindMs": 1.5,
-        "drawMs": 403.8,
-        "toFirstDrawMs": 405.3,
+        "setProgramMs": 1.8,
+        "bindMs": 1.9,
+        "drawMs": 400.8,
+        "toFirstDrawMs": 402.7,
         "setProgramReturnedBeforeWarmUpEnd": true,
         "drawEndedAfterWarmUpEnd": true,
-        "drawAfterWarmUpEndMs": 0.3,
+        "drawAfterWarmUpEndMs": 0.5,
         "drawn": true,
         "boundWarmUp": true,
         "skipped": false,
@@ -494,8 +494,8 @@
           "key": "graphics topology 0",
           "cache": "worker0",
           "thread": "Vulkan Pipeline Compile 0",
-          "start": 4.9,
-          "end": 405,
+          "start": 2.2,
+          "end": 402.3,
           "failed": false
         },
         "missLines": 0
@@ -503,10 +503,10 @@
       "matchCheckpoint": {
         "compilesInBackground": true,
         "canBindWhileIncomplete": false,
-        "setProgramMs": 1.2,
-        "bindMs": 1.3,
-        "drawMs": 402.7,
-        "toFirstDrawMs": 404.1,
+        "setProgramMs": 1.1,
+        "bindMs": 1.2,
+        "drawMs": 400.9,
+        "toFirstDrawMs": 402.1,
         "setProgramReturnedBeforeWarmUpEnd": true,
         "drawEndedAfterWarmUpEnd": true,
         "drawAfterWarmUpEndMs": 0.3,
@@ -519,8 +519,8 @@
           "key": "graphics topology 0",
           "cache": "worker0",
           "thread": "Vulkan Pipeline Compile 0",
-          "start": 3.4,
-          "end": 403.8,
+          "start": 1.7,
+          "end": 401.7,
           "failed": false
         },
         "missLines": 0,
@@ -528,8 +528,8 @@
         "checkpointMs": 300
       },
       "burstMatch": {
-        "setProgramMs": 1.2,
-        "toFirstDrawMs": 432.5,
+        "setProgramMs": 1.1,
+        "toFirstDrawMs": 432,
         "drawn": true,
         "boundNeeded": true,
         "neededServedBeforeQueuedWarmUps": 0,
@@ -541,39 +541,39 @@
             "key": "graphics topology 10",
             "cache": "worker0",
             "thread": "Vulkan Pipeline Compile 0",
-            "start": 2.7,
-            "end": 402.9,
+            "start": 2.3,
+            "end": 402.3,
             "failed": false
           },
           {
             "key": "graphics topology 13",
             "cache": "worker1",
             "thread": "Vulkan Pipeline Demand Compile",
-            "start": 32.1,
-            "end": 432.3,
+            "start": 31.7,
+            "end": 431.7,
             "failed": false
           },
           {
             "key": "graphics topology 11",
             "cache": "worker0",
             "thread": "Vulkan Pipeline Compile 0",
-            "start": 403,
-            "end": 803.3,
+            "start": 402.4,
+            "end": 802.4,
             "failed": false
           },
           {
             "key": "graphics topology 12",
             "cache": "worker0",
             "thread": "Vulkan Pipeline Compile 0",
-            "start": 803.4,
-            "end": 1203.6,
+            "start": 802.5,
+            "end": 1202.5,
             "failed": false
           }
         ]
       },
       "burstMismatch": {
-        "setProgramMs": 1.3,
-        "toFirstDrawMs": 432,
+        "setProgramMs": 1.1,
+        "toFirstDrawMs": 431.5,
         "drawn": true,
         "boundNeeded": true,
         "neededServedBeforeQueuedWarmUps": 0,
@@ -585,49 +585,49 @@
             "key": "graphics topology 10",
             "cache": "worker0",
             "thread": "Vulkan Pipeline Compile 0",
-            "start": 2.6,
-            "end": 402.9,
+            "start": 2.3,
+            "end": 402.3,
             "failed": false
           },
           {
             "key": "graphics topology 14 restart",
             "cache": "main",
             "thread": "render",
-            "start": 31.8,
-            "end": 432,
+            "start": 31.5,
+            "end": 431.5,
             "failed": false
           },
           {
             "key": "graphics topology 11",
             "cache": "worker0",
             "thread": "Vulkan Pipeline Compile 0",
-            "start": 403,
-            "end": 803.3,
+            "start": 402.4,
+            "end": 802.5,
             "failed": false
           },
           {
             "key": "graphics topology 12",
             "cache": "worker0",
             "thread": "Vulkan Pipeline Compile 0",
-            "start": 803.4,
-            "end": 1203.5,
+            "start": 802.5,
+            "end": 1202.6,
             "failed": false
           },
           {
             "key": "graphics topology 13",
             "cache": "worker0",
             "thread": "Vulkan Pipeline Compile 0",
-            "start": 1203.7,
-            "end": 1603.9,
+            "start": 1202.7,
+            "end": 1602.7,
             "failed": false
           }
         ]
       },
       "compute": {
         "compilesInBackground": true,
-        "setProgramMs": 0.4,
-        "bindMs": 1.7,
-        "toFirstDispatchMs": 404.6,
+        "setProgramMs": 0.1,
+        "bindMs": 1.4,
+        "toFirstDispatchMs": 404.1,
         "setProgramReturnedBeforeWarmUpEnd": true,
         "dispatched": true,
         "boundCompiled": true,
@@ -638,8 +638,8 @@
             "key": "compute spec 0",
             "cache": "worker0",
             "thread": "Vulkan Pipeline Compile 0",
-            "start": 2.6,
-            "end": 402.9,
+            "start": 2.4,
+            "end": 402.4,
             "failed": false
           }
         ]
@@ -663,10 +663,10 @@
       "mismatchPolicyOff": {
         "compilesInBackground": false,
         "canBindWhileIncomplete": false,
-        "setProgramMs": 403.2,
-        "bindMs": 403.8,
-        "drawMs": 400.9,
-        "toFirstDrawMs": 804.7,
+        "setProgramMs": 402.6,
+        "bindMs": 403.4,
+        "drawMs": 400.6,
+        "toFirstDrawMs": 804,
         "setProgramReturnedBeforeWarmUpEnd": false,
         "drawBuildStartedBeforeWarmUpEnd": false,
         "drawn": true,
@@ -679,16 +679,16 @@
           "key": "graphics topology 0",
           "cache": "main",
           "thread": ".NET TP Worker",
-          "start": 2.5,
-          "end": 402.7,
+          "start": 2.3,
+          "end": 402.3,
           "failed": false
         },
         "drawBuild": {
           "key": "graphics topology 1 restart",
           "cache": "main",
           "thread": "render",
-          "start": 404.6,
-          "end": 804.7,
+          "start": 403.9,
+          "end": 804,
           "failed": false
         },
         "missLines": [
@@ -697,9 +697,9 @@
       },
       "computePolicyOff": {
         "compilesInBackground": false,
-        "setProgramMs": 401.8,
-        "bindMs": 402,
-        "toFirstDispatchMs": 402,
+        "setProgramMs": 401.2,
+        "bindMs": 401.3,
+        "toFirstDispatchMs": 401.3,
         "setProgramReturnedBeforeWarmUpEnd": false,
         "dispatched": true,
         "boundCompiled": true,
@@ -710,8 +710,8 @@
             "key": "compute spec 0",
             "cache": "main",
             "thread": ".NET TP Worker",
-            "start": 1.4,
-            "end": 401.7,
+            "start": 1.2,
+            "end": 401.2,
             "failed": false
           }
         ]
@@ -719,13 +719,13 @@
       "cachedMatch": {
         "compilesInBackground": true,
         "canBindWhileIncomplete": false,
-        "setProgramMs": 2.5,
-        "bindMs": 2.6,
-        "drawMs": 402.1,
-        "toFirstDrawMs": 404.7,
+        "setProgramMs": 2.2,
+        "bindMs": 2.4,
+        "drawMs": 400.5,
+        "toFirstDrawMs": 402.9,
         "setProgramReturnedBeforeWarmUpEnd": true,
         "drawEndedAfterWarmUpEnd": true,
-        "drawAfterWarmUpEndMs": 0.2,
+        "drawAfterWarmUpEndMs": 0.4,
         "drawn": true,
         "boundWarmUp": true,
         "skipped": false,
@@ -733,19 +733,19 @@
         "renderThreadWarmUps": 0,
         "warmUp": {
           "key": "graphics topology 0",
-          "cache": "worker1",
-          "thread": "Vulkan Pipeline Demand Compile",
-          "start": 4.3,
-          "end": 404.5,
+          "cache": "worker0",
+          "thread": "Vulkan Pipeline Compile 0",
+          "start": 2.5,
+          "end": 402.6,
           "failed": false
         },
         "missLines": 0
       },
       "cachedCompute": {
         "compilesInBackground": true,
-        "setProgramMs": 1.3,
-        "bindMs": 1.5,
-        "toFirstDispatchMs": 401.7,
+        "setProgramMs": 1.1,
+        "bindMs": 1.3,
+        "toFirstDispatchMs": 401.3,
         "setProgramReturnedBeforeWarmUpEnd": true,
         "dispatched": true,
         "boundCompiled": true,
@@ -756,16 +756,16 @@
             "key": "compute spec 0",
             "cache": "main",
             "thread": "render",
-            "start": 1.5,
-            "end": 401.7,
+            "start": 1.3,
+            "end": 401.3,
             "failed": false
           },
           {
             "key": "compute spec 0",
             "cache": "worker0",
             "thread": "Vulkan Pipeline Compile 0",
-            "start": 2.7,
-            "end": 402.9,
+            "start": 1.3,
+            "end": 401.4,
             "failed": false
           }
         ]
@@ -773,10 +773,10 @@
       "asyncMatch": {
         "compilesInBackground": true,
         "canBindWhileIncomplete": false,
-        "setProgramMs": 403.1,
-        "bindMs": 403.4,
+        "setProgramMs": 402.6,
+        "bindMs": 402.8,
         "drawMs": 0,
-        "toFirstDrawMs": 403.4,
+        "toFirstDrawMs": 402.9,
         "setProgramReturnedBeforeWarmUpEnd": false,
         "drawEndedAfterWarmUpEnd": true,
         "drawAfterWarmUpEndMs": 0.3,
@@ -789,8 +789,8 @@
           "key": "graphics topology 0",
           "cache": "worker0",
           "thread": "Vulkan Pipeline Compile 0",
-          "start": 2.9,
-          "end": 403.1,
+          "start": 2.5,
+          "end": 402.5,
           "failed": false
         },
         "missLines": 0
@@ -808,7 +808,7 @@
     "build-utils/melonx/adapt_setprogram_warmup.py": "7a1a9aa0f13b15a320685be83aae40f2c9263bf9e121758b62118cfb95aaec9f",
     "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
     "test/melonx_setprogram_warmup_test.py": "44485e052c1973bf068bdcdc0058791e275a205fdae56421bf07a9f025d8ba49",
-    "test/melonx_setprogram_warmup/Double.cs": "d9477c795db497fc7e4e2bcb738b21a8f2314cd9b99a4bb96877d828dc6ef72d",
+    "test/melonx_setprogram_warmup/Double.cs": "e7bbccaa47ae704222e42881a0cbc4bc6c4feb918a5a1d6b46b0a86e0ae02ec5",
     "test/melonx_setprogram_warmup/Program.cs": "f6e2977d7e52e89efed5d2e672494b10d3b19a52856ede2821caf3634dc8d030",
     "test/melonx_adapter_control.py": "98c804f48d3cec8e133ddea5bd1e37bdabb491a4a61944f44bedca481b416db1"
   },

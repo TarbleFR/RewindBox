@@ -507,7 +507,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     contract test `--archive` 380 checks.
   - CI: run `41998621333` cancelled: the safe-point-compaction fixture was Linux-only (`libclrgc.so`,
     `/proc/self/status`); `e1ab9b52` makes it host-portable (libclrgc.dylib on macOS, `Environment.WorkingSet`; same
-    assertions, 61 checks), contract `581ba569`, 380 checks; Core run `41999859590`.
+    assertions, 61 checks), contract `581ba569`, 380 checks. Core run `41999859590`: 33 gates passed on Apple ARM64,
+    then setprogram-warmup failed (fixture: 400 ms modeled compiles on the below-normal workers lasted 470-520 ms, host
+    timer leeway; the draw came 0.1 ms after its compile). The double now models durations as a deadline (same
+    assertions, 103 checks, compiles exactly 400 ms); contract `0d1d8c7c`, 380 checks.
 - **Next:** Core run green -> pin `dma-core-pin.json`, hand off to main (IPA 662 = RPCS3 660 + MeloNX 661; MeloNX
   runs no delivery); then the maintainer's iPhone test and like-for-like logs (resolution criteria in the map).
 - **Baselines for like-for-like checks** (`tools/melonx/memory_report.py`, windows from the first game second): player 1

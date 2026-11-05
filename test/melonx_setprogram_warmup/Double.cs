@@ -117,10 +117,24 @@ namespace Ryujinx.Graphics.Vulkan
         private static long _handles = 100;
         public static double Now => Clock.Elapsed.TotalMilliseconds;
 
+        // The modeled work lasts its duration on every host: a deadline re-checked after short sleeps. One long sleep is
+        // stretched on macOS for a below-normal thread (the scheduler's compile workers; Core CI run 41999859590: 400 ms
+        // compiles took 470-520 ms on worker caches, 400 ms elsewhere), which is host timer leeway, not the code tested.
+        public static void Work(int ms)
+        {
+            if (ms <= 0) return;
+            double end = Now + ms;
+            for (double left; (left = end - Now) > 0;)
+            {
+                if (left >= 2) Thread.Sleep((int)Math.Min(left - 1, 5));
+                else Thread.SpinWait(64);
+            }
+        }
+
         public static Result Pipeline(string key, PipelineCache cache, out ulong handle)
         {
             double start = Now;
-            Thread.Sleep(PipelineMs);
+            Work(PipelineMs);
             bool fail;
             lock (FailOnce) fail = FailOnce.Remove(key);
             handle = fail ? 0 : (ulong)Interlocked.Increment(ref _handles);
@@ -128,7 +142,7 @@ namespace Ryujinx.Graphics.Vulkan
             return fail ? Result.ErrorInitializationFailed : Result.Success;
         }
 
-        public static void Module() => Thread.Sleep(ModuleMs);
+        public static void Module() => Work(ModuleMs);
 
         public static void Reset() { lock (Records) Records.Clear(); lock (FailOnce) FailOnce.Clear(); }
     }
@@ -313,7 +327,7 @@ namespace Ryujinx.Graphics.Vulkan
             if (Native.CheckpointMs > 0)
             {
                 Interlocked.Increment(ref Native.Checkpoints);
-                Thread.Sleep(Native.CheckpointMs);
+                Native.Work(Native.CheckpointMs);
             }
         }
     }

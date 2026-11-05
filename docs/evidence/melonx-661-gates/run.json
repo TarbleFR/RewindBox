@@ -21,7 +21,7 @@
  "lot": "Hogwarts 658 logs (two players) and the maintainer request of 5 Nov: compile stalls, syncpoint false completions, pacing, close hangs, session retention, diagnostics, in-play RAM (safe-point LOH compaction, host warning trim, cold textures, bindless retention), GC pauses (NativeAOT workstation GC rebuilt with dotnet/runtime#119383, run 41988362179), sky artifacts (MoltenVK 1.4.2 stage ordering), left stick (host Swift)",
  "contract": {
   "path": "build-utils/melonx/dma-core-contract.json",
-  "sha256": "581ba569c9a3d3d6c5080a423fd748ab64723a10d448950af6298412070705ca",
+  "sha256": "0d1d8c7c3e73363657522dce2d67bdfa99f8351f06fbc0d6e2f64308f8f660ff",
   "freshAppleGates": 47,
   "reusedAppleGates": 20,
   "historicalAppleReceipts": 61
@@ -34,7 +34,8 @@
   "count": 10,
   "nature": "fixture composition only (array-descriptor-ranges, pipeline-checkpoint, barrier-compaction, files_edited_later in four tests, setprogram double, two exact GAL expectations; display fixture rerun required by the freeze); gc-events host-runtime background fallback (.NET 10.0.0) told apart",
   "product": false,
-  "ciPortability": "Freeze 48c837d4 (contract 3c383d88) kept a Linux-only safe-point-compaction fixture: DOTNET_GCName=libclrgc.so and VmRSS from /proc/self/status, which the macos-26 Core runner does not have (the osx-arm64 10.0.0 runtime pack ships libclrgc.dylib). Found by review before the CI reached that gate; run 41998621333 cancelled; fixture made portable, contract refrozen. Test-side, not product."
+  "ciPortability": "Freeze 48c837d4 (contract 3c383d88) kept a Linux-only safe-point-compaction fixture: DOTNET_GCName=libclrgc.so and VmRSS from /proc/self/status, which the macos-26 Core runner does not have (the osx-arm64 10.0.0 runtime pack ships libclrgc.dylib). Found by review before the CI reached that gate; run 41998621333 cancelled; fixture made portable, contract refrozen. Test-side, not product.",
+  "ciTimerLeeway": "Core run 41999859590 (e1ab9b52): setprogram-warmup failed on macos-26 from host timer leeway on below-normal threads stretching the fixture's modeled 400 ms compiles; fixture-side, not product; the 33 gates before it passed on Apple ARM64."
  },
  "gates": {
   "bindless-array-deltas": {
@@ -204,8 +205,9 @@
   },
   "setprogram-warmup": {
    "report": "setprogram-warmup-checks.json",
-   "sha256": "180f73ec2756a7ef52ad6fea30b6c0c601cb5361c6ea15a5aa2f168e1235b482",
-   "seconds": 135
+   "sha256": "a63f13360e7dbf38d1ad8863d386092591c438a723f98226b22480d69d4587db",
+   "seconds": 135,
+   "portableRerun": "Rerun after the double modeled compile and checkpoint durations as a deadline (short sleeps re-checked) instead of one long Thread.Sleep: Core run 41999859590 on macos-26 failed \"the draw waiting for a warm-up does not wait for the worker cache checkpoint\" (515.9 ms vs control 404.7 + 100) because 400 ms sleeps on the below-normal compile workers lasted 470-520 ms there (control too), while the draw came 0.1 ms after its compile. Same assertions; 103 checks, compiles exactly 400 ms."
   },
   "teardown-cache": {
    "report": "teardown-cache-checks.json",
