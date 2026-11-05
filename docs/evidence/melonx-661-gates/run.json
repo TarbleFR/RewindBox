@@ -21,7 +21,7 @@
  "lot": "Hogwarts 658 logs (two players) and the maintainer request of 5 Nov: compile stalls, syncpoint false completions, pacing, close hangs, session retention, diagnostics, in-play RAM (safe-point LOH compaction, host warning trim, cold textures, bindless retention), GC pauses (NativeAOT workstation GC rebuilt with dotnet/runtime#119383, run 41988362179), sky artifacts (MoltenVK 1.4.2 stage ordering), left stick (host Swift)",
  "contract": {
   "path": "build-utils/melonx/dma-core-contract.json",
-  "sha256": "0d1d8c7c3e73363657522dce2d67bdfa99f8351f06fbc0d6e2f64308f8f660ff",
+  "sha256": "8428b87c852c58a6f766828dbc3cb3bf01976f90bcb0517c2f99a274dbf90607",
   "freshAppleGates": 47,
   "reusedAppleGates": 20,
   "historicalAppleReceipts": 61
@@ -35,7 +35,8 @@
   "nature": "fixture composition only (array-descriptor-ranges, pipeline-checkpoint, barrier-compaction, files_edited_later in four tests, setprogram double, two exact GAL expectations; display fixture rerun required by the freeze); gc-events host-runtime background fallback (.NET 10.0.0) told apart",
   "product": false,
   "ciPortability": "Freeze 48c837d4 (contract 3c383d88) kept a Linux-only safe-point-compaction fixture: DOTNET_GCName=libclrgc.so and VmRSS from /proc/self/status, which the macos-26 Core runner does not have (the osx-arm64 10.0.0 runtime pack ships libclrgc.dylib). Found by review before the CI reached that gate; run 41998621333 cancelled; fixture made portable, contract refrozen. Test-side, not product.",
-  "ciTimerLeeway": "Core run 41999859590 (e1ab9b52): setprogram-warmup failed on macos-26 from host timer leeway on below-normal threads stretching the fixture's modeled 400 ms compiles; fixture-side, not product; the 33 gates before it passed on Apple ARM64."
+  "ciTimerLeeway": "Core run 41999859590 (e1ab9b52): setprogram-warmup failed on macos-26 from host timer leeway on below-normal threads stretching the fixture's modeled 400 ms compiles; fixture-side, not product; the 33 gates before it passed on Apple ARM64.",
+  "ciTimerGranularity": "Core run 42003056073 (d0da535e): shader-save-poll failed on macos-26, host sleep granularity (2 ms rests lasting 10-20 ms) bounding a pass count; it had passed there in run 41999859590 with 57. Fixture-side, not product."
  },
  "gates": {
   "bindless-array-deltas": {
@@ -195,8 +196,9 @@
   },
   "shader-save-poll": {
    "report": "shader-save-poll-checks.json",
-   "sha256": "2f493147eb87ba767d71672da1a27bcd651eb3d087a7bf88b880fbaac9ef535f",
-   "seconds": 74
+   "sha256": "a4c1f33c0dd51fb99eb05144625d92f84f3ef2bfb85d8424cb1eea779e0b4d27",
+   "seconds": 74,
+   "portableRerun": "Rerun after the fixture's GPU pass rest became a deadline with yields instead of Thread.Sleep(2): Core run 42003056073 on macos-26 counted 50 passes in the 1000 ms render block (Thread.Sleep(1-2 ms) lasting 10-20 ms there; 456 on Linux) against the 50 required, the control 0. Same assertions; 78 checks, 746/492 passes while blocked."
   },
   "warmup-key-parity": {
    "report": "warmup-key-parity-checks.json",

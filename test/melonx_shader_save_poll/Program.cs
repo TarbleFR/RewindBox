@@ -102,7 +102,25 @@ static class Program
                 MaxPendingWhileBlocked = Math.Max(MaxPendingWhileBlocked, session.Pending);
             }
 
-            Thread.Sleep(restMs);
+            Rest(restMs);
+        }
+
+        // The rest of the frame lasts restMs on every host: a deadline with yields. Thread.Sleep(1-2 ms) took 10-20 ms on
+        // the macOS Core runner (run 42003056073: 50 passes in the 1000 ms block, 456 on Linux), which counted the host's
+        // timer granularity, not the poll.
+        static void Rest(int restMs)
+        {
+            if (restMs <= 0)
+            {
+                Thread.Sleep(0);
+                return;
+            }
+
+            long end = Now + restMs * Stopwatch.Frequency / 1000;
+            while (Now < end)
+            {
+                Thread.Yield();
+            }
         }
 
         public Dictionary<string, object> Json() => new()

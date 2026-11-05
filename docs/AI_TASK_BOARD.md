@@ -511,6 +511,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     then setprogram-warmup failed (fixture: 400 ms modeled compiles on the below-normal workers lasted 470-520 ms, host
     timer leeway; the draw came 0.1 ms after its compile). The double now models durations as a deadline (same
     assertions, 103 checks, compiles exactly 400 ms); contract `0d1d8c7c`, 380 checks.
+  - Core run `42003056073` (d0da535e): shader-save-poll failed on macOS (2 ms rests lasting 10-20 ms: 50 passes in the
+    1000 ms block, 50 required; it had passed with 57 the run before). The GPU pass rest is now a deadline with yields
+    (same assertions, 78 checks, 492 passes); contract `8428b87c`, 380 checks.
 - **Next:** Core run green -> pin `dma-core-pin.json`, hand off to main (IPA 662 = RPCS3 660 + MeloNX 661; MeloNX
   runs no delivery); then the maintainer's iPhone test and like-for-like logs (resolution criteria in the map).
 - **Baselines for like-for-like checks** (`tools/melonx/memory_report.py`, windows from the first game second): player 1
