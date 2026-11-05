@@ -95,8 +95,8 @@ def audit(before_dir, after_dir):
                     outside = ~truth
                     row[f'pressedChangesOutsideOutlinePercent_{tag}'] = round(100 * float((d[outside] > 24).mean()), 2) if outside.any() else 0.0
                     if 'thumbstick' in item:
-                        # The moving part's centre on the board: the top face when the pack
-                        # declares one (GameCube/Wii caps drawn in 3D), else the cap.
+                        # The moving part's centre on the board: the whole cap measured on
+                        # the board when the pack declares one (GameCube/Wii), else the hand cap.
                         spec_entry = hand[{'leftThumbstickUp': 'main', 'rightThumbstickUp': 'cstick'}[item['inputs']['up']]]
                         cx, cy = (spec_entry[4] if len(spec_entry) > 4 else spec_entry[3])[:2]
                         bx, by = (cx - x0) * k, (cy - y0) * k

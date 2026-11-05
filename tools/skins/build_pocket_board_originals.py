@@ -54,8 +54,10 @@ Publication licensing is to be set by the project maintainer.
 
 # Board geometry in board pixels (1536 x 1024 boards), measured on the approved PNGs.
 # item: (name, kind, (x, y, w, h)) ; kind 'button' | 'dpad' | 'stick:left' | 'stick:right'
-# a stick adds (cap centre x, y, r) and, for a cap drawn in 3D (a top face above its
-# skirt: GameCube and Wii), (top face centre x, y, r): only that top face moves.
+# a stick adds (cap centre x, y, r) by hand and, for GameCube and Wii, the whole cap
+# measured on the board (centre x, y, radius; tools/skins/measure_stick_caps.py): the
+# complete round stick, face, bevel and the side wall below it (the C-stick: its yellow top
+# and darker yellow ring), as one circle. That whole circle moves.
 # sticks also carry the cap circle (cx, cy, r).
 PACKS = {
     'gc': {
@@ -66,12 +68,12 @@ PACKS = {
             'items': [
                 ('l', 'button', (187, 467, 95, 38)), ('r', 'button', (389, 467, 95, 38)),
                 ('z', 'button', (420, 514, 69, 33)),
-                ('main', 'stick:left', (189, 530, 106, 106), (242, 584, 41), (241.4, 579.3, 37.1)),
+                ('main', 'stick:left', (189, 530, 106, 106), (242, 584, 41), (241.32, 584.41, 39.9)),
                 ('y', 'button', (325, 537, 63, 58)),  # the whole bean (its box overlaps A's; the shapes do not)
                 ('a', 'button', (369, 574, 78, 77)), ('x', 'button', (450, 566, 50, 60)),
                 ('b', 'button', (319, 622, 50, 50)),
                 ('dpad', 'dpad', (200, 672, 91, 89)),
-                ('cstick', 'stick:right', (377, 673, 104, 104), (429, 725, 39), (428.0, 720.7, 31.0)),
+                ('cstick', 'stick:right', (377, 673, 104, 104), (429, 725, 39), (428.34, 728.18, 38.56)),
                 ('menu', 'button', (194, 784, 48, 47)), ('start', 'button', (286, 786, 100, 42)),
             ],
         },
@@ -81,13 +83,13 @@ PACKS = {
             'erase_rows': [(886, 682, 1086, 694)],  # the board's home indicator
             'items': [
                 ('l', 'button', (639, 357, 101, 37)),
-                ('main', 'stick:left', (648, 424, 103, 103), (695, 474, 38), (697.7, 468.6, 35.9)),
+                ('main', 'stick:left', (648, 424, 103, 103), (695, 474, 38), (698.75, 474.24, 39.02)),
                 ('dpad', 'dpad', (658, 553, 89, 86)), ('menu', 'button', (608, 621, 50, 50)),
                 ('r', 'button', (1189, 357, 86, 37)), ('z', 'button', (1302, 360, 71, 32)),
                 ('y', 'button', (1194, 413, 67, 59)),  # the whole bean
                 ('a', 'button', (1240, 450, 83, 81)), ('x', 'button', (1326, 436, 53, 60)),
                 ('b', 'button', (1187, 502, 52, 52)),
-                ('cstick', 'stick:right', (1268, 554, 102, 102), (1322, 606, 39), (1322.4, 598.3, 31.2)),
+                ('cstick', 'stick:right', (1268, 554, 102, 102), (1322, 606, 39), (1322.61, 605.73, 38.61)),
                 ('start', 'button', (1180, 624, 82, 41)),
             ],
         },
@@ -99,7 +101,7 @@ PACKS = {
             'crop': (160, 112, 506, 862), 'black_above': 205, 'window': (167, 214, 503, 455),
             'items': [
                 ('c', 'button', (191, 472, 68, 36)), ('z', 'button', (411, 472, 67, 36)),
-                ('main', 'stick:left', (201, 524, 108, 108), (254, 577, 43), (253.9, 572.7, 42.1)),
+                ('main', 'stick:left', (201, 524, 108, 108), (254, 577, 43), (253.75, 576.71, 42.38)),
                 ('a', 'button', (372, 516, 94, 92)), ('b', 'button', (369, 617, 98, 52)),
                 ('dpad', 'dpad', (204, 655, 102, 97)),
                 ('one', 'button', (346, 695, 60, 60)), ('two', 'button', (424, 695, 60, 60)),
@@ -112,7 +114,7 @@ PACKS = {
             'erase': [(586, 462, 630, 588)], 'erase_rows': [(886, 682, 1086, 694)],
             'items': [
                 ('c', 'button', (634, 362, 56, 36)), ('z', 'button', (709, 362, 58, 36)),
-                ('main', 'stick:left', (650, 429, 104, 104), (702, 480, 41), (701.3, 473.7, 41.2)),
+                ('main', 'stick:left', (650, 429, 104, 104), (702, 480, 41), (701.99, 478.54, 40.86)),
                 ('dpad', 'dpad', (655, 553, 95, 92)), ('menu', 'button', (608, 630, 47, 48)),
                 ('minus', 'button', (1195, 357, 43, 43)), ('home', 'button', (1258, 357, 43, 43)),
                 ('plus', 'button', (1322, 357, 44, 43)),
@@ -413,34 +415,41 @@ def socket_fill(base: Image.Image, cx: float, cy: float, r: float) -> Image.Imag
     return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), 'RGB')
 
 
-# A moving top face takes its own antialiased edge and nothing more (board px).
-TOP_MARGIN = 0.6
+# A measured whole cap (GameCube/Wii): the knob takes the cap up to its outline plus its
+# own antialiased edge; the socket under it is refilled a little wider, so no edge pixel of
+# the cap stays behind when it moves (board px).
+CAP_EDGE = 0.4
+CAP_FILL = 1.2
 
 
-def top_fill(base: Image.Image, cx: float, cy: float, r: float, skirt) -> Image.Image:
-    """Under a moving top face (GameCube/Wii caps drawn in 3D): the cap's skirt, which
-    stays, continues beneath it in its own colour, a little darker toward the middle. One
-    smooth colour, so no streak or texture appears around the moving top."""
+def _jacobi(a: np.ndarray, mask: np.ndarray, iterations: int) -> np.ndarray:
+    for _ in range(iterations):
+        p = np.pad(a, ((1, 1), (1, 1), (0, 0)), mode='edge')
+        avg = (p[:-2, 1:-1] + p[2:, 1:-1] + p[1:-1, :-2] + p[1:-1, 2:]) / 4
+        a[mask] = avg[mask]
+    return a
+
+
+def recess_fill(base: Image.Image, cx: float, cy: float, r: float) -> Image.Image:
+    """Removes a whole cap from its socket (GameCube/Wii): the circle is refilled from the
+    socket or gate pixels all round it (a harmonic fill, so one homogeneous floor with no
+    disc edge, no streak and no copy of the cap), a little darker toward the middle."""
     a = np.asarray(base.convert('RGB')).astype(np.float32)
     h, w = a.shape[:2]
     yy, xx = np.mgrid[:h, :w]
-    dist = np.hypot(xx - cx, yy - cy)
-    inside = dist <= r
-    t = np.clip(dist / r, 0, 1)[..., None]
-    fill = np.asarray(skirt, np.float32)[None, None, :] * (0.78 + 0.22 * t)
-    a[inside] = np.broadcast_to(fill, a.shape)[inside]
+    inside = np.hypot(xx + 0.5 - cx, yy + 0.5 - cy) <= r
+    # Coarse solve (board resolution), then refine at full resolution.
+    small = (max(1, w // UPSCALE), max(1, h // UPSCALE))
+    sa = np.asarray(Image.fromarray(a.astype(np.uint8)).resize(small, Image.Resampling.BOX)).astype(np.float32)
+    sm = np.asarray(Image.fromarray(inside.astype(np.uint8) * 255).resize(small, Image.Resampling.BOX)) > 0
+    sa[sm] = sa[~sm].mean(axis=0)
+    sa = _jacobi(sa, sm, 2500)
+    init = np.asarray(Image.fromarray(np.clip(sa, 0, 255).astype(np.uint8)).resize((w, h), Image.Resampling.BICUBIC)).astype(np.float32)
+    a[inside] = init[inside]
+    a = _jacobi(a, inside, 400)
+    t = np.clip(np.hypot(xx + 0.5 - cx, yy + 0.5 - cy) / r, 0, 1)
+    a[inside] *= (0.88 + 0.12 * t[inside] ** 2)[:, None]
     return Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), 'RGB')
-
-
-def skirt_colour(board_screen_up: Image.Image, cap, top) -> tuple:
-    """Median colour of the visible skirt: inside the cap (with its lip), outside the top
-    face, below the top face's centre (upscaled screen pixels)."""
-    (cx, cy, cr), (tx, ty, tr) = cap, top
-    x0, y0 = int(cx - cr - 2), int(cy - cr - 2)
-    a = np.asarray(board_screen_up.crop((x0, y0, int(cx + cr + 2), int(cy + cr + 2))).convert('RGB')).astype(np.float32)
-    yy, xx = np.mgrid[:a.shape[0], :a.shape[1]]
-    sel = (np.hypot(xx + x0 - cx, yy + y0 - cy) <= cr) & (np.hypot(xx + x0 - tx, yy + y0 - ty) >= tr * 1.04) & (yy + y0 > ty)
-    return tuple(float(v) for v in np.median(a[sel], axis=0))
 
 
 def cap_sprite(board_screen_up: Image.Image, cx: float, cy: float, r: float) -> Image.Image:
@@ -449,6 +458,16 @@ def cap_sprite(board_screen_up: Image.Image, cx: float, cy: float, r: float) -> 
     alpha = Image.new('L', (crop.width * 4, crop.height * 4), 0)
     ImageDraw.Draw(alpha).ellipse((2, 2, alpha.width - 3, alpha.height - 3), fill=255)
     crop.putalpha(alpha.resize(crop.size, Image.Resampling.LANCZOS))
+    return crop
+
+
+def circle_sprite(board_screen_up: Image.Image, ux: int, uy: int, ud: int) -> Image.Image:
+    """The whole cap: a ud x ud crop at whole upscaled pixels, a circle with an antialiased
+    edge inscribed in it (its declared size is exactly ud / UPSCALE board px)."""
+    crop = board_screen_up.crop((ux, uy, ux + ud, uy + ud)).convert('RGBA')
+    alpha = Image.new('L', (ud * 4, ud * 4), 0)
+    ImageDraw.Draw(alpha).ellipse((0, 0, ud * 4 - 1, ud * 4 - 1), fill=255)
+    crop.putalpha(alpha.resize((ud, ud), Image.Resampling.LANCZOS))
     return crop
 
 
@@ -486,26 +505,30 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
                 # The whole cap moves (PS2: a dome and its crown seen from above).
                 kcx, kcy, r, off = cx, cy, cap_radius(hand_r), 0.0
             else:
-                # GameCube/Wii caps are drawn in 3D: a top face above a skirt. Only the top
-                # face moves (the maintainer's device recording of 4 Nov: the whole cap with
-                # its skirt and socket texture moved and looked too wide); the skirt stays
-                # with the socket. Its own centre is the stick's centre.
-                kcx, kcy, top_r = top
-                r = top_r + TOP_MARGIN
+                # GameCube/Wii: the whole measured cap moves, as one circle (device
+                # recordings of 4-5 Nov: a 1.12 r disc took socket texture with it, a top
+                # face left its side wall behind). Snapped to whole upscaled pixels with an
+                # even diameter, so the knob, its declared size and the frame share one
+                # centre exactly.
+                mcx, mcy, cap_r = top
+                ud = 2 * round((cap_r + CAP_EDGE) * UPSCALE)
+                ux, uy = round((mcx - x0) * UPSCALE - ud / 2), round((mcy - y0) * UPSCALE - ud / 2)
+                kcx, kcy, r = x0 + (ux + ud / 2) / UPSCALE, y0 + (uy + ud / 2) / UPSCALE, ud / 2 / UPSCALE
                 off = math.hypot(kcx - cx, kcy - cy)
             # Travel = half - cap radius: up to the socket's rim, and never less than 22 %
             # of the cap (a tight octagonal C-stick socket would otherwise hold it still;
             # at full deflection it then rides on its rim, as a real cap does).
             half = max(outer - 2 - off, r * 1.22)
+            if top is not None:
+                half = round(half * UPSCALE) / UPSCALE
             fx0, fy0, fw, fh = kcx - x0 - half, kcy - y0 - half, 2 * half, 2 * half
             box = tuple(round(v * UPSCALE) for v in (fx0, fy0, fx0 + fw, fy0 + fh))
             lcx, lcy, lr = (kcx - x0) * UPSCALE - box[0], (kcy - y0) * UPSCALE - box[1], r * UPSCALE
             if top is None:
                 base = socket_fill(up.crop(box), lcx, lcy, lr)
             else:
-                skirt = skirt_colour(up, ((cx - x0) * UPSCALE, (cy - y0) * UPSCALE, cap_radius(hand_r) * UPSCALE),
-                                     ((kcx - x0) * UPSCALE, (kcy - y0) * UPSCALE, lr))
-                base = top_fill(up.crop(box), lcx, lcy, lr, skirt)
+                base = recess_fill(up.crop(box), (mcx - x0) * UPSCALE - box[0], (mcy - y0) * UPSCALE - box[1],
+                                   (cap_r + CAP_FILL) * UPSCALE)
             disk = Image.new('L', (base.width * 4, base.height * 4), 0)
             ImageDraw.Draw(disk).ellipse((2, 2, disk.width - 3, disk.height - 3), fill=255)
             disk = disk.resize(base.size, Image.Resampling.LANCZOS)
@@ -521,7 +544,10 @@ def representation(console: str, orientation: str, spec: dict, board: Image.Imag
             # Held: the socket only darkens a little under the moving cap (no other change).
             held = Image.fromarray(np.clip(np.asarray(base).astype(np.float32) * 0.9, 0, 255).astype(np.uint8), 'RGB')
             files[f'controls/{key}-base-pressed.png'] = bp.png(with_alpha(held, disk))
-            files[f'controls/{key}-knob.png'] = bp.png(cap_sprite(up, (kcx - x0) * UPSCALE, (kcy - y0) * UPSCALE, lr))
+            if top is None:
+                files[f'controls/{key}-knob.png'] = bp.png(cap_sprite(up, (kcx - x0) * UPSCALE, (kcy - y0) * UPSCALE, lr))
+            else:
+                files[f'controls/{key}-knob.png'] = bp.png(circle_sprite(up, ux, uy, ud))
             side = kind.split(':')[1]
             frame = bp.rect(round(fx0 * k, 3), round(fy0 * k, 3), round(fw * k, 3), round(fh * k, 3))
             item = {'frame': frame,
