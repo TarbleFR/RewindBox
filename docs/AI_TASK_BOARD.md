@@ -631,8 +631,36 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   0), memory, pipeline-cache checkpoint (in 658 too), rebuilt GC object layout (same external symbols and data sizes;
   a BGC also ran in 658 then). Suspects: render-thread changes at that moment (stage ordering, bindless retention,
   SetProgram warm-up, warm-up key parity). Main: MeloNX stays on 658.
-- **Next:** the iOS crash reports (.ips) from the maintainer -> exact frame -> Core 663 fix (with a kept NativeAOT
-  symbol map); without a decisive frame, Core 663 without the suspects, then reintroduced one by one.
+- **No device crash report exists** (no .ips since Oct 30). Every heavy title dies silently: Hogwarts at its first 3D
+  scene, SSBU and SM3DW during or after the shader-cache load; FF Tactics survives. The screen recording shows a real
+  process death. Settings bisect on the device (Shader cache, Backend threading, Track available memory off) still
+  dies. Prime suspect: the rebuilt NativeAOT GC, the only replaced native runtime component. The maintainer's
+  directive: build, the next log decides.
+- **Core 663 = Core 661 with the official .NET GC + host crash journal**
+  ([run](evidence/melonx-663-gates/run.json)):
+  - `cf63c24e`: adapt_nativeaot_gc_runtime is no longer prepared; build_core.sh is back to its pre-661 form; 46 fresh
+    gates.
+  - Journal `MeloNXCrashJournal.h/.m` → Diagnostics/Switch/MeloNX-crash.log. It records signal, address, thread,
+    registers, frame-pointer backtrace and the stderr still in the pipe.
+  - CI `42046881464`: failed, contract frozen with uncommitted bridge edits.
+  - CI `42047699635` (`2bd6b9c1`): failed. The runtime smoke compiles MeloNXRuntimeAPI.swift without the journal symbols.
+  - `9022c1a1` fixes it:
+    - MeloNXRuntimeAPI.swift is restored to Core 661 (digest `14bd4556`).
+    - The signal handlers are installed by a constructor when the bridge framework loads, before any engine.
+    - The file opens in configureDiagnostics.
+    - Swift calls the C functions through dlsym.
+    - The plugin is untouched (the capture-journal test binds it).
+  - Contract `1cc9441f`; contract test 378/378 passed; host tests passed (parity 45, capture 77, perf 23, stick 64,
+    text 40, hogwarts graphics).
+  - Linux harness of the C file: exit statuses unchanged with or without the journal; a later handler keeps
+    precedence.
+  - Core CI `42053144885` running (15:15 UTC).
+- **Next:** when green, pin plus engine_evidence, and confirm the GC patch marker is absent. Then hand off to main for
+  IPA 665 with host commit `9022c1a1` (main was told not to ship Core 661 again). On the device:
+  - if MeloNX-crash.log has a fatal record, read its frame;
+  - if games survive, the rebuilt GC was the cause and the GC pause fix returns through another route.
+  - Separate, pre-existing issue: "JIT Cache exhausted" when a second game starts in the same process; close the app
+    between games.
 - **Baselines for like-for-like checks** (`tools/melonx/memory_report.py`, windows from the first game second): player 1
   (11152) peak 4566 MiB, 1 memoryWarning, fallbacks 102/332 ms, LOH occupied <= 342 MiB; player 2 (four 658 sessions,
   89-209 s) peak 4830-5356 MiB, headroom down to 787 MiB, 1-9 memoryWarnings, LOH occupied 479-603 MiB, one 952 ms
