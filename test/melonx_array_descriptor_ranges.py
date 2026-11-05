@@ -59,6 +59,18 @@ def run(control_root, candidate_root, temporary, dotnet, environment, version):
         work.mkdir()
         for relative in [*FILES, *FIXTURE]:
             shutil.copyfile((tree if relative in FILES else ROOT) / relative, work / Path(relative).name)
+        # Core 661 (adapt_bindless_retention): the final TextureArray counts its large arrays in GAL's
+        # TextureArrayInventory; the fixture compiles that class as the tree declares it (ITextureArray.cs).
+        if 'TextureArrayInventory' in (work / Path(TEXTURE_ARRAY).name).read_text(encoding='utf-8-sig'):
+            gal = (tree / 'src/Ryujinx.Graphics.GAL/ITextureArray.cs').read_text(encoding='utf-8-sig')
+            start = gal.index('    public static class TextureArrayInventory')
+            depth, end = 0, None
+            for index in range(gal.index('{', start), len(gal)):
+                depth += {'{': 1, '}': -1}.get(gal[index], 0)
+                if depth == 0:
+                    end = index + 1
+                    break
+            (work / 'TextureArrayInventory.cs').write_text('namespace Ryujinx.Graphics.GAL\n{\n' + gal[start:end] + '\n}\n')
         (work / 'Arrays.csproj').write_text(PROJECT)
         (work / 'nuget.config').write_text('<configuration><packageSources><clear /></packageSources></configuration>')
         (work / 'global.json').write_text(json.dumps({'sdk': {'version': version, 'rollForward': 'disable'}}))
