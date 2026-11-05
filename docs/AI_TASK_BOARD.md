@@ -333,30 +333,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 
 ### MeloNX FPS, memory, black launch and artifacts — existing owner
 
-- **Evidence:** [optimization map](melonx-optimization-map-2026-11-03.md) (sections "IPA 643", "IPA 643 follow-up",
-  "IPA 650"), [three private 621 logs/dispositions](melonx-621-measurement-2026-11-03.md). Main owns
-  compilation/pins/integration.
-- **IPA 650 (Core 649) device logs, 4 Nov** (Hogwarts, pid 8767, two sessions in one process; private bundle,
-  identities in the map): closes 2 s (teardown marks: guest 78/91 ms, cache save 1.5–1.7 s, nothing to cancel);
-  stutter is not re-presented frames (900/900 distinct); one 756 ms blocking gen2 GC in S2 (trigger undecided);
-  black launch not reproduced (2/2, not decisive); colour-mask pass restart retracted as a discriminator (also in
-  normal sessions); artifacts and recording undecidable from logs.
-- **Defect established and corrected (handoff pending):** each closed session's managed heap survives teardown
-  (342/690 MB live) through the static HOSBinderDriverServer registry (producer → KEvent → KernelContext → Switch);
-  `adapt_binder_teardown.py` unregisters the layers' binders in SurfaceFlinger.Dispose (+ durable `sessionRetention`
-  probe), 38 checks. Instrumentation: `gcEvent` lines (native EmbeddedPerformanceDiagnostics, 46),
-  `adapt_artifact_counters.py` (three suspected artifact paths, 118), Swift capture/interruption/`acq=` journal (63,
-  static). Composition on Core 649 builds Ryujinx.Library; the real preparation of `13700519` reproduces Core 649 but
-  the changed native file.
-- **Levers (4 Nov, measured on host, handoff pending):** `adapt_array_rebuild_allocations.py` removes the
-  pool-sized bindless array allocations (2 MB → 0 per 65 536-element rebuild; 200-rebuild burst 400 MiB → 0.1, gen2
-  66 → 0, GC pause 75 → 0 ms; 321 checks) and `adapt_present_pacing.py` paces 30 fps presents on a 33.3 ms lattice
-  with VK_GOOGLE_display_timing (simulated 17/50 pairs 2.37 → 0.02/s, +15 ms mean latency; 782 checks). Rejected
-  with receipts: texture-sync pooling (small gain, steady regression), GC gen0/latency (no effect: gen0 already 64 MiB).
-- **Next:** main wires `adapt_binder_teardown` and `adapt_artifact_counters` after `adapt_teardown_phase_marks`, pins
-  the native file and builds the IPA (Swift compiled there). Device: recording started before launch without opening
-  Control Center; artifact screenshots; fresh launch vs second launch in one process (`sessionRetention`, `gcEvent`,
-  artifact counters). No controlled FPS/visual gain claim.
+- **Evidence:** [optimization map](melonx-optimization-map-2026-11-03.md) (sections "IPA 643" to "IPA 657"),
+  [621 logs](melonx-621-measurement-2026-11-03.md). Main owns compilation/pins/integration.
+- **Integrated before (Cores 644–656):** readback receivers, teardown compile cancel and marks, binder teardown,
+  gcEvent/artifact/capture journals, bindless array rebuild allocations, 30 fps present pacing.
+- **IPA 657 (Core 656, iOS 27 beta 1, pid 10361, 5 Nov; private logs + video from another phone):** the frozen image
+  is not the game: guest 30 fps from 3 GPU buffers, ≈ 555 draws/frame, every drawable shown on glass, audio on.
+  Maintainer dates it to the MoltenVK change and keeps v1.4.2.
+- **Cause found (sources):** `PresentCopy` writes the game image into the CAMetalDrawable as a compute storage image
+  through an argument-buffer descriptor; MoltenVK v1.4.2 on iOS 18+ uses a residency set, emits no `useResource` for
+  such descriptors and never puts the drawable in its set → the write may not land (black launch, frozen/older frames).
+  The MeloNX fork 1.4.0 had no residency set on iOS.
+- **Fix (local, then pushed with this row):** `adapt_present_drawable_residency.py` (Vulkan Window.cs only, wired after
+  `adapt_present_pacing`, ORDER updated): BlitColor render pass into the drawable (attachment, resident by Metal's
+  rule); FSR/Area into an RGBA8 texture of ours then BlitColor; MetalFX unchanged; one `Present path:` line.
+  `test/melonx_present_drawable_residency_test.py`: 26 checks on Core 656, 27 bound to the real preparation
+  (Window.cs `ba3a2c85…`, rest identical to Core 656), Vulkan assembly builds;
+  [receipts](evidence/melonx-present-drawable-residency/).
+- **Next:** main builds an **isolated IPA** = Core 656 + this adapter only (maintainer's request). Device check:
+  launch Hogwarts without recording, image live at launch and in menus, `Present path:` line in stderr.
+  No device proof yet.
 
 ### Skins/orientation and additive PS2 Original — existing owner
 
