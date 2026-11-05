@@ -43,9 +43,8 @@ static class Fixture
 
     public static long RssBytes()
     {
-        foreach (string line in File.ReadAllLines("/proc/self/status"))
-            if (line.StartsWith("VmRSS:")) return long.Parse(line.Split(' ', StringSplitOptions.RemoveEmptyEntries)[1]) * 1024;
-        return -1;
+        // Resident bytes on every host (Linux /proc RSS, the macOS task's resident size): the Core CI runs this on macOS.
+        return Environment.WorkingSet;
     }
 
     // A boot-like large object heap: arrays of 128 KiB to 8 MiB, every page touched, about half of them dying, then

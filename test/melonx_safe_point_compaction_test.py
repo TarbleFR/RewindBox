@@ -11,13 +11,13 @@ control's TogglePauseEmulation and SetEmbeddedPaused, and that no other collecti
 why nothing compacts the LOH today: the GC settings (ConserveMemory 5, HighMemoryPercent 99), and the CPU engine with
 HostMappedUnsafe on ARM64 being LightningJit, whose disk cache state is a dummy (PTC, the only CompactOnce requester,
 never runs). The executed fixture compiles the production EmbeddedHeapCompaction class unchanged with doubles of
-HostMemoryBudget and the launch journal and runs it with the segments GC library (libclrgc.so; iOS NativeAOT has no
-regions) and the Core's GC settings: control (no call) against candidate (first frame), and the pause flow (device gate,
+HostMemoryBudget and the launch journal and runs it with the host's segments GC library (libclrgc.so on Linux,
+libclrgc.dylib on macOS; iOS NativeAOT has no regions) and the Core's GC settings: control (no call) against candidate (first frame), and the pause flow (device gate,
 resume before the delay, close begun, held pause, 60 s interval). No device. Writes
 dist/melonx/safe-point-compaction-checks.json.
 """
 from pathlib import Path
-import hashlib, json, os, re, shutil, subprocess, sys, tempfile
+import hashlib, json, os, platform, re, shutil, subprocess, sys, tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
@@ -156,7 +156,9 @@ with tempfile.TemporaryDirectory(prefix='melonx-safe-point-compaction-') as temp
     if build.returncode:
         print(build.stdout[-4000:], build.stderr[-2000:], flush=True)
     check(build.returncode == 0, 'fixture builds with the production class')
-    gc_environment = dict(environment, DOTNET_GCName='libclrgc.so', DOTNET_GCConserveMemory='5', DOTNET_GCHighMemPercent='63')
+    # The segments GC library of the host runtime: libclrgc.so on Linux, libclrgc.dylib on macOS (the Core CI runner).
+    GC_LIBRARY = 'libclrgc.dylib' if platform.system() == 'Darwin' else 'libclrgc.so'
+    gc_environment = dict(environment, DOTNET_GCName=GC_LIBRARY, DOTNET_GCConserveMemory='5', DOTNET_GCHighMemPercent='63')
     for mode in ('control', 'candidate', 'pause', 'race'):
         run = subprocess.run([DOTNET, 'bin/Release/net10.0/Probe.dll', mode], cwd=fixture, capture_output=True, text=True,
                              timeout=300, env=gc_environment)
@@ -168,7 +170,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-safe-point-compaction-') as temp
 control, candidate, pause, race = reports['control'], reports['candidate'], reports['pause'], reports['race']
 for report in reports.values():
     config = report['gcConfig']
-    check(config.get('GCRegionRange') == '0' and config.get('GCConserveMem') == '5' and config.get('GCName') == 'libclrgc.so' and config.get('GCHighMemPercent') == '99',
+    check(config.get('GCRegionRange') == '0' and config.get('GCConserveMem') == '5' and config.get('GCName') == GC_LIBRARY and config.get('GCHighMemPercent') == '99',
           'segments GC with the Core\'s settings: ' + str({k: config.get(k) for k in ('GCRegionRange', 'GCConserveMem', 'GCHighMemPercent', 'GCName')}))
     check(report['policy'] == {'firstFrame63MiB': False, 'firstFrame64MiB': True, 'pauseDevice15': True, 'pauseDevice16': False,
                                'pauseDeviceUnknown': False, 'pauseSmall': False, 'pause59s': False, 'pause60s': True},
@@ -206,12 +208,13 @@ sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, chec
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core658Preparation',
                postimages={p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest() for p in BASELINE} if FINAL_PREPARATION else {},
-               sdk=sdk, gc='libclrgc.so (segments), ConserveMemory 5, HighMemoryPercent 99, workstation concurrent, linux-x64 CoreCLR',
+               sdk=sdk, gc=GC_LIBRARY + ' (segments), ConserveMemory 5, HighMemoryPercent 99, workstation concurrent, ' + platform.system() + ' CoreCLR',
                reports={k: {key: v for key, v in r.items() if key != 'gcConfig'} for k, r in reports.items()},
                physicalDeviceTested=False, productionLibraryAssemblyBuilt=True, sourceBaseline=BASELINE,
                inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
-               limitation='The fixture runs CoreCLR with the segments GC on Linux (RSS, not iOS phys_footprint), in a container whose '
-                          'cgroup sets a GC heap hard limit; the footprint change and pause length on an iPhone are known only from a device run.')
+               limitation='The fixture runs host CoreCLR with the segments GC (' + platform.system() + ' resident bytes, not iOS phys_footprint)'
+                          + (', in a container whose cgroup sets a GC heap hard limit' if platform.system() == 'Linux' else '')
+                          + '; the footprint change and pause length on an iPhone are known only from a device run.')
 out = ROOT / 'dist/melonx/safe-point-compaction-checks.json'
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(json.dumps(receipt, indent=2) + '\n')

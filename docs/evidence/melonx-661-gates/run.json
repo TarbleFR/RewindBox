@@ -21,7 +21,7 @@
  "lot": "Hogwarts 658 logs (two players) and the maintainer request of 5 Nov: compile stalls, syncpoint false completions, pacing, close hangs, session retention, diagnostics, in-play RAM (safe-point LOH compaction, host warning trim, cold textures, bindless retention), GC pauses (NativeAOT workstation GC rebuilt with dotnet/runtime#119383, run 41988362179), sky artifacts (MoltenVK 1.4.2 stage ordering), left stick (host Swift)",
  "contract": {
   "path": "build-utils/melonx/dma-core-contract.json",
-  "sha256": "3c383d882d6e3d10a7940dbaba497b71d1c1252864bfacd964a77075458ef1f8",
+  "sha256": "581ba569c9a3d3d6c5080a423fd748ab64723a10d448950af6298412070705ca",
   "freshAppleGates": 47,
   "reusedAppleGates": 20,
   "historicalAppleReceipts": 61
@@ -33,7 +33,8 @@
  "failuresBeforeCorrection": {
   "count": 10,
   "nature": "fixture composition only (array-descriptor-ranges, pipeline-checkpoint, barrier-compaction, files_edited_later in four tests, setprogram double, two exact GAL expectations; display fixture rerun required by the freeze); gc-events host-runtime background fallback (.NET 10.0.0) told apart",
-  "product": false
+  "product": false,
+  "ciPortability": "Freeze 48c837d4 (contract 3c383d88) kept a Linux-only safe-point-compaction fixture: DOTNET_GCName=libclrgc.so and VmRSS from /proc/self/status, which the macos-26 Core runner does not have (the osx-arm64 10.0.0 runtime pack ships libclrgc.dylib). Found by review before the CI reached that gate; run 41998621333 cancelled; fixture made portable, contract refrozen. Test-side, not product."
  },
  "gates": {
   "bindless-array-deltas": {
@@ -243,8 +244,9 @@
   },
   "safe-point-compaction": {
    "report": "safe-point-compaction-checks.json",
-   "sha256": "9df7853eb01773ff82f193ce8157f511ab610b46fe0bb087a064ef967b53a3e5",
-   "seconds": 121
+   "sha256": "8364c088858b61b529f2720738d583e172fea05b0145bd870a3161d49bdb7e08",
+   "seconds": 121,
+   "portableRerun": "Rerun after the fixture became host-portable for the Apple Core CI (segments GC library libclrgc.dylib on macOS, libclrgc.so on Linux; resident bytes from Environment.WorkingSet instead of /proc/self/status); same assertions, 61 checks."
   },
   "cold-texture-release": {
    "report": "cold-texture-release-checks.json",

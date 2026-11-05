@@ -9,7 +9,7 @@
     "src/Ryujinx.Library/Window/WindowBase.cs": "4aef1042198769fb746e5b752cad7d601c49eef9035f14773a782efb1b0d5705"
   },
   "sdk": "10.0.100",
-  "gc": "libclrgc.so (segments), ConserveMemory 5, HighMemoryPercent 99, workstation concurrent, linux-x64 CoreCLR",
+  "gc": "libclrgc.so (segments), ConserveMemory 5, HighMemoryPercent 99, workstation concurrent, Linux CoreCLR",
   "reports": {
     "control": {
       "mode": "control",
@@ -70,7 +70,7 @@
         "liveMiB": 305
       },
       "afterFirstFrame": {
-        "rssMiB": 340,
+        "rssMiB": 341,
         "committedMiB": 305,
         "lohMiB": 305,
         "lohFreeMiB": 0,
@@ -84,7 +84,7 @@
       "pauseWithin60s": 1,
       "liveIntact": true,
       "journal": [
-        "memory heapCompacted: firstFrame: footprint 563 -> 340 MiB; committed 528 -> 305 MiB; LOH 527 MiB (222 free) -> 305 MiB (0 free); gen2 0 MiB (0 free) -> 0 MiB (0 free); pause 84.8 ms, 84 ms in all; device 11% available (adapt_safe_point_compaction)"
+        "memory heapCompacted: firstFrame: footprint 563 -> 341 MiB; committed 528 -> 305 MiB; LOH 527 MiB (222 free) -> 305 MiB (0 free); gen2 0 MiB (0 free) -> 0 MiB (0 free); pause 84.8 ms, 84 ms in all; device 11% available (adapt_safe_point_compaction)"
       ]
     },
     "pause": {
@@ -147,7 +147,7 @@
       "secondHeldPauseWithin60s": 1,
       "liveIntact": true,
       "journal": [
-        "memory heapCompacted: hostPause: footprint 564 -> 342 MiB; committed 528 -> 305 MiB; LOH 527 MiB (222 free) -> 305 MiB (0 free); gen2 0 MiB (0 free) -> 0 MiB (0 free); pause 131.9 ms, 132 ms in all; device 11% available (adapt_safe_point_compaction)"
+        "memory heapCompacted: hostPause: footprint 564 -> 341 MiB; committed 528 -> 305 MiB; LOH 527 MiB (222 free) -> 305 MiB (0 free); gen2 0 MiB (0 free) -> 0 MiB (0 free); pause 92.8 ms, 92 ms in all; device 11% available (adapt_safe_point_compaction)"
       ]
     },
     "race": {
@@ -192,7 +192,7 @@
       "resumeWaitedForInFlight": 1,
       "liveIntact": true,
       "journal": [
-        "memory heapCompacted: hostPause: footprint 563 -> 341 MiB; committed 528 -> 305 MiB; LOH 527 MiB (222 free) -> 305 MiB (0 free); gen2 0 MiB (0 free) -> 0 MiB (0 free); pause 81.5 ms, 81 ms in all; device 11% available (adapt_safe_point_compaction)"
+        "memory heapCompacted: hostPause: footprint 563 -> 341 MiB; committed 528 -> 305 MiB; LOH 527 MiB (222 free) -> 305 MiB (0 free); gen2 0 MiB (0 free) -> 0 MiB (0 free); pause 92.3 ms, 92 ms in all; device 11% available (adapt_safe_point_compaction)"
       ]
     }
   },
@@ -207,8 +207,8 @@
     "build-utils/melonx/adapt_safe_point_compaction.py": "46fc590e2cb9f41f7bd2fbd97250b9e13d5153b3d76d23d6ae1bda292e39ffbf",
     "build-utils/melonx/adapt_session.py": "2ebaff2e48110d21a8d1bc03d08c7b8ecc6e332b325b11409cb3b791c0b7bf7a",
     "test/melonx_adapter_control.py": "98c804f48d3cec8e133ddea5bd1e37bdabb491a4a61944f44bedca481b416db1",
-    "test/melonx_safe_point_compaction_test.py": "2c6c8de647a3f926799403cc4d5bb5baac2806f6d4bc2632aebd0b6bf6c43841",
-    "test/melonx_safe_point_compaction/Program.cs": "6f7493adcc3e7dbe1975adc56ed8768ed4208237dac6af69459021eb9adcce67"
+    "test/melonx_safe_point_compaction_test.py": "342b43806add8ac74648594c0defab043df8097471f6455b4443fe56ca7c4dfe",
+    "test/melonx_safe_point_compaction/Program.cs": "402b043fdb1f2b86947c812d700bd0f2bfbe2ee5167fa37a4754ee29ce283477"
   },
-  "limitation": "The fixture runs CoreCLR with the segments GC on Linux (RSS, not iOS phys_footprint), in a container whose cgroup sets a GC heap hard limit; the footprint change and pause length on an iPhone are known only from a device run."
+  "limitation": "The fixture runs host CoreCLR with the segments GC (Linux resident bytes, not iOS phys_footprint), in a container whose cgroup sets a GC heap hard limit; the footprint change and pause length on an iPhone are known only from a device run."
 }
