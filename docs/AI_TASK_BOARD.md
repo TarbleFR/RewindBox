@@ -369,9 +369,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   this adapter; plan 30 gates; one uninterrupted local pass 30/30 ([run](evidence/melonx-658-gates/run.json); first
   pass 29/30: present-pacing needed the `files_edited_later` rule for Window.cs); contract frozen (148 inputs,
   184 members, 48 changes), contract test with the authenticated 614 archive 339 checks; receipts validated.
-- **Next:** Core CI run, pin, then the **isolated IPA 658** = delivered 657 + MeloNX Core 658 only (RPCS3 655 kept;
-  main's `9403a7bf` deferred as source-only). Device check: Hogwarts without recording, image live at launch and
-  in menus, `Present path:` line in stderr. No device proof yet.
+- **Delivered/verified: isolated IPA 658 (5 Nov, this session):** Core run `41951818625` (30 fresh Apple gates),
+  pin `aa81c2e8` (packaged `9bb5dc46…`, iPhone binary carries the `Present path` line); delivery run `41955134733`
+  (trigger `9730acd5`, five jobs green first try): IPA 246765263 B, SHA-256 `89607f58…f479`;
+  [receipt](evidence/rewind658/delivery.json), offline checks passed, packaged MeloNX = pin, key deleted, file
+  sent. = 657 + MeloNX Core 658 only (RPCS3 655 kept; main's `9403a7bf` deferred as source-only to 659).
+- **Next:** maintainer's device check: Hogwarts without recording, image live at launch and in menus, `Present
+  path:` line in stderr; then SSBU and a 60 fps title for regressions. No device proof yet.
 
 ### Skins/orientation and additive PS2 Original — existing owner
 
