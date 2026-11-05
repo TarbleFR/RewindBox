@@ -252,21 +252,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   home-band overlap, sensor housing over Circle) await the maintainer.
 - **MeloNX Core 654 (PR #156 new lot, handoff `42a104cc`):** pinned `ec6c47aa`, superseded
   by Core 656 (654 + levers) before packaging.
-- **Next common IPA 657: every handoff in; draft `0f3c006f`, dry run clean (5 Nov).** Rule kept:
-  no freeze before each planned handoff had exact commits, tests, results and limits; one IPA.
-  - RPCS3 Core 655 (main): pin `b44a6fd4` (run `41915370416`, Apple harnesses `41919474901`).
-  - MeloNX levers handoff `7d163b07` (22:24): integrated `e2ce3dd2`, wired `2cafaed3`, gate
-    fixes `51698e28`, frozen `61d6b517`/`07da6c6b` (contract `c540d7d5…`, 29 gates in one local
-    pass, 337 contract checks), Core 656 run `41934793344` green (first run `41932688337`
-    failed on the plan's own `moltenVkSourceChecked`, not available on the Apple runner;
-    dropped), pin `1aec9099` (fingerprint `73a3b09e…`). Core 656 = 654 + both levers.
-  - Skins: PR159 `ae36a672`, PR160 `57e21ae2` + legal `873b0ad2`, device check `4eb0ab39`.
-  - Host memory milestone `e9298892`.
-  - Not in 657: skins Switch Pocket (`7c75bd2b`, not handed off: the art waits for the
-    maintainer's original maquette file; the skins session asked for no build). Named, not
-    silently dropped.
-  - Dry run: no blocker, legal passed, 16 reviewed commits, must-change images App,
-    MeloNXCore, libRPCS3Core, melonx/rpcs3 bridges, Runner. Next: freeze, trigger, verify.
+- **Delivered/verified: 657 (5 Nov, run `41939216222`, trigger `8a7f49f1`, all five jobs green
+  first try):** IPA 246762453 B, SHA-256 `4027dc53…7a60`; [receipt](evidence/rewind657/delivery.json),
+  offline checks passed (decryption, manifest `91832383…`, signer receipt, validators), packaged
+  Cores = pins (RPCS3 655 `5b8bb533…`, MeloNX 656 `73a3b09e…`), key deleted, file sent.
+  - Lots: RPCS3 Core 655 (pin `b44a6fd4`); MeloNX Core 656 (pin `1aec9099`: 649 + PR #156 new
+    lot + bounded rebuild arrays + 30 fps present pacing); host memory milestone `e9298892`;
+    skins PR159 `ae36a672`, PR160 `57e21ae2` + legal `873b0ad2`.
+  - Waiting rule applied: freeze only after every planned handoff (MeloNX `7d163b07`, skins
+    PR160) had commits, tests, results and limits. Not in 657: skins Switch Pocket (`7c75bd2b`,
+    not handed off; art waits for the maintainer's original maquette file).
+  - MeloNX Core 656 route: first run `41932688337` failed on the plan's own
+    `moltenVkSourceChecked` (no MoltenVK source on the Apple runner), dropped in `07da6c6b`.
+  - Device checks wanted: AC `RPASS655 kept_*`, same-target restarts and GPU ms/frame vs 653;
+    MeloNX bindings `allocatedKiB`/`gcPauseMs` at transitions and "Present pacing over" lines;
+    GameCube/Wii stick tops. No iPhone measurement yet; no FPS claim.
 - **Device logs 650/653 (private, hashed in scratchpad):** 650: AC 25–28 FPS = 643, GPU
   loss after compression growth (4.7 GB footprint); verified at 0 % deviation: no
   steady-state regression; "compression is the precursor" and "2.5 GB before gameplay"
