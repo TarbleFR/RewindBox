@@ -4,6 +4,7 @@
 
 #include "stdafx.h"
 
+#include "Emu/RSX/Metal/MTLAPI.h"
 #include "Emu/system_config.h"
 #include "Utilities/File.h"
 #include "Utilities/cheat_info.h"
@@ -21,6 +22,58 @@ namespace
 	{
 		std::fprintf(stderr, "FAIL: the shader stack test reached %s, which the host test does not provide\n", what);
 		std::abort();
+	}
+}
+
+// mtl::object without Objective-C: the host test only ever holds null objects (no Metal device on the host).
+namespace mtl
+{
+	object::object(const object& other) noexcept
+		: m_ptr(other.m_ptr)
+	{
+		if (m_ptr) unexpected("a Metal object copy");
+	}
+
+	object& object::operator=(const object& other) noexcept
+	{
+		if (other.m_ptr) unexpected("a Metal object copy");
+		m_ptr = nullptr;
+		return *this;
+	}
+
+	object::object(object&& other) noexcept
+		: m_ptr(other.m_ptr)
+	{
+		other.m_ptr = nullptr;
+	}
+
+	object& object::operator=(object&& other) noexcept
+	{
+		if (other.m_ptr) unexpected("a Metal object move");
+		m_ptr = nullptr;
+		return *this;
+	}
+
+	object::~object()
+	{
+		if (m_ptr) unexpected("a Metal object release");
+	}
+
+	object object::adopt(void* retained) noexcept
+	{
+		if (retained) unexpected("a Metal object");
+		return {};
+	}
+
+	object object::retain(void* unretained) noexcept
+	{
+		if (unretained) unexpected("a Metal object");
+		return {};
+	}
+
+	void object::reset() noexcept
+	{
+		if (m_ptr) unexpected("a Metal object release");
 	}
 }
 

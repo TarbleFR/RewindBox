@@ -278,6 +278,7 @@ namespace
 
 		for (const bool points : { false, true })
 		{
+			std::lock_guard lock(vp.translation_lock);
 			const auto& msl = vp.get_msl(points);
 			const std::string label = points ? "vertex points" : "vertex";
 			check(msl.ok, label + " SPIR-V -> MSL: " + msl.error);
@@ -330,6 +331,7 @@ namespace
 		}
 
 		const mtl::fragment_variant_key key{};
+		std::lock_guard lock(fp.translation_lock);
 		const auto& msl = fp.get_msl(key);
 		check(msl.ok, std::string(name) + " SPIR-V -> MSL: " + msl.error);
 		if (!msl.ok)

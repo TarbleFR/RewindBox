@@ -56,10 +56,10 @@ index 0000000..53c34d1
 +	CXX_STANDARD_REQUIRED ON
 +)
 diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
-index f907ea4..c49d9bf 100644
+index f907ea4..721173a 100644
 --- a/rpcs3/Emu/CMakeLists.txt
 +++ b/rpcs3/Emu/CMakeLists.txt
-@@ -879,20 +879,35 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
+@@ -879,20 +879,40 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
      )
  
      # REWINDBOX_METAL_NATIVE: the native Metal 4 renderer. Its Metal calls live in MTLAPIApple.mm (ARC).
@@ -69,10 +69,15 @@ index f907ea4..c49d9bf 100644
          RSX/Metal/MTLAPIApple.mm
 +        RSX/Metal/MTLCommonDecompiler.cpp
 +        RSX/Metal/MTLCommonDecompiler.h
++        RSX/Metal/MTLDataHeap.h
 +        RSX/Metal/MTLFragmentProgram.cpp
 +        RSX/Metal/MTLFragmentProgram.h
          RSX/Metal/MTLGSRender.cpp
          RSX/Metal/MTLGSRender.h
++        RSX/Metal/MTLPipelineState.cpp
++        RSX/Metal/MTLPipelineState.h
++        RSX/Metal/MTLProgramBuffer.cpp
++        RSX/Metal/MTLProgramBuffer.h
 +        RSX/Metal/MTLShaderTranslator.cpp
 +        RSX/Metal/MTLShaderTranslator.h
 +        RSX/Metal/MTLVertexProgram.cpp
@@ -95,6 +100,177 @@ index f907ea4..c49d9bf 100644
  endif()
  
  if(APPLE)
+diff --git a/rpcs3/Emu/RSX/Metal/MTLAPI.h b/rpcs3/Emu/RSX/Metal/MTLAPI.h
+index ddeaa25..8268bb7 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLAPI.h
++++ b/rpcs3/Emu/RSX/Metal/MTLAPI.h
+@@ -413,15 +413,27 @@ namespace mtl
+ 	// Metal 4 pipelines name their functions in a library; depth and stencil formats come from the render pass.
+ 	struct render_pipeline_descriptor
+ 	{
+-		object library;
++		object library;            // both functions, unless the per-stage libraries below are set
++		object vertex_library;
++		object fragment_library;
+ 		std::string vertex_function;
+ 		std::string fragment_function;
+ 		std::array<color_attachment_state, render_pass_descriptor::max_color_attachments> color{};
+ 		u32 sample_count = 1;
+ 		bool alpha_to_coverage = false;
++		bool alpha_to_one = false;
++		u32 input_topology = 0;    // MTLPrimitiveTopologyClass (0 = unspecified)
+ 		std::string label;
+ 	};
+ 
++	// MTLCompileOptions for a library: the RSX shaders follow the "Disable MSL Fast Math" setting exactly as
++	// MoltenVK compiles them today (fast unless disabled); an invariant position needs preserveInvariance.
++	struct library_options
++	{
++		bool fast_math = false;
++		bool preserve_invariance = false;
++	};
++
+ 	struct stencil_state
+ 	{
+ 		compare_function compare = compare_function::always;
+@@ -470,6 +482,10 @@ namespace mtl
+ 
+ 	// Buffers.
+ 	object new_buffer(const object& device, u64 length, storage_mode storage = storage_mode::shared);
++	// A texel-buffer view (MSL texture_buffer<T>) of [offset, offset + length) of a buffer; offset must be a
++	// multiple of texture_buffer_alignment(device, format).
++	object new_texture_buffer(const object& buffer, pixel_format format, u64 offset, u64 length);
++	u64 texture_buffer_alignment(const object& device, pixel_format format);
+ 	void* buffer_contents(const object& buffer);
+ 	u64 buffer_length(const object& buffer);
+ 
+@@ -492,7 +508,8 @@ namespace mtl
+ 
+ 	// The Metal 4 compiler. A failure returns an empty object and fills error.
+ 	object new_compiler(const object& device);
+-	object compile_library(const object& compiler, std::string_view source, std::string& error);
++	object compile_library(const object& compiler, std::string_view source, std::string& error);  // safe math
++	object compile_library(const object& compiler, std::string_view source, const library_options& options, std::string& error);
+ 	object new_render_pipeline(const object& compiler, const render_pipeline_descriptor& descriptor, std::string& error);
+ 	object new_depth_stencil_state(const object& device, const depth_stencil_descriptor& descriptor);
+ 
+diff --git a/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm b/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm
+index b9a366a..18351f5 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm
++++ b/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm
+@@ -467,6 +467,30 @@ namespace mtl
+ 		return as<id<MTLBuffer>>(buffer).length;
+ 	}
+ 
++	object new_texture_buffer(const object& buffer, pixel_format format, u64 offset, u64 length)
++	{
++		@autoreleasepool
++		{
++			const id<MTLBuffer> source = as<id<MTLBuffer>>(buffer);
++			const MTLPixelFormat metal_format = static_cast<MTLPixelFormat>(format);
++			// The vertex streams are byte buffers (R8Uint, as the Vulkan renderer's VK_FORMAT_R8_UINT views).
++			const NSUInteger texel_size = (format == pixel_format::r8_uint) ? 1 : (format == pixel_format::r32_uint ? 4 : 0);
++			if (!source || !texel_size || !length)
++			{
++				return {};
++			}
++
++			MTLTextureDescriptor* desc = [MTLTextureDescriptor textureBufferDescriptorWithPixelFormat:metal_format
++				width:static_cast<NSUInteger>(length / texel_size) resourceOptions:source.resourceOptions usage:MTLTextureUsageShaderRead];
++			return keep([source newTextureWithDescriptor:desc offset:static_cast<NSUInteger>(offset) bytesPerRow:static_cast<NSUInteger>(length)]);
++		}
++	}
++
++	u64 texture_buffer_alignment(const object& device, pixel_format format)
++	{
++		return [as<id<MTLDevice>>(device) minimumTextureBufferAlignmentForPixelFormat:static_cast<MTLPixelFormat>(format)];
++	}
++
+ 	object new_texture(const object& device, const texture_descriptor& descriptor)
+ 	{
+ 		@autoreleasepool
+@@ -581,16 +605,27 @@ namespace mtl
+ 		}
+ 	}
+ 
+-	RBX_METAL4 object compile_library(const object& compiler, std::string_view source, std::string& error)
++	RBX_METAL4 object compile_library(const object& compiler, std::string_view source, const library_options& options, std::string& error)
+ 	{
+ 		@autoreleasepool
+ 		{
+-			MTLCompileOptions* options = [[MTLCompileOptions alloc] init];
+-			// The RSX shaders depend on IEEE behaviour (NaN, infinities, signed zero): no fast math.
+-			options.mathMode = MTLMathModeSafe;
++			MTLCompileOptions* compile = [[MTLCompileOptions alloc] init];
++			if (options.fast_math)
++			{
++				// MoltenVK's choice for SPIR-V without float controls (MVKDevice::getMTLCompileOptions).
++				compile.mathMode = MTLMathModeFast;
++				compile.mathFloatingPointFunctions = MTLMathFloatingPointFunctionsFast;
++			}
++			else
++			{
++				compile.mathMode = MTLMathModeSafe;
++				compile.mathFloatingPointFunctions = MTLMathFloatingPointFunctionsPrecise;
++			}
++			compile.preserveInvariance = options.preserve_invariance;
++
+ 			MTL4LibraryDescriptor* desc = [[MTL4LibraryDescriptor alloc] init];
+ 			desc.source = string(source);
+-			desc.options = options;
++			desc.options = compile;
+ 			NSError* failure = nil;
+ 			const id<MTLLibrary> library = [as<id<MTL4Compiler>>(compiler) newLibraryWithDescriptor:desc error:&failure];
+ 			if (!library)
+@@ -601,11 +636,17 @@ namespace mtl
+ 		}
+ 	}
+ 
++	RBX_METAL4 object compile_library(const object& compiler, std::string_view source, std::string& error)
++	{
++		// The presentation pass: safe math.
++		return compile_library(compiler, source, library_options{}, error);
++	}
++
+ 	RBX_METAL4 object new_render_pipeline(const object& compiler, const render_pipeline_descriptor& descriptor, std::string& error)
+ 	{
+ 		@autoreleasepool
+ 		{
+-			const auto function = [&](const std::string& name) -> MTL4LibraryFunctionDescriptor*
++			const auto function = [&](const object& library, const std::string& name) -> MTL4LibraryFunctionDescriptor*
+ 			{
+ 				if (name.empty())
+ 				{
+@@ -613,14 +654,17 @@ namespace mtl
+ 				}
+ 
+ 				MTL4LibraryFunctionDescriptor* result = [[MTL4LibraryFunctionDescriptor alloc] init];
+-				result.library = as<id<MTLLibrary>>(descriptor.library);
++				result.library = as<id<MTLLibrary>>(library);
+ 				result.name = string(name);
+ 				return result;
+ 			};
+ 
++			const object& vertex_library = descriptor.vertex_library ? descriptor.vertex_library : descriptor.library;
++			const object& fragment_library = descriptor.fragment_library ? descriptor.fragment_library : descriptor.library;
++
+ 			MTL4RenderPipelineDescriptor* desc = [[MTL4RenderPipelineDescriptor alloc] init];
+-			desc.vertexFunctionDescriptor = function(descriptor.vertex_function);
+-			desc.fragmentFunctionDescriptor = function(descriptor.fragment_function);
++			desc.vertexFunctionDescriptor = function(vertex_library, descriptor.vertex_function);
++			desc.fragmentFunctionDescriptor = function(fragment_library, descriptor.fragment_function);
+ 			for (u32 index = 0; index < descriptor.color.size(); ++index)
+ 			{
+ 				const color_attachment_state& state = descriptor.color[index];
+@@ -637,6 +681,8 @@ namespace mtl
+ 			}
+ 			desc.rasterSampleCount = descriptor.sample_count;
+ 			desc.alphaToCoverageState = descriptor.alpha_to_coverage ? MTL4AlphaToCoverageStateEnabled : MTL4AlphaToCoverageStateDisabled;
++			desc.alphaToOneState = descriptor.alpha_to_one ? MTL4AlphaToOneStateEnabled : MTL4AlphaToOneStateDisabled;
++			desc.inputPrimitiveTopology = static_cast<MTLPrimitiveTopologyClass>(descriptor.input_topology);
+ 			if (!descriptor.label.empty())
+ 			{
+ 				desc.label = string(descriptor.label);
 diff --git a/rpcs3/Emu/RSX/Metal/MTLCommonDecompiler.cpp b/rpcs3/Emu/RSX/Metal/MTLCommonDecompiler.cpp
 new file mode 100644
 index 0000000..4d918d2
@@ -259,12 +435,104 @@ index 0000000..96aa7e8
 +	int get_varying_register_location(std::string_view varying_register_name);
 +	int get_texture_index(std::string_view name);
 +}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLDataHeap.h b/rpcs3/Emu/RSX/Metal/MTLDataHeap.h
+new file mode 100644
+index 0000000..bb306e9
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLDataHeap.h
+@@ -0,0 +1,86 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE (M2): ring buffers of the native Metal 4 renderer (vertex streams, draw parameters,
++// contexts, constants, indices, uploads). The same allocator as the Vulkan renderer (rsx::data_heap) over one
++// shared-storage MTLBuffer: unified memory, so the CPU writes where the GPU reads, with no map, copy or flush.
++//
++// Space is reclaimed per frame: the renderer records each heap's position when it submits a frame and moves the
++// heap's GET position there once the frame's fence has signalled. A heap that is full asks the renderer to make
++// room (on_exhausted: submit, then wait for the GPU); it never overwrites memory the GPU may still read.
++
++#include "Emu/RSX/Common/ring_buffer_helper.h"
++#include "MTLAPI.h"
++
++#include <functional>
++
++namespace mtl
++{
++	class data_heap : public rsx::data_heap
++	{
++	public:
++		object buffer;
++
++		// Called with the requested size when an allocation would reach memory in use by the GPU. Returns true
++		// once the whole heap is free again (the renderer submitted its work and waited for it).
++		std::function<bool(usz)> on_exhausted;
++
++		void create(const object& device, usz size, const char* name, usz guard = 0x10000)
++		{
++			init(size, name, guard);
++			buffer = new_buffer(device, size, storage_mode::shared);
++			m_host = static_cast<u8*>(buffer_contents(buffer));
++			ensure(m_host, "Metal ring buffer allocation failed");
++		}
++
++		void destroy()
++		{
++			buffer.reset();
++			m_host = nullptr;
++		}
++
++		template <typename T = void>
++		T* map(usz offset, usz /*size*/ = 0) const
++		{
++			return reinterpret_cast<T*>(m_host + offset);
++		}
++
++		// Kept for symmetry with vk::data_heap call sites: shared storage needs no unmap.
++		void unmap() const
++		{
++		}
++
++		// Everything allocated so far may be reused (the GPU has finished with all of it).
++		void release_all()
++		{
++			reset_allocation_stats();
++		}
++
++		usz put_position() const
++		{
++			return get_current_put_pos_minus_one();
++		}
++
++		bool valid() const
++		{
++			return !!buffer;
++		}
++
++	protected:
++		bool grow(usz size) override
++		{
++			// rsx::data_heap::alloc() keeps the PUT position it computed before calling grow(), so only GET moves:
++			// once the renderer has waited for the GPU, the whole ring is free from PUT onwards (wrapping to 0).
++			if (size < m_size && on_exhausted && on_exhausted(size))
++			{
++				reset_allocation_stats();
++				return true;
++			}
++
++			return false;
++		}
++
++	private:
++		u8* m_host = nullptr;
++	};
++}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp b/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp
 new file mode 100644
-index 0000000..97bd271
+index 0000000..33b4594
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp
-@@ -0,0 +1,654 @@
+@@ -0,0 +1,656 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M2): RSX fragment program decompiler for the native Metal 4 renderer.
 +// The generated GLSL follows VKFragmentProgram.cpp line for line; only the device queries differ.
@@ -877,7 +1145,9 @@ index 0000000..97bd271
 +		constant_offsets = std::move(decompiler.properties.constant_offsets);
 +		glsl_source = std::move(source);
 +		spirv.clear();
-+		msl.clear();
++
++		std::lock_guard lock(translation_lock);
++		variants.clear();
 +	}
 +
 +	bool fragment_program::Compile()
@@ -900,19 +1170,19 @@ index 0000000..97bd271
 +		return true;
 +	}
 +
-+	const translation_result& fragment_program::get_msl(const fragment_variant_key& key)
++	fragment_program::variant& fragment_program::get_variant(const fragment_variant_key& key) const
 +	{
-+		auto [it, inserted] = msl.try_emplace(key);
++		auto [it, inserted] = variants.try_emplace(key);
 +		if (inserted)
 +		{
 +			translation_options options{};
 +			options.depth_attachment = key.depth_attachment;
 +			options.stencil_attachment = key.stencil_attachment;
 +			options.color_output_mask = key.color_output_mask;
-+			it->second = translate_spirv_to_msl(spirv, shader_stage::fragment, inputs, options);
-+			if (!it->second.ok)
++			it->second.msl = translate_spirv_to_msl(spirv, shader_stage::fragment, inputs, options);
++			if (!it->second.msl.ok)
 +			{
-+				rsx_log.error("Metal: fragment program %u was not translated to MSL: %s", id, it->second.error);
++				rsx_log.error("Metal: fragment program %u was not translated to MSL: %s", id, it->second.msl.error);
 +			}
 +		}
 +
@@ -921,10 +1191,10 @@ index 0000000..97bd271
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.h b/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.h
 new file mode 100644
-index 0000000..6488231
+index 0000000..48010d9
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.h
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,119 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -934,11 +1204,13 @@ index 0000000..6488231
 +
 +#include "Emu/RSX/Program/FragmentProgramDecompiler.h"
 +#include "Emu/RSX/Program/GLSLTypes.h"
++#include "MTLAPI.h"
 +#include "MTLCommonDecompiler.h"
 +#include "MTLShaderTranslator.h"
 +
 +#include <array>
 +#include <map>
++#include <mutex>
 +#include <string>
 +#include <vector>
 +
@@ -1010,7 +1282,15 @@ index 0000000..6488231
 +		std::vector<u32> spirv;
 +		std::string compile_error;
 +
-+		std::map<fragment_variant_key, translation_result> msl;
++		// Translations by render-pass variant and the Metal libraries compiled from them, under the lock.
++		struct variant
++		{
++			translation_result msl;
++			object library;
++			std::string library_error;
++		};
++		mutable std::mutex translation_lock;
++		mutable std::map<fragment_variant_key, variant> variants;
 +
 +		struct
 +		{
@@ -1029,7 +1309,860 @@ index 0000000..6488231
 +		// GLSL -> SPIR-V (glslang). False with compile_error set when glslang refuses the source.
 +		bool Compile();
 +
-+		const translation_result& get_msl(const fragment_variant_key& key);
++		// SPIR-V -> MSL for one variant, translated once and kept. Caller holds translation_lock.
++		variant& get_variant(const fragment_variant_key& key) const;
++		const translation_result& get_msl(const fragment_variant_key& key) const { return get_variant(key).msl; }
++	};
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLPipelineState.cpp b/rpcs3/Emu/RSX/Metal/MTLPipelineState.cpp
+new file mode 100644
+index 0000000..f2c1d3d
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLPipelineState.cpp
+@@ -0,0 +1,321 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M2.2): RSX fixed-function state -> Metal 4 pipeline, depth-stencil and encoder state.
++
++#include "stdafx.h"
++#include "MTLPipelineState.h"
++
++#include "Emu/RSX/Utils/color_utils.hpp"
++#include "Emu/RSX/Utils/rsx_utils.h"
++#include "Emu/RSX/rsx_methods.h"
++
++namespace mtl
++{
++	compare_function get_compare_function(rsx::comparison_function op)
++	{
++		switch (op)
++		{
++		case rsx::comparison_function::never: return compare_function::never;
++		case rsx::comparison_function::greater: return compare_function::greater;
++		case rsx::comparison_function::less: return compare_function::less;
++		case rsx::comparison_function::less_or_equal: return compare_function::less_equal;
++		case rsx::comparison_function::greater_or_equal: return compare_function::greater_equal;
++		case rsx::comparison_function::equal: return compare_function::equal;
++		case rsx::comparison_function::not_equal: return compare_function::not_equal;
++		case rsx::comparison_function::always: return compare_function::always;
++		}
++		fmt::throw_exception("Unknown compare op: 0x%x", static_cast<u32>(op));
++	}
++
++	stencil_operation get_stencil_operation(rsx::stencil_op op)
++	{
++		switch (op)
++		{
++		case rsx::stencil_op::keep: return stencil_operation::keep;
++		case rsx::stencil_op::zero: return stencil_operation::zero;
++		case rsx::stencil_op::replace: return stencil_operation::replace;
++		case rsx::stencil_op::incr: return stencil_operation::increment_clamp;
++		case rsx::stencil_op::decr: return stencil_operation::decrement_clamp;
++		case rsx::stencil_op::invert: return stencil_operation::invert;
++		case rsx::stencil_op::incr_wrap: return stencil_operation::increment_wrap;
++		case rsx::stencil_op::decr_wrap: return stencil_operation::decrement_wrap;
++		}
++		fmt::throw_exception("Unknown stencil op: 0x%x", static_cast<u32>(op));
++	}
++
++	blend_factor get_blend_factor(rsx::blend_factor factor)
++	{
++		switch (factor)
++		{
++		case rsx::blend_factor::one: return blend_factor::one;
++		case rsx::blend_factor::zero: return blend_factor::zero;
++		case rsx::blend_factor::src_alpha: return blend_factor::source_alpha;
++		case rsx::blend_factor::dst_alpha: return blend_factor::destination_alpha;
++		case rsx::blend_factor::src_color: return blend_factor::source_color;
++		case rsx::blend_factor::dst_color: return blend_factor::destination_color;
++		case rsx::blend_factor::constant_color: return blend_factor::blend_color;
++		case rsx::blend_factor::constant_alpha: return blend_factor::blend_alpha;
++		case rsx::blend_factor::one_minus_src_color: return blend_factor::one_minus_source_color;
++		case rsx::blend_factor::one_minus_dst_color: return blend_factor::one_minus_destination_color;
++		case rsx::blend_factor::one_minus_src_alpha: return blend_factor::one_minus_source_alpha;
++		case rsx::blend_factor::one_minus_dst_alpha: return blend_factor::one_minus_destination_alpha;
++		case rsx::blend_factor::one_minus_constant_alpha: return blend_factor::one_minus_blend_alpha;
++		case rsx::blend_factor::one_minus_constant_color: return blend_factor::one_minus_blend_color;
++		case rsx::blend_factor::src_alpha_saturate: return blend_factor::source_alpha_saturated;
++		}
++		fmt::throw_exception("Unknown blend factor 0x%x", static_cast<u32>(factor));
++	}
++
++	blend_operation get_blend_operation(rsx::blend_equation op)
++	{
++		// The signed equations have no host equivalent; the Vulkan renderer emulates them the same way.
++		switch (op)
++		{
++		case rsx::blend_equation::add_signed:
++			rsx_log.error("blend equation add_signed used. Emulating using FUNC_ADD");
++			[[fallthrough]];
++		case rsx::blend_equation::add: return blend_operation::add;
++		case rsx::blend_equation::reverse_add_signed:
++			rsx_log.error("blend equation reverse_add_signed used. Emulating using FUNC_ADD");
++			return blend_operation::add;
++		case rsx::blend_equation::subtract: return blend_operation::subtract;
++		case rsx::blend_equation::reverse_subtract_signed:
++			rsx_log.error("blend equation reverse_subtract_signed used. Emulating using FUNC_REVERSE_SUBTRACT");
++			[[fallthrough]];
++		case rsx::blend_equation::reverse_subtract: return blend_operation::reverse_subtract;
++		case rsx::blend_equation::min: return blend_operation::min;
++		case rsx::blend_equation::max: return blend_operation::max;
++		}
++		fmt::throw_exception("Unknown blend op: 0x%x", static_cast<u32>(op));
++	}
++
++	winding get_winding(rsx::front_face face)
++	{
++		switch (face)
++		{
++		case rsx::front_face::cw: return winding::clockwise;
++		case rsx::front_face::ccw: return winding::counter_clockwise;
++		}
++		fmt::throw_exception("Unknown front face value: 0x%x", static_cast<u32>(face));
++	}
++
++	native_primitive get_native_primitive(rsx::primitive_type primitive)
++	{
++		switch (primitive)
++		{
++		case rsx::primitive_type::points: return { primitive_type::point, false };
++		case rsx::primitive_type::lines: return { primitive_type::line, false };
++		case rsx::primitive_type::line_loop: return { primitive_type::line_strip, true };
++		case rsx::primitive_type::line_strip: return { primitive_type::line_strip, false };
++		case rsx::primitive_type::triangles: return { primitive_type::triangle, false };
++		case rsx::primitive_type::triangle_strip:
++		case rsx::primitive_type::quad_strip: return { primitive_type::triangle_strip, false };
++		case rsx::primitive_type::triangle_fan:
++		case rsx::primitive_type::quads:
++		case rsx::primitive_type::polygon: return { primitive_type::triangle, true };
++		}
++		fmt::throw_exception("Unsupported primitive topology 0x%x", static_cast<u8>(primitive));
++	}
++
++	topology_class get_topology_class(rsx::primitive_type primitive)
++	{
++		switch (get_native_primitive(primitive).type)
++		{
++		case primitive_type::point: return topology_class::point;
++		case primitive_type::line:
++		case primitive_type::line_strip: return topology_class::line;
++		default: return topology_class::triangle;
++		}
++	}
++
++	color_attachment_state color_blend_key::attachment_state() const
++	{
++		color_attachment_state state{};
++		state.format = static_cast<pixel_format>(format);
++		state.blending = !!blend;
++		state.source_rgb = static_cast<blend_factor>(source_rgb);
++		state.destination_rgb = static_cast<blend_factor>(destination_rgb);
++		state.rgb_operation = static_cast<blend_operation>(rgb_operation);
++		state.source_alpha = static_cast<blend_factor>(source_alpha);
++		state.destination_alpha = static_cast<blend_factor>(destination_alpha);
++		state.alpha_operation = static_cast<blend_operation>(alpha_operation);
++		state.write_mask = write_mask;
++		return state;
++	}
++
++	depth_stencil_descriptor depth_stencil_key::descriptor() const
++	{
++		depth_stencil_descriptor desc{};
++		desc.depth_compare = static_cast<compare_function>(depth_compare);
++		desc.depth_write = !!depth_write;
++		desc.stencil = !!stencil;
++		for (const auto& [src, dst] : { std::pair{ &front, &desc.front }, std::pair{ &back, &desc.back } })
++		{
++			dst->compare = static_cast<compare_function>(src->compare);
++			dst->stencil_fail = static_cast<stencil_operation>(src->stencil_fail);
++			dst->depth_fail = static_cast<stencil_operation>(src->depth_fail);
++			dst->depth_stencil_pass = static_cast<stencil_operation>(src->depth_stencil_pass);
++			dst->read_mask = src->read_mask;
++			dst->write_mask = src->write_mask;
++		}
++		return desc;
++	}
++
++	pipeline_props decode_pipeline_props(const rsx::rsx_state& regs, const attachment_layout& attachments,
++		rsx::primitive_type primitive, bool supports_hw_a2c, bool supports_hw_a2one, bool force_disable_blending)
++	{
++		pipeline_props props{};
++		props.color_count = attachments.color_count;
++		props.depth_attachment = attachments.depth ? 1 : 0;
++		props.stencil_attachment = attachments.stencil ? 1 : 0;
++		props.sample_count = attachments.samples;
++		props.topology = static_cast<u8>(get_topology_class(primitive));
++
++		const auto host_write_mask = rsx::get_write_output_mask(regs.surface_color());
++		for (u8 index = 0; index < attachments.color_count; ++index)
++		{
++			auto& color = props.color[index];
++			color.format = static_cast<u16>(attachments.color[index]);
++
++			bool color_mask_b = regs.color_mask_b(index);
++			bool color_mask_g = regs.color_mask_g(index);
++			bool color_mask_r = regs.color_mask_r(index);
++			bool color_mask_a = regs.color_mask_a(index);
++
++			switch (regs.surface_color())
++			{
++			case rsx::surface_color_format::b8:
++				rsx::get_b8_colormask(color_mask_r, color_mask_g, color_mask_b, color_mask_a);
++				break;
++			case rsx::surface_color_format::g8b8:
++				rsx::get_g8b8_r8g8_colormask(color_mask_r, color_mask_g, color_mask_b, color_mask_a);
++				break;
++			default:
++				break;
++			}
++
++			color.write_mask =
++				((color_mask_r && host_write_mask[0]) ? write_red : 0) |
++				((color_mask_g && host_write_mask[1]) ? write_green : 0) |
++				((color_mask_b && host_write_mask[2]) ? write_blue : 0) |
++				((color_mask_a && host_write_mask[3]) ? write_alpha : 0);
++		}
++
++		// LogicOp and Blend are mutually exclusive. If both are enabled, LogicOp takes precedence (Vulkan renderer).
++		if (regs.logic_op_enabled())
++		{
++			props.logic_op_requested = 1;
++		}
++		else if (!force_disable_blending)
++		{
++			if (const auto blend_enabled = regs.blend_enabled_mask())
++			{
++				const auto source_rgb = get_blend_factor(regs.blend_func_sfactor_rgb());
++				const auto source_alpha = get_blend_factor(regs.blend_func_sfactor_a());
++				const auto destination_rgb = get_blend_factor(regs.blend_func_dfactor_rgb());
++				const auto destination_alpha = get_blend_factor(regs.blend_func_dfactor_a());
++				const auto rgb_operation = get_blend_operation(regs.blend_equation_rgb());
++				const auto alpha_operation = get_blend_operation(regs.blend_equation_a());
++
++				for (u8 index = 0; index < attachments.color_count; ++index)
++				{
++					if (blend_enabled & (1u << index))
++					{
++						auto& color = props.color[index];
++						color.blend = 1;
++						color.source_rgb = static_cast<u8>(source_rgb);
++						color.destination_rgb = static_cast<u8>(destination_rgb);
++						color.rgb_operation = static_cast<u8>(rgb_operation);
++						color.source_alpha = static_cast<u8>(source_alpha);
++						color.destination_alpha = static_cast<u8>(destination_alpha);
++						color.alpha_operation = static_cast<u8>(alpha_operation);
++					}
++				}
++			}
++		}
++
++		// vk::graphics_pipeline_state::set_multisample_state: the enables follow the registers, not msaa_enabled().
++		// The RSX sample mask has no Metal pipeline equivalent (MSAA is stage M4).
++		if (supports_hw_a2c || attachments.samples > 1)
++		{
++			props.alpha_to_coverage = regs.msaa_alpha_to_coverage_enabled() ? 1 : 0;
++			props.alpha_to_one = (regs.msaa_alpha_to_one_enabled() && supports_hw_a2one) ? 1 : 0;
++		}
++
++		return props;
++	}
++
++	depth_stencil_key decode_depth_stencil(const rsx::rsx_state& regs, bool stencil_attachment)
++	{
++		depth_stencil_key key{};
++
++		if (regs.depth_test_enabled())
++		{
++			// Like stencil, depth write is meaningless without depth test
++			key.depth_write = regs.depth_write_enabled() ? 1 : 0;
++			key.depth_compare = static_cast<u8>(get_compare_function(regs.depth_func()));
++		}
++
++		if (stencil_attachment && regs.stencil_test_enabled())
++		{
++			const auto make_face = [](rsx::comparison_function compare, rsx::stencil_op fail, rsx::stencil_op zfail, rsx::stencil_op zpass, u8 read_mask, u8 write_mask)
++			{
++				depth_stencil_key::face face{};
++				face.compare = static_cast<u8>(get_compare_function(compare));
++				face.stencil_fail = static_cast<u8>(get_stencil_operation(fail));
++				face.depth_fail = static_cast<u8>(get_stencil_operation(zfail));
++				face.depth_stencil_pass = static_cast<u8>(get_stencil_operation(zpass));
++				face.read_mask = read_mask;
++				face.write_mask = write_mask;
++				return face;
++			};
++
++			key.stencil = 1;
++			key.front = make_face(regs.stencil_func(), regs.stencil_op_fail(), regs.stencil_op_zfail(), regs.stencil_op_zpass(),
++				regs.stencil_func_mask(), regs.stencil_mask());
++			key.back = regs.two_sided_stencil_test_enabled()
++				? make_face(regs.back_stencil_func(), regs.back_stencil_op_fail(), regs.back_stencil_op_zfail(), regs.back_stencil_op_zpass(),
++					regs.back_stencil_func_mask(), regs.back_stencil_mask())
++				: key.front;
++		}
++
++		return key;
++	}
++
++	raster_state decode_raster_state(const rsx::rsx_state& regs)
++	{
++		raster_state state{};
++		state.front = get_winding(regs.front_face_mode());
++
++		if (regs.cull_face_enabled())
++		{
++			switch (regs.cull_face_mode())
++			{
++			case rsx::cull_face::back: state.cull = cull_mode::back; break;
++			case rsx::cull_face::front: state.cull = cull_mode::front; break;
++			case rsx::cull_face::front_and_back: state.cull_both_faces = true; break;
++			}
++		}
++
++		state.depth_clip = (regs.depth_clamp_enabled() || !regs.depth_clip_enabled()) ? depth_clip_mode::clamp : depth_clip_mode::clip;
++
++		if (regs.poly_offset_fill_enabled())
++		{
++			// vkCmdSetDepthBias(constant = offset_bias, clamp = 0, slope = offset_scale), as MoltenVK forwards it.
++			state.depth_bias = regs.poly_offset_bias();
++			state.depth_bias_slope = regs.poly_offset_scale();
++		}
++
++		if (regs.stencil_test_enabled())
++		{
++			state.stencil_front_reference = regs.stencil_func_ref();
++			state.stencil_back_reference = regs.two_sided_stencil_test_enabled() ? regs.back_stencil_func_ref() : regs.stencil_func_ref();
++		}
++
++		if (regs.blend_enabled_mask())
++		{
++			state.blend_color = rsx::get_constant_blend_colors();
++		}
++
++		return state;
++	}
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLPipelineState.h b/rpcs3/Emu/RSX/Metal/MTLPipelineState.h
+new file mode 100644
+index 0000000..a6cd4dc
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLPipelineState.h
+@@ -0,0 +1,149 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE (M2.2): RSX fixed-function state for the native Metal 4 renderer.
++//
++// The RSX registers are decoded exactly as the Vulkan renderer decodes them (VKGSRender.cpp decode_rsx_state,
++// VKDraw.cpp update_draw_state) and then converted the way MoltenVK converts the resulting Vulkan state:
++//   - pipeline_props: what a Metal render pipeline bakes in (attachment formats, blending, write masks, sample
++//     count, alpha-to-coverage/one, primitive class, the fragment variant's depth/stencil outputs);
++//   - depth_stencil_key: one MTLDepthStencilState (compare, write, stencil ops and masks; Metal has no dynamic
++//     stencil masks);
++//   - raster_state: per-draw encoder state (cull, winding, depth clip, depth bias, stencil references, blend colour).
++// Vulkan front faces map to the same Metal winding because the vertex shaders flip Y (MoltenVK's convention).
++// Features neither Metal nor the MoltenVK path on iPhone offer (logic ops, depth bounds before Apple10, wide lines)
++// behave as on that path and are counted by the renderer.
++
++#include "MTLAPI.h"
++
++#include "Emu/RSX/gcm_enums.h"
++
++#include <array>
++#include <type_traits>
++
++namespace rsx
++{
++	struct rsx_state;
++}
++
++namespace mtl
++{
++	// MTLPrimitiveTopologyClass
++	enum class topology_class : u8
++	{
++		unspecified = 0,
++		point = 1,
++		line = 2,
++		triangle = 3,
++	};
++
++	// The program cache hashes pipeline properties as raw bytes (rpcs3::hash_struct), so the keys hold only
++	// u8/u16 fields with no padding (checked below); enum values are stored as their Metal numbers.
++	struct color_blend_key
++	{
++		u16 format = 0;          // pixel_format
++		u8 write_mask = 0;       // color_write_mask bits
++		u8 blend = 0;
++		u8 source_rgb = static_cast<u8>(blend_factor::one);
++		u8 destination_rgb = static_cast<u8>(blend_factor::zero);
++		u8 rgb_operation = static_cast<u8>(blend_operation::add);
++		u8 source_alpha = static_cast<u8>(blend_factor::one);
++		u8 destination_alpha = static_cast<u8>(blend_factor::zero);
++		u8 alpha_operation = static_cast<u8>(blend_operation::add);
++
++		bool operator==(const color_blend_key&) const = default;
++		color_attachment_state attachment_state() const;
++	};
++
++	struct pipeline_props
++	{
++		std::array<color_blend_key, 4> color{};
++		u8 color_count = 0;
++		u8 depth_attachment = 0;
++		u8 stencil_attachment = 0;
++		u8 sample_count = 1;
++		u8 alpha_to_coverage = 0;
++		u8 alpha_to_one = 0;
++		u8 topology = static_cast<u8>(topology_class::triangle);
++		u8 logic_op_requested = 0;  // RSX logic op: not available (as with MoltenVK); blending stays off
++
++		bool operator==(const pipeline_props&) const = default;
++	};
++
++	static_assert(sizeof(color_blend_key) == 10 && sizeof(pipeline_props) == 48);
++	static_assert(std::has_unique_object_representations_v<pipeline_props>, "pipeline_props must have no padding");
++
++	struct depth_stencil_key
++	{
++		struct face
++		{
++			u8 compare = static_cast<u8>(compare_function::always);
++			u8 stencil_fail = static_cast<u8>(stencil_operation::keep);
++			u8 depth_fail = static_cast<u8>(stencil_operation::keep);
++			u8 depth_stencil_pass = static_cast<u8>(stencil_operation::keep);
++			u8 read_mask = 0xff;
++			u8 write_mask = 0xff;
++
++			bool operator==(const face&) const = default;
++		};
++
++		u8 depth_compare = static_cast<u8>(compare_function::always);
++		u8 depth_write = 0;
++		u8 stencil = 0;
++		u8 reserved = 0;
++		face front{};
++		face back{};
++
++		bool operator==(const depth_stencil_key&) const = default;
++		depth_stencil_descriptor descriptor() const;
++	};
++
++	static_assert(std::has_unique_object_representations_v<depth_stencil_key>, "depth_stencil_key must have no padding");
++
++	struct raster_state
++	{
++		cull_mode cull = cull_mode::none;
++		bool cull_both_faces = false;   // Vulkan FRONT_AND_BACK: triangles rasterize nothing (MoltenVK disables rasterization)
++		winding front = winding::counter_clockwise;
++		depth_clip_mode depth_clip = depth_clip_mode::clip;
++		f32 depth_bias = 0.f;
++		f32 depth_bias_slope = 0.f;
++		f32 depth_bias_clamp = 0.f;
++		u32 stencil_front_reference = 0;
++		u32 stencil_back_reference = 0;
++		std::array<f32, 4> blend_color{};
++	};
++
++	// Conversions (VK helper -> MoltenVK mapping).
++	compare_function get_compare_function(rsx::comparison_function op);
++	stencil_operation get_stencil_operation(rsx::stencil_op op);
++	blend_factor get_blend_factor(rsx::blend_factor factor);
++	blend_operation get_blend_operation(rsx::blend_equation op);
++	winding get_winding(rsx::front_face face);
++	topology_class get_topology_class(rsx::primitive_type primitive);
++
++	// Metal primitive for an RSX primitive, and whether an index buffer must emulate it (VKVertexBuffers.cpp,
++	// the __APPLE__ table: triangle fans, quads, polygons and line loops are emulated).
++	struct native_primitive
++	{
++		primitive_type type;
++		bool emulated;
++	};
++	native_primitive get_native_primitive(rsx::primitive_type primitive);
++
++	struct attachment_layout
++	{
++		std::array<pixel_format, 4> color{};
++		u8 color_count = 0;
++		bool depth = false;
++		bool stencil = false;
++		u8 samples = 1;
++	};
++
++	pipeline_props decode_pipeline_props(const rsx::rsx_state& regs, const attachment_layout& attachments,
++		rsx::primitive_type primitive, bool supports_hw_a2c, bool supports_hw_a2one, bool force_disable_blending);
++
++	depth_stencil_key decode_depth_stencil(const rsx::rsx_state& regs, bool stencil_attachment);
++
++	raster_state decode_raster_state(const rsx::rsx_state& regs);
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.cpp b/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.cpp
+new file mode 100644
+index 0000000..77845a2
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.cpp
+@@ -0,0 +1,237 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M2.2): program cache traits and pipeline builds of the native Metal 4 renderer.
++
++#include "stdafx.h"
++#include "MTLProgramBuffer.h"
++
++namespace mtl
++{
++	namespace
++	{
++		pipeline_environment g_environment{};
++		pipeline_counters g_counters{};
++
++		u32 find_slot(const std::vector<resource_slot>& slots, u32 location, u32 resource_slot::*member)
++		{
++			for (const auto& slot : slots)
++			{
++				if (slot.location == location && slot.type != glsl::input_type_push_constant)
++				{
++					return slot.*member;
++				}
++			}
++			return umax;
++		}
++	}
++
++	void set_pipeline_environment(const pipeline_environment& environment)
++	{
++		g_environment = environment;
++	}
++
++	const pipeline_environment& get_pipeline_environment()
++	{
++		return g_environment;
++	}
++
++	pipeline_counters& get_pipeline_counters()
++	{
++		return g_counters;
++	}
++
++	u32 program::vertex_buffer_slot(u32 location) const { return find_slot(vertex_slots, location, &resource_slot::buffer); }
++	u32 program::vertex_texture_slot(u32 location) const { return find_slot(vertex_slots, location, &resource_slot::texture); }
++	u32 program::vertex_sampler_slot(u32 location) const { return find_slot(vertex_slots, location, &resource_slot::sampler); }
++	u32 program::fragment_buffer_slot(u32 location) const { return find_slot(fragment_slots, location, &resource_slot::buffer); }
++	u32 program::fragment_texture_slot(u32 location) const { return find_slot(fragment_slots, location, &resource_slot::texture); }
++	u32 program::fragment_sampler_slot(u32 location) const { return find_slot(fragment_slots, location, &resource_slot::sampler); }
++
++	bool program::fragment_reads_push_constants() const
++	{
++		for (const auto& slot : fragment_slots)
++		{
++			if (slot.type == glsl::input_type_push_constant)
++			{
++				return slot.used;
++			}
++		}
++		return false;
++	}
++
++	void MTLTraits::recompile_fragment_program(const RSXFragmentProgram& RSXFP, fragment_program_type& fragmentProgramData, usz ID)
++	{
++		fragmentProgramData.Decompile(RSXFP, g_environment.caps);
++		fragmentProgramData.id = static_cast<u32>(ID);
++		g_counters.fragment_programs++;
++
++		if (!fragmentProgramData.Compile())
++		{
++			g_counters.glsl_failures++;
++			rsx_log.error("Metal: fragment program %u: %s", fragmentProgramData.id, fragmentProgramData.compile_error);
++		}
++	}
++
++	void MTLTraits::recompile_vertex_program(const RSXVertexProgram& RSXVP, vertex_program_type& vertexProgramData, usz ID)
++	{
++		vertexProgramData.Decompile(RSXVP, g_environment.caps);
++		vertexProgramData.id = static_cast<u32>(ID);
++		g_counters.vertex_programs++;
++
++		if (!vertexProgramData.Compile())
++		{
++			g_counters.glsl_failures++;
++			rsx_log.error("Metal: vertex program %u: %s", vertexProgramData.id, vertexProgramData.compile_error);
++		}
++	}
++
++	void MTLTraits::validate_pipeline_properties(const vertex_program_type&, const fragment_program_type& fp, pipeline_properties& properties)
++	{
++		// Explicitly disable writing to undefined registers (as VKTraits does with the colour write masks).
++		for (u32 index = 0; index < properties.color.size(); ++index)
++		{
++			if (!fp.output_color_masks[index])
++			{
++				properties.color[index].write_mask = 0;
++			}
++		}
++	}
++
++	MTLTraits::pipeline_type* MTLTraits::build_pipeline(
++		const vertex_program_type& vertexProgramData,
++		const fragment_program_type& fragmentProgramData,
++		const pipeline_properties& pipelineProperties,
++		bool /*compile_async*/,
++		std::function<pipeline_type*(pipeline_storage_type&)> callback)
++	{
++		auto result = std::make_unique<program>();
++		const auto& props = pipelineProperties;
++
++		object vertex_library;
++		object fragment_library;
++		std::string vertex_entry;
++		std::string fragment_entry;
++
++		// Vertex stage: one translation per primitive class, one library per translation.
++		{
++			const bool points = props.topology == static_cast<u8>(topology_class::point);
++			const u32 variant = points ? 1 : 0;
++
++			std::lock_guard lock(vertexProgramData.translation_lock);
++			if (vertexProgramData.spirv.empty())
++			{
++				result->error = fmt::format("vertex program %u has no SPIR-V (%s)", vertexProgramData.id, vertexProgramData.compile_error);
++			}
++			else if (const auto& msl = vertexProgramData.get_msl(points); !msl.ok)
++			{
++				g_counters.translation_failures++;
++				result->error = fmt::format("vertex program %u: %s", vertexProgramData.id, msl.error);
++			}
++			else
++			{
++				auto& library = vertexProgramData.library[variant];
++				auto& library_error = vertexProgramData.library_error[variant];
++				if (!library && library_error.empty())
++				{
++					library = compile_library(g_environment.compiler, msl.msl, { g_environment.fast_math, msl.position_invariant }, library_error);
++					if (!library)
++					{
++						g_counters.library_failures++;
++						rsx_log.error("Metal: vertex program %u does not compile: %s", vertexProgramData.id, library_error);
++					}
++				}
++
++				if (library)
++				{
++					vertex_library = library;
++					vertex_entry = msl.entry_point;
++					result->vertex_slots = msl.slots;
++				}
++				else
++				{
++					result->error = fmt::format("vertex program %u: %s", vertexProgramData.id, library_error);
++				}
++			}
++		}
++
++		// Fragment stage: one translation per render-pass variant.
++		if (result->error.empty())
++		{
++			fragment_variant_key key{};
++			key.depth_attachment = !!props.depth_attachment;
++			key.stencil_attachment = !!props.stencil_attachment;
++			// Only outputs with a colour attachment (MoltenVK's enable_frag_output_mask); alpha-to-coverage needs output 0.
++			key.color_output_mask = props.color_count ? ((1u << props.color_count) - 1) : (props.alpha_to_coverage ? 1u : 0u);
++
++			std::lock_guard lock(fragmentProgramData.translation_lock);
++			if (fragmentProgramData.spirv.empty())
++			{
++				result->error = fmt::format("fragment program %u has no SPIR-V (%s)", fragmentProgramData.id, fragmentProgramData.compile_error);
++			}
++			else if (auto& variant = fragmentProgramData.get_variant(key); !variant.msl.ok)
++			{
++				g_counters.translation_failures++;
++				result->error = fmt::format("fragment program %u: %s", fragmentProgramData.id, variant.msl.error);
++			}
++			else
++			{
++				if (!variant.library && variant.library_error.empty())
++				{
++					variant.library = compile_library(g_environment.compiler, variant.msl.msl, { g_environment.fast_math, false }, variant.library_error);
++					if (!variant.library)
++					{
++						g_counters.library_failures++;
++						rsx_log.error("Metal: fragment program %u does not compile: %s", fragmentProgramData.id, variant.library_error);
++					}
++				}
++
++				if (variant.library)
++				{
++					fragment_library = variant.library;
++					fragment_entry = variant.msl.entry_point;
++					result->fragment_slots = variant.msl.slots;
++				}
++				else
++				{
++					result->error = fmt::format("fragment program %u: %s", fragmentProgramData.id, variant.library_error);
++				}
++			}
++		}
++
++		if (result->error.empty())
++		{
++			render_pipeline_descriptor desc{};
++			desc.vertex_library = vertex_library;
++			desc.fragment_library = fragment_library;
++			desc.vertex_function = vertex_entry;
++			desc.fragment_function = fragment_entry;
++			for (u32 index = 0; index < props.color_count && index < props.color.size(); ++index)
++			{
++				desc.color[index] = props.color[index].attachment_state();
++			}
++			desc.sample_count = props.sample_count;
++			desc.alpha_to_coverage = !!props.alpha_to_coverage;
++			desc.alpha_to_one = !!props.alpha_to_one;
++			desc.input_topology = props.topology;
++			desc.label = fmt::format("RSX vp%u fp%u", vertexProgramData.id, fragmentProgramData.id);
++
++			std::string error;
++			result->pipeline = new_render_pipeline(g_environment.compiler, desc, error);
++			if (result->pipeline)
++			{
++				g_counters.pipelines++;
++			}
++			else
++			{
++				result->error = fmt::format("pipeline vp%u fp%u: %s", vertexProgramData.id, fragmentProgramData.id, error);
++			}
++		}
++
++		if (!result->error.empty())
++		{
++			g_counters.pipeline_failures++;
++			rsx_log.error("Metal: %s", result->error);
++		}
++
++		return callback(result);
++	}
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.h b/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.h
+new file mode 100644
+index 0000000..449947b
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.h
+@@ -0,0 +1,120 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE (M2.2): the program cache of the native Metal 4 renderer.
++//
++// RPCS3's shared program_state_cache (the one the Vulkan and OpenGL renderers use) keys vertex and fragment
++// programs by their microcode and pipelines by (programs, pipeline_props). MTLTraits plugs the Metal stack in:
++// decompile + glslang on first sight of a program, SPIR-V -> MSL and MTL4 library compilation on first use of a
++// translation variant (both cached on the program), and one MTLRenderPipelineState per key. A program or pipeline
++// that fails is kept with its error (logged once) and its draws are skipped and counted by the renderer, exactly
++// as the Vulkan renderer skips draws whose program is not available.
++
++#include "Emu/RSX/Program/ProgramStateCache.h"
++#include "MTLAPI.h"
++#include "MTLFragmentProgram.h"
++#include "MTLPipelineState.h"
++#include "MTLShaderTranslator.h"
++#include "MTLVertexProgram.h"
++
++#include <atomic>
++#include <functional>
++#include <memory>
++#include <string>
++#include <vector>
++
++namespace mtl
++{
++	// What a program cache build needs from the renderer; set once by MTLGSRender::on_init_thread.
++	struct pipeline_environment
++	{
++		object device;
++		object compiler;
++		shader_device_caps caps{};
++		bool fast_math = true;   // !g_cfg.video.disable_msl_fast_math, read when the renderer starts
++	};
++
++	void set_pipeline_environment(const pipeline_environment& environment);
++	const pipeline_environment& get_pipeline_environment();
++
++	struct pipeline_counters
++	{
++		std::atomic<u64> vertex_programs{0};
++		std::atomic<u64> fragment_programs{0};
++		std::atomic<u64> glsl_failures{0};
++		std::atomic<u64> translation_failures{0};
++		std::atomic<u64> library_failures{0};
++		std::atomic<u64> pipelines{0};
++		std::atomic<u64> pipeline_failures{0};
++	};
++
++	pipeline_counters& get_pipeline_counters();
++
++	// A linked program: the render pipeline state for one key, with both stages' argument-table slots.
++	class program
++	{
++	public:
++		object pipeline;
++		std::vector<resource_slot> vertex_slots;
++		std::vector<resource_slot> fragment_slots;
++		std::string error;
++
++		bool valid() const { return !!pipeline; }
++
++		// The Metal slot of a GLSL (set, binding) of each stage, or umax when the stage does not declare it.
++		u32 vertex_buffer_slot(u32 location) const;
++		u32 vertex_texture_slot(u32 location) const;
++		u32 vertex_sampler_slot(u32 location) const;
++		u32 fragment_buffer_slot(u32 location) const;
++		u32 fragment_texture_slot(u32 location) const;
++		u32 fragment_sampler_slot(u32 location) const;
++		bool fragment_reads_push_constants() const;
++	};
++
++	struct MTLTraits
++	{
++		using vertex_program_type = mtl::vertex_program;
++		using fragment_program_type = mtl::fragment_program;
++		using pipeline_type = mtl::program;
++		using pipeline_storage_type = std::unique_ptr<mtl::program>;
++		using pipeline_properties = mtl::pipeline_props;
++
++		static void recompile_fragment_program(const RSXFragmentProgram& RSXFP, fragment_program_type& fragmentProgramData, usz ID);
++		static void recompile_vertex_program(const RSXVertexProgram& RSXVP, vertex_program_type& vertexProgramData, usz ID);
++		static void validate_pipeline_properties(const vertex_program_type& vp, const fragment_program_type& fp, pipeline_properties& properties);
++		static pipeline_type* build_pipeline(
++			const vertex_program_type& vertexProgramData,
++			const fragment_program_type& fragmentProgramData,
++			const pipeline_properties& pipelineProperties,
++			bool compile_async,
++			std::function<pipeline_type*(pipeline_storage_type&)> callback);
++	};
++
++	struct program_cache : public program_state_cache<MTLTraits>
++	{
++		program_cache(decompiler_callback_t callback)
++		{
++			notify_pipeline_compiled = callback;
++		}
++
++		u64 get_hash(const mtl::pipeline_props& props)
++		{
++			return rpcs3::hash_struct<mtl::pipeline_props>(props);
++		}
++
++		u64 get_hash(const RSXVertexProgram& prog)
++		{
++			return program_hash_util::vertex_program_utils::get_vertex_program_ucode_hash(prog);
++		}
++
++		u64 get_hash(const RSXFragmentProgram& prog)
++		{
++			return program_hash_util::fragment_program_utils::get_fragment_program_ucode_hash(prog);
++		}
++
++		bool check_cache_missed() const
++		{
++			return m_cache_miss_flag;
++		}
 +	};
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLShaderTranslator.cpp b/rpcs3/Emu/RSX/Metal/MTLShaderTranslator.cpp
@@ -1461,10 +2594,10 @@ index 0000000..29a5898
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLVertexProgram.cpp b/rpcs3/Emu/RSX/Metal/MTLVertexProgram.cpp
 new file mode 100644
-index 0000000..8ef7021
+index 0000000..cb36150
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLVertexProgram.cpp
-@@ -0,0 +1,520 @@
+@@ -0,0 +1,526 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M2): RSX vertex program decompiler for the native Metal 4 renderer.
 +// The generated GLSL follows VKVertexProgram.cpp line for line; only the device queries differ.
@@ -1944,8 +3077,14 @@ index 0000000..8ef7021
 +		constant_ids = std::vector<u16>(decompiler.m_constant_ids.begin(), decompiler.m_constant_ids.end());
 +		glsl_source = std::move(source);
 +		spirv.clear();
-+		msl[0] = {};
-+		msl[1] = {};
++
++		std::lock_guard lock(translation_lock);
++		for (u32 i = 0; i < 2; ++i)
++		{
++			msl[i] = {};
++			library[i].reset();
++			library_error[i].clear();
++		}
 +	}
 +
 +	bool vertex_program::Compile()
@@ -1968,7 +3107,7 @@ index 0000000..8ef7021
 +		return true;
 +	}
 +
-+	const translation_result& vertex_program::get_msl(bool point_primitives)
++	const translation_result& vertex_program::get_msl(bool point_primitives) const
 +	{
 +		translation_result& result = msl[point_primitives ? 1 : 0];
 +		if (!result.ok && result.error.empty())
@@ -1987,10 +3126,10 @@ index 0000000..8ef7021
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLVertexProgram.h b/rpcs3/Emu/RSX/Metal/MTLVertexProgram.h
 new file mode 100644
-index 0000000..d12633f
+index 0000000..100c9c9
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLVertexProgram.h
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,100 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -2000,9 +3139,11 @@ index 0000000..d12633f
 +
 +#include "Emu/RSX/Program/VertexProgramDecompiler.h"
 +#include "Emu/RSX/Program/program_util.h"
++#include "MTLAPI.h"
 +#include "MTLCommonDecompiler.h"
 +#include "MTLShaderTranslator.h"
 +
++#include <mutex>
 +#include <string>
 +#include <vector>
 +
@@ -2062,8 +3203,12 @@ index 0000000..d12633f
 +		std::vector<u32> spirv;
 +		std::string compile_error;
 +
-+		// Translations by primitive class: [0] everything but points, [1] points ([[point_size]] written).
-+		translation_result msl[2];
++		// Translations by primitive class: [0] everything but points, [1] points ([[point_size]] written), and the
++		// Metal libraries compiled from them. Filled on first use by any pipeline build, under the lock.
++		mutable std::mutex translation_lock;
++		mutable translation_result msl[2];
++		mutable object library[2];
++		mutable std::string library_error[2];
 +
 +		struct
 +		{
@@ -2081,7 +3226,7 @@ index 0000000..d12633f
 +		// GLSL -> SPIR-V (glslang). False with compile_error set when glslang refuses the source.
 +		bool Compile();
 +
-+		// SPIR-V -> MSL for one primitive class, translated once and kept.
-+		const translation_result& get_msl(bool point_primitives);
++		// SPIR-V -> MSL for one primitive class, translated once and kept. Caller holds translation_lock.
++		const translation_result& get_msl(bool point_primitives) const;
 +	};
 +}
