@@ -820,9 +820,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Proof:
     - New gate core667-fixes: 55 checks; the control reproduces the NullReferenceException.
     - 9 affected gates rerun and green.
-    - Contract `cd4c9fc7`; contract test 381/381.
-    - [evidence](evidence/melonx-667-gates/run.json).
-  - Core CI running; pin and handoff to main next.
+    - Contract test 381/381 at every refreeze.
+    - [evidence](evidence/melonx-667-gates/run.json) (each CI failure below is recorded there).
+  - Core CI so far:
+    - `b3b7161f` (run 42110141980): a flaky timing gate, then core667-fixes could not restore (LibHac feed 403).
+      Fixed in `cdd3d2e4`.
+    - `cdd3d2e4` (run 42117936769): core667-fixes failed on macOS because of the /var link. Fixed in `fafac5a5`.
+    - `fafac5a5` (run 42122823566): all 47 gates, NativeAOT compile, ABI and binding green. Then the download of
+      the original native-dependency artifact (run 39854858591) failed: it expired and was purged. No pin possible
+      (no simulator run).
+  - Fix committed locally (not on the remote yet): the step fetches the same archive through the republication
+    pinned in `build-utils/delivery/666.json` (`retained_components.download_archive`, as the standard delivery
+    does). The next step still authenticates every framework byte against engine82. Replayed offline with the real
+    build 662 bundle: identity, pins, inventory and bytes equal. Contract refrozen (only the workflow digest).
+  - Blocker: GitHub refuses the push of that commit ("fatal error in commit_refs") on `Claude` and on the work
+    branch, 6 attempts with backoff. Pin and handoff to main follow the green run.
 - **Next device checks (IPA with Core 667):**
   - SSBU then Hogwarts without restarting.
   - A long Hogwarts session past 20 min.
