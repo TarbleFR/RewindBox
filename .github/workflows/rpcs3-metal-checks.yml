@@ -79,11 +79,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if ! xcrun --sdk iphoneos --find metal > /dev/null 2>&1 || ! xcrun --sdk iphoneos metal -v > /dev/null 2>&1; then
+          if ! xcrun --sdk iphoneos --find metal > /dev/null 2>&1; then
             echo "The Metal toolchain is not installed with this Xcode: downloading the component"
             xcodebuild -downloadComponent MetalToolchain
           fi
-          xcrun --sdk iphoneos metal -v 2>&1 | head -3
+          # Version banner only (written to a file: metal -v cut off by a closed pipe aborts, run 42129330100).
+          xcrun --sdk iphoneos metal -v > "$RUNNER_TEMP/metal-version.txt" 2>&1 || true
+          head -3 "$RUNNER_TEMP/metal-version.txt"
           # Every warning is an error except unused temporaries, which RSX programs always declare (MoltenVK and the
           # runtime MTL4 compiler accept them too).
           count=0
@@ -115,7 +117,7 @@ jobs:
           FLAGS+=(-I "$SHADER_STACK_WORK/asmjit/src" -I "$S/3rdparty/rewindbox-spirv-cross"
                   -DSPIRV_CROSS_NAMESPACE_OVERRIDE=rbx_spirv_cross -DSPIRV_CROSS_SPV_HEADER_NAMESPACE_OVERRIDE=rbx_spv)
           "$CXX" "${FLAGS[@]}" -x objective-c++ -fobjc-arc "$S/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm"
-          for unit in MTLGSRender.cpp MTLCommonDecompiler.cpp MTLVertexProgram.cpp MTLFragmentProgram.cpp MTLPipelineState.cpp MTLProgramBuffer.cpp; do
+          for unit in MTLGSRender.cpp MTLCommonDecompiler.cpp MTLVertexProgram.cpp MTLFragmentProgram.cpp MTLPipelineState.cpp MTLProgramBuffer.cpp MTLFormats.cpp; do
             "$CXX" "${FLAGS[@]}" -fno-exceptions -include "$S/rpcs3/stdafx.h" "$S/rpcs3/Emu/RSX/Metal/$unit"
           done
           # The translator and SPIRV-Cross are the Metal sources built with exceptions (rpcs3/Emu/CMakeLists.txt).

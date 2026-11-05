@@ -56,10 +56,10 @@ index 0000000..53c34d1
 +	CXX_STANDARD_REQUIRED ON
 +)
 diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
-index f907ea4..721173a 100644
+index f907ea4..3c3b7bc 100644
 --- a/rpcs3/Emu/CMakeLists.txt
 +++ b/rpcs3/Emu/CMakeLists.txt
-@@ -879,20 +879,40 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
+@@ -879,20 +879,42 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
      )
  
      # REWINDBOX_METAL_NATIVE: the native Metal 4 renderer. Its Metal calls live in MTLAPIApple.mm (ARC).
@@ -70,6 +70,8 @@ index f907ea4..721173a 100644
 +        RSX/Metal/MTLCommonDecompiler.cpp
 +        RSX/Metal/MTLCommonDecompiler.h
 +        RSX/Metal/MTLDataHeap.h
++        RSX/Metal/MTLFormats.cpp
++        RSX/Metal/MTLFormats.h
 +        RSX/Metal/MTLFragmentProgram.cpp
 +        RSX/Metal/MTLFragmentProgram.h
          RSX/Metal/MTLGSRender.cpp
@@ -526,6 +528,207 @@ index 0000000..bb306e9
 +	private:
 +		u8* m_host = nullptr;
 +	};
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLFormats.cpp b/rpcs3/Emu/RSX/Metal/MTLFormats.cpp
+new file mode 100644
+index 0000000..5046762
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLFormats.cpp
+@@ -0,0 +1,143 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M2.2/M3): RSX surface formats -> Metal pixel formats (the MoltenVK mapping of the
++// Vulkan renderer's choices).
++
++#include "stdafx.h"
++#include "MTLFormats.h"
++
++namespace mtl
++{
++	surface_format get_compatible_surface_format(rsx::surface_color_format format)
++	{
++		constexpr component_map o_rgb{ swizzle::red, swizzle::green, swizzle::blue, swizzle::one };
++		constexpr component_map z_rgb{ swizzle::red, swizzle::green, swizzle::blue, swizzle::zero };
++
++		switch (format)
++		{
++		// VK_FORMAT_R5G6B5_UNORM_PACK16 / VK_FORMAT_A1R5G5B5_UNORM_PACK16 on Apple GPUs (MoltenVK: B5G6R5Unorm, BGR5A1Unorm).
++		case rsx::surface_color_format::r5g6b5:
++			return { pixel_format::b5g6r5_unorm, default_component_map };
++		case rsx::surface_color_format::x1r5g5b5_o1r5g5b5:
++			return { pixel_format::bgr5a1_unorm, o_rgb };
++		case rsx::surface_color_format::x1r5g5b5_z1r5g5b5:
++			return { pixel_format::bgr5a1_unorm, z_rgb };
++
++		case rsx::surface_color_format::a8r8g8b8:
++			return { pixel_format::bgra8_unorm, default_component_map };
++		case rsx::surface_color_format::a8b8g8r8:
++			return { pixel_format::rgba8_unorm, default_component_map };
++		case rsx::surface_color_format::x8b8g8r8_o8b8g8r8:
++			return { pixel_format::rgba8_unorm, o_rgb };
++		case rsx::surface_color_format::x8b8g8r8_z8b8g8r8:
++			return { pixel_format::rgba8_unorm, z_rgb };
++		case rsx::surface_color_format::x8r8g8b8_z8r8g8b8:
++			return { pixel_format::bgra8_unorm, z_rgb };
++		case rsx::surface_color_format::x8r8g8b8_o8r8g8b8:
++			return { pixel_format::bgra8_unorm, o_rgb };
++
++		case rsx::surface_color_format::w16z16y16x16:
++			return { pixel_format::rgba16_float, default_component_map };
++		case rsx::surface_color_format::w32z32y32x32:
++			return { pixel_format::rgba32_float, default_component_map };
++
++		case rsx::surface_color_format::b8:
++			return { pixel_format::r8_unorm, { swizzle::red, swizzle::red, swizzle::red, swizzle::one } };
++		case rsx::surface_color_format::g8b8:
++			return { pixel_format::rg8_unorm, { swizzle::red, swizzle::green, swizzle::red, swizzle::green } };
++		case rsx::surface_color_format::x32:
++			return { pixel_format::r32_float, { swizzle::red, swizzle::red, swizzle::red, swizzle::red } };
++		}
++
++		rsx_log.error("Surface color buffer: Unsupported surface color format (0x%x)", static_cast<u32>(format));
++		return { pixel_format::bgra8_unorm, default_component_map };
++	}
++
++	pixel_format get_compatible_depth_surface_format(rsx::surface_depth_format2 format)
++	{
++		switch (format)
++		{
++		case rsx::surface_depth_format2::z16_uint: return pixel_format::depth16_unorm;
++		case rsx::surface_depth_format2::z16_float: return pixel_format::depth32_float;
++		case rsx::surface_depth_format2::z24s8_uint: return pixel_format::depth32_float_stencil8;
++		case rsx::surface_depth_format2::z24s8_float: return pixel_format::depth32_float_stencil8;
++		}
++
++		fmt::throw_exception("Invalid format (0x%x)", static_cast<u32>(format));
++	}
++
++	bool is_depth_format(pixel_format format)
++	{
++		switch (format)
++		{
++		case pixel_format::depth16_unorm:
++		case pixel_format::depth32_float:
++		case pixel_format::depth24_unorm_stencil8:
++		case pixel_format::depth32_float_stencil8:
++			return true;
++		default:
++			return false;
++		}
++	}
++
++	bool has_stencil(pixel_format format)
++	{
++		return format == pixel_format::depth24_unorm_stencil8 || format == pixel_format::depth32_float_stencil8 ||
++			format == pixel_format::stencil8 || format == pixel_format::x32_stencil8;
++	}
++
++	u32 get_texel_size(pixel_format format)
++	{
++		switch (format)
++		{
++		case pixel_format::a8_unorm:
++		case pixel_format::r8_unorm:
++		case pixel_format::r8_snorm:
++		case pixel_format::r8_uint:
++		case pixel_format::stencil8:
++			return 1;
++		case pixel_format::r16_unorm:
++		case pixel_format::r16_snorm:
++		case pixel_format::r16_uint:
++		case pixel_format::r16_float:
++		case pixel_format::rg8_unorm:
++		case pixel_format::rg8_snorm:
++		case pixel_format::b5g6r5_unorm:
++		case pixel_format::a1bgr5_unorm:
++		case pixel_format::abgr4_unorm:
++		case pixel_format::bgr5a1_unorm:
++		case pixel_format::depth16_unorm:
++			return 2;
++		case pixel_format::r32_uint:
++		case pixel_format::r32_sint:
++		case pixel_format::r32_float:
++		case pixel_format::rg16_unorm:
++		case pixel_format::rg16_snorm:
++		case pixel_format::rg16_float:
++		case pixel_format::rgba8_unorm:
++		case pixel_format::rgba8_unorm_srgb:
++		case pixel_format::rgba8_snorm:
++		case pixel_format::rgba8_uint:
++		case pixel_format::bgra8_unorm:
++		case pixel_format::bgra8_unorm_srgb:
++		case pixel_format::rgb10a2_unorm:
++		case pixel_format::rg11b10_float:
++		case pixel_format::rgb9e5_float:
++		case pixel_format::bgr10a2_unorm:
++		case pixel_format::depth32_float:
++			return 4;
++		case pixel_format::rg32_uint:
++		case pixel_format::rg32_float:
++		case pixel_format::rgba16_unorm:
++		case pixel_format::rgba16_snorm:
++		case pixel_format::rgba16_uint:
++		case pixel_format::rgba16_float:
++			return 8;
++		case pixel_format::rgba32_uint:
++		case pixel_format::rgba32_float:
++			return 16;
++		default:
++			// Including depth32_float_stencil8: Metal copies its depth (4 bytes) and stencil (1 byte) planes separately.
++			return 0;
++		}
++	}
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLFormats.h b/rpcs3/Emu/RSX/Metal/MTLFormats.h
+new file mode 100644
+index 0000000..01da0b9
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLFormats.h
+@@ -0,0 +1,46 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE (M2.2/M3): RSX surface formats for the native Metal 4 renderer.
++// The Vulkan renderer's choices (VKGSRender.cpp get_compatible_surface_format, VKFormats.cpp
++// get_compatible_depth_surface_format) mapped through MoltenVK's Vulkan -> Metal pixel format table, so a surface
++// has the same layout, precision and channel mapping as on the MoltenVK path. iPhone GPUs have no D24S8: 24-bit
++// depth surfaces are Depth32Float_Stencil8 (as on MoltenVK), with exact conversions to guest memory.
++
++#include "MTLAPI.h"
++
++#include "Emu/RSX/gcm_enums.h"
++
++#include <array>
++
++namespace mtl
++{
++	// MTLTextureSwizzle
++	enum class swizzle : u8
++	{
++		zero = 0,
++		one = 1,
++		red = 2,
++		green = 3,
++		blue = 4,
++		alpha = 5,
++	};
++
++	using component_map = std::array<swizzle, 4>;
++	inline constexpr component_map default_component_map{ swizzle::red, swizzle::green, swizzle::blue, swizzle::alpha };
++
++	struct surface_format
++	{
++		pixel_format format;
++		component_map mapping;
++	};
++
++	surface_format get_compatible_surface_format(rsx::surface_color_format format);
++	pixel_format get_compatible_depth_surface_format(rsx::surface_depth_format2 format);
++
++	bool is_depth_format(pixel_format format);
++	bool has_stencil(pixel_format format);
++
++	// Bytes per texel of the uncompressed formats the renderer creates (0 for anything else).
++	u32 get_texel_size(pixel_format format);
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp b/rpcs3/Emu/RSX/Metal/MTLFragmentProgram.cpp
 new file mode 100644
