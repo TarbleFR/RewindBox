@@ -619,8 +619,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - run `42121690064` is green: iOS 26 SDK compile of MTLAPIApple.mm and MTLGSRender.cpp, unit test under UBSan;
       - the probe ran, but the GitHub macOS GPU is an "Apple Paravirtual device" without Metal 4 (Apple7=0,
         Metal4=0), so Metal 4 execution can only be checked on the iPhone.
-    - M2 started locally (tree `rpcs3-metal-m2`): the vendored SPIRV-Cross vulkan-sdk-1.4.350.1 is verified against
-      its SOURCE.txt and builds on Linux with SPIRV_CROSS_NAMESPACE_OVERRIDE=rbx_spirv_cross.
+    - M2.1 (shader stack) is written. It is work in progress, not a Core: `build-utils/rpcs3/metal-wip-from-901.patch`
+      (`37bb3806`, CI fix `90018b09`).
+      - MTLVertexProgram and MTLFragmentProgram emit the Vulkan decompilers' GLSL line for line. The device facts come
+        from a Metal capability record, so no Vulkan device or header is needed.
+      - glslang compiles that GLSL to SPIR-V.
+      - MTLShaderTranslator turns SPIR-V into MSL with SPIRV-Cross vulkan-sdk-1.4.350.1, namespaced rbx_spirv_cross and
+        rbx_spv, with MoltenVK's options. Every resource gets an explicit argument-table slot, and any resource the
+        decompiler did not list is refused.
+      - Math mode follows the existing "Disable MSL Fast Math" setting, as MoltenVK does.
+      - Host test `test/native/build_rpcs3_metal_shader_stack.sh` runs real RSX ucode through the whole stack: a
+        4-constant transform, colour, texcoord, 2D texture and a literal constant. It passes on Linux and macOS.
+      - Run `42127316385` is green.
+        - The 5 MSL outputs compile for iOS with Apple's offline compiler (MSL 3.2, warnings are errors except unused
+          temporaries; run `42126871821` stopped on those).
+        - The decompilers, the translator and SPIRV-Cross compile against the iOS 26 SDK.
+      - Next: M2.2 draw path (rings `MTLDataHeap.h` started, pipeline key, program cache, vertex/index upload, draw).
+        After that, M3 surfaces and textures, needed before any game image.
     - Not built as a Core; no iPhone run. A full Core build there also needs a MoltenVK dependency run, because the
       bridge changed.
   - Core 668 (Claude line, orchestrator removed) is parked on `work/rpcs3-core668-no-orchestrator-20261105` (`0197102e`).
