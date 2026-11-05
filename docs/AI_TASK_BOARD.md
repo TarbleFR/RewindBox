@@ -571,6 +571,21 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     decisions (share_low, fps_low vs fps_default) and FPS with "Orchestrateur de threads" on/off,
     AC audio continuity (AUDIO641); MeloNX heavy titles (SSBU, Hogwarts) reach their menus, else
     MeloNX-crash.log; close the app between two MeloNX games (JIT Cache exhausted, pre-existing).
+- **IPA 666 device logs (5 Nov, private):**
+  - pid 16074 (BO2): the game's own exitspawn to t6mp_ps3f.self rebooted in-process; that MP boot
+    precompiled 21,377 cached SPU programs (runtime 236 MiB) and filled the 320 MiB JIT code arena:
+    PPU _sys_prx_load_module_list and later an SPU worker (make_branch_patchpoint) died with
+    JIT_ARENA_EXHAUSTED. Not the orchestrator (it was on in the first, healthy emulation too). Fix
+    designed, not built (maintainer: the next run worked, research stopped): cap the boot SPU
+    warm-up at half the code arena (SPUCommonRecompiler.cpp is a codegen input: needs an exact alias).
+  - pid 16145 (BO2 MP, 431 s, no crash): ORCH665 chose low in menus (59.6 vs 59.4 fps), aborted once,
+    kept default in play (27.5 vs 25.3 fps): SPU work matters, no SPU-placement gain. PLACEMENT665
+    (CPU 0-3 likely efficiency, 4-5 performance): PPU 45 % of samples on 0-3, RSX 35 %, SPU 74 % (QoS
+    IN 95 %). Writer locks: 1.14 M suspends per 5 s, 778 ms suspend, 568 ms PPU wait, 1,890 slow PPU
+    waits (281 ms). Lags: 271 blocking pipeline builds (155 s summed, median 534 ms, 165 > 500 ms)
+    against 3-24 per session before; the MP SHADERWARMUP took 32.8 s for 1608 entries (662: 0.37 s
+    for 1599): the Metal compiled-shader cache of the MP pipelines was cold (cause not proven; the
+    VkPipelineCache file loaded intact, 105 MB). PPUGRACE664 opened a median 3,909 windows per 5 s.
   - Then performance: PPU parking cost in BO2 normal play (252 ms/s), BO2 blocking pipeline builds.
 - **Setting applied (Core 664 turn):** same principal model as the Core 659 turn (get_session:
   session_context.model = last_served_model, unchanged); effort `max` (session_context.effort_level,
