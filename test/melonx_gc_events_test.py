@@ -133,6 +133,7 @@ with tempfile.TemporaryDirectory(prefix='melonx-gc-events-') as temporary:
 
     def probe(side, collector, program):
         project = work / (side + '-' + Path(program).stem)
+        shutil.rmtree(project, ignore_errors=True)  # a probe run again after a host-runtime fallback starts clean
         project.mkdir()
         shutil.copyfile(collector, project / 'EmbeddedPerformanceDiagnostics.cs')
         shutil.copyfile(SOURCE / JOURNAL, project / 'EmbeddedLaunchDiagnostics.cs')
@@ -150,8 +151,17 @@ with tempfile.TemporaryDirectory(prefix='melonx-gc-events-') as temporary:
         check(run.returncode == 0, 'probe runs: ' + side + ' ' + program)
         return json.loads(next(line for line in run.stdout.splitlines() if line.startswith('{')))
 
-    observed = {side: probe(side, path, 'test/melonx_performance_diagnostics/GcEventsProgram.cs')
-                for side, path in (('control', SOURCE / COLLECTOR), ('candidate', candidate_file))}
+    # The probe needs this host runtime's real background gen2s. .NET 10.0.0 sometimes runs a requested one blocking
+    # (dotnet/runtime#119383, docs/melonx-bgc-fallback-2026-11-05.md); the probe counts those host fallbacks. Only then
+    # is the probe run again (at most three runs, all recorded); a run without a host fallback is never repeated.
+    probe_runs = []
+    for attempt in range(3):
+        observed = {side: probe(side, path, 'test/melonx_performance_diagnostics/GcEventsProgram.cs')
+                    for side, path in (('control', SOURCE / COLLECTOR), ('candidate', candidate_file))}
+        probe_runs.append({side: value.get('hostFallbacks', 0) for side, value in observed.items()})
+        if not any(probe_runs[-1].values()):
+            break
+    check(not any(probe_runs[-1].values()), 'a probe run without a host-runtime background fallback: ' + str(probe_runs))
     existing = {side: probe(side, path, 'test/melonx_performance_diagnostics/Program.cs')
                 for side, path in (('control', SOURCE / COLLECTOR), ('candidate', candidate_file))}
 
@@ -218,7 +228,7 @@ receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL is no
                sourceBaseline=BASELINE, nativeBaseline={NATIVE: NATIVE_BASELINE},
                postimages={COLLECTOR: sha(candidate_text.encode()), JOURNAL: BASELINE[JOURNAL]},
                productionCommonBuilt=builds, sdk=sdk, physicalDeviceTested=False,
-               backgroundGcObserved=candidate['backgroundObserved'], serverGc=candidate['serverGc'],
+               backgroundGcObserved=candidate['backgroundObserved'], serverGc=candidate['serverGc'], hostFallbackProbeRuns=probe_runs,
                candidateLines=dict(total=candidate['totalLines'], statuses=candidate['statuses'], maxDetailLength=candidate['maxDetailLength']),
                existingFixtureChecks={side: existing[side]['checks'] for side in existing},
                hostSampleDetail=candidate['firstDetail'],

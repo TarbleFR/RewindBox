@@ -53,15 +53,34 @@ static class GcEventsProgram
     static bool Increasing(List<JsonElement> lines) => lines.Select(l => Detail(l).GetProperty("index").GetInt64())
         .Zip(lines.Skip(1).Select(l => Detail(l).GetProperty("index").GetInt64()), (a, b) => b > a).All(x => x);
     // Asks for a non-blocking gen2 and waits until the runtime completed a background one.
+    static int HostFallbacks;
     static bool Background()
     {
         long before = GC.GetGCMemoryInfo(GCKind.Background).Index;
         for (int attempt = 0; attempt < 5; attempt++)
         {
             GC.Collect(2, GCCollectionMode.Default, blocking: false);
-            if (SpinWait.SpinUntil(() => GC.GetGCMemoryInfo(GCKind.Background).Index != before, 1000)) return true;
+            if (SpinWait.SpinUntil(() => GC.GetGCMemoryInfo(GCKind.Background).Index != before, 1000))
+            {
+                // The host runtime's own fallback (dotnet/runtime#119383): the background record carries the index of the
+                // blocking collection that ran instead. Recorded so the test can tell it from a collector defect.
+                if (GC.GetGCMemoryInfo(GCKind.Background).Index == GC.GetGCMemoryInfo(GCKind.FullBlocking).Index) HostFallbacks++;
+                return true;
+            }
         }
         return false;
+    }
+    // .NET 10.0.0's workstation GC can run a requested background gen2 blocking when it must first create the
+    // background GC thread (the thread exits after 20 s idle; dotnet/runtime#119383, docs/melonx-bgc-fallback-2026-11-05.md).
+    // The background record then holds the blocking collection's index, which Background() takes for a background GC.
+    // Before the measured windows, the thread is created by one real background gen2 (record index not the blocking
+    // one), outside any session, so the windows see this runtime's real concurrent collections.
+    static void WarmBackgroundThread()
+    {
+        for (int attempt = 0; attempt < 8; attempt++)
+        {
+            if (Background() && GC.GetGCMemoryInfo(GCKind.Background).Index != GC.GetGCMemoryInfo(GCKind.FullBlocking).Index) return;
+        }
     }
     static int RingCount(string stage)
     {
@@ -157,7 +176,10 @@ static class GcEventsProgram
                 result["session2IndexIsLatest"] = detail.GetProperty("index").GetInt64() == last;
             }
 
-            // Session 3: background gen2s with this runtime's concurrent GC.
+            // Session 3: background gen2s with this runtime's concurrent GC (the thread warmed up first, outside the session).
+            var warmSurvivors = new List<byte[]>();
+            for (int i = 0; i < 64 * 1024; i++) warmSurvivors.Add(new byte[1000]);
+            WarmBackgroundThread();
             PD.Start(++generation);
             // The runtime runs a background gen2 only over a non-trivial gen2:
             // keep ~64 MB alive and promoted while a non-blocking gen2 is asked.
@@ -228,6 +250,7 @@ static class GcEventsProgram
             result["journalError"] = JsonDocument.Parse(Journal.Snapshot()).RootElement.GetProperty("journalError").GetString();
             result["serverGc"] = System.Runtime.GCSettings.IsServerGC;
             result["concurrentGcConfigured"] = AppContext.TryGetSwitch("System.GC.Concurrent", out bool concurrent) ? concurrent : (bool?)null;
+            result["hostFallbacks"] = HostFallbacks;
             Console.WriteLine(JsonSerializer.Serialize(result));
             return 0;
         }

@@ -94,6 +94,22 @@ LOT_FILES = {
     'adapt_present_pacing': ['src/Ryujinx.Graphics.Vulkan/Window.cs', 'src/Ryujinx.Library/Library.cs'],
     # IPA 657 fix (Core 658): the game image written into the drawable by a render pass edits Window only.
     'adapt_present_drawable_residency': ['src/Ryujinx.Graphics.Vulkan/Window.cs'],
+    # Core 661 (Hogwarts 658 logs, RAM, GC, input lots), in preparation order: the files of this composition each edits.
+    'adapt_present_pacer_fixes': ['src/Ryujinx.Graphics.Vulkan/Window.cs'],
+    'adapt_shader_save_poll': [],
+    'adapt_warmup_key_parity': ['src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    'adapt_setprogram_warmup': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Library/Library.cs', 'src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs'],
+    'adapt_teardown_cache': ['src/Ryujinx.Graphics.Vulkan/ShaderCollection.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
+    'adapt_forced_syncpoint_wait': ['src/Ryujinx.Graphics.GAL/Multithreading/ThreadedRenderer.cs', 'src/Ryujinx.Graphics.Gpu/GraphicsConfig.cs', 'src/Ryujinx.Library/Library.cs'],
+    'adapt_session_retention': ['src/Ryujinx.Library/Library.cs'],
+    'adapt_memory_inventory': [],
+    'adapt_guest_fault_context': [],
+    'adapt_host_warning_trim': [],
+    'adapt_safe_point_compaction': ['src/Ryujinx.Library/Library.cs'],
+    'adapt_cold_texture_release': [],
+    'adapt_bindless_retention': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
+    'adapt_moltenvk_stage_ordering': ['src/Ryujinx.Graphics.Vulkan/TextureStorage.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Library/Library.cs'],
+    'adapt_nativeaot_gc_runtime': [],
 }
 
 checks = 0

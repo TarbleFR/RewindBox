@@ -18,6 +18,7 @@ import Darwin
 enum MeloNXStdioCapture {
     static let lineLimit = 2000
     static let nslogLineLimit = 500
+    static let hidLineLimit = 64
     static let repeatLimit = 256
     private static let lock = NSLock()
     private static var journal: String?
@@ -128,6 +129,11 @@ enum MeloNXStdioCapture {
     private static func pump(_ source: Int32, mirror: Int32, journal: String, context: [String:String]) {
         var pending = [UInt8](), buffer = [UInt8](repeating:0, count:4096)
         var lines = 0, nslogLines = 0, dropped = 0, repeated = 0
+        // The guest's controller setup (Hid SetupNpad/Remap, ServiceHid
+        // SetSupportedNpadStyleSet/IdType) comes after the first frame, when
+        // the NSLog budget is often spent: up to hidLineLimit such lines are
+        // copied past it.
+        var hidLines = 0
         var seen = [String:Int](), driverSeen = [String:Int]()
         var driverRepeated = 0
         func record(_ message: String) { append(message, to:journal, context:context) }
@@ -145,8 +151,11 @@ enum MeloNXStdioCapture {
                 let message = String(decoding:dropClock(body).prefix(512), as:UTF8.self)
                 if let count = seen[message] { seen[message] = count + 1; repeated += 1; return }
                 if seen.count < repeatLimit { seen[message] = 0 }
-                guard nslogLines < nslogLineLimit else { dropped += 1; return }
-                nslogLines += 1
+                if nslogLines >= nslogLineLimit, hidLines < hidLineLimit, message.contains("{Hid}") || message.contains("| Hid ") { hidLines += 1 }
+                else {
+                    guard nslogLines < nslogLineLimit else { dropped += 1; return }
+                    nslogLines += 1
+                }
             } else {
                 let message = String(decoding:bytes.prefix(2048),as:UTF8.self)
                 if message.hasPrefix("[mvk-error]") || message.hasPrefix("[mvk-warn]") {
