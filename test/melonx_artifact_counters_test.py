@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(sys.argv[sys.argv.index('--candidate-source') + 1] if '--candidate-source' in sys.argv else sys.argv[1]).resolve()
 sys.path.insert(0, str(ROOT / 'build-utils/melonx'))
 sys.path.insert(0, str(ROOT / 'test'))
-from melonx_adapter_control import control_source  # noqa: E402
+from melonx_adapter_control import control_source, files_edited_later  # noqa: E402
 _HOLD = []
 FINAL_SOURCE = SOURCE
 SOURCE, FINAL_PREPARATION = control_source(SOURCE, 'adapt_artifact_counters', _HOLD)
@@ -111,8 +111,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-artifact-counters-') as temporar
             changed = apply(work)
             check(sorted(str(p.relative_to(work)) for p in changed) == sorted(BASELINE), 'adapter changed other files')
             if FINAL_PREPARATION:
+                # Files a later adapter also edits (Core 661: the Hogwarts lots in PipelineBase) are proven by control_source's forward check; the others
+                # must be the final preparation's bytes here.
+                later = files_edited_later('adapt_artifact_counters')
                 for name in BASELINE:
-                    check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
+                    if name not in later:
+                        check((work / name).read_bytes() == (FINAL_SOURCE / name).read_bytes(), 'final preparation is the adapter: ' + name)
         texts[variant] = {name: (work / name).read_text(encoding='utf-8-sig') for name in [*BASELINE, NATIVE]}
         project = work / 'src/Ryujinx.Graphics.Vulkan/Ryujinx.Graphics.Vulkan.csproj'
         tree = ET.parse(project)
