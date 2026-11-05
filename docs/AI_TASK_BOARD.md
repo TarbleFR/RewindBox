@@ -829,12 +829,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - `fafac5a5` (run 42122823566): all 47 gates, NativeAOT compile, ABI and binding green. Then the download of
       the original native-dependency artifact (run 39854858591) failed: it expired and was purged. No pin possible
       (no simulator run).
-  - Fix committed locally (not on the remote yet): the step fetches the same archive through the republication
-    pinned in `build-utils/delivery/666.json` (`retained_components.download_archive`, as the standard delivery
-    does). The next step still authenticates every framework byte against engine82. Replayed offline with the real
-    build 662 bundle: identity, pins, inventory and bytes equal. Contract refrozen (only the workflow digest).
-  - Blocker: GitHub refuses the push of that commit ("fatal error in commit_refs") on `Claude` and on the work
-    branch, 6 attempts with backoff. Pin and handoff to main follow the green run.
+  - Fix `4a0dffff`: the step fetches the same archive through the republication pinned in
+    `build-utils/delivery/666.json` (`retained_components.download_archive`, as the standard delivery does). The
+    next step still authenticates every framework byte against engine82. Replayed offline with the real build 662
+    bundle: identity, pins, inventory and bytes equal. Contract refrozen (only the workflow digest).
+    GitHub refused 6 pushes of the first version ("fatal error in commit_refs"); the rebased commit went through.
+  - Core CI run 42129498597 (`4a0dffff`) running since 23:28 UTC. Pin and handoff to main follow the green run.
 - **Next device checks (IPA with Core 667):**
   - SSBU then Hogwarts without restarting.
   - A long Hogwarts session past 20 min.
