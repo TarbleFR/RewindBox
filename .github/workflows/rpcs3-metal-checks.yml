@@ -1,0 +1,91 @@
+# REWINDBOX_METAL_NATIVE: fast checks of the native Metal 4 renderer on the Metal branch (no IPA, no Core artifact).
+# The renderer sources come from the canonical Core delta of this branch, materialized on the pinned upstream commit.
+name: RPCS3 Metal renderer checks
+run-name: "RPCS3 Metal renderer checks • ${{ github.sha }}"
+'on':
+  push:
+    branches: [work/rpcs3-metal-native-20261105]
+    paths:
+      - 'build-utils/rpcs3/embedded-core.patch'
+      - 'build-utils/rpcs3/canonical-source.json'
+      - 'test/native/rpcs3_metal_*'
+      - '.github/workflows/rpcs3-metal-checks.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: rewindbox-rpcs3-metal-checks-${{ github.sha }}
+  cancel-in-progress: false
+jobs:
+  metal:
+    name: Native Metal 4 renderer (iOS 26 SDK compile, host unit, Metal 4 probe)
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Select Xcode 26.3 (iOS 26 SDK with Metal 4)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.3'
+      - name: Materialize the canonical Core source
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE="$RUNNER_TEMP/rpcs3-metal-source"
+          git init -q "$SOURCE"
+          git -C "$SOURCE" remote add origin https://github.com/XITRIX/rpcs3.git
+          UPSTREAM=$(python3 -c 'import json; print(json.load(open("build-utils/rpcs3/canonical-source.json"))["upstream_commit"])')
+          git -C "$SOURCE" fetch --depth 1 origin "$UPSTREAM"
+          git -C "$SOURCE" checkout -q --detach FETCH_HEAD
+          python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
+          echo "RPCS3_SOURCE=$SOURCE" >> "$GITHUB_ENV"
+      - name: Toolchain
+        shell: bash
+        run: |
+          xcodebuild -version
+          echo "iOS SDK $(xcrun --sdk iphoneos --show-sdk-version), macOS SDK $(xcrun --sdk macosx --show-sdk-version)"
+          sw_vers
+      - name: Compile the Metal 4 renderer for iOS (arm64, deployment 16.3)
+        shell: bash
+        run: |
+          set -euo pipefail
+          S="$RPCS3_SOURCE"
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          CXX=$(xcrun --sdk iphoneos --find clang++)
+          FLAGS=(-target arm64-apple-ios16.3 -isysroot "$SDK" -std=gnu++20 -fsyntax-only -Wall -Wno-unused-parameter
+                 -Werror=unguarded-availability-new -Werror=objc-method-access -DRPCS3_IOS
+                 -I "$S/rpcs3" -I "$S" -I "$S/rpcs3/Emu" -I "$S/3rdparty")
+          "$CXX" "${FLAGS[@]}" -x objective-c++ -fobjc-arc "$S/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm"
+          "$CXX" "${FLAGS[@]}" -include "$S/rpcs3/stdafx.h" "$S/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp"
+          echo "PASS: iOS compile of MTLAPIApple.mm (ARC) and MTLGSRender.cpp"
+      - name: Host unit test (display buffer conversion and fit)
+        shell: bash
+        run: |
+          set -euo pipefail
+          clang++ -std=gnu++20 -O1 -Wall -I "$RPCS3_SOURCE/rpcs3" -fsanitize=address,undefined \
+            -o "$RUNNER_TEMP/metal_present_unit" test/native/rpcs3_metal_present_unit.cpp
+          "$RUNNER_TEMP/metal_present_unit"
+      - name: Metal 4 probe on this runner's GPU
+        shell: bash
+        run: |
+          set -euo pipefail
+          S="$RPCS3_SOURCE"
+          SDK=$(xcrun --sdk macosx --show-sdk-path)
+          CXX=$(xcrun --sdk macosx --find clang++)
+          COMMON=(-target arm64-apple-macos26.0 -isysroot "$SDK" -std=gnu++20 -O1 -Wall -Wno-unused-parameter -I "$S/rpcs3" -I "$S")
+          "$CXX" "${COMMON[@]}" -x objective-c++ -fobjc-arc -c "$S/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm" -o "$RUNNER_TEMP/mtlapi.o"
+          "$CXX" "${COMMON[@]}" -c test/native/rpcs3_metal_m1_probe.cpp -o "$RUNNER_TEMP/probe.o"
+          "$CXX" "${COMMON[@]}" "$RUNNER_TEMP/mtlapi.o" "$RUNNER_TEMP/probe.o" -framework Metal -framework QuartzCore -framework Foundation \
+            -o "$RUNNER_TEMP/metal_probe"
+          set +e
+          "$RUNNER_TEMP/metal_probe"
+          status=$?
+          set -e
+          if [ "$status" = "2" ]; then
+            echo "::warning::This runner has no Metal 4 GPU: the probe was compiled and linked but could not run"
+            exit 0
+          fi
+          exit "$status"

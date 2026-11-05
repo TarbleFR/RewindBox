@@ -1,8 +1,8 @@
-# RPCS3 : renderer Metal natif (branche `work/rpcs3-metal-native-20261105`)
+# RPCS3 : renderer Metal 4 natif (branche `work/rpcs3-metal-native-20261105`)
 
 Demande du mainteneur (5 novembre 2026) : abandonner l'orchestrateur de threads et « établir une vraie
 couche native Metal […] Tout le moteur devra passer par Metal. Si il y a aucun renderer il faudra le créer. »
-Branche dédiée, créée depuis `Claude` (`cb29106f`). La branche `Claude` garde les mises à jour mineures
+Branche dédiée, créée depuis `Claude` (`cb29106f`). Choix du mainteneur, même jour : « un renderer Metal 4 ». La branche `Claude` garde les mises à jour mineures
 des utilisateurs et leurs IPA ; cette branche produira ses propres IPA de test.
 
 ## 1. Objectif et périmètre
@@ -48,42 +48,44 @@ des utilisateurs et leurs IPA ; cette branche produira ses propres IPA de test.
 
 ## 3. Architecture retenue
 
-Un troisième backend RPCS3, construit comme le backend Vulkan, dans `rpcs3/Emu/RSX/Metal`
-(espace de noms `mtl`).
+Un troisième backend RPCS3, construit comme le backend Vulkan, dans `rpcs3/Emu/RSX/Metal` (espace de noms `mtl`),
+sur **Metal 4** (iOS 26 au minimum, GPU Apple7 ou plus récent ; l'iPhone du mainteneur, A18 Pro, est en iOS 27.0).
 
-- **Logique RSX commune.** Le backend se branche sur les modèles communs de RPCS3 (`rsx::surface_store`
-  et `rsx::texture_cache`) par des traits Metal, comme Vulkan et OpenGL. Toute la logique de cohérence
-  mémoire, d'alias de surfaces, d'invalidation et de relecture reste celle qui fait tourner les jeux
-  aujourd'hui.
-- **Côté Metal :**
-  - périphérique, file et cycle des tampons de commandes ;
-  - suivi de l'avancement du GPU par `MTLSharedEvent` ;
-  - libération différée des ressources ;
-  - états et pipelines ;
-  - envois et conversions de formats ;
-  - copies, mises à l'échelle et résolutions ;
-  - requêtes de visibilité en mode comptage ;
-  - présentation sur le `CAMetalLayer` de l'hôte.
-- **Shaders, étape 1.** Les décompilateurs RSX existants produisent le GLSL, compilé en SPIR-V par
-  glslang, puis traduit en MSL par SPIRV-Cross autonome (bibliothèque Khronos, pas MoltenVK). C'est la
-  même sémantique que le rendu actuel, ce qui donne la parité d'image comme point de départ.
-- **Shaders, étape 2.** Un émetteur RSX → MSL direct, pour le temps de compilation.
-- **Exactitude.** Les règles du mainteneur s'appliquent : aucune suppression d'image, aucune baisse
-  cachée de qualité ou de précision, aucun résultat ZCULL faux ou périmé. Une fonction pas encore
-  écrite est comptée et signalée, jamais contournée. Aucun gain n'est annoncé tant qu'un dessin manque.
+- **Une seule porte vers Metal : `MTLAPI.h`.** Le renderer est en C++ pur ; `MTLAPIApple.mm` (ARC) implémente cette
+  interface sur Metal 4, et chaque valeur d'énumération est vérifiée à la compilation contre sa constante Metal. Le même
+  code se compile donc ici sous Linux (contrôles locaux) et se teste sur un vrai GPU Metal en CI macOS.
+- **Le modèle Metal 4, tel quel :**
+  - file `MTL4CommandQueue` ;
+  - un allocateur et un tampon de commandes par image en vol (3), réutilisés seulement après le signal d'un
+    `MTLSharedEvent` ; l'attente du GPU n'est jamais abandonnée, une attente de plus de 5 s est seulement comptée et
+    journalisée ;
+  - résidence explicite : un ensemble pour le renderer, celui du `CAMetalLayer` pour les drawables ;
+  - liaisons par tables d'arguments (adresses GPU, identifiants de ressources), capturées à chaque dessin ;
+  - compilateur `MTL4Compiler` (sans mathématiques rapides : NaN, infinis et zéro signé comptent pour le RSX) ;
+  - présentation `waitForDrawable` / `signalDrawable` sur la file ;
+  - barrières explicites (Metal 4 ne suit pas les dépendances) ;
+  - copies et remplissages dans l'encodeur de calcul.
+- **La logique RSX commune.** Le backend se branchera sur `rsx::surface_store` et `rsx::texture_cache` par des traits
+  Metal, comme Vulkan et OpenGL, pour garder toute la cohérence mémoire qui fait tourner les jeux aujourd'hui.
+- **Shaders, étape 1.** Les décompilateurs RSX existants produisent le GLSL, compilé en SPIR-V par glslang, puis traduit
+  en MSL par SPIRV-Cross autonome (bibliothèque Khronos, pas MoltenVK). Le Core n'a pas encore SPIRV-Cross en propre :
+  il existe dans MoltenVK et dans le pod hôte `neo_shader_kit` (vulkan-sdk-1.4.350.1), à intégrer au Core en M2.
+- **Shaders, étape 2.** Un émetteur RSX → MSL direct, pour le temps de compilation ; mise en cache par les jeux de
+  données de pipelines de Metal 4 (`MTL4PipelineDataSetSerializer`, archives) contre les saccades.
+- **Exactitude.** Les règles du mainteneur s'appliquent : aucune suppression d'image, aucune baisse cachée de qualité ou
+  de précision, aucun résultat ZCULL faux ou périmé. Une fonction pas encore écrite est comptée et signalée
+  (`COREPROF METAL_M1`), jamais simulée. Aucun gain n'est annoncé tant qu'un dessin manque.
 - **Capacités Metal à respecter** (tables Apple, octobre 2026) :
   - Familles : A15/A16 = Apple8 ; A17 Pro/A18 = Apple9.
-  - Formats BC1-3 garantis seulement sur Apple9. Ailleurs, il faut vérifier
-    `supportsBCTextureCompression` à l'exécution et prévoir une conversion.
-  - Pas de `Depth24Unorm_Stencil8` sur iPhone : on utilise `Depth32Float_Stencil8`, avec des
-    conversions exactes vers la mémoire invitée.
-  - Pas de test de profondeur bornée (depth bounds) avant Apple10 : il faut une émulation exacte.
-  - Le redémarrage de primitive est toujours actif dans Metal.
-  - Pas de remplissage en points.
-  - Limites par étage : 31 tampons, 128 textures, 16 échantillonneurs, 8 cibles couleur, MSAA 4x
-    au plus.
-  - Lecture du tampon d'image (programmable blending) et requêtes d'occlusion par comptage
-    disponibles.
+  - Formats BC1-3 garantis seulement sur Apple9. Ailleurs, il faut vérifier `supportsBCTextureCompression` et prévoir
+    une conversion.
+  - Pas de `Depth24Unorm_Stencil8` sur iPhone : on utilise `Depth32Float_Stencil8`, avec des conversions exactes vers la
+    mémoire invitée.
+  - Test de profondeur bornée : l'encodeur Metal 4 a `setDepthTestBounds`, mais le matériel ne l'a qu'à partir
+    d'Apple10. Il faut donc une émulation exacte sur A15-A18.
+  - Redémarrage de primitive toujours actif ; pas de remplissage en points ; formats de profondeur hors des pipelines
+    (Metal 4).
+  - Limites par étage : 31 tampons, 128 textures, 16 échantillonneurs, 8 cibles couleur, MSAA 4x.
 
 ## 4. Validation
 
@@ -102,15 +104,44 @@ Un troisième backend RPCS3, construit comme le backend Vulkan, dans `rpcs3/Emu/
 
 | Étape | Contenu | Preuve attendue |
 | --- | --- | --- |
-| M0 | Inventaire du backend Vulkan et de l'intégration hôte, plan (ce document) | Inventaire consigné |
-| M1 | Squelette sélectionnable « Metal » : périphérique, file, `CAMetalLayer`, cycle d'image, effacements, présentation des cibles invitées ; tout le reste compté comme non pris en charge | Compilation iOS/macOS, test CI d'effacement relu |
-| M2 | Shaders et pipelines, sommets persistants et volatils, index, tous les types de dessin, états de profondeur, gabarit et mélange | Shaders RSX compilés par Metal en CI, scènes synthétiques comparées |
+| M0 | Inventaire du backend Vulkan et de l'intégration hôte, plan | Inventaire consigné (section 6) |
+| **M1 (Core 901, cette livraison)** | Renderer Metal 4 sélectionnable par jeu (« Moteur Metal 4 natif », page de test, chiffre 18 de `levers627`) : périphérique, file, allocateurs, résidence, compilateur, présentation sur le `CAMetalLayer` du tampon d'écran lu en mémoire (conversion identique à Vulkan, rapport largeur/hauteur gardé) ; dessins, effacements et requêtes comptés, non exécutés | Compilation iOS 26 en CI, test hôte, sonde Metal 4 relue pixel par pixel sur GPU réel |
+| M2 | SPIRV-Cross dans le Core, shaders et pipelines, sommets persistants et volatils, index, tous les types de dessin, états de profondeur, gabarit et mélange | Shaders RSX compilés par Metal en CI, scènes synthétiques comparées |
 | M3 | Cibles de rendu et cache de textures (traits Metal), envois, formats, copies, relectures, cohérence (barrières, labels, sémaphores) | Scènes texturées comparées, relectures exactes |
-| M4 | ZCULL et requêtes exactes, rendu conditionnel, MSAA et résolution, calculs de conversion, incrustations | Comptes de visibilité comparés, interface native |
-| M5 | Parité sur jeux (BO2, Assassin's Creed, God of War III), cache de pipelines Metal, retrait de Vulkan et de MoltenVK du Core | Mesures iPhone, comparaison au Core Vulkan |
+| M4 | ZCULL et requêtes exactes, rendu conditionnel, MSAA et résolution, calculs de conversion, incrustations natives | Comptes de visibilité comparés, interface native |
+| M5 | Parité sur jeux (BO2, Assassin's Creed, God of War III), cache de pipelines Metal 4, retrait de Vulkan et de MoltenVK du Core | Mesures iPhone, comparaison au Core Vulkan |
 
-## 6. Inventaire (M0)
+Numérotation : les Cores de cette branche sont 901, 902… ; ceux de la ligne `Claude` gardent la série 6xx.
 
-À compléter : interface `rsx::thread`/`GSRender` à fournir, taille du backend Vulkan par rôle, code
-iOS propre au RSX à porter, intégration hôte (`CAMetalLayer`, présentation, statistiques), construction
-(CMake, flux CI).
+## 6. Inventaire (M0, 5 novembre)
+
+- **Backend Vulkan à remplacer** : 120 fichiers, 37 453 lignes, dont :
+  - dessin et cœur : 8 753 ;
+  - textures et images : 5 727 ;
+  - outils de périphérique et de synchronisation : 4 771 ;
+  - mémoire et DMA : 3 422 ;
+  - pipelines et descripteurs : 3 286 ;
+  - présentation : 3 246 ;
+  - cibles de rendu : 2 818 ;
+  - programmes de shaders : 2 389 ;
+  - calcul : 1 316 ;
+  - incrustations : 1 257 ;
+  - requêtes : 468.
+  - Deux morceaux sont déjà du Metal natif : MetalFX spatial et `metal_event`.
+- **Code propre à iOS dans le RSX** : 543 blocs `RPCS3_IOS` dans 76 fichiers, dont 270 dans le backend Vulkan (ZCULL,
+  minutage GPU, préchauffage des shaders, cache SPIR-V, census des passes, MoltenVK). Chacun aura un équivalent Metal
+  ou une décision écrite.
+- **Interface à fournir** : les virtuelles de `rsx::thread`, `GSRender` et `ZCULL_control` que surcharge `VKGSRender`.
+  Le Metal M1 surcharge `on_init_thread`, `on_exit`, `begin`, `end`, `clear_surface`, `flip` et les requêtes
+  d'occlusion. Viendront ensuite `do_local_task`, `on_invalidate_memory_range`, `on_access_violation`,
+  `notify_tile_unbound`, `write_barrier`, `release_GCM_label`, `on_semaphore_acquire_wait`,
+  `scaled_image_from_memory`, le rendu conditionnel et `sync_hint`.
+- **Intégration hôte** : l'hôte crée le `CAMetalLayer` et le transmet par `rpcs3_ios_set_display_surface` ;
+  `gs_frame::handle()` le rend au renderer. Aucun changement de l'hôte n'est nécessaire pour présenter en Metal.
+- **Construction** :
+  - le Core est compilé par le clang LLVM 22 de Homebrew contre le SDK iOS de l'Xcode choisi ;
+  - Metal 4 exige le SDK iOS 26 (Xcode 26.3 en CI), contre Xcode 16.4 pour la ligne `Claude` ;
+  - Metal, QuartzCore, CoreGraphics, IOSurface et UIKit ne sont liés aujourd'hui qu'à travers MoltenVK : le bloc Metal
+    lie Metal et QuartzCore lui-même.
+- **Limites connues de M1** : l'interface native de RPCS3 (boîtes de dialogue, notifications) n'est pas dessinée par
+  Metal avant M4 ; avec Metal activé, un jeu qui dessine sur le GPU n'affiche pas encore d'image.

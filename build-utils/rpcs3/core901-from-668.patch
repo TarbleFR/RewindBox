@@ -1,0 +1,2307 @@
+diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
+index f48435a..f907ea4 100644
+--- a/rpcs3/Emu/CMakeLists.txt
++++ b/rpcs3/Emu/CMakeLists.txt
+@@ -877,6 +877,22 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
+         "-framework MetalFX"
+         iconv
+     )
++
++    # REWINDBOX_METAL_NATIVE: the native Metal 4 renderer. Its Metal calls live in MTLAPIApple.mm (ARC).
++    target_sources(rpcs3_emu PRIVATE
++        RSX/Metal/MTLAPI.h
++        RSX/Metal/MTLAPIApple.mm
++        RSX/Metal/MTLGSRender.cpp
++        RSX/Metal/MTLGSRender.h
++    )
++    set_source_files_properties(RSX/Metal/MTLAPIApple.mm PROPERTIES
++        COMPILE_OPTIONS -fobjc-arc
++        SKIP_PRECOMPILE_HEADERS ON
++    )
++    target_link_libraries(rpcs3_emu PUBLIC
++        "-framework Metal"
++        "-framework QuartzCore"
++    )
+ endif()
+ 
+ if(APPLE)
+diff --git a/rpcs3/Emu/RSX/Metal/MTLAPI.h b/rpcs3/Emu/RSX/Metal/MTLAPI.h
+new file mode 100644
+index 0000000..ddeaa25
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLAPI.h
+@@ -0,0 +1,561 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE: the native Metal 4 renderer's only view of Metal (iOS 26 or later).
++//
++// The renderer is plain C++; this header is its whole Metal surface. MTLAPIApple.mm implements it
++// with the Metal and QuartzCore frameworks (ARC). Keeping Objective-C out of the renderer lets the
++// same renderer code be compiled and tested on any host against another implementation of this
++// header. Every enumerator below has the numeric value of its Metal constant; MTLAPIApple.mm checks
++// each one at compile time, so a value never needs a translation table.
++
++#include "util/types.hpp"
++
++#include <array>
++#include <functional>
++#include <string>
++#include <string_view>
++
++namespace mtl
++{
++	// A retained Objective-C object, released when the last copy goes away. Copying retains.
++	class object
++	{
++	public:
++		object() noexcept = default;
++		object(const object& other) noexcept;
++		object& operator=(const object& other) noexcept;
++		object(object&& other) noexcept;
++		object& operator=(object&& other) noexcept;
++		~object();
++
++		// Takes ownership of a +1 reference.
++		static object adopt(void* retained) noexcept;
++		// Retains a reference owned elsewhere.
++		static object retain(void* unretained) noexcept;
++
++		void* get() const noexcept { return m_ptr; }
++		explicit operator bool() const noexcept { return m_ptr != nullptr; }
++		void reset() noexcept;
++
++	private:
++		void* m_ptr = nullptr;
++	};
++
++	enum class pixel_format : u32
++	{
++		invalid = 0,
++		a8_unorm = 1,
++		r8_unorm = 10,
++		r8_snorm = 12,
++		r8_uint = 13,
++		r16_unorm = 20,
++		r16_snorm = 22,
++		r16_uint = 23,
++		r16_float = 25,
++		rg8_unorm = 30,
++		rg8_snorm = 32,
++		b5g6r5_unorm = 40,
++		a1bgr5_unorm = 41,
++		abgr4_unorm = 42,
++		bgr5a1_unorm = 43,
++		r32_uint = 53,
++		r32_sint = 54,
++		r32_float = 55,
++		rg16_unorm = 60,
++		rg16_snorm = 62,
++		rg16_float = 65,
++		rgba8_unorm = 70,
++		rgba8_unorm_srgb = 71,
++		rgba8_snorm = 72,
++		rgba8_uint = 73,
++		bgra8_unorm = 80,
++		bgra8_unorm_srgb = 81,
++		rgb10a2_unorm = 90,
++		rg11b10_float = 92,
++		rgb9e5_float = 93,
++		bgr10a2_unorm = 94,
++		rg32_uint = 103,
++		rg32_float = 105,
++		rgba16_unorm = 110,
++		rgba16_snorm = 112,
++		rgba16_uint = 113,
++		rgba16_float = 115,
++		rgba32_uint = 123,
++		rgba32_float = 125,
++		bc1_rgba = 130,
++		bc1_rgba_srgb = 131,
++		bc2_rgba = 132,
++		bc2_rgba_srgb = 133,
++		bc3_rgba = 134,
++		bc3_rgba_srgb = 135,
++		depth16_unorm = 250,
++		depth32_float = 252,
++		stencil8 = 253,
++		depth24_unorm_stencil8 = 255,
++		depth32_float_stencil8 = 260,
++		x32_stencil8 = 261,
++	};
++
++	enum class texture_type : u32
++	{
++		type_1d = 0,
++		type_1d_array = 1,
++		type_2d = 2,
++		type_2d_array = 3,
++		type_2d_multisample = 4,
++		type_cube = 5,
++		type_cube_array = 6,
++		type_3d = 7,
++	};
++
++	enum texture_usage : u32
++	{
++		usage_unknown = 0,
++		usage_shader_read = 1,
++		usage_shader_write = 2,
++		usage_render_target = 4,
++		usage_pixel_format_view = 16,
++	};
++
++	enum class storage_mode : u32
++	{
++		shared = 0,
++		private_ = 2,
++		memoryless = 3,
++	};
++
++	enum class load_action : u32
++	{
++		dont_care = 0,
++		load = 1,
++		clear = 2,
++	};
++
++	enum class store_action : u32
++	{
++		dont_care = 0,
++		store = 1,
++		multisample_resolve = 2,
++		store_and_multisample_resolve = 3,
++	};
++
++	enum class primitive_type : u32
++	{
++		point = 0,
++		line = 1,
++		line_strip = 2,
++		triangle = 3,
++		triangle_strip = 4,
++	};
++
++	enum class index_type : u32
++	{
++		uint16 = 0,
++		uint32 = 1,
++	};
++
++	enum class compare_function : u32
++	{
++		never = 0,
++		less = 1,
++		equal = 2,
++		less_equal = 3,
++		greater = 4,
++		not_equal = 5,
++		greater_equal = 6,
++		always = 7,
++	};
++
++	enum class stencil_operation : u32
++	{
++		keep = 0,
++		zero = 1,
++		replace = 2,
++		increment_clamp = 3,
++		decrement_clamp = 4,
++		invert = 5,
++		increment_wrap = 6,
++		decrement_wrap = 7,
++	};
++
++	enum class blend_factor : u32
++	{
++		zero = 0,
++		one = 1,
++		source_color = 2,
++		one_minus_source_color = 3,
++		source_alpha = 4,
++		one_minus_source_alpha = 5,
++		destination_color = 6,
++		one_minus_destination_color = 7,
++		destination_alpha = 8,
++		one_minus_destination_alpha = 9,
++		source_alpha_saturated = 10,
++		blend_color = 11,
++		one_minus_blend_color = 12,
++		blend_alpha = 13,
++		one_minus_blend_alpha = 14,
++	};
++
++	enum class blend_operation : u32
++	{
++		add = 0,
++		subtract = 1,
++		reverse_subtract = 2,
++		min = 3,
++		max = 4,
++	};
++
++	enum color_write_mask : u32
++	{
++		write_none = 0,
++		write_alpha = 1,
++		write_blue = 2,
++		write_green = 4,
++		write_red = 8,
++		write_all = 15,
++	};
++
++	enum class cull_mode : u32
++	{
++		none = 0,
++		front = 1,
++		back = 2,
++	};
++
++	enum class winding : u32
++	{
++		clockwise = 0,
++		counter_clockwise = 1,
++	};
++
++	enum class triangle_fill_mode : u32
++	{
++		fill = 0,
++		lines = 1,
++	};
++
++	enum class depth_clip_mode : u32
++	{
++		clip = 0,
++		clamp = 1,
++	};
++
++	enum class sampler_min_mag_filter : u32
++	{
++		nearest = 0,
++		linear = 1,
++	};
++
++	enum class sampler_mip_filter : u32
++	{
++		not_mipmapped = 0,
++		nearest = 1,
++		linear = 2,
++	};
++
++	enum class sampler_address_mode : u32
++	{
++		clamp_to_edge = 0,
++		mirror_clamp_to_edge = 1,
++		repeat = 2,
++		mirror_repeat = 3,
++		clamp_to_zero = 4,
++		clamp_to_border_color = 5,
++	};
++
++	enum class sampler_border_color : u32
++	{
++		transparent_black = 0,
++		opaque_black = 1,
++		opaque_white = 2,
++	};
++
++	enum class visibility_result_mode : u32
++	{
++		disabled = 0,
++		boolean = 1,
++		counting = 2,
++	};
++
++	// Apple GPU families (MTLGPUFamilyApple7 = 1007 ...).
++	enum class gpu_family : u32
++	{
++		apple7 = 1007,
++		apple8 = 1008,
++		apple9 = 1009,
++		metal4 = 5002,
++	};
++
++	struct origin
++	{
++		u32 x = 0, y = 0, z = 0;
++	};
++
++	struct size3
++	{
++		u32 width = 0, height = 0, depth = 1;
++	};
++
++	struct region
++	{
++		origin at{};
++		size3 size{};
++	};
++
++	struct clear_color
++	{
++		f64 red = 0, green = 0, blue = 0, alpha = 0;
++	};
++
++	struct viewport
++	{
++		f64 x = 0, y = 0, width = 0, height = 0, znear = 0, zfar = 1;
++	};
++
++	struct scissor_rect
++	{
++		u32 x = 0, y = 0, width = 0, height = 0;
++	};
++
++	struct device_info
++	{
++		std::string name;
++		u64 registry_id = 0;
++		u64 max_buffer_length = 0;
++		bool unified_memory = false;
++		bool apple7 = false;
++		bool apple8 = false;
++		bool apple9 = false;
++		bool bc_texture_compression = false;
++		bool depth24_stencil8 = false;
++		bool metal4 = false;
++	};
++
++	struct texture_descriptor
++	{
++		texture_type type = texture_type::type_2d;
++		pixel_format format = pixel_format::invalid;
++		u32 width = 1, height = 1, depth = 1;
++		u32 mip_levels = 1, array_length = 1, sample_count = 1;
++		u32 usage = usage_shader_read;
++		storage_mode storage = storage_mode::private_;
++	};
++
++	struct sampler_descriptor
++	{
++		sampler_min_mag_filter min_filter = sampler_min_mag_filter::nearest;
++		sampler_min_mag_filter mag_filter = sampler_min_mag_filter::nearest;
++		sampler_mip_filter mip_filter = sampler_mip_filter::not_mipmapped;
++		sampler_address_mode address_s = sampler_address_mode::clamp_to_edge;
++		sampler_address_mode address_t = sampler_address_mode::clamp_to_edge;
++		sampler_address_mode address_r = sampler_address_mode::clamp_to_edge;
++		sampler_border_color border = sampler_border_color::transparent_black;
++		compare_function compare = compare_function::never;
++		bool compare_enabled = false;
++		u32 max_anisotropy = 1;
++		f32 lod_min = 0.f;
++		f32 lod_max = 1000.f;
++		bool normalized_coordinates = true;
++	};
++
++	struct render_pass_color_attachment
++	{
++		object texture;
++		u32 level = 0, slice = 0, depth_plane = 0;
++		object resolve_texture;
++		load_action load = load_action::load;
++		store_action store = store_action::store;
++		clear_color clear{};
++	};
++
++	struct render_pass_depth_attachment
++	{
++		object texture;
++		u32 level = 0, slice = 0;
++		load_action load = load_action::load;
++		store_action store = store_action::store;
++		f64 clear_depth = 1.0;
++	};
++
++	struct render_pass_stencil_attachment
++	{
++		object texture;
++		u32 level = 0, slice = 0;
++		load_action load = load_action::load;
++		store_action store = store_action::store;
++		u32 clear_stencil = 0;
++	};
++
++	struct render_pass_descriptor
++	{
++		static constexpr u32 max_color_attachments = 8;
++		std::array<render_pass_color_attachment, max_color_attachments> color{};
++		render_pass_depth_attachment depth{};
++		render_pass_stencil_attachment stencil{};
++		object visibility_result_buffer;
++		u32 render_target_width = 0, render_target_height = 0;
++		u32 default_raster_sample_count = 0;
++	};
++
++	struct color_attachment_state
++	{
++		pixel_format format = pixel_format::invalid;
++		bool blending = false; // Metal 4 BlendStateEnabled when true, BlendStateDisabled otherwise
++		blend_factor source_rgb = blend_factor::one, destination_rgb = blend_factor::zero;
++		blend_operation rgb_operation = blend_operation::add;
++		blend_factor source_alpha = blend_factor::one, destination_alpha = blend_factor::zero;
++		blend_operation alpha_operation = blend_operation::add;
++		u32 write_mask = write_all;
++	};
++
++	// Metal 4 pipelines name their functions in a library; depth and stencil formats come from the render pass.
++	struct render_pipeline_descriptor
++	{
++		object library;
++		std::string vertex_function;
++		std::string fragment_function;
++		std::array<color_attachment_state, render_pass_descriptor::max_color_attachments> color{};
++		u32 sample_count = 1;
++		bool alpha_to_coverage = false;
++		std::string label;
++	};
++
++	struct stencil_state
++	{
++		compare_function compare = compare_function::always;
++		stencil_operation stencil_fail = stencil_operation::keep;
++		stencil_operation depth_fail = stencil_operation::keep;
++		stencil_operation depth_stencil_pass = stencil_operation::keep;
++		u32 read_mask = 0xff;
++		u32 write_mask = 0xff;
++	};
++
++	struct depth_stencil_descriptor
++	{
++		compare_function depth_compare = compare_function::always;
++		bool depth_write = false;
++		bool stencil = false;
++		stencil_state front{};
++		stencil_state back{};
++	};
++
++	// Device. Every Metal 4 entry point below requires query_device(...).metal4 (iOS 26, Apple7 or later).
++	object create_system_default_device() noexcept;
++	device_info query_device(const object& device);
++
++	// Metal 4 command submission. A command buffer is encoded between begin and end with an allocator that
++	// the GPU no longer uses, then committed to its queue; an allocator is reset only after its work completed.
++	object new_command_queue(const object& device);
++	object new_command_allocator(const object& device);
++	void reset_command_allocator(const object& allocator);
++	object new_command_buffer(const object& device);
++	void begin_command_buffer(const object& command_buffer, const object& allocator, std::string_view label = {});
++	void end_command_buffer(const object& command_buffer);
++	void commit(const object& queue, const object& command_buffer);
++
++	// GPU progress: the queue signals the event once the work committed before the signal completed.
++	object new_shared_event(const object& device);
++	void signal_event(const object& queue, const object& event, u64 value);
++	u64 signaled_value(const object& event);
++	bool wait_signaled_value(const object& event, u64 value, u64 timeout_ms);
++
++	// Residency: with Metal 4 every allocation the GPU touches must be resident through a set the queue holds.
++	object new_residency_set(const object& device, u32 initial_capacity);
++	void residency_add(const object& set, const object& allocation);
++	void residency_remove(const object& set, const object& allocation);
++	void residency_commit(const object& set);
++	void queue_add_residency_set(const object& queue, const object& set);
++
++	// Buffers.
++	object new_buffer(const object& device, u64 length, storage_mode storage = storage_mode::shared);
++	void* buffer_contents(const object& buffer);
++	u64 buffer_length(const object& buffer);
++
++	// Textures.
++	object new_texture(const object& device, const texture_descriptor& descriptor);
++	object new_texture_view(const object& texture, pixel_format format);
++	void texture_replace_region(const object& texture, const region& area, u32 level, u32 slice, const void* bytes, u32 bytes_per_row, u32 bytes_per_image);
++	void texture_get_bytes(const object& texture, void* bytes, u32 bytes_per_row, u32 bytes_per_image, const region& area, u32 level, u32 slice);
++	size3 texture_size(const object& texture);
++	pixel_format texture_format(const object& texture);
++
++	// Samplers (created usable from argument tables).
++	object new_sampler(const object& device, const sampler_descriptor& descriptor);
++
++	// Argument tables: resources are bound by GPU address or resource ID and captured at each draw.
++	object new_argument_table(const object& device, u32 max_buffers, u32 max_textures, u32 max_samplers);
++	void table_set_buffer(const object& table, const object& buffer, u64 offset, u32 index);
++	void table_set_texture(const object& table, const object& texture, u32 index);
++	void table_set_sampler(const object& table, const object& sampler, u32 index);
++
++	// The Metal 4 compiler. A failure returns an empty object and fills error.
++	object new_compiler(const object& device);
++	object compile_library(const object& compiler, std::string_view source, std::string& error);
++	object new_render_pipeline(const object& compiler, const render_pipeline_descriptor& descriptor, std::string& error);
++	object new_depth_stencil_state(const object& device, const depth_stencil_descriptor& descriptor);
++
++	// Render command encoders. Every encoder is ended before the next one starts.
++	enum render_stages : u32
++	{
++		stage_vertex = 1,
++		stage_fragment = 2,
++	};
++
++	object begin_render_pass(const object& command_buffer, const render_pass_descriptor& descriptor, std::string_view label = {});
++	void set_render_pipeline(const object& encoder, const object& pipeline);
++	void set_argument_table(const object& encoder, const object& table, u32 stages);
++	void set_depth_stencil_state(const object& encoder, const object& state);
++	void set_stencil_reference(const object& encoder, u32 front, u32 back);
++	void set_viewport(const object& encoder, const viewport& area);
++	void set_scissor(const object& encoder, const scissor_rect& area);
++	void set_cull_mode(const object& encoder, cull_mode mode);
++	void set_front_facing(const object& encoder, winding front);
++	void set_fill_mode(const object& encoder, triangle_fill_mode mode);
++	void set_depth_clip_mode(const object& encoder, depth_clip_mode mode);
++	void set_depth_bias(const object& encoder, f32 bias, f32 slope_scale, f32 clamp);
++	void set_blend_color(const object& encoder, f32 red, f32 green, f32 blue, f32 alpha);
++	void set_visibility_result_mode(const object& encoder, visibility_result_mode mode, u64 offset);
++	void draw_primitives(const object& encoder, primitive_type type, u32 vertex_start, u32 vertex_count, u32 instance_count = 1);
++	void draw_indexed_primitives(const object& encoder, primitive_type type, u32 index_count, index_type indices, const object& index_buffer,
++		u64 index_offset, u64 index_length, u32 instance_count = 1);
++
++	// Compute command encoders: the Metal 4 home of copies and fills.
++	object begin_compute(const object& command_buffer, std::string_view label = {});
++	void copy_texture(const object& encoder, const object& source, u32 source_slice, u32 source_level, const region& source_area,
++		const object& destination, u32 destination_slice, u32 destination_level, const origin& destination_origin);
++	void copy_buffer_to_texture(const object& encoder, const object& source, u64 offset, u32 bytes_per_row, u32 bytes_per_image,
++		const size3& size, const object& destination, u32 slice, u32 level, const origin& destination_origin);
++	void copy_texture_to_buffer(const object& encoder, const object& source, u32 slice, u32 level, const region& source_area,
++		const object& destination, u64 offset, u32 bytes_per_row, u32 bytes_per_image);
++	void fill_buffer(const object& encoder, const object& buffer, u64 offset, u64 length, u8 value);
++
++	// Barriers: work of this encoder in `before` waits for the queue's earlier work in `after`.
++	enum barrier_stages : u64
++	{
++		barrier_vertex = 1,
++		barrier_fragment = 1u << 1,
++		barrier_tile = 1u << 2,
++		barrier_object = 1u << 3,
++		barrier_mesh = 1u << 4,
++		barrier_resource_state = 1u << 26,
++		barrier_dispatch = 1u << 27,
++		barrier_blit = 1u << 28,
++		barrier_acceleration_structure = 1u << 29,
++		barrier_machine_learning = 1u << 30,
++		barrier_all = 0x7fffffffffffffffull,
++	};
++	void barrier_after_queue_stages(const object& encoder, u64 after, u64 before);
++
++	void end_encoding(const object& encoder);
++
++	// The CAMetalLayer the host attached, and its drawables (Metal 4 presentation through the queue).
++	void configure_layer(void* layer, const object& device, pixel_format format, u32 width, u32 height);
++	object layer_residency_set(void* layer);
++	object next_drawable(void* layer);
++	object drawable_texture(const object& drawable);
++	void wait_for_drawable(const object& queue, const object& drawable);
++	void signal_drawable(const object& queue, const object& drawable);
++	void present(const object& drawable);
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm b/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm
+new file mode 100644
+index 0000000..d8dbe2b
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm
+@@ -0,0 +1,921 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE: MTLAPI.h on the Metal 4 and QuartzCore frameworks (iOS 26). Compiled with ARC.
++//
++// Every Metal 4 function is declared available from iOS 26; the Core still loads on older systems,
++// where query_device() reports metal4 = false and the renderer refuses to start before any call here.
++//
++// Every function that may receive an autoreleased object runs inside its own autorelease pool: the
++// RSX thread is a plain C++ thread with no pool of its own. Objects handed back to the renderer are
++// retained into an mtl::object first, so they outlive the pool.
++
++#include "MTLAPI.h"
++
++#import <Foundation/Foundation.h>
++#import <Metal/Metal.h>
++#import <QuartzCore/CAMetalLayer.h>
++
++#if !__has_feature(objc_arc)
++#error "MTLAPIApple.mm must be compiled with -fobjc-arc"
++#endif
++
++#include <utility>
++
++#define RBX_METAL4 API_AVAILABLE(ios(26.0), macos(26.0))
++
++namespace mtl
++{
++	// The enumerators of MTLAPI.h carry the numeric values of their Metal constants.
++	static_assert(static_cast<u32>(pixel_format::a8_unorm) == MTLPixelFormatA8Unorm);
++	static_assert(static_cast<u32>(pixel_format::r8_unorm) == MTLPixelFormatR8Unorm);
++	static_assert(static_cast<u32>(pixel_format::r8_snorm) == MTLPixelFormatR8Snorm);
++	static_assert(static_cast<u32>(pixel_format::r8_uint) == MTLPixelFormatR8Uint);
++	static_assert(static_cast<u32>(pixel_format::r16_unorm) == MTLPixelFormatR16Unorm);
++	static_assert(static_cast<u32>(pixel_format::r16_snorm) == MTLPixelFormatR16Snorm);
++	static_assert(static_cast<u32>(pixel_format::r16_uint) == MTLPixelFormatR16Uint);
++	static_assert(static_cast<u32>(pixel_format::r16_float) == MTLPixelFormatR16Float);
++	static_assert(static_cast<u32>(pixel_format::rg8_unorm) == MTLPixelFormatRG8Unorm);
++	static_assert(static_cast<u32>(pixel_format::rg8_snorm) == MTLPixelFormatRG8Snorm);
++	static_assert(static_cast<u32>(pixel_format::b5g6r5_unorm) == MTLPixelFormatB5G6R5Unorm);
++	static_assert(static_cast<u32>(pixel_format::a1bgr5_unorm) == MTLPixelFormatA1BGR5Unorm);
++	static_assert(static_cast<u32>(pixel_format::abgr4_unorm) == MTLPixelFormatABGR4Unorm);
++	static_assert(static_cast<u32>(pixel_format::bgr5a1_unorm) == MTLPixelFormatBGR5A1Unorm);
++	static_assert(static_cast<u32>(pixel_format::r32_uint) == MTLPixelFormatR32Uint);
++	static_assert(static_cast<u32>(pixel_format::r32_sint) == MTLPixelFormatR32Sint);
++	static_assert(static_cast<u32>(pixel_format::r32_float) == MTLPixelFormatR32Float);
++	static_assert(static_cast<u32>(pixel_format::rg16_unorm) == MTLPixelFormatRG16Unorm);
++	static_assert(static_cast<u32>(pixel_format::rg16_snorm) == MTLPixelFormatRG16Snorm);
++	static_assert(static_cast<u32>(pixel_format::rg16_float) == MTLPixelFormatRG16Float);
++	static_assert(static_cast<u32>(pixel_format::rgba8_unorm) == MTLPixelFormatRGBA8Unorm);
++	static_assert(static_cast<u32>(pixel_format::rgba8_unorm_srgb) == MTLPixelFormatRGBA8Unorm_sRGB);
++	static_assert(static_cast<u32>(pixel_format::rgba8_snorm) == MTLPixelFormatRGBA8Snorm);
++	static_assert(static_cast<u32>(pixel_format::rgba8_uint) == MTLPixelFormatRGBA8Uint);
++	static_assert(static_cast<u32>(pixel_format::bgra8_unorm) == MTLPixelFormatBGRA8Unorm);
++	static_assert(static_cast<u32>(pixel_format::bgra8_unorm_srgb) == MTLPixelFormatBGRA8Unorm_sRGB);
++	static_assert(static_cast<u32>(pixel_format::rgb10a2_unorm) == MTLPixelFormatRGB10A2Unorm);
++	static_assert(static_cast<u32>(pixel_format::rg11b10_float) == MTLPixelFormatRG11B10Float);
++	static_assert(static_cast<u32>(pixel_format::rgb9e5_float) == MTLPixelFormatRGB9E5Float);
++	static_assert(static_cast<u32>(pixel_format::bgr10a2_unorm) == MTLPixelFormatBGR10A2Unorm);
++	static_assert(static_cast<u32>(pixel_format::rg32_uint) == MTLPixelFormatRG32Uint);
++	static_assert(static_cast<u32>(pixel_format::rg32_float) == MTLPixelFormatRG32Float);
++	static_assert(static_cast<u32>(pixel_format::rgba16_unorm) == MTLPixelFormatRGBA16Unorm);
++	static_assert(static_cast<u32>(pixel_format::rgba16_snorm) == MTLPixelFormatRGBA16Snorm);
++	static_assert(static_cast<u32>(pixel_format::rgba16_uint) == MTLPixelFormatRGBA16Uint);
++	static_assert(static_cast<u32>(pixel_format::rgba16_float) == MTLPixelFormatRGBA16Float);
++	static_assert(static_cast<u32>(pixel_format::rgba32_uint) == MTLPixelFormatRGBA32Uint);
++	static_assert(static_cast<u32>(pixel_format::rgba32_float) == MTLPixelFormatRGBA32Float);
++	static_assert(static_cast<u32>(pixel_format::bc1_rgba) == MTLPixelFormatBC1_RGBA);
++	static_assert(static_cast<u32>(pixel_format::bc1_rgba_srgb) == MTLPixelFormatBC1_RGBA_sRGB);
++	static_assert(static_cast<u32>(pixel_format::bc2_rgba) == MTLPixelFormatBC2_RGBA);
++	static_assert(static_cast<u32>(pixel_format::bc2_rgba_srgb) == MTLPixelFormatBC2_RGBA_sRGB);
++	static_assert(static_cast<u32>(pixel_format::bc3_rgba) == MTLPixelFormatBC3_RGBA);
++	static_assert(static_cast<u32>(pixel_format::bc3_rgba_srgb) == MTLPixelFormatBC3_RGBA_sRGB);
++	static_assert(static_cast<u32>(pixel_format::depth16_unorm) == MTLPixelFormatDepth16Unorm);
++	static_assert(static_cast<u32>(pixel_format::depth32_float) == MTLPixelFormatDepth32Float);
++	static_assert(static_cast<u32>(pixel_format::stencil8) == MTLPixelFormatStencil8);
++	static_assert(static_cast<u32>(pixel_format::depth24_unorm_stencil8) == MTLPixelFormatDepth24Unorm_Stencil8);
++	static_assert(static_cast<u32>(pixel_format::depth32_float_stencil8) == MTLPixelFormatDepth32Float_Stencil8);
++	static_assert(static_cast<u32>(pixel_format::x32_stencil8) == MTLPixelFormatX32_Stencil8);
++
++	static_assert(static_cast<u32>(texture_type::type_1d) == MTLTextureType1D);
++	static_assert(static_cast<u32>(texture_type::type_1d_array) == MTLTextureType1DArray);
++	static_assert(static_cast<u32>(texture_type::type_2d) == MTLTextureType2D);
++	static_assert(static_cast<u32>(texture_type::type_2d_array) == MTLTextureType2DArray);
++	static_assert(static_cast<u32>(texture_type::type_2d_multisample) == MTLTextureType2DMultisample);
++	static_assert(static_cast<u32>(texture_type::type_cube) == MTLTextureTypeCube);
++	static_assert(static_cast<u32>(texture_type::type_cube_array) == MTLTextureTypeCubeArray);
++	static_assert(static_cast<u32>(texture_type::type_3d) == MTLTextureType3D);
++
++	static_assert(usage_shader_read == MTLTextureUsageShaderRead && usage_shader_write == MTLTextureUsageShaderWrite &&
++		usage_render_target == MTLTextureUsageRenderTarget && usage_pixel_format_view == MTLTextureUsagePixelFormatView);
++	static_assert(static_cast<u32>(storage_mode::shared) == MTLStorageModeShared &&
++		static_cast<u32>(storage_mode::private_) == MTLStorageModePrivate && static_cast<u32>(storage_mode::memoryless) == MTLStorageModeMemoryless);
++	static_assert(static_cast<u32>(load_action::dont_care) == MTLLoadActionDontCare && static_cast<u32>(load_action::load) == MTLLoadActionLoad &&
++		static_cast<u32>(load_action::clear) == MTLLoadActionClear);
++	static_assert(static_cast<u32>(store_action::dont_care) == MTLStoreActionDontCare && static_cast<u32>(store_action::store) == MTLStoreActionStore &&
++		static_cast<u32>(store_action::multisample_resolve) == MTLStoreActionMultisampleResolve &&
++		static_cast<u32>(store_action::store_and_multisample_resolve) == MTLStoreActionStoreAndMultisampleResolve);
++	static_assert(static_cast<u32>(primitive_type::point) == MTLPrimitiveTypePoint && static_cast<u32>(primitive_type::line) == MTLPrimitiveTypeLine &&
++		static_cast<u32>(primitive_type::line_strip) == MTLPrimitiveTypeLineStrip && static_cast<u32>(primitive_type::triangle) == MTLPrimitiveTypeTriangle &&
++		static_cast<u32>(primitive_type::triangle_strip) == MTLPrimitiveTypeTriangleStrip);
++	static_assert(static_cast<u32>(index_type::uint16) == MTLIndexTypeUInt16 && static_cast<u32>(index_type::uint32) == MTLIndexTypeUInt32);
++	static_assert(static_cast<u32>(compare_function::never) == MTLCompareFunctionNever && static_cast<u32>(compare_function::less) == MTLCompareFunctionLess &&
++		static_cast<u32>(compare_function::equal) == MTLCompareFunctionEqual && static_cast<u32>(compare_function::less_equal) == MTLCompareFunctionLessEqual &&
++		static_cast<u32>(compare_function::greater) == MTLCompareFunctionGreater && static_cast<u32>(compare_function::not_equal) == MTLCompareFunctionNotEqual &&
++		static_cast<u32>(compare_function::greater_equal) == MTLCompareFunctionGreaterEqual && static_cast<u32>(compare_function::always) == MTLCompareFunctionAlways);
++	static_assert(static_cast<u32>(stencil_operation::keep) == MTLStencilOperationKeep && static_cast<u32>(stencil_operation::zero) == MTLStencilOperationZero &&
++		static_cast<u32>(stencil_operation::replace) == MTLStencilOperationReplace &&
++		static_cast<u32>(stencil_operation::increment_clamp) == MTLStencilOperationIncrementClamp &&
++		static_cast<u32>(stencil_operation::decrement_clamp) == MTLStencilOperationDecrementClamp &&
++		static_cast<u32>(stencil_operation::invert) == MTLStencilOperationInvert &&
++		static_cast<u32>(stencil_operation::increment_wrap) == MTLStencilOperationIncrementWrap &&
++		static_cast<u32>(stencil_operation::decrement_wrap) == MTLStencilOperationDecrementWrap);
++	static_assert(static_cast<u32>(blend_factor::zero) == MTLBlendFactorZero && static_cast<u32>(blend_factor::one) == MTLBlendFactorOne &&
++		static_cast<u32>(blend_factor::source_color) == MTLBlendFactorSourceColor &&
++		static_cast<u32>(blend_factor::one_minus_source_color) == MTLBlendFactorOneMinusSourceColor &&
++		static_cast<u32>(blend_factor::source_alpha) == MTLBlendFactorSourceAlpha &&
++		static_cast<u32>(blend_factor::one_minus_source_alpha) == MTLBlendFactorOneMinusSourceAlpha &&
++		static_cast<u32>(blend_factor::destination_color) == MTLBlendFactorDestinationColor &&
++		static_cast<u32>(blend_factor::one_minus_destination_color) == MTLBlendFactorOneMinusDestinationColor &&
++		static_cast<u32>(blend_factor::destination_alpha) == MTLBlendFactorDestinationAlpha &&
++		static_cast<u32>(blend_factor::one_minus_destination_alpha) == MTLBlendFactorOneMinusDestinationAlpha &&
++		static_cast<u32>(blend_factor::source_alpha_saturated) == MTLBlendFactorSourceAlphaSaturated &&
++		static_cast<u32>(blend_factor::blend_color) == MTLBlendFactorBlendColor &&
++		static_cast<u32>(blend_factor::one_minus_blend_color) == MTLBlendFactorOneMinusBlendColor &&
++		static_cast<u32>(blend_factor::blend_alpha) == MTLBlendFactorBlendAlpha &&
++		static_cast<u32>(blend_factor::one_minus_blend_alpha) == MTLBlendFactorOneMinusBlendAlpha);
++	static_assert(static_cast<u32>(blend_operation::add) == MTLBlendOperationAdd && static_cast<u32>(blend_operation::subtract) == MTLBlendOperationSubtract &&
++		static_cast<u32>(blend_operation::reverse_subtract) == MTLBlendOperationReverseSubtract &&
++		static_cast<u32>(blend_operation::min) == MTLBlendOperationMin && static_cast<u32>(blend_operation::max) == MTLBlendOperationMax);
++	static_assert(write_none == MTLColorWriteMaskNone && write_alpha == MTLColorWriteMaskAlpha && write_blue == MTLColorWriteMaskBlue &&
++		write_green == MTLColorWriteMaskGreen && write_red == MTLColorWriteMaskRed && write_all == MTLColorWriteMaskAll);
++	static_assert(static_cast<u32>(cull_mode::none) == MTLCullModeNone && static_cast<u32>(cull_mode::front) == MTLCullModeFront &&
++		static_cast<u32>(cull_mode::back) == MTLCullModeBack);
++	static_assert(static_cast<u32>(winding::clockwise) == MTLWindingClockwise && static_cast<u32>(winding::counter_clockwise) == MTLWindingCounterClockwise);
++	static_assert(static_cast<u32>(triangle_fill_mode::fill) == MTLTriangleFillModeFill && static_cast<u32>(triangle_fill_mode::lines) == MTLTriangleFillModeLines);
++	static_assert(static_cast<u32>(depth_clip_mode::clip) == MTLDepthClipModeClip && static_cast<u32>(depth_clip_mode::clamp) == MTLDepthClipModeClamp);
++	static_assert(static_cast<u32>(sampler_min_mag_filter::nearest) == MTLSamplerMinMagFilterNearest &&
++		static_cast<u32>(sampler_min_mag_filter::linear) == MTLSamplerMinMagFilterLinear);
++	static_assert(static_cast<u32>(sampler_mip_filter::not_mipmapped) == MTLSamplerMipFilterNotMipmapped &&
++		static_cast<u32>(sampler_mip_filter::nearest) == MTLSamplerMipFilterNearest && static_cast<u32>(sampler_mip_filter::linear) == MTLSamplerMipFilterLinear);
++	static_assert(static_cast<u32>(sampler_address_mode::clamp_to_edge) == MTLSamplerAddressModeClampToEdge &&
++		static_cast<u32>(sampler_address_mode::mirror_clamp_to_edge) == MTLSamplerAddressModeMirrorClampToEdge &&
++		static_cast<u32>(sampler_address_mode::repeat) == MTLSamplerAddressModeRepeat &&
++		static_cast<u32>(sampler_address_mode::mirror_repeat) == MTLSamplerAddressModeMirrorRepeat &&
++		static_cast<u32>(sampler_address_mode::clamp_to_zero) == MTLSamplerAddressModeClampToZero &&
++		static_cast<u32>(sampler_address_mode::clamp_to_border_color) == MTLSamplerAddressModeClampToBorderColor);
++	static_assert(static_cast<u32>(sampler_border_color::transparent_black) == MTLSamplerBorderColorTransparentBlack &&
++		static_cast<u32>(sampler_border_color::opaque_black) == MTLSamplerBorderColorOpaqueBlack &&
++		static_cast<u32>(sampler_border_color::opaque_white) == MTLSamplerBorderColorOpaqueWhite);
++	static_assert(static_cast<u32>(visibility_result_mode::disabled) == MTLVisibilityResultModeDisabled &&
++		static_cast<u32>(visibility_result_mode::boolean) == MTLVisibilityResultModeBoolean &&
++		static_cast<u32>(visibility_result_mode::counting) == MTLVisibilityResultModeCounting);
++	static_assert(static_cast<u32>(gpu_family::apple7) == MTLGPUFamilyApple7 && static_cast<u32>(gpu_family::apple8) == MTLGPUFamilyApple8 &&
++		static_cast<u32>(gpu_family::apple9) == MTLGPUFamilyApple9 && static_cast<u32>(gpu_family::metal4) == MTLGPUFamilyMetal4);
++	static_assert(stage_vertex == MTLRenderStageVertex && stage_fragment == MTLRenderStageFragment);
++	static_assert(barrier_vertex == MTLStageVertex && barrier_fragment == MTLStageFragment && barrier_tile == MTLStageTile &&
++		barrier_object == MTLStageObject && barrier_mesh == MTLStageMesh && barrier_resource_state == MTLStageResourceState &&
++		barrier_dispatch == MTLStageDispatch && barrier_blit == MTLStageBlit && barrier_acceleration_structure == MTLStageAccelerationStructure &&
++		barrier_machine_learning == MTLStageMachineLearning && barrier_all == static_cast<u64>(MTLStageAll));
++
++	namespace
++	{
++		template <typename T>
++		T as(const object& value) noexcept
++		{
++			return (__bridge T)value.get();
++		}
++
++		object keep(id value) noexcept
++		{
++			return value ? object::adopt((__bridge_retained void*)value) : object{};
++		}
++
++		NSString* string(std::string_view value)
++		{
++			return [[NSString alloc] initWithBytes:value.data() length:value.size() encoding:NSUTF8StringEncoding];
++		}
++
++		std::string describe(NSError* error)
++		{
++			if (!error)
++			{
++				return "unknown Metal error";
++			}
++
++			const char* text = error.localizedDescription.UTF8String;
++			return text ? text : "unknown Metal error";
++		}
++
++		MTLRegion metal_region(const region& area)
++		{
++			return MTLRegionMake3D(area.at.x, area.at.y, area.at.z, area.size.width, area.size.height, area.size.depth);
++		}
++	}
++
++	object::object(const object& other) noexcept
++		: m_ptr(other.m_ptr ? const_cast<void*>(CFRetain(other.m_ptr)) : nullptr)
++	{
++	}
++
++	object& object::operator=(const object& other) noexcept
++	{
++		if (this != &other)
++		{
++			void* const previous = m_ptr;
++			m_ptr = other.m_ptr ? const_cast<void*>(CFRetain(other.m_ptr)) : nullptr;
++			if (previous)
++			{
++				CFRelease(previous);
++			}
++		}
++		return *this;
++	}
++
++	object::object(object&& other) noexcept
++		: m_ptr(std::exchange(other.m_ptr, nullptr))
++	{
++	}
++
++	object& object::operator=(object&& other) noexcept
++	{
++		if (this != &other)
++		{
++			reset();
++			m_ptr = std::exchange(other.m_ptr, nullptr);
++		}
++		return *this;
++	}
++
++	object::~object()
++	{
++		reset();
++	}
++
++	object object::adopt(void* retained) noexcept
++	{
++		object result;
++		result.m_ptr = retained;
++		return result;
++	}
++
++	object object::retain(void* unretained) noexcept
++	{
++		object result;
++		result.m_ptr = unretained ? const_cast<void*>(CFRetain(unretained)) : nullptr;
++		return result;
++	}
++
++	void object::reset() noexcept
++	{
++		if (void* const previous = std::exchange(m_ptr, nullptr))
++		{
++			CFRelease(previous);
++		}
++	}
++
++	object create_system_default_device() noexcept
++	{
++		@autoreleasepool
++		{
++			return keep(MTLCreateSystemDefaultDevice());
++		}
++	}
++
++	device_info query_device(const object& device)
++	{
++		@autoreleasepool
++		{
++			const id<MTLDevice> metal = as<id<MTLDevice>>(device);
++			device_info info;
++			if (!metal)
++			{
++				return info;
++			}
++
++			const char* name = metal.name.UTF8String;
++			info.name = name ? name : "";
++			info.registry_id = metal.registryID;
++			info.max_buffer_length = metal.maxBufferLength;
++			info.unified_memory = metal.hasUnifiedMemory;
++			info.apple7 = [metal supportsFamily:MTLGPUFamilyApple7];
++			info.apple8 = [metal supportsFamily:MTLGPUFamilyApple8];
++			info.apple9 = [metal supportsFamily:MTLGPUFamilyApple9];
++			if (@available(iOS 16.4, macOS 11.0, *))
++			{
++				info.bc_texture_compression = metal.supportsBCTextureCompression;
++			}
++#if TARGET_OS_OSX
++			info.depth24_stencil8 = metal.depth24Stencil8PixelFormatSupported;
++#endif
++			if (@available(iOS 26.0, macOS 26.0, *))
++			{
++				info.metal4 = [metal supportsFamily:MTLGPUFamilyMetal4];
++			}
++			return info;
++		}
++	}
++
++	RBX_METAL4 object new_command_queue(const object& device)
++	{
++		@autoreleasepool
++		{
++			return keep([as<id<MTLDevice>>(device) newMTL4CommandQueue]);
++		}
++	}
++
++	RBX_METAL4 object new_command_allocator(const object& device)
++	{
++		@autoreleasepool
++		{
++			return keep([as<id<MTLDevice>>(device) newCommandAllocator]);
++		}
++	}
++
++	RBX_METAL4 void reset_command_allocator(const object& allocator)
++	{
++		[as<id<MTL4CommandAllocator>>(allocator) reset];
++	}
++
++	RBX_METAL4 object new_command_buffer(const object& device)
++	{
++		@autoreleasepool
++		{
++			return keep([as<id<MTLDevice>>(device) newCommandBuffer]);
++		}
++	}
++
++	RBX_METAL4 void begin_command_buffer(const object& command_buffer, const object& allocator, std::string_view label)
++	{
++		@autoreleasepool
++		{
++			const id<MTL4CommandBuffer> buffer = as<id<MTL4CommandBuffer>>(command_buffer);
++			[buffer beginCommandBufferWithAllocator:as<id<MTL4CommandAllocator>>(allocator)];
++			if (!label.empty())
++			{
++				buffer.label = string(label);
++			}
++		}
++	}
++
++	RBX_METAL4 void end_command_buffer(const object& command_buffer)
++	{
++		@autoreleasepool
++		{
++			[as<id<MTL4CommandBuffer>>(command_buffer) endCommandBuffer];
++		}
++	}
++
++	RBX_METAL4 void commit(const object& queue, const object& command_buffer)
++	{
++		@autoreleasepool
++		{
++			id<MTL4CommandBuffer> buffers[1] = {as<id<MTL4CommandBuffer>>(command_buffer)};
++			[as<id<MTL4CommandQueue>>(queue) commit:buffers count:1];
++		}
++	}
++
++	object new_shared_event(const object& device)
++	{
++		@autoreleasepool
++		{
++			return keep([as<id<MTLDevice>>(device) newSharedEvent]);
++		}
++	}
++
++	RBX_METAL4 void signal_event(const object& queue, const object& event, u64 value)
++	{
++		@autoreleasepool
++		{
++			[as<id<MTL4CommandQueue>>(queue) signalEvent:as<id<MTLSharedEvent>>(event) value:value];
++		}
++	}
++
++	u64 signaled_value(const object& event)
++	{
++		return as<id<MTLSharedEvent>>(event).signaledValue;
++	}
++
++	RBX_METAL4 bool wait_signaled_value(const object& event, u64 value, u64 timeout_ms)
++	{
++		@autoreleasepool
++		{
++			return [as<id<MTLSharedEvent>>(event) waitUntilSignaledValue:value timeoutMS:timeout_ms];
++		}
++	}
++
++	RBX_METAL4 object new_residency_set(const object& device, u32 initial_capacity)
++	{
++		@autoreleasepool
++		{
++			MTLResidencySetDescriptor* desc = [[MTLResidencySetDescriptor alloc] init];
++			desc.initialCapacity = initial_capacity;
++			NSError* failure = nil;
++			return keep([as<id<MTLDevice>>(device) newResidencySetWithDescriptor:desc error:&failure]);
++		}
++	}
++
++	RBX_METAL4 void residency_add(const object& set, const object& allocation)
++	{
++		[as<id<MTLResidencySet>>(set) addAllocation:as<id<MTLAllocation>>(allocation)];
++	}
++
++	RBX_METAL4 void residency_remove(const object& set, const object& allocation)
++	{
++		[as<id<MTLResidencySet>>(set) removeAllocation:as<id<MTLAllocation>>(allocation)];
++	}
++
++	RBX_METAL4 void residency_commit(const object& set)
++	{
++		@autoreleasepool
++		{
++			[as<id<MTLResidencySet>>(set) commit];
++		}
++	}
++
++	RBX_METAL4 void queue_add_residency_set(const object& queue, const object& set)
++	{
++		@autoreleasepool
++		{
++			[as<id<MTL4CommandQueue>>(queue) addResidencySet:as<id<MTLResidencySet>>(set)];
++		}
++	}
++
++	object new_buffer(const object& device, u64 length, storage_mode storage)
++	{
++		@autoreleasepool
++		{
++			const MTLResourceOptions options = static_cast<MTLResourceOptions>(static_cast<NSUInteger>(storage) << MTLResourceStorageModeShift);
++			return keep([as<id<MTLDevice>>(device) newBufferWithLength:length options:options]);
++		}
++	}
++
++	void* buffer_contents(const object& buffer)
++	{
++		return [as<id<MTLBuffer>>(buffer) contents];
++	}
++
++	u64 buffer_length(const object& buffer)
++	{
++		return as<id<MTLBuffer>>(buffer).length;
++	}
++
++	object new_texture(const object& device, const texture_descriptor& descriptor)
++	{
++		@autoreleasepool
++		{
++			MTLTextureDescriptor* desc = [[MTLTextureDescriptor alloc] init];
++			desc.textureType = static_cast<MTLTextureType>(descriptor.type);
++			desc.pixelFormat = static_cast<MTLPixelFormat>(descriptor.format);
++			desc.width = descriptor.width;
++			desc.height = descriptor.height;
++			desc.depth = descriptor.depth;
++			desc.mipmapLevelCount = descriptor.mip_levels;
++			desc.arrayLength = descriptor.array_length;
++			desc.sampleCount = descriptor.sample_count;
++			desc.usage = static_cast<MTLTextureUsage>(descriptor.usage);
++			desc.storageMode = static_cast<MTLStorageMode>(descriptor.storage);
++			return keep([as<id<MTLDevice>>(device) newTextureWithDescriptor:desc]);
++		}
++	}
++
++	object new_texture_view(const object& texture, pixel_format format)
++	{
++		@autoreleasepool
++		{
++			return keep([as<id<MTLTexture>>(texture) newTextureViewWithPixelFormat:static_cast<MTLPixelFormat>(format)]);
++		}
++	}
++
++	void texture_replace_region(const object& texture, const region& area, u32 level, u32 slice, const void* bytes, u32 bytes_per_row, u32 bytes_per_image)
++	{
++		[as<id<MTLTexture>>(texture) replaceRegion:metal_region(area) mipmapLevel:level slice:slice withBytes:bytes
++			bytesPerRow:bytes_per_row bytesPerImage:bytes_per_image];
++	}
++
++	void texture_get_bytes(const object& texture, void* bytes, u32 bytes_per_row, u32 bytes_per_image, const region& area, u32 level, u32 slice)
++	{
++		[as<id<MTLTexture>>(texture) getBytes:bytes bytesPerRow:bytes_per_row bytesPerImage:bytes_per_image fromRegion:metal_region(area)
++			mipmapLevel:level slice:slice];
++	}
++
++	size3 texture_size(const object& texture)
++	{
++		const id<MTLTexture> metal = as<id<MTLTexture>>(texture);
++		return {static_cast<u32>(metal.width), static_cast<u32>(metal.height), static_cast<u32>(metal.depth)};
++	}
++
++	pixel_format texture_format(const object& texture)
++	{
++		return static_cast<pixel_format>(as<id<MTLTexture>>(texture).pixelFormat);
++	}
++
++	object new_sampler(const object& device, const sampler_descriptor& descriptor)
++	{
++		@autoreleasepool
++		{
++			MTLSamplerDescriptor* desc = [[MTLSamplerDescriptor alloc] init];
++			desc.minFilter = static_cast<MTLSamplerMinMagFilter>(descriptor.min_filter);
++			desc.magFilter = static_cast<MTLSamplerMinMagFilter>(descriptor.mag_filter);
++			desc.mipFilter = static_cast<MTLSamplerMipFilter>(descriptor.mip_filter);
++			desc.sAddressMode = static_cast<MTLSamplerAddressMode>(descriptor.address_s);
++			desc.tAddressMode = static_cast<MTLSamplerAddressMode>(descriptor.address_t);
++			desc.rAddressMode = static_cast<MTLSamplerAddressMode>(descriptor.address_r);
++			desc.borderColor = static_cast<MTLSamplerBorderColor>(descriptor.border);
++			if (descriptor.compare_enabled)
++			{
++				desc.compareFunction = static_cast<MTLCompareFunction>(descriptor.compare);
++			}
++			desc.maxAnisotropy = descriptor.max_anisotropy;
++			desc.lodMinClamp = descriptor.lod_min;
++			desc.lodMaxClamp = descriptor.lod_max;
++			desc.normalizedCoordinates = descriptor.normalized_coordinates;
++			// Bound by resource ID from Metal 4 argument tables.
++			desc.supportArgumentBuffers = YES;
++			return keep([as<id<MTLDevice>>(device) newSamplerStateWithDescriptor:desc]);
++		}
++	}
++
++	RBX_METAL4 object new_argument_table(const object& device, u32 max_buffers, u32 max_textures, u32 max_samplers)
++	{
++		@autoreleasepool
++		{
++			MTL4ArgumentTableDescriptor* desc = [[MTL4ArgumentTableDescriptor alloc] init];
++			desc.maxBufferBindCount = max_buffers;
++			desc.maxTextureBindCount = max_textures;
++			desc.maxSamplerStateBindCount = max_samplers;
++			NSError* failure = nil;
++			return keep([as<id<MTLDevice>>(device) newArgumentTableWithDescriptor:desc error:&failure]);
++		}
++	}
++
++	RBX_METAL4 void table_set_buffer(const object& table, const object& buffer, u64 offset, u32 index)
++	{
++		[as<id<MTL4ArgumentTable>>(table) setAddress:as<id<MTLBuffer>>(buffer).gpuAddress + offset atIndex:index];
++	}
++
++	RBX_METAL4 void table_set_texture(const object& table, const object& texture, u32 index)
++	{
++		[as<id<MTL4ArgumentTable>>(table) setTexture:as<id<MTLTexture>>(texture).gpuResourceID atIndex:index];
++	}
++
++	RBX_METAL4 void table_set_sampler(const object& table, const object& sampler, u32 index)
++	{
++		[as<id<MTL4ArgumentTable>>(table) setSamplerState:as<id<MTLSamplerState>>(sampler).gpuResourceID atIndex:index];
++	}
++
++	RBX_METAL4 object new_compiler(const object& device)
++	{
++		@autoreleasepool
++		{
++			MTL4CompilerDescriptor* desc = [[MTL4CompilerDescriptor alloc] init];
++			NSError* failure = nil;
++			return keep([as<id<MTLDevice>>(device) newCompilerWithDescriptor:desc error:&failure]);
++		}
++	}
++
++	RBX_METAL4 object compile_library(const object& compiler, std::string_view source, std::string& error)
++	{
++		@autoreleasepool
++		{
++			MTLCompileOptions* options = [[MTLCompileOptions alloc] init];
++			// The RSX shaders depend on IEEE behaviour (NaN, infinities, signed zero): no fast math.
++			options.mathMode = MTLMathModeSafe;
++			MTL4LibraryDescriptor* desc = [[MTL4LibraryDescriptor alloc] init];
++			desc.source = string(source);
++			desc.options = options;
++			NSError* failure = nil;
++			const id<MTLLibrary> library = [as<id<MTL4Compiler>>(compiler) newLibraryWithDescriptor:desc error:&failure];
++			if (!library)
++			{
++				error = describe(failure);
++			}
++			return keep(library);
++		}
++	}
++
++	RBX_METAL4 object new_render_pipeline(const object& compiler, const render_pipeline_descriptor& descriptor, std::string& error)
++	{
++		@autoreleasepool
++		{
++			const auto function = [&](const std::string& name) -> MTL4LibraryFunctionDescriptor*
++			{
++				if (name.empty())
++				{
++					return nil;
++				}
++
++				MTL4LibraryFunctionDescriptor* result = [[MTL4LibraryFunctionDescriptor alloc] init];
++				result.library = as<id<MTLLibrary>>(descriptor.library);
++				result.name = string(name);
++				return result;
++			};
++
++			MTL4RenderPipelineDescriptor* desc = [[MTL4RenderPipelineDescriptor alloc] init];
++			desc.vertexFunctionDescriptor = function(descriptor.vertex_function);
++			desc.fragmentFunctionDescriptor = function(descriptor.fragment_function);
++			for (u32 index = 0; index < descriptor.color.size(); ++index)
++			{
++				const color_attachment_state& state = descriptor.color[index];
++				MTL4RenderPipelineColorAttachmentDescriptor* color = desc.colorAttachments[index];
++				color.pixelFormat = static_cast<MTLPixelFormat>(state.format);
++				color.blendingState = state.blending ? MTL4BlendStateEnabled : MTL4BlendStateDisabled;
++				color.sourceRGBBlendFactor = static_cast<MTLBlendFactor>(state.source_rgb);
++				color.destinationRGBBlendFactor = static_cast<MTLBlendFactor>(state.destination_rgb);
++				color.rgbBlendOperation = static_cast<MTLBlendOperation>(state.rgb_operation);
++				color.sourceAlphaBlendFactor = static_cast<MTLBlendFactor>(state.source_alpha);
++				color.destinationAlphaBlendFactor = static_cast<MTLBlendFactor>(state.destination_alpha);
++				color.alphaBlendOperation = static_cast<MTLBlendOperation>(state.alpha_operation);
++				color.writeMask = static_cast<MTLColorWriteMask>(state.write_mask);
++			}
++			desc.rasterSampleCount = descriptor.sample_count;
++			desc.alphaToCoverageState = descriptor.alpha_to_coverage ? MTL4AlphaToCoverageStateEnabled : MTL4AlphaToCoverageStateDisabled;
++			if (!descriptor.label.empty())
++			{
++				desc.label = string(descriptor.label);
++			}
++
++			NSError* failure = nil;
++			const id<MTLRenderPipelineState> pipeline = [as<id<MTL4Compiler>>(compiler) newRenderPipelineStateWithDescriptor:desc
++				compilerTaskOptions:nil error:&failure];
++			if (!pipeline)
++			{
++				error = describe(failure);
++			}
++			return keep(pipeline);
++		}
++	}
++
++	object new_depth_stencil_state(const object& device, const depth_stencil_descriptor& descriptor)
++	{
++		@autoreleasepool
++		{
++			MTLDepthStencilDescriptor* desc = [[MTLDepthStencilDescriptor alloc] init];
++			desc.depthCompareFunction = static_cast<MTLCompareFunction>(descriptor.depth_compare);
++			desc.depthWriteEnabled = descriptor.depth_write;
++			if (descriptor.stencil)
++			{
++				const auto stencil = [](const stencil_state& state)
++				{
++					MTLStencilDescriptor* result = [[MTLStencilDescriptor alloc] init];
++					result.stencilCompareFunction = static_cast<MTLCompareFunction>(state.compare);
++					result.stencilFailureOperation = static_cast<MTLStencilOperation>(state.stencil_fail);
++					result.depthFailureOperation = static_cast<MTLStencilOperation>(state.depth_fail);
++					result.depthStencilPassOperation = static_cast<MTLStencilOperation>(state.depth_stencil_pass);
++					result.readMask = state.read_mask;
++					result.writeMask = state.write_mask;
++					return result;
++				};
++				desc.frontFaceStencil = stencil(descriptor.front);
++				desc.backFaceStencil = stencil(descriptor.back);
++			}
++			return keep([as<id<MTLDevice>>(device) newDepthStencilStateWithDescriptor:desc]);
++		}
++	}
++
++	RBX_METAL4 object begin_render_pass(const object& command_buffer, const render_pass_descriptor& descriptor, std::string_view label)
++	{
++		@autoreleasepool
++		{
++			MTL4RenderPassDescriptor* desc = [[MTL4RenderPassDescriptor alloc] init];
++			for (u32 index = 0; index < descriptor.color.size(); ++index)
++			{
++				const render_pass_color_attachment& source = descriptor.color[index];
++				if (!source.texture)
++				{
++					continue;
++				}
++
++				MTLRenderPassColorAttachmentDescriptor* color = desc.colorAttachments[index];
++				color.texture = as<id<MTLTexture>>(source.texture);
++				color.level = source.level;
++				color.slice = source.slice;
++				color.depthPlane = source.depth_plane;
++				color.resolveTexture = as<id<MTLTexture>>(source.resolve_texture);
++				color.loadAction = static_cast<MTLLoadAction>(source.load);
++				color.storeAction = static_cast<MTLStoreAction>(source.store);
++				color.clearColor = MTLClearColorMake(source.clear.red, source.clear.green, source.clear.blue, source.clear.alpha);
++			}
++
++			if (descriptor.depth.texture)
++			{
++				desc.depthAttachment.texture = as<id<MTLTexture>>(descriptor.depth.texture);
++				desc.depthAttachment.level = descriptor.depth.level;
++				desc.depthAttachment.slice = descriptor.depth.slice;
++				desc.depthAttachment.loadAction = static_cast<MTLLoadAction>(descriptor.depth.load);
++				desc.depthAttachment.storeAction = static_cast<MTLStoreAction>(descriptor.depth.store);
++				desc.depthAttachment.clearDepth = descriptor.depth.clear_depth;
++			}
++
++			if (descriptor.stencil.texture)
++			{
++				desc.stencilAttachment.texture = as<id<MTLTexture>>(descriptor.stencil.texture);
++				desc.stencilAttachment.level = descriptor.stencil.level;
++				desc.stencilAttachment.slice = descriptor.stencil.slice;
++				desc.stencilAttachment.loadAction = static_cast<MTLLoadAction>(descriptor.stencil.load);
++				desc.stencilAttachment.storeAction = static_cast<MTLStoreAction>(descriptor.stencil.store);
++				desc.stencilAttachment.clearStencil = descriptor.stencil.clear_stencil;
++			}
++
++			desc.visibilityResultBuffer = as<id<MTLBuffer>>(descriptor.visibility_result_buffer);
++			if (descriptor.render_target_width && descriptor.render_target_height)
++			{
++				desc.renderTargetWidth = descriptor.render_target_width;
++				desc.renderTargetHeight = descriptor.render_target_height;
++			}
++			if (descriptor.default_raster_sample_count)
++			{
++				desc.defaultRasterSampleCount = descriptor.default_raster_sample_count;
++			}
++
++			const id<MTL4RenderCommandEncoder> encoder = [as<id<MTL4CommandBuffer>>(command_buffer) renderCommandEncoderWithDescriptor:desc];
++			if (encoder && !label.empty())
++			{
++				encoder.label = string(label);
++			}
++			return keep(encoder);
++		}
++	}
++
++	RBX_METAL4 void set_render_pipeline(const object& encoder, const object& pipeline)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) setRenderPipelineState:as<id<MTLRenderPipelineState>>(pipeline)];
++	}
++
++	RBX_METAL4 void set_argument_table(const object& encoder, const object& table, u32 stages)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) setArgumentTable:as<id<MTL4ArgumentTable>>(table) atStages:static_cast<MTLRenderStages>(stages)];
++	}
++
++	RBX_METAL4 void set_depth_stencil_state(const object& encoder, const object& state)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) setDepthStencilState:as<id<MTLDepthStencilState>>(state)];
++	}
++
++	RBX_METAL4 void set_stencil_reference(const object& encoder, u32 front, u32 back)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) setStencilFrontReferenceValue:front backReferenceValue:back];
++	}
++
++	RBX_METAL4 void set_viewport(const object& encoder, const viewport& area)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) setViewport:MTLViewport{area.x, area.y, area.width, area.height, area.znear, area.zfar}];
++	}
++
++	RBX_METAL4 void set_scissor(const object& encoder, const scissor_rect& area)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) setScissorRect:MTLScissorRect{area.x, area.y, area.width, area.height}];
++	}
++
++	RBX_METAL4 void set_cull_mode(const object& encoder, cull_mode mode)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) setCullMode:static_cast<MTLCullMode>(mode)];
++	}
++
++	RBX_METAL4 void set_front_facing(const object& encoder, winding front)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) setFrontFacingWinding:static_cast<MTLWinding>(front)];
++	}
++
++	RBX_METAL4 void set_fill_mode(const object& encoder, triangle_fill_mode mode)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) setTriangleFillMode:static_cast<MTLTriangleFillMode>(mode)];
++	}
++
++	RBX_METAL4 void set_depth_clip_mode(const object& encoder, depth_clip_mode mode)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) setDepthClipMode:static_cast<MTLDepthClipMode>(mode)];
++	}
++
++	RBX_METAL4 void set_depth_bias(const object& encoder, f32 bias, f32 slope_scale, f32 clamp)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) setDepthBias:bias slopeScale:slope_scale clamp:clamp];
++	}
++
++	RBX_METAL4 void set_blend_color(const object& encoder, f32 red, f32 green, f32 blue, f32 alpha)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) setBlendColorRed:red green:green blue:blue alpha:alpha];
++	}
++
++	RBX_METAL4 void set_visibility_result_mode(const object& encoder, visibility_result_mode mode, u64 offset)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) setVisibilityResultMode:static_cast<MTLVisibilityResultMode>(mode) offset:offset];
++	}
++
++	RBX_METAL4 void draw_primitives(const object& encoder, primitive_type type, u32 vertex_start, u32 vertex_count, u32 instance_count)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) drawPrimitives:static_cast<MTLPrimitiveType>(type) vertexStart:vertex_start
++			vertexCount:vertex_count instanceCount:instance_count];
++	}
++
++	RBX_METAL4 void draw_indexed_primitives(const object& encoder, primitive_type type, u32 index_count, index_type indices, const object& index_buffer,
++		u64 index_offset, u64 index_length, u32 instance_count)
++	{
++		[as<id<MTL4RenderCommandEncoder>>(encoder) drawIndexedPrimitives:static_cast<MTLPrimitiveType>(type) indexCount:index_count
++			indexType:static_cast<MTLIndexType>(indices) indexBuffer:as<id<MTLBuffer>>(index_buffer).gpuAddress + index_offset
++			indexBufferLength:index_length instanceCount:instance_count];
++	}
++
++	RBX_METAL4 object begin_compute(const object& command_buffer, std::string_view label)
++	{
++		@autoreleasepool
++		{
++			const id<MTL4ComputeCommandEncoder> encoder = [as<id<MTL4CommandBuffer>>(command_buffer) computeCommandEncoder];
++			if (encoder && !label.empty())
++			{
++				encoder.label = string(label);
++			}
++			return keep(encoder);
++		}
++	}
++
++	RBX_METAL4 void copy_texture(const object& encoder, const object& source, u32 source_slice, u32 source_level, const region& source_area,
++		const object& destination, u32 destination_slice, u32 destination_level, const origin& destination_origin)
++	{
++		[as<id<MTL4ComputeCommandEncoder>>(encoder) copyFromTexture:as<id<MTLTexture>>(source) sourceSlice:source_slice sourceLevel:source_level
++			sourceOrigin:MTLOriginMake(source_area.at.x, source_area.at.y, source_area.at.z)
++			sourceSize:MTLSizeMake(source_area.size.width, source_area.size.height, source_area.size.depth)
++			toTexture:as<id<MTLTexture>>(destination) destinationSlice:destination_slice destinationLevel:destination_level
++			destinationOrigin:MTLOriginMake(destination_origin.x, destination_origin.y, destination_origin.z)];
++	}
++
++	RBX_METAL4 void copy_buffer_to_texture(const object& encoder, const object& source, u64 offset, u32 bytes_per_row, u32 bytes_per_image,
++		const size3& size, const object& destination, u32 slice, u32 level, const origin& destination_origin)
++	{
++		[as<id<MTL4ComputeCommandEncoder>>(encoder) copyFromBuffer:as<id<MTLBuffer>>(source) sourceOffset:offset sourceBytesPerRow:bytes_per_row
++			sourceBytesPerImage:bytes_per_image sourceSize:MTLSizeMake(size.width, size.height, size.depth)
++			toTexture:as<id<MTLTexture>>(destination) destinationSlice:slice destinationLevel:level
++			destinationOrigin:MTLOriginMake(destination_origin.x, destination_origin.y, destination_origin.z)];
++	}
++
++	RBX_METAL4 void copy_texture_to_buffer(const object& encoder, const object& source, u32 slice, u32 level, const region& source_area,
++		const object& destination, u64 offset, u32 bytes_per_row, u32 bytes_per_image)
++	{
++		[as<id<MTL4ComputeCommandEncoder>>(encoder) copyFromTexture:as<id<MTLTexture>>(source) sourceSlice:slice sourceLevel:level
++			sourceOrigin:MTLOriginMake(source_area.at.x, source_area.at.y, source_area.at.z)
++			sourceSize:MTLSizeMake(source_area.size.width, source_area.size.height, source_area.size.depth)
++			toBuffer:as<id<MTLBuffer>>(destination) destinationOffset:offset destinationBytesPerRow:bytes_per_row
++			destinationBytesPerImage:bytes_per_image];
++	}
++
++	RBX_METAL4 void fill_buffer(const object& encoder, const object& buffer, u64 offset, u64 length, u8 value)
++	{
++		[as<id<MTL4ComputeCommandEncoder>>(encoder) fillBuffer:as<id<MTLBuffer>>(buffer) range:NSMakeRange(offset, length) value:value];
++	}
++
++	RBX_METAL4 void barrier_after_queue_stages(const object& encoder, u64 after, u64 before)
++	{
++		[as<id<MTL4CommandEncoder>>(encoder) barrierAfterQueueStages:static_cast<MTLStages>(after) beforeStages:static_cast<MTLStages>(before)
++			visibilityOptions:MTL4VisibilityOptionDevice];
++	}
++
++	RBX_METAL4 void end_encoding(const object& encoder)
++	{
++		@autoreleasepool
++		{
++			[as<id<MTL4CommandEncoder>>(encoder) endEncoding];
++		}
++	}
++
++	void configure_layer(void* layer, const object& device, pixel_format format, u32 width, u32 height)
++	{
++		@autoreleasepool
++		{
++			CAMetalLayer* metal_layer = (__bridge CAMetalLayer*)layer;
++			metal_layer.device = as<id<MTLDevice>>(device);
++			metal_layer.pixelFormat = static_cast<MTLPixelFormat>(format);
++			metal_layer.framebufferOnly = YES;
++			if (width && height)
++			{
++				metal_layer.drawableSize = CGSizeMake(width, height);
++			}
++		}
++	}
++
++	RBX_METAL4 object layer_residency_set(void* layer)
++	{
++		@autoreleasepool
++		{
++			return object::retain((__bridge void*)((__bridge CAMetalLayer*)layer).residencySet);
++		}
++	}
++
++	object next_drawable(void* layer)
++	{
++		@autoreleasepool
++		{
++			return keep([(__bridge CAMetalLayer*)layer nextDrawable]);
++		}
++	}
++
++	object drawable_texture(const object& drawable)
++	{
++		@autoreleasepool
++		{
++			return keep([as<id<CAMetalDrawable>>(drawable) texture]);
++		}
++	}
++
++	RBX_METAL4 void wait_for_drawable(const object& queue, const object& drawable)
++	{
++		@autoreleasepool
++		{
++			[as<id<MTL4CommandQueue>>(queue) waitForDrawable:as<id<MTLDrawable>>(drawable)];
++		}
++	}
++
++	RBX_METAL4 void signal_drawable(const object& queue, const object& drawable)
++	{
++		@autoreleasepool
++		{
++			[as<id<MTL4CommandQueue>>(queue) signalDrawable:as<id<MTLDrawable>>(drawable)];
++		}
++	}
++
++	void present(const object& drawable)
++	{
++		@autoreleasepool
++		{
++			[as<id<MTLDrawable>>(drawable) present];
++		}
++	}
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
+new file mode 100644
+index 0000000..33538c9
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
+@@ -0,0 +1,413 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE: the native Metal 4 renderer, stage M1 (see MTLGSRender.h).
++
++#include "stdafx.h"
++#include "MTLGSRender.h"
++#include "MTLPresent.h"
++
++#include "Emu/IdManager.h"
++#include "Emu/Memory/vm.h"
++#include "Emu/RSX/gcm_enums.h"
++#include "Emu/RSX/Utils/rsx_utils.h"
++#include "util/asm.hpp"
++
++#include <algorithm>
++#include <cstring>
++
++namespace mtl
++{
++	stage_counters& counters() noexcept
++	{
++		static stage_counters s_counters;
++		return s_counters;
++	}
++
++	namespace
++	{
++		constexpr u64 slow_wait_ms = 5000;
++	}
++}
++
++MTLGSRender::MTLGSRender(utils::serial* ar) noexcept
++	: GSRender(ar)
++{
++	m_device = mtl::create_system_default_device();
++	if (!m_device)
++	{
++		m_initialization_error = "No Metal device";
++		return;
++	}
++
++	m_device_info = mtl::query_device(m_device);
++	if (!m_device_info.metal4)
++	{
++		m_initialization_error = fmt::format("The Metal 4 renderer needs iOS 26 and a Metal 4 GPU (Apple7 or later); this device is '%s'", m_device_info.name);
++		m_device.reset();
++		return;
++	}
++
++	// What the renderer does not execute yet is counted, never assumed rendered.
++	backend_config.supports_multidraw = false;
++	backend_config.supports_hw_instanced_rendering = false;
++}
++
++MTLGSRender::~MTLGSRender() = default;
++
++u64 MTLGSRender::get_cycles()
++{
++	return thread_ctrl::get_cycles(static_cast<named_thread<MTLGSRender>&>(*this));
++}
++
++void MTLGSRender::on_init_thread()
++{
++	if (!m_device)
++	{
++		fmt::throw_exception("%s", m_initialization_error.empty() ? "No Metal device was created" : m_initialization_error);
++	}
++
++	GSRender::on_init_thread();
++	zcull_ctrl.reset(static_cast<::rsx::reports::ZCULL_control*>(this));
++
++	ensure(m_frame, "The Metal renderer needs the iOS display surface");
++#ifdef __APPLE__
++	// The iOS frame's handle is the CAMetalLayer of the display surface (rpcs3::ios::gs_frame::handle).
++	m_layer = m_frame->handle();
++#endif
++	ensure(m_layer, "The display surface has no CAMetalLayer");
++
++	m_queue = mtl::new_command_queue(m_device);
++	m_compiler = mtl::new_compiler(m_device);
++	m_event = mtl::new_shared_event(m_device);
++	m_residency = mtl::new_residency_set(m_device, 64);
++	ensure(m_queue && m_compiler && m_event && m_residency, "Metal 4 queue, compiler, event or residency set creation failed");
++
++	// The layer's drawables are resident through the layer's own set.
++	mtl::queue_add_residency_set(m_queue, m_residency);
++	if (const mtl::object layer_set = mtl::layer_residency_set(m_layer))
++	{
++		mtl::queue_add_residency_set(m_queue, layer_set);
++	}
++
++	update_drawable_size();
++
++	for (frame_slot& slot : m_frames)
++	{
++		slot.allocator = mtl::new_command_allocator(m_device);
++		slot.command_buffer = mtl::new_command_buffer(m_device);
++		slot.constants = mtl::new_buffer(m_device, 256, mtl::storage_mode::shared);
++		ensure(slot.allocator && slot.command_buffer && slot.constants, "Metal 4 frame resources");
++		make_resident(slot.constants);
++	}
++
++	m_present_table = mtl::new_argument_table(m_device, 1, 1, 1);
++	mtl::sampler_descriptor sampler{};
++	sampler.min_filter = mtl::sampler_min_mag_filter::linear;
++	sampler.mag_filter = mtl::sampler_min_mag_filter::linear;
++	m_present_sampler = mtl::new_sampler(m_device, sampler);
++	ensure(m_present_table && m_present_sampler, "Metal 4 presentation table or sampler");
++
++	std::string error;
++	if (!create_present_pipeline(error))
++	{
++		fmt::throw_exception("Metal presentation pipeline: %s", error);
++	}
++
++	rsx_log.notice("Metal 4 renderer M1: device '%s' (Apple7=%d Apple8=%d Apple9=%d, BC=%d, unified=%d), drawable %ux%u",
++		m_device_info.name, m_device_info.apple7, m_device_info.apple8, m_device_info.apple9, m_device_info.bc_texture_compression,
++		m_device_info.unified_memory, m_drawable_width, m_drawable_height);
++	rsx_log.warning("Metal 4 renderer M1: draws, clears and occlusion queries are not executed yet (counted in COREPROF METAL_M1)");
++}
++
++void MTLGSRender::on_exit()
++{
++	wait_idle();
++	GSRender::on_exit();
++
++	for (frame_slot& slot : m_frames)
++	{
++		slot = {};
++	}
++
++	m_present_pipeline.reset();
++	m_present_table.reset();
++	m_present_sampler.reset();
++	m_residency.reset();
++	m_event.reset();
++	m_compiler.reset();
++	m_queue.reset();
++}
++
++void MTLGSRender::begin()
++{
++	rsx::thread::begin();
++}
++
++void MTLGSRender::end()
++{
++	// Not rendered in M1: the draw's pipeline dependencies run (as for a skipped draw), and it is counted.
++	execute_nop_draw();
++	mtl::counters().draws_not_rendered.fetch_add(1, std::memory_order_relaxed);
++	rsx::thread::end();
++}
++
++void MTLGSRender::clear_surface(u32 /*arg*/)
++{
++	mtl::counters().clears_not_rendered.fetch_add(1, std::memory_order_relaxed);
++}
++
++void MTLGSRender::begin_occlusion_query(rsx::reports::occlusion_query_info* /*query*/)
++{
++	mtl::counters().occlusion_queries_not_measured.fetch_add(1, std::memory_order_relaxed);
++}
++
++void MTLGSRender::end_occlusion_query(rsx::reports::occlusion_query_info* /*query*/)
++{
++}
++
++bool MTLGSRender::check_occlusion_query_status(rsx::reports::occlusion_query_info* /*query*/)
++{
++	return true;
++}
++
++void MTLGSRender::get_occlusion_query_result(rsx::reports::occlusion_query_info* query)
++{
++	// The base class's value for a query nothing measured.
++	ZCULL_control::get_occlusion_query_result(query);
++}
++
++void MTLGSRender::discard_occlusion_query(rsx::reports::occlusion_query_info* /*query*/)
++{
++}
++
++bool MTLGSRender::create_present_pipeline(std::string& error)
++{
++	const mtl::object library = mtl::compile_library(m_compiler, mtl::present_pass::source, error);
++	if (!library)
++	{
++		return false;
++	}
++
++	mtl::render_pipeline_descriptor desc{};
++	desc.library = library;
++	desc.vertex_function = std::string(mtl::present_pass::vertex_function);
++	desc.fragment_function = std::string(mtl::present_pass::fragment_function);
++	desc.color[0].format = mtl::pixel_format::bgra8_unorm;
++	desc.label = "RSX present";
++	m_present_pipeline = mtl::new_render_pipeline(m_compiler, desc, error);
++	return static_cast<bool>(m_present_pipeline);
++}
++
++void MTLGSRender::update_drawable_size()
++{
++	const u32 width = static_cast<u32>(std::max(0, m_frame->client_width()));
++	const u32 height = static_cast<u32>(std::max(0, m_frame->client_height()));
++	if (width == m_drawable_width && height == m_drawable_height && width && height)
++	{
++		return;
++	}
++
++	m_drawable_width = width;
++	m_drawable_height = height;
++	mtl::configure_layer(m_layer, m_device, mtl::pixel_format::bgra8_unorm, width, height);
++}
++
++void MTLGSRender::make_resident(const mtl::object& allocation)
++{
++	mtl::residency_add(m_residency, allocation);
++	m_residency_dirty = true;
++}
++
++void MTLGSRender::evict(const mtl::object& allocation)
++{
++	mtl::residency_remove(m_residency, allocation);
++	m_residency_dirty = true;
++}
++
++void MTLGSRender::wait_for_slot(frame_slot& slot)
++{
++	if (!slot.fence)
++	{
++		return;
++	}
++
++	// Waits for the GPU, however long it takes; a slow wait is reported, never abandoned.
++	while (!mtl::wait_signaled_value(m_event, slot.fence, mtl::slow_wait_ms))
++	{
++		mtl::counters().slow_gpu_waits.fetch_add(1, std::memory_order_relaxed);
++		rsx_log.error("Metal 4 renderer: frame fence %llu not signalled after %llu ms (signalled %llu)", slot.fence, mtl::slow_wait_ms,
++			mtl::signaled_value(m_event));
++	}
++}
++
++void MTLGSRender::wait_idle()
++{
++	if (m_event && m_last_fence)
++	{
++		while (!mtl::wait_signaled_value(m_event, m_last_fence, mtl::slow_wait_ms))
++		{
++			mtl::counters().slow_gpu_waits.fetch_add(1, std::memory_order_relaxed);
++			rsx_log.error("Metal 4 renderer: waiting for the last frame (fence %llu)", m_last_fence);
++		}
++	}
++}
++
++bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width, u32 height, u32 pitch)
++{
++	if (!vm::check_addr(address, vm::page_readable, pitch * (height - 1) + width * 4))
++	{
++		return false;
++	}
++
++	if (!slot.upload || slot.upload_width != width || slot.upload_height != height)
++	{
++		if (slot.upload)
++		{
++			// The slot's previous frame has completed (wait_for_slot): the texture is idle.
++			evict(slot.upload);
++		}
++
++		mtl::texture_descriptor desc{};
++		desc.format = mtl::pixel_format::bgra8_unorm;
++		desc.width = width;
++		desc.height = height;
++		desc.usage = mtl::usage_shader_read;
++		desc.storage = mtl::storage_mode::shared;
++		slot.upload = mtl::new_texture(m_device, desc);
++		ensure(slot.upload, "Metal display buffer texture");
++		slot.upload_width = width;
++		slot.upload_height = height;
++		make_resident(slot.upload);
++	}
++
++	// As the Vulkan renderer's upload_image_simple: each big-endian A8R8G8B8 word stored as a native u32 (BGRA8).
++	m_staging.resize(static_cast<usz>(width) * height);
++	const u8* source = vm::_ptr<const u8>(address);
++	for (u32 row = 0; row < height; ++row)
++	{
++		mtl::present_pass::convert_row(source + static_cast<usz>(row) * pitch, m_staging.data() + static_cast<usz>(row) * width, width);
++	}
++
++	mtl::texture_replace_region(slot.upload, {{0, 0, 0}, {width, height, 1}}, 0, 0, m_staging.data(), width * 4, 0);
++	return true;
++}
++
++void MTLGSRender::present(frame_slot& slot, bool has_source, u32 source_width, u32 source_height)
++{
++	const mtl::object drawable = mtl::next_drawable(m_layer);
++	if (!drawable)
++	{
++		mtl::counters().drawable_misses.fetch_add(1, std::memory_order_relaxed);
++		return;
++	}
++
++	if (m_residency_dirty)
++	{
++		mtl::residency_commit(m_residency);
++		m_residency_dirty = false;
++	}
++
++	mtl::reset_command_allocator(slot.allocator);
++	mtl::begin_command_buffer(slot.command_buffer, slot.allocator, "RSX frame");
++
++	mtl::render_pass_descriptor pass{};
++	pass.color[0].texture = mtl::drawable_texture(drawable);
++	pass.color[0].load = mtl::load_action::clear;
++	pass.color[0].store = mtl::store_action::store;
++	pass.color[0].clear = {0., 0., 0., 1.};
++	const mtl::object encoder = mtl::begin_render_pass(slot.command_buffer, pass, "RSX present");
++
++	if (has_source && source_width && source_height && m_drawable_width && m_drawable_height)
++	{
++		// Fit the display buffer in the drawable, keeping its aspect ratio.
++		const mtl::present_pass::rectangle fitted = mtl::present_pass::fit(source_width, source_height, m_drawable_width, m_drawable_height);
++		auto* rect = static_cast<f32*>(mtl::buffer_contents(slot.constants));
++		rect[0] = fitted.left;
++		rect[1] = fitted.bottom;
++		rect[2] = fitted.right;
++		rect[3] = fitted.top;
++
++		mtl::table_set_buffer(m_present_table, slot.constants, 0, 0);
++		mtl::table_set_texture(m_present_table, slot.upload, 0);
++		mtl::table_set_sampler(m_present_table, m_present_sampler, 0);
++		mtl::set_render_pipeline(encoder, m_present_pipeline);
++		mtl::set_argument_table(encoder, m_present_table, mtl::stage_vertex | mtl::stage_fragment);
++		mtl::draw_primitives(encoder, mtl::primitive_type::triangle_strip, 0, 4);
++	}
++
++	mtl::end_encoding(encoder);
++	mtl::end_command_buffer(slot.command_buffer);
++
++	mtl::wait_for_drawable(m_queue, drawable);
++	mtl::commit(m_queue, slot.command_buffer);
++	slot.fence = ++m_last_fence;
++	mtl::signal_event(m_queue, m_event, slot.fence);
++	mtl::signal_drawable(m_queue, drawable);
++	mtl::present(drawable);
++	mtl::counters().frames_presented.fetch_add(1, std::memory_order_relaxed);
++}
++
++void MTLGSRender::flip(const rsx::display_flip_info_t& info)
++{
++	if (info.skip_frame || !m_queue)
++	{
++		m_frame->flip(m_context, true);
++		rsx::thread::flip(info);
++		return;
++	}
++
++	update_drawable_size();
++
++	// The display buffer, as the Vulkan renderer reads it.
++	u32 width = display_buffers[info.buffer].width;
++	u32 height = display_buffers[info.buffer].height;
++	u32 pitch = display_buffers[info.buffer].pitch;
++	u32 format = CELL_GCM_TEXTURE_A8R8G8B8;
++	const auto& avconfig = g_fxo->get<rsx::avconf>();
++
++	if (!width)
++	{
++		width = avconfig.resolution_x;
++		height = avconfig.resolution_y;
++	}
++
++	if (avconfig.state)
++	{
++		format = avconfig.get_compatible_gcm_format();
++		if (!pitch)
++		{
++			pitch = width * avconfig.get_bpp();
++		}
++
++		const size2u video_frame_size = avconfig.video_frame_size();
++		width = std::min(width, video_frame_size.width);
++		height = std::min(height, video_frame_size.height);
++	}
++	else if (!pitch)
++	{
++		pitch = width * 4;
++	}
++
++	frame_slot& slot = m_frames[m_frame_index++ % frames_in_flight];
++	wait_for_slot(slot);
++
++	bool has_source = false;
++	if (info.buffer < display_buffers_count && width && height)
++	{
++		if (format != CELL_GCM_TEXTURE_A8R8G8B8 || pitch < width * 4)
++		{
++			mtl::counters().unsupported_display_formats.fetch_add(1, std::memory_order_relaxed);
++		}
++		else
++		{
++			const u32 address = rsx::get_address(display_buffers[info.buffer].offset, CELL_GCM_LOCATION_LOCAL);
++			has_source = upload_display_buffer(slot, address, width, height, pitch);
++		}
++	}
++
++	mtl::counters().frames_from_guest_memory.fetch_add(has_source ? 1 : 0, std::memory_order_relaxed);
++	mtl::counters().frames_without_source.fetch_add(has_source ? 0 : 1, std::memory_order_relaxed);
++	present(slot, has_source, width, height);
++
++	m_frame->flip(m_context);
++	rsx::thread::flip(info);
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.h b/rpcs3/Emu/RSX/Metal/MTLGSRender.h
+new file mode 100644
+index 0000000..c842caf
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.h
+@@ -0,0 +1,107 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE: the native Metal 4 renderer (RSX commands -> Metal 4 -> Apple GPU), stage M1.
++//
++// M1 owns the Metal device, a Metal 4 command queue, its allocators, residency and the host's
++// CAMetalLayer, and presents the display buffer read from guest memory exactly as the Vulkan renderer
++// does when no surface holds it (big-endian A8R8G8B8 words stored as native BGRA8). Draws, clears and
++// occlusion queries are not executed yet: each one is counted (COREPROF METAL_M1) and none is faked
++// or reported as rendered. Requires iOS 26 and a Metal 4 GPU (Apple7 or later).
++
++#include "Emu/RSX/GSRender.h"
++#include "MTLAPI.h"
++
++#include <array>
++#include <atomic>
++#include <string>
++#include <vector>
++
++namespace mtl
++{
++	// What the renderer has not executed yet, and what it presented; read and reset by the performance window.
++	struct stage_counters
++	{
++		std::atomic<u64> draws_not_rendered{0};
++		std::atomic<u64> clears_not_rendered{0};
++		std::atomic<u64> occlusion_queries_not_measured{0};
++		std::atomic<u64> frames_presented{0};
++		std::atomic<u64> frames_from_guest_memory{0};
++		std::atomic<u64> frames_without_source{0};
++		std::atomic<u64> unsupported_display_formats{0};
++		std::atomic<u64> drawable_misses{0};
++		std::atomic<u64> slow_gpu_waits{0};
++	};
++
++	stage_counters& counters() noexcept;
++}
++
++class MTLGSRender : public GSRender, public ::rsx::reports::ZCULL_control
++{
++public:
++	MTLGSRender(utils::serial* ar) noexcept;
++	MTLGSRender() noexcept : MTLGSRender(nullptr) {}
++	~MTLGSRender() override;
++
++	u64 get_cycles() final;
++
++protected:
++	void on_init_thread() override;
++	void on_exit() override;
++
++	void begin() override;
++	void end() override;
++	void clear_surface(u32 arg) override;
++	void flip(const rsx::display_flip_info_t& info) override;
++
++	// Not measured in M1: each query is counted, and the result is the base class's "no measurement".
++	void begin_occlusion_query(rsx::reports::occlusion_query_info* query) override;
++	void end_occlusion_query(rsx::reports::occlusion_query_info* query) override;
++	bool check_occlusion_query_status(rsx::reports::occlusion_query_info* query) override;
++	void get_occlusion_query_result(rsx::reports::occlusion_query_info* query) override;
++	void discard_occlusion_query(rsx::reports::occlusion_query_info* query) override;
++
++private:
++	static constexpr u32 frames_in_flight = 3;
++
++	// One frame of GPU work: reused once the queue has signalled its fence value.
++	struct frame_slot
++	{
++		mtl::object allocator;
++		mtl::object command_buffer;
++		mtl::object constants;   // the presentation rectangle
++		mtl::object upload;      // the display buffer read from guest memory
++		u32 upload_width = 0;
++		u32 upload_height = 0;
++		u64 fence = 0;
++	};
++
++	bool create_present_pipeline(std::string& error);
++	void update_drawable_size();
++	void wait_for_slot(frame_slot& slot);
++	bool upload_display_buffer(frame_slot& slot, u32 address, u32 width, u32 height, u32 pitch);
++	void present(frame_slot& slot, bool has_source, u32 source_width, u32 source_height);
++	void make_resident(const mtl::object& allocation);
++	void evict(const mtl::object& allocation);
++	void wait_idle();
++
++	std::string m_initialization_error;
++	mtl::device_info m_device_info;
++	mtl::object m_device;
++	mtl::object m_queue;
++	mtl::object m_compiler;
++	mtl::object m_event;
++	mtl::object m_residency;
++	mtl::object m_present_pipeline;
++	mtl::object m_present_table;
++	mtl::object m_present_sampler;
++	void* m_layer = nullptr;
++	u32 m_drawable_width = 0;
++	u32 m_drawable_height = 0;
++
++	std::array<frame_slot, frames_in_flight> m_frames{};
++	u64 m_frame_index = 0;
++	u64 m_last_fence = 0;
++	bool m_residency_dirty = false;
++	std::vector<u32> m_staging;
++};
+diff --git a/rpcs3/Emu/RSX/Metal/MTLPresent.h b/rpcs3/Emu/RSX/Metal/MTLPresent.h
+new file mode 100644
+index 0000000..5003c16
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLPresent.h
+@@ -0,0 +1,78 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE: the presentation pass of the native Metal 4 renderer, shared with its host test.
++//
++// The display buffer is converted exactly as the Vulkan renderer's upload_image_simple does: each
++// big-endian A8R8G8B8 word is stored as a native u32, i.e. BGRA8 bytes in memory. The pass draws a
++// quad covering `rect` (normalized device coordinates) that samples it; alpha is not shown.
++
++#include "util/types.hpp"
++
++#include <algorithm>
++#include <bit>
++#include <cstring>
++#include <string_view>
++
++namespace mtl::present_pass
++{
++	constexpr std::string_view vertex_function = "present_vertex";
++	constexpr std::string_view fragment_function = "present_fragment";
++
++	constexpr std::string_view source = R"(
++#include <metal_stdlib>
++using namespace metal;
++
++struct present_vertex_out
++{
++	float4 position [[position]];
++	float2 uv;
++};
++
++vertex present_vertex_out present_vertex(uint vid [[vertex_id]], constant float4& rect [[buffer(0)]])
++{
++	const float2 corner = float2((vid & 1u) ? 1.0 : 0.0, (vid & 2u) ? 1.0 : 0.0);
++	present_vertex_out out;
++	out.position = float4(mix(rect.x, rect.z, corner.x), mix(rect.y, rect.w, corner.y), 0.0, 1.0);
++	out.uv = float2(corner.x, 1.0 - corner.y);
++	return out;
++}
++
++fragment float4 present_fragment(present_vertex_out in [[stage_in]], texture2d<float> image [[texture(0)]], sampler image_sampler [[sampler(0)]])
++{
++	return float4(image.sample(image_sampler, in.uv).rgb, 1.0);
++}
++)";
++
++	static_assert(std::endian::native == std::endian::little, "the BGRA8 byte order below assumes a little-endian host");
++
++	// One row of big-endian A8R8G8B8 guest words to native u32 values (BGRA8 bytes on little-endian hosts).
++	inline void convert_row(const u8* guest_row, u32* destination, u32 width) noexcept
++	{
++		for (u32 column = 0; column < width; ++column)
++		{
++			u32 word;
++			std::memcpy(&word, guest_row + static_cast<usz>(column) * 4, 4);
++			destination[column] = __builtin_bswap32(word);
++		}
++	}
++
++	// The quad that fits a source of the given size in the target, keeping its aspect ratio.
++	struct rectangle
++	{
++		f32 left = 0, bottom = 0, right = 0, top = 0;
++	};
++
++	inline rectangle fit(u32 source_width, u32 source_height, u32 target_width, u32 target_height) noexcept
++	{
++		if (!source_width || !source_height || !target_width || !target_height)
++		{
++			return {};
++		}
++
++		const f64 scale = std::min(static_cast<f64>(target_width) / source_width, static_cast<f64>(target_height) / source_height);
++		const f32 half_width = static_cast<f32>(source_width * scale / target_width);
++		const f32 half_height = static_cast<f32>(source_height * scale / target_height);
++		return {-half_width, -half_height, half_width, half_height};
++	}
++}
+diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
+index a0cf14d..8772353 100644
+--- a/rpcs3/Emu/System.cpp
++++ b/rpcs3/Emu/System.cpp
+@@ -2160,6 +2160,8 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 					ios_add_lever(ios_levers.zcull_depth_guard, ios_lever_settings.zcull_depth_guard);
+ 					// Core 664: digit 17 of levers627=.
+ 					ios_add_lever(ios_levers.ppu_grace, ios_lever_settings.ppu_grace);
++					// Metal branch: digit 18 of levers627= (the native Metal 4 renderer).
++					ios_add_lever(ios_levers.metal_renderer, ios_lever_settings.metal_renderer);
+ 					ios_rsx.levers627 = ios_levers627;
+ 					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
+ 					ios_rsx.overrides = ios_override_keys;
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index f578400..77203b3 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -147,6 +147,8 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> passive_lock_fairness{ this, "Passive Lock Fairness", ios_experimental_mode::automatic };
+ 		// REWINDBOX_PPU_GRACE_664: Automatic enables it for every title; it needs Passive Lock Fairness.
+ 		cfg::_enum<ios_experimental_mode> ppu_grace{ this, "PPU Grace After Starvation", ios_experimental_mode::automatic };
++		// REWINDBOX_METAL_NATIVE: the native Metal 4 renderer; Automatic keeps Vulkan while it is incomplete.
++		cfg::_enum<ios_experimental_mode> metal_renderer{ this, "Native Metal Renderer", ios_experimental_mode::automatic };
+ 		// CELL573_TEXTURE_RESIDENCY / CELL573_SCOPED_RSX_WRITES: Automatic enables them for God of War III.
+ 		cfg::_enum<ios_experimental_mode> texture_residency{ this, "Texture Residency Cap", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> scoped_texture_revalidation{ this, "Scoped Texture Revalidation", ios_experimental_mode::automatic };
+diff --git a/rpcs3/Emu/system_config_types.cpp b/rpcs3/Emu/system_config_types.cpp
+index 2d47630..5788bf7 100644
+--- a/rpcs3/Emu/system_config_types.cpp
++++ b/rpcs3/Emu/system_config_types.cpp
+@@ -27,6 +27,7 @@ void fmt_class_string<video_renderer>::format(std::string& out, u64 arg)
+ 		case video_renderer::null: return "Null";
+ 		case video_renderer::opengl: return "OpenGL";
+ 		case video_renderer::vulkan: return "Vulkan";
++		case video_renderer::metal: return "Metal";
+ 		}
+ 
+ 		return unknown;
+diff --git a/rpcs3/Emu/system_config_types.h b/rpcs3/Emu/system_config_types.h
+index 7893f76..fcf50de 100644
+--- a/rpcs3/Emu/system_config_types.h
++++ b/rpcs3/Emu/system_config_types.h
+@@ -62,6 +62,7 @@ enum class video_renderer
+ 	null,
+ 	opengl,
+ 	vulkan,
++	metal, // REWINDBOX_METAL_NATIVE: the native Metal 4 renderer (iOS)
+ };
+ 
+ enum class audio_renderer
+diff --git a/rpcs3/Emu/title.cpp b/rpcs3/Emu/title.cpp
+index 62306f0..b4e316f 100644
+--- a/rpcs3/Emu/title.cpp
++++ b/rpcs3/Emu/title.cpp
+@@ -93,6 +93,9 @@ namespace rpcs3
+ 					case video_renderer::vulkan:
+ 						title_string += title_data.vulkan_adapter;
+ 						break;
++					case video_renderer::metal: // REWINDBOX_METAL_NATIVE
++						title_string += "Metal";
++						break;
+ 					}
+ 					break;
+ 				}
+diff --git a/rpcs3/ios/RPCS3IOS.cpp b/rpcs3/ios/RPCS3IOS.cpp
+index 0ebaf8a..d53946d 100644
+--- a/rpcs3/ios/RPCS3IOS.cpp
++++ b/rpcs3/ios/RPCS3IOS.cpp
+@@ -60,6 +60,7 @@
+ #include "Emu/NP/rpcn_config.h"
+ #ifdef HAVE_VULKAN
+ #include "Emu/RSX/VK/VKGSRender.h"
++#include "Emu/RSX/Metal/MTLGSRender.h" // REWINDBOX_METAL_NATIVE
+ #endif
+ #include "Emu/system_config.h"
+ #include "Emu/system_progress.hpp"
+@@ -1022,8 +1023,25 @@ EmuCallbacks make_callbacks()
+ 	};
+ 	callbacks.init_gs_render = [](utils::serial* archive)
+ 	{
++		// REWINDBOX_METAL_NATIVE: the native Metal 4 renderer when the title asks for it and the device has Metal 4.
++		if (g_cfg.video.renderer.get() == video_renderer::metal || rpcs3::ios::get_experimental_policy().metal_renderer)
++		{
++			const mtl::object probe = mtl::create_system_default_device();
++			const mtl::device_info device = probe ? mtl::query_device(probe) : mtl::device_info{};
++			if (device.metal4)
++			{
++				emit_log(4, fmt::format("RSX renderer: native Metal 4 on '%s'", device.name));
++				g_fxo->init<rsx::thread, named_thread<MTLGSRender>>(archive);
++				return;
++			}
++
++			emit_log(2, fmt::format("RSX renderer: native Metal 4 requested, but '%s' has no Metal 4 support (iOS 26, Apple7 or later): Vulkan",
++				probe ? device.name : std::string("no Metal device")));
++		}
++
+ 		switch (g_cfg.video.renderer.get())
+ 		{
++		case video_renderer::metal:
+ 		case video_renderer::vulkan:
+ #ifdef HAVE_VULKAN
+ 			g_fxo->init<rsx::thread, named_thread<VKGSRender>>(archive);
+@@ -1507,7 +1525,7 @@ extern "C" rpcs3_ios_status rpcs3_ios_initialize(const rpcs3_ios_config* config)
+ 				jit_stats.expanded ? "expanded" : "standard"));
+ 		}
+ 		Emu.SetCallbacks(make_callbacks());
+-		Emu.SetSupportedRenderers({video_renderer::vulkan});
++		Emu.SetSupportedRenderers({video_renderer::vulkan, video_renderer::metal});
+ 		Emu.SetDefaultRenderer(video_renderer::vulkan);
+ 		Emu.SetDefaultGraphicsAdapter("iOS Metal GPU");
+ 		Emu.SetHasGui(false);
+diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
+index 6aff963..ba348ae 100644
+--- a/rpcs3/ios/RPCS3IOSBootDiagnostics.h
++++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
+@@ -475,7 +475,7 @@ namespace rpcs3::ios::boot_diagnostics
+ 		append_u32(line, "mvk_async", rsx.mvk_async ? 1u : 0u);
+ 		append_u32(line, "gpu_timing", rsx.gpu_timing ? 1u : 0u);
+ 		append_u32(line, "zcull_demand", rsx.zcull_demand ? 1u : 0u);
+-		append_text(line, "levers627", rsx.levers627, 17);
++		append_text(line, "levers627", rsx.levers627, 18);
+ 		append_u32(line, "legacy_custom", rsx.legacy_custom ? 1u : 0u);
+ 		const std::string reported = filter_rsx_override_keys(rsx.overrides);
+ 		append_text(line, "overrides", reported, rsx_overrides_limit);
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index 6cf94a4..dac928f 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -320,6 +320,8 @@ void resolve_experimental_policy() noexcept
+ 	// REWINDBOX_PPU_GRACE_664: Automatic is every title. Without the gate no waiter is marked
+ 	// starving, so the window needs Passive Lock Fairness. Resolved before the emulation threads start.
+ 	resolved.ppu_grace = resolved.passive_lock_fairness && resolve_mode(g_cfg.ios_experimental.ppu_grace, true);
++	// REWINDBOX_METAL_NATIVE: Automatic is off until the renderer shows games; the device check is at renderer creation.
++	resolved.metal_renderer = resolve_mode(g_cfg.ios_experimental.metal_renderer, false);
+ 	rpcs3::ios::passive_gate::grace_until.store(0, std::memory_order_relaxed);
+ 	rpcs3::ios::passive_gate::grace_enabled.store(resolved.ppu_grace, std::memory_order_relaxed);
+ 	// CELL579_WRITER_YIELD: Automatic is every title. Resolved before the emulation threads start.
+@@ -544,6 +546,7 @@ void resolve_experimental_policy() noexcept
+ 	ios_experimental_log.notice("Resolved title policy 664: ppu_grace=%d passive_lock_fairness=%d grace_window_us=%u writer_deferral_us=%u starving_after=%u",
+ 		resolved.ppu_grace, resolved.passive_lock_fairness, static_cast<u32>(rpcs3::ios::passive_gate::grace_window.count()),
+ 		static_cast<u32>(rpcs3::ios::passive_gate::writer_deferral.count()), static_cast<u32>(rpcs3::ios::passive_gate::starving_after));
++	ios_experimental_log.notice("Resolved title policy metal: metal_renderer=%d", resolved.metal_renderer);
+ }
+ 
+ void apply_spu_spin_timing_policy() noexcept
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 9def59d..dbbb03d 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -29,6 +29,8 @@ struct experimental_policy
+ 	bool passive_lock_fairness = false;
+ 	// REWINDBOX_PPU_GRACE_664: a starving waiter that leaves keeps new writer locks deferred a little longer.
+ 	bool ppu_grace = false;
++	// REWINDBOX_METAL_NATIVE: the RSX is drawn by the native Metal 4 renderer instead of Vulkan on MoltenVK.
++	bool metal_renderer = false;
+ 	// CELL573_TEXTURE_RESIDENCY: idle textures above a soft cap are released.
+ 	bool texture_residency = false;
+ 	// CELL573_SCOPED_RSX_WRITES: RSX writes revalidate only the textures they overlap.
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index 70da0f7..f67e3b1 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -133,6 +133,7 @@ const std::array catalog{
+ 	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for every title; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
+ 	SETTING("experimental.rsx_thread_priority", "Experimental", "FPS Experiments", "RSX thread priority", "Gives the RSX thread and the audio threads precedence over the PPU and SPU threads when the game asks for more CPU than the performance cores provide, as RPCS3 intends; iOS otherwise treats them alike. Automatic enables it for every title; Disabled gives every emulation thread the same priority as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_thread_priority, 0, 0, 0),
+ 	SETTING("experimental.passive_lock_fairness", "Experimental", "FPS Experiments", "Passive lock fairness", "When a PPU or SPU thread has waited a long time to resume guest memory access while SPUs keep taking reservation write locks, new write locks briefly let it through first. No lock is skipped. Automatic enables it for every title; Disabled restores the previous lock order. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.passive_lock_fairness, 0, 0, 0),
++	GAME_SETTING("experimental.metal_renderer", "Experimental", "Renderer", "Native Metal 4 renderer", "Draws the PlayStation 3 graphics with the native Metal 4 renderer instead of Vulkan on MoltenVK. Stage M1: it presents the display buffer read from memory; draws, clears and occlusion queries are not executed yet and are counted. Needs iOS 26 and a Metal 4 GPU, otherwise Vulkan is used. Automatic keeps Vulkan. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.metal_renderer, 0, 0, 0),
+ 	GAME_SETTING("experimental.ppu_grace", "Experimental", "FPS Experiments", "PPU grace after starvation", "When a PPU or SPU thread finally resumes guest memory access after starving behind SPU reservation write locks, new write locks wait about 100 us more before stopping the PPU threads again, so the thread runs before the next one. Every write lock is still taken and parks every PPU thread; it is only taken later, within the same bound. Automatic enables it for every title, with Passive lock fairness. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_grace, 0, 0, 0),
+ 	SETTING("experimental.writer_yield_no_depress", "Experimental", "FPS Experiments", "Writer lock yield without depression", "When an SPU or PPU atomic write that holds the reservation write lock waits for other threads, it yields its CPU core without iOS lowering its priority for a whole scheduling quantum (about 10 ms), so the PPU threads it keeps waiting resume sooner. No lock is skipped. Automatic enables it for every title; Disabled yields as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.writer_yield_no_depress, 0, 0, 0),
+ 	SETTING("experimental.texture_prehash", "Experimental", "FPS Experiments", "Texture pre-validation", "With Texture Validation Per FIFO Batch, a texture used again after new guest commands is hashed again to check that the game did not change it. A worker thread now hashes, as soon as new commands arrive, the textures the previous frame checked next, so the RSX thread finds the result ready. Every byte is still checked and a result is used only for the commands it was taken for. Needs Texture Validation Per FIFO Batch. Automatic enables it for God of War III; Disabled hashes on the RSX thread as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_prehash, 0, 0, 0),
