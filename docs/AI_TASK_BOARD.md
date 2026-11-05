@@ -401,8 +401,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   (trigger `9730acd5`, five jobs green first try): IPA 246765263 B, SHA-256 `89607f58…f479`;
   [receipt](evidence/rewind658/delivery.json), offline checks passed, packaged MeloNX = pin, key deleted, file
   sent. = 657 + MeloNX Core 658 only (RPCS3 655 kept; main's `9403a7bf` deferred as source-only to 659).
-- **Next:** maintainer's device check: Hogwarts without recording, image live at launch and in menus, `Present
-  path:` line in stderr; then SSBU and a 60 fps title for regressions. No device proof yet.
+- **Device result (maintainer, 5 Nov, IPA 658):** "tu as corrigé le défaut": the black launch / frozen image is
+  gone on the iPhone (iOS 27 beta 1). Logs announced, not received yet: the `Present path:` line, Hogwarts and
+  another title's pacing, SSBU close and any regression remain to be read from them.
+- **Next:** read the 658 logs when they arrive; Core 658 is kept by main for the next common IPA (659+).
 
 ### Skins/orientation and additive PS2 Original — existing owner
 
