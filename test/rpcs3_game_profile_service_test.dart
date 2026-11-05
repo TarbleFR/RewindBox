@@ -216,13 +216,16 @@ void main() {
     });
 
     test(
-      'Black Ops II keeps its official entry and relaxes SPU reservations',
+      'Black Ops II keeps its official entry, accurate SPU reservations and a boot SPU warm-up',
       () async {
-        // Build 587: the build 583 logs show its SPUs parking every PPU
-        // thread for each data-changing PUTLLC under accurate reservations.
+        // Build 658: the build 657 logs show a 40.8 s freeze under relaxed
+        // reservations (busy SPUs and a spinning PPU on one queue word) and
+        // 8.7 thousand SPU programs rebuilt at each first scene transition.
         final profile = Rpcs3GameProfileService.profileForSerial('BLES01717')!;
         expect(profile.settings, <String, String>{
-          'advanced.accurate_spu_reservations': 'false',
+          'advanced.accurate_spu_reservations': 'true',
+          'advanced.llvm_precompilation': 'true',
+          'experimental.spu_warmup_scope': 'All titles with metadata',
         });
         final payload = await Rpcs3GameProfileService.databasePayloadForSerials(
           <String>['BLES01717'],
@@ -232,7 +235,10 @@ void main() {
                 as Map<String, dynamic>;
         final yaml =
             (games['BLES01717'] as Map<String, dynamic>)['config'] as String;
-        expect(yaml, contains('Accurate SPU Reservations: false'));
+        expect(yaml, contains('Accurate SPU Reservations: true'));
+        expect(yaml, isNot(contains('Accurate SPU Reservations: false')));
+        expect(yaml, contains('LLVM Precompilation: true'));
+        expect(yaml, contains('SPU Warmup Scope: All titles with metadata'));
         expect(yaml, contains('SPU Block Size: Safe'));
         expect(yaml, contains('Accurate ZCULL stats: false'));
         expect(yaml, contains('Relaxed ZCULL Sync: false'));

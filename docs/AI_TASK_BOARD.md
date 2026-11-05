@@ -324,6 +324,19 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     6/22 windows).
   - Expected in the next log: RPASS655 kept_* > 0, fewer same-target restarts from
     `image_helpers.cpp`, GPU ms/frame at equal draws vs 653. No FPS claim before then.
+- **IPA 657 logs (pid 10471, Core 655, 5 Nov; [record](rpcs3-ipa657-logs-2026-11-05.md)):**
+  - BO2 session 3 froze 40.8 s, then stopped: busy SPUs (1.0–1.3 M PUTLLC/5 s, no fail), PPU
+    Secondary spinning on queue word `0x2e208a0` (older tag in memory than in the thread; same
+    word froze build 624). Hypothesis: relaxed reservations (BO2 since 587) keep a data-changing
+    PUTLLC atomic only per 16-byte lane. Fix `9403a7bf` (Dart): accurate reservations back, plus
+    the boot SPU warm-up. Each boot rebuilt about 8.8k SPU programs at the first transition
+    (3.3–3.5 s of SPU time, 0.8–1.3 s frames). flutter test 16/16. Ships in MeloNX's IPA 658.
+  - AC: the 655 lever keeps all 236 eligible read transitions; `ended_other` (3008) =
+    every `image_helpers` end (copies, next targets: required). Same-target restarts ≈ 12/frame
+    (feedback 5.4, image_helpers 3.5). ZCULL waits ≈ 14.6 ms each, bound by GPU latency. No new
+    safe lever; next is a design change (feedback without barrier). No FPS claim.
+  - Next: BO2 device run against the record's criteria; if it freezes again, extend
+    FREEZE_DUMP (code at each sampled PC, GPR-pointed lines) in a Core 659.
 - **Setting applied (Core 655 turn):** session model `claude-opus-5-5`, effort `xhigh`
   (get_session: session_context.model and last_served_model `claude-opus-5-5`).
 - **Pre-existing failures noted (not from this work):** `test/build_source_evidence_test.py`
@@ -352,9 +365,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   [receipts](evidence/melonx-present-drawable-residency/).
   Independent rb-core-review: no defect (orientation = PresentCopy's, identity copy after filters, RGBA8
   STORAGE usage, deferred disposal, layouts); BlitColor clears the drawable first, so letterbox bars are black.
-- **Next:** main builds an **isolated IPA** = Core 656 + this adapter only (maintainer's request). Device check:
-  launch Hogwarts without recording, image live at launch and in menus, `Present path:` line in stderr.
-  No device proof yet.
+- **MeloNX Core 658 (this session, maintainer's order relayed by main; number 658 reserved by main):** Core 656 +
+  this adapter; plan 30 gates; one uninterrupted local pass 30/30 ([run](evidence/melonx-658-gates/run.json); first
+  pass 29/30: present-pacing needed the `files_edited_later` rule for Window.cs); contract frozen (148 inputs,
+  184 members, 48 changes), contract test with the authenticated 614 archive 339 checks; receipts validated.
+- **Next:** Core CI run, pin, then the **isolated IPA 658** = delivered 657 + MeloNX Core 658 only (RPCS3 655 kept;
+  main's `9403a7bf` deferred as source-only). Device check: Hogwarts without recording, image live at launch and
+  in menus, `Present path:` line in stderr. No device proof yet.
 
 ### Skins/orientation and additive PS2 Original — existing owner
 
