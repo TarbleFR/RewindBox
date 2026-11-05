@@ -84,14 +84,23 @@ jobs:
             xcodebuild -downloadComponent MetalToolchain
           fi
           xcrun --sdk iphoneos metal -v 2>&1 | head -3
+          # Every warning is an error except unused temporaries, which RSX programs always declare (MoltenVK and the
+          # runtime MTL4 compiler accept them too).
           count=0
+          failed=0
           for f in "$RUNNER_TEMP"/msl/*.metal; do
-            xcrun --sdk iphoneos metal -std=metal3.2 -target air64-apple-ios26.0 -Werror -c "$f" -o "${f%.metal}.air"
-            echo "compiled $(basename "$f") ($(wc -c < "${f%.metal}.air") bytes of AIR)"
-            count=$((count + 1))
+            if xcrun --sdk iphoneos metal -std=metal3.2 -target air64-apple-ios26.0 -Werror \
+                 -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -c "$f" -o "${f%.metal}.air"; then
+              echo "compiled $(basename "$f") ($(wc -c < "${f%.metal}.air") bytes of AIR)"
+              count=$((count + 1))
+            else
+              echo "::error::$(basename "$f") does not compile for iOS"
+              failed=$((failed + 1))
+            fi
           done
+          [ "$failed" = 0 ] || exit 1
           [ "$count" -ge 5 ] || { echo "expected at least 5 translated programs, got $count"; exit 1; }
-          echo "PASS: $count translated programs compile for iOS (MSL 3.2, Werror)"
+          echo "PASS: $count translated programs compile for iOS (MSL 3.2, warnings as errors except unused temporaries)"
       - name: Compile the Metal 4 renderer for iOS (arm64, deployment 16.3)
         timeout-minutes: 15
         shell: bash
