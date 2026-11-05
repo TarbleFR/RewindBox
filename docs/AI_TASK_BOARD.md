@@ -517,10 +517,24 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Local (Linux, g++): ppu-grace test plain and ASan/UBSan (negative on 660: fails as expected),
     codegen audit (identities unchanged), canonical `252b9dd1` (363 files) reproduced on pristine
     upstream, source closure, route/MoltenVK protocol/dependency/pin tests, Apple rerun list 14/15
-    then the core664 driver after a fix of its own reference lookup (Core 660 suite running).
-  - Next: MoltenVK dependency rebuild (host bridge changed), compile request, pin; IPA 665 with
-    MeloNX Core 663 once handed off. Then performance: orchestrator v1 (placement measured first),
-    PPU parking cost in BO2 normal play (252 ms/s), BO2 blocking pipeline builds.
+    then the core664 driver after a fix of its own reference lookup: passed (Core 660 suite to 627).
+  - MoltenVK dependency run `42051417882` (`a1da4245`): libMoltenVK.a `d19d3a42` byte-identical,
+    current host bridge `dd4c525a` recorded; declared `a6798af1`. Compile request `d82c4284`
+    (run `42054351852`).
+- **Orchestrator v1 = Core 665 (maintainer 5 Nov: in the next IPA; numbers: common IPA 666 =
+  RPCS3 Core 665 + MeloNX Core 663; MeloNX told):** research (rb-research) on mat664: every
+  emulator thread already runs USER_INTERACTIVE (pool attr + set_native_priority(0)); the RSX
+  lever only lowers the default relative priority to -2 (PPU at UI -2, RSX/audio UI 0); the 627
+  lever makes SPUs USER_INITIATED; per-class CPU use already reported (ppu_cores/spu_cores); the
+  no-op spin lever only acts without accurate reservations (BO2 accurate since 9403a7bf). BO2 662
+  (build 662 log): GETLLAR busy polls median 0 per window, heavy PUTLLC median 1.03 M per 5 s
+  (data-changing; the no-op write-back is already light, CELL565): the SPU idle-poll lever is
+  dropped for v1 with that reason. v1 = measurement first (`COREPROF PLACEMENT665`: per-class CPU
+  number and QoS histograms, self-sampled at most once per ms per thread; writer-lock park-wait and
+  slow parks > 50 us), PPU at UI relative priority 0 at the cpu_thread choke point (setting
+  `experimental.thread_orchestrator`, levers627 digit 18, test page row); no codegen input
+  (SPUThread.cpp/PPUThread.cpp untouched). Implementation delegated (rb-code), then review, pin.
+  - Then performance: PPU parking cost in BO2 normal play (252 ms/s), BO2 blocking pipeline builds.
 - **Setting applied (Core 664 turn):** same principal model as the Core 659 turn (get_session:
   session_context.model = last_served_model, unchanged); effort `max` (session_context.effort_level,
   flag_settings effortLevel max, ultracode off). Delegation: one rb-core-review agent.
