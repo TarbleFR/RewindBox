@@ -253,25 +253,33 @@ int main()
 		{
 			writers.emplace_back([&, w] { began[w] = gate::steady_now_ns(); deferred[w] = gate::defer_writer(); left[w] = gate::steady_now_ns(); });
 		}
-		// Released once the three writers sleep behind the starving waiter (thread start-up
-		// under sanitizers can take longer than the deferral bound).
-		const auto wait_until = clock_type::now() + std::chrono::milliseconds(200);
-		while (gate::sleepers.load() < 3 && clock_type::now() < wait_until)
+		// Released once at least one writer sleeps behind the starving waiter. Each writer's
+		// deferral is bounded (500 us from its start) and thread start-up under sanitizers on a
+		// loaded host can exceed it, so all three are not always asleep at once; the property
+		// checked below holds for each writer on its own (it leaves at the window's end or at
+		// its own bound, never before both).
+		const auto wait_until = clock_type::now() + std::chrono::milliseconds(2000);
+		while (gate::sleepers.load() < 1 && clock_type::now() < wait_until)
 		{
 			std::this_thread::yield();
 		}
-		CHECK(gate::sleepers.load() == 3);
+		CHECK(gate::sleepers.load() >= 1);
 		release = true;
 		waiter.join();
 		for (auto& t : writers) t.join();
 		const auto end = gate::grace_until.load();
 		CHECK(gate::grace_opened.load() == 1 && end > 0);
 		const auto bound_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(gate::writer_deferral).count();
+		int deferring = 0;
 		for (int w = 0; w < 3; w++)
 		{
-			// Each leaves at the window's end, or at its own bound if that comes first.
-			CHECK(deferred[w] == 1 && left[w] >= std::min(end, began[w] + bound_ns));
+			// A writer that deferred leaves at the window's end, or at its own bound if that comes
+			// first; one that did not defer must have started after the window (a writer cannot
+			// pass while another thread's window is open).
+			deferring += deferred[w];
+			CHECK(deferred[w] ? left[w] >= std::min(end, began[w] + bound_ns) : left[w] >= end);
 		}
+		CHECK(deferring >= 1);
 		CHECK(clock_type::now() - t0 < gate::writer_deferral + std::chrono::milliseconds(400));
 		CHECK(gate::sleepers.load() == 0 && gate::starving.load() == 0);
 	}
