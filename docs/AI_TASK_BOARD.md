@@ -719,6 +719,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       (plugin + parity Swift with the dlsym link), the performance journal, the stderr capture in Swift, and keyboard
       L3/R3. Skipped by their own '[melonx-display]' condition, so not run: donor packaging, donor ownership and RAM.
   - Handed off to main for common IPA 666 (RPCS3 Core 665 + MeloNX Core 663) with host commit `9022c1a1`.
+  - **IPA 666 delivered by main (18:12 UTC):** run `42076808470` on `acba895a` (five jobs, first try), IPA `6fe470a6…`
+    (247201047 B), [receipt](evidence/rewind666/delivery.json). Checked at `acba895a`: the pin is Core 663 (`9022c1a1`,
+    fingerprint `22fd9912`, iPhone `6566777b`), and packages/melonx_internal_bridge is identical to `9022c1a1` (crash
+    journal included).
 - **Next:** the maintainer runs IPA 666 with Hogwarts, SSBU and SM3DW:
   - if they survive, the rebuilt GC was the cause; the GC pause fix returns through another route (not a rebuilt GC);
   - if they die, read the frame in Documents/Diagnostics/Switch/MeloNX-crash.log.
