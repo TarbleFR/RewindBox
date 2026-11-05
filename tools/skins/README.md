@@ -125,6 +125,24 @@ The PS2 Original's caps are domes seen from above and keep the whole-cap knob (t
 is byte-identical). Audit (`audit_board_touch.py`, `stick-top/audit-before-after.json`): the
 moving part's centre was 4.9–8.1 pt from the top face before, 0 after; travel is 7.3–11.0 pt.
 
+### Sticks: the whole moving top, face and side wall (GameCube/Wii Originals, 5 November)
+
+On IPA 657 (recording of 01:55) the top-face circle above was too small: the side wall seen
+below the face (8–9 board px on the main stick, 6–7 px on the C-stick) and 2–3 px at the main
+stick's sides stayed behind as a crescent, and the flat fill showed its own edge ("tu as rogné
+sur les deux analogues"). The moving piece is now the face plus that side wall, down to the
+dark contact line: a stadium measured on the board (left, top, right, bottom in each stick's spec entry; `docs/evidence/pocket-originals/stick-silhouette/board-moving-tops.png`).
+- The knob is that stadium (+0.6 px edge), snapped to whole upscaled pixels so the knob and
+  its frame share one centre (no resampling ring at rest).
+- The frame is taller by as much as the top is, so travel is the same in X and Y.
+- Under the top, `recess_fill` solves a harmonic fill from the socket, skirt or yellow C base
+  pixels all round (no disc edge, no streak, no copy of the top), slightly darker toward the
+  middle. The C-stick's yellow base still stays.
+
+PS2 Original unchanged (byte-identical). Audit (`stick-silhouette/audit-before-after.json`,
+before = PR #160): misrouted 0 %, knob centre 0.02–0.16 pt from the measured top, travel
+7.7–11.0 pt. 9.5–27.8 % of the measured top stayed behind with PR #160's disc, none now.
+
 ## PS2 Pocket — Original (approved maquette, 4 November)
 
 The same builder adds `ps2-pocket-original.manicskin` (id `ps2-pocket-original`, name

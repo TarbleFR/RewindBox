@@ -273,3 +273,25 @@ An installed copy is replaced automatically by PR159's refresh, keeping its sele
 Original unchanged. Before/after stick positions are in [stick-top/](evidence/pocket-originals/stick-top/),
 as host renders composed like DOLSkinOverlay. Not observed on an iPhone.
 
+## Sticks: the whole moving top, face and side wall (5 November 2026)
+
+Input: maintainer recording `ScreenRecording_11-05-2026_01-55-08_1.mp4` (11 060 839 B,
+SHA-256 `9903bbbd…b359`, IPA 657 with the archive above): "Pour les analogue c'est pire ! Tu as
+rogner sur les deux analogue et quand je les bouges ont remarque les défauts". The moving disc
+was smaller than the top drawn on the board: its side wall and the main stick's sides stayed
+behind as a crescent, and the flat fill under it showed an edge
+([main stick](evidence/pocket-originals/stick-silhouette/device-0155-main-stick.png),
+[C-stick](evidence/pocket-originals/stick-silhouette/device-0155-c-stick.png)).
+
+Fix in the generator ([details](../tools/skins/README.md)):
+- the whole top moves: its face and the side wall below it, down to the dark contact line,
+  measured on the board ([outlines](evidence/pocket-originals/stick-silhouette/board-moving-tops.png));
+- the C-stick's yellow base still stays;
+- the area under the top is a smooth fill from the pixels around it, with no disc edge;
+- the travel is the same in X and Y.
+
+New archives `4f4f5eae…d270` (GameCube) and `6a170ad6…7d50` (Wii), same ids, names and
+previews, reproducible; PR159's refresh replaces an installed copy. PS2 Original unchanged.
+Before/after at rest and at five deflections: [stick-silhouette/](evidence/pocket-originals/stick-silhouette/),
+host renders composed like DOLSkinOverlay. Not observed on an iPhone.
+

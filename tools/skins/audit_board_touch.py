@@ -98,7 +98,11 @@ def audit(before_dir, after_dir):
                         # The moving part's centre on the board: the top face when the pack
                         # declares one (GameCube/Wii caps drawn in 3D), else the cap.
                         spec_entry = hand[{'leftThumbstickUp': 'main', 'rightThumbstickUp': 'cstick'}[item['inputs']['up']]]
-                        cx, cy = (spec_entry[4] if len(spec_entry) > 4 else spec_entry[3])[:2]
+                        if len(spec_entry) > 4:  # the moving top's extents: its centre
+                            tl, tt, tr_, tb = spec_entry[4]
+                            cx, cy = (tl + tr_) / 2, (tt + tb) / 2
+                        else:
+                            cx, cy = spec_entry[3][:2]
                         bx, by = (cx - x0) * k, (cy - y0) * k
                         tx, ty = fr['x'] + fr['width'] / 2, fr['y'] + fr['height'] / 2
                         row[f'capOffsetFromBoardPoints_{tag}'] = round(float(np.hypot(tx - bx, ty - by)), 2)

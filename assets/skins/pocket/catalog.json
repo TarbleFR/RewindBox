@@ -48,8 +48,8 @@
       "name": "GameCube Pocket — Original",
       "console": "gc",
       "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin",
-      "sha256": "9988f5d7ec07cb5a3e45a49871ba59792e414a00d70433f9d8908a28692d71ea",
-      "size": 5995074,
+      "sha256": "4f4f5eae4d661a13295f787833c48731fbb61afa87e2a20d2fdd7bff025fd270",
+      "size": 6116778,
       "previewAssets": {
         "portrait": "assets/skins/pocket/gamecube-pocket-original-portrait.png",
         "landscape": "assets/skins/pocket/gamecube-pocket-original-landscape.png"
@@ -62,8 +62,8 @@
       "name": "Wii Pocket — Original",
       "console": "wii",
       "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin",
-      "sha256": "645bd5ab1310466d9e95661a55705bf4e50696cbc6513bd195aa971be6e47d39",
-      "size": 5105387,
+      "sha256": "6a170ad64cb32bdea6e168fd2249ad059126dc5eb715e6a72cfd21f9fd647d50",
+      "size": 5129488,
       "previewAssets": {
         "portrait": "assets/skins/pocket/wii-pocket-original-portrait.png",
         "landscape": "assets/skins/pocket/wii-pocket-original-landscape.png"

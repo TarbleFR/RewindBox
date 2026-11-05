@@ -1,0 +1,207 @@
+{
+ "input": {
+  "name": "ScreenRecording_11-05-2026_01-55-08_1.mp4",
+  "bytes": 11060839,
+  "sha256": "9903bbbd535375c013b59365b75d18c5fb931416326454fd0ba255413e66b359",
+  "video": "HEVC 1320x2868 rotated (956x440 pt landscape at 3x), 60 fps, 10.3 s",
+  "privacy": "recording kept private; only crops of the two sticks are stored"
+ },
+ "maintainer": "Pour les analogue c'est pire ! Tu as rogner sur les deux analogue et quand je les bouges ont remarque les défauts !!!",
+ "installed": "IPA 657 (PR #160 GameCube Original 9988f5d7): the moving piece is PR #160's top-face circle",
+ "observed": "device-0155-main-stick.png / device-0155-c-stick.png: the moving disc is smaller than the top drawn on the board; its side wall (8-9 board px below the face on the main stick, 6-7 px on the C-stick) and 2-3 px at the main stick's sides stay behind as a crescent, and the flat fill under the disc shows its own edge when the stick moves",
+ "cause": "PR #160 measured the light face only (a circle). The piece that moves on a real stick is the face plus the side wall seen below it, down to the dark contact line: taller than wide, a stadium. A face circle crops it.",
+ "fix": "each GameCube/Wii stick declares the measured stadium of its moving top (left, top, right, bottom on the board: board-moving-tops.png, stadium below); the knob is that stadium (+0.6 px edge, snapped to whole upscaled pixels so the knob and its frame share one centre); the frame is as much taller as the top is, so travel is equal in X and Y; the area under the top is a harmonic fill from the socket, skirt or yellow C base pixels all round (no disc edge, no streak), slightly darker toward the middle. The C-stick's yellow base stays. PS2 Original byte-identical.",
+ "measuredMovingTops_boardPx": {
+  "gamecube portrait main": {
+   "left": 200.8,
+   "right": 281.0,
+   "top": 535.7,
+   "bottom": 624.5,
+   "width": 80.2,
+   "height": 88.8,
+   "centre": [
+    240.9,
+    580.1
+   ],
+   "fit": [
+    241.4,
+    579.3,
+    37.1
+   ]
+  },
+  "gamecube portrait cstick": {
+   "left": 396.0,
+   "right": 460.0,
+   "top": 682.7,
+   "bottom": 758.0,
+   "width": 64.0,
+   "height": 75.3,
+   "centre": [
+    428.0,
+    720.35
+   ],
+   "fit": [
+    428.0,
+    720.7,
+    31.0
+   ]
+  },
+  "gamecube landscape main": {
+   "left": 659.8,
+   "right": 738.1,
+   "top": 425.7,
+   "bottom": 513.5,
+   "width": 78.3,
+   "height": 87.8,
+   "centre": [
+    698.95,
+    469.6
+   ],
+   "fit": [
+    697.7,
+    468.6,
+    35.9
+   ]
+  },
+  "gamecube landscape cstick": {
+   "left": 1290.2,
+   "right": 1354.6,
+   "top": 560.6,
+   "bottom": 635.5,
+   "width": 64.4,
+   "height": 74.9,
+   "centre": [
+    1322.4,
+    598.05
+   ],
+   "fit": [
+    1322.4,
+    598.3,
+    31.2
+   ]
+  },
+  "wii portrait main": {
+   "left": 210.8,
+   "right": 296.5,
+   "top": 526.6,
+   "bottom": 618.5,
+   "width": 85.7,
+   "height": 91.9,
+   "centre": [
+    253.65,
+    572.55
+   ],
+   "fit": [
+    253.9,
+    572.7,
+    42.1
+   ]
+  },
+  "wii landscape main": {
+   "left": 660.6,
+   "right": 743.0,
+   "top": 431.0,
+   "bottom": 519.5,
+   "width": 82.4,
+   "height": 88.5,
+   "centre": [
+    701.8,
+    475.25
+   ],
+   "fit": [
+    701.3,
+    473.7,
+    41.2
+   ]
+  }
+ },
+ "topAreaLeftBehind": {
+  "gamecube portrait left": {
+   "measuredTopAreaLeftBehindPercent_before": 25.2,
+   "after": 0.0,
+   "knob_before_pt": [
+    85.642,
+    85.642
+   ],
+   "knob_after_pt": [
+    92.382,
+    102.225
+   ]
+  },
+  "gamecube portrait right": {
+   "measuredTopAreaLeftBehindPercent_before": 24.5,
+   "after": 0.0,
+   "knob_before_pt": [
+    71.785,
+    71.785
+   ],
+   "knob_after_pt": [
+    74.208,
+    87.081
+   ]
+  },
+  "gamecube landscape left": {
+   "measuredTopAreaLeftBehindPercent_before": 27.8,
+   "after": 0.0,
+   "knob_before_pt": [
+    76.596,
+    76.596
+   ],
+   "knob_after_pt": [
+    83.241,
+    93.734
+   ]
+  },
+  "gamecube landscape right": {
+   "measuredTopAreaLeftBehindPercent_before": 22.4,
+   "after": 0.0,
+   "knob_before_pt": [
+    66.733,
+    66.733
+   ],
+   "knob_after_pt": [
+    68.552,
+    79.744
+   ]
+  },
+  "wii portrait left": {
+   "measuredTopAreaLeftBehindPercent_before": 12.5,
+   "after": 0.0,
+   "knob_before_pt": [
+    97.001,
+    97.001
+   ],
+   "knob_after_pt": [
+    98.439,
+    106.012
+   ]
+  },
+  "wii landscape left": {
+   "measuredTopAreaLeftBehindPercent_before": 9.5,
+   "after": 0.0,
+   "knob_before_pt": [
+    87.718,
+    87.718
+   ],
+   "knob_after_pt": [
+    87.438,
+    94.433
+   ]
+  }
+ },
+ "archives": {
+  "gamecube-pocket-original": {
+   "sha256": "4f4f5eae4d661a13295f787833c48731fbb61afa87e2a20d2fdd7bff025fd270",
+   "size": 6116778
+  },
+  "wii-pocket-original": {
+   "sha256": "6a170ad64cb32bdea6e168fd2249ad059126dc5eb715e6a72cfd21f9fd647d50",
+   "size": 5129488
+  },
+  "ps2-pocket-original": "07f4b6fb09fcf61f3ae3081313fd9f551b5abb377774f9249b62e40cef2c6355 (unchanged)"
+ },
+ "reproducible": "second build: the 3 archives and 6 previews byte-identical",
+ "audit": "audit-before-after.json (before = PR #160 archives): misrouted 0 % after; knob centre 0.02-0.16 pt from the measured top (0.26-1.71 before); travel 7.7-11.0 pt (7.3-11.0 before)",
+ "renders": "sticks-*.png: PR #160 against this archive at rest and at 5 vectors, host renders composed like DOLSkinOverlay (travel = (frame - knob)/2)",
+ "notObserved": "the new archives on an iPhone"
+}
