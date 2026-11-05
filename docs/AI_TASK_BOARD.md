@@ -390,6 +390,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     driver test/rpcs3_core660_test.py written.
   - Numbers: MeloNX Core 661 reserved for the Hogwarts lots, common IPA 662 (waits for both
     handoffs). MeloNX (06:12): Core 661 pinned about 09:00-09:30 UTC; no delivery by MeloNX.
+    MeloNX (07:45, revised): Core 661 pinned about 14:00-15:00 UTC (new scope: in-play RAM, GC
+    pauses, second player's left stick; Hogwarts artifacts under investigation).
+  - 08:45 UTC, Core 660 source complete ([record](rpcs3-core660-2026-11-05.md)). Six reviews done
+    (spu-noir 1 refuted/1 not; texmemo 0/2 refuted; zcull 2/2 refuted), every finding fixed:
+    spu (getFunctionAddress, table once, no stub before copy, logged fallbacks, one recoverable
+    add+finalize, llc/real-table/flow tests); memo (dma_transfer bump, out-of-line census,
+    first-reuse verification, session baselines, VKDraw insertion-only, hook mutations); zcull
+    (-latomic removed; depth guard bounded at 256 checks per open CB, effective on-demand state,
+    m_sync_tag on skip, own setting experimental.zcull_depth_guard; watched flush AC only after the
+    model showed BO2 45.8 -> 67.0 ms in the >2,048-in-flight case; deep scenario in the test).
+    A 256-slot pool reserve was measured and rejected (turns the guard off at depth 1,792).
+    Test page: 3 rows (levers627 digits 14-16), 12 locales. Merge tool fixed after
+    position-invariance caught an interleaved IOSTitleLevers.h (blocks now inserted whole).
+  - Local, final tree: lot tests, codegen audit (2 exact aliases), the 13 Apple rerun commands
+    (g++), canonical regeneration on pristine upstream (363 files, 3a1ad201), source closure,
+    route, MoltenVK protocol/artifact, neo_swap pin: all passed; core660 driver running. Model
+    only, no FPS claim. Next: commit, [rpcs3-core-build], pin; IPA 662 after MeloNX 661.
   - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
     without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
     report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).

@@ -1145,7 +1145,7 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
 }
 
 NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build660Translations() {
-  // Core 660: the SPU direct object hits and the texture lookup memo of the accuracy test page.
+  // Core 660: the SPU direct object hits, the texture lookup memo and the ZCULL queue-depth guard of the accuracy test page.
   static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
   static dispatch_once_t once;
   dispatch_once(&once, ^{
@@ -1153,50 +1153,62 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build660Translatio
       @"en": @{
         @"testSpuDirectObjectHits": @"SPU direct object hits",
         @"testTextureLookupMemo": @"Texture lookup memo",
+        @"testZcullDepthGuard": @"ZCULL queue-depth guard",
       },
       @"es": @{
         @"testSpuDirectObjectHits": @"Enlace directo de objetos SPU",
         @"testTextureLookupMemo": @"Memorización de búsquedas de texturas",
+        @"testZcullDepthGuard": @"Protección de profundidad de cola ZCULL",
       },
       @"ru": @{
         @"testSpuDirectObjectHits": @"Прямая компоновка объектов SPU",
         @"testTextureLookupMemo": @"Запоминание поиска текстур",
+        @"testZcullDepthGuard": @"Защита глубины очереди ZCULL",
       },
       @"zh": @{
         @"testSpuDirectObjectHits": @"SPU 对象直接链接",
         @"testTextureLookupMemo": @"纹理查找记忆化",
+        @"testZcullDepthGuard": @"ZCULL 队列深度保护",
       },
       @"zh_Hant": @{
         @"testSpuDirectObjectHits": @"SPU 物件直接連結",
         @"testTextureLookupMemo": @"材質查詢記憶化",
+        @"testZcullDepthGuard": @"ZCULL 佇列深度保護",
       },
       @"pt": @{
         @"testSpuDirectObjectHits": @"Vinculação direta de objetos SPU",
         @"testTextureLookupMemo": @"Memorização de buscas de texturas",
+        @"testZcullDepthGuard": @"Proteção de profundidade da fila ZCULL",
       },
       @"fr": @{
         @"testSpuDirectObjectHits": @"Liens directs des objets SPU",
         @"testTextureLookupMemo": @"Mémo des recherches de textures",
+        @"testZcullDepthGuard": @"Garde de profondeur de file ZCULL",
       },
       @"de": @{
         @"testSpuDirectObjectHits": @"Direktes Linken der SPU-Objekte",
         @"testTextureLookupMemo": @"Memo der Textursuchen",
+        @"testZcullDepthGuard": @"ZCULL-Warteschlangentiefenschutz",
       },
       @"it": @{
         @"testSpuDirectObjectHits": @"Collegamento diretto degli oggetti SPU",
         @"testTextureLookupMemo": @"Memorizzazione delle ricerche di texture",
+        @"testZcullDepthGuard": @"Protezione profondità coda ZCULL",
       },
       @"id": @{
         @"testSpuDirectObjectHits": @"Penautan langsung objek SPU",
         @"testTextureLookupMemo": @"Memo pencarian tekstur",
+        @"testZcullDepthGuard": @"Pelindung kedalaman antrean ZCULL",
       },
       @"ja": @{
         @"testSpuDirectObjectHits": @"SPU オブジェクトの直接リンク",
         @"testTextureLookupMemo": @"テクスチャ検索のメモ化",
+        @"testZcullDepthGuard": @"ZCULL キュー深度ガード",
       },
       @"ko": @{
         @"testSpuDirectObjectHits": @"SPU 오브젝트 직접 링크",
         @"testTextureLookupMemo": @"텍스처 조회 메모",
+        @"testZcullDepthGuard": @"ZCULL 큐 깊이 보호",
       },
     };
   });

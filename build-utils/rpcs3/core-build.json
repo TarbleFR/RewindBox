@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 659,
- "identity_type": "rpcs3-ios-core659",
- "summary": "RPCS3 Core 659 = the delivered Core 610 plus one folded delta: the Core 612 to 655 records unchanged and the Core 659 change (build-utils/rpcs3/core659-from-655.patch over Core 655, iOS): the early command buffer submission of 561 becomes Automatic for Assassin's Creed and Black Ops II in a boundary mode, where a submission decided at the end of a draw once the GPU has drained is taken at the start of a later draw or after its textures when no render pass is open, or at the end of a draw after 32 more draws (REWINDBOX_EARLY_SUBMIT_BOUNDARY_659, COREPROF OPT561 boundary counters, boot line Resolved title policy 659); Dragon Ball Z and God of War III keep the end-of-draw submission; two ZCULL counter lines (REWINDBOX_ZCULL_READ_LEAD_659, COREPROF ZCULLLEAD659; REWINDBOX_ZCULL_HINT_SITES_659, COREPROF ZCULLHINT659). Core 655 contained: Core 652 and the in-pass read transitions of non-attachments with the MoltenVK dependency that waits for them (kept). ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. No gain measured: not built, no iPhone run.",
+ "build": 660,
+ "identity_type": "rpcs3-ios-core660",
+ "summary": "RPCS3 Core 660 = the delivered Core 610 plus one folded delta: the Core 612 to 659 records unchanged and the Core 660 change (build-utils/rpcs3/core660-from-659.patch over Core 659, iOS, five reviewed steps in build-utils/rpcs3/core660-lots/): SPU blocks that read the decrementer link spu_timebase_offs to g_timebase_offs again (REWINDBOX_SPU_TIMEBASE_MAPPING_660); SPU object-cache hits whose symbols are all known helpers or patchpoints are linked without building their IR, in one recoverable LLVM run, any other hit taking the IR path (REWINDBOX_SPU_DIRECT_OBJECT_HIT_660, COREPROF SPUDIRECT660); a per-slot texture lookup memo with exact invalidation, first-reuse and sampled self-verification, served for Assassin's Creed and verify-all for Black Ops II (REWINDBOX_TEXTURE_LOOKUP_MEMO_660, COREPROF TEXMEMO660); for Assassin's Creed the command buffer of a ZCULL report the game waits for is submitted at the next pass boundary (REWINDBOX_ZCULL_WATCHED_FLUSH_660, COREPROF ZCULLWATCH660); for Assassin's Creed and Black Ops II the queue-depth hint is sent only while the open command buffer holds the oldest pending query and at least every 256 checks (REWINDBOX_ZCULL_DEPTH_GUARD_660, COREPROF ZCULLDEPTH660); three test page levers (levers627 digits 14 to 16). Boot line Resolved title policy 660. SPULLVMRecompiler.cpp and JITLLVM.cpp change host code only under two exact aliases: ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. No gain measured: not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "c695ddaa32a00211677b2a9b5f728248ba5cb643db67d9cf775d262e42306421",
-  "postimages": 359,
+  "patch_sha256": "3a1ad201ff9ba1bd9374e4591e6d1df8189b355828c49d05c6381256e5eef1b6",
+  "postimages": 363,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -43,7 +43,8 @@
    "core651_20261104",
    "core652_20261104",
    "core655_20261104",
-   "core659_20261105"
+   "core659_20261105",
+   "core660_20261105"
   ]
  },
  "reference": {
@@ -83,16 +84,16 @@
   "exports": 88
  },
  "delta": {
-  "record": "core659_20261105",
-  "manifest": "build-utils/rpcs3/core659-delta.json",
-  "patch": "build-utils/rpcs3/core659-delta.patch",
-  "patch_sha256": "1bae502beaad205345ee3c97cf761474eeecbb399c664a32c7e5def2c24a7e46"
+  "record": "core660_20261105",
+  "manifest": "build-utils/rpcs3/core660-delta.json",
+  "patch": "build-utils/rpcs3/core660-delta.patch",
+  "patch_sha256": "d72da2f65ef83baaff8c553fe6777019d3c1d517b2dd4b76b13a3a76b7c7a449"
  },
  "exports": 92,
  "core_inputs": {
   "count": 92,
   "host": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
-  "host_sha256": "997b431060cdfc6dc879881a741466cdcfe9627b36c3719ce3236838bc67ad0f",
+  "host_sha256": "1aa2eceda59c81add0867b37b477a12fbb7027d95c7045b41ce961db83d5440a",
   "reviewed_drift": [
    "build-utils/rpcs3/canonical-source.json",
    "build-utils/rpcs3/embedded-core.patch",
@@ -109,6 +110,7 @@
   "rpcs3/Emu/Cell/lv2/sys_rsx.cpp",
   "rpcs3/Emu/RSX/Overlays/overlay_controls.cpp",
   "rpcs3/Emu/RSX/Program/GLSLSnippets/RSXProg/RSXVertexPrologue.glsl",
+  "rpcs3/Emu/RSX/RSXTexture.h",
   "rpcs3/Emu/RSX/RSXZCULL.h",
   "rpcs3/Emu/RSX/VK/VKRenderPass.cpp",
   "rpcs3/Emu/RSX/VK/VKRenderPass.h",
@@ -168,7 +170,15 @@
   "COREPROF RPASS655",
   "Resolved title policy 659",
   "COREPROF ZCULLLEAD659",
-  "COREPROF ZCULLHINT659"
+  "COREPROF ZCULLHINT659",
+  "Resolved title policy 660",
+  "COREPROF SPUDIRECT660",
+  "COREPROF TEXMEMO660",
+  "COREPROF ZCULLWATCH660",
+  "COREPROF ZCULLDEPTH660",
+  "SPU Direct Object Hits",
+  "Texture Lookup Memo",
+  "ZCULL Queue-Depth Guard"
  ],
  "moltenvk_dependency": {
   "run": 41912442196,
@@ -285,7 +295,7 @@
      "--report",
      "{out}/feedback-census.json"
     ],
-    "reason": "census v2: VKDraw.cpp, VKRenderPass.cpp and the FEEDBACK610 format changed"
+    "reason": "census v2: VKDraw.cpp, VKRenderPass.cpp and the FEEDBACK610 format changed; Core 660: the texture lookup memo inserts its branch in load_texture_env inside RPCS3_IOS, the delivered lines kept"
    },
    {
     "name": "position-invariance-contract",
@@ -311,7 +321,7 @@
      "--report",
      "{out}/graphics-tests-612.json"
     ],
-    "reason": "the GPU timing lever joins the catalogue, the whitelist, the accuracy page and CONFIG_LAYERS part=rsx (gpu_timing=)"
+    "reason": "the GPU timing lever joins the catalogue, the whitelist, the accuracy page and CONFIG_LAYERS part=rsx (gpu_timing=); Core 660: three rows (SPU direct object hits, texture lookup memo, ZCULL queue-depth guard), levers627 digits 14 to 16"
    },
    {
     "name": "graphics-tests-612-asan-ubsan",
@@ -326,7 +336,7 @@
      "--report",
      "{out}/graphics-tests-612-asan-ubsan.json"
     ],
-    "reason": "the GPU timing lever joins the catalogue, the whitelist, the accuracy page and CONFIG_LAYERS part=rsx (gpu_timing=), under ASan/UBSan"
+    "reason": "the GPU timing lever joins the catalogue, the whitelist, the accuracy page and CONFIG_LAYERS part=rsx (gpu_timing=), under ASan/UBSan; Core 660: three rows (SPU direct object hits, texture lookup memo, ZCULL queue-depth guard), levers627 digits 14 to 16"
    },
    {
     "name": "reuse-audit",
@@ -354,7 +364,7 @@
      "--report",
      "{out}/spu-object-hit-admission-613.json"
     ],
-    "reason": "new: the extracted SPU object-hit admission block executed (8 cases), the Core 612 file outside it and the codegen identities through the exact alias"
+    "reason": "new: the extracted SPU object-hit admission block executed (8 cases), the Core 612 file outside it and the codegen identities through the exact alias; Core 660 changes SPULLVMRecompiler.cpp again: its reviewed file is reverted through its increment before the 612 check"
    },
    {
     "name": "spu-object-hit-admission-613-asan-ubsan",
@@ -369,34 +379,34 @@
      "--report",
      "{out}/spu-object-hit-admission-613-asan-ubsan.json"
     ],
-    "reason": "the same executed checks under ASan/UBSan"
+    "reason": "the same executed checks under ASan/UBSan; Core 660 changes SPULLVMRecompiler.cpp again: its reviewed file is reverted through its increment before the 612 check"
    },
    {
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core659_codegen_test.py",
+     "test/rpcs3_core660_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 659 touches no codegen input; its reverted tree passes the Core 655 audit"
+    "reason": "Core 660 changes SPULLVMRecompiler.cpp and JITLLVM.cpp in host code only, under two exact aliases to their Core 659 effective hashes; the direct-hit structure audit and the lifted lambdas, then the Core 659 audit on the reverted tree"
    },
    {
-    "name": "core659",
+    "name": "core660",
     "argv": [
      "python3",
-     "test/rpcs3_core659_test.py",
+     "test/rpcs3_core660_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core659.json"
+     "{out}/core660.json"
     ],
-    "reason": "Core 659 increment (early submission at render pass boundaries on the real VKGSRender code of 659 and 655, the changed iOS headers, ASan/UBSan) and, on its reverted tree, the Core 655 suite (then 652, 651, 645, 641, 638, 636, 634, 630, 627)"
+    "reason": "Core 660 increment and its five steps rebuilt from Core 659; each step test on its own pair of trees (SPU timebase mapping with the LLVM proof where a libLLVM exists, SPU direct object hits, texture lookup memo, ZCULL watched flush and depth guard, ASan/UBSan), the test page rows, then the Core 659 suite on the reverted tree (then 655 to 627)"
    },
    {
     "name": "lr-full-queue",

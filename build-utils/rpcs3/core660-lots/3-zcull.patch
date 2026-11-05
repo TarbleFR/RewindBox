@@ -1,0 +1,1020 @@
+diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
+index 63f5e76..9f50e77 100644
+--- a/rpcs3/Emu/RSX/RSXZCULL.cpp
++++ b/rpcs3/Emu/RSX/RSXZCULL.cpp
+@@ -203,6 +203,9 @@ namespace rsx
+ 				break;
+ 			}
+ 
++#ifdef RPCS3_IOS
++			m_ios_report_frame = ptimer->int_flip_index; // REWINDBOX_ZCULL_WATCHED_FLUSH_660: the clock of the watched slots
++#endif
+ 			on_report_enqueued(sink);
+ 
+ #ifdef RPCS3_IOS
+@@ -213,6 +216,15 @@ namespace rsx
+ 				write(sink, ptimer->timestamp(), type, 1u);
+ 			}
+ 
++			// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): the next read of a slot a guest waited for is
++			// expected to wait for this report; its command buffer may be submitted at the next point without an open
++			// render pass.
++			if (m_ios_watched_report)
++			{
++				m_ios_watched_report = false;
++				ios_arm_watched();
++			}
++
+ #endif
+ 			ptimer->async_tasks_pending++;
+ 
+@@ -638,6 +650,11 @@ namespace rsx
+ 						if (It->query)
+ 						{
+ 							if (It->query->num_draws && It->query->sync_tag > m_sync_tag)
++#ifdef RPCS3_IOS
++							// REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h): at the queue-depth limit, only while the
++							// oldest pending query is in the open command buffer, once per command buffer, below the hard cap.
++							if (hint || ios_depth_hint_allowed(ptimer, It->query))
++#endif
+ 							{
+ #ifdef RPCS3_IOS
+ 								rpcs3::ios::rsx_sync::zcull_hint_site = rpcs3::ios::rsx_sync::hint_queue_depth; // REWINDBOX_ZCULL_HINT_SITES_659
+@@ -994,6 +1011,10 @@ namespace rsx
+ 				page.add_ref();
+ #ifdef RPCS3_IOS
+ 				page.ios_slots.add_at(static_cast<u32>(address), get_system_time()); // REWINDBOX_ZCULL_ASYNC_READS_630, REWINDBOX_ZCULL_READ_LEAD_659
++				// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): a report into a slot a guest waited for, the
++				// last one expected before its next read.
++				m_ios_watched_report = rpcs3::ios::get_experimental_policy().zcull_watched_flush &&
++					m_ios_watched.on_report(static_cast<u32>(address), m_ios_report_frame);
+ #endif
+ 
+ 				if (page.prot == utils::protection::rw)
+@@ -1320,6 +1341,133 @@ namespace rsx
+ 			}
+ 		}
+ 
++		void ZCULL_control::ios_arm_watched()
++		{
++			// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): RSX thread, read_report() queued into a watched
++			// slot the report its next read is expected to wait for. The nearest query with draws decides its value
++			// (as in ios_service_read()); while that query has host queries in the open command buffer, the backend
++			// arms the boundary submission of that buffer. Nothing here writes a report, ends a query or moves
++			// m_sync_tag.
++			namespace zw = rpcs3::ios::zcull_watched;
++			auto& tally = zw::counters();
++
++			occlusion_query_info* query = nullptr;
++			u32 scanned = 0;
++			for (auto It = m_pending_writes.rbegin(); It != m_pending_writes.rend() && scanned < zw::query_scan_limit; ++It, ++scanned)
++			{
++				if (It->query && It->query->num_draws)
++				{
++					query = It->query;
++					break;
++				}
++			}
++
++			if (!query)
++			{
++				tally.no_query.fetch_add(1, std::memory_order_relaxed);
++				return;
++			}
++
++			switch (ios_arm_watched_submit(query))
++			{
++			case zw::arm_result::armed:
++				tally.armed.fetch_add(1, std::memory_order_relaxed);
++				break;
++			case zw::arm_result::joined:
++				tally.joined.fetch_add(1, std::memory_order_relaxed);
++				break;
++			case zw::arm_result::submitted:
++				tally.submitted.fetch_add(1, std::memory_order_relaxed);
++				break;
++			case zw::arm_result::capped:
++				tally.capped.fetch_add(1, std::memory_order_relaxed);
++				break;
++			case zw::arm_result::off:
++				tally.off.fetch_add(1, std::memory_order_relaxed);
++				break;
++			}
++		}
++
++		bool ZCULL_control::ios_depth_hint_allowed(::rsx::thread* ptimer, occlusion_query_info* newest)
++		{
++			// REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h): RSX thread, update() at the queue-depth limit,
++			// about to hint `newest` as upstream does. The queue drains from its oldest query with draws: while that
++			// one is on the GPU, submitting the open command buffer only splits it; while it is still in the open
++			// command buffer, nothing drains before that buffer is submitted, so the hint is sent, once for that
++			// buffer (a hint that cannot submit it, `newest` having no host query there, does not count). At or
++			// above the hard cap, or without an answer, upstream applies; once open_cb_skip_bound hints were skipped
++			// for the same open command buffer, that buffer is hinted (submitted) too.
++			// Only while the on-demand reads really run (not after a 619 trip or with accurate reservation access).
++			if (!rpcs3::ios::get_experimental_policy().zcull_depth_guard || !ios_on_demand_enabled())
++			{
++				return true;
++			}
++
++			namespace zw = rpcs3::ios::zcull_watched;
++			static_assert(zw::depth_limit == static_cast<u32>(max_safe_queue_depth) && zw::depth_hard_cap > zw::depth_limit);
++			static_assert(zw::open_cb_skip_bound == static_cast<u32>(occlusion_query_count) - static_cast<u32>(max_safe_queue_depth));
++			auto& tally = zw::counters();
++			const u32 pending = ptimer->async_tasks_pending + 0u;
++			tally.depth_checks.fetch_add(1, std::memory_order_relaxed);
++			zw::tally::raise_max(tally.depth_peak, pending);
++
++			occlusion_query_info* front = nullptr;
++			u32 scanned = 0;
++			for (auto It = m_pending_writes.begin(); It != m_pending_writes.end() && scanned < zw::query_scan_limit; ++It, ++scanned)
++			{
++				if (It->query && It->query->num_draws)
++				{
++					front = It->query;
++					break;
++				}
++			}
++
++			const u64 front_cb = (front && pending < zw::depth_hard_cap) ? ios_open_cb_serial(front) : zw::cb_unknown;
++			// The skips are counted per open command buffer, the one that holds `newest`.
++			const u64 newest_cb = ios_open_cb_serial(newest);
++			if (newest_cb != m_ios_depth_skip_cb)
++			{
++				m_ios_depth_skip_cb = newest_cb;
++				m_ios_depth_skips = 0;
++			}
++			const auto verdict = zw::decide_depth(pending, front_cb, m_ios_depth_hint_cb,
++				(newest_cb && newest_cb != zw::cb_unknown) ? m_ios_depth_skips : 0);
++
++			switch (verdict)
++			{
++			case zw::depth_verdict::hint:
++				if (ios_open_cb_serial(newest) == front_cb)
++				{
++					m_ios_depth_hint_cb = front_cb;
++				}
++				tally.depth_hints.fetch_add(1, std::memory_order_relaxed);
++				break;
++			case zw::depth_verdict::hard_cap:
++				tally.depth_hard_cap_hints.fetch_add(1, std::memory_order_relaxed);
++				break;
++			case zw::depth_verdict::unknown:
++				tally.depth_unknown.fetch_add(1, std::memory_order_relaxed);
++				break;
++			case zw::depth_verdict::front_submitted:
++				tally.depth_skip_submitted.fetch_add(1, std::memory_order_relaxed);
++				m_ios_depth_skips++;
++				// The oldest pending query is on the GPU, and every older one was retired: every query up to it is
++				// submitted, which is what a hint of it would record (on_sync_hint). Without this, the critical-age
++				// branch of update() would hint that submitted query again at each tick.
++				m_sync_tag = std::max(m_sync_tag, front->sync_tag);
++				break;
++			case zw::depth_verdict::open_cb_bound:
++				tally.depth_open_cb_bound.fetch_add(1, std::memory_order_relaxed);
++				m_ios_depth_skips = 0;
++				break;
++			case zw::depth_verdict::same_command_buffer:
++				tally.depth_skip_same_cb.fetch_add(1, std::memory_order_relaxed);
++				break;
++			}
++
++			return zw::depth_hint_sent(verdict);
++		}
++
+ 		void ZCULL_control::ios_release_stale_pages(u32 memory_address, u32 memory_range)
+ 		{
+ 			// RSX thread, after ios_retire_claimed(): the copy that follows reads these pages.
+@@ -1469,6 +1617,12 @@ namespace rsx
+ 							if (!requested)
+ 							{
+ 								tally.stale.fetch_add(1, std::memory_order_relaxed);
++
++								// REWINDBOX_ZCULL_WATCHED_FLUSH_660: a watched slot read final stays watched.
++								if (rpcs3::ios::get_experimental_policy().zcull_watched_flush)
++								{
++									m_ios_watched.refresh(address);
++								}
+ 							}
+ 
+ 							return finish(ios_fault::handled);
+@@ -1488,6 +1642,13 @@ namespace rsx
+ 							{
+ 								tally.add_lead(lead);
+ 							}
++
++							// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): this guest waits for the slot; the table
++							// learns it, or drops it, by how long before this read the slot's newest report was queued.
++							if (rpcs3::ios::get_experimental_policy().zcull_watched_flush)
++							{
++								m_ios_watched.learn(pending_slot, found->second.ios_slots.newest_age_us(pending_slot, get_system_time()));
++							}
+ 						}
+ 					}
+ 				}
+diff --git a/rpcs3/Emu/RSX/RSXZCULL.h b/rpcs3/Emu/RSX/RSXZCULL.h
+index 27bd56f..4d0b99e 100644
+--- a/rpcs3/Emu/RSX/RSXZCULL.h
++++ b/rpcs3/Emu/RSX/RSXZCULL.h
+@@ -9,6 +9,7 @@
+ #include "Utils/rsx_utils.h"
+ #ifdef RPCS3_IOS
+ #include "ios/IOSZcullOnDemand.h" // REWINDBOX_ZCULL_ON_DEMAND_619
++#include "ios/IOSZcullWatched.h" // REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660
+ #endif
+ 
+ #include <vector>
+@@ -125,6 +126,20 @@ namespace rsx
+ 			void ios_service_read(class ::rsx::thread* ptimer); // REWINDBOX_ZCULL_ASYNC_READS_630
+ 			void ios_release_stale_pages(u32 memory_address, u32 memory_range);
+ 			void ios_log_trip() const; // REWINDBOX_ZCULL_DEMAND_GUARD_621: COREPROF ZCULLTRIP621
++			// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): the report slots guests waited for
++			// (under m_pages_mutex); RSX thread: the frame of the report being queued and whether it is the
++			// one a watched slot's next read is expected to wait for.
++			rpcs3::ios::zcull_watched::watched_slots m_ios_watched;
++			u64 m_ios_report_frame = 0;
++			bool m_ios_watched_report = false;
++			void ios_arm_watched();
++			// REWINDBOX_ZCULL_DEPTH_GUARD_660: RSX thread, the command buffer serial of the last guarded
++			// queue-depth hint.
++			u64 m_ios_depth_hint_cb = 0;
++			// ... the open command buffer whose hints are being skipped, and how many were.
++			u64 m_ios_depth_skip_cb = 0;
++			u32 m_ios_depth_skips = 0;
++			bool ios_depth_hint_allowed(class ::rsx::thread* ptimer, occlusion_query_info* newest);
+ #endif
+ 
+ 		protected:
+@@ -230,6 +245,13 @@ namespace rsx
+ 			virtual bool check_occlusion_query_status(occlusion_query_info* /*query*/) { return true; }
+ 			virtual void get_occlusion_query_result(occlusion_query_info* query) { query->result = -1; }
+ 			virtual void discard_occlusion_query(occlusion_query_info* /*query*/) {}
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h): the serial
++			// of the open command buffer while `query` has host queries in it (0 once they were submitted), and
++			// the arming of that buffer's boundary submission for a watched report. The defaults keep upstream.
++			virtual u64 ios_open_cb_serial(occlusion_query_info* /*query*/) { return rpcs3::ios::zcull_watched::cb_unknown; }
++			virtual rpcs3::ios::zcull_watched::arm_result ios_arm_watched_submit(occlusion_query_info* /*query*/) { return rpcs3::ios::zcull_watched::arm_result::off; }
++#endif
+ 		};
+ 
+ 		// Helper class for conditional rendering
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+index 3c4b807..5f91d29 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+@@ -2635,6 +2635,14 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+ 		m_ios_early_armed_draws = 0;
+ 		rpcs3::ios::early_submit::disarmed.fetch_add(1, std::memory_order_relaxed);
+ 	}
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660: ... and with them a watched report's (ios/IOSZcullWatched.h).
++	if (m_ios_early_armed_watched)
++	{
++		m_ios_early_armed_watched = false;
++		rpcs3::ios::zcull_watched::counters().carried.fetch_add(1, std::memory_order_relaxed);
++	}
++	// REWINDBOX_ZCULL_DEPTH_GUARD_660: the next primary command buffer.
++	m_ios_cb_serial++;
+ #endif
+ 
+ 	m_queue_status.clear(flush_queue_state::flushing);
+@@ -2885,6 +2893,11 @@ void VKGSRender::ios_early_submit()
+ 		return;
+ 	case early::deferral::fallback:
+ 		early::fallback_submits.fetch_add(1, std::memory_order_relaxed);
++		if (m_ios_early_armed_watched) // REWINDBOX_ZCULL_WATCHED_FLUSH_660
++		{
++			m_ios_watched_budget.consume();
++			rpcs3::ios::zcull_watched::counters().fallback.fetch_add(1, std::memory_order_relaxed);
++		}
+ 		ios_take_early_submit();
+ 		return;
+ 	case early::deferral::none:
+@@ -2927,6 +2940,7 @@ void VKGSRender::ios_take_early_submit()
+ 	namespace early = rpcs3::ios::early_submit;
+ 	const u32 draws = m_ios_draws_since_submit;
+ 	m_ios_early_armed_draws = 0;
++	m_ios_early_armed_watched = false; // REWINDBOX_ZCULL_WATCHED_FLUSH_660: counted by the caller
+ 	flush_command_queue();
+ 	m_ios_early_submits_this_frame++;
+ 	early::submits.fetch_add(1, std::memory_order_relaxed);
+@@ -2961,8 +2975,61 @@ void VKGSRender::ios_early_submit_at_boundary(bool after_textures)
+ 	}
+ 
+ 	(after_textures ? early::boundary_textures : early::boundary_starts).fetch_add(1, std::memory_order_relaxed);
++	if (m_ios_early_armed_watched) // REWINDBOX_ZCULL_WATCHED_FLUSH_660
++	{
++		m_ios_watched_budget.consume();
++		auto& watched = rpcs3::ios::zcull_watched::counters();
++		(after_textures ? watched.taken_textures : watched.taken_start).fetch_add(1, std::memory_order_relaxed);
++	}
+ 	ios_take_early_submit();
+ }
++
++// REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h): the serial of the open command buffer while the
++// query has host queries in it, under the condition on which a zcull_sync hint for it submits that buffer
++// (sync_hint()); 0 otherwise (submitted, or nothing a hint would submit).
++u64 VKGSRender::ios_open_cb_serial(rsx::reports::occlusion_query_info* query)
++{
++	const auto& data = m_occlusion_map[query->driver_handle];
++	return ((m_current_command_buffer->flags & vk::command_buffer::cb_has_occlusion_task) && data.is_current(m_current_command_buffer) &&
++		!data.indices.empty()) ? m_ios_cb_serial : 0;
++}
++
++// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): RSX thread, read_report() queued into a watched slot
++// the report its next read is expected to wait for, and `query` decides its value. While that query is in the open
++// command buffer, the boundary submission of 659 is armed for this buffer: taken at the next draw start or after
++// the next draw's textures with no render pass open (ios_early_submit_at_boundary), at the end of a draw after
++// max_deferred_draws more draws (ios_early_submit), or carried by any other primary submission. The GPU-idle test
++// of 561 does not apply; its cap of early submissions per frame does, and so does the frame's budget of watched
++// submissions (a carried arm costs nothing and is not counted). Arming records nothing in the command buffer.
++rpcs3::ios::zcull_watched::arm_result VKGSRender::ios_arm_watched_submit(rsx::reports::occlusion_query_info* query)
++{
++	namespace early = rpcs3::ios::early_submit;
++	namespace watched = rpcs3::ios::zcull_watched;
++	if (!early::enabled.load(std::memory_order_relaxed) || !early::at_pass_boundary.load(std::memory_order_relaxed))
++	{
++		return watched::arm_result::off;
++	}
++
++	if (!ios_open_cb_serial(query))
++	{
++		return watched::arm_result::submitted;
++	}
++
++	if (m_ios_early_armed_draws)
++	{
++		return watched::arm_result::joined;
++	}
++
++	if (m_ios_early_submits_this_frame >= early::max_per_frame || !m_ios_watched_budget.available(int_flip_index))
++	{
++		return watched::arm_result::capped;
++	}
++
++	m_ios_early_armed_draws = 1;
++	m_ios_early_armed_watched = true;
++	early::armed.fetch_add(1, std::memory_order_relaxed);
++	return watched::arm_result::armed;
++}
+ #endif
+ 
+ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
+index 6a021fd..3e149a2 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.h
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.h
+@@ -204,6 +204,12 @@ private:
+ 	// REWINDBOX_EARLY_SUBMIT_BOUNDARY_659: draws ended since an early submission
+ 	// was armed at an open render pass (0: none armed).
+ 	u32 m_ios_early_armed_draws = 0;
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): the armed submission is a watched
++	// ZCULL report's, and the watched submissions taken this frame; REWINDBOX_ZCULL_DEPTH_GUARD_660:
++	// the serial of the open primary command buffer (one more at every primary submission).
++	bool m_ios_early_armed_watched = false;
++	rpcs3::ios::zcull_watched::frame_budget m_ios_watched_budget;
++	u64 m_ios_cb_serial = 1;
+ 	// CELL587_MVK_ENCODE_BARRIER: the marker ticket of the last queued present
+ 	// (ios/IOSMoltenVKExec.h); 0 with synchronous MoltenVK submits.
+ 	u64 m_ios_last_present_ticket = 0;
+@@ -305,6 +311,11 @@ public:
+ 	bool check_occlusion_query_status(rsx::reports::occlusion_query_info* query) override;
+ 	void get_occlusion_query_result(rsx::reports::occlusion_query_info* query) override;
+ 	void discard_occlusion_query(rsx::reports::occlusion_query_info* query) override;
++#ifdef RPCS3_IOS
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h)
++	u64 ios_open_cb_serial(rsx::reports::occlusion_query_info* query) override;
++	rpcs3::ios::zcull_watched::arm_result ios_arm_watched_submit(rsx::reports::occlusion_query_info* query) override;
++#endif
+ 
+ 	// External callback in case we need to suddenly submit a commandlist unexpectedly, e.g in a violation handler
+ 	void emergency_query_cleanup(vk::command_buffer* commands);
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index d9601f6..624ca3e 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -187,6 +187,9 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> zcull_conservative_reports{ this, "ZCULL Conservative Reports", ios_experimental_mode::automatic };
+ 		// REWINDBOX_ZCULL_ASYNC_READS_630: Automatic is the titles of the ZCULL on-demand lever.
+ 		cfg::_enum<ios_experimental_mode> zcull_async_reads{ this, "ZCULL Asynchronous Reads", ios_experimental_mode::automatic };
++		// REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h): Automatic is Assassin's Creed and Black Ops II;
++		// needs ZCULL On-Demand Reads.
++		cfg::_enum<ios_experimental_mode> zcull_depth_guard{ this, "ZCULL Queue-Depth Guard", ios_experimental_mode::automatic };
+ 		// REWINDBOX_FAST_JIT_LOAD_634, REWINDBOX_JIT_OBJECT_RELEASE_634 (ios/IOSJitLoad.h): Automatic is every title.
+ 		cfg::_enum<ios_experimental_mode> fast_jit_load{ this, "Fast JIT Load", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> jit_object_release{ this, "JIT Object Release", ios_experimental_mode::automatic };
+diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
+index 014bd34..019b80e 100644
+--- a/rpcs3/ios/IOSTitleLevers.h
++++ b/rpcs3/ios/IOSTitleLevers.h
+@@ -220,4 +220,24 @@ constexpr bool verifies_texture_lookup_memo(std::string_view title_id) noexcept
+ {
+ 	return is_black_ops_ii_title(title_id);
+ }
++
++// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): Assassin's Creed submits the command buffer
++// of a report queued into a slot a guest waited for at the next point without an open render pass. IPA 657
++// (Core 655, PID 10471): Assassin's Creed waits 32.0 ms per frame for its reports (window 1:42,
++// ZCULLDEMAND619 waits=259:3779.8 ms) for 30.5 ms of GPU work, each wait covering the whole command buffer
++// of the report, submitted only when the guest asked for it. Not Black Ops II: its host model learns no slot
++// (reads less than 1 ms after their report), and with more than 2,048 reports in flight the extra
++// submissions lengthen the synchronous reads at query exhaustion (model: 45.8 -> 67.0 ms per frame).
++constexpr bool zcull_watched_flush(std::string_view title_id) noexcept
++{
++	return is_assassins_creed_title(title_id);
++}
++
++// REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h): at the ZCULL queue-depth limit the same titles
++// submit the open command buffer only while it holds the oldest pending query. IPA 657: Black Ops II frames
++// of about 140 submissions in windows 3:12-3:13 (ZCULLSYNC613 hint_flushes 2,844 and 2,861 per window).
++constexpr bool zcull_depth_guard(std::string_view title_id) noexcept
++{
++	return is_assassins_creed_title(title_id) || is_black_ops_ii_title(title_id);
++}
+ }
+diff --git a/rpcs3/ios/IOSZcullOnDemand.h b/rpcs3/ios/IOSZcullOnDemand.h
+index 91651fb..bd3b6f8 100644
+--- a/rpcs3/ios/IOSZcullOnDemand.h
++++ b/rpcs3/ios/IOSZcullOnDemand.h
+@@ -347,6 +347,8 @@ class page_slots
+ 	std::uint64_t m_window_start_us = 0;
+ 	// REWINDBOX_ZCULL_READ_LEAD_659: when the oldest pending report of each slot was enqueued.
+ 	std::uint64_t m_enqueued_us[tracked_page_bytes / report_slot_bytes]{};
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): ... and the newest, the one a read waits for last.
++	std::uint64_t m_newest_us[tracked_page_bytes / report_slot_bytes]{};
+ 
+ 	static constexpr std::uint32_t slot(std::uint32_t address) noexcept
+ 	{
+@@ -380,6 +382,8 @@ public:
+ 			{
+ 				m_enqueued_us[i] = now_us;
+ 			}
++
++			m_newest_us[i] = now_us; // REWINDBOX_ZCULL_WATCHED_FLUSH_660
+ 		}
+ 	}
+ 
+@@ -391,6 +395,14 @@ public:
+ 		return m_pending[i] && m_enqueued_us[i] && now_us > m_enqueued_us[i] ? now_us - m_enqueued_us[i] : 0;
+ 	}
+ 
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660: the age of the newest pending report of the slot at `address`, 0 when
++	// none is pending or its enqueue time is unknown.
++	std::uint64_t newest_age_us(std::uint32_t address, std::uint64_t now_us) const noexcept
++	{
++		const std::uint32_t i = slot(address);
++		return m_pending[i] && m_newest_us[i] && now_us > m_newest_us[i] ? now_us - m_newest_us[i] : 0;
++	}
++
+ 	void remove(std::uint32_t address) noexcept
+ 	{
+ 		for (std::uint32_t i = slot(address); i <= last_slot(address, report_slot_bytes); i++)
+diff --git a/rpcs3/ios/IOSZcullWatched.h b/rpcs3/ios/IOSZcullWatched.h
+new file mode 100644
+index 0000000..877641d
+--- /dev/null
++++ b/rpcs3/ios/IOSZcullWatched.h
+@@ -0,0 +1,411 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_ZCULL_WATCHED_FLUSH_660: IPA 657 logs (Core 655, PID 10471). Assassin's Creed waits
++// 32.0 ms per frame for ZCULL reports (window 1:42: ZCULLDEMAND619 waits=259:3779.8 ms, max 43.7)
++// for 30.5 ms of GPU work: MoltenVK publishes an occlusion result only when its whole command
++// buffer has completed, and the command buffer of a report is submitted only when a guest asks for
++// that report (ZCULLSYNC613: every command buffer besides the flip one is such a hint flush,
++// 344 = 118 + 226). Black Ops II waits 12.5 ms per report for the GPU side (window 3:16:
++// 1566.5 ms over 107 waits). The guest of these titles faults on a few report slots per frame
++// (ZCULLDEMAND619 faults report=259 per 118 frames).
++// - Learning (guest threads, fault handler, under the pages mutex). With the asynchronous reads of
++//   630 the handler knows the slot a guest waits for, and the page's slots record when their newest
++//   pending report was queued: the read waits for that one last. A slot waited for at least
++//   min_lead_us after that report is learned (a read closer to its report gains little from an
++//   earlier submission, and the RSX thread rarely reaches a pass boundary before it). A watched slot
++//   read again (waited for, or read final by the handler) stays watched, and the number of reports
++//   queued into it between two such reads is kept; a watched slot waited for closer than
++//   min_lead_us after its newest report is dropped. A slot no guest waited for or read for
++//   watch_frames frames is forgotten.
++// - Arming (RSX thread). When a report is queued into a watched slot as the last one expected
++//   before the next read (as many reports as between the last two reads), and the query that
++//   decides its value is still in the open command buffer, the backend arms the boundary submission
++//   of 659 for that buffer: taken at the next draw start or after the next draw's textures with no
++//   render pass open, at the end of a draw after max_deferred_draws more draws (the fallback), or
++//   carried by any other primary submission. The GPU-idle test of 561 does not apply (the guest
++//   reads this report); the 561 cap of early submissions per frame does, and at most
++//   max_watched_submits_per_frame such submissions are taken per frame (an arm another submission
++//   carries costs nothing and is not counted).
++// Only command buffer boundaries move: the guest still reads the GPU result of every report, written
++// in the same order; no report value, query or m_sync_tag is touched here.
++//
++// REWINDBOX_ZCULL_DEPTH_GUARD_660: Black Ops II windows 3:12-3:13 of the same logs record about
++// 140 submissions per frame in some frames (ZCULLSYNC613 hint_flushes 2,844 and 2,861 per window,
++// 2,686/2,671 render pass re-begins). The cause inferred is the queue-depth branch of
++// ZCULL_control::update(): above max_safe_queue_depth pending reports, every new report submits
++// the open command buffer for its query, a render pass split each time, while the reports at the
++// head of the queue are already on the GPU. At that limit the hint is now sent only while the
++// oldest pending query is still in the open command buffer (nothing can drain before it is
++// submitted), and after open_cb_skip_bound skipped hints for the same open command buffer: its
++// queries cannot complete before it is submitted (MoltenVK publishes results at the end of a
++// command buffer), so it is submitted at least every 256 queue-depth checks instead of at every
++// report; upstream applies again at or above depth_hard_cap pending reports. The 2,048 query slots
++// are not reserved: one report holds one query, so a reserve of free slots would end the guard as
++// soon as the depth branch runs. When the slots run out, allocate_new_query reads the oldest report
++// synchronously as upstream does (values exact). Host model of the reviews (not device numbers):
++// with more than 2,048 reports in flight per frame the guard makes those synchronous reads longer
++// (2,600 reports per frame: 45.8 -> 53.4 ms per frame) and the hint storm shorter (4,000: 156.8 ->
++// 77.0 ms; BO2-like 1,900 peak: 103.7 -> 75.2 ms), hence its own setting for an A/B on the device.
++// The guard applies only while the on-demand reads really run (not after a 619 trip or with accurate
++// RSX reservation access). Guest reads are served by their own paths (ios_service_read, sync(),
++// read_barrier()), which keep their hints.
++namespace rpcs3::ios::zcull_watched
++{
++inline constexpr std::uint32_t slot_bytes = 16;                   // a GCM report (zcull_on_demand::report_slot_bytes)
++inline constexpr std::uint32_t capacity = 32;                     // learned slots kept; the least recently read is replaced
++inline constexpr std::uint64_t watch_frames = 8;                  // frames a slot stays watched after its last wait or read
++inline constexpr std::uint32_t max_watched_submits_per_frame = 2; // watched submissions taken per frame, inside the 561 cap
++inline constexpr std::uint64_t min_lead_us = 1000;                // report -> read time below which an earlier submission gains little
++inline constexpr std::uint32_t query_scan_limit = 64;             // pending writes scanned for the deciding or oldest query
++
++// REWINDBOX_ZCULL_DEPTH_GUARD_660
++inline constexpr std::uint32_t depth_limit = 1792;                // rsx::reports::max_safe_queue_depth (RSXZCULL.h), for the reports
++inline constexpr std::uint32_t depth_hard_cap = 8192;             // pending reports from which the upstream hint applies again
++inline constexpr std::uint32_t open_cb_skip_bound = 256;          // skipped hints for one open command buffer before one is sent
++inline constexpr std::uint64_t cb_unknown = ~std::uint64_t{0};    // the backend cannot tell (upstream behaviour)
++
++// Process-wide counters of COREPROF ZCULLWATCH660 and ZCULLDEPTH660 (taken per window).
++struct tally
++{
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660: the table.
++	std::atomic<std::uint64_t> learned{0};         // a guest waited, min_lead_us or more after its newest report, for a slot not watched
++	std::atomic<std::uint64_t> refreshed{0};       // a watched slot waited for or read final again
++	std::atomic<std::uint64_t> expired{0};         // watched slots forgotten after watch_frames
++	std::atomic<std::uint64_t> evicted{0};         // ... replaced while the table was full
++	std::atomic<std::uint64_t> short_leads{0};     // waits closer than min_lead_us after the newest report (not learned, or dropped)
++	std::atomic<std::uint32_t> watched_now{0};     // slots in the table at the last change
++	// ... the reports queued into watched slots (RSX thread).
++	std::atomic<std::uint64_t> watched_reports{0};
++	std::atomic<std::uint64_t> early_writes{0};    // ... with more reports expected before the next read: not armed
++	std::atomic<std::uint64_t> armed{0};           // ... that armed the boundary submission
++	std::atomic<std::uint64_t> joined{0};          // ... whose command buffer had a submission armed already
++	std::atomic<std::uint64_t> submitted{0};       // ... whose deciding query had left the open command buffer
++	std::atomic<std::uint64_t> no_query{0};        // ... without a query with draws to wait for
++	std::atomic<std::uint64_t> capped{0};          // ... over max_watched_submits_per_frame or the 561 cap of the frame
++	std::atomic<std::uint64_t> off{0};             // ... with early submission off or not in the boundary mode
++	// ... where the watched arms went (backend).
++	std::atomic<std::uint64_t> taken_start{0};     // taken at the start of a draw
++	std::atomic<std::uint64_t> taken_textures{0};  // ... after a draw's textures
++	std::atomic<std::uint64_t> fallback{0};        // ... at the end of a draw after max_deferred_draws draws
++	std::atomic<std::uint64_t> carried{0};         // ... carried by another primary submission
++	// REWINDBOX_ZCULL_DEPTH_GUARD_660: update() at the queue-depth limit, where upstream hints.
++	std::atomic<std::uint64_t> depth_checks{0};
++	std::atomic<std::uint64_t> depth_hints{0};          // hinted: oldest query in the open command buffer, first time there
++	std::atomic<std::uint64_t> depth_skip_submitted{0}; // not hinted: the oldest pending query is on the GPU
++	std::atomic<std::uint64_t> depth_skip_same_cb{0};   // not hinted: this command buffer had its hint
++	std::atomic<std::uint64_t> depth_hard_cap_hints{0}; // hinted as upstream: at or above depth_hard_cap
++	std::atomic<std::uint64_t> depth_unknown{0};        // hinted as upstream: no oldest query found or no answer
++	std::atomic<std::uint64_t> depth_open_cb_bound{0};  // hinted: open_cb_skip_bound hints skipped for this open command buffer
++	std::atomic<std::uint64_t> depth_peak{0};           // the most pending reports seen at the limit
++
++	static void raise_max(std::atomic<std::uint64_t>& max_value, std::uint64_t value) noexcept
++	{
++		std::uint64_t max = max_value.load(std::memory_order_relaxed);
++		while (value > max && !max_value.compare_exchange_weak(max, value, std::memory_order_relaxed)) {}
++	}
++};
++
++inline tally& counters() noexcept
++{
++	static tally s_tally;
++	return s_tally;
++}
++
++constexpr std::uint32_t slot_of(std::uint32_t address) noexcept
++{
++	return address & ~(slot_bytes - 1);
++}
++
++enum class learn_result : std::uint8_t
++{
++	learned,     // a new watched slot
++	refreshed,   // a watched slot read again
++	short_lead,  // not watched: its report came too close before the read
++	dropped,     // was watched: the read followed its newest report too closely
++};
++
++// REWINDBOX_ZCULL_WATCHED_FLUSH_660: the report slots guests waited for. Under
++// ZCULL_control::m_pages_mutex: guest threads write it in the fault handler, the RSX thread reads
++// and counts in it when a report locks its page.
++class watched_slots
++{
++	struct entry
++	{
++		std::uint32_t slot = 0;
++		std::uint32_t writes = 0;          // reports queued into the slot since its last read
++		std::uint32_t per_read = 1;        // ... between its last two reads (1 when just learned)
++		std::uint64_t frame = 0;           // frame of the last wait or final read
++		std::uint64_t order = 0;           // ... and its rank among them (ties of a frame)
++	};
++
++	entry m_entries[capacity]{};
++	std::uint32_t m_count = 0;
++	std::uint64_t m_frame = 0;   // the RSX frame (rsx::thread::int_flip_index) at its last report
++	std::uint64_t m_filter = 0;  // one bit per (slot / slot_bytes) % 64 of the entries
++	std::uint64_t m_order = 0;
++
++	static constexpr std::uint64_t bit(std::uint32_t slot) noexcept
++	{
++		return std::uint64_t{1} << ((slot / slot_bytes) & 63);
++	}
++
++	bool live(const entry& e) const noexcept
++	{
++		return m_frame <= e.frame + watch_frames;
++	}
++
++	void publish() const noexcept
++	{
++		counters().watched_now.store(m_count, std::memory_order_relaxed);
++	}
++
++	void rebuild_filter() noexcept
++	{
++		m_filter = 0;
++		for (std::uint32_t i = 0; i < m_count; i++)
++		{
++			m_filter |= bit(m_entries[i].slot);
++		}
++	}
++
++	void remove(std::uint32_t index) noexcept
++	{
++		m_entries[index] = m_entries[--m_count];
++		rebuild_filter();
++		publish();
++	}
++
++	// Drops the slots not waited for or read for watch_frames frames.
++	void expire() noexcept
++	{
++		std::uint32_t kept = 0;
++		for (std::uint32_t i = 0; i < m_count; i++)
++		{
++			if (live(m_entries[i]))
++			{
++				m_entries[kept++] = m_entries[i];
++			}
++			else
++			{
++				counters().expired.fetch_add(1, std::memory_order_relaxed);
++			}
++		}
++
++		if (kept != m_count)
++		{
++			m_count = kept;
++			rebuild_filter();
++			publish();
++		}
++	}
++
++	std::uint32_t find(std::uint32_t slot) const noexcept
++	{
++		if (m_filter & bit(slot))
++		{
++			for (std::uint32_t i = 0; i < m_count; i++)
++			{
++				if (m_entries[i].slot == slot)
++				{
++					return i;
++				}
++			}
++		}
++
++		return capacity;
++	}
++
++	void read_again(entry& e) noexcept
++	{
++		e.per_read = e.writes ? e.writes : 1;
++		e.writes = 0;
++		e.frame = m_frame;
++		e.order = ++m_order;
++		counters().refreshed.fetch_add(1, std::memory_order_relaxed);
++	}
++
++public:
++	// RSX thread, a report queued at `address` locks its page: the clock moves to `frame` (expired slots
++	// are dropped once per frame). True when the slot is watched and this report is the last one expected
++	// before the slot's next read.
++	bool on_report(std::uint32_t address, std::uint64_t frame) noexcept
++	{
++		if (frame != m_frame)
++		{
++			m_frame = frame;
++			expire();
++		}
++
++		const std::uint32_t index = m_count ? find(slot_of(address)) : capacity;
++		if (index == capacity || !live(m_entries[index]))
++		{
++			return false;
++		}
++
++		entry& e = m_entries[index];
++		counters().watched_reports.fetch_add(1, std::memory_order_relaxed);
++		if (++e.writes < e.per_read)
++		{
++			counters().early_writes.fetch_add(1, std::memory_order_relaxed);
++			return false;
++		}
++
++		return true;
++	}
++
++	// Guest thread: its access waits for the slot at `address`, whose newest pending report was queued
++	// `lead_us` before (page_slots::newest_age_us).
++	learn_result learn(std::uint32_t address, std::uint64_t lead_us) noexcept
++	{
++		const std::uint32_t slot = slot_of(address);
++		if (const std::uint32_t index = find(slot); index != capacity)
++		{
++			entry& e = m_entries[index];
++			if (lead_us < min_lead_us)
++			{
++				remove(index);
++				counters().short_leads.fetch_add(1, std::memory_order_relaxed);
++				return learn_result::dropped;
++			}
++
++			read_again(e);
++			return learn_result::refreshed;
++		}
++
++		if (lead_us < min_lead_us)
++		{
++			counters().short_leads.fetch_add(1, std::memory_order_relaxed);
++			return learn_result::short_lead;
++		}
++
++		if (m_count == capacity)
++		{
++			std::uint32_t oldest = 0;
++			for (std::uint32_t i = 1; i < m_count; i++)
++			{
++				const entry& e = m_entries[i];
++				if (e.frame < m_entries[oldest].frame || (e.frame == m_entries[oldest].frame && e.order < m_entries[oldest].order))
++				{
++					oldest = i;
++				}
++			}
++
++			m_entries[oldest] = {};
++			m_entries[oldest].slot = slot;
++			m_entries[oldest].frame = m_frame;
++			m_entries[oldest].order = ++m_order;
++			rebuild_filter();
++			counters().evicted.fetch_add(1, std::memory_order_relaxed);
++		}
++		else
++		{
++			entry& e = m_entries[m_count++];
++			e = {};
++			e.slot = slot;
++			e.frame = m_frame;
++			e.order = ++m_order;
++			m_filter |= bit(slot);
++		}
++
++		counters().learned.fetch_add(1, std::memory_order_relaxed);
++		publish();
++		return learn_result::learned;
++	}
++
++	// Guest thread: its access read the slot at `address` final. A watched slot stays watched (the
++	// submissions that made it final keep it); any other slot is not learned.
++	bool refresh(std::uint32_t address) noexcept
++	{
++		if (const std::uint32_t index = find(slot_of(address)); index != capacity)
++		{
++			read_again(m_entries[index]);
++			return true;
++		}
++
++		return false;
++	}
++
++	std::uint32_t size() const noexcept
++	{
++		return m_count;
++	}
++};
++
++// Backend, RSX thread: the watched submissions taken in the current frame.
++struct frame_budget
++{
++	std::uint64_t frame = ~std::uint64_t{0};
++	std::uint32_t used = 0;
++
++	bool available(std::uint64_t now_frame) noexcept
++	{
++		if (now_frame != frame)
++		{
++			frame = now_frame;
++			used = 0;
++		}
++
++		return used < max_watched_submits_per_frame;
++	}
++
++	void consume() noexcept
++	{
++		used++;
++	}
++};
++
++// What the backend did with a watched report (VKGSRender::ios_arm_watched_submit).
++enum class arm_result : std::uint8_t
++{
++	off,        // early submission off, or not in the boundary mode: nothing armed
++	armed,      // the boundary submission of the open command buffer is armed
++	joined,     // a submission was already armed for it
++	submitted,  // the deciding query no longer has host queries in the open command buffer
++	capped,     // the 561 cap or max_watched_submits_per_frame is used up for this frame
++};
++
++// REWINDBOX_ZCULL_DEPTH_GUARD_660
++enum class depth_verdict : std::uint8_t
++{
++	hint,                // the oldest pending query is in the open command buffer, not hinted there yet
++	hard_cap,            // at or above depth_hard_cap: upstream
++	unknown,             // no oldest query found, or the backend cannot tell: upstream
++	front_submitted,     // the oldest pending query is on the GPU: no hint
++	same_command_buffer, // this command buffer had its guarded hint: no hint
++	open_cb_bound,       // open_cb_skip_bound hints were skipped for the open command buffer: hint
++};
++
++// pending: ptimer->async_tasks_pending; front_cb: the backend's serial of the open command buffer
++// holding the oldest pending query (0 when it was submitted, cb_unknown when unknown); last_cb: the
++// serial of the last guarded hint; open_cb_skips: hints already skipped for the open command buffer.
++constexpr depth_verdict decide_depth(std::uint32_t pending, std::uint64_t front_cb, std::uint64_t last_cb,
++	std::uint32_t open_cb_skips = 0) noexcept
++{
++	if (pending >= depth_hard_cap)
++	{
++		return depth_verdict::hard_cap;
++	}
++
++	if (front_cb == cb_unknown)
++	{
++		return depth_verdict::unknown;
++	}
++
++	if (front_cb == 0)
++	{
++		return open_cb_skips >= open_cb_skip_bound ? depth_verdict::open_cb_bound : depth_verdict::front_submitted;
++	}
++
++	return front_cb == last_cb ? depth_verdict::same_command_buffer : depth_verdict::hint;
++}
++
++constexpr bool depth_hint_sent(depth_verdict verdict) noexcept
++{
++	return verdict == depth_verdict::hint || verdict == depth_verdict::hard_cap || verdict == depth_verdict::unknown ||
++		verdict == depth_verdict::open_cb_bound;
++}
++}
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index 84bb280..26c3e25 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -22,6 +22,7 @@
+ #include "IOSInPassReadTransition.h"
+ #include "IOSSpuObjectBindings.h" // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
+ #include "IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
++#include "IOSZcullWatched.h" // REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660
+ #include "Utilities/File.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
+@@ -406,6 +407,15 @@ void resolve_experimental_policy() noexcept
+ 	// REWINDBOX_ZCULL_ASYNC_READS_630 (ios/IOSZcullOnDemand.h): needs the lever.
+ 	resolved.zcull_async_reads = resolved.zcull_on_demand && resolve_mode(g_cfg.ios_experimental.zcull_async_reads,
+ 		rpcs3::ios::title_levers::requires_zcull_on_demand(title_id));
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): the title list, with the asynchronous reads that
++	// learn the slots and the 659 boundary mode that submits; "ZCULL Asynchronous Reads" or "Early command buffer
++	// submission" set to Disabled turns it off with them.
++	resolved.zcull_watched_flush = resolved.zcull_async_reads && resolved.early_submit_at_pass_boundary &&
++		rpcs3::ios::title_levers::zcull_watched_flush(title_id);
++	// REWINDBOX_ZCULL_DEPTH_GUARD_660: its setting (Automatic: the title list), with the on-demand reads; Disabled
++	// restores the upstream queue-depth hint.
++	resolved.zcull_depth_guard = resolved.zcull_on_demand && resolve_mode(g_cfg.ios_experimental.zcull_depth_guard,
++		rpcs3::ios::title_levers::zcull_depth_guard(title_id));
+ 	// Core 634, every title: the same objects, words and digests as before, sooner, and less kept.
+ 	resolved.fast_jit_load = resolve_mode(g_cfg.ios_experimental.fast_jit_load, true);
+ 	rpcs3::ios::jit_load::fast_load.store(resolved.fast_jit_load, std::memory_order_relaxed);
+@@ -519,6 +529,12 @@ void resolve_experimental_policy() noexcept
+ 	ios_experimental_log.notice("Resolved title policy 660: texture_lookup_memo=%d verify_all=%d ways=%u verify_first=%u verify_period=%u",
+ 		resolved.texture_lookup_memo, resolved.texture_lookup_memo_verify_all, static_cast<u32>(rpcs3::ios::texture_lookup_memo::ways),
+ 		static_cast<u32>(rpcs3::ios::texture_lookup_memo::verify_first), static_cast<u32>(rpcs3::ios::texture_lookup_memo::verify_period));
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660: their own line.
++	ios_experimental_log.notice("Resolved title policy 660: zcull_watched_flush=%d zcull_depth_guard=%d watch_frames=%u "
++		"watched_submits_per_frame=%u min_lead_us=%u depth_hard_cap=%u",
++		resolved.zcull_watched_flush, resolved.zcull_depth_guard, static_cast<u32>(rpcs3::ios::zcull_watched::watch_frames),
++		rpcs3::ios::zcull_watched::max_watched_submits_per_frame, static_cast<u32>(rpcs3::ios::zcull_watched::min_lead_us),
++		rpcs3::ios::zcull_watched::depth_hard_cap);
+ }
+ 
+ void apply_spu_spin_timing_policy() noexcept
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 0050a72..cddb71c 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -113,6 +113,12 @@ struct experimental_policy
+ 	bool texture_lookup_memo = false;
+ 	// With it, every hit runs the full lookup and is compared (counters only, nothing skipped).
+ 	bool texture_lookup_memo_verify_all = false;
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): a report into a slot a guest waited for arms the
++	// boundary submission of its command buffer. Title scoped, with the asynchronous reads and the boundary mode.
++	bool zcull_watched_flush = false;
++	// REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h): at the ZCULL queue-depth limit, the open command
++	// buffer is submitted only while it holds the oldest pending query. Title scoped, with the on-demand reads.
++	bool zcull_depth_guard = false;
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers), resolved once per boot
+ 	// like the fields above; none of them enters an object-cache key.
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 6d0c6e6..9cd3852 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -28,6 +28,7 @@
+ #include "IOSSpuObjectPrefetch.h" // REWINDBOX_SPU_OBJECT_PREFETCH_616
+ #include "IOSSpuObjectBindings.h" // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
+ #include "IOSZcullOnDemand.h" // REWINDBOX_ZCULL_ON_DEMAND_619
++#include "IOSZcullWatched.h" // REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660
+ #include "IOSGpuTiming.h" // REWINDBOX_GPU_TIMING_621
+ #include "IOSPipelineQueue.h" // REWINDBOX_PIPELINE_QUEUE_621
+ #include "IOSFrameTrace.h"
+@@ -1413,6 +1414,46 @@ private:
+             ios_core_profiler.notice("COREPROF ZCULLHINT659 session=%llu window=%llu hint_flushes=%llu:%llu:%llu:%llu:%llu "
+                 "order=sync:queue_depth:critical_age:read_barrier:service_read scope=rsx_thread_process_window window_boundary_approximate=1",
+                 profile_session, profile_window, by_sync, by_depth, by_age, by_barrier, by_service);
++            // REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): its own line. Slots learned from guest waits,
++            // refreshed, expired, evicted, and waits too close to their report; the table size; the reports queued into a
++            // watched slot, those with more expected before the next read, and what the others did (armed, joined an armed
++            // submission, query already submitted, no query, capped, early submission off); where the watched arms were
++            // taken (draw start, after textures, fallback, carried by another submission).
++            namespace zw = rpcs3::ios::zcull_watched;
++            auto& watched = zw::counters();
++            const auto take_watched = [](std::atomic<u64>& value) { return static_cast<unsigned long long>(value.exchange(0, std::memory_order_relaxed)); };
++            const unsigned long long learned = take_watched(watched.learned), refreshed = take_watched(watched.refreshed),
++                expired = take_watched(watched.expired), evicted = take_watched(watched.evicted), short_leads = take_watched(watched.short_leads);
++            const unsigned long long reports = take_watched(watched.watched_reports), early_writes = take_watched(watched.early_writes),
++                armed = take_watched(watched.armed), joined = take_watched(watched.joined), submitted = take_watched(watched.submitted),
++                no_query = take_watched(watched.no_query), capped = take_watched(watched.capped), off = take_watched(watched.off);
++            const unsigned long long taken_start = take_watched(watched.taken_start), taken_textures = take_watched(watched.taken_textures),
++                fallback = take_watched(watched.fallback), carried = take_watched(watched.carried);
++            ios_core_profiler.notice("COREPROF ZCULLWATCH660 session=%llu window=%llu enabled=%u slots=%llu:%llu:%llu:%llu:%llu "
++                "slots_order=learned:refreshed:expired:evicted:short_lead watched_now=%u reports=%llu early_writes=%llu "
++                "outcomes=%llu:%llu:%llu:%llu:%llu:%llu outcomes_order=armed:joined:submitted:no_query:capped:off taken=%llu:%llu:%llu:%llu "
++                "taken_order=draw_start:after_textures:fallback:carried watch_frames=%u submits_per_frame=%u min_lead_ms=%.1f "
++                "scope=rsx_thread_process_window window_boundary_approximate=1",
++                profile_session, profile_window, rpcs3::ios::get_experimental_policy().zcull_watched_flush ? 1u : 0u,
++                learned, refreshed, expired, evicted, short_leads, static_cast<unsigned>(watched.watched_now.load(std::memory_order_relaxed)),
++                reports, early_writes, armed, joined, submitted, no_query, capped, off, taken_start, taken_textures, fallback, carried,
++                static_cast<unsigned>(zw::watch_frames), zw::max_watched_submits_per_frame, zw::min_lead_us / 1000.0);
++            // REWINDBOX_ZCULL_DEPTH_GUARD_660: its own line. update() at the queue-depth limit where upstream hints:
++            // hinted (oldest query in the open command buffer, first time there), skipped (oldest query on the GPU;
++            // command buffer already hinted), hinted as upstream (at or above the hard cap; no answer), and the most
++            // pending reports seen there. The hints sent are the queue_depth flushes of ZCULLHINT659.
++            const unsigned long long checks = take_watched(watched.depth_checks), depth_hints = take_watched(watched.depth_hints),
++                skip_submitted = take_watched(watched.depth_skip_submitted), skip_same = take_watched(watched.depth_skip_same_cb),
++                hard_cap = take_watched(watched.depth_hard_cap_hints), unknown = take_watched(watched.depth_unknown),
++                open_cb_bound = take_watched(watched.depth_open_cb_bound),
++                peak = take_watched(watched.depth_peak);
++            ios_core_profiler.notice("COREPROF ZCULLDEPTH660 session=%llu window=%llu enabled=%u checks=%llu hinted=%llu "
++                "skipped=%llu:%llu skipped_order=front_on_gpu:same_command_buffer upstream=%llu:%llu upstream_order=hard_cap:unknown "
++                "open_cb_bound=%llu peak_pending=%llu depth_limit=%u hard_cap=%u open_cb_skip_bound=%u "
++                "scope=rsx_thread_process_window window_boundary_approximate=1",
++                profile_session, profile_window, rpcs3::ios::get_experimental_policy().zcull_depth_guard ? 1u : 0u,
++                checks, depth_hints, skip_submitted, skip_same, hard_cap, unknown, open_cb_bound, peak,
++                zw::depth_limit, zw::depth_hard_cap, zw::open_cb_skip_bound);
+         }
+         // REWINDBOX_ZCULL_WAIT_PROBE_616: the MoltenVK wait inside those reads,
+         // by the path that asked for the result, the gathers per path and the
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index 78cd1c3..e28f63a 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -158,7 +158,9 @@ const std::array catalog{
+ 	GAME_SETTING("experimental.zcull_on_demand", "Experimental", "ZCULL", "ZCULL on-demand reads", "Once the game touches its ZCULL report memory, writes the occlusion reports only when a game thread reads them, instead of waiting for the GPU at every report label. Automatic follows the title list (Assassin's Creed, Black Ops II); Enabled and Disabled test the other mode. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_on_demand, 0, 0, 0),
+ 	GAME_SETTING("experimental.zcull_wait_guard", "Experimental", "ZCULL", "ZCULL on-demand wait guard", "Returns the ZCULL on-demand reads to the upstream mode when game threads wait too long for reports. Automatic keeps it off for the titles of that lever, whose game threads have to wait for the GPU in either mode; Enabled restores it. The deadlines that protect against a request never served always stay on. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_wait_guard, 0, 0, 0),
+ 	GAME_SETTING("experimental.zcull_cond_no_wait", "Experimental", "ZCULL", "ZCULL conditional draw without waiting", "With ZCULL on-demand reads, draws an object whose occlusion result is still on the GPU instead of waiting for it. An object that turns out to be hidden stays hidden behind what covers it, at the cost of its GPU time. Automatic follows the title list (Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_cond_no_wait, 0, 0, 0),
+-	GAME_SETTING("experimental.zcull_async_reads", "Experimental", "ZCULL", "ZCULL asynchronous reads", "With ZCULL on-demand reads, a game read waits for its own report only and the RSX thread keeps working: the read of memory that is already final completes at once. Values stay exact.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_async_reads, 0, 0, 0),
++	GAME_SETTING("experimental.zcull_async_reads", "Experimental", "ZCULL", "ZCULL asynchronous reads", "With ZCULL on-demand reads, a game read waits for its own report only and the RSX thread keeps working: the read of memory that is already final completes at once. For Assassin's Creed, with Early command buffer submission, a report into a slot the game waited for also sends its command buffer at the next point where no render pass is open, or after 32 more draws. Values stay exact.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_async_reads, 0, 0, 0),
++	// REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h)
++	GAME_SETTING("experimental.zcull_depth_guard", "Experimental", "ZCULL", "ZCULL queue-depth guard", "With ZCULL on-demand reads, a long report queue submits the open command buffer only while it holds the oldest pending report, and at least every 256 reports, instead of at every new report. Values stay exact. Automatic enables it for Assassin's Creed and Call of Duty: Black Ops II; Disabled keeps the upstream submissions. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_depth_guard, 0, 0, 0),
+ 	GAME_SETTING("experimental.fast_jit_load", "Experimental", "Loading", "Fast JIT object loading", "Checks and links cached PPU code on several threads. The code is the same.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fast_jit_load, 0, 0, 0),
+ 	GAME_SETTING("experimental.jit_object_release", "Experimental", "Loading", "Free JIT objects after linking", "Frees the bytes of PPU and SPU objects once they are linked, instead of keeping a copy of all the game's code in memory.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.jit_object_release, 0, 0, 0),
+ 	GAME_SETTING("experimental.spirv_disk_cache", "Experimental", "Loading", "SPIR-V disk cache", "Keeps the compiled form of each shader on disk, so that the next boots skip the shader compiler. What the GPU receives does not change.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spirv_disk_cache, 0, 0, 0),

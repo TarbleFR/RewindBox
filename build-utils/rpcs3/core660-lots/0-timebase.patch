@@ -1,0 +1,36 @@
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+index b415890..e94fdc0 100644
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -97,6 +97,14 @@ function(neostation_codegen_compatible_hash source actual output)
+     elseif(source STREQUAL "Cell/SPULLVMRecompiler.cpp" AND
+            actual STREQUAL "46e26928919087f4daf23eb6a62211894deb8599671bc55468fb639cfef935d7")
+         set(${output} "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff" PARENT_SCOPE)
++    # REWINDBOX_SPU_TIMEBASE_MAPPING_660: the RdDec emitter maps spu_timebase_offs on the engine
++    # again before loading it, because compile() clears every global mapping before each module.
++    # Host-side symbol binding only: the IR, the emitted objects, their relocations and helper
++    # symbols are unchanged; a cached object now links the symbol to g_timebase_offs. Keep the
++    # delivered Core 612 effective hash for this exact source snapshot only.
++    elseif(source STREQUAL "Cell/SPULLVMRecompiler.cpp" AND
++           actual STREQUAL "3f2e9a77dc6fb4c186d8a597d7c78c996e18d6821d1b52891465cc36b2ad8984")
++        set(${output} "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff" PARENT_SCOPE)
+     # REWINDBOX_SPU_OBJECT_PREFETCH_616: JITLLVM's load_cached_object first takes
+     # the compressed bytes that ios/IOSSpuObjectPrefetch.h read ahead from the
+     # same object file and inflates them as the file read would; the SPU runtime
+diff --git a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
+index 5808c81..eae14c7 100644
+--- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
++++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
+@@ -5459,6 +5459,12 @@ public:
+ 			{
+ 				// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: external symbol mapped in
+ 				// init(), never a baked host address (see SPUObjectCachePolicy.h).
++				// REWINDBOX_SPU_TIMEBASE_MAPPING_660: compile() clears every global mapping
++				// before each module, so the init() mapping was gone when this module was
++				// linked and the name resolved to a null-function stub (the block read its
++				// code bytes as the offset). Map it again for the module that loads it; the
++				// IR and the emitted object are unchanged.
++				m_engine->updateGlobalMapping("spu_timebase_offs", reinterpret_cast<u64>(&g_timebase_offs));
+ 				const auto timebase_offs = m_ir->CreateLoad(get_type<u64>(), m_module->getOrInsertGlobal("spu_timebase_offs", get_type<u64>()));
+ 				const auto timestamp = m_ir->CreateLoad(get_type<u64>(), spu_ptr(&spu_thread::ch_dec_start_timestamp));
+ 				const auto dec_value = m_ir->CreateLoad(get_type<u32>(), spu_ptr(&spu_thread::ch_dec_value));

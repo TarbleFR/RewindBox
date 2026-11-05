@@ -65,8 +65,8 @@ KEYS = ('gpu.zcull_accuracy', 'debug.disable_occlusion', 'debug.emulate_depth_co
         # Core 634: boots and memory.
         'experimental.fast_jit_load', 'experimental.jit_object_release', 'experimental.spirv_disk_cache',
         'experimental.hardware_crypto', 'experimental.spu_object_prefetch',
-        # Core 660: SPU direct object hits and the texture lookup memo.
-        'experimental.spu_direct_object_hits', 'experimental.texture_lookup_memo')
+        # Core 660: SPU direct object hits, the texture lookup memo and the ZCULL queue-depth guard.
+        'experimental.spu_direct_object_hits', 'experimental.texture_lookup_memo', 'experimental.zcull_depth_guard')
 
 
 def require(condition, message):

@@ -849,6 +849,7 @@ static NSDictionary<NSString*, NSArray<NSString*>*>* RPCS3TestSettingValues(void
       @"experimental.spu_object_prefetch": @[@"Enabled", @"Disabled"],
       @"experimental.spu_direct_object_hits": @[@"Enabled", @"Disabled"],
       @"experimental.texture_lookup_memo": @[@"Enabled", @"Disabled"],
+      @"experimental.zcull_depth_guard": @[@"Enabled", @"Disabled"],
     };
   });
   return values;

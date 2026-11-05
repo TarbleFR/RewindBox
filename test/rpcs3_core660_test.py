@@ -14,7 +14,7 @@ own patch under build-utils/rpcs3/core660-lots/ and applied in this order:
 3. REWINDBOX_ZCULL_WATCHED_FLUSH_660 and REWINDBOX_ZCULL_DEPTH_GUARD_660: a report into a ZCULL slot the game waited for
    arms the 659 boundary submission of its command buffer; at the queue-depth limit the open command buffer is submitted
    only while it holds the oldest pending query (upstream behaviour from 8,192 pending reports).
-4. The accuracy test page gains the two new settings (CONFIG_LAYERS levers627 digits 14 and 15).
+4. The accuracy test page gains the three new settings (CONFIG_LAYERS levers627 digits 14 to 16).
 This driver:
 - authenticates the folded increment and the five steps against the record, rebuilds every intermediate tree from the
   reverted Core 659 tree, and requires the last one to be the source byte for byte;
@@ -43,12 +43,13 @@ LOTS = (('timebase', 'build-utils/rpcs3/core660-lots/0-timebase.patch', ('REWIND
         ('spu-direct', 'build-utils/rpcs3/core660-lots/1-spu-direct.patch', ('REWINDBOX_SPU_DIRECT_OBJECT_HIT_660',)),
         ('texture-memo', 'build-utils/rpcs3/core660-lots/2-texture-memo.patch', ('REWINDBOX_TEXTURE_LOOKUP_MEMO_660',)),
         ('zcull', 'build-utils/rpcs3/core660-lots/3-zcull.patch', ('REWINDBOX_ZCULL_WATCHED_FLUSH_660', 'REWINDBOX_ZCULL_DEPTH_GUARD_660')),
-        ('test-page', 'build-utils/rpcs3/core660-lots/4-test-page.patch', ('Core 660: digits 14 and 15 of levers627=',)))
+        ('test-page', 'build-utils/rpcs3/core660-lots/4-test-page.patch', ('Core 660: digits 14 to 16 of levers627=',)))
 NEW = ('rpcs3/ios/IOSSpuObjectBindings.h', 'rpcs3/ios/IOSTextureLookupMemo.h', 'rpcs3/ios/IOSZcullWatched.h')
 CODEGEN_CHANGED = ('Utilities/JITLLVM.cpp', 'rpcs3/Emu/Cell/SPULLVMRecompiler.cpp')
-# The two settings of the test page (levers627 digits 14 and 15), in the order of their rows.
+# The three settings of the test page (levers627 digits 14 to 16), in the order of their rows.
 TEST_PAGE = (('spu_direct_object_hits', 'SPU Direct Object Hits', 'testSpuDirectObjectHits', 13),
-             ('texture_lookup_memo', 'Texture Lookup Memo', 'testTextureLookupMemo', 14))
+             ('texture_lookup_memo', 'Texture Lookup Memo', 'testTextureLookupMemo', 14),
+             ('zcull_depth_guard', 'ZCULL Queue-Depth Guard', 'testZcullDepthGuard', 15))
 LOCALES = 12
 
 sys.path.insert(0, str(ROOT / 'test'))
@@ -138,7 +139,7 @@ def check_test_page(source: Path) -> dict:
     policy_h = read(source / 'rpcs3/ios/RPCS3IOSExperimentalPolicy.h')
     classes = ROOT / 'packages/rpcs3_internal_bridge/ios/Classes'
     menu, plugin, l10n = read(classes / 'Rpcs3SessionMenu.mm'), read(classes / 'Rpcs3InternalBridgePlugin.mm'), read(classes / 'RPCS3InGameLocalization.mm')
-    require(digits.count('append_text(line, "levers627", rsx.levers627, 15);') == 1, 'every digit of levers627= reaches CONFIG_LAYERS')
+    require(digits.count('append_text(line, "levers627", rsx.levers627, 16);') == 1, 'every digit of levers627= reaches CONFIG_LAYERS')
     previous = 'spu_object_prefetch'
     start = l10n.index('NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build660Translations() {')
     table = l10n[start:l10n.index('  return values;\n}', start)]
@@ -156,7 +157,7 @@ def check_test_page(source: Path) -> dict:
         require(len(values) == LOCALES and len(set(values[1:]) & {values[0]}) == 0, 'test page row in every locale: ' + setting)
     lookup = l10n[l10n.index('NSString* RPCS3LocalizedString('):]
     require(lookup.index('build660[locale][key]') < lookup.index('build634[locale][key]'), 'the 660 table is read first')
-    return {'levers627_digits': 15, 'rows': [setting for setting, *_ in TEST_PAGE], 'locales': LOCALES}
+    return {'levers627_digits': 16, 'rows': [setting for setting, *_ in TEST_PAGE], 'locales': LOCALES}
 
 
 def main() -> None:

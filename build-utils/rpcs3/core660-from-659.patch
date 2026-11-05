@@ -1,0 +1,3623 @@
+diff --git a/Utilities/JITLLVM.cpp b/Utilities/JITLLVM.cpp
+index ef5f127..5baafcc 100644
+--- a/Utilities/JITLLVM.cpp
++++ b/Utilities/JITLLVM.cpp
+@@ -1627,9 +1627,68 @@ bool jit_compiler::try_add_cached(std::unique_ptr<llvm::Module> _module, const s
+ bool jit_compiler::try_add_minimal_object(jit_cached_object object, const std::string& entry,
+ 	const std::unordered_map<std::string, u64>& bindings, std::string& error)
+ {
+-	// Prototype only: callers must provide every patchpoint/helper symbol from
+-	// this process. No address is read from or written to the persistent cache.
+-	return jit_minimal_object::add(*m_engine, object.buffer, entry, bindings, error);
++	// Callers must provide every patchpoint/helper symbol from this process. No
++	// address is read from or written to the persistent cache.
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h): the SPU
++	// cache-hit path links validated objects here, and they are finalized here
++	// too: the load and finalizeObject run in one run_recoverable_llvm (one
++	// worker handoff instead of a second one in try_fin; RuntimeDyld reports
++	// errors as fatal errors). True: added and finalized, as try_fin succeeds.
++	// False with an error: LLVM fatal recovery while loading or finalizing, the
++	// compiler must be discarded. False with an empty error: jit_minimal_object::add
++	// refused the object before it touched the engine, nothing was finalized, and
++	// the caller may still link it another way.
++	std::unique_ptr<llvm::MemoryBuffer> buffer = std::move(object.buffer);
++#ifdef RPCS3_IOS
++	// REWINDBOX_JIT_OBJECT_RELEASE_634: MCJIT gets a view; the compiler keeps the
++	// bytes until finalizeObject, as ObjectCache::getObject does for a cached hit.
++	std::unique_ptr<llvm::MemoryBuffer> owner;
++	if (buffer && rpcs3::ios::jit_load::release_bytes.load(std::memory_order_relaxed))
++	{
++		owner = std::move(buffer);
++		buffer = llvm::MemoryBuffer::getMemBuffer(owner->getMemBufferRef(), false);
++	}
++#endif
++
++	bool added = false;
++	std::string refused;
++	const bool recovered = run_recoverable_llvm([&]()
++	{
++		added = jit_minimal_object::add(*m_engine, buffer, entry, bindings, refused);
++
++		if (added)
++		{
++			m_engine->finalizeObject();
++		}
++	}, error);
++
++	if (!recovered)
++	{
++#ifdef RPCS3_IOS
++		// As a failed try_add_cached or try_fin: the bytes stay with the compiler.
++		if (owner)
++		{
++			held_objects().hold(this, std::move(owner));
++		}
++#endif
++		if (m_announcer) m_announcer->finalized(false);
++		return false;
++	}
++
++	if (!added)
++	{
++		jit_log.trace("LLVM: Minimal object %s refused: %s", entry, refused);
++		error.clear();
++		return false;
++	}
++
++	// As try_fin after a successful finalizeObject; the bytes of this object
++	// (owner) are freed on return, after the finalize.
++	if (m_announcer) m_announcer->finalized(true);
++#ifdef RPCS3_IOS
++	held_objects().release(this);
++#endif
++	return true;
+ }
+ 
+ void jit_compiler::add(std::unique_ptr<llvm::Module> _module)
+diff --git a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+index b415890..00f4af2 100644
+--- a/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
++++ b/rpcs3/Emu/CPU/JITCacheCompatibility.cmake
+@@ -97,6 +97,14 @@ function(neostation_codegen_compatible_hash source actual output)
+     elseif(source STREQUAL "Cell/SPULLVMRecompiler.cpp" AND
+            actual STREQUAL "46e26928919087f4daf23eb6a62211894deb8599671bc55468fb639cfef935d7")
+         set(${output} "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff" PARENT_SCOPE)
++    # REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h): compile() links a cached object
++    # whose undefined symbols are all known without building its IR; six emitter lambdas become named
++    # static helpers with the same bodies, and call() keeps the same names and argument values. Host
++    # linking only: IR, passes, emission, relocations, helper symbol names and object names are
++    # unchanged, so the delivered Core 612 effective hash stays for this exact source snapshot only.
++    elseif(source STREQUAL "Cell/SPULLVMRecompiler.cpp" AND
++           actual STREQUAL "2a9548d2372109cd64d04d35d05af28d9e16f0c337be3baa69dbba9bd6ac4eae")
++        set(${output} "deb95e09dfe245343b482b0b0cb4a20f69b50eb8694f838a87d2bfee193215ff" PARENT_SCOPE)
+     # REWINDBOX_SPU_OBJECT_PREFETCH_616: JITLLVM's load_cached_object first takes
+     # the compressed bytes that ios/IOSSpuObjectPrefetch.h read ahead from the
+     # same object file and inflates them as the file read would; the SPU runtime
+@@ -118,6 +126,13 @@ function(neostation_codegen_compatible_hash source actual output)
+     elseif(source STREQUAL "../../Utilities/JITLLVM.cpp" AND
+            actual STREQUAL "8e7d94b9db255017c5b2ab2d5080c2e6065e720c78c91bef840bbb79798a41f0")
+         set(${output} "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf" PARENT_SCOPE)
++    # REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: only the body of try_add_minimal_object changes (the load and
++    # its finalizeObject run in one run_recoverable_llvm and follow the 634 byte-release rule). Loader
++    # code only: emission, validation of other objects and relocations are unchanged. Keep the delivered
++    # effective hash for this exact source snapshot only.
++    elseif(source STREQUAL "../../Utilities/JITLLVM.cpp" AND
++           actual STREQUAL "a96b07eb6d5b0ca5c21dd0fa1b9f758e1802c7ab640db31e1e9deada100b77a1")
++        set(${output} "001be95de7767a086647076009cdd9a2d92bf0b82d64a6560f2b06f13111bbdf" PARENT_SCOPE)
+     elseif(source STREQUAL "Cell/PPUThread.cpp" AND
+            actual STREQUAL "dde2a8619da340925e6a57dc0bdb138b1dc14a40300173ed913fe3fbc44b3823")
+         set(${output} "89ae3e8dac0e210cd1c656a1ca5dcdb506d7846decabcdae9a906b96719d5a44" PARENT_SCOPE)
+diff --git a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
+index 5808c81..6a38c2c 100644
+--- a/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
++++ b/rpcs3/Emu/Cell/SPULLVMRecompiler.cpp
+@@ -17,6 +17,7 @@
+ #include "Emu/RSX/Core/RSXReservationLock.hpp"
+ #ifdef RPCS3_IOS
+ #include "ios/RPCS3IOSPerformance.h"
++#include "ios/IOSSpuObjectBindings.h" // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
+ #include "util/tsc.hpp"
+ #endif
+ // NEOSTATION_BUILD258_RUNTIME_RESILIENCE_V1
+@@ -81,6 +82,8 @@ bool should_emit_spu_compile_diagnostic() noexcept
+ #include <llvm/Transforms/Scalar/LoopPassManager.h>
+ #include <llvm/Transforms/Scalar/SimplifyCFG.h>
+ #include <llvm/Transforms/InstCombine/InstCombine.h>
++#include <llvm/Object/ObjectFile.h> // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
++#include <llvm/Support/MemoryBuffer.h> // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
+ #ifdef _MSC_VER
+ #pragma warning(pop)
+ #else
+@@ -1613,34 +1616,106 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+ 		m_ir->SetInsertPoint(_body);
+ 	}
+ 
+-	void putllc16_pattern(const spu_program& /*prog*/, u64 pattern_info)
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: the lambda of putllc16_pattern (spu_putllc16_rsx_res), lifted so that the direct
++	// cache-hit path binds the same function under the same name. Same body.
++	static bool exec_putllc16_rsx_res(spu_thread* _spu, u32 ls_dst, u32 lsa, u32 eal, u32 notify)
+ 	{
+-		// Prevent store elimination
+-		m_block->store_context_ctr[s_reg_mfc_eal]++;
+-		m_block->store_context_ctr[s_reg_mfc_lsa]++;
+-		m_block->store_context_ctr[s_reg_mfc_tag]++;
+-		m_block->store_context_ctr[s_reg_mfc_size]++;
++		const u32 raddr = eal;
++
++		const v128 rdata = read_from_ptr<v128>(_spu->rdata, ls_dst % 0x80);
++		const v128 to_write = _spu->_ref<const nse_t<v128>>(ls_dst);
++
++		const auto dest = raddr | (ls_dst & 127);
++		const auto _dest = vm::get_super_ptr<atomic_t<nse_t<v128>>>(dest);
++
++		if (rdata == to_write || ((lsa ^ ls_dst) & (SPU_LS_SIZE - 128)))
++		{
++			vm::reservation_update(raddr);
++			_spu->ch_atomic_stat.set_value(MFC_PUTLLC_SUCCESS);
++			_spu->raddr = 0;
++			return true;
++		}
+ 
+-		static const auto on_fail = [](spu_thread* _spu, u32 addr)
++		auto& res = vm::reservation_acquire(eal);
++
++		if (res % 128)
+ 		{
+-			if (const u32 raddr = _spu->raddr)
++			return false;
++		}
++
++		{
++			rsx::reservation_lock rsx_lock(raddr, 128);
++
++			// Touch memory
++			utils::trigger_write_page_fault(vm::base(dest ^ (4096 / 2)));
++
++			auto [old_res, ok] = res.fetch_op([&](u64& rval)
+ 			{
+-				// Last check for event before we clear the reservation
+-				if (~_spu->ch_events.load().events & SPU_EVENT_LR)
++				if (rval % 128)
+ 				{
+-					if (raddr == addr)
+-					{
+-						_spu->set_events(SPU_EVENT_LR);
+-					}
+-					else
+-					{
+-						_spu->get_events(SPU_EVENT_LR);
+-					}
++					return false;
+ 				}
+ 
+-				_spu->raddr = 0;
++				rval |= 127;
++				return true;
++			});
++
++			if (!ok)
++			{
++				return false;
++			}
++
++			if (!_dest->compare_and_swap_test(rdata, to_write))
++			{
++				res.release(old_res);
++				return false;
++			}
++
++			// Success
++			res.release(old_res + 128);
++		}
++
++		_spu->ch_atomic_stat.set_value(MFC_PUTLLC_SUCCESS);
++		_spu->raddr = 0;
++
++		if (notify)
++		{
++			res.notify_all();
++		}
++
++		return true;
++	}
++
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: the lambda of putllc16_pattern, lifted so that the direct
++	// cache-hit path binds the same function under the same name. Same body.
++	static void exec_putllc16_fail(spu_thread* _spu, u32 addr)
++	{
++		if (const u32 raddr = _spu->raddr)
++		{
++			// Last check for event before we clear the reservation
++			if (~_spu->ch_events.load().events & SPU_EVENT_LR)
++			{
++				if (raddr == addr)
++				{
++					_spu->set_events(SPU_EVENT_LR);
++				}
++				else
++				{
++					_spu->get_events(SPU_EVENT_LR);
++				}
+ 			}
+-		};
++
++			_spu->raddr = 0;
++		}
++	}
++
++	void putllc16_pattern(const spu_program& /*prog*/, u64 pattern_info)
++	{
++		// Prevent store elimination
++		m_block->store_context_ctr[s_reg_mfc_eal]++;
++		m_block->store_context_ctr[s_reg_mfc_lsa]++;
++		m_block->store_context_ctr[s_reg_mfc_tag]++;
++		m_block->store_context_ctr[s_reg_mfc_size]++;
+ 
+ 		const union putllc16_or_0_info
+ 		{
+@@ -1732,79 +1807,13 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+ 
+ 		if (g_cfg.core.rsx_accurate_res_access)
+ 		{
+-			const auto success = call("spu_putllc16_rsx_res", +[](spu_thread* _spu, u32 ls_dst, u32 lsa, u32 eal, u32 notify) -> bool
+-			{
+-				const u32 raddr = eal;
+-
+-				const v128 rdata = read_from_ptr<v128>(_spu->rdata, ls_dst % 0x80);
+-				const v128 to_write = _spu->_ref<const nse_t<v128>>(ls_dst);
+-
+-				const auto dest = raddr | (ls_dst & 127);
+-				const auto _dest = vm::get_super_ptr<atomic_t<nse_t<v128>>>(dest);
+-
+-				if (rdata == to_write || ((lsa ^ ls_dst) & (SPU_LS_SIZE - 128)))
+-				{
+-					vm::reservation_update(raddr);
+-					_spu->ch_atomic_stat.set_value(MFC_PUTLLC_SUCCESS);
+-					_spu->raddr = 0;
+-					return true;
+-				}
+-
+-				auto& res = vm::reservation_acquire(eal);
+-
+-				if (res % 128)
+-				{
+-					return false;
+-				}
+-
+-				{
+-					rsx::reservation_lock rsx_lock(raddr, 128);
+-
+-					// Touch memory
+-					utils::trigger_write_page_fault(vm::base(dest ^ (4096 / 2)));
+-
+-					auto [old_res, ok] = res.fetch_op([&](u64& rval)
+-					{
+-						if (rval % 128)
+-						{
+-							return false;
+-						}
+-
+-						rval |= 127;
+-						return true;
+-					});
+-
+-					if (!ok)
+-					{
+-						return false;
+-					}
+-
+-					if (!_dest->compare_and_swap_test(rdata, to_write))
+-					{
+-						res.release(old_res);
+-						return false;
+-					}
+-
+-					// Success
+-					res.release(old_res + 128);
+-				}
+-
+-				_spu->ch_atomic_stat.set_value(MFC_PUTLLC_SUCCESS);
+-				_spu->raddr = 0;
+-
+-				if (notify)
+-				{
+-					res.notify_all();
+-				}
+-
+-				return true;
+-			}, m_thread, dest, _lsa, _eal, m_ir->getInt32(!info.no_notify));
++			const auto success = call("spu_putllc16_rsx_res", &exec_putllc16_rsx_res, m_thread, dest, _lsa, _eal, m_ir->getInt32(!info.no_notify));
+ 
+ 
+ 			m_ir->CreateCondBr(success, _final, _fail);
+ 
+ 			m_ir->SetInsertPoint(_fail);
+-			call("PUTLLC16_fail", +on_fail, m_thread, _eal);
++			call("PUTLLC16_fail", &exec_putllc16_fail, m_thread, _eal);
+ 			m_ir->CreateStore(m_ir->getInt64(spu_channel::bit_count | MFC_PUTLLC_FAILURE), spu_ptr(&spu_thread::ch_atomic_stat));
+ 			m_ir->CreateBr(_final);
+ 
+@@ -1923,13 +1932,35 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+ 		m_ir->CreateBr(_fail);
+ 
+ 		m_ir->SetInsertPoint(_fail);
+-		call("PUTLLC16_fail", +on_fail, m_thread, _eal);
++		call("PUTLLC16_fail", &exec_putllc16_fail, m_thread, _eal);
+ 		m_ir->CreateStore(m_ir->getInt64(spu_channel::bit_count | MFC_PUTLLC_FAILURE), spu_ptr(&spu_thread::ch_atomic_stat));
+ 		m_ir->CreateBr(_final);
+ 
+ 		m_ir->SetInsertPoint(_final);
+ 	}
+ 
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: the lambda of putllc0_pattern, lifted so that the direct
++	// cache-hit path binds the same function under the same name. Same body.
++	static void exec_putllc0_fail(spu_thread* _spu, u32 addr)
++	{
++		if (const u32 raddr = _spu->raddr)
++		{
++			// Last check for event before we clear the reservation
++			if (~_spu->ch_events.load().events & SPU_EVENT_LR)
++			{
++				if (raddr == addr)
++				{
++					_spu->set_events(SPU_EVENT_LR);
++				}
++				else
++				{
++					_spu->get_events(SPU_EVENT_LR);
++				}
++			}
++			_spu->raddr = 0;
++		}
++	}
++
+ 	void putllc0_pattern(const spu_program& /*prog*/, u64 pattern_info)
+ 	{
+ 		// Prevent store elimination
+@@ -1938,26 +1969,6 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+ 		m_block->store_context_ctr[s_reg_mfc_tag]++;
+ 		m_block->store_context_ctr[s_reg_mfc_size]++;
+ 
+-		static const auto on_fail = [](spu_thread* _spu, u32 addr)
+-		{
+-			if (const u32 raddr = _spu->raddr)
+-			{
+-				// Last check for event before we clear the reservation
+-				if (~_spu->ch_events.load().events & SPU_EVENT_LR)
+-				{
+-					if (raddr == addr)
+-					{
+-						_spu->set_events(SPU_EVENT_LR);
+-					}
+-					else
+-					{
+-						_spu->get_events(SPU_EVENT_LR);
+-					}
+-				}
+-				_spu->raddr = 0;
+-			}
+-		};
+-
+ 		const union putllc16_or_0_info
+ 		{
+ 			u64 data;
+@@ -2010,7 +2021,7 @@ class spu_llvm_recompiler : public spu_recompiler_base, public cpu_translator
+ 		m_ir->CreateBr(_final);
+ 
+ 		m_ir->SetInsertPoint(_fail);
+-		call("PUTLLC0_fail", +on_fail, m_thread, _eal);
++		call("PUTLLC0_fail", &exec_putllc0_fail, m_thread, _eal);
+ 		m_ir->CreateStore(m_ir->getInt64(spu_channel::bit_count | MFC_PUTLLC_FAILURE), spu_ptr(&spu_thread::ch_atomic_stat));
+ 		m_ir->CreateBr(_final);
+ 
+@@ -2094,6 +2105,173 @@ public:
+ 		m_spu_frsqest_fraction_lut = new llvm::GlobalVariable(*m_module, llvm::ArrayType::get(GetType<u32>(), 64), true, llvm::GlobalValue::PrivateLinkage, llvm::ConstantDataArray::get(m_context, spu_frsqest_fraction_lut));
+ 	}
+ 
++#if defined(RPCS3_IOS) && defined(ARCH_ARM64)
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 BINDINGS BEGIN: generated from every call("name", function) and
++	// updateGlobalMapping("name", address) of the block translator outside compile_interpreter(),
++	// for this build (ARCH_X64-only sites are not compiled here). Each row is the exact expression
++	// that site maps under that name; the host audit regenerates this block from the sites.
++	struct direct_binding
++	{
++		std::string_view name;
++		u64 address;
++	};
++
++	// Evaluated once per process (thread-safe static initialization), on the first hit: every row is
++	// constant by then. spu_runtime::initialize_static_trampolines() (SPUCommonRecompiler.cpp) sets
++	// tr_dispatch, tr_all and g_escape once per process (its state 2 never resets), at Core init
++	// (rpcs3/ios/RPCS3IOS.cpp), before any SPU compile; jit_runtime::alloc(0, 0) returns the base of
++	// the code subrange, fixed once the JIT arena is prepared, and on Apple takes the process-wide
++	// s_alloc_lock (JITASM.cpp), which a hit therefore no longer takes.
++	static const std::array<direct_binding, 27>& direct_bindings() noexcept
++	{
++		static const std::array<direct_binding, 27> table
++		{{
++			{"PUTLLC0_fail", reinterpret_cast<uptr>(&exec_putllc0_fail)},
++			{"PUTLLC16_fail", reinterpret_cast<uptr>(&exec_putllc16_fail)},
++			{"atomic_wait_engine::notify_all", reinterpret_cast<uptr>(static_cast<void(*)(const void*)>(atomic_wait_engine::notify_all))},
++			{"spu_check_interrupts", reinterpret_cast<uptr>(&exec_check_interrupts)},
++			{"spu_dispatch", reinterpret_cast<uptr>(spu_runtime::tr_dispatch)},
++			{"spu_dispatcher", reinterpret_cast<u64>(spu_runtime::tr_all)},
++			{"spu_escape", reinterpret_cast<uptr>(spu_runtime::g_escape)},
++			{"spu_exec_check_state", reinterpret_cast<uptr>(&exec_check_state)},
++			{"spu_exec_mfc_cmd", reinterpret_cast<uptr>(&exec_mfc_cmd<false>)},
++			{"spu_exec_mfc_cmd_saveable", reinterpret_cast<uptr>(&exec_mfc_cmd<true>)},
++			{"spu_get_events", reinterpret_cast<uptr>(&exec_get_events)},
++			{"spu_list_unstall", reinterpret_cast<uptr>(&exec_list_unstall)},
++			{"spu_memcpy", reinterpret_cast<uptr>(&exec_spu_memcpy)},
++			{"spu_putllc16_rsx_res", reinterpret_cast<uptr>(&exec_putllc16_rsx_res)},
++			{"spu_read_channel", reinterpret_cast<uptr>(&exec_rdch)},
++			{"spu_read_channel_count", reinterpret_cast<uptr>(&exec_rchcnt)},
++			{"spu_read_decrementer", reinterpret_cast<uptr>(&exec_read_dec)},
++			{"spu_read_events", reinterpret_cast<uptr>(&exec_read_events)},
++			{"spu_read_in_mbox", reinterpret_cast<uptr>(&exec_read_in_mbox)},
++			{"spu_segment_base", reinterpret_cast<u64>(jit_runtime::alloc(0, 0))},
++			{"spu_syscall", reinterpret_cast<uptr>(&exec_stop)},
++			{"spu_timebase_offs", reinterpret_cast<u64>(&g_timebase_offs)},
++			{"spu_unknown", reinterpret_cast<uptr>(&exec_unk)},
++			{"spu_write_channel", reinterpret_cast<uptr>(&exec_wrch)},
++			{"spu_write_mfc_command", reinterpret_cast<uptr>(&exec_mfc_wrch)},
++			{"wait_on_spu_channel", reinterpret_cast<uptr>(&exec_wait_on_channel)},
++			{"wait_spu_inbox", reinterpret_cast<uptr>(&exec_wait_inbox)},
++		}};
++		return table;
++	}
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 BINDINGS END
++
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 HELPER BEGIN (ios/IOSSpuObjectBindings.h): the bindings of
++	// a cached object linked without IR, or the reason it keeps the IR path and the symbol that decided
++	// it. The object was parsed and its entry required by load_cached_object(); nothing here touches the
++	// engine or allocates a patchpoint stub: compile() copies the object first, then makes the stubs
++	// with direct_object_patchpoints(), once nothing but the link itself can refuse the object.
++	// A binding decides a name only because no object of this engine defines it (MCJIT resolves from
++	// the definitions of the loaded objects before the global map, ios/IOSSpuObjectBindings.h); no SPU
++	// object defines a table or patchpoint name, and the IR path resolves the same names the same way.
++	rpcs3::ios::spu_direct_hit::reason direct_object_bindings(const llvm::MemoryBuffer& object, usz guest_words,
++		std::unordered_map<std::string, u64>& bindings, std::vector<std::string>& patchpoints, std::string& offending)
++	{
++		namespace direct = rpcs3::ios::spu_direct_hit;
++
++		auto file = llvm::object::ObjectFile::createObjectFile(object.getMemBufferRef());
++		if (!file)
++		{
++			llvm::consumeError(file.takeError());
++			return direct::reason::object_unreadable;
++		}
++
++		// The architecture jit_minimal_object::add requires.
++		if ((*file)->getArch() != m_jit.get_engine().getTargetMachine()->getTargetTriple().getArch())
++		{
++			return direct::reason::object_unreadable;
++		}
++
++		std::vector<direct::symbol> symbols;
++		for (const llvm::object::SymbolRef& sym : (*file)->symbols())
++		{
++			if (symbols.size() >= direct::max_symbols)
++			{
++				return direct::reason::symbol_bound;
++			}
++
++			direct::symbol& entry = symbols.emplace_back();
++			llvm::Expected<llvm::StringRef> name = sym.getName();
++			llvm::Expected<u32> flags = sym.getFlags();
++			if (!name || !flags)
++			{
++				if (!name) llvm::consumeError(name.takeError());
++				if (!flags) llvm::consumeError(flags.takeError());
++				entry.readable = false;
++				continue;
++			}
++
++			entry.name = std::string_view(name->data(), name->size());
++			entry.undefined = (*flags & llvm::object::SymbolRef::SF_Undefined) != 0;
++			entry.absolute = (*flags & llvm::object::SymbolRef::SF_Absolute) != 0;
++			entry.global = (*flags & llvm::object::SymbolRef::SF_Global) != 0;
++		}
++
++		const auto& table = direct_bindings();
++		std::array<std::string_view, std::tuple_size_v<std::remove_cvref_t<decltype(table)>>> names{};
++		for (usz i = 0; i < table.size(); i++)
++		{
++			names[i] = table[i].name;
++		}
++
++		const direct::plan plan = direct::classify(m_hash, symbols, names, direct::patchpoint_limit(guest_words));
++		if (plan.result != direct::reason::accepted)
++		{
++			// A view of the object's bytes or of m_hash: copied.
++			offending.assign(plan.offending.data(), plan.offending.size());
++			return plan.result;
++		}
++
++		bindings.clear();
++		bindings.reserve(plan.named.size() + plan.patchpoints.size());
++		patchpoints.clear();
++		patchpoints.reserve(plan.patchpoints.size());
++
++		for (const u32 index : plan.named)
++		{
++			if (!table[index].address)
++			{
++				offending.assign(table[index].name.data(), table[index].name.size());
++				return direct::reason::null_binding;
++			}
++
++			bindings.emplace(std::string(table[index].name), table[index].address);
++		}
++
++		// The names tail_chunk() registers, regenerated, in ascending number. parse_patchpoint() accepts
++		// only the module name, "-pp-" and the decimal number itself, so each is the symbol the classifier
++		// accepted.
++		for (const u32 id : plan.patchpoints)
++		{
++			std::string ppname = fmt::format("%s-pp-%u", m_hash, id);
++			u32 parsed = 0;
++
++			if (!direct::parse_patchpoint(m_hash, ppname, parsed) || parsed != id || bindings.contains(ppname))
++			{
++				offending = std::move(ppname);
++				return direct::reason::malformed_patchpoint;
++			}
++
++			patchpoints.push_back(std::move(ppname));
++		}
++
++		return direct::reason::accepted;
++	}
++
++	// One fresh stub per patchpoint name, made as tail_chunk() makes it (data 0), in the ascending
++	// number order of direct_object_bindings(); the names are moved into the bindings.
++	void direct_object_patchpoints(std::unordered_map<std::string, u64>& bindings, std::vector<std::string>& patchpoints)
++	{
++		for (std::string& ppname : patchpoints)
++		{
++			bindings.emplace(std::move(ppname), reinterpret_cast<u64>(m_spurt->make_branch_patchpoint()));
++		}
++	}
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 HELPER END
++#endif
++
+ 	virtual spu_function_t compile(spu_program&& _func) override
+ 	{
+ 		if (_func.data.empty() && m_interp_magn)
+@@ -2268,6 +2446,181 @@ public:
+ 		}
+ #endif
+ 
++#if defined(RPCS3_IOS) && defined(ARCH_ARM64)
++		// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 DIRECT BEGIN (ios/IOSSpuObjectBindings.h): a hit whose
++		// undefined symbols are all known links its object without building the IR. Each binding is
++		// the expression the IR path maps under that name (direct_bindings()), each patchpoint a fresh
++		// stub as tail_chunk() makes it, and the publication is the IR path's. Names resolve as on the
++		// IR path (MCJIT looks in the definitions of the loaded objects before the global map): the
++		// bindings decide them because no SPU object defines a table or patchpoint name. Any other
++		// object goes on to the IR path below, untouched, with no LLVM error left and no stub made.
++		if (spu_cached_object && g_spu_llvm_compile_context && rpcs3::ios::spu_direct_hit::enabled.load(std::memory_order_relaxed))
++		{
++			namespace direct = rpcs3::ios::spu_direct_hit;
++			std::string& llvm_error = g_spu_llvm_compile_context->llvm_error;
++			const u64 direct_started = utils::get_tsc();
++			std::unordered_map<std::string, u64> direct_map;
++			std::vector<std::string> direct_pp_names;
++			std::string direct_offending;
++			direct::reason direct_reason = direct_object_bindings(*spu_cached_object.buffer, func.data.size(), direct_map, direct_pp_names, direct_offending);
++			const usz direct_bytes = spu_cached_object.buffer->getBufferSize();
++			jit_cached_object direct_object;
++
++			if (direct_reason == direct::reason::accepted)
++			{
++				// MCJIT gets a copy: the validated object stays here for the IR path if it is refused. The
++				// copy comes before any patchpoint stub: getMemBufferCopy() returns null when its allocation
++				// fails, and the hit then keeps the IR path, which makes its own stubs.
++				direct_object.buffer = llvm::MemoryBuffer::getMemBufferCopy(spu_cached_object.buffer->getBuffer(), spu_cached_object.buffer->getBufferIdentifier());
++				direct_object.bytes = direct_bytes;
++
++				if (!direct_object.buffer)
++				{
++					direct_reason = direct::reason::copy_failed;
++				}
++			}
++
++			if (direct_reason == direct::reason::accepted)
++			{
++				// Only the link itself can refuse the object now (jit_minimal_object::add repeats the checks
++				// of the classifier): one fresh stub per patchpoint, in ascending number.
++				const usz direct_patchpoints = direct_pp_names.size();
++				direct_object_patchpoints(direct_map, direct_pp_names);
++
++#if defined(__APPLE__)
++				jit_write_protect(false);
++
++				struct jit_write_guard
++				{
++					~jit_write_guard()
++					{
++						jit_write_protect(true);
++					}
++				} _jit_guard;
++#endif
++
++				// The bindings are the only mappings of this object, as compile() clears them before each module.
++				m_engine->clearAllGlobalMappings();
++				const u64 link_started = utils::get_tsc();
++
++				// Add and finalize in one recoverable LLVM run (one worker handoff). False with an error: LLVM
++				// fatal recovery while loading or finalizing, as a failed try_add_cached or try_fin of the IR
++				// path, and the caller discards the compiler. False without one: refused before the engine
++				// was touched, nothing finalized.
++				if (m_jit.try_add_minimal_object(std::move(direct_object), m_hash, direct_map, llvm_error))
++				{
++					const u64 link_done = utils::get_tsc();
++					jit_phase::g_counters.add(jit_phase::spu_object_load, link_done - link_started, direct_bytes);
++					rpcs3::ios::record_spu_object_cache_event(rpcs3::ios::spu_object_cache_event::hit, direct_bytes);
++
++					// MCJIT's getFunctionAddress() looks in the global map, then in RuntimeDyld's table (the
++					// object just finalized defines the entry), then in the modules, and returns 0 when none
++					// has the name; unlike getPointerToNamedFunction(), it never asks the memory manager,
++					// whose findSymbol ends in make_null_function() and never returns 0. The SPU triple is
++					// ELF (jit_compiler::triple2()), so the name takes no prefix.
++					const spu_function_t fn = reinterpret_cast<spu_function_t>(m_jit.get_engine().getFunctionAddress(m_hash));
++
++					if (!fn)
++					{
++						spu_log.error("SPU object cache: %s produced no entry point (cached=%d)", m_hash, true);
++						fs::remove_file(spu_obj_cache + m_hash + ".obj.gz");
++						direct::stats().record_failure();
++
++						if (add_to_file)
++						{
++							add_loc->cached = 0;
++						}
++
++						return nullptr;
++					}
++
++					direct::stats().record_direct(direct_bytes, utils::get_tsc() - compile_started, link_started - direct_started,
++						link_done - link_started, direct_map.size() - direct_patchpoints, direct_patchpoints);
++
++					// The IR path's publication below, from "Install unconditionally" to its return,
++					// without its spu_debug IR log (spu_debug never uses the object cache).
++					// Install unconditionally, possibly replacing existing one from spu_fast
++					add_loc->warmed = rpcs3::spu::loading_warmup;
++					add_loc->compiled = fn;
++#ifdef RPCS3_IOS
++					rpcs3::ios::record_spu_block_compiled(
++						::narrow<u32>(func_size * sizeof(u32)), utils::get_tsc() - compile_started);
++#endif
++
++					// Rebuild trampoline if necessary
++					if (!m_spurt->rebuild_ubertrampoline(func.data[0]))
++					{
++						if (auto& cache = g_fxo->get<spu_cache>())
++						{
++							if (add_to_file)
++							{
++								cache.add(func);
++							}
++						}
++
++						// The function is already published and usable; only this trampoline
++						// rebuild attempt failed. Do not permanently fail duplicate waiters.
++						add_loc->llvm_compile_state.release(2);
++						add_loc->llvm_compile_state.notify_all();
++						add_loc->compiled.notify_all();
++						return nullptr;
++					}
++
++					add_loc->compiled.notify_all();
++					add_loc->llvm_compile_state.release(2);
++					add_loc->llvm_compile_state.notify_all();
++
++#if defined(__APPLE__)
++					jit_write_protect(true);
++#endif
++#if defined(ARCH_ARM64)
++					// Flush all cache lines after potentially writing executable code
++					asm("ISB");
++					asm("DSB ISH");
++#endif
++
++					if (auto& cache = g_fxo->get<spu_cache>())
++					{
++						if (add_to_file)
++						{
++							cache.add(func);
++						}
++
++						spu_log.trace("New SPU block compiled successfully (size=%u)", func_size);
++					}
++
++					return fn;
++				}
++
++				if (!llvm_error.empty())
++				{
++					// LLVM fatal recovery while loading or finalizing: the caller discards the compiler.
++					direct::stats().record_failure();
++
++					if (add_to_file)
++					{
++						add_loc->cached = 0;
++					}
++
++					return nullptr;
++				}
++
++				// Refused before anything was loaded.
++				direct_reason = direct::reason::add_rejected;
++			}
++
++			direct::stats().record_fallback(direct_reason);
++
++			if (direct::should_log_fallback(direct_reason))
++			{
++				spu_log.notice("SPUDIRECT660 fallback %s: %s (%s)", direct::reason_names[static_cast<usz>(direct_reason)], direct_offending, m_hash);
++			}
++
++			llvm_error.clear();
++		}
++		// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 DIRECT END
++#endif
++
+ 		// NEOSTATION_BUILD499_SPU_AUDIT_V1: aggregate JITPROF/SPUPROF remain the default diagnostics.
+ 		// Per-block messages are opt-in trace; avoid formatting and file writes on every compile.
+ 		spu_log.trace("SPUCORE499 Building function 0x%x... (size %u, %s)", func.entry_point, func.data.size(), m_hash);
+@@ -5459,6 +5812,12 @@ public:
+ 			{
+ 				// NEOSTATION_BUILD481_SPU_OBJECT_CACHE_V1: external symbol mapped in
+ 				// init(), never a baked host address (see SPUObjectCachePolicy.h).
++				// REWINDBOX_SPU_TIMEBASE_MAPPING_660: compile() clears every global mapping
++				// before each module, so the init() mapping was gone when this module was
++				// linked and the name resolved to a null-function stub (the block read its
++				// code bytes as the offset). Map it again for the module that loads it; the
++				// IR and the emitted object are unchanged.
++				m_engine->updateGlobalMapping("spu_timebase_offs", reinterpret_cast<u64>(&g_timebase_offs));
+ 				const auto timebase_offs = m_ir->CreateLoad(get_type<u64>(), m_module->getOrInsertGlobal("spu_timebase_offs", get_type<u64>()));
+ 				const auto timestamp = m_ir->CreateLoad(get_type<u64>(), spu_ptr(&spu_thread::ch_dec_start_timestamp));
+ 				const auto dec_value = m_ir->CreateLoad(get_type<u32>(), spu_ptr(&spu_thread::ch_dec_value));
+@@ -5544,23 +5903,45 @@ public:
+ 		return m_ir->CreateTrunc(m_ir->CreateXor(shv, inv), get_type<u32>());
+ 	}
+ 
+-	llvm::Value* wait_rchcnt(u32 off, u32 inv = 0)
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: the lambda of wait_rchcnt, lifted so that the direct
++	// cache-hit path binds the same function under the same name. Same body.
++	static u32 exec_wait_on_channel(spu_thread* _spu, spu_channel* ch, u32 is_read)
+ 	{
+-		auto wait_on_channel = [](spu_thread* _spu, spu_channel* ch, u32 is_read) -> u32
++		if (is_read)
+ 		{
+-			if (is_read)
+-			{
+-				ch->pop_wait(*_spu, false);
+-			}
+-			else
+-			{
+-				ch->push_wait(*_spu, 0, false);
+-			}
++			ch->pop_wait(*_spu, false);
++		}
++		else
++		{
++			ch->push_wait(*_spu, 0, false);
++		}
+ 
+-			return ch->get_count();
+-		};
++		return ch->get_count();
++	}
+ 
+-		return m_ir->CreateXor(call("wait_on_spu_channel", +wait_on_channel, m_thread, _ptr(m_thread, off), m_ir->getInt32(inv == 0u)), m_ir->getInt32(inv));
++	llvm::Value* wait_rchcnt(u32 off, u32 inv = 0)
++	{
++		return m_ir->CreateXor(call("wait_on_spu_channel", &exec_wait_on_channel, m_thread, _ptr(m_thread, off), m_ir->getInt32(inv == 0u)), m_ir->getInt32(inv));
++	}
++
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: the lambda of RCHCNT, lifted so that the direct
++	// cache-hit path binds the same function under the same name. Same body.
++	static u32 exec_wait_inbox(spu_thread* _spu, spu_channel_4_t* ch)
++	{
++		if (const u32 count = ch->get_count())
++		{
++			return count;
++		}
++
++		// A parked SPU must acknowledge suspend_all, just like RDCH.
++		// Restore/check CPU state before continuing guest execution.
++		_spu->state += cpu_flag::wait;
++		ch->pop_wait(*_spu, false);
++		if (_spu->check_state())
++		{
++			spu_runtime::g_escape(_spu);
++		}
++		return ch->get_count();
+ 	}
+ 
+ 	void RCHCNT(spu_opcode_t op) //
+@@ -5634,28 +6015,10 @@ public:
+ 			}
+ 			case SPU_RdInMbox:
+ 			{
+-				auto wait_inbox = [](spu_thread* _spu, spu_channel_4_t* ch) -> u32
+-				{
+-					if (const u32 count = ch->get_count())
+-					{
+-						return count;
+-					}
+-
+-					// A parked SPU must acknowledge suspend_all, just like RDCH.
+-					// Restore/check CPU state before continuing guest execution.
+-					_spu->state += cpu_flag::wait;
+-					ch->pop_wait(*_spu, false);
+-					if (_spu->check_state())
+-					{
+-						spu_runtime::g_escape(_spu);
+-					}
+-					return ch->get_count();
+-				};
+-
+ 				// The wait may acknowledge a savestate/suspend request or escape.
+ 				update_pc();
+ 				ensure_gpr_stores();
+-				res.value = call("wait_spu_inbox", +wait_inbox, m_thread, spu_ptr(&spu_thread::ch_in_mbox));
++				res.value = call("wait_spu_inbox", &exec_wait_inbox, m_thread, spu_ptr(&spu_thread::ch_in_mbox));
+ 				break;
+ 			}
+ 			default: break;
+@@ -5827,6 +6190,13 @@ public:
+ 		}
+ 	}
+ 
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: the lambda of WRCH, lifted so that the direct
++	// cache-hit path binds the same function under the same name. Same body.
++	static void exec_spu_memcpy(u8* dst, const u8* src, u32 size)
++	{
++		std::memcpy(dst, src, size);
++	}
++
+ 	void WRCH(spu_opcode_t op) //
+ 	{
+ 		const auto val = eval(extract(get_vr(op.rt), 3));
+@@ -6181,11 +6551,7 @@ public:
+ 					else if (csize)
+ 					{
+ 						// TODO
+-						auto spu_memcpy = [](u8* dst, const u8* src, u32 size)
+-						{
+-							std::memcpy(dst, src, size);
+-						};
+-						call("spu_memcpy", +spu_memcpy, dst, src, zext<u32>(size).eval(m_ir));
++						call("spu_memcpy", &exec_spu_memcpy, dst, src, zext<u32>(size).eval(m_ir));
+ 					}
+ 
+ 					// Disable certain thing
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache.h b/rpcs3/Emu/RSX/Common/texture_cache.h
+index 24ccf42..758976a 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache.h
+@@ -18,6 +18,9 @@
+ // CELL559_FULL_OVERWRITE_INCLUDE
+ #include "ios/IOSFullOverwrite.h"
+ #include "ios/IOSDeferredCommit.h"
++// REWINDBOX_TEXTURE_LOOKUP_MEMO_660
++#include "ios/IOSTextureLookupMemo.h"
++#include <optional>
+ #endif
+ 
+ #define RSX_GCM_FORMAT_IGNORED 0
+@@ -822,6 +825,9 @@ namespace rsx
+ 
+ #ifdef RPCS3_IOS
+ 		rpcs3::ios::texture_validation::sampler_bindings<rsx::limits::fragment_textures_count + rsx::limits::vertex_textures_count> m_sampler_validation;
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): ways per sampler slot, same slot numbering.
++		using lookup_memo_type = rpcs3::ios::texture_lookup_memo::table<sampled_image_descriptor, rsx::limits::fragment_textures_count + rsx::limits::vertex_textures_count>;
++		lookup_memo_type m_lookup_memo;
+ 
+ 		// CELL573_SCOPED_RSX_WRITES: the next validation of every section over `range` hashes again.
+ 		void revalidate_overlapping(const address_range32& range)
+@@ -831,6 +837,8 @@ namespace rsx
+ 				It->reset_validation();
+ 			}
+ 			m_sampler_validation.invalidate(range.start, range.valid() ? u64{range.end} - range.start + 1 : 0);
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the memo entries over `range` go with the slot bindings.
++			m_lookup_memo.invalidate(range.start, range.valid() ? u64{range.end} - range.start + 1 : 0);
+ 		}
+ #endif
+ 
+@@ -3303,10 +3311,18 @@ namespace rsx
+ 		}
+ 
+ 		template <typename surface_store_type>
+-		void finish_sampler_validation(u32 index, sampled_image_descriptor& descriptor, rpcs3::ios::texture_validation::sampler_stamp stamp, const surface_store_type&)
++		void finish_sampler_validation(u32 index, sampled_image_descriptor& descriptor, rpcs3::ios::texture_validation::sampler_stamp stamp, const surface_store_type& surface_cache)
+ 		{
+ 			descriptor.ios_validation_stamp = stamp;
+ 			reader_lock lock(m_cache_mutex);
++			finish_sampler_validation_locked(index, descriptor, surface_cache);
++		}
++
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the body of finish_sampler_validation, under the caller's cache
++		// lock (ios_validation_stamp already set). Returns the length bound for `index` (0: forgotten or unknown).
++		template <typename surface_store_type>
++		u64 finish_sampler_validation_locked(u32 index, sampled_image_descriptor& descriptor, const surface_store_type&)
++		{
+ 			// A clipped local view can inherit framebuffer_storage from a merge.
+ 			// Prove the image is an actual RTT, as is_expired() does, once per lookup.
+ 			descriptor.ios_direct_framebuffer = descriptor.upload_context == rsx::texture_upload_context::framebuffer_storage &&
+@@ -3315,7 +3331,7 @@ namespace rsx
+ 			if (!descriptor.validate() || descriptor.ios_direct_framebuffer)
+ 			{
+ 				m_sampler_validation.forget(index);
+-				return;
++				return 0;
+ 			}
+ 			// Use the range the lookup actually consumed, including mip/gather
+ 			// sources. Never infer a range from partially validated RSX registers.
+@@ -3327,6 +3343,7 @@ namespace rsx
+ 				length = 0; // tiling can touch padding outside the linear payload
+ 			}
+ 			m_sampler_validation.set_range(index, range.start, length);
++			return length;
+ 		}
+ #endif
+ 
+@@ -3523,6 +3540,18 @@ namespace rsx
+ 		template <typename RsxTextureType, typename surface_store_type, typename ...Args>
+ 		sampled_image_descriptor upload_texture(commandbuffer_type& cmd, const RsxTextureType& tex, surface_store_type& m_rtts, Args&&... extras)
+ 		{
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the lookup takes the cache lock itself, as before.
++			return upload_texture_impl(cmd, tex, m_rtts, nullptr, std::forward<Args>(extras)...);
++		}
++
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: held_lock, when set, is the caller's reader lock on m_cache_mutex
++		// (upload_sampler_texture). It replaces this lookup's own lock at the same point and is upgraded the
++		// same way for a CPU upload: a second shared lock of this thread would never let the upgrade finish.
++		template <typename RsxTextureType, typename surface_store_type, typename ...Args>
++		sampled_image_descriptor upload_texture_impl(commandbuffer_type& cmd, const RsxTextureType& tex, surface_store_type& m_rtts, reader_lock* held_lock, Args&&... extras)
++		{
++#endif
+ 			m_texture_upload_calls_this_frame++;
+ 
+ 			image_section_attributes_t attributes{};
+@@ -3639,7 +3668,16 @@ namespace rsx
+ 			}
+ 
+ 			const auto lookup_range = utils::address_range32::start_length(attributes.address, attributes.pitch * required_surface_height);
++#ifdef RPCS3_IOS
++			std::optional<reader_lock> own_lock;
++			if (!held_lock)
++			{
++				own_lock.emplace(m_cache_mutex);
++			}
++			reader_lock& lock = held_lock ? *held_lock : *own_lock;
++#else
+ 			reader_lock lock(m_cache_mutex);
++#endif
+ 
+ 			auto result = fast_texture_search(cmd, attributes, scale, tex.decoded_remap(),
+ 				options, lookup_range, extended_dimension, m_rtts,
+@@ -3815,6 +3853,131 @@ namespace rsx
+ 			return uploaded_descriptor;
+ 		}
+ 
++#ifdef RPCS3_IOS
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): the lookup of sampler slot `index`
++		// (0-15 fragment, 16-19 vertex) with its validation binding, for load_texture_env.
++		// Lever off: the Core 659 sequence, prepare, upload_texture and finish (three cache locks).
++		// Lever on: one reader lock for the binding, the memo and the lookup, passed to upload_texture_impl,
++		// which upgrades it for a CPU upload. A hit returns the descriptor an identical lookup returned
++		// earlier in this epoch, stamped with the store's current write tag, without the lookup; the sampler
++		// validation and everything load_texture_env derives from the descriptor run as for any lookup.
++		// A sampled hit (should_verify) runs the full lookup, returns its result and compares.
++		template <typename RsxTextureType, typename surface_store_type>
++		sampled_image_descriptor upload_sampler_texture(commandbuffer_type& cmd, const RsxTextureType& tex, surface_store_type& m_rtts, u32 index, u32 memo_flags)
++		{
++			namespace memo = rpcs3::ios::texture_lookup_memo;
++			const auto memo_mode = memo::current_mode();
++			if (memo_mode == memo::mode::off)
++			{
++				const auto validation_stamp = prepare_sampler_validation(index);
++				auto result = upload_texture(cmd, tex, m_rtts);
++				finish_sampler_validation(index, result, validation_stamp, m_rtts);
++				return result;
++			}
++
++			const u64 lookup_begin = utils::get_tsc();
++			reader_lock lock(m_cache_mutex);
++			memo::count(memo::counters.lookups);
++			memo::count(memo::counters.locks_avoided, 2);
++			const auto validation_stamp = m_sampler_validation.prepare(index);
++
++			// Everything the exact lookup reads from the texture unit, and the address it resolves to now.
++			const memo::key key{ rsx::get_address(tex.offset(), tex.location()), tex.lookup_words(), memo_flags };
++			const bool compressed = helpers::is_compressed_gcm_format(tex.format() & ~(CELL_GCM_TEXTURE_LN | CELL_GCM_TEXTURE_UN));
++			// The only surface store input of an exact local lookup (fast_texture_search); address 0 is never memoized.
++			const bool bound = !compressed && (!key.address || m_rtts.address_is_bound(key.address));
++
++			const auto found = m_lookup_memo.find(index, key, compressed, bound);
++			// The first reuse of each (slot, key) of the boot, then the sampled hits (IOSTextureLookupMemo.h).
++			const bool first_reuse = found.value && memo_mode != memo::mode::verify_all &&
++				memo::verify_first_reuse.load(std::memory_order_relaxed) && m_lookup_memo.first_reuse(index, key);
++			const bool verify = found.value && (memo::should_verify(memo_mode, memo::boot_hits.fetch_add(1, std::memory_order_relaxed)) || first_reuse);
++			if (first_reuse)
++			{
++				memo::count(memo::counters.first_reuses);
++			}
++			if (found.value && !verify)
++			{
++				sampled_image_descriptor result = *found.value;
++				result.surface_cache_tag = m_rtts.write_tag;
++				result.ios_validation_stamp = validation_stamp;
++				finish_sampler_validation_locked(index, result, m_rtts);
++				memo::count(memo::counters.hits);
++				memo::count(memo::counters.hit_ticks, utils::get_tsc() - lookup_begin);
++				return result;
++			}
++
++			memo::count_miss(found.reason);
++			// After a verified difference the memo stays out of the way: the lookup and its binding only.
++			const bool store = !verify && found.reason != memo::miss::disabled;
++			sampled_image_descriptor expected;
++			typename lookup_memo_type::ticket ticket{};
++			if (verify)
++			{
++				expected = *found.value;
++			}
++			else if (store)
++			{
++				ticket = m_lookup_memo.begin(index, key);
++			}
++
++			const auto sections_before = memo::generations::now();
++			const u32 cpu_uploads_before = m_texture_upload_misses_this_frame;
++			auto result = upload_texture_impl(cmd, tex, m_rtts, &lock);
++			if (m_texture_upload_misses_this_frame != cpu_uploads_before)
++			{
++				memo::count(memo::counters.cpu_uploads);
++			}
++
++			if (verify)
++			{
++				expected.surface_cache_tag = m_rtts.write_tag;
++				u32 differences = memo::compare(expected, result);
++				if (!sections_before.sections_equal(memo::generations::now()))
++				{
++					// The memo would have skipped a change the full lookup made.
++					differences |= memo::differs_state;
++				}
++				memo::count(memo::counters.verified);
++				if (differences)
++				{
++					memo::count(memo::counters.mismatches);
++					memo::disabled.store(true, std::memory_order_relaxed);
++					m_lookup_memo.clear();
++					if (!memo::mismatch_logged.exchange(true, std::memory_order_relaxed))
++					{
++						rsx_log.error("TEXMEMO660 verification mismatch: slot=%u address=0x%x words=0x%x:0x%x:0x%x:0x%x:0x%x:0x%x flags=%u "
++							"differences=0x%x; the texture lookup memo is off for the rest of this boot", index, key.address,
++							key.words[0], key.words[1], key.words[2], key.words[3], key.words[4], key.words[5], key.flags, differences);
++					}
++				}
++			}
++
++			result.ios_validation_stamp = validation_stamp;
++			const u64 bound_length = finish_sampler_validation_locked(index, result, m_rtts);
++
++			if (store)
++			{
++				// Only a direct shader_read view of the section at the key's address: no render target, no
++				// deferred or gathered descriptor, no cyclic reference.
++				const bool direct = result.image_handle && result.upload_context == rsx::texture_upload_context::shader_read &&
++					result.external_subresource_desc.op == deferred_request_command::nop && !result.is_cyclic_reference &&
++					!result.ios_direct_framebuffer && result.ref_address == key.address &&
++					result.ios_validation_range.valid() && result.ios_validation_range.start == key.address;
++				switch (m_lookup_memo.end(ticket, key, compressed, bound, result, direct, key.address, bound_length))
++				{
++				case lookup_memo_type::store_result::stored: memo::count(memo::counters.stores); break;
++				case lookup_memo_type::store_result::changed: memo::count(memo::counters.unstored_changed); break;
++				case lookup_memo_type::store_result::kind: memo::count(memo::counters.unstored_kind); break;
++				case lookup_memo_type::store_result::bound: memo::count(memo::counters.unstored_bound); break;
++				}
++			}
++
++			memo::count(memo::counters.lookup_ticks, utils::get_tsc() - lookup_begin);
++			return result;
++		}
++#endif
++
+ 		// FIXME: This function is way too large and needs an urgent refactor.
+ 		template <typename surface_store_type, typename blitter_type, typename ...Args>
+ 		blit_op_result upload_scaled_image(const rsx::blit_src_info& src_info, const rsx::blit_dst_info& dst_info, bool interpolate, commandbuffer_type& cmd, surface_store_type& m_rtts, blitter_type& blitter, Args&&... extras)
+diff --git a/rpcs3/Emu/RSX/Common/texture_cache_utils.h b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+index 193d72c..da2171f 100644
+--- a/rpcs3/Emu/RSX/Common/texture_cache_utils.h
++++ b/rpcs3/Emu/RSX/Common/texture_cache_utils.h
+@@ -20,6 +20,7 @@
+ #include "ios/IOSTextureResidency.h"
+ #include "ios/IOSDeferredCommit.h"
+ #include "ios/IOSReadbackPrediction.h"
++#include "ios/IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
+ #include "util/tsc.hpp"
+ #endif
+ 
+@@ -368,6 +369,11 @@ namespace rsx
+ 
+ 		inline section_storage_type& create_section()
+ 		{
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the block size chooses between the exact address
++			// index and the range walk (fast_texture_search, find_texture_from_dimensions).
++			rpcs3::ios::texture_lookup_memo::section_changed(false);
++#endif
+ 			auto &res = sections.emplace_back(this);
+ #ifdef RPCS3_IOS
+ 			if (sections.size() == address_index_threshold + 1)
+@@ -413,6 +419,8 @@ namespace rsx
+ 		inline void clear()
+ 		{
+ #ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: every section of the block goes.
++			rpcs3::ios::texture_lookup_memo::section_changed(false);
+ 			// Bulk clear owns the cache lock. Drop this index before callbacks so
+ 			// destroying N sections does not perform N vector compactions.
+ 			m_address_index.clear();
+@@ -1257,6 +1265,16 @@ namespace rsx
+ #ifdef RPCS3_IOS
+ 		// CELL573_TEXTURE_RESIDENCY: frame of the last lookup that used this section.
+ 		u64 last_use_frame = 0;
++
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): a change of this section that an
++		// exact texture lookup can observe (protection, dirty flag, ranges, resources, format, dimensions,
++		// pitch, swizzle, view flags, image type). A section that stays framebuffer storage bumps only the
++		// all-sections generation; set_context() decides from the old and the new context. Every writer of
++		// these fields calls it before or while it writes, under the cache lock its caller holds.
++		void ios_memo_changed() const noexcept
++		{
++			rpcs3::ios::texture_lookup_memo::section_changed(context == rsx::texture_upload_context::framebuffer_storage);
++		}
+ #endif
+ 
+ 		~cached_texture_section()
+@@ -1288,6 +1306,10 @@ namespace rsx
+ 		{
+ 			AUDIT(memory_range.valid());
+ 			AUDIT(!is_locked());
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: new range and fields; the context becomes shader_read.
++			rpcs3::ios::texture_lookup_memo::section_changed(false);
++#endif
+ 
+ 			// Destroy if necessary
+ 			destroy();
+@@ -1345,6 +1367,9 @@ namespace rsx
+ 
+ 		void create_dma_only(u16 width, u16 height, u32 pitch)
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: dimensions and pitch
++#endif
+ 			this->width = width;
+ 			this->height = height;
+ 			this->rsx_pitch = pitch;
+@@ -1362,6 +1387,10 @@ namespace rsx
+ 		{
+ 			AUDIT(exists());
+ 			AUDIT(valid_range());
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: also when the callbacks already ran (a re-created section).
++			ios_memo_changed();
++#endif
+ 
+ 			if (triggered_exists_callbacks) return;
+ 			triggered_exists_callbacks = true;
+@@ -1373,6 +1402,9 @@ namespace rsx
+ 
+ 		void on_section_resources_destroyed()
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: also without callbacks
++#endif
+ 			if (!triggered_exists_callbacks) return;
+ 			triggered_exists_callbacks = false;
+ 
+@@ -1402,6 +1434,9 @@ namespace rsx
+ 
+ 		void set_dirty(bool new_dirty)
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
++#endif
+ 			if (new_dirty == false && !is_locked() && context == texture_upload_context::shader_read)
+ 				return;
+ 
+@@ -1439,6 +1474,9 @@ namespace rsx
+ 		void notify_range_valid()
+ 		{
+ 			AUDIT(valid_range());
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the block's address index changes
++#endif
+ 
+ 			// Callbacks
+ 			m_block->on_section_range_valid(*derived());
+@@ -1453,6 +1491,9 @@ namespace rsx
+ 
+ 		void invalidate_range()
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the block's address index changes
++#endif
+ 			if (!valid_range())
+ 				return;
+ 
+@@ -1523,6 +1564,11 @@ namespace rsx
+ 		 */
+ 		void post_protect(utils::protection old_prot, utils::protection prot)
+ 		{
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: protect, unprotect, discard and reprotect (lock state,
++			// hash, validation epoch, confirmed range), whatever the protection before and after.
++			ios_memo_changed();
++#endif
+ 			if (old_prot != utils::protection::rw && prot == utils::protection::rw)
+ 			{
+ 				AUDIT(!is_locked());
+@@ -1993,27 +2039,45 @@ namespace rsx
+ 
+ 		void set_view_flags(rsx::component_order flags)
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: every call, changed or not
++#endif
+ 			view_flags = flags;
+ 		}
+ 
+ 		void set_context(rsx::texture_upload_context upload_context)
+ 		{
+ 			AUDIT(!exists() || !is_locked() || context == upload_context);
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: a section leaving or joining framebuffer storage changes
++			// the candidates of an uncompressed lookup; decided from the old and the new context.
++			rpcs3::ios::texture_lookup_memo::section_changed(context == rsx::texture_upload_context::framebuffer_storage &&
++				upload_context == rsx::texture_upload_context::framebuffer_storage);
++#endif
+ 			context = upload_context;
+ 		}
+ 
+ 		void set_image_type(rsx::texture_dimension_extended type)
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
++#endif
+ 			image_type = type;
+ 		}
+ 
+ 		void set_gcm_format(u32 format)
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
++#endif
+ 			gcm_format = format;
+ 		}
+ 
+ 		void set_swizzled(bool is_swizzled)
+ 		{
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
++#endif
+ 			swizzled = is_swizzled;
+ 		}
+ 
+diff --git a/rpcs3/Emu/RSX/RSXTexture.cpp b/rpcs3/Emu/RSX/RSXTexture.cpp
+index f6c2cbc..bb5d939 100644
+--- a/rpcs3/Emu/RSX/RSXTexture.cpp
++++ b/rpcs3/Emu/RSX/RSXTexture.cpp
+@@ -580,4 +580,32 @@ namespace rsx
+ 	{
+ 		return registers[NV4097_SET_VERTEX_TEXTURE_CONTROL3 + (m_index * 8)] & 0xfffff;
+ 	}
++
++#ifdef RPCS3_IOS
++	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): the words of the registers read by the
++	// accessors a lookup uses (upload_texture, get_texture_size), indexed exactly as those accessors index them.
++	std::array<u32, 6> fragment_texture::lookup_words() const
++	{
++		return {
++			registers[NV4097_SET_TEXTURE_OFFSET + (m_index * 8)],
++			registers[NV4097_SET_TEXTURE_FORMAT + (m_index * 8)],
++			registers[NV4097_SET_TEXTURE_ADDRESS + (m_index * 8)],
++			registers[NV4097_SET_TEXTURE_CONTROL1 + (m_index * 8)],
++			registers[NV4097_SET_TEXTURE_IMAGE_RECT + (m_index * 8)],
++			registers[NV4097_SET_TEXTURE_CONTROL3 + m_index],
++		};
++	}
++
++	std::array<u32, 6> vertex_texture::lookup_words() const
++	{
++		return {
++			registers[NV4097_SET_VERTEX_TEXTURE_OFFSET + (m_index * 8)],
++			registers[NV4097_SET_VERTEX_TEXTURE_FORMAT + (m_index * 8)],
++			registers[NV4097_SET_VERTEX_TEXTURE_ADDRESS + (m_index * 8)],
++			0u,
++			registers[NV4097_SET_VERTEX_TEXTURE_IMAGE_RECT + (m_index * 8)],
++			registers[NV4097_SET_VERTEX_TEXTURE_CONTROL3 + (m_index * 8)],
++		};
++	}
++#endif
+ }
+diff --git a/rpcs3/Emu/RSX/RSXTexture.h b/rpcs3/Emu/RSX/RSXTexture.h
+index 0de96bb..0388725 100644
+--- a/rpcs3/Emu/RSX/RSXTexture.h
++++ b/rpcs3/Emu/RSX/RSXTexture.h
+@@ -88,6 +88,11 @@ namespace rsx
+ 		u32 pitch() const;
+ 
+ 		image_section_attributes_t attributes() const;
++#ifdef RPCS3_IOS
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): the raw words of the six registers
++		// the accessors used by a texture cache lookup read: OFFSET, FORMAT, ADDRESS, CONTROL1, IMAGE_RECT, CONTROL3.
++		std::array<u32, 6> lookup_words() const;
++#endif
+ 	};
+ 
+ 	class vertex_texture
+@@ -147,6 +152,10 @@ namespace rsx
+ 
+ 		rsx::texture_dimension_extended get_extended_texture_dimension() const;
+ 		u16 get_exact_mipmap_count() const;
++#ifdef RPCS3_IOS
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: as fragment_texture::lookup_words(); no CONTROL1 (the remap is fixed).
++		std::array<u32, 6> lookup_words() const;
++#endif
+ 	};
+ 
+ 	template<typename T>
+diff --git a/rpcs3/Emu/RSX/RSXZCULL.cpp b/rpcs3/Emu/RSX/RSXZCULL.cpp
+index 63f5e76..9f50e77 100644
+--- a/rpcs3/Emu/RSX/RSXZCULL.cpp
++++ b/rpcs3/Emu/RSX/RSXZCULL.cpp
+@@ -203,6 +203,9 @@ namespace rsx
+ 				break;
+ 			}
+ 
++#ifdef RPCS3_IOS
++			m_ios_report_frame = ptimer->int_flip_index; // REWINDBOX_ZCULL_WATCHED_FLUSH_660: the clock of the watched slots
++#endif
+ 			on_report_enqueued(sink);
+ 
+ #ifdef RPCS3_IOS
+@@ -213,6 +216,15 @@ namespace rsx
+ 				write(sink, ptimer->timestamp(), type, 1u);
+ 			}
+ 
++			// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): the next read of a slot a guest waited for is
++			// expected to wait for this report; its command buffer may be submitted at the next point without an open
++			// render pass.
++			if (m_ios_watched_report)
++			{
++				m_ios_watched_report = false;
++				ios_arm_watched();
++			}
++
+ #endif
+ 			ptimer->async_tasks_pending++;
+ 
+@@ -638,6 +650,11 @@ namespace rsx
+ 						if (It->query)
+ 						{
+ 							if (It->query->num_draws && It->query->sync_tag > m_sync_tag)
++#ifdef RPCS3_IOS
++							// REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h): at the queue-depth limit, only while the
++							// oldest pending query is in the open command buffer, once per command buffer, below the hard cap.
++							if (hint || ios_depth_hint_allowed(ptimer, It->query))
++#endif
+ 							{
+ #ifdef RPCS3_IOS
+ 								rpcs3::ios::rsx_sync::zcull_hint_site = rpcs3::ios::rsx_sync::hint_queue_depth; // REWINDBOX_ZCULL_HINT_SITES_659
+@@ -994,6 +1011,10 @@ namespace rsx
+ 				page.add_ref();
+ #ifdef RPCS3_IOS
+ 				page.ios_slots.add_at(static_cast<u32>(address), get_system_time()); // REWINDBOX_ZCULL_ASYNC_READS_630, REWINDBOX_ZCULL_READ_LEAD_659
++				// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): a report into a slot a guest waited for, the
++				// last one expected before its next read.
++				m_ios_watched_report = rpcs3::ios::get_experimental_policy().zcull_watched_flush &&
++					m_ios_watched.on_report(static_cast<u32>(address), m_ios_report_frame);
+ #endif
+ 
+ 				if (page.prot == utils::protection::rw)
+@@ -1320,6 +1341,133 @@ namespace rsx
+ 			}
+ 		}
+ 
++		void ZCULL_control::ios_arm_watched()
++		{
++			// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): RSX thread, read_report() queued into a watched
++			// slot the report its next read is expected to wait for. The nearest query with draws decides its value
++			// (as in ios_service_read()); while that query has host queries in the open command buffer, the backend
++			// arms the boundary submission of that buffer. Nothing here writes a report, ends a query or moves
++			// m_sync_tag.
++			namespace zw = rpcs3::ios::zcull_watched;
++			auto& tally = zw::counters();
++
++			occlusion_query_info* query = nullptr;
++			u32 scanned = 0;
++			for (auto It = m_pending_writes.rbegin(); It != m_pending_writes.rend() && scanned < zw::query_scan_limit; ++It, ++scanned)
++			{
++				if (It->query && It->query->num_draws)
++				{
++					query = It->query;
++					break;
++				}
++			}
++
++			if (!query)
++			{
++				tally.no_query.fetch_add(1, std::memory_order_relaxed);
++				return;
++			}
++
++			switch (ios_arm_watched_submit(query))
++			{
++			case zw::arm_result::armed:
++				tally.armed.fetch_add(1, std::memory_order_relaxed);
++				break;
++			case zw::arm_result::joined:
++				tally.joined.fetch_add(1, std::memory_order_relaxed);
++				break;
++			case zw::arm_result::submitted:
++				tally.submitted.fetch_add(1, std::memory_order_relaxed);
++				break;
++			case zw::arm_result::capped:
++				tally.capped.fetch_add(1, std::memory_order_relaxed);
++				break;
++			case zw::arm_result::off:
++				tally.off.fetch_add(1, std::memory_order_relaxed);
++				break;
++			}
++		}
++
++		bool ZCULL_control::ios_depth_hint_allowed(::rsx::thread* ptimer, occlusion_query_info* newest)
++		{
++			// REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h): RSX thread, update() at the queue-depth limit,
++			// about to hint `newest` as upstream does. The queue drains from its oldest query with draws: while that
++			// one is on the GPU, submitting the open command buffer only splits it; while it is still in the open
++			// command buffer, nothing drains before that buffer is submitted, so the hint is sent, once for that
++			// buffer (a hint that cannot submit it, `newest` having no host query there, does not count). At or
++			// above the hard cap, or without an answer, upstream applies; once open_cb_skip_bound hints were skipped
++			// for the same open command buffer, that buffer is hinted (submitted) too.
++			// Only while the on-demand reads really run (not after a 619 trip or with accurate reservation access).
++			if (!rpcs3::ios::get_experimental_policy().zcull_depth_guard || !ios_on_demand_enabled())
++			{
++				return true;
++			}
++
++			namespace zw = rpcs3::ios::zcull_watched;
++			static_assert(zw::depth_limit == static_cast<u32>(max_safe_queue_depth) && zw::depth_hard_cap > zw::depth_limit);
++			static_assert(zw::open_cb_skip_bound == static_cast<u32>(occlusion_query_count) - static_cast<u32>(max_safe_queue_depth));
++			auto& tally = zw::counters();
++			const u32 pending = ptimer->async_tasks_pending + 0u;
++			tally.depth_checks.fetch_add(1, std::memory_order_relaxed);
++			zw::tally::raise_max(tally.depth_peak, pending);
++
++			occlusion_query_info* front = nullptr;
++			u32 scanned = 0;
++			for (auto It = m_pending_writes.begin(); It != m_pending_writes.end() && scanned < zw::query_scan_limit; ++It, ++scanned)
++			{
++				if (It->query && It->query->num_draws)
++				{
++					front = It->query;
++					break;
++				}
++			}
++
++			const u64 front_cb = (front && pending < zw::depth_hard_cap) ? ios_open_cb_serial(front) : zw::cb_unknown;
++			// The skips are counted per open command buffer, the one that holds `newest`.
++			const u64 newest_cb = ios_open_cb_serial(newest);
++			if (newest_cb != m_ios_depth_skip_cb)
++			{
++				m_ios_depth_skip_cb = newest_cb;
++				m_ios_depth_skips = 0;
++			}
++			const auto verdict = zw::decide_depth(pending, front_cb, m_ios_depth_hint_cb,
++				(newest_cb && newest_cb != zw::cb_unknown) ? m_ios_depth_skips : 0);
++
++			switch (verdict)
++			{
++			case zw::depth_verdict::hint:
++				if (ios_open_cb_serial(newest) == front_cb)
++				{
++					m_ios_depth_hint_cb = front_cb;
++				}
++				tally.depth_hints.fetch_add(1, std::memory_order_relaxed);
++				break;
++			case zw::depth_verdict::hard_cap:
++				tally.depth_hard_cap_hints.fetch_add(1, std::memory_order_relaxed);
++				break;
++			case zw::depth_verdict::unknown:
++				tally.depth_unknown.fetch_add(1, std::memory_order_relaxed);
++				break;
++			case zw::depth_verdict::front_submitted:
++				tally.depth_skip_submitted.fetch_add(1, std::memory_order_relaxed);
++				m_ios_depth_skips++;
++				// The oldest pending query is on the GPU, and every older one was retired: every query up to it is
++				// submitted, which is what a hint of it would record (on_sync_hint). Without this, the critical-age
++				// branch of update() would hint that submitted query again at each tick.
++				m_sync_tag = std::max(m_sync_tag, front->sync_tag);
++				break;
++			case zw::depth_verdict::open_cb_bound:
++				tally.depth_open_cb_bound.fetch_add(1, std::memory_order_relaxed);
++				m_ios_depth_skips = 0;
++				break;
++			case zw::depth_verdict::same_command_buffer:
++				tally.depth_skip_same_cb.fetch_add(1, std::memory_order_relaxed);
++				break;
++			}
++
++			return zw::depth_hint_sent(verdict);
++		}
++
+ 		void ZCULL_control::ios_release_stale_pages(u32 memory_address, u32 memory_range)
+ 		{
+ 			// RSX thread, after ios_retire_claimed(): the copy that follows reads these pages.
+@@ -1469,6 +1617,12 @@ namespace rsx
+ 							if (!requested)
+ 							{
+ 								tally.stale.fetch_add(1, std::memory_order_relaxed);
++
++								// REWINDBOX_ZCULL_WATCHED_FLUSH_660: a watched slot read final stays watched.
++								if (rpcs3::ios::get_experimental_policy().zcull_watched_flush)
++								{
++									m_ios_watched.refresh(address);
++								}
+ 							}
+ 
+ 							return finish(ios_fault::handled);
+@@ -1488,6 +1642,13 @@ namespace rsx
+ 							{
+ 								tally.add_lead(lead);
+ 							}
++
++							// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): this guest waits for the slot; the table
++							// learns it, or drops it, by how long before this read the slot's newest report was queued.
++							if (rpcs3::ios::get_experimental_policy().zcull_watched_flush)
++							{
++								m_ios_watched.learn(pending_slot, found->second.ios_slots.newest_age_us(pending_slot, get_system_time()));
++							}
+ 						}
+ 					}
+ 				}
+diff --git a/rpcs3/Emu/RSX/RSXZCULL.h b/rpcs3/Emu/RSX/RSXZCULL.h
+index 27bd56f..4d0b99e 100644
+--- a/rpcs3/Emu/RSX/RSXZCULL.h
++++ b/rpcs3/Emu/RSX/RSXZCULL.h
+@@ -9,6 +9,7 @@
+ #include "Utils/rsx_utils.h"
+ #ifdef RPCS3_IOS
+ #include "ios/IOSZcullOnDemand.h" // REWINDBOX_ZCULL_ON_DEMAND_619
++#include "ios/IOSZcullWatched.h" // REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660
+ #endif
+ 
+ #include <vector>
+@@ -125,6 +126,20 @@ namespace rsx
+ 			void ios_service_read(class ::rsx::thread* ptimer); // REWINDBOX_ZCULL_ASYNC_READS_630
+ 			void ios_release_stale_pages(u32 memory_address, u32 memory_range);
+ 			void ios_log_trip() const; // REWINDBOX_ZCULL_DEMAND_GUARD_621: COREPROF ZCULLTRIP621
++			// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): the report slots guests waited for
++			// (under m_pages_mutex); RSX thread: the frame of the report being queued and whether it is the
++			// one a watched slot's next read is expected to wait for.
++			rpcs3::ios::zcull_watched::watched_slots m_ios_watched;
++			u64 m_ios_report_frame = 0;
++			bool m_ios_watched_report = false;
++			void ios_arm_watched();
++			// REWINDBOX_ZCULL_DEPTH_GUARD_660: RSX thread, the command buffer serial of the last guarded
++			// queue-depth hint.
++			u64 m_ios_depth_hint_cb = 0;
++			// ... the open command buffer whose hints are being skipped, and how many were.
++			u64 m_ios_depth_skip_cb = 0;
++			u32 m_ios_depth_skips = 0;
++			bool ios_depth_hint_allowed(class ::rsx::thread* ptimer, occlusion_query_info* newest);
+ #endif
+ 
+ 		protected:
+@@ -230,6 +245,13 @@ namespace rsx
+ 			virtual bool check_occlusion_query_status(occlusion_query_info* /*query*/) { return true; }
+ 			virtual void get_occlusion_query_result(occlusion_query_info* query) { query->result = -1; }
+ 			virtual void discard_occlusion_query(occlusion_query_info* /*query*/) {}
++#ifdef RPCS3_IOS
++			// REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h): the serial
++			// of the open command buffer while `query` has host queries in it (0 once they were submitted), and
++			// the arming of that buffer's boundary submission for a watched report. The defaults keep upstream.
++			virtual u64 ios_open_cb_serial(occlusion_query_info* /*query*/) { return rpcs3::ios::zcull_watched::cb_unknown; }
++			virtual rpcs3::ios::zcull_watched::arm_result ios_arm_watched_submit(occlusion_query_info* /*query*/) { return rpcs3::ios::zcull_watched::arm_result::off; }
++#endif
+ 		};
+ 
+ 		// Helper class for conditional rendering
+diff --git a/rpcs3/Emu/RSX/VK/VKDraw.cpp b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+index 4d4a4df..7ded007 100644
+--- a/rpcs3/Emu/RSX/VK/VKDraw.cpp
++++ b/rpcs3/Emu/RSX/VK/VKDraw.cpp
+@@ -15,6 +15,7 @@
+ #include "ios/IOSRendererCausality.h"
+ #include "ios/IOSFrameTrace.h" // REWINDBOX_PIPELINE_QUEUE_621
+ #include "ios/IOSPipelineQueue.h" // REWINDBOX_PIPELINE_QUEUE_621
++#include "ios/IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
+ #endif
+ 
+ namespace vk
+@@ -422,6 +423,14 @@ void VKGSRender::load_texture_env()
+ 	};
+ 
+ 	std::lock_guard lock(m_sampler_mutex);
++#ifdef RPCS3_IOS
++	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: a global sampler refresh (frame end, blit, access violation, unmap,
++	// tile change, surface eviction) drops every texture lookup memo entry before any slot is looked up.
++	if (m_samplers_dirty && rpcs3::ios::texture_lookup_memo::consolidated())
++	{
++		rpcs3::ios::texture_lookup_memo::sampler_refresh();
++	}
++#endif
+ 
+ 	for (u32 textures_ref = current_fp_metadata.referenced_textures_mask; textures_ref; textures_ref &= textures_ref - 1)
+ 	{
+@@ -460,11 +469,21 @@ void VKGSRender::load_texture_env()
+ 		}
+ 
+ #ifdef RPCS3_IOS
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: with the lever, the sampler validation binding and the lookup under
++		// one cache lock and through the lookup memo (ios/IOSTextureLookupMemo.h); without it, the sequence below.
++		if (rpcs3::ios::texture_lookup_memo::consolidated())
++		{
++			*sampler_state = m_texture_cache.upload_sampler_texture(*m_current_command_buffer, tex, m_rtts, i,
++				rpcs3::ios::texture_lookup_memo::fragment_flags(current_fp_metadata.bx2_texture_reads_mask, i));
++		}
++		else
++		{
+ 		const auto validation_stamp = m_texture_cache.prepare_sampler_validation(i);
+ #endif
+ 		*sampler_state = m_texture_cache.upload_texture(*m_current_command_buffer, tex, m_rtts);
+ #ifdef RPCS3_IOS
+ 		m_texture_cache.finish_sampler_validation(i, *sampler_state, validation_stamp, m_rtts);
++		}
+ #endif
+ 		if (!sampler_state->validate())
+ 		{
+@@ -737,11 +756,20 @@ void VKGSRender::load_texture_env()
+ 
+ #ifdef RPCS3_IOS
+ 		const auto validation_index = rsx::limits::fragment_textures_count + i;
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: as for a fragment slot; the vertex slots follow the fragment ones.
++		if (rpcs3::ios::texture_lookup_memo::consolidated())
++		{
++			*sampler_state = m_texture_cache.upload_sampler_texture(*m_current_command_buffer, tex, m_rtts, validation_index,
++				rpcs3::ios::texture_lookup_memo::vertex_flag);
++		}
++		else
++		{
+ 		const auto validation_stamp = m_texture_cache.prepare_sampler_validation(validation_index);
+ #endif
+ 		*sampler_state = m_texture_cache.upload_texture(*m_current_command_buffer, tex, m_rtts);
+ #ifdef RPCS3_IOS
+ 		m_texture_cache.finish_sampler_validation(validation_index, *sampler_state, validation_stamp, m_rtts);
++		}
+ #endif
+ 		if (!sampler_state->validate())
+ 		{
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.cpp b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+index 3c4b807..5f91d29 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.cpp
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.cpp
+@@ -2635,6 +2635,14 @@ void VKGSRender::close_and_submit_command_buffer(vk::fence* pFence, VkSemaphore
+ 		m_ios_early_armed_draws = 0;
+ 		rpcs3::ios::early_submit::disarmed.fetch_add(1, std::memory_order_relaxed);
+ 	}
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660: ... and with them a watched report's (ios/IOSZcullWatched.h).
++	if (m_ios_early_armed_watched)
++	{
++		m_ios_early_armed_watched = false;
++		rpcs3::ios::zcull_watched::counters().carried.fetch_add(1, std::memory_order_relaxed);
++	}
++	// REWINDBOX_ZCULL_DEPTH_GUARD_660: the next primary command buffer.
++	m_ios_cb_serial++;
+ #endif
+ 
+ 	m_queue_status.clear(flush_queue_state::flushing);
+@@ -2885,6 +2893,11 @@ void VKGSRender::ios_early_submit()
+ 		return;
+ 	case early::deferral::fallback:
+ 		early::fallback_submits.fetch_add(1, std::memory_order_relaxed);
++		if (m_ios_early_armed_watched) // REWINDBOX_ZCULL_WATCHED_FLUSH_660
++		{
++			m_ios_watched_budget.consume();
++			rpcs3::ios::zcull_watched::counters().fallback.fetch_add(1, std::memory_order_relaxed);
++		}
+ 		ios_take_early_submit();
+ 		return;
+ 	case early::deferral::none:
+@@ -2927,6 +2940,7 @@ void VKGSRender::ios_take_early_submit()
+ 	namespace early = rpcs3::ios::early_submit;
+ 	const u32 draws = m_ios_draws_since_submit;
+ 	m_ios_early_armed_draws = 0;
++	m_ios_early_armed_watched = false; // REWINDBOX_ZCULL_WATCHED_FLUSH_660: counted by the caller
+ 	flush_command_queue();
+ 	m_ios_early_submits_this_frame++;
+ 	early::submits.fetch_add(1, std::memory_order_relaxed);
+@@ -2961,8 +2975,61 @@ void VKGSRender::ios_early_submit_at_boundary(bool after_textures)
+ 	}
+ 
+ 	(after_textures ? early::boundary_textures : early::boundary_starts).fetch_add(1, std::memory_order_relaxed);
++	if (m_ios_early_armed_watched) // REWINDBOX_ZCULL_WATCHED_FLUSH_660
++	{
++		m_ios_watched_budget.consume();
++		auto& watched = rpcs3::ios::zcull_watched::counters();
++		(after_textures ? watched.taken_textures : watched.taken_start).fetch_add(1, std::memory_order_relaxed);
++	}
+ 	ios_take_early_submit();
+ }
++
++// REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h): the serial of the open command buffer while the
++// query has host queries in it, under the condition on which a zcull_sync hint for it submits that buffer
++// (sync_hint()); 0 otherwise (submitted, or nothing a hint would submit).
++u64 VKGSRender::ios_open_cb_serial(rsx::reports::occlusion_query_info* query)
++{
++	const auto& data = m_occlusion_map[query->driver_handle];
++	return ((m_current_command_buffer->flags & vk::command_buffer::cb_has_occlusion_task) && data.is_current(m_current_command_buffer) &&
++		!data.indices.empty()) ? m_ios_cb_serial : 0;
++}
++
++// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): RSX thread, read_report() queued into a watched slot
++// the report its next read is expected to wait for, and `query` decides its value. While that query is in the open
++// command buffer, the boundary submission of 659 is armed for this buffer: taken at the next draw start or after
++// the next draw's textures with no render pass open (ios_early_submit_at_boundary), at the end of a draw after
++// max_deferred_draws more draws (ios_early_submit), or carried by any other primary submission. The GPU-idle test
++// of 561 does not apply; its cap of early submissions per frame does, and so does the frame's budget of watched
++// submissions (a carried arm costs nothing and is not counted). Arming records nothing in the command buffer.
++rpcs3::ios::zcull_watched::arm_result VKGSRender::ios_arm_watched_submit(rsx::reports::occlusion_query_info* query)
++{
++	namespace early = rpcs3::ios::early_submit;
++	namespace watched = rpcs3::ios::zcull_watched;
++	if (!early::enabled.load(std::memory_order_relaxed) || !early::at_pass_boundary.load(std::memory_order_relaxed))
++	{
++		return watched::arm_result::off;
++	}
++
++	if (!ios_open_cb_serial(query))
++	{
++		return watched::arm_result::submitted;
++	}
++
++	if (m_ios_early_armed_draws)
++	{
++		return watched::arm_result::joined;
++	}
++
++	if (m_ios_early_submits_this_frame >= early::max_per_frame || !m_ios_watched_budget.available(int_flip_index))
++	{
++		return watched::arm_result::capped;
++	}
++
++	m_ios_early_armed_draws = 1;
++	m_ios_early_armed_watched = true;
++	early::armed.fetch_add(1, std::memory_order_relaxed);
++	return watched::arm_result::armed;
++}
+ #endif
+ 
+ void VKGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
+diff --git a/rpcs3/Emu/RSX/VK/VKGSRender.h b/rpcs3/Emu/RSX/VK/VKGSRender.h
+index 6a021fd..3e149a2 100644
+--- a/rpcs3/Emu/RSX/VK/VKGSRender.h
++++ b/rpcs3/Emu/RSX/VK/VKGSRender.h
+@@ -204,6 +204,12 @@ private:
+ 	// REWINDBOX_EARLY_SUBMIT_BOUNDARY_659: draws ended since an early submission
+ 	// was armed at an open render pass (0: none armed).
+ 	u32 m_ios_early_armed_draws = 0;
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): the armed submission is a watched
++	// ZCULL report's, and the watched submissions taken this frame; REWINDBOX_ZCULL_DEPTH_GUARD_660:
++	// the serial of the open primary command buffer (one more at every primary submission).
++	bool m_ios_early_armed_watched = false;
++	rpcs3::ios::zcull_watched::frame_budget m_ios_watched_budget;
++	u64 m_ios_cb_serial = 1;
+ 	// CELL587_MVK_ENCODE_BARRIER: the marker ticket of the last queued present
+ 	// (ios/IOSMoltenVKExec.h); 0 with synchronous MoltenVK submits.
+ 	u64 m_ios_last_present_ticket = 0;
+@@ -305,6 +311,11 @@ public:
+ 	bool check_occlusion_query_status(rsx::reports::occlusion_query_info* query) override;
+ 	void get_occlusion_query_result(rsx::reports::occlusion_query_info* query) override;
+ 	void discard_occlusion_query(rsx::reports::occlusion_query_info* query) override;
++#ifdef RPCS3_IOS
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h)
++	u64 ios_open_cb_serial(rsx::reports::occlusion_query_info* query) override;
++	rpcs3::ios::zcull_watched::arm_result ios_arm_watched_submit(rsx::reports::occlusion_query_info* query) override;
++#endif
+ 
+ 	// External callback in case we need to suddenly submit a commandlist unexpectedly, e.g in a violation handler
+ 	void emergency_query_cleanup(vk::command_buffer* commands);
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+index 7a0b6ac..bc4a269 100644
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.cpp
+@@ -118,6 +118,14 @@ namespace vk
+ 		const auto transfer_width = static_cast<u32>(src_area.width());
+ 		const auto transfer_height = static_cast<u32>(src_area.height());
+ 		real_pitch = internal_bpp * transfer_width;
++#ifdef RPCS3_IOS
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: rsx_pitch is read by pitch_compatible() on the exact lookup paths.
++		// Its only caller (copy_texture) passes rsx_pitch itself, so this never bumps today.
++		if (pitch != rsx_pitch)
++		{
++			ios_memo_changed();
++		}
++#endif
+ 		rsx_pitch = pitch;
+ 
+ 		const bool require_format_conversion = !!(src->aspect() & VK_IMAGE_ASPECT_STENCIL_BIT) || src->format() == VK_FORMAT_D32_SFLOAT;
+@@ -1580,6 +1588,9 @@ namespace vk
+ 		auto image = static_cast<vk::viewable_image*>(section.get_raw_texture());
+ 
+ 		ensure(image);
++#ifdef RPCS3_IOS
++		section.ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the section's views are disposed
++#endif
+ 		image->set_native_component_layout(mapping);
+ 
+ 		section.set_view_flags(expected_flags);
+diff --git a/rpcs3/Emu/RSX/VK/VKTextureCache.h b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+index efb2ab3..43abdea 100644
+--- a/rpcs3/Emu/RSX/VK/VKTextureCache.h
++++ b/rpcs3/Emu/RSX/VK/VKTextureCache.h
+@@ -49,6 +49,11 @@ namespace vk
+ 
+ 		void create(u16 w, u16 h, u16 depth, u16 mipmaps, vk::image* image, u32 rsx_pitch, bool managed, u32 gcm_format, bool pack_swap_bytes = false)
+ 		{
++#ifdef RPCS3_IOS
++			// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: image, dimensions, pitch, format and swizzle are written
++			// directly below; on_section_resources_created() can return early for a re-created section.
++			ios_memo_changed();
++#endif
+ 			auto new_texture = static_cast<vk::viewable_image*>(image);
+ 			ensure(!exists() || !is_managed() || vram_texture == new_texture);
+ 
+@@ -149,6 +154,9 @@ namespace vk
+ 		{
+ 			if (!exists() && context != rsx::texture_upload_context::dma)
+ 				return;
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: the image and its views go
++#endif
+ 
+ 			m_tex_cache->on_section_destroyed(*this);
+ 
+@@ -394,6 +402,9 @@ namespace vk
+ 		void set_rsx_pitch(u32 pitch)
+ 		{
+ 			ensure(!is_locked());
++#ifdef RPCS3_IOS
++			ios_memo_changed(); // REWINDBOX_TEXTURE_LOOKUP_MEMO_660: read by pitch_compatible()
++#endif
+ 			rsx_pitch = pitch;
+ 		}
+ 
+diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
+index 457ec53..f235479 100644
+--- a/rpcs3/Emu/System.cpp
++++ b/rpcs3/Emu/System.cpp
+@@ -2154,6 +2154,10 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 					ios_add_lever(ios_levers.spirv_disk_cache, ios_lever_settings.spirv_disk_cache);
+ 					ios_add_lever(ios_levers.hardware_crypto, ios_lever_settings.hardware_crypto);
+ 					ios_add_lever(ios_levers.spu_object_prefetch, ios_lever_settings.spu_object_prefetch);
++					// Core 660: digits 14 to 16 of levers627=.
++					ios_add_lever(ios_levers.spu_direct_object_hits, ios_lever_settings.spu_direct_object_hits);
++					ios_add_lever(ios_levers.texture_lookup_memo, ios_lever_settings.texture_lookup_memo);
++					ios_add_lever(ios_levers.zcull_depth_guard, ios_lever_settings.zcull_depth_guard);
+ 					ios_rsx.levers627 = ios_levers627;
+ 					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
+ 					ios_rsx.overrides = ios_override_keys;
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index c589f48..624ca3e 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -187,6 +187,9 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> zcull_conservative_reports{ this, "ZCULL Conservative Reports", ios_experimental_mode::automatic };
+ 		// REWINDBOX_ZCULL_ASYNC_READS_630: Automatic is the titles of the ZCULL on-demand lever.
+ 		cfg::_enum<ios_experimental_mode> zcull_async_reads{ this, "ZCULL Asynchronous Reads", ios_experimental_mode::automatic };
++		// REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h): Automatic is Assassin's Creed and Black Ops II;
++		// needs ZCULL On-Demand Reads.
++		cfg::_enum<ios_experimental_mode> zcull_depth_guard{ this, "ZCULL Queue-Depth Guard", ios_experimental_mode::automatic };
+ 		// REWINDBOX_FAST_JIT_LOAD_634, REWINDBOX_JIT_OBJECT_RELEASE_634 (ios/IOSJitLoad.h): Automatic is every title.
+ 		cfg::_enum<ios_experimental_mode> fast_jit_load{ this, "Fast JIT Load", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> jit_object_release{ this, "JIT Object Release", ios_experimental_mode::automatic };
+@@ -198,12 +201,18 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> spu_object_prefetch{ this, "SPU Object Prefetch", ios_experimental_mode::automatic };
+ 		// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): Automatic is Black Ops II and God of War III.
+ 		cfg::_enum<ios_experimental_mode> spu_noop_spin_wait{ this, "SPU No-op Spin Wait", ios_experimental_mode::automatic };
++		// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h): Automatic is every title; Disabled
++		// builds the IR of every SPU object-cache hit again.
++		cfg::_enum<ios_experimental_mode> spu_direct_object_hits{ this, "SPU Direct Object Hits", ios_experimental_mode::automatic };
+ 		// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): Automatic is God of War III, Assassin's Creed and Black Ops II.
+ 		cfg::_enum<ios_experimental_mode> spu_qos_below_rsx{ this, "SPU QoS Below RSX And PPU", ios_experimental_mode::automatic };
+ 		// REWINDBOX_FIFO_NOP_FAST_627 (RSXFIFO.cpp): Automatic is Black Ops II and God of War III.
+ 		cfg::_enum<ios_experimental_mode> fifo_nop_fast_path{ this, "RSX FIFO NOP Fast Path", ios_experimental_mode::automatic };
+ 		// REWINDBOX_LIGHT_MEASUREMENT_627: Automatic is off; Enabled leaves only the COREPROF synthesis line.
+ 		cfg::_enum<ios_experimental_mode> light_measurement{ this, "Light Measurement Profile", ios_experimental_mode::automatic };
++		// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): Automatic serves hits for Assassin's Creed and
++		// verifies every hit for Black Ops II; needs Texture Validation Per FIFO Batch.
++		cfg::_enum<ios_experimental_mode> texture_lookup_memo{ this, "Texture Lookup Memo", ios_experimental_mode::automatic };
+ 
+ 		// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers L2, L5, L9; L3 is the
+ 		// Bounded sleep value of fifo_idle_mode above). Defaults keep the Build
+diff --git a/rpcs3/ios/IOSSpuObjectBindings.h b/rpcs3/ios/IOSSpuObjectBindings.h
+new file mode 100644
+index 0000000..e2ccd63
+--- /dev/null
++++ b/rpcs3/ios/IOSSpuObjectBindings.h
+@@ -0,0 +1,355 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <algorithm>
++#include <array>
++#include <atomic>
++#include <charconv>
++#include <cstddef>
++#include <cstdint>
++#include <span>
++#include <string_view>
++#include <system_error>
++#include <vector>
++
++// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: Black Ops II links 8,700-8,800 SPU blocks at the first
++// transition of each boot, every one of them a hit of the persistent object cache (IPA 657,
++// Core 655, session 2 window 5: 8,793 blocks). A hit still builds the whole IR of the block,
++// only to name the symbols the cached object needs, then throws it away: about 0.19 ms of
++// spu_build per block next to 0.18 ms of object load.
++//
++// The object itself already names what it needs. Its undefined symbols are exactly the names
++// the IR declared and mapped on the engine:
++// - the helper of every call("name", function, ...) of the block translator (CPUTranslator.h
++//   call() maps the literal name to that function), plus spu_dispatcher, spu_timebase_offs and
++//   spu_segment_base, each mapped by one line of SPULLVMRecompiler.cpp;
++// - "<module name>-pp-<N>", one fresh branch patchpoint (make_branch_patchpoint(), data 0) each.
++// A hit whose undefined symbols are all of these links the object directly: the bindings are the
++// same expressions the IR path maps under the same names, the patchpoints are fresh stubs of the
++// same kind. Anything else (a name the table does not know, libm, memcpy, outline atomics, an
++// absolute global, a duplicate, a malformed or out-of-bound patchpoint, a second definition, a
++// missing entry, a failed copy of the object) leaves the object to the IR path of the same
++// compile() call, exactly as before.
++//
++// Name resolution is MCJIT's and the same on both paths (LLVM 18 and 20, checked on the host): an
++// undefined name of an object being loaded resolves first from RuntimeDyld's own table, which holds
++// every named definition of the objects already loaded in this engine, local and internal ones
++// included; then from the engine's resolver (the global map, where the bindings are, then that
++// table); last from the memory manager (MemoryManager1/2::findSymbol in Utilities/JITLLVM.cpp:
++// process symbols, then make_null_function()). The global map does not come first: a binding
++// decides a name only because no object of this engine defines that name. None does: a block
++// object defines its entry (its only global) and the locals spu_test_state, __spu-null,
++// __spu-cx*, __spu-fx*, __unnamed_N and the $x/$d mapping symbols; the LLVM interpreter object
++// defines spu_interpreter, spu_<MNEMONIC>[_<hex>], spu_ret and __unnamed_N. No table name and no
++// "<hash>-pp-<N>" name is among them, and the host audit (spu_direct_hit660_test.py) fails if one
++// of these names gets a body, an initializer or an internal or private linkage anywhere in
++// SPULLVMRecompiler.cpp or CPUTranslator.h. The IR hit path links the same object under the same
++// names in the same engine, with exactly this precedence too.
++//
++// This header only classifies a symbol list against a table of names. It has no LLVM or RPCS3
++// dependency so that the host test compiles it as it is.
++namespace rpcs3::ios::spu_direct_hit
++{
++inline std::atomic<bool> enabled{false}; // experimental.spu_direct_object_hits
++
++enum class reason : std::uint32_t
++{
++	accepted,
++	object_unreadable,    // the object does not parse or is not for this engine's architecture
++	symbol_unreadable,    // a symbol name or flags could not be read
++	symbol_bound,         // more symbols than max_symbols
++	absolute_global,      // a global absolute symbol (same rule as JITMinimalObject.h)
++	unknown_symbol,       // an undefined name that is neither a table name nor a patchpoint of this module
++	duplicate_symbol,     // an undefined name listed twice
++	malformed_patchpoint, // "<entry>-pp-" followed by anything but the regenerated decimal number
++	patchpoint_bound,     // a patchpoint number or count above the bounds
++	foreign_definition,   // a defined global symbol that is not the entry
++	missing_entry,        // the entry is not defined
++	duplicate_entry,      // the entry is defined twice
++	null_binding,         // a table expression evaluated to 0 in this process
++	copy_failed,          // the copy of the object handed to MCJIT could not be allocated
++	add_rejected,         // jit_minimal_object::add refused the object before loading it
++	count
++};
++
++inline constexpr std::size_t reason_count = static_cast<std::size_t>(reason::count);
++
++inline constexpr std::array<std::string_view, reason_count> reason_names{
++	"accepted", "object_unreadable", "symbol_unreadable", "symbol_bound", "absolute_global", "unknown_symbol",
++	"duplicate_symbol", "malformed_patchpoint", "patchpoint_bound", "foreign_definition", "missing_entry",
++	"duplicate_entry", "null_binding", "copy_failed", "add_rejected"};
++static_assert(!reason_names[reason_count - 1].empty(), "one name per reason");
++
++struct symbol
++{
++	std::string_view name;
++	bool readable = true;   // name and flags could be read
++	bool undefined = false; // SF_Undefined
++	bool absolute = false;  // SF_Absolute
++	bool global = false;    // SF_Global
++};
++
++struct plan
++{
++	reason result = reason::accepted;
++	std::vector<std::uint32_t> named;       // indices into the binding table, ascending, each once
++	std::vector<std::uint32_t> patchpoints; // patchpoint numbers, ascending, each once
++	std::string_view offending;             // the symbol that decided a rejection (a view of the input: copy it)
++};
++
++inline constexpr std::size_t max_symbols = 65536;
++inline constexpr std::uint32_t max_patchpoint = (1u << 20) - 1;
++
++// The direct path never allocates more stubs than this for one block. The IR path allocates one per
++// tail_chunk(nullptr) of each emitted chunk; an object above the bound keeps the IR path.
++constexpr std::size_t patchpoint_limit(std::size_t guest_words) noexcept
++{
++	return std::min<std::size_t>(guest_words * 16 + 64, std::size_t{max_patchpoint} + 1);
++}
++
++// name == entry + "-pp-" + decimal(id) exactly, the way fmt::format("%s-pp-%u", m_hash, id) wrote it:
++// no sign, no leading zero, no suffix, a value that fits 32 bits.
++constexpr bool parse_patchpoint(std::string_view entry, std::string_view name, std::uint32_t& id) noexcept
++{
++	constexpr std::string_view infix = "-pp-";
++	if (name.size() <= entry.size() + infix.size() || name.substr(0, entry.size()) != entry ||
++		name.substr(entry.size(), infix.size()) != infix)
++	{
++		return false;
++	}
++
++	const std::string_view digits = name.substr(entry.size() + infix.size());
++	std::uint32_t value = 0;
++	const auto [end, error] = std::from_chars(digits.data(), digits.data() + digits.size(), value, 10);
++	if (error != std::errc() || end != digits.data() + digits.size())
++	{
++		return false;
++	}
++
++	char regenerated[16]{};
++	const auto [last, error2] = std::to_chars(regenerated, regenerated + sizeof(regenerated), value, 10);
++	if (error2 != std::errc() || std::string_view(regenerated, static_cast<std::size_t>(last - regenerated)) != digits)
++	{
++		return false;
++	}
++
++	id = value;
++	return true;
++}
++
++constexpr bool is_patchpoint_name(std::string_view entry, std::string_view name) noexcept
++{
++	constexpr std::string_view infix = "-pp-";
++	return name.size() >= entry.size() + infix.size() && name.substr(0, entry.size()) == entry &&
++		name.substr(entry.size(), infix.size()) == infix;
++}
++
++// Every undefined, named symbol must be a table name or a patchpoint of `entry`; the entry must be the
++// only defined global symbol, defined once. Undefined symbols without a name are ignored, as
++// JITMinimalObject.h ignores them.
++inline plan classify(std::string_view entry, std::span<const symbol> symbols, std::span<const std::string_view> table,
++	std::size_t max_patchpoints)
++{
++	plan result;
++	const auto reject = [&](reason why, std::string_view name)
++	{
++		result.result = why;
++		result.offending = name;
++		result.named.clear();
++		result.patchpoints.clear();
++		return result;
++	};
++
++	if (entry.empty() || symbols.size() > max_symbols)
++	{
++		return reject(entry.empty() ? reason::missing_entry : reason::symbol_bound, {});
++	}
++
++	std::size_t entries = 0;
++	std::vector<bool> seen(table.size(), false);
++
++	for (const symbol& sym : symbols)
++	{
++		if (!sym.readable)
++		{
++			return reject(reason::symbol_unreadable, sym.name);
++		}
++
++		if (sym.absolute && sym.global)
++		{
++			return reject(reason::absolute_global, sym.name);
++		}
++
++		if (!sym.undefined)
++		{
++			if (sym.name == entry)
++			{
++				// MCJIT finds the entry by name among the global symbols of the loaded objects.
++				if (!sym.global)
++				{
++					return reject(reason::missing_entry, sym.name);
++				}
++
++				if (++entries > 1)
++				{
++					return reject(reason::duplicate_entry, sym.name);
++				}
++			}
++			else if (sym.global)
++			{
++				return reject(reason::foreign_definition, sym.name);
++			}
++
++			continue;
++		}
++
++		if (sym.name.empty())
++		{
++			continue;
++		}
++
++		const auto found = std::find(table.begin(), table.end(), sym.name);
++		if (found != table.end())
++		{
++			const auto index = static_cast<std::size_t>(found - table.begin());
++			if (seen[index])
++			{
++				return reject(reason::duplicate_symbol, sym.name);
++			}
++
++			seen[index] = true;
++			continue;
++		}
++
++		if (!is_patchpoint_name(entry, sym.name))
++		{
++			return reject(reason::unknown_symbol, sym.name);
++		}
++
++		std::uint32_t id = 0;
++		if (!parse_patchpoint(entry, sym.name, id))
++		{
++			return reject(reason::malformed_patchpoint, sym.name);
++		}
++
++		if (id > max_patchpoint || result.patchpoints.size() >= max_patchpoints)
++		{
++			return reject(reason::patchpoint_bound, sym.name);
++		}
++
++		result.patchpoints.push_back(id);
++	}
++
++	if (!entries)
++	{
++		return reject(reason::missing_entry, entry);
++	}
++
++	std::sort(result.patchpoints.begin(), result.patchpoints.end());
++	if (std::adjacent_find(result.patchpoints.begin(), result.patchpoints.end()) != result.patchpoints.end())
++	{
++		return reject(reason::duplicate_symbol, {});
++	}
++
++	for (std::size_t index = 0; index < seen.size(); ++index)
++	{
++		if (seen[index])
++		{
++			result.named.push_back(static_cast<std::uint32_t>(index));
++		}
++	}
++
++	return result;
++}
++
++// The fallback notice of compile() ("SPUDIRECT660 fallback <reason>: <symbol> (<module>)"): the first 8
++// hits of each reason in this process, then every 256th, as should_emit_spu_compile_diagnostic() in
++// SPULLVMRecompiler.cpp limits its diagnostics. An accepted hit formats nothing.
++inline bool should_log_fallback(reason why) noexcept
++{
++	static std::array<std::atomic<std::uint64_t>, reason_count> seen{};
++	const auto index = static_cast<std::size_t>(why);
++	if (why == reason::accepted || index >= reason_count)
++	{
++		return false;
++	}
++
++	const std::uint64_t current = seen[index].fetch_add(1, std::memory_order_relaxed) + 1;
++	return current <= 8 || (current % 256) == 0;
++}
++
++// Per-window counters for COREPROF SPUDIRECT660 (rpcs3/ios/RPCS3IOSPerformance.cpp). Ticks are TSC ticks.
++struct window_counters
++{
++	std::uint64_t direct = 0, direct_bytes = 0;     // blocks linked directly, their object bytes
++	std::uint64_t direct_ticks = 0, direct_max_ticks = 0; // compile() start to the published entry
++	std::uint64_t classify_ticks = 0;               // object parse, classification and bindings
++	std::uint64_t link_ticks = 0;                   // add + finalize of the object
++	std::uint64_t bindings = 0, patchpoints = 0;    // table bindings and patchpoint stubs of those blocks
++	std::uint64_t failures = 0;                     // link/finalize/entry failures, handled as on the IR path
++	std::array<std::uint64_t, reason_count> fallbacks{}; // hits left to the IR path, by reason
++};
++
++class counters
++{
++	std::atomic<std::uint64_t> m_direct{0}, m_direct_bytes{0}, m_direct_ticks{0}, m_direct_max_ticks{0};
++	std::atomic<std::uint64_t> m_classify_ticks{0}, m_link_ticks{0}, m_bindings{0}, m_patchpoints{0}, m_failures{0};
++	std::array<std::atomic<std::uint64_t>, reason_count> m_fallbacks{};
++
++public:
++	void record_direct(std::uint64_t bytes, std::uint64_t ticks, std::uint64_t classify_ticks, std::uint64_t link_ticks,
++		std::uint64_t bindings, std::uint64_t patchpoints) noexcept
++	{
++		m_direct.fetch_add(1, std::memory_order_relaxed);
++		m_direct_bytes.fetch_add(bytes, std::memory_order_relaxed);
++		m_direct_ticks.fetch_add(ticks, std::memory_order_relaxed);
++		m_classify_ticks.fetch_add(classify_ticks, std::memory_order_relaxed);
++		m_link_ticks.fetch_add(link_ticks, std::memory_order_relaxed);
++		m_bindings.fetch_add(bindings, std::memory_order_relaxed);
++		m_patchpoints.fetch_add(patchpoints, std::memory_order_relaxed);
++		std::uint64_t seen = m_direct_max_ticks.load(std::memory_order_relaxed);
++		while (ticks > seen && !m_direct_max_ticks.compare_exchange_weak(seen, ticks, std::memory_order_relaxed))
++		{
++		}
++	}
++
++	void record_fallback(reason why) noexcept
++	{
++		const auto index = static_cast<std::size_t>(why);
++		if (index < reason_count)
++		{
++			m_fallbacks[index].fetch_add(1, std::memory_order_relaxed);
++		}
++	}
++
++	void record_failure() noexcept
++	{
++		m_failures.fetch_add(1, std::memory_order_relaxed);
++	}
++
++	window_counters take_window() noexcept
++	{
++		window_counters result;
++		result.direct = m_direct.exchange(0, std::memory_order_relaxed);
++		result.direct_bytes = m_direct_bytes.exchange(0, std::memory_order_relaxed);
++		result.direct_ticks = m_direct_ticks.exchange(0, std::memory_order_relaxed);
++		result.direct_max_ticks = m_direct_max_ticks.exchange(0, std::memory_order_relaxed);
++		result.classify_ticks = m_classify_ticks.exchange(0, std::memory_order_relaxed);
++		result.link_ticks = m_link_ticks.exchange(0, std::memory_order_relaxed);
++		result.bindings = m_bindings.exchange(0, std::memory_order_relaxed);
++		result.patchpoints = m_patchpoints.exchange(0, std::memory_order_relaxed);
++		result.failures = m_failures.exchange(0, std::memory_order_relaxed);
++		for (std::size_t index = 0; index < reason_count; ++index)
++		{
++			result.fallbacks[index] = m_fallbacks[index].exchange(0, std::memory_order_relaxed);
++		}
++		return result;
++	}
++};
++
++inline counters& stats() noexcept
++{
++	static counters instance;
++	return instance;
++}
++}
+diff --git a/rpcs3/ios/IOSTextureLookupMemo.h b/rpcs3/ios/IOSTextureLookupMemo.h
+new file mode 100644
+index 0000000..20660f4
+--- /dev/null
++++ b/rpcs3/ios/IOSTextureLookupMemo.h
+@@ -0,0 +1,467 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include "IOSTextureValidationProfile.h"
++
++#include <array>
++#include <atomic>
++#include <cstddef>
++#include <cstdint>
++#include <cstring>
++#include <type_traits>
++
++// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: per sampler slot, the last results of an exact texture lookup
++// (texture_cache::upload_texture), reused for an identical lookup in the same validation epoch.
++//
++// IPA 657 (Core 655, PID 10471), Assassin's Creed window 1:42: 904 lookups per frame for 1,515 draws
++// (TEXCACHE621 upload_calls 106,705 over 118 frames), 61 % of them confirmed without hashing because
++// the section had already been validated in the same epoch (OPT559 epoch_skips 64,999), and 5.03 ms
++// of texture stage per sampled frame (RSXFRAME551). A slot is looked up again whenever one of its
++// registers is rewritten (A/B/A alternation, a filter or LOD change), even when the texture is the same.
++//
++// The key is everything the lookup reads from the texture unit: the six raw words of OFFSET, FORMAT,
++// ADDRESS, CONTROL1, IMAGE_RECT and CONTROL3 (rsx::fragment_texture::lookup_words(); a vertex texture
++// has no CONTROL1), the address they resolve to now (IO mappings can change under the same words), and
++// whether the slot is a vertex slot or a BX2 read of the fragment program. The value is the descriptor
++// upload_texture returned, before VKDraw.cpp derives the format, view override and sampler from it (that
++// code still runs on every hit); the validation stamp and binding are set again by every hit.
++//
++// An entry is used only while nothing the exact lookup reads can have changed:
++// - the validation epoch (a lookup repeated in the same epoch never hashes: buffered_section::sync) and
++//   sampler_revision (every advance_epoch: PUT, semaphores, RSX writes, frame end);
++// - a scoped RSX write over the entry's section range (CELL573: revalidate_overlapping drops it through
++//   the memo's own sampler bindings, as it does for the slot bindings);
++// - the section-state generations below, bumped under the cache lock by every change of a section, of
++//   its block or of its image views that the lookup reads (create, reset, destroy, protection, dirty,
++//   context, format, dimensions, pitch, swizzle, view flags, ranges, block size, component order):
++//   local for an uncompressed entry, all for a compressed one (find_texture_from_dimensions does not
++//   filter contexts);
++// - the sampler context generation, bumped by a global sampler refresh (m_samplers_dirty);
++// - for an uncompressed entry, no render target bound at the address, checked at every use (the only
++//   surface store input of an exact local lookup; the write tag is stamped again on every hit).
++// Only direct shader_read views of a section are stored: no render target, no deferred or gathered
++// descriptor, no cyclic reference, nothing created or changed by the lookup that produced it.
++//
++// Self-verification: the first reuse of each (slot, key) of a boot, the first 256 hits of a boot, then
++// one hit in 64 (every hit in verify_all mode) run the full lookup under the same lock and use its
++// result; a difference in the descriptor, the view or the sampler inputs, or a section change during
++// that lookup, is counted, logged once with the slot and key, and turns the memo off for the rest of
++// the boot. This is a spot check, not a bound: one hit clock is shared by all slots, so a stale path
++// that occurs rarely may never be sampled. Correctness rests on the invalidation census above (checked
++// by test/rpcs3_texture_lookup_memo660_test.py); the verification catches what the census would miss
++// systematically, for every texture of the boot at least once.
++namespace rpcs3::ios::texture_lookup_memo
++{
++enum class mode : std::uint32_t
++{
++	off = 0,        // The Core 659 lookup: prepare, upload_texture and finish, three cache locks.
++	active = 1,     // One cache lock per lookup; hits served, sampled verification.
++	verify_all = 2, // One cache lock per lookup; every hit runs the full lookup (counters only).
++};
++
++constexpr std::size_t ways = 4;
++constexpr std::uint64_t verify_first = 256;
++constexpr std::uint64_t verify_period = 64;
++
++constexpr std::uint32_t vertex_flag = 1u;
++constexpr std::uint32_t bx2_flag = 2u;
++
++inline std::atomic<std::uint32_t> boot_mode{0};
++// Set by the first verified difference: no hit for the rest of the boot.
++inline std::atomic<bool> disabled{false};
++inline std::atomic<bool> mismatch_logged{false};
++// Hits of this boot, the sampling clock of the verification.
++inline std::atomic<std::uint64_t> boot_hits{0};
++// The first reuse of each (slot, key) is verified. Always true in the Core; the host test turns it off only to
++// exercise served hits directly (test/rpcs3_texture_lookup_memo660_test.py, mode active_served).
++inline std::atomic<bool> verify_first_reuse{true};
++
++// Section-state generations (see above). Bumped on every title: one atomic increment per change.
++inline std::atomic<std::uint64_t> local_generation{1}, all_generation{1}, context_generation{1};
++
++struct counters_t
++{
++	std::atomic<std::uint64_t> lookups{0}, hits{0}, verified{0}, mismatches{0}, stores{0};
++	std::atomic<std::uint64_t> miss_empty{0}, miss_epoch{0}, miss_revision{0}, miss_range{0}, miss_context{0},
++		miss_section{0}, miss_bound{0}, miss_disabled{0};
++	std::atomic<std::uint64_t> unstored_kind{0}, unstored_changed{0}, unstored_bound{0};
++	std::atomic<std::uint64_t> locks_avoided{0}, cpu_uploads{0};
++	// First reuses of a (slot, key) verified; reuses not checked that way because the key table was full.
++	std::atomic<std::uint64_t> first_reuses{0}, seen_full{0};
++	std::atomic<std::uint64_t> hit_ticks{0}, lookup_ticks{0};
++};
++inline counters_t counters;
++
++inline void count(std::atomic<std::uint64_t>& counter, std::uint64_t value = 1) noexcept
++{
++	counter.fetch_add(value, std::memory_order_relaxed);
++}
++
++inline std::uint64_t take(std::atomic<std::uint64_t>& counter) noexcept
++{
++	return counter.exchange(0, std::memory_order_relaxed);
++}
++
++inline mode current_mode() noexcept
++{
++	return static_cast<mode>(boot_mode.load(std::memory_order_relaxed));
++}
++
++// The lookups of load_texture_env take the one-lock path (with or without hits).
++inline bool consolidated() noexcept
++{
++	return current_mode() != mode::off;
++}
++
++// Boot policy (resolve_experimental_policy), after the texture epoch was set and before the RSX
++// thread starts. New generations: no entry survives a boot or a change of epoch_enabled.
++inline void configure(mode value) noexcept
++{
++	boot_mode.store(static_cast<std::uint32_t>(value), std::memory_order_relaxed);
++	disabled.store(false, std::memory_order_relaxed);
++	mismatch_logged.store(false, std::memory_order_relaxed);
++	boot_hits.store(0, std::memory_order_relaxed);
++	local_generation.fetch_add(1, std::memory_order_acq_rel);
++	all_generation.fetch_add(1, std::memory_order_acq_rel);
++	context_generation.fetch_add(1, std::memory_order_acq_rel);
++}
++
++// A section change the exact lookup can observe. framebuffer_only: the section's context is
++// framebuffer_storage before and after the change (no uncompressed lookup visits it).
++inline void section_changed(bool framebuffer_only) noexcept
++{
++	all_generation.fetch_add(1, std::memory_order_acq_rel);
++	if (!framebuffer_only)
++	{
++		local_generation.fetch_add(1, std::memory_order_acq_rel);
++	}
++}
++
++// A global sampler refresh (VKGSRender::m_samplers_dirty) drops every entry.
++inline void sampler_refresh() noexcept
++{
++	context_generation.fetch_add(1, std::memory_order_acq_rel);
++}
++
++constexpr bool should_verify(mode value, std::uint64_t hit) noexcept
++{
++	return value == mode::verify_all || hit < verify_first || (hit - verify_first) % verify_period == 0;
++}
++
++constexpr std::uint32_t fragment_flags(std::uint32_t bx2_mask, std::uint32_t slot) noexcept
++{
++	return ((bx2_mask >> slot) & 1u) ? bx2_flag : 0u;
++}
++
++struct key
++{
++	std::uint32_t address = 0;            // rsx::get_address(offset, location), resolved at every use
++	std::array<std::uint32_t, 6> words{}; // OFFSET FORMAT ADDRESS CONTROL1 IMAGE_RECT CONTROL3
++	std::uint32_t flags = 0;              // vertex_flag, bx2_flag
++
++	bool operator==(const key&) const = default;
++};
++
++enum class miss : std::uint32_t
++{
++	none = 0, empty, epoch, revision, range, context, section, bound, disabled
++};
++
++inline void count_miss(miss reason) noexcept
++{
++	switch (reason)
++	{
++	case miss::none: break;
++	case miss::empty: count(counters.miss_empty); break;
++	case miss::epoch: count(counters.miss_epoch); break;
++	case miss::revision: count(counters.miss_revision); break;
++	case miss::range: count(counters.miss_range); break;
++	case miss::context: count(counters.miss_context); break;
++	case miss::section: count(counters.miss_section); break;
++	case miss::bound: count(counters.miss_bound); break;
++	case miss::disabled: count(counters.miss_disabled); break;
++	}
++}
++
++// Differences found by a verification (bits of the logged reasons).
++enum difference : std::uint32_t
++{
++	differs_view = 1u,       // image_handle
++	differs_descriptor = 2u, // context, image type, reference address, ranges, deferred operation, flags
++	differs_sampler = 4u,    // format class, texture coordinate transform, samples, cyclic reference
++	differs_state = 8u,      // the full lookup changed a section: the memo would have skipped that change
++};
++
++// Fields a memo hit hands to the sampler setup and to the draw (VKDraw.cpp). Both sides come straight
++// from upload_texture (before the validation stamp); surface_cache_tag is the store's current write tag.
++template <typename Descriptor>
++std::uint32_t compare(const Descriptor& memo, const Descriptor& full) noexcept
++{
++	std::uint32_t result = 0;
++	if (memo.image_handle != full.image_handle)
++	{
++		result |= differs_view;
++	}
++	if (memo.upload_context != full.upload_context || memo.image_type != full.image_type || memo.ref_address != full.ref_address ||
++		memo.surface_cache_tag != full.surface_cache_tag || memo.flag != full.flag ||
++		memo.external_subresource_desc.op != full.external_subresource_desc.op ||
++		memo.ios_validation_range != full.ios_validation_range || !(memo.format_ex == full.format_ex) ||
++		memo.format_ex.texel_remap_control != full.format_ex.texel_remap_control)
++	{
++		result |= differs_descriptor;
++	}
++	// The coordinate transform: scale and bias, and the clamp bounds only when clamping (the constructors
++	// leave the bounds unset and RSXThread.cpp reads them only for a clamped descriptor).
++	using xform_type = std::remove_cvref_t<decltype(memo.texcoord_xform)>;
++	const auto* memo_xform = reinterpret_cast<const unsigned char*>(&memo.texcoord_xform);
++	const auto* full_xform = reinterpret_cast<const unsigned char*>(&full.texcoord_xform);
++	constexpr std::size_t bounds_offset = offsetof(xform_type, clamp_min);
++	constexpr std::size_t flag_offset = offsetof(xform_type, clamp);
++	bool xform_differs = std::memcmp(memo_xform, full_xform, bounds_offset) != 0 || memo.texcoord_xform.clamp != full.texcoord_xform.clamp;
++	if (!xform_differs && memo.texcoord_xform.clamp)
++	{
++		xform_differs = std::memcmp(memo_xform + bounds_offset, full_xform + bounds_offset, flag_offset - bounds_offset) != 0;
++	}
++	if (memo.format_class != full.format_class || memo.samples != full.samples || memo.is_cyclic_reference != full.is_cyclic_reference ||
++		xform_differs)
++	{
++		result |= differs_sampler;
++	}
++	return result;
++}
++
++struct generations
++{
++	std::uint64_t epoch = 0, local = 0, all = 0, context = 0;
++
++	static generations now() noexcept
++	{
++		return { texture_validation::current_epoch(), local_generation.load(std::memory_order_acquire),
++			all_generation.load(std::memory_order_acquire), context_generation.load(std::memory_order_acquire) };
++	}
++
++	bool sections_equal(const generations& other) const noexcept
++	{
++		return local == other.local && all == other.all;
++	}
++};
++
++// Owned by the texture cache. The RSX thread finds, stores and clears entries under the cache reader
++// lock; invalidate() runs under the exclusive lock on any thread and only touches the range bindings.
++template <typename Descriptor, std::size_t Slots>
++class table
++{
++	struct entry
++	{
++		key k{};
++		Descriptor value{};
++		texture_validation::sampler_stamp stamp{};
++		generations gen{};
++		bool compressed = false;
++		bool valid = false;
++		std::uint32_t used = 0;
++	};
++
++	std::array<entry, Slots * ways> m_entries{};
++	texture_validation::sampler_bindings<Slots * ways> m_ranges;
++	std::uint32_t m_clock = 0;
++	// Hashes of the (slot, key) pairs whose first reuse this table has verified (0: free), filled to half at
++	// most; the table lives as long as the texture cache, one boot.
++	static constexpr std::size_t seen_capacity = 4096;
++	std::array<std::uint64_t, seen_capacity> m_seen{};
++	std::size_t m_seen_count = 0;
++
++public:
++	struct found
++	{
++		const Descriptor* value = nullptr;
++		miss reason = miss::empty;
++	};
++
++	// Under the cache reader lock. bound: a render target is bound at k.address (uncompressed only).
++	found find(std::size_t slot, const key& k, bool compressed, bool bound) noexcept
++	{
++		if (disabled.load(std::memory_order_relaxed))
++		{
++			return { nullptr, miss::disabled };
++		}
++
++		for (std::size_t way = 0; way < ways; ++way)
++		{
++			const std::size_t index = slot * ways + way;
++			auto& e = m_entries[index];
++			if (!e.valid || !(e.k == k) || e.compressed != compressed)
++			{
++				continue;
++			}
++
++			const auto now = generations::now();
++			miss reason = miss::none;
++			if (!now.epoch || e.gen.epoch != now.epoch)
++			{
++				reason = miss::epoch;
++			}
++			else if (e.stamp.memory != texture_validation::sampler_revision.load(std::memory_order_acquire))
++			{
++				reason = miss::revision;
++			}
++			else if (!m_ranges.matches(index, e.stamp))
++			{
++				reason = miss::range;
++			}
++			else if (e.gen.context != now.context)
++			{
++				reason = miss::context;
++			}
++			else if (e.gen.local != now.local || (compressed && e.gen.all != now.all))
++			{
++				reason = miss::section;
++			}
++			else if (!compressed && bound)
++			{
++				reason = miss::bound;
++			}
++
++			if (reason != miss::none)
++			{
++				e.valid = false;
++				m_ranges.forget(index);
++				return { nullptr, reason };
++			}
++
++			e.used = ++m_clock;
++			return { &e.value, miss::none };
++		}
++
++		return { nullptr, miss::empty };
++	}
++
++	// Under the cache reader lock, on the RSX thread, for a hit: true the first time this (slot, key) is
++	// reused in this table's life (that hit is verified). Once the key table is half full, false (only the
++	// sampled verification remains) and counted.
++	bool first_reuse(std::size_t slot, const key& k) noexcept
++	{
++		std::uint64_t h = 1469598103934665603ull;
++		const auto mix = [&h](std::uint64_t value) { h = (h ^ value) * 1099511628211ull; };
++		mix(slot);
++		mix(k.address);
++		for (const std::uint32_t word : k.words)
++		{
++			mix(word);
++		}
++		mix(k.flags);
++		if (!h)
++		{
++			h = 1;
++		}
++
++		for (std::size_t probe = 0, at = h % seen_capacity; probe < seen_capacity; ++probe, at = (at + 1) % seen_capacity)
++		{
++			if (m_seen[at] == h)
++			{
++				return false;
++			}
++			if (!m_seen[at])
++			{
++				if (m_seen_count >= seen_capacity / 2)
++				{
++					count(counters.seen_full);
++					return false;
++				}
++				m_seen[at] = h;
++				++m_seen_count;
++				return true;
++			}
++		}
++		count(counters.seen_full);
++		return false;
++	}
++
++	struct ticket
++	{
++		std::size_t index = 0;
++		texture_validation::sampler_stamp stamp{};
++		generations gen{};
++	};
++
++	// Under the cache reader lock, before the lookup. The way of the same key, else a free way, else the
++	// least recently used one. Its range is unknown until end(): a scoped write in between drops it.
++	ticket begin(std::size_t slot, const key& k) noexcept
++	{
++		std::size_t victim = slot * ways;
++		std::uint32_t best = 0;
++		for (std::size_t way = 0; way < ways; ++way)
++		{
++			const std::size_t index = slot * ways + way;
++			const auto& e = m_entries[index];
++			const std::uint32_t rank = e.k == k ? 3 : !e.valid ? 2 : 1;
++			if (rank > best || (rank == best && rank == 1 && e.used < m_entries[victim].used))
++			{
++				best = rank;
++				victim = index;
++			}
++		}
++
++		m_entries[victim].valid = false;
++		const auto gen = generations::now();
++		return { victim, m_ranges.prepare(victim), gen };
++	}
++
++	enum class store_result
++	{
++		stored, changed, kind, bound
++	};
++
++	// Under the cache reader (or upgraded) lock, after the lookup and its sampler validation. direct: the
++	// descriptor is a direct shader_read view of a section at k.address. length: the length the slot
++	// binding received (0: unknown, then any scoped write drops the entry).
++	store_result end(const ticket& t, const key& k, bool compressed, bool bound, const Descriptor& value, bool direct,
++		std::uint32_t start, std::uint64_t length) noexcept
++	{
++		const auto now = generations::now();
++		if (!t.gen.epoch || now.epoch != t.gen.epoch || now.local != t.gen.local || now.context != t.gen.context ||
++			(compressed && now.all != t.gen.all) || disabled.load(std::memory_order_relaxed))
++		{
++			m_ranges.forget(t.index);
++			return store_result::changed;
++		}
++		if (!compressed && bound)
++		{
++			m_ranges.forget(t.index);
++			return store_result::bound;
++		}
++		if (!direct)
++		{
++			m_ranges.forget(t.index);
++			return store_result::kind;
++		}
++
++		m_ranges.set_range(t.index, start, length);
++		auto& e = m_entries[t.index];
++		e.k = k;
++		e.value = value;
++		e.stamp = t.stamp;
++		e.gen = t.gen;
++		e.compressed = compressed;
++		e.valid = true;
++		e.used = ++m_clock;
++		return store_result::stored;
++	}
++
++	// Under the cache exclusive lock, next to the slot bindings (revalidate_overlapping).
++	void invalidate(std::uint32_t start, std::uint64_t length) noexcept
++	{
++		m_ranges.invalidate(start, length);
++	}
++
++	// Under the cache reader lock: after a verified difference.
++	void clear() noexcept
++	{
++		for (std::size_t index = 0; index < m_entries.size(); ++index)
++		{
++			m_entries[index].valid = false;
++			m_ranges.forget(index);
++		}
++	}
++};
++}
+diff --git a/rpcs3/ios/IOSTitleLevers.h b/rpcs3/ios/IOSTitleLevers.h
+index 2a06ee7..019b80e 100644
+--- a/rpcs3/ios/IOSTitleLevers.h
++++ b/rpcs3/ios/IOSTitleLevers.h
+@@ -147,6 +147,17 @@ constexpr bool wants_spu_noop_spin_wait(std::string_view title_id) noexcept
+ 	return is_black_ops_ii_title(title_id);
+ }
+ 
++// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h): every title. IPA 657 (Core 655):
++// Black Ops II links 8,700-8,800 SPU blocks at the first transition of each boot, all object-cache
++// hits (session 2 window 5: 8,793), each spending about 0.19 ms of spu_build on an IR that only names
++// the object's symbols, next to 0.18 ms of object load. The direct link binds the same functions under
++// the same names and publishes the block the same way, so no title needs to keep the IR path; the
++// SPU Direct Object Hits setting (Disabled) restores it per game.
++constexpr bool wants_spu_direct_object_hits(std::string_view /*title_id*/) noexcept
++{
++	return true;
++}
++
+ // REWINDBOX_ZCLIP_PINNED_AFFINE_619: refines REWINDBOX_ZCLIP_WINDOW_Z_616. The
+ // fallback compresses only window Z in (1, far] and passes every other vertex
+ // through unchanged. The pinned draws of the #13227 capture keep depth clip on
+@@ -191,4 +202,42 @@ constexpr bool early_submit_at_pass_boundary(std::string_view title_id) noexcept
+ {
+ 	return is_assassins_creed_title(title_id) || is_black_ops_ii_title(title_id);
+ }
++
++// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): IPA 657 (Core 655, PID 10471). Assassin's
++// Creed, window 1:42: 904 texture lookups per frame for 1,515 draws (TEXCACHE621 upload_calls 106,705 over 118
++// frames), 61 % of them confirmed without hashing because the same section was already validated in the same
++// epoch (OPT559 epoch_skips 64,999), 5.03 ms of texture stage per sampled frame (RSXFRAME551) and 29 CPU uploads
++// in the window: the Automatic title whose memo hits are served. Black Ops II, windows 3:12-3:16, shows the same
++// counters (1,243-1,545 lookups per frame, 48-51 % epoch skips, 4.0-5.7 ms of texture stage) but 248-293 CPU
++// uploads per window, each of which ends every entry: its Automatic mode verifies every hit (the full lookup
++// runs and its result is used), so TEXMEMO660 measures what it would gain before any hit is served.
++constexpr bool serves_texture_lookup_memo(std::string_view title_id) noexcept
++{
++	return is_assassins_creed_title(title_id);
++}
++
++constexpr bool verifies_texture_lookup_memo(std::string_view title_id) noexcept
++{
++	return is_black_ops_ii_title(title_id);
++}
++
++// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): Assassin's Creed submits the command buffer
++// of a report queued into a slot a guest waited for at the next point without an open render pass. IPA 657
++// (Core 655, PID 10471): Assassin's Creed waits 32.0 ms per frame for its reports (window 1:42,
++// ZCULLDEMAND619 waits=259:3779.8 ms) for 30.5 ms of GPU work, each wait covering the whole command buffer
++// of the report, submitted only when the guest asked for it. Not Black Ops II: its host model learns no slot
++// (reads less than 1 ms after their report), and with more than 2,048 reports in flight the extra
++// submissions lengthen the synchronous reads at query exhaustion (model: 45.8 -> 67.0 ms per frame).
++constexpr bool zcull_watched_flush(std::string_view title_id) noexcept
++{
++	return is_assassins_creed_title(title_id);
++}
++
++// REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h): at the ZCULL queue-depth limit the same titles
++// submit the open command buffer only while it holds the oldest pending query. IPA 657: Black Ops II frames
++// of about 140 submissions in windows 3:12-3:13 (ZCULLSYNC613 hint_flushes 2,844 and 2,861 per window).
++constexpr bool zcull_depth_guard(std::string_view title_id) noexcept
++{
++	return is_assassins_creed_title(title_id) || is_black_ops_ii_title(title_id);
++}
+ }
+diff --git a/rpcs3/ios/IOSZcullOnDemand.h b/rpcs3/ios/IOSZcullOnDemand.h
+index 91651fb..bd3b6f8 100644
+--- a/rpcs3/ios/IOSZcullOnDemand.h
++++ b/rpcs3/ios/IOSZcullOnDemand.h
+@@ -347,6 +347,8 @@ class page_slots
+ 	std::uint64_t m_window_start_us = 0;
+ 	// REWINDBOX_ZCULL_READ_LEAD_659: when the oldest pending report of each slot was enqueued.
+ 	std::uint64_t m_enqueued_us[tracked_page_bytes / report_slot_bytes]{};
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): ... and the newest, the one a read waits for last.
++	std::uint64_t m_newest_us[tracked_page_bytes / report_slot_bytes]{};
+ 
+ 	static constexpr std::uint32_t slot(std::uint32_t address) noexcept
+ 	{
+@@ -380,6 +382,8 @@ public:
+ 			{
+ 				m_enqueued_us[i] = now_us;
+ 			}
++
++			m_newest_us[i] = now_us; // REWINDBOX_ZCULL_WATCHED_FLUSH_660
+ 		}
+ 	}
+ 
+@@ -391,6 +395,14 @@ public:
+ 		return m_pending[i] && m_enqueued_us[i] && now_us > m_enqueued_us[i] ? now_us - m_enqueued_us[i] : 0;
+ 	}
+ 
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660: the age of the newest pending report of the slot at `address`, 0 when
++	// none is pending or its enqueue time is unknown.
++	std::uint64_t newest_age_us(std::uint32_t address, std::uint64_t now_us) const noexcept
++	{
++		const std::uint32_t i = slot(address);
++		return m_pending[i] && m_newest_us[i] && now_us > m_newest_us[i] ? now_us - m_newest_us[i] : 0;
++	}
++
+ 	void remove(std::uint32_t address) noexcept
+ 	{
+ 		for (std::uint32_t i = slot(address); i <= last_slot(address, report_slot_bytes); i++)
+diff --git a/rpcs3/ios/IOSZcullWatched.h b/rpcs3/ios/IOSZcullWatched.h
+new file mode 100644
+index 0000000..877641d
+--- /dev/null
++++ b/rpcs3/ios/IOSZcullWatched.h
+@@ -0,0 +1,411 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++#include <atomic>
++#include <cstdint>
++
++// REWINDBOX_ZCULL_WATCHED_FLUSH_660: IPA 657 logs (Core 655, PID 10471). Assassin's Creed waits
++// 32.0 ms per frame for ZCULL reports (window 1:42: ZCULLDEMAND619 waits=259:3779.8 ms, max 43.7)
++// for 30.5 ms of GPU work: MoltenVK publishes an occlusion result only when its whole command
++// buffer has completed, and the command buffer of a report is submitted only when a guest asks for
++// that report (ZCULLSYNC613: every command buffer besides the flip one is such a hint flush,
++// 344 = 118 + 226). Black Ops II waits 12.5 ms per report for the GPU side (window 3:16:
++// 1566.5 ms over 107 waits). The guest of these titles faults on a few report slots per frame
++// (ZCULLDEMAND619 faults report=259 per 118 frames).
++// - Learning (guest threads, fault handler, under the pages mutex). With the asynchronous reads of
++//   630 the handler knows the slot a guest waits for, and the page's slots record when their newest
++//   pending report was queued: the read waits for that one last. A slot waited for at least
++//   min_lead_us after that report is learned (a read closer to its report gains little from an
++//   earlier submission, and the RSX thread rarely reaches a pass boundary before it). A watched slot
++//   read again (waited for, or read final by the handler) stays watched, and the number of reports
++//   queued into it between two such reads is kept; a watched slot waited for closer than
++//   min_lead_us after its newest report is dropped. A slot no guest waited for or read for
++//   watch_frames frames is forgotten.
++// - Arming (RSX thread). When a report is queued into a watched slot as the last one expected
++//   before the next read (as many reports as between the last two reads), and the query that
++//   decides its value is still in the open command buffer, the backend arms the boundary submission
++//   of 659 for that buffer: taken at the next draw start or after the next draw's textures with no
++//   render pass open, at the end of a draw after max_deferred_draws more draws (the fallback), or
++//   carried by any other primary submission. The GPU-idle test of 561 does not apply (the guest
++//   reads this report); the 561 cap of early submissions per frame does, and at most
++//   max_watched_submits_per_frame such submissions are taken per frame (an arm another submission
++//   carries costs nothing and is not counted).
++// Only command buffer boundaries move: the guest still reads the GPU result of every report, written
++// in the same order; no report value, query or m_sync_tag is touched here.
++//
++// REWINDBOX_ZCULL_DEPTH_GUARD_660: Black Ops II windows 3:12-3:13 of the same logs record about
++// 140 submissions per frame in some frames (ZCULLSYNC613 hint_flushes 2,844 and 2,861 per window,
++// 2,686/2,671 render pass re-begins). The cause inferred is the queue-depth branch of
++// ZCULL_control::update(): above max_safe_queue_depth pending reports, every new report submits
++// the open command buffer for its query, a render pass split each time, while the reports at the
++// head of the queue are already on the GPU. At that limit the hint is now sent only while the
++// oldest pending query is still in the open command buffer (nothing can drain before it is
++// submitted), and after open_cb_skip_bound skipped hints for the same open command buffer: its
++// queries cannot complete before it is submitted (MoltenVK publishes results at the end of a
++// command buffer), so it is submitted at least every 256 queue-depth checks instead of at every
++// report; upstream applies again at or above depth_hard_cap pending reports. The 2,048 query slots
++// are not reserved: one report holds one query, so a reserve of free slots would end the guard as
++// soon as the depth branch runs. When the slots run out, allocate_new_query reads the oldest report
++// synchronously as upstream does (values exact). Host model of the reviews (not device numbers):
++// with more than 2,048 reports in flight per frame the guard makes those synchronous reads longer
++// (2,600 reports per frame: 45.8 -> 53.4 ms per frame) and the hint storm shorter (4,000: 156.8 ->
++// 77.0 ms; BO2-like 1,900 peak: 103.7 -> 75.2 ms), hence its own setting for an A/B on the device.
++// The guard applies only while the on-demand reads really run (not after a 619 trip or with accurate
++// RSX reservation access). Guest reads are served by their own paths (ios_service_read, sync(),
++// read_barrier()), which keep their hints.
++namespace rpcs3::ios::zcull_watched
++{
++inline constexpr std::uint32_t slot_bytes = 16;                   // a GCM report (zcull_on_demand::report_slot_bytes)
++inline constexpr std::uint32_t capacity = 32;                     // learned slots kept; the least recently read is replaced
++inline constexpr std::uint64_t watch_frames = 8;                  // frames a slot stays watched after its last wait or read
++inline constexpr std::uint32_t max_watched_submits_per_frame = 2; // watched submissions taken per frame, inside the 561 cap
++inline constexpr std::uint64_t min_lead_us = 1000;                // report -> read time below which an earlier submission gains little
++inline constexpr std::uint32_t query_scan_limit = 64;             // pending writes scanned for the deciding or oldest query
++
++// REWINDBOX_ZCULL_DEPTH_GUARD_660
++inline constexpr std::uint32_t depth_limit = 1792;                // rsx::reports::max_safe_queue_depth (RSXZCULL.h), for the reports
++inline constexpr std::uint32_t depth_hard_cap = 8192;             // pending reports from which the upstream hint applies again
++inline constexpr std::uint32_t open_cb_skip_bound = 256;          // skipped hints for one open command buffer before one is sent
++inline constexpr std::uint64_t cb_unknown = ~std::uint64_t{0};    // the backend cannot tell (upstream behaviour)
++
++// Process-wide counters of COREPROF ZCULLWATCH660 and ZCULLDEPTH660 (taken per window).
++struct tally
++{
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660: the table.
++	std::atomic<std::uint64_t> learned{0};         // a guest waited, min_lead_us or more after its newest report, for a slot not watched
++	std::atomic<std::uint64_t> refreshed{0};       // a watched slot waited for or read final again
++	std::atomic<std::uint64_t> expired{0};         // watched slots forgotten after watch_frames
++	std::atomic<std::uint64_t> evicted{0};         // ... replaced while the table was full
++	std::atomic<std::uint64_t> short_leads{0};     // waits closer than min_lead_us after the newest report (not learned, or dropped)
++	std::atomic<std::uint32_t> watched_now{0};     // slots in the table at the last change
++	// ... the reports queued into watched slots (RSX thread).
++	std::atomic<std::uint64_t> watched_reports{0};
++	std::atomic<std::uint64_t> early_writes{0};    // ... with more reports expected before the next read: not armed
++	std::atomic<std::uint64_t> armed{0};           // ... that armed the boundary submission
++	std::atomic<std::uint64_t> joined{0};          // ... whose command buffer had a submission armed already
++	std::atomic<std::uint64_t> submitted{0};       // ... whose deciding query had left the open command buffer
++	std::atomic<std::uint64_t> no_query{0};        // ... without a query with draws to wait for
++	std::atomic<std::uint64_t> capped{0};          // ... over max_watched_submits_per_frame or the 561 cap of the frame
++	std::atomic<std::uint64_t> off{0};             // ... with early submission off or not in the boundary mode
++	// ... where the watched arms went (backend).
++	std::atomic<std::uint64_t> taken_start{0};     // taken at the start of a draw
++	std::atomic<std::uint64_t> taken_textures{0};  // ... after a draw's textures
++	std::atomic<std::uint64_t> fallback{0};        // ... at the end of a draw after max_deferred_draws draws
++	std::atomic<std::uint64_t> carried{0};         // ... carried by another primary submission
++	// REWINDBOX_ZCULL_DEPTH_GUARD_660: update() at the queue-depth limit, where upstream hints.
++	std::atomic<std::uint64_t> depth_checks{0};
++	std::atomic<std::uint64_t> depth_hints{0};          // hinted: oldest query in the open command buffer, first time there
++	std::atomic<std::uint64_t> depth_skip_submitted{0}; // not hinted: the oldest pending query is on the GPU
++	std::atomic<std::uint64_t> depth_skip_same_cb{0};   // not hinted: this command buffer had its hint
++	std::atomic<std::uint64_t> depth_hard_cap_hints{0}; // hinted as upstream: at or above depth_hard_cap
++	std::atomic<std::uint64_t> depth_unknown{0};        // hinted as upstream: no oldest query found or no answer
++	std::atomic<std::uint64_t> depth_open_cb_bound{0};  // hinted: open_cb_skip_bound hints skipped for this open command buffer
++	std::atomic<std::uint64_t> depth_peak{0};           // the most pending reports seen at the limit
++
++	static void raise_max(std::atomic<std::uint64_t>& max_value, std::uint64_t value) noexcept
++	{
++		std::uint64_t max = max_value.load(std::memory_order_relaxed);
++		while (value > max && !max_value.compare_exchange_weak(max, value, std::memory_order_relaxed)) {}
++	}
++};
++
++inline tally& counters() noexcept
++{
++	static tally s_tally;
++	return s_tally;
++}
++
++constexpr std::uint32_t slot_of(std::uint32_t address) noexcept
++{
++	return address & ~(slot_bytes - 1);
++}
++
++enum class learn_result : std::uint8_t
++{
++	learned,     // a new watched slot
++	refreshed,   // a watched slot read again
++	short_lead,  // not watched: its report came too close before the read
++	dropped,     // was watched: the read followed its newest report too closely
++};
++
++// REWINDBOX_ZCULL_WATCHED_FLUSH_660: the report slots guests waited for. Under
++// ZCULL_control::m_pages_mutex: guest threads write it in the fault handler, the RSX thread reads
++// and counts in it when a report locks its page.
++class watched_slots
++{
++	struct entry
++	{
++		std::uint32_t slot = 0;
++		std::uint32_t writes = 0;          // reports queued into the slot since its last read
++		std::uint32_t per_read = 1;        // ... between its last two reads (1 when just learned)
++		std::uint64_t frame = 0;           // frame of the last wait or final read
++		std::uint64_t order = 0;           // ... and its rank among them (ties of a frame)
++	};
++
++	entry m_entries[capacity]{};
++	std::uint32_t m_count = 0;
++	std::uint64_t m_frame = 0;   // the RSX frame (rsx::thread::int_flip_index) at its last report
++	std::uint64_t m_filter = 0;  // one bit per (slot / slot_bytes) % 64 of the entries
++	std::uint64_t m_order = 0;
++
++	static constexpr std::uint64_t bit(std::uint32_t slot) noexcept
++	{
++		return std::uint64_t{1} << ((slot / slot_bytes) & 63);
++	}
++
++	bool live(const entry& e) const noexcept
++	{
++		return m_frame <= e.frame + watch_frames;
++	}
++
++	void publish() const noexcept
++	{
++		counters().watched_now.store(m_count, std::memory_order_relaxed);
++	}
++
++	void rebuild_filter() noexcept
++	{
++		m_filter = 0;
++		for (std::uint32_t i = 0; i < m_count; i++)
++		{
++			m_filter |= bit(m_entries[i].slot);
++		}
++	}
++
++	void remove(std::uint32_t index) noexcept
++	{
++		m_entries[index] = m_entries[--m_count];
++		rebuild_filter();
++		publish();
++	}
++
++	// Drops the slots not waited for or read for watch_frames frames.
++	void expire() noexcept
++	{
++		std::uint32_t kept = 0;
++		for (std::uint32_t i = 0; i < m_count; i++)
++		{
++			if (live(m_entries[i]))
++			{
++				m_entries[kept++] = m_entries[i];
++			}
++			else
++			{
++				counters().expired.fetch_add(1, std::memory_order_relaxed);
++			}
++		}
++
++		if (kept != m_count)
++		{
++			m_count = kept;
++			rebuild_filter();
++			publish();
++		}
++	}
++
++	std::uint32_t find(std::uint32_t slot) const noexcept
++	{
++		if (m_filter & bit(slot))
++		{
++			for (std::uint32_t i = 0; i < m_count; i++)
++			{
++				if (m_entries[i].slot == slot)
++				{
++					return i;
++				}
++			}
++		}
++
++		return capacity;
++	}
++
++	void read_again(entry& e) noexcept
++	{
++		e.per_read = e.writes ? e.writes : 1;
++		e.writes = 0;
++		e.frame = m_frame;
++		e.order = ++m_order;
++		counters().refreshed.fetch_add(1, std::memory_order_relaxed);
++	}
++
++public:
++	// RSX thread, a report queued at `address` locks its page: the clock moves to `frame` (expired slots
++	// are dropped once per frame). True when the slot is watched and this report is the last one expected
++	// before the slot's next read.
++	bool on_report(std::uint32_t address, std::uint64_t frame) noexcept
++	{
++		if (frame != m_frame)
++		{
++			m_frame = frame;
++			expire();
++		}
++
++		const std::uint32_t index = m_count ? find(slot_of(address)) : capacity;
++		if (index == capacity || !live(m_entries[index]))
++		{
++			return false;
++		}
++
++		entry& e = m_entries[index];
++		counters().watched_reports.fetch_add(1, std::memory_order_relaxed);
++		if (++e.writes < e.per_read)
++		{
++			counters().early_writes.fetch_add(1, std::memory_order_relaxed);
++			return false;
++		}
++
++		return true;
++	}
++
++	// Guest thread: its access waits for the slot at `address`, whose newest pending report was queued
++	// `lead_us` before (page_slots::newest_age_us).
++	learn_result learn(std::uint32_t address, std::uint64_t lead_us) noexcept
++	{
++		const std::uint32_t slot = slot_of(address);
++		if (const std::uint32_t index = find(slot); index != capacity)
++		{
++			entry& e = m_entries[index];
++			if (lead_us < min_lead_us)
++			{
++				remove(index);
++				counters().short_leads.fetch_add(1, std::memory_order_relaxed);
++				return learn_result::dropped;
++			}
++
++			read_again(e);
++			return learn_result::refreshed;
++		}
++
++		if (lead_us < min_lead_us)
++		{
++			counters().short_leads.fetch_add(1, std::memory_order_relaxed);
++			return learn_result::short_lead;
++		}
++
++		if (m_count == capacity)
++		{
++			std::uint32_t oldest = 0;
++			for (std::uint32_t i = 1; i < m_count; i++)
++			{
++				const entry& e = m_entries[i];
++				if (e.frame < m_entries[oldest].frame || (e.frame == m_entries[oldest].frame && e.order < m_entries[oldest].order))
++				{
++					oldest = i;
++				}
++			}
++
++			m_entries[oldest] = {};
++			m_entries[oldest].slot = slot;
++			m_entries[oldest].frame = m_frame;
++			m_entries[oldest].order = ++m_order;
++			rebuild_filter();
++			counters().evicted.fetch_add(1, std::memory_order_relaxed);
++		}
++		else
++		{
++			entry& e = m_entries[m_count++];
++			e = {};
++			e.slot = slot;
++			e.frame = m_frame;
++			e.order = ++m_order;
++			m_filter |= bit(slot);
++		}
++
++		counters().learned.fetch_add(1, std::memory_order_relaxed);
++		publish();
++		return learn_result::learned;
++	}
++
++	// Guest thread: its access read the slot at `address` final. A watched slot stays watched (the
++	// submissions that made it final keep it); any other slot is not learned.
++	bool refresh(std::uint32_t address) noexcept
++	{
++		if (const std::uint32_t index = find(slot_of(address)); index != capacity)
++		{
++			read_again(m_entries[index]);
++			return true;
++		}
++
++		return false;
++	}
++
++	std::uint32_t size() const noexcept
++	{
++		return m_count;
++	}
++};
++
++// Backend, RSX thread: the watched submissions taken in the current frame.
++struct frame_budget
++{
++	std::uint64_t frame = ~std::uint64_t{0};
++	std::uint32_t used = 0;
++
++	bool available(std::uint64_t now_frame) noexcept
++	{
++		if (now_frame != frame)
++		{
++			frame = now_frame;
++			used = 0;
++		}
++
++		return used < max_watched_submits_per_frame;
++	}
++
++	void consume() noexcept
++	{
++		used++;
++	}
++};
++
++// What the backend did with a watched report (VKGSRender::ios_arm_watched_submit).
++enum class arm_result : std::uint8_t
++{
++	off,        // early submission off, or not in the boundary mode: nothing armed
++	armed,      // the boundary submission of the open command buffer is armed
++	joined,     // a submission was already armed for it
++	submitted,  // the deciding query no longer has host queries in the open command buffer
++	capped,     // the 561 cap or max_watched_submits_per_frame is used up for this frame
++};
++
++// REWINDBOX_ZCULL_DEPTH_GUARD_660
++enum class depth_verdict : std::uint8_t
++{
++	hint,                // the oldest pending query is in the open command buffer, not hinted there yet
++	hard_cap,            // at or above depth_hard_cap: upstream
++	unknown,             // no oldest query found, or the backend cannot tell: upstream
++	front_submitted,     // the oldest pending query is on the GPU: no hint
++	same_command_buffer, // this command buffer had its guarded hint: no hint
++	open_cb_bound,       // open_cb_skip_bound hints were skipped for the open command buffer: hint
++};
++
++// pending: ptimer->async_tasks_pending; front_cb: the backend's serial of the open command buffer
++// holding the oldest pending query (0 when it was submitted, cb_unknown when unknown); last_cb: the
++// serial of the last guarded hint; open_cb_skips: hints already skipped for the open command buffer.
++constexpr depth_verdict decide_depth(std::uint32_t pending, std::uint64_t front_cb, std::uint64_t last_cb,
++	std::uint32_t open_cb_skips = 0) noexcept
++{
++	if (pending >= depth_hard_cap)
++	{
++		return depth_verdict::hard_cap;
++	}
++
++	if (front_cb == cb_unknown)
++	{
++		return depth_verdict::unknown;
++	}
++
++	if (front_cb == 0)
++	{
++		return open_cb_skips >= open_cb_skip_bound ? depth_verdict::open_cb_bound : depth_verdict::front_submitted;
++	}
++
++	return front_cb == last_cb ? depth_verdict::same_command_buffer : depth_verdict::hint;
++}
++
++constexpr bool depth_hint_sent(depth_verdict verdict) noexcept
++{
++	return verdict == depth_verdict::hint || verdict == depth_verdict::hard_cap || verdict == depth_verdict::unknown ||
++		verdict == depth_verdict::open_cb_bound;
++}
++}
+diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
+index dba38f1..6422ee6 100644
+--- a/rpcs3/ios/RPCS3IOSBootDiagnostics.h
++++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
+@@ -475,7 +475,7 @@ namespace rpcs3::ios::boot_diagnostics
+ 		append_u32(line, "mvk_async", rsx.mvk_async ? 1u : 0u);
+ 		append_u32(line, "gpu_timing", rsx.gpu_timing ? 1u : 0u);
+ 		append_u32(line, "zcull_demand", rsx.zcull_demand ? 1u : 0u);
+-		append_text(line, "levers627", rsx.levers627, 13);
++		append_text(line, "levers627", rsx.levers627, 16);
+ 		append_u32(line, "legacy_custom", rsx.legacy_custom ? 1u : 0u);
+ 		const std::string reported = filter_rsx_override_keys(rsx.overrides);
+ 		append_text(line, "overrides", reported, rsx_overrides_limit);
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index d87b7ae..26c3e25 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -20,6 +20,9 @@
+ #include "IOSThreadQoS.h"
+ #include "IOSMoltenVKAsyncCanary.h"
+ #include "IOSInPassReadTransition.h"
++#include "IOSSpuObjectBindings.h" // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
++#include "IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
++#include "IOSZcullWatched.h" // REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660
+ #include "Utilities/File.h"
+ #include "util/asm.hpp" // NEOSTATION_BUILD487_DIAGNOSTICS_V1 (L2): utils::arm_timer_scale
+ #include "util/logs.hpp"
+@@ -333,6 +336,29 @@ void resolve_experimental_policy() noexcept
+ 	resolved.texture_prehash = resolved.texture_validation_epoch &&
+ 		resolve_mode(g_cfg.ios_experimental.texture_prehash, is_god_of_war_iii_title(title_id));
+ 	rpcs3::ios::texture_prehash::enabled.store(resolved.texture_prehash, std::memory_order_relaxed);
++	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h, ios/IOSTitleLevers.h): needs the epochs.
++	// Automatic serves hits for Assassin's Creed and verifies every hit for Black Ops II (counters only);
++	// Enabled serves hits for any title with the epochs; Disabled keeps the Core 659 lookup. Set after the
++	// epoch flag above, before the RSX thread starts: no entry survives a boot.
++	{
++		namespace memo = rpcs3::ios::texture_lookup_memo;
++		const auto memo_setting = g_cfg.ios_experimental.texture_lookup_memo.get();
++		memo::mode memo_mode = memo::mode::off;
++		if (resolved.texture_validation_epoch && memo_setting != ios_experimental_mode::disabled)
++		{
++			if (memo_setting == ios_experimental_mode::enabled || rpcs3::ios::title_levers::serves_texture_lookup_memo(title_id))
++			{
++				memo_mode = memo::mode::active;
++			}
++			else if (rpcs3::ios::title_levers::verifies_texture_lookup_memo(title_id))
++			{
++				memo_mode = memo::mode::verify_all;
++			}
++		}
++		resolved.texture_lookup_memo = memo_mode != memo::mode::off;
++		resolved.texture_lookup_memo_verify_all = memo_mode == memo::mode::verify_all;
++		memo::configure(memo_mode);
++	}
+ 	resolved.neon_byte_swap = resolve_mode(g_cfg.ios_experimental.neon_byte_swap, arm64_default);
+ 	resolved.neon_primitive_restart = resolve_mode(g_cfg.ios_experimental.neon_primitive_restart, arm64_default);
+ 	resolved.precomputed_indices = resolve_mode(g_cfg.ios_experimental.precomputed_indices, arm64_default);
+@@ -381,6 +407,15 @@ void resolve_experimental_policy() noexcept
+ 	// REWINDBOX_ZCULL_ASYNC_READS_630 (ios/IOSZcullOnDemand.h): needs the lever.
+ 	resolved.zcull_async_reads = resolved.zcull_on_demand && resolve_mode(g_cfg.ios_experimental.zcull_async_reads,
+ 		rpcs3::ios::title_levers::requires_zcull_on_demand(title_id));
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): the title list, with the asynchronous reads that
++	// learn the slots and the 659 boundary mode that submits; "ZCULL Asynchronous Reads" or "Early command buffer
++	// submission" set to Disabled turns it off with them.
++	resolved.zcull_watched_flush = resolved.zcull_async_reads && resolved.early_submit_at_pass_boundary &&
++		rpcs3::ios::title_levers::zcull_watched_flush(title_id);
++	// REWINDBOX_ZCULL_DEPTH_GUARD_660: its setting (Automatic: the title list), with the on-demand reads; Disabled
++	// restores the upstream queue-depth hint.
++	resolved.zcull_depth_guard = resolved.zcull_on_demand && resolve_mode(g_cfg.ios_experimental.zcull_depth_guard,
++		rpcs3::ios::title_levers::zcull_depth_guard(title_id));
+ 	// Core 634, every title: the same objects, words and digests as before, sooner, and less kept.
+ 	resolved.fast_jit_load = resolve_mode(g_cfg.ios_experimental.fast_jit_load, true);
+ 	rpcs3::ios::jit_load::fast_load.store(resolved.fast_jit_load, std::memory_order_relaxed);
+@@ -396,6 +431,11 @@ void resolve_experimental_policy() noexcept
+ 	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627: Automatic is the title list.
+ 	resolved.spu_noop_spin_wait = resolve_mode(g_cfg.ios_experimental.spu_noop_spin_wait,
+ 		rpcs3::ios::title_levers::wants_spu_noop_spin_wait(title_id) || is_god_of_war_iii_title(title_id));
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: Automatic is every title (ios/IOSTitleLevers.h); ARM64 only, the
++	// direct link exists in the ARM64 SPU recompiler only.
++	resolved.spu_direct_object_hits = arm64_default && resolve_mode(g_cfg.ios_experimental.spu_direct_object_hits,
++		rpcs3::ios::title_levers::wants_spu_direct_object_hits(title_id));
++	rpcs3::ios::spu_direct_hit::enabled.store(resolved.spu_direct_object_hits, std::memory_order_relaxed);
+ 	// REWINDBOX_IN_PASS_READ_TRANSITION_655: Assassin's Creed (IPA 653: 4-11 restarts of the same framebuffer per frame
+ 	// after a read transition), and only with the MoltenVK that waits for the barrier inside the pass.
+ 	resolved.moltenvk_in_pass_waits = rpcs3::ios::in_pass_read::moltenvk_waits_in_pass();
+@@ -482,6 +522,19 @@ void resolve_experimental_policy() noexcept
+ 	// REWINDBOX_EARLY_SUBMIT_BOUNDARY_659: its own line.
+ 	ios_experimental_log.notice("Resolved title policy 659: early_submit=%d early_submit_at_pass_boundary=%d max_deferred_draws=%u",
+ 		resolved.early_submit, resolved.early_submit_at_pass_boundary, rpcs3::ios::early_submit::max_deferred_draws);
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660: its own line.
++	ios_experimental_log.notice("Resolved title policy 660: spu_direct_object_hits=%d spu_object_cache=%d",
++		resolved.spu_direct_object_hits, resolved.persistent_spu_object_cache);
++	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660: its own line.
++	ios_experimental_log.notice("Resolved title policy 660: texture_lookup_memo=%d verify_all=%d ways=%u verify_first=%u verify_period=%u",
++		resolved.texture_lookup_memo, resolved.texture_lookup_memo_verify_all, static_cast<u32>(rpcs3::ios::texture_lookup_memo::ways),
++		static_cast<u32>(rpcs3::ios::texture_lookup_memo::verify_first), static_cast<u32>(rpcs3::ios::texture_lookup_memo::verify_period));
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660: their own line.
++	ios_experimental_log.notice("Resolved title policy 660: zcull_watched_flush=%d zcull_depth_guard=%d watch_frames=%u "
++		"watched_submits_per_frame=%u min_lead_us=%u depth_hard_cap=%u",
++		resolved.zcull_watched_flush, resolved.zcull_depth_guard, static_cast<u32>(rpcs3::ios::zcull_watched::watch_frames),
++		rpcs3::ios::zcull_watched::max_watched_submits_per_frame, static_cast<u32>(rpcs3::ios::zcull_watched::min_lead_us),
++		rpcs3::ios::zcull_watched::depth_hard_cap);
+ }
+ 
+ void apply_spu_spin_timing_policy() noexcept
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index 893b7e2..cddb71c 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -84,6 +84,9 @@ struct experimental_policy
+ 	// REWINDBOX_SPU_NOOP_SPIN_WAIT_627 (ios/IOSSpuNoopSpin.h): an SPU polling with no-op
+ 	// PUTLLC waits for a bounded time inside the PUTLLC.
+ 	bool spu_noop_spin_wait = false;
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h): an SPU object-cache hit whose
++	// symbols are all known links without building its IR.
++	bool spu_direct_object_hits = false;
+ 	// REWINDBOX_SPU_QOS_627 (ios/IOSThreadQoS.h): SPU threads run in the user-initiated class.
+ 	bool spu_qos_below_rsx = false;
+ 	// REWINDBOX_FIFO_NOP_FAST_627 (RSXFIFO.cpp): a NOP in the command stream is not an idle period.
+@@ -105,6 +108,17 @@ struct experimental_policy
+ 	bool moltenvk_in_pass_waits = false;
+ 	// REWINDBOX_EARLY_SUBMIT_BOUNDARY_659: early submissions wait for a point without an open render pass.
+ 	bool early_submit_at_pass_boundary = false;
++	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): a sampler slot reuses the result of an
++	// identical texture lookup of the same validation epoch, one cache lock per lookup. Needs the texture epoch.
++	bool texture_lookup_memo = false;
++	// With it, every hit runs the full lookup and is compared (counters only, nothing skipped).
++	bool texture_lookup_memo_verify_all = false;
++	// REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): a report into a slot a guest waited for arms the
++	// boundary submission of its command buffer. Title scoped, with the asynchronous reads and the boundary mode.
++	bool zcull_watched_flush = false;
++	// REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h): at the ZCULL queue-depth limit, the open command
++	// buffer is submitted only while it holds the oldest pending query. Title scoped, with the on-demand reads.
++	bool zcull_depth_guard = false;
+ 
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers), resolved once per boot
+ 	// like the fields above; none of them enters an object-cache key.
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index a4a2bf4..9cd3852 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -26,12 +26,15 @@
+ #include "IOSCompilePressure.h"
+ #include "IOSRsxSyncProfile.h"
+ #include "IOSSpuObjectPrefetch.h" // REWINDBOX_SPU_OBJECT_PREFETCH_616
++#include "IOSSpuObjectBindings.h" // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660
+ #include "IOSZcullOnDemand.h" // REWINDBOX_ZCULL_ON_DEMAND_619
++#include "IOSZcullWatched.h" // REWINDBOX_ZCULL_WATCHED_FLUSH_660, REWINDBOX_ZCULL_DEPTH_GUARD_660
+ #include "IOSGpuTiming.h" // REWINDBOX_GPU_TIMING_621
+ #include "IOSPipelineQueue.h" // REWINDBOX_PIPELINE_QUEUE_621
+ #include "IOSFrameTrace.h"
+ #include "IOSFeedbackCensus.h"
+ #include "IOSTextureCacheProfile.h" // REWINDBOX_TEXCACHE_PROFILE_621
++#include "IOSTextureLookupMemo.h" // REWINDBOX_TEXTURE_LOOKUP_MEMO_660
+ #include "IOSRenderPassCensus.h" // REWINDBOX_RENDERPASS_CENSUS_652
+ #include "IOSInPassReadTransition.h" // REWINDBOX_IN_PASS_READ_TRANSITION_655
+ #include "IOSZcullLabelPage.h" // REWINDBOX_ZCULL_LABEL_PAGE_624
+@@ -1411,6 +1414,46 @@ private:
+             ios_core_profiler.notice("COREPROF ZCULLHINT659 session=%llu window=%llu hint_flushes=%llu:%llu:%llu:%llu:%llu "
+                 "order=sync:queue_depth:critical_age:read_barrier:service_read scope=rsx_thread_process_window window_boundary_approximate=1",
+                 profile_session, profile_window, by_sync, by_depth, by_age, by_barrier, by_service);
++            // REWINDBOX_ZCULL_WATCHED_FLUSH_660 (ios/IOSZcullWatched.h): its own line. Slots learned from guest waits,
++            // refreshed, expired, evicted, and waits too close to their report; the table size; the reports queued into a
++            // watched slot, those with more expected before the next read, and what the others did (armed, joined an armed
++            // submission, query already submitted, no query, capped, early submission off); where the watched arms were
++            // taken (draw start, after textures, fallback, carried by another submission).
++            namespace zw = rpcs3::ios::zcull_watched;
++            auto& watched = zw::counters();
++            const auto take_watched = [](std::atomic<u64>& value) { return static_cast<unsigned long long>(value.exchange(0, std::memory_order_relaxed)); };
++            const unsigned long long learned = take_watched(watched.learned), refreshed = take_watched(watched.refreshed),
++                expired = take_watched(watched.expired), evicted = take_watched(watched.evicted), short_leads = take_watched(watched.short_leads);
++            const unsigned long long reports = take_watched(watched.watched_reports), early_writes = take_watched(watched.early_writes),
++                armed = take_watched(watched.armed), joined = take_watched(watched.joined), submitted = take_watched(watched.submitted),
++                no_query = take_watched(watched.no_query), capped = take_watched(watched.capped), off = take_watched(watched.off);
++            const unsigned long long taken_start = take_watched(watched.taken_start), taken_textures = take_watched(watched.taken_textures),
++                fallback = take_watched(watched.fallback), carried = take_watched(watched.carried);
++            ios_core_profiler.notice("COREPROF ZCULLWATCH660 session=%llu window=%llu enabled=%u slots=%llu:%llu:%llu:%llu:%llu "
++                "slots_order=learned:refreshed:expired:evicted:short_lead watched_now=%u reports=%llu early_writes=%llu "
++                "outcomes=%llu:%llu:%llu:%llu:%llu:%llu outcomes_order=armed:joined:submitted:no_query:capped:off taken=%llu:%llu:%llu:%llu "
++                "taken_order=draw_start:after_textures:fallback:carried watch_frames=%u submits_per_frame=%u min_lead_ms=%.1f "
++                "scope=rsx_thread_process_window window_boundary_approximate=1",
++                profile_session, profile_window, rpcs3::ios::get_experimental_policy().zcull_watched_flush ? 1u : 0u,
++                learned, refreshed, expired, evicted, short_leads, static_cast<unsigned>(watched.watched_now.load(std::memory_order_relaxed)),
++                reports, early_writes, armed, joined, submitted, no_query, capped, off, taken_start, taken_textures, fallback, carried,
++                static_cast<unsigned>(zw::watch_frames), zw::max_watched_submits_per_frame, zw::min_lead_us / 1000.0);
++            // REWINDBOX_ZCULL_DEPTH_GUARD_660: its own line. update() at the queue-depth limit where upstream hints:
++            // hinted (oldest query in the open command buffer, first time there), skipped (oldest query on the GPU;
++            // command buffer already hinted), hinted as upstream (at or above the hard cap; no answer), and the most
++            // pending reports seen there. The hints sent are the queue_depth flushes of ZCULLHINT659.
++            const unsigned long long checks = take_watched(watched.depth_checks), depth_hints = take_watched(watched.depth_hints),
++                skip_submitted = take_watched(watched.depth_skip_submitted), skip_same = take_watched(watched.depth_skip_same_cb),
++                hard_cap = take_watched(watched.depth_hard_cap_hints), unknown = take_watched(watched.depth_unknown),
++                open_cb_bound = take_watched(watched.depth_open_cb_bound),
++                peak = take_watched(watched.depth_peak);
++            ios_core_profiler.notice("COREPROF ZCULLDEPTH660 session=%llu window=%llu enabled=%u checks=%llu hinted=%llu "
++                "skipped=%llu:%llu skipped_order=front_on_gpu:same_command_buffer upstream=%llu:%llu upstream_order=hard_cap:unknown "
++                "open_cb_bound=%llu peak_pending=%llu depth_limit=%u hard_cap=%u open_cb_skip_bound=%u "
++                "scope=rsx_thread_process_window window_boundary_approximate=1",
++                profile_session, profile_window, rpcs3::ios::get_experimental_policy().zcull_depth_guard ? 1u : 0u,
++                checks, depth_hints, skip_submitted, skip_same, hard_cap, unknown, open_cb_bound, peak,
++                zw::depth_limit, zw::depth_hard_cap, zw::open_cb_skip_bound);
+         }
+         // REWINDBOX_ZCULL_WAIT_PROBE_616: the MoltenVK wait inside those reads,
+         // by the path that asked for the result, the gathers per path and the
+@@ -1487,6 +1530,28 @@ private:
+                 counters.hits, counters.hit_bytes / 1024.0, counters.claimed, counters.dropped,
+                 state.pending, state.resident, state.resident_bytes / 1024.0);
+         }
++        // REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h): SPU object-cache hits linked
++        // without IR (direct), their object KiB, compile() time from start to the published entry
++        // (total/max), the share spent classifying and binding and in add + finalize, the bindings and
++        // patchpoint stubs made, link failures handled as on the IR path, and the hits left to the IR
++        // path by reason (fb_<reason>, one per spu_direct_hit::reason_names entry after "accepted",
++        // fb_copy_failed included; obj_hits of SPUPROF counts both paths).
++        {
++            const auto direct = rpcs3::ios::spu_direct_hit::stats().take_window();
++            std::string line = fmt::format("COREPROF SPUDIRECT660 session=%llu window=%llu enabled=%u direct=%llu direct_kib=%.1f "
++                "direct_ms=%.3f direct_max_ms=%.3f classify_ms=%.3f link_ms=%.3f bindings=%llu patchpoints=%llu failures=%llu",
++                profile_session, profile_window, rpcs3::ios::spu_direct_hit::enabled.load(std::memory_order_relaxed) ? 1u : 0u,
++                direct.direct, direct.direct_bytes / 1024.0, milliseconds(direct.direct_ticks), milliseconds(direct.direct_max_ticks),
++                milliseconds(direct.classify_ticks), milliseconds(direct.link_ticks), direct.bindings, direct.patchpoints, direct.failures);
++            unsigned long long fallbacks = 0;
++            for (usz reason = 1; reason < rpcs3::ios::spu_direct_hit::reason_count; ++reason)
++            {
++                fallbacks += direct.fallbacks[reason];
++                fmt::append(line, " fb_%s=%llu", rpcs3::ios::spu_direct_hit::reason_names[reason], direct.fallbacks[reason]);
++            }
++            fmt::append(line, " fallbacks=%llu scope=process_window window_boundary_approximate=1", fallbacks);
++            ios_core_profiler.notice("%s", line);
++        }
+         // REWINDBOX_ZCULL_LABEL_PAGE_624, REWINDBOX_ZCULL_COND_PREVIOUS_624 and
+         // REWINDBOX_ZCULL_FAULT_CENSUS_624: the reports block shift of this boot, the
+         // conditional render evaluations drawn on the previous visible value, ready or
+@@ -1574,6 +1639,56 @@ private:
+                 static_cast<u64>(c.unreleased.load(std::memory_order_relaxed)), fb, fb_skip, post, post_skip,
+                 fb_skip_off, post_skip_off);
+         }
++        // REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h): sampler-slot lookups through the one-lock
++        // path (lookups=), hits served without the cache lookup (hits=; TEXCACHE621 upload_calls then counts the
++        // other lookups), hits that ran the full lookup and were compared (verified=), differences found
++        // (mismatches=; the first turns the memo off for the boot: disabled=1), entries stored, misses by reason
++        // (no entry, epoch, sampler revision, scoped write over the range, global sampler refresh, section change,
++        // render target bound, memo off), results not stored by reason (not a direct shader_read view, the cache
++        // changed during the lookup, render target bound), section-state generation bumps (local= seen by
++        // uncompressed lookups, fb= framebuffer-only), CPU uploads on the one lock, the reader locks it saved
++        // (2 per lookup) and the RSX thread time of the served hits and of the other lookups (ms).
++        {
++            namespace memo = rpcs3::ios::texture_lookup_memo;
++            auto& c = memo::counters;
++            static u64 s_local = 0, s_all = 0, s_context = 0, s_session = 0;
++            const u64 local_now = memo::local_generation.load(std::memory_order_relaxed);
++            const u64 all_now = memo::all_generation.load(std::memory_order_relaxed);
++            const u64 context_now = memo::context_generation.load(std::memory_order_relaxed);
++            if (s_session != profile_session)
++            {
++                // A new session: the bumps of the previous boot's shutdown and of configure() are not this window's.
++                s_session = profile_session;
++                s_local = local_now;
++                s_all = all_now;
++                s_context = context_now;
++            }
++            const u64 local_bumps = local_now >= s_local ? local_now - s_local : 0;
++            const u64 all_bumps = all_now >= s_all ? all_now - s_all : 0;
++            const u64 context_bumps = context_now >= s_context ? context_now - s_context : 0;
++            s_local = local_now;
++            s_all = all_now;
++            s_context = context_now;
++            const u64 lookups = memo::take(c.lookups), hits = memo::take(c.hits), verified = memo::take(c.verified);
++            const u64 mismatches = memo::take(c.mismatches), stores = memo::take(c.stores);
++            const u64 m_empty = memo::take(c.miss_empty), m_epoch = memo::take(c.miss_epoch), m_revision = memo::take(c.miss_revision);
++            const u64 m_range = memo::take(c.miss_range), m_context = memo::take(c.miss_context), m_section = memo::take(c.miss_section);
++            const u64 m_bound = memo::take(c.miss_bound), m_disabled = memo::take(c.miss_disabled);
++            const u64 u_kind = memo::take(c.unstored_kind), u_changed = memo::take(c.unstored_changed), u_bound = memo::take(c.unstored_bound);
++            const u64 locks = memo::take(c.locks_avoided), uploads = memo::take(c.cpu_uploads);
++            const u64 first_reuses = memo::take(c.first_reuses), seen_full = memo::take(c.seen_full);
++            const u64 hit_ticks = memo::take(c.hit_ticks), lookup_ticks = memo::take(c.lookup_ticks);
++            ios_core_profiler.notice(
++                "COREPROF TEXMEMO660 session=%llu window=%llu mode=%u disabled=%u lookups=%llu hits=%llu verified=%llu mismatches=%llu "
++                "stores=%llu miss_empty=%llu miss_epoch=%llu miss_revision=%llu miss_range=%llu miss_context=%llu miss_section=%llu "
++                "miss_bound=%llu miss_disabled=%llu unstored_kind=%llu unstored_changed=%llu unstored_bound=%llu local_bumps=%llu "
++                "fb_bumps=%llu context_bumps=%llu cpu_uploads=%llu locks_avoided=%llu first_reuses=%llu seen_full=%llu hit_ms=%.3f lookup_ms=%.3f "
++                "scope=process_window_counters window_boundary_approximate=1",
++                profile_session, profile_window, static_cast<u32>(memo::current_mode()), memo::disabled.load(std::memory_order_relaxed) ? 1u : 0u,
++                lookups, hits, verified, mismatches, stores, m_empty, m_epoch, m_revision, m_range, m_context, m_section, m_bound, m_disabled,
++                u_kind, u_changed, u_bound, local_bumps, all_bumps >= local_bumps ? all_bumps - local_bumps : 0, context_bumps, uploads, locks,
++                first_reuses, seen_full, milliseconds(hit_ticks), milliseconds(lookup_ticks));
++        }
+         // REWINDBOX_RENDERPASS_CENSUS_652: why render passes ended in the window. begins= passes really begun;
+         // fresh= the first on their command buffer; same_target/other_target= begun after an end on the same or another
+         // framebuffer. sites= the eight sites with the most restarts, file:line:ends:same_target:other_target.
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index 8f186dd..e28f63a 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -158,7 +158,9 @@ const std::array catalog{
+ 	GAME_SETTING("experimental.zcull_on_demand", "Experimental", "ZCULL", "ZCULL on-demand reads", "Once the game touches its ZCULL report memory, writes the occlusion reports only when a game thread reads them, instead of waiting for the GPU at every report label. Automatic follows the title list (Assassin's Creed, Black Ops II); Enabled and Disabled test the other mode. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_on_demand, 0, 0, 0),
+ 	GAME_SETTING("experimental.zcull_wait_guard", "Experimental", "ZCULL", "ZCULL on-demand wait guard", "Returns the ZCULL on-demand reads to the upstream mode when game threads wait too long for reports. Automatic keeps it off for the titles of that lever, whose game threads have to wait for the GPU in either mode; Enabled restores it. The deadlines that protect against a request never served always stay on. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_wait_guard, 0, 0, 0),
+ 	GAME_SETTING("experimental.zcull_cond_no_wait", "Experimental", "ZCULL", "ZCULL conditional draw without waiting", "With ZCULL on-demand reads, draws an object whose occlusion result is still on the GPU instead of waiting for it. An object that turns out to be hidden stays hidden behind what covers it, at the cost of its GPU time. Automatic follows the title list (Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_cond_no_wait, 0, 0, 0),
+-	GAME_SETTING("experimental.zcull_async_reads", "Experimental", "ZCULL", "ZCULL asynchronous reads", "With ZCULL on-demand reads, a game read waits for its own report only and the RSX thread keeps working: the read of memory that is already final completes at once. Values stay exact.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_async_reads, 0, 0, 0),
++	GAME_SETTING("experimental.zcull_async_reads", "Experimental", "ZCULL", "ZCULL asynchronous reads", "With ZCULL on-demand reads, a game read waits for its own report only and the RSX thread keeps working: the read of memory that is already final completes at once. For Assassin's Creed, with Early command buffer submission, a report into a slot the game waited for also sends its command buffer at the next point where no render pass is open, or after 32 more draws. Values stay exact.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_async_reads, 0, 0, 0),
++	// REWINDBOX_ZCULL_DEPTH_GUARD_660 (ios/IOSZcullWatched.h)
++	GAME_SETTING("experimental.zcull_depth_guard", "Experimental", "ZCULL", "ZCULL queue-depth guard", "With ZCULL on-demand reads, a long report queue submits the open command buffer only while it holds the oldest pending report, and at least every 256 reports, instead of at every new report. Values stay exact. Automatic enables it for Assassin's Creed and Call of Duty: Black Ops II; Disabled keeps the upstream submissions. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_depth_guard, 0, 0, 0),
+ 	GAME_SETTING("experimental.fast_jit_load", "Experimental", "Loading", "Fast JIT object loading", "Checks and links cached PPU code on several threads. The code is the same.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fast_jit_load, 0, 0, 0),
+ 	GAME_SETTING("experimental.jit_object_release", "Experimental", "Loading", "Free JIT objects after linking", "Frees the bytes of PPU and SPU objects once they are linked, instead of keeping a copy of all the game's code in memory.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.jit_object_release, 0, 0, 0),
+ 	GAME_SETTING("experimental.spirv_disk_cache", "Experimental", "Loading", "SPIR-V disk cache", "Keeps the compiled form of each shader on disk, so that the next boots skip the shader compiler. What the GPU receives does not change.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spirv_disk_cache, 0, 0, 0),
+@@ -167,7 +169,11 @@ const std::array catalog{
+ 	GAME_SETTING("experimental.zcull_conservative_reports", "Experimental", "ZCULL", "ZCULL conservative reports", "Occlusion reports read as visible from the moment they are queued until the GPU result replaces them, so neither the RSX thread nor a game thread ever waits for one. A game may then show an occluded effect for a frame or two; check for flicker on the same scene. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.zcull_conservative_reports, 0, 0, 0),
+ 	GAME_SETTING("experimental.fifo_nop_fast_path", "Experimental", "RSX FIFO", "RSX FIFO NOP fast path", "Keeps the RSX thread in its running state across NOP commands of the game's command stream instead of timing each one as an idle period. Automatic follows the title list (God of War III, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.fifo_nop_fast_path, 0, 0, 0),
+ 	GAME_SETTING("experimental.spu_noop_spin_wait", "Experimental", "SPU", "SPU no-op spin wait", "An SPU thread that polls a reservation by writing back unchanged data sleeps for a bounded time before its next read, which leaves its core to the PPU and RSX threads. Automatic follows the title list (God of War III, Black Ops II). No effect on compiled code or caches. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_noop_spin_wait, 0, 0, 0),
++	// REWINDBOX_SPU_DIRECT_OBJECT_HIT_660 (ios/IOSSpuObjectBindings.h)
++	GAME_SETTING("experimental.spu_direct_object_hits", "Experimental", "SPU", "SPU direct object hits", "Links an SPU block found in the persistent object cache without building its LLVM IR again, when every symbol of the object is a known SPU helper or patchpoint; any other object takes the usual path. The same code runs. Automatic enables it for every game; Disabled builds the IR of every hit as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_direct_object_hits, 0, 0, 0),
+ 	GAME_SETTING("experimental.spu_qos_below_rsx", "Experimental", "SPU", "SPU QoS below RSX and PPU", "Runs SPU threads one iOS quality-of-service class below the PPU and RSX threads, which then keep the performance cores whenever they are runnable. Automatic follows the title list (God of War III, Assassin's Creed, Black Ops II). Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.spu_qos_below_rsx, 0, 0, 0),
++	// REWINDBOX_TEXTURE_LOOKUP_MEMO_660 (ios/IOSTextureLookupMemo.h)
++	GAME_SETTING("experimental.texture_lookup_memo", "Experimental", "FPS Experiments", "Texture lookup memo", "With Texture Validation Per FIFO Batch, a texture slot looked up again before the next synchronization point, with the same texture registers and nothing in the texture cache changed since, reuses the result of its last lookup instead of searching the cache again. The first 256 reuses of a boot and then one in 64 still search and compare; any difference turns the memo off until the next boot. Automatic enables it for Assassin's Creed, and for Call of Duty: Black Ops II in a measuring mode that searches and compares at every reuse; Enabled enables it for any game that validates textures per FIFO batch; Disabled searches every time as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_lookup_memo, 0, 0, 0),
+ 	GAME_SETTING("experimental.light_measurement", "Experimental", "MoltenVK", "Light measurement profile", "A run for frame rates: turns off the GPU timing probe, the sampled frame stages, the signal trace and the freeze dumps, and keeps only the summary line of the performance journal. Causes need a run without it. Automatic is off. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.light_measurement, 0, 0, 0),
+ 	// NEOSTATION_BUILD487_DIAGNOSTICS_V1 (WP-D levers). Defaults keep the Build 483 behavior except the cache-only retained keys.
+ 	// The retained keys apply to each title's own cache directory, so they take a per-title value like any SETTING
