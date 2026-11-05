@@ -295,6 +295,18 @@
    {
     "commit": "11367d181687b6359f68e6a738f1aa21857d09ba",
     "note": "build(rpcs3): Core 665 links the MoltenVK dependency of run 42061304593 (same source and patch, library d19d3a42 byte-identical, current host bridge recorded) [skip ci]"
+   },
+   {
+    "commit": "fefba375c9504ac72290307b18dd73df997d8f16",
+    "note": "fix(rpcs3): Core 665 source: the orchestrator include of RSXThread.cpp leaves the RetroAchievements patch context [skip ci]"
+   },
+   {
+    "commit": "99df35de4fb25cb7f598397a4d611d2351debd9f",
+    "note": "test(rpcs3): Core 664 grace model: writers asleep behind another thread's window are checked one by one (sanitizer start-up can exceed the 500 us deferral bound) [skip ci]"
+   },
+   {
+    "commit": "8e69dcecb7d1069e36be62519a3bc00650d8cb59",
+    "note": "test(rpcs3): ZCULL 621 wait-budget scenario: 20 s bound for a loaded Apple runner (trip reason, windows and read checks unchanged) [skip ci]"
    }
   ],
   "sourceOnly": [],
@@ -302,11 +314,8 @@
  },
  "images": {
   "mustChange": [
-   "Frameworks/App.framework/App",
    "Frameworks/MeloNXCore.framework/MeloNXCore",
    "Frameworks/libRPCS3Core.dylib",
-   "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
-   "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
    "Runner"
   ],
   "added": [],
