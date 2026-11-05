@@ -55,7 +55,7 @@ COMPOSED = sorted(set(NAMES) | set(WORK_NAMES) | set(ARRAY_NAMES) | set(DMA_NAME
                   set(ARRAY_REBUILD_BASELINE) | set(PACING_BASELINE))
 # Core 661: every GPU, GAL and Vulkan file a Core 661 adapter edits joins the composition, so the final GPU and Vulkan
 # build binds each one (their files outside this closure, HLE and Library, are bound by their own gates).
-CORE661 = ('adapt_present_pacer_fixes', 'adapt_shader_save_poll', 'adapt_warmup_key_parity', 'adapt_setprogram_warmup', 'adapt_teardown_cache', 'adapt_forced_syncpoint_wait', 'adapt_session_retention', 'adapt_memory_inventory', 'adapt_guest_fault_context', 'adapt_host_warning_trim', 'adapt_safe_point_compaction', 'adapt_cold_texture_release', 'adapt_bindless_retention', 'adapt_moltenvk_stage_ordering', 'adapt_nativeaot_gc_runtime')
+CORE661 = ('adapt_present_pacer_fixes', 'adapt_shader_save_poll', 'adapt_warmup_key_parity', 'adapt_setprogram_warmup', 'adapt_teardown_cache', 'adapt_forced_syncpoint_wait', 'adapt_session_retention', 'adapt_memory_inventory', 'adapt_guest_fault_context', 'adapt_host_warning_trim', 'adapt_safe_point_compaction', 'adapt_cold_texture_release', 'adapt_bindless_retention', 'adapt_moltenvk_stage_ordering')
 COMPOSED = sorted(set(COMPOSED) | {name for module in CORE661 for name in __import__(module).BASELINE
                                    if name.startswith('src/Ryujinx.Graphics.')})
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
@@ -87,7 +87,6 @@ INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/
           'build-utils/melonx/adapt_cold_texture_release.py',
           'build-utils/melonx/adapt_bindless_retention.py',
           'build-utils/melonx/adapt_moltenvk_stage_ordering.py',
-          'build-utils/melonx/adapt_nativeaot_gc_runtime.py',
           'test/melonx_adapter_control.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {

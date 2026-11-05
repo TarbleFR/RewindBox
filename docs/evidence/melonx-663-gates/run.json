@@ -1,0 +1,29 @@
+{
+ "schema": 1,
+ "date": "2026-11-05",
+ "session": "012mUASkkFGHaPcEUx9dsp8q",
+ "core": "663",
+ "base": "Core 661 (a36243d5, contract e187562c, pinned run 42013433386)",
+ "change": "adapt_nativeaot_gc_runtime removed from the preparation: the engine links the official .NET 10.0.0 workstation GC (runtime pack library) again. Every other Core 661 adapter is unchanged.",
+ "reason": "IPA 662 (Core 661): every heavy title dies silently on the device (Hogwarts at its first 3D scene, SSBU and SM3DW during or right after their shader-cache load; FF Tactics, light, survives); the screen recording shows a real process death. Device settings bisect: Shader cache off, Backend threading off and Track available memory off all still die. The rebuilt GC object is the only replaced native runtime component, it acts on every title and its machine code differs from Microsoft's (__text +2%, another compiler); reviews refuted only its one-line logic. Core 663 takes it out to test that on the device, with the host crash journal (MeloNX-crash.log) recording any remaining death.",
+ "contract": {
+  "path": "build-utils/melonx/dma-core-contract.json",
+  "sha256": "75ba95f7e1b1ffe6397ce52030dd534c0cf0e3929dedd1d2a7ff27f67a57fb7c",
+  "freshAppleGates": 46,
+  "preparationInputs": 162,
+  "preparedMembers": 199,
+  "productionChanges": 68
+ },
+ "contractTest": {
+  "checks": 378,
+  "actualBaselineArchiveVerified": true
+ },
+ "gatesRerun": {
+  "hogwarts-dma-copies-checks.json": "66f731a361682e2c90683b43e1059daeaecbc34640fb54e4d7fffed69bc4ad75",
+  "fragmented-reads-checks.json": "46c2d9e060077d6d58965c402815b001267da54a34744e8cb39c230d9b239013",
+  "safe-point-compaction-checks.json": "fd1a67c0d5272e20e5f2cc38fd4eb330fb351fbc269af863bb312c517d6dd8ea"
+ },
+ "gatesUnchanged": "The other 43 fresh gates bind inputs unchanged since Core 661 (docs/evidence/melonx-661-gates); the Core CI reruns all 46 on Apple ARM64.",
+ "removedGate": "nativeaot-gc-runtime (its adapter is no longer prepared)",
+ "physicalDeviceTested": false
+}

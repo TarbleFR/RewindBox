@@ -37,30 +37,23 @@ test "$(dotnet --version)" = '10.0.100'
 dotnet workload install mobile-librarybuilder --skip-manifest-update
 python3 "$TASK_ROOT/build-utils/melonx/build_libhac.py" "$SOURCE_DIR" "$LIBHAC_DIR"
 python3 "$TASK_ROOT/build-utils/melonx/prepare_embedded.py" "$SOURCE_DIR"
-# The workstation GC rebuilt with the upstream background-GC start fix (adapt_nativeaot_gc_runtime links it and fails
-# closed without it): the libraries of the run pinned in nativeaot-gc-rebuild-pin.json, checked by digest.
-python3 "$TASK_ROOT/build-utils/melonx/fetch_nativeaot_gc.py" "$SOURCE_DIR"
 RUNTIME_TARGETS=(ios-arm64)
 if [ "${MELONX_BUILD_SIMULATOR:-0}" = '1' ]; then RUNTIME_TARGETS+=(iossimulator-arm64); fi
 for MELONX_RUNTIME in "${RUNTIME_TARGETS[@]}"; do
-export MELONX_RUNTIME TASK_ROOT
+export MELONX_RUNTIME
 python3 - <<'PY_PUBLISH'
-import os, subprocess, json
+import os, subprocess
 # Library-builder selects its NativeAOT runtime in publishing mode. A separate
 # restore followed by --no-restore omits that runtime even with SelfContained.
 # Let publish perform its own matching restore, as the upstream build does.
 # The missing LibHac feed is now local; retain a bound on the whole operation.
-gc = json.load(open(os.path.join(os.environ['TASK_ROOT'], 'build-utils/melonx/nativeaot-gc-rebuild-pin.json')))
-gc_sha = gc['libraries'][os.environ['MELONX_RUNTIME']]['sha256']
-subprocess.run(['dotnet', 'publish', 'src/Ryujinx.Library', '-c', 'Release', '-r', os.environ['MELONX_RUNTIME'], '--self-contained', 'true', '-p:ExtraDefineConstants=DISABLE_UPDATER', '-p:NativeLib=Shared', '-p:RewindBoxNativeAotGcSha256=' + gc_sha], check=True, timeout=1800)
+subprocess.run(['dotnet', 'publish', 'src/Ryujinx.Library', '-c', 'Release', '-r', os.environ['MELONX_RUNTIME'], '--self-contained', 'true', '-p:ExtraDefineConstants=DISABLE_UPDATER', '-p:NativeLib=Shared'], check=True, timeout=1800)
 PY_PUBLISH
 CORE="$SOURCE_DIR/src/Ryujinx.Library/bin/Release/net10.0/$MELONX_RUNTIME/native/Ryujinx.Library.dylib"
 test -s "$CORE"
 # Retain the successfully compiled binary even if a subsequent audit fails.
 mkdir -p "$TASK_ROOT/dist/melonx/$MELONX_RUNTIME"
 cp "$CORE" "$TASK_ROOT/dist/melonx/$MELONX_RUNTIME/"
-# The patched GC object carries a no-dead-strip marker string; the linked engine must hold it.
-grep -q -a -F 'RewindBox NativeAOT GC patch 1: WKS background GC start checks bgc_thread_running' "$CORE"
 xcrun lipo "$CORE" -verify_arch arm64
 xcrun nm -gU "$CORE" > "$TASK_ROOT/dist/melonx/exports.txt"
 otool -L "$CORE" > "$TASK_ROOT/dist/melonx/dependencies.txt"
@@ -88,7 +81,6 @@ receipt['libHac'] = json.loads((root / 'dist/melonx/libhac-identity.json').read_
 receipt['embeddedSessionImplemented'] = True
 receipt['embeddedLibraryAbi'] = 2
 receipt['embeddedSessionDeviceVerified'] = False
-receipt['nativeAotGc'] = json.loads((root / 'dist/melonx/nativeaot-gc/identity.json').read_text())
 (root / 'dist/melonx/identity.json').write_text(json.dumps(receipt, indent=2) + '\n')
 output = root / 'dist/melonx' / runtime
 receipt['runtimeIdentifier'] = runtime

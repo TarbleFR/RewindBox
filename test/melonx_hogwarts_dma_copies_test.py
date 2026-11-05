@@ -109,7 +109,6 @@ LOT_FILES = {
     'adapt_cold_texture_release': [],
     'adapt_bindless_retention': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs'],
     'adapt_moltenvk_stage_ordering': ['src/Ryujinx.Graphics.Vulkan/TextureStorage.cs', 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs', 'src/Ryujinx.Library/Library.cs'],
-    'adapt_nativeaot_gc_runtime': [],
 }
 
 checks = 0

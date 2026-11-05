@@ -24,7 +24,7 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_readback_receivers', 'adapt_present_source_attribution', 'adapt_teardown_compile_cancel',
          'adapt_pause_guest_threads', 'adapt_teardown_phase_marks', 'adapt_binder_teardown', 'adapt_artifact_counters',
          'adapt_array_rebuild_allocations', 'adapt_present_pacing', 'adapt_present_drawable_residency',
-         'adapt_present_pacer_fixes', 'adapt_shader_save_poll', 'adapt_warmup_key_parity', 'adapt_setprogram_warmup', 'adapt_teardown_cache', 'adapt_forced_syncpoint_wait', 'adapt_session_retention', 'adapt_memory_inventory', 'adapt_guest_fault_context', 'adapt_host_warning_trim', 'adapt_safe_point_compaction', 'adapt_cold_texture_release', 'adapt_bindless_retention', 'adapt_moltenvk_stage_ordering', 'adapt_nativeaot_gc_runtime')
+         'adapt_present_pacer_fixes', 'adapt_shader_save_poll', 'adapt_warmup_key_parity', 'adapt_setprogram_warmup', 'adapt_teardown_cache', 'adapt_forced_syncpoint_wait', 'adapt_session_retention', 'adapt_memory_inventory', 'adapt_guest_fault_context', 'adapt_host_warning_trim', 'adapt_safe_point_compaction', 'adapt_cold_texture_release', 'adapt_bindless_retention', 'adapt_moltenvk_stage_ordering')
 
 
 def sha(path: Path) -> str:

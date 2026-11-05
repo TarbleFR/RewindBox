@@ -130,7 +130,6 @@ from adapt_safe_point_compaction import apply as adapt_safe_point_compaction
 from adapt_cold_texture_release import apply as adapt_cold_texture_release
 from adapt_bindless_retention import apply as adapt_bindless_retention
 from adapt_moltenvk_stage_ordering import apply as adapt_moltenvk_stage_ordering
-from adapt_nativeaot_gc_runtime import apply as adapt_nativeaot_gc_runtime
 
 
 def replace_once(path, old, new):
@@ -349,8 +348,6 @@ def main():
     # MoltenVK 1.4.2 orders argument-buffer reads only by barriers: each new reader stage of a written texture gets its
     # own barrier (every title), and unordered render/compute switches get one for Hogwarts.
     adapted += [source / name for name in adapt_moltenvk_stage_ordering(source)]
-    # Last: link the NativeAOT workstation GC rebuilt with dotnet/runtime#119383 (pinned by nativeaot-gc-rebuild-pin.json).
-    adapted += [source / name for name in adapt_nativeaot_gc_runtime(source)]
     inputs['build-utils/melonx/prepare_embedded.py'] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
     adapter = Path(__file__).with_name('adapt_session.py')
     inputs['build-utils/melonx/adapt_session.py'] = hashlib.sha256(adapter.read_bytes()).hexdigest()
@@ -444,8 +441,7 @@ def main():
                  'adapt_safe_point_compaction.py',
                  'adapt_cold_texture_release.py',
                  'adapt_bindless_retention.py',
-                 'adapt_moltenvk_stage_ordering.py',
-                 'adapt_nativeaot_gc_runtime.py']:
+                 'adapt_moltenvk_stage_ordering.py']:
         adapter = Path(__file__).with_name(name)
         inputs['build-utils/melonx/' + name] = hashlib.sha256(adapter.read_bytes()).hexdigest()
     output = root / 'dist/melonx'
