@@ -19,13 +19,13 @@
   "catalog_skins": 5,
   "added_skins": {
    "gamecube-pocket-original": {
-    "size": 5995074,
-    "sha256": "9988f5d7ec07cb5a3e45a49871ba59792e414a00d70433f9d8908a28692d71ea",
+    "size": 6166556,
+    "sha256": "995038e88b4597fce27cb32100e9feb14ff0d22dc352117b8846070a093af2ff",
     "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin"
    },
    "wii-pocket-original": {
-    "size": 5105387,
-    "sha256": "645bd5ab1310466d9e95661a55705bf4e50696cbc6513bd195aa971be6e47d39",
+    "size": 5095619,
+    "sha256": "337584a89caea8c1b6bebcc62df2d20528915389ced088d3217fa2f1a6d16790",
     "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin"
    }
   },
@@ -65,6 +65,24 @@
      "wii-pocket-original": {
       "size": 5257748,
       "sha256": "6be2863c7ff9e23fd0fabc3481fc2ed3dd2d9745cefc78c5777fe7d9dd96f75a",
+      "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin"
+     }
+    }
+   }
+  },
+  {
+   "date": "2026-11-05",
+   "change": "PR #162 whole-circle sticks: the two Original archives regenerated from the same approved boards (each GameCube/Wii analog stick moves as its whole measured circle, the C-stick yellow ring included; the socket under it is refilled from the socket or gate pixels around it); same ids, names and previews; same art sources, no new third-party material. The catalog moved on through the later PS2 Pocket - Original overlay, which binds the current catalog",
+   "previous": {
+    "added_skins": {
+     "gamecube-pocket-original": {
+      "size": 5995074,
+      "sha256": "9988f5d7ec07cb5a3e45a49871ba59792e414a00d70433f9d8908a28692d71ea",
+      "archiveAsset": "assets/skins/pocket/gamecube-pocket-original.manicskin"
+     },
+     "wii-pocket-original": {
+      "size": 5105387,
+      "sha256": "645bd5ab1310466d9e95661a55705bf4e50696cbc6513bd195aa971be6e47d39",
       "archiveAsset": "assets/skins/pocket/wii-pocket-original.manicskin"
      }
     }

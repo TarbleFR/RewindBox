@@ -273,3 +273,26 @@ An installed copy is replaced automatically by PR159's refresh, keeping its sele
 Original unchanged. Before/after stick positions are in [stick-top/](evidence/pocket-originals/stick-top/),
 as host renders composed like DOLSkinOverlay. Not observed on an iPhone.
 
+## Sticks: the whole circle moves (5 November 2026)
+
+Input: maintainer recording `ScreenRecording_11-05-2026_01-55-08_1.mp4` (11 060 839 B,
+SHA-256 `9903bbbd…b359`, IPA 657 with the archives above): "Pour les analogue c'est pire !
+Tu as rogner sur les deux analogue…", then: "je veux le cercle entier de chaque analogue
+est qu'il soit homogène ! comme tu as pu le faire avec la PS2 ou la Wii". Only the face
+moved, and its bevel, side wall and the C-stick's yellow ring stayed behind
+([main stick](evidence/pocket-originals/stick-circle/device-0155-main-stick.png),
+[C-stick](evidence/pocket-originals/stick-circle/device-0155-c-stick.png)).
+
+Restarted from a clean base ([details](../tools/skins/README.md)):
+- each cap's outline is measured on the board; every GameCube/Wii cap is a circle
+  ([measurement](evidence/pocket-originals/stick-circle/board-whole-caps.png));
+- the whole circle moves as one piece, as on the PS2 Original;
+- the socket under it is one homogeneous floor; nothing of the cap stays behind and no
+  socket texture moves with it.
+
+What moves, what stays and the touch areas: [GameCube](evidence/pocket-originals/stick-circle/zones-gamecube.png),
+[Wii](evidence/pocket-originals/stick-circle/zones-wii.png). New archives `995038e8…f2ff`
+(GameCube) and `337584a8…6790` (Wii), same ids, names and previews, reproducible; PR159's
+refresh replaces an installed copy. PS2 Original unchanged. Host renders composed like
+DOLSkinOverlay. Not observed on an iPhone.
+

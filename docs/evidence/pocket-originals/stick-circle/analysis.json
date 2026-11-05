@@ -1,0 +1,112 @@
+{
+ "input": {
+  "device": {
+   "name": "ScreenRecording_11-05-2026_01-55-08_1.mp4",
+   "bytes": 11060839,
+   "sha256": "9903bbbd535375c013b59365b75d18c5fb931416326454fd0ba255413e66b359",
+   "installed": "IPA 657, PR #160 archives (GameCube 9988f5d7, Wii 645bd5ab)",
+   "privacy": "recording kept private; only crops of the two sticks are stored"
+  },
+  "maintainer": [
+   "Pour les analogue c'est pire ! Tu as rogner sur les deux analogue et quand je les bouges ont remarque les défauts !!!",
+   "je veux le cercle entier de chaque analogue est qu'il soit homogène ! comme tu as pu le faire avec la PS2 ou la Wii. Reprends de Zéro si tu pense qu'il vaut mieux repartir sur une base saine."
+  ]
+ },
+ "rejected": {
+  "PR157 (IPA 650)": "a 1.12 x hand-radius disc around a hand centre: wider than the cap, it took socket and gate texture with it",
+  "PR160 (IPA 657)": "the light face circle only: the bevel, side wall and the C-stick's darker yellow ring stayed behind (device-0155-*.png)",
+  "PR161 (not integrated, closed)": "a face + side wall stadium: its top was measured 7-9 px too high (into the socket) and the shape was not a circle"
+ },
+ "finding": "measure_stick_caps.py, 180 rays per stick, outermost edge where the cap meets its socket or gate: every GameCube/Wii cap, side wall and the C-stick's yellow ring included, is a circle (semi-axes within 1 %, p90 residual 0.15-0.23 px, 180/180 rays kept). The whole round stick is therefore one circle that can move without cropping or dragging anything.",
+ "fix": "from current Claude (not from PR161): each GameCube/Wii stick declares its measured whole cap (centre, radius); the knob is that circle (+0.4 px edge), cut at whole upscaled pixels with an even diameter so knob, declared size and frame share one centre; the socket under it is refilled 1.2 px wider by a harmonic fill from the socket or gate all round (one homogeneous floor, no disc edge, no streak, no cap colour left), a little darker toward the middle; square frame, travel = half - radius as before. PS2 Original byte-identical (it already moved its whole dome).",
+ "measuredWholeCaps_boardPx": {
+  "gamecube portrait main": {
+   "centre": [
+    241.32,
+    584.41
+   ],
+   "semiAxes": [
+    40.09,
+    39.72
+   ],
+   "residualP90": 0.17,
+   "raysKept": 180
+  },
+  "gamecube portrait cstick": {
+   "centre": [
+    428.34,
+    728.18
+   ],
+   "semiAxes": [
+    38.66,
+    38.46
+   ],
+   "residualP90": 0.23,
+   "raysKept": 180
+  },
+  "gamecube landscape main": {
+   "centre": [
+    698.75,
+    474.24
+   ],
+   "semiAxes": [
+    39.14,
+    38.9
+   ],
+   "residualP90": 0.23,
+   "raysKept": 180
+  },
+  "gamecube landscape cstick": {
+   "centre": [
+    1322.61,
+    605.73
+   ],
+   "semiAxes": [
+    38.78,
+    38.44
+   ],
+   "residualP90": 0.21,
+   "raysKept": 180
+  },
+  "wii portrait main": {
+   "centre": [
+    253.75,
+    576.71
+   ],
+   "semiAxes": [
+    42.44,
+    42.31
+   ],
+   "residualP90": 0.19,
+   "raysKept": 180
+  },
+  "wii landscape main": {
+   "centre": [
+    701.99,
+    478.54
+   ],
+   "semiAxes": [
+    40.92,
+    40.8
+   ],
+   "residualP90": 0.15,
+   "raysKept": 180
+  }
+ },
+ "homogeneity": "homogeneity-before-after.json (before = PR #160 on the device): cap left behind 5.7-33.7 % -> 0 %; socket texture inside the moving piece up to 8.1 % -> at most 0.2 % (its antialiased edge); cap colour left in the socket under the C-stick 100 % -> 0 %",
+ "audit": "audit-before-after.json: misrouted 0 %; moving cap centre 4.6-8.5 pt from the whole cap before, 0.09-0.17 pt after; travel 9.1-11.4 pt (7.3-11.0 before)",
+ "archives": {
+  "gamecube-pocket-original": {
+   "sha256": "995038e88b4597fce27cb32100e9feb14ff0d22dc352117b8846070a093af2ff",
+   "size": 6166556
+  },
+  "wii-pocket-original": {
+   "sha256": "337584a89caea8c1b6bebcc62df2d20528915389ced088d3217fa2f1a6d16790",
+   "size": 5095619
+  },
+  "ps2-pocket-original": "07f4b6fb09fcf61f3ae3081313fd9f551b5abb377774f9249b62e40cef2c6355 (unchanged)"
+ },
+ "reproducible": "second build: the 3 archives and 6 previews byte-identical",
+ "renders": "zones-*.png (green: what moves, blue: drawn touch area, orange: frame) and sticks-*.png (before/after at rest and five deflections): host renders composed like DOLSkinOverlay",
+ "notObserved": "the new archives on an iPhone"
+}
