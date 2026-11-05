@@ -357,7 +357,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     restarts after a submission 109 -> 76), codegen identities unchanged, canonical delta
     reproduces the tree on pristine upstream, closure/route/protocol/pin tests passed, core659
     suite running locally; independent review: no defect (async-compute hypothesis guarded).
-  - Model only: 48.3 -> 44.7 ms/frame. Not built at this line; no FPS claim.
+  - Built: run `41958979698` (both jobs green first try, 15 Apple harnesses), pinned (`352e46f6…`,
+    dylib `aec6a732…`, fingerprint `f692cb69…`), verified offline; local core659 suite passed.
+    Model only: 48.3 -> 44.7 ms/frame; no FPS claim.
+  - Found (workflow wf_e50f3456, two refutation reviews, host proof on LLVM 18/20): since Build 481
+    the `spu_timebase_offs` mapping (SPULLVMRecompiler.cpp:2040, init) is erased by
+    clearAllGlobalMappings (:2331) before every module; RdDec (:5462) resolves through
+    make_null_function (JITLLVM.cpp:703-722): JIT decrementer reads carry a per-boot constant
+    bias against C++ read_dec. Next: Core 660 = one host-only line (map before :5462) with an exact
+    alias (Core 627 precedent; objects byte-identical). Guest impact unmeasured.
   - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
     without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
     report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).
