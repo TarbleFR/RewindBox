@@ -404,7 +404,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Device result (maintainer, 5 Nov, IPA 658):** "tu as corrigé le défaut": the black launch / frozen image is
   gone on the iPhone (iOS 27 beta 1). Logs announced, not received yet: the `Present path:` line, Hogwarts and
   another title's pacing, SSBU close and any regression remain to be read from them.
-- **Next:** read the 658 logs when they arrive; Core 658 is kept by main for the next common IPA (659+).
+- **New chantier (5 Nov, maintainer): Hogwarts black flashes, spell stutters, 30 fps stability, RAM** on IPA 658
+  logs (private uploads, not in Git): build 658, pid 11152, session E45F7615-A95C-47AB-9B03-E637061B664F, Core
+  2cfc28e5 / 756911f0; the two uploaded stderr files are byte-identical. Session 03:10:01-03:21:03 UTC, close 2 s,
+  `Present path` fix active. Read so far (core log pid 11152, 822 lines): 14 `WaitOnSyncpoint: Wait on syncpoint 1
+  ... took more than 1000ms, resuming execution` (03:13:01-03:13:47 x8, 03:14:37-57 x3, 03:19:11-03:20:00 x3): the
+  guest stalls 1 s, then runs on without the GPU's syncpoint, a candidate for both stutters and transient wrong
+  frames; to correlate with the render-stage windows (pipelines 7.9 s / 10 s, SetProgram 4.9 s), the queued
+  syncpoint FIFO of Core 631 (`adapt_queued_syncpoints`, Hogwarts policy) and the GPU thread's blocking work.
+  Also: 3 gcEvent fullBlocking (102 and 332 ms in play, `compacted` 1 on the second), only 2 pipeline misses on
+  draw in stderr, MoltenVK warnings (primitive restart, blending on R16_UINT), footprint 2.6 -> 4.5 GiB with a
+  memoryWarning and device 7 % available. No fix written yet.
+- **Next:** finish the correlation (syncpoint timeouts vs GPU-thread stalls and FIFO head), then fix the cause; GC
+  pauses, R16_UINT blending, warm-up topology/primitive-restart key and RAM levers follow. Core 658 is kept by main
+  for the next common IPA (659+).
 
 ### Skins/orientation and additive PS2 Original — existing owner
 
