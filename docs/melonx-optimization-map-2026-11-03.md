@@ -535,3 +535,27 @@ the BlitColor wiring, the minimal-layout/storage-image cause in the preparation,
 its sources) and the production Ryujinx.Graphics.Vulkan assembly builds; the real preparation of `13700519` gives the
 Core 656 tree but Window.cs (`ba3a2c85…`). Not measured on an iPhone: an isolated IPA (Core 656 + this file only) is
 requested to test it.
+
+## Core 661: Hogwarts 658 logs, in-play RAM, GC pauses, left stick, sky artifacts (5 November 2026)
+
+Inputs: private journals of player 1 (IPA 658, pid 11152 and pid 12312 with three screenshots at 06:48:09-06:48:40 UTC)
+and player 2 (four 658 sessions, pids 79315/79477/79931/80176); not in the repository. Host-tested only: no claim of a
+device result until the maintainer's run.
+
+| Problem | Proof | Cause | Correction (adapter, branch) | Verification run | Result / limit |
+| --- | --- | --- | --- | --- | --- |
+| Sky white, black blobs/rectangle/band, cyan block | MoltenVK 1.4.2 source (`MVKPipeline.mm:324` no useResource with a residency set; `MVKCmdPipeline.mm:160-196` fences only outside a render encoder); `TextureStorage.QueueWriteToReadBarrier` one barrier per write for the first reader's stage | a later reader in another stage (compute, vertex) is not ordered after the writer under 1.4.2 | `adapt_moltenvk_stage_ordering`: a barrier per new reader stage (MoltenVK ≥ 1.4.1 only); Hogwarts: unordered render/compute switches get a full barrier | fixture replaying the queued barriers on a model of 1.4.2's fences: control unordered, candidate ordered; scope reviewed | visual result and FPS cost on the iPhone to measure (new 5 s counters) |
+| Blocking GC pauses 102/332/952 ms | gc.cpp v10.0.0:24755 `!!bgc_thread`; NativeAOT CreateThread returns before the thread sets it; 19/19 fallbacks after > 20 s idle; host probe 27/277 (10.0.0) vs 0/280 (11 rc.3) | .NET 10.0.0 runtime defect (fixed upstream in 11 only, dotnet/runtime#119383) | rebuilt `libRuntime.WorkstationGC.a` (run 41988362179, only gcwks.cpp.o replaced), linked by `adapt_nativeaot_gc_runtime`, fails closed | rebuild run green; artifact verified with the hook's own code; gate of the hook; gcEvent fallback flag (`fellBackFromBackground`) | expected: no fallback, in-play pauses < 100 ms; to confirm in the journal |
+| In-play RAM, LOH never returned | gcEvent LOH 508-886 MiB with 177-517 MiB free; only a compacting GC returned memory (-137 MiB) | swept LOH stays committed (ConserveMemory 5 compacts at 50 % only; PTC, the only CompactOnce caller, does not run with LightningJit) | `adapt_safe_point_compaction`: one compaction after the first frame and in a held pause at device ≤ 15 %, never in play | executed: LOH 527 → 305 MiB, RSS -221 MiB (segments GC, host); resume/close races closed after review | gain on the iPhone to measure (`memory heapCompacted`) |
+| memoryWarning ignored | TrimCaches thresholds 7 % / 768 MiB; warning at 11 % ignored (pid 11152) | trim policy | `adapt_host_warning_trim`: a host warning at device ≤ 12 % runs the flush-free trim | executed production TrimCaches, 11 cases | |
+| Untracked Metal memory (590-760 MiB) | sampler textures outside every budget (`TextureCache.cs:1141`) | pool-only textures never released | `adapt_cold_texture_release`: unused 60 s, device ≤ 10 %, 64 MiB/10 s, reload pinning | executed with the production engine; review: safe | may rarely fire in Hogwarts (bindless arrays touch their textures every frame); journal shows pool-only size |
+| Live LOH 250-600 MiB | accounting: 3 pool arrays × ~40 MB + scratch; 170-250 MiB per-session baseline elsewhere | duplicated per-element storage | `adapt_bindless_retention`: no all-null sampler arrays, one view per element (-32-40 MiB live) | 36/36 and 48/48 equivalence scenarios | remaining baseline: memory inventory line decides |
+| Left stick dead (player 2) | executed Core path symmetric (46 cases); router rule "physical wins at \|x\|+\|y\| > 0.01" | a controller stick off rest starves the touch stick | `lot/input-stick` (Swift): last active source owns the stick; `input state` line, `in=` counters, Hid lines kept | 76 static checks; Swift compiled by the IPA build | layout/mapping causes shown by the new lines |
+| Stalls, 30 fps, close hangs | wave 1/2 findings | render-queue drain on the GPU thread, warm-up waits and key misses, {Nv} 1 s false success, close compiling the backlog, pacer stand-down | `adapt_shader_save_poll`, `adapt_warmup_key_parity`, `adapt_setprogram_warmup`, `adapt_forced_syncpoint_wait`, `adapt_teardown_cache`, `adapt_present_pacer_fixes`, `adapt_session_retention` | each lot executed + two reviews; blocking findings fixed (one save pass for N programs; cache persistence off the draw's wait; pause checkpoint removed) | to measure on the iPhone |
+
+Tool: `tools/melonx/memory_report.py` compares two sessions over the same windows from the first game second (load
+0-60 s, early 60-300 s, later 300-600 s). Resolution criteria for the next run, same scene and duration as pid 11152/12312:
+no `fellBackFromBackground` 1 and max in-play GC pause < 100 ms; footprint in the early and later windows lower than
+658's, `memory heapCompacted firstFrame` present, memoryWarnings followed by a trim; no white or black sky in the
+"Suivre le professeur Fig" area with `later reader in a new stage` > 0; FPS and GPU busy not below 658's (22-31 fps,
+15.7-20.7 ms); left stick moves with `tL`/`oL` in `in=`; close completes and relaunch works.

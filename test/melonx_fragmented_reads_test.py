@@ -53,6 +53,11 @@ COMPOSED = sorted(set(NAMES) | set(WORK_NAMES) | set(ARRAY_NAMES) | set(DMA_NAME
                   set(PRESENT_BASELINE) | set(TEARDOWN_BASELINE) | {DIAGNOSTICS} |
                   # Core 656: the MeloNX levers' GAL pool and Vulkan initialization join the composed GPU/Vulkan closure.
                   set(ARRAY_REBUILD_BASELINE) | set(PACING_BASELINE))
+# Core 661: every GPU, GAL and Vulkan file a Core 661 adapter edits joins the composition, so the final GPU and Vulkan
+# build binds each one (their files outside this closure, HLE and Library, are bound by their own gates).
+CORE661 = ('adapt_present_pacer_fixes', 'adapt_shader_save_poll', 'adapt_warmup_key_parity', 'adapt_setprogram_warmup', 'adapt_teardown_cache', 'adapt_forced_syncpoint_wait', 'adapt_session_retention', 'adapt_memory_inventory', 'adapt_guest_fault_context', 'adapt_host_warning_trim', 'adapt_safe_point_compaction', 'adapt_cold_texture_release', 'adapt_bindless_retention', 'adapt_moltenvk_stage_ordering', 'adapt_nativeaot_gc_runtime')
+COMPOSED = sorted(set(COMPOSED) | {name for module in CORE661 for name in __import__(module).BASELINE
+                                   if name.startswith('src/Ryujinx.Graphics.')})
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
 # (Ryujinx.Library) is outside the GPU assembly closure: it is composed and bound here, compiled by NativeAOT.
 COMPILED = sorted((set(COMPOSED) - {DMA_LIBRARY}) | {'src/Ryujinx.Graphics.Gpu/Memory/ReadOnlyRegion.cs'})
@@ -68,6 +73,21 @@ INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/
           'build-utils/melonx/adapt_teardown_phase_marks.py',
           'build-utils/melonx/adapt_array_rebuild_allocations.py', 'build-utils/melonx/adapt_present_pacing.py',
           'build-utils/melonx/adapt_present_drawable_residency.py',
+          'build-utils/melonx/adapt_present_pacer_fixes.py',
+          'build-utils/melonx/adapt_shader_save_poll.py',
+          'build-utils/melonx/adapt_warmup_key_parity.py',
+          'build-utils/melonx/adapt_setprogram_warmup.py',
+          'build-utils/melonx/adapt_teardown_cache.py',
+          'build-utils/melonx/adapt_forced_syncpoint_wait.py',
+          'build-utils/melonx/adapt_session_retention.py',
+          'build-utils/melonx/adapt_memory_inventory.py',
+          'build-utils/melonx/adapt_guest_fault_context.py',
+          'build-utils/melonx/adapt_host_warning_trim.py',
+          'build-utils/melonx/adapt_safe_point_compaction.py',
+          'build-utils/melonx/adapt_cold_texture_release.py',
+          'build-utils/melonx/adapt_bindless_retention.py',
+          'build-utils/melonx/adapt_moltenvk_stage_ordering.py',
+          'build-utils/melonx/adapt_nativeaot_gc_runtime.py',
           'test/melonx_adapter_control.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {

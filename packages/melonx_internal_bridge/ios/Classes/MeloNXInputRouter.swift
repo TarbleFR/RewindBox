@@ -8,7 +8,10 @@ import CryptoKit
 final class MeloNXInputRouter: ObservableObject, Controller {
     @Published private(set) var controllerCount = 0
     @Published var hideWithController = UserDefaults.standard.object(forKey: "rewindbox.melonx.hideTouch") as? Bool ?? true {
-        didSet { UserDefaults.standard.set(hideWithController, forKey: "rewindbox.melonx.hideTouch"); if hideWithController && controllerCount > 0 { releaseTouch() } }
+        didSet {
+            UserDefaults.standard.set(hideWithController, forKey: "rewindbox.melonx.hideTouch"); if hideWithController && controllerCount > 0 { releaseTouch() }
+            journalState("hideWithController")
+        }
     }
     private let legacyGameID: String
     let gameID: String
@@ -24,7 +27,13 @@ final class MeloNXInputRouter: ObservableObject, Controller {
     private var pads: Set<Int32> = [1]
     private var buttons: [Int32: [String: Set<Int32>]] = [:]
     private var axes: [Int32: [String: [Int32: (Float, Float)]]] = [:]
+    // pad -> stick (1 left, 2 right) -> the source ("touch"/"physical") that last took it.
+    private var stickOwners: [Int32: [Int32: String]] = [:]
     private(set) var controllers: [GCController] = []
+    // Per-second "in=" counters of the performance journal and the "input"
+    // "state" launch-journal line (MeloNXInputDiagnostics.swift).
+    let counters = MeloNXInputCounters()
+    private var journaled: String?
 
     init(runtime: MeloNXRuntimeAPI, generation: Int64, game: URL, titleID: String? = nil) {
         self.runtime = runtime; self.generation = generation
@@ -45,7 +54,10 @@ final class MeloNXInputRouter: ObservableObject, Controller {
         for name in [Notification.Name.GCControllerDidConnect, .GCControllerDidDisconnect] {
             observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in self?.reconnect() })
         }
+        let counters = self.counters
+        MeloNXPerfJournal.setInput(owner: self) { counters.take() }
         reconnect()
+        journalState("start")
     }
 
     func buttonPressed(_ button: VirtualControllerButton) {
@@ -62,19 +74,47 @@ final class MeloNXInputRouter: ObservableObject, Controller {
     }
 
     private func setButton(pad: Int32, source: String, index: Int32, pressed: Bool) {
-        guard !closed, !suspended else { return }
+        guard !closed, !suspended else { counters.dropped(); return }
         let before = buttons[pad]?.values.contains(where: { $0.contains(index) }) ?? false
         if pressed { buttons[pad, default: [:]][source, default: []].insert(index) }
         else { buttons[pad]?[source]?.remove(index) }
         let after = buttons[pad]?.values.contains(where: { $0.contains(index) }) ?? false
-        if before != after { runtime.button(generation, pad: pad, button: index, pressed: after) }
+        if before != after { counters.button(code: runtime.button(generation, pad: pad, button: index, pressed: after)) }
     }
     private func setStick(pad: Int32, source: String, stick: Int32, x: Float, y: Float) {
-        guard !closed, !suspended, x.isFinite, y.isFinite else { return }
+        guard x.isFinite, y.isFinite else { return }
+        guard !closed, !suspended else { counters.dropped(); return }
+        let previous = axes[pad]?[source]?[stick]
         axes[pad, default: [:]][source, default: [:]][stick] = (x, y)
-        let physical = axes[pad]?["physical"]?[stick] ?? (0, 0)
-        let value = abs(physical.0) + abs(physical.1) > 0.01 ? physical : (axes[pad]?["touch"]?[stick] ?? (0, 0))
-        runtime.stick(generation, pad: pad, stick: stick, x: value.0, y: value.1)
+        let values = axes[pad] ?? [:]
+        let owner = Self.stickOwner(current: stickOwners[pad]?[stick], source: source, previous: previous, values: values, stick: stick)
+        stickOwners[pad, default: [:]][stick] = owner
+        let value = Self.stickValue(owner: owner, values: values, stick: stick)
+        let code = runtime.stick(generation, pad: pad, stick: stick, x: value.0, y: value.1)
+        counters.stick(source: source, stick: stick, value: (x, y), sent: value, code: code)
+    }
+
+    // Touch and the first controller share pad 1. The source that most recently
+    // left rest owns a stick; a source that keeps moving while off rest (a held
+    // or drifting physical stick) never takes it back from an active owner.
+    // While the owner is at rest, another source off rest is used. Before this,
+    // a physical stick off rest (|x|+|y| > 0.01 after its deadzone, e.g. a
+    // drifting stick) overrode every touch value of that stick: the touch stick
+    // was dead while the touch buttons worked.
+    static func isOffRest(_ value: (Float, Float)) -> Bool { abs(value.0) + abs(value.1) > 0.01 }
+    static func stickOwner(current: String?, source: String, previous: (Float, Float)?,
+                           values: [String: [Int32: (Float, Float)]], stick: Int32) -> String? {
+        guard isOffRest(values[source]?[stick] ?? (0, 0)) else { return current }
+        if !isOffRest(previous ?? (0, 0)) { return source }
+        guard let current, isOffRest(values[current]?[stick] ?? (0, 0)) else { return source }
+        return current
+    }
+    static func stickValue(owner: String?, values: [String: [Int32: (Float, Float)]], stick: Int32) -> (Float, Float) {
+        if let owner, let value = values[owner]?[stick], isOffRest(value) { return value }
+        for source in ["touch", "physical"] where source != owner {
+            if let value = values[source]?[stick], isOffRest(value) { return value }
+        }
+        return (0, 0)
     }
 
     func releaseTouch() {
@@ -84,17 +124,20 @@ final class MeloNXInputRouter: ObservableObject, Controller {
     func suspend(_ value: Bool) {
         guard !closed else { return }
         for pad in pads { runtime.reset(generation, pad: pad) }
-        buttons.removeAll(); axes.removeAll(); suspended = value
+        buttons.removeAll(); axes.removeAll(); stickOwners.removeAll(); suspended = value
         // Releasing a menu/editor never replays inputs held before it opened.
+        // A resume follows every layout edit, mapping save and menu toggle.
+        if !value { journalState("resume") }
     }
     func close() {
         guard !closed else { return }
         suspended = false; releaseTouch(); closed = true; epoch += 1
+        MeloNXPerfJournal.setInput(owner: self, nil)
         for observer in observers { NotificationCenter.default.removeObserver(observer) }
         observers.removeAll()
         restoreHandlers.reversed().forEach { $0() }; restoreHandlers.removeAll()
         for pad in pads { runtime.reset(generation, pad: pad); runtime.detach(generation, pad: pad) }
-        pads.removeAll(); buttons.removeAll(); axes.removeAll(); controllers.removeAll()
+        pads.removeAll(); buttons.removeAll(); axes.removeAll(); stickOwners.removeAll(); controllers.removeAll()
     }
 
     func reconnect() {
@@ -102,7 +145,7 @@ final class MeloNXInputRouter: ObservableObject, Controller {
         epoch += 1
         restoreHandlers.reversed().forEach { $0() }; restoreHandlers.removeAll()
         for pad in pads { runtime.reset(generation, pad: pad); if pad > 1 { runtime.detach(generation, pad: pad) } }
-        pads = [1]; buttons.removeAll(); axes.removeAll()
+        pads = [1]; buttons.removeAll(); axes.removeAll(); stickOwners.removeAll()
         controllers = Array(GCController.controllers().filter { $0.extendedGamepad != nil }.prefix(8))
         controllerCount = controllers.count
         for (index, controller) in controllers.enumerated() {
@@ -111,6 +154,29 @@ final class MeloNXInputRouter: ObservableObject, Controller {
             install(controller, pad: slot, mapping: mapping(for: controller))
         }
         if hideWithController && controllerCount > 0 { releaseTouch() }
+        if journaled != nil { journalState("controllers") }
+    }
+
+    // One "input" "state" launch-journal line at session start, then only when
+    // the state changed: the touch layout in effect for both sticks, the touch
+    // overlay, each controller with its mapping origin and stick sources. The
+    // detail starts with the reason word, never with a key=value entry (the
+    // journal scrubber replaces a detail line that starts with one).
+    func journalState(_ reason: String) {
+        guard !closed else { return }
+        let overlay = !hideWithController || controllerCount == 0
+        var state = MeloNXInputDiagnostics.layout(gameID: gameID)
+        state += "; overlay \(overlay ? "shown" : "hidden") hideWithController=\(hideWithController ? 1 : 0); controllers \(controllers.count)"
+        for (index, controller) in controllers.enumerated() {
+            let resolved = resolvedMapping(for: controller)
+            let name = MeloNXInputDiagnostics.name(controller.vendorName ?? "?") + "|" + MeloNXInputDiagnostics.name(controller.productCategory)
+            let sources = "L=\(resolved.mapping.leftStick.source.rawValue) R=\(resolved.mapping.rightStick.source.rawValue)"
+            let deadzones = String(format: "%.2f/%.2f", resolved.mapping.leftStick.deadzone, resolved.mapping.rightStick.deadzone)
+            state += "; pad\(index + 1) \(name) mapping=\(resolved.origin) \(sources) dz=\(deadzones)"
+        }
+        guard reason == "start" || state != journaled else { return }
+        journaled = state
+        MeloNXLaunchJournal.record("input", "state", detail: reason + "; " + state)
     }
 
     private func install(_ controller: GCController, pad: Int32, mapping: ControllerMapping) {
@@ -163,12 +229,14 @@ final class MeloNXInputRouter: ObservableObject, Controller {
         return FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
             .appendingPathComponent("MeloNX/controller_mappings/\(identity ?? gameID)/\(key).json")
     }
-    func mapping(for controller: GCController) -> ControllerMapping {
-        for url in [mappingURL(controller), mappingURL(controller, identity:legacyGameID)] {
+    func mapping(for controller: GCController) -> ControllerMapping { resolvedMapping(for: controller).mapping }
+    // origin: "game" (this title), "legacy" (path-keyed), "global" (standalone export) or "standard".
+    private func resolvedMapping(for controller: GCController) -> (mapping: ControllerMapping, origin: String) {
+        for (url, origin) in [(mappingURL(controller), "game"), (mappingURL(controller, identity:legacyGameID), "legacy")] {
             guard let size = try? url.resourceValues(forKeys:[.fileSizeKey]).fileSize, size < 65536,
                   let data = try? Data(contentsOf:url),
                   let mapping = try? JSONDecoder().decode(ControllerMapping.self,from:data), Self.valid(mapping) else { continue }
-            return mapping
+            return (mapping, origin)
         }
         // The standalone app exports a global dictionary keyed by vendor name.
         // Keep a per-game override first, then use only a validated exact match.
@@ -176,8 +244,8 @@ final class MeloNXInputRouter: ObservableObject, Controller {
         if let size = try? global.resourceValues(forKeys:[.fileSizeKey]).fileSize, size < 4 * 1024 * 1024,
            let data = try? Data(contentsOf:global),
            let mappings = try? JSONDecoder().decode([String:ControllerMapping].self,from:data),
-           let name = controller.vendorName, let mapping = mappings[name], Self.valid(mapping) { return mapping }
-        return .standard()
+           let name = controller.vendorName, let mapping = mappings[name], Self.valid(mapping) { return (mapping, "global") }
+        return (ControllerMapping.standard(), "standard")
     }
 
     func save(_ mapping: ControllerMapping, for controller: GCController) throws {

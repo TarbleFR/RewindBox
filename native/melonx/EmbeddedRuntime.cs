@@ -22,6 +22,13 @@ partial class Library
         // adapt_session removes Library's per-game handler, which only queued
         // an Info line the dying process never wrote. Once per process.
         AppDomain.CurrentDomain.UnhandledException += (_, e) => EmbeddedLaunchDiagnostics.RecordCrash(e.ExceptionObject);
+        // RewindBox (adapt_guest_fault_context): after the crash line, a guest memory fault on a guest thread adds the
+        // thread's name, control registers and guest stack (at most 250 ms and 3600 characters; nothing otherwise).
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            string guest = Ryujinx.HLE.HOS.Kernel.GuestFaultContext.Describe(e.ExceptionObject, 250);
+            if (guest != null) EmbeddedLaunchDiagnostics.RecordCrash(guest);
+        };
     }
 
     [UnmanagedCallersOnly(EntryPoint = "neostation_melonx_diagnostics_abi")]

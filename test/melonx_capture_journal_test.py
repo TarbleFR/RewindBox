@@ -133,6 +133,27 @@ check(removed == ['    // Gaps between presentations for the performance journal
       f'controller removed lines: {removed}')
 removed, added_journal = diff(JOURNAL)
 check(removed == [], f'journal removed lines: {removed}')
+# The input lot's in= field (left-stick report, IPA 658) is bound line by line by test/melonx_input_stick_test.py;
+# every one of its lines must be present, then they are set aside so this test keeps binding only its own additions.
+INPUT_LOT = [
+    '    private static let inputLock = NSLock()',
+    '    private static var inputOwner: ObjectIdentifier?',
+    '    private static var inputSource: (() -> String?)?',
+    '    static func setInput(owner: AnyObject, _ source: (() -> String?)?) {',
+    '        inputLock.lock(); defer { inputLock.unlock() }',
+    '        if let source { inputOwner = ObjectIdentifier(owner); inputSource = source }',
+    '        else if inputOwner == ObjectIdentifier(owner) { inputOwner = nil; inputSource = nil }',
+    '    }',
+    '    private static func input() -> String? {',
+    '        inputLock.lock(); let source = inputSource; inputLock.unlock()',
+    '        return source?()',
+    '    }',
+    '',
+    '        if let text = Self.input() { fields.append("in=" + text) }',
+]
+for line in INPUT_LOT:
+    check(line in added_journal, 'input lot line missing: ' + line)
+    added_journal.remove(line)
 removed, added_plugin = diff(PLUGIN)
 check(removed == ['            guard let self, self.previousAudio != nil,',
                   '                  (event.userInfo?[AVAudioSessionInterruptionTypeKey] as? NSNumber)?.uintValue == AVAudioSession.InterruptionType.ended.rawValue,',

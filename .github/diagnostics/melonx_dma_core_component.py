@@ -45,8 +45,9 @@ CONTROL_PREPARED = {
 # twenty-seven with Core 654 (PR #156 new lot: binder teardown, gcEvent lines of the collector, artifact-path counters, and the
 # single-virtual-dependency fixture rerun because its receipt declares the collector); twenty-nine with Core 656 (MeloNX
 # levers from the IPA 650 logs: bounded reuse of pool-sized bindless rebuild arrays, 30 fps present pacing); thirty with
-# Core 658 (IPA 657 fix: the game image written into the iOS drawable by a render pass, not a compute descriptor).
-FRESH_GATES = 30
+# Core 658 (IPA 657 fix: the game image written into the iOS drawable by a render pass, not a compute descriptor); 46 with Core 661
+# (Hogwarts 658 logs: sixteen gates for its fifteen adapters and the gcEvent fallback flag).
+FRESH_GATES = 46
 HISTORICAL_RECEIPTS = 61
 GPU_WORK_ROWS = 13
 READ_COUNTERS = 4

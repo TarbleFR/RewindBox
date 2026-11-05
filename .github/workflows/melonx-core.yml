@@ -64,6 +64,11 @@ run-name: MeloNX engine • ${{ github.sha }}
     - .github/workflows/melonx-core.yml
     - build-utils/melonx/source.json
     - build-utils/melonx/build_core.sh
+    - build-utils/melonx/fetch_nativeaot_gc.py
+    - build-utils/melonx/nativeaot_gc_archive.py
+    - build-utils/melonx/nativeaot-gc-rebuild.json
+    - build-utils/melonx/nativeaot-gc-rebuild-pin.json
+    - build-utils/melonx/adapt_nativeaot_gc_runtime.py
     - build-utils/melonx/collect_managed_notices.py
     - build-utils/melonx/build_libhac.py
     - build-utils/melonx/libhac-reuse.json
@@ -347,6 +352,7 @@ jobs:
       run: python3 build-utils/melonx/verify_dma_core.py run_gates
     - name: Compile NativeAOT library and verify exported ABI
       env:
+        GH_TOKEN: ${{ github.token }}
         MELONX_AUTHENTICATED_BASELINE: ${{ github.workspace }}/.native-sources/melonx-engine82.zip
         MELONX_BUILD_SIMULATOR: '1'
       run: bash build-utils/melonx/build_core.sh .native-sources/MeloNX .native-sources/LibHac

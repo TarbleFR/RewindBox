@@ -56,6 +56,8 @@ public static partial class EmbeddedPerformanceDiagnostics
         // Gen2 collections already seen and written by the gcEvent journal lines (sampler-only state).
         public long SeenFullBlockingGcIndex, SeenBackgroundGcIndex, WrittenFullBlockingGcIndex, WrittenBackgroundGcIndex;
         public int SeenGen2Collections, GcEventLines, FullBlockingGcEventLines, BackgroundGcEventLines, SuppressedGcEventLines;
+        // Blocking gen2s that began as background collections (see RecordGcEvents), counted even when their line is suppressed.
+        public int FallbackGcCollections;
         public Epoch(long generation)
         {
             Generation = generation;
@@ -250,6 +252,14 @@ public static partial class EmbeddedPerformanceDiagnostics
     // collections after teardown and the suppressed count always reach the
     // journal: at most 2 * 16 + 2 lines per session. Sampler-only reads; never
     // on a hot path.
+    // A gen2 the runtime chose as a background collection that could not start
+    // runs in-line and blocking, but .NET 10.0.0 (gc.cpp do_pre_gc and
+    // get_completed_bgc_info) has already stamped the background record with
+    // that collection's index and never refreshes its data: both kinds then
+    // report the same index, the background one with an earlier collection's
+    // payload. That pair is one blocking line flagged fellBackFromBackground,
+    // and the stale background payload is not written. Visible only while no
+    // later background gen2 has replaced the record (same 5 s window).
     private const int MaxGcEventLinesPerKind = 16;
     private static void RecordGcEvents(Epoch epoch, bool final)
     {
@@ -260,16 +270,20 @@ public static partial class EmbeddedPerformanceDiagnostics
             bool newBlocking = blocking.Index != epoch.SeenFullBlockingGcIndex, newBackground = background.Index != epoch.SeenBackgroundGcIndex;
             epoch.SeenFullBlockingGcIndex = blocking.Index; epoch.SeenBackgroundGcIndex = background.Index;
             epoch.SeenGen2Collections = gen2;
+            bool fellBack = blocking.Index > 0 && background.Index == blocking.Index;
+            if (fellBack && newBackground) epoch.FallbackGcCollections++;
+            // The stale background record is accounted for: no later sample, final included, writes it.
+            if (fellBack) epoch.WrittenBackgroundGcIndex = background.Index;
             bool reportBlocking = newBlocking || (final && blocking.Index != epoch.WrittenFullBlockingGcIndex);
-            bool reportBackground = newBackground || (final && background.Index != epoch.WrittenBackgroundGcIndex);
+            bool reportBackground = !fellBack && (newBackground || (final && background.Index != epoch.WrittenBackgroundGcIndex));
             bool backgroundFirst = reportBackground && background.Index < blocking.Index;
-            if (backgroundFirst) RecordGcEvent(epoch, false, background, newBackground, window, final);
-            if (reportBlocking) RecordGcEvent(epoch, true, blocking, newBlocking, window, final);
-            if (reportBackground && !backgroundFirst) RecordGcEvent(epoch, false, background, newBackground, window, final);
+            if (backgroundFirst) RecordGcEvent(epoch, false, background, newBackground, window, final, false);
+            if (reportBlocking) RecordGcEvent(epoch, true, blocking, newBlocking, window, final, fellBack);
+            if (reportBackground && !backgroundFirst) RecordGcEvent(epoch, false, background, newBackground, window, final, false);
         }
         catch { } // Observability must never change the emulator's result.
     }
-    private static void RecordGcEvent(Epoch epoch, bool fullBlocking, GCMemoryInfo memory, bool newInWindow, int window, bool final)
+    private static void RecordGcEvent(Epoch epoch, bool fullBlocking, GCMemoryInfo memory, bool newInWindow, int window, bool final, bool fellBack)
     {
         string kind = fullBlocking ? "fullBlocking" : "background";
         int kindLines = fullBlocking ? epoch.FullBlockingGcEventLines : epoch.BackgroundGcEventLines;
@@ -287,6 +301,7 @@ public static partial class EmbeddedPerformanceDiagnostics
             json.WriteNumber("maxLinesPerKind", MaxGcEventLinesPerKind); json.WriteNumber("suppressedLines", epoch.SuppressedGcEventLines);
             json.WriteBoolean("finalSample", final);
             json.WriteString("kind", kind); json.WriteBoolean("newInWindow", newInWindow);
+            json.WriteNumber("fellBackFromBackground", fellBack ? 1 : 0); json.WriteNumber("fallbacksInSession", epoch.FallbackGcCollections);
             json.WriteNumber("index", memory.Index); json.WriteNumber("generation", memory.Generation);
             json.WriteNumber("concurrent", memory.Concurrent ? 1 : 0); json.WriteNumber("compacted", memory.Compacted ? 1 : 0);
             json.WriteStartArray("pauseMs");
@@ -307,6 +322,8 @@ public static partial class EmbeddedPerformanceDiagnostics
                 json.WriteEndArray();
             }
             json.WriteString("generationColumns", "sizeBeforeBytes,fragmentationBeforeBytes,sizeAfterBytes,fragmentationAfterBytes");
+            // Live large objects after this collection: LOH size minus its free space (LOH churn between gen2s).
+            json.WriteNumber("lohOccupiedAfterBytes", generations.Length > 3 ? Math.Max(0, generations[3].SizeAfterBytes - generations[3].FragmentationAfterBytes) : 0);
             json.WriteNumber("memoryLoadBytes", memory.MemoryLoadBytes);
             json.WriteNumber("highMemoryLoadThresholdBytes", memory.HighMemoryLoadThresholdBytes);
             json.WriteNumber("totalCommittedBytes", memory.TotalCommittedBytes);
