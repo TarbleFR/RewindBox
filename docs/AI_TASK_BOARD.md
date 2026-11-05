@@ -543,8 +543,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **IPA 662 delivered by main (12:02 UTC):** run `42020264926` (five jobs first try), IPA `d857e567…` (247122020 B),
   MeloNX validator 0, the stick Swift compiled and `test/melonx_input_stick_test.py` passed with swiftc;
   [receipt](evidence/rewind662/delivery.json) (`2be04a4e`).
-- **Next:** the maintainer's short iPhone test of 662 and its three logs (protocol and resolution criteria in the map,
-  section Core 661); then compare with 658 (`tools/melonx/memory_report.py --compare`) and close or reopen each point.
+- **Regression on IPA 662 (maintainer, 12:09 UTC; private logs, pids 13088/13123):** Hogwarts dies before the menus,
+  about 24 s after launch, both times when the title starts its heavy rendering (where 658 creates the three
+  524288-element bindless pool arrays and starts compute). Silent native end: no managed exception, no Metal/MoltenVK
+  error, no memoryWarning, footprint as 658 at that moment. Working on 662: first frame, first-frame LOH compaction
+  (506 -> 265 MiB, 64 ms), background GCs, input lines. Ruled out: input (no input then), cold-texture pass (released
+  0), memory, pipeline-cache checkpoint (in 658 too), rebuilt GC object layout (same external symbols and data sizes;
+  a BGC also ran in 658 then). Suspects: render-thread changes at that moment (stage ordering, bindless retention,
+  SetProgram warm-up, warm-up key parity). Main: MeloNX stays on 658.
+- **Next:** the iOS crash reports (.ips) from the maintainer -> exact frame -> Core 663 fix (with a kept NativeAOT
+  symbol map); without a decisive frame, Core 663 without the suspects, then reintroduced one by one.
 - **Baselines for like-for-like checks** (`tools/melonx/memory_report.py`, windows from the first game second): player 1
   (11152) peak 4566 MiB, 1 memoryWarning, fallbacks 102/332 ms, LOH occupied <= 342 MiB; player 2 (four 658 sessions,
   89-209 s) peak 4830-5356 MiB, headroom down to 787 MiB, 1-9 memoryWarnings, LOH occupied 479-603 MiB, one 952 ms
