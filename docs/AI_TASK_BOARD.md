@@ -441,6 +441,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     memory warning, footprint as 658). Suspects (MeloNX): adapt_bindless_retention or the rebuilt
     NativeAOT GC. Maintainer told: MeloNX stays on IPA 658, RPCS3 tests go on 662. MeloNX fix as
     Core 663 (crash reports requested); the next common IPA waits for that handoff.
+  - IPA 662 RPCS3 logs (maintainer, 12:29-12:34 UTC; logs kept outside Git):
+    - pid 13323: rpcs3_initialize failed, NEOSTATION_EXACT_ATOMIC_JIT_RESERVATION_V1. The early escrow held only
+      the contiguous 256+256 MiB fallback; after release_for_core the code half was re-reserved at 0x14ef00000
+      but no data window was left within 4 GiB, i.e. part of the freed escrow was taken in the ~9 ms
+      release->reserve gap. Pre-existing (contiguous escrows succeeded in 624-658), not Core 660; relaunch
+      worked. Fix candidate (next Core + host): the Core adopts the escrow ranges in place
+      (VM_FLAGS_FIXED|VM_FLAGS_OVERWRITE), no release window.
+    - pid 13335 Assassin's Creed: played ~3 min (avg 38.0 fps, min 16.2, 30 fps held 63.6 %), closed from
+      the menu (the game ignored the exit for 6.3 s, then a forced stop). 57 s after the stop, a thread with
+      no emulator name (TID 1717516) segfaulted reading 0 at 0x787c05a97c: 0x5a97c above the JIT writable
+      alias (0x7860000000-0x787c000000). Not a load instruction at that offset of libRPCS3Core, so the
+      faulting image is unknown without the .ips. The maintainer did not reproduce it after restarting
+      LocalDevVPN (debugger/network path suspected, not proven).
+    - Core 660 levers in that session: SPU direct hits 4302, 0 fallbacks; texture memo 2,530,834 lookups,
+      743,241 served, 12,365 verified, 0 mismatches, never disabled; ZCULL watched flush active (watched
+      slots up to 32, outcomes armed/joined/submitted); depth guard 0 checks (AC never reached the depth
+      limit). No like-for-like A/B yet, so no FPS attribution.
   - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
     without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
     report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).
