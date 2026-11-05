@@ -67,6 +67,7 @@ INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/
           'build-utils/melonx/adapt_teardown_compile_cancel.py', 'build-utils/melonx/adapt_pause_guest_threads.py',
           'build-utils/melonx/adapt_teardown_phase_marks.py',
           'build-utils/melonx/adapt_array_rebuild_allocations.py', 'build-utils/melonx/adapt_present_pacing.py',
+          'build-utils/melonx/adapt_present_drawable_residency.py',
           'test/melonx_adapter_control.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {

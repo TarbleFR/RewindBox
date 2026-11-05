@@ -92,6 +92,8 @@ LOT_FILES = {
     # MeloNX levers (Core 656): the array rebuild slots edit none of these files; the present pacing edits Window and Library.
     'adapt_array_rebuild_allocations': [],
     'adapt_present_pacing': ['src/Ryujinx.Graphics.Vulkan/Window.cs', 'src/Ryujinx.Library/Library.cs'],
+    # IPA 657 fix (Core 658): the game image written into the drawable by a render pass edits Window only.
+    'adapt_present_drawable_residency': ['src/Ryujinx.Graphics.Vulkan/Window.cs'],
 }
 
 checks = 0

@@ -3,7 +3,8 @@
 
 Usage: melonx_present_drawable_residency_test.py <Core 656 prepared MeloNX tree>
        melonx_present_drawable_residency_test.py <control> --candidate-source <final preparation containing the adapter>
-Optional: MOLTENVK_SOURCE=<MoltenVK v1.4.2 checkout's MoltenVK/MoltenVK directory> to bind the mechanism in its sources.
+When the MoltenVK v1.4.2 sources are present (/home/user/work/mvk or $MOLTENVK_SOURCE, as for the present pacing gate),
+the mechanism is bound in them too.
 
 Applies the adapter to a copy of the Core 656 preparation and builds the production Ryujinx.Graphics.Vulkan assembly.
 Static checks bind that Window.cs equals the preparation once the adapter's replacements are undone (nothing else
@@ -11,7 +12,7 @@ changes), that no swapchain image view is handed to a compute writer any more (P
 the default path draws into the swapchain view with BlitColor with PresentCopy's regions and filter, that a scaling
 filter writes a texture Ryujinx creates and BlitColor copies it into the drawable, that MetalFX and the clear are
 unchanged, and that the one journal line names the path. In the preparation it binds why: PresentCopy writes its
-destination as a storage image through a minimal-layout program (no push descriptors). With MOLTENVK_SOURCE, in
+destination as a storage image through a minimal-layout program (no push descriptors). With the sources, in
 MoltenVK v1.4.2: no UseResource for argument buffer descriptors once a residency set exists, a residency set on iOS 18,
 the presentable image's texture is the drawable's, and only MoltenVK's own allocations are made resident. No device.
 Writes dist/melonx/present-drawable-residency-checks.json.
@@ -33,7 +34,7 @@ from adapt_present_drawable_residency import apply, BASELINE  # noqa: E402
 VULKAN = 'src/Ryujinx.Graphics.Vulkan/'
 WINDOW = VULKAN + 'Window.cs'
 DOTNET = os.environ.get('DOTNET', 'dotnet')
-MOLTENVK = os.environ.get('MOLTENVK_SOURCE')
+MOLTENVK = Path(os.environ.get('MOLTENVK_SOURCE', '/home/user/work/mvk/MoltenVK'))
 checks = 0
 
 
@@ -138,8 +139,8 @@ with tempfile.TemporaryDirectory(prefix='melonx-present-residency-') as temporar
     check(result.returncode == 0, 'production Ryujinx.Graphics.Vulkan builds with the adapter')
 
 moltenvk = None
-if MOLTENVK:
-    mvk = Path(MOLTENVK)
+if (MOLTENVK / 'MoltenVK/GPUObjects/MVKImage.mm').is_file():
+    mvk = MOLTENVK / 'MoltenVK'
     pipeline = (mvk / 'GPUObjects/MVKPipeline.mm').read_text()
     check(re.search(r'\} else if \(!_device->hasResidencySet\(\)\) \{\s*MVKDescriptorBindOperationCode useTex', pipeline) is not None,
           'MoltenVK: no UseResource for argument buffer descriptors once a residency set exists')
@@ -152,7 +153,8 @@ if MOLTENVK:
           'MoltenVK: a presentable image\'s texture is the drawable\'s')
     drawable = member(image, 'id<CAMetalDrawable> MVKPresentableSwapchainImage::getCAMetalDrawable()')
     check('makeResident' not in drawable, 'MoltenVK: the drawable is not made resident')
-    moltenvk = {'checked': True, 'path': str(mvk)}
+    moltenvk = {path: hashlib.sha256((mvk / path).read_bytes()).hexdigest() for path in
+                ('GPUObjects/MVKPipeline.mm', 'GPUObjects/MVKDevice.mm', 'GPUObjects/MVKQueue.mm', 'GPUObjects/MVKImage.mm')}
 
 inputs = ['build-utils/melonx/adapt_present_drawable_residency.py', 'build-utils/melonx/adapt_session.py',
           'test/melonx_present_drawable_residency_test.py']
@@ -160,7 +162,7 @@ sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, chec
 receipt = dict(result='passed', checks=checks, finalPreparationBound=FINAL_PREPARATION,
                sourceKind='finalPreparationWithReversedControl' if FINAL_PREPARATION else 'core656Preparation',
                postimages={p: hashlib.sha256((FINAL_SOURCE / p).read_bytes()).hexdigest() for p in BASELINE} if FINAL_PREPARATION else {},
-               moltenvkSource=moltenvk, sdk=sdk, physicalDeviceTested=False, productionVulkanAssemblyBuilt=True,
+               moltenVkSourceChecked=moltenvk is not None, moltenVkSources=moltenvk or {}, sdk=sdk, physicalDeviceTested=False, productionVulkanAssemblyBuilt=True,
                sourceBaseline=BASELINE, inputs={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in inputs},
                limitation='Whether the image comes back on iOS 18 and later is known only from a device run.')
 out = ROOT / 'dist/melonx/present-drawable-residency-checks.json'

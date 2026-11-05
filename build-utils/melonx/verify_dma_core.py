@@ -83,8 +83,9 @@ ARRAY_COUNTERS = arrays.ARRAY_COUNTERS
 # (its follow-up: teardown compile cancel and the pause guest-thread record); twenty-three with Core 649 (teardown phase marks);
 # twenty-seven with Core 654 (PR #156 new lot: binder teardown, gcEvent lines of the collector, artifact-path counters, and the
 # single-virtual-dependency fixture rerun because its receipt declares the collector); twenty-nine with Core 656 (MeloNX
-# levers from the IPA 650 logs: bounded reuse of pool-sized bindless rebuild arrays, 30 fps present pacing).
-FRESH_GATES = 29
+# levers from the IPA 650 logs: bounded reuse of pool-sized bindless rebuild arrays, 30 fps present pacing); thirty with
+# Core 658 (IPA 657 fix: the game image written into the iOS drawable by a render pass, not a compute descriptor).
+FRESH_GATES = 30
 HISTORICAL_RECEIPTS = 61
 
 
