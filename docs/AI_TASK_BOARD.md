@@ -364,8 +364,15 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     the `spu_timebase_offs` mapping (SPULLVMRecompiler.cpp:2040, init) is erased by
     clearAllGlobalMappings (:2331) before every module; RdDec (:5462) resolves through
     make_null_function (JITLLVM.cpp:703-722): JIT decrementer reads carry a per-boot constant
-    bias against C++ read_dec. Next: Core 660 = one host-only line (map before :5462) with an exact
-    alias (Core 627 precedent; objects byte-identical). Guest impact unmeasured.
+    bias against C++ read_dec. Guest impact unmeasured.
+- **Core 660 (in progress; maintainer 5 Nov: every unimplemented fix goes into the next IPA):**
+  tree `/home/user/xitrix/rpcs3-660` = 659 + timebase mapping before the load (alias
+  `3f2e9a77…` -> `deb95e09…`, identities unchanged; test/rpcs3_spu_timebase_mapping660_test.py
+  passed: static audit of 660/659 + LLVM 18/20 proof). Implementing in parallel copies (workflow
+  wf_e33b4967): SPU no-IR hit path (strict bindings, IR fallback, exact aliases), texture lookup
+  memo (exact invalidation + sampled self-verification, auto-disable), ZCULL watched-slot flush
+  via the 659 boundary arming + queue-depth guard. Then integrate, codegen/driver tests, record,
+  build, pin, and the common IPA (9403a7bf promoted, PR162, MeloNX 658, RPCS3 660).
   - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
     without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
     report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).
