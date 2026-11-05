@@ -35,6 +35,7 @@
 # Core compile request: Core 660 (core-build.json build 660, canonical patch 3a1ad201), request 1 (SPU timebase mapping, SPU direct object hits, texture lookup memo, ZCULL watched flush for Assassin's Creed and queue-depth guard, three test page levers, on Core 659 with its MoltenVK dependency).
 # Core compile request: Core 660 (core-build.json build 660, canonical patch 3a1ad201), request 2 (the same source, linking the MoltenVK dependency of run 41993591512, which records the current host bridge; the texture lookup memo harness asks for LeakSanitizer on Linux only).
 # Core compile request: Core 664 (core-build.json build 664, canonical patch 252b9dd1), request 1 (PPU grace after starvation for the Black Ops II SPU writer-lock storm stalls, REWINDBOX_PPU_GRACE_664, and its test page lever, on Core 660, linking the MoltenVK dependency of run 42051417882).
+# Core compile request: Core 665 (core-build.json build 665, canonical patch d81e7fd2), request 1 (thread orchestrator v1: adaptive SPU placement, PPU above the background threads, REWINDBOX_THREAD_ORCHESTRATOR_665, and its test page lever, on Core 664, linking the MoltenVK dependency of run 42061304593).
 # Apple host harness rerun: Core 613 codegen audit reruns for its two exact aliases (request 2).
 # Apple host harness rerun: Core 619 wait-budget scenario on measured waits (request 2).
 # Apple host harness rerun: Core 619 concurrency scenario accepts the designed wait-budget trip (request 3).
