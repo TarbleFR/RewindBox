@@ -10,6 +10,7 @@
 #include "Emu/RSX/Metal/MTLPresent.h"
 
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -120,12 +121,9 @@ int main()
 	mtl::residency_commit(residency);
 	mtl::queue_add_residency_set(queue, residency);
 
-	const mtl::present_pass::rectangle full{-1.f, -1.f, 1.f, 1.f};
-	auto* rect = static_cast<f32*>(mtl::buffer_contents(constants));
-	rect[0] = full.left;
-	rect[1] = full.bottom;
-	rect[2] = full.right;
-	rect[3] = full.top;
+	mtl::present_pass::parameters params{};
+	params.rect = {-1.f, -1.f, 1.f, 1.f};
+	std::memcpy(mtl::buffer_contents(constants), &params, sizeof(params));
 
 	mtl::begin_command_buffer(command_buffer, allocator, "probe frame");
 	mtl::render_pass_descriptor pass{};

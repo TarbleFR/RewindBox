@@ -56,10 +56,10 @@ index 0000000..53c34d1
 +	CXX_STANDARD_REQUIRED ON
 +)
 diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
-index f907ea4..4ec11ab 100644
+index f907ea4..ec33194 100644
 --- a/rpcs3/Emu/CMakeLists.txt
 +++ b/rpcs3/Emu/CMakeLists.txt
-@@ -879,20 +879,46 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
+@@ -879,20 +879,48 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
      )
  
      # REWINDBOX_METAL_NATIVE: the native Metal 4 renderer. Its Metal calls live in MTLAPIApple.mm (ARC).
@@ -72,6 +72,7 @@ index f907ea4..4ec11ab 100644
 +        RSX/Metal/MTLCommonDecompiler.cpp
 +        RSX/Metal/MTLCommonDecompiler.h
 +        RSX/Metal/MTLDataHeap.h
++        RSX/Metal/MTLDraw.cpp
 +        RSX/Metal/MTLFormats.cpp
 +        RSX/Metal/MTLFormats.h
 +        RSX/Metal/MTLFragmentProgram.cpp
@@ -86,6 +87,7 @@ index f907ea4..4ec11ab 100644
 +        RSX/Metal/MTLRenderTargets.h
 +        RSX/Metal/MTLShaderTranslator.cpp
 +        RSX/Metal/MTLShaderTranslator.h
++        RSX/Metal/MTLVertexBuffers.cpp
 +        RSX/Metal/MTLVertexProgram.cpp
 +        RSX/Metal/MTLVertexProgram.h
      )
@@ -279,10 +281,10 @@ index b9a366a..18351f5 100644
  				desc.label = string(descriptor.label);
 diff --git a/rpcs3/Emu/RSX/Metal/MTLCommandContext.cpp b/rpcs3/Emu/RSX/Metal/MTLCommandContext.cpp
 new file mode 100644
-index 0000000..22ef098
+index 0000000..8a74df7
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLCommandContext.cpp
-@@ -0,0 +1,185 @@
+@@ -0,0 +1,193 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M2.2): command recording, submission, residency and deferred release.
 +
@@ -368,7 +370,7 @@ index 0000000..22ef098
 +		m_render_pass_id = 0;
 +	}
 +
-+	u64 command_context::submit(bool early)
++	u64 command_context::submit(bool early, const object& drawable)
 +	{
 +		if (!recording())
 +		{
@@ -378,8 +380,16 @@ index 0000000..22ef098
 +		end_encoder();
 +		commit_residency();
 +		end_command_buffer(m_command_buffer);
++		if (drawable)
++		{
++			wait_for_drawable(m_queue, drawable);
++		}
 +		commit(m_queue, m_command_buffer);
 +		signal_event(m_queue, m_event, ++m_last_submitted);
++		if (drawable)
++		{
++			signal_drawable(m_queue, drawable);
++		}
 +		m_command_buffer.reset();
 +
 +		m_counters.submissions++;
@@ -470,10 +480,10 @@ index 0000000..22ef098
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLCommandContext.h b/rpcs3/Emu/RSX/Metal/MTLCommandContext.h
 new file mode 100644
-index 0000000..c503b35
+index 0000000..104e0ed
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLCommandContext.h
-@@ -0,0 +1,98 @@
+@@ -0,0 +1,99 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -533,7 +543,8 @@ index 0000000..c503b35
 +		void end_encoder();
 +
 +		// Submission: ends the open encoder and the command buffer, commits it and signals the next event value.
-+		u64 submit(bool early);
++		// With a drawable, the queue waits for it before the work and signals it after (Metal 4 presentation).
++		u64 submit(bool early, const object& drawable = {});
 +		u64 last_submitted() const { return m_last_submitted; }
 +		u64 completed() const;
 +		// Waits for a submitted value. The wait is never abandoned: waits longer than 5 s are counted and logged.
@@ -827,6 +838,1105 @@ index 0000000..bb306e9
 +	private:
 +		u8* m_host = nullptr;
 +	};
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLDraw.cpp b/rpcs3/Emu/RSX/Metal/MTLDraw.cpp
+new file mode 100644
+index 0000000..105b675
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLDraw.cpp
+@@ -0,0 +1,1093 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M2.2): the draw path of the native Metal 4 renderer (VKDraw.cpp and the draw parts of
++// VKGSRender.cpp ported to Metal 4 argument tables and render encoders).
++//
++// Binding scheme: every ring is bound at the address of this draw's element, so the element offsets the Vulkan
++// renderer writes into the draw parameters (vs_context_offset, fs_context_offset, xform/fs constants offsets,
++// texture base, stipple offset) are all 0 here; the draw parameters entry of subdraw N is reached through the push
++// constant draw_parameters_offset = N with the vertex layout ring bound at the draw call's batch.
++
++#include "stdafx.h"
++#include "MTLGSRender.h"
++
++#include "Emu/RSX/Common/BufferUtils.h"
++#include "Emu/RSX/Common/TextureUtils.h"
++#include "Emu/RSX/Utils/color_utils.hpp"
++#include "Emu/RSX/rsx_methods.h"
++#include "Emu/system_config.h"
++
++#include "Emu/RSX/NV47/HW/context_accessors.define.h"
++
++namespace
++{
++	// Stage M2.2 has no texture cache: an enabled texture unit is described as a colour texture of its declared
++	// dimension, so the program state (dimensions, no shadow/stencil redirection) is computed as for a plain colour
++	// texture; the unit is bound to a neutral 1x1 texture and counted.
++	class neutral_sampled_image final : public rsx::sampled_image_descriptor_base
++	{
++	public:
++		u32 encoded_component_map() const override
++		{
++			return 0;
++		}
++	};
++
++	template <typename Texture>
++	void describe_neutral(rsx::sampled_image_descriptor_base& descriptor, const Texture& tex)
++	{
++		descriptor.upload_context = rsx::texture_upload_context::shader_read;
++		descriptor.image_type = tex.get_extended_texture_dimension();
++		descriptor.format_class = rsx::RSX_FORMAT_CLASS_COLOR;
++		descriptor.is_cyclic_reference = false;
++		descriptor.samples = 1;
++		descriptor.ref_address = rsx::get_address(tex.offset(), tex.location());
++		descriptor.texcoord_xform.scale[0] = descriptor.texcoord_xform.scale[1] = descriptor.texcoord_xform.scale[2] = 1.f;
++		descriptor.texcoord_xform.bias[0] = descriptor.texcoord_xform.bias[1] = descriptor.texcoord_xform.bias[2] = 0.f;
++		descriptor.texcoord_xform.clamp = false;
++	}
++
++	// The full-surface clear pass (MoltenVK clears attachments the same way: a triangle under the scissor).
++	constexpr std::string_view clear_source = R"(
++#include <metal_stdlib>
++using namespace metal;
++
++struct clear_params
++{
++	float4 color;
++	float4 depth;
++};
++
++struct clear_vertex_out
++{
++	float4 position [[position]];
++};
++
++vertex clear_vertex_out clear_vertex(uint vid [[vertex_id]], constant clear_params& params [[buffer(0)]])
++{
++	const float2 corner = float2((vid == 1u) ? 3.0 : -1.0, (vid == 2u) ? 3.0 : -1.0);
++	clear_vertex_out out;
++	out.position = float4(corner, params.depth.x, 1.0);
++	return out;
++}
++
++struct clear_out_1 { float4 c0 [[color(0)]]; };
++struct clear_out_2 { float4 c0 [[color(0)]]; float4 c1 [[color(1)]]; };
++struct clear_out_3 { float4 c0 [[color(0)]]; float4 c1 [[color(1)]]; float4 c2 [[color(2)]]; };
++struct clear_out_4 { float4 c0 [[color(0)]]; float4 c1 [[color(1)]]; float4 c2 [[color(2)]]; float4 c3 [[color(3)]]; };
++
++fragment void clear_fragment_0() {}
++fragment clear_out_1 clear_fragment_1(constant clear_params& p [[buffer(0)]]) { return { p.color }; }
++fragment clear_out_2 clear_fragment_2(constant clear_params& p [[buffer(0)]]) { return { p.color, p.color }; }
++fragment clear_out_3 clear_fragment_3(constant clear_params& p [[buffer(0)]]) { return { p.color, p.color, p.color }; }
++fragment clear_out_4 clear_fragment_4(constant clear_params& p [[buffer(0)]]) { return { p.color, p.color, p.color, p.color }; }
++)";
++
++	// RSX clear mask bits -> Metal colour write mask
++	u8 to_write_mask(u32 rsx_mask)
++	{
++		return static_cast<u8>(((rsx_mask & RSX_GCM_CLEAR_RED_BIT) ? mtl::write_red : 0) |
++			((rsx_mask & RSX_GCM_CLEAR_GREEN_BIT) ? mtl::write_green : 0) |
++			((rsx_mask & RSX_GCM_CLEAR_BLUE_BIT) ? mtl::write_blue : 0) |
++			((rsx_mask & RSX_GCM_CLEAR_ALPHA_BIT) ? mtl::write_alpha : 0));
++	}
++}
++
++void MTLGSRender::begin()
++{
++	rsx::thread::begin();
++
++	if (skip_current_frame || cond_render_ctrl.disable_rendering())
++	{
++		return;
++	}
++
++	init_buffers(rsx::framebuffer_creation_context::context_draw);
++}
++
++void MTLGSRender::init_buffers(rsx::framebuffer_creation_context context)
++{
++	prepare_rtts(context);
++}
++
++void MTLGSRender::prepare_rtts(rsx::framebuffer_creation_context context)
++{
++	const bool clipped_scissor = (context == rsx::framebuffer_creation_context::context_draw);
++	if (m_current_framebuffer_context == context && !m_graphics_state.test(rsx::rtt_config_dirty) && !m_draw_buffers_stale)
++	{
++		// Fast path: framebuffer usage and configuration registers have not changed
++		areau scissor;
++		if (get_scissor(scissor, clipped_scissor))
++		{
++			m_scissor = { scissor.x1, scissor.y1, scissor.width(), scissor.height() };
++		}
++		return;
++	}
++
++	m_graphics_state.clear(
++		rsx::rtt_config_dirty |
++		rsx::rtt_config_contested |
++		rsx::rtt_config_valid |
++		rsx::rtt_cache_state_dirty);
++
++	get_framebuffer_layout(context, m_framebuffer_layout);
++	if (!m_graphics_state.test(rsx::rtt_config_valid))
++	{
++		return;
++	}
++
++	if (!m_draw_buffers_stale && m_framebuffer_layout.ignore_change)
++	{
++		// Nothing has changed, we're still using the same framebuffer
++		areau scissor;
++		if (get_scissor(scissor, clipped_scissor))
++		{
++			m_scissor = { scissor.x1, scissor.y1, scissor.width(), scissor.height() };
++		}
++		return;
++	}
++
++	m_rtts.prepare_render_target(m_commands,
++		m_framebuffer_layout.color_format, m_framebuffer_layout.depth_format,
++		m_framebuffer_layout.width, m_framebuffer_layout.height,
++		m_framebuffer_layout.target, m_framebuffer_layout.aa_mode, m_framebuffer_layout.raster_type,
++		m_framebuffer_layout.color_addresses, m_framebuffer_layout.zeta_address,
++		m_framebuffer_layout.actual_color_pitch, m_framebuffer_layout.actual_zeta_pitch,
++		resolution_scaling_config);
++
++	// The texture cache's memory bookkeeping (surface locks, flushes) is stage M3; the surfaces' guest memory is not
++	// written back yet (counted by the surface store traits when it would be).
++	m_rtts.superseded_surfaces.clear();
++	m_rtts.orphaned_surfaces.clear();
++
++	const auto draw_buffers = rsx::utility::get_rtt_indexes(m_framebuffer_layout.target);
++	m_draw_buffers.clear();
++	for (u8 index : draw_buffers)
++	{
++		if (std::get<1>(m_rtts.m_bound_render_targets[index]))
++		{
++			m_draw_buffers.push_back(index);
++		}
++	}
++
++	m_draw_buffers_stale = false;
++	m_render_pass_dirty = true;
++
++	areau scissor;
++	get_scissor(scissor, clipped_scissor);
++	m_scissor = { scissor.x1, scissor.y1, scissor.width(), scissor.height() };
++	on_framebuffer_layout_updated();
++}
++
++mtl::attachment_layout MTLGSRender::current_attachment_layout() const
++{
++	mtl::attachment_layout layout{};
++	for (u8 index : m_draw_buffers)
++	{
++		if (auto surface = std::get<1>(m_rtts.m_bound_render_targets[index]); surface && layout.color_count < layout.color.size())
++		{
++			layout.color[layout.color_count++] = surface->native_format;
++		}
++	}
++
++	if (auto ds = std::get<1>(m_rtts.m_bound_depth_stencil))
++	{
++		layout.depth = true;
++		layout.stencil = mtl::has_stencil(ds->native_format);
++	}
++
++	layout.samples = 1;
++	return layout;
++}
++
++void MTLGSRender::open_render_pass()
++{
++	if (!m_render_pass_dirty && m_commands.kind() == mtl::command_context::encoder_kind::render)
++	{
++		return;
++	}
++
++	mtl::render_pass_descriptor pass{};
++	u32 width = umax, height = umax;
++	u32 attachment = 0;
++	for (u8 index : m_draw_buffers)
++	{
++		if (auto surface = std::get<1>(m_rtts.m_bound_render_targets[index]); surface && surface->texture)
++		{
++			auto& color = pass.color[attachment++];
++			color.texture = surface->texture;
++			color.load = mtl::load_action::load;
++			color.store = mtl::store_action::store;
++			width = std::min(width, surface->width());
++			height = std::min(height, surface->height());
++		}
++	}
++
++	if (auto ds = std::get<1>(m_rtts.m_bound_depth_stencil); ds && ds->texture)
++	{
++		pass.depth.texture = ds->texture;
++		pass.depth.load = mtl::load_action::load;
++		pass.depth.store = mtl::store_action::store;
++		if (mtl::has_stencil(ds->native_format))
++		{
++			pass.stencil.texture = ds->texture;
++			pass.stencil.load = mtl::load_action::load;
++			pass.stencil.store = mtl::store_action::store;
++		}
++		width = std::min(width, ds->width());
++		height = std::min(height, ds->height());
++	}
++
++	if (width == umax)
++	{
++		// No attachment at all (every target disabled): Metal still needs a render size.
++		const auto [w, h] = rsx::apply_resolution_scale<true>(resolution_scaling_config, m_framebuffer_layout.width, m_framebuffer_layout.height);
++		width = w;
++		height = h;
++	}
++
++	pass.render_target_width = std::max(width, 1u);
++	pass.render_target_height = std::max(height, 1u);
++	m_render_pass_size = { pass.render_target_width, pass.render_target_height };
++
++	m_commands.begin_render(pass, ++m_render_pass_serial, "RSX pass");
++	m_render_pass_dirty = false;
++	m_encoder_state_dirty = true;
++}
++
++void MTLGSRender::load_texture_env()
++{
++	// Fragment and vertex texture units the programs reference: described as neutral colour textures (see above).
++	for (u32 textures_ref = current_fp_metadata.referenced_textures_mask; textures_ref; textures_ref &= textures_ref - 1)
++	{
++		const auto i = std::countr_zero(textures_ref);
++		if (!fs_sampler_state[i])
++		{
++			fs_sampler_state[i] = std::make_unique<neutral_sampled_image>();
++		}
++
++		const auto& tex = rsx::method_registers.fragment_textures[i];
++		auto& descriptor = *fs_sampler_state[i];
++		if (!tex.enabled())
++		{
++			descriptor.format_class = rsx::RSX_FORMAT_CLASS_UNDEFINED;
++			continue;
++		}
++
++		describe_neutral(descriptor, tex);
++	}
++
++	for (u32 textures_ref = current_vp_metadata.referenced_textures_mask; textures_ref; textures_ref &= textures_ref - 1)
++	{
++		const auto i = std::countr_zero(textures_ref);
++		if (!vs_sampler_state[i])
++		{
++			vs_sampler_state[i] = std::make_unique<neutral_sampled_image>();
++		}
++
++		const auto& tex = rsx::method_registers.vertex_textures[i];
++		auto& descriptor = *vs_sampler_state[i];
++		if (!tex.enabled())
++		{
++			descriptor.format_class = rsx::RSX_FORMAT_CLASS_UNDEFINED;
++			continue;
++		}
++
++		describe_neutral(descriptor, tex);
++	}
++}
++
++bool MTLGSRender::load_program()
++{
++	const bool program_state_dirty = !!(m_graphics_state & rsx::pipeline_state::invalidate_pipeline_bits);
++	if (program_state_dirty)
++	{
++		get_current_fragment_program(fs_sampler_state);
++		ensure(current_fragment_program.valid);
++
++		get_current_vertex_program(vs_sampler_state);
++
++		m_graphics_state.clear(rsx::pipeline_state::invalidate_pipeline_bits);
++	}
++
++	const auto attachments = current_attachment_layout();
++	auto properties = mtl::decode_pipeline_props(rsx::method_registers, attachments,
++		rsx::method_registers.current_draw_clause.primitive, backend_config.supports_hw_a2c, backend_config.supports_hw_a2one, false);
++
++	if (m_program && !program_state_dirty && properties == m_pipeline_properties &&
++		!(m_graphics_state & rsx::pipeline_state::pipeline_config_dirty))
++	{
++		return m_program->valid();
++	}
++
++	m_graphics_state.clear(rsx::pipeline_state::pipeline_config_dirty);
++	m_pipeline_properties = properties;
++
++	if (properties.logic_op_requested)
++	{
++		mtl::counters().logic_ops_not_applied.fetch_add(1, std::memory_order_relaxed);
++	}
++
++	// Load current program from cache (synchronous compilation in stage M2.2)
++	std::tie(m_program, m_vertex_prog, m_fragment_prog) = m_prog_buffer->get_graphics_pipeline(
++		&m_program_cache_hint,
++		current_vertex_program,
++		current_fragment_program,
++		m_pipeline_properties,
++		false, true);
++
++	m_encoder_state_dirty = true;
++	return m_program && m_program->valid();
++}
++
++void MTLGSRender::upload_transform_constants(const rsx::io_buffer& buffer)
++{
++	const usz transform_constants_size = m_vertex_prog->has_indexed_constants ? 8192 : m_vertex_prog->constant_ids.size() * 16;
++	if (transform_constants_size)
++	{
++		buffer.reserve(transform_constants_size);
++		auto buf = buffer.data();
++
++		const auto constant_ids = (transform_constants_size == 8192)
++			? std::span<const u16>{}
++			: std::span<const u16>(m_vertex_prog->constant_ids);
++		m_draw_processor.fill_vertex_program_constants_data(buf, constant_ids);
++	}
++}
++
++void MTLGSRender::load_program_env()
++{
++	const auto& ctx = REGS(m_ctx);
++
++	const u32 fragment_constants_size = current_fp_metadata.program_constants_buffer_length;
++	const bool update_transform_constants = !!(m_graphics_state & rsx::pipeline_state::transform_constants_dirty);
++	const bool update_fragment_constants = !!(m_graphics_state & rsx::pipeline_state::fragment_constants_dirty);
++	const bool update_vertex_env = !!(m_graphics_state & rsx::pipeline_state::vertex_state_dirty);
++	const bool update_fragment_env = !!(m_graphics_state & rsx::pipeline_state::fragment_state_dirty);
++	const bool update_fragment_texture_env = !!(m_graphics_state & rsx::pipeline_state::fragment_texture_state_dirty);
++	const bool update_raster_env = (ctx->polygon_stipple_enabled() && !!(m_graphics_state & rsx::pipeline_state::polygon_stipple_pattern_dirty)) || !m_stipple_valid;
++	const bool update_instancing_data = ctx->current_draw_clause.is_trivial_instanced_draw;
++
++	if (update_vertex_env || !m_vertex_env_valid)
++	{
++		// Vertex state, std430 layout (VKGSRender::load_program_env)
++		m_vertex_env_offset = m_rings[ring_vertex_env].alloc<256>(96);
++		auto buf = m_rings[ring_vertex_env].map<char>(m_vertex_env_offset);
++
++		m_draw_processor.fill_scale_offset_data(buf, false);
++		m_draw_processor.fill_user_clip_data(buf + 64);
++		*(reinterpret_cast<u32*>(buf + 68)) = ctx->transform_branch_bits();
++		*(reinterpret_cast<f32*>(buf + 72)) = ctx->point_size() * resolution_scaling_config.scale_factor();
++		*(reinterpret_cast<f32*>(buf + 76)) = ctx->clip_min();
++		*(reinterpret_cast<f32*>(buf + 80)) = ctx->clip_max();
++		m_vertex_env_valid = true;
++	}
++
++	if (update_instancing_data)
++	{
++		// Combines transform load + instancing lookup table
++		rsx::io_buffer indirection_table_buf([&](usz size) -> std::pair<void*, usz>
++		{
++			m_instancing_lut_offset = m_rings[ring_instancing].alloc<256>(size);
++			return std::make_pair(m_rings[ring_instancing].map(m_instancing_lut_offset), size);
++		});
++
++		rsx::io_buffer constants_array_buf([&](usz size) -> std::pair<void*, usz>
++		{
++			m_instancing_constants_offset = m_rings[ring_instancing].alloc<256>(size);
++			return std::make_pair(m_rings[ring_instancing].map(m_instancing_constants_offset), size);
++		});
++
++		m_draw_processor.fill_constants_instancing_buffer(indirection_table_buf, constants_array_buf, m_vertex_prog);
++	}
++	else if (update_transform_constants || !m_xform_constants_valid)
++	{
++		auto alloc_storage = [&](usz size) -> std::pair<void*, usz>
++		{
++			m_xform_constants_offset = m_rings[ring_transform_constants].alloc<256>(size);
++			return std::make_pair(m_rings[ring_transform_constants].map(m_xform_constants_offset), size);
++		};
++
++		auto io_buf = rsx::io_buffer(alloc_storage);
++		upload_transform_constants(io_buf);
++		m_xform_constants_valid = true;
++	}
++
++	if ((update_fragment_constants || !m_fragment_constants_valid) && fragment_constants_size)
++	{
++		m_fragment_constants_offset = m_rings[ring_fragment_constants].alloc<256>(fragment_constants_size);
++		auto buf = m_rings[ring_fragment_constants].map(m_fragment_constants_offset);
++
++		m_prog_buffer->fill_fragment_constants_buffer({ reinterpret_cast<float*>(buf), fragment_constants_size },
++			*ensure(m_fragment_prog), current_fragment_program, true);
++		m_fragment_constants_valid = true;
++	}
++
++	if (update_fragment_env || !m_fragment_env_valid)
++	{
++		m_fragment_env_offset = m_rings[ring_fragment_env].alloc<256>(32);
++		auto buf = m_rings[ring_fragment_env].map(m_fragment_env_offset);
++		m_draw_processor.fill_fragment_state_buffer(buf, current_fragment_program);
++		m_fragment_env_valid = true;
++	}
++
++	if (update_fragment_texture_env || !m_texture_parameters_valid)
++	{
++		m_texture_parameters_offset = m_rings[ring_fragment_texture_params].alloc<256>(768);
++		auto buf = m_rings[ring_fragment_texture_params].map(m_texture_parameters_offset);
++		current_fragment_program.texture_params.write_to(buf, current_fp_metadata.referenced_textures_mask);
++		m_texture_parameters_valid = true;
++	}
++
++	if (update_raster_env)
++	{
++		m_stipple_offset = m_rings[ring_raster_env].alloc<256>(128);
++		auto buf = m_rings[ring_raster_env].map(m_stipple_offset);
++		std::memcpy(buf, ctx->polygon_stipple_pattern(), 128);
++		m_graphics_state.clear(rsx::pipeline_state::polygon_stipple_pattern_dirty);
++		m_stipple_valid = true;
++	}
++
++	// Clear flags (as the Vulkan renderer)
++	rsx::flags32_t handled_flags =
++		rsx::pipeline_state::fragment_state_dirty |
++		rsx::pipeline_state::vertex_state_dirty |
++		rsx::pipeline_state::fragment_texture_state_dirty;
++
++	if (!update_instancing_data)
++	{
++		handled_flags |= rsx::pipeline_state::transform_constants_dirty;
++	}
++
++	if (update_fragment_constants)
++	{
++		handled_flags |= rsx::pipeline_state::fragment_constants_dirty;
++	}
++
++	m_graphics_state.clear(handled_flags);
++}
++
++void MTLGSRender::update_vertex_env(u32 id, const mtl::vertex_upload_info& vertex_info)
++{
++#pragma pack(push, 1)
++	struct rsx_prog_vertex_layout_entry_t
++	{
++		u32 vertex_base_index;
++		u32 vertex_index_offset;
++		u32 draw_id;
++		u32 xform_constants_offset;
++		u32 vs_context_offset;
++		u32 fs_constants_offset;
++		u32 fs_context_offset;
++		u32 fs_texture_base_index;
++		u32 fs_stipple_pattern_offset;
++		u32 reserved;
++		s32 attrib_data[1];
++	};
++#pragma pack(pop)
++
++	auto dst = m_rings[ring_vertex_layout].map<rsx_prog_vertex_layout_entry_t>(m_vertex_layout_offset + (168u * id));
++
++	dst->vertex_base_index = vertex_info.vertex_index_base;
++	dst->vertex_index_offset = vertex_info.vertex_index_offset;
++	dst->draw_id = id;
++
++	// Every ring is bound at this draw's element (see the binding scheme at the top of this file).
++	dst->xform_constants_offset = 0;
++	dst->vs_context_offset = 0;
++	dst->fs_constants_offset = 0;
++	dst->fs_context_offset = 0;
++	dst->fs_texture_base_index = 0;
++	dst->fs_stipple_pattern_offset = 0;
++	dst->reserved = 0;
++
++	m_draw_processor.fill_vertex_layout_state(
++		m_vertex_layout,
++		current_vp_metadata,
++		vertex_info.first_vertex,
++		vertex_info.allocated_vertex_count,
++		dst->attrib_data,
++		vertex_info.persistent_window_offset,
++		vertex_info.volatile_window_offset);
++
++	// Push constants (one 32-byte block for both stages, as Vulkan's push constant range):
++	// [0] draw_parameters_offset (vertex), [1..7] blend configuration (fragment, programmable blending).
++	m_push_constants_offset = m_rings[ring_push_constants].alloc<32>(32);
++	auto push = m_rings[ring_push_constants].map<u32>(m_push_constants_offset);
++	push[0] = id;
++
++	if (current_fragment_program.ctrl & RSX_SHADER_CONTROL_PROGRAMMABLE_BLENDING)
++	{
++		push[1] = REGS(m_ctx)->registers[NV4097_SET_BLEND_EQUATION];
++		push[2] = REGS(m_ctx)->registers[NV4097_SET_BLEND_FUNC_SFACTOR];
++		push[3] = REGS(m_ctx)->registers[NV4097_SET_BLEND_FUNC_DFACTOR];
++
++		const auto blend_colors = rsx::get_constant_blend_colors();
++		push[4] = std::bit_cast<u32>(blend_colors[0]);
++		push[5] = std::bit_cast<u32>(blend_colors[1]);
++		push[6] = std::bit_cast<u32>(blend_colors[2]);
++		push[7] = std::bit_cast<u32>(blend_colors[3]);
++	}
++}
++
++void MTLGSRender::bind_vertex_streams(const mtl::vertex_upload_info& info)
++{
++	const auto& slots = *m_program;
++	const auto& table = m_vertex_table;
++	const auto& binding = m_vertex_prog->binding_table;
++
++	// Streams (texel buffers over the attribute ring windows)
++	const auto bind_stream = [&](u32 location, const texel_window& window, u32 base)
++	{
++		const u32 slot = slots.vertex_texture_slot(location);
++		if (slot != umax)
++		{
++			mtl::table_set_texture(table, (base != umax && window.view) ? window.view : m_null_texture_buffer, slot);
++		}
++	};
++	bind_stream(binding.vertex_buffers_location, m_persistent_window, info.persistent_window_offset);
++	bind_stream(binding.vertex_buffers_location + 1, m_volatile_window, info.volatile_window_offset);
++
++	const auto bind_ring = [&](const mtl::object& target_table, u32 slot, ring_id ring, usz offset)
++	{
++		if (slot != umax)
++		{
++			mtl::table_set_buffer(target_table, m_rings[ring].buffer, offset, slot);
++		}
++	};
++
++	// Vertex stage buffers
++	bind_ring(table, slots.vertex_buffer_slot(binding.vertex_buffers_location + 2), ring_vertex_layout, m_vertex_layout_offset);
++	bind_ring(table, slots.vertex_buffer_slot(binding.context_buffer_location), ring_vertex_env, m_vertex_env_offset);
++	if (binding.cbuf_location != umax)
++	{
++		bind_ring(table, slots.vertex_buffer_slot(binding.cbuf_location), ring_transform_constants, m_xform_constants_offset);
++	}
++	if (binding.instanced_lut_buffer_location != umax)
++	{
++		bind_ring(table, slots.vertex_buffer_slot(binding.instanced_lut_buffer_location), ring_instancing, m_instancing_lut_offset);
++		bind_ring(table, slots.vertex_buffer_slot(binding.instanced_cbuf_location), ring_instancing, m_instancing_constants_offset);
++	}
++	mtl::table_set_buffer(table, m_rings[ring_push_constants].buffer, m_push_constants_offset, mtl::push_constant_buffer_slot);
++
++	// Fragment stage buffers
++	const auto& fragment = m_fragment_prog->binding_table;
++	bind_ring(m_fragment_table, slots.fragment_buffer_slot(fragment.context_buffer_location), ring_fragment_env, m_fragment_env_offset);
++	bind_ring(m_fragment_table, slots.fragment_buffer_slot(fragment.tex_param_location), ring_fragment_texture_params, m_texture_parameters_offset);
++	bind_ring(m_fragment_table, slots.fragment_buffer_slot(fragment.polygon_stipple_params_location), ring_raster_env, m_stipple_offset);
++	if (fragment.cbuf_location != umax)
++	{
++		bind_ring(m_fragment_table, slots.fragment_buffer_slot(fragment.cbuf_location), ring_fragment_constants, m_fragment_constants_offset);
++	}
++	mtl::table_set_buffer(m_fragment_table, m_rings[ring_push_constants].buffer, m_push_constants_offset, mtl::push_constant_buffer_slot);
++}
++
++void MTLGSRender::bind_neutral_textures()
++{
++	const auto& slots = *m_program;
++	u32 bound = 0;
++
++	const auto null_for = [&](rsx::texture_dimension_extended dimension) -> const mtl::object&
++	{
++		switch (dimension)
++		{
++		case rsx::texture_dimension_extended::texture_dimension_cubemap: return m_null_textures[2];
++		case rsx::texture_dimension_extended::texture_dimension_3d: return m_null_textures[3];
++		default: return m_null_textures[1];
++		}
++	};
++
++	for (u32 textures_ref = current_fp_metadata.referenced_textures_mask; textures_ref; textures_ref &= textures_ref - 1)
++	{
++		const auto i = std::countr_zero(textures_ref);
++		const u32 location = m_fragment_prog->binding_table.ftex_location[i];
++		if (location == umax)
++		{
++			continue;
++		}
++
++		if (const u32 slot = slots.fragment_texture_slot(location); slot != umax)
++		{
++			mtl::table_set_texture(m_fragment_table, null_for(current_fragment_program.get_texture_dimension(i)), slot);
++			bound++;
++		}
++		if (const u32 slot = slots.fragment_sampler_slot(location); slot != umax)
++		{
++			mtl::table_set_sampler(m_fragment_table, m_null_sampler, slot);
++		}
++	}
++
++	for (u32 textures_ref = current_vp_metadata.referenced_textures_mask; textures_ref; textures_ref &= textures_ref - 1)
++	{
++		const auto i = std::countr_zero(textures_ref);
++		const u32 location = m_vertex_prog->binding_table.vtex_location[i];
++		if (location == umax)
++		{
++			continue;
++		}
++
++		if (const u32 slot = slots.vertex_texture_slot(location); slot != umax)
++		{
++			mtl::table_set_texture(m_vertex_table, null_for(current_vertex_program.get_texture_dimension(i)), slot);
++			bound++;
++		}
++		if (const u32 slot = slots.vertex_sampler_slot(location); slot != umax)
++		{
++			mtl::table_set_sampler(m_vertex_table, m_null_sampler, slot);
++		}
++	}
++
++	if (bound)
++	{
++		mtl::counters().textures_not_bound.fetch_add(bound, std::memory_order_relaxed);
++	}
++}
++
++const mtl::object& MTLGSRender::get_depth_stencil_state(const mtl::depth_stencil_key& key)
++{
++	const u64 hash = rpcs3::hash_struct(key);
++	auto [it, inserted] = m_depth_stencil_states.try_emplace(hash);
++	if (inserted)
++	{
++		it->second = mtl::new_depth_stencil_state(m_device, key.descriptor());
++	}
++	return it->second;
++}
++
++void MTLGSRender::update_draw_state(const mtl::raster_state& raster)
++{
++	const auto& encoder = m_commands.encoder();
++
++	// The scale_offset matrix already has the viewport transform factored in (VKGSRender::set_viewport).
++	const auto [clip_width, clip_height] = rsx::apply_resolution_scale<true>(
++		resolution_scaling_config, rsx::method_registers.surface_clip_width(), rsx::method_registers.surface_clip_height());
++	mtl::set_viewport(encoder, { 0., 0., static_cast<f64>(clip_width), static_cast<f64>(clip_height), 0., 1. });
++
++	// Metal requires the scissor inside the render target.
++	mtl::scissor_rect scissor = m_scissor;
++	scissor.x = std::min(scissor.x, m_render_pass_size.width);
++	scissor.y = std::min(scissor.y, m_render_pass_size.height);
++	scissor.width = std::min(scissor.width, m_render_pass_size.width - scissor.x);
++	scissor.height = std::min(scissor.height, m_render_pass_size.height - scissor.y);
++	mtl::set_scissor(encoder, scissor);
++
++	mtl::set_cull_mode(encoder, raster.cull);
++	mtl::set_front_facing(encoder, raster.front);
++	mtl::set_depth_clip_mode(encoder, raster.depth_clip);
++	mtl::set_depth_bias(encoder, raster.depth_bias, raster.depth_bias_slope, raster.depth_bias_clamp);
++	mtl::set_stencil_reference(encoder, raster.stencil_front_reference, raster.stencil_back_reference);
++	mtl::set_blend_color(encoder, raster.blend_color[0], raster.blend_color[1], raster.blend_color[2], raster.blend_color[3]);
++}
++
++void MTLGSRender::emit_geometry(u32 sub_index)
++{
++	auto& draw_call = rsx::method_registers.current_draw_clause;
++
++	const rsx::flags32_t vertex_state_mask = rsx::vertex_base_changed | rsx::vertex_arrays_changed;
++	const rsx::flags32_t state_flags = (sub_index == 0) ? rsx::vertex_arrays_changed : draw_call.execute_pipeline_dependencies(m_ctx);
++
++	if (state_flags & rsx::vertex_arrays_changed)
++	{
++		m_draw_processor.analyse_inputs_interleaved(m_vertex_layout, current_vp_metadata);
++	}
++	else if (state_flags & rsx::vertex_base_changed)
++	{
++		for (auto& info : m_vertex_layout.interleaved_blocks)
++		{
++			info->vertex_range.second = 0;
++			const auto vertex_base_offset = rsx::method_registers.vertex_data_base_offset();
++			info->real_offset_address = rsx::get_address(rsx::get_vertex_offset_from_base(vertex_base_offset, info->base_offset), info->memory_location);
++		}
++	}
++	else
++	{
++		for (auto& info : m_vertex_layout.interleaved_blocks)
++		{
++			info->vertex_range.second = 0;
++		}
++	}
++
++	if ((state_flags & vertex_state_mask) && !m_vertex_layout.validate())
++	{
++		// No vertex inputs enabled: execute the remaining pipeline barriers with NOP draws
++		do
++		{
++			draw_call.execute_pipeline_dependencies(m_ctx);
++		}
++		while (draw_call.next());
++
++		draw_call.end();
++		return;
++	}
++
++	auto upload_info = upload_vertex_data();
++	if (!upload_info.vertex_draw_count)
++	{
++		mtl::counters().draws_skipped_no_vertices.fetch_add(1, std::memory_order_relaxed);
++		return;
++	}
++
++	if (m_subdraw_id == 0)
++	{
++		// Draw parameters for this batch of subdraws
++		m_vertex_layout_offset = m_rings[ring_vertex_layout].alloc<256>(draw_call.pass_count() * 168);
++	}
++
++	update_vertex_env(sub_index, upload_info);
++
++	// Uploads may have submitted (full ring): reopen the pass and reset the encoder state if needed.
++	open_render_pass();
++	const auto& encoder = m_commands.encoder();
++
++	const auto raster = mtl::decode_raster_state(rsx::method_registers);
++	if (raster.cull_both_faces && mtl::get_topology_class(draw_call.primitive) == mtl::topology_class::triangle)
++	{
++		// Vulkan FRONT_AND_BACK culling of triangles rasterizes nothing (MoltenVK disables rasterization).
++		mtl::counters().draws_cull_both_faces.fetch_add(1, std::memory_order_relaxed);
++		m_subdraw_id++;
++		return;
++	}
++
++	mtl::set_render_pipeline(encoder, m_program->pipeline);
++	const auto attachments = current_attachment_layout();
++	mtl::set_depth_stencil_state(encoder, get_depth_stencil_state(mtl::decode_depth_stencil(rsx::method_registers, attachments.stencil)));
++	update_draw_state(raster);
++
++	bind_vertex_streams(upload_info);
++	bind_neutral_textures();
++	mtl::set_argument_table(encoder, m_vertex_table, mtl::stage_vertex);
++	mtl::set_argument_table(encoder, m_fragment_table, mtl::stage_fragment);
++
++	if (!upload_info.index_info)
++	{
++		if (draw_call.is_trivial_instanced_draw)
++		{
++			mtl::draw_primitives(encoder, upload_info.primitive, 0, upload_info.vertex_draw_count, draw_call.pass_count());
++		}
++		else if (draw_call.is_single_draw())
++		{
++			mtl::draw_primitives(encoder, upload_info.primitive, 0, upload_info.vertex_draw_count);
++		}
++		else
++		{
++			u32 vertex_offset = 0;
++			const auto subranges = draw_call.get_subranges();
++			for (const auto& range : subranges)
++			{
++				mtl::draw_primitives(encoder, upload_info.primitive, vertex_offset, range.count);
++				vertex_offset += range.count;
++			}
++		}
++	}
++	else
++	{
++		const auto [offset, type] = *upload_info.index_info;
++		const u32 index_size = (type == mtl::index_type::uint16) ? 2 : 4;
++		const auto& index_buffer = m_rings[ring_index].buffer;
++
++		if (draw_call.is_trivial_instanced_draw)
++		{
++			mtl::draw_indexed_primitives(encoder, upload_info.primitive, upload_info.vertex_draw_count, type, index_buffer,
++				offset, static_cast<u64>(upload_info.vertex_draw_count) * index_size, draw_call.pass_count());
++		}
++		else if (draw_call.is_single_draw())
++		{
++			mtl::draw_indexed_primitives(encoder, upload_info.primitive, upload_info.vertex_draw_count, type, index_buffer,
++				offset, static_cast<u64>(upload_info.vertex_draw_count) * index_size, 1);
++		}
++		else
++		{
++			u32 first_index = 0;
++			const auto subranges = draw_call.get_subranges();
++			for (const auto& range : subranges)
++			{
++				const auto count = get_index_count(draw_call.primitive, range.count);
++				mtl::draw_indexed_primitives(encoder, upload_info.primitive, count, type, index_buffer,
++					offset + static_cast<u64>(first_index) * index_size, static_cast<u64>(count) * index_size, 1);
++				first_index += count;
++			}
++		}
++	}
++
++	mtl::counters().draws_rendered.fetch_add(1, std::memory_order_relaxed);
++	m_subdraw_id++;
++}
++
++void MTLGSRender::end()
++{
++	if (skip_current_frame || !m_graphics_state.test(rsx::rtt_config_valid) || cond_render_ctrl.disable_rendering())
++	{
++		execute_nop_draw();
++		rsx::thread::end();
++		return;
++	}
++
++	analyse_current_rsx_pipeline();
++	load_texture_env();
++
++	if (!load_program())
++	{
++		// Program not available: skip drawing this, as the Vulkan renderer does (counted)
++		mtl::counters().draws_skipped_program.fetch_add(1, std::memory_order_relaxed);
++		execute_nop_draw();
++		rsx::thread::end();
++		return;
++	}
++
++	load_program_env();
++
++	// Surface memory barriers (initialisation, inheritance) before any of this draw's work is encoded.
++	if (auto ds = std::get<1>(m_rtts.m_bound_depth_stencil))
++	{
++		ds->write_barrier(m_commands);
++	}
++
++	for (auto& rtt : m_rtts.m_bound_render_targets)
++	{
++		if (auto surface = std::get<1>(rtt))
++		{
++			surface->write_barrier(m_commands);
++		}
++	}
++
++	if (m_commands.kind() != mtl::command_context::encoder_kind::render)
++	{
++		// A barrier above encoded copies or clears: the render pass must be reopened after them.
++		m_render_pass_dirty = true;
++	}
++
++	m_subdraw_id = 0;
++	auto& draw_call = rsx::method_registers.current_draw_clause;
++	draw_call.begin();
++	u32 sub_index = 0;
++	do
++	{
++		emit_geometry(sub_index++);
++
++		if (draw_call.is_trivial_instanced_draw)
++		{
++			draw_call.end();
++		}
++	}
++	while (draw_call.next());
++
++	m_rtts.on_write(m_framebuffer_layout.color_write_enabled, m_framebuffer_layout.zeta_write_enabled);
++	rsx::thread::end();
++}
++
++bool MTLGSRender::create_clear_library(std::string& error)
++{
++	m_clear_library = mtl::compile_library(m_compiler, clear_source, error);
++	return !!m_clear_library;
++}
++
++const mtl::object& MTLGSRender::get_clear_pipeline(u32 color_write_mask)
++{
++	const auto attachments = current_attachment_layout();
++
++	// Key: attachment formats, depth/stencil presence and the write mask.
++	u64 key = color_write_mask;
++	key = key * 31 + attachments.color_count;
++	for (u32 i = 0; i < attachments.color_count; ++i)
++	{
++		key = key * 1009 + static_cast<u32>(attachments.color[i]);
++	}
++	key = key * 7 + (attachments.depth ? 1 : 0) + (attachments.stencil ? 2 : 0);
++
++	auto [it, inserted] = m_clear_pipelines.try_emplace(key);
++	if (inserted)
++	{
++		mtl::render_pipeline_descriptor desc{};
++		desc.library = m_clear_library;
++		desc.vertex_function = "clear_vertex";
++		desc.fragment_function = fmt::format("clear_fragment_%u", attachments.color_count);
++		for (u32 i = 0; i < attachments.color_count; ++i)
++		{
++			desc.color[i].format = attachments.color[i];
++			desc.color[i].write_mask = color_write_mask;
++		}
++		desc.label = "RSX clear";
++
++		std::string error;
++		it->second = mtl::new_render_pipeline(m_compiler, desc, error);
++		if (!it->second)
++		{
++			rsx_log.error("Metal: clear pipeline: %s", error);
++		}
++	}
++
++	return it->second;
++}
++
++void MTLGSRender::clear_attachments(u32 color_write_mask, bool clear_depth, bool clear_stencil, f32 depth, u8 stencil,
++	u8 stencil_write_mask, const std::array<f32, 4>& color)
++{
++	const auto& pipeline = get_clear_pipeline(color_write_mask);
++	if (!pipeline)
++	{
++		return;
++	}
++
++	open_render_pass();
++	const auto& encoder = m_commands.encoder();
++
++	mtl::depth_stencil_key ds{};
++	ds.depth_compare = static_cast<u8>(mtl::compare_function::always);
++	ds.depth_write = clear_depth ? 1 : 0;
++	if (clear_stencil)
++	{
++		ds.stencil = 1;
++		ds.front.compare = static_cast<u8>(mtl::compare_function::always);
++		ds.front.depth_stencil_pass = static_cast<u8>(mtl::stencil_operation::replace);
++		ds.front.depth_fail = static_cast<u8>(mtl::stencil_operation::replace);
++		ds.front.write_mask = stencil_write_mask;
++		ds.back = ds.front;
++	}
++
++	struct
++	{
++		f32 color[4];
++		f32 depth[4];
++	} params{ { color[0], color[1], color[2], color[3] }, { depth, 0.f, 0.f, 0.f } };
++
++	const usz offset = m_rings[ring_push_constants].alloc<32>(sizeof(params));
++	std::memcpy(m_rings[ring_push_constants].map(offset), &params, sizeof(params));
++
++	mtl::set_render_pipeline(encoder, pipeline);
++	mtl::set_depth_stencil_state(encoder, get_depth_stencil_state(ds));
++	mtl::set_stencil_reference(encoder, stencil, stencil);
++	mtl::set_cull_mode(encoder, mtl::cull_mode::none);
++	mtl::set_viewport(encoder, { 0., 0., static_cast<f64>(m_render_pass_size.width), static_cast<f64>(m_render_pass_size.height), 0., 1. });
++
++	mtl::scissor_rect scissor = m_scissor;
++	scissor.x = std::min(scissor.x, m_render_pass_size.width);
++	scissor.y = std::min(scissor.y, m_render_pass_size.height);
++	scissor.width = std::min(scissor.width, m_render_pass_size.width - scissor.x);
++	scissor.height = std::min(scissor.height, m_render_pass_size.height - scissor.y);
++	mtl::set_scissor(encoder, scissor);
++
++	mtl::table_set_buffer(m_vertex_table, m_rings[ring_push_constants].buffer, offset, 0);
++	mtl::table_set_buffer(m_fragment_table, m_rings[ring_push_constants].buffer, offset, 0);
++	mtl::set_argument_table(encoder, m_vertex_table, mtl::stage_vertex);
++	mtl::set_argument_table(encoder, m_fragment_table, mtl::stage_fragment);
++	mtl::draw_primitives(encoder, mtl::primitive_type::triangle, 0, 3);
++
++	m_encoder_state_dirty = true;
++	mtl::counters().clears.fetch_add(1, std::memory_order_relaxed);
++}
++
++void MTLGSRender::clear_surface(u32 mask)
++{
++	if (skip_current_frame) return;
++
++	// If stencil write mask is disabled, remove clear_stencil bit
++	if (!rsx::method_registers.stencil_mask()) mask &= ~RSX_GCM_CLEAR_STENCIL_BIT;
++
++	// Ignore invalid clear flags
++	if (!(mask & RSX_GCM_CLEAR_ANY_MASK)) return;
++
++	u8 ctx = rsx::framebuffer_creation_context::context_draw;
++	if (mask & RSX_GCM_CLEAR_COLOR_RGBA_MASK) ctx |= rsx::framebuffer_creation_context::context_clear_color;
++	if (mask & RSX_GCM_CLEAR_DEPTH_STENCIL_MASK) ctx |= rsx::framebuffer_creation_context::context_clear_depth;
++	init_buffers(rsx::framebuffer_creation_context{ctx});
++
++	if (!m_graphics_state.test(rsx::rtt_config_valid))
++	{
++		return;
++	}
++
++	bool clear_depth = false, clear_stencil = false;
++	f32 depth_clear = 1.f;
++	u8 stencil_clear = 0;
++	bool update_color = false, update_z = false;
++	const auto surface_depth_format = rsx::method_registers.surface_depth_fmt();
++
++	if (auto ds = std::get<1>(m_rtts.m_bound_depth_stencil); ds && (mask & RSX_GCM_CLEAR_DEPTH_STENCIL_MASK))
++	{
++		if (mask & RSX_GCM_CLEAR_DEPTH_BIT)
++		{
++			const u32 max_depth_value = get_max_depth_value(surface_depth_format);
++			const u32 clear_depth_value = rsx::method_registers.z_clear_value(is_depth_stencil_format(surface_depth_format));
++			depth_clear = static_cast<f32>(clear_depth_value) / max_depth_value;
++			clear_depth = true;
++		}
++
++		if (is_depth_stencil_format(surface_depth_format) && (mask & RSX_GCM_CLEAR_STENCIL_BIT))
++		{
++			stencil_clear = rsx::method_registers.stencil_clear_value();
++			clear_stencil = true;
++		}
++
++		// A partial clear needs the surface initialised first (VKGSRender::clear_surface, without guest-memory loads).
++		ds->write_barrier(m_commands);
++		update_z = clear_depth || clear_stencil;
++	}
++
++	u32 color_write_mask = 0;
++	std::array<f32, 4> color{};
++	if (auto colormask = (mask & RSX_GCM_CLEAR_COLOR_RGBA_MASK); colormask && !m_draw_buffers.empty())
++	{
++		u8 clear_a = rsx::method_registers.clear_color_a();
++		u8 clear_r = rsx::method_registers.clear_color_r();
++		u8 clear_g = rsx::method_registers.clear_color_g();
++		u8 clear_b = rsx::method_registers.clear_color_b();
++
++		switch (rsx::method_registers.surface_color())
++		{
++		case rsx::surface_color_format::x32:
++		case rsx::surface_color_format::w16z16y16x16:
++		case rsx::surface_color_format::w32z32y32x32:
++			// NOP (as the Vulkan renderer)
++			colormask = 0;
++			break;
++		case rsx::surface_color_format::b8:
++			rsx::get_b8_clear_color(clear_r, clear_g, clear_b, clear_a);
++			colormask = rsx::get_b8_clearmask(colormask);
++			break;
++		case rsx::surface_color_format::g8b8:
++			rsx::get_g8b8_clear_color(clear_r, clear_g, clear_b, clear_a);
++			colormask = rsx::get_g8b8_r8g8_clearmask(colormask);
++			break;
++		case rsx::surface_color_format::r5g6b5:
++			rsx::get_rgb565_clear_color(clear_r, clear_g, clear_b, clear_a);
++			break;
++		case rsx::surface_color_format::x1r5g5b5_o1r5g5b5:
++			rsx::get_a1rgb555_clear_color(clear_r, clear_g, clear_b, clear_a, 255);
++			break;
++		case rsx::surface_color_format::x1r5g5b5_z1r5g5b5:
++			rsx::get_a1rgb555_clear_color(clear_r, clear_g, clear_b, clear_a, 0);
++			break;
++		case rsx::surface_color_format::a8b8g8r8:
++		case rsx::surface_color_format::x8b8g8r8_o8b8g8r8:
++		case rsx::surface_color_format::x8b8g8r8_z8b8g8r8:
++			rsx::get_abgr8_clear_color(clear_r, clear_g, clear_b, clear_a);
++			colormask = rsx::get_abgr8_clearmask(colormask);
++			break;
++		default:
++			break;
++		}
++
++		if (colormask)
++		{
++			for (const auto& index : m_rtts.m_bound_render_target_ids)
++			{
++				m_rtts.m_bound_render_targets[index].second->write_barrier(m_commands);
++			}
++
++			color = { clear_r / 255.f, clear_g / 255.f, clear_b / 255.f, clear_a / 255.f };
++			color_write_mask = to_write_mask(colormask);
++			update_color = true;
++		}
++	}
++
++	if (m_commands.kind() != mtl::command_context::encoder_kind::render)
++	{
++		m_render_pass_dirty = true;
++	}
++
++	if (update_color || update_z)
++	{
++		clear_attachments(color_write_mask, clear_depth, clear_stencil, depth_clear, stencil_clear,
++			rsx::method_registers.stencil_mask(), color);
++		m_rtts.on_write({ update_color, update_color, update_color, update_color }, update_z);
++	}
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLFormats.cpp b/rpcs3/Emu/RSX/Metal/MTLFormats.cpp
 new file mode 100644
@@ -1816,6 +2926,809 @@ index 0000000..48010d9
 +		const translation_result& get_msl(const fragment_variant_key& key) const { return get_variant(key).msl; }
 +	};
 +}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
+index 33538c9..716d8ce 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
++++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
+@@ -1,5 +1,6 @@
+ // SPDX-License-Identifier: GPL-2.0-only
+-// REWINDBOX_METAL_NATIVE: the native Metal 4 renderer, stage M1 (see MTLGSRender.h).
++// REWINDBOX_METAL_NATIVE: the native Metal 4 renderer (see MTLGSRender.h): device, frames, rings, presentation.
++// The draw path is in MTLDraw.cpp, vertex and index uploads in MTLVertexBuffers.cpp.
+ 
+ #include "stdafx.h"
+ #include "MTLGSRender.h"
+@@ -7,8 +8,10 @@
+ 
+ #include "Emu/IdManager.h"
+ #include "Emu/Memory/vm.h"
++#include "Emu/RSX/Program/SPIRVCommon.h"
+ #include "Emu/RSX/gcm_enums.h"
+ #include "Emu/RSX/Utils/rsx_utils.h"
++#include "Emu/system_config.h"
+ #include "util/asm.hpp"
+ 
+ #include <algorithm>
+@@ -24,7 +27,29 @@ namespace mtl
+ 
+ 	namespace
+ 	{
+-		constexpr u64 slow_wait_ms = 5000;
++		// Ring sizes: the Vulkan renderer's initial sizes (VKGSRenderTypes.hpp), which it can grow; these rings
++		// make room by waiting for the GPU instead (counted).
++		constexpr usz ring_sizes_mb[] =
++		{
++			64, // attrib (persistent + volatile vertex streams)
++			16, // index
++			16, // vertex env
++			16, // vertex layout (draw parameters)
++			16, // fragment env
++			16, // fragment texture params
++			16, // fragment constants
++			16, // transform constants
++			16, // raster env (stipple)
++			16, // instancing
++			4,  // push constants
++		};
++
++		constexpr const char* ring_names[] =
++		{
++			"metal attrib", "metal index", "metal vertex env", "metal vertex layout", "metal fragment env",
++			"metal fragment texture params", "metal fragment constants", "metal transform constants",
++			"metal raster env", "metal instancing", "metal push constants",
++		};
+ 	}
+ }
+ 
+@@ -46,9 +71,21 @@ MTLGSRender::MTLGSRender(utils::serial* ar) noexcept
+ 		return;
+ 	}
+ 
+-	// What the renderer does not execute yet is counted, never assumed rendered.
+-	backend_config.supports_multidraw = false;
+-	backend_config.supports_hw_instanced_rendering = false;
++	// The same backend facts as the Vulkan renderer on MoltenVK, except where Metal is the reason.
++	backend_config.supports_multidraw = true;               // subranges are drawn one by one
++	backend_config.supports_hw_instanced_rendering = true;
++	backend_config.supports_programmable_blending = true;   // framebuffer fetch on Apple GPUs
++	backend_config.supports_last_provoking_vertex = false;  // Metal has no last-vertex convention: smooth fallback, as Vulkan without the extension
++	backend_config.supports_normalized_barycentrics = true;
++	backend_config.supports_hw_msaa = false;                // stage M4
++	backend_config.supports_hw_a2c = false;
++	backend_config.supports_hw_a2c_1spp = false;
++	backend_config.supports_hw_a2one = false;
++	backend_config.supports_hw_renormalization = false;     // NVIDIA only
++	backend_config.supports_hw_conditional_render = false;  // resolved on the CPU, as on MoltenVK
++	backend_config.supports_passthrough_dma = false;
++	backend_config.supports_host_gpu_labels = false;
++	backend_config.supports_asynchronous_compute = false;
+ }
+ 
+ MTLGSRender::~MTLGSRender() = default;
+@@ -78,7 +115,7 @@ void MTLGSRender::on_init_thread()
+ 	m_queue = mtl::new_command_queue(m_device);
+ 	m_compiler = mtl::new_compiler(m_device);
+ 	m_event = mtl::new_shared_event(m_device);
+-	m_residency = mtl::new_residency_set(m_device, 64);
++	m_residency = mtl::new_residency_set(m_device, 256);
+ 	ensure(m_queue && m_compiler && m_event && m_residency, "Metal 4 queue, compiler, event or residency set creation failed");
+ 
+ 	// The layer's drawables are resident through the layer's own set.
+@@ -88,15 +125,68 @@ void MTLGSRender::on_init_thread()
+ 		mtl::queue_add_residency_set(m_queue, layer_set);
+ 	}
+ 
++	m_commands.create(m_device, m_queue, m_event, m_residency);
++	mtl::set_command_context(&m_commands);
++
+ 	update_drawable_size();
+ 
+ 	for (frame_slot& slot : m_frames)
+ 	{
+ 		slot.allocator = mtl::new_command_allocator(m_device);
+-		slot.command_buffer = mtl::new_command_buffer(m_device);
+ 		slot.constants = mtl::new_buffer(m_device, 256, mtl::storage_mode::shared);
+-		ensure(slot.allocator && slot.command_buffer && slot.constants, "Metal 4 frame resources");
+-		make_resident(slot.constants);
++		ensure(slot.allocator && slot.constants, "Metal 4 frame resources");
++		m_commands.make_resident(slot.constants);
++	}
++
++	// Rings
++	for (u32 index = 0; index < ring_count; ++index)
++	{
++		m_rings[index].create(m_device, mtl::ring_sizes_mb[index] * 0x100000, mtl::ring_names[index]);
++		m_rings[index].on_exhausted = [this](usz size) { return on_ring_exhausted(size); };
++		m_commands.make_resident(m_rings[index].buffer);
++	}
++
++	m_texel_buffer_alignment = std::max<u64>(mtl::texture_buffer_alignment(m_device, mtl::pixel_format::r8_uint), 16);
++	m_texel_window_size = m_rings[ring_attrib].size();
++
++	// Argument tables: one per stage, every slot the translator may assign.
++	m_vertex_table = mtl::new_argument_table(m_device, mtl::max_buffer_slots, mtl::max_texture_slots, mtl::max_sampler_slots);
++	m_fragment_table = mtl::new_argument_table(m_device, mtl::max_buffer_slots, mtl::max_texture_slots, mtl::max_sampler_slots);
++	ensure(m_vertex_table && m_fragment_table, "Metal 4 argument tables");
++
++	// Neutral resources: an empty texel buffer and one zeroed texture per dimension (until the texture cache).
++	{
++		const mtl::object zeros = mtl::new_buffer(m_device, 4096, mtl::storage_mode::shared);
++		std::memset(mtl::buffer_contents(zeros), 0, 4096);
++		m_commands.make_resident(zeros);
++		m_null_texture_buffer = mtl::new_texture_buffer(zeros, mtl::pixel_format::r8_uint, 0, 4096);
++		m_commands.make_resident(m_null_texture_buffer);
++		// The buffer stays alive through the texture view.
++
++		const mtl::texture_type types[] = { mtl::texture_type::type_2d, mtl::texture_type::type_2d, mtl::texture_type::type_cube, mtl::texture_type::type_3d };
++		for (u32 index = 0; index < 4; ++index)
++		{
++			mtl::texture_descriptor desc{};
++			desc.type = types[index];
++			desc.format = mtl::pixel_format::rgba8_unorm;
++			desc.width = desc.height = 1;
++			desc.depth = 1;
++			desc.usage = mtl::usage_shader_read;
++			desc.storage = mtl::storage_mode::shared;
++			m_null_textures[index] = mtl::new_texture(m_device, desc);
++			ensure(m_null_textures[index], "Metal neutral texture");
++			const u32 black[6] = {};
++			const u32 faces = desc.type == mtl::texture_type::type_cube ? 6 : 1;
++			for (u32 face = 0; face < faces; ++face)
++			{
++				mtl::texture_replace_region(m_null_textures[index], {{0, 0, 0}, {1, 1, 1}}, 0, face, black, 4, 4);
++			}
++			m_commands.make_resident(m_null_textures[index]);
++		}
++
++		mtl::sampler_descriptor sampler{};
++		m_null_sampler = mtl::new_sampler(m_device, sampler);
++		ensure(m_null_texture_buffer && m_null_sampler, "Metal neutral resources");
+ 	}
+ 
+ 	m_present_table = mtl::new_argument_table(m_device, 1, 1, 1);
+@@ -112,22 +202,67 @@ void MTLGSRender::on_init_thread()
+ 		fmt::throw_exception("Metal presentation pipeline: %s", error);
+ 	}
+ 
+-	rsx_log.notice("Metal 4 renderer M1: device '%s' (Apple7=%d Apple8=%d Apple9=%d, BC=%d, unified=%d), drawable %ux%u",
++	if (!create_clear_library(error))
++	{
++		fmt::throw_exception("Metal clear pipeline library: %s", error);
++	}
++
++	// Shader stack
++	spirv::initialize_compiler_context();
++	mtl::pipeline_environment environment{};
++	environment.device = m_device;
++	environment.compiler = m_compiler;
++	environment.caps.has_native_half_support = true;
++	environment.fast_math = !g_cfg.video.disable_msl_fast_math;
++	mtl::set_pipeline_environment(environment);
++	m_prog_buffer = std::make_unique<mtl::program_cache>(nullptr);
++
++	begin_frame();
++
++	rsx_log.notice("Metal 4 renderer M2.2: device '%s' (Apple7=%d Apple8=%d Apple9=%d, BC=%d, unified=%d), drawable %ux%u, fast math %d",
+ 		m_device_info.name, m_device_info.apple7, m_device_info.apple8, m_device_info.apple9, m_device_info.bc_texture_compression,
+-		m_device_info.unified_memory, m_drawable_width, m_drawable_height);
+-	rsx_log.warning("Metal 4 renderer M1: draws, clears and occlusion queries are not executed yet (counted in COREPROF METAL_M1)");
++		m_device_info.unified_memory, m_drawable_width, m_drawable_height, environment.fast_math);
++	rsx_log.warning("Metal 4 renderer M2.2: textures, guest-memory surface loads and writes, MSAA and occlusion queries are not executed yet (counted in COREPROF METAL)");
+ }
+ 
+ void MTLGSRender::on_exit()
+ {
+-	wait_idle();
++	if (m_commands.recording())
++	{
++		m_commands.submit(false);
++	}
++	m_commands.wait_idle();
++
+ 	GSRender::on_exit();
+ 
++	m_rtts.destroy();
++	m_prog_buffer.reset();
++	m_clear_pipelines.clear();
++	m_clear_library.reset();
++	m_depth_stencil_states.clear();
++	m_persistent_window = {};
++	m_volatile_window = {};
++
++	for (auto& ring : m_rings)
++	{
++		ring.destroy();
++	}
++
+ 	for (frame_slot& slot : m_frames)
+ 	{
+ 		slot = {};
+ 	}
+ 
++	m_commands.collect();
++	mtl::set_command_context(nullptr);
++	m_commands.destroy();
++	spirv::finalize_compiler_context();
++
++	m_null_textures = {};
++	m_null_texture_buffer.reset();
++	m_null_sampler.reset();
++	m_vertex_table.reset();
++	m_fragment_table.reset();
+ 	m_present_pipeline.reset();
+ 	m_present_table.reset();
+ 	m_present_sampler.reset();
+@@ -137,22 +272,63 @@ void MTLGSRender::on_exit()
+ 	m_queue.reset();
+ }
+ 
+-void MTLGSRender::begin()
++void MTLGSRender::begin_frame()
++{
++	frame_slot& slot = m_frames[m_frame_index % frames_in_flight];
++
++	// The slot's previous frame must be complete before its allocator and ring space are reused.
++	m_commands.wait(slot.fence);
++	m_commands.collect();
++
++	if (slot.positions_valid)
++	{
++		for (u32 index = 0; index < ring_count; ++index)
++		{
++			m_rings[index].set_get_pos(slot.ring_positions[index]);
++		}
++		slot.positions_valid = false;
++	}
++
++	mtl::reset_command_allocator(slot.allocator);
++	m_commands.begin(slot.allocator, "RSX frame");
++	m_current_frame = &slot;
++	m_render_pass_dirty = true;
++	invalidate_environment();
++}
++
++void MTLGSRender::invalidate_environment()
+ {
+-	rsx::thread::begin();
++	m_vertex_env_valid = false;
++	m_xform_constants_valid = false;
++	m_fragment_constants_valid = false;
++	m_fragment_env_valid = false;
++	m_texture_parameters_valid = false;
++	m_stipple_valid = false;
+ }
+ 
+-void MTLGSRender::end()
++void MTLGSRender::flush_command_queue(bool wait)
+ {
+-	// Not rendered in M1: the draw's pipeline dependencies run (as for a skipped draw), and it is counted.
+-	execute_nop_draw();
+-	mtl::counters().draws_not_rendered.fetch_add(1, std::memory_order_relaxed);
+-	rsx::thread::end();
++	// An early submission within the frame (readback, full ring): the frame keeps its allocator.
++	const u64 value = m_commands.submit(true);
++	if (wait)
++	{
++		m_commands.wait(value);
++		m_commands.collect();
++	}
++
++	m_commands.begin(m_current_frame->allocator, "RSX frame (continued)");
++	m_render_pass_dirty = true;
+ }
+ 
+-void MTLGSRender::clear_surface(u32 /*arg*/)
++bool MTLGSRender::on_ring_exhausted(usz size)
+ {
+-	mtl::counters().clears_not_rendered.fetch_add(1, std::memory_order_relaxed);
++	mtl::counters().ring_exhaustions.fetch_add(1, std::memory_order_relaxed);
++	rsx_log.warning("Metal: a ring needs %llu bytes: submitting and waiting for the GPU", static_cast<u64>(size));
++
++	flush_command_queue(true);
++	m_commands.wait_idle();
++	invalidate_environment();
++	return true;
+ }
+ 
+ void MTLGSRender::begin_occlusion_query(rsx::reports::occlusion_query_info* /*query*/)
+@@ -211,46 +387,6 @@ void MTLGSRender::update_drawable_size()
+ 	mtl::configure_layer(m_layer, m_device, mtl::pixel_format::bgra8_unorm, width, height);
+ }
+ 
+-void MTLGSRender::make_resident(const mtl::object& allocation)
+-{
+-	mtl::residency_add(m_residency, allocation);
+-	m_residency_dirty = true;
+-}
+-
+-void MTLGSRender::evict(const mtl::object& allocation)
+-{
+-	mtl::residency_remove(m_residency, allocation);
+-	m_residency_dirty = true;
+-}
+-
+-void MTLGSRender::wait_for_slot(frame_slot& slot)
+-{
+-	if (!slot.fence)
+-	{
+-		return;
+-	}
+-
+-	// Waits for the GPU, however long it takes; a slow wait is reported, never abandoned.
+-	while (!mtl::wait_signaled_value(m_event, slot.fence, mtl::slow_wait_ms))
+-	{
+-		mtl::counters().slow_gpu_waits.fetch_add(1, std::memory_order_relaxed);
+-		rsx_log.error("Metal 4 renderer: frame fence %llu not signalled after %llu ms (signalled %llu)", slot.fence, mtl::slow_wait_ms,
+-			mtl::signaled_value(m_event));
+-	}
+-}
+-
+-void MTLGSRender::wait_idle()
+-{
+-	if (m_event && m_last_fence)
+-	{
+-		while (!mtl::wait_signaled_value(m_event, m_last_fence, mtl::slow_wait_ms))
+-		{
+-			mtl::counters().slow_gpu_waits.fetch_add(1, std::memory_order_relaxed);
+-			rsx_log.error("Metal 4 renderer: waiting for the last frame (fence %llu)", m_last_fence);
+-		}
+-	}
+-}
+-
+ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width, u32 height, u32 pitch)
+ {
+ 	if (!vm::check_addr(address, vm::page_readable, pitch * (height - 1) + width * 4))
+@@ -262,8 +398,7 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
+ 	{
+ 		if (slot.upload)
+ 		{
+-			// The slot's previous frame has completed (wait_for_slot): the texture is idle.
+-			evict(slot.upload);
++			m_commands.dispose(std::move(slot.upload), true);
+ 		}
+ 
+ 		mtl::texture_descriptor desc{};
+@@ -276,7 +411,7 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
+ 		ensure(slot.upload, "Metal display buffer texture");
+ 		slot.upload_width = width;
+ 		slot.upload_height = height;
+-		make_resident(slot.upload);
++		m_commands.make_resident(slot.upload);
+ 	}
+ 
+ 	// As the Vulkan renderer's upload_image_simple: each big-endian A8R8G8B8 word stored as a native u32 (BGRA8).
+@@ -291,59 +426,58 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
+ 	return true;
+ }
+ 
+-void MTLGSRender::present(frame_slot& slot, bool has_source, u32 source_width, u32 source_height)
++void MTLGSRender::submit_frame(const mtl::object& source, u32 display_width, u32 display_height, f32 uv_scale_x, f32 uv_scale_y)
+ {
++	frame_slot& slot = *m_current_frame;
+ 	const mtl::object drawable = mtl::next_drawable(m_layer);
+-	if (!drawable)
++
++	if (drawable)
++	{
++		mtl::render_pass_descriptor pass{};
++		pass.color[0].texture = mtl::drawable_texture(drawable);
++		pass.color[0].load = mtl::load_action::clear;
++		pass.color[0].store = mtl::store_action::store;
++		pass.color[0].clear = {0., 0., 0., 1.};
++		const mtl::object& encoder = m_commands.begin_render(pass, 0, "RSX present");
++
++		if (source && display_width && display_height && m_drawable_width && m_drawable_height)
++		{
++			// Fit the display buffer in the drawable, keeping its aspect ratio.
++			mtl::present_pass::parameters params{};
++			params.rect = mtl::present_pass::fit(display_width, display_height, m_drawable_width, m_drawable_height);
++			params.uv_scale[0] = uv_scale_x;
++			params.uv_scale[1] = uv_scale_y;
++			std::memcpy(mtl::buffer_contents(slot.constants), &params, sizeof(params));
++
++			mtl::table_set_buffer(m_present_table, slot.constants, 0, 0);
++			mtl::table_set_texture(m_present_table, source, 0);
++			mtl::table_set_sampler(m_present_table, m_present_sampler, 0);
++			mtl::set_render_pipeline(encoder, m_present_pipeline);
++			mtl::set_argument_table(encoder, m_present_table, mtl::stage_vertex | mtl::stage_fragment);
++			mtl::draw_primitives(encoder, mtl::primitive_type::triangle_strip, 0, 4);
++		}
++	}
++	else
+ 	{
+ 		mtl::counters().drawable_misses.fetch_add(1, std::memory_order_relaxed);
+-		return;
+ 	}
+ 
+-	if (m_residency_dirty)
++	slot.fence = m_commands.submit(false, drawable);
++	if (drawable)
+ 	{
+-		mtl::residency_commit(m_residency);
+-		m_residency_dirty = false;
++		mtl::present(drawable);
++		mtl::counters().frames_presented.fetch_add(1, std::memory_order_relaxed);
+ 	}
+ 
+-	mtl::reset_command_allocator(slot.allocator);
+-	mtl::begin_command_buffer(slot.command_buffer, slot.allocator, "RSX frame");
+-
+-	mtl::render_pass_descriptor pass{};
+-	pass.color[0].texture = mtl::drawable_texture(drawable);
+-	pass.color[0].load = mtl::load_action::clear;
+-	pass.color[0].store = mtl::store_action::store;
+-	pass.color[0].clear = {0., 0., 0., 1.};
+-	const mtl::object encoder = mtl::begin_render_pass(slot.command_buffer, pass, "RSX present");
+-
+-	if (has_source && source_width && source_height && m_drawable_width && m_drawable_height)
+-	{
+-		// Fit the display buffer in the drawable, keeping its aspect ratio.
+-		const mtl::present_pass::rectangle fitted = mtl::present_pass::fit(source_width, source_height, m_drawable_width, m_drawable_height);
+-		auto* rect = static_cast<f32*>(mtl::buffer_contents(slot.constants));
+-		rect[0] = fitted.left;
+-		rect[1] = fitted.bottom;
+-		rect[2] = fitted.right;
+-		rect[3] = fitted.top;
+-
+-		mtl::table_set_buffer(m_present_table, slot.constants, 0, 0);
+-		mtl::table_set_texture(m_present_table, slot.upload, 0);
+-		mtl::table_set_sampler(m_present_table, m_present_sampler, 0);
+-		mtl::set_render_pipeline(encoder, m_present_pipeline);
+-		mtl::set_argument_table(encoder, m_present_table, mtl::stage_vertex | mtl::stage_fragment);
+-		mtl::draw_primitives(encoder, mtl::primitive_type::triangle_strip, 0, 4);
+-	}
+-
+-	mtl::end_encoding(encoder);
+-	mtl::end_command_buffer(slot.command_buffer);
+-
+-	mtl::wait_for_drawable(m_queue, drawable);
+-	mtl::commit(m_queue, slot.command_buffer);
+-	slot.fence = ++m_last_fence;
+-	mtl::signal_event(m_queue, m_event, slot.fence);
+-	mtl::signal_drawable(m_queue, drawable);
+-	mtl::present(drawable);
+-	mtl::counters().frames_presented.fetch_add(1, std::memory_order_relaxed);
++	// Ring space written by this frame is reclaimed when the slot is reused.
++	for (u32 index = 0; index < ring_count; ++index)
++	{
++		slot.ring_positions[index] = m_rings[index].put_position();
++	}
++	slot.positions_valid = true;
++
++	m_frame_index++;
++	begin_frame();
+ }
+ 
+ void MTLGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -387,27 +521,69 @@ void MTLGSRender::flip(const rsx::display_flip_info_t& info)
+ 		pitch = width * 4;
+ 	}
+ 
+-	frame_slot& slot = m_frames[m_frame_index++ % frames_in_flight];
+-	wait_for_slot(slot);
++	mtl::object source;
++	f32 uv_x = 1.f, uv_y = 1.f;
+ 
+-	bool has_source = false;
+ 	if (info.buffer < display_buffers_count && width && height)
+ 	{
+-		if (format != CELL_GCM_TEXTURE_A8R8G8B8 || pitch < width * 4)
++		const u32 address = rsx::get_address(display_buffers[info.buffer].offset, CELL_GCM_LOCATION_LOCAL);
++
++		// The surface that holds the display buffer, as VKGSRender::get_present_source finds it.
++		if (auto surface = m_rtts.get_surface_at(address);
++			surface && !surface->is_depth_surface() && surface->texture && surface->native_format == mtl::pixel_format::bgra8_unorm)
++		{
++			surface->read_barrier(m_commands);
++			source = surface->texture;
++			uv_x = std::min(1.f, static_cast<f32>(width) / std::max<u32>(surface->get_surface_width(), 1));
++			uv_y = std::min(1.f, static_cast<f32>(height) / std::max<u32>(surface->get_surface_height(), 1));
++			mtl::counters().frames_from_surface.fetch_add(1, std::memory_order_relaxed);
++		}
++		else if (format != CELL_GCM_TEXTURE_A8R8G8B8 || pitch < width * 4)
+ 		{
+ 			mtl::counters().unsupported_display_formats.fetch_add(1, std::memory_order_relaxed);
+ 		}
+-		else
++		else if (upload_display_buffer(*m_current_frame, address, width, height, pitch))
+ 		{
+-			const u32 address = rsx::get_address(display_buffers[info.buffer].offset, CELL_GCM_LOCATION_LOCAL);
+-			has_source = upload_display_buffer(slot, address, width, height, pitch);
++			source = m_current_frame->upload;
++			mtl::counters().frames_from_guest_memory.fetch_add(1, std::memory_order_relaxed);
+ 		}
+ 	}
+ 
+-	mtl::counters().frames_from_guest_memory.fetch_add(has_source ? 1 : 0, std::memory_order_relaxed);
+-	mtl::counters().frames_without_source.fetch_add(has_source ? 0 : 1, std::memory_order_relaxed);
+-	present(slot, has_source, width, height);
++	if (!source)
++	{
++		mtl::counters().frames_without_source.fetch_add(1, std::memory_order_relaxed);
++	}
++
++	submit_frame(source, width, height, uv_x, uv_y);
++
++	if ((m_frame_index % 600) == 0)
++	{
++		report_counters();
++	}
+ 
+ 	m_frame->flip(m_context);
+ 	rsx::thread::flip(info);
+ }
++
++void MTLGSRender::report_counters()
++{
++	// Cumulative since the renderer started; one line every 600 frames (COREPROF METAL in the RPCS3 log).
++	const auto& c = mtl::counters();
++	const auto& s = mtl::get_surface_counters();
++	const auto& p = mtl::get_pipeline_counters();
++	const auto& q = m_commands.counters();
++	const auto load = [](const std::atomic<u64>& value) { return value.load(std::memory_order_relaxed); };
++
++	rsx_log.notice("COREPROF METAL frames=%llu surface=%llu memory=%llu none=%llu drawable_misses=%llu | draws=%llu skipped_program=%llu "
++		"skipped_vertices=%llu cull_both=%llu neutral_textures=%llu clears=%llu logic_ops=%llu queries_unmeasured=%llu | "
++		"surfaces=%llu cleared=%llu inherited=%llu transfers_todo=%llu loads_todo=%llu writes_todo=%llu | vp=%llu fp=%llu "
++		"glsl_fail=%llu msl_fail=%llu lib_fail=%llu pipelines=%llu pipeline_fail=%llu | submits=%llu early=%llu waits=%llu "
++		"slow_waits=%llu rings_full=%llu",
++		load(c.frames_presented), load(c.frames_from_surface), load(c.frames_from_guest_memory), load(c.frames_without_source), load(c.drawable_misses),
++		load(c.draws_rendered), load(c.draws_skipped_program), load(c.draws_skipped_no_vertices), load(c.draws_cull_both_faces),
++		load(c.textures_not_bound), load(c.clears), load(c.logic_ops_not_applied), load(c.occlusion_queries_not_measured),
++		load(s.created), load(s.cleared), load(s.inherited_copies), load(s.transfers_not_implemented), load(s.memory_loads_not_implemented),
++		load(s.memory_writes_not_implemented), load(p.vertex_programs), load(p.fragment_programs), load(p.glsl_failures),
++		load(p.translation_failures), load(p.library_failures), load(p.pipelines), load(p.pipeline_failures),
++		q.submissions, q.early_submissions, q.waits, q.slow_waits, load(c.ring_exhaustions));
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.h b/rpcs3/Emu/RSX/Metal/MTLGSRender.h
+index c842caf..1db8a97 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLGSRender.h
++++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.h
+@@ -1,39 +1,69 @@
+ // SPDX-License-Identifier: GPL-2.0-only
+ #pragma once
+ 
+-// REWINDBOX_METAL_NATIVE: the native Metal 4 renderer (RSX commands -> Metal 4 -> Apple GPU), stage M1.
++// REWINDBOX_METAL_NATIVE: the native Metal 4 renderer (RSX commands -> Metal 4 -> Apple GPU).
+ //
+-// M1 owns the Metal device, a Metal 4 command queue, its allocators, residency and the host's
+-// CAMetalLayer, and presents the display buffer read from guest memory exactly as the Vulkan renderer
+-// does when no surface holds it (big-endian A8R8G8B8 words stored as native BGRA8). Draws, clears and
+-// occlusion queries are not executed yet: each one is counted (COREPROF METAL_M1) and none is faked
+-// or reported as rendered. Requires iOS 26 and a Metal 4 GPU (Apple7 or later).
++// Stage M1 owns the Metal device, a Metal 4 command queue, its allocators, residency and the host's CAMetalLayer,
++// and presents the display buffer read from guest memory exactly as the Vulkan renderer does when no surface holds
++// it. Stage M2.2 executes the draws: RSX programs through the Metal shader stack, the shared surface store for
++// render targets, ring buffers for vertex streams, draw parameters, contexts and constants, Metal 4 argument tables,
++// and presents the surface that holds the display buffer. What is not written yet is counted (COREPROF METAL),
++// never faked: textures (a neutral texture per unit until the texture cache, M3), guest-memory writes and loads of
++// surfaces (M3), occlusion queries (M4). Requires iOS 26 and a Metal 4 GPU (Apple7 or later).
+ 
+ #include "Emu/RSX/GSRender.h"
+ #include "MTLAPI.h"
++#include "MTLCommandContext.h"
++#include "MTLDataHeap.h"
++#include "MTLPipelineState.h"
++#include "MTLProgramBuffer.h"
++#include "MTLRenderTargets.h"
+ 
+ #include <array>
+ #include <atomic>
++#include <optional>
+ #include <string>
++#include <unordered_map>
+ #include <vector>
+ 
+ namespace mtl
+ {
+-	// What the renderer has not executed yet, and what it presented; read and reset by the performance window.
++	// What the renderer has done or not executed yet; read and reset by the performance window.
+ 	struct stage_counters
+ 	{
+-		std::atomic<u64> draws_not_rendered{0};
+-		std::atomic<u64> clears_not_rendered{0};
++		std::atomic<u64> draws_rendered{0};
++		std::atomic<u64> draws_skipped_program{0};       // program/pipeline missing (counted per draw, as Vulkan skips)
++		std::atomic<u64> draws_skipped_no_vertices{0};
++		std::atomic<u64> draws_cull_both_faces{0};       // triangles with both faces culled: nothing rasterized
++		std::atomic<u64> textures_not_bound{0};          // texture units given the neutral texture (no texture cache yet)
++		std::atomic<u64> clears{0};
++		std::atomic<u64> logic_ops_not_applied{0};
+ 		std::atomic<u64> occlusion_queries_not_measured{0};
+ 		std::atomic<u64> frames_presented{0};
++		std::atomic<u64> frames_from_surface{0};
+ 		std::atomic<u64> frames_from_guest_memory{0};
+ 		std::atomic<u64> frames_without_source{0};
+ 		std::atomic<u64> unsupported_display_formats{0};
+ 		std::atomic<u64> drawable_misses{0};
+ 		std::atomic<u64> slow_gpu_waits{0};
++		std::atomic<u64> ring_exhaustions{0};
+ 	};
+ 
+ 	stage_counters& counters() noexcept;
++
++	// Per-draw upload result (VKVertexBuffers.cpp vertex_upload_info).
++	struct vertex_upload_info
++	{
++		primitive_type primitive = primitive_type::triangle;
++		u32 vertex_draw_count = 0;
++		u32 allocated_vertex_count = 0;
++		u32 first_vertex = 0;
++		u32 vertex_index_base = 0;
++		u32 vertex_index_offset = 0;
++		u32 persistent_window_offset = umax;
++		u32 volatile_window_offset = umax;
++		std::optional<std::pair<u64, index_type>> index_info;  // offset in the index ring, type
++	};
+ }
+ 
+ class MTLGSRender : public GSRender, public ::rsx::reports::ZCULL_control
+@@ -54,7 +84,7 @@ protected:
+ 	void clear_surface(u32 arg) override;
+ 	void flip(const rsx::display_flip_info_t& info) override;
+ 
+-	// Not measured in M1: each query is counted, and the result is the base class's "no measurement".
++	// Not measured yet (M4): each query is counted, and the result is the base class's "no measurement".
+ 	void begin_occlusion_query(rsx::reports::occlusion_query_info* query) override;
+ 	void end_occlusion_query(rsx::reports::occlusion_query_info* query) override;
+ 	bool check_occlusion_query_status(rsx::reports::occlusion_query_info* query) override;
+@@ -64,26 +94,81 @@ protected:
+ private:
+ 	static constexpr u32 frames_in_flight = 3;
+ 
++	// The rings whose space is reclaimed per frame.
++	enum ring_id : u32
++	{
++		ring_attrib,
++		ring_index,
++		ring_vertex_env,
++		ring_vertex_layout,
++		ring_fragment_env,
++		ring_fragment_texture_params,
++		ring_fragment_constants,
++		ring_transform_constants,
++		ring_raster_env,
++		ring_instancing,
++		ring_push_constants,
++		ring_count
++	};
++
+ 	// One frame of GPU work: reused once the queue has signalled its fence value.
+ 	struct frame_slot
+ 	{
+ 		mtl::object allocator;
+-		mtl::object command_buffer;
+ 		mtl::object constants;   // the presentation rectangle
+ 		mtl::object upload;      // the display buffer read from guest memory
+ 		u32 upload_width = 0;
+ 		u32 upload_height = 0;
+ 		u64 fence = 0;
++		std::array<usz, ring_count> ring_positions{};
++		bool positions_valid = false;
+ 	};
+ 
++	// Attribute ring windows seen as texel buffers (VK: m_persistent_attribute_storage / m_volatile_attribute_storage)
++	struct texel_window
++	{
++		mtl::object view;
++		u64 base = 0;
++		u64 length = 0;
++	};
++
++	// Frames
++	void begin_frame();
++	void submit_frame(const mtl::object& source, u32 display_width, u32 display_height, f32 uv_scale_x, f32 uv_scale_y);
++	void flush_command_queue(bool wait);
++	bool on_ring_exhausted(usz size);
++	void report_counters();
++
++	// Presentation (M1)
+ 	bool create_present_pipeline(std::string& error);
+ 	void update_drawable_size();
+-	void wait_for_slot(frame_slot& slot);
+ 	bool upload_display_buffer(frame_slot& slot, u32 address, u32 width, u32 height, u32 pitch);
+-	void present(frame_slot& slot, bool has_source, u32 source_width, u32 source_height);
+-	void make_resident(const mtl::object& allocation);
+-	void evict(const mtl::object& allocation);
+-	void wait_idle();
++
++	// Render targets and passes
++	void init_buffers(rsx::framebuffer_creation_context context);
++	void prepare_rtts(rsx::framebuffer_creation_context context);
++	void open_render_pass();
++	mtl::attachment_layout current_attachment_layout() const;
++
++	// Draws
++	bool load_program();
++	void load_texture_env();
++	void load_program_env();
++	void update_vertex_env(u32 id, const mtl::vertex_upload_info& vertex_info);
++	void upload_transform_constants(const rsx::io_buffer& buffer);
++	mtl::vertex_upload_info upload_vertex_data();
++	void update_texel_window(texel_window& window, u32& range_base, u64 required);
++	void bind_vertex_streams(const mtl::vertex_upload_info& info);
++	void bind_neutral_textures();
++	void update_draw_state(const mtl::raster_state& raster);
++	void emit_geometry(u32 sub_index) override;
++	const mtl::object& get_depth_stencil_state(const mtl::depth_stencil_key& key);
++
++	// Clears: a full-surface triangle within the scissor (as MoltenVK implements vkCmdClearAttachments)
++	bool create_clear_library(std::string& error);
++	const mtl::object& get_clear_pipeline(u32 color_write_mask);
++	void clear_attachments(u32 color_write_mask, bool clear_depth, bool clear_stencil, f32 depth, u8 stencil,
++		u8 stencil_write_mask, const std::array<f32, 4>& color);
+ 
+ 	std::string m_initialization_error;
+ 	mtl::device_info m_device_info;
+@@ -101,7 +186,66 @@ private:
+ 
+ 	std::array<frame_slot, frames_in_flight> m_frames{};
+ 	u64 m_frame_index = 0;
+-	u64 m_last_fence = 0;
+-	bool m_residency_dirty = false;
++	frame_slot* m_current_frame = nullptr;
+ 	std::vector<u32> m_staging;
++
++	// M2.2
++	mtl::command_context m_commands;
++	std::unique_ptr<mtl::program_cache> m_prog_buffer;
++	mtl::surface_cache m_rtts;
++	std::array<mtl::data_heap, ring_count> m_rings;
++	u64 m_texel_buffer_alignment = 16;
++
++	mtl::object m_vertex_table;
++	mtl::object m_fragment_table;
++	mtl::object m_null_texture_buffer;
++	std::array<mtl::object, 4> m_null_textures;  // by rsx::texture_dimension_extended: 1D (as 2D), 2D, cube, 3D
++	mtl::object m_null_sampler;
++
++	texel_window m_persistent_window;
++	texel_window m_volatile_window;
++	u64 m_texel_window_size = 0;
++
++	mtl::program* m_program = nullptr;
++	const mtl::vertex_program* m_vertex_prog = nullptr;
++	const mtl::fragment_program* m_fragment_prog = nullptr;
++	mtl::pipeline_props m_pipeline_properties{};
++	std::unordered_map<u64, mtl::object> m_depth_stencil_states;
++	rsx::vertex_input_layout m_vertex_layout;
++	std::vector<u8> m_draw_buffers;
++
++	// Clear pipelines by colour write mask (one attachment configuration per render pass)
++	mtl::object m_clear_library;
++	std::unordered_map<u64, mtl::object> m_clear_pipelines;
++
++	// Render pass state: the pass is reopened (load, store) when the attachments change or after copies.
++	bool m_render_pass_dirty = true;
++	bool m_draw_buffers_stale = true;
++	bool m_encoder_state_dirty = true;
++	u64 m_render_pass_serial = 0;
++	struct { u32 width = 0, height = 0; } m_render_pass_size;
++	u32 m_subdraw_id = 0;
++
++	// Ring data a draw may reuse when its registers did not change. Re-uploaded at every frame and after a full
++	// ring made the renderer wait (the reclaimed space may then hold newer data).
++	bool m_vertex_env_valid = false;
++	bool m_xform_constants_valid = false;
++	bool m_fragment_constants_valid = false;
++	bool m_fragment_env_valid = false;
++	bool m_texture_parameters_valid = false;
++	bool m_stipple_valid = false;
++	void invalidate_environment();
++
++	// Program environment: offsets inside the rings, as the Vulkan renderer's dynamic offsets.
++	usz m_xform_constants_offset = 0;
++	usz m_vertex_env_offset = 0;
++	usz m_vertex_layout_offset = 0;
++	usz m_fragment_constants_offset = 0;
++	usz m_fragment_env_offset = 0;
++	usz m_texture_parameters_offset = 0;
++	usz m_stipple_offset = 0;
++	usz m_instancing_lut_offset = 0;
++	usz m_instancing_constants_offset = 0;
++	usz m_push_constants_offset = 0;
++	mtl::scissor_rect m_scissor{};
+ };
 diff --git a/rpcs3/Emu/RSX/Metal/MTLPipelineState.cpp b/rpcs3/Emu/RSX/Metal/MTLPipelineState.cpp
 new file mode 100644
 index 0000000..f2c1d3d
@@ -2298,6 +4211,47 @@ index 0000000..a6cd4dc
 +
 +	raster_state decode_raster_state(const rsx::rsx_state& regs);
 +}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLPresent.h b/rpcs3/Emu/RSX/Metal/MTLPresent.h
+index 5003c16..4ff281a 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLPresent.h
++++ b/rpcs3/Emu/RSX/Metal/MTLPresent.h
+@@ -29,12 +29,18 @@ struct present_vertex_out
+ 	float2 uv;
+ };
+ 
+-vertex present_vertex_out present_vertex(uint vid [[vertex_id]], constant float4& rect [[buffer(0)]])
++struct present_params
++{
++	float4 rect;       // left, bottom, right, top in clip space
++	float4 uv_scale;   // xy: the displayed fraction of the source texture (a surface may be larger than the buffer)
++};
++
++vertex present_vertex_out present_vertex(uint vid [[vertex_id]], constant present_params& params [[buffer(0)]])
+ {
+ 	const float2 corner = float2((vid & 1u) ? 1.0 : 0.0, (vid & 2u) ? 1.0 : 0.0);
+ 	present_vertex_out out;
+-	out.position = float4(mix(rect.x, rect.z, corner.x), mix(rect.y, rect.w, corner.y), 0.0, 1.0);
+-	out.uv = float2(corner.x, 1.0 - corner.y);
++	out.position = float4(mix(params.rect.x, params.rect.z, corner.x), mix(params.rect.y, params.rect.w, corner.y), 0.0, 1.0);
++	out.uv = float2(corner.x, 1.0 - corner.y) * params.uv_scale.xy;
+ 	return out;
+ }
+ 
+@@ -63,6 +69,14 @@ fragment float4 present_fragment(present_vertex_out in [[stage_in]], texture2d<f
+ 		f32 left = 0, bottom = 0, right = 0, top = 0;
+ 	};
+ 
++	// The constants of present_vertex (buffer 0).
++	struct parameters
++	{
++		rectangle rect{};
++		f32 uv_scale[4] = { 1.f, 1.f, 0.f, 0.f };
++	};
++	static_assert(sizeof(parameters) == 32);
++
+ 	inline rectangle fit(u32 source_width, u32 source_height, u32 target_width, u32 target_height) noexcept
+ 	{
+ 		if (!source_width || !source_height || !target_width || !target_height)
 diff --git a/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.cpp b/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.cpp
 new file mode 100644
 index 0000000..77845a2
@@ -3854,6 +5808,233 @@ index 0000000..29a5898
 +
 +	translation_result translate_spirv_to_msl(std::span<const u32> spirv, shader_stage stage,
 +		const std::vector<glsl::program_input>& inputs, const translation_options& options);
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLVertexBuffers.cpp b/rpcs3/Emu/RSX/Metal/MTLVertexBuffers.cpp
+new file mode 100644
+index 0000000..cd2b2e2
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLVertexBuffers.cpp
+@@ -0,0 +1,221 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M2.2): vertex and index uploads of the native Metal 4 renderer (VKVertexBuffers.cpp).
++// The same RSX helpers write the same bytes; only the destination (shared Metal rings, read by the GPU in place)
++// and the host primitive mapping (Metal's, which matches the Vulkan renderer's __APPLE__ table) differ. The
++// Vulkan renderer's persistent-vertex cache is not used yet: every draw uploads its vertex data (exact, slower).
++
++#include "stdafx.h"
++#include "MTLGSRender.h"
++
++#include "Emu/RSX/Common/BufferUtils.h"
++#include "Emu/RSX/Utils/rsx_utils.h"
++#include "Emu/RSX/rsx_methods.h"
++#include "util/asm.hpp"
++
++#include <span>
++
++namespace
++{
++	mtl::index_type get_index_type(rsx::index_array_type type)
++	{
++		return type == rsx::index_array_type::u32 ? mtl::index_type::uint32 : mtl::index_type::uint16;
++	}
++
++	struct vertex_input_state
++	{
++		mtl::primitive_type native_primitive_type;
++		bool index_rebase;
++		u32 min_index;
++		u32 max_index;
++		u32 vertex_draw_count;
++		u32 vertex_index_offset;
++		std::optional<std::pair<u64, mtl::index_type>> index_info;
++	};
++
++	std::pair<u32, std::pair<u64, mtl::index_type>> generate_emulating_index_buffer(
++		const rsx::draw_clause& clause, u32 vertex_count, mtl::data_heap& index_ring)
++	{
++		const u32 index_count = get_index_count(clause.primitive, vertex_count);
++		const u32 upload_size = index_count * sizeof(u16);
++
++		const u64 offset = index_ring.alloc<256>(upload_size);
++		g_fxo->get<rsx::dma_manager>().emulate_as_indexed(index_ring.map(offset), clause.primitive, vertex_count);
++		return { index_count, { offset, mtl::index_type::uint16 } };
++	}
++
++	struct draw_command_visitor
++	{
++		draw_command_visitor(mtl::data_heap& index_ring, rsx::vertex_input_layout& layout)
++			: m_index_ring(index_ring)
++			, m_vertex_layout(layout)
++		{
++		}
++
++		vertex_input_state operator()(const rsx::draw_array_command& /*command*/)
++		{
++			const auto [prims, primitives_emulated] = mtl::get_native_primitive(rsx::method_registers.current_draw_clause.primitive);
++			const u32 vertex_count = rsx::method_registers.current_draw_clause.get_elements_count();
++			const u32 min_index = rsx::method_registers.current_draw_clause.min_index();
++			const u32 max_index = (min_index + vertex_count) - 1;
++
++			if (primitives_emulated)
++			{
++				const auto [index_count, index_info] = generate_emulating_index_buffer(rsx::method_registers.current_draw_clause, vertex_count, m_index_ring);
++				return { prims, false, min_index, max_index, index_count, 0, index_info };
++			}
++
++			return { prims, false, min_index, max_index, vertex_count, 0, {} };
++		}
++
++		vertex_input_state operator()(const rsx::draw_indexed_array_command& command)
++		{
++			auto primitive = rsx::method_registers.current_draw_clause.primitive;
++			const auto [prims, primitives_emulated] = mtl::get_native_primitive(primitive);
++
++			const rsx::index_array_type index_type = rsx::method_registers.current_draw_clause.is_immediate_draw ?
++				rsx::index_array_type::u32 :
++				rsx::method_registers.index_type();
++
++			const u32 type_size = get_index_type_size(index_type);
++
++			u32 index_count = rsx::method_registers.current_draw_clause.get_elements_count();
++			if (primitives_emulated)
++				index_count = get_index_count(rsx::method_registers.current_draw_clause.primitive, index_count);
++			const u32 upload_size = index_count * type_size;
++
++			const u64 offset_in_index_buffer = m_index_ring.alloc<64>(upload_size);
++			void* buf = m_index_ring.map(offset_in_index_buffer);
++
++			// Upload index (and expand it if the primitive type is not natively supported). Metal always restarts
++			// strips at the all-ones index, as the Vulkan renderer's restart-enabled pipelines do on MoltenVK.
++			u32 min_index, max_index;
++			std::tie(min_index, max_index, index_count) = write_index_array_data_to_buffer(
++				std::span<std::byte>(static_cast<std::byte*>(buf), upload_size),
++				command.raw_index_buffer, index_type,
++				rsx::method_registers.current_draw_clause.primitive,
++				rsx::method_registers.restart_index_enabled(),
++				rsx::method_registers.restart_index(),
++				[](auto prim) { return mtl::get_native_primitive(prim).emulated; });
++
++			if (min_index >= max_index)
++			{
++				// Empty set, do not draw
++				return { prims, false, 0, 0, 0, 0, {} };
++			}
++
++			const auto index_offset = rsx::method_registers.vertex_data_base_index();
++			return { prims, true, min_index, max_index, index_count, index_offset, std::pair{ offset_in_index_buffer, get_index_type(index_type) } };
++		}
++
++		vertex_input_state operator()(const rsx::draw_inlined_array& /*command*/)
++		{
++			auto& draw_clause = rsx::method_registers.current_draw_clause;
++			const auto [prims, primitives_emulated] = mtl::get_native_primitive(draw_clause.primitive);
++
++			const auto stream_length = rsx::method_registers.current_draw_clause.inline_vertex_array.size();
++			const u32 vertex_count = u32(stream_length * sizeof(u32)) / m_vertex_layout.interleaved_blocks[0]->attribute_stride;
++
++			if (!primitives_emulated)
++			{
++				return { prims, false, 0, vertex_count - 1, vertex_count, 0, {} };
++			}
++
++			const auto [index_count, index_info] = generate_emulating_index_buffer(draw_clause, vertex_count, m_index_ring);
++			return { prims, false, 0, vertex_count - 1, index_count, 0, index_info };
++		}
++
++	private:
++		mtl::data_heap& m_index_ring;
++		rsx::vertex_input_layout& m_vertex_layout;
++	};
++}
++
++void MTLGSRender::update_texel_window(texel_window& window, u32& range_base, u64 required)
++{
++	// The attribute ring seen through a texel-buffer view starting at an aligned base (VK: buffer views of 64M
++	// blocks); the shader addresses the stream relative to the view.
++	if (window.view && range_base >= window.base && static_cast<u64>(range_base) + required <= window.base + window.length)
++	{
++		range_base = static_cast<u32>(range_base - window.base);
++		return;
++	}
++
++	if (window.view)
++	{
++		m_commands.dispose(std::move(window.view), true);
++	}
++
++	const u64 ring_size = m_rings[ring_attrib].size();
++	const u64 base = (range_base / m_texel_buffer_alignment) * m_texel_buffer_alignment;
++	const u64 length = std::min(m_texel_window_size, ring_size - base);
++	ensure(length >= (range_base - base) + required, "Metal: a vertex stream does not fit in a texel-buffer window");
++
++	window.view = mtl::new_texture_buffer(m_rings[ring_attrib].buffer, mtl::pixel_format::r8_uint, base, length);
++	ensure(window.view, "Metal: texel-buffer view creation failed");
++	m_commands.make_resident(window.view);
++	window.base = base;
++	window.length = length;
++	range_base = static_cast<u32>(range_base - base);
++}
++
++mtl::vertex_upload_info MTLGSRender::upload_vertex_data()
++{
++	draw_command_visitor visitor(m_rings[ring_index], m_vertex_layout);
++	auto result = std::visit(visitor, m_draw_processor.get_draw_command(rsx::method_registers));
++
++	const u32 vertex_count = (result.max_index - result.min_index) + 1;
++	u32 vertex_base = result.min_index;
++	u32 index_base = 0;
++
++	if (result.index_rebase)
++	{
++		vertex_base = rsx::get_index_from_base(vertex_base, rsx::method_registers.vertex_data_base_index());
++		index_base = result.min_index;
++	}
++
++	// Actual vertex upload
++	const auto required = calculate_memory_requirements(m_vertex_layout, vertex_base, vertex_count);
++	u32 persistent_range_base = umax, volatile_range_base = umax;
++	usz persistent_offset = umax, volatile_offset = umax;
++
++	if (required.first > 0)
++	{
++		persistent_offset = m_rings[ring_attrib].alloc<256>(required.first);
++		persistent_range_base = static_cast<u32>(persistent_offset);
++	}
++
++	if (required.second > 0)
++	{
++		volatile_offset = m_rings[ring_attrib].alloc<256>(required.second);
++		volatile_range_base = static_cast<u32>(volatile_offset);
++	}
++
++	if (required.first > 0 || required.second > 0)
++	{
++		m_draw_processor.write_vertex_data_to_memory(m_vertex_layout, vertex_base, vertex_count,
++			required.first ? m_rings[ring_attrib].map(persistent_offset) : nullptr,
++			required.second ? m_rings[ring_attrib].map(volatile_offset) : nullptr);
++	}
++
++	if (persistent_range_base != umax)
++	{
++		update_texel_window(m_persistent_window, persistent_range_base, required.first);
++	}
++
++	if (volatile_range_base != umax)
++	{
++		update_texel_window(m_volatile_window, volatile_range_base, required.second);
++	}
++
++	mtl::vertex_upload_info info{};
++	info.primitive = result.native_primitive_type;
++	info.vertex_draw_count = result.vertex_draw_count;
++	info.allocated_vertex_count = vertex_count;
++	info.first_vertex = vertex_base;
++	info.vertex_index_base = index_base;
++	info.vertex_index_offset = result.vertex_index_offset;
++	info.persistent_window_offset = persistent_range_base;
++	info.volatile_window_offset = volatile_range_base;
++	info.index_info = result.index_info;
++	return info;
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLVertexProgram.cpp b/rpcs3/Emu/RSX/Metal/MTLVertexProgram.cpp
 new file mode 100644
