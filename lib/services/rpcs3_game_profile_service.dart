@@ -104,6 +104,10 @@ class Rpcs3GameProfile {
           'iOS Experimental',
           'MoltenVK Asynchronous Submits',
         ],
+        'experimental.spu_warmup_scope' => const <String>[
+          'iOS Experimental',
+          'SPU Warmup Scope',
+        ],
         _ => throw StateError(
           'Unsupported managed RPCS3 setting: ${entry.key}',
         ),
@@ -186,22 +190,41 @@ abstract final class Rpcs3GameProfileService {
     // global profile it ran on 547 (31-35 fps, no crash); a lever comes back
     // only alone and with device evidence.
 
-    // Call of Duty: Black Ops II (BLES01717), build 583 iPhone logs: the
-    // game is SPU-bound (3.6-4.3 SPU cores, RSX thread 0.15-0.18 core). In
-    // the game scenes its SPUs store 1.1-6.3 million data-changing PUTLLC per
-    // 5 s window; with "Accurate SPU Reservations" (Core default true) each
-    // one takes the exclusive writer lock that parks every running PPU
-    // thread: 0.74-2.9 s of writer-lock acquisition per window on the SPUs,
-    // 4,000-9,500 PPU waits for 0.3-0.9 s (RANGELOCKPROF wl_putllc,
-    // WAITPROF527 vm_range_episode). The frame rate follows them: 47-61 fps
-    // under 0.4 million heavy PUTLLC per window, 24-29 fps around 1.2
-    // million, 6-22 fps above 2.4 million. The relaxed path keeps the
-    // reservation protocol; a change confined to one 16-byte lane is a
-    // compare-and-swap under a range lock, without the writer lock. Same
-    // choice as God of War III since Build 412; the official RPCS3 entry of
-    // the title (SPU Block Size Safe, ZCULL) does not ask for accurate
-    // reservations. Measured on the next run by the same counters.
-    'BLES01717': {'advanced.accurate_spu_reservations': 'false'},
+    // Call of Duty: Black Ops II (BLES01717). Build 587 relaxed its SPU
+    // reservations (build 583 logs: the writer lock of accurate PUTLLC parked
+    // the PPU threads 0.74-2.9 s per window). Build 657 iPhone logs (Core 655,
+    // pid 10471, 5 November 2026) show the cost of that choice:
+    // - session 3 stops producing frames for 40.8 s (FREEZE_EPISODE, then
+    //   stopped) while all six SPUs keep running (4.7 cores) and store 1.0-1.3
+    //   million PUTLLC per 5 s with no failure, the PPU Secondary thread spins
+    //   (0.99 core) on the job queue word 0x2e208a0, and main_thread and Stream
+    //   wait on semaphores. The same thread on the same word froze build 624.
+    //   The queue word holds an older tag (0x01396da5) than the one the
+    //   spinning thread carries (0x01396e2d): an update was lost or reverted.
+    // - relaxed mode keeps a data-changing PUTLLC atomic only for the 16-byte
+    //   lane it writes (range lock + lane compare-and-swap, no PPU pause), so a
+    //   plain PPU store elsewhere in the 128-byte line between the compare and
+    //   the swap goes unseen, which the Cell never allows; the Core default
+    //   (and RPCS3's own entry for this title) keeps the full-line guarantee.
+    // The per-window frame rate did not show a gain either (17-30 fps in 657
+    // against 24-29 fps around 1.2 million PUTLLC in 583). Accurate
+    // reservations come back; the 565 lever (no-op PUTLLC keeps reservations)
+    // is Automatic for this title and covers the polling SPUs.
+    //
+    // SPU warm-up: each boot of the title rebuilt 8,753-8,793 SPU programs at
+    // its first scene transition (all found in the object cache: 1.4-1.6 s of
+    // object loading and 1.6-1.7 s of builds summed over the SPU threads in one
+    // 5 s window, 0.8-1.3 s frames). The metadata of recorded programs is
+    // built before the guest starts instead (LLVM precompilation with the
+    // all-titles warm-up scope, as God of War III does), so play finds them
+    // ready. Measured on the next run: FREEZE_EPISODE, SPUWAIT551 putllc_heavy,
+    // RANGELOCKPROF wl_putllc, the frame rate of the same scenes, the boot time
+    // (SPUWARMUP) and the spu_blocks gameplay_attempts of the transition.
+    'BLES01717': {
+      'advanced.accurate_spu_reservations': 'true',
+      'advanced.llvm_precompilation': 'true',
+      'experimental.spu_warmup_scope': 'All titles with metadata',
+    },
 
     // Assassin's Creed (BLES00158, BLUS30089), first build 585 run: in the
     // steady game scene (12-29 fps) its SPUs store 0.87-1.03 million
