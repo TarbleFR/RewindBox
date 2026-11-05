@@ -560,9 +560,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     commit message cites the bound change as "0f…": the commit is `8e69dcec`.
   - Local fix of my own test: the 664 grace model's three-writers wait could exceed the 500 us
     deferral bound under ASan; each writer checked on its own (`99df35de`), no check removed.
-- **IPA 666 (common):** draft `54f11bdf`, frozen without blocker, offline contract and its 56
-  tests passed, trigger-paths accepted (only preflight/republish/application). Trigger `acba895a`,
-  run `42076808470`. RPCS3 Core 665 + MeloNX Core 663 (pin `89e1c361`, crash journal `9022c1a1`).
+- **Delivered/verified: IPA 666 (common, 5 Nov):** draft `54f11bdf`, frozen without blocker,
+  offline contract and its 56 tests passed, trigger-paths accepted. Trigger `acba895a`, run
+  `42076808470`, all five jobs green first try. IPA 247201047 B, SHA-256 `6fe470a6…e476`;
+  [receipt](evidence/rewind666/delivery.json); offline checks passed (decryption, SHA256SUMS,
+  signer receipt, validators 0, exactly the 5 declared images changed); packaged Cores = pins
+  (RPCS3 Core 665 `08753ed1…`, MeloNX Core 663 `22fd9912…`); key deleted; file sent.
+  RPCS3 Core 665 + MeloNX Core 663 (pin `89e1c361`, crash journal `9022c1a1`). No device run.
+  - Device checks wanted: BO2 freezes (FREEZE_EPISODE, PPUGRACE664 opened/deferrals), ORCH665
+    decisions (share_low, fps_low vs fps_default) and FPS with "Orchestrateur de threads" on/off,
+    AC audio continuity (AUDIO641); MeloNX heavy titles (SSBU, Hogwarts) reach their menus, else
+    MeloNX-crash.log; close the app between two MeloNX games (JIT Cache exhausted, pre-existing).
   - Then performance: PPU parking cost in BO2 normal play (252 ms/s), BO2 blocking pipeline builds.
 - **Setting applied (Core 664 turn):** same principal model as the Core 659 turn (get_session:
   session_context.model = last_served_model, unchanged); effort `max` (session_context.effort_level,
