@@ -1,0 +1,690 @@
+{
+  "schema": 1,
+  "build": 657,
+  "status": "draft",
+  "note": "Private IPA 657 on the delivered and verified 653: the next common delivery, after every handoff of this round. RPCS3 Core 655 (Core 652 plus in-pass read transitions of images that are not attachments of the open render pass, Assassin's Creed, linking the MoltenVK dependency of run 41912442196 whose open render encoder waits for the barrier's stage fences) replaces Core 652; MeloNX Core 656 (Core 649 plus the PR #156 new lot of Core 654: closed sessions' layer binders released, gcEvent lines, artifact-path counters; plus the MeloNX levers: bounded reuse of pool-sized bindless rebuild arrays and 30 fps present pacing on VK_GOOGLE_display_timing) replaces Core 649; the RPCS3 host measures memory right before the Core loads (e9298892); skins: an installed RewindBox pack follows the shipped archive (PR #159) and the GameCube/Wii Pocket Original sticks move their top face only (PR #160, legal declaration 873b0ad2). Not included: the Switch Pocket skin (blocked on the maintainer's original maquette file, not handed off). No iPhone measurement; no FPS claim.",
+  "base": {
+    "build": 653,
+    "source": "46ed379374487aae10cb22f19a99306cbcbf2a80",
+    "tree": "3da6948fa097bc71e5eed215ff955bd3f4f6f72a",
+    "run": 41880845494,
+    "attempt": 1,
+    "workflow": ".github/workflows/standard-delivery.yml",
+    "jobs": {
+      "preflight": {
+        "name": "preflight",
+        "id": 126752623301
+      },
+      "application": {
+        "name": "application",
+        "id": 126753035766
+      }
+    },
+    "receipt": {
+      "path": "docs/evidence/rewind653/delivery.json",
+      "sha256": "28e01f69c1e990b89029b41048a1bc12e17cbb0ff2f796ca8bd55e4c9924b412",
+      "proofFiles": 12
+    },
+    "identity": {
+      "path": "docs/evidence/rewind653/signed-payload-identity.json",
+      "sha256": "0d48e72a055f7446e919024c375707085568d9bcb7fc0677748403f5b1d0e839",
+      "images": 90
+    },
+    "ipa": {
+      "name": "RewindBox-653.ipa",
+      "producerName": "RewindBox-Build653-46ed379374487aae10cb22f19a99306cbcbf2a80-cold.ipa",
+      "bytes": 247337849,
+      "sha256": "63542cc6cad88d13776c051846eb46cd6527fecc59ab1154539e7cf1bac678f0"
+    }
+  },
+  "components": {
+    "rpcs3": {
+      "mode": "replace",
+      "verifier": ".github/diagnostics/rpcs3_core_component.py",
+      "pin": "build-utils/rpcs3/core-pin.json",
+      "image": "Frameworks/libRPCS3Core.dylib",
+      "producerRoute": "RPCS3 Core route (.github/workflows/rpcs3-core610.yml driven by build-utils/rpcs3/core-build.json, build 655)",
+      "replaces": {
+        "source": "433ed626cd42cd8158c7c03decc7a985d3f68ec7",
+        "run": 41874738530,
+        "artifact": 13346219420,
+        "payloadFingerprint": "65b6ffc5d3695e143c73fa97e99b508f1cbddc98e4a93b47fb17185425444fce"
+      }
+    },
+    "melonx": {
+      "mode": "replace",
+      "verifier": ".github/diagnostics/melonx_dma_core_component.py",
+      "pin": "build-utils/melonx/dma-core-pin.json",
+      "packaging": "build-utils/melonx/package_runtime.py",
+      "image": "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "producerRoute": ".github/workflows/melonx-core.yml",
+      "replaces": {
+        "build": 649,
+        "source": "44e82f53d02a90e9fbf6b59c0f27837ac37b26a3",
+        "run": 41856742638,
+        "job": 126667309329,
+        "artifact": 13338798891,
+        "packagedFingerprint": "a137ac95fa4fb5b3555a8cde1b418d9e0d87b6cc523495ff1053958beb4dc61e"
+      }
+    },
+    "dolphin": {
+      "mode": "retain",
+      "retainedSince": 608,
+      "image": "Frameworks/DolphinCore.framework/DolphinCore",
+      "payloadFingerprint": "640e4389559c800087b3d4b2a2748b4c11307ae6a79bc72f59d55430ccddd6fc",
+      "upstreamRevision": "7cac54161659421ed95c2cd1c0b0746539a4cd38",
+      "legalFolder": "Dolphin-session608",
+      "inputs": "rewind608_producers.input_paths",
+      "origin": {
+        "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1,
+        "runConclusion": "failure",
+        "job": 124810929735,
+        "jobName": "Build608 Dolphin arm64",
+        "steps": [
+          "Patch and compile Dolphin Core",
+          "Materialize and validate Dolphin framework",
+          "Bind608 native inputs and compiled payload"
+        ],
+        "artifact": 13078193437,
+        "name": "RewindBox608-dolphin-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+        "bytes": 11191038,
+        "sha256": "9d32c236c79c43cd57053b000dfaba94c4e0d6f627bd04a657f74b36dd58c064",
+        "expiresAt": "2026-11-15T09:41:57Z"
+      },
+      "consumedBy": {
+        "build": 608,
+        "receipt": "docs/evidence/rewind608/delivery.json",
+        "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+      },
+      "republished": {
+        "build": 653,
+        "source": "46ed379374487aae10cb22f19a99306cbcbf2a80",
+        "run": 41880845494,
+        "attempt": 1,
+        "job": 126753035742,
+        "artifact": 13348697804,
+        "name": "RewindBox-Build653-46ed379374487aae10cb22f19a99306cbcbf2a80-attempt1-component-dolphin",
+        "bytes": 11192276,
+        "sha256": "c4e78bb101e2241b32c95c7dc3e4bbb96af886f83d0eacecad4aad45a50588d2"
+      }
+    },
+    "armsx2": {
+      "mode": "retain",
+      "retainedSince": 608,
+      "image": "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+      "payloadFingerprint": "fab55193e509583b03c0e5b33ae8d8812745b5410d138a53e3779b6257f370d4",
+      "upstreamRevision": "9d989ca933a85bb2f1d111fd3b9e5742ac7d2fbe",
+      "legalFolder": "ARMSX2-session608",
+      "inputs": "rewind608_producers.input_paths",
+      "origin": {
+        "workflow": ".github/workflows/rewind608-retro-achievements-delivery.yml",
+        "source": "0279198b1c33d869550cae3cf35f155b9d3a4f79",
+        "tree": "67f9f0c891d86b09d04c4f273931eeb0d33f602e",
+        "run": 41293321826,
+        "attempt": 1,
+        "runConclusion": "failure",
+        "job": 124810929747,
+        "jobName": "Build608 ARMSX2 ABI9 arm64",
+        "steps": [
+          "Compile native core and verify binary ABI",
+          "Bind608 native inputs and compiled payload"
+        ],
+        "artifact": 13078023872,
+        "name": "RewindBox608-armsx2-0279198b1c33d869550cae3cf35f155b9d3a4f79-attempt1",
+        "bytes": 14042625,
+        "sha256": "e4354b47eee93d5dc8d53be070a88cc83ceb8b31ff4f7ccdca2eb2c2067b8763",
+        "expiresAt": "2026-11-15T09:57:51Z"
+      },
+      "consumedBy": {
+        "build": 608,
+        "receipt": "docs/evidence/rewind608/delivery.json",
+        "sha256": "2930e4d30eb26b9de343283b3fbab9f723dc9dd63399317833b4bef572d1ae9b"
+      },
+      "republished": {
+        "build": 653,
+        "source": "46ed379374487aae10cb22f19a99306cbcbf2a80",
+        "run": 41880845494,
+        "attempt": 1,
+        "job": 126753035742,
+        "artifact": 13348722771,
+        "name": "RewindBox-Build653-46ed379374487aae10cb22f19a99306cbcbf2a80-attempt1-component-armsx2",
+        "bytes": 14043861,
+        "sha256": "30551129c34f3c194604a03a5dd3a5c785494ca4e04c9c410af0850f761f6c69"
+      }
+    },
+    "libretro": {
+      "mode": "retain-archive",
+      "destination": "dist/libretro",
+      "inputs": [
+        "build-utils/libretro/"
+      ],
+      "origin": {
+        "workflow": ".github/workflows/build497-checks.yml",
+        "branch": "Claude",
+        "source": "ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "run": 39455712245,
+        "attempt": 1,
+        "runConclusion": "success",
+        "artifact": 12280822192,
+        "name": "LibretroCores-ab9361c29f7c9ab769c4263dd8b7427fc4f4c036",
+        "bytes": 55566830,
+        "sha256": "e06f641dd10409c815787fe1cf4ac6746920360a1023c83b23631b2bd693ba47",
+        "expiresAt": "2026-11-03T16:19:42Z"
+      },
+      "republished": {
+        "build": 653,
+        "source": "46ed379374487aae10cb22f19a99306cbcbf2a80",
+        "run": 41880845494,
+        "attempt": 1,
+        "job": 126753035742,
+        "artifact": 13348233399,
+        "name": "RewindBox-Build653-46ed379374487aae10cb22f19a99306cbcbf2a80-attempt1-component-libretro",
+        "bytes": 55568023,
+        "sha256": "8f3f71b06ec2a22747b539ba80804901d44c8335924e4c76f56ea3a0cc91834b"
+      }
+    },
+    "melonx-dependencies": {
+      "mode": "retain-archive",
+      "destination": "dist/melonx-native",
+      "inputs": [
+        "build-utils/melonx/native-dependencies.json"
+      ],
+      "origin": {
+        "workflow": ".github/workflows/melonx-native-dependencies.yml",
+        "branch": "work/melonx-embedded-20261022",
+        "source": "66737aa9c959eb5915264bf178f179bda8643314",
+        "run": 39854858591,
+        "attempt": 1,
+        "runConclusion": "success",
+        "artifact": 12458409441,
+        "name": "MeloNX-native-dependencies-66737aa9c959eb5915264bf178f179bda8643314",
+        "bytes": 49178074,
+        "sha256": "12a1e4c7bf1c970c218ebddead965a51c3aa57af4d0e1fb5c0523ca8b1340261",
+        "expiresAt": "2026-11-05T21:09:37Z"
+      },
+      "republished": {
+        "build": 653,
+        "source": "46ed379374487aae10cb22f19a99306cbcbf2a80",
+        "run": 41880845494,
+        "attempt": 1,
+        "job": 126753035742,
+        "artifact": 13349511775,
+        "name": "RewindBox-Build653-46ed379374487aae10cb22f19a99306cbcbf2a80-attempt1-component-melonx-dependencies",
+        "bytes": 49179302,
+        "sha256": "b936a6ebcc36462510b2c2a829eb7da386c785de4c2464e56207a4702d468192"
+      }
+    },
+    "melonx-upstream": {
+      "mode": "pinned-source",
+      "inputs": [
+        "build-utils/melonx/source.json",
+        "build-utils/melonx/vendor_controller.py"
+      ],
+      "tree": "82a29e6f593f6244869481e9a489b8d5154175fe",
+      "controller": "c049ce88a5635bddcd88e1965c42aa8fc92fe961"
+    },
+    "stikjit": {
+      "mode": "pinned-source",
+      "inputs": [
+        "build-utils/stikjit/",
+        "build-utils/patch_stikjit_rpcs3.py",
+        "build-utils/patch_stikjit_compat.py",
+        "build-utils/install_patched_stikjit.py",
+        "build-utils/build_patched_stikjit.py"
+      ],
+      "cacheKeySuffix": "37844950677"
+    },
+    "donor": {
+      "mode": "pinned-release",
+      "build": 527,
+      "release": "0.0.9",
+      "asset": "RewindBox-Build527.ipa",
+      "assetId": 673430199,
+      "url": "https://github.com/TarbleFR/RewindBox/releases/download/0.0.9/RewindBox-Build527.ipa",
+      "bytes": 186673707,
+      "sha256": "884a44dea6e627fc9cd774d296dc2abf1ef683ca01572651d5c0e3425bd9756e",
+      "preparer": "build-utils/prepare_release527_native_runtime.py"
+    }
+  },
+  "product": {
+    "reviewedCommits": [
+      {
+        "commit": "e92988927a460d624fad64fbdcf22f013850d034",
+        "note": "feat(rpcs3-host): measure footprint, compressed pages and jetsam headroom right before the Core loads, after relieving free malloc pages (IPA 650 AC device loss) [skip ci]"
+      },
+      {
+        "commit": "ae36a67265670344d3e3f8b04d0435380f755be9",
+        "note": "fix(skins): integrate PR #159: an installed RewindBox pack follows the archive the app ships (stale GameCube Original copy after IPA 650) [skip ci]"
+      },
+      {
+        "commit": "4700d4452f8d739780a3285e756625591b542e64",
+        "note": "feat(melonx): integrate the PR #156 new lot (closed sessions' layer binders released in SurfaceFlinger.Dispose, sessionRetention probe; gcEvent, artifact-path and capture journals), not yet wired [skip ci]"
+      },
+      {
+        "commit": "9b41bc66f1eced8f011dfaa68a6330f521c213b1",
+        "note": "build(melonx): wire the PR #156 new lot into the preparation and the Core plan (MeloNX Core 654, not frozen) [skip ci]"
+      },
+      {
+        "commit": "d8ed0119a562e1924b93e680c605ac05d5e8809f",
+        "note": "build(melonx): freeze the MeloNX Core 654 contract (Core 649 + PR #156 new lot; 27 fresh gates, 331 contract checks) [skip ci]"
+      },
+      {
+        "commit": "2974b58e6571bb171fe9ff01abae48947fec5e4a",
+        "note": "feat(rpcs3-moltenvk): inside a render encoder, wait for the stage fences of a barrier made only of read transitions (Core 655 in-pass read transitions) [skip ci]"
+      },
+      {
+        "commit": "3fd39400f491ff313b4c047ec963d0b24ca450d5",
+        "note": "fix(rpcs3): Core 655 source: a read transition of an image that is not an attachment of the open render pass stays inside the pass (AC, with the MoltenVK in-pass fence wait) [skip ci]"
+      },
+      {
+        "commit": "9dac4ede2c6949e14bc0da0f3d0982de1db86ff7",
+        "note": "test(rpcs3): the Core pin test expects the deep-audit exclusion of the legacy Core job guard (be649839) [skip ci]"
+      },
+      {
+        "commit": "57e21ae280794aaf77cb6516d677c5b4ec5efbc8",
+        "note": "fix(skins): GameCube/Wii Original sticks move their top face only (the skirt and the yellow C base stay)"
+      },
+      {
+        "commit": "873b0ad2bc4fbaf37887d402501600978987ed62",
+        "note": "fix(legal): Pocket board Originals declaration follows the PR #160 archives; the PS2 Original overlay binds the current catalog [skip ci]"
+      },
+      {
+        "commit": "d4d3689cade5a5ec74fbdf7163e2f2742cbe86f7",
+        "note": "test(rpcs3): Core 655 Apple harnesses: the hook-less variant links on Apple ld64; the census contract accepts the exact 655 block [skip ci]"
+      },
+      {
+        "commit": "e2ce3dd2d6b9d38ed92027506d245f4d960f9f59",
+        "note": "feat(melonx): integrate the MeloNX levers handoff 7d163b07 (no per-rebuild allocation of pool-sized bindless arrays; 33 ms present pacing at 30 fps), not yet wired [skip ci]"
+      },
+      {
+        "commit": "2cafaed3e87344ccf97b6001f82a9009850a6a61",
+        "note": "build(melonx): wire the MeloNX levers into the preparation and the Core plan (MeloNX Core 656, not frozen) [skip ci]"
+      },
+      {
+        "commit": "51698e2870e32f293d4c479bd41c8de4e0d672d3",
+        "note": "test(melonx): phase-marks and binder-teardown gates: files a later adapter also edits are proven by control_source's forward check [skip ci]"
+      },
+      {
+        "commit": "61d6b517f995b17458b45a0407c214dbda7cbcdb",
+        "note": "build(melonx): freeze the MeloNX Core 656 contract (Core 654 + bounded rebuild arrays + 30 fps present pacing; 29 fresh gates, 337 contract checks) [skip ci]"
+      },
+      {
+        "commit": "07da6c6b10a6edff07014453baa5d2b39df6026b",
+        "note": "[melonx-dma-core] build(melonx): Core 656 plan without the CI-unavailable MoltenVK source assertion; contract c540d7d5, run record updated"
+      }
+    ],
+    "sourceOnly": [],
+    "promotedCommits": []
+  },
+  "images": {
+    "mustChange": [
+      "Runner"
+    ],
+    "added": [],
+    "removed": [],
+    "replaced": {
+      "rpcs3": "Frameworks/libRPCS3Core.dylib",
+      "melonx": "Frameworks/MeloNXCore.framework/MeloNXCore"
+    },
+    "retained": {
+      "dolphin": [
+        "Frameworks/DolphinCore.framework/DolphinCore"
+      ],
+      "armsx2": [
+        "Frameworks/ARMSX2Core.framework/ARMSX2Core"
+      ],
+      "libretro": [
+        "Frameworks/*_libretro.framework/*_libretro",
+        "Frameworks/MoltenVK.framework/MoltenVK"
+      ],
+      "melonx-dependencies": [
+        "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+        "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
+        "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
+        "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+        "Frameworks/MeloNXSDL3.framework/MeloNXSDL3"
+      ],
+      "melonx-upstream": [
+        "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone"
+      ]
+    },
+    "baseImages": [
+      "Frameworks/ARMSX2Core.framework/ARMSX2Core",
+      "Frameworks/App.framework/App",
+      "Frameworks/DolphinCore.framework/DolphinCore",
+      "Frameworks/Flutter.framework/Flutter",
+      "Frameworks/GTMSessionFetcher.framework/GTMSessionFetcher",
+      "Frameworks/MeloNXAvCodec.framework/MeloNXAvCodec",
+      "Frameworks/MeloNXAvUtil.framework/MeloNXAvUtil",
+      "Frameworks/MeloNXCore.framework/MeloNXCore",
+      "Frameworks/MeloNXJitSupport.framework/MeloNXJitSupport",
+      "Frameworks/MeloNXMoltenVK.framework/MeloNXMoltenVK",
+      "Frameworks/MeloNXMoltenVKStandalone.framework/MeloNXMoltenVKStandalone",
+      "Frameworks/MeloNXSDL3.framework/MeloNXSDL3",
+      "Frameworks/MoltenVK.framework/MoltenVK",
+      "Frameworks/PDFium.framework/PDFium",
+      "Frameworks/StikJIT.framework/StikJIT",
+      "Frameworks/a5200_libretro.framework/a5200_libretro",
+      "Frameworks/achievement_translation.framework/achievement_translation",
+      "Frameworks/ardens_libretro.framework/ardens_libretro",
+      "Frameworks/armsx2_internal_bridge.framework/armsx2_internal_bridge",
+      "Frameworks/azahar_libretro.framework/azahar_libretro",
+      "Frameworks/battery_plus.framework/battery_plus",
+      "Frameworks/desmume_libretro.framework/desmume_libretro",
+      "Frameworks/device_info_plus.framework/device_info_plus",
+      "Frameworks/dolphin_internal_bridge.framework/dolphin_internal_bridge",
+      "Frameworks/external_display.framework/external_display",
+      "Frameworks/external_folder_access.framework/external_folder_access",
+      "Frameworks/fbneo_libretro.framework/fbneo_libretro",
+      "Frameworks/file_picker.framework/file_picker",
+      "Frameworks/flutter_7zip.framework/flutter_7zip",
+      "Frameworks/flutter_localization.framework/flutter_localization",
+      "Frameworks/flutter_secure_storage_darwin.framework/flutter_secure_storage_darwin",
+      "Frameworks/freechaf_libretro.framework/freechaf_libretro",
+      "Frameworks/freeintv_libretro.framework/freeintv_libretro",
+      "Frameworks/gambatte_libretro.framework/gambatte_libretro",
+      "Frameworks/gamepads_darwin.framework/gamepads_darwin",
+      "Frameworks/gearcoleco_libretro.framework/gearcoleco_libretro",
+      "Frameworks/genesis_plus_gx_libretro.framework/genesis_plus_gx_libretro",
+      "Frameworks/genesis_plus_gx_wide_libretro.framework/genesis_plus_gx_wide_libretro",
+      "Frameworks/gw_libretro.framework/gw_libretro",
+      "Frameworks/handy_libretro.framework/handy_libretro",
+      "Frameworks/libRPCS3Core.dylib",
+      "Frameworks/libretro_internal_bridge.framework/libretro_internal_bridge",
+      "Frameworks/mednafen_ngp_libretro.framework/mednafen_ngp_libretro",
+      "Frameworks/mednafen_pce_fast_libretro.framework/mednafen_pce_fast_libretro",
+      "Frameworks/mednafen_pcfx_libretro.framework/mednafen_pcfx_libretro",
+      "Frameworks/mednafen_psx_hw_libretro.framework/mednafen_psx_hw_libretro",
+      "Frameworks/mednafen_psx_libretro.framework/mednafen_psx_libretro",
+      "Frameworks/mednafen_vb_libretro.framework/mednafen_vb_libretro",
+      "Frameworks/mednafen_wswan_libretro.framework/mednafen_wswan_libretro",
+      "Frameworks/melonx_internal_bridge.framework/melonx_internal_bridge",
+      "Frameworks/mesen_libretro.framework/mesen_libretro",
+      "Frameworks/mgba_libretro.framework/mgba_libretro",
+      "Frameworks/mupen64plus_next_libretro.framework/mupen64plus_next_libretro",
+      "Frameworks/neo_cheat_catalog.framework/neo_cheat_catalog",
+      "Frameworks/neo_shader_kit.framework/neo_shader_kit",
+      "Frameworks/neo_swap.framework/neo_swap",
+      "Frameworks/neo_texture_catalog.framework/neo_texture_catalog",
+      "Frameworks/neo_touch_layout.framework/neo_touch_layout",
+      "Frameworks/nestopia_libretro.framework/nestopia_libretro",
+      "Frameworks/o2em_libretro.framework/o2em_libretro",
+      "Frameworks/objective_c.framework/objective_c",
+      "Frameworks/package_info_plus.framework/package_info_plus",
+      "Frameworks/pdfium_flutter.framework/pdfium_flutter",
+      "Frameworks/picodrive_libretro.framework/picodrive_libretro",
+      "Frameworks/pokemini_libretro.framework/pokemini_libretro",
+      "Frameworks/potator_libretro.framework/potator_libretro",
+      "Frameworks/ppsspp_libretro.framework/ppsspp_libretro",
+      "Frameworks/prosystem_libretro.framework/prosystem_libretro",
+      "Frameworks/retro_achievements_session.framework/retro_achievements_session",
+      "Frameworks/rpcs3_internal_bridge.framework/rpcs3_internal_bridge",
+      "Frameworks/sameduck_libretro.framework/sameduck_libretro",
+      "Frameworks/share_plus.framework/share_plus",
+      "Frameworks/shared_preferences_foundation.framework/shared_preferences_foundation",
+      "Frameworks/snes9x_libretro.framework/snes9x_libretro",
+      "Frameworks/sqlite3.framework/sqlite3",
+      "Frameworks/stella_libretro.framework/stella_libretro",
+      "Frameworks/stikjit_bridge.framework/stikjit_bridge",
+      "Frameworks/url_launcher_ios.framework/url_launcher_ios",
+      "Frameworks/uzem_libretro.framework/uzem_libretro",
+      "Frameworks/video_player_avfoundation.framework/video_player_avfoundation",
+      "Frameworks/wakelock_plus.framework/wakelock_plus",
+      "Frameworks/wasm4_libretro.framework/wasm4_libretro",
+      "PlugIns/ARMSX2JITHelper.appex/ARMSX2JITHelper",
+      "PlugIns/DolphinJITHelper.appex/DolphinJITHelper",
+      "PlugIns/MeloNXJITHelper.appex/MeloNXJITHelper",
+      "PlugIns/MeloNXRamDonor.appex/MeloNXRamDonor",
+      "PlugIns/NeoSwapDonor.appex/NeoSwapDonor",
+      "PlugIns/NeoSwapPageRelay.appex/NeoSwapPageRelay",
+      "PlugIns/RPCS3JITHelper.appex/RPCS3JITHelper",
+      "Runner"
+    ]
+  },
+  "tests": {
+    "flutter": {
+      "mode": "fresh",
+      "additions": {
+        "flutterTests": [
+          "test/rewindbox_glacier_test.dart",
+          "test/glacier_menu_capture_test.dart",
+          "test/main_menu_tab_strip_test.dart",
+          "test/main_menu_tab_strip_styles_test.dart",
+          "test/header_one_line_test.dart",
+          "test/header_battery_test.dart",
+          "test/grid_geometry_test.dart",
+          "test/menu_carousel_correction_test.dart",
+          "test/liquid_glass_theme_test.dart",
+          "test/interface_style_locale_test.dart",
+          "test/interface_style_settings_test.dart",
+          "test/interface_style_screen_test.dart",
+          "test/builtin_theme_catalog_test.dart",
+          "test/nav_tabs_test.dart",
+          "test/system_bubbles_option_test.dart",
+          "test/system_bubble_render_test.dart",
+          "test/ui_correction_visual_test.dart",
+          "test/theme_provider_background_persistence_test.dart",
+          "test/retro_achievements_session_test.dart",
+          "test/retro_achievements_login_regression_test.dart",
+          "test/scraper_batch_flow_test.dart",
+          "test/game_box_sharp_scan_test.dart",
+          "test/game_box_sharp_back_test.dart",
+          "test/game_box_sources_test.dart",
+          "test/screenscraper_service_test.dart",
+          "test/screenscraper_manual_media_test.dart",
+          "test/retro_achievements_native_client_test.dart",
+          "test/game_manual_french_sources_test.dart",
+          "test/game_details_tab_persistence_test.dart",
+          "test/dolphin_skins_test.dart",
+          "test/libretro_consoles_tab_test.dart",
+          "test/bundled_controller_skins_test.dart",
+          "test/dolphin_pocket_test.dart",
+          "test/dolphin_skin_preview_images_test.dart",
+          "test/pocket_catalog_offline_ui_test.dart",
+          "test/libretro_skin_catalogs_test.dart",
+          "test/armsx2_playlist_skins_test.dart"
+        ],
+        "analyze": [
+          "lib/widgets/glacier",
+          "lib/services/system_art",
+          "lib/services/glacier_preset.dart",
+          "lib/themes",
+          "lib/widgets/main_menu_tab_strip.dart",
+          "lib/widgets/header.dart",
+          "lib/widgets/header_sort_dropdown.dart",
+          "lib/widgets/glass",
+          "lib/screens/systems_screen/my_systems_section",
+          "lib/screens/settings_screen/new_settings_options/themes_settings_content.dart",
+          "lib/screens/settings_screen/new_settings_options/system_art_settings_content.dart",
+          "lib/screens/settings_screen/interface_style",
+          "lib/providers/neo_assets_provider.dart",
+          "lib/providers/theme_provider.dart",
+          "lib/services/neo_assets_service.dart",
+          "lib/main.dart",
+          "lib/l10n",
+          "lib/services/game_box",
+          "lib/screens/game_box",
+          "lib/services/screenscraper",
+          "lib/services/screenscraper_service.dart",
+          "lib/screens/scraper_screen",
+          "lib/services/game_manual_french_sources.dart",
+          "lib/services/game_manual_service.dart",
+          "lib/widgets/game_box",
+          "lib/services/dolphin_skins.dart",
+          "lib/services/libretro_skin_service.dart",
+          "lib/services/libretro_skin_catalogs.dart",
+          "lib/services/libretro_skin_catalog_service.dart",
+          "lib/screens/libretro",
+          "lib/widgets/dolphin_internal_playlist_actions.dart"
+        ],
+        "commands": [
+          [
+            "storage-contract",
+            [
+              "python3",
+              "-B",
+              "test/storage_contract_test.py"
+            ]
+          ],
+          [
+            "localization-12-locales",
+            [
+              "python3",
+              "-B",
+              "test/localization_12_locale_coverage_test.py"
+            ]
+          ],
+          [
+            "theme-surfaces-retained",
+            [
+              "python3",
+              "-B",
+              "test/theme_importer_retirement_test.py"
+            ]
+          ],
+          [
+            "game-box-strings",
+            [
+              "python3",
+              "-B",
+              "test/game_box_strings_test.py"
+            ]
+          ],
+          [
+            "pocket-skin-input-chain",
+            [
+              "python3",
+              "-B",
+              "test/pocket_skin_input_chain_test.py"
+            ]
+          ],
+          [
+            "dolphin-session-chrome",
+            [
+              "python3",
+              "-B",
+              "test/dolphin_session_chrome_test.py"
+            ]
+          ],
+          [
+            "armsx2-skin-menu-button",
+            [
+              "python3",
+              "-B",
+              "test/armsx2_skin_menu_button_test.py"
+            ]
+          ]
+        ],
+        "flutterTestGlobs": [
+          "test/game_box*_test.dart"
+        ]
+      }
+    },
+    "native": {
+      "mode": "fresh",
+      "additions": {
+        "commands": [
+          [
+            "rpcs3-retroachievements-apple-clang",
+            [
+              "python3",
+              "-B",
+              "test/rpcs3_retroachievements_test.py"
+            ]
+          ],
+          [
+            "rpcs3-graphics-tests-612-apple",
+            [
+              "python3",
+              "-B",
+              "test/rpcs3_graphics_tests612_test.py"
+            ]
+          ],
+          [
+            "rpcs3-timeline-613-foundation",
+            [
+              "python3",
+              "-B",
+              "test/rpcs3_diagnostics546_native_test.py"
+            ]
+          ],
+          [
+            "rpcs3-timeline-616-foundation",
+            [
+              "python3",
+              "-B",
+              "test/rpcs3_diagnostics546_native_test.py"
+            ]
+          ],
+          [
+            "melonx-perf-journal",
+            [
+              "python3",
+              "-B",
+              "test/melonx_perf_journal_test.py"
+            ]
+          ],
+          [
+            "rpcs3-core-log-621-foundation",
+            [
+              "python3",
+              "-B",
+              "test/rpcs3_core_log_durable552_test.py"
+            ]
+          ],
+          [
+            "rpcs3-log-budget-283-621",
+            [
+              "python3",
+              "-B",
+              "test/rpcs3_build283_boot_stability_test.py"
+            ]
+          ],
+          [
+            "rpcs3-host-diagnostics-487-621",
+            [
+              "python3",
+              "-B",
+              "test/rpcs3_build487_host_diagnostics_test.py"
+            ]
+          ],
+          [
+            "rpcs3-pipeline-cache-milestones-621",
+            [
+              "python3",
+              "-B",
+              "test/rpcs3_pipeline_cache_milestones_test.py"
+            ]
+          ],
+          [
+            "rpcs3-host-memory-before-core-load",
+            [
+              "python3",
+              "-B",
+              "test/rpcs3_host_memory_before_core_load_test.py"
+            ]
+          ]
+        ]
+      },
+      "note": "On the macOS runner g++/clang++ resolve to Apple clang of the selected Xcode 16.4."
+    },
+    "awaitMinutes": 75
+  },
+  "recipient": {
+    "path": "build-utils/delivery-657-recipient.pem",
+    "sha256": "7a7469d7a3e4c33a6e301f00cd525d4fe90ac4db84bace47b56b1bdfcc4d4ee6"
+  },
+  "republish": [
+    "rpcs3-core",
+    "rpcs3-host-tests",
+    "melonx-core",
+    "dolphin",
+    "armsx2",
+    "libretro",
+    "melonx-dependencies"
+  ]
+}
