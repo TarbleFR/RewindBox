@@ -59,6 +59,20 @@ with tempfile.TemporaryDirectory(prefix='melonx-barrier-compaction-final-') as t
     check(original.count('namespace Ryujinx.Graphics.Vulkan') == 1, 'one namespace in the delivered BarrierBatch')
     (work / 'Control.cs').write_text(original.replace('namespace Ryujinx.Graphics.Vulkan', 'namespace Ryujinx.Graphics.Vulkan.Control'))
     shutil.copyfile(FINAL_SOURCE / RELATIVE, work / 'Candidate.cs')
+    # Core 661 (adapt_moltenvk_stage_ordering): the final BarrierBatch notes barriers recorded outside a render pass in
+    # PipelineBase's EncoderOrdering (counters and per-thread state only, no API call); compiled as the tree declares it.
+    if 'EncoderOrdering.' in (work / 'Candidate.cs').read_text(encoding='utf-8-sig'):
+        pipeline = (FINAL_SOURCE / 'src/Ryujinx.Graphics.Vulkan/PipelineBase.cs').read_text(encoding='utf-8-sig')
+        start = pipeline.index('    static class EncoderOrdering')
+        depth, end = 0, None
+        for index in range(pipeline.index('{', start), len(pipeline)):
+            depth += {'{': 1, '}': -1}.get(pipeline[index], 0)
+            if depth == 0:
+                end = index + 1
+                break
+        check(end is not None and 'static class RenderDetail' not in pipeline[start:end], 'the EncoderOrdering class alone')
+        (work / 'EncoderOrdering.cs').write_text('using Silk.NET.Vulkan;\nusing System;\nusing System.Threading;\n\nnamespace Ryujinx.Graphics.Vulkan\n{\n' +
+                                                 pipeline[start:end] + '\n}\n')
     shutil.copyfile(FINAL_SOURCE / NATIVE, work / 'NativeArray.cs')
     for path in sorted(FIXTURE.glob('*.cs')):
         shutil.copyfile(path, work / path.name)
