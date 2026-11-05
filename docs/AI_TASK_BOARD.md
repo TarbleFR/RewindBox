@@ -267,8 +267,10 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Device checks wanted: AC `RPASS655 kept_*`, same-target restarts and GPU ms/frame vs 653;
     MeloNX bindings `allocatedKiB`/`gcPauseMs` at transitions and "Present pacing over" lines;
     GameCube/Wii stick tops. No iPhone measurement yet; no FPS claim.
-- **IPA 658 (MeloNX isolated build on 657, MeloNX Core 658 only):** trigger `9730acd5`, standard
-  delivery run `41955134733` success; verification and receipt by the MeloNX session.
+- **Delivered/verified by MeloNX: isolated IPA 658 (on 657, MeloNX Core 658 only):** trigger
+  `9730acd5`, run `41955134733` (five jobs green first try): IPA 246765263 B, SHA-256 `89607f58…f479`;
+  [receipt](evidence/rewind658/delivery.json) (`b317e1da`), packaged MeloNX = pin `aa81c2e8`, key
+  deleted, file sent by that session. RPCS3 Core 655 kept; `9403a7bf` source-only, target 659.
 - **Next common IPA (659+):** wait for every handoff. Planned: RPCS3 Core 659 once pinned,
   `9403a7bf` promoted (sourceOnly in 658), skins PR162 (`dd973d0b` + legal `2f52d25e`, pushed),
   MeloNX Core 658 pin `aa81c2e8`; Switch Pocket blocked on the maintainer's original maquette file.

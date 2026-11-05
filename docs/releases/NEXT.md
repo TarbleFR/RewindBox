@@ -12,7 +12,7 @@ rule in [AI_TASK_BOARD.md](../AI_TASK_BOARD.md); implementation tasks remain the
 - Latest verified private delivery: IPA 657 (run `41939216222`), RPCS3 Core 655 / MeloNX Core 656, on 653.
   See [delivery receipt](../evidence/rewind657/delivery.json) (653: [receipt](../evidence/rewind653/delivery.json),
   650: [receipt](../evidence/rewind650/delivery.json)). IPA 658, the MeloNX session's isolated build on 657 (MeloNX
-  Core 658 only), was built by run `41955134733`; its verification belongs to that session.
+  Core 658 only), run `41955134733`, verified by that session ([receipt](../evidence/rewind658/delivery.json)).
   Private delivery does not mean public publication.
 - Next public tag/build/date: not assigned here. The final manifest determines
   inclusion. All rows below remain **not yet included in the next public announcement**.
