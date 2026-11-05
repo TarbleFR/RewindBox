@@ -531,7 +531,9 @@ def canonical(records: list) -> list:
 
 
 def run(binary: Path, mode: str) -> dict:
-    env = {'ASAN_OPTIONS': 'detect_leaks=1:abort_on_error=1', 'UBSAN_OPTIONS': 'halt_on_error=1:print_stacktrace=1'}
+    # LeakSanitizer exists on Linux only; Apple's ASan aborts when asked for it (Core 660 Apple host tests, run 41991624737).
+    leaks = 'detect_leaks=1:' if sys.platform.startswith('linux') else ''
+    env = {'ASAN_OPTIONS': leaks + 'abort_on_error=1', 'UBSAN_OPTIONS': 'halt_on_error=1:print_stacktrace=1'}
     result = subprocess.run([str(binary), mode], capture_output=True, text=True, timeout=600, env=env)
     require(result.returncode == 0, f'{binary.name} {mode} failed ({result.returncode}):\n' + result.stderr[-4000:])
     return json.loads(result.stdout)
