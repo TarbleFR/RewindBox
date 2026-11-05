@@ -634,8 +634,30 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         - The 5 MSL outputs compile for iOS with Apple's offline compiler (MSL 3.2, warnings are errors except unused
           temporaries; run `42126871821` stopped on those).
         - The decompilers, the translator and SPIRV-Cross compile against the iOS 26 SDK.
-      - Next: M2.2 draw path (rings `MTLDataHeap.h` started, pipeline key, program cache, vertex/index upload, draw).
-        After that, M3 surfaces and textures, needed before any game image.
+    - M2.2 (draw path) is written as work in progress over Core 901 (`f87436db`, `78a1cd06`, `c889bff2`).
+      - MTLGSRender executes RSX draws:
+        - shared surface store traits;
+        - render passes;
+        - shared program cache, with synchronous MTL4 compilation;
+        - environment upload as VKGSRender::load_program_env, with each ring bound at the draw's element;
+        - vertex and index uploads as VKVertexBuffers.cpp;
+        - encoder state through MoltenVK's mapping;
+        - clears as MoltenVK's vkCmdClearAttachments;
+        - presentation of the colour surface holding the display buffer.
+      - Counted, not faked:
+        - neutral 1x1 textures until the texture cache (M3);
+        - no guest-memory surface loads or writes, and no typeless or scaled inheritance (M3);
+        - single-sampled MSAA (M4);
+        - no occlusion queries (M4).
+      - A COREPROF METAL log line every 600 frames carries every counter.
+      - Checks:
+        - every new source compiles on Linux clang;
+        - iOS 26 SDK compile is green (run `42130829257`, and run `42132597213` step 9 for the draw path);
+        - self-review fixed an empty program-cache callback (it would have aborted the RSX thread on the first
+          pipeline) and an uninitialised scissor;
+        - an independent rb-core-review of the draw path is running.
+      - Next: apply the review, then Core 902 canonical (records, SPIRV-Cross files in the delta) and a test IPA
+        of the Metal branch (Xcode 26.3 Core build, MoltenVK dependency run), then M3 (texture cache, readbacks).
     - Not built as a Core; no iPhone run. A full Core build there also needs a MoltenVK dependency run, because the
       bridge changed.
   - Core 668 (Claude line, orchestrator removed) is parked on `work/rpcs3-core668-no-orchestrator-20261105` (`0197102e`).
