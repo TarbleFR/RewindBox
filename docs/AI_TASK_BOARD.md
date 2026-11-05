@@ -458,6 +458,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       743,241 served, 12,365 verified, 0 mismatches, never disabled; ZCULL watched flush active (watched
       slots up to 32, outcomes armed/joined/submitted); depth guard 0 checks (AC never reached the depth
       limit). No like-for-like A/B yet, so no FPS attribution.
+    - A/B 1, texture lookup memo (maintainer, pid 13426, 13:21-13:25 UTC): booted on the profile (digit 15 = 1),
+      restarted with the memo disabled (digit 15 = 2), ~170 s of play. Against 13335 (memo on, ~170 s):
+      guest fps 38.50 -> 39.17, frames > 50 ms 2.3 % -> 2.2 %, window guest fps median 30.11 -> 30.03, samples
+      >= 29.5 fps 64 % -> 71 %. Not like-for-like: 13335 spent 95/173 samples in thermal state 2, 13426 never
+      above 1; passage not confirmed identical. Finding: no measurable gain from the memo on AC (the game
+      sits at its 30 fps cap; CPU 30-33 %, RSX 20-23 %); its correctness held (0 mismatches). Kept at the
+      profile default; a same-thermal rerun with the memo on is needed before any keep/remove decision.
   - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
     without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
     report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).
