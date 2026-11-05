@@ -1,0 +1,22 @@
+{
+  "command": [
+    "python3",
+    "test/melonx_bindless_retention_test.py",
+    "/tmp/claude-0/-home-user-RewindBox/25c00a32-8008-508f-ab49-29e568b8be17/scratchpad/real657",
+    "--work",
+    "/tmp/claude-0/-home-user-RewindBox/25c00a32-8008-508f-ab49-29e568b8be17/scratchpad/bindless/run"
+  ],
+  "cwd": "/home/user/RewindBox/.claude/worktrees/agent-a841afa88ae3521ad",
+  "started_utc": "2026-11-05T07:45:23.633499+00:00",
+  "duration_seconds": 67.075,
+  "return_code": 0,
+  "interrupted": false,
+  "launch_error": null,
+  "log_path": "/tmp/claude-0/-home-user-RewindBox/25c00a32-8008-508f-ab49-29e568b8be17/scratchpad/bindless/rewindbox-ai-output-gxt76q2a/output.log",
+  "bytes": 537,
+  "lines": 7,
+  "sha256": "3881f24a13a29673a9c964aec1cf200990f8d3e7e65a90c69e98fd68133bd1f1",
+  "matching_lines": 0,
+  "unselected_lines": 0,
+  "excerpt_clipped": false
+}

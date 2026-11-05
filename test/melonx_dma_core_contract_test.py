@@ -33,6 +33,21 @@ from adapt_artifact_counters import BASELINE as COUNTERS_BASELINE
 from adapt_array_rebuild_allocations import BASELINE as ARRAY_REBUILD_BASELINE
 from adapt_present_pacing import BASELINE as PACING_BASELINE
 from adapt_present_drawable_residency import BASELINE as RESIDENCY_BASELINE
+from adapt_present_pacer_fixes import BASELINE as C661_PRESENT_PACER_FIXES
+from adapt_shader_save_poll import BASELINE as C661_SHADER_SAVE_POLL
+from adapt_warmup_key_parity import BASELINE as C661_WARMUP_KEY_PARITY
+from adapt_setprogram_warmup import BASELINE as C661_SETPROGRAM_WARMUP
+from adapt_teardown_cache import BASELINE as C661_TEARDOWN_CACHE
+from adapt_forced_syncpoint_wait import BASELINE as C661_FORCED_SYNCPOINT_WAIT
+from adapt_session_retention import BASELINE as C661_SESSION_RETENTION
+from adapt_memory_inventory import BASELINE as C661_MEMORY_INVENTORY
+from adapt_guest_fault_context import BASELINE as C661_GUEST_FAULT_CONTEXT
+from adapt_host_warning_trim import BASELINE as C661_HOST_WARNING_TRIM
+from adapt_safe_point_compaction import BASELINE as C661_SAFE_POINT_COMPACTION
+from adapt_cold_texture_release import BASELINE as C661_COLD_TEXTURE_RELEASE
+from adapt_bindless_retention import BASELINE as C661_BINDLESS_RETENTION
+from adapt_moltenvk_stage_ordering import BASELINE as C661_MOLTENVK_STAGE_ORDERING
+from adapt_nativeaot_gc_runtime import BASELINE as C661_NATIVEAOT_GC_RUNTIME
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -67,6 +82,23 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'array-rebuild-allocations': 'delivered', 'present-pacing': 'delivered',
             # Core 658 (IPA 657 fix): the game image written into the iOS drawable by a render pass.
             'present-drawable-residency': 'delivered',
+            # Core 661 (Hogwarts 658 logs): fifteen adapters and the gcEvent fallback flag.
+            'present-pacer-fixes': 'delivered',
+            'shader-save-poll': 'delivered',
+            'warmup-key-parity': 'delivered',
+            'setprogram-warmup': 'delivered',
+            'teardown-cache': 'delivered',
+            'forced-syncpoint-wait': 'delivered',
+            'session-retention': 'delivered',
+            'memory-inventory': 'delivered',
+            'guest-fault-context': 'delivered',
+            'gc-fallback': 'delivered',
+            'host-warning-trim': 'delivered',
+            'safe-point-compaction': 'delivered',
+            'cold-texture-release': 'delivered',
+            'bindless-retention': 'delivered',
+            'moltenvk-stage-ordering': 'delivered',
+            'nativeaot-gc-runtime': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
             'single-virtual-dependency': 'ada'}
 TEXTURE = 'src/Ryujinx.Graphics.Gpu/Image/Texture.cs'
@@ -75,7 +107,10 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            set(WARMUP_BASELINE) | set(TRIM_BASELINE) | set(BARRIER_BASELINE) | set(SCRATCH_BASELINE) |
            set(OCCUPIED_BASELINE) | set(MISS_BASELINE) | set(RECEIVERS_BASELINE) | set(PRESENT_BASELINE) |
            set(TEARDOWN_BASELINE) | set(PAUSE_BASELINE) | set(MARKS_BASELINE) | set(BINDER_BASELINE) | set(COUNTERS_BASELINE) |
-           set(ARRAY_REBUILD_BASELINE) | set(PACING_BASELINE) | set(RESIDENCY_BASELINE))
+           set(ARRAY_REBUILD_BASELINE) | set(PACING_BASELINE) | set(RESIDENCY_BASELINE) |
+           # Core 661: its adapters' files and the native runtime (the guest fault context handler).
+           set(C661_PRESENT_PACER_FIXES) | set(C661_SHADER_SAVE_POLL) | set(C661_WARMUP_KEY_PARITY) | set(C661_SETPROGRAM_WARMUP) | set(C661_TEARDOWN_CACHE) | set(C661_FORCED_SYNCPOINT_WAIT) | set(C661_SESSION_RETENTION) | set(C661_MEMORY_INVENTORY) | set(C661_GUEST_FAULT_CONTEXT) | set(C661_HOST_WARNING_TRIM) | set(C661_SAFE_POINT_COMPACTION) | set(C661_COLD_TEXTURE_RELEASE) | set(C661_BINDLESS_RETENTION) | set(C661_MOLTENVK_STAGE_ORDERING) | set(C661_NATIVEAOT_GC_RUNTIME) |
+           {'src/Ryujinx.Library/EmbeddedRuntime.cs'})
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -99,7 +134,23 @@ JOINED = {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
           'src/Ryujinx.HLE/HOS/Kernel/Process/KProcess.cs',
           # Core 654 (adapt_binder_teardown): the two SurfaceFlinger files join (Library.cs was already a prepared member).
           'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/SurfaceFlinger.cs',
-          'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/HOSBinderDriverServer.cs'}
+          'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/HOSBinderDriverServer.cs',
+          # Core 661: upstream members its adapters edit for the first time join the prepared source.
+          'src/Ryujinx.Graphics.GAL/IProgram.cs',
+          'src/Ryujinx.Graphics.GAL/ITextureArray.cs',
+          'src/Ryujinx.Graphics.GAL/Multithreading/Commands/Program/ProgramCheckLinkCommand.cs',
+          'src/Ryujinx.Graphics.GAL/Multithreading/Resources/ThreadedProgram.cs',
+          'src/Ryujinx.Graphics.Gpu/Engine/Threed/ComputeDraw/VtgAsComputeState.cs',
+          'src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs',
+          'src/Ryujinx.HLE/HOS/Kernel/KernelStatic.cs',
+          'src/Ryujinx.HLE/HOS/Kernel/Threading/KWritableEvent.cs',
+          'src/Ryujinx.HLE/HOS/Services/Bluetooth/BluetoothDriver/BluetoothEventManager.cs',
+          'src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostCtrl/Types/NvHostEvent.cs',
+          'src/Ryujinx.HLE/HOS/Services/Time/Clock/StandardUserSystemClockCore.cs',
+          'src/Ryujinx.HLE/HOS/Services/Time/Clock/SystemClockContextUpdateCallback.cs',
+          'src/Ryujinx.HLE/HOS/Services/Time/TimeManager.cs',
+          'src/Ryujinx.HLE/HOS/Services/Time/TimeSharedMemory.cs',
+          'src/Ryujinx.HLE/PerformanceStatistics.cs'}
 # Core 654: no fresh fixture of the delivered Core is reused any more (the single-virtual-dependency receipt declares the collector).
 REUSED_FRESH = set()
 
@@ -270,7 +321,7 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 48 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 68 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -289,10 +340,27 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_artifact_counters.py',
                                                      'build-utils/melonx/adapt_array_rebuild_allocations.py',
                                                      'build-utils/melonx/adapt_present_pacing.py',
-                                                     'build-utils/melonx/adapt_present_drawable_residency.py'} and
+                                                     'build-utils/melonx/adapt_present_drawable_residency.py',
+                                                     'build-utils/melonx/adapt_present_pacer_fixes.py',
+                                                     'build-utils/melonx/adapt_shader_save_poll.py',
+                                                     'build-utils/melonx/adapt_warmup_key_parity.py',
+                                                     'build-utils/melonx/adapt_setprogram_warmup.py',
+                                                     'build-utils/melonx/adapt_teardown_cache.py',
+                                                     'build-utils/melonx/adapt_forced_syncpoint_wait.py',
+                                                     'build-utils/melonx/adapt_session_retention.py',
+                                                     'build-utils/melonx/adapt_memory_inventory.py',
+                                                     'build-utils/melonx/adapt_guest_fault_context.py',
+                                                     'build-utils/melonx/adapt_host_warning_trim.py',
+                                                     'build-utils/melonx/adapt_safe_point_compaction.py',
+                                                     'build-utils/melonx/adapt_cold_texture_release.py',
+                                                     'build-utils/melonx/adapt_bindless_retention.py',
+                                                     'build-utils/melonx/adapt_moltenvk_stage_ordering.py',
+                                                     'build-utils/melonx/adapt_nativeaot_gc_runtime.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
-                                                       'native/melonx/EmbeddedPerformanceDiagnostics.cs'},
+                                                       'native/melonx/EmbeddedPerformanceDiagnostics.cs',
+                                                       # Core 661: the guest fault context handler.
+                                                       'native/melonx/EmbeddedRuntime.cs'},
           'Unexpected preparation scope')
     check(set(frozen['baselineUnadaptedMembers']) == JOINED,
           'Only GraphicsConfig.cs, Window.cs, TextureStorage.cs, ResourceArray.cs, PipelineLayoutCacheEntry.cs the four warm-up parity members, the GPU Window, KProcess and the two SurfaceFlinger files join the prepared source')
@@ -310,7 +378,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 148 and len(frozen['preparedMembers']) == 184, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 163 and len(frozen['preparedMembers']) == 199, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -324,6 +392,8 @@ if not args.helpers_only:
     # Library-assembly files (Library.cs, WindowBase.cs) and the HLE files (KProcess, Horizon, the two SurfaceFlinger
     # files of Core 654) are outside the GPU/Vulkan closure.
     OUTSIDE_GPU = set(PAUSE_BASELINE) | {'src/Ryujinx.Library/Window/WindowBase.cs'} | set(BINDER_BASELINE)
+    # Core 661: its HLE and Library-assembly files (bound by their own gates).
+    OUTSIDE_GPU |= {'src/Ryujinx.HLE/HOS/Horizon.cs', 'src/Ryujinx.HLE/HOS/Kernel/KernelStatic.cs', 'src/Ryujinx.HLE/HOS/Kernel/Process/KProcess.cs', 'src/Ryujinx.HLE/HOS/Kernel/Threading/KWritableEvent.cs', 'src/Ryujinx.HLE/HOS/Services/Bluetooth/BluetoothDriver/BluetoothEventManager.cs', 'src/Ryujinx.HLE/HOS/Services/Nv/NvDrvServices/NvHostCtrl/Types/NvHostEvent.cs', 'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/HOSBinderDriverServer.cs', 'src/Ryujinx.HLE/HOS/Services/SurfaceFlinger/SurfaceFlinger.cs', 'src/Ryujinx.HLE/HOS/Services/Time/Clock/StandardUserSystemClockCore.cs', 'src/Ryujinx.HLE/HOS/Services/Time/Clock/SystemClockContextUpdateCallback.cs', 'src/Ryujinx.HLE/HOS/Services/Time/TimeManager.cs', 'src/Ryujinx.HLE/HOS/Services/Time/TimeSharedMemory.cs', 'src/Ryujinx.HLE/PerformanceStatistics.cs', 'src/Ryujinx.HLE/Switch.cs', 'src/Ryujinx.Library/EmbeddedMemory.cs', 'src/Ryujinx.Library/EmbeddedRuntime.cs', 'src/Ryujinx.Library/Library.cs', 'src/Ryujinx.Library/Ryujinx.Library.csproj', 'src/Ryujinx.Library/Window/WindowBase.cs'}
     check(CHANGES - OUTSIDE_GPU <= set(gate['fragmented-reads']['requiredPostimages']) and
           # Library.cs and the two HLE files (Core 647) are outside the GPU/Vulkan closure; their own gates bind them.
           CHANGES - {LIBRARY} - OUTSIDE_GPU <= {b['productionPath'] for b in gate['fragmented-reads']['compiledBindings']},
