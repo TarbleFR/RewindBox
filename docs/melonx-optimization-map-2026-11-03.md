@@ -488,3 +488,50 @@ re-test); each runs the production code of control and candidate on identical in
 Expected on the device: shorter freezes at scene transitions (the bindless share of the allocation burst gone) and
 33 ms steady pacing at 30 fps. Not measured on an iPhone; the next IPA's core-performance windows (bindings
 allocatedKiB, gcPauseMs) and "Present pacing over" lines measure it.
+
+## IPA 657 on the device: the frozen image, found in MoltenVK 1.4.2's residency set (5 November 2026)
+
+Input: IPA 657 (MeloNX Core 656), maintainer's iPhone on iOS 27 beta 1, Hogwarts Legacy, pid 10361, two sessions in one
+process; private bundle (stderr, stderr.previous, core, performance, launch logs) and a 22 s video filmed with another
+phone (`VID_20261105_015110.mp4`), not in the repository. Maintainer: "the screen freezes, the game does not react;
+it would be the same anywhere", the fault appeared with the change of MoltenVK, and the latest MoltenVK stays.
+
+What the logs show during the video (session 2, perf t = 42–64 s, 00:51:10–00:51:32 UTC):
+- the guest presents 30 frames a second from three GPU-rendered buffers (`Present sources`: from guest memory 0, not
+  GPU-modified 4 of 3000), draws a steady 3D scene (≈ 83 000 draws per 150 frames, FIFO 17 %), and every drawable is
+  shown on glass (`pres=30`, gaps 33 ms, CAMetalDrawable presentedTime > 0); audio plays (`dsp`/`out` 200 a second);
+  guest threads all waiting normally at the host pauses (no stuck thread);
+- in the video the image does not change while the touch controls are used; the game music is heard and stops at the
+  host pause (01:51:25), matching the journal;
+- before the first host pause (t = 27–35 s) the guest presents 30 frames a second with about 21 draws a frame; the 3D
+  scene's work appears right after the pause; the maintainer's IPA 643 recording (iOS screen recording running) shows
+  the same menu, then normal play.
+
+Mechanism (sources: Core 656 preparation; Khronos MoltenVK v1.4.2 `db660224`, compared with v1.4.0):
+1. Ryujinx.Graphics.Vulkan Window.Present writes the game image into the swapchain image with
+   `HelperShader.PresentCopy`: a compute shader with the swapchain view bound as a storage image (`SetImage`). Its
+   program has a minimal layout (`isMinimal`: no push descriptors), so the view sits in an ordinary descriptor set
+   that MoltenVK encodes in a Metal argument buffer. FSR and Area scaling write the swapchain image the same way.
+2. MoltenVK v1.4.2 creates an `MTLResidencySet` on iOS 18 and later (`residencySets = mvkOSVersionIsAtLeast(15.0,
+   18.0, 2.0)` on Apple6+, added to every queue) and then emits no `useResource` for argument-buffer descriptors
+   (`MVKPipeline.mm`: `else if (!_device->hasResidencySet())`). Only what MoltenVK allocates is added to the set
+   (`makeResident`); a swapchain image's texture is the CAMetalDrawable's (`MVKPresentableSwapchainImage::
+   getMTLTexture`), never added. Metal requires a resource reached through an argument buffer to be resident; the
+   compute write of the drawable is undefined and may not land. The drawable is then presented on time with what it
+   held: black when fresh (the launch), an older frame when reused (the freeze, the older single frames and black
+   frames since IPA 643). Changes of composition (a host pause covering the layer, an iOS screen recording) change
+   whether the drawable's memory happens to be mapped, which is why they bring the image back.
+3. The MeloNX standalone MoltenVK (a fork reporting 1.4.0) has no residency set on iOS: every descriptor resource gets
+   `useResource`, the write lands. The switch to Khronos v1.4.2 on 3 November is the change the maintainer dated.
+
+Correction, MoltenVK v1.4.2 kept (`build-utils/melonx/adapt_present_drawable_residency.py`, Window.cs of the Core 656
+preparation, wired after `adapt_present_pacing`): the default path draws the image into the drawable with
+`HelperShader.BlitColor` (render pass, the drawable as color attachment, which Metal makes resident itself; the path of
+upstream Ryujinx and of this Window's multisampled case), same regions and filter, alpha 1; a scaling filter writes an
+RGBA8 texture that Ryujinx creates (allocated by MoltenVK, in its set), then BlitColor copies it into the drawable;
+MetalFX and the clear unchanged; one `Present path:` journal line per window. Proof: `test/
+melonx_present_drawable_residency_test.py`, 26 checks (undo-and-compare, no swapchain view left to a compute writer,
+the BlitColor wiring, the minimal-layout/storage-image cause in the preparation, the four MoltenVK v1.4.2 facts from
+its sources) and the production Ryujinx.Graphics.Vulkan assembly builds; the real preparation of `13700519` gives the
+Core 656 tree but Window.cs (`ba3a2c85…`). Not measured on an iPhone: an isolated IPA (Core 656 + this file only) is
+requested to test it.
