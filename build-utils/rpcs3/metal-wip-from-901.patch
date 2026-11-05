@@ -841,10 +841,10 @@ index 0000000..bb306e9
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLDraw.cpp b/rpcs3/Emu/RSX/Metal/MTLDraw.cpp
 new file mode 100644
-index 0000000..105b675
+index 0000000..89458dc
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLDraw.cpp
-@@ -0,0 +1,1093 @@
+@@ -0,0 +1,1101 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M2.2): the draw path of the native Metal 4 renderer (VKDraw.cpp and the draw parts of
 +// VKGSRender.cpp ported to Metal 4 argument tables and render encoders).
@@ -1019,9 +1019,12 @@ index 0000000..105b675
 +	m_draw_buffers_stale = false;
 +	m_render_pass_dirty = true;
 +
++	// As VKGSRender::set_scissor: the scissor changes only when get_scissor recomputed it.
 +	areau scissor;
-+	get_scissor(scissor, clipped_scissor);
-+	m_scissor = { scissor.x1, scissor.y1, scissor.width(), scissor.height() };
++	if (get_scissor(scissor, clipped_scissor))
++	{
++		m_scissor = { scissor.x1, scissor.y1, scissor.width(), scissor.height() };
++	}
 +	on_framebuffer_layout_updated();
 +}
 +
@@ -1094,6 +1097,7 @@ index 0000000..105b675
 +
 +	pass.render_target_width = std::max(width, 1u);
 +	pass.render_target_height = std::max(height, 1u);
++	pass.default_raster_sample_count = 1;  // needed when every target is disabled
 +	m_render_pass_size = { pass.render_target_width, pass.render_target_height };
 +
 +	m_commands.begin_render(pass, ++m_render_pass_serial, "RSX pass");
@@ -1157,8 +1161,10 @@ index 0000000..105b675
 +	}
 +
 +	const auto attachments = current_attachment_layout();
++	// Programmable blending replaces fixed-function blending (VKGSRender::load_program, force_disable_blending).
++	const bool programmable_blending = !!(current_fragment_program.ctrl & RSX_SHADER_CONTROL_PROGRAMMABLE_BLENDING);
 +	auto properties = mtl::decode_pipeline_props(rsx::method_registers, attachments,
-+		rsx::method_registers.current_draw_clause.primitive, backend_config.supports_hw_a2c, backend_config.supports_hw_a2one, false);
++		rsx::method_registers.current_draw_clause.primitive, backend_config.supports_hw_a2c, backend_config.supports_hw_a2one, programmable_blending);
 +
 +	if (m_program && !program_state_dirty && properties == m_pipeline_properties &&
 +		!(m_graphics_state & rsx::pipeline_state::pipeline_config_dirty))
@@ -1595,8 +1601,10 @@ index 0000000..105b675
 +	}
 +
 +	mtl::set_render_pipeline(encoder, m_program->pipeline);
++	// Without a depth attachment the depth and stencil tests have no effect (Vulkan); Metal is given no test.
 +	const auto attachments = current_attachment_layout();
-+	mtl::set_depth_stencil_state(encoder, get_depth_stencil_state(mtl::decode_depth_stencil(rsx::method_registers, attachments.stencil)));
++	const auto ds_key = attachments.depth ? mtl::decode_depth_stencil(rsx::method_registers, attachments.stencil) : mtl::depth_stencil_key{};
++	mtl::set_depth_stencil_state(encoder, get_depth_stencil_state(ds_key));
 +	update_draw_state(raster);
 +
 +	bind_vertex_streams(upload_info);
@@ -2927,7 +2935,7 @@ index 0000000..48010d9
 +	};
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
-index 33538c9..716d8ce 100644
+index 33538c9..6fbe96f 100644
 --- a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 @@ -1,5 +1,6 @@
@@ -3086,7 +3094,7 @@ index 33538c9..716d8ce 100644
  	}
  
  	m_present_table = mtl::new_argument_table(m_device, 1, 1, 1);
-@@ -112,22 +202,67 @@ void MTLGSRender::on_init_thread()
+@@ -112,22 +202,73 @@ void MTLGSRender::on_init_thread()
  		fmt::throw_exception("Metal presentation pipeline: %s", error);
  	}
  
@@ -3104,7 +3112,13 @@ index 33538c9..716d8ce 100644
 +	environment.caps.has_native_half_support = true;
 +	environment.fast_math = !g_cfg.video.disable_msl_fast_math;
 +	mtl::set_pipeline_environment(environment);
-+	m_prog_buffer = std::make_unique<mtl::program_cache>(nullptr);
++	// The program cache calls this after every link (allow_notification): the Vulkan renderer stores the program in
++	// its disk shader cache there. The Metal renderer has no disk cache yet (stage M5), so nothing is stored; the
++	// callback must exist all the same (an empty std::function would abort the RSX thread on the first pipeline).
++	m_prog_buffer = std::make_unique<mtl::program_cache>(
++		[](const mtl::pipeline_props&, const RSXVertexProgram&, const RSXFragmentProgram&)
++		{
++		});
 +
 +	begin_frame();
 +
@@ -3158,7 +3172,7 @@ index 33538c9..716d8ce 100644
  	m_present_pipeline.reset();
  	m_present_table.reset();
  	m_present_sampler.reset();
-@@ -137,22 +272,63 @@ void MTLGSRender::on_exit()
+@@ -137,22 +278,63 @@ void MTLGSRender::on_exit()
  	m_queue.reset();
  }
  
@@ -3231,7 +3245,7 @@ index 33538c9..716d8ce 100644
  }
  
  void MTLGSRender::begin_occlusion_query(rsx::reports::occlusion_query_info* /*query*/)
-@@ -211,46 +387,6 @@ void MTLGSRender::update_drawable_size()
+@@ -211,46 +393,6 @@ void MTLGSRender::update_drawable_size()
  	mtl::configure_layer(m_layer, m_device, mtl::pixel_format::bgra8_unorm, width, height);
  }
  
@@ -3278,7 +3292,7 @@ index 33538c9..716d8ce 100644
  bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width, u32 height, u32 pitch)
  {
  	if (!vm::check_addr(address, vm::page_readable, pitch * (height - 1) + width * 4))
-@@ -262,8 +398,7 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
+@@ -262,8 +404,7 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
  	{
  		if (slot.upload)
  		{
@@ -3288,7 +3302,7 @@ index 33538c9..716d8ce 100644
  		}
  
  		mtl::texture_descriptor desc{};
-@@ -276,7 +411,7 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
+@@ -276,7 +417,7 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
  		ensure(slot.upload, "Metal display buffer texture");
  		slot.upload_width = width;
  		slot.upload_height = height;
@@ -3297,7 +3311,7 @@ index 33538c9..716d8ce 100644
  	}
  
  	// As the Vulkan renderer's upload_image_simple: each big-endian A8R8G8B8 word stored as a native u32 (BGRA8).
-@@ -291,59 +426,58 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
+@@ -291,59 +432,58 @@ bool MTLGSRender::upload_display_buffer(frame_slot& slot, u32 address, u32 width
  	return true;
  }
  
@@ -3400,7 +3414,7 @@ index 33538c9..716d8ce 100644
  }
  
  void MTLGSRender::flip(const rsx::display_flip_info_t& info)
-@@ -387,27 +521,69 @@ void MTLGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -387,27 +527,69 @@ void MTLGSRender::flip(const rsx::display_flip_info_t& info)
  		pitch = width * 4;
  	}
  
