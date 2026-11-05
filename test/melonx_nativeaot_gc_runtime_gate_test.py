@@ -65,9 +65,9 @@ with tempfile.TemporaryDirectory(prefix='melonx-nativeaot-gc-gate-') as temporar
         check((work / PROJECT).read_bytes() == (FINAL_SOURCE / PROJECT).read_bytes(), 'final preparation is the adapter')
 control = (SOURCE / PROJECT).read_text(encoding='utf-8-sig')
 target = adapter.TARGET
-check(candidate.count(target) == 1 and candidate.replace(target, '\n</Project>', 1).rstrip() == control.rstrip(),
+check(candidate.count(target) == 1 and candidate.replace(target, '</Project>', 1).rstrip() == control.rstrip(),
       'undo-and-compare: the project is the control plus the target only')
-check(candidate.rstrip().endswith('</Project>') and candidate.count('<Project') == 1, 'one project element')
+check(candidate.rstrip().endswith('</Project>') and len(re.findall(r'<Project[\s>]', candidate)) == 1, 'one project element')
 
 # Fail closed.
 errors = re.findall(r'<Error Condition="([^"]+)"', target)
@@ -105,8 +105,8 @@ check(all(isinstance(run_pin[key], int) for key in ('run', 'job', 'artifact', 'a
 
 # Build wiring.
 build = (ROOT / 'build-utils/melonx/build_core.sh').read_text()
-fetch_at, publish_at = build.find('fetch_nativeaot_gc.py "$SOURCE_DIR"'), build.find("'dotnet', 'publish'")
-check(build.find('prepare_embedded.py "$SOURCE_DIR"') < fetch_at < publish_at and fetch_at > 0,
+fetch_at, publish_at = build.find('fetch_nativeaot_gc.py" "$SOURCE_DIR"'), build.find("'dotnet', 'publish'")
+check(build.find('prepare_embedded.py" "$SOURCE_DIR"') < fetch_at < publish_at and fetch_at > 0,
       'the pinned libraries are fetched after the preparation and before publishing')
 check("gc['libraries'][os.environ['MELONX_RUNTIME']]['sha256']" in build and "'-p:RewindBoxNativeAotGcSha256=' + gc_sha" in build,
       'the digest of the RID being built is passed')
