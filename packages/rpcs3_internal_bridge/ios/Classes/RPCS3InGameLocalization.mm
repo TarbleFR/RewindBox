@@ -1144,6 +1144,53 @@ NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build612Translatio
   return values;
 }
 
+NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build664Translations() {
+  // Core 664: the PPU grace after starvation of the accuracy test page.
+  static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    values = @{
+      @"en": @{
+        @"testPpuGrace": @"PPU grace after starvation",
+      },
+      @"es": @{
+        @"testPpuGrace": @"Margen del PPU tras la inanición",
+      },
+      @"ru": @{
+        @"testPpuGrace": @"Пауза для PPU после голодания",
+      },
+      @"zh": @{
+        @"testPpuGrace": @"饥饿后给 PPU 的宽限",
+      },
+      @"zh_Hant": @{
+        @"testPpuGrace": @"飢餓後給 PPU 的寬限",
+      },
+      @"pt": @{
+        @"testPpuGrace": @"Folga do PPU após inanição",
+      },
+      @"fr": @{
+        @"testPpuGrace": @"Répit du PPU après famine",
+      },
+      @"de": @{
+        @"testPpuGrace": @"PPU-Schonfrist nach Aushungerung",
+      },
+      @"it": @{
+        @"testPpuGrace": @"Tregua per il PPU dopo l’inedia",
+      },
+      @"id": @{
+        @"testPpuGrace": @"Jeda PPU setelah kelaparan",
+      },
+      @"ja": @{
+        @"testPpuGrace": @"飢餓後の PPU 猶予",
+      },
+      @"ko": @{
+        @"testPpuGrace": @"기아 후 PPU 유예",
+      },
+    };
+  });
+  return values;
+}
+
 NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* Build660Translations() {
   // Core 660: the SPU direct object hits, the texture lookup memo and the ZCULL queue-depth guard of the accuracy test page.
   static NSDictionary<NSString*, NSDictionary<NSString*, NSString*>*>* values;
@@ -1696,8 +1743,10 @@ NSString* RPCS3LocalizedString(NSString* key, NSString* localeIdentifier) {
   NSDictionary* build630 = Build630Translations();
   NSDictionary* build634 = Build634Translations();
   NSDictionary* build660 = Build660Translations();
+  NSDictionary* build664 = Build664Translations();
   NSString* locale = RPCS3CanonicalLocale(localeIdentifier);
-  return build660[locale][key] ?: build660[@"en"][key] ?:
+  return build664[locale][key] ?: build664[@"en"][key] ?:
+      build660[locale][key] ?: build660[@"en"][key] ?:
       build634[locale][key] ?: build634[@"en"][key] ?:
       build630[locale][key] ?: build630[@"en"][key] ?:
       build627[locale][key] ?: build627[@"en"][key] ?:

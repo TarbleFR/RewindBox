@@ -499,6 +499,31 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
     without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
     report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).
+- **Core 664 (BO2 stall fix, source 5 Nov; [record](rpcs3-core664-2026-11-05.md)):**
+  - Input: the 624/657/662 freezes are an SPU writer-lock storm (six SPURS kernels, 1.2-1.6 M heavy
+    PUTLLC/s, lock held 87 % of 5 s windows) with PPU Secondary parked on `cpu_flag::memory`; two
+    13140 episodes recovered (12 s, 9 s): starvation, not a lost update. Ruled out: the write-fault
+    touch (atomic `ldset`), the GETLLAR refail shortcut (never taken).
+  - Change `REWINDBOX_PPU_GRACE_664`: a starving waiter leaving `vm::passive_lock` opens a 100 us
+    window; other threads' writer locks keep deferring through it within the same 500 us CELL571
+    bound; every writer lock still taken in full. Setting `experimental.ppu_grace` (Automatic, all
+    titles, needs Passive Lock Fairness), boot line 664, `COREPROF PPUGRACE664`, levers627 digit 17,
+    test page row (12 locales).
+  - Review (rb-core-review, Opus/high): no correctness defect. F1 (writers waking each other through
+    the window) and F2 (a PPU deferring to its own window while holding its line) fixed: wakes per
+    window 5.3-5.8 -> 3.0, opener's own lock 160-174 us -> 0.1 us (host experiment).
+  - Host model, not device: storm PPU share 0.03-0.11 -> 0.49-0.57; parks > 500 us 56 -> 20 over
+    six storms; moderate rates unchanged (ten-pair means within 2 %).
+  - Local (Linux, g++): ppu-grace test plain and ASan/UBSan (negative on 660: fails as expected),
+    codegen audit (identities unchanged), canonical `252b9dd1` (363 files) reproduced on pristine
+    upstream, source closure, route/MoltenVK protocol/dependency/pin tests, Apple rerun list 14/15
+    then the core664 driver after a fix of its own reference lookup (Core 660 suite running).
+  - Next: MoltenVK dependency rebuild (host bridge changed), compile request, pin; IPA 665 with
+    MeloNX Core 663 once handed off. Then performance: orchestrator v1 (placement measured first),
+    PPU parking cost in BO2 normal play (252 ms/s), BO2 blocking pipeline builds.
+- **Setting applied (Core 664 turn):** same principal model as the Core 659 turn (get_session:
+  session_context.model = last_served_model, unchanged); effort `max` (session_context.effort_level,
+  flag_settings effortLevel max, ultracode off). Delegation: one rb-core-review agent.
 - **Setting applied (Core 659 turn):** model `claude-opus-5-5` (get_session session_context.model
   and last_served_model); effort `max` (session_context.effort_level, flag_settings), ultracode on;
   rb-effort-high returned "high" when invoked. Delegation: workflow wf_cab1f681-d72 (2/8 typed

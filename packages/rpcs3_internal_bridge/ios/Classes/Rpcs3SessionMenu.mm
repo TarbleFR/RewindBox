@@ -94,6 +94,9 @@ static NSArray<NSDictionary*>* RPCS3AccuracyLevers(void) {
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
       @{@"key": @"experimental.zcull_depth_guard", @"title": @"testZcullDepthGuard", @"field": @"levers627", @"bit": @15,
         @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
+      // Core 664: digit 17 of levers627=.
+      @{@"key": @"experimental.ppu_grace", @"title": @"testPpuGrace", @"field": @"levers627", @"bit": @16,
+        @"values": @[@"Enabled", @"Disabled"], @"labels": @[@"enabled", @"disabled"]},
     ];
   });
   return levers;

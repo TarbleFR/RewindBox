@@ -66,7 +66,9 @@ KEYS = ('gpu.zcull_accuracy', 'debug.disable_occlusion', 'debug.emulate_depth_co
         'experimental.fast_jit_load', 'experimental.jit_object_release', 'experimental.spirv_disk_cache',
         'experimental.hardware_crypto', 'experimental.spu_object_prefetch',
         # Core 660: SPU direct object hits, the texture lookup memo and the ZCULL queue-depth guard.
-        'experimental.spu_direct_object_hits', 'experimental.texture_lookup_memo', 'experimental.zcull_depth_guard')
+        'experimental.spu_direct_object_hits', 'experimental.texture_lookup_memo', 'experimental.zcull_depth_guard',
+        # Core 664: the PPU grace after starvation.
+        'experimental.ppu_grace')
 
 
 def require(condition, message):
@@ -211,8 +213,13 @@ def app_contract() -> dict:
     require(tuple(sorted(tables634)) == tuple(sorted(LOCALES)), 'Build634Translations locales: ' + repr(list(tables634)))
     tables660 = l10n_tables(l10n, '660')
     require(tuple(sorted(tables660)) == tuple(sorted(LOCALES)), 'Build660Translations locales: ' + repr(list(tables660)))
+    # Core 664: the PPU grace after starvation.
+    tables664 = l10n_tables(l10n, '664')
+    require(tuple(sorted(tables664)) == tuple(sorted(LOCALES)), 'Build664Translations locales: ' + repr(list(tables664)))
+    require(all(tables664[locale].get('testPpuGrace', '').strip() for locale in LOCALES), 'testPpuGrace translations')
     missing = sorted(key for key in used - base if key not in tables['en'] and key not in tables621['en'] and key not in tables627['en'] and
-                     key not in tables630['en'] and key not in tables634['en'] and key not in tables660['en'])
+                     key not in tables630['en'] and key not in tables634['en'] and key not in tables660['en'] and
+                     key not in tables664['en'])
     require(not missing, 'untranslated page keys: ' + repr(missing))
     return {'whitelist': allowed, 'locales': list(tables), 'keys': len(keys),
             'bridge_sha256': sha(BRIDGE.read_bytes()), 'menu_sha256': sha(MENU.read_bytes()),

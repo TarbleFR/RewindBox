@@ -1,0 +1,324 @@
+diff --git a/rpcs3/Emu/System.cpp b/rpcs3/Emu/System.cpp
+index f235479..a0cf14d 100644
+--- a/rpcs3/Emu/System.cpp
++++ b/rpcs3/Emu/System.cpp
+@@ -2158,6 +2158,8 @@ game_boot_result Emulator::Load(const std::string& title_id, bool is_disc_patch,
+ 					ios_add_lever(ios_levers.spu_direct_object_hits, ios_lever_settings.spu_direct_object_hits);
+ 					ios_add_lever(ios_levers.texture_lookup_memo, ios_lever_settings.texture_lookup_memo);
+ 					ios_add_lever(ios_levers.zcull_depth_guard, ios_lever_settings.zcull_depth_guard);
++					// Core 664: digit 17 of levers627=.
++					ios_add_lever(ios_levers.ppu_grace, ios_lever_settings.ppu_grace);
+ 					ios_rsx.levers627 = ios_levers627;
+ 					ios_rsx.legacy_custom = ios_has_legacy_custom_config || ios_config_path_applied;
+ 					ios_rsx.overrides = ios_override_keys;
+diff --git a/rpcs3/Emu/system_config.h b/rpcs3/Emu/system_config.h
+index 624ca3e..f578400 100644
+--- a/rpcs3/Emu/system_config.h
++++ b/rpcs3/Emu/system_config.h
+@@ -145,6 +145,8 @@ struct cfg_root : cfg::node
+ 		cfg::_enum<ios_experimental_mode> rsx_thread_priority{ this, "RSX Thread Priority", ios_experimental_mode::automatic };
+ 		// CELL571_PASSIVE_LOCK_FAIRNESS: Automatic enables it for every title.
+ 		cfg::_enum<ios_experimental_mode> passive_lock_fairness{ this, "Passive Lock Fairness", ios_experimental_mode::automatic };
++		// REWINDBOX_PPU_GRACE_664: Automatic enables it for every title; it needs Passive Lock Fairness.
++		cfg::_enum<ios_experimental_mode> ppu_grace{ this, "PPU Grace After Starvation", ios_experimental_mode::automatic };
+ 		// CELL573_TEXTURE_RESIDENCY / CELL573_SCOPED_RSX_WRITES: Automatic enables them for God of War III.
+ 		cfg::_enum<ios_experimental_mode> texture_residency{ this, "Texture Residency Cap", ios_experimental_mode::automatic };
+ 		cfg::_enum<ios_experimental_mode> scoped_texture_revalidation{ this, "Scoped Texture Revalidation", ios_experimental_mode::automatic };
+diff --git a/rpcs3/ios/IOSPassiveLockGate.h b/rpcs3/ios/IOSPassiveLockGate.h
+index 29ae3d3..0fe3d1f 100644
+--- a/rpcs3/ios/IOSPassiveLockGate.h
++++ b/rpcs3/ios/IOSPassiveLockGate.h
+@@ -1,6 +1,7 @@
+ // SPDX-License-Identifier: GPL-2.0-only
+ #pragma once
+ 
++#include <algorithm>
+ #include <atomic>
+ #include <chrono>
+ #include <cstdint>
+@@ -54,9 +55,41 @@ constexpr std::chrono::microseconds writer_spin{50};
+ // thread leaving its wait pays for one wake-up at most.
+ inline std::atomic<std::uint32_t> sleepers{0};
+ 
++// REWINDBOX_PPU_GRACE_664: a starving waiter that finally reads the word clear
++// leaves vm::passive_lock, but cpu_thread::check_state re-parks it at once if a
++// writer published meanwhile, and the next writer's cpu_flag::memory parks it
++// again at its next check point. Under a storm of heavy PUTLLC (Black Ops II,
++// 1.2-1.6 million writer locks per second, the lock held about 87 % of the time)
++// the PPU then advances a few instructions per starving episode: the 9-40 s
++// stalls of IPA 624, 657 and 662 (PPU Secondary parked on cpu_flag::memory, the
++// job queue it feeds never served). When a starving waiter leaves, writers keep
++// deferring for `grace_window` more, so the PPU runs that long before the next
++// writer publishes. Nothing is skipped or weakened: every writer still takes the
++// full writer lock and parks every PPU thread before it stores; it only takes it
++// later, within the same `writer_deferral` bound.
++inline std::atomic<bool> grace_enabled{false};
++// Steady-clock nanoseconds until which writers defer; 0 or past when none.
++inline std::atomic<std::int64_t> grace_until{0};
++constexpr std::chrono::microseconds grace_window{100};
++// Read and reset by the performance window (COREPROF PPUGRACE664): windows opened,
++// writer locks that deferred while only a window held them, and that deferral time.
++inline std::atomic<std::uint64_t> grace_opened{0};
++inline std::atomic<std::uint64_t> grace_deferrals{0};
++inline std::atomic<std::uint64_t> grace_deferred_ns{0};
++// The end of the last window this thread opened. Its own writer locks (a PPU's
++// stwcx or store128 of a full line, an SPU's PUTLLC) do not wait for it: they
++// would only delay the run the window is for, holding their line's reservation.
++inline thread_local std::int64_t own_grace_until = 0;
++
++inline std::int64_t steady_now_ns() noexcept
++{
++	return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
++}
++
+ // Sleeps while `word` holds `value`, at most `timeout`; it may return earlier.
+ inline void sleep_while(std::atomic<std::uint32_t>& word, std::uint32_t value, std::chrono::nanoseconds timeout) noexcept;
+ inline void wake_one(std::atomic<std::uint32_t>& word) noexcept;
++inline void wake_all(std::atomic<std::uint32_t>& word) noexcept;
+ 
+ // A waiter's starving mark, released on every exit of the wait loop.
+ class waiter_mark
+@@ -85,8 +118,26 @@ public:
+ 
+ 	~waiter_mark()
+ 	{
++		if (!m_marked)
++		{
++			return;
++		}
++
++		// REWINDBOX_PPU_GRACE_664: opened before the mark drops, so a deferring writer
++		// that sees `starving` fall to zero already sees the window.
++		if (grace_enabled.load(std::memory_order_relaxed))
++		{
++			const std::int64_t until = steady_now_ns() + std::chrono::duration_cast<std::chrono::nanoseconds>(grace_window).count();
++			own_grace_until = until;
++			std::int64_t old = grace_until.load(std::memory_order_relaxed);
++			while (old < until && !grace_until.compare_exchange_weak(old, until, std::memory_order_seq_cst, std::memory_order_relaxed))
++			{
++			}
++			grace_opened.fetch_add(1, std::memory_order_relaxed);
++		}
++
+ 		// CELL579_GATE_SLEEP: the last starving waiter wakes a writer asleep in defer_writer().
+-		if (m_marked && starving.fetch_sub(1, std::memory_order_seq_cst) == 1 && sleepers.load(std::memory_order_seq_cst))
++		if (starving.fetch_sub(1, std::memory_order_seq_cst) == 1 && sleepers.load(std::memory_order_seq_cst))
+ 		{
+ 			wake_one(starving);
+ 		}
+@@ -136,22 +187,60 @@ inline void wake_one(std::atomic<std::uint32_t>& word) noexcept
+ #endif
+ }
+ 
+-// Before a writer publishes its lock: wait while a waiter starves, bounded.
+-// Returns true when it deferred at all.
++inline void wake_all(std::atomic<std::uint32_t>& word) noexcept
++{
++#if defined(__APPLE__)
++	if (__builtin_available(iOS 17.4, macOS 14.4, *))
++	{
++		os_sync_wake_by_address_all(&word, sizeof(std::uint32_t), OS_SYNC_WAKE_BY_ADDRESS_NONE);
++	}
++#elif defined(__linux__)
++	syscall(SYS_futex, &word, FUTEX_WAKE_PRIVATE, 0x7fffffff, nullptr, nullptr, 0);
++#else
++	static_cast<void>(word);
++#endif
++}
++
++// Before a writer publishes its lock: wait while a waiter starves, or while the
++// window a starving waiter opened on leaving lasts (REWINDBOX_PPU_GRACE_664),
++// bounded. Returns true when it deferred at all.
+ inline bool defer_writer() noexcept
+ {
+ 	std::uint32_t seen = starving.load(std::memory_order_acquire);
++	std::int64_t grace = grace_until.load(std::memory_order_acquire);
+ 
+-	if (!seen)
++	if (!seen && (!grace || grace <= steady_now_ns()))
++	{
++		return false;
++	}
++
++	// REWINDBOX_PPU_GRACE_664: a window this thread opened does not hold it back.
++	const std::int64_t own = own_grace_until;
++
++	if (!seen && grace <= own)
+ 	{
+ 		return false;
+ 	}
+ 
+ 	const auto start = std::chrono::steady_clock::now();
+ 	const auto stop = start + writer_deferral;
++	// REWINDBOX_PPU_GRACE_664: a deferral that began with no waiter starving is the window's.
++	const bool window_only = !seen;
++	bool slept = false;
++	bool windowed = false;
+ 
+-	for (auto now = start; seen && now < stop; now = std::chrono::steady_clock::now())
++	for (auto now = start; now < stop; now = std::chrono::steady_clock::now())
+ 	{
++		const std::int64_t now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
++		const bool in_grace = grace > now_ns && grace > own;
++
++		if (!seen && !in_grace)
++		{
++			break;
++		}
++
++		windowed |= !seen;
++
+ 		if (now - start < writer_spin)
+ 		{
+ 			relax();
+@@ -160,18 +249,44 @@ inline bool defer_writer() noexcept
+ 		{
+ 			// CELL579_GATE_SLEEP: leave the core to the starving waiter. A change of
+ 			// `starving` between the load and the sleep makes the sleep return at once.
+-			sleepers.fetch_add(1, std::memory_order_seq_cst);
+-			sleep_while(starving, seen, stop - now);
+-			sleepers.fetch_sub(1, std::memory_order_seq_cst);
+-
+-			if (!starving.load(std::memory_order_seq_cst) && sleepers.load(std::memory_order_seq_cst))
++			// REWINDBOX_PPU_GRACE_664: with no waiter starving, sleep to the window's end.
++			auto limit = stop;
++			if (!seen)
+ 			{
+-				// Pass the wake-up on to the next sleeping writer.
+-				wake_one(starving);
++				limit = std::min(stop, std::chrono::steady_clock::time_point(std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::nanoseconds(grace))));
+ 			}
++
++			sleepers.fetch_add(1, std::memory_order_seq_cst);
++			sleep_while(starving, seen, limit - now);
++			sleepers.fetch_sub(1, std::memory_order_seq_cst);
++			slept = true;
+ 		}
+ 
+ 		seen = starving.load(std::memory_order_acquire);
++		grace = grace_until.load(std::memory_order_acquire);
++	}
++
++	// CELL579_GATE_SLEEP: pass the last starving waiter's wake-up on to the next
++	// sleeping writer. REWINDBOX_PPU_GRACE_664: when this writer leaves, not after
++	// each sleep: during a window the woken writer would only sleep again and wake
++	// the next one, until the window ends. A writer that waited for a window wakes
++	// every writer still asleep, so they leave together instead of one by one.
++	if (slept && !starving.load(std::memory_order_seq_cst) && sleepers.load(std::memory_order_seq_cst))
++	{
++		if (windowed)
++		{
++			wake_all(starving);
++		}
++		else
++		{
++			wake_one(starving);
++		}
++	}
++
++	if (window_only)
++	{
++		grace_deferrals.fetch_add(1, std::memory_order_relaxed);
++		grace_deferred_ns.fetch_add(static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - start).count()), std::memory_order_relaxed);
+ 	}
+ 
+ 	return true;
+diff --git a/rpcs3/ios/RPCS3IOSBootDiagnostics.h b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
+index 6422ee6..6aff963 100644
+--- a/rpcs3/ios/RPCS3IOSBootDiagnostics.h
++++ b/rpcs3/ios/RPCS3IOSBootDiagnostics.h
+@@ -475,7 +475,7 @@ namespace rpcs3::ios::boot_diagnostics
+ 		append_u32(line, "mvk_async", rsx.mvk_async ? 1u : 0u);
+ 		append_u32(line, "gpu_timing", rsx.gpu_timing ? 1u : 0u);
+ 		append_u32(line, "zcull_demand", rsx.zcull_demand ? 1u : 0u);
+-		append_text(line, "levers627", rsx.levers627, 16);
++		append_text(line, "levers627", rsx.levers627, 17);
+ 		append_u32(line, "legacy_custom", rsx.legacy_custom ? 1u : 0u);
+ 		const std::string reported = filter_rsx_override_keys(rsx.overrides);
+ 		append_text(line, "overrides", reported, rsx_overrides_limit);
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+index 26c3e25..6cf94a4 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.cpp
+@@ -317,6 +317,11 @@ void resolve_experimental_policy() noexcept
+ 	// CPU thread has waited through several timed waits to re-enter guest memory.
+ 	resolved.passive_lock_fairness = resolve_mode(g_cfg.ios_experimental.passive_lock_fairness, true);
+ 	rpcs3::ios::passive_gate::enabled.store(resolved.passive_lock_fairness, std::memory_order_relaxed);
++	// REWINDBOX_PPU_GRACE_664: Automatic is every title. Without the gate no waiter is marked
++	// starving, so the window needs Passive Lock Fairness. Resolved before the emulation threads start.
++	resolved.ppu_grace = resolved.passive_lock_fairness && resolve_mode(g_cfg.ios_experimental.ppu_grace, true);
++	rpcs3::ios::passive_gate::grace_until.store(0, std::memory_order_relaxed);
++	rpcs3::ios::passive_gate::grace_enabled.store(resolved.ppu_grace, std::memory_order_relaxed);
+ 	// CELL579_WRITER_YIELD: Automatic is every title. Resolved before the emulation threads start.
+ 	resolved.writer_yield_no_depress = resolve_mode(g_cfg.ios_experimental.writer_yield_no_depress, true);
+ 	rpcs3::ios::reservation_yield_no_depress.store(resolved.writer_yield_no_depress, std::memory_order_relaxed);
+@@ -535,6 +540,10 @@ void resolve_experimental_policy() noexcept
+ 		resolved.zcull_watched_flush, resolved.zcull_depth_guard, static_cast<u32>(rpcs3::ios::zcull_watched::watch_frames),
+ 		rpcs3::ios::zcull_watched::max_watched_submits_per_frame, static_cast<u32>(rpcs3::ios::zcull_watched::min_lead_us),
+ 		rpcs3::ios::zcull_watched::depth_hard_cap);
++	// REWINDBOX_PPU_GRACE_664: its own line.
++	ios_experimental_log.notice("Resolved title policy 664: ppu_grace=%d passive_lock_fairness=%d grace_window_us=%u writer_deferral_us=%u starving_after=%u",
++		resolved.ppu_grace, resolved.passive_lock_fairness, static_cast<u32>(rpcs3::ios::passive_gate::grace_window.count()),
++		static_cast<u32>(rpcs3::ios::passive_gate::writer_deferral.count()), static_cast<u32>(rpcs3::ios::passive_gate::starving_after));
+ }
+ 
+ void apply_spu_spin_timing_policy() noexcept
+diff --git a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+index cddb71c..9def59d 100644
+--- a/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
++++ b/rpcs3/ios/RPCS3IOSExperimentalPolicy.h
+@@ -27,6 +27,8 @@ struct experimental_policy
+ 	bool rsx_thread_priority = false;
+ 	// CELL571_PASSIVE_LOCK_FAIRNESS: a starving passive locker makes new writer locks defer.
+ 	bool passive_lock_fairness = false;
++	// REWINDBOX_PPU_GRACE_664: a starving waiter that leaves keeps new writer locks deferred a little longer.
++	bool ppu_grace = false;
+ 	// CELL573_TEXTURE_RESIDENCY: idle textures above a soft cap are released.
+ 	bool texture_residency = false;
+ 	// CELL573_SCOPED_RSX_WRITES: RSX writes revalidate only the textures they overlap.
+diff --git a/rpcs3/ios/RPCS3IOSPerformance.cpp b/rpcs3/ios/RPCS3IOSPerformance.cpp
+index 9cd3852..bcbd24b 100644
+--- a/rpcs3/ios/RPCS3IOSPerformance.cpp
++++ b/rpcs3/ios/RPCS3IOSPerformance.cpp
+@@ -80,6 +80,7 @@
+ 
+ #ifdef RPCS3_IOS
+ #include "ios/IOSMemoryPressurePolicy.h"
++#include "ios/IOSPassiveLockGate.h"
+ #include <malloc/malloc.h>
+ #include <os/proc.h>
+ #include <sys/sysctl.h>
+@@ -1347,6 +1348,21 @@ private:
+             costs[4].count, costs[4].total / 1000.0, costs[4].maximum / 1000.0,
+             costs[5].count, milliseconds(costs[5].total), milliseconds(costs[5].maximum),
+             costs[6].count, milliseconds(costs[6].total), milliseconds(costs[6].maximum));
++        // REWINDBOX_PPU_GRACE_664: windows opened by starving waiters as they leave, writer locks
++        // that deferred while only a window held them, and that deferral time.
++        {
++            namespace gate = rpcs3::ios::passive_gate;
++            const u64 grace_opened = gate::grace_opened.exchange(0, std::memory_order_relaxed);
++            const u64 grace_deferrals = gate::grace_deferrals.exchange(0, std::memory_order_relaxed);
++            const u64 grace_deferred_ns = gate::grace_deferred_ns.exchange(0, std::memory_order_relaxed);
++            ios_core_profiler.notice(
++                "COREPROF PPUGRACE664 session=%llu window=%llu enabled=%d fairness=%d opened=%llu writer_deferrals=%llu deferred_ms=%.3f "
++                "window_us=%u writer_deferral_us=%u scope=process_window",
++                profile_session, profile_window, gate::grace_enabled.load(std::memory_order_relaxed) ? 1 : 0,
++                gate::enabled.load(std::memory_order_relaxed) ? 1 : 0, grace_opened, grace_deferrals,
++                static_cast<double>(grace_deferred_ns) / 1'000'000.0, static_cast<u32>(gate::grace_window.count()),
++                static_cast<u32>(gate::writer_deferral.count()));
++        }
+         // REWINDBOX_COMPILE_PRESSURE_V1 / REWINDBOX_FENCE_WAIT_V1: draw-blocking
+         // pipeline builds, SPU polls that waited passively meanwhile, and GPU
+         // fence waits finished within the bounded spin or blocked in MoltenVK.
+diff --git a/rpcs3/ios/RPCS3IOSSettings.cpp b/rpcs3/ios/RPCS3IOSSettings.cpp
+index e28f63a..70da0f7 100644
+--- a/rpcs3/ios/RPCS3IOSSettings.cpp
++++ b/rpcs3/ios/RPCS3IOSSettings.cpp
+@@ -133,6 +133,7 @@ const std::array catalog{
+ 	SETTING("experimental.rsx_idle_park", "Experimental", "FPS Experiments", "RSX idle park", "When the RSX command queue has stayed empty for one millisecond, the RSX thread sleeps in 50-microsecond steps instead of spinning, which frees a CPU core for the SPU and PPU threads. A memory flush, flip or ZCULL request from another thread wakes it at once; new guest commands are seen within one step. Applies with RSX FIFO Idle Wait set to Yield. Automatic enables it for every title; Disabled spins as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_idle_park, 0, 0, 0),
+ 	SETTING("experimental.rsx_thread_priority", "Experimental", "FPS Experiments", "RSX thread priority", "Gives the RSX thread and the audio threads precedence over the PPU and SPU threads when the game asks for more CPU than the performance cores provide, as RPCS3 intends; iOS otherwise treats them alike. Automatic enables it for every title; Disabled gives every emulation thread the same priority as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.rsx_thread_priority, 0, 0, 0),
+ 	SETTING("experimental.passive_lock_fairness", "Experimental", "FPS Experiments", "Passive lock fairness", "When a PPU or SPU thread has waited a long time to resume guest memory access while SPUs keep taking reservation write locks, new write locks briefly let it through first. No lock is skipped. Automatic enables it for every title; Disabled restores the previous lock order. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.passive_lock_fairness, 0, 0, 0),
++	GAME_SETTING("experimental.ppu_grace", "Experimental", "FPS Experiments", "PPU grace after starvation", "When a PPU or SPU thread finally resumes guest memory access after starving behind SPU reservation write locks, new write locks wait about 100 us more before stopping the PPU threads again, so the thread runs before the next one. Every write lock is still taken and parks every PPU thread; it is only taken later, within the same bound. Automatic enables it for every title, with Passive lock fairness. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.ppu_grace, 0, 0, 0),
+ 	SETTING("experimental.writer_yield_no_depress", "Experimental", "FPS Experiments", "Writer lock yield without depression", "When an SPU or PPU atomic write that holds the reservation write lock waits for other threads, it yields its CPU core without iOS lowering its priority for a whole scheduling quantum (about 10 ms), so the PPU threads it keeps waiting resume sooner. No lock is skipped. Automatic enables it for every title; Disabled yields as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.writer_yield_no_depress, 0, 0, 0),
+ 	SETTING("experimental.texture_prehash", "Experimental", "FPS Experiments", "Texture pre-validation", "With Texture Validation Per FIFO Batch, a texture used again after new guest commands is hashed again to check that the game did not change it. A worker thread now hashes, as soon as new commands arrive, the textures the previous frame checked next, so the RSX thread finds the result ready. Every byte is still checked and a result is used only for the commands it was taken for. Needs Texture Validation Per FIFO Batch. Automatic enables it for God of War III; Disabled hashes on the RSX thread as before. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_prehash, 0, 0, 0),
+ 	SETTING("experimental.texture_residency", "Experimental", "FPS Experiments", "Texture residency cap", "When cached textures use more than 768 MB, the textures no draw has used for 64 frames are released, at most 128 MB every 16 frames: first those whose memory the game has since filled with another texture, then the oldest. Textures in use are kept; a released texture the game samples again is uploaded again from its memory. Limits the memory held by textures whose memory the game has reused for other data. Automatic enables it for God of War III; Disabled keeps every texture until it is found stale. Takes effect on the next boot.", kind::RPCS3_IOS_SETTING_CHOICE, g_cfg.ios_experimental.texture_residency, 0, 0, 0),
