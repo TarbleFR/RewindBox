@@ -372,29 +372,30 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   rectangle on A and the D-pad), while the same iPhone had the 653-only PS2 Original
   (`07f4b6fb`, 1.05/255 at rest). So the stale copy was confirmed and PR159 is needed on
   device; record on `work/skins-device-653-check-20261104` `4eb0ab3` (docs only).
-- **Sticks: only the top face moves (high selector).**
-  - Input: `ScreenRecording_11-04-2026_21-31-53_1.mov`, 11796828 B, `0555383b…f5d5`, private.
-    The corrected `ec382133` is installed (stick regions 7.8/6.5 against 12.4/15.3), so the
-    halos are gone. Complaint: "sticks too wide, moving with controller texture; the yellow
-    stick should move only its top".
-  - Cause: the boards draw the caps in 3D (a top face 4–8 board px above the cap centre,
-    over a skirt), while the knob was a centred disk of 1.12 r taking the skirt and socket
-    with it.
-  - Fix: branch `work/skins-stick-top-20261104` from `9b41bc6`, commit `90aabdb`, draft
-    [PR160](https://github.com/TarbleFR/RewindBox/pull/160). Each GameCube/Wii stick declares
-    its measured top face: knob = that face, frame centred on it, skirt kept, smooth skirt fill
-    (no angular streaks).
-    - GameCube `9988f5d7ec07cb5a3e45a49871ba59792e414a00d70433f9d8908a28692d71ea` (5995074 B);
-    - Wii `645bd5ab1310466d9e95661a55705bf4e50696cbc6513bd195aa971be6e47d39` (5105387 B);
-    - PS2 Original byte-identical; reproducible.
+- **PR160 (in IPA 657):** stick top face only, `90aabdb`, run `41910671261` green, integrated
+  `57e21ae2` + legal `873b0ad2`; [evidence](evidence/pocket-originals/stick-top/). Superseded below.
+- **Sticks: the whole moving top (high selector).**
+  - Input: `ScreenRecording_11-05-2026_01-55-08_1.mp4`, 11060839 B, `9903bbbd…b359`, private,
+    IPA 657. Complaint: "Tu as rogner sur les deux analogue et quand je les bouges ont
+    remarque les défauts". Seen: PR160's face circle left the side wall (8–9 board px main,
+    6–7 px C) and 2–3 px of the main sides behind as a crescent; the flat fill showed an edge.
+  - Rejected: PR160's face circle (too small); a 1.12 r disc (643/650, drags the socket).
+  - Fix: branch `work/skins-stick-silhouette-20261105` from `3749995`, commit `7b53931`,
+    [PR161](https://github.com/TarbleFR/RewindBox/pull/161). The knob is the measured stadium
+    (face + side wall down to the dark contact line), pixel-snapped; the frame is taller by as
+    much (equal X/Y travel); harmonic `recess_fill` under it; C yellow base stays.
+    - GameCube `4f4f5eae4d661a13295f787833c48731fbb61afa87e2a20d2fdd7bff025fd270` (6116778 B);
+    - Wii `6a170ad64cb32bdea6e168fd2249ad059126dc5eb715e6a72cfd21f9fd647d50` (5129488 B);
+    - PS2 Original byte-identical; reproducible (3 archives + 6 previews).
   - Proof:
-    - CI run [41910671261](https://github.com/TarbleFR/RewindBox/actions/runs/41910671261)
-      green: Dolphin skin simulator 9/9 on the new archives and the pocket host step;
-    - host: verifier 6 packs, input chain 18 layouts, Flutter skin/pocket 240/240;
-    - audit: moving-part centre 4.9–8.1 pt from the top face before, 0 after; travel 7.3–11.0 pt.
-    - [Evidence](evidence/pocket-originals/stick-top/).
-  - Main: the legal declaration must follow the two new archives (as after PR157), then the
-    next common IPA. Not observed on an iPhone.
+    - CI run [41948240724](https://github.com/TarbleFR/RewindBox/actions/runs/41948240724): running (result recorded next);
+    - host: verifier passed (cap-at-rest check caught and fixed a 1-px ring), input chain
+      18 layouts, menu button, portrait lock; Flutter skin/pocket 240/240;
+    - audit (before = PR160): top left behind 9.5–27.8 % before, none after; misrouted 0 %;
+      knob centre 0.02–0.16 pt from the measured top; travel 7.7–11.0 pt.
+    - [Evidence](evidence/pocket-originals/stick-silhouette/).
+  - Main: integrate PR161, update the legal declaration for the two new archives, next common
+    IPA. Not observed on an iPhone.
 - **Switch Pocket (new request, in progress).**
   - Maquette needed as an original file: the chat image is not saved as a file, and I do not
     build from a recompressed copy.
