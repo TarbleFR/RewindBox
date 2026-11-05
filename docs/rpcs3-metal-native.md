@@ -89,23 +89,29 @@ sur **Metal 4** (iOS 26 au minimum, GPU Apple7 ou plus récent ; l'iPhone du mai
 
 ## 4. Validation
 
-- **Hôte Linux** : tests unitaires de la logique pure (tables de formats, attribution des liaisons,
-  clés de pipelines), avec ASan/UBSan.
-- **CI macOS** (les machines macOS de la CI ont un vrai périphérique Metal ; voir
-  `test/neo_shader_kit_test.py`) :
-  - compilation des shaders RSX traduits par le vrai compilateur Metal ;
-  - rendus hors écran de scènes synthétiques, comparés pixel par pixel au rendu Vulkan/MoltenVK de
-    la même scène ;
-  - aucun contenu de jeu dans Git.
-- **iPhone** : IPA de test de cette branche, avec Metal choisi par jeu et Vulkan gardé pour la
-  comparaison tant que la parité n'est pas atteinte. La compilation n'est pas une preuve de jeu.
+- **Hôte Linux** : vérification syntaxique stricte du renderer contre les vrais en-têtes RPCS3 (clang, `-std=gnu++20`)
+  et tests unitaires de la logique pure (conversion du tampon d'écran, cadrage ; plus tard formats, liaisons, clés de
+  pipelines), avec ASan/UBSan.
+- **CI macOS** (`rpcs3-metal-checks.yml`, Xcode 26.3) :
+  - compilation pour iOS avec le SDK iOS 26, où un appel Metal 4 hors garde de disponibilité ou un sélecteur inconnu
+    est une erreur ;
+  - test unitaire (UBSan) ;
+  - sonde Metal 4 compilée, liée et lancée.
+  - **Limite constatée (run `42121690064`)** : le GPU des machines macOS de GitHub est un « Apple Paravirtual device »
+    sans Metal 4 (Apple7=0, Metal4=0). La sonde s'y arrête donc sans pouvoir relire l'image.
+  - En M2, la CI compilera hors ligne, sans GPU, les shaders MSL produits par la traduction (`xcrun -sdk iphoneos metal`).
+- **iPhone** :
+  - seul endroit où le comportement de Metal 4 s'exécute vraiment ;
+  - IPA de test de cette branche, avec Metal choisi par jeu et Vulkan gardé pour la comparaison tant que la parité n'est
+    pas atteinte ;
+  - la compilation n'est pas une preuve de jeu.
 
 ## 5. Étapes
 
 | Étape | Contenu | Preuve attendue |
 | --- | --- | --- |
 | M0 | Inventaire du backend Vulkan et de l'intégration hôte, plan | Inventaire consigné (section 6) |
-| **M1 (Core 901, cette livraison)** | Renderer Metal 4 sélectionnable par jeu (« Moteur Metal 4 natif », page de test, chiffre 18 de `levers627`) : périphérique, file, allocateurs, résidence, compilateur, présentation sur le `CAMetalLayer` du tampon d'écran lu en mémoire (conversion identique à Vulkan, rapport largeur/hauteur gardé) ; dessins, effacements et requêtes comptés, non exécutés | Compilation iOS 26 en CI, test hôte, sonde Metal 4 relue pixel par pixel sur GPU réel |
+| **M1 (Core 901, cette livraison)** | Renderer Metal 4 sélectionnable par jeu (« Moteur Metal 4 natif », page de test, chiffre 18 de `levers627`) : périphérique, file, allocateurs, résidence, compilateur, présentation sur le `CAMetalLayer` du tampon d'écran lu en mémoire (conversion identique à Vulkan, rapport largeur/hauteur gardé) ; dessins, effacements et requêtes comptés, non exécutés | Compilation iOS 26 et test hôte en CI (run `42121690064`, réussis) ; exécution Metal 4 réelle : sur iPhone seulement |
 | M2 | SPIRV-Cross dans le Core, shaders et pipelines, sommets persistants et volatils, index, tous les types de dessin, états de profondeur, gabarit et mélange | Shaders RSX compilés par Metal en CI, scènes synthétiques comparées |
 | M3 | Cibles de rendu et cache de textures (traits Metal), envois, formats, copies, relectures, cohérence (barrières, labels, sémaphores) | Scènes texturées comparées, relectures exactes |
 | M4 | ZCULL et requêtes exactes, rendu conditionnel, MSAA et résolution, calculs de conversion, incrustations natives | Comptes de visibilité comparés, interface native |
