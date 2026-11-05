@@ -417,8 +417,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     to 655's, all 11 recorded current inputs equal the tree; declared in 373f82ed (the replaced
     dependency stays the Core 610 reference's run 41239096061, as the gate requires). Closure,
     route, MoltenVK protocol/artifact, neo_swap source pin: passed. Request 2: 4439519c -> Core
-    run 41995875495 (08:37 UTC). Next: watch, pin (pin660.py), record §3 bis, IPA 662 after
-    MeloNX 661.
+    run 41995875495 (08:37 UTC).
+  - 09:01 UTC, Core 660 BUILT and PINNED: run 41995875495 success, both jobs first try (Apple host
+    harnesses 15/15 exit 0 incl. core660 and codegen-audit, artifact 13401027264; Core artifact
+    13401208480 e633fd84, dylib 77815520 B 1416a156, payload fingerprint 367a24cc, identity
+    rpcs3-ios-core660, codegen PPU a987639e9f838d1c / SPU 477a3fa442d27917, all 660 markers).
+    Downloaded via MCP, digests equal; pin_errors verified, bundle built; pin f4c82c38. No iPhone
+    measurement. Next: common IPA 662 (RPCS3 660, MeloNX 661, 9403a7bf, PR162) after the MeloNX
+    Core 661 handoff (ETA 14:00-15:00 UTC).
   - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
     without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
     report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).
