@@ -586,12 +586,28 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     against 3-24 per session before; the MP SHADERWARMUP took 32.8 s for 1608 entries (662: 0.37 s
     for 1599): the Metal compiled-shader cache of the MP pipelines was cold (cause not proven; the
     VkPipelineCache file loaded intact, 105 MB). PPUGRACE664 opened a median 3,909 windows per 5 s.
-  - Then performance: PPU parking cost in BO2 normal play (252 ms/s), BO2 blocking pipeline builds.
+  - Lever analysis (pid 16145, 5 Nov, nothing built): 6 cores (2P+4E) at 87-90 % host CPU, thermal 2
+    all session; play ~26 fps with SPU 3.3, PPU 1.05, RSX 0.58 cores; GPU 12-16 ms/frame, RSX idle
+    47-59 ms/frame waiting for the guest; frame intervals quantized at 33/50 ms (vblank). 240 k
+    heavy PUTLLC/s (6 SPURS kernels on lines 0x269e080/0x269e480, GETLLAR pc 0x2584), each one a
+    writer lock parking every running PPU (1:1 with wl_suspends); PPU timed waits 0.9 s per 5 s,
+    writer deferrals 0.94 s per 5 s. Estimate: 50 fps would need about 1.6x the phone's CPU under
+    exact emulation. Parked designs: PPU resumes once no writer is committing (commit bit with a
+    Dekker re-check, park bounded at about 7 us; exact); single-lane PUTLLC without parking only on
+    write-armed pages (needs protection arbitration with RSX/ZCULL); no-op PUTLLC wait in accurate
+    mode; boot SPU warm-up cap.
+  - Maintainer 5 Nov: orchestrator abandoned (complexity, no gain). Remove it in the next Core of
+    the Claude line (scheduling back to Core 664), its control test kept as an absence check.
+- **New objective (maintainer 5 Nov): native Metal renderer.** The whole RSX engine goes through
+  Metal (rendering, present, shaders, texture conversion, queries, overlays), with no Vulkan or
+  MoltenVK at the end; PPU/SPU recompilation stays on the CPU. Dedicated branch
+  `work/rpcs3-metal-native-20261105` (from Claude); the Claude line keeps minor user updates and
+  their IPAs. Plan and progress: `docs/rpcs3-metal-native.md` on that branch.
 - **Setting applied (Core 664 turn):** same principal model as the Core 659 turn (get_session:
   session_context.model = last_served_model, unchanged); effort `max` (session_context.effort_level,
   flag_settings effortLevel max, ultracode off). Delegation: one rb-core-review agent.
-- **Setting applied (Core 659 turn):** model `claude-opus-5-5` (get_session session_context.model
-  and last_served_model); effort `max` (session_context.effort_level, flag_settings), ultracode on;
+- **Setting applied (Core 659 turn):** the session's principal model (get_session session_context.model
+  = last_served_model); effort `max` (session_context.effort_level, flag_settings), ultracode on;
   rb-effort-high returned "high" when invoked. Delegation: workflow wf_cab1f681-d72 (2/8 typed
   investigations returned: rb-research maxTurns 14), then two general-purpose research agents
   (Sonnet/medium) and one rb-core-review (Opus/high).
