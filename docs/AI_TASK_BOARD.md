@@ -423,8 +423,19 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     13401208480 e633fd84, dylib 77815520 B 1416a156, payload fingerprint 367a24cc, identity
     rpcs3-ios-core660, codegen PPU a987639e9f838d1c / SPU 477a3fa442d27917, all 660 markers).
     Downloaded via MCP, digests equal; pin_errors verified, bundle built; pin f4c82c38. No iPhone
-    measurement. Next: common IPA 662 (RPCS3 660, MeloNX 661, 9403a7bf, PR162) after the MeloNX
-    Core 661 handoff (ETA 14:00-15:00 UTC).
+    measurement.
+  - 12:00 UTC, common IPA 662 DELIVERED and VERIFIED: MeloNX Core 661 handoff 4bf33c71 (run
+    42013433386) received 11:26; draft 11b7f6c3 on the delivered 658 (22 reviewed product commits,
+    9403a7bf promoted, PR162 included; Dolphin/ARMSX2/libretro/MeloNX deps retained), freeze: no
+    blocker, effective digest 446df466; contract test and contract 662 offline OK; trigger-paths
+    accepted. Request 73d9f856 -> standard delivery run 42020264926, all 5 jobs first try (native
+    tests incl. melonx_input_stick_test with swiftc, first Swift compile of the left-stick host
+    files in the application job). Download via MCP, part digests equal the API; offline
+    verification passed: IPA d857e567, 247122020 B, 6 images changed (App, Runner, RPCS3 Core,
+    MeloNX Core, both bridges), validators 6/6. Receipt docs/evidence/rewind662 (12 proof files);
+    private key deleted. No iPhone measurement; no FPS claim. Next: the maintainer's iPhone test
+    and like-for-like logs (RPCS3: test page A/B rows for the three 660 levers; MeloNX: the
+    handoff's Hogwarts protocol).
   - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
     without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
     report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).
