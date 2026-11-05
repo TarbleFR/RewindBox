@@ -407,6 +407,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     (g++), canonical regeneration on pristine upstream (363 files, 3a1ad201), source closure,
     route, MoltenVK protocol/artifact, neo_swap pin: all passed; core660 driver running. Model
     only, no FPS claim. Next: commit, [rpcs3-core-build], pin; IPA 662 after MeloNX 661.
+  - Published: source 73933643 [skip ci], request 03874078 -> Core run 41991624737 failed on two
+    points, no check removed: (a) the gate refused MoltenVK dependency run 41912442196 (its
+    recorded Rpcs3InternalBridgePlugin.mm predates the Core 660 test page keys; guard kept);
+    (b) Apple host tests: only `core660` failed, the memo harness asked for detect_leaks=1, which
+    Apple's ASan aborts on (-6, before any scenario); the 14 other commands exited 0.
+    Fixes: 9889f711 (LeakSanitizer requested on Linux only); dependency marker 5a514568 -> run
+    41993591512 success (preflight, iOS, real Metal probe), libMoltenVK.a d19d3a42 byte-identical
+    to 655's, all 11 recorded current inputs equal the tree; declared in 373f82ed (the replaced
+    dependency stays the Core 610 reference's run 41239096061, as the gate requires). Closure,
+    route, MoltenVK protocol/artifact, neo_swap source pin: passed. Request 2: 4439519c -> Core
+    run 41995875495 (08:37 UTC). Next: watch, pin (pin660.py), record §3 bis, IPA 662 after
+    MeloNX 661.
   - Deferred with reasons: SPU IR skip / single LLVM job per hit (codegen inputs: cold recompile
     without an audited alias; no host SPU bench), texture memo (needs a scoped-write generation),
     report-time ZCULL flush (waits for ZCULLLEAD659), BO2 queue-depth storm (waits for ZCULLHINT659).
