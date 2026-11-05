@@ -613,8 +613,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - Setting `experimental.metal_renderer` (Automatic keeps Vulkan), levers627 digit 18, test page row in 12 locales.
     - Canonical delta: 370 postimages, verified on a pristine clone. Locally: the Linux clang syntax check is clean, the
       conversion/fit unit passes under ASan/UBSan, and the test page contract passes.
-    - Fast checks `rpcs3-metal-checks.yml` (Xcode 26.3: iOS 26 SDK compile, unit test, Metal 4 probe read back on the
-      runner GPU): run `42120238823`.
+    - Fast checks `rpcs3-metal-checks.yml` (Xcode 26.3):
+      - run `42120238823` failed only in the constant checks (19 unguarded-availability errors; fixed `aad89203`);
+      - run `42120780912` was cancelled (ASan stalled on the runner);
+      - run `42121690064` is green: iOS 26 SDK compile of MTLAPIApple.mm and MTLGSRender.cpp, unit test under UBSan;
+      - the probe ran, but the GitHub macOS GPU is an "Apple Paravirtual device" without Metal 4 (Apple7=0,
+        Metal4=0), so Metal 4 execution can only be checked on the iPhone.
+    - M2 started locally (tree `rpcs3-metal-m2`): the vendored SPIRV-Cross vulkan-sdk-1.4.350.1 is verified against
+      its SOURCE.txt and builds on Linux with SPIRV_CROSS_NAMESPACE_OVERRIDE=rbx_spirv_cross.
     - Not built as a Core; no iPhone run. A full Core build there also needs a MoltenVK dependency run, because the
       bridge changed.
   - Core 668 (Claude line, orchestrator removed) is parked on `work/rpcs3-core668-no-orchestrator-20261105` (`0197102e`).
