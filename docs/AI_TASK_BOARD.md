@@ -684,9 +684,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - `42053144428` (`9022c1a1`) and `42047699704` (`2bd6b9c1`) stopped before any scenario: starforgejo.dev answered
       HTTP 403 on the pinned source fetch (external).
     - `5153740f` adds the Core's verified mirror plus the HEAD/tree check to melonx-host.yml.
-    - Dispatch `42057788072`: the fetch passed, and so did the host compile, ABI, audio, UIKit presentation (plugin +
-      parity Swift with the dlsym link), the performance journal and the stderr capture in Swift. The last three steps
-      (keyboard, donor, RAM) were still running.
+    - Dispatch `42057788072`: green (16:01 UTC). Passed: the fetch, the host compile, ABI, audio, UIKit presentation
+      (plugin + parity Swift with the dlsym link), the performance journal, the stderr capture in Swift, and keyboard
+      L3/R3. Skipped by their own '[melonx-display]' condition, so not run: donor packaging, donor ownership and RAM.
   - Handed off to main for common IPA 666 (RPCS3 Core 665 + MeloNX Core 663) with host commit `9022c1a1`.
 - **Next:** the maintainer runs IPA 666 with Hogwarts, SSBU and SM3DW:
   - if they survive, the rebuilt GC was the cause; the GC pause fix returns through another route (not a rebuilt GC);
