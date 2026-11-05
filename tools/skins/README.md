@@ -125,6 +125,26 @@ The PS2 Original's caps are domes seen from above and keep the whole-cap knob (t
 is byte-identical). Audit (`audit_board_touch.py`, `stick-top/audit-before-after.json`): the
 moving part's centre was 4.9–8.1 pt from the top face before, 0 after; travel is 7.3–11.0 pt.
 
+### Sticks: the whole circle moves (GameCube/Wii Originals, 5 November; replaces the above)
+
+On IPA 657 (recording of 01:55) the top face above was too small ("tu as rogné sur les deux
+analogues"): the bevel, the side wall and the C-stick's darker yellow ring stayed behind.
+The maintainer then asked for "le cercle entier de chaque analogue, homogène, comme la PS2
+ou la Wii". `measure_stick_caps.py` reads each cap's outermost edge (where it meets its
+socket or gate) on 180 rays and fits it: every GameCube/Wii cap, side wall and yellow ring
+included, is a circle (semi-axes within 1 %, p90 residual ≤ 0.23 px;
+`docs/evidence/pocket-originals/stick-circle/board-whole-caps.png`). So, like the PS2:
+- the knob is that whole circle (+0.4 px edge), cut at whole upscaled pixels with an even
+  diameter, so the knob, its declared size and the frame share one centre;
+- `recess_fill` refills the socket 1.2 px wider than the cap with a harmonic fill from the
+  socket or gate all round: one homogeneous floor, no disc edge, no streak, no cap colour
+  left (nothing yellow remains under the C-stick);
+- square frame centred on the cap, travel = half − radius, as for every stick.
+
+PS2 Original unchanged (byte-identical). Before (PR #160) → after: 5.7–33.7 % of the cap
+left behind → 0 %; socket texture inside the moving piece up to 8.1 % → ≤ 0.2 % (its
+antialiased edge); misrouted 0 %; travel 9.1–11.4 pt (`stick-circle/*.json`).
+
 ## PS2 Pocket — Original (approved maquette, 4 November)
 
 The same builder adds `ps2-pocket-original.manicskin` (id `ps2-pocket-original`, name

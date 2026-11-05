@@ -16,6 +16,7 @@ name: Skin orientation checks
     - work/skins-original-touch-20261104
     - work/skins-ps2-original-20261104
     - work/skins-stick-top-20261104
+    - work/skins-stick-circle-20261105
     paths:
     - .github/workflows/skin-orientation-checks.yml
     - packages/armsx2_internal_bridge/ios/Classes/ARMSX2*
