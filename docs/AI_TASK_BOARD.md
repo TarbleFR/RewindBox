@@ -250,26 +250,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   kept, PR158 PS2 Pocket Original (`70b9c36e`, legal `850611ff`); [receipt](evidence/rewind653/delivery.json),
   key deleted, file sent. PR158 landscape sizes (L3/R3 ~26 pt, SELECT/START ~40 pt,
   home-band overlap, sensor housing over Circle) await the maintainer.
-- **MeloNX Core 654 (PR #156 new lot, handoff `42a104cc`):** integrated byte-identically
-  `4700d445`, wired `9b41bc66`, frozen `d8ed0119` (contract `e1f181e5…`, 27 gates), evidence
-  `f1d395ba`, Core run `41907506289` green, pinned `ec6c47aa` (artifact `13361822518`,
-  fingerprint `c656c371…`), verified offline. Not packaged yet.
-- **Next common IPA: waiting for every handoff (maintainer rule, 4 Nov).** No freeze and no
-  final build until each session's planned work for this delivery is handed off with exact
-  commits/PRs, tests actually run, results and limits ("done" or an open PR is not enough).
-  One private IPA, no intermediate one omitting a lot; a blocked handoff is named, not
-  silently dropped. Integrated so far on `Claude`: PR159 `ae36a672`, host memory milestone
-  `e9298892`, MeloNX Core 654 (pin `ec6c47aa`), PR160 sticks `57e21ae2` (byte-identical to
-  `90aabdb5`, legal `873b0ad2`), skins 653 device check `4eb0ab39` (docs). Waiting for:
-  - RPCS3 Core 655 (main): built and pinned (see the RPCS3 section); ready;
-  - MeloNX levers (array rebuild, texture sync allocations, GC latency): `ee3abf3c` is marked
-    "NOT FOR INTEGRATION, no handoff yet"; before/after measurements in progress;
-  - skins Switch Pocket: path `7c75bd2b` (MeloNX overlay, console, tests) in progress; the art
-    is blocked on the maintainer's original maquette file; Home/Capture Core need to come
-    as its own handoff.
-  Launch: re-read this board and the handoffs, review and integrate, build needed Cores,
-  check pins/dependencies, `standard_delivery.py freeze N --dry-run` with every lot, then
-  freeze and compile once; after: download, manifest, identities, signature checks.
+- **MeloNX Core 654 (PR #156 new lot, handoff `42a104cc`):** pinned `ec6c47aa`, superseded
+  by Core 656 (654 + levers) before packaging.
+- **Next common IPA 657: every handoff in; draft `0f3c006f`, dry run clean (5 Nov).** Rule kept:
+  no freeze before each planned handoff had exact commits, tests, results and limits; one IPA.
+  - RPCS3 Core 655 (main): pin `b44a6fd4` (run `41915370416`, Apple harnesses `41919474901`).
+  - MeloNX levers handoff `7d163b07` (22:24): integrated `e2ce3dd2`, wired `2cafaed3`, gate
+    fixes `51698e28`, frozen `61d6b517`/`07da6c6b` (contract `c540d7d5…`, 29 gates in one local
+    pass, 337 contract checks), Core 656 run `41934793344` green (first run `41932688337`
+    failed on the plan's own `moltenVkSourceChecked`, not available on the Apple runner;
+    dropped), pin `1aec9099` (fingerprint `73a3b09e…`). Core 656 = 654 + both levers.
+  - Skins: PR159 `ae36a672`, PR160 `57e21ae2` + legal `873b0ad2`, device check `4eb0ab39`.
+  - Host memory milestone `e9298892`.
+  - Not in 657: skins Switch Pocket (`7c75bd2b`, not handed off: the art waits for the
+    maintainer's original maquette file; the skins session asked for no build). Named, not
+    silently dropped.
+  - Dry run: no blocker, legal passed, 16 reviewed commits, must-change images App,
+    MeloNXCore, libRPCS3Core, melonx/rpcs3 bridges, Runner. Next: freeze, trigger, verify.
 - **Device logs 650/653 (private, hashed in scratchpad):** 650: AC 25–28 FPS = 643, GPU
   loss after compression growth (4.7 GB footprint); verified at 0 % deviation: no
   steady-state regression; "compression is the precursor" and "2.5 GB before gameplay"
