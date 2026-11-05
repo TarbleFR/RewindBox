@@ -449,10 +449,36 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   PerformanceStatistics timer, TimeManager singleton; in-play full blocking GCs are background GCs that fell back
   (runtime race, likely). Ruled out: R16_UINT blending (already handled), occlusion read-backs, GC/trim as syncpoint
   cause, memory kill in 658, a left-stick code defect (no input change 621->658; layout/mapping journal needed).
-- **In progress:** implementation workflow, 8 lots on branches `lot/<key>` with tests and 2 reviewers each:
-  gpu-thread-poll, setprogram-warmup, warmup-key-parity, teardown-cache, pacer-fixes, syncpoint-wait,
-  session-retention, diagnostics. Then integration as MeloNX Core 659+ (number from main) and an IPA.
-- **Next:** integrate the approved lots (chain BASELINEs for shared files), gates, Core build, IPA.
+- **Maintainer, 5 Nov (in force):** finish the lot: in-play RAM, GC pauses of 100-330 ms and the left stick stay
+  open until a verified fix; then new screenshots + logs (pid 12312, 658, 06:48:09-06:48:40 UTC): white sky, black
+  blobs/rectangle/band, cyan block further in Hogwarts.
+- **State (local branches, nothing pushed but this row, the tool and the test rule; no device run of any change):**
+  - Hogwarts lots (workflow `wf_ed47f3da`): 8 implemented; reviews: warmup-key-parity approved, gpu-thread-poll and
+    setprogram-warmup have one blocking defect each (fix rounds), the rest in review.
+  - RAM: `lot/ram-inplay` `f34a4b47`: LOH compaction once at the first frame and in a held pause at device <= 15 %,
+    never in play (50 checks, LOH 527 -> 305 MiB in the fixture), host memoryWarning trims at device <= 12 % (21
+    checks). RecyclableMemoryStream lead refuted (pools unbounded, but PTC does not run with LightningJit).
+    `lot/cold-textures` `7b07840d`: pool-only sampler textures unused 60 s released at device <= 10 % (64 MiB / 10 s,
+    reload pinning; 131 checks). Live LOH 250-600 MiB: bindless pool-array retention under investigation.
+  - GC: `lot/diagnostics` flags the fallback in gcEvent (`fellBackFromBackground`; host CoreCLR 10 reproduced the
+    stale slot in 2/8 runs); .NET 10.0.0 BGC start race proof and rebuild route in progress.
+  - Left stick: `lot/input-stick` `e5fd6da6`: fixed the touch stick starved by a controller stick off rest (old rule:
+    physical wins at |x|+|y| > 0.01); `input state` launch line, `in=` perf field, Hid lines past the NSLog budget;
+    Core path executed symmetric (46 cases). Swift not compiled here; touches `MeloNXRuntimeAPI.swift` (Core contract
+    input): lands with the Core 661 freeze.
+  - Artifacts (pid 12312): MoltenVK 1.4.2 residency mode orders argument-buffer reads only by fences of barriers
+    recorded outside a render encoder (`MVKPipeline.mm:324`, `MVKCmdPipeline.mm:160-196`); the Core emits one
+    write-to-read barrier per write for the first reader's stage only (`TextureStorage.QueueWriteToReadBarrier`):
+    leading hypothesis, fast-math NaN second; investigation + fix in progress.
+- **Baselines for like-for-like checks** (`tools/melonx/memory_report.py`, windows from the first game second): player 1
+  (11152) peak 4566 MiB, 1 memoryWarning, fallbacks 102/332 ms, LOH occupied <= 342 MiB; player 2 (four 658 sessions,
+  89-209 s) peak 4830-5356 MiB, headroom down to 787 MiB, 1-9 memoryWarnings, LOH occupied 479-603 MiB, one 952 ms
+  fallback.
+- **Core 661 integration (`core661`, local):** 12 lot adapters chain with no anchor conflict (dry run); freeze what-if
+  needs no extra historical rerun; three gate tests take the `files_edited_later` rule (`066dce58`); the diagnostics
+  lot's native edits must become adapters for the gate form. Main delivers IPA 662; MeloNX runs no delivery.
+- **Next:** fold in reviews/fixes and the GC, artifact and bindless results, integrate, one local gate pass, freeze,
+  Core CI, pin, hand off to main; then the maintainer's device runs (resolution criteria in the map).
 
 ### Skins/orientation and additive PS2 Original — existing owner
 
