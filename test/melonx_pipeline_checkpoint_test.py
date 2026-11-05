@@ -20,6 +20,12 @@ CANDIDATE=args.candidate_source.resolve() if args.candidate_source else None
 sys.path.insert(0,str(ROOT/'build-utils/melonx'))
 from adapt_pipeline_checkpoint_pacing import apply, RELATIVE, BEFORE, DIRTY_BEFORE
 from adapt_host_qos_pipeline_budget import PIPELINE_BUDGET_NEW, PIPELINE_BUDGET_OLD
+sys.path.insert(0,str(ROOT/'test'))
+import importlib
+from melonx_adapter_control import ORDER, reverse_present
+# Core 661: adapters later in the preparation that edit this file (adapt_teardown_cache: the main cache saved before
+# program disposal) are reversed first, latest first, then the declared observers; each runs its own gate.
+LATER=[name for name in ORDER if RELATIVE in importlib.import_module(name).BASELINE]
 
 def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 preimages={RELATIVE:sha(SOURCE/RELATIVE)}
@@ -34,7 +40,12 @@ with tempfile.TemporaryDirectory(prefix='melonx-pipeline-checkpoint-') as tempor
             apply(work);optimized=target.read_text();before=sha(target);apply(work)
             assert sha(target)==before,'non-idempotent checkpoint adapter'
             if CANDIDATE:
-                final=(CANDIDATE/RELATIVE).read_text();plain=final
+                final=(CANDIDATE/RELATIVE).read_text()
+                with tempfile.TemporaryDirectory(prefix='melonx-pipeline-checkpoint-later-') as later_root:
+                    copy=Path(later_root)/RELATIVE;copy.parent.mkdir(parents=True);shutil.copyfile(CANDIDATE/RELATIVE,copy)
+                    for name in reversed(LATER):
+                        assert reverse_present(Path(later_root),name,only=[RELATIVE])==[RELATIVE],name
+                    plain=copy.read_text()
                 hooks=[
                     ('using PD = Ryujinx.Common.EmbeddedPerformanceDiagnostics;\n',''),
                     ('            using var sizeMeasurement = PD.Measure(PD.Phase.CacheSizeProbe);\n',''),
