@@ -717,6 +717,20 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       largest mappings, the task max address, and the gaps above 64 GiB. Needed: one AC IV run on IPA 672. Then
       either widen the window or build the multi-segment arena in the next Core; log the code and data stats on
       exhaustion.
+  - **Metal M3/M4 (maintainer, 6 Nov: finish the whole engine).** Parallel trees from `22934df` (Core 902 canonical):
+    M3 `/home/user/xitrix/rpcs3-metal-m3`, M4 `/home/user/xitrix/rpcs3-metal-m4`; main integrates.
+    - **M3.1** (textures):
+      - commits `96f606e`..`d449e24`, +4313/-172, Metal files only;
+      - texture cache backend, uploads with a 64 MB ring, format and sampler mapping;
+      - render-to-texture, same-pass feedback copies, fault queue to the RSX thread;
+      - readback of uncompressed colour, D16, D16F and D24S8;
+      - counted, not executed: scaled copies, GPU typeless shuffles, readback of scaled/MSAA/tiled/compressed
+        sections, the blit engine (M3.2).
+    - WIP patch `metal-wip-from-902.patch` (`fbb163f0`) is on the Metal branch (`49c3a8ab`). The Metal checks now
+      compile every renderer unit and run the carried host tests; iOS CI run `42237203391`.
+    - Host test: 203 checks PASS (rerun by main). Independent rb-core-review of the M3.1 concurrency and hazards
+      is running.
+    - **M4** (exact ZCULL/queries, conditional render, MSAA, compute conversions, overlays): in progress.
   - **Core 902 = Core 668 + Metal M1 (901) + M2, on Claude for the Metal 4 test IPA** (maintainer, 6 Nov: "Construit
     l'ipa avec Metal 4 !"). The delivery guards are Claude-only, so the Metal branch was merged (`535705bc`).
     - Spec `9300aa20`:
