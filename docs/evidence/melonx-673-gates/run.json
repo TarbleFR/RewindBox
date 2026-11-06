@@ -25,5 +25,31 @@
   "freshAppleGates": 49,
   "contractTest": "388 checks with the authenticated archive"
  },
- "physicalDeviceTested": false
+ "physicalDeviceTested": false,
+ "ciRuns": {
+  "42239484876 attempt 1 (9375cd70)": "failed in forced-syncpoint-wait, an unchanged timing gate: 184 ms against 150 ms on the macOS runner (third time: 168, 170, 184 ms); later gates did not run.",
+  "42239484876 attempt 2 (9375cd70)": "passed: 49 fresh gates including main-cache-checkpoint, NativeAOT compile and ABI, binding, native frameworks, two simulator sessions, teardown."
+ },
+ "pin": {
+  "run": 42239484876,
+  "attempt": 2,
+  "job": 127987905449,
+  "source": "9375cd7019cfe99c9f19814cba0f2e6c8508cf12",
+  "artifact": 13520141917,
+  "artifactBytes": 90665618,
+  "artifactSha256": "116a6cb4354bdb43480f8b314ac33bd214f8d0371d2f430f43090aa340137fa2",
+  "expiresAt": "2026-11-20T16:18:18Z",
+  "iphoneBinarySha256": "9e55859a0866af3ffd7d9b4f80cf970c6030b543164096f9a769bb1e35a4cfde",
+  "iphoneBinaryBytes": 38160232,
+  "packagedFingerprint": "16fda8bdbe13e4e4ccd47194e340f7f1d7ecfa78eb13fd5f92fdd3b9009ee18a",
+  "resultSha256": "4ea37f30acc7d0a858164e3825fee6245d00a21547f49eda4ea1126f74b2c6c3",
+  "contractSha256": "722c262a4e8d85a857ae6adb4ed7f8a1fdba7dc00939b4677015241f0715a23f",
+  "iphoneBinaryMarkers": [
+   "checkpointed during play in",
+   "SpirvNanScrub"
+  ],
+  "nativeAotGcPatchMarkerInIphoneBinary": 0,
+  "engineEvidence": "passed offline (run attempt 2, job, artifact from the GitHub API)",
+  "replaces": "Core 671 (03f8cc50, run 42217058211, fingerprint 83a94f8a)"
+ }
 }
