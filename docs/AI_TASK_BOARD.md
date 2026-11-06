@@ -937,10 +937,16 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       the [evidence](evidence/melonx-667-gates/run.json). The Core workflow now fetches the native frameworks
       through the republication pinned in `build-utils/delivery/666.json`, still authenticated against engine82.
   - Not tested on a device or in a game.
-- **Next device checks (IPA 669, Core 667):**
+- **IPA 669 on the device (6 Nov 11:40 UTC, Hogwarts alone, pid 17770): no first frame in 232 s** (app CPU 3 %, the
+  render thread stopped before "Vulkan pipeline cache initialized"; IPA 666: first frame in 8 s). Cause: Core 667 safe
+  math for Hogwarts; MoltenVK 1.4.2 compiles every pipeline-cache library on read with that option, so Metal compiled
+  the whole 203 MiB cache again. **Core 670** (`3a137b09`, run 42213929631 building): empty precise-math title list,
+  everything else of Core 667 kept; core667-fixes and guest-fault-context rerun, contract test 381;
+  [receipt](evidence/melonx-670-gates/run.json). Pin and handoff to main follow the green run.
+- **Next device checks (IPA with Core 670):**
   - SSBU then Hogwarts without restarting.
   - A long Hogwarts session past 20 min.
-  - The "Professeur Fig" sky: black blocks gone or not, with "MoltenVK math mode precise" in the journal.
+  - Hogwarts first frame within about 10 s again ("MoltenVK math mode fast" in the journal).
   - The next launch's "Loading N shaders" above 759, and "shaderCache saves" lines.
 - **Baselines for like-for-like checks** (`tools/melonx/memory_report.py`, windows from the first game second): player 1
   (11152) peak 4566 MiB, 1 memoryWarning, fallbacks 102/332 ms, LOH occupied <= 342 MiB; player 2 (four 658 sessions,
