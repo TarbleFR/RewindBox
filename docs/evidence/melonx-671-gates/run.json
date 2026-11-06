@@ -61,5 +61,33 @@
   "contractTest": "386 checks with the authenticated archive"
  },
  "expectedCost": "first Hogwarts launch after the update: its shader cache is translated again (longer load, more pipeline compiles in the first session); later launches as before",
- "physicalDeviceTested": false
+ "physicalDeviceTested": false,
+ "ciRuns": {
+  "42217058211 attempt 1 (03f8cc50)": "failed in forced-syncpoint-wait, an unchanged timing gate: termination-to-return 170 ms against its 150 ms bound on the macOS runner (same flake as b3b7161f, 168 ms); later gates, nan-scrub included, did not run.",
+  "42217058211 attempt 2 (03f8cc50)": "passed: all 48 fresh gates (nan-scrub included), NativeAOT compile and ABI, binding, native frameworks through their republication, two simulator sessions, teardown and backing release."
+ },
+ "pin": {
+  "commitNote": "build-utils/melonx/dma-core-pin.json",
+  "run": 42217058211,
+  "attempt": 2,
+  "job": 127906063875,
+  "source": "03f8cc50431fee2d37c670b3eaed6fa9c418e1d8",
+  "artifact": 13505024260,
+  "artifactBytes": 90658957,
+  "artifactSha256": "9abb7cb9d55248828a681588184bfc8a56c6b9d7b1a1c069a8948d75810bd40f",
+  "expiresAt": "2026-11-20T13:30:41Z",
+  "iphoneBinarySha256": "419b484ffa459a020231286ab54deaf603e64c632bfe4acf34e37d371b30024f",
+  "iphoneBinaryBytes": 38143848,
+  "packagedFingerprint": "83a94f8a88c6515ab0fdec6adbe241091716a36f0d2807b3616f7c3071a1c31c",
+  "resultSha256": "f81558c377ef779023b9d3788d38a49b268dea99565661b0b4c30e05dd9e0aa2",
+  "contractSha256": "6b9d331f025e794f6b285d08e9e3df370633a7c1c50cf5ca87bf08412c4af260",
+  "iphoneBinaryMarkers": [
+   "SpirvNanScrub (type name)",
+   "MoltenVK math mode fast",
+   "programs made in play queued"
+  ],
+  "nativeAotGcPatchMarkerInIphoneBinary": 0,
+  "engineEvidence": "passed offline (producer metadata from the GitHub API: run attempt 2, job, artifact)",
+  "replaces": "Core 667 (4a0dffff, run 42129498597, fingerprint ef4c49db); Core 670 (3a137b09, run 42213929631) built green but never pinned"
+ }
 }
