@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 668,
- "note": "RPCS3 Core 668: Core 665 with the thread orchestrator v1 removed (maintainer decision of 5 November 2026: abandoned, complexity, no gain measured on iPhone): every Core file is again the Core 664 file (REWINDBOX_PPU_GRACE_664 kept) except ios/IOSThreadOrchestrator.h, a comment no source includes; the host test page row removed, levers627 has 17 digits again; no codegen input changed, identities unchanged; MoltenVK dependency of the declared run (library d19d3a42, the same bytes as Core 655-665). Built by the RPCS3 Core route (run 42141714434, attempt 1, source 66b37c78; Apple host harnesses run 42141714434 on 66b37c78). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no FPS or stall gain claimed.",
+ "build": 902,
+ "note": "RPCS3 Core 902: Core 668 plus the native Metal 4 renderer of the Metal branch (REWINDBOX_METAL_NATIVE): Core 901, stage M1 (Metal 4 device, MTL4 queue, allocators, shared-event fences, residency sets, argument tables, MTL4 compiler, presentation), and Core 902, stage M2 (RSX programs to MSL through glslang SPIR-V and the vendored SPIRV-Cross, the draw path, clears, presentation). Opt-in per title (experimental.metal_renderer; Automatic keeps Vulkan on MoltenVK; Enabled needs iOS 26). Textures (neutral texture), guest-memory surface loads and writes, MSAA and occlusion queries are counted, not executed yet. Core compiled with the iOS 26 SDK (Xcode 26.3), deployment target 16.3; no codegen input changed, identities unchanged; MoltenVK dependency of the declared run (library d19d3a42). Built by the RPCS3 Core route (run 42215603048, attempt 1, source b245a407; Apple host harnesses run 42215603048 on b245a407). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no FPS claim.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
@@ -14,25 +14,25 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 668 source closure and the native dependency",
+    "Authenticate the Core 902 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 668",
-    "Verify the actual binary and write its Core 668 identity",
+    "Compile and link the actual iPhone Core 902",
+    "Verify the actual binary and write its Core 902 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 668 without an application delivery",
+    "Upload the verified Core 902 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "66b37c78cac49977dfc740943c8c7dc791a426ff",
-   "run": 42141714434,
+   "source": "b245a4072488d918c85b88e6857d92dc51727f13",
+   "run": 42215603048,
    "attempt": 1,
-   "job": 127643354193,
-   "artifact": 13469580511,
-   "name": "RPCS3Core-668-66b37c78cac49977dfc740943c8c7dc791a426ff",
-   "bytes": 29369660,
-   "sha256": "dd98986c05c51fff03f9990cc762ed5c5dd2ed2ddc6844fe5adddd46aaccb27e",
-   "expiresAt": "2026-12-06T01:23:04Z"
+   "job": 127884714844,
+   "artifact": 13502868785,
+   "name": "RPCS3Core-902-b245a4072488d918c85b88e6857d92dc51727f13",
+   "bytes": 30250177,
+   "sha256": "7199c108b05a1336ab7e2c5d895e430e8349bb6ce674df7e34b6cd50be56a45b",
+   "expiresAt": "2026-12-06T12:50:58Z"
   },
   "hostTests": {
    "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
@@ -40,9 +40,9 @@
     "Checkout immutable candidate and the delivered Core history",
     "Read the declared Core build",
     "Select the retained Core toolchain",
-    "Materialize the Core 668 sources and the delivered a4ae86d0 sources",
+    "Materialize the Core 902 sources and the delivered a4ae86d0 sources",
     "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 668 harnesses with Apple clang",
+    "Run the affected and new Core 902 harnesses with Apple clang",
     "Preserve the Apple host harness reports"
    ],
    "names": [
@@ -59,18 +59,18 @@
     "spu-object-hit-admission-613",
     "spu-object-hit-admission-613-asan-ubsan",
     "codegen-audit",
-    "core668",
+    "core902",
     "lr-full-queue"
    ],
-   "source": "66b37c78cac49977dfc740943c8c7dc791a426ff",
-   "run": 42141714434,
+   "source": "b245a4072488d918c85b88e6857d92dc51727f13",
+   "run": 42215603048,
    "attempt": 1,
-   "job": 127643353881,
-   "artifact": 13469555421,
-   "name": "RPCS3Core-668-apple-host-tests-66b37c78cac49977dfc740943c8c7dc791a426ff",
-   "bytes": 58963,
-   "sha256": "3d6535c6a6702d67ff8e8c91d93c61fea2731bb1ff557f9ed73d5953c65357c7",
-   "expiresAt": "2026-12-06T01:19:39Z",
+   "job": 127884714929,
+   "artifact": 13502545387,
+   "name": "RPCS3Core-902-apple-host-tests-b245a4072488d918c85b88e6857d92dc51727f13",
+   "bytes": 59486,
+   "sha256": "503a8e3f1ab67f3d43e8fa004aec35f3a5b35d22a2a274513542f0c6568d6c0c",
+   "expiresAt": "2026-12-06T12:25:34Z",
    "reused": {
     "names": [
      "reuse-audit"
@@ -98,17 +98,17 @@
   }
  },
  "core": {
-  "type": "rpcs3-ios-core668",
-  "dylibBytes": 77816096,
-  "dylibSha256": "d1d6c4cadb5054f39d3250ad53dcaa2b6679ccd0ae97c2149ea8a7db38b0d19e",
-  "identitySha256": "324ec039e8484dda4c930d7e991dc79fcd7d2d90176e4cc6ba918773553ca100",
+  "type": "rpcs3-ios-core902",
+  "dylibBytes": 80346872,
+  "dylibSha256": "04f0ddaad5a97de150b44637b68a64b0925387476286a0d421b4a5c7a081b7a8",
+  "identitySha256": "2ef9a1d261e4572f0bf7c53400e34aba4307efebf44bc30f670a0fbd40fb4a84",
   "proofMember": "core610-proof.json",
-  "proofSha256": "cd7ad45162a0df3857ded9978f0dfd66cd07c2e9f6a5953b98ce7c4cb1379e24",
-  "payloadFingerprint": "ddf83d868f899da8cc194b3895cf2c1bf2f03321a2182006fce8b0ed24e9e907"
+  "proofSha256": "1a042a3ff9a704d5e8456e4e887cb0dca8cb2f836eb6fbe73992e1d10b277c2a",
+  "payloadFingerprint": "cd2a2744f2552a145163954e927581afb222ae621be577a404ffa6e7af9319b1"
  },
  "canonical": {
-  "patchSha256": "f40b2e2e48d4e5ca57e5bd236b118702f6d954a0052e0944135e70d7746b01d4",
-  "postimages": 364,
+  "patchSha256": "fb5dc826a3223819f619d9edec807dfe4ce4602deb1d20fc9ec1c3d45f3cfaec",
+  "postimages": 413,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -218,7 +218,7 @@
  },
  "host": {
   "path": "packages/rpcs3_internal_bridge/ios/Classes/Rpcs3InternalBridgePlugin.mm",
-  "sha256": "dd4c525a78d4b8bcc173685422489ee14ca5842a4571d9b2a884ccb970a801af"
+  "sha256": "92fad91da08c9bbbfbbef367d173e6194fe22b6582e35fb908bbe52346abfd63"
  },
  "hostStore": {
   "path": "native/neoswap-storage/Store.cpp",
@@ -267,13 +267,15 @@
   "COREPROF ZCULLWATCH660",
   "COREPROF ZCULLDEPTH660",
   "Resolved title policy 664",
-  "COREPROF PPUGRACE664"
+  "COREPROF PPUGRACE664",
+  "COREPROF METAL frames=",
+  "Native Metal 4 renderer"
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "b69bf3700e273d9965c8b732424674cd5ad25fcd",
-  "run": 42067129517,
-  "artifact": 13436955658,
-  "payloadFingerprint": "08753ed1e2232e9f62c15f180c86f38118056003d729a479eff43141ee804857"
+  "source": "66b37c78cac49977dfc740943c8c7dc791a426ff",
+  "run": 42141714434,
+  "artifact": 13469580511,
+  "payloadFingerprint": "ddf83d868f899da8cc194b3895cf2c1bf2f03321a2182006fce8b0ed24e9e907"
  }
 }
