@@ -832,31 +832,24 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     New hypothesis: NaN/Inf under MoltenVK fast math always (MTLMathModeFast).
   - Stutter: 199 s of 1259 s on the render thread creating pipelines (40 windows over 2 s). The Hogwarts shader cache
     stayed at 759 programs (1238 at the end of a session); every Hogwarts session that day died early.
-- **Core 667 requested (21:10 UTC, `b3b7161f`):**
-  - Core 667 contents:
+- **Core 667 verified and pinned (6 Nov 00:20 UTC, pin `ffaa2046`); handed to main for the next common IPA:**
+  - Contents:
     - JIT arena: 1 GiB at the first launch where the process may use 6 GiB or more (maintainer's choice). A larger
       need on a smaller mapped arena is refused before the launch.
     - adapt_buffer_array_barriers fixes the render worker crash.
     - adapt_hogwarts_precise_math: Metal safe math for Hogwarts only.
     - adapt_shader_save_journal: save counters only.
   - Proof:
-    - New gate core667-fixes: 55 checks; the control reproduces the NullReferenceException.
-    - 9 affected gates rerun and green.
-    - Contract test 381/381 at every refreeze.
-    - [evidence](evidence/melonx-667-gates/run.json) (each CI failure below is recorded there).
-  - Core CI so far:
-    - `b3b7161f` (run 42110141980): a flaky timing gate, then core667-fixes could not restore (LibHac feed 403).
-      Fixed in `cdd3d2e4`.
-    - `cdd3d2e4` (run 42117936769): core667-fixes failed on macOS because of the /var link. Fixed in `fafac5a5`.
-    - `fafac5a5` (run 42122823566): all 47 gates, NativeAOT compile, ABI and binding green. Then the download of
-      the original native-dependency artifact (run 39854858591) failed: it expired and was purged. No pin possible
-      (no simulator run).
-  - Fix `4a0dffff`: the step fetches the same archive through the republication pinned in
-    `build-utils/delivery/666.json` (`retained_components.download_archive`, as the standard delivery does). The
-    next step still authenticates every framework byte against engine82. Replayed offline with the real build 662
-    bundle: identity, pins, inventory and bytes equal. Contract refrozen (only the workflow digest).
-    GitHub refused 6 pushes of the first version ("fatal error in commit_refs"); the rebased commit went through.
-  - Core CI run 42129498597 (`4a0dffff`) running since 23:28 UTC. Pin and handoff to main follow the green run.
+    - Core run 42129498597 (`4a0dffff`) green first try: 47 fresh gates, NativeAOT compile and ABI, binding,
+      two simulator sessions, teardown and backing release.
+    - Artifact 13464317590 (90639897 B, `9c44556c…`). iPhone binary `788ec63f…` (38143840 B) carries the Core 667
+      journal strings and the official GC. Fingerprint `ef4c49db…`, contract `36e69afc`, pin file `d7bbca50…`.
+      engine_evidence passed offline.
+    - New gate core667-fixes: 55 checks; the control reproduces the NullReferenceException. 9 affected gates rerun.
+    - Earlier CI failures and fixes (LibHac feed 403, macOS /var link, purged native-dependency artifact) are in
+      the [evidence](evidence/melonx-667-gates/run.json). The Core workflow now fetches the native frameworks
+      through the republication pinned in `build-utils/delivery/666.json`, still authenticated against engine82.
+  - Not tested on a device or in a game.
 - **Next device checks (IPA with Core 667):**
   - SSBU then Hogwarts without restarting.
   - A long Hogwarts session past 20 min.
