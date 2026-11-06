@@ -130,7 +130,7 @@ jobs:
           FLAGS=(-target arm64-apple-ios16.3 -isysroot "$SDK" -std=gnu++20 -fsyntax-only -Wall -Wno-unused-parameter
                  -Werror=unguarded-availability-new -Werror=objc-method-access -DRPCS3_IOS
                  -I "$S/rpcs3" -I "$S" -I "$S/rpcs3/Emu" -I "$S/3rdparty")
-          FLAGS+=(-I "$SHADER_STACK_WORK/asmjit/src" -I "$S/3rdparty/rewindbox-spirv-cross"
+          FLAGS+=(-I "$SHADER_STACK_WORK/asmjit/src" -I "$SHADER_STACK_WORK/stb" -I "$S/3rdparty/rewindbox-spirv-cross"
                   -DSPIRV_CROSS_NAMESPACE_OVERRIDE=rbx_spirv_cross -DSPIRV_CROSS_SPV_HEADER_NAMESPACE_OVERRIDE=rbx_spv)
           "$CXX" "${FLAGS[@]}" -x objective-c++ -fobjc-arc "$S/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm"
           # Every renderer unit of the source (new stages add files): built without exceptions, except the translator.
@@ -160,14 +160,25 @@ jobs:
           "$CXX" -isysroot "$SDK" -std=gnu++20 -O1 -Wall -I "$RPCS3_SOURCE/rpcs3" -fsanitize=undefined -fno-sanitize-recover=undefined \
             -o "$RUNNER_TEMP/metal_present_unit" test/native/rpcs3_metal_present_unit.cpp
           "$RUNNER_TEMP/metal_present_unit"
-          # Host tests that the renderer sources carry (rpcs3/Emu/RSX/Metal/tests), with UBSan.
+          # Host tests that the renderer sources carry (rpcs3/Emu/RSX/Metal/tests), with UBSan. A test given a directory
+          # may write the MSL libraries it checks there (M4: compute and resolve kernels); they are compiled for iOS below.
+          mkdir -p "$RUNNER_TEMP/msl-tests"
           for test in "$RPCS3_SOURCE"/rpcs3/Emu/RSX/Metal/tests/*.cpp; do
             [ -f "$test" ] || continue
             name=$(basename "$test" .cpp)
             "$CXX" -isysroot "$SDK" -std=gnu++20 -O1 -Wall -I "$RPCS3_SOURCE/rpcs3" -I "$RPCS3_SOURCE" -I "$RPCS3_SOURCE/rpcs3/Emu" \
               -I "$RPCS3_SOURCE/3rdparty" -fsanitize=undefined -fno-sanitize-recover=undefined -o "$RUNNER_TEMP/$name" "$test"
-            "$RUNNER_TEMP/$name"
+            "$RUNNER_TEMP/$name" "$RUNNER_TEMP/msl-tests"
           done
+          count=0
+          for f in "$RUNNER_TEMP"/msl-tests/*.metal; do
+            [ -f "$f" ] || continue
+            xcrun --sdk iphoneos metal -std=metal3.2 -target air64-apple-ios26.0 -Werror \
+              -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -c "$f" -o "${f%.metal}.air"
+            echo "compiled $(basename "$f") for iOS ($(wc -c < "${f%.metal}.air") bytes of AIR)"
+            count=$((count + 1))
+          done
+          echo "PASS: host tests; $count test-emitted MSL libraries compile for iOS"
       - name: Metal 4 probe on this runner's GPU
         timeout-minutes: 10
         shell: bash
