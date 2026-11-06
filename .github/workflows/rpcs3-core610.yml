@@ -38,6 +38,7 @@
 # Core compile request: Core 665 (core-build.json build 665, canonical patch d81e7fd2), request 1 (thread orchestrator v1: adaptive SPU placement, PPU above the background threads, REWINDBOX_THREAD_ORCHESTRATOR_665, and its test page lever, on Core 664, linking the MoltenVK dependency of run 42061304593).
 # Core compile request: Core 665 (core-build.json build 665, canonical patch 614ba1b8), request 2 (the orchestrator include of RSXThread.cpp outside the RetroAchievements patch context; request 1 also met an external HTTP 503 on the dependency download).
 # Core compile request: Core 668 (core-build.json build 668, canonical patch f40b2e2e), request 1 (the thread orchestrator v1 of Core 665 removed by the maintainer: every Core file back to Core 664 except the comment-only ios/IOSThreadOrchestrator.h, the host test page row removed, linking the MoltenVK dependency of run 42051417882 again, whose recorded bridge is the current one).
+# Core compile request: Core 668 (core-build.json build 668, canonical patch f40b2e2e), request 2 (the same source, linking the MoltenVK dependency of run 42140012211, which records the current dependency workflow and host bridge).
 # Apple host harness rerun: Core 613 codegen audit reruns for its two exact aliases (request 2).
 # Apple host harness rerun: Core 619 wait-budget scenario on measured waits (request 2).
 # Apple host harness rerun: Core 619 concurrency scenario accepts the designed wait-budget trip (request 3).
