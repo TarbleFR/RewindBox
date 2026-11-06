@@ -3,7 +3,7 @@
 #
 #   build_rpcs3_metal_shader_stack.sh <materialized RPCS3 source> <work dir> <MSL output dir>
 #
-# Fetches glslang, yaml-cpp and asmjit at the commits the RPCS3 source pins (its submodule gitlinks are not
+# Fetches glslang, yaml-cpp, asmjit and stb at the commits the RPCS3 source pins (its submodule gitlinks are not
 # materialized), builds glslang and yaml-cpp with the options RPCS3 uses, compiles the Metal shader sources
 # and the RPCS3 sources they need, links them with test/native/rpcs3_metal_host_stubs.cpp and runs
 # test/native/rpcs3_metal_shader_stack_test.cpp, which writes one .metal file per translated program.
@@ -41,6 +41,8 @@ fetch() { # <dir> <url> <commit>
 fetch glslang https://github.com/KhronosGroup/glslang.git "$(pinned_commit 3rdparty/glslang/glslang)"
 fetch yaml-cpp https://github.com/RPCS3/yaml-cpp.git "$(pinned_commit 3rdparty/yaml-cpp/yaml-cpp)"
 fetch asmjit https://github.com/asmjit/asmjit.git "$(pinned_commit 3rdparty/asmjit/asmjit)"
+# stb (M4 overlays: the RSX overlay headers include it); headers only, nothing to build.
+fetch stb https://github.com/nothings/stb.git "$(pinned_commit 3rdparty/stblib/stb)"
 
 # glslang with RPCS3's options (3rdparty/glslang/CMakeLists.txt).
 cmake -S "$WORK/glslang" -B "$WORK/glslang-build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX" \
