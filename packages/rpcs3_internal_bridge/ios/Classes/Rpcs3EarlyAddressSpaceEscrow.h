@@ -49,6 +49,20 @@ struct DarwinBackend {
   }
 };
 
+// The task's maximum user address (TASK_VM_INFO), or the preferred 64 GiB end if the kernel does not report it.
+inline uint64_t task_max_address() {
+  task_vm_info_data_t vm = {};
+  mach_msg_type_number_t count = TASK_VM_INFO_COUNT;
+  if (::task_info(mach_task_self(), TASK_VM_INFO,
+                  reinterpret_cast<task_info_t>(&vm), &count) == KERN_SUCCESS &&
+      count * sizeof(natural_t) >=
+          offsetof(task_vm_info_data_t, max_address) + sizeof(vm.max_address) &&
+      vm.max_address > high) {
+    return static_cast<uint64_t>(vm.max_address);
+  }
+  return high;
+}
+
 struct MapSnapshot {
   std::vector<Range> gaps;
   uint64_t largest_gap = 0;
@@ -57,10 +71,10 @@ struct MapSnapshot {
   int kernel = 0;
 };
 
-inline MapSnapshot snapshot() {
+inline MapSnapshot snapshot(uint64_t limit) {
   MapSnapshot map;
   uint64_t cursor = low;
-  while (cursor < high && map.regions < 32768) {
+  while (cursor < limit && map.regions < 32768) {
     vm_address_t address = static_cast<vm_address_t>(cursor);
     vm_size_t size = 0;
     vm_region_basic_info_data_64_t info = {};
@@ -79,15 +93,15 @@ inline MapSnapshot snapshot() {
 
     const uint64_t gap_end =
         error == KERN_INVALID_ADDRESS
-            ? high
-            : std::min(high, static_cast<uint64_t>(address));
+            ? limit
+            : std::min(limit, static_cast<uint64_t>(address));
     if (gap_end > cursor) {
       map.gaps.push_back({cursor, gap_end});
       map.largest_gap = std::max(map.largest_gap, gap_end - cursor);
       map.total_free += gap_end - cursor;
     }
     if (error == KERN_INVALID_ADDRESS ||
-        static_cast<uint64_t>(address) >= high) {
+        static_cast<uint64_t>(address) >= limit) {
       break;
     }
     if (!size || static_cast<uint64_t>(address) + size <= cursor) {
@@ -245,12 +259,13 @@ class EarlyAddressSpaceEscrow {
     if (state_ == EscrowState::held) return true;
     if (state_ != EscrowState::empty) return false;
 
-    const MapSnapshot map = snapshot();
+    const uint64_t limit = task_max_address();
+    const MapSnapshot map = snapshot(limit);
     DarwinBackend backend;
     ReservationResult result;
     if (!map.kernel) {
       result = early_escrow::reserve(
-          map.gaps, static_cast<uint64_t>(::getpagesize()), backend);
+          map.gaps, static_cast<uint64_t>(::getpagesize()), backend, limit);
     }
     layout_ = result.layout;
     if (layout_ && result.cleanup_ok && !backend.cleanup_error) {
@@ -277,7 +292,8 @@ class EarlyAddressSpaceEscrow {
         << " attemptedBytes=" << result.attempted_bytes
         << " largestGapBytes=" << map.largest_gap
         << " totalFreeBytes=" << map.total_free
-        << " regions=" << map.regions;
+        << " regions=" << map.regions << " limit=0x" << std::hex << limit
+        << std::dec << " highWindow=" << (layout_ && layout_.code >= high ? 1 : 0);
     // Diagnostic only, after the reservation decision: who owns the window.
     out << " " << census();
     detail_ = out.str();
