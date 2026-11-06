@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 904,
- "identity_type": "rpcs3-ios-core904",
- "summary": "RPCS3 Core 904 = the delivered Core 610 plus one folded delta: the Core 612 to 903 records unchanged (Core 903: the native Metal 4 renderer M1-M4) plus the JIT arena high window (Utilities/JITIOS.cpp, not a codegen input: the arena search walks from 4 GiB up to the task maximum address instead of stopping at 64 GiB, low window first; on iOS 27 beta the system shared region fills [4,64) GiB and no RPCS3 game could start on IPA 674), Metal M5 part 1 (boot program precompile in shaders_cache/metal/, the persistent Metal 4 pipeline archive with checkpoints during play; rsx_cache.h gains a defaulted cache directory argument, Vulkan unchanged) and the M3 gaps (scaled loads, integer/stencil blits, scaled depth<->colour copies, BC readback, GPU tile decode). Metal stays opt-in per title. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. Not built, no iPhone run.",
+ "build": 905,
+ "identity_type": "rpcs3-ios-core905",
+ "summary": "RPCS3 Core 905 = Core 904 plus the last native Metal 4 parity items (iOS ZCULL hooks of VKGSRender, multi-worker boot precompile, MSAA resolve-before-read). Core 904 = Core 903 (the native Metal 4 renderer M1-M4) plus the JIT arena high window (Utilities/JITIOS.cpp, not a codegen input: the arena search walks from 4 GiB up to the task maximum address instead of stopping at 64 GiB, low window first; on iOS 27 beta the system shared region fills [4,64) GiB and no RPCS3 game could start on IPA 674), Metal M5 part 1 (boot program precompile in shaders_cache/metal/, the persistent Metal 4 pipeline archive with checkpoints during play; rsx_cache.h gains a defaulted cache directory argument, Vulkan unchanged) and the M3 gaps (scaled loads, integer/stencil blits, scaled depth<->colour copies, BC readback, GPU tile decode). Metal stays opt-in per title. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. Not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,7 +22,7 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "f11ab2510340ae2740a269393a8fa4de45876f60c158f67b8dc38fce4788f47b",
+  "patch_sha256": "f9b33b8152d9b99a9a24035c929a3caf114b604565310fbe4a720dfc08763330",
   "postimages": 444,
   "records": [
    "core610_20261101",
@@ -51,7 +51,8 @@
    "core901_20261105",
    "core902_20261106",
    "core903_20261106",
-   "core904_20261106"
+   "core904_20261106",
+   "core905_20261106"
   ]
  },
  "reference": {
@@ -91,10 +92,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core904_20261106",
-  "manifest": "build-utils/rpcs3/core904-delta.json",
-  "patch": "build-utils/rpcs3/core904-delta.patch",
-  "patch_sha256": "48222f0ff5d421f12a2d2c2bfb17c26c7aa05d494861fa60fd59028c6f838050"
+  "record": "core905_20261106",
+  "manifest": "build-utils/rpcs3/core905-delta.json",
+  "patch": "build-utils/rpcs3/core905-delta.patch",
+  "patch_sha256": "5f9ecc8538e5710873f82115cf1fcfdfb2a6d3951624b827c59b153fca623ec1"
  },
  "exports": 92,
  "core_inputs": {
@@ -402,28 +403,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core904_codegen_test.py",
+     "test/rpcs3_core905_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 901 to 904 touch no codegen input (Utilities/JITIOS.cpp and rsx_cache.h are not inputs); rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
+    "reason": "Core 901 to 905 touch no codegen input (Utilities/JITIOS.cpp and rsx_cache.h are not inputs); rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
    },
    {
-    "name": "core904",
+    "name": "core905",
     "argv": [
      "python3",
-     "test/rpcs3_core904_test.py",
+     "test/rpcs3_core905_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core904.json"
+     "{out}/core905.json"
     ],
-    "reason": "Core 901 to 904 increments reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel, MSAA and tiling math, M5 cache rules; plain and ASan/UBSan); then the Core 668 driver on the reverted tree"
+    "reason": "Core 901 to 905 increments reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel, MSAA and tiling math, M5 cache rules; plain and ASan/UBSan); then the Core 668 driver on the reverted tree"
    },
    {
     "name": "lr-full-queue",

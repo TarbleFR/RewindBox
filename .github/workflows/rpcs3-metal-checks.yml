@@ -1,7 +1,7 @@
 # REWINDBOX_METAL_NATIVE: fast checks of the native Metal 4 renderer on the Metal branch (no IPA, no Core artifact).
-# The renderer sources come from the canonical Core delta (Core 904: M1-M4, M5 part 1 and the M3 gaps folded), materialized
+# The renderer sources come from the canonical Core delta (Core 905: M1-M4, M5 part 1, the M3 gaps and the parity items folded), materialized
 # on the pinned upstream commit, plus the work in progress of a next stage when the branch carries it
-# (build-utils/rpcs3/metal-wip-from-904.patch; not a Core: the next Core folds it with its records).
+# (build-utils/rpcs3/metal-wip-from-905.patch; not a Core: the next Core folds it with its records).
 name: RPCS3 Metal renderer checks
 run-name: "RPCS3 Metal renderer checks • ${{ github.sha }}"
 'on':
@@ -14,6 +14,7 @@ run-name: "RPCS3 Metal renderer checks • ${{ github.sha }}"
       - 'build-utils/rpcs3/metal-wip-from-902.patch'
       - 'build-utils/rpcs3/metal-wip-from-903.patch'
       - 'build-utils/rpcs3/metal-wip-from-904.patch'
+      - 'build-utils/rpcs3/metal-wip-from-905.patch'
       - 'test/native/rpcs3_metal_*'
       - 'test/native/build_rpcs3_metal_shader_stack.sh'
       - '.github/workflows/rpcs3-metal-checks.yml'
@@ -49,7 +50,7 @@ jobs:
           git -C "$SOURCE" checkout -q --detach FETCH_HEAD
           python3 build-utils/materialize_rpcs3_core.py "$SOURCE"
           echo "RPCS3_SOURCE=$SOURCE" >> "$GITHUB_ENV"
-      - name: Check the folded Metal M2 to M5 sources (Core 904)
+      - name: Check the folded Metal M2 to M5 sources (Core 905)
         shell: bash
         run: |
           set -euo pipefail
@@ -65,7 +66,10 @@ jobs:
           # Core 903 folds the M3 and M4 work (metal-wip-from-902.patch, identical to core903-from-902.patch) over Core 902,
           # which folded the M2 work (metal-wip-from-901.patch): reverse the M3/M4 work, check that the M2 work reverses
           # from that Core 902 state, then apply the M3/M4 work again (the source is unchanged afterwards).
-          # Core 904 folds metal-wip-from-903.patch (identical to core904-from-903.patch) over Core 903: reverse it first.
+          # Core 905 folds metal-wip-from-904.patch (identical to core905-from-904.patch) over Core 904, which folded
+          # metal-wip-from-903.patch (identical to core904-from-903.patch) over Core 903: reverse them first.
+          cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-904.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core905-from-904.patch"
+          git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-904.patch"
           cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-903.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core904-from-903.patch"
           git -C "$S" apply --reverse --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-903.patch"
           cmp "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-902.patch" "$GITHUB_WORKSPACE/build-utils/rpcs3/core903-from-902.patch"
@@ -73,14 +77,15 @@ jobs:
           git -C "$S" apply --reverse --check "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-901.patch"
           git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-902.patch"
           git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-903.patch"
+          git -C "$S" apply --whitespace=nowarn "$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-904.patch"
           echo "PASS: the M2 to M5 work and the vendored SPIRV-Cross are part of the canonical source"
-      - name: Apply the work in progress of a next stage (metal-wip-from-904.patch)
+      - name: Apply the work in progress of a next stage (metal-wip-from-905.patch)
         shell: bash
         run: |
           set -euo pipefail
-          WIP="$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-904.patch"
+          WIP="$GITHUB_WORKSPACE/build-utils/rpcs3/metal-wip-from-905.patch"
           if [ ! -f "$WIP" ]; then
-            echo "No work in progress over Core 904 on this commit"
+            echo "No work in progress over Core 905 on this commit"
             exit 0
           fi
           git -C "$RPCS3_SOURCE" apply --whitespace=nowarn "$WIP"

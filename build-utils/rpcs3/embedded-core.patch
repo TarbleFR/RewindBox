@@ -89465,10 +89465,10 @@ index 0000000..bb306e9
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLDraw.cpp b/rpcs3/Emu/RSX/Metal/MTLDraw.cpp
 new file mode 100644
-index 0000000..aaf6400
+index 0000000..22afa50
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLDraw.cpp
-@@ -0,0 +1,1966 @@
+@@ -0,0 +1,1975 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M2.2): the draw path of the native Metal 4 renderer (VKDraw.cpp and the draw parts of
 +// VKGSRender.cpp ported to Metal 4 argument tables and render encoders).
@@ -91147,8 +91147,14 @@ index 0000000..aaf6400
 +		return;
 +	}
 +
++#ifdef RPCS3_IOS
++	ios_watched_submit_at_boundary(false);  // M5: an armed watched submission, if no render pass is open (VKDraw.cpp)
++#endif
 +	analyse_current_rsx_pipeline();
 +	load_texture_env();
++#ifdef RPCS3_IOS
++	ios_watched_submit_at_boundary(true);  // M5: after this draw's texture copies (nothing of the draw bound yet)
++#endif
 +
 +	if (!load_program())
 +	{
@@ -91204,6 +91210,9 @@ index 0000000..aaf6400
 +	// VK releases these before its draws; here they go after them, so the deferred release covers the submission
 +	// that holds the draws even when a full ring submitted in between.
 +	m_texture_cache.release_uncached_temporary_subresources();
++#ifdef RPCS3_IOS
++	ios_watched_submit_at_draw_end();  // M5: the fallback after max_deferred_draws armed draws (VKGSRender::ios_early_submit)
++#endif
 +	rsx::thread::end();
 +}
 +
@@ -92429,10 +92438,10 @@ index 0000000..438c533
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
 new file mode 100644
-index 0000000..f48934a
+index 0000000..6512760
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
-@@ -0,0 +1,1000 @@
+@@ -0,0 +1,1011 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE: the native Metal 4 renderer (see MTLGSRender.h): device, frames, rings, presentation.
 +// The draw path is in MTLDraw.cpp, vertex and index uploads in MTLVertexBuffers.cpp.
@@ -92834,6 +92843,9 @@ index 0000000..f48934a
 +{
 +	// An early submission within the frame (readback, full ring): the frame keeps its allocator.
 +	const u64 value = m_commands.submit(true);
++#ifdef RPCS3_IOS
++	ios_on_submit();  // M5: carries an armed watched submission (VKGSRender)
++#endif
 +	if (wait)
 +	{
 +		m_commands.wait(value);
@@ -92992,6 +93004,10 @@ index 0000000..f48934a
 +	}
 +
 +	slot.fence = m_commands.submit(false, drawable);
++#ifdef RPCS3_IOS
++	ios_on_submit();                     // M5
++	m_ios_early_submits_this_frame = 0;  // M5: VKPresent.cpp, per frame
++#endif
 +	if (drawable)
 +	{
 +		mtl::present(drawable);
@@ -93068,7 +93084,11 @@ index 0000000..f48934a
 +				// M4: VK get_present_source: a multisampled surface is read by a transfer, through its resolve texture (sizes
 +				// in samples)
 +				surface->memory_barrier(m_commands, rsx::surface_access::transfer_read);
-+				source = surface->texture_for(rsx::surface_access::transfer_read);
++				// M5: get_surface creates and resolves a resolve image the barrier did not need yet (never read unwritten)
++				if (mtl::image* resolved = surface->get_surface(rsx::surface_access::transfer_read); resolved && resolved->samples() == 1)
++				{
++					source = resolved->texture;
++				}
 +				uv_x = std::min(1.f, static_cast<f32>(width) / std::max<u32>(surface->get_surface_width<rsx::surface_metrics::samples>(), 1));
 +				uv_y = std::min(1.f, static_cast<f32>(height) / std::max<u32>(surface->get_surface_height<rsx::surface_metrics::samples>(), 1));
 +			}
@@ -93435,10 +93455,10 @@ index 0000000..f48934a
 +
 diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.h b/rpcs3/Emu/RSX/Metal/MTLGSRender.h
 new file mode 100644
-index 0000000..5fbbff0
+index 0000000..4251ea0
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.h
-@@ -0,0 +1,401 @@
+@@ -0,0 +1,420 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +#pragma once
 +
@@ -93576,6 +93596,13 @@ index 0000000..5fbbff0
 +	// M4: VKGSRender::sync_hint (flushes for ZCULL hints).
 +	void sync_hint(rsx::FIFO::interrupt_hint hint, rsx::reports::sync_hint_payload_t payload) override;
 +	// M4 end
++#ifdef RPCS3_IOS
++	// M5: the iOS ZCULL hooks of VKGSRender (REWINDBOX_ZCULL_DEPTH_GUARD_660, REWINDBOX_ZCULL_WATCHED_FLUSH_660,
++	// MTLQueries.cpp): the open command buffer's serial while a query is in it, and the boundary submission of that
++	// buffer armed for a watched report.
++	u64 ios_open_cb_serial(rsx::reports::occlusion_query_info* query) override;
++	rpcs3::ios::zcull_watched::arm_result ios_arm_watched_submit(rsx::reports::occlusion_query_info* query) override;
++#endif
 +
 +private:
 +	static constexpr u32 frames_in_flight = 3;
@@ -93838,6 +93865,18 @@ index 0000000..5fbbff0
 +	void load_program_cache();        // the boot precompile, before the first draw
 +	void close_pipeline_caches();     // on_exit: the queued records, the last archive checkpoint
 +	void report_m5_counters();
++#ifdef RPCS3_IOS
++	// The armed watched submission (VKGSRender m_ios_early_armed_draws / _watched; Metal arms only watched ones):
++	// taken at a draw boundary with no render pass open, after max_deferred_draws draws at a draw end, or carried by
++	// any other submission.
++	u32 m_ios_armed_draws = 0;
++	u32 m_ios_early_submits_this_frame = 0;
++	rpcs3::ios::zcull_watched::frame_budget m_ios_watched_budget;
++	void ios_watched_submit_at_boundary(bool after_textures);  // the start of a draw, after its textures
++	void ios_watched_submit_at_draw_end();
++	void ios_take_watched_submit();
++	void ios_on_submit();  // every submission: carries an armed one
++#endif
 +	// M5 end
 +};
 diff --git a/rpcs3/Emu/RSX/Metal/MTLM4Counters.h b/rpcs3/Emu/RSX/Metal/MTLM4Counters.h
@@ -97448,10 +97487,10 @@ index 0000000..6c61986
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLQueries.cpp b/rpcs3/Emu/RSX/Metal/MTLQueries.cpp
 new file mode 100644
-index 0000000..332b3aa
+index 0000000..c0c9077
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLQueries.cpp
-@@ -0,0 +1,408 @@
+@@ -0,0 +1,522 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M4): ZCULL occlusion queries of the native Metal 4 renderer (see MTLQueries.h), and what the
 +// Vulkan renderer does around them: ZCULL sync hints, report pages, semaphore waits and native UI flips.
@@ -97460,6 +97499,10 @@ index 0000000..332b3aa
 +#include "MTLGSRender.h"
 +
 +#include "Emu/system_config.h"
++#ifdef RPCS3_IOS
++#include "ios/IOSEarlySubmit.h"     // M5
++#include "ios/IOSRsxSyncProfile.h"  // M5
++#endif
 +
 +#include <atomic>
 +#include <cstring>
@@ -97787,6 +97830,9 @@ index 0000000..332b3aa
 +		// Unavoidable hard sync coming up, flush immediately
 +		flush_command_queue(false);
 +		mtl::m4_count(mtl::get_m4_counters().query_hint_flushes);
++#ifdef RPCS3_IOS
++		rpcs3::ios::rsx_sync::zcull_hint_flushes.fetch_add(1, std::memory_order_relaxed);  // M5: as VKGSRender
++#endif
 +
 +		// Clear without wait
 +		m_zcull_flush_pending = false;
@@ -97860,6 +97906,113 @@ index 0000000..332b3aa
 +		flip(info);
 +	}
 +}
++
++#ifdef RPCS3_IOS
++// M5: the iOS ZCULL hooks of VKGSRender (RSXZCULL.h, ios/IOSZcullWatched.h).
++
++u64 MTLGSRender::ios_open_cb_serial(rsx::reports::occlusion_query_info* query)
++{
++	// VKGSRender::ios_open_cb_serial: the open command buffer's serial while the query has host queries in it, under
++	// the condition on which sync_hint(zcull_sync) submits it (cb_has_occlusion_task, is_current, indices); 0
++	// otherwise. The recording fence is the command buffer's serial.
++	const auto& record = m_query_records[query->driver_handle];
++	const u64 recording = m_commands.last_submitted() + 1;
++	return (m_commands.recording() && m_query_cb_fence == recording && record.has_data && record.last_fence == recording) ? recording : 0;
++}
++
++rpcs3::ios::zcull_watched::arm_result MTLGSRender::ios_arm_watched_submit(rsx::reports::occlusion_query_info* query)
++{
++	// VKGSRender::ios_arm_watched_submit. Metal has no other early submission (CELL561), so an armed one is always
++	// a watched one; the per-frame cap and the frame's watched budget are the same.
++	namespace early = rpcs3::ios::early_submit;
++	namespace watched = rpcs3::ios::zcull_watched;
++	if (!early::enabled.load(std::memory_order_relaxed) || !early::at_pass_boundary.load(std::memory_order_relaxed))
++	{
++		return watched::arm_result::off;
++	}
++
++	if (!ios_open_cb_serial(query))
++	{
++		return watched::arm_result::submitted;
++	}
++
++	if (m_ios_armed_draws)
++	{
++		return watched::arm_result::joined;
++	}
++
++	if (m_ios_early_submits_this_frame >= early::max_per_frame || !m_ios_watched_budget.available(int_flip_index))
++	{
++		return watched::arm_result::capped;
++	}
++
++	m_ios_armed_draws = 1;
++	early::armed.fetch_add(1, std::memory_order_relaxed);
++	return watched::arm_result::armed;
++}
++
++void MTLGSRender::ios_watched_submit_at_boundary(bool after_textures)
++{
++	// VKGSRender::ios_early_submit_at_boundary: taken when no render pass is open and the recording is interruptible.
++	namespace early = rpcs3::ios::early_submit;
++	if (!m_ios_armed_draws)
++	{
++		return;
++	}
++
++	const bool pass_open = m_commands.kind() == mtl::command_context::encoder_kind::render;
++	if (!early::take_at_boundary(m_ios_armed_draws, pass_open, !m_offloader_deadlock))
++	{
++		return;
++	}
++
++	(after_textures ? early::boundary_textures : early::boundary_starts).fetch_add(1, std::memory_order_relaxed);
++	m_ios_watched_budget.consume();
++	auto& tally = rpcs3::ios::zcull_watched::counters();
++	(after_textures ? tally.taken_textures : tally.taken_start).fetch_add(1, std::memory_order_relaxed);
++	ios_take_watched_submit();
++}
++
++void MTLGSRender::ios_watched_submit_at_draw_end()
++{
++	// VKGSRender::ios_early_submit, the armed part: after max_deferred_draws more draws, at the end of a draw.
++	namespace early = rpcs3::ios::early_submit;
++	if (!m_ios_armed_draws || m_offloader_deadlock)
++	{
++		return;
++	}
++
++	if (early::at_draw_end(++m_ios_armed_draws) != early::deferral::fallback)
++	{
++		return;
++	}
++
++	early::fallback_submits.fetch_add(1, std::memory_order_relaxed);
++	m_ios_watched_budget.consume();
++	rpcs3::ios::zcull_watched::counters().fallback.fetch_add(1, std::memory_order_relaxed);
++	ios_take_watched_submit();
++}
++
++void MTLGSRender::ios_take_watched_submit()
++{
++	// VKGSRender::ios_take_early_submit
++	m_ios_armed_draws = 0;
++	flush_command_queue(false);
++	m_ios_early_submits_this_frame++;
++	rpcs3::ios::early_submit::submits.fetch_add(1, std::memory_order_relaxed);
++}
++
++void MTLGSRender::ios_on_submit()
++{
++	// VKGSRender::flush_command_queue: any other submission carries the armed draws, and with them a watched report.
++	if (m_ios_armed_draws)
++	{
++		m_ios_armed_draws = 0;
++		rpcs3::ios::early_submit::disarmed.fetch_add(1, std::memory_order_relaxed);
++		rpcs3::ios::zcull_watched::counters().carried.fetch_add(1, std::memory_order_relaxed);
++	}
++}
++#endif
 diff --git a/rpcs3/Emu/RSX/Metal/MTLQueries.h b/rpcs3/Emu/RSX/Metal/MTLQueries.h
 new file mode 100644
 index 0000000..813a77e
@@ -98103,10 +98256,10 @@ index 0000000..813a77e
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp
 new file mode 100644
-index 0000000..91d0035
+index 0000000..37a96c8
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLRenderTargets.cpp
-@@ -0,0 +1,761 @@
+@@ -0,0 +1,765 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M2.2): render targets of the native Metal 4 renderer (VKRenderTargets.cpp counterpart).
 +
@@ -98177,7 +98330,11 @@ index 0000000..91d0035
 +			{
 +				if (auto ctx = get_command_context())
 +				{
-+					get_resolve_target_safe(*ctx);
++					// M5: created here, it is resolved before it is handed out (get_resolve_target_safe)
++					if (get_resolve_target_safe(*ctx) && (msaa_flags & rsx::surface_state_flags::require_resolve))
++					{
++						resolve(*ctx);
++					}
 +				}
 +			}
 +
@@ -99202,10 +99359,10 @@ index 0000000..98890ef
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/MTLResolve.cpp b/rpcs3/Emu/RSX/Metal/MTLResolve.cpp
 new file mode 100644
-index 0000000..98f587f
+index 0000000..e4dd48b
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/MTLResolve.cpp
-@@ -0,0 +1,362 @@
+@@ -0,0 +1,370 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M4): MSAA resolve and unresolve (VKResolveHelper.cpp, VKRenderTargets.cpp resolve/unresolve).
 +
@@ -99482,6 +99639,14 @@ index 0000000..98f587f
 +			created->set_native_component_layout(native_component_map);
 +			created->set_name("MSAA resolve");
 +			resolve_surface = std::move(created);
++
++			// M5: a new resolve image holds nothing yet. Unless it is about to carry newer data than the samples
++			// (require_unresolve), it is stale until resolved: no transfer reads it before a resolve pass writes it (a
++			// surface only cleared for rendering and then read has msaa_flags ready and no resolve image).
++			if (!(msaa_flags & rsx::surface_state_flags::require_unresolve))
++			{
++				msaa_flags |= rsx::surface_state_flags::require_resolve;
++			}
 +		}
 +
 +		return resolve_surface.get();
@@ -104631,10 +104796,10 @@ index 0000000..100c9c9
 +}
 diff --git a/rpcs3/Emu/RSX/Metal/tests/mtl_m4_unit_test.cpp b/rpcs3/Emu/RSX/Metal/tests/mtl_m4_unit_test.cpp
 new file mode 100644
-index 0000000..4e80ef3
+index 0000000..98707e3
 --- /dev/null
 +++ b/rpcs3/Emu/RSX/Metal/tests/mtl_m4_unit_test.cpp
-@@ -0,0 +1,644 @@
+@@ -0,0 +1,650 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +// REWINDBOX_METAL_NATIVE (M4): host unit test of the pure logic of stage M4 (no Metal device, no emulator):
 +//   - the visibility slot pool, and the Vulkan renderer's occlusion query rules (check, gather) on segments, including
@@ -104936,6 +105101,12 @@ index 0000000..4e80ef3
 +					// the per-sample render pass reads it back from the same texel.
 +					const int loc_x = rx % sx, loc_y = ry % sy;
 +					check(loc_x + loc_y * sy == sample, "same sample index as the compute unresolve", rx, ry);
++
++					// M5: Depth(Stencil)UnresolvePass.glsl, the graphics form VK uses for depth: pixel * sample_count +
++					// (gl_SampleID % sample_count.x, gl_SampleID / sample_count.x), literally.
++					check(px * sx + (sample % sx) == rx && py * sy + (sample / sx) == ry, "the depth unresolve of VK reads the same texel", rx, ry);
++					// ...and DepthResolvePass.glsl: in = out / sample_count, index = loc.x + loc.y * sample_count.y.
++					check(rx / sx == px && ry / sy == py && (rx % sx) + (ry % sy) * sy == sample, "the depth resolve of VK", rx, ry);
 +				}
 +			}
 +			check(seen.size() == static_cast<usz>(width * height) * samples, "every sample of every pixel exactly once", samples);
@@ -117448,7 +117619,7 @@ index fe5cf89..a01d0b4 100644
  		// Meta
  		RSX_SHADER_CONTROL_META_USES_DISCARD       = (RSX_SHADER_CONTROL_USES_KIL | RSX_SHADER_CONTROL_TEXTURE_ALPHA_KILL | RSX_SHADER_CONTROL_ALPHA_TEST | RSX_SHADER_CONTROL_POLYGON_STIPPLE | RSX_SHADER_CONTROL_ALPHA_TO_COVERAGE),
 diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
-index 625311f..23e1fc0 100644
+index 625311f..45781ff 100644
 --- a/rpcs3/Emu/RSX/rsx_cache.h
 +++ b/rpcs3/Emu/RSX/rsx_cache.h
 @@ -11,8 +11,15 @@
@@ -117619,10 +117790,13 @@ index 625311f..23e1fc0 100644
  
  			root.rewind();
  
-@@ -275,13 +369,36 @@ namespace rsx
+@@ -274,14 +368,38 @@ namespace rsx
+ 
  			// Preload everything needed to compile the shaders
  			unpacked_type unpacked;
- 			uint nb_workers = g_cfg.video.renderer == video_renderer::vulkan ? utils::get_thread_count() : 1;
+-			uint nb_workers = g_cfg.video.renderer == video_renderer::vulkan ? utils::get_thread_count() : 1;
++			// REWINDBOX_METAL_NATIVE (M5): the Metal program cache builds on several threads too (MTL4 compiler).
++			uint nb_workers = (g_cfg.video.renderer == video_renderer::vulkan || g_cfg.video.renderer == video_renderer::metal) ? utils::get_thread_count() : 1;
 +#ifdef RPCS3_IOS
 +			const u32 warmup_entries = entry_count;
 +			rsx_log.notice("COREPROF SHADERWARMUP phase=begin entries=%u workers=%u", warmup_entries, nb_workers);
@@ -117656,7 +117830,7 @@ index 625311f..23e1fc0 100644
  
  			dlg->refresh();
  			dlg->close();
-@@ -300,21 +417,96 @@ namespace rsx
+@@ -300,21 +418,96 @@ namespace rsx
  				return;
  			}
  
@@ -117760,7 +117934,7 @@ index 625311f..23e1fc0 100644
  			}
  
  			const u32 state_params[] =
-@@ -338,16 +530,38 @@ namespace rsx
+@@ -338,16 +531,38 @@ namespace rsx
  
  			const std::string pipeline_file_name = fmt::format("%llX+%llX+%llX+%llX.bin", data.vertex_program_hash, data.fragment_program_hash, data.pipeline_storage_hash, state_hash);
  			const std::string pipeline_path = root_path + "/pipelines/" + pipeline_class_name + "/" + version_prefix + "/" + pipeline_file_name;
@@ -117804,7 +117978,7 @@ index 625311f..23e1fc0 100644
  			return vp;
  		}
  
-@@ -357,16 +571,28 @@ namespace rsx
+@@ -357,16 +572,28 @@ namespace rsx
  
  			RSXFragmentProgram fp = {};
  
@@ -117837,7 +118011,7 @@ index 625311f..23e1fc0 100644
  			fragment_program_data[fragment_program_data.push_begin()] = std::move(buf);
  			return fp;
  		}
-@@ -410,6 +636,25 @@ namespace rsx
+@@ -410,6 +637,25 @@ namespace rsx
  			fp.two_sided_lighting = !!(data.fp_lighting_flags & 0x1);
  			fp.mrt_buffers_count = data.fp_mrt_count;
  
@@ -117863,7 +118037,7 @@ index 625311f..23e1fc0 100644
  			return result;
  		}
  
-@@ -459,6 +704,11 @@ namespace rsx
+@@ -459,6 +705,11 @@ namespace rsx
  
  			return data_block;
  		}
@@ -117875,7 +118049,7 @@ index 625311f..23e1fc0 100644
  	};
  
  	namespace vertex_cache
-@@ -498,6 +748,26 @@ namespace rsx
+@@ -498,6 +749,26 @@ namespace rsx
  				return u64(local_addr) | (u64(data_length) << 32);
  			}
  
@@ -117902,7 +118076,7 @@ index 625311f..23e1fc0 100644
  		public:
  
  			const storage_type* find_vertex_range(u32 local_addr, u32 data_length) override
-@@ -511,8 +781,12 @@ namespace rsx
+@@ -511,8 +782,12 @@ namespace rsx
  				}
  
  				// Check if data in local_address changed vs what was stored in the vertex_cache
@@ -117915,7 +118089,7 @@ index 625311f..23e1fc0 100644
  				{
  					vertex_ranges.erase(key);
  					return nullptr;
-@@ -528,10 +802,14 @@ namespace rsx
+@@ -528,10 +803,14 @@ namespace rsx
  				v.local_address = local_addr;
  				v.offset_in_heap = offset_in_heap;
  
