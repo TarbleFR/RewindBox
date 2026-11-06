@@ -1,0 +1,29 @@
+{
+ "schema": 1,
+ "date": "2026-11-06",
+ "session": "https://claude.ai/code/session_012mUASkkFGHaPcEUx9dsp8q",
+ "core": 673,
+ "base": "Core 671 (03f8cc50, pin dfdfe0f4, IPA 672)",
+ "finding": {
+  "input": "IPA 672 private journals, Hogwarts pids 18339 and 18409 (18 min after SSBU in one process); not in the repository",
+  "result": "no visual artifact reported; median 27.6 fps, 26 % of seconds below 15 fps, 129 s at 0 fps",
+  "cause": "render thread creating pipelines: 215.4 s of 1093 s; 38 % of the time of windows below 20 fps, 1 % of windows at 25 fps or more; the final 30 s window held 15.4 s of graphics pipeline creation and the game hang detector (FHeartBeatThread) aborted",
+  "persistence": "main pipeline cache 301.62 MiB at every launch: written only by MergeAndSave at a clean close, and the sessions ended in crashes; worker caches recycled at their 128 MiB budget"
+ },
+ "change": "adapt_main_cache_checkpoint (PipelineCacheManager.cs, PipelineState.cs): the main cache is written during play from a worker thread after its pipeline (>= 180 s apart, >= 64 main pipelines or a merge, lock only tried); a render-thread TryEnter that fails while a checkpoint holds the lock waits instead (no skipped draw).",
+ "gatesRun": {
+  "fragmented-reads-checks.json": "26325a3c8338811c793dc0988d4d2c4dd7879893d9f0633099ca529c4724472b",
+  "hogwarts-dma-copies-checks.json": "45b1f184b80eaa12fb53a37509765b51dae9b8ed787df9daf18eaf1c60e30c10",
+  "main-cache-checkpoint-checks.json": "60820b7521cef84970b4994be55798d27f10f50127a827671e3503bfc7cb4d87",
+  "performance-diagnostics-checks.json": "2ee4050e5def130cc3796728f27cb64a897aebd8942424dee3399d261ae16acc",
+  "pipeline-checkpoint-checks.json": "90be7658f1c7543ea236c2d656149de7ac83c2a1320ffca3ec9af4cb4a3049c0",
+  "pipeline-warmup-parity-checks.json": "aa224dcffc280d4f6b064328be160f518ccbeb4fb9df24c501679c0e321c8d65",
+  "teardown-cache-checks.json": "429bae1dc2c38149a42fdee29ea1c9417009839f4c9a9c88568d13bb63a5e1fb"
+ },
+ "contract": {
+  "sha256": "722c262a4e8d85a857ae6adb4ed7f8a1fdba7dc00939b4677015241f0715a23f",
+  "freshAppleGates": 49,
+  "contractTest": "388 checks with the authenticated archive"
+ },
+ "physicalDeviceTested": false
+}
