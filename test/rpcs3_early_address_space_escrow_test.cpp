@@ -119,5 +119,37 @@ int main() {
   assert(escrow::release(not_released.layout, release_failure) != 0);
   assert(not_released.layout);
 
+  // NEOSTATION_JIT_HIGH_WINDOW_904: the IPA 674 layout on iOS 27 beta. The low window holds 538 MiB in pieces
+  // (largest 260 MiB, the rest below the 256 MiB minimum), and a 64 GiB gap is free at 448 GiB, below the task
+  // maximum of 512 GiB.
+  constexpr uint64_t high_gap = 0x7000000000ull;
+  constexpr uint64_t task_max = 0x8000000000ull;
+  const std::vector<escrow::Range> ios27 = {
+      {escrow::low + 64 * escrow::mib, escrow::low + 324 * escrow::mib},
+      {escrow::low + 1024 * escrow::mib, escrow::low + 1224 * escrow::mib},
+      {escrow::low + 1536 * escrow::mib, escrow::low + 1614 * escrow::mib},
+      {high_gap, task_max}};
+  // Limited to the preferred 64 GiB window, nothing fits (the escrow failure of IPA 674).
+  MockBackend low_only;
+  assert(!escrow::reserve(ios27, page, low_only).layout);
+  assert(low_only.mappings.empty());
+  // With the task-wide limit, the full 448 + 256 MiB layout is held in the high gap.
+  MockBackend wide;
+  const auto high_layout = escrow::reserve(ios27, page, wide, task_max);
+  assert(high_layout.layout);
+  assert(high_layout.layout.contiguous);
+  assert(high_layout.layout.code == high_gap);
+  assert(high_layout.layout.code_bytes == 448 * escrow::mib);
+  assert(escrow::valid(high_layout.layout, page, task_max));
+  assert(!escrow::valid(high_layout.layout, page));
+  // A low gap that fits is still preferred over the high window for the same capacity.
+  MockBackend prefer_low;
+  const auto low_layout = escrow::reserve(
+      {{escrow::low, escrow::low + clean_gap}, {high_gap, task_max}}, page, prefer_low, task_max);
+  assert(low_layout.layout && low_layout.layout.code == escrow::low);
+  // A limit below the preferred window is refused.
+  MockBackend bad_limit;
+  assert(!escrow::reserve(ios27, page, bad_limit, escrow::high - 1).layout);
+
   std::cout << "PASS: early RPCS3 address-space escrow policy\n";
 }

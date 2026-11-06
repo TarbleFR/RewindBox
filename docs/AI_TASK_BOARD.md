@@ -799,6 +799,14 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - draft `a281f578`, frozen digest `3243f990` (7262 product files), trigger `af5a04bb`;
       - contents: RPCS3 Core 903 plus MeloNX Core 673 (pin `03ad1c68`);
       - recipient key 674: public half only.
+    - **M5 part 1** (M4 tree `f31dab6`..`9aeae1f`, WIP `metal-wip-from-903.patch` on the Metal branch `cda8747c`):
+      - rsx::shaders_cache boot precompile in shaders_cache/metal/ (VK files untouched);
+      - MTL4 archive with the capture-binaries serializer, validated by GPU/OS/build;
+      - checkpoints every 180 s or 64 pipelines, temp file then rename, never in the draw path;
+      - COREPROF METAL M5 counters;
+      - one defaulted cache_directory argument in rpcs3/Emu/RSX/rsx_cache.h (VK and GL keep "shaders_cache/").
+      - iOS CI run `42259468575` green: the WIP applied (13 files), MTLAPIApple.mm compiled with
+        -Werror=objc-method-access, M5 tests 129 checks under UBSan.
     - Next, in two trees from `e4874e8`:
       - M5 part 1 (M4 agent, m4 tree): boot-time shaders_cache precompile, persistent MTL4 archives via
         MTL4PipelineDataSetSerializer, checkpoints during play;
