@@ -968,7 +968,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   the whole 203 MiB cache again. **Core 670** (`3a137b09`, run 42213929631 building): empty precise-math title list,
   everything else of Core 667 kept; core667-fixes and guest-fault-context rerun, contract test 381;
   [receipt](evidence/melonx-670-gates/run.json). Pin and handoff to main follow the green run.
-- **Next device checks (IPA with Core 670):**
+- **Core 671 requested (`03f8cc50`, queued after Core 670), maintainer's choice "nettoyage des NaN":** Core 670 +
+  adapt_nan_scrub for Hogwarts only. FP32 colour outputs and image stores map NaN -> 0 and Inf -> +/-65504 with
+  integer bit tests; fast math is kept. A distinct host shader cache version rebuilds Hogwarts' translations once
+  (longer first load). New gate nan-scrub (57 checks); four gates rerun; 48 fresh gates; contract test 386;
+  [receipt](evidence/melonx-671-gates/run.json). Pin 670 then 671 and hand off as each run turns green.
+- **Next device checks (IPA with Core 671, else 670):**
   - SSBU then Hogwarts without restarting.
   - A long Hogwarts session past 20 min.
   - Hogwarts first frame within about 10 s again ("MoltenVK math mode fast" in the journal).
