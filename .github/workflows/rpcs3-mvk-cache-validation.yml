@@ -12,6 +12,8 @@
 # gains the Core 665 test page key experimental.thread_orchestrator), 5 November 2026; no IPA or release.
 # Run request: the dependency of RPCS3 Core 668 (same MoltenVK source and patch; the host bridge
 # is the Core 664 bridge again, the orchestrator key removed), 6 November 2026; no IPA or release.
+# Run request: the dependency of RPCS3 Core 902 (same MoltenVK source and patch; the host bridge
+# gains the Metal 4 renderer test page key experimental.metal_renderer), 6 November 2026; no IPA or release.
 name: RPCS3 MoltenVK cache candidate validation
 run-name: "RPCS3 MoltenVK cache candidate • ${{ github.sha }}"
 'on':
