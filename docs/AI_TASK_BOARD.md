@@ -690,9 +690,35 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
         of the Metal branch (Xcode 26.3 Core build, MoltenVK dependency run), then M3 (texture cache, readbacks).
     - Not built as a Core; no iPhone run. A full Core build there also needs a MoltenVK dependency run, because the
       bridge changed.
-  - Core 668 (Claude line, orchestrator removed) is parked on `work/rpcs3-core668-no-orchestrator-20261105` (`0197102e`).
-    Its driver passed the increment, absence and absence-control checks; the Core 664 suite was stopped by the
-    maintainer's "drop everything". IPA 669 (with MeloNX Core 667) is on hold until the maintainer says go.
+  - Core 668 (Claude line, orchestrator removed), 6 Nov. The maintainer asks for the next IPA, delivered as a link
+    (the mobile app cannot fetch the file card).
+    - The checkpoint `0197102e` was cherry-picked onto Claude (`be649af3`, no conflict). Spec `d4006410`:
+      - build 668;
+      - canonical `f40b2e2e` (364 postimages);
+      - delta `838ec738`;
+      - host `dd4c525a`; packages/rpcs3_internal_bridge is byte-identical to the Core 664 dependency source `a1da4245`,
+        so it links MoltenVK run `42051417882` again;
+      - the three Core 665 markers are removed;
+      - the Apple reruns are core668 and its codegen audit.
+    - Local checks passed:
+      - the Core 668 driver: increment, absence in the Core and the host, absence control on both trees, then the
+        Core 664 suite down to 627;
+      - the codegen audit (identities unchanged);
+      - the route test, static and with the source closure on upstream `22f1152` + the canonical patch;
+      - the MoltenVK dependency artifact and protocol tests;
+      - the reuse audit.
+    - Pre-existing, unrelated: `neo_swap_core_pin_test` fails because pin `cfe92344` lacks test/rpcs3_restore_eof_test.py;
+      it fails the same on origin/Claude.
+    - Compile request `4111f370`, run `42139167294`, running.
+    - IPA 669 draft `767668c1` (recipient key 669, public half only):
+      - base: the delivered 666;
+      - seven reviewed product commits: MeloNX Core 667 ×4, the AC IV profile, Core 668 source and spec;
+      - must-change images: App, MeloNXCore, libRPCS3Core, rpcs3_internal_bridge, Runner.
+    - Freeze dry-run blockers: only the pending Core 668 pin.
+    - Link: the repository is public, so any GitHub link to the plaintext IPA would publish it, and the delivery
+      workflow is read-only by contract. No storage connector is connected.
+    - Next: pin Core 668, regenerate, freeze, trigger and verify 669. Then deliver it over a private channel (the
+      session file, plus a download page served from this session for the app's preview pane).
 - **Setting applied (Metal M1 turn, 5 Nov):** the same principal model as the Core 664 turn (get_session); effort `max`.
   Delegation: one Explore inventory agent and one rb-research agent, both read-only.
 - **Setting applied (Core 664 turn):** same principal model as the Core 659 turn (get_session:
