@@ -1,0 +1,2023 @@
+diff --git a/rpcs3/Emu/CMakeLists.txt b/rpcs3/Emu/CMakeLists.txt
+index 7e9e459..5679131 100644
+--- a/rpcs3/Emu/CMakeLists.txt
++++ b/rpcs3/Emu/CMakeLists.txt
+@@ -931,6 +931,12 @@ if(RPCS3_FRONTEND STREQUAL "IOS")
+         RSX/Metal/MTLTypelessCopy.cpp
+         RSX/Metal/MTLTypelessCopy.h
+         # M4 end
++        # M5: the program cache on disk and the Metal 4 pipeline archive
++        RSX/Metal/MTLM5Renderer.cpp
++        RSX/Metal/MTLPipelineArchive.cpp
++        RSX/Metal/MTLPipelineArchive.h
++        RSX/Metal/MTLPipelineCache.h
++        # M5 end
+     )
+     set_source_files_properties(RSX/Metal/MTLAPIApple.mm PROPERTIES
+         COMPILE_OPTIONS -fobjc-arc
+diff --git a/rpcs3/Emu/RSX/Metal/MTLAPI.h b/rpcs3/Emu/RSX/Metal/MTLAPI.h
+index 4ea4b7d..ecd7943 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLAPI.h
++++ b/rpcs3/Emu/RSX/Metal/MTLAPI.h
+@@ -12,6 +12,7 @@
+ #include "util/types.hpp"
+ 
+ #include <array>
++#include <atomic>
+ #include <functional>
+ #include <string>
+ #include <string_view>
+@@ -616,6 +617,38 @@ namespace mtl
+ 	void dispatch_threadgroups(const object& encoder, const size3& threadgroups, const size3& threads_per_threadgroup);
+ 	// M4 end
+ 
++	// M5: persistent Metal 4 pipeline binaries (MTLPipelineCache.h). A serializer that captures the binary of every
++	// pipeline its compiler builds (MTL4PipelineDataSetSerializer, configuration CaptureBinaries); empty when Metal
++	// does not create one.
++	object new_pipeline_serializer(const object& device);
++	// The compiler, capturing into `serializer` (MTL4CompilerDescriptor.pipelineDataSetSerializer) when not empty;
++	// then also its uncaptured twin, which pipeline creations use while write_pipeline_archive runs.
++	object new_compiler(const object& device, const object& serializer);
++	// The archive file at `path` (MTL4Archive); empty, with error, when Metal cannot open it.
++	object open_pipeline_archive(const object& device, const std::string& path, std::string& error);
++	// Everything `serializer` captured so far, written as an archive file at `path` (never while a pipeline is being
++	// captured into it: such creations end first, and later ones use the twin meanwhile).
++	bool write_pipeline_archive(const object& serializer, const std::string& path, std::string& error);
++	// The archive that every later render and compute pipeline creation looks up first (MTL4CompilerTaskOptions
++	// lookupArchives); empty for none. A pipeline it does not hold is compiled exactly as without it. Set before the
++	// first pipeline of a session and cleared after the last.
++	void set_pipeline_lookup_archive(const object& archive);
++	// The end of a session's capture (after its last archive write): the capturing compiler and its twin are released.
++	void end_pipeline_capture();
++	// Every pipeline created through new_render_pipeline / new_compute_pipeline is a hit (the lookup archive held its
++	// binary) or a miss (compiled: no archive, or not in it). A creation while the archive is being written never waits:
++	// it uses a twin of the capturing compiler without the serializer (uncaptured: missing from that archive only).
++	struct pipeline_archive_counters
++	{
++		std::atomic<u64> hits{0};
++		std::atomic<u64> misses{0};
++		std::atomic<u64> uncaptured{0};
++	};
++	pipeline_archive_counters& get_pipeline_archive_counters();
++	// The running system's version and build ("Version 26.1 (Build 23B85)"), part of an archive's identity.
++	std::string system_version();
++	// M5 end
++
+ 	// The CAMetalLayer the host attached, and its drawables (Metal 4 presentation through the queue).
+ 	void configure_layer(void* layer, const object& device, pixel_format format, u32 width, u32 height);
+ 	object layer_residency_set(void* layer);
+diff --git a/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm b/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm
+index ec2ecc4..628eeab 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm
++++ b/rpcs3/Emu/RSX/Metal/MTLAPIApple.mm
+@@ -18,6 +18,8 @@
+ #error "MTLAPIApple.mm must be compiled with -fobjc-arc"
+ #endif
+ 
++#include <mutex>
++#include <shared_mutex>
+ #include <utility>
+ 
+ #define RBX_METAL4 API_AVAILABLE(ios(26.0), macos(26.0))
+@@ -626,15 +628,183 @@ namespace mtl
+ 	}
+ 
+ 	RBX_METAL4 object new_compiler(const object& device)
++	{
++		return new_compiler(device, object{});
++	}
++
++	// M5: persistent pipeline binaries (MTLPipelineCache.h)
++	namespace
++	{
++		std::mutex g_lookup_lock;
++		object g_lookup_archive;
++		pipeline_archive_counters g_archive_counters;
++
++		// A serializer is never written while a pipeline is being captured into it (MTL4PipelineDataSetSerializer is not
++		// declared thread-safe): pipeline creations share g_capture, the archive writer takes it exclusively. A creation
++		// that finds the writer at work never waits: it uses the capturing compiler's twin, a compiler of the same device
++		// without the serializer (counted as uncaptured; the next session's boot precompile captures that pipeline).
++		std::shared_mutex g_capture;
++		object g_capturing_compiler;  // guarded by g_lookup_lock
++		object g_twin_compiler;       // guarded by g_lookup_lock
++
++		object lookup_archive()
++		{
++			std::lock_guard lock(g_lookup_lock);
++			return g_lookup_archive;
++		}
++
++		// The compiler a pipeline creation uses, holding the shared capture lock when it is the capturing one.
++		struct capture_guard
++		{
++			std::shared_lock<std::shared_mutex> lock{ g_capture, std::try_to_lock };
++			object compiler;
++
++			explicit capture_guard(const object& requested)
++				: compiler(requested)
++			{
++				if (lock.owns_lock())
++				{
++					return;
++				}
++
++				std::unique_lock twins(g_lookup_lock);
++				if (!g_capturing_compiler || requested.get() != g_capturing_compiler.get())
++				{
++					return;  // a compiler without a serializer: nothing to order
++				}
++
++				if (g_twin_compiler)
++				{
++					compiler = g_twin_compiler;
++					g_archive_counters.uncaptured.fetch_add(1, std::memory_order_relaxed);
++					return;
++				}
++
++				// No twin (its creation failed): the creation waits for the writer rather than race it.
++				twins.unlock();
++				lock.lock();
++			}
++		};
++
++		// The lookup of a pipeline creation: whether the archive holds the binary (counted as a hit, or a miss when
++		// the pipeline is compiled), and the task options handing the archive to the compiler.
++		struct archive_lookup
++		{
++			object archive;
++			bool hit = false;
++
++			void count() const
++			{
++				(hit ? g_archive_counters.hits : g_archive_counters.misses).fetch_add(1, std::memory_order_relaxed);
++			}
++		};
++
++		RBX_METAL4 MTL4CompilerTaskOptions* lookup_options(const archive_lookup& lookup)
++		{
++			if (!lookup.archive)
++			{
++				return nil;
++			}
++
++			MTL4CompilerTaskOptions* options = [[MTL4CompilerTaskOptions alloc] init];
++			options.lookupArchives = @[ as<id<MTL4Archive>>(lookup.archive) ];
++			return options;
++		}
++	}
++
++	RBX_METAL4 object new_pipeline_serializer(const object& device)
++	{
++		@autoreleasepool
++		{
++			MTL4PipelineDataSetSerializerDescriptor* desc = [[MTL4PipelineDataSetSerializerDescriptor alloc] init];
++			desc.configuration = MTL4PipelineDataSetSerializerConfigurationCaptureBinaries;
++			return keep([as<id<MTLDevice>>(device) newPipelineDataSetSerializerWithDescriptor:desc]);
++		}
++	}
++
++	RBX_METAL4 object new_compiler(const object& device, const object& serializer)
+ 	{
+ 		@autoreleasepool
+ 		{
+ 			MTL4CompilerDescriptor* desc = [[MTL4CompilerDescriptor alloc] init];
+ 			NSError* failure = nil;
+-			return keep([as<id<MTLDevice>>(device) newCompilerWithDescriptor:desc error:&failure]);
++			if (!serializer)
++			{
++				return keep([as<id<MTLDevice>>(device) newCompilerWithDescriptor:desc error:&failure]);
++			}
++
++			// The twin first (no serializer), then the capturing compiler.
++			object twin = keep([as<id<MTLDevice>>(device) newCompilerWithDescriptor:desc error:&failure]);
++			desc.pipelineDataSetSerializer = as<id<MTL4PipelineDataSetSerializer>>(serializer);
++			object compiler = keep([as<id<MTLDevice>>(device) newCompilerWithDescriptor:desc error:&failure]);
++
++			std::lock_guard lock(g_lookup_lock);
++			g_capturing_compiler = compiler;
++			g_twin_compiler = std::move(twin);
++			return compiler;
+ 		}
+ 	}
+ 
++	RBX_METAL4 object open_pipeline_archive(const object& device, const std::string& path, std::string& error)
++	{
++		@autoreleasepool
++		{
++			NSURL* url = [NSURL fileURLWithPath:string(path) isDirectory:NO];
++			NSError* failure = nil;
++			const id<MTL4Archive> archive = [as<id<MTLDevice>>(device) newArchiveWithURL:url error:&failure];
++			if (!archive)
++			{
++				error = describe(failure);
++			}
++			return keep(archive);
++		}
++	}
++
++	RBX_METAL4 bool write_pipeline_archive(const object& serializer, const std::string& path, std::string& error)
++	{
++		@autoreleasepool
++		{
++			NSURL* url = [NSURL fileURLWithPath:string(path) isDirectory:NO];
++			NSError* failure = nil;
++			// Every capturing creation in flight ends first; later ones use the twin compiler meanwhile.
++			std::unique_lock capture(g_capture);
++			if (![as<id<MTL4PipelineDataSetSerializer>>(serializer) serializeAsArchiveAndFlushToURL:url error:&failure])
++			{
++				error = describe(failure);
++				return false;
++			}
++			return true;
++		}
++	}
++
++	void set_pipeline_lookup_archive(const object& archive)
++	{
++		std::lock_guard lock(g_lookup_lock);
++		g_lookup_archive = archive;
++	}
++
++	void end_pipeline_capture()
++	{
++		std::lock_guard lock(g_lookup_lock);
++		g_capturing_compiler.reset();
++		g_twin_compiler.reset();
++	}
++
++	pipeline_archive_counters& get_pipeline_archive_counters()
++	{
++		return g_archive_counters;
++	}
++
++	std::string system_version()
++	{
++		@autoreleasepool
++		{
++			const char* text = NSProcessInfo.processInfo.operatingSystemVersionString.UTF8String;
++			return text ? text : "";
++		}
++	}
++	// M5 end
++
+ 	RBX_METAL4 object compile_library(const object& compiler, std::string_view source, const library_options& options, std::string& error)
+ 	{
+ 		@autoreleasepool
+@@ -718,13 +888,27 @@ namespace mtl
+ 				desc.label = string(descriptor.label);
+ 			}
+ 
++			// M5: the archive is probed for the binary (counted as a hit), then handed to the compiler, which builds
++			// the pipeline from it or compiles it (a miss): either way the compiler's serializer captures it.
++			archive_lookup lookup{ lookup_archive() };
++			if (lookup.archive)
++			{
++				NSError* absent = nil;
++				lookup.hit = [as<id<MTL4Archive>>(lookup.archive) newRenderPipelineStateWithDescriptor:desc error:&absent] != nil;
++			}
++
+ 			NSError* failure = nil;
+-			const id<MTLRenderPipelineState> pipeline = [as<id<MTL4Compiler>>(compiler) newRenderPipelineStateWithDescriptor:desc
+-				compilerTaskOptions:nil error:&failure];
++			const capture_guard capture(compiler);
++			const id<MTLRenderPipelineState> pipeline = [as<id<MTL4Compiler>>(capture.compiler) newRenderPipelineStateWithDescriptor:desc
++				compilerTaskOptions:lookup_options(lookup) error:&failure];
+ 			if (!pipeline)
+ 			{
+ 				error = describe(failure);
+ 			}
++			else
++			{
++				lookup.count();
++			}
+ 			return keep(pipeline);
+ 		}
+ 	}
+@@ -982,13 +1166,26 @@ namespace mtl
+ 				desc.label = string(label);
+ 			}
+ 
++			// M5: as new_render_pipeline (the archive probed, then handed to the compiler)
++			archive_lookup lookup{ lookup_archive() };
++			if (lookup.archive)
++			{
++				NSError* absent = nil;
++				lookup.hit = [as<id<MTL4Archive>>(lookup.archive) newComputePipelineStateWithDescriptor:desc error:&absent] != nil;
++			}
++
+ 			NSError* failure = nil;
+-			const id<MTLComputePipelineState> pipeline = [as<id<MTL4Compiler>>(compiler) newComputePipelineStateWithDescriptor:desc
+-				compilerTaskOptions:nil error:&failure];
++			const capture_guard capture(compiler);
++			const id<MTLComputePipelineState> pipeline = [as<id<MTL4Compiler>>(capture.compiler) newComputePipelineStateWithDescriptor:desc
++				compilerTaskOptions:lookup_options(lookup) error:&failure];
+ 			if (!pipeline)
+ 			{
+ 				error = describe(failure);
+ 			}
++			else
++			{
++				lookup.count();
++			}
+ 			return keep(pipeline);
+ 		}
+ 	}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
+index 5d603ca..10a198e 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
++++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.cpp
+@@ -11,6 +11,7 @@
+ #include "Emu/Memory/vm_locking.h"
+ #include "Emu/RSX/Host/MM.h"
+ #include "Emu/RSX/Program/SPIRVCommon.h"
++#include "Emu/RSX/rsx_cache.h"  // M5: the program cache on disk (MTLM5Renderer.cpp)
+ #include "Emu/RSX/RSXOffload.h"
+ #include "Emu/RSX/gcm_enums.h"
+ #include "Emu/RSX/Utils/rsx_utils.h"
+@@ -123,7 +124,8 @@ void MTLGSRender::on_init_thread()
+ 	ensure(m_layer, "The display surface has no CAMetalLayer");
+ 
+ 	m_queue = mtl::new_command_queue(m_device);
+-	m_compiler = mtl::new_compiler(m_device);
++	open_pipeline_archive();  // M5: the title's pipeline binaries, before the compiler that captures into them
++	m_compiler = mtl::new_compiler(m_device, m_pipeline_archive.serializer());
+ 	m_event = mtl::new_shared_event(m_device);
+ 	m_residency = mtl::new_residency_set(m_device, 256);
+ 	ensure(m_queue && m_compiler && m_event && m_residency, "Metal 4 queue, compiler, event or residency set creation failed");
+@@ -252,13 +254,14 @@ void MTLGSRender::on_init_thread()
+ 	environment.caps.has_native_half_support = true;
+ 	environment.fast_math = !g_cfg.video.disable_msl_fast_math;
+ 	mtl::set_pipeline_environment(environment);
+-	// The program cache calls this after every link (allow_notification): the Vulkan renderer stores the program in
+-	// its disk shader cache there. The Metal renderer has no disk cache yet (stage M5), so nothing is stored; the
+-	// callback must exist all the same (an empty std::function would abort the RSX thread on the first pipeline).
++	// The program cache calls this after every link (allow_notification): the program is stored in the disk shader
++	// cache there, as in the Vulkan renderer (M5).
+ 	m_prog_buffer = std::make_unique<mtl::program_cache>(
+-		[](const mtl::pipeline_props&, const RSXVertexProgram&, const RSXFragmentProgram&)
++		[this](const mtl::pipeline_props& props, const RSXVertexProgram& vp, const RSXFragmentProgram& fp)
+ 		{
++			store_program(props, vp, fp);
+ 		});
++	create_program_cache();  // M5
+ 
+ 	// Texture cache (M3.1)
+ 	mtl::set_upload_heap(&m_rings[ring_texture_upload]);
+@@ -284,6 +287,8 @@ void MTLGSRender::on_init_thread()
+ 		m_device_info.name, m_device_info.apple7, m_device_info.apple8, m_device_info.apple9, m_device_info.bc_texture_compression,
+ 		m_device_info.float32_filtering, m_device_info.sampler_lod_bias, m_device_info.unified_memory, m_drawable_width, m_drawable_height, environment.fast_math);
+ 	rsx_log.warning("Metal 4 renderer M3.2/M4: scaled transfers into integer formats or between depth formats and guest-memory loads of scaled surfaces are not executed yet (counted in COREPROF METAL)");
++
++	load_program_cache();  // M5: the programs of earlier sessions, built before the first draw (VKGSRender)
+ }
+ 
+ void MTLGSRender::on_exit()
+@@ -295,6 +300,7 @@ void MTLGSRender::on_exit()
+ 	m_commands.wait_idle();
+ 
+ 	GSRender::on_exit();
++	close_pipeline_caches();  // M5: queued program records, the last pipeline archive checkpoint
+ 
+ 	m_texture_cache.destroy();
+ 	mtl::set_blit_engine(nullptr);
+@@ -567,6 +573,7 @@ void MTLGSRender::submit_frame(const mtl::object& source, u32 display_width, u32
+ 	m_frame_index++;
+ 	fold_queries(false);  // M4: the active query's completed segments (exact, no wait), so its slots are reused
+ 	begin_frame();
++	m_pipeline_archive.tick();  // M5: a due archive checkpoint goes to its worker (never written here)
+ }
+ 
+ void MTLGSRender::flip(const rsx::display_flip_info_t& info)
+@@ -722,6 +729,7 @@ void MTLGSRender::report_counters()
+ 		load(s.memory_loads));
+ 
+ 	report_m4_counters();  // M4
++	report_m5_counters();  // M5
+ }
+ 
+ bool MTLGSRender::wait_for_offloader_recovery(bool is_writing)
+diff --git a/rpcs3/Emu/RSX/Metal/MTLGSRender.h b/rpcs3/Emu/RSX/Metal/MTLGSRender.h
+index 627cced..5fbbff0 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLGSRender.h
++++ b/rpcs3/Emu/RSX/Metal/MTLGSRender.h
+@@ -32,6 +32,7 @@
+ #include "MTLQueries.h"
+ #include "MTLResolve.h"
+ // M4 end
++#include "MTLPipelineArchive.h"  // M5
+ 
+ #include "Utilities/mutex.h"
+ 
+@@ -87,6 +88,13 @@ namespace mtl
+ 	};
+ }
+ 
++// M5: rsx_cache.h (rsx::shaders_cache) is included by the units that use it.
++namespace rsx
++{
++	template <typename pipeline_storage_type, typename backend_storage>
++	class shaders_cache;
++}
++
+ class MTLGSRender : public GSRender, public ::rsx::reports::ZCULL_control
+ {
+ public:
+@@ -376,4 +384,18 @@ private:
+ 	void report_m4_counters();
+ 	void prepare_overlays(const areau& image_area);  // before the presentation pass: the views and their images
+ 	// M4 end
++
++	// M5: the RSX program cache on disk (rsx::shaders_cache, the Vulkan renderer's) and the Metal 4 pipeline binaries
++	// (MTLPipelineCache.h, MTLM5Renderer.cpp)
++	using shader_cache = rsx::shaders_cache<mtl::pipeline_props, mtl::program_cache>;
++	std::unique_ptr<shader_cache> m_shaders_cache;
++	mtl::pipeline_archive m_pipeline_archive;
++	std::string m_metal_cache_directory;  // empty when the on-disk shader cache is off
++	void open_pipeline_archive();     // before the compiler: it captures into the archive's serializer
++	void create_program_cache();      // after the program cache
++	void store_program(const mtl::pipeline_props& props, const RSXVertexProgram& vp, const RSXFragmentProgram& fp);
++	void load_program_cache();        // the boot precompile, before the first draw
++	void close_pipeline_caches();     // on_exit: the queued records, the last archive checkpoint
++	void report_m5_counters();
++	// M5 end
+ };
+diff --git a/rpcs3/Emu/RSX/Metal/MTLM5Renderer.cpp b/rpcs3/Emu/RSX/Metal/MTLM5Renderer.cpp
+new file mode 100644
+index 0000000..9e0b043
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLM5Renderer.cpp
+@@ -0,0 +1,109 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M5): the renderer side of the shader and pipeline caches (MTLPipelineCache.h): the RSX
++// program cache on disk (rsx::shaders_cache, as VKGSRender) with its boot precompile, and the Metal 4 pipeline archive.
++
++#include "stdafx.h"
++#include "MTLGSRender.h"
++
++#include "Emu/RSX/rsx_cache.h"
++#include "Emu/RSX/Overlays/Shaders/shader_loading_dialog_native.h"
++#include "Emu/cache_utils.hpp"
++#include "Emu/system_config.h"
++
++namespace
++{
++	// The title's Metal cache directory (trailing separator); empty when the on-disk shader cache is off.
++	std::string metal_cache_directory()
++	{
++		if (g_cfg.video.disable_on_disk_shader_cache)
++		{
++			return {};
++		}
++
++		std::string path = rpcs3::cache::get_ppu_cache();
++		if (path.empty())
++		{
++			return {};
++		}
++		return path + std::string(mtl::pipeline_cache::program_cache_directory);
++	}
++}
++
++void MTLGSRender::open_pipeline_archive()
++{
++	// Before the compiler exists: the compiler captures into the archive's serializer.
++	mtl::pipeline_cache::archive_identity identity;
++	identity.device = m_device_info.name;
++	identity.system = mtl::system_version();
++	m_metal_cache_directory = metal_cache_directory();
++	m_pipeline_archive.open(m_device, m_metal_cache_directory, identity);
++}
++
++void MTLGSRender::create_program_cache()
++{
++	// VKGSRender: rsx::shaders_cache over the program cache, in Metal's own directory with Metal's record version.
++	m_shaders_cache = std::make_unique<shader_cache>(*m_prog_buffer, std::string(mtl::pipeline_cache::program_cache_class),
++		mtl::pipeline_cache::program_cache_version(sizeof(mtl::pipeline_props)), mtl::pipeline_cache::program_cache_directory);
++}
++
++void MTLGSRender::store_program(const mtl::pipeline_props& props, const RSXVertexProgram& vp, const RSXFragmentProgram& fp)
++{
++	// VKGSRender's program cache callback: the program was linked; the record is written by the cache's writer thread.
++	if (m_shaders_cache)
++	{
++		m_shaders_cache->store(props, vp, fp);
++	}
++}
++
++void MTLGSRender::load_program_cache()
++{
++	// VKGSRender::on_init_thread: every record of earlier sessions is built before the first draw, with the native
++	// interface's progress dialog (or the host's, the frame hidden meanwhile).
++	if (!m_shaders_cache)
++	{
++		return;
++	}
++
++	m_pipeline_archive.begin_boot();
++	mtl::set_pipeline_build_origin(mtl::pipeline_build_origin::boot);
++	if (!m_overlay_manager)
++	{
++		m_frame->hide();
++		m_shaders_cache->load(nullptr);
++		m_frame->show();
++	}
++	else
++	{
++		rsx::shader_loading_dialog_native dlg(this);
++		m_shaders_cache->load(&dlg);
++	}
++	mtl::set_pipeline_build_origin(mtl::pipeline_build_origin::draw);
++
++	// What the boot compiled is checkpointed now, by the worker (the Vulkan renderer's NEOSTATION_BUILD266 checkpoint),
++	// unless the emulation stopped during the precompile.
++	m_pipeline_archive.end_boot(!Emu.IsStopped());
++}
++
++void MTLGSRender::close_pipeline_caches()
++{
++	// VKGSRender::on_exit: every record the draws queued reaches disk; then the last archive checkpoint (no pipeline is
++	// built after this point).
++	if (m_shaders_cache)
++	{
++		m_shaders_cache->flush_pending_writes();
++		m_shaders_cache.reset();
++	}
++	m_pipeline_archive.close();
++}
++
++void MTLGSRender::report_m5_counters()
++{
++	const auto load = [](const std::atomic<u64>& value) { return static_cast<unsigned long long>(value.load(std::memory_order_relaxed)); };
++	const auto& p = mtl::get_pipeline_counters();
++	const auto& a = mtl::get_pipeline_archive_counters();
++	const auto& c = mtl::get_pipeline_cache_counters();
++	rsx_log.notice("COREPROF METAL M5 program_cache=%s boot_pipelines=%llu draw_pipelines=%llu archive=%s archive_hits=%llu archive_misses=%llu "
++		"archive_uncaptured=%llu archive_rejected=%llu checkpoints=%llu checkpoint_bytes=%llu checkpoint_failures=%llu archive_unavailable=%llu",
++		m_metal_cache_directory.empty() ? "off" : "on", load(p.boot_pipelines), load(p.draw_pipelines), m_pipeline_archive.state_name(), load(a.hits), load(a.misses),
++		load(a.uncaptured), load(c.rejections), load(c.checkpoints), load(c.checkpoint_bytes), load(c.checkpoint_failures), load(c.unavailable));
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLPipelineArchive.cpp b/rpcs3/Emu/RSX/Metal/MTLPipelineArchive.cpp
+new file mode 100644
+index 0000000..bdd1c5d
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLPipelineArchive.cpp
+@@ -0,0 +1,393 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M5): the title's Metal 4 pipeline binaries (see MTLPipelineArchive.h, MTLPipelineCache.h).
++
++#include "stdafx.h"
++#include "MTLPipelineArchive.h"
++
++#include "MTLTexture.h"
++
++#include "Utilities/File.h"
++#include "Utilities/Thread.h"
++
++#include <chrono>
++#include <vector>
++
++#include <fcntl.h>
++#include <unistd.h>
++
++namespace mtl
++{
++	namespace
++	{
++		pipeline_cache_counters g_cache_counters{};
++
++		u64 now_us()
++		{
++			return static_cast<u64>(std::chrono::duration_cast<std::chrono::microseconds>(
++				std::chrono::steady_clock::now().time_since_epoch()).count());
++		}
++
++		// The checkpoint's file operations on disk (the unit test fakes the same interface).
++		struct disk_ops final : pipeline_cache::file_ops
++		{
++			const object& serializer;
++
++			explicit disk_ops(const object& value) : serializer(value) {}
++
++			bool read_text(const std::string& path, std::string& text) override
++			{
++				fs::file file(path);
++				if (!file)
++				{
++					return false;
++				}
++				text = file.to_string();
++				return true;
++			}
++
++			bool write_text(const std::string& path, std::string_view text) override
++			{
++				fs::file file(path, fs::rewrite);
++				return file && file.write(text.data(), text.size()) == text.size();
++			}
++
++			bool serialize(const std::string& path) override
++			{
++				std::string error;
++				if (!write_pipeline_archive(serializer, path, error))
++				{
++					log_once("archive-serialize", fmt::format("Metal 4 pipeline archive serialization failed: %s", error));
++					return false;
++				}
++				return true;
++			}
++
++			bool sync(const std::string& path) override
++			{
++				// POSIX directly: a failed sync is a failed checkpoint (counted), never a fatal error.
++				const int fd = ::open(path.c_str(), O_RDONLY);
++				if (fd < 0)
++				{
++					return false;
++				}
++				const bool ok = ::fsync(fd) == 0;
++				::close(fd);
++				return ok;
++			}
++
++			u64 size(const std::string& path) override
++			{
++				fs::stat_t info{};
++				return (fs::get_stat(path, info) && !info.is_directory) ? info.size : 0;
++			}
++
++			bool rename(const std::string& from, const std::string& to) override
++			{
++				return fs::rename(from, to, true);
++			}
++
++			bool remove(const std::string& path) override
++			{
++				return fs::remove_file(path) || !fs::is_file(path);
++			}
++		};
++
++		void reject(const std::string& path, std::string_view why)
++		{
++			g_cache_counters.rejections++;
++			log_once("archive-rejected", fmt::format("Metal 4 pipeline archive %s rejected (%s): removed, rebuilt from this session's pipelines", path, why));
++			fs::remove_file(path);
++		}
++	}
++
++	pipeline_cache_counters& get_pipeline_cache_counters()
++	{
++		return g_cache_counters;
++	}
++
++	pipeline_archive::~pipeline_archive()
++	{
++		close();
++	}
++
++	const char* pipeline_archive::state_name() const
++	{
++		switch (m_state)
++		{
++		case state::off: return "off";
++		case state::unavailable: return "unavailable";
++		case state::fresh: return "fresh";
++		case state::loaded: return "loaded";
++		}
++		return "unknown";
++	}
++
++	void pipeline_archive::open(const object& device, const std::string& directory, const pipeline_cache::archive_identity& identity)
++	{
++		ensure(!m_worker.joinable());
++		m_state = state::off;
++		if (directory.empty())
++		{
++			rsx_log.notice("Metal 4 pipeline archive: off (the on-disk shader cache is disabled or the title has no cache directory)");
++			return;
++		}
++
++		if (!fs::create_path(directory))
++		{
++			g_cache_counters.unavailable++;
++			log_once("archive-directory", fmt::format("Metal 4 pipeline archive: the directory %s cannot be created", directory));
++			return;
++		}
++
++		m_paths = pipeline_cache::make_archive_paths(directory, identity);
++		m_identity_text = pipeline_cache::identity_text(identity);
++		const std::string base = pipeline_cache::archive_base_name(identity);
++
++		// Every archive file of the directory: another identity's is rejected, an interrupted checkpoint's removed.
++		bool archive_exists = false;
++		bool identity_exists = false;
++		std::vector<std::string> stale;
++		for (const auto& entry : fs::dir(directory))
++		{
++			if (entry.is_directory)
++			{
++				continue;
++			}
++
++			switch (pipeline_cache::classify_file(entry.name, base))
++			{
++			case pipeline_cache::file_role::unrelated: break;
++			case pipeline_cache::file_role::current_archive: archive_exists = true; break;
++			case pipeline_cache::file_role::current_identity: identity_exists = true; break;
++			case pipeline_cache::file_role::other_archive: reject(directory + entry.name, "another GPU, system or archive version"); break;
++			case pipeline_cache::file_role::other_identity:
++			case pipeline_cache::file_role::leftover_temp: stale.push_back(directory + entry.name); break;
++			}
++		}
++
++		for (const auto& path : stale)
++		{
++			fs::remove_file(path);
++		}
++
++		std::string identity_on_disk;
++		if (identity_exists)
++		{
++			fs::file file(m_paths.identity);
++			identity_on_disk = file ? file.to_string() : std::string{};
++		}
++
++		switch (pipeline_cache::check_archive(archive_exists, identity_exists, identity_on_disk, m_identity_text))
++		{
++		case pipeline_cache::archive_state::usable:
++		{
++			std::string error;
++			m_archive = open_pipeline_archive(device, m_paths.archive, error);
++			if (!m_archive)
++			{
++				reject(m_paths.archive, fmt::format("Metal cannot open it: %s", error));
++			}
++			break;
++		}
++		case pipeline_cache::archive_state::absent:
++			break;
++		case pipeline_cache::archive_state::no_identity:
++			reject(m_paths.archive, "no identity sidecar");
++			break;
++		case pipeline_cache::archive_state::identity_mismatch:
++			reject(m_paths.archive, "its identity differs");
++			fs::remove_file(m_paths.identity);
++			break;
++		}
++
++		m_serializer = new_pipeline_serializer(device);
++		if (!m_serializer)
++		{
++			// Pipelines still use the loaded archive; nothing new is captured or written.
++			g_cache_counters.unavailable++;
++			log_once("archive-serializer", "Metal 4 pipeline archive: no pipeline data set serializer, pipeline binaries are not saved");
++			m_state = state::unavailable;
++		}
++		else
++		{
++			m_state = m_archive ? state::loaded : state::fresh;
++		}
++
++		set_pipeline_lookup_archive(m_archive);
++		m_checkpoint_misses = get_pipeline_archive_counters().misses.load();
++		m_last_checkpoint_us = now_us();
++		m_forced_pending = false;
++		m_keep_loaded = false;
++
++		if (m_serializer)
++		{
++			m_stop = false;
++			m_request = false;
++			m_busy = false;
++			m_worker = std::thread([this]() { worker_main(); });
++		}
++
++		rsx_log.notice("Metal 4 pipeline archive: %s (%s)", state_name(), m_paths.archive);
++	}
++
++	u64 pipeline_archive::new_pipelines() const
++	{
++		const u64 misses = get_pipeline_archive_counters().misses.load(std::memory_order_relaxed);
++		const u64 base = m_checkpoint_misses.load(std::memory_order_relaxed);
++		return misses > base ? misses - base : 0;
++	}
++
++	void pipeline_archive::begin_boot()
++	{
++		m_boot = true;
++	}
++
++	void pipeline_archive::end_boot(bool completed)
++	{
++		m_boot = false;
++		if (!completed && m_archive)
++		{
++			// The serializer holds only the records rebuilt before the stop: writing it would replace the complete
++			// archive with a part of it.
++			m_keep_loaded = true;
++			rsx_log.notice("Metal 4 pipeline archive: the boot precompile was interrupted, the loaded archive is kept unchanged");
++			return;
++		}
++
++		m_forced_pending = true;
++		tick();
++	}
++
++	void pipeline_archive::tick()
++	{
++		if (!m_worker.joinable() || m_keep_loaded)
++		{
++			return;
++		}
++
++		bool busy;
++		{
++			// Only flags: the worker never holds the lock while it writes.
++			std::lock_guard lock(m_mutex);
++			busy = m_busy || m_request;
++		}
++
++		pipeline_cache::checkpoint_state status;
++		status.now_us = now_us();
++		status.last_us = m_last_checkpoint_us.load(std::memory_order_relaxed);
++		status.new_pipelines = new_pipelines();
++		status.forced = m_forced_pending;
++		status.boot_in_progress = m_boot.load(std::memory_order_relaxed);
++		status.worker_busy = busy;
++
++		const auto reason = pipeline_cache::decide_checkpoint(m_policy, status);
++		if (reason == pipeline_cache::checkpoint_reason::none)
++		{
++			if (!status.new_pipelines)
++			{
++				m_forced_pending = false;  // nothing to force
++			}
++			return;
++		}
++
++		dispatch(reason == pipeline_cache::checkpoint_reason::forced);
++	}
++
++	void pipeline_archive::dispatch(bool forced)
++	{
++		if (forced)
++		{
++			m_forced_pending = false;
++		}
++
++		// The pipelines compiled from here on belong to the next checkpoint (back to this one's if it fails).
++		m_previous_misses = m_checkpoint_misses.load();
++		m_checkpoint_misses = get_pipeline_archive_counters().misses.load();
++		m_last_checkpoint_us = now_us();
++		{
++			std::lock_guard lock(m_mutex);
++			m_request = true;
++		}
++		m_wake.notify_one();
++	}
++
++	void pipeline_archive::worker_main()
++	{
++		thread_ctrl::set_native_priority(-1);
++
++		std::unique_lock lock(m_mutex);
++		while (true)
++		{
++			m_wake.wait(lock, [this]() { return m_request || m_stop; });
++			if (!m_request)
++			{
++				break;
++			}
++
++			m_request = false;
++			m_busy = true;
++			lock.unlock();
++			write();
++			lock.lock();
++			m_busy = false;
++			m_idle.notify_all();
++		}
++	}
++
++	void pipeline_archive::write()
++	{
++		disk_ops ops(m_serializer);
++		const auto result = pipeline_cache::write_checkpoint(ops, m_paths, m_identity_text);
++		if (result.ok())
++		{
++			g_cache_counters.checkpoints++;
++			g_cache_counters.checkpoint_bytes += result.bytes;
++			return;
++		}
++
++		// The pipelines of the failed checkpoint stay new: a later one (rate-limited from now) writes them again.
++		g_cache_counters.checkpoint_failures++;
++		m_checkpoint_misses = m_previous_misses.load();
++		m_last_checkpoint_us = now_us();
++		log_once("archive-checkpoint", fmt::format("Metal 4 pipeline archive checkpoint failed at its %s step: the previous archive stays",
++			pipeline_cache::checkpoint_step_name(result.failed)));
++	}
++
++	void pipeline_archive::close()
++	{
++		if (!m_worker.joinable())
++		{
++			end_pipeline_capture();
++			set_pipeline_lookup_archive({});
++			m_archive.reset();
++			m_serializer.reset();
++			return;
++		}
++
++		// The last checkpoint: after any running one, with everything compiled since it started.
++		{
++			std::unique_lock lock(m_mutex);
++			m_idle.wait(lock, [this]() { return !m_busy && !m_request; });
++		}
++
++		m_boot = false;
++		if (new_pipelines() && !m_keep_loaded)
++		{
++			dispatch(true);
++		}
++
++		{
++			std::unique_lock lock(m_mutex);
++			m_idle.wait(lock, [this]() { return !m_busy && !m_request; });
++			m_stop = true;
++		}
++		m_wake.notify_one();
++		m_worker.join();
++
++		end_pipeline_capture();
++		set_pipeline_lookup_archive({});
++		m_archive.reset();
++		m_serializer.reset();
++		m_state = state::off;
++	}
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLPipelineArchive.h b/rpcs3/Emu/RSX/Metal/MTLPipelineArchive.h
+new file mode 100644
+index 0000000..bb01940
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLPipelineArchive.h
+@@ -0,0 +1,93 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE (M5): the title's Metal 4 pipeline binaries (the rules are MTLPipelineCache.h).
++//
++// open() validates the title's archive (another identity, a missing sidecar or a file Metal cannot open is rejected:
++// counted, removed, rebuilt), hands it to every pipeline creation as a lookup (mtl::set_pipeline_lookup_archive), and
++// creates the serializer the renderer's compiler captures into. tick(), once per frame on the RSX thread, only reads
++// counters and the clock; a due checkpoint goes to the worker thread, which writes the archive atomically. close()
++// writes the last checkpoint and joins the worker (the end of the session). An archive that Metal cannot capture
++// (no serializer) is counted and logged once, and the session runs without one.
++
++#include "MTLAPI.h"
++#include "MTLPipelineCache.h"
++
++#include <atomic>
++#include <condition_variable>
++#include <mutex>
++#include <string>
++#include <thread>
++
++namespace mtl
++{
++	struct pipeline_cache_counters
++	{
++		std::atomic<u64> rejections{0};          // archives (or their sidecars) of another identity, or unusable
++		std::atomic<u64> checkpoints{0};         // archives written
++		std::atomic<u64> checkpoint_bytes{0};
++		std::atomic<u64> checkpoint_failures{0};
++		std::atomic<u64> unavailable{0};         // sessions without a serializer or a cache directory
++	};
++
++	pipeline_cache_counters& get_pipeline_cache_counters();
++
++	class pipeline_archive
++	{
++	public:
++		enum class state : u8
++		{
++			off,          // the on-disk shader cache is disabled, or no title cache directory
++			unavailable,  // Metal created no serializer: nothing captured, nothing written
++			fresh,        // no usable archive: this session's pipelines build a new one
++			loaded,       // the archive is the lookup of every pipeline creation
++		};
++
++		pipeline_archive() = default;
++		pipeline_archive(const pipeline_archive&) = delete;
++		pipeline_archive& operator=(const pipeline_archive&) = delete;
++		~pipeline_archive();
++
++		// `directory` (the title's Metal cache, with a trailing separator) is empty when the cache is off.
++		void open(const object& device, const std::string& directory, const pipeline_cache::archive_identity& identity);
++		const object& serializer() const { return m_serializer; }
++		state get_state() const { return m_state; }
++		const char* state_name() const;
++
++		void begin_boot();  // the boot precompile starts: no checkpoint until end_boot()
++		// The boot precompile ended: a forced checkpoint of what it compiled. An interrupted one (the emulation stopped)
++		// rebuilt only part of the records: a loaded archive is then kept as it is for the whole session.
++		void end_boot(bool completed);
++		void tick();        // RSX thread, once per frame: never blocks, never writes
++		void close();       // the final checkpoint, then the worker stops (blocking)
++
++	private:
++		u64 new_pipelines() const;
++		void dispatch(bool forced);
++		void worker_main();
++		void write();
++
++		state m_state = state::off;
++		object m_serializer;
++		object m_archive;
++		pipeline_cache::archive_paths m_paths;
++		std::string m_identity_text;
++		pipeline_cache::checkpoint_policy m_policy{};
++
++		// The archive misses (compiled pipelines) counted when the last checkpoint started, and before it.
++		std::atomic<u64> m_checkpoint_misses{0};
++		std::atomic<u64> m_previous_misses{0};
++		std::atomic<u64> m_last_checkpoint_us{0};
++		std::atomic<bool> m_boot{false};
++		bool m_keep_loaded = false;     // an interrupted boot over a loaded archive: no checkpoint this session
++		bool m_forced_pending = false;  // RSX thread only
++
++		std::thread m_worker;
++		std::mutex m_mutex;
++		std::condition_variable m_wake;
++		std::condition_variable m_idle;
++		bool m_request = false;   // guarded by m_mutex
++		bool m_busy = false;      // guarded by m_mutex
++		bool m_stop = false;      // guarded by m_mutex
++	};
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLPipelineCache.h b/rpcs3/Emu/RSX/Metal/MTLPipelineCache.h
+new file mode 100644
+index 0000000..a0fd34c
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/MTLPipelineCache.h
+@@ -0,0 +1,353 @@
++// SPDX-License-Identifier: GPL-2.0-only
++#pragma once
++
++// REWINDBOX_METAL_NATIVE (M5): the rules of the Metal renderer's shader and pipeline caches, as pure functions (no
++// Metal, no file system; unit-tested on any host by tests/mtl_m5_unit_test.cpp).
++//
++// Both caches live under the title's cache directory, apart from every Vulkan file:
++//   - the RSX program cache is the Vulkan renderer's model (rsx::shaders_cache): raw RSX vertex and fragment programs
++//     and pipeline_props records, rebuilt into pipelines at boot before the first draw. Metal keeps it in
++//     shaders_cache/metal/ (raw/, pipelines/metal/<version>/). Vulkan uses shaders_cache/raw, shaders_cache/pipelines/
++//     vulkan, shaders_cache/spirv.pack and shaders_cache/vk_pipeline_cache.bin and reads nothing below metal/; Metal
++//     reads and writes nothing outside it. The iOS game library counts and clears shaders_cache/ as a whole.
++//   - the Metal 4 pipeline binaries: an MTL4PipelineDataSetSerializer attached to the compiler captures the binary of
++//     every pipeline it builds; checkpoints write the captured set as an MTL4Archive file, which the next session's
++//     pipeline creations look up first (a pipeline the archive does not hold is compiled as without it). The file name
++//     holds the hash of the archive's identity (format version, GPU, OS version and build) and a sidecar file holds the
++//     identity itself: an archive of another identity, or one without its sidecar, is rejected (counted, removed) and
++//     rebuilt from this session's pipelines.
++// Checkpoints are written by a worker, rate-limited (decide_checkpoint), atomically (write_checkpoint: temporary file,
++// sync, rename), never during the boot precompile (that archive would lack the records not rebuilt yet) and never by
++// the draw path.
++
++#include "util/types.hpp"
++
++#include <string>
++#include <string_view>
++
++namespace mtl::pipeline_cache
++{
++	// -----------------------------------------------------------------------------------------------------------------
++	// The RSX program cache (the rsx::shaders_cache arguments)
++
++	constexpr std::string_view program_cache_directory = "shaders_cache/metal/";  // relative to the title's cache
++	constexpr std::string_view program_cache_class = "metal";                     // pipelines/<class>/<version>/
++	constexpr u32 program_record_version = 1;  // bump when pipeline_props changes meaning without changing size
++
++	// The records' version directory: the record version and the size of pipeline_props (rsx::shaders_cache also
++	// removes records of another size; a new directory never reads old ones at all).
++	inline std::string program_cache_version(usz props_size)
++	{
++		return "v" + std::to_string(program_record_version) + "-p" + std::to_string(props_size);
++	}
++
++	// -----------------------------------------------------------------------------------------------------------------
++	// Archive identity
++
++	constexpr u32 archive_format_version = 1;  // bump to reject every archive written before
++	constexpr std::string_view archive_prefix = "pipelines-";
++	// A Metal binary archive keeps the metallib extension Metal's archives use; a temporary file keeps the final
++	// extension too (".partial" before it), in case the serializer or the loader goes by the extension.
++	constexpr std::string_view archive_extension = ".metallib";
++	constexpr std::string_view identity_extension = ".identity";
++	constexpr std::string_view partial_infix = ".partial";
++
++	struct archive_identity
++	{
++		u32 version = archive_format_version;
++		std::string device;   // MTLDevice name
++		std::string system;   // operating system version and build
++	};
++
++	// One field per line: a line break inside a field cannot forge another field.
++	inline std::string identity_field(std::string_view value)
++	{
++		std::string result(value);
++		for (char& c : result)
++		{
++			if (c == '\n' || c == '\r')
++			{
++				c = ' ';
++			}
++		}
++		return result;
++	}
++
++	// The sidecar's text, compared byte for byte.
++	inline std::string identity_text(const archive_identity& identity)
++	{
++		std::string text = "RPCS3 Metal 4 pipeline archive\n";
++		text += "version=" + std::to_string(identity.version) + "\n";
++		text += "device=" + identity_field(identity.device) + "\n";
++		text += "system=" + identity_field(identity.system) + "\n";
++		return text;
++	}
++
++	constexpr u64 fnv1a64(std::string_view data)
++	{
++		u64 hash = 0xcbf29ce484222325ull;
++		for (const char c : data)
++		{
++			hash ^= static_cast<u8>(c);
++			hash *= 0x100000001b3ull;
++		}
++		return hash;
++	}
++
++	// "pipelines-<16 hex digits of the identity hash>"
++	inline std::string archive_base_name(const archive_identity& identity)
++	{
++		constexpr char digits[] = "0123456789abcdef";
++		const u64 hash = fnv1a64(identity_text(identity));
++		std::string name(archive_prefix);
++		for (int shift = 60; shift >= 0; shift -= 4)
++		{
++			name += digits[(hash >> shift) & 0xf];
++		}
++		return name;
++	}
++
++	struct archive_paths
++	{
++		std::string archive;         // <directory>pipelines-<hash>.metallib
++		std::string archive_temp;    // <directory>pipelines-<hash>.partial.metallib
++		std::string identity;        // <directory>pipelines-<hash>.identity
++		std::string identity_temp;   // <directory>pipelines-<hash>.partial.identity
++	};
++
++	// `directory` ends with a separator.
++	inline archive_paths make_archive_paths(std::string_view directory, const archive_identity& identity)
++	{
++		const std::string base = std::string(directory) + archive_base_name(identity);
++		archive_paths paths;
++		paths.archive = base + std::string(archive_extension);
++		paths.archive_temp = base + std::string(partial_infix) + std::string(archive_extension);
++		paths.identity = base + std::string(identity_extension);
++		paths.identity_temp = base + std::string(partial_infix) + std::string(identity_extension);
++		return paths;
++	}
++
++	// -----------------------------------------------------------------------------------------------------------------
++	// Validation and rejection
++
++	// What a file of the cache directory is to this session.
++	enum class file_role : u8
++	{
++		unrelated,        // not an archive file (the program cache's raw/ and pipelines/, the SPIR-V pack, anything else)
++		current_archive,  // this identity's archive
++		current_identity, // this identity's sidecar
++		other_archive,    // another identity's archive: rejected (counted) and removed
++		other_identity,   // another identity's sidecar: removed with it
++		leftover_temp,    // an interrupted checkpoint's temporary file: removed
++	};
++
++	constexpr bool ends_with(std::string_view text, std::string_view suffix)
++	{
++		return text.size() >= suffix.size() && text.substr(text.size() - suffix.size()) == suffix;
++	}
++
++	constexpr file_role classify_file(std::string_view name, std::string_view base_name)
++	{
++		if (name.substr(0, archive_prefix.size()) != archive_prefix)
++		{
++			return file_role::unrelated;
++		}
++
++		const bool archive = ends_with(name, archive_extension);
++		const bool identity = ends_with(name, identity_extension);
++		if (!archive && !identity)
++		{
++			return file_role::unrelated;
++		}
++
++		const std::string_view stem = name.substr(0, name.size() - (archive ? archive_extension.size() : identity_extension.size()));
++		if (ends_with(stem, partial_infix))
++		{
++			return file_role::leftover_temp;
++		}
++
++		if (stem == base_name)
++		{
++			return archive ? file_role::current_archive : file_role::current_identity;
++		}
++		return archive ? file_role::other_archive : file_role::other_identity;
++	}
++
++	// Whether this identity's archive may be handed to Metal (which may still fail to open it: a rejection too).
++	enum class archive_state : u8
++	{
++		usable,             // archive and sidecar present, the sidecar holds this identity
++		absent,             // no archive: built from this session's pipelines (not a rejection)
++		no_identity,        // an archive without its sidecar: rejected
++		identity_mismatch,  // a sidecar that does not hold this identity (damaged, or a hash collision): rejected
++	};
++
++	constexpr archive_state check_archive(bool archive_exists, bool identity_exists, std::string_view identity_on_disk, std::string_view expected)
++	{
++		if (!archive_exists)
++		{
++			return archive_state::absent;
++		}
++		if (!identity_exists)
++		{
++			return archive_state::no_identity;
++		}
++		return identity_on_disk == expected ? archive_state::usable : archive_state::identity_mismatch;
++	}
++
++	// -----------------------------------------------------------------------------------------------------------------
++	// Checkpoint rate limit
++
++	struct checkpoint_policy
++	{
++		u64 interval_us = 180'000'000;     // a trickle of new pipelines is written within this time
++		u64 burst = 64;                    // or as soon as this many are new
++		u64 min_spacing_us = 15'000'000;   // never two checkpoints closer than this (a compile storm)
++	};
++
++	enum class checkpoint_reason : u8
++	{
++		none,
++		interval,
++		burst,
++		forced,   // the end of the boot precompile, the end of the session
++	};
++
++	struct checkpoint_state
++	{
++		u64 now_us = 0;
++		u64 last_us = 0;            // the last checkpoint's start, or the session's
++		u64 new_pipelines = 0;      // compiled (not from the archive) since the last checkpoint started
++		bool forced = false;
++		bool boot_in_progress = false;
++		bool worker_busy = false;
++	};
++
++	constexpr checkpoint_reason decide_checkpoint(const checkpoint_policy& policy, const checkpoint_state& state)
++	{
++		// Nothing new: the archive on disk already holds every pipeline of this session (or there are none).
++		if (!state.new_pipelines || state.worker_busy)
++		{
++			return checkpoint_reason::none;
++		}
++
++		if (state.forced)
++		{
++			return checkpoint_reason::forced;
++		}
++
++		if (state.boot_in_progress)
++		{
++			return checkpoint_reason::none;
++		}
++
++		const u64 elapsed = state.now_us >= state.last_us ? state.now_us - state.last_us : 0;
++		if (elapsed < policy.min_spacing_us)
++		{
++			return checkpoint_reason::none;
++		}
++
++		if (state.new_pipelines >= policy.burst)
++		{
++			return checkpoint_reason::burst;
++		}
++
++		return elapsed >= policy.interval_us ? checkpoint_reason::interval : checkpoint_reason::none;
++	}
++
++	// -----------------------------------------------------------------------------------------------------------------
++	// The atomic checkpoint sequence, through its file operations (the seam the unit test fakes)
++
++	struct file_ops
++	{
++		virtual ~file_ops() = default;
++		virtual bool read_text(const std::string& path, std::string& text) = 0;        // false when absent
++		virtual bool write_text(const std::string& path, std::string_view text) = 0;   // creates or truncates
++		virtual bool serialize(const std::string& path) = 0;                          // the serializer writes the archive
++		virtual bool sync(const std::string& path) = 0;                               // the data on storage
++		virtual u64 size(const std::string& path) = 0;                                // 0 when absent
++		virtual bool rename(const std::string& from, const std::string& to) = 0;      // atomic replace
++		virtual bool remove(const std::string& path) = 0;                             // true when absent afterwards
++	};
++
++	enum class checkpoint_step : u8
++	{
++		done,
++		identity_write,
++		identity_rename,
++		serialize,
++		sync,
++		empty,
++		rename,
++	};
++
++	struct checkpoint_result
++	{
++		checkpoint_step failed = checkpoint_step::done;
++		u64 bytes = 0;
++
++		bool ok() const { return failed == checkpoint_step::done; }
++	};
++
++	// 1. The sidecar, unless it holds this identity already: temporary file, sync, rename.
++	// 2. The archive: a leftover temporary file is removed, the serializer writes a new one, sync, it must not be empty,
++	//    rename over the archive. On any failure the temporary file is removed and the archive on disk stays the
++	//    previous complete one; a crash at any point leaves either the previous or the new archive, never a partial one.
++	inline checkpoint_result write_checkpoint(file_ops& ops, const archive_paths& paths, std::string_view identity)
++	{
++		const auto fail = [&](checkpoint_step step, const std::string& temp)
++		{
++			ops.remove(temp);
++			return checkpoint_result{ step, 0 };
++		};
++
++		std::string current;
++		if (!ops.read_text(paths.identity, current) || current != identity)
++		{
++			if (!ops.write_text(paths.identity_temp, identity) || !ops.sync(paths.identity_temp))
++			{
++				return fail(checkpoint_step::identity_write, paths.identity_temp);
++			}
++			if (!ops.rename(paths.identity_temp, paths.identity))
++			{
++				return fail(checkpoint_step::identity_rename, paths.identity_temp);
++			}
++		}
++
++		ops.remove(paths.archive_temp);
++		if (!ops.serialize(paths.archive_temp))
++		{
++			return fail(checkpoint_step::serialize, paths.archive_temp);
++		}
++		if (!ops.sync(paths.archive_temp))
++		{
++			return fail(checkpoint_step::sync, paths.archive_temp);
++		}
++
++		const u64 bytes = ops.size(paths.archive_temp);
++		if (!bytes)
++		{
++			return fail(checkpoint_step::empty, paths.archive_temp);
++		}
++		if (!ops.rename(paths.archive_temp, paths.archive))
++		{
++			return fail(checkpoint_step::rename, paths.archive_temp);
++		}
++		return { checkpoint_step::done, bytes };
++	}
++
++	constexpr const char* checkpoint_step_name(checkpoint_step step)
++	{
++		switch (step)
++		{
++		case checkpoint_step::done: return "done";
++		case checkpoint_step::identity_write: return "identity write";
++		case checkpoint_step::identity_rename: return "identity rename";
++		case checkpoint_step::serialize: return "serialization";
++		case checkpoint_step::sync: return "sync";
++		case checkpoint_step::empty: return "empty archive";
++		case checkpoint_step::rename: return "rename";
++		}
++		return "unknown";
++	}
++}
+diff --git a/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.cpp b/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.cpp
+index cf2909c..e0144d4 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.cpp
++++ b/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.cpp
+@@ -10,6 +10,7 @@ namespace mtl
+ 	{
+ 		pipeline_environment g_environment{};
+ 		pipeline_counters g_counters{};
++		std::atomic<pipeline_build_origin> g_build_origin{ pipeline_build_origin::draw };  // M5
+ 
+ 		u32 find_slot(const std::vector<resource_slot>& slots, u32 location, u32 resource_slot::*member)
+ 		{
+@@ -39,6 +40,11 @@ namespace mtl
+ 		return g_counters;
+ 	}
+ 
++	void set_pipeline_build_origin(pipeline_build_origin origin)
++	{
++		g_build_origin.store(origin, std::memory_order_relaxed);  // M5
++	}
++
+ 	u32 program::vertex_buffer_slot(u32 location) const { return find_slot(vertex_slots, location, &resource_slot::buffer); }
+ 	u32 program::vertex_texture_slot(u32 location) const { return find_slot(vertex_slots, location, &resource_slot::texture); }
+ 	u32 program::vertex_sampler_slot(u32 location) const { return find_slot(vertex_slots, location, &resource_slot::sampler); }
+@@ -222,6 +228,8 @@ namespace mtl
+ 			if (result->pipeline)
+ 			{
+ 				g_counters.pipelines++;
++				// M5
++				(g_build_origin.load(std::memory_order_relaxed) == pipeline_build_origin::boot ? g_counters.boot_pipelines : g_counters.draw_pipelines)++;
+ 			}
+ 			else
+ 			{
+diff --git a/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.h b/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.h
+index 449947b..6c61986 100644
+--- a/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.h
++++ b/rpcs3/Emu/RSX/Metal/MTLProgramBuffer.h
+@@ -46,10 +46,21 @@ namespace mtl
+ 		std::atomic<u64> library_failures{0};
+ 		std::atomic<u64> pipelines{0};
+ 		std::atomic<u64> pipeline_failures{0};
++		// M5: pipelines built by the boot precompile of the program cache, and by draws (cache misses)
++		std::atomic<u64> boot_pipelines{0};
++		std::atomic<u64> draw_pipelines{0};
+ 	};
+ 
+ 	pipeline_counters& get_pipeline_counters();
+ 
++	// M5: who builds the pipelines now (the boot precompile runs on the RSX thread before the first draw).
++	enum class pipeline_build_origin : u8
++	{
++		draw,
++		boot,
++	};
++	void set_pipeline_build_origin(pipeline_build_origin origin);
++
+ 	// A linked program: the render pipeline state for one key, with both stages' argument-table slots.
+ 	class program
+ 	{
+@@ -116,5 +127,19 @@ namespace mtl
+ 		{
+ 			return m_cache_miss_flag;
+ 		}
++
++		// M5: the rsx::shaders_cache backend (VKProgramBuffer.h): a record's programs, then its pipeline, built without
++		// a disk notification (the record exists already).
++		void preload_programs(rsx::program_cache_hint_t* cache_hint, const RSXVertexProgram& vp, const RSXFragmentProgram& fp)
++		{
++			search_vertex_program(cache_hint, vp);
++			search_fragment_program(cache_hint, fp);
++		}
++
++		void add_pipeline_entry(const RSXVertexProgram& vp, const RSXFragmentProgram& fp, mtl::pipeline_props& props)
++		{
++			get_graphics_pipeline(nullptr, vp, fp, props, false, false);
++		}
++		// M5 end
+ 	};
+ }
+diff --git a/rpcs3/Emu/RSX/Metal/tests/mtl_m5_unit_test.cpp b/rpcs3/Emu/RSX/Metal/tests/mtl_m5_unit_test.cpp
+new file mode 100644
+index 0000000..3383ad1
+--- /dev/null
++++ b/rpcs3/Emu/RSX/Metal/tests/mtl_m5_unit_test.cpp
+@@ -0,0 +1,498 @@
++// SPDX-License-Identifier: GPL-2.0-only
++// REWINDBOX_METAL_NATIVE (M5): host unit test of the Metal renderer's shader and pipeline cache rules
++// (MTLPipelineCache.h):
++//   - cache keys: the program cache's directory and record version, apart from every Vulkan cache file, and the
++//     archive's name from its identity;
++//   - versioning and rejection: the identity sidecar, the classification of the directory's files, check_archive;
++//   - the checkpoint rate limit, rule by rule and over a simulated session;
++//   - the atomic checkpoint sequence through its file-operation seam: an in-memory file system that records every
++//     operation and fails the one it is told to.
++// Pure logic: no Metal, g++ or clang++.
++//
++//   S=<rpcs3 source root>
++//   c++ -std=gnu++20 -Wall -I "$S/rpcs3" -I "$S" -I "$S/rpcs3/Emu" -I "$S/3rdparty"
++//       "$S/rpcs3/Emu/RSX/Metal/tests/mtl_m5_unit_test.cpp" -o mtl_m5_unit_test
++//   ./mtl_m5_unit_test
++
++#include "Emu/RSX/Metal/MTLPipelineCache.h"
++#include "Emu/RSX/Metal/MTLPipelineState.h"
++
++#include <cstdio>
++#include <map>
++#include <string>
++#include <vector>
++
++namespace
++{
++	int g_failures = 0;
++	int g_checks = 0;
++
++	void check(bool condition, const char* what)
++	{
++		g_checks++;
++		if (!condition)
++		{
++			g_failures++;
++			std::fprintf(stderr, "FAIL: %s\n", what);
++		}
++	}
++
++	bool starts_with(const std::string& text, const std::string& prefix)
++	{
++		return text.compare(0, prefix.size(), prefix) == 0;
++	}
++
++	using namespace mtl::pipeline_cache;
++
++	// ------------------------------------------------------------------------------------------------------------------
++	void test_program_cache_keys()
++	{
++		const std::string version = program_cache_version(sizeof(mtl::pipeline_props));
++		check(version == "v1-p52", "record version: v<record version>-p<sizeof(pipeline_props)>");
++		check(program_cache_version(56) != version, "another pipeline_props size is another version directory");
++
++		// The rsx::shaders_cache layout (rsx_cache.h): <root>raw/<hash>.vp|fp, <root>/pipelines/<class>/<version>/,
++		// <root>spirv.pack; the Vulkan device's pipeline cache beside them.
++		const std::string metal_root(program_cache_directory);
++		check(metal_root == "shaders_cache/metal/", "Metal's program cache root");
++		const std::vector<std::string> metal_paths = {
++			metal_root + "raw/0123ABCD.vp",
++			metal_root + "/pipelines/" + std::string(program_cache_class) + "/" + version + "/A+B+C+D.bin",
++			metal_root + "spirv.pack",
++			metal_root + "pipelines-0123456789abcdef.metallib",
++		};
++		const std::vector<std::string> vulkan_paths = {
++			"shaders_cache/raw/0123ABCD.vp",
++			"shaders_cache//pipelines/vulkan/v1.95/A+B+C+D.bin",
++			"shaders_cache//pipelines/opengl/v1.95/A+B+C+D.bin",
++			"shaders_cache/spirv.pack",
++			"shaders_cache/vk_pipeline_cache.bin",
++		};
++
++		for (const auto& vk : vulkan_paths)
++		{
++			check(!starts_with(vk, metal_root), "no Vulkan or OpenGL cache file is below Metal's root");
++			for (const auto& metal : metal_paths)
++			{
++				check(vk != metal, "no Metal cache file is a Vulkan one");
++			}
++		}
++
++		for (const auto& metal : metal_paths)
++		{
++			check(starts_with(metal, metal_root), "every Metal cache file is below Metal's root");
++		}
++
++		// Vulkan's directories under shaders_cache/ (raw, pipelines) cannot be Metal's: Metal's are one level down.
++		check(!starts_with(metal_root + "raw/", "shaders_cache/raw/") && !starts_with(metal_root + "/pipelines/", "shaders_cache//pipelines/"),
++			"Metal's raw and pipelines directories are not Vulkan's");
++		check(std::string(program_cache_class) != "vulkan" && std::string(program_cache_class) != "opengl", "Metal's pipeline class");
++	}
++
++	// ------------------------------------------------------------------------------------------------------------------
++	void test_identity()
++	{
++		check(fnv1a64("") == 0xcbf29ce484222325ull && fnv1a64("a") == 0xaf63dc4c8601ec8cull, "FNV-1a 64 reference values");
++
++		archive_identity a;
++		a.device = "Apple A17 Pro GPU";
++		a.system = "Version 26.1 (Build 23B85)";
++		check(a.version == archive_format_version, "the identity carries the archive format version");
++		check(identity_text(a) == "RPCS3 Metal 4 pipeline archive\nversion=1\ndevice=Apple A17 Pro GPU\nsystem=Version 26.1 (Build 23B85)\n",
++			"sidecar text: one field per line");
++
++		const std::string base = archive_base_name(a);
++		bool hex = base.size() == archive_prefix.size() + 16 && starts_with(base, std::string(archive_prefix));
++		for (usz i = archive_prefix.size(); hex && i < base.size(); ++i)
++		{
++			hex = (base[i] >= '0' && base[i] <= '9') || (base[i] >= 'a' && base[i] <= 'f');
++		}
++		check(hex, "archive name: pipelines- and 16 lower-case hex digits");
++		check(archive_base_name(a) == base, "the name is deterministic");
++
++		archive_identity other_gpu = a;
++		other_gpu.device = "Apple A18 Pro GPU";
++		archive_identity other_build = a;
++		other_build.system = "Version 26.1 (Build 23B86)";
++		archive_identity other_version = a;
++		other_version.version = archive_format_version + 1;
++		check(archive_base_name(other_gpu) != base, "another GPU is another archive");
++		check(archive_base_name(other_build) != base, "another OS build is another archive");
++		check(archive_base_name(other_version) != base, "another format version is another archive");
++		check(identity_text(other_gpu) != identity_text(a) && identity_text(other_build) != identity_text(a) &&
++			identity_text(other_version) != identity_text(a), "and another sidecar text");
++
++		// A field cannot forge another one.
++		archive_identity forged = a;
++		forged.device = "X\nsystem=Version 26.1 (Build 23B85)";
++		const std::string forged_text = identity_text(forged);
++		usz lines = 0;
++		for (const char c : forged_text)
++		{
++			lines += c == '\n';
++		}
++		check(lines == 4 && forged_text.find("device=X system=") != std::string::npos, "line breaks inside a field are spaces");
++
++		const auto paths = make_archive_paths("/cache/BLUS00000/shaders_cache/metal/", a);
++		check(paths.archive == "/cache/BLUS00000/shaders_cache/metal/" + base + ".metallib", "archive path");
++		check(paths.archive_temp == "/cache/BLUS00000/shaders_cache/metal/" + base + ".partial.metallib", "archive temporary path (same extension)");
++		check(paths.identity == "/cache/BLUS00000/shaders_cache/metal/" + base + ".identity", "sidecar path");
++		check(paths.identity_temp == "/cache/BLUS00000/shaders_cache/metal/" + base + ".partial.identity", "sidecar temporary path");
++	}
++
++	// ------------------------------------------------------------------------------------------------------------------
++	void test_rejection_rules()
++	{
++		archive_identity a;
++		a.device = "Apple M4 GPU";
++		a.system = "Version 26.0 (Build 25A354)";
++		archive_identity b = a;
++		b.system = "Version 26.1 (Build 25B78)";
++		const std::string base = archive_base_name(a);
++		const std::string other = archive_base_name(b);
++
++		check(classify_file(base + ".metallib", base) == file_role::current_archive, "this identity's archive");
++		check(classify_file(base + ".identity", base) == file_role::current_identity, "this identity's sidecar");
++		check(classify_file(other + ".metallib", base) == file_role::other_archive, "another identity's archive is rejected");
++		check(classify_file(other + ".identity", base) == file_role::other_identity, "another identity's sidecar is removed");
++		check(classify_file(base + ".partial.metallib", base) == file_role::leftover_temp, "an interrupted archive write");
++		check(classify_file(other + ".partial.identity", base) == file_role::leftover_temp, "an interrupted sidecar write");
++		check(classify_file(make_archive_paths("", a).archive_temp, base) == file_role::leftover_temp &&
++			classify_file(make_archive_paths("", a).identity_temp, base) == file_role::leftover_temp, "the temporary names are recognised");
++		for (const char* name : { "raw", "pipelines", "spirv.pack", "vk_pipeline_cache.bin", "pipelines-notes.txt", "pipelines-x.tmp",
++			"xpipelines-0123456789abcdef.metallib", "pipelines", "" })
++		{
++			check(classify_file(name, base) == file_role::unrelated, "the program cache's files and anything else are left alone");
++		}
++
++		const std::string expected = identity_text(a);
++		check(check_archive(false, false, "", expected) == archive_state::absent, "no archive: built this session (not a rejection)");
++		check(check_archive(false, true, expected, expected) == archive_state::absent, "a sidecar alone: no archive");
++		check(check_archive(true, false, "", expected) == archive_state::no_identity, "an archive without its sidecar is rejected");
++		check(check_archive(true, true, expected, expected) == archive_state::usable, "matching identity: usable");
++		check(check_archive(true, true, identity_text(b), expected) == archive_state::identity_mismatch, "another identity is rejected");
++		check(check_archive(true, true, expected.substr(0, expected.size() - 1), expected) == archive_state::identity_mismatch,
++			"a truncated sidecar is rejected");
++		check(check_archive(true, true, "", expected) == archive_state::identity_mismatch, "an empty sidecar is rejected");
++	}
++
++	// ------------------------------------------------------------------------------------------------------------------
++	void test_rate_limit()
++	{
++		const checkpoint_policy policy{};
++		check(policy.interval_us == 180'000'000 && policy.burst == 64 && policy.min_spacing_us == 15'000'000, "default policy");
++
++		const auto decide = [&](u64 now_s, u64 last_s, u64 fresh, bool forced = false, bool boot = false, bool busy = false)
++		{
++			checkpoint_state state;
++			state.now_us = now_s * 1'000'000;
++			state.last_us = last_s * 1'000'000;
++			state.new_pipelines = fresh;
++			state.forced = forced;
++			state.boot_in_progress = boot;
++			state.worker_busy = busy;
++			return decide_checkpoint(policy, state);
++		};
++
++		check(decide(1000, 0, 0) == checkpoint_reason::none, "nothing new: no checkpoint");
++		check(decide(1000, 0, 0, true) == checkpoint_reason::none, "nothing new: not even forced");
++		check(decide(1000, 999, 1, true) == checkpoint_reason::forced, "forced ignores the spacing");
++		check(decide(1000, 999, 1, true, true) == checkpoint_reason::forced, "forced at the end of the boot");
++		check(decide(1000, 0, 1000, false, true) == checkpoint_reason::none, "never during the boot precompile");
++		check(decide(1000, 0, 1000, true, false, true) == checkpoint_reason::none, "never while the worker writes (kept pending)");
++		check(decide(1000, 0, 1000, false, false, true) == checkpoint_reason::none, "never while the worker writes");
++		check(decide(110, 100, 1000) == checkpoint_reason::none, "a burst waits for the spacing");
++		check(decide(115, 100, 64) == checkpoint_reason::burst, "a burst after the spacing");
++		check(decide(115, 100, 63) == checkpoint_reason::none, "below the burst size");
++		check(decide(279, 100, 1) == checkpoint_reason::none, "a trickle waits for the interval");
++		check(decide(280, 100, 1) == checkpoint_reason::interval, "a trickle after the interval");
++		check(decide(100, 200, 1000) == checkpoint_reason::none, "a clock going back never triggers");
++
++		// A session: 20 minutes of frames (16 ms); compile storms and trickles; the runtime's dispatch resets the count
++		// and the time at each checkpoint (MTLPipelineArchive.cpp).
++		const u64 frame_us = 16'000;
++		const u64 end_us = 20ull * 60 * 1'000'000;
++		std::vector<u64> compiled_at;    // pending pipelines' compile times
++		u64 last_us = 0;
++		u64 checkpoints = 0;
++		u64 closest_us = ~0ull;
++		u64 worst_latency_us = 0;
++		u64 previous_checkpoint_us = 0;
++		bool any_checkpoint = false;
++		for (u64 now = 0; now < end_us; now += frame_us)
++		{
++			// One pipeline a frame for the first 3 s, then one every 7 s, and a storm of 200 at minute 10.
++			if (now < 3'000'000)
++			{
++				compiled_at.push_back(now);
++			}
++			if (now >= 3'000'000 && (now % 7'000'000) < frame_us)
++			{
++				compiled_at.push_back(now);
++			}
++			if (now >= 600'000'000 && now < 600'000'000 + 200 * frame_us)
++			{
++				compiled_at.push_back(now);
++			}
++
++			checkpoint_state state;
++			state.now_us = now;
++			state.last_us = last_us;
++			state.new_pipelines = compiled_at.size();
++			if (decide_checkpoint(policy, state) != checkpoint_reason::none)
++			{
++				for (const u64 at : compiled_at)
++				{
++					worst_latency_us = std::max(worst_latency_us, now - at);
++				}
++				compiled_at.clear();
++				if (any_checkpoint)
++				{
++					closest_us = std::min(closest_us, now - previous_checkpoint_us);
++				}
++				previous_checkpoint_us = now;
++				any_checkpoint = true;
++				last_us = now;
++				checkpoints++;
++			}
++		}
++
++		check(checkpoints >= 6 && checkpoints <= 12, "a 20-minute session writes a handful of checkpoints");
++		check(closest_us >= policy.min_spacing_us, "no two checkpoints closer than the spacing");
++		check(worst_latency_us <= policy.interval_us + frame_us, "every pipeline is written within the interval (and a frame)");
++	}
++
++	// ------------------------------------------------------------------------------------------------------------------
++	// An in-memory file system behind the seam: it records every operation and fails the one it is told to.
++	struct fake_files : file_ops
++	{
++		std::map<std::string, std::string> files;
++		std::vector<std::string> log;
++		std::string fail;                 // "<operation> <path>" to fail
++		std::string archive_content = "MTL4ARCHIVE#2";
++
++		bool failing(const std::string& op, const std::string& path)
++		{
++			log.push_back(op + " " + path);
++			return fail == op + " " + path;
++		}
++
++		bool read_text(const std::string& path, std::string& text) override
++		{
++			if (failing("read", path) || !files.count(path))
++			{
++				return false;
++			}
++			text = files[path];
++			return true;
++		}
++
++		bool write_text(const std::string& path, std::string_view text) override
++		{
++			if (failing("write", path))
++			{
++				files[path] = "PARTIAL";  // a failed write may leave a partial file behind
++				return false;
++			}
++			files[path] = std::string(text);
++			return true;
++		}
++
++		bool serialize(const std::string& path) override
++		{
++			if (failing("serialize", path))
++			{
++				files[path] = "PARTIAL";
++				return false;
++			}
++			files[path] = archive_content;
++			return true;
++		}
++
++		bool sync(const std::string& path) override
++		{
++			return !failing("sync", path) && files.count(path);
++		}
++
++		u64 size(const std::string& path) override
++		{
++			log.push_back("size " + path);
++			return files.count(path) ? files[path].size() : 0;
++		}
++
++		bool rename(const std::string& from, const std::string& to) override
++		{
++			if (failing("rename", from) || !files.count(from))
++			{
++				return false;
++			}
++			files[to] = files[from];
++			files.erase(from);
++			return true;
++		}
++
++		bool remove(const std::string& path) override
++		{
++			log.push_back("remove " + path);
++			files.erase(path);
++			return true;
++		}
++	};
++
++	bool no_temporaries(const fake_files& fs)
++	{
++		for (const auto& [path, data] : fs.files)
++		{
++			if (path.find(".partial.") != std::string::npos)
++			{
++				return false;
++			}
++		}
++		return true;
++	}
++
++	void test_checkpoint_sequence()
++	{
++		archive_identity identity;
++		identity.device = "Apple A17 Pro GPU";
++		identity.system = "Version 26.1 (Build 23B85)";
++		const std::string text = identity_text(identity);
++		const auto paths = make_archive_paths("/c/", identity);
++
++		// A first checkpoint: sidecar, then archive, each through a temporary file, sync and rename.
++		{
++			fake_files fs;
++			const auto result = write_checkpoint(fs, paths, text);
++			check(result.ok() && result.bytes == fs.archive_content.size(), "first checkpoint written, its size reported");
++			check(fs.files[paths.archive] == fs.archive_content && fs.files[paths.identity] == text, "archive and sidecar in place");
++			check(no_temporaries(fs), "no temporary file left");
++			const std::vector<std::string> expected = {
++				"read " + paths.identity,
++				"write " + paths.identity_temp,
++				"sync " + paths.identity_temp,
++				"rename " + paths.identity_temp,
++				"remove " + paths.archive_temp,
++				"serialize " + paths.archive_temp,
++				"sync " + paths.archive_temp,
++				"size " + paths.archive_temp,
++				"rename " + paths.archive_temp,
++			};
++			check(fs.log == expected, "the exact sequence: sidecar (temp, sync, rename), archive (clear temp, serialize, sync, size, rename)");
++		}
++
++		// A later checkpoint: the sidecar holds the identity already, only the archive is replaced.
++		{
++			fake_files fs;
++			fs.files[paths.identity] = text;
++			fs.files[paths.archive] = "MTL4ARCHIVE#1";
++			const auto result = write_checkpoint(fs, paths, text);
++			check(result.ok() && fs.files[paths.archive] == "MTL4ARCHIVE#2", "the archive is replaced");
++			check(fs.log.size() == 6 && fs.log[0] == "read " + paths.identity && fs.log[1] == "remove " + paths.archive_temp,
++				"no sidecar write when it holds the identity");
++		}
++
++		// A sidecar of another identity (or damaged) is rewritten.
++		{
++			fake_files fs;
++			fs.files[paths.identity] = "damaged";
++			check(write_checkpoint(fs, paths, text).ok() && fs.files[paths.identity] == text, "a damaged sidecar is rewritten");
++		}
++
++		// Every failure leaves the previous archive untouched and no temporary file.
++		struct failure_case
++		{
++			std::string fail;
++			checkpoint_step step;
++			bool sidecar_written;
++		};
++		const std::vector<failure_case> failures = {
++			{ "write " + paths.identity_temp, checkpoint_step::identity_write, false },
++			{ "sync " + paths.identity_temp, checkpoint_step::identity_write, false },
++			{ "rename " + paths.identity_temp, checkpoint_step::identity_rename, false },
++			{ "serialize " + paths.archive_temp, checkpoint_step::serialize, true },
++			{ "sync " + paths.archive_temp, checkpoint_step::sync, true },
++			{ "rename " + paths.archive_temp, checkpoint_step::rename, true },
++		};
++		for (const auto& test : failures)
++		{
++			fake_files fs;
++			fs.files[paths.identity] = "an older sidecar";
++			fs.files[paths.archive] = "MTL4ARCHIVE#1";
++			fs.fail = test.fail;
++			const auto result = write_checkpoint(fs, paths, text);
++			check(!result.ok() && result.failed == test.step && !result.bytes, "the failing step is reported");
++			check(fs.files[paths.archive] == "MTL4ARCHIVE#1", "the previous archive stays");
++			check(no_temporaries(fs), "the temporary file is removed");
++			check((fs.files[paths.identity] == text) == test.sidecar_written, "the sidecar is replaced only by its own complete rename");
++		}
++
++		// An empty archive is never published.
++		{
++			fake_files fs;
++			fs.files[paths.identity] = text;
++			fs.files[paths.archive] = "MTL4ARCHIVE#1";
++			fs.archive_content.clear();
++			const auto result = write_checkpoint(fs, paths, text);
++			check(result.failed == checkpoint_step::empty && fs.files[paths.archive] == "MTL4ARCHIVE#1" && no_temporaries(fs),
++				"an empty serialization is refused");
++		}
++
++		// The temporary file of a checkpoint a crash interrupted is cleared before the serializer writes.
++		{
++			fake_files fs;
++			fs.files[paths.identity] = text;
++			fs.files[paths.archive_temp] = "STALE";
++			check(write_checkpoint(fs, paths, text).ok() && fs.files[paths.archive] == "MTL4ARCHIVE#2" && no_temporaries(fs),
++				"a stale temporary file never becomes the archive");
++		}
++
++		// A crash between any two operations leaves the previous or the new archive, never a partial one.
++		{
++			fake_files reference;
++			reference.files[paths.identity] = text;
++			reference.files[paths.archive] = "MTL4ARCHIVE#1";
++			write_checkpoint(reference, paths, text);
++			for (usz crash_after = 0; crash_after <= reference.log.size(); ++crash_after)
++			{
++				struct crashing final : fake_files
++				{
++					usz budget = 0;
++					bool alive() { return budget ? (budget--, true) : false; }
++					bool read_text(const std::string& p, std::string& t) override { return alive() && fake_files::read_text(p, t); }
++					bool write_text(const std::string& p, std::string_view t) override { return alive() && fake_files::write_text(p, t); }
++					bool serialize(const std::string& p) override { return alive() && fake_files::serialize(p); }
++					bool sync(const std::string& p) override { return alive() && fake_files::sync(p); }
++					u64 size(const std::string& p) override { return alive() ? fake_files::size(p) : 0; }
++					bool rename(const std::string& f, const std::string& t) override { return alive() && fake_files::rename(f, t); }
++					bool remove(const std::string& p) override { return alive() && fake_files::remove(p); }
++				} fs;
++				fs.files[paths.identity] = text;
++				fs.files[paths.archive] = "MTL4ARCHIVE#1";
++				fs.budget = crash_after;
++				write_checkpoint(fs, paths, text);
++				const std::string archive = fs.files.count(paths.archive) ? fs.files[paths.archive] : std::string("(none)");
++				check(archive == "MTL4ARCHIVE#1" || archive == "MTL4ARCHIVE#2", "after a crash: the previous or the new archive");
++			}
++		}
++
++		check(std::string(checkpoint_step_name(checkpoint_step::serialize)) == "serialization", "step names for the log");
++	}
++}
++
++int main()
++{
++	test_program_cache_keys();
++	test_identity();
++	test_rejection_rules();
++	test_rate_limit();
++	test_checkpoint_sequence();
++
++	if (g_failures)
++	{
++		std::fprintf(stderr, "%d of %d checks failed\n", g_failures, g_checks);
++		return 1;
++	}
++
++	std::printf("PASS: Metal M5 cache rules (%d checks)\n", g_checks);
++	return 0;
++}
+diff --git a/rpcs3/Emu/RSX/rsx_cache.h b/rpcs3/Emu/RSX/rsx_cache.h
+index 42099d9..23e1fc0 100644
+--- a/rpcs3/Emu/RSX/rsx_cache.h
++++ b/rpcs3/Emu/RSX/rsx_cache.h
+@@ -255,7 +255,9 @@ namespace rsx
+ 
+ 	public:
+ 
+-		shaders_cache(backend_storage& storage, std::string pipeline_class, std::string version_prefix_str = "v1")
++		// REWINDBOX_METAL_NATIVE (M5): cache_directory, under the title's cache, lets the Metal renderer keep its raw
++		// programs and pipeline records apart from the Vulkan and OpenGL ones (MTLPipelineCache.h: shaders_cache/metal/).
++		shaders_cache(backend_storage& storage, std::string pipeline_class, std::string version_prefix_str = "v1", std::string_view cache_directory = "shaders_cache/")
+ 			: version_prefix(std::move(version_prefix_str))
+ 			, pipeline_class_name(std::move(pipeline_class))
+ 			, m_storage(storage)
+@@ -264,7 +266,7 @@ namespace rsx
+ 			{
+ 				if (std::string cache_path = rpcs3::cache::get_ppu_cache(); !cache_path.empty())
+ 				{
+-					root_path = std::move(cache_path) + "shaders_cache/";
++					root_path = std::move(cache_path) + std::string(cache_directory);
+ 				}
+ 			}
+ 
