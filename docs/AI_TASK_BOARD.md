@@ -687,6 +687,23 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           pipeline state, formats.
         - Linux clang compile of both edited files: no new warning; the WIP patch still applies to Core 901.
       - Done: CI of `e8e6a460`/`7d96fa70` green (runs `42136993446`, `42139101385`).
+  - **AC IV on PPU LLVM (IPA 669 report, 6 Nov 13:17, private, pid 17802): crash during the PPU compile.**
+    - The LLVM profile `71afe46e` applied. PPUW.Link stopped on `JIT_ARENA_EXHAUSTED`: the code arena was full at
+      256 MiB, after 309 of 434 cached PPU objects (616 MB of objects); about 376 MiB of code is needed.
+    - Cause: the early escrow found only 650-712 MiB free in [4, 64) GiB on 669 (about 900 MiB on 643). The largest
+      gap was 316-380 MiB, so the escrow held 256-320 MiB of code. pid 16074 also exhausted a 320 MiB arena (SPU
+      runtime extension).
+    - The interpreter (the official entry) freezes at the title screen (IPA 666), so neither decoder runs the game.
+    - Research (Core reading):
+      - the 64 GiB end of the window is not justified by any constraint found;
+      - the real constraint is ADRP ±4 GiB between code and data;
+      - a multi-segment code arena is feasible (runtime in segment 0, one LLVM segment per engine);
+      - a smaller data floor and 16 MiB steps are exact, smaller levers;
+      - live data was not logged.
+    - `c9a1458b` (host only): `NEOSTATION_VA_CENSUS_V1` at the escrow, giving owners by VM tag in the window, the
+      largest mappings, the task max address, and the gaps above 64 GiB. Needed: one AC IV run on IPA 672. Then
+      either widen the window or build the multi-segment arena in the next Core; log the code and data stats on
+      exhaustion.
   - **Core 902 = Core 668 + Metal M1 (901) + M2, on Claude for the Metal 4 test IPA** (maintainer, 6 Nov: "Construit
     l'ipa avec Metal 4 !"). The delivery guards are Claude-only, so the Metal branch was merged (`535705bc`).
     - Spec `9300aa20`:
