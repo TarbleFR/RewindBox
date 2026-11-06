@@ -727,9 +727,18 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - counted, not executed: scaled copies, GPU typeless shuffles, readback of scaled/MSAA/tiled/compressed
         sections, the blit engine (M3.2).
     - WIP patch `metal-wip-from-902.patch` (`fbb163f0`) is on the Metal branch (`49c3a8ab`). The Metal checks now
-      compile every renderer unit and run the carried host tests; iOS CI run `42237203391`.
-    - Host test: 203 checks PASS (rerun by main). Independent rb-core-review of the M3.1 concurrency and hazards
-      is running.
+      compile every renderer unit and run the carried host tests. iOS CI run `42237203391` is green first try:
+      MTLAPIApple.mm and 13 units pass -fsyntax-only for arm64 iOS (Xcode 26.3); the host tests pass under UBSan.
+    - Host test: 203 checks PASS (rerun by main). Independent rb-core-review (read-only):
+      - **D1 confirmed:** overlapping region copies share one Metal 4 encoder with no barrier
+        (MTLTextureCache.cpp:710-715), so stale texels are possible in atlas/gathers;
+      - R1: a guest thread can spin in map_synchronized while holding m_cache_mutex if a fence is unsubmitted
+        (unreachable today; to be made structurally impossible);
+      - R2: do_update runs with faults queued;
+      - R3: non-atomic wait counters;
+      - R4: f32_to_d24 truncates (round trip may give d-1).
+      - All five are sent to the M3 agent together with M3.2 (blit engine, scaled copies, scaled/tiled readback).
+      - Typeless GPU shuffles and MSAA are left to M4.
     - **M4** (exact ZCULL/queries, conditional render, MSAA, compute conversions, overlays): in progress.
   - **Core 902 = Core 668 + Metal M1 (901) + M2, on Claude for the Metal 4 test IPA** (maintainer, 6 Nov: "Construit
     l'ipa avec Metal 4 !"). The delivery guards are Claude-only, so the Metal branch was merged (`535705bc`).
