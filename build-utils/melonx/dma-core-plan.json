@@ -14,6 +14,7 @@
   "build-utils/melonx/adapt_binder_teardown.py",
   "build-utils/melonx/adapt_bindless_retention.py",
   "build-utils/melonx/adapt_buffer_array_barriers.py",
+  "build-utils/melonx/adapt_checkpoint_side_cache.py",
   "build-utils/melonx/adapt_cold_texture_release.py",
   "build-utils/melonx/adapt_descriptor_scratch_all_titles.py",
   "build-utils/melonx/adapt_device_short_trim.py",
@@ -2927,6 +2928,28 @@
    "name": "main-cache-checkpoint",
    "script": "test/melonx_main_cache_checkpoint_test.py",
    "report": "main-cache-checkpoint-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 1800,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
+   ]
+  },
+  {
+   "name": "checkpoint-side-cache",
+   "script": "test/melonx_checkpoint_side_cache_test.py",
+   "report": "checkpoint-side-cache-checks.json",
    "control": "delivered",
    "arguments": [
     "{baseline}",

@@ -54,6 +54,15 @@ def member(text, signature):
 
 temporary = tempfile.TemporaryDirectory(prefix='melonx-main-cache-checkpoint-')
 WORK = Path(temporary.name).resolve()  # resolved: on macOS /var is a link to /private/var
+# The adapter's postimage: later adapters that edit its files (adapt_checkpoint_side_cache, Core 675) reversed first.
+POST = WORK / 'post'
+for name in adapter.BASELINE:
+    (POST / name).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(FINAL_SOURCE / name, POST / name)
+for later in reversed(control_tools.later_sharing('adapt_main_cache_checkpoint')):
+    control_tools._reverse(later, POST)
+shutil.copyfile(FINAL_SOURCE / (VULKAN + 'VulkanException.cs'), POST / (VULKAN + 'VulkanException.cs'))
+FINAL_SOURCE = POST
 CONTROL = WORK / 'control'
 for name in adapter.BASELINE:
     (CONTROL / name).parent.mkdir(parents=True, exist_ok=True)
@@ -137,7 +146,7 @@ check(s['flagSeen'] and s['renderTryEnterFailedWhileRaised'] and s['flagAfter'] 
       'during a checkpoint the flag is raised whenever the lock is held by it (the render path waits), and clears after')
 check(c['warnings'] == 0 and k['warnings'] == 0, 'no warning or error line')
 
-inputs = ['build-utils/melonx/adapt_main_cache_checkpoint.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_main_cache_checkpoint_test.py',
+inputs = ['build-utils/melonx/adapt_main_cache_checkpoint.py', 'build-utils/melonx/adapt_checkpoint_side_cache.py', 'build-utils/melonx/adapt_session.py', 'test/melonx_main_cache_checkpoint_test.py',
           'test/melonx_main_cache_checkpoint/Double.cs', 'test/melonx_main_cache_checkpoint/Program.cs', 'test/melonx_adapter_control.py']
 sdk = subprocess.run([DOTNET, '--version'], capture_output=True, text=True, check=True).stdout.strip()
 receipt = dict(result='passed', checks=checks, finalPreparationBound=True, sourceKind='finalPreparationWithReversedControl',
