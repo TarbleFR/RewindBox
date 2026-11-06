@@ -26,7 +26,7 @@ ORDER = ('adapt_pipeline_warmup_parity', 'adapt_device_short_trim', 'adapt_molte
          'adapt_array_rebuild_allocations', 'adapt_present_pacing', 'adapt_present_drawable_residency',
          'adapt_present_pacer_fixes', 'adapt_shader_save_poll', 'adapt_warmup_key_parity', 'adapt_setprogram_warmup', 'adapt_teardown_cache', 'adapt_forced_syncpoint_wait', 'adapt_session_retention', 'adapt_memory_inventory', 'adapt_guest_fault_context', 'adapt_host_warning_trim', 'adapt_safe_point_compaction', 'adapt_cold_texture_release', 'adapt_bindless_retention', 'adapt_moltenvk_stage_ordering',
          'adapt_buffer_array_barriers', 'adapt_hogwarts_precise_math', 'adapt_shader_save_journal',
-         'adapt_nan_scrub')
+         'adapt_nan_scrub', 'adapt_main_cache_checkpoint')
 
 
 def sha(path: Path) -> str:

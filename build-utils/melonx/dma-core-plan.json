@@ -23,6 +23,7 @@
   "build-utils/melonx/adapt_hogwarts_precise_math.py",
   "build-utils/melonx/adapt_host_qos_pipeline_budget.py",
   "build-utils/melonx/adapt_host_warning_trim.py",
+  "build-utils/melonx/adapt_main_cache_checkpoint.py",
   "build-utils/melonx/adapt_memory_inventory.py",
   "build-utils/melonx/adapt_moltenvk_barrier_ordering.py",
   "build-utils/melonx/adapt_moltenvk_stage_ordering.py",
@@ -2920,6 +2921,28 @@
     "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs",
     "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs",
     "src/Ryujinx.Library/EmbeddedRuntime.cs"
+   ]
+  },
+  {
+   "name": "main-cache-checkpoint",
+   "script": "test/melonx_main_cache_checkpoint_test.py",
+   "report": "main-cache-checkpoint-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 1800,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs",
+    "src/Ryujinx.Graphics.Vulkan/PipelineState.cs"
    ]
   }
  ]

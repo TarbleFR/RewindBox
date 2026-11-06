@@ -51,6 +51,7 @@ from adapt_buffer_array_barriers import BASELINE as C667_BUFFER_ARRAY_BARRIERS
 from adapt_hogwarts_precise_math import BASELINE as C667_HOGWARTS_PRECISE_MATH
 from adapt_shader_save_journal import BASELINE as C667_SHADER_SAVE_JOURNAL
 from adapt_nan_scrub import BASELINE as C671_NAN_SCRUB
+from adapt_main_cache_checkpoint import BASELINE as C673_MAIN_CACHE_CHECKPOINT
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -103,6 +104,7 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'moltenvk-stage-ordering': 'delivered',
             'core667-fixes': 'delivered',
             'nan-scrub': 'delivered',
+            'main-cache-checkpoint': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -121,7 +123,9 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            set(C667_BUFFER_ARRAY_BARRIERS) | set(C667_HOGWARTS_PRECISE_MATH) | set(C667_SHADER_SAVE_JOURNAL) |
            {'src/Ryujinx.Library/EmbeddedLaunchPreflight.cs'} |
            # Core 671: the translator and host shader cache files of the NaN scrub.
-           set(C671_NAN_SCRUB))
+           set(C671_NAN_SCRUB) |
+           # Core 673: the pipeline cache manager and pipeline state (already changed files).
+           set(C673_MAIN_CACHE_CHECKPOINT))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -376,7 +380,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_buffer_array_barriers.py',
                                                      'build-utils/melonx/adapt_hogwarts_precise_math.py',
                                                      'build-utils/melonx/adapt_shader_save_journal.py',
-                                                     'build-utils/melonx/adapt_nan_scrub.py'} and
+                                                     'build-utils/melonx/adapt_nan_scrub.py',
+                                                     'build-utils/melonx/adapt_main_cache_checkpoint.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -401,7 +406,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 166 and len(frozen['preparedMembers']) == 201, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 167 and len(frozen['preparedMembers']) == 201, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and

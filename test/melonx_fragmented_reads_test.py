@@ -61,7 +61,9 @@ COMPOSED = sorted(set(COMPOSED) | {name for module in CORE661 for name in __impo
 # Core 667: likewise the GPU and Vulkan files of its adapters (ImageArray.cs joins the composition).
 CORE667 = ('adapt_buffer_array_barriers', 'adapt_hogwarts_precise_math', 'adapt_shader_save_journal',
            # Core 671: the translator and host shader cache files of the NaN scrub.
-           'adapt_nan_scrub')
+           'adapt_nan_scrub',
+           # Core 673: the pipeline cache manager and pipeline state of the main cache checkpoint.
+           'adapt_main_cache_checkpoint')
 COMPOSED = sorted(set(COMPOSED) | {name for module in CORE667 for name in __import__(module).BASELINE
                                    if name.startswith('src/Ryujinx.Graphics.')})
 # Production files the candidate build compiles and this receipt binds (the region type is unchanged). Library.cs
@@ -94,7 +96,7 @@ INPUTS = ['test/melonx_fragmented_reads_test.py', 'test/melonx_fragmented_reads/
           'build-utils/melonx/adapt_bindless_retention.py',
           'build-utils/melonx/adapt_moltenvk_stage_ordering.py',
           'build-utils/melonx/adapt_buffer_array_barriers.py', 'build-utils/melonx/adapt_hogwarts_precise_math.py',
-          'build-utils/melonx/adapt_shader_save_journal.py', 'build-utils/melonx/adapt_nan_scrub.py',
+          'build-utils/melonx/adapt_shader_save_journal.py', 'build-utils/melonx/adapt_nan_scrub.py', 'build-utils/melonx/adapt_main_cache_checkpoint.py',
           'test/melonx_adapter_control.py', 'native/melonx/EmbeddedPerformanceDiagnostics.cs']
 # One fragment of a real anchor per adapted file; altering it must stop the whole adapter.
 DRIFT = {
