@@ -2,7 +2,7 @@
  "schema": 1,
  "build": 669,
  "status": "draft",
- "note": "Private IPA 669 on the delivered and verified 666: the next common delivery, after every handoff of this round (MeloNX Core 667 handed over 6 November; no skins handoff pending). RPCS3 Core 668 (Core 665 with the thread orchestrator v1 removed by the maintainer: every Core file back to Core 664, which keeps the PPU grace after starvation; the host test page row removed; MoltenVK dependency of run 42051417882, same library bytes) replaces Core 665; MeloNX Core 667 (JIT arena per process, render worker buffer-array crash, Hogwarts precise math, shader save counters) replaces Core 663; the RPCS3 profile library returns Assassin's Creed IV: Black Flag to the PPU LLVM decoder over the official entry. No iPhone measurement; no FPS claim.",
+ "note": "Private IPA 669 on the delivered and verified 666: the next common delivery, after every handoff of this round (MeloNX Core 667 handed over 6 November; no skins handoff pending). RPCS3 Core 668 (Core 665 with the thread orchestrator v1 removed by the maintainer: every Core file back to Core 664, which keeps the PPU grace after starvation; the host test page row removed; MoltenVK dependency of run 42051417882, same library bytes) replaces Core 665; MeloNX Core 667 (JIT arena per process, render worker buffer-array crash, Hogwarts precise math, shader save counters) replaces Core 663; the RPCS3 profile library returns Assassin's Creed IV: Black Flag to the PPU LLVM decoder over the official entry. Known cost (MeloNX session): with a process budget of 6 GiB or more, every first MeloNX launch maps a 1 GiB JIT arena whose pages the helper writes, about 512 MiB more footprint than before for titles other than Hogwarts. No iPhone measurement; no FPS claim.",
  "base": {
   "build": 666,
   "source": "acba895ae7b69ffdffece8b1df790026246064bc",
@@ -279,6 +279,10 @@
    {
     "commit": "d400641036f885c6430a8675033338254315cf2b",
     "note": "RPCS3 Core 668 build spec (core-build.json build 668, canonical f40b2e2e, MoltenVK dependency 42051417882)"
+   },
+   {
+    "commit": "9e06c34deed66870a7e8367805a745872eb60186",
+    "note": "RPCS3 Core 668 build spec links the MoltenVK dependency of run 42140012211 (library d19d3a42 unchanged; the current dependency workflow and host bridge recorded)"
    }
   ],
   "sourceOnly": [],
