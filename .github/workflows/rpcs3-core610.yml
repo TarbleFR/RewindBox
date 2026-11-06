@@ -41,6 +41,7 @@
 # Core compile request: Core 668 (core-build.json build 668, canonical patch f40b2e2e), request 2 (the same source, linking the MoltenVK dependency of run 42140012211, which records the current dependency workflow and host bridge).
 # Core compile request: Core 902 (core-build.json build 902, canonical patch fb5dc826), request 1 (Core 668 plus the native Metal 4 renderer, stages M1 and M2, opt-in per title; Core job on Xcode 26.3 for the iOS 26 SDK; linking the MoltenVK dependency of run 42213572281, which records the Metal host bridge).
 # Core compile request: Core 903 (core-build.json build 903, canonical patch f90bafb1), request 1 (Core 902 plus the native Metal 4 renderer stages M3 and M4: texture cache, blit engine and readback, exact occlusion queries, MSAA, conversion kernels, native overlays; opt-in per title; Xcode 26.3; MoltenVK dependency of run 42213572281, the host bridge unchanged).
+# Core compile request: Core 904 (core-build.json build 904, canonical patch f11ab251), request 1 (Core 903 plus the JIT arena high window for iOS 27 beta, Metal M5 part 1 and the M3 gaps; MoltenVK dependency of run 42213572281, host bridge unchanged).
 # Apple host harness rerun: Core 613 codegen audit reruns for its two exact aliases (request 2).
 # Apple host harness rerun: Core 619 wait-budget scenario on measured waits (request 2).
 # Apple host harness rerun: Core 619 concurrency scenario accepts the designed wait-budget trip (request 3).
