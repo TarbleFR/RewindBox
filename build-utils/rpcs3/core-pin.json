@@ -2,8 +2,8 @@
  "schema": 1,
  "status": "verified",
  "component": "rpcs3",
- "build": 902,
- "note": "RPCS3 Core 902: Core 668 plus the native Metal 4 renderer of the Metal branch (REWINDBOX_METAL_NATIVE): Core 901, stage M1 (Metal 4 device, MTL4 queue, allocators, shared-event fences, residency sets, argument tables, MTL4 compiler, presentation), and Core 902, stage M2 (RSX programs to MSL through glslang SPIR-V and the vendored SPIRV-Cross, the draw path, clears, presentation). Opt-in per title (experimental.metal_renderer; Automatic keeps Vulkan on MoltenVK; Enabled needs iOS 26). Textures (neutral texture), guest-memory surface loads and writes, MSAA and occlusion queries are counted, not executed yet. Core compiled with the iOS 26 SDK (Xcode 26.3), deployment target 16.3; no codegen input changed, identities unchanged; MoltenVK dependency of the declared run (library d19d3a42). Built by the RPCS3 Core route (run 42215603048, attempt 1, source b245a407; Apple host harnesses run 42215603048 on b245a407). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no FPS claim.",
+ "build": 903,
+ "note": "RPCS3 Core 903: Core 902 plus the native Metal 4 renderer stages M3 and M4 (rpcs3/Emu/RSX/Metal only): the texture cache (uploads, formats, samplers, render-to-texture, same-pass feedback copies, guest-memory loads, readback, blit engine and scaled copies), exact ZCULL occlusion queries read after GPU completion, conditional render on the exact result, MSAA resolve/unresolve, the VKCompute conversion kernels in MSL and native overlays. Opt-in per title (experimental.metal_renderer; Automatic keeps Vulkan on MoltenVK; Enabled needs iOS 26). Paths still missing are counted and logged once. Core compiled with the iOS 26 SDK (Xcode 26.3), deployment target 16.3; no codegen input changed, identities unchanged; MoltenVK dependency of the declared run (library d19d3a42). Built by the RPCS3 Core route (run 42250353648, attempt 1, source d43537a1; Apple host harnesses run 42250353648 on d43537a1). Verified offline on the downloaded artifacts with the repository verifier (pin_errors and bundle). Not measured on the iPhone; no FPS claim.",
  "producer": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "core": {
@@ -14,25 +14,25 @@
     "Read the declared Core build",
     "Select the retained Core toolchain",
     "Restore compiler objects of the same frozen recipe",
-    "Authenticate the Core 902 source closure and the native dependency",
+    "Authenticate the Core 903 source closure and the native dependency",
     "Preserve the authenticated preflight",
-    "Compile and link the actual iPhone Core 902",
-    "Verify the actual binary and write its Core 902 identity",
+    "Compile and link the actual iPhone Core 903",
+    "Verify the actual binary and write its Core 903 identity",
     "Preserve an unverified binary and actual inputs after metadata failure",
     "Record observed compiler-cache counters and compile duration",
-    "Upload the verified Core 902 without an application delivery",
+    "Upload the verified Core 903 without an application delivery",
     "Preserve compiler objects for the same recipe",
     "Preserve real diagnostics including partial failures"
    ],
-   "source": "b245a4072488d918c85b88e6857d92dc51727f13",
-   "run": 42215603048,
+   "source": "d43537a1c57558d6131de160c88a4522c2364bbd",
+   "run": 42250353648,
    "attempt": 1,
-   "job": 127884714844,
-   "artifact": 13502868785,
-   "name": "RPCS3Core-902-b245a4072488d918c85b88e6857d92dc51727f13",
-   "bytes": 30250177,
-   "sha256": "7199c108b05a1336ab7e2c5d895e430e8349bb6ce674df7e34b6cd50be56a45b",
-   "expiresAt": "2026-12-06T12:50:58Z"
+   "job": 128003487510,
+   "artifact": 13521308288,
+   "name": "RPCS3Core-903-d43537a1c57558d6131de160c88a4522c2364bbd",
+   "bytes": 30415778,
+   "sha256": "5373be47df8d158c3fd378b04cf1b59cacd24fd4b0e8a289f2d5746b18a0e661",
+   "expiresAt": "2026-12-06T16:32:53Z"
   },
   "hostTests": {
    "jobName": "Core host harnesses on Apple ARM64 (changed, new and reused)",
@@ -40,9 +40,9 @@
     "Checkout immutable candidate and the delivered Core history",
     "Read the declared Core build",
     "Select the retained Core toolchain",
-    "Materialize the Core 902 sources and the delivered a4ae86d0 sources",
+    "Materialize the Core 903 sources and the delivered a4ae86d0 sources",
     "Authenticate the reused Core 610 Apple harness evidence",
-    "Run the affected and new Core 902 harnesses with Apple clang",
+    "Run the affected and new Core 903 harnesses with Apple clang",
     "Preserve the Apple host harness reports"
    ],
    "names": [
@@ -59,18 +59,18 @@
     "spu-object-hit-admission-613",
     "spu-object-hit-admission-613-asan-ubsan",
     "codegen-audit",
-    "core902",
+    "core903",
     "lr-full-queue"
    ],
-   "source": "b245a4072488d918c85b88e6857d92dc51727f13",
-   "run": 42215603048,
+   "source": "d43537a1c57558d6131de160c88a4522c2364bbd",
+   "run": 42250353648,
    "attempt": 1,
-   "job": 127884714929,
-   "artifact": 13502545387,
-   "name": "RPCS3Core-902-apple-host-tests-b245a4072488d918c85b88e6857d92dc51727f13",
-   "bytes": 59486,
-   "sha256": "503a8e3f1ab67f3d43e8fa004aec35f3a5b35d22a2a274513542f0c6568d6c0c",
-   "expiresAt": "2026-12-06T12:25:34Z",
+   "job": 128003487056,
+   "artifact": 13520323395,
+   "name": "RPCS3Core-903-apple-host-tests-d43537a1c57558d6131de160c88a4522c2364bbd",
+   "bytes": 59673,
+   "sha256": "c324bcd563dcefe19cd05072ba71153b762b2f924b9ba6d4d18a622f2cfcfadb",
+   "expiresAt": "2026-12-06T16:28:05Z",
    "reused": {
     "names": [
      "reuse-audit"
@@ -98,17 +98,17 @@
   }
  },
  "core": {
-  "type": "rpcs3-ios-core902",
-  "dylibBytes": 80346872,
-  "dylibSha256": "04f0ddaad5a97de150b44637b68a64b0925387476286a0d421b4a5c7a081b7a8",
-  "identitySha256": "2ef9a1d261e4572f0bf7c53400e34aba4307efebf44bc30f670a0fbd40fb4a84",
+  "type": "rpcs3-ios-core903",
+  "dylibBytes": 80685712,
+  "dylibSha256": "e053a16dda4607b7b4fb63e163202d2b428003abe1a84ce8f2039716b2679b9b",
+  "identitySha256": "21a7e3184f270f9ba212340e3c26f54e3d9ac1c6daf19b62816de1530bad9d42",
   "proofMember": "core610-proof.json",
-  "proofSha256": "1a042a3ff9a704d5e8456e4e887cb0dca8cb2f836eb6fbe73992e1d10b277c2a",
-  "payloadFingerprint": "cd2a2744f2552a145163954e927581afb222ae621be577a404ffa6e7af9319b1"
+  "proofSha256": "20b63620cfae2220ee0a2689b3a66c2abd7378d5f550ba0b11943c23d909e31a",
+  "payloadFingerprint": "cb0c4f91530dc55bf808695772b56654b6685ee8bb36ff573be890c0a6f59d13"
  },
  "canonical": {
-  "patchSha256": "fb5dc826a3223819f619d9edec807dfe4ce4602deb1d20fc9ec1c3d45f3cfaec",
-  "postimages": 413,
+  "patchSha256": "f90bafb14df9dd71a1383c59b8b3df48d0ba6278b3721b289ba18bc5c419364a",
+  "postimages": 439,
   "upstreamCommit": "22f1152783cef1f7e04af7b1c895173e28fd5b03"
  },
  "abi": 30,
@@ -269,13 +269,15 @@
   "Resolved title policy 664",
   "COREPROF PPUGRACE664",
   "COREPROF METAL frames=",
-  "Native Metal 4 renderer"
+  "Native Metal 4 renderer",
+  "COREPROF METAL textures bound=",
+  "COREPROF METAL M4 queries="
  ],
  "cachePath": "build/rpcs3-core-component",
  "replaces": {
-  "source": "66b37c78cac49977dfc740943c8c7dc791a426ff",
-  "run": 42141714434,
-  "artifact": 13469580511,
-  "payloadFingerprint": "ddf83d868f899da8cc194b3895cf2c1bf2f03321a2182006fce8b0ed24e9e907"
+  "source": "b245a4072488d918c85b88e6857d92dc51727f13",
+  "run": 42215603048,
+  "artifact": 13502868785,
+  "payloadFingerprint": "cd2a2744f2552a145163954e927581afb222ae621be577a404ffa6e7af9319b1"
  }
 }
