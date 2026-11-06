@@ -686,8 +686,33 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
           iPhone); to check with Metal validation. Not reviewed: render targets, program cache, most of the
           pipeline state, formats.
         - Linux clang compile of both edited files: no new warning; the WIP patch still applies to Core 901.
-      - Next: CI of `e8e6a460`, then Core 902 canonical (records, SPIRV-Cross files in the delta) and a test IPA
-        of the Metal branch (Xcode 26.3 Core build, MoltenVK dependency run), then M3 (texture cache, readbacks).
+      - Done: CI of `e8e6a460`/`7d96fa70` green (runs `42136993446`, `42139101385`).
+  - **Core 902 = Core 668 + Metal M1 (901) + M2, on Claude for the Metal 4 test IPA** (maintainer, 6 Nov: "Construit
+    l'ipa avec Metal 4 !"). The delivery guards are Claude-only, so the Metal branch was merged (`535705bc`).
+    - Spec `9300aa20`:
+      - canonical `fb5dc826`, 413 postimages, records core901/core902, verified on pristine upstream;
+      - delta `d2ef6298`; `core902-from-901.patch` folds the M2 work and the vendored SPIRV-Cross;
+      - host `92fad91d`;
+      - newly carried upstream: `3rdparty/CMakeLists.txt` and `rpcs3/Emu/title.cpp`;
+      - Core job on Xcode 26.3 (iOS 26 SDK), deployment target 16.3.
+    - Local checks:
+      - static route PASS;
+      - source closure on the materialized tree PASS;
+      - codegen audit PASS (identities unchanged);
+      - `test/rpcs3_core902_test.py` PASS (increments, revert/rebuild, presentation unit, Core 668 driver).
+    - Metal checks on Claude green (run `42213584881`, folded sources).
+    - MoltenVK dependency:
+      - run `42213572281` (`0a1ec672`) green;
+      - libMoltenVK.a `d19d3a42` unchanged;
+      - its 12 recorded inputs equal the current files;
+      - linked in `e7a83967`.
+    - Compile request `b245a407`: run `42215603048`, in progress.
+    - Next:
+      - pin;
+      - IPA **671** (not 670, to avoid confusion with MeloNX Core 670). It waits for the MeloNX Core 670 handoff
+        (Hogwarts fast math); the MeloNX session was told. Recipient key 671: public half only.
+      - private link and file;
+      - M3: texture cache and readbacks.
     - Not built as a Core; no iPhone run. A full Core build there also needs a MoltenVK dependency run, because the
       bridge changed.
   - Core 668 (Claude line, orchestrator removed), 6 Nov. The maintainer asks for the next IPA, delivered as a link
