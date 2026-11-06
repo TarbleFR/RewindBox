@@ -274,6 +274,19 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
 - **Next common IPA (659+):** wait for every handoff. Planned: RPCS3 Core 659 once pinned,
   `9403a7bf` promoted (sourceOnly in 658), skins PR162 (`dd973d0b` + legal `2f52d25e`, pushed),
   MeloNX Core 658 pin `aa81c2e8`; Switch Pocket blocked on the maintainer's original maquette file.
+- **Delivered/verified: 672 (6 Nov, run `42228283413`, trigger `66d73fa2`, five jobs green first try):** IPA
+  249249375 B, SHA-256 `af4a6019…b02b`; [receipt](evidence/rewind672/delivery.json) (12 proofs), offline checks
+  passed, key deleted.
+  - Contents:
+    - RPCS3 Core 902 (pin `0e75e5fb`): Metal 4 M1+M2, opt-in, without textures;
+    - MeloNX Core 671 (pin `7799d979`): Hogwarts fast math plus NaN scrub;
+    - the escrow VA census `c9a1458b`.
+  - Shared as a private link (port 8672, preview pane) plus the file.
+  - Device checks wanted:
+    - AC IV report with `NEOSTATION_VA_CENSUS_V1`;
+    - Hogwarts first frame within about 10 s, from the second launch;
+    - the Professor Fig sky;
+    - Dark Souls pacing.
 - **Device logs 650/653 (private, hashed in scratchpad):** 650: AC 25–28 FPS = 643, GPU
   loss after compression growth (4.7 GB footprint); verified at 0 % deviation: no
   steady-state regression; "compression is the precursor" and "2.5 GB before gameplay"
