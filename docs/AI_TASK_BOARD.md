@@ -709,8 +709,9 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - Compile request `b245a407`: run `42215603048`, in progress.
     - Next:
       - pin;
-      - IPA **671** (not 670, to avoid confusion with MeloNX Core 670). It waits for the MeloNX Core 670 handoff
-        (Hogwarts fast math); the MeloNX session was told. Recipient key 671: public half only.
+      - IPA **672** (MeloNX uses Cores 670 and 671). It waits for the MeloNX handoff: Core 671 (Core 670 Hogwarts fast
+        math + NaN scrub) if both land, else 670; the MeloNX session was told. Recipient key 672: public half only.
+        The note must say that Hogwarts rebuilds its shader translations once on its first launch (Core 671).
       - private link and file;
       - M3: texture cache and readbacks.
     - Not built as a Core; no iPhone run. A full Core build there also needs a MoltenVK dependency run, because the
