@@ -26,6 +26,7 @@
   "build-utils/melonx/adapt_memory_inventory.py",
   "build-utils/melonx/adapt_moltenvk_barrier_ordering.py",
   "build-utils/melonx/adapt_moltenvk_stage_ordering.py",
+  "build-utils/melonx/adapt_nan_scrub.py",
   "build-utils/melonx/adapt_pause_guest_threads.py",
   "build-utils/melonx/adapt_pipeline_miss_context.py",
   "build-utils/melonx/adapt_pipeline_warmup_parity.py",
@@ -75,10 +76,13 @@
   "src/Ryujinx.Graphics.Gpu/Memory/DeferredCounterReport.cs",
   "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs",
   "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs",
+  "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs",
   "src/Ryujinx.Graphics.Gpu/Shader/ShaderCache.cs",
   "src/Ryujinx.Graphics.Gpu/Shader/ShaderSpecializationState.cs",
   "src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs",
   "src/Ryujinx.Graphics.Gpu/Window.cs",
+  "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs",
+  "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs",
   "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs",
   "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs",
   "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
@@ -391,10 +395,13 @@
     "src/Ryujinx.Graphics.Gpu/Memory/MemoryManager.cs",
     "src/Ryujinx.Graphics.Gpu/Memory/PhysicalMemory.cs",
     "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/BinarySerializer.cs",
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs",
     "src/Ryujinx.Graphics.Gpu/Shader/ShaderCache.cs",
     "src/Ryujinx.Graphics.Gpu/Shader/ShaderSpecializationState.cs",
     "src/Ryujinx.Graphics.Gpu/Synchronization/SynchronizationManager.cs",
     "src/Ryujinx.Graphics.Gpu/Window.cs",
+    "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs",
+    "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs",
     "src/Ryujinx.Graphics.Vulkan/BackgroundCompilationScheduler.cs",
     "src/Ryujinx.Graphics.Vulkan/BarrierBatch.cs",
     "src/Ryujinx.Graphics.Vulkan/BufferHolder.cs",
@@ -966,6 +973,33 @@
       "src/Ryujinx.Graphics.Vulkan/ImageArray.cs"
      ],
      "productionPath": "src/Ryujinx.Graphics.Vulkan/ImageArray.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs"
+    },
+    {
+     "variant": "candidate",
+     "reportPath": [
+      "compiledSourceInputs",
+      "candidate",
+      "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs"
+     ],
+     "productionPath": "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs"
     }
    ]
   },
@@ -2861,6 +2895,30 @@
     "src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs",
     "src/Ryujinx.Graphics.Vulkan/TextureArray.cs",
     "src/Ryujinx.Library/EmbeddedLaunchPreflight.cs",
+    "src/Ryujinx.Library/EmbeddedRuntime.cs"
+   ]
+  },
+  {
+   "name": "nan-scrub",
+   "script": "test/melonx_nan_scrub_test.py",
+   "report": "nan-scrub-checks.json",
+   "control": "delivered",
+   "arguments": [
+    "{baseline}",
+    "--candidate-source",
+    "{candidate}"
+   ],
+   "timeoutSeconds": 3600,
+   "assertions": {
+    "result": "passed",
+    "finalPreparationBound": true,
+    "sourceKind": "finalPreparationWithReversedControl",
+    "physicalDeviceTested": false
+   },
+   "requiredPostimages": [
+    "src/Ryujinx.Graphics.Gpu/Shader/DiskCache/DiskCacheHostStorage.cs",
+    "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs",
+    "src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs",
     "src/Ryujinx.Library/EmbeddedRuntime.cs"
    ]
   }

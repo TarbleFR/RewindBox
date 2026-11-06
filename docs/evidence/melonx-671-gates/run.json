@@ -1,0 +1,65 @@
+{
+ "schema": 1,
+ "date": "2026-11-06",
+ "session": "https://claude.ai/code/session_012mUASkkFGHaPcEUx9dsp8q",
+ "core": 671,
+ "base": "Core 670 (3a137b09: Core 667 with every title on MoltenVK fast math)",
+ "request": "maintainer, 6 Nov: replace the removed precise math with something that addresses the black sky artifacts",
+ "finding": {
+  "input": "IPA 666 private screenshots (Professor Fig sky); not in the repository",
+  "reading": "black regions with a blue then cyan rim, stair-stepped in large blocks with dithered edges, behind every opaque object and growing over frames: non-finite values (NaN/Inf) in a low-resolution sky/cloud/atmosphere buffer that a later pass (temporal history, blur, upsample) spreads. Core 661 barriers did not change it.",
+  "whyNotPreciseMath": "MoltenVK 1.4.2 compiles every pipeline-cache library on read with the configured math mode; Metal safe math for Hogwarts recompiled the whole 203 MiB cache before the first frame (IPA 669).",
+  "moltenVkPerShaderOption": "SPIRVToMSLConverter.cpp: supportsFastMath = !ExecutionModeSignedZeroInfNanPreserve; usable only once the producing shaders are identified (not chosen)."
+ },
+ "change": "adapt_nan_scrub (SpirvGenerator.cs, Instructions.cs, DiskCacheHostStorage.cs) + native title note: for Hogwarts Legacy only, every FP32 fragment colour output store and FP32 image store maps NaN -> 0 and +/-Inf -> +/-65504 with integer bit tests (fast math kept); the host shader cache version differs while enabled, so its translations are rebuilt once from the guest cache.",
+ "gatesRun": {
+  "core667-fixes-checks.json": "bfa36ff8d096a0fb33dd09197f49f5c0155110a3f4762fcb0842d4370e8d5b69",
+  "fragmented-reads-checks.json": "8e04660ecd781eb4dd86d138fe21e25f8f417b4fba6eac025e7f4235f63e5553",
+  "guest-fault-context-checks.json": "711ad4b8a06a594c94a002831e8e760a12c8f3b42d2b70e4950188ce61df6c04",
+  "hogwarts-dma-copies-checks.json": "4e2cd82ec27e1941531323127e5c05e6c5da19c861af8c7e9b0ed2fbf0cc5cb4",
+  "nan-scrub-checks.json": "5e92789432d96b42103781f0c442d8d7c13ae2e9fc6913cb4ec07d5f8c8253b2"
+ },
+ "nanScrubProbe": {
+  "codeGenVersionOff": 1380064443,
+  "codeGenVersionOn": 1380129979,
+  "scrub": {
+   "00000000": "00000000",
+   "80000000": "80000000",
+   "3FC00000": "3FC00000",
+   "C0000000": "C0000000",
+   "477FE000": "477FE000",
+   "7149F2CA": "7149F2CA",
+   "7F7FFFFF": "7F7FFFFF",
+   "FF7FFFFF": "FF7FFFFF",
+   "00000001": "00000001",
+   "7F800000": "477FE000",
+   "FF800000": "C77FE000",
+   "7FC00000": "00000000",
+   "7F800001": "00000000",
+   "FFC00000": "00000000",
+   "FFFFFFFF": "00000000"
+  },
+  "opcodes": {
+   "Bitcast": 2,
+   "BitwiseAnd": 3,
+   "IEqual": 1,
+   "INotEqual": 1,
+   "LogicalAnd": 1,
+   "BitwiseOr": 1,
+   "Select": 2
+  },
+  "notedNanScrub": {
+   "hogwarts": true,
+   "smash": false,
+   "reset": false
+  }
+ },
+ "contract": {
+  "path": "build-utils/melonx/dma-core-contract.json",
+  "sha256": "6b9d331f025e794f6b285d08e9e3df370633a7c1c50cf5ca87bf08412c4af260",
+  "freshAppleGates": 48,
+  "contractTest": "386 checks with the authenticated archive"
+ },
+ "expectedCost": "first Hogwarts launch after the update: its shader cache is translated again (longer load, more pipeline compiles in the first session); later launches as before",
+ "physicalDeviceTested": false
+}

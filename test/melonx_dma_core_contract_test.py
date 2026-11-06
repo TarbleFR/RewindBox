@@ -50,6 +50,7 @@ from adapt_moltenvk_stage_ordering import BASELINE as C661_MOLTENVK_STAGE_ORDERI
 from adapt_buffer_array_barriers import BASELINE as C667_BUFFER_ARRAY_BARRIERS
 from adapt_hogwarts_precise_math import BASELINE as C667_HOGWARTS_PRECISE_MATH
 from adapt_shader_save_journal import BASELINE as C667_SHADER_SAVE_JOURNAL
+from adapt_nan_scrub import BASELINE as C671_NAN_SCRUB
 from adapt_host_qos_pipeline_budget import (NAMES as HOST_NAMES, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY,
                                             DESCRIPTOR_UPDATER, TEXTURE_ARRAY)
 
@@ -101,6 +102,7 @@ CONTROLS = {'bindless-array-deltas': 'delivered611', 'fragmented-reads': 'delive
             'bindless-retention': 'delivered',
             'moltenvk-stage-ordering': 'delivered',
             'core667-fixes': 'delivered',
+            'nan-scrub': 'delivered',
             # Core 661: the native display fixture declares EmbeddedMemory.cs (adapt_safe_point_compaction): rerun.
             'display-native': 'delivered',
             # Core 654: its receipt declares the collector (postimage), so the single-virtual-dependency fixture is rerun.
@@ -117,7 +119,9 @@ CHANGES = (set(ARRAY_NAMES) | set(DMA_NAMES) | set(HOST_NAMES) | set(QUEUE_NAMES
            {'src/Ryujinx.Library/EmbeddedRuntime.cs'} |
            # Core 667: its adapters' files and the native launch preflight (the arena choice and the launch title).
            set(C667_BUFFER_ARRAY_BARRIERS) | set(C667_HOGWARTS_PRECISE_MATH) | set(C667_SHADER_SAVE_JOURNAL) |
-           {'src/Ryujinx.Library/EmbeddedLaunchPreflight.cs'})
+           {'src/Ryujinx.Library/EmbeddedLaunchPreflight.cs'} |
+           # Core 671: the translator and host shader cache files of the NaN scrub.
+           set(C671_NAN_SCRUB))
 # Receipts of the delivered Core that were current proofs and declare a changed file: each is rerun.
 CORE87 = 'historical-b99e754d/historical-1f12796c/historical-ae78b4be/historical-ada4058/historical-1630/historical-827f/historical-e714/historical-core87/'
 RERUN = {'bindless-array-delta-checks.json', 'fragmented-reads-checks.json', 'performance-diagnostics-checks.json',
@@ -162,6 +166,10 @@ C661_JOINED = {'src/Ryujinx.Graphics.GAL/IProgram.cs',
                'src/Ryujinx.HLE/HOS/Services/Time/TimeSharedMemory.cs',
                'src/Ryujinx.HLE/PerformanceStatistics.cs'}
 JOINED = JOINED | C661_JOINED
+# Core 671 (adapt_nan_scrub): the two translator files join the prepared source (DiskCacheHostStorage.cs already was);
+# like the Core 661 GPU joiners they are read from a control only by fragmented-reads (delivered609).
+C671_JOINED = {'src/Ryujinx.Graphics.Shader/CodeGen/Spirv/Instructions.cs', 'src/Ryujinx.Graphics.Shader/CodeGen/Spirv/SpirvGenerator.cs'}
+JOINED = JOINED | C671_JOINED
 REUSED_FRESH = set()
 
 
@@ -331,7 +339,7 @@ if not args.helpers_only:
     check(set(frozen['productionChanges']) | set(frozen['productionAdditions']) <= covered, 'Uncovered changed production')
     check(not set(frozen['untouchedFixtureMembers']) & set(frozen['preparedMembers']), 'Duplicate unchanged dependency identity')
     check(frozen['reusedAppleGates'] == sum(v == 'unchanged-scoped-proof-not-reexecuted' for v in frozen['retainedDisposition'].values()), 'Wrong reuse count')
-    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 70 and not frozen["productionAdditions"], "Unexpected production scope")
+    check(set(frozen["productionChanges"]) == CHANGES and len(CHANGES) == 73 and not frozen["productionAdditions"], "Unexpected production scope")
     check(set(frozen['addedPreparationInputs']) == {'build-utils/melonx/adapt_hogwarts_dma_copies.py',
                                                      'build-utils/melonx/adapt_host_qos_pipeline_budget.py',
                                                      'build-utils/melonx/adapt_queued_syncpoints.py',
@@ -367,7 +375,8 @@ if not args.helpers_only:
                                                      'build-utils/melonx/adapt_moltenvk_stage_ordering.py',
                                                      'build-utils/melonx/adapt_buffer_array_barriers.py',
                                                      'build-utils/melonx/adapt_hogwarts_precise_math.py',
-                                                     'build-utils/melonx/adapt_shader_save_journal.py'} and
+                                                     'build-utils/melonx/adapt_shader_save_journal.py',
+                                                     'build-utils/melonx/adapt_nan_scrub.py'} and
           set(frozen['changedPreparationInputs']) == {'build-utils/melonx/prepare_embedded.py', 'build-utils/melonx/adapt_bindless_array_deltas.py',
                                                        # Core 654: the collector's gcEvent lines.
                                                        'native/melonx/EmbeddedPerformanceDiagnostics.cs',
@@ -392,7 +401,7 @@ if not args.helpers_only:
           frozen['livenessControlMembers'] == arrays_frozen['livenessControlMembers'] and
           frozen['adaControlMembers'] == arrays_frozen['adaControlMembers'],
           'Control trees differ from the arrays contract')
-    check(len(frozen['preparationInputs']) == 165 and len(frozen['preparedMembers']) == 199, 'Wrong final composition')
+    check(len(frozen['preparationInputs']) == 166 and len(frozen['preparedMembers']) == 201, 'Wrong final composition')
     for gate in frozen['gates']:
         check(gate['arguments'] == ARGS, 'Gate does not compile final source: ' + gate['name'])
         check(bool(gate['assertions']) and bool(gate['requiredPostimages']) and gate['assertions'].get('physicalDeviceTested', False) is False and
@@ -436,13 +445,13 @@ if not args.helpers_only:
     # The four warm-up parity members are read from a control only by fragmented-reads (delivered609); no gate on the
     # delivered 614 control reads them (the PR #153 fixtures rebuild their own Core 631 control).
     # The GPU Window (Core 644) is likewise read from a control only by fragmented-reads.
-    warmup_members = set(JOINED) - {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY} - C661_JOINED
+    warmup_members = set(JOINED) - {CONFIG, WINDOW, TEXTURE_STORAGE, RESOURCE_ARRAY, LAYOUT_ENTRY} - C661_JOINED - C671_JOINED
     # Core 661: GAL ITextureArray.cs (adapt_bindless_retention) is read from the delivered and delivered611 controls by the
     # array-descriptor and bindless-array gates; its other GPU joiners only by fragmented-reads (delivered609); its HLE
     # joiners from no control (their own gates read the final preparation).
     TEXTURE_ARRAY_GAL = 'src/Ryujinx.Graphics.GAL/ITextureArray.cs'
     c661_hle = {path for path in C661_JOINED if not path.startswith('src/Ryujinx.Graphics.')}
-    delivered_graphics = {path: digest for path, digest in graphics.items() if path not in warmup_members and path not in C661_JOINED}
+    delivered_graphics = {path: digest for path, digest in graphics.items() if path not in warmup_members and path not in C661_JOINED and path not in C671_JOINED}
     delivered_graphics[TEXTURE_ARRAY_GAL] = graphics[TEXTURE_ARRAY_GAL]
     check(unadapted == {'delivered': delivered_graphics,
                         'delivered611': {**arrays_frozen['controlUnadaptedMembers']['delivered'], TEXTURE_ARRAY_GAL: graphics[TEXTURE_ARRAY_GAL]},

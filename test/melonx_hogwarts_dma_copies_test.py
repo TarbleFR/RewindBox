@@ -113,6 +113,7 @@ LOT_FILES = {
     'adapt_buffer_array_barriers': ['src/Ryujinx.Graphics.Vulkan/TextureArray.cs'],
     'adapt_hogwarts_precise_math': ['src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs'],
     'adapt_shader_save_journal': [],
+    'adapt_nan_scrub': [],
 }
 
 checks = 0

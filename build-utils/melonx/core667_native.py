@@ -47,6 +47,9 @@ NOTE_BLOCK = '''    // Titles whose shaders Metal compiles without fast math (ad
     {
         if (OperatingSystem.IsIOS() || OperatingSystem.IsMacOS())
             Ryujinx.Graphics.Vulkan.MoltenVK.MVKInitialization.PreciseMath = Array.IndexOf(EmbeddedPreciseMathTitles, titleId) >= 0;
+        // Core 671 (adapt_nan_scrub): Hogwarts Legacy's colour and image writes are made finite (NaN -> 0, Inf -> 65504)
+        // in the translated shaders, with fast math kept; its shader cache is translated again once.
+        Ryujinx.Graphics.Shader.CodeGen.Spirv.SpirvNanScrub.Enabled = titleId == 0x0100F7E00C70E000UL;
     }
 
 '''
