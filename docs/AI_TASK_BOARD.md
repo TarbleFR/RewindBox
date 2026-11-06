@@ -769,6 +769,26 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - R4: D24 round to nearest, exhaustive test;
       - M3.2: blit engine, scaled copies, scaled and tiled readbacks.
       - Being merged into the M4 tree, with one typeless path (VK selection: kernels for shuffles and packing).
+  - **URGENT, IPA 674 on iOS 27.0 beta (24A5380h): no RPCS3 game starts** (stuck on "Lancement du jeu"; private logs
+    6 Nov, pids 21179-21207).
+    - The early escrow failed with attempts=0. The VA census shows:
+      - the system shared region (tag 32) fills about 57 GiB of [4,64) GiB;
+      - 538 MiB free there, largest gap 260 MiB;
+      - a free 64 GiB gap at 0x7000000000, max 0x8000000000.
+    - The Core reported `RPCS3_CORE_INITIALIZE_FAILED: Unable to reserve the JIT arena layout in low virtual address
+      space` (logged on earlier launches). On 674 the UI also stays on the launch dialog instead of showing the error:
+      a second defect, open.
+    - Fix:
+      - host escrow `5680f926`: policy limit = task max, low first, with an iOS 27 layout unit test;
+      - **Core 904** (`13726aa1`, request `8930989d`): Utilities/JITIOS.cpp searches up to the task maximum, low
+        first (NEOSTATION_JIT_HIGH_WINDOW_904). JITIOS.cpp is not a codegen input, so caches stay valid.
+      - No address-width assumption was found: PPU dispatch entries are 64-bit, LLVM is small-model PIC with
+        GOT/stubs, and the asmjit ADRs are local.
+    - Core 904 also folds M5 part 1 and the M3 gaps (`metal-wip-from-903.patch` = core904-from-903 `3db346b1`).
+      - Candidate iOS CI green: run `42262048824`.
+      - Canonical `f11ab251` (444 postimages).
+      - Local: route, closure, codegen and fast driver parts PASS.
+    - Next: pin 904; IPA 676 with MeloNX Core 675 when it is handed over (asked).
   - **Core 903 = Core 902 + Metal M3 + M4**: packaged `6a9f0260`, compile request `d43537a1` (run `42250353648`), Metal
     checks run `42250353568`.
     - Canonical `f90bafb1` (439 postimages), record core903_20261106. Delta `21d29ca1`. Increment
