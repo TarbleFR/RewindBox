@@ -1077,6 +1077,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   address 3 (UE hang detector) -> abort. Reading: the NaN-scrub retranslation invalidated the pipeline cache and the
   first session's recompile froze rendering past the game's hang limit. Next: relaunch test; if it recurs, Core 673
   (scrub off or warm-up priority).
+- **Core 673 verified and pinned (`03ad1c68`; run 42239484876 attempt 2, 49 gates), handed to main for IPA 674:**
+  Core 671 + adapt_main_cache_checkpoint (main pipeline cache written during play from a worker thread, at most every
+  180 s, lock only tried; a render-thread TryEnter failing during a checkpoint waits, no skipped draw). Cause: IPA 672
+  Hogwarts 18 min, no visual artifact, 215 s of render-thread pipeline creation (38 % of windows below 20 fps), main
+  cache stuck at 301.62 MiB because sessions end in crashes. iPhone binary `9e55859a…`, fingerprint `16fda8bd…`;
+  [receipt](evidence/melonx-673-gates/run.json). forced-syncpoint-wait failed on macOS 3 times (168/170/184 ms vs
+  150 ms): margin to analyse before the next Core.
 - **Dark Souls Remastered (other player, IPA 658, 6 Nov):** hitches = Core 658 present pacer standing down (0.2 % of
   frames paced, 7.5 adjacent 17/50 ms pairs per 100 frames; IPA 666 Hogwarts: 42 % paced, 4.6 pairs); stalls >= 100 ms
   only during video playback; GC 2-3 ms. Retest on IPA 672 requested.
