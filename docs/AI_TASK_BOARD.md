@@ -776,7 +776,12 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - **full driver run 1 FAILED** in the Core 630 ZCULL fault-protocol TSan harness on the reverted (Core 668)
         tree: `check failed line 711: take(tally.services) == 1`, after "not picked up in 2000 ms". It ran under
         parallel load (route, canonical and codegen jobs). The log is in the scratchpad;
-      - run 2 alone is running. The Apple CI job reruns test/rpcs3_core903_test.py with Apple clang.
+      - **run 2, alone: PASS** (increments, revert/rebuild, presentation unit, renderer host tests, and the Core 668
+        driver down to 627). Run 1's failure was the TSan pickup timing of the Core 630 harness under parallel
+        load. The harness is unchanged and still strict.
+    - IPA 674 waits for the Core 903 pin. The 902 pin no longer matches the repository canonical (pin_errors:
+      "Canonical Core patch differs from the pin"). MeloNX Core 673 (pin `03ad1c68`) is in its draft. Recipient key
+      674: public half only.
   - **Core 902 = Core 668 + Metal M1 (901) + M2, on Claude for the Metal 4 test IPA** (maintainer, 6 Nov: "Construit
     l'ipa avec Metal 4 !"). The delivery guards are Claude-only, so the Metal branch was merged (`535705bc`).
     - Spec `9300aa20`:
