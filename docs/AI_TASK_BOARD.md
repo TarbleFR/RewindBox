@@ -1192,6 +1192,8 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     contract `61696ac7…`. Markers in the binary: side cache (EnterMainCreation, MergeSideCache) and the play-time
     checkpoint line; the artifact's adapted BufferCache.cs carries the recreation. Engine evidence passed offline.
     Handed to main for IPA 676. Core 675 is never pinned. Not tested on a device.
+  - **Delivered in IPA 676** (run 42277254272, receipt `docs/evidence/rewind676/delivery.json`): current MeloNX baseline.
+    Next device check: Hogwarts past 20 min with hostMemoryBudget off; journals for checkpoint stalls and the abort.
   - Handoff to main: 677 is a strict superset of 675. If it is pinned before IPA 676 is packaged, ship 677 (it carries
     the crash fix); otherwise ship 675 and take 677 in the next IPA.
 - **Dark Souls Remastered (other player, IPA 658, 6 Nov):** hitches = Core 658 present pacer standing down (0.2 % of
