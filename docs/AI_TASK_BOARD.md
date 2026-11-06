@@ -723,7 +723,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - libMoltenVK.a `d19d3a42` unchanged;
       - its 12 recorded inputs equal the current files;
       - linked in `e7a83967`.
-    - Compile request `b245a407`: run `42215603048`, in progress.
+    - Compile request `b245a407`: run `42215603048`, both jobs green first try.
+    - **Pinned in `a1f40691`** (pin `0e75e5fb`):
+      - dylib 80346872 B `04f0ddaa`, payload fingerprint `cd2a2744`;
+      - identities unchanged;
+      - Metal markers present; MTL4 classes are weak imports;
+      - 15 host commands passed;
+      - pin_errors verified.
     - Next:
       - pin;
       - IPA **672** (MeloNX uses Cores 670 and 671). It waits for the MeloNX handoff: Core 671 (Core 670 Hogwarts fast
