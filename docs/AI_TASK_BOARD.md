@@ -287,6 +287,17 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     - Hogwarts first frame within about 10 s, from the second launch;
     - the Professor Fig sky;
     - Dark Souls pacing.
+- **Delivered/verified: 674 (6 Nov, run `42254239320`, trigger `af5a04bb`, five jobs green first try):** IPA
+  249636336 B, SHA-256 `6696bc48…d56c`; [receipt](evidence/rewind674/delivery.json) (12 proofs), key deleted.
+  - Contents: RPCS3 Core 903 (pin `a8457e45`: Metal M1-M4, opt-in) and MeloNX Core 673 (pin `08a2cc6b`: main
+    pipeline cache checkpointed during play).
+  - Shared as a private link (port 8674) plus the file. The 8672 link server stopped at its time limit and was
+    not restarted.
+  - Device checks wanted:
+    - Metal 4 on a title (iOS 26): textures, overlays, the COREPROF METAL / textures / M4 lines;
+    - AC IV with NEOSTATION_VA_CENSUS_V1;
+    - Hogwarts journals across 2-3 sessions;
+    - Dark Souls pacing.
 - **Device logs 650/653 (private, hashed in scratchpad):** 650: AC 25–28 FPS = 643, GPU
   loss after compression growth (4.7 GB footprint); verified at 0 % deviation: no
   steady-state regression; "compression is the precursor" and "2.5 GB before gameplay"
@@ -717,6 +728,83 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       largest mappings, the task max address, and the gaps above 64 GiB. Needed: one AC IV run on IPA 672. Then
       either widen the window or build the multi-segment arena in the next Core; log the code and data stats on
       exhaustion.
+  - **Metal M3/M4 (maintainer, 6 Nov: finish the whole engine).** Parallel trees from `22934df` (Core 902 canonical):
+    M3 `/home/user/xitrix/rpcs3-metal-m3`, M4 `/home/user/xitrix/rpcs3-metal-m4`; main integrates.
+    - **M3.1** (textures):
+      - commits `96f606e`..`d449e24`, +4313/-172, Metal files only;
+      - texture cache backend, uploads with a 64 MB ring, format and sampler mapping;
+      - render-to-texture, same-pass feedback copies, fault queue to the RSX thread;
+      - readback of uncompressed colour, D16, D16F and D24S8;
+      - counted, not executed: scaled copies, GPU typeless shuffles, readback of scaled/MSAA/tiled/compressed
+        sections, the blit engine (M3.2).
+    - WIP patch `metal-wip-from-902.patch` (`fbb163f0`) is on the Metal branch (`49c3a8ab`). The Metal checks now
+      compile every renderer unit and run the carried host tests. iOS CI run `42237203391` is green first try:
+      MTLAPIApple.mm and 13 units pass -fsyntax-only for arm64 iOS (Xcode 26.3); the host tests pass under UBSan.
+    - Host test: 203 checks PASS (rerun by main). Independent rb-core-review (read-only):
+      - **D1 confirmed:** overlapping region copies share one Metal 4 encoder with no barrier
+        (MTLTextureCache.cpp:710-715), so stale texels are possible in atlas/gathers;
+      - R1: a guest thread can spin in map_synchronized while holding m_cache_mutex if a fence is unsubmitted
+        (unreachable today; to be made structurally impossible);
+      - R2: do_update runs with faults queued;
+      - R3: non-atomic wait counters;
+      - R4: f32_to_d24 truncates (round trip may give d-1).
+      - All five are sent to the M3 agent together with M3.2 (blit engine, scaled copies, scaled/tiled readback).
+      - Typeless GPU shuffles and MSAA are left to M4.
+    - **M4**, written in `ee510a0`:
+      - exact ZCULL/occlusion queries on accumulating visibility results, read after the shared event passes;
+      - conditional render on the exact result;
+      - MSAA with resolve/unresolve passes;
+      - 23 VKCompute kernels in MSL;
+      - native overlays on the VK overlay shaders.
+      - M3.1 is merged into M4 (`f04e906`, wired `3a3d35e`): typeless copies run on the kernels, MSAA goes through
+        the texture cache.
+      - WIP `e5c7f082` (39 files, +8466/-228): iOS CI run `42242446441` is green. All units and MTLAPIApple.mm
+        compile; the host tests pass under UBSan (M4 931267 checks, formats 203); m4_compute/m4_resolve compile
+        for iOS.
+    - **M3 review fixes and M3.2 done** in the M3 tree (`49baf0f`..`9806aba`, 224 host checks):
+      - D1: transfer_scope orders overlapping copies;
+      - R1: no off-RSX wait on RSX progress (faults routed);
+      - R2: do_update gated;
+      - R3: atomic counters;
+      - R4: D24 round to nearest, exhaustive test;
+      - M3.2: blit engine, scaled copies, scaled and tiled readbacks.
+      - Being merged into the M4 tree, with one typeless path (VK selection: kernels for shuffles and packing).
+  - **Core 903 = Core 902 + Metal M3 + M4**: packaged `6a9f0260`, compile request `d43537a1` (run `42250353648`), Metal
+    checks run `42250353568`.
+    - Canonical `f90bafb1` (439 postimages), record core903_20261106. Delta `21d29ca1`. Increment
+      core903-from-902.patch `f5a681da` (44 files) = metal-wip-from-902.patch = M4 tree head `e4874e8`, which holds:
+      - the M3 tree `9806aba`;
+      - M4;
+      - the review fix `e7236ff`: temporary_unlock before the flush-queue guard, VK order; the M4 query review found
+        no defect;
+      - the setting text `e4874e8`.
+    - The host bridge is unchanged, so the MoltenVK dependency run `42213572281` is kept. The Metal checks verify
+      the fold chain (902 WIP reversed, 901 WIP reversed from that state, 902 WIP reapplied); tested locally.
+    - Local checks:
+      - static route PASS; source closure PASS; codegen audit PASS (identities unchanged);
+      - increments revert/rebuild PASS; presentation unit and renderer host tests PASS, plain and ASan/UBSan (g++;
+        the local clang has no ASan runtime);
+      - **full driver run 1 FAILED** in the Core 630 ZCULL fault-protocol TSan harness on the reverted (Core 668)
+        tree: `check failed line 711: take(tally.services) == 1`, after "not picked up in 2000 ms". It ran under
+        parallel load (route, canonical and codegen jobs). The log is in the scratchpad;
+      - **run 2, alone: PASS** (increments, revert/rebuild, presentation unit, renderer host tests, and the Core 668
+        driver down to 627). Run 1's failure was the TSan pickup timing of the Core 630 harness under parallel
+        load. The harness is unchanged and still strict.
+    - **Core 903 built and pinned** (`a65e5fe7`, pin `a8457e45`):
+      - run `42250353648`: Core job and Apple host harnesses green first try (Apple clang reruns core903 test);
+      - Metal checks on Claude green (run `42250353568`, fold chain);
+      - dylib 80685712 B `e053a16d`, fingerprint `cb0c4f91`, Metal 4 classes weak-imported;
+      - identities unchanged.
+    - **IPA 674 triggered**:
+      - draft `a281f578`, frozen digest `3243f990` (7262 product files), trigger `af5a04bb`;
+      - contents: RPCS3 Core 903 plus MeloNX Core 673 (pin `03ad1c68`);
+      - recipient key 674: public half only.
+    - Next, in two trees from `e4874e8`:
+      - M5 part 1 (M4 agent, m4 tree): boot-time shaders_cache precompile, persistent MTL4 archives via
+        MTL4PipelineDataSetSerializer, checkpoints during play;
+      - remaining counted M3 gaps (M3 agent, m3 tree `metal-m3-gaps`): scaled loads, integer/stencil blits, scaled
+        depth↔colour copies, compressed readbacks, GPU deswizzle/tiling as VK.
+    - Device parity (M5 part 2) needs the maintainer's runs.
   - **Core 902 = Core 668 + Metal M1 (901) + M2, on Claude for the Metal 4 test IPA** (maintainer, 6 Nov: "Construit
     l'ipa avec Metal 4 !"). The delivery guards are Claude-only, so the Metal branch was merged (`535705bc`).
     - Spec `9300aa20`:
@@ -1017,6 +1105,13 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
   address 3 (UE hang detector) -> abort. Reading: the NaN-scrub retranslation invalidated the pipeline cache and the
   first session's recompile froze rendering past the game's hang limit. Next: relaunch test; if it recurs, Core 673
   (scrub off or warm-up priority).
+- **Core 673 verified and pinned (`03ad1c68`; run 42239484876 attempt 2, 49 gates), handed to main for IPA 674:**
+  Core 671 + adapt_main_cache_checkpoint (main pipeline cache written during play from a worker thread, at most every
+  180 s, lock only tried; a render-thread TryEnter failing during a checkpoint waits, no skipped draw). Cause: IPA 672
+  Hogwarts 18 min, no visual artifact, 215 s of render-thread pipeline creation (38 % of windows below 20 fps), main
+  cache stuck at 301.62 MiB because sessions end in crashes. iPhone binary `9e55859a…`, fingerprint `16fda8bd…`;
+  [receipt](evidence/melonx-673-gates/run.json). forced-syncpoint-wait failed on macOS 3 times (168/170/184 ms vs
+  150 ms): margin to analyse before the next Core.
 - **Dark Souls Remastered (other player, IPA 658, 6 Nov):** hitches = Core 658 present pacer standing down (0.2 % of
   frames paced, 7.5 adjacent 17/50 ms pairs per 100 frames; IPA 666 Hogwarts: 42 % paced, 4.6 pairs); stalls >= 100 ms
   only during video playback; GC 2-3 ms. Retest on IPA 672 requested.

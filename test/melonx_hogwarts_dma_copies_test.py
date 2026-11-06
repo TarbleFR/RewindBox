@@ -114,6 +114,8 @@ LOT_FILES = {
     'adapt_hogwarts_precise_math': ['src/Ryujinx.Graphics.Vulkan/MoltenVK/MVKInitialization.cs'],
     'adapt_shader_save_journal': [],
     'adapt_nan_scrub': [],
+    # Core 673: the main pipeline cache checkpoint during play (PipelineState.cs is outside this composition).
+    'adapt_main_cache_checkpoint': ['src/Ryujinx.Graphics.Vulkan/PipelineCacheManager.cs'],
 }
 
 checks = 0

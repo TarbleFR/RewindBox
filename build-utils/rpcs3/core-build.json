@@ -1,8 +1,8 @@
 {
  "schema": 1,
- "build": 902,
- "identity_type": "rpcs3-ios-core902",
- "summary": "RPCS3 Core 902 = the delivered Core 610 plus one folded delta: the Core 612 to 668 records unchanged (Core 668: the thread orchestrator removed, the PPU grace after starvation kept) and the native Metal 4 renderer of the Metal branch (REWINDBOX_METAL_NATIVE, rpcs3/Emu/RSX/Metal): Core 901, stage M1 (Metal 4 device, MTL4 queue, allocators and command buffers, shared-event fences, residency sets, argument tables, the MTL4 compiler, presentation on the CAMetalLayer), and Core 902, stage M2 (RSX vertex and fragment programs to MSL through glslang SPIR-V and the vendored SPIRV-Cross vulkan-sdk-1.4.350.1 under the rbx_spirv_cross namespace; the draw path on the shared surface store, program cache and data heaps; clears; presentation of the colour surface holding the display buffer). Opt-in per title: setting experimental.metal_renderer (Automatic keeps Vulkan on MoltenVK; Enabled needs iOS 26 and a Metal 4 GPU), levers627 digit 18 on the in-game test page. Counted, not executed yet: textures (neutral texture until the texture cache), guest-memory surface loads and writes, MSAA, occlusion queries. Built with the iOS 26 SDK (Xcode 26.3) for the Metal 4 API; deployment target 16.3 unchanged, every Metal 4 call behind its availability check. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. Not built, no iPhone run.",
+ "build": 903,
+ "identity_type": "rpcs3-ios-core903",
+ "summary": "RPCS3 Core 903 = the delivered Core 610 plus one folded delta: the Core 612 to 902 records unchanged (Core 668: the thread orchestrator removed, the PPU grace after starvation kept; Core 901/902: the native Metal 4 renderer stages M1 and M2) and the native Metal 4 renderer stages M3 and M4 (rpcs3/Emu/RSX/Metal only): the texture cache (uploads, formats, samplers, render-to-texture, same-pass feedback copies, guest-memory surface loads, readback to guest memory, the blit engine and scaled copies), exact ZCULL occlusion queries read after GPU completion, conditional render on the exact result, MSAA with resolve/unresolve passes, the VKCompute conversion kernels in MSL and native overlays. Opt-in per title (experimental.metal_renderer; Automatic keeps Vulkan on MoltenVK; Enabled needs iOS 26 and a Metal 4 GPU). Paths still missing are counted and logged once (COREPROF METAL, METAL textures, METAL M4). Built with the iOS 26 SDK (Xcode 26.3); deployment target 16.3 unchanged. ABI 30, the 92 exports and the PPU/SPU codegen identities unchanged. Not built, no iPhone run.",
  "route": {
   "workflow": ".github/workflows/rpcs3-core610.yml",
   "gate": ".github/diagnostics/rpcs3_core610.py",
@@ -22,8 +22,8 @@
  "abi_version": 30,
  "minimum_os": "16.3.0",
  "canonical": {
-  "patch_sha256": "fb5dc826a3223819f619d9edec807dfe4ce4602deb1d20fc9ec1c3d45f3cfaec",
-  "postimages": 413,
+  "patch_sha256": "f90bafb14df9dd71a1383c59b8b3df48d0ba6278b3721b289ba18bc5c419364a",
+  "postimages": 439,
   "records": [
    "core610_20261101",
    "retroachievements_core",
@@ -49,7 +49,8 @@
    "core665_20261105",
    "core668_20261105",
    "core901_20261105",
-   "core902_20261106"
+   "core902_20261106",
+   "core903_20261106"
   ]
  },
  "reference": {
@@ -89,10 +90,10 @@
   "exports": 88
  },
  "delta": {
-  "record": "core902_20261106",
-  "manifest": "build-utils/rpcs3/core902-delta.json",
-  "patch": "build-utils/rpcs3/core902-delta.patch",
-  "patch_sha256": "d2ef62987b7d1eb74db20009e82021cd16d174c478ca6d0918bb184eafbc98cb"
+  "record": "core903_20261106",
+  "manifest": "build-utils/rpcs3/core903-delta.json",
+  "patch": "build-utils/rpcs3/core903-delta.patch",
+  "patch_sha256": "21d29ca11036e5a8276449b137102f4b8f3b0e452eba15664351a0a9fd643da4"
  },
  "exports": 92,
  "core_inputs": {
@@ -190,7 +191,9 @@
   "COREPROF PPUGRACE664",
   "PPU Grace After Starvation",
   "COREPROF METAL frames=",
-  "Native Metal 4 renderer"
+  "Native Metal 4 renderer",
+  "COREPROF METAL textures bound=",
+  "COREPROF METAL M4 queries="
  ],
  "moltenvk_dependency": {
   "run": 42213572281,
@@ -397,28 +400,28 @@
     "name": "codegen-audit",
     "argv": [
      "python3",
-     "test/rpcs3_core902_codegen_test.py",
+     "test/rpcs3_core903_codegen_test.py",
      "{source}",
      "--baseline",
      "{baseline}",
      "--report",
      "{out}/codegen-audit.json"
     ],
-    "reason": "Core 901 and 902 touch no codegen input; rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
+    "reason": "Core 901, 902 and 903 touch no codegen input; rpcs3/Emu/CMakeLists.txt gains the Metal sources and the recomputed identity recipe still yields the delivered identities; the reversed tree passes the Core 668 audit"
    },
    {
-    "name": "core902",
+    "name": "core903",
     "argv": [
      "python3",
-     "test/rpcs3_core902_test.py",
+     "test/rpcs3_core903_test.py",
      "--source",
      "{source}",
      "--cxx",
      "clang++",
      "--report",
-     "{out}/core902.json"
+     "{out}/core903.json"
     ],
-    "reason": "Core 901 and 902 increments reverted to the recorded Core 668 files and applied again; the presentation unit (plain and ASan/UBSan); then the Core 668 driver on the reverted tree (then the Core 664 suite down to 627)"
+    "reason": "Core 901, 902 and 903 increments reverted to the recorded Core 668 files and applied again; the presentation unit and the renderer host tests (texture formats, D24 round trip, query rules, kernel and MSAA math; plain and ASan/UBSan); then the Core 668 driver on the reverted tree (then the Core 664 suite down to 627)"
    },
    {
     "name": "lr-full-queue",
