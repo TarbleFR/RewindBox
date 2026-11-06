@@ -598,6 +598,27 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
     mode; boot SPU warm-up cap.
   - Maintainer 5 Nov: orchestrator abandoned (complexity, no gain). Remove it in the next Core of
     the Claude line (scheduling back to Core 664), its control test kept as an absence check.
+  - IPA 666 device logs (6 Nov, private; Core 665, BLES01882 Assassin's Creed IV: Black Flag, session 5):
+    - Settings: the GameDB layer applied RPCS3's official entry (CONFIG_LAYERS database=1,
+      ppu_decoder=Interpreter (static), rcb=true, wcb=true); no user override.
+    - The intro ran at 37-60 guest fps (660 flips: legal notice, Ubisoft and Abstergo logos), then the
+      title-screen load froze: no flip for 85 s until the stop (FREEZE_EPISODE no_frames_idle). FREEZE_DUMP:
+      26 PPU threads waiting (lwcond, event queues, semaphores; TaskThread2 polls usleep(30)), six SPURS
+      kernels idle (15 runnable workloads, no ready count or signal), RSX FIFO empty (get = put), both
+      audio ports still mixing. Build 643: no frame in 38 s under the same entry.
+    - Upstream: the wiki gives the interpreter as its freeze fix; RPCS3 issue #12807 (open) has AC III/IV
+      freezing near the start of a new game under PPU LLVM, past the title screen. The RPCS3 patch
+      catalogue (28 Oct snapshot) has no Black Flag patch.
+    - Change `71afe46e` (Claude line, host only): title override `cpu.ppu_decoder: Recompiler (LLVM)` for
+      BLES01882, BLES01883, BLUS31193, NPEB01396, NPUB31246; Read/Write Color Buffers stay from the entry.
+      BLES01884 (same entry, no source names its game) unchanged.
+    - Checks: pure-Dart merge of the bundled entry (5 serials: one decoder line, LLVM, RCB/WCB true;
+      BLES01884/BLUS30991/NPEB01099 keep the interpreter), profile database contract OK (2187), Dart parse
+      of both files. Not run here: `flutter test` (no Flutter in this container); it runs at the next IPA
+      delivery. Pre-existing, unrelated: `import_memory_candidate_scope_test` fails on
+      tools/neoplay-receiver/l10n.mjs, identically at HEAD.
+    - Next: ships in IPA 669 (on hold). Device check: CONFIG_LAYERS ppu_decoder=Recompiler (LLVM),
+      JITPROF_BOOT PPU compile on the first boot, then whether the title screen and a new game load.
 - **New objective (maintainer 5 Nov): native Metal renderer.** The whole RSX engine goes through
   Metal (rendering, present, shaders, texture conversion, queries, overlays), with no Vulkan or
   MoltenVK at the end; PPU/SPU recompilation stays on the CPU. Dedicated branch
