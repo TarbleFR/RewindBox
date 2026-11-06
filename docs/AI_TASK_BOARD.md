@@ -739,7 +739,25 @@ retains all omitted hashes, measurements, hypotheses and previous attempts.
       - R4: f32_to_d24 truncates (round trip may give d-1).
       - All five are sent to the M3 agent together with M3.2 (blit engine, scaled copies, scaled/tiled readback).
       - Typeless GPU shuffles and MSAA are left to M4.
-    - **M4** (exact ZCULL/queries, conditional render, MSAA, compute conversions, overlays): in progress.
+    - **M4**, written in `ee510a0`:
+      - exact ZCULL/occlusion queries on accumulating visibility results, read after the shared event passes;
+      - conditional render on the exact result;
+      - MSAA with resolve/unresolve passes;
+      - 23 VKCompute kernels in MSL;
+      - native overlays on the VK overlay shaders.
+      - M3.1 is merged into M4 (`f04e906`, wired `3a3d35e`): typeless copies run on the kernels, MSAA goes through
+        the texture cache.
+      - WIP `e5c7f082` (39 files, +8466/-228): iOS CI run `42242446441` is green. All units and MTLAPIApple.mm
+        compile; the host tests pass under UBSan (M4 931267 checks, formats 203); m4_compute/m4_resolve compile
+        for iOS.
+    - **M3 review fixes and M3.2 done** in the M3 tree (`49baf0f`..`9806aba`, 224 host checks):
+      - D1: transfer_scope orders overlapping copies;
+      - R1: no off-RSX wait on RSX progress (faults routed);
+      - R2: do_update gated;
+      - R3: atomic counters;
+      - R4: D24 round to nearest, exhaustive test;
+      - M3.2: blit engine, scaled copies, scaled and tiled readbacks.
+      - Being merged into the M4 tree, with one typeless path (VK selection: kernels for shuffles and packing).
   - **Core 902 = Core 668 + Metal M1 (901) + M2, on Claude for the Metal 4 test IPA** (maintainer, 6 Nov: "Construit
     l'ipa avec Metal 4 !"). The delivery guards are Claude-only, so the Metal branch was merged (`535705bc`).
     - Spec `9300aa20`:
